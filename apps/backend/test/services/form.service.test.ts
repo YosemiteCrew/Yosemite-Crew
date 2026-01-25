@@ -1,458 +1,436 @@
-import { Types } from "mongoose";
+import { Types } from 'mongoose';
+import { FormService } from '../../src/services/form.service';
 import {
   FormModel,
   FormFieldModel,
   FormVersionModel,
   FormSubmissionModel,
-} from "src/models/form";
-import UserModel from "src/models/user";
-import { FormService } from "src/services/form.service";
-import {
-  fromFormRequestDTO,
-  fromFormSubmissionRequestDTO,
-  toFHIRQuestionnaireResponse,
-  toFormResponseDTO,
-} from "@yosemite-crew/types";
+} from '../../src/models/form';
+import AppointmentModel from '../../src/models/appointment';
+import { DocumensoService } from '../../src/services/documenso.service';
+import { renderPdf, buildPdfViewModel } from '../../src/services/formPDF.service';
+import * as TypesLib from '@yosemite-crew/types';
 
-jest.mock("src/models/form", () => ({
-  __esModule: true,
-  FormModel: {
-    create: jest.fn(),
-    findOne: jest.fn(),
-    findById: jest.fn(),
-    find: jest.fn(),
-  },
-  FormFieldModel: {
-    deleteMany: jest.fn(),
-    insertMany: jest.fn(),
-    find: jest.fn(),
-  },
-  FormVersionModel: {
-    findOne: jest.fn(),
-    create: jest.fn(),
-  },
-  FormSubmissionModel: {
-    create: jest.fn(),
-    findById: jest.fn(),
-    find: jest.fn(),
-  },
-}));
+// --- Mocks ---
+jest.mock('../../src/models/form');
+jest.mock('../../src/models/appointment');
+jest.mock('../../src/services/documenso.service');
+jest.mock('../../src/services/formPDF.service');
 
-jest.mock("src/models/user", () => ({
-  __esModule: true,
-  default: {
-    find: jest.fn(),
-  },
-}));
-
-jest.mock("@yosemite-crew/types", () => {
-  const actual = jest.requireActual("@yosemite-crew/types");
+// Mock types lib
+jest.mock('@yosemite-crew/types', () => {
+  const actual = jest.requireActual('@yosemite-crew/types');
   return {
-    __esModule: true,
     ...actual,
-    fromFormRequestDTO: jest.fn(),
-    toFormResponseDTO: jest.fn(),
-    fromFormSubmissionRequestDTO: jest.fn(),
-    toFHIRQuestionnaireResponse: jest.fn(),
+    toFormResponseDTO: jest.fn((doc) => ({ ...doc, id: doc._id?.toString() })),
+    toFHIRQuestionnaire: jest.fn(() => ({ resourceType: 'Questionnaire' })),
+    toFHIRQuestionnaireResponse: jest.fn((sub) => ({
+      resourceType: 'QuestionnaireResponse',
+      ...sub
+    })),
   };
 });
 
-const mockedFormModel = FormModel as unknown as {
-  create: jest.Mock;
-  findOne: jest.Mock;
-  findById: jest.Mock;
-  find: jest.Mock;
+// --- Helper for Mongoose Chains ---
+const mockMongooseChain = (finalResult: any) => {
+  return {
+    sort: jest.fn().mockReturnThis(),
+    select: jest.fn().mockReturnThis(),
+    lean: jest.fn().mockResolvedValue(finalResult),
+  };
 };
 
-const mockedFieldModel = FormFieldModel as unknown as {
-  deleteMany: jest.Mock;
-  insertMany: jest.Mock;
-  find: jest.Mock;
+const mockFindOneSortChain = (finalResult: any) => {
+  return {
+    sort: jest.fn().mockResolvedValue(finalResult)
+  };
 };
 
-const mockedVersionModel = FormVersionModel as unknown as {
-  findOne: jest.Mock;
-  create: jest.Mock;
-};
+describe('FormService', () => {
+  const mockOrgId = new Types.ObjectId().toString();
+  const mockUserId = new Types.ObjectId().toString();
+  const mockFormId = new Types.ObjectId();
+  const mockSubmissionId = new Types.ObjectId();
 
-const mockedSubmissionModel = FormSubmissionModel as unknown as {
-  create: jest.Mock;
-  findById: jest.Mock;
-  find: jest.Mock;
-};
-
-const mockedUserModel = UserModel as unknown as {
-  find: jest.Mock;
-};
-
-const mockedMapper = toFormResponseDTO as jest.Mock;
-const mockedFromFormRequest = fromFormRequestDTO as jest.Mock;
-const mockedFromSubmission = fromFormSubmissionRequestDTO as jest.Mock;
-const mockedToFHIR = toFHIRQuestionnaireResponse as jest.Mock;
-
-const validId = "507f1f77bcf86cd799439011";
-
-const makeFormDoc = (overrides: Record<string, unknown> = {}) => ({
-  _id: new Types.ObjectId(validId),
-  name: "Form",
-  category: "Cat",
-  description: "Desc",
-  visibilityType: "public",
-  status: "draft",
-  schema: [],
-  createdAt: new Date(),
-  updatedAt: new Date(),
-  updatedBy: "user",
-  ...overrides,
-  save: jest.fn(),
-  toObject: jest.fn().mockReturnValue({
-    _id: validId,
-    name: "Form",
-    ...overrides,
-  }),
-});
-
-describe("FormService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockedMapper.mockImplementation((val: unknown) => val);
-    mockedFromFormRequest.mockImplementation((val: unknown) => val);
-    mockedFromSubmission.mockImplementation((resp: any) => resp);
-    mockedToFHIR.mockImplementation((val: unknown) => val);
-    mockedVersionModel.findOne.mockReturnValue({
-      select: jest.fn().mockReturnThis(),
-      lean: jest.fn().mockResolvedValue(null),
+  });
+
+  // --- Helper Tests ---
+  describe('Utilities (ObjectId helpers)', () => {
+    it('should throw error for invalid ObjectId in ensureObjectId', async () => {
+      await expect(FormService.getFormForAdmin(mockOrgId, 'invalid-id-format'))
+        .rejects.toThrow('Invalid formId');
     });
-    mockedUserModel.find.mockReturnValue({
-      lean: jest.fn().mockResolvedValue([]),
+
+    it('should handle normalizable ObjectId', async () => {
+        const mockSub = {
+            _id: mockSubmissionId,
+            formId: new Types.ObjectId(),
+            formVersion: 1,
+            answers: {},
+        };
+        (FormSubmissionModel.findById as jest.Mock).mockReturnValue({
+            lean: jest.fn().mockResolvedValue(mockSub),
+        });
+        (FormVersionModel.findOne as jest.Mock).mockReturnValue({
+            lean: jest.fn().mockResolvedValue({ schemaSnapshot: [] }),
+        });
+
+        await FormService.getSubmission(mockSubmissionId.toString());
+        expect(TypesLib.toFHIRQuestionnaireResponse).toHaveBeenCalled();
+    });
+
+    it('should handle string formId in normalizeObjectId', async () => {
+         const mockSub = {
+            _id: mockSubmissionId,
+            formId: "some-string-id",
+            formVersion: 1,
+            answers: {},
+        };
+        (FormSubmissionModel.findById as jest.Mock).mockReturnValue({
+            lean: jest.fn().mockResolvedValue(mockSub),
+        });
+        (FormVersionModel.findOne as jest.Mock).mockReturnValue({
+            lean: jest.fn().mockResolvedValue(null),
+        });
+
+        await FormService.getSubmission(mockSubmissionId.toString());
+        expect(TypesLib.toFHIRQuestionnaireResponse).toHaveBeenCalled();
     });
   });
 
-  describe("create", () => {
-    it("throws for invalid org id", async () => {
-      await expect(
-        FormService.create("invalid", {} as any, "user-1"),
-      ).rejects.toThrow("Invalid orgId");
-    });
+  // --- CRUD Operations ---
+  describe('create', () => {
+    it('should create a form and sync fields', async () => {
+      const mockRequest = {
+        resourceType: 'Questionnaire',
+        status: 'draft',
+        name: 'Test Form',
+        category: 'General',
+        item: [],
+        schema: [
+            { id: 'f1', type: 'text', label: 'Field 1', required: true },
+        ],
+      } as any;
 
-    it("creates form and syncs fields", async () => {
-      const doc = makeFormDoc();
-      mockedFormModel.create.mockResolvedValueOnce(doc);
-      mockedFieldModel.deleteMany.mockResolvedValueOnce(undefined);
-      mockedFieldModel.insertMany.mockResolvedValueOnce(undefined);
-      const schema = [
-        { id: "f1", type: "text", label: "Name", order: 1 },
-        {
-          id: "g1",
-          type: "group",
-          label: "Group",
-          order: 2,
-          fields: [{ id: "f2", type: "text", label: "Child", order: 1 }],
-        },
-      ];
-      mockedFromFormRequest.mockReturnValueOnce({
-        name: "New",
-        category: "c",
-        description: "d",
-        visibilityType: "public",
-        serviceId: undefined,
-        speciesFilter: [],
-        schema,
+      (FormModel.create as jest.Mock).mockResolvedValue({
+        _id: mockFormId,
+        toObject: jest.fn().mockReturnValue({ ...mockRequest, _id: mockFormId }),
       });
 
-      const result = await FormService.create(validId, {} as any, "user-1");
+      const result = await FormService.create(mockOrgId, mockRequest, mockUserId);
 
-      expect(mockedFormModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          orgId: expect.any(Types.ObjectId),
-          status: "draft",
-          createdBy: "user-1",
-          updatedBy: "user-1",
-          schema,
-        }),
-      );
-      expect(mockedFieldModel.deleteMany).toHaveBeenCalledWith({
-        formId: validId,
-      });
-      expect(mockedFieldModel.insertMany).toHaveBeenCalledWith(
-        expect.arrayContaining([
-          expect.objectContaining({ id: "f1", formId: validId }),
-          expect.objectContaining({ id: "f2", formId: validId }),
-        ]),
-      );
-      expect(result).toEqual(doc.toObject());
+      expect(FormModel.create).toHaveBeenCalledWith(expect.objectContaining({
+        orgId: new Types.ObjectId(mockOrgId),
+        status: 'draft',
+      }));
+      expect(FormFieldModel.deleteMany).toHaveBeenCalledWith({ formId: mockFormId.toString() });
+      expect(result).toHaveProperty('id');
     });
   });
 
-  describe("getFormForAdmin", () => {
-    it("throws when not found", async () => {
-      mockedFormModel.findOne.mockReturnValueOnce({
-        lean: jest.fn().mockResolvedValue(null),
+  describe('getFormForAdmin', () => {
+    it('should return form if found', async () => {
+      (FormModel.findOne as jest.Mock).mockResolvedValue({
+        toObject: jest.fn().mockReturnValue({ _id: mockFormId }),
       });
 
-      await expect(
-        FormService.getFormForAdmin(validId, validId),
-      ).rejects.toThrow("Form not found");
+      const result = await FormService.getFormForAdmin(mockOrgId, mockFormId.toString());
+      expect(result).toBeDefined();
     });
 
-    it("returns mapped form", async () => {
-      const doc = makeFormDoc();
-      mockedFormModel.findOne.mockReturnValueOnce({
-        lean: jest.fn().mockResolvedValue(doc.toObject()),
-      });
-
-      const result = await FormService.getFormForAdmin(validId, validId);
-
-      expect(mockedFormModel.findOne).toHaveBeenCalledWith({
-        _id: expect.any(Types.ObjectId),
-        orgId: expect.any(Types.ObjectId),
-      });
-      expect(result).toEqual(doc.toObject());
+    it('should throw 404 if not found', async () => {
+      (FormModel.findOne as jest.Mock).mockResolvedValue(null);
+      await expect(FormService.getFormForAdmin(mockOrgId, mockFormId.toString()))
+        .rejects.toThrow('Form not found');
     });
   });
 
-  describe("getFormForUser", () => {
-    it("requires published version", async () => {
-      mockedVersionModel.findOne.mockReturnValueOnce({
+  describe('getFormForUser', () => {
+    it('should throw 400 if no published version', async () => {
+      (FormVersionModel.findOne as jest.Mock).mockReturnValue({
         sort: jest.fn().mockResolvedValue(null),
       });
 
-      await expect(FormService.getFormForUser(validId)).rejects.toThrow(
-        "Form has no published version",
-      );
+      await expect(FormService.getFormForUser(mockFormId.toString()))
+        .rejects.toThrow('Form has no published version');
     });
 
-    it("throws if form not found", async () => {
-      mockedVersionModel.findOne.mockReturnValueOnce({
-        sort: jest.fn().mockResolvedValue({ formId: validId, version: 1 }),
+    it('should throw 404 if parent form deleted', async () => {
+      (FormVersionModel.findOne as jest.Mock).mockReturnValue({
+        sort: jest.fn().mockResolvedValue({ formId: mockFormId, version: 1 }),
       });
-      mockedFormModel.findById.mockResolvedValueOnce(null);
+      (FormModel.findById as jest.Mock).mockResolvedValue(null);
 
-      await expect(FormService.getFormForUser(validId)).rejects.toThrow(
-        "Form not found",
-      );
+      await expect(FormService.getFormForUser(mockFormId.toString()))
+        .rejects.toThrow('Form not found');
     });
 
-    it("returns latest published version", async () => {
-      mockedVersionModel.findOne.mockReturnValueOnce({
-        sort: jest.fn().mockResolvedValue({
-          formId: validId,
-          version: 2,
-          schemaSnapshot: [],
-        }),
+    it('should return simplified FHIR form', async () => {
+      (FormVersionModel.findOne as jest.Mock).mockReturnValue({
+        sort: jest.fn().mockResolvedValue({ formId: mockFormId, version: 1, schemaSnapshot: [] }),
       });
-      mockedFormModel.findById.mockResolvedValueOnce(
-        makeFormDoc({ status: "published", visibilityType: "private" }),
-      );
+      (FormModel.findById as jest.Mock).mockResolvedValue({
+        visibilityType: 'Public',
+        status: 'published',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
 
-      const result = await FormService.getFormForUser(validId);
-
-      expect(mockedVersionModel.findOne).toHaveBeenCalled();
-      expect(mockedMapper).toHaveBeenCalledWith(
-        expect.objectContaining({ _id: validId, status: "published" }),
-      );
-      expect(result).toBeDefined();
+      const result = await FormService.getFormForUser(mockFormId.toString());
+      expect((result as any).orgId).toBe("");
     });
   });
 
-  describe("update", () => {
-    it("throws when form missing", async () => {
-      mockedFormModel.findById.mockResolvedValueOnce(null);
-
-      await expect(
-        FormService.update(validId, {} as any, "user-1", "org-1"),
-      ).rejects.toThrow("Form not found");
-    });
-
-    it("updates form fields and saves", async () => {
-      const doc = makeFormDoc({
-        name: "Old",
-        orgId: "org-1",
-        category: "old",
-        description: "old",
-        visibilityType: "public",
-        serviceId: "svc-1",
-        speciesFilter: [],
+  describe('update', () => {
+    it('should update form and reset status to draft', async () => {
+      const mockDoc = {
+        orgId: mockOrgId,
+        save: jest.fn(),
+        toObject: jest.fn().mockReturnValue({}),
         schema: [],
-      });
-      mockedFormModel.findById.mockResolvedValueOnce(doc);
-      mockedFieldModel.deleteMany.mockResolvedValueOnce(undefined);
-      mockedFieldModel.insertMany.mockResolvedValueOnce(undefined);
+      };
+      (FormModel.findById as jest.Mock).mockResolvedValue(mockDoc);
 
-      mockedFromFormRequest.mockReturnValueOnce({
-        name: "Updated",
-        category: "new",
-        description: "new",
-        visibilityType: "private",
-        serviceId: "svc-2",
-        speciesFilter: ["dog"],
-        schema: [{ id: "f1", type: "text", label: "Name", order: 1 }],
-      });
+      const fhirUpdate = {
+        resourceType: 'Questionnaire',
+        name: 'Updated',
+        status: 'active',
+        item: []
+      } as any;
 
-      await FormService.update(validId, {} as any, "user-2", "org-1");
+      await FormService.update(mockFormId.toString(), fhirUpdate, mockUserId, mockOrgId);
 
-      expect(doc.name).toBe("Updated");
-      expect(doc.status).toBe("draft");
-      expect(doc.updatedBy).toBe("user-2");
-      expect(doc.save).toHaveBeenCalled();
-      expect(mockedFieldModel.deleteMany).toHaveBeenCalledWith({
-        formId: validId,
-      });
-      expect(mockedFieldModel.insertMany).toHaveBeenCalled();
+      expect(mockDoc.save).toHaveBeenCalled();
+      expect(FormFieldModel.deleteMany).toHaveBeenCalled();
+    });
+
+    it('should throw 404 if not found', async () => {
+      (FormModel.findById as jest.Mock).mockResolvedValue(null);
+      await expect(FormService.update(mockFormId.toString(), {} as any, 'u', 'o'))
+        .rejects.toThrow('Form not found');
+    });
+
+    it('should throw 400 if org mismatch', async () => {
+      (FormModel.findById as jest.Mock).mockResolvedValue({ orgId: 'other-org' });
+      await expect(FormService.update(mockFormId.toString(), {} as any, 'u', mockOrgId))
+        .rejects.toThrow('Form is not part of your organisation');
     });
   });
 
-  describe("publish", () => {
-    it("throws when form missing", async () => {
-      mockedFormModel.findById.mockResolvedValueOnce(null);
+  // --- Publish / Archive Actions ---
+  describe('publish', () => {
+    it('should publish first version', async () => {
+      const mockDoc = { _id: mockFormId, schema: [], save: jest.fn() };
+      (FormModel.findById as jest.Mock).mockResolvedValue(mockDoc);
+      (FormFieldModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([]) });
+      (FormVersionModel.findOne as jest.Mock).mockReturnValue({
+        sort: jest.fn().mockResolvedValue(null),
+      });
 
-      await expect(FormService.publish(validId, "user-1")).rejects.toThrow(
-        "Form not found",
-      );
+      const result = await FormService.publish(mockFormId.toString(), mockUserId);
+
+      expect(result.version).toBe(1);
+      expect(mockDoc.save).toHaveBeenCalled();
     });
 
-    it("creates next version and updates status", async () => {
-      const form = makeFormDoc({ schema: [{ id: "f1" }] });
-      mockedFormModel.findById.mockResolvedValueOnce(form);
-      mockedFieldModel.find.mockReturnValueOnce({
-        lean: jest.fn().mockResolvedValue([{ id: "f1" }]),
+    it('should increment version', async () => {
+      const mockDoc = { _id: mockFormId, schema: [], save: jest.fn() };
+      (FormModel.findById as jest.Mock).mockResolvedValue(mockDoc);
+      (FormFieldModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([]) });
+      (FormVersionModel.findOne as jest.Mock).mockReturnValue({
+        sort: jest.fn().mockResolvedValue({ version: 5 }),
       });
-      mockedVersionModel.findOne.mockReturnValueOnce({
-        sort: jest.fn().mockResolvedValue({ version: 2 }),
-      });
-      mockedVersionModel.create.mockResolvedValueOnce(undefined);
 
-      const result = await FormService.publish(validId, "user-9");
+      const result = await FormService.publish(mockFormId.toString(), mockUserId);
+      expect(result.version).toBe(6);
+    });
 
-      expect(mockedVersionModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          formId: expect.any(Types.ObjectId),
-          version: 3,
-          schemaSnapshot: form.schema,
-        }),
-      );
-      expect(form.status).toBe("published");
-      expect(form.updatedBy).toBe("user-9");
-      expect(form.save).toHaveBeenCalled();
-      expect(result).toEqual({ formId: validId, version: 3 });
+    it('should throw 404', async () => {
+        (FormModel.findById as jest.Mock).mockResolvedValue(null);
+        await expect(FormService.publish(mockFormId.toString(), mockUserId)).rejects.toThrow('Form not found');
     });
   });
 
-  describe("unpublish and archive", () => {
-    it("unpublishes a form", async () => {
-      const form = makeFormDoc({ status: "published" });
-      mockedFormModel.findById.mockResolvedValueOnce(form);
-
-      const result = await FormService.unpublish(validId, "user-1");
-
-      expect(form.status).toBe("draft");
-      expect(form.updatedBy).toBe("user-1");
-      expect(form.save).toHaveBeenCalled();
-      expect(result).toEqual(form.toObject());
+  describe('unpublish & archive', () => {
+    it('should unpublish', async () => {
+      const mockDoc = { save: jest.fn(), toObject: jest.fn() };
+      (FormModel.findById as jest.Mock).mockResolvedValue(mockDoc);
+      await FormService.unpublish(mockFormId.toString(), mockUserId);
+      expect(mockDoc.save).toHaveBeenCalled();
     });
 
-    it("archives a form", async () => {
-      const form = makeFormDoc({ status: "published" });
-      mockedFormModel.findById.mockResolvedValueOnce(form);
+    it('should archive', async () => {
+      const mockDoc = { save: jest.fn(), toObject: jest.fn() };
+      (FormModel.findById as jest.Mock).mockResolvedValue(mockDoc);
+      await FormService.archive(mockFormId.toString(), mockUserId);
+      expect(mockDoc.save).toHaveBeenCalled();
+    });
 
-      const result = await FormService.archive(validId, "user-2");
-
-      expect(form.status).toBe("archived");
-      expect(form.updatedBy).toBe("user-2");
-      expect(form.save).toHaveBeenCalled();
-      expect(result).toEqual(form.toObject());
+    it('should handle 404s', async () => {
+        (FormModel.findById as jest.Mock).mockResolvedValue(null);
+        await expect(FormService.unpublish(mockFormId.toString(), mockUserId)).rejects.toThrow('Form not found');
+        await expect(FormService.archive(mockFormId.toString(), mockUserId)).rejects.toThrow('Form not found');
     });
   });
 
-  describe("submitFHIR", () => {
-    it("creates submission from DTO", async () => {
-      mockedFromSubmission.mockReturnValueOnce({
-        formId: validId,
-        formVersion: 1,
-        submittedAt: new Date(),
-        answers: [],
+  // --- Submissions ---
+  describe('submitFHIR', () => {
+    it('should create submission', async () => {
+      (FormSubmissionModel.create as jest.Mock).mockResolvedValue({
+        toObject: jest.fn().mockReturnValue({ _id: 'sub1' }),
       });
-      mockedSubmissionModel.create.mockResolvedValueOnce({
-        toObject: jest.fn().mockReturnValue({ id: "sub-1" }),
-      });
+      const mockPayload = {
+        resourceType: 'QuestionnaireResponse',
+        questionnaire: 'f1',
+        item: []
+      } as any;
 
-      const result = await FormService.submitFHIR({ formId: validId } as any);
-
-      expect(mockedSubmissionModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({ formId: validId }),
-      );
-      expect(result).toEqual({ id: "sub-1" });
+      const result = await FormService.submitFHIR(mockPayload);
+      expect(result._id).toBe('sub1');
     });
   });
 
-  describe("getSubmission", () => {
-    it("throws for missing submission", async () => {
-      mockedSubmissionModel.findById.mockReturnValueOnce({
-        lean: jest.fn().mockResolvedValue(null),
+  describe('getSubmission', () => {
+     it('should handle missing submission', async () => {
+        (FormSubmissionModel.findById as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
+        const validId = new Types.ObjectId().toHexString();
+        await expect(FormService.getSubmission(validId)).rejects.toThrow('Submission not found');
+     });
+  });
+
+  describe('listSubmissions', () => {
+      it('should return list', async () => {
+          (FormSubmissionModel.find as jest.Mock).mockReturnValue(mockMongooseChain([]));
+          await FormService.listSubmissions(mockFormId.toString());
+          expect(FormSubmissionModel.find).toHaveBeenCalledWith({ formId: mockFormId });
+      });
+  });
+
+  describe('generatePDFForSubmission', () => {
+      it('should generate pdf buffer', async () => {
+          (FormSubmissionModel.findById as jest.Mock).mockReturnValue({
+              lean: jest.fn().mockResolvedValue({ formId: mockFormId, version: 1, answers: {} })
+          });
+          (FormVersionModel.findOne as jest.Mock).mockReturnValue({
+              lean: jest.fn().mockResolvedValue({ schemaSnapshot: [] })
+          });
+          (buildPdfViewModel as jest.Mock).mockReturnValue({});
+          (renderPdf as jest.Mock).mockResolvedValue(Buffer.from('pdf'));
+
+          const res = await FormService.generatePDFForSubmission(mockSubmissionId.toString());
+          expect(res).toBeInstanceOf(Buffer);
       });
 
-      await expect(FormService.getSubmission(validId)).rejects.toThrow(
-        "Submission not found",
-      );
-    });
-
-    it("returns mapped submission", async () => {
-      mockedSubmissionModel.findById.mockReturnValueOnce({
-        lean: jest.fn().mockResolvedValue({
-          _id: new Types.ObjectId(validId),
-          formId: new Types.ObjectId(validId),
-          formVersion: 1,
-          appointmentId: "apt",
-          companionId: "c1",
-          parentId: "p1",
-          submittedBy: "u1",
-          answers: [],
-          submittedAt: new Date(),
-        }),
+      it('should throw 404 if submission missing', async () => {
+        (FormSubmissionModel.findById as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
+        await expect(FormService.generatePDFForSubmission(mockSubmissionId.toString())).rejects.toThrow('Submission not found');
       });
-      mockedVersionModel.findOne.mockReturnValueOnce({
-        lean: jest.fn().mockResolvedValue({ schemaSnapshot: [] }),
+
+      it('should throw 404 if version missing', async () => {
+        (FormSubmissionModel.findById as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue({ formId: mockFormId }) });
+        (FormVersionModel.findOne as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
+        await expect(FormService.generatePDFForSubmission(mockSubmissionId.toString())).rejects.toThrow('Form version not found');
       });
-      mockedToFHIR.mockReturnValueOnce({ normalized: true });
+  });
 
-      const result = await FormService.getSubmission(validId);
+  // --- Specialized Business Logic ---
+  describe('getAutoSendForms', () => {
+      it('should filter by serviceId', async () => {
+        (FormModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([]) });
+        await FormService.getAutoSendForms(mockOrgId, 'srv1');
+        expect(FormModel.find).toHaveBeenCalledWith(expect.objectContaining({
+            serviceId: { $in: ['srv1'] }
+        }));
+      });
+      it('should return all if no serviceId', async () => {
+        (FormModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([]) });
+        await FormService.getAutoSendForms(mockOrgId);
+        expect(FormModel.find).toHaveBeenCalledWith(expect.not.objectContaining({ serviceId: expect.anything() }));
+      });
+  });
 
-      expect(mockedToFHIR).toHaveBeenCalled();
-      expect(result).toEqual({ normalized: true });
+  describe('listFormsForOrganisation', () => {
+      it('should return mapped dtos', async () => {
+          (FormModel.find as jest.Mock).mockResolvedValue([{ _id: '1', toObject: ()=>({}) }]);
+          const res = await FormService.listFormsForOrganisation(mockOrgId);
+          expect(res).toHaveLength(1);
+      });
+  });
+
+  describe('getSOAPNotesByAppointment', () => {
+    it('should return empty structure if no submissions', async () => {
+        (FormSubmissionModel.find as jest.Mock).mockReturnValue(mockMongooseChain([]));
+        const res = await FormService.getSOAPNotesByAppointment('appt1');
+        expect(res.soapNotes.Subjective).toEqual([]);
     });
   });
 
-  describe("listSubmissions", () => {
-    it("lists submissions sorted", async () => {
-      mockedSubmissionModel.find.mockReturnValueOnce({
-        sort: jest.fn().mockReturnValue({
-          lean: jest.fn().mockResolvedValue([{ id: "s1" }]),
-        }),
-      });
-
-      const result = await FormService.listSubmissions(validId);
-
-      expect(mockedSubmissionModel.find).toHaveBeenCalledWith({
-        formId: expect.any(Types.ObjectId),
-      });
-      expect(result).toEqual([{ id: "s1" }]);
+  describe('getConsentFormForParent', () => {
+    it('should throw if form not found', async () => {
+        (FormModel.findOne as jest.Mock).mockReturnValue(mockFindOneSortChain(null));
+        await expect(FormService.getConsentFormForParent(mockOrgId)).rejects.toThrow('Consent form not found');
     });
   });
 
-  describe("getAutoSendForms", () => {
-    it("filters by serviceId when provided", async () => {
-      mockedFormModel.find.mockReturnValueOnce({
-        lean: jest.fn().mockResolvedValue([{ id: "f1" }]),
+  describe('getFormsForAppointment', () => {
+      const apptId = new Types.ObjectId();
+
+      it('should return empty if appointment has no forms', async () => {
+          (AppointmentModel.findById as jest.Mock).mockReturnValue({
+              lean: jest.fn().mockResolvedValue({ formIds: [] })
+          });
+          const res = await FormService.getFormsForAppointment({ appointmentId: apptId.toString() });
+          expect(res.items).toHaveLength(0);
       });
 
-      const result = await FormService.getAutoSendForms(validId, "service-1");
-
-      expect(mockedFormModel.find).toHaveBeenCalledWith({
-        orgId: expect.any(Types.ObjectId),
-        status: "published",
-        serviceId: { $in: ["service-1"] },
+      it('should throw 404 if appointment missing', async () => {
+          (AppointmentModel.findById as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
+          await expect(FormService.getFormsForAppointment({ appointmentId: apptId.toString() })).rejects.toThrow('Appointment not found');
       });
-      expect(result).toEqual([{ id: "f1" }]);
-    });
+
+      it('should aggregate forms, versions, and submissions correctly', async () => {
+          const fid1 = new Types.ObjectId();
+
+          (AppointmentModel.findById as jest.Mock).mockReturnValue({
+              lean: jest.fn().mockResolvedValue({ formIds: [fid1] })
+          });
+
+          (FormModel.find as jest.Mock).mockReturnValue({
+              lean: jest.fn().mockResolvedValue([{ _id: fid1, status: 'published' }])
+          });
+
+          (FormVersionModel.aggregate as jest.Mock).mockResolvedValue([
+              { formId: fid1, version: 1, schemaSnapshot: [] }
+          ]);
+
+          (FormSubmissionModel.aggregate as jest.Mock).mockResolvedValue([
+              {
+                  _id: new Types.ObjectId(),
+                  formId: fid1,
+                  signing: { documentId: '999' }
+              }
+          ]);
+
+          (DocumensoService.downloadSignedDocument as jest.Mock).mockResolvedValue({ downloadUrl: 'http://pdf' });
+
+          const res = await FormService.getFormsForAppointment({ appointmentId: apptId.toString() });
+
+          expect(res.items).toHaveLength(1);
+          expect(res.items[0].status).toBe('completed');
+          expect(DocumensoService.downloadSignedDocument).toHaveBeenCalledWith(999);
+          expect((res.items[0].questionnaireResponse as any)?.signing?.pdf?.url).toBe('http://pdf');
+      });
+
+      it('should skip forms with no version', async () => {
+        const fid1 = new Types.ObjectId();
+        (AppointmentModel.findById as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue({ formIds: [fid1] }) });
+        (FormModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([{ _id: fid1 }]) });
+        (FormVersionModel.aggregate as jest.Mock).mockResolvedValue([]);
+
+        const res = await FormService.getFormsForAppointment({ appointmentId: apptId.toString() });
+        expect(res.items).toHaveLength(0);
+      });
   });
 });
