@@ -2,13 +2,11 @@ import EditableAccordion from "@/app/components/Accordion/EditableAccordion";
 import React, { useMemo } from "react";
 import { FormDataProps } from "..";
 import Image from "next/image";
-import { Primary } from "@/app/components/Buttons";
 import { Appointment } from "@yosemite-crew/types";
 import { AppointmentStatusOptions } from "@/app/types/appointments";
 import { PermissionGate } from "@/app/components/PermissionGate";
 import { PERMISSIONS } from "@/app/utils/permissions";
 import Fallback from "@/app/components/Fallback";
-import { usePermissions } from "@/app/hooks/usePermissions";
 
 const AppointmentFields = [
   { label: "Service", key: "service", type: "text" },
@@ -33,11 +31,8 @@ type SummaryProps = {
 const Summary = ({
   activeAppointment,
   formData,
-  setFormData,
+  setFormData
 }: SummaryProps) => {
-  const { can } = usePermissions();
-  const canEdit = can(PERMISSIONS.BILLING_EDIT_ANY);
-
   const AppointmentInfoData = useMemo(
     () => ({
       concern: activeAppointment.concern ?? "",
@@ -80,7 +75,15 @@ const Summary = ({
                 SubTotal:{" "}
               </div>
               <div className="text-body-4 text-text-primary text-right">
-                ${formData.subTotal}
+                ${formData.subTotal || "0"}
+              </div>
+            </div>
+            <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
+              <div className="text-body-4-emphasis text-text-tertiary">
+                Discount:{" "}
+              </div>
+              <div className="text-body-4 text-text-primary text-right">
+                ${formData.discount || "0"}
               </div>
             </div>
             <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
@@ -88,7 +91,7 @@ const Summary = ({
                 Tax:{" "}
               </div>
               <div className="text-body-4 text-text-primary text-right">
-                ${formData.tax || "0.00"}
+                ${formData.tax || "0"}
               </div>
             </div>
             <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
@@ -96,7 +99,7 @@ const Summary = ({
                 Estimatted total:{" "}
               </div>
               <div className="text-body-4 text-text-primary text-right">
-                ${formData.total || "0.00"}
+                ${formData.total || "0"}
               </div>
             </div>
             <div className="text-caption-1 text-text-secondary py-2">
@@ -106,7 +109,6 @@ const Summary = ({
             </div>
           </div>
         </div>
-        {canEdit && <Primary href="#" text="Pay" />}
       </div>
     </PermissionGate>
   );

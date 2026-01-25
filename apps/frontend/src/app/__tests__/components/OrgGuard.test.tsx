@@ -12,12 +12,16 @@ jest.mock("next/navigation", () => ({
 }));
 
 const useOrgStoreMock = jest.fn();
+const orgStoreGetStateMock = jest.fn();
 const useSpecialityStoreMock = jest.fn();
 const useAvailabilityStoreMock = jest.fn();
 const useUserProfileStoreMock = jest.fn();
 
 jest.mock("@/app/stores/orgStore", () => ({
-  useOrgStore: (selector: any) => useOrgStoreMock(selector),
+  useOrgStore: Object.assign(
+    (selector: any) => useOrgStoreMock(selector),
+    { getState: (...args: any[]) => orgStoreGetStateMock(...args) }
+  ),
 }));
 
 jest.mock("@/app/stores/specialityStore", () => ({
@@ -68,6 +72,10 @@ jest.mock("@/app/hooks/useBilling", () => ({
   useLoadSubscriptionCounterForPrimaryOrg: jest.fn(),
 }));
 
+jest.mock("@/app/hooks/useInvoices", () => ({
+  useLoadInvoicesForPrimaryOrg: jest.fn(),
+}));
+
 const computeOrgOnboardingStepMock = jest.fn();
 const computeTeamOnboardingStepMock = jest.fn();
 
@@ -109,7 +117,10 @@ describe("OrgGuard", () => {
       prefetch: jest.fn(),
     });
     (usePathname as jest.Mock).mockReturnValue(mockPathname);
-    useOrgStoreMock.mockImplementation((selector: any) => selector(baseOrgState));
+    useOrgStoreMock.mockImplementation((selector: any) =>
+      selector(baseOrgState)
+    );
+    orgStoreGetStateMock.mockReturnValue(baseOrgState);
     useSpecialityStoreMock.mockImplementation((selector: any) =>
       selector(baseSpecialityState)
     );

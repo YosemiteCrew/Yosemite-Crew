@@ -34,6 +34,11 @@ jest.mock("@/app/services/soapService", () => ({
   createSubmission: (...args: any[]) => createSubmissionMock(...args),
 }));
 
+jest.mock("@/app/services/invoiceService", () => ({
+  addLineItemsToAppointments: jest.fn(),
+  loadInvoicesForOrgPrimaryOrg: jest.fn(),
+}));
+
 jest.mock("@/app/stores/authStore", () => ({
   useAuthStore: {
     getState: () => ({ attributes: { sub: "user-1" } }),
@@ -67,7 +72,13 @@ describe("Plan prescription", () => {
     formsMock.mockReturnValue([
       { _id: "form-1", name: "Plan Form", schema: [] },
     ]);
-    createSubmissionMock.mockResolvedValue({ _id: "sub-1" });
+    createSubmissionMock.mockResolvedValue({
+      _id: "sub-1",
+      answers: {
+        medications_med_1_name: "Medication A",
+        medications_med_1_price: "12",
+      },
+    });
   });
 
   it("renders submissions and saves when form is selected", async () => {
@@ -83,7 +94,10 @@ describe("Plan prescription", () => {
     );
 
     fireEvent.click(screen.getByText("Search plan"));
-    expect(screen.getByTestId("form-renderer")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId("form-renderer")).toBeInTheDocument();
+      expect(screen.getByText("Save")).toBeInTheDocument();
+    });
 
     await act(async () => {
       fireEvent.click(screen.getByText("Save"));

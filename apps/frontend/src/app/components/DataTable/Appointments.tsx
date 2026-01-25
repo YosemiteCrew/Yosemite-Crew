@@ -16,6 +16,7 @@ import { toTitle } from "@/app/utils/validators";
 import { allowReschedule } from "@/app/utils/appointments";
 
 import "./DataTable.css";
+import { getSafeImageUrl, ImageType } from "@/app/utils/urls";
 
 type Column<T> = {
   label: string;
@@ -96,7 +97,7 @@ const Appointments = ({
       render: (item: Appointment) => (
         <div className="appointment-profile w-10 h-10">
           <Image
-            src={"https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"}
+            src={getSafeImageUrl("", item.companion.species as ImageType)}
             alt=""
             height={40}
             width={40}

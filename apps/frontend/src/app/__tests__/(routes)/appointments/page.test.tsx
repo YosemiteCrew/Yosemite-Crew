@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import Page from "@/app/(routes)/appointments/page";
+import Page from "@/app/(routes)/(app)/appointments/page";
 
 jest.mock("@/app/pages/Appointments", () => {
   return function MockProtectedAppointments() {

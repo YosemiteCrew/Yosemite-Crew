@@ -1,3 +1,4 @@
+"use client"
 import React from "react";
 import GuestHeader from "./GuestHeader/GuestHeader";
 import UserHeader from "./UserHeader/UserHeader";

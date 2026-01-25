@@ -1,5 +1,13 @@
 export const specialties = [
   {
+    name: "Observational tools",
+    services: [
+      "Feline Grimace Scale",
+      "Canine Acute Pain Scale",
+      "Equine Grimace Scale"
+    ],
+  },
+  {
     name: "General Practice",
     services: [
       "General Consult",
@@ -159,5 +167,5 @@ export const specialties = [
 ];
 
 export const specialtiesByKey = Object.fromEntries(
-  specialties.map((s) => [s.name, s])
+  specialties.map((s) => [s.name, s]),
 );

@@ -1,23 +1,23 @@
 import EditableAccordion from "@/app/components/Accordion/EditableAccordion";
-import { Primary, Secondary } from "@/app/components/Buttons";
+import { Secondary } from "@/app/components/Buttons";
 import Close from "@/app/components/Icons/Close";
 import Modal from "@/app/components/Modal";
+import { useAppointmentsForPrimaryOrg } from "@/app/hooks/useAppointments";
+import { formatDateLabel } from "@/app/utils/forms";
 import { Invoice } from "@yosemite-crew/types";
-import React from "react";
+import React, { useMemo } from "react";
 
 const CompanionFields = [
   { label: "Pet", key: "pet", type: "text" },
   { label: "Parent", key: "parent", type: "text" },
-  { label: "Appointment ID", key: "appointmentId", type: "text" },
-  { label: "service", key: "service", type: "text" },
+  { label: "Service", key: "service", type: "text" },
 ];
 const InvoiceFields = [
-  { label: "Sub-total", key: "subtotal", type: "text" },
+  { label: "Sub-total", key: "subTotal", type: "text" },
+  { label: "Discount", key: "discount", type: "text" },
   { label: "Tax", key: "tax", type: "text" },
   { label: "Total", key: "total", type: "text" },
   { label: "Date", key: "date", type: "text" },
-  { label: "Time", key: "time", type: "text" },
-  { label: "Payment link", key: "paymentLink", type: "text" },
 ];
 
 type InvoiceInfoProps = {
@@ -31,6 +31,43 @@ const InvoiceInfo = ({
   setShowModal,
   activeInvoice,
 }: InvoiceInfoProps) => {
+  const appointments = useAppointmentsForPrimaryOrg();
+
+  const handleGenerate = () => {};
+
+  const handleDownload = (link: string | undefined) => {
+    window.open(link, "_blank");
+  };
+
+  const appointmentInfoData = useMemo(() => {
+    const appointment = appointments.filter(
+      (a) => a.id === activeInvoice?.appointmentId,
+    );
+    if (appointment.length > 0) {
+      return {
+        pet: appointment[0].companion.name,
+        parent: appointment[0].companion.parent.name,
+        service: appointment[0].appointmentType?.name,
+      };
+    }
+    return {
+      pet: "-",
+      parent: "-",
+      service: "-",
+    };
+  }, [activeInvoice, appointments]);
+
+  const paymentInfoData = useMemo(
+    () => ({
+      subTotal: "$" + (activeInvoice?.subtotal ?? "0"),
+      discount: "$" + (activeInvoice?.discountTotal ?? "0"),
+      tax: "$" + (activeInvoice?.taxTotal ?? "0"),
+      total: "$" + (activeInvoice?.totalAmount ?? "0"),
+      date: formatDateLabel(activeInvoice?.createdAt),
+    }),
+    [activeInvoice],
+  );
+
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <div className="flex flex-col h-full gap-6">
@@ -49,23 +86,33 @@ const InvoiceInfo = ({
               key={"Appointments-key"}
               title={"Appointments details"}
               fields={CompanionFields}
-              data={activeInvoice?.metadata || []}
+              data={appointmentInfoData}
               defaultOpen={true}
+              showEditIcon={false}
             />
             <EditableAccordion
               key={"Payments-key"}
               title={"Payment details"}
               fields={InvoiceFields}
-              data={activeInvoice || []}
+              data={paymentInfoData}
               defaultOpen={true}
+              showEditIcon={false}
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Secondary href="#" text="Print" />
-            <Primary
-              href="#"
-              text="Mail Payment link"
-            />
+          <div className="flex flex-col gap-3 mt-2">
+            {activeInvoice?.stripeReceiptUrl ? (
+              <Secondary
+                text="Download"
+                href=""
+                onClick={() => handleDownload(activeInvoice.stripeReceiptUrl)}
+              />
+            ) : (
+              <Secondary
+                text="Generate link"
+                href="#"
+                onClick={handleGenerate}
+              />
+            )}
           </div>
         </div>
       </div>

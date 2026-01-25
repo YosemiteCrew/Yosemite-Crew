@@ -16,11 +16,18 @@ import Documents from "./Prescription/Documents";
 import Discharge from "./Prescription/Discharge";
 import Audit from "./Prescription/Audit";
 import Plan from "./Prescription/Plan";
-import { Appointment, FormSubmission, Service } from "@yosemite-crew/types";
+import {
+  Appointment,
+  FormSubmission,
+  InvoiceItem,
+  Service,
+} from "@yosemite-crew/types";
 import { fetchSubmissions } from "@/app/services/soapService";
 import Close from "@/app/components/Icons/Close";
 import { usePermissions } from "@/app/hooks/usePermissions";
 import { PERMISSIONS } from "@/app/utils/permissions";
+import ParentTask from "./Tasks/ParentTask";
+import { useServicesForPrimaryOrgSpecialities } from "@/app/hooks/useSpecialities";
 
 type AppoitmentInfoProps = {
   showModal: boolean;
@@ -41,6 +48,8 @@ export type FormDataProps = {
   total: string;
   subTotal: string;
   tax: string;
+  discount: string;
+  lineItems: InvoiceItem[];
 };
 
 export const createEmptyFormData = (): FormDataProps => ({
@@ -50,8 +59,10 @@ export const createEmptyFormData = (): FormDataProps => ({
   discharge: [],
   plan: [],
   total: "",
+  discount: "",
   subTotal: "",
   tax: "",
+  lineItems: [],
 });
 
 type LabelKey = (typeof labels)[number]["key"];
@@ -86,6 +97,7 @@ const labels = [
     labels: [
       { key: "parent-chat", name: "Companion parent chat" },
       { key: "task", name: "Task" },
+      { key: "parent-task", name: "Parent task" },
     ],
   },
   {
@@ -116,11 +128,26 @@ const COMPONENT_MAP: Record<LabelKey, Record<SubLabelKey, React.FC<any>>> = {
   tasks: {
     "parent-chat": Chat,
     task: Task,
+    "parent-task": ParentTask,
   },
   finance: {
     summary: Summary,
     "payment-details": Details,
   },
+};
+
+const toNumber = (v: unknown): number => {
+  if (typeof v === "number") return v;
+  if (typeof v === "string") {
+    const n = Number.parseFloat(v);
+    return Number.isFinite(n) ? n : 0;
+  }
+  if (v == null) return 0;
+  return 0;
+};
+
+const getTaxPercent = (activeAppointment: Appointment | null): number => {
+  return 0;
 };
 
 const AppoitmentInfo = ({
@@ -130,6 +157,7 @@ const AppoitmentInfo = ({
 }: AppoitmentInfoProps) => {
   const { can } = usePermissions();
   const canEdit = can(PERMISSIONS.PRESCRIPTION_EDIT_OWN);
+  const services = useServicesForPrimaryOrgSpecialities();
   const [activeLabel, setActiveLabel] = useState<LabelKey>(labels[0].key);
   const [activeSubLabel, setActiveSubLabel] = useState<SubLabelKey>(
     labels[0].labels[0].key,
@@ -149,6 +177,36 @@ const AppoitmentInfo = ({
   }, [activeLabel]);
 
   useEffect(() => {
+    const appointmentId = activeAppointment?.id;
+    if (!appointmentId) return;
+
+    setFormData((prev) => {
+      const itemsSubTotal = (prev.lineItems ?? []).reduce(
+        (sum, li) => sum + toNumber(li.total),
+        0,
+      );
+      const serviceId = activeAppointment?.appointmentType?.id;
+      const service = services.find((s) => s.id === serviceId);
+      const serviceCost = service ? toNumber(service.cost) : 0;
+      const subTotal = itemsSubTotal + serviceCost;
+      const taxPercent = getTaxPercent(activeAppointment);
+      const taxTotal = (subTotal * taxPercent) / 100;
+      const total = subTotal + taxTotal;
+      return {
+        ...prev,
+        subTotal: String(subTotal),
+        tax: String(taxTotal),
+        total: String(total),
+      };
+    });
+  }, [
+    activeAppointment?.id,
+    activeAppointment?.appointmentType?.id,
+    services,
+    formData.lineItems,
+  ]);
+
+  useEffect(() => {
     let cancelled = false;
     const run = async () => {
       const appointmentId = activeAppointment?.id;
@@ -158,6 +216,7 @@ const AppoitmentInfo = ({
       }
       try {
         const soap = await fetchSubmissions(appointmentId);
+        console.log(soap)
         if (cancelled) return;
         setFormData((prev) => ({
           ...prev,
@@ -166,10 +225,10 @@ const AppoitmentInfo = ({
           assessment: soap?.soapNotes?.Assessment ?? [],
           plan: soap?.soapNotes?.Plan ?? [],
           discharge: soap?.soapNotes?.Discharge ?? [],
-          // not present in GetSOAPResponse, keep as-is / empty
           total: prev.total ?? "",
           subTotal: prev.subTotal ?? "",
           tax: prev.tax ?? "",
+          discount: prev.discount ?? "",
         }));
       } catch (e) {
         if (cancelled) return;

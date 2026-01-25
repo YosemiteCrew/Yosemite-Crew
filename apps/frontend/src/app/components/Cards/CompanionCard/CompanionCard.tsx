@@ -31,7 +31,7 @@ const CompanionCard = ({
           alt={""}
           src={getSafeImageUrl(
             companion.companion.photoUrl,
-            companion.companion.type as ImageType,
+            companion.companion.type.toLowerCase() as ImageType,
           )}
           height={40}
           width={40}
