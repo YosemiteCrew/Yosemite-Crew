@@ -55,7 +55,7 @@ export type Attachment = {
   size?: number;
 };
 
-export type VisitType = "FOLLOW_UP";
+export type VisitType = "HOSPITAL_VISIT";
 
 export type Category = "HEALTH" | "HYGIENE_MAINTENANCE";
 
@@ -92,7 +92,7 @@ export const emptyCompanionRecord: CompanionRecord = {
   subcategory: "HOSPITAL_VISITS",
   attachments: [],
   appointmentId: undefined,
-  visitType: "FOLLOW_UP",
+  visitType: "HOSPITAL_VISIT",
   issuingBusinessName: undefined,
   issueDate: undefined,
 };

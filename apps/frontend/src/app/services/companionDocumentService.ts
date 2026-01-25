@@ -24,9 +24,7 @@ export const loadCompanionDocument = async (
       throw new Error("Companion ID missing");
     }
     const res = await getData<CompanionRecord[]>(
-      "/v1/document/pms/" +
-        companionId +
-        "?category=HEALTH&subcategory=LAB_TESTS",
+      "/v1/document/pms/" + companionId,
     );
     return res.data;
   } catch (err) {

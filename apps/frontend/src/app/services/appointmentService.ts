@@ -207,3 +207,23 @@ export const consumeInventory = async (inventory: InventoryConsumeRequest) => {
     throw err;
   }
 };
+
+export const consumeBulkInventory = async (
+  inventory: InventoryConsumeRequest[],
+) => {
+  const { primaryOrgId } = useOrgStore.getState();
+  if (!primaryOrgId) {
+    console.warn("No primary organization selected. Cannot consume inventory.");
+    return [];
+  }
+  try {
+    const body = {
+      items: inventory,
+    };
+    await postData("/v1/inventory/stock/consume/bulk", body);
+    await fetchInventoryItems(primaryOrgId);
+  } catch (err) {
+    console.error("Failed to consume Inventory:", err);
+    throw err;
+  }
+};
