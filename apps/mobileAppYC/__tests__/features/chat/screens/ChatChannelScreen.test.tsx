@@ -210,7 +210,7 @@ describe('ChatChannelScreen', () => {
     await waitFor(() => {
       expect(connectStreamUser).toHaveBeenCalledWith(
         'user-123',
-        'Pet Owner',
+        'Pet Parent',
         undefined,
       );
     });
