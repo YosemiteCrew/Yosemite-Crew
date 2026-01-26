@@ -194,12 +194,6 @@ export const StripeService = {
 
     if (!priceId) throw new Error("Missing STRIPE_PRICE_BUSINESS_* env vars");
 
-    const account = await stripe.accounts.retrieve({
-      stripeAccount : billing.connectAccountId
-    })
-
-    const address = account.company?.address!
-
     // Create/reuse platform Customer
     if (!billing.stripeCustomerId) {
       const customer = await stripe.customers.create({
