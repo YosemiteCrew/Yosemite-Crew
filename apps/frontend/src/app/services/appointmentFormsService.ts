@@ -111,7 +111,7 @@ const mapItem = (
 export const fetchAppointmentForms = async (appointmentId: string): Promise<AppointmentFormsResponse> => {
   const res = await getData<AppointmentFormsApiResponse>(
     `/fhir/v1/form/appointments/${appointmentId}/forms`,
-    { isPMS: true },
+    { isPMS: false },
   );
   const forms = (res.data.items ?? [])
     .map(mapItem)

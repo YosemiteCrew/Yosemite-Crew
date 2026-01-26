@@ -74,17 +74,24 @@ const BuilderWrapper: React.FC<{
     onDragEnd?.(e);
   };
 
+  const dragProps = draggable
+    ? {
+        draggable: true,
+        onDragStart: handleDragStart,
+        onDragOver,
+        onDrop,
+        onDragEnd: handleDragEndInternal,
+      }
+    : {};
+
   return (
-    <div
+    <section
       ref={wrapperRef}
+      aria-label={`${title} field`}
       className={`border border-grey-light rounded-2xl px-3 py-3 flex flex-col gap-3 bg-white ${
         isDragging ? "rounded-2xl" : ""
       }`}
-      draggable={draggable}
-      onDragStart={handleDragStart}
-      onDragOver={onDragOver}
-      onDrop={onDrop}
-      onDragEnd={handleDragEndInternal}
+      {...dragProps}
     >
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
@@ -125,7 +132,7 @@ const BuilderWrapper: React.FC<{
         </div>
       </div>
       {children}
-    </div>
+    </section>
   );
 };
 

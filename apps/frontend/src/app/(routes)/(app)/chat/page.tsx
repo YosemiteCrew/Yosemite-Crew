@@ -53,7 +53,7 @@ function ChatPageContent() {
     const parts = displayName.split(" ").filter(Boolean);
     if (parts.length === 0) return "Y";
     if (parts.length === 1) return parts[0][0]?.toUpperCase() || "Y";
-    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+    return `${parts[0][0]}${parts.at(-1)?.[0] ?? ""}`.toUpperCase();
   }, [displayName]);
 
   return (

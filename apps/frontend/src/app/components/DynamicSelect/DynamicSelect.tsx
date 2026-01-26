@@ -72,7 +72,8 @@ const DynamicSelect: React.FC<DynamicSelectProps> = ({
 
   return (
     <div className="SelectedInptDropdown" ref={dropdownRef}>
-      <div
+      <button
+        type="button"
         className={`custom-dropdown-toggle ${open ? "open" : ""}`}
         onClick={() => {
           if (!open) setOpen(true);
@@ -98,28 +99,30 @@ const DynamicSelect: React.FC<DynamicSelectProps> = ({
             if (open) setSearchQuery("");
           }}
         />
-      </div>
+      </button>
 
       {open && (
-        <div className="custom-dropdown-menu show">
+        <div className="custom-dropdown-menu show" role="listbox">
           {!searchQuery && (
-            <div
+            <button
+              type="button"
               className="dropdown-item"
               onClick={() => handleSelect("")}
             >
               {placeholder}
-            </div>
+            </button>
           )}
 
           {filteredOptions.length > 0 ? (
             filteredOptions.map((option) => (
-              <div
+              <button
+                type="button"
                 key={option.value}
                 className="dropdown-item"
                 onClick={() => handleSelect(option.value)}
               >
                 {option.label}
-              </div>
+              </button>
             ))
           ) : (
             <div className="dropdown-item disabled">

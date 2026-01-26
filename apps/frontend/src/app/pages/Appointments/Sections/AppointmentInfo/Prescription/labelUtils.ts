@@ -19,8 +19,8 @@ export const findFieldLabel = (
 
 export const humanizeKey = (key: string): string => {
   const withSpaces = key
-    .replace(/[_-]+/g, " ")
-    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replaceAll(/[_-]+/g, " ")
+    .replaceAll(/([a-z0-9])([A-Z])/g, "$1 $2")
     .trim();
   return withSpaces
     .split(" ")
