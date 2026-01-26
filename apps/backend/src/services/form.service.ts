@@ -182,6 +182,12 @@ export const FormService = {
     const oid = ensureObjectId(orgId, "orgId");
 
     const internal: Form = fromFormRequestDTO(fhir);
+    if (
+      FormService.hasSignatureField(internal.schema) &&
+      !internal.requiredSigner
+    ) {
+      throw new FormServiceError("requiredSigner is required", 400);
+    }
     internal.orgId = oid.toString();
     internal.createdBy = userId;
     internal.updatedBy = userId;
@@ -196,6 +202,7 @@ export const FormService = {
       visibilityType: internal.visibilityType,
       serviceId: internal.serviceId,
       speciesFilter: internal.speciesFilter,
+      requiredSigner: internal.requiredSigner,
       status: "draft",
       schema: internal.schema,
       createdBy: userId,
@@ -245,6 +252,7 @@ export const FormService = {
       visibilityType: form.visibilityType,
       serviceId: undefined,
       speciesFilter: [],
+      requiredSigner: form.requiredSigner,
       status: form.status,
       schema: version.schemaSnapshot,
       createdBy: "",
@@ -271,6 +279,12 @@ export const FormService = {
       throw new FormServiceError("Form is not part of your organisation", 400);
 
     const internal: Form = fromFormRequestDTO(fhir);
+    if (
+      FormService.hasSignatureField(internal.schema) &&
+      !internal.requiredSigner
+    ) {
+      throw new FormServiceError("requiredSigner is required", 400);
+    }
 
     existing.name = internal.name;
     existing.category = internal.category;
@@ -279,6 +293,7 @@ export const FormService = {
     existing.serviceId = internal.serviceId;
     existing.speciesFilter = internal.speciesFilter;
     existing.businessType = internal.businessType;
+    existing.requiredSigner = internal.requiredSigner;
     (existing.schema as unknown as FormField[]) = internal.schema;
     existing.updatedBy = userId;
     existing.status = "draft"; // IMPORTANT

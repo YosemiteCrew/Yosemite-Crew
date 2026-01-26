@@ -34,6 +34,12 @@ const FormSchema = new Schema<Form>(
       default: undefined,
     },
 
+    requiredSigner: {
+      type: String,
+      enum: ["CLIENT", "VET"],
+      required: false,
+    },
+
     status: {
       type: String,
       enum: ["draft", "published", "archived"],

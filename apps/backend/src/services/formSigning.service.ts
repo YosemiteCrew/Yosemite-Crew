@@ -45,6 +45,16 @@ export class FormSigningService {
       throw new Error("Form not found");
     }
 
+    if (form.requiredSigner) {
+      const requiresParent = form.requiredSigner === "CLIENT";
+      if (requiresParent && !isParent) {
+        throw new Error("Form requires client signature");
+      }
+      if (!requiresParent && isParent) {
+        throw new Error("Form requires vet signature");
+      }
+    }
+
     const documensoApiKey = await DocumensoService.resolveOrganisationApiKey(
       form.orgId,
     );
