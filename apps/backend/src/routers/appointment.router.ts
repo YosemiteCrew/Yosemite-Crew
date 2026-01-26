@@ -133,6 +133,15 @@ router.patch(
   AppointmentController.updateFromPms,
 );
 
+// Attach forms to appointment
+router.post(
+  "/pms/:organisationId/:appointmentId/forms",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("appointments:edit:any"),
+  AppointmentController.attachFormsToAppointment,
+);
+
 // Get appointment detail
 router.get(
   "/pms/:organisationId/:appointmentId",

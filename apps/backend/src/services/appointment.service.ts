@@ -30,6 +30,7 @@ import { sendEmailTemplate } from "src/utils/email";
 import logger from "src/utils/logger";
 import { sendFreePlanLimitReachedEmail } from "src/utils/org-usage-notifications";
 import { AuditTrailService } from "./audit-trail.service";
+import { FormModel } from "src/models/form";
 
 export class AppointmentServiceError extends Error {
   constructor(
@@ -1237,6 +1238,91 @@ export const AppointmentService = {
       await session.endSession();
       throw err;
     }
+  },
+
+  async attachFormsToAppointment(
+    appointmentId: string,
+    formIds: string[],
+  ): Promise<AppointmentResponseDTO> {
+    if (!appointmentId) {
+      throw new AppointmentServiceError("Appointment ID is required", 400);
+    }
+
+    if (!Array.isArray(formIds) || formIds.length === 0) {
+      throw new AppointmentServiceError("formIds are required", 400);
+    }
+
+    const uniqueFormIds = Array.from(
+      new Set(formIds.map((id) => id?.trim()).filter(Boolean)),
+    );
+
+    if (uniqueFormIds.length === 0) {
+      throw new AppointmentServiceError("formIds are required", 400);
+    }
+
+    const appointmentObjectId = ensureObjectId(appointmentId, "appointmentId");
+    const appointment = await AppointmentModel.findById(appointmentObjectId);
+
+    if (!appointment) {
+      throw new AppointmentServiceError("Appointment not found", 404);
+    }
+
+    const formObjectIds = uniqueFormIds.map((id) =>
+      ensureObjectId(id, "formId"),
+    );
+
+    const forms = await FormModel.find({
+      _id: { $in: formObjectIds },
+      orgId: appointment.organisationId,
+    })
+      .select("_id")
+      .lean();
+
+    const foundIds = new Set(forms.map((f) => f._id.toString()));
+    const missing = uniqueFormIds.filter((id) => !foundIds.has(id));
+
+    if (missing.length > 0) {
+      throw new AppointmentServiceError(
+        `Forms not found: ${missing.join(", ")}`,
+        404,
+      );
+    }
+
+    const existingIds = new Set((appointment.formIds ?? []).map(String));
+    const newIds = uniqueFormIds.filter((id) => !existingIds.has(id));
+
+    if (newIds.length === 0) {
+      return toAppointmentResponseDTO(toDomain(appointment));
+    }
+
+    const updated = await AppointmentModel.findByIdAndUpdate(
+      appointmentObjectId,
+      {
+        $addToSet: { formIds: { $each: newIds } },
+        $set: { updatedAt: new Date() },
+      },
+      { new: true },
+    );
+
+    if (!updated) {
+      throw new AppointmentServiceError("Appointment not found", 404);
+    }
+
+    for (const formId of newIds) {
+      await AuditTrailService.recordSafely({
+        organisationId: appointment.organisationId,
+        companionId: appointment.companion.id,
+        eventType: "FORM_ATTACHED",
+        actorType: "SYSTEM",
+        entityType: "FORM",
+        entityId: formId,
+        metadata: {
+          appointmentId: appointment._id.toString(),
+        },
+      });
+    }
+
+    return toAppointmentResponseDTO(toDomain(updated));
   },
 
   async checkInAppointmentParent(appointmentId: string, parentId: string) {
