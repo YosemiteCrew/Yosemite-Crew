@@ -136,6 +136,9 @@ export const StripeService = {
         account_onboarding: { enabled: true },
         tax_settings: {
           enabled: true,
+          features: {
+
+          }
         },
         tax_registrations: {
           enabled: true,
@@ -167,12 +170,12 @@ export const StripeService = {
       await billing.save();
     }
 
-    // Gate upgrade on Connect readiness
-    if (!billing.canAcceptPayments) {
-      throw new Error(
-        "Stripe account not ready. Complete onboarding/verification first.",
-      );
-    }
+    // // Gate upgrade on Connect readiness
+    // if (!billing.canAcceptPayments) {
+    //   throw new Error(
+    //     "Stripe account not ready. Complete onboarding/verification first.",
+    //   );
+    // }
 
     const seats = await computeBillableSeats(orgId);
     if (seats < 1)
@@ -190,6 +193,12 @@ export const StripeService = {
         : process.env.STRIPE_PRICE_BUSINESS_YEAR;
 
     if (!priceId) throw new Error("Missing STRIPE_PRICE_BUSINESS_* env vars");
+
+    const account = await stripe.accounts.retrieve({
+      stripeAccount : billing.connectAccountId
+    })
+
+    const address = account.company?.address!
 
     // Create/reuse platform Customer
     if (!billing.stripeCustomerId) {
@@ -226,6 +235,9 @@ export const StripeService = {
           connectAccountId: String(billing.connectAccountId ?? ""),
         },
       },
+      tax_id_collection: {
+        enabled: true
+      },
       automatic_tax: {
         enabled: true,
       },
@@ -235,6 +247,10 @@ export const StripeService = {
         interval,
         seats: String(seats),
       },
+      customer_update : {
+        name : 'auto',
+        address : 'auto'
+      }
     });
 
     return { url: session.url };
