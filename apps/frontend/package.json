@@ -14,6 +14,8 @@
     "@calcom/embed-react": "^1.5.3",
     "@stripe/connect-js": "^3.3.31",
     "@stripe/react-connect-js": "^3.3.31",
+    "@stripe/react-stripe-js": "^5.4.1",
+    "@stripe/stripe-js": "^8.6.4",
     "@testing-library/user-event": "^14.6.1",
     "@types/lodash": "^4.17.20",
     "amazon-cognito-identity-js": "^6.3.15",

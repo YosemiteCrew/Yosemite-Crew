@@ -28,7 +28,7 @@ import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
 import Close from "@/app/components/Icons/Close";
 import { useSubscriptionCounterUpdate } from "@/app/hooks/useStripeOnboarding";
 import { IoIosWarning } from "react-icons/io";
-import { useCanMoreForPrimaryOrg } from "@/app/hooks/useBilling";
+import { useCanMoreForPrimaryOrg, useCurrencyForPrimaryOrg } from "@/app/hooks/useBilling";
 import { loadInvoicesForOrgPrimaryOrg } from "@/app/services/invoiceService";
 
 type BookAppointmentProps = {
@@ -44,20 +44,13 @@ const CompanionFields = [
   { label: "Species", key: "species", type: "text" },
 ];
 
-const ServiceFields = [
-  { label: "Name", key: "name", type: "text" },
-  { label: "Description", key: "description", type: "text" },
-  { label: "Duration (mins)", key: "duration", type: "text" },
-  { label: "Cost ($)", key: "cost", type: "text" },
-  { label: "Max discount", key: "maxDiscount", type: "text" },
-];
-
 const BookAppointment = ({
   showModal,
   setShowModal,
   activeCompanion,
 }: BookAppointmentProps) => {
   const teams = useTeamForPrimaryOrg();
+  const currency = useCurrencyForPrimaryOrg();
   const specialities = useSpecialitiesForPrimaryOrg();
   const { canMore, reason } = useCanMoreForPrimaryOrg("appointments");
   const getServicesBySpecialityId =
@@ -75,6 +68,17 @@ const BookAppointment = ({
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [timeSlots, setTimeSlots] = useState<Slot[]>([]);
+
+  const ServiceFields = useMemo(
+    () => [
+      { label: "Name", key: "name", type: "text" },
+      { label: "Description", key: "description", type: "text" },
+      { label: "Duration (mins)", key: "duration", type: "text" },
+      { label: `Cost (${currency})`, key: "cost", type: "text" },
+      { label: "Max discount", key: "maxDiscount", type: "text" },
+    ],
+    [currency],
+  );
 
   useEffect(() => {
     const appointmentTypeId = formData.appointmentType?.id;
@@ -263,7 +267,7 @@ const BookAppointment = ({
     try {
       await createAppointment(formData);
       await refetchData();
-      await loadInvoicesForOrgPrimaryOrg({ force: true })
+      await loadInvoicesForOrgPrimaryOrg({ force: true });
       setShowModal(false);
       setFormData(EMPTY_APPOINTMENT);
       setSelectedSlot(null);

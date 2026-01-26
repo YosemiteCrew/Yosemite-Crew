@@ -45,6 +45,7 @@ const shouldFetchInvoices = (
 export const addLineItemsToAppointments = async (
   lineItems: InvoiceItem[],
   appointmentId: string,
+  currency: string,
 ): Promise<void> => {
   const primaryOrgId = useOrgStore.getState().primaryOrgId;
   if (!primaryOrgId) {
@@ -52,12 +53,12 @@ export const addLineItemsToAppointments = async (
     return;
   }
   try {
-    if (!appointmentId || lineItems.length <= 0) {
-      throw new Error("Line items or Appointment ID missing");
+    if (!appointmentId || lineItems.length <= 0 || !currency) {
+      throw new Error("Line items or Appointment ID or Currency missing");
     }
     const body = {
       items: lineItems,
-      currency: "usd",
+      currency: currency.toLowerCase(),
     };
     await postData<InvoiceResponseDTO[]>(
       "/fhir/v1/invoice/appointment/" + appointmentId + "/charges",

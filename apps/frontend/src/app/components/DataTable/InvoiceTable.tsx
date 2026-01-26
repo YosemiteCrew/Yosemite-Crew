@@ -8,6 +8,8 @@ import { toTitle } from "@/app/utils/validators";
 
 import "./DataTable.css";
 import { useAppointmentsForPrimaryOrg } from "@/app/hooks/useAppointments";
+import { useCurrencyForPrimaryOrg } from "@/app/hooks/useBilling";
+import { formatMoney } from "@/app/utils/money";
 
 type Column<T> = {
   label: string;
@@ -54,6 +56,7 @@ const InvoiceTable = ({
   setViewInvoice,
 }: InvoiceTableProps) => {
   const appointments = useAppointmentsForPrimaryOrg();
+  const currency = useCurrencyForPrimaryOrg();
 
   const handleViewInvoice = (inventory: Invoice) => {
     setActiveInvoice?.(inventory);
@@ -121,7 +124,9 @@ const InvoiceTable = ({
       key: "sub-total",
       width: "7.5%",
       render: (item: Invoice) => (
-        <div className="appointment-profile-title">{"$ " + item?.subtotal}</div>
+        <div className="appointment-profile-title">
+          {formatMoney(item.subtotal, currency)}
+        </div>
       ),
     },
     {
@@ -130,7 +135,7 @@ const InvoiceTable = ({
       width: "7.5%",
       render: (item: Invoice) => (
         <div className="appointment-profile-title">
-          {"$ " + item?.discountTotal}
+          {formatMoney(item.discountTotal ?? 0, currency)}
         </div>
       ),
     },
@@ -139,7 +144,9 @@ const InvoiceTable = ({
       key: "tax",
       width: "7.5%",
       render: (item: Invoice) => (
-        <div className="appointment-profile-title">{"$ " + item?.taxTotal}</div>
+        <div className="appointment-profile-title">
+          {formatMoney(item.taxTotal ?? 0, currency)}
+        </div>
       ),
     },
     {
@@ -148,7 +155,7 @@ const InvoiceTable = ({
       width: "7.5%",
       render: (item: Invoice) => (
         <div className="appointment-profile-title">
-          {"$ " + item?.totalAmount}
+          {formatMoney(item.totalAmount ?? 0, currency)}
         </div>
       ),
     },

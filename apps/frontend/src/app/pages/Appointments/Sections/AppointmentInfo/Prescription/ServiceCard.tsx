@@ -2,6 +2,8 @@ import Accordion from "@/app/components/Accordion/Accordion";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import React from "react";
 import { ServiceEdit } from "..";
+import { useCurrencyForPrimaryOrg } from "@/app/hooks/useBilling";
+import { formatMoney } from "@/app/utils/money";
 
 type ServiceCardProps = {
   service: ServiceEdit;
@@ -14,11 +16,13 @@ const ServiceCard = ({
   setFormData,
   edit = true,
 }: ServiceCardProps) => {
+  const currency = useCurrencyForPrimaryOrg();
+
   const removeService = () => {
     setFormData((prev: any) => ({
       ...prev,
       services: prev.services.filter(
-        (s: ServiceEdit) => s.name !== service.name
+        (s: ServiceEdit) => s.name !== service.name,
       ),
     }));
   };
@@ -27,7 +31,7 @@ const ServiceCard = ({
     setFormData((prev: any) => ({
       ...prev,
       services: prev.services.map((s: any) =>
-        s.name === service.name ? { ...s, discount: value } : s
+        s.name === service.name ? { ...s, discount: value } : s,
       ),
     }));
   };
@@ -55,9 +59,11 @@ const ServiceCard = ({
           <div>Duration: </div>
           <div>{service.durationMinutes + " mins"}</div>
         </div>
-        <div className={`px-3! py-2! flex items-center gap-2 justify-between ${!edit && "border-b border-grey-light"}`}>
+        <div
+          className={`px-3! py-2! flex items-center gap-2 justify-between ${!edit && "border-b border-grey-light"}`}
+        >
           <div>Charges: </div>
-          <div>${service.cost}</div>
+          <div>{formatMoney(service.cost, currency)}</div>
         </div>
         {edit ? (
           <div className="px-2 py-3">
