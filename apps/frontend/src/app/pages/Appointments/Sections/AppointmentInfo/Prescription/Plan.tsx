@@ -1,4 +1,5 @@
 import SearchDropdown from "@/app/components/Inputs/SearchDropdown";
+import Accordion from "@/app/components/Accordion/Accordion";
 import React, { useMemo, useState } from "react";
 import { Primary } from "@/app/components/Buttons";
 import { FormDataProps } from "..";
@@ -191,11 +192,13 @@ const Plan = ({
       fallback={<Fallback />}
     >
       <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
-        <div className="flex flex-col gap-6">
+        <Accordion
+          title="Treatment/Plan"
+          defaultOpen={true}
+          showEditIcon={false}
+          isEditing={true}
+        >
           <div className="flex flex-col gap-3">
-            <div className="font-grotesk font-medium text-black-text text-[23px]">
-              Treatment/Plan
-            </div>
             {canEdit && (
               <SearchDropdown
                 placeholder="Search plan"
@@ -216,7 +219,7 @@ const Plan = ({
             )}
             <PlanSubmissions formData={formData} setFormData={setFormData} />
           </div>
-        </div>
+        </Accordion>
         {canEdit && active && (
           <Primary
             href="#"

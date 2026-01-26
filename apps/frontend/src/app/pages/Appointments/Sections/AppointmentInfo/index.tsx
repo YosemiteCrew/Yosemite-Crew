@@ -150,9 +150,15 @@ const CustomFormsView = ({
   }
 
   return (
-    <div className="flex flex-col gap-4 w-full">
-      {canEdit ? (
-        <div className="flex flex-col gap-3">
+    <Accordion
+      title="Forms"
+      defaultOpen={true}
+      showEditIcon={false}
+      isEditing
+    >
+      <div className="flex flex-col gap-4 w-full">
+        {canEdit ? (
+          <div className="flex flex-col gap-3">
           <SearchDropdown
             placeholder="Search form templates"
             options={templates.map((t) => ({ value: t.value, label: t.label }))}
@@ -294,9 +300,9 @@ const CustomFormsView = ({
                 />
               );
             })()
-          ) : null}
-        </div>
-      ) : null}
+            ) : null}
+          </div>
+        ) : null}
 
       {forms.map((entry, idx) => {
         const flat = flattenFields(entry.form.schema as FormField[]);
@@ -328,7 +334,7 @@ const CustomFormsView = ({
           <Accordion
             key={key}
             title={entry.form.name}
-            defaultOpen={idx === 0}
+            defaultOpen={false}
             showEditIcon={false}
             isEditing
             rightElement={
@@ -461,18 +467,19 @@ const CustomFormsView = ({
           </Accordion>
         );
       })}
-      {forms.length === 0 ? (
-        <Accordion
-          title="Previous form submissions"
-          defaultOpen
-          showEditIcon={false}
-          isEditing
-        >
-          <div className="text-body-3 text-text-secondary">No past form submissions.</div>
-        </Accordion>
-      ) : null}
-      {submitError ? <div className="text-error-main text-body-4">{submitError}</div> : null}
-    </div>
+        {forms.length === 0 ? (
+          <Accordion
+            title="Previous form submissions"
+            defaultOpen={false}
+            showEditIcon={false}
+            isEditing
+          >
+            <div className="text-body-3 text-text-secondary">No past form submissions.</div>
+          </Accordion>
+        ) : null}
+        {submitError ? <div className="text-error-main text-body-4">{submitError}</div> : null}
+      </div>
+    </Accordion>
   );
 };
 

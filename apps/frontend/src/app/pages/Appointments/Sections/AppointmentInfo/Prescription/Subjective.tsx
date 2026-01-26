@@ -135,7 +135,7 @@ const Subjective = ({
       <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
         <Accordion
           title="Subjective (history)"
-          defaultOpen
+          defaultOpen={true}
           showEditIcon={false}
           isEditing={true}
         >

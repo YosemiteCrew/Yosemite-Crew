@@ -1,4 +1,5 @@
 import { Primary, Secondary } from "@/app/components/Buttons";
+import Accordion from "@/app/components/Accordion/Accordion";
 import React, { useMemo, useState } from "react";
 import { FormDataProps } from "..";
 import { Appointment, FormSubmission } from "@yosemite-crew/types";
@@ -132,10 +133,12 @@ const Discharge = ({
       fallback={<Fallback />}
     >
       <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
-        <div className="flex flex-col gap-6">
-          <div className="font-grotesk font-medium text-black-text text-[23px]">
-            Discharge summary
-          </div>
+        <Accordion
+          title="Discharge summary"
+          defaultOpen={true}
+          showEditIcon={false}
+          isEditing={true}
+        >
           <div className="flex flex-col gap-3">
             {canEdit && (
               <SearchDropdown
@@ -160,7 +163,7 @@ const Discharge = ({
               setFormData={setFormData}
             />
           </div>
-        </div>
+        </Accordion>
         <div className="flex flex-col gap-3">
           {canEdit && active && (
             <Secondary

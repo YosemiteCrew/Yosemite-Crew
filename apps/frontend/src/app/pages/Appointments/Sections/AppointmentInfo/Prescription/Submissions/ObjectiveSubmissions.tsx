@@ -46,7 +46,7 @@ const ObjectiveSubmissions = ({
     return (
       <Accordion
         title="Previous objective submissions"
-        defaultOpen
+        defaultOpen={false}
         showEditIcon={false}
       >
         <div className="text-sm text-black-text/60">No submissions yet.</div>
@@ -57,7 +57,7 @@ const ObjectiveSubmissions = ({
   return (
     <Accordion
       title="Previous objective submissions"
-      defaultOpen
+      defaultOpen={false}
       showEditIcon={false}
     >
       <div className="flex flex-col gap-4">

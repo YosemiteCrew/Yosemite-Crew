@@ -43,7 +43,7 @@ const PlanSubmissions = ({ formData, setFormData }: PlanSubmissionsProps) => {
     return (
       <Accordion
         title="Previous plan submissions"
-        defaultOpen
+        defaultOpen={false}
         showEditIcon={false}
       >
         <div className="text-sm text-black-text/60">No submissions yet.</div>
@@ -54,7 +54,7 @@ const PlanSubmissions = ({ formData, setFormData }: PlanSubmissionsProps) => {
   return (
     <Accordion
       title="Previous plan submissions"
-      defaultOpen
+      defaultOpen={false}
       showEditIcon={false}
     >
       <div className="flex flex-col gap-4">

@@ -66,14 +66,14 @@ export const RequiredSignerOptions: Array<{
   value: RequiredSignerValue;
 }> = [
   { label: "No signature required", value: "" },
-  { label: "Pet parent (Client)", value: "CLIENT" },
-  { label: "Service provider (Vet)", value: "VET" },
+  { label: "Pet parent", value: "CLIENT" },
+  { label: "Service provider", value: "VET" },
 ];
 
 export const requiredSignerLabel = (value?: RequiredSignerValue): string => {
   if (value === "") return "No signature required";
-  if (value === "CLIENT") return "Pet parent (Client)";
-  if (value === "VET") return "Service provider (Vet)";
+  if (value === "CLIENT") return "Pet parent";
+  if (value === "VET") return "Service provider";
   return "";
 };
 
