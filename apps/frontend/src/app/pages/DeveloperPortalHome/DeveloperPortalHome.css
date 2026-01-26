@@ -3,8 +3,8 @@
   display: flex;
   flex-direction: column;
   gap: 32px;
-  color: var(--notibg);
-  font-family: var(--satoshi-font);
+  color: var(--color-text-secondary);
+  font-family: var(--font-satoshi);
 }
 
 .dev-portal-hero {
@@ -15,23 +15,18 @@
 }
 
 .dev-hero-copy {
-  background: var(--whitebg);
-  border: 1px solid var(--lightgrey);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-card-border);
   border-radius: 20px;
   padding: 28px 32px;
   box-shadow: 0 10px 30px rgba(16, 24, 40, 0.04);
 }
 
 .dev-hero-copy h2 {
-  font-size: 28px;
-  font-weight: 700;
   margin: 8px 0 12px;
-  color: var(--black-text);
-  font-family: var(--grotesk-font);
 }
 
 .dev-hero-subtext {
-  color: var(--notibg);
   margin-bottom: 16px;
   max-width: 780px;
 }
@@ -41,10 +36,9 @@
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
-  background: #eef2ff;
-  color: #4338ca;
+  background: var(--color-brand-100);
+  color: var(--color-brand-950);
   border-radius: 9999px;
-  font-size: 13px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -59,8 +53,8 @@
 }
 
 .dev-hero-card {
-  background: linear-gradient(160deg, #0c1222 0%, #111827 100%);
-  color: #f9fafb;
+  background: linear-gradient(160deg, var(--color-neutral-950) 0%, var(--color-neutral-900) 100%);
+  color: var(--color-neutral-0);
   border-radius: 20px;
   padding: 24px;
   box-shadow: 0 14px 40px rgba(0, 0, 0, 0.16);
@@ -77,14 +71,13 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  font-family: var(--satoshi-font);
+  font-family: var(--font-satoshi);
 }
 
 .dev-hero-card li {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 15px;
   padding: 12px 14px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.04);
@@ -97,8 +90,8 @@
 }
 
 .dev-portal-card {
-  background: var(--whitebg);
-  border: 1px solid var(--lightgrey);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-card-border);
   border-radius: 18px;
   padding: 20px;
   display: flex;
@@ -109,7 +102,7 @@
 
 .dev-portal-loading {
   text-align: center;
-  color: var(--notibg);
+  color: var(--color-text-secondary);
 }
 
 .dev-card-head {
@@ -124,29 +117,28 @@
   align-items: center;
   padding: 4px 10px;
   border-radius: 9999px;
-  font-size: 12px;
-  background: #0a66c2;
-  color: #ffffff;
+  background: var(--color-brand-950);
+  color: var(--color-neutral-0);
   font-weight: 600;
-  border: 1px solid #0a66c2;
+  border: 1px solid var(--color-brand-950);
 }
 
 .dev-card-pill.secondary {
-  background: #7928ca;
-  color: #ffffff;
-  border-color: #7928ca;
+  background: var(--color-brand-900);
+  color: var(--color-neutral-0);
+  border-color: var(--color-brand-900);
 }
 
 .dev-card-pill.muted {
-  background: #4b5563;
-  color: #ffffff;
-  border-color: #4b5563;
+  background: var(--color-neutral-600);
+  color: var(--color-neutral-0);
+  border-color: var(--color-neutral-600);
 }
 
 .dev-portal-card ol {
   margin: 0;
   padding-left: 18px;
-  color: var(--notibg);
+  color: var(--color-text-secondary);
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -159,17 +151,15 @@
 }
 
 .dev-links a {
-  color: #0f172a;
-  font-weight: 600;
   text-decoration: none;
+  transition: color 0.2s ease;
 }
 
 .dev-links a:hover {
-  color: #4338ca;
+  color: var(--color-text-brand);
 }
 
 .dev-empty {
-  color: #94a3b8;
   margin: 4px 0 0;
 }
 

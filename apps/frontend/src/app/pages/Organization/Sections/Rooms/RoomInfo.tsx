@@ -7,13 +7,14 @@ import React, { useMemo } from "react";
 import { RoomsTypes } from "../../types";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
 import { useSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
-import { updateRoom } from "@/app/services/roomService";
+import { deleteRoom, updateRoom } from "@/app/services/roomService";
 import Close from "@/app/components/Icons/Close";
 
 type RoomInfoProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
   activeRoom: OrganisationRoom;
+  canEditRoom: boolean;
 };
 
 const getFields = ({
@@ -40,15 +41,20 @@ const getFields = ({
     },
   ] satisfies FieldConfig[];
 
-const RoomInfo = ({ showModal, setShowModal, activeRoom }: RoomInfoProps) => {
+const RoomInfo = ({
+  showModal,
+  setShowModal,
+  activeRoom,
+  canEditRoom,
+}: RoomInfoProps) => {
   const teams = useTeamForPrimaryOrg();
   const specialities = useSpecialitiesForPrimaryOrg();
 
   const TeamOptions = useMemo(
     () =>
       teams?.map((team) => ({
-        label: team.name || team._id,
-        value: team._id,
+        label: team.name || team.practionerId,
+        value: team.practionerId,
       })),
     [teams]
   );
@@ -98,6 +104,9 @@ const RoomInfo = ({ showModal, setShowModal, activeRoom }: RoomInfoProps) => {
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <div className="flex flex-col h-full gap-6">
         <div className="flex justify-between items-center">
+          <div className="opacity-0">
+            <Close onClick={() => {}} />
+          </div>
           <div className="flex justify-center items-center gap-2">
             <div className="text-body-1 text-text-primary">View room</div>
           </div>
@@ -109,7 +118,10 @@ const RoomInfo = ({ showModal, setShowModal, activeRoom }: RoomInfoProps) => {
           fields={fields}
           data={roomInfoData}
           defaultOpen={true}
+          showEditIcon={canEditRoom}
           onSave={handleUpdate}
+          showDeleteIcon={canEditRoom}
+          onDelete={() => deleteRoom(activeRoom)}
         />
       </div>
     </Modal>

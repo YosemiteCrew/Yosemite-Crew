@@ -1,115 +1,75 @@
 import React from "react";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
+
 import CompanionsTable from "@/app/components/DataTable/CompanionsTable";
 
 jest.mock("next/image", () => ({
   __esModule: true,
-  default: (props: any) => (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img {...props} alt={props.alt || "companion"} />
-  ),
+  default: (props: any) => <img alt={props.alt || ""} {...props} />,
 }));
 
-jest.mock("react-icons/fa", () => ({
-  FaCalendar: () => <span data-testid="icon-calendar" />,
-  FaTasks: () => <span data-testid="icon-tasks" />,
+jest.mock("@/app/utils/date", () => ({
+  getAgeInYears: jest.fn(() => "2y"),
 }));
 
-jest.mock("react-icons/io5", () => ({
-  IoEye: () => <span data-testid="icon-eye" />,
+jest.mock("@/app/utils/urls", () => ({
+  getSafeImageUrl: jest.fn(() => "image"),
 }));
 
-jest.mock("@/app/components/Cards/CompanionCard/CompanionCard", () => ({
-  __esModule: true,
-  default: ({ companion, handleViewCompanion }: any) => (
-    <div data-testid="mobile-card">
-      <span>{companion.companion.name}</span>
-      <button
-        type="button"
-        onClick={() => handleViewCompanion(companion)}
-      >
-        View Mobile
-      </button>
-    </div>
-  ),
+jest.mock("@/app/utils/validators", () => ({
+  toTitleCase: (value: string) => value.toUpperCase(),
 }));
 
 jest.mock("@/app/components/GenericTable/GenericTable", () => ({
   __esModule: true,
   default: ({ data, columns }: any) => (
-    <table data-testid="generic-table">
-      <tbody>
-        {data.map((row: any, rowIndex: number) => (
-          <tr key={rowIndex} data-testid="table-row">
-            {columns.map((col: any) => (
-              <td key={col.key}>{col.render ? col.render(row) : row[col.key]}</td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div data-testid="table">
+      {data.map((item: any) => (
+        <div key={item.companion.name}>
+          {columns.map((col: any) => (
+            <div key={col.key || col.label}>
+              {col.render ? col.render(item) : item[col.key]}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
   ),
 }));
 
-jest.mock("@/app/utils/date", () => ({
-  getAgeInYears: () => 3,
+jest.mock("@/app/components/Cards/CompanionCard/CompanionCard", () => ({
+  __esModule: true,
+  default: ({ companion }: any) => (
+    <div data-testid="companion-card">{companion.companion.name}</div>
+  ),
 }));
 
-jest.mock("@/app/utils/urls", () => ({
-  isHttpsImageUrl: () => true,
+jest.mock("react-icons/fa", () => ({
+  FaCalendar: () => <span>calendar-icon</span>,
+  FaTasks: () => <span>task-icon</span>,
 }));
 
-jest.mock("@/app/utils/validators", () => ({
-  toTitleCase: (val: string) =>
-    val ? val[0].toUpperCase() + val.slice(1).toLowerCase() : "",
+jest.mock("react-icons/io5", () => ({
+  IoEye: () => <span>view-icon</span>,
 }));
 
 describe("CompanionsTable", () => {
-  const companion = {
+  const companion: any = {
     companion: {
-      id: "comp-1",
-      organisationId: "org-1",
-      parentId: "parent-1",
       name: "Buddy",
-      breed: "Husky",
-      type: "dog",
-      gender: "male",
-      dateOfBirth: "2020-01-01",
-      allergy: "Pollen",
+      breed: "Labrador",
+      type: "Dog",
+      gender: "Male",
+      dateOfBirth: "2023-01-01",
+      allergy: "None",
       status: "active",
-      photoUrl: "https://example.com/photo.png",
+      photoUrl: "photo",
     },
-    parent: {
-      id: "parent-1",
-      firstName: "Jamie",
-    },
-  } as any;
+    parent: { firstName: "Sam" },
+  };
 
-  it("renders data in table and mobile cards", () => {
-    render(
-      <CompanionsTable
-        filteredList={[companion]}
-        activeCompanion={null}
-        setActiveCompanion={jest.fn()}
-        setViewCompanion={jest.fn()}
-        setBookAppointment={jest.fn()}
-        setAddTask={jest.fn()}
-      />
-    );
-
-    const table = screen.getByTestId("generic-table");
-    const tableScope = within(table);
-    expect(tableScope.getByText("Buddy")).toBeInTheDocument();
-    expect(tableScope.getByText("Husky")).toBeInTheDocument();
-    expect(tableScope.getByText("/dog")).toBeInTheDocument();
-    expect(tableScope.getByText("Jamie")).toBeInTheDocument();
-
-    const cards = screen.getAllByTestId("mobile-card");
-    expect(cards).toHaveLength(1);
-  });
-
-  it("handles table actions", () => {
+  it("handles view, schedule, and task actions", () => {
     const setActiveCompanion = jest.fn();
     const setViewCompanion = jest.fn();
     const setBookAppointment = jest.fn();
@@ -123,21 +83,22 @@ describe("CompanionsTable", () => {
         setViewCompanion={setViewCompanion}
         setBookAppointment={setBookAppointment}
         setAddTask={setAddTask}
+        canEditAppointments
+        canEditTasks
       />
     );
 
-    fireEvent.click(screen.getByTestId("icon-eye").closest("button")!);
+    fireEvent.click(screen.getByText("view-icon").closest("button")!);
+    fireEvent.click(screen.getByText("calendar-icon").closest("button")!);
+    fireEvent.click(screen.getByText("task-icon").closest("button")!);
+
     expect(setActiveCompanion).toHaveBeenCalledWith(companion);
     expect(setViewCompanion).toHaveBeenCalledWith(true);
-
-    fireEvent.click(screen.getByTestId("icon-calendar").closest("button")!);
     expect(setBookAppointment).toHaveBeenCalledWith(true);
-
-    fireEvent.click(screen.getByTestId("icon-tasks").closest("button")!);
     expect(setAddTask).toHaveBeenCalledWith(true);
   });
 
-  it("renders empty state when no data", () => {
+  it("shows empty state for mobile list", () => {
     render(
       <CompanionsTable
         filteredList={[]}
@@ -146,6 +107,8 @@ describe("CompanionsTable", () => {
         setViewCompanion={jest.fn()}
         setBookAppointment={jest.fn()}
         setAddTask={jest.fn()}
+        canEditAppointments={false}
+        canEditTasks={false}
       />
     );
 

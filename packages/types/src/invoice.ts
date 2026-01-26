@@ -14,6 +14,8 @@ export type InvoiceStatus =
   | "CANCELLED"        
   | "REFUNDED";
 
+export type PaymentCollectionMethod = "PAYMENT_INTENT" | "PAYMENT_LINK";
+
 export type InvoiceItem = {
   id?: string;                
   name: string;               
@@ -35,6 +37,8 @@ export type Invoice = {
   taxPercent?: number;
   totalAmount: number;       
 
+  paymentCollectionMethod: PaymentCollectionMethod;
+
   currency: Currency;            
 
   discountTotal?: number;
@@ -46,11 +50,13 @@ export type Invoice = {
   stripePaymentLinkId?: string; 
   stripeInvoiceId?: string;      
   stripeCustomerId?: string;
+  stripeCheckoutSessionId?: string;
+  stripeCheckoutUrl?: string;
 
   status: InvoiceStatus;
 
   metadata?: Record<string, string | number | boolean>;
-
+  paidAt?: Date
   createdAt: Date;
   updatedAt: Date;
 }
@@ -61,6 +67,12 @@ const EXT_STRIPE_PL_ID = "https://yosemitecrew.com/fhir/StructureDefinition/stri
 const EXT_STRIPE_CUSTOMER_ID = "https://yosemitecrew.com/fhir/StructureDefinition/stripe-customer-id";
 const EXT_STRIPE_CHARGE_ID = "https://yosemitecrew.com/fhir/StructureDefinition/stripe-charge-id";
 const EXT_STRIPE_RECEIPT_URL = "https://yosemitecrew.com/fhir/StructureDefinition/stripe-receipt-url";
+const EXT_STRIPE_CHECKOUT_SESSION_ID =
+  "https://yosemitecrew.com/fhir/StructureDefinition/stripe-checkout-session-id";
+const EXT_STRIPE_CHECKOUT_URL = "https://yosemitecrew.com/fhir/StructureDefinition/stripe-checkout-url";
+const EXT_PAYMENT_COLLECTION_METHOD =
+  "https://yosemitecrew.com/fhir/StructureDefinition/payment-collection-method";
+const EXT_PAID_AT = "https://yosemitecrew.com/fhir/StructureDefinition/paid-at";
 const EXT_PMS_STATUS = "https://yosemitecrew.com/fhir/StructureDefinition/pms-invoice-status";
 const EXT_INVOICE_METADATA = "https://yosemitecrew.com/fhir/StructureDefinition/invoice-metadata";
 const EXT_APPOINTMENT_ID = "https://yosemitecrew.com/fhir/StructureDefinition/appointment-id";
@@ -280,6 +292,34 @@ export function toFHIRInvoice(invoice: Invoice): FHIRInvoice {
     });
   }
 
+  if (invoice.stripeCheckoutSessionId) {
+    extensions.push({
+      url: EXT_STRIPE_CHECKOUT_SESSION_ID,
+      valueString: invoice.stripeCheckoutSessionId,
+    });
+  }
+
+  if (invoice.stripeCheckoutUrl) {
+    extensions.push({
+      url: EXT_STRIPE_CHECKOUT_URL,
+      valueUri: invoice.stripeCheckoutUrl,
+    });
+  }
+
+  if (invoice.paymentCollectionMethod) {
+    extensions.push({
+      url: EXT_PAYMENT_COLLECTION_METHOD,
+      valueString: invoice.paymentCollectionMethod,
+    });
+  }
+
+  if (invoice.paidAt) {
+    extensions.push({
+      url: EXT_PAID_AT,
+      valueDateTime: invoice.paidAt.toISOString(),
+    });
+  }
+
   extensions.push({
     url: EXT_PMS_STATUS,
     valueString: invoice.status,
@@ -472,8 +512,18 @@ export function fromFHIRInvoice(fhirInvoice: FHIRInvoice): Invoice {
     stripeReceiptUrl:
       fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_RECEIPT_URL)?.valueUri ??
       fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_RECEIPT_URL)?.valueString,
+    stripeCheckoutSessionId: fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_CHECKOUT_SESSION_ID)?.valueString,
+    stripeCheckoutUrl:
+      fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_CHECKOUT_URL)?.valueUri ??
+      fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_CHECKOUT_URL)?.valueUrl ??
+      fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_CHECKOUT_URL)?.valueString,
+    paymentCollectionMethod: (fhirInvoice.extension?.find((ext) => ext.url === EXT_PAYMENT_COLLECTION_METHOD)
+      ?.valueString as PaymentCollectionMethod | undefined) ?? "PAYMENT_INTENT",
     status: pmsStatus,
     metadata,
+    paidAt: fhirInvoice.extension?.find((ext) => ext.url === EXT_PAID_AT)?.valueDateTime
+      ? new Date(fhirInvoice.extension?.find((ext) => ext.url === EXT_PAID_AT)?.valueDateTime as string)
+      : undefined,
     createdAt: fhirInvoice.date ? new Date(fhirInvoice.date) : new Date(),
     updatedAt: fhirInvoice.meta?.lastUpdated ? new Date(fhirInvoice.meta.lastUpdated) : new Date(),
   };

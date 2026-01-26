@@ -8,8 +8,6 @@ import {
   within,
 } from "@testing-library/react";
 import { ChatContainer } from "../../../components/chat/ChatContainer";
-import { useAuthStore } from "@/app/stores/authStore";
-import { useOrgStore } from "@/app/stores/orgStore";
 import * as streamChatService from "@/app/services/streamChatService";
 
 // --- Mocks ---
@@ -167,7 +165,7 @@ describe("ChatContainer Component", () => {
 
     render(<ChatContainer />);
 
-    expect(await screen.findByTestId("loading-indicator")).toBeInTheDocument();
+    expect(await screen.findByTestId("chat-loader")).toBeInTheDocument();
   });
 
   it("keeps loading while user profile is not ready", async () => {
@@ -178,7 +176,7 @@ describe("ChatContainer Component", () => {
 
     render(<ChatContainer />);
 
-    expect(await screen.findByTestId("loading-indicator")).toBeInTheDocument();
+    expect(await screen.findByTestId("chat-loader")).toBeInTheDocument();
   });
 
   it("renders error if connection fails", async () => {
@@ -230,10 +228,10 @@ describe("ChatContainer Component", () => {
 
     const channelList = screen.getByTestId("stream-channel-list");
     const previewSpan = within(channelList).getByTestId("preview-messenger");
-    const previewButton = previewSpan.closest("[role='button']");
+    const previewOption = previewSpan.closest("[role='option']");
 
-    expect(previewButton).toBeInTheDocument();
-    fireEvent.click(previewButton!);
+    expect(previewOption).toBeInTheDocument();
+    fireEvent.click(previewOption!);
 
     const backBtn = screen.getByText("← Back");
     expect(backBtn).toBeInTheDocument();
@@ -250,7 +248,7 @@ describe("ChatContainer Component", () => {
     await waitFor(() => screen.getByTestId("stream-chat"));
 
     const header = screen.getByTestId("stream-channel-header");
-    expect(header).toHaveTextContent(/Buddy.*\(John Doe\)/);
+    expect(header).toHaveTextContent("Test Channel");
 
     const closeBtn = screen.getByText("Close Session");
     expect(closeBtn).toBeInTheDocument();
@@ -333,6 +331,6 @@ describe("ChatContainer Component", () => {
 
     render(<ProtectedComponent />);
 
-    expect(await screen.findByTestId("loading-indicator")).toBeInTheDocument();
+    expect(await screen.findByTestId("chat-loader")).toBeInTheDocument();
   });
 });

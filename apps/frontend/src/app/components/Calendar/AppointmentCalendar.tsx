@@ -15,6 +15,8 @@ type AppointmentCalendarProps = {
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   weekStart: Date;
   setWeekStart: React.Dispatch<React.SetStateAction<Date>>;
+  setReschedulePopup: React.Dispatch<React.SetStateAction<boolean>>;
+  canEditAppointments: boolean;
 };
 
 const AppointmentCalendar = ({
@@ -25,11 +27,18 @@ const AppointmentCalendar = ({
   currentDate,
   setCurrentDate,
   weekStart,
-  setWeekStart
+  setWeekStart,
+  setReschedulePopup,
+  canEditAppointments
 }: AppointmentCalendarProps) => {
   const handleViewAppointment = (appointment: Appointment) => {
     setActiveAppointment?.(appointment);
     setViewPopup?.(true);
+  };
+
+  const handleRescheduleAppointment = (appointment: Appointment) => {
+    setActiveAppointment?.(appointment);
+    setReschedulePopup?.(true);
   };
 
   const dayEvents = useMemo(
@@ -48,7 +57,9 @@ const AppointmentCalendar = ({
           events={dayEvents}
           date={currentDate}
           handleViewAppointment={handleViewAppointment}
+          handleRescheduleAppointment={handleRescheduleAppointment}
           setCurrentDate={setCurrentDate}
+          canEditAppointments={canEditAppointments}
         />
       )}
       {activeCalendar === "week" && (
@@ -56,9 +67,11 @@ const AppointmentCalendar = ({
           events={filteredList}
           date={currentDate}
           handleViewAppointment={handleViewAppointment}
+          handleRescheduleAppointment={handleRescheduleAppointment}
           weekStart={weekStart}
           setWeekStart={setWeekStart}
           setCurrentDate={setCurrentDate}
+          canEditAppointments={canEditAppointments}
         />
       )}
       {activeCalendar === "team" && (
@@ -66,7 +79,9 @@ const AppointmentCalendar = ({
           events={dayEvents}
           date={currentDate}
           handleViewAppointment={handleViewAppointment}
+          handleRescheduleAppointment={handleRescheduleAppointment}
           setCurrentDate={setCurrentDate}
+          canEditAppointments={canEditAppointments}
         />
       )}
     </div>

@@ -5,6 +5,7 @@ import {
   FormField,
   FormsCategoryOptions,
   FormsProps,
+  RequiredSignerOptions,
   FormsUsageOptions,
 } from "@/app/types/forms";
 import React, { useEffect } from "react";
@@ -27,6 +28,12 @@ const DetailsFields = [
     key: "category",
     type: "dropdown",
     options: FormsCategoryOptions,
+  },
+  {
+    label: "Signed by",
+    key: "requiredSigner",
+    type: "dropdown",
+    options: RequiredSignerOptions,
   },
 ];
 
@@ -140,18 +147,18 @@ const Review = ({
           </Accordion>
         )}
       </div>
-      <div className="flex flex-col gap-3">
+      <div className="grid grid-cols-2 gap-3 px-3">
         <Primary
           href="#"
           text={isEditing ? "Update & publish" : "Publish template"}
-          classname="max-h-12! text-lg! tracking-wide!"
+          classname="w-full max-h-12! text-lg! tracking-wide!"
           onClick={onPublish}
           isDisabled={loading}
         />
         <Secondary
           href="#"
           text={isEditing ? "Update draft" : "Save as draft"}
-          className="max-h-12! text-lg! tracking-wide!"
+          className="w-full max-h-12! text-lg! tracking-wide!"
           onClick={onSaveDraft}
           isDisabled={loading}
         />

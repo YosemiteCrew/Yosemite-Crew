@@ -8,8 +8,8 @@ import InviteCard from "../Cards/InviteCard/InviteCard";
 import { Invite } from "@/app/types/team";
 
 import { useRouter } from "next/navigation";
-import { acceptInvite } from "@/app/services/teamService";
-import { toTitleCase } from "@/app/utils/validators";
+import { acceptInvite, rejectInvite } from "@/app/services/teamService";
+import { toTitleCase, toTitle } from "@/app/utils/validators";
 
 import "./DataTable.css";
 
@@ -22,9 +22,10 @@ type Column<T> = {
 
 type OrgInvitesProps = {
   invites: Invite[];
+  setInvites: React.Dispatch<React.SetStateAction<Invite[]>>;
 };
 
-const OrgInvites = ({ invites }: OrgInvitesProps) => {
+const OrgInvites = ({ invites, setInvites }: OrgInvitesProps) => {
   const router = useRouter();
 
   const handleAccept = async (invite: Invite) => {
@@ -36,7 +37,14 @@ const OrgInvites = ({ invites }: OrgInvitesProps) => {
     }
   };
 
-  const handleReject = (invite: Invite) => {};
+  const handleReject = async (invite: Invite) => {
+    try {
+      await rejectInvite(invite);
+      setInvites((invites) => invites.filter((i) => i._id !== invite._id));
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
   const columns: Column<Invite>[] = [
     {
@@ -68,9 +76,7 @@ const OrgInvites = ({ invites }: OrgInvitesProps) => {
       key: "employee-type",
       width: "20%",
       render: (item: Invite) => (
-        <div className="InviteExpires">
-          {item.employmentType.split("_").join(" ")}
-        </div>
+        <div className="InviteExpires">{toTitle(item.employmentType)}</div>
       ),
     },
     {

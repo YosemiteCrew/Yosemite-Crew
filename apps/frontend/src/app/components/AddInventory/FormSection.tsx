@@ -7,7 +7,6 @@ import MultiSelectDropdown from "../Inputs/MultiSelectDropdown";
 import FormDesc from "../Inputs/FormDesc/FormDesc";
 import Datepicker from "../Inputs/Datepicker";
 import { BusinessType } from "@/app/types/org";
-import { IoIosWarning } from "react-icons/io";
 
 import { InventoryItem, InventoryErrors } from "@/app/pages/Inventory/types";
 import {
@@ -63,16 +62,30 @@ const FormSection: React.FC<FormSectionProps> = ({
 
   const parseDate = (value?: string): Date | null => {
     if (!value) return null;
+
     if (value.includes("/")) {
       const [dd, mm, yyyy] = value.split("/");
-      const parsed = new Date(`${yyyy}-${mm}-${dd}`);
+      const parsed = new Date(Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd)));
       if (!Number.isNaN(parsed.getTime())) return parsed;
     }
+
+    const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) {
+      const [, yyyy, mm, dd] = isoMatch;
+      const parsed = new Date(Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd)));
+      if (!Number.isNaN(parsed.getTime())) return parsed;
+    }
+
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? null : date;
   };
 
-  const formatDate = (date: Date) => date.toISOString().split("T")[0];
+  const formatDate = (date: Date) => {
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const dd = String(date.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  };
 
   const getValue = (field: FieldDef<any>): string =>
     sectionData?.[field.name] ?? "";
@@ -137,13 +150,8 @@ const FormSection: React.FC<FormSectionProps> = ({
             placeholder={placeholder || ""}
             type="input"
             className="min-h-12!"
+            error={error}
           />
-          {error && (
-            <div className="mt-1.5 flex items-center gap-1 px-4 text-caption-2 text-text-error">
-              <IoIosWarning className="text-text-error" size={14} />
-              <span>{error}</span>
-            </div>
-          )}
         </div>
       );
     }
@@ -261,13 +269,12 @@ const FormSection: React.FC<FormSectionProps> = ({
                   </div>
                 </div>
               ))}
-              <button
-                type="button"
+              <Secondary
+                href="#"
+                text="Add another batch"
                 onClick={() => onAddBatch?.()}
-                className="w-full h-12 rounded-xl border border-dashed border-grey-light text-black-text font-satoshi font-semibold hover:bg-grey-bg"
-              >
-                Add another batch
-              </button>
+                className="w-full! h-12! text-body-3-emphasis! font-satoshi font-semibold!"
+              />
             </div>
           ) : (
             <div className="flex flex-col gap-3">
@@ -277,7 +284,7 @@ const FormSection: React.FC<FormSectionProps> = ({
         </Accordion>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 px-3 pb-3">
         <Secondary
           href="#"
           text="Clear"

@@ -116,6 +116,9 @@ importers:
       playwright:
         specifier: ^1.57.0
         version: 1.57.0
+      safe-stable-stringify:
+        specifier: ^2.5.0
+        version: 2.5.0
       sanitize-filename:
         specifier: ^1.6.3
         version: 1.6.3
@@ -262,6 +265,12 @@ importers:
       '@stripe/react-connect-js':
         specifier: ^3.3.31
         version: 3.3.31(@stripe/connect-js@3.3.31)(react-dom@19.1.1)(react@19.1.1)
+      '@stripe/react-stripe-js':
+        specifier: ^5.4.1
+        version: 5.4.1(@stripe/stripe-js@8.6.4)(react-dom@19.1.1)(react@19.1.1)
+      '@stripe/stripe-js':
+        specifier: ^8.6.4
+        version: 8.6.4
       '@testing-library/user-event':
         specifier: ^14.6.1
         version: 14.6.1(@testing-library/dom@10.4.1)
@@ -368,6 +377,9 @@ importers:
       '@yosemite-crew/fhir':
         specifier: workspace:^
         version: link:../../packages/fhir
+      '@yosemite-crew/fhirtypes':
+        specifier: workspace:^
+        version: link:../../packages/fhirtypes
       '@yosemite-crew/types':
         specifier: workspace:^
         version: link:../../packages/types
@@ -16817,6 +16829,24 @@ packages:
       '@stripe/connect-js': 3.3.31
       react: 19.1.1
       react-dom: 19.1.1(react@19.1.1)
+    dev: false
+
+  /@stripe/react-stripe-js@5.4.1(@stripe/stripe-js@8.6.4)(react-dom@19.1.1)(react@19.1.1):
+    resolution: {integrity: sha512-ipeYcAHa4EPmjwfv0lFE+YDVkOQ0TMKkFWamW+BqmnSkEln/hO8rmxGPPWcd9WjqABx6Ro8Xg4pAS7evCcR9cw==}
+    peerDependencies:
+      '@stripe/stripe-js': '>=8.0.0 <9.0.0'
+      react: '>=16.8.0 <20.0.0'
+      react-dom: '>=16.8.0 <20.0.0'
+    dependencies:
+      '@stripe/stripe-js': 8.6.4
+      prop-types: 15.8.1
+      react: 19.1.1
+      react-dom: 19.1.1(react@19.1.1)
+    dev: false
+
+  /@stripe/stripe-js@8.6.4:
+    resolution: {integrity: sha512-ipBq9+YEt5i4FxotkwNlQDqXvt//9ts23XQ4zgwm7yOkU/k3ZHnNRnm7dR418r5nC455dVYEzP7eERUHLrIYhA==}
+    engines: {node: '>=12.16'}
     dev: false
 
   /@stripe/stripe-react-native@0.57.0(react-native@0.81.4)(react@19.1.0):

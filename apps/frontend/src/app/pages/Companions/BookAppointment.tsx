@@ -26,6 +26,10 @@ import Slotpicker from "@/app/components/Inputs/Slotpicker";
 import { Primary } from "@/app/components/Buttons";
 import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
 import Close from "@/app/components/Icons/Close";
+import { useSubscriptionCounterUpdate } from "@/app/hooks/useStripeOnboarding";
+import { IoIosWarning } from "react-icons/io";
+import { useCanMoreForPrimaryOrg, useCurrencyForPrimaryOrg } from "@/app/hooks/useBilling";
+import { loadInvoicesForOrgPrimaryOrg } from "@/app/services/invoiceService";
 
 type BookAppointmentProps = {
   showModal: boolean;
@@ -40,23 +44,18 @@ const CompanionFields = [
   { label: "Species", key: "species", type: "text" },
 ];
 
-const ServiceFields = [
-  { label: "Name", key: "name", type: "text" },
-  { label: "Description", key: "description", type: "text" },
-  { label: "Duration (mins)", key: "duration", type: "text" },
-  { label: "Cost ($)", key: "cost", type: "text" },
-  { label: "Max discount", key: "maxDiscount", type: "text" },
-];
-
 const BookAppointment = ({
   showModal,
   setShowModal,
   activeCompanion,
 }: BookAppointmentProps) => {
   const teams = useTeamForPrimaryOrg();
+  const currency = useCurrencyForPrimaryOrg();
   const specialities = useSpecialitiesForPrimaryOrg();
+  const { canMore, reason } = useCanMoreForPrimaryOrg("appointments");
   const getServicesBySpecialityId =
     useServiceStore.getState().getServicesBySpecialityId;
+  const { refetch: refetchData } = useSubscriptionCounterUpdate();
   const [formData, setFormData] = useState<Appointment>(EMPTY_APPOINTMENT);
   const [formDataErrors, setFormDataErrors] = useState<{
     specialityId?: string;
@@ -64,10 +63,22 @@ const BookAppointment = ({
     leadId?: string;
     duration?: string;
     slot?: string;
+    booking?: string;
   }>({});
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [timeSlots, setTimeSlots] = useState<Slot[]>([]);
+
+  const ServiceFields = useMemo(
+    () => [
+      { label: "Name", key: "name", type: "text" },
+      { label: "Description", key: "description", type: "text" },
+      { label: "Duration (mins)", key: "duration", type: "text" },
+      { label: `Cost (${currency})`, key: "cost", type: "text" },
+      { label: "Max discount", key: "maxDiscount", type: "text" },
+    ],
+    [currency],
+  );
 
   useEffect(() => {
     const appointmentTypeId = formData.appointmentType?.id;
@@ -80,7 +91,7 @@ const BookAppointment = ({
       try {
         const slots = await getSlotsForServiceAndDateForPrimaryOrg(
           appointmentTypeId,
-          selectedDate
+          selectedDate,
         );
         if (cancelled) return;
         setTimeSlots(slots);
@@ -103,16 +114,16 @@ const BookAppointment = ({
       ...prev,
       startTime: buildUtcDateFromDateAndTime(
         selectedDate,
-        selectedSlot.startTime
+        selectedSlot.startTime,
       ),
       endTime: buildUtcDateFromDateAndTime(selectedDate, selectedSlot.endTime),
       appointmentDate: buildUtcDateFromDateAndTime(
         selectedDate,
-        selectedSlot.startTime
+        selectedSlot.startTime,
       ),
       durationMinutes: getDurationMinutes(
         selectedSlot.startTime,
-        selectedSlot.endTime
+        selectedSlot.endTime,
       ),
     }));
   }, [selectedSlot, selectedDate]);
@@ -123,20 +134,23 @@ const BookAppointment = ({
     if (!slot?.vetIds?.length) return [];
     const vetIdSet = new Set(slot.vetIds);
     return teams
-      .filter((team) => vetIdSet.has(team._id))
+      .filter((team) => {
+        const teamId = team.practionerId || team._id;
+        return teamId ? vetIdSet.has(teamId) : false;
+      })
       .map((team) => ({
-        label: team.name || team._id,
-        value: team._id,
+        label: team.name || team.practionerId || team._id,
+        value: team.practionerId || team._id,
       }));
   }, [teams, timeSlots, selectedSlot]);
 
   const TeamOptions = useMemo(
     () =>
       teams?.map((team) => ({
-        label: team.name || team._id,
-        value: team._id,
+        label: team.name || team.practionerId || team._id,
+        value: team.practionerId || team._id,
       })),
-    [teams]
+    [teams],
   );
 
   const SpecialitiesOptions = useMemo(
@@ -145,7 +159,7 @@ const BookAppointment = ({
         label: speciality.name,
         value: speciality._id || speciality.name,
       })),
-    [specialities]
+    [specialities],
   );
 
   const services = useMemo(() => {
@@ -162,7 +176,7 @@ const BookAppointment = ({
         label: service.name,
         value: service.id,
       })),
-    [services]
+    [services],
   );
 
   useEffect(() => {
@@ -231,7 +245,14 @@ const BookAppointment = ({
       leadId?: string;
       slot?: string;
       duration?: string;
+      booking?: string;
     } = {};
+    if (!canMore) {
+      errors.booking =
+        reason === "limit_reached"
+          ? "You’ve reached your free appointment limit. Please upgrade to book more."
+          : "We couldn’t verify your booking limit right now. Please try again.";
+    }
     if (!formData.appointmentType?.speciality.id)
       errors.specialityId = "Please select a speciality";
     if (!formData.appointmentType?.id)
@@ -245,6 +266,8 @@ const BookAppointment = ({
     }
     try {
       await createAppointment(formData);
+      await refetchData();
+      await loadInvoicesForOrgPrimaryOrg({ force: true });
       setShowModal(false);
       setFormData(EMPTY_APPOINTMENT);
       setSelectedSlot(null);
@@ -258,6 +281,9 @@ const BookAppointment = ({
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <div className="flex flex-col h-full gap-6">
         <div className="flex justify-between items-center">
+          <div className="opacity-0">
+            <Close onClick={() => {}} />
+          </div>
           <div className="flex justify-center items-center gap-2">
             <div className="text-body-1 text-text-primary">Add appointment</div>
           </div>
@@ -389,8 +415,8 @@ const BookAppointment = ({
                     onChange={(ids) => {
                       const map = new Map(
                         TeamOptions.map((o) =>
-                          typeof o === "string" ? [o, o] : [o.value, o.label]
-                        )
+                          typeof o === "string" ? [o, o] : [o.value, o.label],
+                        ),
                       );
                       setFormData({
                         ...formData,
@@ -436,12 +462,20 @@ const BookAppointment = ({
               </div>
             </div>
           </div>
-          <Primary
-            href="#"
-            text="Book appointment"
-            classname="h-13!"
-            onClick={handleCreate}
-          />
+          <div className="flex flex-col items-end gap-2 w-full">
+            {formDataErrors.booking && (
+              <div className="mt-1.5 flex items-center gap-1 px-2 text-caption-2 text-text-error">
+                <IoIosWarning className="text-text-error" size={14} />
+                <span>{formDataErrors.booking}</span>
+              </div>
+            )}
+            <Primary
+              href="#"
+              text="Book appointment"
+              onClick={handleCreate}
+              classname="w-full"
+            />
+          </div>
         </div>
       </div>
     </Modal>

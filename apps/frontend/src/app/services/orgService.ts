@@ -19,10 +19,15 @@ import { useServiceStore } from "../stores/serviceStore";
 import { useSpecialityStore } from "../stores/specialityStore";
 import { useTeamStore } from "../stores/teamStore";
 import { useUserProfileStore } from "../stores/profileStore";
+import { BillingCounter, BillingSubscription } from "../types/billing";
+import { useCounterStore } from "../stores/counterStore";
+import { useSubscriptionStore } from "../stores/subscriptionStore";
 
 type MappingResponse = {
   mapping: UserOrganizationRequestDTO;
   organization: Organisation;
+  orgUsage: BillingCounter;
+  orgBilling: BillingSubscription;
 };
 
 let loadOrgsPromise: Promise<void> | null = null;
@@ -30,6 +35,8 @@ let loadOrgsPromise: Promise<void> | null = null;
 export const loadOrgs = async (opts?: { silent?: boolean }) => {
   const { startLoading, setOrgs, setError, setUserOrgMappings } =
     useOrgStore.getState();
+  const { setCounters } = useCounterStore.getState();
+  const { setSubscriptions } = useSubscriptionStore.getState();
   if (loadOrgsPromise) {
     return loadOrgsPromise;
   }
@@ -43,13 +50,19 @@ export const loadOrgs = async (opts?: { silent?: boolean }) => {
       );
       const orgMappings: UserOrganization[] = [];
       const orgs: Organisation[] = [];
+      const counters: BillingCounter[] = [];
+      const subscriptions: BillingSubscription[] = [];
       for (const data of res.data) {
         const oM = fromUserOrganizationRequestDTO(data.mapping);
         orgMappings.push(oM);
         orgs.push(data.organization);
+        counters.push(data.orgUsage);
+        subscriptions.push(data.orgBilling);
       }
       setOrgs(orgs, { keepPrimaryIfPresent: true });
       setUserOrgMappings(orgMappings);
+      setCounters(counters);
+      setSubscriptions(subscriptions);
     } catch (err: any) {
       if (!opts?.silent) {
         if (axios.isAxiosError(err)) {
@@ -81,7 +94,6 @@ export const loadOrgs = async (opts?: { silent?: boolean }) => {
 
 export const createOrg = async (formData: Organisation) => {
   const {
-    startLoading,
     setError,
     upsertOrg,
     setPrimaryOrg,
@@ -89,7 +101,6 @@ export const createOrg = async (formData: Organisation) => {
   } = useOrgStore.getState();
   const { user, attributes } = useAuthStore.getState();
   const practitionerId = attributes?.sub || user?.getUsername() || "";
-  startLoading();
   try {
     const fhirPayload = toOrganizationResponseDTO(formData);
     const res = await postData<OrganizationRequestDTO>(
@@ -133,8 +144,7 @@ export const createOrg = async (formData: Organisation) => {
 };
 
 export const updateOrg = async (formData: Organisation) => {
-  const { startLoading, setError, updateOrg } = useOrgStore.getState();
-  startLoading();
+  const { setError, updateOrg } = useOrgStore.getState();
   try {
     const _id = formData._id?.toString();
     if (!_id) {

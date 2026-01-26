@@ -17,6 +17,8 @@ const OtpModal = ({
   showErrorTost,
   showVerifyModal,
   setShowVerifyModal,
+  redirectPath = "/organizations",
+  isDeveloper = false,
 }: any) => {
   const { signOut } = useSignOut();
   const { confirmSignUp, resendCode, signIn } = useAuthStore();
@@ -105,7 +107,11 @@ const OtpModal = ({
         try {
           await signIn(email, password);
           await afterAuthSuccess();
-          router.push("/organizations");
+          // Set devAuth flag BEFORE redirect so DevRouteGuard can read it
+          if (typeof window !== "undefined") {
+            window.sessionStorage?.setItem("devAuth", isDeveloper ? "true" : "false");
+          }
+          router.push(redirectPath);
         } catch (error) {
           console.log(error);
           showErrorTost({

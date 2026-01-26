@@ -1,63 +1,38 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
 import DocumentsCard from "@/app/components/Cards/DocumentsCard";
-import { OrganizationDocument } from "@/app/types/document";
 
-// --- Test Data ---
+jest.mock("@/app/components/Buttons", () => ({
+  Secondary: ({ text, onClick }: any) => (
+    <button type="button" onClick={onClick}>
+      {text}
+    </button>
+  ),
+}));
 
-const mockDocument: OrganizationDocument = {
-  _id: "doc-1",
-  title: "Policy Manual",
-  description: "Company policies for 2023",
-  category: "HR",
-  fileUrl: "https://example.com/file.pdf",
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-} as any;
+jest.mock("@/app/utils/validators", () => ({
+  toTitle: (value: string) => value.toUpperCase(),
+}));
 
-describe("DocumentsCard Component", () => {
-  const mockHandleView = jest.fn();
+describe("DocumentsCard", () => {
+  it("renders document info and triggers view", () => {
+    const handleViewDocument = jest.fn();
+    const doc: any = {
+      title: "License",
+      description: "State license",
+      category: "legal",
+    };
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  // --- 1. Rendering ---
-
-  it("renders document details correctly", () => {
     render(
-      <DocumentsCard
-        document={mockDocument}
-        handleViewDocument={mockHandleView}
-      />
+      <DocumentsCard document={doc} handleViewDocument={handleViewDocument} />
     );
 
-    // Title
-    expect(screen.getByText("Policy Manual")).toBeInTheDocument();
+    expect(screen.getByText("License")).toBeInTheDocument();
+    expect(screen.getByText("State license")).toBeInTheDocument();
+    expect(screen.getByText("LEGAL")).toBeInTheDocument();
 
-    // Description Label & Value
-    expect(screen.getByText("Description:")).toBeInTheDocument();
-    expect(screen.getByText("Company policies for 2023")).toBeInTheDocument();
-
-    // Category Label & Value
-    expect(screen.getByText("Category:")).toBeInTheDocument();
-    expect(screen.getByText("HR")).toBeInTheDocument();
-  });
-
-  // --- 2. Interaction ---
-
-  it("calls handleViewDocument when View button is clicked", () => {
-    render(
-      <DocumentsCard
-        document={mockDocument}
-        handleViewDocument={mockHandleView}
-      />
-    );
-
-    const viewBtn = screen.getByText("View");
-    fireEvent.click(viewBtn);
-
-    expect(mockHandleView).toHaveBeenCalledTimes(1);
-    expect(mockHandleView).toHaveBeenCalledWith(mockDocument);
+    fireEvent.click(screen.getByRole("button", { name: "View" }));
+    expect(handleViewDocument).toHaveBeenCalledWith(doc);
   });
 });

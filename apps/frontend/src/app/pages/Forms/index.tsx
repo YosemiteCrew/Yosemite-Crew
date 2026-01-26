@@ -9,15 +9,23 @@ import AddForm from "./Sections/AddForm";
 import FormInfo from "./Sections/FormInfo";
 import { useFormsStore } from "@/app/stores/formsStore";
 import { loadForms } from "@/app/services/formService";
+import { useSearchStore } from "@/app/stores/searchStore";
 import {
   useLoadSpecialitiesForPrimaryOrg,
   useServicesForPrimaryOrgSpecialities,
 } from "@/app/hooks/useSpecialities";
 import OrgGuard from "@/app/components/OrgGuard";
+import { usePermissions } from "@/app/hooks/usePermissions";
+import { PERMISSIONS } from "@/app/utils/permissions";
+import { PermissionGate } from "@/app/components/PermissionGate";
+import Fallback from "@/app/components/Fallback";
 
 const Forms = () => {
+  const { can } = usePermissions();
+  const canEditForms = can(PERMISSIONS.FORMS_EDIT_ANY);
   const { formsById, formIds, activeFormId, setActiveForm, loading } =
     useFormsStore();
+  const headerSearchQuery = useSearchStore((s) => s.query);
   const [filteredList, setFilteredList] = useState<FormsProps[]>([]);
   const [addPopup, setAddPopup] = useState(false);
   const [viewPopup, setViewPopup] = useState(false);
@@ -107,7 +115,7 @@ const Forms = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6 px-3! py-3! sm:px-12! lg:px-[60px]! sm:py-12!">
+    <div className="flex flex-col gap-6 px-4! py-6! md:px-12! md:py-10! lg:px-10! lg:pb-20! lg:pr-20!">
       <div className="flex justify-between items-center w-full flex-wrap gap-2">
         <div className="flex flex-col gap-1">
           <div className="text-text-primary text-heading-1">
@@ -120,39 +128,47 @@ const Forms = () => {
             Build and reuse forms templates, link them to services, and use custom available templates.
           </p>
         </div>
-        <Primary href="#" text="Add" onClick={openAddForm} />
+        {canEditForms && (
+          <Primary href="#" text="Add" onClick={openAddForm} />
+        )}
       </div>
 
-      <div className="w-full flex flex-col gap-3">
-        <FormsFilters list={list} setFilteredList={setFilteredList} />
-        <FormsTable
-          filteredList={filteredList}
-          activeForm={activeForm}
-          setActiveForm={handleSelectForm}
-          setViewPopup={setViewPopup}
-          loading={loading}
-        />
-      </div>
+      <PermissionGate
+        allOf={[PERMISSIONS.FORMS_VIEW_ANY]}
+        fallback={<Fallback />}
+      >
+        <div className="w-full flex flex-col gap-3">
+          <FormsFilters list={list} setFilteredList={setFilteredList} searchQuery={headerSearchQuery} />
+          <FormsTable
+            filteredList={filteredList}
+            activeForm={activeForm}
+            setActiveForm={handleSelectForm}
+            setViewPopup={setViewPopup}
+            loading={loading}
+          />
+        </div>
 
-      <AddForm
-        key={editingForm?._id ? `edit-${editingForm._id}` : "add-form"}
-        showModal={addPopup}
-        setShowModal={setAddPopup}
-        initialForm={editingForm}
-        onClose={handleAddClose}
-        serviceOptions={serviceOptions}
-        draft={editingForm ? null : draftForm}
-        onDraftChange={(d) => !editingForm && setDraftForm(d)}
-      />
-      {activeForm && (
-        <FormInfo
-          showModal={viewPopup}
-          setShowModal={setViewPopup}
-          activeForm={activeForm}
-          onEdit={openEditForm}
+        <AddForm
+          key={editingForm?._id ? `edit-${editingForm._id}` : "add-form"}
+          showModal={addPopup}
+          setShowModal={setAddPopup}
+          initialForm={editingForm}
+          onClose={handleAddClose}
           serviceOptions={serviceOptions}
+          draft={editingForm ? null : draftForm}
+          onDraftChange={(d) => !editingForm && setDraftForm(d)}
         />
-      )}
+        {activeForm && (
+          <FormInfo
+            showModal={viewPopup}
+            setShowModal={setViewPopup}
+            activeForm={activeForm}
+            onEdit={openEditForm}
+            serviceOptions={serviceOptions}
+            canEdit={canEditForms}
+          />
+        )}
+      </PermissionGate>
     </div>
   );
 };

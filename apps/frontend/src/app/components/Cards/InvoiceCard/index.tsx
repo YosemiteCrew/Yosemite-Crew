@@ -1,8 +1,15 @@
 import React from "react";
-import { getStatusStyle } from "../../DataTable/InvoiceTable";
+import {
+  getInvoiceItemNames,
+  getStatusStyle,
+} from "../../DataTable/InvoiceTable";
 import { Invoice } from "@yosemite-crew/types";
-import { formatDateLabel, formatTimeLabel } from "@/app/utils/forms";
+import { formatDateLabel } from "@/app/utils/forms";
 import { Secondary } from "../../Buttons";
+import { toTitle } from "@/app/utils/validators";
+import { useAppointmentsForPrimaryOrg } from "@/app/hooks/useAppointments";
+import { useCurrencyForPrimaryOrg } from "@/app/hooks/useBilling";
+import { formatMoney } from "@/app/utils/money";
 
 type InvoiceCardProps = {
   invoice: Invoice;
@@ -10,56 +17,79 @@ type InvoiceCardProps = {
 };
 
 const InvoiceCard = ({ invoice, handleViewInvoice }: InvoiceCardProps) => {
+  const appointments = useAppointmentsForPrimaryOrg();
+  const currency = useCurrencyForPrimaryOrg();
+
+  const getCompanionName = (appointmentId: string | undefined) => {
+    const match = appointments.filter((a) => a.id === appointmentId);
+    if (match.length > 0) {
+      return match[0].companion.name;
+    }
+    return "-";
+  };
+
+  const getParentName = (appointmentId: string | undefined) => {
+    const match = appointments.filter((a) => a.id === appointmentId);
+    if (match.length > 0) {
+      return match[0].companion.parent.name;
+    }
+    return "-";
+  };
+
   return (
     <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-hover bg-white px-3 py-3 flex flex-col justify-between gap-2 cursor-pointer">
       <div className="flex gap-1">
         <div className="text-body-3-emphasis text-text-primary">
-          {invoice?.companionId || "-"}
+          {getCompanionName(invoice.appointmentId)}
         </div>
       </div>
       <div className="flex gap-1">
-        <div className="text-caption-1 text-text-extra">Appointment ID:</div>
+        <div className="text-caption-1 text-text-extra">Parent:</div>
         <div className="text-caption-1 text-text-primary">
-          {invoice?.id || "-"}
+          {getParentName(invoice.appointmentId)}
         </div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Service:</div>
         <div className="text-caption-1 text-text-primary">
-          {invoice?.id || "-"}
+          {getInvoiceItemNames(invoice.items)}
         </div>
       </div>
       <div className="flex gap-1">
-        <div className="text-caption-1 text-text-extra">Date / Time:</div>
+        <div className="text-caption-1 text-text-extra">Date:</div>
         <div className="text-caption-1 text-text-primary">
-          {formatDateLabel(invoice.createdAt) +
-            " / " +
-            formatTimeLabel(invoice.createdAt)}
+          {formatDateLabel(invoice.createdAt)}
         </div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Sub-total:</div>
         <div className="text-caption-1 text-text-primary">
-          {"$ " + invoice?.subtotal}
+          {formatMoney(invoice.subtotal, currency)}
+        </div>
+      </div>
+      <div className="flex gap-1">
+        <div className="text-caption-1 text-text-extra">Discount:</div>
+        <div className="text-caption-1 text-text-primary">
+          {formatMoney(invoice.discountTotal ?? 0, currency)}
         </div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Tax:</div>
         <div className="text-caption-1 text-text-primary">
-          {"$ " + invoice?.taxTotal}
+          {formatMoney(invoice.taxTotal ?? 0, currency)}
         </div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Total:</div>
         <div className="text-caption-1 text-text-primary">
-          {invoice?.totalAmount}
+          {formatMoney(invoice.totalAmount, currency)}
         </div>
       </div>
       <div
         style={getStatusStyle(invoice.status)}
         className="w-full rounded-2xl h-12 flex items-center justify-center text-body-4"
       >
-        {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+        {toTitle(invoice?.status)}
       </div>
       <div className="flex gap-3 w-full">
         <Secondary

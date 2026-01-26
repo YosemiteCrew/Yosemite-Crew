@@ -20,13 +20,21 @@ import { useOrgStore } from "@/app/stores/orgStore";
 import { useLoadOrg } from "@/app/hooks/useLoadOrg";
 import { useInventoryModule } from "@/app/hooks/useInventory";
 import OrgGuard from "@/app/components/OrgGuard";
+import { useSearchStore } from "@/app/stores/searchStore";
+import { usePermissions } from "@/app/hooks/usePermissions";
+import { PERMISSIONS } from "@/app/utils/permissions";
+import { PermissionGate } from "@/app/components/PermissionGate";
+import Fallback from "@/app/components/Fallback";
 
 const Inventory = () => {
   useLoadOrg();
 
+  const { can } = usePermissions();
+  const canEditInventory = can(PERMISSIONS.INVENTORY_EDIT_ANY);
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const orgsById = useOrgStore((s) => s.orgsById);
   const primaryOrg = primaryOrgId ? orgsById[primaryOrgId] : null;
+  const headerSearchQuery = useSearchStore((s) => s.query);
 
   const [businessType, setBusinessType] = useState<BusinessType | null>(
     primaryOrg?.type as BusinessType
@@ -43,10 +51,11 @@ const Inventory = () => {
     hideItem,
     unhideItem,
     addBatch,
+    updateBatch,
   } = useInventoryModule(resolvedBusinessType);
 
   const [filters, setFilters] = useState<InventoryFiltersState>(defaultFilters);
-  const [debouncedSearch, setDebouncedSearch] = useState(filters.search);
+  const [debouncedSearch, setDebouncedSearch] = useState(headerSearchQuery);
   const [filteredInventory, setFilteredInventory] = useState<InventoryItem[]>(
     []
   );
@@ -74,9 +83,9 @@ const Inventory = () => {
   }, [primaryOrgId, orgsById, businessType]);
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(filters.search), 300);
+    const timer = setTimeout(() => setDebouncedSearch(headerSearchQuery), 300);
     return () => clearTimeout(timer);
-  }, [filters.search]);
+  }, [headerSearchQuery]);
 
   const categoryOptions = useMemo(
     () => CategoryOptionsByBusiness[resolvedBusinessType] ?? [],
@@ -183,6 +192,20 @@ const Inventory = () => {
     [addBatch]
   );
 
+  const handleUpdateBatch = useCallback(
+    async (itemId: string, batches: any[]) => {
+      if (!itemId) return;
+      setActionError(null);
+      try {
+        await updateBatch(itemId, batches);
+      } catch (err) {
+        setActionError("Unable to update batch.");
+        throw err;
+      }
+    },
+    [updateBatch]
+  );
+
   const handleHideInventory = useCallback(
     async (itemId: string) => {
       if (!itemId) return;
@@ -218,24 +241,23 @@ const Inventory = () => {
   );
 
   return (
-    <div className="flex flex-col gap-5 lg:gap-20 px-4! py-6! md:px-12! md:py-10! lg:px-10! lg:pb-20! lg:pr-20!">
+    <div className="flex flex-col gap-3 lg:gap-20 px-4! py-6! md:px-12! md:py-10! lg:px-10! lg:pb-20! lg:pr-20!">
       <div className="flex justify-between items-center w-full flex-wrap gap-2">
         <div className="flex flex-col gap-1">
-          <div className="font-grotesk text-heading-1 text-text-primary text-[33px]">
-            Inventory
-          </div>
+          <div className="text-text-primary text-heading-1">Inventory</div>
           <p className="text-body-3 text-text-secondary max-w-3xl">
             Organize stock, track batches and expiry, and monitor turnover so you
             know what to reorder and which items need attention.
           </p>
         </div>
-        <Primary
-          href="#"
-          text={savingItem ? "Saving..." : "Add"}
-          onClick={() => setAddPopup(true)}
-          classname="w-[140px] sm:w-40"
-          isDisabled={savingItem || !primaryOrgId}
-        />
+        {canEditInventory && (
+          <Primary
+            href="#"
+            text={savingItem ? "Saving..." : "Add"}
+            onClick={() => setAddPopup(true)}
+            isDisabled={savingItem || !primaryOrgId}
+          />
+        )}
       </div>
 
       {error && (
@@ -244,55 +266,60 @@ const Inventory = () => {
         </div>
       )}
 
-      <div className="w-full flex flex-col gap-6">
-        <InventoryFilters
-          filters={filters}
-          onChange={setFilters}
-          categories={categoryOptions}
-          loading={loadingList}
-        />
-        {loadingList && (
-          <div className="text-grey-noti text-sm font-satoshi">
-            Loading inventory...
-          </div>
-        )}
-        <InventoryTable
-          setActiveInventory={setActiveInventory}
-          setViewInventory={setViewInventory}
-          filteredList={filteredInventory}
-        />
-      </div>
-
-      <div className="w-full flex flex-col gap-6">
-        <div className="font-grotesk font-medium text-black-text text-[33px]">
-          Turnover
+      <PermissionGate
+        allOf={[PERMISSIONS.INVENTORY_VIEW_ANY]}
+        fallback={<Fallback />}
+      >
+        <div className="w-full flex flex-col gap-6">
+          <InventoryFilters
+            filters={filters}
+            onChange={setFilters}
+            categories={categoryOptions}
+            loading={loadingList}
+          />
+          {loadingList && (
+            <div className="text-grey-noti text-sm font-satoshi">
+              Loading inventory...
+            </div>
+          )}
+          <InventoryTable
+            setActiveInventory={setActiveInventory}
+            setViewInventory={setViewInventory}
+            filteredList={filteredInventory}
+          />
         </div>
-        <InventoryTurnoverFilters
-          list={turnover}
-          setFilteredList={setFilteredTurnoverList}
-        />
-        <InventoryTurnoverTable filteredList={filteredTurnoverList} />
-      </div>
 
-      <AddInventory
-        showModal={addPopup}
-        setShowModal={setAddPopup}
-        businessType={resolvedBusinessType}
-        onSubmit={handleCreateInventory}
-      />
+        <div className="w-full flex flex-col gap-6">
+          <div className="text-text-primary text-heading-1">Turnover</div>
+          <InventoryTurnoverFilters
+            list={turnover}
+            setFilteredList={setFilteredTurnoverList}
+          />
+          <InventoryTurnoverTable filteredList={filteredTurnoverList} />
+        </div>
 
-      {activeInventory && (
-        <InventoryInfo
-          showModal={viewInventory}
-          setShowModal={setViewInventory}
-          activeInventory={activeInventory}
-          businessType={activeInventory.businessType ?? resolvedBusinessType}
-          onUpdate={handleUpdateInventory}
-          onAddBatch={handleAddBatch}
-          onHide={handleHideInventory}
-          onUnhide={handleUnhideInventory}
+        <AddInventory
+          showModal={addPopup}
+          setShowModal={setAddPopup}
+          businessType={resolvedBusinessType}
+          onSubmit={handleCreateInventory}
         />
-      )}
+
+        {activeInventory && (
+          <InventoryInfo
+            showModal={viewInventory}
+            setShowModal={setViewInventory}
+            activeInventory={activeInventory}
+            businessType={activeInventory.businessType ?? resolvedBusinessType}
+            onUpdate={handleUpdateInventory}
+            onAddBatch={handleAddBatch}
+            onUpdateBatch={handleUpdateBatch}
+            onHide={handleHideInventory}
+            onUnhide={handleUnhideInventory}
+            canEdit={canEditInventory}
+          />
+        )}
+      </PermissionGate>
     </div>
   );
 };

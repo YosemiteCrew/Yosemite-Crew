@@ -5,9 +5,11 @@ import Image from "next/image";
 import { IoEye } from "react-icons/io5";
 import { Team } from "@/app/types/team";
 
-import "./DataTable.css";
 import AvailabilityCard from "../Cards/AvailabilityCard";
 import { toTitleCase } from "@/app/utils/validators";
+import { getSafeImageUrl } from "@/app/utils/urls";
+
+import "./DataTable.css";
 
 type Column<T> = {
   label: string;
@@ -57,11 +59,11 @@ const AvailabilityTable = ({
       render: (item: Team) => (
         <div className="appointment-profile w-10 h-10">
           <Image
-            src={"https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"}
+            src={getSafeImageUrl(item.image, "person")}
             alt=""
             height={40}
             width={40}
-            style={{ borderRadius: "50%" }}
+            className="w-10 h-10 object-cover rounded-full"
           />
         </div>
       ),
@@ -81,7 +83,9 @@ const AvailabilityTable = ({
       key: "role",
       width: "15%",
       render: (item: Team) => (
-        <div className="appointment-profile-title">{toTitleCase(item.role)}</div>
+        <div className="appointment-profile-title">
+          {toTitleCase(item.role)}
+        </div>
       ),
     },
     {
@@ -90,7 +94,13 @@ const AvailabilityTable = ({
       width: "15%",
       render: (item: Team) => (
         <div className="appointment-profile-title">
-          {item?.speciality?.name || "-"}
+          {Array.isArray(item?.speciality) && item.speciality.length > 0
+            ? item.speciality.map((spec: any) =>
+                typeof spec === "string"
+                  ? spec
+                  : spec?.name || JSON.stringify(spec)
+              ).join(", ")
+            : "-"}
         </div>
       ),
     },

@@ -3,6 +3,9 @@ import ProfileCard from "./ProfileCard";
 import { Organisation } from "@yosemite-crew/types";
 import { updateOrg } from "@/app/services/orgService";
 import { BusinessOptions } from "@/app/types/org";
+import { PermissionGate } from "@/app/components/PermissionGate";
+import { PERMISSIONS } from "@/app/utils/permissions";
+import { usePermissions } from "@/app/hooks/usePermissions";
 
 const BasicFields = [
   {
@@ -11,7 +14,7 @@ const BasicFields = [
     required: true,
     editable: false,
     type: "select",
-    options: BusinessOptions
+    options: BusinessOptions,
   },
   {
     label: "Organization name",
@@ -87,6 +90,8 @@ type ProfileProps = {
 
 const Profile = ({ primaryOrg }: ProfileProps) => {
   const [formData, setFormData] = useState<Organisation>(primaryOrg);
+  const { can } = usePermissions();
+  const canEditOrg = can(PERMISSIONS.ORG_EDIT);
 
   const handleOrgSave = async (values: Record<string, string>) => {
     const updated: Organisation = {
@@ -98,7 +103,7 @@ const Profile = ({ primaryOrg }: ProfileProps) => {
       },
     };
     try {
-      await updateOrg(formData);
+      await updateOrg(updated);
       setFormData(updated);
     } catch (error: any) {
       console.error("Error updating organization:", error);
@@ -113,30 +118,32 @@ const Profile = ({ primaryOrg }: ProfileProps) => {
         ...values,
       },
     };
-    setFormData(updated);
     try {
-      await updateOrg(formData);
+      await updateOrg(updated);
+      setFormData(updated);
     } catch (error: any) {
       console.error("Error updating organization:", error);
     }
   };
 
   return (
-    <div className="flex flex-col gap-6">
-      <ProfileCard
-        title="Organization"
-        fields={BasicFields}
-        org={{ ...formData, country: formData.address?.country }}
-        showProfile
-        onSave={handleOrgSave}
-      />
-      <ProfileCard
-        title="Address"
-        fields={AddressFields}
-        org={{ ...formData.address }}
-        onSave={handleAddressSave}
-      />
-    </div>
+    <PermissionGate allOf={[PERMISSIONS.ORG_VIEW]}>
+      <div className="flex flex-col gap-6">
+        <ProfileCard
+          title="Organization"
+          fields={BasicFields}
+          org={{ ...formData, country: formData.address?.country }}
+          showProfile
+          onSave={canEditOrg ? handleOrgSave : undefined}
+        />
+        <ProfileCard
+          title="Address"
+          fields={AddressFields}
+          org={{ ...formData.address }}
+          onSave={canEditOrg ? handleAddressSave : undefined}
+        />
+      </div>
+    </PermissionGate>
   );
 };
 

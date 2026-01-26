@@ -4,11 +4,12 @@ import RoomCard from "../Cards/RoomCard";
 import { IoEye } from "react-icons/io5";
 import { OrganisationRoom, Speciality } from "@yosemite-crew/types";
 
-import "./DataTable.css";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
 import { useSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
 import { Team } from "@/app/types/team";
-import { toTitleCase } from "@/app/utils/validators";
+import { toTitle } from "@/app/utils/validators";
+
+import "./DataTable.css";
 
 type Column<T> = {
   label: string;
@@ -38,7 +39,13 @@ const RoomTable = ({ filteredList, setActive, setView }: RoomTableProps) => {
 
   const staffNameById = useMemo(() => {
     return teams?.reduce((acc: Record<string, string>, s: Team) => {
-      acc[s._id] = s.name ?? "";
+      const name = s.name ?? "";
+      if (s.practionerId) {
+        acc[s.practionerId] = name;
+      }
+      if (s._id) {
+        acc[s._id] = name;
+      }
       return acc;
     }, {});
   }, [teams]);
@@ -72,7 +79,7 @@ const RoomTable = ({ filteredList, setActive, setView }: RoomTableProps) => {
       key: "type",
       width: "20%",
       render: (item: OrganisationRoom) => (
-        <div className="appointment-profile-title">{toTitleCase(item.type)}</div>
+        <div className="appointment-profile-title">{toTitle(item.type)}</div>
       ),
     },
     {

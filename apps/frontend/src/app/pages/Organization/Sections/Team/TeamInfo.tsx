@@ -1,34 +1,80 @@
 import Accordion from "@/app/components/Accordion/Accordion";
-import EditableAccordion from "@/app/components/Accordion/EditableAccordion";
+import EditableAccordion, {
+  FieldConfig,
+} from "@/app/components/Accordion/EditableAccordion";
 import Availability from "@/app/components/Availability/Availability";
 import {
   AvailabilityState,
+  convertAvailability,
   convertFromGetApi,
   daysOfWeek,
   DEFAULT_INTERVAL,
+  hasAtLeastOneAvailability,
 } from "@/app/components/Availability/utils";
 import Modal from "@/app/components/Modal";
 import { Team } from "@/app/types/team";
 import React, { useEffect, useMemo, useState } from "react";
-import PermissionsEditor from "./PermissionsEditor";
-import { Permission, toPermissionArray } from "@/app/utils/permissions";
-import { getProfileForUserForPrimaryOrg } from "@/app/services/teamService";
+import PermissionsEditor, {
+  computeEffectivePermissions,
+} from "./PermissionsEditor";
+import { Permission, RoleCode } from "@/app/utils/permissions";
+import {
+  getProfileForUserForPrimaryOrg,
+  removeMember,
+  updateMember,
+} from "@/app/services/teamService";
 import Close from "@/app/components/Icons/Close";
+import { EmploymentTypes, RoleOptions } from "../../types";
+import { useSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
+import { GenderOptions } from "@/app/types/companion";
+import { MdDeleteForever } from "react-icons/md";
+import { Primary } from "@/app/components/Buttons";
+import { useSubscriptionCounterUpdate } from "@/app/hooks/useStripeOnboarding";
+import { upsertTeamAvailability } from "@/app/services/availability";
 
 type TeamInfoProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
   activeTeam: Team;
+  canEditTeam: boolean;
 };
 
-const Fields = [
+const getFields = ({
+  SpecialitiesOptions,
+  activeTeam,
+}: {
+  SpecialitiesOptions: { label: string; value: string }[];
+  activeTeam: Team;
+}) =>
+  [
+    {
+      label: "Role",
+      key: "role",
+      type: "select",
+      options: activeTeam.role === "OWNER" ? RoleOptions : RoleOptions.slice(1),
+      editable: activeTeam.role !== "OWNER",
+    },
+    {
+      label: "Employment type",
+      key: "employmentType",
+      type: "select",
+      options: EmploymentTypes,
+      editable: false,
+    },
+    {
+      label: "Department",
+      key: "speciality",
+      type: "multiSelect",
+      options: SpecialitiesOptions,
+      editable: false,
+    },
+  ] satisfies FieldConfig[];
+
+const PersonalFields = [
   { label: "Name", key: "name", type: "text" },
-  { label: "Role", key: "role", type: "text" },
-  { label: "Department", key: "speciality", type: "text" },
-  { label: "Gender", key: "gender", type: "text" },
-  { label: "Date of birth", key: "dateOfBirth", type: "text" },
-  { label: "Employment type", key: "employmentType", type: "text" },
-  { label: "Country", key: "country", type: "text" },
+  { label: "Gender", key: "gender", type: "select", options: GenderOptions },
+  { label: "Date of birth", key: "dateOfBirth", type: "date" },
+  { label: "Country", key: "country", type: "country" },
   { label: "Phone number", key: "phoneNumber", type: "text" },
 ];
 
@@ -52,8 +98,16 @@ const ProfessionalFields = [
   { label: "Biography or short description", key: "description", type: "text" },
 ];
 
-const TeamInfo = ({ showModal, setShowModal, activeTeam }: TeamInfoProps) => {
+const TeamInfo = ({
+  showModal,
+  setShowModal,
+  activeTeam,
+  canEditTeam,
+}: TeamInfoProps) => {
+  const specialities = useSpecialitiesForPrimaryOrg();
+  const { refetch: refetchData } = useSubscriptionCounterUpdate();
   const [perms, setPerms] = React.useState<Permission[]>([]);
+  const [role, setRole] = useState<RoleCode | null>(null);
   const [availability, setAvailability] = useState<AvailabilityState>(
     daysOfWeek.reduce<AvailabilityState>((acc, day) => {
       const isWeekday =
@@ -68,22 +122,46 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam }: TeamInfoProps) => {
         intervals: [{ ...DEFAULT_INTERVAL }],
       };
       return acc;
-    }, {} as AvailabilityState)
+    }, {} as AvailabilityState),
   );
 
   const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
-    const userId = activeTeam._id;
+    if (activeTeam) {
+      setPerms(activeTeam.effectivePermissions);
+      setRole(activeTeam.role as RoleCode);
+    }
+  }, [activeTeam]);
+
+  useEffect(() => {
+    if (profile) {
+      const availability = profile?.baseAvailability ?? [];
+      const normalAvailabilty = convertFromGetApi(availability);
+      setAvailability(normalAvailabilty);
+    }
+  }, [profile]);
+
+  const SpecialitiesOptions = useMemo(
+    () => specialities.map((s) => ({ label: s.name, value: s._id || s.name })),
+    [specialities],
+  );
+
+  const fields = useMemo(
+    () => getFields({ SpecialitiesOptions, activeTeam }),
+    [SpecialitiesOptions, activeTeam],
+  );
+
+  useEffect(() => {
+    const userId = activeTeam.practionerId;
     if (!showModal || !userId) return;
     let cancelled = false;
     (async () => {
       try {
         const data = await getProfileForUserForPrimaryOrg(userId);
-        console.log(data);
         if (!cancelled) setProfile(data);
       } catch {
-        // intentionally silent
+        setProfile(null);
       }
     })();
     return () => {
@@ -91,18 +169,24 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam }: TeamInfoProps) => {
     };
   }, [showModal, activeTeam]);
 
-  const basicInfoData = useMemo(
+  const orgInfoData = useMemo(
+    () => ({
+      role: activeTeam?.role ?? "",
+      speciality: activeTeam?.speciality.map((s) => s._id) ?? "",
+      employmentType: profile?.profile?.personalDetails?.employmentType ?? "",
+    }),
+    [profile, activeTeam],
+  );
+
+  const personalInfoData = useMemo(
     () => ({
       name: activeTeam?.name ?? "",
-      role: activeTeam?.role ?? "",
-      speciality: activeTeam?.speciality?.name ?? "",
       gender: profile?.profile?.personalDetails?.gender ?? "",
       dateOfBirth: profile?.profile?.personalDetails?.dateOfBirth ?? "",
-      employmentType: profile?.profile?.personalDetails?.employmentType ?? "",
       phoneNumber: profile?.profile?.personalDetails?.phoneNumber ?? "",
       country: profile?.profile?.personalDetails?.address?.country ?? "",
     }),
-    [profile, activeTeam]
+    [profile, activeTeam],
   );
 
   const addressInfoData = useMemo(
@@ -113,7 +197,7 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam }: TeamInfoProps) => {
       city: profile?.profile?.personalDetails?.address?.city ?? "",
       postalCode: profile?.profile?.personalDetails?.address?.postalCode ?? "",
     }),
-    [profile]
+    [profile],
   );
 
   const professionalInfoData = useMemo(
@@ -128,36 +212,113 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam }: TeamInfoProps) => {
       qulaification: profile?.profile?.professionalDetails?.qualification ?? "",
       description: profile?.profile?.professionalDetails?.biography ?? "",
     }),
-    [profile]
+    [profile],
   );
 
-  const { role } = useMemo(() => {
-    const role_code = profile?.mapping?.roleCode ?? null;
-    const permissions = profile?.mapping?.effectivePermissions ?? [];
-    const availability = profile?.baseAvailability ?? [];
-    const normalAvailabilty = convertFromGetApi(availability);
-    console.log(availability, normalAvailabilty);
-    setAvailability(normalAvailabilty);
-    setPerms(toPermissionArray(permissions));
-    return {
-      role: role_code,
-    };
-  }, [profile]);
+  const handleDelete = async () => {
+    try {
+      await removeMember(activeTeam);
+      await refetchData();
+      setShowModal(false);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const handleMappingUpdate = async (values: any) => {
+    try {
+      const member: Team = {
+        ...activeTeam,
+        role: values.role,
+      };
+      await updateMember(member);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const handlePermUpdate = async ({
+    extraPerissions,
+    revokedPermissions,
+  }: {
+    extraPerissions: Permission[];
+    revokedPermissions: Permission[];
+  }) => {
+    try {
+      if (!role) {
+        throw new Error("ROle undeifned");
+      }
+      const member: Team = {
+        ...activeTeam,
+        extraPerissions,
+        revokedPermissions,
+      };
+      await updateMember(member);
+      setPerms(
+        computeEffectivePermissions({
+          role,
+          extraPerissions,
+          revokedPermissions,
+        }),
+      );
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const updateAvailability = async () => {
+    try {
+      const converted = convertAvailability(availability);
+      if (!hasAtLeastOneAvailability(converted)) {
+        console.log("No availability selected");
+        return;
+      }
+      await upsertTeamAvailability(activeTeam, converted, null);
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <div className="flex flex-col h-full gap-6">
         <div className="flex justify-between items-center">
+          <div className="opacity-0">
+            <Close onClick={() => {}} />
+          </div>
           <div className="flex justify-center items-center gap-2">
             <div className="text-body-1 text-text-primary">View team</div>
           </div>
           <Close onClick={() => setShowModal(false)} />
         </div>
         <div className="flex flex-col gap-8 overflow-y-auto flex-1 w-full scrollbar-hidden">
+          <div className={`flex items-center gap-2`}>
+            <div className="flex items-center justify-between w-full">
+              <div className="text-body-2 text-text-primary">
+                {activeTeam.name || "-"}
+              </div>
+              {canEditTeam && activeTeam.role !== "OWNER" && (
+                <MdDeleteForever
+                  className="cursor-pointer"
+                  onClick={handleDelete}
+                  size={26}
+                  color="#EA3729"
+                />
+              )}
+            </div>
+          </div>
+          <EditableAccordion
+            title="Org details"
+            fields={fields}
+            data={orgInfoData}
+            defaultOpen={true}
+            showEditIcon={canEditTeam}
+            onSave={handleMappingUpdate}
+          />
           <EditableAccordion
             title="Personal details"
-            fields={Fields}
-            data={basicInfoData}
+            fields={PersonalFields}
+            data={personalInfoData}
             defaultOpen={true}
             showEditIcon={false}
           />
@@ -175,22 +336,37 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam }: TeamInfoProps) => {
             defaultOpen={false}
             showEditIcon={false}
           />
-          <Accordion
-            title="Availability"
-            defaultOpen={false}
-            showEditIcon={false}
-            isEditing={false}
-          >
-            <div className="px-3! py-3!">
-              <Availability
-                availability={availability}
-                setAvailability={setAvailability}
-              />
-            </div>
-          </Accordion>
+          {canEditTeam && (
+            <>
+              <Accordion
+                title="Availability"
+                defaultOpen={false}
+                showEditIcon={false}
+                isEditing={false}
+              >
+                <div className="flex flex-col w-full gap-3">
+                  <Availability
+                    availability={availability}
+                    setAvailability={setAvailability}
+                  />
+                  <div className="w-full flex justify-end! mb-1">
+                    <Primary
+                      href="#"
+                      text="Save"
+                      onClick={updateAvailability}
+                    />
+                  </div>
+                </div>
+              </Accordion>
 
-          {role && perms && (
-            <PermissionsEditor role={role} onChange={setPerms} value={perms} />
+              {role && perms && (
+                <PermissionsEditor
+                  role={role}
+                  onSave={handlePermUpdate}
+                  value={perms}
+                />
+              )}
+            </>
           )}
         </div>
       </div>

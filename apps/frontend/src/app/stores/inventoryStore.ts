@@ -166,6 +166,8 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
     set((state) => ({
       statusByOrgId: withStatus(state.statusByOrgId, orgId, "error"),
       errorByOrgId: withError(state.errorByOrgId, orgId, message),
+      // Prevent immediate retry loops when API returns errors (e.g., 429)
+      lastFetchedByOrgId: withTimestamp(state.lastFetchedByOrgId, orgId),
     })),
 
   clearOrg: (orgId) =>

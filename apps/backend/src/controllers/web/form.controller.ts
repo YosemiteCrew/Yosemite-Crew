@@ -286,7 +286,7 @@ export const FormController = {
   getFormsForAppointment: async (req: Request, res: Response) => {
     try {
       const { appointmentId } = req.params;
-      const { serviceId, species } = req.query;
+      const { serviceId, species, isPMS } = req.query;
 
       if (!appointmentId) {
         return res.status(400).json({ message: "appointmentId is required" });
@@ -296,6 +296,7 @@ export const FormController = {
         appointmentId,
         serviceId: typeof serviceId === "string" ? serviceId : undefined,
         species: typeof species === "string" ? species : undefined,
+        isPMS: typeof isPMS === "string" ? isPMS === "true" : undefined,
       });
 
       return res.status(200).json(result);

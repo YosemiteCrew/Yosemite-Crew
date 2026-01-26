@@ -1,11 +1,12 @@
 import Accordion from "@/app/components/Accordion/Accordion";
+import { Primary, Secondary } from "@/app/components/Buttons";
 import {
   Permission,
   PERMISSIONS,
   ROLE_PERMISSIONS,
   RoleCode,
 } from "@/app/utils/permissions";
-import React from "react";
+import React, { useEffect } from "react";
 
 type PermissionRow = {
   key: string;
@@ -40,31 +41,45 @@ const PERMISSION_ROWS: PermissionRow[] = [
     ],
   },
   {
-    key: "companions",
-    label: "Companions",
-    view: [PERMISSIONS.COMPANIONS_VIEW_ANY, PERMISSIONS.COMPANIONS_VIEW_OWN],
-    edit: [PERMISSIONS.COMPANIONS_EDIT_ANY, PERMISSIONS.COMPANIONS_EDIT_OWN],
+    key: "prescriptions",
+    label: "Prescriptions",
+    view: [
+      PERMISSIONS.PRESCRIPTION_VIEW_ANY,
+      PERMISSIONS.PRESCRIPTION_VIEW_OWN,
+    ],
+    edit: [
+      PERMISSIONS.PRESCRIPTION_EDIT_ANY,
+      PERMISSIONS.PRESCRIPTION_EDIT_OWN,
+    ],
     viewEnablePriority: [
-      PERMISSIONS.COMPANIONS_VIEW_ANY,
-      PERMISSIONS.COMPANIONS_VIEW_OWN,
+      PERMISSIONS.PRESCRIPTION_VIEW_ANY,
+      PERMISSIONS.PRESCRIPTION_VIEW_OWN,
     ],
     editEnablePriority: [
-      PERMISSIONS.COMPANIONS_EDIT_ANY,
-      PERMISSIONS.COMPANIONS_EDIT_OWN,
+      PERMISSIONS.PRESCRIPTION_EDIT_ANY,
+      PERMISSIONS.PRESCRIPTION_EDIT_OWN,
     ],
   },
   {
-    key: "procedures",
-    label: "Procedures",
-    view: [PERMISSIONS.PROCEDURES_VIEW_ANY, PERMISSIONS.PROCEDURES_VIEW_OWN],
-    edit: [PERMISSIONS.PROCEDURES_EDIT_ANY, PERMISSIONS.PROCEDURES_EDIT_OWN],
+    key: "companions",
+    label: "Companions",
+    view: [PERMISSIONS.COMPANIONS_VIEW_ANY],
+    edit: [PERMISSIONS.COMPANIONS_EDIT_ANY],
+    viewEnablePriority: [PERMISSIONS.COMPANIONS_VIEW_ANY],
+    editEnablePriority: [PERMISSIONS.COMPANIONS_EDIT_ANY],
+  },
+  {
+    key: "tasks",
+    label: "Tasks",
+    view: [PERMISSIONS.TASKS_VIEW_ANY, PERMISSIONS.TASKS_VIEW_OWN],
+    edit: [PERMISSIONS.TASKS_EDIT_ANY, PERMISSIONS.TASKS_EDIT_OWN],
     viewEnablePriority: [
-      PERMISSIONS.PROCEDURES_VIEW_ANY,
-      PERMISSIONS.PROCEDURES_VIEW_OWN,
+      PERMISSIONS.TASKS_VIEW_ANY,
+      PERMISSIONS.TASKS_VIEW_OWN,
     ],
     editEnablePriority: [
-      PERMISSIONS.PROCEDURES_EDIT_ANY,
-      PERMISSIONS.PROCEDURES_EDIT_OWN,
+      PERMISSIONS.TASKS_EDIT_ANY,
+      PERMISSIONS.TASKS_EDIT_OWN,
     ],
   },
   {
@@ -112,6 +127,14 @@ const PERMISSION_ROWS: PermissionRow[] = [
     editLabel: "Edit (Any/Limited)",
   },
   {
+    key: "subscription",
+    label: "Subscriptions",
+    view: [PERMISSIONS.SUBSCRIPTION_VIEW_ANY],
+    edit: [PERMISSIONS.SUBSCRIPTION_EDIT_ANY],
+    viewEnablePriority: [PERMISSIONS.SUBSCRIPTION_VIEW_ANY],
+    editEnablePriority: [PERMISSIONS.SUBSCRIPTION_EDIT_ANY],
+  },
+  {
     key: "analytics",
     label: "Analytics",
     view: [PERMISSIONS.ANALYTICS_VIEW_ANY, PERMISSIONS.ANALYTICS_VIEW_CLINICAL],
@@ -132,13 +155,38 @@ const PERMISSION_ROWS: PermissionRow[] = [
   {
     key: "org",
     label: "Organization",
-    edit: [PERMISSIONS.ORG_DELETE],
-    editEnablePriority: [PERMISSIONS.ORG_DELETE],
-    editLabel: "Delete org",
+    view: [PERMISSIONS.ORG_VIEW],
+    edit: [PERMISSIONS.ORG_EDIT],
+    viewEnablePriority: [PERMISSIONS.ORG_VIEW],
+    editEnablePriority: [PERMISSIONS.ORG_EDIT],
+  },
+  {
+    key: "specialities",
+    label: "Specialities",
+    view: [PERMISSIONS.SPECIALITIES_VIEW_ANY],
+    edit: [PERMISSIONS.SPECIALITIES_EDIT_ANY],
+    viewEnablePriority: [PERMISSIONS.SPECIALITIES_VIEW_ANY],
+    editEnablePriority: [PERMISSIONS.SPECIALITIES_EDIT_ANY],
+  },
+  {
+    key: "rooms",
+    label: "Rooms",
+    view: [PERMISSIONS.ROOM_VIEW_ANY],
+    edit: [PERMISSIONS.ROOM_EDIT_ANY],
+    viewEnablePriority: [PERMISSIONS.ROOM_VIEW_ANY],
+    editEnablePriority: [PERMISSIONS.ROOM_EDIT_ANY],
+  },
+  {
+    key: "documents",
+    label: "Documents",
+    view: [PERMISSIONS.DOCUMENT_VIEW_ANY],
+    edit: [PERMISSIONS.DOCUMENT_EDIT_ANY],
+    viewEnablePriority: [PERMISSIONS.DOCUMENT_VIEW_ANY],
+    editEnablePriority: [PERMISSIONS.DOCUMENT_EDIT_ANY],
   },
 ];
 
-function uniq<T>(arr: T[]) {
+export function uniq<T>(arr: T[]) {
   return Array.from(new Set(arr));
 }
 
@@ -154,9 +202,22 @@ function removeAll(perms: Permission[], candidates?: Permission[]) {
   return perms.filter((p) => !remove.has(p));
 }
 
+export function computeEffectivePermissions(args: {
+  role: RoleCode;
+  extraPerissions?: Permission[]; // keep your backend spelling
+  revokedPermissions?: Permission[];
+}): Permission[] {
+  const roleDefaults = ROLE_PERMISSIONS[args.role] ?? [];
+  const extra = args.extraPerissions ?? [];
+  const revoked = args.revokedPermissions ?? [];
+
+  const revokedSet = new Set(revoked);
+  return uniq([...roleDefaults, ...extra]).filter((p) => !revokedSet.has(p));
+}
+
 function pickEnablePermission(
   roleDefaults: Permission[],
-  enablePriority?: Permission[]
+  enablePriority?: Permission[],
 ): Permission | null {
   if (!enablePriority?.length) return null;
   const defaultsSet = new Set(roleDefaults);
@@ -165,43 +226,121 @@ function pickEnablePermission(
   return enablePriority[0] ?? null;
 }
 
+function samePermissionSet(a: Permission[], b: Permission[]) {
+  if (a.length !== b.length) return false;
+  const aSet = new Set(a);
+  for (const p of b) if (!aSet.has(p)) return false;
+  return true;
+}
+
+function computeSavePayload(draft: Permission[], roleDefaults: Permission[]) {
+  const draftSet = new Set(draft);
+  const defaultsSet = new Set(roleDefaults);
+
+  const extraPerissions = draft.filter((p) => !defaultsSet.has(p));
+  const revokedPermissions = roleDefaults.filter((p) => !draftSet.has(p));
+
+  return {
+    extraPerissions: uniq(extraPerissions),
+    revokedPermissions: uniq(revokedPermissions),
+  };
+}
+
 type PermissionsEditorProps = {
   role: RoleCode;
   value: Permission[];
-  onChange: (next: Permission[]) => void;
+  onSave: (payload: {
+    extraPerissions: Permission[];
+    revokedPermissions: Permission[];
+  }) => Promise<void> | void;
 };
 
-const PermissionsEditor = ({
-  value,
-  onChange,
-  role,
-}: PermissionsEditorProps) => {
+const PermissionsEditor = ({ value, onSave, role }: PermissionsEditorProps) => {
   const roleDefaults = React.useMemo(
     () => ROLE_PERMISSIONS[role] ?? [],
-    [role]
+    [role],
+  );
+
+  const [draft, setDraft] = React.useState<Permission[]>(value);
+  const [saving, setSaving] = React.useState(false);
+
+  // reset draft when member/value changes (or role changes)
+  useEffect(() => {
+    setDraft(value);
+  }, [value, role]);
+
+  const isDirty = React.useMemo(
+    () => !samePermissionSet(draft, value),
+    [draft, value],
   );
 
   const toggle = React.useCallback(
     (kind: "view" | "edit", row: PermissionRow, nextChecked: boolean) => {
-      const candidates = kind === "view" ? row.view : row.edit;
-      const priority =
-        kind === "view" ? row.viewEnablePriority : row.editEnablePriority;
-      if (!candidates?.length) return;
-      if (!nextChecked) {
-        onChange(removeAll(value, candidates));
-        return;
-      }
-      const toAdd = pickEnablePermission(roleDefaults, priority);
-      if (!toAdd) return;
-      const cleaned = removeAll(value, candidates);
-      onChange(uniq([...cleaned, toAdd]));
+      setDraft((prev) => {
+        const viewCandidates = row.view ?? [];
+        const editCandidates = row.edit ?? [];
+
+        // ✅ Rule: turning VIEW off also turns EDIT off
+        if (!nextChecked && kind === "view") {
+          return removeAll(prev, uniq([...viewCandidates, ...editCandidates]));
+        }
+
+        const candidates = kind === "view" ? viewCandidates : editCandidates;
+        const priority =
+          kind === "view" ? row.viewEnablePriority : row.editEnablePriority;
+
+        if (!candidates.length) return prev;
+
+        // Uncheck => remove all in that group
+        if (!nextChecked) {
+          return removeAll(prev, candidates);
+        }
+
+        // Check => remove conflicts in that group, add the chosen permission
+        const toAdd = pickEnablePermission(roleDefaults, priority);
+        if (!toAdd) return prev;
+
+        let next = uniq([...removeAll(prev, candidates), toAdd]);
+
+        // ✅ Rule: turning EDIT on also turns VIEW on
+        if (
+          kind === "edit" &&
+          viewCandidates.length &&
+          !hasAny(next, viewCandidates)
+        ) {
+          const viewToAdd = pickEnablePermission(
+            roleDefaults,
+            row.viewEnablePriority ?? viewCandidates,
+          );
+          if (viewToAdd) next = uniq([...next, viewToAdd]);
+        }
+
+        return next;
+      });
     },
-    [onChange, roleDefaults, value]
+    [roleDefaults],
   );
 
   const resetToRoleDefaults = React.useCallback(() => {
-    onChange(uniq(roleDefaults));
-  }, [onChange, roleDefaults]);
+    setDraft(uniq(roleDefaults));
+  }, [roleDefaults]);
+
+  const cancelChanges = React.useCallback(() => {
+    setDraft(value);
+  }, [value]);
+
+  const saveChanges = React.useCallback(async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const payload = computeSavePayload(draft, roleDefaults);
+      await onSave(payload);
+      // parent should update `value` after save (refetch or optimistic),
+      // but we also keep draft as-is; effect will sync when value changes
+    } finally {
+      setSaving(false);
+    }
+  }, [draft, onSave, roleDefaults, saving]);
 
   return (
     <Accordion
@@ -218,28 +357,26 @@ const PermissionsEditor = ({
           <button
             type="button"
             onClick={resetToRoleDefaults}
-            className="font-satoshi text-[14px] px-2 py-1.5 text-blue-text"
+            className="text-caption-1 px-2 py-1.5 text-text-brand"
           >
             Reset to role defaults
           </button>
         </div>
         <div className="flex flex-col overflow-hidden">
           <div className="flex w-full items-center py-3 justify-between border-b border-b-grey-light px-2 bg-white">
-            <div className="font-satoshi text-[16px] text-[#747473] font-light">
-              Permission
-            </div>
+            <div className="text-body-4 text-[#747473]">Permission</div>
             <div className="flex gap-10 items-center">
-              <div className="font-satoshi text-[16px] text-[#747473] font-light w-[72px] text-center">
+              <div className="text-body-4 text-[#747473] w-[72px] text-center">
                 View
               </div>
-              <div className="font-satoshi text-[16px] text-[#747473] font-light w-[72px] text-center">
+              <div className="text-body-4 text-[#747473] w-[72px] text-center">
                 Edit
               </div>
             </div>
           </div>
           {PERMISSION_ROWS.map((row) => {
-            const viewChecked = hasAny(value, row.view);
-            const editChecked = hasAny(value, row.edit);
+            const viewChecked = hasAny(draft, row.view);
+            const editChecked = hasAny(draft, row.edit);
             const viewDisabled = !row.view?.length;
             const editDisabled = !row.edit?.length;
             return (
@@ -248,7 +385,7 @@ const PermissionsEditor = ({
                 className="flex w-full items-center py-3 justify-between border-b border-b-grey-light px-2 bg-white last:border-b-0"
               >
                 <div className="flex flex-col">
-                  <div className="font-satoshi text-[18px] text-[#747473] font-medium">
+                  <div className="text-body-3 text-text-primary">
                     {row.label}
                   </div>
                 </div>
@@ -284,6 +421,24 @@ const PermissionsEditor = ({
             );
           })}
         </div>
+        {isDirty && (
+          <div className="flex w-full gap-3 mt-6">
+            <Secondary
+              text="Cancel"
+              onClick={cancelChanges}
+              href="#"
+              isDisabled={saving}
+              className="w-full"
+            />
+            <Primary
+              onClick={saveChanges}
+              isDisabled={saving}
+              href="#"
+              classname="w-full"
+              text={saving ? "Saving..." : "Save"}
+            />
+          </div>
+        )}
       </div>
     </Accordion>
   );

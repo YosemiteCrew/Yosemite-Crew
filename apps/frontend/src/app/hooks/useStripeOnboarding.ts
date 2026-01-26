@@ -1,31 +1,28 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useOrgStore } from "@/app/stores/orgStore";
 import { checkStatus } from "../services/stripeService";
+import { PERMISSIONS } from "../utils/permissions";
 
 export const useStripeOnboarding = (
-  orgId: string | null
+  orgId: string | null,
 ): {
   onboard: boolean;
 } => {
   const org = useOrgStore((s) => (orgId ? (s.orgsById[orgId] ?? null) : null));
   const membership = useOrgStore((s) =>
-    orgId ? (s.membershipsByOrgId[orgId] ?? null) : null
+    orgId ? (s.membershipsByOrgId[orgId] ?? null) : null,
   );
 
   const { onboard } = useMemo(() => {
     if (!orgId || !org || !membership) {
       return { onboard: false };
     }
-    const role = (
-      membership.roleDisplay ??
-      membership.roleCode ??
-      ""
-    ).toLowerCase();
-    const isOwner = role === "owner";
-
+    const hasPerm = membership.effectivePermissions?.includes(
+      PERMISSIONS.ORG_EDIT,
+    );
     const isOrgVerified = org.isVerified;
 
-    if (!isOwner || !isOrgVerified) {
+    if (!hasPerm || !isOrgVerified) {
       return { onboard: false };
     }
 
@@ -39,34 +36,37 @@ export const useStripeOnboarding = (
   };
 };
 
-export const useStripeAccountStatus = (orgId: string | null) => {
-  const [status, setStatus] = useState(null);
+type UseStripeAccountStatusResult = {
+  loading: boolean;
+  error: Error | null;
+  refetch: () => Promise<void>;
+};
+
+export const useSubscriptionCounterUpdate = (
+  orgId?: string | null,
+): UseStripeAccountStatusResult => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
 
-  const fetchStatus = useCallback(async () => {
-    if (!orgId) return;
+  const finalOrgId = orgId || primaryOrgId || "";
 
+  const refetch = useCallback(async () => {
+    if (!finalOrgId) return;
     setLoading(true);
     setError(null);
-
     try {
-      const data = await checkStatus(orgId);
-      setStatus(data as any);
+      await checkStatus(finalOrgId);
     } catch (err) {
       setError(err as Error);
     } finally {
       setLoading(false);
     }
-  }, [orgId]);
-
-  useEffect(() => {
-    fetchStatus();
-  }, [fetchStatus]);
+  }, [finalOrgId]);
 
   return {
-    status,
     loading,
-    error
+    error,
+    refetch,
   };
 };

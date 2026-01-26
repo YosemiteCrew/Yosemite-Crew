@@ -42,7 +42,8 @@ describe("LabelDropdown", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button"));
+    // Click on the placeholder text to open the dropdown
+    fireEvent.click(screen.getByText("Species"));
     fireEvent.click(screen.getByText("Cat"));
 
     expect(onSelect).toHaveBeenCalledWith({ label: "Cat", value: "cat" });

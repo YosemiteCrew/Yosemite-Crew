@@ -8,7 +8,6 @@ import logger from "src/utils/logger";
 
 type AddChargesBody = {
   items?: unknown;
-  currency?: unknown;
 };
 
 const isInvoiceItem = (item: unknown): item is InvoiceItem => {
@@ -75,6 +74,29 @@ export const InvoiceController = {
       return res.status(500).json({ message: "Internal server error" });
     }
   },
+  async createCheckoutSessionForInvoice(this: void, req: Request, res: Response) {
+    try {
+      const invoiceId = req.params.invoiceId;
+      if (!invoiceId) {
+        return res.status(400).json({ message: "Invoice Id is required" });
+      }
+
+      const result =
+        await InvoiceService.createCheckoutSessionAndEmailParent(invoiceId);
+      return res.status(200).json(result);
+    } catch (err) {
+      logger.error("Error creating invoice checkout session", err);
+
+      const statusCode =
+        err instanceof InvoiceServiceError ? err.statusCode : 500;
+      const message =
+        err instanceof InvoiceServiceError
+          ? err.message
+          : "Internal server error";
+
+      return res.status(statusCode).json({ message });
+    }
+  },
 
   async addChargesToAppointment(
     this: void,
@@ -83,11 +105,7 @@ export const InvoiceController = {
   ) {
     try {
       const { appointmentId } = req.params;
-      const { items, currency }: AddChargesBody = req.body;
-
-      if (typeof currency !== "string" || currency.trim().length === 0) {
-        return res.status(400).json({ message: "Currency is required" });
-      }
+      const { items }: AddChargesBody = req.body;
 
       if (!isInvoiceItemArray(items) || items.length === 0) {
         return res.status(400).json({ message: "Items are required" });
@@ -96,7 +114,6 @@ export const InvoiceController = {
       const invoice = await InvoiceService.addChargesToAppointment(
         appointmentId,
         items,
-        currency,
       );
 
       return res.status(200).json(invoice);

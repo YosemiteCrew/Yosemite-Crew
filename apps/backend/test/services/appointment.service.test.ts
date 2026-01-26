@@ -5,6 +5,7 @@ import ServiceModel from "../../src/models/service";
 import { InvoiceService } from "../../src/services/invoice.service";
 import { OccupancyModel } from "../../src/models/occupancy";
 import OrganizationModel from "../../src/models/organization";
+import UserModel from "../../src/models/user";
 import UserProfileModel from "../../src/models/user-profile";
 import { NotificationService } from "../../src/services/notification.service";
 import { fromAppointmentRequestDTO } from "@yosemite-crew/types";
@@ -16,6 +17,7 @@ jest.mock("../../src/services/invoice.service");
 jest.mock("../../src/services/stripe.service");
 jest.mock("../../src/models/occupancy");
 jest.mock("../../src/models/organization");
+jest.mock("../../src/models/user");
 jest.mock("../../src/models/user-profile");
 jest.mock("../../src/services/notification.service");
 jest.mock("../../src/services/task.service");
@@ -53,6 +55,9 @@ describe("AppointmentService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.spyOn(mongoose, "startSession").mockResolvedValue(mockSession as any);
+    (UserModel.find as jest.Mock).mockReturnValue({
+      lean: jest.fn().mockResolvedValue([]),
+    });
   });
 
   const validObjectId = new Types.ObjectId().toString();

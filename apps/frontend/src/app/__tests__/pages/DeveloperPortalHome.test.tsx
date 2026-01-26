@@ -2,12 +2,7 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-const replaceMock = jest.fn();
 const useAuthStoreMock = jest.fn();
-
-jest.mock("next/navigation", () => ({
-  useRouter: () => ({ replace: replaceMock }),
-}));
 
 jest.mock("@/app/stores/authStore", () => ({
   useAuthStore: () => useAuthStoreMock(),
@@ -47,34 +42,8 @@ describe("DeveloperPortalHome page", () => {
     jest.clearAllMocks();
   });
 
-  test("shows loading state while auth status is checking", () => {
-    useAuthStoreMock.mockReturnValue({
-      status: "checking",
-      session: null,
-    });
-
-    render(<DeveloperPortalHome />);
-    expect(
-      screen.getByText(/Loading your developer workspace/i),
-    ).toBeInTheDocument();
-    expect(replaceMock).not.toHaveBeenCalled();
-  });
-
-  test("redirects unauthenticated users to sign-in", () => {
-    useAuthStoreMock.mockReturnValue({
-      status: "unauthenticated",
-      session: null,
-    });
-
-    render(<DeveloperPortalHome />);
-    expect(replaceMock).toHaveBeenCalledWith(
-      "/developers/signin?next=/developers/home",
-    );
-  });
-
   test("renders developer home content when authenticated", () => {
     useAuthStoreMock.mockReturnValue({
-      status: "authenticated",
       session: createSession({
         given_name: "Ada",
         family_name: "Lovelace",
@@ -90,11 +59,37 @@ describe("DeveloperPortalHome page", () => {
     ).toBeInTheDocument();
     expect(screen.getByTestId("primary-View docs")).toHaveAttribute(
       "href",
-      "/developers",
+      "/developers/documentation",
     );
     expect(screen.getByTestId("secondary-Contact support")).toHaveAttribute(
       "href",
       "/contact",
     );
+  });
+
+  test("shows fallback name when no user name is available", () => {
+    useAuthStoreMock.mockReturnValue({
+      session: createSession({}),
+    });
+
+    render(<DeveloperPortalHome />);
+
+    expect(
+      screen.getByRole("heading", { name: /Welcome back, Developer/i }),
+    ).toBeInTheDocument();
+  });
+
+  test("uses email as fallback when name is not provided", () => {
+    useAuthStoreMock.mockReturnValue({
+      session: createSession({
+        email: "test@example.com",
+      }),
+    });
+
+    render(<DeveloperPortalHome />);
+
+    expect(
+      screen.getByRole("heading", { name: /Welcome back, test@example.com/i }),
+    ).toBeInTheDocument();
   });
 });

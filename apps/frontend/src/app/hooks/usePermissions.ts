@@ -22,11 +22,9 @@ export type PermissionCheckResult = {
 export const usePermissions = (
   explicitOrgId?: string | null
 ): PermissionCheckResult => {
-  const { primaryOrgId, membershipsByOrgId, status } = useOrgStore((state) => ({
-    primaryOrgId: state.primaryOrgId,
-    membershipsByOrgId: state.membershipsByOrgId,
-    status: state.status,
-  }));
+  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
+  const status = useOrgStore((s) => s.status);
+  const membershipsByOrgId = useOrgStore((s) => s.membershipsByOrgId);
 
   const activeOrgId = explicitOrgId ?? primaryOrgId ?? null;
 

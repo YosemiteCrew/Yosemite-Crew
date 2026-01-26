@@ -14,11 +14,11 @@ const DeveloperDocs = () => {
     <DevRouteGuard>
       <section className="DocsWrapper">
         <div className="DocsHeader">
-          <Link href="/developers/home" className="DocsBackLink">
+          <Link href="/developers/home" className="DocsBackLink text-body-4-emphasis">
             <Icon icon="mdi:arrow-left" width={18} height={18} />
             <span>Back to portal</span>
           </Link>
-          <a className="DocsOpenLink" href={DOCS_BASE_PATH} target="_blank" rel="noreferrer">
+          <a className="DocsOpenLink text-body-4-emphasis text-text-brand" href={DOCS_BASE_PATH} target="_blank" rel="noreferrer">
             Open in new tab
           </a>
         </div>

@@ -3,7 +3,9 @@ import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import MultiSelectDropdown from "@/app/components/Inputs/MultiSelectDropdown";
 import ServiceSearch from "@/app/components/Inputs/ServiceSearch/ServiceSearch";
+import { useCurrencyForPrimaryOrg } from "@/app/hooks/useBilling";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
+import { Option } from "@/app/types/companion";
 import { SpecialityWeb } from "@/app/types/speciality";
 import { Service } from "@yosemite-crew/types";
 import React, { useMemo } from "react";
@@ -20,24 +22,25 @@ const SpecialityCard = ({
   index,
 }: SpecialityCardProps) => {
   const teams = useTeamForPrimaryOrg();
+  const currency = useCurrencyForPrimaryOrg();
 
   const TeamOptions = useMemo(
     () =>
       teams?.map((team) => ({
-        label: team.name || team._id,
-        value: team._id,
+        label: team.name || team.practionerId,
+        value: team.practionerId,
       })),
-    [teams]
+    [teams],
   );
 
   const updateServiceList = (
     serviceIndex: number,
     key: string,
     value: string,
-    services: Service[] = []
+    services: Service[] = [],
   ): Service[] => {
     return services.map((srv, srvIndex) =>
-      srvIndex === serviceIndex ? { ...srv, [key]: value } : srv
+      srvIndex === serviceIndex ? { ...srv, [key]: value } : srv,
     );
   };
 
@@ -49,27 +52,27 @@ const SpecialityCard = ({
           ...sp,
           teamMemberIds: ids,
         };
-      })
+      }),
     );
   };
 
-  const updateLead = (lead: any) => {
+  const updateLead = (lead: Option) => {
     setFormData((prev) =>
       prev.map((sp, spIndex) => {
         if (spIndex !== index) return sp;
         return {
           ...sp,
           headName: lead.label,
-          headUserId: lead.key,
+          headUserId: lead.value,
         };
-      })
+      }),
     );
   };
 
   const updateServiceField = (
     serviceIndex: number,
     key: string,
-    value: string
+    value: string,
   ) => {
     setFormData((prev) =>
       prev.map((sp, spIndex) => {
@@ -78,7 +81,7 @@ const SpecialityCard = ({
           ...sp,
           services: updateServiceList(serviceIndex, key, value, sp.services),
         };
-      })
+      }),
     );
   };
 
@@ -90,7 +93,7 @@ const SpecialityCard = ({
           ...sp,
           services: filterService(sp.services || [], serviceIndex),
         };
-      })
+      }),
     );
   };
 
@@ -102,9 +105,7 @@ const SpecialityCard = ({
     <div className="flex flex-col gap-3">
       <LabelDropdown
         placeholder="Select Lead"
-        onSelect={(option) =>
-          updateLead(option)
-        }
+        onSelect={(option) => updateLead(option)}
         defaultOption={speciality.headUserId}
         options={TeamOptions}
       />
@@ -151,7 +152,7 @@ const SpecialityCard = ({
                 intype="number"
                 inname="charge"
                 value={String(service.cost)}
-                inlabel="Service charge ($)"
+                inlabel={`Service charge (${currency})`}
                 onChange={(e) => updateServiceField(i, "cost", e.target.value)}
                 className="min-h-12!"
               />

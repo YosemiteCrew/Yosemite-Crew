@@ -6,6 +6,7 @@ import {
   FormsCategoryOptions,
   FormField,
   FormsProps,
+  RequiredSignerOptions,
   FormsUsageOptions,
 } from "@/app/types/forms";
 import React from "react";
@@ -59,6 +60,7 @@ type FormInfoProps = {
   activeForm: FormsProps;
   onEdit: (form: FormsProps) => void;
   serviceOptions: { label: string; value: string }[];
+  canEdit?: boolean;
 };
 
 const DetailsFields = [
@@ -69,6 +71,12 @@ const DetailsFields = [
     key: "category",
     type: "dropdown",
     options: FormsCategoryOptions,
+  },
+  {
+    label: "Signed by",
+    key: "requiredSigner",
+    type: "dropdown",
+    options: RequiredSignerOptions,
   },
 ];
 
@@ -98,6 +106,7 @@ const FormInfo = ({
   activeForm,
   onEdit,
   serviceOptions,
+  canEdit = true,
 }: FormInfoProps) => {
   const { showErrorTost, ErrorTostPopup } = useErrorTost();
   const [publishLoading, setPublishLoading] = React.useState(false);
@@ -129,9 +138,7 @@ const FormInfo = ({
     } catch (err: any) {
       console.error("Failed to publish form", err);
       showActionError(
-        err?.response?.data?.message ||
-          err?.message ||
-          "Unable to publish form"
+        err?.response?.data?.message || err?.message || "Unable to publish form"
       );
     } finally {
       setPublishLoading(false);
@@ -165,9 +172,7 @@ const FormInfo = ({
     } catch (err: any) {
       console.error("Failed to archive form", err);
       showActionError(
-        err?.response?.data?.message ||
-          err?.message ||
-          "Unable to archive form"
+        err?.response?.data?.message || err?.message || "Unable to archive form"
       );
     } finally {
       setArchiveLoading(false);
@@ -244,8 +249,13 @@ const FormInfo = ({
     >
       <div className="flex flex-col h-full gap-6">
         <div className="flex justify-between items-center">
+          <div className="opacity-0">
+            <Close onClick={() => {}} />
+          </div>
           <div className="flex justify-center items-center gap-2">
-            <div className="text-body-1 text-text-primary">Add form</div>
+            <div className="text-body-1 text-text-primary">
+              {canEdit ? "Edit form" : "View form"}
+            </div>
           </div>
           <Close onClick={() => setShowModal(false)} />
         </div>
@@ -290,18 +300,27 @@ const FormInfo = ({
               </Accordion>
             )}
           </div>
-          <div className="flex flex-col gap-3">
-            {renderActions()}
-            <Secondary
-              href="#"
-              text="Edit form"
-              onClick={() => {
-                setShowModal(false);
-                onEdit(activeForm);
-              }}
-              className="h-12! text-[16px]!"
-              isDisabled={actionLoading}
-            />
+          <div className="flex flex-col gap-3 px-3 pb-3">
+            {canEdit && renderActions()}
+            {canEdit ? (
+              <Secondary
+                href="#"
+                text="Edit form"
+                onClick={() => {
+                  setShowModal(false);
+                  onEdit(activeForm);
+                }}
+                className="h-12! text-[16px]!"
+                isDisabled={actionLoading}
+              />
+            ) : (
+              <Secondary
+                href="#"
+                text="Close"
+                onClick={() => setShowModal(false)}
+                className="h-12! text-[16px]!"
+              />
+            )}
           </div>
         </div>
         {ErrorTostPopup}

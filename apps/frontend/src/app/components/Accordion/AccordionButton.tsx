@@ -1,6 +1,13 @@
-import React, { useState } from "react";
-import { IoIosArrowDown } from "react-icons/io";
+import React, { useEffect, useState } from "react";
+import { IoIosArrowDown, IoIosWarning } from "react-icons/io";
 import { Secondary } from "../Buttons";
+import {
+  getStripeBillingPortal
+} from "@/app/services/billingService";
+import { useSubscriptionForPrimaryOrg } from "@/app/hooks/useBilling";
+import { usePermissions } from "@/app/hooks/usePermissions";
+import { PERMISSIONS } from "@/app/utils/permissions";
+import Upgrade from "../Upgrade";
 
 interface AccordionButtonProps {
   title: string;
@@ -9,7 +16,35 @@ interface AccordionButtonProps {
   buttonTitle?: string;
   buttonClick?: any;
   showButton?: boolean;
+  finance?: boolean;
 }
+
+type PaddingArgs = {
+  finance: boolean;
+  hasCustomerId: boolean;
+  plan?: string;
+  showButton: boolean;
+};
+
+const getAccordionPaddingYClass = ({
+  finance,
+  hasCustomerId,
+  plan,
+  showButton,
+}: PaddingArgs): string => {
+  if (finance) {
+    if (plan === "free") {
+      return "py-2";
+    }
+    if (plan === "business" && hasCustomerId) {
+      return "py-2";
+    }
+  }
+  if (showButton) {
+    return "py-2";
+  }
+  return "py-[20px]";
+};
 
 const AccordionButton: React.FC<AccordionButtonProps> = ({
   title,
@@ -18,11 +53,48 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
   buttonTitle,
   buttonClick,
   showButton = true,
+  finance = false,
 }) => {
+  const subscription = useSubscriptionForPrimaryOrg();
+  const { can } = usePermissions();
+  const canEditSubscription = can(PERMISSIONS.SUBSCRIPTION_EDIT_ANY);
+  const plan = subscription?.plan;
+  const hasCustomerId = Boolean(subscription?.stripeCustomerId);
   const [open, setOpen] = useState(defaultOpen);
+  const [loadingPortal, setLoadingPortal] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const paddingYClass = getAccordionPaddingYClass({
+    finance,
+    hasCustomerId,
+    plan,
+    showButton,
+  });
+
+  const handleBillingPortal = async () => {
+    setError(null);
+    setLoadingPortal(true);
+    try {
+      const url = await getStripeBillingPortal();
+      globalThis.location.href = url;
+    } catch (e: any) {
+      setError(e?.message || "Failed to open billing portal");
+    } finally {
+      setLoadingPortal(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!error) return;
+    const t = globalThis.setTimeout(() => {
+      setError(null);
+    }, 5000);
+    return () => globalThis.clearTimeout(t);
+  }, [error]);
 
   return (
-    <div className={`flex flex-col gap-3 rounded-2xl border border-card-border px-6 ${showButton ? "py-2" : "py-[20px]"}`}>
+    <div
+      className={`flex flex-col gap-3 rounded-2xl border border-card-border px-6 ${paddingYClass}`}
+    >
       <div className="flex items-center justify-between">
         <button
           className="flex items-center gap-2"
@@ -35,17 +107,41 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
               open ? "rotate-0" : "-rotate-90"
             }`}
           />
-          <div className="text-heading-3 text-text-primary">
-            {title}
-          </div>
+          <div className="text-heading-3 text-text-primary">{title}</div>
         </button>
-        {showButton && buttonTitle && (
-          <Secondary
-            href="#"
-            onClick={() => buttonClick(true)}
-            text={buttonTitle}
-          />
-        )}
+        <div className="flex items-center gap-3">
+          {error && (
+            <div
+              className={`
+                      flex items-center gap-1 px-4
+                      text-caption-2 text-text-error
+                    `}
+            >
+              <IoIosWarning className="text-text-error" size={14} />
+              <span>{error}</span>
+            </div>
+          )}
+          {showButton && buttonTitle && (
+            <Secondary
+              href="#"
+              onClick={() => buttonClick(true)}
+              text={buttonTitle}
+            />
+          )}
+          {canEditSubscription && finance && (
+            <div className="flex items-center gap-3">
+              {hasCustomerId && (
+                <Secondary
+                  href="#"
+                  onClick={handleBillingPortal}
+                  text={loadingPortal ? "Opening..." : "Billing portal"}
+                  isDisabled={loadingPortal}
+                />
+              )}
+              {plan === "free" && <Upgrade />}
+            </div>
+          )}
+        </div>
       </div>
 
       {open && <div className={``}>{children}</div>}

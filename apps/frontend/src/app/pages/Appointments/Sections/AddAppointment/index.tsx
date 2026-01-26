@@ -1,5 +1,5 @@
 import Accordion from "@/app/components/Accordion/Accordion";
-import { Primary } from "@/app/components/Buttons";
+import { Primary, Secondary } from "@/app/components/Buttons";
 import FormDesc from "@/app/components/Inputs/FormDesc/FormDesc";
 import MultiSelectDropdown from "@/app/components/Inputs/MultiSelectDropdown";
 import SearchDropdown from "@/app/components/Inputs/SearchDropdown";
@@ -18,7 +18,6 @@ import {
   createAppointment,
   getSlotsForServiceAndDateForPrimaryOrg,
 } from "@/app/services/appointmentService";
-import { Icon } from "@iconify/react/dist/iconify.js";
 import { Slot } from "@/app/types/appointments";
 import {
   buildUtcDateFromDateAndTime,
@@ -27,11 +26,17 @@ import {
 import { formatUtcTimeToLocalLabel } from "@/app/components/Availability/utils";
 import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
 import Close from "@/app/components/Icons/Close";
+import { useSubscriptionCounterUpdate } from "@/app/hooks/useStripeOnboarding";
+import {
+  useCanMoreForPrimaryOrg,
+  useCurrencyForPrimaryOrg,
+} from "@/app/hooks/useBilling";
+import { IoIosWarning } from "react-icons/io";
+import { loadInvoicesForOrgPrimaryOrg } from "@/app/services/invoiceService";
 
 type AddAppointmentProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
-  showErrorTost: any;
 };
 
 export const EMPTY_APPOINTMENT: Appointment = {
@@ -68,25 +73,16 @@ const CompanionFields = [
   { label: "Species", key: "species", type: "text" },
 ];
 
-const ServiceFields = [
-  { label: "Name", key: "name", type: "text" },
-  { label: "Description", key: "description", type: "text" },
-  { label: "Duration (mins)", key: "duration", type: "text" },
-  { label: "Cost ($)", key: "cost", type: "text" },
-  { label: "Max discount", key: "maxDiscount", type: "text" },
-];
-
-const AddAppointment = ({
-  showModal,
-  setShowModal,
-  showErrorTost,
-}: AddAppointmentProps) => {
+const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
   const companions = useCompanionsParentsForPrimaryOrg();
+  const currency = useCurrencyForPrimaryOrg();
   const teams = useTeamForPrimaryOrg();
   const specialities = useSpecialitiesForPrimaryOrg();
+  const { canMore, reason } = useCanMoreForPrimaryOrg("appointments");
   const getServicesBySpecialityId =
     useServiceStore.getState().getServicesBySpecialityId;
   const [formData, setFormData] = useState<Appointment>(EMPTY_APPOINTMENT);
+  const { refetch: refetchData } = useSubscriptionCounterUpdate();
   const [formDataErrors, setFormDataErrors] = useState<{
     companionId?: string;
     specialityId?: string;
@@ -94,11 +90,23 @@ const AddAppointment = ({
     leadId?: string;
     duration?: string;
     slot?: string;
+    booking?: string;
   }>({});
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [query, setQuery] = useState("");
   const [timeSlots, setTimeSlots] = useState<Slot[]>([]);
+
+  const ServiceFields = useMemo(
+    () => [
+      { label: "Name", key: "name", type: "text" },
+      { label: "Description", key: "description", type: "text" },
+      { label: "Duration (mins)", key: "duration", type: "text" },
+      { label: `Cost (${currency})`, key: "cost", type: "text" },
+      { label: "Max discount", key: "maxDiscount", type: "text" },
+    ],
+    [currency],
+  );
 
   useEffect(() => {
     const appointmentTypeId = formData.appointmentType?.id;
@@ -111,7 +119,7 @@ const AddAppointment = ({
       try {
         const slots = await getSlotsForServiceAndDateForPrimaryOrg(
           appointmentTypeId,
-          selectedDate
+          selectedDate,
         );
         if (cancelled) return;
         setTimeSlots(slots);
@@ -134,16 +142,16 @@ const AddAppointment = ({
       ...prev,
       startTime: buildUtcDateFromDateAndTime(
         selectedDate,
-        selectedSlot.startTime
+        selectedSlot.startTime,
       ),
       endTime: buildUtcDateFromDateAndTime(selectedDate, selectedSlot.endTime),
       appointmentDate: buildUtcDateFromDateAndTime(
         selectedDate,
-        selectedSlot.startTime
+        selectedSlot.startTime,
       ),
       durationMinutes: getDurationMinutes(
         selectedSlot.startTime,
-        selectedSlot.endTime
+        selectedSlot.endTime,
       ),
     }));
   }, [selectedSlot, selectedDate]);
@@ -154,7 +162,7 @@ const AddAppointment = ({
         label: companion.companion.name,
         value: companion.companion.id,
       })),
-    [companions]
+    [companions],
   );
 
   const LeadOptions = useMemo(() => {
@@ -163,20 +171,20 @@ const AddAppointment = ({
     if (!slot?.vetIds?.length) return [];
     const vetIdSet = new Set(slot.vetIds);
     return teams
-      .filter((team) => vetIdSet.has(team._id))
+      .filter((team) => vetIdSet.has(team.practionerId))
       .map((team) => ({
-        label: team.name || team._id,
-        value: team._id,
+        label: team.name || team.practionerId,
+        value: team.practionerId,
       }));
   }, [teams, timeSlots, selectedSlot]);
 
   const TeamOptions = useMemo(
     () =>
       teams?.map((team) => ({
-        label: team.name || team._id,
-        value: team._id,
+        label: team.name || team.practionerId,
+        value: team.practionerId,
       })),
-    [teams]
+    [teams],
   );
 
   const SpecialitiesOptions = useMemo(
@@ -185,7 +193,7 @@ const AddAppointment = ({
         label: speciality.name,
         value: speciality._id || speciality.name,
       })),
-    [specialities]
+    [specialities],
   );
 
   const services = useMemo(() => {
@@ -202,7 +210,7 @@ const AddAppointment = ({
         label: service.name,
         value: service.id,
       })),
-    [services]
+    [services],
   );
 
   const CompanionInfoData = useMemo(
@@ -212,7 +220,7 @@ const AddAppointment = ({
       breed: formData.companion.breed ?? "",
       parentName: formData.companion.parent.name ?? "",
     }),
-    [formData.companion]
+    [formData.companion],
   );
 
   const ServiceInfoData = useMemo(() => {
@@ -272,7 +280,14 @@ const AddAppointment = ({
       leadId?: string;
       duration?: string;
       slot?: string;
+      booking?: string;
     } = {};
+    if (!canMore) {
+      errors.booking =
+        reason === "limit_reached"
+          ? "You’ve reached your free appointment limit. Please upgrade to book more."
+          : "We couldn’t verify your booking limit right now. Please try again.";
+    }
     if (!formData.companion.id)
       errors.companionId = "Please select a companion";
     if (!formData.appointmentType?.speciality.id)
@@ -288,38 +303,14 @@ const AddAppointment = ({
     }
     try {
       await createAppointment(formData);
+      await refetchData();
+      await loadInvoicesForOrgPrimaryOrg({ force: true });
       setShowModal(false);
       setFormData(EMPTY_APPOINTMENT);
       setSelectedSlot(null);
       setFormDataErrors({});
-      showErrorTost({
-        message: "Appointment created",
-        errortext: "Success",
-        iconElement: (
-          <Icon
-            icon="solar:check-circle-bold"
-            width="20"
-            height="20"
-            color="#008F5D"
-          />
-        ),
-        className: "CongratsBg",
-      });
     } catch (error) {
       console.log(error);
-      showErrorTost({
-        message: "Error creating appointment",
-        errortext: "Error",
-        iconElement: (
-          <Icon
-            icon="solar:danger-triangle-bold"
-            width="20"
-            height="20"
-            color="#EA3729"
-          />
-        ),
-        className: "errofoundbg",
-      });
     }
   };
 
@@ -327,6 +318,9 @@ const AddAppointment = ({
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <div className="flex flex-col h-full gap-6">
         <div className="flex justify-between items-center">
+          <div className="opacity-0">
+            <Close onClick={() => {}} />
+          </div>
           <div className="flex justify-center items-center gap-2">
             <div className="text-body-1 text-text-primary">Add appointment</div>
           </div>
@@ -342,23 +336,38 @@ const AddAppointment = ({
               isEditing={true}
             >
               <div className="flex flex-col gap-3">
-                <SearchDropdown
-                  placeholder="Search companion"
-                  options={CompanionOptions}
-                  onSelect={handleCompanionSelect}
-                  query={query}
-                  setQuery={setQuery}
-                  minChars={0}
-                  error={formDataErrors.companionId}
-                />
-                {formData.companion.name && (
-                  <EditableAccordion
-                    title={formData.companion.name}
-                    fields={CompanionFields}
-                    data={CompanionInfoData}
-                    defaultOpen={true}
-                    showEditIcon={false}
-                  />
+                {CompanionOptions.length > 0 ? (
+                  <>
+                    <SearchDropdown
+                      placeholder="Search companion"
+                      options={CompanionOptions}
+                      onSelect={handleCompanionSelect}
+                      query={query}
+                      setQuery={setQuery}
+                      minChars={0}
+                      error={formDataErrors.companionId}
+                    />
+                    {formData.companion.name && (
+                      <EditableAccordion
+                        title={formData.companion.name}
+                        fields={CompanionFields}
+                        data={CompanionInfoData}
+                        defaultOpen={true}
+                        showEditIcon={false}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <div className="flex gap-2 flex-col items-center pb-2">
+                    <div className="text-body-4 text-text-primary">
+                      You need companions to start booking appointments
+                    </div>
+                    <Secondary
+                      text="Add companions"
+                      href="/companions"
+                      className="w-full"
+                    />
+                  </div>
                 )}
               </div>
             </Accordion>
@@ -476,8 +485,8 @@ const AddAppointment = ({
                     onChange={(ids) => {
                       const map = new Map(
                         TeamOptions.map((o) =>
-                          typeof o === "string" ? [o, o] : [o.value, o.label]
-                        )
+                          typeof o === "string" ? [o, o] : [o.value, o.label],
+                        ),
                       );
                       setFormData({
                         ...formData,
@@ -523,12 +532,20 @@ const AddAppointment = ({
               </div>
             </div>
           </div>
-          <Primary
-            href="#"
-            text="Book appointment"
-            classname="h-13!"
-            onClick={handleCreate}
-          />
+          <div className="flex flex-col items-end gap-2 w-full">
+            {formDataErrors.booking && (
+              <div className="mt-1.5 flex items-center gap-1 px-2 text-caption-2 text-text-error">
+                <IoIosWarning className="text-text-error" size={14} />
+                <span>{formDataErrors.booking}</span>
+              </div>
+            )}
+            <Primary
+              href="#"
+              text="Book appointment"
+              onClick={handleCreate}
+              classname="w-full"
+            />
+          </div>
         </div>
       </div>
     </Modal>

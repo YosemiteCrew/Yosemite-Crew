@@ -1,65 +1,165 @@
 import Accordion from "@/app/components/Accordion/Accordion";
 import React, { useState } from "react";
-import { DemoPayments } from "./demo";
+import { PermissionGate } from "@/app/components/PermissionGate";
+import { PERMISSIONS } from "@/app/utils/permissions";
+import Fallback from "@/app/components/Fallback";
+import { useInvoicesForPrimaryOrgAppointment } from "@/app/hooks/useInvoices";
+import { Appointment } from "@yosemite-crew/types";
+import { formatDateLabel } from "@/app/utils/forms";
+import { getStatusStyle } from "@/app/components/DataTable/InvoiceTable";
+import { toTitle } from "@/app/utils/validators";
 import { Secondary } from "@/app/components/Buttons";
+import { getPaymentLink } from "@/app/services/invoiceService";
+import { useCurrencyForPrimaryOrg } from "@/app/hooks/useBilling";
+import { formatMoney } from "@/app/utils/money";
 
-export type Payment = {
-  appointmentId: string;
-  paymentId: string;
-  mode: string;
-  date: string;
-  time: string;
-  status: string;
-  amount: string;
+type DetailsProps = {
+  activeAppointment: Appointment;
 };
 
-const Details = () => {
-  const [payments] = useState<Payment[]>(DemoPayments);
+const Details = ({ activeAppointment }: DetailsProps) => {
+  const currency = useCurrencyForPrimaryOrg();
+  const invoices = useInvoicesForPrimaryOrgAppointment(activeAppointment.id);
+  const [generatedLinks, setGeneratedLinks] = useState<Record<string, string>>(
+    {},
+  );
+
+  const handleGenerate = async (id: string | undefined) => {
+    try {
+      if (!id) {
+        return;
+      }
+      const url = await getPaymentLink(id);
+      if (typeof url === "string") {
+        setGeneratedLinks((prev) => ({ ...prev, [id]: url }));
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const handleCopy = async (link: string) => {
+    try {
+      await navigator.clipboard.writeText(link);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const handleDownload = (link: string | undefined) => {
+    window.open(link, "_blank");
+  };
 
   return (
-    <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto">
-      <div className="flex flex-col gap-6">
-        <div className="font-grotesk font-medium text-black-text text-[23px]">
-          Payment details
+    <PermissionGate
+      allOf={[PERMISSIONS.BILLING_VIEW_ANY]}
+      fallback={<Fallback />}
+    >
+      <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
+        <div className="flex flex-col gap-6">
+          {invoices.map((payment, i) => {
+            const generatedUrl =
+              payment.id == null ? undefined : generatedLinks[payment.id];
+
+            return (
+              <Accordion
+                key={payment.appointmentId}
+                title={"Invoice " + (i + 1)}
+                defaultOpen={true}
+                showEditIcon={false}
+                isEditing={true}
+              >
+                <div className="flex flex-col">
+                  <div className="py-2! flex items-center gap-2 border-b border-grey-light justify-between">
+                    <div className="text-body-4-emphasis text-text-tertiary">
+                      Appointent ID:{" "}
+                    </div>
+                    <div className="text-body-4 text-text-primary text-right">
+                      {payment.appointmentId}
+                    </div>
+                  </div>
+                  <div className="py-2! flex items-center gap-2 border-b border-grey-light justify-between">
+                    <div className="text-body-4-emphasis text-text-tertiary">
+                      Date:{" "}
+                    </div>
+                    <div className="text-body-4 text-text-primary text-right">
+                      {formatDateLabel(payment.createdAt)}
+                    </div>
+                  </div>
+                  <div className="py-2! flex items-center gap-2 border-b border-grey-light  justify-between">
+                    <div className="text-body-4-emphasis text-text-tertiary">
+                      Subtotal:{" "}
+                    </div>
+                    <div className="text-body-4 text-text-primary text-right">
+                      {formatMoney(payment.subtotal, currency)}
+                    </div>
+                  </div>
+                  <div className="py-2! flex items-center gap-2 border-b border-grey-light  justify-between">
+                    <div className="text-body-4-emphasis text-text-tertiary">
+                      Discount:{" "}
+                    </div>
+                    <div className="text-body-4 text-text-primary text-right">
+                      {formatMoney(payment.discountTotal ?? 0, currency)}
+                    </div>
+                  </div>
+                  <div className="py-2! flex items-center gap-2 border-b border-grey-light justify-between">
+                    <div className="text-body-4-emphasis text-text-tertiary">
+                      Tax:{" "}
+                    </div>
+                    <div className="text-body-4 text-text-primary text-right">
+                      {formatMoney(payment.taxTotal ?? 0, currency)}
+                    </div>
+                  </div>
+                  <div className="py-2! flex items-center gap-2 border-b border-grey-light justify-between">
+                    <div className="text-body-4-emphasis text-text-tertiary">
+                      Amount:{" "}
+                    </div>
+                    <div className="text-body-4 text-text-primary text-right">
+                      {formatMoney(payment.totalAmount, currency)}
+                    </div>
+                  </div>
+                  <div className="py-2! flex items-center gap-2 justify-between">
+                    <div className="text-body-4-emphasis text-text-tertiary">
+                      Status:{" "}
+                    </div>
+                    <div
+                      className="rounded-2xl px-4 py-2"
+                      style={getStatusStyle(payment.status)}
+                    >
+                      {toTitle(payment.status)}
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-3 mt-2">
+                    {payment.stripeReceiptUrl ? (
+                      <Secondary
+                        text="Download"
+                        href=""
+                        onClick={() => handleDownload(payment.stripeReceiptUrl)}
+                      />
+                    ) : (
+                      <>
+                        {generatedUrl ? (
+                          <Secondary
+                            text="Copy link"
+                            href="#"
+                            onClick={() => handleCopy(generatedUrl)}
+                          />
+                        ) : null}
+                        <Secondary
+                          text="Generate & Mail link"
+                          href="#"
+                          onClick={() => handleGenerate(payment.id)}
+                        />
+                      </>
+                    )}
+                  </div>
+                </div>
+              </Accordion>
+            );
+          })}
         </div>
-        {payments.map((payment) => (
-          <Accordion
-            key={payment.appointmentId}
-            title={payment.paymentId}
-            defaultOpen={true}
-            showEditIcon={false}
-            isEditing={true}
-          >
-            <div className="flex flex-col px-4! py-2.5! rounded-2xl border border-grey-light">
-              <div className="px-3! py-2! flex items-center gap-2 border-b border-grey-light justify-between">
-                <div>Appointent ID: </div>
-                <div>{payment.appointmentId}</div>
-              </div>
-              <div className="px-3! py-2! flex items-center gap-2 border-b border-grey-light justify-between">
-                <div>Payment ID: </div>
-                <div>{payment.paymentId}</div>
-              </div>
-              <div className="px-3! py-2! flex items-center gap-2 border-b border-grey-light justify-between">
-                <div>Payment method: </div>
-                <div>{payment.mode}</div>
-              </div>
-              <div className="px-3! py-2! flex items-center gap-2 border-b border-grey-light justify-between">
-                <div>Date & Time: </div>
-                <div>{payment.date + payment.time}</div>
-              </div>
-              <div className="px-3! py-2! flex items-center gap-2 justify-between">
-                <div>Amount: </div>
-                <div>${payment.amount}</div>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3 py-3">
-              <Secondary href="#" text="Print invoice" className="h-13!" />
-              <Secondary href="#" text="Email invoice" className="h-13!" />
-            </div>
-          </Accordion>
-        ))}
       </div>
-    </div>
+    </PermissionGate>
   );
 };
 

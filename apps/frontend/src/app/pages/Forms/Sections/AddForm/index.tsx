@@ -1,4 +1,3 @@
-import SubLabels from "@/app/components/Labels/SubLabels";
 import Modal from "@/app/components/Modal";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Details from "./Details";
@@ -7,8 +6,10 @@ import Review from "./Review";
 import { FormsCategory, FormsProps } from "@/app/types/forms";
 import { publishForm, saveFormDraft } from "@/app/services/formService";
 import Close from "@/app/components/Icons/Close";
+import Labels from "@/app/components/Labels/Labels";
+import { useOrgStore } from "@/app/stores/orgStore";
 
-const Labels = [
+const LabelOptions = [
   {
     name: "Form details",
     key: "form-details",
@@ -33,15 +34,20 @@ type AddFormProps = {
   onDraftChange?: (draft: FormsProps | null) => void;
 };
 
-const defaultForm = (): FormsProps => ({
-  name: "",
-  category: "" as FormsCategory,
-  usage: "Internal",
-  updatedBy: "",
-  lastUpdated: "",
-  status: "Draft",
-  schema: [],
-});
+const defaultForm = (): FormsProps => {
+  const primaryOrg = useOrgStore.getState().getPrimaryOrg?.();
+  return {
+    name: "",
+    category: "" as FormsCategory,
+    usage: "Internal",
+    requiredSigner: undefined,
+    updatedBy: "",
+    lastUpdated: "",
+    status: "Draft",
+    schema: [],
+    businessType: primaryOrg?.type,
+  };
+};
 
 const AddForm = ({
   showModal,
@@ -67,7 +73,10 @@ const AddForm = ({
   useEffect(() => {
     if (showModal && !wasOpenRef.current) {
       setActiveLabel("form-details");
-      const next = initialForm ?? draft ?? defaultForm();
+      const next = {
+        ...(initialForm ?? draft ?? defaultForm()),
+        businessType: initialForm?.businessType ?? draft?.businessType ?? useOrgStore.getState().getPrimaryOrg?.()?.type,
+      };
       setFormData(next);
       wasOpenRef.current = true;
     }
@@ -167,6 +176,9 @@ const AddForm = ({
     <Modal showModal={showModal} setShowModal={setShowModal} onClose={onClose}>
       <div className="flex flex-col h-full gap-6">
         <div className="flex justify-between items-center">
+          <div className="opacity-0">
+            <Close onClick={() => {}} />
+          </div>
           <div className="flex justify-center items-center gap-2">
             <div className="text-body-1 text-text-primary">
               {isEditing ? "Edit form" : "Add form"}
@@ -175,8 +187,8 @@ const AddForm = ({
           <Close onClick={closeModal} />
         </div>
 
-        <SubLabels
-          labels={Labels}
+        <Labels
+          labels={LabelOptions}
           activeLabel={activeLabel}
           setActiveLabel={handleLabelClick}
         />

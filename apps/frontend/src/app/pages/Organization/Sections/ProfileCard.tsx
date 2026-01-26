@@ -5,10 +5,15 @@ import Datepicker from "@/app/components/Inputs/Datepicker";
 import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import MultiSelectDropdown from "@/app/components/Inputs/MultiSelectDropdown";
+import LogoUpdator from "@/app/components/UploadImage/LogoUpdator";
+import { usePrimaryOrg } from "@/app/hooks/useOrgSelectors";
 import { usePrimaryOrgProfile } from "@/app/hooks/useProfiles";
+import { updateOrg } from "@/app/services/orgService";
+import { upsertUserProfile } from "@/app/services/profileService";
 import { useAuthStore } from "@/app/stores/authStore";
-import { isHttpsImageUrl } from "@/app/utils/urls";
-import Image from "next/image";
+import { UserProfile } from "@/app/types/profile";
+import { getSafeImageUrl } from "@/app/utils/urls";
+import { Organisation } from "@yosemite-crew/types";
 import React, { useEffect, useMemo, useState } from "react";
 import { RiEdit2Fill } from "react-icons/ri";
 
@@ -82,6 +87,7 @@ const getRequiredError = (
   const label = `${field.label} is required`;
   if (Array.isArray(value)) return value.length ? undefined : label;
   if (field.type === "date") return value ? undefined : label;
+  if (field.type === "dateString") return value ? undefined : label;
   if (field.type === "number") return value ? undefined : label;
   return (value ?? "").toString().trim() ? undefined : label;
 };
@@ -117,47 +123,52 @@ const FieldComponents: Record<
       className="min-h-12!"
     />
   ),
-  select: ({ field, value, onChange }) => (
+  select: ({ field, value, onChange, error }) => (
     <LabelDropdown
       placeholder={field.label}
       onSelect={(option) => onChange(option.value)}
       defaultOption={value}
       options={field.options || []}
+      error={error}
     />
   ),
-  dropdown: ({ field, value, onChange }) => (
+  dropdown: ({ field, value, onChange, error }) => (
     <LabelDropdown
       placeholder={field.label}
       onSelect={(option) => onChange(option.value)}
       defaultOption={value}
       options={field.options || []}
+      error={error}
     />
   ),
-  multiSelect: ({ field, value, onChange }) => (
+  multiSelect: ({ field, value, onChange, error }) => (
     <MultiSelectDropdown
       placeholder={field.label}
       value={value || []}
       onChange={(e) => onChange(e)}
       options={field.options || []}
+      error={error}
     />
   ),
-  country: ({ field, value, onChange }) => (
+  country: ({ field, value, onChange, error }) => (
     <LabelDropdown
       placeholder={field.label}
       onSelect={(option) => onChange(option.value)}
       defaultOption={value}
       options={CountriesOptions}
+      error={error}
     />
   ),
-  date: ({ field, value, onChange }) => (
+  date: ({ field, value, onChange, error }) => (
     <Datepicker
       currentDate={value}
       setCurrentDate={onChange}
       type="input"
       placeholder={field.label}
+      error={error}
     />
   ),
-  dateString: ({ field, value, onChange }) => {
+  dateString: ({ field, value, onChange, error }) => {
     const fallback = new Date();
     const currentDate = toDateOrFallback(value, fallback);
     const setCurrentDate: React.Dispatch<React.SetStateAction<Date>> = (
@@ -172,6 +183,7 @@ const FieldComponents: Record<
         setCurrentDate={setCurrentDate}
         type="input"
         placeholder={field.label}
+        error={error}
       />
     );
   },
@@ -183,7 +195,7 @@ const FieldValueRow: React.FC<{
   showDivider: boolean;
 }> = ({ label, value, showDivider }) => (
   <div
-    className={`px-6! py-[10px]! flex items-center justify-between gap-2 ${showDivider ? "border-b border-b-card-border" : ""}`}
+    className={`px-3! sm:px-6! py-[10px]! flex items-center justify-between gap-2 ${showDivider ? "border-b border-b-card-border" : ""}`}
   >
     <div className="text-body-4 text-text-tertiary">{label}</div>
     <div className="text-body-4 text-text-primary text-right">
@@ -260,6 +272,7 @@ const ProfileCard = ({
   onSave,
 }: ProfileCardProps) => {
   const profile = usePrimaryOrgProfile();
+  const primaryOrg = usePrimaryOrg();
   const attributes = useAuthStore((s) => s.attributes);
   const [isEditing, setIsEditing] = useState(false);
   const [formValues, setFormValues] = useState<FormValues>(() =>
@@ -268,6 +281,8 @@ const ProfileCard = ({
   const [formValuesErrors, setFormValuesErrors] = useState<
     Record<string, string | undefined>
   >({});
+  const orgId = primaryOrg?._id;
+  const isDisabled = !orgId;
 
   useEffect(() => {
     setFormValues(buildInitialValues(fields, org));
@@ -312,6 +327,36 @@ const ProfileCard = ({
     }
   };
 
+  const updateProfilePicture = async (s3Key: string) => {
+    try {
+      if (!profile || !s3Key) throw new Error("Profile or s3Key is missing");
+      const payload: UserProfile = {
+        ...profile,
+        _id: profile?._id,
+        personalDetails: {
+          ...profile?.personalDetails,
+          profilePictureUrl: "https://d2kyjiikho62xx.cloudfront.net/" + s3Key,
+        },
+      };
+      await upsertUserProfile(payload);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const updateOrgLogo = async (s3Key: string) => {
+    try {
+      if (!primaryOrg || !s3Key) throw new Error("Org or s3Key is missing");
+      const updated: Organisation = {
+        ...primaryOrg,
+        imageURL: "https://d2kyjiikho62xx.cloudfront.net/" + s3Key,
+      };
+      await updateOrg(updated);
+    } catch (error: any) {
+      console.error("Error updating organization:", error);
+    }
+  };
+
   return (
     <div className="border border-card-border rounded-2xl">
       <div className="px-6! py-3! border-b border-b-card-border flex items-center justify-between">
@@ -327,17 +372,16 @@ const ProfileCard = ({
       </div>
       <div className={`px-3! py-2! flex flex-col`}>
         {showProfileUser && (
-          <div className="px-6! py-2! flex gap-2 items-center">
-            <Image
-              src={
-                isHttpsImageUrl(profile?.personalDetails?.profilePictureUrl)
-                  ? profile?.personalDetails?.profilePictureUrl
-                  : "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
-              }
-              alt="Logo"
-              height={40}
-              width={40}
-              className="rounded-full object-cover h-10 min-w-10 max-h-10"
+          <div className="px-3! sm:px-6! py-2! flex gap-2 items-center">
+            <LogoUpdator
+              imageUrl={getSafeImageUrl(
+                profile?.personalDetails?.profilePictureUrl,
+                "person"
+              )}
+              title="Update Profile Picture"
+              apiUrl={`/fhir/v1/user-profile/${orgId}/profile-picture`}
+              onSave={updateProfilePicture}
+              disabled={isDisabled}
             />
             <div className="text-body-3 text-text-primary">
               {(attributes?.given_name || "") +
@@ -347,19 +391,15 @@ const ProfileCard = ({
           </div>
         )}
         {showProfile && (
-          <div className="px-6! py-2! flex flex-col gap-2">
+          <div className="px-3! sm:px-6! py-2! flex flex-col gap-2">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2">
-                <Image
-                  src={
-                    isHttpsImageUrl(org?.imageURL)
-                      ? org?.imageURL
-                      : "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
-                  }
-                  alt="Logo"
-                  height={40}
-                  width={40}
-                  className="rounded-full object-cover h-10 min-w-10 max-h-10"
+                <LogoUpdator
+                  imageUrl={getSafeImageUrl(primaryOrg?.imageURL, "business")}
+                  title="Update logo"
+                  apiUrl={`/fhir/v1/organization/logo/presigned-url/${orgId}`}
+                  onSave={updateOrgLogo}
+                  disabled={isDisabled}
                 />
                 <div className="text-body-3 text-text-primary">{org.name}</div>
                 <div

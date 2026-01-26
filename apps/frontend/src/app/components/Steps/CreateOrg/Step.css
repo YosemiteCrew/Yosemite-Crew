@@ -5,8 +5,8 @@
 }
 .step-title {
   color: var(--black-text);
-  font-family: var(--grotesk-font);
-  font-size: 23px;
+  font-family: var(--font-satoshi);
+  font-size: 24px;
   font-style: normal;
   font-weight: 500;
   line-height: 120%;
@@ -125,7 +125,7 @@
   display: flex;
   flex-direction: column;
   width: 100%;
-  gap: 24px;
+  gap: 12px;
 }
 .specilities-container-empty {
   display: flex;
@@ -136,7 +136,7 @@
   height: 200px;
   color: var(--black-text);
   font-family: var(--satoshi-font);
-  font-size: 18px;
+  font-size: 16px;
   font-style: normal;
   font-weight: 400;
   line-height: 120%;

@@ -2,25 +2,31 @@ import Image from "next/image";
 import React from "react";
 import { getStatusStyle } from "../../DataTable/Appointments";
 import { Appointment } from "@yosemite-crew/types";
-import { formatDateLabel } from "@/app/utils/forms";
-import { toTitleCase } from "@/app/utils/validators";
+import { formatDateLabel, formatTimeLabel } from "@/app/utils/forms";
+import { toTitle } from "@/app/utils/validators";
 import { Secondary } from "../../Buttons";
+import { allowReschedule } from "@/app/utils/appointments";
+import { getSafeImageUrl, ImageType } from "@/app/utils/urls";
 
 type AppointmentCardProps = {
   appointment: Appointment;
   handleViewAppointment: any;
+  handleRescheduleAppointment: any;
+  canEditAppointments: boolean;
 };
 
 const AppointmentCard = ({
   appointment,
   handleViewAppointment,
+  handleRescheduleAppointment,
+  canEditAppointments,
 }: AppointmentCardProps) => {
   return (
     <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-white px-3 py-3 flex flex-col justify-between gap-2 cursor-pointer">
       <div className="flex gap-2 items-center">
         <Image
           alt={""}
-          src={"https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"}
+          src={getSafeImageUrl("", appointment.companion.species as ImageType)}
           height={40}
           width={40}
           style={{ borderRadius: "50%" }}
@@ -47,7 +53,7 @@ const AppointmentCard = ({
         <div className="text-caption-1 text-text-primary">
           {formatDateLabel(appointment.appointmentDate) +
             " / " +
-            formatDateLabel(appointment.startTime)}
+            formatTimeLabel(appointment.startTime)}
         </div>
       </div>
       <div className="flex gap-1">
@@ -84,7 +90,7 @@ const AppointmentCard = ({
         style={getStatusStyle(appointment.status)}
         className="w-full rounded-2xl h-12 flex items-center justify-center text-body-4"
       >
-        {toTitleCase(appointment.status)}
+        {toTitle(appointment.status)}
       </div>
       <div className="flex gap-3 w-full">
         {appointment.status === "REQUESTED" ? (
@@ -97,12 +103,22 @@ const AppointmentCard = ({
             </button>
           </>
         ) : (
-          <Secondary
-            href="#"
-            onClick={() => handleViewAppointment(appointment)}
-            text="View"
-            className="w-full"
-          />
+          <div className="flex gap-2 w-full">
+            <Secondary
+              href="#"
+              onClick={() => handleViewAppointment(appointment)}
+              text="View"
+              className="w-full"
+            />
+            {canEditAppointments && allowReschedule(appointment.status) && (
+              <Secondary
+                href="#"
+                onClick={() => handleRescheduleAppointment(appointment)}
+                text="Reschedule"
+                className="w-full"
+              />
+            )}
+          </div>
         )}
       </div>
     </div>

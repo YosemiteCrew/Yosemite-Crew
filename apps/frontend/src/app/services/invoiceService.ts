@@ -1,7 +1,11 @@
-import { fromInvoiceRequestDTO, InvoiceRequestDTO } from "@yosemite-crew/types";
+import {
+  fromInvoiceRequestDTO,
+  InvoiceItem,
+  InvoiceResponseDTO,
+} from "@yosemite-crew/types";
 import { useInvoiceStore } from "../stores/invoiceStore";
 import { useOrgStore } from "../stores/orgStore";
-import { getData } from "./axios";
+import { getData, postData } from "./axios";
 
 export const loadInvoicesForOrgPrimaryOrg = async (opts?: {
   silent?: boolean;
@@ -17,12 +21,13 @@ export const loadInvoicesForOrgPrimaryOrg = async (opts?: {
   if (!shouldFetchInvoices(status, opts)) return;
   if (!opts?.silent) startLoading();
   try {
-    const res = await getData<InvoiceRequestDTO[]>(
-      "/v1/organisation-document/pms/" + primaryOrgId + "/documents"
+    const res = await getData<InvoiceResponseDTO[]>(
+      "/fhir/v1/invoice/organisation/" + primaryOrgId + "/list",
     );
-    const data = res.data || [];
-    const normalInvoices = data.map((dto) => fromInvoiceRequestDTO(dto));
-    setInvoicesForOrg(primaryOrgId, normalInvoices);
+    const invoices = res.data.map((fhirInvoice) =>
+      fromInvoiceRequestDTO(fhirInvoice),
+    );
+    setInvoicesForOrg(primaryOrgId, invoices);
   } catch (err) {
     console.error("Failed to load specialities:", err);
     throw err;
@@ -31,11 +36,57 @@ export const loadInvoicesForOrgPrimaryOrg = async (opts?: {
 
 const shouldFetchInvoices = (
   status: ReturnType<typeof useInvoiceStore.getState>["status"],
-  opts?: { force?: boolean }
+  opts?: { force?: boolean },
 ) => {
   if (opts?.force) return true;
   return status === "idle" || status === "error";
 };
 
+export const addLineItemsToAppointments = async (
+  lineItems: InvoiceItem[],
+  appointmentId: string,
+  currency: string,
+): Promise<void> => {
+  const primaryOrgId = useOrgStore.getState().primaryOrgId;
+  if (!primaryOrgId) {
+    console.warn("No primary organization selected. Cannot add.");
+    return;
+  }
+  try {
+    if (!appointmentId || lineItems.length <= 0 || !currency) {
+      throw new Error("Line items or Appointment ID or Currency missing");
+    }
+    const body = {
+      items: lineItems,
+      currency: currency.toLowerCase(),
+    };
+    await postData<InvoiceResponseDTO[]>(
+      "/fhir/v1/invoice/appointment/" + appointmentId + "/charges",
+      body,
+    );
+  } catch (err) {
+    console.error("Failed to load specialities:", err);
+    throw err;
+  }
+};
 
-
+export const getPaymentLink = async (invoiceId: string): Promise<void> => {
+  const primaryOrgId = useOrgStore.getState().primaryOrgId;
+  if (!primaryOrgId) {
+    console.warn("No primary organization selected. Cannot get.");
+    return;
+  }
+  try {
+    if (!invoiceId) {
+      throw new Error("Invoice ID missing");
+    }
+    const res = await postData<{ checkout: any }>(
+      "/fhir/v1/invoice/" + invoiceId + "/checkout-session",
+    );
+    const url = res.data.checkout.url;
+    return url;
+  } catch (err) {
+    console.error("Failed to load specialities:", err);
+    throw err;
+  }
+};

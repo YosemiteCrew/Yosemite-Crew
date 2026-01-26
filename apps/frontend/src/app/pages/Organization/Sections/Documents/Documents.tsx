@@ -5,14 +5,18 @@ import AddDocument from "./AddDocument";
 import DocumentInfo from "./DocumentInfo";
 import { useDocumentsForPrimaryOrg } from "@/app/hooks/useDocuments";
 import { OrganizationDocument } from "@/app/types/document";
+import { usePermissions } from "@/app/hooks/usePermissions";
+import { PERMISSIONS } from "@/app/utils/permissions";
+import { PermissionGate } from "@/app/components/PermissionGate";
 
 const Documents = () => {
   const documents = useDocumentsForPrimaryOrg();
+  const { can } = usePermissions();
+  const canEditDocument = can(PERMISSIONS.DOCUMENT_EDIT_ANY);
   const [addPopup, setAddPopup] = useState(false);
   const [viewPopup, setViewPopup] = useState(false);
-  const [activeDocument, setActiveDocument] = useState<OrganizationDocument | null>(
-    documents[0] ?? null
-  );
+  const [activeDocument, setActiveDocument] =
+    useState<OrganizationDocument | null>(documents[0] ?? null);
 
   useEffect(() => {
     setActiveDocument((prev) => {
@@ -26,11 +30,12 @@ const Documents = () => {
   }, [documents]);
 
   return (
-    <>
+    <PermissionGate allOf={[PERMISSIONS.DOCUMENT_VIEW_ANY]}>
       <AccordionButton
         title="Company documents"
         buttonTitle="Add"
         buttonClick={setAddPopup}
+        showButton={canEditDocument}
       >
         <DocumentsTable
           filteredList={documents}
@@ -44,9 +49,10 @@ const Documents = () => {
           showModal={viewPopup}
           setShowModal={setViewPopup}
           activeDocument={activeDocument}
+          canEditDocument={canEditDocument}
         />
       )}
-    </>
+    </PermissionGate>
   );
 };
 

@@ -6,11 +6,12 @@ import {
 } from "../components/Availability/utils";
 import { useAvailabilityStore } from "../stores/availabilityStore";
 import { useOrgStore } from "../stores/orgStore";
+import { Team } from "../types/team";
 import { deleteData, getData, postData } from "./axios";
 
 export const upsertAvailability = async (
   formData: ApiAvailability,
-  orgIdFromQuery: string | null
+  orgIdFromQuery: string | null,
 ) => {
   const { primaryOrgId } = useOrgStore.getState();
   const { setAvailabilitiesForOrg } = useAvailabilityStore.getState();
@@ -19,10 +20,31 @@ export const upsertAvailability = async (
     if (!id) return;
     const res = await postData<GetAvailabilityResponse>(
       "/fhir/v1/availability/" + id + "/base",
-      formData
+      formData,
     );
     const availability = res.data?.data ?? [];
     setAvailabilitiesForOrg(id, availability);
+  } catch (err: unknown) {
+    console.error("Failed to load orgs:", err);
+    throw err;
+  }
+};
+
+export const upsertTeamAvailability = async (
+  team: Team,
+  formData: ApiAvailability,
+  orgIdFromQuery: string | null,
+) => {
+  const { primaryOrgId } = useOrgStore.getState();
+  try {
+    const id = orgIdFromQuery || primaryOrgId;
+    if (!id) return;
+    const res = await postData<GetAvailabilityResponse>(
+      "/fhir/v1/availability/" + id + "/" + team.practionerId + "/base",
+      formData,
+    );
+    const availability = res.data?.data ?? [];
+    return availability;
   } catch (err: unknown) {
     console.error("Failed to load orgs:", err);
     throw err;
@@ -44,7 +66,7 @@ export const loadAvailability = async (opts?: { silent?: boolean }) => {
       orgIds.map(async (orgId) => {
         try {
           const res = await getData<GetAvailabilityResponse>(
-            "/fhir/v1/availability/" + orgId + "/base"
+            "/fhir/v1/availability/" + orgId + "/base",
           );
           const availability = res.data?.data ?? [];
           for (const a of availability) {
@@ -53,7 +75,7 @@ export const loadAvailability = async (opts?: { silent?: boolean }) => {
         } catch (err) {
           console.error(`Failed to fetch profile for orgId: ${orgId}`, err);
         }
-      })
+      }),
     );
     setAvailabilities(temp);
   } catch (err: unknown) {
@@ -68,7 +90,7 @@ export const getOveridesForPrimaryDate = async (date: Date) => {
   try {
     if (!primaryOrgId) {
       throw new Error(
-        "No primary organization selected. Cannot load overides."
+        "No primary organization selected. Cannot load overides.",
       );
     }
     const normalDate = date.toISOString().split("T")[0];
@@ -76,7 +98,7 @@ export const getOveridesForPrimaryDate = async (date: Date) => {
       "/fhir/v1/availability/" +
         primaryOrgId +
         "/weekly?weekStartDate=" +
-        normalDate
+        normalDate,
     );
     const override = res.data?.data ?? [];
     upsertOverideStore(override);
@@ -92,12 +114,12 @@ export const createOveride = async (override: ApiOverrides) => {
   try {
     if (!primaryOrgId) {
       throw new Error(
-        "No primary organization selected. Cannot create overides."
+        "No primary organization selected. Cannot create overides.",
       );
     }
     await postData(
       "/fhir/v1/availability/" + primaryOrgId + "/weekly",
-      override
+      override,
     );
     upsertOverideStore(override);
   } catch (err: unknown) {
@@ -116,7 +138,7 @@ export const deleteOveride = async (override: ApiOverrides) => {
       "/fhir/v1/availability/" +
         override.organisationId +
         "/weekly?weekStartDate=" +
-        override.dayOfWeek
+        override.dayOfWeek,
     );
     removeOverride(override._id);
   } catch (err: unknown) {

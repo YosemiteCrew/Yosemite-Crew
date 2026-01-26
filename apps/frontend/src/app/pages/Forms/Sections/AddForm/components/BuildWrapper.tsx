@@ -1,8 +1,7 @@
 import React from "react";
 import { FormField } from "@/app/types/forms";
-import { MdDeleteForever } from "react-icons/md";
+import { MdDeleteForever, MdDragIndicator } from "react-icons/md";
 import { IoMdArrowUp, IoMdArrowDown } from "react-icons/io";
-import { MdDragIndicator } from "react-icons/md";
 
 const BuilderWrapper: React.FC<{
   field: FormField;
@@ -75,17 +74,24 @@ const BuilderWrapper: React.FC<{
     onDragEnd?.(e);
   };
 
+  const dragProps = draggable
+    ? {
+        draggable: true,
+        onDragStart: handleDragStart,
+        onDragOver,
+        onDrop,
+        onDragEnd: handleDragEndInternal,
+      }
+    : {};
+
   return (
-    <div
+    <section
       ref={wrapperRef}
-      className={`border border-grey-light rounded-2xl px-3 py-3 flex flex-col gap-3 bg-white overflow-hidden ${
+      aria-label={`${title} field`}
+      className={`border border-grey-light rounded-2xl px-3 py-3 flex flex-col gap-3 bg-white ${
         isDragging ? "rounded-2xl" : ""
       }`}
-      draggable={draggable}
-      onDragStart={handleDragStart}
-      onDragOver={onDragOver}
-      onDrop={onDrop}
-      onDragEnd={handleDragEndInternal}
+      {...dragProps}
     >
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
@@ -104,7 +110,7 @@ const BuilderWrapper: React.FC<{
             <button
               onClick={onMoveUp}
               disabled={!canMoveUp}
-              className={`${!canMoveUp ? "opacity-30 cursor-not-allowed" : "cursor-pointer hover:bg-gray-100"} rounded p-1`}
+              className={`${canMoveUp ? "cursor-pointer hover:bg-gray-100" : "opacity-30 cursor-not-allowed"} rounded p-1`}
               title="Move up"
             >
               <IoMdArrowUp size={20} color="#302f2e" />
@@ -114,7 +120,7 @@ const BuilderWrapper: React.FC<{
             <button
               onClick={onMoveDown}
               disabled={!canMoveDown}
-              className={`${!canMoveDown ? "opacity-30 cursor-not-allowed" : "cursor-pointer hover:bg-gray-100"} rounded p-1`}
+              className={`${canMoveDown ? "cursor-pointer hover:bg-gray-100" : "opacity-30 cursor-not-allowed"} rounded p-1`}
               title="Move down"
             >
               <IoMdArrowDown size={20} color="#302f2e" />
@@ -126,7 +132,7 @@ const BuilderWrapper: React.FC<{
         </div>
       </div>
       {children}
-    </div>
+    </section>
   );
 };
 

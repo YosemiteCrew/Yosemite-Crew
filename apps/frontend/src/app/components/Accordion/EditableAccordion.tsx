@@ -111,39 +111,53 @@ const FieldComponents: Record<
       />
     );
   },
-  select: ({ field, value, onChange }) => (
-    <LabelDropdown
-      placeholder={field.label}
-      onSelect={(option) => onChange(option.value)}
-      defaultOption={value}
-      options={field.options}
-    />
-  ),
-  dropdown: ({ field, value, onChange }) => (
-    <LabelDropdown
-      placeholder={field.label}
-      onSelect={(option) => onChange(option.value)}
-      defaultOption={value}
-      options={field.options}
-    />
-  ),
-  multiSelect: ({ field, value, onChange }) => (
+  select: ({ field, value, onChange, error }) => {
+    const normalizedOptions = (field.options || []).map((opt: any) =>
+      typeof opt === "string" ? { label: opt, value: opt } : opt
+    );
+    return (
+      <LabelDropdown
+        placeholder={field.label}
+        onSelect={(option) => onChange(option.value)}
+        defaultOption={value}
+        options={normalizedOptions}
+        error={error}
+      />
+    );
+  },
+  dropdown: ({ field, value, onChange, error }) => {
+    const normalizedOptions = (field.options || []).map((opt: any) =>
+      typeof opt === "string" ? { label: opt, value: opt } : opt
+    );
+    return (
+      <LabelDropdown
+        placeholder={field.label}
+        onSelect={(option) => onChange(option.value)}
+        defaultOption={value}
+        options={normalizedOptions}
+        error={error}
+      />
+    );
+  },
+  multiSelect: ({ field, value, onChange, error }) => (
     <MultiSelectDropdown
       placeholder={field.label}
       value={value || []}
       onChange={(e) => onChange(e)}
       options={field.options || []}
+      error={error}
     />
   ),
-  country: ({ field, value, onChange }) => (
+  country: ({ field, value, onChange, error }) => (
     <LabelDropdown
       placeholder="Choose country"
       onSelect={(option) => onChange(option.value)}
       defaultOption={value}
       options={CountriesOptions}
+      error={error}
     />
   ),
-  date: ({ field, value, onChange }) => {
+  date: ({ field, value, onChange, error }) => {
     const parseDate = (val: any): Date | null => {
       if (!val) return null;
       if (typeof val === "string" && val.includes("/")) {
@@ -173,6 +187,7 @@ const FieldComponents: Record<
         }}
         type="input"
         placeholder={field.label}
+        error={error}
       />
     );
   },
@@ -239,7 +254,7 @@ const FieldValueComponents: Record<
       <div className="text-body-4-emphasis text-text-tertiary">
         {field.label}
       </div>
-      <div className="text-body-4 text-text-primary">
+      <div className="text-body-4 text-text-primary text-right">
         {Array.isArray(formValues[field.key])
           ? (formValues[field.key] as string[]).join(", ")
           : formValues[field.key] || "-"}
@@ -253,7 +268,7 @@ const FieldValueComponents: Record<
       <div className="text-body-4-emphasis text-text-tertiary">
         {field.label}
       </div>
-      <div className="text-body-4 text-text-primary">
+      <div className="text-body-4 text-text-primary text-right">
         {toTitleCase(formValues[field.key])}
       </div>
     </div>
@@ -265,7 +280,7 @@ const FieldValueComponents: Record<
       <div className="text-body-4-emphasis text-text-tertiary">
         {field.label}
       </div>
-      <div className="text-body-4 text-text-primary">
+      <div className="text-body-4 text-text-primary text-right">
         {formValues[field.key] || "-"}
       </div>
     </div>
@@ -277,7 +292,7 @@ const FieldValueComponents: Record<
       <div className="text-body-4-emphasis text-text-tertiary">
         {field.label}
       </div>
-      <div className="text-body-4 text-text-primary">
+      <div className="text-body-4 text-text-primary text-right">
         {(() => {
           const value = formValues[field.key];
           const options = normalizeOptions(field.options);
@@ -294,7 +309,7 @@ const FieldValueComponents: Record<
       <div className="text-body-4-emphasis text-text-tertiary">
         {field.label}
       </div>
-      <div className="text-body-4 text-text-primary">
+      <div className="text-body-4 text-text-primary text-right">
         {(() => {
           const value = formValues[field.key];
           const options = normalizeOptions(field.options);
@@ -311,7 +326,7 @@ const FieldValueComponents: Record<
       <div className="text-body-4-emphasis text-text-tertiary">
         {field.label}
       </div>
-      <div className="text-body-4 text-text-primary">
+      <div className="text-body-4 text-text-primary text-right">
         {(() => {
           const value = formValues[field.key];
           const options = normalizeOptions(field.options);
@@ -339,7 +354,7 @@ const FieldValueComponents: Record<
       <div className="text-body-4-emphasis text-text-tertiary">
         {field.label}
       </div>
-      <div className="text-body-4 text-text-primary">
+      <div className="text-body-4 text-text-primary text-right">
         {formValues[field.key] || "-"}
       </div>
     </div>
@@ -353,7 +368,7 @@ const FieldValueComponents: Record<
         <div className="text-body-4-emphasis text-text-tertiary">
           {field.label}
         </div>
-        <div className="text-body-4 text-text-primary">
+        <div className="text-body-4 text-text-primary text-right">
           {typeof value === "string"
             ? formatDisplayDate(value) || "-"
             : getFormattedDate(formValues[field.key])}
@@ -370,7 +385,7 @@ const FieldValueComponents: Record<
         <div className="text-body-4-emphasis text-text-tertiary">
           {field.label}
         </div>
-        <div className="text-body-4 text-text-primary">
+        <div className="text-body-4 text-text-primary text-right">
           {formatTimeLabel(value)}
         </div>
       </div>
@@ -456,6 +471,7 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
   onRegisterActions,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [formValues, setFormValues] = useState<FormValues>(() =>
     buildInitialValues(fields, data)
   );
@@ -504,8 +520,10 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
     try {
       await onSave?.(formValues);
       setIsEditing(false);
+      setError(null);
     } catch (e) {
       console.error("Failed to save accordion data:", e);
+      setError("Failed to save changes. Please try again.");
     }
   }, [formValues, onSave, validate]);
 
@@ -578,9 +596,14 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
       </Accordion>
 
       {isEditing && !hideInlineActions && (
-        <div className="grid grid-cols-2 gap-3">
-          <Primary href="#" text="Save" onClick={handleSave} />
-          <Secondary href="#" onClick={handleCancel} text="Cancel" />
+        <div className="flex justify-end items-end gap-3 w-full flex-col">
+          {error && (
+            <div className="text-red-600 text-sm text-center">{error}</div>
+          )}
+          <div className="grid grid-cols-2 gap-3 w-full">
+            <Secondary href="#" onClick={handleCancel} text="Cancel" />
+            <Primary href="#" text="Save" onClick={handleSave} />
+          </div>
         </div>
       )}
     </div>

@@ -5,6 +5,7 @@ import { GrNext, GrPrevious } from "react-icons/gr";
 import Year from "./Year";
 import Month from "./Month";
 import { getFormattedDate } from "../../Calendar/weekHelpers";
+import { IoIosWarning } from "react-icons/io";
 
 const monthNames = [
   "January",
@@ -34,6 +35,7 @@ type DatepickerProps = {
   className?: string;
   containerClassName?: string;
   placeholder: string;
+  error?: string;
 };
 
 const Datepicker = ({
@@ -45,6 +47,7 @@ const Datepicker = ({
   className,
   containerClassName,
   placeholder,
+  error,
 }: DatepickerProps) => {
   const updateDate = setCurrentDate as React.Dispatch<
     React.SetStateAction<Date | null>
@@ -165,7 +168,7 @@ const Datepicker = ({
           <button
             type="button"
             onClick={() => setIsOpen((prev) => !prev)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer bg-transparent border-0 p-0"
+            className="absolute right-6 top-1/2 -translate-y-1/2 cursor-pointer bg-transparent border-0 p-0"
             aria-label="Toggle calendar"
           >
             <IoCalendarClear size={20} color="#302f2e" />
@@ -244,6 +247,17 @@ const Datepicker = ({
               );
             })}
           </div>
+        </div>
+      )}
+      {error && (
+        <div
+          className={`
+                  mt-1.5 flex items-center gap-1 px-4
+                  text-caption-2 text-text-error
+                  `}
+        >
+          <IoIosWarning className="text-text-error" size={14} />
+          <span>{error}</span>
         </div>
       )}
     </div>

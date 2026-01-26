@@ -27,10 +27,16 @@ export const toTitleCase = (value = "") => {
 };
 
 export const toTitle = (str = "") => {
-  return String(str)
+  const s = String(str)
     .trim()
     .replaceAll(/[_-]+/g, " ")
     .replaceAll(/\s+/g, " ")
-    .toLowerCase()
-    .replaceAll(/\b\w/g, (c) => c.toUpperCase());
+    .toLowerCase();
+
+  return s.charAt(0).toUpperCase() + s.slice(1);
+};
+
+export const toNumberSafe = (value: unknown, fallback = 0): number => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
 };

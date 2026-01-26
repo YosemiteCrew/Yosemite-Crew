@@ -109,6 +109,7 @@ const InfoSection: React.FC<InfoSectionProps> = ({
         data={data}
         defaultOpen={true}
         readOnly={disableEditing}
+        showEditIcon={!disableEditing}
         onSave={(values) => onSaveSection?.(sectionKey, values)}
         hideInlineActions
         onEditingChange={onEditingChange}

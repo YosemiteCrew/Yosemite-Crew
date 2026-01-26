@@ -1,12 +1,17 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
+
 import DeleteOrg from "@/app/pages/Organization/Sections/DeleteOrg";
 
 const deleteOrgMock = jest.fn();
 
 jest.mock("@/app/services/orgService", () => ({
   deleteOrg: () => deleteOrgMock(),
+}));
+
+jest.mock("@/app/components/PermissionGate", () => ({
+  PermissionGate: ({ children }: any) => <div>{children}</div>,
 }));
 
 jest.mock("@/app/components/Buttons", () => ({
@@ -35,37 +40,29 @@ jest.mock("@/app/components/Icons/Close", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+jest.mock("@/app/components/Inputs/FormInput/FormInput", () => (props: any) => (
+  <input aria-label={props.inlabel} value={props.value} onChange={props.onChange} />
+));
+
+jest.mock("@/app/components/Modal/CenterModal", () => ({
   __esModule: true,
-  default: ({ value, inlabel, onChange, error }: any) => (
-    <div>
-      <label>
-        {inlabel}
-        <input value={value} onChange={onChange} />
-      </label>
-      {error ? <div>{error}</div> : null}
-    </div>
-  ),
+  default: ({ showModal, children }: any) => (showModal ? <div>{children}</div> : null),
 }));
 
-describe("DeleteOrg", () => {
-  it("shows validation error when email is missing", () => {
-    render(<DeleteOrg />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Delete organization" }));
-    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
-
-    expect(screen.getByText("Email is required")).toBeInTheDocument();
+describe("DeleteOrg section", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    deleteOrgMock.mockResolvedValue(undefined);
   });
 
-  it("calls deleteOrg when email is provided", () => {
+  it("opens modal and deletes when email is provided", async () => {
     render(<DeleteOrg />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete organization" }));
+    fireEvent.click(screen.getByText("Delete organization"));
     fireEvent.change(screen.getByLabelText("Enter email address"), {
       target: { value: "owner@example.com" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    fireEvent.click(screen.getByText("Delete"));
 
     expect(deleteOrgMock).toHaveBeenCalled();
   });

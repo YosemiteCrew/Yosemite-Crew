@@ -7,17 +7,17 @@ import Close from "../../Icons/Close";
 const DemoVideos = [
   {
     image: "",
-    src: "",
+    src: "https://d2il6osz49gpup.cloudfront.net/Images/landingbg1.jpg",
     title: "Inviting your team",
   },
   {
     image: "",
-    src: "",
+    src: "https://d2il6osz49gpup.cloudfront.net/Images/landingbg2.jpg",
     title: "How to add companions",
   },
   {
     image: "",
-    src: "",
+    src: "https://d2il6osz49gpup.cloudfront.net/Images/landingbg3.jpg",
     title: "How to write consultation notes",
   },
 ];
@@ -45,7 +45,10 @@ const VideosCard = () => {
               className="rounded-2xl border border-card-border bg-white flex flex-col cursor-pointer"
               key={video.title}
             >
-              <div className="min-h-[250px] sm:min-h-[350px] md:min-h-[270px] relative bg-[url('https://d2il6osz49gpup.cloudfront.net/Images/landingbg1.jpg')] bg-no-repeat bg-cover bg-center w-full rounded-t-2xl flex items-center justify-center">
+              <div
+                style={{ backgroundImage: `url(${video.src})` }}
+                className="min-h-[250px] sm:min-h-[350px] md:min-h-[270px] relative bg-no-repeat bg-cover bg-center w-full rounded-t-2xl flex items-center justify-center"
+              >
                 <div className="absolute inset-0 bg-black/40 rounded-t-2xl"></div>
                 <div className="relative">
                   <FaCirclePlay size={50} color="#fff" />

@@ -29,6 +29,7 @@ const appRoutes: RouteItem[] = [
   { name: "Companions", href: "/companions", verify: true },
   { name: "Inventory", href: "/inventory", verify: true },
   { name: "Forms", href: "/forms", verify: true },
+  { name: "Doc Signing", href: "/doc-signing", verify: true },
 ];
 
 const devRoutes: RouteItem[] = [
@@ -59,7 +60,8 @@ const Sidebar = () => {
 
   const isInitialLoading = orgStatus !== "loaded";
 
-  if (isInitialLoading) return <div className="sidebar"></div>;
+  // Developer portal doesn't need org data to load
+  if (isInitialLoading && !isDevPortal) return <div className="sidebar"></div>;
 
   const orgMissing = !primaryOrg;
   const orgVerified = !!primaryOrg?.isVerified;
@@ -74,10 +76,12 @@ const Sidebar = () => {
       <div className="flex gap-3 flex-col">
         {routes.map((route) => {
           const needsVerifiedOrg = route.verify;
-          const isDisabled =
-            route.name !== "Sign out" &&
-            route.name !== "Settings" &&
-            (orgMissing || (needsVerifiedOrg && !orgVerified));
+          // Developer portal routes don't need org verification
+          const isDisabled = isDevPortal
+            ? false
+            : route.name !== "Sign out" &&
+              route.name !== "Settings" &&
+              (orgMissing || (needsVerifiedOrg && !orgVerified));
 
           const isActive = pathname === route.href;
 

@@ -9,7 +9,7 @@ import GenericTable from "../GenericTable/GenericTable";
 import { CompanionParent } from "../../pages/Companions/types";
 
 import { getAgeInYears } from "@/app/utils/date";
-import { isHttpsImageUrl } from "@/app/utils/urls";
+import { getSafeImageUrl, ImageType } from "@/app/utils/urls";
 import { toTitleCase } from "@/app/utils/validators";
 
 import "./DataTable.css";
@@ -28,6 +28,8 @@ type CompanionsTableProps = {
   setViewCompanion: (open: boolean) => void;
   setBookAppointment: (open: boolean) => void;
   setAddTask: (open: boolean) => void;
+  canEditAppointments: boolean;
+  canEditTasks: boolean;
 };
 
 export const getStatusStyle = (status: string) => {
@@ -35,9 +37,9 @@ export const getStatusStyle = (status: string) => {
     case "active":
       return { color: "#fff", backgroundColor: "#D28F9A" };
     case "archived":
-      return { color: "#fff", backgroundColor: "#BF9FAA" };
-    case "inactive":
       return { color: "#fff", backgroundColor: "#747283" };
+    case "inactive":
+      return { color: "#fff", backgroundColor: "#BF9FAA" };
     default:
       return { color: "#fff", backgroundColor: "rgba(107,114,128,0.1)" };
   }
@@ -50,6 +52,8 @@ const CompanionsTable = ({
   setViewCompanion,
   setBookAppointment,
   setAddTask,
+  canEditAppointments,
+  canEditTasks,
 }: CompanionsTableProps) => {
   const handleViewCompanion = (companion: CompanionParent) => {
     setActiveCompanion(companion);
@@ -74,11 +78,10 @@ const CompanionsTable = ({
       render: (item: CompanionParent) => (
         <div className="appointment-profile w-10 h-10">
           <Image
-            src={
-              isHttpsImageUrl(item.companion.photoUrl)
-                ? item.companion.photoUrl
-                : "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
-            }
+            src={getSafeImageUrl(
+              item.companion.photoUrl,
+              item.companion.type.toLowerCase() as ImageType,
+            )}
             alt=""
             height={40}
             width={40}
@@ -184,18 +187,22 @@ const CompanionsTable = ({
           >
             <IoEye size={20} color="#302F2E" />
           </button>
-          <button
-            onClick={() => handleBookAppointment(item)}
-            className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-          >
-            <FaCalendar size={14} color="#302F2E" />
-          </button>
-          <button
-            onClick={() => handleAddTask(item)}
-            className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-          >
-            <FaTasks size={14} color="#302F2E" />
-          </button>
+          {canEditAppointments && (
+            <button
+              onClick={() => handleBookAppointment(item)}
+              className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+            >
+              <FaCalendar size={14} color="#302F2E" />
+            </button>
+          )}
+          {canEditTasks && (
+            <button
+              onClick={() => handleAddTask(item)}
+              className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+            >
+              <FaTasks size={14} color="#302F2E" />
+            </button>
+          )}
         </div>
       ),
     },
@@ -209,7 +216,7 @@ const CompanionsTable = ({
           columns={columns}
           bordered={false}
           pagination
-          pageSize={5}
+          pageSize={10}
         />
       </div>
       <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
@@ -228,6 +235,8 @@ const CompanionsTable = ({
               handleViewCompanion={handleViewCompanion}
               handleBookAppointment={handleBookAppointment}
               handleAddTask={handleAddTask}
+              canEditAppointments={canEditAppointments}
+              canEditTasks={canEditTasks}
             />
           ));
         })()}

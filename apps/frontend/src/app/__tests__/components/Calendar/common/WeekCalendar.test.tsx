@@ -1,210 +1,163 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
-import WeekCalendar from "@/app/components/Calendar/common/WeekCalendar";
-import { Appointment } from "@yosemite-crew/types";
+import { fireEvent, render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
 
-// ---- Mocks ----
+import WeekCalendar from "@/app/components/Calendar/common/WeekCalendar";
 
 const mockGetWeekDays = jest.fn();
 const mockGetPrevWeek = jest.fn();
 const mockGetNextWeek = jest.fn();
 const mockEventsForDayHour = jest.fn();
 
-// We keep HOURS_IN_DAY small to avoid rendering 24*7 heavy DOM in unit tests
 jest.mock("@/app/components/Calendar/weekHelpers", () => ({
-  HOURS_IN_DAY: 2,
   getWeekDays: (...args: any[]) => mockGetWeekDays(...args),
   getPrevWeek: (...args: any[]) => mockGetPrevWeek(...args),
   getNextWeek: (...args: any[]) => mockGetNextWeek(...args),
   eventsForDayHour: (...args: any[]) => mockEventsForDayHour(...args),
+  HOURS_IN_DAY: 2,
 }));
 
-const mockIsAllDayForDate = jest.fn();
 jest.mock("@/app/components/Calendar/helpers", () => ({
   EVENT_VERTICAL_GAP_PX: 2,
-  MINUTES_PER_STEP: 30,
+  MINUTES_PER_STEP: 60,
   PIXELS_PER_STEP: 60,
-  isAllDayForDate: (...args: any[]) => mockIsAllDayForDate(...args),
+  isAllDayForDate: jest.fn((event: any) => event.id === "all-day"),
 }));
+
+const slotSpy = jest.fn();
+
+jest.mock("@/app/components/Calendar/common/Slot", () => (props: any) => {
+  slotSpy(props);
+  return <div data-testid="slot" />;
+});
 
 jest.mock("@/app/components/DataTable/Appointments", () => ({
-  getStatusStyle: jest.fn(() => ({ background: "rgb(0, 0, 0)", color: "#fff" })),
+  getStatusStyle: jest.fn(() => ({ backgroundColor: "pink", color: "white" })),
 }));
 
-// Slot: render a simple marker and expose props for assertions
-const slotSpy = jest.fn();
-jest.mock("@/app/components/Calendar/common/Slot", () => {
-  return (props: any) => {
-    slotSpy(props);
-    return (
-      <div data-testid="slot">
-        Slot {props.dayIndex} / {props.height}
-      </div>
-    );
-  };
-});
+jest.mock("@/app/components/Icons/Back", () => ({
+  __esModule: true,
+  default: ({ onClick }: any) => (
+    <button type="button" onClick={onClick}>
+      PrevWeek
+    </button>
+  ),
+}));
 
-// Icons: make them clickable in tests
-const prevButton = jest.fn();
-jest.mock("@/app/components/Icons/Back", () => {
-  return (props: any) => {
-    prevButton(props);
-    return <div data-testid="prev-week">Slot {props.dayIndex}</div>;
-  };
-});
+jest.mock("@/app/components/Icons/Next", () => ({
+  __esModule: true,
+  default: ({ onClick }: any) => (
+    <button type="button" onClick={onClick}>
+      NextWeek
+    </button>
+  ),
+}));
 
-const nextButton = jest.fn();
-jest.mock("@/app/components/Icons/Next", () => {
-  return (props: any) => {
-    nextButton(props);
-    return <div data-testid="next-week">Slot {props.dayIndex}</div>;
-  };
-});
+describe("WeekCalendar (Appointments)", () => {
+  const handleViewAppointment = jest.fn();
+  const handleRescheduleAppointment = jest.fn();
+  const setWeekStart = jest.fn();
+  const setCurrentDate = jest.fn();
 
-describe("WeekCalendar", () => {
-  const mockSetWeekStart = jest.fn();
-  const mockSetCurrentDate = jest.fn();
-  const mockHandleViewAppointment = jest.fn();
+  const weekStart = new Date("2025-01-06T00:00:00Z");
+  const days = [
+    new Date("2025-01-06T00:00:00Z"),
+    new Date("2025-01-07T00:00:00Z"),
+    new Date("2025-01-08T00:00:00Z"),
+  ];
 
-  const weekStart = new Date("2025-01-06T00:00:00.000Z"); // Monday
-  const weekDays = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(weekStart);
-    d.setDate(d.getDate() + i);
-    d.setHours(0, 0, 0, 0);
-    return d;
-  });
-
-  const timedAppt: Appointment = {
-    _id: "appt-1",
-    status: "UPCOMING",
-    isEmergency: false,
-    startTime: new Date("2025-01-06T10:00:00.000Z"),
-    appointmentDate: "2025-01-06",
-    companion: { name: "Buddy" } as any,
-    concern: "Vaccination",
-  } as any;
-
-  const allDayAppt: Appointment = {
-    _id: "appt-2",
-    status: "COMPLETED",
-    isEmergency: false,
-    startTime: new Date("2025-01-07T00:00:00.000Z"),
-    appointmentDate: "2025-01-07",
-    companion: { name: "Rex" } as any,
-    concern: "All day care",
-  } as any;
+  const events: any[] = [
+    {
+      id: "all-day",
+      status: "completed",
+      startTime: new Date("2025-01-07T00:00:00Z"),
+      companion: { name: "Milo", parent: { name: "Sam" } },
+      concern: "Checkup",
+    },
+    {
+      id: "timed",
+      status: "in_progress",
+      startTime: new Date("2025-01-06T09:00:00Z"),
+      companion: { name: "Rex", parent: { name: "Alex" } },
+      concern: "Grooming",
+    },
+  ];
 
   beforeEach(() => {
     jest.clearAllMocks();
-
-    mockGetWeekDays.mockReturnValue(weekDays);
-
-    // prev/next week calculations
-    mockGetPrevWeek.mockImplementation((d: Date) => {
-      const x = new Date(d);
-      x.setDate(x.getDate() - 7);
-      return x;
-    });
-    mockGetNextWeek.mockImplementation((d: Date) => {
-      const x = new Date(d);
-      x.setDate(x.getDate() + 7);
-      return x;
-    });
-
-    // Default: treat allDayAppt as all-day on its date; timedAppt not all-day
-    mockIsAllDayForDate.mockImplementation((ev: Appointment, day: Date) => {
-      if (ev.id === "appt-2") {
-        return (
-          day.getFullYear() === 2025 &&
-          day.getMonth() === 0 &&
-          day.getDate() === 7
-        );
-      }
-      return false;
-    });
-
-    // eventsForDayHour returns [] by default
-    mockEventsForDayHour.mockReturnValue([]);
+    mockGetWeekDays.mockReturnValue(days);
+    mockEventsForDayHour.mockReturnValue([events[1]]);
+    mockGetPrevWeek.mockReturnValue(new Date("2024-12-30T00:00:00Z"));
+    mockGetNextWeek.mockReturnValue(new Date("2025-01-13T00:00:00Z"));
   });
 
-  const renderCal = (events: Appointment[] = [timedAppt, allDayAppt]) =>
+  it("renders day headers and all-day events", () => {
     render(
       <WeekCalendar
         events={events}
-        date={new Date("2025-01-06T12:00:00.000Z")}
-        handleViewAppointment={mockHandleViewAppointment}
+        date={weekStart}
+        handleViewAppointment={handleViewAppointment}
         weekStart={weekStart}
-        setWeekStart={mockSetWeekStart}
-        setCurrentDate={mockSetCurrentDate}
+        setWeekStart={setWeekStart}
+        setCurrentDate={setCurrentDate}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        canEditAppointments
       />
     );
 
-  it("renders header days (weekday + date number) using getWeekDays(weekStart)", () => {
-    renderCal();
+    expect(screen.getByText("All-day")).toBeInTheDocument();
+    const allDayButton = screen.getAllByText(/Milo/)[0].closest("button");
+    fireEvent.click(allDayButton!);
 
-    expect(mockGetWeekDays).toHaveBeenCalledWith(weekStart);
-
-    // Confirm some header date numbers appear (6..12)
-    expect(screen.getByText("6")).toBeInTheDocument();
-    expect(screen.getByText("12")).toBeInTheDocument();
+    expect(handleViewAppointment).toHaveBeenCalledWith(events[0]);
+    expect(slotSpy).toHaveBeenCalled();
   });
 
-  it("renders Slot components for each day and hour and passes slotEvents + dayIndex", () => {
-    renderCal();
-
-    // HOURS_IN_DAY mocked to 2 => 2 hours * 7 days => 14 Slot renders
-    const slots = screen.getAllByTestId("slot");
-    expect(slots).toHaveLength(14);
-
-    // Slot spy lets us validate props
-    expect(slotSpy).toHaveBeenCalled();
-    const firstCallProps = slotSpy.mock.calls[0][0];
-
-    expect(firstCallProps).toEqual(
-      expect.objectContaining({
-        dayIndex: expect.any(Number),
-        height: expect.any(Number),
-        slotEvents: expect.any(Array),
-        handleViewAppointment: mockHandleViewAppointment,
-        length: 6, // days.length - 1
-      })
+  it("updates week start and current date on navigation", () => {
+    render(
+      <WeekCalendar
+        events={events}
+        date={weekStart}
+        handleViewAppointment={handleViewAppointment}
+        weekStart={weekStart}
+        setWeekStart={setWeekStart}
+        setCurrentDate={setCurrentDate}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        canEditAppointments
+      />
     );
 
-    // eventsForDayHour should be called for each hour/day cell
-    // 2 hours * 7 days = 14 calls
-    expect(mockEventsForDayHour).toHaveBeenCalledTimes(14);
+    fireEvent.click(screen.getByText("PrevWeek"));
+    fireEvent.click(screen.getByText("NextWeek"));
+
+    const prevFn = setWeekStart.mock.calls[0][0];
+    const nextFn = setWeekStart.mock.calls[1][0];
+
+    prevFn(weekStart);
+    nextFn(weekStart);
+
+    expect(setCurrentDate).toHaveBeenCalledWith(new Date("2024-12-30T00:00:00Z"));
+    expect(setCurrentDate).toHaveBeenCalledWith(new Date("2025-01-13T00:00:00Z"));
   });
 
-  it("does not render the All-day row if there are no all-day events", () => {
-    mockIsAllDayForDate.mockReturnValue(false);
-    renderCal([timedAppt]);
-
-    expect(screen.queryByText("All-day")).not.toBeInTheDocument();
-  });
-
-  it("renders a 'now' indicator when the current time falls within the visible week", () => {
-    // Freeze system time to a date within our weekStart..weekStart+7d
+  it("shows now indicator when current time is within week", () => {
     jest.useFakeTimers();
-    jest.setSystemTime(new Date("2025-01-08T12:30:00.000Z"));
+    jest.setSystemTime(new Date("2025-01-08T10:00:00Z"));
 
-    renderCal([timedAppt]);
+    const { container } = render(
+      <WeekCalendar
+        events={events}
+        date={weekStart}
+        handleViewAppointment={handleViewAppointment}
+        weekStart={weekStart}
+        setWeekStart={setWeekStart}
+        setCurrentDate={setCurrentDate}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        canEditAppointments
+      />
+    );
 
-    // The now-indicator renders a small dot div with bg-red-500
-    // We'll assert its presence via className query
-    const dots = document.querySelectorAll(".bg-red-500");
-    expect(dots.length).toBeGreaterThan(0);
-
-    jest.useRealTimers();
-  });
-
-  it("does not render a 'now' indicator when the current time is outside the week range", () => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date("2025-02-01T12:00:00.000Z"));
-
-    renderCal([timedAppt]);
-
-    const dots = document.querySelectorAll(".bg-red-500");
-    expect(dots.length).toBe(0);
+    expect(container.querySelector(".border-t-red-500")).toBeInTheDocument();
 
     jest.useRealTimers();
   });

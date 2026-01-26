@@ -1,24 +1,28 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import ProtectedRoute from "@/app/components/ProtectedRoute";
-import InvoicesFilters from "@/app/components/Filters/InvoicesFilers";
 import InvoiceDataTable from "@/app/components/DataTable/InvoiceTable";
 import InvoiceInfo from "./Sections/InvoiceInfo";
 import OrgGuard from "@/app/components/OrgGuard";
-import {
-  useInvoicesForPrimaryOrg,
-  useLoadInvoicesForPrimaryOrg,
-} from "@/app/hooks/useInvoices";
+import { useInvoicesForPrimaryOrg } from "@/app/hooks/useInvoices";
 import { Invoice } from "@yosemite-crew/types";
+import Filters from "@/app/components/Filters/Filters";
+import { InvoiceStatusFilters } from "@/app/types/invoice";
+import { useSearchStore } from "@/app/stores/searchStore";
+import { PermissionGate } from "@/app/components/PermissionGate";
+import { PERMISSIONS } from "@/app/utils/permissions";
+import Fallback from "@/app/components/Fallback";
+import { useSubscriptionForPrimaryOrg } from "@/app/hooks/useBilling";
+import { Primary } from "@/app/components/Buttons";
 
 const Finance = () => {
-  useLoadInvoicesForPrimaryOrg();
-
   const invoices = useInvoicesForPrimaryOrg();
-  const [filteredList, setFilteredList] = useState<Invoice[]>(invoices);
+  const subscription = useSubscriptionForPrimaryOrg();
+  const query = useSearchStore((s) => s.query);
+  const [activeStatus, setActiveStatus] = useState("all");
   const [viewInvoice, setViewInvoice] = useState(false);
   const [activeInvoice, setActiveInvoice] = useState<Invoice | null>(
-    invoices[0] || null
+    invoices[0] || null,
   );
 
   useEffect(() => {
@@ -32,8 +36,41 @@ const Finance = () => {
     });
   }, [invoices]);
 
+  const filteredList = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const statusWanted = activeStatus.toLowerCase();
+
+    return invoices.filter((item) => {
+      const status = item.status?.toLowerCase();
+      const matchesStatus = statusWanted === "all" || status === statusWanted;
+      const matchesQuery = !q || item.appointmentId?.toLowerCase().includes(q);
+      return matchesStatus && matchesQuery;
+    });
+  }, [invoices, activeStatus, query]);
+
   return (
     <div className="flex flex-col gap-6 px-3! py-3! sm:px-12! lg:px-[60px]! sm:py-12!">
+      <PermissionGate allOf={[PERMISSIONS.ORG_EDIT]}>
+        {subscription && !subscription.canAcceptPayments && (
+          <div className="px-6 py-3 border border-card-border rounded-2xl w-full flex items-center justify-between gap-3 flex-col sm:flex-row">
+            <div className="flex flex-col gap-1 items-center sm:items-start">
+              <div className="text-heading-2 text-text-primary">
+                Connect stripe account
+              </div>
+              <div className="text-caption-1 text-text-primary text-center! sm:text-left!">
+                Stripe connect account is required for start receiving payments
+                from pet parents
+              </div>
+            </div>
+            <div className="shrink-0">
+              <Primary
+                href={`/stripe-onboarding?orgId=${subscription.orgId}`}
+                text="Connect stripe"
+              />
+            </div>
+          </div>
+        )}
+      </PermissionGate>
       <div className="flex justify-between items-center w-full flex-wrap gap-2">
         <div className="flex flex-col gap-1">
           <div className="text-text-primary text-heading-1">
@@ -49,21 +86,30 @@ const Finance = () => {
         </div>
       </div>
 
-      <div className="w-full flex flex-col gap-3">
-        <InvoicesFilters list={invoices} setFilteredList={setFilteredList} />
-        <InvoiceDataTable
-          setActiveInvoice={setActiveInvoice}
-          setViewInvoice={setViewInvoice}
-          filteredList={filteredList}
-        />
-      </div>
-      {activeInvoice && (
-        <InvoiceInfo
-          showModal={viewInvoice}
-          setShowModal={setViewInvoice}
-          activeInvoice={activeInvoice}
-        />
-      )}
+      <PermissionGate
+        allOf={[PERMISSIONS.BILLING_VIEW_ANY]}
+        fallback={<Fallback />}
+      >
+        <div className="w-full flex flex-col gap-3">
+          <Filters
+            statusOptions={InvoiceStatusFilters}
+            activeStatus={activeStatus}
+            setActiveStatus={setActiveStatus}
+          />
+          <InvoiceDataTable
+            setActiveInvoice={setActiveInvoice}
+            setViewInvoice={setViewInvoice}
+            filteredList={filteredList}
+          />
+        </div>
+        {activeInvoice && (
+          <InvoiceInfo
+            showModal={viewInvoice}
+            setShowModal={setViewInvoice}
+            activeInvoice={activeInvoice}
+          />
+        )}
+      </PermissionGate>
     </div>
   );
 };

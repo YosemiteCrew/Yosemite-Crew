@@ -10,7 +10,6 @@ import { createUserProfile } from "@/app/services/profileService";
 import Datepicker from "../../Inputs/Datepicker";
 import { getCountryCode, validatePhone } from "@/app/utils/validators";
 import { formatDateLocal } from "@/app/utils/date";
-import { Icon } from "@iconify/react/dist/iconify.js";
 
 import "./Step.css";
 import LabelDropdown from "../../Inputs/Dropdown/LabelDropdown";
@@ -110,134 +109,164 @@ const PersonalStep = ({
 
   return (
     <div className="team-container">
-      <div className="team-title">Personal details</div>
-
-      <LogoUploader
-        title="Add profile picture (optional)"
-        apiUrl={`/fhir/v1/user-profile/${orgIdFromQuery}/profile-picture`}
-        setImageUrl={(url) => {
-          setFormData((prev) => ({
-            ...prev,
-            personalDetails: {
-              ...prev.personalDetails,
-              profilePictureUrl: url,
-            },
-          }));
-        }}
-      />
-
-      <div className="team-personal-container">
-        <div className="flex flex-col gap-1 w-full">
+      <div className="flex flex-col gap-6">
+        <div className="team-title">Personal details</div>
+        <LogoUploader
+          title="Add profile picture (optional)"
+          apiUrl={`/fhir/v1/user-profile/${orgIdFromQuery}/profile-picture`}
+          setImageUrl={(url) => {
+            setFormData((prev) => ({
+              ...prev,
+              personalDetails: {
+                ...prev.personalDetails,
+                profilePictureUrl: url,
+              },
+            }));
+          }}
+        />
+        <div className="team-personal-container">
           <Datepicker
             currentDate={currentDate}
             setCurrentDate={setCurrentDate}
             type="input"
-            className="h-12! xl:h-[60px]!"
             containerClassName="w-full"
             placeholder="Date of birth"
+            error={formDataErrors.dateOfBirth}
           />
-          {formDataErrors.dateOfBirth && (
-            <div className="Errors">
-              <Icon icon="mdi:error" width="16" height="16" />
-              {formDataErrors.dateOfBirth}
+
+          <div className="team-personal-two">
+            <LabelDropdown
+              placeholder="Select country"
+              onSelect={(option) =>
+                setFormData({
+                  ...formData,
+                  personalDetails: {
+                    ...formData.personalDetails,
+                    address: {
+                      ...formData.personalDetails?.address,
+                      country: option.value,
+                    },
+                  },
+                })
+              }
+              defaultOption={formData.personalDetails?.address?.country}
+              options={CountriesOptions}
+              error={formDataErrors.country}
+            />
+            <FormInput
+              intype="tel"
+              inname="number"
+              value={formData.personalDetails?.phoneNumber || ""}
+              inlabel="Phone number"
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  personalDetails: {
+                    ...formData.personalDetails,
+                    phoneNumber: e.target.value,
+                  },
+                })
+              }
+              error={formDataErrors.number}
+            />
+          </div>
+          <div className="team-type">
+            <div className="team-type-title">Gender</div>
+            <div className="team-type-options">
+              {GenderOptions.map((type) => (
+                <button
+                  key={type}
+                  className={classNames("team-type-option", {
+                    activeGendertype: formData.personalDetails?.gender === type,
+                  })}
+                  onClick={() =>
+                    setFormData({
+                      ...formData,
+                      personalDetails: {
+                        ...formData.personalDetails,
+                        gender: type,
+                      },
+                    })
+                  }
+                >
+                  {type.charAt(0) + type.toLowerCase().slice(1)}
+                </button>
+              ))}
             </div>
-          )}
+          </div>
         </div>
 
-        <div className="team-personal-two">
-          <LabelDropdown
-            placeholder="Select country"
-            onSelect={(option) =>
-              setFormData({
-                ...formData,
-                personalDetails: {
-                  ...formData.personalDetails,
-                  address: {
-                    ...formData.personalDetails?.address,
-                    country: option.value,
+        <div className="team-seperator"></div>
+
+        <div className="team-address-container">
+          <div className="team-title">Residential address</div>
+          <div className="team-personal-container">
+            <GoogleSearchDropDown
+              intype="text"
+              inname="address line"
+              value={formData.personalDetails?.address?.addressLine || ""}
+              inlabel="Address line 1"
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  personalDetails: {
+                    ...formData.personalDetails,
+                    address: {
+                      ...formData.personalDetails?.address,
+                      addressLine: e.target.value,
+                    },
                   },
-                },
-              })
-            }
-            defaultOption={formData.personalDetails?.address?.country}
-            options={CountriesOptions}
-            error={formDataErrors.country}
-          />
-          <FormInput
-            intype="tel"
-            inname="number"
-            value={formData.personalDetails?.phoneNumber || ""}
-            inlabel="Phone number"
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                personalDetails: {
-                  ...formData.personalDetails,
-                  phoneNumber: e.target.value,
-                },
-              })
-            }
-            error={formDataErrors.number}
-          />
-        </div>
-        <div className="team-type">
-          <div className="team-type-title">Gender</div>
-          <div className="team-type-options">
-            {GenderOptions.map((type) => (
-              <button
-                key={type}
-                className={classNames("team-type-option", {
-                  activeGendertype: formData.personalDetails?.gender === type,
-                })}
-                onClick={() =>
+                })
+              }
+              error={formDataErrors.address}
+              setFormData={setFormData}
+              onlyAddress={true}
+            />
+            <div className="team-personal-two">
+              <FormInput
+                intype="text"
+                inname="city"
+                value={formData.personalDetails?.address?.city || ""}
+                inlabel="City"
+                onChange={(e) =>
                   setFormData({
                     ...formData,
                     personalDetails: {
                       ...formData.personalDetails,
-                      gender: type,
+                      address: {
+                        ...formData.personalDetails?.address,
+                        city: e.target.value,
+                      },
                     },
                   })
                 }
-              >
-                {type}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="team-seperator"></div>
-
-      <div className="team-address-container">
-        <div className="team-title">Residential address</div>
-        <div className="team-personal-container">
-          <GoogleSearchDropDown
-            intype="text"
-            inname="address line"
-            value={formData.personalDetails?.address?.addressLine || ""}
-            inlabel="Address line 1"
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                personalDetails: {
-                  ...formData.personalDetails,
-                  address: {
-                    ...formData.personalDetails?.address,
-                    addressLine: e.target.value,
-                  },
-                },
-              })
-            }
-            error={formDataErrors.address}
-            setFormData={setFormData}
-            onlyAddress={true}
-          />
-          <div className="team-personal-two">
+                error={formDataErrors.city}
+              />
+              <FormInput
+                intype="text"
+                inname="state"
+                value={formData.personalDetails?.address?.state || ""}
+                inlabel="State/Province"
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    personalDetails: {
+                      ...formData.personalDetails,
+                      address: {
+                        ...formData.personalDetails?.address,
+                        state: e.target.value,
+                      },
+                    },
+                  })
+                }
+                error={formDataErrors.state}
+              />
+            </div>
             <FormInput
               intype="text"
-              inname="city"
-              value={formData.personalDetails?.address?.city || ""}
-              inlabel="City"
+              inname="postal code"
+              value={formData.personalDetails?.address?.postalCode || ""}
+              inlabel="Postal code"
               onChange={(e) =>
                 setFormData({
                   ...formData,
@@ -245,67 +274,20 @@ const PersonalStep = ({
                     ...formData.personalDetails,
                     address: {
                       ...formData.personalDetails?.address,
-                      city: e.target.value,
+                      postalCode: e.target.value,
                     },
                   },
                 })
               }
-              error={formDataErrors.city}
-            />
-            <FormInput
-              intype="text"
-              inname="state"
-              value={formData.personalDetails?.address?.state || ""}
-              inlabel="State/Province"
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  personalDetails: {
-                    ...formData.personalDetails,
-                    address: {
-                      ...formData.personalDetails?.address,
-                      state: e.target.value,
-                    },
-                  },
-                })
-              }
-              error={formDataErrors.state}
+              error={formDataErrors.postalCode}
             />
           </div>
-          <FormInput
-            intype="text"
-            inname="postal code"
-            value={formData.personalDetails?.address?.postalCode || ""}
-            inlabel="Postal code"
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                personalDetails: {
-                  ...formData.personalDetails,
-                  address: {
-                    ...formData.personalDetails?.address,
-                    postalCode: e.target.value,
-                  },
-                },
-              })
-            }
-            error={formDataErrors.postalCode}
-          />
         </div>
       </div>
 
       <div className="team-buttons">
-        <Secondary
-          href="/organizations"
-          text="Back"
-          style={{ width: "160px" }}
-        />
-        <Primary
-          href="#"
-          text="Next"
-          style={{ width: "160px" }}
-          onClick={handleNext}
-        />
+        <Secondary href="/organizations" text="Back" />
+        <Primary href="#" text="Next" onClick={handleNext} />
       </div>
     </div>
   );

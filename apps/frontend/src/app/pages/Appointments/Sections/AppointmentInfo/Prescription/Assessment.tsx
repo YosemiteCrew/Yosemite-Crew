@@ -11,25 +11,33 @@ import { FormDataProps } from "..";
 import AssessmentSubmissions from "./Submissions/AssessmentSubmissions";
 import { createSubmission } from "@/app/services/soapService";
 import { useAuthStore } from "@/app/stores/authStore";
+import { PermissionGate } from "@/app/components/PermissionGate";
+import { PERMISSIONS } from "@/app/utils/permissions";
+import Fallback from "@/app/components/Fallback";
+import { hasSignatureField } from "./signatureUtils";
+import { linkAppointmentForms } from "@/app/services/appointmentFormsService";
 
 type AssessmentProps = {
   activeAppointment: Appointment;
   formData: FormDataProps;
   setFormData: React.Dispatch<React.SetStateAction<FormDataProps>>;
+  canEdit: boolean;
 };
 
 const Assessment = ({
   activeAppointment,
   formData,
   setFormData,
+  canEdit,
 }: AssessmentProps) => {
   const attributes = useAuthStore.getState().attributes;
   const [query, setQuery] = useState("");
   const forms = useFormsForPrimaryOrgByCategory("SOAP-Assessment");
   const [active, setActive] = useState<FormsProps | null>(null);
   const [values, setValues] = React.useState<Record<string, any>>(() =>
-    buildInitialValues(active?.schema ?? [])
+    buildInitialValues(active?.schema ?? []),
   );
+  const [sending, setSending] = useState(false);
 
   const FormOptions = useMemo(
     () =>
@@ -37,7 +45,7 @@ const Assessment = ({
         value: form._id || form.name,
         label: form.name,
       })),
-    [forms]
+    [forms],
   );
 
   const handleAssessmentSelect = (id: string) => {
@@ -58,6 +66,9 @@ const Assessment = ({
   const handleSave = async () => {
     if (!active?._id || !activeAppointment.id || !attributes) return;
     try {
+      if (active.requiredSigner === "CLIENT") return;
+      const signatureRequired =
+        active.requiredSigner === "VET" && hasSignatureField(active.schema as any);
       const submission: FormSubmission = {
         _id: "",
         formVersion: 1,
@@ -70,9 +81,21 @@ const Assessment = ({
         submittedBy: attributes.sub,
       };
       const created = await createSubmission(submission);
+      const nextSubmission = signatureRequired
+        ? {
+            ...created,
+            signatureRequired: true,
+            signing:
+              created.signing ?? {
+                required: true,
+                status: "NOT_STARTED",
+                provider: "DOCUMENSO",
+              },
+          }
+        : created;
       setFormData((prev) => ({
         ...prev,
-        assessment: [created, ...(prev.assessment ?? [])],
+        assessment: [nextSubmission, ...(prev.assessment ?? [])],
       }));
       setActive(null);
       setQuery("");
@@ -82,38 +105,80 @@ const Assessment = ({
     }
   };
 
+  const handleSendToParent = async () => {
+    if (!active?._id || !activeAppointment.id) return;
+    if (active.requiredSigner !== "CLIENT") return;
+    const orgId = activeAppointment.organisationId;
+    if (!orgId) return;
+    setSending(true);
+    try {
+      await linkAppointmentForms({
+        organisationId: orgId,
+        appointmentId: activeAppointment.id,
+        formIds: [active._id],
+      });
+      setActive(null);
+      setQuery("");
+      setValues(buildInitialValues([]));
+    } catch (e) {
+      console.error("Failed to send form to parent:", e);
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
-    <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto">
-      <Accordion
-        title="Assessment (diagnosis)"
-        defaultOpen
-        showEditIcon={false}
-        isEditing={true}
-      >
-        <div className="flex flex-col gap-3">
-          <SearchDropdown
-            placeholder="Search"
-            options={FormOptions}
-            onSelect={handleAssessmentSelect}
-            query={query}
-            setQuery={setQuery}
-            minChars={0}
-          />
-          {active && (
-            <FormRenderer
-              fields={active.schema ?? []}
-              values={values}
-              onChange={handleValueChange}
-              readOnly
+    <PermissionGate
+      allOf={[PERMISSIONS.PRESCRIPTION_VIEW_ANY]}
+      fallback={<Fallback />}
+    >
+      <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
+        <Accordion
+          title="Assessment (diagnosis)"
+          defaultOpen={true}
+          showEditIcon={false}
+          isEditing={true}
+        >
+          <div className="flex flex-col gap-3">
+            {canEdit && (
+              <SearchDropdown
+                placeholder="Search"
+                options={FormOptions}
+                onSelect={handleAssessmentSelect}
+                query={query}
+                setQuery={setQuery}
+                minChars={0}
+              />
+            )}
+            {canEdit && active && (
+              <FormRenderer
+                fields={active.schema ?? []}
+                values={values}
+                onChange={handleValueChange}
+                readOnly
+              />
+            )}
+            <AssessmentSubmissions
+              formData={formData}
+              setFormData={setFormData}
             />
-          )}
-          <AssessmentSubmissions formData={formData} />
-        </div>
-      </Accordion>
-      {active && (
-        <Primary href="#" text="Save" classname="h-13!" onClick={handleSave} />
-      )}
-    </div>
+          </div>
+        </Accordion>
+        {canEdit && active && (
+          <Primary
+            href="#"
+            text={
+              active.requiredSigner === "CLIENT"
+                ? sending
+                  ? "Sending..."
+                  : "Send to parent"
+                : "Save"
+            }
+            onClick={active.requiredSigner === "CLIENT" ? handleSendToParent : handleSave}
+          />
+        )}
+      </div>
+    </PermissionGate>
   );
 };
 

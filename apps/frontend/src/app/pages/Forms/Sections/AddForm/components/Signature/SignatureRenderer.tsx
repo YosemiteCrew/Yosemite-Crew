@@ -9,7 +9,7 @@ const SignatureRenderer: React.FC<{
       {field.label}
     </div>
     <div className="h-[120px] flex items-center justify-center border-2 border-dashed border-grey-light rounded-2xl font-grotesk text-grey-noti text-[18px] font-medium">
-      Draw your signature here
+      Please Save and Sign
     </div>
   </div>
 );

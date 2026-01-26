@@ -167,7 +167,7 @@ const buildOtpEmailHtml = (recipientName: string, otp: string) => {
                             <td valign="top" style="padding:4px 8px;">
                               <p style="margin:0 0 8px 0; font-size:16px; font-weight:600; color:#2b2b2b;">Developers</p>
                               <p style="margin:0 0 6px 0; font-size:14px;">
-                                <a href="https://github.com/YosemiteCrew/Yosemite-Crew/" target="_blank" style="color:#2b2b2b; text-decoration:none;">
+                                <a href="https://www.yosemitecrew.com/developers/signup" target="_blank" style="color:#2b2b2b; text-decoration:none;">
                                   Developer portal
                                 </a>
                               </p>
@@ -180,7 +180,7 @@ const buildOtpEmailHtml = (recipientName: string, otp: string) => {
                             <td valign="top" style="padding:4px 8px;">
                               <p style="margin:0 0 8px 0; font-size:16px; font-weight:600; color:#2b2b2b;">Community</p>
                               <p style="margin:0 0 6px 0; font-size:14px;">
-                                <a href="https://discord.gg/4zDVekEz" target="_blank" style="color:#2b2b2b; text-decoration:none;">
+                                <a href="https://discord.gg/yosemitecrew" target="_blank" style="color:#2b2b2b; text-decoration:none;">
                                   Discord
                                 </a>
                               </p>

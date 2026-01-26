@@ -53,13 +53,13 @@ jest.mock("@/app/pages/SignUp/SignUp", () => ({
   default: (props: any) => signUpMock(),
 }));
 
-import DevelopersRoute from "@/app/(routes)/developers/page";
-import DevSettingsRoute from "@/app/(routes)/developers/settings/page";
-import DevPortalHomeRoute from "@/app/(routes)/developers/(portal)/home/page";
-import DevDocumentationRoute from "@/app/(routes)/developers/(portal)/documentation/page";
-import DevPluginsRoute from "@/app/(routes)/developers/(portal)/plugins/page";
-import DevWebsiteBuilderRoute from "@/app/(routes)/developers/(portal)/website-builder/page";
-import DevApiKeysRoute from "@/app/(routes)/developers/(portal)/api-keys/page";
+import DevelopersRoute from "@/app/(routes)/(public)/developers/page";
+import DevSettingsRoute from "@/app/(routes)/(app)/developers/settings/page";
+import DevPortalHomeRoute from "@/app/(routes)/(app)/developers/(portal)/home/page";
+import DevDocumentationRoute from "@/app/(routes)/(app)/developers/(portal)/documentation/page";
+import DevPluginsRoute from "@/app/(routes)/(app)/developers/(portal)/plugins/page";
+import DevWebsiteBuilderRoute from "@/app/(routes)/(app)/developers/(portal)/website-builder/page";
+import DevApiKeysRoute from "@/app/(routes)/(app)/developers/(portal)/api-keys/page";
 
 describe("developer routes", () => {
   test("root developer route renders landing page", () => {

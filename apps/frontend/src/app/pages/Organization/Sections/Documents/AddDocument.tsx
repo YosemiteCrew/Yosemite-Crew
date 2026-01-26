@@ -12,9 +12,9 @@ import { OrgDocumentCategoryOptions } from "../../types";
 import { createDocument } from "@/app/services/documentService";
 import DocUploader from "@/app/components/UploadImage/DocUploader";
 import { useOrgStore } from "@/app/stores/orgStore";
-import { Icon } from "@iconify/react/dist/iconify.js";
 import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
 import Close from "@/app/components/Icons/Close";
+import { IoIosWarning } from "react-icons/io";
 
 type AddDocumentProps = {
   showModal: boolean;
@@ -67,6 +67,9 @@ const AddDocument = ({ showModal, setShowModal }: AddDocumentProps) => {
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <div className="flex flex-col h-full gap-6">
         <div className="flex justify-between items-center">
+          <div className="opacity-0">
+            <Close onClick={() => {}} />
+          </div>
           <div className="flex justify-center items-center gap-2">
             <div className="text-body-1 text-text-primary">Add document</div>
           </div>
@@ -123,9 +126,14 @@ const AddDocument = ({ showModal, setShowModal }: AddDocumentProps) => {
                   error={formDataErrors.fileUrl}
                 />
                 {formDataErrors.fileUrl && (
-                  <div className="Errors">
-                    <Icon icon="mdi:error" width="16" height="16" />
-                    {formDataErrors.fileUrl}
+                  <div
+                    className={`
+                            mt-1.5 flex items-center gap-1 px-4
+                            text-caption-2 text-text-error
+                          `}
+                  >
+                    <IoIosWarning className="text-text-error" size={14} />
+                    <span>{formDataErrors.fileUrl}</span>
                   </div>
                 )}
               </div>

@@ -18,6 +18,10 @@ const Modal = ({ children, showModal, setShowModal, onClose }: ModalProps) => {
   useEffect(() => {
     if (!showModal) return;
     const handleClickOutside = (e: MouseEvent) => {
+      // Ignore clicks that occur inside the signing overlay so it does not close the parent modal
+      const target = e.target as HTMLElement | null;
+      if (target?.closest("[data-signing-overlay='true']")) return;
+
       if (popupRef.current && !popupRef.current.contains(e.target as Node)) {
         setShowModal(false);
         onClose?.();

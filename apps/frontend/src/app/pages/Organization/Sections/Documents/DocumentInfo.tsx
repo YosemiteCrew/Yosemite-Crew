@@ -3,7 +3,7 @@ import Modal from "@/app/components/Modal";
 import { OrganizationDocument } from "@/app/types/document";
 import React, { useState } from "react";
 import { OrgDocumentCategoryOptions } from "../../types";
-import { updateDocument } from "@/app/services/documentService";
+import { deleteRoom, updateDocument } from "@/app/services/documentService";
 import DocUploader from "@/app/components/UploadImage/DocUploader";
 import { Primary, Secondary } from "@/app/components/Buttons";
 import Close from "@/app/components/Icons/Close";
@@ -12,6 +12,7 @@ type DocumentInfoProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
   activeDocument: OrganizationDocument;
+  canEditDocument: boolean;
 };
 
 const Fields = [
@@ -29,6 +30,7 @@ const DocumentInfo = ({
   showModal,
   setShowModal,
   activeDocument,
+  canEditDocument,
 }: DocumentInfoProps) => {
   const [file, setFile] = useState<File | null>(null);
   const [fileUrl, setFileUrl] = useState<string>("");
@@ -72,6 +74,9 @@ const DocumentInfo = ({
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <div className="flex flex-col h-full gap-6">
         <div className="flex justify-between items-center">
+          <div className="opacity-0">
+            <Close onClick={() => {}} />
+          </div>
           <div className="flex justify-center items-center gap-2">
             <div className="text-body-1 text-text-primary">View document</div>
           </div>
@@ -86,31 +91,30 @@ const DocumentInfo = ({
               data={activeDocument}
               defaultOpen={true}
               onSave={handleUpdate}
+              showEditIcon={canEditDocument}
+              showDeleteIcon={canEditDocument}
+              onDelete={() => deleteRoom(activeDocument)}
             />
-            <DocUploader
-              placeholder="Upload document"
-              apiUrl={`/v1/organisation-document/pms/${activeDocument.organisationId}/documents/upload`}
-              onChange={(s) => setFileUrl(s)}
-              file={file}
-              setFile={setFile}
-            />
+            {canEditDocument && (
+              <DocUploader
+                placeholder="Upload document"
+                apiUrl={`/v1/organisation-document/pms/${activeDocument.organisationId}/documents/upload`}
+                onChange={(s) => setFileUrl(s)}
+                file={file}
+                setFile={setFile}
+              />
+            )}
           </div>
           <div className="flex flex-col gap-3">
             {activeDocument.fileUrl && (
               <Secondary
                 href={activeDocument.fileUrl}
                 text="Download document"
-                className="max-h-12! text-lg! tracking-wide!"
                 onClick={handleDownload}
               />
             )}
-            {fileUrl && (
-              <Primary
-                href="#"
-                text="Save"
-                classname="max-h-12! text-lg! tracking-wide!"
-                onClick={handleUpdateFile}
-              />
+            {canEditDocument && fileUrl && (
+              <Primary href="#" text="Save" onClick={handleUpdateFile} />
             )}
           </div>
         </div>

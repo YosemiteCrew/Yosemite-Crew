@@ -1,6 +1,11 @@
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 
 import logger from "./logger";
+import {
+  renderEmailTemplate,
+  type EmailTemplateDataMap,
+  type EmailTemplateId,
+} from "./email-templates";
 
 const {
   AWS_REGION,
@@ -54,6 +59,15 @@ export interface SendEmailOptions {
   subject: string;
   htmlBody?: string;
   textBody?: string;
+  replyTo?: string | string[];
+  sourceEmail?: string;
+  configurationSetName?: string;
+}
+
+export interface SendEmailTemplateOptions<K extends EmailTemplateId> {
+  to: string | string[];
+  templateId: K;
+  templateData: EmailTemplateDataMap[K];
   replyTo?: string | string[];
   sourceEmail?: string;
   configurationSetName?: string;
@@ -140,6 +154,26 @@ export const sendEmail = async (options: SendEmailOptions) => {
   }
 };
 
+export const sendEmailTemplate = async <K extends EmailTemplateId>(
+  options: SendEmailTemplateOptions<K>,
+) => {
+  const template = renderEmailTemplate(
+    options.templateId,
+    options.templateData,
+  );
+
+  return sendEmail({
+    to: options.to,
+    subject: template.subject,
+    htmlBody: template.htmlBody,
+    textBody: template.textBody,
+    replyTo: options.replyTo,
+    sourceEmail: options.sourceEmail,
+    configurationSetName: options.configurationSetName,
+  });
+};
+
 export default {
   sendEmail,
+  sendEmailTemplate,
 };

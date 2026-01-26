@@ -16,29 +16,14 @@ import React, { useMemo } from "react";
 import { MdDeleteForever } from "react-icons/md";
 import { deleteService } from "@/app/services/serviceService";
 import Close from "@/app/components/Icons/Close";
+import { useCurrencyForPrimaryOrg } from "@/app/hooks/useBilling";
 
 type SpecialityInfoProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
   activeSpeciality: SpecialityWeb;
+  canEditSpecialities: boolean;
 };
-
-const ServiceFields = [
-  { label: "Description", key: "description", type: "text" },
-  {
-    label: "Duration (mins)",
-    key: "durationMinutes",
-    type: "number",
-    required: true,
-  },
-  {
-    label: "Service charge (USD)",
-    key: "cost",
-    type: "number",
-    required: true,
-  },
-  { label: "Max discount (%)", key: "maxDiscount", type: "number" },
-];
 
 const getBasicFields = ({
   TeamOptions,
@@ -48,35 +33,65 @@ const getBasicFields = ({
   [
     { label: "Name", key: "name", type: "text", required: true },
     { label: "Head", key: "headName", type: "dropdown", options: TeamOptions },
+    {
+      label: "Staff",
+      key: "teamMemberIds",
+      type: "multiSelect",
+      options: TeamOptions,
+    },
   ] satisfies FieldConfig[];
 
 const SpecialityInfo = ({
   showModal,
   setShowModal,
   activeSpeciality,
+  canEditSpecialities,
 }: SpecialityInfoProps) => {
   const teams = useTeamForPrimaryOrg();
+  const currency = useCurrencyForPrimaryOrg();
+
+  const ServiceFields = useMemo(
+    () => [
+      { label: "Description", key: "description", type: "text" },
+      {
+        label: "Duration (mins)",
+        key: "durationMinutes",
+        type: "number",
+        required: true,
+      },
+      {
+        label: `Service charge (${currency})`,
+        key: "cost",
+        type: "number",
+        required: true,
+      },
+      { label: "Max discount (%)", key: "maxDiscount", type: "number" },
+      { label: "Name", key: "name", type: "text" },
+    ],
+    [currency],
+  );
 
   const TeamOptions = useMemo(
     () =>
       teams?.map((team) => ({
-        label: team.name || team._id,
-        value: team._id,
+        label: team.name || team.practionerId,
+        value: team.practionerId,
       })),
-    [teams]
+    [teams],
   );
 
   const BasicFields = useMemo(
     () => getBasicFields({ TeamOptions }),
-    [TeamOptions]
+    [TeamOptions],
   );
 
   const basicInfoData = useMemo(
     () => ({
       name: activeSpeciality?.name ?? "",
       headName: activeSpeciality?.headUserId ?? "",
+      teamMemberIds: activeSpeciality?.teamMemberIds ?? [],
     }),
-    [activeSpeciality]
+    [activeSpeciality],
   );
 
   const handleDelete = async () => {
@@ -97,6 +112,9 @@ const SpecialityInfo = ({
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <div className="flex flex-col h-full gap-6">
         <div className="flex justify-between items-center">
+          <div className="opacity-0">
+            <Close onClick={() => {}} />
+          </div>
           <div className="flex justify-center items-center gap-2">
             <div className="text-body-1 text-text-primary">View speciality</div>
           </div>
@@ -109,12 +127,14 @@ const SpecialityInfo = ({
               <div className="text-body-2 text-text-primary">
                 {activeSpeciality.name || "-"}
               </div>
-              <MdDeleteForever
-                className="cursor-pointer"
-                onClick={handleDelete}
-                size={26}
-                color="#EA3729"
-              />
+              {canEditSpecialities && (
+                <MdDeleteForever
+                  className="cursor-pointer"
+                  onClick={handleDelete}
+                  size={26}
+                  color="#EA3729"
+                />
+              )}
             </div>
           </div>
 
@@ -124,6 +144,7 @@ const SpecialityInfo = ({
             fields={BasicFields}
             data={basicInfoData}
             defaultOpen={true}
+            showEditIcon={canEditSpecialities}
             onSave={async (values) => {
               const team = TeamOptions.find((t) => t.value === values.headName);
               const payload: Speciality = {
@@ -153,7 +174,8 @@ const SpecialityInfo = ({
                   fields={ServiceFields}
                   data={service}
                   defaultOpen={false}
-                  showDeleteIcon={true}
+                  showDeleteIcon={canEditSpecialities}
+                  showEditIcon={canEditSpecialities}
                   onDelete={() => {
                     deleteService(service);
                   }}
@@ -164,7 +186,7 @@ const SpecialityInfo = ({
                       description:
                         values.description ?? service.description ?? null,
                       durationMinutes: Number(
-                        values.durationMinutes ?? service.durationMinutes
+                        values.durationMinutes ?? service.durationMinutes,
                       ),
                       cost: Number(values.cost ?? service.cost),
                       maxDiscount:

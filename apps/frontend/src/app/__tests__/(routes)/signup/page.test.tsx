@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
-import Page from "@/app/(routes)/signup/page";
+import Page from "@/app/(routes)/(public)/signup/page";
 
 // 1. Mock dependencies
 import { useRouter } from "next/navigation";
