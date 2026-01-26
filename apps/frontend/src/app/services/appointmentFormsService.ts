@@ -93,7 +93,15 @@ const mapItem = (
     const submission = item.questionnaireResponse
       ? fromFormSubmissionRequestDTO(item.questionnaireResponse, form.schema)
       : null;
-    const status = submission ? "completed" : "pending";
+    const rawStatus = typeof item.status === "string" ? item.status.toLowerCase() : "";
+    const status =
+      rawStatus.includes("complete") || rawStatus.includes("signed")
+        ? "completed"
+        : rawStatus.includes("pending") || rawStatus.includes("incomplete")
+          ? "pending"
+          : submission
+            ? "completed"
+            : "pending";
     return { form, submission, status };
   } catch (err) {
     try {

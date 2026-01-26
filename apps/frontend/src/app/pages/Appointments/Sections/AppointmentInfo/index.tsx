@@ -682,32 +682,58 @@ const AppoitmentInfo = ({
     }
   }, [activeAppointment?.id, orgType]);
 
-  const withSignatureMeta = (
-    submissions: SoapNoteSubmission[] | FormSubmission[] | undefined,
-  ): SoapNoteSubmission[] => {
-    if (!submissions?.length) return [];
-    return submissions.map((sub) => {
-      const form = formsById[sub.formId];
-      const schemaHasSignature = hasSignatureField((form?.schema as FormField[]) ?? []);
-      const requiresSignature =
-        (sub as SoapNoteSubmission).signatureRequired ??
-        sub.signing?.required ??
-        schemaHasSignature;
-      const signing =
-        requiresSignature || sub.signing?.status || sub.signing?.pdf?.url || sub.signing?.documentId
-          ? sub.signing || {
-              required: true,
-              status: "NOT_STARTED",
-              provider: "DOCUMENSO",
-            }
-          : undefined;
-      return {
-        ...(sub as SoapNoteSubmission),
-        signatureRequired: requiresSignature,
-        signing,
-      };
-    });
-  };
+  const resolveAppointmentFormEntry = useCallback(
+    (submission: SoapNoteSubmission | FormSubmission | undefined) => {
+      if (!submission) return undefined;
+      const submissionId = submission._id || (submission as SoapNoteSubmission).submissionId;
+      if (submissionId) {
+        return customForms.find((entry) => {
+          const entryId =
+            entry.submission?._id || (entry.submission as SoapNoteSubmission | undefined)?.submissionId;
+          return entryId && String(entryId) === String(submissionId);
+        });
+      }
+      if (submission.formId) {
+        return customForms.find((entry) => entry.submission?.formId === submission.formId);
+      }
+      return undefined;
+    },
+    [customForms],
+  );
+
+  const withSignatureMeta = useCallback(
+    (submissions: SoapNoteSubmission[] | FormSubmission[] | undefined): SoapNoteSubmission[] => {
+      if (!submissions?.length) return [];
+      return submissions.map((sub) => {
+        const matchedEntry = resolveAppointmentFormEntry(sub);
+        const matchedSubmission = matchedEntry?.submission;
+        const form = formsById[sub.formId] ?? matchedEntry?.form;
+        const schemaHasSignature = hasSignatureField((form?.schema as FormField[]) ?? []);
+        const mergedSigning = matchedSubmission?.signing ?? sub.signing;
+        const requiresSignature =
+          (sub as SoapNoteSubmission).signatureRequired ??
+          mergedSigning?.required ??
+          schemaHasSignature;
+        const signing =
+          requiresSignature ||
+          mergedSigning?.status ||
+          mergedSigning?.pdf?.url ||
+          mergedSigning?.documentId
+            ? mergedSigning ?? {
+                required: true,
+                status: "NOT_STARTED",
+                provider: "DOCUMENSO",
+              }
+            : undefined;
+        return {
+          ...(sub as SoapNoteSubmission),
+          signatureRequired: requiresSignature,
+          signing,
+        };
+      });
+    },
+    [formsById, resolveAppointmentFormEntry],
+  );
 
   useEffect(() => {
     const current = labels.find((l) => l.key === activeLabel);
@@ -794,7 +820,7 @@ const AppoitmentInfo = ({
     return () => {
       cancelled = true;
     };
-  }, [activeAppointment?.id, orgType]);
+  }, [activeAppointment?.id, orgType, withSignatureMeta]);
 
   useEffect(() => {
     void loadAppointmentForms();
@@ -815,7 +841,7 @@ const AppoitmentInfo = ({
       plan: withSignatureMeta(prev.plan),
       discharge: withSignatureMeta(prev.discharge),
     }));
-  }, [formsById]);
+  }, [formsById, customForms, withSignatureMeta]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
