@@ -20,7 +20,7 @@ const DocSigning = () => {
     if (!redirectUrl) return null;
     try {
       const url = new URL(redirectUrl);
-      url.pathname = url.pathname.replace(/\/{2,}/g, "/");
+      url.pathname = url.pathname.replaceAll(/\/{2,}/g, "/");
       return url.toString();
     } catch {
       return redirectUrl;

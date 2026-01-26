@@ -1,4 +1,5 @@
 import SearchDropdown from "@/app/components/Inputs/SearchDropdown";
+import Accordion from "@/app/components/Accordion/Accordion";
 import React, { useMemo, useState } from "react";
 import { Primary } from "@/app/components/Buttons";
 import { FormDataProps } from "..";
@@ -18,6 +19,7 @@ import {
   loadInvoicesForOrgPrimaryOrg,
 } from "@/app/services/invoiceService";
 import { hasSignatureField } from "./signatureUtils";
+import { linkAppointmentForms } from "@/app/services/appointmentFormsService";
 
 type PlanProps = {
   formData: FormDataProps;
@@ -85,6 +87,7 @@ const Plan = ({
   const [values, setValues] = React.useState<Record<string, any>>(() =>
     buildInitialValues(active?.schema ?? []),
   );
+  const [sending, setSending] = useState(false);
 
   const FormOptions = useMemo(
     () =>
@@ -113,7 +116,9 @@ const Plan = ({
   const handleSave = async () => {
     if (!active?._id || !activeAppointment.id || !attributes) return;
     try {
-      const signatureRequired = hasSignatureField(active.schema as any);
+      if (active.requiredSigner === "CLIENT") return;
+      const signatureRequired =
+        active.requiredSigner === "VET" && hasSignatureField(active.schema as any);
       const submission: FormSubmission = {
         _id: "",
         formVersion: 1,
@@ -123,39 +128,61 @@ const Plan = ({
         companionId: activeAppointment?.companion?.id ?? "",
         parentId: activeAppointment?.companion?.parent?.id ?? "",
         answers: values,
-    submittedBy: attributes.sub,
-  };
-  const created = await createSubmission(submission);
-  const medicationItems = buildMedicationLineItemsFromPlan([created]);
-  if (medicationItems.length > 0) {
-    await addLineItemsToAppointments(medicationItems, activeAppointment.id);
-    await loadInvoicesForOrgPrimaryOrg({ force: true });
-  }
-  const nextSubmission = signatureRequired
-    ? {
-        ...created,
-        signatureRequired: true,
-        signing:
-          created.signing ?? {
-            required: true,
-            status: "NOT_STARTED",
-            provider: "DOCUMENSO",
-          },
+        submittedBy: attributes.sub,
+      };
+      const created = await createSubmission(submission);
+      const medicationItems = buildMedicationLineItemsFromPlan([created]);
+      if (medicationItems.length > 0) {
+        await addLineItemsToAppointments(medicationItems, activeAppointment.id);
+        await loadInvoicesForOrgPrimaryOrg({ force: true });
       }
-    : created;
-  setFormData((prev) => ({
-    ...prev,
-    plan: [nextSubmission, ...(prev.plan ?? [])],
-    lineItems:
-      medicationItems.length > 0
-        ? [...medicationItems, ...(prev.lineItems ?? [])]
-        : prev.lineItems ?? [],
-  }));
+      const nextSubmission = signatureRequired
+        ? {
+            ...created,
+            signatureRequired: true,
+            signing:
+              created.signing ?? {
+                required: true,
+                status: "NOT_STARTED",
+                provider: "DOCUMENSO",
+              },
+          }
+        : created;
+      setFormData((prev) => ({
+        ...prev,
+        plan: [nextSubmission, ...(prev.plan ?? [])],
+        lineItems:
+          medicationItems.length > 0
+            ? [...medicationItems, ...(prev.lineItems ?? [])]
+            : prev.lineItems ?? [],
+      }));
       setActive(null);
       setPlanQuery("");
       setValues(buildInitialValues([]));
     } catch (e) {
       console.error("Failed to save plan submission:", e);
+    }
+  };
+
+  const handleSendToParent = async () => {
+    if (!active?._id || !activeAppointment.id) return;
+    if (active.requiredSigner !== "CLIENT") return;
+    const orgId = activeAppointment.organisationId;
+    if (!orgId) return;
+    setSending(true);
+    try {
+      await linkAppointmentForms({
+        organisationId: orgId,
+        appointmentId: activeAppointment.id,
+        formIds: [active._id],
+      });
+      setActive(null);
+      setPlanQuery("");
+      setValues(buildInitialValues([]));
+    } catch (e) {
+      console.error("Failed to send form to parent:", e);
+    } finally {
+      setSending(false);
     }
   };
 
@@ -165,11 +192,13 @@ const Plan = ({
       fallback={<Fallback />}
     >
       <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
-        <div className="flex flex-col gap-6">
+        <Accordion
+          title="Treatment/Plan"
+          defaultOpen={true}
+          showEditIcon={false}
+          isEditing={true}
+        >
           <div className="flex flex-col gap-3">
-            <div className="font-grotesk font-medium text-black-text text-[23px]">
-              Treatment/Plan
-            </div>
             {canEdit && (
               <SearchDropdown
                 placeholder="Search plan"
@@ -190,9 +219,19 @@ const Plan = ({
             )}
             <PlanSubmissions formData={formData} setFormData={setFormData} />
           </div>
-        </div>
+        </Accordion>
         {canEdit && active && (
-          <Primary href="#" text="Save" onClick={handleSave} />
+          <Primary
+            href="#"
+            text={
+              active.requiredSigner === "CLIENT"
+                ? sending
+                  ? "Sending..."
+                  : "Send to parent"
+                : "Save"
+            }
+            onClick={active.requiredSigner === "CLIENT" ? handleSendToParent : handleSave}
+          />
         )}
       </div>
     </PermissionGate>

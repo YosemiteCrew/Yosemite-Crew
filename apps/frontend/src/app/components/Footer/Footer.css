@@ -2,7 +2,7 @@
   background-color: var(--color-brand-100);
   padding: 0px 50px 30px 50px;
   position: relative;
-  font-family: var(--font-satoshi);
+  font-family: var(--font-satoshi), sans-serif;
 }
 .Footersec::after {
   position: absolute;
@@ -80,7 +80,7 @@
   display: inline-block;
   text-decoration: none;
   color: var(--color-neutral-600);
-  font-family: var(--font-satoshi);
+  font-family: var(--font-satoshi), sans-serif;
   font-size: 16px;
   font-weight: 400;
   line-height: 24px;

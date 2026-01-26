@@ -43,7 +43,7 @@ const PlanSubmissions = ({ formData, setFormData }: PlanSubmissionsProps) => {
     return (
       <Accordion
         title="Previous plan submissions"
-        defaultOpen
+        defaultOpen={false}
         showEditIcon={false}
       >
         <div className="text-sm text-black-text/60">No submissions yet.</div>
@@ -54,23 +54,29 @@ const PlanSubmissions = ({ formData, setFormData }: PlanSubmissionsProps) => {
   return (
     <Accordion
       title="Previous plan submissions"
-      defaultOpen
+      defaultOpen={false}
       showEditIcon={false}
     >
       <div className="flex flex-col gap-4">
         {submissions.map((sub) => {
           const pairs = toStringPairs(sub.answers);
           const hasContent = pairs.length > 0;
-          const schema = sub.formId ? formsById[sub.formId]?.schema : undefined;
-          const requiresSignature =
-            hasSignatureField(schema as any) || sub.signing?.required === true;
-          const signingActive =
-            sub.signing?.required ||
-            sub.signing?.status === "IN_PROGRESS" ||
-            sub.signing?.status === "SIGNED" ||
-            Boolean(sub.signing?.documentId || sub.signing?.pdf?.url);
-          const showActions = requiresSignature || signingActive;
-          if (!hasContent && !showActions) return null;
+          const form = sub.formId ? formsById[sub.formId] : undefined;
+          const schema = form?.schema;
+          const requiredSigner = form?.requiredSigner;
+          const isClientSigner = requiredSigner === "CLIENT";
+          const allowVetSigning = requiredSigner === "VET";
+          const hasSignature = hasSignatureField(schema as any);
+          const hasSigningData = Boolean(
+            sub.signing?.status || sub.signing?.documentId || sub.signing?.pdf?.url
+          );
+          const requiresVetSignature = allowVetSigning && (hasSignature || hasSigningData);
+          const showActions = requiresVetSignature;
+          const parentSigned =
+            isClientSigner &&
+            (sub.signing?.status === "SIGNED" || Boolean(sub.signing?.pdf?.url));
+          const showParentStatus = isClientSigner;
+          if (!hasContent && !showActions && !showParentStatus) return null;
 
           return (
             <div
@@ -91,9 +97,16 @@ const PlanSubmissions = ({ formData, setFormData }: PlanSubmissionsProps) => {
               ) : null}
               {showActions ? (
                 <SignatureActions
-                  submission={{ ...sub, signatureRequired: requiresSignature }}
+                  submission={{ ...sub, signatureRequired: requiresVetSignature }}
                   onStatusChange={updateSubmission}
                 />
+              ) : null}
+              {showParentStatus ? (
+                <div className="text-xs text-text-secondary">
+                  {parentSigned
+                    ? "Signed by pet parent."
+                    : "Sent to pet parent. It will update when they sign the document."}
+                </div>
               ) : null}
             </div>
           );

@@ -228,10 +228,10 @@ describe("ChatContainer Component", () => {
 
     const channelList = screen.getByTestId("stream-channel-list");
     const previewSpan = within(channelList).getByTestId("preview-messenger");
-    const previewButton = previewSpan.closest("[role='button']");
+    const previewOption = previewSpan.closest("[role='option']");
 
-    expect(previewButton).toBeInTheDocument();
-    fireEvent.click(previewButton!);
+    expect(previewOption).toBeInTheDocument();
+    fireEvent.click(previewOption!);
 
     const backBtn = screen.getByText("← Back");
     expect(backBtn).toBeInTheDocument();

@@ -372,7 +372,7 @@ input[type="number"] {
     font-size: 1.5rem !important;
     font-weight: 500 !important;
     line-height: 1.875rem !important;
-    letter-spacing: -0.03rem !important;
+    letter-spacing: -0.03rem;
   }
 
   .text-heading-3,

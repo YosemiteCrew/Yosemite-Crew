@@ -12,13 +12,15 @@ import { fetchInventoryItems } from "@/app/services/inventoryService";
 import { FormsProps } from "@/app/types/forms";
 
 // --- Stabilized Crypto Mock ---
+let uuidCounter = 0;
 beforeAll(() => {
   // Safe polyfill that doesn't overwrite the entire crypto object if it exists
   const crypto = globalThis.crypto || {};
   Object.defineProperty(globalThis, "crypto", {
     value: {
       ...crypto,
-      randomUUID: () => "test-uuid-" + Math.random().toString(36),
+      // Using a counter for deterministic test UUIDs (not for cryptographic purposes)
+      randomUUID: () => `test-uuid-${++uuidCounter}`,
     },
     writable: true,
   });

@@ -14,7 +14,7 @@ export const specialties = [
       "Vaccination & Booster Shots",
       "Health Certificate",
       "Puppy / Kitten Wellness Visit",
-      "Senior Pet Wellness Exam",
+      "Senior Companion Wellness Exam",
       "Follow-up Consultation",
     ],
   },

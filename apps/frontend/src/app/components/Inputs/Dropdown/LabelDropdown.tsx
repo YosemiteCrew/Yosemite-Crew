@@ -73,7 +73,8 @@ const LabelDropdown = ({
 
   return (
     <div className="w-full relative" ref={dropdownRef}>
-      <div
+      <button
+        type="button"
         className={`w-full flex items-center justify-between gap-2 px-6 py-[11px] min-w-[120px] border cursor-pointer ${open ? "border-input-text-placeholder-active! rounded-t-2xl!" : "border-input-border-default! rounded-2xl!"} ${!selected && error && "border-input-border-error!"}`}
         onClick={() => {
           if (!open) {
@@ -108,7 +109,7 @@ const LabelDropdown = ({
             if (open) setSearchQuery("");
           }}
         />
-      </div>
+      </button>
       {selected && !open && (
         <div
           className={`pointer-events-none absolute left-6

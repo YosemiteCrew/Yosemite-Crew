@@ -40,6 +40,7 @@ const defaultForm = (): FormsProps => {
     name: "",
     category: "" as FormsCategory,
     usage: "Internal",
+    requiredSigner: undefined,
     updatedBy: "",
     lastUpdated: "",
     status: "Draft",
