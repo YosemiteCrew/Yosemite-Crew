@@ -197,6 +197,7 @@ describe("DocumentController", () => {
 
     it("should 400 if companionId missing", async () => {
       (req as any).userId = "pms1";
+      (req as any).organisationId = "org1";
       req.params = {};
       await DocumentController.createDocumentPms(req as any, res as Response);
       expect(statusMock).toHaveBeenCalledWith(400);
@@ -204,6 +205,7 @@ describe("DocumentController", () => {
 
     it("should success (201)", async () => {
       (req as any).userId = "pms1";
+      (req as any).organisationId = "org1";
       req.params = { companionId: "c1" };
       req.body = { title: "Doc", category: "Test" };
       mockedDocumentService.create.mockResolvedValue({ id: "d1" } as any);
@@ -214,6 +216,7 @@ describe("DocumentController", () => {
 
     it("should handle service error", async () => {
       (req as any).userId = "pms1";
+      (req as any).organisationId = "org1";
       req.params = { companionId: "c1" };
       req.body = { title: "Doc", category: "Test" };
       mockServiceError("create", 400);
@@ -223,6 +226,7 @@ describe("DocumentController", () => {
 
     it("should handle generic error", async () => {
       (req as any).userId = "pms1";
+      (req as any).organisationId = "org1";
       req.params = { companionId: "c1" };
       req.body = { title: "Doc", category: "Test" };
       mockGenericError("create");

@@ -17,6 +17,7 @@ import docuemntRouter from "./document.router";
 import serviceRouter from "./service.router";
 import appointmentRouter from "./appointment.router";
 import stripeRouter from "./stripe.router";
+import documensoRouter from "./documenso.router";
 import ratingRouter from "./organisationRating.router";
 import invoiceRouter from "./invoice.router";
 import formRouter from "./form.router";
@@ -33,6 +34,7 @@ import inventoryRoter from "./inventory.router";
 import observationToolRouter from "./observationTool.routes";
 import dashboardRouter from "./dashboard.router";
 import mobileConfigRouter from "./mobile.config.router";
+import auditTrailRouter from "./audit-trail.router";
 
 export function registerRoutes(app: Express) {
   app.use(`/fhir/v1/organization`, organizationRounter);
@@ -53,6 +55,7 @@ export function registerRoutes(app: Express) {
   app.use(`/fhir/v1/service`, serviceRouter);
   app.use(`/fhir/v1/appointment`, appointmentRouter);
   app.use(`/v1/stripe`, stripeRouter);
+  app.use(`/v1/documenso`, documensoRouter);
   app.use(`/v1/organisation-rating`, ratingRouter);
   app.use(`/fhir/v1/invoice`, invoiceRouter);
   app.use(`/fhir/v1/form`, formRouter);
@@ -69,4 +72,5 @@ export function registerRoutes(app: Express) {
   app.use(`/v1/observation-tools`, observationToolRouter);
   app.use(`/v1/dashboard`, dashboardRouter);
   app.use(`/v1/mobile-config`, mobileConfigRouter);
+  app.use(`/v1/audit-trail`, auditTrailRouter);
 }

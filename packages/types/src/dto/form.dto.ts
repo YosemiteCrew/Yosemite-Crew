@@ -15,7 +15,7 @@ export type FormSubmissionRequestDTO = QuestionnaireResponse;
 export type FormSubmissionResponseDTO = QuestionnaireResponse;
 
 export const fromFormRequestDTO = (dto: FormRequestDTO): Form => {
-  if (!dto || dto.resourceType !== "Questionnaire") {
+  if (dto?.resourceType !== "Questionnaire") {
     throw new Error("Invalid payload. Expected FHIR Questionnaire resource.");
   }
 

@@ -35,6 +35,8 @@ export interface OrganizationMongo {
   type: "HOSPITAL" | "BREEDER" | "BOARDER" | "GROOMER";
   phoneNo: string;
   website?: string;
+  documensoTeamId?: string;
+  documensoApiKey?: string;
   address?: {
     addressLine?: string;
     country?: string;
@@ -67,6 +69,8 @@ const OrganizationSchema = new Schema<OrganizationMongo>(
     taxId: { type: String, required: true },
     DUNSNumber: { type: String },
     imageURL: { type: String },
+    documensoTeamId: { type: String },
+    documensoApiKey: { type: String },
     type: {
       type: String,
       enum: ["HOSPITAL", "BREEDER", "BOARDER", "GROOMER"],

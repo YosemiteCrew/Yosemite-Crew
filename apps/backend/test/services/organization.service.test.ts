@@ -430,14 +430,19 @@ describe("OrganizationService", () => {
       ).mockResolvedValue(true);
 
       const doc = createMockDoc({ name: "Delete Clinic" });
-      mockedOrganizationModel.findOneAndDelete.mockResolvedValueOnce(doc);
+      mockedOrganizationModel.findOneAndUpdate.mockResolvedValueOnce(doc);
 
       const result = await OrganizationService.deleteById(doc._id.toString());
       expect(result).toBe(true);
+      expect(mockedOrganizationModel.findOneAndUpdate).toHaveBeenCalledWith(
+        { _id: doc._id.toString() },
+        { $set: { isActive: false } },
+        { sanitizeFilter: true },
+      );
     });
 
     it("returns false when no document found", async () => {
-      mockedOrganizationModel.findOneAndDelete.mockResolvedValueOnce(null);
+      mockedOrganizationModel.findOneAndUpdate.mockResolvedValueOnce(null);
       const result = await OrganizationService.deleteById("missing");
       expect(result).toBe(false);
     });

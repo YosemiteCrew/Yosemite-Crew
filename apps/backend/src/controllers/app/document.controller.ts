@@ -12,6 +12,7 @@ import {
 } from "src/middlewares/upload";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
+import { OrgRequest } from "src/middlewares/rbac";
 
 type UploadUrlBody = { companionId?: string; mimeType?: string };
 
@@ -149,6 +150,8 @@ export const DocumentController = {
     res: Response,
   ) => {
     try {
+      const orgReq = req as OrgRequest;
+      const organisationId = orgReq.organisationId;
       const pmsUserId = resolveUserIdFromRequest(req);
       const { companionId } = req.params;
 
@@ -158,6 +161,12 @@ export const DocumentController = {
 
       if (!companionId) {
         return res.status(400).json({ message: "Companion ID is required." });
+      }
+
+      if (!organisationId) {
+        return res
+          .status(400)
+          .json({ message: "organisationId is required." });
       }
 
       const body = req.body;
@@ -172,6 +181,7 @@ export const DocumentController = {
         },
         {
           pmsUserId: pmsUserId,
+          organisationId,
         },
       );
 
@@ -243,6 +253,8 @@ export const DocumentController = {
     res: Response,
   ) => {
     try {
+      const orgReq = req as OrgRequest;
+      const organisationId = orgReq.organisationId;
       const userId = resolveUserIdFromRequest(req);
       const documentId = req.params.documentId ?? req.params.id;
       let context: DocumentCreateContext;
@@ -266,6 +278,7 @@ export const DocumentController = {
       } else {
         context = {
           pmsUserId: userId,
+          organisationId,
         };
       }
 
