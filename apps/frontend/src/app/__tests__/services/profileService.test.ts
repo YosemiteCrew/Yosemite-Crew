@@ -151,12 +151,14 @@ describe("Profile Service", () => {
       expect(mockedPostData).not.toHaveBeenCalled();
     });
 
-    it("sends POST request and updates store on success", async () => {
+    it("sends POST request and updates store on success (no existing DRAFT)", async () => {
       const mockResponse = {
         _id: "prof-new",
         organizationId: "org-1",
         personalDetails: { age: 30 },
       };
+      // First GET to check for existing profile fails (no existing profile)
+      mockedGetData.mockRejectedValue(new Error("Not found"));
       mockedPostData.mockResolvedValue({ data: mockResponse });
 
       await createUserProfile(mockInput, "org-1");
@@ -174,13 +176,39 @@ describe("Profile Service", () => {
       });
     });
 
+    it("sends PUT request if existing DRAFT profile exists", async () => {
+      const mockResponse = {
+        _id: "prof-existing",
+        organizationId: "org-1",
+        personalDetails: { age: 30 },
+      };
+      // GET returns existing DRAFT profile
+      mockedGetData.mockResolvedValue({ data: { profile: { status: "DRAFT" } } });
+      mockedPutData.mockResolvedValue({ data: mockResponse });
+
+      await createUserProfile(mockInput, "org-1");
+
+      expect(mockProfileStoreStartLoading).toHaveBeenCalled();
+      expect(mockedPutData).toHaveBeenCalledWith(
+        "/fhir/v1/user-profile/org-1/profile",
+        { ...mockInput, organizationId: "org-1" }
+      );
+
+      expect(mockProfileStoreUpdateProfile).toHaveBeenCalledWith({
+        _id: "prof-existing",
+        organizationId: "org-1",
+        personalDetails: { age: 30 },
+      });
+    });
+
     it("logs error and rethrows on failure", async () => {
       const error = new Error("Create Failed");
+      mockedGetData.mockRejectedValue(new Error("Not found")); // No existing profile
       mockedPostData.mockRejectedValue(error);
       const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
 
       await expect(createUserProfile(mockInput, "org-1")).rejects.toThrow("Create Failed");
-      expect(consoleSpy).toHaveBeenCalledWith("Failed to load orgs:", error);
+      expect(consoleSpy).toHaveBeenCalledWith("Failed to create/update profile:", error);
       consoleSpy.mockRestore();
     });
   });

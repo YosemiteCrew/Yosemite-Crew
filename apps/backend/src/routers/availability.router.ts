@@ -16,6 +16,10 @@ router.get("/:orgId/base", (req, res) =>
 router.delete("/:orgId/base", (req, res) =>
   AvailabilityController.deleteBaseAvailability(req, res),
 );
+router.post("/:orgId/:userId/base",
+  (req, res) => AvailabilityController.setBaseAvailabilityForUser(req, res),
+);
+
 
 // Weekly overrides
 router.post("/:orgId/weekly", (req, res) =>

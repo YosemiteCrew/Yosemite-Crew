@@ -21,10 +21,16 @@ import { useLoadOrg } from "@/app/hooks/useLoadOrg";
 import { useInventoryModule } from "@/app/hooks/useInventory";
 import OrgGuard from "@/app/components/OrgGuard";
 import { useSearchStore } from "@/app/stores/searchStore";
+import { usePermissions } from "@/app/hooks/usePermissions";
+import { PERMISSIONS } from "@/app/utils/permissions";
+import { PermissionGate } from "@/app/components/PermissionGate";
+import Fallback from "@/app/components/Fallback";
 
 const Inventory = () => {
   useLoadOrg();
 
+  const { can } = usePermissions();
+  const canEditInventory = can(PERMISSIONS.INVENTORY_EDIT_ANY);
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const orgsById = useOrgStore((s) => s.orgsById);
   const primaryOrg = primaryOrgId ? orgsById[primaryOrgId] : null;
@@ -244,12 +250,14 @@ const Inventory = () => {
             know what to reorder and which items need attention.
           </p>
         </div>
-        <Primary
-          href="#"
-          text={savingItem ? "Saving..." : "Add"}
-          onClick={() => setAddPopup(true)}
-          isDisabled={savingItem || !primaryOrgId}
-        />
+        {canEditInventory && (
+          <Primary
+            href="#"
+            text={savingItem ? "Saving..." : "Add"}
+            onClick={() => setAddPopup(true)}
+            isDisabled={savingItem || !primaryOrgId}
+          />
+        )}
       </div>
 
       {error && (
@@ -258,54 +266,60 @@ const Inventory = () => {
         </div>
       )}
 
-      <div className="w-full flex flex-col gap-6">
-        <InventoryFilters
-          filters={filters}
-          onChange={setFilters}
-          categories={categoryOptions}
-          loading={loadingList}
+      <PermissionGate
+        allOf={[PERMISSIONS.INVENTORY_VIEW_ANY]}
+        fallback={<Fallback />}
+      >
+        <div className="w-full flex flex-col gap-6">
+          <InventoryFilters
+            filters={filters}
+            onChange={setFilters}
+            categories={categoryOptions}
+            loading={loadingList}
+          />
+          {loadingList && (
+            <div className="text-grey-noti text-sm font-satoshi">
+              Loading inventory...
+            </div>
+          )}
+          <InventoryTable
+            setActiveInventory={setActiveInventory}
+            setViewInventory={setViewInventory}
+            filteredList={filteredInventory}
+          />
+        </div>
+
+        <div className="w-full flex flex-col gap-6">
+          <div className="text-text-primary text-heading-1">Turnover</div>
+          <InventoryTurnoverFilters
+            list={turnover}
+            setFilteredList={setFilteredTurnoverList}
+          />
+          <InventoryTurnoverTable filteredList={filteredTurnoverList} />
+        </div>
+
+        <AddInventory
+          showModal={addPopup}
+          setShowModal={setAddPopup}
+          businessType={resolvedBusinessType}
+          onSubmit={handleCreateInventory}
         />
-        {loadingList && (
-          <div className="text-grey-noti text-sm font-satoshi">
-            Loading inventory...
-          </div>
+
+        {activeInventory && (
+          <InventoryInfo
+            showModal={viewInventory}
+            setShowModal={setViewInventory}
+            activeInventory={activeInventory}
+            businessType={activeInventory.businessType ?? resolvedBusinessType}
+            onUpdate={handleUpdateInventory}
+            onAddBatch={handleAddBatch}
+            onUpdateBatch={handleUpdateBatch}
+            onHide={handleHideInventory}
+            onUnhide={handleUnhideInventory}
+            canEdit={canEditInventory}
+          />
         )}
-        <InventoryTable
-          setActiveInventory={setActiveInventory}
-          setViewInventory={setViewInventory}
-          filteredList={filteredInventory}
-        />
-      </div>
-
-      <div className="w-full flex flex-col gap-6">
-        <div className="text-text-primary text-heading-1">Turnover</div>
-        <InventoryTurnoverFilters
-          list={turnover}
-          setFilteredList={setFilteredTurnoverList}
-        />
-        <InventoryTurnoverTable filteredList={filteredTurnoverList} />
-      </div>
-
-      <AddInventory
-        showModal={addPopup}
-        setShowModal={setAddPopup}
-        businessType={resolvedBusinessType}
-        onSubmit={handleCreateInventory}
-      />
-
-      {activeInventory && (
-        <InventoryInfo
-          showModal={viewInventory}
-          setShowModal={setViewInventory}
-          activeInventory={activeInventory}
-          businessType={activeInventory.businessType ?? resolvedBusinessType}
-          onUpdate={handleUpdateInventory}
-          onAddBatch={handleAddBatch}
-          onUpdateBatch={handleUpdateBatch}
-          onHide={handleHideInventory}
-          onUnhide={handleUnhideInventory}
-        />
-      )}
+      </PermissionGate>
     </div>
   );
 };

@@ -109,12 +109,23 @@ export type ChatScope = "clients" | "colleagues" | "groups";
 
 const normalizeName = (value?: string) => {
   if (!value) return "";
-  return value
-    // remove templated space markers like {' '}
-    .replace(/\{[^}]*\}/g, " ")
-    // collapse whitespace
-    .replace(/\s+/g, " ")
-    .trim();
+  // Remove templated space markers like {' '} using iterative approach
+  let result = "";
+  let i = 0;
+  while (i < value.length) {
+    if (value[i] === "{") {
+      const closeIdx = value.indexOf("}", i + 1);
+      if (closeIdx !== -1) {
+        result += " ";
+        i = closeIdx + 1;
+        continue;
+      }
+    }
+    result += value[i];
+    i++;
+  }
+  // collapse whitespace
+  return result.replaceAll(/\s+/g, " ").trim();
 };
 
 type OrgUserOption = {
@@ -375,11 +386,11 @@ const GroupModal: React.FC<GroupModalProps> = ({
                   {!orgUsersLoading && availableUsers.length === 0 && (
                     <div className="flex items-center justify-center py-4">
                       <span className="text-caption-1 text-text-secondary">
-                        {orgUsers.length === 0
-                          ? "No teammates available. Please wait..."
-                          : search.trim()
-                            ? "No teammates match your search."
-                            : "All teammates have been added."}
+                        {(() => {
+                          if (orgUsers.length === 0) return "No teammates available. Please wait...";
+                          if (search.trim()) return "No teammates match your search.";
+                          return "All teammates have been added.";
+                        })()}
                       </span>
                     </div>
                   )}
@@ -763,9 +774,12 @@ const ChannelPreviewWrapper: React.FC<ChannelPreviewWrapperProps> = ({
     currentUserId
   );
 
+  // Using div with role="option" since this is inside a listbox (ChannelList)
+  // and ChannelPreviewMessenger contains interactive elements (buttons)
   return (
     <div
-      role="button"
+      role="option"
+      aria-selected={previewProps.active}
       tabIndex={0}
       className="chat-preview-trigger"
       onClick={handlePreviewSelect}
@@ -1887,6 +1901,8 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
                   onChange={(e) => setDirectSearch(e.target.value)}
                 />
                 <div
+                  role="listbox"
+                  tabIndex={-1}
                   className="max-h-40 overflow-y-auto flex flex-col gap-2"
                   onMouseEnter={() => setDirectListHover(true)}
                   onMouseLeave={() => {

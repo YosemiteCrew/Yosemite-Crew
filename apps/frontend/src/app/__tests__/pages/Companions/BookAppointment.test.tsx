@@ -89,6 +89,7 @@ jest.mock("@/app/components/Icons/Close", () => ({
 
 jest.mock("@/app/hooks/useBilling", () => ({
   useCanMoreForPrimaryOrg: () => ({ canMore: true, reason: "ok" }),
+  useCurrencyForPrimaryOrg: () => "USD",
 }));
 
 jest.mock("@/app/hooks/useStripeOnboarding", () => ({
@@ -120,6 +121,10 @@ jest.mock("@/app/stores/serviceStore", () => ({
 jest.mock("@/app/services/appointmentService", () => ({
   createAppointment: jest.fn(),
   getSlotsForServiceAndDateForPrimaryOrg: jest.fn(),
+}));
+
+jest.mock("@/app/services/invoiceService", () => ({
+  loadInvoicesForOrgPrimaryOrg: jest.fn(),
 }));
 
 jest.mock("@/app/components/Calendar/weekHelpers", () => ({

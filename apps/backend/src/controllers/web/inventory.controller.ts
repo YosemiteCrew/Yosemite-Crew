@@ -14,6 +14,7 @@ import {
   UpdateInventoryItemInput,
   InventoryBatchInput,
   ConsumeStockInput,
+  BulkConsumeStockInput,
 } from "src/services/inventory.service";
 import {
   InventoryItemDocument,
@@ -302,6 +303,22 @@ export const InventoryController = {
       const input = req.body;
       const item = await InventoryService.consumeStock(input);
       res.json(item);
+    } catch (error) {
+      handleError(error, res);
+    }
+  },
+
+  // ─────────────────────────────────────────────
+  // STOCK: CONSUME (BULK)
+  // ─────────────────────────────────────────────
+  bulkConsumeStock: async (
+    req: Request<EmptyParams, InventoryItemDocument[], BulkConsumeStockInput>,
+    res: Response,
+  ): Promise<void> => {
+    try {
+      const input = req.body;
+      const items = await InventoryService.bulkConsumeStock(input);
+      res.json(items);
     } catch (error) {
       handleError(error, res);
     }

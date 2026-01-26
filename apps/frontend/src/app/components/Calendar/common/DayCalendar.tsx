@@ -184,7 +184,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                         <Image
                           src={getSafeImageUrl(
                             "",
-                            ev.companion.species as ImageType
+                            ev.companion.species.toLowerCase() as ImageType
                           )}
                           height={30}
                           width={30}

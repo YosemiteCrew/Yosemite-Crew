@@ -228,7 +228,8 @@ describe("FormRenderer Component", () => {
       <FormRenderer fields={fields} values={{}} onChange={mockOnChange} />
     );
 
-    expect(screen.getByText("Group")).toBeInTheDocument();
+    // Falls back to humanized id when label is absent
+    expect(screen.getByText("G1")).toBeInTheDocument();
   });
 
   // --- Section 3: Interactions (onChange) ---

@@ -25,3 +25,46 @@ export const useInvoicesForPrimaryOrg = (): Invoice[] => {
     return ids.map((id) => invoicesById[id]).filter(Boolean);
   }, [primaryOrgId, invoicesById, invoiceIdsByOrgId]);
 };
+
+export const useInvoicesForPrimaryOrgAppointment = (
+  appointmentId: string | undefined,
+): Invoice[] => {
+  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
+  const invoicesById = useInvoiceStore((s) => s.invoicesById);
+
+  const invoiceIdsByOrgId = useInvoiceStore((s) => s.invoiceIdsByOrgId);
+
+  return useMemo(() => {
+    if (!primaryOrgId || !appointmentId) return [];
+    const ids = invoiceIdsByOrgId[primaryOrgId] ?? [];
+    return ids
+      .map((id) => invoicesById[id])
+      .filter(
+        (invoice): invoice is Invoice =>
+          Boolean(invoice) && invoice.appointmentId === appointmentId,
+      );
+  }, [primaryOrgId, invoicesById, invoiceIdsByOrgId, appointmentId]);
+};
+
+export const usePaidInvoiceForPrimaryOrgAppointment = (
+  appointmentId: string | undefined,
+): Invoice | undefined => {
+  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
+  const invoicesById = useInvoiceStore((s) => s.invoicesById);
+  const invoiceIdsByOrgId = useInvoiceStore((s) => s.invoiceIdsByOrgId);
+
+  return useMemo(() => {
+    if (!primaryOrgId || !appointmentId) return undefined;
+
+    const ids = invoiceIdsByOrgId[primaryOrgId] ?? [];
+
+    return ids
+      .map((id) => invoicesById[id])
+      .find(
+        (invoice): invoice is Invoice =>
+          Boolean(invoice) &&
+          invoice.appointmentId === appointmentId &&
+          invoice.status === "PAID",
+      );
+  }, [primaryOrgId, invoicesById, invoiceIdsByOrgId, appointmentId]);
+};

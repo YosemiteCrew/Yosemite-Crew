@@ -9,6 +9,7 @@ import {
   generatePresignedDownloadUrl,
 } from "src/middlewares/upload";
 import escapeStringRegex from "escape-string-regexp";
+import { AuditTrailService } from "./audit-trail.service";
 
 export class DocumentServiceError extends Error {
   constructor(
@@ -125,6 +126,7 @@ export interface CreateDocumentInput {
 export type DocumentCreateContext = {
   parentId?: Types.ObjectId | string;
   pmsUserId?: string;
+  organisationId?: string;
 };
 
 export interface DocumentDto {
@@ -292,6 +294,25 @@ export const DocumentService = {
   ): Promise<DocumentDto> {
     const persistable = buildPersistableDocument(input, context);
     const doc = await DocumentModel.create(persistable);
+
+    if (context.organisationId) {
+      await AuditTrailService.recordSafely({
+        organisationId: context.organisationId,
+        companionId: doc.companionId.toString(),
+        eventType: "DOCUMENT_ADDED",
+        actorType: context.pmsUserId ? "PMS_USER" : "SYSTEM",
+        actorId: context.pmsUserId ?? null,
+        entityType: "DOCUMENT",
+        entityId: doc._id.toString(),
+        metadata: {
+          category: doc.category,
+          subcategory: doc.subcategory,
+          appointmentId: doc.appointmentId?.toString() ?? null,
+          title: doc.title,
+        },
+      });
+    }
+
     return mapDocumentToDto(doc);
   },
 
@@ -532,6 +553,24 @@ export const DocumentService = {
 
     // 7. Save the updated document
     await doc.save();
+
+    if (context.organisationId) {
+      await AuditTrailService.recordSafely({
+        organisationId: context.organisationId,
+        companionId: doc.companionId.toString(),
+        eventType: "DOCUMENT_UPDATED",
+        actorType: context.pmsUserId ? "PMS_USER" : "SYSTEM",
+        actorId: context.pmsUserId ?? null,
+        entityType: "DOCUMENT",
+        entityId: doc._id.toString(),
+        metadata: {
+          category: doc.category,
+          subcategory: doc.subcategory,
+          appointmentId: doc.appointmentId?.toString() ?? null,
+          title: doc.title,
+        },
+      });
+    }
 
     return mapDocumentToDto(doc);
   },

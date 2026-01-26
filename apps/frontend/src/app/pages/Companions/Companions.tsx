@@ -127,7 +127,11 @@ const Companions = () => {
           />
         )}
         {canEditTasks && activeCompanion && (
-          <AddTask showModal={addTask} setShowModal={setAddTask} />
+          <AddTask
+            showModal={addTask}
+            setShowModal={setAddTask}
+            activeCompanion={activeCompanion}
+          />
         )}
       </PermissionGate>
     </div>

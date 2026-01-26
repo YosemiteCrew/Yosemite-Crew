@@ -460,3 +460,4 @@ describe("ChatContainer", () => {
     expect(screen.getByTestId("org-guard")).toBeInTheDocument();
   });
 });
+

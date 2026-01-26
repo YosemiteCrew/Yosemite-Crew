@@ -35,3 +35,8 @@ export const toTitle = (str = "") => {
 
   return s.charAt(0).toUpperCase() + s.slice(1);
 };
+
+export const toNumberSafe = (value: unknown, fallback = 0): number => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+};

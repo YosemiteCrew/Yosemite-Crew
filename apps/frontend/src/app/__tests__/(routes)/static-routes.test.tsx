@@ -71,19 +71,19 @@ jest.mock("@/app/pages/TeamOnboarding/TeamOnboarding", () => ({
   default: () => <div data-testid="route-team-onboarding" />,
 }));
 
-import AboutRoute, * as AboutModule from "@/app/(routes)/about/page";
-import ApplicationRoute, * as ApplicationModule from "@/app/(routes)/application/page";
-import BookDemoRoute, * as BookDemoModule from "@/app/(routes)/book-demo/page";
-import ContactRoute, * as ContactModule from "@/app/(routes)/contact/page";
-import DevelopersRoute, * as DevelopersModule from "@/app/(routes)/developers/page";
-import OrganizationsRoute, * as OrganizationsModule from "@/app/(routes)/organizations/page";
-import CreateOrgRoute, * as CreateOrgModule from "@/app/(routes)/create-org/page";
-import DashboardRoute, * as DashboardModule from "@/app/(routes)/dashboard/page";
-import PmsRoute, * as PmsModule from "@/app/(routes)/pms/page";
-import PricingRoute, * as PricingModule from "@/app/(routes)/pricing/page";
-import PrivacyPolicyRoute, * as PrivacyPolicyModule from "@/app/(routes)/privacy-policy/page";
-import TermsRoute, * as TermsModule from "@/app/(routes)/terms-and-conditions/page";
-import TeamOnboardingRoute, * as TeamOnboardingModule from "@/app/(routes)/team-onboarding/page";
+import AboutRoute, * as AboutModule from "@/app/(routes)/(public)/about/page";
+import ApplicationRoute, * as ApplicationModule from "@/app/(routes)/(public)/application/page";
+import BookDemoRoute, * as BookDemoModule from "@/app/(routes)/(public)/book-demo/page";
+import ContactRoute, * as ContactModule from "@/app/(routes)/(public)/contact/page";
+import DevelopersRoute, * as DevelopersModule from "@/app/(routes)/(public)/developers/page";
+import OrganizationsRoute, * as OrganizationsModule from "@/app/(routes)/(app)/organizations/page";
+import CreateOrgRoute, * as CreateOrgModule from "@/app/(routes)/(app)/create-org/page";
+import DashboardRoute, * as DashboardModule from "@/app/(routes)/(app)/dashboard/page";
+import PmsRoute, * as PmsModule from "@/app/(routes)/(public)/pms/page";
+import PricingRoute, * as PricingModule from "@/app/(routes)/(public)/pricing/page";
+import PrivacyPolicyRoute, * as PrivacyPolicyModule from "@/app/(routes)/(public)/privacy-policy/page";
+import TermsRoute, * as TermsModule from "@/app/(routes)/(public)/terms-and-conditions/page";
+import TeamOnboardingRoute, * as TeamOnboardingModule from "@/app/(routes)/(app)/team-onboarding/page";
 
 type RouteCase = {
   name: string;

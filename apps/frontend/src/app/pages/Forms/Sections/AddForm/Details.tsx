@@ -7,11 +7,16 @@ import {
   FormsCategory,
   FormsCategoryOptions,
   FormsProps,
+  RequiredSignerOptions,
+  requiredSignerLabel,
   FormsUsage,
   FormsUsageOptions,
 } from "@/app/types/forms";
 import { getCategoryTemplate } from "@/app/utils/forms";
 import React, { useState } from "react";
+import { Organisation } from "@yosemite-crew/types";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { useMemo } from "react";
 
 type DetailsProps = {
   formData: FormsProps;
@@ -34,7 +39,37 @@ const Details = ({
     species?: string;
     description?: string;
     services?: string;
+    requiredSigner?: string;
   }>({});
+  const orgType = useOrgStore((s) =>
+    s.primaryOrgId ? s.orgsById[s.primaryOrgId]?.type : undefined,
+  );
+  const orgTypeOverride = process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE as Organisation["type"] | undefined;
+  const effectiveOrgType = orgTypeOverride || orgType;
+  const categoryOptions = useMemo(() => {
+    const base = ["Consent form", "Discharge", "Custom"];
+    if (effectiveOrgType === "HOSPITAL") {
+      return FormsCategoryOptions.filter(
+        (c) => base.includes(c) || c.startsWith("SOAP")
+      );
+    }
+    if (effectiveOrgType === "BOARDER") {
+      return FormsCategoryOptions.filter(
+        (c) => base.includes(c) || c.startsWith("Boarder")
+      );
+    }
+    if (effectiveOrgType === "BREEDER") {
+      return FormsCategoryOptions.filter(
+        (c) => base.includes(c) || c.startsWith("Breeder")
+      );
+    }
+    if (effectiveOrgType === "GROOMER") {
+      return FormsCategoryOptions.filter(
+        (c) => base.includes(c) || c.startsWith("Groomer")
+      );
+    }
+    return FormsCategoryOptions;
+  }, [effectiveOrgType]);
 
   const handleCategoryChange = (category: FormsCategory) => {
     const shouldApplyTemplate =
@@ -57,12 +92,16 @@ const Details = ({
       species?: string;
       description?: string;
       services?: string;
+      requiredSigner?: string;
     } = {};
     if (!formData.name.trim()) {
       errors.name = "Form name is required";
     }
     if (!formData.category) {
       errors.category = "Category is required";
+    }
+    if (formData.requiredSigner === undefined) {
+      errors.requiredSigner = "Signed by is required";
     }
     if (!formData.description?.trim()) {
       errors.description = "Description is required";
@@ -135,8 +174,28 @@ const Details = ({
               placeholder="Category"
               defaultOption={formData.category || ""}
               onSelect={(option) => handleCategoryChange(option.value as FormsCategory)}
-              options={FormsCategoryOptions.map((cat) => ({ label: cat, value: cat }))}
+              options={categoryOptions.map((cat) => ({ label: cat, value: cat }))}
               error={formDataErrors.category}
+            />
+            <LabelDropdown
+              placeholder="Signed by"
+              defaultOption={requiredSignerLabel(formData.requiredSigner)}
+              onSelect={(option) =>
+                {
+                  if (formDataErrors.requiredSigner) {
+                    setFormDataErrors((prev) => ({
+                      ...prev,
+                      requiredSigner: undefined,
+                    }));
+                  }
+                  setFormData((prev) => ({
+                    ...prev,
+                    requiredSigner: option.value as FormsProps["requiredSigner"],
+                  }));
+                }
+              }
+              options={RequiredSignerOptions}
+              error={formDataErrors.requiredSigner}
             />
           </div>
         </Accordion>

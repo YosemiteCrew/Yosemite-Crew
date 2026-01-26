@@ -45,10 +45,10 @@ jest.mock("@/app/pages/SignIn/SignIn", () => ({
   default: () => <div data-testid="route-signin">Sign In</div>,
 }));
 
-import CompanionsRoute, * as CompanionsModule from "@/app/(routes)/companions/page";
-import InventoryRoute from "@/app/(routes)/inventory/page";
-import ChatRoute, * as ChatModule from "@/app/(routes)/chat/page";
-import SignInRoute, * as SignInModule from "@/app/(routes)/signin/page";
+import CompanionsRoute, * as CompanionsModule from "@/app/(routes)/(app)/companions/page";
+import InventoryRoute from "@/app/(routes)/(app)/inventory/page";
+import ChatRoute, * as ChatModule from "@/app/(routes)/(app)/chat/page";
+import SignInRoute, * as SignInModule from "@/app/(routes)/(public)/signin/page";
 
 describe("protected route wrappers", () => {
   test("companions route renders ProtectedCompanions", () => {

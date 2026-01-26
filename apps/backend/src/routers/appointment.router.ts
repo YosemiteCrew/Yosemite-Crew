@@ -79,6 +79,15 @@ router.get(
   AppointmentController.listByOrganisation,
 );
 
+// List appointments for a companion within an organisation
+router.get(
+  "/pms/organisation/:organisationId/companion/:companionId",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("appointments:view:any"),
+  AppointmentController.listByCompanionForOrganisation,
+);
+
 // Accept requested appointment
 router.patch(
   "/pms/:organisationId/:appointmentId/accept",
@@ -122,6 +131,15 @@ router.patch(
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   AppointmentController.updateFromPms,
+);
+
+// Attach forms to appointment
+router.post(
+  "/pms/:organisationId/:appointmentId/forms",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("appointments:edit:any"),
+  AppointmentController.attachFormsToAppointment,
 );
 
 // Get appointment detail

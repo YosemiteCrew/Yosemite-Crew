@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -26,11 +26,18 @@ const publicNavItems: NavItem[] = [
 const GuestHeader = () => {
   const pathname = usePathname();
   const router = useRouter();
+  const status = useAuthStore((s) => s.status);
   const { user, role } = useAuthStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const logoUrl = `https://d2il6osz49gpup.cloudfront.net/Logo.png`;
 
   const toggleMenu = () => setMenuOpen((prev) => !prev);
+
+  useEffect(() => {
+    if (status === "idle") {
+      void useAuthStore.getState().checkSession();
+    }
+  }, [status]);
 
   const handleClick = (href: string) => {
     setMenuOpen(false);
@@ -42,7 +49,8 @@ const GuestHeader = () => {
   const isSignInPage = pathname === "/signin";
   const isSignUpPage = pathname === "/signup";
   const isAuthPage = isSignInPage || isSignUpPage;
-  const hideButtons = pathname === "/organizations" || pathname === "/forgot-password";
+  const hideButtons =
+    pathname === "/organizations" || pathname === "/forgot-password";
 
   return (
     <div className="flex items-center justify-between px-3! sm:px-12! lg:px-20! gap-10 w-full h-20">

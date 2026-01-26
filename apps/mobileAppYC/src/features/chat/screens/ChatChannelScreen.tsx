@@ -79,7 +79,7 @@ export const ChatChannelScreen: React.FC = () => {
       const displayName =
         [authUser.firstName, authUser.lastName].filter(Boolean).join(' ').trim() ||
         authUser.email ||
-        'Pet Owner';
+        'Pet Parent';
       const avatar = authUser.profilePicture ?? undefined;
       const chatUserId = authUser.parentId ?? authUser.id;
 

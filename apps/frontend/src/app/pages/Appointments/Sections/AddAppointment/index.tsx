@@ -1,5 +1,5 @@
 import Accordion from "@/app/components/Accordion/Accordion";
-import { Primary } from "@/app/components/Buttons";
+import { Primary, Secondary } from "@/app/components/Buttons";
 import FormDesc from "@/app/components/Inputs/FormDesc/FormDesc";
 import MultiSelectDropdown from "@/app/components/Inputs/MultiSelectDropdown";
 import SearchDropdown from "@/app/components/Inputs/SearchDropdown";
@@ -27,8 +27,12 @@ import { formatUtcTimeToLocalLabel } from "@/app/components/Availability/utils";
 import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
 import Close from "@/app/components/Icons/Close";
 import { useSubscriptionCounterUpdate } from "@/app/hooks/useStripeOnboarding";
-import { useCanMoreForPrimaryOrg } from "@/app/hooks/useBilling";
+import {
+  useCanMoreForPrimaryOrg,
+  useCurrencyForPrimaryOrg,
+} from "@/app/hooks/useBilling";
 import { IoIosWarning } from "react-icons/io";
+import { loadInvoicesForOrgPrimaryOrg } from "@/app/services/invoiceService";
 
 type AddAppointmentProps = {
   showModal: boolean;
@@ -69,16 +73,9 @@ const CompanionFields = [
   { label: "Species", key: "species", type: "text" },
 ];
 
-const ServiceFields = [
-  { label: "Name", key: "name", type: "text" },
-  { label: "Description", key: "description", type: "text" },
-  { label: "Duration (mins)", key: "duration", type: "text" },
-  { label: "Cost ($)", key: "cost", type: "text" },
-  { label: "Max discount", key: "maxDiscount", type: "text" },
-];
-
 const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
   const companions = useCompanionsParentsForPrimaryOrg();
+  const currency = useCurrencyForPrimaryOrg();
   const teams = useTeamForPrimaryOrg();
   const specialities = useSpecialitiesForPrimaryOrg();
   const { canMore, reason } = useCanMoreForPrimaryOrg("appointments");
@@ -99,6 +96,17 @@ const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [query, setQuery] = useState("");
   const [timeSlots, setTimeSlots] = useState<Slot[]>([]);
+
+  const ServiceFields = useMemo(
+    () => [
+      { label: "Name", key: "name", type: "text" },
+      { label: "Description", key: "description", type: "text" },
+      { label: "Duration (mins)", key: "duration", type: "text" },
+      { label: `Cost (${currency})`, key: "cost", type: "text" },
+      { label: "Max discount", key: "maxDiscount", type: "text" },
+    ],
+    [currency],
+  );
 
   useEffect(() => {
     const appointmentTypeId = formData.appointmentType?.id;
@@ -296,6 +304,7 @@ const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
     try {
       await createAppointment(formData);
       await refetchData();
+      await loadInvoicesForOrgPrimaryOrg({ force: true });
       setShowModal(false);
       setFormData(EMPTY_APPOINTMENT);
       setSelectedSlot(null);
@@ -327,23 +336,38 @@ const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
               isEditing={true}
             >
               <div className="flex flex-col gap-3">
-                <SearchDropdown
-                  placeholder="Search companion"
-                  options={CompanionOptions}
-                  onSelect={handleCompanionSelect}
-                  query={query}
-                  setQuery={setQuery}
-                  minChars={0}
-                  error={formDataErrors.companionId}
-                />
-                {formData.companion.name && (
-                  <EditableAccordion
-                    title={formData.companion.name}
-                    fields={CompanionFields}
-                    data={CompanionInfoData}
-                    defaultOpen={true}
-                    showEditIcon={false}
-                  />
+                {CompanionOptions.length > 0 ? (
+                  <>
+                    <SearchDropdown
+                      placeholder="Search companion"
+                      options={CompanionOptions}
+                      onSelect={handleCompanionSelect}
+                      query={query}
+                      setQuery={setQuery}
+                      minChars={0}
+                      error={formDataErrors.companionId}
+                    />
+                    {formData.companion.name && (
+                      <EditableAccordion
+                        title={formData.companion.name}
+                        fields={CompanionFields}
+                        data={CompanionInfoData}
+                        defaultOpen={true}
+                        showEditIcon={false}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <div className="flex gap-2 flex-col items-center pb-2">
+                    <div className="text-body-4 text-text-primary">
+                      You need companions to start booking appointments
+                    </div>
+                    <Secondary
+                      text="Add companions"
+                      href="/companions"
+                      className="w-full"
+                    />
+                  </div>
                 )}
               </div>
             </Accordion>

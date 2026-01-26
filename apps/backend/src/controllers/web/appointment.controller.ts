@@ -17,6 +17,7 @@ type RescheduleRequestBody = {
 type CancelBody = { reason?: string };
 
 type UploadUrlBody = { companionId?: string; mimeType?: string };
+type AttachFormsBody = { formIds?: string[] };
 
 const resolveUserIdFromRequest = (req: Request): string | undefined => {
   const authRequest = req as AuthenticatedRequest;
@@ -293,6 +294,36 @@ export const AppointmentController = {
     }
   },
 
+  attachFormsToAppointment: async (
+    req: Request<{ appointmentId: string }, unknown, AttachFormsBody>,
+    res: Response,
+  ) => {
+    try {
+      const { appointmentId } = req.params;
+      const { formIds } = req.body;
+
+      if (!Array.isArray(formIds) || formIds.length === 0) {
+        return res.status(400).json({ message: "formIds are required" });
+      }
+
+      const result = await AppointmentService.attachFormsToAppointment(
+        appointmentId,
+        formIds,
+      );
+
+      return res
+        .status(200)
+        .json({ message: "Forms attached", data: result });
+    } catch (err: unknown) {
+      logger.error("Appointment form attach error: ", err);
+      const { status, message } = parseError(
+        err,
+        "Failed to attach forms",
+      );
+      return res.status(status).json({ message });
+    }
+  },
+
   cancelFromMobile: async (
     req: Request<{ appointmentId: string }, unknown, CancelBody>,
     res: Response,
@@ -394,6 +425,30 @@ export const AppointmentController = {
       const { status, message } = parseError(
         err,
         "Failed to fetch appointments",
+      );
+      return res.status(status).json({ message });
+    }
+  },
+
+  listByCompanionForOrganisation: async (
+    req: Request<{ organisationId: string; companionId: string }>,
+    res: Response,
+  ) => {
+    try {
+      const { organisationId, companionId } = req.params;
+
+      const data =
+        await AppointmentService.getAppointmentsForCompanionByOrganisation(
+          companionId,
+          organisationId,
+        );
+
+      return res.status(200).json({ data });
+    } catch (err: unknown) {
+      logger.error("Appiontement search error: ", err);
+      const { status, message } = parseError(
+        err,
+        "Failed to fetch companion appointments for organisation",
       );
       return res.status(status).json({ message });
     }

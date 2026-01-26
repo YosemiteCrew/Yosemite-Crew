@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import Page from "@/app/(routes)/settings/page";
+import Page from "@/app/(routes)/(app)/settings/page";
 
 // 1. Mock the child component
 // This replaces the complex Settings page with a simple dummy element

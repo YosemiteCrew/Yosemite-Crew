@@ -93,13 +93,19 @@ jest.mock("@/app/utils/date", () => ({
 
 describe("Companion AddTask", () => {
   it("shows validation errors when saving empty form", () => {
-    render(<AddTask showModal setShowModal={jest.fn()} />);
+    render(
+      <AddTask
+        showModal
+        setShowModal={jest.fn()}
+        activeCompanion={{
+          companion: { id: "comp-1", name: "Buddy" },
+          parent: { id: "parent-1", firstName: "Jamie" },
+        } as any}
+      />
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(
-      screen.getByText("Please select a companion or staff")
-    ).toBeInTheDocument();
     expect(screen.getByText("Name is required")).toBeInTheDocument();
   });
 });

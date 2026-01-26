@@ -80,7 +80,7 @@ const CompanionsTable = ({
           <Image
             src={getSafeImageUrl(
               item.companion.photoUrl,
-              item.companion.type as ImageType,
+              item.companion.type.toLowerCase() as ImageType,
             )}
             alt=""
             height={40}

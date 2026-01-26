@@ -6,6 +6,7 @@ import CompanionModel from "../../src/models/companion";
 import { ParentModel } from "../../src/models/parent";
 import { toFHIR as toFHIRCompanion } from "../../src/services/companion.service";
 import { toFHIR as toFHIRParent } from "../../src/services/parent.service";
+import { AuditTrailService } from "../../src/services/audit-trail.service";
 
 // --- Mocks ---
 jest.mock("../../src/models/companion-organisation");
@@ -14,6 +15,7 @@ jest.mock("../../src/models/companion");
 jest.mock("../../src/models/parent");
 jest.mock("../../src/services/companion.service");
 jest.mock("../../src/services/parent.service");
+jest.mock("../../src/services/audit-trail.service");
 
 describe("CompanionOrganisationService", () => {
   const validObjectId = new Types.ObjectId().toString();
@@ -24,12 +26,16 @@ describe("CompanionOrganisationService", () => {
   // Helper to mock mongoose document with save()
   const createMockDoc = (data: any) => ({
     ...data,
+    companionId: data.companionId ?? validCompanionId,
+    organisationId: data.organisationId ?? validOrgId,
+    organisationType: data.organisationType ?? "HOSPITAL",
     save: jest.fn().mockResolvedValue(true),
     _id: new Types.ObjectId(),
   });
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (AuditTrailService.recordSafely as jest.Mock).mockResolvedValue(undefined);
   });
 
   describe("Validation (ensureObjectId)", () => {
@@ -87,6 +93,8 @@ describe("CompanionOrganisationService", () => {
       (CompanionOrganisationModel.findOne as jest.Mock).mockResolvedValue(null);
       (CompanionOrganisationModel.create as jest.Mock).mockResolvedValue({
         _id: "new",
+        status: "ACTIVE",
+        organisationType: "HOSPITAL",
       });
 
       const result = await CompanionOrganisationService.linkByParent({
@@ -102,7 +110,9 @@ describe("CompanionOrganisationService", () => {
           role: "ORGANISATION",
         }),
       );
-      expect(result).toEqual({ _id: "new" });
+      expect(result).toEqual(
+        expect.objectContaining({ _id: "new", status: "ACTIVE" }),
+      );
     });
   });
 
@@ -125,6 +135,7 @@ describe("CompanionOrganisationService", () => {
       (CompanionOrganisationModel.create as jest.Mock).mockResolvedValue({
         _id: "new",
         status: "PENDING",
+        organisationType: "HOSPITAL",
       });
 
       const res = await CompanionOrganisationService.linkByPmsUser({
@@ -259,7 +270,9 @@ describe("CompanionOrganisationService", () => {
     it("linkOnAppointmentBooked should create active link if not exists", async () => {
       (CompanionOrganisationModel.findOne as jest.Mock).mockResolvedValue(null);
       (CompanionOrganisationModel.create as jest.Mock).mockResolvedValue({
+        _id: "new",
         status: "ACTIVE",
+        organisationType: "HOSPITAL",
       });
 
       const res = await CompanionOrganisationService.linkOnAppointmentBooked({

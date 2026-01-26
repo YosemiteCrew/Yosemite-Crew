@@ -34,7 +34,7 @@ const Appointments = () => {
   const [reschedulePopup, setReschedulePopup] = useState(false);
   const [activeAppointment, setActiveAppointment] =
     useState<Appointment | null>(appointments[0] ?? null);
-  const [activeCalendar, setActiveCalendar] = useState("day");
+  const [activeCalendar, setActiveCalendar] = useState("week");
   const [activeView, setActiveView] = useState("calendar");
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [weekStart, setWeekStart] = useState(getStartOfWeek(currentDate));
