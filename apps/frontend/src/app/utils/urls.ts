@@ -14,12 +14,15 @@ export const isHttpsImageUrl = (src?: string | null): src is string => {
   return /^https:\/\/.+/i.test(src);
 };
 
-const pick = (arr: readonly string[]) =>
-  arr[Math.floor(Math.random() * arr.length)];
+const pick = (arr?: readonly string[]) => {
+  const pool = arr && arr.length > 0 ? arr : DEFAULT_IMAGES.other;
+  return pool[Math.floor(Math.random() * pool.length)];
+};
 
 export const getSafeImageUrl = (
   src: string | null | undefined,
   type: ImageType
 ): string => {
-  return isHttpsImageUrl(src) ? src : pick(DEFAULT_IMAGES[type]);
+  const fallbackPool = DEFAULT_IMAGES[type] ?? DEFAULT_IMAGES.other;
+  return isHttpsImageUrl(src) ? src : pick(fallbackPool);
 };

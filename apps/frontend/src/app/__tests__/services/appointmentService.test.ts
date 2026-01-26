@@ -231,7 +231,7 @@ describe("Appointment Service", () => {
         expect.objectContaining({ organisationId: "org-123" })
       );
       expect(mockedPostData).toHaveBeenCalledWith(
-        "/fhir/v1/appointment/pms?createPayment=false",
+        "/fhir/v1/appointment/pms?createPayment=true",
         fhirPayload
       );
       expect(mockedFromAppointmentDTO).toHaveBeenCalledWith(returnedDTO);

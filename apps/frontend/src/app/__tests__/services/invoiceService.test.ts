@@ -1,6 +1,7 @@
 import { loadInvoicesForOrgPrimaryOrg } from "../../services/invoiceService";
 import { useInvoiceStore } from "../../stores/invoiceStore";
 import { useOrgStore } from "../../stores/orgStore";
+import { getData } from "../../services/axios";
 
 type InvoiceState = {
   startLoading: jest.Mock;
@@ -20,6 +21,10 @@ jest.mock("../../stores/orgStore", () => ({
   useOrgStore: { getState: jest.fn() },
 }));
 
+jest.mock("../../services/axios", () => ({
+  getData: jest.fn(),
+}));
+
 describe("invoiceService", () => {
   let invoiceState: InvoiceState;
   let orgState: OrgState;
@@ -35,6 +40,7 @@ describe("invoiceService", () => {
 
     (useInvoiceStore.getState as jest.Mock).mockReturnValue(invoiceState);
     (useOrgStore.getState as jest.Mock).mockReturnValue(orgState);
+    (getData as jest.Mock).mockResolvedValue({ data: [] });
   });
 
   it("loads invoices when idle", async () => {

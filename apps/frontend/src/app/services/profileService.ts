@@ -38,7 +38,8 @@ export const createUserProfile = async (
   formData: UserProfile,
   orgIdFromQuery: string | null
 ) => {
-  const { startLoading, addProfile } = useUserProfileStore.getState();
+  const { startLoading, addProfile, updateProfile } =
+    useUserProfileStore.getState();
   startLoading();
   try {
     if (!orgIdFromQuery) return;
@@ -46,19 +47,37 @@ export const createUserProfile = async (
       ...formData,
       organizationId: orgIdFromQuery,
     };
-    const res = await postData<UserProfileResponse>(
-      "/fhir/v1/user-profile/" + orgIdFromQuery + "/profile",
-      payload
-    );
+    const endpoint = "/fhir/v1/user-profile/" + orgIdFromQuery + "/profile";
+
+    // Check if profile exists and is in DRAFT status
+    let isDraft = false;
+    try {
+      const existingProfile = await getData<{ profile: UserProfile }>(endpoint);
+      if (existingProfile.data?.profile?.status === "DRAFT") {
+        isDraft = true;
+      }
+    } catch {
+      // Profile doesn't exist, proceed with POST
+    }
+
+    const res = isDraft
+      ? await putData<UserProfileResponse>(endpoint, payload)
+      : await postData<UserProfileResponse>(endpoint, payload);
+
     const data = res.data;
     const newProfile: UserProfile = {
       _id: data._id,
       organizationId: data.organizationId,
       personalDetails: data.personalDetails,
     };
-    addProfile(newProfile);
+
+    if (isDraft) {
+      updateProfile(newProfile);
+    } else {
+      addProfile(newProfile);
+    }
   } catch (err: unknown) {
-    console.error("Failed to load orgs:", err);
+    console.error("Failed to create/update profile:", err);
     throw err;
   }
 };

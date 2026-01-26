@@ -77,7 +77,7 @@ const BuilderWrapper: React.FC<{
   return (
     <div
       ref={wrapperRef}
-      className={`border border-grey-light rounded-2xl px-3 py-3 flex flex-col gap-3 bg-white overflow-hidden ${
+      className={`border border-grey-light rounded-2xl px-3 py-3 flex flex-col gap-3 bg-white ${
         isDragging ? "rounded-2xl" : ""
       }`}
       draggable={draggable}

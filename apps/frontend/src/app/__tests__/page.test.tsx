@@ -6,7 +6,7 @@ jest.mock("@/app/pages/LandingPage/LandingPage", () => ({
   default: () => <div data-testid="landingpage-mock">LandingPage Mock</div>,
 }));
 
-import Home, * as HomeModule from "@/app/page";
+import Home, * as HomeModule from "@/app/(routes)/(public)/page";
 
 describe("Home page (root route)", () => {
   test("renders LandingPage", () => {

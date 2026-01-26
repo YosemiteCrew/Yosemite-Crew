@@ -14,6 +14,7 @@ import { useAuthStore } from "@/app/stores/authStore";
 import { PermissionGate } from "@/app/components/PermissionGate";
 import { PERMISSIONS } from "@/app/utils/permissions";
 import Fallback from "@/app/components/Fallback";
+import { hasSignatureField } from "./signatureUtils";
 
 type AssessmentProps = {
   activeAppointment: Appointment;
@@ -63,6 +64,7 @@ const Assessment = ({
   const handleSave = async () => {
     if (!active?._id || !activeAppointment.id || !attributes) return;
     try {
+      const signatureRequired = hasSignatureField(active.schema as any);
       const submission: FormSubmission = {
         _id: "",
         formVersion: 1,
@@ -75,9 +77,21 @@ const Assessment = ({
         submittedBy: attributes.sub,
       };
       const created = await createSubmission(submission);
+      const nextSubmission = signatureRequired
+        ? {
+            ...created,
+            signatureRequired: true,
+            signing:
+              created.signing ?? {
+                required: true,
+                status: "NOT_STARTED",
+                provider: "DOCUMENSO",
+              },
+          }
+        : created;
       setFormData((prev) => ({
         ...prev,
-        assessment: [created, ...(prev.assessment ?? [])],
+        assessment: [nextSubmission, ...(prev.assessment ?? [])],
       }));
       setActive(null);
       setQuery("");
@@ -118,7 +132,10 @@ const Assessment = ({
                 readOnly
               />
             )}
-            <AssessmentSubmissions formData={formData} />
+            <AssessmentSubmissions
+              formData={formData}
+              setFormData={setFormData}
+            />
           </div>
         </Accordion>
         {canEdit && active && (

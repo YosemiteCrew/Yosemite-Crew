@@ -1,14 +1,6 @@
 import { InvoiceStatus } from "@yosemite-crew/types";
 import { StatusOption } from "../pages/Companions/types";
 
-export type InvoiceMetadata = {
-  pet: string;
-  parent: string;
-  petImage: string;
-  service: string;
-  appointmentId: string;
-};
-
 export const InvoiceStatusOptions: InvoiceStatus[] = [
   "PENDING",
   "AWAITING_PAYMENT",

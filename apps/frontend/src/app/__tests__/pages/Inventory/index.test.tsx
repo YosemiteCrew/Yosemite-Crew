@@ -179,6 +179,23 @@ jest.mock("@/app/components/InventoryInfo", () => ({
 jest.mock("@/app/stores/orgStore");
 jest.mock("@/app/hooks/useLoadOrg", () => ({ useLoadOrg: jest.fn() }));
 jest.mock("@/app/hooks/useInventory");
+jest.mock("@/app/hooks/usePermissions", () => ({
+  usePermissions: () => ({
+    can: () => true,
+    canAll: () => true,
+    canAny: () => true,
+    permissions: [],
+    isLoading: false,
+    activeOrgId: "org-1",
+  }),
+}));
+jest.mock("@/app/components/PermissionGate", () => ({
+  PermissionGate: ({ children }: any) => <div>{children}</div>,
+}));
+jest.mock("@/app/components/Fallback", () => ({
+  __esModule: true,
+  default: () => <div data-testid="fallback">No permission</div>,
+}));
 
 // Mock search store - search now comes from header
 let mockSearchQuery = "";

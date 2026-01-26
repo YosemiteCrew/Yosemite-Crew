@@ -2,16 +2,6 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import RootLayout, { metadata } from "@/app/layout";
 
-jest.mock("@/app/components/SessionInitializer", () => {
-  return function MockSessionInitializer({
-    children,
-  }: {
-    children: React.ReactNode;
-  }) {
-    return <div data-testid="session-initializer-mock">{children}</div>;
-  };
-});
-
 describe("RootLayout", () => {
   const originalError = console.error;
   beforeAll(() => {
@@ -25,19 +15,15 @@ describe("RootLayout", () => {
     console.error = originalError;
   });
 
-  it("renders the layout structure with SessionInitializer and children", () => {
+  it("renders the layout structure with children", () => {
     render(
       <RootLayout>
         <div data-testid="test-child">Hello World</div>
       </RootLayout>
     );
 
-    const sessionInit = screen.getByTestId("session-initializer-mock");
-    expect(sessionInit).toBeInTheDocument();
-
     const child = screen.getByTestId("test-child");
     expect(child).toBeInTheDocument();
-    expect(sessionInit).toContainElement(child);
   });
 
   it("has the correct metadata configuration", () => {

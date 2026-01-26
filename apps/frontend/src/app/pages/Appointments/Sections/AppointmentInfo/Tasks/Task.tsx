@@ -7,7 +7,6 @@ import FormDesc from "@/app/components/Inputs/FormDesc/FormDesc";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import SelectLabel from "@/app/components/Inputs/SelectLabel";
 import { PermissionGate } from "@/app/components/PermissionGate";
-import { useCompanionsForPrimaryOrg } from "@/app/hooks/useCompanion";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
 import {
   createTask,
@@ -35,14 +34,8 @@ const TaskSourceOptions = [
   { value: "CUSTOM", label: "Custom" },
 ];
 
-const TaskTypeOptions = [
-  { value: "EMPLOYEE_TASK", label: "Employee Task" },
-  { value: "PARENT_TASK", label: "Parent Task" },
-];
-
 const Task = () => {
   const teams = useTeamForPrimaryOrg();
-  const companions = useCompanionsForPrimaryOrg();
   const [formData, setFormData] = useState<TaskProps>(EMPTY_TASK);
   const [due, setDue] = useState<Date | null>(new Date());
   const [dueTimeUtc, setDueTimeUtc] = useState("05:30");
@@ -91,15 +84,6 @@ const Task = () => {
     };
     load();
   }, [formData.source]);
-
-  const CompanionOptions = useMemo(
-    () =>
-      companions?.map((companion) => ({
-        label: companion.name,
-        value: companion.parentId,
-      })),
-    [companions],
-  );
 
   const TeamOptions = useMemo(
     () =>
@@ -229,51 +213,17 @@ const Task = () => {
         >
           <div className="flex flex-col gap-3">
             <LabelDropdown
-              placeholder="Type"
+              placeholder="To"
               onSelect={(option) =>
                 setFormData({
                   ...formData,
-                  audience: option.value as any,
-                  assignedTo: "",
-                  companionId: undefined,
+                  assignedTo: option.value,
                 })
               }
-              defaultOption={formData.audience}
-              options={TaskTypeOptions}
+              defaultOption={formData.assignedTo}
+              error={formDataErrors.assignedTo}
+              options={TeamOptions}
             />
-            {formData.audience === "EMPLOYEE_TASK" ? (
-              <LabelDropdown
-                placeholder="To"
-                onSelect={(option) =>
-                  setFormData({
-                    ...formData,
-                    assignedTo: option.value,
-                  })
-                }
-                defaultOption={formData.assignedTo}
-                error={formDataErrors.assignedTo}
-                options={TeamOptions}
-              />
-            ) : (
-              <LabelDropdown
-                placeholder="To"
-                onSelect={(option) => {
-                  const companion = companions?.find(
-                    (c) => c.parentId === option.value,
-                  );
-                  if (companion) {
-                    setFormData({
-                      ...formData,
-                      companionId: companion.id,
-                      assignedTo: option.value,
-                    });
-                  }
-                }}
-                defaultOption={formData.assignedTo}
-                error={formDataErrors.assignedTo}
-                options={CompanionOptions}
-              />
-            )}
             <LabelDropdown
               placeholder="Source"
               onSelect={(option) => {

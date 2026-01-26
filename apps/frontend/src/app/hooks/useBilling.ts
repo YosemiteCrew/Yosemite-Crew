@@ -153,3 +153,14 @@ export const useCanMoreForPrimaryOrg = (metric: FreeMetric): CanResult => {
     };
   }, [counter, subscription, metric]);
 };
+
+export const useIsStripeActive = () => {
+  const { subscription } = useBillingForPrimaryOrg();
+
+  return useMemo(() => {
+    if (!subscription) {
+      return false;
+    }
+    return subscription.canAcceptPayments;
+  }, [subscription]);
+};

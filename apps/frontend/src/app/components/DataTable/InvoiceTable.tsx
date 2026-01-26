@@ -2,11 +2,12 @@ import React from "react";
 import GenericTable from "../GenericTable/GenericTable";
 import { IoEye } from "react-icons/io5";
 import InvoiceCard from "../Cards/InvoiceCard";
-import { Invoice } from "@yosemite-crew/types";
-import { formatDateLabel, formatTimeLabel } from "@/app/utils/forms";
+import { Invoice, InvoiceItem } from "@yosemite-crew/types";
+import { formatDateLabel } from "@/app/utils/forms";
+import { toTitle } from "@/app/utils/validators";
 
 import "./DataTable.css";
-import { toTitleCase } from "@/app/utils/validators";
+import { useAppointmentsForPrimaryOrg } from "@/app/hooks/useAppointments";
 
 type Column<T> = {
   label: string;
@@ -19,6 +20,13 @@ type InvoiceTableProps = {
   filteredList: Invoice[];
   setActiveInvoice?: (inventory: Invoice) => void;
   setViewInvoice?: (open: boolean) => void;
+};
+
+export const getInvoiceItemNames = (items: InvoiceItem[]): string => {
+  return items
+    .map((item) => item.name?.trim())
+    .filter(Boolean)
+    .join(", ");
 };
 
 export const getStatusStyle = (status: string) => {
@@ -45,53 +53,65 @@ const InvoiceTable = ({
   setActiveInvoice,
   setViewInvoice,
 }: InvoiceTableProps) => {
+  const appointments = useAppointmentsForPrimaryOrg();
+
   const handleViewInvoice = (inventory: Invoice) => {
     setActiveInvoice?.(inventory);
     setViewInvoice?.(true);
   };
 
+  const getCompanionName = (appointmentId: string | undefined) => {
+    const match = appointments.filter((a) => a.id === appointmentId);
+    if (match.length > 0) {
+      return match[0].companion.name;
+    }
+    return "-";
+  };
+
+  const getParentName = (appointmentId: string | undefined) => {
+    const match = appointments.filter((a) => a.id === appointmentId);
+    if (match.length > 0) {
+      return match[0].companion.parent.name;
+    }
+    return "-";
+  };
+
   const columns: Column<Invoice>[] = [
     {
-      label: "Companion",
-      key: "companion",
-      width: "10%",
-      render: (item: Invoice) => (
-        <div className="appointment-profile-title truncate">
-          {item?.companionId || "-"}
-        </div>
-      ),
-    },
-    {
-      label: "Appointment ID",
+      label: "Appointment Info",
       key: "appointment-id",
       width: "10%",
       render: (item: Invoice) => (
-        <div className="appointment-profile-title truncate">
-          {item?.appointmentId || "-"}
+        <div className="appointment-profile truncate">
+          <div className="appointment-profile-two">
+            <div className="appointment-profile-title">
+              {getCompanionName(item.appointmentId)}
+            </div>
+            <div className="appointment-profile-sub truncate">
+              {getParentName(item.appointmentId)}
+            </div>
+          </div>
         </div>
       ),
     },
     {
       label: "Service",
       key: "service",
-      width: "10%",
+      width: "15%",
       render: (item: Invoice) => (
         <div className="appointment-profile-title">
-          {item?.companionId || "-"}
+          {getInvoiceItemNames(item.items)}
         </div>
       ),
     },
     {
-      label: "Date/Time",
-      key: "date/time",
+      label: "Date",
+      key: "date",
       width: "10%",
       render: (item: Invoice) => (
         <div className="appointment-profile-two">
           <div className="appointment-profile-title">
             {formatDateLabel(item.createdAt)}
-          </div>
-          <div className="appointment-profile-sub">
-            {formatTimeLabel(item.createdAt)}
           </div>
         </div>
       ),
@@ -102,6 +122,16 @@ const InvoiceTable = ({
       width: "7.5%",
       render: (item: Invoice) => (
         <div className="appointment-profile-title">{"$ " + item?.subtotal}</div>
+      ),
+    },
+    {
+      label: "Discount",
+      key: "discount",
+      width: "7.5%",
+      render: (item: Invoice) => (
+        <div className="appointment-profile-title">
+          {"$ " + item?.discountTotal}
+        </div>
       ),
     },
     {
@@ -131,7 +161,7 @@ const InvoiceTable = ({
           className="appointment-status"
           style={getStatusStyle(item?.status)}
         >
-          {toTitleCase(item?.status)}
+          {toTitle(item?.status)}
         </div>
       ),
     },

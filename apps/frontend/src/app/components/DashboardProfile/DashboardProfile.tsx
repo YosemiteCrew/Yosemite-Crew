@@ -42,7 +42,7 @@ const DashboardProfile = () => {
         Your central hub for insights, performance tracking and quick access to
         essential tools
       </div>
-      <PermissionGate allOf={[PERMISSIONS.ORG_ONBOARDING]}>
+      <PermissionGate allOf={[PERMISSIONS.ORG_EDIT]}>
         <div className="flex items-center justify-between gap-2 w-full flex-wrap">
           {!primaryOrg.isVerified && (
             <>

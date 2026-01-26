@@ -1,18 +1,46 @@
 import React from "react";
 import Accordion from "@/app/components/Accordion/Accordion";
 import { FormDataProps } from "../../index";
+import { useFormsStore } from "@/app/stores/formsStore";
+import { findFieldLabel, humanizeKey } from "../labelUtils";
+import SignatureActions from "./SignatureActions";
+import { hasSignatureField } from "../signatureUtils";
 
 type SubjectiveSubmissionsProps = {
   formData: FormDataProps;
+  setFormData: React.Dispatch<React.SetStateAction<FormDataProps>>;
 };
 
-const SubjectiveSubmissions = ({ formData }: SubjectiveSubmissionsProps) => {
+const SubjectiveSubmissions = ({
+  formData,
+  setFormData,
+}: SubjectiveSubmissionsProps) => {
+  const formsById = useFormsStore((s) => s.formsById);
   const submissions = formData.subjective ?? [];
 
   const toStringPairs = (answers: Record<string, any>) =>
     Object.entries(answers ?? {}).filter(
       ([k, v]) => typeof k === "string" && typeof v === "string"
     ) as Array<[string, string]>;
+
+  const resolveLabel = (formId: string | undefined, key: string) => {
+    const schema = formId ? formsById[formId]?.schema : undefined;
+    return findFieldLabel(schema as any, key) ?? humanizeKey(key);
+  };
+
+  const updateSubmission = (
+    submissionId: string,
+    updates: Partial<FormDataProps["subjective"][number]>,
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      subjective: (prev.subjective ?? []).map((s) =>
+        s._id === submissionId || s.submissionId === submissionId
+          ? { ...s, ...updates }
+          : s,
+      ),
+    }));
+  };
 
   if (submissions.length === 0) {
     return (
@@ -35,23 +63,41 @@ const SubjectiveSubmissions = ({ formData }: SubjectiveSubmissionsProps) => {
       <div className="flex flex-col gap-4">
         {submissions.map((sub) => {
           const pairs = toStringPairs(sub.answers);
-          if (pairs.length === 0) return null;
+          const hasContent = pairs.length > 0;
+          const schema = sub.formId ? formsById[sub.formId]?.schema : undefined;
+          const requiresSignature =
+            hasSignatureField(schema as any) || sub.signing?.required === true;
+          const signingActive =
+            sub.signing?.required ||
+            sub.signing?.status === "IN_PROGRESS" ||
+            sub.signing?.status === "SIGNED" ||
+            Boolean(sub.signing?.documentId || sub.signing?.pdf?.url);
+          const showActions = requiresSignature || signingActive;
+          if (!hasContent && !showActions) return null;
 
           return (
             <div
-              key={sub._id || sub.submittedAt?.toString()}
+              key={sub._id || sub.submissionId || sub.submittedAt?.toString()}
               className="border border-black/10 rounded-xl p-4"
             >
-              <div className="flex flex-col gap-2">
-                {pairs.map(([q, a]) => (
-                  <div key={q} className="flex flex-col gap-1">
-                    <div className="text-xs font-medium text-black-text/70">
-                      {q}
+              {hasContent ? (
+                <div className="flex flex-col gap-2">
+                  {pairs.map(([q, a]) => (
+                    <div key={q} className="flex flex-col gap-1">
+                      <div className="text-xs font-medium text-black-text/70">
+                        {resolveLabel(sub.formId, q)}
+                      </div>
+                      <div className="text-sm text-black-text">{a}</div>
                     </div>
-                    <div className="text-sm text-black-text">{a}</div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : null}
+              {showActions ? (
+                <SignatureActions
+                  submission={{ ...sub, signatureRequired: requiresSignature }}
+                  onStatusChange={updateSubmission}
+                />
+              ) : null}
             </div>
           );
         })}

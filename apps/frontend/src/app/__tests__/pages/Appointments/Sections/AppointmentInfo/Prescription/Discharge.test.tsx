@@ -61,6 +61,12 @@ jest.mock("@/app/pages/Appointments/Sections/AppointmentInfo/Prescription/Submis
   <div data-testid="discharge-submissions" />
 ));
 
+jest.mock("@/app/pages/Appointments/Sections/AppointmentInfo/Prescription/signatureUtils", () => ({
+  hasSignatureField: jest.fn(() => false),
+}));
+
+jest.mock("@/app/components/Fallback", () => () => <div data-testid="fallback" />);
+
 describe("Discharge prescription", () => {
   const activeAppointment: any = {
     id: "appt-1",
@@ -106,7 +112,7 @@ describe("Discharge prescription", () => {
     expect(setFormData).toHaveBeenCalled();
   });
 
-  it("renders share button", () => {
+  it("renders discharge submissions component", () => {
     render(
       <Discharge
         activeAppointment={activeAppointment}
@@ -116,6 +122,19 @@ describe("Discharge prescription", () => {
       />
     );
 
-    expect(screen.getByText("Share with parents")).toBeInTheDocument();
+    expect(screen.getByTestId("discharge-submissions")).toBeInTheDocument();
+  });
+
+  it("renders discharge summary title", () => {
+    render(
+      <Discharge
+        activeAppointment={activeAppointment}
+        formData={createEmptyFormData()}
+        setFormData={jest.fn()}
+        canEdit={false}
+      />
+    );
+
+    expect(screen.getByText("Discharge summary")).toBeInTheDocument();
   });
 });

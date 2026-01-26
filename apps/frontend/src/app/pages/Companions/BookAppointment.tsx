@@ -29,6 +29,7 @@ import Close from "@/app/components/Icons/Close";
 import { useSubscriptionCounterUpdate } from "@/app/hooks/useStripeOnboarding";
 import { IoIosWarning } from "react-icons/io";
 import { useCanMoreForPrimaryOrg } from "@/app/hooks/useBilling";
+import { loadInvoicesForOrgPrimaryOrg } from "@/app/services/invoiceService";
 
 type BookAppointmentProps = {
   showModal: boolean;
@@ -262,6 +263,7 @@ const BookAppointment = ({
     try {
       await createAppointment(formData);
       await refetchData();
+      await loadInvoicesForOrgPrimaryOrg({ force: true })
       setShowModal(false);
       setFormData(EMPTY_APPOINTMENT);
       setSelectedSlot(null);

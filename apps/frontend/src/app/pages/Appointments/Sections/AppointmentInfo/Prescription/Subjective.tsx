@@ -14,6 +14,7 @@ import SubjectiveSubmissions from "./Submissions/SubjectiveSubmissions";
 import { PermissionGate } from "@/app/components/PermissionGate";
 import { PERMISSIONS } from "@/app/utils/permissions";
 import Fallback from "@/app/components/Fallback";
+import { hasSignatureField } from "./signatureUtils";
 
 type SubjectiveProps = {
   activeAppointment: Appointment;
@@ -63,6 +64,7 @@ const Subjective = ({
   const handleSave = async () => {
     if (!active?._id || !activeAppointment.id || !attributes) return;
     try {
+      const signatureRequired = hasSignatureField(active.schema as any);
       const submission: FormSubmission = {
         _id: "",
         formVersion: 1,
@@ -75,9 +77,21 @@ const Subjective = ({
         submittedBy: attributes.sub,
       };
       const created = await createSubmission(submission);
+      const nextSubmission = signatureRequired
+        ? {
+            ...created,
+            signatureRequired: true,
+            signing:
+              created.signing ?? {
+                required: true,
+                status: "NOT_STARTED",
+                provider: "DOCUMENSO",
+              },
+          }
+        : created;
       setFormData((prev) => ({
         ...prev,
-        subjective: [created, ...(prev.subjective ?? [])],
+        subjective: [nextSubmission, ...(prev.subjective ?? [])],
       }));
       setActive(null);
       setQuery("");
@@ -118,7 +132,10 @@ const Subjective = ({
                 readOnly
               />
             )}
-            <SubjectiveSubmissions formData={formData} />
+            <SubjectiveSubmissions
+              formData={formData}
+              setFormData={setFormData}
+            />
           </div>
         </Accordion>
         {canEdit && active && (

@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import Page from "@/app/(routes)/organization/page";
+import Page from "@/app/(routes)/(app)/organization/page";
 
 // 1. Mock the child component
 // This replaces the actual Organization page logic with a simple dummy element.
