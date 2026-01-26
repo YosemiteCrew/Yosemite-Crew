@@ -89,6 +89,7 @@ jest.mock("@/app/components/Icons/Close", () => ({
 
 jest.mock("@/app/hooks/useBilling", () => ({
   useCanMoreForPrimaryOrg: () => ({ canMore: true, reason: "ok" }),
+  useCurrencyForPrimaryOrg: () => "USD",
 }));
 
 jest.mock("@/app/hooks/useStripeOnboarding", () => ({

@@ -64,9 +64,9 @@ describe("InvoiceCard Component", () => {
     expect(screen.getByText("Jan 01, 2023")).toBeInTheDocument();
 
     // Financials
-    expect(screen.getByText("$ 100")).toBeInTheDocument(); // Subtotal
-    expect(screen.getByText("$ 10")).toBeInTheDocument(); // Tax
-    expect(screen.getByText("$ 110")).toBeInTheDocument(); // Total
+    expect(screen.getByText("$100")).toBeInTheDocument(); // Subtotal
+    expect(screen.getByText("$10")).toBeInTheDocument(); // Tax
+    expect(screen.getByText("$110")).toBeInTheDocument(); // Total
   });
 
   // --- 2. Fallback Logic ---

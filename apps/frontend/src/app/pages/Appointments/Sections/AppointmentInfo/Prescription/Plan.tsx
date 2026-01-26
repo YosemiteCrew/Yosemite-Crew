@@ -20,6 +20,7 @@ import {
 } from "@/app/services/invoiceService";
 import { hasSignatureField } from "./signatureUtils";
 import { linkAppointmentForms } from "@/app/services/appointmentFormsService";
+import { useCurrencyForPrimaryOrg } from "@/app/hooks/useBilling";
 
 type PlanProps = {
   formData: FormDataProps;
@@ -81,6 +82,7 @@ const Plan = ({
   canEdit,
 }: PlanProps) => {
   const attributes = useAuthStore.getState().attributes;
+  const currency = useCurrencyForPrimaryOrg();
   const [planQuery, setPlanQuery] = useState("");
   const forms = useFormsForPrimaryOrgByCategory("SOAP-Plan");
   const [active, setActive] = useState<FormsProps | null>(null);
@@ -133,7 +135,11 @@ const Plan = ({
       const created = await createSubmission(submission);
       const medicationItems = buildMedicationLineItemsFromPlan([created]);
       if (medicationItems.length > 0) {
-        await addLineItemsToAppointments(medicationItems, activeAppointment.id);
+        await addLineItemsToAppointments(
+        medicationItems,
+        activeAppointment.id,
+        currency,
+      );
         await loadInvoicesForOrgPrimaryOrg({ force: true });
       }
       const nextSubmission = signatureRequired

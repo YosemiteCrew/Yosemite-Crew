@@ -164,3 +164,11 @@ export const useIsStripeActive = () => {
     return subscription.canAcceptPayments;
   }, [subscription]);
 };
+
+export const useCurrencyForPrimaryOrg = (): string => {
+  const subscription = useSubscriptionForPrimaryOrg();
+
+  return useMemo(() => {
+    return subscription?.currency ?? "USD";
+  }, [subscription]);
+};
