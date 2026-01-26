@@ -295,7 +295,7 @@ const Companion = ({
               options={CountriesOptions}
             />
             <SelectLabel
-              title="My pet comes from:"
+              title="My companion comes from:"
               options={OriginOptions}
               activeOption={formData.source || "unknown"}
               setOption={(value) => setFormData({ ...formData, source: value })}
