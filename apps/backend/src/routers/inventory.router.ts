@@ -126,6 +126,14 @@ router.post(
 );
 
 router.post(
+  "/stock/consume/bulk",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("inventory:edit:any"),
+  InventoryController.bulkConsumeStock,
+);
+
+router.post(
   "/items/:itemId/adjust",
   authorizeCognito,
   withOrgPermissions(),

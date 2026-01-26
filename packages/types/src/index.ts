@@ -15,6 +15,12 @@ export type {
   AvailabilitySlot,
   UserAvailability,
 } from "./baseAvailability";
+export type {
+  AuditTrailEntry,
+  AuditActorType,
+  AuditEntityType,
+  AuditEventType,
+} from "./audit-trail";
 
 export { toFHIRUserOrganization, fromFHIRUserOrganization } from "./userOrganization";
 export { toFHIRRelatedPerson } from "./parent";

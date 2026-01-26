@@ -15,11 +15,17 @@ import {
   InventoryMetaFieldModel,
   StockMovementModel,
 } from "../../src/models/inventory";
+import { OrgBilling } from "../../src/models/organization.billing";
 
 // ----------------------------------------------------------------------
 // Mocks
 // ----------------------------------------------------------------------
 jest.mock("../../src/models/inventory");
+jest.mock("../../src/models/organization.billing", () => ({
+  OrgBilling: {
+    findOne: jest.fn(),
+  },
+}));
 
 // Helper to mock mongoose chaining: find().sort().exec() or lean()
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -53,6 +59,10 @@ const mockDoc = (data: any) => ({
   deleteOne: (jest.fn() as any).mockResolvedValue(true),
 });
 
+const mockedOrgBilling = OrgBilling as unknown as {
+  findOne: jest.Mock<() => Promise<{ currency: string } | null>>;
+};
+
 describe("Inventory Module", () => {
   const orgId = new Types.ObjectId().toString();
   const itemId = new Types.ObjectId().toString();
@@ -61,6 +71,7 @@ describe("Inventory Module", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockedOrgBilling.findOne.mockResolvedValue({ currency: "USD" });
   });
 
   // ======================================================================
@@ -177,7 +188,12 @@ describe("Inventory Module", () => {
       });
 
       it("should update specific fields", async () => {
-        const itemDoc = mockDoc({ _id: itemId, name: "Old", attributes: {} });
+        const itemDoc = mockDoc({
+          _id: itemId,
+          name: "Old",
+          attributes: {},
+          organisationId: orgId,
+        });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (InventoryItemModel.findById as any).mockReturnValue(
           mockMongooseChain(itemDoc),

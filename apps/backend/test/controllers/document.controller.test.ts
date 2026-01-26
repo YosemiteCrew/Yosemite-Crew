@@ -222,13 +222,14 @@ describe("DocumentController", () => {
           params: { companionId: "cmp-1" },
           body: { ...sampleBody, appointmentId: "appt-1" },
           userId: "pms-user",
+          organisationId: "org-1",
         } as any,
         res as any,
       );
 
       expect(mockedDocumentService.create).toHaveBeenCalledWith(
         expect.objectContaining({ appointmentId: "appt-1" }),
-        { pmsUserId: "pms-user" },
+        { pmsUserId: "pms-user", organisationId: "org-1" },
       );
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.json).toHaveBeenCalledWith({ id: "doc-2" });

@@ -45,6 +45,24 @@ export class FormSigningService {
       throw new Error("Form not found");
     }
 
+    if (form.requiredSigner) {
+      const requiresParent = form.requiredSigner === "CLIENT";
+      if (requiresParent && !isParent) {
+        throw new Error("Form requires client signature");
+      }
+      if (!requiresParent && isParent) {
+        throw new Error("Form requires vet signature");
+      }
+    }
+
+    const documensoApiKey = await DocumensoService.resolveOrganisationApiKey(
+      form.orgId,
+    );
+
+    if (!documensoApiKey) {
+      throw new Error("Documenso API key not configured for organisation");
+    }
+
     // 4️⃣ Generate PDF ONCE
     const pdf = await generateFormSubmissionPdf({
       title: form.name,
@@ -85,6 +103,7 @@ export class FormSigningService {
       pdf,
       signerEmail,
       signerName: signerName,
+      apiKey: documensoApiKey,
     });
 
     if (!doc || typeof doc.id !== "number") {
@@ -93,6 +112,7 @@ export class FormSigningService {
 
     await DocumensoService.distributeDocument({
       documentId: doc.id,
+      apiKey: documensoApiKey,
     });
 
     // 7️⃣ Persist signing state
@@ -131,9 +151,24 @@ export class FormSigningService {
     }
 
     // 3️⃣ Fetch signed document from Documenso
-    const signedPdf = await DocumensoService.downloadSignedDocument(
-      Number.parseInt(submission.signing.documentId, 10),
+    const form = await FormModel.findById(submission.formId).lean();
+
+    if (!form) {
+      throw new Error("Form not found");
+    }
+
+    const documensoApiKey = await DocumensoService.resolveOrganisationApiKey(
+      form.orgId,
     );
+
+    if (!documensoApiKey) {
+      throw new Error("Documenso API key not configured for organisation");
+    }
+
+    const signedPdf = await DocumensoService.downloadSignedDocument({
+      documentId: Number.parseInt(submission.signing.documentId, 10),
+      apiKey: documensoApiKey,
+    });
 
     if (!signedPdf) {
       throw new Error("Unable to download signed document");

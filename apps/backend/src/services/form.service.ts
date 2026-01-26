@@ -22,7 +22,10 @@ import {
 } from "@yosemite-crew/types";
 import { buildPdfViewModel, renderPdf } from "./formPDF.service";
 import AppointmentModel from "src/models/appointment";
+import OrganizationModel from "src/models/organization";
 import { DocumensoService, SignedDocument } from "./documenso.service";
+import { AuditTrailService } from "./audit-trail.service";
+import UserModel from "src/models/user";
 
 export class FormServiceError extends Error {
   constructor(
@@ -56,6 +59,75 @@ const normalizeObjectId = (id: NormalizableObjectId): string => {
   }
 
   throw new FormServiceError("Invalid ObjectId", 400);
+};
+
+const buildDisplayName = (
+  profile?: { firstName?: string; lastName?: string } | null,
+): string | null => {
+  if (!profile) return null;
+  const parts = [profile.firstName, profile.lastName].filter(Boolean);
+  return parts.length ? parts.join(" ") : null;
+};
+
+const resolveUserNameMap = async (userIds: string[]) => {
+  const uniqueIds = [...new Set(userIds.filter(Boolean))];
+  if (!uniqueIds.length) return new Map<string, string>();
+
+  const users = await UserModel.find(
+    { userId: { $in: uniqueIds } },
+    { userId: 1, firstName: 1, lastName: 1 },
+  ).lean();
+
+  const map = new Map<string, string>();
+  for (const user of users) {
+    const displayName = buildDisplayName(user);
+    if (displayName) {
+      map.set(user.userId, displayName);
+    }
+  }
+
+  return map;
+};
+
+const applyUserNamesToForm = <T extends { createdBy: string; updatedBy: string }>(
+  form: T,
+  nameMap: Map<string, string>,
+) => ({
+  ...form,
+  createdBy: nameMap.get(form.createdBy) ?? form.createdBy,
+  updatedBy: nameMap.get(form.updatedBy) ?? form.updatedBy,
+});
+
+type OrganizationType = "HOSPITAL" | "BREEDER" | "BOARDER" | "GROOMER";
+
+const ORG_TYPE_CACHE_TTL_MS = 5 * 60 * 1000;
+const orgTypeCache = new Map<
+  string,
+  { type: OrganizationType; expiresAt: number }
+>();
+
+const resolveOrganizationType = async (
+  organisationId: string,
+): Promise<OrganizationType | null> => {
+  const cached = orgTypeCache.get(organisationId);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.type;
+  }
+
+  const organisation = await OrganizationModel.findById(organisationId)
+    .select({ type: 1 })
+    .lean();
+
+  if (!organisation?.type) {
+    return null;
+  }
+
+  orgTypeCache.set(organisationId, {
+    type: organisation.type,
+    expiresAt: Date.now() + ORG_TYPE_CACHE_TTL_MS,
+  });
+
+  return organisation.type;
 };
 
 // Helpers
@@ -95,10 +167,27 @@ const syncFormFields = async (formId: string, schema: FormField[]) => {
 };
 
 export const FormService = {
+  hasSignatureField(fields?: FormField[]): boolean {
+    if (!fields?.length) return false;
+    return fields.some((field) => {
+      if (field.type === "signature") return true;
+      if (field.type === "group") {
+        return FormService.hasSignatureField(field.fields);
+      }
+      return false;
+    });
+  },
+
   async create(orgId: string, fhir: FormRequestDTO, userId: string) {
     const oid = ensureObjectId(orgId, "orgId");
 
     const internal: Form = fromFormRequestDTO(fhir);
+    if (
+      FormService.hasSignatureField(internal.schema) &&
+      !internal.requiredSigner
+    ) {
+      throw new FormServiceError("requiredSigner is required", 400);
+    }
     internal.orgId = oid.toString();
     internal.createdBy = userId;
     internal.updatedBy = userId;
@@ -106,12 +195,14 @@ export const FormService = {
 
     const doc = await FormModel.create({
       orgId: oid,
+      businessType: internal.businessType,
       name: internal.name,
       category: internal.category,
       description: internal.description,
       visibilityType: internal.visibilityType,
       serviceId: internal.serviceId,
       speciesFilter: internal.speciesFilter,
+      requiredSigner: internal.requiredSigner,
       status: "draft",
       schema: internal.schema,
       createdBy: userId,
@@ -120,19 +211,22 @@ export const FormService = {
 
     await syncFormFields(doc._id.toString(), internal.schema);
 
-    return toFormResponseDTO(doc.toObject());
+    const form = doc.toObject();
+    const nameMap = await resolveUserNameMap([form.createdBy, form.updatedBy]);
+    return toFormResponseDTO(applyUserNamesToForm(form, nameMap));
   },
 
   async getFormForAdmin(orgId: string, formId: string) {
     const oid = ensureObjectId(orgId, "orgId");
     const fid = ensureObjectId(formId, "formId");
 
-    const doc = await FormModel.findOne({ _id: fid, orgId: oid });
+    const doc = await FormModel.findOne({ _id: fid, orgId: oid }).lean();
     if (!doc) {
       throw new FormServiceError("Form not found", 404);
     }
 
-    return toFormResponseDTO(doc.toObject());
+    const nameMap = await resolveUserNameMap([doc.createdBy, doc.updatedBy]);
+    return toFormResponseDTO(applyUserNamesToForm(doc, nameMap));
   },
 
   async getFormForUser(formId: string) {
@@ -151,12 +245,14 @@ export const FormService = {
     const fhirForm = {
       _id: fid.toString(),
       orgId: "", // admin-only field; not needed for client rendering
+      businessType: form.businessType,
       name: "",
       category: "",
       description: "",
       visibilityType: form.visibilityType,
       serviceId: undefined,
       speciesFilter: [],
+      requiredSigner: form.requiredSigner,
       status: form.status,
       schema: version.schemaSnapshot,
       createdBy: "",
@@ -183,6 +279,12 @@ export const FormService = {
       throw new FormServiceError("Form is not part of your organisation", 400);
 
     const internal: Form = fromFormRequestDTO(fhir);
+    if (
+      FormService.hasSignatureField(internal.schema) &&
+      !internal.requiredSigner
+    ) {
+      throw new FormServiceError("requiredSigner is required", 400);
+    }
 
     existing.name = internal.name;
     existing.category = internal.category;
@@ -190,6 +292,8 @@ export const FormService = {
     existing.visibilityType = internal.visibilityType;
     existing.serviceId = internal.serviceId;
     existing.speciesFilter = internal.speciesFilter;
+    existing.businessType = internal.businessType;
+    existing.requiredSigner = internal.requiredSigner;
     (existing.schema as unknown as FormField[]) = internal.schema;
     existing.updatedBy = userId;
     existing.status = "draft"; // IMPORTANT
@@ -198,7 +302,9 @@ export const FormService = {
 
     await syncFormFields(formId, internal.schema);
 
-    return existing.toObject();
+    const form = existing.toObject();
+    const nameMap = await resolveUserNameMap([form.createdBy, form.updatedBy]);
+    return applyUserNamesToForm(form, nameMap);
   },
 
   async publish(formId: string, userId: string) {
@@ -258,10 +364,35 @@ export const FormService = {
   },
 
   async submitFHIR(response: FormSubmissionRequestDTO, schema?: FormField[]) {
-    const submission: FormSubmission = fromFormSubmissionRequestDTO(
+    const initialSubmission: FormSubmission = fromFormSubmissionRequestDTO(
       response,
       schema,
     );
+
+    let resolvedSchema = schema;
+    if (!resolvedSchema && initialSubmission.formId) {
+      const version = await FormVersionModel.findOne({
+        formId: ensureObjectId(initialSubmission.formId, "formId"),
+        version: initialSubmission.formVersion,
+      })
+        .select("schemaSnapshot")
+        .lean();
+      resolvedSchema = version?.schemaSnapshot;
+    }
+
+    const submission: FormSubmission = resolvedSchema
+      ? fromFormSubmissionRequestDTO(response, resolvedSchema)
+      : initialSubmission;
+
+    const signingRequired = FormService.hasSignatureField(resolvedSchema);
+    const signing =
+      signingRequired && !submission.signing
+        ? {
+            required: true,
+            status: "NOT_STARTED",
+            provider: "DOCUMENSO",
+          }
+        : submission.signing;
 
     const created = await FormSubmissionModel.create({
       formId: submission.formId,
@@ -272,7 +403,42 @@ export const FormService = {
       submittedBy: submission.submittedBy,
       answers: submission.answers,
       submittedAt: submission.submittedAt,
+      signing,
     });
+
+    if (submission.appointmentId) {
+      const appointmentObjectId = ensureObjectId(
+        submission.appointmentId,
+        "appointmentId",
+      );
+      await AppointmentModel.updateOne(
+        { _id: appointmentObjectId },
+        { $addToSet: { formIds: submission.formId.toString() } },
+      );
+    }
+
+    if (submission.companionId) {
+      const form = await FormModel.findById(submission.formId)
+        .select("orgId name")
+        .lean();
+
+      if (form?.orgId) {
+        await AuditTrailService.recordSafely({
+          organisationId: form.orgId.toString(),
+          companionId: submission.companionId,
+          eventType: "FORM_SUBMITTED",
+          actorType: submission.parentId ? "PARENT" : "SYSTEM",
+          actorId: submission.parentId ?? null,
+          entityType: "FORM",
+          entityId: submission.formId.toString(),
+          metadata: {
+            submissionId: created._id.toString(),
+            appointmentId: submission.appointmentId,
+            formName: form.name,
+          },
+        });
+      }
+    }
 
     return created.toObject();
   },
@@ -330,9 +496,15 @@ export const FormService = {
 
   async listFormsForOrganisation(orgId: string) {
     const oid = ensureObjectId(orgId, "orgId");
-    const docs = await FormModel.find({ orgId: oid });
+    const docs = await FormModel.find({ orgId: oid }).lean();
 
-    return docs.map((doc) => toFormResponseDTO(doc));
+    const nameMap = await resolveUserNameMap(
+      docs.flatMap((doc) => [doc.createdBy, doc.updatedBy]),
+    );
+
+    return docs.map((doc) =>
+      toFormResponseDTO(applyUserNamesToForm(doc, nameMap)),
+    );
   },
 
   async getSOAPNotesByAppointment(
@@ -362,13 +534,34 @@ export const FormService = {
 
     type SoapNoteGroup = Record<SoapNoteType, SoapNoteEntry[]>;
 
-    const submissions = (await FormSubmissionModel.find({ appointmentId })
+    const appointmentObjectId = ensureObjectId(
+      appointmentId,
+      "appointmentId",
+    ).toString();
+    const appointment = await AppointmentModel.findById(appointmentObjectId)
+      .select({ organisationId: 1 })
+      .lean();
+    if (!appointment) {
+      throw new FormServiceError("Appointment not found", 404);
+    }
+
+    const orgType = await resolveOrganizationType(appointment.organisationId);
+    if (orgType && orgType !== "HOSPITAL") {
+      return {
+        appointmentId: appointmentObjectId,
+        soapNotes: {},
+      };
+    }
+
+    const submissions = (await FormSubmissionModel.find({
+      appointmentId: appointmentObjectId,
+    })
       .sort({ submittedAt: -1 })
       .lean()) as unknown as SubmissionLean[];
 
     if (!submissions.length) {
       return {
-        appointmentId,
+        appointmentId: appointmentObjectId,
         soapNotes: {
           Subjective: [],
           Objective: [],
@@ -445,7 +638,7 @@ export const FormService = {
     }
 
     return {
-      appointmentId,
+      appointmentId: appointmentObjectId,
       soapNotes: grouped,
     };
   },
@@ -491,6 +684,7 @@ export const FormService = {
     const clientForm: Form = {
       _id: form._id.toString(),
       orgId: "",
+      businessType: form.businessType,
       name: form.name,
       category: form.category,
       description: form.description,
@@ -542,6 +736,7 @@ export const FormService = {
     appointmentId: string;
     serviceId?: string;
     species?: string;
+    isPMS?: boolean
   }) {
     type LeanForm = Omit<Form, "_id"> & { _id: Types.ObjectId };
     type VersionAgg = Pick<
@@ -563,16 +758,72 @@ export const FormService = {
       throw new FormServiceError("Appointment not found", 404);
     }
 
-    const formIds = (appointment.formIds ?? []).map(String);
-    if (!formIds.length) {
-      return { appointmentId, items: [] };
+    const orgType = await resolveOrganizationType(appointment.organisationId);
+
+    const attachedFormIds = (appointment.formIds ?? []).map(String);
+    const submissionFormIds = (await FormSubmissionModel.distinct("formId", {
+      appointmentId,
+    })) as NormalizableObjectId[];
+    const submissionFormIdStrings = submissionFormIds.map((id) =>
+      normalizeObjectId(id),
+    );
+
+    const formIdsFromAppointment = new Set<string>([
+      ...attachedFormIds,
+      ...submissionFormIdStrings,
+    ]);
+
+    const formsById = formIdsFromAppointment.size
+      ? await FormModel.find({
+          _id: { $in: [...formIdsFromAppointment] },
+          status: "published",
+        }).lean<LeanForm[]>()
+      : [];
+
+    const soapCategories = [
+      "SOAP-Subjective",
+      "SOAP-Objective",
+      "SOAP-Assessment",
+      "SOAP-Plan",
+      "Discharge",
+    ];
+
+    const templateForms: LeanForm[] = [];
+    if (orgType) {
+      const templateFilter: Record<string, unknown> = {
+        orgId: appointment.organisationId,
+        status: "published",
+      };
+
+      if (orgType === "HOSPITAL") {
+        templateFilter.category = { $in: soapCategories };
+      } else {
+        templateFilter.businessType = orgType;
+        templateFilter.category = { $nin: soapCategories };
+      }
+
+      if (params.serviceId) {
+        templateFilter.serviceId = { $in: [params.serviceId] };
+      }
+
+      if (params.species) {
+        templateFilter.speciesFilter = { $in: [params.species] };
+      }
+
+      templateForms.push(
+        ...(await FormModel.find(templateFilter).lean<LeanForm[]>()),
+      );
     }
 
-    // 1️⃣ Load forms
-    const forms = await FormModel.find({
-      _id: { $in: formIds },
-      status: "published",
-    }).lean<LeanForm[]>();
+    const formMap = new Map<string, LeanForm>();
+    for (const form of [...formsById, ...templateForms]) {
+      formMap.set(form._id.toString(), form);
+    }
+
+    const forms = [...formMap.values()];
+    if (!forms.length) {
+      return { appointmentId, items: [] };
+    }
 
     // 2️⃣ Load latest form versions
     const versions = await FormVersionModel.aggregate<VersionAgg>([
@@ -614,8 +865,9 @@ export const FormService = {
     );
 
     // 4️⃣ Build FHIR response
+    const includeQuestionnaire = !params.isPMS;
     const items: {
-      questionnaire: ReturnType<typeof toFHIRQuestionnaire>;
+      questionnaire?: ReturnType<typeof toFHIRQuestionnaire>;
       questionnaireResponse?: ReturnType<typeof toFHIRQuestionnaireResponse>;
       status: "completed" | "pending";
     }[] = [];
@@ -626,10 +878,12 @@ export const FormService = {
       if (!version) continue;
 
       // FHIR Questionnaire
-      const questionnaire = toFHIRQuestionnaire({
-        ...form,
-        _id: form._id.toString(),
-      });
+      const questionnaire = includeQuestionnaire
+        ? toFHIRQuestionnaire({
+            ...form,
+            _id: form._id.toString(),
+          })
+        : undefined;
 
       // Optional FHIR QuestionnaireResponse
       const submission = submissionMap.get(formId);
@@ -640,9 +894,16 @@ export const FormService = {
         let signedPdfUrl: SignedDocument | undefined;
 
         if (submission.signing?.documentId) {
-          signedPdfUrl = await DocumensoService.downloadSignedDocument(
-            Number.parseInt(submission.signing.documentId, 10),
+          const documensoApiKey = await DocumensoService.resolveOrganisationApiKey(
+            form.orgId,
           );
+
+          if (documensoApiKey) {
+            signedPdfUrl = await DocumensoService.downloadSignedDocument({
+              documentId: Number.parseInt(submission.signing.documentId, 10),
+              apiKey: documensoApiKey,
+            });
+          }
         }
 
         questionnaireResponse = toFHIRQuestionnaireResponse(
@@ -670,7 +931,7 @@ export const FormService = {
       }
 
       items.push({
-        questionnaire,
+        ...(includeQuestionnaire ? { questionnaire } : {}),
         questionnaireResponse,
         status: questionnaireResponse ? "completed" : "pending",
       });

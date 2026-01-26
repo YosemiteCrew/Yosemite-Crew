@@ -604,8 +604,9 @@ export const OrganizationService = {
   },
 
   async deleteById(id: string) {
-    const result = await OrganizationModel.findOneAndDelete(
+    const result = await OrganizationModel.findOneAndUpdate(
       resolveIdQuery(id),
+      { $set: { isActive: false } },
       { sanitizeFilter: true },
     );
     if (result) {

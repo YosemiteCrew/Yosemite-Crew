@@ -199,30 +199,9 @@ describe("InvoiceController", () => {
       discountPercent: 0,
     };
 
-    it("should 400 if currency is missing/empty", async () => {
-      req.params = { appointmentId: "apt1" };
-      req.body = { items: [validItem], currency: "" }; // empty currency
-
-      await InvoiceController.addChargesToAppointment(
-        req as any,
-        res as Response,
-      );
-      expect(statusMock).toHaveBeenCalledWith(400);
-      expect(jsonMock).toHaveBeenCalledWith({
-        message: "Currency is required",
-      });
-
-      req.body = { items: [validItem] }; // missing currency
-      await InvoiceController.addChargesToAppointment(
-        req as any,
-        res as Response,
-      );
-      expect(statusMock).toHaveBeenCalledWith(400);
-    });
-
     it("should 400 if items array is missing/empty", async () => {
       req.params = { appointmentId: "apt1" };
-      req.body = { currency: "USD", items: [] }; // empty array
+      req.body = { items: [] }; // empty array
 
       await InvoiceController.addChargesToAppointment(
         req as any,
@@ -231,7 +210,7 @@ describe("InvoiceController", () => {
       expect(statusMock).toHaveBeenCalledWith(400);
       expect(jsonMock).toHaveBeenCalledWith({ message: "Items are required" });
 
-      req.body = { currency: "USD" }; // missing items
+      req.body = {}; // missing items
       await InvoiceController.addChargesToAppointment(
         req as any,
         res as Response,
@@ -242,7 +221,7 @@ describe("InvoiceController", () => {
     // --- Validation Helper Coverage (isInvoiceItem) ---
 
     it("should 400 if item in array is not an object", async () => {
-      req.body = { currency: "USD", items: [null] };
+      req.body = { items: [null] };
       await InvoiceController.addChargesToAppointment(
         req as any,
         res as Response,
@@ -254,7 +233,7 @@ describe("InvoiceController", () => {
       const base = { ...validItem };
 
       const testInvalid = async (override: object) => {
-        req.body = { currency: "USD", items: [{ ...base, ...override }] };
+        req.body = { items: [{ ...base, ...override }] };
         await InvoiceController.addChargesToAppointment(
           req as any,
           res as Response,
@@ -278,7 +257,7 @@ describe("InvoiceController", () => {
 
     it("should success (200) with valid payload", async () => {
       req.params = { appointmentId: "apt1" };
-      req.body = { currency: "USD", items: [validItem] };
+      req.body = { items: [validItem] };
 
       mockedInvoiceService.addChargesToAppointment.mockResolvedValue({
         id: "inv1",
@@ -292,14 +271,13 @@ describe("InvoiceController", () => {
       expect(mockedInvoiceService.addChargesToAppointment).toHaveBeenCalledWith(
         "apt1",
         [validItem],
-        "USD",
       );
       expect(statusMock).toHaveBeenCalledWith(200);
     });
 
     it("should handle Service Error (custom status)", async () => {
       req.params = { appointmentId: "apt1" };
-      req.body = { currency: "USD", items: [validItem] };
+      req.body = { items: [validItem] };
 
       mockServiceError("addChargesToAppointment", 422, "Unprocessable");
 
@@ -314,7 +292,7 @@ describe("InvoiceController", () => {
 
     it("should handle Generic Error (500)", async () => {
       req.params = { appointmentId: "apt1" };
-      req.body = { currency: "USD", items: [validItem] };
+      req.body = { items: [validItem] };
 
       mockGenericError("addChargesToAppointment");
 

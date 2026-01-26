@@ -148,7 +148,7 @@ const renderBaseEmail = (
                               </p>
                               <p style="margin:0 0 6px 0; font-size:14px;">
                                 <a
-                                  href="https://github.com/YosemiteCrew/Yosemite-Crew/"
+                                  href="https://www.yosemitecrew.com/developers/signup"
                                   target="_blank"
                                   style="color:#2b2b2b; text-decoration:none;"
                                 >
@@ -172,7 +172,7 @@ const renderBaseEmail = (
                               </p>
                               <p style="margin:0 0 6px 0; font-size:14px;">
                                 <a
-                                  href="https://discord.gg/4zDVekEz"
+                                  href=""https://discord.gg/yosemitecrew"
                                   target="_blank"
                                   style="color:#2b2b2b; text-decoration:none;"
                                 >
@@ -761,6 +761,146 @@ Support: ${supportEmail}
     };
   });
 
+/* ---------- Appointment Payment Checkout ---------- */
+
+export interface AppointmentPaymentCheckoutTemplateData {
+  parentName?: string;
+  companionName?: string;
+  organisationName?: string;
+  appointmentTime?: string;
+  amountText?: string;
+  checkoutUrl: string;
+  ctaUrl?: string;
+  ctaLabel?: string;
+  supportEmail?: string;
+}
+
+const buildAppointmentPaymentCheckoutTemplate =
+  createEmailTemplate<AppointmentPaymentCheckoutTemplateData>((data) => {
+    const parentName = data.parentName?.trim() || "there";
+    const organisationName = data.organisationName?.trim() || "Yosemite Crew";
+    const supportEmail = data.supportEmail ?? "support@yosemitecrew.com";
+    const actionUrl = data.ctaUrl ?? data.checkoutUrl;
+    const actionLabel = data.ctaLabel?.trim() || "Complete Payment";
+    const actionHtml = actionUrl
+      ? `
+          <table align="center" style="margin:24px auto;">
+            <tr>
+              <td bgcolor="#2563eb" style="border-radius:6px;">
+                <a href="${actionUrl}" style="padding:14px 28px; color:#fff; font-weight:bold;">
+                  ${actionLabel}
+                </a>
+              </td>
+            </tr>
+          </table>
+        `
+      : "";
+    const actionText = actionUrl ? `${actionLabel}: ${actionUrl}` : "";
+    const companionLine = data.companionName
+      ? `<p><strong>Companion:</strong> ${data.companionName}</p>`
+      : "";
+    const appointmentLine = data.appointmentTime
+      ? `<p><strong>Appointment:</strong> ${data.appointmentTime}</p>`
+      : "";
+    const amountLine = data.amountText
+      ? `<p><strong>Total:</strong> ${data.amountText}</p>`
+      : "";
+
+    return {
+      subject: `Complete your payment for ${organisationName}`,
+      contentHtml: `
+      <p>Hi ${parentName},</p>
+      <p>
+        Your appointment has been booked with <strong>${organisationName}</strong>.
+        Please complete payment to confirm the booking.
+      </p>
+      ${companionLine}
+      ${appointmentLine}
+      ${amountLine}
+      ${actionHtml}
+      <p>If you need help, reach out at <a href="mailto:${supportEmail}">${supportEmail}</a>.</p>
+    `,
+      textBody: `
+Hi ${parentName},
+
+Your appointment has been booked with ${organisationName}. Please complete payment to confirm the booking.
+${data.companionName ? `Companion: ${data.companionName}` : ""}
+${data.appointmentTime ? `Appointment: ${data.appointmentTime}` : ""}
+${data.amountText ? `Total: ${data.amountText}` : ""}
+${actionText}
+
+Support: ${supportEmail}
+      `.trim(),
+    };
+  });
+
+/* ---------- Invoice Payment Checkout ---------- */
+
+export interface InvoicePaymentCheckoutTemplateData {
+  parentName?: string;
+  organisationName?: string;
+  invoiceId?: string;
+  amountText?: string;
+  checkoutUrl: string;
+  ctaUrl?: string;
+  ctaLabel?: string;
+  supportEmail?: string;
+}
+
+const buildInvoicePaymentCheckoutTemplate =
+  createEmailTemplate<InvoicePaymentCheckoutTemplateData>((data) => {
+    const parentName = data.parentName?.trim() || "there";
+    const organisationName = data.organisationName?.trim() || "Yosemite Crew";
+    const supportEmail = data.supportEmail ?? "support@yosemitecrew.com";
+    const actionUrl = data.ctaUrl ?? data.checkoutUrl;
+    const actionLabel = data.ctaLabel?.trim() || "Pay Invoice";
+    const actionHtml = actionUrl
+      ? `
+          <table align="center" style="margin:24px auto;">
+            <tr>
+              <td bgcolor="#2563eb" style="border-radius:6px;">
+                <a href="${actionUrl}" style="padding:14px 28px; color:#fff; font-weight:bold;">
+                  ${actionLabel}
+                </a>
+              </td>
+            </tr>
+          </table>
+        `
+      : "";
+    const actionText = actionUrl ? `${actionLabel}: ${actionUrl}` : "";
+    const invoiceLine = data.invoiceId
+      ? `<p><strong>Invoice:</strong> ${data.invoiceId}</p>`
+      : "";
+    const amountLine = data.amountText
+      ? `<p><strong>Total:</strong> ${data.amountText}</p>`
+      : "";
+
+    return {
+      subject: `Invoice payment for ${organisationName}`,
+      contentHtml: `
+      <p>Hi ${parentName},</p>
+      <p>
+        A new invoice is ready from <strong>${organisationName}</strong>.
+        Please complete payment using the link below.
+      </p>
+      ${invoiceLine}
+      ${amountLine}
+      ${actionHtml}
+      <p>If you need help, reach out at <a href="mailto:${supportEmail}">${supportEmail}</a>.</p>
+    `,
+      textBody: `
+Hi ${parentName},
+
+A new invoice is ready from ${organisationName}. Please complete payment using the link below.
+${data.invoiceId ? `Invoice: ${data.invoiceId}` : ""}
+${data.amountText ? `Total: ${data.amountText}` : ""}
+${actionText}
+
+Support: ${supportEmail}
+      `.trim(),
+    };
+  });
+
 /* ---------- Permissions Updated ---------- */
 
 export interface PermissionsUpdatedTemplateData {
@@ -827,6 +967,8 @@ type EmailTemplateRegistry = {
   specialityHeadAssigned: typeof buildSpecialityHeadAssignedTemplate;
   freePlanLimitReached: typeof buildFreePlanLimitReachedTemplate;
   permissionsUpdated: typeof buildPermissionsUpdatedTemplate;
+  appointmentPaymentCheckout: typeof buildAppointmentPaymentCheckoutTemplate;
+  invoicePaymentCheckout: typeof buildInvoicePaymentCheckoutTemplate;
 };
 
 export const emailTemplates: EmailTemplateRegistry = {
@@ -838,6 +980,8 @@ export const emailTemplates: EmailTemplateRegistry = {
   specialityHeadAssigned: buildSpecialityHeadAssignedTemplate,
   freePlanLimitReached: buildFreePlanLimitReachedTemplate,
   permissionsUpdated: buildPermissionsUpdatedTemplate,
+  appointmentPaymentCheckout: buildAppointmentPaymentCheckoutTemplate,
+  invoicePaymentCheckout: buildInvoicePaymentCheckoutTemplate,
 };
 
 export type EmailTemplateId = keyof typeof emailTemplates;
