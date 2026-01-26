@@ -1,6 +1,8 @@
 import { Documenso } from "@documenso/sdk-typescript";
 import * as errors from "@documenso/sdk-typescript/models/errors/index.js";
 import axios from "axios";
+import { Types } from "mongoose";
+import OrganizationModel from "src/models/organization";
 import logger from "src/utils/logger";
 
 // Replace with your self-hosted instance's URL, e.g., https://your-documenso-domain.com
@@ -9,7 +11,7 @@ const API_KEY = process.env["DOCUMENSO_API_KEY"] ?? "";
 const PUBLIC_BASE_URL = process.env["DOCUMENSO_HOST_URL"] ?? "";
 const EXTERNAL_AUTH_SECRET = process.env["DOCUMENSO_EXTERNAL_AUTH_SECRET"] ?? "";
 
-let documensoClient: Documenso | undefined;
+const documensoClients = new Map<string, Documenso>();
 
 const getBaseUrl = () => {
   if (!BASE_URL) {
@@ -46,13 +48,45 @@ const getExternalAuthSecret = () => {
   return EXTERNAL_AUTH_SECRET;
 };
 
-const getDocumensoClient = () => {
-  documensoClient ??= new Documenso({
-      apiKey: API_KEY, // Ensure API key is set in environment variables
-      serverURL: getBaseUrl(),
-    });
+const getDocumensoClient = (apiKeyOverride?: string) => {
+  const apiKey = apiKeyOverride ?? API_KEY;
 
-  return documensoClient;
+  if (!apiKey) {
+    throw new Error("DOCUMENSO_API_KEY is not set");
+  }
+
+  const cached = documensoClients.get(apiKey);
+
+  if (cached) {
+    return cached;
+  }
+
+  const client = new Documenso({
+    apiKey,
+    serverURL: getBaseUrl(),
+  });
+
+  documensoClients.set(apiKey, client);
+
+  return client;
+};
+
+const buildOrganizationLookupQuery = (reference: string) => {
+  const queries: Array<Record<string, string>> = [];
+
+  if (Types.ObjectId.isValid(reference)) {
+    queries.push({ _id: reference });
+  }
+
+  if (/^[A-Za-z0-9\-.]{1,64}$/.test(reference)) {
+    queries.push({ fhirId: reference });
+  }
+
+  if (!queries.length) {
+    return null;
+  }
+
+  return queries.length === 1 ? queries[0] : { $or: queries };
 };
 
 async function uploadPdfBuffer(pdf: Buffer, uploadUrl: string) {
@@ -83,13 +117,15 @@ export class DocumensoService {
     pdf,
     signerEmail,
     signerName,
+    apiKey,
   }: {
     pdf: Buffer;
     signerEmail: string;
     signerName?: string;
+    apiKey?: string;
   }) {
     try {
-      const documenso = getDocumensoClient();
+      const documenso = getDocumensoClient(apiKey);
       const createDocumentResponse = await documenso.documents.createV0({
         title: "Form Submission",
         recipients: [
@@ -127,9 +163,15 @@ export class DocumensoService {
     }
   }
 
-  static async distributeDocument({ documentId }: { documentId: number }) {
+  static async distributeDocument({
+    documentId,
+    apiKey,
+  }: {
+    documentId: number;
+    apiKey?: string;
+  }) {
     try {
-      const documenso = getDocumensoClient();
+      const documenso = getDocumensoClient(apiKey);
       const distributeResponse = await documenso.documents.distribute({
         documentId: documentId,
       });
@@ -146,11 +188,21 @@ export class DocumensoService {
     }
   }
 
-  static async downloadSignedDocument(
-    documentId: number,
-  ): Promise<SignedDocument | undefined> {
+  static async downloadSignedDocument({
+    documentId,
+    apiKey,
+  }: {
+    documentId: number;
+    apiKey?: string;
+  }): Promise<SignedDocument | undefined> {
     try {
       const baseUrl = getBaseUrl();
+      const resolvedApiKey = apiKey ?? API_KEY;
+
+      if (!resolvedApiKey) {
+        throw new Error("DOCUMENSO_API_KEY is not set");
+      }
+
       const downloadResponse = await axios.get(
         `${baseUrl}/document/${documentId}/download-beta`,
         {
@@ -158,7 +210,7 @@ export class DocumensoService {
             version: "signed",
           },
           headers: {
-            Authorization: API_KEY,
+            Authorization: resolvedApiKey,
           },
         },
       );
@@ -168,6 +220,20 @@ export class DocumensoService {
     } catch (error) {
       logger.error("An unexpected error occurred:", error);
     }
+  }
+
+  static async resolveOrganisationApiKey(organisationId: string) {
+    const query = buildOrganizationLookupQuery(organisationId);
+
+    if (!query) {
+      throw new Error("Invalid organisation id");
+    }
+
+    const organisation = await OrganizationModel.findOne(query, {
+      documensoApiKey: 1,
+    }).lean();
+
+    return organisation?.documensoApiKey ?? null;
   }
 
   static async generateExternalRedirectUrl({
@@ -203,7 +269,6 @@ export class DocumensoService {
           },
         },
       );
-
       const data = response.data as { redirectUrl?: string };
 
       if (!data?.redirectUrl) {

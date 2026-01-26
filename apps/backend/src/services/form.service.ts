@@ -879,9 +879,16 @@ export const FormService = {
         let signedPdfUrl: SignedDocument | undefined;
 
         if (submission.signing?.documentId) {
-          signedPdfUrl = await DocumensoService.downloadSignedDocument(
-            Number.parseInt(submission.signing.documentId, 10),
+          const documensoApiKey = await DocumensoService.resolveOrganisationApiKey(
+            form.orgId,
           );
+
+          if (documensoApiKey) {
+            signedPdfUrl = await DocumensoService.downloadSignedDocument({
+              documentId: Number.parseInt(submission.signing.documentId, 10),
+              apiKey: documensoApiKey,
+            });
+          }
         }
 
         questionnaireResponse = toFHIRQuestionnaireResponse(
