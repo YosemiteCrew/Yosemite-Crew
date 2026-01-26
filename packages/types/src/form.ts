@@ -80,12 +80,15 @@ export interface Form {
   _id: string;
   orgId: string;
 
+  businessType?: "HOSPITAL" | "BREEDER" | "BOARDER" | "GROOMER";
+
   name: string;
   category: string;
   description?: string;
   visibilityType: "Internal" | "External";
   serviceId?: string | string[];
   speciesFilter?: string[];
+  requiredSigner?: "CLIENT" | "VET";
 
   status: "draft" | "published" | "archived";
 
@@ -154,6 +157,10 @@ const FORM_CATEGORY_EXTENSION_URL =
   "https://yosemitecrew.com/fhir/StructureDefinition/form-category";
 const FORM_SPECIES_FILTER_URL =
   "https://yosemitecrew.com/fhir/StructureDefinition/form-species-filter";
+const FORM_BUSINESS_TYPE_URL =
+  "https://yosemitecrew.com/fhir/StructureDefinition/form-business-type";
+const FORM_REQUIRED_SIGNER_URL =
+  "https://yosemitecrew.com/fhir/StructureDefinition/form-required-signer";
 const FORM_CREATED_BY_URL =
   "https://yosemitecrew.com/fhir/StructureDefinition/form-created-by";
 const FORM_UPDATED_BY_URL =
@@ -340,6 +347,14 @@ const buildFormExtensions = (form: Form): Extension[] | undefined => {
       ex.push({ url: FORM_SPECIES_FILTER_URL, valueString: sf })
     );
 
+  if (form.businessType) {
+    ex.push({ url: FORM_BUSINESS_TYPE_URL, valueString: form.businessType });
+  }
+
+  if (form.requiredSigner) {
+    ex.push({ url: FORM_REQUIRED_SIGNER_URL, valueString: form.requiredSigner });
+  }
+
   if (form.createdBy)
     ex.push({ url: FORM_CREATED_BY_URL, valueString: form.createdBy });
 
@@ -507,6 +522,12 @@ export const fromFHIRQuestionnaire = (q: Questionnaire): Form => {
       getFormExtensionValue(ex, FORM_CATEGORY_EXTENSION_URL) ||
       q.code?.[0]?.code ||
       "",
+    businessType: getFormExtensionValue(ex, FORM_BUSINESS_TYPE_URL) as
+      | Form["businessType"]
+      | undefined,
+    requiredSigner: getFormExtensionValue(ex, FORM_REQUIRED_SIGNER_URL) as
+      | Form["requiredSigner"]
+      | undefined,
     description: q.description,
     visibilityType:
       (getFormExtensionValue(ex, FORM_VISIBILITY_URL) as Form["visibilityType"]) ||

@@ -40,7 +40,7 @@ jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
 
 jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
   __esModule: true,
-  default: ({ placeholder, defaultOption, onSelect }: any) => (
+  default: ({ placeholder, defaultOption, onSelect, error }: any) => (
     <div data-testid={`dropdown-${placeholder}`}>
       <span data-testid={`dropdown-value-${placeholder}`}>{defaultOption}</span>
       <button
@@ -49,6 +49,7 @@ jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
       >
         Select
       </button>
+      {error && <span data-testid={`dropdown-error-${placeholder}`}>{error}</span>}
     </div>
   ),
 }));
@@ -87,6 +88,7 @@ describe("Details Component", () => {
     category: "Custom", // Initialized to a valid FormsCategory literal
     description: "",
     usage: "Internal",
+    requiredSigner: undefined,
     species: [],
     services: [],
     schema: [],
@@ -121,6 +123,7 @@ describe("Details Component", () => {
     expect(screen.getByTestId("input-Form name")).toBeInTheDocument();
     expect(screen.getByTestId("input-Description")).toBeInTheDocument();
     expect(screen.getByTestId("dropdown-Category")).toBeInTheDocument();
+    expect(screen.getByTestId("dropdown-Signed by")).toBeInTheDocument();
     expect(
       screen.getByTestId("accordion-Usage and visibility")
     ).toBeInTheDocument();
@@ -303,6 +306,9 @@ describe("Details Component", () => {
       "Description is required"
     );
     expect(screen.getByText("Select at least one species")).toBeInTheDocument();
+    expect(screen.getByTestId("dropdown-error-Signed by")).toHaveTextContent(
+      "Signed by is required"
+    );
 
     expect(mockOnNext).not.toHaveBeenCalled();
   });
@@ -333,6 +339,7 @@ describe("Details Component", () => {
       name: "Valid Name",
       description: "Desc",
       category: "Consent form",
+      requiredSigner: "VET",
       services: ["A"],
       species: ["Dog"],
       usage: "Internal",

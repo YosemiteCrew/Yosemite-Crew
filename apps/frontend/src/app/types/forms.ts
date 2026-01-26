@@ -58,6 +58,25 @@ export type FormField = BackendFormField & {
   defaultValue?: any;
 };
 
+export type RequiredSigner = BackendForm["requiredSigner"];
+export type RequiredSignerValue = "CLIENT" | "VET" | "";
+
+export const RequiredSignerOptions: Array<{
+  label: string;
+  value: RequiredSignerValue;
+}> = [
+  { label: "No signature required", value: "" },
+  { label: "Pet parent (Client)", value: "CLIENT" },
+  { label: "Service provider (Vet)", value: "VET" },
+];
+
+export const requiredSignerLabel = (value?: RequiredSignerValue): string => {
+  if (value === "") return "No signature required";
+  if (value === "CLIENT") return "Pet parent (Client)";
+  if (value === "VET") return "Service provider (Vet)";
+  return "";
+};
+
 export type FormsProps = {
   _id?: string;
   orgId?: string;
@@ -67,6 +86,7 @@ export type FormsProps = {
   species?: string[];
   category: FormsCategory;
   usage: FormsUsage;
+  requiredSigner?: RequiredSignerValue;
   businessType?: Organisation["type"];
   updatedBy: string;
   lastUpdated: string;

@@ -26,7 +26,10 @@ import { fetchSubmissions } from "@/app/services/soapService";
 import Close from "@/app/components/Icons/Close";
 import { usePermissions } from "@/app/hooks/usePermissions";
 import { PERMISSIONS } from "@/app/utils/permissions";
-import { fetchAppointmentForms } from "@/app/services/appointmentFormsService";
+import {
+  fetchAppointmentForms,
+  linkAppointmentForms,
+} from "@/app/services/appointmentFormsService";
 import { useOrgStore } from "@/app/stores/orgStore";
 import { AppointmentFormEntry } from "@/app/types/appointmentForms";
 import { FormField } from "@/app/types/forms";
@@ -115,6 +118,7 @@ const CustomFormsView = ({
   onSubmission,
   templates,
   onSubmissionUpdate,
+  onFormLinked,
 }: {
   forms: AppointmentFormEntry[];
   loading: boolean;
@@ -127,11 +131,13 @@ const CustomFormsView = ({
     submissionId: string,
     updates: Partial<FormSubmission> & { signatureRequired?: boolean },
   ) => void;
+  onFormLinked?: (entry: AppointmentFormEntry) => void;
 }) => {
   const attributes = useAuthStore.getState().attributes;
   const servicesById = useServiceStore((s) => s.servicesById);
   const [valuesByForm, setValuesByForm] = useState<Record<string, Record<string, any>>>({});
   const [submittingId, setSubmittingId] = useState<string | null>(null);
+  const [sendingId, setSendingId] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [selectedTemplateLabel, setSelectedTemplateLabel] = useState<string>("");
@@ -160,84 +166,134 @@ const CustomFormsView = ({
             minChars={0}
           />
           {selectedTemplateId ? (
-            <div className="border border-card-border rounded-2xl p-4">
-              <FormRenderer
-                fields={templates.find((t) => t.value === selectedTemplateId)?.schema ?? []}
-                values={
-                  valuesByForm[selectedTemplateId] ??
-                  buildInitialValues(templates.find((t) => t.value === selectedTemplateId)?.schema ?? [])
-                }
-                onChange={(id, value) =>
-                  setValuesByForm((prev) => ({
-                    ...prev,
-                    [selectedTemplateId]: {
-                      ...(prev[selectedTemplateId] ??
-                        buildInitialValues(templates.find((t) => t.value === selectedTemplateId)?.schema ?? [])),
-                      [id]: value,
-                    },
-                  }))
-                }
-                readOnly={false}
-              />
-            </div>
+            (() => {
+              const template = templates.find((t) => t.value === selectedTemplateId);
+              const schema = template?.schema ?? [];
+              const isClientSigner = template?.form?.requiredSigner === "CLIENT";
+              return (
+                <div className="border border-card-border rounded-2xl p-4">
+                  <FormRenderer
+                    fields={schema}
+                    values={
+                      valuesByForm[selectedTemplateId] ??
+                      buildInitialValues(schema)
+                    }
+                    onChange={(id, value) =>
+                      setValuesByForm((prev) => ({
+                        ...prev,
+                        [selectedTemplateId]: {
+                          ...(prev[selectedTemplateId] ?? buildInitialValues(schema)),
+                          [id]: value,
+                        },
+                      }))
+                    }
+                    readOnly={isClientSigner}
+                  />
+                </div>
+              );
+            })()
           ) : null}
           {selectedTemplateId ? (
-            <Primary
-              href="#"
-              text={submittingId === selectedTemplateId ? "Saving..." : "Save"}
-              onClick={async () => {
-                if (!activeAppointment?.id || !attributes?.sub || !selectedTemplateId) return;
-                setSubmitError(null);
-                setSubmittingId(selectedTemplateId);
-                const template = templates.find((t) => t.value === selectedTemplateId);
-                if (!template) {
-                  setSubmitError("Template not found");
-                  setSubmittingId(null);
-                  return;
-                }
-                try {
-                  const requiresSignature = hasSignatureField(
-                    template.schema as FormField[],
-                  );
-                  const submission: FormSubmission = {
-                    _id: "",
-                    formVersion: 1,
-                    submittedAt: new Date(),
-                    formId: template.value,
-                    appointmentId: activeAppointment.id,
-                    companionId: (activeAppointment as any).companion?.id ?? "",
-                    parentId: (activeAppointment as any).companion?.parent?.id ?? "",
-                    answers: valuesByForm[selectedTemplateId] ?? buildInitialValues(template.schema),
-                    submittedBy: attributes.sub,
-                  };
-                  const created = await createSubmission(submission);
-                  const submissionWithSigning = requiresSignature
-                    ? {
-                        ...created,
-                        signatureRequired: true,
-                        signing:
-                          created.signing ?? {
-                            required: true,
-                            status: "NOT_STARTED",
-                            provider: "DOCUMENSO",
-                          },
+            (() => {
+              const template = templates.find((t) => t.value === selectedTemplateId);
+              const isClientSigner = template?.form?.requiredSigner === "CLIENT";
+              if (isClientSigner) {
+                return (
+                  <Primary
+                    href="#"
+                    text={sendingId === selectedTemplateId ? "Sending..." : "Send to parent"}
+                    onClick={async () => {
+                      if (!activeAppointment?.id || !selectedTemplateId || !template?.form) return;
+                      setSubmitError(null);
+                      setSendingId(selectedTemplateId);
+                      try {
+                        const orgId = activeAppointment.organisationId;
+                        if (!orgId) {
+                          setSubmitError("Organisation not found.");
+                          setSendingId(null);
+                          return;
+                        }
+                        await linkAppointmentForms({
+                          organisationId: orgId,
+                          appointmentId: activeAppointment.id,
+                          formIds: [template.form._id ?? template.value],
+                        });
+                        onFormLinked?.({
+                          form: template.form,
+                          submission: null,
+                          status: "pending",
+                        });
+                        setSelectedTemplateId("");
+                        setSelectedTemplateLabel("");
+                      } catch (e) {
+                        console.error("Failed to send form to parent", e);
+                        setSubmitError("Failed to send form. Please try again.");
+                      } finally {
+                        setSendingId(null);
                       }
-                    : created;
-                  onSubmission?.({
-                    form: template.form,
-                    submission: submissionWithSigning,
-                    status: "completed",
-                  });
-                  setSelectedTemplateId("");
-                  setSelectedTemplateLabel("");
-                } catch (e) {
-                  console.error("Failed to submit form", e);
-                  setSubmitError("Failed to submit form. Please try again.");
-                } finally {
-                  setSubmittingId(null);
-                }
-              }}
-            />
+                    }}
+                  />
+                );
+              }
+              return (
+                <Primary
+                  href="#"
+                  text={submittingId === selectedTemplateId ? "Saving..." : "Save"}
+                  onClick={async () => {
+                    if (!activeAppointment?.id || !attributes?.sub || !selectedTemplateId) return;
+                    setSubmitError(null);
+                    setSubmittingId(selectedTemplateId);
+                    if (!template) {
+                      setSubmitError("Template not found");
+                      setSubmittingId(null);
+                      return;
+                    }
+                    try {
+                      const requiredSigner = template.form?.requiredSigner ?? "";
+                      const requiresSignature =
+                        requiredSigner === "VET" &&
+                        hasSignatureField(template.schema as FormField[]);
+                      const submission: FormSubmission = {
+                        _id: "",
+                        formVersion: 1,
+                        submittedAt: new Date(),
+                        formId: template.value,
+                        appointmentId: activeAppointment.id,
+                        companionId: (activeAppointment as any).companion?.id ?? "",
+                        parentId: (activeAppointment as any).companion?.parent?.id ?? "",
+                        answers: valuesByForm[selectedTemplateId] ?? buildInitialValues(template.schema),
+                        submittedBy: attributes.sub,
+                      };
+                      const created = await createSubmission(submission);
+                      const submissionWithSigning = requiresSignature
+                        ? {
+                            ...created,
+                            signatureRequired: true,
+                            signing:
+                              created.signing ?? {
+                                required: true,
+                                status: "NOT_STARTED",
+                                provider: "DOCUMENSO",
+                              },
+                          }
+                        : created;
+                      onSubmission?.({
+                        form: template.form,
+                        submission: submissionWithSigning,
+                        status: "completed",
+                      });
+                      setSelectedTemplateId("");
+                      setSelectedTemplateLabel("");
+                    } catch (e) {
+                      console.error("Failed to submit form", e);
+                      setSubmitError("Failed to submit form. Please try again.");
+                    } finally {
+                      setSubmittingId(null);
+                    }
+                  }}
+                />
+              );
+            })()
           ) : null}
         </div>
       ) : null}
@@ -245,7 +301,14 @@ const CustomFormsView = ({
       {forms.map((entry, idx) => {
         const flat = flattenFields(entry.form.schema as FormField[]);
         const answers = entry.submission?.answers ?? {};
-        const signatureRequired = hasSignatureField(entry.form.schema as FormField[]);
+        const requiredSigner = entry.form.requiredSigner ?? "";
+        const isClientSigner = requiredSigner === "CLIENT";
+        const isExplicitNone = requiredSigner === "";
+        const signatureRequired =
+          !isClientSigner &&
+          !isExplicitNone &&
+          requiredSigner === "VET" &&
+          hasSignatureField(entry.form.schema as FormField[]);
         const formId = entry.form._id ?? entry.form.name;
         const formValues =
           valuesByForm[formId] ??
@@ -257,6 +320,10 @@ const CustomFormsView = ({
               signatureRequired,
             } satisfies FormSubmission & { signatureRequired?: boolean })
           : null;
+        const signingStatus = submissionWithMeta?.signing?.status;
+        const isSigned =
+          signingStatus === "SIGNED" || Boolean(submissionWithMeta?.signing?.pdf?.url);
+        const needsSignature = submissionWithMeta?.signatureRequired;
         return (
           <Accordion
             key={key}
@@ -266,16 +333,18 @@ const CustomFormsView = ({
             isEditing
             rightElement={
               (() => {
-                const signingStatus = submissionWithMeta?.signing?.status;
-                const needsSignature = submissionWithMeta?.signatureRequired;
-                const isSigned = signingStatus === "SIGNED";
-                const isCompleted = entry.status === "completed" && (!needsSignature || isSigned);
-                const label = isCompleted
-                  ? "Completed"
-                  : needsSignature && !isSigned
-                    ? "Signature Pending"
-                    : "Pending";
-                const badgeClass = isCompleted
+                const isCompleted =
+                  entry.status === "completed" && (!needsSignature || isSigned);
+                const label = isClientSigner
+                  ? isSigned
+                    ? "Signed by pet parent"
+                    : "Pending parent signature"
+                  : isCompleted
+                    ? "Completed"
+                    : needsSignature && !isSigned
+                      ? "Signature Pending"
+                      : "Pending";
+                const badgeClass = isSigned || isCompleted
                   ? "bg-green-50 text-green-800"
                   : "bg-amber-50 text-amber-700";
                 return (
@@ -311,6 +380,13 @@ const CustomFormsView = ({
                     }
                   />
                 ) : null}
+                {isClientSigner ? (
+                  <div className="text-xs text-text-secondary">
+                    {isSigned
+                      ? "Signed by pet parent."
+                      : "Sent to pet parent. It will update when they sign the document."}
+                  </div>
+                ) : null}
               </div>
             ) : (
               <div className="flex flex-col gap-3">
@@ -324,10 +400,10 @@ const CustomFormsView = ({
                         [formId]: { ...(prev[formId] ?? formValues), [id]: value },
                       }))
                     }
-                    readOnly={!canEdit}
+                    readOnly={!canEdit || isClientSigner}
                   />
                 </div>
-                {canEdit && (
+                {canEdit && !isClientSigner && (
                   <Primary
                     href="#"
                     text={submittingId === formId ? "Saving..." : "Save"}
@@ -375,6 +451,11 @@ const CustomFormsView = ({
                     }}
                   />
                 )}
+                {isClientSigner ? (
+                  <div className="text-xs text-text-secondary">
+                    Sent to pet parent. It will update when they sign the document.
+                  </div>
+                ) : null}
               </div>
             )}
           </Accordion>
@@ -508,6 +589,19 @@ const AppoitmentInfo = ({
   const [customForms, setCustomForms] = useState<AppointmentFormEntry[]>([]);
   const [customFormsLoading, setCustomFormsLoading] = useState(false);
   const [customFormsError, setCustomFormsError] = useState<string | null>(null);
+  const upsertCustomForm = useCallback((entry: AppointmentFormEntry) => {
+    setCustomForms((prev) => {
+      const existsIdx = prev.findIndex(
+        (e) => (e.form._id ?? e.form.name) === (entry.form._id ?? entry.form.name),
+      );
+      if (existsIdx === -1) {
+        return [entry, ...prev];
+      }
+      const next = [...prev];
+      next[existsIdx] = entry;
+      return next;
+    });
+  }, []);
   const updateCustomFormSubmission = (
     submissionId: string,
     updates: Partial<FormSubmission> & { signatureRequired?: boolean },
@@ -596,19 +690,8 @@ const AppoitmentInfo = ({
           error={customFormsError}
           canEdit={canEdit}
           activeAppointment={activeAppointment}
-          onSubmission={(entry) =>
-            setCustomForms((prev) => {
-              const existsIdx = prev.findIndex(
-                (e) => (e.form._id ?? e.form.name) === (entry.form._id ?? entry.form.name),
-              );
-              if (existsIdx === -1) {
-                return [entry, ...prev];
-              }
-              const next = [...prev];
-              next[existsIdx] = entry;
-              return next;
-            })
-          }
+          onSubmission={upsertCustomForm}
+          onFormLinked={upsertCustomForm}
           templates={templatesForOrg}
           onSubmissionUpdate={updateCustomFormSubmission}
           {...props}
@@ -624,19 +707,8 @@ const AppoitmentInfo = ({
           error={customFormsError}
           canEdit={canEdit}
           activeAppointment={activeAppointment}
-          onSubmission={(entry) =>
-            setCustomForms((prev) => {
-              const existsIdx = prev.findIndex(
-                (e) => (e.form._id ?? e.form.name) === (entry.form._id ?? entry.form.name),
-              );
-              if (existsIdx === -1) {
-                return [entry, ...prev];
-              }
-              const next = [...prev];
-              next[existsIdx] = entry;
-              return next;
-            })
-          }
+          onSubmission={upsertCustomForm}
+          onFormLinked={upsertCustomForm}
           templates={templatesForOrg}
           onSubmissionUpdate={updateCustomFormSubmission}
           {...props}
@@ -710,20 +782,29 @@ const AppoitmentInfo = ({
         const form = formsById[sub.formId] ?? matchedEntry?.form;
         const schemaHasSignature = hasSignatureField((form?.schema as FormField[]) ?? []);
         const mergedSigning = matchedSubmission?.signing ?? sub.signing;
+        const hasSigningData = Boolean(
+          mergedSigning?.status || mergedSigning?.pdf?.url || mergedSigning?.documentId
+        );
+        const requiredSigner = form?.requiredSigner ?? "";
+        const isClientSigner = requiredSigner === "CLIENT";
+        const isExplicitNone = requiredSigner === "";
         const requiresSignature =
-          (sub as SoapNoteSubmission).signatureRequired ??
-          mergedSigning?.required ??
-          schemaHasSignature;
-        const signing =
-          requiresSignature ||
-          mergedSigning?.status ||
-          mergedSigning?.pdf?.url ||
-          mergedSigning?.documentId
-            ? mergedSigning ?? {
-                required: true,
-                status: "NOT_STARTED",
-                provider: "DOCUMENSO",
-              }
+          !isClientSigner &&
+          !isExplicitNone &&
+          requiredSigner === "VET" &&
+          Boolean(
+            (sub as SoapNoteSubmission).signatureRequired ||
+              schemaHasSignature ||
+              hasSigningData,
+          );
+        const signing = requiresSignature
+          ? mergedSigning ?? {
+              required: true,
+              status: "NOT_STARTED",
+              provider: "DOCUMENSO",
+            }
+          : hasSigningData
+            ? mergedSigning
             : undefined;
         return {
           ...(sub as SoapNoteSubmission),

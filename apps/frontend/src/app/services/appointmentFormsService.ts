@@ -1,4 +1,4 @@
-import { getData } from "@/app/services/axios";
+import { getData, postData } from "@/app/services/axios";
 import {
   Form,
   FormSubmission,
@@ -125,4 +125,19 @@ export const fetchAppointmentForms = async (appointmentId: string): Promise<Appo
     .map(mapItem)
     .filter((x): x is NonNullable<ReturnType<typeof mapItem>> => x !== null);
   return { appointmentId: res.data.appointmentId, forms };
+};
+
+export const linkAppointmentForms = async (params: {
+  organisationId: string;
+  appointmentId: string;
+  formIds: string[];
+}): Promise<void> => {
+  const { organisationId, appointmentId, formIds } = params;
+  if (!organisationId || !appointmentId) {
+    throw new Error("Organisation and appointment IDs are required.");
+  }
+  await postData(
+    `/fhir/v1/appointment/pms/${organisationId}/${appointmentId}/forms`,
+    { formIds },
+  );
 };

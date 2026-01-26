@@ -5,6 +5,7 @@ import {
   FormField,
   FormsCategoryOptions,
   FormsProps,
+  RequiredSignerOptions,
   FormsUsageOptions,
 } from "@/app/types/forms";
 import React, { useEffect } from "react";
@@ -27,6 +28,12 @@ const DetailsFields = [
     key: "category",
     type: "dropdown",
     options: FormsCategoryOptions,
+  },
+  {
+    label: "Signed by",
+    key: "requiredSigner",
+    type: "dropdown",
+    options: RequiredSignerOptions,
   },
 ];
 
