@@ -25,7 +25,7 @@ const Fields = [
   { label: "Blood group", key: "bloodGroup", type: "text" },
   { label: "Country of origin", key: "countryOfOrigin", type: "country" },
   {
-    label: "Pet came from",
+    label: "Companion came from",
     key: "source",
     type: "select",
     options: PetSourceOptions,

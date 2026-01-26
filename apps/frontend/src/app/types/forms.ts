@@ -58,6 +58,25 @@ export type FormField = BackendFormField & {
   defaultValue?: any;
 };
 
+export type RequiredSigner = BackendForm["requiredSigner"];
+export type RequiredSignerValue = "CLIENT" | "VET" | "";
+
+export const RequiredSignerOptions: Array<{
+  label: string;
+  value: RequiredSignerValue;
+}> = [
+  { label: "No signature required", value: "" },
+  { label: "Pet parent", value: "CLIENT" },
+  { label: "Service provider", value: "VET" },
+];
+
+export const requiredSignerLabel = (value?: RequiredSignerValue): string => {
+  if (value === "") return "No signature required";
+  if (value === "CLIENT") return "Pet parent";
+  if (value === "VET") return "Service provider";
+  return "";
+};
+
 export type FormsProps = {
   _id?: string;
   orgId?: string;
@@ -67,6 +86,7 @@ export type FormsProps = {
   species?: string[];
   category: FormsCategory;
   usage: FormsUsage;
+  requiredSigner?: RequiredSignerValue;
   businessType?: Organisation["type"];
   updatedBy: string;
   lastUpdated: string;
@@ -176,15 +196,15 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
     {
       id: "pet_name",
       type: "input",
-      label: "Pet name",
-      placeholder: "Enter pet name",
+      label: "Companion name",
+      placeholder: "Enter Companion name",
       required: true,
     },
     {
       id: "owner_name",
       type: "input",
-      label: "Owner name",
-      placeholder: "Enter owner name",
+      label: "Pet parent name",
+      placeholder: "Enter pet parent name",
       required: true,
     },
     {
@@ -198,19 +218,19 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
       id: "risks",
       type: "textarea",
       label: "Risks discussed",
-      placeholder: "List key risks that were explained to the owner",
+      placeholder: "List key risks that were explained to the pet parent",
     },
     {
       id: "consent_ack",
       type: "checkbox",
-      label: "Owner agrees to proceed",
+      label: "Pet parent agrees to proceed",
       options: [makeOption("I have read and understood the above")],
       multiple: true,
     },
     {
       id: "consent_signature",
       type: "signature",
-      label: "Owner signature",
+      label: "Pet parent signature",
       required: true,
     },
   ],
@@ -344,7 +364,7 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
       id: "additional_notes",
       type: "textarea",
       label: "Additional notes",
-      placeholder: "Add observations and owner instructions",
+      placeholder: "Add observations and pet parent instructions",
     },
     {
       id: "important_notes",
@@ -544,8 +564,8 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
       options: [
         makeOption("Hand-feeding", "hand_feeding"),
         makeOption("Self-feeding bowl", "self_feeding"),
-        makeOption("Separate feeding area (for anxious pets)", "separate_area"),
-        makeOption("Eat with other pets", "eat_with_others"),
+        makeOption("Separate feeding area (for anxious companions)", "separate_area"),
+        makeOption("Eat with other companion", "eat_with_others"),
         makeOption("Heated / room-temperature food", "heated_or_room_temp"),
       ],
     },
@@ -648,7 +668,7 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
     {
       id: "meals_provided",
       type: "radio",
-      label: "Meals provided to pet",
+      label: "Meals provided to companion",
       options: [
         makeOption("Administered 1x daily", "1x_daily"),
         makeOption("Administered 2x daily", "2x_daily"),
@@ -666,7 +686,7 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
     {
       id: "daily_walk_completed",
       type: "radio",
-      label: "Daily pet walk completed",
+      label: "Daily companion walk completed",
       options: [
         makeOption("Completed 1x", "1x"),
         makeOption("Completed 2x", "2x"),
@@ -692,7 +712,7 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
       options: [makeOption("Completed 1x", "1x"), makeOption("Completed 2x", "2x")],
     },
     { id: "poop_additional_notes", type: "textarea", label: "Additional Notes / Activity report" },
-    { id: "pet_behavior_summary", type: "textarea", label: "Pet behavior summary" },
+    { id: "pet_behavior_summary", type: "textarea", label: "companion behavior summary" },
     { id: "additional_expense", type: "textarea", label: "Additional expense" },
   ],
   "Boarder - Schedule": [
@@ -738,7 +758,7 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
     {
       id: "pet_bedding",
       type: "radio",
-      label: "Pet bedding",
+      label: "Companion bedding",
       options: [makeOption("Yes", "yes"), makeOption("No", "no")],
     },
     {
@@ -750,7 +770,7 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
     {
       id: "pet_leash",
       type: "radio",
-      label: "Pet leash",
+      label: "Companion leash",
       options: [makeOption("Yes", "yes"), makeOption("No", "no")],
     },
     {
@@ -783,7 +803,7 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
     {
       id: "appetite_status",
       type: "radio",
-      label: "Pet appetite status",
+      label: "Companion appetite status",
       options: [
         makeOption("Strong appetite", "strong_appetite"),
         makeOption("Picky appetite", "picky_appetite"),
@@ -796,7 +816,7 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
     {
       id: "behavior_status",
       type: "checkbox",
-      label: "Pet behavior status",
+      label: "Companion behavior status",
       multiple: true,
       options: [
         makeOption("Friendly", "friendly"),
@@ -822,7 +842,7 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
     {
       id: "sleep_pattern",
       type: "radio",
-      label: "Pet sleep pattern",
+      label: "Companion sleep pattern",
       options: [
         makeOption("Normal sleep", "normal_sleep"),
         makeOption("Lethargy", "lethargy"),
@@ -856,7 +876,7 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
     {
       id: "appetite_status",
       type: "radio",
-      label: "Pet appetite status",
+      label: "Companion appetite status",
       options: [
         makeOption("Strong appetite", "strong_appetite"),
         makeOption("Picky appetite", "picky_appetite"),
@@ -869,7 +889,7 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
     {
       id: "behavior_status",
       type: "checkbox",
-      label: "Pet behaviour status",
+      label: "Companion behaviour status",
       multiple: true,
       options: [
         makeOption("Friendly", "friendly"),
@@ -982,19 +1002,19 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
     {
       id: "pet_bedding_or_blanket",
       type: "radio",
-      label: "Pet bedding or blanket",
+      label: "Companion bedding or blanket",
       options: [makeOption("Yes", "yes"), makeOption("No", "no")],
     },
     {
       id: "pet_crate",
       type: "radio",
-      label: "Pet crate",
+      label: "Companion crate",
       options: [makeOption("Yes", "yes"), makeOption("No", "no")],
     },
     {
       id: "pet_leash",
       type: "radio",
-      label: "Pet leash",
+      label: "Companion leash",
       options: [makeOption("Yes", "yes"), makeOption("No", "no")],
     },
     {
@@ -1010,7 +1030,7 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
     {
       id: "appetite_status_checkin",
       type: "radio",
-      label: "Pet's appetite status",
+      label: "Companion's appetite status",
       options: [
         makeOption("Strong appetite", "strong_appetite"),
         makeOption("Normal appetite", "normal_appetite"),
@@ -1023,7 +1043,7 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
     {
       id: "behavior_status_checkin",
       type: "checkbox",
-      label: "Pet's behavior status",
+      label: "Companion's behavior status",
       multiple: true,
       options: [
         makeOption("Friendly behavior", "friendly_behavior"),
@@ -1078,7 +1098,7 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
       options: [makeOption("Yes", "yes"), makeOption("No", "no")],
     },
   ],
-  "Breeder - Health Summary": [{ id: "pet_health_summary", type: "textarea", label: "Pet health summary" }],
+  "Breeder - Health Summary": [{ id: "pet_health_summary", type: "textarea", label: "Companion health summary" }],
   "Groomer - Service Request & Preferences": [
     {
       id: "bathing_basic",
@@ -1183,7 +1203,7 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
     {
       id: "brushing_detangle_service",
       type: "radio",
-      label: "Given brushing and detangle service to pet",
+      label: "Given brushing and detangle service to companion",
       options: [makeOption("Yes", "yes"), makeOption("No", "no")],
     },
     {
@@ -1201,7 +1221,7 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
     {
       id: "medicated_bath_needed",
       type: "radio",
-      label: "Does pet require medicated bath to prevent flea / tick",
+      label: "Does companion require medicated bath to prevent flea / tick",
       options: [makeOption("Yes", "yes"), makeOption("No", "no")],
     },
     {
@@ -1299,13 +1319,13 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
     {
       id: "grooming_history",
       type: "radio",
-      label: "Has your pet received grooming services before?",
+      label: "Has your companion received grooming services before?",
       options: [makeOption("Yes", "yes"), makeOption("No", "no")],
     },
     {
       id: "allergies_or_skin_issues",
       type: "radio",
-      label: "Does your pet suffer from any allergies or skin issues?",
+      label: "Does your companion suffer from any allergies or skin issues?",
       options: [makeOption("Yes", "yes"), makeOption("No", "no")],
     },
     { id: "allergy_details", type: "textarea", label: "If yes, please provide details" },

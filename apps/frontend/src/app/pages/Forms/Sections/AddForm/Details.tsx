@@ -7,6 +7,8 @@ import {
   FormsCategory,
   FormsCategoryOptions,
   FormsProps,
+  RequiredSignerOptions,
+  requiredSignerLabel,
   FormsUsage,
   FormsUsageOptions,
 } from "@/app/types/forms";
@@ -37,6 +39,7 @@ const Details = ({
     species?: string;
     description?: string;
     services?: string;
+    requiredSigner?: string;
   }>({});
   const orgType = useOrgStore((s) =>
     s.primaryOrgId ? s.orgsById[s.primaryOrgId]?.type : undefined,
@@ -89,12 +92,16 @@ const Details = ({
       species?: string;
       description?: string;
       services?: string;
+      requiredSigner?: string;
     } = {};
     if (!formData.name.trim()) {
       errors.name = "Form name is required";
     }
     if (!formData.category) {
       errors.category = "Category is required";
+    }
+    if (formData.requiredSigner === undefined) {
+      errors.requiredSigner = "Signed by is required";
     }
     if (!formData.description?.trim()) {
       errors.description = "Description is required";
@@ -169,6 +176,26 @@ const Details = ({
               onSelect={(option) => handleCategoryChange(option.value as FormsCategory)}
               options={categoryOptions.map((cat) => ({ label: cat, value: cat }))}
               error={formDataErrors.category}
+            />
+            <LabelDropdown
+              placeholder="Signed by"
+              defaultOption={requiredSignerLabel(formData.requiredSigner)}
+              onSelect={(option) =>
+                {
+                  if (formDataErrors.requiredSigner) {
+                    setFormDataErrors((prev) => ({
+                      ...prev,
+                      requiredSigner: undefined,
+                    }));
+                  }
+                  setFormData((prev) => ({
+                    ...prev,
+                    requiredSigner: option.value as FormsProps["requiredSigner"],
+                  }));
+                }
+              }
+              options={RequiredSignerOptions}
+              error={formDataErrors.requiredSigner}
             />
           </div>
         </Accordion>

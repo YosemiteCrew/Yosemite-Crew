@@ -927,11 +927,7 @@ const Build = ({
       if (scrollAnimRef.current === null) {
         const step = () => {
           const vel = scrollVelocityRef.current;
-          if (!scrollable) {
-            scrollAnimRef.current = null;
-            return;
-          }
-          if (vel !== 0) {
+          if (scrollable && vel !== 0) {
             scrollable.scrollTop += vel;
             scrollAnimRef.current = requestAnimationFrame(step);
           } else {

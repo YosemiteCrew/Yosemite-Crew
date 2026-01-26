@@ -1,4 +1,4 @@
-import { getData } from "@/app/services/axios";
+import { getData, postData } from "@/app/services/axios";
 import {
   Form,
   FormSubmission,
@@ -93,7 +93,15 @@ const mapItem = (
     const submission = item.questionnaireResponse
       ? fromFormSubmissionRequestDTO(item.questionnaireResponse, form.schema)
       : null;
-    const status = submission ? "completed" : "pending";
+    const rawStatus = typeof item.status === "string" ? item.status.toLowerCase() : "";
+    const status =
+      rawStatus.includes("complete") || rawStatus.includes("signed")
+        ? "completed"
+        : rawStatus.includes("pending") || rawStatus.includes("incomplete")
+          ? "pending"
+          : submission
+            ? "completed"
+            : "pending";
     return { form, submission, status };
   } catch (err) {
     try {
@@ -111,10 +119,25 @@ const mapItem = (
 export const fetchAppointmentForms = async (appointmentId: string): Promise<AppointmentFormsResponse> => {
   const res = await getData<AppointmentFormsApiResponse>(
     `/fhir/v1/form/appointments/${appointmentId}/forms`,
-    { isPMS: true },
+    { isPMS: false },
   );
   const forms = (res.data.items ?? [])
     .map(mapItem)
     .filter((x): x is NonNullable<ReturnType<typeof mapItem>> => x !== null);
   return { appointmentId: res.data.appointmentId, forms };
+};
+
+export const linkAppointmentForms = async (params: {
+  organisationId: string;
+  appointmentId: string;
+  formIds: string[];
+}): Promise<void> => {
+  const { organisationId, appointmentId, formIds } = params;
+  if (!organisationId || !appointmentId) {
+    throw new Error("Organisation and appointment IDs are required.");
+  }
+  await postData(
+    `/fhir/v1/appointment/pms/${organisationId}/${appointmentId}/forms`,
+    { formIds },
+  );
 };

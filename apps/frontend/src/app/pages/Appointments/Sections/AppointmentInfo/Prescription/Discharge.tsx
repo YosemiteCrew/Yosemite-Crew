@@ -1,4 +1,5 @@
 import { Primary, Secondary } from "@/app/components/Buttons";
+import Accordion from "@/app/components/Accordion/Accordion";
 import React, { useMemo, useState } from "react";
 import { FormDataProps } from "..";
 import { Appointment, FormSubmission } from "@yosemite-crew/types";
@@ -14,6 +15,7 @@ import { PermissionGate } from "@/app/components/PermissionGate";
 import { PERMISSIONS } from "@/app/utils/permissions";
 import Fallback from "@/app/components/Fallback";
 import { hasSignatureField } from "./signatureUtils";
+import { linkAppointmentForms } from "@/app/services/appointmentFormsService";
 
 type DischargeSummaryProps = {
   formData: FormDataProps;
@@ -35,6 +37,7 @@ const Discharge = ({
   const [values, setValues] = React.useState<Record<string, any>>(() =>
     buildInitialValues(active?.schema ?? []),
   );
+  const [sending, setSending] = useState(false);
 
   const FormOptions = useMemo(
     () =>
@@ -63,7 +66,9 @@ const Discharge = ({
   const handleSave = async () => {
     if (!active?._id || !activeAppointment.id || !attributes) return;
     try {
-      const signatureRequired = hasSignatureField(active.schema as any);
+      if (active.requiredSigner === "CLIENT") return;
+      const signatureRequired =
+        active.requiredSigner === "VET" && hasSignatureField(active.schema as any);
       const submission: FormSubmission = {
         _id: "",
         formVersion: 1,
@@ -100,16 +105,40 @@ const Discharge = ({
     }
   };
 
+  const handleSendToParent = async () => {
+    if (!active?._id || !activeAppointment.id) return;
+    if (active.requiredSigner !== "CLIENT") return;
+    const orgId = activeAppointment.organisationId;
+    if (!orgId) return;
+    setSending(true);
+    try {
+      await linkAppointmentForms({
+        organisationId: orgId,
+        appointmentId: activeAppointment.id,
+        formIds: [active._id],
+      });
+      setActive(null);
+      setQuery("");
+      setValues(buildInitialValues([]));
+    } catch (e) {
+      console.error("Failed to send form to parent:", e);
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <PermissionGate
       allOf={[PERMISSIONS.PRESCRIPTION_VIEW_ANY]}
       fallback={<Fallback />}
     >
       <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
-        <div className="flex flex-col gap-6">
-          <div className="font-grotesk font-medium text-black-text text-[23px]">
-            Discharge summary
-          </div>
+        <Accordion
+          title="Discharge summary"
+          defaultOpen={true}
+          showEditIcon={false}
+          isEditing={true}
+        >
           <div className="flex flex-col gap-3">
             {canEdit && (
               <SearchDropdown
@@ -134,13 +163,19 @@ const Discharge = ({
               setFormData={setFormData}
             />
           </div>
-        </div>
+        </Accordion>
         <div className="flex flex-col gap-3">
           {canEdit && active && (
             <Secondary
               href="#"
-              text="Save"
-              onClick={handleSave}
+              text={
+                active.requiredSigner === "CLIENT"
+                  ? sending
+                    ? "Sending..."
+                    : "Send to parent"
+                  : "Save"
+              }
+              onClick={active.requiredSigner === "CLIENT" ? handleSendToParent : handleSave}
             />
           )}
         </div>

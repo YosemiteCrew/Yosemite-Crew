@@ -513,7 +513,7 @@ export const InventoryFormConfig: Record<
         kind: "field",
         field: {
           name: "petSize",
-          placeholder: "Pet size",
+          placeholder: "Companion size",
           component: "dropdown",
           options: PetSizeOptions,
         },

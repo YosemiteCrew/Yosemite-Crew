@@ -212,13 +212,15 @@ const SignatureActions = ({
           />
         ) : null}
 
-        <Secondary
-          href="#"
-          text={loading === "pdf" ? "Preparing…" : "Download PDF"}
-          onClick={handleDownloadPdf}
-          isDisabled={loading === "pdf"}
-          size="default"
-        />
+        {isSigned ? (
+          <Secondary
+            href="#"
+            text={loading === "pdf" ? "Preparing…" : "Download PDF"}
+            onClick={handleDownloadPdf}
+            isDisabled={loading === "pdf"}
+            size="default"
+          />
+        ) : null}
 
         {isSigned ? (
           <Primary

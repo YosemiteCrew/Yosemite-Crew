@@ -86,6 +86,7 @@ export const mapFormToUI = (form: Form): FormsProps => ({
   services: toList(form.serviceId),
   species: form.speciesFilter ?? [],
   category: form.category as FormsCategory,
+  requiredSigner: form.requiredSigner ?? "",
   usage: (() => {
     const visibility = (form.visibilityType as FormsUsage) ?? "Internal";
     if (typeof visibility === "string") {
@@ -145,6 +146,7 @@ export const buildFHIRPayload = ({
     visibilityType,
     serviceId: form.services?.length ? form.services : undefined,
     speciesFilter: form.species?.length ? form.species : undefined,
+    requiredSigner: form.requiredSigner || undefined,
     status: labelToStatus(form.status),
     schema,
     createdBy: (form as any).createdBy || userId,

@@ -93,7 +93,8 @@ const MultiSelectDropdown = ({
   return (
     <div className="flex flex-col">
       <div className="relative w-full" ref={dropdownRef}>
-        <div
+        <button
+          type="button"
           className={`w-full flex items-center justify-between gap-2 px-6 py-[11px] min-w-[120px] border cursor-pointer ${open ? "border-input-text-placeholder-active! rounded-t-2xl!" : "border-input-border-default! rounded-2xl!"} ${selectedOptions.length === 0 && error && "border-input-border-error!"}`}
           onClick={() => {
             if (!open) {
@@ -124,7 +125,7 @@ const MultiSelectDropdown = ({
               if (open) setSearchQuery("");
             }}
           />
-        </div>
+        </button>
         {open && (
           <div className="border-input-text-placeholder-active max-h-[200px] overflow-y-auto scrollbar-hidden z-200 absolute top-full left-0 rounded-b-2xl border-l border-r border-b bg-white flex flex-col items-stretch w-full px-3 py-2.5">
             {filteredAvailableOptions.length > 0 ? (

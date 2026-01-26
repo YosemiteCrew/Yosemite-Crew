@@ -43,7 +43,7 @@ const Launchtabs = [
       "Pre-designed workflows for booking, rescheduling, and managing veterinary visits.",
       "Standardised layout for patient history, diagnoses, treatments, and vaccination logs.",
       "Auto-fill forms for medications, dosage instructions, and treatment plans.",
-      "Digital forms for surgery approvals, client consent, and pet onboarding.",
+      "Digital forms for surgery approvals, client consent, and companion onboarding.",
     ],
   },
   {
