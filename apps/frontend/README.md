@@ -48,6 +48,14 @@ NEXT_PUBLIC_DISABLE_AUTH_GUARD=true
 - `/forms` - Forms management page
 - Any other route wrapped with `ProtectedRoute` or `OrgGuard`
 
+## Test Credentials
+
+Want to explore the PMS features on our development server? Use these test credentials:
+
+- **URL:** https://dev.yosemitecrew.com/signin
+- **Email:** test@yosemitecrew.com
+- **Password:** Yosemitecrew@123
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

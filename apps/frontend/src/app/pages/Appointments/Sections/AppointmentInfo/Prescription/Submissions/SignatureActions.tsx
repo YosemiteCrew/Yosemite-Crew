@@ -213,16 +213,6 @@ const SignatureActions = ({
         ) : null}
 
         {isSigned ? (
-          <Secondary
-            href="#"
-            text={loading === "pdf" ? "Preparing…" : "Download PDF"}
-            onClick={handleDownloadPdf}
-            isDisabled={loading === "pdf"}
-            size="default"
-          />
-        ) : null}
-
-        {isSigned ? (
           <Primary
             href="#"
             text={loading === "view" ? "Loading…" : "View signed doc"}
