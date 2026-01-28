@@ -109,6 +109,64 @@ const resolveLabel = (field: FormField): string => {
   return cleanedLabel || humanized;
 };
 
+const ALLOWED_CATEGORIES_BY_ORG: Record<string, string[]> = {
+  HOSPITAL: ["Discharge", "Consent form", "Custom"],
+  BOARDER: [
+    "Boarding Checklist",
+    "Dietary Plan",
+    "Medication Details",
+    "Daily Summary",
+    "Schedule",
+    "Belongings",
+    "Consent form",
+    "Discharge",
+  ],
+  BREEDER: [
+    "Health & Behavior",
+    "Mating Log",
+    "Consultation & Planning",
+    "Mating & Fertility Preferences",
+    "Belongings",
+    "Check-in",
+    "Pregnancy Care",
+    "Health Summary",
+    "Consent form",
+    "Discharge",
+  ],
+  GROOMER: [
+    "Service Request & Preferences",
+    "Grooming Prep",
+    "Bathing & Cleaning Worklog",
+    "Haircut / Styling Worklog",
+    "Spa Add-ons Worklog",
+    "Health Requirements",
+    "Consent form",
+    "Discharge",
+  ],
+};
+
+const getAllowedCategories = (orgType?: string) =>
+  ALLOWED_CATEGORIES_BY_ORG[orgType ?? ""] ?? ALLOWED_CATEGORIES_BY_ORG.GROOMER;
+
+const getLabelsForOrgType = (orgType: string | undefined, hospitalLabels: any[]) => {
+  if (orgType === "HOSPITAL") return hospitalLabels;
+  return [
+    hospitalLabels[0],
+    {
+      key: "care",
+      name: "Care plan",
+      labels: [
+        { key: "forms", name: "Forms" },
+        { key: "audit-trail", name: "Audit trail" },
+        { key: "discharge-summary", name: "Discharge summary" },
+        { key: "documents", name: "Documents" },
+      ],
+    },
+    hospitalLabels[2],
+    hospitalLabels[3],
+  ];
+};
+
 const flattenFields = (fields: FormField[]): FormField[] =>
   fields.flatMap((f) => {
     if (f.type === "group" && Array.isArray(f.fields)) {
@@ -131,6 +189,15 @@ type CustomFormsSectionProps = {
   ) => void;
   onFormLinked?: (entry: AppointmentFormEntry) => void;
 };
+
+const FormBadge: React.FC<{ label: string; badgeClass: string }> = ({
+  label,
+  badgeClass,
+}) => (
+  <span className={`text-label-xsmall px-2 py-1 rounded ${badgeClass}`}>
+    {label}
+  </span>
+);
 
 const CustomFormsSection: React.FC<CustomFormsSectionProps> = ({
   forms,
@@ -397,6 +464,12 @@ const CustomFormsView = ({
         const isSigned =
           signingStatus === "SIGNED" || Boolean(submissionWithMeta?.signing?.pdf?.url);
         const needsSignature = submissionWithMeta?.signatureRequired;
+        const { label, badgeClass } = getFormBadge(
+          entry,
+          needsSignature,
+          isSigned,
+          isClientSigner,
+        );
         return (
           <Accordion
             key={key}
@@ -404,21 +477,7 @@ const CustomFormsView = ({
             defaultOpen={false}
             showEditIcon={false}
             isEditing
-            rightElement={
-              (() => {
-                const { label, badgeClass } = getFormBadge(
-                  entry,
-                  needsSignature,
-                  isSigned,
-                  isClientSigner,
-                );
-                return (
-                  <span className={`text-label-xsmall px-2 py-1 rounded ${badgeClass}`}>
-                    {label}
-                  </span>
-                );
-              })()
-            }
+            rightElement={<FormBadge label={label} badgeClass={badgeClass} />}
           >
             {entry.submission ? (
               <div className="border border-card-border rounded-2xl p-4 flex flex-col gap-2">
@@ -696,52 +755,13 @@ const AppoitmentInfo = ({
   const allForms = formIds.map((id) => formsById[id]).filter(Boolean);
   const signingOverlayOpen = useSigningOverlayStore((s) => s.open);
   const templatesForOrg = useMemo(() => {
-    const trimPrefix = (text?: string | null) => (text ?? "").replace(/^(Boarder|Breeder|Groomer)\s*-\s*/i, "");
+    const trimPrefix = (text?: string | null) =>
+      (text ?? "").replace(/^(Boarder|Breeder|Groomer)\s*-\s*/i, "");
     const matchesAllowed = (category: string, allowed: string[]) => {
       const normalized = trimPrefix(category);
       return allowed.includes(category) || allowed.includes(normalized);
     };
-    const allowedCategories = (() => {
-      if (orgType === "HOSPITAL") {
-        return ["Discharge", "Consent form", "Custom"];
-      }
-      if (orgType === "BOARDER") {
-        return [
-          "Boarding Checklist",
-          "Dietary Plan",
-          "Medication Details",
-          "Daily Summary",
-          "Schedule",
-          "Belongings",
-          "Consent form",
-          "Discharge",
-        ];
-      }
-      if (orgType === "BREEDER") {
-        return [
-          "Health & Behavior",
-          "Mating Log",
-          "Consultation & Planning",
-          "Mating & Fertility Preferences",
-          "Belongings",
-          "Check-in",
-          "Pregnancy Care",
-          "Health Summary",
-          "Consent form",
-          "Discharge",
-        ];
-      }
-      return [
-        "Service Request & Preferences",
-        "Grooming Prep",
-        "Bathing & Cleaning Worklog",
-        "Haircut / Styling Worklog",
-        "Spa Add-ons Worklog",
-        "Health Requirements",
-        "Consent form",
-        "Discharge",
-      ];
-    })();
+    const allowedCategories = getAllowedCategories(orgType);
     return allForms
       .filter((f) => matchesAllowed(f.category, allowedCategories))
       .map((f) => ({
@@ -752,26 +772,7 @@ const AppoitmentInfo = ({
       }));
   }, [allForms, orgType]);
 
-  const labels = (() => {
-    if (orgType === "HOSPITAL") {
-      return hospitalLabels;
-    }
-    return [
-      hospitalLabels[0],
-      {
-        key: "care",
-        name: "Care plan",
-        labels: [
-          { key: "forms", name: "Forms" },
-          { key: "audit-trail", name: "Audit trail" },
-          { key: "discharge-summary", name: "Discharge summary" },
-          { key: "documents", name: "Documents" },
-        ],
-      },
-      hospitalLabels[2],
-      hospitalLabels[3],
-    ];
-  })();
+  const labels = getLabelsForOrgType(orgType, hospitalLabels);
 
   const COMPONENT_MAP: Record<string, Record<string, React.FC<any>>> = {
     info: {
@@ -824,6 +825,7 @@ const AppoitmentInfo = ({
       const res = await fetchAppointmentForms(activeAppointment.id);
       setCustomForms(res.forms);
     } catch (e) {
+      console.error("Failed to load appointment forms:", e);
       setCustomFormsError("Unable to load forms");
       setCustomForms([]);
     } finally {

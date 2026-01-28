@@ -128,11 +128,10 @@ const Subjective = ({
   };
 
   const isClientSigner = active?.requiredSigner === "CLIENT";
-  const actionText = isClientSigner
-    ? sending
-      ? "Sending..."
-      : "Send to parent"
-    : "Save";
+  let actionText = "Save";
+  if (isClientSigner) {
+    actionText = sending ? "Sending..." : "Send to parent";
+  }
   const handleAction = isClientSigner ? handleSendToParent : handleSave;
 
   return (

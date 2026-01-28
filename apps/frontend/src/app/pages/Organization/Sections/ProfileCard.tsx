@@ -209,29 +209,39 @@ const toDateOrFallback = (raw: any, fallback: Date) => {
   return d ?? fallback;
 };
 
+const isValidDate = (value: Date) => !Number.isNaN(value.getTime());
+
+const parseDateFromNumber = (raw: number): Date | null => {
+  const ms = raw < 1e12 ? raw * 1000 : raw; // allow seconds
+  const d = new Date(ms);
+  return isValidDate(d) ? d : null;
+};
+
+const parseDateFromString = (raw: string): Date | null => {
+  const s = raw.trim();
+  if (!s) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (m) {
+    const y = Number(m[1]);
+    const mo = Number(m[2]) - 1;
+    const d = Number(m[3]);
+    const dt = new Date(y, mo, d);
+    return isValidDate(dt) ? dt : null;
+  }
+  const dt = new Date(s);
+  return isValidDate(dt) ? dt : null;
+};
+
 const toDateOrNull = (raw: any): Date | null => {
   if (!raw) return null;
   if (raw instanceof Date) {
-    return Number.isNaN(raw.getTime()) ? null : raw;
+    return isValidDate(raw) ? raw : null;
   }
   if (typeof raw === "number") {
-    const ms = raw < 1e12 ? raw * 1000 : raw; // allow seconds
-    const d = new Date(ms);
-    return Number.isNaN(d.getTime()) ? null : d;
+    return parseDateFromNumber(raw);
   }
   if (typeof raw === "string") {
-    const s = raw.trim();
-    if (!s) return null;
-    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
-    if (m) {
-      const y = Number(m[1]);
-      const mo = Number(m[2]) - 1;
-      const d = Number(m[3]);
-      const dt = new Date(y, mo, d);
-      return Number.isNaN(dt.getTime()) ? null : dt;
-    }
-    const dt = new Date(s);
-    return Number.isNaN(dt.getTime()) ? null : dt;
+    return parseDateFromString(raw);
   }
 
   return null;

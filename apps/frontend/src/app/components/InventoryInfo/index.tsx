@@ -35,6 +35,78 @@ const emptyBatch: BatchValues = {
   allocated: "",
 };
 
+const validateNumberField = (
+  value: unknown,
+  requiredMsg: string,
+  numberMsg: string
+): string | null => {
+  if (value === "" || value === undefined) return requiredMsg;
+  if (Number.isNaN(Number(value))) return numberMsg;
+  return null;
+};
+
+const getBasicInfoErrors = (
+  values: Record<string, any>,
+  inventory: InventoryItem
+): Record<string, string> => {
+  const errs: Record<string, string> = {};
+  if (!values.name && !inventory.basicInfo.name) errs.name = "Name is required";
+  if (!values.category && !inventory.basicInfo.category) errs.category = "Category is required";
+  if (!values.subCategory && !inventory.basicInfo.subCategory) errs.subCategory = "Sub category is required";
+  return errs;
+};
+
+const getPricingErrors = (
+  values: Record<string, any>,
+  inventory: InventoryItem
+): Record<string, string> => {
+  const errs: Record<string, string> = {};
+  const purchaseErr = validateNumberField(
+    values.purchaseCost ?? inventory.pricing.purchaseCost,
+    "Purchase cost is required",
+    "Enter a valid number"
+  );
+  const sellingErr = validateNumberField(
+    values.selling ?? inventory.pricing.selling,
+    "Selling price is required",
+    "Enter a valid number"
+  );
+  if (purchaseErr) errs.purchaseCost = purchaseErr;
+  if (sellingErr) errs.selling = sellingErr;
+  return errs;
+};
+
+const getStockErrors = (
+  values: Record<string, any>,
+  inventory: InventoryItem
+): Record<string, string> => {
+  const errs: Record<string, string> = {};
+  const currentErr = validateNumberField(
+    values.current ?? inventory.stock.current,
+    "On hand quantity is required",
+    "Enter a valid number"
+  );
+  const reorderErr = validateNumberField(
+    values.reorderLevel ?? inventory.stock.reorderLevel,
+    "Reorder level is required",
+    "Enter a valid number"
+  );
+  if (currentErr) errs.current = currentErr;
+  if (reorderErr) errs.reorderLevel = reorderErr;
+  return errs;
+};
+
+const sectionValidationHandlers: Partial<
+  Record<
+    InventorySectionKey,
+    (values: Record<string, any>, inventory: InventoryItem) => Record<string, string>
+  >
+> = {
+  basicInfo: getBasicInfoErrors,
+  pricing: getPricingErrors,
+  stock: getStockErrors,
+};
+
 type BatchEditorProps = {
   businessType: BusinessType;
   inventory: InventoryItem;
@@ -411,9 +483,14 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
     source?: BatchValues[],
     changeHandler?: (index: number, name: keyof BatchValues, value: string) => void
   ) => {
+    const itemKey =
+      item.kind === "row"
+        ? item.fields.map((field) => field.name).join("-")
+        : item.field.name;
+    const fullKey = `${batchIndex}-${itemKey}`;
     if ("fields" in item && item.kind === "row") {
       return (
-        <div key={index} className="grid grid-cols-2 gap-3">
+        <div key={fullKey} className="grid grid-cols-2 gap-3">
           {item.fields.map((field, i) =>
             renderField(field, batchIndex, `${index}-${i}`, source, changeHandler)
           )}
@@ -422,7 +499,7 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
     }
 
     return (
-      <div key={index} className="w-full">
+      <div key={fullKey} className="w-full">
         {renderField(item.field, batchIndex, index, source, changeHandler)}
       </div>
     );
@@ -433,9 +510,14 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
     index: number,
     batchData: BatchValues
   ) => {
+    const itemKey =
+      item.kind === "row"
+        ? item.fields.map((field) => field.name).join("-")
+        : item.field.name;
+    const fullKey = `${batchData?._id ?? "batch"}-${itemKey}`;
     if ("fields" in item && item.kind === "row") {
       return (
-        <div key={index} className="grid grid-cols-2 gap-3">
+        <div key={fullKey} className="grid grid-cols-2 gap-3">
           {item.fields.map((field, i) =>
             renderPreviewField(field, batchData, `${index}-${i}`)
           )}
@@ -444,7 +526,7 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
     }
 
     return (
-      <div key={index} className="w-full">
+      <div key={fullKey} className="w-full">
         {renderPreviewField(item.field, batchData, index)}
       </div>
     );
@@ -631,55 +713,13 @@ const InventoryInfo = ({
     }
   };
 
-  const validateField = (
-    value: unknown,
-    requiredMsg: string,
-    numberMsg: string
-  ): string | null => {
-    if (value === "" || value === undefined) return requiredMsg;
-    if (Number.isNaN(Number(value))) return numberMsg;
-    return null;
-  };
-
   const getValidationErrors = (
     section: InventorySectionKey,
     values: Record<string, any>
   ): Record<string, string> => {
     if (!activeInventory) return {};
-    const errs: Record<string, string> = {};
-
-    if (section === "basicInfo") {
-      if (!values.name && !activeInventory.basicInfo.name) errs.name = "Name is required";
-      if (!values.category && !activeInventory.basicInfo.category) errs.category = "Category is required";
-      if (!values.subCategory && !activeInventory.basicInfo.subCategory) errs.subCategory = "Sub category is required";
-    } else if (section === "pricing") {
-      const purchaseErr = validateField(
-        values.purchaseCost ?? activeInventory.pricing.purchaseCost,
-        "Purchase cost is required",
-        "Enter a valid number"
-      );
-      const sellingErr = validateField(
-        values.selling ?? activeInventory.pricing.selling,
-        "Selling price is required",
-        "Enter a valid number"
-      );
-      if (purchaseErr) errs.purchaseCost = purchaseErr;
-      if (sellingErr) errs.selling = sellingErr;
-    } else if (section === "stock") {
-      const currentErr = validateField(
-        values.current ?? activeInventory.stock.current,
-        "On hand quantity is required",
-        "Enter a valid number"
-      );
-      const reorderErr = validateField(
-        values.reorderLevel ?? activeInventory.stock.reorderLevel,
-        "Reorder level is required",
-        "Enter a valid number"
-      );
-      if (currentErr) errs.current = currentErr;
-      if (reorderErr) errs.reorderLevel = reorderErr;
-    }
-    return errs;
+    const handler = sectionValidationHandlers[section];
+    return handler ? handler(values, activeInventory) : {};
   };
 
   const buildUpdatedInventory = (
