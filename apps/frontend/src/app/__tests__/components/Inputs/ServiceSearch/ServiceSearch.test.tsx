@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import ServiceSearch from "@/app/components/Inputs/ServiceSearch/ServiceSearch";
 import { useOrgStore } from "@/app/stores/orgStore";
@@ -100,7 +100,7 @@ describe("ServiceSearch Component", () => {
 
   // --- 3. Selecting Existing Service ---
 
-  it("adds a selected service to the specialty", () => {
+  it("adds a selected service to the specialty", async () => {
     render(
       <ServiceSearch
         speciality={defaultSpeciality}
@@ -112,7 +112,9 @@ describe("ServiceSearch Component", () => {
     fireEvent.focus(input);
 
     const option = screen.getByText("Vaccination");
-    fireEvent.click(option);
+    await act(async () => {
+      fireEvent.click(option);
+    });
 
     expect(mockSetSpecialities).toHaveBeenCalled();
 
@@ -170,11 +172,11 @@ describe("ServiceSearch Component", () => {
     fireEvent.change(input, { target: { value: "NewCustomService" } });
 
     expect(
-      screen.getByText("Add service “NewCustomService”")
+      screen.getByText(/Add service.*NewCustomService/)
     ).toBeInTheDocument();
   });
 
-  it("adds a new custom service when clicking Add", () => {
+  it("adds a new custom service when clicking Add", async () => {
     render(
       <ServiceSearch
         speciality={defaultSpeciality}
@@ -185,8 +187,10 @@ describe("ServiceSearch Component", () => {
     const input = screen.getByPlaceholderText("Search or create service");
     fireEvent.change(input, { target: { value: "Custom" } });
 
-    const addBtn = screen.getByText("Add service “Custom”");
-    fireEvent.click(addBtn);
+    const addBtn = screen.getByText(/Add service.*Custom/);
+    await act(async () => {
+      fireEvent.click(addBtn);
+    });
 
     expect(mockSetSpecialities).toHaveBeenCalled();
 

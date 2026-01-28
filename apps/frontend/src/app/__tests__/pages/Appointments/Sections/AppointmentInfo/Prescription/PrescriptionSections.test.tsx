@@ -94,9 +94,8 @@ describe.each(cases)("%s section", ({ Component, expected }) => {
   it("passes expected props to PrescriptionFormSection", () => {
     render(<Component {...baseProps} />);
 
-    expect(sectionSpy).toHaveBeenCalledWith(
-      expect.objectContaining(expected),
-      expect.anything(),
-    );
+    expect(sectionSpy).toHaveBeenCalledTimes(1);
+    const calledProps = sectionSpy.mock.calls[0][0];
+    expect(calledProps).toMatchObject(expected);
   });
 });

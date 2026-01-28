@@ -1,5 +1,5 @@
 import React from "react";
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
 let latestProgressProps: any;
@@ -45,6 +45,24 @@ jest.mock("@/app/components/ProtectedRoute", () => ({
   ),
 }));
 
+const mockUseOrgOnboardingResult = {
+  org: null,
+  step: 0,
+  specialities: [] as any[],
+};
+
+jest.mock("@/app/hooks/useOrgOnboarding", () => ({
+  useOrgOnboarding: () => mockUseOrgOnboardingResult,
+}));
+
+const mockRouter = { replace: jest.fn() };
+const mockSearchParams = { get: () => null };
+
+jest.mock("next/navigation", () => ({
+  useRouter: () => mockRouter,
+  useSearchParams: () => mockSearchParams,
+}));
+
 import ProtectedCreateOrg from "@/app/pages/CreateOrg/CreateOrg";
 
 describe("CreateOrg page", () => {
@@ -65,33 +83,41 @@ describe("CreateOrg page", () => {
     expect(screen.getByTestId("org-step")).toBeInTheDocument();
   });
 
-  test("advances through steps when nextStep is invoked", () => {
+  test("advances through steps when nextStep is invoked", async () => {
     render(<ProtectedCreateOrg />);
 
     act(() => {
       latestOrgStepProps.nextStep();
     });
-    expect(screen.getByTestId("address-step")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId("address-step")).toBeInTheDocument();
+    });
 
     act(() => {
       latestAddressStepProps.nextStep();
     });
-    expect(screen.getByTestId("speciality-step")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId("speciality-step")).toBeInTheDocument();
+    });
     expect(latestSpecialityStepProps.specialities).toBeDefined();
     expect(Array.isArray(latestSpecialityStepProps.specialities)).toBe(true);
   });
 
-  test("goes back to previous step when prevStep called", () => {
+  test("goes back to previous step when prevStep called", async () => {
     render(<ProtectedCreateOrg />);
 
     act(() => {
       latestOrgStepProps.nextStep();
     });
-    expect(screen.getByTestId("address-step")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId("address-step")).toBeInTheDocument();
+    });
 
     act(() => {
       latestAddressStepProps.prevStep();
     });
-    expect(screen.getByTestId("org-step")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId("org-step")).toBeInTheDocument();
+    });
   });
 });

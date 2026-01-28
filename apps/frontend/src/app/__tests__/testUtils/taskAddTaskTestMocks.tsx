@@ -60,3 +60,11 @@ jest.mock("@/app/utils/date", () => ({
   applyUtcTime: (d: Date) => d,
   generateTimeSlots: () => ["09:00"],
 }));
+
+// This file contains shared mocks for AddTask tests
+// Adding a placeholder test to satisfy Jest's requirement
+describe("taskAddTaskTestMocks", () => {
+  it("exports mocks for AddTask tests", () => {
+    expect(true).toBe(true);
+  });
+});

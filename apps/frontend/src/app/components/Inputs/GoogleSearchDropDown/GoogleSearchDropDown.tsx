@@ -75,7 +75,8 @@ const GoogleSearchDropDown = ({
   useEffect(() => {
     lastQueriedRef.current = (value ?? "").trim();
     setOpen(false);
-  }, [value]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Only run on mount to initialize lastQueriedRef
+  }, []);
 
   useEffect(() => {
     const q = (value ?? "").trim();
