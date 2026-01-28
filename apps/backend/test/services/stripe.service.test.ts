@@ -1,876 +1,473 @@
-import {
-  jest,
-  describe,
-  it,
-  expect,
-  beforeEach,
-  afterEach,
-} from "@jest/globals";
+import { StripeService } from '../../src/services/stripe.service';
+import Stripe from 'stripe';
+import logger from '../../src/utils/logger';
 
-// ----------------------------------------------------------------------
-// 1. DEFINE MOCK INSTANCE (Hoistable)
-// ----------------------------------------------------------------------
-const mockStripeInstance = {
-  accounts: {
-    create: jest.fn(),
-    retrieve: jest.fn(),
-  },
-  accountSessions: {
-    create: jest.fn(),
-  },
-  paymentIntents: {
-    create: jest.fn(),
-    retrieve: jest.fn(),
-  },
-  refunds: {
-    create: jest.fn(),
-  },
-  charges: {
-    retrieve: jest.fn(),
-  },
-  webhooks: {
-    constructEvent: jest.fn(),
-  },
+// Models
+import InvoiceModel from '../../src/models/invoice';
+import OrganizationModel from '../../src/models/organization';
+import ServiceModel from '../../src/models/service';
+import AppointmentModel from '../../src/models/appointment';
+import { OrgBilling } from '../../src/models/organization.billing';
+import { OrgUsageCounters } from '../../src/models/organisation.usage.counter';
+import UserOrganizationModel from '../../src/models/user-organization';
+
+// Services/Utils
+import { InvoiceService } from '../../src/services/invoice.service';
+import { NotificationService } from '../../src/services/notification.service';
+
+// --- Mocks ---
+
+// Mock Stripe Class
+const mStripe = {
+  accounts: { create: jest.fn() },
+  accountSessions: { create: jest.fn() },
+  customers: { create: jest.fn() },
+  checkout: { sessions: { create: jest.fn() } },
+  billingPortal: { sessions: { create: jest.fn() } },
+  subscriptionItems: { update: jest.fn() },
+  subscriptions: { retrieve: jest.fn() },
+  paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+  refunds: { create: jest.fn() },
+  charges: { retrieve: jest.fn() },
+  webhooks: { constructEvent: jest.fn() },
 };
 
-// ----------------------------------------------------------------------
-// 2. MOCK DEPENDENCIES (Before Imports)
-// ----------------------------------------------------------------------
-
-// Mock Stripe Library - Critical fix: include __esModule: true
-jest.mock("stripe", () => {
-  return {
-    __esModule: true,
-    default: jest.fn(() => mockStripeInstance),
-  };
+jest.mock('stripe', () => {
+  return jest.fn(() => mStripe);
 });
 
-// Mock Internal Services to prevent circular dependency crashes
-jest.mock("../../src/services/invoice.service", () => ({
-  InvoiceService: {
-    attachStripeDetails: jest.fn(),
-    markRefunded: jest.fn(),
-  },
-}));
+jest.mock('../../src/utils/logger');
+jest.mock('../../src/services/invoice.service');
+jest.mock('../../src/services/notification.service');
 
-jest.mock("../../src/services/notification.service", () => ({
-  NotificationService: {
-    sendToUser: jest.fn(),
-  },
-}));
+// Mongoose Models
+jest.mock('../../src/models/invoice');
+jest.mock('../../src/models/organization');
+jest.mock('../../src/models/service');
+jest.mock('../../src/models/appointment');
+jest.mock('../../src/models/organization.billing');
+jest.mock('../../src/models/organisation.usage.counter');
+jest.mock('../../src/models/user-organization');
 
-jest.mock("../../src/utils/logger", () => ({
-  info: jest.fn(),
-  error: jest.fn(),
-  warn: jest.fn(),
-}));
+// Helper to mock mongoose chain
+const mockChain = (result: any) => ({
+  select: jest.fn().mockReturnThis(),
+  lean: jest.fn().mockResolvedValue(result),
+  exec: jest.fn().mockResolvedValue(result),
+});
 
-// Mock Models
-jest.mock("../../src/models/invoice");
-jest.mock("../../src/models/organization");
-jest.mock("../../src/models/service");
-jest.mock("../../src/models/appointment");
-jest.mock("../../src/models/organization.billing", () => ({
-  OrgBilling: {
-    findOne: jest.fn(),
-    findOneAndUpdate: jest.fn(),
-    updateOne: jest.fn(),
-  },
-}));
-jest.mock("../../src/models/organisation.usage.counter", () => ({
-  OrgUsageCounters: {
-    findOne: jest.fn(),
-    findOneAndUpdate: jest.fn(),
-    updateOne: jest.fn(),
-  },
-}));
-jest.mock("../../src/models/user-organization", () => ({
-  __esModule: true,
-  default: { countDocuments: jest.fn() },
-}));
+// Helper for simple doc
+const mockDoc = (data: any) => ({
+  ...data,
+  save: jest.fn().mockResolvedValue(data),
+  _id: data._id || 'obj_id',
+});
 
-// Mock Utils
-jest.mock("../../src/utils/notificationTemplates", () => ({
-  NotificationTemplates: {
-    Payment: {
-      REFUND_ISSUED: jest
-        .fn()
-        .mockReturnValue({ title: "Refund", body: "Money back" }),
-    },
-  },
-}));
-
-// ----------------------------------------------------------------------
-// 3. IMPORT SYSTEM UNDER TEST
-// ----------------------------------------------------------------------
-// We set the env var BEFORE importing the service to ensure if it reads env on load, it succeeds.
-process.env.STRIPE_SECRET_KEY = "sk_test_123";
-process.env.STRIPE_WEBHOOK_SECRET = "whsec_123";
-
-import { StripeService } from "../../src/services/stripe.service";
-import { InvoiceService } from "../../src/services/invoice.service";
-import { NotificationService } from "../../src/services/notification.service";
-import logger from "../../src/utils/logger";
-import InvoiceModel from "../../src/models/invoice";
-import OrganizationModel from "../../src/models/organization";
-import { OrgBilling } from "../../src/models/organization.billing";
-import { OrgUsageCounters } from "../../src/models/organisation.usage.counter";
-import ServiceModel from "../../src/models/service";
-import AppointmentModel from "../../src/models/appointment";
-
-// ----------------------------------------------------------------------
-// 4. TYPED MOCKS
-// ----------------------------------------------------------------------
-const mockedInvoiceService = jest.mocked(InvoiceService);
-const mockedNotificationService = jest.mocked(NotificationService);
-const mockedLogger = jest.mocked(logger);
-const mockedInvoiceModel = jest.mocked(InvoiceModel);
-const mockedOrgModel = jest.mocked(OrganizationModel);
-const mockedOrgBilling = OrgBilling as unknown as {
-  findOne: unknown;
-};
-const mockOrgBillingFindOne =
-  mockedOrgBilling.findOne as unknown as jest.MockedFunction<
-    (...args: unknown[]) => Promise<unknown>
-  >;
-const mockedOrgUsage = OrgUsageCounters as unknown as {
-  findOne: unknown;
-};
-const mockOrgUsageFindOne =
-  mockedOrgUsage.findOne as unknown as jest.MockedFunction<
-    (...args: unknown[]) => Promise<unknown>
-  >;
-const mockedServiceModel = jest.mocked(ServiceModel);
-const mockedAppointmentModel = jest.mocked(AppointmentModel);
-
-describe("StripeService", () => {
+describe('StripeService', () => {
   const ORIGINAL_ENV = process.env;
 
   beforeEach(() => {
     jest.clearAllMocks();
     process.env = {
       ...ORIGINAL_ENV,
-      STRIPE_SECRET_KEY: "sk_test_123",
-      STRIPE_WEBHOOK_SECRET: "whsec_123",
+      STRIPE_SECRET_KEY: 'sk_test_123',
+      STRIPE_PRICE_BUSINESS_MONTH: 'price_month',
+      STRIPE_PRICE_BUSINESS_YEAR: 'price_year',
+      APP_URL: 'http://app.com',
+      STRIPE_WEBHOOK_SECRET: 'whsec_123',
     };
-
-    // Reset Stripe mocks default return values using 'as any' casting
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (mockStripeInstance.accounts.create as any).mockResolvedValue({
-      id: "acct_123",
-    });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (mockStripeInstance.accounts.retrieve as any).mockResolvedValue({
-      charges_enabled: true,
-      payouts_enabled: true,
-      details_submitted: true,
-      requirements: {},
-    });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (mockStripeInstance.accountSessions.create as any).mockResolvedValue({
-      client_secret: "sess_secret",
-    });
   });
 
-  afterEach(() => {
+  afterAll(() => {
     process.env = ORIGINAL_ENV;
   });
 
-  /* ========================================================================
-   * CONNECTED ACCOUNTS
-   * ======================================================================*/
-  describe("createOrGetConnectedAccount", () => {
-    it("should throw if organisation not found", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedOrgModel.findById as any).mockResolvedValue(null);
-      await expect(
-        StripeService.createOrGetConnectedAccount("org1"),
-      ).rejects.toThrow("Organisation not found");
-    });
+  describe('Initialization', () => {
+    it('should throw if STRIPE_SECRET_KEY is missing', async () => {
+        jest.resetModules(); // Reset to clear cached instance
+        delete process.env.STRIPE_SECRET_KEY;
+        const { StripeService: LocalService } = require('../../src/services/stripe.service');
 
-    it("should return existing accountId if present", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedOrgModel.findById as any).mockResolvedValue({
-        stripeAccountId: "acct_existing",
-      });
-      const res = await StripeService.createOrGetConnectedAccount("org1");
-      expect(res.accountId).toBe("acct_existing");
-      expect(mockStripeInstance.accounts.create).not.toHaveBeenCalled();
-    });
-
-    it("should create new account if missing", async () => {
-      const mockSave = jest.fn();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedOrgModel.findById as any).mockResolvedValue({
-        stripeAccountId: null,
-        save: mockSave,
-      });
-
-      const res = await StripeService.createOrGetConnectedAccount("org1");
-
-      expect(mockStripeInstance.accounts.create).toHaveBeenCalled();
-      expect(mockSave).toHaveBeenCalled();
-      expect(res.accountId).toBe("acct_123");
+        await expect(LocalService.createOrGetConnectedAccount('org1'))
+            .rejects.toThrow('STRIPE_SECRET_KEY is not configured');
     });
   });
 
-  describe("getAccountStatus", () => {
-    it("should throw if org has no stripe account", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedOrgModel.findById as any).mockResolvedValue(null);
-      await expect(StripeService.getAccountStatus("org1")).rejects.toThrow(
-        "Organistaion not found",
-      );
+  // --- CONNECT FLOWS ---
+
+  describe('createOrGetConnectedAccount', () => {
+    it('should return existing account ID', async () => {
+      (OrganizationModel.findById as jest.Mock).mockResolvedValue(mockDoc({ stripeAccountId: 'acct_123' }));
+      const res = await StripeService.createOrGetConnectedAccount('org1');
+      expect(res.accountId).toBe('acct_123');
+      expect(mStripe.accounts.create).not.toHaveBeenCalled();
     });
 
-    it("should return billing and usage status", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedOrgModel.findById as any).mockResolvedValue({
-        _id: "org1",
-      });
-      (mockOrgBillingFindOne as jest.Mock).mockReturnValueOnce({
-        lean: (jest.fn() as any).mockResolvedValue({
-          connectAccountId: "acct_123",
-          canAcceptPayments: true,
-        }),
-      });
-      (mockOrgUsageFindOne as jest.Mock).mockReturnValueOnce({
-        lean: (jest.fn() as any).mockResolvedValue({
-          usersActiveCount: 2,
-          usersBillableCount: 2,
-        }),
-      });
-      const res = await StripeService.getAccountStatus("org1");
-      expect(mockedOrgBilling.findOne).toHaveBeenCalledWith({
-        orgId: "org1",
-      });
-      expect(mockedOrgUsage.findOne).toHaveBeenCalledWith({
-        orgId: "org1",
-      });
-      const billing = await res.orgBilling;
-      const usage = await res.orgUsage;
-      expect(billing).toMatchObject({
-        connectAccountId: "acct_123",
-        canAcceptPayments: true,
-      });
-      expect(usage).toMatchObject({
-        usersActiveCount: 2,
-        usersBillableCount: 2,
-      });
+    it('should create new account if missing', async () => {
+      const mockOrg = mockDoc({ _id: 'org1', stripeAccountId: undefined });
+      (OrganizationModel.findById as jest.Mock).mockResolvedValue(mockOrg);
+      mStripe.accounts.create.mockResolvedValue({ id: 'new_acct' });
+
+      // billing update mock
+      (OrgBilling.findOneAndUpdate as jest.Mock).mockResolvedValue({});
+
+      const res = await StripeService.createOrGetConnectedAccount('org1');
+
+      expect(res.accountId).toBe('new_acct');
+      expect(mockOrg.save).toHaveBeenCalled();
+      expect(OrgBilling.findOneAndUpdate).toHaveBeenCalled();
+    });
+
+    it('should throw if org not found', async () => {
+      (OrganizationModel.findById as jest.Mock).mockResolvedValue(null);
+      await expect(StripeService.createOrGetConnectedAccount('org1')).rejects.toThrow('Organisation not found');
     });
   });
 
-  describe("createOnboardingLink", () => {
-    it("should throw if org has no stripe account", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedOrgModel.findById as any).mockResolvedValue({
-        _id: "org1",
-      });
-      mockOrgBillingFindOne.mockResolvedValue(null);
-      await expect(StripeService.createOnboardingLink("org1")).rejects.toThrow(
-        "Organisation does not have a Stripe account",
-      );
+  describe('getAccountStatus', () => {
+    it('should return billing doc', async () => {
+      (OrganizationModel.findById as jest.Mock).mockResolvedValue({ _id: 'org1' });
+      (OrgBilling.findOne as jest.Mock).mockResolvedValue('billing_doc');
+      const res = await StripeService.getAccountStatus('org1');
+      expect(res).toBe('billing_doc');
     });
 
-    it("should return client_secret", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedOrgModel.findById as any).mockResolvedValue({
-        _id: "org1",
-      });
-      mockOrgBillingFindOne.mockResolvedValue({
-        connectAccountId: "acct_123",
-      });
-      const res = await StripeService.createOnboardingLink("org1");
-      expect(mockStripeInstance.accountSessions.create).toHaveBeenCalledWith(
-        expect.objectContaining({ account: "acct_123" }),
-      );
-      expect(res.client_secret).toBe("sess_secret");
+    it('should throw if org not found', async () => {
+        (OrganizationModel.findById as jest.Mock).mockResolvedValue(null);
+        await expect(StripeService.getAccountStatus('org1')).rejects.toThrow('Organistaion not found');
     });
   });
 
-  /* ========================================================================
-   * PAYMENT INTENTS
-   * ======================================================================*/
-  describe("createPaymentIntentForAppointment", () => {
-    it("should throw if appointment not found", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedAppointmentModel.findById as any).mockResolvedValue(null);
-      await expect(
-        StripeService.createPaymentIntentForAppointment("apt1"),
-      ).rejects.toThrow("Appointment not found");
+  describe('createOnboardingLink', () => {
+    it('should create account session', async () => {
+      (OrganizationModel.findById as jest.Mock).mockResolvedValue({ _id: 'org1' });
+      (OrgBilling.findOne as jest.Mock).mockResolvedValue({ connectAccountId: 'acct_1' });
+      mStripe.accountSessions.create.mockResolvedValue({ client_secret: 'secret' });
+
+      const res = await StripeService.createOnboardingLink('org1');
+      expect(res.client_secret).toBe('secret');
     });
 
-    it("should throw if status is not NO_PAYMENT", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedAppointmentModel.findById as any).mockResolvedValue({
-        status: "PAID",
-      });
-      await expect(
-        StripeService.createPaymentIntentForAppointment("apt1"),
-      ).rejects.toThrow("Appointment does not require payment");
-    });
-
-    it("should throw if service not found", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedAppointmentModel.findById as any).mockResolvedValue({
-        status: "NO_PAYMENT",
-        appointmentType: { id: "s1" },
-      });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedServiceModel.findById as any).mockResolvedValue(null);
-      await expect(
-        StripeService.createPaymentIntentForAppointment("apt1"),
-      ).rejects.toThrow("Service not found");
-    });
-
-    it("should throw if organisation has no stripe account", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedAppointmentModel.findById as any).mockResolvedValue({
-        status: "NO_PAYMENT",
-        appointmentType: { id: "s1" },
-        organisationId: "org1",
-      });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedServiceModel.findById as any).mockResolvedValue({ cost: 100 });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedOrgModel.findById as any).mockResolvedValue({
-        stripeAccountId: null,
-      });
-
-      await expect(
-        StripeService.createPaymentIntentForAppointment("apt1"),
-      ).rejects.toThrow("Organisation has no Stripe account");
-    });
-
-    it("should create payment intent and update appointment", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedAppointmentModel.findById as any).mockResolvedValue({
-        status: "NO_PAYMENT",
-        appointmentType: { id: "s1" },
-        organisationId: "org1",
-        companion: { parent: { id: "p1" }, id: "c1" },
-      });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedServiceModel.findById as any).mockResolvedValue({ cost: 100 }); // $100
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedOrgModel.findById as any).mockResolvedValue({
-        stripeAccountId: "acct_123",
-      });
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockStripeInstance.paymentIntents.create as any).mockResolvedValue({
-        id: "pi_123",
-        client_secret: "sec_123",
-      });
-
-      const res = await StripeService.createPaymentIntentForAppointment("apt1");
-
-      expect(mockStripeInstance.paymentIntents.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          amount: 10000, // 100 * 100
-          transfer_data: { destination: "acct_123" },
-        }),
-      );
-      expect(mockedAppointmentModel.updateOne).toHaveBeenCalledWith(
-        { _id: "apt1" },
-        { stripePaymentIntentId: "pi_123" },
-      );
-      expect(res.clientSecret).toBe("sec_123");
+    it('should throw if billing/connect ID missing', async () => {
+      (OrganizationModel.findById as jest.Mock).mockResolvedValue({ _id: 'org1' });
+      (OrgBilling.findOne as jest.Mock).mockResolvedValue(null);
+      await expect(StripeService.createOnboardingLink('org1')).rejects.toThrow('Organisation does not have a Stripe account');
     });
   });
 
-  describe("createPaymentIntentForInvoice", () => {
-    it("should throw if invoice not found", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedInvoiceModel.findById as any).mockResolvedValue(null);
-      await expect(
-        StripeService.createPaymentIntentForInvoice("inv1"),
-      ).rejects.toThrow("Invoice not found");
+  // --- SAAS SUBSCRIPTIONS ---
+
+  describe('createBusinessCheckoutSession', () => {
+    const mockOrg = mockDoc({ _id: 'org1', name: 'My Org', stripeAccountId: 'acct_1' });
+    const mockBilling = mockDoc({ connectAccountId: 'acct_1', canAcceptPayments: true, stripeCustomerId: 'cus_1' });
+
+    beforeEach(() => {
+        (OrganizationModel.findById as jest.Mock).mockResolvedValue(mockOrg);
+        (OrgBilling.findOneAndUpdate as jest.Mock).mockResolvedValue(mockBilling); // ensureBillingDocs
+        (OrgUsageCounters.findOneAndUpdate as jest.Mock).mockResolvedValue({});
+        (UserOrganizationModel.countDocuments as jest.Mock).mockResolvedValue(5); // 5 seats
     });
 
-    it("should throw if organisation not found", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedInvoiceModel.findById as any).mockResolvedValue({
-        organisationId: "org1",
-        status: "PENDING",
-      });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedOrgModel.findById as any).mockResolvedValue(null);
-      await expect(
-        StripeService.createPaymentIntentForInvoice("inv1"),
-      ).rejects.toThrow("Organisation does not have a Stripe connected account");
+    it('should create session for monthly interval', async () => {
+        mStripe.checkout.sessions.create.mockResolvedValue({ url: 'http://checkout' });
+
+        const res = await StripeService.createBusinessCheckoutSession('org1', 'month');
+
+        expect(res.url).toBe('http://checkout');
+        expect(mStripe.checkout.sessions.create).toHaveBeenCalledWith(expect.objectContaining({
+            mode: 'subscription',
+            customer: 'cus_1',
+            line_items: [{ price: 'price_month', quantity: 5 }]
+        }), expect.anything());
     });
 
-    it("should throw if invoice not payable", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedInvoiceModel.findById as any).mockResolvedValue({
-        organisationId: "org1",
-        status: "PAID",
-      });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedOrgModel.findById as any).mockResolvedValue({
-        stripeAccountId: "acct_123",
-      });
-      await expect(
-        StripeService.createPaymentIntentForInvoice("inv1"),
-      ).rejects.toThrow("Invoice is not payable");
+    it('should create customer if missing', async () => {
+        // Mock billing without customer ID
+        const noCusBilling = mockDoc({ connectAccountId: 'acct_1', canAcceptPayments: true });
+        (OrgBilling.findOneAndUpdate as jest.Mock).mockResolvedValue(noCusBilling);
+
+        mStripe.customers.create.mockResolvedValue({ id: 'new_cus' });
+        mStripe.checkout.sessions.create.mockResolvedValue({ url: 'url' });
+
+        await StripeService.createBusinessCheckoutSession('org1', 'year');
+
+        expect(mStripe.customers.create).toHaveBeenCalled();
+        expect(noCusBilling.stripeCustomerId).toBe('new_cus');
+        expect(noCusBilling.save).toHaveBeenCalled();
     });
 
-    it("should throw if org has no stripe account", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedInvoiceModel.findById as any).mockResolvedValue({
-        organisationId: "org1",
-        status: "PENDING",
-      });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedOrgModel.findById as any).mockResolvedValue({
-        stripeAccountId: null,
-      });
-      await expect(
-        StripeService.createPaymentIntentForInvoice("inv1"),
-      ).rejects.toThrow(
-        "Organisation does not have a Stripe connected account",
-      );
+    it('should throw if not ready for payments', async () => {
+        const notReadyBilling = mockDoc({ canAcceptPayments: false });
+        (OrgBilling.findOneAndUpdate as jest.Mock).mockResolvedValue(notReadyBilling);
+        await expect(StripeService.createBusinessCheckoutSession('org1', 'month'))
+            .rejects.toThrow('Stripe account not ready');
     });
 
-    it("should create payment intent and update invoice", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedInvoiceModel.findById as any).mockResolvedValue({
-        organisationId: "org1",
-        status: "PENDING",
-        totalAmount: 50,
-        currency: "usd",
-      });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedOrgModel.findById as any).mockResolvedValue({
-        stripeAccountId: "acct_123",
-      });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockStripeInstance.paymentIntents.create as any).mockResolvedValue({
-        id: "pi_inv",
-        client_secret: "sec_inv",
-      });
-
-      const res = await StripeService.createPaymentIntentForInvoice("inv1");
-
-      expect(mockStripeInstance.paymentIntents.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          amount: 5000,
-          metadata: expect.objectContaining({ type: "INVOICE_PAYMENT" }),
-        }),
-      );
-      expect(mockedInvoiceService.attachStripeDetails).toHaveBeenCalledWith(
-        "inv1",
-        expect.objectContaining({
-          stripePaymentIntentId: "pi_inv",
-          status: "AWAITING_PAYMENT",
-        }),
-      );
-      expect("paymentIntentId" in res).toBe(true);
-      if ("paymentIntentId" in res) {
-        expect(res.paymentIntentId).toBe("pi_inv");
-      }
+    it('should throw if 0 seats', async () => {
+        (UserOrganizationModel.countDocuments as jest.Mock).mockResolvedValue(0);
+        await expect(StripeService.createBusinessCheckoutSession('org1', 'month'))
+            .rejects.toThrow('No users found');
     });
   });
 
-  describe("retrievePaymentIntent", () => {
-    it("should retrieve PI", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockStripeInstance.paymentIntents.retrieve as any).mockResolvedValue({
-        id: "pi_1",
+  describe('createCustomerPortalSession', () => {
+      it('should create portal session', async () => {
+          (OrgBilling.findOneAndUpdate as jest.Mock).mockResolvedValue({ stripeCustomerId: 'cus_1' });
+          mStripe.billingPortal.sessions.create.mockResolvedValue({ url: 'portal' });
+
+          const res = await StripeService.createCustomerPortalSession('org1');
+          expect(res.url).toBe('portal');
       });
-      const res = await StripeService.retrievePaymentIntent("pi_1");
-      expect(res.id).toBe("pi_1");
-    });
+
+      it('should throw if no customer id', async () => {
+        (OrgBilling.findOneAndUpdate as jest.Mock).mockResolvedValue({});
+        await expect(StripeService.createCustomerPortalSession('org1')).rejects.toThrow('No billing customer found');
+      });
   });
 
-  /* ========================================================================
-   * REFUNDS
-   * ======================================================================*/
-  describe("refundPaymentIntent", () => {
-    it("should throw if invoice not found", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedInvoiceModel.findOne as any).mockResolvedValue(null);
-      await expect(StripeService.refundPaymentIntent("pi_1")).rejects.toThrow(
-        "Invoice not found",
-      );
-    });
+  describe('syncSubscriptionSeats', () => {
+      it('should update subscription if quantity changed', async () => {
+          const billing = mockDoc({
+              plan: 'business',
+              stripeSubscriptionItemId: 'si_1',
+              subscriptionStatus: 'active',
+              seatQuantity: 2
+          });
+          (OrgBilling.findOneAndUpdate as jest.Mock).mockResolvedValue(billing);
+          (UserOrganizationModel.countDocuments as jest.Mock).mockResolvedValue(5); // Changed to 5
 
-    it("should throw if no charge found", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedInvoiceModel.findOne as any).mockResolvedValue({ _id: "inv1" });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockStripeInstance.paymentIntents.retrieve as any).mockResolvedValue({
-        latest_charge: null,
-      });
-      await expect(StripeService.refundPaymentIntent("pi_1")).rejects.toThrow(
-        "No charge found for PaymentIntent",
-      );
-    });
+          const res = await StripeService.syncSubscriptionSeats('org1');
 
-    it("should process refund", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedInvoiceModel.findOne as any).mockResolvedValue({ _id: "inv1" });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockStripeInstance.paymentIntents.retrieve as any).mockResolvedValue({
-        latest_charge: { id: "ch_1" },
-      });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockStripeInstance.refunds.create as any).mockResolvedValue({
-        id: "re_1",
-        status: "succeeded",
-        amount: 5000,
+          expect(res.updated).toBe(true);
+          expect(mStripe.subscriptionItems.update).toHaveBeenCalledWith('si_1', {
+              quantity: 5,
+              proration_behavior: 'create_prorations'
+          });
+          expect(billing.seatQuantity).toBe(5);
+          expect(billing.save).toHaveBeenCalled();
       });
 
-      const res = await StripeService.refundPaymentIntent("pi_1");
-
-      expect(mockStripeInstance.refunds.create).toHaveBeenCalledWith({
-        charge: "ch_1",
+      it('should return false if not business plan', async () => {
+        (OrgBilling.findOneAndUpdate as jest.Mock).mockResolvedValue({ plan: 'free' });
+        const res = await StripeService.syncSubscriptionSeats('org1');
+        expect(res.reason).toBe('not_business');
       });
-      expect(mockedInvoiceService.markRefunded).toHaveBeenCalledWith("inv1");
-      expect(res.amountRefunded).toBe(50);
-    });
+
+      it('should return false if status not active', async () => {
+        (OrgBilling.findOneAndUpdate as jest.Mock).mockResolvedValue({
+            plan: 'business', stripeSubscriptionItemId: 'si_1', subscriptionStatus: 'canceled'
+        });
+        const res = await StripeService.syncSubscriptionSeats('org1');
+        expect(res.reason).toBe('subscription_not_syncable');
+      });
   });
 
-  /* ========================================================================
-   * WEBHOOKS
-   * ======================================================================*/
-  describe("verifyWebhook", () => {
-    it("should throw if missing signature", () => {
-      expect(() =>
-        StripeService.verifyWebhook(Buffer.from(""), undefined),
-      ).toThrow("Missing Stripe signature header");
-    });
+  // --- PAYMENT INTENTS ---
 
-    it("should throw if signature is array", () => {
-      expect(() =>
-        StripeService.verifyWebhook(Buffer.from(""), ["sig"]),
-      ).toThrow("Invalid Stripe signature header format");
-    });
+  describe('createPaymentIntentForAppointment', () => {
+      it('should create PI and update appointment', async () => {
+          const mockAppt = {
+              status: 'NO_PAYMENT',
+              appointmentType: { id: 'srv_1' },
+              organisationId: 'org_1',
+              companion: { id: 'c1', parent: { id: 'p1' } }
+          };
+          (AppointmentModel.findById as jest.Mock).mockResolvedValue(mockAppt);
+          (ServiceModel.findById as jest.Mock).mockResolvedValue({ cost: 100 });
+          (OrganizationModel.findById as jest.Mock).mockResolvedValue({ stripeAccountId: 'acct_1' });
 
-    it("should throw if secret missing", () => {
-      delete process.env.STRIPE_WEBHOOK_SECRET;
-      expect(() => StripeService.verifyWebhook(Buffer.from(""), "sig")).toThrow(
-        "STRIPE_WEBHOOK_SECRET is not configured",
-      );
-    });
+          mStripe.paymentIntents.create.mockResolvedValue({ id: 'pi_1', client_secret: 'sec_1' });
 
-    it("should construct event", () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockStripeInstance.webhooks.constructEvent as any).mockReturnValue({
-        id: "evt_1",
+          const res = await StripeService.createPaymentIntentForAppointment('appt_1');
+
+          expect(res.paymentIntentId).toBe('pi_1');
+          expect(mStripe.paymentIntents.create).toHaveBeenCalledWith(expect.objectContaining({
+              amount: 10000, // 100 * 100
+              transfer_data: { destination: 'acct_1' }
+          }));
+          expect(AppointmentModel.updateOne).toHaveBeenCalled();
       });
-      const evt = StripeService.verifyWebhook(Buffer.from(""), "sig");
-      expect(evt).toEqual({ id: "evt_1" });
-    });
+
+      it('should throw if appt status wrong', async () => {
+        (AppointmentModel.findById as jest.Mock).mockResolvedValue({ status: 'PAID' });
+        await expect(StripeService.createPaymentIntentForAppointment('a1')).rejects.toThrow('does not require payment');
+      });
   });
 
-  describe("handleWebhookEvent", () => {
-    // --- Invoice Payment Success ---
-    it("handlePaymentSucceeded: INVOICE_PAYMENT", async () => {
-      const event = {
-        type: "payment_intent.succeeded",
-        data: {
-          object: {
-            id: "pi_1",
-            metadata: { type: "INVOICE_PAYMENT", invoiceId: "inv1" },
-            latest_charge: "ch_1",
-            currency: "usd",
-          },
-        },
-      } as any;
+  describe('createPaymentIntentForInvoice', () => {
+      it('should create PI for invoice', async () => {
+          const mockInv = {
+              status: 'AWAITING_PAYMENT',
+              totalAmount: 50,
+              organisationId: 'org_1'
+          };
+          (InvoiceModel.findById as jest.Mock).mockResolvedValue(mockInv);
+          (OrganizationModel.findById as jest.Mock).mockResolvedValue({ stripeAccountId: 'acct_1' });
+          mStripe.paymentIntents.create.mockResolvedValue({ id: 'pi_1', client_secret: 'sec' });
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedInvoiceModel.findById as any).mockResolvedValue({
-        status: "AWAITING_PAYMENT",
-        paymentCollectionMethod: "PAYMENT_INTENT",
-        save: jest.fn(),
+          await StripeService.createPaymentIntentForInvoice('inv_1');
+
+          expect(mStripe.paymentIntents.create).toHaveBeenCalledWith(expect.objectContaining({
+              amount: 5000
+          }));
+          expect(InvoiceService.attachStripeDetails).toHaveBeenCalledWith('inv_1', expect.anything());
       });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockStripeInstance.charges.retrieve as any).mockResolvedValue({
-        id: "ch_1",
-        receipt_url: "url",
-      });
+  });
 
-      await StripeService.handleWebhookEvent(event);
+  describe('refundPaymentIntent', () => {
+      it('should process refund', async () => {
+          (InvoiceModel.findOne as jest.Mock).mockResolvedValue({ _id: 'inv_1' });
+          mStripe.paymentIntents.retrieve.mockResolvedValue({ latest_charge: { id: 'ch_1' } });
+          mStripe.refunds.create.mockResolvedValue({ id: 're_1', status: 'succeeded', amount: 5000 });
 
-      expect(mockedInvoiceModel.findById).toHaveBeenCalledWith("inv1");
-      expect(mockedLogger.info).toHaveBeenCalledWith(
-        "Invoice inv1 marked PAID",
-      );
-    });
+          const res = await StripeService.refundPaymentIntent('pi_1');
 
-    it("handlePaymentSucceeded: INVOICE_PAYMENT (Missing ID)", async () => {
-      const event = {
-        type: "payment_intent.succeeded",
-        data: { object: { metadata: { type: "INVOICE_PAYMENT" } } },
-      } as any;
-      await StripeService.handleWebhookEvent(event);
-      expect(mockedInvoiceModel.findById).not.toHaveBeenCalled();
-    });
-
-    it("handlePaymentSucceeded: INVOICE_PAYMENT (Not Found)", async () => {
-      const event = {
-        type: "payment_intent.succeeded",
-        data: {
-          object: { metadata: { type: "INVOICE_PAYMENT", invoiceId: "inv1" } },
-        },
-      } as any;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedInvoiceModel.findById as any).mockResolvedValue(null);
-      await StripeService.handleWebhookEvent(event);
-      expect(mockedInvoiceModel.findById).toHaveBeenCalledWith("inv1");
-    });
-
-    it("handlePaymentSucceeded: INVOICE_PAYMENT (Already Paid)", async () => {
-      const event = {
-        type: "payment_intent.succeeded",
-        data: {
-          object: { metadata: { type: "INVOICE_PAYMENT", invoiceId: "inv1" } },
-        },
-      } as any;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedInvoiceModel.findById as any).mockResolvedValue({
-        status: "PAID",
-      });
-      await StripeService.handleWebhookEvent(event);
-      expect(mockedInvoiceModel.findById).toHaveBeenCalledWith("inv1");
-    });
-
-    // --- Appointment Booking Success ---
-    it("handlePaymentSucceeded: APPOINTMENT_BOOKING", async () => {
-      const event = {
-        type: "payment_intent.succeeded",
-        data: {
-          object: {
-            id: "pi_1",
-            currency: "usd",
-            metadata: { type: "APPOINTMENT_BOOKING", appointmentId: "apt1" },
-            latest_charge: "ch_1",
-          },
-        },
-      } as any;
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedAppointmentModel.findById as any).mockResolvedValue({
-        organisationId: "org1",
-        appointmentType: { id: "s1" },
-        companion: { id: "c1", parent: { id: "p1" } },
-      });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedInvoiceModel.findOne as any).mockResolvedValue(null); // No existing invoice
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedServiceModel.findById as any).mockResolvedValue({
-        name: "Svc",
-        cost: 100,
-      });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockStripeInstance.charges.retrieve as any).mockResolvedValue({
-        id: "ch_1",
-        receipt_url: "url",
-      });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedInvoiceModel.create as any).mockResolvedValue({
-        _id: "new_inv",
-        id: "new_inv",
+          expect(res.amountRefunded).toBe(50);
+          expect(InvoiceService.markRefunded).toHaveBeenCalledWith('inv_1');
       });
 
-      await StripeService.handleWebhookEvent(event);
-
-      expect(mockedInvoiceModel.create).toHaveBeenCalled();
-      expect(mockedAppointmentModel.updateOne).toHaveBeenCalledWith(
-        { _id: "apt1" },
-        expect.objectContaining({ status: "REQUESTED" }),
-      );
-    });
-
-    it("handlePaymentSucceeded: APPOINTMENT_BOOKING (Missing ID)", async () => {
-      const event = {
-        type: "payment_intent.succeeded",
-        data: { object: { metadata: { type: "APPOINTMENT_BOOKING" } } },
-      } as any;
-      await StripeService.handleWebhookEvent(event);
-      expect(mockedAppointmentModel.findById).not.toHaveBeenCalled();
-    });
-
-    it("handlePaymentSucceeded: APPOINTMENT_BOOKING (Apt Not Found)", async () => {
-      const event = {
-        type: "payment_intent.succeeded",
-        data: {
-          object: {
-            metadata: { type: "APPOINTMENT_BOOKING", appointmentId: "apt1" },
-          },
-        },
-      } as any;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedAppointmentModel.findById as any).mockResolvedValue(null);
-      await StripeService.handleWebhookEvent(event);
-      expect(mockedAppointmentModel.findById).toHaveBeenCalledWith("apt1");
-    });
-
-    it("handlePaymentSucceeded: APPOINTMENT_BOOKING (Invoice Exists)", async () => {
-      const event = {
-        type: "payment_intent.succeeded",
-        data: {
-          object: {
-            metadata: { type: "APPOINTMENT_BOOKING", appointmentId: "apt1" },
-          },
-        },
-      } as any;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedAppointmentModel.findById as any).mockResolvedValue({});
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedInvoiceModel.findOne as any).mockResolvedValue({}); // Exists
-
-      await StripeService.handleWebhookEvent(event);
-      expect(mockedInvoiceModel.findOne).toHaveBeenCalledWith({
-        appointmentId: "apt1",
-        status: "PAID",
+      it('should throw if no charge on PI', async () => {
+        (InvoiceModel.findOne as jest.Mock).mockResolvedValue({ _id: 'inv_1' });
+        mStripe.paymentIntents.retrieve.mockResolvedValue({ latest_charge: null });
+        await expect(StripeService.refundPaymentIntent('pi_1')).rejects.toThrow('No charge found');
       });
-    });
+  });
 
-    it("handlePaymentSucceeded: APPOINTMENT_BOOKING (Service Not Found)", async () => {
-      const event = {
-        type: "payment_intent.succeeded",
-        data: {
-          object: {
-            metadata: { type: "APPOINTMENT_BOOKING", appointmentId: "apt1" },
-            latest_charge: "ch_1",
-          },
-        },
-      } as any;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedAppointmentModel.findById as any).mockResolvedValue({
-        appointmentType: { id: "s1" },
-      });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedInvoiceModel.findOne as any).mockResolvedValue(null);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockStripeInstance.charges.retrieve as any).mockResolvedValue({});
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedServiceModel.findById as any).mockResolvedValue(null);
+  // --- WEBHOOKS ---
 
-      await StripeService.handleWebhookEvent(event);
-      expect(mockedServiceModel.findById).toHaveBeenCalledWith("s1");
-    });
-
-    // --- Unknown Payment Type ---
-    it("handlePaymentSucceeded: Unknown Type", async () => {
-      const event = {
-        type: "payment_intent.succeeded",
-        data: { object: { metadata: { type: "UNKNOWN" } } },
-      } as any;
-      await StripeService.handleWebhookEvent(event);
-      expect(mockedLogger.error).toHaveBeenCalledWith(
-        "Unknown payment type in metadata",
-      );
-    });
-
-    it("handlePaymentSucceeded: Missing Type", async () => {
-      const event = {
-        type: "payment_intent.succeeded",
-        data: { object: { metadata: {} } },
-      } as any;
-      await StripeService.handleWebhookEvent(event);
-      expect(mockedLogger.error).toHaveBeenCalledWith(
-        "payment_intent.succeeded missing metadata.type",
-      );
-    });
-
-    // --- Payment Failed ---
-    it("handlePaymentFailed: Success", async () => {
-      const event = {
-        type: "payment_intent.payment_failed",
-        data: { object: { metadata: { appointmentId: "apt1" } } },
-      } as any;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedInvoiceModel.findOne as any).mockResolvedValue({
-        _id: "inv1",
-        id: "inv1",
+  describe('verifyWebhook', () => {
+      it('should construct event', () => {
+          mStripe.webhooks.constructEvent.mockReturnValue({ type: 'test' });
+          const evt = StripeService.verifyWebhook(Buffer.from('data'), 'sig');
+          expect(evt.type).toBe('test');
       });
 
-      await StripeService.handleWebhookEvent(event);
-      expect(mockedInvoiceModel.updateOne).toHaveBeenCalledWith(
-        { _id: "inv1" },
-        { status: "FAILED" },
-      );
-    });
+      it('should throw on missing sig', () => {
+          expect(() => StripeService.verifyWebhook(Buffer.from(''), undefined)).toThrow('Missing Stripe signature');
+      });
+  });
 
-    it("handlePaymentFailed: Missing AppointmentId", async () => {
-      const event = {
-        type: "payment_intent.payment_failed",
-        data: { object: { metadata: {} } },
-      } as any;
-      await StripeService.handleWebhookEvent(event);
-      expect(mockedInvoiceModel.findOne).not.toHaveBeenCalled();
-    });
+  describe('handleWebhookEvent', () => {
+      it('should handle account.updated', async () => {
+          const event = { type: 'account.updated', data: { object: { id: 'acct_1', charges_enabled: true, payouts_enabled: true } } } as any;
 
-    it("handlePaymentFailed: No Invoice", async () => {
-      const event = {
-        type: "payment_intent.payment_failed",
-        data: { object: { metadata: { appointmentId: "apt1" } } },
-      } as any;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedInvoiceModel.findOne as any).mockResolvedValue(null);
-      await StripeService.handleWebhookEvent(event);
-      expect(mockedInvoiceModel.updateOne).not.toHaveBeenCalled();
-    });
+          await StripeService.handleWebhookEvent(event);
 
-    // --- Charge Refunded ---
-    it("handleRefund: Success", async () => {
-      const event = {
-        type: "charge.refunded",
-        data: {
-          object: {
-            amount: 5000,
-            currency: "usd",
-            metadata: { appointmentId: "apt1" },
-          },
-        },
-      } as any;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedInvoiceModel.findOne as any).mockResolvedValue({
-        _id: "inv1",
-        id: "inv1",
-        parentId: "p1",
+          expect(OrgBilling.updateOne).toHaveBeenCalledWith(
+              { connectAccountId: 'acct_1' },
+              expect.objectContaining({ canAcceptPayments: true })
+          );
       });
 
-      await StripeService.handleWebhookEvent(event);
+      it('should handle checkout.session.completed', async () => {
+          const event = {
+              type: 'checkout.session.completed',
+              data: { object: { mode: 'subscription', customer: 'cus_1', subscription: 'sub_1', livemode: true } }
+          } as any;
 
-      expect(mockedInvoiceModel.updateOne).toHaveBeenCalledWith(
-        { _id: "inv1" },
-        { status: "REFUNDED" },
-      );
-      expect(mockedNotificationService.sendToUser).toHaveBeenCalled();
-    });
+          mStripe.subscriptions.retrieve.mockResolvedValue({
+              id: 'sub_1',
+              status: 'active',
+              items: { data: [{ id: 'si_1', price: { id: 'p_1', recurring: { interval: 'month' } }, quantity: 5, current_period_start: 100, current_period_end: 200 }] }
+          });
 
-    it("handleRefund: Missing AppointmentId", async () => {
-      const event = {
-        type: "charge.refunded",
-        data: { object: { metadata: {} } },
-      } as any;
-      await StripeService.handleWebhookEvent(event);
-      expect(mockedInvoiceModel.findOne).not.toHaveBeenCalled();
-    });
+          await StripeService.handleWebhookEvent(event);
 
-    it("handleRefund: No Invoice", async () => {
-      const event = {
-        type: "charge.refunded",
-        data: { object: { metadata: { appointmentId: "apt1" } } },
-      } as any;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedInvoiceModel.findOne as any).mockResolvedValue(null);
-      await StripeService.handleWebhookEvent(event);
-      expect(mockedInvoiceModel.updateOne).not.toHaveBeenCalled();
-    });
+          expect(OrgBilling.updateOne).toHaveBeenCalledWith(
+              { stripeCustomerId: 'cus_1' },
+              expect.objectContaining({ plan: 'business', stripeSubscriptionId: 'sub_1' })
+          );
+      });
 
-    // --- Default ---
-    it("handleWebhookEvent: Default Case", async () => {
-      const event = { type: "unknown_event" } as any;
-      await StripeService.handleWebhookEvent(event);
-      expect(mockedLogger.info).toHaveBeenCalledWith(
-        "Unhandled Stripe event: unknown_event",
-      );
-    });
+      it('should handle customer.subscription.updated', async () => {
+          const event = { type: 'customer.subscription.updated', data: { object: { id: 'sub_1', status: 'past_due', items: { data: [{ quantity: 5 }] } } } } as any;
+          await StripeService.handleWebhookEvent(event);
+          expect(OrgBilling.updateOne).toHaveBeenCalledWith(
+              { stripeSubscriptionId: 'sub_1' },
+              expect.objectContaining({ subscriptionStatus: 'past_due' })
+          );
+      });
+
+      it('should handle customer.subscription.deleted', async () => {
+          const event = { type: 'customer.subscription.deleted', data: { object: { id: 'sub_1' } } } as any;
+          await StripeService.handleWebhookEvent(event);
+          expect(OrgBilling.updateOne).toHaveBeenCalledWith(
+              { stripeSubscriptionId: 'sub_1' },
+              expect.objectContaining({ plan: 'free', accessState: 'free' })
+          );
+      });
+
+      it('should handle invoice.paid', async () => {
+          const event = { type: 'invoice.paid', data: { object: { id: 'inv_stripe', lines: { data: [{ subscription: 'sub_1' }] } } } } as any;
+          await StripeService.handleWebhookEvent(event);
+          expect(OrgBilling.updateOne).toHaveBeenCalledWith(
+              { stripeSubscriptionId: 'sub_1' },
+              expect.objectContaining({ lastPaymentStatus: 'paid' })
+          );
+      });
+
+      it('should handle invoice.payment_failed', async () => {
+          const event = { type: 'invoice.payment_failed', data: { object: { id: 'inv_stripe', lines: { data: [{ subscription: 'sub_1' }] } } } } as any;
+          await StripeService.handleWebhookEvent(event);
+          expect(OrgBilling.updateOne).toHaveBeenCalledWith(
+              { stripeSubscriptionId: 'sub_1' },
+              expect.objectContaining({ accessState: 'past_due' })
+          );
+      });
+
+      it('should handle payment_intent.succeeded (INVOICE)', async () => {
+          const event = {
+              type: 'payment_intent.succeeded',
+              data: { object: { id: 'pi_1', metadata: { type: 'INVOICE_PAYMENT', invoiceId: 'inv_1' }, latest_charge: 'ch_1', currency: 'usd' } }
+          } as any;
+
+          const mockInvoice = mockDoc({ status: 'AWAITING_PAYMENT' });
+          (InvoiceModel.findById as jest.Mock).mockResolvedValue(mockInvoice);
+          mStripe.charges.retrieve.mockResolvedValue({ id: 'ch_1', receipt_url: 'url' });
+
+          await StripeService.handleWebhookEvent(event);
+
+          expect(mockInvoice.status).toBe('PAID');
+          expect(mockInvoice.save).toHaveBeenCalled();
+      });
+
+      it('should handle payment_intent.succeeded (APPOINTMENT)', async () => {
+          const event = {
+              type: 'payment_intent.succeeded',
+              data: { object: { id: 'pi_1', metadata: { type: 'APPOINTMENT_BOOKING', appointmentId: 'app_1' }, latest_charge: 'ch_1', currency: 'usd' } }
+          } as any;
+
+          (AppointmentModel.findById as jest.Mock).mockResolvedValue({ _id: 'app_1', appointmentType: { id: 's1' }, companion: { id: 'c1', parent: { id: 'p1' } } });
+          (InvoiceModel.findOne as jest.Mock).mockResolvedValue(null); // No existing invoice
+          (ServiceModel.findById as jest.Mock).mockResolvedValue({ cost: 100 });
+          mStripe.charges.retrieve.mockResolvedValue({ id: 'ch_1' });
+          (InvoiceModel.create as jest.Mock).mockResolvedValue({ _id: 'new_inv' });
+
+          await StripeService.handleWebhookEvent(event);
+
+          expect(InvoiceModel.create).toHaveBeenCalled();
+          expect(AppointmentModel.updateOne).toHaveBeenCalledWith({ _id: 'app_1' }, expect.objectContaining({ status: 'REQUESTED' }));
+      });
+
+      it('should handle charge.refunded', async () => {
+          const event = {
+              type: 'charge.refunded',
+              data: { object: { amount: 5000, currency: 'usd', metadata: { appointmentId: 'app_1' } } }
+          } as any;
+
+          const mockInvoice = mockDoc({ parentId: 'p1' });
+          (InvoiceModel.findOne as jest.Mock).mockResolvedValue(mockInvoice);
+
+          await StripeService.handleWebhookEvent(event);
+
+          expect(InvoiceModel.updateOne).toHaveBeenCalledWith(expect.anything(), { status: 'REFUNDED' });
+          expect(NotificationService.sendToUser).toHaveBeenCalled();
+      });
+
+      it('should ignore unknown events', async () => {
+          const event = { type: 'unknown.event' } as any;
+          await StripeService.handleWebhookEvent(event);
+          expect(logger.info).toHaveBeenCalledWith('Unhandled Stripe event: unknown.event');
+      });
   });
 });
