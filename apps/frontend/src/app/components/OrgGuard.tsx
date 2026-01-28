@@ -144,12 +144,10 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
           }
         }
       }
-    } else {
+    } else if (profileStep < 3) {
       // NON-OWNER LOGIC
-      if (profileStep < 3) {
-        if (pathname !== "/organizations") {
-          redirectTo = "/team-onboarding?orgId=" + primaryOrgId;
-        }
+      if (pathname !== "/organizations") {
+        redirectTo = "/team-onboarding?orgId=" + primaryOrgId;
       }
     }
 

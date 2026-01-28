@@ -651,23 +651,6 @@ const ChannelHeaderWithCounterpart: React.FC<{
     scope === "groups" ||
     isOrgGroupType ||
     (isTeamChannel && channelMemberCount > 2);
-  const organisationId =
-    ((channel?.data as any)?.organisationId as string | undefined) ||
-    orgIdFromStore ||
-    undefined;
-  const createdById =
-    (channel?.data as any)?.createdBy ||
-    (channel?.data as any)?.created_by_id ||
-    (channel as any)?.created_by?.id;
-  const memberRoleForCurrentUser =
-    currentUserId && channel?.state?.members?.[currentUserId]
-      ? (channel.state.members[currentUserId] as any)?.role ||
-        (channel.state.members[currentUserId] as any)?.channel_role
-      : undefined;
-  const isCreator =
-    Boolean(createdById && currentUserId && createdById === currentUserId) ||
-    (memberRoleForCurrentUser === "owner");
-  const channelId = channel?.id;
 
   // Check if session is already closed
   useEffect(() => {
@@ -707,10 +690,6 @@ const ChannelHeaderWithCounterpart: React.FC<{
   };
 
   const hasSessionClosed = sessionClosed;
-
-  const memberCount = channel?.state?.members
-    ? Object.keys(channel.state.members).length
-    : 0;
 
   return (
     <div className="chat-header-bar">
@@ -1068,9 +1047,6 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
   const [creatingChat, setCreatingChat] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const [directListHover, setDirectListHover] = useState(false);
-  const [groupSearchFocused, setGroupSearchFocused] = useState(false);
-  const [groupListHover, setGroupListHover] = useState(false);
-  const [groupListPinned, setGroupListPinned] = useState(false);
   const [groupModalOpen, setGroupModalOpen] = useState(false);
   const [groupModalMode, setGroupModalMode] = useState<"create" | "edit">(
     "create"
@@ -1083,7 +1059,6 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
   const [groupModalSearch, setGroupModalSearch] = useState("");
   const [groupModalBusy, setGroupModalBusy] = useState(false);
   const groupModalOwnerRef = useRef<string | undefined>(undefined);
-  const groupBlurTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const directBlurTimeout = useRef<NodeJS.Timeout | null>(null);
 
@@ -1091,12 +1066,6 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
     setOrgUsersLoaded(false);
     setOrgUsers([]);
   }, [primaryOrgId]);
-
-  const deriveGroupIdFromChannelId = useCallback((chanId?: string) => {
-    if (!chanId) return undefined;
-    if (chanId.startsWith("org-group-")) return chanId.replace("org-group-", "");
-    return undefined;
-  }, []);
 
   const resolveGroupIdForChannel = useCallback(
     async (chan: StreamChannel | null) => {
@@ -1568,61 +1537,6 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
     [primaryOrgId, client, activateChannelById, onChannelSelect]
   );
 
-  const handleCreateGroupChat = useCallback(async () => {
-    if (!primaryOrgId || !client) return;
-    if (!groupTitle.trim() || groupMembers.length === 0) {
-      alert("Add a group title and at least one member.");
-      return;
-    }
-    setCreatingChat(true);
-    try {
-      const memberIds = Array.from(new Set([...groupMembers, client.userID!]));
-      const session = await createOrgGroupChat({
-        organisationId: primaryOrgId,
-        title: groupTitle.trim(),
-        memberIds,
-        isPrivate: true,
-      });
-      const applyMetadata = async (chan: StreamChannel) => {
-        await chan.update(
-          {
-            groupId: session._id,
-            title: session.title || groupTitle.trim(),
-            description: session.description,
-            type: session.type,
-            chatCategory: "group",
-            organisationId: session.organisationId,
-            createdBy: session.createdBy,
-          } as Record<string, unknown>,
-          {}
-        );
-      };
-      const queried = await client.queryChannels(
-        { id: { $eq: session.channelId } },
-        [{ last_message_at: -1 }],
-        { watch: true, state: true, presence: true, limit: 1 }
-      );
-      if (queried[0]) {
-        await queried[0].watch();
-        await applyMetadata(queried[0]);
-        setIsChannelSelected(true);
-        setShowEmptyPlaceholder(false);
-        onChannelSelect?.(queried[0]);
-      } else {
-        await activateChannelById(session.channelId);
-        const chan = client.channel("team", session.channelId);
-        await applyMetadata(chan);
-      }
-      setGroupTitle("");
-      setGroupMembers([]);
-    } catch (err) {
-      console.error("Failed to create group chat", err);
-      alert("Unable to create group. Please try again.");
-    } finally {
-      setCreatingChat(false);
-    }
-  }, [primaryOrgId, client, groupTitle, groupMembers, activateChannelById]);
-
   // Modal action handlers
   const handleModalCreate = useCallback(
     async (title: string, memberIds: string[]) => {
@@ -1764,9 +1678,9 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
       if (groupModalChannel) {
         try {
           await groupModalChannel.hide?.();
-        } catch (hideErr) {
+        } catch (error_) {
           // Channel might already be deleted on Stream Chat side, ignore this error
-          console.log("Channel hide failed (likely already deleted):", hideErr);
+          console.log("Channel hide failed (likely already deleted):", error_);
         }
       }
       setGroupModalOpen(false);
@@ -1900,10 +1814,8 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
                   }}
                   onChange={(e) => setDirectSearch(e.target.value)}
                 />
-                <div
-                  role="listbox"
-                  tabIndex={-1}
-                  className="max-h-40 overflow-y-auto flex flex-col gap-2"
+                <ul
+                  className="max-h-40 overflow-y-auto flex flex-col gap-2 list-none p-0 m-0"
                   onMouseEnter={() => setDirectListHover(true)}
                   onMouseLeave={() => {
                     setDirectListHover(false);
@@ -1979,7 +1891,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
                         No teammates found. Adjust your search.
                       </span>
                     )}
-                </div>
+                </ul>
               </div>
             )}
 

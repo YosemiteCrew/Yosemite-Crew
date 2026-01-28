@@ -130,7 +130,7 @@ describe("Reschedule", () => {
     );
 
     const closeButtons = screen.getAllByText("Close");
-    fireEvent.click(closeButtons[closeButtons.length - 1]);
+    fireEvent.click(closeButtons.at(-1)!);
 
     expect(setShowModal).toHaveBeenCalledWith(false);
   });

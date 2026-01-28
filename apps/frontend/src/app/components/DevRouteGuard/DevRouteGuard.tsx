@@ -20,8 +20,8 @@ const DevRouteGuard = ({ children }: { children: React.ReactNode }) => {
 
     // Check sessionStorage for devAuth flag (temporary fallback until custom:role is in Cognito)
     const devFlag =
-      typeof window !== "undefined" &&
-      window.sessionStorage?.getItem("devAuth") === "true";
+      globalThis.window !== undefined &&
+      globalThis.sessionStorage?.getItem("devAuth") === "true";
 
     // User is developer if they have the developer role OR the devAuth flag is set
     const isDevRole = role === "developer" || devFlag;
@@ -49,7 +49,6 @@ const DevRouteGuard = ({ children }: { children: React.ReactNode }) => {
     if (isAuthenticated && !isDevRole) {
       signout();
       router.replace("/developers/signin");
-      return;
     }
   }, [status, role, pathname, router, signout]);
 

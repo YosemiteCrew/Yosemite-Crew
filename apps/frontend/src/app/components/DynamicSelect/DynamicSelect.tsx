@@ -102,7 +102,7 @@ const DynamicSelect: React.FC<DynamicSelectProps> = ({
       </button>
 
       {open && (
-        <div className="custom-dropdown-menu show" role="listbox">
+        <div className="custom-dropdown-menu show">
           {!searchQuery && (
             <button
               type="button"
@@ -118,7 +118,7 @@ const DynamicSelect: React.FC<DynamicSelectProps> = ({
               <button
                 type="button"
                 key={option.value}
-                className="dropdown-item"
+                className={`dropdown-item ${option.value === value ? "selected" : ""}`}
                 onClick={() => handleSelect(option.value)}
               >
                 {option.label}

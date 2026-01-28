@@ -108,8 +108,8 @@ const OtpModal = ({
           await signIn(email, password);
           await afterAuthSuccess();
           // Set devAuth flag BEFORE redirect so DevRouteGuard can read it
-          if (typeof window !== "undefined") {
-            window.sessionStorage?.setItem("devAuth", isDeveloper ? "true" : "false");
+          if (globalThis.window !== undefined) {
+            globalThis.window.sessionStorage?.setItem("devAuth", isDeveloper ? "true" : "false");
           }
           router.push(redirectPath);
         } catch (error) {
@@ -130,8 +130,8 @@ const OtpModal = ({
         }
       }
     } catch (error: any) {
-      if (globalThis.window) {
-        window.scrollTo({ top: 0, behavior: "smooth" });
+      if (globalThis.window !== undefined) {
+        globalThis.window.scrollTo({ top: 0, behavior: "smooth" });
       }
       console.log(error);
       setInvalidOtp(true);
@@ -142,8 +142,8 @@ const OtpModal = ({
     try {
       const result = await resendCode(email);
       if (result) {
-        if (globalThis.window) {
-          window.scrollTo({ top: 0, behavior: "smooth" });
+        if (typeof globalThis.window !== "undefined") {
+          globalThis.window.scrollTo({ top: 0, behavior: "smooth" });
         }
         showErrorTost({
           message: "A new verification code has been sent to your email.",
@@ -164,8 +164,8 @@ const OtpModal = ({
         setTimerActive(true);
       }
     } catch (error: any) {
-      if (globalThis.window) {
-        window.scrollTo({ top: 0, behavior: "smooth" });
+      if (typeof globalThis.window !== "undefined") {
+        globalThis.window.scrollTo({ top: 0, behavior: "smooth" });
       }
       showErrorTost({
         message: error.message || "Error resending code.",

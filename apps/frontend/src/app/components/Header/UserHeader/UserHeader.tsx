@@ -147,6 +147,16 @@ const UserHeader = () => {
   const orgMissing = !primaryOrg;
   const orgVerified = !!primaryOrg?.isVerified;
 
+  const getSearchPlaceholder = () => {
+    if (pathname.startsWith("/appointments")) return "Search appointments";
+    if (pathname.startsWith("/inventory")) return "Search inventory";
+    if (pathname.startsWith("/forms")) return "Search forms";
+    if (pathname.startsWith("/companions")) return "Search companions";
+    if (pathname.startsWith("/tasks")) return "Search tasks";
+    if (pathname.startsWith("/finance")) return "Search invoices";
+    return "Search";
+  };
+
   return (
     <div className="flex items-center justify-between px-3 sm:px-12! lg:px-[36px]! w-full h-20 gap-0">
       <AnimatePresence>
@@ -321,21 +331,7 @@ const UserHeader = () => {
             value={query}
             setSearch={setQuery}
             className={"lg:flex hidden"}
-            placeholder={
-              pathname.startsWith("/appointments")
-                ? "Search appointments"
-                : pathname.startsWith("/inventory")
-                  ? "Search inventory"
-                  : pathname.startsWith("/forms")
-                    ? "Search forms"
-                    : pathname.startsWith("/companions")
-                      ? "Search companions"
-                      : pathname.startsWith("/tasks")
-                        ? "Search tasks"
-                        : pathname.startsWith("/finance")
-                          ? "Search invoices"
-                          : "Search"
-            }
+            placeholder={getSearchPlaceholder()}
           />
         )}
 

@@ -1,11 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { IoIosArrowDown, IoIosWarning } from "react-icons/io";
-import { Primary, Secondary } from "../Buttons";
-import { BillingSubscriptionInterval } from "@/app/types/billing";
-import {
-  getStripeBillingPortal,
-  getUpgradeLink,
-} from "@/app/services/billingService";
+import { Secondary } from "../Buttons";
+import { getStripeBillingPortal } from "@/app/services/billingService";
 import { useSubscriptionForPrimaryOrg } from "@/app/hooks/useBilling";
 import { usePermissions } from "@/app/hooks/usePermissions";
 import { PERMISSIONS } from "@/app/utils/permissions";
@@ -64,8 +60,6 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
   const hasCustomerId = Boolean(subscription?.stripeCustomerId);
   const [open, setOpen] = useState(defaultOpen);
   const [loadingPortal, setLoadingPortal] = useState(false);
-  const [loadingUpgrade, setLoadingUpgrade] =
-    useState<null | BillingSubscriptionInterval>(null);
   const [error, setError] = useState<string | null>(null);
   const paddingYClass = getAccordionPaddingYClass({
     finance,
@@ -84,20 +78,6 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
       setError(e?.message || "Failed to open billing portal");
     } finally {
       setLoadingPortal(false);
-    }
-  };
-
-  const handleUpgrade = async () => {
-    const interval: BillingSubscriptionInterval = "month";
-    setError(null);
-    setLoadingUpgrade(interval);
-    try {
-      const url = await getUpgradeLink(interval);
-      globalThis.location.href = url;
-    } catch (e: any) {
-      setError(e?.message || "Failed to start upgrade");
-    } finally {
-      setLoadingUpgrade(null);
     }
   };
 
@@ -153,7 +133,7 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
                   href="#"
                   onClick={handleBillingPortal}
                   text={loadingPortal ? "Opening..." : "Billing portal"}
-                  isDisabled={loadingPortal || loadingUpgrade !== null}
+                  isDisabled={loadingPortal}
                 />
               )}
               {plan === "free" && <Upgrade />}

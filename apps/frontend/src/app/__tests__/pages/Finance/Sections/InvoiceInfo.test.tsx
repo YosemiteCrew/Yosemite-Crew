@@ -43,7 +43,7 @@ describe("InvoiceInfo", () => {
     expect(screen.getByText("View invoice")).toBeInTheDocument();
 
     const closeButtons = screen.getAllByText("close");
-    fireEvent.click(closeButtons[closeButtons.length - 1]);
+    fireEvent.click(closeButtons.at(-1)!);
     expect(setShowModal).toHaveBeenCalledWith(false);
   });
 });

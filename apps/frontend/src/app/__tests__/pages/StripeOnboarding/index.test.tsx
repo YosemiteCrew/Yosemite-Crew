@@ -65,7 +65,7 @@ describe("Stripe onboarding page", () => {
     useStripeOnboardingMock.mockReturnValue({ onboard: false });
     useSubscriptionMock.mockReturnValue(null);
 
-    const { container } = render(<ProtectedStripeOnboarding />);
+    render(<ProtectedStripeOnboarding />);
     expect(screen.queryByText("Stripe Onboarding")).not.toBeInTheDocument();
   });
 

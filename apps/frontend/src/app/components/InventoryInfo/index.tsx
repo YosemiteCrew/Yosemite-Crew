@@ -94,7 +94,7 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
       if (!Number.isNaN(parsed.getTime())) return parsed;
     }
 
-    const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    const isoMatch = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
     if (isoMatch) {
       const [, yyyy, mm, dd] = isoMatch;
       const parsed = new Date(Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd)));
@@ -279,7 +279,7 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
     const { placeholder, component, options, name } = field;
     const typedName = name as keyof BatchValues;
     const value =
-      (source && source[batchIndex]?.[typedName]) ??
+      source?.[batchIndex]?.[typedName] ??
       newBatches[batchIndex]?.[typedName] ??
       "";
     const onChangeHandler = changeHandler ?? handleChange;
@@ -478,19 +478,15 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
                   </div>
                 </div>
                 <div className="flex flex-col gap-3">
-                  {sectionConfig.map((item, index) =>
-                    isEditing
-                      ? renderItem(
-                          item,
-                          index,
-                          batchIdx,
-                          editableExistingBatches.length > 0
-                            ? editableExistingBatches
-                            : existingBatches,
-                          handleExistingChange
-                        )
-                      : renderPreviewItem(item, index, batch)
-                  )}
+                  {sectionConfig.map((item, index) => {
+                    if (isEditing) {
+                      const batchSource = editableExistingBatches.length > 0
+                        ? editableExistingBatches
+                        : existingBatches;
+                      return renderItem(item, index, batchIdx, batchSource, handleExistingChange);
+                    }
+                    return renderPreviewItem(item, index, batch);
+                  })}
                 </div>
               </div>
             ))}
@@ -619,117 +615,101 @@ const InventoryInfo = ({
     batchActions.current = null;
   }, [activeLabel, activeInventory?.id]);
 
+  const handleBatchSave = async (values: Record<string, any>) => {
+    const newBatches: BatchValues[] = Array.isArray((values as any).newBatches)
+      ? (values as any).newBatches
+      : [];
+    const updatedBatches: BatchValues[] = Array.isArray((values as any).updatedBatches)
+      ? (values as any).updatedBatches
+      : [];
+    if (!activeInventory?.id) return;
+    if (updatedBatches.length && onUpdateBatch) {
+      await onUpdateBatch(activeInventory.id, updatedBatches);
+    }
+    if (newBatches.length && onAddBatch) {
+      await onAddBatch(activeInventory.id, newBatches);
+    }
+  };
+
+  const validateField = (
+    value: unknown,
+    requiredMsg: string,
+    numberMsg: string
+  ): string | null => {
+    if (value === "" || value === undefined) return requiredMsg;
+    if (Number.isNaN(Number(value))) return numberMsg;
+    return null;
+  };
+
+  const getValidationErrors = (
+    section: InventorySectionKey,
+    values: Record<string, any>
+  ): Record<string, string> => {
+    if (!activeInventory) return {};
+    const errs: Record<string, string> = {};
+
+    if (section === "basicInfo") {
+      if (!values.name && !activeInventory.basicInfo.name) errs.name = "Name is required";
+      if (!values.category && !activeInventory.basicInfo.category) errs.category = "Category is required";
+      if (!values.subCategory && !activeInventory.basicInfo.subCategory) errs.subCategory = "Sub category is required";
+    } else if (section === "pricing") {
+      const purchaseErr = validateField(
+        values.purchaseCost ?? activeInventory.pricing.purchaseCost,
+        "Purchase cost is required",
+        "Enter a valid number"
+      );
+      const sellingErr = validateField(
+        values.selling ?? activeInventory.pricing.selling,
+        "Selling price is required",
+        "Enter a valid number"
+      );
+      if (purchaseErr) errs.purchaseCost = purchaseErr;
+      if (sellingErr) errs.selling = sellingErr;
+    } else if (section === "stock") {
+      const currentErr = validateField(
+        values.current ?? activeInventory.stock.current,
+        "On hand quantity is required",
+        "Enter a valid number"
+      );
+      const reorderErr = validateField(
+        values.reorderLevel ?? activeInventory.stock.reorderLevel,
+        "Reorder level is required",
+        "Enter a valid number"
+      );
+      if (currentErr) errs.current = currentErr;
+      if (reorderErr) errs.reorderLevel = reorderErr;
+    }
+    return errs;
+  };
+
   const handleSectionSave = async (
     section: InventorySectionKey,
     values: Record<string, any>
   ) => {
     if (!activeInventory || isUpdating || isHiding) return;
     setIsUpdating(true);
-    const logValidation = (msg: string, details?: Record<string, any>) => {
-      console.error(
-        `[Inventory] ${msg}`,
-        details ? JSON.stringify(details) : ""
-      );
-    };
-
-    const validateBasicInfo = (): Record<string, string> => {
-      const errs: Record<string, string> = {};
-      if (!values.name && !activeInventory.basicInfo.name) {
-        errs.name = "Name is required";
-      }
-      if (!values.category && !activeInventory.basicInfo.category) {
-        errs.category = "Category is required";
-      }
-      if (!values.subCategory && !activeInventory.basicInfo.subCategory) {
-        errs.subCategory = "Sub category is required";
-      }
-      return errs;
-    };
-
-    const validatePricing = (): Record<string, string> => {
-      const errs: Record<string, string> = {};
-      const purchase =
-        values.purchaseCost ?? activeInventory.pricing.purchaseCost;
-      const selling = values.selling ?? activeInventory.pricing.selling;
-      if (purchase === "" || purchase === undefined) {
-        errs.purchaseCost = "Purchase cost is required";
-      } else if (Number.isNaN(Number(purchase))) {
-        errs.purchaseCost = "Enter a valid number";
-      }
-      if (selling === "" || selling === undefined) {
-        errs.selling = "Selling price is required";
-      } else if (Number.isNaN(Number(selling))) {
-        errs.selling = "Enter a valid number";
-      }
-      return errs;
-    };
-
-    const validateStock = (): Record<string, string> => {
-      const errs: Record<string, string> = {};
-      const current = values.current ?? activeInventory.stock.current;
-      const reorder = values.reorderLevel ?? activeInventory.stock.reorderLevel;
-      if (current === "" || current === undefined) {
-        errs.current = "On hand quantity is required";
-      } else if (Number.isNaN(Number(current))) {
-        errs.current = "Enter a valid number";
-      }
-      if (reorder === "" || reorder === undefined) {
-        errs.reorderLevel = "Reorder level is required";
-      } else if (Number.isNaN(Number(reorder))) {
-        errs.reorderLevel = "Enter a valid number";
-      }
-      return errs;
-    };
 
     try {
-      let updated: InventoryItem;
       if (section === "batch") {
-        const newBatches: BatchValues[] = Array.isArray(
-          (values as any).newBatches
-        )
-          ? (values as any).newBatches
-          : [];
-        const updatedBatches: BatchValues[] = Array.isArray(
-          (values as any).updatedBatches
-        )
-          ? (values as any).updatedBatches
-          : [];
-        if (activeInventory.id) {
-          if (updatedBatches.length && onUpdateBatch) {
-            await onUpdateBatch(activeInventory.id, updatedBatches);
-          }
-          if (newBatches.length && onAddBatch) {
-            await onAddBatch(activeInventory.id, newBatches);
-          }
-        }
+        await handleBatchSave(values);
         setIsUpdating(false);
         return;
-      } else {
-        const sectionErrors: Record<
-          InventorySectionKey,
-          Record<string, string>
-        > = {
-          basicInfo: validateBasicInfo(),
-          classification: {},
-          pricing: validatePricing(),
-          vendor: {},
-          stock: validateStock(),
-          batch: {},
-        };
-        const errs = sectionErrors[section];
-        if (errs && Object.keys(errs).length > 0) {
-          logValidation(`Validation failed for ${section}`, errs);
-          setIsUpdating(false);
-          return;
-        }
-        updated = {
-          ...activeInventory,
-          [section]: {
-            ...(activeInventory as any)[section],
-            ...values,
-          },
-        };
       }
+
+      const errs = getValidationErrors(section, values);
+      if (Object.keys(errs).length > 0) {
+        console.error(`[Inventory] Validation failed for ${section}`, JSON.stringify(errs));
+        setIsUpdating(false);
+        return;
+      }
+
+      const updated: InventoryItem = {
+        ...activeInventory,
+        [section]: {
+          ...(activeInventory as any)[section],
+          ...values,
+        },
+      };
       await onUpdate(updated);
     } catch (err) {
       console.error("Failed to update inventory section:", err);

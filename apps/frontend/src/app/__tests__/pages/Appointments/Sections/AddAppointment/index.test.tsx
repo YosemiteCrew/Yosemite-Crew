@@ -109,7 +109,7 @@ describe("AddAppointment modal", () => {
 
     expect(screen.getByTestId("modal")).toBeInTheDocument();
     const closeButtons = screen.getAllByText("close");
-    fireEvent.click(closeButtons[closeButtons.length - 1]);
+    fireEvent.click(closeButtons.at(-1)!);
     expect(setShowModal).toHaveBeenCalledWith(false);
   });
 });

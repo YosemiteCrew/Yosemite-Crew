@@ -2,11 +2,11 @@ import Cookies from "@/app/components/Cookies/Cookies";
 import Github from "@/app/components/Github/Github";
 import Header from "@/app/components/Header/Header";
 
-export default function PublicLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+interface PublicLayoutProps {
+  readonly children: React.ReactNode;
+}
+
+export default function PublicLayout({ children }: PublicLayoutProps) {
   return (
     <>
       <Cookies />

@@ -82,7 +82,7 @@ const LabelDropdown = ({
           }
         }}
       >
-        {open && searchable ? (
+        {open && searchable && (
           <input
             ref={inputRef}
             type="text"
@@ -91,11 +91,13 @@ const LabelDropdown = ({
             placeholder={selected ? selected.label : placeholder}
             className="w-full bg-transparent text-body-4 text-black-text outline-none placeholder:text-input-text-placeholder"
           />
-        ) : selected ? (
+        )}
+        {(!open || !searchable) && selected && (
           <div className="text-black-text text-body-4 max-w-[200px] truncate">
             {selected.label}
           </div>
-        ) : (
+        )}
+        {(!open || !searchable) && !selected && (
           <div className="text-input-text-placeholder text-body-4 max-w-[200px] truncate">
             {placeholder}
           </div>

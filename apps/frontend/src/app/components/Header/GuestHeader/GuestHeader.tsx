@@ -48,9 +48,81 @@ const GuestHeader = () => {
 
   const isSignInPage = pathname === "/signin";
   const isSignUpPage = pathname === "/signup";
-  const isAuthPage = isSignInPage || isSignUpPage;
   const hideButtons =
     pathname === "/organizations" || pathname === "/forgot-password";
+
+  const getMobileAuthButton = () => {
+    if (user) {
+      return (
+        <Primary
+          href="#"
+          onClick={() => handleClick("/organizations")}
+          text="Go to app"
+          classname="mt-3"
+        />
+      );
+    }
+    if (isSignInPage) {
+      return (
+        <Primary
+          href="#"
+          onClick={() => handleClick("/signup")}
+          text="Sign up"
+          classname="mt-3"
+        />
+      );
+    }
+    if (isSignUpPage) {
+      return (
+        <Primary
+          href="#"
+          onClick={() => handleClick("/signin")}
+          text="Sign in"
+          classname="mt-3"
+        />
+      );
+    }
+    return (
+      <Primary
+        href="#"
+        onClick={() => handleClick("/signup")}
+        text="Sign up"
+        classname="mt-3"
+      />
+    );
+  };
+
+  const getDesktopAuthButton = () => {
+    if (user) {
+      return (
+        <div className="hidden lg:flex">
+          <Primary
+            href={role === "developer" ? "/developers/home" : "/organizations"}
+            text="Go to app"
+          />
+        </div>
+      );
+    }
+    if (isSignInPage) {
+      return (
+        <div className="hidden lg:flex">
+          <Primary href="/signup" text="Sign up" />
+        </div>
+      );
+    }
+    if (isSignUpPage) {
+      return (
+        <div className="hidden lg:flex">
+          <Primary href="/signin" text="Sign in" />
+        </div>
+      );
+    }
+    return (
+      <div className="hidden lg:flex">
+        <Primary href="/signup" text="Sign up" />
+      </div>
+    );
+  };
 
   return (
     <div className="flex items-center justify-between px-3! sm:px-12! lg:px-20! gap-10 w-full h-20">
@@ -102,36 +174,7 @@ const GuestHeader = () => {
                 {item.label}
               </button>
             ))}
-            {!hideButtons &&
-              (user ? (
-                <Primary
-                  href="#"
-                  onClick={() => handleClick("/organizations")}
-                  text="Go to app"
-                  classname="mt-3"
-                />
-              ) : isSignInPage ? (
-                <Primary
-                  href="#"
-                  onClick={() => handleClick("/signup")}
-                  text="Sign up"
-                  classname="mt-3"
-                />
-              ) : isSignUpPage ? (
-                <Primary
-                  href="#"
-                  onClick={() => handleClick("/signin")}
-                  text="Sign in"
-                  classname="mt-3"
-                />
-              ) : (
-                <Primary
-                  href="#"
-                  onClick={() => handleClick("/signup")}
-                  text="Sign up"
-                  classname="mt-3"
-                />
-              ))}
+            {!hideButtons && getMobileAuthButton()}
           </motion.div>
         )}
       </AnimatePresence>
@@ -172,29 +215,7 @@ const GuestHeader = () => {
         </motion.div>
       </button>
 
-      {!hideButtons &&
-        (user ? (
-          <div className="hidden lg:flex">
-            <Primary
-              href={
-                role === "developer" ? "/developers/home" : "/organizations"
-              }
-              text="Go to app"
-            />
-          </div>
-        ) : isSignInPage ? (
-          <div className="hidden lg:flex">
-            <Primary href="/signup" text="Sign up" />
-          </div>
-        ) : isSignUpPage ? (
-          <div className="hidden lg:flex">
-            <Primary href="/signin" text="Sign in" />
-          </div>
-        ) : (
-          <div className="hidden lg:flex">
-            <Primary href="/signup" text="Sign up" />
-          </div>
-        ))}
+      {!hideButtons && getDesktopAuthButton()}
     </div>
   );
 };

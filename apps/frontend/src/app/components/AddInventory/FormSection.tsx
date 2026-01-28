@@ -69,7 +69,7 @@ const FormSection: React.FC<FormSectionProps> = ({
       if (!Number.isNaN(parsed.getTime())) return parsed;
     }
 
-    const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    const isoMatch = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
     if (isoMatch) {
       const [, yyyy, mm, dd] = isoMatch;
       const parsed = new Date(Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd)));

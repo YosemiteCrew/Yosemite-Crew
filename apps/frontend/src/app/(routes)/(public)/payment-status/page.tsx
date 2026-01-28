@@ -128,7 +128,7 @@ function Page() {
                 />
               </svg>
             )}
-            {data && data.status === "paid" && (
+            {data?.status === "paid" && (
               <svg className="w-24 h-24" viewBox="0 0 120 120" aria-hidden>
                 <circle
                   cx="60"
@@ -148,14 +148,14 @@ function Page() {
                 />
               </svg>
             )}
-            {data && data.status === "unpaid" && (
+            {data?.status === "unpaid" && (
               <div className="flex gap-2" aria-hidden>
                 <span className="w-3.5 h-3.5 rounded-full bg-slate-900 animate-bounce" />
                 <span className="w-3.5 h-3.5 rounded-full bg-slate-900 animate-bounce [animation-delay:150ms]" />
                 <span className="w-3.5 h-3.5 rounded-full bg-slate-900 animate-bounce [animation-delay:300ms]" />
               </div>
             )}
-            {data && data.status === "no_payment_required" && (
+            {data?.status === "no_payment_required" && (
               <svg className="w-24 h-24" viewBox="0 0 120 120" aria-hidden>
                 <circle
                   cx="60"
