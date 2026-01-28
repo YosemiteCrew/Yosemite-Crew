@@ -682,35 +682,50 @@ const InventoryInfo = ({
     return errs;
   };
 
+  const buildUpdatedInventory = (
+    section: InventorySectionKey,
+    values: Record<string, any>,
+  ): InventoryItem => ({
+    ...activeInventory!,
+    [section]: {
+      ...(activeInventory as any)[section],
+      ...values,
+    },
+  });
+
+  const saveBatchSection = async (values: Record<string, any>) => {
+    await handleBatchSave(values);
+  };
+
+  const saveStandardSection = async (
+    section: InventorySectionKey,
+    values: Record<string, any>,
+  ) => {
+    const errs = getValidationErrors(section, values);
+    if (Object.keys(errs).length > 0) {
+      console.error(
+        `[Inventory] Validation failed for ${section}`,
+        JSON.stringify(errs),
+      );
+      return;
+    }
+    const updated = buildUpdatedInventory(section, values);
+    await onUpdate(updated);
+  };
+
   const handleSectionSave = async (
     section: InventorySectionKey,
-    values: Record<string, any>
+    values: Record<string, any>,
   ) => {
     if (!activeInventory || isUpdating || isHiding) return;
     setIsUpdating(true);
 
     try {
       if (section === "batch") {
-        await handleBatchSave(values);
-        setIsUpdating(false);
-        return;
+        await saveBatchSection(values);
+      } else {
+        await saveStandardSection(section, values);
       }
-
-      const errs = getValidationErrors(section, values);
-      if (Object.keys(errs).length > 0) {
-        console.error(`[Inventory] Validation failed for ${section}`, JSON.stringify(errs));
-        setIsUpdating(false);
-        return;
-      }
-
-      const updated: InventoryItem = {
-        ...activeInventory,
-        [section]: {
-          ...(activeInventory as any)[section],
-          ...values,
-        },
-      };
-      await onUpdate(updated);
     } catch (err) {
       console.error("Failed to update inventory section:", err);
       throw err;

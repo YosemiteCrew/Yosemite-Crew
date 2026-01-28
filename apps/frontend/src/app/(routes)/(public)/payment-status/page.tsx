@@ -76,8 +76,8 @@ function Page() {
 
   const title = useMemo(() => {
     if (!session_id || !data) return "Missing payment session";
-    if (data.status === "paid") return "Payment complete";
-    if (data.status === "no_payment_required") return "Payment cancelled";
+    if (data?.status === "paid") return "Payment complete";
+    if (data?.status === "no_payment_required") return "Payment cancelled";
     return "Waiting for confirmation";
   }, [data, session_id]);
 
@@ -85,10 +85,10 @@ function Page() {
     if (!session_id || !data) {
       return "We could not find a payment session in the URL.";
     }
-    if (data.status === "paid") {
+    if (data?.status === "paid") {
       return "Thanks for your payment. Your receipt will arrive shortly.";
     }
-    if (data.status === "no_payment_required") {
+    if (data?.status === "no_payment_required") {
       return "This payment did not complete. If this looks wrong, contact support.";
     }
     if (loading) {
@@ -199,7 +199,7 @@ function Page() {
             )}
             {data?.status && (
               <span className="px-4 py-2 rounded-full border border-card-border bg-white/70">
-                Status {data.status.replaceAll("_", " ")}
+                Status {data?.status?.replaceAll("_", " ")}
               </span>
             )}
             {stopped && (

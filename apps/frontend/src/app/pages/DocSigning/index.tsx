@@ -53,49 +53,56 @@ const DocSigning = () => {
     }
   }, [portalUrl]);
 
+  let content: React.ReactNode;
+  if (loading) {
+    content = (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <YosemiteLoader label="Loading Doc Signing" />
+      </div>
+    );
+  } else if (error) {
+    content = <div className="text-body-3 text-error-main">{error}</div>;
+  } else {
+    content = (
+      <div className="flex flex-col items-center justify-center gap-6 py-16 px-4">
+        <div className="flex flex-col items-center gap-4 max-w-lg text-center">
+          <h2 className="text-heading-2 text-text-primary">
+            Document Signing Portal
+          </h2>
+          <p className="text-body-3 text-text-secondary">
+            View, manage, and sign documents securely. Track document status,
+            review audit trails, and manage all your organisation&apos;s documents in one place.
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-3 mt-4">
+          <Primary
+            text="Open Doc Signing Portal"
+            href="#"
+            onClick={handleOpenPortal}
+            isDisabled={!portalUrl}
+          />
+          {!portalUrl && (
+            <p className="text-body-4 text-text-tertiary text-center">
+              Portal link not available
+            </p>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-2 mt-8 text-center">
+          <p className="text-body-4 text-text-tertiary">
+            The portal will open in a new tab for the best experience.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <ProtectedRoute>
       <OrgGuard>
         <div className="flex flex-col gap-6 w-full h-full">
-          {loading ? (
-            <div className="flex items-center justify-center min-h-[60vh]">
-              <YosemiteLoader label="Loading Doc Signing" />
-            </div>
-          ) : error ? (
-            <div className="text-body-3 text-error-main">{error}</div>
-          ) : (
-            <div className="flex flex-col items-center justify-center gap-6 py-16 px-4">
-              <div className="flex flex-col items-center gap-4 max-w-lg text-center">
-                <h2 className="text-heading-2 text-text-primary">
-                  Document Signing Portal
-                </h2>
-                <p className="text-body-3 text-text-secondary">
-                  View, manage, and sign documents securely. Track document status,
-                  review audit trails, and manage all your organisation&apos;s documents in one place.
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-3 mt-4">
-                <Primary
-                  text="Open Doc Signing Portal"
-                  href="#"
-                  onClick={handleOpenPortal}
-                  isDisabled={!portalUrl}
-                />
-                {!portalUrl && (
-                  <p className="text-body-4 text-text-tertiary text-center">
-                    Portal link not available
-                  </p>
-                )}
-              </div>
-
-              <div className="flex flex-col gap-2 mt-8 text-center">
-                <p className="text-body-4 text-text-tertiary">
-                  The portal will open in a new tab for the best experience.
-                </p>
-              </div>
-            </div>
-          )}
+          {content}
         </div>
       </OrgGuard>
     </ProtectedRoute>

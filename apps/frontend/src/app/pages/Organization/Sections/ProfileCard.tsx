@@ -240,25 +240,31 @@ const toDateOrNull = (raw: any): Date | null => {
 const renderValue = (field: FieldConfig, formValues: FormValues) => {
   const type = field.type || "text";
   const raw = formValues[field.key];
-  if (type === "date" || type === "dateString") {
+
+  const formatDate = () => {
     const dt = toDateOrNull(raw);
     return dt ? getFormattedDate(dt) : "-";
-  }
-  if (type === "multiSelect") {
+  };
+
+  const formatMultiSelect = () => {
     const options = normalizeOptions(field.options);
-    const isArray = Array.isArray(raw);
-    const tempRaw = raw ? [raw] : [];
-    const arr = isArray ? raw : tempRaw;
-    if (!arr.length) return "-";
-    if (options.length)
-      return arr.map((v) => resolveLabel(options, v)).join(", ");
-    return arr.join(", ");
-  }
-  if (type === "select" || type === "dropdown") {
+    const values = Array.isArray(raw) ? raw : raw ? [raw] : [];
+    if (!values.length) return "-";
+    if (options.length) {
+      return values.map((v) => resolveLabel(options, v)).join(", ");
+    }
+    return values.join(", ");
+  };
+
+  const formatSelect = () => {
     const options = normalizeOptions(field.options);
     if (!raw) return "-";
     return options.length ? resolveLabel(options, raw) : raw;
-  }
+  };
+
+  if (type === "date" || type === "dateString") return formatDate();
+  if (type === "multiSelect") return formatMultiSelect();
+  if (type === "select" || type === "dropdown") return formatSelect();
   return raw || "-";
 };
 

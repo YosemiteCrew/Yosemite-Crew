@@ -127,6 +127,13 @@ const Assessment = ({
     }
   };
 
+  const isClientSigner = active?.requiredSigner === "CLIENT";
+  let actionText = "Save";
+  if (isClientSigner) {
+    actionText = sending ? "Sending..." : "Send to parent";
+  }
+  const handleAction = isClientSigner ? handleSendToParent : handleSave;
+
   return (
     <PermissionGate
       allOf={[PERMISSIONS.PRESCRIPTION_VIEW_ANY]}
@@ -165,17 +172,7 @@ const Assessment = ({
           </div>
         </Accordion>
         {canEdit && active && (
-          <Primary
-            href="#"
-            text={
-              active.requiredSigner === "CLIENT"
-                ? sending
-                  ? "Sending..."
-                  : "Send to parent"
-                : "Save"
-            }
-            onClick={active.requiredSigner === "CLIENT" ? handleSendToParent : handleSave}
-          />
+          <Primary href="#" text={actionText} onClick={handleAction} />
         )}
       </div>
     </PermissionGate>

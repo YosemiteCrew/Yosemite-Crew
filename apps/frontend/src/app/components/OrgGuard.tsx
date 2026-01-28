@@ -6,7 +6,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useOrgStore } from "@/app/stores/orgStore";
 import { useSpecialityStore } from "@/app/stores/specialityStore";
 import { computeOrgOnboardingStep } from "@/app/utils/orgOnboarding";
-import type { Organisation, Speciality } from "@yosemite-crew/types";
+import type { Organisation, Speciality, UserOrganization } from "@yosemite-crew/types";
 import { useLoadTeam } from "../hooks/useTeam";
 import { useUserProfileStore } from "../stores/profileStore";
 import { computeTeamOnboardingStep } from "../utils/teamOnboarding";
@@ -27,6 +27,54 @@ type OrgGuardProps = {
   children: React.ReactNode;
 };
 
+const isStatusPending = (status?: string) => status === "idle" || status === "loading";
+
+type RedirectParams = {
+  pathname: string;
+  primaryOrgId: string;
+  primaryOrg: Organisation;
+  membership: UserOrganization;
+  profile: ReturnType<typeof useUserProfileStore>;
+  specialities: Speciality[];
+  availabilities: ApiDayAvailability[];
+};
+
+const resolveOrgRedirect = ({
+  pathname,
+  primaryOrgId,
+  primaryOrg,
+  membership,
+  profile,
+  specialities,
+  availabilities,
+}: RedirectParams): string | null => {
+  const step = computeOrgOnboardingStep(primaryOrg, specialities);
+  const profileStep = computeTeamOnboardingStep(profile, availabilities);
+  const isVerified = primaryOrg.isVerified;
+  const role = membership.roleDisplay ?? membership.roleCode;
+
+  if (role.toLowerCase() === "owner") {
+    if (!isVerified) {
+      if (step < 3) {
+        return `/create-org?orgId=${primaryOrgId}`;
+      }
+      if (step === 3) {
+        if (pathname === "/organization" || pathname === "/book-onboarding") {
+          return "";
+        }
+        return "/dashboard";
+      }
+    }
+    return null;
+  }
+
+  if (profileStep < 3 && pathname !== "/organizations") {
+    return `/team-onboarding?orgId=${primaryOrgId}`;
+  }
+
+  return null;
+};
+
 /**
  * Guard for org-scoped routes.
  *
@@ -44,13 +92,13 @@ type OrgGuardProps = {
  *        - if on /complete-profile → /dashboard
  */
 const OrgGuard = ({ children }: OrgGuardProps) => {
-  useLoadSubscriptionCounterForPrimaryOrg()
+  useLoadSubscriptionCounterForPrimaryOrg();
   useLoadTeam();
   useLoadRoomsForPrimaryOrg();
   useLoadCompanionsForPrimaryOrg();
   useLoadAppointmentsForPrimaryOrg();
   useLoadInvoicesForPrimaryOrg();
-  useLoadTasksForPrimaryOrg()
+  useLoadTasksForPrimaryOrg();
   useLoadDocumentsForPrimaryOrg();
   useLoadFormsForPrimaryOrg();
 
@@ -95,7 +143,7 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
       setChecked(true);
       return;
     }
-    if (orgStatus === "idle" || orgStatus === "loading") {
+    if (isStatusPending(orgStatus)) {
       return;
     }
     if (!primaryOrgId) {
@@ -107,10 +155,8 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
       return;
     }
     if (
-      availabilityStatus === "loading" ||
-      availabilityStatus === "idle" ||
-      specialityStatus === "loading" ||
-      specialityStatus === "idle"
+      isStatusPending(availabilityStatus) ||
+      isStatusPending(specialityStatus)
     ) {
       return;
     }
@@ -122,34 +168,17 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
       return;
     }
 
-    const specialities: Speciality[] = getSpecialitiesByOrgId(primaryOrgId);
-    const availabilities: ApiDayAvailability[] =
-      getAvailabilitiesByOrgId(primaryOrgId);
-    const step = computeOrgOnboardingStep(primaryOrg, specialities);
-    const profileStep = computeTeamOnboardingStep(profile, availabilities);
-    const isVerified = primaryOrg.isVerified;
-    const role = membership.roleDisplay ?? membership.roleCode;
-    let redirectTo: string | null = null;
-
-    if (role.toLowerCase() === "owner") {
-      if (!isVerified) {
-        if (step < 3) {
-          // onboarding step < 3 → force /create-org
-          redirectTo = "/create-org?orgId=" + primaryOrgId;
-        } else if (step === 3) {
-          if (pathname === "/organization" || pathname === "/book-onboarding") {
-            redirectTo = "";
-          } else {
-            redirectTo = "/dashboard";
-          }
-        }
-      }
-    } else if (profileStep < 3) {
-      // NON-OWNER LOGIC
-      if (pathname !== "/organizations") {
-        redirectTo = "/team-onboarding?orgId=" + primaryOrgId;
-      }
-    }
+    const specialities = getSpecialitiesByOrgId(primaryOrgId);
+    const availabilities = getAvailabilitiesByOrgId(primaryOrgId);
+    const redirectTo = resolveOrgRedirect({
+      pathname,
+      primaryOrgId,
+      primaryOrg,
+      membership,
+      profile,
+      specialities,
+      availabilities,
+    });
 
     if (redirectTo && redirectTo !== pathname) {
       router.replace(redirectTo);

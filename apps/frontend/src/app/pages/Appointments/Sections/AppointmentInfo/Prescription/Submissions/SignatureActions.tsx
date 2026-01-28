@@ -1,14 +1,11 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FormSubmission } from "@yosemite-crew/types";
 import {
-  downloadSubmissionPdf,
   fetchSignedDocument,
   startFormSigning,
 } from "@/app/services/formSigningService";
-import { Primary, Secondary } from "@/app/components/Buttons";
-import Close from "@/app/components/Icons/Close";
+import { Primary } from "@/app/components/Buttons";
 import { useSigningOverlayStore } from "@/app/stores/signingOverlayStore";
-import { useEffect, useRef } from "react";
 
 type SubmissionWithSigning = FormSubmission & {
   signatureRequired?: boolean;
@@ -27,7 +24,7 @@ const SignatureActions = ({
   submission,
   onStatusChange,
 }: SignatureActionsProps) => {
-  const [loading, setLoading] = useState<"sign" | "view" | "pdf" | null>(null);
+  const [loading, setLoading] = useState<"sign" | "view" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const {
     openOverlay,
@@ -119,25 +116,6 @@ const SignatureActions = ({
     } catch (err) {
       console.error("Failed to fetch signed document", err);
       setError("Unable to load signed document.");
-    } finally {
-      setLoading(null);
-    }
-  };
-
-  const handleDownloadPdf = async () => {
-    setError(null);
-    setLoading("pdf");
-    try {
-      const blob = await downloadSubmissionPdf(submissionId);
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = blobUrl;
-      link.download = `form-submission-${submissionId}.pdf`;
-      link.click();
-      URL.revokeObjectURL(blobUrl);
-    } catch (err) {
-      console.error("Failed to download PDF", err);
-      setError("Unable to download PDF right now.");
     } finally {
       setLoading(null);
     }

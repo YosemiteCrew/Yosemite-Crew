@@ -37,51 +37,69 @@ export const loadCompanionsForPrimaryOrg = async (opts?: {
     const res = await getData<GetCompanionResponse>(
       "/v1/companion-organisation/pms/" + primaryOrgId + "/list",
     );
-    const companionById = new Map<string, StoredCompanion>();
-    const parentById = new Map<string, StoredParent>();
-    for (const data of res.data) {
-      if (!data.companion || !data.parent) {
-        continue;
-      }
-      const tempCompanion = fromCompanionRequestDTO(data.companion);
-      const tempParent = fromParentRequestDTO(data.parent);
-      const companionId = tempCompanion.id!;
-      const parentId = tempParent.id!;
-      companionById.set(companionId, {
-        ...tempCompanion,
-        id: companionId,
-        organisationId: primaryOrgId,
-        parentId,
-      });
-      parentById.set(parentId, {
-        ...tempParent,
-        id: parentId,
-      });
-    }
+    const { companionById, parentById } = buildCompanionMaps(
+      res.data,
+      primaryOrgId,
+    );
     setCompanionsForOrg(primaryOrgId, Array.from(companionById.values()));
     addBulkParents(Array.from(parentById.values()));
   } catch (err: any) {
     if (!opts?.silent) {
-      if (axios.isAxiosError(err)) {
-        const status = err.response?.status;
-        if (status === 403) {
-          setError("You don't have permission to fetch companions.");
-        } else if (status === 404) {
-          setError("Companion service not found. Please contact support.");
-        } else {
-          setError(
-            err.response?.data?.message ??
-              err.message ??
-              "Failed to load companions",
-          );
-        }
-      } else {
-        setError("Unexpected error while fetching companions");
-      }
+      handleCompanionError(err, setError);
     }
     console.error("Failed to load orgs:", err);
     throw err;
   }
+};
+
+const buildCompanionMaps = (
+  data: GetCompanionResponse,
+  primaryOrgId: string,
+) => {
+  const companionById = new Map<string, StoredCompanion>();
+  const parentById = new Map<string, StoredParent>();
+  for (const entry of data) {
+    if (!entry.companion || !entry.parent) continue;
+    const tempCompanion = fromCompanionRequestDTO(entry.companion);
+    const tempParent = fromParentRequestDTO(entry.parent);
+    const companionId = tempCompanion.id!;
+    const parentId = tempParent.id!;
+    companionById.set(companionId, {
+      ...tempCompanion,
+      id: companionId,
+      organisationId: primaryOrgId,
+      parentId,
+    });
+    parentById.set(parentId, {
+      ...tempParent,
+      id: parentId,
+    });
+  }
+  return { companionById, parentById };
+};
+
+const handleCompanionError = (
+  err: unknown,
+  setError: (message: string) => void,
+) => {
+  if (axios.isAxiosError(err)) {
+    const status = err.response?.status;
+    if (status === 403) {
+      setError("You don't have permission to fetch companions.");
+      return;
+    }
+    if (status === 404) {
+      setError("Companion service not found. Please contact support.");
+      return;
+    }
+    setError(
+      err.response?.data?.message ??
+        err.message ??
+        "Failed to load companions",
+    );
+    return;
+  }
+  setError("Unexpected error while fetching companions");
 };
 
 const shouldFetchCompanions = (

@@ -186,6 +186,14 @@ const Plan = ({
     }
   };
 
+  const isClientSigner = active?.requiredSigner === "CLIENT";
+  const actionText = isClientSigner
+    ? sending
+      ? "Sending..."
+      : "Send to parent"
+    : "Save";
+  const handleAction = isClientSigner ? handleSendToParent : handleSave;
+
   return (
     <PermissionGate
       allOf={[PERMISSIONS.PRESCRIPTION_VIEW_ANY]}
@@ -221,17 +229,7 @@ const Plan = ({
           </div>
         </Accordion>
         {canEdit && active && (
-          <Primary
-            href="#"
-            text={
-              active.requiredSigner === "CLIENT"
-                ? sending
-                  ? "Sending..."
-                  : "Send to parent"
-                : "Save"
-            }
-            onClick={active.requiredSigner === "CLIENT" ? handleSendToParent : handleSave}
-          />
+          <Primary href="#" text={actionText} onClick={handleAction} />
         )}
       </div>
     </PermissionGate>

@@ -46,9 +46,7 @@ const SignIn = ({
         setShowVerifyModal(true);
       }
     } catch (error: any) {
-      if (globalThis.window) {
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      }
+      globalThis.window?.scrollTo({ top: 0, behavior: "smooth" });
       showErrorTost({
         message: error.message || "Error resending code.",
         errortext: "Error",
@@ -79,9 +77,10 @@ const SignIn = ({
     try {
       await signIn(email, password);
       // Set devAuth flag BEFORE redirect so DevRouteGuard can read it
-      if (typeof window !== "undefined") {
-        window.sessionStorage?.setItem("devAuth", isDeveloper ? "true" : "false");
-      }
+      globalThis.window?.sessionStorage?.setItem(
+        "devAuth",
+        isDeveloper ? "true" : "false",
+      );
       router.push(redirectPath);
     } catch (error: any) {
       if (error?.code === "UserNotConfirmedException") {

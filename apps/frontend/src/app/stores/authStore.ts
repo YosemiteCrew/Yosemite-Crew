@@ -302,52 +302,13 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       globalThis.sessionStorage?.removeItem("devAuth");
     }
     const { user } = get();
-    const resetState = () => {
-      set({
-        status: "unauthenticated",
-        user: null,
-        session: null,
-        role: null,
-        error: null,
-        attributes: null,
-        loading: false,
-      });
-      try {
-        useOrgStore.getState().clearOrgs();
-      } catch (err) {
-        console.warn("Failed to clear org store on signout", err);
-      }
-    };
+    const resetState = () => resetAuthState(set);
     resetState();
     if (!user) return;
     if (typeof globalThis === "undefined") {
       return;
     }
-    await new Promise<void>((resolve) => {
-      user.getSession(
-        (err: Error | null, session: CognitoUserSession | null) => {
-          if (err || !session?.isValid()) {
-            if (err) {
-              console.warn("getSession failed during signout:", err);
-            } else {
-              console.warn("Invalid session during signout");
-            }
-            return resolve();
-          }
-          user.globalSignOut({
-            onSuccess: () => {
-              resetState();
-              resolve();
-            },
-            onFailure: (err: Error | null) => {
-              console.error("globalSignOut failed:", err);
-              resetState();
-              resolve();
-            },
-          });
-        }
-      );
-    });
+    await performGlobalSignOut(user, resetState);
   },
   forgotPassword: async (email: string) => {
     if (!userPool) {
@@ -402,3 +363,49 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     });
   },
 }));
+
+const resetAuthState = (set: (partial: Partial<AuthStore>) => void) => {
+  set({
+    status: "unauthenticated",
+    user: null,
+    session: null,
+    role: null,
+    error: null,
+    attributes: null,
+    loading: false,
+  });
+  try {
+    useOrgStore.getState().clearOrgs();
+  } catch (err) {
+    console.warn("Failed to clear org store on signout", err);
+  }
+};
+
+const performGlobalSignOut = (
+  user: CognitoUser,
+  resetState: () => void,
+): Promise<void> =>
+  new Promise((resolve) => {
+    user.getSession((err: Error | null, session: CognitoUserSession | null) => {
+      if (err || !session?.isValid()) {
+        if (err) {
+          console.warn("getSession failed during signout:", err);
+        } else {
+          console.warn("Invalid session during signout");
+        }
+        resolve();
+        return;
+      }
+      user.globalSignOut({
+        onSuccess: () => {
+          resetState();
+          resolve();
+        },
+        onFailure: (signoutErr: Error | null) => {
+          console.error("globalSignOut failed:", signoutErr);
+          resetState();
+          resolve();
+        },
+      });
+    });
+  });

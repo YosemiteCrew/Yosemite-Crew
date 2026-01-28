@@ -3,10 +3,10 @@ import Github from "@/app/components/Github/Github";
 import Header from "@/app/components/Header/Header";
 
 interface PublicLayoutProps {
-  readonly children: React.ReactNode;
+  children: React.ReactNode;
 }
 
-export default function PublicLayout({ children }: PublicLayoutProps) {
+export default function PublicLayout({ children }: Readonly<PublicLayoutProps>) {
   return (
     <>
       <Cookies />

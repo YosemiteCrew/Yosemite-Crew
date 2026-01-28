@@ -28,8 +28,8 @@ const generateSmoothStarPath = (
   const smoothness = 0.5; // Controls how rounded the curves are (higher = smoother)
 
   const getControlPoints = (p0: {x: number, y: number}, p1: {x: number, y: number}, p2: {x: number, y: number}) => {
-    const d01 = Math.sqrt((p1.x - p0.x) ** 2 + (p1.y - p0.y) ** 2);
-    const d12 = Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
+    const d01 = Math.hypot(p1.x - p0.x, p1.y - p0.y);
+    const d12 = Math.hypot(p2.x - p1.x, p2.y - p1.y);
 
     const fa = smoothness * d01 / (d01 + d12);
     const fb = smoothness * d12 / (d01 + d12);
@@ -103,7 +103,7 @@ const Ripple: React.FC<RippleProps> = ({ delay, duration, size, color, position 
         }}
         initial={{ scale: 0.6, opacity: 0 }}
         animate={{
-          scale: [0.6, 1.0, 1.4],
+          scale: [0.6, 1, 1.4],
           opacity: [0, 0.5, 0],
           rotate: [0, 8, 15],
         }}
@@ -147,18 +147,18 @@ const Ripple: React.FC<RippleProps> = ({ delay, duration, size, color, position 
 
 const StarRipple: React.FC = () => {
   // Multiple ripples for each corner with staggered delays
-  const topRightRipples = [
-    { delay: 0, duration: 10, size: 1000, color: "#7AB4F5" },
-    { delay: 2.5, duration: 10, size: 1200, color: "#5299F1" },
-    { delay: 5, duration: 10, size: 1400, color: "#3687EF" },
-    { delay: 7.5, duration: 10, size: 1600, color: "#247AED" },
+  const topRightRipples: Array<RippleProps & { id: string }> = [
+    { id: "tr-1", delay: 0, duration: 10, size: 1000, color: "#7AB4F5" },
+    { id: "tr-2", delay: 2.5, duration: 10, size: 1200, color: "#5299F1" },
+    { id: "tr-3", delay: 5, duration: 10, size: 1400, color: "#3687EF" },
+    { id: "tr-4", delay: 7.5, duration: 10, size: 1600, color: "#247AED" },
   ];
 
-  const bottomLeftRipples = [
-    { delay: 0, duration: 10, size: 1000, color: "#7AB4F5" },
-    { delay: 2.5, duration: 10, size: 1200, color: "#5299F1" },
-    { delay: 5, duration: 10, size: 1400, color: "#3687EF" },
-    { delay: 7.5, duration: 10, size: 1600, color: "#247AED" },
+  const bottomLeftRipples: Array<RippleProps & { id: string }> = [
+    { id: "bl-1", delay: 0, duration: 10, size: 1000, color: "#7AB4F5" },
+    { id: "bl-2", delay: 2.5, duration: 10, size: 1200, color: "#5299F1" },
+    { id: "bl-3", delay: 5, duration: 10, size: 1400, color: "#3687EF" },
+    { id: "bl-4", delay: 7.5, duration: 10, size: 1600, color: "#247AED" },
   ];
 
   return (
@@ -167,13 +167,13 @@ const StarRipple: React.FC = () => {
       <div className="ripple-glow" />
 
       {/* Top-right ripples */}
-      {topRightRipples.map((ripple, index) => (
-        <Ripple key={`top-right-${index}`} {...ripple} position="top-right" />
+      {topRightRipples.map(({ id, ...ripple }) => (
+        <Ripple key={id} {...ripple} position="top-right" />
       ))}
 
       {/* Bottom-left ripples */}
-      {bottomLeftRipples.map((ripple, index) => (
-        <Ripple key={`bottom-left-${index}`} {...ripple} position="bottom-left" />
+      {bottomLeftRipples.map(({ id, ...ripple }) => (
+        <Ripple key={id} {...ripple} position="bottom-left" />
       ))}
     </div>
   );

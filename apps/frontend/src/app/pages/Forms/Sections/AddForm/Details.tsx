@@ -13,10 +13,9 @@ import {
   FormsUsageOptions,
 } from "@/app/types/forms";
 import { getCategoryTemplate } from "@/app/utils/forms";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Organisation } from "@yosemite-crew/types";
 import { useOrgStore } from "@/app/stores/orgStore";
-import { useMemo } from "react";
 
 type DetailsProps = {
   formData: FormsProps;
@@ -47,25 +46,25 @@ const Details = ({
   const orgTypeOverride = process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE as Organisation["type"] | undefined;
   const effectiveOrgType = orgTypeOverride || orgType;
   const categoryOptions = useMemo(() => {
-    const base = ["Consent form", "Discharge", "Custom"];
+    const base = new Set(["Consent form", "Discharge", "Custom"]);
     if (effectiveOrgType === "HOSPITAL") {
       return FormsCategoryOptions.filter(
-        (c) => base.includes(c) || c.startsWith("SOAP")
+        (c) => base.has(c) || c.startsWith("SOAP")
       );
     }
     if (effectiveOrgType === "BOARDER") {
       return FormsCategoryOptions.filter(
-        (c) => base.includes(c) || c.startsWith("Boarder")
+        (c) => base.has(c) || c.startsWith("Boarder")
       );
     }
     if (effectiveOrgType === "BREEDER") {
       return FormsCategoryOptions.filter(
-        (c) => base.includes(c) || c.startsWith("Breeder")
+        (c) => base.has(c) || c.startsWith("Breeder")
       );
     }
     if (effectiveOrgType === "GROOMER") {
       return FormsCategoryOptions.filter(
-        (c) => base.includes(c) || c.startsWith("Groomer")
+        (c) => base.has(c) || c.startsWith("Groomer")
       );
     }
     return FormsCategoryOptions;

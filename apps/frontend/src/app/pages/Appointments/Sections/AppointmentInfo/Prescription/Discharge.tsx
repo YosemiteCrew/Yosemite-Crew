@@ -1,4 +1,4 @@
-import { Primary, Secondary } from "@/app/components/Buttons";
+import { Secondary } from "@/app/components/Buttons";
 import Accordion from "@/app/components/Accordion/Accordion";
 import React, { useMemo, useState } from "react";
 import { FormDataProps } from "..";
@@ -127,6 +127,14 @@ const Discharge = ({
     }
   };
 
+  const isClientSigner = active?.requiredSigner === "CLIENT";
+  const actionText = isClientSigner
+    ? sending
+      ? "Sending..."
+      : "Send to parent"
+    : "Save";
+  const handleAction = isClientSigner ? handleSendToParent : handleSave;
+
   return (
     <PermissionGate
       allOf={[PERMISSIONS.PRESCRIPTION_VIEW_ANY]}
@@ -168,14 +176,8 @@ const Discharge = ({
           {canEdit && active && (
             <Secondary
               href="#"
-              text={
-                active.requiredSigner === "CLIENT"
-                  ? sending
-                    ? "Sending..."
-                    : "Send to parent"
-                  : "Save"
-              }
-              onClick={active.requiredSigner === "CLIENT" ? handleSendToParent : handleSave}
+              text={actionText}
+              onClick={handleAction}
             />
           )}
         </div>

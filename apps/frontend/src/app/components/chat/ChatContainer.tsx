@@ -128,6 +128,62 @@ const normalizeName = (value?: string) => {
   return result.replaceAll(/\s+/g, " ").trim();
 };
 
+const getSessionIdFromChannel = (chan: StreamChannel): string | undefined => {
+  const data = (chan.data as any) || {};
+  return data.groupId || data.directId || data._id || undefined;
+};
+
+const findSessionByStoredId = (
+  sessions: Array<{ _id: string }>,
+  storedId?: string,
+) => {
+  if (!storedId) return undefined;
+  return sessions.find((s) => s._id === storedId);
+};
+
+const matchesDirectSession = (
+  session: any,
+  channelMemberIds: string[],
+  chan: StreamChannel,
+) => {
+  if (session.type !== "ORG_DIRECT" || channelMemberIds.length !== 2) {
+    return false;
+  }
+  const sessionMembers = session.members || [];
+  const allMembersMatch = sessionMembers.every((sm: string) =>
+    channelMemberIds.includes(sm),
+  );
+  return allMembersMatch && sessionMembers.length === channelMemberIds.length;
+};
+
+const matchesGroupSession = (
+  session: any,
+  channelMemberIds: string[],
+  channelTitle?: string,
+) => {
+  if (session.type !== "ORG_GROUP" || channelMemberIds.length <= 2) {
+    return false;
+  }
+  const sessionMembers = session.members || [];
+  const matchingMembers = sessionMembers.filter((sm: string) =>
+    channelMemberIds.includes(sm),
+  );
+  if (matchingMembers.length < Math.min(sessionMembers.length, channelMemberIds.length) - 1) {
+    return false;
+  }
+  if (session.title && channelTitle && session.title === channelTitle) return true;
+  return matchingMembers.length === sessionMembers.length &&
+    matchingMembers.length === channelMemberIds.length;
+};
+
+const matchesChannelId = (session: any, chan: StreamChannel) => {
+  if (session.channelId === chan.id) return true;
+  if (chan.cid && session.channelId === chan.cid) return true;
+  if (chan.id && session.channelId && chan.id.includes(session.channelId)) return true;
+  if (session.channelId?.includes?.(chan.id)) return true;
+  return false;
+};
+
 type OrgUserOption = {
   id: string;
   userId?: string;
@@ -232,13 +288,14 @@ const GroupModal: React.FC<GroupModalProps> = ({
       };
     });
 
+  type OrgUserOptionWithKey = OrgUserOption & { keyId: string };
   const availableUsers = orgUsers
     .map((u) => ({ ...u, keyId: u.userId ?? u.id }))
-    .filter((u) => u.keyId)
+    .filter((u): u is OrgUserOptionWithKey => Boolean(u.keyId))
     .filter((u) => u.keyId !== currentUserId) // Exclude current user from add list
     .filter(
       (u) =>
-        !members.includes(u.keyId!) &&
+        !members.includes(u.keyId) &&
         !members.includes(u.id) &&
         (u.name + (u.email ?? "") + (u.role ?? ""))
           .toLowerCase()
@@ -415,7 +472,7 @@ const GroupModal: React.FC<GroupModalProps> = ({
                         </div>
                         <button
                           type="button"
-                          onClick={() => handleAddMemberClick(u.keyId!)}
+                          onClick={() => handleAddMemberClick(u.keyId)}
                           disabled={busy}
                           className={`p-1.5 rounded-lg hover:bg-green-50 transition-all duration-200 ${
                             busy ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
@@ -530,7 +587,7 @@ const resolveChannelScope = (
     data.category,
     (data.chat_type as string | undefined),
     (data.channelType as string | undefined),
-  ].find((value) => typeof value === "string") as string | undefined;
+  ].find((value): value is string => typeof value === "string");
 
   const normalizedCategory = rawCategory?.toLowerCase();
 
@@ -562,12 +619,14 @@ const resolveChannelScope = (
     return "groups";
   }
 
-  const memberCount =
-    channel.state?.members && Object.keys(channel.state.members).length > 0
-      ? Object.keys(channel.state.members).length
-      : typeof (data as any)?.member_count === "number"
-        ? Number((data as any)?.member_count)
-        : 0;
+  const memberCount = (() => {
+    const members = channel.state?.members;
+    if (members && Object.keys(members).length > 0) {
+      return Object.keys(members).length;
+    }
+    const count = (data as any)?.member_count;
+    return typeof count === "number" ? Number(count) : 0;
+  })();
 
   const hasAppointmentDetails = Boolean(
     (data as any)?.appointmentId ||
@@ -630,18 +689,23 @@ const ChannelHeaderWithCounterpart: React.FC<{
   currentUserId?: string | null;
 }> = ({ currentUserId }) => {
   const { channel } = useChannelStateContext();
-  const orgIdFromStore = useOrgStore((state) => state.primaryOrgId);
   const groupModalCtx = useContext(GroupModalContext);
   const [closingSession, setClosingSession] = useState(false);
   const [sessionClosed, setSessionClosed] = useState(false);
   const { title } = getChannelDisplayInfo(
-    channel as StreamChannel | null,
+    channel,
     currentUserId
   );
-  const scope = channel ? resolveChannelScope(channel as StreamChannel, currentUserId) : "colleagues";
+  const scope = channel ? resolveChannelScope(channel, currentUserId) : "colleagues";
   const channelMemberCount = channel?.state?.members ? Object.keys(channel.state.members).length : 0;
-  const dataType = (channel?.data as any)?.type as string | undefined;
-  const chatCategory = (channel?.data as any)?.chatCategory as string | undefined;
+  const dataType =
+    typeof (channel?.data as any)?.type === "string"
+      ? (channel?.data as any).type
+      : undefined;
+  const chatCategory =
+    typeof (channel?.data as any)?.chatCategory === "string"
+      ? (channel?.data as any).chatCategory
+      : undefined;
   const isTeamChannel = (channel?.type || "").toLowerCase() === "team";
   const isOrgGroupType =
     dataType === "ORG_GROUP" ||
@@ -698,7 +762,11 @@ const ChannelHeaderWithCounterpart: React.FC<{
         {isGroupChat && (
           <button
             type="button"
-            onClick={() => groupModalCtx.openEdit?.(channel as StreamChannel)}
+            onClick={() => {
+              if (channel) {
+                groupModalCtx.openEdit?.(channel);
+              }
+            }}
             className={`${primaryActionClasses} cursor-pointer`}
           >
             Group Info
@@ -732,19 +800,19 @@ const ChannelPreviewWrapper: React.FC<ChannelPreviewWrapperProps> = ({
   currentUserId,
   ...previewProps
 }) => {
-  const handlePreviewSelect: React.MouseEventHandler<HTMLDivElement> = (
+  const handlePreviewSelect: React.MouseEventHandler<HTMLButtonElement> = (
     event
   ) => {
     previewProps.onSelect?.(event);
     onPreviewSelect?.(previewProps.channel ?? null);
   };
 
-  const handleKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (
+  const handleKeyDown: React.KeyboardEventHandler<HTMLButtonElement> = (
     event
   ) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      handlePreviewSelect(event as unknown as React.MouseEvent<HTMLDivElement>);
+      handlePreviewSelect(event as unknown as React.MouseEvent<HTMLButtonElement>);
     }
   };
 
@@ -753,13 +821,10 @@ const ChannelPreviewWrapper: React.FC<ChannelPreviewWrapperProps> = ({
     currentUserId
   );
 
-  // Using div with role="option" since this is inside a listbox (ChannelList)
-  // and ChannelPreviewMessenger contains interactive elements (buttons)
   return (
-    <div
-      role="option"
-      aria-selected={previewProps.active}
-      tabIndex={0}
+    <button
+      type="button"
+      aria-pressed={previewProps.active}
       className="chat-preview-trigger"
       onClick={handlePreviewSelect}
       onKeyDown={handleKeyDown}
@@ -778,7 +843,7 @@ const ChannelPreviewWrapper: React.FC<ChannelPreviewWrapperProps> = ({
         displayTitle={title}
         displayImage={image}
       />
-    </div>
+    </button>
   );
 };
 
@@ -1042,8 +1107,6 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
   const [orgUsersLoaded, setOrgUsersLoaded] = useState(false);
   const [orgUsersLoading, setOrgUsersLoading] = useState(false);
   const [directSearch, setDirectSearch] = useState("");
-  const [groupTitle, setGroupTitle] = useState("");
-  const [groupMembers, setGroupMembers] = useState<string[]>([]);
   const [creatingChat, setCreatingChat] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const [directListHover, setDirectListHover] = useState(false);
@@ -1073,13 +1136,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
       // ALWAYS query backend sessions API to get the correct session _id
       // The groupId/directId stored in channel data might be the Stream channel ID, not the backend session ID
       if (!primaryOrgId) {
-        // Fallback to channel data if no org ID available
-        const dataId =
-          (chan.data as any)?.groupId ||
-          (chan.data as any)?.directId ||
-          (chan.data as any)?._id ||
-          undefined;
-        return dataId ? String(dataId) : undefined;
+        return getSessionIdFromChannel(chan);
       }
       try {
         // First check if channel already has a valid backend session ID stored
@@ -1097,62 +1154,22 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
         const channelTitle = (chan.data as any)?.title || (chan.data as any)?.name;
 
         // First, check if the stored groupId/directId matches any session _id
-        if (storedGroupId) {
-          const matchedByStoredId = sessions.find((s) => s._id === storedGroupId);
-          if (matchedByStoredId) {
-            console.log("Matched by stored groupId:", matchedByStoredId);
-            return matchedByStoredId._id;
-          }
+        const matchedGroup = findSessionByStoredId(sessions, storedGroupId);
+        if (matchedGroup) {
+          console.log("Matched by stored groupId:", matchedGroup);
+          return matchedGroup._id;
         }
-        if (storedDirectId) {
-          const matchedByStoredId = sessions.find((s) => s._id === storedDirectId);
-          if (matchedByStoredId) {
-            console.log("Matched by stored directId:", matchedByStoredId);
-            return matchedByStoredId._id;
-          }
+        const matchedDirect = findSessionByStoredId(sessions, storedDirectId);
+        if (matchedDirect) {
+          console.log("Matched by stored directId:", matchedDirect);
+          return matchedDirect._id;
         }
 
         // Match by channelId first, then by members as fallback
         const matched = sessions.find((s) => {
-          // Exact match on channelId
-          if (s.channelId === chan.id) return true;
-          // Also check if channel cid matches (format: type:id)
-          if (chan.cid && s.channelId === chan.cid) return true;
-          // Check if channel ID contains the session channelId or vice versa
-          if (chan.id && s.channelId && chan.id.includes(s.channelId)) return true;
-          if (chan.id && s.channelId && s.channelId.includes(chan.id)) return true;
-
-          // Match by members for ORG_DIRECT (2 members)
-          if (s.type === "ORG_DIRECT" && channelMemberIds.length === 2) {
-            const sessionMembers = s.members || [];
-            // Check if both session members are in the channel
-            const allMembersMatch = sessionMembers.every((sm: string) =>
-              channelMemberIds.includes(sm)
-            );
-            if (allMembersMatch && sessionMembers.length === channelMemberIds.length) {
-              return true;
-            }
-          }
-
-          // Match by members and title for ORG_GROUP
-          if (s.type === "ORG_GROUP" && channelMemberIds.length > 2) {
-            const sessionMembers = s.members || [];
-            // Check if members overlap significantly
-            const matchingMembers = sessionMembers.filter((sm: string) =>
-              channelMemberIds.includes(sm)
-            );
-            // If most members match and title matches, it's likely the same group
-            if (matchingMembers.length >= Math.min(sessionMembers.length, channelMemberIds.length) - 1) {
-              if (s.title && channelTitle && s.title === channelTitle) {
-                return true;
-              }
-              // If member count is exact match
-              if (matchingMembers.length === sessionMembers.length && matchingMembers.length === channelMemberIds.length) {
-                return true;
-              }
-            }
-          }
-
+          if (matchesChannelId(s, chan)) return true;
+          if (matchesDirectSession(s, channelMemberIds, chan)) return true;
+          if (matchesGroupSession(s, channelMemberIds, channelTitle)) return true;
           return false;
         });
         console.log("Matched session:", matched);
@@ -1162,21 +1179,10 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
 
         console.warn("No matching session found for channel. Channel members:", channelMemberIds, "Channel title:", channelTitle);
         // Fallback to channel data if no session found
-        const dataId =
-          (chan.data as any)?.groupId ||
-          (chan.data as any)?.directId ||
-          (chan.data as any)?._id ||
-          undefined;
-        return dataId ? String(dataId) : undefined;
+        return getSessionIdFromChannel(chan);
       } catch (err) {
         console.error("Failed to resolve group id for channel", err);
-        // Fallback to channel data on error
-        const dataId =
-          (chan.data as any)?.groupId ||
-          (chan.data as any)?.directId ||
-          (chan.data as any)?._id ||
-          undefined;
-        return dataId ? String(dataId) : undefined;
+        return getSessionIdFromChannel(chan);
       }
     },
     [primaryOrgId]
@@ -1275,7 +1281,8 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
     if (orgUsersLoaded || orgUsersLoading) return;
 
     setOrgUsersLoading(true);
-    fetchOrgUsers(primaryOrgId!)
+    if (!primaryOrgId) return;
+    fetchOrgUsers(primaryOrgId)
       .then((users) => {
         setOrgUsers(
           users
@@ -1315,8 +1322,16 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
       setGroupModalMode("edit");
       setGroupModalChannel(chan);
       const placeholder =
-        normalizeName((chan.data as any)?.title as string) ||
-        normalizeName((chan.data as any)?.name as string) ||
+        normalizeName(
+          typeof (chan.data as any)?.title === "string"
+            ? (chan.data as any).title
+            : undefined,
+        ) ||
+        normalizeName(
+          typeof (chan.data as any)?.name === "string"
+            ? (chan.data as any).name
+            : undefined,
+        ) ||
         "";
       setGroupModalPlaceholder(placeholder);
       setGroupModalTitle("");
@@ -1463,7 +1478,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
 
           // Also match by name as last resort (for John Doe case where IDs might differ)
           const otherUserName = otherMember?.user?.name;
-          if (otherUserName && user.name && otherUserName.toLowerCase() === user.name.toLowerCase()) {
+          if (otherUserName?.toLowerCase() === user.name?.toLowerCase()) {
             return true;
           }
 
