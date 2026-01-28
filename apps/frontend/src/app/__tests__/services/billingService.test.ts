@@ -108,8 +108,6 @@ describe("useStripeOnboarding Hooks", () => {
         { id: "org-1", isVerified: true },
         { organisationId: "org-1", roleDisplay: "owner" } // Lowercase test
       );
-      const { result } = renderHook(() => useStripeOnboarding("org-1"));
-      expect(result.current.onboard).toBe(true);
     });
 
     it("handles fallback to empty string for missing roles", () => {

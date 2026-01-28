@@ -294,7 +294,8 @@ describe("Companion Component", () => {
       expect.objectContaining({ currentWeight: 20 }),
     );
 
-    fireEvent.click(screen.getByTestId("select-My pet comes from:"));
+    // FIXED: Updated selector from "select-My pet comes from:" to "select-My companion comes from:"
+    fireEvent.click(screen.getByTestId("select-My companion comes from:"));
     expect(mockSetFormData).toHaveBeenCalled();
 
     fireEvent.change(screen.getByTestId("input-Microchip number (optional)"), {
