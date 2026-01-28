@@ -39,7 +39,7 @@ const StripeOnboarding = () => {
     router.push("/dashboard");
   }, [refetchData, router]);
 
-  const createAccountIfNeeded = async () => {
+  const createAccountIfNeeded = useCallback(async () => {
     if (!orgIdFromQuery) return;
     try {
       const account_id = await createConnectedAccount(orgIdFromQuery);
@@ -51,7 +51,7 @@ const StripeOnboarding = () => {
     } catch (error) {
       console.log(error);
     }
-  };
+  }, [orgIdFromQuery, router]);
 
   useEffect(() => {
     if (!onboard) {
@@ -75,7 +75,7 @@ const StripeOnboarding = () => {
       return;
     }
     createAccountIfNeeded();
-  }, [onboard, orgIdFromQuery, subscription]);
+  }, [onboard, orgIdFromQuery, subscription, createAccountIfNeeded, router]);
 
   useEffect(() => {
     if (!orgIdFromQuery || !accountId || !PUBLISHABE_KEY || !subscription)
@@ -103,7 +103,7 @@ const StripeOnboarding = () => {
     if (step === "stripe_user_authentication") {
       await refetchData();
     }
-  }, []);
+  }, [refetchData]);
 
   if (!onboard) {
     return null;

@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import React from "react";
 import { render } from "@testing-library/react";
 import Sidebar from "@/app/components/Sidebar/Sidebar";

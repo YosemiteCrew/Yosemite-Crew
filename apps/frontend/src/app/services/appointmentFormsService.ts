@@ -42,12 +42,12 @@ const buildFieldsFromResponseItems = (items: any[]): FormField[] =>
         ...base,
         type: "group",
         fields: buildFieldsFromResponseItems(it.item),
-      };
+      } as FormField;
     }
     return {
       ...base,
       type: inferFieldType(it),
-    };
+    } as FormField;
   });
 
 const buildFallbackForm = (qr: any): { form: Form; submission: FormSubmission } => {

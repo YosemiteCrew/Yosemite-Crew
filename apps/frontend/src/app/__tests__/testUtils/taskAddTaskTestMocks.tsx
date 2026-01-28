@@ -1,0 +1,62 @@
+import React from "react";
+
+const ErrorList = ({ errors }: { errors?: Record<string, string> }) => (
+  <div>
+    {Object.values(errors ?? {}).map((error) => (
+      <div key={error}>{error}</div>
+    ))}
+  </div>
+);
+
+jest.mock("@/app/components/Modal", () => ({
+  __esModule: true,
+  default: ({ showModal, children }: any) =>
+    showModal ? <div data-testid="modal">{children}</div> : null,
+}));
+
+jest.mock("@/app/components/Icons/Close", () => ({
+  __esModule: true,
+  default: ({ onClick }: any) => (
+    <button type="button" onClick={onClick}>
+      close
+    </button>
+  ),
+}));
+
+jest.mock("@/app/components/Buttons", () => ({
+  Primary: ({ text, onClick }: any) => (
+    <button type="button" onClick={onClick}>
+      {text}
+    </button>
+  ),
+  Secondary: ({ text, onClick }: any) => (
+    <button type="button" onClick={onClick}>
+      {text}
+    </button>
+  ),
+}));
+
+jest.mock("@/app/components/Tasks/TaskFormFields", () => ({
+  __esModule: true,
+  default: ({ formDataErrors }: any) => <ErrorList errors={formDataErrors} />,
+}));
+
+jest.mock("@/app/hooks/useCompanion", () => ({
+  useCompanionsForPrimaryOrg: () => [],
+}));
+
+jest.mock("@/app/hooks/useTeam", () => ({
+  useTeamForPrimaryOrg: () => [],
+}));
+
+jest.mock("@/app/services/taskService", () => ({
+  createTask: jest.fn(),
+  createTaskTemplate: jest.fn(),
+  getTaskLibrary: jest.fn().mockResolvedValue([]),
+  getTaskTemplatesForPrimaryOrg: jest.fn().mockResolvedValue([]),
+}));
+
+jest.mock("@/app/utils/date", () => ({
+  applyUtcTime: (d: Date) => d,
+  generateTimeSlots: () => ["09:00"],
+}));

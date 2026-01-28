@@ -195,7 +195,7 @@ const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
       return [];
     }
     return getServicesBySpecialityId(specialityId);
-  }, [formData.appointmentType?.speciality]);
+  }, [formData.appointmentType?.speciality, getServicesBySpecialityId]);
 
   const ServicesOptions = useMemo(
     () =>
@@ -245,7 +245,7 @@ const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
         duration: "",
       };
     }
-  }, [formData.appointmentType]);
+  }, [formData.appointmentType, services]);
 
   const handleCompanionSelect = (id: string) => {
     const selected = companions.find((item) => item.companion.id === id);

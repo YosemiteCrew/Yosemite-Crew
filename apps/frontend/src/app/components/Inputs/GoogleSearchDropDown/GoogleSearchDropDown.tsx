@@ -75,7 +75,7 @@ const GoogleSearchDropDown = ({
   useEffect(() => {
     lastQueriedRef.current = (value ?? "").trim();
     setOpen(false);
-  }, []);
+  }, [value]);
 
   useEffect(() => {
     const q = (value ?? "").trim();

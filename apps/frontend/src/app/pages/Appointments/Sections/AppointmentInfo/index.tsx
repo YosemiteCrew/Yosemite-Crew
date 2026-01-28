@@ -20,6 +20,7 @@ import {
   Appointment,
   FormSubmission,
   InvoiceItem,
+  Organisation,
   Service,
 } from "@yosemite-crew/types";
 import { createSubmission, fetchSubmissions } from "@/app/services/soapService";
@@ -841,7 +842,7 @@ const AppoitmentInfo = ({
     } finally {
       setCustomFormsLoading(false);
     }
-  }, [activeAppointment?.id, orgType]);
+  }, [activeAppointment?.id]);
 
   const resolveAppointmentFormEntry = useCallback(
     (submission: SoapNoteSubmission | FormSubmission | undefined) => {
@@ -914,7 +915,7 @@ const AppoitmentInfo = ({
       setActiveSubLabel(labels[0].labels[0].key);
       return;
     }
-    const sub = current.labels.find((l) => l.key === activeSubLabel);
+    const sub = current.labels.find((l: { key: string }) => l.key === activeSubLabel);
     if (!sub) {
       setActiveSubLabel(current.labels[0].key);
     }
@@ -925,7 +926,7 @@ const AppoitmentInfo = ({
     if (current && current.labels.length > 0) {
       setActiveSubLabel(current.labels[0].key);
     }
-  }, [activeLabel]);
+  }, [activeLabel, labels]);
 
   useEffect(() => {
     const appointmentId = activeAppointment?.id;
@@ -950,12 +951,7 @@ const AppoitmentInfo = ({
         total: String(total),
       };
     });
-  }, [
-    activeAppointment?.id,
-    activeAppointment?.appointmentType?.id,
-    services,
-    formData.lineItems,
-  ]);
+  }, [activeAppointment, services]);
 
   useEffect(() => {
     let cancelled = false;
@@ -992,7 +988,7 @@ const AppoitmentInfo = ({
     return () => {
       cancelled = true;
     };
-  }, [activeAppointment?.id, orgType, withSignatureMeta]);
+  }, [activeAppointment?.id, withSignatureMeta]);
 
   useEffect(() => {
     void loadAppointmentForms();

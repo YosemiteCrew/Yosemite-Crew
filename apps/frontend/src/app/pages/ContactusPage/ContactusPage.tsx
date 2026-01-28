@@ -174,12 +174,9 @@ const ContactusPage = () => {
     }
   }, [
     email,
-    phone,
     fullName,
     message,
     selectedQueryType,
-    area,
-    selectedRequest,
   ]);
 
   return (

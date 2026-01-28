@@ -7,7 +7,7 @@ import { updateTask } from "@/app/services/taskService";
 import { Task, TaskKindOptions, TaskStatusOptions } from "@/app/types/task";
 import { Team } from "@/app/types/team";
 import { PERMISSIONS } from "@/app/utils/permissions";
-import React, { useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
 
 type TaskInfoProps = {
   showModal: boolean;
@@ -55,8 +55,10 @@ const TaskInfo = ({ showModal, setShowModal, activeTask }: TaskInfoProps) => {
     return map;
   }, [teams]);
 
-  const resolveMemberName = (id?: string) =>
-    id ? (memberMap.get(id) ?? "-") : "-";
+  const resolveMemberName = useCallback(
+    (id?: string) => (id ? memberMap.get(id) ?? "-" : "-"),
+    [memberMap],
+  );
 
   const taskData = useMemo(
     () => ({
@@ -64,7 +66,7 @@ const TaskInfo = ({ showModal, setShowModal, activeTask }: TaskInfoProps) => {
       assignedBy: resolveMemberName(activeTask.assignedBy),
       assignedTo: resolveMemberName(activeTask.assignedTo),
     }),
-    [activeTask, teams],
+    [activeTask, resolveMemberName],
   );
 
   const handleUpdate = async (values: any) => {

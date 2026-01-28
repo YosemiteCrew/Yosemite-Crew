@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import React, { useEffect, useState } from "react";
 import { IoCamera } from "react-icons/io5";
 import { FiMinusCircle } from "react-icons/fi";

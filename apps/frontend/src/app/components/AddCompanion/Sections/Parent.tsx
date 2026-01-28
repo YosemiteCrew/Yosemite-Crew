@@ -66,11 +66,11 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
   }, [query]);
 
   useEffect(() => {
-    setFormData({
-      ...formData,
+    setFormData((prev) => ({
+      ...prev,
       birthDate: currentDate ?? undefined,
-    });
-  }, [currentDate]);
+    }));
+  }, [currentDate, setFormData]);
 
   const handleNext = () => {
     const errors: {

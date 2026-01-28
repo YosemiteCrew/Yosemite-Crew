@@ -148,17 +148,73 @@ const Ripple: React.FC<RippleProps> = ({ delay, duration, size, color, position 
 const StarRipple: React.FC = () => {
   // Multiple ripples for each corner with staggered delays
   const topRightRipples: Array<RippleProps & { id: string }> = [
-    { id: "tr-1", delay: 0, duration: 10, size: 1000, color: "#7AB4F5" },
-    { id: "tr-2", delay: 2.5, duration: 10, size: 1200, color: "#5299F1" },
-    { id: "tr-3", delay: 5, duration: 10, size: 1400, color: "#3687EF" },
-    { id: "tr-4", delay: 7.5, duration: 10, size: 1600, color: "#247AED" },
+    {
+      id: "tr-1",
+      delay: 0,
+      duration: 10,
+      size: 1000,
+      color: "#7AB4F5",
+      position: "top-right",
+    },
+    {
+      id: "tr-2",
+      delay: 2.5,
+      duration: 10,
+      size: 1200,
+      color: "#5299F1",
+      position: "top-right",
+    },
+    {
+      id: "tr-3",
+      delay: 5,
+      duration: 10,
+      size: 1400,
+      color: "#3687EF",
+      position: "top-right",
+    },
+    {
+      id: "tr-4",
+      delay: 7.5,
+      duration: 10,
+      size: 1600,
+      color: "#247AED",
+      position: "top-right",
+    },
   ];
 
   const bottomLeftRipples: Array<RippleProps & { id: string }> = [
-    { id: "bl-1", delay: 0, duration: 10, size: 1000, color: "#7AB4F5" },
-    { id: "bl-2", delay: 2.5, duration: 10, size: 1200, color: "#5299F1" },
-    { id: "bl-3", delay: 5, duration: 10, size: 1400, color: "#3687EF" },
-    { id: "bl-4", delay: 7.5, duration: 10, size: 1600, color: "#247AED" },
+    {
+      id: "bl-1",
+      delay: 0,
+      duration: 10,
+      size: 1000,
+      color: "#7AB4F5",
+      position: "bottom-left",
+    },
+    {
+      id: "bl-2",
+      delay: 2.5,
+      duration: 10,
+      size: 1200,
+      color: "#5299F1",
+      position: "bottom-left",
+    },
+    {
+      id: "bl-3",
+      delay: 5,
+      duration: 10,
+      size: 1400,
+      color: "#3687EF",
+      position: "bottom-left",
+    },
+    {
+      id: "bl-4",
+      delay: 7.5,
+      duration: 10,
+      size: 1600,
+      color: "#247AED",
+      position: "bottom-left",
+    },
   ];
 
   return (
@@ -168,12 +224,12 @@ const StarRipple: React.FC = () => {
 
       {/* Top-right ripples */}
       {topRightRipples.map(({ id, ...ripple }) => (
-        <Ripple key={id} {...ripple} position="top-right" />
+        <Ripple key={id} {...ripple} />
       ))}
 
       {/* Bottom-left ripples */}
       {bottomLeftRipples.map(({ id, ...ripple }) => (
-        <Ripple key={id} {...ripple} position="bottom-left" />
+        <Ripple key={id} {...ripple} />
       ))}
     </div>
   );

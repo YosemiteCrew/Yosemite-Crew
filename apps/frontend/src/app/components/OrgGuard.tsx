@@ -7,6 +7,7 @@ import { useOrgStore } from "@/app/stores/orgStore";
 import { useSpecialityStore } from "@/app/stores/specialityStore";
 import { computeOrgOnboardingStep } from "@/app/utils/orgOnboarding";
 import type { Organisation, Speciality, UserOrganization } from "@yosemite-crew/types";
+import type { UserProfile } from "@/app/types/profile";
 import { useLoadTeam } from "../hooks/useTeam";
 import { useUserProfileStore } from "../stores/profileStore";
 import { computeTeamOnboardingStep } from "../utils/teamOnboarding";
@@ -34,7 +35,7 @@ type RedirectParams = {
   primaryOrgId: string;
   primaryOrg: Organisation;
   membership: UserOrganization;
-  profile: ReturnType<typeof useUserProfileStore>;
+  profile: UserProfile | null | undefined;
   specialities: Speciality[];
   availabilities: ApiDayAvailability[];
 };
@@ -198,6 +199,7 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
     getAvailabilitiesByOrgId,
     specialityStatus,
     availabilityStatus,
+    membership,
   ]);
 
   if (!checked) return null;

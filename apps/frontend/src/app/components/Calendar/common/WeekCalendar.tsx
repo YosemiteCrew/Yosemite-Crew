@@ -107,7 +107,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
       8;
 
     return { topPx, todayIndex };
-  }, [weekStart, days]);
+  }, [weekStart, days, height]);
 
   useEffect(() => {
     if (!scrollRef.current || !nowPosition) return;

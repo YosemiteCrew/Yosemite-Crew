@@ -82,7 +82,7 @@ const Dropdown = ({
       });
     }
     return list;
-  }, [list, query]);
+  }, [list, query, search]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

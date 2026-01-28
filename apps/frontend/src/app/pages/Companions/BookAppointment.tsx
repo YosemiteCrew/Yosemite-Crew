@@ -164,7 +164,7 @@ const BookAppointment = ({
       return [];
     }
     return getServicesBySpecialityId(specialityId);
-  }, [formData.appointmentType?.speciality]);
+  }, [formData.appointmentType?.speciality, getServicesBySpecialityId]);
 
   const ServicesOptions = useMemo(
     () =>
@@ -231,7 +231,7 @@ const BookAppointment = ({
         duration: "",
       };
     }
-  }, [formData.appointmentType]);
+  }, [formData.appointmentType, services]);
 
   const handleCreate = async () => {
     console.log(formData);

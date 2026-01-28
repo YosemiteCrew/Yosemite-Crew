@@ -95,11 +95,11 @@ const Companion = ({
   }, [parentFormData.id]);
 
   useEffect(() => {
-    setFormData({
-      ...formData,
+    setFormData((prev) => ({
+      ...prev,
       dateOfBirth: currentDate ?? new Date(),
-    });
-  }, [currentDate]);
+    }));
+  }, [currentDate, setFormData]);
 
   const handleSubmit = async () => {
     const errors: {
