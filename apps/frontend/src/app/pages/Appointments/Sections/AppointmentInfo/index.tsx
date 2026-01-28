@@ -62,32 +62,42 @@ const formatValue = (
     return servicesById[val]?.name || servicesById[val]?.displayName;
   };
 
-  if (value === undefined || value === null) return "—";
-  if (field.type === "signature") {
+  const formatSignature = (): string => {
     const isSigned =
       submission?.signing?.status === "SIGNED" ||
       Boolean(submission?.signing?.pdf?.url);
     return isSigned ? "Signed" : "Not signed";
-  }
-  if (field.type === "date" || (field.type as string) === "time") {
+  };
+
+  const formatDateLike = (): string => {
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return `${value}`;
-    return (field.type as string) === "time" ? d.toLocaleTimeString() : d.toLocaleDateString();
-  }
-  if (field.type === "boolean") return value ? "Yes" : "No";
-  if (Array.isArray(value)) {
+    return (field.type as string) === "time"
+      ? d.toLocaleTimeString()
+      : d.toLocaleDateString();
+  };
+
+  const formatArray = (): string => {
     const mapped = value
-      .map((v) => resolveService(String(v)) ?? `${v}`)
+      .map((v: unknown) => resolveService(String(v)) ?? `${v}`)
       .filter(Boolean)
       .join(", ");
     return mapped || "—";
-  }
-  const serviceName = typeof value === "string" ? resolveService(value) : undefined;
-  if (serviceName) return serviceName;
-  if (typeof value === "object") {
+  };
+
+  const formatObject = (): string => {
     if (Object.keys(value ?? {}).length === 0) return "—";
     return JSON.stringify(value);
-  }
+  };
+
+  if (value === undefined || value === null) return "—";
+  if (field.type === "signature") return formatSignature();
+  if (field.type === "date" || (field.type as string) === "time") return formatDateLike();
+  if (field.type === "boolean") return value ? "Yes" : "No";
+  if (Array.isArray(value)) return formatArray();
+  const serviceName = typeof value === "string" ? resolveService(value) : undefined;
+  if (serviceName) return serviceName;
+  if (typeof value === "object") return formatObject();
   return `${value}`;
 };
 

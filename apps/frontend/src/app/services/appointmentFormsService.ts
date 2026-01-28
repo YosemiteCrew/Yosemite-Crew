@@ -94,22 +94,21 @@ const mapItem = (
       ? fromFormSubmissionRequestDTO(item.questionnaireResponse, form.schema)
       : null;
     const rawStatus = typeof item.status === "string" ? item.status.toLowerCase() : "";
-    let status: "completed" | "pending" = "pending";
-    if (rawStatus.includes("complete") || rawStatus.includes("signed")) {
-      status = "completed";
-    } else if (rawStatus.includes("pending") || rawStatus.includes("incomplete")) {
-      status = "pending";
-    } else if (submission) {
-      status = "completed";
-    }
+    const isCompleted =
+      rawStatus.includes("complete") ||
+      rawStatus.includes("signed") ||
+      Boolean(submission);
+    const status: "completed" | "pending" = isCompleted ? "completed" : "pending";
     return { form, submission, status };
   } catch (error_) {
-    try {
-      if (item.questionnaireResponse) {
+    if (item.questionnaireResponse) {
+      try {
         const { form, submission } = buildFallbackForm(item.questionnaireResponse);
         return { form, submission, status: "completed" };
+      } catch (error_) {
+        console.error("Skipping invalid appointment form item", error_, item);
       }
-    } catch (error_) {
+    } else {
       console.error("Skipping invalid appointment form item", error_, item);
     }
     return null;

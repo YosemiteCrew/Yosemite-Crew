@@ -258,7 +258,12 @@ const renderValue = (field: FieldConfig, formValues: FormValues) => {
 
   const formatMultiSelect = () => {
     const options = normalizeOptions(field.options);
-    const values = Array.isArray(raw) ? raw : raw ? [raw] : [];
+    let values: any[] = [];
+    if (Array.isArray(raw)) {
+      values = raw;
+    } else if (raw) {
+      values = [raw];
+    }
     if (!values.length) return "-";
     if (options.length) {
       return values.map((v) => resolveLabel(options, v)).join(", ");

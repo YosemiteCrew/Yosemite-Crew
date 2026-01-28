@@ -180,7 +180,7 @@ const SignatureActions = ({
   return (
     <div className="flex flex-col gap-2 mt-3">
       <div className="flex flex-wrap gap-2">
-        {!isSigned ? (
+        {isSigned ? null : (
           <Primary
             href="#"
             text={loading === "sign" ? "Starting..." : "Sign document"}
@@ -188,7 +188,7 @@ const SignatureActions = ({
             isDisabled={loading === "sign"}
             size="default"
           />
-        ) : null}
+        )}
 
         {isSigned ? (
           <Primary
