@@ -1,193 +1,268 @@
-import {
-  jest,
-  describe,
-  it,
-  expect,
-  beforeEach,
-  afterEach,
-} from "@jest/globals";
-import axios from "axios";
-
-// ----------------------------------------------------------------------
-// 1. MOCK DOCUMENSO SDK (BEFORE IMPORT)
-// ----------------------------------------------------------------------
+// Define mocks in global scope so they are stable across resetModules
 const mockCreateV0 = jest.fn();
 const mockDistribute = jest.fn();
+const mockFetch = jest.fn();
 
-jest.mock("@documenso/sdk-typescript", () => {
+// 1. Mock the SDK
+jest.mock('@documenso/sdk-typescript', () => {
   return {
-    Documenso: jest.fn().mockImplementation(() => {
-      return {
-        documents: {
-          createV0: mockCreateV0,
-          distribute: mockDistribute,
-        },
-      };
-    }),
+    Documenso: jest.fn().mockImplementation(() => ({
+      documents: {
+        createV0: mockCreateV0,
+        distribute: mockDistribute,
+      },
+    })),
   };
 });
 
-jest.mock("axios");
-jest.mock("../../src/utils/logger");
+// 2. Mock the Error class
+jest.mock('@documenso/sdk-typescript/models/errors/index.js', () => {
+  class MockDocumensoError extends Error {
+    statusCode: number;
+    body: any;
+    constructor(message: string, options: { statusCode: number; body: any }) {
+      super(message);
+      this.name = 'DocumensoError';
+      this.statusCode = options?.statusCode;
+      this.body = options?.body;
+    }
+  }
+  return {
+    DocumensoError: MockDocumensoError,
+  };
+});
 
-// ----------------------------------------------------------------------
-// 2. SETUP & IMPORT
-// ----------------------------------------------------------------------
-// Variable to hold the dynamically imported service
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let DocumensoService: any;
+// 3. Mock dependencies
+jest.mock('axios');
+jest.mock('../../src/utils/logger');
 
-describe("DocumensoService", () => {
+// Setup global fetch
+global.fetch = mockFetch;
+
+describe('DocumensoService', () => {
   const ORIGINAL_ENV = process.env;
 
-  // Fix: Cast jest.fn() to any to satisfy GlobalFetch type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mockFetch = jest.fn() as any;
-  globalThis.fetch = mockFetch;
+  // Dynamic variables for modules re-imported after reset
+  let DocumensoService: any;
+  let logger: any;
+  let axios: any;
+  let DocumensoSDK: any;
+  let DocumensoError: any;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.resetModules(); // Reset module registry to allow re-importing with fresh env
+    jest.resetModules(); // CLEAR CACHE
 
-    process.env = {
-      ...ORIGINAL_ENV,
-      DOCUMENSO_BASE_URL: "https://test.documenso.com",
-      DOCUMENSO_API_KEY: "test-key",
-    };
+    // 1. Reset Env
+    process.env = { ...ORIGINAL_ENV };
+    process.env.DOCUMENSO_BASE_URL = 'https://documenso.example.com';
+    process.env.DOCUMENSO_API_KEY = 'secret-key';
 
-    // Re-require the service to pick up the new environment variables
+    // 2. Re-require EVERYTHING
+    DocumensoService = require('../../src/services/documenso.service').DocumensoService;
+    logger = require('../../src/utils/logger').default;
+    axios = require('axios').default;
+    DocumensoSDK = require('@documenso/sdk-typescript').Documenso;
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const ServiceModule = require("../../src/services/documenso.service");
-    DocumensoService = ServiceModule.DocumensoService;
+    const errors = require('@documenso/sdk-typescript/models/errors/index.js');
+    DocumensoError = errors.DocumensoError;
   });
 
-  afterEach(() => {
+  afterAll(() => {
     process.env = ORIGINAL_ENV;
   });
 
-  /* ========================================================================
-   * CONFIGURATION & INIT
-   * ======================================================================*/
-  describe("Initialization", () => {
-    it("should throw if DOCUMENSO_BASE_URL is not set", async () => {
+  describe('Configuration & Initialization', () => {
+    it('should log error if DOCUMENSO_BASE_URL is missing', async () => {
       delete process.env.DOCUMENSO_BASE_URL;
 
-      // We must re-require the module here specifically to trigger the env check
+      // Re-require service to trigger env check
       jest.resetModules();
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const Service = require('../../src/services/documenso.service').DocumensoService;
+      const localLogger = require('../../src/utils/logger').default;
+
+      await Service.distributeDocument({ documentId: 1 });
+
+      expect(localLogger.error).toHaveBeenCalledWith(
+        "An unexpected error occurred:",
+        expect.objectContaining({ message: 'DOCUMENSO_BASE_URL is not set' })
+      );
     });
 
-    it("should throw if DOCUMENSO_BASE_URL is invalid URL", async () => {
-      process.env.DOCUMENSO_BASE_URL = "invalid-url";
-
+    it('should log error if DOCUMENSO_BASE_URL is invalid', async () => {
+      process.env.DOCUMENSO_BASE_URL = 'invalid-url';
       jest.resetModules();
+      const Service = require('../../src/services/documenso.service').DocumensoService;
+      const localLogger = require('../../src/utils/logger').default;
+
+      await Service.distributeDocument({ documentId: 1 });
+
+      expect(localLogger.error).toHaveBeenCalledWith(
+        "An unexpected error occurred:",
+        expect.objectContaining({ message: 'DOCUMENSO_BASE_URL is invalid' })
+      );
+    });
+
+    it('should initialize client once and reuse it', async () => {
+      // Import the SDK constructor mock to check calls
       // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { Documenso } = require('@documenso/sdk-typescript');
+
+      await DocumensoService.distributeDocument({ documentId: 1 });
+      await DocumensoService.distributeDocument({ documentId: 1 });
+
+      expect(Documenso).toHaveBeenCalledTimes(1);
     });
   });
 
-  /* ========================================================================
-   * CREATE DOCUMENT
-   * ======================================================================*/
-  describe("createDocument", () => {
+  describe('createDocument', () => {
+    const pdfBuffer = Buffer.from('fake-pdf');
     const mockInput = {
-      pdf: Buffer.from("test-pdf"),
-      signerEmail: "signer@test.com",
-      signerName: "Signer Name",
+      pdf: pdfBuffer,
+      signerEmail: 'signer@example.com',
+      signerName: 'Signer Name',
     };
 
-    it("should create document, upload pdf, and return document", async () => {
-      const mockDoc = { id: 123, title: "Form Submission" };
-      const mockUploadUrl = "https://upload.url";
-
-      // Fix: Cast to any to avoid strict type error
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockCreateV0 as any).mockResolvedValue({
-        document: mockDoc,
-        uploadUrl: mockUploadUrl,
+    it('should create document and upload PDF successfully', async () => {
+      // Mock SDK success
+      mockCreateV0.mockResolvedValue({
+        document: { id: 123, title: 'Form Submission' },
+        uploadUrl: 'https://upload.url',
       });
 
-      // Fix: Cast to any
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockFetch as unknown as any).mockResolvedValue({ ok: true });
+      // Mock Fetch success
+      mockFetch.mockResolvedValue({ ok: true });
 
       const result = await DocumensoService.createDocument(mockInput);
 
-      expect(mockCreateV0).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: "Form Submission",
-          recipients: expect.arrayContaining([
-            expect.objectContaining({ email: "signer@test.com" }),
-          ]),
-        }),
-      );
+      expect(mockCreateV0).toHaveBeenCalledWith(expect.objectContaining({
+        recipients: expect.arrayContaining([
+          expect.objectContaining({
+            email: 'signer@example.com',
+            name: 'Signer Name',
+            role: 'SIGNER',
+          })
+        ])
+      }));
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        mockUploadUrl,
-        expect.objectContaining({
-          method: "PUT",
-          headers: expect.objectContaining({
-            "Content-Type": "application/pdf",
-          }),
-        }),
-      );
+      expect(mockFetch).toHaveBeenCalledWith('https://upload.url', expect.objectContaining({
+        method: 'PUT',
+        headers: expect.objectContaining({
+          'Content-Length': pdfBuffer.length.toString(),
+        })
+      }));
 
-      expect(result).toEqual(mockDoc);
+      expect(result).toEqual({ id: 123, title: 'Form Submission' });
     });
 
-    it("should throw error if upload fails", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockCreateV0 as any).mockResolvedValue({
-        document: { id: 1 },
-        uploadUrl: "http://fail.url",
-      });
+    it('should use email as name if signerName is missing', async () => {
+      mockCreateV0.mockResolvedValue({ document: {}, uploadUrl: 'url' });
+      mockFetch.mockResolvedValue({ ok: true });
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockFetch as unknown as any).mockResolvedValue({
-        ok: false,
-        status: 500,
-      });
+      await DocumensoService.createDocument({ pdf: pdfBuffer, signerEmail: 'email@test.com' });
 
-      await DocumensoService.createDocument(mockInput);
+      expect(mockCreateV0).toHaveBeenCalledWith(expect.objectContaining({
+        recipients: expect.arrayContaining([
+          expect.objectContaining({ name: 'email@test.com' })
+        ])
+      }));
     });
 
-    it("should handle DocumensoError gracefully", async () => {
-      // Fix: Provide second arg (httpMeta) as null/any to satisfy constructor
-      // Fix: Cast to any to assign read-only properties
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    it('should handle Upload failure (fetch not ok)', async () => {
+      mockCreateV0.mockResolvedValue({ document: {}, uploadUrl: 'url' });
+      mockFetch.mockResolvedValue({ ok: false, status: 500 });
+
       await DocumensoService.createDocument(mockInput);
+
+      expect(logger.error).toHaveBeenCalledWith(
+        "An unexpected error occurred:",
+        expect.objectContaining({ message: "Upload failed: 500" })
+      );
+    });
+
+    it('should handle Documenso API Error', async () => {
+      // Use the dynamically imported Error class
+      const apiError = new DocumensoError('API Fail', {
+          statusCode: 400,
+          body: 'Bad Request'
+      });
+      mockCreateV0.mockRejectedValue(apiError);
+
+      await DocumensoService.createDocument(mockInput);
+
+      expect(logger.error).toHaveBeenCalledWith("API error:", "API Fail");
+      expect(logger.error).toHaveBeenCalledWith("Status code:", 400);
+      expect(logger.error).toHaveBeenCalledWith("Body:", "Bad Request");
+    });
+
+    it('should handle Generic Error', async () => {
+      const err = new Error('Random Crash');
+      mockCreateV0.mockRejectedValue(err);
+
+      await DocumensoService.createDocument(mockInput);
+
+      expect(logger.error).toHaveBeenCalledWith("An unexpected error occurred:", err);
     });
   });
 
-  /* ========================================================================
-   * DISTRIBUTE DOCUMENT
-   * ======================================================================*/
-  describe("distributeDocument", () => {
-    it("should distribute document successfully", async () => {
-      const mockResponse = { id: 1, status: "PENDING" };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockDistribute as any).mockResolvedValue(mockResponse);
+  describe('distributeDocument', () => {
+    it('should distribute document successfully', async () => {
+      mockDistribute.mockResolvedValue({ status: 'SENT' });
 
-      const result = await DocumensoService.distributeDocument({
-        documentId: 1,
-      });
+      const result = await DocumensoService.distributeDocument({ documentId: 123 });
 
-      expect(mockDistribute).toHaveBeenCalledWith({ documentId: 1 });
-      expect(result).toEqual(mockResponse);
+      expect(mockDistribute).toHaveBeenCalledWith({ documentId: 123 });
+      expect(result).toEqual({ status: 'SENT' });
     });
-    it("should handle unexpected error", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockDistribute as any).mockRejectedValue(new Error("Unknown"));
-      await DocumensoService.distributeDocument({ documentId: 1 });
+
+    it('should handle Documenso API Error', async () => {
+      const apiError = new DocumensoError('Distribute Fail', {
+          statusCode: 404,
+          body: 'Not Found'
+      });
+      mockDistribute.mockRejectedValue(apiError);
+
+      await DocumensoService.distributeDocument({ documentId: 123 });
+
+      expect(logger.error).toHaveBeenCalledWith("API error:", "Distribute Fail");
+    });
+
+    it('should handle Generic Error', async () => {
+      const err = new Error('Generic');
+      mockDistribute.mockRejectedValue(err);
+
+      await DocumensoService.distributeDocument({ documentId: 123 });
+
+      expect(logger.error).toHaveBeenCalledWith("An unexpected error occurred:", err);
     });
   });
 
-  /* ========================================================================
-   * DOWNLOAD SIGNED DOCUMENT
-   * ======================================================================*/
-  describe("downloadSignedDocument", () => {
-    it("should handle download errors", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (axios.get as any).mockRejectedValue(new Error("Network Error"));
+  describe('downloadSignedDocument', () => {
+    it('should download document successfully via Axios', async () => {
+      const mockResponseData = { downloadUrl: 'http://s3.com/file.pdf' };
+      axios.get.mockResolvedValue({ data: mockResponseData });
+
+      const result = await DocumensoService.downloadSignedDocument(999);
+
+      // NOTE: new URL().toString() adds a trailing slash, so we expect double slash
+      // if the code does `${baseUrl}/document...`
+      expect(axios.get).toHaveBeenCalledWith(
+        'https://documenso.example.com//document/999/download-beta',
+        expect.objectContaining({
+          params: { version: 'signed' },
+          headers: { Authorization: 'secret-key' }
+        })
+      );
+      expect(result).toEqual(mockResponseData);
+    });
+
+    it('should handle Download failure', async () => {
+      const err = new Error('Network Error');
+      axios.get.mockRejectedValue(err);
+
+      await DocumensoService.downloadSignedDocument(999);
+
+      expect(logger.error).toHaveBeenCalledWith("An unexpected error occurred:", err);
     });
   });
 });
