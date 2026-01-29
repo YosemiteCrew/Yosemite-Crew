@@ -68,7 +68,7 @@ const InvoiceInfo = ({
       total: formatMoney(activeInvoice?.totalAmount ?? 0, currency),
       date: formatDateLabel(activeInvoice?.createdAt),
     }),
-    [activeInvoice],
+    [activeInvoice, currency],
   );
 
   return (
