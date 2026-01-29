@@ -65,6 +65,68 @@ export type ConfigItem<S extends InventorySectionKey = InventorySectionKey> =
 export type SectionConfig<S extends InventorySectionKey = InventorySectionKey> =
   ConfigItem<S>[];
 
+const field = <S extends InventorySectionKey>(
+  name: FieldNameForSection<S>,
+  placeholder: string,
+  component: FieldComponentType,
+  options?: string[]
+): ConfigItem<S> => ({
+  kind: "field",
+  field: { name, placeholder, component, options },
+});
+
+const row = <S extends InventorySectionKey>(
+  ...fields: FieldDef<S>[]
+): ConfigItem<S> => ({
+  kind: "row",
+  fields,
+});
+
+const f = <S extends InventorySectionKey>(
+  name: FieldNameForSection<S>,
+  placeholder: string,
+  component: FieldComponentType,
+  options?: string[]
+): FieldDef<S> => ({ name, placeholder, component, options });
+
+const commonPricingFields: SectionConfig<"pricing"> = [
+  field("purchaseCost", "Purchase cost (per unit)", "text"),
+  field("selling", "Selling price", "text"),
+  field("maxDiscount", "Max allowable discount (%)", "text"),
+  field("tax", "Tax (%)", "text"),
+];
+
+const commonVendorFields = (includesLicense: boolean): SectionConfig<"vendor"> => [
+  field("supplierName", "Supplier name", "text"),
+  field("brand", "Brand", "text"),
+  field("vendor", "Vendor type", "dropdown", VendorOptions),
+  ...(includesLicense ? [field<"vendor">("license", "License number", "text")] : []),
+  field("paymentTerms", "Payment terms", "dropdown", PaymentTermsOptions),
+  field("leadTime", "Lead time", "text"),
+];
+
+const commonStockFields = (includesStockType: boolean = false): SectionConfig<"stock"> => [
+  field("current", "Current quantity (on hand)", "text"),
+  field("allocated", "Allocated quantity", "text"),
+  field("available", "Available quantity", "text"),
+  field("reorderLevel", "Reorder level", "text"),
+  field("reorderQuantity", "Reorder quantity (optional)", "text"),
+  field("stockLocation", "Stock location / Storage area", "dropdown", StockLocationOptions),
+  ...(includesStockType ? [field<"stock">("stockType", "Stock type", "dropdown", StockTypeOptions)] : []),
+  field("minStockAlert", "Min stock alert", "text"),
+];
+
+const commonBatchFields: SectionConfig<"batch"> = [
+  field("batch", "Batch / Lot Number", "text"),
+  row(
+    f("quantity", "Quantity", "text"),
+    f("allocated", "Allocated", "text")
+  ),
+  field("manufactureDate", "Manufacture date", "date"),
+  field("expiryDate", "Expiry date", "date"),
+  field("nextRefillDate", "Next refill date", "date"),
+];
+
 export const InventoryFormConfig: Record<
   BusinessType,
   Partial<{
@@ -219,224 +281,20 @@ export const InventoryFormConfig: Record<
         },
       },
     ],
-    pricing: [
-      {
-        kind: "field",
-        field: {
-          name: "purchaseCost",
-          placeholder: "Purchase cost (per unit)",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "selling",
-          placeholder: "Selling price",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "maxDiscount",
-          placeholder: "Max allowable discount (%)",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "tax",
-          placeholder: "Tax (%)",
-          component: "text",
-        },
-      },
-    ],
-    vendor: [
-      {
-        kind: "field",
-        field: {
-          name: "supplierName",
-          placeholder: "Supplier name",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "brand",
-          placeholder: "Brand",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "vendor",
-          placeholder: "Vendor type",
-          component: "dropdown",
-          options: VendorOptions,
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "license",
-          placeholder: "License number",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "paymentTerms",
-          placeholder: "Payment terms",
-          component: "dropdown",
-          options: PaymentTermsOptions,
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "leadTime",
-          placeholder: "Lead time",
-          component: "text",
-        },
-      },
-    ],
-    stock: [
-      {
-        kind: "field",
-        field: {
-          name: "current",
-          placeholder: "Current quantity (on hand)",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "allocated",
-          placeholder: "Allocated quantity",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "available",
-          placeholder: "Available quantity",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "reorderLevel",
-          placeholder: "Reorder level",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "reorderQuantity",
-          placeholder: "Reorder quantity (optional)",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "stockLocation",
-          placeholder: "Stock location / Storage area",
-          component: "dropdown",
-          options: StockLocationOptions,
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "stockType",
-          placeholder: "Stock type",
-          component: "dropdown",
-          options: StockTypeOptions,
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "minStockAlert",
-          placeholder: "Min stock alert",
-          component: "text",
-        },
-      },
-    ],
+    pricing: commonPricingFields,
+    vendor: commonVendorFields(true),
+    stock: commonStockFields(true),
     batch: [
-      {
-        kind: "field",
-        field: {
-          name: "serial",
-          placeholder: "Serial / Barcode",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "batch",
-          placeholder: "Batch / Lot Number",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "tracking",
-          placeholder: "Regulatory tracking ID",
-          component: "text",
-        },
-      },
-      {
-        kind: "row",
-        fields: [
-          {
-            name: "quantity",
-            placeholder: "Quantity",
-            component: "text",
-          },
-          {
-            name: "allocated",
-            placeholder: "Allocated",
-            component: "text",
-          },
-        ],
-      },
-      {
-        kind: "field",
-        field: {
-          name: "manufactureDate",
-          placeholder: "Manufacture date",
-          component: "date",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "expiryDate",
-          placeholder: "Expiry date",
-          component: "date",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "nextRefillDate",
-          placeholder: "Next refill date",
-          component: "date",
-        },
-      },
+      field("serial", "Serial / Barcode", "text"),
+      field("batch", "Batch / Lot Number", "text"),
+      field("tracking", "Regulatory tracking ID", "text"),
+      row(
+        f("quantity", "Quantity", "text"),
+        f("allocated", "Allocated", "text")
+      ),
+      field("manufactureDate", "Manufacture date", "date"),
+      field("expiryDate", "Expiry date", "date"),
+      field("nextRefillDate", "Next refill date", "date"),
     ],
   },
   GROOMER: {
@@ -589,192 +447,10 @@ export const InventoryFormConfig: Record<
         },
       },
     ],
-    pricing: [
-      {
-        kind: "field",
-        field: {
-          name: "purchaseCost",
-          placeholder: "Purchase cost (per unit)",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "selling",
-          placeholder: "Selling price",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "maxDiscount",
-          placeholder: "Max allowable discount (%)",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "tax",
-          placeholder: "Tax (%)",
-          component: "text",
-        },
-      },
-    ],
-    vendor: [
-      {
-        kind: "field",
-        field: {
-          name: "supplierName",
-          placeholder: "Supplier name",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "brand",
-          placeholder: "Brand",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "vendor",
-          placeholder: "Vendor type",
-          component: "dropdown",
-          options: VendorOptions,
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "paymentTerms",
-          placeholder: "Payment terms",
-          component: "dropdown",
-          options: PaymentTermsOptions,
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "leadTime",
-          placeholder: "Lead time",
-          component: "text",
-        },
-      },
-    ],
-    stock: [
-      {
-        kind: "field",
-        field: {
-          name: "current",
-          placeholder: "Current quantity (on hand)",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "allocated",
-          placeholder: "Allocated quantity",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "available",
-          placeholder: "Available quantity",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "reorderLevel",
-          placeholder: "Reorder level",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "reorderQuantity",
-          placeholder: "Reorder quantity (optional)",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "stockLocation",
-          placeholder: "Stock location / Storage area",
-          component: "dropdown",
-          options: StockLocationOptions,
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "minStockAlert",
-          placeholder: "Min stock alert",
-          component: "text",
-        },
-      },
-    ],
-    batch: [
-      {
-        kind: "field",
-        field: {
-          name: "batch",
-          placeholder: "Batch / Lot Number",
-          component: "text",
-        },
-      },
-      {
-        kind: "row",
-        fields: [
-          {
-            name: "quantity",
-            placeholder: "Quantity",
-            component: "text",
-          },
-          {
-            name: "allocated",
-            placeholder: "Allocated",
-            component: "text",
-          },
-        ],
-      },
-      {
-        kind: "field",
-        field: {
-          name: "manufactureDate",
-          placeholder: "Manufacture date",
-          component: "date",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "expiryDate",
-          placeholder: "Expiry date",
-          component: "date",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "nextRefillDate",
-          placeholder: "Next refill date",
-          component: "date",
-        },
-      },
-    ],
+    pricing: commonPricingFields,
+    vendor: commonVendorFields(false),
+    stock: commonStockFields(false),
+    batch: commonBatchFields,
   },
   BREEDER: {
     basicInfo: [
@@ -941,199 +617,25 @@ export const InventoryFormConfig: Record<
         },
       },
     ],
-    pricing: [
-      {
-        kind: "field",
-        field: {
-          name: "purchaseCost",
-          placeholder: "Purchase cost (per unit)",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "selling",
-          placeholder: "Selling price",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "maxDiscount",
-          placeholder: "Max allowable discount (%)",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "tax",
-          placeholder: "Tax (%)",
-          component: "text",
-        },
-      },
-    ],
+    pricing: commonPricingFields,
     vendor: [
-      {
-        kind: "field",
-        field: {
-          name: "supplierName",
-          placeholder: "Supplier name",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "brand",
-          placeholder: "Brand",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "vendor",
-          placeholder: "Vendor type",
-          component: "dropdown",
-          options: VendorOptions,
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "license",
-          placeholder: "Supplier product code",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "paymentTerms",
-          placeholder: "Payment terms",
-          component: "dropdown",
-          options: PaymentTermsOptions,
-        },
-      },
+      field("supplierName", "Supplier name", "text"),
+      field("brand", "Brand", "text"),
+      field("vendor", "Vendor type", "dropdown", VendorOptions),
+      field("license", "Supplier product code", "text"),
+      field("paymentTerms", "Payment terms", "dropdown", PaymentTermsOptions),
     ],
-    stock: [
-      {
-        kind: "field",
-        field: {
-          name: "current",
-          placeholder: "Current quantity (on hand)",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "allocated",
-          placeholder: "Allocated quantity",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "available",
-          placeholder: "Available quantity",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "reorderLevel",
-          placeholder: "Reorder level",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "reorderQuantity",
-          placeholder: "Reorder quantity (optional)",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "stockLocation",
-          placeholder: "Stock location / Storage area",
-          component: "dropdown",
-          options: StockLocationOptions,
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "minStockAlert",
-          placeholder: "Min stock alert",
-          component: "text",
-        },
-      },
-    ],
+    stock: commonStockFields(false),
     batch: [
-      {
-        kind: "field",
-        field: {
-          name: "batch",
-          placeholder: "Batch / Lot Number",
-          component: "text",
-        },
-      },
-      {
-        kind: "row",
-        fields: [
-          {
-            name: "quantity",
-            placeholder: "Quantity",
-            component: "text",
-          },
-          {
-            name: "allocated",
-            placeholder: "Allocated",
-            component: "text",
-          },
-        ],
-      },
-      {
-        kind: "field",
-        field: {
-          name: "litterId",
-          placeholder: "Manufacture date",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "manufactureDate",
-          placeholder: "Associated litter ID",
-          component: "date",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "expiryDate",
-          placeholder: "Expiry date",
-          component: "date",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "nextRefillDate",
-          placeholder: "Next refill date",
-          component: "date",
-        },
-      },
+      field("batch", "Batch / Lot Number", "text"),
+      row(
+        f("quantity", "Quantity", "text"),
+        f("allocated", "Allocated", "text")
+      ),
+      field("litterId", "Manufacture date", "text"),
+      field("manufactureDate", "Associated litter ID", "date"),
+      field("expiryDate", "Expiry date", "date"),
+      field("nextRefillDate", "Next refill date", "date"),
     ],
   },
   BOARDER: {
@@ -1269,183 +771,9 @@ export const InventoryFormConfig: Record<
         },
       },
     ],
-    pricing: [
-      {
-        kind: "field",
-        field: {
-          name: "purchaseCost",
-          placeholder: "Purchase cost (per unit)",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "selling",
-          placeholder: "Selling price",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "maxDiscount",
-          placeholder: "Max allowable discount (%)",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "tax",
-          placeholder: "Tax (%)",
-          component: "text",
-        },
-      },
-    ],
-    vendor: [
-      {
-        kind: "field",
-        field: {
-          name: "supplierName",
-          placeholder: "Supplier name",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "brand",
-          placeholder: "Brand",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "vendor",
-          placeholder: "Vendor type",
-          component: "dropdown",
-          options: VendorOptions,
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "paymentTerms",
-          placeholder: "Payment terms",
-          component: "dropdown",
-          options: PaymentTermsOptions,
-        },
-      },
-    ],
-    stock: [
-      {
-        kind: "field",
-        field: {
-          name: "current",
-          placeholder: "Current quantity (on hand)",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "allocated",
-          placeholder: "Allocated quantity",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "available",
-          placeholder: "Available quantity",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "reorderLevel",
-          placeholder: "Reorder level",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "reorderQuantity",
-          placeholder: "Reorder quantity (optional)",
-          component: "text",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "stockLocation",
-          placeholder: "Stock location / Storage area",
-          component: "dropdown",
-          options: StockLocationOptions,
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "minStockAlert",
-          placeholder: "Min stock alert",
-          component: "text",
-        },
-      },
-    ],
-    batch: [
-      {
-        kind: "field",
-        field: {
-          name: "batch",
-          placeholder: "Batch / Lot Number",
-          component: "text",
-        },
-      },
-      {
-        kind: "row",
-        fields: [
-          {
-            name: "quantity",
-            placeholder: "Quantity",
-            component: "text",
-          },
-          {
-            name: "allocated",
-            placeholder: "Allocated",
-            component: "text",
-          },
-        ],
-      },
-      {
-        kind: "field",
-        field: {
-          name: "manufactureDate",
-          placeholder: "Manufacture date",
-          component: "date",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "expiryDate",
-          placeholder: "Expiry date",
-          component: "date",
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "nextRefillDate",
-          placeholder: "Next refill date",
-          component: "date",
-        },
-      },
-    ],
+    pricing: commonPricingFields,
+    vendor: commonVendorFields(false),
+    stock: commonStockFields(false),
+    batch: commonBatchFields,
   },
 };

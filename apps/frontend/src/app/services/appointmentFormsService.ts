@@ -94,11 +94,15 @@ const mapItem = (
       ? fromFormSubmissionRequestDTO(item.questionnaireResponse, form.schema)
       : null;
     const rawStatus = typeof item.status === "string" ? item.status.toLowerCase() : "";
-    const isCompleted =
-      rawStatus.includes("complete") ||
-      rawStatus.includes("signed") ||
-      Boolean(submission);
-    const status: "completed" | "pending" = isCompleted ? "completed" : "pending";
+    const isExplicitlyPending =
+      rawStatus.includes("pending") || rawStatus.includes("incomplete");
+    const isExplicitlyCompleted =
+      rawStatus.includes("complete") || rawStatus.includes("signed");
+    const status: "completed" | "pending" = isExplicitlyPending
+      ? "pending"
+      : isExplicitlyCompleted || Boolean(submission)
+        ? "completed"
+        : "pending";
     return { form, submission, status };
   } catch (error_) {
     if (item.questionnaireResponse) {
