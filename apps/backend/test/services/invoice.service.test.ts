@@ -4,8 +4,10 @@ import { InvoiceService } from "../../src/services/invoice.service";
 import InvoiceModel from "../../src/models/invoice";
 import AppointmentModel from "../../src/models/appointment";
 import OrganizationModel from "../../src/models/organization";
+import { OrgBilling } from "../../src/models/organization.billing";
 import { StripeService } from "../../src/services/stripe.service";
 import { NotificationService } from "../../src/services/notification.service";
+import { AuditTrailService } from "../../src/services/audit-trail.service";
 
 // ----------------------------------------------------------------------
 // 1. MOCKS
@@ -13,8 +15,18 @@ import { NotificationService } from "../../src/services/notification.service";
 jest.mock("../../src/models/invoice");
 jest.mock("../../src/models/appointment");
 jest.mock("../../src/models/organization");
+jest.mock("../../src/models/organization.billing", () => ({
+  OrgBilling: {
+    findOne: jest.fn(),
+  },
+}));
 jest.mock("../../src/services/stripe.service");
 jest.mock("../../src/services/notification.service");
+jest.mock("../../src/services/audit-trail.service", () => ({
+  AuditTrailService: {
+    recordSafely: jest.fn(),
+  },
+}));
 
 // Helper to mock mongoose chaining: find().sort().exec()
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -63,6 +75,10 @@ const mockInvoiceDoc = (data: any) => {
   };
 };
 
+const mockedOrgBilling = OrgBilling as unknown as {
+  findOne: jest.Mock<() => Promise<{ currency: string } | null>>;
+};
+
 describe("InvoiceService", () => {
   const validId = new Types.ObjectId().toString();
   const appointmentId = new Types.ObjectId().toString();
@@ -70,6 +86,10 @@ describe("InvoiceService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockedOrgBilling.findOne.mockResolvedValue({ currency: "USD" });
+    (AuditTrailService.recordSafely as jest.Mock).mockImplementation(
+      async () => {},
+    );
   });
 
   // ======================================================================
@@ -80,10 +100,22 @@ describe("InvoiceService", () => {
       it("should create a draft invoice and send notification", async () => {
         // Cast to any to bypass "Argument of type... not assignable to never"
         (AppointmentModel.findById as any).mockReturnValue({
-          session: (jest.fn() as any).mockResolvedValue({ _id: appointmentId }),
+          session: (jest.fn() as any).mockResolvedValue({
+            _id: appointmentId,
+            companion: {
+              id: new Types.ObjectId().toString(),
+              parent: { id: parentId },
+            },
+          }),
         });
 
-        (InvoiceModel.create as any).mockResolvedValue("mock-invoice");
+        const createdInvoice = {
+          _id: new Types.ObjectId(),
+          status: "AWAITING_PAYMENT",
+          totalAmount: 100,
+          currency: "USD",
+        };
+        (InvoiceModel.create as any).mockResolvedValue([createdInvoice]);
         (NotificationService.sendToUser as any).mockResolvedValue(true);
 
         const input = {
@@ -91,7 +123,7 @@ describe("InvoiceService", () => {
           parentId,
           organisationId: new Types.ObjectId().toString(),
           companionId: new Types.ObjectId().toString(),
-          currency: "USD",
+          paymentCollectionMethod: "PAYMENT_INTENT" as const,
           items: [{ description: "Test", quantity: 1, unitPrice: 100 }],
         };
 
@@ -108,7 +140,7 @@ describe("InvoiceService", () => {
           expect.anything(),
         );
         expect(NotificationService.sendToUser).toHaveBeenCalled();
-        expect(result).toBe("mock-invoice");
+        expect(result).toEqual([createdInvoice]);
       });
 
       it("should throw if appointment not found", async () => {
@@ -124,10 +156,22 @@ describe("InvoiceService", () => {
 
       it("should calculate discounts correctly", async () => {
         (AppointmentModel.findById as any).mockReturnValue({
-          session: (jest.fn() as any).mockResolvedValue({}),
+          session: (jest.fn() as any).mockResolvedValue({
+            companion: {
+              id: new Types.ObjectId().toString(),
+              parent: { id: parentId },
+            },
+          }),
         });
 
-        const createMock = (jest.fn() as any).mockResolvedValue({});
+        const createMock = (jest.fn() as any).mockResolvedValue([
+          {
+            _id: new Types.ObjectId(),
+            status: "AWAITING_PAYMENT",
+            totalAmount: 90,
+            currency: "USD",
+          },
+        ]);
         (InvoiceModel.create as any) = createMock;
 
         const input = {
@@ -135,7 +179,7 @@ describe("InvoiceService", () => {
           parentId,
           organisationId: "org",
           companionId: "comp",
-          currency: "USD",
+          paymentCollectionMethod: "PAYMENT_INTENT" as const,
           items: [
             {
               description: "Item",
@@ -309,13 +353,15 @@ describe("InvoiceService", () => {
       });
     });
 
-    describe("markPaid / markFailed / markRefunded", () => {
-      it("markPaid updates status", async () => {
-        (InvoiceModel.findByIdAndUpdate as any).mockResolvedValue(doc);
-        await InvoiceService.markPaid(validId);
-        expect(InvoiceModel.findByIdAndUpdate).toHaveBeenCalledWith(
+    describe("markInvoicePaid / markFailed / markRefunded", () => {
+      it("markInvoicePaid updates status", async () => {
+        (InvoiceModel.findOneAndUpdate as any).mockResolvedValue(doc);
+        await InvoiceService.markInvoicePaid({ invoiceId: validId });
+        expect(InvoiceModel.findOneAndUpdate).toHaveBeenCalledWith(
           expect.anything(),
-          { $set: { status: "PAID" } },
+          expect.objectContaining({
+            $set: expect.objectContaining({ status: "PAID" }),
+          }),
           expect.anything(),
         );
       });
@@ -413,7 +459,6 @@ describe("InvoiceService", () => {
         const res = await InvoiceService.addChargesToAppointment(
           appointmentId,
           [],
-          "USD",
         );
 
         expect(mockAdd).toHaveBeenCalledWith(validId, []);
@@ -437,7 +482,6 @@ describe("InvoiceService", () => {
         const res = await InvoiceService.addChargesToAppointment(
           appointmentId,
           [],
-          "USD",
         );
 
         expect(mockCreate).toHaveBeenCalled();

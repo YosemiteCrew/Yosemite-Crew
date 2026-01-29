@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { IoIosArrowDown, IoIosWarning } from "react-icons/io";
 import { Secondary } from "../Buttons";
-import { getStripeBillingPortal } from "@/app/services/billingService";
+import {
+  getStripeBillingPortal
+} from "@/app/services/billingService";
 import { useSubscriptionForPrimaryOrg } from "@/app/hooks/useBilling";
 import { usePermissions } from "@/app/hooks/usePermissions";
 import { PERMISSIONS } from "@/app/utils/permissions";

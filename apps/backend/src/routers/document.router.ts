@@ -67,6 +67,15 @@ router.get(
    PMS ROUTES (RBAC ENABLED)
    ====================================================== */
 
+// Generate upload URL (PMS)
+router.post(
+  "/pms/upload-url",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("document:edit:any"),
+  DocumentController.getUploadUrl,
+);
+
 // Create document (PMS)
 router.post(
   "/pms/:companionId",

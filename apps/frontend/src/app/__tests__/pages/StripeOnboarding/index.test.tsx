@@ -42,6 +42,8 @@ jest.mock("@stripe/react-connect-js", () => ({
     <div data-testid="connect-provider">{children}</div>
   ),
   ConnectAccountOnboarding: () => <div data-testid="connect-onboarding" />,
+  ConnectTaxRegistrations: () => <div data-testid="connect-tax-registrations" />,
+  ConnectTaxSettings: () => <div data-testid="connect-tax-settings" />,
 }));
 
 jest.mock("@/app/components/ProtectedRoute", () => ({

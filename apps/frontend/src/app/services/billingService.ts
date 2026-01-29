@@ -6,12 +6,10 @@ export const getStripeBillingPortal = async (): Promise<string> => {
   const { primaryOrgId } = useOrgStore.getState();
   try {
     if (!primaryOrgId) {
-      throw new Error(
-        "No primary organization selected."
-      );
+      throw new Error("No primary organization selected.");
     }
     const res = await postData<{ url: string }>(
-      "/v1/stripe/organisation/" + primaryOrgId + "/billing/portal"
+      "/v1/stripe/organisation/" + primaryOrgId + "/billing/portal",
     );
     const url = res.data.url;
     return url;
@@ -22,7 +20,7 @@ export const getStripeBillingPortal = async (): Promise<string> => {
 };
 
 export const getUpgradeLink = async (
-  interval: BillingSubscriptionInterval
+  interval: BillingSubscriptionInterval,
 ): Promise<string> => {
   const { primaryOrgId } = useOrgStore.getState();
   try {
@@ -37,7 +35,7 @@ export const getUpgradeLink = async (
     };
     const res = await postData<{ url: string }>(
       "/v1/stripe/organisation/" + primaryOrgId + "/billing/checkout",
-      body
+      body,
     );
     const url = res.data.url;
     return url;
@@ -45,4 +43,20 @@ export const getUpgradeLink = async (
     console.error("Failed to create service:", err);
     throw err;
   }
+};
+
+export const getCheckoutClientSecret = async (
+  interval: BillingSubscriptionInterval,
+): Promise<string> => {
+  const { primaryOrgId } = useOrgStore.getState();
+  if (!primaryOrgId) throw new Error("No primary organization selected.");
+  if (!interval) throw new Error("No interval selected.");
+  const body = { interval };
+  const res = await postData<{ clientSecret: string }>(
+    "/v1/stripe/organisation/" + primaryOrgId + "/billing/checkout",
+    body,
+  );
+  const clientSecret = res.data.clientSecret;
+  if (!clientSecret) throw new Error("No clientSecret returned from backend.");
+  return clientSecret;
 };

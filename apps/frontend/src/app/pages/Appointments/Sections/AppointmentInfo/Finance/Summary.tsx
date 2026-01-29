@@ -7,6 +7,9 @@ import { AppointmentStatusOptions } from "@/app/types/appointments";
 import { PermissionGate } from "@/app/components/PermissionGate";
 import { PERMISSIONS } from "@/app/utils/permissions";
 import Fallback from "@/app/components/Fallback";
+import { useCurrencyForPrimaryOrg } from "@/app/hooks/useBilling";
+import { formatMoney } from "@/app/utils/money";
+import { toNumberSafe } from "@/app/utils/validators";
 
 const AppointmentFields = [
   { label: "Service", key: "service", type: "text" },
@@ -31,8 +34,10 @@ type SummaryProps = {
 const Summary = ({
   activeAppointment,
   formData,
-  setFormData
+  setFormData,
 }: SummaryProps) => {
+  const currency = useCurrencyForPrimaryOrg();
+
   const AppointmentInfoData = useMemo(
     () => ({
       concern: activeAppointment.concern ?? "",
@@ -75,7 +80,7 @@ const Summary = ({
                 SubTotal:{" "}
               </div>
               <div className="text-body-4 text-text-primary text-right">
-                ${formData.subTotal || "0"}
+                {formatMoney(toNumberSafe(formData.subTotal), currency)}
               </div>
             </div>
             <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
@@ -83,7 +88,7 @@ const Summary = ({
                 Discount:{" "}
               </div>
               <div className="text-body-4 text-text-primary text-right">
-                ${formData.discount || "0"}
+                {formatMoney(toNumberSafe(formData.discount), currency)}
               </div>
             </div>
             <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
@@ -91,7 +96,7 @@ const Summary = ({
                 Tax:{" "}
               </div>
               <div className="text-body-4 text-text-primary text-right">
-                ${formData.tax || "0"}
+                {formatMoney(toNumberSafe(formData.tax), currency)}
               </div>
             </div>
             <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
@@ -99,7 +104,7 @@ const Summary = ({
                 Estimatted total:{" "}
               </div>
               <div className="text-body-4 text-text-primary text-right">
-                ${formData.total || "0"}
+                {formatMoney(toNumberSafe(formData.total), currency)}
               </div>
             </div>
             <div className="text-caption-1 text-text-secondary py-2">

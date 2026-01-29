@@ -6,6 +6,7 @@ import {
   addLineItemsToAppointments,
   loadInvoicesForOrgPrimaryOrg,
 } from "@/app/services/invoiceService";
+import { useCurrencyForPrimaryOrg } from "@/app/hooks/useBilling";
 
 type PlanProps = {
   formData: FormDataProps;
@@ -66,6 +67,8 @@ const Plan = ({
   activeAppointment,
   canEdit,
 }: PlanProps) => {
+  const currency = useCurrencyForPrimaryOrg();
+
   const handleAfterCreate = async ({
     rawCreated,
   }: {
@@ -74,7 +77,11 @@ const Plan = ({
     if (!activeAppointment.id) return undefined;
     const medicationItems = buildMedicationLineItemsFromPlan([rawCreated]);
     if (medicationItems.length > 0) {
-      await addLineItemsToAppointments(medicationItems, activeAppointment.id);
+      await addLineItemsToAppointments(
+        medicationItems,
+        activeAppointment.id,
+        currency,
+      );
       await loadInvoicesForOrgPrimaryOrg({ force: true });
       return { lineItems: medicationItems };
     }

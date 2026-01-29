@@ -7,6 +7,12 @@ const FormSchema = new Schema<Form>(
   {
     orgId: { type: String, required: true },
 
+    businessType: {
+      type: String,
+      enum: ["HOSPITAL", "BREEDER", "BOARDER", "GROOMER"],
+      required: false,
+    },
+
     name: { type: String, required: true },
     category: { type: String, required: true },
     description: String,
@@ -26,6 +32,12 @@ const FormSchema = new Schema<Form>(
     speciesFilter: {
       type: [String],
       default: undefined,
+    },
+
+    requiredSigner: {
+      type: String,
+      enum: ["CLIENT", "VET"],
+      required: false,
     },
 
     status: {
@@ -49,6 +61,7 @@ const FormSchema = new Schema<Form>(
 
 FormSchema.index({ orgId: 1, status: 1 });
 FormSchema.index({ orgId: 1, category: 1 });
+FormSchema.index({ orgId: 1, businessType: 1, category: 1, status: 1 });
 FormSchema.index({ serviceId: 1 });
 FormSchema.index({ status: 1 });
 

@@ -5,6 +5,9 @@ import TaskModel from "../../src/models/task";
 import TaskLibraryDefinitionModel from "../../src/models/taskLibraryDefinition";
 import TaskTemplateModel from "../../src/models/taskTemplate";
 import TaskCompletionModel from "../../src/models/taskCompletion";
+import UserModel from "../../src/models/user";
+import CompanionModel from "../../src/models/companion";
+import { sendEmailTemplate } from "../../src/utils/email";
 
 // ----------------------------------------------------------------------
 // 1. MOCKS
@@ -13,6 +16,21 @@ jest.mock("../../src/models/task");
 jest.mock("../../src/models/taskLibraryDefinition");
 jest.mock("../../src/models/taskTemplate");
 jest.mock("../../src/models/taskCompletion");
+jest.mock("../../src/models/user", () => ({
+  __esModule: true,
+  default: {
+    findOne: jest.fn(),
+  },
+}));
+jest.mock("../../src/models/companion", () => ({
+  __esModule: true,
+  default: {
+    findById: jest.fn(),
+  },
+}));
+jest.mock("../../src/utils/email", () => ({
+  sendEmailTemplate: jest.fn(),
+}));
 
 // Helper to mock mongoose chaining
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -41,10 +59,19 @@ describe("TaskService", () => {
   const companionId = new Types.ObjectId().toString();
   const taskId = new Types.ObjectId().toString();
   const libraryId = new Types.ObjectId().toString();
-  const templateId = new Types.ObjectId().toString();
+const templateId = new Types.ObjectId().toString();
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (UserModel.findOne as jest.Mock).mockReturnValue({
+      lean: (jest.fn() as any).mockResolvedValue(null),
+    });
+    (CompanionModel.findById as jest.Mock).mockReturnValue({
+      select: (jest.fn() as any).mockReturnValue({
+        lean: (jest.fn() as any).mockResolvedValue(null),
+      }),
+    });
+    (sendEmailTemplate as jest.Mock).mockImplementation(async () => {});
   });
 
   // ======================================================================

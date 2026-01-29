@@ -121,6 +121,48 @@ export const AvailabilityController = {
     }
   },
 
+  async setBaseAvailabilityForUser(
+    req: Request<
+      { orgId: string, userId: string },
+      unknown,
+      {
+        availabilities?: {
+          dayOfWeek: DayOfWeek;
+          slots: AvailabilitySlotMongo[];
+        }[];
+      }
+    >,
+    res: Response,
+  ) {
+    try {
+      const orgId = req.params.orgId;
+      const userId = req.params.userId;
+      const { availabilities } = req.body;
+
+      if (
+        !orgId ||
+        !userId ||
+        !availabilities ||
+        !Array.isArray(availabilities)
+      ) {
+        return res.status(400).json({ message: "Missing or invalid payload" });
+      }
+
+      const data = await AvailabilityService.setAllBaseAvailability(
+        orgId,
+        userId,
+        availabilities,
+      );
+
+      return res.status(201).json({
+        message: "Base availability saved",
+        data,
+      });
+    } catch (err: unknown) {
+      return handleControllerError("setAllBaseAvailability error", err, res);
+    }
+  },
+
   /* ============================
      WEEKLY OVERRIDES
   ===============================*/

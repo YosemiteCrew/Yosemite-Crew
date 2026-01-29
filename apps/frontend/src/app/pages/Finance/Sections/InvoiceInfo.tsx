@@ -3,7 +3,9 @@ import { Secondary } from "@/app/components/Buttons";
 import Close from "@/app/components/Icons/Close";
 import Modal from "@/app/components/Modal";
 import { useAppointmentsForPrimaryOrg } from "@/app/hooks/useAppointments";
+import { useCurrencyForPrimaryOrg } from "@/app/hooks/useBilling";
 import { formatDateLabel } from "@/app/utils/forms";
+import { formatMoney } from "@/app/utils/money";
 import { Invoice } from "@yosemite-crew/types";
 import React, { useMemo } from "react";
 
@@ -32,6 +34,7 @@ const InvoiceInfo = ({
   activeInvoice,
 }: InvoiceInfoProps) => {
   const appointments = useAppointmentsForPrimaryOrg();
+  const currency = useCurrencyForPrimaryOrg();
 
   const handleGenerate = () => {};
 
@@ -59,10 +62,10 @@ const InvoiceInfo = ({
 
   const paymentInfoData = useMemo(
     () => ({
-      subTotal: "$" + (activeInvoice?.subtotal ?? "0"),
-      discount: "$" + (activeInvoice?.discountTotal ?? "0"),
-      tax: "$" + (activeInvoice?.taxTotal ?? "0"),
-      total: "$" + (activeInvoice?.totalAmount ?? "0"),
+      subTotal: formatMoney(activeInvoice?.subtotal ?? 0, currency),
+      discount: formatMoney(activeInvoice?.discountTotal ?? 0, currency),
+      tax: formatMoney(activeInvoice?.taxTotal ?? 0, currency),
+      total: formatMoney(activeInvoice?.totalAmount ?? 0, currency),
       date: formatDateLabel(activeInvoice?.createdAt),
     }),
     [activeInvoice],

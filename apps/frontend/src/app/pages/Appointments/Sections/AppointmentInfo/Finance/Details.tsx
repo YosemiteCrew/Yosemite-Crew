@@ -10,12 +10,15 @@ import { getStatusStyle } from "@/app/components/DataTable/InvoiceTable";
 import { toTitle } from "@/app/utils/validators";
 import { Secondary } from "@/app/components/Buttons";
 import { getPaymentLink } from "@/app/services/invoiceService";
+import { useCurrencyForPrimaryOrg } from "@/app/hooks/useBilling";
+import { formatMoney } from "@/app/utils/money";
 
 type DetailsProps = {
   activeAppointment: Appointment;
 };
 
 const Details = ({ activeAppointment }: DetailsProps) => {
+  const currency = useCurrencyForPrimaryOrg();
   const invoices = useInvoicesForPrimaryOrgAppointment(activeAppointment.id);
   const [generatedLinks, setGeneratedLinks] = useState<Record<string, string>>(
     {},
@@ -88,7 +91,7 @@ const Details = ({ activeAppointment }: DetailsProps) => {
                       Subtotal:{" "}
                     </div>
                     <div className="text-body-4 text-text-primary text-right">
-                      ${payment.subtotal}
+                      {formatMoney(payment.subtotal, currency)}
                     </div>
                   </div>
                   <div className="py-2! flex items-center gap-2 border-b border-grey-light  justify-between">
@@ -96,7 +99,7 @@ const Details = ({ activeAppointment }: DetailsProps) => {
                       Discount:{" "}
                     </div>
                     <div className="text-body-4 text-text-primary text-right">
-                      ${payment.discountTotal}
+                      {formatMoney(payment.discountTotal ?? 0, currency)}
                     </div>
                   </div>
                   <div className="py-2! flex items-center gap-2 border-b border-grey-light justify-between">
@@ -104,7 +107,7 @@ const Details = ({ activeAppointment }: DetailsProps) => {
                       Tax:{" "}
                     </div>
                     <div className="text-body-4 text-text-primary text-right">
-                      ${payment.taxTotal}
+                      {formatMoney(payment.taxTotal ?? 0, currency)}
                     </div>
                   </div>
                   <div className="py-2! flex items-center gap-2 border-b border-grey-light justify-between">
@@ -112,7 +115,7 @@ const Details = ({ activeAppointment }: DetailsProps) => {
                       Amount:{" "}
                     </div>
                     <div className="text-body-4 text-text-primary text-right">
-                      ${payment.totalAmount}
+                      {formatMoney(payment.totalAmount, currency)}
                     </div>
                   </div>
                   <div className="py-2! flex items-center gap-2 justify-between">

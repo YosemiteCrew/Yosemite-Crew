@@ -18,6 +18,8 @@ import {
 import {
   ConnectAccountOnboarding,
   ConnectComponentsProvider,
+  ConnectTaxRegistrations,
+  ConnectTaxSettings,
 } from "@stripe/react-connect-js";
 import { useSubscriptionByOrgId } from "@/app/hooks/useBilling";
 
@@ -118,10 +120,20 @@ const StripeOnboarding = () => {
       </div>
       {connectInstance && (
         <ConnectComponentsProvider connectInstance={connectInstance}>
-          <ConnectAccountOnboarding
-            onExit={handleExit}
-            onStepChange={handleStepChange}
-          />
+          <div>
+            <ConnectAccountOnboarding
+              onExit={handleExit}
+              onStepChange={handleStepChange}
+            />
+            <div>
+              <h2>Tax Business Details</h2>
+              <ConnectTaxSettings />
+            </div>
+            <div style={{ marginTop: "12px" }}>
+              <h2>Tax Registrations</h2>
+              <ConnectTaxRegistrations />
+            </div>
+          </div>
         </ConnectComponentsProvider>
       )}
     </div>

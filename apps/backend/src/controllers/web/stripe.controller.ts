@@ -175,6 +175,19 @@ export const StripeController = {
     }
   },
 
+  retrieveCheckoutSession: async (req: Request, res: Response) => {
+    try {
+      const { sessionId } = req.params;
+      const session = await StripeService.retrieveCheckoutSession(sessionId);
+      return res.status(200).json(session);
+    } catch (err) {
+      logger.error("Error retrieveCheckoutSession:", err);
+      return res.status(400).json({
+        error: err instanceof Error ? err.message : "Unknown error",
+      });
+    }
+  },
+
   createOnboardingLink: async (req: Request, res: Response) => {
     try {
       const { organisationId } = req.params;

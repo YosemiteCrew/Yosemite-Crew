@@ -8,6 +8,8 @@ import { formatDateLabel } from "@/app/utils/forms";
 import { Secondary } from "../../Buttons";
 import { toTitle } from "@/app/utils/validators";
 import { useAppointmentsForPrimaryOrg } from "@/app/hooks/useAppointments";
+import { useCurrencyForPrimaryOrg } from "@/app/hooks/useBilling";
+import { formatMoney } from "@/app/utils/money";
 
 type InvoiceCardProps = {
   invoice: Invoice;
@@ -16,6 +18,7 @@ type InvoiceCardProps = {
 
 const InvoiceCard = ({ invoice, handleViewInvoice }: InvoiceCardProps) => {
   const appointments = useAppointmentsForPrimaryOrg();
+  const currency = useCurrencyForPrimaryOrg();
 
   const getCompanionName = (appointmentId: string | undefined) => {
     const match = appointments.filter((a) => a.id === appointmentId);
@@ -61,25 +64,25 @@ const InvoiceCard = ({ invoice, handleViewInvoice }: InvoiceCardProps) => {
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Sub-total:</div>
         <div className="text-caption-1 text-text-primary">
-          {"$ " + invoice?.subtotal}
+          {formatMoney(invoice.subtotal, currency)}
         </div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Discount:</div>
         <div className="text-caption-1 text-text-primary">
-          {"$ " + invoice?.discountTotal}
+          {formatMoney(invoice.discountTotal ?? 0, currency)}
         </div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Tax:</div>
         <div className="text-caption-1 text-text-primary">
-          {"$ " + invoice?.taxTotal}
+          {formatMoney(invoice.taxTotal ?? 0, currency)}
         </div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Total:</div>
         <div className="text-caption-1 text-text-primary">
-          {"$ " + invoice?.totalAmount}
+          {formatMoney(invoice.totalAmount, currency)}
         </div>
       </div>
       <div

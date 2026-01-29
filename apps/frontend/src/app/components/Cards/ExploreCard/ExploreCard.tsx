@@ -4,11 +4,13 @@ import CardHeader from "../CardHeader/CardHeader";
 
 import { useExploreMetrics } from "@/app/hooks/useMetrics";
 import { DashboardSummary } from "@/app/types/metrics";
+import { useCurrencyForPrimaryOrg } from "@/app/hooks/useBilling";
+import { formatMoney } from "@/app/utils/money";
 
-const getExploreStats = (metrics: DashboardSummary) => [
+const getExploreStats = (metrics: DashboardSummary, currency: string) => [
   {
     name: "Revenue",
-    value: `$${metrics.revenue}`,
+    value: formatMoney(metrics.revenue, currency),
   },
   {
     name: "Appointments",
@@ -26,7 +28,8 @@ const getExploreStats = (metrics: DashboardSummary) => [
 
 const Explorecard = () => {
   const metrics = useExploreMetrics();
-  const stats = getExploreStats(metrics);
+  const currency = useCurrencyForPrimaryOrg();
+  const stats = getExploreStats(metrics, currency);
 
   return (
     <div className="flex flex-col w-full gap-3">

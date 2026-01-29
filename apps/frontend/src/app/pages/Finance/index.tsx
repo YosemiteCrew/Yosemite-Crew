@@ -51,7 +51,7 @@ const Finance = () => {
   return (
     <div className="flex flex-col gap-6 px-3! py-3! sm:px-12! lg:px-[60px]! sm:py-12!">
       <PermissionGate allOf={[PERMISSIONS.ORG_EDIT]}>
-        {subscription && !subscription.connectChargesEnabled && (
+        {subscription && !subscription.canAcceptPayments && (
           <div className="px-6 py-3 border border-card-border rounded-2xl w-full flex items-center justify-between gap-3 flex-col sm:flex-row">
             <div className="flex flex-col gap-1 items-center sm:items-start">
               <div className="text-heading-2 text-text-primary">

@@ -52,6 +52,7 @@ describe("InvoiceTable", () => {
     status: "PENDING",
     items: [],
     currency: "AED",
+    paymentCollectionMethod: "PAYMENT_LINK",
     updatedAt: new Date()
   } as Invoice;
 

@@ -16,6 +16,7 @@ import React, { useMemo } from "react";
 import { MdDeleteForever } from "react-icons/md";
 import { deleteService } from "@/app/services/serviceService";
 import Close from "@/app/components/Icons/Close";
+import { useCurrencyForPrimaryOrg } from "@/app/hooks/useBilling";
 
 type SpecialityInfoProps = {
   showModal: boolean;
@@ -23,23 +24,6 @@ type SpecialityInfoProps = {
   activeSpeciality: SpecialityWeb;
   canEditSpecialities: boolean;
 };
-
-const ServiceFields = [
-  { label: "Description", key: "description", type: "text" },
-  {
-    label: "Duration (mins)",
-    key: "durationMinutes",
-    type: "number",
-    required: true,
-  },
-  {
-    label: "Service charge (USD)",
-    key: "cost",
-    type: "number",
-    required: true,
-  },
-  { label: "Max discount (%)", key: "maxDiscount", type: "number" },
-];
 
 const getBasicFields = ({
   TeamOptions,
@@ -64,6 +48,28 @@ const SpecialityInfo = ({
   canEditSpecialities,
 }: SpecialityInfoProps) => {
   const teams = useTeamForPrimaryOrg();
+  const currency = useCurrencyForPrimaryOrg();
+
+  const ServiceFields = useMemo(
+    () => [
+      { label: "Description", key: "description", type: "text" },
+      {
+        label: "Duration (mins)",
+        key: "durationMinutes",
+        type: "number",
+        required: true,
+      },
+      {
+        label: `Service charge (${currency})`,
+        key: "cost",
+        type: "number",
+        required: true,
+      },
+      { label: "Max discount (%)", key: "maxDiscount", type: "number" },
+      { label: "Name", key: "name", type: "text" },
+    ],
+    [currency],
+  );
 
   const TeamOptions = useMemo(
     () =>
@@ -71,12 +77,12 @@ const SpecialityInfo = ({
         label: team.name || team.practionerId,
         value: team.practionerId,
       })),
-    [teams]
+    [teams],
   );
 
   const BasicFields = useMemo(
     () => getBasicFields({ TeamOptions }),
-    [TeamOptions]
+    [TeamOptions],
   );
 
   const basicInfoData = useMemo(
@@ -85,7 +91,7 @@ const SpecialityInfo = ({
       headName: activeSpeciality?.headUserId ?? "",
       teamMemberIds: activeSpeciality?.teamMemberIds ?? [],
     }),
-    [activeSpeciality]
+    [activeSpeciality],
   );
 
   const handleDelete = async () => {
@@ -180,7 +186,7 @@ const SpecialityInfo = ({
                       description:
                         values.description ?? service.description ?? null,
                       durationMinutes: Number(
-                        values.durationMinutes ?? service.durationMinutes
+                        values.durationMinutes ?? service.durationMinutes,
                       ),
                       cost: Number(values.cost ?? service.cost),
                       maxDiscount:

@@ -27,7 +27,10 @@ import { formatUtcTimeToLocalLabel } from "@/app/components/Availability/utils";
 import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
 import Close from "@/app/components/Icons/Close";
 import { useSubscriptionCounterUpdate } from "@/app/hooks/useStripeOnboarding";
-import { useCanMoreForPrimaryOrg } from "@/app/hooks/useBilling";
+import {
+  useCanMoreForPrimaryOrg,
+  useCurrencyForPrimaryOrg,
+} from "@/app/hooks/useBilling";
 import { IoIosWarning } from "react-icons/io";
 import { loadInvoicesForOrgPrimaryOrg } from "@/app/services/invoiceService";
 
@@ -70,16 +73,9 @@ const CompanionFields = [
   { label: "Species", key: "species", type: "text" },
 ];
 
-const ServiceFields = [
-  { label: "Name", key: "name", type: "text" },
-  { label: "Description", key: "description", type: "text" },
-  { label: "Duration (mins)", key: "duration", type: "text" },
-  { label: "Cost ($)", key: "cost", type: "text" },
-  { label: "Max discount", key: "maxDiscount", type: "text" },
-];
-
 const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
   const companions = useCompanionsParentsForPrimaryOrg();
+  const currency = useCurrencyForPrimaryOrg();
   const teams = useTeamForPrimaryOrg();
   const specialities = useSpecialitiesForPrimaryOrg();
   const { canMore, reason } = useCanMoreForPrimaryOrg("appointments");
@@ -100,6 +96,17 @@ const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [query, setQuery] = useState("");
   const [timeSlots, setTimeSlots] = useState<Slot[]>([]);
+
+  const ServiceFields = useMemo(
+    () => [
+      { label: "Name", key: "name", type: "text" },
+      { label: "Description", key: "description", type: "text" },
+      { label: "Duration (mins)", key: "duration", type: "text" },
+      { label: `Cost (${currency})`, key: "cost", type: "text" },
+      { label: "Max discount", key: "maxDiscount", type: "text" },
+    ],
+    [currency],
+  );
 
   useEffect(() => {
     const appointmentTypeId = formData.appointmentType?.id;
@@ -297,7 +304,7 @@ const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
     try {
       await createAppointment(formData);
       await refetchData();
-      await loadInvoicesForOrgPrimaryOrg({ force: true })
+      await loadInvoicesForOrgPrimaryOrg({ force: true });
       setShowModal(false);
       setFormData(EMPTY_APPOINTMENT);
       setSelectedSlot(null);
