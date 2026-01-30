@@ -102,6 +102,16 @@ For Developers
 
 <br>
 
+# 🔑 Test Credentials
+
+Want to explore the PMS features without setting up a local environment? Use our development server:
+
+- **URL:** https://dev.yosemitecrew.com/signin
+- **Email:** test@yosemitecrew.com
+- **Password:** Yosemitecrew@123
+
+<br>
+
 # 🚀 Our Tech Stack
 
 - [TypeScript](https://www.typescriptlang.org/) for type safety

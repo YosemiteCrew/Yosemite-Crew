@@ -47,7 +47,7 @@ describe("Availability Utils", () => {
       expect(midDay).toBeDefined();
 
       // Check last entry
-      expect(options[options.length - 1].value).toBe("23:59");
+      expect(options.at(-1)?.value).toBe("23:59");
     });
   });
 

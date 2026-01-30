@@ -1,4 +1,4 @@
-import api, { getData, postData } from "./axios";
+import { getData, postData } from "./axios";
 
 type StartSigningResponse = {
   documentId?: number | string;

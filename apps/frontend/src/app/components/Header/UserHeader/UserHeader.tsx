@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { MdNotificationsActive } from "react-icons/md";
-import { AnimatePresence, motion } from "framer-motion";
 import { usePathname, useRouter } from "next/navigation";
 import { useSignOut } from "@/app/hooks/useAuth";
 
@@ -15,38 +14,9 @@ import Image from "next/image";
 import { getSafeImageUrl } from "@/app/utils/urls";
 import Search from "../../Inputs/Search";
 import { useSearchStore } from "@/app/stores/searchStore";
-
-type RouteItem = {
-  name: string;
-  href: string;
-  icon?: string;
-  verify?: boolean;
-};
-
-const appRoutes: RouteItem[] = [
-  { name: "Dashboard", href: "/dashboard", verify: false },
-  { name: "Organization", href: "/organization", verify: false },
-  { name: "Appointments", href: "/appointments", verify: true },
-  { name: "Tasks", href: "/tasks", verify: true },
-  { name: "Chat", href: "/chat", verify: true },
-  { name: "Finance", href: "/finance", verify: true },
-  { name: "Companions", href: "/companions", verify: true },
-  { name: "Inventory", href: "/inventory", verify: true },
-  { name: "Forms", href: "/forms", verify: true },
-  { name: "Doc Signing", href: "/doc-signing", verify: true },
-  { name: "Settings", href: "/settings", verify: false },
-  { name: "Sign out", href: "#", verify: false },
-];
-
-const devRoutes: RouteItem[] = [
-  { name: "Dashboard", href: "/developers/home" },
-  { name: "API Keys", href: "/developers/api-keys" },
-  { name: "Website - Builder", href: "/developers/website-builder" },
-  { name: "Plugins", href: "/developers/plugins" },
-  { name: "Documentation", href: "/developers/documentation" },
-  { name: "Settings", href: "/developers/settings" },
-  { name: "Sign out", href: "#" },
-];
+import HamburgerMenuButton from "../HamburgerMenuButton";
+import MobileMenu from "../MobileMenu";
+import { headerAppRoutes, headerDevRoutes } from "@/app/config/routes";
 
 const UserHeader = () => {
   const { signOut } = useSignOut();
@@ -56,7 +26,7 @@ const UserHeader = () => {
   const profile = usePrimaryOrgProfile();
   const [menuOpen, setMenuOpen] = useState(false);
   const isDev = pathname.startsWith("/developers");
-  const routes = isDev ? devRoutes : appRoutes;
+  const routes = isDev ? headerDevRoutes : headerAppRoutes;
   const [selectOrg, setSelectOrg] = useState(false);
   const [selectProfile, setSelectProfile] = useState(false);
   const orgs = useOrgList();
@@ -147,27 +117,19 @@ const UserHeader = () => {
   const orgMissing = !primaryOrg;
   const orgVerified = !!primaryOrg?.isVerified;
 
+  const getSearchPlaceholder = () => {
+    if (pathname.startsWith("/appointments")) return "Search appointments";
+    if (pathname.startsWith("/inventory")) return "Search inventory";
+    if (pathname.startsWith("/forms")) return "Search forms";
+    if (pathname.startsWith("/companions")) return "Search companions";
+    if (pathname.startsWith("/tasks")) return "Search tasks";
+    if (pathname.startsWith("/finance")) return "Search invoices";
+    return "Search";
+  };
+
   return (
     <div className="flex items-center justify-between px-3 sm:px-12! lg:px-[36px]! w-full h-20 gap-0">
-      <AnimatePresence>
-        {menuOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{
-              height: `calc(100vh - 80px)`,
-              opacity: 1,
-              transition: { duration: 0.4, ease: [0.42, 0, 0.58, 1] },
-            }}
-            exit={{
-              height: 0,
-              opacity: 0,
-              transition: { duration: 0.3, ease: [0.42, 0, 0.58, 1] },
-            }}
-            style={{
-              top: "80px",
-            }}
-            className="px-3 sm:px-12! py-6 bg-white z-999 fixed left-0 w-screen overflow-auto flex flex-col gap-3"
-          >
+      <MobileMenu isOpen={menuOpen}>
             {primaryOrg && !isDev && (
               <div className="relative w-fit" ref={orgDropdownRef}>
                 <button
@@ -250,9 +212,7 @@ const UserHeader = () => {
                 );
               })}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      </MobileMenu>
 
       <div className="flex lg:hidden">
         <Link href="/" className="logo">
@@ -321,21 +281,7 @@ const UserHeader = () => {
             value={query}
             setSearch={setQuery}
             className={"lg:flex hidden"}
-            placeholder={
-              pathname.startsWith("/appointments")
-                ? "Search appointments"
-                : pathname.startsWith("/inventory")
-                  ? "Search inventory"
-                  : pathname.startsWith("/forms")
-                    ? "Search forms"
-                    : pathname.startsWith("/companions")
-                      ? "Search companions"
-                      : pathname.startsWith("/tasks")
-                        ? "Search tasks"
-                        : pathname.startsWith("/finance")
-                          ? "Search invoices"
-                          : "Search"
-            }
+            placeholder={getSearchPlaceholder()}
           />
         )}
 
@@ -387,59 +333,10 @@ const UserHeader = () => {
           )}
         </div>
 
-        <button
-          type="button"
-          className={`
-            cursor-pointer
-            h-10 w-10 rounded-full!
-            border border-text-primary!
-            bg-(--whitebg)
-            lg:hidden
-          `}
-          onClick={toggleMenu}
-          aria-label={menuOpen ? "Close menu" : "Open menu"}
-        >
-          <motion.div
-            className={`
-              h-full w-full
-              flex flex-col items-center justify-center
-              gap-[3px]
-            `}
-            initial={false}
-            animate={menuOpen ? "open" : "closed"}
-          >
-            <motion.span
-              variants={line1Variants}
-              className="h-0.5 w-[15px] rounded-xs bg-text-primary origin-center"
-            />
-            <motion.span
-              variants={line2Variants}
-              className="h-0.5 w-[15px] rounded-xs bg-text-primary origin-center"
-            />
-            <motion.span
-              variants={line3Variants}
-              className="h-0.5 w-[15px] rounded-xs bg-text-primary origin-center"
-            />
-          </motion.div>
-        </button>
+        <HamburgerMenuButton menuOpen={menuOpen} onClick={toggleMenu} />
       </div>
     </div>
   );
-};
-
-const line1Variants = {
-  closed: { rotate: 0, y: 0 },
-  open: { rotate: 45, y: 5 },
-};
-
-const line2Variants = {
-  closed: { opacity: 1 },
-  open: { opacity: 0 },
-};
-
-const line3Variants = {
-  closed: { rotate: 0, y: 0 },
-  open: { rotate: -45, y: -5 },
 };
 
 export default UserHeader;

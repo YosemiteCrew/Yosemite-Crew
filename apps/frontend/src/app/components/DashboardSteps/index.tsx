@@ -65,7 +65,7 @@ const DashboardSteps = () => {
         isCompleted: stripeCompleted,
       },
     ];
-  }, [primaryOrg, services, teams]);
+  }, [primaryOrg, services, teams, subscription]);
 
   const completedCount = useMemo(
     () => steps.filter((s) => s.isCompleted).length,

@@ -1,10 +1,10 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { getStatusStyle } from "../../DataTable/Tasks";
 import { Task } from "@/app/types/task";
-import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
-import { Team } from "@/app/types/team";
 import Back from "../../Icons/Back";
 import Next from "../../Icons/Next";
+import { useCalendarNavigation, getDateDisplay } from "@/app/hooks/useCalendarNavigation";
+import { useMemberMap } from "@/app/hooks/useMemberMap";
 
 type DayCalendarProps = {
   events: Task[];
@@ -19,45 +19,9 @@ const DayCalendar = ({
   handleViewTask,
   setCurrentDate,
 }: DayCalendarProps) => {
-  const teams = useTeamForPrimaryOrg();
-
-  const memberMap = useMemo(() => {
-    const map = new Map<string, string>();
-    teams?.forEach((member: Team) => {
-      const name = member.name || "-";
-      if (member.practionerId) {
-        map.set(member.practionerId, name);
-      }
-      if (member._id) {
-        map.set(member._id, name);
-      }
-    });
-    return map;
-  }, [teams]);
-
-  const resolveMemberName = (id?: string) =>
-    id ? (memberMap.get(id) ?? "-") : "-";
-
-  const handleNextDay = () => {
-    setCurrentDate((prev) => {
-      const d = new Date(prev);
-      d.setDate(d.getDate() + 1);
-      return d;
-    });
-  };
-
-  const handlePrevDay = () => {
-    setCurrentDate((prev) => {
-      const d = new Date(prev);
-      d.setDate(d.getDate() - 1);
-      return d;
-    });
-  };
-
-  const weekday = date.toLocaleDateString("en-US", {
-    weekday: "long",
-  });
-  const dateNumber = date.getDate();
+  const { resolveMemberName } = useMemberMap();
+  const { handleNextDay, handlePrevDay } = useCalendarNavigation(setCurrentDate);
+  const { weekday, dateNumber } = getDateDisplay(date);
 
   return (
     <div className="h-full flex flex-col">

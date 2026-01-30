@@ -8,50 +8,15 @@ import {
 import { toTitle } from "@/app/utils/validators";
 import { PermissionGate } from "@/app/components/PermissionGate";
 import { PERMISSIONS } from "@/app/utils/permissions";
+import { field, ProfileField } from "./Profile";
 
-const BasicFields = [
-  {
-    label: "Current plan",
-    key: "plan",
-    required: true,
-    editable: false,
-    type: "text",
-  },
-  {
-    label: "Next invoice date",
-    key: "nextInvoiceDate",
-    required: true,
-    editable: false,
-    type: "date",
-  },
-  {
-    label: "Joining date",
-    key: "joiningDate",
-    required: true,
-    editable: true,
-    type: "date",
-  },
-  {
-    label: "Appointments",
-    key: "appointments",
-    required: true,
-    editable: true,
-    type: "country",
-  },
-  {
-    label: "Observational tools",
-    key: "obervationalTools",
-    required: false,
-    editable: true,
-    type: "text",
-  },
-  {
-    label: "Members",
-    key: "members",
-    required: true,
-    editable: true,
-    type: "text",
-  },
+const BasicFields: ProfileField[] = [
+  field("Current plan", "plan", "text", false),
+  field("Next invoice date", "nextInvoiceDate", "date", false),
+  field("Joining date", "joiningDate", "date"),
+  field("Appointments", "appointments", "country"),
+  field("Observational tools", "obervationalTools", "text", true, false),
+  field("Members", "members"),
 ];
 
 const Payment = () => {

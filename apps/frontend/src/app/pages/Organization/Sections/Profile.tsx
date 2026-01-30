@@ -7,81 +7,40 @@ import { PermissionGate } from "@/app/components/PermissionGate";
 import { PERMISSIONS } from "@/app/utils/permissions";
 import { usePermissions } from "@/app/hooks/usePermissions";
 
-const BasicFields = [
-  {
-    label: "Organization type",
-    key: "type",
-    required: true,
-    editable: false,
-    type: "select",
-    options: BusinessOptions,
-  },
-  {
-    label: "Organization name",
-    key: "name",
-    required: true,
-    editable: false,
-    type: "text",
-  },
-  {
-    label: "Tax ID",
-    key: "taxId",
-    required: true,
-    editable: true,
-    type: "text",
-  },
-  {
-    label: "Country",
-    key: "country",
-    required: true,
-    editable: true,
-    type: "country",
-  },
-  {
-    label: "DUNS number",
-    key: "DUNSNumber",
-    required: false,
-    editable: true,
-    type: "text",
-  },
-  {
-    label: "Phone number",
-    key: "phoneNo",
-    required: true,
-    editable: true,
-    type: "text",
-  },
+type FieldType = "text" | "select" | "country" | "date";
+
+export type ProfileField = {
+  label: string;
+  key: string;
+  required: boolean;
+  editable: boolean;
+  type: FieldType;
+  options?: { label: string; value: string }[];
+};
+
+export const field = (
+  label: string,
+  key: string,
+  type: FieldType = "text",
+  editable: boolean = true,
+  required: boolean = true,
+  options?: { label: string; value: string }[]
+): ProfileField => ({ label, key, type, editable, required, options });
+
+const BasicFields: ProfileField[] = [
+  field("Organization type", "type", "select", false, true, BusinessOptions),
+  field("Organization name", "name", "text", false),
+  field("Tax ID", "taxId"),
+  field("Country", "country", "country"),
+  field("DUNS number", "DUNSNumber", "text", true, false),
+  field("Phone number", "phoneNo"),
 ];
 
-const AddressFields = [
-  {
-    label: "Address line",
-    key: "addressLine",
-    required: true,
-    editable: true,
-    type: "text",
-  },
-  {
-    label: "State / Province",
-    key: "state",
-    required: true,
-    editable: true,
-    type: "text",
-  },
-  {
-    label: "City",
-    key: "city",
-    required: true,
-    editable: true,
-    type: "text",
-  },
-  {
-    label: "Postal code",
-    key: "postalCode",
-    required: true,
-    editable: true,
-    type: "text",
-  },
+const AddressFields: ProfileField[] = [
+  field("Address line", "addressLine"),
+  field("State / Province", "state"),
+  field("City", "city"),
+  field("Postal code", "postalCode"),
 ];
 
 type ProfileProps = {

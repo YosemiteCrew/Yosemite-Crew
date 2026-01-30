@@ -1,5 +1,5 @@
 import React from "react";
-import { getStatusStyle } from "../../DataTable/Appointments";
+import { getStatusStyle } from "@/app/config/statusConfig";
 import Image from "next/image";
 import { Appointment } from "@yosemite-crew/types";
 import { getSafeImageUrl, ImageType } from "@/app/utils/urls";

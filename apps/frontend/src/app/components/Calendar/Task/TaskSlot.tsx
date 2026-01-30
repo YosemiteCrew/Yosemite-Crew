@@ -1,8 +1,7 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { getStatusStyle } from "../../DataTable/Tasks";
 import { Task } from "@/app/types/task";
-import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
-import { Team } from "@/app/types/team";
+import { useMemberMap } from "@/app/hooks/useMemberMap";
 
 type TaskSlotProps = {
   slotEvents: Task[];
@@ -19,24 +18,7 @@ const TaskSlot = ({
   length,
   height = 300
 }: TaskSlotProps) => {
-  const teams = useTeamForPrimaryOrg();
-
-  const memberMap = useMemo(() => {
-    const map = new Map<string, string>();
-    teams?.forEach((member: Team) => {
-      const name = member.name || "-";
-      if (member.practionerId) {
-        map.set(member.practionerId, name);
-      }
-      if (member._id) {
-        map.set(member._id, name);
-      }
-    });
-    return map;
-  }, [teams]);
-
-  const resolveMemberName = (id?: string) =>
-    id ? (memberMap.get(id) ?? "-") : "-";
+  const { resolveMemberName } = useMemberMap();
 
   return (
     <div>

@@ -10,7 +10,7 @@ import {
 import { LaidOutEvent } from "@/app/types/calendar";
 import TimeLabels from "./TimeLabels";
 import HorizontalLines from "./HorizontalLines";
-import { getStatusStyle } from "../../DataTable/Appointments";
+import { getStatusStyle } from "@/app/config/statusConfig";
 import Image from "next/image";
 import { Appointment } from "@yosemite-crew/types";
 import Next from "../../Icons/Next";
@@ -18,6 +18,7 @@ import Back from "../../Icons/Back";
 import { getSafeImageUrl, ImageType } from "@/app/utils/urls";
 import { allowReschedule } from "@/app/utils/appointments";
 import { IoIosCalendar } from "react-icons/io";
+import { useCalendarNavigation, getDateDisplay } from "@/app/hooks/useCalendarNavigation";
 
 type DayCalendarProps = {
   events: Appointment[];
@@ -37,6 +38,8 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
   setCurrentDate,
 }) => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const { handleNextDay, handlePrevDay } = useCalendarNavigation(setCurrentDate);
+  const { weekday, dateNumber } = getDateDisplay(date);
 
   const { allDayEvents, timedEvents } = useMemo(() => {
     const allDay: Appointment[] = [];
@@ -65,27 +68,6 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
     () => layoutDayEvents(timedEvents, windowStart, windowEnd),
     [timedEvents, windowStart, windowEnd]
   );
-
-  const handleNextDay = () => {
-    setCurrentDate((prev) => {
-      const d = new Date(prev);
-      d.setDate(d.getDate() + 1);
-      return d;
-    });
-  };
-
-  const handlePrevDay = () => {
-    setCurrentDate((prev) => {
-      const d = new Date(prev);
-      d.setDate(d.getDate() - 1);
-      return d;
-    });
-  };
-
-  const weekday = date.toLocaleDateString("en-US", {
-    weekday: "long",
-  });
-  const dateNumber = date.getDate();
 
   return (
     <div className="h-full flex flex-col">

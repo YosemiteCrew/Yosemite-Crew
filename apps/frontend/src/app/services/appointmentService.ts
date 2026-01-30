@@ -149,49 +149,36 @@ export const toSlotsArray = (res: AvailabilityResponse): Slot[] =>
     vetIds,
   }));
 
-export const acceptAppointment = async (appointment: Appointment) => {
+const performAppointmentAction = async (
+  appointment: Appointment,
+  action: "accept" | "cancel",
+) => {
   const { upsertAppointment } = useAppointmentStore.getState();
+  if (!appointment.id) {
+    return;
+  }
   try {
-    if (!appointment.id) {
-      return;
-    }
     const fhirAppointment = toAppointmentResponseDTO(appointment);
     const res = await postData<{
       data: { appointment: AppointmentResponseDTO };
     }>(
-      "/fhir/v1/appointment/pms/" + appointment.id + "/accept",
+      `/fhir/v1/appointment/pms/${appointment.id}/${action}`,
       fhirAppointment,
     );
     const data = res.data.data.appointment;
     const normalAppointment = fromAppointmentRequestDTO(data);
     upsertAppointment(normalAppointment);
   } catch (err) {
-    console.error("Failed to create appointment:", err);
+    console.error(`Failed to ${action} appointment:`, err);
     throw err;
   }
 };
 
-export const cancelAppointment = async (appointment: Appointment) => {
-  const { upsertAppointment } = useAppointmentStore.getState();
-  try {
-    if (!appointment.id) {
-      return;
-    }
-    const fhirAppointment = toAppointmentResponseDTO(appointment);
-    const res = await postData<{
-      data: { appointment: AppointmentResponseDTO };
-    }>(
-      "/fhir/v1/appointment/pms/" + appointment.id + "/cancel",
-      fhirAppointment,
-    );
-    const data = res.data.data.appointment;
-    const normalAppointment = fromAppointmentRequestDTO(data);
-    upsertAppointment(normalAppointment);
-  } catch (err) {
-    console.error("Failed to create appointment:", err);
-    throw err;
-  }
-};
+export const acceptAppointment = (appointment: Appointment) =>
+  performAppointmentAction(appointment, "accept");
+
+export const cancelAppointment = (appointment: Appointment) =>
+  performAppointmentAction(appointment, "cancel");
 
 export const consumeInventory = async (inventory: InventoryConsumeRequest) => {
   const { primaryOrgId } = useOrgStore.getState();

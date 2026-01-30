@@ -69,7 +69,7 @@ const FormSection: React.FC<FormSectionProps> = ({
       if (!Number.isNaN(parsed.getTime())) return parsed;
     }
 
-    const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    const isoMatch = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
     if (isoMatch) {
       const [, yyyy, mm, dd] = isoMatch;
       const parsed = new Date(Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd)));
@@ -211,9 +211,14 @@ const FormSection: React.FC<FormSectionProps> = ({
   };
 
   const renderItem = (item: ConfigItem<any>, index: number, batchIndex?: number) => {
+    const itemKey =
+      item.kind === "row"
+        ? item.fields.map((field) => field.name).join("-")
+        : item.field.name;
+    const fullKey = batchIndex === undefined ? itemKey : `${batchIndex}-${itemKey}`;
     if ("fields" in item && item.kind === "row") {
       return (
-        <div key={index} className="grid grid-cols-2 gap-3">
+        <div key={fullKey} className="grid grid-cols-2 gap-3">
           {item.fields.map((field, i) =>
             renderField(field, `${index}-${i}`, batchIndex)
           )}
@@ -222,7 +227,7 @@ const FormSection: React.FC<FormSectionProps> = ({
     }
 
     return (
-      <div key={index} className="w-full">
+      <div key={fullKey} className="w-full">
         {renderField(item.field, index, batchIndex)}
       </div>
     );

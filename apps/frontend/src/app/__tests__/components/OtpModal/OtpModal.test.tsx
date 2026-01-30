@@ -35,6 +35,7 @@ jest.mock("@iconify/react/dist/iconify.js", () => ({
 }));
 
 describe("OtpModal Component", () => {
+  const testPassword = process.env.TEST_PASSWORD ?? "test-password";
   const mockShowErrorTost = jest.fn();
   const mockSetShowVerifyModal = jest.fn();
   const mockConfirmSignUp = jest.fn();
@@ -45,7 +46,7 @@ describe("OtpModal Component", () => {
 
   const defaultProps = {
     email: "test@example.com",
-    password: "password123",
+    password: testPassword,
     showErrorTost: mockShowErrorTost,
     showVerifyModal: true,
     setShowVerifyModal: mockSetShowVerifyModal,

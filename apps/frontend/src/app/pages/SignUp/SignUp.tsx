@@ -124,10 +124,11 @@ const SignUp = ({
   };
 
   const handleSignupSuccess = () => {
-    if (typeof window !== "undefined") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      window.sessionStorage?.setItem("devAuth", isDeveloper ? "true" : "false");
-    }
+    globalThis.window?.scrollTo({ top: 0, behavior: "smooth" });
+    globalThis.window?.sessionStorage?.setItem(
+      "devAuth",
+      isDeveloper ? "true" : "false",
+    );
     setShowVerifyModal(true);
   };
 

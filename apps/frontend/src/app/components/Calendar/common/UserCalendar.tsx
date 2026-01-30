@@ -6,6 +6,7 @@ import Slot from "./Slot";
 import { Appointment } from "@yosemite-crew/types";
 import Back from "../../Icons/Back";
 import Next from "../../Icons/Next";
+import { useCalendarNavigation } from "@/app/hooks/useCalendarNavigation";
 
 type UserCalendarProps = {
   events: Appointment[];
@@ -25,22 +26,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   canEditAppointments,
 }) => {
   const team = useTeamForPrimaryOrg();
-
-  const handleNextDay = () => {
-    setCurrentDate((prev) => {
-      const d = new Date(prev);
-      d.setDate(d.getDate() + 1);
-      return d;
-    });
-  };
-
-  const handlePrevDay = () => {
-    setCurrentDate((prev) => {
-      const d = new Date(prev);
-      d.setDate(d.getDate() - 1);
-      return d;
-    });
-  };
+  const { handleNextDay, handlePrevDay } = useCalendarNavigation(setCurrentDate);
 
   return (
     <div className="h-full flex flex-col">

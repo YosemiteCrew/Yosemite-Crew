@@ -442,7 +442,7 @@ describe("Appointment Service", () => {
       await expect(acceptAppointment(makeBaseAppointment({ id: "appt-acc2" }))).rejects.toThrow(
         "Accept Error"
       );
-      expect(consoleSpy).toHaveBeenCalledWith("Failed to create appointment:", error);
+      expect(consoleSpy).toHaveBeenCalledWith("Failed to accept appointment:", error);
       consoleSpy.mockRestore();
     });
   });
@@ -484,7 +484,7 @@ describe("Appointment Service", () => {
       await expect(cancelAppointment(makeBaseAppointment({ id: "appt-can2" }))).rejects.toThrow(
         "Cancel Error"
       );
-      expect(consoleSpy).toHaveBeenCalledWith("Failed to create appointment:", error);
+      expect(consoleSpy).toHaveBeenCalledWith("Failed to cancel appointment:", error);
       consoleSpy.mockRestore();
     });
   });

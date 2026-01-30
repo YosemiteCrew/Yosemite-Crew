@@ -209,29 +209,39 @@ const toDateOrFallback = (raw: any, fallback: Date) => {
   return d ?? fallback;
 };
 
+const isValidDate = (value: Date) => !Number.isNaN(value.getTime());
+
+const parseDateFromNumber = (raw: number): Date | null => {
+  const ms = raw < 1e12 ? raw * 1000 : raw; // allow seconds
+  const d = new Date(ms);
+  return isValidDate(d) ? d : null;
+};
+
+const parseDateFromString = (raw: string): Date | null => {
+  const s = raw.trim();
+  if (!s) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (m) {
+    const y = Number(m[1]);
+    const mo = Number(m[2]) - 1;
+    const d = Number(m[3]);
+    const dt = new Date(y, mo, d);
+    return isValidDate(dt) ? dt : null;
+  }
+  const dt = new Date(s);
+  return isValidDate(dt) ? dt : null;
+};
+
 const toDateOrNull = (raw: any): Date | null => {
   if (!raw) return null;
   if (raw instanceof Date) {
-    return Number.isNaN(raw.getTime()) ? null : raw;
+    return isValidDate(raw) ? raw : null;
   }
   if (typeof raw === "number") {
-    const ms = raw < 1e12 ? raw * 1000 : raw; // allow seconds
-    const d = new Date(ms);
-    return Number.isNaN(d.getTime()) ? null : d;
+    return parseDateFromNumber(raw);
   }
   if (typeof raw === "string") {
-    const s = raw.trim();
-    if (!s) return null;
-    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
-    if (m) {
-      const y = Number(m[1]);
-      const mo = Number(m[2]) - 1;
-      const d = Number(m[3]);
-      const dt = new Date(y, mo, d);
-      return Number.isNaN(dt.getTime()) ? null : dt;
-    }
-    const dt = new Date(s);
-    return Number.isNaN(dt.getTime()) ? null : dt;
+    return parseDateFromString(raw);
   }
 
   return null;
@@ -240,25 +250,36 @@ const toDateOrNull = (raw: any): Date | null => {
 const renderValue = (field: FieldConfig, formValues: FormValues) => {
   const type = field.type || "text";
   const raw = formValues[field.key];
-  if (type === "date" || type === "dateString") {
+
+  const formatDate = () => {
     const dt = toDateOrNull(raw);
     return dt ? getFormattedDate(dt) : "-";
-  }
-  if (type === "multiSelect") {
+  };
+
+  const formatMultiSelect = () => {
     const options = normalizeOptions(field.options);
-    const isArray = Array.isArray(raw);
-    const tempRaw = raw ? [raw] : [];
-    const arr = isArray ? raw : tempRaw;
-    if (!arr.length) return "-";
-    if (options.length)
-      return arr.map((v) => resolveLabel(options, v)).join(", ");
-    return arr.join(", ");
-  }
-  if (type === "select" || type === "dropdown") {
+    let values: any[] = [];
+    if (Array.isArray(raw)) {
+      values = raw;
+    } else if (raw) {
+      values = [raw];
+    }
+    if (!values.length) return "-";
+    if (options.length) {
+      return values.map((v) => resolveLabel(options, v)).join(", ");
+    }
+    return values.join(", ");
+  };
+
+  const formatSelect = () => {
     const options = normalizeOptions(field.options);
     if (!raw) return "-";
     return options.length ? resolveLabel(options, raw) : raw;
-  }
+  };
+
+  if (type === "date" || type === "dateString") return formatDate();
+  if (type === "multiSelect") return formatMultiSelect();
+  if (type === "select" || type === "dropdown") return formatSelect();
   return raw || "-";
 };
 

@@ -14,6 +14,7 @@ import {
 } from "@/app/services/appointmentService";
 import { toTitle } from "@/app/utils/validators";
 import { allowReschedule } from "@/app/utils/appointments";
+import { getStatusStyle } from "@/app/config/statusConfig";
 
 import "./DataTable.css";
 import { getSafeImageUrl, ImageType } from "@/app/utils/urls";
@@ -32,27 +33,6 @@ type AppointmentTableProps = {
   setReschedulePopup?: React.Dispatch<React.SetStateAction<boolean>>;
   canEditAppointments: boolean;
   small?: boolean;
-};
-
-export const getStatusStyle = (status: string) => {
-  switch (status?.toLowerCase()) {
-    case "no_payment":
-      return { color: "#fff", backgroundColor: "#5C614B" };
-    case "in_progress":
-      return { color: "#fff", backgroundColor: "#BF9FAA" };
-    case "completed":
-      return { color: "#fff", backgroundColor: "#D28F9A" };
-    case "checked_in":
-      return { color: "#fff", backgroundColor: "#A8A181" };
-    case "requested":
-      return { color: "#fff", backgroundColor: "#747283" };
-    case "cancelled":
-      return { color: "#fff", backgroundColor: "#D9A488" };
-    case "no_show":
-      return { color: "#fff", backgroundColor: "#747283" };
-    default:
-      return { color: "#000", backgroundColor: "#F1D4B0" };
-  }
 };
 
 const Appointments = ({

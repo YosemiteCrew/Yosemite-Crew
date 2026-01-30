@@ -209,10 +209,10 @@ const isTreatmentPlanGroup = (
   field.id === "treatment_plan" && field.type === "group";
 
 const isMedicationGroup = (field: FormField): field is FormField & { type: "group" } =>
-  field.type === "group" && Boolean((field as any).meta?.medicationGroup);
+  field.type === "group" && Boolean(field.meta?.medicationGroup);
 
 const isServiceGroup = (field: FormField): field is FormField & { type: "group" } =>
-  field.type === "group" && Boolean((field as any).meta?.serviceGroup);
+  field.type === "group" && Boolean(field.meta?.serviceGroup);
 
 const getServiceCheckbox = (
   field: FormField & { type: "group"; fields?: FormField[] }
@@ -229,11 +229,9 @@ const ensureServiceCheckbox = (
   const existingCheckbox = getServiceCheckbox(field);
   const selected = existingCheckbox?.options?.map((opt) => opt.value) ?? [];
 
-  const nextMeta = {
-    ...(field.meta as any),
-    serviceGroup: true,
-    serviceIds: selected,
-  } as any;
+  const nextMeta = field.meta
+    ? { ...field.meta, serviceGroup: true, serviceIds: selected }
+    : { serviceGroup: true, serviceIds: selected };
 
   const checkbox: FormField = {
     id: existingCheckbox?.id || `${field.id}_services`,
@@ -244,10 +242,9 @@ const ensureServiceCheckbox = (
       return match ?? { label: val, value: val };
     }),
     multiple: true,
-    meta: {
-      ...(existingCheckbox as any)?.meta,
-      serviceIds: selected,
-    } as any,
+    meta: existingCheckbox?.meta
+      ? { ...existingCheckbox.meta, serviceIds: selected }
+      : { serviceIds: selected },
   };
 
   const otherFields = (field.fields ?? []).filter((f) => f.id !== checkbox.id);
@@ -412,16 +409,20 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
 
     const updateOptions = (values: string[]) => {
       const nextCheckbox = {
-        ...(checkbox as any),
+        ...checkbox,
         options: values.map((val) => {
           const match = serviceOptions.find((o) => o.value === val);
           return match ?? { label: val, value: val };
         }),
-        meta: { ...(checkbox as any)?.meta, serviceIds: values } as any,
+        meta: checkbox?.meta
+          ? { ...checkbox.meta, serviceIds: values }
+          : { serviceIds: values },
       };
       onChange({
         ...group,
-        meta: { ...(group.meta as any), serviceIds: values } as any,
+        meta: group.meta
+          ? { ...group.meta, serviceIds: values }
+          : { serviceIds: values },
         fields: (group.fields ?? []).map((f) =>
           f.id === checkbox?.id ? (nextCheckbox as FormField) : f
         ),
@@ -568,7 +569,7 @@ const renderMedicineField = (
         }}
         createField={createField}
       />
-      {(medField as any).meta?.readonly && (
+      {medField.meta?.readonly && (
         <div className="absolute top-2 right-2 text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
           Read-only
         </div>
@@ -662,7 +663,7 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({
         label: "Name",
         placeholder: medicine.name,
         defaultValue: medicine.name,
-        meta: { readonly: true, inventoryItemId } as any,
+        meta: { readonly: true, inventoryItemId },
       },
       {
         id: `${fieldPrefix}_dosage`,
@@ -670,7 +671,7 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({
         label: "Dosage",
         placeholder: medicine.attributes?.strength || "Enter dosage",
         defaultValue: medicine.attributes?.strength || "",
-        meta: { readonly: true, inventoryItemId } as any,
+        meta: { readonly: true, inventoryItemId },
       },
       {
         id: `${fieldPrefix}_route`,
@@ -678,21 +679,21 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({
         label: "Route / Administration",
         placeholder: medicine.attributes?.administration || "N/A",
         defaultValue: medicine.attributes?.administration || "",
-        meta: { readonly: true, inventoryItemId } as any,
+        meta: { readonly: true, inventoryItemId },
       },
       {
         id: `${fieldPrefix}_frequency`,
         type: "input",
         label: "Frequency",
         placeholder: "Enter frequency",
-        meta: { inventoryItemId } as any,
+        meta: { inventoryItemId },
       },
       {
         id: `${fieldPrefix}_duration`,
         type: "input",
         label: "Duration",
         placeholder: "Enter duration",
-        meta: { inventoryItemId } as any,
+        meta: { inventoryItemId },
       },
       {
         id: `${fieldPrefix}_price`,
@@ -700,14 +701,14 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({
         label: "Price",
         placeholder: medicine.sellingPrice === null ? "" : String(medicine.sellingPrice),
         defaultValue: medicine.sellingPrice === null ? "" : String(medicine.sellingPrice),
-        meta: { readonly: true, inventoryItemId } as any,
+        meta: { readonly: true, inventoryItemId },
       },
       {
         id: `${fieldPrefix}_remark`,
         type: "textarea",
         label: "Remark",
         placeholder: "Add remark",
-        meta: { inventoryItemId } as any,
+        meta: { inventoryItemId },
       },
     ];
 
@@ -721,7 +722,7 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({
         medicineId,
         inventoryItemId,
         medicineName: medicine.name,
-      } as any,
+      },
     };
 
     setSelectedMedicines([...selectedMedicines, medicineId]);
@@ -843,13 +844,10 @@ const Build = ({
       return;
     }
 
-    const newField: FormField =
-      key === "service-group"
-        ? ensureServiceCheckbox(
-            createField(key) as FormField & { type: "group" },
-            serviceOptions
-          ).group
-        : createField(key);
+    let newField = createField(key);
+    if (key === "service-group" && newField.type === "group") {
+      newField = ensureServiceCheckbox(newField, serviceOptions).group;
+    }
     setFormData((prev) => ({
       ...prev,
       schema: [...(prev.schema ?? []), newField],
@@ -891,53 +889,72 @@ const Build = ({
     e.dataTransfer.setData("text/plain", index.toString());
   };
 
-  const handleDragOver = (index: number) => (e: React.DragEvent<HTMLDivElement>) => {
-    if (dragIndex === null) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    const scrollable =
-      builderRef.current && builderRef.current.scrollHeight > builderRef.current.clientHeight
-        ? builderRef.current
-        : (document.scrollingElement as HTMLElement | null);
-
-    if (scrollable) {
-      const rect =
-        scrollable === builderRef.current
-          ? scrollable.getBoundingClientRect()
-          : { top: 0, bottom: window.innerHeight, height: window.innerHeight };
-      const softZone = Math.min(300, (rect.bottom - rect.top) / 2);
-      const turboZone = softZone / 3;
-      const distanceToTop = Math.max(0, e.clientY - rect.top);
-      const distanceToBottom = Math.max(0, rect.bottom - e.clientY);
-
-      if (distanceToTop < softZone && scrollable.scrollTop > 0) {
-        const ratio = (softZone - distanceToTop) / softZone;
-        const turbo = distanceToTop < turboZone ? 14 : 0;
-        const speed = Math.min(30, Math.max(6, ratio * 20 + turbo));
-        scrollVelocityRef.current = -speed;
-      } else if (distanceToBottom < softZone) {
-        const ratio = (softZone - distanceToBottom) / softZone;
-        const turbo = distanceToBottom < turboZone ? 14 : 0;
-        const speed = Math.min(30, Math.max(6, ratio * 20 + turbo));
-        scrollVelocityRef.current = speed;
-      } else {
-        scrollVelocityRef.current = 0;
-      }
-
-      if (scrollAnimRef.current === null) {
-        const step = () => {
-          const vel = scrollVelocityRef.current;
-          if (scrollable && vel !== 0) {
-            scrollable.scrollTop += vel;
-            scrollAnimRef.current = requestAnimationFrame(step);
-          } else {
-            scrollAnimRef.current = null;
-          }
-        };
-        scrollAnimRef.current = requestAnimationFrame(step);
-      }
+  const getScrollableContainer = () => {
+    if (
+      builderRef.current &&
+      builderRef.current.scrollHeight > builderRef.current.clientHeight
+    ) {
+      return builderRef.current;
     }
+    return document.scrollingElement as HTMLElement | null;
   };
+
+  const updateScrollVelocity = (
+    scrollable: HTMLElement,
+    clientY: number,
+  ) => {
+    const rect =
+      scrollable === builderRef.current
+        ? scrollable.getBoundingClientRect()
+        : { top: 0, bottom: window.innerHeight, height: window.innerHeight };
+    const softZone = Math.min(300, (rect.bottom - rect.top) / 2);
+    const turboZone = softZone / 3;
+    const distanceToTop = Math.max(0, clientY - rect.top);
+    const distanceToBottom = Math.max(0, rect.bottom - clientY);
+
+    if (distanceToTop < softZone && scrollable.scrollTop > 0) {
+      const ratio = (softZone - distanceToTop) / softZone;
+      const turbo = distanceToTop < turboZone ? 14 : 0;
+      const speed = Math.min(30, Math.max(6, ratio * 20 + turbo));
+      scrollVelocityRef.current = -speed;
+      return;
+    }
+
+    if (distanceToBottom < softZone) {
+      const ratio = (softZone - distanceToBottom) / softZone;
+      const turbo = distanceToBottom < turboZone ? 14 : 0;
+      const speed = Math.min(30, Math.max(6, ratio * 20 + turbo));
+      scrollVelocityRef.current = speed;
+      return;
+    }
+
+    scrollVelocityRef.current = 0;
+  };
+
+  const startAutoScroll = (scrollable: HTMLElement) => {
+    if (scrollAnimRef.current !== null) return;
+    const step = () => {
+      const vel = scrollVelocityRef.current;
+      if (vel === 0) {
+        scrollAnimRef.current = null;
+        return;
+      }
+      scrollable.scrollTop += vel;
+      scrollAnimRef.current = requestAnimationFrame(step);
+    };
+    scrollAnimRef.current = requestAnimationFrame(step);
+  };
+
+  const handleDragOver =
+    (_index: number) => (e: React.DragEvent<HTMLDivElement>) => {
+      if (dragIndex === null) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      const scrollable = getScrollableContainer();
+      if (!scrollable) return;
+      updateScrollVelocity(scrollable, e.clientY);
+      startAutoScroll(scrollable);
+    };
 
   const handleDrop = (index: number) => (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();

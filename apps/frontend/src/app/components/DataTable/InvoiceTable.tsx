@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import GenericTable from "../GenericTable/GenericTable";
 import { IoEye } from "react-icons/io5";
 import InvoiceCard from "../Cards/InvoiceCard";
@@ -10,6 +10,10 @@ import "./DataTable.css";
 import { useAppointmentsForPrimaryOrg } from "@/app/hooks/useAppointments";
 import { useCurrencyForPrimaryOrg } from "@/app/hooks/useBilling";
 import { formatMoney } from "@/app/utils/money";
+import {
+  getCompanionNameFromAppointments,
+  getParentNameFromAppointments,
+} from "@/app/utils/invoice";
 
 type Column<T> = {
   label: string;
@@ -63,21 +67,17 @@ const InvoiceTable = ({
     setViewInvoice?.(true);
   };
 
-  const getCompanionName = (appointmentId: string | undefined) => {
-    const match = appointments.filter((a) => a.id === appointmentId);
-    if (match.length > 0) {
-      return match[0].companion.name;
-    }
-    return "-";
-  };
+  const getCompanionName = useMemo(
+    () => (appointmentId: string | undefined) =>
+      getCompanionNameFromAppointments(appointments, appointmentId),
+    [appointments]
+  );
 
-  const getParentName = (appointmentId: string | undefined) => {
-    const match = appointments.filter((a) => a.id === appointmentId);
-    if (match.length > 0) {
-      return match[0].companion.parent.name;
-    }
-    return "-";
-  };
+  const getParentName = useMemo(
+    () => (appointmentId: string | undefined) =>
+      getParentNameFromAppointments(appointments, appointmentId),
+    [appointments]
+  );
 
   const columns: Column<Invoice>[] = [
     {
