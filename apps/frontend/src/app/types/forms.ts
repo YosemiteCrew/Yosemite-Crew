@@ -99,6 +99,71 @@ const makeOption = (label: string, value?: string): FieldOption => ({
   value: value ?? label,
 });
 
+const YES_NO_OPTIONS: FieldOption[] = [
+  makeOption("Yes", "yes"),
+  makeOption("No", "no"),
+];
+
+const FREQUENCY_OPTIONS: FieldOption[] = [
+  makeOption("1x daily", "1x_daily"),
+  makeOption("2x daily", "2x_daily"),
+  makeOption("3x daily", "3x_daily"),
+  makeOption("On-demand", "on_demand"),
+];
+
+const APPETITE_STATUS_OPTIONS: FieldOption[] = [
+  makeOption("Strong appetite", "strong_appetite"),
+  makeOption("Picky appetite", "picky_appetite"),
+  makeOption("Increased appetite", "increased_appetite"),
+  makeOption("Normal appetite", "normal_appetite"),
+  makeOption("Poor appetite", "poor_appetite"),
+  makeOption("Not eating", "not_eating"),
+];
+
+const BEHAVIOR_STATUS_OPTIONS: FieldOption[] = [
+  makeOption("Friendly", "friendly"),
+  makeOption("Nervous", "nervous"),
+  makeOption("Aggressive", "aggressive"),
+  makeOption("Alert", "alert"),
+  makeOption("Defensive", "defensive"),
+  makeOption("Highly anxious", "highly_anxious"),
+];
+
+type PresetOptions = "yesNo" | "frequency" | "appetite" | "behavior";
+
+const PRESET_OPTIONS: Record<PresetOptions, FieldOption[]> = {
+  yesNo: YES_NO_OPTIONS,
+  frequency: FREQUENCY_OPTIONS,
+  appetite: APPETITE_STATUS_OPTIONS,
+  behavior: BEHAVIOR_STATUS_OPTIONS,
+};
+
+const createField = (
+  id: string,
+  label: string,
+  type: FormField["type"],
+  options?: FieldOption[] | PresetOptions,
+  extra?: Partial<FormField>,
+): FormField => {
+  const field: Record<string, unknown> = { id, type, label };
+  if (options) {
+    field.options = typeof options === "string" ? PRESET_OPTIONS[options] : options;
+  }
+  return { ...field, ...extra } as FormField;
+};
+
+const yesNoRadio = (id: string, label: string): FormField =>
+  createField(id, label, "radio", "yesNo");
+
+const frequencyRadio = (id: string, label: string): FormField =>
+  createField(id, label, "radio", "frequency");
+
+const appetiteStatusRadio = (id: string, label: string): FormField =>
+  createField(id, label, "radio", "appetite");
+
+const behaviorStatusCheckbox = (id: string, label: string): FormField =>
+  createField(id, label, "checkbox", "behavior", { multiple: true });
+
 export const medicationRouteOptions = [
   "Oral",
   "Topical",
@@ -533,17 +598,7 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
       ],
     },
     { id: "diet_special_notes", type: "textarea", label: "Special notes" },
-    {
-      id: "feeding_frequency",
-      type: "radio",
-      label: "Feeding frequency and timing",
-      options: [
-        makeOption("1x daily", "1x_daily"),
-        makeOption("2x daily", "2x_daily"),
-        makeOption("3x daily", "3x_daily"),
-        makeOption("On-demand", "on_demand"),
-      ],
-    },
+    frequencyRadio("feeding_frequency", "Feeding frequency and timing"),
     { id: "specific_feeding_times", type: "textarea", label: "Specific feeding times" },
     {
       id: "portion_preferences",
@@ -631,17 +686,7 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
       ],
     },
     { id: "dosage", type: "input", label: "Dosage" },
-    {
-      id: "frequency",
-      type: "radio",
-      label: "Frequency",
-      options: [
-        makeOption("1x daily", "1x_daily"),
-        makeOption("2x daily", "2x_daily"),
-        makeOption("3x daily", "3x_daily"),
-        makeOption("On-demand", "on_demand"),
-      ],
-    },
+    frequencyRadio("frequency", "Frequency"),
     { id: "timing_specific_hours", type: "input", label: "Timing (specific hours)" },
     {
       id: "given_with",
@@ -716,117 +761,27 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
     { id: "additional_expense", type: "textarea", label: "Additional expense" },
   ],
   "Boarder - Schedule": [
-    {
-      id: "poop_frequency",
-      type: "radio",
-      label: "Poop frequency and timing",
-      options: [
-        makeOption("1x daily", "1x_daily"),
-        makeOption("2x daily", "2x_daily"),
-        makeOption("3x daily", "3x_daily"),
-        makeOption("On-demand", "on_demand"),
-      ],
-    },
+    frequencyRadio("poop_frequency", "Poop frequency and timing"),
     { id: "poop_time_slot", type: "input", label: "Specific time slot" },
-    {
-      id: "walking_time",
-      type: "radio",
-      label: "Walking time",
-      options: [
-        makeOption("1x daily", "1x_daily"),
-        makeOption("2x daily", "2x_daily"),
-        makeOption("3x daily", "3x_daily"),
-        makeOption("On-demand", "on_demand"),
-      ],
-    },
+    frequencyRadio("walking_time", "Walking time"),
     { id: "walking_time_slot", type: "input", label: "Time slot" },
     { id: "exercise_time", type: "input", label: "Exercise time", placeholder: "Describe exercise / Add link" },
-    {
-      id: "exercise_frequency",
-      type: "radio",
-      label: "Exercise frequency",
-      options: [
-        makeOption("1x daily", "1x_daily"),
-        makeOption("2x daily", "2x_daily"),
-        makeOption("3x daily", "3x_daily"),
-        makeOption("On-demand", "on_demand"),
-      ],
-    },
+    frequencyRadio("exercise_frequency", "Exercise frequency"),
     { id: "exercise_time_slot", type: "input", label: "Time slot" },
   ],
   "Boarder - Belongings": [
-    {
-      id: "pet_bedding",
-      type: "radio",
-      label: "Companion bedding",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "food_bowl",
-      type: "radio",
-      label: "Food bowl",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "pet_leash",
-      type: "radio",
-      label: "Companion leash",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "litter_tray",
-      type: "radio",
-      label: "Litter tray",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
+    yesNoRadio("pet_bedding", "Companion bedding"),
+    yesNoRadio("food_bowl", "Food bowl"),
+    yesNoRadio("pet_leash", "Companion leash"),
+    yesNoRadio("litter_tray", "Litter tray"),
     { id: "list_of_toys", type: "textarea", label: "List of toys" },
   ],
   "Breeder - Health & Behavior": [
-    {
-      id: "signs_of_stress",
-      type: "radio",
-      label: "Signs of stress",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "signs_of_discharge",
-      type: "radio",
-      label: "Signs of discharge",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "signs_of_injury",
-      type: "radio",
-      label: "Signs of injury",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "appetite_status",
-      type: "radio",
-      label: "Companion appetite status",
-      options: [
-        makeOption("Strong appetite", "strong_appetite"),
-        makeOption("Picky appetite", "picky_appetite"),
-        makeOption("Increased appetite", "increased_appetite"),
-        makeOption("Normal appetite", "normal_appetite"),
-        makeOption("Poor appetite", "poor_appetite"),
-        makeOption("Not eating", "not_eating"),
-      ],
-    },
-    {
-      id: "behavior_status",
-      type: "checkbox",
-      label: "Companion behavior status",
-      multiple: true,
-      options: [
-        makeOption("Friendly", "friendly"),
-        makeOption("Nervous", "nervous"),
-        makeOption("Aggressive", "aggressive"),
-        makeOption("Alert", "alert"),
-        makeOption("Defensive", "defensive"),
-        makeOption("Highly anxious", "highly_anxious"),
-      ],
-    },
+    yesNoRadio("signs_of_stress", "Signs of stress"),
+    yesNoRadio("signs_of_discharge", "Signs of discharge"),
+    yesNoRadio("signs_of_injury", "Signs of injury"),
+    appetiteStatusRadio("appetite_status", "Companion appetite status"),
+    behaviorStatusCheckbox("behavior_status", "Companion behavior status"),
     {
       id: "energy_level",
       type: "radio",
@@ -855,75 +810,15 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
   "Breeder - Mating Log": [
     { id: "mating_date", type: "date", label: "Tracking mating date" },
     { id: "mating_time", type: "input", label: "Tracking mating time" },
-    {
-      id: "natural_mating_process",
-      type: "radio",
-      label: "Utilised natural mating process",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "genetic_screening_completed",
-      type: "radio",
-      label: "Completed genetic screening",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "fertility_assessment_completed",
-      type: "radio",
-      label: "Completed fertility assessment",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "appetite_status",
-      type: "radio",
-      label: "Companion appetite status",
-      options: [
-        makeOption("Strong appetite", "strong_appetite"),
-        makeOption("Picky appetite", "picky_appetite"),
-        makeOption("Increased appetite", "increased_appetite"),
-        makeOption("Normal appetite", "normal_appetite"),
-        makeOption("Poor appetite", "poor_appetite"),
-        makeOption("Not eating", "not_eating"),
-      ],
-    },
-    {
-      id: "behavior_status",
-      type: "checkbox",
-      label: "Companion behaviour status",
-      multiple: true,
-      options: [
-        makeOption("Friendly", "friendly"),
-        makeOption("Nervous", "nervous"),
-        makeOption("Aggressive", "aggressive"),
-        makeOption("Alert", "alert"),
-        makeOption("Defensive", "defensive"),
-        makeOption("Highly anxious", "highly_anxious"),
-      ],
-    },
-    {
-      id: "ultrasound_pregnancy_check",
-      type: "radio",
-      label: "Complete ultrasound / pregnancy check",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "birthing_assistance_provided",
-      type: "radio",
-      label: "Provided birthing assistance",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "neonatal_care_provided",
-      type: "radio",
-      label: "Provided neonatal / newborn care",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "record_keeping_completed",
-      type: "radio",
-      label: "Record keeping completed",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
+    yesNoRadio("natural_mating_process", "Utilised natural mating process"),
+    yesNoRadio("genetic_screening_completed", "Completed genetic screening"),
+    yesNoRadio("fertility_assessment_completed", "Completed fertility assessment"),
+    appetiteStatusRadio("appetite_status", "Companion appetite status"),
+    behaviorStatusCheckbox("behavior_status", "Companion behaviour status"),
+    yesNoRadio("ultrasound_pregnancy_check", "Complete ultrasound / pregnancy check"),
+    yesNoRadio("birthing_assistance_provided", "Provided birthing assistance"),
+    yesNoRadio("neonatal_care_provided", "Provided neonatal / newborn care"),
+    yesNoRadio("record_keeping_completed", "Record keeping completed"),
   ],
   "Breeder - Consultation & Planning": [
     {
@@ -942,27 +837,12 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
     },
     { id: "fertile_phase_start_date", type: "date", label: "Tracking the fertile phase - Start date" },
     { id: "fertile_phase_end_date", type: "date", label: "Tracking the fertile phase - End date" },
-    {
-      id: "provide_list_of_potential_mates",
-      type: "radio",
-      label: "Provide a list of potential mates",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "preferred_vet_services_required",
-      type: "radio",
-      label: "Preferred veterinary services required",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
+    yesNoRadio("provide_list_of_potential_mates", "Provide a list of potential mates"),
+    yesNoRadio("preferred_vet_services_required", "Preferred veterinary services required"),
     { id: "preferred_vet_details", type: "textarea", label: "If yes, specify veterinarian's details" },
   ],
   "Breeder - Mating & Fertility Preferences": [
-    {
-      id: "natural_mating",
-      type: "radio",
-      label: "Natural mating",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
+    yesNoRadio("natural_mating", "Natural mating"),
     {
       id: "artificial_insemination",
       type: "checkbox",
@@ -974,12 +854,7 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
         makeOption("Frozen semen", "frozen_semen"),
       ],
     },
-    {
-      id: "semen_collection_evaluation",
-      type: "radio",
-      label: "Semen collection and evaluation",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
+    yesNoRadio("semen_collection_evaluation", "Semen collection and evaluation"),
     {
       id: "genetic_screening",
       type: "checkbox",
@@ -991,38 +866,13 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
         makeOption("Breed identification", "breed_identification"),
       ],
     },
-    {
-      id: "fertility_assessment",
-      type: "radio",
-      label: "Fertility assessment",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
+    yesNoRadio("fertility_assessment", "Fertility assessment"),
   ],
   "Breeder - Belongings": [
-    {
-      id: "pet_bedding_or_blanket",
-      type: "radio",
-      label: "Companion bedding or blanket",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "pet_crate",
-      type: "radio",
-      label: "Companion crate",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "pet_leash",
-      type: "radio",
-      label: "Companion leash",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "litter_tray",
-      type: "radio",
-      label: "Litter tray",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
+    yesNoRadio("pet_bedding_or_blanket", "Companion bedding or blanket"),
+    yesNoRadio("pet_crate", "Companion crate"),
+    yesNoRadio("pet_leash", "Companion leash"),
+    yesNoRadio("litter_tray", "Litter tray"),
     { id: "list_of_toys", type: "textarea", label: "List of toys" },
   ],
   "Breeder - Check-in": [
@@ -1067,45 +917,15 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
     { id: "heat_status_notes", type: "textarea", label: "Please provide additional information" },
   ],
   "Breeder - Pregnancy Care": [
-    {
-      id: "ultrasound_pregnancy_checks",
-      type: "radio",
-      label: "Ultrasound and pregnancy checks",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "birthing_assistance",
-      type: "radio",
-      label: "Birthing assistance",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "neonatal_newborn_care",
-      type: "radio",
-      label: "Neonatal and newborn care",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "record_keeping",
-      type: "radio",
-      label: "Record keeping",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "post_pregnancy_care",
-      type: "radio",
-      label: "Post-pregnancy care",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
+    yesNoRadio("ultrasound_pregnancy_checks", "Ultrasound and pregnancy checks"),
+    yesNoRadio("birthing_assistance", "Birthing assistance"),
+    yesNoRadio("neonatal_newborn_care", "Neonatal and newborn care"),
+    yesNoRadio("record_keeping", "Record keeping"),
+    yesNoRadio("post_pregnancy_care", "Post-pregnancy care"),
   ],
   "Breeder - Health Summary": [{ id: "pet_health_summary", type: "textarea", label: "Companion health summary" }],
   "Groomer - Service Request & Preferences": [
-    {
-      id: "bathing_basic",
-      type: "radio",
-      label: "Given basic bath",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
+    yesNoRadio("bathing_basic", "Given basic bath"),
     {
       id: "bath_type",
       type: "radio",
@@ -1117,18 +937,8 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
         makeOption("Whitening", "whitening"),
       ],
     },
-    {
-      id: "ear_cleaning",
-      type: "radio",
-      label: "Given ear cleaning?",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "teeth_brushing",
-      type: "radio",
-      label: "Added teeth brushing",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
+    yesNoRadio("ear_cleaning", "Given ear cleaning?"),
+    yesNoRadio("teeth_brushing", "Added teeth brushing"),
     {
       id: "haircut_style",
       type: "radio",
@@ -1139,43 +949,13 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
         makeOption("Custom", "custom"),
       ],
     },
-    {
-      id: "de_shedding_treatment",
-      type: "radio",
-      label: "De-shedding treatment",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "conditioner_after_groom",
-      type: "radio",
-      label: "Given conditioner treatment after grooming",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
+    yesNoRadio("de_shedding_treatment", "De-shedding treatment"),
+    yesNoRadio("conditioner_after_groom", "Given conditioner treatment after grooming"),
     { id: "conditioner_brand", type: "input", label: "Specify conditioner brand" },
-    {
-      id: "dematting_detangling",
-      type: "radio",
-      label: "Dematting / Detangling",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "nail_trimming",
-      type: "radio",
-      label: "Nail trimming",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "paw_pad_cleaning",
-      type: "radio",
-      label: "Paw pad Cleaning",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "anal_gland_expression",
-      type: "radio",
-      label: "Anal gland expression",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
+    yesNoRadio("dematting_detangling", "Dematting / Detangling"),
+    yesNoRadio("nail_trimming", "Nail trimming"),
+    yesNoRadio("paw_pad_cleaning", "Paw pad Cleaning"),
+    yesNoRadio("anal_gland_expression", "Anal gland expression"),
     {
       id: "aromatherapy_bath",
       type: "radio",
@@ -1186,148 +966,38 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
         makeOption("Oatmeal", "oatmeal"),
       ],
     },
-    {
-      id: "tick_flea_treatment",
-      type: "radio",
-      label: "Tick and flea treatment",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "perfume_finishing_spray",
-      type: "radio",
-      label: "Perfume / Finishing spray",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
+    yesNoRadio("tick_flea_treatment", "Tick and flea treatment"),
+    yesNoRadio("perfume_finishing_spray", "Perfume / Finishing spray"),
   ],
   "Groomer - Grooming Prep": [
-    {
-      id: "brushing_detangle_service",
-      type: "radio",
-      label: "Given brushing and detangle service to companion",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "nail_trimming_paw_cleaning",
-      type: "radio",
-      label: "Given nail trimming and paw cleaning",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "ear_cleaning_infection_check",
-      type: "radio",
-      label: "Given ear cleaning and infection check-up",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "medicated_bath_needed",
-      type: "radio",
-      label: "Does companion require medicated bath to prevent flea / tick",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "anal_gland_checked",
-      type: "radio",
-      label: "Anal gland checked",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "sanitary_area_trimming",
-      type: "radio",
-      label: "Given sanitary area trimming",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
+    yesNoRadio("brushing_detangle_service", "Given brushing and detangle service to companion"),
+    yesNoRadio("nail_trimming_paw_cleaning", "Given nail trimming and paw cleaning"),
+    yesNoRadio("ear_cleaning_infection_check", "Given ear cleaning and infection check-up"),
+    yesNoRadio("medicated_bath_needed", "Does companion require medicated bath to prevent flea / tick"),
+    yesNoRadio("anal_gland_checked", "Anal gland checked"),
+    yesNoRadio("sanitary_area_trimming", "Given sanitary area trimming"),
   ],
   "Groomer - Bathing & Cleaning Worklog": [
-    {
-      id: "basic_bath_done",
-      type: "radio",
-      label: "Given basic bath",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "deshedding_done",
-      type: "radio",
-      label: "Given de-shedding treatment",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "rinse_conditioning_done",
-      type: "radio",
-      label: "Given thorough rinse and conditioning.",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "paw_pad_care_done",
-      type: "radio",
-      label: "Given paw pad cleaning and care",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
+    yesNoRadio("basic_bath_done", "Given basic bath"),
+    yesNoRadio("deshedding_done", "Given de-shedding treatment"),
+    yesNoRadio("rinse_conditioning_done", "Given thorough rinse and conditioning."),
+    yesNoRadio("paw_pad_care_done", "Given paw pad cleaning and care"),
   ],
   "Groomer - Haircut / Styling Worklog": [
-    {
-      id: "drying_with_dryer",
-      type: "radio",
-      label: "Given drying with towel + pet dryer",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "parent_requested_styling_done",
-      type: "radio",
-      label: "Given parent-requested styling",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "clipping_shaping_fluff",
-      type: "radio",
-      label: "Given clipping, shaping, and fluff drying.",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
+    yesNoRadio("drying_with_dryer", "Given drying with towel + pet dryer"),
+    yesNoRadio("parent_requested_styling_done", "Given parent-requested styling"),
+    yesNoRadio("clipping_shaping_fluff", "Given clipping, shaping, and fluff drying."),
   ],
   "Groomer - Spa Add-ons Worklog": [
-    {
-      id: "final_brushing_done",
-      type: "radio",
-      label: "Given final brushing",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "tick_flea_treatment_done",
-      type: "radio",
-      label: "Given tick & flea treatment",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "parent_requested_styling_addon",
-      type: "radio",
-      label: "Given parent-requested styling",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "perfume_spray_done",
-      type: "radio",
-      label: "Given perfume / finishing spray",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "clean_fresh_collar",
-      type: "radio",
-      label: "Given clean and fresh collar",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
+    yesNoRadio("final_brushing_done", "Given final brushing"),
+    yesNoRadio("tick_flea_treatment_done", "Given tick & flea treatment"),
+    yesNoRadio("parent_requested_styling_addon", "Given parent-requested styling"),
+    yesNoRadio("perfume_spray_done", "Given perfume / finishing spray"),
+    yesNoRadio("clean_fresh_collar", "Given clean and fresh collar"),
   ],
   "Groomer - Health Requirements": [
-    {
-      id: "grooming_history",
-      type: "radio",
-      label: "Has your companion received grooming services before?",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
-    {
-      id: "allergies_or_skin_issues",
-      type: "radio",
-      label: "Does your companion suffer from any allergies or skin issues?",
-      options: [makeOption("Yes", "yes"), makeOption("No", "no")],
-    },
+    yesNoRadio("grooming_history", "Has your companion received grooming services before?"),
+    yesNoRadio("allergies_or_skin_issues", "Does your companion suffer from any allergies or skin issues?"),
     { id: "allergy_details", type: "textarea", label: "If yes, please provide details" },
     {
       id: "preferred_coat_specs_image",

@@ -15,77 +15,7 @@ import { PermissionGate } from "../PermissionGate";
 import { PERMISSIONS } from "@/app/utils/permissions";
 import Reschedule from "@/app/pages/Appointments/Sections/Reschedule";
 import { usePermissions } from "@/app/hooks/usePermissions";
-
-const AppointmentLabels = [
-  {
-    name: "No payment",
-    key: "no_payment",
-    bg: "#5C614B",
-    text: "#fff",
-  },
-  {
-    name: "Requested",
-    key: "requested",
-    bg: "#747283",
-    text: "#fff",
-  },
-  {
-    name: "Upcoming",
-    key: "upcoming",
-    bg: "#F1D4B0",
-    text: "#000",
-  },
-  {
-    name: "Checked-in",
-    key: "checked_in",
-    bg: "#A8A181",
-    text: "#fff",
-  },
-  {
-    name: "In progress",
-    key: "in_progress",
-    bg: "#BF9FAA",
-    text: "#fff",
-  },
-  {
-    name: "Completed",
-    key: "completed",
-    bg: "#D28F9A",
-    text: "#fff",
-  },
-  {
-    name: "Cancelled",
-    key: "cancelled",
-    bg: "#D9A488",
-    text: "#fff",
-  },
-];
-const TasksLabels = [
-  {
-    name: "Pending",
-    key: "pending",
-    bg: "#747283",
-    text: "#fff",
-  },
-  {
-    name: "In progress",
-    key: "in_progress",
-    bg: "#BF9FAA",
-    text: "#fff",
-  },
-  {
-    name: "Completed",
-    key: "completed",
-    bg: "#D28F9A",
-    text: "#fff",
-  },
-  {
-    name: "Cancelled",
-    key: "cancelled",
-    bg: "#D9A488",
-    text: "#fff",
-  },
-];
+import { AppointmentLabels, TaskLabels } from "@/app/config/statusConfig";
 
 const AppointmentTask = () => {
   const appointments = useAppointmentsForPrimaryOrg();
@@ -100,12 +30,12 @@ const AppointmentTask = () => {
     useState<Appointment | null>(appointments[0] ?? null);
   const [activeTask, setActiveTask] = useState<Task | null>(tasks[0] ?? null);
   const activeLabels = useMemo(() => {
-    return activeTable === "Appointments" ? AppointmentLabels : TasksLabels;
+    return activeTable === "Appointments" ? AppointmentLabels : TaskLabels;
   }, [activeTable]);
   const [activeSubLabel, setActiveSubLabel] = useState(
     activeTable === "Appointments"
       ? AppointmentLabels[0].key
-      : TasksLabels[0].key,
+      : TaskLabels[0].key,
   );
 
   useEffect(() => {
@@ -134,7 +64,7 @@ const AppointmentTask = () => {
     if (activeTable === "Appointments") {
       setActiveSubLabel(AppointmentLabels[0].key);
     } else {
-      setActiveSubLabel(TasksLabels[0].key);
+      setActiveSubLabel(TaskLabels[0].key);
     }
   }, [activeTable]);
 

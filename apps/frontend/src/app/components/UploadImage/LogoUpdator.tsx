@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import CenterModal from "../Modal/CenterModal";
 import Image from "next/image";
 import { MdArrowRightAlt } from "react-icons/md";
@@ -33,10 +33,7 @@ const LogoUpdator = ({
 
   const fileRef = useRef<HTMLInputElement | null>(null);
 
-  const inputId = useMemo(
-    () => `logo-updator-${Math.random().toString(16).slice(2)}`,
-    []
-  );
+  const inputId = `logo-updator-${useId()}`;
 
   useEffect(() => {
     return () => {

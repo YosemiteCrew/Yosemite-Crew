@@ -347,7 +347,7 @@ describe("Build Component", () => {
     expect(group.meta.serviceGroup).toBe(true);
     expect(group.meta.serviceIds).toEqual([]);
     expect(group.fields[0].type).toBe("checkbox");
-    expect((group.fields[0] as any).meta.serviceIds).toEqual([]);
+    expect(group.fields[0].meta?.serviceIds).toEqual([]);
   });
 
   // --- Section 3: Nested Field Management ---

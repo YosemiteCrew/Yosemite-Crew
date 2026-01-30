@@ -21,8 +21,8 @@ type AppointmentFormsApiResponse = {
 
 const inferFieldType = (item: any): FormField["type"] => {
   const looksLikeSignature =
-    typeof item?.text === "string" && /signature/i.test(item.text ?? "") ||
-    typeof item?.linkId === "string" && /signature/i.test(item.linkId ?? "");
+    (typeof item?.text === "string" && /signature/i.test(item.text ?? "")) ||
+    (typeof item?.linkId === "string" && /signature/i.test(item.linkId ?? ""));
   const ans = (item.answer ?? [])[0];
   if (ans?.valueBoolean !== undefined) return "boolean";
   if (ans?.valueDate !== undefined || ans?.valueDateTime !== undefined) return "date";
@@ -80,7 +80,7 @@ const buildFallbackForm = (qr: any): { form: Form; submission: FormSubmission } 
     updatedAt: new Date(),
   };
 
-  const submission = fromFormSubmissionRequestDTO(qr as any, schema);
+  const submission = fromFormSubmissionRequestDTO(qr, schema);
 
   return { form, submission };
 };
@@ -94,23 +94,30 @@ const mapItem = (
       ? fromFormSubmissionRequestDTO(item.questionnaireResponse, form.schema)
       : null;
     const rawStatus = typeof item.status === "string" ? item.status.toLowerCase() : "";
-    const status =
-      rawStatus.includes("complete") || rawStatus.includes("signed")
-        ? "completed"
-        : rawStatus.includes("pending") || rawStatus.includes("incomplete")
-          ? "pending"
-          : submission
-            ? "completed"
-            : "pending";
+    const isExplicitlyPending =
+      rawStatus.includes("pending") || rawStatus.includes("incomplete");
+    const isExplicitlyCompleted =
+      rawStatus.includes("complete") || rawStatus.includes("signed");
+    const hasCompletedIndicator = isExplicitlyCompleted || Boolean(submission);
+    let status: "completed" | "pending";
+    if (isExplicitlyPending) {
+      status = "pending";
+    } else if (hasCompletedIndicator) {
+      status = "completed";
+    } else {
+      status = "pending";
+    }
     return { form, submission, status };
-  } catch (err) {
-    try {
-      if (item.questionnaireResponse) {
+  } catch (error_) {
+    if (item.questionnaireResponse) {
+      try {
         const { form, submission } = buildFallbackForm(item.questionnaireResponse);
         return { form, submission, status: "completed" };
+      } catch (error_) {
+        console.error("Skipping invalid appointment form item", error_, item);
       }
-    } catch (fallbackErr) {
-      console.error("Skipping invalid appointment form item", fallbackErr, item);
+    } else {
+      console.error("Skipping invalid appointment form item", error_, item);
     }
     return null;
   }

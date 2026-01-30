@@ -1,4 +1,4 @@
-import { StatusOption } from "../pages/Companions/types";
+import { filter, status, StatusOption } from "../pages/Companions/types";
 
 export type AppointmentStatus =
   | "NO_PAYMENT"
@@ -10,15 +10,17 @@ export type AppointmentStatus =
   | "CANCELLED"
   | "NO_SHOW";
 
+const opt = (value: string, label: string) => ({ value, label });
+
 export const AppointmentStatusOptions = [
-  { value: "NO_PAYMENT", label: "No payment" },
-  { value: "REQUESTED", label: "Requested" },
-  { value: "UPCOMING", label: "Upcoming" },
-  { value: "CHECKED_IN", label: "Checked in" },
-  { value: "IN_PROGRESS", label: "In progress" },
-  { value: "COMPLETED", label: "Completed" },
-  { value: "CANCELLED", label: "Cancelled" },
-  { value: "NO_SHOW", label: "No show" },
+  opt("NO_PAYMENT", "No payment"),
+  opt("REQUESTED", "Requested"),
+  opt("UPCOMING", "Upcoming"),
+  opt("CHECKED_IN", "Checked in"),
+  opt("IN_PROGRESS", "In progress"),
+  opt("COMPLETED", "Completed"),
+  opt("CANCELLED", "Cancelled"),
+  opt("NO_SHOW", "No show"),
 ];
 
 export type DayOfWeek =
@@ -59,71 +61,20 @@ export type SlotsResponse = {
 };
 
 export const AppointmentStatusFilters: StatusOption[] = [
-  {
-    name: "All",
-    key: "all",
-    bg: "#F1D4B0",
-    text: "#000",
-  },
-  {
-    name: "No payment",
-    key: "no_payment",
-    bg: "#5C614B",
-    text: "#fff",
-  },
-  {
-    name: "Requested",
-    key: "requested",
-    bg: "#747283",
-    text: "#fff",
-  },
-  {
-    name: "Upcoming",
-    key: "upcoming",
-    bg: "#F1D4B0",
-    text: "#000",
-  },
-  {
-    name: "Checked-in",
-    key: "checked_in",
-    bg: "#A8A181",
-    text: "#fff",
-  },
-  {
-    name: "In progress",
-    key: "in_progress",
-    bg: "#BF9FAA",
-    text: "#fff",
-  },
-  {
-    name: "Completed",
-    key: "completed",
-    bg: "#D28F9A",
-    text: "#fff",
-  },
-  {
-    name: "Cancelled",
-    key: "cancelled",
-    bg: "#D9A488",
-    text: "#fff",
-  },
-  {
-    name: "No show",
-    key: "no_show",
-    bg: "#747283",
-    text: "#fff",
-  },
+  status("All", "all", "#F1D4B0", "#000"),
+  status("No payment", "no_payment", "#5C614B"),
+  status("Requested", "requested", "#747283"),
+  status("Upcoming", "upcoming", "#F1D4B0", "#000"),
+  status("Checked-in", "checked_in", "#A8A181"),
+  status("In progress", "in_progress", "#BF9FAA"),
+  status("Completed", "completed", "#D28F9A"),
+  status("Cancelled", "cancelled", "#D9A488"),
+  status("No show", "no_show", "#747283"),
 ];
 
 export const AppointmentFilters = [
-  {
-    name: "All",
-    key: "all",
-  },
-  {
-    name: "Emergencies",
-    key: "emergencies",
-  },
+  filter("All", "all"),
+  filter("Emergencies", "emergencies"),
 ];
 
 type ReasonOptions =

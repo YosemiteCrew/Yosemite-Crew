@@ -82,7 +82,7 @@ describe("TitleCalendar", () => {
     expect(setActiveView).toHaveBeenCalledWith("calendar");
     expect(setActiveView).toHaveBeenCalledWith("list");
 
-    const latestDropdown = dropdownProps[dropdownProps.length - 1];
+    const latestDropdown = dropdownProps.at(-1)!;
     latestDropdown.onSelect({ key: "week" });
     expect(setActiveCalendar).toHaveBeenCalledWith("week");
   });

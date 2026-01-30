@@ -1,5 +1,9 @@
 import SessionInitializer from "@/app/components/SessionInitializer";
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+interface AppLayoutProps {
+  children: React.ReactNode;
+}
+
+export default function AppLayout({ children }: Readonly<AppLayoutProps>) {
   return <SessionInitializer>{children}</SessionInitializer>;
 }

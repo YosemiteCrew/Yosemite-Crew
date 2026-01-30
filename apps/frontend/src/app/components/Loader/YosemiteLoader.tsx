@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import React from "react";
 import "./YosemiteLoader.css";
 
@@ -19,9 +20,8 @@ const YosemiteLoader: React.FC<YosemiteLoaderProps> = ({
   const isFullscreen = variant === "fullscreen";
 
   return (
-    <div
+    <output
       className={`yosemite-loader ${isFullscreen ? "yosemite-loader--fullscreen" : "yosemite-loader--inline"}`}
-      role="status"
       aria-live="polite"
       data-testid={testId}
     >
@@ -33,7 +33,7 @@ const YosemiteLoader: React.FC<YosemiteLoaderProps> = ({
         className="yosemite-loader__image"
       />
       {label ? <span className="yosemite-loader__label">{label}</span> : null}
-    </div>
+    </output>
   );
 };
 

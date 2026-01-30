@@ -1,11 +1,12 @@
 "use client";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React from "react";
 import { Form } from "react-bootstrap";
 import { FaCaretDown } from "react-icons/fa6";
+import { useDropdown, useFilteredOptions, DropdownOption } from "@/app/hooks/useDropdown";
 
 import "./DynamicSelect.css";
 
-export type Option = { value: string; label: string };
+export type Option = DropdownOption;
 
 interface DynamicSelectProps {
   options: Option[];
@@ -26,48 +27,25 @@ const DynamicSelect: React.FC<DynamicSelectProps> = ({
   error,
   searchable = true,
 }) => {
-  const [open, setOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const {
+    open,
+    searchQuery,
+    setSearchQuery,
+    dropdownRef,
+    inputRef,
+    openDropdown,
+    toggleDropdown,
+    closeDropdown,
+  } = useDropdown({ searchable });
 
   const selectedLabel =
     options.find((opt) => opt.value === value)?.label || placeholder;
 
-  const filteredOptions = useMemo(() => {
-    if (!searchQuery.trim()) return options;
-    const query = searchQuery.toLowerCase();
-    return options.filter((option) =>
-      option.label.toLowerCase().includes(query)
-    );
-  }, [options, searchQuery]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setOpen(false);
-        setSearchQuery("");
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (open && searchable && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [open, searchable]);
+  const filteredOptions = useFilteredOptions(options, searchQuery);
 
   const handleSelect = (selectedValue: string) => {
     onChange(selectedValue);
-    setSearchQuery("");
-    setOpen(false);
+    closeDropdown();
   };
 
   return (
@@ -76,7 +54,7 @@ const DynamicSelect: React.FC<DynamicSelectProps> = ({
         type="button"
         className={`custom-dropdown-toggle ${open ? "open" : ""}`}
         onClick={() => {
-          if (!open) setOpen(true);
+          if (!open) openDropdown();
         }}
       >
         {open && searchable ? (
@@ -95,14 +73,13 @@ const DynamicSelect: React.FC<DynamicSelectProps> = ({
           className={`dropdown-caret ${open ? "rotate" : ""}`}
           onClick={(e) => {
             e.stopPropagation();
-            setOpen((prev) => !prev);
-            if (open) setSearchQuery("");
+            toggleDropdown();
           }}
         />
       </button>
 
       {open && (
-        <div className="custom-dropdown-menu show" role="listbox">
+        <div className="custom-dropdown-menu show">
           {!searchQuery && (
             <button
               type="button"
@@ -118,7 +95,7 @@ const DynamicSelect: React.FC<DynamicSelectProps> = ({
               <button
                 type="button"
                 key={option.value}
-                className="dropdown-item"
+                className={`dropdown-item ${option.value === value ? "selected" : ""}`}
                 onClick={() => handleSelect(option.value)}
               >
                 {option.label}

@@ -1,19 +1,11 @@
 import React from "react";
 import GenericTable from "../GenericTable/GenericTable";
-
-import { IoEye } from "react-icons/io5";
 import DocumentsCard from "../Cards/DocumentsCard";
 import { OrganizationDocument } from "@/app/types/document";
+import { toTitle } from "@/app/utils/validators";
+import { Column, NoDataMessage, ViewButton, ProfileTitle } from "./common";
 
 import "./DataTable.css";
-import { toTitle } from "@/app/utils/validators";
-
-type Column<T> = {
-  label: string;
-  key: keyof T | string;
-  width?: string;
-  render?: (item: T) => React.ReactNode;
-};
 
 type DocumentsTableProps = {
   filteredList: OrganizationDocument[];
@@ -37,7 +29,7 @@ const DocumentsTable = ({
       key: "title",
       width: "20%",
       render: (item: OrganizationDocument) => (
-        <div className="appointment-profile-title">{item.title}</div>
+        <ProfileTitle>{item.title}</ProfileTitle>
       ),
     },
     {
@@ -45,7 +37,7 @@ const DocumentsTable = ({
       key: "description",
       width: "35%",
       render: (item: OrganizationDocument) => (
-        <div className="appointment-profile-title">{item.description}</div>
+        <ProfileTitle>{item.description}</ProfileTitle>
       ),
     },
     {
@@ -53,7 +45,7 @@ const DocumentsTable = ({
       key: "category",
       width: "20%",
       render: (item: OrganizationDocument) => (
-        <div className="appointment-profile-title">{toTitle(item.category)}</div>
+        <ProfileTitle>{toTitle(item.category)}</ProfileTitle>
       ),
     },
     {
@@ -62,12 +54,7 @@ const DocumentsTable = ({
       width: "10%",
       render: (item: OrganizationDocument) => (
         <div className="action-btn-col">
-          <button
-            onClick={() => handleViewDocument(item)}
-            className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-          >
-            <IoEye size={18} color="#302F2E" />
-          </button>
+          <ViewButton onClick={() => handleViewDocument(item)} />
         </div>
       ),
     },
@@ -85,22 +72,17 @@ const DocumentsTable = ({
         />
       </div>
       <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
-        {(() => {
-          if (filteredList.length === 0) {
-            return (
-              <div className="w-full py-6 flex items-center justify-center text-body-4 text-text-primary">
-                No data available
-              </div>
-            );
-          }
-          return filteredList.map((item, i) => (
+        {filteredList.length === 0 ? (
+          <NoDataMessage />
+        ) : (
+          filteredList.map((item, i) => (
             <DocumentsCard
               key={item.title + i}
               document={item}
               handleViewDocument={handleViewDocument}
             />
-          ));
-        })()}
+          ))
+        )}
       </div>
     </div>
   );

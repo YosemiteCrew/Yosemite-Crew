@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import {
   getInvoiceItemNames,
   getStatusStyle,
@@ -10,6 +10,10 @@ import { toTitle } from "@/app/utils/validators";
 import { useAppointmentsForPrimaryOrg } from "@/app/hooks/useAppointments";
 import { useCurrencyForPrimaryOrg } from "@/app/hooks/useBilling";
 import { formatMoney } from "@/app/utils/money";
+import {
+  getCompanionNameFromAppointments,
+  getParentNameFromAppointments,
+} from "@/app/utils/invoice";
 
 type InvoiceCardProps = {
   invoice: Invoice;
@@ -20,33 +24,27 @@ const InvoiceCard = ({ invoice, handleViewInvoice }: InvoiceCardProps) => {
   const appointments = useAppointmentsForPrimaryOrg();
   const currency = useCurrencyForPrimaryOrg();
 
-  const getCompanionName = (appointmentId: string | undefined) => {
-    const match = appointments.filter((a) => a.id === appointmentId);
-    if (match.length > 0) {
-      return match[0].companion.name;
-    }
-    return "-";
-  };
+  const companionName = useMemo(
+    () => getCompanionNameFromAppointments(appointments, invoice.appointmentId),
+    [appointments, invoice.appointmentId]
+  );
 
-  const getParentName = (appointmentId: string | undefined) => {
-    const match = appointments.filter((a) => a.id === appointmentId);
-    if (match.length > 0) {
-      return match[0].companion.parent.name;
-    }
-    return "-";
-  };
+  const parentName = useMemo(
+    () => getParentNameFromAppointments(appointments, invoice.appointmentId),
+    [appointments, invoice.appointmentId]
+  );
 
   return (
     <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-hover bg-white px-3 py-3 flex flex-col justify-between gap-2 cursor-pointer">
       <div className="flex gap-1">
         <div className="text-body-3-emphasis text-text-primary">
-          {getCompanionName(invoice.appointmentId)}
+          {companionName}
         </div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Parent:</div>
         <div className="text-caption-1 text-text-primary">
-          {getParentName(invoice.appointmentId)}
+          {parentName}
         </div>
       </div>
       <div className="flex gap-1">

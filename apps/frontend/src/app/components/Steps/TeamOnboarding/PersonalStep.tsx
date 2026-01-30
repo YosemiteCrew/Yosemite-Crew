@@ -46,14 +46,14 @@ const PersonalStep = ({
   );
 
   useEffect(() => {
-    setFormData({
-      ...formData,
+    setFormData((prev) => ({
+      ...prev,
       personalDetails: {
-        ...formData.personalDetails,
+        ...prev.personalDetails,
         dateOfBirth: currentDate ? formatDateLocal(currentDate) : "",
       },
-    });
-  }, [currentDate]);
+    }));
+  }, [currentDate, setFormData]);
 
   const handleNext = async () => {
     const errors: {

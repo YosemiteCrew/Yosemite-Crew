@@ -16,7 +16,7 @@ export const isHttpsImageUrl = (src?: string | null): src is string => {
 
 const pick = (arr?: readonly string[]) => {
   const pool = arr && arr.length > 0 ? arr : DEFAULT_IMAGES.other;
-  return pool[Math.floor(Math.random() * pool.length)];
+  return pool[0];
 };
 
 export const getSafeImageUrl = (

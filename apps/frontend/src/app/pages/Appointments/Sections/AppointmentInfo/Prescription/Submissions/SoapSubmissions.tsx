@@ -6,21 +6,28 @@ import { findFieldLabel, humanizeKey } from "../labelUtils";
 import SignatureActions from "./SignatureActions";
 import { hasSignatureField } from "../signatureUtils";
 
-type DischargeSubmissionsProps = {
+const SOAP_KEYS = ["assessment", "objective", "subjective", "discharge", "plan"] as const;
+type SoapKey = (typeof SOAP_KEYS)[number];
+
+type SoapSubmissionsProps<K extends SoapKey> = {
   formData: FormDataProps;
   setFormData: React.Dispatch<React.SetStateAction<FormDataProps>>;
+  formDataKey: K;
+  title: string;
 };
 
-const DischargeSubmissions = ({
+const SoapSubmissions = <K extends SoapKey>({
   formData,
   setFormData,
-}: DischargeSubmissionsProps) => {
+  formDataKey,
+  title,
+}: SoapSubmissionsProps<K>) => {
   const formsById = useFormsStore((s) => s.formsById);
-  const submissions = formData.discharge ?? [];
+  const submissions = formData[formDataKey] ?? [];
 
   const toStringPairs = (answers: Record<string, any>) =>
     Object.entries(answers ?? {}).filter(
-      ([k, v]) => typeof k === "string" && typeof v === "string"
+      ([k, v]) => typeof k === "string" && typeof v === "string",
     ) as Array<[string, string]>;
 
   const resolveLabel = (formId: string | undefined, key: string) => {
@@ -30,11 +37,11 @@ const DischargeSubmissions = ({
 
   const updateSubmission = (
     submissionId: string,
-    updates: Partial<FormDataProps["discharge"][number]>,
+    updates: Partial<FormDataProps[SoapKey][number]>,
   ) => {
     setFormData((prev) => ({
       ...prev,
-      discharge: (prev.discharge ?? []).map((s) =>
+      [formDataKey]: (prev[formDataKey] ?? []).map((s) =>
         s._id === submissionId || s.submissionId === submissionId
           ? { ...s, ...updates }
           : s,
@@ -42,26 +49,18 @@ const DischargeSubmissions = ({
     }));
   };
 
-  if (submissions.length === 0) {
+  if ((submissions ?? []).length === 0) {
     return (
-      <Accordion
-        title="Previous discharge submissions"
-        defaultOpen={false}
-        showEditIcon={false}
-      >
+      <Accordion title={title} defaultOpen={false} showEditIcon={false}>
         <div className="text-sm text-black-text/60">No submissions yet.</div>
       </Accordion>
     );
   }
 
   return (
-    <Accordion
-      title="Previous discharge submissions"
-      defaultOpen={false}
-      showEditIcon={false}
-    >
+    <Accordion title={title} defaultOpen={false} showEditIcon={false}>
       <div className="flex flex-col gap-4">
-        {submissions.map((sub) => {
+        {(submissions ?? []).map((sub) => {
           const pairs = toStringPairs(sub.answers);
           const hasContent = pairs.length > 0;
           const form = sub.formId ? formsById[sub.formId] : undefined;
@@ -71,7 +70,7 @@ const DischargeSubmissions = ({
           const allowVetSigning = requiredSigner === "VET";
           const hasSignature = hasSignatureField(schema as any);
           const hasSigningData = Boolean(
-            sub.signing?.status || sub.signing?.documentId || sub.signing?.pdf?.url
+            sub.signing?.status || sub.signing?.documentId || sub.signing?.pdf?.url,
           );
           const requiresVetSignature = allowVetSigning && (hasSignature || hasSigningData);
           const showActions = requiresVetSignature;
@@ -119,4 +118,4 @@ const DischargeSubmissions = ({
   );
 };
 
-export default DischargeSubmissions;
+export default SoapSubmissions;

@@ -82,7 +82,7 @@ const CreateOrg = () => {
     if (storeSpecialities.length > 0) {
       setSpecialities(storeSpecialities);
     }
-  }, [org, storeSpecialities, computedStep]);
+  }, [org, storeSpecialities, computedStep, router]);
 
   const nextStep = () =>
     setActiveStep((s) => Math.min(s + 1, OrgSteps.length - 1));

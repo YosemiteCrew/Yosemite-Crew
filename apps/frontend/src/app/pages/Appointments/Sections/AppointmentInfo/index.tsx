@@ -20,9 +20,10 @@ import {
   Appointment,
   FormSubmission,
   InvoiceItem,
+  Organisation,
   Service,
 } from "@yosemite-crew/types";
-import { fetchSubmissions } from "@/app/services/soapService";
+import { createSubmission, fetchSubmissions } from "@/app/services/soapService";
 import Close from "@/app/components/Icons/Close";
 import { usePermissions } from "@/app/hooks/usePermissions";
 import { PERMISSIONS } from "@/app/utils/permissions";
@@ -35,7 +36,6 @@ import { AppointmentFormEntry } from "@/app/types/appointmentForms";
 import { FormField } from "@/app/types/forms";
 import FormRenderer from "@/app/pages/Forms/Sections/AddForm/components/FormRenderer";
 import { buildInitialValues } from "@/app/pages/Forms/Sections/AddForm/Review";
-import { createSubmission } from "@/app/services/soapService";
 import { useAuthStore } from "@/app/stores/authStore";
 import SearchDropdown from "@/app/components/Inputs/SearchDropdown";
 import { useFormsStore } from "@/app/stores/formsStore";
@@ -63,32 +63,42 @@ const formatValue = (
     return servicesById[val]?.name || servicesById[val]?.displayName;
   };
 
-  if (value === undefined || value === null) return "—";
-  if (field.type === "signature") {
+  const formatSignature = (): string => {
     const isSigned =
       submission?.signing?.status === "SIGNED" ||
       Boolean(submission?.signing?.pdf?.url);
     return isSigned ? "Signed" : "Not signed";
-  }
-  if (field.type === "date" || (field.type as string) === "time") {
+  };
+
+  const formatDateLike = (): string => {
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return `${value}`;
-    return (field.type as string) === "time" ? d.toLocaleTimeString() : d.toLocaleDateString();
-  }
-  if (field.type === "boolean") return value ? "Yes" : "No";
-  if (Array.isArray(value)) {
+    return (field.type as string) === "time"
+      ? d.toLocaleTimeString()
+      : d.toLocaleDateString();
+  };
+
+  const formatArray = (): string => {
     const mapped = value
-      .map((v) => resolveService(String(v)) ?? `${v}`)
+      .map((v: unknown) => resolveService(String(v)) ?? `${v}`)
       .filter(Boolean)
       .join(", ");
     return mapped || "—";
-  }
-  const serviceName = typeof value === "string" ? resolveService(value) : undefined;
-  if (serviceName) return serviceName;
-  if (typeof value === "object") {
+  };
+
+  const formatObject = (): string => {
     if (Object.keys(value ?? {}).length === 0) return "—";
     return JSON.stringify(value);
-  }
+  };
+
+  if (value === undefined || value === null) return "—";
+  if (field.type === "signature") return formatSignature();
+  if (field.type === "date" || (field.type as string) === "time") return formatDateLike();
+  if (field.type === "boolean") return value ? "Yes" : "No";
+  if (Array.isArray(value)) return formatArray();
+  const serviceName = typeof value === "string" ? resolveService(value) : undefined;
+  if (serviceName) return serviceName;
+  if (typeof value === "object") return formatObject();
   return `${value}`;
 };
 
@@ -100,14 +110,129 @@ const resolveLabel = (field: FormField): string => {
   const isServicesField = normalizedId.endsWith("services");
 
   const humanized = humanizeKey(id);
-  const cleanedLabel =
-    rawLabel && rawLabel !== id ? rawLabel : isServicesField ? "Services" : humanized;
+  let cleanedLabel = humanized;
+  if (rawLabel && rawLabel !== id) {
+    cleanedLabel = rawLabel;
+  } else if (isServicesField) {
+    cleanedLabel = "Services";
+  }
 
   return cleanedLabel || humanized;
 };
 
+const ALLOWED_CATEGORIES_BY_ORG: Record<string, string[]> = {
+  HOSPITAL: ["Discharge", "Consent form", "Custom"],
+  BOARDER: [
+    "Boarding Checklist",
+    "Dietary Plan",
+    "Medication Details",
+    "Daily Summary",
+    "Schedule",
+    "Belongings",
+    "Consent form",
+    "Discharge",
+  ],
+  BREEDER: [
+    "Health & Behavior",
+    "Mating Log",
+    "Consultation & Planning",
+    "Mating & Fertility Preferences",
+    "Belongings",
+    "Check-in",
+    "Pregnancy Care",
+    "Health Summary",
+    "Consent form",
+    "Discharge",
+  ],
+  GROOMER: [
+    "Service Request & Preferences",
+    "Grooming Prep",
+    "Bathing & Cleaning Worklog",
+    "Haircut / Styling Worklog",
+    "Spa Add-ons Worklog",
+    "Health Requirements",
+    "Consent form",
+    "Discharge",
+  ],
+};
+
+const getAllowedCategories = (orgType?: string) =>
+  ALLOWED_CATEGORIES_BY_ORG[orgType ?? ""] ?? ALLOWED_CATEGORIES_BY_ORG.GROOMER;
+
+const getLabelsForOrgType = (orgType: string | undefined, hospitalLabels: any[]) => {
+  if (orgType === "HOSPITAL") return hospitalLabels;
+  return [
+    hospitalLabels[0],
+    {
+      key: "care",
+      name: "Care plan",
+      labels: [
+        { key: "forms", name: "Forms" },
+        { key: "audit-trail", name: "Audit trail" },
+        { key: "discharge-summary", name: "Discharge summary" },
+        { key: "documents", name: "Documents" },
+      ],
+    },
+    hospitalLabels[2],
+    hospitalLabels[3],
+  ];
+};
+
 const flattenFields = (fields: FormField[]): FormField[] =>
-  fields.flatMap((f) => (f.type === "group" && f.fields ? flattenFields(f.fields as FormField[]) : [f]));
+  fields.flatMap((f) => {
+    if (f.type === "group" && Array.isArray(f.fields)) {
+      return flattenFields(f.fields);
+    }
+    return [f];
+  });
+
+type CustomFormsSectionProps = {
+  forms: AppointmentFormEntry[];
+  loading: boolean;
+  error: string | null;
+  canEdit: boolean;
+  activeAppointment: Appointment | null;
+  templates: { value: string; label: string; schema: FormField[]; form: any }[];
+  onSubmission?: (entry: AppointmentFormEntry) => void;
+  onSubmissionUpdate?: (
+    submissionId: string,
+    updates: Partial<FormSubmission> & { signatureRequired?: boolean },
+  ) => void;
+  onFormLinked?: (entry: AppointmentFormEntry) => void;
+};
+
+const FormBadge: React.FC<{ label: string; badgeClass: string }> = ({
+  label,
+  badgeClass,
+}) => (
+  <span className={`text-label-xsmall px-2 py-1 rounded ${badgeClass}`}>
+    {label}
+  </span>
+);
+
+const CustomFormsSection: React.FC<CustomFormsSectionProps> = ({
+  forms,
+  loading,
+  error,
+  canEdit,
+  activeAppointment,
+  templates,
+  onSubmission,
+  onSubmissionUpdate,
+  onFormLinked,
+}) => (
+  <CustomFormsView
+    forms={forms}
+    loading={loading}
+    error={error}
+    canEdit={canEdit}
+    activeAppointment={activeAppointment}
+    onSubmission={onSubmission}
+    onSubmissionUpdate={onSubmissionUpdate}
+    onFormLinked={onFormLinked}
+    templates={templates}
+  />
+);
 
 const CustomFormsView = ({
   forms,
@@ -148,6 +273,26 @@ const CustomFormsView = ({
   if (error) {
     return <div className="text-body-3 text-error-main">{error}</div>;
   }
+
+  const getFormBadge = (
+    entry: AppointmentFormEntry,
+    needsSignature: boolean | undefined,
+    isSigned: boolean,
+    isClientSigner: boolean,
+  ) => {
+    const isCompleted = entry.status === "completed" && (!needsSignature || isSigned);
+    let label = "Pending";
+    if (isClientSigner) {
+      label = isSigned ? "Signed by pet parent" : "Pending parent signature";
+    } else if (isCompleted) {
+      label = "Completed";
+    } else if (needsSignature && !isSigned) {
+      label = "Signature Pending";
+    }
+    const badgeClass =
+      isSigned || isCompleted ? "bg-green-50 text-green-800" : "bg-amber-50 text-amber-700";
+    return { label, badgeClass };
+  };
 
   return (
     <Accordion
@@ -258,18 +403,19 @@ const CustomFormsView = ({
                       const requiredSigner = template.form?.requiredSigner ?? "";
                       const requiresSignature =
                         requiredSigner === "VET" &&
-                        hasSignatureField(template.schema as FormField[]);
-                      const submission: FormSubmission = {
-                        _id: "",
-                        formVersion: 1,
-                        submittedAt: new Date(),
-                        formId: template.value,
-                        appointmentId: activeAppointment.id,
-                        companionId: (activeAppointment as any).companion?.id ?? "",
-                        parentId: (activeAppointment as any).companion?.parent?.id ?? "",
-                        answers: valuesByForm[selectedTemplateId] ?? buildInitialValues(template.schema),
-                        submittedBy: attributes.sub,
-                      };
+                        hasSignatureField(template.schema);
+                    const companion = activeAppointment?.companion;
+                    const submission: FormSubmission = {
+                      _id: "",
+                      formVersion: 1,
+                      submittedAt: new Date(),
+                      formId: template.value,
+                      appointmentId: activeAppointment.id,
+                      companionId: companion?.id ?? "",
+                      parentId: companion?.parent?.id ?? "",
+                      answers: valuesByForm[selectedTemplateId] ?? buildInitialValues(template.schema),
+                      submittedBy: attributes.sub,
+                    };
                       const created = await createSubmission(submission);
                       const submissionWithSigning = requiresSignature
                         ? {
@@ -305,7 +451,7 @@ const CustomFormsView = ({
         ) : null}
 
       {forms.map((entry, idx) => {
-        const flat = flattenFields(entry.form.schema as FormField[]);
+        const flat = flattenFields(entry.form.schema ?? []);
         const answers = entry.submission?.answers ?? {};
         const requiredSigner = entry.form.requiredSigner ?? "";
         const isClientSigner = requiredSigner === "CLIENT";
@@ -314,11 +460,10 @@ const CustomFormsView = ({
           !isClientSigner &&
           !isExplicitNone &&
           requiredSigner === "VET" &&
-          hasSignatureField(entry.form.schema as FormField[]);
+          hasSignatureField(entry.form.schema ?? []);
         const formId = entry.form._id ?? entry.form.name;
         const formValues =
-          valuesByForm[formId] ??
-          buildInitialValues((entry.form.schema as FormField[]) ?? []);
+          valuesByForm[formId] ?? buildInitialValues(entry.form.schema ?? []);
         const key = entry.submission?._id ?? `${formId}-${idx}`;
         const submissionWithMeta = entry.submission
           ? ({
@@ -330,6 +475,12 @@ const CustomFormsView = ({
         const isSigned =
           signingStatus === "SIGNED" || Boolean(submissionWithMeta?.signing?.pdf?.url);
         const needsSignature = submissionWithMeta?.signatureRequired;
+        const { label, badgeClass } = getFormBadge(
+          entry,
+          needsSignature,
+          isSigned,
+          isClientSigner,
+        );
         return (
           <Accordion
             key={key}
@@ -337,29 +488,7 @@ const CustomFormsView = ({
             defaultOpen={false}
             showEditIcon={false}
             isEditing
-            rightElement={
-              (() => {
-                const isCompleted =
-                  entry.status === "completed" && (!needsSignature || isSigned);
-                const label = isClientSigner
-                  ? isSigned
-                    ? "Signed by pet parent"
-                    : "Pending parent signature"
-                  : isCompleted
-                    ? "Completed"
-                    : needsSignature && !isSigned
-                      ? "Signature Pending"
-                      : "Pending";
-                const badgeClass = isSigned || isCompleted
-                  ? "bg-green-50 text-green-800"
-                  : "bg-amber-50 text-amber-700";
-                return (
-                  <span className={`text-label-xsmall px-2 py-1 rounded ${badgeClass}`}>
-                    {label}
-                  </span>
-                );
-              })()
-            }
+            rightElement={<FormBadge label={label} badgeClass={badgeClass} />}
           >
             {entry.submission ? (
               <div className="border border-card-border rounded-2xl p-4 flex flex-col gap-2">
@@ -371,7 +500,7 @@ const CustomFormsView = ({
                     <div className="text-body-3 text-text-primary">
                       {formatValue(
                         field,
-                        (answers as any)[field.id],
+                        (answers as Record<string, unknown>)[field.id],
                         submissionWithMeta ?? undefined,
                         servicesById,
                       )}
@@ -419,14 +548,15 @@ const CustomFormsView = ({
                       setSubmittingId(formId);
                       try {
                         const requiresSignature = signatureRequired;
+                        const companion = activeAppointment?.companion;
                         const submission: FormSubmission = {
                           _id: "",
                           formVersion: entry.submission?.formVersion ?? 1,
                           submittedAt: new Date(),
                           formId: entry.form._id,
                           appointmentId: activeAppointment.id,
-                          companionId: (activeAppointment as any).companion?.id ?? "",
-                          parentId: (activeAppointment as any).companion?.parent?.id ?? "",
+                          companionId: companion?.id ?? "",
+                          parentId: companion?.parent?.id ?? "",
                           answers: valuesByForm[formId] ?? formValues,
                           submittedBy: attributes.sub,
                         };
@@ -534,7 +664,6 @@ export const createEmptyFormData = (): FormDataProps => ({
 });
 
 type LabelKey = "info" | "prescription" | "care" | "tasks" | "finance";
-type SubLabelKey = string;
 
 const hospitalLabels = [
   {
@@ -588,7 +717,7 @@ const AppoitmentInfo = ({
   const canEdit = can(PERMISSIONS.PRESCRIPTION_EDIT_OWN);
   const services = useServicesForPrimaryOrgSpecialities();
   const [activeLabel, setActiveLabel] = useState<LabelKey>(hospitalLabels[0].key as LabelKey);
-  const [activeSubLabel, setActiveSubLabel] = useState<SubLabelKey>(
+  const [activeSubLabel, setActiveSubLabel] = useState<string>(
     hospitalLabels[0].labels[0].key,
   );
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -616,8 +745,9 @@ const AppoitmentInfo = ({
     setCustomForms((prev) =>
       prev.map((entry) =>
         entry.submission?._id === submissionId ||
-        (entry.submission as any)?.submissionId === submissionId
-          ? { ...entry, submission: { ...entry.submission!, ...updates } as FormSubmission }
+        (entry.submission as { submissionId?: string } | null | undefined)?.submissionId ===
+          submissionId
+          ? { ...entry, submission: { ...entry.submission!, ...updates } }
           : entry,
       ),
     );
@@ -626,7 +756,7 @@ const AppoitmentInfo = ({
   const orgsById = useOrgStore((s) => s.orgsById);
   const orgTypeOverride = process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE;
   const orgType =
-    (orgTypeOverride as any) ||
+    (orgTypeOverride as Organisation["type"] | undefined) ||
     (activeAppointment?.organisationId &&
       orgsById[activeAppointment.organisationId]?.type) ||
     "HOSPITAL";
@@ -636,46 +766,24 @@ const AppoitmentInfo = ({
   const allForms = formIds.map((id) => formsById[id]).filter(Boolean);
   const signingOverlayOpen = useSigningOverlayStore((s) => s.open);
   const templatesForOrg = useMemo(() => {
-    const trimPrefix = (text?: string | null) => (text ?? "").replace(/^(Boarder|Breeder|Groomer)\s*-\s*/i, "");
+    const trimPrefix = (text?: string | null) =>
+      (text ?? "").replace(/^(Boarder|Breeder|Groomer)\s*-\s*/i, "");
     const matchesAllowed = (category: string, allowed: string[]) => {
       const normalized = trimPrefix(category);
       return allowed.includes(category) || allowed.includes(normalized);
     };
-    const allowedCategories =
-      orgType === "HOSPITAL"
-        ? ["Discharge", "Consent form", "Custom"]
-        : orgType === "BOARDER"
-          ? ["Boarding Checklist", "Dietary Plan", "Medication Details", "Daily Summary", "Schedule", "Belongings", "Consent form", "Discharge"]
-          : orgType === "BREEDER"
-            ? ["Health & Behavior", "Mating Log", "Consultation & Planning", "Mating & Fertility Preferences", "Belongings", "Check-in", "Pregnancy Care", "Health Summary", "Consent form", "Discharge"]
-            : ["Service Request & Preferences", "Grooming Prep", "Bathing & Cleaning Worklog", "Haircut / Styling Worklog", "Spa Add-ons Worklog", "Health Requirements", "Consent form", "Discharge"];
+    const allowedCategories = getAllowedCategories(orgType);
     return allForms
       .filter((f) => matchesAllowed(f.category, allowedCategories))
       .map((f) => ({
         value: f._id ?? f.name,
         label: trimPrefix(f.name),
-        schema: f.schema as FormField[],
+        schema: f.schema ?? [],
         form: f,
       }));
   }, [allForms, orgType]);
 
-  const labels = orgType === "HOSPITAL"
-    ? hospitalLabels
-    : [
-        hospitalLabels[0],
-        {
-          key: "care",
-          name: "Care plan",
-          labels: [
-            { key: "forms", name: "Forms" },
-            { key: "audit-trail", name: "Audit trail" },
-            { key: "discharge-summary", name: "Discharge summary" },
-            { key: "documents", name: "Documents" },
-          ],
-        },
-        hospitalLabels[2],
-        hospitalLabels[3],
-      ];
+  const labels = getLabelsForOrgType(orgType, hospitalLabels);
 
   const COMPONENT_MAP: Record<string, Record<string, React.FC<any>>> = {
     info: {
@@ -690,37 +798,11 @@ const AppoitmentInfo = ({
       plan: Plan,
       "audit-trail": Audit,
       "discharge-summary": Discharge,
-      forms: (props: any) => (
-        <CustomFormsView
-          forms={customForms}
-          loading={customFormsLoading}
-          error={customFormsError}
-          canEdit={canEdit}
-          activeAppointment={activeAppointment}
-          onSubmission={upsertCustomForm}
-          onFormLinked={upsertCustomForm}
-          templates={templatesForOrg}
-          onSubmissionUpdate={updateCustomFormSubmission}
-          {...props}
-        />
-      ),
+      forms: CustomFormsSection,
       documents: Documents,
     },
     care: {
-      forms: (props: any) => (
-        <CustomFormsView
-          forms={customForms}
-          loading={customFormsLoading}
-          error={customFormsError}
-          canEdit={canEdit}
-          activeAppointment={activeAppointment}
-          onSubmission={upsertCustomForm}
-          onFormLinked={upsertCustomForm}
-          templates={templatesForOrg}
-          onSubmissionUpdate={updateCustomFormSubmission}
-          {...props}
-        />
-      ),
+      forms: CustomFormsSection,
       documents: Documents,
       "audit-trail": Audit,
       "discharge-summary": Discharge,
@@ -754,12 +836,13 @@ const AppoitmentInfo = ({
       const res = await fetchAppointmentForms(activeAppointment.id);
       setCustomForms(res.forms);
     } catch (e) {
+      console.error("Failed to load appointment forms:", e);
       setCustomFormsError("Unable to load forms");
       setCustomForms([]);
     } finally {
       setCustomFormsLoading(false);
     }
-  }, [activeAppointment?.id, orgType]);
+  }, [activeAppointment?.id]);
 
   const resolveAppointmentFormEntry = useCallback(
     (submission: SoapNoteSubmission | FormSubmission | undefined) => {
@@ -787,7 +870,7 @@ const AppoitmentInfo = ({
         const matchedEntry = resolveAppointmentFormEntry(sub);
         const matchedSubmission = matchedEntry?.submission;
         const form = formsById[sub.formId] ?? matchedEntry?.form;
-        const schemaHasSignature = hasSignatureField((form?.schema as FormField[]) ?? []);
+        const schemaHasSignature = hasSignatureField(form?.schema ?? []);
         const mergedSigning = matchedSubmission?.signing ?? sub.signing;
         const hasSigningData = Boolean(
           mergedSigning?.status || mergedSigning?.pdf?.url || mergedSigning?.documentId
@@ -804,15 +887,17 @@ const AppoitmentInfo = ({
               schemaHasSignature ||
               hasSigningData,
           );
-        const signing = requiresSignature
-          ? mergedSigning ?? {
+        let signing: SoapNoteSubmission["signing"] | undefined;
+        if (requiresSignature) {
+          signing =
+            mergedSigning ?? {
               required: true,
               status: "NOT_STARTED",
               provider: "DOCUMENSO",
-            }
-          : hasSigningData
-            ? mergedSigning
-            : undefined;
+            };
+        } else if (hasSigningData) {
+          signing = mergedSigning;
+        }
         return {
           ...(sub as SoapNoteSubmission),
           signatureRequired: requiresSignature,
@@ -827,12 +912,12 @@ const AppoitmentInfo = ({
     const current = labels.find((l) => l.key === activeLabel);
     if (!current) {
       setActiveLabel(labels[0].key as LabelKey);
-      setActiveSubLabel(labels[0].labels[0].key as SubLabelKey);
+      setActiveSubLabel(labels[0].labels[0].key);
       return;
     }
-    const sub = current.labels.find((l) => l.key === activeSubLabel);
+    const sub = current.labels.find((l: { key: string }) => l.key === activeSubLabel);
     if (!sub) {
-      setActiveSubLabel(current.labels[0].key as SubLabelKey);
+      setActiveSubLabel(current.labels[0].key);
     }
   }, [labels, activeLabel, activeSubLabel]);
 
@@ -841,7 +926,7 @@ const AppoitmentInfo = ({
     if (current && current.labels.length > 0) {
       setActiveSubLabel(current.labels[0].key);
     }
-  }, [activeLabel]);
+  }, [activeLabel, labels]);
 
   useEffect(() => {
     const appointmentId = activeAppointment?.id;
@@ -866,12 +951,7 @@ const AppoitmentInfo = ({
         total: String(total),
       };
     });
-  }, [
-    activeAppointment?.id,
-    activeAppointment?.appointmentType?.id,
-    services,
-    formData.lineItems,
-  ]);
+  }, [activeAppointment, services]);
 
   useEffect(() => {
     let cancelled = false;
@@ -908,7 +988,7 @@ const AppoitmentInfo = ({
     return () => {
       cancelled = true;
     };
-  }, [activeAppointment?.id, orgType, withSignatureMeta]);
+  }, [activeAppointment?.id, withSignatureMeta]);
 
   useEffect(() => {
     void loadAppointmentForms();
@@ -978,6 +1058,13 @@ const AppoitmentInfo = ({
               formData={formData}
               setFormData={setFormData}
               canEdit={canEdit}
+              forms={customForms}
+              loading={customFormsLoading}
+              error={customFormsError}
+              templates={templatesForOrg}
+              onSubmission={upsertCustomForm}
+              onFormLinked={upsertCustomForm}
+              onSubmissionUpdate={updateCustomFormSubmission}
             />
           ) : null}
         </div>

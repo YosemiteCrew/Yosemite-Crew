@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
+/* eslint-disable @next/next/no-img-element */
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
@@ -115,7 +115,6 @@ jest.mock("@/app/services/soapService", () => ({
   fetchSubmissions: jest.fn(),
 }));
 
-// eslint-disable-next-line @next/next/no-img-element
 jest.mock("next/image", () => ({
   __esModule: true,
   default: (props: any) => <img alt={props.alt} {...props} />,

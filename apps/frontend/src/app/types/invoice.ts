@@ -1,5 +1,5 @@
 import { InvoiceStatus } from "@yosemite-crew/types";
-import { StatusOption } from "../pages/Companions/types";
+import { StatusOption, status } from "../pages/Companions/types";
 
 export const InvoiceStatusOptions: InvoiceStatus[] = [
   "PENDING",
@@ -11,46 +11,11 @@ export const InvoiceStatusOptions: InvoiceStatus[] = [
 ];
 
 export const InvoiceStatusFilters: StatusOption[] = [
-  {
-    name: "All",
-    key: "all",
-    bg: "#F1D4B0",
-    text: "#000",
-  },
-  {
-    name: "Pending",
-    key: "pending",
-    bg: "#747283",
-    text: "#fff",
-  },
-  {
-    name: "Awaiting payment",
-    key: "awaiting_payment",
-    bg: "#A8A181",
-    text: "#fff",
-  },
-  {
-    name: "Paid",
-    key: "paid",
-    bg: "#D28F9A",
-    text: "#fff",
-  },
-  {
-    name: "Failed",
-    key: "failed",
-    bg: "#5C614B",
-    text: "#fff",
-  },
-  {
-    name: "Cancelled",
-    key: "cancelled",
-    bg: "#D9A488",
-    text: "#fff",
-  },
-  {
-    name: "Refunded",
-    key: "refunded",
-    bg: "#BF9FAA",
-    text: "#fff",
-  },
+  status("All", "all", "#F1D4B0", "#000"),
+  status("Pending", "pending", "#747283"),
+  status("Awaiting payment", "awaiting_payment", "#A8A181"),
+  status("Paid", "paid", "#D28F9A"),
+  status("Failed", "failed", "#5C614B"),
+  status("Cancelled", "cancelled", "#D9A488"),
+  status("Refunded", "refunded", "#BF9FAA"),
 ];
