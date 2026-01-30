@@ -1,18 +1,11 @@
 import React from "react";
 import GenericTable from "../GenericTable/GenericTable";
-import { IoEye } from "react-icons/io5";
 import { SpecialityWeb } from "@/app/types/speciality";
 import { Service } from "@yosemite-crew/types";
+import SpecialitiesCard from "../Cards/SpecialitiesCard";
+import { Column, NoDataMessage, ViewButton, ProfileTitle } from "./common";
 
 import "./DataTable.css";
-import SpecialitiesCard from "../Cards/SpecialitiesCard";
-
-type Column<T> = {
-  label: string;
-  key: keyof T | string;
-  width?: string;
-  render?: (item: T) => React.ReactNode;
-};
 
 type SpecialitiesTableProps = {
   filteredList: SpecialityWeb[];
@@ -40,7 +33,7 @@ const SpecialitiesTable = ({
       key: "Speciality",
       width: "20%",
       render: (item: SpecialityWeb) => (
-        <div className="appointment-profile-title">{item.name}</div>
+        <ProfileTitle>{item.name}</ProfileTitle>
       ),
     },
     {
@@ -48,9 +41,7 @@ const SpecialitiesTable = ({
       key: "Services",
       width: "35%",
       render: (item: SpecialityWeb) => (
-        <div className="appointment-profile-title">
-          {getServiceNames(item.services) || "-"}
-        </div>
+        <ProfileTitle>{getServiceNames(item.services) || "-"}</ProfileTitle>
       ),
     },
     {
@@ -58,9 +49,7 @@ const SpecialitiesTable = ({
       key: "Team members",
       width: "15%",
       render: (item: SpecialityWeb) => (
-        <div className="appointment-profile-title">
-          {item.teamMemberIds?.length || 0}
-        </div>
+        <ProfileTitle>{item.teamMemberIds?.length || 0}</ProfileTitle>
       ),
     },
     {
@@ -69,9 +58,7 @@ const SpecialitiesTable = ({
       width: "20%",
       render: (item: SpecialityWeb) => (
         <div className="flex items-center gap-2">
-          <div className="appointment-profile-title">
-            {item.headName || "-"}
-          </div>
+          <ProfileTitle>{item.headName || "-"}</ProfileTitle>
         </div>
       ),
     },
@@ -81,12 +68,7 @@ const SpecialitiesTable = ({
       width: "10%",
       render: (item: SpecialityWeb) => (
         <div className="action-btn-col">
-          <button
-            onClick={() => handleViewSpeciality(item)}
-            className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-          >
-            <IoEye size={18} color="#302F2E" />
-          </button>
+          <ViewButton onClick={() => handleViewSpeciality(item)} />
         </div>
       ),
     },
@@ -104,22 +86,17 @@ const SpecialitiesTable = ({
         />
       </div>
       <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
-        {(() => {
-          if (filteredList.length === 0) {
-            return (
-              <div className="w-full py-6 flex items-center justify-center text-body-4 text-text-primary">
-                No data available
-              </div>
-            );
-          }
-          return filteredList.map((item, i) => (
+        {filteredList.length === 0 ? (
+          <NoDataMessage />
+        ) : (
+          filteredList.map((item, i) => (
             <SpecialitiesCard
               key={item.name + i}
               speciality={item}
               handleViewSpeciality={handleViewSpeciality}
             />
-          ));
-        })()}
+          ))
+        )}
       </div>
     </div>
   );

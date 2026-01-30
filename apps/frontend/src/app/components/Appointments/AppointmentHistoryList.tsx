@@ -8,6 +8,7 @@ import { getSafeImageUrl, ImageType } from "@/app/utils/urls";
 import { formatDateLabel, formatTimeLabel } from "@/app/utils/forms";
 import { getStatusStyle } from "@/app/components/DataTable/Appointments";
 import { toTitle } from "@/app/utils/validators";
+import AppointmentDetailField from "./AppointmentDetailField";
 
 type AppointmentHistoryListProps = {
   companionId: string;
@@ -60,57 +61,22 @@ const AppointmentHistoryList = ({ companionId }: AppointmentHistoryListProps) =>
                     </div>
                   </div>
                 </div>
-                <div className="flex gap-1">
-                  <div className="text-caption-1 text-text-extra">
-                    Breed / Species:
-                  </div>
-                  <div className="text-caption-1 text-text-primary">
-                    {appointment.companion?.breed ||
-                      "-" + " / " + appointment.companion?.species}
-                  </div>
-                </div>
-                <div className="flex gap-1">
-                  <div className="text-caption-1 text-text-extra">
-                    Date / Time:
-                  </div>
-                  <div className="text-caption-1 text-text-primary">
-                    {formatDateLabel(appointment.appointmentDate) +
-                      " / " +
-                      formatTimeLabel(appointment.startTime)}
-                  </div>
-                </div>
-                <div className="flex gap-1">
-                  <div className="text-caption-1 text-text-extra">Reason:</div>
-                  <div className="text-caption-1 text-text-primary">
-                    {appointment.concern}
-                  </div>
-                </div>
-                <div className="flex gap-1">
-                  <div className="text-caption-1 text-text-extra">Service:</div>
-                  <div className="text-caption-1 text-text-primary">
-                    {appointment.appointmentType?.name}
-                  </div>
-                </div>
-                <div className="flex gap-1">
-                  <div className="text-caption-1 text-text-extra">Room:</div>
-                  <div className="text-caption-1 text-text-primary">
-                    {appointment.room?.name}
-                  </div>
-                </div>
-                <div className="flex gap-1">
-                  <div className="text-caption-1 text-text-extra">Lead:</div>
-                  <div className="text-caption-1 text-text-primary">
-                    {appointment.lead?.name}
-                  </div>
-                </div>
-                <div className="flex gap-1">
-                  <div className="text-caption-1 text-text-extra">Staff:</div>
-                  <div className="text-caption-1 text-text-primary">
-                    {appointment.supportStaff
-                      ?.map((sup) => sup.name)
-                      .join(", ")}
-                  </div>
-                </div>
+                <AppointmentDetailField
+                  label="Breed / Species"
+                  value={`${appointment.companion?.breed || "-"} / ${appointment.companion?.species}`}
+                />
+                <AppointmentDetailField
+                  label="Date / Time"
+                  value={`${formatDateLabel(appointment.appointmentDate)} / ${formatTimeLabel(appointment.startTime)}`}
+                />
+                <AppointmentDetailField label="Reason" value={appointment.concern} />
+                <AppointmentDetailField label="Service" value={appointment.appointmentType?.name} />
+                <AppointmentDetailField label="Room" value={appointment.room?.name} />
+                <AppointmentDetailField label="Lead" value={appointment.lead?.name} />
+                <AppointmentDetailField
+                  label="Staff"
+                  value={appointment.supportStaff?.map((sup) => sup.name).join(", ")}
+                />
                 <div
                   style={getStatusStyle(appointment.status)}
                   className="w-full rounded-2xl h-12 flex items-center justify-center text-body-4"

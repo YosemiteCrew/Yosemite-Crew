@@ -2,7 +2,6 @@
 import React from "react";
 import { motion } from "framer-motion";
 
-// Generate smooth 8-point star path with curved edges using cubic bezier
 const generateSmoothStarPath = (
   cx: number,
   cy: number,
@@ -13,7 +12,6 @@ const generateSmoothStarPath = (
   const totalPoints = points * 2;
   const angleStep = (Math.PI * 2) / totalPoints;
 
-  // Generate all points
   const starPoints: { x: number; y: number }[] = [];
   for (let i = 0; i < totalPoints; i++) {
     const radius = i % 2 === 0 ? outerRadius : innerRadius;
@@ -24,8 +22,7 @@ const generateSmoothStarPath = (
     });
   }
 
-  // Create smooth path using cubic bezier curves
-  const smoothness = 0.5; // Controls how rounded the curves are (higher = smoother)
+  const smoothness = 0.5;
 
   const getControlPoints = (p0: {x: number, y: number}, p1: {x: number, y: number}, p2: {x: number, y: number}) => {
     const d01 = Math.hypot(p1.x - p0.x, p1.y - p0.y);
@@ -42,7 +39,6 @@ const generateSmoothStarPath = (
     return { cp1: { x: cp1x, y: cp1y }, cp2: { x: cp2x, y: cp2y } };
   };
 
-  // Calculate control points for each vertex
   const controlPoints: { cp1: {x: number, y: number}, cp2: {x: number, y: number} }[] = [];
   for (let i = 0; i < totalPoints; i++) {
     const p0 = starPoints[(i - 1 + totalPoints) % totalPoints];
@@ -51,7 +47,6 @@ const generateSmoothStarPath = (
     controlPoints.push(getControlPoints(p0, p1, p2));
   }
 
-  // Build the path
   let path = `M ${starPoints[0].x} ${starPoints[0].y}`;
 
   for (let i = 0; i < totalPoints; i++) {
@@ -145,89 +140,30 @@ const Ripple: React.FC<RippleProps> = ({ delay, duration, size, color, position 
   );
 };
 
-const StarRipple: React.FC = () => {
-  // Multiple ripples for each corner with staggered delays
-  const topRightRipples: Array<RippleProps & { id: string }> = [
-    {
-      id: "tr-1",
-      delay: 0,
-      duration: 10,
-      size: 1000,
-      color: "#7AB4F5",
-      position: "top-right",
-    },
-    {
-      id: "tr-2",
-      delay: 2.5,
-      duration: 10,
-      size: 1200,
-      color: "#5299F1",
-      position: "top-right",
-    },
-    {
-      id: "tr-3",
-      delay: 5,
-      duration: 10,
-      size: 1400,
-      color: "#3687EF",
-      position: "top-right",
-    },
-    {
-      id: "tr-4",
-      delay: 7.5,
-      duration: 10,
-      size: 1600,
-      color: "#247AED",
-      position: "top-right",
-    },
-  ];
+const RIPPLE_COLORS = ["#7AB4F5", "#5299F1", "#3687EF", "#247AED"] as const;
+const RIPPLE_SIZES = [1000, 1200, 1400, 1600] as const;
+const RIPPLE_DELAYS = [0, 2.5, 5, 7.5] as const;
+const DURATION = 10;
 
-  const bottomLeftRipples: Array<RippleProps & { id: string }> = [
-    {
-      id: "bl-1",
-      delay: 0,
-      duration: 10,
-      size: 1000,
-      color: "#7AB4F5",
-      position: "bottom-left",
-    },
-    {
-      id: "bl-2",
-      delay: 2.5,
-      duration: 10,
-      size: 1200,
-      color: "#5299F1",
-      position: "bottom-left",
-    },
-    {
-      id: "bl-3",
-      delay: 5,
-      duration: 10,
-      size: 1400,
-      color: "#3687EF",
-      position: "bottom-left",
-    },
-    {
-      id: "bl-4",
-      delay: 7.5,
-      duration: 10,
-      size: 1600,
-      color: "#247AED",
-      position: "bottom-left",
-    },
-  ];
+const createRipple = (index: number, position: "top-right" | "bottom-left"): RippleProps & { id: string } => ({
+  id: `${position === "top-right" ? "tr" : "bl"}-${index + 1}`,
+  delay: RIPPLE_DELAYS[index],
+  duration: DURATION,
+  size: RIPPLE_SIZES[index],
+  color: RIPPLE_COLORS[index],
+  position,
+});
+
+const StarRipple: React.FC = () => {
+  const topRightRipples = [0, 1, 2, 3].map((i) => createRipple(i, "top-right"));
+  const bottomLeftRipples = [0, 1, 2, 3].map((i) => createRipple(i, "bottom-left"));
 
   return (
     <div className="star-ripple-container">
-      {/* Static background glow */}
       <div className="ripple-glow" />
-
-      {/* Top-right ripples */}
       {topRightRipples.map(({ id, ...ripple }) => (
         <Ripple key={id} {...ripple} />
       ))}
-
-      {/* Bottom-left ripples */}
       {bottomLeftRipples.map(({ id, ...ripple }) => (
         <Ripple key={id} {...ripple} />
       ))}

@@ -37,52 +37,26 @@ export type StatusOption = FilterOption & {
   text?: string;
 };
 
+export const filter = (name: string, key: string): FilterOption => ({ name, key });
+
+export const status = (
+  name: string,
+  key: string,
+  bg: string,
+  text: string = "#fff"
+): StatusOption => ({ name, key, bg, text });
+
 export const CompanionsSpeciesFilters: FilterOption[] = [
-  {
-    name: "All",
-    key: "all",
-  },
-  {
-    name: "Dog",
-    key: "dog",
-  },
-  {
-    name: "Horse",
-    key: "horse",
-  },
-  {
-    name: "Cat",
-    key: "cat",
-  },
-  {
-    name: "Other",
-    key: "other",
-  },
+  filter("All", "all"),
+  filter("Dog", "dog"),
+  filter("Horse", "horse"),
+  filter("Cat", "cat"),
+  filter("Other", "other"),
 ];
 
 export const CompanionsStatusFilters: StatusOption[] = [
-  {
-    name: "All",
-    key: "all",
-    bg: "#5C614B",
-    text: "#fff",
-  },
-  {
-    name: "Active",
-    key: "active",
-    bg: "#D28F9A",
-    text: "#fff",
-  },
-  {
-    name: "Inactive",
-    key: "inactive",
-    bg: "#BF9FAA",
-    text: "#fff",
-  },
-  {
-    name: "Archived",
-    key: "archived",
-    bg: "#747283",
-    text: "#fff",
-  },
+  status("All", "all", "#5C614B"),
+  status("Active", "active", "#D28F9A"),
+  status("Inactive", "inactive", "#BF9FAA"),
+  status("Archived", "archived", "#747283"),
 ];

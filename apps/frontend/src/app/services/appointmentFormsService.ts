@@ -98,11 +98,15 @@ const mapItem = (
       rawStatus.includes("pending") || rawStatus.includes("incomplete");
     const isExplicitlyCompleted =
       rawStatus.includes("complete") || rawStatus.includes("signed");
-    const status: "completed" | "pending" = isExplicitlyPending
-      ? "pending"
-      : isExplicitlyCompleted || Boolean(submission)
-        ? "completed"
-        : "pending";
+    const hasCompletedIndicator = isExplicitlyCompleted || Boolean(submission);
+    let status: "completed" | "pending";
+    if (isExplicitlyPending) {
+      status = "pending";
+    } else if (hasCompletedIndicator) {
+      status = "completed";
+    } else {
+      status = "pending";
+    }
     return { form, submission, status };
   } catch (error_) {
     if (item.questionnaireResponse) {

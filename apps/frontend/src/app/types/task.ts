@@ -1,4 +1,4 @@
-import { FilterOption, StatusOption } from "../pages/Companions/types";
+import { filter, FilterOption, status, StatusOption } from "../pages/Companions/types";
 
 export type TaskStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
 export type RecurrenceType = "ONCE" | "DAILY" | "WEEKLY" | "CUSTOM";
@@ -172,49 +172,15 @@ export const EMPTY_COMPANION_TASK: Task = {
 };
 
 export const TaskStatusFilters: StatusOption[] = [
-  {
-    name: "All",
-    key: "all",
-    bg: "#5C614B",
-    text: "#fff",
-  },
-  {
-    name: "Pending",
-    key: "pending",
-    bg: "#747283",
-    text: "#fff",
-  },
-  {
-    name: "In progress",
-    key: "in_progress",
-    bg: "#BF9FAA",
-    text: "#fff",
-  },
-  {
-    name: "Completed",
-    key: "completed",
-    bg: "#D28F9A",
-    text: "#fff",
-  },
-  {
-    name: "Cancelled",
-    key: "cancelled",
-    bg: "#D9A488",
-    text: "#fff",
-  },
+  status("All", "all", "#5C614B"),
+  status("Pending", "pending", "#747283"),
+  status("In progress", "in_progress", "#BF9FAA"),
+  status("Completed", "completed", "#D28F9A"),
+  status("Cancelled", "cancelled", "#D9A488"),
 ];
 
 export const TaskFilters: FilterOption[] = [
-  {
-    name: "All",
-    key: "all",
-  },
-  {
-    name: "Organizations",
-    key: "employee_task",
-  },
-  {
-    name: "Companions",
-    key: "parent_task",
-  },
+  filter("All", "all"),
+  filter("Organizations", "employee_task"),
+  filter("Companions", "parent_task"),
 ];

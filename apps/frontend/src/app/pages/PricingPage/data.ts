@@ -1,3 +1,13 @@
+const COMMON_FEATURES = {
+  SCHEDULER: "Yosemite Crew scheduler",
+  SECURITY: "Security & compliance integrations (SOC2, ISO 27001, GDPR)",
+};
+
+const row = (name: string, free: string, business: string) => ({ name, free, business });
+const yesYes = (name: string) => row(name, "yes", "yes");
+const noYes = (name: string) => row(name, "no", "yes");
+const comingSoon = (name: string) => row(name, "Coming soon", "Coming soon");
+
 export const PricingPlans = [
   {
     active: true,
@@ -14,8 +24,8 @@ export const PricingPlans = [
       "Free for individual usage",
       "120 appointments",
       "200 observational tools",
-      "Yosemite Crew scheduler",
-      "Security & compliance integrations (SOC2, ISO 27001, GDPR)",
+      COMMON_FEATURES.SCHEDULER,
+      COMMON_FEATURES.SECURITY,
     ],
   },
   {
@@ -32,8 +42,8 @@ export const PricingPlans = [
     includes: [
       "Unlimited appointments",
       "Unlimited observational tools",
-      "Yosemite Crew scheduler",
-      "Security & compliance integrations (SOC2, ISO 27001, GDPR)",
+      COMMON_FEATURES.SCHEDULER,
+      COMMON_FEATURES.SECURITY,
     ],
   },
   {
@@ -52,156 +62,62 @@ export const PricingPlans = [
       "Unlimited usage",
       "Unlimited appointments",
       "Unlimited observational tools",
-      "Yosemite Crew scheduler",
-      "Security & compliance integrations (SOC2, ISO 27001, GDPR)",
+      COMMON_FEATURES.SCHEDULER,
+      COMMON_FEATURES.SECURITY,
     ],
   },
 ];
+
+const COMPLIANCE_TEXT = "Fully compliant (SOC2, ISO 27001, GDPR)";
 
 export const TableData = [
   {
     head: "Operations",
     rows: [
-      {
-        name: "Appointments",
-        free: "120",
-        business: "unlimited",
-      },
-      {
-        name: "Observational tools",
-        free: "200",
-        business: "unlimited",
-      },
-      {
-        name: "Documents",
-        free: "yes",
-        business: "yes",
-      },
-      {
-        name: "Scheduler",
-        free: "yes",
-        business: "yes",
-      },
-      {
-        name: "Inventory management",
-        free: "yes",
-        business: "yes",
-      },
-      {
-        name: "Tasks management",
-        free: "yes",
-        business: "yes",
-      },
-      {
-        name: "Wellness management",
-        free: "yes",
-        business: "yes",
-      },
-      {
-        name: "Forms",
-        free: "yes",
-        business: "yes",
-      },
+      row("Appointments", "120", "unlimited"),
+      row("Observational tools", "200", "unlimited"),
+      yesYes("Documents"),
+      yesYes("Scheduler"),
+      yesYes("Inventory management"),
+      yesYes("Tasks management"),
+      yesYes("Wellness management"),
+      yesYes("Forms"),
     ],
   },
   {
     head: "Organisation",
     rows: [
-      {
-        name: "Department/Specialty",
-        free: "no",
-        business: "yes",
-      },
-      {
-        name: "Team Management",
-        free: "no",
-        business: "yes",
-      },
+      noYes("Department/Specialty"),
+      noYes("Team Management"),
     ],
   },
   {
     head: "Communication",
     rows: [
-      {
-        name: "Internal Chats",
-        free: "yes",
-        business: "yes",
-      },
-      {
-        name: "Pet parent app",
-        free: "yes",
-        business: "yes",
-      },
-      {
-        name: "2-Way Messaging",
-        free: "yes",
-        business: "yes",
-      },
-      {
-        name: "Support via Yosemite Crew",
-        free: "Community support",
-        business: "Dedicated Discord support",
-      },
+      yesYes("Internal Chats"),
+      yesYes("Pet parent app"),
+      yesYes("2-Way Messaging"),
+      row("Support via Yosemite Crew", "Community support", "Dedicated Discord support"),
     ],
   },
   {
     head: "Finance",
     rows: [
-      {
-        name: "Financial Reporting & Analytics",
-        free: "yes",
-        business: "yes",
-      },
-      {
-        name: "Billing & Invoices",
-        free: "yes",
-        business: "yes",
-      },
-      {
-        name: "Payment Processing via stripe",
-        free: "yes",
-        business: "yes",
-      },
+      yesYes("Financial Reporting & Analytics"),
+      yesYes("Billing & Invoices"),
+      yesYes("Payment Processing via stripe"),
     ],
   },
   {
     head: "Infrastructure",
     rows: [
-      {
-        name: "Security and compliance",
-        free: "Fully compliant (SOC2, ISO 27001, GDPR)",
-        business: "Fully compliant (SOC2, ISO 27001, GDPR)",
-      },
-      {
-        name: "Automatic updates",
-        free: "yes",
-        business: "yes",
-      },
-      {
-        name: "Multiple Availability Zones",
-        free: "no",
-        business: "Coming soon",
-      },
-      {
-        name: "Audit log",
-        free: "Coming soon",
-        business: "Coming soon",
-      },
-      {
-        name: "Setup and maintenance",
-        free: "Coming soon",
-        business: "Coming soon",
-      },
-      {
-        name: "Backup and recovery",
-        free: "Coming soon",
-        business: "Coming soon",
-      },
-      {
-        name: "Uptime guarantee",
-        free: "Coming soon",
-        business: "Coming soon",
-      },
+      row("Security and compliance", COMPLIANCE_TEXT, COMPLIANCE_TEXT),
+      yesYes("Automatic updates"),
+      row("Multiple Availability Zones", "no", "Coming soon"),
+      comingSoon("Audit log"),
+      comingSoon("Setup and maintenance"),
+      comingSoon("Backup and recovery"),
+      comingSoon("Uptime guarantee"),
     ],
   },
 ];

@@ -121,6 +121,46 @@ const yesNoRadio = (id: string, label: string): FormField => ({
   options: yesNoOptions(),
 });
 
+const frequencyRadio = (id: string, label: string): FormField => ({
+  id,
+  type: "radio",
+  label,
+  options: frequencyOptions(),
+});
+
+const appetiteStatusOptions = (): FieldOption[] => [
+  makeOption("Strong appetite", "strong_appetite"),
+  makeOption("Picky appetite", "picky_appetite"),
+  makeOption("Increased appetite", "increased_appetite"),
+  makeOption("Normal appetite", "normal_appetite"),
+  makeOption("Poor appetite", "poor_appetite"),
+  makeOption("Not eating", "not_eating"),
+];
+
+const behaviorStatusOptions = (): FieldOption[] => [
+  makeOption("Friendly", "friendly"),
+  makeOption("Nervous", "nervous"),
+  makeOption("Aggressive", "aggressive"),
+  makeOption("Alert", "alert"),
+  makeOption("Defensive", "defensive"),
+  makeOption("Highly anxious", "highly_anxious"),
+];
+
+const appetiteStatusRadio = (id: string, label: string): FormField => ({
+  id,
+  type: "radio",
+  label,
+  options: appetiteStatusOptions(),
+});
+
+const behaviorStatusCheckbox = (id: string, label: string): FormField => ({
+  id,
+  type: "checkbox",
+  label,
+  multiple: true,
+  options: behaviorStatusOptions(),
+});
+
 export const medicationRouteOptions = [
   "Oral",
   "Topical",
@@ -555,17 +595,7 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
       ],
     },
     { id: "diet_special_notes", type: "textarea", label: "Special notes" },
-    {
-      id: "feeding_frequency",
-      type: "radio",
-      label: "Feeding frequency and timing",
-      options: [
-        makeOption("1x daily", "1x_daily"),
-        makeOption("2x daily", "2x_daily"),
-        makeOption("3x daily", "3x_daily"),
-        makeOption("On-demand", "on_demand"),
-      ],
-    },
+    frequencyRadio("feeding_frequency", "Feeding frequency and timing"),
     { id: "specific_feeding_times", type: "textarea", label: "Specific feeding times" },
     {
       id: "portion_preferences",
@@ -653,17 +683,7 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
       ],
     },
     { id: "dosage", type: "input", label: "Dosage" },
-    {
-      id: "frequency",
-      type: "radio",
-      label: "Frequency",
-      options: [
-        makeOption("1x daily", "1x_daily"),
-        makeOption("2x daily", "2x_daily"),
-        makeOption("3x daily", "3x_daily"),
-        makeOption("On-demand", "on_demand"),
-      ],
-    },
+    frequencyRadio("frequency", "Frequency"),
     { id: "timing_specific_hours", type: "input", label: "Timing (specific hours)" },
     {
       id: "given_with",
@@ -738,42 +758,12 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
     { id: "additional_expense", type: "textarea", label: "Additional expense" },
   ],
   "Boarder - Schedule": [
-    {
-      id: "poop_frequency",
-      type: "radio",
-      label: "Poop frequency and timing",
-      options: [
-        makeOption("1x daily", "1x_daily"),
-        makeOption("2x daily", "2x_daily"),
-        makeOption("3x daily", "3x_daily"),
-        makeOption("On-demand", "on_demand"),
-      ],
-    },
+    frequencyRadio("poop_frequency", "Poop frequency and timing"),
     { id: "poop_time_slot", type: "input", label: "Specific time slot" },
-    {
-      id: "walking_time",
-      type: "radio",
-      label: "Walking time",
-      options: [
-        makeOption("1x daily", "1x_daily"),
-        makeOption("2x daily", "2x_daily"),
-        makeOption("3x daily", "3x_daily"),
-        makeOption("On-demand", "on_demand"),
-      ],
-    },
+    frequencyRadio("walking_time", "Walking time"),
     { id: "walking_time_slot", type: "input", label: "Time slot" },
     { id: "exercise_time", type: "input", label: "Exercise time", placeholder: "Describe exercise / Add link" },
-    {
-      id: "exercise_frequency",
-      type: "radio",
-      label: "Exercise frequency",
-      options: [
-        makeOption("1x daily", "1x_daily"),
-        makeOption("2x daily", "2x_daily"),
-        makeOption("3x daily", "3x_daily"),
-        makeOption("On-demand", "on_demand"),
-      ],
-    },
+    frequencyRadio("exercise_frequency", "Exercise frequency"),
     { id: "exercise_time_slot", type: "input", label: "Time slot" },
   ],
   "Boarder - Belongings": [
@@ -787,33 +777,8 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
     yesNoRadio("signs_of_stress", "Signs of stress"),
     yesNoRadio("signs_of_discharge", "Signs of discharge"),
     yesNoRadio("signs_of_injury", "Signs of injury"),
-    {
-      id: "appetite_status",
-      type: "radio",
-      label: "Companion appetite status",
-      options: [
-        makeOption("Strong appetite", "strong_appetite"),
-        makeOption("Picky appetite", "picky_appetite"),
-        makeOption("Increased appetite", "increased_appetite"),
-        makeOption("Normal appetite", "normal_appetite"),
-        makeOption("Poor appetite", "poor_appetite"),
-        makeOption("Not eating", "not_eating"),
-      ],
-    },
-    {
-      id: "behavior_status",
-      type: "checkbox",
-      label: "Companion behavior status",
-      multiple: true,
-      options: [
-        makeOption("Friendly", "friendly"),
-        makeOption("Nervous", "nervous"),
-        makeOption("Aggressive", "aggressive"),
-        makeOption("Alert", "alert"),
-        makeOption("Defensive", "defensive"),
-        makeOption("Highly anxious", "highly_anxious"),
-      ],
-    },
+    appetiteStatusRadio("appetite_status", "Companion appetite status"),
+    behaviorStatusCheckbox("behavior_status", "Companion behavior status"),
     {
       id: "energy_level",
       type: "radio",
@@ -845,33 +810,8 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
     yesNoRadio("natural_mating_process", "Utilised natural mating process"),
     yesNoRadio("genetic_screening_completed", "Completed genetic screening"),
     yesNoRadio("fertility_assessment_completed", "Completed fertility assessment"),
-    {
-      id: "appetite_status",
-      type: "radio",
-      label: "Companion appetite status",
-      options: [
-        makeOption("Strong appetite", "strong_appetite"),
-        makeOption("Picky appetite", "picky_appetite"),
-        makeOption("Increased appetite", "increased_appetite"),
-        makeOption("Normal appetite", "normal_appetite"),
-        makeOption("Poor appetite", "poor_appetite"),
-        makeOption("Not eating", "not_eating"),
-      ],
-    },
-    {
-      id: "behavior_status",
-      type: "checkbox",
-      label: "Companion behaviour status",
-      multiple: true,
-      options: [
-        makeOption("Friendly", "friendly"),
-        makeOption("Nervous", "nervous"),
-        makeOption("Aggressive", "aggressive"),
-        makeOption("Alert", "alert"),
-        makeOption("Defensive", "defensive"),
-        makeOption("Highly anxious", "highly_anxious"),
-      ],
-    },
+    appetiteStatusRadio("appetite_status", "Companion appetite status"),
+    behaviorStatusCheckbox("behavior_status", "Companion behaviour status"),
     yesNoRadio("ultrasound_pregnancy_check", "Complete ultrasound / pregnancy check"),
     yesNoRadio("birthing_assistance_provided", "Provided birthing assistance"),
     yesNoRadio("neonatal_care_provided", "Provided neonatal / newborn care"),
