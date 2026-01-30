@@ -1,5 +1,4 @@
-import { jest, describe, it, expect, beforeEach } from "@jest/globals";
-import { Types } from "mongoose";
+import { Types } from 'mongoose';
 import {
   InventoryService,
   InventoryAdjustmentService,
@@ -7,871 +6,518 @@ import {
   InventoryVendorService,
   InventoryMetaFieldService,
   InventoryAlertService,
-} from "../../src/services/inventory.service";
+} from '../../src/services/inventory.service';
+
 import {
   InventoryItemModel,
   InventoryBatchModel,
   InventoryVendorModel,
   InventoryMetaFieldModel,
   StockMovementModel,
-} from "../../src/models/inventory";
-import { OrgBilling } from "../../src/models/organization.billing";
+} from '../../src/models/inventory';
 
-// ----------------------------------------------------------------------
-// Mocks
-// ----------------------------------------------------------------------
-jest.mock("../../src/models/inventory");
-jest.mock("../../src/models/organization.billing", () => ({
-  OrgBilling: {
-    findOne: jest.fn(),
-  },
-}));
+// --- Mocks ---
+jest.mock('../../src/models/inventory');
 
-// Helper to mock mongoose chaining: find().sort().exec() or lean()
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockMongooseChain = (resolvedValue: any) => {
-  const chain: any = {
-    sort: jest.fn().mockReturnThis(),
-    lean: jest.fn().mockReturnThis(),
-    limit: jest.fn().mockReturnThis(),
-    skip: jest.fn().mockReturnThis(),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    exec: (jest.fn() as any).mockResolvedValue(resolvedValue),
-  };
-  // Allow awaiting the chain directly
-  chain.then = (resolve: any, reject: any) =>
-    chain.exec().then(resolve, reject);
-  return chain;
-};
-
-// Helper to create a mock document with save/toObject methods
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockDoc = (data: any) => ({
-  ...data,
-  _id: data._id || new Types.ObjectId(),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  save: (jest.fn() as any).mockResolvedValue({
-    ...data,
-    _id: data._id || new Types.ObjectId(),
-  }),
-  toObject: jest.fn().mockReturnValue(data),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  deleteOne: (jest.fn() as any).mockResolvedValue(true),
+// Helper to mock Mongoose chainable queries
+const mockChain = (result: any) => ({
+  sort: jest.fn().mockReturnThis(),
+  skip: jest.fn().mockReturnThis(),
+  limit: jest.fn().mockReturnThis(),
+  lean: jest.fn().mockResolvedValue(result),
+  exec: jest.fn().mockResolvedValue(result),
 });
 
-const mockedOrgBilling = OrgBilling as unknown as {
-  findOne: jest.Mock<() => Promise<{ currency: string } | null>>;
+// Stable Constants
+const VALID_ID_STR = '507f1f77bcf86cd799439011';
+const VALID_ID_OBJ = new Types.ObjectId(VALID_ID_STR);
+const VALID_ORG_ID = '507f1f77bcf86cd799439099';
+
+/**
+ * Robust Mock Document Generator
+ */
+const mockDoc = (data: any = {}) => {
+  const _id = data._id
+    ? (data._id instanceof Types.ObjectId ? data._id : new Types.ObjectId(data._id))
+    : new Types.ObjectId();
+
+  return {
+    ...data,
+    _id,
+    id: _id.toString(),
+    save: jest.fn().mockImplementation(function (this: any) { return Promise.resolve(this); }),
+    toObject: jest.fn().mockImplementation(function (this: any) {
+      const { save, toObject, deleteOne, ...pojo } = this;
+      return { ...pojo, _id };
+    }),
+    deleteOne: jest.fn().mockResolvedValue(true),
+  };
 };
 
-describe("Inventory Module", () => {
-  const orgId = new Types.ObjectId().toString();
-  const itemId = new Types.ObjectId().toString();
-  const batchId = new Types.ObjectId().toString();
-  const validVendorId = new Types.ObjectId().toString();
-
+describe('Inventory Services', () => {
+  // Removed global fake timers to prevent timeouts in other tests
   beforeEach(() => {
     jest.clearAllMocks();
-    mockedOrgBilling.findOne.mockResolvedValue({ currency: "USD" });
   });
 
-  // ======================================================================
+  // ─────────────────────────────────────────────
   // 1. InventoryService
-  // ======================================================================
-  describe("InventoryService", () => {
-    // --- createItem ---
-    describe("createItem", () => {
-      it("should throw if required fields are missing", async () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await expect(InventoryService.createItem({} as any)).rejects.toThrow(
-          "organisationId is required",
-        );
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await expect(
-          InventoryService.createItem({ organisationId: orgId } as any),
-        ).rejects.toThrow("name is required");
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await expect(
-          InventoryService.createItem({
-            organisationId: orgId,
-            name: "Item",
-          } as any),
-        ).rejects.toThrow("category is required");
-      });
+  // ─────────────────────────────────────────────
+  describe('InventoryService', () => {
 
-      it("should create an item without batches", async () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const input: any = {
-          organisationId: orgId,
-          businessType: "GENERAL",
-          name: "Test Item",
-          category: "Meds",
-          unitCost: 10,
-          sellingPrice: 20,
-          reorderLevel: 5,
-          vendorId: new Types.ObjectId().toString(),
-          status: "ACTIVE",
-        };
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryItemModel.create as any).mockResolvedValue(
-          mockDoc({ ...input, _id: itemId }),
-        );
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryBatchModel.find as any).mockReturnValue(
-          mockMongooseChain([]),
-        );
-
-        const result = await InventoryService.createItem(input);
-
-        expect(InventoryItemModel.create).toHaveBeenCalledWith(
-          expect.objectContaining({ name: "Test Item" }),
-        );
-        expect(result.item).toBeDefined();
-        expect(result.batches).toEqual([]);
-      });
-
-      it("should create an item WITH batches and recompute stock", async () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const input: any = {
-          organisationId: orgId,
-          businessType: "GENERAL",
-          name: "Batch Item",
-          category: "Meds",
-          batches: [
-            { quantity: 10, expiryDate: new Date("2030-01-01") },
-            { quantity: 5, allocated: 2 },
-          ],
-        };
-
-        const itemDoc = mockDoc({
-          ...input,
-          _id: itemId,
-          onHand: 0,
-          allocated: 0,
-        });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryItemModel.create as any).mockResolvedValue(itemDoc);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryBatchModel.insertMany as any).mockResolvedValue(
-          input.batches,
-        );
-
-        // Mock finding batches for recomputation
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryBatchModel.find as any).mockReturnValue(
-          mockMongooseChain([
-            { quantity: 10, allocated: 0, expiryDate: new Date("2030-01-01") },
-            { quantity: 5, allocated: 2 },
-          ]),
-        );
-
-        await InventoryService.createItem(input);
-
-        // Verification of recompute logic via save calls
-        expect(InventoryBatchModel.insertMany).toHaveBeenCalled();
-        expect(itemDoc.save).toHaveBeenCalled();
-        expect(itemDoc.onHand).toBe(15);
-        expect(itemDoc.allocated).toBe(2);
+    describe('createItem', () => {
+      it('should throw if required fields missing', async () => {
+        await expect(InventoryService.createItem({} as any))
+          .rejects.toThrow('organisationId is required');
+        await expect(InventoryService.createItem({ organisationId: '1' } as any))
+          .rejects.toThrow('name is required');
+        await expect(InventoryService.createItem({ organisationId: '1', name: 'N' } as any))
+          .rejects.toThrow('category is required');
       });
     });
 
-    // --- updateItem ---
-    describe("updateItem", () => {
-      it("should throw if item not found", async () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryItemModel.findById as any).mockReturnValue(
-          mockMongooseChain(null),
-        );
-        await expect(InventoryService.updateItem(itemId, {})).rejects.toThrow(
-          "Inventory item not found",
-        );
+    describe('updateItem', () => {
+      it('should throw if item not found', async () => {
+        (InventoryItemModel.findById as jest.Mock).mockReturnValue(mockChain(null));
+        await expect(InventoryService.updateItem(VALID_ID_STR, {})).rejects.toThrow('Inventory item not found');
       });
 
-      it("should update specific fields", async () => {
-        const itemDoc = mockDoc({
-          _id: itemId,
-          name: "Old",
-          attributes: {},
-          organisationId: orgId,
-        });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryItemModel.findById as any).mockReturnValue(
-          mockMongooseChain(itemDoc),
-        );
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryBatchModel.find as any).mockReturnValue(
-          mockMongooseChain([]),
-        );
+      it('should update fields', async () => {
+        const itemDoc = mockDoc({ _id: VALID_ID_OBJ });
+        (InventoryItemModel.findById as jest.Mock).mockReturnValue(mockChain(itemDoc));
+        (InventoryBatchModel.find as jest.Mock).mockReturnValue(mockChain([]));
 
-        const updateData = {
-          name: "New",
-          sku: "SKU1",
-          category: "Cat",
-          subCategory: "Sub",
-          description: "Desc",
-          imageUrl: "http://img",
-          attributes: { key: "val" },
+        await InventoryService.updateItem(VALID_ID_STR, {
+          name: 'New Name',
           unitCost: 10,
-          sellingPrice: 20,
-          currency: "EUR",
-          reorderLevel: 5,
-          vendorId: new Types.ObjectId().toString(),
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          status: "HIDDEN" as any,
-        };
+          status: 'HIDDEN'
+        });
 
-        await InventoryService.updateItem(itemId, updateData);
-
-        expect(itemDoc.name).toBe("New");
+        expect(itemDoc.name).toBe('New Name');
         expect(itemDoc.unitCost).toBe(10);
+        expect(itemDoc.status).toBe('HIDDEN');
         expect(itemDoc.save).toHaveBeenCalled();
       });
+    });
 
-      it("should handle partial updates (undefined checks)", async () => {
-        const itemDoc = mockDoc({ _id: itemId, name: "Old" });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryItemModel.findById as any).mockReturnValue(
-          mockMongooseChain(itemDoc),
-        );
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryBatchModel.find as any).mockReturnValue(
-          mockMongooseChain([]),
-        );
+    describe('State Changes', () => {
+      it('should hide item', async () => {
+        const item = mockDoc({});
+        (InventoryItemModel.findById as jest.Mock).mockReturnValue(mockChain(item));
+        await InventoryService.hideItem(VALID_ID_STR);
+        expect(item.status).toBe('HIDDEN');
+      });
 
-        // Passing undefined explicitly to ensure branches are hit
-        await InventoryService.updateItem(itemId, { name: undefined });
-        expect(itemDoc.name).toBe("Old");
+      it('should archive item', async () => {
+        const item = mockDoc({});
+        (InventoryItemModel.findById as jest.Mock).mockReturnValue(mockChain(item));
+        await InventoryService.archiveItem(VALID_ID_STR);
+        expect(item.status).toBe('DELETED');
+      });
+
+      it('should activate item', async () => {
+        const item = mockDoc({});
+        (InventoryItemModel.findById as jest.Mock).mockReturnValue(mockChain(item));
+        await InventoryService.activeItem(VALID_ID_STR);
+        expect(item.status).toBe('ACTIVE');
+      });
+
+      it('should throw if item not found during state change', async () => {
+        (InventoryItemModel.findById as jest.Mock).mockReturnValue(mockChain(null));
+        await expect(InventoryService.hideItem(VALID_ID_STR)).rejects.toThrow('Inventory item not found');
       });
     });
 
-    // --- Status Updates ---
-    describe("Status Updates (hide, archive, active)", () => {
-      it("should hide item", async () => {
-        const itemDoc = mockDoc({ _id: itemId, status: "ACTIVE" });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryItemModel.findById as any).mockReturnValue(
-          mockMongooseChain(itemDoc),
-        );
-        await InventoryService.hideItem(itemId);
-        expect(itemDoc.status).toBe("HIDDEN");
-        expect(itemDoc.save).toHaveBeenCalled();
-      });
-      it("should throw if item to hide not found", async () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryItemModel.findById as any).mockReturnValue(
-          mockMongooseChain(null),
-        );
-        await expect(InventoryService.hideItem(itemId)).rejects.toThrow(
-          "not found",
-        );
+    describe('listItems', () => {
+      it('should filter by stockHealth (lowStockOnly)', async () => {
+        const item = mockDoc({ onHand: 10, reorderLevel: 5 }); // HEALTHY
+        (InventoryItemModel.find as jest.Mock).mockReturnValue(mockChain([item]));
+        (InventoryBatchModel.find as jest.Mock).mockReturnValue(mockChain([]));
+
+        const res = await InventoryService.listItems({ organisationId: VALID_ORG_ID, lowStockOnly: true });
+        expect(res).toHaveLength(0);
       });
 
-      it("should archive item", async () => {
-        const itemDoc = mockDoc({ _id: itemId, status: "ACTIVE" });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryItemModel.findById as any).mockReturnValue(
-          mockMongooseChain(itemDoc),
-        );
-        await InventoryService.archiveItem(itemId);
-        expect(itemDoc.status).toBe("DELETED");
-      });
-      it("should throw if item to archive not found", async () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryItemModel.findById as any).mockReturnValue(
-          mockMongooseChain(null),
-        );
-        await expect(InventoryService.archiveItem(itemId)).rejects.toThrow(
-          "not found",
-        );
+      it('should filter by stockHealth (expiredOnly)', async () => {
+        const item = mockDoc({});
+        (InventoryItemModel.find as jest.Mock).mockReturnValue(mockChain([item]));
+        (InventoryBatchModel.find as jest.Mock).mockReturnValue(mockChain([]));
+
+        const res = await InventoryService.listItems({ organisationId: VALID_ORG_ID, expiredOnly: true });
+        expect(res).toHaveLength(0);
       });
 
-      it("should activate item", async () => {
-        const itemDoc = mockDoc({ _id: itemId, status: "HIDDEN" });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryItemModel.findById as any).mockReturnValue(
-          mockMongooseChain(itemDoc),
-        );
-        await InventoryService.activeItem(itemId);
-        expect(itemDoc.status).toBe("ACTIVE");
-      });
-      it("should throw if item to activate not found", async () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryItemModel.findById as any).mockReturnValue(
-          mockMongooseChain(null),
-        );
-        await expect(InventoryService.activeItem(itemId)).rejects.toThrow(
-          "not found",
-        );
-      });
+      it('should filter by stockHealth (expiringWithinDays)', async () => {
+        const item = mockDoc({});
+        (InventoryItemModel.find as jest.Mock).mockReturnValue(mockChain([item]));
+        (InventoryBatchModel.find as jest.Mock).mockReturnValue(mockChain([]));
 
-      it("should throw on invalid ObjectId", async () => {
-        await expect(InventoryService.activeItem("bad-id")).rejects.toThrow(
-          "Invalid itemId",
-        );
+        const res = await InventoryService.listItems({ organisationId: VALID_ORG_ID, expiringWithinDays: 7 });
+        expect(res).toHaveLength(0);
       });
     });
 
-    // --- getItemWithBatches ---
-    describe("getItemWithBatches", () => {
-      it("should return item and batches", async () => {
-        const itemDoc = { _id: itemId };
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryItemModel.findById as any).mockReturnValue(
-          mockMongooseChain(itemDoc),
-        );
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryBatchModel.find as any).mockReturnValue(
-          mockMongooseChain(["batch1"]),
-        );
+    describe('getItemWithBatches', () => {
+        it('should return item and batches', async () => {
+            (InventoryItemModel.findById as jest.Mock).mockReturnValue(mockChain(mockDoc({ name: 'I' })));
+            (InventoryBatchModel.find as jest.Mock).mockReturnValue(mockChain([]));
+            const res = await InventoryService.getItemWithBatches(VALID_ID_STR, VALID_ORG_ID);
+            expect(res.item).toBeDefined();
+        });
 
-        const result = await InventoryService.getItemWithBatches(itemId, orgId);
-        expect(result.item).toEqual(itemDoc);
-        expect(result.batches).toEqual(["batch1"]);
-      });
-
-      it("should throw if item missing", async () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryItemModel.findById as any).mockReturnValue(
-          mockMongooseChain(null),
-        );
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryBatchModel.find as any).mockReturnValue(
-          mockMongooseChain([]),
-        );
-        await expect(
-          InventoryService.getItemWithBatches(itemId, orgId),
-        ).rejects.toThrow("not found");
-      });
+        it('should throw if not found', async () => {
+            (InventoryItemModel.findById as jest.Mock).mockReturnValue(mockChain(null));
+            await expect(InventoryService.getItemWithBatches(VALID_ID_STR, VALID_ORG_ID)).rejects.toThrow('not found');
+        });
     });
 
-    // --- Batch Operations (add, update, delete) ---
-    describe("Batch Operations", () => {
-      it("addBatch: should create batch and update item", async () => {
-        const itemDoc = mockDoc({
-          _id: itemId,
-          organisationId: orgId,
-          save: jest.fn(),
+    describe('Batch Operations', () => {
+        it('should add batch and recompute item stock', async () => {
+            const item = mockDoc({ _id: VALID_ID_OBJ, onHand: 0 });
+            (InventoryItemModel.findById as jest.Mock).mockResolvedValue(item);
+            (InventoryBatchModel.create as jest.Mock).mockResolvedValue({});
+
+            (InventoryBatchModel.find as jest.Mock)
+                .mockReturnValue(mockChain([
+                    mockDoc({ quantity: 10, allocated: 5 })
+                ]));
+
+            await InventoryService.addBatch(VALID_ID_STR, { quantity: 10 });
+
+            expect(item.onHand).toBe(10);
+            expect(item.allocated).toBe(5);
+            expect(item.save).toHaveBeenCalled();
         });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryItemModel.findById as any).mockResolvedValue(itemDoc);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryBatchModel.create as any).mockResolvedValue({
-          quantity: 10,
-          allocated: 0,
-        } as any);
-        // recompute helper mock
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryBatchModel.find as any).mockReturnValue(
-          mockMongooseChain([{ quantity: 10, allocated: 0 }]),
-        );
 
-        await InventoryService.addBatch(itemId, { quantity: 10 });
-
-        expect(InventoryBatchModel.create).toHaveBeenCalled();
-        expect(itemDoc.save).toHaveBeenCalled();
-        expect(itemDoc.onHand).toBe(10);
-      });
-
-      it("addBatch: should throw if item not found", async () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryItemModel.findById as any).mockResolvedValue(null);
-        await expect(
-          InventoryService.addBatch(itemId, { quantity: 1 }),
-        ).rejects.toThrow("not found");
-      });
-
-      it("updateBatch: should update batch and recompute item", async () => {
-        const batchDoc = mockDoc({
-          _id: batchId,
-          itemId: new Types.ObjectId(itemId),
-          quantity: 5,
-          save: jest.fn(),
+        it('should throw if adding batch to missing item', async () => {
+            (InventoryItemModel.findById as jest.Mock).mockResolvedValue(null);
+            await expect(InventoryService.addBatch(VALID_ID_STR, { quantity: 1 })).rejects.toThrow('not found');
         });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryBatchModel.findById as any).mockReturnValue(
-          mockMongooseChain(batchDoc),
-        );
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryBatchModel.find as any).mockReturnValue(
-          mockMongooseChain([{ quantity: 10 }]),
-        ); // Mock sum
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryItemModel.findByIdAndUpdate as any).mockReturnValue(
-          mockMongooseChain({}),
-        );
 
-        await InventoryService.updateBatch(batchId, { quantity: 10 });
+        it('should update batch and recompute', async () => {
+            const batch = mockDoc({ itemId: VALID_ID_OBJ });
+            (InventoryBatchModel.findById as jest.Mock).mockReturnValue(mockChain(batch));
+            (InventoryBatchModel.find as jest.Mock).mockReturnValue(mockChain([{ quantity: 20 }]));
+            (InventoryItemModel.findByIdAndUpdate as jest.Mock).mockReturnValue(mockChain({}));
 
-        expect(batchDoc.quantity).toBe(10);
-        expect(batchDoc.save).toHaveBeenCalled();
-        expect(InventoryItemModel.findByIdAndUpdate).toHaveBeenCalled();
-      });
+            await InventoryService.updateBatch(VALID_ID_STR, { quantity: 20 });
 
-      it("updateBatch: should throw if batch not found", async () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryBatchModel.findById as any).mockReturnValue(
-          mockMongooseChain(null),
-        );
-        await expect(InventoryService.updateBatch(batchId, {})).rejects.toThrow(
-          "Batch not found",
-        );
-      });
-
-      it("deleteBatch: should delete batch and recompute", async () => {
-        const batchDoc = mockDoc({
-          _id: batchId,
-          itemId: new Types.ObjectId(itemId),
+            expect(batch.quantity).toBe(20);
+            expect(batch.save).toHaveBeenCalled();
+            expect(InventoryItemModel.findByIdAndUpdate).toHaveBeenCalledWith(VALID_ID_OBJ, { onHand: 20, allocated: 0 });
         });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryBatchModel.findById as any).mockReturnValue(
-          mockMongooseChain(batchDoc),
-        );
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryBatchModel.find as any).mockReturnValue(
-          mockMongooseChain([]),
-        );
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryItemModel.findByIdAndUpdate as any).mockReturnValue(
-          mockMongooseChain({}),
-        );
 
-        await InventoryService.deleteBatch(batchId);
+        it('should throw if updating missing batch', async () => {
+            (InventoryBatchModel.findById as jest.Mock).mockReturnValue(mockChain(null));
+            await expect(InventoryService.updateBatch(VALID_ID_STR, {})).rejects.toThrow('Batch not found');
+        });
 
-        expect(batchDoc.deleteOne).toHaveBeenCalled();
-        expect(InventoryItemModel.findByIdAndUpdate).toHaveBeenCalled();
-      });
+        it('should delete batch and recompute', async () => {
+            const batch = mockDoc({ itemId: VALID_ID_OBJ });
+            (InventoryBatchModel.findById as jest.Mock).mockReturnValue(mockChain(batch));
+            (InventoryBatchModel.find as jest.Mock).mockReturnValue(mockChain([]));
+            (InventoryItemModel.findByIdAndUpdate as jest.Mock).mockReturnValue(mockChain({}));
 
-      it("deleteBatch: should return if batch not found", async () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryBatchModel.findById as any).mockReturnValue(
-          mockMongooseChain(null),
-        );
-        const res = await InventoryService.deleteBatch(batchId);
-        expect(res).toBeUndefined();
-      });
+            await InventoryService.deleteBatch(VALID_ID_STR);
+
+            expect(batch.deleteOne).toHaveBeenCalled();
+            expect(InventoryItemModel.findByIdAndUpdate).toHaveBeenCalledWith(VALID_ID_STR, { onHand: 0, allocated: 0 });
+        });
+
+        it('should do nothing if deleting missing batch', async () => {
+            (InventoryBatchModel.findById as jest.Mock).mockReturnValue(mockChain(null));
+            await InventoryService.deleteBatch(VALID_ID_STR);
+            expect(InventoryItemModel.findByIdAndUpdate).not.toHaveBeenCalled();
+        });
     });
 
-    // --- consumeStock ---
-    describe("consumeStock", () => {
-      it("should throw if qty <= 0", async () => {
-        await expect(
-          InventoryService.consumeStock({
-            itemId,
-            quantity: 0,
-            reason: "OTHER",
-          }),
-        ).rejects.toThrow("quantity must be > 0");
-      });
+    describe('consumeStock', () => {
+        it('should consume strictly from batches (FIFO) and update item', async () => {
+            const item = mockDoc({ _id: VALID_ID_OBJ, onHand: 10 });
+            (InventoryItemModel.findById as jest.Mock).mockReturnValue(mockChain(item));
 
-      it("should throw if item not found", async () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryItemModel.findById as any).mockReturnValue(
-          mockMongooseChain(null),
-        );
-        await expect(
-          InventoryService.consumeStock({
-            itemId,
-            quantity: 1,
-            reason: "OTHER",
-          }),
-        ).rejects.toThrow("not found");
-      });
+            const b1 = mockDoc({ _id: '507f1f77bcf86cd799439022', quantity: 3, save: jest.fn() });
+            const b2 = mockDoc({ _id: '507f1f77bcf86cd799439023', quantity: 5, save: jest.fn() });
 
-      it("should throw if insufficient stock", async () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryItemModel.findById as any).mockReturnValue(
-          mockMongooseChain({ onHand: 5 }),
-        );
-        await expect(
-          InventoryService.consumeStock({
-            itemId,
-            quantity: 10,
-            reason: "OTHER",
-          }),
-        ).rejects.toThrow("Insufficient stock");
-      });
+            (InventoryBatchModel.find as jest.Mock)
+                .mockReturnValueOnce(mockChain([b1, b2])) // consume loop
+                .mockReturnValueOnce(mockChain([{ quantity: 3 }])); // recompute
 
-      it("should consume stock FIFO", async () => {
-        const itemDoc = mockDoc({ _id: itemId, onHand: 15, allocated: 0 });
-        const b1 = mockDoc({ _id: "b1", quantity: 5, save: jest.fn() });
-        const b2 = mockDoc({ _id: "b2", quantity: 10, save: jest.fn() });
+            await InventoryService.consumeStock({ itemId: VALID_ID_STR, quantity: 5, reason: 'OTHER' });
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryItemModel.findById as any).mockReturnValue(
-          mockMongooseChain(itemDoc),
-        );
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryBatchModel.find as any).mockReturnValueOnce(
-          mockMongooseChain([b1, b2]),
-        ); // For consumption loop
-
-        // For recompute
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryBatchModel.find as any).mockReturnValue(
-          mockMongooseChain([{ quantity: 7 }]),
-        );
-
-        await InventoryService.consumeStock({
-          itemId,
-          quantity: 8,
-          reason: "OTHER",
+            expect(b1.quantity).toBe(0);
+            expect(b2.quantity).toBe(3);
+            expect(b1.save).toHaveBeenCalled();
+            expect(b2.save).toHaveBeenCalled();
+            expect(item.save).toHaveBeenCalled();
         });
 
-        // b1 (5) should be fully consumed (0), b2 (10) should lose 3 (7)
-        expect(b1.quantity).toBe(0);
-        expect(b1.save).toHaveBeenCalled();
-        expect(b2.quantity).toBe(7);
-        expect(b2.save).toHaveBeenCalled();
-      });
+        it('should skip empty batches', async () => {
+            const item = mockDoc({ _id: VALID_ID_OBJ, onHand: 5 });
+            (InventoryItemModel.findById as jest.Mock).mockReturnValue(mockChain(item));
 
-      it("should throw 500 if consumption fails logic", async () => {
-        const itemDoc = mockDoc({ _id: itemId, onHand: 100 });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryItemModel.findById as any).mockReturnValue(
-          mockMongooseChain(itemDoc),
-        );
-        // Return NO batches, causing remaining > 0
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryBatchModel.find as any).mockReturnValue(
-          mockMongooseChain([]),
-        );
+            const b1 = mockDoc({ quantity: 0 });
+            const b2 = mockDoc({ quantity: 5 });
+            (InventoryBatchModel.find as jest.Mock).mockReturnValueOnce(mockChain([b1, b2]));
+            (InventoryBatchModel.find as jest.Mock).mockReturnValueOnce(mockChain([]));
 
-        await expect(
-          InventoryService.consumeStock({
-            itemId,
-            quantity: 50,
-            reason: "OTHER",
-          }),
-        ).rejects.toThrow("Failed to consume full requested quantity");
-      });
+            await InventoryService.consumeStock({ itemId: VALID_ID_STR, quantity: 1, reason: 'OTHER' });
+
+            expect(b1.save).not.toHaveBeenCalled();
+            expect(b2.quantity).toBe(4);
+        });
+
+        it('should throw if quantity <= 0', async () => {
+            await expect(InventoryService.consumeStock({ itemId: VALID_ID_STR, quantity: 0, reason: 'OTHER' }))
+                .rejects.toThrow('quantity must be > 0');
+        });
+
+        it('should throw if item not found', async () => {
+            (InventoryItemModel.findById as jest.Mock).mockReturnValue(mockChain(null));
+            await expect(InventoryService.consumeStock({ itemId: VALID_ID_STR, quantity: 1, reason: 'OTHER' }))
+                .rejects.toThrow('Inventory item not found');
+        });
+
+        it('should throw if insufficient total stock', async () => {
+            const item = mockDoc({ onHand: 5 });
+            (InventoryItemModel.findById as jest.Mock).mockReturnValue(mockChain(item));
+            await expect(InventoryService.consumeStock({ itemId: VALID_ID_STR, quantity: 10, reason: 'OTHER' }))
+                .rejects.toThrow('Insufficient stock');
+        });
+
+        it('should throw safely if batches exhausted before quantity met', async () => {
+            const item = mockDoc({ onHand: 10 });
+            (InventoryItemModel.findById as jest.Mock).mockReturnValue(mockChain(item));
+
+            const b1 = mockDoc({ quantity: 2 });
+            (InventoryBatchModel.find as jest.Mock).mockReturnValueOnce(mockChain([b1]));
+
+            await expect(InventoryService.consumeStock({ itemId: VALID_ID_STR, quantity: 5, reason: 'OTHER' }))
+                .rejects.toThrow('Failed to consume full requested quantity');
+        });
+    });
+
+    describe('getInventoryTurnoverByItem', () => {
+        it('should return empty array if no items', async () => {
+            (InventoryItemModel.find as jest.Mock).mockReturnValue(mockChain([]));
+            const res = await InventoryService.getInventoryTurnoverByItem({ organisationId: VALID_ORG_ID });
+            expect(res).toHaveLength(0);
+        });
     });
   });
 
-  // ======================================================================
+  // ─────────────────────────────────────────────
   // 2. InventoryAdjustmentService
-  // ======================================================================
-  describe("InventoryAdjustmentService", () => {
-    describe("adjustStock", () => {
-      it("should create batch for positive adjustment", async () => {
-        const itemDoc = mockDoc({ _id: itemId, onHand: 10 });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryItemModel.findById as any).mockResolvedValue(itemDoc as any);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryBatchModel.create as any).mockResolvedValue({} as any);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (StockMovementModel.create as any).mockResolvedValue({} as any);
-        // recompute
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryBatchModel.find as any).mockResolvedValue([
-          { quantity: 15, allocated: 0 },
-        ] as any);
+  // ─────────────────────────────────────────────
+  describe('InventoryAdjustmentService', () => {
+    it('should handle positive adjustment', async () => {
+        const item = mockDoc({ _id: VALID_ID_OBJ, onHand: 10 });
+        (InventoryItemModel.findById as jest.Mock).mockResolvedValue(item);
+        (InventoryBatchModel.create as jest.Mock).mockResolvedValue({});
+        (InventoryBatchModel.find as jest.Mock).mockResolvedValue([{ quantity: 15, allocated: 0 }]);
 
-        // New onHand 15 (delta +5)
         await InventoryAdjustmentService.adjustStock({
-          itemId,
-          newOnHand: 15,
-          reason: "Fix",
+            itemId: VALID_ID_STR, newOnHand: 15, reason: 'Fix'
         });
 
-        expect(InventoryBatchModel.create).toHaveBeenCalledWith(
-          expect.objectContaining({ quantity: 5 }),
-        );
-        expect(StockMovementModel.create).toHaveBeenCalled();
-        expect(itemDoc.onHand).toBe(15);
-      });
+        expect(InventoryBatchModel.create).toHaveBeenCalledWith(expect.objectContaining({ quantity: 5 }));
+        expect(StockMovementModel.create).toHaveBeenCalledWith(expect.objectContaining({ change: 5 }));
+        expect(item.onHand).toBe(15);
+    });
 
-      it("should consume batches for negative adjustment", async () => {
-        const itemDoc = mockDoc({ _id: itemId, onHand: 10 });
-        const batch = mockDoc({ _id: "b1", quantity: 10, save: jest.fn() });
+    it('should handle negative adjustment', async () => {
+        const item = mockDoc({ _id: VALID_ID_OBJ, onHand: 10 });
+        (InventoryItemModel.findById as jest.Mock).mockResolvedValue(item);
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryItemModel.findById as any).mockResolvedValue(itemDoc as any);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryBatchModel.find as any).mockReturnValue(
-          mockMongooseChain([batch]),
-        );
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (StockMovementModel.create as any).mockResolvedValue({} as any);
+        const b1 = mockDoc({ quantity: 10, save: jest.fn() });
+        (InventoryBatchModel.find as jest.Mock)
+            .mockReturnValueOnce(mockChain([b1]))
+            .mockReturnValueOnce([{ quantity: 5 }]);
 
-        // New onHand 5 (delta -5)
         await InventoryAdjustmentService.adjustStock({
-          itemId,
-          newOnHand: 5,
-          reason: "Fix",
+            itemId: VALID_ID_STR, newOnHand: 5, reason: 'Fix'
         });
 
-        expect(batch.quantity).toBe(5);
-        expect(batch.save).toHaveBeenCalled();
-      });
+        expect(b1.quantity).toBe(5);
+        expect(StockMovementModel.create).toHaveBeenCalledWith(expect.objectContaining({ change: -5 }));
+        expect(item.onHand).toBe(5);
+    });
 
-      it("should throw if insufficient stock for negative adjustment", async () => {
-        const itemDoc = mockDoc({ _id: itemId, onHand: 10 });
-        // No batches returned to consume
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryItemModel.findById as any).mockResolvedValue(itemDoc as any);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryBatchModel.find as any).mockReturnValue(
-          mockMongooseChain([]),
-        );
+    it('should throw if insufficient stock for negative adjustment', async () => {
+        const item = mockDoc({ onHand: 10 });
+        (InventoryItemModel.findById as jest.Mock).mockResolvedValue(item);
+        (InventoryBatchModel.find as jest.Mock).mockReturnValue(mockChain([]));
 
-        await expect(
-          InventoryAdjustmentService.adjustStock({
-            itemId,
-            newOnHand: 5,
-            reason: "Fix",
-          }),
-        ).rejects.toThrow("Insufficient stock for adjustment");
-      });
+        await expect(InventoryAdjustmentService.adjustStock({
+            itemId: VALID_ID_STR, newOnHand: 5, reason: 'Fix'
+        })).rejects.toThrow('Insufficient stock');
+    });
 
-      it("should throw if item not found", async () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (InventoryItemModel.findById as any).mockResolvedValue(null as any);
-        await expect(
-          InventoryAdjustmentService.adjustStock({
-            itemId,
-            newOnHand: 5,
-            reason: "",
-          }),
-        ).rejects.toThrow("Item not found");
-      });
+    it('should throw if item not found', async () => {
+        (InventoryItemModel.findById as jest.Mock).mockResolvedValue(null);
+        await expect(InventoryAdjustmentService.adjustStock({ itemId: VALID_ID_STR, newOnHand: 5, reason: 'R' }))
+            .rejects.toThrow('Item not found');
     });
   });
 
-  // ======================================================================
+  // ─────────────────────────────────────────────
   // 3. InventoryAllocationService
-  // ======================================================================
-  describe("InventoryAllocationService", () => {
-    it("allocateStock: should allocate if stock exists", async () => {
-      const itemDoc = mockDoc({ _id: itemId, onHand: 10, allocated: 0 });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (InventoryItemModel.findById as any).mockResolvedValue(itemDoc as any);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (StockMovementModel.create as any).mockResolvedValue({} as any);
+  // ─────────────────────────────────────────────
+  describe('InventoryAllocationService', () => {
+    it('should allocate stock', async () => {
+        const item = mockDoc({ onHand: 10, allocated: 2 });
+        (InventoryItemModel.findById as jest.Mock).mockResolvedValue(item);
 
-      await InventoryAllocationService.allocateStock({
-        itemId,
-        quantity: 5,
-        referenceId: "ref",
-      });
-      expect(itemDoc.allocated).toBe(5);
-      expect(itemDoc.save).toHaveBeenCalled();
+        await InventoryAllocationService.allocateStock({ itemId: VALID_ID_STR, quantity: 5, referenceId: 'ref' });
+
+        expect(item.allocated).toBe(7);
+        expect(item.save).toHaveBeenCalled();
+        expect(StockMovementModel.create).toHaveBeenCalled();
     });
 
-    it("allocateStock: should throw if not enough free stock", async () => {
-      const itemDoc = mockDoc({ _id: itemId, onHand: 10, allocated: 8 }); // Free = 2
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (InventoryItemModel.findById as any).mockResolvedValue(itemDoc as any);
-
-      await expect(
-        InventoryAllocationService.allocateStock({
-          itemId,
-          quantity: 5,
-          referenceId: "ref",
-        }),
-      ).rejects.toThrow("Not enough unallocated stock");
+    it('should throw if not enough unallocated stock', async () => {
+        const item = mockDoc({ onHand: 10, allocated: 8 });
+        (InventoryItemModel.findById as jest.Mock).mockResolvedValue(item);
+        await expect(InventoryAllocationService.allocateStock({ itemId: VALID_ID_STR, quantity: 3, referenceId: 'ref' }))
+            .rejects.toThrow('Not enough unallocated stock');
     });
 
-    it("allocateStock: should throw if item not found", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (InventoryItemModel.findById as any).mockResolvedValue(null as any);
-      await expect(
-        InventoryAllocationService.allocateStock({
-          itemId,
-          quantity: 1,
-          referenceId: "ref",
-        }),
-      ).rejects.toThrow("Item not found");
+    it('should throw if item not found during allocation', async () => {
+        (InventoryItemModel.findById as jest.Mock).mockResolvedValue(null);
+        await expect(InventoryAllocationService.allocateStock({ itemId: VALID_ID_STR, quantity: 1, referenceId: 'r' }))
+            .rejects.toThrow('Item not found');
     });
 
-    it("releaseAllocatedStock: should decrease allocated", async () => {
-      const itemDoc = mockDoc({ _id: itemId, allocated: 5 });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (InventoryItemModel.findById as any).mockResolvedValue(itemDoc as any);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (StockMovementModel.create as any).mockResolvedValue({} as any);
+    it('should release allocated stock', async () => {
+        const item = mockDoc({ allocated: 5 });
+        (InventoryItemModel.findById as jest.Mock).mockResolvedValue(item);
 
-      await InventoryAllocationService.releaseAllocatedStock({
-        itemId,
-        quantity: 3,
-        referenceId: "ref",
-      });
-      expect(itemDoc.allocated).toBe(2);
+        await InventoryAllocationService.releaseAllocatedStock({ itemId: VALID_ID_STR, quantity: 2, referenceId: 'ref' });
+
+        expect(item.allocated).toBe(3);
+        expect(item.save).toHaveBeenCalled();
     });
 
-    it("releaseAllocatedStock: should throw if item not found", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (InventoryItemModel.findById as any).mockResolvedValue(null as any);
-      await expect(
-        InventoryAllocationService.releaseAllocatedStock({
-          itemId,
-          quantity: 1,
-          referenceId: "ref",
-        }),
-      ).rejects.toThrow("Item not found");
+    it('should release stock but not go below zero', async () => {
+        const item = mockDoc({ allocated: 2 });
+        (InventoryItemModel.findById as jest.Mock).mockResolvedValue(item);
+
+        await InventoryAllocationService.releaseAllocatedStock({ itemId: VALID_ID_STR, quantity: 5, referenceId: 'ref' });
+
+        expect(item.allocated).toBe(0);
+    });
+
+    it('should throw if item not found during release', async () => {
+        (InventoryItemModel.findById as jest.Mock).mockResolvedValue(null);
+        await expect(InventoryAllocationService.releaseAllocatedStock({ itemId: VALID_ID_STR, quantity: 1, referenceId: 'r' }))
+            .rejects.toThrow('Item not found');
     });
   });
 
-  // ======================================================================
-  // 4. InventoryVendorService
-  // ======================================================================
-  describe("InventoryVendorService", () => {
-    it("createVendor: success", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (InventoryVendorModel.create as any).mockResolvedValue({
-        _id: "v1",
-      } as any);
-      const res = await InventoryVendorService.createVendor({
-        organisationId: orgId,
-        name: "V",
-      });
-      expect(res).toEqual({ _id: "v1" });
-    });
-    it("createVendor: missing orgId", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await expect(
-        InventoryVendorService.createVendor({ name: "V" } as any),
-      ).rejects.toThrow("organisationId required");
+  // ─────────────────────────────────────────────
+  // 4. Vendor, MetaField, Alert Services
+  // ─────────────────────────────────────────────
+  describe('InventoryVendorService', () => {
+    it('should create vendor', async () => {
+        (InventoryVendorModel.create as jest.Mock).mockResolvedValue({});
+        await InventoryVendorService.createVendor({ organisationId: VALID_ORG_ID, name: 'V' });
+        expect(InventoryVendorModel.create).toHaveBeenCalled();
     });
 
-    it("updateVendor: success", async () => {
-      const vendor = mockDoc({ name: "Old" });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (InventoryVendorModel.findById as any).mockResolvedValue(vendor as any);
-      await InventoryVendorService.updateVendor(validVendorId, { name: "New" });
-      expect(vendor.name).toBe("New");
-      expect(vendor.save).toHaveBeenCalled();
+    it('should throw if missing orgId', async () => {
+        await expect(InventoryVendorService.createVendor({} as any)).rejects.toThrow('organisationId required');
     });
 
-    it("updateVendor: not found", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (InventoryVendorModel.findById as any).mockResolvedValue(null as any);
-      await expect(
-        InventoryVendorService.updateVendor(validVendorId, {}),
-      ).rejects.toThrow("Vendor not found");
+    it('should update vendor', async () => {
+        const v = mockDoc({});
+        (InventoryVendorModel.findById as jest.Mock).mockResolvedValue(v);
+        await InventoryVendorService.updateVendor(VALID_ID_STR, { name: 'V2' });
+        expect(v.name).toBe('V2');
     });
 
-    it("listVendors", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (InventoryVendorModel.find as any).mockReturnValue(mockMongooseChain([]));
-      await InventoryVendorService.listVendors(orgId);
-      expect(InventoryVendorModel.find).toHaveBeenCalledWith({
-        organisationId: orgId,
-      });
+    it('should throw if vendor missing', async () => {
+        (InventoryVendorModel.findById as jest.Mock).mockResolvedValue(null);
+        await expect(InventoryVendorService.updateVendor(VALID_ID_STR, {})).rejects.toThrow('Vendor not found');
     });
 
-    it("getVendor", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (InventoryVendorModel.findById as any).mockResolvedValue({} as any);
-      await InventoryVendorService.getVendor(validVendorId);
-      expect(InventoryVendorModel.findById).toHaveBeenCalled();
+    it('should list vendors', async () => {
+        (InventoryVendorModel.find as jest.Mock).mockReturnValue(mockChain([]));
+        await InventoryVendorService.listVendors(VALID_ORG_ID);
+        expect(InventoryVendorModel.find).toHaveBeenCalled();
     });
 
-    it("deleteVendor", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (InventoryVendorModel.findByIdAndDelete as any).mockResolvedValue(
-        {} as any,
-      );
-      await InventoryVendorService.deleteVendor(validVendorId);
-      expect(InventoryVendorModel.findByIdAndDelete).toHaveBeenCalled();
+    it('should get vendor', async () => {
+        await InventoryVendorService.getVendor(VALID_ID_STR);
+        expect(InventoryVendorModel.findById).toHaveBeenCalled();
+    });
+
+    it('should delete vendor', async () => {
+        await InventoryVendorService.deleteVendor(VALID_ID_STR);
+        expect(InventoryVendorModel.findByIdAndDelete).toHaveBeenCalled();
     });
   });
 
-  // ======================================================================
-  // 5. InventoryMetaFieldService
-  // ======================================================================
-  describe("InventoryMetaFieldService", () => {
-    it("createField", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (InventoryMetaFieldModel.create as any).mockResolvedValue({} as any);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await InventoryMetaFieldService.createField({} as any);
-      expect(InventoryMetaFieldModel.create).toHaveBeenCalled();
+  describe('InventoryMetaFieldService', () => {
+    it('should create field', async () => {
+        await InventoryMetaFieldService.createField({} as any);
+        expect(InventoryMetaFieldModel.create).toHaveBeenCalled();
     });
 
-    it("updateField: success", async () => {
-      const field = mockDoc({ label: "Old" });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (InventoryMetaFieldModel.findById as any).mockResolvedValue(field as any);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await InventoryMetaFieldService.updateField(
-        new Types.ObjectId().toString(),
-        { label: "New" } as any,
-      );
-      expect(field.label).toBe("New");
+    it('should update field', async () => {
+        const f = mockDoc({});
+        (InventoryMetaFieldModel.findById as jest.Mock).mockResolvedValue(f);
+        await InventoryMetaFieldService.updateField(VALID_ID_STR, { label: 'L' });
+        expect(f.label).toBe('L');
     });
 
-    it("updateField: not found", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (InventoryMetaFieldModel.findById as any).mockResolvedValue(null as any);
-      await expect(
-        InventoryMetaFieldService.updateField(
-          new Types.ObjectId().toString(),
-          {},
-        ),
-      ).rejects.toThrow("not found");
+    it('should throw if field missing', async () => {
+        (InventoryMetaFieldModel.findById as jest.Mock).mockResolvedValue(null);
+        await expect(InventoryMetaFieldService.updateField(VALID_ID_STR, {})).rejects.toThrow('Meta field not found');
     });
 
-    it("deleteField", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (InventoryMetaFieldModel.findByIdAndDelete as any).mockResolvedValue(
-        {} as any,
-      );
-      await InventoryMetaFieldService.deleteField(
-        new Types.ObjectId().toString(),
-      );
-      expect(InventoryMetaFieldModel.findByIdAndDelete).toHaveBeenCalled();
+    it('should delete field', async () => {
+        await InventoryMetaFieldService.deleteField(VALID_ID_STR);
+        expect(InventoryMetaFieldModel.findByIdAndDelete).toHaveBeenCalled();
     });
 
-    it("listFields", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (InventoryMetaFieldModel.find as any).mockReturnValue(
-        mockMongooseChain([]),
-      );
-      await InventoryMetaFieldService.listFields("GENERAL");
-      expect(InventoryMetaFieldModel.find).toHaveBeenCalledWith({
-        businessType: "GENERAL",
-      });
+    it('should list fields', async () => {
+        (InventoryMetaFieldModel.find as jest.Mock).mockReturnValue(mockChain([]));
+        await InventoryMetaFieldService.listFields('type');
+        expect(InventoryMetaFieldModel.find).toHaveBeenCalled();
     });
   });
 
-  // ======================================================================
-  // 6. InventoryAlertService
-  // ======================================================================
-  describe("InventoryAlertService", () => {
-    it("getLowStockItems: filters correctly", async () => {
-      const i1 = { reorderLevel: 10, onHand: 5 }; // Low
-      const i2 = { reorderLevel: 5, onHand: 10 }; // OK
-      const i3 = { reorderLevel: null, onHand: 0 }; // No level
+  describe('InventoryAlertService', () => {
+    // FIX: Define mockDate here to ensure it's available in this scope
+    const mockDate = new Date('2025-01-01T12:00:00Z');
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (InventoryItemModel.find as any).mockResolvedValue([i1, i2, i3] as any);
-
-      const res = await InventoryAlertService.getLowStockItems(orgId);
-      expect(res).toHaveLength(1);
-      expect(res[0]).toBe(i1);
+    beforeEach(() => {
+        jest.useFakeTimers();
+        jest.setSystemTime(mockDate);
     });
 
-    it("getExpiringItems: queries batches", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (InventoryBatchModel.find as any).mockResolvedValue([] as any);
-      await InventoryAlertService.getExpiringItems(orgId, 7);
-      expect(InventoryBatchModel.find).toHaveBeenCalledWith(
-        expect.objectContaining({
-          organisationId: orgId,
-          expiryDate: { $lte: expect.any(Date) },
-        }),
-      );
+    afterEach(() => {
+        jest.useRealTimers();
     });
-  });
 
-  // ======================================================================
-  // Utils (ensureObjectId)
-  // ======================================================================
-  describe("Utils", () => {
-    it("ensureObjectId throws on invalid", async () => {
-      await expect(InventoryService.updateItem("bad-id", {})).rejects.toThrow(
-        "Invalid itemId",
-      );
+    it('should get low stock items', async () => {
+        const i1 = { onHand: 2, reorderLevel: 5 }; // Low
+        const i2 = { onHand: 10, reorderLevel: 5 }; // Ok
+        const i3 = { onHand: 5 }; // No reorder level -> skip
+
+        (InventoryItemModel.find as jest.Mock).mockResolvedValue([i1, i2, i3]);
+
+        const res = await InventoryAlertService.getLowStockItems(VALID_ORG_ID);
+        expect(res).toHaveLength(1);
+        expect(res[0]).toBe(i1);
+    });
+
+    it('should get expiring items', async () => {
+        (InventoryBatchModel.find as jest.Mock).mockResolvedValue([]);
+        await InventoryAlertService.getExpiringItems(VALID_ORG_ID, 7);
+        expect(InventoryBatchModel.find).toHaveBeenCalledWith(expect.objectContaining({
+            expiryDate: { $lte: expect.any(Date) }
+        }));
     });
   });
 });

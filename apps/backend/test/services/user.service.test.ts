@@ -1,3 +1,6 @@
+// FIX: Set AWS Region before imports to prevent Cognito Client initialization error
+process.env.AWS_REGION = 'us-east-1';
+
 import type { UserDocument } from "../../src/models/user";
 import UserModel from "../../src/models/user";
 import { UserService } from "../../src/services/user.service";
