@@ -1,72 +1,128 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<p align="center">
+  <a href="https://yosemitecrew.com/">
+    <img src="https://d2il6osz49gpup.cloudfront.net/YC.svg" width="150px" alt="Yosemite Crew Logo" />
+  </a>
+</p>
 
-## Getting Started
+<h1 align="center">Yosemite Crew Web App</h1>
 
-First, run the development server:
+<div align="center">
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+[![Next.js 15.4.9](https://img.shields.io/badge/Next.js-15.4.9-black?logo=next.js)](https://nextjs.org/)
+[![React 19.1.1](https://img.shields.io/badge/React-19.1.1-61DAFB?logo=react)](https://react.dev)
+[![PNPM](https://img.shields.io/badge/pnpm-F69220?logo=pnpm&logoColor=white)](https://pnpm.io)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Contributing](https://img.shields.io/badge/Contribute-FF9800)](https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Frontend&metric=coverage)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Frontend)
+
+</div>
+
+<div align="center">
+This directory contains the **Next.js** web application for the Yosemite Crew veterinary practice management system. It powers the staff-facing PMS dashboard and operational workflows.
+</div>
+
+## 🧭 Overview
+
+The web app is built with the Next.js App Router and is organized into feature modules, shared components, and services that connect to the Yosemite Crew backend.
+
+## ✅ Prerequisites
+
+- **Node.js**: Version `20` or higher.
+- **pnpm**: Ensure you have `pnpm` installed globally.
+- **Backend API**: The web app expects a running backend (local or deployed).
+
+## 🛠️ Getting Started
+
+### 1) Install monorepo dependencies
+
+From the root of the repo:
+
+```sh
+pnpm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2) Configure environment variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Copy the example file and update the values for your environment:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```sh
+cp apps/frontend/.env.example apps/frontend/.env
+```
 
-## Development Features
+Required keys (see `.env.example`):
+- `NEXT_PUBLIC_BASE_URL`
+- `NEXT_PUBLIC_COGNITO_USERPOOLID`
+- `NEXT_PUBLIC_COGNITO_CLIENTID`
+- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
+- `NEXT_PUBLIC_STREAM_API_KEY`
 
-### Auth Guard Override
+Optional developer flags:
+- `NEXT_PUBLIC_DISABLE_AUTH_GUARD` (development only)
+- `NEXT_PUBLIC_ORG_TYPE_OVERRIDE` (testing UI flows)
 
-For development and testing purposes, you can disable authentication guards to access protected routes (like Inventory and Forms) without logging in.
+### 3) Run the app
 
-**To disable auth guards:**
+From this directory (`apps/frontend`):
+
+```sh
+pnpm dev
+```
+
+The app runs at `http://localhost:3000` by default.
+
+## 🧪 Scripts
+
+From `apps/frontend`:
+
+| Command | Description |
+| --- | --- |
+| `pnpm dev` | Start the local dev server |
+| `pnpm build` | Build for production |
+| `pnpm start` | Start the production server |
+| `pnpm lint` | Run ESLint |
+| `pnpm type-check` | Run TypeScript type checks |
+| `pnpm test` | Run Jest tests |
+
+## 🧩 Project Structure
+
+Key directories:
+
+```
+src/app
+  (routes)/        # App Router route groups
+  pages/           # Feature view components mounted by routes
+  components/      # Shared UI components (legacy + common)
+  services/        # API clients and service helpers
+  stores/          # Zustand state stores
+  hooks/           # Shared hooks
+  utils/           # Utility helpers
+  types/           # Feature data types
+```
+
+## 🔐 Development Auth Override
+
+For local development and testing, you can bypass auth guards:
 
 1. Open `apps/frontend/.env`
 2. Set `NEXT_PUBLIC_DISABLE_AUTH_GUARD=true`
-3. Restart your development server
+3. Restart the dev server
 
-```bash
-# In .env file
-NEXT_PUBLIC_DISABLE_AUTH_GUARD=true
-```
+This disables `ProtectedRoute` and `OrgGuard`. **Do not enable this in production.**
 
-**Important Notes:**
-- This flag bypasses both `ProtectedRoute` (authentication check) and `OrgGuard` (organization check)
-- **Only use this in development environments**
-- Never deploy to production with this flag enabled
-- Set back to `false` when testing actual authentication flows
+## 🔑 Test Credentials (Dev)
 
-**Affected Routes:**
-- `/inventory` - Inventory management page
-- `/forms` - Forms management page
-- Any other route wrapped with `ProtectedRoute` or `OrgGuard`
-
-## Test Credentials
-
-Want to explore the PMS features on our development server? Use these test credentials:
+Use these on the dev environment:
 
 - **URL:** https://dev.yosemitecrew.com/signin
 - **Email:** test@yosemitecrew.com
 - **Password:** Yosemitecrew@123
 
-## Learn More
+## 🤝 Contributing
 
-To learn more about Next.js, take a look at the following resources:
+We welcome contributions! Please read `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md` before opening a pull request.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 📚 Related Docs
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `Guides/frontend-production-plan.md`
+- `apps/mobileAppYC/README.md`
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
