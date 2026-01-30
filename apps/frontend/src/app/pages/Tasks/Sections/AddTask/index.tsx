@@ -1,7 +1,7 @@
 import { Primary, Secondary } from "@/app/components/Buttons";
-import Close from "@/app/components/Icons/Close";
 import TaskFormFields from "@/app/components/Tasks/TaskFormFields";
 import Modal from "@/app/components/Modal";
+import ModalHeader from "@/app/components/Modal/ModalHeader";
 import { useCompanionsForPrimaryOrg } from "@/app/hooks/useCompanion";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
 import { useTaskForm } from "@/app/hooks/useTaskForm";
@@ -60,15 +60,7 @@ const AddTask = ({ showModal, setShowModal }: AddTaskProps) => {
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <div className="flex flex-col h-full gap-6">
-        <div className="flex justify-between items-center">
-          <div className="opacity-0">
-            <Close onClick={() => {}} />
-          </div>
-          <div className="flex justify-center items-center gap-2">
-            <div className="text-body-1 text-text-primary">Add task</div>
-          </div>
-          <Close onClick={() => setShowModal(false)} />
-        </div>
+        <ModalHeader title="Add task" onClose={() => setShowModal(false)} />
 
         <div className="flex flex-col gap-6 w-full flex-1 justify-start overflow-y-auto scrollbar-hidden pt-1.5">
           <TaskFormFields

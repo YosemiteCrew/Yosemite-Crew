@@ -10,7 +10,7 @@ import {
 import { LaidOutEvent } from "@/app/types/calendar";
 import TimeLabels from "./TimeLabels";
 import HorizontalLines from "./HorizontalLines";
-import { getStatusStyle } from "../../DataTable/Appointments";
+import { getStatusStyle } from "@/app/config/statusConfig";
 import Image from "next/image";
 import { Appointment } from "@yosemite-crew/types";
 import Next from "../../Icons/Next";

@@ -1,10 +1,4 @@
-import { formatUtcTimeToLocalLabel } from "@/app/components/Availability/utils";
 import { Primary } from "@/app/components/Buttons";
-import { getFormattedDate } from "@/app/components/Calendar/weekHelpers";
-import Close from "@/app/components/Icons/Close";
-import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
-import FormInput from "@/app/components/Inputs/FormInput/FormInput";
-import Slotpicker from "@/app/components/Inputs/Slotpicker";
 import CenterModal from "@/app/components/Modal/CenterModal";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
 import {
@@ -18,6 +12,8 @@ import {
 } from "@/app/utils/date";
 import { Appointment } from "@yosemite-crew/types";
 import React, { useEffect, useMemo, useState } from "react";
+import ModalHeader from "@/app/components/Modal/ModalHeader";
+import DateTimePickerSection from "@/app/components/Appointments/DateTimePickerSection";
 
 type RescheduleProp = {
   showModal: boolean;
@@ -70,7 +66,7 @@ const Reschedule = ({
     setFormDataErrors({});
   };
 
-  const handleAppointmentUpdate = async (values: any) => {
+  const handleAppointmentUpdate = async () => {
     const errors: {
       leadId?: string;
       duration?: string;
@@ -84,11 +80,11 @@ const Reschedule = ({
       return;
     }
     try {
-      const formData: Appointment = {
+      const payload: Appointment = {
         ...activeAppointment,
         status: "REQUESTED",
       };
-      await updateAppointment(formData);
+      await updateAppointment(payload);
       setShowModal(false);
       setFormDataErrors({});
       setTimeSlots([]);
@@ -146,6 +142,16 @@ const Reschedule = ({
     }));
   }, [selectedSlot, selectedDate]);
 
+  const handleLeadSelect = (option: { label: string; value: string }) => {
+    setFormData({
+      ...formData,
+      lead: {
+        name: option.label,
+        id: option.value,
+      },
+    });
+  };
+
   return (
     <CenterModal
       showModal={showModal}
@@ -153,62 +159,20 @@ const Reschedule = ({
       onClose={handleCancel}
     >
       <div className="flex flex-col gap-3">
-        <div className="flex justify-between items-center">
-          <div className="opacity-0">
-            <Close onClick={() => {}} />
-          </div>
-          <div className="flex justify-center items-center gap-2">
-            <div className="text-body-1 text-text-primary">Reschedule</div>
-          </div>
-          <Close onClick={handleCancel} />
-        </div>
-        <div className="flex flex-col gap-3">
-          <Slotpicker
-            selectedDate={selectedDate}
-            setSelectedDate={setSelectedDate}
-            selectedSlot={selectedSlot}
-            setSelectedSlot={setSelectedSlot}
-            timeSlots={timeSlots}
-          />
-          <div className="grid grid-cols-2 gap-3">
-            <FormInput
-              intype="text"
-              inname="date"
-              value={getFormattedDate(selectedDate)}
-              onChange={(e) => {}}
-              inlabel="Date"
-              className="min-h-12!"
-            />
-            <FormInput
-              intype="text"
-              inname="time"
-              value={
-                selectedSlot?.startTime
-                  ? formatUtcTimeToLocalLabel(selectedSlot.startTime)
-                  : ""
-              }
-              onChange={(e) => {}}
-              error={formDataErrors.slot}
-              inlabel="Time"
-              className="min-h-12!"
-            />
-          </div>
-          <LabelDropdown
-            placeholder="Lead"
-            onSelect={(option) =>
-              setFormData({
-                ...formData,
-                lead: {
-                  name: option.label,
-                  id: option.value,
-                },
-              })
-            }
-            defaultOption={formData.lead?.id}
-            error={formDataErrors.leadId}
-            options={LeadOptions}
-          />
-        </div>
+        <ModalHeader title="Reschedule" onClose={handleCancel} />
+        <DateTimePickerSection
+          selectedDate={selectedDate}
+          setSelectedDate={setSelectedDate}
+          selectedSlot={selectedSlot}
+          setSelectedSlot={setSelectedSlot}
+          timeSlots={timeSlots}
+          slotError={formDataErrors.slot}
+          leadId={formData.lead?.id}
+          leadError={formDataErrors.leadId}
+          leadOptions={LeadOptions}
+          onLeadSelect={handleLeadSelect}
+          showSupportStaff={false}
+        />
         <Primary
           href="#"
           text="Send request"

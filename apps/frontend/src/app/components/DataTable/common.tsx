@@ -1,5 +1,6 @@
 import React from "react";
 import { IoEye } from "react-icons/io5";
+import { IoIosCalendar } from "react-icons/io";
 
 export type Column<T> = {
   label: string;
@@ -14,11 +15,11 @@ export const NoDataMessage = () => (
   </div>
 );
 
-type ViewButtonProps = {
+type ActionButtonProps = {
   onClick: () => void;
 };
 
-export const ViewButton = ({ onClick }: ViewButtonProps) => (
+export const ViewButton = ({ onClick }: ActionButtonProps) => (
   <button
     onClick={onClick}
     className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
@@ -27,6 +28,19 @@ export const ViewButton = ({ onClick }: ViewButtonProps) => (
   </button>
 );
 
+export const RescheduleButton = ({ onClick }: ActionButtonProps) => (
+  <button
+    onClick={onClick}
+    className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+  >
+    <IoIosCalendar size={18} color="#302F2E" />
+  </button>
+);
+
 export const ProfileTitle = ({ children }: { children: React.ReactNode }) => (
   <div className="appointment-profile-title">{children}</div>
+);
+
+export const ProfileSubtitle = ({ children }: { children: React.ReactNode }) => (
+  <div className="appointment-profile-sub truncate">{children}</div>
 );

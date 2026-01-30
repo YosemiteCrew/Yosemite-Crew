@@ -4,17 +4,14 @@ import { CompanionParent } from "./types";
 import { EMPTY_APPOINTMENT } from "../Appointments/Sections/AddAppointment";
 import Accordion from "@/app/components/Accordion/Accordion";
 import EditableAccordion from "@/app/components/Accordion/EditableAccordion";
-import MultiSelectDropdown from "@/app/components/Inputs/MultiSelectDropdown";
-import FormInput from "@/app/components/Inputs/FormInput/FormInput";
-import { getFormattedDate } from "@/app/components/Calendar/weekHelpers";
-import { formatUtcTimeToLocalLabel } from "@/app/components/Availability/utils";
-import FormDesc from "@/app/components/Inputs/FormDesc/FormDesc";
-import Slotpicker from "@/app/components/Inputs/Slotpicker";
 import { Primary } from "@/app/components/Buttons";
-import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
-import Close from "@/app/components/Icons/Close";
-import { IoIosWarning } from "react-icons/io";
 import { useAppointmentForm } from "@/app/hooks/useAppointmentForm";
+import ModalHeader from "@/app/components/Modal/ModalHeader";
+import AppointmentDetailsSection from "@/app/components/Appointments/AppointmentDetailsSection";
+import DateTimePickerSection from "@/app/components/Appointments/DateTimePickerSection";
+import BillableServicesSection from "@/app/components/Appointments/BillableServicesSection";
+import EmergencyCheckbox from "@/app/components/Appointments/EmergencyCheckbox";
+import BookingErrorMessage from "@/app/components/Appointments/BookingErrorMessage";
 
 type BookAppointmentProps = {
   showModal: boolean;
@@ -92,15 +89,7 @@ const BookAppointment = ({
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <div className="flex flex-col h-full gap-6">
-        <div className="flex justify-between items-center">
-          <div className="opacity-0">
-            <Close onClick={() => {}} />
-          </div>
-          <div className="flex justify-center items-center gap-2">
-            <div className="text-body-1 text-text-primary">Add appointment</div>
-          </div>
-          <Close onClick={() => setShowModal(false)} />
-        </div>
+        <ModalHeader title="Add appointment" onClose={() => setShowModal(false)} />
 
         <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
           <div className="flex flex-col gap-6 w-full">
@@ -113,129 +102,56 @@ const BookAppointment = ({
                 showEditIcon={false}
               />
             )}
-            <Accordion
-              title="Appointment details"
-              showEditIcon={false}
-              isEditing={true}
-            >
-              <div className="flex flex-col gap-3">
-                <LabelDropdown
-                  placeholder="Speciality"
-                  onSelect={handleSpecialitySelect}
-                  defaultOption={formData.appointmentType?.speciality.id}
-                  error={formDataErrors.specialityId}
-                  options={SpecialitiesOptions}
-                />
-                <LabelDropdown
-                  placeholder="Service"
-                  onSelect={handleServiceSelect}
-                  defaultOption={formData.appointmentType?.id}
-                  error={formDataErrors.serviceId}
-                  options={ServicesOptions}
-                />
-                <FormDesc
-                  intype="text"
-                  inname="Describe concern"
-                  value={formData.concern || ""}
-                  inlabel="Describe concern"
-                  onChange={(e) =>
-                    setFormData({ ...formData, concern: e.target.value })
-                  }
-                  className="min-h-[120px]!"
-                />
-              </div>
-            </Accordion>
+            <AppointmentDetailsSection
+              specialityId={formData.appointmentType?.speciality.id}
+              specialityError={formDataErrors.specialityId}
+              specialitiesOptions={SpecialitiesOptions}
+              onSpecialitySelect={handleSpecialitySelect}
+              serviceId={formData.appointmentType?.id}
+              serviceError={formDataErrors.serviceId}
+              servicesOptions={ServicesOptions}
+              onServiceSelect={handleServiceSelect}
+              concern={formData.concern || ""}
+              onConcernChange={(value) =>
+                setFormData({ ...formData, concern: value })
+              }
+            />
             <Accordion
               title="Select date & time"
               showEditIcon={false}
               isEditing={true}
             >
-              <div className="flex flex-col gap-4">
-                <Slotpicker
-                  selectedDate={selectedDate}
-                  setSelectedDate={setSelectedDate}
-                  selectedSlot={selectedSlot}
-                  setSelectedSlot={setSelectedSlot}
-                  timeSlots={timeSlots}
-                />
-                <div className="flex flex-col gap-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <FormInput
-                      intype="text"
-                      inname="date"
-                      value={getFormattedDate(selectedDate)}
-                      onChange={(e) => {}}
-                      inlabel="Date"
-                      className="min-h-12!"
-                    />
-                    <FormInput
-                      intype="text"
-                      inname="time"
-                      value={
-                        selectedSlot?.startTime
-                          ? formatUtcTimeToLocalLabel(selectedSlot.startTime)
-                          : ""
-                      }
-                      error={formDataErrors.slot}
-                      onChange={(e) => {}}
-                      inlabel="Time"
-                      className="min-h-12!"
-                    />
-                  </div>
-                  <LabelDropdown
-                    placeholder="Lead"
-                    onSelect={handleLeadSelect}
-                    defaultOption={formData.lead?.id}
-                    error={formDataErrors.leadId}
-                    options={LeadOptions}
-                  />
-                  <MultiSelectDropdown
-                    placeholder="Support"
-                    value={formData.supportStaff?.map((s) => s.id) || []}
-                    onChange={handleSupportStaffChange}
-                    options={TeamOptions}
-                  />
-                </div>
-              </div>
-            </Accordion>
-            <Accordion
-              title="Billable services"
-              showEditIcon={false}
-              isEditing={true}
-            >
-              {formData.appointmentType?.id && (
-                <EditableAccordion
-                  title={formData.appointmentType.name}
-                  fields={ServiceFields}
-                  data={ServiceInfoData}
-                  defaultOpen={true}
-                  showEditIcon={false}
-                />
-              )}
-            </Accordion>
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={formData.isEmergency}
-                onChange={() =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    isEmergency: !prev.isEmergency,
-                  }))
-                }
+              <DateTimePickerSection
+                selectedDate={selectedDate}
+                setSelectedDate={setSelectedDate}
+                selectedSlot={selectedSlot}
+                setSelectedSlot={setSelectedSlot}
+                timeSlots={timeSlots}
+                slotError={formDataErrors.slot}
+                leadId={formData.lead?.id}
+                leadError={formDataErrors.leadId}
+                leadOptions={LeadOptions}
+                onLeadSelect={handleLeadSelect}
+                supportStaffIds={formData.supportStaff?.map((s) => s.id) || []}
+                teamOptions={TeamOptions}
+                onSupportStaffChange={handleSupportStaffChange}
               />
-              <div className="text-body-4 text-text-primary">
-                I confirm this is an emergency.
-              </div>
-            </div>
+            </Accordion>
+            <BillableServicesSection
+              serviceId={formData.appointmentType?.id}
+              serviceName={formData.appointmentType?.name}
+              serviceFields={ServiceFields}
+              serviceInfoData={ServiceInfoData}
+            />
+            <EmergencyCheckbox
+              checked={formData.isEmergency ?? false}
+              onChange={(checked) =>
+                setFormData((prev) => ({ ...prev, isEmergency: checked }))
+              }
+            />
           </div>
           <div className="flex flex-col items-end gap-2 w-full">
-            {formDataErrors.booking && (
-              <div className="mt-1.5 flex items-center gap-1 px-2 text-caption-2 text-text-error">
-                <IoIosWarning className="text-text-error" size={14} />
-                <span>{formDataErrors.booking}</span>
-              </div>
-            )}
+            <BookingErrorMessage error={formDataErrors.booking} />
             <Primary
               href="#"
               text="Book appointment"

@@ -13,7 +13,7 @@ import {
   PIXELS_PER_STEP,
 } from "../helpers";
 import Slot from "./Slot";
-import { getStatusStyle } from "../../DataTable/Appointments";
+import { getStatusStyle } from "@/app/config/statusConfig";
 import { Appointment } from "@yosemite-crew/types";
 import Back from "../../Icons/Back";
 import Next from "../../Icons/Next";

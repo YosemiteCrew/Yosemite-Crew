@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo } from "react";
 import { IoIosClose, IoIosWarning } from "react-icons/io";
 import { Option } from "@/app/types/companion";
 import { FaCaretDown } from "react-icons/fa6";
+import { useDropdown, useFilteredOptions } from "@/app/hooks/useDropdown";
 
 type DropdownProps = {
   placeholder: string;
@@ -20,10 +21,16 @@ const MultiSelectDropdown = ({
   options,
   searchable = true,
 }: DropdownProps) => {
-  const [open, setOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const {
+    open,
+    searchQuery,
+    setSearchQuery,
+    dropdownRef,
+    inputRef,
+    openDropdown,
+    toggleDropdown,
+    closeDropdown,
+  } = useDropdown({ searchable });
 
   const list: Option[] = useMemo(() => {
     return (
@@ -45,35 +52,7 @@ const MultiSelectDropdown = ({
     [list, valueSet]
   );
 
-  const filteredAvailableOptions = useMemo(() => {
-    if (!searchQuery.trim()) return availableOptions;
-    const query = searchQuery.toLowerCase();
-    return availableOptions.filter((option) =>
-      option.label.toLowerCase().includes(query)
-    );
-  }, [availableOptions, searchQuery]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setOpen(false);
-        setSearchQuery("");
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (open && searchable && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [open, searchable]);
+  const filteredAvailableOptions = useFilteredOptions(availableOptions, searchQuery);
 
   const toggleOption = (option: Option) => {
     const isSelected = valueSet.has(option.value);
@@ -82,8 +61,7 @@ const MultiSelectDropdown = ({
       : [...value, option.value];
 
     onChange(next);
-    setSearchQuery("");
-    setOpen(false);
+    closeDropdown();
   };
 
   const removeOption = (val: string) => {
@@ -98,7 +76,7 @@ const MultiSelectDropdown = ({
           className={`w-full flex items-center justify-between gap-2 px-6 py-[11px] min-w-[120px] border cursor-pointer ${open ? "border-input-text-placeholder-active! rounded-t-2xl!" : "border-input-border-default! rounded-2xl!"} ${selectedOptions.length === 0 && error && "border-input-border-error!"}`}
           onClick={() => {
             if (!open) {
-              setOpen(true);
+              openDropdown();
             }
           }}
         >
@@ -121,8 +99,7 @@ const MultiSelectDropdown = ({
             className={`text-black-text transition-transform cursor-pointer shrink-0 ${open ? "rotate-180" : ""}`}
             onClick={(e) => {
               e.stopPropagation();
-              setOpen((prev) => !prev);
-              if (open) setSearchQuery("");
+              toggleDropdown();
             }}
           />
         </button>

@@ -1,8 +1,8 @@
 import { Secondary } from "@/app/components/Buttons";
 import Delete from "@/app/components/Buttons/Delete";
-import Close from "@/app/components/Icons/Close";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import CenterModal from "./CenterModal";
+import ModalHeader from "./ModalHeader";
 import React, { useState, useCallback } from "react";
 
 type DeleteConfirmationModalProps = {
@@ -95,15 +95,7 @@ const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({
       setShowModal={setShowModal}
       onClose={handleCancel}
     >
-      <div className="flex justify-between items-center">
-        <div className="opacity-0">
-          <Close onClick={() => {}} />
-        </div>
-        <div className="flex justify-center items-center gap-2">
-          <div className="text-body-1 text-text-primary">{title}</div>
-        </div>
-        <Close onClick={handleCancel} />
-      </div>
+      <ModalHeader title={title} onClose={handleCancel} />
       <div className="flex flex-col gap-0">
         <div className="text-body-4 text-text-primary">{confirmationQuestion}</div>
         <div className="text-body-4 text-text-primary">

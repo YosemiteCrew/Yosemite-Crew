@@ -99,36 +99,19 @@ const makeOption = (label: string, value?: string): FieldOption => ({
   value: value ?? label,
 });
 
-const yesNoOptions = (): FieldOption[] => [
+const YES_NO_OPTIONS: FieldOption[] = [
   makeOption("Yes", "yes"),
   makeOption("No", "no"),
 ];
 
-const frequencyOptions = (): FieldOption[] => [
+const FREQUENCY_OPTIONS: FieldOption[] = [
   makeOption("1x daily", "1x_daily"),
   makeOption("2x daily", "2x_daily"),
   makeOption("3x daily", "3x_daily"),
   makeOption("On-demand", "on_demand"),
 ];
 
-const completedCountOptions = (counts: number[]): FieldOption[] =>
-  counts.map((n) => makeOption(`Completed ${n}x`, `${n}x`));
-
-const yesNoRadio = (id: string, label: string): FormField => ({
-  id,
-  type: "radio",
-  label,
-  options: yesNoOptions(),
-});
-
-const frequencyRadio = (id: string, label: string): FormField => ({
-  id,
-  type: "radio",
-  label,
-  options: frequencyOptions(),
-});
-
-const appetiteStatusOptions = (): FieldOption[] => [
+const APPETITE_STATUS_OPTIONS: FieldOption[] = [
   makeOption("Strong appetite", "strong_appetite"),
   makeOption("Picky appetite", "picky_appetite"),
   makeOption("Increased appetite", "increased_appetite"),
@@ -137,7 +120,7 @@ const appetiteStatusOptions = (): FieldOption[] => [
   makeOption("Not eating", "not_eating"),
 ];
 
-const behaviorStatusOptions = (): FieldOption[] => [
+const BEHAVIOR_STATUS_OPTIONS: FieldOption[] = [
   makeOption("Friendly", "friendly"),
   makeOption("Nervous", "nervous"),
   makeOption("Aggressive", "aggressive"),
@@ -146,20 +129,40 @@ const behaviorStatusOptions = (): FieldOption[] => [
   makeOption("Highly anxious", "highly_anxious"),
 ];
 
-const appetiteStatusRadio = (id: string, label: string): FormField => ({
-  id,
-  type: "radio",
-  label,
-  options: appetiteStatusOptions(),
-});
+type PresetOptions = "yesNo" | "frequency" | "appetite" | "behavior";
 
-const behaviorStatusCheckbox = (id: string, label: string): FormField => ({
-  id,
-  type: "checkbox",
-  label,
-  multiple: true,
-  options: behaviorStatusOptions(),
-});
+const PRESET_OPTIONS: Record<PresetOptions, FieldOption[]> = {
+  yesNo: YES_NO_OPTIONS,
+  frequency: FREQUENCY_OPTIONS,
+  appetite: APPETITE_STATUS_OPTIONS,
+  behavior: BEHAVIOR_STATUS_OPTIONS,
+};
+
+const createField = (
+  id: string,
+  label: string,
+  type: FormField["type"],
+  options?: FieldOption[] | PresetOptions,
+  extra?: Partial<FormField>,
+): FormField => {
+  const field: Record<string, unknown> = { id, type, label };
+  if (options) {
+    field.options = typeof options === "string" ? PRESET_OPTIONS[options] : options;
+  }
+  return { ...field, ...extra } as FormField;
+};
+
+const yesNoRadio = (id: string, label: string): FormField =>
+  createField(id, label, "radio", "yesNo");
+
+const frequencyRadio = (id: string, label: string): FormField =>
+  createField(id, label, "radio", "frequency");
+
+const appetiteStatusRadio = (id: string, label: string): FormField =>
+  createField(id, label, "radio", "appetite");
+
+const behaviorStatusCheckbox = (id: string, label: string): FormField =>
+  createField(id, label, "checkbox", "behavior", { multiple: true });
 
 export const medicationRouteOptions = [
   "Oral",

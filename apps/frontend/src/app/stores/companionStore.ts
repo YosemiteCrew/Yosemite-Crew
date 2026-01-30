@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { StoredCompanion } from "../pages/Companions/types";
+import { addToIndex, removeFromIndex } from "./utils/indexHelpers";
 
 type CompanionStatus = "idle" | "loading" | "loaded" | "error";
 
@@ -26,22 +27,6 @@ type CompanionState = {
   startLoading: () => void;
   endLoading: () => void;
   setError: (message: string) => void;
-};
-
-const addToIndex = (idx: Record<string, string[]>, key: string, id: string) => {
-  const arr = idx[key] ?? [];
-  if (arr.includes(id)) return idx;
-  return { ...idx, [key]: [...arr, id] };
-};
-
-const removeFromIndex = (
-  idx: Record<string, string[]>,
-  key: string,
-  id: string
-) => {
-  const arr = idx[key] ?? [];
-  if (!arr.length) return idx;
-  return { ...idx, [key]: arr.filter((x) => x !== id) };
 };
 
 export const useCompanionStore = create<CompanionState>()((set, get) => ({
