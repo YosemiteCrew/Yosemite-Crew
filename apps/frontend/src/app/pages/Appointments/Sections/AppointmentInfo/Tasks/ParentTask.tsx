@@ -6,13 +6,21 @@ import { PermissionGate } from "@/app/components/PermissionGate";
 import { useTaskForm } from "@/app/hooks/useTaskForm";
 import { PERMISSIONS } from "@/app/utils/permissions";
 import { Appointment } from "@yosemite-crew/types";
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 
 type ParentTaskProps = {
   activeAppointment: Appointment;
 };
 
 const ParentTask = ({ activeAppointment }: ParentTaskProps) => {
+  const initialTask = useMemo(
+    () => ({
+      companionId: activeAppointment.companion.id,
+      assignedTo: activeAppointment.companion.parent.id,
+    }),
+    [activeAppointment.companion.id, activeAppointment.companion.parent.id]
+  );
+
   const {
     formData,
     setFormData,
@@ -30,16 +38,12 @@ const ParentTask = ({ activeAppointment }: ParentTaskProps) => {
     resetForm,
   } = useTaskForm({
     isCompanionTask: true,
+    initialTask,
   });
 
   useEffect(() => {
-    setFormData((prev) => ({
-      ...prev,
-      companionId: activeAppointment.companion.id,
-      assignedTo: activeAppointment.companion.parent.id,
-    }));
     resetForm();
-  }, [activeAppointment, setFormData, resetForm]);
+  }, [activeAppointment, resetForm]);
 
   return (
     <PermissionGate
