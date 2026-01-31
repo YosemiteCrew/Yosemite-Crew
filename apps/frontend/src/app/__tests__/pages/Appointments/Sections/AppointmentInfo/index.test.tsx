@@ -113,6 +113,13 @@ jest.mock("@/app/pages/Appointments/Sections/AppointmentInfo/Finance/Details", (
 
 jest.mock("@/app/services/soapService", () => ({
   fetchSubmissions: jest.fn(),
+  createSubmission: jest.fn(),
+}));
+
+jest.mock("@/app/services/appointmentFormsService", () => ({
+  fetchAppointmentForms: jest.fn().mockResolvedValue([]),
+  submitAppointmentForm: jest.fn(),
+  getAppointmentFormSubmission: jest.fn(),
 }));
 
 jest.mock("next/image", () => ({
