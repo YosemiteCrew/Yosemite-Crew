@@ -1,211 +1,154 @@
-import { renderHook, act } from "@testing-library/react";
 import {
-  useStripeOnboarding,
-  useSubscriptionCounterUpdate, // CHANGED: Updated import name to match source
-} from "../../hooks/useStripeOnboarding";
-import { useOrgStore } from "../../stores/orgStore";
-// Note: useSubscriptionStore is not used in the provided source hook, so we don't strictly need to mock it for that hook anymore,
-// but we leave the mock structure if other tests need it.
-import { useSubscriptionStore } from "../../stores/subscriptionStore";
-import * as stripeService from "../../services/stripeService";
+  getStripeBillingPortal,
+  getUpgradeLink,
+  getCheckoutClientSecret,
+} from "@/app/services/billingService";
 
-// ----------------------------------------------------------------------------
-// 1. Mocks
-// ----------------------------------------------------------------------------
+const postDataMock = jest.fn();
 
-jest.mock("../../stores/orgStore", () => ({
-  useOrgStore: jest.fn(),
+jest.mock("@/app/services/axios", () => ({
+  postData: (...args: any[]) => postDataMock(...args),
 }));
 
-jest.mock("../../stores/subscriptionStore", () => ({
-  useSubscriptionStore: jest.fn(),
+const mockOrgState = {
+  primaryOrgId: "org-123",
+};
+
+jest.mock("@/app/stores/orgStore", () => ({
+  useOrgStore: {
+    getState: () => mockOrgState,
+  },
 }));
 
-jest.mock("../../services/stripeService", () => ({
-  checkStatus: jest.fn(),
-}));
+describe("billingService", () => {
+  const originalConsoleError = console.error;
 
-describe("useStripeOnboarding Hooks", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockOrgState.primaryOrgId = "org-123";
+    console.error = jest.fn();
   });
 
-  // ==========================================================================
-  // Hook 1: useStripeOnboarding
-  // ==========================================================================
-  describe("useStripeOnboarding", () => {
-    const setupOrgStoreMock = (
-      orgId: string | null,
-      orgData: any = null,
-      membershipData: any = null
-    ) => {
-      (useOrgStore as unknown as jest.Mock).mockImplementation((selector) => {
-        // Mock state structure expected by the hook selectors
-        const mockState = {
-          orgsById: orgData ? { [orgData.id]: orgData } : {},
-          membershipsByOrgId: membershipData
-            ? { [membershipData.organisationId]: membershipData }
-            : {},
-        };
-        return selector(mockState);
+  afterEach(() => {
+    console.error = originalConsoleError;
+  });
+
+  describe("getStripeBillingPortal", () => {
+    it("posts to billing portal endpoint and returns URL", async () => {
+      postDataMock.mockResolvedValue({
+        data: { url: "https://billing.stripe.com/portal" },
       });
-    };
 
-    it("returns false if no orgId provided", () => {
-      setupOrgStoreMock(null);
-      const { result } = renderHook(() => useStripeOnboarding(null));
-      expect(result.current.onboard).toBe(false);
-    });
+      const result = await getStripeBillingPortal();
 
-    it("returns false if org not found in store", () => {
-      setupOrgStoreMock("org-1", null, {
-        organisationId: "org-1",
-        roleDisplay: "Owner",
-      });
-      const { result } = renderHook(() => useStripeOnboarding("org-1"));
-      expect(result.current.onboard).toBe(false);
-    });
-
-    it("returns false if membership not found in store", () => {
-      setupOrgStoreMock("org-1", { id: "org-1", isVerified: true }, null);
-      const { result } = renderHook(() => useStripeOnboarding("org-1"));
-      expect(result.current.onboard).toBe(false);
-    });
-
-    it("returns false if user is NOT owner (role check case-insensitive)", () => {
-      setupOrgStoreMock(
-        "org-1",
-        { id: "org-1", isVerified: true },
-        { organisationId: "org-1", roleDisplay: "Admin" }
+      expect(postDataMock).toHaveBeenCalledWith(
+        "/v1/stripe/organisation/org-123/billing/portal"
       );
-      const { result } = renderHook(() => useStripeOnboarding("org-1"));
-      expect(result.current.onboard).toBe(false);
+      expect(result).toBe("https://billing.stripe.com/portal");
     });
 
-    it("returns false if role uses roleCode fallback and is NOT owner", () => {
-      setupOrgStoreMock(
-        "org-1",
-        { id: "org-1", isVerified: true },
-        { organisationId: "org-1", roleDisplay: null, roleCode: "MEMBER" }
-      );
-      const { result } = renderHook(() => useStripeOnboarding("org-1"));
-      expect(result.current.onboard).toBe(false);
-    });
+    it("throws error when no primary org selected", async () => {
+      mockOrgState.primaryOrgId = "";
 
-    it("returns false if organization is NOT verified", () => {
-      setupOrgStoreMock(
-        "org-1",
-        { id: "org-1", isVerified: false },
-        { organisationId: "org-1", roleDisplay: "Owner" }
-      );
-      const { result } = renderHook(() => useStripeOnboarding("org-1"));
-      expect(result.current.onboard).toBe(false);
-    });
-
-    it("returns TRUE if user is Owner and Org is Verified", () => {
-      setupOrgStoreMock(
-        "org-1",
-        { id: "org-1", isVerified: true },
-        { organisationId: "org-1", roleDisplay: "owner" } // Lowercase test
+      await expect(getStripeBillingPortal()).rejects.toThrow(
+        "No primary organization selected."
       );
     });
 
-    it("handles fallback to empty string for missing roles", () => {
-      // Edge case: Both roleDisplay and roleCode are null
-      setupOrgStoreMock(
-        "org-1",
-        { id: "org-1", isVerified: true },
-        { organisationId: "org-1", roleDisplay: null, roleCode: null }
-      );
-      const { result } = renderHook(() => useStripeOnboarding("org-1"));
-      expect(result.current.onboard).toBe(false);
+    it("throws error when API call fails", async () => {
+      postDataMock.mockRejectedValue(new Error("API error"));
+
+      await expect(getStripeBillingPortal()).rejects.toThrow("API error");
     });
   });
 
-  // ==========================================================================
-  // Hook 2: useSubscriptionCounterUpdate (formerly useStripeAccountStatus)
-  // ==========================================================================
-  describe("useSubscriptionCounterUpdate", () => {
-    // Note: The provided source code for useSubscriptionCounterUpdate does NOT
-    // update the subscription store. It only calls checkStatus.
-    // I have updated the test to reflect the current source behavior.
+  describe("getUpgradeLink", () => {
+    it("posts to checkout endpoint with month interval", async () => {
+      postDataMock.mockResolvedValue({
+        data: { url: "https://checkout.stripe.com/upgrade" },
+      });
 
-    // const mockSetSubscriptionForOrg = jest.fn(); // Commented out as unused in source
+      const result = await getUpgradeLink("month");
 
-    beforeEach(() => {
-      // Setup Subscription Store Mock
-      (useSubscriptionStore as unknown as jest.Mock).mockImplementation(
-        (selector) =>
-          selector({
-            // setSubscriptionForOrg: mockSetSubscriptionForOrg,
-            primaryOrgId: "org-1"
-          })
+      expect(postDataMock).toHaveBeenCalledWith(
+        "/v1/stripe/organisation/org-123/billing/checkout",
+        { interval: "month" }
       );
-
-      // We also need to mock useOrgStore as the hook uses it to get primaryOrgId
-       (useOrgStore as unknown as jest.Mock).mockImplementation((selector) => {
-        return selector({ primaryOrgId: "org-1" });
-      });
+      expect(result).toBe("https://checkout.stripe.com/upgrade");
     });
 
-    it("initializes with default state", () => {
-      const { result } = renderHook(() => useSubscriptionCounterUpdate("org-1"));
-      expect(result.current.loading).toBe(false);
-      expect(result.current.error).toBeNull();
-    });
-
-    it("does nothing if refetch is called without orgId", async () => {
-       // Mock org store to return null primaryOrgId for this test case
-       (useOrgStore as unknown as jest.Mock).mockImplementation((selector) => selector({ primaryOrgId: null }));
-
-      const { result } = renderHook(() => useSubscriptionCounterUpdate(null));
-
-      await act(async () => {
-        await result.current.refetch();
+    it("posts to checkout endpoint with year interval", async () => {
+      postDataMock.mockResolvedValue({
+        data: { url: "https://checkout.stripe.com/upgrade-year" },
       });
 
-      expect(stripeService.checkStatus).not.toHaveBeenCalled();
-      expect(result.current.loading).toBe(false);
+      const result = await getUpgradeLink("year");
+
+      expect(postDataMock).toHaveBeenCalledWith(
+        "/v1/stripe/organisation/org-123/billing/checkout",
+        { interval: "year" }
+      );
+      expect(result).toBe("https://checkout.stripe.com/upgrade-year");
     });
 
-    it("fetches status successfully", async () => {
-      const mockResponse = { status: "active", plan: "pro" };
-      (stripeService.checkStatus as jest.Mock).mockResolvedValue(mockResponse);
+    it("throws error when no primary org selected", async () => {
+      mockOrgState.primaryOrgId = "";
 
-      const { result } = renderHook(() => useSubscriptionCounterUpdate("org-1"));
-
-      await act(async () => {
-        const promise = result.current.refetch();
-        await promise;
-      });
-
-      expect(stripeService.checkStatus).toHaveBeenCalledWith("org-1");
-
-      // NOTE: The previous test checked if the store was updated.
-      // The current source code for useSubscriptionCounterUpdate does NOT update the store.
-      // If this is intended, the lines below should remain commented out.
-
-      // expect(mockSetSubscriptionForOrg).toHaveBeenCalledWith(
-      //   "org-1",
-      //   mockResponse
-      // );
-
-      expect(result.current.loading).toBe(false);
-      expect(result.current.error).toBeNull();
+      await expect(getUpgradeLink("month")).rejects.toThrow(
+        "No primary organization selected."
+      );
     });
 
-    it("handles API errors gracefully", async () => {
-      const mockError = new Error("Stripe Error");
-      (stripeService.checkStatus as jest.Mock).mockRejectedValue(mockError);
+    it("throws error when no interval provided", async () => {
+      await expect(getUpgradeLink("" as any)).rejects.toThrow(
+        "No interval selected."
+      );
+    });
 
-      const { result } = renderHook(() => useSubscriptionCounterUpdate("org-1"));
+    it("throws error when API call fails", async () => {
+      postDataMock.mockRejectedValue(new Error("API error"));
 
-      await act(async () => {
-        await result.current.refetch();
+      await expect(getUpgradeLink("month")).rejects.toThrow("API error");
+    });
+  });
+
+  describe("getCheckoutClientSecret", () => {
+    it("posts to checkout endpoint and returns client secret", async () => {
+      postDataMock.mockResolvedValue({
+        data: { clientSecret: "cs_test_123" },
       });
 
-      expect(result.current.error).toBe(mockError);
-      expect(result.current.loading).toBe(false);
+      const result = await getCheckoutClientSecret("month");
+
+      expect(postDataMock).toHaveBeenCalledWith(
+        "/v1/stripe/organisation/org-123/billing/checkout",
+        { interval: "month" }
+      );
+      expect(result).toBe("cs_test_123");
+    });
+
+    it("throws error when no primary org selected", async () => {
+      mockOrgState.primaryOrgId = "";
+
+      await expect(getCheckoutClientSecret("month")).rejects.toThrow(
+        "No primary organization selected."
+      );
+    });
+
+    it("throws error when no interval provided", async () => {
+      await expect(getCheckoutClientSecret("" as any)).rejects.toThrow(
+        "No interval selected."
+      );
+    });
+
+    it("throws error when no clientSecret returned", async () => {
+      postDataMock.mockResolvedValue({
+        data: {},
+      });
+
+      await expect(getCheckoutClientSecret("month")).rejects.toThrow(
+        "No clientSecret returned from backend."
+      );
     });
   });
 });
