@@ -169,16 +169,19 @@ jest.mock(
 jest.mock(
   '../../../../../src/shared/components/common/DiscardChangesBottomSheet/DiscardChangesBottomSheet',
   () => {
-    const React = jest.requireActual('react'); // <--- FIX: Require React locally inside factory
+    // FIX: Renamed local variable to ReactActual to avoid shadowing global 'React'
+    const ReactActual = jest.requireActual('react');
     const {View: MockView} = require('react-native');
     return {
-      DiscardChangesBottomSheet: React.forwardRef((props: any, ref: any) => {
-        React.useImperativeHandle(ref, () => ({
-          open: () => props.onDiscard && props.onDiscard(),
-          close: jest.fn(),
-        }));
-        return <MockView testID="discard-sheet" />;
-      }),
+      DiscardChangesBottomSheet: ReactActual.forwardRef(
+        (props: any, ref: any) => {
+          ReactActual.useImperativeHandle(ref, () => ({
+            open: () => props.onDiscard && props.onDiscard(),
+            close: jest.fn(),
+          }));
+          return <MockView testID="discard-sheet" />;
+        },
+      ),
     };
   },
 );
