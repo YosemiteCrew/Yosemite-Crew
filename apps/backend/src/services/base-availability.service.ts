@@ -162,40 +162,41 @@ const sanitizeAvailabilityEntry = (
   };
 };
 
+const pruneArrayUndefined = (arrayValue: unknown[]): void => {
+  for (let index = arrayValue.length - 1; index >= 0; index -= 1) {
+    const next = pruneUndefined(arrayValue[index]);
+
+    if (next === undefined) {
+      arrayValue.splice(index, 1);
+    } else {
+      arrayValue[index] = next;
+    }
+  }
+};
+
+const pruneRecordUndefined = (record: UnknownRecord): void => {
+  for (const key of Object.keys(record)) {
+    const next = pruneUndefined(record[key]);
+
+    if (next === undefined) {
+      delete record[key];
+    } else {
+      record[key] = next;
+    }
+  }
+};
+
+const isPlainObject = (value: unknown): value is UnknownRecord =>
+  Boolean(value) && typeof value === "object" && !(value instanceof Date);
+
 const pruneUndefined = <T>(value: T): T => {
   if (Array.isArray(value)) {
-    const arrayValue = value as unknown[];
-
-    for (let index = arrayValue.length - 1; index >= 0; index -= 1) {
-      const next = pruneUndefined(arrayValue[index]);
-
-      if (next === undefined) {
-        arrayValue.splice(index, 1);
-      } else {
-        arrayValue[index] = next;
-      }
-    }
-
+    pruneArrayUndefined(value as unknown[]);
     return value;
   }
 
-  if (value && typeof value === "object") {
-    if (value instanceof Date) {
-      return value;
-    }
-
-    const record = value as UnknownRecord;
-
-    for (const key of Object.keys(record)) {
-      const next = pruneUndefined(record[key]);
-
-      if (next === undefined) {
-        delete record[key];
-      } else {
-        record[key] = next;
-      }
-    }
-
+  if (isPlainObject(value)) {
+    pruneRecordUndefined(value);
     return value;
   }
 

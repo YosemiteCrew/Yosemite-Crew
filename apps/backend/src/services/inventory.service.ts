@@ -251,6 +251,107 @@ const computeStockHealthStatus = (args: {
   return "HEALTHY";
 };
 
+const applyOptionalBusinessType = (
+  query: FilterQuery<InventoryItemMongo>,
+  value: unknown,
+) => {
+  if (value === undefined) return;
+  const businessType = sanitizeBusinessType(value);
+  if (!businessType) {
+    throw new InventoryServiceError("Invalid businessType", 400);
+  }
+  query.businessType = businessType;
+};
+
+const applyOptionalStringFilter = (
+  query: FilterQuery<InventoryItemMongo>,
+  value: unknown,
+  fieldName: "category" | "subCategory",
+) => {
+  if (value === undefined) return;
+  const fieldValue = asNonEmptyString(value);
+  if (!fieldValue) {
+    throw new InventoryServiceError(`Invalid ${fieldName}`, 400);
+  }
+  query[fieldName] = fieldValue;
+};
+
+const resolveStatusFilter = (
+  status: ListInventoryFilter["status"],
+): { status: FilterQuery<InventoryItemMongo>["status"]; returnEmpty: boolean } => {
+  if (status === undefined) {
+    return { status: { $ne: "DELETED" }, returnEmpty: false };
+  }
+  if (Array.isArray(status)) {
+    const statusList = sanitizeStatusList(status);
+    if (!statusList) {
+      if (status.length === 0) {
+        return { status: { $in: [] }, returnEmpty: true };
+      }
+      throw new InventoryServiceError("Invalid status", 400);
+    }
+    return { status: { $in: statusList }, returnEmpty: false };
+  }
+  const single = sanitizeStatus(status);
+  if (!single) {
+    throw new InventoryServiceError("Invalid status", 400);
+  }
+  return { status: single, returnEmpty: false };
+};
+
+const applySearchFilter = (
+  query: FilterQuery<InventoryItemMongo>,
+  search: ListInventoryFilter["search"],
+) => {
+  if (!search) return;
+  const s = asNonEmptyString(search);
+  if (!s) return;
+  const safe = escapeRegex(s);
+  query.$or = [
+    { name: { $regex: safe, $options: "i" } },
+    { sku: { $regex: safe, $options: "i" } },
+    { description: { $regex: safe, $options: "i" } },
+  ];
+};
+
+const groupBatchesByItem = (batches: InventoryBatchDocument[]) => {
+  const batchesByItem = new Map<string, InventoryBatchDocument[]>();
+  for (const b of batches) {
+    const key = b.itemId.toString();
+    if (!batchesByItem.has(key)) batchesByItem.set(key, []);
+    batchesByItem.get(key)!.push(b);
+  }
+  return batchesByItem;
+};
+
+const getNearestExpiry = (batches: InventoryBatchDocument[]) => {
+  let nearestExpiry: Date | null = null;
+  for (const b of batches) {
+    if (!b.expiryDate) continue;
+    if (!nearestExpiry || b.expiryDate < nearestExpiry) {
+      nearestExpiry = b.expiryDate;
+    }
+  }
+  return nearestExpiry;
+};
+
+const shouldIncludeItem = (args: {
+  filter: ListInventoryFilter;
+  stockHealth: StockHealthStatus;
+  expiringWithinDays?: number;
+}) => {
+  const { filter, stockHealth, expiringWithinDays } = args;
+  if (filter.lowStockOnly && stockHealth !== "LOW_STOCK") return false;
+  if (filter.expiredOnly && stockHealth !== "EXPIRED") return false;
+  if (
+    expiringWithinDays &&
+    !(stockHealth === "EXPIRING_SOON" || stockHealth === "EXPIRED")
+  ) {
+    return false;
+  }
+  return true;
+};
+
 export type InventoryTurnoverStatus =
   | "EXCELLENT"
   | "HEALTHY"
@@ -526,62 +627,13 @@ export const InventoryService = {
     const expiringWithinDays = sanitizePositiveNumber(
       filter.expiringWithinDays,
     );
-
-    if (filter.businessType !== undefined) {
-      const businessType = sanitizeBusinessType(filter.businessType);
-      if (!businessType) {
-        throw new InventoryServiceError("Invalid businessType", 400);
-      }
-      query.businessType = businessType;
-    }
-
-    if (filter.category !== undefined) {
-      const category = asNonEmptyString(filter.category);
-      if (!category) {
-        throw new InventoryServiceError("Invalid category", 400);
-      }
-      query.category = category;
-    }
-    if (filter.subCategory !== undefined) {
-      const subCategory = asNonEmptyString(filter.subCategory);
-      if (!subCategory) {
-        throw new InventoryServiceError("Invalid subCategory", 400);
-      }
-      query.subCategory = subCategory;
-    }
-
-    if (filter.status === undefined) {
-      // default: exclude deleted
-      query.status = { $ne: "DELETED" };
-    } else if (Array.isArray(filter.status)) {
-        const statusList = sanitizeStatusList(filter.status);
-        if (!statusList) {
-          if (filter.status.length === 0) {
-            query.status = { $in: [] };
-            return [];
-          }
-          throw new InventoryServiceError("Invalid status", 400);
-        }
-        query.status = { $in: statusList };
-      } else {
-        const status = sanitizeStatus(filter.status);
-        if (!status) {
-          throw new InventoryServiceError("Invalid status", 400);
-        }
-        query.status = status;
-      }
-
-    if (filter.search) {
-      const s = asNonEmptyString(filter.search);
-      if (s) {
-        const safe = escapeRegex(s);
-        query.$or = [
-          { name: { $regex: safe, $options: "i" } },
-          { sku: { $regex: safe, $options: "i" } },
-          { description: { $regex: safe, $options: "i" } },
-        ];
-      }
-    }
+    applyOptionalBusinessType(query, filter.businessType);
+    applyOptionalStringFilter(query, filter.category, "category");
+    applyOptionalStringFilter(query, filter.subCategory, "subCategory");
+    const { status, returnEmpty } = resolveStatusFilter(filter.status);
+    if (returnEmpty) return [];
+    query.status = status;
+    applySearchFilter(query, filter.search);
 
     const items = await InventoryItemModel.find(query).sort({ name: 1 }).exec();
 
@@ -590,25 +642,13 @@ export const InventoryService = {
       itemId: { $in: itemIds },
     }).exec();
 
-    const batchesByItem = new Map<string, InventoryBatchDocument[]>();
-    for (const b of batches) {
-      const key = b.itemId.toString();
-      if (!batchesByItem.has(key)) batchesByItem.set(key, []);
-      batchesByItem.get(key)!.push(b);
-    }
+    const batchesByItem = groupBatchesByItem(batches);
 
     const result: InventoryListItem[] = [];
 
     for (const item of items) {
       const itemBatches = batchesByItem.get(item._id.toString()) ?? [];
-      let nearestExpiry: Date | null = null;
-      for (const b of itemBatches) {
-        if (b.expiryDate) {
-          if (!nearestExpiry || b.expiryDate < nearestExpiry) {
-            nearestExpiry = b.expiryDate;
-          }
-        }
-      }
+      const nearestExpiry = getNearestExpiry(itemBatches);
 
       const stockHealth = computeStockHealthStatus({
         onHand: item.onHand ?? 0,
@@ -618,11 +658,8 @@ export const InventoryService = {
       });
 
       // Apply extra filters
-      if (filter.lowStockOnly && stockHealth !== "LOW_STOCK") continue;
-      if (filter.expiredOnly && stockHealth !== "EXPIRED") continue;
       if (
-        expiringWithinDays &&
-        !(stockHealth === "EXPIRING_SOON" || stockHealth === "EXPIRED")
+        !shouldIncludeItem({ filter, stockHealth, expiringWithinDays })
       ) {
         continue;
       }

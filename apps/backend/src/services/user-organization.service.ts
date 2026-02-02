@@ -598,42 +598,82 @@ const syncSeatsIfBusiness = async (orgId: Types.ObjectId) => {
   }
 };
 
+const findExistingUserOrganization = async (id?: string | null) => {
+  if (!id) return null;
+  return UserOrganizationModel.findOne(resolveStrictIdQuery(id, "identifier"));
+};
+
+const handleExistingSeatTransition = async (
+  document: UserOrganizationDocument,
+  willBeActive: boolean,
+) => {
+  const wasActive = document.active ?? false;
+  const orgObjectId = await resolveOrganisationObjectId(
+    document.organizationReference,
+  );
+  let seatDelta: -1 | 0 | 1 = 0;
+
+  if (!wasActive && willBeActive) {
+    await reserveMemberSlot(orgObjectId);
+    seatDelta = 1;
+  } else if (wasActive && !willBeActive) {
+    await releaseMemberSlot(orgObjectId);
+    seatDelta = -1;
+  }
+
+  return { orgObjectId, seatDelta };
+};
+
+const reserveSeatForNewMapping = async (
+  persistable: UserOrganizationMongo,
+  willBeActive: boolean,
+) => {
+  if (!willBeActive) {
+    return { orgObjectId: null, seatDelta: 0 as const };
+  }
+
+  const orgObjectId = await resolveOrganisationObjectId(
+    persistable.organizationReference,
+  );
+  await reserveMemberSlot(orgObjectId);
+  return { orgObjectId, seatDelta: 1 as const };
+};
+
+const createUserOrganizationWithRollback = async (
+  persistable: UserOrganizationMongo,
+  seatDelta: -1 | 0 | 1,
+  orgObjectId: Types.ObjectId | null,
+) => {
+  try {
+    const document = await UserOrganizationModel.create(persistable);
+    return { document, created: true };
+  } catch (err) {
+    if (seatDelta === 1 && orgObjectId) {
+      await releaseMemberSlot(orgObjectId);
+    }
+    throw err;
+  }
+};
+
 export const UserOrganizationService = {
   async upsert(payload: UserOrganizationFHIRPayload) {
     const { persistable } = createPersistableFromFHIR(payload);
     validateRoleCode(persistable.roleCode);
 
     const id = ensureSafeIdentifier(payload.id ?? persistable.fhirId);
-    let document: UserOrganizationDocument | null = null;
+    let document = await findExistingUserOrganization(id);
     let created = false;
 
     let orgObjectId: Types.ObjectId | null = null;
     let seatDelta: -1 | 0 | 1 = 0;
-
-    if (id) {
-      document = await UserOrganizationModel.findOne(
-        resolveStrictIdQuery(id, "identifier"),
-      );
-    }
-
-    const wasActive = document?.active ?? false;
     const willBeActive = persistable.active !== false;
 
     if (document) {
       // Existing document — detect state transitions
-      orgObjectId = await resolveOrganisationObjectId(
-        document.organizationReference,
-      );
-
-      if (!wasActive && willBeActive) {
-        await reserveMemberSlot(orgObjectId);
-        seatDelta = 1;
-      }
-
-      if (wasActive && !willBeActive) {
-        await releaseMemberSlot(orgObjectId);
-        seatDelta = -1;
-      }
+      ({ orgObjectId, seatDelta } = await handleExistingSeatTransition(
+        document,
+        willBeActive,
+      ));
 
       document = await UserOrganizationModel.findOneAndUpdate(
         { _id: document._id },
@@ -641,23 +681,15 @@ export const UserOrganizationService = {
         { new: true, sanitizeFilter: true },
       );
     } else {
-      if (willBeActive) {
-        orgObjectId = await resolveOrganisationObjectId(
-          persistable.organizationReference,
-        );
-        await reserveMemberSlot(orgObjectId);
-        seatDelta = 1;
-      }
-
-      try {
-        document = await UserOrganizationModel.create(persistable);
-        created = true;
-      } catch (err) {
-        if (seatDelta === 1 && orgObjectId) {
-          await releaseMemberSlot(orgObjectId);
-        }
-        throw err;
-      }
+      ({ orgObjectId, seatDelta } = await reserveSeatForNewMapping(
+        persistable,
+        willBeActive,
+      ));
+      ({ document, created } = await createUserOrganizationWithRollback(
+        persistable,
+        seatDelta,
+        orgObjectId,
+      ));
     }
 
     if (!document) {
