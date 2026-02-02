@@ -27,6 +27,10 @@ export type BusinessType =
   | "GENERAL";
 
 export type InventoryStatus = "ACTIVE" | "HIDDEN" | "DELETED";
+type InventoryStatusFilter =
+  | InventoryStatus
+  | { $in: InventoryStatus[] }
+  | { $ne: InventoryStatus };
 
 export type StockHealthStatus =
   | "HEALTHY"
@@ -278,7 +282,7 @@ const applyOptionalStringFilter = (
 
 const resolveStatusFilter = (
   status: ListInventoryFilter["status"],
-): { status: FilterQuery<InventoryItemMongo>["status"]; returnEmpty: boolean } => {
+): { status: InventoryStatusFilter; returnEmpty: boolean } => {
   if (status === undefined) {
     return { status: { $ne: "DELETED" }, returnEmpty: false };
   }
@@ -286,7 +290,7 @@ const resolveStatusFilter = (
     const statusList = sanitizeStatusList(status);
     if (!statusList) {
       if (status.length === 0) {
-        return { status: { $in: [] }, returnEmpty: true };
+        return { status: { $in: [] as InventoryStatus[] }, returnEmpty: true };
       }
       throw new InventoryServiceError("Invalid status", 400);
     }
@@ -630,9 +634,9 @@ export const InventoryService = {
     applyOptionalBusinessType(query, filter.businessType);
     applyOptionalStringFilter(query, filter.category, "category");
     applyOptionalStringFilter(query, filter.subCategory, "subCategory");
-    const { status, returnEmpty } = resolveStatusFilter(filter.status);
-    if (returnEmpty) return [];
-    query.status = status;
+    const statusFilter = resolveStatusFilter(filter.status);
+    if (statusFilter.returnEmpty) return [];
+    query.status = statusFilter.status;
     applySearchFilter(query, filter.search);
 
     const items = await InventoryItemModel.find(query).sort({ name: 1 }).exec();
@@ -664,7 +668,7 @@ export const InventoryService = {
         continue;
       }
 
-      const itemObject = item.toObject();
+      const itemObject = item.toObject<InventoryItemMongo>();
       result.push({ ...itemObject, stockHealth, batches: itemBatches });
     }
 

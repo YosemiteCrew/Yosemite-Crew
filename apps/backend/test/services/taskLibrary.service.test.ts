@@ -3,6 +3,7 @@ import {
   TaskLibraryService,
   TaskLibraryServiceError,
 } from "../../src/services/taskLibrary.service";
+import { Types } from "mongoose";
 
 type MockedTaskLibraryDefinitionModel = {
   find: jest.Mock;
@@ -21,6 +22,8 @@ const mockedModel =
   TaskLibraryDefinitionModel as unknown as MockedTaskLibraryDefinitionModel;
 
 describe("TaskLibraryService", () => {
+  const validId = new Types.ObjectId().toString();
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -45,13 +48,13 @@ describe("TaskLibraryService", () => {
   describe("getById", () => {
     it("returns document when found", async () => {
       mockedModel.findById.mockReturnValueOnce({
-        exec: jest.fn().mockResolvedValue({ _id: "lib-2" }),
+        exec: jest.fn().mockResolvedValue({ _id: validId }),
       });
 
-      const result = await TaskLibraryService.getById("lib-2");
+      const result = await TaskLibraryService.getById(validId);
 
-      expect(mockedModel.findById).toHaveBeenCalledWith("lib-2");
-      expect(result).toEqual({ _id: "lib-2" });
+      expect(mockedModel.findById).toHaveBeenCalledWith(validId);
+      expect(result).toEqual({ _id: validId });
     });
 
     it("throws when missing", async () => {
@@ -60,7 +63,7 @@ describe("TaskLibraryService", () => {
       });
 
       await expect(
-        TaskLibraryService.getById("missing"),
+        TaskLibraryService.getById(validId),
       ).rejects.toBeInstanceOf(TaskLibraryServiceError);
     });
   });

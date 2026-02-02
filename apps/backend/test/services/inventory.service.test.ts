@@ -784,7 +784,12 @@ describe("Inventory Module", () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (InventoryMetaFieldModel.create as any).mockResolvedValue({} as any);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await InventoryMetaFieldService.createField({} as any);
+      await InventoryMetaFieldService.createField({
+        businessType: "GENERAL",
+        fieldKey: "color",
+        label: "Color",
+        values: ["Black", "White"],
+      } as any);
       expect(InventoryMetaFieldModel.create).toHaveBeenCalled();
     });
 
