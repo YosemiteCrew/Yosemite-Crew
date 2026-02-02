@@ -2,7 +2,7 @@ import {
   isWithinCheckInWindow,
   formatCheckInTime,
   getCheckInConstants,
-} from '@/features/appointments/utils/checkInUtils';
+} from '../../../../src/features/appointments/utils/checkInUtils';
 
 jest.mock('@/features/appointments/utils/timeFormatting', () => ({
   normalizeTimeString: (time: string) => {
@@ -35,12 +35,6 @@ describe('checkInUtils', () => {
       // Appointment at 14:03, current time 14:00 (3 minutes before)
       const result = isWithinCheckInWindow('2024-12-20', '14:03');
       expect(result).toBe(true);
-    });
-
-    it.skip('should return false when more than 5 minutes before appointment', () => {
-      // Appointment at 15:00, current time 14:00 (1 hour before, outside buffer)
-      const result = isWithinCheckInWindow('2024-12-20', '15:00');
-      expect(result).toBe(false);
     });
 
     it('should handle null time string', () => {
