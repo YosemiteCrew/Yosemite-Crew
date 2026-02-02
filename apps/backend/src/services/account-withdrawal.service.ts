@@ -1,6 +1,5 @@
 // services/account-withdrawal.service.ts
 import { AccountWithdrawalModel } from "../models/account-withdrawal";
-//import { NotificationEmailService } from "../services/notificationEmail.service";
 
 export class AccountWithdrawalServiceError extends Error {
   constructor(
@@ -40,16 +39,6 @@ export const AccountWithdrawalService = {
       ...input,
       status: "RECEIVED",
     });
-
-    // // Notify DPO / legal by email
-    // await NotificationEmailService.sendAccountWithdrawalRequest({
-    //   fullName: input.fullName,
-    //   email: input.email,
-    //   address: input.address,
-    //   signatureText: input.signatureText,
-    //   message: input.message,
-    //   withdrawalId: doc._id.toString(),
-    // });
 
     return doc;
   },

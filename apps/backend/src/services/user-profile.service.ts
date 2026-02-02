@@ -474,14 +474,18 @@ const buildDomainProfile = (
   };
 
   const idSource = raw._id ?? document._id;
-  const id =
-    typeof idSource === "string"
-      ? idSource
-      : typeof idSource === "object" &&
-          idSource !== null &&
-          "toString" in idSource
-        ? String((idSource as { toString: () => string }).toString())
-        : undefined;
+  
+  let id: string | undefined;
+
+  if (typeof idSource === "string") {
+    id = idSource;
+  } else if (
+    typeof idSource === "object" &&
+    idSource !== null &&
+    "toString" in idSource
+  ) {
+    id = String((idSource as { toString: () => string }).toString());
+  }
 
   const personalDetails = raw.personalDetails
     ? pruneUndefined({

@@ -15,22 +15,22 @@ export class TaskLibraryServiceError extends Error {
   }
 }
 
-const TASK_KINDS: TaskKind[] = [
+const TASK_KINDS = new Set<TaskKind>([
   "MEDICATION",
   "OBSERVATION_TOOL",
   "HYGIENE",
   "DIET",
   "CUSTOM",
-];
-const SPECIES_LIST: Species[] = ["dog", "cat", "horse"];
+]);
+const SPECIES_LIST = new Set<Species>(["dog", "cat", "horse"]);
 
 const sanitizeTaskKind = (value: unknown): TaskKind | undefined =>
-  typeof value === "string" && TASK_KINDS.includes(value as TaskKind)
+  typeof value === "string" && TASK_KINDS.has(value as TaskKind)
     ? (value as TaskKind)
     : undefined;
 
 const sanitizeSpecies = (value: unknown): Species | undefined =>
-  typeof value === "string" && SPECIES_LIST.includes(value as Species)
+  typeof value === "string" && SPECIES_LIST.has(value as Species)
     ? (value as Species)
     : undefined;
 

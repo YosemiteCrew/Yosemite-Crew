@@ -226,11 +226,18 @@ const reserveAppointmentUsage = async (
         (usage?.toolsUsed ?? 0) >= (usage?.freeToolsLimit ?? 0);
       const appointmentsLimitReached =
         (usage?.appointmentsUsed ?? 0) >= (usage?.freeAppointmentsLimit ?? 0);
-      const message = toolsLimitReached
-        ? "Free plan observation tool appointment limit reached."
-        : appointmentsLimitReached
-          ? "Free plan appointment limit reached."
-          : "Free plan usage limit reached.";
+
+      const message = (() => {
+        if (toolsLimitReached) {
+          return "Free plan observation tool appointment limit reached.";
+        }
+
+        if (appointmentsLimitReached) {
+          return "Free plan appointment limit reached.";
+        }
+
+        return "Free plan usage limit reached.";
+      })();
 
       throw new AppointmentServiceError(message, 403);
     }

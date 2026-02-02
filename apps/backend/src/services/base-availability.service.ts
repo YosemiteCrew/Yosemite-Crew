@@ -82,17 +82,19 @@ const sanitizeSlot = (value: unknown, index: number): AvailabilitySlotMongo => {
     );
   }
 
-  const isAvailable =
-    "isAvailable" in record
-      ? typeof record.isAvailable === "boolean"
-        ? record.isAvailable
-        : (() => {
-            throw new BaseAvailabilityServiceError(
-              `Slot[${index}].isAvailable must be a boolean.`,
-              400,
-            );
-          })()
-      : true;
+  let isAvailable = true;
+
+  if ("isAvailable" in record) {
+    if (typeof record.isAvailable === "boolean") {
+      isAvailable = record.isAvailable;
+    } else {
+      throw new BaseAvailabilityServiceError(
+        `Slot[${index}].isAvailable must be a boolean.`,
+        400,
+      );
+    }
+  }
+
 
   return {
     startTime,
@@ -208,14 +210,18 @@ const buildDomainAvailability = (
   }) as BaseAvailabilityMongo & { _id: unknown };
 
   const idSource = raw._id ?? document._id;
-  const id =
-    typeof idSource === "string"
-      ? idSource
-      : typeof idSource === "object" &&
-          idSource !== null &&
-          "toString" in idSource
-        ? String((idSource as { toString: () => string }).toString())
-        : undefined;
+  
+  let id: string | undefined;
+
+  if (typeof idSource === "string") {
+    id = idSource;
+  } else if (
+    typeof idSource === "object" &&
+    idSource !== null &&
+    "toString" in idSource
+  ) {
+    id = String((idSource as { toString: () => string }).toString());
+  }
 
   return pruneUndefined({
     _id: id,

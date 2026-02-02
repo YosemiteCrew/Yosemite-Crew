@@ -170,13 +170,6 @@ export const StripeService = {
       await billing.save();
     }
 
-    // // Gate upgrade on Connect readiness
-    // if (!billing.canAcceptPayments) {
-    //   throw new Error(
-    //     "Stripe account not ready. Complete onboarding/verification first.",
-    //   );
-    // }
-
     const seats = await computeBillableSeats(orgId);
     if (seats < 1)
       throw new Error("No users found. Add at least 1 user to start Business.");

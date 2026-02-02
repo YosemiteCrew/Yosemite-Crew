@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { stringify } from "querystring";
+import { stringify } from "node:querystring";
 import { generatePresignedUrl } from "src/middlewares/upload";
 import { OrgDocumentCategory } from "src/models/organisation-document";
 import {

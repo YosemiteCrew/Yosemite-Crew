@@ -233,7 +233,6 @@ const buildPersistableDocument = (
 
   if (source === "parent") {
     uploadedByParentId = ensureObjectId(context.parentId!, "parentId");
-    syncedFromPms = false;
   } else {
     uploadedByPmsUserId = assertSafeString(
       context.pmsUserId,
@@ -477,8 +476,7 @@ export const DocumentService = {
     // 2. Permission check
     if (isParentUpdater) {
       if (
-        !doc.uploadedByParentId ||
-        doc.uploadedByParentId.toString() !== context.parentId!.toString()
+        doc.uploadedByParentId?.toString() !== context.parentId!.toString()
       ) {
         throw new DocumentServiceError(
           "Parent is not allowed to update this document.",

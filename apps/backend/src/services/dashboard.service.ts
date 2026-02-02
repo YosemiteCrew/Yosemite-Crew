@@ -145,11 +145,6 @@ const resolveRange = (range: SummaryRange) => {
       const y = now.subtract(1, "day");
       return { from: y.startOf("day").toDate(), to: y.endOf("day").toDate() };
     }
-    case "last_7_days":
-      return {
-        from: now.subtract(7, "day").startOf("day").toDate(),
-        to: now.toDate(),
-      };
     case "last_30_days":
       return {
         from: now.subtract(30, "day").startOf("day").toDate(),
