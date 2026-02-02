@@ -14,6 +14,7 @@ import {
 import { AuthUserMobileService } from "./authUserMobile.service";
 import { buildS3Key, moveFile } from "src/middlewares/upload";
 import logger from "src/utils/logger";
+import escapeStringRegexp from "escape-string-regexp";
 
 export class ParentServiceError extends Error {
   constructor(
@@ -33,6 +34,9 @@ const ensureMongoId = (id: string): Types.ObjectId => {
   }
   return new Types.ObjectId(id);
 };
+
+const escapeRegex = (value: string) =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** Convert Mongo → Domain → FHIR DTO */
 export const toFHIR = (doc: ParentDocument) => {
@@ -275,7 +279,13 @@ export const ParentService = {
       throw new ParentServiceError("Name is required for searching.", 400);
     }
 
-    const searchRegex = new RegExp(name.trim(), "i");
+    const trimmed = name.trim();
+    if (!trimmed) {
+      throw new ParentServiceError("Name is required for searching.", 400);
+    }
+
+    const safe = escapeStringRegexp(name.trim());
+    const searchRegex = new RegExp(safe);
 
     const documents = await ParentModel.find({
       $or: [

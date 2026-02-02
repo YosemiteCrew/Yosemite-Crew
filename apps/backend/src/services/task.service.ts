@@ -50,6 +50,37 @@ const DEFAULT_PMS_URL =
   process.env.APP_URL ??
   "https://app.yosemitecrew.com";
 
+const TASK_STATUSES: TaskStatus[] = [
+  "PENDING",
+  "IN_PROGRESS",
+  "COMPLETED",
+  "CANCELLED",
+];
+const TASK_AUDIENCES: TaskAudience[] = ["EMPLOYEE_TASK", "PARENT_TASK"];
+
+const asNonEmptyString = (value: unknown): string | undefined => {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
+};
+
+const isValidDate = (value: unknown): value is Date =>
+  value instanceof Date && !Number.isNaN(value.getTime());
+
+const sanitizeStatusList = (value: unknown): TaskStatus[] | undefined => {
+  if (!Array.isArray(value)) return undefined;
+  const filtered = value.filter(
+    (status): status is TaskStatus =>
+      typeof status === "string" && TASK_STATUSES.includes(status as TaskStatus),
+  );
+  return filtered.length ? filtered : undefined;
+};
+
+const sanitizeAudience = (value: unknown): TaskAudience | undefined =>
+  typeof value === "string" && TASK_AUDIENCES.includes(value as TaskAudience)
+    ? (value as TaskAudience)
+    : undefined;
+
 const buildDisplayName = (
   user?: { firstName?: string; lastName?: string } | null,
 ) => {
@@ -666,18 +697,30 @@ export const TaskService = {
     toDueAt?: Date;
     status?: TaskStatus[];
   }): Promise<TaskDocument[]> {
+    const parentId = asNonEmptyString(params.parentId);
+    if (!parentId) {
+      throw new TaskServiceError("Invalid parentId");
+    }
+
     const filter: Record<string, unknown> = {
       audience: "PARENT_TASK",
-      $or: [{ assignedTo: params.parentId }, { createdBy: params.parentId }],
+      $or: [{ assignedTo: parentId }, { createdBy: parentId }],
     };
 
-    if (params.companionId) filter.companionId = params.companionId;
-    if (params.status?.length) filter.status = { $in: params.status };
+    const companionId = asNonEmptyString(params.companionId);
+    if (companionId) filter.companionId = companionId;
 
-    if (params.fromDueAt || params.toDueAt) {
+    const status = sanitizeStatusList(params.status);
+    if (status) filter.status = { $in: status };
+
+    const fromDueAt = isValidDate(params.fromDueAt)
+      ? params.fromDueAt
+      : undefined;
+    const toDueAt = isValidDate(params.toDueAt) ? params.toDueAt : undefined;
+    if (fromDueAt || toDueAt) {
       const dueAtFilter: { $gte?: Date; $lte?: Date } = {};
-      if (params.fromDueAt) dueAtFilter.$gte = params.fromDueAt;
-      if (params.toDueAt) dueAtFilter.$lte = params.toDueAt;
+      if (fromDueAt) dueAtFilter.$gte = fromDueAt;
+      if (toDueAt) dueAtFilter.$lte = toDueAt;
       filter.dueAt = dueAtFilter;
     }
 
@@ -692,19 +735,33 @@ export const TaskService = {
     toDueAt?: Date;
     status?: TaskStatus[];
   }): Promise<TaskDocument[]> {
+    const organisationId = asNonEmptyString(params.organisationId);
+    if (!organisationId) {
+      throw new TaskServiceError("Invalid organisationId");
+    }
+
     const filter: Record<string, unknown> = {
       audience: "EMPLOYEE_TASK",
-      organisationId: params.organisationId,
+      organisationId,
     };
 
-    if (params.userId) filter.assignedTo = params.userId;
-    if (params.companionId) filter.companionId = params.companionId;
-    if (params.status?.length) filter.status = { $in: params.status };
+    const userId = asNonEmptyString(params.userId);
+    if (userId) filter.assignedTo = userId;
 
-    if (params.fromDueAt || params.toDueAt) {
+    const companionId = asNonEmptyString(params.companionId);
+    if (companionId) filter.companionId = companionId;
+
+    const status = sanitizeStatusList(params.status);
+    if (status) filter.status = { $in: status };
+
+    const fromDueAt = isValidDate(params.fromDueAt)
+      ? params.fromDueAt
+      : undefined;
+    const toDueAt = isValidDate(params.toDueAt) ? params.toDueAt : undefined;
+    if (fromDueAt || toDueAt) {
       const dueAtFilter: { $gte?: Date; $lte?: Date } = {};
-      if (params.fromDueAt) dueAtFilter.$gte = params.fromDueAt;
-      if (params.toDueAt) dueAtFilter.$lte = params.toDueAt;
+      if (fromDueAt) dueAtFilter.$gte = fromDueAt;
+      if (toDueAt) dueAtFilter.$lte = toDueAt;
       filter.dueAt = dueAtFilter;
     }
 
@@ -718,17 +775,29 @@ export const TaskService = {
     toDueAt?: Date;
     status?: TaskStatus[];
   }): Promise<TaskDocument[]> {
+    const companionId = asNonEmptyString(params.companionId);
+    if (!companionId) {
+      throw new TaskServiceError("Invalid companionId");
+    }
+
     const filter: Record<string, unknown> = {
-      companionId: params.companionId,
+      companionId,
     };
 
-    if (params.audience) filter.audience = params.audience;
-    if (params.status?.length) filter.status = { $in: params.status };
+    const audience = sanitizeAudience(params.audience);
+    if (audience) filter.audience = audience;
 
-    if (params.fromDueAt || params.toDueAt) {
+    const status = sanitizeStatusList(params.status);
+    if (status) filter.status = { $in: status };
+
+    const fromDueAt = isValidDate(params.fromDueAt)
+      ? params.fromDueAt
+      : undefined;
+    const toDueAt = isValidDate(params.toDueAt) ? params.toDueAt : undefined;
+    if (fromDueAt || toDueAt) {
       const dueAtFilter: { $gte?: Date; $lte?: Date } = {};
-      if (params.fromDueAt) dueAtFilter.$gte = params.fromDueAt;
-      if (params.toDueAt) dueAtFilter.$lte = params.toDueAt;
+      if (fromDueAt) dueAtFilter.$gte = fromDueAt;
+      if (toDueAt) dueAtFilter.$lte = toDueAt;
       filter.dueAt = dueAtFilter;
     }
 

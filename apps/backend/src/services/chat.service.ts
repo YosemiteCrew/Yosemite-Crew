@@ -25,11 +25,11 @@ const streamServer = StreamChat.getInstance(STREAM_KEY, STREAM_SECRET);
 const PRE_WINDOW_MINUTES = 60 * 24;
 const POST_WINDOW_MINUTES = 120;
 
-const CHAT_ALLOWED_APPOINTMENT_STATUSES = [
+const CHAT_ALLOWED_APPOINTMENT_STATUSES = new Set([
   "UPCOMING",
   "IN_PROGRESS",
   "COMPLETED",
-];
+]);
 
 type YosemiteChannelData = ChannelData & {
   name?: string;
@@ -83,7 +83,7 @@ const canUseChatNow = (
     return { allowed: false, reason: "Chat is closed." };
   }
 
-  if (!CHAT_ALLOWED_APPOINTMENT_STATUSES.includes(appointment.status)) {
+  if (!CHAT_ALLOWED_APPOINTMENT_STATUSES.has(appointment.status)) {
     return {
       allowed: false,
       reason: "Chat not available for this appointment status.",
@@ -242,7 +242,9 @@ export const ChatService = {
       throw new ChatServiceError("Cannot chat with yourself");
     }
 
-    const members = [userA, userB].sort();
+    const members = [userA, userB].sort(
+      (a, b) => a.localeCompare(b),
+    );
 
     const existing = await ChatSessionModel.findOne({
       type: "ORG_DIRECT",

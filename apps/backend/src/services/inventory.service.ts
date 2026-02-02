@@ -50,8 +50,67 @@ export class InventoryServiceError extends Error {
   }
 }
 
+const BUSINESS_TYPES: BusinessType[] = [
+  "HOSPITAL",
+  "GROOMING",
+  "BOARDING",
+  "BREEDING",
+  "GENERAL",
+];
+const INVENTORY_STATUSES: InventoryStatus[] = [
+  "ACTIVE",
+  "HIDDEN",
+  "DELETED",
+];
+
+const asNonEmptyString = (value: unknown): string | undefined => {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
+};
+
+const ensureNonEmptyString = (value: unknown, field: string): string => {
+  const trimmed = asNonEmptyString(value);
+  if (!trimmed) {
+    throw new InventoryServiceError(`Invalid ${field}`, 400);
+  }
+  return trimmed;
+};
+
+const isValidDate = (value: unknown): value is Date =>
+  value instanceof Date && !Number.isNaN(value.getTime());
+
+const sanitizeBusinessType = (value: unknown): BusinessType | undefined =>
+  typeof value === "string" && BUSINESS_TYPES.includes(value as BusinessType)
+    ? (value as BusinessType)
+    : undefined;
+
+const sanitizeStatus = (value: unknown): InventoryStatus | undefined =>
+  typeof value === "string" && INVENTORY_STATUSES.includes(value as InventoryStatus)
+    ? (value as InventoryStatus)
+    : undefined;
+
+const sanitizeStatusList = (value: unknown): InventoryStatus[] | undefined => {
+  if (!Array.isArray(value)) return undefined;
+  const filtered = value.filter(
+    (status): status is InventoryStatus =>
+      typeof status === "string" &&
+      INVENTORY_STATUSES.includes(status as InventoryStatus),
+  );
+  return filtered.length ? filtered : undefined;
+};
+
+const sanitizePositiveNumber = (value: unknown): number | undefined => {
+  if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
+  return value > 0 ? value : undefined;
+};
+
+const escapeRegex = (value: string) =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const getOrgBillingCurrency = async (organisationId: string) => {
-  const billing = await OrgBilling.findOne({ orgId: organisationId });
+  const orgId = ensureNonEmptyString(organisationId, "organisationId");
+  const billing = await OrgBilling.findOne({ orgId });
   return billing?.currency ?? "usd";
 };
 
@@ -286,12 +345,21 @@ export const InventoryService = {
       throw new InventoryServiceError("category is required", 400);
     }
 
-    const currency = await getOrgBillingCurrency(input.organisationId);
+    const organisationId = ensureNonEmptyString(
+      input.organisationId,
+      "organisationId",
+    );
+    const businessType = sanitizeBusinessType(input.businessType);
+    if (!businessType) {
+      throw new InventoryServiceError("Invalid businessType", 400);
+    }
+
+    const currency = await getOrgBillingCurrency(organisationId);
 
     // 1. Create item with basic data (onHand will be recomputed if batches)
     const item = await InventoryItemModel.create({
-      organisationId: input.organisationId,
-      businessType: input.businessType,
+      organisationId,
+      businessType,
 
       name: input.name,
       sku: input.sku,
@@ -449,29 +517,69 @@ export const InventoryService = {
   // ─────────────────────────────────────────────
   async listItems(filter: ListInventoryFilter): Promise<InventoryListItem[]> {
     const query: FilterQuery<InventoryItemMongo> = {
-      organisationId: filter.organisationId,
+      organisationId: ensureNonEmptyString(
+        filter.organisationId,
+        "organisationId",
+      ),
     };
+    const expiringWithinDays = sanitizePositiveNumber(
+      filter.expiringWithinDays,
+    );
 
-    if (filter.businessType) query.businessType = filter.businessType;
+    if (filter.businessType !== undefined) {
+      const businessType = sanitizeBusinessType(filter.businessType);
+      if (!businessType) {
+        throw new InventoryServiceError("Invalid businessType", 400);
+      }
+      query.businessType = businessType;
+    }
 
-    if (filter.category) query.category = filter.category;
-    if (filter.subCategory) query.subCategory = filter.subCategory;
+    if (filter.category !== undefined) {
+      const category = asNonEmptyString(filter.category);
+      if (!category) {
+        throw new InventoryServiceError("Invalid category", 400);
+      }
+      query.category = category;
+    }
+    if (filter.subCategory !== undefined) {
+      const subCategory = asNonEmptyString(filter.subCategory);
+      if (!subCategory) {
+        throw new InventoryServiceError("Invalid subCategory", 400);
+      }
+      query.subCategory = subCategory;
+    }
 
-    if (filter.status) {
-      if (Array.isArray(filter.status)) query.status = { $in: filter.status };
-      else query.status = filter.status;
+    if (filter.status !== undefined) {
+      if (Array.isArray(filter.status)) {
+        const statusList = sanitizeStatusList(filter.status);
+        if (!statusList) {
+          if (filter.status.length === 0) {
+            query.status = { $in: [] };
+            return [];
+          }
+          throw new InventoryServiceError("Invalid status", 400);
+        }
+        query.status = { $in: statusList };
+      } else {
+        const status = sanitizeStatus(filter.status);
+        if (!status) {
+          throw new InventoryServiceError("Invalid status", 400);
+        }
+        query.status = status;
+      }
     } else {
       // default: exclude deleted
       query.status = { $ne: "DELETED" };
     }
 
     if (filter.search) {
-      const s = filter.search.trim();
+      const s = asNonEmptyString(filter.search);
       if (s) {
+        const safe = escapeRegex(s);
         query.$or = [
-          { name: { $regex: s, $options: "i" } },
-          { sku: { $regex: s, $options: "i" } },
-          { description: { $regex: s, $options: "i" } },
+          { name: { $regex: safe, $options: "i" } },
+          { sku: { $regex: safe, $options: "i" } },
+          { description: { $regex: safe, $options: "i" } },
         ];
       }
     }
@@ -507,14 +615,14 @@ export const InventoryService = {
         onHand: item.onHand ?? 0,
         reorderLevel: item.reorderLevel ?? null,
         nearestExpiry,
-        soonThresholdDays: filter.expiringWithinDays ?? 7,
+        soonThresholdDays: expiringWithinDays ?? 7,
       });
 
       // Apply extra filters
       if (filter.lowStockOnly && stockHealth !== "LOW_STOCK") continue;
       if (filter.expiredOnly && stockHealth !== "EXPIRED") continue;
       if (
-        filter.expiringWithinDays &&
+        expiringWithinDays &&
         !(stockHealth === "EXPIRING_SOON" || stockHealth === "EXPIRED")
       ) {
         continue;
@@ -538,10 +646,14 @@ export const InventoryService = {
     batches: InventoryBatchDocument[];
   }> {
     ensureObjectId(itemId, "itemId");
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
 
     const [item, batches] = await Promise.all([
       InventoryItemModel.findById(itemId).exec(),
-      InventoryBatchModel.find({ itemId, organisationId })
+      InventoryBatchModel.find({ itemId, organisationId: safeOrganisationId })
         .sort({ expiryDate: 1 })
         .exec(),
     ]);
@@ -718,7 +830,17 @@ export const InventoryService = {
     from?: Date; // default: 12 months ago
     to?: Date; // default: now
   }) {
-    const { organisationId } = params;
+    const organisationId = ensureNonEmptyString(
+      params.organisationId,
+      "organisationId",
+    );
+
+    if (params.to && !isValidDate(params.to)) {
+      throw new InventoryServiceError("Invalid to", 400);
+    }
+    if (params.from && !isValidDate(params.from)) {
+      throw new InventoryServiceError("Invalid from", 400);
+    }
 
     const to = params.to ?? new Date();
     const from = params.from ?? dayjs(to).subtract(12, "month").toDate();
@@ -975,7 +1097,15 @@ export const InventoryVendorService = {
     if (!input.organisationId)
       throw new InventoryServiceError("organisationId required");
 
-    return InventoryVendorModel.create(input);
+    const organisationId = ensureNonEmptyString(
+      input.organisationId,
+      "organisationId",
+    );
+
+    return InventoryVendorModel.create({
+      ...input,
+      organisationId,
+    });
   },
 
   async updateVendor(
@@ -993,7 +1123,11 @@ export const InventoryVendorService = {
   },
 
   async listVendors(organisationId: string) {
-    return InventoryVendorModel.find({ organisationId }).exec();
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
+    return InventoryVendorModel.find({ organisationId: safeOrganisationId }).exec();
   },
 
   async getVendor(vendorId: string) {
@@ -1014,7 +1148,15 @@ export const InventoryMetaFieldService = {
     label: string;
     values: string[];
   }): Promise<InventoryMetaFieldDocument> {
-    return InventoryMetaFieldModel.create(input);
+    const businessType = sanitizeBusinessType(input.businessType);
+    if (!businessType) {
+      throw new InventoryServiceError("Invalid businessType", 400);
+    }
+
+    return InventoryMetaFieldModel.create({
+      ...input,
+      businessType,
+    });
   },
 
   async updateField(
@@ -1037,14 +1179,22 @@ export const InventoryMetaFieldService = {
   },
 
   async listFields(businessType: string) {
-    return InventoryMetaFieldModel.find({ businessType }).exec();
+    const safeBusinessType = sanitizeBusinessType(businessType);
+    if (!safeBusinessType) {
+      throw new InventoryServiceError("Invalid businessType", 400);
+    }
+    return InventoryMetaFieldModel.find({ businessType: safeBusinessType }).exec();
   },
 };
 
 export const InventoryAlertService = {
   async getLowStockItems(organisationId: string) {
-    const items = await InventoryItemModel.find({
+    const safeOrganisationId = ensureNonEmptyString(
       organisationId,
+      "organisationId",
+    );
+    const items = await InventoryItemModel.find({
+      organisationId: safeOrganisationId,
     });
 
     return items.filter((i) => {
@@ -1054,11 +1204,17 @@ export const InventoryAlertService = {
   },
 
   async getExpiringItems(organisationId: string, days = 7) {
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
+    const safeDays = sanitizePositiveNumber(days) ?? 7;
+
     const now = dayjs();
-    const threshold = now.add(days, "day").toDate();
+    const threshold = now.add(safeDays, "day").toDate();
 
     return InventoryBatchModel.find({
-      organisationId,
+      organisationId: safeOrganisationId,
       expiryDate: { $lte: threshold },
     });
   },

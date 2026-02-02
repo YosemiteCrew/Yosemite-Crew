@@ -21,6 +21,15 @@ export class ObservationToolSubmissionServiceError extends Error {
 
 const SAFE_ID_FALLBACK = /^[A-Za-z0-9_-]+$/;
 
+const asNonEmptyString = (value: unknown): string | undefined => {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
+};
+
+const isValidDate = (value: unknown): value is Date =>
+  value instanceof Date && !Number.isNaN(value.getTime());
+
 const assertObjectId = (value: unknown, field: string): string => {
   if (typeof value !== "string") {
     throw new ObservationToolSubmissionServiceError(
@@ -289,10 +298,34 @@ export const ObservationToolSubmissionService = {
   ): Promise<ObservationToolSubmissionDocument[]> {
     const q: Record<string, unknown> = {};
 
-    if (filter.companionId) q.companionId = filter.companionId;
-    if (filter.toolId) q.toolId = filter.toolId;
+    if (filter.companionId !== undefined) {
+      const companionId = asNonEmptyString(filter.companionId);
+      if (!companionId) {
+        throw new ObservationToolSubmissionServiceError(
+          "Invalid companionId",
+          400,
+        );
+      }
+      q.companionId = companionId;
+    }
+    if (filter.toolId !== undefined) {
+      const toolId = asNonEmptyString(filter.toolId);
+      if (!toolId) {
+        throw new ObservationToolSubmissionServiceError("Invalid toolId", 400);
+      }
+      q.toolId = toolId;
+    }
 
     if (filter.fromDate || filter.toDate) {
+      if (filter.fromDate && !isValidDate(filter.fromDate)) {
+        throw new ObservationToolSubmissionServiceError(
+          "Invalid fromDate",
+          400,
+        );
+      }
+      if (filter.toDate && !isValidDate(filter.toDate)) {
+        throw new ObservationToolSubmissionServiceError("Invalid toDate", 400);
+      }
       const createdAt: { $gte?: Date; $lte?: Date } = {};
       if (filter.fromDate) createdAt.$gte = filter.fromDate;
       if (filter.toDate) createdAt.$lte = filter.toDate;
