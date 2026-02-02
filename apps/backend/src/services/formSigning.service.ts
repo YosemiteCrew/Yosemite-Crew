@@ -117,11 +117,11 @@ export class FormSigningService {
 
     // 3️⃣ Load immutable form version
     const version = await FormSigningService.loadVersionOrThrow(
-      Object.prototype.toString.call(submission.formId),
+      submission.formId.toString(),
       submission.formVersion,
     );
 
-    const form = await FormSigningService.loadFormOrThrow(Object.prototype.toString.call(submission.formId));
+    const form = await FormSigningService.loadFormOrThrow(submission.formId.toString());
     FormSigningService.ensureRequiredSignerMatches(
       form.requiredSigner,
       isParent,
