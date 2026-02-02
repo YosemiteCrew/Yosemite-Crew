@@ -110,6 +110,7 @@ jest.mock("stream-chat-react", () => {
     ChannelPreviewMessenger: ({ displayTitle }: any) => (
       <div>{displayTitle}</div>
     ),
+    ComponentProvider: ({ children }: any) => <>{children}</>,
     useChannelStateContext: jest.fn(),
   };
 });

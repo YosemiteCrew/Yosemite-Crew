@@ -12,6 +12,7 @@ import {
   Window,
   ChannelPreviewMessenger,
   useChannelStateContext,
+  ComponentProvider,
 } from "stream-chat-react";
 import { StreamChat } from "stream-chat";
 import type { Channel as StreamChannel } from "stream-chat";
@@ -800,19 +801,19 @@ const ChannelPreviewWrapper: React.FC<ChannelPreviewWrapperProps> = ({
   currentUserId,
   ...previewProps
 }) => {
-  const handlePreviewSelect: React.MouseEventHandler<HTMLDivElement> = (
+  const handlePreviewSelect: React.MouseEventHandler<HTMLButtonElement> = (
     event
   ) => {
     previewProps.onSelect?.(event);
     onPreviewSelect?.(previewProps.channel ?? null);
   };
 
-  const handleKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (
+  const handleKeyDown: React.KeyboardEventHandler<HTMLButtonElement> = (
     event
   ) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      handlePreviewSelect(event as unknown as React.MouseEvent<HTMLDivElement>);
+      handlePreviewSelect(event as unknown as React.MouseEvent<HTMLButtonElement>);
     }
   };
 
@@ -822,10 +823,9 @@ const ChannelPreviewWrapper: React.FC<ChannelPreviewWrapperProps> = ({
   );
 
   return (
-    <div
-      role="button"
+    <button
+      type="button"
       aria-pressed={previewProps.active}
-      tabIndex={0}
       className="chat-preview-trigger"
       onClick={handlePreviewSelect}
       onKeyDown={handleKeyDown}
@@ -844,7 +844,7 @@ const ChannelPreviewWrapper: React.FC<ChannelPreviewWrapperProps> = ({
         displayTitle={title}
         displayImage={image}
       />
-    </div>
+    </button>
   );
 };
 
@@ -1063,14 +1063,20 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({
         style={{ display: shouldShowChannelList ? "flex" : "none" }}
       >
         {channelListHeader}
-        <ChannelList
-          filters={filters}
-          sort={sort}
-          options={options}
-          Preview={previewComponent}
-          channelRenderFilterFn={channelFilter}
-          setActiveChannelOnMount={false}
-        />
+        <ComponentProvider
+          value={{
+            ChannelPreviewActionButtons: () => null,
+          }}
+        >
+          <ChannelList
+            filters={filters}
+            sort={sort}
+            options={options}
+            Preview={previewComponent}
+            channelRenderFilterFn={channelFilter}
+            setActiveChannelOnMount={false}
+          />
+        </ComponentProvider>
       </div>
 
       <ChatMainPanel
