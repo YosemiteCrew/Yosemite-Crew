@@ -468,7 +468,7 @@ describe('Inventory Services', () => {
     it("listFields", async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (InventoryMetaFieldModel.find as any).mockReturnValue(
-        mockMongooseChain([]),
+        mockChain([]),
       );
       await InventoryMetaFieldService.listFields("GENERAL");
       expect(InventoryMetaFieldModel.find).toHaveBeenCalledWith({
@@ -479,7 +479,12 @@ describe('Inventory Services', () => {
 
   describe('InventoryMetaFieldService', () => {
     it('should create field', async () => {
-        await InventoryMetaFieldService.createField({} as any);
+        await InventoryMetaFieldService.createField({
+          businessType: 'GENERAL',
+          fieldKey: 'color',
+          label: 'Color',
+          values: ['Black', 'White'],
+        } as any);
         expect(InventoryMetaFieldModel.create).toHaveBeenCalled();
     });
 
@@ -502,8 +507,10 @@ describe('Inventory Services', () => {
 
     it('should list fields', async () => {
         (InventoryMetaFieldModel.find as jest.Mock).mockReturnValue(mockChain([]));
-        await InventoryMetaFieldService.listFields('type');
-        expect(InventoryMetaFieldModel.find).toHaveBeenCalled();
+        await InventoryMetaFieldService.listFields('GENERAL');
+        expect(InventoryMetaFieldModel.find).toHaveBeenCalledWith({
+          businessType: 'GENERAL',
+        });
     });
   });
 

@@ -2,23 +2,13 @@ import {
   TaskLibraryService,
   TaskLibraryServiceError,
 } from "../../src/services/taskLibrary.service";
+import TaskLibraryDefinitionModel, {
+  TaskKind,
+} from "../../src/models/taskLibraryDefinition";
 import { Types } from "mongoose";
 
 // Mock the Mongoose Model
 jest.mock('../../src/models/taskLibraryDefinition');
-
-describe('TaskLibraryService', () => {
-  const mockSave = jest.fn();
-  const mockMarkModified = jest.fn();
-  const mockSet = jest.fn();
-
-  // Helper to mock a Mongoose Document
-  const mockDoc = (data: any) => ({
-    ...data,
-    save: mockSave,
-    markModified: mockMarkModified,
-    set: mockSet,
-  });
 
 describe("TaskLibraryService", () => {
   const validId = new Types.ObjectId().toString();
@@ -43,7 +33,7 @@ describe("TaskLibraryService", () => {
 
   describe('create', () => {
     const validInput = {
-      kind: 'GENERAL_CARE' as TaskKind,
+      kind: 'HYGIENE' as TaskKind,
       category: 'Health',
       name: 'Checkup',
       defaultDescription: 'Routine check',
@@ -198,13 +188,13 @@ describe("TaskLibraryService", () => {
 
   describe('getById', () => {
     it('should return the document if found', async () => {
-      const mockExec = jest.fn().mockResolvedValue({ _id: '123' });
+      const mockExec = jest.fn().mockResolvedValue({ _id: validId });
       (TaskLibraryDefinitionModel.findById as jest.Mock).mockReturnValue({
         exec: mockExec,
       });
 
-      const result = await TaskLibraryService.getById('123');
-      expect(result).toEqual({ _id: '123' });
+      const result = await TaskLibraryService.getById(validId);
+      expect(result).toEqual({ _id: validId });
     });
 
     it('should throw 404 if not found', async () => {
@@ -213,22 +203,9 @@ describe("TaskLibraryService", () => {
         exec: mockExec,
       });
 
-      await expect(TaskLibraryService.getById('123')).rejects.toThrow(
+      await expect(TaskLibraryService.getById(validId)).rejects.toThrow(
         'Library task not found'
       );
-    });
-  });
-
-  describe("getById", () => {
-    it("returns document when found", async () => {
-      mockedModel.findById.mockReturnValueOnce({
-        exec: jest.fn().mockResolvedValue({ _id: validId }),
-      });
-
-      const result = await TaskLibraryService.getById(validId);
-
-      expect(mockedModel.findById).toHaveBeenCalledWith(validId);
-      expect(result).toEqual({ _id: validId });
     });
   });
 
