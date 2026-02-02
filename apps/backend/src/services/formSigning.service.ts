@@ -9,6 +9,9 @@ import { ParentModel } from "src/models/parent";
 import UserModel from "src/models/user";
 import logger from "src/utils/logger";
 
+const hasToHexString = (value: unknown): value is { toHexString: () => string } =>
+  typeof (value as { toHexString?: unknown })?.toHexString === "function";
+
 export class FormSigningService {
   private static async loadSubmissionOrThrow(submissionId: string) {
     const submission = await FormSubmissionModel.findById(submissionId);
@@ -116,12 +119,21 @@ export class FormSigningService {
     FormSigningService.ensureNotAlreadySigned(submission.signing?.status);
 
     // 3️⃣ Load immutable form version
+    const formId = (() => {
+      if (typeof submission.formId === "string") return submission.formId;
+      if (hasToHexString(submission.formId)) {
+        const id = submission.formId.toHexString();
+        if (id.length > 0) return id;
+      }
+      throw new Error("Invalid formId");
+    })();
+
     const version = await FormSigningService.loadVersionOrThrow(
-      submission.formId.toString(),
+      formId,
       submission.formVersion,
     );
 
-    const form = await FormSigningService.loadFormOrThrow(submission.formId.toString());
+    const form = await FormSigningService.loadFormOrThrow(formId);
     FormSigningService.ensureRequiredSignerMatches(
       form.requiredSigner,
       isParent,
