@@ -6,7 +6,15 @@ describe("RootLayout", () => {
   const originalError = console.error;
   beforeAll(() => {
     console.error = (...args) => {
-      if (/cannot appear as a child of/i.test(args[0])) return;
+      const message = typeof args[0] === "string" ? args[0] : "";
+      // Filter React DOM nesting warnings that occur when testing layout components
+      if (
+        /cannot be a child of/i.test(message) ||
+        /cannot appear as a child of/i.test(message) ||
+        /hydration/i.test(message)
+      ) {
+        return;
+      }
       originalError.call(console, ...args);
     };
   });
