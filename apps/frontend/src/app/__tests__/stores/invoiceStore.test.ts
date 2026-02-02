@@ -1,4 +1,4 @@
-import { useInvoiceStore } from "../../stores/invoiceStore";
+import { useInvoiceStore } from "@/app/stores/invoiceStore";
 import { Invoice } from "@yosemite-crew/types";
 
 // --- Mock Data ---

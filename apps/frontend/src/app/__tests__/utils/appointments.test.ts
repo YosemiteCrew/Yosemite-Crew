@@ -1,4 +1,4 @@
-import { allowReschedule } from "@/app/utils/appointments";
+import { allowReschedule } from "@/app/lib/appointments";
 
 describe("appointments utilities", () => {
   describe("allowReschedule", () => {

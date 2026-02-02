@@ -1,72 +1,72 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 
-jest.mock("@/app/pages/AboutUs/AboutUs", () => ({
+jest.mock("@/app/features/marketing/pages/AboutUs/AboutUs", () => ({
   __esModule: true,
   default: () => <div data-testid="route-about" />,
 }));
 
-jest.mock("@/app/pages/PetOwner/PetOwner", () => ({
+jest.mock("@/app/features/marketing/pages/PetOwner/PetOwner", () => ({
   __esModule: true,
   default: () => <div data-testid="route-application" />,
 }));
 
-jest.mock("@/app/pages/BookDemo/BookDemo", () => ({
+jest.mock("@/app/features/marketing/pages/BookDemo/BookDemo", () => ({
   __esModule: true,
   default: () => <div data-testid="route-book-demo" />,
 }));
 
-jest.mock("@/app/pages/ContactusPage/ContactusPage", () => ({
+jest.mock("@/app/features/marketing/pages/ContactusPage/ContactusPage", () => ({
   __esModule: true,
   default: () => <div data-testid="route-contact" />,
 }));
 
-jest.mock("@/app/pages/DeveloperLanding/DeveloperLanding", () => ({
+jest.mock("@/app/features/marketing/pages/DeveloperLanding/DeveloperLanding", () => ({
   __esModule: true,
   default: () => <div data-testid="route-developers" />,
 }));
 
-jest.mock("@/app/pages/Organizations/Organizations", () => ({
+jest.mock("@/app/features/organizations/pages/Organizations", () => ({
   __esModule: true,
   default: () => <div data-testid="route-organizations" />,
 }));
 
-jest.mock("@/app/pages/CreateOrg/CreateOrg", () => ({
+jest.mock("@/app/features/onboarding/pages/CreateOrg/CreateOrg", () => ({
   __esModule: true,
   default: () => <div data-testid="route-create-org" />,
 }));
 
-jest.mock("@/app/pages/Dashboard/Dashboard", () => ({
+jest.mock("@/app/features/dashboard/pages/Dashboard", () => ({
   __esModule: true,
   default: () => <div data-testid="route-dashboard" />,
 }));
 
-jest.mock("@/app/pages/HomePage/HomePage", () => ({
+jest.mock("@/app/features/marketing/pages/HomePage/HomePage", () => ({
   __esModule: true,
   default: () => <div data-testid="route-pms" />,
 }));
 
-jest.mock("@/app/pages/PricingPage/PricingPage", () => ({
+jest.mock("@/app/features/marketing/pages/PricingPage/PricingPage", () => ({
   __esModule: true,
   default: () => <div data-testid="route-pricing" />,
 }));
 
-jest.mock("@/app/pages/PrivacyPolicy/PrivacyPolicy", () => ({
+jest.mock("@/app/features/legal/pages/PrivacyPolicy", () => ({
   __esModule: true,
   default: () => <div data-testid="route-privacy-policy" />,
 }));
 
-jest.mock("@/app/pages/TermsAndConditions/TermsAndConditions", () => ({
+jest.mock("@/app/features/legal/pages/TermsAndConditions", () => ({
   __esModule: true,
   default: () => <div data-testid="route-terms" />,
 }));
 
-jest.mock("@/app/components/Footer/Footer", () => ({
+jest.mock("@/app/ui/widgets/Footer/Footer", () => ({
   __esModule: true,
   default: () => <footer data-testid="route-footer" />,
 }));
 
-jest.mock("@/app/pages/TeamOnboarding/TeamOnboarding", () => ({
+jest.mock("@/app/features/onboarding/pages/TeamOnboarding/TeamOnboarding", () => ({
   __esModule: true,
   default: () => <div data-testid="route-team-onboarding" />,
 }));

@@ -1,4 +1,4 @@
-import definitionsData from "@/app/pages/TermsAndConditions/data";
+import definitionsData from "@/app/features/legal/pages/termsData";
 
 describe("TermsAndConditions Data (definitionsData)", () => {
 

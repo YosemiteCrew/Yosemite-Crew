@@ -2,19 +2,19 @@ import React from "react";
 import { render } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import AppointmentCalendar from "@/app/components/Calendar/AppointmentCalendar";
+import AppointmentCalendar from "@/app/features/appointments/components/Calendar/AppointmentCalendar";
 
 const dayCalendarSpy = jest.fn();
 const weekCalendarSpy = jest.fn();
 const userCalendarSpy = jest.fn();
 
-jest.mock("@/app/components/Calendar/common/DayCalendar", () => (props: any) => {
+jest.mock("@/app/features/appointments/components/Calendar/common/DayCalendar", () => (props: any) => {
   dayCalendarSpy(props);
   return <div data-testid="day-calendar" />;
 });
 
 jest.mock(
-  "@/app/components/Calendar/common/WeekCalendar",
+  "@/app/features/appointments/components/Calendar/common/WeekCalendar",
   () => (props: any) => {
     weekCalendarSpy(props);
     return <div data-testid="week-calendar" />;
@@ -22,20 +22,20 @@ jest.mock(
 );
 
 jest.mock(
-  "@/app/components/Calendar/common/UserCalendar",
+  "@/app/features/appointments/components/Calendar/common/UserCalendar",
   () => (props: any) => {
     userCalendarSpy(props);
     return <div data-testid="user-calendar" />;
   }
 );
 
-jest.mock("@/app/components/Calendar/common/Header", () => (props: any) => (
+jest.mock("@/app/features/appointments/components/Calendar/common/Header", () => (props: any) => (
   <div data-testid="calendar-header" />
 ));
 
 const isSameDayMock = jest.fn();
 
-jest.mock("@/app/components/Calendar/helpers", () => ({
+jest.mock("@/app/features/appointments/components/Calendar/helpers", () => ({
   isSameDay: (...args: any[]) => isSameDayMock(...args),
 }));
 

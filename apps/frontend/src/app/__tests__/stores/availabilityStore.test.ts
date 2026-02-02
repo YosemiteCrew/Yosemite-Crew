@@ -1,5 +1,5 @@
 import { useAvailabilityStore } from "@/app/stores/availabilityStore";
-import { ApiDayAvailability } from "@/app/components/Availability/utils";
+import { ApiDayAvailability } from "@/app/features/appointments/components/Availability/utils";
 
 // Helper to create mock availability objects
 const createMockAvailability = (id: string, orgId: string): ApiDayAvailability => ({

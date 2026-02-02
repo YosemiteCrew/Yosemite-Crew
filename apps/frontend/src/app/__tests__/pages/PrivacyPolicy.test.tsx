@@ -1,9 +1,9 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import PrivacyPolicy from "@/app/pages/PrivacyPolicy/PrivacyPolicy";
+import PrivacyPolicy from "@/app/features/legal/pages/PrivacyPolicy";
 
 jest.mock(
-  "@/app/components/Footer/Footer",
+  "@/app/ui/widgets/Footer/Footer",
   () =>
     function MockFooter() {
       return <footer>Footer Mock</footer>;
@@ -11,14 +11,14 @@ jest.mock(
 );
 
 jest.mock(
-  "@/app/components/Faq/Faq",
+  "@/app/ui/widgets/Faq/Faq",
   () =>
     function MockFaq() {
       return <div>FAQ Mock</div>;
     }
 );
 
-jest.mock("@/app/pages/HomePage/HomePage", () => ({
+jest.mock("@/app/features/marketing/pages/HomePage/HomePage", () => ({
   FillBtn: ({ text, href }: { text: string; href?: string }) => (
     <a href={href || "#"}>{text}</a>
   ),

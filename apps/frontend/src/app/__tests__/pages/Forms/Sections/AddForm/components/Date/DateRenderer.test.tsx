@@ -1,12 +1,12 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import DateRenderer from "../../../../../../../pages/Forms/Sections/AddForm/components/Date/DateRenderer";
-import { FormField } from "@/app/types/forms";
+import DateRenderer from "@/app/features/forms/pages/Forms/Sections/AddForm/components/Date/DateRenderer";
+import { FormField } from "@/app/features/forms/types/forms";
 
 // --- Mock UI Components ---
 // Mocking FormInput allows us to test prop passing and interaction logic
 // without needing the full complexity of the input component.
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   __esModule: true,
   default: ({ value, onChange, inlabel, readonly, onFocus, onClick }: any) => (
     <input

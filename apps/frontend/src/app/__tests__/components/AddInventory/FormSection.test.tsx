@@ -1,10 +1,10 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import FormSection from "@/app/components/AddInventory/FormSection";
-import { BusinessType } from "@/app/types/org";
+import FormSection from "@/app/features/inventory/components/AddInventory/FormSection";
+import { BusinessType } from "@/app/features/organization/types/org";
 
 // --- Mocks ---
-jest.mock("@/app/components/Accordion/Accordion", () => {
+jest.mock("@/app/ui/primitives/Accordion/Accordion", () => {
   return function MockAccordion({ children, title }: any) {
     return (
       <div data-testid="accordion">
@@ -15,7 +15,7 @@ jest.mock("@/app/components/Accordion/Accordion", () => {
   };
 });
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ onClick, text, isDisabled }: any) => (
     <button onClick={onClick} disabled={isDisabled} data-testid="btn-primary">
       {text}
@@ -28,7 +28,7 @@ jest.mock("@/app/components/Buttons", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => (props: any) => (
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => (props: any) => (
   <input
     data-testid={`input-${props.inname}`}
     value={props.value}
@@ -37,7 +37,7 @@ jest.mock("@/app/components/Inputs/FormInput/FormInput", () => (props: any) => (
   />
 ));
 
-jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => (props: any) => (
+jest.mock("@/app/ui/inputs/Dropdown/LabelDropdown", () => (props: any) => (
   <select
     data-testid={`dropdown-${props.placeholder}`}
     value={props.defaultOption}
@@ -52,7 +52,7 @@ jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => (props: any) =
   </select>
 ));
 
-jest.mock("@/app/components/Inputs/MultiSelectDropdown", () => (props: any) => (
+jest.mock("@/app/ui/inputs/MultiSelectDropdown", () => (props: any) => (
   <div data-testid={`multiselect-${props.placeholder}`}>
     <span data-testid="ms-value">{JSON.stringify(props.value)}</span>
     <button
@@ -64,7 +64,7 @@ jest.mock("@/app/components/Inputs/MultiSelectDropdown", () => (props: any) => (
   </div>
 ));
 
-jest.mock("@/app/components/Inputs/FormDesc/FormDesc", () => (props: any) => (
+jest.mock("@/app/ui/inputs/FormDesc/FormDesc", () => (props: any) => (
   <textarea
     data-testid={`textarea-${props.inname}`}
     value={props.value}
@@ -72,7 +72,7 @@ jest.mock("@/app/components/Inputs/FormDesc/FormDesc", () => (props: any) => (
   />
 ));
 
-jest.mock("@/app/components/Inputs/Datepicker", () => {
+jest.mock("@/app/ui/inputs/Datepicker", () => {
   return function MockDatepicker({
     currentDate,
     setCurrentDate,
@@ -113,7 +113,7 @@ jest.mock("@/app/components/Inputs/Datepicker", () => {
   };
 });
 
-jest.mock("@/app/components/AddInventory/InventoryConfig", () => ({
+jest.mock("@/app/features/inventory/components/AddInventory/InventoryConfig", () => ({
   InventoryFormConfig: {
     clinic: {
       basicInfo: [

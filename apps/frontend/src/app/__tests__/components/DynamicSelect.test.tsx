@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 
-import DynamicSelect, { Option } from '@/app/components/DynamicSelect/DynamicSelect';
+import DynamicSelect, { Option } from '@/app/ui/widgets/DynamicSelect/DynamicSelect';
 
 const mockOptions: Option[] = [
   { value: 'apple', label: 'Apple' },

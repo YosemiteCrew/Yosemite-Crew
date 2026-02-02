@@ -2,7 +2,7 @@ import {
   startFormSigning,
   fetchSignedDocument,
   downloadSubmissionPdf,
-} from "@/app/services/formSigningService";
+} from "@/app/features/forms/services/formSigningService";
 
 const getDataMock = jest.fn();
 const postDataMock = jest.fn();

@@ -4,10 +4,10 @@ import "@testing-library/jest-dom";
 import PermissionsEditor, {
   uniq,
   computeEffectivePermissions,
-} from "@/app/pages/Organization/Sections/Team/PermissionsEditor";
-import { Permission, PERMISSIONS } from "@/app/utils/permissions";
+} from "@/app/features/organization/pages/Organization/Sections/Team/PermissionsEditor";
+import { Permission, PERMISSIONS } from "@/app/lib/permissions";
 
-jest.mock("@/app/components/Accordion/Accordion", () => ({
+jest.mock("@/app/ui/primitives/Accordion/Accordion", () => ({
   __esModule: true,
   default: ({ title, children }: any) => (
     <div data-testid={`accordion-${title}`}>
@@ -17,7 +17,7 @@ jest.mock("@/app/components/Accordion/Accordion", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ text, onClick, isDisabled }: any) => (
     <button
       type="button"

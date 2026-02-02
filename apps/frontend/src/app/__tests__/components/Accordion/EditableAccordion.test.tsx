@@ -1,8 +1,8 @@
 import React from "react";
 import { render, screen, fireEvent, act } from "@testing-library/react";
-import EditableAccordion from "@/app/components/Accordion/EditableAccordion";
+import EditableAccordion from "@/app/ui/primitives/Accordion/EditableAccordion";
 
-jest.mock("@/app/components/Accordion/Accordion", () => {
+jest.mock("@/app/ui/primitives/Accordion/Accordion", () => {
   return function MockAccordion({
     title,
     children,
@@ -30,7 +30,7 @@ jest.mock("@/app/components/Accordion/Accordion", () => {
   };
 });
 
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   __esModule: true,
   default: ({ inlabel, value, onChange, error }: any) => (
     <label>
@@ -41,7 +41,7 @@ jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
+jest.mock("@/app/ui/inputs/Dropdown/LabelDropdown", () => ({
   __esModule: true,
   default: ({ placeholder, options, defaultOption, onSelect, error }: any) => (
     <label>
@@ -66,7 +66,7 @@ jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/MultiSelectDropdown", () => ({
+jest.mock("@/app/ui/inputs/MultiSelectDropdown", () => ({
   __esModule: true,
   default: ({ placeholder, value, options, onChange }: any) => (
     <label>
@@ -92,7 +92,7 @@ jest.mock("@/app/components/Inputs/MultiSelectDropdown", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/Datepicker", () => ({
+jest.mock("@/app/ui/inputs/Datepicker", () => ({
   __esModule: true,
   default: ({ setCurrentDate, placeholder }: any) => (
     <button type="button" onClick={() => setCurrentDate(new Date("2024-02-01"))}>
@@ -101,7 +101,7 @@ jest.mock("@/app/components/Inputs/Datepicker", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ text, onClick }: any) => (
     <button type="button" onClick={onClick}>
       {text}
@@ -114,19 +114,19 @@ jest.mock("@/app/components/Buttons", () => ({
   ),
 }));
 
-jest.mock("@/app/pages/Inventory/utils", () => ({
+jest.mock("@/app/features/inventory/pages/Inventory/utils", () => ({
   formatDisplayDate: () => "Feb 1, 2024",
 }));
 
-jest.mock("@/app/components/Calendar/weekHelpers", () => ({
+jest.mock("@/app/features/appointments/components/Calendar/weekHelpers", () => ({
   getFormattedDate: () => "Feb 1, 2024",
 }));
 
-jest.mock("@/app/utils/forms", () => ({
+jest.mock("@/app/lib/forms", () => ({
   formatTimeLabel: () => "10:00 AM",
 }));
 
-jest.mock("@/app/utils/validators", () => ({
+jest.mock("@/app/lib/validators", () => ({
   toTitleCase: () => "Active",
 }));
 

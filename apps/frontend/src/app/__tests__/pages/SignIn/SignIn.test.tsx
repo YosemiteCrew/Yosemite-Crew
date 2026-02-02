@@ -6,10 +6,10 @@ import {
   act,
 } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import SignIn from "@/app/pages/SignIn/SignIn";
+import SignIn from "@/app/features/auth/pages/SignIn/SignIn";
 import { useAuthStore } from "@/app/stores/authStore";
 import { useRouter } from "next/navigation";
-import { useErrorTost } from "@/app/components/Toast/Toast";
+import { useErrorTost } from "@/app/ui/overlays/Toast/Toast";
 
 // --- Mocks ---
 
@@ -24,12 +24,12 @@ jest.mock("@/app/stores/authStore", () => ({
 }));
 
 // Mock Toast
-jest.mock("@/app/components/Toast/Toast", () => ({
+jest.mock("@/app/ui/overlays/Toast/Toast", () => ({
   useErrorTost: jest.fn(),
 }));
 
 // Mock Components
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   __esModule: true,
   default: ({ value, onChange, error, inlabel }: any) => (
     <div data-testid="email-input-wrapper">
@@ -40,7 +40,7 @@ jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/FormInputPass/FormInputPass", () => ({
+jest.mock("@/app/ui/inputs/FormInputPass/FormInputPass", () => ({
   __esModule: true,
   default: ({ value, onChange, error, inlabel }: any) => (
     <div data-testid="password-input-wrapper">
@@ -56,13 +56,13 @@ jest.mock("@/app/components/Inputs/FormInputPass/FormInputPass", () => ({
   ),
 }));
 
-jest.mock("@/app/components/OtpModal/OtpModal", () => ({
+jest.mock("@/app/ui/overlays/OtpModal/OtpModal", () => ({
   __esModule: true,
   default: ({ showVerifyModal }: any) =>
     showVerifyModal ? <div data-testid="otp-modal">OTP Modal Open</div> : null,
 }));
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ text, onClick }: any) => (
     <button data-testid="signin-btn" onClick={onClick}>
       {text}

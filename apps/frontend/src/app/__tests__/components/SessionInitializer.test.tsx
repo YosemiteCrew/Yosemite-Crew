@@ -1,12 +1,12 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import SessionInitializer from "@/app/components/SessionInitializer";
+import SessionInitializer from "@/app/ui/layout/SessionInitializer";
 import { useAuthStore } from "@/app/stores/authStore";
 
-jest.mock("@/app/components/Header/Header", () => () => (
+jest.mock("@/app/ui/layout/Header/Header", () => () => (
   <div data-testid="header" />
 ));
-jest.mock("@/app/components/Sidebar/Sidebar", () => () => (
+jest.mock("@/app/ui/layout/Sidebar/Sidebar", () => () => (
   <div data-testid="sidebar" />
 ));
 

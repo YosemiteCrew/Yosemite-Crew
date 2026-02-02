@@ -1,7 +1,7 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import OrgInvites from "@/app/components/DataTable/OrgInvites";
-import { Invite } from "@/app/types/team";
+import OrgInvites from "@/app/ui/tables/OrgInvites";
+import { Invite } from "@/app/features/organization/types/team";
 
 const pushMock = jest.fn();
 
@@ -14,12 +14,12 @@ jest.mock("next/navigation", () => ({
 const acceptInviteMock = jest.fn();
 const rejectInviteMock = jest.fn();
 
-jest.mock("@/app/services/teamService", () => ({
+jest.mock("@/app/features/organization/services/teamService", () => ({
   acceptInvite: (...args: any[]) => acceptInviteMock(...args),
   rejectInvite: (...args: any[]) => rejectInviteMock(...args),
 }));
 
-jest.mock("@/app/components/GenericTable/GenericTable", () => ({
+jest.mock("@/app/ui/tables/GenericTable/GenericTable", () => ({
   __esModule: true,
   default: ({ data, columns }: any) => (
     <div data-testid="generic-table">
@@ -38,7 +38,7 @@ jest.mock("@/app/components/GenericTable/GenericTable", () => ({
 
 const inviteCardSpy = jest.fn();
 
-jest.mock("@/app/components/Cards/InviteCard/InviteCard", () => ({
+jest.mock("@/app/ui/cards/InviteCard/InviteCard", () => ({
   __esModule: true,
   default: (props: any) => {
     inviteCardSpy(props);

@@ -1,5 +1,5 @@
-import { useTaskStore } from "../../stores/taskStore";
-import { Task } from "../../types/task";
+import { useTaskStore } from "@/app/stores/taskStore";
+import { Task } from "@/app/features/tasks/types/task";
 
 // --- Mock Data ---
 // Cast to unknown first to avoid strict type adherence for fields not relevant to store logic

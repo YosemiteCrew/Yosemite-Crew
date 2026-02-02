@@ -1,4 +1,4 @@
-import { useCounterStore } from "../../stores/counterStore";
+import { useCounterStore } from "@/app/stores/counterStore";
 
 const baseCounter = {
   orgId: "org-1",

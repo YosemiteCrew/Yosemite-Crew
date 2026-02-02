@@ -5,10 +5,10 @@ import {
   fireEvent,
   act,
 } from "@testing-library/react";
-import ForgotPassword from "../../../pages/ForgotPassword/ForgotPassword";
+import ForgotPassword from "@/app/features/auth/pages/ForgotPassword/ForgotPassword";
 import { useAuthStore } from "@/app/stores/authStore";
 import { useRouter } from "next/navigation";
-import { useErrorTost } from "@/app/components/Toast/Toast";
+import { useErrorTost } from "@/app/ui/overlays/Toast/Toast";
 
 // --- Mocks ---
 
@@ -18,7 +18,7 @@ jest.mock("next/navigation", () => ({
 }));
 
 // 2. Mock Toast Hook
-jest.mock("@/app/components/Toast/Toast", () => ({
+jest.mock("@/app/ui/overlays/Toast/Toast", () => ({
   useErrorTost: jest.fn(),
 }));
 
@@ -28,7 +28,7 @@ jest.mock("@/app/stores/authStore", () => ({
 }));
 
 // 4. Mock UI Components (Inputs & Buttons)
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   __esModule: true,
   default: ({ value, onChange, inlabel }: any) => (
     <input
@@ -40,7 +40,7 @@ jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/FormInputPass/FormInputPass", () => ({
+jest.mock("@/app/ui/inputs/FormInputPass/FormInputPass", () => ({
   __esModule: true,
   default: ({ value, onChange, inPlaceHolder }: any) => (
     <input
@@ -51,7 +51,7 @@ jest.mock("@/app/components/Inputs/FormInputPass/FormInputPass", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ onClick, text }: any) => (
     <button type="button" data-testid="btn-primary" onClick={onClick}>
       {text}

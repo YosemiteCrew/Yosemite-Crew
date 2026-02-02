@@ -1,18 +1,18 @@
 import React from "react";
 import { render } from "@testing-library/react";
-import HorizontalLines from "@/app/components/Calendar/common/HorizontalLines";
+import HorizontalLines from "@/app/features/appointments/components/Calendar/common/HorizontalLines";
 
 // --- Mocks ---
 
 // Mock Helpers
-jest.mock("@/app/components/Calendar/helpers", () => ({
+jest.mock("@/app/features/appointments/components/Calendar/helpers", () => ({
   getNowTopPxForWindow: jest.fn(),
   getTotalWindowHeightPx: jest.fn(() => 1000), // Fixed total height for tests
   MINUTES_PER_STEP: 60, // Simplify math: 1 hour = 1 step
   PIXELS_PER_STEP: 100, // 1 hour = 100px
 }));
 
-import { getNowTopPxForWindow } from "@/app/components/Calendar/helpers";
+import { getNowTopPxForWindow } from "@/app/features/appointments/components/Calendar/helpers";
 
 describe("HorizontalLines Component", () => {
   const mockScrollRef = { current: { scrollTop: 0, clientHeight: 500 } };

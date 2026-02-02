@@ -1,13 +1,13 @@
 import { useMemo } from "react";
 import { useOrgStore } from "@/app/stores/orgStore";
-import { UserProfile } from "../types/profile";
+import { UserProfile } from "@/app/features/users/types/profile";
 import {
   computeTeamOnboardingStep,
   TeamOnboardingStep,
-} from "../utils/teamOnboarding";
-import { useUserProfileStore } from "../stores/profileStore";
-import { useAvailabilityStore } from "../stores/availabilityStore";
-import { ApiDayAvailability } from "../components/Availability/utils";
+} from "@/app/lib/teamOnboarding";
+import { useUserProfileStore } from "@/app/stores/profileStore";
+import { useAvailabilityStore } from "@/app/stores/availabilityStore";
+import { ApiDayAvailability } from "@/app/features/appointments/components/Availability/utils";
 
 export const useTeamOnboarding = (
   orgId: string | null

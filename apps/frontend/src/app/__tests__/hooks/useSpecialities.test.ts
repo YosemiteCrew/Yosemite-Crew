@@ -4,18 +4,18 @@ import {
   useSpecialitiesForPrimaryOrg,
   useServicesForPrimaryOrgSpecialities,
   useSpecialitiesWithServiceNamesForPrimaryOrg,
-} from "../../hooks/useSpecialities";
+} from "@/app/hooks/useSpecialities";
 import { useOrgStore } from "@/app/stores/orgStore";
 import { useSpecialityStore } from "@/app/stores/specialityStore";
-import { useServiceStore } from "../../stores/serviceStore";
-import { loadSpecialitiesForOrg } from "@/app/services/specialityService";
+import { useServiceStore } from "@/app/stores/serviceStore";
+import { loadSpecialitiesForOrg } from "@/app/features/organization/services/specialityService";
 
 // --- Mocks ---
 
 jest.mock("@/app/stores/orgStore");
 jest.mock("@/app/stores/specialityStore");
-jest.mock("../../stores/serviceStore");
-jest.mock("@/app/services/specialityService", () => ({
+jest.mock("@/app/stores/serviceStore");
+jest.mock("@/app/features/organization/services/specialityService", () => ({
   loadSpecialitiesForOrg: jest.fn(),
 }));
 

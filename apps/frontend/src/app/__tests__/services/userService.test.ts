@@ -1,4 +1,4 @@
-import { updateUser } from "@/app/services/userService";
+import { updateUser } from "@/app/features/users/services/userService";
 
 const patchDataMock = jest.fn();
 

@@ -2,17 +2,17 @@ import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
-import ContactusPage from "../../pages/ContactusPage/ContactusPage";
+import ContactusPage from "@/app/features/marketing/pages/ContactusPage/ContactusPage";
 import { postData } from "@/app/services/axios";
 import { toFhirSupportTicket } from "@yosemite-crew/fhir";
 
-jest.mock("@/app/components/Footer/Footer", () => {
+jest.mock("@/app/ui/widgets/Footer/Footer", () => {
   return function MockFooter() {
     return <div data-testid="mock-footer">Footer</div>;
   };
 });
 
-jest.mock("@/app/pages/SignUp/SignUp", () => ({
+jest.mock("@/app/features/auth/pages/SignUp/SignUp", () => ({
   FormInput: jest.fn(({ inlabel, value, onChange, error, inname }) => (
     <div>
       <label htmlFor={inname}>{inlabel}</label>
@@ -22,7 +22,7 @@ jest.mock("@/app/pages/SignUp/SignUp", () => ({
   )),
 }));
 
-jest.mock("@/app/components/DynamicSelect/DynamicSelect", () => {
+jest.mock("@/app/ui/widgets/DynamicSelect/DynamicSelect", () => {
   return jest.fn(({ options, value, onChange, inname }) => (
     <select
       id={inname}

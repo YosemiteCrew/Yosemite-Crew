@@ -8,9 +8,9 @@ import {
 } from "@testing-library/react";
 import ProtectedChatContainer, {
   ChatContainer,
-} from "../../../components/chat/ChatContainer";
-import * as streamChatService from "@/app/services/streamChatService";
-import * as chatService from "@/app/services/chatService";
+} from "@/app/features/chat/components/ChatContainer";
+import * as streamChatService from "@/app/features/chat/services/streamChatService";
+import * as chatService from "@/app/features/chat/services/chatService";
 import { useAuthStore } from "@/app/stores/authStore";
 import { useOrgStore } from "@/app/stores/orgStore";
 import { useChannelStateContext } from "stream-chat-react";
@@ -29,13 +29,13 @@ jest.mock("@/app/stores/orgStore", () => ({
 }));
 
 // Mock Services
-jest.mock("@/app/services/streamChatService", () => ({
+jest.mock("@/app/features/chat/services/streamChatService", () => ({
   getChatClient: jest.fn(),
   connectStreamUser: jest.fn(),
   endChatChannel: jest.fn(),
 }));
 
-jest.mock("@/app/services/chatService", () => ({
+jest.mock("@/app/features/chat/services/chatService", () => ({
   createOrgDirectChat: jest.fn(),
   createOrgGroupChat: jest.fn(),
   fetchOrgUsers: jest.fn(),
@@ -115,17 +115,17 @@ jest.mock("stream-chat-react", () => {
 });
 
 // Mock UI Components
-jest.mock("../../../components/Loader", () => ({
+jest.mock("@/app/ui/overlays/Loader", () => ({
   YosemiteLoader: () => <div data-testid="loader">Loading...</div>,
 }));
 
-jest.mock("../../../components/Modal", () => ({
+jest.mock("@/app/ui/overlays/Modal", () => ({
   __esModule: true,
   default: ({ showModal, children }: any) =>
     showModal ? <div data-testid="group-modal">{children}</div> : null,
 }));
 
-jest.mock("../../../components/Inputs/FormInput/FormInput", () => ({
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   __esModule: true,
   default: ({ value, onChange, onFocus, onBlur, inlabel }: any) => (
     <input
@@ -139,7 +139,7 @@ jest.mock("../../../components/Inputs/FormInput/FormInput", () => ({
   ),
 }));
 
-jest.mock("../../../components/Icons/Close", () => ({
+jest.mock("@/app/ui/primitives/Icons/Close", () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button onClick={onClick} data-testid="close-icon">
@@ -148,14 +148,14 @@ jest.mock("../../../components/Icons/Close", () => ({
   ),
 }));
 
-jest.mock("../../../components/ProtectedRoute", () => ({
+jest.mock("@/app/ui/layout/guards/ProtectedRoute", () => ({
   __esModule: true,
   default: ({ children }: any) => (
     <div data-testid="protected-route">{children}</div>
   ),
 }));
 
-jest.mock("../../../components/OrgGuard", () => ({
+jest.mock("@/app/ui/layout/guards/OrgGuard", () => ({
   __esModule: true,
   default: ({ children }: any) => <div data-testid="org-guard">{children}</div>,
 }));
@@ -460,6 +460,3 @@ describe("ChatContainer", () => {
     expect(screen.getByTestId("org-guard")).toBeInTheDocument();
   });
 });
-
-
-

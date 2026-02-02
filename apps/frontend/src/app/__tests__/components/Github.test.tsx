@@ -3,7 +3,7 @@ import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
-import Github from "@/app/components/Github/Github";
+import Github from "@/app/ui/widgets/Github/Github";
 
 jest.mock("next/image", () => ({
   __esModule: true,

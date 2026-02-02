@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { StoredParent } from "../pages/Companions/types";
+import { StoredParent } from "@/app/features/companions/pages/Companions/types";
 
 type ParentStatus = "idle" | "loading" | "loaded" | "error";
 

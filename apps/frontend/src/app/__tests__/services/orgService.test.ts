@@ -3,73 +3,73 @@ import {
   deleteOrg,
   loadOrgs,
   updateOrg,
-} from "../../services/orgService";
-import { useOrgStore } from "../../stores/orgStore";
-import { useAuthStore } from "../../stores/authStore";
-import { useCounterStore } from "../../stores/counterStore";
-import { useSubscriptionStore } from "../../stores/subscriptionStore";
-import { useAvailabilityStore } from "../../stores/availabilityStore";
-import { useCompanionStore } from "../../stores/companionStore";
-import { useOrganizationDocumentStore } from "../../stores/documentStore";
-import { useOrganisationRoomStore } from "../../stores/roomStore";
-import { useServiceStore } from "../../stores/serviceStore";
-import { useSpecialityStore } from "../../stores/specialityStore";
-import { useTeamStore } from "../../stores/teamStore";
-import { useUserProfileStore } from "../../stores/profileStore";
-import { getData, postData, putData, deleteData } from "../../services/axios";
+} from "@/app/features/organization/services/orgService";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { useAuthStore } from "@/app/stores/authStore";
+import { useCounterStore } from "@/app/stores/counterStore";
+import { useSubscriptionStore } from "@/app/stores/subscriptionStore";
+import { useAvailabilityStore } from "@/app/stores/availabilityStore";
+import { useCompanionStore } from "@/app/stores/companionStore";
+import { useOrganizationDocumentStore } from "@/app/stores/documentStore";
+import { useOrganisationRoomStore } from "@/app/stores/roomStore";
+import { useServiceStore } from "@/app/stores/serviceStore";
+import { useSpecialityStore } from "@/app/stores/specialityStore";
+import { useTeamStore } from "@/app/stores/teamStore";
+import { useUserProfileStore } from "@/app/stores/profileStore";
+import { getData, postData, putData, deleteData } from "@/app/services/axios";
 
-jest.mock("../../services/axios", () => ({
+jest.mock("@/app/services/axios", () => ({
   getData: jest.fn(),
   postData: jest.fn(),
   putData: jest.fn(),
   deleteData: jest.fn(),
 }));
 
-jest.mock("../../stores/orgStore", () => ({
+jest.mock("@/app/stores/orgStore", () => ({
   useOrgStore: { getState: jest.fn() },
 }));
 
-jest.mock("../../stores/authStore", () => ({
+jest.mock("@/app/stores/authStore", () => ({
   useAuthStore: { getState: jest.fn() },
 }));
 
-jest.mock("../../stores/counterStore", () => ({
+jest.mock("@/app/stores/counterStore", () => ({
   useCounterStore: { getState: jest.fn() },
 }));
 
-jest.mock("../../stores/subscriptionStore", () => ({
+jest.mock("@/app/stores/subscriptionStore", () => ({
   useSubscriptionStore: { getState: jest.fn() },
 }));
 
-jest.mock("../../stores/availabilityStore", () => ({
+jest.mock("@/app/stores/availabilityStore", () => ({
   useAvailabilityStore: { getState: jest.fn() },
 }));
 
-jest.mock("../../stores/companionStore", () => ({
+jest.mock("@/app/stores/companionStore", () => ({
   useCompanionStore: { getState: jest.fn() },
 }));
 
-jest.mock("../../stores/documentStore", () => ({
+jest.mock("@/app/stores/documentStore", () => ({
   useOrganizationDocumentStore: { getState: jest.fn() },
 }));
 
-jest.mock("../../stores/roomStore", () => ({
+jest.mock("@/app/stores/roomStore", () => ({
   useOrganisationRoomStore: { getState: jest.fn() },
 }));
 
-jest.mock("../../stores/serviceStore", () => ({
+jest.mock("@/app/stores/serviceStore", () => ({
   useServiceStore: { getState: jest.fn() },
 }));
 
-jest.mock("../../stores/specialityStore", () => ({
+jest.mock("@/app/stores/specialityStore", () => ({
   useSpecialityStore: { getState: jest.fn() },
 }));
 
-jest.mock("../../stores/teamStore", () => ({
+jest.mock("@/app/stores/teamStore", () => ({
   useTeamStore: { getState: jest.fn() },
 }));
 
-jest.mock("../../stores/profileStore", () => ({
+jest.mock("@/app/stores/profileStore", () => ({
   useUserProfileStore: { getState: jest.fn() },
 }));
 

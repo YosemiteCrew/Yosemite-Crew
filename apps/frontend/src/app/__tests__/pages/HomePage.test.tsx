@@ -1,16 +1,16 @@
 import { render, screen, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import HomePage, { FillBtn } from "../../pages/HomePage/HomePage";
+import HomePage, { FillBtn } from "@/app/features/marketing/pages/HomePage/HomePage";
 import userEvent from "@testing-library/user-event";
 import { useAuthStore } from "@/app/stores/authStore";
 
-jest.mock("@/app/components/Header/Header", () => {
+jest.mock("@/app/ui/layout/Header/Header", () => {
   return function DummyHeader() {
     return <header>Header Mock</header>;
   };
 });
 
-jest.mock("@/app/components/Footer/Footer", () => {
+jest.mock("@/app/ui/widgets/Footer/Footer", () => {
   return function DummyFooter() {
     return <footer>Footer Mock</footer>;
   };

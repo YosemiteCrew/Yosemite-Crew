@@ -2,19 +2,19 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import DeleteOrg from "@/app/pages/Organization/Sections/DeleteOrg";
+import DeleteOrg from "@/app/features/organization/pages/Organization/Sections/DeleteOrg";
 
 const deleteOrgMock = jest.fn();
 
-jest.mock("@/app/services/orgService", () => ({
+jest.mock("@/app/features/organization/services/orgService", () => ({
   deleteOrg: () => deleteOrgMock(),
 }));
 
-jest.mock("@/app/components/PermissionGate", () => ({
+jest.mock("@/app/ui/layout/guards/PermissionGate", () => ({
   PermissionGate: ({ children }: any) => <div>{children}</div>,
 }));
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Secondary: ({ text, onClick }: any) => (
     <button type="button" onClick={onClick}>
       {text}
@@ -22,7 +22,7 @@ jest.mock("@/app/components/Buttons", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Buttons/Delete", () => ({
+jest.mock("@/app/ui/primitives/Buttons/Delete", () => ({
   __esModule: true,
   default: ({ text, onClick }: any) => (
     <button type="button" onClick={onClick}>
@@ -31,7 +31,7 @@ jest.mock("@/app/components/Buttons/Delete", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Icons/Close", () => ({
+jest.mock("@/app/ui/primitives/Icons/Close", () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>
@@ -40,11 +40,11 @@ jest.mock("@/app/components/Icons/Close", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => (props: any) => (
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => (props: any) => (
   <input aria-label={props.inlabel} value={props.value} onChange={props.onChange} />
 ));
 
-jest.mock("@/app/components/Modal/CenterModal", () => ({
+jest.mock("@/app/ui/overlays/Modal/CenterModal", () => ({
   __esModule: true,
   default: ({ showModal, children }: any) => (showModal ? <div>{children}</div> : null),
 }));
@@ -58,7 +58,7 @@ describe("DeleteOrg section", () => {
   it("opens modal and deletes when email is provided", async () => {
     render(<DeleteOrg />);
 
-    fireEvent.click(screen.getByText("Delete organization"));
+    fireEvent.click(screen.getAllByText("Delete organization")[0]);
     fireEvent.change(screen.getByLabelText("Enter email address"), {
       target: { value: "owner@example.com" },
     });

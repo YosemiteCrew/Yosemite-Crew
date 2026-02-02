@@ -11,9 +11,9 @@
 
 import React, { useMemo, useState } from "react";
 import Image from "next/image";
-import { ChatContainer, ChatScope } from "@/app/components/chat/ChatContainer";
-import ProtectedRoute from "@/app/components/ProtectedRoute";
-import OrgGuard from "@/app/components/OrgGuard";
+import { ChatContainer, ChatScope } from "@/app/features/chat/components/ChatContainer";
+import ProtectedRoute from "@/app/ui/layout/guards/ProtectedRoute";
+import OrgGuard from "@/app/ui/layout/guards/OrgGuard";
 import { useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/app/stores/authStore";
 import { useOrgStore } from "@/app/stores/orgStore";

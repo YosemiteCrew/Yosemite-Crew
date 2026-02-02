@@ -1,24 +1,24 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import Settings from "@/app/pages/Settings";
+import Settings from "@/app/features/settings/pages/Settings";
 
-jest.mock("@/app/components/ProtectedRoute", () => ({
+jest.mock("@/app/ui/layout/guards/ProtectedRoute", () => ({
   __esModule: true,
   default: ({ children }: any) => <div data-testid="protected">{children}</div>,
 }));
 
-jest.mock("@/app/pages/Settings/Sections/Personal", () => ({
+jest.mock("@/app/features/settings/pages/Settings/Sections/Personal", () => ({
   __esModule: true,
   default: () => <div>Personal Section</div>,
 }));
 
-jest.mock("@/app/pages/Settings/Sections/OrgSection", () => ({
+jest.mock("@/app/features/settings/pages/Settings/Sections/OrgSection", () => ({
   __esModule: true,
   default: () => <div>Org Section</div>,
 }));
 
-jest.mock("@/app/pages/Settings/Sections/DeleteProfile", () => ({
+jest.mock("@/app/features/settings/pages/Settings/Sections/DeleteProfile", () => ({
   __esModule: true,
   default: () => <div>Delete Profile</div>,
 }));

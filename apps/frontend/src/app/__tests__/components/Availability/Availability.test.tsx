@@ -1,17 +1,17 @@
 import React, { useState } from "react";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import Availability from "@/app/components/Availability/Availability";
-import { daysOfWeek, DEFAULT_INTERVAL, AvailabilityState } from "@/app/components/Availability/utils";
+import Availability from "@/app/features/appointments/components/Availability/Availability";
+import { daysOfWeek, DEFAULT_INTERVAL, AvailabilityState } from "@/app/features/appointments/components/Availability/utils";
 
-jest.mock("@/app/components/Availability/TimeSlot", () => ({
+jest.mock("@/app/features/appointments/components/Availability/TimeSlot", () => ({
   __esModule: true,
   default: ({ day, field, intervalIndex }: any) => (
     <div data-testid={`slot-${day}-${field}-${intervalIndex}`} />
   ),
 }));
 
-jest.mock("@/app/components/Availability/Dublicate", () => ({
+jest.mock("@/app/features/appointments/components/Availability/Dublicate", () => ({
   __esModule: true,
   default: ({ day }: any) => <div data-testid={`duplicate-${day}`} />,
 }));

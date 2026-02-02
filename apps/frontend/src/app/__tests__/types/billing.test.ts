@@ -8,7 +8,7 @@ import type {
   BillingSubscription,
   FreeMetric,
   CanResult,
-} from "@/app/types/billing";
+} from "@/app/features/billing/types/billing";
 
 describe("billing types", () => {
   describe("BillingCounter", () => {

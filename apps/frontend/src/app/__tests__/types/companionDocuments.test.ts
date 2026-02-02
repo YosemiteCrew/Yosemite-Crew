@@ -9,7 +9,7 @@ import {
   type Attachment,
   type VisitType,
   type SignedFile,
-} from "@/app/types/companionDocuments";
+} from "@/app/features/documents/types/companionDocuments";
 
 describe("companionDocuments types", () => {
   describe("CategoryOptions", () => {

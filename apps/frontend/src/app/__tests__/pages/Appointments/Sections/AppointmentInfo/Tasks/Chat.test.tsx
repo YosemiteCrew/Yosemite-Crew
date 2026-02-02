@@ -1,13 +1,13 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 // Import Path: Go up 7 levels to 'src/app', then down to 'pages'
-import Chat from "../../../../../../pages/Appointments/Sections/AppointmentInfo/Tasks/Chat";
+import Chat from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Tasks/Chat";
 import { useAuthStore } from "@/app/stores/authStore";
 import {
   createChatSession,
   closeChatSession,
   getChatSession,
-} from "@/app/services/chatService";
+} from "@/app/features/chat/services/chatService";
 import { Appointment } from "@yosemite-crew/types";
 
 // --- Mocks ---
@@ -24,10 +24,10 @@ jest.mock("next/navigation", () => ({
 jest.mock("@/app/stores/authStore");
 
 // Mock Chat Service
-jest.mock("@/app/services/chatService");
+jest.mock("@/app/features/chat/services/chatService");
 
 // Mock UI Buttons (Pass-through to standard buttons for easier testing)
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ text, onClick, isDisabled }: any) => (
     <button data-testid="primary-btn" onClick={onClick} disabled={isDisabled}>
       {text}

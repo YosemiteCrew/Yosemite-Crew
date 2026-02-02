@@ -2,7 +2,7 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import Availability from "@/app/components/Summary/Availability";
+import Availability from "@/app/ui/widgets/Summary/Availability";
 
 const useTeamMock = jest.fn();
 const usePermissionsMock = jest.fn();
@@ -17,17 +17,17 @@ jest.mock("@/app/hooks/usePermissions", () => ({
   usePermissions: () => usePermissionsMock(),
 }));
 
-jest.mock("@/app/components/DataTable/AvailabilityTable", () => (props: any) => {
+jest.mock("@/app/ui/tables/AvailabilityTable", () => (props: any) => {
   availabilityTableSpy(props);
   return <div data-testid="availability-table" />;
 });
 
-jest.mock("@/app/pages/Organization/Sections/Team/TeamInfo", () => (props: any) => {
+jest.mock("@/app/features/organization/pages/Organization/Sections/Team/TeamInfo", () => (props: any) => {
   teamInfoSpy(props);
   return <div data-testid="team-info" />;
 });
 
-jest.mock("@/app/components/PermissionGate", () => ({
+jest.mock("@/app/ui/layout/guards/PermissionGate", () => ({
   PermissionGate: ({ children }: any) => <div>{children}</div>,
 }));
 

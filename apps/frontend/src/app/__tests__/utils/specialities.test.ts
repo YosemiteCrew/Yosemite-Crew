@@ -1,4 +1,4 @@
-import { specialties, specialtiesByKey } from "@/app/utils/specialities";
+import { specialties, specialtiesByKey } from "@/app/lib/specialities";
 
 describe("Specialties Utility", () => {
   // --- 1. Specialties Array Tests ---

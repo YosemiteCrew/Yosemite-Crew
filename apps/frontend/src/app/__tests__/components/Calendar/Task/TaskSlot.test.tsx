@@ -2,14 +2,14 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import TaskSlot from "@/app/components/Calendar/Task/TaskSlot";
-import { Task } from "@/app/types/task";
+import TaskSlot from "@/app/features/appointments/components/Calendar/Task/TaskSlot";
+import { Task } from "@/app/features/tasks/types/task";
 
 jest.mock("@/app/hooks/useTeam", () => ({
   useTeamForPrimaryOrg: jest.fn(),
 }));
 
-jest.mock("@/app/components/DataTable/Tasks", () => ({
+jest.mock("@/app/ui/tables/Tasks", () => ({
   getStatusStyle: jest.fn(() => ({ backgroundColor: "pink", color: "white" })),
 }));
 

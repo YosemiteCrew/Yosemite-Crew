@@ -1,8 +1,8 @@
 import { useEffect, useMemo } from "react";
-import { useOrgStore } from "../stores/orgStore";
-import { loadRoomsForOrgPrimaryOrg } from "../services/roomService";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { loadRoomsForOrgPrimaryOrg } from "@/app/features/organization/services/roomService";
 import { OrganisationRoom } from "@yosemite-crew/types";
-import { useOrganisationRoomStore } from "../stores/roomStore";
+import { useOrganisationRoomStore } from "@/app/stores/roomStore";
 
 export const useLoadRoomsForPrimaryOrg = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);

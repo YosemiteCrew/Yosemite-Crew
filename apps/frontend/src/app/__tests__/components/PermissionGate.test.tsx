@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import { PermissionGate } from "@/app/components/PermissionGate";
+import { PermissionGate } from "@/app/ui/layout/guards/PermissionGate";
 import { usePermissions } from "@/app/hooks/usePermissions";
 
 jest.mock("@/app/hooks/usePermissions", () => ({

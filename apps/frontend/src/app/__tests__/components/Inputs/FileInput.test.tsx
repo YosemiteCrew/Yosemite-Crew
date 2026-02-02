@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import FileInput from "@/app/components/Inputs/FileInput/FileInput";
+import FileInput from "@/app/ui/inputs/FileInput/FileInput";
 
 describe("FileInput", () => {
   test("renders hidden file input with accessible label", () => {

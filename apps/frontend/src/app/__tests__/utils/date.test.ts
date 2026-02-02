@@ -4,7 +4,7 @@ import {
   getAgeInYears,
   buildUtcDateFromDateAndTime,
   getDurationMinutes,
-} from "../../utils/date";
+} from "@/app/lib/date";
 
 describe("Date Utils", () => {
   // Clean up timers after tests to avoid affecting other test files

@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import SignatureRenderer from "../../../../../../../pages/Forms/Sections/AddForm/components/Signature/SignatureRenderer";
-import { FormField } from "@/app/types/forms";
+import SignatureRenderer from "@/app/features/forms/pages/Forms/Sections/AddForm/components/Signature/SignatureRenderer";
+import { FormField } from "@/app/features/forms/types/forms";
 
 describe("SignatureRenderer Component", () => {
   // Strict mock object matching the required type

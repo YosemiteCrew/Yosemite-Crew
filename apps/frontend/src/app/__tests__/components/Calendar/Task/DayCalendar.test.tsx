@@ -2,21 +2,21 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import DayCalendar from "@/app/components/Calendar/Task/DayCalendar";
-import { Task } from "@/app/types/task";
+import DayCalendar from "@/app/features/appointments/components/Calendar/Task/DayCalendar";
+import { Task } from "@/app/features/tasks/types/task";
 
 jest.mock("@/app/hooks/useTeam", () => ({
   useTeamForPrimaryOrg: jest.fn(),
 }));
 
-jest.mock("@/app/components/DataTable/Tasks", () => ({
+jest.mock("@/app/ui/tables/Tasks", () => ({
   getStatusStyle: jest.fn(() => ({
     backgroundColor: "purple",
     color: "white",
   })),
 }));
 
-jest.mock("@/app/components/Icons/Back", () => ({
+jest.mock("@/app/ui/primitives/Icons/Back", () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>
@@ -25,7 +25,7 @@ jest.mock("@/app/components/Icons/Back", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Icons/Next", () => ({
+jest.mock("@/app/ui/primitives/Icons/Next", () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>

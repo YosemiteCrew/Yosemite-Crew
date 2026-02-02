@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import SpecialitySearch from "@/app/components/Inputs/SpecialitySearch/SpecialitySearch";
+import SpecialitySearch from "@/app/ui/inputs/SpecialitySearch/SpecialitySearch";
 import { useOrgStore } from "@/app/stores/orgStore";
 
 // --- Mocks ---
@@ -17,7 +17,7 @@ jest.mock("react-icons/io5", () => ({
 }));
 
 // Mock Data Source (specialties list)
-jest.mock("@/app/utils/specialities", () => ({
+jest.mock("@/app/lib/specialities", () => ({
   specialties: [
     { name: "Cardiology" },
     { name: "Dermatology" },

@@ -2,8 +2,8 @@ import React from "react";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import SpecialitiesTable, {
   getServiceNames,
-} from "@/app/components/DataTable/SpecialitiesTable";
-import { SpecialityWeb } from "@/app/types/speciality";
+} from "@/app/ui/tables/SpecialitiesTable";
+import { SpecialityWeb } from "@/app/features/organization/types/speciality";
 
 // --- Mocks ---
 
@@ -11,7 +11,7 @@ import { SpecialityWeb } from "@/app/types/speciality";
 // We are integration testing with the real table component.
 
 // Mock SpecialitiesCard for Mobile View
-jest.mock("@/app/components/Cards/SpecialitiesCard", () => ({
+jest.mock("@/app/ui/cards/SpecialitiesCard", () => ({
   __esModule: true,
   default: ({ speciality, handleViewSpeciality }: any) => (
     <div data-testid="speciality-card">

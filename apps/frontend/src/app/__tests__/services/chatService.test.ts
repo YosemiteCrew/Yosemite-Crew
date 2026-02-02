@@ -1,11 +1,11 @@
-import * as chatService from '../../services/chatService';
-import * as axiosService from '../../services/axios';
+import * as chatService from '@/app/features/chat/services/chatService';
+import * as axiosService from '@/app/services/axios';
 
 // ----------------------------------------------------------------------------
 // 1. Mocks & Setup
 // ----------------------------------------------------------------------------
 
-jest.mock('../../services/axios', () => ({
+jest.mock('@/app/services/axios', () => ({
   getData: jest.fn(),
   postData: jest.fn(),
   deleteData: jest.fn(),
@@ -65,7 +65,7 @@ describe('Chat Service', () => {
 
       const result = await chatService.createChatSession('appt-1');
 
-      expect(axiosService.postData).toHaveBeenCalledWith('/v1/chat/pms/sessions/appt-1');
+      expect(axiosService.postData).toHaveBeenCalledWith('/v1/chat/pms/appointments/appt-1');
       expect(result).toEqual(mockResponse.data);
     });
 
@@ -98,9 +98,9 @@ describe('Chat Service', () => {
       const mockResponse = { data: [{ id: 's1' }] };
       (axiosService.getData as jest.Mock).mockResolvedValue(mockResponse);
 
-      const result = await chatService.getChatSessions();
+      const result = await chatService.getChatSessions('org-1');
 
-      expect(axiosService.getData).toHaveBeenCalledWith('/v1/chat/pms/sessions/list');
+      expect(axiosService.getData).toHaveBeenCalledWith('/v1/chat/pms/sessions/org-1');
       expect(result).toEqual(mockResponse.data);
     });
 
@@ -108,28 +108,28 @@ describe('Chat Service', () => {
       const error = new Error('Fetch failed');
       (axiosService.getData as jest.Mock).mockRejectedValue(error);
 
-      await expect(chatService.getChatSessions()).rejects.toThrow(
+      await expect(chatService.getChatSessions('org-1')).rejects.toThrow(
         'Failed to get chat sessions: Fetch failed'
       );
     });
 
     it('throws generic error on unknown failure', async () => {
-        (axiosService.getData as jest.Mock).mockRejectedValue('Err');
+      (axiosService.getData as jest.Mock).mockRejectedValue('Err');
 
-        await expect(chatService.getChatSessions()).rejects.toThrow(
-          'Failed to retrieve chat sessions list'
-        );
-      });
+      await expect(chatService.getChatSessions('org-1')).rejects.toThrow(
+        'Failed to retrieve chat sessions list'
+      );
+    });
   });
 
   describe('getChatSession', () => {
     it('fetches single session successfully', async () => {
       const mockResponse = { data: { id: 's1' } };
-      (axiosService.getData as jest.Mock).mockResolvedValue(mockResponse);
+      (axiosService.postData as jest.Mock).mockResolvedValue(mockResponse);
 
       const result = await chatService.getChatSession('appt-1');
 
-      expect(axiosService.getData).toHaveBeenCalledWith('/v1/chat/pms/sessions/appt-1');
+      expect(axiosService.postData).toHaveBeenCalledWith('/v1/chat/pms/appointments/appt-1');
       expect(result).toEqual(mockResponse.data);
     });
 
@@ -141,7 +141,7 @@ describe('Chat Service', () => {
 
     it('throws error on failure', async () => {
       const error = new Error('Not found');
-      (axiosService.getData as jest.Mock).mockRejectedValue(error);
+      (axiosService.postData as jest.Mock).mockRejectedValue(error);
 
       await expect(chatService.getChatSession('appt-1')).rejects.toThrow(
         'Failed to get chat session: Not found'
@@ -149,7 +149,7 @@ describe('Chat Service', () => {
     });
 
     it('throws generic error on unknown failure', async () => {
-        (axiosService.getData as jest.Mock).mockRejectedValue('Err');
+        (axiosService.postData as jest.Mock).mockRejectedValue('Err');
 
         await expect(chatService.getChatSession('appt-1')).rejects.toThrow(
           'Failed to retrieve chat session for appointment: appt-1'

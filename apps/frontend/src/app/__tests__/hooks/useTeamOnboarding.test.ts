@@ -3,7 +3,7 @@ import { useTeamOnboarding } from "@/app/hooks/useTeamOnboarding";
 import { useOrgStore } from "@/app/stores/orgStore";
 import { useUserProfileStore } from "@/app/stores/profileStore";
 import { useAvailabilityStore } from "@/app/stores/availabilityStore";
-import { computeTeamOnboardingStep } from "@/app/utils/teamOnboarding";
+import { computeTeamOnboardingStep } from "@/app/lib/teamOnboarding";
 
 // --- Mocks ---
 
@@ -19,7 +19,7 @@ jest.mock("@/app/stores/availabilityStore", () => ({
   useAvailabilityStore: jest.fn(),
 }));
 
-jest.mock("@/app/utils/teamOnboarding", () => ({
+jest.mock("@/app/lib/teamOnboarding", () => ({
   computeTeamOnboardingStep: jest.fn(),
 }));
 

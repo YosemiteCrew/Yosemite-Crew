@@ -1,7 +1,7 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import Modal from "@/app/components/Modal";
+import Modal from "@/app/ui/overlays/Modal";
 
 describe("Modal", () => {
   it("closes when overlay is clicked", () => {

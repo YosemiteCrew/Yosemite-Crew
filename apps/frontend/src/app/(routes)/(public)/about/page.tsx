@@ -1,5 +1,5 @@
 import React from "react";
-import AboutUs from "@/app/pages/AboutUs/AboutUs";
+import AboutUs from "@/app/features/marketing/pages/AboutUs/AboutUs";
 
 function page() {
   return <AboutUs />;

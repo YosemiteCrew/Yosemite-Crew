@@ -2,7 +2,7 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-jest.mock("@/app/components/Modal", () => ({
+jest.mock("@/app/ui/overlays/Modal", () => ({
   __esModule: true,
   default: ({ children, showModal }: any) => (
     <div data-testid="modal" data-open={showModal}>
@@ -11,7 +11,7 @@ jest.mock("@/app/components/Modal", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Labels/SubLabels", () => ({
+jest.mock("@/app/ui/widgets/Labels/SubLabels", () => ({
   __esModule: true,
   default: ({ labels, activeLabel, setActiveLabel }: any) => (
     <div data-testid="sub-labels">
@@ -30,7 +30,7 @@ jest.mock("@/app/components/Labels/SubLabels", () => ({
 }));
 
 const formSectionRender = jest.fn();
-jest.mock("@/app/components/AddInventory/FormSection", () => ({
+jest.mock("@/app/features/inventory/components/AddInventory/FormSection", () => ({
   __esModule: true,
   default: (props: any) => {
     formSectionRender(props);
@@ -64,7 +64,7 @@ jest.mock("@/app/components/AddInventory/FormSection", () => ({
   },
 }));
 
-import AddInventory from "@/app/components/AddInventory";
+import AddInventory from "@/app/features/inventory/components/AddInventory";
 
 describe("<AddInventory />", () => {
   let consoleErrorSpy: jest.SpyInstance;

@@ -1,11 +1,11 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import OrgCard from "@/app/components/Cards/OrgCard/OrgCard";
-import { OrgWithMembership } from "@/app/types/org";
+import OrgCard from "@/app/ui/cards/OrgCard/OrgCard";
+import { OrgWithMembership } from "@/app/features/organization/types/org";
 
 // --- Mocks ---
 
-jest.mock("@/app/components/DataTable/OrganizationList", () => ({
+jest.mock("@/app/ui/tables/OrganizationList", () => ({
   getStatusStyle: jest.fn(() => ({ color: "green" })),
 }));
 

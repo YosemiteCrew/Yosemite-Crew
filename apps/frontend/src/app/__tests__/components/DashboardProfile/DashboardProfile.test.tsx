@@ -3,7 +3,7 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import DashboardProfile from "@/app/components/DashboardProfile/DashboardProfile";
+import DashboardProfile from "@/app/ui/widgets/DashboardProfile/DashboardProfile";
 
 jest.mock("next/image", () => ({
   __esModule: true,
@@ -26,15 +26,15 @@ jest.mock("@/app/stores/authStore", () => ({
   useAuthStore: (selector: any) => useAuthStoreMock(selector),
 }));
 
-jest.mock("@/app/utils/urls", () => ({
+jest.mock("@/app/lib/urls", () => ({
   getSafeImageUrl: jest.fn(() => "image"),
 }));
 
-jest.mock("@/app/components/PermissionGate", () => ({
+jest.mock("@/app/ui/layout/guards/PermissionGate", () => ({
   PermissionGate: ({ children }: any) => <div>{children}</div>,
 }));
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ text }: any) => <button type="button">{text}</button>,
 }));
 

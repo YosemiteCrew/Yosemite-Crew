@@ -1,19 +1,19 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import TaskCard from "@/app/components/Cards/TaskCard";
-import { Task } from "@/app/types/task";
+import TaskCard from "@/app/ui/cards/TaskCard";
+import { Task } from "@/app/features/tasks/types/task";
 
 // --- Mocks ---
 
-jest.mock("@/app/components/DataTable/Tasks", () => ({
+jest.mock("@/app/ui/tables/Tasks", () => ({
   getStatusStyle: jest.fn(() => ({ color: "green" })),
 }));
 
-jest.mock("@/app/components/Calendar/weekHelpers", () => ({
+jest.mock("@/app/features/appointments/components/Calendar/weekHelpers", () => ({
   getFormattedDate: jest.fn((date: any) => `Formatted ${String(date)}`),
 }));
 
-import { getFormattedDate } from "@/app/components/Calendar/weekHelpers";
+import { getFormattedDate } from "@/app/features/appointments/components/Calendar/weekHelpers";
 
 const mockTask: Task = {
   _id: "task-1",

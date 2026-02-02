@@ -1,6 +1,6 @@
 // laidOutEvent.test.ts
 import { Appointment } from "@yosemite-crew/types";
-import { LaidOutEvent } from "../../types/calendar";
+import { LaidOutEvent } from "@/app/features/appointments/types/calendar";
 
 describe("LaidOutEvent Types Definition", () => {
   // --- Section 1: Object Types Structure (Appointment + Layout Fields) ---

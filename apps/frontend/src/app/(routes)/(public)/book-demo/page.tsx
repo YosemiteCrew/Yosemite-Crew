@@ -1,5 +1,5 @@
 import React from "react";
-import BookDemo from "@/app/pages/BookDemo/BookDemo";
+import BookDemo from "@/app/features/marketing/pages/BookDemo/BookDemo";
 
 function page() {
   return <BookDemo />;

@@ -1,9 +1,9 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import Companion from "@/app/components/CompanionInfo/Sections/Companion";
+import Companion from "@/app/features/companions/components/Sections/Companion";
 
-jest.mock("@/app/components/Accordion/EditableAccordion", () => ({
+jest.mock("@/app/ui/primitives/Accordion/EditableAccordion", () => ({
   __esModule: true,
   default: ({ title, fields, data }: any) => (
     <div data-testid="editable-accordion">

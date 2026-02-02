@@ -1,15 +1,15 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import AddCompanion from "@/app/components/AddCompanion";
+import AddCompanion from "@/app/features/companions/components/AddCompanion";
 
-jest.mock("@/app/components/Modal", () => ({
+jest.mock("@/app/ui/overlays/Modal", () => ({
   __esModule: true,
   default: ({ showModal, children }: any) =>
     showModal ? <div data-testid="modal">{children}</div> : null,
 }));
 
-jest.mock("@/app/components/Icons/Close", () => ({
+jest.mock("@/app/ui/primitives/Icons/Close", () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>
@@ -18,7 +18,7 @@ jest.mock("@/app/components/Icons/Close", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Labels/Labels", () => ({
+jest.mock("@/app/ui/widgets/Labels/Labels", () => ({
   __esModule: true,
   default: ({ labels, setActiveLabel }: any) => (
     <div>
@@ -35,12 +35,12 @@ jest.mock("@/app/components/Labels/Labels", () => ({
   ),
 }));
 
-jest.mock("@/app/components/AddCompanion/Sections/Parent", () => ({
+jest.mock("@/app/features/companions/components/AddCompanion/Sections/Parent", () => ({
   __esModule: true,
   default: () => <div>parent-section</div>,
 }));
 
-jest.mock("@/app/components/AddCompanion/Sections/Companion", () => ({
+jest.mock("@/app/features/companions/components/AddCompanion/Sections/Companion", () => ({
   __esModule: true,
   default: () => <div>companion-section</div>,
 }));

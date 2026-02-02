@@ -13,7 +13,7 @@ jest.mock("@/app/stores/authStore", () => ({
   useAuthStore: jest.fn(),
 }));
 
-jest.mock("@/app/pages/ForgotPassword/ForgotPassword", () => ({
+jest.mock("@/app/features/auth/pages/ForgotPassword/ForgotPassword", () => ({
   __esModule: true,
   default: () => (
     <div data-testid="forgotpassword-mock">ForgotPasswordPage Mock</div>

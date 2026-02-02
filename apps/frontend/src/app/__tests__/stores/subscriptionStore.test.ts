@@ -1,9 +1,9 @@
 import { act } from "@testing-library/react";
-import { useSubscriptionStore } from "../../stores/subscriptionStore";
+import { useSubscriptionStore } from "@/app/stores/subscriptionStore";
 import {
   BillingSubscription,
   BillingSubscriptionStatus,
-} from "../../types/billing";
+} from "@/app/features/billing/types/billing";
 
 // ----------------------------------------------------------------------------
 // 1. Setup & Helpers

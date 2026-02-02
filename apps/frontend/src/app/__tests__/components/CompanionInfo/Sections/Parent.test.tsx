@@ -1,11 +1,11 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import Parent from "@/app/components/CompanionInfo/Sections/Parent";
-import { CompanionParent } from "@/app/pages/Companions/types";
+import Parent from "@/app/features/companions/components/Sections/Parent";
+import { CompanionParent } from "@/app/features/companions/pages/Companions/types";
 
 // --- Mocks ---
 
-jest.mock("@/app/components/Accordion/EditableAccordion", () => {
+jest.mock("@/app/ui/primitives/Accordion/EditableAccordion", () => {
   return jest.fn((props) => (
     <div data-testid="editable-accordion">
       <span data-testid="title">{props.title}</span>
@@ -17,7 +17,7 @@ jest.mock("@/app/components/Accordion/EditableAccordion", () => {
   ));
 });
 
-import EditableAccordion from "@/app/components/Accordion/EditableAccordion";
+import EditableAccordion from "@/app/ui/primitives/Accordion/EditableAccordion";
 
 // --- Test Data ---
 

@@ -1,10 +1,10 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import ServiceSearchEdit from "@/app/components/Inputs/ServiceSearch/ServiceSearchEdit";
-import { createService } from "@/app/services/specialityService";
+import ServiceSearchEdit from "@/app/ui/inputs/ServiceSearch/ServiceSearchEdit";
+import { createService } from "@/app/features/organization/services/specialityService";
 import { useOrgStore } from "@/app/stores/orgStore";
-import { SpecialityWeb } from "@/app/types/speciality";
+import { SpecialityWeb } from "@/app/features/organization/types/speciality";
 
 // --- Mocks ---
 
@@ -14,7 +14,7 @@ jest.mock("@/app/stores/orgStore", () => ({
 }));
 
 // Mock Service
-jest.mock("@/app/services/specialityService", () => ({
+jest.mock("@/app/features/organization/services/specialityService", () => ({
   createService: jest.fn(),
 }));
 
@@ -24,7 +24,7 @@ jest.mock("react-icons/io5", () => ({
 }));
 
 // Mock Data Source (specialtiesByKey)
-jest.mock("@/app/utils/specialities", () => ({
+jest.mock("@/app/lib/specialities", () => ({
   specialtiesByKey: {
     "General Medicine": {
       services: ["Checkup", "Consultation", "Vaccination"],

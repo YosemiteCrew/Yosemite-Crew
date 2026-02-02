@@ -1,5 +1,5 @@
 import React from "react";
-import PricingPage from "@/app/pages/PricingPage/PricingPage";
+import PricingPage from "@/app/features/marketing/pages/PricingPage/PricingPage";
 
 function page() {
   return <PricingPage />;

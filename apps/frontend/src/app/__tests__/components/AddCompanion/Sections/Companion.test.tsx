@@ -6,20 +6,20 @@ import {
   waitFor,
   act,
 } from "@testing-library/react";
-import Companion from "../../../../components/AddCompanion/Sections/Companion";
-import * as companionService from "@/app/services/companionService";
+import Companion from "@/app/features/companions/components/AddCompanion/Sections/Companion";
+import * as companionService from "@/app/features/companions/services/companionService";
 import {
   EMPTY_STORED_COMPANION,
   EMPTY_STORED_PARENT,
-} from "../../../../components/AddCompanion/type";
-import { StoredCompanion } from "@/app/pages/Companions/types";
+} from "@/app/features/companions/components/AddCompanion/type";
+import { StoredCompanion } from "@/app/features/companions/pages/Companions/types";
 import { CompanionType } from "@yosemite-crew/types";
 
 // ----------------------------------------------------------------------------
 // 1. Mocks & Setup
 // ----------------------------------------------------------------------------
 
-jest.mock("@/app/services/companionService", () => ({
+jest.mock("@/app/features/companions/services/companionService", () => ({
   createCompanion: jest.fn(),
   createParent: jest.fn(),
   getCompanionForParent: jest.fn(),
@@ -27,7 +27,7 @@ jest.mock("@/app/services/companionService", () => ({
 }));
 
 // Mock Child Components
-jest.mock("../../../../components/Accordion/Accordion", () => ({
+jest.mock("@/app/ui/primitives/Accordion/Accordion", () => ({
   __esModule: true,
   default: ({ title, children }: any) => (
     <div data-testid="accordion">
@@ -37,7 +37,7 @@ jest.mock("../../../../components/Accordion/Accordion", () => ({
   ),
 }));
 
-jest.mock("../../../../components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ text, onClick }: any) => (
     <button onClick={onClick} data-testid="primary-btn">
       {text}
@@ -50,7 +50,7 @@ jest.mock("../../../../components/Buttons", () => ({
   ),
 }));
 
-jest.mock("../../../../components/Inputs/FormInput/FormInput", () => ({
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   __esModule: true,
   default: ({ inlabel, value, onChange, error }: any) => (
     <div>
@@ -65,7 +65,7 @@ jest.mock("../../../../components/Inputs/FormInput/FormInput", () => ({
   ),
 }));
 
-jest.mock("../../../../components/Inputs/SelectLabel", () => ({
+jest.mock("@/app/ui/inputs/SelectLabel", () => ({
   __esModule: true,
   default: ({ title, setOption, activeOption }: any) => (
     <div>
@@ -86,7 +86,7 @@ jest.mock("../../../../components/Inputs/SelectLabel", () => ({
   ),
 }));
 
-jest.mock("../../../../components/Inputs/Datepicker", () => ({
+jest.mock("@/app/ui/inputs/Datepicker", () => ({
   __esModule: true,
   default: ({ currentDate, setCurrentDate, error }: any) => (
     <div>
@@ -106,7 +106,7 @@ jest.mock("../../../../components/Inputs/Datepicker", () => ({
   ),
 }));
 
-jest.mock("../../../../components/Inputs/SearchDropdown", () => ({
+jest.mock("@/app/ui/inputs/SearchDropdown", () => ({
   __esModule: true,
   default: ({ onSelect, options }: any) => (
     <div>
@@ -120,7 +120,7 @@ jest.mock("../../../../components/Inputs/SearchDropdown", () => ({
   ),
 }));
 
-jest.mock("../../../../components/Inputs/Dropdown/LabelDropdown", () => ({
+jest.mock("@/app/ui/inputs/Dropdown/LabelDropdown", () => ({
   __esModule: true,
   default: ({ placeholder, onSelect, error }: any) => (
     <div>
@@ -140,7 +140,7 @@ jest.mock("../../../../components/Inputs/Dropdown/LabelDropdown", () => ({
   ),
 }));
 
-jest.mock("../../../../components/Inputs/FormDesc/FormDesc", () => ({
+jest.mock("@/app/ui/inputs/FormDesc/FormDesc", () => ({
   __esModule: true,
   default: ({ inlabel, value, onChange }: any) => (
     <div>

@@ -1,6 +1,6 @@
 import React from "react";
 import { render } from "@testing-library/react";
-import DevRouteGuard from "@/app/components/DevRouteGuard/DevRouteGuard";
+import DevRouteGuard from "@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard";
 import { useAuthStore } from "@/app/stores/authStore";
 
 const mockReplace = jest.fn();

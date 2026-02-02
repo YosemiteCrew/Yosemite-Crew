@@ -1,14 +1,14 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import BookAppointment from "@/app/pages/Companions/BookAppointment";
+import BookAppointment from "@/app/features/companions/pages/Companions/BookAppointment";
 
-jest.mock("@/app/components/Modal", () => ({
+jest.mock("@/app/ui/overlays/Modal", () => ({
   __esModule: true,
   default: ({ children }: any) => <div data-testid="modal">{children}</div>,
 }));
 
-jest.mock("@/app/components/Accordion/Accordion", () => ({
+jest.mock("@/app/ui/primitives/Accordion/Accordion", () => ({
   __esModule: true,
   default: ({ title, children }: any) => (
     <div>
@@ -18,12 +18,12 @@ jest.mock("@/app/components/Accordion/Accordion", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Accordion/EditableAccordion", () => ({
+jest.mock("@/app/ui/primitives/Accordion/EditableAccordion", () => ({
   __esModule: true,
   default: ({ title }: any) => <div>{title}</div>,
 }));
 
-jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
+jest.mock("@/app/ui/inputs/Dropdown/LabelDropdown", () => ({
   __esModule: true,
   default: ({ placeholder, options, onSelect, error }: any) => (
     <div>
@@ -35,7 +35,7 @@ jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   __esModule: true,
   default: ({ inlabel, value, error }: any) => (
     <label>
@@ -46,7 +46,7 @@ jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/FormDesc/FormDesc", () => ({
+jest.mock("@/app/ui/inputs/FormDesc/FormDesc", () => ({
   __esModule: true,
   default: ({ inlabel, value, onChange }: any) => (
     <label>
@@ -56,7 +56,7 @@ jest.mock("@/app/components/Inputs/FormDesc/FormDesc", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/Slotpicker", () => ({
+jest.mock("@/app/ui/inputs/Slotpicker", () => ({
   __esModule: true,
   default: ({ timeSlots, setSelectedSlot }: any) => (
     <button type="button" onClick={() => setSelectedSlot(timeSlots[0])}>
@@ -65,12 +65,12 @@ jest.mock("@/app/components/Inputs/Slotpicker", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/MultiSelectDropdown", () => ({
+jest.mock("@/app/ui/inputs/MultiSelectDropdown", () => ({
   __esModule: true,
   default: () => <div>Support</div>,
 }));
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ text, onClick }: any) => (
     <button type="button" onClick={onClick}>
       {text}
@@ -78,7 +78,7 @@ jest.mock("@/app/components/Buttons", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Icons/Close", () => ({
+jest.mock("@/app/ui/primitives/Icons/Close", () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>
@@ -118,29 +118,29 @@ jest.mock("@/app/stores/serviceStore", () => ({
   },
 }));
 
-jest.mock("@/app/services/appointmentService", () => ({
+jest.mock("@/app/features/appointments/services/appointmentService", () => ({
   createAppointment: jest.fn(),
   getSlotsForServiceAndDateForPrimaryOrg: jest.fn(),
 }));
 
-jest.mock("@/app/services/invoiceService", () => ({
+jest.mock("@/app/features/billing/services/invoiceService", () => ({
   loadInvoicesForOrgPrimaryOrg: jest.fn(),
 }));
 
-jest.mock("@/app/components/Calendar/weekHelpers", () => ({
+jest.mock("@/app/features/appointments/components/Calendar/weekHelpers", () => ({
   getFormattedDate: () => "2024-01-01",
 }));
 
-jest.mock("@/app/components/Availability/utils", () => ({
+jest.mock("@/app/features/appointments/components/Availability/utils", () => ({
   formatUtcTimeToLocalLabel: () => "10:00 AM",
 }));
 
-jest.mock("@/app/utils/date", () => ({
+jest.mock("@/app/lib/date", () => ({
   buildUtcDateFromDateAndTime: () => new Date("2024-01-01T10:00:00Z"),
   getDurationMinutes: () => 30,
 }));
 
-const appointmentService = jest.requireMock("@/app/services/appointmentService");
+const appointmentService = jest.requireMock("@/app/features/appointments/services/appointmentService");
 
 describe("BookAppointment", () => {
   const companion = {

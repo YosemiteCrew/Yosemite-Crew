@@ -1,13 +1,13 @@
 import { renderHook, waitFor } from "@testing-library/react";
-import { useExploreMetrics } from "../../hooks/useMetrics";
-import { useOrgStore } from "../../stores/orgStore";
-import { getExploreMetrics } from "../../services/metricsService";
-import { EMPTY_EXPLORE, DashboardSummary } from "../../types/metrics";
+import { useExploreMetrics } from "@/app/hooks/useMetrics";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { getExploreMetrics } from "@/app/features/metrics/services/metricsService";
+import { EMPTY_EXPLORE, DashboardSummary } from "@/app/features/metrics/types/metrics";
 
 // --- Mocks ---
 
-jest.mock("../../stores/orgStore");
-jest.mock("../../services/metricsService");
+jest.mock("@/app/stores/orgStore");
+jest.mock("@/app/features/metrics/services/metricsService");
 
 describe("useExploreMetrics Hook", () => {
   let mockOrgState: any;

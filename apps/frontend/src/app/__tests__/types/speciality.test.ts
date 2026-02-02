@@ -1,4 +1,4 @@
-import { SpecialityWeb } from "../../types/speciality";
+import { SpecialityWeb } from "@/app/features/organization/types/speciality";
 import { Service } from "@yosemite-crew/types";
 
 // Mock helper to simulate the external Service type structure

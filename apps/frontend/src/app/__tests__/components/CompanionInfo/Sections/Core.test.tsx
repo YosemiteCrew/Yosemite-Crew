@@ -1,9 +1,9 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import Core from "@/app/components/CompanionInfo/Sections/Core";
+import Core from "@/app/features/companions/components/Sections/Core";
 
-jest.mock("@/app/components/Accordion/EditableAccordion", () => ({
+jest.mock("@/app/ui/primitives/Accordion/EditableAccordion", () => ({
   __esModule: true,
   default: ({ title }: any) => <div data-testid="accordion">{title}</div>,
 }));

@@ -1,11 +1,11 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import DropdownRenderer from "../../../../../../../pages/Forms/Sections/AddForm/components/Dropdown/DropdownRenderer";
+import DropdownRenderer from "@/app/features/forms/pages/Forms/Sections/AddForm/components/Dropdown/DropdownRenderer";
 
 // --- Mocks ---
 
 // Mock the Dropdown component to isolate logic and easily test prop passing
-jest.mock("@/app/components/Inputs/Dropdown/Dropdown", () => ({
+jest.mock("@/app/ui/inputs/Dropdown/Dropdown", () => ({
   __esModule: true,
   default: ({ value, onChange, disabled, options, placeholder }: any) => (
     <div data-testid="mock-dropdown">

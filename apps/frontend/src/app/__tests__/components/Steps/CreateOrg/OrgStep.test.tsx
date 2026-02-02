@@ -1,7 +1,7 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import OrgStep from "@/app/components/Steps/CreateOrg/OrgStep";
+import OrgStep from "@/app/features/onboarding/components/Steps/CreateOrg/OrgStep";
 import { Organisation } from "@yosemite-crew/types";
 
 const replaceMock = jest.fn();
@@ -10,21 +10,21 @@ jest.mock("next/navigation", () => ({
   useRouter: () => ({ replace: replaceMock }),
 }));
 
-jest.mock("@/app/services/orgService", () => ({
+jest.mock("@/app/features/organization/services/orgService", () => ({
   createOrg: jest.fn(),
 }));
 
-jest.mock("@/app/utils/validators", () => ({
+jest.mock("@/app/lib/validators", () => ({
   getCountryCode: jest.fn(),
   validatePhone: jest.fn(),
 }));
 
-jest.mock("@/app/components/UploadImage/LogoUploader", () => ({
+jest.mock("@/app/ui/widgets/UploadImage/LogoUploader", () => ({
   __esModule: true,
   default: ({ title }: any) => <div>{title}</div>,
 }));
 
-jest.mock("@/app/components/Inputs/GoogleSearchDropDown/GoogleSearchDropDown", () => ({
+jest.mock("@/app/ui/inputs/GoogleSearchDropDown/GoogleSearchDropDown", () => ({
   __esModule: true,
   default: ({ inlabel, value, onChange, error }: any) => (
     <label>
@@ -35,7 +35,7 @@ jest.mock("@/app/components/Inputs/GoogleSearchDropDown/GoogleSearchDropDown", (
   ),
 }));
 
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   __esModule: true,
   default: ({ inlabel, value, onChange, error }: any) => (
     <label>
@@ -46,7 +46,7 @@ jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
+jest.mock("@/app/ui/inputs/Dropdown/LabelDropdown", () => ({
   __esModule: true,
   default: ({ placeholder, onSelect, error }: any) => (
     <div>
@@ -58,7 +58,7 @@ jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ onClick, text }: any) => (
     <button type="button" onClick={onClick}>
       {text}
@@ -67,8 +67,8 @@ jest.mock("@/app/components/Buttons", () => ({
   Secondary: ({ text }: any) => <button type="button">{text}</button>,
 }));
 
-const orgService = jest.requireMock("@/app/services/orgService");
-const validators = jest.requireMock("@/app/utils/validators");
+const orgService = jest.requireMock("@/app/features/organization/services/orgService");
+const validators = jest.requireMock("@/app/lib/validators");
 
 describe("OrgStep", () => {
   const nextStep = jest.fn();

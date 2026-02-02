@@ -6,9 +6,9 @@ import {
   act,
   waitFor,
 } from "@testing-library/react";
-import AddAppointment from "../../../../../pages/Appointments/Sections/AddAppointment";
-import { Slot } from "@/app/types/appointments";
-import * as appointmentService from "@/app/services/appointmentService";
+import AddAppointment from "@/app/features/appointments/pages/Appointments/Sections/AddAppointment";
+import { Slot } from "@/app/features/appointments/types/appointments";
+import * as appointmentService from "@/app/features/appointments/services/appointmentService";
 
 // ----------------------------------------------------------------------------
 // 1. Mocks & Setup
@@ -55,29 +55,29 @@ jest.mock("@/app/stores/serviceStore", () => ({
 }));
 
 // Mock Services
-jest.mock("@/app/services/appointmentService", () => ({
+jest.mock("@/app/features/appointments/services/appointmentService", () => ({
   createAppointment: jest.fn(),
   getSlotsForServiceAndDateForPrimaryOrg: jest.fn(),
 }));
 
 // Mock Utils
-jest.mock("@/app/utils/date", () => ({
+jest.mock("@/app/lib/date", () => ({
   buildUtcDateFromDateAndTime: jest.fn((d) => d),
   getDurationMinutes: jest.fn(() => 30),
 }));
 
-jest.mock("@/app/components/Availability/utils", () => ({
+jest.mock("@/app/features/appointments/components/Availability/utils", () => ({
   formatUtcTimeToLocalLabel: jest.fn(() => "10:00 AM"),
 }));
 
 // Mock UI Components
-jest.mock("@/app/components/Modal", () => ({
+jest.mock("@/app/ui/overlays/Modal", () => ({
   __esModule: true,
   default: ({ showModal, children }: any) =>
     showModal ? <div data-testid="modal">{children}</div> : null,
 }));
 
-jest.mock("@/app/components/Accordion/Accordion", () => ({
+jest.mock("@/app/ui/primitives/Accordion/Accordion", () => ({
   __esModule: true,
   default: ({ title, children }: any) => (
     <div data-testid={`accordion-${title}`}>
@@ -87,7 +87,7 @@ jest.mock("@/app/components/Accordion/Accordion", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Accordion/EditableAccordion", () => ({
+jest.mock("@/app/ui/primitives/Accordion/EditableAccordion", () => ({
   __esModule: true,
   default: ({ title, data }: any) => (
     <div data-testid="editable-accordion">
@@ -97,7 +97,7 @@ jest.mock("@/app/components/Accordion/EditableAccordion", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ text, onClick }: any) => (
     <button onClick={onClick} data-testid="submit-btn">
       {text}
@@ -105,7 +105,7 @@ jest.mock("@/app/components/Buttons", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/SearchDropdown", () => ({
+jest.mock("@/app/ui/inputs/SearchDropdown", () => ({
   __esModule: true,
   default: ({ onSelect, error }: any) => (
     <div>
@@ -117,7 +117,7 @@ jest.mock("@/app/components/Inputs/SearchDropdown", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
+jest.mock("@/app/ui/inputs/Dropdown/LabelDropdown", () => ({
   __esModule: true,
   default: ({ placeholder, onSelect, error }: any) => (
     <div>
@@ -139,7 +139,7 @@ jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/MultiSelectDropdown", () => ({
+jest.mock("@/app/ui/inputs/MultiSelectDropdown", () => ({
   __esModule: true,
   default: ({ onChange }: any) => (
     <button data-testid="select-support" onClick={() => onChange(["staff-1"])}>
@@ -148,14 +148,14 @@ jest.mock("@/app/components/Inputs/MultiSelectDropdown", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/FormDesc/FormDesc", () => ({
+jest.mock("@/app/ui/inputs/FormDesc/FormDesc", () => ({
   __esModule: true,
   default: ({ onChange, value }: any) => (
     <textarea data-testid="concern-input" onChange={onChange} value={value} />
   ),
 }));
 
-jest.mock("@/app/components/Inputs/Slotpicker", () => ({
+jest.mock("@/app/ui/inputs/Slotpicker", () => ({
   __esModule: true,
   default: ({ setSelectedSlot, timeSlots }: any) => (
     <div data-testid="slot-picker">
@@ -172,7 +172,7 @@ jest.mock("@/app/components/Inputs/Slotpicker", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   __esModule: true,
   default: ({ value, inlabel, error }: any) => (
     <div>
@@ -183,7 +183,7 @@ jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Icons/Close", () => ({
+jest.mock("@/app/ui/primitives/Icons/Close", () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button data-testid="close-btn" onClick={onClick}>

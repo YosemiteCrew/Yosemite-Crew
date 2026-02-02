@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import { WordsPullUp } from "../../../components/Animations/WordsPullUp";
+import { WordsPullUp } from "@/app/ui/widgets/Animations/WordsPullUp";
 import { useInView } from "framer-motion";
 
 // ----------------------------------------------------------------------------

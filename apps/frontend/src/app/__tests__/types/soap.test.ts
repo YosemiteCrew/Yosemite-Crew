@@ -1,4 +1,4 @@
-import { GetSOAPResponse } from "../../types/soap";
+import { GetSOAPResponse } from "@/app/features/appointments/types/soap";
 import { FormSubmission } from "@yosemite-crew/types";
 
 // Mock helper to simulate a FormSubmission object

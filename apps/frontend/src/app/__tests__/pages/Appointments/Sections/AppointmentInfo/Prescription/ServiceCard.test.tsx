@@ -1,14 +1,14 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 // Import Path: Go up 6 levels to 'src/app', then down to 'pages'
-import ServiceCard from "../../../../../../pages/Appointments/Sections/AppointmentInfo/Prescription/ServiceCard";
+import ServiceCard from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/ServiceCard";
 // We cast to any for the ServiceEdit type import if strictly needed,
 // but usually adding the missing props fixes the assignment error.
 
 // --- Mocks ---
 
 // Mock Accordion to expose the delete action and render content
-jest.mock("@/app/components/Accordion/Accordion", () => ({
+jest.mock("@/app/ui/primitives/Accordion/Accordion", () => ({
   __esModule: true,
   default: ({ title, children, onDeleteClick, showDeleteIcon }: any) => (
     <div data-testid={`accordion-${title}`}>
@@ -23,7 +23,7 @@ jest.mock("@/app/components/Accordion/Accordion", () => ({
 }));
 
 // Mock FormInput to allow easy interaction
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   __esModule: true,
   default: ({ onChange, value, inlabel }: any) => (
     <input data-testid={`input-${inlabel}`} value={value} onChange={onChange} />

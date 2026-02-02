@@ -4,7 +4,7 @@ import {
   BillingSubscriptionAccessState,
   BillingSubscriptionInterval,
   BillingSubscriptionStatus,
-} from "../types/billing";
+} from "@/app/features/billing/types/billing";
 
 type BillingStatus = "idle" | "loading" | "loaded" | "error";
 

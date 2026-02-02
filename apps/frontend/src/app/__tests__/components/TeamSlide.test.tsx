@@ -2,7 +2,7 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import TeamSlide from "@/app/components/TeamSlide/TeamSlide";
+import TeamSlide from "@/app/ui/widgets/TeamSlide/TeamSlide";
 
 jest.mock("next/image", () => {
     const MockImage = (props: any) => {

@@ -18,24 +18,32 @@
 </div>
 
 <div align="center">
-This directory contains the **Next.js** web application for the Yosemite Crew veterinary practice management system. It powers the staff-facing PMS dashboard and operational workflows.
+This directory contains the Next.js web app for Yosemite Crew. It powers the staff-facing PMS dashboard and operational workflows for veterinary teams.
 </div>
 
 ## 🧭 Overview
 
-The web app is built with the Next.js App Router and is organized into feature modules, shared components, and services that connect to the Yosemite Crew backend.
+The frontend is built on the Next.js App Router and organized around feature modules. Each feature owns its pages, local components, services, and types, while shared UI, hooks, and helpers live in central folders.
+
+# 🔍 Code Quality (SonarCloud)
+
+[![SonarQube Cloud](https://sonarcloud.io/images/project_badges/sonarcloud-light.svg)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Frontend)
+
+| Quality Gate | Coverage | Bugs | Code Smells | Reliability | Security | Maintainability |
+| --- | --- | --- | --- | --- | --- | --- |
+| [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Frontend&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Frontend) | [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Frontend&metric=coverage)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Frontend) | [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Frontend&metric=bugs)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Frontend) | [![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Frontend&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Frontend) | [![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Frontend&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Frontend) | [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Frontend&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Frontend) | [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Frontend&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Frontend) |
 
 ## ✅ Prerequisites
 
-- **Node.js**: Version `20` or higher.
-- **pnpm**: Ensure you have `pnpm` installed globally.
-- **Backend API**: The web app expects a running backend (local or deployed).
+- **Node.js**: `20` or higher
+- **pnpm**: Installed globally
+- **Backend API**: Running locally or available in a dev/staging environment
 
 ## 🛠️ Getting Started
 
 ### 1) Install monorepo dependencies
 
-From the root of the repo:
+From the repo root:
 
 ```sh
 pnpm install
@@ -43,32 +51,35 @@ pnpm install
 
 ### 2) Configure environment variables
 
-Copy the example file and update the values for your environment:
-
 ```sh
 cp apps/frontend/.env.example apps/frontend/.env
 ```
 
 Required keys (see `.env.example`):
 - `NEXT_PUBLIC_BASE_URL`
+- `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`
 - `NEXT_PUBLIC_COGNITO_USERPOOLID`
 - `NEXT_PUBLIC_COGNITO_CLIENTID`
-- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
+- `NEXT_PUBLIC_COGNITO_USERPOOLID_PROD`
+- `NEXT_PUBLIC_COGNITO_CLIENTID_PROD`
 - `NEXT_PUBLIC_STREAM_API_KEY`
+- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
+- `NEXT_PUBLIC_SANDBOX_PUBLISH`
+- `STRIPE_KEY`
+- `SANDBOX_SECRET`
+- `SANDBOX_PUBLISH`
 
-Optional developer flags:
-- `NEXT_PUBLIC_DISABLE_AUTH_GUARD` (development only)
-- `NEXT_PUBLIC_ORG_TYPE_OVERRIDE` (testing UI flows)
+Optional dev flags:
+- `NEXT_PUBLIC_DISABLE_AUTH_GUARD` (dev only)
+- `NEXT_PUBLIC_ORG_TYPE_OVERRIDE` (UI testing)
 
 ### 3) Run the app
-
-From this directory (`apps/frontend`):
 
 ```sh
 pnpm dev
 ```
 
-The app runs at `http://localhost:3000` by default.
+The app runs at `http://localhost:3000`.
 
 ## 🧪 Scripts
 
@@ -76,53 +87,64 @@ From `apps/frontend`:
 
 | Command | Description |
 | --- | --- |
-| `pnpm dev` | Start the local dev server |
+| `pnpm dev` | Start the dev server |
 | `pnpm build` | Build for production |
 | `pnpm start` | Start the production server |
 | `pnpm lint` | Run ESLint |
-| `pnpm type-check` | Run TypeScript type checks |
+| `pnpm type-check` | Run TypeScript checks |
 | `pnpm test` | Run Jest tests |
 
-## 🧩 Project Structure
-
-Key directories:
+## 🧱 Project Structure
 
 ```
 src/app
   (routes)/        # App Router route groups
-  pages/           # Feature view components mounted by routes
-  components/      # Shared UI components (legacy + common)
-  services/        # API clients and service helpers
-  stores/          # Zustand state stores
+  config/          # App config + shared route/status config
+  constants/       # App-wide constants
+  features/        # Feature modules (pages/components/hooks/services/types)
   hooks/           # Shared hooks
-  utils/           # Utility helpers
-  types/           # Feature data types
+  lib/             # Utilities + domain helpers
+  services/        # API clients (axios + http wrapper)
+  stores/          # Zustand state stores
+  ui/              # Shared UI primitives, inputs, widgets, layouts
 ```
+
+## 🧩 Feature Modules
+
+Feature folders are the default unit of ownership. Each feature includes:
+- `pages/` for feature screens used by routes
+- `components/` for feature‑specific UI
+- `services/` for API calls
+- `hooks/` and `types/` scoped to the feature
+
+## 🎨 UI System
+
+Shared UI lives in `src/app/ui`:
+- Primitives (buttons, accordion, layout scaffolding)
+- Inputs (form controls, dropdowns, datepickers)
+- Widgets (uploaders, labels, charts, tables)
 
 ## 🔐 Development Auth Override
 
-For local development and testing, you can bypass auth guards:
+To bypass auth guards locally:
+1. Set `NEXT_PUBLIC_DISABLE_AUTH_GUARD=true` in `apps/frontend/.env`
+2. Restart the dev server
 
-1. Open `apps/frontend/.env`
-2. Set `NEXT_PUBLIC_DISABLE_AUTH_GUARD=true`
-3. Restart the dev server
+This disables `ProtectedRoute` and `OrgGuard`. Keep it off in production.
 
-This disables `ProtectedRoute` and `OrgGuard`. **Do not enable this in production.**
+## 🧪 Testing
 
-## 🔑 Test Credentials (Dev)
+We use Jest + Testing Library. Run:
 
-Use these on the dev environment:
-
-- **URL:** https://dev.yosemitecrew.com/signin
-- **Email:** test@yosemitecrew.com
-- **Password:** Yosemitecrew@123
+```sh
+pnpm test
+```
 
 ## 🤝 Contributing
 
-We welcome contributions! Please read `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md` before opening a pull request.
+Contributions are welcome. Please read `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md` before opening a pull request.
 
 ## 📚 Related Docs
 
 - `Guides/frontend-production-plan.md`
 - `apps/mobileAppYC/README.md`
-

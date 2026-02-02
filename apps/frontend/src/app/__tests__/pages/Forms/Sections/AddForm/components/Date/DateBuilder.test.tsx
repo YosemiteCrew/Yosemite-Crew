@@ -1,11 +1,11 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import DateBuilder from "../../../../../../../pages/Forms/Sections/AddForm/components/Date/DateBuilder";
-import { FormField } from "@/app/types/forms";
+import DateBuilder from "@/app/features/forms/pages/Forms/Sections/AddForm/components/Date/DateBuilder";
+import { FormField } from "@/app/features/forms/types/forms";
 
 // --- Mock UI Components ---
 // Mock FormInput to test logic without relying on implementation details
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   __esModule: true,
   default: ({ value, onChange, inlabel }: any) => (
     <input

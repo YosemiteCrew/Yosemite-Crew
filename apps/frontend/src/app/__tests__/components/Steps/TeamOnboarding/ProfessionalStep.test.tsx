@@ -1,19 +1,19 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import ProfessionalStep from "../../../../components/Steps/TeamOnboarding/ProfessionalStep";
-import { updateUserProfile } from "@/app/services/profileService";
-import { UserProfile } from "@/app/types/profile";
+import ProfessionalStep from "@/app/features/onboarding/components/Steps/TeamOnboarding/ProfessionalStep";
+import { updateUserProfile } from "@/app/features/organization/services/profileService";
+import { UserProfile } from "@/app/features/users/types/profile";
 
 // --- Mocks ---
 
 // 1. Mock Service
-jest.mock("@/app/services/profileService", () => ({
+jest.mock("@/app/features/organization/services/profileService", () => ({
   updateUserProfile: jest.fn(),
 }));
 
 // 2. Mock Child Components
 jest.mock(
-  "../../../../components/Inputs/FormInput/FormInput",
+  "@/app/ui/inputs/FormInput/FormInput",
   () =>
     ({ inname, onChange, value, error, inlabel }: any) => (
       <div data-testid={`wrapper-${inname}`}>
@@ -29,7 +29,7 @@ jest.mock(
     )
 );
 
-jest.mock("../../../../components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ onClick, text }: any) => (
     <button data-testid="btn-next" onClick={onClick}>
       {text}

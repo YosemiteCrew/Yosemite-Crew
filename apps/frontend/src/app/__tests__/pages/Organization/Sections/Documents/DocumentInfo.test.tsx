@@ -2,35 +2,35 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import DocumentInfo from "@/app/pages/Organization/Sections/Documents/DocumentInfo";
+import DocumentInfo from "@/app/features/organization/pages/Organization/Sections/Documents/DocumentInfo";
 
 const updateDocumentMock = jest.fn();
 const deleteRoomMock = jest.fn();
 
-jest.mock("@/app/services/documentService", () => ({
+jest.mock("@/app/features/documents/services/documentService", () => ({
   updateDocument: (...args: any[]) => updateDocumentMock(...args),
   deleteRoom: (...args: any[]) => deleteRoomMock(...args),
 }));
 
-jest.mock("@/app/components/Modal", () => ({
+jest.mock("@/app/ui/overlays/Modal", () => ({
   __esModule: true,
   default: ({ showModal, children }: any) => (showModal ? <div>{children}</div> : null),
 }));
 
 const accordionCalls: any[] = [];
 
-jest.mock("@/app/components/Accordion/EditableAccordion", () => (props: any) => {
+jest.mock("@/app/ui/primitives/Accordion/EditableAccordion", () => (props: any) => {
   accordionCalls.push(props);
   return <div data-testid="document-accordion" />;
 });
 
-jest.mock("@/app/components/UploadImage/DocUploader", () => (props: any) => (
+jest.mock("@/app/ui/widgets/UploadImage/DocUploader", () => (props: any) => (
   <button type="button" onClick={() => props.onChange("updated.pdf")}>
     Upload
   </button>
 ));
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ text, onClick }: any) => (
     <button type="button" onClick={onClick}>
       {text}
@@ -43,7 +43,7 @@ jest.mock("@/app/components/Buttons", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Icons/Close", () => ({
+jest.mock("@/app/ui/primitives/Icons/Close", () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>

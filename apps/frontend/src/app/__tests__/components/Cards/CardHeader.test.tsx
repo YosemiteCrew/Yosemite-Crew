@@ -2,7 +2,7 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import CardHeader from "@/app/components/Cards/CardHeader/CardHeader";
+import CardHeader from "@/app/ui/cards/CardHeader/CardHeader";
 
 describe("CardHeader", () => {
   const options = ["Last week", "Last month", "Last 6 months"];

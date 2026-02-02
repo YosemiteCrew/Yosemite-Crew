@@ -1,5 +1,5 @@
-import { useOrganizationDocumentStore } from "../../stores/documentStore";
-import { OrganizationDocument } from "../../types/document";
+import { useOrganizationDocumentStore } from "@/app/stores/documentStore";
+import { OrganizationDocument } from "@/app/features/documents/types/document";
 
 // --- Mock Data ---
 // We cast to unknown first to avoid needing strict adherence to every field in the type during testing

@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import InventoryTurnoverCard from "@/app/components/Cards/InventoryTurnoverCard";
+import InventoryTurnoverCard from "@/app/ui/cards/InventoryTurnoverCard";
 
 describe("<InventoryTurnoverCard />", () => {
   const item = {

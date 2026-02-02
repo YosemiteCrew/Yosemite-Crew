@@ -6,21 +6,21 @@ import {
   act,
   waitFor,
 } from "@testing-library/react";
-import InventoryInfo from "../../../components/InventoryInfo";
-import { BusinessType } from "@/app/types/org";
+import InventoryInfo from "@/app/features/inventory/components/InventoryInfo";
+import { BusinessType } from "@/app/features/organization/types/org";
 
 // ----------------------------------------------------------------------------
 // 1. Mocks & Setup
 // ----------------------------------------------------------------------------
 
-jest.mock("../../../pages/Inventory/utils", () => ({
+jest.mock("@/app/features/inventory/pages/Inventory/utils", () => ({
   formatDisplayDate: jest.fn((val) => (val ? `Formatted ${val}` : "")),
   toStringSafe: jest.fn((val) =>
     val === null || val === undefined ? "" : String(val),
   ),
 }));
 
-jest.mock("../../../components/AddInventory/InventoryConfig", () => ({
+jest.mock("@/app/features/inventory/components/AddInventory/InventoryConfig", () => ({
   InventoryFormConfig: {
     VETERINARY: {
       batch: [
@@ -56,7 +56,7 @@ jest.mock("../../../components/AddInventory/InventoryConfig", () => ({
   },
 }));
 
-jest.mock("../../../components/Accordion/Accordion", () => ({
+jest.mock("@/app/ui/primitives/Accordion/Accordion", () => ({
   __esModule: true,
   default: ({ children, title, onEditClick, showEditIcon }: any) => (
     <div data-testid="accordion">
@@ -69,7 +69,7 @@ jest.mock("../../../components/Accordion/Accordion", () => ({
   ),
 }));
 
-jest.mock("../../../components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ text, onClick, isDisabled }: any) => (
     <button onClick={onClick} disabled={isDisabled} data-testid="primary-btn">
       {text}
@@ -82,7 +82,7 @@ jest.mock("../../../components/Buttons", () => ({
   ),
 }));
 
-jest.mock("../../../components/Inputs/Datepicker", () => ({
+jest.mock("@/app/ui/inputs/Datepicker", () => ({
   __esModule: true,
   default: ({ currentDate, setCurrentDate, placeholder }: any) => (
     <input
@@ -96,7 +96,7 @@ jest.mock("../../../components/Inputs/Datepicker", () => ({
   ),
 }));
 
-jest.mock("../../../components/Inputs/Dropdown/LabelDropdown", () => ({
+jest.mock("@/app/ui/inputs/Dropdown/LabelDropdown", () => ({
   __esModule: true,
   default: ({ onSelect, defaultOption }: any) => (
     <button
@@ -108,20 +108,20 @@ jest.mock("../../../components/Inputs/Dropdown/LabelDropdown", () => ({
   ),
 }));
 
-jest.mock("../../../components/Inputs/FormInput/FormInput", () => ({
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   __esModule: true,
   default: ({ value, onChange, inname }: any) => (
     <input data-testid={`input-${inname}`} value={value} onChange={onChange} />
   ),
 }));
 
-jest.mock("../../../components/Modal", () => ({
+jest.mock("@/app/ui/overlays/Modal", () => ({
   __esModule: true,
   default: ({ showModal, children }: any) =>
     showModal ? <div data-testid="modal">{children}</div> : null,
 }));
 
-jest.mock("../../../components/Labels/Labels", () => ({
+jest.mock("@/app/ui/widgets/Labels/Labels", () => ({
   __esModule: true,
   default: ({ labels, setActiveLabel }: any) => (
     <div>
@@ -138,7 +138,7 @@ jest.mock("../../../components/Labels/Labels", () => ({
   ),
 }));
 
-jest.mock("../../../components/Icons/Close", () => ({
+jest.mock("@/app/ui/primitives/Icons/Close", () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button onClick={onClick} data-testid="close-icon">
@@ -147,7 +147,7 @@ jest.mock("../../../components/Icons/Close", () => ({
   ),
 }));
 
-jest.mock("../../../components/InventoryInfo/InfoSection", () => ({
+jest.mock("@/app/features/inventory/components/InfoSection", () => ({
   __esModule: true,
   default: function MockInfoSection({
     onRegisterActions,

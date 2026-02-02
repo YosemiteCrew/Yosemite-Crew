@@ -1,13 +1,13 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import InfoSection from "@/app/components/InventoryInfo/InfoSection";
-import { InventoryItem } from "@/app/pages/Inventory/types";
-import { BusinessType } from "@/app/types/org";
+import InfoSection from "@/app/features/inventory/components/InfoSection";
+import { InventoryItem } from "@/app/features/inventory/pages/Inventory/types";
+import { BusinessType } from "@/app/features/organization/types/org";
 
 // --- Mocks ---
 
 // Mock EditableAccordion to inspect props passed to it
-jest.mock("@/app/components/Accordion/EditableAccordion", () => ({
+jest.mock("@/app/ui/primitives/Accordion/EditableAccordion", () => ({
   __esModule: true,
   default: ({
     title,
@@ -48,7 +48,7 @@ jest.mock("@/app/components/Accordion/EditableAccordion", () => ({
 }));
 
 // Mock InventoryConfig to control the shape of the form being tested
-jest.mock("@/app/components/AddInventory/InventoryConfig", () => ({
+jest.mock("@/app/features/inventory/components/AddInventory/InventoryConfig", () => ({
   InventoryFormConfig: {
     vet: {
       basicInfo: [
@@ -294,7 +294,7 @@ describe("InfoSection Component", () => {
   it("handles missing label/placeholder fallback in field mapping", async () => {
     // Modify mock for this specific test case to test fallback to field.name
     jest.resetModules();
-    jest.doMock("@/app/components/AddInventory/InventoryConfig", () => ({
+    jest.doMock("@/app/features/inventory/components/AddInventory/InventoryConfig", () => ({
       InventoryFormConfig: {
         vet: {
           fallbackTest: [
@@ -309,7 +309,7 @@ describe("InfoSection Component", () => {
 
     // Re-import component to use new mock using dynamic import instead of require
     const { default: ReImportedInfoSection } = await import(
-      "@/app/components/InventoryInfo/InfoSection"
+      "@/app/features/inventory/components/InfoSection"
     );
 
     render(

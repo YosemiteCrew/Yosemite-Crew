@@ -6,6 +6,7 @@ import {
   patchData,
 } from "@/app/services/axios";
 import { useAuthStore } from "@/app/stores/authStore";
+import { logger } from "@/app/lib/logger";
 import axios from "axios";
 
 // --- Mocks ---
@@ -14,6 +15,15 @@ import axios from "axios";
 jest.mock("@/app/stores/authStore", () => ({
   useAuthStore: {
     getState: jest.fn(),
+  },
+}));
+
+jest.mock("@/app/lib/logger", () => ({
+  logger: {
+    warn: jest.fn(),
+    error: jest.fn(),
+    info: jest.fn(),
+    debug: jest.fn(),
   },
 }));
 
@@ -63,10 +73,6 @@ describe("Axios Service", () => {
   let responseSuccessHandler: any;
   let responseErrorHandler: any;
 
-  // Spies specifically for suppressing console logs during these tests
-  let consoleErrorSpy: jest.SpyInstance;
-  let consoleWarnSpy: jest.SpyInstance;
-
   beforeAll(() => {
     // Check if use was called
     expect(mockRequestUse).toHaveBeenCalled();
@@ -84,17 +90,6 @@ describe("Axios Service", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-
-    // IMPORTANT: Spy on console in beforeEach to correctly override the
-    // global jest.setup.ts configuration which throws errors on logs.
-    consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
-    consoleWarnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    // Restore the spies after every test to clean up
-    consoleErrorSpy.mockRestore();
-    consoleWarnSpy.mockRestore();
   });
 
   // --- Helper Functions Tests ---
@@ -109,7 +104,7 @@ describe("Axios Service", () => {
     it("getData handles errors", async () => {
       mockAxiosInstance.get.mockRejectedValue(new Error("fail"));
       await expect(getData("/test")).rejects.toThrow("fail");
-      expect(consoleErrorSpy).toHaveBeenCalledWith("API getData error:", expect.any(Error));
+      expect(logger.error).toHaveBeenCalledWith("API getData error:", expect.any(Error));
     });
 
     it("postData calls api.post", async () => {
@@ -121,7 +116,7 @@ describe("Axios Service", () => {
     it("postData handles errors", async () => {
       mockAxiosInstance.post.mockRejectedValue(new Error("fail"));
       await expect(postData("/test")).rejects.toThrow("fail");
-      expect(consoleErrorSpy).toHaveBeenCalledWith("API postData error:", expect.any(Error));
+      expect(logger.error).toHaveBeenCalledWith("API postData error:", expect.any(Error));
     });
 
     it("putData calls api.put", async () => {
@@ -133,7 +128,7 @@ describe("Axios Service", () => {
     it("putData handles errors", async () => {
       mockAxiosInstance.put.mockRejectedValue(new Error("fail"));
       await expect(putData("/test")).rejects.toThrow("fail");
-      expect(consoleErrorSpy).toHaveBeenCalledWith("API putData error:", expect.any(Error));
+      expect(logger.error).toHaveBeenCalledWith("API putData error:", expect.any(Error));
     });
 
     it("deleteData calls api.delete", async () => {
@@ -145,7 +140,7 @@ describe("Axios Service", () => {
     it("deleteData handles errors", async () => {
       mockAxiosInstance.delete.mockRejectedValue(new Error("fail"));
       await expect(deleteData("/test")).rejects.toThrow("fail");
-      expect(consoleErrorSpy).toHaveBeenCalledWith("API deleteData error:", expect.any(Error));
+      expect(logger.error).toHaveBeenCalledWith("API deleteData error:", expect.any(Error));
     });
 
     it("patchData calls api.patch", async () => {
@@ -157,7 +152,7 @@ describe("Axios Service", () => {
     it("patchData handles errors", async () => {
       mockAxiosInstance.patch.mockRejectedValue(new Error("fail"));
       await expect(patchData("/test")).rejects.toThrow("fail");
-      expect(consoleErrorSpy).toHaveBeenCalledWith("API patchData error:", expect.any(Error));
+      expect(logger.error).toHaveBeenCalledWith("API patchData error:", expect.any(Error));
     });
   });
 
@@ -194,7 +189,7 @@ describe("Axios Service", () => {
       const config = { headers: {} };
       await requestSuccessHandler(config);
 
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect(logger.warn).toHaveBeenCalledWith(
         "No valid Cognito session available from AuthStore",
         expect.any(Error)
       );

@@ -1,4 +1,4 @@
-import { formatMoney } from "@/app/utils/money";
+import { formatMoney } from "@/app/lib/money";
 
 describe("money utilities", () => {
   describe("formatMoney", () => {

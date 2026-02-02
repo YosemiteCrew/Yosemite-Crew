@@ -1,9 +1,9 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import Page from "@/app/(routes)/(public)/developers/signup/page";
-import SignUp from "@/app/pages/SignUp/SignUp";
+import SignUp from "@/app/features/auth/pages/SignUp/SignUp";
 
-jest.mock("@/app/pages/SignUp/SignUp", () => {
+jest.mock("@/app/features/auth/pages/SignUp/SignUp", () => {
   return jest.fn(() => <div data-testid="mock-signup">SignUp Component</div>);
 });
 

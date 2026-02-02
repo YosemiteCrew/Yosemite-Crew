@@ -1,14 +1,14 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import AddForm from "@/app/pages/Forms/Sections/AddForm";
+import AddForm from "@/app/features/forms/pages/Forms/Sections/AddForm";
 
-jest.mock("@/app/components/Modal", () => ({
+jest.mock("@/app/ui/overlays/Modal", () => ({
   __esModule: true,
   default: ({ children }: any) => <div data-testid="modal">{children}</div>,
 }));
 
-jest.mock("@/app/components/Icons/Close", () => ({
+jest.mock("@/app/ui/primitives/Icons/Close", () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>
@@ -17,7 +17,7 @@ jest.mock("@/app/components/Icons/Close", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Labels/SubLabels", () => ({
+jest.mock("@/app/ui/widgets/Labels/SubLabels", () => ({
   __esModule: true,
   default: ({ labels, setActiveLabel }: any) => (
     <div>
@@ -34,7 +34,7 @@ jest.mock("@/app/components/Labels/SubLabels", () => ({
   ),
 }));
 
-jest.mock("@/app/pages/Forms/Sections/AddForm/Details", () => ({
+jest.mock("@/app/features/forms/pages/Forms/Sections/AddForm/Details", () => ({
   __esModule: true,
   default: ({ onNext, registerValidator }: any) => {
     registerValidator(() => true);
@@ -49,7 +49,7 @@ jest.mock("@/app/pages/Forms/Sections/AddForm/Details", () => ({
   },
 }));
 
-jest.mock("@/app/pages/Forms/Sections/AddForm/Build", () => ({
+jest.mock("@/app/features/forms/pages/Forms/Sections/AddForm/Build", () => ({
   __esModule: true,
   default: ({ onNext, registerValidator }: any) => {
     registerValidator(() => true);
@@ -64,7 +64,7 @@ jest.mock("@/app/pages/Forms/Sections/AddForm/Build", () => ({
   },
 }));
 
-jest.mock("@/app/pages/Forms/Sections/AddForm/Review", () => ({
+jest.mock("@/app/features/forms/pages/Forms/Sections/AddForm/Review", () => ({
   __esModule: true,
   default: ({ onPublish, onSaveDraft }: any) => (
     <div>
@@ -79,12 +79,12 @@ jest.mock("@/app/pages/Forms/Sections/AddForm/Review", () => ({
   ),
 }));
 
-jest.mock("@/app/services/formService", () => ({
+jest.mock("@/app/features/forms/services/formService", () => ({
   saveFormDraft: jest.fn(),
   publishForm: jest.fn(),
 }));
 
-const formService = jest.requireMock("@/app/services/formService");
+const formService = jest.requireMock("@/app/features/forms/services/formService");
 
 describe("AddForm modal", () => {
   const serviceOptions = [{ label: "Checkup", value: "serv-1" }];

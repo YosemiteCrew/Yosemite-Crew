@@ -7,26 +7,26 @@ import {
   act,
   cleanup,
 } from "@testing-library/react";
-import ProtectedInventory from "@/app/pages/Inventory/index";
+import ProtectedInventory from "@/app/features/inventory/pages/Inventory";
 import { useOrgStore } from "@/app/stores/orgStore";
 import { useInventoryModule } from "@/app/hooks/useInventory";
 
 // --- Mocks ---
 
 // Mock Components
-jest.mock("@/app/components/ProtectedRoute", () => ({
+jest.mock("@/app/ui/layout/guards/ProtectedRoute", () => ({
   __esModule: true,
   default: ({ children }: any) => (
     <div data-testid="protected-route">{children}</div>
   ),
 }));
 
-jest.mock("@/app/components/OrgGuard", () => ({
+jest.mock("@/app/ui/layout/guards/OrgGuard", () => ({
   __esModule: true,
   default: ({ children }: any) => <div data-testid="org-guard">{children}</div>,
 }));
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ text, onClick, isDisabled }: any) => (
     <button onClick={onClick} disabled={isDisabled} data-testid="add-btn">
       {text}
@@ -35,7 +35,7 @@ jest.mock("@/app/components/Buttons", () => ({
 }));
 
 // Mock Filters
-jest.mock("@/app/components/Filters/InventoryFilters", () => ({
+jest.mock("@/app/ui/filters/InventoryFilters", () => ({
   __esModule: true,
   default: ({ onChange, filters }: any) => (
     <div data-testid="inventory-filters">
@@ -66,13 +66,13 @@ jest.mock("@/app/components/Filters/InventoryFilters", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Filters/InventoryTurnoverFilters", () => ({
+jest.mock("@/app/ui/filters/InventoryTurnoverFilters", () => ({
   __esModule: true,
   default: () => <div data-testid="turnover-filters" />,
 }));
 
 // Mock Tables
-jest.mock("@/app/components/DataTable/InventoryTable", () => ({
+jest.mock("@/app/ui/tables/InventoryTable", () => ({
   __esModule: true,
   default: ({ filteredList, setActiveInventory, setViewInventory }: any) => (
     <div data-testid="inventory-table">
@@ -92,13 +92,13 @@ jest.mock("@/app/components/DataTable/InventoryTable", () => ({
   ),
 }));
 
-jest.mock("@/app/components/DataTable/InventoryTurnoverTable", () => ({
+jest.mock("@/app/ui/tables/InventoryTurnoverTable", () => ({
   __esModule: true,
   default: () => <div data-testid="turnover-table" />,
 }));
 
 // Mock Modals (Updated to handle async errors in onClick to prevent Unhandled Promise Rejections)
-jest.mock("@/app/components/AddInventory", () => ({
+jest.mock("@/app/features/inventory/components/AddInventory", () => ({
   __esModule: true,
   default: ({ showModal, onSubmit }: any) =>
     showModal ? (
@@ -118,9 +118,9 @@ jest.mock("@/app/components/AddInventory", () => ({
     ) : null,
 }));
 
-jest.mock("@/app/components/InventoryInfo", () => ({
+jest.mock("@/app/features/inventory/components", () => ({
   __esModule: true,
-  default: ({
+  InventoryInfo: ({
     showModal,
     activeInventory,
     onUpdate,
@@ -189,10 +189,10 @@ jest.mock("@/app/hooks/usePermissions", () => ({
     activeOrgId: "org-1",
   }),
 }));
-jest.mock("@/app/components/PermissionGate", () => ({
+jest.mock("@/app/ui/layout/guards/PermissionGate", () => ({
   PermissionGate: ({ children }: any) => <div>{children}</div>,
 }));
-jest.mock("@/app/components/Fallback", () => ({
+jest.mock("@/app/ui/overlays/Fallback", () => ({
   __esModule: true,
   default: () => <div data-testid="fallback">No permission</div>,
 }));

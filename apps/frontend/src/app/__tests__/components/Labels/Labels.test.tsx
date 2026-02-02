@@ -1,7 +1,7 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import Labels from "@/app/components/Labels/Labels";
+import Labels from "@/app/ui/widgets/Labels/Labels";
 
 describe("Labels", () => {
   const labels = [

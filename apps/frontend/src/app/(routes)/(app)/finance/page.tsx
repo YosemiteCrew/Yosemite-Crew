@@ -1,5 +1,5 @@
 import React from "react";
-import ProtectedFinance from "@/app/pages/Finance";
+import ProtectedFinance from "@/app/features/finance/pages/Finance";
 
 const page = () => {
   return <ProtectedFinance />;

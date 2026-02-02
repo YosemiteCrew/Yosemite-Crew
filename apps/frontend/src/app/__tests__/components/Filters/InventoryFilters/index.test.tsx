@@ -1,9 +1,9 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import InventoryFilters from "@/app/components/Filters/InventoryFilters";
+import InventoryFilters from "@/app/ui/filters/InventoryFilters";
 
-jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
+jest.mock("@/app/ui/inputs/Dropdown/LabelDropdown", () => ({
   __esModule: true,
   default: ({ placeholder, onSelect, options }: any) => (
     <div>

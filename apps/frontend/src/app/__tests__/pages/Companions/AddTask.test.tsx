@@ -2,7 +2,7 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import "@/app/__tests__/testUtils/taskAddTaskTestMocks";
-import AddTask from "@/app/pages/Companions/AddTask";
+import AddTask from "@/app/features/companions/pages/Companions/AddTask";
 
 describe("Companion AddTask", () => {
   it("shows validation errors when saving empty form", () => {

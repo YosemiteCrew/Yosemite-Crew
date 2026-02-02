@@ -1,13 +1,13 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import Organization from "@/app/pages/Organization";
+import Organization from "@/app/features/organization/pages/Organization";
 
-jest.mock("@/app/components/ProtectedRoute", () => ({
+jest.mock("@/app/ui/layout/guards/ProtectedRoute", () => ({
   __esModule: true,
   default: ({ children }: any) => <div>{children}</div>,
 }));
 
-jest.mock("@/app/components/OrgGuard", () => ({
+jest.mock("@/app/ui/layout/guards/OrgGuard", () => ({
   __esModule: true,
   default: ({ children }: any) => <div>{children}</div>,
 }));
@@ -18,7 +18,7 @@ jest.mock("@/app/hooks/useOrgSelectors", () => ({
   usePrimaryOrg: () => usePrimaryOrgMock(),
 }));
 
-jest.mock("@/app/pages/Organization/Sections/index", () => ({
+jest.mock("@/app/features/organization/pages/Organization/Sections", () => ({
   Profile: () => <div data-testid="profile" />,
   Specialities: () => <div data-testid="specialities" />,
   Rooms: () => <div data-testid="rooms" />,

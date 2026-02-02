@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 import React from "react";
 import { render } from "@testing-library/react";
-import Sidebar from "@/app/components/Sidebar/Sidebar";
+import Sidebar from "@/app/ui/layout/Sidebar/Sidebar";
 import { useOrgStore } from "@/app/stores/orgStore";
 import { useOrgList, usePrimaryOrg } from "@/app/hooks/useOrgSelectors";
 import { useSignOut } from "@/app/hooks/useAuth";

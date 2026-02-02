@@ -1,5 +1,5 @@
 import React from "react";
-import ProtectedAppointments from "@/app/pages/Appointments";
+import ProtectedAppointments from "@/app/features/appointments/pages/Appointments";
 
 function page() {
   return <ProtectedAppointments />;

@@ -2,7 +2,7 @@ import {
   getAppointmentByIdFromList,
   getCompanionNameFromAppointments,
   getParentNameFromAppointments,
-} from "@/app/utils/invoice";
+} from "@/app/lib/invoice";
 
 const mockAppointments = [
   {

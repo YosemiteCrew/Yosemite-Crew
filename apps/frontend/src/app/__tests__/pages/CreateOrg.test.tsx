@@ -3,7 +3,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
 let latestProgressProps: any;
-jest.mock("@/app/components/Steps/Progress/Progress", () => ({
+jest.mock("@/app/features/onboarding/components/Steps/Progress/Progress", () => ({
   __esModule: true,
   default: (props: any) => {
     latestProgressProps = props;
@@ -12,7 +12,7 @@ jest.mock("@/app/components/Steps/Progress/Progress", () => ({
 }));
 
 let latestOrgStepProps: any;
-jest.mock("@/app/components/Steps/CreateOrg/OrgStep", () => ({
+jest.mock("@/app/features/onboarding/components/Steps/CreateOrg/OrgStep", () => ({
   __esModule: true,
   default: (props: any) => {
     latestOrgStepProps = props;
@@ -21,7 +21,7 @@ jest.mock("@/app/components/Steps/CreateOrg/OrgStep", () => ({
 }));
 
 let latestAddressStepProps: any;
-jest.mock("@/app/components/Steps/CreateOrg/AddressStep", () => ({
+jest.mock("@/app/features/onboarding/components/Steps/CreateOrg/AddressStep", () => ({
   __esModule: true,
   default: (props: any) => {
     latestAddressStepProps = props;
@@ -30,7 +30,7 @@ jest.mock("@/app/components/Steps/CreateOrg/AddressStep", () => ({
 }));
 
 let latestSpecialityStepProps: any;
-jest.mock("@/app/components/Steps/CreateOrg/SpecialityStep", () => ({
+jest.mock("@/app/features/onboarding/components/Steps/CreateOrg/SpecialityStep", () => ({
   __esModule: true,
   default: (props: any) => {
     latestSpecialityStepProps = props;
@@ -38,7 +38,7 @@ jest.mock("@/app/components/Steps/CreateOrg/SpecialityStep", () => ({
   },
 }));
 
-jest.mock("@/app/components/ProtectedRoute", () => ({
+jest.mock("@/app/ui/layout/guards/ProtectedRoute", () => ({
   __esModule: true,
   default: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="protected-route">{children}</div>
@@ -63,7 +63,7 @@ jest.mock("next/navigation", () => ({
   useSearchParams: () => mockSearchParams,
 }));
 
-import ProtectedCreateOrg from "@/app/pages/CreateOrg/CreateOrg";
+import ProtectedCreateOrg from "@/app/features/onboarding/pages/CreateOrg/CreateOrg";
 
 describe("CreateOrg page", () => {
   beforeEach(() => {

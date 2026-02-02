@@ -2,25 +2,25 @@ import { renderHook } from "@testing-library/react";
 import {
   useLoadDocumentsForPrimaryOrg,
   useDocumentsForPrimaryOrg,
-} from "../../hooks/useDocuments";
-import { loadDocumentsForOrgPrimaryOrg } from "../../services/documentService";
-import { useOrgStore } from "../../stores/orgStore";
-import { useOrganizationDocumentStore } from "../../stores/documentStore";
-import { OrganizationDocument } from "../../types/document";
+} from "@/app/hooks/useDocuments";
+import { loadDocumentsForOrgPrimaryOrg } from "@/app/features/documents/services/documentService";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { useOrganizationDocumentStore } from "@/app/stores/documentStore";
+import { OrganizationDocument } from "@/app/features/documents/types/document";
 
 // --- Mocks ---
 
 // 1. Mock Service
-jest.mock("../../services/documentService", () => ({
+jest.mock("@/app/features/documents/services/documentService", () => ({
   loadDocumentsForOrgPrimaryOrg: jest.fn(),
 }));
 
 // 2. Mock Stores
-jest.mock("../../stores/orgStore", () => ({
+jest.mock("@/app/stores/orgStore", () => ({
   useOrgStore: jest.fn(),
 }));
 
-jest.mock("../../stores/documentStore", () => ({
+jest.mock("@/app/stores/documentStore", () => ({
   useOrganizationDocumentStore: jest.fn(),
 }));
 

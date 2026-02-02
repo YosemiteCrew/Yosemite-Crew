@@ -1,6 +1,6 @@
 import React, { Suspense } from "react";
 
-import SignIn from "@/app/pages/SignIn/SignIn";
+import SignIn from "@/app/features/auth/pages/SignIn/SignIn";
 
 function Page() {
   return (

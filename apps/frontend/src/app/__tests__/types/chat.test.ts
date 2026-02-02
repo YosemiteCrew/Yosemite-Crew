@@ -5,7 +5,7 @@ import {
   CreateChatSessionResponse,
   ChatSessionListResponse,
   CloseChatSessionResponse,
-} from "../../types/chat";
+} from "@/app/features/chat/types/chat";
 
 describe("Chat Types Definition", () => {
   // --- Section 1: String Union Types ---
