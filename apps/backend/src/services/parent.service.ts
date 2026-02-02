@@ -36,7 +36,7 @@ const ensureMongoId = (id: string): Types.ObjectId => {
 };
 
 const escapeRegex = (value: string) =>
-  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  value.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 
 /** Convert Mongo → Domain → FHIR DTO */
 export const toFHIR = (doc: ParentDocument) => {
@@ -296,7 +296,7 @@ export const ParentService = {
     });
 
     return {
-      responses: documents.map(toFHIR),
+      responses: documents.map((element) => toFHIR(element)),
     };
   },
 };

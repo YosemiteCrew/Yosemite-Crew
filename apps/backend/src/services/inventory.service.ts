@@ -106,7 +106,7 @@ const sanitizePositiveNumber = (value: unknown): number | undefined => {
 };
 
 const escapeRegex = (value: string) =>
-  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  value.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 
 const getOrgBillingCurrency = async (organisationId: string) => {
   const orgId = ensureNonEmptyString(organisationId, "organisationId");
@@ -385,7 +385,7 @@ export const InventoryService = {
     });
 
     // 2. If batches were provided, insert them and recompute stock
-    if (input.batches && input.batches.length) {
+    if (input.batches?.length) {
       const payloads = input.batches.map((b) => ({
         itemId: item._id.toString(),
         organisationId: item.organisationId,

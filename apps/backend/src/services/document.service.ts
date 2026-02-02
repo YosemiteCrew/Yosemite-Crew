@@ -339,7 +339,7 @@ export const DocumentService = {
       .sort({ issueDate: -1, createdAt: -1 })
       .exec();
 
-    return docs.map(mapDocumentToDto);
+    return docs.map((element) => mapDocumentToDto(element));
   },
 
   async listForPms(params: {
@@ -374,7 +374,7 @@ export const DocumentService = {
       .sort({ issueDate: -1, createdAt: -1 })
       .exec();
 
-    return docs.map(mapDocumentToDto);
+    return docs.map((element) => mapDocumentToDto(element));
   },
 
   async getByIdForParent(
@@ -438,7 +438,7 @@ export const DocumentService = {
       .sort({ createdAt: -1 })
       .exec();
 
-    return docs.map(mapDocumentToDto);
+    return docs.map((element) => mapDocumentToDto(element));
   },
 
   // List of Documents of Appointment for PMS
@@ -457,7 +457,7 @@ export const DocumentService = {
       .sort({ createdAt: -1 })
       .exec();
 
-    return docs.map(mapDocumentToDto);
+    return docs.map((element) => mapDocumentToDto(element));
   },
 
   // Update Document
@@ -536,7 +536,7 @@ export const DocumentService = {
 
     if (updates.issueDate) {
       const parsed = new Date(updates.issueDate);
-      if (!isNaN(parsed.getTime())) {
+      if (!Number.isNaN(parsed.getTime())) {
         doc.issueDate = parsed;
       }
     }
@@ -613,6 +613,6 @@ export const DocumentService = {
       .sort({ createdAt: -1 })
       .exec();
 
-    return docs.map(mapDocumentToDto);
+    return docs.map((element) => mapDocumentToDto(element));
   },
 };

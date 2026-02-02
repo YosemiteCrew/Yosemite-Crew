@@ -795,7 +795,9 @@ export const UserOrganizationService = {
 
     const priorRoleCode = existing.roleCode;
     const priorRoleDisplay = existing.roleDisplay;
-    const priorPermissions = [...(existing.effectivePermissions ?? [])].sort();
+    const priorPermissions = [...(existing.effectivePermissions ?? [])].sort(
+      (a, b) => a.localeCompare(b)
+    );
 
     const wasActive = existing.active;
     const willBeActive = persistable.active !== false;
@@ -824,7 +826,9 @@ export const UserOrganizationService = {
       await syncSeatsIfBusiness(orgObjectId);
     }
 
-    const nextPermissions = [...(document.effectivePermissions ?? [])].sort();
+    const nextPermissions = [...(document.effectivePermissions ?? [])].sort(
+      (a, b) => a.localeCompare(b)
+    );
     const permissionsChanged =
       priorRoleCode !== document.roleCode ||
       priorRoleDisplay !== document.roleDisplay ||
