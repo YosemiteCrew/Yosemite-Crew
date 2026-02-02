@@ -63,8 +63,6 @@ export const ContactService = {
       ...input,
       status: "OPEN",
     });
-
-    // TODO: optionally notify YC support (email / Slack)
     return doc;
   },
 

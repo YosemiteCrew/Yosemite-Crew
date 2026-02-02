@@ -50,23 +50,24 @@ export class InventoryServiceError extends Error {
   }
 }
 
-const BUSINESS_TYPES: BusinessType[] = [
+const BUSINESS_TYPES = new Set<BusinessType> ([
   "HOSPITAL",
   "GROOMING",
   "BOARDING",
   "BREEDING",
   "GENERAL",
-];
-const INVENTORY_STATUSES: InventoryStatus[] = [
+]);
+
+const INVENTORY_STATUSES = new Set<InventoryStatus>([
   "ACTIVE",
   "HIDDEN",
   "DELETED",
-];
+]);
 
 const asNonEmptyString = (value: unknown): string | undefined => {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
-  return trimmed ? trimmed : undefined;
+  return trimmed || undefined;
 };
 
 const ensureNonEmptyString = (value: unknown, field: string): string => {
@@ -81,12 +82,12 @@ const isValidDate = (value: unknown): value is Date =>
   value instanceof Date && !Number.isNaN(value.getTime());
 
 const sanitizeBusinessType = (value: unknown): BusinessType | undefined =>
-  typeof value === "string" && BUSINESS_TYPES.includes(value as BusinessType)
+  typeof value === "string" && BUSINESS_TYPES.has(value as BusinessType)
     ? (value as BusinessType)
     : undefined;
 
 const sanitizeStatus = (value: unknown): InventoryStatus | undefined =>
-  typeof value === "string" && INVENTORY_STATUSES.includes(value as InventoryStatus)
+  typeof value === "string" && INVENTORY_STATUSES.has(value as InventoryStatus)
     ? (value as InventoryStatus)
     : undefined;
 
@@ -95,7 +96,7 @@ const sanitizeStatusList = (value: unknown): InventoryStatus[] | undefined => {
   const filtered = value.filter(
     (status): status is InventoryStatus =>
       typeof status === "string" &&
-      INVENTORY_STATUSES.includes(status as InventoryStatus),
+      INVENTORY_STATUSES.has(status as InventoryStatus),
   );
   return filtered.length ? filtered : undefined;
 };
@@ -549,8 +550,10 @@ export const InventoryService = {
       query.subCategory = subCategory;
     }
 
-    if (filter.status !== undefined) {
-      if (Array.isArray(filter.status)) {
+    if (filter.status === undefined) {
+      // default: exclude deleted
+      query.status = { $ne: "DELETED" };
+    } else if (Array.isArray(filter.status)) {
         const statusList = sanitizeStatusList(filter.status);
         if (!statusList) {
           if (filter.status.length === 0) {
@@ -567,10 +570,6 @@ export const InventoryService = {
         }
         query.status = status;
       }
-    } else {
-      // default: exclude deleted
-      query.status = { $ne: "DELETED" };
-    }
 
     if (filter.search) {
       const s = asNonEmptyString(filter.search);

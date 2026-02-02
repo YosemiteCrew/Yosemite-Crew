@@ -282,11 +282,11 @@ export const ServiceService = {
     for (const slot of allSlots) {
       const key = `${slot.startTime}-${slot.endTime}`;
 
-      if (!slotMap.has(key)) {
-        slotMap.set(key, slot);
-      } else {
+      if (slotMap.has(key)) {
         const existing = slotMap.get(key)!;
         existing.vetIds.push(...slot.vetIds);
+      } else {
+        slotMap.set(key, slot);
       }
     }
 

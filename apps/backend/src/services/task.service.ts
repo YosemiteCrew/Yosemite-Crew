@@ -50,18 +50,19 @@ const DEFAULT_PMS_URL =
   process.env.APP_URL ??
   "https://app.yosemitecrew.com";
 
-const TASK_STATUSES: TaskStatus[] = [
+const TASK_STATUSES= new Set<TaskStatus> ([
   "PENDING",
   "IN_PROGRESS",
   "COMPLETED",
   "CANCELLED",
-];
-const TASK_AUDIENCES: TaskAudience[] = ["EMPLOYEE_TASK", "PARENT_TASK"];
+]);
+
+const TASK_AUDIENCES = new Set<TaskAudience>(["EMPLOYEE_TASK", "PARENT_TASK"]);
 
 const asNonEmptyString = (value: unknown): string | undefined => {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
-  return trimmed ? trimmed : undefined;
+  return trimmed || undefined;
 };
 
 const isValidDate = (value: unknown): value is Date =>
@@ -71,13 +72,13 @@ const sanitizeStatusList = (value: unknown): TaskStatus[] | undefined => {
   if (!Array.isArray(value)) return undefined;
   const filtered = value.filter(
     (status): status is TaskStatus =>
-      typeof status === "string" && TASK_STATUSES.includes(status as TaskStatus),
+      typeof status === "string" && TASK_STATUSES.has(status as TaskStatus),
   );
   return filtered.length ? filtered : undefined;
 };
 
 const sanitizeAudience = (value: unknown): TaskAudience | undefined =>
-  typeof value === "string" && TASK_AUDIENCES.includes(value as TaskAudience)
+  typeof value === "string" && TASK_AUDIENCES.has(value as TaskAudience)
     ? (value as TaskAudience)
     : undefined;
 

@@ -318,7 +318,7 @@ export const FormService = {
     const lastVersion =
       (await FormVersionModel.findOne({ formId: fid }).sort({
         version: -1,
-      })) || undefined;
+      })) ?? undefined;
 
     const nextVersion = lastVersion ? lastVersion.version + 1 : 1;
 
@@ -454,12 +454,11 @@ export const FormService = {
       version: sub.formVersion,
     }).lean();
 
-    const formId =
-      typeof sub.formId === "string"
-        ? sub.formId
-        : sub.formId instanceof Types.ObjectId
-          ? sub.formId.toHexString()
-          : "";
+    const formId = (() => {
+      if (typeof sub.formId === "string") return sub.formId;
+      if (sub.formId instanceof Types.ObjectId) return sub.formId.toHexString();
+      return "";
+    })();
 
     const normalized: FormSubmission = {
       _id: sub._id.toString(),
@@ -534,13 +533,23 @@ export const FormService = {
 
     type SoapNoteGroup = Record<SoapNoteType, SoapNoteEntry[]>;
 
+    const SOAP_TYPE_MAP: Record<Form["category"], SoapNoteType | undefined> = {
+      "SOAP-Subjective": "Subjective",
+      "SOAP-Objective": "Objective",
+      "SOAP-Assessment": "Assessment",
+      "SOAP-Plan": "Plan",
+      "Discharge": "Discharge",
+    };
+
     const appointmentObjectId = ensureObjectId(
       appointmentId,
       "appointmentId",
     ).toString();
+
     const appointment = await AppointmentModel.findById(appointmentObjectId)
       .select({ organisationId: 1 })
       .lean();
+
     if (!appointment) {
       throw new FormServiceError("Appointment not found", 404);
     }
@@ -559,22 +568,25 @@ export const FormService = {
       .sort({ submittedAt: -1 })
       .lean()) as unknown as SubmissionLean[];
 
+    const grouped: SoapNoteGroup = {
+      Subjective: [],
+      Objective: [],
+      Assessment: [],
+      Plan: [],
+      Discharge: [],
+    };
+
     if (!submissions.length) {
       return {
         appointmentId: appointmentObjectId,
-        soapNotes: {
-          Subjective: [],
-          Objective: [],
-          Assessment: [],
-          Plan: [],
-        },
+        soapNotes: grouped,
       };
     }
 
     // Load forms for soapType lookup
-    const formIds: string[] = [
+    const formIds = [
       ...new Set(
-        submissions.map((submission) => normalizeObjectId(submission.formId)),
+        submissions.map((s) => normalizeObjectId(s.formId)),
       ),
     ];
 
@@ -592,31 +604,11 @@ export const FormService = {
       forms.map((f) => [normalizeObjectId(f._id), f]),
     );
 
-    const grouped: SoapNoteGroup = {
-      Subjective: [],
-      Objective: [],
-      Assessment: [],
-      Plan: [],
-      Discharge: [],
-    };
-
     for (const sub of submissions) {
       const form = formMap.get(normalizeObjectId(sub.formId));
       if (!form) continue;
 
-      const soapType =
-        form.category === "SOAP-Subjective"
-          ? "Subjective"
-          : form.category === "SOAP-Objective"
-            ? "Objective"
-            : form.category === "SOAP-Assessment"
-              ? "Assessment"
-              : form.category === "SOAP-Plan"
-                ? "Plan"
-                : form.category === "Discharge"
-                  ? "Discharge"
-                  : undefined;
-
+      const soapType = SOAP_TYPE_MAP[form.category];
       if (!soapType) continue;
 
       grouped[soapType].push({
@@ -630,10 +622,8 @@ export const FormService = {
     }
 
     if (options?.latestOnly) {
-      Object.keys(grouped).forEach((k) => {
-        grouped[k as keyof typeof grouped] = grouped[
-          k as keyof typeof grouped
-        ].slice(0, 1);
+      (Object.keys(grouped) as SoapNoteType[]).forEach((key) => {
+        grouped[key] = grouped[key].slice(0, 1);
       });
     }
 

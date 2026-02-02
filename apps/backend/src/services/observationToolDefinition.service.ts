@@ -19,7 +19,7 @@ export class ObservationToolDefinitionServiceError extends Error {
 const asNonEmptyString = (value: unknown): string | undefined => {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
-  return trimmed ? trimmed : undefined;
+  return trimmed || undefined;
 };
 
 const ensureObjectId = (value: unknown, field: string): string => {
@@ -72,7 +72,7 @@ export const ObservationToolDefinitionService = {
         400,
       );
     }
-    if (!input.fields || !input.fields.length) {
+    if (!input.fields?.length) {
       throw new ObservationToolDefinitionServiceError(
         "at least one field is required",
         400,

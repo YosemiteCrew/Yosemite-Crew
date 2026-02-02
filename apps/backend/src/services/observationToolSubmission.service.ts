@@ -24,7 +24,7 @@ const SAFE_ID_FALLBACK = /^[A-Za-z0-9_-]+$/;
 const asNonEmptyString = (value: unknown): string | undefined => {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
-  return trimmed ? trimmed : undefined;
+  return trimmed || undefined;
 };
 
 const isValidDate = (value: unknown): value is Date =>

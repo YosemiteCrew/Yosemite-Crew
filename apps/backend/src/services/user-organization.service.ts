@@ -619,25 +619,7 @@ export const UserOrganizationService = {
     const wasActive = document?.active ?? false;
     const willBeActive = persistable.active !== false;
 
-    if (!document) {
-      if (willBeActive) {
-        orgObjectId = await resolveOrganisationObjectId(
-          persistable.organizationReference,
-        );
-        await reserveMemberSlot(orgObjectId);
-        seatDelta = 1;
-      }
-
-      try {
-        document = await UserOrganizationModel.create(persistable);
-        created = true;
-      } catch (err) {
-        if (seatDelta === 1 && orgObjectId) {
-          await releaseMemberSlot(orgObjectId);
-        }
-        throw err;
-      }
-    } else {
+    if (document) {
       // Existing document — detect state transitions
       orgObjectId = await resolveOrganisationObjectId(
         document.organizationReference,
@@ -658,6 +640,24 @@ export const UserOrganizationService = {
         { $set: persistable },
         { new: true, sanitizeFilter: true },
       );
+    } else {
+      if (willBeActive) {
+        orgObjectId = await resolveOrganisationObjectId(
+          persistable.organizationReference,
+        );
+        await reserveMemberSlot(orgObjectId);
+        seatDelta = 1;
+      }
+
+      try {
+        document = await UserOrganizationModel.create(persistable);
+        created = true;
+      } catch (err) {
+        if (seatDelta === 1 && orgObjectId) {
+          await releaseMemberSlot(orgObjectId);
+        }
+        throw err;
+      }
     }
 
     if (!document) {

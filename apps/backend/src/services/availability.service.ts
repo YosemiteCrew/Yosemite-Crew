@@ -19,7 +19,7 @@ export class AvailabilityServiceError extends Error {
 const asNonEmptyString = (value: unknown): string | undefined => {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
-  return trimmed ? trimmed : undefined;
+  return trimmed || undefined;
 };
 
 const ensureNonEmptyString = (value: unknown, field: string): string => {
