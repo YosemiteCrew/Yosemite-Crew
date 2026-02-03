@@ -2,7 +2,7 @@
 import React, { useMemo } from "react";
 
 import "@/app/features/organizations/styles/Organizations.css";
-import "@/app/features/settings/pages/Settings/Settings.css";
+import "@/app/features/settings/styles/Settings.css";
 import DevRouteGuard from "@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard";
 import { useAuthStore } from "@/app/stores/authStore";
 
