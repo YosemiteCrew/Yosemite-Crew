@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import DashboardSteps from "@/app/components/DashboardSteps";
+import DashboardSteps from "@/app/ui/widgets/DashboardSteps";
 
 const usePrimaryOrgMock = jest.fn();
 const useSubscriptionMock = jest.fn();
@@ -25,11 +25,11 @@ jest.mock("@/app/hooks/useTeam", () => ({
   useTeamForPrimaryOrg: () => useTeamMock(),
 }));
 
-jest.mock("@/app/components/PermissionGate", () => ({
+jest.mock("@/app/ui/layout/guards/PermissionGate", () => ({
   PermissionGate: ({ children }: any) => <div>{children}</div>,
 }));
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Secondary: ({ text, isDisabled }: any) => (
     <button type="button" disabled={isDisabled}>
       {text}

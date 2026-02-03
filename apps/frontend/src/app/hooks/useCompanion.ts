@@ -1,9 +1,9 @@
 import { useEffect, useMemo } from "react";
-import { loadCompanionsForPrimaryOrg } from "../services/companionService";
-import { useCompanionStore } from "../stores/companionStore";
-import { useOrgStore } from "../stores/orgStore";
-import { CompanionParent, StoredCompanion } from "../pages/Companions/types";
-import { useParentStore } from "../stores/parentStore";
+import { loadCompanionsForPrimaryOrg } from "@/app/features/companions/services/companionService";
+import { useCompanionStore } from "@/app/stores/companionStore";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { CompanionParent, StoredCompanion } from "@/app/features/companions/pages/Companions/types";
+import { useParentStore } from "@/app/stores/parentStore";
 
 export const useLoadCompanionsForPrimaryOrg = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);

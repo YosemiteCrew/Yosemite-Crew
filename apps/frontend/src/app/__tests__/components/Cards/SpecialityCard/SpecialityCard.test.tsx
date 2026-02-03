@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import SpecialityCard from "@/app/components/Cards/SpecialityCard/SpecialityCard";
+import SpecialityCard from "@/app/ui/cards/SpecialityCard/SpecialityCard";
 import { Speciality } from "@yosemite-crew/types";
 
 // --- Test Data ---

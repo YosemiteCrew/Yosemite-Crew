@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
-import ProtectedBookOnboarding from "../../../pages/BookOnboarding";
+import ProtectedBookOnboarding from "@/app/features/onboarding/pages/BookOnboarding";
 import { getCalApi } from "@calcom/embed-react";
 
 // --- Mocks ---
@@ -22,7 +22,7 @@ jest.mock("@calcom/embed-react", () => ({
 }));
 
 // 2. Mock OrgGuard
-jest.mock("@/app/components/OrgGuard", () => ({
+jest.mock("@/app/ui/layout/guards/OrgGuard", () => ({
   __esModule: true,
   default: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="org-guard">{children}</div>
@@ -30,7 +30,7 @@ jest.mock("@/app/components/OrgGuard", () => ({
 }));
 
 // 3. Mock ProtectedRoute
-jest.mock("@/app/components/ProtectedRoute", () => ({
+jest.mock("@/app/ui/layout/guards/ProtectedRoute", () => ({
   __esModule: true,
   default: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="protected-route">{children}</div>

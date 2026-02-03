@@ -2,7 +2,7 @@ import {
   getStripeBillingPortal,
   getUpgradeLink,
   getCheckoutClientSecret,
-} from "@/app/services/billingService";
+} from "@/app/features/billing/services/billingService";
 
 const postDataMock = jest.fn();
 

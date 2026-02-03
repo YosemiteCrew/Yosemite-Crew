@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import SmallAccordionButton from "@/app/components/Accordion/SmallAccordionButton";
+import SmallAccordionButton from "@/app/ui/primitives/Accordion/SmallAccordionButton";
 
 describe("SmallAccordionButton", () => {
   const mockButtonClick = jest.fn();

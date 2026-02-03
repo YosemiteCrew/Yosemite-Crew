@@ -1,20 +1,20 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import Review from "@/app/pages/Forms/Sections/AddForm/Review";
-import { FormsProps, FormField } from "@/app/types/forms";
+import Review from "@/app/features/forms/pages/Forms/Sections/AddForm/Review";
+import { FormsProps, FormField } from "@/app/features/forms/types/forms";
 
 // --- Mocks ---
 
 // Mock Accordion components
-jest.mock("@/app/components/Accordion/Accordion", () => ({
+jest.mock("@/app/ui/primitives/Accordion/Accordion", () => ({
   __esModule: true,
   default: ({ title, children }: any) => (
     <div data-testid={`accordion-${title}`}>{children}</div>
   ),
 }));
 
-jest.mock("@/app/components/Accordion/EditableAccordion", () => ({
+jest.mock("@/app/ui/primitives/Accordion/EditableAccordion", () => ({
   __esModule: true,
   default: ({ title, data }: any) => (
     <div data-testid={`editable-accordion-${title}`}>Data: {data.name}</div>
@@ -22,7 +22,7 @@ jest.mock("@/app/components/Accordion/EditableAccordion", () => ({
 }));
 
 // Mock Buttons
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ text, onClick, isDisabled }: any) => (
     <button data-testid="primary-btn" onClick={onClick} disabled={isDisabled}>
       {text}
@@ -36,7 +36,7 @@ jest.mock("@/app/components/Buttons", () => ({
 }));
 
 // Mock FormRenderer to test value passing and change handling
-jest.mock("@/app/pages/Forms/Sections/AddForm/components/FormRenderer", () => ({
+jest.mock("@/app/features/forms/pages/Forms/Sections/AddForm/components/FormRenderer", () => ({
   __esModule: true,
   default: ({ values, onChange }: any) => (
     <div data-testid="form-renderer">

@@ -2,7 +2,7 @@
 import React, { Suspense, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-import SignUp from "@/app/pages/SignUp/SignUp";
+import SignUp from "@/app/features/auth/pages/SignUp/SignUp";
 import { useAuthStore } from "@/app/stores/authStore";
 
 function Page() {

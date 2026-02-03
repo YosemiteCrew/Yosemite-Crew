@@ -6,7 +6,7 @@ import {
   SpeciesOptions,
   EMPTY_STORED_PARENT,
   EMPTY_STORED_COMPANION,
-} from "@/app/components/AddCompanion/type";
+} from "@/app/features/companions/components/AddCompanion/type";
 
 describe("AddCompanion type constants", () => {
   it("defines expected option sets", () => {

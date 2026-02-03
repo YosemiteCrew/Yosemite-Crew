@@ -1,7 +1,7 @@
 import { StreamChat } from 'stream-chat';
 
 // Mock the chatService API calls
-jest.mock('@/app/services/chatService', () => ({
+jest.mock('@/app/features/chat/services/chatService', () => ({
   getChatToken: jest.fn(() => Promise.resolve({ token: 'test-token' })),
   createChatSession: jest.fn(() =>
     Promise.resolve({ channelId: 'test-channel-id' })
@@ -34,7 +34,7 @@ jest.mock('stream-chat', () => ({
 }));
 
 describe('streamChatService', () => {
-  let service: typeof import('../../services/streamChatService');
+  let service: typeof import('@/app/features/chat/services/streamChatService');
   const originalEnv = process.env;
 
   // silence console warnings/errors for this test suite (jest.setup throws on them)
@@ -62,7 +62,7 @@ describe('streamChatService', () => {
     });
     mockClient.user = undefined;
 
-    service = await import('../../services/streamChatService');
+    service = await import('@/app/features/chat/services/streamChatService');
   });
 
   afterAll(() => {
@@ -82,7 +82,7 @@ describe('streamChatService', () => {
     it('throws error if API key is missing', async () => {
       jest.resetModules();
       process.env.NEXT_PUBLIC_STREAM_API_KEY = '';
-      service = await import('../../services/streamChatService');
+      service = await import('@/app/features/chat/services/streamChatService');
 
   expect(() => service.getChatClient()).toThrow(/Failed to initialize chat client/);
     });
@@ -274,7 +274,7 @@ describe('streamChatService', () => {
 
   describe('endChatChannel', () => {
     it('calls closeChatSession with sessionId', async () => {
-  const { closeChatSession } = jest.requireMock('@/app/services/chatService');
+  const { closeChatSession } = jest.requireMock('@/app/features/chat/services/chatService');
 
       await service.endChatChannel('session-1');
 
@@ -282,7 +282,7 @@ describe('streamChatService', () => {
     });
 
     it('throws error if close fails', async () => {
-  const { closeChatSession } = jest.requireMock('@/app/services/chatService');
+  const { closeChatSession } = jest.requireMock('@/app/features/chat/services/chatService');
       closeChatSession.mockRejectedValueOnce(new Error('Close failed'));
 
   await expect(service.endChatChannel('session-1')).rejects.toThrow(/Failed to end chat session/);

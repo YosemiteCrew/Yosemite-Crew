@@ -1,9 +1,9 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import DeleteProfile from "@/app/pages/Settings/Sections/DeleteProfile";
+import DeleteProfile from "@/app/features/settings/pages/Settings/Sections/DeleteProfile";
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Secondary: ({ text, onClick }: any) => (
     <button type="button" onClick={onClick}>
       {text}
@@ -11,7 +11,7 @@ jest.mock("@/app/components/Buttons", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Buttons/Delete", () => ({
+jest.mock("@/app/ui/primitives/Buttons/Delete", () => ({
   __esModule: true,
   default: ({ text, onClick }: any) => (
     <button type="button" onClick={onClick}>
@@ -20,7 +20,7 @@ jest.mock("@/app/components/Buttons/Delete", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Icons/Close", () => ({
+jest.mock("@/app/ui/primitives/Icons/Close", () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>
@@ -29,7 +29,7 @@ jest.mock("@/app/components/Icons/Close", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   __esModule: true,
   default: ({ value, inlabel, onChange, error }: any) => (
     <div>

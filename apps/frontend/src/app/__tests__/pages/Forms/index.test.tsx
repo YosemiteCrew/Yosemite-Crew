@@ -1,8 +1,8 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import ProtectedForms from "../../../pages/Forms";
+import ProtectedForms from "@/app/features/forms/pages/Forms";
 import { useFormsStore } from "@/app/stores/formsStore";
-import { loadForms } from "@/app/services/formService";
+import { loadForms } from "@/app/features/forms/services/formService";
 import {
   useLoadSpecialitiesForPrimaryOrg,
   useServicesForPrimaryOrgSpecialities,
@@ -12,7 +12,7 @@ import {
 
 // 1. Mock Hooks & Services
 jest.mock("@/app/stores/formsStore");
-jest.mock("@/app/services/formService");
+jest.mock("@/app/features/forms/services/formService");
 jest.mock("@/app/hooks/useSpecialities");
 jest.mock("@/app/hooks/usePermissions", () => ({
   usePermissions: () => ({
@@ -24,10 +24,10 @@ jest.mock("@/app/hooks/usePermissions", () => ({
     activeOrgId: "org-1",
   }),
 }));
-jest.mock("@/app/components/PermissionGate", () => ({
+jest.mock("@/app/ui/layout/guards/PermissionGate", () => ({
   PermissionGate: ({ children }: any) => <div>{children}</div>,
 }));
-jest.mock("@/app/components/Fallback", () => ({
+jest.mock("@/app/ui/overlays/Fallback", () => ({
   __esModule: true,
   default: () => <div data-testid="fallback">No permission</div>,
 }));
@@ -36,18 +36,18 @@ jest.mock("@/app/stores/searchStore", () => ({
 }));
 
 // 2. Mock Guards
-jest.mock("@/app/components/ProtectedRoute", () => ({
+jest.mock("@/app/ui/layout/guards/ProtectedRoute", () => ({
   __esModule: true,
   default: ({ children }: any) => <div data-testid="protected-route">{children}</div>,
 }));
 
-jest.mock("@/app/components/OrgGuard", () => ({
+jest.mock("@/app/ui/layout/guards/OrgGuard", () => ({
   __esModule: true,
   default: ({ children }: any) => <div data-testid="org-guard">{children}</div>,
 }));
 
 // 3. Mock UI Components
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ text, onClick }: any) => (
     <button data-testid="btn-add" onClick={onClick}>
       {text}
@@ -55,7 +55,7 @@ jest.mock("@/app/components/Buttons", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Filters/FormsFilters", () => ({
+jest.mock("@/app/ui/filters/FormsFilters", () => ({
   __esModule: true,
   default: ({ setFilteredList, list }: any) => (
     <div data-testid="forms-filters">
@@ -75,7 +75,7 @@ jest.mock("@/app/components/Filters/FormsFilters", () => ({
   ),
 }));
 
-jest.mock("@/app/components/DataTable/FormsTable", () => ({
+jest.mock("@/app/ui/tables/FormsTable", () => ({
   __esModule: true,
   default: ({ activeForm, setActiveForm, setViewPopup }: any) => (
     <div data-testid="forms-table">
@@ -104,7 +104,7 @@ jest.mock("@/app/components/DataTable/FormsTable", () => ({
 
 // 4. Mock Modals (AddForm & FormInfo)
 // We expose their callbacks via buttons to test parent state changes
-jest.mock("../../../pages/Forms/Sections/AddForm", () => ({
+jest.mock("@/app/features/forms/pages/Forms/Sections/AddForm", () => ({
   __esModule: true,
   default: ({ showModal, onClose, onDraftChange, initialForm }: any) =>
     showModal ? (
@@ -121,7 +121,7 @@ jest.mock("../../../pages/Forms/Sections/AddForm", () => ({
     ) : null,
 }));
 
-jest.mock("../../../pages/Forms/Sections/FormInfo", () => ({
+jest.mock("@/app/features/forms/pages/Forms/Sections/FormInfo", () => ({
   __esModule: true,
   default: ({ showModal, activeForm, onEdit }: any) =>
     showModal ? (

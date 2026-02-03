@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { Team } from "../types/team";
+import { Team } from "@/app/features/organization/types/team";
 
 type TeamStatus = "idle" | "loading" | "loaded" | "error";
 

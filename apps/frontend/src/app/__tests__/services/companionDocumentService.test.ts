@@ -3,7 +3,7 @@ import {
   loadCompanionDocument,
   loadDocumentDetails,
   loadDocumentDownloadURL,
-} from "@/app/services/companionDocumentService";
+} from "@/app/features/companions/services/companionDocumentService";
 
 const getDataMock = jest.fn();
 const postDataMock = jest.fn();

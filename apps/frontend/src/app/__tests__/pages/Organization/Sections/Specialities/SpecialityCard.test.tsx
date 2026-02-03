@@ -1,9 +1,9 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import SpecialityCard from "@/app/pages/Organization/Sections/Specialities/SpecialityCard";
+import SpecialityCard from "@/app/features/organization/pages/Organization/Sections/Specialities/SpecialityCard";
 
-jest.mock("@/app/components/Accordion/Accordion", () => ({
+jest.mock("@/app/ui/primitives/Accordion/Accordion", () => ({
   __esModule: true,
   default: ({ title, children, onDeleteClick }: any) => (
     <div>
@@ -16,7 +16,7 @@ jest.mock("@/app/components/Accordion/Accordion", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
+jest.mock("@/app/ui/inputs/Dropdown/LabelDropdown", () => ({
   __esModule: true,
   default: ({ placeholder, onSelect }: any) => (
     <button type="button" onClick={() => onSelect({ label: "Lead", key: "lead-1" })}>
@@ -25,7 +25,7 @@ jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/MultiSelectDropdown", () => ({
+jest.mock("@/app/ui/inputs/MultiSelectDropdown", () => ({
   __esModule: true,
   default: ({ placeholder, onChange }: any) => (
     <button type="button" onClick={() => onChange(["team-1"])}>
@@ -34,7 +34,7 @@ jest.mock("@/app/components/Inputs/MultiSelectDropdown", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   __esModule: true,
   default: ({ inlabel, value, onChange }: any) => (
     <label>
@@ -44,7 +44,7 @@ jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/ServiceSearch/ServiceSearch", () => ({
+jest.mock("@/app/ui/inputs/ServiceSearch/ServiceSearch", () => ({
   __esModule: true,
   default: () => <div>ServiceSearch</div>,
 }));

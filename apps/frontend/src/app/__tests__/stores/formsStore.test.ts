@@ -1,9 +1,9 @@
-import { useFormsStore } from "../../stores/formsStore";
-import { FormsProps, FormsStatus } from "../../types/forms";
-import { formatDateLabel } from "../../utils/forms";
+import { useFormsStore } from "@/app/stores/formsStore";
+import { FormsProps, FormsStatus } from "@/app/features/forms/types/forms";
+import { formatDateLabel } from "@/app/lib/forms";
 
 // --- Mocks ---
-jest.mock("../../utils/forms", () => ({
+jest.mock("@/app/lib/forms", () => ({
   formatDateLabel: jest.fn(() => "Today"),
 }));
 

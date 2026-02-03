@@ -6,7 +6,8 @@ import {
   act,
   waitFor,
 } from "@testing-library/react";
-import GoogleSearchDropDown from "@/app/components/Inputs/GoogleSearchDropDown/GoogleSearchDropDown";
+import GoogleSearchDropDown from "@/app/ui/inputs/GoogleSearchDropDown/GoogleSearchDropDown";
+import { logger } from "@/app/lib/logger";
 
 // --- Mocks ---
 
@@ -16,7 +17,7 @@ jest.mock("@iconify/react/dist/iconify.js", () => ({
 }));
 
 // Mock Country List
-jest.mock("@/app/utils/countryList.json", () => [
+jest.mock("@/app/lib/data/countryList", () => [
   { name: "United States", code: "US" },
   { name: "Canada", code: "CA" },
 ]);
@@ -167,9 +168,8 @@ describe("GoogleSearchDropDown Component", () => {
       status: 500,
     });
 
-    // Silence console.error for this specific test as the component logs errors
-    const consoleSpy = jest
-      .spyOn(console, "error")
+    const errorSpy = jest
+      .spyOn(logger, "error")
       .mockImplementation(() => {});
 
     const { rerender } = render(
@@ -200,10 +200,10 @@ describe("GoogleSearchDropDown Component", () => {
     });
 
     // Should log error but not crash
-    expect(consoleSpy).toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalled();
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
 
-    consoleSpy.mockRestore();
+    errorSpy.mockRestore();
   });
 
   // --- 3. Selection & Details Fetching ---

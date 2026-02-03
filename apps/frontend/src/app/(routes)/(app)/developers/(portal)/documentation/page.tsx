@@ -1,6 +1,6 @@
 import React from "react";
 
-import DeveloperDocs from "@/app/pages/DeveloperDocs/DeveloperDocs";
+import DeveloperDocs from "@/app/features/developers/pages/DeveloperDocs/DeveloperDocs";
 
 function Page() {
   return <DeveloperDocs />;

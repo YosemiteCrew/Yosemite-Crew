@@ -2,32 +2,32 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import UserCalendar from "@/app/components/Calendar/common/UserCalendar";
+import UserCalendar from "@/app/features/appointments/components/Calendar/common/UserCalendar";
 
 jest.mock("@/app/hooks/useTeam", () => ({
   useTeamForPrimaryOrg: jest.fn(),
 }));
 
 const mockAppointmentsForUser = jest.fn();
-jest.mock("@/app/components/Calendar/helpers", () => ({
+jest.mock("@/app/features/appointments/components/Calendar/helpers", () => ({
   appointentsForUser: (...args: any[]) => mockAppointmentsForUser(...args),
 }));
 
 const userLabelsSpy = jest.fn();
 
-jest.mock("@/app/components/Calendar/Task/UserLabels", () => (props: any) => {
+jest.mock("@/app/features/appointments/components/Calendar/Task/UserLabels", () => (props: any) => {
   userLabelsSpy(props);
   return <div data-testid="user-labels" />;
 });
 
 const slotSpy = jest.fn();
 
-jest.mock("@/app/components/Calendar/common/Slot", () => (props: any) => {
+jest.mock("@/app/features/appointments/components/Calendar/common/Slot", () => (props: any) => {
   slotSpy(props);
   return <div data-testid="slot" />;
 });
 
-jest.mock("@/app/components/Icons/Back", () => ({
+jest.mock("@/app/ui/primitives/Icons/Back", () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>
@@ -36,7 +36,7 @@ jest.mock("@/app/components/Icons/Back", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Icons/Next", () => ({
+jest.mock("@/app/ui/primitives/Icons/Next", () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>

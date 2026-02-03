@@ -17,7 +17,7 @@ jest.mock("@/app/stores/authStore", () => ({
   useAuthStore: () => mockUseAuthStore(),
 }));
 
-import GuestHeader from "@/app/components/Header/GuestHeader/GuestHeader";
+import GuestHeader from "@/app/ui/layout/Header/GuestHeader/GuestHeader";
 
 describe("GuestHeader", () => {
   beforeEach(() => {

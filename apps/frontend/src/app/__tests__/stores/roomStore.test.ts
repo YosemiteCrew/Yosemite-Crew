@@ -1,4 +1,4 @@
-import { useOrganisationRoomStore } from "../../stores/roomStore";
+import { useOrganisationRoomStore } from "@/app/stores/roomStore";
 import { OrganisationRoom } from "@yosemite-crew/types";
 
 // --- Mock Data ---

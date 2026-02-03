@@ -1,7 +1,7 @@
 import React from "react";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import SubLabels from "@/app/components/Labels/SubLabels";
+import SubLabels from "@/app/ui/widgets/Labels/SubLabels";
 
 describe("SubLabels", () => {
   const labels = [

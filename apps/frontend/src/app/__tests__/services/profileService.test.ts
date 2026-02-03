@@ -3,28 +3,28 @@ import {
   createUserProfile,
   updateUserProfile,
   upsertUserProfile,
-} from "../../services/profileService";
-import { getData, postData, putData } from "../../services/axios";
-import { useOrgStore } from "../../stores/orgStore";
-import { useUserProfileStore } from "../../stores/profileStore";
-import { UserProfile } from "../../types/profile";
+} from "@/app/features/organization/services/profileService";
+import { getData, postData, putData } from "@/app/services/axios";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { useUserProfileStore } from "@/app/stores/profileStore";
+import { UserProfile } from "@/app/features/users/types/profile";
 
 // --- Mocks ---
 
 // 1. Mock Axios Helpers
-jest.mock("../../services/axios");
+jest.mock("@/app/services/axios");
 const mockedGetData = getData as jest.Mock;
 const mockedPostData = postData as jest.Mock;
 const mockedPutData = putData as jest.Mock;
 
 // 2. Mock Stores
-jest.mock("../../stores/orgStore", () => ({
+jest.mock("@/app/stores/orgStore", () => ({
   useOrgStore: {
     getState: jest.fn(),
   },
 }));
 
-jest.mock("../../stores/profileStore", () => ({
+jest.mock("@/app/stores/profileStore", () => ({
   useUserProfileStore: {
     getState: jest.fn(),
   },

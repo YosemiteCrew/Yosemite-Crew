@@ -1,5 +1,5 @@
 import { renderHook, act } from "@testing-library/react";
-import { useSignOut } from "../../hooks/useAuth";
+import { useSignOut } from "@/app/hooks/useAuth";
 
 // --- Mock Actions ---
 const mockSignOutAction = jest.fn();

@@ -1,9 +1,10 @@
-import { createSubmission, fetchSubmissions } from "../../services/soapService";
-import { getData, postData } from "../../services/axios";
+import { createSubmission, fetchSubmissions } from "@/app/features/appointments/services/soapService";
+import { getData, postData } from "@/app/services/axios";
 import { toFormSubmissionResponseDTO, FormSubmission } from "@yosemite-crew/types";
+import { logger } from "@/app/lib/logger";
 
 // --- Mocks ---
-jest.mock("../../services/axios");
+jest.mock("@/app/services/axios");
 jest.mock("@yosemite-crew/types", () => ({
   toFormSubmissionResponseDTO: jest.fn(),
 }));
@@ -60,12 +61,15 @@ describe("SOAP Service", () => {
       mockedToDTO.mockReturnValue(mockTransformedDTO);
       mockedPostData.mockRejectedValue(error);
 
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+      const errorSpy = jest.spyOn(logger, "error").mockImplementation(() => {});
 
       await expect(createSubmission(mockInputSubmission)).rejects.toThrow("Network Error");
 
-      expect(consoleSpy).toHaveBeenCalledWith("Failed to create appointment:", error);
-      consoleSpy.mockRestore();
+      expect(errorSpy).toHaveBeenCalledWith(
+        "Failed to create appointment submission",
+        error
+      );
+      errorSpy.mockRestore();
     });
   });
 
@@ -103,12 +107,15 @@ describe("SOAP Service", () => {
       const error = new Error("Fetch Failed");
       mockedGetData.mockRejectedValue(error);
 
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+      const errorSpy = jest.spyOn(logger, "error").mockImplementation(() => {});
 
       await expect(fetchSubmissions("appt-1")).rejects.toThrow("Fetch Failed");
 
-      expect(consoleSpy).toHaveBeenCalledWith("Failed to create appointment:", error);
-      consoleSpy.mockRestore();
+      expect(errorSpy).toHaveBeenCalledWith(
+        "Failed to fetch SOAP submissions",
+        error
+      );
+      errorSpy.mockRestore();
     });
   });
 });

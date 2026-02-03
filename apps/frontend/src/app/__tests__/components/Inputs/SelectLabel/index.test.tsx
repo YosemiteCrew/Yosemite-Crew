@@ -1,7 +1,7 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import SelectLabel from "@/app/components/Inputs/SelectLabel";
+import SelectLabel from "@/app/ui/inputs/SelectLabel";
 
 describe("SelectLabel", () => {
   const options = [

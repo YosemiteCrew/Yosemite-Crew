@@ -2,30 +2,30 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import Appointments from "@/app/components/DataTable/Appointments";
+import Appointments from "@/app/ui/tables/Appointments";
 
 const acceptAppointmentMock = jest.fn();
 const cancelAppointmentMock = jest.fn();
 
-jest.mock("@/app/services/appointmentService", () => ({
+jest.mock("@/app/features/appointments/services/appointmentService", () => ({
   acceptAppointment: (...args: any[]) => acceptAppointmentMock(...args),
   cancelAppointment: (...args: any[]) => cancelAppointmentMock(...args),
 }));
 
-jest.mock("@/app/utils/appointments", () => ({
+jest.mock("@/app/lib/appointments", () => ({
   allowReschedule: jest.fn(() => true),
 }));
 
-jest.mock("@/app/utils/forms", () => ({
+jest.mock("@/app/lib/forms", () => ({
   formatDateLabel: jest.fn(() => "Jan 06, 2025"),
   formatTimeLabel: jest.fn(() => "09:00 AM"),
 }));
 
-jest.mock("@/app/utils/validators", () => ({
+jest.mock("@/app/lib/validators", () => ({
   toTitle: (value: string) => value.toUpperCase(),
 }));
 
-jest.mock("@/app/components/GenericTable/GenericTable", () => ({
+jest.mock("@/app/ui/tables/GenericTable/GenericTable", () => ({
   __esModule: true,
   default: ({ data, columns }: any) => (
     <div data-testid="table">
@@ -42,7 +42,7 @@ jest.mock("@/app/components/GenericTable/GenericTable", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Cards/AppointmentCard", () => ({
+jest.mock("@/app/ui/cards/AppointmentCard", () => ({
   __esModule: true,
   default: ({ appointment }: any) => (
     <div data-testid="appointment-card">{appointment.id}</div>

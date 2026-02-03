@@ -1,6 +1,6 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
-import Filters from "@/app/components/Filters/Filters";
+import Filters from "@/app/ui/filters/Filters";
 
 const filterOptions = [
   { key: "all", name: "All" },

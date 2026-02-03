@@ -2,29 +2,29 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import ProfileCard from "@/app/pages/Organization/Sections/ProfileCard";
+import ProfileCard from "@/app/features/organization/pages/Organization/Sections/ProfileCard";
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ text }: any) => <div>{text}</div>,
   Secondary: ({ text }: any) => <div>{text}</div>,
 }));
 
-jest.mock("@/app/components/Inputs/Datepicker", () => ({
+jest.mock("@/app/ui/inputs/Datepicker", () => ({
   __esModule: true,
   default: ({ placeholder }: any) => <input placeholder={placeholder} />,
 }));
 
-jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
+jest.mock("@/app/ui/inputs/Dropdown/LabelDropdown", () => ({
   __esModule: true,
   default: ({ placeholder }: any) => <div>{placeholder}</div>,
 }));
 
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   __esModule: true,
   default: ({ inlabel }: any) => <div>{inlabel}</div>,
 }));
 
-jest.mock("@/app/components/Inputs/MultiSelectDropdown", () => ({
+jest.mock("@/app/ui/inputs/MultiSelectDropdown", () => ({
   __esModule: true,
   default: ({ placeholder }: any) => <div>{placeholder}</div>,
 }));
@@ -38,7 +38,7 @@ jest.mock("@/app/stores/authStore", () => ({
     selector({ attributes: { given_name: "Pat", family_name: "Kim" } }),
 }));
 
-jest.mock("@/app/utils/urls", () => ({
+jest.mock("@/app/lib/urls", () => ({
   isHttpsImageUrl: () => false,
 }));
 

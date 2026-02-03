@@ -1,5 +1,5 @@
-import { InventoryFormConfig } from "@/app/components/AddInventory/InventoryConfig";
-import { BusinessType } from "@/app/types/org";
+import { InventoryFormConfig } from "@/app/features/inventory/components/AddInventory/InventoryConfig";
+import { BusinessType } from "@/app/features/organization/types/org";
 
 // Mock imports for completeness
 const mockCategoryOptionsByBusiness = {

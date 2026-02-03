@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import Personal from "@/app/pages/Settings/Sections/Personal";
+import Personal from "@/app/features/settings/pages/Settings/Sections/Personal";
 
 const useAuthStoreMock = jest.fn();
 
@@ -9,7 +9,7 @@ jest.mock("@/app/stores/authStore", () => ({
   useAuthStore: (selector: any) => selector(useAuthStoreMock()),
 }));
 
-jest.mock("@/app/pages/Organization/Sections/ProfileCard", () => ({
+jest.mock("@/app/features/organization/pages/Organization/Sections/ProfileCard", () => ({
   __esModule: true,
   default: ({ title }: any) => <div>{title}</div>,
 }));

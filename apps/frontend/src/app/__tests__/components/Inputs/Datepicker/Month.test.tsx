@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import Month from "@/app/components/Inputs/Datepicker/Month";
+import Month from "@/app/ui/inputs/Datepicker/Month";
 
 const mockMonthNames = ["January", "February", "March", "April"];
 

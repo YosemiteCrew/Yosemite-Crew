@@ -11,9 +11,9 @@ import {
   buildInventoryPayload,
   defaultFilters,
   displayStatusLabel,
-} from "../../../pages/Inventory/utils";
-import { BusinessType } from "@/app/types/org";
-import { InventoryApiItem, InventoryItem, BatchValues } from "../../../pages/Inventory/types";
+} from "@/app/features/inventory/pages/Inventory/utils";
+import { BusinessType } from "@/app/features/organization/types/org";
+import { InventoryApiItem, InventoryItem, BatchValues } from "@/app/features/inventory/pages/Inventory/types";
 
 describe("Inventory Utils", () => {
   // --------------------------------------------------------------------------

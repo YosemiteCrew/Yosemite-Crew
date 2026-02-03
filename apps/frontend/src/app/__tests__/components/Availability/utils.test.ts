@@ -10,7 +10,7 @@ import {
   DEFAULT_INTERVAL,
   AvailabilityState,
   ApiDayAvailability,
-} from "@/app/components/Availability/utils";
+} from "@/app/features/appointments/components/Availability/utils";
 
 describe("Availability Utils", () => {
   describe("formatUtcTimeToLocalLabel", () => {

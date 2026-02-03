@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import LogoUploader from "../../../components/UploadImage/LogoUploader";
+import LogoUploader from "@/app/ui/widgets/UploadImage/LogoUploader";
 import { postData } from "@/app/services/axios";
 import axios from "axios";
 

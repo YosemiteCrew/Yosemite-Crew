@@ -1,4 +1,4 @@
-import { fetchDocumensoRedirectUrl } from "@/app/services/documensoService";
+import { fetchDocumensoRedirectUrl } from "@/app/features/documents/services/documensoService";
 
 const postDataMock = jest.fn();
 

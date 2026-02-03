@@ -1,4 +1,4 @@
-import { useSpecialityStore } from "../../stores/specialityStore";
+import { useSpecialityStore } from "@/app/stores/specialityStore";
 import { Speciality } from "@yosemite-crew/types";
 
 // --- Mock Crypto ---

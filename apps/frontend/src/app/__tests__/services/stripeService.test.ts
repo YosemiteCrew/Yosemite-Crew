@@ -2,7 +2,7 @@ import {
   checkStatus,
   createConnectedAccount,
   onBoardConnectedAccount,
-} from "@/app/services/stripeService";
+} from "@/app/features/billing/services/stripeService";
 import * as axiosService from "@/app/services/axios";
 
 jest.mock("@/app/services/axios", () => ({

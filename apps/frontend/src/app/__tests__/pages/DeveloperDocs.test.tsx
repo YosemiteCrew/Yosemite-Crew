@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-jest.mock("@/app/components/DevRouteGuard/DevRouteGuard", () => ({
+jest.mock("@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard", () => ({
   __esModule: true,
   default: ({ children }: any) => <div data-testid="dev-guard">{children}</div>,
 }));
@@ -21,7 +21,7 @@ jest.mock("next/link", () => {
   return { __esModule: true, default: Link };
 });
 
-import DeveloperDocs from "@/app/pages/DeveloperDocs/DeveloperDocs";
+import DeveloperDocs from "@/app/features/developers/pages/DeveloperDocs/DeveloperDocs";
 
 describe("DeveloperDocs page", () => {
   test("renders docs frame with navigation links", () => {

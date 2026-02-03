@@ -6,7 +6,7 @@ import {
   linkCompanion,
   searchParent,
   getCompanionForParent,
-} from "@/app/services/companionService";
+} from "@/app/features/companions/services/companionService";
 import { useCompanionStore } from "@/app/stores/companionStore";
 import { useOrgStore } from "@/app/stores/orgStore";
 import { useParentStore } from "@/app/stores/parentStore";

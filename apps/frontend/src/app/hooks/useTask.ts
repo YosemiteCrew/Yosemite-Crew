@@ -1,8 +1,8 @@
 import { useEffect, useMemo } from "react";
-import { useOrgStore } from "../stores/orgStore";
-import { loadTasksForPrimaryOrg } from "../services/taskService";
-import { Task } from "../types/task";
-import { useTaskStore } from "../stores/taskStore";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { loadTasksForPrimaryOrg } from "@/app/features/tasks/services/taskService";
+import { Task } from "@/app/features/tasks/types/task";
+import { useTaskStore } from "@/app/stores/taskStore";
 
 export const useLoadTasksForPrimaryOrg = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);

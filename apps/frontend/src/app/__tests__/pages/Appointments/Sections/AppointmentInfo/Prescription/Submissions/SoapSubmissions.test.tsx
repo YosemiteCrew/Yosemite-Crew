@@ -1,9 +1,9 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import SoapSubmissions from "@/app/pages/Appointments/Sections/AppointmentInfo/Prescription/Submissions/SoapSubmissions";
+import SoapSubmissions from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Submissions/SoapSubmissions";
 
-jest.mock("@/app/components/Accordion/Accordion", () => ({
+jest.mock("@/app/ui/primitives/Accordion/Accordion", () => ({
   __esModule: true,
   default: ({ title, children }: any) => (
     <div data-testid="accordion">

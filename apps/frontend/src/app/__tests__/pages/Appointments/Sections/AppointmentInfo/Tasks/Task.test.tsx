@@ -2,11 +2,11 @@ import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import Task from "@/app/pages/Appointments/Sections/AppointmentInfo/Tasks/Task";
+import Task from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Tasks/Task";
 
 const createTaskMock = jest.fn();
 
-jest.mock("@/app/services/taskService", () => ({
+jest.mock("@/app/features/tasks/services/taskService", () => ({
   createTask: (...args: any[]) => createTaskMock(...args),
   createTaskTemplate: jest.fn(),
   getTaskLibrary: jest.fn(),
@@ -21,29 +21,29 @@ jest.mock("@/app/hooks/useCompanion", () => ({
   useCompanionsForPrimaryOrg: () => [{ id: "c1", name: "Buddy", parentId: "p1" }],
 }));
 
-jest.mock("@/app/utils/date", () => ({
+jest.mock("@/app/lib/date", () => ({
   applyUtcTime: jest.fn((date: Date) => date),
   generateTimeSlots: jest.fn(() => [{ label: "05:30", value: "05:30" }]),
 }));
 
-jest.mock("@/app/components/PermissionGate", () => ({
+jest.mock("@/app/ui/layout/guards/PermissionGate", () => ({
   PermissionGate: ({ children }: any) => <div>{children}</div>,
 }));
 
-jest.mock("@/app/components/Accordion/Accordion", () => (props: any) => (
+jest.mock("@/app/ui/primitives/Accordion/Accordion", () => (props: any) => (
   <div>
     <div>{props.title}</div>
     <div>{props.children}</div>
   </div>
 ));
 
-jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => (props: any) => (
+jest.mock("@/app/ui/inputs/Dropdown/LabelDropdown", () => (props: any) => (
   <button type="button" onClick={() => props.onSelect(props.options[0])}>
     {props.placeholder}
   </button>
 ));
 
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => (props: any) => (
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => (props: any) => (
   <input
     aria-label={props.inlabel}
     value={props.value}
@@ -51,21 +51,21 @@ jest.mock("@/app/components/Inputs/FormInput/FormInput", () => (props: any) => (
   />
 ));
 
-jest.mock("@/app/components/Inputs/FormDesc/FormDesc", () => (props: any) => (
+jest.mock("@/app/ui/inputs/FormDesc/FormDesc", () => (props: any) => (
   <textarea aria-label={props.inlabel} value={props.value} onChange={props.onChange} />
 ));
 
-jest.mock("@/app/components/Inputs/Datepicker", () => ({
+jest.mock("@/app/ui/inputs/Datepicker", () => ({
   __esModule: true,
   default: () => <div data-testid="datepicker" />,
 }));
 
-jest.mock("@/app/components/Inputs/SelectLabel", () => ({
+jest.mock("@/app/ui/inputs/SelectLabel", () => ({
   __esModule: true,
   default: () => <div data-testid="select-label" />,
 }));
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ text, onClick }: any) => (
     <button type="button" onClick={onClick}>
       {text}

@@ -1,17 +1,17 @@
 import { renderHook, waitFor, act } from "@testing-library/react";
-import { useInventoryModule } from "../../hooks/useInventory";
-import * as InventoryService from "../../services/inventoryService";
-import * as InventoryUtils from "../../pages/Inventory/utils";
-import { useInventoryStore } from "../../stores/inventoryStore";
-import { useOrgStore } from "../../stores/orgStore";
-import { BusinessType } from "@/app/types/org";
-import { InventoryItem } from "../../pages/Inventory/types";
+import { useInventoryModule } from "@/app/hooks/useInventory";
+import * as InventoryService from "@/app/features/inventory/services/inventoryService";
+import * as InventoryUtils from "@/app/features/inventory/pages/Inventory/utils";
+import { useInventoryStore } from "@/app/stores/inventoryStore";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { BusinessType } from "@/app/features/organization/types/org";
+import { InventoryItem } from "@/app/features/inventory/pages/Inventory/types";
 
 // ----------------------------------------------------------------------------
 // 1. Mocks
 // ----------------------------------------------------------------------------
 
-jest.mock("../../services/inventoryService", () => ({
+jest.mock("@/app/features/inventory/services/inventoryService", () => ({
   createInventoryBatch: jest.fn(),
   createInventoryItem: jest.fn(),
   fetchInventoryItems: jest.fn(),
@@ -21,16 +21,16 @@ jest.mock("../../services/inventoryService", () => ({
   updateInventoryItem: jest.fn(),
 }));
 
-jest.mock("../../pages/Inventory/utils", () => ({
+jest.mock("@/app/features/inventory/pages/Inventory/utils", () => ({
   buildBatchPayload: jest.fn(),
   buildInventoryPayload: jest.fn(),
   mapApiItemToInventoryItem: jest.fn((item) => ({ ...item, mapped: true })),
 }));
 
-jest.mock("../../stores/inventoryStore", () => ({
+jest.mock("@/app/stores/inventoryStore", () => ({
   useInventoryStore: jest.fn(),
 }));
-jest.mock("../../stores/orgStore", () => ({
+jest.mock("@/app/stores/orgStore", () => ({
   useOrgStore: jest.fn(),
 }));
 

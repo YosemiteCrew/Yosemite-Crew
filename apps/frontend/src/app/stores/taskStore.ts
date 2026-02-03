@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { Task } from "../types/task";
+import { Task } from "@/app/features/tasks/types/task";
 
 type TaskStoreStatus = "idle" | "loading" | "loaded" | "error";
 

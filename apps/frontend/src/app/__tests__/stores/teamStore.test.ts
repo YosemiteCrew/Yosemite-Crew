@@ -1,5 +1,5 @@
-import { useTeamStore } from "../../stores/teamStore";
-import { Team } from "../../types/team";
+import { useTeamStore } from "@/app/stores/teamStore";
+import { Team } from "@/app/features/organization/types/team";
 
 // --- Mock Data ---
 // We cast to unknown first to bypass strict type checking for the test mock

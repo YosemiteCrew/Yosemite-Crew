@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import { BlurIn } from "../../../components/Animations/BlurIn";
+import { BlurIn } from "@/app/ui/widgets/Animations/BlurIn";
 import { useInView } from "framer-motion";
 
 // ----------------------------------------------------------------------------

@@ -1,10 +1,10 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import Parent from "@/app/components/AddCompanion/Sections/Parent";
-import { EMPTY_STORED_PARENT } from "@/app/components/AddCompanion/type";
+import Parent from "@/app/features/companions/components/AddCompanion/Sections/Parent";
+import { EMPTY_STORED_PARENT } from "@/app/features/companions/components/AddCompanion/type";
 
-jest.mock("@/app/components/Accordion/Accordion", () => ({
+jest.mock("@/app/ui/primitives/Accordion/Accordion", () => ({
   __esModule: true,
   default: ({ title, children }: any) => (
     <div>
@@ -14,7 +14,7 @@ jest.mock("@/app/components/Accordion/Accordion", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ text, onClick }: any) => (
     <button type="button" onClick={onClick}>
       {text}
@@ -29,31 +29,31 @@ const FieldMock = ({ error, inlabel }: any) => (
   </div>
 );
 
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   __esModule: true,
   default: (props: any) => <FieldMock {...props} />,
 }));
 
-jest.mock("@/app/components/Inputs/Datepicker", () => ({
+jest.mock("@/app/ui/inputs/Datepicker", () => ({
   __esModule: true,
   default: ({ error }: any) => (error ? <div>{error}</div> : <div />),
 }));
 
-jest.mock("@/app/components/Inputs/SearchDropdown", () => ({
+jest.mock("@/app/ui/inputs/Search", () => ({
   __esModule: true,
   default: () => <div>search</div>,
 }));
 
-jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
+jest.mock("@/app/ui/inputs/Dropdown/LabelDropdown", () => ({
   __esModule: true,
   default: () => <div>label</div>,
 }));
 
-jest.mock("@/app/services/companionService", () => ({
+jest.mock("@/app/features/companions/services/companionService", () => ({
   searchParent: jest.fn().mockResolvedValue([]),
 }));
 
-jest.mock("@/app/utils/validators", () => ({
+jest.mock("@/app/lib/validators", () => ({
   getCountryCode: () => null,
   validatePhone: () => true,
 }));

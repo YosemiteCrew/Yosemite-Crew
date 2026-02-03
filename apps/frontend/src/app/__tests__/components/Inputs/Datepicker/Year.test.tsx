@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import Year from "@/app/components/Inputs/Datepicker/Year";
+import Year from "@/app/ui/inputs/Datepicker/Year";
 
 const mockYears = [2020, 2021, 2022, 2023, 2024];
 

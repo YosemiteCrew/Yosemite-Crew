@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { UserProfile } from "../types/profile";
+import type { UserProfile } from "@/app/features/users/types/profile";
 
 export type UserProfileStatus = "idle" | "loading" | "loaded" | "error";
 

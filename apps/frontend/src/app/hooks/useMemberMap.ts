@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
-import { Team } from "@/app/types/team";
+import { Team } from "@/app/features/organization/types/team";
 
 export const useMemberMap = () => {
   const teams = useTeamForPrimaryOrg();

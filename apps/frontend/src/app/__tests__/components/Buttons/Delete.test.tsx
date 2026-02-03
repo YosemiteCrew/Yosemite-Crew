@@ -1,7 +1,7 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import Delete from "@/app/components/Buttons/Delete";
+import Delete from "@/app/ui/primitives/Buttons/Delete";
 
 jest.mock("next/link", () => ({
   __esModule: true,

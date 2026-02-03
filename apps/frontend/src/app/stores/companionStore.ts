@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import { StoredCompanion } from "../pages/Companions/types";
-import { addToIndex, removeFromIndex } from "./utils/indexHelpers";
+import { StoredCompanion } from "@/app/features/companions/pages/Companions/types";
+import { addToIndex, removeFromIndex } from "@/app/stores/utils/indexHelpers";
 
 type CompanionStatus = "idle" | "loading" | "loaded" | "error";
 

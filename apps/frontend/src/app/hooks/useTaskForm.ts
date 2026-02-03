@@ -4,23 +4,23 @@ import {
   createTaskTemplate,
   getTaskLibrary,
   getTaskTemplatesForPrimaryOrg,
-} from "@/app/services/taskService";
-import { Option } from "@/app/types/companion";
+} from "@/app/features/tasks/services/taskService";
+import { Option } from "@/app/features/companions/types/companion";
 import {
   EMPTY_COMPANION_TASK,
   EMPTY_TASK,
   Task,
   TaskLibrary,
   TaskTemplate,
-} from "@/app/types/task";
-import { applyUtcTime, generateTimeSlots } from "@/app/utils/date";
+} from "@/app/features/tasks/types/task";
+import { applyUtcTime, generateTimeSlots } from "@/app/lib/date";
 import {
   applyTemplateToForm,
   buildTaskTemplate,
   TaskFormErrors,
   toTemplateOptions,
   validateTaskForm,
-} from "@/app/utils/taskForm";
+} from "@/app/lib/taskForm";
 
 export type UseTaskFormOptions = {
   initialTask?: Partial<Task>;

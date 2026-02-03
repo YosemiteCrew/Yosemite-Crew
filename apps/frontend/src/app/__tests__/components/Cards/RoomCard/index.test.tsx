@@ -1,12 +1,12 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import RoomCard from "@/app/components/Cards/RoomCard";
+import RoomCard from "@/app/ui/cards/RoomCard";
 import { OrganisationRoom } from "@yosemite-crew/types";
 
 // --- Mocks ---
 
 // Mock helper function from RoomTable
-jest.mock("@/app/components/DataTable/RoomTable", () => ({
+jest.mock("@/app/ui/tables/RoomTable", () => ({
   joinNames: jest.fn((map, ids) => {
     if (!ids || ids.length === 0) return "-";
     // Simple join logic for testing verification
@@ -14,7 +14,7 @@ jest.mock("@/app/components/DataTable/RoomTable", () => ({
   }),
 }));
 
-import { joinNames } from "@/app/components/DataTable/RoomTable";
+import { joinNames } from "@/app/ui/tables/RoomTable";
 
 // --- Test Data ---
 

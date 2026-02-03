@@ -1,0 +1,179 @@
+import React, { useState } from "react";
+import classNames from "classnames";
+import { useRouter } from "next/navigation";
+
+import FormInput from "@/app/ui/inputs/FormInput/FormInput";
+import GoogleSearchDropDown from "@/app/ui/inputs/GoogleSearchDropDown/GoogleSearchDropDown";
+import { Primary, Secondary } from "@/app/ui/primitives/Buttons";
+import LogoUploader from "@/app/ui/widgets/UploadImage/LogoUploader";
+import { BusinessTypes } from "@/app/features/organization/types/org";
+import { getCountryCode, validatePhone } from "@/app/lib/validators";
+import { createOrg } from "@/app/features/organization/services/orgService";
+import { Organisation } from "@yosemite-crew/types";
+
+import "./Step.css";
+import LabelDropdown from "@/app/ui/inputs/Dropdown/LabelDropdown";
+import { CountriesOptions } from "@/app/features/companions/components/AddCompanion/type";
+
+type OrgStepProps = {
+  nextStep: () => void;
+  formData: Organisation;
+  setFormData: React.Dispatch<React.SetStateAction<Organisation>>;
+};
+
+const OrgStep = ({ nextStep, formData, setFormData }: OrgStepProps) => {
+  const router = useRouter();
+  const [formDataErrors, setFormDataErrors] = useState<{
+    name?: string;
+    country?: string;
+    number?: string;
+    taxId?: string;
+  }>({});
+
+  const handleNext = async () => {
+    const errors: {
+      name?: string;
+      country?: string;
+      number?: string;
+      taxId?: string;
+    } = {};
+    if (!formData.name) errors.name = "Name is required";
+    if (!formData.address?.country) errors.country = "Country is required";
+    if (!formData.phoneNo) errors.number = "Number is required";
+    if (!formData.taxId) errors.taxId = "TaxID is required";
+    const selectedCountry = getCountryCode(formData.address?.country);
+    if (selectedCountry) {
+      const countryCode = selectedCountry.dial_code;
+      const fullMobile = countryCode + formData.phoneNo;
+      if (!validatePhone(fullMobile)) {
+        errors.number = "Valid number is required";
+      }
+    } else {
+      errors.number = "Valid number is required";
+    }
+    setFormDataErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
+    try {
+      const orgId = await createOrg(formData);
+      router.replace(`/create-org?orgId=${orgId}`);
+      nextStep();
+    } catch (error: any) {
+      console.error("Error creating organization:", error);
+    }
+  };
+
+  return (
+    <div className="step-container">
+      <div className="flex flex-col gap-6">
+        <LogoUploader
+          title="Add logo (optional)"
+          apiUrl="/fhir/v1/organization/logo/presigned-url"
+          setImageUrl={(url) => {
+            setFormData((prev) => ({ ...prev, imageURL: url }));
+          }}
+        />
+
+        <div className="step-type">
+          <div className="step-type-title">Select your organisation type</div>
+          <div className="step-type-options">
+            {BusinessTypes.map((type) => (
+              <button
+                key={type}
+                className={classNames("step-type-option", {
+                  activetype: formData.type === type,
+                })}
+                onClick={() => setFormData({ ...formData, type: type })}
+              >
+                {type.charAt(0) + type.toLowerCase().slice(1)}
+              </button>
+            ))}
+          </div>
+          <div className="step-type-desc">
+            <span className="step-type-desc-span">Note: </span>This is also
+            tailored for small vet practices and clinics
+          </div>
+        </div>
+
+        <div className="step-inputs">
+          <div className="step-two-input">
+            <GoogleSearchDropDown
+              intype="text"
+              inname="name"
+              value={formData.name}
+              inlabel="Organisation name"
+              onChange={(e: any) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
+              error={formDataErrors.name}
+              setFormData={setFormData}
+            />
+            <FormInput
+              intype="text"
+              inname="website"
+              value={formData.website || ""}
+              inlabel="Website"
+              onChange={(e) =>
+                setFormData({ ...formData, website: e.target.value })
+              }
+            />
+          </div>
+          <div className="step-two-input">
+            <LabelDropdown
+              placeholder="Select country"
+              onSelect={(option) =>
+                setFormData({
+                  ...formData,
+                  address: { ...formData.address, country: option.value },
+                })
+              }
+              defaultOption={formData.address?.country}
+              options={CountriesOptions}
+              error={formDataErrors.country}
+            />
+            <FormInput
+              intype="tel"
+              inname="number"
+              value={formData.phoneNo || ""}
+              inlabel="Phone number"
+              onChange={(e) =>
+                setFormData({ ...formData, phoneNo: e.target.value })
+              }
+              error={formDataErrors.number}
+            />
+          </div>
+
+          <div className="step-two-input">
+            <FormInput
+              intype="text"
+              inname="duns"
+              value={formData.DUNSNumber || ""}
+              inlabel="DUNS number (optional)"
+              onChange={(e) =>
+                setFormData({ ...formData, DUNSNumber: e.target.value })
+              }
+            />
+            <FormInput
+              intype="text"
+              inname="tax id"
+              value={formData.taxId || ""}
+              inlabel="Tax ID"
+              onChange={(e) =>
+                setFormData({ ...formData, taxId: e.target.value })
+              }
+              error={formDataErrors.taxId}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="step-buttons">
+        <Secondary href="/organizations" text="Back" />
+        <Primary href="#" text="Next" onClick={handleNext} />
+      </div>
+    </div>
+  );
+};
+
+export default OrgStep;

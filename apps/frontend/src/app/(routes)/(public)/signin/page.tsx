@@ -3,7 +3,7 @@ import React, { Suspense, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 import { useAuthStore } from "@/app/stores/authStore";
-import SignIn from "@/app/pages/SignIn/SignIn";
+import SignIn from "@/app/features/auth/pages/SignIn/SignIn";
 
 function Page() {
   const router = useRouter();

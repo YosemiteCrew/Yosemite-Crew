@@ -2,25 +2,25 @@ import { renderHook } from "@testing-library/react";
 import {
   useLoadFormsForPrimaryOrg,
   useFormsForPrimaryOrgByCategory,
-} from "../../hooks/useForms";
-import { loadForms } from "../../services/formService";
-import { useOrgStore } from "../../stores/orgStore";
-import { useFormsStore } from "../../stores/formsStore";
-import { FormsCategory, FormsProps } from "../../types/forms";
+} from "@/app/hooks/useForms";
+import { loadForms } from "@/app/features/forms/services/formService";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { useFormsStore } from "@/app/stores/formsStore";
+import { FormsCategory, FormsProps } from "@/app/features/forms/types/forms";
 
 // --- Mocks ---
 
 // 1. Mock Service
-jest.mock("../../services/formService", () => ({
+jest.mock("@/app/features/forms/services/formService", () => ({
   loadForms: jest.fn(),
 }));
 
 // 2. Mock Stores
-jest.mock("../../stores/orgStore", () => ({
+jest.mock("@/app/stores/orgStore", () => ({
   useOrgStore: jest.fn(),
 }));
 
-jest.mock("../../stores/formsStore", () => ({
+jest.mock("@/app/stores/formsStore", () => ({
   useFormsStore: jest.fn(),
 }));
 

@@ -1,18 +1,18 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import TaskCalendar from "@/app/components/Calendar/TaskCalendar";
-import { Task } from "@/app/types/task";
+import TaskCalendar from "@/app/features/appointments/components/Calendar/TaskCalendar";
+import { Task } from "@/app/features/tasks/types/task";
 
 // --- Mocks ---
 
 // Mock Helper
-jest.mock("@/app/components/Calendar/helpers", () => ({
+jest.mock("@/app/features/appointments/components/Calendar/helpers", () => ({
   isSameDay: jest.fn(),
 }));
-import { isSameDay } from "@/app/components/Calendar/helpers";
+import { isSameDay } from "@/app/features/appointments/components/Calendar/helpers";
 
 // Mock Child Components
-jest.mock("@/app/components/Calendar/common/Header", () => {
+jest.mock("@/app/features/appointments/components/Calendar/common/Header", () => {
   return function MockHeader(props: any) {
     return (
       <div data-testid="header">
@@ -25,7 +25,7 @@ jest.mock("@/app/components/Calendar/common/Header", () => {
   };
 });
 
-jest.mock("@/app/components/Calendar/Task/DayCalendar", () => {
+jest.mock("@/app/features/appointments/components/Calendar/Task/DayCalendar", () => {
   return function MockDayCalendar(props: any) {
     return (
       <div data-testid="day-calendar">
@@ -47,7 +47,7 @@ jest.mock("@/app/components/Calendar/Task/DayCalendar", () => {
   };
 });
 
-jest.mock("@/app/components/Calendar/Task/WeekCalendar", () => {
+jest.mock("@/app/features/appointments/components/Calendar/Task/WeekCalendar", () => {
   return function MockWeekCalendar(props: any) {
     return (
       <div data-testid="week-calendar">

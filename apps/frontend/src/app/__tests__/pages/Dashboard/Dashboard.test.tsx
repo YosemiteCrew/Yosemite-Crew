@@ -2,59 +2,59 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import ProtectedDashboard from "@/app/pages/Dashboard/Dashboard";
+import ProtectedDashboard from "@/app/features/dashboard/pages/Dashboard";
 
-jest.mock("@/app/components/ProtectedRoute", () => ({
+jest.mock("@/app/ui/layout/guards/ProtectedRoute", () => ({
   __esModule: true,
   default: ({ children }: any) => <div>{children}</div>,
 }));
 
-jest.mock("@/app/components/OrgGuard", () => ({
+jest.mock("@/app/ui/layout/guards/OrgGuard", () => ({
   __esModule: true,
   default: ({ children }: any) => <div>{children}</div>,
 }));
 
-jest.mock("@/app/components/PermissionGate", () => ({
+jest.mock("@/app/ui/layout/guards/PermissionGate", () => ({
   PermissionGate: ({ children }: any) => <div>{children}</div>,
 }));
 
-jest.mock("@/app/components/DashboardProfile/DashboardProfile", () => () => (
+jest.mock("@/app/ui/widgets/DashboardProfile/DashboardProfile", () => () => (
   <div data-testid="dashboard-profile" />
 ));
 
-jest.mock("@/app/components/DashboardSteps", () => () => (
+jest.mock("@/app/ui/widgets/DashboardSteps", () => () => (
   <div data-testid="dashboard-steps" />
 ));
 
-jest.mock("@/app/components/Cards/VideosCard/VideosCard", () => () => (
+jest.mock("@/app/ui/cards/VideosCard/VideosCard", () => () => (
   <div data-testid="videos-card" />
 ));
 
-jest.mock("@/app/components/Cards/ExploreCard/ExploreCard", () => () => (
+jest.mock("@/app/ui/cards/ExploreCard/ExploreCard", () => () => (
   <div data-testid="explore-card" />
 ));
 
-jest.mock("@/app/components/Stats/AppointmentStat", () => () => (
+jest.mock("@/app/ui/widgets/Stats/AppointmentStat", () => () => (
   <div data-testid="appointment-stat" />
 ));
 
-jest.mock("@/app/components/Stats/RevenueStat", () => () => (
+jest.mock("@/app/ui/widgets/Stats/RevenueStat", () => () => (
   <div data-testid="revenue-stat" />
 ));
 
-jest.mock("@/app/components/Stats/AppointmentLeadersStat", () => () => (
+jest.mock("@/app/ui/widgets/Stats/AppointmentLeadersStat", () => () => (
   <div data-testid="appointment-leaders" />
 ));
 
-jest.mock("@/app/components/Stats/RevenueLeadersStat", () => () => (
+jest.mock("@/app/ui/widgets/Stats/RevenueLeadersStat", () => () => (
   <div data-testid="revenue-leaders" />
 ));
 
-jest.mock("@/app/components/Summary/AppointmentTask", () => () => (
+jest.mock("@/app/ui/widgets/Summary/AppointmentTask", () => () => (
   <div data-testid="appointment-task" />
 ));
 
-jest.mock("@/app/components/Summary/Availability", () => () => (
+jest.mock("@/app/ui/widgets/Summary/Availability", () => () => (
   <div data-testid="availability" />
 ));
 

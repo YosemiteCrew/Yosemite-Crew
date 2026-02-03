@@ -1,15 +1,15 @@
 import React from "react";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import ServiceSearch from "@/app/components/Inputs/ServiceSearch/ServiceSearch";
+import ServiceSearch from "@/app/ui/inputs/ServiceSearch/ServiceSearch";
 import { useOrgStore } from "@/app/stores/orgStore";
-import { SpecialityWeb } from "@/app/types/speciality";
+import { SpecialityWeb } from "@/app/features/organization/types/speciality";
 
 // --- Mocks ---
 
 jest.mock("@/app/stores/orgStore");
 
-jest.mock("@/app/utils/specialities", () => ({
+jest.mock("@/app/lib/specialities", () => ({
   specialtiesByKey: {
     "General Practice": {
       services: ["Checkup", "Vaccination", "Consultation", "Surgery"],

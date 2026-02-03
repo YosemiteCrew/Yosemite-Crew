@@ -1,30 +1,30 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import FormInfo from "@/app/pages/Forms/Sections/FormInfo";
+import FormInfo from "@/app/features/forms/pages/Forms/Sections/FormInfo";
 
 const publishFormMock = jest.fn();
 
-jest.mock("@/app/services/formService", () => ({
+jest.mock("@/app/features/forms/services/formService", () => ({
   archiveForm: jest.fn(),
   publishForm: (...args: any[]) => publishFormMock(...args),
   unpublishForm: jest.fn(),
 }));
 
-jest.mock("@/app/components/Toast/Toast", () => ({
+jest.mock("@/app/ui/overlays/Toast/Toast", () => ({
   useErrorTost: () => ({
     showErrorTost: jest.fn(),
     ErrorTostPopup: () => <div>toast</div>,
   }),
 }));
 
-jest.mock("@/app/components/Modal", () => ({
+jest.mock("@/app/ui/overlays/Modal", () => ({
   __esModule: true,
   default: ({ showModal, children }: any) =>
     showModal ? <div data-testid="modal">{children}</div> : null,
 }));
 
-jest.mock("@/app/components/Icons/Close", () => ({
+jest.mock("@/app/ui/primitives/Icons/Close", () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>
@@ -33,17 +33,17 @@ jest.mock("@/app/components/Icons/Close", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Accordion/EditableAccordion", () => ({
+jest.mock("@/app/ui/primitives/Accordion/EditableAccordion", () => ({
   __esModule: true,
   default: ({ title }: any) => <div>{title}</div>,
 }));
 
-jest.mock("@/app/components/Accordion/Accordion", () => ({
+jest.mock("@/app/ui/primitives/Accordion/Accordion", () => ({
   __esModule: true,
   default: ({ title }: any) => <div>{title}</div>,
 }));
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ text, onClick }: any) => (
     <button type="button" onClick={onClick}>
       {text}
@@ -56,7 +56,7 @@ jest.mock("@/app/components/Buttons", () => ({
   ),
 }));
 
-jest.mock("@/app/pages/Forms/Sections/AddForm/components/FormRenderer", () => ({
+jest.mock("@/app/features/forms/pages/Forms/Sections/AddForm/components/FormRenderer", () => ({
   __esModule: true,
   default: () => <div>form-renderer</div>,
 }));

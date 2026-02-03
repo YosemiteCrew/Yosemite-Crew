@@ -1,14 +1,14 @@
 import { renderHook } from "@testing-library/react";
-import { useLoadRoomsForPrimaryOrg, useRoomsForPrimaryOrg } from "../../hooks/useRooms";
-import { useOrgStore } from "../../stores/orgStore";
-import { useOrganisationRoomStore } from "../../stores/roomStore";
-import { loadRoomsForOrgPrimaryOrg } from "../../services/roomService";
+import { useLoadRoomsForPrimaryOrg, useRoomsForPrimaryOrg } from "@/app/hooks/useRooms";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { useOrganisationRoomStore } from "@/app/stores/roomStore";
+import { loadRoomsForOrgPrimaryOrg } from "@/app/features/organization/services/roomService";
 
 // --- Mocks ---
 
-jest.mock("../../stores/orgStore");
-jest.mock("../../stores/roomStore");
-jest.mock("../../services/roomService", () => ({
+jest.mock("@/app/stores/orgStore");
+jest.mock("@/app/stores/roomStore");
+jest.mock("@/app/features/organization/services/roomService", () => ({
   loadRoomsForOrgPrimaryOrg: jest.fn(),
 }));
 

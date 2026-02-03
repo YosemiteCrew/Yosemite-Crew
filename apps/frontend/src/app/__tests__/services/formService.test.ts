@@ -5,14 +5,14 @@ import {
   publishForm,
   unpublishForm,
   archiveForm,
-} from "@/app/services/formService";
+} from "@/app/features/forms/services/formService";
 import * as axiosService from "@/app/services/axios";
 import { useOrgStore } from "@/app/stores/orgStore";
 import { useFormsStore } from "@/app/stores/formsStore";
 import { useAuthStore } from "@/app/stores/authStore";
-import * as formUtils from "@/app/utils/forms";
+import * as formUtils from "@/app/lib/forms";
 import axios from "axios";
-import { FormsProps } from "@/app/types/forms";
+import { FormsProps } from "@/app/features/forms/types/forms";
 
 // --- Mocks ---
 
@@ -40,7 +40,7 @@ jest.mock("@/app/services/axios", () => ({
 jest.mock("@/app/stores/orgStore");
 jest.mock("@/app/stores/formsStore");
 jest.mock("@/app/stores/authStore");
-jest.mock("@/app/utils/forms");
+jest.mock("@/app/lib/forms");
 
 describe("formService", () => {
   // Store Mock Functions

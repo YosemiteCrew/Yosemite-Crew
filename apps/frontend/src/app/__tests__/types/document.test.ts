@@ -3,7 +3,7 @@ import {
   OrganizationDocument,
   OrganisationDocumentResponse,
   Document,
-} from "../../types/document";
+} from "@/app/features/documents/types/document";
 
 describe("Document Types Definition", () => {
 

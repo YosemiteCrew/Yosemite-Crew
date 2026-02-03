@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import Search from "@/app/components/Inputs/Search";
+import Search from "@/app/ui/inputs/Search";
 
 // --- Mocks ---
 

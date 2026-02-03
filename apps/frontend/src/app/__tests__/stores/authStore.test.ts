@@ -1,4 +1,10 @@
 // --- Global Mock Objects (Defined outside to remain stable across resets) ---
+let logger: {
+  debug: jest.Mock;
+  info: jest.Mock;
+  warn: jest.Mock;
+  error: jest.Mock;
+};
 
 const mockSession = {
   isValid: jest.fn(() => true),
@@ -47,6 +53,15 @@ jest.mock("amazon-cognito-identity-js", () => {
   };
 });
 
+jest.mock("@/app/lib/logger", () => ({
+  logger: {
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
 describe("authStore", () => {
   let useAuthStore: any;
 
@@ -66,7 +81,11 @@ describe("authStore", () => {
     mockUserInstance.getSession.mockImplementation((cb: any) => cb(null, mockSession));
     mockPoolInstance.getCurrentUser.mockReturnValue(mockUserInstance);
 
-    // 5. Dynamic Import
+    // 5. Load logger after resetModules so we reference the current mock instance
+    const loggerModule = await import("@/app/lib/logger");
+    logger = loggerModule.logger as typeof logger;
+
+    // 6. Dynamic Import
     const imported = await import("@/app/stores/authStore");
     useAuthStore = imported.useAuthStore;
   });
@@ -151,7 +170,7 @@ describe("authStore", () => {
     });
 
     it("handles loadUserAttributes failure gracefully after signin", async () => {
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+      const errorSpy = logger.error as jest.Mock;
       mockUserInstance.authenticateUser.mockImplementation((_authDetails: any, callbacks: any) => {
         callbacks.onSuccess(mockSession);
       });
@@ -159,9 +178,11 @@ describe("authStore", () => {
 
       await useAuthStore.getState().signIn("test@email.com", "pass");
 
-      expect(consoleSpy).toHaveBeenCalledWith("Failed to load user attributes", expect.any(Error));
+      expect(errorSpy).toHaveBeenCalledWith(
+        "Failed to load user attributes",
+        expect.any(Error)
+      );
       expect(useAuthStore.getState().status).toBe("signin-authenticated");
-      consoleSpy.mockRestore();
     });
   });
 
@@ -228,13 +249,12 @@ describe("authStore", () => {
     });
 
     it("returns null on session error", async () => {
-      const consoleSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+      const warnSpy = logger.warn as jest.Mock;
       mockPoolInstance.getCurrentUser.mockReturnValue(mockUserInstance);
       mockUserInstance.getSession.mockImplementation((cb: any) => cb(new Error("Fail"), null));
 
       const res = await useAuthStore.getState().refreshSession();
       expect(res).toBeNull();
-      consoleSpy.mockRestore();
     });
   });
 
@@ -252,7 +272,7 @@ describe("authStore", () => {
     });
 
     it("handles signout failure but still resets state locally", async () => {
-        const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+        const errorSpy = logger.error as jest.Mock;
         useAuthStore.setState({ user: mockUserInstance, status: "authenticated" });
 
         mockUserInstance.getSession.mockImplementation((cb: any) => cb(null, mockSession));
@@ -260,9 +280,8 @@ describe("authStore", () => {
 
         await useAuthStore.getState().signout();
 
-        expect(consoleSpy).toHaveBeenCalled();
+        expect(errorSpy).toHaveBeenCalled();
         expect(useAuthStore.getState().user).toBeNull();
-        consoleSpy.mockRestore();
     });
 
     it("resolves early if no user in state", async () => {
@@ -272,7 +291,7 @@ describe("authStore", () => {
     });
 
     it("handles invalid session during signout", async () => {
-        const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+        const warnSpy = logger.warn as jest.Mock;
         useAuthStore.setState({ user: mockUserInstance });
 
         const invalidSession = { ...mockSession, isValid: () => false };
@@ -282,11 +301,10 @@ describe("authStore", () => {
 
         expect(warnSpy).toHaveBeenCalledWith("Invalid session during signout");
         expect(mockUserInstance.globalSignOut).not.toHaveBeenCalled();
-        warnSpy.mockRestore();
     });
 
     it("handles session error during signout", async () => {
-        const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+        const warnSpy = logger.warn as jest.Mock;
         useAuthStore.setState({ user: mockUserInstance });
 
         mockUserInstance.getSession.mockImplementation((cb: any) => cb(new Error("Session Error"), null));
@@ -294,7 +312,6 @@ describe("authStore", () => {
         await useAuthStore.getState().signout();
 
         expect(warnSpy).toHaveBeenCalledWith("getSession failed during signout:", expect.any(Error));
-        warnSpy.mockRestore();
     });
   });
 
@@ -366,12 +383,11 @@ describe("authStore", () => {
           throw new Error("Store Error");
         });
 
-        const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+        const warnSpy = logger.warn as jest.Mock;
 
         await useAuthStore.getState().signout();
 
         expect(warnSpy).toHaveBeenCalledWith("Failed to clear org store on signout", expect.any(Error));
-        warnSpy.mockRestore();
     });
   });
 });

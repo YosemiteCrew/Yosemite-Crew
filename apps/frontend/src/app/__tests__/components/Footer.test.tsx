@@ -2,7 +2,7 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import Footer from "@/app/components/Footer/Footer";
+import Footer from "@/app/ui/widgets/Footer/Footer";
 
 jest.mock("next/image", () => {
     const MockImage = (props: any) => {

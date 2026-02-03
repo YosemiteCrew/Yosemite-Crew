@@ -185,12 +185,10 @@
   --color-grey-light: #eaeaea;
   --color-grey-noti: #595958;
   --color-blue-text: #247aed;
-  --color-blue-light: #e9f2fd;
   --color-blue-light: #eaf3ff;
   --color-blue-sky: #428bec;
-  --color-white-text: #fff;
-  --color-white-bg: #fff;
   --color-white-text: #eaeaea;
+  --color-white-bg: #fff;
   --color-white-pending: #fef3e9;
   --color-pink-border: #37223cb2;
   --color-error: #ee5f54;
@@ -200,30 +198,30 @@
   --font-grotesk: "ClashGrotesk", sans-serif;
 }
 :root {
-  --black-text: #302f2e;
-  --black-bg: #302f2e;
-  --black-hover: #1a1a19;
-  --lightblack: #312943;
-  --pureblack: #000000;
-  --black-grey: #747473;
-  --black-grey-Text: #747473;
-  --blue-text: #247aed;
+  --black-text: var(--color-black-text);
+  --black-bg: var(--color-black-bg);
+  --black-hover: var(--color-black-hover);
+  --lightblack: var(--color-black-light);
+  --pureblack: var(--color-black-pure);
+  --black-grey: var(--color-grey-bg);
+  --black-grey-Text: var(--color-grey-text);
+  --blue-text: var(--color-blue-text);
   --light-blue: #e9f2fd;
   --white-text: #ffffff;
-  --whitebg: #ffffff;
-  --greyborder: #a09f9f;
-  --lightgrey: #eaeaea;
-  --lightwhiteText: #eaeaea;
-  --lightblue: #eaf3ff;
-  --skytext: #428bec;
-  --pinkborder: #37223cb2;
-  --error-color: #ee5f54;
-  --notibg: #595958;
-  --delete: #ea3729;
-  --pendingbg: #fef3e9;
-  --pendingtext: #f68523;
-  --grotesk-font: "ClashGrotesk", sans-serif;
-  --satoshi-font: "Satoshi", sans-serif;
+  --whitebg: var(--color-white-bg);
+  --greyborder: var(--color-grey-border);
+  --lightgrey: var(--color-grey-light);
+  --lightwhiteText: var(--color-white-text);
+  --lightblue: var(--color-blue-light);
+  --skytext: var(--color-blue-sky);
+  --pinkborder: var(--color-pink-border);
+  --error-color: var(--color-error);
+  --notibg: var(--color-grey-noti);
+  --delete: var(--color-delete);
+  --pendingbg: var(--color-card-warning);
+  --pendingtext: var(--color-pending-text);
+  --grotesk-font: var(--font-grotesk);
+  --satoshi-font: var(--font-satoshi);
 }
 
 html,

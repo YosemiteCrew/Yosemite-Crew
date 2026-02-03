@@ -5,12 +5,12 @@ import {
   createBulkSpecialityServices,
   updateSpeciality,
   updateService,
-} from "@/app/services/specialityService";
+} from "@/app/features/organization/services/specialityService";
 import { useSpecialityStore } from "@/app/stores/specialityStore";
 import { useServiceStore } from "@/app/stores/serviceStore";
 import { useOrgStore } from "@/app/stores/orgStore";
 import * as axiosService from "@/app/services/axios";
-import { SpecialityWeb } from "@/app/types/speciality";
+import { SpecialityWeb } from "@/app/features/organization/types/speciality";
 
 // --- Mocks ---
 

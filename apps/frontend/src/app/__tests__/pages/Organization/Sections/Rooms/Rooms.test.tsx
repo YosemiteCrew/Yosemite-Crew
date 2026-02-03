@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import Rooms from "@/app/pages/Organization/Sections/Rooms/Rooms";
+import Rooms from "@/app/features/organization/pages/Organization/Sections/Rooms/Rooms";
 
 const useRoomsMock = jest.fn();
 const usePermissionsMock = jest.fn();
@@ -16,24 +16,24 @@ jest.mock("@/app/hooks/usePermissions", () => ({
   usePermissions: () => usePermissionsMock(),
 }));
 
-jest.mock("@/app/components/PermissionGate", () => ({
+jest.mock("@/app/ui/layout/guards/PermissionGate", () => ({
   PermissionGate: ({ children }: any) => <div>{children}</div>,
 }));
 
-jest.mock("@/app/components/Accordion/AccordionButton", () => (props: any) => {
+jest.mock("@/app/ui/primitives/Accordion/AccordionButton", () => (props: any) => {
   accordionButtonSpy(props);
   return <div data-testid="accordion-button">{props.children}</div>;
 });
 
-jest.mock("@/app/components/DataTable/RoomTable", () => () => (
+jest.mock("@/app/ui/tables/RoomTable", () => () => (
   <div data-testid="room-table" />
 ));
 
-jest.mock("@/app/pages/Organization/Sections/Rooms/AddRoom", () => () => (
+jest.mock("@/app/features/organization/pages/Organization/Sections/Rooms/AddRoom", () => () => (
   <div data-testid="add-room" />
 ));
 
-jest.mock("@/app/pages/Organization/Sections/Rooms/RoomInfo", () => () => (
+jest.mock("@/app/features/organization/pages/Organization/Sections/Rooms/RoomInfo", () => () => (
   <div data-testid="room-info" />
 ));
 

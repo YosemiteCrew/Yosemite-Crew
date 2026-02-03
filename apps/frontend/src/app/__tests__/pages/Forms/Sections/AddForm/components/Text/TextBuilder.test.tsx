@@ -1,13 +1,13 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import TextBuilder from "../../../../../../../pages/Forms/Sections/AddForm/components/Text/TextBuilder";
-import { FormField } from "@/app/types/forms";
+import TextBuilder from "@/app/features/forms/pages/Forms/Sections/AddForm/components/Text/TextBuilder";
+import { FormField } from "@/app/features/forms/types/forms";
 
 // --- Mock UI Components ---
 // Mock FormInput (single line) and FormDesc (multiline/textarea)
 // to verify they receive the correct props and trigger callbacks.
 
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   __esModule: true,
   default: ({ value, onChange, inlabel }: any) => (
     <input
@@ -19,7 +19,7 @@ jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/FormDesc/FormDesc", () => ({
+jest.mock("@/app/ui/inputs/FormDesc/FormDesc", () => ({
   __esModule: true,
   default: ({ value, onChange, inlabel }: any) => (
     <textarea

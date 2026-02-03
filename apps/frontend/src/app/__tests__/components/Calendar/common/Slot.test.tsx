@@ -3,22 +3,22 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import Slot from "@/app/components/Calendar/common/Slot";
+import Slot from "@/app/features/appointments/components/Calendar/common/Slot";
 
 jest.mock("next/image", () => ({
   __esModule: true,
   default: (props: any) => <img alt={props.alt || ""} {...props} />,
 }));
 
-jest.mock("@/app/components/DataTable/Appointments", () => ({
+jest.mock("@/app/ui/tables/Appointments", () => ({
   getStatusStyle: jest.fn(() => ({ backgroundColor: "purple", color: "white" })),
 }));
 
-jest.mock("@/app/utils/appointments", () => ({
+jest.mock("@/app/lib/appointments", () => ({
   allowReschedule: jest.fn(() => true),
 }));
 
-jest.mock("@/app/utils/urls", () => ({
+jest.mock("@/app/lib/urls", () => ({
   getSafeImageUrl: jest.fn(() => "image"),
 }));
 
@@ -84,7 +84,7 @@ describe("Slot (Appointments)", () => {
       />
     );
 
-    const viewButton = screen.getByText("Rex").closest("button");
+    const viewButton = screen.getByRole("button", { name: /Rex/i });
     fireEvent.click(viewButton!);
 
     expect(handleViewAppointment).toHaveBeenCalledWith(event);

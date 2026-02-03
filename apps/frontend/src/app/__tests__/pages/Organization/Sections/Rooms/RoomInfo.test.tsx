@@ -2,13 +2,13 @@ import React from "react";
 import { render } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import RoomInfo from "@/app/pages/Organization/Sections/Rooms/RoomInfo";
+import RoomInfo from "@/app/features/organization/pages/Organization/Sections/Rooms/RoomInfo";
 
 const updateRoomMock = jest.fn();
 const deleteRoomMock = jest.fn();
 const accordionCalls: any[] = [];
 
-jest.mock("@/app/services/roomService", () => ({
+jest.mock("@/app/features/organization/services/roomService", () => ({
   updateRoom: (...args: any[]) => updateRoomMock(...args),
   deleteRoom: (...args: any[]) => deleteRoomMock(...args),
 }));
@@ -21,17 +21,17 @@ jest.mock("@/app/hooks/useSpecialities", () => ({
   useSpecialitiesForPrimaryOrg: () => [{ _id: "spec-1", name: "Surgery" }],
 }));
 
-jest.mock("@/app/components/Modal", () => ({
+jest.mock("@/app/ui/overlays/Modal", () => ({
   __esModule: true,
   default: ({ showModal, children }: any) => (showModal ? <div>{children}</div> : null),
 }));
 
-jest.mock("@/app/components/Icons/Close", () => ({
+jest.mock("@/app/ui/primitives/Icons/Close", () => ({
   __esModule: true,
   default: () => <div />,
 }));
 
-jest.mock("@/app/components/Accordion/EditableAccordion", () => (props: any) => {
+jest.mock("@/app/ui/primitives/Accordion/EditableAccordion", () => (props: any) => {
   accordionCalls.push(props);
   return <div data-testid="room-accordion" />;
 });

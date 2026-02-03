@@ -1,6 +1,6 @@
 "use client"
-import PublicShell from "./components/PublicShell";
-import { Primary, Secondary } from "./components/Buttons";
+import PublicShell from "@/app/ui/layout/PublicShell";
+import { Primary, Secondary } from "@/app/ui/primitives/Buttons";
 
 export default function NotFound() {
   return (

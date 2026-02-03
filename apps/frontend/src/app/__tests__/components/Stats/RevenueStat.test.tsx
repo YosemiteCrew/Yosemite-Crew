@@ -1,18 +1,18 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import RevenueStat from "@/app/components/Stats/RevenueStat";
-import CardHeader from "@/app/components/Cards/CardHeader/CardHeader";
-import DynamicChartCard from "@/app/components/DynamicChart/DynamicChartCard";
+import RevenueStat from "@/app/ui/widgets/Stats/RevenueStat";
+import CardHeader from "@/app/ui/cards/CardHeader/CardHeader";
+import DynamicChartCard from "@/app/ui/widgets/DynamicChart/DynamicChartCard";
 
-jest.mock("@/app/components/Cards/CardHeader/CardHeader", () => ({
+jest.mock("@/app/ui/cards/CardHeader/CardHeader", () => ({
   __esModule: true,
   default: jest.fn(({ title }: any) => (
     <div data-testid="card-header">{title}</div>
   )),
 }));
 
-jest.mock("@/app/components/DynamicChart/DynamicChartCard", () => ({
+jest.mock("@/app/ui/widgets/DynamicChart/DynamicChartCard", () => ({
   __esModule: true,
   default: jest.fn(({ data, keys }: any) => (
     <div data-testid="chart" data-points={data.length} data-keys={keys.length} />

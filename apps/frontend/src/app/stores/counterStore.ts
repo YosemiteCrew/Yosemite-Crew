@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { BillingCounter } from "../types/billing";
+import { BillingCounter } from "@/app/features/billing/types/billing";
 
 type CounterStatus = "idle" | "loading" | "loaded" | "error";
 

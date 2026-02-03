@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
-import OrgGuard from "@/app/components/OrgGuard";
+import OrgGuard from "@/app/ui/layout/guards/OrgGuard";
 import { usePathname, useRouter } from "next/navigation";
 
 const replaceMock = jest.fn();
@@ -79,12 +79,12 @@ jest.mock("@/app/hooks/useInvoices", () => ({
 const computeOrgOnboardingStepMock = jest.fn();
 const computeTeamOnboardingStepMock = jest.fn();
 
-jest.mock("@/app/utils/orgOnboarding", () => ({
+jest.mock("@/app/lib/orgOnboarding", () => ({
   computeOrgOnboardingStep: (...args: any[]) =>
     computeOrgOnboardingStepMock(...args),
 }));
 
-jest.mock("@/app/utils/teamOnboarding", () => ({
+jest.mock("@/app/lib/teamOnboarding", () => ({
   computeTeamOnboardingStep: (...args: any[]) =>
     computeTeamOnboardingStepMock(...args),
 }));

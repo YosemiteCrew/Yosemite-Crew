@@ -1,6 +1,6 @@
 import { Service } from "@yosemite-crew/types";
 import { create } from "zustand";
-import { addToIndex, removeFromIndex } from "./utils/indexHelpers";
+import { addToIndex, removeFromIndex } from "@/app/stores/utils/indexHelpers";
 
 type ServiceState = {
   servicesById: Record<string, Service>;

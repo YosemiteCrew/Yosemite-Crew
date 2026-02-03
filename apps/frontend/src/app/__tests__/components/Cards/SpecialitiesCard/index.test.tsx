@@ -1,16 +1,16 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import SpecialitiesCard from "@/app/components/Cards/SpecialitiesCard";
-import { SpecialityWeb } from "@/app/types/speciality";
+import SpecialitiesCard from "@/app/ui/cards/SpecialitiesCard";
+import { SpecialityWeb } from "@/app/features/organization/types/speciality";
 
 // --- Mocks ---
 
 // Mock helper function from SpecialitiesTable
-jest.mock("@/app/components/DataTable/SpecialitiesTable", () => ({
+jest.mock("@/app/ui/tables/SpecialitiesTable", () => ({
   getServiceNames: jest.fn(() => "Service A, Service B"),
 }));
 
-import { getServiceNames } from "@/app/components/DataTable/SpecialitiesTable";
+import { getServiceNames } from "@/app/ui/tables/SpecialitiesTable";
 
 // --- Test Data ---
 
