@@ -42,6 +42,7 @@ import {
   updateGroup,
   deleteGroup,
   getChatSessions,
+  getChatSession,
   listOrgChatSessions,
 } from "@/app/features/chat/services/chatService";
 import { YosemiteLoader } from "@/app/ui/overlays/Loader";
@@ -763,7 +764,12 @@ const ChannelHeaderWithCounterpart: React.FC<{
     try {
       const appointmentId = (channel.data as any)?.appointmentId;
       if (appointmentId) {
-        await endChatChannel(appointmentId);
+        const session = await getChatSession(appointmentId);
+        const sessionId = (session as any)?._id || (session as any)?.id;
+        if (!sessionId) {
+          throw new Error("Chat session not found for this appointment");
+        }
+        await endChatChannel(sessionId);
         refreshStatuses();
         setSessionClosed(true);
         alert("Chat session closed successfully");

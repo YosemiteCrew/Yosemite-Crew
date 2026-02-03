@@ -60,7 +60,7 @@ describe('Chat Service', () => {
 
   describe('createChatSession', () => {
     it('creates session successfully', async () => {
-      const mockResponse = { data: { id: 'session-1' } };
+      const mockResponse = { data: { _id: 'session-1', channelId: 'channel-1' } };
       (axiosService.postData as jest.Mock).mockResolvedValue(mockResponse);
 
       const result = await chatService.createChatSession('appt-1');
@@ -127,7 +127,7 @@ describe('Chat Service', () => {
 
   describe('getChatSession', () => {
     it('fetches single session successfully', async () => {
-      const mockResponse = { data: { id: 's1' } };
+      const mockResponse = { data: { _id: 's1', channelId: 'channel-1' } };
       (axiosService.postData as jest.Mock).mockResolvedValue(mockResponse);
 
       const result = await chatService.getChatSession('appt-1');

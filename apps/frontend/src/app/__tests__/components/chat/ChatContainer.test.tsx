@@ -45,6 +45,7 @@ jest.mock("@/app/features/chat/services/chatService", () => ({
   removeGroupMembers: jest.fn(),
   updateGroup: jest.fn(),
   deleteGroup: jest.fn(),
+  getChatSession: jest.fn(),
   listOrgChatSessions: jest.fn(),
 }));
 
@@ -450,6 +451,7 @@ describe("ChatContainer", () => {
     (streamChatService.getAppointmentChannel as jest.Mock).mockResolvedValue(
       clientChannel
     );
+    (chatService.getChatSession as jest.Mock).mockResolvedValue({ _id: "session-123" });
 
     await act(async () => {
       render(<ChatContainer appointmentId="123" />);
@@ -464,7 +466,7 @@ describe("ChatContainer", () => {
     });
 
     await waitFor(() => {
-      expect(streamChatService.endChatChannel).toHaveBeenCalledWith("123");
+      expect(streamChatService.endChatChannel).toHaveBeenCalledWith("session-123");
     });
   });
 

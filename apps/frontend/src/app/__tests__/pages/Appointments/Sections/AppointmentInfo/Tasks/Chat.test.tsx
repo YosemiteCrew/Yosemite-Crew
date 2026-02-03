@@ -97,7 +97,7 @@ describe("Chat Component", () => {
   // --- Section 2: Initialization (useEffect) ---
 
   it("renders active chat interface when session exists and is OPEN", async () => {
-    (getChatSession as jest.Mock).mockResolvedValue({ status: "OPEN" });
+    (getChatSession as jest.Mock).mockResolvedValue({ _id: "session-1", status: "OPEN" });
 
     render(<Chat activeAppointment={mockActiveAppointment} />);
 
@@ -114,7 +114,7 @@ describe("Chat Component", () => {
   });
 
   it("renders closed session interface when session is CLOSED", async () => {
-    (getChatSession as jest.Mock).mockResolvedValue({ status: "CLOSED" });
+    (getChatSession as jest.Mock).mockResolvedValue({ _id: "session-1", status: "CLOSED" });
 
     render(<Chat activeAppointment={mockActiveAppointment} />);
 
@@ -283,7 +283,7 @@ describe("Chat Component", () => {
   });
 
   it("closes chat successfully when confirmed", async () => {
-    (getChatSession as jest.Mock).mockRejectedValue({ status: 404 });
+    (getChatSession as jest.Mock).mockResolvedValue({ _id: "session-1", status: "OPEN" });
     (globalThis.confirm as jest.Mock).mockReturnValue(true); // User clicks OK
     (closeChatSession as jest.Mock).mockResolvedValue({});
 
@@ -299,7 +299,7 @@ describe("Chat Component", () => {
     expect(screen.getByText("Closing...")).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(closeChatSession).toHaveBeenCalledWith("appt-1");
+      expect(closeChatSession).toHaveBeenCalledWith("session-1");
     });
 
     expect(globalThis.alert).toHaveBeenCalledWith(
@@ -315,7 +315,7 @@ describe("Chat Component", () => {
   });
 
   it("handles error when closing chat fails", async () => {
-    (getChatSession as jest.Mock).mockRejectedValue({ status: 404 });
+    (getChatSession as jest.Mock).mockResolvedValue({ _id: "session-1", status: "OPEN" });
     (closeChatSession as jest.Mock).mockRejectedValue(
       new Error("Close Failed")
     );
@@ -333,7 +333,7 @@ describe("Chat Component", () => {
   });
 
   it("prevents duplicate close calls if already closing", async () => {
-    (getChatSession as jest.Mock).mockRejectedValue({ status: 404 });
+    (getChatSession as jest.Mock).mockResolvedValue({ _id: "session-1", status: "OPEN" });
 
     // Create a promise that we control to hold the "closing" state
     let resolveClose: any;

@@ -23,9 +23,13 @@ export type ChatTokenResponse = {
 };
 
 export type CreateChatSessionResponse = {
+  _id: string;
+  appointmentId?: string;
   channelId: string;
-  channelType: 'messaging';
-  members: string[];
+  channelType?: 'messaging';
+  members?: string[];
+  status?: string;
+  frozen?: boolean;
 };
 
 export type ChatSessionListResponse = {

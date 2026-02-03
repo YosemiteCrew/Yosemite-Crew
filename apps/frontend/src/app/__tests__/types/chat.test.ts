@@ -79,11 +79,13 @@ describe("Chat Types Definition", () => {
 
     it("creates a valid CreateChatSessionResponse", () => {
       const res: CreateChatSessionResponse = {
+        _id: "session_1",
         channelId: "channel_1",
         channelType: "messaging",
         members: ["user_1", "vet_1"],
       };
 
+      expect(res._id).toBe("session_1");
       expect(res.channelId).toBe("channel_1");
       expect(res.channelType).toBe("messaging");
       expect(res.members).toHaveLength(2);

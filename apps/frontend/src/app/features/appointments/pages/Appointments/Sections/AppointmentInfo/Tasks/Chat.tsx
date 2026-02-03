@@ -23,6 +23,7 @@ const Chat = ({ activeAppointment }: ChatProps) => {
   const [closingSession, setClosingSession] = useState(false);
   const [sessionClosed, setSessionClosed] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
   // Check if this appointment belongs to the current user
   const currentUserId = attributes?.sub || attributes?.email;
@@ -41,7 +42,9 @@ const Chat = ({ activeAppointment }: ChatProps) => {
 
     try {
       // Create or get chat session
-      await createChatSession(activeAppointment.id);
+      const session = await createChatSession(activeAppointment.id);
+      const resolvedSessionId = (session as any)?._id || (session as any)?.id;
+      setSessionId(resolvedSessionId ?? null);
 
       // Redirect to chat page with appointment ID in the query
       router.push(`/chat?appointmentId=${activeAppointment.id}`);
@@ -73,6 +76,8 @@ const Chat = ({ activeAppointment }: ChatProps) => {
         const session = await getChatSession(activeAppointment.id);
 
         if (!cancelled) {
+          const resolvedSessionId = (session as any)?._id || (session as any)?.id;
+          setSessionId(resolvedSessionId ?? null);
           // Check if the session is closed (check for CLOSED status or frozen state)
           const sessionStatus = (session as any).status;
           const isFrozen = (session as any).frozen === true;
@@ -91,6 +96,7 @@ const Chat = ({ activeAppointment }: ChatProps) => {
           if (isNotFoundError) {
             // No session exists yet - this is expected, just mark as not closed
             setSessionClosed(false);
+            setSessionId(null);
           } else {
             // Unexpected error - log for debugging
             console.error('Unexpected error checking chat session status:', error);
@@ -131,8 +137,17 @@ const Chat = ({ activeAppointment }: ChatProps) => {
     setError(null);
 
     try {
+      let resolvedSessionId = sessionId;
+      if (!resolvedSessionId) {
+        const session = await getChatSession(activeAppointment.id);
+        resolvedSessionId = (session as any)?._id || (session as any)?.id;
+        setSessionId(resolvedSessionId ?? null);
+      }
+      if (!resolvedSessionId) {
+        throw new Error("No chat session found for this appointment");
+      }
       // Close the chat session
-      await closeChatSession(activeAppointment.id);
+      await closeChatSession(resolvedSessionId);
       setSessionClosed(true);
       alert("Chat session closed successfully");
     } catch (err: any) {

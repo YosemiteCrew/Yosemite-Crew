@@ -62,6 +62,9 @@ function ChatPageContent() {
     }
   }, [appointmentId]);
 
+  const effectiveAppointmentId =
+    activeScope === "clients" ? appointmentId : null;
+
   return (
     <ProtectedRoute>
       <OrgGuard>
@@ -116,7 +119,7 @@ function ChatPageContent() {
 
             <div className="chat-workspace">
               <ChatContainer
-                appointmentId={appointmentId || undefined}
+                appointmentId={effectiveAppointmentId || undefined}
                 scope={activeScope}
                 className="chat-module"
               />
