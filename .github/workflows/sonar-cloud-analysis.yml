@@ -12,6 +12,8 @@ concurrency:
   group: sonar-${{ github.ref }}
   cancel-in-progress: true
 
+permissions: read-all
+
 jobs:
   sonarqube:
     if: github.repository_owner == 'YosemiteCrew' # Ensure the workflow runs only in the main repository
