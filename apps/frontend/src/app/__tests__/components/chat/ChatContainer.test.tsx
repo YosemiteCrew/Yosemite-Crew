@@ -13,7 +13,7 @@ import * as streamChatService from "@/app/features/chat/services/streamChatServi
 import * as chatService from "@/app/features/chat/services/chatService";
 import { useAuthStore } from "@/app/stores/authStore";
 import { useOrgStore } from "@/app/stores/orgStore";
-import { useChannelStateContext } from "stream-chat-react";
+import { useChannelStateContext, useChatContext } from "stream-chat-react";
 
 // ----------------------------------------------------------------------------
 // 1. Mocks & Setup
@@ -33,12 +33,14 @@ jest.mock("@/app/features/chat/services/streamChatService", () => ({
   getChatClient: jest.fn(),
   connectStreamUser: jest.fn(),
   endChatChannel: jest.fn(),
+  getAppointmentChannel: jest.fn(),
 }));
 
 jest.mock("@/app/features/chat/services/chatService", () => ({
   createOrgDirectChat: jest.fn(),
   createOrgGroupChat: jest.fn(),
   fetchOrgUsers: jest.fn(),
+  getChatSessions: jest.fn(),
   addGroupMembers: jest.fn(),
   removeGroupMembers: jest.fn(),
   updateGroup: jest.fn(),
@@ -112,6 +114,7 @@ jest.mock("stream-chat-react", () => {
     ),
     ComponentProvider: ({ children }: any) => <>{children}</>,
     useChannelStateContext: jest.fn(),
+    useChatContext: jest.fn(),
   };
 });
 
@@ -172,13 +175,21 @@ describe("ChatContainer", () => {
   const mockUseOrgStore = useOrgStore as unknown as jest.Mock;
   const mockUseChannelStateContext =
     useChannelStateContext as unknown as jest.Mock;
+  const mockUseChatContext = useChatContext as unknown as jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
     (streamChatService.getChatClient as jest.Mock).mockReturnValue(mockClient);
+    (streamChatService.getAppointmentChannel as jest.Mock).mockResolvedValue(
+      defaultMockChannel
+    );
 
     // Default mock context return
     mockUseChannelStateContext.mockReturnValue({ channel: defaultMockChannel });
+    mockUseChatContext.mockReturnValue({
+      client: mockClient,
+      setActiveChannel: jest.fn(),
+    });
 
     // Default Store State
     mockUseAuthStore.mockImplementation((selector: any) =>
@@ -201,6 +212,9 @@ describe("ChatContainer", () => {
       { id: "u2", userId: "user-2", name: "User Two", email: "u2@test.com" },
       { id: "u3", userId: "user-3", name: "User Three", email: "u3@test.com" },
     ]);
+    (chatService.getChatSessions as jest.Mock).mockResolvedValue({
+      channels: [],
+    });
     (chatService.listOrgChatSessions as jest.Mock).mockResolvedValue([]);
 
     // Mock Create Group response
@@ -419,13 +433,11 @@ describe("ChatContainer", () => {
     });
 
     await waitFor(() => {
-      expect(mockClient.channel).toHaveBeenCalledWith(
-        "messaging",
-        "appointment-123",
-      );
+      expect(streamChatService.getAppointmentChannel).toHaveBeenCalledWith("123");
     });
-
-    expect(screen.queryByTestId("channel-list")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(mockUseChatContext().setActiveChannel).toHaveBeenCalled();
+    });
   });
 
   it("handles closing session", async () => {
@@ -435,6 +447,9 @@ describe("ChatContainer", () => {
       data: { appointmentId: "123", chatCategory: "clients" },
     };
     mockUseChannelStateContext.mockReturnValue({ channel: clientChannel });
+    (streamChatService.getAppointmentChannel as jest.Mock).mockResolvedValue(
+      clientChannel
+    );
 
     await act(async () => {
       render(<ChatContainer appointmentId="123" />);

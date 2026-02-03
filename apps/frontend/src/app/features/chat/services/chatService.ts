@@ -87,7 +87,8 @@ export const createChatSession = async (
  * @returns Promise<ChatSessionListResponse>
  */
 export const getChatSessions = async (
-  organisationId: string
+  organisationId: string,
+  options: { includeClosed?: boolean } = {}
 ): Promise<ChatSessionListResponse> => {
   if (!organisationId || typeof organisationId !== "string") {
     throw new Error("Invalid organisation ID provided");
@@ -95,7 +96,10 @@ export const getChatSessions = async (
 
   try {
     const response = await getData<ChatSessionListResponse>(
-      `/v1/chat/pms/sessions/${organisationId}`
+      `/v1/chat/pms/sessions/${organisationId}`,
+      {
+        ...(options.includeClosed ? { includeClosed: true } : {}),
+      }
     );
     return response.data;
   } catch (error) {

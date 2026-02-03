@@ -100,7 +100,10 @@ describe('Chat Service', () => {
 
       const result = await chatService.getChatSessions('org-1');
 
-      expect(axiosService.getData).toHaveBeenCalledWith('/v1/chat/pms/sessions/org-1');
+      expect(axiosService.getData).toHaveBeenCalledWith(
+        '/v1/chat/pms/sessions/org-1',
+        {}
+      );
       expect(result).toEqual(mockResponse.data);
     });
 

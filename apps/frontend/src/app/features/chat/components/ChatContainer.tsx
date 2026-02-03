@@ -12,6 +12,7 @@ import {
   Window,
   ChannelPreviewMessenger,
   useChannelStateContext,
+  useChatContext,
   ComponentProvider,
 } from "stream-chat-react";
 import { StreamChat } from "stream-chat";
@@ -30,6 +31,7 @@ import {
   getChatClient,
   connectStreamUser,
   endChatChannel,
+  getAppointmentChannel,
 } from "@/app/features/chat/services/streamChatService";
 import {
   createOrgDirectChat,
@@ -39,6 +41,7 @@ import {
   removeGroupMembers,
   updateGroup,
   deleteGroup,
+  getChatSessions,
   listOrgChatSessions,
 } from "@/app/features/chat/services/chatService";
 import { YosemiteLoader } from "@/app/ui/overlays/Loader";
@@ -52,6 +55,13 @@ const GroupModalContext = React.createContext<{
   openEdit?: (channel: StreamChannel) => void;
   openCreate?: () => void;
 }>({});
+const ChatSessionStatusContext = React.createContext<{
+  statusByAppointmentId: Record<string, "active" | "ended">;
+  refreshStatuses: () => void;
+}>({
+  statusByAppointmentId: {},
+  refreshStatuses: () => undefined,
+});
 import ProtectedRoute from "@/app/ui/layout/guards/ProtectedRoute";
 import OrgGuard from "@/app/ui/layout/guards/OrgGuard";
 
@@ -104,6 +114,7 @@ interface ChannelDisplayInfo {
 interface ChannelState {
   frozen: boolean;
   updatedAt?: string;
+  closedAt?: string;
 }
 
 export type ChatScope = "clients" | "colleagues" | "groups";
@@ -657,6 +668,7 @@ const useChannelState = () => {
   const [state, setState] = useState<ChannelState>({
     frozen: false,
     updatedAt: undefined,
+    closedAt: undefined,
   });
 
   useEffect(() => {
@@ -664,15 +676,17 @@ const useChannelState = () => {
       const channelData = channel.data as any;
       const isFrozen = channelData?.frozen === true;
       const updatedAt = channelData?.updated_at;
+      const closedAt = channelData?.closedAt || channelData?.closed_at;
 
-      setState({ frozen: isFrozen, updatedAt });
+      setState({ frozen: isFrozen, updatedAt, closedAt });
 
       // Listen for channel updates
       const handleChannelUpdate = () => {
         const updatedData = channel.data as any;
         const newFrozen = updatedData?.frozen === true;
         const newUpdatedAt = updatedData?.updated_at;
-        setState({ frozen: newFrozen, updatedAt: newUpdatedAt });
+        const newClosedAt = updatedData?.closedAt || updatedData?.closed_at;
+        setState({ frozen: newFrozen, updatedAt: newUpdatedAt, closedAt: newClosedAt });
       };
 
       channel.on('channel.updated', handleChannelUpdate);
@@ -690,6 +704,7 @@ const ChannelHeaderWithCounterpart: React.FC<{
   currentUserId?: string | null;
 }> = ({ currentUserId }) => {
   const { channel } = useChannelStateContext();
+  const { statusByAppointmentId, refreshStatuses } = useContext(ChatSessionStatusContext);
   const groupModalCtx = useContext(GroupModalContext);
   const [closingSession, setClosingSession] = useState(false);
   const [sessionClosed, setSessionClosed] = useState(false);
@@ -717,15 +732,21 @@ const ChannelHeaderWithCounterpart: React.FC<{
     isOrgGroupType ||
     (isTeamChannel && channelMemberCount > 2);
 
+  const appointmentId = (channel?.data as any)?.appointmentId;
+  const backendStatus = appointmentId
+    ? statusByAppointmentId[appointmentId]
+    : undefined;
+
   // Check if session is already closed
   useEffect(() => {
     if (channel) {
       const status = (channel.data as any)?.status;
       const frozen = (channel.data as any)?.frozen;
-      const isSessionClosed = status === 'ended' || frozen === true;
+      const isSessionClosed =
+        status === "ended" || frozen === true || backendStatus === "ended";
       setSessionClosed(isSessionClosed);
     }
-  }, [channel]);
+  }, [channel, backendStatus]);
 
   const handleCloseSession = async () => {
     if (!channel) return;
@@ -743,6 +764,7 @@ const ChannelHeaderWithCounterpart: React.FC<{
       const appointmentId = (channel.data as any)?.appointmentId;
       if (appointmentId) {
         await endChatChannel(appointmentId);
+        refreshStatuses();
         setSessionClosed(true);
         alert("Chat session closed successfully");
       }
@@ -912,16 +934,25 @@ const ChannelWindowContent: React.FC<ChannelWindowContentProps> = ({
   currentUserId, 
   headerComponent: HeaderComponent 
 }) => {
+  const { channel } = useChannelStateContext();
+  const { statusByAppointmentId } = useContext(ChatSessionStatusContext);
   const channelState = useChannelState();
   const HeaderComponentTyped = HeaderComponent;
+  const appointmentId = (channel?.data as any)?.appointmentId;
+  const backendStatus = appointmentId
+    ? statusByAppointmentId[appointmentId]
+    : undefined;
+  const isClosed = channelState.frozen || backendStatus === "ended";
 
   return (
     <div className="str-chat__window">
       <Window>
         <HeaderComponentTyped currentUserId={currentUserId} />
         <MessageList />
-        {channelState.frozen ? (
-          <ChatClosedFooter closedAt={channelState.updatedAt} />
+        {isClosed ? (
+          <ChatClosedFooter
+            closedAt={channelState.closedAt || channelState.updatedAt}
+          />
         ) : (
           <MessageInput />
         )}
@@ -933,10 +964,6 @@ const ChannelWindowContent: React.FC<ChannelWindowContentProps> = ({
 
 // Specialized components for different use cases with distinct implementations
 // Reuse ChannelWindowContent for both appointment and regular channels
-const AppointmentChannelWindow: React.FC<{ currentUserId?: string | null }> = ({ currentUserId }) => (
-  <ChannelWindowContent headerComponent={ChannelHeaderWithCounterpart} currentUserId={currentUserId} />
-);
-
 const RegularChannelWindow: React.FC<{ currentUserId?: string | null }> = ({ currentUserId }) => (
   <ChannelWindowContent headerComponent={ChannelHeaderWithCounterpart} currentUserId={currentUserId} />
 );
@@ -1068,6 +1095,49 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({
   );
 };
 
+const AppointmentChannelInitializer: React.FC<{
+  appointmentId?: string;
+  onActivated: (channel: StreamChannel) => void;
+  onCleared: () => void;
+}> = ({ appointmentId, onActivated, onCleared }) => {
+  const { client, setActiveChannel } = useChatContext();
+  const prevAppointmentIdRef = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const activateAppointmentChannel = async () => {
+      const prevAppointmentId = prevAppointmentIdRef.current;
+      prevAppointmentIdRef.current = appointmentId;
+
+      if (!appointmentId) {
+        if (prevAppointmentId) {
+          onCleared();
+        }
+        return;
+      }
+      if (!client) return;
+
+      try {
+        const channel = await getAppointmentChannel(appointmentId);
+        if (cancelled) return;
+        setActiveChannel?.(channel);
+        onActivated(channel);
+      } catch (err) {
+        console.error("Failed to activate appointment channel", err);
+      }
+    };
+
+    activateAppointmentChannel();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [appointmentId, client, setActiveChannel, onActivated, onCleared]);
+
+  return null;
+};
+
 export const ChatContainer: React.FC<ChatContainerProps> = ({
   appointmentId,
   onChannelSelect,
@@ -1090,6 +1160,9 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
   const [orgUsers, setOrgUsers] = useState<OrgUserOption[]>([]);
   const [orgUsersLoaded, setOrgUsersLoaded] = useState(false);
   const [orgUsersLoading, setOrgUsersLoading] = useState(false);
+  const [statusByAppointmentId, setStatusByAppointmentId] = useState<
+    Record<string, "active" | "ended">
+  >({});
   const [directSearch, setDirectSearch] = useState("");
   const [creatingChat, setCreatingChat] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
@@ -1109,10 +1182,51 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
 
   const directBlurTimeout = useRef<NodeJS.Timeout | null>(null);
 
+  const getSessionChannels = useCallback((payload: any) => {
+    if (Array.isArray(payload?.channels)) return payload.channels;
+    if (Array.isArray(payload?.data?.channels)) return payload.data.channels;
+    if (Array.isArray(payload?.sessions)) return payload.sessions;
+    if (Array.isArray(payload)) return payload;
+    return [];
+  }, []);
+
+  const refreshStatuses = useCallback(() => {
+    if (!primaryOrgId) return;
+    getChatSessions(primaryOrgId, { includeClosed: true })
+      .then((response) => {
+        const payload: any = response ?? {};
+        const channels = getSessionChannels(payload);
+        const next: Record<string, "active" | "ended"> = {};
+        channels.forEach((session: any) => {
+          if (session.appointmentId) {
+            const rawStatus = String(session.status || "").toLowerCase();
+            next[session.appointmentId] =
+              rawStatus === "closed" || rawStatus === "ended"
+                ? "ended"
+                : "active";
+          }
+        });
+        setStatusByAppointmentId(next);
+      })
+      .catch((err) => {
+        console.error("Failed to load chat session statuses:", err);
+      });
+  }, [getSessionChannels, primaryOrgId]);
+
+  useEffect(() => {
+    refreshStatuses();
+  }, [refreshStatuses]);
+
   useEffect(() => {
     setOrgUsersLoaded(false);
     setOrgUsers([]);
   }, [primaryOrgId]);
+
+  useEffect(() => {
+    if (!appointmentId) return;
+    setIsChannelSelected(false);
+    setShowEmptyPlaceholder(true);
+  }, [appointmentId]);
 
   const resolveGroupIdForChannel = useCallback(
     async (chan: StreamChannel | null) => {
@@ -1702,6 +1816,13 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
     }),
     [openCreateGroupModal, openEditGroupModal]
   );
+  const chatSessionStatusContextValue = useMemo(
+    () => ({
+      statusByAppointmentId,
+      refreshStatuses,
+    }),
+    [statusByAppointmentId, refreshStatuses]
+  );
 
   // Extract conditional rendering logic
   const isAuthPending =
@@ -1761,18 +1882,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
     presence: true,
   };
 
-  const renderAppointmentChannel = appointmentId ? (
-    <Channel
-      channel={client.channel("messaging", `appointment-${appointmentId}`)}
-    >
-      <AppointmentChannelWindow currentUserId={client.userID} />
-      <Thread />
-    </Channel>
-  ) : null;
-
-  const chatContent = appointmentId ? (
-    renderAppointmentChannel
-  ) : (
+  const chatContent = (
     <ChatLayout
       filters={filters}
       sort={sort}
@@ -1786,7 +1896,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
       }}
       currentUserId={client.userID}
       channelFilter={channelFilter}
-      showEmpty={!appointmentId && showEmptyPlaceholder}
+      showEmpty={showEmptyPlaceholder}
       channelListHeader={
         (scope === "colleagues" || scope === "groups") && (
           <div className="p-3 border-b border-grey-light flex flex-col gap-3">
@@ -1910,41 +2020,56 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
   );
 
   return (
-    <GroupModalContext.Provider value={groupModalContextValue}>
-      <div className={className}>
-        <Chat
-          key={appointmentId ? `appointment-${appointmentId}` : `scope-${scope}`}
-          client={client}
-          theme="str-chat__theme-light"
-        >
-          {chatContent}
-        </Chat>
-        <GroupModal
-          open={groupModalOpen}
-          mode={groupModalMode}
-          title={groupModalTitle}
-          placeholder={groupModalPlaceholder}
-          members={groupModalMembers}
-          backendId={groupModalBackendId}
-          ownerId={groupModalOwnerRef.current}
-          currentUserId={client.userID}
-          search={groupModalSearch}
-          busy={groupModalBusy}
-          orgUsers={orgUsers}
-          orgUsersLoading={orgUsersLoading}
-          channel={groupModalChannel}
-          onClose={() => setGroupModalOpen(false)}
-          onTitleChange={setGroupModalTitle}
-          onSearchChange={setGroupModalSearch}
-          onMembersChange={setGroupModalMembers}
-          onCreate={handleModalCreate}
-          onUpdateTitle={handleModalUpdateTitle}
-          onAddMember={handleModalAddMember}
-          onRemoveMember={handleModalRemoveMember}
-          onDelete={handleModalDelete}
-        />
-      </div>
-    </GroupModalContext.Provider>
+    <ChatSessionStatusContext.Provider value={chatSessionStatusContextValue}>
+      <GroupModalContext.Provider value={groupModalContextValue}>
+        <div className={className}>
+          <Chat
+            key={appointmentId ? `appointment-${appointmentId}` : `scope-${scope}`}
+            client={client}
+            theme="str-chat__theme-light"
+          >
+            <AppointmentChannelInitializer
+              appointmentId={appointmentId}
+              onActivated={(channel) => {
+                setIsChannelSelected(true);
+                setShowEmptyPlaceholder(false);
+                onChannelSelect?.(channel);
+              }}
+              onCleared={() => {
+                setIsChannelSelected(false);
+                setShowEmptyPlaceholder(true);
+                onChannelSelect?.(null);
+              }}
+            />
+            {chatContent}
+          </Chat>
+          <GroupModal
+            open={groupModalOpen}
+            mode={groupModalMode}
+            title={groupModalTitle}
+            placeholder={groupModalPlaceholder}
+            members={groupModalMembers}
+            backendId={groupModalBackendId}
+            ownerId={groupModalOwnerRef.current}
+            currentUserId={client.userID}
+            search={groupModalSearch}
+            busy={groupModalBusy}
+            orgUsers={orgUsers}
+            orgUsersLoading={orgUsersLoading}
+            channel={groupModalChannel}
+            onClose={() => setGroupModalOpen(false)}
+            onTitleChange={setGroupModalTitle}
+            onSearchChange={setGroupModalSearch}
+            onMembersChange={setGroupModalMembers}
+            onCreate={handleModalCreate}
+            onUpdateTitle={handleModalUpdateTitle}
+            onAddMember={handleModalAddMember}
+            onRemoveMember={handleModalRemoveMember}
+            onDelete={handleModalDelete}
+          />
+        </div>
+      </GroupModalContext.Provider>
+    </ChatSessionStatusContext.Provider>
   );
 };
 

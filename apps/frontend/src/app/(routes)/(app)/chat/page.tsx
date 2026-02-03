@@ -9,7 +9,7 @@
 
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { ChatContainer, ChatScope } from "@/app/features/chat/components/ChatContainer";
 import ProtectedRoute from "@/app/ui/layout/guards/ProtectedRoute";
@@ -55,6 +55,12 @@ function ChatPageContent() {
     if (parts.length === 1) return parts[0][0]?.toUpperCase() || "Y";
     return `${parts[0][0]}${parts.at(-1)?.[0] ?? ""}`.toUpperCase();
   }, [displayName]);
+
+  useEffect(() => {
+    if (appointmentId) {
+      setActiveScope("clients");
+    }
+  }, [appointmentId]);
 
   return (
     <ProtectedRoute>
