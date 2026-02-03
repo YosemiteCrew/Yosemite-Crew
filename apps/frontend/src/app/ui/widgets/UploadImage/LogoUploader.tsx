@@ -4,6 +4,7 @@ import { IoCamera } from "react-icons/io5";
 import { FiMinusCircle } from "react-icons/fi";
 import { postData } from "@/app/services/axios";
 import axios from "axios";
+import { sanitizeUrl } from "@braintree/sanitize-url";
 
 import "./LogoUploader.css";
 
@@ -19,26 +20,7 @@ const LogoUploader = ({ title, apiUrl, setImageUrl }: LogoUploaderProps) => {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const escapeHtml = (value: string) =>
-    value.replace(/[&<>"']/g, (char) => {
-      switch (char) {
-        case "&":
-          return "&amp;";
-        case "<":
-          return "&lt;";
-        case ">":
-          return "&gt;";
-        case '"':
-          return "&quot;";
-        case "'":
-          return "&#39;";
-        default:
-          return char;
-      }
-    });
-
-  const isSafePreviewUrl = (url: string) =>
-    url.startsWith("blob:") || url.startsWith("data:image/");
+  const isSafePreviewUrl = (url: string) => url.startsWith("blob:");
 
   useEffect(() => {
     return () => {
@@ -72,6 +54,11 @@ const LogoUploader = ({ title, apiUrl, setImageUrl }: LogoUploaderProps) => {
     if (!file) return;
     setError(null);
     setIsUploading(true);
+    if (!file.type.startsWith("image/") || file.type === "image/svg+xml") {
+      setError("Only non-SVG image files are supported.");
+      setIsUploading(false);
+      return;
+    }
     const localUrl = URL.createObjectURL(file);
     if (preview) URL.revokeObjectURL(preview);
     setPreview(localUrl);
@@ -96,10 +83,12 @@ const LogoUploader = ({ title, apiUrl, setImageUrl }: LogoUploaderProps) => {
   return (
     <div className="step-logo-container">
       <div className="step-logo-upload">
-        {preview && isSafePreviewUrl(preview) ? (
+        {preview &&
+        isSafePreviewUrl(preview) &&
+        sanitizeUrl(preview) !== "about:blank" ? (
           <>
             <img
-              src={preview}
+              src={sanitizeUrl(preview)}
               alt="Logo Preview"
               style={{
                 width: 58,
@@ -130,11 +119,9 @@ const LogoUploader = ({ title, apiUrl, setImageUrl }: LogoUploaderProps) => {
       </div>
       <div className="step-logo-title-container">
         <div className="step-logo-title">
-          {isUploading ? "Uploading..." : escapeHtml(title)}
+          {isUploading ? "Uploading..." : title}
         </div>
-        {error && (
-          <div className="text-red-600 text-sm">{escapeHtml(error)}</div>
-        )}
+        {error && <div className="text-red-600 text-sm">{error}</div>}
       </div>
     </div>
   );
