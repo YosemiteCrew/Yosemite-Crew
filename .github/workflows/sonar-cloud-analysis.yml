@@ -1,11 +1,8 @@
 name: sonar-cloud-analysis
 
 on:
-  pull_request_target:
-    branches: [main, dev]
-    paths:
-      - 'apps/**'
-      - 'packages/**'
+  pull_request:
+    types: [opened, synchronize, reopened]
   schedule:
     - cron: '0 4 * * *'
   push:
@@ -17,6 +14,8 @@ concurrency:
 
 jobs:
   sonarqube:
+    if: github.repository_owner == 'YosemiteCrew' # Ensure the workflow runs only in the main repository
+    name: SonarQube Analysis - ${{ matrix.app }}
     runs-on: ubuntu-latest
 
     strategy:
