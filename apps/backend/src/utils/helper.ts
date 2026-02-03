@@ -1,11 +1,4 @@
-import { handleMultipleFileUpload, deleteFromS3 } from "../middlewares/upload";
 import axios from "axios";
-import crypto from "node:crypto";
-interface UploadedFile {
-  name: string;
-  mimetype: string;
-  data: Buffer;
-}
 
 const helpers = {
   calculateAge: (date: string | Date): number => {

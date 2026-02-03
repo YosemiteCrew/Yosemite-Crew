@@ -54,10 +54,7 @@ const validateCategoryAndSubcategory = (
   const upperCategory = String(category).toUpperCase();
 
   if (
-    !Object.prototype.hasOwnProperty.call(
-      VALID_CATEGORY_SUBCATEGORIES,
-      upperCategory,
-    )
+    !Object.hasOwn(VALID_CATEGORY_SUBCATEGORIES, upperCategory)
   ) {
     throw new DocumentServiceError(
       `Invalid document category: ${category}`,
@@ -101,6 +98,91 @@ const ensureObjectId = (
 
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
+
+const assertUpdatePermissions = (
+  doc: DocumentDocument,
+  context: DocumentCreateContext,
+): void => {
+  if (
+    context.parentId &&
+    doc.uploadedByParentId?.toString() !== context.parentId.toString()
+  ) {
+    throw new DocumentServiceError(
+      "Parent is not allowed to update this document.",
+      403,
+    );
+  }
+
+  if (context.pmsUserId && !doc.syncedFromPms) {
+    throw new DocumentServiceError(
+      "PMS cannot update documents uploaded by parent.",
+      403,
+    );
+  }
+};
+
+const applyCategoryUpdate = (
+  doc: DocumentDocument,
+  updates: Partial<CreateDocumentInput>,
+): void => {
+  if (!updates.category && !updates.subcategory) {
+    return;
+  }
+
+  const newCategory = (updates.category ?? doc.category)
+    .toString()
+    .toUpperCase();
+  const newSubcategory = updates.subcategory
+    ? updates.subcategory.toString().toUpperCase()
+    : doc.subcategory;
+
+  validateCategoryAndSubcategory(newCategory, newSubcategory ?? undefined);
+
+  doc.category = newCategory;
+  doc.subcategory = newSubcategory ?? null;
+  // pmsVisible may change because category changed
+  doc.pmsVisible = isPmsVisibleCategory(newCategory);
+};
+
+const applySimpleFieldUpdates = (
+  doc: DocumentDocument,
+  updates: Partial<CreateDocumentInput>,
+): void => {
+  if (isNonEmptyString(updates.title)) {
+    doc.title = updates.title.trim();
+  }
+
+  if (updates.visitType) {
+    doc.visitType = updates.visitType;
+  }
+
+  if (updates.issuingBusinessName !== undefined) {
+    doc.issuingBusinessName = updates.issuingBusinessName || null;
+  }
+
+  if (updates.issueDate) {
+    const parsed = new Date(updates.issueDate);
+    if (!Number.isNaN(parsed.getTime())) {
+      doc.issueDate = parsed;
+    }
+  }
+};
+
+const applyAttachmentUpdates = (
+  doc: DocumentDocument,
+  updates: Partial<CreateDocumentInput>,
+): void => {
+  if (!updates.attachments || !Array.isArray(updates.attachments)) {
+    return;
+  }
+
+  // Replace attachments entirely (or merge—your choice)
+  doc.attachments = updates.attachments.map((att) => ({
+    key: String(att.key),
+    mimeType: String(att.mimeType),
+    size: att.size,
+  }));
+};
 
 export interface DocumentAttachmentInput {
   key: string; // S3 key (temp or final)
@@ -236,7 +318,6 @@ const buildPersistableDocument = (
 
   if (source === "parent") {
     uploadedByParentId = ensureObjectId(context.parentId!, "parentId");
-    syncedFromPms = false;
   } else {
     uploadedByPmsUserId = assertSafeString(
       context.pmsUserId,
@@ -339,7 +420,7 @@ export const DocumentService = {
       .sort({ issueDate: -1, createdAt: -1 })
       .exec();
 
-    return docs.map(mapDocumentToDto);
+    return docs.map((element) => mapDocumentToDto(element));
   },
 
   async listForPms(params: {
@@ -374,7 +455,7 @@ export const DocumentService = {
       .sort({ issueDate: -1, createdAt: -1 })
       .exec();
 
-    return docs.map(mapDocumentToDto);
+    return docs.map((element) => mapDocumentToDto(element));
   },
 
   async getByIdForParent(
@@ -438,7 +519,7 @@ export const DocumentService = {
       .sort({ createdAt: -1 })
       .exec();
 
-    return docs.map(mapDocumentToDto);
+    return docs.map((element) => mapDocumentToDto(element));
   },
 
   // List of Documents of Appointment for PMS
@@ -457,7 +538,7 @@ export const DocumentService = {
       .sort({ createdAt: -1 })
       .exec();
 
-    return docs.map(mapDocumentToDto);
+    return docs.map((element) => mapDocumentToDto(element));
   },
 
   // Update Document
@@ -474,82 +555,17 @@ export const DocumentService = {
       throw new DocumentServiceError("Document not found.", 404);
     }
 
-    const isParentUpdater = !!context.parentId;
-    const isPmsUpdater = !!context.pmsUserId;
-
     // 2. Permission check
-    if (isParentUpdater) {
-      if (
-        !doc.uploadedByParentId ||
-        doc.uploadedByParentId.toString() !== context.parentId!.toString()
-      ) {
-        throw new DocumentServiceError(
-          "Parent is not allowed to update this document.",
-          403,
-        );
-      }
-    }
-
-    if (isPmsUpdater) {
-      if (!doc.syncedFromPms) {
-        throw new DocumentServiceError(
-          "PMS cannot update documents uploaded by parent.",
-          403,
-        );
-      }
-    }
+    assertUpdatePermissions(doc, context);
 
     // 4. Validate category / subcategory only when changed
-    if (updates.category || updates.subcategory) {
-      const newCategory = (updates.category ?? doc.category)
-        .toString()
-        .toUpperCase();
-      const newSubcategory = updates.subcategory
-        ? updates.subcategory.toString().toUpperCase()
-        : doc.subcategory;
-
-      validateCategoryAndSubcategory(newCategory, newSubcategory ?? undefined);
-
-      doc.category = newCategory;
-      doc.subcategory = newSubcategory ?? null;
-
-      // pmsVisible may change because category changed
-      doc.pmsVisible = isPmsVisibleCategory(newCategory);
-    }
+    applyCategoryUpdate(doc, updates);
 
     // 5. Handle simple field updates
-    if (
-      updates.title &&
-      typeof updates.title === "string" &&
-      updates.title.trim()
-    ) {
-      doc.title = updates.title.trim();
-    }
-
-    if (updates.visitType) {
-      doc.visitType = updates.visitType;
-    }
-
-    if (updates.issuingBusinessName !== undefined) {
-      doc.issuingBusinessName = updates.issuingBusinessName || null;
-    }
-
-    if (updates.issueDate) {
-      const parsed = new Date(updates.issueDate);
-      if (!isNaN(parsed.getTime())) {
-        doc.issueDate = parsed;
-      }
-    }
+    applySimpleFieldUpdates(doc, updates);
 
     // 6. Attachments update (optional)
-    if (updates.attachments && Array.isArray(updates.attachments)) {
-      // Replace attachments entirely (or merge—your choice)
-      doc.attachments = updates.attachments.map((att) => ({
-        key: String(att.key),
-        mimeType: String(att.mimeType),
-        size: att.size,
-      }));
-    }
+    applyAttachmentUpdates(doc, updates);
 
     // 7. Save the updated document
     await doc.save();
@@ -613,6 +629,6 @@ export const DocumentService = {
       .sort({ createdAt: -1 })
       .exec();
 
-    return docs.map(mapDocumentToDto);
+    return docs.map((element) => mapDocumentToDto(element));
   },
 };
