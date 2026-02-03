@@ -19,10 +19,20 @@ const LogoUploader = ({ title, apiUrl, setImageUrl }: LogoUploaderProps) => {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const isSafePreviewUrl = (url: string) =>
+    url.startsWith("blob:") || url.startsWith("data:image/");
+
   useEffect(() => {
     return () => {
       if (preview) URL.revokeObjectURL(preview);
     };
+  }, [preview]);
+
+  useEffect(() => {
+    if (preview && !isSafePreviewUrl(preview)) {
+      setPreview(null);
+      setError("Invalid preview source");
+    }
   }, [preview]);
 
   const getSignedUrl = async (file: File): Promise<GetSignedUrlResponse> => {
@@ -68,7 +78,7 @@ const LogoUploader = ({ title, apiUrl, setImageUrl }: LogoUploaderProps) => {
   return (
     <div className="step-logo-container">
       <div className="step-logo-upload">
-        {preview ? (
+        {preview && isSafePreviewUrl(preview) ? (
           <>
             <img
               src={preview}
