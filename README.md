@@ -142,3 +142,8 @@ Want to explore the PMS features without setting up a local environment? Use our
    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=YosemiteCrew/Yosemite-Crew&type=Date" />
  </picture>
 </a>
+
+# Thanks to the community!
+
+[![Stargazers repo roster for @YosemiteCrew/Yosemite-Crew](https://reporoster.com/stars/YosemiteCrew/Yosemite-Crew)](https://github.com/YosemiteCrew/Yosemite-Crew/stargazers)
+[![Forkers repo roster for @YosemiteCrew/Yosemite-Crew](https://reporoster.com/forks/YosemiteCrew/Yosemite-Crew)](https://github.com/YosemiteCrew/Yosemite-Crew/network/members)

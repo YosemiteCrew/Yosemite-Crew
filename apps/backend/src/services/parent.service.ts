@@ -14,6 +14,7 @@ import {
 import { AuthUserMobileService } from "./authUserMobile.service";
 import { buildS3Key, moveFile } from "src/middlewares/upload";
 import logger from "src/utils/logger";
+import escapeStringRegexp from "escape-string-regexp";
 
 export class ParentServiceError extends Error {
   constructor(
@@ -275,7 +276,13 @@ export const ParentService = {
       throw new ParentServiceError("Name is required for searching.", 400);
     }
 
-    const searchRegex = new RegExp(name.trim(), "i");
+    const trimmed = name.trim();
+    if (!trimmed) {
+      throw new ParentServiceError("Name is required for searching.", 400);
+    }
+
+    const safe = escapeStringRegexp(name.trim());
+    const searchRegex = new RegExp(safe);
 
     const documents = await ParentModel.find({
       $or: [
@@ -286,7 +293,7 @@ export const ParentService = {
     });
 
     return {
-      responses: documents.map(toFHIR),
+      responses: documents.map((element) => toFHIR(element)),
     };
   },
 };

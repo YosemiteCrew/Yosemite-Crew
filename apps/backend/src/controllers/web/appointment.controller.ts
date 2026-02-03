@@ -484,14 +484,18 @@ export const AppointmentController = {
       const { organisationId } = req.params;
       const { status, startDate, endDate } = req.query;
 
+      let parsedStatus: AppointmentStatus[] | undefined;
+
+      if (Array.isArray(status)) {
+        parsedStatus = status.map(String) as AppointmentStatus[];
+      } else if (typeof status === "string") {
+        parsedStatus = status.split(",") as AppointmentStatus[];
+      }
+
       const data = await AppointmentService.getAppointmentsForOrganisation(
         organisationId,
         {
-          status: Array.isArray(status)
-            ? (status.map(String) as AppointmentStatus[])
-            : typeof status === "string"
-              ? (status.split(",") as AppointmentStatus[])
-              : undefined,
+          status: parsedStatus,
           startDate:
             typeof startDate === "string" || typeof startDate === "number"
               ? new Date(startDate)

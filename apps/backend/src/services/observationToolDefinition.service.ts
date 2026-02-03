@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import {
   ObservationToolDefinitionModel,
   ObservationToolDefinitionDocument,
@@ -14,6 +15,19 @@ export class ObservationToolDefinitionServiceError extends Error {
     this.name = "ObservationToolDefinitionServiceError";
   }
 }
+
+const asNonEmptyString = (value: unknown): string | undefined => {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed || undefined;
+};
+
+const ensureObjectId = (value: unknown, field: string): string => {
+  if (typeof value !== "string" || !Types.ObjectId.isValid(value)) {
+    throw new ObservationToolDefinitionServiceError(`Invalid ${field}`, 400);
+  }
+  return value;
+};
 
 export interface CreateObservationToolDefinitionInput {
   name: string;
@@ -58,7 +72,7 @@ export const ObservationToolDefinitionService = {
         400,
       );
     }
-    if (!input.fields || !input.fields.length) {
+    if (!input.fields?.length) {
       throw new ObservationToolDefinitionServiceError(
         "at least one field is required",
         400,
@@ -88,7 +102,8 @@ export const ObservationToolDefinitionService = {
     id: string,
     input: UpdateObservationToolDefinitionInput,
   ): Promise<ObservationToolDefinitionDocument> {
-    const doc = await ObservationToolDefinitionModel.findById(id).exec();
+    const safeId = ensureObjectId(id, "id");
+    const doc = await ObservationToolDefinitionModel.findById(safeId).exec();
     if (!doc) {
       throw new ObservationToolDefinitionServiceError(
         "Observation tool not found",
@@ -121,7 +136,8 @@ export const ObservationToolDefinitionService = {
   },
 
   async archive(id: string): Promise<void> {
-    const doc = await ObservationToolDefinitionModel.findById(id).exec();
+    const safeId = ensureObjectId(id, "id");
+    const doc = await ObservationToolDefinitionModel.findById(safeId).exec();
     if (!doc) {
       throw new ObservationToolDefinitionServiceError(
         "Observation tool not found",
@@ -137,7 +153,16 @@ export const ObservationToolDefinitionService = {
     onlyActive?: boolean;
   }): Promise<ObservationToolDefinitionDocument[]> {
     const filter: Record<string, unknown> = {};
-    if (params?.category) filter.category = params.category;
+    if (params?.category !== undefined) {
+      const category = asNonEmptyString(params.category);
+      if (!category) {
+        throw new ObservationToolDefinitionServiceError(
+          "Invalid category",
+          400,
+        );
+      }
+      filter.category = category;
+    }
     if (params?.onlyActive) filter.isActive = true;
 
     return ObservationToolDefinitionModel.find(filter)
@@ -146,7 +171,8 @@ export const ObservationToolDefinitionService = {
   },
 
   async getById(id: string): Promise<ObservationToolDefinitionDocument> {
-    const doc = await ObservationToolDefinitionModel.findById(id).exec();
+    const safeId = ensureObjectId(id, "id");
+    const doc = await ObservationToolDefinitionModel.findById(safeId).exec();
     if (!doc) {
       throw new ObservationToolDefinitionServiceError(
         "Observation tool not found",

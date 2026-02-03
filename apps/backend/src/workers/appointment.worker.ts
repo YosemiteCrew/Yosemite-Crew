@@ -11,22 +11,20 @@ type AppointmentJobData = {
 export const AppointmentWorker = new Worker(
   "appointments",
   async (job: Job<AppointmentJobData>) => {
-    switch (job.name) {
-      case AppointmentJobs.MARK_NO_SHOW: {
-        logger.info("🔔 Running Appointment No-Show Marker Job");
 
-        const { graceMinutes } = job.data;
+    if(job.name === AppointmentJobs.MARK_NO_SHOW){
+      logger.info("🔔 Running Appointment No-Show Marker Job");
 
-        await AppointmentService.markNoShowAppointments({
-          graceMinutes: graceMinutes ?? 15,
-        });
+      const { graceMinutes } = job.data;
 
-        return { success: true };
-      }
+      await AppointmentService.markNoShowAppointments({
+        graceMinutes: graceMinutes ?? 15,
+      });
 
-      default:
-        throw new Error(`Unknown job: ${job.name}`);
+      return { success: true };
     }
+
+    throw new Error(`Unknown job name: ${job.name}`);
   },
   { connection: redisConnection },
 );

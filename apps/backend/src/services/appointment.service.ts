@@ -50,6 +50,171 @@ const ensureObjectId = (id: string | Types.ObjectId, field: string) => {
   return new Types.ObjectId(id);
 };
 
+type AppointmentRequestInput = ReturnType<typeof fromAppointmentRequestDTO>;
+
+const validateRequestedFromMobileInput = (input: AppointmentRequestInput) => {
+  if (!input.organisationId) {
+    throw new AppointmentServiceError("organisationId is required", 400);
+  }
+  if (!input.companion?.id || !input.companion.parent?.id) {
+    throw new AppointmentServiceError(
+      "Companion and parent details are required",
+      400,
+    );
+  }
+  if (!input.startTime || !input.endTime || !input.durationMinutes) {
+    throw new AppointmentServiceError(
+      "startTime, endTime, durationMinutes required",
+      400,
+    );
+  }
+};
+
+const validateAppointmentFromPmsInput = (input: AppointmentRequestInput) => {
+  if (!input.organisationId) {
+    throw new AppointmentServiceError("organisationId is required.", 400);
+  }
+  if (!input.companion?.id || !input.companion.parent?.id) {
+    throw new AppointmentServiceError(
+      "Companion and parent information is required.",
+      400,
+    );
+  }
+  if (!input.startTime || !input.endTime || !input.durationMinutes) {
+    throw new AppointmentServiceError(
+      "startTime, endTime and durationMinutes are required.",
+      400,
+    );
+  }
+  if (!input.lead?.id) {
+    throw new AppointmentServiceError(
+      "Lead veterinarian (vet) is required.",
+      400,
+    );
+  }
+  if (!input.appointmentType?.id) {
+    throw new AppointmentServiceError(
+      "Service (appointmentType.id) is required.",
+      400,
+    );
+  }
+};
+
+const getConsentFormForParentSafe = async (
+  organisationId: Types.ObjectId,
+  serviceId: Types.ObjectId,
+) => {
+  try {
+    return await FormService.getConsentFormForParent(
+      organisationId.toString(),
+      { serviceId: serviceId.toString() },
+    );
+  } catch (err) {
+    if (err instanceof FormServiceError && err.statusCode === 404) {
+      return null; // expected case
+    }
+    throw err; // real error
+  }
+};
+
+const sendCheckoutEmailIfNeeded = async ({
+  checkout,
+  invoice,
+  appointment,
+  organisationName,
+}: {
+  checkout?: { url?: string | null };
+  invoice: { totalAmount?: number; currency: string };
+  appointment: Appointment;
+  organisationName?: string | null;
+}) => {
+  if (!checkout?.url) return;
+
+  const parent = await ParentModel.findById(appointment.companion.parent.id)
+    .select("email firstName lastName")
+    .lean();
+  if (!parent?.email) return;
+
+  const parentName = [parent.firstName, parent.lastName]
+    .filter(Boolean)
+    .join(" ");
+  const amountText =
+    typeof invoice.totalAmount === "number"
+      ? `${invoice.currency.toUpperCase()} ${invoice.totalAmount.toFixed(2)}`
+      : undefined;
+  const appointmentTime = dayjs(appointment.startTime).format(
+    "MMM D, YYYY h:mm A",
+  );
+
+  await sendEmailTemplate({
+    to: parent.email,
+    templateId: "appointmentPaymentCheckout",
+    templateData: {
+      parentName: parentName || undefined,
+      companionName: appointment.companion.name,
+      organisationName: organisationName ?? undefined,
+      appointmentTime,
+      amountText,
+      checkoutUrl: checkout.url,
+      ctaUrl: checkout.url,
+      ctaLabel: "Pay Now",
+      supportEmail: SUPPORT_EMAIL_ADDRESS,
+    },
+  });
+};
+
+const recordFormAttachmentAudit = async (
+  appointment: Appointment,
+  appointmentId: string,
+) => {
+  if (!appointment.formIds?.length) return;
+
+  for (const formId of appointment.formIds) {
+    await AuditTrailService.recordSafely({
+      organisationId: appointment.organisationId,
+      companionId: appointment.companion.id,
+      eventType: "FORM_ATTACHED",
+      actorType: "SYSTEM",
+      entityType: "FORM",
+      entityId: formId,
+      metadata: {
+        appointmentId,
+      },
+    });
+  }
+};
+
+const resolveObservationToolId = (value: unknown) => {
+  if (!value) return undefined;
+  if (value instanceof Types.ObjectId) return value.toString();
+  if (typeof value === "string") return value;
+  if (typeof value === "object" && "_id" in value) {
+    const id = (value as { _id?: Types.ObjectId | string })._id;
+    if (id instanceof Types.ObjectId) return id.toString();
+    if (typeof id === "string") return id;
+  }
+  return undefined;
+};
+
+const maybeCreateObservationToolTask = async (
+  service: { serviceType?: string; observationToolId?: unknown },
+  appointment: Appointment,
+  appointmentId: string,
+) => {
+  if (service.serviceType !== "OBSERVATION_TOOL") return;
+  const observationToolId = resolveObservationToolId(service.observationToolId);
+  if (!observationToolId) return;
+
+  await createObservationToolTaskForAppointment({
+    appointmentId,
+    organisationId: appointment.organisationId,
+    companionId: appointment.companion.id,
+    parentId: appointment.companion.parent.id,
+    observationToolId,
+    appointmentStartTime: appointment.startTime,
+  });
+};
+
 const ensureOrgUsageCounters = async (orgId: Types.ObjectId) =>
   OrgUsageCounters.findOneAndUpdate(
     { orgId },
@@ -226,11 +391,18 @@ const reserveAppointmentUsage = async (
         (usage?.toolsUsed ?? 0) >= (usage?.freeToolsLimit ?? 0);
       const appointmentsLimitReached =
         (usage?.appointmentsUsed ?? 0) >= (usage?.freeAppointmentsLimit ?? 0);
-      const message = toolsLimitReached
-        ? "Free plan observation tool appointment limit reached."
-        : appointmentsLimitReached
-          ? "Free plan appointment limit reached."
-          : "Free plan usage limit reached.";
+
+      const message = (() => {
+        if (toolsLimitReached) {
+          return "Free plan observation tool appointment limit reached.";
+        }
+
+        if (appointmentsLimitReached) {
+          return "Free plan appointment limit reached.";
+        }
+
+        return "Free plan usage limit reached.";
+      })();
 
       throw new AppointmentServiceError(message, 403);
     }
@@ -388,21 +560,7 @@ export const AppointmentService = {
   async createRequestedFromMobile(dto: AppointmentRequestDTO) {
     const input = fromAppointmentRequestDTO(dto);
 
-    if (!input.organisationId) {
-      throw new AppointmentServiceError("organisationId is required", 400);
-    }
-    if (!input.companion?.id || !input.companion.parent?.id) {
-      throw new AppointmentServiceError(
-        "Companion and parent details are required",
-        400,
-      );
-    }
-    if (!input.startTime || !input.endTime || !input.durationMinutes) {
-      throw new AppointmentServiceError(
-        "startTime, endTime, durationMinutes required",
-        400,
-      );
-    }
+    validateRequestedFromMobileInput(input);
 
     // Validate service
     const serviceId = ensureObjectId(input.appointmentType!.id, "serviceId");
@@ -425,20 +583,10 @@ export const AppointmentService = {
       service.serviceType === "OBSERVATION_TOOL",
     );
 
-    let consentForm = null;
-
-    try {
-      consentForm = await FormService.getConsentFormForParent(
-        organisationId.toString(),
-        { serviceId: serviceId.toString() },
-      );
-    } catch (err) {
-      if (err instanceof FormServiceError && err.statusCode === 404) {
-        consentForm = null; // expected case
-      } else {
-        throw err; // real error
-      }
-    }
+    const consentForm = await getConsentFormForParentSafe(
+      organisationId,
+      serviceId,
+    );
 
     if (consentForm) {
       input.formIds?.push(consentForm.id!);
@@ -490,39 +638,20 @@ export const AppointmentService = {
       },
     });
 
-    if (appointment.formIds?.length) {
-      for (const formId of appointment.formIds) {
-        await AuditTrailService.recordSafely({
-          organisationId: appointment.organisationId,
-          companionId: appointment.companion.id,
-          eventType: "FORM_ATTACHED",
-          actorType: "SYSTEM",
-          entityType: "FORM",
-          entityId: formId,
-          metadata: {
-            appointmentId: savedAppointment._id.toString(),
-          },
-        });
-      }
-    }
+    await recordFormAttachmentAudit(
+      appointment,
+      savedAppointment._id.toString(),
+    );
 
     const paymentIntent = await StripeService.createPaymentIntentForAppointment(
       savedAppointment._id.toString(),
     );
 
-    if (
-      service.serviceType === "OBSERVATION_TOOL" &&
-      service.observationToolId
-    ) {
-      await createObservationToolTaskForAppointment({
-        appointmentId: savedAppointment._id.toString(),
-        organisationId: appointment.organisationId,
-        companionId: appointment.companion.id,
-        parentId: appointment.companion.parent.id,
-        observationToolId: service.observationToolId._id.toString(),
-        appointmentStartTime: appointment.startTime,
-      });
-    }
+    await maybeCreateObservationToolTask(
+      service,
+      appointment,
+      savedAppointment._id.toString(),
+    );
 
     return {
       appointment: toAppointmentResponseDTO(toDomain(savedAppointment)),
@@ -539,36 +668,10 @@ export const AppointmentService = {
     const input = fromAppointmentRequestDTO(dto);
 
     // 1️⃣ Validate required fields
-    if (!input.organisationId) {
-      throw new AppointmentServiceError("organisationId is required.", 400);
-    }
-    if (!input.companion?.id || !input.companion.parent?.id) {
-      throw new AppointmentServiceError(
-        "Companion and parent information is required.",
-        400,
-      );
-    }
-    if (!input.startTime || !input.endTime || !input.durationMinutes) {
-      throw new AppointmentServiceError(
-        "startTime, endTime and durationMinutes are required.",
-        400,
-      );
-    }
-    if (!input.lead?.id) {
-      throw new AppointmentServiceError(
-        "Lead veterinarian (vet) is required.",
-        400,
-      );
-    }
+    validateAppointmentFromPmsInput(input);
 
     // 2️⃣ Validate service
-    if (!input.appointmentType?.id) {
-      throw new AppointmentServiceError(
-        "Service (appointmentType.id) is required.",
-        400,
-      );
-    }
-    const serviceId = ensureObjectId(input.appointmentType.id, "serviceId");
+    const serviceId = ensureObjectId(input.appointmentType!.id, "serviceId");
     const organisationId = ensureObjectId(
       input.organisationId,
       "organisationId",
@@ -591,20 +694,10 @@ export const AppointmentService = {
       service.serviceType === "OBSERVATION_TOOL",
     );
 
-    let consentForm = null;
-
-    try {
-      consentForm = await FormService.getConsentFormForParent(
-        organisationId.toString(),
-        { serviceId: serviceId.toString() },
-      );
-    } catch (err) {
-      if (err instanceof FormServiceError && err.statusCode === 404) {
-        consentForm = null; // expected case
-      } else {
-        throw err; // real error
-      }
-    }
+    const consentForm = await getConsentFormForParentSafe(
+      organisationId,
+      serviceId,
+    );
 
     if (consentForm) {
       input.formIds?.push(consentForm.id!);
@@ -719,21 +812,7 @@ export const AppointmentService = {
         },
       });
 
-      if (appointment.formIds?.length) {
-        for (const formId of appointment.formIds) {
-          await AuditTrailService.recordSafely({
-            organisationId: appointment.organisationId,
-            companionId: appointment.companion.id,
-            eventType: "FORM_ATTACHED",
-            actorType: "SYSTEM",
-            entityType: "FORM",
-            entityId: formId,
-            metadata: {
-              appointmentId: doc._id.toString(),
-            },
-          });
-        }
-      }
+      await recordFormAttachmentAudit(appointment, doc._id.toString());
 
       // 4.5 Optional — create PaymentIntent (ONLY if PMS wants immediate payment)
       if (createPayment === true) {
@@ -770,39 +849,12 @@ export const AppointmentService = {
       );
       await sendAppointmentAssignmentEmails(doc, organisationName);
 
-      if (checkout?.url) {
-        const parent = await ParentModel.findById(parentId)
-          .select("email firstName lastName")
-          .lean();
-        const parentName = parent
-          ? [parent.firstName, parent.lastName].filter(Boolean).join(" ")
-          : undefined;
-        const amountText =
-          typeof invoice.totalAmount === "number"
-            ? `${invoice.currency.toUpperCase()} ${invoice.totalAmount.toFixed(2)}`
-            : undefined;
-        const appointmentTime = dayjs(appointment.startTime).format(
-          "MMM D, YYYY h:mm A",
-        );
-
-        if (parent?.email) {
-          await sendEmailTemplate({
-            to: parent.email,
-            templateId: "appointmentPaymentCheckout",
-            templateData: {
-              parentName,
-              companionName: appointment.companion.name,
-              organisationName: organisationName ?? undefined,
-              appointmentTime,
-              amountText,
-              checkoutUrl: checkout.url,
-              ctaUrl: checkout.url,
-              ctaLabel: "Pay Now",
-              supportEmail: SUPPORT_EMAIL_ADDRESS,
-            },
-          });
-        }
-      }
+      await sendCheckoutEmailIfNeeded({
+        checkout,
+        invoice,
+        appointment,
+        organisationName,
+      });
 
       return {
         appointment: toAppointmentResponseDTO(toDomain(doc)),

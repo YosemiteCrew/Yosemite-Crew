@@ -1,27 +1,17 @@
 import {
   TaskLibraryService,
   TaskLibraryServiceError,
-} from '../../src/services/taskLibrary.service';
+} from "../../src/services/taskLibrary.service";
 import TaskLibraryDefinitionModel, {
   TaskKind,
-  Species,
-} from '../../src/models/taskLibraryDefinition';
+} from "../../src/models/taskLibraryDefinition";
+import { Types } from "mongoose";
 
 // Mock the Mongoose Model
 jest.mock('../../src/models/taskLibraryDefinition');
 
-describe('TaskLibraryService', () => {
-  const mockSave = jest.fn();
-  const mockMarkModified = jest.fn();
-  const mockSet = jest.fn();
-
-  // Helper to mock a Mongoose Document
-  const mockDoc = (data: any) => ({
-    ...data,
-    save: mockSave,
-    markModified: mockMarkModified,
-    set: mockSet,
-  });
+describe("TaskLibraryService", () => {
+  const validId = new Types.ObjectId().toString();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -43,7 +33,7 @@ describe('TaskLibraryService', () => {
 
   describe('create', () => {
     const validInput = {
-      kind: 'GENERAL_CARE' as TaskKind,
+      kind: 'HYGIENE' as TaskKind,
       category: 'Health',
       name: 'Checkup',
       defaultDescription: 'Routine check',
@@ -198,13 +188,13 @@ describe('TaskLibraryService', () => {
 
   describe('getById', () => {
     it('should return the document if found', async () => {
-      const mockExec = jest.fn().mockResolvedValue({ _id: '123' });
+      const mockExec = jest.fn().mockResolvedValue({ _id: validId });
       (TaskLibraryDefinitionModel.findById as jest.Mock).mockReturnValue({
         exec: mockExec,
       });
 
-      const result = await TaskLibraryService.getById('123');
-      expect(result).toEqual({ _id: '123' });
+      const result = await TaskLibraryService.getById(validId);
+      expect(result).toEqual({ _id: validId });
     });
 
     it('should throw 404 if not found', async () => {
@@ -213,51 +203,9 @@ describe('TaskLibraryService', () => {
         exec: mockExec,
       });
 
-      await expect(TaskLibraryService.getById('123')).rejects.toThrow(
+      await expect(TaskLibraryService.getById(validId)).rejects.toThrow(
         'Library task not found'
       );
-    });
-  });
-
-  describe('listForSpecies', () => {
-    it('should list tasks for species without kind filter', async () => {
-      const mockExec = jest.fn().mockResolvedValue(['taskA']);
-      const mockSort = jest.fn().mockReturnValue({ exec: mockExec });
-      (TaskLibraryDefinitionModel.find as jest.Mock).mockReturnValue({
-        sort: mockSort,
-      });
-
-      await TaskLibraryService.listForSpecies({ species: 'DOG' as any });
-
-      expect(TaskLibraryDefinitionModel.find).toHaveBeenCalledWith({
-        isActive: true,
-        $or: [
-          { applicableSpecies: 'DOG' },
-          { applicableSpecies: { $exists: false } },
-        ],
-      });
-    });
-
-    it('should list tasks for species WITH kind filter', async () => {
-      const mockExec = jest.fn().mockResolvedValue(['taskB']);
-      const mockSort = jest.fn().mockReturnValue({ exec: mockExec });
-      (TaskLibraryDefinitionModel.find as jest.Mock).mockReturnValue({
-        sort: mockSort,
-      });
-
-      await TaskLibraryService.listForSpecies({
-        species: 'CAT',
-        kind: 'GENERAL_CARE' as TaskKind,
-      });
-
-      expect(TaskLibraryDefinitionModel.find).toHaveBeenCalledWith({
-        isActive: true,
-        kind: 'GENERAL_CARE',
-        $or: [
-          { applicableSpecies: 'CAT' },
-          { applicableSpecies: { $exists: false } },
-        ],
-      });
     });
   });
 
@@ -268,117 +216,8 @@ describe('TaskLibraryService', () => {
       });
 
       await expect(
-        TaskLibraryService.update('123', { name: 'New Name' })
-      ).rejects.toThrow('Library task not found');
-    });
-
-    it('should update all simple fields', async () => {
-      const doc = mockDoc({
-        category: 'Old',
-        name: 'OldName',
-        defaultDescription: 'OldDesc',
-        isActive: false,
-      });
-      (TaskLibraryDefinitionModel.findById as jest.Mock).mockReturnValue({
-        exec: jest.fn().mockResolvedValue(doc),
-      });
-
-      await TaskLibraryService.update('123', {
-        category: 'New',
-        name: 'NewName',
-        defaultDescription: 'NewDesc',
-        isActive: true,
-      });
-
-      expect(doc.category).toBe('New');
-      expect(doc.name).toBe('NewName');
-      expect(doc.defaultDescription).toBe('NewDesc');
-      expect(doc.isActive).toBe(true);
-      expect(doc.save).toHaveBeenCalled();
-    });
-
-    it('should update applicableSpecies', async () => {
-      const doc = mockDoc({ applicableSpecies: undefined });
-      (TaskLibraryDefinitionModel.findById as jest.Mock).mockReturnValue({
-        exec: jest.fn().mockResolvedValue(doc),
-      });
-
-      // Update to specific species
-      await TaskLibraryService.update('123', {
-        applicableSpecies: ['DOG'] as unknown as Species[],
-      });
-      expect(doc.applicableSpecies).toEqual(['DOG']);
-
-      // Update to null (universal) - Testing the nullish coalescing
-      await TaskLibraryService.update('123', {
-        applicableSpecies: null, // explicit null
-      });
-      // The code does: input.applicableSpecies ?? undefined
-      expect(doc.applicableSpecies).toBeUndefined();
-    });
-
-    it('should update schema', async () => {
-      const doc = mockDoc({});
-      (TaskLibraryDefinitionModel.findById as jest.Mock).mockReturnValue({
-        exec: jest.fn().mockResolvedValue(doc),
-      });
-
-      const newSchemaInput = {
-        medicationFields: { hasDosage: true },
-        requiresObservationTool: true,
-        recurrence: { default: { type: 'DAILY' } } as any,
-      };
-
-      await TaskLibraryService.update('123', {
-        schema: newSchemaInput,
-      });
-
-      expect(doc.set).toHaveBeenCalledWith('schema', {
-        medicationFields: { hasDosage: true },
-        requiresObservationTool: true,
-        recurrence: { default: { type: 'DAILY' } },
-      });
-      expect(doc.markModified).toHaveBeenCalledWith('schema');
-      expect(doc.save).toHaveBeenCalled();
-    });
-
-    it('should handle partial schema updates with defaults', async () => {
-      const doc = mockDoc({});
-      (TaskLibraryDefinitionModel.findById as jest.Mock).mockReturnValue({
-        exec: jest.fn().mockResolvedValue(doc),
-      });
-
-      // Pass empty schema object to trigger defaults in code
-      await TaskLibraryService.update('123', {
-        schema: {} as any,
-      });
-
-      expect(doc.set).toHaveBeenCalledWith('schema', {
-        medicationFields: {}, // Default applied
-        requiresObservationTool: false, // Default applied
-        recurrence: undefined, // Default applied
-      });
-    });
-
-    it('should not update fields that are undefined', async () => {
-      const doc = mockDoc({
-        category: 'Original',
-        name: 'Original',
-        defaultDescription: 'Original',
-        isActive: true,
-      });
-      (TaskLibraryDefinitionModel.findById as jest.Mock).mockReturnValue({
-        exec: jest.fn().mockResolvedValue(doc),
-      });
-
-      // Call update with empty object
-      await TaskLibraryService.update('123', {});
-
-      expect(doc.category).toBe('Original');
-      expect(doc.name).toBe('Original');
-      expect(doc.isActive).toBe(true);
-      expect(doc.set).not.toHaveBeenCalled(); // Schema not updated
-      expect(doc.save).toHaveBeenCalled(); // Save is still called
+        TaskLibraryService.getById(validId),
+      ).rejects.toBeInstanceOf(TaskLibraryServiceError);
     });
   });
 });

@@ -3,6 +3,7 @@ import {
   ObservationToolDefinitionServiceError,
 } from "../../src/services/observationToolDefinition.service";
 import { ObservationToolDefinitionModel } from "../../src/models/observationToolDefinition";
+import { Types } from "mongoose";
 
 jest.mock("../../src/models/observationToolDefinition", () => {
   const actual = jest.requireActual(
@@ -25,6 +26,8 @@ const mockedModel = ObservationToolDefinitionModel as unknown as {
 };
 
 describe("ObservationToolDefinitionService", () => {
+  const validId = new Types.ObjectId().toString();
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -89,7 +92,7 @@ describe("ObservationToolDefinitionService", () => {
       });
 
       await expect(
-        ObservationToolDefinitionService.update("missing", {
+        ObservationToolDefinitionService.update(validId, {
           name: "New",
         }),
       ).rejects.toBeInstanceOf(ObservationToolDefinitionServiceError);
@@ -110,7 +113,7 @@ describe("ObservationToolDefinitionService", () => {
         exec: jest.fn().mockResolvedValue(doc),
       });
 
-      const updated = await ObservationToolDefinitionService.update("id-1", {
+      const updated = await ObservationToolDefinitionService.update(validId, {
         name: "New",
         description: "New desc",
         category: "New cat",
@@ -147,7 +150,7 @@ describe("ObservationToolDefinitionService", () => {
         exec: jest.fn().mockResolvedValue(doc),
       });
 
-      await ObservationToolDefinitionService.archive("id-1");
+      await ObservationToolDefinitionService.archive(validId);
 
       expect(doc.isActive).toBe(false);
       expect(save).toHaveBeenCalled();
@@ -159,7 +162,7 @@ describe("ObservationToolDefinitionService", () => {
       });
 
       await expect(
-        ObservationToolDefinitionService.archive("missing"),
+        ObservationToolDefinitionService.archive(validId),
       ).rejects.toBeInstanceOf(ObservationToolDefinitionServiceError);
     });
   });
@@ -191,7 +194,7 @@ describe("ObservationToolDefinitionService", () => {
         exec: jest.fn().mockResolvedValue(doc),
       });
 
-      const result = await ObservationToolDefinitionService.getById("1");
+      const result = await ObservationToolDefinitionService.getById(validId);
 
       expect(result).toBe(doc);
     });
@@ -202,7 +205,7 @@ describe("ObservationToolDefinitionService", () => {
       });
 
       await expect(
-        ObservationToolDefinitionService.getById("missing"),
+        ObservationToolDefinitionService.getById(validId),
       ).rejects.toBeInstanceOf(ObservationToolDefinitionServiceError);
     });
   });

@@ -8,7 +8,7 @@ export const sanitizeInput = (value: any): any => {
     return escape(stripLow(trim(value)));
   }
   if (Array.isArray(value)) {
-    return value.map(sanitizeInput);
+    return value.map((element) => sanitizeInput(element));
   }
   if (typeof value === "object" && value !== null) {
     const sanitized: Record<string, any> = {};
@@ -22,7 +22,7 @@ export const sanitizeInput = (value: any): any => {
 
 export function assertSafeString(input: unknown, field: string): string {
   if (typeof input !== "string") {
-    throw new Error(`${field} must be a string`);
+    throw new TypeError(`${field} must be a string`);
   }
 
   if (field === "email") return input;
@@ -42,7 +42,7 @@ export function assertSafeString(input: unknown, field: string): string {
 
 export function assertEmail(input: unknown, field = "email"): string {
   if (typeof input !== "string") {
-    throw new Error(`${field} must be a string`);
+    throw new TypeError(`${field} must be a string`);
   }
 
   if (/^\$/.test(input)) {

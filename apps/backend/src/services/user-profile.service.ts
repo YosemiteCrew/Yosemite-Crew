@@ -344,43 +344,45 @@ const sanitizeProfessionalDetails = (
   });
 };
 
+const pruneArray = (value: unknown[]): void => {
+  for (let index = value.length - 1; index >= 0; index -= 1) {
+    const next = pruneUndefined(value[index]);
+
+    if (next === undefined) {
+      value.splice(index, 1);
+    } else {
+      value[index] = next;
+    }
+  }
+};
+
+const pruneRecord = (value: UnknownRecord): void => {
+  for (const key of Object.keys(value)) {
+    const next = pruneUndefined(value[key]);
+
+    if (next === undefined) {
+      delete value[key];
+    } else {
+      value[key] = next;
+    }
+  }
+};
+
 const pruneUndefined = <T>(value: T): T => {
   if (Array.isArray(value)) {
-    const arrayValue = value as unknown[];
-
-    for (let index = arrayValue.length - 1; index >= 0; index -= 1) {
-      const next = pruneUndefined(arrayValue[index]);
-
-      if (next === undefined) {
-        arrayValue.splice(index, 1);
-      } else {
-        arrayValue[index] = next;
-      }
-    }
-
+    pruneArray(value as unknown[]);
     return value;
   }
 
-  if (value && typeof value === "object") {
-    if (value instanceof Date) {
-      return value;
-    }
-
-    const record = value as UnknownRecord;
-
-    for (const key of Object.keys(record)) {
-      const next = pruneUndefined(record[key]);
-
-      if (next === undefined) {
-        delete record[key];
-      } else {
-        record[key] = next;
-      }
-    }
-
+  if (!value || typeof value !== "object") {
     return value;
   }
 
+  if (value instanceof Date) {
+    return value;
+  }
+
+  pruneRecord(value as UnknownRecord);
   return value;
 };
 
@@ -474,14 +476,18 @@ const buildDomainProfile = (
   };
 
   const idSource = raw._id ?? document._id;
-  const id =
-    typeof idSource === "string"
-      ? idSource
-      : typeof idSource === "object" &&
-          idSource !== null &&
-          "toString" in idSource
-        ? String((idSource as { toString: () => string }).toString())
-        : undefined;
+  
+  let id: string | undefined;
+
+  if (typeof idSource === "string") {
+    id = idSource;
+  } else if (
+    typeof idSource === "object" &&
+    idSource !== null &&
+    "toString" in idSource
+  ) {
+    id = String((idSource as { toString: () => string }).toString());
+  }
 
   const personalDetails = raw.personalDetails
     ? pruneUndefined({

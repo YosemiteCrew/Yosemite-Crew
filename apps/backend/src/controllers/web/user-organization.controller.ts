@@ -21,7 +21,7 @@ export const UserOrganizationController = {
     try {
       const payload = req.body as UserOrganizationFHIRPayload | undefined;
 
-      if (!payload || payload.resourceType !== "PractitionerRole") {
+      if (payload?.resourceType !== "PractitionerRole") {
         res.status(400).json({
           message: "Invalid payload. Expected FHIR PractitionerRole resource.",
         });

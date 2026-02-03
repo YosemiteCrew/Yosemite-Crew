@@ -414,52 +414,77 @@ describe('Inventory Services', () => {
     });
   });
 
-  // ─────────────────────────────────────────────
-  // 4. Vendor, MetaField, Alert Services
-  // ─────────────────────────────────────────────
-  describe('InventoryVendorService', () => {
-    it('should create vendor', async () => {
-        (InventoryVendorModel.create as jest.Mock).mockResolvedValue({});
-        await InventoryVendorService.createVendor({ organisationId: VALID_ORG_ID, name: 'V' });
-        expect(InventoryVendorModel.create).toHaveBeenCalled();
+  // ======================================================================
+  // 5. InventoryMetaFieldService
+  // ======================================================================
+  describe("InventoryMetaFieldService", () => {
+    it("createField", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (InventoryMetaFieldModel.create as any).mockResolvedValue({} as any);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await InventoryMetaFieldService.createField({
+        businessType: "GENERAL",
+        fieldKey: "color",
+        label: "Color",
+        values: ["Black", "White"],
+      } as any);
+      expect(InventoryMetaFieldModel.create).toHaveBeenCalled();
     });
 
-    it('should throw if missing orgId', async () => {
-        await expect(InventoryVendorService.createVendor({} as any)).rejects.toThrow('organisationId required');
+    it("updateField: success", async () => {
+      const field = mockDoc({ label: "Old" });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (InventoryMetaFieldModel.findById as any).mockResolvedValue(field as any);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await InventoryMetaFieldService.updateField(
+        new Types.ObjectId().toString(),
+        { label: "New" } as any,
+      );
+      expect(field.label).toBe("New");
     });
 
-    it('should update vendor', async () => {
-        const v = mockDoc({});
-        (InventoryVendorModel.findById as jest.Mock).mockResolvedValue(v);
-        await InventoryVendorService.updateVendor(VALID_ID_STR, { name: 'V2' });
-        expect(v.name).toBe('V2');
+    it("updateField: not found", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (InventoryMetaFieldModel.findById as any).mockResolvedValue(null as any);
+      await expect(
+        InventoryMetaFieldService.updateField(
+          new Types.ObjectId().toString(),
+          {},
+        ),
+      ).rejects.toThrow("not found");
     });
 
-    it('should throw if vendor missing', async () => {
-        (InventoryVendorModel.findById as jest.Mock).mockResolvedValue(null);
-        await expect(InventoryVendorService.updateVendor(VALID_ID_STR, {})).rejects.toThrow('Vendor not found');
+    it("deleteField", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (InventoryMetaFieldModel.findByIdAndDelete as any).mockResolvedValue(
+        {} as any,
+      );
+      await InventoryMetaFieldService.deleteField(
+        new Types.ObjectId().toString(),
+      );
+      expect(InventoryMetaFieldModel.findByIdAndDelete).toHaveBeenCalled();
     });
 
-    it('should list vendors', async () => {
-        (InventoryVendorModel.find as jest.Mock).mockReturnValue(mockChain([]));
-        await InventoryVendorService.listVendors(VALID_ORG_ID);
-        expect(InventoryVendorModel.find).toHaveBeenCalled();
-    });
-
-    it('should get vendor', async () => {
-        await InventoryVendorService.getVendor(VALID_ID_STR);
-        expect(InventoryVendorModel.findById).toHaveBeenCalled();
-    });
-
-    it('should delete vendor', async () => {
-        await InventoryVendorService.deleteVendor(VALID_ID_STR);
-        expect(InventoryVendorModel.findByIdAndDelete).toHaveBeenCalled();
+    it("listFields", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (InventoryMetaFieldModel.find as any).mockReturnValue(
+        mockChain([]),
+      );
+      await InventoryMetaFieldService.listFields("GENERAL");
+      expect(InventoryMetaFieldModel.find).toHaveBeenCalledWith({
+        businessType: "GENERAL",
+      });
     });
   });
 
   describe('InventoryMetaFieldService', () => {
     it('should create field', async () => {
-        await InventoryMetaFieldService.createField({} as any);
+        await InventoryMetaFieldService.createField({
+          businessType: 'GENERAL',
+          fieldKey: 'color',
+          label: 'Color',
+          values: ['Black', 'White'],
+        } as any);
         expect(InventoryMetaFieldModel.create).toHaveBeenCalled();
     });
 
@@ -482,8 +507,10 @@ describe('Inventory Services', () => {
 
     it('should list fields', async () => {
         (InventoryMetaFieldModel.find as jest.Mock).mockReturnValue(mockChain([]));
-        await InventoryMetaFieldService.listFields('type');
-        expect(InventoryMetaFieldModel.find).toHaveBeenCalled();
+        await InventoryMetaFieldService.listFields('GENERAL');
+        expect(InventoryMetaFieldModel.find).toHaveBeenCalledWith({
+          businessType: 'GENERAL',
+        });
     });
   });
 

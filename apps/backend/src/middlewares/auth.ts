@@ -169,6 +169,7 @@ const verifyFirebaseToken = async (token: string): Promise<JwtPayload> => {
   try {
     return await admin.auth().verifyIdToken(token);
   } catch (err) {
+    logger.error("Failed to verify Firebase token", err);
     throw new Error("Invalid Firebase token");
   }
 };

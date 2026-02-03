@@ -145,11 +145,6 @@ const resolveRange = (range: SummaryRange) => {
       const y = now.subtract(1, "day");
       return { from: y.startOf("day").toDate(), to: y.endOf("day").toDate() };
     }
-    case "last_7_days":
-      return {
-        from: now.subtract(7, "day").startOf("day").toDate(),
-        to: now.toDate(),
-      };
     case "last_30_days":
       return {
         from: now.subtract(30, "day").startOf("day").toDate(),
@@ -214,7 +209,7 @@ export const DashboardService = {
               $sum: {
                 $cond: [
                   { $eq: ["$status", "COMPLETED"] },
-                  "$totalPrice", // TODO: change to your field
+                  "$totalPrice",
                   0,
                 ],
               },
@@ -345,7 +340,7 @@ export const DashboardService = {
             year: { $year: "$startTime" },
             month: { $month: "$startTime" },
           },
-          revenue: { $sum: "$totalPrice" }, // TODO: field name
+          revenue: { $sum: "$totalPrice" },
         },
       },
       { $sort: { "_id.year": 1, "_id.month": 1 } },
@@ -397,7 +392,7 @@ export const DashboardService = {
       },
       {
         $group: {
-          _id: "$lead.id", // TODO: change if your key is different
+          _id: "$lead.id",
           completedAppointments: { $sum: 1 },
         },
       },
@@ -446,8 +441,8 @@ export const DashboardService = {
       },
       {
         $group: {
-          _id: "$serviceType", // TODO: adjust field name
-          revenue: { $sum: "$totalPrice" }, // TODO: field name
+          _id: "$serviceType",
+          revenue: { $sum: "$totalPrice" },
         },
       },
       { $sort: { revenue: -1 } },

@@ -23,7 +23,7 @@ import {
 import { buildPdfViewModel, renderPdf } from "./formPDF.service";
 import AppointmentModel from "src/models/appointment";
 import OrganizationModel from "src/models/organization";
-import { DocumensoService, SignedDocument } from "./documenso.service";
+import { DocumensoService } from "./documenso.service";
 import { AuditTrailService } from "./audit-trail.service";
 import UserModel from "src/models/user";
 
@@ -106,6 +106,28 @@ const orgTypeCache = new Map<
   { type: OrganizationType; expiresAt: number }
 >();
 
+type LeanForm = Omit<Form, "_id"> & { _id: Types.ObjectId };
+type VersionAgg = Pick<
+  IFormVersionDocument,
+  "formId" | "schemaSnapshot" | "version"
+> & { _id: Types.ObjectId };
+type SubmissionAgg = FormSubmissionDocument & {
+  _id: Types.ObjectId;
+  formId: Types.ObjectId;
+};
+type AppointmentLean = {
+  organisationId: string;
+  formIds?: NormalizableObjectId[];
+};
+
+const SOAP_CATEGORIES = [
+  "SOAP-Subjective",
+  "SOAP-Objective",
+  "SOAP-Assessment",
+  "SOAP-Plan",
+  "Discharge",
+];
+
 const resolveOrganizationType = async (
   organisationId: string,
 ): Promise<OrganizationType | null> => {
@@ -128,6 +150,152 @@ const resolveOrganizationType = async (
   });
 
   return organisation.type;
+};
+
+const buildTemplateFilter = (
+  orgType: OrganizationType,
+  appointment: AppointmentLean,
+  params: { serviceId?: string; species?: string },
+) => {
+  const templateFilter: Record<string, unknown> = {
+    orgId: appointment.organisationId,
+    status: "published",
+  };
+
+  if (orgType === "HOSPITAL") {
+    templateFilter.category = { $in: SOAP_CATEGORIES };
+  } else {
+    templateFilter.businessType = orgType;
+    templateFilter.category = { $nin: SOAP_CATEGORIES };
+  }
+
+  if (params.serviceId) {
+    templateFilter.serviceId = { $in: [params.serviceId] };
+  }
+
+  if (params.species) {
+    templateFilter.speciesFilter = { $in: [params.species] };
+  }
+
+  return templateFilter;
+};
+
+const fetchTemplateForms = async (
+  orgType: OrganizationType | null,
+  appointment: AppointmentLean,
+  params: { serviceId?: string; species?: string },
+): Promise<LeanForm[]> => {
+  if (!orgType) return [];
+  const filter = buildTemplateFilter(orgType, appointment, params);
+  return FormModel.find(filter).lean<LeanForm[]>();
+};
+
+const fetchFormsByIds = async (
+  formIds: Set<string>,
+): Promise<LeanForm[]> => {
+  if (!formIds.size) return [];
+  return FormModel.find({
+    _id: { $in: [...formIds] },
+    status: "published",
+  }).lean<LeanForm[]>();
+};
+
+const mergeFormsById = (formsById: LeanForm[], templateForms: LeanForm[]) => {
+  const formMap = new Map<string, LeanForm>();
+  for (const form of [...formsById, ...templateForms]) {
+    formMap.set(form._id.toString(), form);
+  }
+  return [...formMap.values()];
+};
+
+const loadLatestVersions = async (forms: LeanForm[]) => {
+  const versions = await FormVersionModel.aggregate<VersionAgg>([
+    { $match: { formId: { $in: forms.map((f) => f._id) } } },
+    { $sort: { version: -1 } },
+    {
+      $group: {
+        _id: "$formId",
+        doc: { $first: "$$ROOT" },
+      },
+    },
+    { $replaceRoot: { newRoot: "$doc" } },
+  ]);
+
+  return new Map<string, VersionAgg>(
+    versions.map((v) => [normalizeObjectId(v.formId), v]),
+  );
+};
+
+const loadLatestSubmissions = async (
+  appointmentId: string,
+  forms: LeanForm[],
+) => {
+  const submissions = await FormSubmissionModel.aggregate<SubmissionAgg>([
+    {
+      $match: {
+        appointmentId,
+        formId: { $in: forms.map((f) => f._id) },
+      },
+    },
+    { $sort: { submittedAt: -1 } },
+    {
+      $group: {
+        _id: "$formId",
+        doc: { $first: "$$ROOT" },
+      },
+    },
+    { $replaceRoot: { newRoot: "$doc" } },
+  ]);
+
+  return new Map<string, SubmissionAgg>(
+    submissions.map((s) => [s.formId.toString(), s]),
+  );
+};
+
+const resolveSignedPdfUrl = async (
+  submission: SubmissionAgg,
+  orgId: string,
+) => {
+  if (!submission.signing?.documentId) return undefined;
+  const documensoApiKey = await DocumensoService.resolveOrganisationApiKey(
+    orgId,
+  );
+  if (!documensoApiKey) return undefined;
+  return DocumensoService.downloadSignedDocument({
+    documentId: Number.parseInt(submission.signing.documentId, 10),
+    apiKey: documensoApiKey,
+  });
+};
+
+const buildQuestionnaireResponse = async (
+  submission: SubmissionAgg | undefined,
+  version: VersionAgg,
+  orgId: string,
+) => {
+  if (!submission) return undefined;
+  const signedPdfUrl = await resolveSignedPdfUrl(submission, orgId);
+  return toFHIRQuestionnaireResponse(
+    {
+      _id: submission._id.toString(),
+      formId: submission.formId.toString(),
+      formVersion: submission.formVersion,
+      appointmentId: submission.appointmentId,
+      companionId: submission.companionId,
+      parentId: submission.parentId,
+      submittedBy: submission.submittedBy,
+      answers: submission.answers,
+      submittedAt: submission.submittedAt,
+      signing: submission.signing
+        ? {
+            ...submission.signing,
+            pdf: {
+              url: signedPdfUrl?.downloadUrl, // 👈 dynamically injected
+            },
+          }
+        : undefined,
+    } satisfies FormSubmission,
+    version.schemaSnapshot,
+  );
 };
 
 // Helpers
@@ -318,7 +486,7 @@ export const FormService = {
     const lastVersion =
       (await FormVersionModel.findOne({ formId: fid }).sort({
         version: -1,
-      })) || undefined;
+      })) ?? undefined;
 
     const nextVersion = lastVersion ? lastVersion.version + 1 : 1;
 
@@ -454,12 +622,11 @@ export const FormService = {
       version: sub.formVersion,
     }).lean();
 
-    const formId =
-      typeof sub.formId === "string"
-        ? sub.formId
-        : sub.formId instanceof Types.ObjectId
-          ? sub.formId.toHexString()
-          : "";
+    const formId = (() => {
+      if (typeof sub.formId === "string") return sub.formId;
+      if (sub.formId instanceof Types.ObjectId) return sub.formId.toHexString();
+      return "";
+    })();
 
     const normalized: FormSubmission = {
       _id: sub._id.toString(),
@@ -534,13 +701,23 @@ export const FormService = {
 
     type SoapNoteGroup = Record<SoapNoteType, SoapNoteEntry[]>;
 
+    const SOAP_TYPE_MAP: Record<Form["category"], SoapNoteType | undefined> = {
+      "SOAP-Subjective": "Subjective",
+      "SOAP-Objective": "Objective",
+      "SOAP-Assessment": "Assessment",
+      "SOAP-Plan": "Plan",
+      "Discharge": "Discharge",
+    };
+
     const appointmentObjectId = ensureObjectId(
       appointmentId,
       "appointmentId",
     ).toString();
+
     const appointment = await AppointmentModel.findById(appointmentObjectId)
       .select({ organisationId: 1 })
       .lean();
+
     if (!appointment) {
       throw new FormServiceError("Appointment not found", 404);
     }
@@ -559,22 +736,25 @@ export const FormService = {
       .sort({ submittedAt: -1 })
       .lean()) as unknown as SubmissionLean[];
 
+    const grouped: SoapNoteGroup = {
+      Subjective: [],
+      Objective: [],
+      Assessment: [],
+      Plan: [],
+      Discharge: [],
+    };
+
     if (!submissions.length) {
       return {
         appointmentId: appointmentObjectId,
-        soapNotes: {
-          Subjective: [],
-          Objective: [],
-          Assessment: [],
-          Plan: [],
-        },
+        soapNotes: grouped,
       };
     }
 
     // Load forms for soapType lookup
-    const formIds: string[] = [
+    const formIds = [
       ...new Set(
-        submissions.map((submission) => normalizeObjectId(submission.formId)),
+        submissions.map((s) => normalizeObjectId(s.formId)),
       ),
     ];
 
@@ -592,31 +772,11 @@ export const FormService = {
       forms.map((f) => [normalizeObjectId(f._id), f]),
     );
 
-    const grouped: SoapNoteGroup = {
-      Subjective: [],
-      Objective: [],
-      Assessment: [],
-      Plan: [],
-      Discharge: [],
-    };
-
     for (const sub of submissions) {
       const form = formMap.get(normalizeObjectId(sub.formId));
       if (!form) continue;
 
-      const soapType =
-        form.category === "SOAP-Subjective"
-          ? "Subjective"
-          : form.category === "SOAP-Objective"
-            ? "Objective"
-            : form.category === "SOAP-Assessment"
-              ? "Assessment"
-              : form.category === "SOAP-Plan"
-                ? "Plan"
-                : form.category === "Discharge"
-                  ? "Discharge"
-                  : undefined;
-
+      const soapType = SOAP_TYPE_MAP[form.category];
       if (!soapType) continue;
 
       grouped[soapType].push({
@@ -630,10 +790,8 @@ export const FormService = {
     }
 
     if (options?.latestOnly) {
-      Object.keys(grouped).forEach((k) => {
-        grouped[k as keyof typeof grouped] = grouped[
-          k as keyof typeof grouped
-        ].slice(0, 1);
+      (Object.keys(grouped) as SoapNoteType[]).forEach((key) => {
+        grouped[key] = grouped[key].slice(0, 1);
       });
     }
 
@@ -738,16 +896,6 @@ export const FormService = {
     species?: string;
     isPMS?: boolean
   }) {
-    type LeanForm = Omit<Form, "_id"> & { _id: Types.ObjectId };
-    type VersionAgg = Pick<
-      IFormVersionDocument,
-      "formId" | "schemaSnapshot" | "version"
-    > & { _id: Types.ObjectId };
-    type SubmissionAgg = FormSubmissionDocument & {
-      _id: Types.ObjectId;
-      formId: Types.ObjectId;
-    };
-
     const appointmentId = ensureObjectId(
       params.appointmentId,
       "appointmentId",
@@ -773,96 +921,21 @@ export const FormService = {
       ...submissionFormIdStrings,
     ]);
 
-    const formsById = formIdsFromAppointment.size
-      ? await FormModel.find({
-          _id: { $in: [...formIdsFromAppointment] },
-          status: "published",
-        }).lean<LeanForm[]>()
-      : [];
+    const [formsById, templateForms] = await Promise.all([
+      fetchFormsByIds(formIdsFromAppointment),
+      fetchTemplateForms(orgType, appointment, params),
+    ]);
 
-    const soapCategories = [
-      "SOAP-Subjective",
-      "SOAP-Objective",
-      "SOAP-Assessment",
-      "SOAP-Plan",
-      "Discharge",
-    ];
-
-    const templateForms: LeanForm[] = [];
-    if (orgType) {
-      const templateFilter: Record<string, unknown> = {
-        orgId: appointment.organisationId,
-        status: "published",
-      };
-
-      if (orgType === "HOSPITAL") {
-        templateFilter.category = { $in: soapCategories };
-      } else {
-        templateFilter.businessType = orgType;
-        templateFilter.category = { $nin: soapCategories };
-      }
-
-      if (params.serviceId) {
-        templateFilter.serviceId = { $in: [params.serviceId] };
-      }
-
-      if (params.species) {
-        templateFilter.speciesFilter = { $in: [params.species] };
-      }
-
-      templateForms.push(
-        ...(await FormModel.find(templateFilter).lean<LeanForm[]>()),
-      );
-    }
-
-    const formMap = new Map<string, LeanForm>();
-    for (const form of [...formsById, ...templateForms]) {
-      formMap.set(form._id.toString(), form);
-    }
-
-    const forms = [...formMap.values()];
+    const forms = mergeFormsById(formsById, templateForms);
     if (!forms.length) {
       return { appointmentId, items: [] };
     }
 
     // 2️⃣ Load latest form versions
-    const versions = await FormVersionModel.aggregate<VersionAgg>([
-      { $match: { formId: { $in: forms.map((f) => f._id) } } },
-      { $sort: { version: -1 } },
-      {
-        $group: {
-          _id: "$formId",
-          doc: { $first: "$$ROOT" },
-        },
-      },
-      { $replaceRoot: { newRoot: "$doc" } },
-    ]);
-
-    const versionMap = new Map<string, VersionAgg>(
-      versions.map((v) => [normalizeObjectId(v.formId), v]),
-    );
+    const versionMap = await loadLatestVersions(forms);
 
     // 3️⃣ Load latest submissions per form
-    const submissions = await FormSubmissionModel.aggregate<SubmissionAgg>([
-      {
-        $match: {
-          appointmentId,
-          formId: { $in: forms.map((f) => f._id) },
-        },
-      },
-      { $sort: { submittedAt: -1 } },
-      {
-        $group: {
-          _id: "$formId",
-          doc: { $first: "$$ROOT" },
-        },
-      },
-      { $replaceRoot: { newRoot: "$doc" } },
-    ]);
-
-    const submissionMap = new Map<string, SubmissionAgg>(
-      submissions.map((s) => [s.formId.toString(), s]),
-    );
+    const submissionMap = await loadLatestSubmissions(appointmentId, forms);
 
     // 4️⃣ Build FHIR response
     const includeQuestionnaire = !params.isPMS;
@@ -886,49 +959,11 @@ export const FormService = {
         : undefined;
 
       // Optional FHIR QuestionnaireResponse
-      const submission = submissionMap.get(formId);
-      let questionnaireResponse:
-        | ReturnType<typeof toFHIRQuestionnaireResponse>
-        | undefined = undefined;
-      if (submission) {
-        let signedPdfUrl: SignedDocument | undefined;
-
-        if (submission.signing?.documentId) {
-          const documensoApiKey = await DocumensoService.resolveOrganisationApiKey(
-            form.orgId,
-          );
-
-          if (documensoApiKey) {
-            signedPdfUrl = await DocumensoService.downloadSignedDocument({
-              documentId: Number.parseInt(submission.signing.documentId, 10),
-              apiKey: documensoApiKey,
-            });
-          }
-        }
-
-        questionnaireResponse = toFHIRQuestionnaireResponse(
-          {
-            _id: submission._id.toString(),
-            formId: submission.formId.toString(),
-            formVersion: submission.formVersion,
-            appointmentId: submission.appointmentId,
-            companionId: submission.companionId,
-            parentId: submission.parentId,
-            submittedBy: submission.submittedBy,
-            answers: submission.answers,
-            submittedAt: submission.submittedAt,
-            signing: submission.signing
-              ? {
-                  ...submission.signing,
-                  pdf: {
-                    url: signedPdfUrl?.downloadUrl, // 👈 dynamically injected
-                  },
-                }
-              : undefined,
-          } satisfies FormSubmission,
-          version.schemaSnapshot,
-        );
-      }
+      const questionnaireResponse = await buildQuestionnaireResponse(
+        submissionMap.get(formId),
+        version,
+        form.orgId,
+      );
 
       items.push({
         ...(includeQuestionnaire ? { questionnaire } : {}),
