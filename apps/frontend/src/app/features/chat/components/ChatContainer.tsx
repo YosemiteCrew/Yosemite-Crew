@@ -801,21 +801,15 @@ const ChannelPreviewWrapper: React.FC<ChannelPreviewWrapperProps> = ({
   currentUserId,
   ...previewProps
 }) => {
-  const handlePreviewSelect: React.MouseEventHandler<HTMLButtonElement> = (
-    event
-  ) => {
-    previewProps.onSelect?.(event);
-    onPreviewSelect?.(previewProps.channel ?? null);
-  };
+  const wasActiveRef = React.useRef(false);
 
-  const handleKeyDown: React.KeyboardEventHandler<HTMLButtonElement> = (
-    event
-  ) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      handlePreviewSelect(event as unknown as React.MouseEvent<HTMLButtonElement>);
+  useEffect(() => {
+    const isActive = Boolean(previewProps.active);
+    if (isActive && !wasActiveRef.current) {
+      onPreviewSelect?.(previewProps.channel ?? null);
     }
-  };
+    wasActiveRef.current = isActive;
+  }, [previewProps.active, previewProps.channel, onPreviewSelect]);
 
   const { title, image } = getChannelDisplayInfo(
     previewProps.channel ?? null,
@@ -823,28 +817,11 @@ const ChannelPreviewWrapper: React.FC<ChannelPreviewWrapperProps> = ({
   );
 
   return (
-    <button
-      type="button"
-      aria-pressed={previewProps.active}
-      className="chat-preview-trigger"
-      onClick={handlePreviewSelect}
-      onKeyDown={handleKeyDown}
-      style={{
-        cursor: "pointer",
-        background: "none",
-        border: "none",
-        padding: 0,
-        margin: 0,
-        textAlign: "left",
-        width: "100%",
-      }}
-    >
-      <ChannelPreviewMessenger
-        {...previewProps}
-        displayTitle={title}
-        displayImage={image}
-      />
-    </button>
+    <ChannelPreviewMessenger
+      {...previewProps}
+      displayTitle={title}
+      displayImage={image}
+    />
   );
 };
 
