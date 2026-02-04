@@ -243,11 +243,13 @@ export const FormController = {
   getSOAPNotesByAppointment: async (req: Request, res: Response) => {
     try {
       const { appointmentId } = req.params;
-      const latestOnly = req.query.latestOnly === "true";
+      const { latestOnly } =
+        (req.body as Record<string, unknown>) ?? {};
+      const latestOnlyFlag = latestOnly === true || latestOnly === "true";
 
       const result = await FormService.getSOAPNotesByAppointment(
         appointmentId,
-        { latestOnly },
+        { latestOnly: latestOnlyFlag },
       );
 
       res.status(200).json(result);
@@ -286,7 +288,8 @@ export const FormController = {
   getFormsForAppointment: async (req: Request, res: Response) => {
     try {
       const { appointmentId } = req.params;
-      const { serviceId, species, isPMS } = req.query;
+      const { serviceId, species, isPMS } =
+        (req.body as Record<string, unknown>) ?? {};
 
       if (!appointmentId) {
         return res.status(400).json({ message: "appointmentId is required" });

@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import TaskModel, {
   TaskDocument,
   TaskStatus,
@@ -67,6 +68,13 @@ const asNonEmptyString = (value: unknown): string | undefined => {
 
 const isValidDate = (value: unknown): value is Date =>
   value instanceof Date && !Number.isNaN(value.getTime());
+
+const ensureObjectId = (value: unknown, field: string): string => {
+  if (typeof value !== "string" || !Types.ObjectId.isValid(value)) {
+    throw new TaskServiceError(`Invalid ${field}`, 400);
+  }
+  return value;
+};
 
 const sanitizeStatusList = (value: unknown): TaskStatus[] | undefined => {
   if (!Array.isArray(value)) return undefined;
@@ -400,8 +408,9 @@ export const TaskService = {
   async createFromLibrary(
     input: CreateFromLibraryInput,
   ): Promise<TaskDocument> {
+    const libraryTaskId = ensureObjectId(input.libraryTaskId, "libraryTaskId");
     const library = await TaskLibraryDefinitionModel.findById(
-      input.libraryTaskId,
+      libraryTaskId,
     ).exec();
 
     if (!library || !library.isActive) {
@@ -465,7 +474,8 @@ export const TaskService = {
   async createFromTemplate(
     input: CreateFromTemplateInput,
   ): Promise<TaskDocument> {
-    const template = await TaskTemplateModel.findById(input.templateId).exec();
+    const templateId = ensureObjectId(input.templateId, "templateId");
+    const template = await TaskTemplateModel.findById(templateId).exec();
 
     if (!template || !template.isActive) {
       throw new TaskServiceError("Task template not found or inactive", 404);

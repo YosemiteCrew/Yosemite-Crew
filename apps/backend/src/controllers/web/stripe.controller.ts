@@ -129,7 +129,7 @@ export const StripeController = {
     } catch (err) {
       logger.error("Stripe Webhook Error:", err);
       const message = err instanceof Error ? err.message : "Unknown error";
-      return res.status(400).send(`Webhook Error: ${message}`);
+      return res.status(400).json({ error: message });
     }
   },
 
