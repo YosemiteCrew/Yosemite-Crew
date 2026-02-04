@@ -29,7 +29,6 @@ export const getStatusStyle = (status: string): StatusStyle => {
 };
 
 export const AppointmentLabels: StatusLabel[] = [
-  { name: "No payment", key: "no_payment", bg: "#5C614B", text: "#fff" },
   { name: "Requested", key: "requested", bg: "#747283", text: "#fff" },
   { name: "Upcoming", key: "upcoming", bg: "#F1D4B0", text: "#000" },
   { name: "Checked-in", key: "checked_in", bg: "#A8A181", text: "#fff" },

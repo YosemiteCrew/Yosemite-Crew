@@ -91,7 +91,7 @@ const StripeOnboarding = () => {
         publishableKey: PUBLISHABE_KEY,
         fetchClientSecret,
         appearance: {
-          overlays: "dialog",
+          overlays: "drawer",
           variables: { colorPrimary: "#635BFF" },
         },
       });
@@ -118,7 +118,7 @@ const StripeOnboarding = () => {
       </div>
       {connectInstance && (
         <ConnectComponentsProvider connectInstance={connectInstance}>
-          <div>
+          <div className="flex flex-col gap-5">
             <ConnectAccountOnboarding
               onExit={handleExit}
               onStepChange={handleStepChange}

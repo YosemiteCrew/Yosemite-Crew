@@ -22,7 +22,7 @@ describe("VideosCard", () => {
     expect(screen.getByText("Inviting your team")).toBeInTheDocument();
     expect(screen.getByText("How to add companions")).toBeInTheDocument();
     expect(
-      screen.getByText("How to write consultation notes")
+      screen.getByText("How to use forms")
     ).toBeInTheDocument();
   });
 

@@ -76,6 +76,9 @@ export const AppointmentStatusFilters: StatusOption[] = [
   status("No show", "no_show", "#747283"),
 ];
 
+export const AppointmentStatusFiltersUI: StatusOption[] =
+  AppointmentStatusFilters.filter((status) => status.key !== "no_payment");
+
 export const AppointmentFilters = [
   filter("All", "all"),
   filter("Emergencies", "emergencies"),

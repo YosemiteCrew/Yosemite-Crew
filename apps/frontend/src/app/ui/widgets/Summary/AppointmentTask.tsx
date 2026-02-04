@@ -70,10 +70,10 @@ const AppointmentTask = () => {
 
   const filteredList = useMemo(() => {
     if (activeTable === "Appointments") {
+      const wanted = activeSubLabel.toLowerCase();
       return appointments.filter((item) => {
-        const matchesStatus =
-          item.status.toLowerCase() === activeSubLabel.toLowerCase();
-        return matchesStatus;
+        const s = item.status?.toLowerCase();
+        return s === wanted || (wanted === "requested" && s === "no_payment");
       });
     }
     return [];
