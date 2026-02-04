@@ -34,19 +34,19 @@ export type ToFHIROrganizationOptions = {
 
 const TAX_IDENTIFIER_SYSTEM = 'http://example.org/fhir/NamingSystem/organisation-tax-id'
 const DUNS_IDENTIFIER_SYSTEM = 'http://terminology.hl7.org/NamingSystem/DUNSNumber'
-const IMAGE_EXTENSION_URL = 'http://example.org/fhir/StructureDefinition/organisation-image'
-const IS_VERIFIED_EXTENSION_URL = 'http://example.org/fhir/StructureDefinition/isVerified'
-const TAX_ID_EXTENSION_URL = 'http://example.org/fhir/StructureDefinition/taxId'
+const IMAGE_EXTENSION_URL = 'https://yosemitecrew.com/fhir/StructureDefinition/organisation-image'
+const IS_VERIFIED_EXTENSION_URL = 'https://yosemitecrew.com/fhir/StructureDefinition/isVerified'
+const TAX_ID_EXTENSION_URL = 'https://yosemitecrew.com/fhir/StructureDefinition/taxId'
 const HEALTH_SAFETY_CERT_EXTENSION_URL =
-    'http://example.org/fhir/StructureDefinition/healthAndSafetyCertificationNumber'
+    'https://yosemitecrew.com/fhir/StructureDefinition/healthAndSafetyCertificationNumber'
 const ANIMAL_WELFARE_CERT_EXTENSION_URL =
-    'http://example.org/fhir/StructureDefinition/animalWelfareComplianceCertificationNumber'
+    'https://yosemitecrew.com/fhir/StructureDefinition/animalWelfareComplianceCertificationNumber'
 const FIRE_EMERGENCY_CERT_EXTENSION_URL =
-    'http://example.org/fhir/StructureDefinition/fireAndEmergencyCertificationNumber'
+    'https://yosemitecrew.com/fhir/StructureDefinition/fireAndEmergencyCertificationNumber'
 const TYPE_SYSTEM = 'http://example.org/fhir/CodeSystem/organisation-type'
-const GOOGLE_PLACE_ID_EXTENSION_URL = 'http://example.com/fhir/StructureDefinition/google-place-id'
+const GOOGLE_PLACE_ID_EXTENSION_URL = 'https://yosemitecrew.com/fhir/StructureDefinition/google-place-id'
 const STRIPE_ACCOUNT_ID_EXTENSION_URL =
-    'http://example.org/fhir/StructureDefinition/stripe-account-id'
+    'https://yosemitecrew.com/fhir/StructureDefinition/stripe-account-id'
 
 const ORGANISATION_TYPE_CODING_MAP: Record<Organisation['type'], { code: string; display: string }> = {
     HOSPITAL: { code: 'hospital', display: 'Hospital' },
