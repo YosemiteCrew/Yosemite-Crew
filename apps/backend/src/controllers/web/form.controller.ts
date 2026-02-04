@@ -315,7 +315,13 @@ export const FormController = {
 
   getFormSubmissionPDF: async (req: Request, res: Response) => {
     try {
-      const submissionId = req.params.submissionId;
+      const rawSubmissionId = req.params.submissionId;
+      if (typeof rawSubmissionId !== "string" || !rawSubmissionId) {
+        return res
+          .status(400)
+          .json({ message: "submissionId must be a string." });
+      }
+      const submissionId = rawSubmissionId;
 
       const pdfBuffer =
         await FormService.generatePDFForSubmission(submissionId);
