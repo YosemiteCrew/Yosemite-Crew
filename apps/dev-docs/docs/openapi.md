@@ -7,7 +7,7 @@ slug: /openapi
 This page renders the OpenAPI spec located at `apps/dev-docs/static/openapi.yaml`.
 
 <iframe
-  src="/dev-docs/openapi.html"
+  src="/dev-docs/openapi-ui.html"
   title="Yosemite Crew OpenAPI"
   style={{ width: "100%", height: "85vh", border: "0" }}
 />
