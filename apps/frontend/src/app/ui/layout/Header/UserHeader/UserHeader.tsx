@@ -127,91 +127,96 @@ const UserHeader = () => {
     return "Search";
   };
 
+  const hideSearch =
+    pathname.startsWith("/chat") ||
+    pathname.startsWith("/settings") ||
+    pathname.startsWith("/organization") ||
+    pathname.startsWith("/organizations") ||
+    pathname.startsWith("/dashboard");
+
   return (
     <div className="flex items-center justify-between px-3 sm:px-12! lg:px-[36px]! w-full h-20 gap-0">
       <MobileMenu isOpen={menuOpen}>
-            {primaryOrg && !isDev && (
-              <div className="relative w-fit" ref={orgDropdownRef}>
-                <button
-                  className={`flex items-center gap-2 w-60 z-1000 xl:w-[260px] justify-between px-6 py-2 ${selectOrg ? "border border-card-border! rounded-t-2xl!" : "border-white! border"}`}
-                  onClick={() => setSelectOrg((e) => !e)}
+        {primaryOrg && !isDev && (
+          <div className="relative w-fit" ref={orgDropdownRef}>
+            <button
+              className={`flex items-center gap-2 w-60 z-1000 xl:w-[260px] justify-between px-6 py-2 ${selectOrg ? "border border-card-border! rounded-t-2xl!" : "border-white! border"}`}
+              onClick={() => setSelectOrg((e) => !e)}
+            >
+              <div className="flex justify-center h-8 w-8 shrink-0">
+                <Image
+                  src={getSafeImageUrl(primaryOrg.imageURL, "business")}
+                  alt="Logo"
+                  height={32}
+                  width={32}
+                  className="rounded-full cursor-pointer h-8 w-8 object-cover"
+                />
+              </div>
+              <div className="text-black-text text-body-4 truncate max-w-[200px]">
+                {primaryOrg?.name}
+              </div>
+              <FaCaretDown
+                size={20}
+                className={`text-black-text transition-transform cursor-pointer`}
+              />
+            </button>
+            {selectOrg && (
+              <div className="absolute top-[100%] left-0 z-1000 rounded-b-2xl border-l border-r border-b border-card-border bg-white flex flex-col items-center w-full px-[12px] py-[10px]">
+                {orgs.slice(0, 3).map((org, i) => (
+                  <button
+                    key={org.name + i}
+                    className="px-[1.25rem] py-[0.75rem] text-body-4 hover:bg-card-hover rounded-2xl! transition-all duration-300 text-text-secondary! hover:text-text-primary! w-full truncate"
+                    onClick={() =>
+                      handleMobileOrgClick(org._id?.toString() || org.name)
+                    }
+                  >
+                    {org.name}
+                  </button>
+                ))}
+                <Link
+                  href={"/organizations"}
+                  onClick={() => {
+                    setSelectOrg(false);
+                    setMenuOpen(false);
+                  }}
+                  className="text-text-brand px-[1.25rem] py-[0.75rem] text-body-4 text-center w-full hover:bg-card-hover rounded-2xl! transition-all duration-300"
                 >
-                  <div className="flex justify-center h-8 w-8 shrink-0">
-                    <Image
-                      src={getSafeImageUrl(primaryOrg.imageURL, "business")}
-                      alt="Logo"
-                      height={32}
-                      width={32}
-                      className="rounded-full cursor-pointer h-8 w-8 object-cover"
-                    />
-                  </div>
-                  <div className="text-black-text text-body-4 truncate max-w-[200px]">
-                    {primaryOrg?.name}
-                  </div>
-                  <FaCaretDown
-                    size={20}
-                    className={`text-black-text transition-transform cursor-pointer`}
-                  />
-                </button>
-                {selectOrg && (
-                  <div className="absolute top-[100%] left-0 z-1000 rounded-b-2xl border-l border-r border-b border-card-border bg-white flex flex-col items-center w-full px-[12px] py-[10px]">
-                    {orgs.slice(0, 3).map((org, i) => (
-                      <button
-                        key={org.name + i}
-                        className="px-[1.25rem] py-[0.75rem] text-body-4 hover:bg-card-hover rounded-2xl! transition-all duration-300 text-text-secondary! hover:text-text-primary! w-full truncate"
-                        onClick={() =>
-                          handleMobileOrgClick(org._id?.toString() || org.name)
-                        }
-                      >
-                        {org.name}
-                      </button>
-                    ))}
-                    <Link
-                      href={"/organizations"}
-                      onClick={() => {
-                        setSelectOrg(false)
-                        setMenuOpen(false)
-                      }}
-                      className="text-text-brand px-[1.25rem] py-[0.75rem] text-body-4 text-center w-full hover:bg-card-hover rounded-2xl! transition-all duration-300"
-                    >
-                      View all
-                    </Link>
-                  </div>
-                )}
+                  View all
+                </Link>
               </div>
             )}
-            <div className="flex flex-col gap-3">
-              {routes.map((route, index) => {
-                const needsVerifiedOrg = route.verify;
-                // Developer portal routes don't need org verification
-                const isDisabled = isDev
-                  ? false
-                  : route.name !== "Sign out" &&
-                    route.name !== "Settings" &&
-                    (orgMissing || (needsVerifiedOrg && !orgVerified));
+          </div>
+        )}
+        <div className="flex flex-col gap-3">
+          {routes.map((route, index) => {
+            const needsVerifiedOrg = route.verify;
+            // Developer portal routes don't need org verification
+            const isDisabled = isDev
+              ? false
+              : route.name !== "Sign out" &&
+                route.name !== "Settings" &&
+                (orgMissing || (needsVerifiedOrg && !orgVerified));
 
-                const isActive = pathname === route.href;
+            const isActive = pathname === route.href;
 
-                const onClick: React.MouseEventHandler<HTMLButtonElement> = (
-                  e
-                ) => {
-                  e.preventDefault();
-                  if (isDisabled) return;
-                  handleClick(route);
-                };
+            const onClick: React.MouseEventHandler<HTMLButtonElement> = (e) => {
+              e.preventDefault();
+              if (isDisabled) return;
+              handleClick(route);
+            };
 
-                return (
-                  <button
-                    type="button"
-                    key={route.name}
-                    onClick={onClick}
-                    className={`text-body-4 px-3 py-2 rounded-2xl! border border-card-border! text-start transition-all duration-300 ease-in hover:bg-card-border ${isActive && "text-text-brand border-text-brand! bg-brand-100"} ${isDisabled && "text-[#A09F9F]!"}`}
-                  >
-                    {route.name}
-                  </button>
-                );
-              })}
-            </div>
+            return (
+              <button
+                type="button"
+                key={route.name}
+                onClick={onClick}
+                className={`text-body-4 px-3 py-2 rounded-2xl! border border-card-border! text-start transition-all duration-300 ease-in hover:bg-card-border ${isActive && "text-text-brand border-text-brand! bg-brand-100"} ${isDisabled && "text-[#A09F9F]!"}`}
+              >
+                {route.name}
+              </button>
+            );
+          })}
+        </div>
       </MobileMenu>
 
       <div className="flex lg:hidden">
@@ -276,7 +281,7 @@ const UserHeader = () => {
       </div>
 
       <div className="flex items-center justify-center gap-3">
-        {!pathname.startsWith("/chat") && (
+        {!hideSearch && (
           <Search
             value={query}
             setSearch={setQuery}
@@ -299,7 +304,7 @@ const UserHeader = () => {
             <Image
               src={getSafeImageUrl(
                 profile?.personalDetails?.profilePictureUrl,
-                "person"
+                "person",
               )}
               alt="Logo"
               height={32}

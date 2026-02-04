@@ -202,7 +202,7 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
               intype="text"
               inname="address line"
               value={formData.address.addressLine || ""}
-              inlabel="Address"
+              inlabel="Address (Optional)"
               onChange={(e) =>
                 setFormData({
                   ...formData,
@@ -216,7 +216,7 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
                 intype="text"
                 inname="city"
                 value={formData.address.city || ""}
-                inlabel="City"
+                inlabel="City (Optional)"
                 onChange={(e) =>
                   setFormData({
                     ...formData,
@@ -229,7 +229,7 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
                 intype="text"
                 inname="state"
                 value={formData.address.state || ""}
-                inlabel="State/Province"
+                inlabel="State/Province (Optional)"
                 onChange={(e) =>
                   setFormData({
                     ...formData,
@@ -243,7 +243,7 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
               intype="text"
               inname="postal code"
               value={formData.address.postalCode || ""}
-              inlabel="Postal code"
+              inlabel="Postal code (Optional)"
               onChange={(e) =>
                 setFormData({
                   ...formData,

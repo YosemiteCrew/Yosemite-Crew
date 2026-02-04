@@ -5,7 +5,10 @@ import { usePermissions } from "@/app/hooks/usePermissions";
 import { useRoomsForPrimaryOrg } from "@/app/hooks/useRooms";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
 import { updateAppointment } from "@/app/features/appointments/services/appointmentService";
-import { AppointmentStatusOptions } from "@/app/features/appointments/types/appointments";
+import {
+  AppointmentStatus,
+  AppointmentStatusOptions,
+} from "@/app/features/appointments/types/appointments";
 import { PERMISSIONS } from "@/app/lib/permissions";
 import { Appointment } from "@yosemite-crew/types";
 import React, { useMemo } from "react";
@@ -78,7 +81,6 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
   const rooms = useRoomsForPrimaryOrg();
   const teams = useTeamForPrimaryOrg();
   const { can } = usePermissions();
-  const canEditAppointments = can(PERMISSIONS.APPOINTMENTS_EDIT_ANY);
 
   const RoomOptions = useMemo(
     () =>
@@ -171,6 +173,18 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
       console.log(error);
     }
   };
+
+  const canEditByStatus = useMemo(() => {
+    const status = activeAppointment.status as AppointmentStatus | undefined;
+    if (!status) return false;
+
+    return !["CANCELLED", "NO_SHOW", "REQUESTED", "NO_PAYMENT"].includes(
+      status,
+    );
+  }, [activeAppointment.status]);
+
+
+  const canEditAppointments = can(PERMISSIONS.APPOINTMENTS_EDIT_ANY) && canEditByStatus;
 
   return (
     <div className="flex flex-col gap-6 w-full">

@@ -181,11 +181,21 @@ const Appointments = ({
       label: "Status",
       key: "status",
       width: "15%",
-      render: (item: Appointment) => (
-        <div className="appointment-status" style={getStatusStyle(item.status)}>
-          {toTitle(item.status)}
-        </div>
-      ),
+      render: (item: Appointment) => {
+        const displayStatus =
+          item.status === "NO_PAYMENT" || item.status === "REQUESTED"
+            ? "REQUESTED"
+            : item.status;
+
+        return (
+          <div
+            className="appointment-status"
+            style={getStatusStyle(displayStatus)}
+          >
+            {toTitle(displayStatus)}
+          </div>
+        );
+      },
     },
     {
       label: "Actions",

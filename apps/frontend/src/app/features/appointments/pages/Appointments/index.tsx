@@ -15,7 +15,7 @@ import { useSearchStore } from "@/app/stores/searchStore";
 import Filters from "@/app/ui/filters/Filters";
 import {
   AppointmentFilters,
-  AppointmentStatusFilters,
+  AppointmentStatusFiltersUI,
 } from "@/app/features/appointments/types/appointments";
 import { usePermissions } from "@/app/hooks/usePermissions";
 import { PERMISSIONS } from "@/app/lib/permissions";
@@ -63,7 +63,10 @@ const Appointments = () => {
       const status = item.status?.toLowerCase();
       const filter = item.isEmergency && "emergencies";
 
-      const matchesStatus = statusWanted === "all" || status === statusWanted;
+      const matchesStatus =
+        statusWanted === "all" ||
+        status === statusWanted ||
+        (statusWanted === "requested" && status === "no_payment");
       const matchesFilter = filterWanted === "all" || filter === filterWanted;
       const matchesQuery = !q || item.companion.name?.toLowerCase().includes(q);
 
@@ -95,7 +98,7 @@ const Appointments = () => {
           <div className="w-full flex flex-col gap-3">
             <Filters
               filterOptions={AppointmentFilters}
-              statusOptions={AppointmentStatusFilters}
+              statusOptions={AppointmentStatusFiltersUI}
               activeFilter={activeFilter}
               activeStatus={activeStatus}
               setActiveFilter={setActiveFilter}
