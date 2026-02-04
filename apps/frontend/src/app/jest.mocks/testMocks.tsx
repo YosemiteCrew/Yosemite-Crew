@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import React from "react";
 
 const MOTION_PROPS = new Set([
@@ -76,7 +77,7 @@ jest.mock("framer-motion", () => {
   return { motion, AnimatePresence };
 });
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ text, href = "#", onClick, ...props }: any) => (
     <a
       data-testid="primary-btn"
@@ -97,7 +98,7 @@ jest.mock("@/app/components/Buttons", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   __esModule: true,
   default: ({ inlabel, value, onChange, error }: any) => (
     <label>
@@ -108,7 +109,7 @@ jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/Dropdown/Dropdown", () => ({
+jest.mock("@/app/ui/inputs/Dropdown/Dropdown", () => ({
   __esModule: true,
   default: ({ placeholder, value, onChange }: any) => (
     <label>
@@ -119,7 +120,7 @@ jest.mock("@/app/components/Inputs/Dropdown/Dropdown", () => ({
 }));
 
 jest.mock(
-  "@/app/components/Inputs/GoogleSearchDropDown/GoogleSearchDropDown",
+  "@/app/ui/inputs/GoogleSearchDropDown/GoogleSearchDropDown",
   () => ({
     __esModule: true,
     default: ({ inlabel, value, onChange }: any) => (

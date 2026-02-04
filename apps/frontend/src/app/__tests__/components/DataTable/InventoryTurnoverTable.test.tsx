@@ -2,15 +2,15 @@ import React from "react";
 import { render, screen, within } from "@testing-library/react";
 import InventoryTurnoverTable, {
   getStatusStyle,
-} from "@/app/components/DataTable/InventoryTurnoverTable";
-import { InventoryTurnoverItem } from "@/app/pages/Inventory/types";
+} from "@/app/ui/tables/InventoryTurnoverTable";
+import { InventoryTurnoverItem } from "@/app/features/inventory/pages/Inventory/types";
 
 // --- Mocks ---
 
 // NOTE: Not mocking GenericTable. Integration test with real table component.
 
 // Mock InventoryTurnoverCard for Mobile View
-jest.mock("@/app/components/Cards/InventoryTurnoverCard", () => ({
+jest.mock("@/app/ui/cards/InventoryTurnoverCard", () => ({
   __esModule: true,
   default: ({ item }: any) => (
     <div data-testid="turnover-card">

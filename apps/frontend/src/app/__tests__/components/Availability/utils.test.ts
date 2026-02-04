@@ -10,7 +10,7 @@ import {
   DEFAULT_INTERVAL,
   AvailabilityState,
   ApiDayAvailability,
-} from "@/app/components/Availability/utils";
+} from "@/app/features/appointments/components/Availability/utils";
 
 describe("Availability Utils", () => {
   describe("formatUtcTimeToLocalLabel", () => {
@@ -47,7 +47,7 @@ describe("Availability Utils", () => {
       expect(midDay).toBeDefined();
 
       // Check last entry
-      expect(options[options.length - 1].value).toBe("23:59");
+      expect(options.at(-1)?.value).toBe("23:59");
     });
   });
 

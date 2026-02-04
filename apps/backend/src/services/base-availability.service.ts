@@ -82,17 +82,19 @@ const sanitizeSlot = (value: unknown, index: number): AvailabilitySlotMongo => {
     );
   }
 
-  const isAvailable =
-    "isAvailable" in record
-      ? typeof record.isAvailable === "boolean"
-        ? record.isAvailable
-        : (() => {
-            throw new BaseAvailabilityServiceError(
-              `Slot[${index}].isAvailable must be a boolean.`,
-              400,
-            );
-          })()
-      : true;
+  let isAvailable = true;
+
+  if ("isAvailable" in record) {
+    if (typeof record.isAvailable === "boolean") {
+      isAvailable = record.isAvailable;
+    } else {
+      throw new BaseAvailabilityServiceError(
+        `Slot[${index}].isAvailable must be a boolean.`,
+        400,
+      );
+    }
+  }
+
 
   return {
     startTime,
@@ -160,40 +162,41 @@ const sanitizeAvailabilityEntry = (
   };
 };
 
+const pruneArrayUndefined = (arrayValue: unknown[]): void => {
+  for (let index = arrayValue.length - 1; index >= 0; index -= 1) {
+    const next = pruneUndefined(arrayValue[index]);
+
+    if (next === undefined) {
+      arrayValue.splice(index, 1);
+    } else {
+      arrayValue[index] = next;
+    }
+  }
+};
+
+const pruneRecordUndefined = (record: UnknownRecord): void => {
+  for (const key of Object.keys(record)) {
+    const next = pruneUndefined(record[key]);
+
+    if (next === undefined) {
+      delete record[key];
+    } else {
+      record[key] = next;
+    }
+  }
+};
+
+const isPlainObject = (value: unknown): value is UnknownRecord =>
+  Boolean(value) && typeof value === "object" && !(value instanceof Date);
+
 const pruneUndefined = <T>(value: T): T => {
   if (Array.isArray(value)) {
-    const arrayValue = value as unknown[];
-
-    for (let index = arrayValue.length - 1; index >= 0; index -= 1) {
-      const next = pruneUndefined(arrayValue[index]);
-
-      if (next === undefined) {
-        arrayValue.splice(index, 1);
-      } else {
-        arrayValue[index] = next;
-      }
-    }
-
+    pruneArrayUndefined(value as unknown[]);
     return value;
   }
 
-  if (value && typeof value === "object") {
-    if (value instanceof Date) {
-      return value;
-    }
-
-    const record = value as UnknownRecord;
-
-    for (const key of Object.keys(record)) {
-      const next = pruneUndefined(record[key]);
-
-      if (next === undefined) {
-        delete record[key];
-      } else {
-        record[key] = next;
-      }
-    }
-
+  if (isPlainObject(value)) {
+    pruneRecordUndefined(value);
     return value;
   }
 
@@ -208,14 +211,18 @@ const buildDomainAvailability = (
   }) as BaseAvailabilityMongo & { _id: unknown };
 
   const idSource = raw._id ?? document._id;
-  const id =
-    typeof idSource === "string"
-      ? idSource
-      : typeof idSource === "object" &&
-          idSource !== null &&
-          "toString" in idSource
-        ? String((idSource as { toString: () => string }).toString())
-        : undefined;
+  
+  let id: string | undefined;
+
+  if (typeof idSource === "string") {
+    id = idSource;
+  } else if (
+    typeof idSource === "object" &&
+    idSource !== null &&
+    "toString" in idSource
+  ) {
+    id = String((idSource as { toString: () => string }).toString());
+  }
 
   return pruneUndefined({
     _id: id,

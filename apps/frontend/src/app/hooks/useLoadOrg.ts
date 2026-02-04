@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useAuthStore } from "@/app/stores/authStore";
 import { useOrgStore } from "@/app/stores/orgStore";
-import { loadOrgs } from "@/app/services/orgService";
+import { loadOrgs } from "@/app/features/organization/services/orgService";
 
 export const useLoadOrg = () => {
   const authStatus = useAuthStore((s) => s.status);

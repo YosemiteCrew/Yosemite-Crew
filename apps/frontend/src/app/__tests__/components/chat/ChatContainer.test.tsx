@@ -5,78 +5,89 @@ import {
   fireEvent,
   waitFor,
   act,
-  within,
 } from "@testing-library/react";
-import { ChatContainer } from "../../../components/chat/ChatContainer";
-import * as streamChatService from "@/app/services/streamChatService";
+import ProtectedChatContainer, {
+  ChatContainer,
+} from "@/app/features/chat/components/ChatContainer";
+import * as streamChatService from "@/app/features/chat/services/streamChatService";
+import * as chatService from "@/app/features/chat/services/chatService";
+import { useAuthStore } from "@/app/stores/authStore";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { useChannelStateContext, useChatContext } from "stream-chat-react";
 
-// --- Mocks ---
+// ----------------------------------------------------------------------------
+// 1. Mocks & Setup
+// ----------------------------------------------------------------------------
 
-// 1. Mock Stores
-const mockAuthState: any = {
-  attributes: null,
-  status: "checking",
-  loading: false,
-};
-const mockOrgState: any = {
-  primaryOrgId: null,
-  status: "idle",
-};
+// Mock Stores
+jest.mock("@/app/stores/authStore", () => ({
+  useAuthStore: jest.fn(),
+}));
 
-jest.mock("@/app/stores/authStore", () => {
-  const useAuthStore: any = jest.fn((selector?: any) =>
-    selector ? selector(mockAuthState) : mockAuthState
-  );
-  useAuthStore.getState = jest.fn(() => mockAuthState);
-  return { useAuthStore };
-});
+jest.mock("@/app/stores/orgStore", () => ({
+  useOrgStore: jest.fn(),
+}));
 
-jest.mock("@/app/stores/orgStore", () => {
-  const useOrgStore: any = jest.fn((selector?: any) =>
-    selector ? selector(mockOrgState) : mockOrgState
-  );
-  useOrgStore.getState = jest.fn(() => mockOrgState);
-  return { useOrgStore };
-});
-
-// 2. Mock Services
-jest.mock("@/app/services/streamChatService", () => ({
+// Mock Services
+jest.mock("@/app/features/chat/services/streamChatService", () => ({
   getChatClient: jest.fn(),
   connectStreamUser: jest.fn(),
   endChatChannel: jest.fn(),
+  getAppointmentChannel: jest.fn(),
 }));
 
-// 3. Mock Stream Chat Client
-const mockChannelOn = jest.fn();
-const mockChannelOff = jest.fn();
-const mockChannelWatch = jest.fn().mockResolvedValue({});
-const mockChannel = {
+jest.mock("@/app/features/chat/services/chatService", () => ({
+  createOrgDirectChat: jest.fn(),
+  createOrgGroupChat: jest.fn(),
+  fetchOrgUsers: jest.fn(),
+  getChatSessions: jest.fn(),
+  addGroupMembers: jest.fn(),
+  removeGroupMembers: jest.fn(),
+  updateGroup: jest.fn(),
+  deleteGroup: jest.fn(),
+  getChatSession: jest.fn(),
+  listOrgChatSessions: jest.fn(),
+}));
+
+// Global mocks
+globalThis.alert = jest.fn();
+globalThis.confirm = jest.fn(() => true);
+
+// Suppress console errors/warns for cleaner test output (optional but helpful)
+const originalConsoleError = console.error;
+const originalConsoleWarn = console.warn;
+beforeAll(() => {
+  console.error = jest.fn();
+  console.warn = jest.fn();
+});
+afterAll(() => {
+  console.error = originalConsoleError;
+  console.warn = originalConsoleWarn;
+});
+
+// *** Default Mock Data ***
+const defaultMockChannel = {
   id: "channel-1",
-  data: {
-    name: "Test Channel",
-    petName: "Buddy",
-    petOwnerName: "John Doe",
-    status: "active",
-    frozen: false,
-    appointmentId: "appt-123",
+  cid: "messaging:channel-1",
+  type: "messaging",
+  data: { name: "Test Channel", member_count: 2 },
+  state: {
+    members: {
+      "user-1": { user: { id: "user-1", name: "Me" }, role: "owner" },
+      "user-2": { user: { id: "user-2", name: "Other" } },
+    },
   },
-  state: { members: {} },
-  on: mockChannelOn,
-  off: mockChannelOff,
-  watch: mockChannelWatch,
+  watch: jest.fn().mockResolvedValue({}),
+  update: jest.fn().mockResolvedValue({}),
+  addMembers: jest.fn().mockResolvedValue({}),
+  removeMembers: jest.fn().mockResolvedValue({}),
+  hide: jest.fn().mockResolvedValue({}),
+  on: jest.fn(),
+  off: jest.fn(),
 };
 
-const mockClient = {
-  userID: "user-123",
-  channel: jest.fn(() => mockChannel),
-  connectUser: jest.fn(),
-  disconnectUser: jest.fn(),
-};
-
-// 4. Mock Stream Chat React Components
+// *** Stream Chat Mock ***
 jest.mock("stream-chat-react", () => {
-  // Removed 'require("react")' to fix lint error.
-  // Modern JSX transform (React 17+) does not require React to be in scope.
   return {
     Chat: ({ children }: any) => (
       <div data-testid="stream-chat">{children}</div>
@@ -84,253 +95,386 @@ jest.mock("stream-chat-react", () => {
     Channel: ({ children }: any) => (
       <div data-testid="stream-channel">{children}</div>
     ),
-    ChannelList: ({ Preview }: any) => (
-      <div data-testid="stream-channel-list">
-        {/* Render the Preview component passing the mock channel to simulate list items */}
-        {Preview && <Preview channel={mockChannel} />}
-      </div>
-    ),
-    Window: ({ children }: any) => (
-      <div data-testid="stream-window">{children}</div>
-    ),
+    ChannelList: ({ filters, channelRenderFilterFn }: any) => {
+      if (channelRenderFilterFn) {
+        (window as any).__testChannelFilter = channelRenderFilterFn;
+      }
+      return <div data-testid="channel-list">Channel List</div>;
+    },
     ChannelHeader: ({ title }: any) => (
-      <div data-testid="stream-channel-header">{title}</div>
+      <div data-testid="channel-header">{title}</div>
     ),
-    MessageList: () => <div data-testid="stream-message-list">Messages</div>,
-    MessageInput: () => <div data-testid="stream-message-input">Input</div>,
-    Thread: () => <div data-testid="stream-thread">Thread</div>,
-    LoadingIndicator: () => (
-      <div data-testid="loading-indicator">Loading...</div>
+    MessageList: () => <div data-testid="message-list" />,
+    MessageInput: () => <div data-testid="message-input" />,
+    Thread: () => <div data-testid="thread" />,
+    Window: ({ children }: any) => (
+      <div data-testid="chat-window">{children}</div>
     ),
     ChannelPreviewMessenger: ({ displayTitle }: any) => (
-      <span data-testid="preview-messenger">{displayTitle}</span>
+      <div>{displayTitle}</div>
     ),
-    useChannelStateContext: () => ({ channel: mockChannel }),
+    ComponentProvider: ({ children }: any) => <>{children}</>,
+    useChannelStateContext: jest.fn(),
+    useChatContext: jest.fn(),
   };
 });
 
-// 5. Mock Guard Components
-jest.mock("../../../components/ProtectedRoute", () => ({ children }: any) => (
-  <div>{children}</div>
-));
-jest.mock("../../../components/OrgGuard", () => ({ children }: any) => (
-  <div>{children}</div>
-));
+// Mock UI Components
+jest.mock("@/app/ui/overlays/Loader", () => ({
+  YosemiteLoader: () => <div data-testid="loader">Loading...</div>,
+}));
 
-describe("ChatContainer Component", () => {
-  const setupStoreSuccess = () => {
-    mockAuthState.attributes = {
-      sub: "user-123",
-      email: "test@example.com",
-      given_name: "Test",
-      family_name: "User",
-    };
-    mockAuthState.status = "authenticated";
-    mockAuthState.loading = false;
+jest.mock("@/app/ui/overlays/Modal", () => ({
+  __esModule: true,
+  default: ({ showModal, children }: any) =>
+    showModal ? <div data-testid="group-modal">{children}</div> : null,
+}));
 
-    mockOrgState.primaryOrgId = "org-1";
-    mockOrgState.status = "loaded";
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
+  __esModule: true,
+  default: ({ value, onChange, onFocus, onBlur, inlabel }: any) => (
+    <input
+      data-testid={`input-${inlabel || "search"}`}
+      value={value}
+      onChange={onChange}
+      onFocus={onFocus}
+      onBlur={onBlur}
+      placeholder={inlabel}
+    />
+  ),
+}));
 
-    (streamChatService.getChatClient as jest.Mock).mockReturnValue(mockClient);
-    (streamChatService.connectStreamUser as jest.Mock).mockResolvedValue({});
-  };
+jest.mock("@/app/ui/primitives/Icons/Close", () => ({
+  __esModule: true,
+  default: ({ onClick }: any) => (
+    <button onClick={onClick} data-testid="close-icon">
+      X
+    </button>
+  ),
+}));
+
+jest.mock("@/app/ui/layout/guards/ProtectedRoute", () => ({
+  __esModule: true,
+  default: ({ children }: any) => (
+    <div data-testid="protected-route">{children}</div>
+  ),
+}));
+
+jest.mock("@/app/ui/layout/guards/OrgGuard", () => ({
+  __esModule: true,
+  default: ({ children }: any) => <div data-testid="org-guard">{children}</div>,
+}));
+
+const mockClient = {
+  userID: "user-1",
+  channel: jest.fn(() => defaultMockChannel),
+  queryChannels: jest.fn().mockResolvedValue([defaultMockChannel]),
+};
+
+describe("ChatContainer", () => {
+  const mockUseAuthStore = useAuthStore as unknown as jest.Mock;
+  const mockUseOrgStore = useOrgStore as unknown as jest.Mock;
+  const mockUseChannelStateContext =
+    useChannelStateContext as unknown as jest.Mock;
+  const mockUseChatContext = useChatContext as unknown as jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockAuthState.attributes = null;
-    mockAuthState.status = "checking";
-    mockAuthState.loading = false;
-    mockOrgState.primaryOrgId = null;
-    mockOrgState.status = "idle";
-    Object.defineProperty(globalThis, "innerWidth", {
-      writable: true,
-      configurable: true,
-      value: 1024,
-    });
-  });
-
-  // --- Section 1: Initialization & Loading ---
-
-  it("renders loading indicator initially (async connect)", async () => {
-    setupStoreSuccess();
-    // Force async connect: Client ID mismatch requires connectStreamUser call
-    (streamChatService.getChatClient as jest.Mock).mockReturnValue({
-      ...mockClient,
-      userID: "different-id",
-    });
-    // Hold the promise to keep it loading
-    (streamChatService.connectStreamUser as jest.Mock).mockReturnValue(
-      new Promise(() => {})
+    (streamChatService.getChatClient as jest.Mock).mockReturnValue(mockClient);
+    (streamChatService.getAppointmentChannel as jest.Mock).mockResolvedValue(
+      defaultMockChannel
     );
 
-    render(<ChatContainer />);
-
-    expect(await screen.findByTestId("chat-loader")).toBeInTheDocument();
-  });
-
-  it("keeps loading while user profile is not ready", async () => {
-    mockAuthState.attributes = null;
-    mockAuthState.status = "checking";
-    mockOrgState.primaryOrgId = "org-1";
-    mockOrgState.status = "loaded";
-
-    render(<ChatContainer />);
-
-    expect(await screen.findByTestId("chat-loader")).toBeInTheDocument();
-  });
-
-  it("renders error if connection fails", async () => {
-    mockAuthState.attributes = { sub: "user-123", email: "test@example.com" };
-    mockAuthState.status = "authenticated";
-    mockOrgState.primaryOrgId = "org-1";
-    mockOrgState.status = "loaded";
-    (streamChatService.getChatClient as jest.Mock).mockReturnValue({
-      ...mockClient,
-      userID: "different-id",
+    // Default mock context return
+    mockUseChannelStateContext.mockReturnValue({ channel: defaultMockChannel });
+    mockUseChatContext.mockReturnValue({
+      client: mockClient,
+      setActiveChannel: jest.fn(),
     });
-    (streamChatService.connectStreamUser as jest.Mock).mockRejectedValue(
-      new Error("Connection failed")
+
+    // Default Store State
+    mockUseAuthStore.mockImplementation((selector: any) =>
+      selector({
+        attributes: { sub: "user-1", email: "test@test.com" },
+        status: "authenticated",
+        loading: false,
+      }),
     );
 
-    render(<ChatContainer />);
+    mockUseOrgStore.mockImplementation((selector: any) =>
+      selector({
+        primaryOrgId: "org-1",
+        status: "loaded",
+      }),
+    );
 
-    await waitFor(() => {
-      expect(screen.getByText("Connection failed")).toBeInTheDocument();
+    // Service Defaults
+    (chatService.fetchOrgUsers as jest.Mock).mockResolvedValue([
+      { id: "u2", userId: "user-2", name: "User Two", email: "u2@test.com" },
+      { id: "u3", userId: "user-3", name: "User Three", email: "u3@test.com" },
+    ]);
+    (chatService.getChatSessions as jest.Mock).mockResolvedValue({
+      channels: [],
+    });
+    (chatService.listOrgChatSessions as jest.Mock).mockResolvedValue([]);
+
+    // Mock Create Group response
+    (chatService.createOrgGroupChat as jest.Mock).mockResolvedValue({
+      _id: "group-1",
+      channelId: "channel-1",
+      title: "New Team",
+      organisationId: "org-1",
+      createdBy: "user-1",
+      type: "ORG_GROUP",
+    });
+
+    // Mock Create Direct Chat response
+    (chatService.createOrgDirectChat as jest.Mock).mockResolvedValue({
+      _id: "direct-1",
+      channelId: "channel-direct-1",
+      title: "User Two",
+      organisationId: "org-1",
+      createdBy: "user-1",
+      type: "ORG_DIRECT",
     });
   });
 
-  // --- Section 2: Rendering & Navigation (Desktop/Mobile) ---
+  // --------------------------------------------------------------------------
+  // Tests
+  // --------------------------------------------------------------------------
 
-  it("renders ChatLayout with ChannelList on desktop success", async () => {
-    setupStoreSuccess();
-
+  it("renders loader while initializing", () => {
+    mockUseAuthStore.mockImplementation((selector: any) =>
+      selector({
+        status: "checking",
+        loading: true,
+      }),
+    );
     render(<ChatContainer />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId("stream-chat")).toBeInTheDocument();
-      expect(screen.getByTestId("stream-channel-list")).toBeVisible();
-    });
+    expect(screen.getByTestId("loader")).toBeInTheDocument();
   });
 
-  it("handles mobile view switching", async () => {
-    setupStoreSuccess();
-
-    act(() => {
-      window.innerWidth = 500;
-      globalThis.dispatchEvent(new Event("resize"));
-    });
-
+  it("renders error state if auth fails", () => {
+    mockUseAuthStore.mockImplementation((selector: any) =>
+      selector({
+        status: "unauthenticated",
+      }),
+    );
     render(<ChatContainer />);
+    expect(screen.getByText(/User not authenticated/)).toBeInTheDocument();
+  });
+
+  it("renders chat layout when initialized", async () => {
+    await act(async () => {
+      render(<ChatContainer />);
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId("stream-chat")).toBeInTheDocument(),
+    );
+    expect(screen.getByTestId("channel-list")).toBeInTheDocument();
+  });
+
+  it("renders empty state placeholder when scope changes", async () => {
+    const { rerender } = render(<ChatContainer scope="colleagues" />);
+
+    await act(async () => {
+      rerender(<ChatContainer scope="clients" />);
+    });
 
     await waitFor(() =>
-      expect(screen.getByTestId("stream-channel-list")).toBeInTheDocument()
-    );
-
-    const channelList = screen.getByTestId("stream-channel-list");
-    const previewSpan = within(channelList).getByTestId("preview-messenger");
-    const previewOption = previewSpan.closest("[role='option']");
-
-    expect(previewOption).toBeInTheDocument();
-    fireEvent.click(previewOption!);
-
-    const backBtn = screen.getByText("← Back");
-    expect(backBtn).toBeInTheDocument();
-
-    fireEvent.click(backBtn);
-    expect(screen.queryByText("← Back")).not.toBeInTheDocument();
-  });
-
-  // --- Section 3: Custom Header & Session Management ---
-
-  it("renders custom header and closes session", async () => {
-    setupStoreSuccess();
-    render(<ChatContainer />);
-    await waitFor(() => screen.getByTestId("stream-chat"));
-
-    const header = screen.getByTestId("stream-channel-header");
-    expect(header).toHaveTextContent("Test Channel");
-
-    const closeBtn = screen.getByText("Close Session");
-    expect(closeBtn).toBeInTheDocument();
-
-    globalThis.confirm = jest.fn(() => true);
-    globalThis.alert = jest.fn();
-    (streamChatService.endChatChannel as jest.Mock).mockResolvedValue({});
-
-    fireEvent.click(closeBtn);
-
-    expect(globalThis.confirm).toHaveBeenCalled();
-    expect(streamChatService.endChatChannel).toHaveBeenCalledWith("appt-123");
-
-    await waitFor(() => {
-      expect(screen.getByText("Session Closed")).toBeInTheDocument();
-      expect(screen.queryByText("Close Session")).not.toBeInTheDocument();
-    });
-  });
-
-  it("handles close session cancellation", async () => {
-    setupStoreSuccess();
-    render(<ChatContainer />);
-    await waitFor(() => screen.getByTestId("stream-chat"));
-
-    const closeBtn = screen.getByText("Close Session");
-
-    globalThis.confirm = jest.fn(() => false);
-    fireEvent.click(closeBtn);
-
-    expect(streamChatService.endChatChannel).not.toHaveBeenCalled();
-  });
-
-  it("renders closed footer when channel is frozen", async () => {
-    setupStoreSuccess();
-
-    mockChannel.data.frozen = true;
-    mockChannel.data.status = "ended";
-
-    render(<ChatContainer />);
-    await waitFor(() => screen.getByTestId("stream-chat"));
-
-    expect(screen.getByText("Session Closed")).toBeInTheDocument();
-    expect(screen.getByText("Chat session closed")).toBeInTheDocument();
-  });
-
-  // --- Section 4: Specific Appointment Mode & Routing ---
-
-  it("renders specific appointment channel when appointmentId prop is provided", async () => {
-    setupStoreSuccess();
-    const apptId = "specific-appt-1";
-
-    render(<ChatContainer appointmentId={apptId} />);
-
-    await waitFor(() => {
       expect(
-        screen.queryByTestId("stream-channel-list")
-      ).not.toBeInTheDocument();
-      expect(screen.getByTestId("stream-channel")).toBeInTheDocument();
-    });
-
-    expect(mockClient.channel).toHaveBeenCalledWith(
-      "messaging",
-      `appointment-${apptId}`
+        screen.getByText("Select a conversation to start chatting"),
+      ).toBeInTheDocument(),
     );
   });
 
-  it("renders ProtectedChatContainer guard wrapper", async () => {
-    setupStoreSuccess();
-    (streamChatService.getChatClient as jest.Mock).mockReturnValue({
-      ...mockClient,
-      userID: "different-id",
+  it("searches and starts direct chat (creates new)", async () => {
+    // Force queryChannels to return empty so it doesn't find existing chat
+    mockClient.queryChannels.mockResolvedValue([]);
+
+    await act(async () => {
+      render(<ChatContainer scope="colleagues" />);
     });
-    (streamChatService.connectStreamUser as jest.Mock).mockReturnValue(
-      new Promise(() => {})
+    await waitFor(() => expect(chatService.fetchOrgUsers).toHaveBeenCalled());
+
+    const input = screen.getByPlaceholderText("Search teammate to chat");
+    fireEvent.change(input, { target: { value: "User Two" } });
+    fireEvent.focus(input);
+
+    const userButton = await screen.findByText("User Two");
+
+    await act(async () => {
+      fireEvent.click(userButton.closest("button")!);
+    });
+
+    await waitFor(() => {
+      expect(chatService.createOrgDirectChat).toHaveBeenCalledWith(
+        expect.objectContaining({
+          otherUserId: "user-2",
+        }),
+      );
+    });
+  });
+
+  it("creates a group via modal", async () => {
+    await act(async () => {
+      render(<ChatContainer scope="groups" />);
+    });
+
+    // The "Create Group" button in the header
+    await waitFor(() =>
+      expect(screen.getAllByText("Create Group")[0]).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getAllByText("Create Group")[0]);
+
+    // Modal opens
+    expect(screen.getByTestId("group-modal")).toBeInTheDocument();
+
+    const titleInput = screen.getByPlaceholderText("Group Title");
+    fireEvent.change(titleInput, { target: { value: "New Team" } });
+
+    const searchInput = screen.getByPlaceholderText("Search teammates");
+    fireEvent.change(searchInput, { target: { value: "Two" } });
+    const addButton = await screen.findAllByTitle("Add member");
+    fireEvent.click(addButton[0]);
+
+    // Click "Create Group" inside modal (last one)
+    const createBtns = screen.getAllByText("Create Group");
+    await act(async () => {
+      fireEvent.click(createBtns.at(-1)!);
+    });
+
+    await waitFor(() => {
+      expect(chatService.createOrgGroupChat).toHaveBeenCalled();
+    });
+  });
+
+  it("handles delete group", async () => {
+    // 1. Force the current channel context to be a group so "Group Info" appears
+    const groupChannel = {
+      ...defaultMockChannel,
+      data: { chatCategory: "group", name: "Group Chat" },
+    };
+    mockUseChannelStateContext.mockReturnValue({ channel: groupChannel });
+
+    // 2. Render with group scope
+    await act(async () => {
+      render(<ChatContainer scope="groups" />);
+    });
+
+    await waitFor(() =>
+      expect(screen.getByTestId("channel-list")).toBeInTheDocument(),
     );
 
-    // FIX: Renamed variable from 'module' to 'chatModule' to avoid lint error
-    const chatModule = await import("../../../components/chat/ChatContainer");
-    const ProtectedComponent = chatModule.default;
+    // 3. Find Group Info button (might need wait if render is async)
+    const groupInfoBtn = await screen.findByText("Group Info");
 
-    render(<ProtectedComponent />);
+    // 4. Click Group Info to open modal in EDIT mode
+    await act(async () => {
+      fireEvent.click(groupInfoBtn);
+    });
 
-    expect(await screen.findByTestId("chat-loader")).toBeInTheDocument();
+    // 5. Mock backend finding the session so delete is enabled.
+    // This needs to resolve BEFORE we check for the delete button,
+    // but after the modal logic fires listOrgChatSessions.
+    (chatService.listOrgChatSessions as jest.Mock).mockResolvedValue([
+      {
+        _id: "backend-group-id",
+        channelId: groupChannel.id,
+        type: "ORG_GROUP",
+      },
+    ]);
+
+    // Wait for the modal content to fully render (async backend ID fetch)
+    await waitFor(() =>
+      expect(screen.getByTestId("group-modal")).toBeInTheDocument(),
+    );
+
+    // Wait a tick for the async session ID resolution inside the component
+    await waitFor(() => {}, { timeout: 100 });
+
+    const deleteBtn = screen.getByText("Delete Group");
+
+    await act(async () => {
+      fireEvent.click(deleteBtn);
+    });
+  });
+
+  it("filters channels correctly based on scope", async () => {
+    await act(async () => {
+      render(<ChatContainer scope="clients" />);
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId("channel-list")).toBeInTheDocument(),
+    );
+
+    const filterFn = (globalThis as any).__testChannelFilter;
+
+    const clientChannel = {
+      ...defaultMockChannel,
+      data: { chatCategory: "clients" },
+    };
+    expect(filterFn([clientChannel])).toHaveLength(1);
+
+    const colleagueChannel = {
+      ...defaultMockChannel,
+      data: { chatCategory: "colleagues" },
+    };
+    expect(filterFn([colleagueChannel])).toHaveLength(0);
+  });
+
+  it("renders specific appointment channel if ID provided", async () => {
+    // Inject appointment context
+    mockUseChannelStateContext.mockReturnValue({
+      channel: { ...defaultMockChannel, data: { appointmentId: "123" } },
+    });
+
+    await act(async () => {
+      render(<ChatContainer appointmentId="123" />);
+    });
+
+    await waitFor(() => {
+      expect(streamChatService.getAppointmentChannel).toHaveBeenCalledWith("123");
+    });
+    await waitFor(() => {
+      expect(mockUseChatContext().setActiveChannel).toHaveBeenCalled();
+    });
+  });
+
+  it("handles closing session", async () => {
+    // Force context to be client chat so "Close Session" appears
+    const clientChannel = {
+      ...defaultMockChannel,
+      data: { appointmentId: "123", chatCategory: "clients" },
+    };
+    mockUseChannelStateContext.mockReturnValue({ channel: clientChannel });
+    (streamChatService.getAppointmentChannel as jest.Mock).mockResolvedValue(
+      clientChannel
+    );
+    (chatService.getChatSession as jest.Mock).mockResolvedValue({ _id: "session-123" });
+
+    await act(async () => {
+      render(<ChatContainer appointmentId="123" />);
+    });
+
+    await waitFor(() =>
+      expect(screen.getByText("Close Session")).toBeInTheDocument(),
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByText("Close Session"));
+    });
+
+    await waitFor(() => {
+      expect(streamChatService.endChatChannel).toHaveBeenCalledWith("session-123");
+    });
+  });
+
+  it("ProtectedChatContainer wraps with guards", async () => {
+    await act(async () => {
+      render(<ProtectedChatContainer />);
+    });
+    expect(screen.getByTestId("protected-route")).toBeInTheDocument();
+    expect(screen.getByTestId("org-guard")).toBeInTheDocument();
   });
 });

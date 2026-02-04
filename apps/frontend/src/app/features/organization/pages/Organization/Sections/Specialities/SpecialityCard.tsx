@@ -1,0 +1,177 @@
+import Accordion from "@/app/ui/primitives/Accordion/Accordion";
+import LabelDropdown from "@/app/ui/inputs/Dropdown/LabelDropdown";
+import FormInput from "@/app/ui/inputs/FormInput/FormInput";
+import MultiSelectDropdown from "@/app/ui/inputs/MultiSelectDropdown";
+import ServiceSearch from "@/app/ui/inputs/ServiceSearch/ServiceSearch";
+import { useCurrencyForPrimaryOrg } from "@/app/hooks/useBilling";
+import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
+import { Option } from "@/app/features/companions/types/companion";
+import { SpecialityWeb } from "@/app/features/organization/types/speciality";
+import { Service } from "@yosemite-crew/types";
+import React, { useMemo } from "react";
+
+type SpecialityCardProps = {
+  setFormData: React.Dispatch<React.SetStateAction<SpecialityWeb[]>>;
+  speciality: SpecialityWeb;
+  index: number;
+};
+
+const SpecialityCard = ({
+  setFormData,
+  speciality,
+  index,
+}: SpecialityCardProps) => {
+  const teams = useTeamForPrimaryOrg();
+  const currency = useCurrencyForPrimaryOrg();
+
+  const TeamOptions = useMemo(
+    () =>
+      teams?.map((team) => ({
+        label: team.name || team.practionerId,
+        value: team.practionerId,
+      })),
+    [teams],
+  );
+
+  const updateServiceList = (
+    serviceIndex: number,
+    key: string,
+    value: string,
+    services: Service[] = [],
+  ): Service[] => {
+    return services.map((srv, srvIndex) =>
+      srvIndex === serviceIndex ? { ...srv, [key]: value } : srv,
+    );
+  };
+
+  const updateStaff = (ids: string[]) => {
+    setFormData((prev) =>
+      prev.map((sp, spIndex) => {
+        if (spIndex !== index) return sp;
+        return {
+          ...sp,
+          teamMemberIds: ids,
+        };
+      }),
+    );
+  };
+
+  const updateLead = (lead: Option) => {
+    setFormData((prev) =>
+      prev.map((sp, spIndex) => {
+        if (spIndex !== index) return sp;
+        return {
+          ...sp,
+          headName: lead.label,
+          headUserId: lead.value,
+        };
+      }),
+    );
+  };
+
+  const updateServiceField = (
+    serviceIndex: number,
+    key: string,
+    value: string,
+  ) => {
+    setFormData((prev) =>
+      prev.map((sp, spIndex) => {
+        if (spIndex !== index) return sp;
+        return {
+          ...sp,
+          services: updateServiceList(serviceIndex, key, value, sp.services),
+        };
+      }),
+    );
+  };
+
+  const removeService = (serviceIndex: number) => {
+    setFormData((prev) =>
+      prev.map((sp, spIndex) => {
+        if (spIndex !== index) return sp;
+        return {
+          ...sp,
+          services: filterService(sp.services || [], serviceIndex),
+        };
+      }),
+    );
+  };
+
+  const filterService = (services: Service[], serviceIndex: number) => {
+    return services?.filter((_, i) => i !== serviceIndex);
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      <LabelDropdown
+        placeholder="Select Lead"
+        onSelect={(option) => updateLead(option)}
+        defaultOption={speciality.headUserId}
+        options={TeamOptions}
+      />
+      <MultiSelectDropdown
+        placeholder="Assigned staff"
+        value={speciality.teamMemberIds || []}
+        onChange={(e) => updateStaff(e)}
+        options={TeamOptions}
+      />
+      <ServiceSearch speciality={speciality} setSpecialities={setFormData} />
+      {speciality?.services?.map((service, i) => (
+        <Accordion
+          key={service.name}
+          title={service.name}
+          defaultOpen
+          showEditIcon={false}
+          isEditing={true}
+          showDeleteIcon
+          onDeleteClick={() => removeService(i)}
+        >
+          <div className="flex flex-col gap-3">
+            <FormInput
+              intype="text"
+              inname="description"
+              value={service.description || ""}
+              inlabel="Description"
+              onChange={(e) =>
+                updateServiceField(i, "description", e.target.value)
+              }
+              className="min-h-12!"
+            />
+            <FormInput
+              intype="number"
+              inname="duration"
+              value={String(service.durationMinutes)}
+              inlabel="Duration (mins)"
+              onChange={(e) =>
+                updateServiceField(i, "durationMinutes", e.target.value)
+              }
+              className="min-h-12!"
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <FormInput
+                intype="number"
+                inname="charge"
+                value={String(service.cost)}
+                inlabel={`Service charge (${currency})`}
+                onChange={(e) => updateServiceField(i, "cost", e.target.value)}
+                className="min-h-12!"
+              />
+              <FormInput
+                intype="number"
+                inname="max-discount"
+                value={String(service.maxDiscount)}
+                inlabel="Max discount (%)"
+                onChange={(e) =>
+                  updateServiceField(i, "maxDiscount", e.target.value)
+                }
+                className="min-h-12!"
+              />
+            </div>
+          </div>
+        </Accordion>
+      ))}
+    </div>
+  );
+};
+
+export default SpecialityCard;

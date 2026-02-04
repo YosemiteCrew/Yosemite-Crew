@@ -17,27 +17,27 @@ const resolveMobileUserId = (req: Request): string | undefined => {
   return authReq.userId;
 };
 
-const CONTACT_STATUSES: ContactStatus[] = [
+const CONTACT_STATUSES = new Set<ContactStatus>([
   "OPEN",
   "IN_PROGRESS",
   "RESOLVED",
   "CLOSED",
-];
+]);
 
-const CONTACT_TYPES: ContactType[] = [
+const CONTACT_TYPES = new Set<ContactType>([
   "GENERAL_ENQUIRY",
   "FEATURE_REQUEST",
   "DSAR",
   "COMPLAINT",
-];
+]);
 
 const toContactStatus = (value: unknown): ContactStatus | undefined =>
-  typeof value === "string" && CONTACT_STATUSES.includes(value as ContactStatus)
+  typeof value === "string" && CONTACT_STATUSES.has(value as ContactStatus)
     ? (value as ContactStatus)
     : undefined;
 
 const toContactType = (value: unknown): ContactType | undefined =>
-  typeof value === "string" && CONTACT_TYPES.includes(value as ContactType)
+  typeof value === "string" && CONTACT_TYPES.has(value as ContactType)
     ? (value as ContactType)
     : undefined;
 

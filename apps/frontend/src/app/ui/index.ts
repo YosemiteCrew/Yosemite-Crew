@@ -1,0 +1,23 @@
+// Barrel for shared UI primitives.
+export { default as Button } from "@/app/ui/Button";
+export type { ButtonProps, ButtonSize, ButtonVariant } from "@/app/ui/Button";
+export { default as Text } from "@/app/ui/Text";
+export type { TextProps, TextVariant } from "@/app/ui/Text";
+export { default as Stack } from "@/app/ui/Stack";
+export type { StackProps } from "@/app/ui/Stack";
+export { default as Card } from "@/app/ui/Card";
+export type { CardProps } from "@/app/ui/Card";
+export { default as Badge } from "@/app/ui/Badge";
+export type { BadgeProps } from "@/app/ui/Badge";
+export { default as Input } from "@/app/ui/Input";
+export type { InputProps } from "@/app/ui/Input";
+export { default as PrimaryButton } from "@/app/ui/primitives/Buttons/Primary";
+export { default as SecondaryButton } from "@/app/ui/primitives/Buttons/Secondary";
+export { default as DeleteButton } from "@/app/ui/primitives/Buttons/Delete";
+export * as Inputs from "@/app/ui/inputs";
+export * as Filters from "@/app/ui/filters";
+export * as Cards from "@/app/ui/cards";
+export * as Tables from "@/app/ui/tables";
+export * as Overlays from "@/app/ui/overlays";
+export * as Layout from "@/app/ui/layout";
+export * as Primitives from "@/app/ui/primitives";

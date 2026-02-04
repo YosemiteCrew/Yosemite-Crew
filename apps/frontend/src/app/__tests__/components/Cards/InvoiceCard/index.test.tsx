@@ -1,16 +1,16 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import InvoiceCard from "@/app/components/Cards/InvoiceCard";
+import InvoiceCard from "@/app/ui/cards/InvoiceCard";
 import { Invoice } from "@yosemite-crew/types";
 
 // --- Mocks ---
 
-jest.mock("@/app/components/DataTable/InvoiceTable", () => ({
+jest.mock("@/app/ui/tables/InvoiceTable", () => ({
   getStatusStyle: jest.fn(() => ({ color: "green" })),
   getInvoiceItemNames: jest.fn(() => "Grooming"),
 }));
 
-jest.mock("@/app/utils/forms", () => ({
+jest.mock("@/app/lib/forms", () => ({
   formatDateLabel: jest.fn(() => "Jan 01, 2023"),
 }));
 
@@ -23,7 +23,7 @@ jest.mock("@/app/hooks/useAppointments", () => ({
   ],
 }));
 
-import { formatDateLabel } from "@/app/utils/forms";
+import { formatDateLabel } from "@/app/lib/forms";
 
 // --- Test Data ---
 

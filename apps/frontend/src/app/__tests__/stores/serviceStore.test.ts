@@ -1,4 +1,4 @@
-import { useServiceStore } from "../../stores/serviceStore";
+import { useServiceStore } from "@/app/stores/serviceStore";
 import { Service } from "@yosemite-crew/types";
 
 // --- Mock Data ---

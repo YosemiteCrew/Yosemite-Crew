@@ -1,8 +1,8 @@
 import { useEffect, useMemo } from "react";
-import { useOrgStore } from "../stores/orgStore";
-import { loadDocumentsForOrgPrimaryOrg } from "../services/documentService";
-import { OrganizationDocument } from "../types/document";
-import { useOrganizationDocumentStore } from "../stores/documentStore";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { loadDocumentsForOrgPrimaryOrg } from "@/app/features/documents/services/documentService";
+import { OrganizationDocument } from "@/app/features/documents/types/document";
+import { useOrganizationDocumentStore } from "@/app/stores/documentStore";
 
 export const useLoadDocumentsForPrimaryOrg = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);

@@ -1,9 +1,9 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import DocumentsCard from "@/app/components/Cards/DocumentsCard";
+import DocumentsCard from "@/app/ui/cards/DocumentsCard";
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Secondary: ({ text, onClick }: any) => (
     <button type="button" onClick={onClick}>
       {text}
@@ -11,7 +11,7 @@ jest.mock("@/app/components/Buttons", () => ({
   ),
 }));
 
-jest.mock("@/app/utils/validators", () => ({
+jest.mock("@/app/lib/validators", () => ({
   toTitle: (value: string) => value.toUpperCase(),
 }));
 

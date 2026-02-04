@@ -1,9 +1,9 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import PersonalStep from "@/app/components/Steps/TeamOnboarding/PersonalStep";
+import PersonalStep from "@/app/features/onboarding/components/Steps/TeamOnboarding/PersonalStep";
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ text, onClick }: any) => (
     <button type="button" onClick={onClick}>
       {text}
@@ -19,41 +19,41 @@ const FieldMock = ({ error, inlabel, label }: any) => (
   </div>
 );
 
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   __esModule: true,
   default: (props: any) => <FieldMock {...props} />,
 }));
 
-jest.mock("@/app/components/Inputs/GoogleSearchDropDown/GoogleSearchDropDown", () => ({
+jest.mock("@/app/ui/inputs/GoogleSearchDropDown/GoogleSearchDropDown", () => ({
   __esModule: true,
   default: (props: any) => <FieldMock {...props} />,
 }));
 
-jest.mock("@/app/components/UploadImage/LogoUploader", () => ({
+jest.mock("@/app/ui/widgets/UploadImage/LogoUploader", () => ({
   __esModule: true,
   default: () => <div>logo</div>,
 }));
 
-jest.mock("@/app/components/Inputs/Datepicker", () => ({
+jest.mock("@/app/ui/inputs/Datepicker", () => ({
   __esModule: true,
   default: ({ error }: any) => (error ? <div>{error}</div> : <div />),
 }));
 
-jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
+jest.mock("@/app/ui/inputs/Dropdown/LabelDropdown", () => ({
   __esModule: true,
   default: (props: any) => <FieldMock {...props} />,
 }));
 
-jest.mock("@/app/services/profileService", () => ({
+jest.mock("@/app/features/organization/services/profileService", () => ({
   createUserProfile: jest.fn(),
 }));
 
-jest.mock("@/app/utils/validators", () => ({
+jest.mock("@/app/lib/validators", () => ({
   getCountryCode: () => null,
   validatePhone: () => false,
 }));
 
-jest.mock("@/app/utils/date", () => ({
+jest.mock("@/app/lib/date", () => ({
   formatDateLocal: () => "2024-01-01",
 }));
 

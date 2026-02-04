@@ -16,9 +16,9 @@ import {
   eventsForDay,
   PIXELS_PER_STEP,
   MINUTES_PER_STEP,
-} from "@/app/components/Calendar/helpers";
+} from "@/app/features/appointments/components/Calendar/helpers";
 import { Appointment } from "@yosemite-crew/types";
-import { Task } from "@/app/types/task";
+import { Task } from "@/app/features/tasks/types/task";
 
 describe("Calendar Helpers", () => {
   // --- Date Comparison Helpers ---

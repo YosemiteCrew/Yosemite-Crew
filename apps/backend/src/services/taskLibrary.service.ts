@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import TaskLibraryDefinitionModel, {
   TaskLibraryDefinitionDocument,
   TaskKind,
@@ -13,6 +14,32 @@ export class TaskLibraryServiceError extends Error {
     this.name = "TaskLibraryServiceError";
   }
 }
+
+const TASK_KINDS = new Set<TaskKind>([
+  "MEDICATION",
+  "OBSERVATION_TOOL",
+  "HYGIENE",
+  "DIET",
+  "CUSTOM",
+]);
+const SPECIES_LIST = new Set<Species>(["dog", "cat", "horse"]);
+
+const sanitizeTaskKind = (value: unknown): TaskKind | undefined =>
+  typeof value === "string" && TASK_KINDS.has(value as TaskKind)
+    ? (value as TaskKind)
+    : undefined;
+
+const sanitizeSpecies = (value: unknown): Species | undefined =>
+  typeof value === "string" && SPECIES_LIST.has(value as Species)
+    ? (value as Species)
+    : undefined;
+
+const ensureObjectId = (value: unknown, field: string): string => {
+  if (typeof value !== "string" || !Types.ObjectId.isValid(value)) {
+    throw new TaskLibraryServiceError(`Invalid ${field}`, 400);
+  }
+  return value;
+};
 
 export interface CreateTaskLibraryDefinitionInput {
   kind: TaskKind;
@@ -90,12 +117,17 @@ export const TaskLibraryService = {
       );
     }
 
-    validateSchemaByKind(input.kind, input.schema);
+    const kind = sanitizeTaskKind(input.kind);
+    if (!kind) {
+      throw new TaskLibraryServiceError("Invalid kind", 400);
+    }
+
+    validateSchemaByKind(kind, input.schema);
 
     const existing = await TaskLibraryDefinitionModel.findOne({
       source: "YC_LIBRARY",
       name: input.name,
-      kind: input.kind,
+      kind,
     }).lean();
 
     if (existing) {
@@ -107,7 +139,7 @@ export const TaskLibraryService = {
 
     return TaskLibraryDefinitionModel.create({
       source: "YC_LIBRARY",
-      kind: input.kind,
+      kind,
       category: input.category,
       name: input.name,
       defaultDescription: input.defaultDescription,
@@ -124,7 +156,11 @@ export const TaskLibraryService = {
   async listActive(kind?: TaskKind): Promise<TaskLibraryDefinitionDocument[]> {
     const filter: Record<string, unknown> = { isActive: true };
     if (kind) {
-      filter.kind = kind;
+      const safeKind = sanitizeTaskKind(kind);
+      if (!safeKind) {
+        throw new TaskLibraryServiceError("Invalid kind", 400);
+      }
+      filter.kind = safeKind;
     }
 
     return TaskLibraryDefinitionModel.find(filter)
@@ -133,7 +169,8 @@ export const TaskLibraryService = {
   },
 
   async getById(id: string): Promise<TaskLibraryDefinitionDocument> {
-    const doc = await TaskLibraryDefinitionModel.findById(id).exec();
+    const safeId = ensureObjectId(id, "id");
+    const doc = await TaskLibraryDefinitionModel.findById(safeId).exec();
     if (!doc) {
       throw new TaskLibraryServiceError("Library task not found", 404);
     }
@@ -144,16 +181,25 @@ export const TaskLibraryService = {
     species: string;
     kind?: TaskKind;
   }): Promise<TaskLibraryDefinitionDocument[]> {
+    const species = sanitizeSpecies(params.species);
+    if (!species) {
+      throw new TaskLibraryServiceError("Invalid species", 400);
+    }
+
     const filter: Record<string, unknown> = {
       isActive: true,
       $or: [
-        { applicableSpecies: params.species }, // species-specific
+        { applicableSpecies: species }, // species-specific
         { applicableSpecies: { $exists: false } }, // universal tasks
       ],
     };
 
     if (params.kind) {
-      filter.kind = params.kind;
+      const safeKind = sanitizeTaskKind(params.kind);
+      if (!safeKind) {
+        throw new TaskLibraryServiceError("Invalid kind", 400);
+      }
+      filter.kind = safeKind;
     }
 
     return TaskLibraryDefinitionModel.find(filter)
@@ -165,7 +211,8 @@ export const TaskLibraryService = {
     id: string,
     input: UpdateTaskLibraryDefinitionInput,
   ): Promise<TaskLibraryDefinitionDocument> {
-    const doc = await TaskLibraryDefinitionModel.findById(id).exec();
+    const safeId = ensureObjectId(id, "id");
+    const doc = await TaskLibraryDefinitionModel.findById(safeId).exec();
     if (!doc) {
       throw new TaskLibraryServiceError("Library task not found", 404);
     }

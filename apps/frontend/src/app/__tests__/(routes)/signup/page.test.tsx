@@ -17,7 +17,7 @@ jest.mock("@/app/stores/authStore", () => ({
 }));
 
 // Mock the child SignUp component to isolate the page logic
-jest.mock("@/app/pages/SignUp/SignUp", () => {
+jest.mock("@/app/features/auth/pages/SignUp/SignUp", () => {
   return function MockSignUp() {
     return <div data-testid="mock-signup">SignUp Component</div>;
   };

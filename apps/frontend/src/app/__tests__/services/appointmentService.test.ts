@@ -7,12 +7,12 @@ import {
   toSlotsArray,
   acceptAppointment,
   cancelAppointment,
-} from "../../services/appointmentService";
+} from "@/app/features/appointments/services/appointmentService";
 
-import { getData, patchData, postData } from "../../services/axios";
-import { useOrgStore } from "../../stores/orgStore";
-import { useAppointmentStore } from "../../stores/appointmentStore";
-import { formatDateLocal } from "../../utils/date";
+import { getData, patchData, postData } from "@/app/services/axios";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { useAppointmentStore } from "@/app/stores/appointmentStore";
+import { formatDateLocal } from "@/app/lib/date";
 
 import {
   fromAppointmentRequestDTO,
@@ -24,31 +24,31 @@ import type {
   AppointmentResponseDTO,
 } from "@yosemite-crew/types";
 
-import type { AvailabilityResponse, Slot } from "../../types/appointments";
+import type { AvailabilityResponse, Slot } from "@/app/features/appointments/types/appointments";
 
 // --- Mocks ---
 
 // 1. Mock Axios
-jest.mock("../../services/axios");
+jest.mock("@/app/services/axios");
 const mockedGetData = getData as jest.Mock;
 const mockedPostData = postData as jest.Mock;
 const mockedPatchData = patchData as jest.Mock;
 
 // 2. Mock Stores
-jest.mock("../../stores/orgStore", () => ({
+jest.mock("@/app/stores/orgStore", () => ({
   useOrgStore: {
     getState: jest.fn(),
   },
 }));
 
-jest.mock("../../stores/appointmentStore", () => ({
+jest.mock("@/app/stores/appointmentStore", () => ({
   useAppointmentStore: Object.assign(jest.fn(), {
     getState: jest.fn(),
   }),
 }));
 
 // 3. Mock Utils
-jest.mock("../../utils/date", () => ({
+jest.mock("@/app/lib/date", () => ({
   formatDateLocal: jest.fn(),
 }));
 const mockedFormatDateLocal = formatDateLocal as jest.Mock;
@@ -442,7 +442,7 @@ describe("Appointment Service", () => {
       await expect(acceptAppointment(makeBaseAppointment({ id: "appt-acc2" }))).rejects.toThrow(
         "Accept Error"
       );
-      expect(consoleSpy).toHaveBeenCalledWith("Failed to create appointment:", error);
+      expect(consoleSpy).toHaveBeenCalledWith("Failed to accept appointment:", error);
       consoleSpy.mockRestore();
     });
   });
@@ -484,7 +484,7 @@ describe("Appointment Service", () => {
       await expect(cancelAppointment(makeBaseAppointment({ id: "appt-can2" }))).rejects.toThrow(
         "Cancel Error"
       );
-      expect(consoleSpy).toHaveBeenCalledWith("Failed to create appointment:", error);
+      expect(consoleSpy).toHaveBeenCalledWith("Failed to cancel appointment:", error);
       consoleSpy.mockRestore();
     });
   });

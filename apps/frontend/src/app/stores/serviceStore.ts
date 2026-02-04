@@ -1,5 +1,6 @@
 import { Service } from "@yosemite-crew/types";
 import { create } from "zustand";
+import { addToIndex, removeFromIndex } from "@/app/stores/utils/indexHelpers";
 
 type ServiceState = {
   servicesById: Record<string, Service>;
@@ -16,22 +17,6 @@ type ServiceState = {
   getServicesByOrgId: (orgId: string) => Service[];
   getServicesBySpecialityId: (specialityId: string) => Service[];
   clearServices: () => void;
-};
-
-const addToIndex = (idx: Record<string, string[]>, key: string, id: string) => {
-  const arr = idx[key] ?? [];
-  if (arr.includes(id)) return idx;
-  return { ...idx, [key]: [...arr, id] };
-};
-
-const removeFromIndex = (
-  idx: Record<string, string[]>,
-  key: string,
-  id: string
-) => {
-  const arr = idx[key] ?? [];
-  if (!arr.length) return idx;
-  return { ...idx, [key]: arr.filter((x) => x !== id) };
 };
 
 export const useServiceStore = create<ServiceState>()((set, get) => ({

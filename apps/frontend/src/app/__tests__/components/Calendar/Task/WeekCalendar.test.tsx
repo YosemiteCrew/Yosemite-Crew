@@ -2,37 +2,37 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import WeekCalendar from "@/app/components/Calendar/Task/WeekCalendar";
-import { Task } from "@/app/types/task";
+import WeekCalendar from "@/app/features/appointments/components/Calendar/Task/WeekCalendar";
+import { Task } from "@/app/features/tasks/types/task";
 
 const mockGetWeekDays = jest.fn();
 const mockGetPrevWeek = jest.fn();
 const mockGetNextWeek = jest.fn();
 
-jest.mock("@/app/components/Calendar/weekHelpers", () => ({
+jest.mock("@/app/features/appointments/components/Calendar/weekHelpers", () => ({
   getWeekDays: (...args: any[]) => mockGetWeekDays(...args),
   getPrevWeek: (...args: any[]) => mockGetPrevWeek(...args),
   getNextWeek: (...args: any[]) => mockGetNextWeek(...args),
 }));
 
 const mockEventsForDay = jest.fn();
-jest.mock("@/app/components/Calendar/helpers", () => ({
+jest.mock("@/app/features/appointments/components/Calendar/helpers", () => ({
   eventsForDay: (...args: any[]) => mockEventsForDay(...args),
 }));
 
 const dayLabelsSpy = jest.fn();
-jest.mock("@/app/components/Calendar/Task/DayLabels", () => (props: any) => {
+jest.mock("@/app/features/appointments/components/Calendar/Task/DayLabels", () => (props: any) => {
   dayLabelsSpy(props);
   return <div data-testid="day-labels" />;
 });
 
 const taskSlotSpy = jest.fn();
-jest.mock("@/app/components/Calendar/Task/TaskSlot", () => (props: any) => {
+jest.mock("@/app/features/appointments/components/Calendar/Task/TaskSlot", () => (props: any) => {
   taskSlotSpy(props);
   return <div data-testid="task-slot" />;
 });
 
-jest.mock("@/app/components/Icons/Back", () => ({
+jest.mock("@/app/ui/primitives/Icons/Back", () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>
@@ -41,7 +41,7 @@ jest.mock("@/app/components/Icons/Back", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Icons/Next", () => ({
+jest.mock("@/app/ui/primitives/Icons/Next", () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>

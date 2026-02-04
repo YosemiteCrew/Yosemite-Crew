@@ -3,24 +3,24 @@ import {
   useLoadCompanionsForPrimaryOrg,
   useCompanionsForPrimaryOrg,
   useCompanionsParentsForPrimaryOrg,
-} from "../../hooks/useCompanion";
-import { loadCompanionsForPrimaryOrg } from "../../services/companionService";
-import { useOrgStore } from "../../stores/orgStore";
-import { useCompanionStore } from "../../stores/companionStore";
-import { useParentStore } from "../../stores/parentStore";
-import { StoredCompanion, CompanionParent, StoredParent } from "../../pages/Companions/types";
+} from "@/app/hooks/useCompanion";
+import { loadCompanionsForPrimaryOrg } from "@/app/features/companions/services/companionService";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { useCompanionStore } from "@/app/stores/companionStore";
+import { useParentStore } from "@/app/stores/parentStore";
+import { StoredCompanion, CompanionParent, StoredParent } from "@/app/features/companions/pages/Companions/types";
 
 // --- Mocks ---
 
 // 1. Mock Service
-jest.mock("../../services/companionService", () => ({
+jest.mock("@/app/features/companions/services/companionService", () => ({
   loadCompanionsForPrimaryOrg: jest.fn(),
 }));
 
 // 2. Mock Stores
-jest.mock("../../stores/orgStore", () => ({ useOrgStore: jest.fn() }));
-jest.mock("../../stores/companionStore", () => ({ useCompanionStore: jest.fn() }));
-jest.mock("../../stores/parentStore", () => ({ useParentStore: jest.fn() }));
+jest.mock("@/app/stores/orgStore", () => ({ useOrgStore: jest.fn() }));
+jest.mock("@/app/stores/companionStore", () => ({ useCompanionStore: jest.fn() }));
+jest.mock("@/app/stores/parentStore", () => ({ useParentStore: jest.fn() }));
 
 describe("useCompanion Hooks", () => {
   // Mutable state for mocks

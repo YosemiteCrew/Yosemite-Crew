@@ -2,7 +2,7 @@ import { create } from "zustand";
 import {
   ApiDayAvailability,
   ApiOverrides,
-} from "../components/Availability/utils";
+} from "@/app/features/appointments/components/Availability/utils";
 
 type AvailabilityStatus = "idle" | "loading" | "loaded" | "error";
 

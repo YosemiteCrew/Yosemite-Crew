@@ -1,14 +1,14 @@
 import { useEffect, useMemo } from "react";
-import { useOrgStore } from "../stores/orgStore";
-import { useCounterStore } from "../stores/counterStore";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { useCounterStore } from "@/app/stores/counterStore";
 import {
   BillingCounter,
   BillingSubscription,
   CanResult,
   FreeMetric,
-} from "../types/billing";
-import { useSubscriptionStore } from "../stores/subscriptionStore";
-import { checkStatus } from "../services/stripeService";
+} from "@/app/features/billing/types/billing";
+import { useSubscriptionStore } from "@/app/stores/subscriptionStore";
+import { checkStatus } from "@/app/features/billing/services/stripeService";
 
 export const useLoadSubscriptionCounterForPrimaryOrg = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);

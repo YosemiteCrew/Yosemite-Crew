@@ -6,7 +6,7 @@ import {
   getTaskTemplatesForPrimaryOrg,
   loadTasksForPrimaryOrg,
   updateTask,
-} from "@/app/services/taskService";
+} from "@/app/features/tasks/services/taskService";
 
 const getDataMock = jest.fn();
 const postDataMock = jest.fn();

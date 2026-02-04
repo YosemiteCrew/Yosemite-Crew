@@ -1,9 +1,9 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import InviteCard from "@/app/components/Cards/InviteCard/InviteCard";
+import InviteCard from "@/app/ui/cards/InviteCard/InviteCard";
 
-jest.mock("@/app/utils/validators", () => ({
+jest.mock("@/app/lib/validators", () => ({
   toTitle: (value: string) => value.toUpperCase(),
   toTitleCase: (value: string) => value.toUpperCase(),
 }));

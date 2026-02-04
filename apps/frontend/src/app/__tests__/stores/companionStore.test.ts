@@ -1,5 +1,5 @@
 import { useCompanionStore } from "@/app/stores/companionStore";
-import { StoredCompanion } from "@/app/pages/Companions/types";
+import { StoredCompanion } from "@/app/features/companions/pages/Companions/types";
 
 // Helper to create mock companions
 const createMockCompanion = (

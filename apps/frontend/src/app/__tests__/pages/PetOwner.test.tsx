@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
@@ -30,11 +31,11 @@ jest.mock("@iconify/react/dist/iconify.js", () => ({
   Icon: ({ icon }: { icon: string }) => <span data-testid={`icon-${icon}`} />,
 }));
 
-jest.mock("@/app/components/Footer/Footer", () => () => (
+jest.mock("@/app/ui/widgets/Footer/Footer", () => () => (
   <footer data-testid="footer" />
 ));
 
-import PetOwner, { PetDownBtn } from "@/app/pages/PetOwner/PetOwner";
+import PetOwner, { PetDownBtn } from "@/app/features/marketing/pages/PetOwner/PetOwner";
 
 describe("PetOwner page", () => {
   test("renders hero content, toolkit, and footer", () => {

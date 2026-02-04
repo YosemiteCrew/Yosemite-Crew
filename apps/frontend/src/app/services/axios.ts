@@ -1,7 +1,8 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosRequestConfig } from "axios";
 import { useAuthStore } from "@/app/stores/authStore";
-import { useOrgStore } from "../stores/orgStore";
-import { hardSignOut } from "../hooks/useAuth";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { hardSignOut } from "@/app/hooks/useAuth";
+import { logger } from "@/app/lib/logger";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
@@ -30,7 +31,7 @@ api.interceptors.request.use(
         }
       }
     } catch (error) {
-      console.warn("No valid Cognito session available from AuthStore", error);
+      logger.warn("No valid Cognito session available from AuthStore", error);
     }
     return config;
   },
@@ -77,7 +78,7 @@ api.interceptors.response.use(
 
       return api(originalRequest);
     } catch (refreshError) {
-      console.error("Session refresh failed after 401:", refreshError);
+      logger.error("Session refresh failed after 401:", refreshError);
       await hardSignOut();
       throw error;
     }
@@ -94,7 +95,7 @@ export const getData = async <T>(
       params,
     });
   } catch (error: unknown) {
-    console.error("API getData error:", error);
+    logger.error("API getData error:", error);
     throw error;
   }
 };
@@ -110,7 +111,7 @@ export const postData = async <T, D = unknown>(
       ...config,
     });
   } catch (error: unknown) {
-    console.error("API postData error:", error);
+    logger.error("API postData error:", error);
     throw error;
   }
 };
@@ -123,7 +124,7 @@ export const putData = async <T, D = unknown>(
   try {
     return await api.put<T>(endpoint, data);
   } catch (error: unknown) {
-    console.error("API putData error:", error);
+    logger.error("API putData error:", error);
     throw error;
   }
 };
@@ -138,7 +139,7 @@ export const deleteData = async <T>(
       params,
     });
   } catch (error: unknown) {
-    console.error("API deleteData error:", error);
+    logger.error("API deleteData error:", error);
     throw error;
   }
 };
@@ -153,7 +154,7 @@ export const patchData = async <T, D = unknown>(
       ...config,
     });
   } catch (error: unknown) {
-    console.error("API patchData error:", error);
+    logger.error("API patchData error:", error);
     throw error;
   }
 };

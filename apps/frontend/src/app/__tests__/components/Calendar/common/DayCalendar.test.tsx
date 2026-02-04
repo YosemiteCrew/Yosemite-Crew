@@ -1,8 +1,9 @@
+/* eslint-disable @next/next/no-img-element */
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import DayCalendar from "@/app/components/Calendar/common/DayCalendar";
+import DayCalendar from "@/app/features/appointments/components/Calendar/common/DayCalendar";
 
 jest.mock("next/image", () => ({
   __esModule: true,
@@ -17,7 +18,7 @@ const mockGetTotalWindowHeightPx = jest.fn((_start: number, _end: number) => 200
 const mockIsAllDayForDate = jest.fn();
 const mockLayoutDayEvents = jest.fn();
 
-jest.mock("@/app/components/Calendar/helpers", () => ({
+jest.mock("@/app/features/appointments/components/Calendar/helpers", () => ({
   EVENT_HORIZONTAL_GAP_PX: 4,
   EVENT_VERTICAL_GAP_PX: 2,
   getDayWindow: (events: any[]) => mockGetDayWindow(events),
@@ -27,27 +28,27 @@ jest.mock("@/app/components/Calendar/helpers", () => ({
   layoutDayEvents: (...args: any[]) => mockLayoutDayEvents(...args),
 }));
 
-jest.mock("@/app/components/Calendar/common/TimeLabels", () => () => (
+jest.mock("@/app/features/appointments/components/Calendar/common/TimeLabels", () => () => (
   <div data-testid="time-labels" />
 ));
 
-jest.mock("@/app/components/Calendar/common/HorizontalLines", () => () => (
+jest.mock("@/app/features/appointments/components/Calendar/common/HorizontalLines", () => () => (
   <div data-testid="horizontal-lines" />
 ));
 
-jest.mock("@/app/components/DataTable/Appointments", () => ({
+jest.mock("@/app/ui/tables/Appointments", () => ({
   getStatusStyle: jest.fn(() => ({ backgroundColor: "purple", color: "white" })),
 }));
 
-jest.mock("@/app/utils/appointments", () => ({
+jest.mock("@/app/lib/appointments", () => ({
   allowReschedule: jest.fn(() => true),
 }));
 
-jest.mock("@/app/utils/urls", () => ({
+jest.mock("@/app/lib/urls", () => ({
   getSafeImageUrl: jest.fn(() => "image"),
 }));
 
-jest.mock("@/app/components/Icons/Back", () => ({
+jest.mock("@/app/ui/primitives/Icons/Back", () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>
@@ -56,7 +57,7 @@ jest.mock("@/app/components/Icons/Back", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Icons/Next", () => ({
+jest.mock("@/app/ui/primitives/Icons/Next", () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>

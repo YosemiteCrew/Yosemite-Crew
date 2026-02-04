@@ -1,4 +1,4 @@
-import { isHttpsImageUrl } from "@/app/utils/urls";
+import { isHttpsImageUrl } from "@/app/lib/urls";
 
 describe("isHttpsImageUrl", () => {
   it("returns true for https urls", () => {

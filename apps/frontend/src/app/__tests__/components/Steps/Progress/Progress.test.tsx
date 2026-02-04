@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import Progress from "@/app/components/Steps/Progress/Progress";
+import Progress from "@/app/features/onboarding/components/Steps/Progress/Progress";
 
 describe("Steps Progress", () => {
   test("marks the active step", () => {

@@ -3,10 +3,10 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import OrganizationList, {
   getStatusStyle,
-} from "@/app/components/DataTable/OrganizationList";
+} from "@/app/ui/tables/OrganizationList";
 import { useOrgStore } from "@/app/stores/orgStore";
 import { useRouter } from "next/navigation";
-import { OrgWithMembership } from "@/app/types/org";
+import { OrgWithMembership } from "@/app/features/organization/types/org";
 
 // --- Mocks ---
 
@@ -21,7 +21,7 @@ jest.mock("@/app/stores/orgStore", () => ({
 }));
 
 // Mock GenericTable to test render props in columns
-jest.mock("@/app/components/GenericTable/GenericTable", () => {
+jest.mock("@/app/ui/tables/GenericTable/GenericTable", () => {
   return ({ data, columns }: any) => (
     <div data-testid="generic-table">
       {data.map((item: any, i: number) => (
@@ -38,7 +38,7 @@ jest.mock("@/app/components/GenericTable/GenericTable", () => {
 });
 
 // Fixed: Use absolute path alias to resolve OrgCard mock correctly
-jest.mock("@/app/components/Cards/OrgCard/OrgCard", () => {
+jest.mock("@/app/ui/cards/OrgCard/OrgCard", () => {
   return ({ org, handleOrgClick }: any) => (
     <div data-testid={`org-card-${org.org.name}`}>
       <button onClick={() => handleOrgClick(org)}>Select Card</button>

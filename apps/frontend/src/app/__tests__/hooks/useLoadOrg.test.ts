@@ -2,7 +2,7 @@ import { renderHook } from "@testing-library/react";
 import { useLoadOrg } from "@/app/hooks/useLoadOrg";
 import { useAuthStore } from "@/app/stores/authStore";
 import { useOrgStore } from "@/app/stores/orgStore";
-import { loadOrgs } from "@/app/services/orgService";
+import { loadOrgs } from "@/app/features/organization/services/orgService";
 
 jest.mock("@/app/stores/authStore", () => ({
   useAuthStore: jest.fn(),
@@ -10,7 +10,7 @@ jest.mock("@/app/stores/authStore", () => ({
 jest.mock("@/app/stores/orgStore", () => ({
   useOrgStore: jest.fn(),
 }));
-jest.mock("@/app/services/orgService", () => ({
+jest.mock("@/app/features/organization/services/orgService", () => ({
   loadOrgs: jest.fn(),
 }));
 

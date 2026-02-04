@@ -9,7 +9,99 @@ import { ParentModel } from "src/models/parent";
 import UserModel from "src/models/user";
 import logger from "src/utils/logger";
 
+const hasToHexString = (value: unknown): value is { toHexString: () => string } =>
+  typeof (value as { toHexString?: unknown })?.toHexString === "function";
+
 export class FormSigningService {
+  private static async loadSubmissionOrThrow(submissionId: string) {
+    const submission = await FormSubmissionModel.findById(submissionId);
+    if (!submission) {
+      throw new Error("Form submission not found");
+    }
+    return submission;
+  }
+
+  private static async loadFormOrThrow(formId: string) {
+    const form = await FormModel.findById(formId).lean();
+    if (!form) {
+      throw new Error("Form not found");
+    }
+    return form;
+  }
+
+  private static async loadVersionOrThrow(formId: string, version: number) {
+    const formVersion = await FormVersionModel.findOne({
+      formId,
+      version,
+    }).lean();
+    if (!formVersion) {
+      throw new Error("Form version not found");
+    }
+    return formVersion;
+  }
+
+  private static ensureNotAlreadySigned(status?: string) {
+    if (status === "SIGNED") {
+      throw new Error("Submission already signed");
+    }
+  }
+
+  private static ensureRequiredSignerMatches(
+    requiredSigner?: string,
+    isParent?: boolean,
+  ) {
+    if (!requiredSigner) {
+      return;
+    }
+
+    const requiresParent = requiredSigner === "CLIENT";
+    if (requiresParent && !isParent) {
+      throw new Error("Form requires client signature");
+    }
+    if (!requiresParent && isParent) {
+      throw new Error("Form requires vet signature");
+    }
+  }
+
+  private static async resolveDocumensoKeyOrThrow(orgId: string) {
+    const apiKey = await DocumensoService.resolveOrganisationApiKey(orgId);
+    if (!apiKey) {
+      throw new Error("Documenso API key not configured for organisation");
+    }
+    return apiKey;
+  }
+
+  private static async resolveSignerInfo({
+    isParent,
+    initiatedBy,
+  }: {
+    isParent?: boolean;
+    initiatedBy?: string;
+  }) {
+    if (isParent) {
+      logger.info("Signing initiated by parent: ", initiatedBy);
+      const parent = await ParentModel.findById(initiatedBy).lean();
+      if (!parent) {
+        throw new Error("Unbale to find parent");
+      }
+      return {
+        signerEmail: parent.email,
+        signerName: parent.firstName + " " + parent.lastName,
+        signerRole: "CLIENT" as const,
+      };
+    }
+
+    const user = await UserModel.findOne({ userId: initiatedBy }).lean();
+    if (!user) {
+      throw new Error("Unable to find submitting user");
+    }
+    return {
+      signerEmail: user.email,
+      signerName: user.firstName + " " + user.lastName,
+      signerRole: "VET" as const,
+    };
+  }
+
   static async startSigning({
     isParent,
     submissionId,
@@ -20,48 +112,35 @@ export class FormSigningService {
     initiatedBy?: string;
   }) {
     // 1️⃣ Load submission
-    const submission = await FormSubmissionModel.findById(submissionId);
-    if (!submission) {
-      throw new Error("Form submission not found");
-    }
+    const submission =
+      await FormSigningService.loadSubmissionOrThrow(submissionId);
 
     // 2️⃣ Validate state
-    if (submission.signing?.status === "SIGNED") {
-      throw new Error("Submission already signed");
-    }
+    FormSigningService.ensureNotAlreadySigned(submission.signing?.status);
 
     // 3️⃣ Load immutable form version
-    const version = await FormVersionModel.findOne({
-      formId: submission.formId,
-      version: submission.formVersion,
-    }).lean();
-
-    if (!version) {
-      throw new Error("Form version not found");
-    }
-
-    const form = await FormModel.findById(submission.formId).lean();
-    if (!form) {
-      throw new Error("Form not found");
-    }
-
-    if (form.requiredSigner) {
-      const requiresParent = form.requiredSigner === "CLIENT";
-      if (requiresParent && !isParent) {
-        throw new Error("Form requires client signature");
+    const formId = (() => {
+      if (typeof submission.formId === "string") return submission.formId;
+      if (hasToHexString(submission.formId)) {
+        const id = submission.formId.toHexString();
+        if (id.length > 0) return id;
       }
-      if (!requiresParent && isParent) {
-        throw new Error("Form requires vet signature");
-      }
-    }
+      throw new Error("Invalid formId");
+    })();
 
-    const documensoApiKey = await DocumensoService.resolveOrganisationApiKey(
-      form.orgId,
+    const version = await FormSigningService.loadVersionOrThrow(
+      formId,
+      submission.formVersion,
     );
 
-    if (!documensoApiKey) {
-      throw new Error("Documenso API key not configured for organisation");
-    }
+    const form = await FormSigningService.loadFormOrThrow(formId);
+    FormSigningService.ensureRequiredSignerMatches(
+      form.requiredSigner,
+      isParent,
+    );
+
+    const documensoApiKey =
+      await FormSigningService.resolveDocumensoKeyOrThrow(form.orgId);
 
     // 4️⃣ Generate PDF ONCE
     const pdf = await generateFormSubmissionPdf({
@@ -71,27 +150,11 @@ export class FormSigningService {
       submittedAt: submission.submittedAt,
     });
 
-    let signerEmail = "";
-    let signerName = "";
-
-    if (isParent) {
-      logger.info("Signing initiated by parent: ", initiatedBy);
-      const parent = await ParentModel.findById(initiatedBy).lean();
-
-      if (!parent) {
-        throw new Error("Unbale to find parent");
-      }
-
-      signerEmail = parent.email;
-      signerName = parent.firstName + " " + parent.lastName;
-    } else {
-      const user = await UserModel.findOne({ userId: initiatedBy }).lean();
-      if (!user) {
-        throw new Error("Unable to find submitting user");
-      }
-      signerEmail = user.email;
-      signerName = user.firstName + " " + user.lastName;
-    }
+    const { signerEmail, signerName, signerRole } =
+      await FormSigningService.resolveSignerInfo({
+        isParent,
+        initiatedBy,
+      });
 
     if (!signerEmail) {
       logger.error("Signer email is missing");
@@ -123,7 +186,7 @@ export class FormSigningService {
       documentId: doc.id.toString(),
       signer: {
         email: signerEmail,
-        role: isParent ? "CLIENT" : "VET",
+        role: signerRole,
       },
     };
 

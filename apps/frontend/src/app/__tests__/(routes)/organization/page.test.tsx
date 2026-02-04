@@ -4,7 +4,7 @@ import Page from "@/app/(routes)/(app)/organization/page";
 
 // 1. Mock the child component
 // This replaces the actual Organization page logic with a simple dummy element.
-jest.mock("@/app/pages/Organization", () => {
+jest.mock("@/app/features/organization/pages/Organization", () => {
   return function MockProtectedOrganization() {
     return (
       <div data-testid="protected-organization-mock">Organization Profile</div>

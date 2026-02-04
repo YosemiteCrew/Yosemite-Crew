@@ -1,7 +1,7 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import MultiSelectDropdown from "@/app/components/Inputs/MultiSelectDropdown";
+import MultiSelectDropdown from "@/app/ui/inputs/MultiSelectDropdown";
 
 jest.mock("react-icons/io", () => ({
   IoIosClose: ({ onClick }: any) => (

@@ -1,10 +1,10 @@
 import React from "react";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import ProtectedTeamOnboarding from "@/app/pages/TeamOnboarding/TeamOnboarding";
+import ProtectedTeamOnboarding from "@/app/features/onboarding/pages/TeamOnboarding/TeamOnboarding";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTeamOnboarding } from "@/app/hooks/useTeamOnboarding";
-import { convertFromGetApi } from "@/app/components/Availability/utils";
+import { convertFromGetApi } from "@/app/features/appointments/components/Availability/utils";
 
 // --- Mocks ---
 
@@ -17,14 +17,14 @@ jest.mock("@/app/hooks/useTeamOnboarding", () => ({
   useTeamOnboarding: jest.fn(),
 }));
 
-jest.mock("@/app/components/ProtectedRoute", () => ({
+jest.mock("@/app/ui/layout/guards/ProtectedRoute", () => ({
   __esModule: true,
   default: ({ children }: any) => (
     <div data-testid="protected-route">{children}</div>
   ),
 }));
 
-jest.mock("@/app/components/Steps/Progress/Progress", () => ({
+jest.mock("@/app/features/onboarding/components/Steps/Progress/Progress", () => ({
   __esModule: true,
   default: ({ activeStep }: any) => (
     <div data-testid="progress">Step {activeStep + 1}</div>
@@ -32,7 +32,7 @@ jest.mock("@/app/components/Steps/Progress/Progress", () => ({
 }));
 
 // Mock Step Components
-jest.mock("@/app/components/Steps/TeamOnboarding/PersonalStep", () => ({
+jest.mock("@/app/features/onboarding/components/Steps/TeamOnboarding/PersonalStep", () => ({
   __esModule: true,
   default: ({ nextStep }: any) => (
     <div data-testid="personal-step">
@@ -42,7 +42,7 @@ jest.mock("@/app/components/Steps/TeamOnboarding/PersonalStep", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Steps/TeamOnboarding/ProfessionalStep", () => ({
+jest.mock("@/app/features/onboarding/components/Steps/TeamOnboarding/ProfessionalStep", () => ({
   __esModule: true,
   default: ({ nextStep, prevStep }: any) => (
     <div data-testid="professional-step">
@@ -53,7 +53,7 @@ jest.mock("@/app/components/Steps/TeamOnboarding/ProfessionalStep", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Steps/TeamOnboarding/AvailabilityStep", () => ({
+jest.mock("@/app/features/onboarding/components/Steps/TeamOnboarding/AvailabilityStep", () => ({
   __esModule: true,
   default: ({ prevStep }: any) => (
     <div data-testid="availability-step">
@@ -63,8 +63,8 @@ jest.mock("@/app/components/Steps/TeamOnboarding/AvailabilityStep", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Availability/utils", () => ({
-  ...jest.requireActual("@/app/components/Availability/utils"),
+jest.mock("@/app/features/appointments/components/Availability/utils", () => ({
+  ...jest.requireActual("@/app/features/appointments/components/Availability/utils"),
   convertFromGetApi: jest.fn(),
 }));
 

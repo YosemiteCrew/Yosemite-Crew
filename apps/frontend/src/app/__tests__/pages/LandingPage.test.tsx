@@ -1,9 +1,9 @@
 import { render, screen, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import MainLandingPage from "../../pages/LandingPage/LandingPage";
+import MainLandingPage from "@/app/features/marketing/pages/LandingPage";
 import { useAuthStore } from "@/app/stores/authStore";
 
-jest.mock("@/app/components/Footer/Footer", () => {
+jest.mock("@/app/ui/widgets/Footer/Footer", () => {
   return function DummyFooter() {
     return <footer>Footer Mock</footer>;
   };

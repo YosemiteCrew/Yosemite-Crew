@@ -8,22 +8,22 @@ import {
   unhideInventoryItem,
   updateInventoryBatch,
   updateInventoryItem,
-} from "@/app/services/inventoryService";
+} from "@/app/features/inventory/services/inventoryService";
 import {
   BatchValues,
   InventoryApiItem,
   InventoryBatchApi,
   InventoryItem,
   InventoryTurnoverItem,
-} from "@/app/pages/Inventory/types";
+} from "@/app/features/inventory/pages/Inventory/types";
 import {
   buildBatchPayload,
   buildInventoryPayload,
   mapApiItemToInventoryItem,
-} from "@/app/pages/Inventory/utils";
+} from "@/app/features/inventory/pages/Inventory/utils";
 import { useInventoryStore } from "@/app/stores/inventoryStore";
 import { useOrgStore } from "@/app/stores/orgStore";
-import { BusinessType } from "@/app/types/org";
+import { BusinessType } from "@/app/features/organization/types/org";
 
 const withBusinessType = (
   item: InventoryItem,

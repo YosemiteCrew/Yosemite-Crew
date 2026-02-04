@@ -1,4 +1,4 @@
-import { useAppointmentStore } from "../../stores/appointmentStore";
+import { useAppointmentStore } from "@/app/stores/appointmentStore";
 import { Appointment } from "@yosemite-crew/types";
 
 // --- Mock Data ---

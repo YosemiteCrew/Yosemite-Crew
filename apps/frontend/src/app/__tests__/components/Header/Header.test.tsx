@@ -6,14 +6,14 @@ jest.mock("next/navigation", () => ({
   usePathname: () => mockUsePathname(),
 }));
 
-jest.mock("@/app/components/Header/GuestHeader/GuestHeader", () => () => (
+jest.mock("@/app/ui/layout/Header/GuestHeader/GuestHeader", () => () => (
   <div data-testid="guest-header" />
 ));
-jest.mock("@/app/components/Header/UserHeader/UserHeader", () => () => (
+jest.mock("@/app/ui/layout/Header/UserHeader/UserHeader", () => () => (
   <div data-testid="user-header" />
 ));
 
-import Header from "@/app/components/Header/Header";
+import Header from "@/app/ui/layout/Header/Header";
 
 describe("Header", () => {
   test("renders GuestHeader on public routes", () => {

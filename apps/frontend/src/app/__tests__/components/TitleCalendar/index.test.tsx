@@ -2,11 +2,11 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import TitleCalendar from "@/app/components/TitleCalendar";
+import TitleCalendar from "@/app/ui/widgets/TitleCalendar";
 
 const dropdownProps: any[] = [];
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ text, onClick }: any) => (
     <button type="button" onClick={onClick}>
       {text}
@@ -14,12 +14,12 @@ jest.mock("@/app/components/Buttons", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/Datepicker", () => ({
+jest.mock("@/app/ui/inputs/Datepicker", () => ({
   __esModule: true,
   default: () => <div data-testid="datepicker" />,
 }));
 
-jest.mock("@/app/components/Inputs/Dropdown", () => (props: any) => {
+jest.mock("@/app/ui/inputs/Dropdown", () => (props: any) => {
   dropdownProps.push(props);
   return <div data-testid="view-dropdown" />;
 });
@@ -82,7 +82,7 @@ describe("TitleCalendar", () => {
     expect(setActiveView).toHaveBeenCalledWith("calendar");
     expect(setActiveView).toHaveBeenCalledWith("list");
 
-    const latestDropdown = dropdownProps[dropdownProps.length - 1];
+    const latestDropdown = dropdownProps.at(-1)!;
     latestDropdown.onSelect({ key: "week" });
     expect(setActiveCalendar).toHaveBeenCalledWith("week");
   });

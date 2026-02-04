@@ -3,13 +3,13 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import FormsTable, {
   getStatusStyle,
-} from "@/app/components/DataTable/FormsTable";
-import { FormsProps } from "@/app/types/forms";
+} from "@/app/ui/tables/FormsTable";
+import { FormsProps } from "@/app/features/forms/types/forms";
 
 // --- Mocks ---
 
 // Mock GenericTable because it's a UI component we don't need to test internally here
-jest.mock("@/app/components/GenericTable/GenericTable", () => {
+jest.mock("@/app/ui/tables/GenericTable/GenericTable", () => {
   return ({ data, columns }: any) => (
     <table data-testid="generic-table">
       <thead>
@@ -36,7 +36,7 @@ jest.mock("@/app/components/GenericTable/GenericTable", () => {
 
 // Mock FormCard for mobile view
 // Fixed: Changed div to button to satisfy a11y rules in tests
-jest.mock("@/app/components/Cards/FormCard", () => {
+jest.mock("@/app/ui/cards/FormCard", () => {
   return ({ form, handleViewForm }: any) => (
     <button
       data-testid={`form-card-${form.name}`}

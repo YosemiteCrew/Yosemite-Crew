@@ -1,14 +1,14 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import AddDocument from "@/app/pages/Organization/Sections/Documents/AddDocument";
+import AddDocument from "@/app/features/organization/pages/Organization/Sections/Documents/AddDocument";
 
-jest.mock("@/app/components/Modal", () => ({
+jest.mock("@/app/ui/overlays/Modal", () => ({
   __esModule: true,
   default: ({ children }: any) => <div data-testid="modal">{children}</div>,
 }));
 
-jest.mock("@/app/components/Accordion/Accordion", () => ({
+jest.mock("@/app/ui/primitives/Accordion/Accordion", () => ({
   __esModule: true,
   default: ({ title, children }: any) => (
     <div>
@@ -18,7 +18,7 @@ jest.mock("@/app/components/Accordion/Accordion", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   __esModule: true,
   default: ({ inlabel, value, onChange, error }: any) => (
     <label>
@@ -29,7 +29,7 @@ jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/FormDesc/FormDesc", () => ({
+jest.mock("@/app/ui/inputs/FormDesc/FormDesc", () => ({
   __esModule: true,
   default: ({ inlabel, value, onChange }: any) => (
     <label>
@@ -39,7 +39,7 @@ jest.mock("@/app/components/Inputs/FormDesc/FormDesc", () => ({
   ),
 }));
 
-jest.mock("@/app/components/UploadImage/DocUploader", () => ({
+jest.mock("@/app/ui/widgets/UploadImage/DocUploader", () => ({
   __esModule: true,
   default: ({ onChange, error }: any) => (
     <div>
@@ -49,7 +49,7 @@ jest.mock("@/app/components/UploadImage/DocUploader", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
+jest.mock("@/app/ui/inputs/Dropdown/LabelDropdown", () => ({
   __esModule: true,
   default: ({ placeholder, onSelect }: any) => (
     <button type="button" onClick={() => onSelect({ value: "CANCELLATION_POLICY" })}>
@@ -58,7 +58,7 @@ jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ text, onClick }: any) => (
     <button type="button" onClick={onClick}>
       {text}
@@ -66,7 +66,7 @@ jest.mock("@/app/components/Buttons", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Icons/Close", () => ({
+jest.mock("@/app/ui/primitives/Icons/Close", () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>
@@ -85,11 +85,11 @@ jest.mock("@/app/stores/orgStore", () => ({
   },
 }));
 
-jest.mock("@/app/services/documentService", () => ({
+jest.mock("@/app/features/documents/services/documentService", () => ({
   createDocument: jest.fn(),
 }));
 
-const documentService = jest.requireMock("@/app/services/documentService");
+const documentService = jest.requireMock("@/app/features/documents/services/documentService");
 
 describe("AddDocument", () => {
   beforeEach(() => {

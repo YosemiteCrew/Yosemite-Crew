@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import { FormsProps, FormsStatus } from "../types/forms";
-import { formatDateLabel } from "../utils/forms";
+import { FormsProps, FormsStatus } from "@/app/features/forms/types/forms";
+import { formatDateLabel } from "@/app/lib/forms";
 
 type FormsState = {
   formsById: Record<string, FormsProps>;

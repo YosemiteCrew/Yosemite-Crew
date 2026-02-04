@@ -1,5 +1,5 @@
-import { useUserProfileStore } from "../../stores/profileStore";
-import { UserProfile } from "../../types/profile";
+import { useUserProfileStore } from "@/app/stores/profileStore";
+import { UserProfile } from "@/app/features/users/types/profile";
 
 // --- Mock Data ---
 // We cast to unknown first to avoid strict type adherence for fields that might not exist in the strict type

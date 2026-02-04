@@ -1,7 +1,7 @@
-import { loadInvoicesForOrgPrimaryOrg } from "../../services/invoiceService";
-import { useInvoiceStore } from "../../stores/invoiceStore";
-import { useOrgStore } from "../../stores/orgStore";
-import { getData } from "../../services/axios";
+import { loadInvoicesForOrgPrimaryOrg } from "@/app/features/billing/services/invoiceService";
+import { useInvoiceStore } from "@/app/stores/invoiceStore";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { getData } from "@/app/services/axios";
 
 type InvoiceState = {
   startLoading: jest.Mock;
@@ -13,15 +13,15 @@ type OrgState = {
   primaryOrgId: string | null;
 };
 
-jest.mock("../../stores/invoiceStore", () => ({
+jest.mock("@/app/stores/invoiceStore", () => ({
   useInvoiceStore: { getState: jest.fn() },
 }));
 
-jest.mock("../../stores/orgStore", () => ({
+jest.mock("@/app/stores/orgStore", () => ({
   useOrgStore: { getState: jest.fn() },
 }));
 
-jest.mock("../../services/axios", () => ({
+jest.mock("@/app/services/axios", () => ({
   getData: jest.fn(),
 }));
 

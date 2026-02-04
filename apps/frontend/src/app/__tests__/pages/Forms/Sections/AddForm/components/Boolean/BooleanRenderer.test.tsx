@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import BooleanRenderer from "../../../../../../../pages/Forms/Sections/AddForm/components/Boolean/BooleanRenderer";
-import { FormField } from "@/app/types/forms";
+import BooleanRenderer from "@/app/features/forms/pages/Forms/Sections/AddForm/components/Boolean/BooleanRenderer";
+import { FormField } from "@/app/features/forms/types/forms";
 
 describe("BooleanRenderer Component", () => {
   const mockOnChange = jest.fn();

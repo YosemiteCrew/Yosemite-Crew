@@ -2,7 +2,7 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import Datepicker from "@/app/components/Inputs/Datepicker";
+import Datepicker from "@/app/ui/inputs/Datepicker";
 
 jest.mock("react-icons/io5", () => ({
   IoCalendarClear: () => <span data-testid="calendar-icon" />,
@@ -21,12 +21,12 @@ jest.mock("react-icons/gr", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/Datepicker/Month", () => ({
+jest.mock("@/app/ui/inputs/Datepicker/Month", () => ({
   __esModule: true,
   default: () => <div data-testid="month-picker" />,
 }));
 
-jest.mock("@/app/components/Inputs/Datepicker/Year", () => ({
+jest.mock("@/app/ui/inputs/Datepicker/Year", () => ({
   __esModule: true,
   default: () => <div data-testid="year-picker" />,
 }));

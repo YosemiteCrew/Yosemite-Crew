@@ -25,6 +25,18 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@/features/*": [
+        "./src/app/features/*"
+      ],
+      "@/ui/*": [
+        "./src/app/ui/*"
+      ],
+      "@/lib/*": [
+        "./src/app/lib/*"
+      ],
+      "@/constants/*": [
+        "./src/app/constants/*"
       ]
     }
   },

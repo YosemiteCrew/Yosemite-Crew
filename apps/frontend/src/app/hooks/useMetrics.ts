@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { useOrgStore } from "../stores/orgStore";
-import { DashboardSummary, EMPTY_EXPLORE } from "../types/metrics";
-import { getExploreMetrics } from "../services/metricsService";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { DashboardSummary, EMPTY_EXPLORE } from "@/app/features/metrics/types/metrics";
+import { getExploreMetrics } from "@/app/features/metrics/services/metricsService";
 
 export const useExploreMetrics = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);

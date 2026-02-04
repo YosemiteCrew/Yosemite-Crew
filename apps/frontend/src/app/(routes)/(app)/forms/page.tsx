@@ -1,5 +1,5 @@
 import React from "react";
-import ProtectedForms from "@/app/pages/Forms";
+import ProtectedForms from "@/app/features/forms/pages/Forms";
 
 function page() {
   return <ProtectedForms />;

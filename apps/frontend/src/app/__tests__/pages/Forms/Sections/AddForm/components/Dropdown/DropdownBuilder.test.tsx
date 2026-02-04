@@ -1,12 +1,12 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import DropdownBuilder from "../../../../../../../pages/Forms/Sections/AddForm/components/Dropdown/DropdownBuilder";
-import { FormField } from "@/app/types/forms";
+import DropdownBuilder from "@/app/features/forms/pages/Forms/Sections/AddForm/components/Dropdown/DropdownBuilder";
+import { FormField } from "@/app/features/forms/types/forms";
 
 // --- Mocks ---
 
 // Mock FormInput to isolate builder logic from input implementation
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   __esModule: true,
   default: ({ value, onChange, inlabel, readonly }: any) => (
     <input

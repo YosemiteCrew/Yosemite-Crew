@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import DayLabels from "@/app/components/Calendar/Task/DayLabels";
+import DayLabels from "@/app/features/appointments/components/Calendar/Task/DayLabels";
 
 describe("DayLabels", () => {
   it("renders weekday and date number for each day", () => {

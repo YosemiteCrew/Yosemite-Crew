@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import Dropdown from "@/app/components/Inputs/Dropdown/Dropdown";
+import Dropdown from "@/app/ui/inputs/Dropdown/Dropdown";
 
 // --- Mocks ---
 
@@ -17,7 +17,7 @@ jest.mock("@iconify/react/dist/iconify.js", () => ({
 }));
 
 // Mock Country List
-jest.mock("@/app/utils/countryList.json", () => [
+jest.mock("@/app/lib/data/countryList", () => [
   { code: "US", name: "United States", flag: "🇺🇸" },
   { code: "CA", name: "Canada", flag: "🇨🇦" },
 ]);

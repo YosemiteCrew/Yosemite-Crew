@@ -1,5 +1,5 @@
 import { useParentStore } from "@/app/stores/parentStore";
-import { StoredParent } from "@/app/pages/Companions/types";
+import { StoredParent } from "@/app/features/companions/pages/Companions/types";
 import { act } from "@testing-library/react";
 
 // Mock data

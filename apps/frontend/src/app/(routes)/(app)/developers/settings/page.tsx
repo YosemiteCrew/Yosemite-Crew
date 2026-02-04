@@ -1,9 +1,9 @@
  "use client";
 import React, { useMemo } from "react";
 
-import "@/app/pages/Organizations/Organizations.css";
-import "@/app/pages/Settings/Settings.css";
-import DevRouteGuard from "@/app/components/DevRouteGuard/DevRouteGuard";
+import "@/app/features/organizations/styles/Organizations.css";
+import "@/app/features/settings/styles/Settings.css";
+import DevRouteGuard from "@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard";
 import { useAuthStore } from "@/app/stores/authStore";
 
 const DevSettingsPage = () => {

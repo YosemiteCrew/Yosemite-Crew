@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import OtpModal from "@/app/components/OtpModal/OtpModal";
+import OtpModal from "@/app/ui/overlays/OtpModal/OtpModal";
 import { useAuthStore } from "@/app/stores/authStore";
 import { useSignOut } from "@/app/hooks/useAuth";
 import { useRouter } from "next/navigation";
@@ -35,6 +35,7 @@ jest.mock("@iconify/react/dist/iconify.js", () => ({
 }));
 
 describe("OtpModal Component", () => {
+  const testPassword = process.env.TEST_PASSWORD ?? "test-password";
   const mockShowErrorTost = jest.fn();
   const mockSetShowVerifyModal = jest.fn();
   const mockConfirmSignUp = jest.fn();
@@ -45,7 +46,7 @@ describe("OtpModal Component", () => {
 
   const defaultProps = {
     email: "test@example.com",
-    password: "password123",
+    password: testPassword,
     showErrorTost: mockShowErrorTost,
     showVerifyModal: true,
     setShowVerifyModal: mockSetShowVerifyModal,

@@ -1,4 +1,4 @@
-import { useRouter, useSearchParams, usePathname } from "../../jest.mocks/nextNavigation";
+import { useRouter, useSearchParams, usePathname } from "@/app/jest.mocks/nextNavigation";
 
 describe("Next.js Navigation Mocks", () => {
   // --- Section 1: useRouter ---

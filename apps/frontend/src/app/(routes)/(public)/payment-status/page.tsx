@@ -1,5 +1,5 @@
 "use client";
-import { Secondary } from "@/app/components/Buttons";
+import { Secondary } from "@/app/ui/primitives/Buttons";
 import { useSearchParams } from "next/navigation";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
@@ -76,8 +76,8 @@ function Page() {
 
   const title = useMemo(() => {
     if (!session_id || !data) return "Missing payment session";
-    if (data.status === "paid") return "Payment complete";
-    if (data.status === "no_payment_required") return "Payment cancelled";
+    if (data?.status === "paid") return "Payment complete";
+    if (data?.status === "no_payment_required") return "Payment cancelled";
     return "Waiting for confirmation";
   }, [data, session_id]);
 
@@ -85,10 +85,10 @@ function Page() {
     if (!session_id || !data) {
       return "We could not find a payment session in the URL.";
     }
-    if (data.status === "paid") {
+    if (data?.status === "paid") {
       return "Thanks for your payment. Your receipt will arrive shortly.";
     }
-    if (data.status === "no_payment_required") {
+    if (data?.status === "no_payment_required") {
       return "This payment did not complete. If this looks wrong, contact support.";
     }
     if (loading) {
@@ -128,7 +128,7 @@ function Page() {
                 />
               </svg>
             )}
-            {data && data.status === "paid" && (
+            {data?.status === "paid" && (
               <svg className="w-24 h-24" viewBox="0 0 120 120" aria-hidden>
                 <circle
                   cx="60"
@@ -148,14 +148,14 @@ function Page() {
                 />
               </svg>
             )}
-            {data && data.status === "unpaid" && (
+            {data?.status === "unpaid" && (
               <div className="flex gap-2" aria-hidden>
                 <span className="w-3.5 h-3.5 rounded-full bg-slate-900 animate-bounce" />
                 <span className="w-3.5 h-3.5 rounded-full bg-slate-900 animate-bounce [animation-delay:150ms]" />
                 <span className="w-3.5 h-3.5 rounded-full bg-slate-900 animate-bounce [animation-delay:300ms]" />
               </div>
             )}
-            {data && data.status === "no_payment_required" && (
+            {data?.status === "no_payment_required" && (
               <svg className="w-24 h-24" viewBox="0 0 120 120" aria-hidden>
                 <circle
                   cx="60"
@@ -199,7 +199,7 @@ function Page() {
             )}
             {data?.status && (
               <span className="px-4 py-2 rounded-full border border-card-border bg-white/70">
-                Status {data.status.replaceAll("_", " ")}
+                Status {data?.status?.replaceAll("_", " ")}
               </span>
             )}
             {stopped && (

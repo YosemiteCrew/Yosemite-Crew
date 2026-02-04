@@ -4,10 +4,10 @@ import "@testing-library/jest-dom";
 
 import InvoiceTable, {
   getStatusStyle,
-} from "@/app/components/DataTable/InvoiceTable";
+} from "@/app/ui/tables/InvoiceTable";
 import { Invoice } from "@yosemite-crew/types";
 
-jest.mock("@/app/components/GenericTable/GenericTable", () => ({
+jest.mock("@/app/ui/tables/GenericTable/GenericTable", () => ({
   __esModule: true,
   default: ({ data, columns }: any) => (
     <div data-testid="generic-table">
@@ -24,7 +24,7 @@ jest.mock("@/app/components/GenericTable/GenericTable", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Cards/InvoiceCard", () => ({
+jest.mock("@/app/ui/cards/InvoiceCard", () => ({
   __esModule: true,
   default: ({ invoice }: any) => (
     <div data-testid="invoice-card">{invoice.id}</div>
@@ -35,7 +35,7 @@ jest.mock("react-icons/io5", () => ({
   IoEye: () => <span data-testid="eye-icon" />,
 }));
 
-jest.mock("@/app/utils/forms", () => ({
+jest.mock("@/app/lib/forms", () => ({
   formatDateLabel: () => "Jan 1",
   formatTimeLabel: () => "10:00 AM",
 }));

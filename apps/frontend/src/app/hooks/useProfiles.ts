@@ -1,8 +1,8 @@
 import { useEffect, useMemo } from "react";
-import { loadProfiles } from "../services/profileService";
-import { useOrgStore } from "../stores/orgStore";
-import { useUserProfileStore } from "../stores/profileStore";
-import { UserProfile } from "../types/profile";
+import { loadProfiles } from "@/app/features/organization/services/profileService";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { useUserProfileStore } from "@/app/stores/profileStore";
+import { UserProfile } from "@/app/features/users/types/profile";
 
 export const useLoadProfiles = () => {
   const profileStatus = useUserProfileStore((s) => s.status);

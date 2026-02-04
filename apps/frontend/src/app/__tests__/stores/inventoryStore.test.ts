@@ -1,5 +1,5 @@
-import { useInventoryStore } from "../../stores/inventoryStore";
-import { InventoryItem, InventoryTurnoverItem } from "../../pages/Inventory/types";
+import { useInventoryStore } from "@/app/stores/inventoryStore";
+import { InventoryItem, InventoryTurnoverItem } from "@/app/features/inventory/pages/Inventory/types";
 
 // --- Mock Data ---
 // We cast to unknown first to avoid strict type adherence for massive objects in tests

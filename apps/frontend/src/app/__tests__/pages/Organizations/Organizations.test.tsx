@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
-import Organizations from "@/app/pages/Organizations/Organizations";
+import Organizations from "@/app/features/organizations/pages/Organizations";
 import { useOrgStore } from "@/app/stores/orgStore";
 import { useOrgWithMemberships } from "@/app/hooks/useOrgSelectors";
 import { getData } from "@/app/services/axios";
@@ -21,14 +21,14 @@ jest.mock("@/app/services/axios", () => ({
 }));
 
 // Mock UI Components
-jest.mock("@/app/components/ProtectedRoute", () => ({
+jest.mock("@/app/ui/layout/guards/ProtectedRoute", () => ({
   __esModule: true,
   default: ({ children }: any) => (
     <div data-testid="protected-route">{children}</div>
   ),
 }));
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ text, href }: any) => (
     <a href={href} data-testid="create-org-btn">
       {text}
@@ -37,7 +37,7 @@ jest.mock("@/app/components/Buttons", () => ({
 }));
 
 // Use absolute paths for components imported relatively in source
-jest.mock("@/app/components/DataTable/OrgInvites", () => ({
+jest.mock("@/app/ui/tables/OrgInvites", () => ({
   __esModule: true,
   default: ({ invites }: any) => (
     <div data-testid="org-invites-list">
@@ -46,7 +46,7 @@ jest.mock("@/app/components/DataTable/OrgInvites", () => ({
   ),
 }));
 
-jest.mock("@/app/components/DataTable/OrganizationList", () => ({
+jest.mock("@/app/ui/tables/OrganizationList", () => ({
   __esModule: true,
   default: ({ orgs }: any) => (
     <div data-testid="org-list">

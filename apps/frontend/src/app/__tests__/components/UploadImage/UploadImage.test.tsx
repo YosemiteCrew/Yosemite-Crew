@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent, createEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import UploadImage from "@/app/components/UploadImage/UploadImage";
+import UploadImage from "@/app/ui/widgets/UploadImage/UploadImage";
 
 // --- Mocks ---
 

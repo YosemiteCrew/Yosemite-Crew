@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import Team from "@/app/pages/Organization/Sections/Team/Team";
+import Team from "@/app/features/organization/pages/Organization/Sections/Team/Team";
 
 const useTeamMock = jest.fn();
 const usePermissionsMock = jest.fn();
@@ -16,24 +16,24 @@ jest.mock("@/app/hooks/usePermissions", () => ({
   usePermissions: () => usePermissionsMock(),
 }));
 
-jest.mock("@/app/components/PermissionGate", () => ({
+jest.mock("@/app/ui/layout/guards/PermissionGate", () => ({
   PermissionGate: ({ children }: any) => <div>{children}</div>,
 }));
 
-jest.mock("@/app/components/Accordion/AccordionButton", () => (props: any) => {
+jest.mock("@/app/ui/primitives/Accordion/AccordionButton", () => (props: any) => {
   accordionButtonSpy(props);
   return <div data-testid="accordion-button">{props.children}</div>;
 });
 
-jest.mock("@/app/components/DataTable/AvailabilityTable", () => () => (
+jest.mock("@/app/ui/tables/AvailabilityTable", () => () => (
   <div data-testid="availability-table" />
 ));
 
-jest.mock("@/app/pages/Organization/Sections/Team/AddTeam", () => () => (
+jest.mock("@/app/features/organization/pages/Organization/Sections/Team/AddTeam", () => () => (
   <div data-testid="add-team" />
 ));
 
-jest.mock("@/app/pages/Organization/Sections/Team/TeamInfo", () => () => (
+jest.mock("@/app/features/organization/pages/Organization/Sections/Team/TeamInfo", () => () => (
   <div data-testid="team-info" />
 ));
 

@@ -1,7 +1,8 @@
+/* eslint-disable @next/next/no-img-element */
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import DeveloperLanding from "../../pages/DeveloperLanding/DeveloperLanding";
+import DeveloperLanding from "@/app/features/marketing/pages/DeveloperLanding/DeveloperLanding";
 
 jest.mock("@iconify/react/dist/iconify.js", () => ({
   Icon: () => <div data-testid="icon-mock" />,
@@ -14,7 +15,7 @@ jest.mock("next/image", () => ({
   },
 }));
 
-jest.mock("@/app/pages/HomePage/HomePage", () => ({
+jest.mock("@/app/features/marketing/pages/HomePage/HomePage", () => ({
   FillBtn: ({ text }: { text: string }) => <button>{text}</button>,
   UnFillBtn: ({ text }: { text: string }) => (
     <button className="unfilled">{text}</button>
@@ -22,14 +23,14 @@ jest.mock("@/app/pages/HomePage/HomePage", () => ({
 }));
 
 // FIXED: Gave the mock component a display name "MockLaunchGrowTab"
-jest.mock("@/app/components/LaunchGrowTab/LaunchGrowTab", () =>
+jest.mock("@/app/ui/widgets/LaunchGrowTab/LaunchGrowTab", () =>
   function MockLaunchGrowTab() {
     return <div data-testid="launch-grow-tab">LaunchGrowTab Mock</div>;
   }
 );
 
 // FIXED: Gave the mock component a display name "MockFooter"
-jest.mock("@/app/components/Footer/Footer", () =>
+jest.mock("@/app/ui/widgets/Footer/Footer", () =>
   function MockFooter() {
     return <footer data-testid="footer">Footer Mock</footer>;
   }

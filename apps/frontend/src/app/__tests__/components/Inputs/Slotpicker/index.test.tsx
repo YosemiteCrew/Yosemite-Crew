@@ -1,16 +1,16 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import Slotpicker from "@/app/components/Inputs/Slotpicker";
-import { Slot } from "@/app/types/appointments";
-import * as weekHelpers from "@/app/components/Calendar/weekHelpers";
+import Slotpicker from "@/app/ui/inputs/Slotpicker";
+import { Slot } from "@/app/features/appointments/types/appointments";
+import * as weekHelpers from "@/app/features/appointments/components/Calendar/weekHelpers";
 
 // --- Mocks ---
 
 // Mock helper functions from weekHelpers using the absolute path
-jest.mock("@/app/components/Calendar/weekHelpers", () => ({
+jest.mock("@/app/features/appointments/components/Calendar/weekHelpers", () => ({
   __esModule: true,
   // Use requireActual with the alias to ensure we get the real implementation where needed
-  ...jest.requireActual("@/app/components/Calendar/weekHelpers"),
+  ...jest.requireActual("@/app/features/appointments/components/Calendar/weekHelpers"),
   getStartOfWeek: jest.fn(),
   getWeekDays: jest.fn(),
   getPrevWeek: jest.fn(),
@@ -22,7 +22,7 @@ jest.mock("@/app/components/Calendar/weekHelpers", () => ({
 }));
 
 // Mock utils using the absolute path
-jest.mock("@/app/components/Availability/utils", () => ({
+jest.mock("@/app/features/appointments/components/Availability/utils", () => ({
   formatUtcTimeToLocalLabel: (time: string) => `Formatted ${time}`,
 }));
 

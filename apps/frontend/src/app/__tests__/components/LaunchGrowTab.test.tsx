@@ -1,8 +1,9 @@
+/* eslint-disable @next/next/no-img-element */
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
-import LaunchGrowTab from "@/app/components/LaunchGrowTab/LaunchGrowTab";
+import LaunchGrowTab from "@/app/ui/widgets/LaunchGrowTab/LaunchGrowTab";
 
 jest.mock("next/image", () => ({
   __esModule: true,

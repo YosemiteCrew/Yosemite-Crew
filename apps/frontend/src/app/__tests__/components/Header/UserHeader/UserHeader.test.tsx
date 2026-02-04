@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import React from "react";
 import {
   render,
@@ -6,7 +7,7 @@ import {
   waitFor,
   act,
 } from "@testing-library/react";
-import UserHeader from "@/app/components/Header/UserHeader/UserHeader";
+import UserHeader from "@/app/ui/layout/Header/UserHeader/UserHeader";
 import { usePathname, useRouter } from "next/navigation";
 
 // --- Mocks ---

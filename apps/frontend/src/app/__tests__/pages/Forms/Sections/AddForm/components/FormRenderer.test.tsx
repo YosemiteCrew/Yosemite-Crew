@@ -1,12 +1,12 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import FormRenderer from "@/app/pages/Forms/Sections/AddForm/components/FormRenderer";
+import FormRenderer from "@/app/features/forms/pages/Forms/Sections/AddForm/components/FormRenderer";
 
 // --- Mocks for Child Components ---
 // Logic is INLINED to avoid hoisting ReferenceErrors.
 
 jest.mock(
-  "@/app/pages/Forms/Sections/AddForm/components/Dropdown/DropdownRenderer",
+  "@/app/features/forms/pages/Forms/Sections/AddForm/components/Dropdown/DropdownRenderer",
   () => ({
     __esModule: true,
     default: ({ value, onChange, readOnly }: any) => (
@@ -23,7 +23,7 @@ jest.mock(
 );
 
 jest.mock(
-  "@/app/pages/Forms/Sections/AddForm/components/Input/InputRenderer",
+  "@/app/features/forms/pages/Forms/Sections/AddForm/components/Input/InputRenderer",
   () => ({
     __esModule: true,
     default: ({ value, onChange, readOnly }: any) => (
@@ -40,7 +40,7 @@ jest.mock(
 );
 
 jest.mock(
-  "@/app/pages/Forms/Sections/AddForm/components/Signature/SignatureRenderer",
+  "@/app/features/forms/pages/Forms/Sections/AddForm/components/Signature/SignatureRenderer",
   () => ({
     __esModule: true,
     default: ({ value, onChange, readOnly }: any) => (
@@ -57,7 +57,7 @@ jest.mock(
 );
 
 jest.mock(
-  "@/app/pages/Forms/Sections/AddForm/components/Text/TextRenderer",
+  "@/app/features/forms/pages/Forms/Sections/AddForm/components/Text/TextRenderer",
   () => ({
     __esModule: true,
     default: ({ value, onChange, readOnly }: any) => (
@@ -74,7 +74,7 @@ jest.mock(
 );
 
 jest.mock(
-  "@/app/pages/Forms/Sections/AddForm/components/Boolean/BooleanRenderer",
+  "@/app/features/forms/pages/Forms/Sections/AddForm/components/Boolean/BooleanRenderer",
   () => ({
     __esModule: true,
     default: ({ value, onChange, readOnly }: any) => (
@@ -91,7 +91,7 @@ jest.mock(
 );
 
 jest.mock(
-  "@/app/pages/Forms/Sections/AddForm/components/Date/DateRenderer",
+  "@/app/features/forms/pages/Forms/Sections/AddForm/components/Date/DateRenderer",
   () => ({
     __esModule: true,
     default: ({ value, onChange, readOnly }: any) => (

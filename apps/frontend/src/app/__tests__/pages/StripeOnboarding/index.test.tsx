@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import ProtectedStripeOnboarding from "@/app/pages/StripeOnboarding";
+import ProtectedStripeOnboarding from "@/app/features/onboarding/pages/StripeOnboarding";
 
 const pushMock = jest.fn();
 const useStripeOnboardingMock = jest.fn();
@@ -28,7 +28,7 @@ jest.mock("@/app/hooks/useBilling", () => ({
   useSubscriptionByOrgId: () => useSubscriptionMock(),
 }));
 
-jest.mock("@/app/services/stripeService", () => ({
+jest.mock("@/app/features/billing/services/stripeService", () => ({
   createConnectedAccount: (...args: any[]) => createAccountMock(...args),
   onBoardConnectedAccount: (...args: any[]) => onboardAccountMock(...args),
 }));
@@ -46,12 +46,12 @@ jest.mock("@stripe/react-connect-js", () => ({
   ConnectTaxSettings: () => <div data-testid="connect-tax-settings" />,
 }));
 
-jest.mock("@/app/components/ProtectedRoute", () => ({
+jest.mock("@/app/ui/layout/guards/ProtectedRoute", () => ({
   __esModule: true,
   default: ({ children }: any) => <div>{children}</div>,
 }));
 
-jest.mock("@/app/components/OrgGuard", () => ({
+jest.mock("@/app/ui/layout/guards/OrgGuard", () => ({
   __esModule: true,
   default: ({ children }: any) => <div>{children}</div>,
 }));
@@ -67,7 +67,7 @@ describe("Stripe onboarding page", () => {
     useStripeOnboardingMock.mockReturnValue({ onboard: false });
     useSubscriptionMock.mockReturnValue(null);
 
-    const { container } = render(<ProtectedStripeOnboarding />);
+    render(<ProtectedStripeOnboarding />);
     expect(screen.queryByText("Stripe Onboarding")).not.toBeInTheDocument();
   });
 

@@ -21,6 +21,9 @@ const config: Config = {
   // The directory where Jest should store its cached dependency information
   // cacheDirectory: "/private/var/folders/vv/3t3btncj0416sw4f557ff9km0000gn/T/jest_dx",
 
+  // Disable watchman to avoid permission issues in constrained environments.
+  watchman: false,
+
   // Automatically clear mock calls, instances, contexts and results before every test
   clearMocks: true,
 
@@ -51,12 +54,7 @@ const config: Config = {
   coverageProvider: "v8",
 
   // A list of reporter names that Jest uses when writing coverage reports
-  // coverageReporters: [
-  //   "json",
-  //   "text",
-  //   "lcov",
-  //   "clover"
-  // ],
+  coverageReporters: ["text-summary", "lcov"],
 
   // An object that configures minimum threshold enforcement for coverage results
   // coverageThreshold: undefined,

@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import SpecialitySearchWeb from "@/app/components/Inputs/SpecialitySearch/SpecialitySearchWeb";
+import SpecialitySearchWeb from "@/app/ui/inputs/SpecialitySearch/SpecialitySearchWeb";
 import { useOrgStore } from "@/app/stores/orgStore";
 
 // --- Mocks ---
@@ -12,7 +12,7 @@ jest.mock("@/app/stores/orgStore", () => ({
 }));
 
 // Mock the constant data
-jest.mock("@/app/utils/specialities", () => ({
+jest.mock("@/app/lib/specialities", () => ({
   specialties: [
     { name: "Cardiology" },
     { name: "Dermatology" },

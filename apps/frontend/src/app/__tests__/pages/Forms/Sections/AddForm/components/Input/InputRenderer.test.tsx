@@ -1,12 +1,12 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import InputRenderer from "../../../../../../../pages/Forms/Sections/AddForm/components/Input/InputRenderer";
-import { FormField } from "@/app/types/forms";
+import InputRenderer from "@/app/features/forms/pages/Forms/Sections/AddForm/components/Input/InputRenderer";
+import { FormField } from "@/app/features/forms/types/forms";
 
 // --- Mock UI Components ---
 // Mocking FormInput allows us to inspect the props passed to it,
 // specifically 'intype' and 'readonly', to verify the renderer's logic.
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   __esModule: true,
   default: ({ value, onChange, inlabel, readonly, intype }: any) => (
     <input

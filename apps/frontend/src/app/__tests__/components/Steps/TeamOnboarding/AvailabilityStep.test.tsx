@@ -1,33 +1,33 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import AvailabilityStep from "../../../../components/Steps/TeamOnboarding/AvailabilityStep";
-import { upsertAvailability } from "@/app/services/availability";
+import AvailabilityStep from "@/app/features/onboarding/components/Steps/TeamOnboarding/AvailabilityStep";
+import { upsertAvailability } from "@/app/features/organization/services/availabilityService";
 import {
   convertAvailability,
   hasAtLeastOneAvailability,
-} from "../../../../components/Availability/utils";
+} from "@/app/features/appointments/components/Availability/utils";
 
 // --- Mocks ---
 
 // 1. Mock Service
-jest.mock("@/app/services/availability", () => ({
+jest.mock("@/app/features/organization/services/availabilityService", () => ({
   upsertAvailability: jest.fn(),
 }));
 
 // 2. Mock Utils
-jest.mock("../../../../components/Availability/utils", () => ({
+jest.mock("@/app/features/appointments/components/Availability/utils", () => ({
   convertAvailability: jest.fn(),
   hasAtLeastOneAvailability: jest.fn(),
 }));
 
 // 3. Mock Child Components
 // Mock the complex Availability component to isolate the step logic
-jest.mock("../../../../components/Availability/Availability", () => () => (
+jest.mock("@/app/features/appointments/components/Availability/Availability", () => () => (
   <div data-testid="availability-component">Mock Availability UI</div>
 ));
 
 // Mock Buttons
-jest.mock("../../../../components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ onClick, text }: any) => (
     <button data-testid="btn-next" onClick={onClick}>
       {text}

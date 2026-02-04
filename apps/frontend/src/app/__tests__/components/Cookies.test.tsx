@@ -1,9 +1,10 @@
+/* eslint-disable @next/next/no-img-element */
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import Cookies from '@/app/components/Cookies/Cookies';
+import Cookies from '@/app/ui/widgets/Cookies/Cookies';
 
-jest.mock('@/app/components/Buttons', () => ({
+jest.mock('@/app/ui/primitives/Buttons', () => ({
   Primary: ({ text, onClick }: { text: string; onClick: () => void }) => (
     <button onClick={onClick}>{text}</button>
   ),

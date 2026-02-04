@@ -1,16 +1,16 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import AddressStep from "../../../../components/Steps/CreateOrg/AddressStep";
-import { updateOrg } from "../../../../services/orgService";
+import AddressStep from "@/app/features/onboarding/components/Steps/CreateOrg/AddressStep";
+import { updateOrg } from "@/app/features/organization/services/orgService";
 import { Organisation } from "@yosemite-crew/types";
 
 // --- Mocks ---
-jest.mock("../../../../services/orgService", () => ({
+jest.mock("@/app/features/organization/services/orgService", () => ({
   updateOrg: jest.fn(),
 }));
 
 // Mock Buttons component since it might have complex logic/styles
-jest.mock("../../../../components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ onClick, text }: { onClick: () => void; text: string }) => (
     <button onClick={onClick} data-testid="next-button">
       {text}
@@ -20,7 +20,7 @@ jest.mock("../../../../components/Buttons", () => ({
 
 // Mock FormInput to simplify testing
 jest.mock(
-  "../../../../components/Inputs/FormInput/FormInput",
+  "@/app/ui/inputs/FormInput/FormInput",
   () =>
     ({ inlabel, onChange, value, error }: any) => (
       <div data-testid={`input-wrapper-${inlabel}`}>

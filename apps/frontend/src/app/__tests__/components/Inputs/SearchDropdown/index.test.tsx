@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import SearchDropdown from "@/app/components/Inputs/SearchDropdown";
+import SearchDropdown from "@/app/ui/inputs/SearchDropdown";
 
 jest.mock("react-icons/io", () => ({
   IoIosSearch: () => <span data-testid="icon-search" />,

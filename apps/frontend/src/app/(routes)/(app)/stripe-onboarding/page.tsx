@@ -1,5 +1,5 @@
 import React from "react";
-import ProtectedStripeOnboarding from "@/app/pages/StripeOnboarding";
+import ProtectedStripeOnboarding from "@/app/features/onboarding/pages/StripeOnboarding";
 
 function page() {
   return <ProtectedStripeOnboarding />;

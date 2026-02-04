@@ -5,9 +5,11 @@ import { registerRoutes } from "./routers";
 import { StripeController } from "./controllers/web/stripe.controller";
 import cors from "cors";
 import { DocumensoWebhookController } from "./controllers/web/documenso.controller";
+import mongoSanitize from 'express-mongo-sanitize';
 
 export function createApp() {
   const app = express();
+  app.disable("x-powered-by");
 
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -34,10 +36,11 @@ export function createApp() {
   app.use(fileUpload());
 
   if (process.env.LOCAL_DEVELOPMENT) {
-    const allowedOrigins = [
+
+    const allowedorigins = new Set([
       "http://localhost:3000", // Next.js / React
       "http://127.0.0.1:3000",
-    ];
+    ]);
 
     app.use(
       cors({
@@ -45,7 +48,7 @@ export function createApp() {
           // allow REST tools like Postman / curl
           if (!origin) return callback(null, true);
 
-          if (allowedOrigins.includes(origin)) {
+          if (allowedorigins.has(origin)) {
             return callback(null, true);
           }
 
@@ -59,6 +62,7 @@ export function createApp() {
   }
 
   app.use(express.json());
+  app.use(mongoSanitize());
 
   registerRoutes(app); // all routes in 1 place
 

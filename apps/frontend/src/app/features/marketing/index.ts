@@ -1,0 +1,9 @@
+export { default as LandingPage } from "@/app/features/marketing/pages/LandingPage";
+export { default as ContactUs } from "@/app/features/marketing/pages/ContactUs";
+export { default as ContactusPage } from "@/app/features/marketing/pages/ContactusPage/ContactusPage";
+export { default as AboutUs } from "@/app/features/marketing/pages/AboutUs/AboutUs";
+export { default as BookDemo } from "@/app/features/marketing/pages/BookDemo/BookDemo";
+export { default as DeveloperLanding } from "@/app/features/marketing/pages/DeveloperLanding/DeveloperLanding";
+export { default as HomePage } from "@/app/features/marketing/pages/HomePage/HomePage";
+export { default as PetOwner } from "@/app/features/marketing/pages/PetOwner/PetOwner";
+export { default as PricingPage } from "@/app/features/marketing/pages/PricingPage/PricingPage";

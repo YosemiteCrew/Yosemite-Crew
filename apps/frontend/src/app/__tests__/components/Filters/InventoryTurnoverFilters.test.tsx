@@ -2,7 +2,7 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import InventoryTurnoverFilters from "@/app/components/Filters/InventoryTurnoverFilters";
+import InventoryTurnoverFilters from "@/app/ui/filters/InventoryTurnoverFilters";
 
 describe("<InventoryTurnoverFilters />", () => {
   const list = [

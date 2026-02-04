@@ -62,6 +62,32 @@ const computeNextDueAt = (
   }
 };
 
+const getNextOccurrence = (
+  recurrenceType: RecurrenceType,
+  previousDueAt: Date,
+  timezone: string | undefined,
+  cronExpression: string | null | undefined,
+  horizon: dayjs.Dayjs,
+  endDate?: Date | null,
+): dayjs.Dayjs | null => {
+  const nextDueAt = computeNextDueAt(
+    recurrenceType,
+    previousDueAt,
+    timezone,
+    cronExpression,
+  );
+
+  if (!nextDueAt) return null;
+
+  const next = dayjs(nextDueAt);
+
+  if (next.isAfter(horizon)) return null;
+
+  if (endDate && next.isAfter(endDate)) return null;
+
+  return next;
+};
+
 // Clone task for new occurrence
 const cloneFromMaster = (master: TaskDocument, dueAt: Date) => {
   const m = master.toObject();
@@ -148,20 +174,16 @@ export const TaskRecurrenceEngine = {
       let generatedCount = 0;
 
       while (generatedCount < MAX_CHILDREN_PER_RUN) {
-        const nextDueAt = computeNextDueAt(
+        const next = getNextOccurrence(
           type,
           currentDueAt,
           master.timezone,
           recurrence.cronExpression,
+          horizon,
+          recurrence.endDate,
         );
 
-        if (!nextDueAt) break;
-
-        const next = dayjs(nextDueAt);
-
-        if (next.isAfter(horizon)) break;
-
-        if (recurrence.endDate && next.isAfter(recurrence.endDate)) break;
+        if (!next) break;
 
         // Skip if already exists
         const exists = await TaskModel.findOne({

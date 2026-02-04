@@ -1,8 +1,8 @@
 import { useEffect, useMemo } from "react";
-import { useOrgStore } from "../stores/orgStore";
-import { loadInvoicesForOrgPrimaryOrg } from "../services/invoiceService";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { loadInvoicesForOrgPrimaryOrg } from "@/app/features/billing/services/invoiceService";
 import { Invoice } from "@yosemite-crew/types";
-import { useInvoiceStore } from "../stores/invoiceStore";
+import { useInvoiceStore } from "@/app/stores/invoiceStore";
 
 export const useLoadInvoicesForPrimaryOrg = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);

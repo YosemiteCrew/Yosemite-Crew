@@ -7,10 +7,10 @@ import "../../jest.mocks/testMocks";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { Primary, Secondary } from "@/app/components/Buttons";
-import FormInput from "@/app/components/Inputs/FormInput/FormInput";
-import Dropdown from "@/app/components/Inputs/Dropdown/Dropdown";
-import GoogleSearchDropDown from "@/app/components/Inputs/GoogleSearchDropDown/GoogleSearchDropDown";
+import { Primary, Secondary } from "@/app/ui/primitives/Buttons";
+import FormInput from "@/app/ui/inputs/FormInput/FormInput";
+import Dropdown from "@/app/ui/inputs/Dropdown/Dropdown";
+import GoogleSearchDropDown from "@/app/ui/inputs/GoogleSearchDropDown/GoogleSearchDropDown";
 
 describe("Global Test Mocks Configuration", () => {
   // --- Section 1: Next.js Mocks ---

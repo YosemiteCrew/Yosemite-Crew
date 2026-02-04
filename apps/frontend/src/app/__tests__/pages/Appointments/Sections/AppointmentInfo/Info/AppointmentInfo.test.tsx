@@ -2,7 +2,7 @@ import React from "react";
 import { render } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import AppointmentInfo from "@/app/pages/Appointments/Sections/AppointmentInfo/Info/AppointmentInfo";
+import AppointmentInfo from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Info/AppointmentInfo";
 
 const useRoomsMock = jest.fn();
 const useTeamMock = jest.fn();
@@ -22,11 +22,11 @@ jest.mock("@/app/hooks/usePermissions", () => ({
   usePermissions: () => usePermissionsMock(),
 }));
 
-jest.mock("@/app/services/appointmentService", () => ({
+jest.mock("@/app/features/appointments/services/appointmentService", () => ({
   updateAppointment: (...args: any[]) => updateAppointmentMock(...args),
 }));
 
-jest.mock("@/app/components/Accordion/EditableAccordion", () => (props: any) => {
+jest.mock("@/app/ui/primitives/Accordion/EditableAccordion", () => (props: any) => {
   accordionCalls.push(props);
   return <div data-testid={`accordion-${props.title}`} />;
 });

@@ -4,11 +4,11 @@ import AddAppointment, {
   SpecialityOptions,
   LeadOptions,
   SupportOptions,
-} from "@/app/components/CompanionInfo/Sections/AddAppointment";
+} from "@/app/features/companions/components/Sections/AddAppointment";
 
 // --- Mocks ---
 
-jest.mock("@/app/components/Accordion/Accordion", () => {
+jest.mock("@/app/ui/primitives/Accordion/Accordion", () => {
   return function MockAccordion({ title, children }: any) {
     return (
       <div data-testid="accordion">
@@ -19,7 +19,7 @@ jest.mock("@/app/components/Accordion/Accordion", () => {
   };
 });
 
-jest.mock("@/app/components/Inputs/Dropdown/Dropdown", () => {
+jest.mock("@/app/ui/inputs/Dropdown/Dropdown", () => {
   return function MockDropdown({
     placeholder,
     value,
@@ -52,7 +52,7 @@ jest.mock("@/app/components/Inputs/Dropdown/Dropdown", () => {
   };
 });
 
-jest.mock("@/app/components/Inputs/MultiSelectDropdown", () => {
+jest.mock("@/app/ui/inputs/MultiSelectDropdown", () => {
   return function MockMultiSelect({
     placeholder,
     value,
@@ -85,7 +85,7 @@ jest.mock("@/app/components/Inputs/MultiSelectDropdown", () => {
   };
 });
 
-jest.mock("@/app/components/Inputs/FormDesc/FormDesc", () => {
+jest.mock("@/app/ui/inputs/FormDesc/FormDesc", () => {
   return function MockFormDesc({ inlabel, value, onChange }: any) {
     return (
       <div>
@@ -100,7 +100,7 @@ jest.mock("@/app/components/Inputs/FormDesc/FormDesc", () => {
   };
 });
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ text }: any) => <button>{text}</button>,
 }));
 

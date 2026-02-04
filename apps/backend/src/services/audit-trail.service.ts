@@ -163,7 +163,7 @@ export const AuditTrailService = {
 
     const nextCursor =
       entries.length > 0
-        ? entries[entries.length - 1].occurredAt.toISOString()
+        ? entries.at(-1)!.occurredAt.toISOString()
         : null;
 
     return { entries, nextCursor };
@@ -204,7 +204,7 @@ export const AuditTrailService = {
 
     const nextCursor =
       entries.length > 0
-        ? entries[entries.length - 1].occurredAt.toISOString()
+        ? entries.at(-1)!.occurredAt.toISOString()
         : null;
 
     return { entries, nextCursor };

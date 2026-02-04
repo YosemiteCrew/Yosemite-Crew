@@ -2,15 +2,15 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import LogoUpdator from "@/app/components/UploadImage/LogoUpdator";
+import LogoUpdator from "@/app/ui/widgets/UploadImage/LogoUpdator";
 
-jest.mock("@/app/components/Modal/CenterModal", () => ({
+jest.mock("@/app/ui/overlays/Modal/CenterModal", () => ({
   __esModule: true,
   default: ({ showModal, children }: any) =>
     showModal ? <div data-testid="modal">{children}</div> : null,
 }));
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ text, onClick }: any) => (
     <button type="button" onClick={onClick}>
       {text}
@@ -23,7 +23,7 @@ jest.mock("@/app/components/Buttons", () => ({
   ),
 }));
 
-jest.mock("@/app/utils/urls", () => ({
+jest.mock("@/app/lib/urls", () => ({
   isHttpsImageUrl: () => false,
 }));
 

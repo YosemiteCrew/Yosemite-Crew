@@ -3,7 +3,7 @@ import { render, screen, fireEvent, within } from "@testing-library/react";
 import RoomTable, {
   getStringified,
   joinNames,
-} from "@/app/components/DataTable/RoomTable";
+} from "@/app/ui/tables/RoomTable";
 import { OrganisationRoom } from "@yosemite-crew/types";
 
 // --- Mocks ---
@@ -21,7 +21,7 @@ jest.mock("@/app/hooks/useSpecialities", () => ({
 }));
 
 // Mock RoomCard for Mobile View
-jest.mock("@/app/components/Cards/RoomCard", () => ({
+jest.mock("@/app/ui/cards/RoomCard", () => ({
   __esModule: true,
   default: ({
     room,

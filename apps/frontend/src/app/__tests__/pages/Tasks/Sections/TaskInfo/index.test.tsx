@@ -1,14 +1,14 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import TaskInfo from "@/app/pages/Tasks/Sections/TaskInfo";
+import TaskInfo from "@/app/features/tasks/pages/Tasks/Sections/TaskInfo";
 
-jest.mock("@/app/components/Modal", () => ({
+jest.mock("@/app/ui/overlays/Modal", () => ({
   __esModule: true,
   default: ({ children }: any) => <div data-testid="modal">{children}</div>,
 }));
 
-jest.mock("@/app/components/Accordion/EditableAccordion", () => ({
+jest.mock("@/app/ui/primitives/Accordion/EditableAccordion", () => ({
   __esModule: true,
   default: ({ title, data }: any) => (
     <div>
@@ -19,7 +19,7 @@ jest.mock("@/app/components/Accordion/EditableAccordion", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Icons/Close", () => ({
+jest.mock("@/app/ui/primitives/Icons/Close", () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>

@@ -2,11 +2,11 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-jest.mock("@/app/pages/PricingPage/PricingPage", () => ({
+jest.mock("@/app/features/marketing/pages/PricingPage/PricingPage", () => ({
   NeedHealp: () => <div data-testid="need-help" />,
 }));
 
-import TermsAndConditions from "@/app/pages/TermsAndConditions/TermsAndConditions";
+import TermsAndConditions from "@/app/features/legal/pages/TermsAndConditions";
 
 describe("TermsAndConditions page", () => {
   test("renders headline content and support section", () => {

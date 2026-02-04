@@ -1,11 +1,11 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import TextRenderer from "../../../../../../../pages/Forms/Sections/AddForm/components/Text/TextRenderer";
-import { FormField } from "@/app/types/forms";
+import TextRenderer from "@/app/features/forms/pages/Forms/Sections/AddForm/components/Text/TextRenderer";
+import { FormField } from "@/app/features/forms/types/forms";
 
 // --- Mock UI Components ---
 // Mock FormDesc to capture props and allow interaction
-jest.mock("@/app/components/Inputs/FormDesc/FormDesc", () => ({
+jest.mock("@/app/ui/inputs/FormDesc/FormDesc", () => ({
   __esModule: true,
   default: ({ value, onChange, inlabel }: any) => (
     <textarea

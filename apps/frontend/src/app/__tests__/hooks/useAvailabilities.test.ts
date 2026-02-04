@@ -2,15 +2,15 @@ import { renderHook } from "@testing-library/react";
 import { useLoadAvailabilities, usePrimaryAvailability } from "@/app/hooks/useAvailabiities";
 import { useOrgStore } from "@/app/stores/orgStore";
 import { useAvailabilityStore } from "@/app/stores/availabilityStore";
-import { loadAvailability } from "@/app/services/availability";
+import { loadAvailability } from "@/app/features/organization/services/availabilityService";
 
 jest.mock("@/app/stores/orgStore", () => ({ useOrgStore: jest.fn() }));
 jest.mock("@/app/stores/availabilityStore", () => ({ useAvailabilityStore: jest.fn() }));
-jest.mock("@/app/services/availability", () => ({
+jest.mock("@/app/features/organization/services/availabilityService", () => ({
   loadAvailability: jest.fn(),
 }));
-jest.mock("@/app/components/Availability/utils", () => ({
-  ...jest.requireActual("@/app/components/Availability/utils"),
+jest.mock("@/app/features/appointments/components/Availability/utils", () => ({
+  ...jest.requireActual("@/app/features/appointments/components/Availability/utils"),
   convertFromGetApi: jest.fn((items) => items),
 }));
 

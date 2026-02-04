@@ -1,13 +1,13 @@
 import React from "react";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import InventoryTable from "@/app/components/DataTable/InventoryTable";
+import InventoryTable from "@/app/ui/tables/InventoryTable";
 
 jest.mock("react-icons/io5", () => ({
   IoEye: () => <span data-testid="icon-eye" />,
 }));
 
-jest.mock("@/app/components/Cards/InventoryCard", () => ({
+jest.mock("@/app/ui/cards/InventoryCard", () => ({
   __esModule: true,
   default: ({ item, handleViewInventory }: any) => (
     <div data-testid="mobile-card">
@@ -22,7 +22,7 @@ jest.mock("@/app/components/Cards/InventoryCard", () => ({
   ),
 }));
 
-jest.mock("@/app/components/GenericTable/GenericTable", () => ({
+jest.mock("@/app/ui/tables/GenericTable/GenericTable", () => ({
   __esModule: true,
   default: ({ data, columns }: any) => (
     <table data-testid="generic-table">
@@ -39,7 +39,7 @@ jest.mock("@/app/components/GenericTable/GenericTable", () => ({
   ),
 }));
 
-jest.mock("@/app/pages/Inventory/utils", () => ({
+jest.mock("@/app/features/inventory/pages/Inventory/utils", () => ({
   displayStatusLabel: () => "Healthy",
   formatDisplayDate: () => "01 Jan 2025",
   getStatusBadgeStyle: () => ({ backgroundColor: "#000", color: "#fff" }),
