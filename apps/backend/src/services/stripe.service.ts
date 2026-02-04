@@ -22,7 +22,7 @@ const getStripeClient = () => {
   const apiKey = process.env.STRIPE_SECRET_KEY;
   if (!apiKey) throw new Error("STRIPE_SECRET_KEY is not configured");
 
-  stripeClient = new Stripe(apiKey, { apiVersion: "2025-11-17.clover" });
+  stripeClient = new Stripe(apiKey, { apiVersion: "2026-01-28.clover" });
   return stripeClient;
 };
 

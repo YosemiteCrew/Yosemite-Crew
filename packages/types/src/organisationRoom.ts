@@ -16,9 +16,9 @@ const ROOM_TYPE_SYSTEM = "http://example.org/fhir/CodeSystem/organisation-room-t
 const PHYSICAL_TYPE_SYSTEM = "http://terminology.hl7.org/CodeSystem/location-physical-type";
 const PHYSICAL_TYPE_ROOM_CODE = "ro";
 const SPECIALITIES_EXTENSION_URL =
-  "http://example.org/fhir/StructureDefinition/organisation-room-specialities";
+  "https://yosemitecrew.com/fhir/StructureDefinition/organisation-room-specialities";
 const STAFFS_EXTENSION_URL =
-  "http://example.org/fhir/StructureDefinition/organisation-room-staffs";
+  "https://yosemitecrew.com/fhir/StructureDefinition/organisation-room-staffs";
 const SPECIALITY_CHILD_URL = "specialityId";
 const STAFF_CHILD_URL = "staffId";
 

@@ -257,7 +257,7 @@ describe("DocumentController", () => {
       await DocumentController.listForPms(
         {
           params: { companionId: "cmp-1" },
-          query: {
+          body: {
             category: ["HEALTH", "ADMIN"],
             subcategory: ["LAB_TESTS"],
             appointmentId: ["appt-1"],

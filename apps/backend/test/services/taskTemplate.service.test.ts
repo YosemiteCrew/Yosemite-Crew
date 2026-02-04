@@ -22,17 +22,20 @@ jest.mock("../../src/models/taskTemplate", () => ({
 const mockedModel = TaskTemplateModel as unknown as MockedTaskTemplateModel;
 
 describe("TaskTemplateService", () => {
+  const organisationId = "507f1f77bcf86cd799439031";
+  const templateId = "507f1f77bcf86cd799439032";
+  const otherTemplateId = "507f1f77bcf86cd799439033";
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   describe("create", () => {
     it("creates template with defaults", async () => {
-      const doc = { _id: "tmpl-1" };
+      const doc = { _id: templateId };
       mockedModel.create.mockResolvedValueOnce(doc);
 
       const result = await TaskTemplateService.create({
-        organisationId: "org-1",
+        organisationId,
         category: "Care",
         name: "Template",
         kind: "CUSTOM",
@@ -43,7 +46,7 @@ describe("TaskTemplateService", () => {
       expect(mockedModel.create).toHaveBeenCalledWith(
         expect.objectContaining({
           source: "ORG_TEMPLATE",
-          organisationId: "org-1",
+          organisationId,
           isActive: true,
           createdBy: "creator-1",
         }),
@@ -59,7 +62,7 @@ describe("TaskTemplateService", () => {
       });
 
       await expect(
-        TaskTemplateService.update("missing", { name: "New" }),
+        TaskTemplateService.update(otherTemplateId, { name: "New" }),
       ).rejects.toBeInstanceOf(TaskTemplateServiceError);
     });
 
@@ -81,7 +84,7 @@ describe("TaskTemplateService", () => {
         exec: jest.fn().mockResolvedValue(doc),
       });
 
-      await TaskTemplateService.update("tmpl-1", {
+      await TaskTemplateService.update(templateId, {
         category: "New",
         name: "New name",
         description: "New desc",
@@ -114,7 +117,7 @@ describe("TaskTemplateService", () => {
         exec: jest.fn().mockResolvedValue(doc),
       });
 
-      await TaskTemplateService.archive("tmpl-2");
+      await TaskTemplateService.archive(otherTemplateId);
 
       expect(doc.isActive).toBe(false);
       expect(save).toHaveBeenCalled();
@@ -128,12 +131,12 @@ describe("TaskTemplateService", () => {
       mockedModel.find.mockReturnValueOnce({ sort, exec } as any);
 
       const result = await TaskTemplateService.listForOrganisation(
-        "org-1",
+        organisationId,
         "MEDICATION",
       );
 
       expect(mockedModel.find).toHaveBeenCalledWith({
-        organisationId: "org-1",
+        organisationId,
         isActive: true,
         kind: "MEDICATION",
       });
@@ -149,7 +152,7 @@ describe("TaskTemplateService", () => {
       });
 
       await expect(
-        TaskTemplateService.getById("missing"),
+        TaskTemplateService.getById(otherTemplateId),
       ).rejects.toBeInstanceOf(TaskTemplateServiceError);
     });
   });

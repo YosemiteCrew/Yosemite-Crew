@@ -388,7 +388,10 @@ const recomputeStockFromBatches = async (
   allocated: number;
   nearestExpiry: Date | null;
 }> => {
-  const batches = await InventoryBatchModel.find({ itemId }).lean();
+  const safeItemId = ensureObjectId(itemId, "itemId");
+  const batches = await InventoryBatchModel.find({
+    itemId: safeItemId,
+  }).lean();
 
   let onHand = 0;
   let allocated = 0;
@@ -411,10 +414,11 @@ const recomputeStockFromBatches = async (
 /**
  * HELPER: validate ObjectId
  */
-const ensureObjectId = (id: string, fieldName = "id") => {
+const ensureObjectId = (id: string, fieldName = "id"): string => {
   if (!Types.ObjectId.isValid(id)) {
     throw new InventoryServiceError(`Invalid ${fieldName}`, 400);
   }
+  return id;
 };
 
 /**
@@ -796,12 +800,12 @@ export const InventoryService = {
   // STOCK CONSUMPTION (FIFO by expiry)
   // ─────────────────────────────────────────────
   async consumeStock(input: ConsumeStockInput): Promise<InventoryItemDocument> {
-    ensureObjectId(input.itemId, "itemId");
+    const safeItemId = ensureObjectId(input.itemId, "itemId");
     if (input.quantity <= 0) {
       throw new InventoryServiceError("quantity must be > 0", 400);
     }
 
-    const item = await InventoryItemModel.findById(input.itemId).exec();
+    const item = await InventoryItemModel.findById(safeItemId).exec();
     if (!item) {
       throw new InventoryServiceError("Inventory item not found", 404);
     }
@@ -813,7 +817,7 @@ export const InventoryService = {
     let remaining = input.quantity;
 
     const batches = await InventoryBatchModel.find({
-      itemId: input.itemId,
+      itemId: safeItemId,
     })
       .sort({ expiryDate: 1, _id: 1 }) // earliest expiry first
       .exec();
@@ -838,7 +842,8 @@ export const InventoryService = {
       );
     }
 
-    const { onHand, allocated } = await recomputeStockFromBatches(input.itemId);
+    const { onHand, allocated } =
+      await recomputeStockFromBatches(safeItemId);
     item.onHand = onHand;
     item.allocated = allocated;
     await item.save();
@@ -990,9 +995,9 @@ export const InventoryAdjustmentService = {
     reason: string; // "MANUAL_ADJUSTMENT", etc.
     userId?: string;
   }): Promise<InventoryItemDocument> {
-    ensureObjectId(input.itemId);
+    const safeItemId = ensureObjectId(input.itemId);
 
-    const item = await InventoryItemModel.findById(input.itemId);
+    const item = await InventoryItemModel.findById(safeItemId);
     if (!item) throw new InventoryServiceError("Item not found", 404);
 
     const delta = input.newOnHand - (item.onHand ?? 0);
@@ -1008,7 +1013,7 @@ export const InventoryAdjustmentService = {
       });
 
       await logMovement({
-        itemId: input.itemId,
+        itemId: safeItemId,
         change: delta,
         reason: input.reason,
         userId: input.userId,

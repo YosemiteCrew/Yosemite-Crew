@@ -20,7 +20,7 @@
     "@aws-sdk/client-ses": "^3.839.0",
     "@documenso/sdk-typescript": "^0.5.1",
     "aws-sdk": "2.1692.0",
-    "axios": "^1.11.0",
+    "axios": "^1.13.2",
     "bcrypt": "5.1.1",
     "body-parser": "1.20.3",
     "bullmq": "^5.65.1",
@@ -52,7 +52,7 @@
     "socket.io": "4.8.1",
     "stripe": "^20.0.0",
     "uuid": "9.0.1",
-    "validator": "^13.15.15",
+    "validator": "^13.15.22",
     "winston": "^3.17.0",
     "zod": "^3.24.2"
   },

@@ -85,7 +85,7 @@ router.post(
    ====================================================== */
 
 // SOAP notes for appointment
-router.get(
+router.post(
   "/appointments/:appointmentId/soap-notes",
   authorizeCognito,
   withOrgPermissions(),
@@ -94,7 +94,7 @@ router.get(
 );
 
 // Forms for appointment
-router.get(
+router.post(
   "/appointments/:appointmentId/forms",
   authorizeCognito,
   withOrgPermissions(),
@@ -154,13 +154,13 @@ router.get(
   FormController.getConsentFormForParent,
 );
 
-router.get(
+router.post(
   "/mobile/appointments/:appointmentId/soap-notes",
   authorizeCognitoMobile,
   FormController.getSOAPNotesByAppointment,
 );
 
-router.get(
+router.post(
   "/mobile/appointments/:appointmentId/forms",
   authorizeCognitoMobile,
   FormController.getFormsForAppointment,

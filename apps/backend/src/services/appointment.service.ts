@@ -889,8 +889,12 @@ export const AppointmentService = {
       );
     }
 
+    const appointmentObjectId = ensureObjectId(
+      appointmentId,
+      "appointmentId",
+    );
     const appointment = await AppointmentModel.findOne({
-      _id: dto.id,
+      _id: appointmentObjectId,
       status: "REQUESTED",
     });
 

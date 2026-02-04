@@ -1,5 +1,13 @@
+import { Types } from "mongoose";
 import { OrganisationRatingModel } from "../models/organisationRating";
 import OrganizationModel from "../models/organization";
+
+const ensureObjectId = (value: unknown, field: string): string => {
+  if (typeof value !== "string" || !Types.ObjectId.isValid(value)) {
+    throw new Error(`Invalid ${field}`);
+  }
+  return value;
+};
 
 export const OrganizationRatingService = {
   async rateOrganisation(
@@ -8,26 +16,29 @@ export const OrganizationRatingService = {
     rating: number,
     review?: string,
   ) {
+    const safeOrganizationId = ensureObjectId(organizationId, "organizationId");
+    const safeUserId = ensureObjectId(userId, "userId");
     // Upsert user rating
     await OrganisationRatingModel.findOneAndUpdate(
-      { organizationId, userId },
+      { organizationId: safeOrganizationId, userId: safeUserId },
       { rating, review },
       { upsert: true, new: true },
     );
 
     // Recalculate average rating
-    await this.recalculateAverageRating(organizationId);
+    await this.recalculateAverageRating(safeOrganizationId);
 
     return { success: true };
   },
 
   async recalculateAverageRating(orgId: string) {
+    const safeOrgId = ensureObjectId(orgId, "organizationId");
     const stats = await OrganisationRatingModel.aggregate<{
       _id: string;
       averageRating: number;
       ratingCount: number;
     }>([
-      { $match: { organizationId: orgId } },
+      { $match: { organizationId: safeOrgId } },
       {
         $group: {
           _id: "$organizationId",
@@ -39,13 +50,13 @@ export const OrganizationRatingService = {
 
     if (stats.length) {
       const { averageRating, ratingCount } = stats[0];
-      await OrganizationModel.findByIdAndUpdate(orgId, {
+      await OrganizationModel.findByIdAndUpdate(safeOrgId, {
         averageRating: averageRating.toFixed(1),
         ratingCount,
       });
     } else {
       // No ratings — reset values
-      await OrganizationModel.findByIdAndUpdate(orgId, {
+      await OrganizationModel.findByIdAndUpdate(safeOrgId, {
         averageRating: 0,
         ratingCount: 0,
       });
@@ -53,9 +64,14 @@ export const OrganizationRatingService = {
   },
 
   async isUserRatedOrganisation(organisationId: string, userId: string) {
+    const safeOrganisationId = ensureObjectId(
+      organisationId,
+      "organisationId",
+    );
+    const safeUserId = ensureObjectId(userId, "userId");
     const existingRating = await OrganisationRatingModel.findOne({
-      organizationId: organisationId,
-      userId,
+      organizationId: safeOrganisationId,
+      userId: safeUserId,
     });
     return {
       isRated: !!existingRating,
