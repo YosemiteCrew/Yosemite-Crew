@@ -167,9 +167,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: true
-              description: AppointmentRequestDTO
+              $ref: "#/components/schemas/Appointment"
       responses:
         201:
           description: Response
@@ -179,8 +177,7 @@ paths:
                 type: object
                 properties:
                   data:
-                    type: object
-                    additionalProperties: true
+                    $ref: "#/components/schemas/Appointment"
                   message:
                     type: string
   /fhir/v1/appointment/mobile/parent:
@@ -386,9 +383,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: true
-              description: AppointmentRequestDTO
+              $ref: "#/components/schemas/Appointment"
       responses:
         201:
           description: Response
@@ -398,8 +393,7 @@ paths:
                 type: object
                 properties:
                   data:
-                    type: object
-                    additionalProperties: true
+                    $ref: "#/components/schemas/Appointment"
                   message:
                     type: string
   "/fhir/v1/appointment/pms/organisation/:organisationId":
@@ -484,8 +478,7 @@ paths:
                 type: object
                 properties:
                   data:
-                    type: object
-                    additionalProperties: true
+                    type: string
                   message:
                     type: string
   "/fhir/v1/appointment/pms/:organisationId/:appointmentId/reject":
@@ -601,17 +594,14 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: true
-              description: AppointmentRequestDTO
+              $ref: "#/components/schemas/Appointment"
       responses:
         200:
           description: Response
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: "#/components/schemas/Appointment"
     get:
       tags:
         - FHIR
@@ -2282,19 +2272,6 @@ paths:
       operationId: "post_v1_coparent-invite_sent"
       security:
         - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                email:
-                  type: string
-                companionId:
-                  type: string
-                inviteeName:
-                  type: string
       responses:
         401:
           description: Response
@@ -2340,15 +2317,6 @@ paths:
       operationId: "post_v1_coparent-invite_accept"
       security:
         - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                token:
-                  type: string
       responses:
         401:
           description: Response
@@ -2392,15 +2360,6 @@ paths:
         - "Non-FHIR"
       summary: "POST /v1/coparent-invite/validate"
       operationId: "post_v1_coparent-invite_validate"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                token:
-                  type: string
       responses:
         400:
           description: Response
@@ -2858,8 +2817,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: "#/components/schemas/DocumentRequestBody"
     get:
       tags:
         - "Non-FHIR"
@@ -2943,11 +2901,11 @@ paths:
                   message:
                     type: string
   "/v1/document/mobile/appointments/:appointmentId":
-    get:
+    post:
       tags:
         - "Non-FHIR"
-      summary: "GET /v1/document/mobile/appointments/:appointmentId"
-      operationId: "get_v1_document_mobile_appointments_:appointmentId"
+      summary: "POST /v1/document/mobile/appointments/:appointmentId"
+      operationId: "post_v1_document_mobile_appointments_:appointmentId"
       security:
         - BearerAuth: []
       parameters:
@@ -3186,29 +3144,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/DocumentRequestBody"
-      responses:
-        200:
-          description: Response
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-    get:
-      tags:
-        - "Non-FHIR"
-      summary: "GET /v1/document/pms/:companionId"
-      operationId: "get_v1_document_pms_:companionId"
-      security:
-        - BearerAuth: []
-      parameters:
-        -
-          name: companionId
-          in: path
-          required: true
-          schema:
-            type: string
+              type: object
+              additionalProperties: true
+              description: unknown
       responses:
         200:
           description: Response
@@ -3383,11 +3321,11 @@ paths:
                   message:
                     type: string
   "/v1/document/pms/appointments/:appointmentId":
-    get:
+    post:
       tags:
         - "Non-FHIR"
-      summary: "GET /v1/document/pms/appointments/:appointmentId"
-      operationId: "get_v1_document_pms_appointments_:appointmentId"
+      summary: "POST /v1/document/pms/appointments/:appointmentId"
+      operationId: "post_v1_document_pms_appointments_:appointmentId"
       security:
         - BearerAuth: []
       parameters:
@@ -3906,11 +3844,11 @@ paths:
                   message:
                     type: string
   "/fhir/v1/form/appointments/:appointmentId/soap-notes":
-    get:
+    post:
       tags:
         - FHIR
-      summary: "GET /fhir/v1/form/appointments/:appointmentId/soap-notes"
-      operationId: "get_fhir_v1_form_appointments_:appointmentId_soap-notes"
+      summary: "POST /fhir/v1/form/appointments/:appointmentId/soap-notes"
+      operationId: "post_fhir_v1_form_appointments_:appointmentId_soap-notes"
       security:
         - BearerAuth: []
       parameters:
@@ -3918,12 +3856,6 @@ paths:
           name: appointmentId
           in: path
           required: true
-          schema:
-            type: string
-        -
-          name: latestOnly
-          in: query
-          required: false
           schema:
             type: string
       responses:
@@ -3946,11 +3878,11 @@ paths:
                   message:
                     type: string
   "/fhir/v1/form/appointments/:appointmentId/forms":
-    get:
+    post:
       tags:
         - FHIR
-      summary: "GET /fhir/v1/form/appointments/:appointmentId/forms"
-      operationId: "get_fhir_v1_form_appointments_:appointmentId_forms"
+      summary: "POST /fhir/v1/form/appointments/:appointmentId/forms"
+      operationId: "post_fhir_v1_form_appointments_:appointmentId_forms"
       security:
         - BearerAuth: []
       parameters:
@@ -3958,24 +3890,6 @@ paths:
           name: appointmentId
           in: path
           required: true
-          schema:
-            type: string
-        -
-          name: isPMS
-          in: query
-          required: false
-          schema:
-            type: string
-        -
-          name: serviceId
-          in: query
-          required: false
-          schema:
-            type: string
-        -
-          name: species
-          in: query
-          required: false
           schema:
             type: string
       responses:
@@ -4240,11 +4154,11 @@ paths:
                   message:
                     type: string
   "/fhir/v1/form/mobile/appointments/:appointmentId/soap-notes":
-    get:
+    post:
       tags:
         - FHIR
-      summary: "GET /fhir/v1/form/mobile/appointments/:appointmentId/soap-notes"
-      operationId: "get_fhir_v1_form_mobile_appointments_:appointmentId_soap-notes"
+      summary: "POST /fhir/v1/form/mobile/appointments/:appointmentId/soap-notes"
+      operationId: "post_fhir_v1_form_mobile_appointments_:appointmentId_soap-notes"
       security:
         - BearerAuth: []
       parameters:
@@ -4252,12 +4166,6 @@ paths:
           name: appointmentId
           in: path
           required: true
-          schema:
-            type: string
-        -
-          name: latestOnly
-          in: query
-          required: false
           schema:
             type: string
       responses:
@@ -4280,11 +4188,11 @@ paths:
                   message:
                     type: string
   "/fhir/v1/form/mobile/appointments/:appointmentId/forms":
-    get:
+    post:
       tags:
         - FHIR
-      summary: "GET /fhir/v1/form/mobile/appointments/:appointmentId/forms"
-      operationId: "get_fhir_v1_form_mobile_appointments_:appointmentId_forms"
+      summary: "POST /fhir/v1/form/mobile/appointments/:appointmentId/forms"
+      operationId: "post_fhir_v1_form_mobile_appointments_:appointmentId_forms"
       security:
         - BearerAuth: []
       parameters:
@@ -4292,24 +4200,6 @@ paths:
           name: appointmentId
           in: path
           required: true
-          schema:
-            type: string
-        -
-          name: isPMS
-          in: query
-          required: false
-          schema:
-            type: string
-        -
-          name: serviceId
-          in: query
-          required: false
-          schema:
-            type: string
-        -
-          name: species
-          in: query
-          required: false
           schema:
             type: string
       responses:
@@ -4362,6 +4252,15 @@ paths:
           schema:
             type: string
       responses:
+        400:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
         500:
           description: Response
           content:
@@ -4610,10 +4509,7 @@ paths:
                   from:
                     type: string
                   items:
-                    type: array
-                    items:
-                      type: object
-                      additionalProperties: true
+                    type: string
                   to:
                     type: string
         500:
@@ -5079,11 +4975,11 @@ paths:
                 type: object
                 additionalProperties: true
   "/fhir/v1/invoice/mobile/appointment/:appointmentId":
-    get:
+    post:
       tags:
         - FHIR
-      summary: "GET /fhir/v1/invoice/mobile/appointment/:appointmentId"
-      operationId: "get_fhir_v1_invoice_mobile_appointment_:appointmentId"
+      summary: "POST /fhir/v1/invoice/mobile/appointment/:appointmentId"
+      operationId: "post_fhir_v1_invoice_mobile_appointment_:appointmentId"
       security:
         - BearerAuth: []
       parameters:
@@ -5171,11 +5067,11 @@ paths:
                 type: object
                 additionalProperties: true
   "/fhir/v1/invoice/appointment/:appointmentId":
-    get:
+    post:
       tags:
         - FHIR
-      summary: "GET /fhir/v1/invoice/appointment/:appointmentId"
-      operationId: "get_fhir_v1_invoice_appointment_:appointmentId"
+      summary: "POST /fhir/v1/invoice/appointment/:appointmentId"
+      operationId: "post_fhir_v1_invoice_appointment_:appointmentId"
       security:
         - BearerAuth: []
       parameters:
@@ -5669,11 +5565,11 @@ paths:
                 type: object
                 additionalProperties: true
   "/v1/observation-tools/pms/appointments/:appointmentId/submissions":
-    get:
+    post:
       tags:
         - "Non-FHIR"
-      summary: "GET /v1/observation-tools/pms/appointments/:appointmentId/submissions"
-      operationId: "get_v1_observation-tools_pms_appointments_:appointmentId_submissions"
+      summary: "POST /v1/observation-tools/pms/appointments/:appointmentId/submissions"
+      operationId: "post_v1_observation-tools_pms_appointments_:appointmentId_submissions"
       security:
         - BearerAuth: []
       parameters:
@@ -7774,7 +7670,7 @@ paths:
               schema:
                 type: object
                 properties:
-                  Error:
+                  error:
                     type: string
   "/v1/stripe/payment-intent/:appointmentId":
     post:
@@ -8235,8 +8131,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: "#/components/schemas/ChangeStatusRequestBody"
   "/v1/task/mobile/companion/:companionId":
     get:
       tags:
@@ -8583,8 +8478,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: "#/components/schemas/ChangeStatusRequestBody"
   "/fhir/v1/user-organization/":
     post:
       tags:
@@ -9064,6 +8958,4401 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    AccessPolicy:
+      type: object
+      properties:
+        resourceType:
+          type: object
+          additionalProperties: true
+          description: "Type 'AccessPolicy'"
+        id:
+          type: string
+        meta:
+          $ref: "#/components/schemas/Meta"
+        implicitRules:
+          type: string
+        language:
+          type: string
+        text:
+          $ref: "#/components/schemas/Narrative"
+        contained:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Type Resource
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        name:
+          type: string
+        basedOn:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: "Type Reference<AccessPolicy>"
+        compartment:
+          type: object
+          additionalProperties: true
+          description: Type Reference
+        resource:
+          type: array
+          items:
+            $ref: "#/components/schemas/AccessPolicyResource"
+        ipAccessRule:
+          type: array
+          items:
+            $ref: "#/components/schemas/AccessPolicyIpAccessRule"
+      additionalProperties: true
+      required:
+        - resourceType
+    AccessPolicyIpAccessRule:
+      type: object
+      properties:
+        name:
+          type: string
+        value:
+          type: string
+        action:
+          type: object
+          additionalProperties: true
+          description: "Type 'allow' | 'block'"
+      additionalProperties: true
+      required:
+        - value
+        - action
+    AccessPolicyResource:
+      type: object
+      properties:
+        resourceType:
+          type: string
+        compartment:
+          type: object
+          additionalProperties: true
+          description: Type Reference
+        criteria:
+          type: string
+        readonly:
+          type: boolean
+        interaction:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: "Type ('read' | 'vread' | 'update' | 'delete' | 'history' | 'create' | 'search')"
+        hiddenFields:
+          type: array
+          items:
+            type: string
+        readonlyFields:
+          type: array
+          items:
+            type: string
+        writeConstraint:
+          type: array
+          items:
+            $ref: "#/components/schemas/Expression"
+      additionalProperties: true
+      required:
+        - resourceType
+    Address:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        use:
+          type: object
+          additionalProperties: true
+          description: "Type 'home' | 'work' | 'temp' | 'old' | 'billing'"
+        type:
+          type: object
+          additionalProperties: true
+          description: "Type 'postal' | 'physical' | 'both'"
+        text:
+          type: string
+        line:
+          type: array
+          items:
+            type: string
+        city:
+          type: string
+        district:
+          type: string
+        state:
+          type: string
+        postalCode:
+          type: string
+        country:
+          type: string
+        period:
+          $ref: "#/components/schemas/Period"
+      additionalProperties: true
+    Age:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        value:
+          type: number
+        comparator:
+          type: object
+          additionalProperties: true
+          description: "Type '<' | '<=' | '>=' | '>'"
+        unit:
+          type: string
+        system:
+          type: string
+        code:
+          type: string
+      additionalProperties: true
+    Appointment:
+      type: object
+      properties:
+        resourceType:
+          type: string
+          enum:
+            - Appointment
+        id:
+          type: string
+        meta:
+          $ref: "#/components/schemas/Meta"
+        implicitRules:
+          type: string
+        language:
+          type: string
+        text:
+          $ref: "#/components/schemas/Narrative"
+        contained:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Type Resource
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        identifier:
+          type: array
+          items:
+            $ref: "#/components/schemas/Identifier"
+        status:
+          type: string
+        cancelationReason:
+          $ref: "#/components/schemas/CodeableConcept"
+        serviceCategory:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeableConcept"
+        serviceType:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeableConcept"
+        speciality:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeableConcept"
+        appointmentType:
+          $ref: "#/components/schemas/CodeableConcept"
+        reasonCode:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeableConcept"
+        reasonReference:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Type Reference
+        priority:
+          type: number
+        description:
+          type: string
+        supportingInformation:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Type Reference
+        start:
+          type: string
+        end:
+          type: string
+        minutesDuration:
+          type: number
+        slot:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Type Reference
+        created:
+          type: string
+        comment:
+          type: string
+        patientInstruction:
+          type: string
+        basedOn:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Type Reference
+        participant:
+          type: array
+          items:
+            $ref: "#/components/schemas/AppointmentParticipant"
+        requestedPeriod:
+          type: array
+          items:
+            $ref: "#/components/schemas/Period"
+      additionalProperties: true
+      required:
+        - resourceType
+        - participant
+    AppointmentParticipant:
+      type: object
+      properties:
+        type:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeableConcept"
+        actor:
+          type: object
+          additionalProperties: true
+          description: Type Reference
+        required:
+          type: string
+        status:
+          type: string
+        period:
+          $ref: "#/components/schemas/Period"
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+      additionalProperties: true
+    Attachment:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        contentType:
+          type: string
+        language:
+          type: string
+        data:
+          type: string
+        url:
+          type: string
+        size:
+          type: number
+        hash:
+          type: string
+        title:
+          type: string
+        creation:
+          type: string
+      additionalProperties: true
+    BackboneElement:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+      additionalProperties: true
+    Basic:
+      type: object
+      properties:
+        resourceType:
+          type: object
+          additionalProperties: true
+          description: "Type 'Basic'"
+        id:
+          type: string
+        implicitRules:
+          type: string
+        language:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        identifier:
+          type: array
+          items:
+            $ref: "#/components/schemas/Identifier"
+        code:
+          $ref: "#/components/schemas/CodeableConcept"
+        created:
+          type: string
+      additionalProperties: true
+      required:
+        - resourceType
+        - code
+    Binary:
+      type: object
+      properties:
+        resourceType:
+          type: object
+          additionalProperties: true
+          description: "Type 'Binary'"
+        id:
+          type: string
+        meta:
+          $ref: "#/components/schemas/Meta"
+        implicitRules:
+          type: string
+        language:
+          type: string
+        contentType:
+          type: string
+        securityContext:
+          type: object
+          additionalProperties: true
+          description: "Type Reference<Resource>"
+        data:
+          type: string
+        url:
+          type: string
+      additionalProperties: true
+      required:
+        - resourceType
+        - contentType
+    BundleEntryRequest:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        method:
+          type: object
+          additionalProperties: true
+          description: "Type 'GET' | 'HEAD' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'"
+        url:
+          type: string
+        ifNoneMatch:
+          type: string
+        ifModifiedSince:
+          type: string
+        ifMatch:
+          type: string
+        ifNoneExist:
+          type: string
+      additionalProperties: true
+      required:
+        - method
+        - url
+    BundleEntryResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        status:
+          type: string
+        location:
+          type: string
+        etag:
+          type: string
+        lastModified:
+          type: string
+        outcome:
+          $ref: "#/components/schemas/OperationOutcome"
+      additionalProperties: true
+      required:
+        - status
+    BundleEntrySearch:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        mode:
+          type: object
+          additionalProperties: true
+          description: "Type 'match' | 'include' | 'outcome'"
+        score:
+          type: number
+      additionalProperties: true
+    BundleLink:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        relation:
+          type: string
+        url:
+          type: string
+      additionalProperties: true
+      required:
+        - relation
+        - url
+    CapabilityStatement:
+      type: object
+      properties:
+        resourceType:
+          type: object
+          additionalProperties: true
+          description: "Type 'CapabilityStatement'"
+        id:
+          type: string
+        meta:
+          $ref: "#/components/schemas/Meta"
+        implicitRules:
+          type: string
+        language:
+          type: string
+        text:
+          $ref: "#/components/schemas/Narrative"
+        contained:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Type Resource
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        url:
+          type: string
+        version:
+          type: string
+        name:
+          type: string
+        title:
+          type: string
+        status:
+          type: object
+          additionalProperties: true
+          description: "Type 'draft' | 'active' | 'retired' | 'unknown'"
+        experimental:
+          type: boolean
+        date:
+          type: string
+        publisher:
+          type: string
+        contact:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContactDetail"
+        description:
+          type: string
+        jurisdiction:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeableConcept"
+        purpose:
+          type: string
+        copyright:
+          type: string
+        kind:
+          type: object
+          additionalProperties: true
+          description: "Type 'instance' | 'capability' | 'requirements'"
+        instantiates:
+          type: array
+          items:
+            type: string
+        imports:
+          type: array
+          items:
+            type: string
+        software:
+          $ref: "#/components/schemas/CapabilityStatementSoftware"
+        implementation:
+          $ref: "#/components/schemas/CapabilityStatementImplementation"
+        fhirVersion:
+          type: object
+          additionalProperties: true
+          description: "Type '0.01' | '0.05' | '0.06' | '0.11' | '0.0.80' | '0.0.81' | '0.0.82' | '0.4.0' | '0.5.0' | '1.0.0' |"
+        format:
+          type: array
+          items:
+            type: string
+        patchFormat:
+          type: array
+          items:
+            type: string
+        implementationGuide:
+          type: array
+          items:
+            type: string
+        rest:
+          type: array
+          items:
+            $ref: "#/components/schemas/CapabilityStatementRest"
+        messaging:
+          type: array
+          items:
+            $ref: "#/components/schemas/CapabilityStatementMessaging"
+        document:
+          type: array
+          items:
+            $ref: "#/components/schemas/CapabilityStatementDocument"
+      additionalProperties: true
+      required:
+        - resourceType
+        - status
+        - date
+        - kind
+        - fhirVersion
+        - format
+    CapabilityStatementDocument:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        mode:
+          type: object
+          additionalProperties: true
+          description: "Type 'producer' | 'consumer'"
+        documentation:
+          type: string
+        profile:
+          type: string
+      additionalProperties: true
+      required:
+        - mode
+        - profile
+    CapabilityStatementImplementation:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        description:
+          type: string
+        url:
+          type: string
+      additionalProperties: true
+      required:
+        - description
+    CapabilityStatementMessaging:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        endpoint:
+          type: array
+          items:
+            $ref: "#/components/schemas/CapabilityStatementMessagingEndpoint"
+        reliableCache:
+          type: number
+        documentation:
+          type: string
+        supportedMessage:
+          type: array
+          items:
+            $ref: "#/components/schemas/CapabilityStatementMessagingSupportedMessage"
+      additionalProperties: true
+    CapabilityStatementMessagingEndpoint:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        protocol:
+          $ref: "#/components/schemas/Coding"
+        address:
+          type: string
+      additionalProperties: true
+      required:
+        - protocol
+        - address
+    CapabilityStatementMessagingSupportedMessage:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        mode:
+          type: object
+          additionalProperties: true
+          description: "Type 'sender' | 'receiver'"
+        definition:
+          type: string
+      additionalProperties: true
+      required:
+        - mode
+        - definition
+    CapabilityStatementRest:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        mode:
+          type: object
+          additionalProperties: true
+          description: "Type 'client' | 'server'"
+        documentation:
+          type: string
+        security:
+          $ref: "#/components/schemas/CapabilityStatementRestSecurity"
+        resource:
+          type: array
+          items:
+            $ref: "#/components/schemas/CapabilityStatementRestResource"
+        interaction:
+          type: array
+          items:
+            $ref: "#/components/schemas/CapabilityStatementRestInteraction"
+        searchParam:
+          type: array
+          items:
+            $ref: "#/components/schemas/CapabilityStatementRestResourceSearchParam"
+        operation:
+          type: array
+          items:
+            $ref: "#/components/schemas/CapabilityStatementRestResourceOperation"
+        compartment:
+          type: array
+          items:
+            type: string
+      additionalProperties: true
+      required:
+        - mode
+    CapabilityStatementRestInteraction:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        code:
+          type: object
+          additionalProperties: true
+          description: "Type 'transaction' | 'batch' | 'search-system' | 'history-system'"
+        documentation:
+          type: string
+      additionalProperties: true
+      required:
+        - code
+    CapabilityStatementRestResource:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        type:
+          type: object
+          additionalProperties: true
+          description: Type ResourceType
+        profile:
+          type: string
+        supportedProfile:
+          type: array
+          items:
+            type: string
+        documentation:
+          type: string
+        interaction:
+          type: array
+          items:
+            $ref: "#/components/schemas/CapabilityStatementRestResourceInteraction"
+        versioning:
+          type: object
+          additionalProperties: true
+          description: "Type 'no-version' | 'versioned' | 'versioned-update'"
+        readHistory:
+          type: boolean
+        updateCreate:
+          type: boolean
+        conditionalCreate:
+          type: boolean
+        conditionalRead:
+          type: object
+          additionalProperties: true
+          description: "Type 'not-supported' | 'modified-since' | 'not-match' | 'full-support'"
+        conditionalUpdate:
+          type: boolean
+        conditionalDelete:
+          type: object
+          additionalProperties: true
+          description: "Type 'not-supported' | 'single' | 'multiple'"
+        referencePolicy:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: "Type ('literal' | 'logical' | 'resolves' | 'enforced' | 'local')"
+        searchInclude:
+          type: array
+          items:
+            type: string
+        searchRevInclude:
+          type: array
+          items:
+            type: string
+        searchParam:
+          type: array
+          items:
+            $ref: "#/components/schemas/CapabilityStatementRestResourceSearchParam"
+        operation:
+          type: array
+          items:
+            $ref: "#/components/schemas/CapabilityStatementRestResourceOperation"
+      additionalProperties: true
+      required:
+        - type
+    CapabilityStatementRestResourceInteraction:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        code:
+          type: object
+          additionalProperties: true
+          description: "Type 'read' | 'vread' | 'update' | 'patch' | 'delete' | 'history-instance' | 'history-type' | 'create' | 'search-type'"
+        documentation:
+          type: string
+      additionalProperties: true
+      required:
+        - code
+    CapabilityStatementRestResourceOperation:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        name:
+          type: string
+        definition:
+          type: string
+        documentation:
+          type: string
+      additionalProperties: true
+      required:
+        - name
+        - definition
+    CapabilityStatementRestResourceSearchParam:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        name:
+          type: string
+        definition:
+          type: string
+        type:
+          type: object
+          additionalProperties: true
+          description: "Type 'number' | 'date' | 'string' | 'token' | 'reference' | 'composite' | 'quantity' | 'uri' | 'special'"
+        documentation:
+          type: string
+      additionalProperties: true
+      required:
+        - name
+        - type
+    CapabilityStatementRestSecurity:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        cors:
+          type: boolean
+        service:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeableConcept"
+        description:
+          type: string
+      additionalProperties: true
+    CapabilityStatementSoftware:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        name:
+          type: string
+        version:
+          type: string
+        releaseDate:
+          type: string
+      additionalProperties: true
+      required:
+        - name
+    CodeSystem:
+      type: object
+      properties:
+        resourceType:
+          type: object
+          additionalProperties: true
+          description: "Type 'CodeSystem'"
+        id:
+          type: string
+        implicitRules:
+          type: string
+        language:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        url:
+          type: string
+        identifier:
+          type: array
+          items:
+            $ref: "#/components/schemas/Identifier"
+        version:
+          type: string
+        name:
+          type: string
+        title:
+          type: string
+        status:
+          type: object
+          additionalProperties: true
+          description: "Type 'draft' | 'active' | 'retired' | 'unknown'"
+        experimental:
+          type: boolean
+        date:
+          type: string
+        publisher:
+          type: string
+        description:
+          type: string
+        jurisdiction:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeableConcept"
+        purpose:
+          type: string
+        copyright:
+          type: string
+        caseSensitive:
+          type: boolean
+        valueSet:
+          type: string
+        hierarchyMeaning:
+          type: object
+          additionalProperties: true
+          description: "Type 'grouped-by' | 'is-a' | 'part-of' | 'classified-with'"
+        compositional:
+          type: boolean
+        versionNeeded:
+          type: boolean
+        content:
+          type: object
+          additionalProperties: true
+          description: "Type 'not-present' | 'example' | 'fragment' | 'complete' | 'supplement'"
+        supplements:
+          type: string
+        count:
+          type: number
+        filter:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeSystemFilter"
+        property:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeSystemProperty"
+        concept:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeSystemConcept"
+      additionalProperties: true
+      required:
+        - resourceType
+        - status
+        - content
+    CodeSystemConcept:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        code:
+          type: string
+        display:
+          type: string
+        definition:
+          type: string
+        designation:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeSystemConceptDesignation"
+        property:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeSystemConceptProperty"
+        concept:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeSystemConcept"
+      additionalProperties: true
+      required:
+        - code
+    CodeSystemConceptDesignation:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        language:
+          type: string
+        use:
+          $ref: "#/components/schemas/Coding"
+        value:
+          type: string
+      additionalProperties: true
+      required:
+        - value
+    CodeSystemConceptProperty:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        code:
+          type: string
+        valueCode:
+          type: string
+        valueCoding:
+          $ref: "#/components/schemas/Coding"
+        valueString:
+          type: string
+        valueInteger:
+          type: number
+        valueBoolean:
+          type: boolean
+        valueDateTime:
+          type: string
+        valueDecimal:
+          type: number
+      additionalProperties: true
+      required:
+        - code
+    CodeSystemFilter:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        code:
+          type: string
+        description:
+          type: string
+        operator:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: "Type ('=' | 'is-a' | 'descendent-of' | 'is-not-a' | 'regex' | 'in' | 'not-in' | 'generalizes' | 'exists')"
+        value:
+          type: string
+      additionalProperties: true
+      required:
+        - code
+        - operator
+        - value
+    CodeSystemProperty:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        code:
+          type: string
+        uri:
+          type: string
+        description:
+          type: string
+        type:
+          type: object
+          additionalProperties: true
+          description: "Type 'code' | 'Coding' | 'string' | 'integer' | 'boolean' | 'dateTime' | 'decimal'"
+      additionalProperties: true
+      required:
+        - code
+        - type
+    CodeableConcept:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        coding:
+          type: array
+          items:
+            $ref: "#/components/schemas/Coding"
+        text:
+          type: string
+      additionalProperties: true
+    CodeableReference:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        concept:
+          $ref: "#/components/schemas/CodeableConcept"
+        reference:
+          type: object
+          additionalProperties: true
+          description: Type Reference
+      additionalProperties: true
+    Coding:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        system:
+          type: string
+        version:
+          type: string
+        code:
+          type: string
+        display:
+          type: string
+        userSelected:
+          type: boolean
+      additionalProperties: true
+    ContactDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        name:
+          type: string
+        telecom:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContactPoint"
+      additionalProperties: true
+    ContactPoint:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        system:
+          type: object
+          additionalProperties: true
+          description: "Type 'phone' | 'fax' | 'email' | 'pager' | 'url' | 'sms' | 'other'"
+        value:
+          type: string
+        use:
+          type: object
+          additionalProperties: true
+          description: "Type 'home' | 'work' | 'temp' | 'old' | 'mobile'"
+        rank:
+          type: number
+        period:
+          $ref: "#/components/schemas/Period"
+      additionalProperties: true
+    Count:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        value:
+          type: number
+        comparator:
+          type: object
+          additionalProperties: true
+          description: "Type '<' | '<=' | '>=' | '>'"
+        unit:
+          type: string
+        system:
+          type: string
+        code:
+          type: string
+      additionalProperties: true
+    Distance:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        value:
+          type: number
+        comparator:
+          type: object
+          additionalProperties: true
+          description: "Type '<' | '<=' | '>=' | '>'"
+        unit:
+          type: string
+        system:
+          type: string
+        code:
+          type: string
+      additionalProperties: true
+    Duration:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        value:
+          type: number
+        comparator:
+          type: object
+          additionalProperties: true
+          description: "Type '<' | '<=' | '>=' | '>'"
+        unit:
+          type: string
+        system:
+          type: string
+        code:
+          type: string
+      additionalProperties: true
+    Endpoint:
+      type: object
+      properties:
+        resourceType:
+          type: object
+          additionalProperties: true
+          description: "Type 'Endpoint'"
+        id:
+          type: string
+        meta:
+          $ref: "#/components/schemas/Meta"
+        implicitRules:
+          type: string
+        language:
+          type: string
+        text:
+          $ref: "#/components/schemas/Narrative"
+        contained:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Type Resource
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        identifier:
+          type: array
+          items:
+            $ref: "#/components/schemas/Identifier"
+        status:
+          type: object
+          additionalProperties: true
+          description: "Type 'active' | 'suspended' | 'error' | 'off' | 'entered-in-error' | 'test'"
+        connectionType:
+          $ref: "#/components/schemas/Coding"
+        name:
+          type: string
+        managingOrganization:
+          type: object
+          additionalProperties: true
+          description: "Type Reference<Organization>"
+        contact:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContactPoint"
+        period:
+          $ref: "#/components/schemas/Period"
+        payloadType:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeableConcept"
+        payloadMimeType:
+          type: array
+          items:
+            type: string
+        address:
+          type: string
+        header:
+          type: array
+          items:
+            type: string
+      additionalProperties: true
+      required:
+        - resourceType
+        - status
+        - connectionType
+        - payloadType
+        - address
+    Expression:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        description:
+          type: string
+        name:
+          type: string
+        language:
+          type: object
+          additionalProperties: true
+          description: "Type 'text/cql' | 'text/fhirpath' | 'application/x-fhir-query'"
+        expression:
+          type: string
+        reference:
+          type: string
+      additionalProperties: true
+      required:
+        - language
+    Extension:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        url:
+          type: string
+        valueBase64Binary:
+          type: string
+        valueBoolean:
+          type: boolean
+        valueCanonical:
+          type: string
+        valueCode:
+          type: string
+        valueDate:
+          type: string
+        valueDateTime:
+          type: string
+        valueDecimal:
+          type: number
+        valueId:
+          type: string
+        valueInstant:
+          type: string
+        valueInteger:
+          type: number
+        valueMarkdown:
+          type: string
+        valueOid:
+          type: string
+        valuePositiveInt:
+          type: number
+        valueString:
+          type: string
+        valueTime:
+          type: string
+        valueUnsignedInt:
+          type: number
+        valueUri:
+          type: string
+        valueUrl:
+          type: string
+        valueUuid:
+          type: string
+      additionalProperties: true
+      required:
+        - url
+    HealthcareService:
+      type: object
+      properties:
+        resourceType:
+          type: object
+          additionalProperties: true
+          description: "Type 'HealthcareService'"
+        id:
+          type: string
+        meta:
+          $ref: "#/components/schemas/Meta"
+        implicitRules:
+          type: string
+        language:
+          type: string
+        text:
+          $ref: "#/components/schemas/Narrative"
+        contained:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Type Resource
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        identifier:
+          type: array
+          items:
+            $ref: "#/components/schemas/Identifier"
+        active:
+          type: boolean
+        providedBy:
+          type: object
+          additionalProperties: true
+          description: "Type Reference<Organization>"
+        category:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeableConcept"
+        type:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeableConcept"
+        specialty:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeableConcept"
+        location:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: "Type Reference<Location>"
+        name:
+          type: string
+        comment:
+          type: string
+        extraDetails:
+          type: string
+        photo:
+          $ref: "#/components/schemas/Attachment"
+        telecom:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContactPoint"
+        coverageArea:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: "Type Reference<Location>"
+        serviceProvisionCode:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeableConcept"
+        eligibility:
+          type: array
+          items:
+            $ref: "#/components/schemas/HealthcareServiceEligibility"
+        program:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeableConcept"
+        characteristic:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeableConcept"
+        communication:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeableConcept"
+        referralMethod:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeableConcept"
+        appointmentRequired:
+          type: boolean
+        availableTime:
+          type: array
+          items:
+            $ref: "#/components/schemas/HealthcareServiceAvailableTime"
+        notAvailable:
+          type: array
+          items:
+            $ref: "#/components/schemas/HealthcareServiceNotAvailable"
+        availabilityExceptions:
+          type: string
+        endpoint:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: "Type Reference<Endpoint>"
+      additionalProperties: true
+      required:
+        - resourceType
+    HealthcareServiceAvailableTime:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        daysOfWeek:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: "Type ('mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun')"
+        allDay:
+          type: boolean
+        availableStartTime:
+          type: string
+        availableEndTime:
+          type: string
+      additionalProperties: true
+    HealthcareServiceEligibility:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        code:
+          $ref: "#/components/schemas/CodeableConcept"
+        comment:
+          type: string
+      additionalProperties: true
+    HealthcareServiceNotAvailable:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        description:
+          type: string
+        during:
+          $ref: "#/components/schemas/Period"
+      additionalProperties: true
+      required:
+        - description
+    HumanName:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        use:
+          type: object
+          additionalProperties: true
+          description: "Type 'usual' | 'official' | 'temp' | 'nickname' | 'anonymous' | 'old' | 'maiden'"
+        text:
+          type: string
+        family:
+          type: string
+        given:
+          type: array
+          items:
+            type: string
+        prefix:
+          type: array
+          items:
+            type: string
+        suffix:
+          type: array
+          items:
+            type: string
+        period:
+          $ref: "#/components/schemas/Period"
+      additionalProperties: true
+    Identifier:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        use:
+          type: object
+          additionalProperties: true
+          description: "Type 'usual' | 'official' | 'temp' | 'secondary' | 'old'"
+        type:
+          $ref: "#/components/schemas/CodeableConcept"
+        system:
+          type: string
+        value:
+          type: string
+        period:
+          $ref: "#/components/schemas/Period"
+      additionalProperties: true
+    Invoice:
+      type: object
+      properties:
+        resourceType:
+          type: object
+          additionalProperties: true
+          description: "Type 'Invoice'"
+        id:
+          type: string
+        meta:
+          $ref: "#/components/schemas/Meta"
+        implicitRules:
+          type: string
+        language:
+          type: string
+        text:
+          $ref: "#/components/schemas/Narrative"
+        contained:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Type Resource
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        identifier:
+          type: array
+          items:
+            $ref: "#/components/schemas/Identifier"
+        status:
+          type: object
+          additionalProperties: true
+          description: Type InvoiceStatus
+        cancelledReason:
+          type: string
+        type:
+          $ref: "#/components/schemas/CodeableConcept"
+        subject:
+          type: object
+          additionalProperties: true
+          description: Type Reference
+        recipient:
+          type: object
+          additionalProperties: true
+          description: Type Reference
+        date:
+          type: string
+        participant:
+          type: array
+          items:
+            $ref: "#/components/schemas/InvoiceParticipant"
+        issuer:
+          type: object
+          additionalProperties: true
+          description: Type Reference
+        account:
+          type: object
+          additionalProperties: true
+          description: Type Reference
+        lineItem:
+          type: array
+          items:
+            $ref: "#/components/schemas/InvoiceLineItem"
+        totalPriceComponent:
+          type: array
+          items:
+            $ref: "#/components/schemas/InvoiceLineItemPriceComponent"
+        totalNet:
+          $ref: "#/components/schemas/Money"
+        totalGross:
+          $ref: "#/components/schemas/Money"
+        paymentTerms:
+          type: string
+        note:
+          type: array
+          items:
+            $ref: "#/components/schemas/InvoiceNote"
+      additionalProperties: true
+      required:
+        - resourceType
+        - status
+    InvoiceParticipant:
+      type: object
+      properties:
+        role:
+          $ref: "#/components/schemas/CodeableConcept"
+        actor:
+          type: object
+          additionalProperties: true
+          description: Type Reference
+      additionalProperties: true
+    InvoiceLineItem:
+      type: object
+      properties:
+        sequence:
+          type: number
+        chargeItemReference:
+          type: object
+          additionalProperties: true
+          description: Type Reference
+        chargeItemCodeableConcept:
+          $ref: "#/components/schemas/CodeableConcept"
+        priceComponent:
+          type: array
+          items:
+            $ref: "#/components/schemas/InvoiceLineItemPriceComponent"
+      additionalProperties: true
+    InvoiceLineItemPriceComponent:
+      type: object
+      properties:
+        type:
+          type: object
+          additionalProperties: true
+          description: Type InvoicePriceComponentType
+        code:
+          $ref: "#/components/schemas/CodeableConcept"
+        factor:
+          type: number
+        amount:
+          $ref: "#/components/schemas/Money"
+      additionalProperties: true
+      required:
+        - type
+    InvoiceNote:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        authorReference:
+          type: object
+          additionalProperties: true
+          description: Type Reference
+        authorString:
+          type: string
+        time:
+          type: string
+        text:
+          type: string
+      additionalProperties: true
+      required:
+        - text
+    Location:
+      type: object
+      properties:
+        resourceType:
+          type: object
+          additionalProperties: true
+          description: "Type 'Location'"
+        id:
+          type: string
+        meta:
+          $ref: "#/components/schemas/Meta"
+        implicitRules:
+          type: string
+        language:
+          type: string
+        text:
+          $ref: "#/components/schemas/Narrative"
+        contained:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Type Resource
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        identifier:
+          type: array
+          items:
+            $ref: "#/components/schemas/Identifier"
+        status:
+          type: object
+          additionalProperties: true
+          description: "Type 'active' | 'suspended' | 'inactive'"
+        operationalStatus:
+          $ref: "#/components/schemas/Coding"
+        name:
+          type: string
+        alias:
+          type: array
+          items:
+            type: string
+        description:
+          type: string
+        mode:
+          type: object
+          additionalProperties: true
+          description: "Type 'instance' | 'kind'"
+        type:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeableConcept"
+        telecom:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContactPoint"
+        address:
+          $ref: "#/components/schemas/Address"
+        physicalType:
+          $ref: "#/components/schemas/CodeableConcept"
+        position:
+          $ref: "#/components/schemas/LocationPosition"
+        managingOrganization:
+          type: object
+          additionalProperties: true
+          description: "Type Reference<Organization>"
+        partOf:
+          type: object
+          additionalProperties: true
+          description: "Type Reference<Location>"
+        hoursOfOperation:
+          type: array
+          items:
+            $ref: "#/components/schemas/LocationHoursOfOperation"
+        availabilityExceptions:
+          type: string
+        endpoint:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: "Type Reference<Endpoint>"
+      additionalProperties: true
+      required:
+        - resourceType
+    LocationHoursOfOperation:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        daysOfWeek:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: "Type ('mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun')"
+        allDay:
+          type: boolean
+        openingTime:
+          type: string
+        closingTime:
+          type: string
+      additionalProperties: true
+    LocationPosition:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        longitude:
+          type: number
+        latitude:
+          type: number
+        altitude:
+          type: number
+      additionalProperties: true
+      required:
+        - longitude
+        - latitude
+    Meta:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        versionId:
+          type: string
+        lastUpdated:
+          type: string
+        source:
+          type: string
+        profile:
+          type: array
+          items:
+            type: string
+        security:
+          type: array
+          items:
+            $ref: "#/components/schemas/Coding"
+        tag:
+          type: array
+          items:
+            $ref: "#/components/schemas/Coding"
+        project:
+          type: string
+        author:
+          type: object
+          additionalProperties: true
+          description: Type Reference
+        onBehalfOf:
+          type: object
+          additionalProperties: true
+          description: Type Reference
+        account:
+          type: object
+          additionalProperties: true
+          description: Type Reference
+        accounts:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Type Reference
+        compartment:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Type Reference
+      additionalProperties: true
+    Money:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        value:
+          type: number
+        currency:
+          type: object
+          additionalProperties: true
+          description: Type Currency
+      additionalProperties: true
+    MoneyQuantity:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        value:
+          type: number
+        comparator:
+          type: object
+          additionalProperties: true
+          description: "Type '<' | '<=' | '>=' | '>'"
+        unit:
+          type: string
+        system:
+          type: string
+        code:
+          type: string
+      additionalProperties: true
+    Narrative:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        status:
+          type: object
+          additionalProperties: true
+          description: "Type 'generated' | 'extensions' | 'additional' | 'empty'"
+        div:
+          type: string
+      additionalProperties: true
+      required:
+        - status
+        - div
+    OperationDefinition:
+      type: object
+      properties:
+        resourceType:
+          type: object
+          additionalProperties: true
+          description: "Type 'OperationDefinition'"
+        id:
+          type: string
+        meta:
+          $ref: "#/components/schemas/Meta"
+        implicitRules:
+          type: string
+        language:
+          type: string
+        text:
+          $ref: "#/components/schemas/Narrative"
+        contained:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Type Resource
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        url:
+          type: string
+        version:
+          type: string
+        name:
+          type: string
+        title:
+          type: string
+        status:
+          type: object
+          additionalProperties: true
+          description: "Type 'draft' | 'active' | 'retired' | 'unknown'"
+        kind:
+          type: object
+          additionalProperties: true
+          description: "Type 'operation' | 'query'"
+        experimental:
+          type: boolean
+        date:
+          type: string
+        publisher:
+          type: string
+        contact:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContactDetail"
+        description:
+          type: string
+        jurisdiction:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeableConcept"
+        purpose:
+          type: string
+        affectsState:
+          type: boolean
+        code:
+          type: string
+        comment:
+          type: string
+        base:
+          type: string
+        resource:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Type ResourceType
+        system:
+          type: boolean
+        type:
+          type: boolean
+        instance:
+          type: boolean
+        inputProfile:
+          type: string
+        outputProfile:
+          type: string
+        parameter:
+          type: array
+          items:
+            $ref: "#/components/schemas/OperationDefinitionParameter"
+        overload:
+          type: array
+          items:
+            $ref: "#/components/schemas/OperationDefinitionOverload"
+      additionalProperties: true
+      required:
+        - resourceType
+        - name
+        - status
+        - kind
+        - code
+        - system
+        - type
+        - instance
+    OperationDefinitionOverload:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        parameterName:
+          type: array
+          items:
+            type: string
+        comment:
+          type: string
+      additionalProperties: true
+    OperationDefinitionParameter:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        name:
+          type: string
+        use:
+          type: object
+          additionalProperties: true
+          description: "Type 'in' | 'out'"
+        min:
+          type: number
+        max:
+          type: string
+        documentation:
+          type: string
+        type:
+          type: string
+        targetProfile:
+          type: array
+          items:
+            type: string
+        searchType:
+          type: object
+          additionalProperties: true
+          description: "Type 'number' | 'date' | 'string' | 'token' | 'reference' | 'composite' | 'quantity' | 'uri' | 'special'"
+        binding:
+          $ref: "#/components/schemas/OperationDefinitionParameterBinding"
+        referencedFrom:
+          type: array
+          items:
+            $ref: "#/components/schemas/OperationDefinitionParameterReferencedFrom"
+        part:
+          type: array
+          items:
+            $ref: "#/components/schemas/OperationDefinitionParameter"
+      additionalProperties: true
+      required:
+        - name
+        - use
+        - min
+        - max
+    OperationDefinitionParameterBinding:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        strength:
+          type: object
+          additionalProperties: true
+          description: "Type 'required' | 'extensible' | 'preferred' | 'example'"
+        valueSet:
+          type: string
+      additionalProperties: true
+      required:
+        - strength
+        - valueSet
+    OperationDefinitionParameterReferencedFrom:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        source:
+          type: string
+        sourceId:
+          type: string
+      additionalProperties: true
+      required:
+        - source
+    OperationOutcome:
+      type: object
+      properties:
+        resourceType:
+          type: object
+          additionalProperties: true
+          description: "Type 'OperationOutcome'"
+        id:
+          type: string
+        meta:
+          $ref: "#/components/schemas/Meta"
+        implicitRules:
+          type: string
+        language:
+          type: string
+        text:
+          $ref: "#/components/schemas/Narrative"
+        contained:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Type Resource
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        issue:
+          type: array
+          items:
+            $ref: "#/components/schemas/OperationOutcomeIssue"
+      additionalProperties: true
+      required:
+        - resourceType
+        - issue
+    OperationOutcomeIssue:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        severity:
+          type: object
+          additionalProperties: true
+          description: "Type 'fatal' | 'error' | 'warning' | 'information'"
+        code:
+          type: object
+          additionalProperties: true
+          description: "Type 'invalid' | 'structure' | 'required' | 'value' | 'invariant' | 'security' | 'login' | 'unknown' | 'expired' |"
+        details:
+          $ref: "#/components/schemas/CodeableConcept"
+        diagnostics:
+          type: string
+        location:
+          type: array
+          items:
+            type: string
+        expression:
+          type: array
+          items:
+            type: string
+      additionalProperties: true
+      required:
+        - severity
+        - code
+    Organization:
+      type: object
+      properties:
+        resourceType:
+          type: object
+          additionalProperties: true
+          description: "Type 'Organization'"
+        id:
+          type: string
+        meta:
+          $ref: "#/components/schemas/Meta"
+        implicitRules:
+          type: string
+        language:
+          type: string
+        text:
+          $ref: "#/components/schemas/Narrative"
+        contained:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Type Resource
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        identifier:
+          type: array
+          items:
+            $ref: "#/components/schemas/Identifier"
+        active:
+          type: boolean
+        type:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeableConcept"
+        name:
+          type: string
+        alias:
+          type: array
+          items:
+            type: string
+        telecom:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContactPoint"
+        address:
+          type: array
+          items:
+            $ref: "#/components/schemas/Address"
+        partOf:
+          type: object
+          additionalProperties: true
+          description: "Type Reference<Organization>"
+        contact:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrganizationContact"
+      additionalProperties: true
+      required:
+        - resourceType
+    OrganizationContact:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        purpose:
+          $ref: "#/components/schemas/CodeableConcept"
+        name:
+          $ref: "#/components/schemas/HumanName"
+        telecom:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContactPoint"
+        address:
+          $ref: "#/components/schemas/Address"
+      additionalProperties: true
+    OrganizationAffiliation:
+      type: object
+      properties:
+        resourceType:
+          type: object
+          additionalProperties: true
+          description: "Type 'OrganizationAffiliation'"
+        id:
+          type: string
+        meta:
+          $ref: "#/components/schemas/Meta"
+        implicitRules:
+          type: string
+        language:
+          type: string
+        text:
+          $ref: "#/components/schemas/Narrative"
+        contained:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Type Resource
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        identifier:
+          type: array
+          items:
+            $ref: "#/components/schemas/Identifier"
+        active:
+          type: boolean
+        period:
+          $ref: "#/components/schemas/Period"
+        organization:
+          type: object
+          additionalProperties: true
+          description: "Type Reference<Organization>"
+        participatingOrganization:
+          type: object
+          additionalProperties: true
+          description: "Type Reference<Organization>"
+        network:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: "Type Reference<Organization>"
+        code:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeableConcept"
+        specialty:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeableConcept"
+        location:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: "Type Reference<Location>"
+        healthcareService:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: "Type Reference<HealthcareService>"
+        telecom:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContactPoint"
+        endpoint:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: "Type Reference<Endpoint>"
+      additionalProperties: true
+      required:
+        - resourceType
+    ParameterDefinition:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        name:
+          type: string
+        use:
+          type: object
+          additionalProperties: true
+          description: "Type 'in' | 'out'"
+        min:
+          type: number
+        max:
+          type: string
+        documentation:
+          type: string
+        type:
+          type: string
+        profile:
+          type: string
+      additionalProperties: true
+      required:
+        - use
+        - type
+    Parameters:
+      type: object
+      properties:
+        resourceType:
+          type: object
+          additionalProperties: true
+          description: "Type 'Parameters'"
+        id:
+          type: string
+        meta:
+          $ref: "#/components/schemas/Meta"
+        implicitRules:
+          type: string
+        language:
+          type: string
+        parameter:
+          type: array
+          items:
+            $ref: "#/components/schemas/ParametersParameter"
+      additionalProperties: true
+      required:
+        - resourceType
+    ParametersParameter:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        name:
+          type: string
+        valueBase64Binary:
+          type: string
+        valueBoolean:
+          type: boolean
+        valueCanonical:
+          type: string
+        valueCode:
+          type: string
+        valueDate:
+          type: string
+        valueDateTime:
+          type: string
+        valueDecimal:
+          type: number
+        valueId:
+          type: string
+        valueInstant:
+          type: string
+        valueInteger:
+          type: number
+        valueMarkdown:
+          type: string
+        valueOid:
+          type: string
+        valuePositiveInt:
+          type: number
+        valueString:
+          type: string
+        valueTime:
+          type: string
+        valueUnsignedInt:
+          type: number
+        valueUri:
+          type: string
+        valueUrl:
+          type: string
+        valueUuid:
+          type: string
+        valueAddress:
+          $ref: "#/components/schemas/Address"
+        valueAge:
+          $ref: "#/components/schemas/Age"
+        valueAttachment:
+          $ref: "#/components/schemas/Attachment"
+        valueCodeableConcept:
+          $ref: "#/components/schemas/CodeableConcept"
+        valueCoding:
+          $ref: "#/components/schemas/Coding"
+        valueContactPoint:
+          $ref: "#/components/schemas/ContactPoint"
+        valueCount:
+          $ref: "#/components/schemas/Count"
+        valueDistance:
+          $ref: "#/components/schemas/Distance"
+        valueDuration:
+          $ref: "#/components/schemas/Duration"
+        valueHumanName:
+          $ref: "#/components/schemas/HumanName"
+        valueIdentifier:
+          $ref: "#/components/schemas/Identifier"
+        valueMoney:
+          $ref: "#/components/schemas/Money"
+        valuePeriod:
+          $ref: "#/components/schemas/Period"
+        valueQuantity:
+          $ref: "#/components/schemas/Quantity"
+        valueRange:
+          $ref: "#/components/schemas/Range"
+        valueRatio:
+          $ref: "#/components/schemas/Ratio"
+        valueReference:
+          type: object
+          additionalProperties: true
+          description: Type Reference
+        valueSampledData:
+          $ref: "#/components/schemas/SampledData"
+        valueTiming:
+          $ref: "#/components/schemas/Timing"
+        valueParameterDefinition:
+          $ref: "#/components/schemas/ParameterDefinition"
+        valueMeta:
+          $ref: "#/components/schemas/Meta"
+        resource:
+          type: object
+          additionalProperties: true
+          description: Type Resource
+        part:
+          type: array
+          items:
+            $ref: "#/components/schemas/ParametersParameter"
+      additionalProperties: true
+      required:
+        - name
+    Patient:
+      type: object
+      properties:
+        resourceType:
+          type: object
+          additionalProperties: true
+          description: "Type 'Patient'"
+        id:
+          type: string
+        meta:
+          $ref: "#/components/schemas/Meta"
+        implicitRules:
+          type: string
+        language:
+          type: string
+        text:
+          $ref: "#/components/schemas/Narrative"
+        contained:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Type Resource
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        identifier:
+          type: array
+          items:
+            $ref: "#/components/schemas/Identifier"
+        active:
+          type: boolean
+        name:
+          type: array
+          items:
+            $ref: "#/components/schemas/HumanName"
+        gender:
+          type: object
+          additionalProperties: true
+          description: "Type 'male' | 'female' | 'other' | 'unknown'"
+        birthDate:
+          type: string
+        photo:
+          type: array
+          items:
+            $ref: "#/components/schemas/Attachment"
+        animal:
+          $ref: "#/components/schemas/PatientAnimal"
+      additionalProperties: true
+      required:
+        - resourceType
+    PatientAnimal:
+      type: object
+      properties:
+        species:
+          $ref: "#/components/schemas/CodeableConcept"
+        breed:
+          $ref: "#/components/schemas/CodeableConcept"
+        genderStatus:
+          $ref: "#/components/schemas/CodeableConcept"
+      additionalProperties: true
+    Period:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        start:
+          type: string
+        end:
+          type: string
+      additionalProperties: true
+    Practitioner:
+      type: object
+      properties:
+        resourceType:
+          type: object
+          additionalProperties: true
+          description: "Type 'Practitioner'"
+        id:
+          type: string
+        meta:
+          $ref: "#/components/schemas/Meta"
+        implicitRules:
+          type: string
+        language:
+          type: string
+        text:
+          $ref: "#/components/schemas/Narrative"
+        contained:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Type Resource
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        identifier:
+          type: array
+          items:
+            $ref: "#/components/schemas/Identifier"
+        active:
+          type: boolean
+        name:
+          type: array
+          items:
+            $ref: "#/components/schemas/HumanName"
+        telecom:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContactPoint"
+        address:
+          type: array
+          items:
+            $ref: "#/components/schemas/PractitionerAddress"
+        gender:
+          type: object
+          additionalProperties: true
+          description: "Type 'male' | 'female' | 'other' | 'unknown'"
+        birthDate:
+          type: string
+        photo:
+          type: array
+          items:
+            $ref: "#/components/schemas/Attachment"
+        qualification:
+          type: array
+          items:
+            $ref: "#/components/schemas/PractitionerQualification"
+        communication:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeableConcept"
+      additionalProperties: true
+      required:
+        - resourceType
+    PractitionerAddress:
+      type: object
+      properties:
+        use:
+          type: object
+          additionalProperties: true
+          description: "Type 'home' | 'work' | 'temp' | 'old' | 'billing'"
+        type:
+          type: object
+          additionalProperties: true
+          description: "Type 'postal' | 'physical' | 'both'"
+        text:
+          type: string
+        line:
+          type: array
+          items:
+            type: string
+        city:
+          type: string
+        district:
+          type: string
+        state:
+          type: string
+        postalCode:
+          type: string
+        country:
+          type: string
+        period:
+          $ref: "#/components/schemas/Period"
+      additionalProperties: true
+    PractitionerQualification:
+      type: object
+      properties:
+        identifier:
+          type: array
+          items:
+            $ref: "#/components/schemas/Identifier"
+        code:
+          $ref: "#/components/schemas/CodeableConcept"
+        period:
+          $ref: "#/components/schemas/Period"
+        issuer:
+          type: object
+          additionalProperties: true
+          description: "Type {"
+        display:
+          type: string
+        reference:
+          type: string
+      additionalProperties: true
+      required:
+        - code
+    PractitionerRole:
+      type: object
+      properties:
+        resourceType:
+          type: object
+          additionalProperties: true
+          description: "Type 'PractitionerRole'"
+        id:
+          type: string
+        meta:
+          $ref: "#/components/schemas/Meta"
+        implicitRules:
+          type: string
+        language:
+          type: string
+        text:
+          $ref: "#/components/schemas/Narrative"
+        contained:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Type Resource
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        identifier:
+          type: array
+          items:
+            $ref: "#/components/schemas/Identifier"
+        active:
+          type: boolean
+        period:
+          $ref: "#/components/schemas/Period"
+        practitioner:
+          type: object
+          additionalProperties: true
+          description: "Type Reference<Practitioner>"
+        organization:
+          type: object
+          additionalProperties: true
+          description: "Type Reference<Organization>"
+        code:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeableConcept"
+        specialty:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeableConcept"
+        location:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: "Type Reference<Location>"
+        healthcareService:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: "Type Reference<HealthcareService>"
+        telecom:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContactPoint"
+        availableTime:
+          type: array
+          items:
+            $ref: "#/components/schemas/PractitionerRoleAvailableTime"
+        notAvailable:
+          type: array
+          items:
+            $ref: "#/components/schemas/PractitionerRoleNotAvailable"
+        endpoint:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: "Type Reference<Endpoint>"
+      additionalProperties: true
+      required:
+        - resourceType
+    PractitionerRoleAvailableTime:
+      type: object
+      properties:
+        daysOfWeek:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: "Type ('mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun')"
+        allDay:
+          type: boolean
+        availableStartTime:
+          type: string
+        availableEndTime:
+          type: string
+      additionalProperties: true
+    PractitionerRoleNotAvailable:
+      type: object
+      properties:
+        description:
+          type: string
+        during:
+          $ref: "#/components/schemas/Period"
+      additionalProperties: true
+    Quantity:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        value:
+          type: number
+        comparator:
+          type: object
+          additionalProperties: true
+          description: "Type '<' | '<=' | '>=' | '>'"
+        unit:
+          type: string
+        system:
+          type: string
+        code:
+          type: string
+      additionalProperties: true
+    Questionnaire:
+      type: object
+      properties:
+        resourceType:
+          type: string
+          enum:
+            - Questionnaire
+        id:
+          type: string
+        meta:
+          $ref: "#/components/schemas/Meta"
+        implicitRules:
+          type: string
+        language:
+          type: string
+        text:
+          $ref: "#/components/schemas/Narrative"
+        contained:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Type Resource
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        url:
+          type: string
+        identifier:
+          type: array
+          items:
+            $ref: "#/components/schemas/Identifier"
+        version:
+          type: string
+        name:
+          type: string
+        title:
+          type: string
+        derivedFrom:
+          type: array
+          items:
+            type: string
+        status:
+          type: object
+          additionalProperties: true
+          description: Type QuestionnaireStatus
+        experimental:
+          type: boolean
+        subjectType:
+          type: array
+          items:
+            type: string
+        date:
+          type: string
+        publisher:
+          type: string
+        contact:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContactDetail"
+        description:
+          type: string
+        useContext:
+          type: array
+          items:
+            $ref: "#/components/schemas/UsageContext"
+        jurisdiction:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeableConcept"
+        purpose:
+          type: string
+        copyright:
+          type: string
+        approvalDate:
+          type: string
+        lastReviewDate:
+          type: string
+        effectivePeriod:
+          $ref: "#/components/schemas/Period"
+        code:
+          type: array
+          items:
+            $ref: "#/components/schemas/Coding"
+        item:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuestionnaireItem"
+      additionalProperties: true
+      required:
+        - resourceType
+        - status
+    QuestionnaireItem:
+      type: object
+      properties:
+        linkId:
+          type: string
+        definition:
+          type: string
+        code:
+          type: array
+          items:
+            $ref: "#/components/schemas/Coding"
+        prefix:
+          type: string
+        text:
+          type: string
+        type:
+          type: object
+          additionalProperties: true
+          description: Type QuestionnaireItemType
+        enableWhen:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuestionnaireItemEnableWhen"
+        enableBehavior:
+          type: string
+          enum:
+            - all
+            - any
+        required:
+          type: boolean
+        repeats:
+          type: boolean
+        readOnly:
+          type: boolean
+        maxLength:
+          type: number
+        answerValueSet:
+          type: string
+        answerOption:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuestionnaireItemAnswerOption"
+        initial:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuestionnaireItemInitial"
+        item:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuestionnaireItem"
+      additionalProperties: true
+      required:
+        - linkId
+        - type
+    QuestionnaireItemEnableWhen:
+      type: object
+      properties:
+        question:
+          type: string
+        operator:
+          type: object
+          additionalProperties: true
+          description: Type QuestionnaireEnableOperator
+        answerBoolean:
+          type: boolean
+        answerDecimal:
+          type: number
+        answerInteger:
+          type: number
+        answerDate:
+          type: string
+        answerDateTime:
+          type: string
+        answerTime:
+          type: string
+        answerString:
+          type: string
+        answerCoding:
+          $ref: "#/components/schemas/Coding"
+        answerQuantity:
+          $ref: "#/components/schemas/Quantity"
+        answerReference:
+          type: object
+          additionalProperties: true
+          description: Type Reference
+      additionalProperties: true
+      required:
+        - question
+        - operator
+    QuestionnaireItemAnswerOption:
+      type: object
+      properties:
+        valueInteger:
+          type: number
+        valueDate:
+          type: string
+        valueTime:
+          type: string
+        valueString:
+          type: string
+        valueCoding:
+          $ref: "#/components/schemas/Coding"
+        valueReference:
+          type: object
+          additionalProperties: true
+          description: Type Reference
+        valueQuantity:
+          $ref: "#/components/schemas/Quantity"
+        initialSelected:
+          type: boolean
+      additionalProperties: true
+    QuestionnaireItemInitial:
+      type: object
+      properties:
+        valueBoolean:
+          type: boolean
+        valueDecimal:
+          type: number
+        valueInteger:
+          type: number
+        valueDate:
+          type: string
+        valueDateTime:
+          type: string
+        valueTime:
+          type: string
+        valueString:
+          type: string
+        valueUri:
+          type: string
+        valueAttachment:
+          $ref: "#/components/schemas/Attachment"
+        valueCoding:
+          $ref: "#/components/schemas/Coding"
+        valueQuantity:
+          $ref: "#/components/schemas/Quantity"
+        valueReference:
+          type: object
+          additionalProperties: true
+          description: Type Reference
+      additionalProperties: true
+    QuestionnaireResponse:
+      type: object
+      properties:
+        resourceType:
+          type: string
+          enum:
+            - QuestionnaireResponse
+        id:
+          type: string
+        meta:
+          $ref: "#/components/schemas/Meta"
+        implicitRules:
+          type: string
+        language:
+          type: string
+        text:
+          $ref: "#/components/schemas/Narrative"
+        contained:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Type Resource
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        identifier:
+          $ref: "#/components/schemas/Identifier"
+        basedOn:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Type Reference
+        parent:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Type Reference
+        questionnaire:
+          type: string
+        status:
+          type: object
+          additionalProperties: true
+          description: Type QuestionnaireResponseStatus
+        subject:
+          type: object
+          additionalProperties: true
+          description: Type Reference
+        encounter:
+          type: object
+          additionalProperties: true
+          description: Type Reference
+        authored:
+          type: string
+        author:
+          type: object
+          additionalProperties: true
+          description: Type Reference
+        source:
+          type: object
+          additionalProperties: true
+          description: Type Reference
+        item:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuestionnaireResponseItem"
+      additionalProperties: true
+      required:
+        - resourceType
+        - status
+    QuestionnaireResponseItem:
+      type: object
+      properties:
+        linkId:
+          type: string
+        definition:
+          type: string
+        text:
+          type: string
+        answer:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuestionnaireResponseItemAnswer"
+        item:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuestionnaireResponseItem"
+      additionalProperties: true
+      required:
+        - linkId
+    QuestionnaireResponseItemAnswer:
+      type: object
+      properties:
+        valueBoolean:
+          type: boolean
+        valueDecimal:
+          type: number
+        valueInteger:
+          type: number
+        valueDate:
+          type: string
+        valueDateTime:
+          type: string
+        valueTime:
+          type: string
+        valueString:
+          type: string
+        valueUri:
+          type: string
+        valueAttachment:
+          $ref: "#/components/schemas/Attachment"
+        valueCoding:
+          type: object
+          additionalProperties: true
+          description: "Type {"
+        system:
+          type: string
+        code:
+          type: string
+        display:
+          type: string
+        valueQuantity:
+          type: object
+          additionalProperties: true
+          description: "Type {"
+        value:
+          type: number
+        unit:
+          type: string
+        valueReference:
+          type: object
+          additionalProperties: true
+          description: Type Reference
+        item:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuestionnaireResponseItem"
+      additionalProperties: true
+    Range:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        low:
+          $ref: "#/components/schemas/Quantity"
+        high:
+          $ref: "#/components/schemas/Quantity"
+      additionalProperties: true
+    Ratio:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        numerator:
+          $ref: "#/components/schemas/Quantity"
+        denominator:
+          $ref: "#/components/schemas/Quantity"
+      additionalProperties: true
+    RelatedPerson:
+      type: object
+      properties:
+        resourceType:
+          type: object
+          additionalProperties: true
+          description: "Type 'RelatedPerson'"
+        id:
+          type: string
+        meta:
+          $ref: "#/components/schemas/Meta"
+        implicitRules:
+          type: string
+        language:
+          type: string
+        text:
+          $ref: "#/components/schemas/Narrative"
+        contained:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Type Resource
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        identifier:
+          type: array
+          items:
+            $ref: "#/components/schemas/Identifier"
+        active:
+          type: boolean
+        relationship:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeableConcept"
+        name:
+          type: array
+          items:
+            $ref: "#/components/schemas/HumanName"
+        telecom:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContactPoint"
+        gender:
+          type: object
+          additionalProperties: true
+          description: "Type 'male' | 'female' | 'other' | 'unknown'"
+        birthDate:
+          type: string
+        address:
+          type: array
+          items:
+            $ref: "#/components/schemas/Address"
+        photo:
+          type: array
+          items:
+            $ref: "#/components/schemas/Attachment"
+        period:
+          $ref: "#/components/schemas/Period"
+        communication:
+          type: array
+          items:
+            $ref: "#/components/schemas/RelatedPersonCommunication"
+      additionalProperties: true
+      required:
+        - resourceType
+    RelatedPersonCommunication:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        language:
+          $ref: "#/components/schemas/CodeableConcept"
+        preferred:
+          type: boolean
+      additionalProperties: true
+      required:
+        - language
+    SampledData:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        origin:
+          $ref: "#/components/schemas/Quantity"
+        period:
+          type: number
+        factor:
+          type: number
+        lowerLimit:
+          type: number
+        upperLimit:
+          type: number
+        dimensions:
+          type: number
+        data:
+          type: string
+      additionalProperties: true
+      required:
+        - origin
+        - period
+        - dimensions
+    SearchParameter:
+      type: object
+      properties:
+        resourceType:
+          type: object
+          additionalProperties: true
+          description: "Type 'SearchParameter'"
+        id:
+          type: string
+        meta:
+          $ref: "#/components/schemas/Meta"
+        implicitRules:
+          type: string
+        language:
+          type: string
+        text:
+          $ref: "#/components/schemas/Narrative"
+        contained:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Type Resource
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        url:
+          type: string
+        version:
+          type: string
+        name:
+          type: string
+        derivedFrom:
+          type: string
+        status:
+          type: object
+          additionalProperties: true
+          description: "Type 'draft' | 'active' | 'retired' | 'unknown'"
+        experimental:
+          type: boolean
+        date:
+          type: string
+        publisher:
+          type: string
+        contact:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContactDetail"
+        description:
+          type: string
+        jurisdiction:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeableConcept"
+        purpose:
+          type: string
+        code:
+          type: string
+        base:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Type ResourceType
+        type:
+          type: object
+          additionalProperties: true
+          description: "Type 'number' | 'date' | 'string' | 'token' | 'reference' | 'composite' | 'quantity' | 'uri' | 'special'"
+        expression:
+          type: string
+        xpath:
+          type: string
+        xpathUsage:
+          type: object
+          additionalProperties: true
+          description: "Type 'normal' | 'phonetic' | 'nearby' | 'distance' | 'other'"
+        target:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Type ResourceType
+        multipleOr:
+          type: boolean
+        multipleAnd:
+          type: boolean
+        comparator:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: "Type ('eq' | 'ne' | 'gt' | 'lt' | 'ge' | 'le' | 'sa' | 'eb' | 'ap')"
+        modifier:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: "Type ('missing' | 'exact' | 'contains' | 'not' | 'text' | 'in' | 'not-in' | 'below' | 'above' | 'type' | 'identifier' | 'ofType')"
+        chain:
+          type: array
+          items:
+            type: string
+        component:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchParameterComponent"
+      additionalProperties: true
+      required:
+        - resourceType
+        - url
+        - name
+        - status
+        - description
+        - code
+        - base
+        - type
+    SearchParameterComponent:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        definition:
+          type: string
+        expression:
+          type: string
+      additionalProperties: true
+      required:
+        - definition
+        - expression
+    SimpleQuantity:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        value:
+          type: number
+        unit:
+          type: string
+        system:
+          type: string
+        code:
+          type: string
+      additionalProperties: true
+    StructureDefinition:
+      type: object
+      properties:
+        resourceType:
+          type: object
+          additionalProperties: true
+          description: "Type 'StructureDefinition'"
+        id:
+          type: string
+        meta:
+          $ref: "#/components/schemas/Meta"
+        implicitRules:
+          type: string
+        language:
+          type: string
+        text:
+          $ref: "#/components/schemas/Narrative"
+        contained:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Type Resource
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        url:
+          type: string
+        identifier:
+          type: array
+          items:
+            $ref: "#/components/schemas/Identifier"
+        version:
+          type: string
+        name:
+          type: string
+        title:
+          type: string
+        status:
+          type: object
+          additionalProperties: true
+          description: "Type 'draft' | 'active' | 'retired' | 'unknown'"
+        experimental:
+          type: boolean
+        date:
+          type: string
+        publisher:
+          type: string
+        contact:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContactDetail"
+        description:
+          type: string
+        jurisdiction:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeableConcept"
+        purpose:
+          type: string
+        copyright:
+          type: string
+        keyword:
+          type: array
+          items:
+            $ref: "#/components/schemas/Coding"
+        fhirVersion:
+          type: object
+          additionalProperties: true
+          description: "Type '0.01' | '0.05' | '0.06' | '0.11' | '0.0.80' | '0.0.81' | '0.0.82' | '0.4.0' | '0.5.0' | '1.0.0' |"
+        mapping:
+          type: array
+          items:
+            $ref: "#/components/schemas/StructureDefinitionMapping"
+        kind:
+          type: object
+          additionalProperties: true
+          description: "Type 'primitive-type' | 'complex-type' | 'resource' | 'logical'"
+        abstract:
+          type: boolean
+        context:
+          type: array
+          items:
+            $ref: "#/components/schemas/StructureDefinitionContext"
+        contextInvariant:
+          type: array
+          items:
+            type: string
+        type:
+          type: string
+        baseDefinition:
+          type: string
+        derivation:
+          type: object
+          additionalProperties: true
+          description: "Type 'specialization' | 'constraint'"
+        snapshot:
+          $ref: "#/components/schemas/StructureDefinitionSnapshot"
+        differential:
+          $ref: "#/components/schemas/StructureDefinitionDifferential"
+      additionalProperties: true
+      required:
+        - resourceType
+        - url
+        - name
+        - status
+        - kind
+        - abstract
+        - type
+    StructureDefinitionContext:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        type:
+          type: object
+          additionalProperties: true
+          description: "Type 'fhirpath' | 'element' | 'extension'"
+        expression:
+          type: string
+      additionalProperties: true
+      required:
+        - type
+        - expression
+    StructureDefinitionDifferential:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+      additionalProperties: true
+    StructureDefinitionMapping:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        identity:
+          type: string
+        uri:
+          type: string
+        name:
+          type: string
+        comment:
+          type: string
+      additionalProperties: true
+      required:
+        - identity
+    StructureDefinitionSnapshot:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+      additionalProperties: true
+    Timing:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        event:
+          type: array
+          items:
+            type: string
+        repeat:
+          $ref: "#/components/schemas/TimingRepeat"
+        code:
+          $ref: "#/components/schemas/CodeableConcept"
+      additionalProperties: true
+    TimingRepeat:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        boundsDuration:
+          $ref: "#/components/schemas/Duration"
+        boundsRange:
+          $ref: "#/components/schemas/Range"
+        boundsPeriod:
+          $ref: "#/components/schemas/Period"
+        count:
+          type: number
+        countMax:
+          type: number
+        duration:
+          type: number
+        durationMax:
+          type: number
+        durationUnit:
+          type: object
+          additionalProperties: true
+          description: "Type 's' | 'min' | 'h' | 'd' | 'wk' | 'mo' | 'a'"
+        frequency:
+          type: number
+        frequencyMax:
+          type: number
+        period:
+          type: number
+        periodMax:
+          type: number
+        periodUnit:
+          type: object
+          additionalProperties: true
+          description: "Type 's' | 'min' | 'h' | 'd' | 'wk' | 'mo' | 'a'"
+        dayOfWeek:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: "Type ('mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun')"
+        timeOfDay:
+          type: array
+          items:
+            type: string
+        when:
+          type: object
+          additionalProperties: true
+          description: "Type ('MORN' | 'MORN.early' | 'MORN.late' | 'NOON' | 'AFT' | 'AFT.early' | 'AFT.late' | 'EVE' | 'EVE.early' |"
+        offset:
+          type: number
+      additionalProperties: true
+    UsageContext:
+      type: object
+      properties:
+        code:
+          $ref: "#/components/schemas/Coding"
+        valueCodeableConcept:
+          $ref: "#/components/schemas/CodeableConcept"
+        valueQuantity:
+          $ref: "#/components/schemas/Quantity"
+        valueRange:
+          $ref: "#/components/schemas/Range"
+        valueReference:
+          type: object
+          additionalProperties: true
+          description: Type Reference
+      additionalProperties: true
+      required:
+        - code
+    ValueSet:
+      type: object
+      properties:
+        resourceType:
+          type: string
+          enum:
+            - ValueSet
+        id:
+          type: string
+        implicitRules:
+          type: string
+        language:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        url:
+          type: string
+        identifier:
+          type: array
+          items:
+            $ref: "#/components/schemas/Identifier"
+        version:
+          type: string
+        name:
+          type: string
+        title:
+          type: string
+        status:
+          type: string
+          enum:
+            - draft
+            - active
+            - retired
+            - unknown
+        experimental:
+          type: boolean
+        date:
+          type: string
+        publisher:
+          type: string
+        description:
+          type: string
+        jurisdiction:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeableConcept"
+        immutable:
+          type: boolean
+        purpose:
+          type: string
+        copyright:
+          type: string
+        compose:
+          $ref: "#/components/schemas/ValueSetCompose"
+        expansion:
+          $ref: "#/components/schemas/ValueSetExpansion"
+      additionalProperties: true
+      required:
+        - resourceType
+        - status
+    ValueSetCompose:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        lockedDate:
+          type: string
+        inactive:
+          type: boolean
+        include:
+          type: array
+          items:
+            $ref: "#/components/schemas/ValueSetComposeInclude"
+        exclude:
+          type: array
+          items:
+            $ref: "#/components/schemas/ValueSetComposeInclude"
+      additionalProperties: true
+      required:
+        - include
+    ValueSetComposeInclude:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        system:
+          type: string
+        version:
+          type: string
+        concept:
+          type: array
+          items:
+            $ref: "#/components/schemas/ValueSetComposeIncludeConcept"
+        filter:
+          type: array
+          items:
+            $ref: "#/components/schemas/ValueSetComposeIncludeFilter"
+        valueSet:
+          type: array
+          items:
+            type: string
+      additionalProperties: true
+    ValueSetComposeIncludeConcept:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        code:
+          type: string
+        display:
+          type: string
+        designation:
+          type: array
+          items:
+            $ref: "#/components/schemas/ValueSetComposeIncludeConceptDesignation"
+      additionalProperties: true
+      required:
+        - code
+    ValueSetComposeIncludeConceptDesignation:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        language:
+          type: string
+        use:
+          $ref: "#/components/schemas/Coding"
+        value:
+          type: string
+      additionalProperties: true
+      required:
+        - value
+    ValueSetComposeIncludeFilter:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        property:
+          type: string
+        value:
+          type: string
+      additionalProperties: true
+      required:
+        - property
+        - value
+    ValueSetExpansion:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        identifier:
+          type: string
+        timestamp:
+          type: string
+        total:
+          type: number
+        offset:
+          type: number
+        parameter:
+          type: array
+          items:
+            $ref: "#/components/schemas/ValueSetExpansionParameter"
+        contains:
+          type: array
+          items:
+            $ref: "#/components/schemas/ValueSetExpansionContains"
+      additionalProperties: true
+      required:
+        - timestamp
+    ValueSetExpansionContains:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        system:
+          type: string
+        abstract:
+          type: boolean
+        inactive:
+          type: boolean
+        version:
+          type: string
+        code:
+          type: string
+        display:
+          type: string
+        designation:
+          type: array
+          items:
+            $ref: "#/components/schemas/ValueSetComposeIncludeConceptDesignation"
+        contains:
+          type: array
+          items:
+            $ref: "#/components/schemas/ValueSetExpansionContains"
+      additionalProperties: true
+    ValueSetExpansionParameter:
+      type: object
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        modifierExtension:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        name:
+          type: string
+        valueString:
+          type: string
+        valueBoolean:
+          type: boolean
+        valueInteger:
+          type: number
+        valueDecimal:
+          type: number
+        valueUri:
+          type: string
+        valueCode:
+          type: string
+        valueDateTime:
+          type: string
+      additionalProperties: true
+      required:
+        - name
     RatingRequestBody:
       type: object
       properties:
@@ -9071,6 +13360,9 @@ components:
           type: number
         review:
           type: string
+      additionalProperties: true
+      required:
+        - rating
     SendInviteBody:
       type: object
       properties:
@@ -9080,11 +13372,13 @@ components:
           type: string
         inviteeName:
           type: string
+      additionalProperties: true
     TokenBody:
       type: object
       properties:
         token:
           type: string
+      additionalProperties: true
     AccountWithdrawalBody:
       type: object
       properties:
@@ -9100,6 +13394,11 @@ components:
           type: string
         checkboxConfirmed:
           type: boolean
+      additionalProperties: true
+      required:
+        - fullName
+        - email
+        - checkboxConfirmed
     ListContactQuery:
       type: object
       properties:
@@ -9113,6 +13412,7 @@ components:
           description: Type ContactType
         organisationId:
           type: string
+      additionalProperties: true
     UpdateContactStatusBody:
       type: object
       properties:
@@ -9120,12 +13420,41 @@ components:
           type: object
           additionalProperties: true
           description: Type ContactStatus
+      additionalProperties: true
+      required:
+        - status
+    RegisterDeviceTokenBody:
+      type: object
+      properties:
+        userId:
+          type: string
+        deviceToken:
+          type: string
+        platform:
+          type: string
+          enum:
+            - ios
+            - android
+      additionalProperties: true
+      required:
+        - userId
+        - deviceToken
+        - platform
+    UnregisterDeviceTokenBody:
+      type: object
+      properties:
+        deviceToken:
+          type: string
+      additionalProperties: true
+      required:
+        - deviceToken
     AddChargesBody:
       type: object
       properties:
         items:
           type: object
           additionalProperties: true
+      additionalProperties: true
     LinkPayload:
       type: object
       properties:
@@ -9137,6 +13466,11 @@ components:
           type: object
           additionalProperties: true
           description: Type OrganisationType
+      additionalProperties: true
+      required:
+        - companionId
+        - organisationId
+        - organisationType
     InvitePayload:
       type: object
       properties:
@@ -9155,6 +13489,10 @@ components:
           type: object
           additionalProperties: true
           description: Type OrganisationType
+      additionalProperties: true
+      required:
+        - companionId
+        - organisationType
     InviteResolutionPayload:
       type: object
       properties:
@@ -9162,11 +13500,16 @@ components:
           type: string
         organisationId:
           type: string
+      additionalProperties: true
+      required:
+        - token
+        - organisationId
     UploadUrlBody:
       type: object
       properties:
         companionId:
           type: string
+      additionalProperties: true
     DocumentRequestBody:
       type: object
       properties:
@@ -9197,6 +13540,7 @@ components:
           additionalProperties: true
           description: "Type string | Date"
           nullable: true
+      additionalProperties: true
     UpdateDocumentParams:
       type: object
       properties:
@@ -9204,6 +13548,7 @@ components:
           type: string
         documentId:
           type: string
+      additionalProperties: true
     ListDocumentsQuery:
       type: object
       properties:
@@ -9211,11 +13556,13 @@ components:
           type: string
         subcategory:
           type: string
+      additionalProperties: true
     SignedDownloadUrlBody:
       type: object
       properties:
         key:
           type: string
+      additionalProperties: true
     ChangeStatusRequestBody:
       type: object
       properties:
@@ -9227,6 +13574,7 @@ components:
           type: object
           additionalProperties: true
           description: Type CompleteTaskInput
+      additionalProperties: true
     RescheduleRequestBody:
       type: object
       properties:
@@ -9242,11 +13590,16 @@ components:
           type: string
         isEmergency:
           type: boolean
+      additionalProperties: true
+      required:
+        - startTime
+        - endTime
     CancelBody:
       type: object
       properties:
         reason:
           type: string
+      additionalProperties: true
     AttachFormsBody:
       type: object
       properties:
@@ -9254,6 +13607,7 @@ components:
           type: array
           items:
             type: string
+      additionalProperties: true
     BookableSlotsPayload:
       type: object
       properties:
@@ -9263,6 +13617,11 @@ components:
           type: string
         date:
           type: string
+      additionalProperties: true
+      required:
+        - serviceId
+        - organisationId
+        - date
     DocumensoWebhookBody:
       type: object
       properties:
@@ -9276,6 +13635,7 @@ components:
           type: object
           additionalProperties: true
           description: "Type string | number"
+      additionalProperties: true
     NormalizedOccupancy:
       type: object
       properties:
@@ -9291,6 +13651,11 @@ components:
           description: "Type OccupancyMongo[\"sourceType\"]"
         referenceId:
           type: string
+      additionalProperties: true
+      required:
+        - startTime
+        - endTime
+        - sourceType
     DocumentQuery:
       type: object
       properties:
@@ -9299,9 +13664,12 @@ components:
           additionalProperties: true
           description: Type OrgDocumentCategory
         visibility:
-          type: object
-          additionalProperties: true
-          description: "Type \"INTERNAL\" | \"PUBLIC\" | \"ALL\""
+          type: string
+          enum:
+            - INTERNAL
+            - PUBLIC
+            - ALL
+      additionalProperties: true
     PublicDocumentQuery:
       type: object
       properties:
@@ -9309,6 +13677,7 @@ components:
           type: string
         visibility:
           type: string
+      additionalProperties: true
     ListItemsQuery:
       type: object
       properties:
@@ -9328,101 +13697,16 @@ components:
           type: string
         expiringWithinDays:
           type: string
+      additionalProperties: true
     ExpiringItemsQuery:
       type: object
       properties:
         days:
           type: string
+      additionalProperties: true
     ListMetaFieldsQuery:
       type: object
       properties:
         businessType:
           type: string
-    AdverseEventReport:
-      type: object
       additionalProperties: true
-      description: AdverseEventReport (external or complex type)
-    AppointmentRequestDTO:
-      type: object
-      additionalProperties: true
-      description: AppointmentRequestDTO (external or complex type)
-    Buffer:
-      type: object
-      additionalProperties: true
-      description: Buffer (external or complex type)
-    BulkConsumeStockInput:
-      type: object
-      additionalProperties: true
-      description: BulkConsumeStockInput (external or complex type)
-    ConsumeStockInput:
-      type: object
-      additionalProperties: true
-      description: ConsumeStockInput (external or complex type)
-    CreateCustomTaskInput:
-      type: object
-      additionalProperties: true
-      description: CreateCustomTaskInput (external or complex type)
-    CreateCustomTaskRequestBody:
-      type: object
-      additionalProperties: true
-      description: CreateCustomTaskRequestBody (external or complex type)
-    CreateFromLibraryRequestBody:
-      type: object
-      additionalProperties: true
-      description: CreateFromLibraryRequestBody (external or complex type)
-    CreateFromTemplateRequestBody:
-      type: object
-      additionalProperties: true
-      description: CreateFromTemplateRequestBody (external or complex type)
-    CreateInventoryItemInput:
-      type: object
-      additionalProperties: true
-      description: CreateInventoryItemInput (external or complex type)
-    CreateOrgDocumentBody:
-      type: object
-      additionalProperties: true
-      description: CreateOrgDocumentBody (external or complex type)
-    InventoryBatchInput:
-      type: object
-      additionalProperties: true
-      description: InventoryBatchInput (external or complex type)
-    "Partial<DocumentRequestBody":
-      type: object
-      additionalProperties: true
-      description: "Partial<DocumentRequestBody (external or complex type)"
-    "Partial<InventoryBatchInput":
-      type: object
-      additionalProperties: true
-      description: "Partial<InventoryBatchInput (external or complex type)"
-    TaskUpdateInput:
-      type: object
-      additionalProperties: true
-      description: TaskUpdateInput (external or complex type)
-    UpdateInventoryItemInput:
-      type: object
-      additionalProperties: true
-      description: UpdateInventoryItemInput (external or complex type)
-    UpdateOrgDocumentBody:
-      type: object
-      additionalProperties: true
-      description: UpdateOrgDocumentBody (external or complex type)
-    UpsertPolicyBody:
-      type: object
-      additionalProperties: true
-      description: UpsertPolicyBody (external or complex type)
-    unknown:
-      type: object
-      additionalProperties: true
-      description: unknown (external or complex type)
-    "{ newOnHand: number; reason: string }":
-      type: object
-      additionalProperties: true
-      description: "{ newOnHand: number; reason: string } (external or complex type)"
-    "{ quantity: number; referenceId: string }":
-      type: object
-      additionalProperties: true
-      description: "{ quantity: number; referenceId: string } (external or complex type)"
-    "{ status: AdverseEventStatus }":
-      type: object
-      additionalProperties: true
-      description: "{ status: AdverseEventStatus } (external or complex type)"
