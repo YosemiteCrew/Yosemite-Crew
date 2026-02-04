@@ -311,7 +311,8 @@ export const DocumentController = {
       }
 
       const { companionId } = req.params;
-      const { category, subcategory, appointmentId } = req.query;
+      const { category, subcategory, appointmentId } =
+        (req.body as Record<string, unknown>) ?? {};
 
       if (!companionId) {
         return res.status(400).json({ message: "Companion ID is required." });

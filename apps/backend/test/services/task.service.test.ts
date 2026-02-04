@@ -38,6 +38,9 @@ const mockDoc = (data: any) => ({
 
 describe('TaskService', () => {
   const mockDate = new Date('2025-01-01T12:00:00Z');
+  const libraryTaskId = '507f1f77bcf86cd799439011';
+  const templateId = '507f1f77bcf86cd799439012';
+  const otherTemplateId = '507f1f77bcf86cd799439013';
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -134,12 +137,12 @@ describe('TaskService', () => {
 
   describe('createFromLibrary', () => {
     it('should create task from library definition', async () => {
-      const libraryTask = { _id: 'lib1', isActive: true, category: 'Cat', name: 'LibName', defaultDescription: 'Desc' };
+      const libraryTask = { _id: libraryTaskId, isActive: true, category: 'Cat', name: 'LibName', defaultDescription: 'Desc' };
       (TaskLibraryDefinitionModel.findById as jest.Mock).mockReturnValue({ exec: jest.fn().mockResolvedValue(libraryTask) });
       (TaskModel.create as jest.Mock).mockResolvedValue(mockDoc({ name: 'LibName' }));
 
       await TaskService.createFromLibrary({
-        libraryTaskId: 'lib1',
+        libraryTaskId,
         createdBy: 'u1',
         assignedTo: 'u2',
         dueAt: mockDate,
@@ -156,20 +159,20 @@ describe('TaskService', () => {
 
     it('should throw 404 if library task not found or inactive', async () => {
       (TaskLibraryDefinitionModel.findById as jest.Mock).mockReturnValue({ exec: jest.fn().mockResolvedValue(null) });
-      await expect(TaskService.createFromLibrary({ libraryTaskId: 'lib1' } as any)).rejects.toThrow('Library task not found');
+      await expect(TaskService.createFromLibrary({ libraryTaskId } as any)).rejects.toThrow('Library task not found');
     });
 
     it('should validate companion requirement for PARENT_TASK', async () => {
       (TaskLibraryDefinitionModel.findById as jest.Mock).mockReturnValue({ exec: jest.fn().mockResolvedValue({ isActive: true }) });
       await expect(TaskService.createFromLibrary({
-        libraryTaskId: 'lib1', audience: 'PARENT_TASK', companionId: undefined
+        libraryTaskId, audience: 'PARENT_TASK', companionId: undefined
       } as any)).rejects.toThrow('companionId is required');
     });
   });
 
   describe('createFromTemplate', () => {
     const validTemplate = {
-      _id: 'templ1', isActive: true, organisationId: 'org1',
+      _id: templateId, isActive: true, organisationId: 'org1',
       defaultRole: 'EMPLOYEE',
       defaultRecurrence: { type: 'DAILY', defaultEndOffsetDays: 7 },
       defaultReminderOffsetMinutes: 15
@@ -180,7 +183,7 @@ describe('TaskService', () => {
       (TaskModel.create as jest.Mock).mockResolvedValue(mockDoc({}));
 
       await TaskService.createFromTemplate({
-        templateId: 'templ1', organisationId: 'org1',
+        templateId, organisationId: 'org1',
         createdBy: 'u1', assignedTo: 'u1', dueAt: mockDate
       });
 
@@ -194,13 +197,13 @@ describe('TaskService', () => {
     it('should throw if template org mismatch', async () => {
       (TaskTemplateModel.findById as jest.Mock).mockReturnValue({ exec: jest.fn().mockResolvedValue(validTemplate) });
       await expect(TaskService.createFromTemplate({
-        templateId: 'templ1', organisationId: 'org2' // Mismatch
+        templateId, organisationId: 'org2' // Mismatch
       } as any)).rejects.toThrow('Template does not belong to organisation');
     });
 
     it('should throw 404 if template not found', async () => {
         (TaskTemplateModel.findById as jest.Mock).mockReturnValue({ exec: jest.fn().mockResolvedValue(null) });
-        await expect(TaskService.createFromTemplate({ templateId: 't1' } as any)).rejects.toThrow('not found');
+        await expect(TaskService.createFromTemplate({ templateId: otherTemplateId } as any)).rejects.toThrow('not found');
     });
   });
 

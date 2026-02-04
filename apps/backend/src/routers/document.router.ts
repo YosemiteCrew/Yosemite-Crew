@@ -33,7 +33,7 @@ router.patch(
   DocumentController.updateDocument,
 );
 
-router.get(
+router.post(
   "/mobile/appointments/:appointmentId",
   authorizeCognitoMobile,
   DocumentController.listForAppointment,
@@ -86,7 +86,7 @@ router.post(
 );
 
 // List documents for companion (PMS)
-router.get(
+router.post(
   "/pms/:companionId",
   authorizeCognito,
   withOrgPermissions(),
@@ -131,7 +131,7 @@ router.post(
 );
 
 // List documents for appointment (PMS)
-router.get(
+router.post(
   "/pms/appointments/:appointmentId",
   authorizeCognito,
   withOrgPermissions(),

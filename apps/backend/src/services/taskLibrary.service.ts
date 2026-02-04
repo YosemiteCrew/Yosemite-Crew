@@ -34,6 +34,26 @@ const sanitizeSpecies = (value: unknown): Species | undefined =>
     ? (value as Species)
     : undefined;
 
+const sanitizeTaskName = (value: unknown, field = "name"): string => {
+  if (typeof value !== "string") {
+    throw new TaskLibraryServiceError(`Invalid ${field}`, 400);
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw new TaskLibraryServiceError(`Invalid ${field}`, 400);
+  }
+
+  if (/[.$]/.test(trimmed)) {
+    throw new TaskLibraryServiceError(
+      `${field} contains invalid characters`,
+      400,
+    );
+  }
+
+  return trimmed;
+};
+
 const ensureObjectId = (value: unknown, field: string): string => {
   if (typeof value !== "string" || !Types.ObjectId.isValid(value)) {
     throw new TaskLibraryServiceError(`Invalid ${field}`, 400);
@@ -124,9 +144,11 @@ export const TaskLibraryService = {
 
     validateSchemaByKind(kind, input.schema);
 
+    const safeName = sanitizeTaskName(input.name);
+
     const existing = await TaskLibraryDefinitionModel.findOne({
       source: "YC_LIBRARY",
-      name: input.name,
+      name: safeName,
       kind,
     }).lean();
 
@@ -141,7 +163,7 @@ export const TaskLibraryService = {
       source: "YC_LIBRARY",
       kind,
       category: input.category,
-      name: input.name,
+      name: safeName,
       defaultDescription: input.defaultDescription,
       applicableSpecies: input.applicableSpecies,
       schema: {
@@ -218,7 +240,7 @@ export const TaskLibraryService = {
     }
 
     if (input.category !== undefined) doc.category = input.category;
-    if (input.name !== undefined) doc.name = input.name;
+    if (input.name !== undefined) doc.name = sanitizeTaskName(input.name);
     if (input.defaultDescription !== undefined) {
       doc.defaultDescription = input.defaultDescription;
     }

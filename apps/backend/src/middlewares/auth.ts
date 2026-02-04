@@ -182,8 +182,14 @@ const detectProvider = (
   const iss = decoded.iss;
   if (!iss) return null;
 
-  if (iss.includes("securetoken.google.com")) return "firebase";
-  else return "cognito";
+  try {
+    const issuer = new URL(iss);
+    if (issuer.host === "securetoken.google.com") return "firebase";
+  } catch {
+    return null;
+  }
+
+  return "cognito";
 };
 
 export interface CognitoJwtPayload extends JwtPayload {

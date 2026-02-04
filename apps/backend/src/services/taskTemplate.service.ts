@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import TaskTemplateModel, {
   TaskTemplateDocument,
 } from "../models/taskTemplate";
@@ -12,6 +13,26 @@ export class TaskTemplateServiceError extends Error {
     this.name = "TaskTemplateServiceError";
   }
 }
+
+const TASK_KINDS = new Set<TaskKind>([
+  "MEDICATION",
+  "OBSERVATION_TOOL",
+  "HYGIENE",
+  "DIET",
+  "CUSTOM",
+]);
+
+const sanitizeTaskKind = (value: unknown): TaskKind | undefined =>
+  typeof value === "string" && TASK_KINDS.has(value as TaskKind)
+    ? (value as TaskKind)
+    : undefined;
+
+const ensureObjectId = (value: unknown, field: string): string => {
+  if (typeof value !== "string" || !Types.ObjectId.isValid(value)) {
+    throw new TaskTemplateServiceError(`Invalid ${field}`, 400);
+  }
+  return value;
+};
 
 export interface CreateTaskTemplateInput {
   organisationId: string;
@@ -96,7 +117,8 @@ export const TaskTemplateService = {
     id: string,
     input: UpdateTaskTemplateInput,
   ): Promise<TaskTemplateDocument> {
-    const doc = await TaskTemplateModel.findById(id).exec();
+    const safeId = ensureObjectId(id, "id");
+    const doc = await TaskTemplateModel.findById(safeId).exec();
     if (!doc) {
       throw new TaskTemplateServiceError("Task template not found", 404);
     }
@@ -133,7 +155,8 @@ export const TaskTemplateService = {
   },
 
   async archive(id: string): Promise<void> {
-    const doc = await TaskTemplateModel.findById(id).exec();
+    const safeId = ensureObjectId(id, "id");
+    const doc = await TaskTemplateModel.findById(safeId).exec();
     if (!doc)
       throw new TaskTemplateServiceError("Task template not found", 404);
     doc.isActive = false;
@@ -141,17 +164,28 @@ export const TaskTemplateService = {
   },
 
   async listForOrganisation(organisationId: string, kind?: TaskKind) {
-    const filter: Record<string, unknown> = {
+    const safeOrganisationId = ensureObjectId(
       organisationId,
+      "organisationId",
+    );
+    const filter: Record<string, unknown> = {
+      organisationId: safeOrganisationId,
       isActive: true,
     };
-    if (kind) filter.kind = kind;
+    if (kind) {
+      const safeKind = sanitizeTaskKind(kind);
+      if (!safeKind) {
+        throw new TaskTemplateServiceError("Invalid kind", 400);
+      }
+      filter.kind = safeKind;
+    }
 
     return TaskTemplateModel.find(filter).sort({ category: 1, name: 1 }).exec();
   },
 
   async getById(id: string): Promise<TaskTemplateDocument> {
-    const doc = await TaskTemplateModel.findById(id).exec();
+    const safeId = ensureObjectId(id, "id");
+    const doc = await TaskTemplateModel.findById(safeId).exec();
     if (!doc)
       throw new TaskTemplateServiceError("Task template not found", 404);
     return doc;

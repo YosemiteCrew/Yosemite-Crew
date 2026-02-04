@@ -466,7 +466,7 @@ describe("FormController", () => {
   describe("getSOAPNotesByAppointment", () => {
     it("should success (200) with latestOnly true", async () => {
       req.params = { appointmentId: "a1" };
-      req.query = { latestOnly: "true" };
+      req.body = { latestOnly: "true" };
       mockedFormService.getSOAPNotesByAppointment.mockResolvedValue([] as any);
 
       await FormController.getSOAPNotesByAppointment(
@@ -482,7 +482,7 @@ describe("FormController", () => {
 
     it("should success (200) with latestOnly false", async () => {
       req.params = { appointmentId: "a1" };
-      req.query = { latestOnly: "false" };
+      req.body = { latestOnly: "false" };
       mockedFormService.getSOAPNotesByAppointment.mockResolvedValue([] as any);
 
       await FormController.getSOAPNotesByAppointment(
@@ -564,7 +564,7 @@ describe("FormController", () => {
 
     it("should success (200) with full params", async () => {
       req.params = { appointmentId: "a1" };
-      req.query = { serviceId: "s1", species: "cat" };
+      req.body = { serviceId: "s1", species: "cat" };
       mockedFormService.getFormsForAppointment.mockResolvedValue([] as any);
 
       await FormController.getFormsForAppointment(req as any, res as Response);
@@ -578,7 +578,7 @@ describe("FormController", () => {
 
     it("should success (200) with minimal params", async () => {
       req.params = { appointmentId: "a1" };
-      req.query = {};
+      req.body = {};
       mockedFormService.getFormsForAppointment.mockResolvedValue([] as any);
 
       await FormController.getFormsForAppointment(req as any, res as Response);
