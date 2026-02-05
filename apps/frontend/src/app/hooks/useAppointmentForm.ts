@@ -3,22 +3,22 @@ import { Appointment } from "@yosemite-crew/types";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
 import { useSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
 import { useServiceStore } from "@/app/stores/serviceStore";
-import { Slot } from "@/app/types/appointments";
+import { Slot } from "@/app/features/appointments/types/appointments";
 import {
   createAppointment,
   getSlotsForServiceAndDateForPrimaryOrg,
-} from "@/app/services/appointmentService";
+} from "@/app/features/appointments/services/appointmentService";
 import {
   buildUtcDateFromDateAndTime,
   getDurationMinutes,
-} from "@/app/utils/date";
+} from "@/app/lib/date";
 import { useSubscriptionCounterUpdate } from "@/app/hooks/useStripeOnboarding";
 import {
   useCanMoreForPrimaryOrg,
   useCurrencyForPrimaryOrg,
 } from "@/app/hooks/useBilling";
-import { loadInvoicesForOrgPrimaryOrg } from "@/app/services/invoiceService";
-import { EMPTY_APPOINTMENT } from "@/app/pages/Appointments/Sections/AddAppointment";
+import { loadInvoicesForOrgPrimaryOrg } from "@/app/features/billing/services/invoiceService";
+import { EMPTY_APPOINTMENT } from "@/app/features/appointments/pages/Appointments/Sections/AddAppointment";
 
 export type AppointmentFormErrors = {
   companionId?: string;

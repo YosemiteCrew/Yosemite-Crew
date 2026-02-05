@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { OrganizationDocument, OrgDocumentCategory } from "../types/document";
+import { OrganizationDocument, OrgDocumentCategory } from "@/app/features/documents/types/document";
 
 type DocumentStatus = "idle" | "loading" | "loaded" | "error";
 

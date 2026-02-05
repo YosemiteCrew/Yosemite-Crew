@@ -1,14 +1,14 @@
 import { renderHook } from "@testing-library/react";
-import { useOrgOnboarding } from "../../hooks/useOrgOnboarding";
-import { useOrgStore } from "../../stores/orgStore";
-import { useSpecialityStore } from "../../stores/specialityStore";
-import { computeOrgOnboardingStep } from "../../utils/orgOnboarding";
+import { useOrgOnboarding } from "@/app/hooks/useOrgOnboarding";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { useSpecialityStore } from "@/app/stores/specialityStore";
+import { computeOrgOnboardingStep } from "@/app/lib/orgOnboarding";
 
 // --- Mocks ---
 
-jest.mock("../../stores/orgStore");
-jest.mock("../../stores/specialityStore");
-jest.mock("../../utils/orgOnboarding", () => ({
+jest.mock("@/app/stores/orgStore");
+jest.mock("@/app/stores/specialityStore");
+jest.mock("@/app/lib/orgOnboarding", () => ({
   computeOrgOnboardingStep: jest.fn(),
 }));
 

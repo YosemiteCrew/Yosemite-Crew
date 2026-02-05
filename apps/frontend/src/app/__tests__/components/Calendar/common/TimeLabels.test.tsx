@@ -1,11 +1,11 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import TimeLabels from "@/app/components/Calendar/common/TimeLabels";
+import TimeLabels from "@/app/features/appointments/components/Calendar/common/TimeLabels";
 
 // --- Mocks ---
 
 // Mock Helpers to make pixel calculations predictable
-jest.mock("@/app/components/Calendar/helpers", () => ({
+jest.mock("@/app/features/appointments/components/Calendar/helpers", () => ({
   MINUTES_PER_STEP: 60, // 1 step = 60 minutes
   PIXELS_PER_STEP: 100, // 1 step = 100 pixels
   // Therefore: 1 minute = 100/60 = 1.666 pixels

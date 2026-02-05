@@ -11,7 +11,11 @@ const config: Config = {
   organizationName: "yosemite-crew",
   projectName: "developer-docs",
   onBrokenLinks: "throw",
-  onBrokenMarkdownLinks: "warn",
+  markdown: {
+    hooks: {
+      onBrokenMarkdownLinks: "warn",
+    },
+  },
   trailingSlash: false,
   i18n: {
     defaultLocale: "en",

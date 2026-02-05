@@ -1,5 +1,5 @@
 import React from "react";
-import { StepContent, ProgressProps } from "@/app/components/Steps/types";
+import { StepContent, ProgressProps } from "@/app/features/onboarding/components/Steps/types";
 
 describe("Steps Types", () => {
   it("should support a valid ProgressProps structure", () => {

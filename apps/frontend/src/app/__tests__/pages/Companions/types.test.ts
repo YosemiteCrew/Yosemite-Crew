@@ -3,7 +3,7 @@ import {
   CompanionsStatusFilters,
   FilterOption,
   StatusOption,
-} from "@/app/pages/Companions/types";
+} from "@/app/features/companions/pages/Companions/types";
 
 describe("Companions types", () => {
   it("exposes species filter options", () => {

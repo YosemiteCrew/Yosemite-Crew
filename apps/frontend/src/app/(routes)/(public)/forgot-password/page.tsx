@@ -2,7 +2,7 @@
 import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-import ForgotPasswordPage from "@/app/pages/ForgotPassword/ForgotPassword";
+import ForgotPasswordPage from "@/app/features/auth/pages/ForgotPassword/ForgotPassword";
 import { useAuthStore } from "@/app/stores/authStore";
 
 function Page() {

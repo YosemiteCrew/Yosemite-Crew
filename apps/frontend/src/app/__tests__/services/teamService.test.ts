@@ -7,28 +7,28 @@ import {
   getProfileForUserForPrimaryOrg,
   removeMember,
   updateMember,
-} from "../../services/teamService";
-import * as axios from "../../services/axios";
-import { useOrgStore } from "../../stores/orgStore";
-import { useTeamStore } from "../../stores/teamStore";
-import * as orgService from "../../services/orgService";
-import * as profileService from "../../services/profileService";
+} from "@/app/features/organization/services/teamService";
+import * as axios from "@/app/services/axios";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { useTeamStore } from "@/app/stores/teamStore";
+import * as orgService from "@/app/features/organization/services/orgService";
+import * as profileService from "@/app/features/organization/services/profileService";
 import {
   fromUserOrganizationRequestDTO,
   toUserOrganizationResponseDTO,
 } from "@yosemite-crew/types";
-import { toPermissionArray } from "../../utils/permissions";
+import { toPermissionArray } from "@/app/lib/permissions";
 
 // ----------------------------------------------------------------------------
 // 1. Mocks
 // ----------------------------------------------------------------------------
 
-jest.mock("../../services/axios");
-jest.mock("../../stores/orgStore");
-jest.mock("../../stores/teamStore");
-jest.mock("../../services/orgService");
-jest.mock("../../services/profileService");
-jest.mock("../../utils/permissions");
+jest.mock("@/app/services/axios");
+jest.mock("@/app/stores/orgStore");
+jest.mock("@/app/stores/teamStore");
+jest.mock("@/app/features/organization/services/orgService");
+jest.mock("@/app/features/organization/services/profileService");
+jest.mock("@/app/lib/permissions");
 jest.mock("@yosemite-crew/types", () => ({
   fromUserOrganizationRequestDTO: jest.fn(),
   toUserOrganizationResponseDTO: jest.fn(),

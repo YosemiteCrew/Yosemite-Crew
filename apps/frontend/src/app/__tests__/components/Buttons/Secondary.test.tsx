@@ -6,7 +6,7 @@ jest.mock("next/link", () => {
   return ({ children, ...props }: any) => <a {...props}>{children}</a>;
 });
 
-import Secondary from "@/app/components/Buttons/Secondary";
+import Secondary from "@/app/ui/primitives/Buttons/Secondary";
 
 describe("Secondary button", () => {
   test("renders secondary styles and href", () => {

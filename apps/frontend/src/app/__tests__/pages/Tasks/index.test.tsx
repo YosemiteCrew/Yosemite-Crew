@@ -2,7 +2,7 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import ProtectedTasks from "@/app/pages/Tasks";
+import ProtectedTasks from "@/app/features/tasks/pages/Tasks";
 
 const useTasksMock = jest.fn();
 const usePermissionsMock = jest.fn();
@@ -10,12 +10,12 @@ const useSearchStoreMock = jest.fn();
 const taskCalendarSpy = jest.fn();
 const taskTableSpy = jest.fn();
 
-jest.mock("@/app/components/ProtectedRoute", () => ({
+jest.mock("@/app/ui/layout/guards/ProtectedRoute", () => ({
   __esModule: true,
   default: ({ children }: any) => <div>{children}</div>,
 }));
 
-jest.mock("@/app/components/OrgGuard", () => ({
+jest.mock("@/app/ui/layout/guards/OrgGuard", () => ({
   __esModule: true,
   default: ({ children }: any) => <div>{children}</div>,
 }));
@@ -32,11 +32,11 @@ jest.mock("@/app/stores/searchStore", () => ({
   useSearchStore: (selector: any) => useSearchStoreMock(selector),
 }));
 
-jest.mock("@/app/components/PermissionGate", () => ({
+jest.mock("@/app/ui/layout/guards/PermissionGate", () => ({
   PermissionGate: ({ children }: any) => <div>{children}</div>,
 }));
 
-jest.mock("@/app/components/TitleCalendar", () => (props: any) => (
+jest.mock("@/app/ui/widgets/TitleCalendar", () => (props: any) => (
   <div>
     <button type="button" onClick={() => props.setActiveView("calendar")}
     >
@@ -49,25 +49,25 @@ jest.mock("@/app/components/TitleCalendar", () => (props: any) => (
   </div>
 ));
 
-jest.mock("@/app/components/Filters/Filters", () => () => (
+jest.mock("@/app/ui/filters/Filters", () => () => (
   <div data-testid="filters" />
 ));
 
-jest.mock("@/app/components/Calendar/TaskCalendar", () => (props: any) => {
+jest.mock("@/app/features/appointments/components/Calendar/TaskCalendar", () => (props: any) => {
   taskCalendarSpy(props);
   return <div data-testid="task-calendar" />;
 });
 
-jest.mock("@/app/components/DataTable/Tasks", () => (props: any) => {
+jest.mock("@/app/ui/tables/Tasks", () => (props: any) => {
   taskTableSpy(props);
   return <div data-testid="tasks-table" />;
 });
 
-jest.mock("@/app/pages/Tasks/Sections/AddTask", () => () => (
+jest.mock("@/app/features/tasks/pages/Tasks/Sections/AddTask", () => () => (
   <div data-testid="add-task" />
 ));
 
-jest.mock("@/app/pages/Tasks/Sections/TaskInfo", () => () => (
+jest.mock("@/app/features/tasks/pages/Tasks/Sections/TaskInfo", () => () => (
   <div data-testid="task-info" />
 ));
 

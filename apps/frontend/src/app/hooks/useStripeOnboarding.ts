@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useOrgStore } from "@/app/stores/orgStore";
-import { checkStatus } from "../services/stripeService";
-import { PERMISSIONS } from "../utils/permissions";
+import { checkStatus } from "@/app/features/billing/services/stripeService";
+import { PERMISSIONS } from "@/app/lib/permissions";
 
 export const useStripeOnboarding = (
   orgId: string | null,

@@ -1,7 +1,7 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import Tasks from "@/app/components/DataTable/Tasks";
+import Tasks from "@/app/ui/tables/Tasks";
 
 const useTeamMock = jest.fn();
 
@@ -9,7 +9,7 @@ jest.mock("@/app/hooks/useTeam", () => ({
   useTeamForPrimaryOrg: () => useTeamMock(),
 }));
 
-jest.mock("@/app/components/GenericTable/GenericTable", () => ({
+jest.mock("@/app/ui/tables/GenericTable/GenericTable", () => ({
   __esModule: true,
   default: ({ data, columns }: any) => (
     <div data-testid="table">
@@ -26,7 +26,7 @@ jest.mock("@/app/components/GenericTable/GenericTable", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Cards/TaskCard", () => ({
+jest.mock("@/app/ui/cards/TaskCard", () => ({
   __esModule: true,
   default: ({ item }: any) => (
     <div data-testid="task-card">{item.name}</div>
@@ -37,11 +37,11 @@ jest.mock("react-icons/io5", () => ({
   IoEye: () => <span>eye</span>,
 }));
 
-jest.mock("@/app/components/Calendar/weekHelpers", () => ({
+jest.mock("@/app/features/appointments/components/Calendar/weekHelpers", () => ({
   getFormattedDate: () => "Jan 2, 2024",
 }));
 
-jest.mock("@/app/utils/validators", () => ({
+jest.mock("@/app/lib/validators", () => ({
   toTitleCase: (value: string) => value.toUpperCase(),
 }));
 

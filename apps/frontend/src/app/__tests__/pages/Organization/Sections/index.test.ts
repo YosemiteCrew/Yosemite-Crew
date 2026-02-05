@@ -1,4 +1,4 @@
-import * as OrganizationSections from "@/app/pages/Organization/Sections";
+import * as OrganizationSections from "@/app/features/organization/pages/Organization/Sections";
 
 describe("Organization sections index", () => {
   it("exports expected sections", () => {

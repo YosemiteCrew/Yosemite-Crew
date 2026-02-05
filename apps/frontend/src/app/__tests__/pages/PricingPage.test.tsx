@@ -12,7 +12,7 @@ jest.mock("next/link", () => {
   return { __esModule: true, default: Link };
 });
 
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   __esModule: true,
   default: ({ inlabel, value, onChange, error }: any) => (
     <div>
@@ -29,17 +29,17 @@ jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Faq/Faq", () => ({
+jest.mock("@/app/ui/widgets/Faq/Faq", () => ({
   __esModule: true,
   default: () => <div data-testid="faq" />,
 }));
 
-jest.mock("@/app/components/Footer/Footer", () => ({
+jest.mock("@/app/ui/widgets/Footer/Footer", () => ({
   __esModule: true,
   default: () => <footer data-testid="footer" />,
 }));
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   __esModule: true,
   Primary: ({ text, onClick }: any) => (
     <button type="button" onClick={onClick}>
@@ -48,7 +48,7 @@ jest.mock("@/app/components/Buttons", () => ({
   ),
 }));
 
-import PricingPage from "@/app/pages/PricingPage/PricingPage";
+import PricingPage from "@/app/features/marketing/pages/PricingPage/PricingPage";
 
 describe("PricingPage", () => {
   test("toggles billing cycles and shows plans", () => {

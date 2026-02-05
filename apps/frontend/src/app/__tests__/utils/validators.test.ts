@@ -1,10 +1,10 @@
-import { validatePhone, getCountryCode, isValidEmail } from "../../utils/validators";
+import { validatePhone, getCountryCode, isValidEmail } from "@/app/lib/validators";
 
 // --- Mocks ---
 
 // Mock the country list JSON to ensure deterministic tests
 // virtual: true helps if the file doesn't actually exist in the test environment context
-jest.mock("@/app/utils/countryList.json", () => [
+jest.mock("@/app/lib/data/countryList", () => [
   { name: "TestLand", dial_code: "+1", code: "TL" },
   { name: "Wonderland", dial_code: "+99", code: "WL" },
 ], { virtual: true });

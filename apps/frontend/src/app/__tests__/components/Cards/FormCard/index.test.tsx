@@ -1,11 +1,11 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import FormCard from "@/app/components/Cards/FormCard";
-import { FormsProps } from "@/app/types/forms";
+import FormCard from "@/app/ui/cards/FormCard";
+import { FormsProps } from "@/app/features/forms/types/forms";
 
 // --- Mocks ---
 
-jest.mock("@/app/components/DataTable/FormsTable", () => ({
+jest.mock("@/app/ui/tables/FormsTable", () => ({
   getStatusStyle: jest.fn(() => ({ color: "blue" })),
 }));
 

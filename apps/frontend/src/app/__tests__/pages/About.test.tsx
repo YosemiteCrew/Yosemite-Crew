@@ -2,7 +2,7 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import AboutUs from "../../pages/AboutUs/AboutUs";
+import AboutUs from "@/app/features/marketing/pages/AboutUs/AboutUs";
 
 jest.mock("next/image", () => ({
   __esModule: true,
@@ -11,13 +11,13 @@ jest.mock("next/image", () => ({
   },
 }));
 
-jest.mock("@/app/components/TeamSlide/TeamSlide", () => {
+jest.mock("@/app/ui/widgets/TeamSlide/TeamSlide", () => {
   return function MockTeamSlide() {
     return <div data-testid="mock-teamslide">TeamSlide Component</div>;
   };
 });
 
-jest.mock("@/app/components/Footer/Footer", () => {
+jest.mock("@/app/ui/widgets/Footer/Footer", () => {
   return function MockFooter() {
     return <div data-testid="mock-footer">Footer Component</div>;
   };

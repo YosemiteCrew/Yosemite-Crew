@@ -1,17 +1,17 @@
 import { renderHook } from "@testing-library/react";
-import { useLoadProfiles, usePrimaryOrgProfile } from "../../hooks/useProfiles";
-import { loadProfiles } from "../../services/profileService";
-import { useOrgStore } from "../../stores/orgStore";
-import { useUserProfileStore } from "../../stores/profileStore";
+import { useLoadProfiles, usePrimaryOrgProfile } from "@/app/hooks/useProfiles";
+import { loadProfiles } from "@/app/features/organization/services/profileService";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { useUserProfileStore } from "@/app/stores/profileStore";
 
 // --- Mocks ---
 
-jest.mock("../../services/profileService", () => ({
+jest.mock("@/app/features/organization/services/profileService", () => ({
   loadProfiles: jest.fn(),
 }));
 
-jest.mock("../../stores/orgStore");
-jest.mock("../../stores/profileStore");
+jest.mock("@/app/stores/orgStore");
+jest.mock("@/app/stores/profileStore");
 
 describe("useProfiles Hooks", () => {
   let mockOrgState: any;

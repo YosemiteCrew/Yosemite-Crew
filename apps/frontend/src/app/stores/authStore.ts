@@ -9,6 +9,7 @@ import {
   AuthenticationDetails,
 } from "amazon-cognito-identity-js";
 import { useOrgStore } from "@/app/stores/orgStore";
+import { logger } from "@/app/lib/logger";
 
 const poolData: ICognitoUserPoolData = {
   UserPoolId: process.env.NEXT_PUBLIC_COGNITO_USERPOOLID || "",
@@ -169,7 +170,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       try {
         await get().loadUserAttributes();
       } catch (e) {
-        console.error("Failed to load user attributes", e);
+        logger.error("Failed to load user attributes", e);
       }
     };
 
@@ -216,7 +217,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       try {
         await get().loadUserAttributes();
       } catch (e) {
-        console.error("Failed to load user attributes", e);
+        logger.error("Failed to load user attributes", e);
       }
     };
     return new Promise((resolve, reject) => {
@@ -269,7 +270,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       try {
         await get().loadUserAttributes();
       } catch (e) {
-        console.error("Failed to load user attributes", e);
+        logger.error("Failed to load user attributes", e);
       }
     };
 
@@ -284,7 +285,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       cognitoUser.getSession(
         (err: Error | null, session: CognitoUserSession | null) => {
           if (err || !session?.isValid()) {
-            console.warn("refreshSession failed or session invalid:", err);
+            logger.warn("refreshSession failed or session invalid:", err);
             resolve(null);
             return;
           }
@@ -322,7 +323,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       const cognitoUser = new CognitoUser(userData);
       cognitoUser.forgotPassword({
         onSuccess: (data) => {
-          console.log(data);
+          logger.info("forgotPassword success", data);
           resolve(data);
         },
         onFailure: (err) =>
@@ -377,7 +378,7 @@ const resetAuthState = (set: (partial: Partial<AuthStore>) => void) => {
   try {
     useOrgStore.getState().clearOrgs();
   } catch (err) {
-    console.warn("Failed to clear org store on signout", err);
+    logger.warn("Failed to clear org store on signout", err);
   }
 };
 
@@ -389,9 +390,9 @@ const performGlobalSignOut = (
     user.getSession((err: Error | null, session: CognitoUserSession | null) => {
       if (err || !session?.isValid()) {
         if (err) {
-          console.warn("getSession failed during signout:", err);
+          logger.warn("getSession failed during signout:", err);
         } else {
-          console.warn("Invalid session during signout");
+          logger.warn("Invalid session during signout");
         }
         resolve();
         return;
@@ -402,7 +403,7 @@ const performGlobalSignOut = (
           resolve();
         },
         onFailure: (signoutErr: Error | null) => {
-          console.error("globalSignOut failed:", signoutErr);
+          logger.error("globalSignOut failed", signoutErr);
           resetState();
           resolve();
         },

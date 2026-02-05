@@ -1,19 +1,19 @@
 import React from "react";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import Details from "@/app/pages/Forms/Sections/AddForm/Details";
-import { FormsProps } from "@/app/types/forms";
-import * as formUtils from "@/app/utils/forms";
+import Details from "@/app/features/forms/pages/Forms/Sections/AddForm/Details";
+import { FormsProps } from "@/app/features/forms/types/forms";
+import * as formUtils from "@/app/lib/forms";
 
 // --- Mocks ---
 
 // Mock Utils
-jest.mock("@/app/utils/forms", () => ({
+jest.mock("@/app/lib/forms", () => ({
   getCategoryTemplate: jest.fn(),
 }));
 
 // Mock Child Components to simplify testing logic
-jest.mock("@/app/components/Accordion/Accordion", () => ({
+jest.mock("@/app/ui/primitives/Accordion/Accordion", () => ({
   __esModule: true,
   default: ({ title, children }: any) => (
     <div data-testid={`accordion-${title}`}>
@@ -23,7 +23,7 @@ jest.mock("@/app/components/Accordion/Accordion", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   __esModule: true,
   default: ({ inlabel, value, onChange, error }: any) => (
     <div data-testid={`input-wrapper-${inlabel}`}>
@@ -38,7 +38,7 @@ jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
+jest.mock("@/app/ui/inputs/Dropdown/LabelDropdown", () => ({
   __esModule: true,
   default: ({ placeholder, defaultOption, onSelect, error }: any) => (
     <div data-testid={`dropdown-${placeholder}`}>
@@ -54,7 +54,7 @@ jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/MultiSelectDropdown", () => ({
+jest.mock("@/app/ui/inputs/MultiSelectDropdown", () => ({
   __esModule: true,
   default: ({ placeholder, value, onChange, error }: any) => (
     <div data-testid={`multi-${placeholder}`}>
@@ -70,7 +70,7 @@ jest.mock("@/app/components/Inputs/MultiSelectDropdown", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ text, onClick }: any) => (
     <button data-testid="next-btn" onClick={onClick}>
       {text}

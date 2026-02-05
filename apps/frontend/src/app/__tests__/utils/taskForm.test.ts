@@ -4,8 +4,8 @@ import {
   applyTemplateToForm,
   toTemplateOptions,
   TaskFormErrors,
-} from "@/app/utils/taskForm";
-import { Task, TaskTemplate, TaskLibrary } from "@/app/types/task";
+} from "@/app/lib/taskForm";
+import { Task, TaskTemplate, TaskLibrary } from "@/app/features/tasks/types/task";
 
 describe("taskForm utilities", () => {
   describe("validateTaskForm", () => {

@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import Dublicate from "@/app/components/Availability/Dublicate";
-import { AvailabilityState, daysOfWeek } from "@/app/components/Availability/utils";
+import Dublicate from "@/app/features/appointments/components/Availability/Dublicate";
+import { AvailabilityState, daysOfWeek } from "@/app/features/appointments/components/Availability/utils";
 
 jest.mock("react-icons/io5", () => ({
   IoCopy: ({ onClick, ...rest }: any) => (

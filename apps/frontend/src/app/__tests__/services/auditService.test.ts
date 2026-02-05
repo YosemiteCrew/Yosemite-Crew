@@ -1,24 +1,31 @@
 import {
   getAppointmentAuditTrail,
   getCompanionAuditTrail,
-} from "@/app/services/audit";
+} from "@/app/features/audit/services/auditService";
 
-const getDataMock = jest.fn();
+import { http } from "@/app/services/http";
+import { logger } from "@/app/lib/logger";
 
-jest.mock("@/app/services/axios", () => ({
-  getData: (...args: any[]) => getDataMock(...args),
+jest.mock("@/app/services/http", () => ({
+  http: {
+    get: jest.fn(),
+  },
 }));
 
-describe("audit service", () => {
-  const originalConsoleError = console.error;
+jest.mock("@/app/lib/logger", () => ({
+  logger: {
+    warn: jest.fn(),
+    error: jest.fn(),
+    info: jest.fn(),
+    debug: jest.fn(),
+  },
+}));
 
+const getMock = http.get as jest.Mock;
+
+describe("audit service", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    console.error = jest.fn();
-  });
-
-  afterEach(() => {
-    console.error = originalConsoleError;
   });
 
   describe("getAppointmentAuditTrail", () => {
@@ -27,13 +34,13 @@ describe("audit service", () => {
         { id: "1", action: "created", timestamp: "2024-01-01" },
         { id: "2", action: "updated", timestamp: "2024-01-02" },
       ];
-      getDataMock.mockResolvedValue({
+      getMock.mockResolvedValue({
         data: { entries: mockEntries },
       });
 
       const result = await getAppointmentAuditTrail("appt-123");
 
-      expect(getDataMock).toHaveBeenCalledWith(
+      expect(getMock).toHaveBeenCalledWith(
         "/v1/audit-trail/appointment/appt-123"
       );
       expect(result).toEqual(mockEntries);
@@ -46,12 +53,12 @@ describe("audit service", () => {
     });
 
     it("throws error when API call fails", async () => {
-      getDataMock.mockRejectedValue(new Error("API error"));
+      getMock.mockRejectedValue(new Error("API error"));
 
       await expect(getAppointmentAuditTrail("appt-123")).rejects.toThrow(
         "API error"
       );
-      expect(console.error).toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalled();
     });
   });
 
@@ -60,13 +67,13 @@ describe("audit service", () => {
       const mockEntries = [
         { id: "1", action: "created", timestamp: "2024-01-01" },
       ];
-      getDataMock.mockResolvedValue({
+      getMock.mockResolvedValue({
         data: { entries: mockEntries },
       });
 
       const result = await getCompanionAuditTrail("companion-456");
 
-      expect(getDataMock).toHaveBeenCalledWith(
+      expect(getMock).toHaveBeenCalledWith(
         "/v1/audit-trail/companion/companion-456"
       );
       expect(result).toEqual(mockEntries);
@@ -79,12 +86,12 @@ describe("audit service", () => {
     });
 
     it("throws error when API call fails", async () => {
-      getDataMock.mockRejectedValue(new Error("API error"));
+      getMock.mockRejectedValue(new Error("API error"));
 
       await expect(getCompanionAuditTrail("companion-456")).rejects.toThrow(
         "API error"
       );
-      expect(console.error).toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalled();
     });
   });
 });

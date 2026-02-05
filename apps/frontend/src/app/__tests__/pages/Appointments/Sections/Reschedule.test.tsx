@@ -1,12 +1,12 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import Reschedule from "@/app/pages/Appointments/Sections/Reschedule";
+import Reschedule from "@/app/features/appointments/pages/Appointments/Sections/Reschedule";
 import { Appointment } from "@yosemite-crew/types";
 
 const getSlotsMock = jest.fn();
 const updateAppointmentMock = jest.fn();
 
-jest.mock("@/app/services/appointmentService", () => ({
+jest.mock("@/app/features/appointments/services/appointmentService", () => ({
   getSlotsForServiceAndDateForPrimaryOrg: (...args: any[]) =>
     getSlotsMock(...args),
   updateAppointment: (...args: any[]) => updateAppointmentMock(...args),
@@ -19,32 +19,32 @@ jest.mock("@/app/hooks/useTeam", () => ({
   ],
 }));
 
-jest.mock("@/app/components/Modal/CenterModal", () => ({
+jest.mock("@/app/ui/overlays/Modal/CenterModal", () => ({
   __esModule: true,
   default: ({ showModal, children }: any) =>
     showModal ? <div data-testid="modal">{children}</div> : null,
 }));
 
-jest.mock("@/app/components/Inputs/Slotpicker", () => ({
+jest.mock("@/app/ui/inputs/Slotpicker", () => ({
   __esModule: true,
   default: () => <div data-testid="slotpicker" />,
 }));
 
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   __esModule: true,
   default: ({ value, inlabel }: any) => (
     <div data-testid={`input-${inlabel}`}>{value}</div>
   ),
 }));
 
-jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
+jest.mock("@/app/ui/inputs/Dropdown/LabelDropdown", () => ({
   __esModule: true,
   default: ({ placeholder }: any) => (
     <div data-testid={`dropdown-${placeholder}`} />
   ),
 }));
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ text, onClick }: any) => (
     <button type="button" onClick={onClick}>
       {text}
@@ -52,7 +52,7 @@ jest.mock("@/app/components/Buttons", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Icons/Close", () => ({
+jest.mock("@/app/ui/primitives/Icons/Close", () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>

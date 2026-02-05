@@ -1,7 +1,7 @@
 import React from "react";
 
-import "@/app/pages/Organizations/Organizations.css";
-import DevRouteGuard from "@/app/components/DevRouteGuard/DevRouteGuard";
+import "@/app/features/organizations/styles/Organizations.css";
+import DevRouteGuard from "@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard";
 
 function Page() {
   return (

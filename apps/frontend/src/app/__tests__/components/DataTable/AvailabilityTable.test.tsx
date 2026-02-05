@@ -3,14 +3,14 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import AvailabilityTable, {
   getStatusStyle,
-} from "@/app/components/DataTable/AvailabilityTable";
-import { Team } from "@/app/types/team";
+} from "@/app/ui/tables/AvailabilityTable";
+import { Team } from "@/app/features/organization/types/team";
 
 // --- Mocks ---
 
 // Mock GenericTable to test that columns and data are passed correctly
 // and to render the cell contents (which contain the logic we want to test)
-jest.mock("@/app/components/GenericTable/GenericTable", () => {
+jest.mock("@/app/ui/tables/GenericTable/GenericTable", () => {
   return ({ data, columns }: any) => (
     <div data-testid="generic-table">
       <div data-testid="table-headers">

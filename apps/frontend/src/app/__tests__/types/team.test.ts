@@ -8,7 +8,7 @@ import {
   TeamFormDataType,
   TeamResponse,
   TeamStatusProps,
-} from "@/app/types/team";
+} from "@/app/features/organization/types/team";
 
 describe("team types", () => {
   it("accepts known status unions", () => {

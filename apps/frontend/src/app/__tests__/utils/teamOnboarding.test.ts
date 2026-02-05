@@ -1,6 +1,6 @@
-import { computeTeamOnboardingStep } from "../../utils/teamOnboarding";
-import { UserProfile } from "../../types/profile";
-import { ApiDayAvailability } from "../../components/Availability/utils";
+import { computeTeamOnboardingStep } from "@/app/lib/teamOnboarding";
+import { UserProfile } from "@/app/features/users/types/profile";
+import { ApiDayAvailability } from "@/app/features/appointments/components/Availability/utils";
 
 // --- Mock Data Helpers ---
 

@@ -2,7 +2,7 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import TimeSlot from "@/app/components/Availability/TimeSlot";
+import TimeSlot from "@/app/features/appointments/components/Availability/TimeSlot";
 
 const interval = { start: "", end: "" };
 const timeOptions = [

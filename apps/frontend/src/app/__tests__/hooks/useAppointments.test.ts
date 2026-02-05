@@ -2,26 +2,26 @@ import { renderHook } from "@testing-library/react";
 import {
   useLoadAppointmentsForPrimaryOrg,
   useAppointmentsForPrimaryOrg,
-} from "../../hooks/useAppointments";
-import { loadAppointmentsForPrimaryOrg } from "../../services/appointmentService";
-import { useOrgStore } from "../../stores/orgStore";
-import { useAppointmentStore } from "../../stores/appointmentStore";
+} from "@/app/hooks/useAppointments";
+import { loadAppointmentsForPrimaryOrg } from "@/app/features/appointments/services/appointmentService";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { useAppointmentStore } from "@/app/stores/appointmentStore";
 import { Appointment } from "@yosemite-crew/types";
 
 // --- Mocks ---
 
 // 1. Mock Service
-jest.mock("../../services/appointmentService", () => ({
+jest.mock("@/app/features/appointments/services/appointmentService", () => ({
   loadAppointmentsForPrimaryOrg: jest.fn(),
 }));
 
 // 2. Mock Stores
 // We mock the hooks to accept a selector function and return the result based on a mutable mock state
-jest.mock("../../stores/orgStore", () => ({
+jest.mock("@/app/stores/orgStore", () => ({
   useOrgStore: jest.fn(),
 }));
 
-jest.mock("../../stores/appointmentStore", () => ({
+jest.mock("@/app/stores/appointmentStore", () => ({
   useAppointmentStore: jest.fn(),
 }));
 

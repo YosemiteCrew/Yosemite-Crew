@@ -6,10 +6,10 @@ import {
   waitFor,
   act,
 } from "@testing-library/react";
-import Build from "../../../../../pages/Forms/Sections/AddForm/Build";
+import Build from "@/app/features/forms/pages/Forms/Sections/AddForm/Build";
 import { useOrgStore } from "@/app/stores/orgStore";
-import { fetchInventoryItems } from "@/app/services/inventoryService";
-import { FormsProps } from "@/app/types/forms";
+import { fetchInventoryItems } from "@/app/features/inventory/services/inventoryService";
+import { FormsProps } from "@/app/features/forms/types/forms";
 
 // --- Stabilized Crypto Mock ---
 let uuidCounter = 0;
@@ -30,7 +30,7 @@ beforeAll(() => {
 
 // 1. Mock Services
 jest.mock("@/app/stores/orgStore");
-jest.mock("@/app/services/inventoryService");
+jest.mock("@/app/features/inventory/services/inventoryService");
 
 // 2. Mock Icon Library (Simplified to simple div to prevent worker crash)
 jest.mock("react-icons/io", () => ({
@@ -43,7 +43,7 @@ jest.mock("react-icons/io", () => ({
 }));
 
 // 3. Mock UI Components
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   __esModule: true,
   default: ({ value, onChange, inlabel }: any) => (
     <input
@@ -55,7 +55,7 @@ jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/MultiSelectDropdown", () => ({
+jest.mock("@/app/ui/inputs/MultiSelectDropdown", () => ({
   __esModule: true,
   default: ({ value, onChange, placeholder }: any) => (
     <div data-testid={`multiselect-${placeholder}`}>
@@ -71,7 +71,7 @@ jest.mock("@/app/components/Inputs/MultiSelectDropdown", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/Dropdown/Dropdown", () => ({
+jest.mock("@/app/ui/inputs/Dropdown/Dropdown", () => ({
   __esModule: true,
   default: ({ value, onChange, options, placeholder }: any) => (
     <select
@@ -89,7 +89,7 @@ jest.mock("@/app/components/Inputs/Dropdown/Dropdown", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ text, onClick }: any) => (
     <button type="button" data-testid={`btn-${text}`} onClick={onClick}>
       {text}
@@ -100,7 +100,7 @@ jest.mock("@/app/components/Buttons", () => ({
 // 4. Mock Builder Components (Manually Inlined to avoid Hoisting/Reference Errors)
 
 jest.mock(
-  "../../../../../pages/Forms/Sections/AddForm/components/BuildWrapper",
+  "@/app/features/forms/pages/Forms/Sections/AddForm/components/BuildWrapper",
   () => ({
     __esModule: true,
     default: ({ children, onDelete }: any) => (
@@ -115,7 +115,7 @@ jest.mock(
 );
 
 jest.mock(
-  "../../../../../pages/Forms/Sections/AddForm/components/Text/TextBuilder",
+  "@/app/features/forms/pages/Forms/Sections/AddForm/components/Text/TextBuilder",
   () => ({
     __esModule: true,
     default: ({ field, onChange }: any) => (
@@ -131,7 +131,7 @@ jest.mock(
 );
 
 jest.mock(
-  "../../../../../pages/Forms/Sections/AddForm/components/Input/InputBuilder",
+  "@/app/features/forms/pages/Forms/Sections/AddForm/components/Input/InputBuilder",
   () => ({
     __esModule: true,
     default: ({ field, onChange }: any) => (
@@ -147,7 +147,7 @@ jest.mock(
 );
 
 jest.mock(
-  "../../../../../pages/Forms/Sections/AddForm/components/Dropdown/DropdownBuilder",
+  "@/app/features/forms/pages/Forms/Sections/AddForm/components/Dropdown/DropdownBuilder",
   () => ({
     __esModule: true,
     default: ({ field, onChange }: any) => (
@@ -163,7 +163,7 @@ jest.mock(
 );
 
 jest.mock(
-  "../../../../../pages/Forms/Sections/AddForm/components/Signature/SignatureBuilder",
+  "@/app/features/forms/pages/Forms/Sections/AddForm/components/Signature/SignatureBuilder",
   () => ({
     __esModule: true,
     default: ({ field, onChange }: any) => (
@@ -179,7 +179,7 @@ jest.mock(
 );
 
 jest.mock(
-  "../../../../../pages/Forms/Sections/AddForm/components/Boolean/BooleanBuilder",
+  "@/app/features/forms/pages/Forms/Sections/AddForm/components/Boolean/BooleanBuilder",
   () => ({
     __esModule: true,
     default: ({ field, onChange }: any) => (
@@ -195,7 +195,7 @@ jest.mock(
 );
 
 jest.mock(
-  "../../../../../pages/Forms/Sections/AddForm/components/Date/DateBuilder",
+  "@/app/features/forms/pages/Forms/Sections/AddForm/components/Date/DateBuilder",
   () => ({
     __esModule: true,
     default: ({ field, onChange }: any) => (

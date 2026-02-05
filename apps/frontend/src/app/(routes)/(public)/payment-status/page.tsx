@@ -1,5 +1,5 @@
 "use client";
-import { Secondary } from "@/app/components/Buttons";
+import { Secondary } from "@/app/ui/primitives/Buttons";
 import { useSearchParams } from "next/navigation";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 

@@ -2,10 +2,10 @@ import {
   loadRoomsForOrgPrimaryOrg,
   createRoom,
   updateRoom,
-} from "../../services/roomService";
-import { getData, postData, putData } from "../../services/axios";
-import { useOrgStore } from "../../stores/orgStore";
-import { useOrganisationRoomStore } from "../../stores/roomStore";
+} from "@/app/features/organization/services/roomService";
+import { getData, postData, putData } from "@/app/services/axios";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { useOrganisationRoomStore } from "@/app/stores/roomStore";
 import {
   fromOrganisationRoomRequestDTO,
   toOrganisationRoomResponseDTO,
@@ -13,16 +13,16 @@ import {
 } from "@yosemite-crew/types";
 
 // --- Mocks ---
-jest.mock("../../services/axios");
+jest.mock("@/app/services/axios");
 const mockedGetData = getData as jest.Mock;
 const mockedPostData = postData as jest.Mock;
 const mockedPutData = putData as jest.Mock;
 
-jest.mock("../../stores/orgStore", () => ({
+jest.mock("@/app/stores/orgStore", () => ({
   useOrgStore: { getState: jest.fn() },
 }));
 
-jest.mock("../../stores/roomStore", () => ({
+jest.mock("@/app/stores/roomStore", () => ({
   useOrganisationRoomStore: { getState: jest.fn() },
 }));
 

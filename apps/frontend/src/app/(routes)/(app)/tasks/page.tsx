@@ -1,5 +1,5 @@
 import React from "react";
-import ProtectedTasks from "@/app/pages/Tasks";
+import ProtectedTasks from "@/app/features/tasks/pages/Tasks";
 
 function page() {
   return <ProtectedTasks />;

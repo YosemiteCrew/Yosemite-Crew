@@ -1,14 +1,14 @@
 import React from "react";
 import { render, screen, fireEvent, act } from "@testing-library/react";
-import AddInventory from "../../../components/AddInventory";
-import { BusinessType } from "@/app/types/org";
-import * as InventoryUtils from "../../../pages/Inventory/utils";
+import AddInventory from "@/app/features/inventory/components/AddInventory";
+import { BusinessType } from "@/app/features/organization/types/org";
+import * as InventoryUtils from "@/app/features/inventory/pages/Inventory/utils";
 
 // ----------------------------------------------------------------------------
 // Mocks & Setup
 // ----------------------------------------------------------------------------
 
-jest.mock("../../../pages/Inventory/utils", () => ({
+jest.mock("@/app/features/inventory/pages/Inventory/utils", () => ({
   calculateBatchTotals: jest.fn(() => ({
     onHand: 100,
     allocated: 0,
@@ -17,7 +17,7 @@ jest.mock("../../../pages/Inventory/utils", () => ({
 }));
 
 // Mock Config - simplified structure for testing
-jest.mock("../../../components/AddInventory/InventoryConfig", () => ({
+jest.mock("@/app/features/inventory/components/AddInventory/InventoryConfig", () => ({
   InventoryFormConfig: {
     VETERINARY: {
       basicInfo: [],
@@ -33,7 +33,7 @@ jest.mock("../../../components/AddInventory/InventoryConfig", () => ({
 // *** SMART MOCK for FormSection ***
 // This mock renders inputs for ALL possible validation fields regardless of the active sectionKey.
 // This allows us to drive the internal state of the parent component completely from the test.
-jest.mock("../../../components/AddInventory/FormSection", () => ({
+jest.mock("@/app/features/inventory/components/AddInventory/FormSection", () => ({
   __esModule: true,
   default: ({
     sectionKey,
@@ -101,13 +101,13 @@ jest.mock("../../../components/AddInventory/FormSection", () => ({
   ),
 }));
 
-jest.mock("../../../components/Modal", () => ({
+jest.mock("@/app/ui/overlays/Modal", () => ({
   __esModule: true,
   default: ({ showModal, children }: any) =>
     showModal ? <div>{children}</div> : null,
 }));
 
-jest.mock("../../../components/Labels/Labels", () => ({
+jest.mock("@/app/ui/widgets/Labels/Labels", () => ({
   __esModule: true,
   default: ({ activeLabel, setActiveLabel, statuses }: any) => (
     <div data-testid="labels">
@@ -128,7 +128,7 @@ jest.mock("../../../components/Labels/Labels", () => ({
   ),
 }));
 
-jest.mock("../../../components/Icons/Close", () => ({
+jest.mock("@/app/ui/primitives/Icons/Close", () => ({
   __esModule: true,
   default: ({ onClick }: any) => <button onClick={onClick}>Close</button>,
 }));

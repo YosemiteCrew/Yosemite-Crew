@@ -1,28 +1,28 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 
-jest.mock("@/app/pages/Companions/Companions", () => ({
+jest.mock("@/app/features/companions/pages/Companions/Companions", () => ({
   __esModule: true,
   default: () => <div data-testid="route-companions">Companions page</div>,
 }));
 
-jest.mock("@/app/pages/Inventory", () => ({
+jest.mock("@/app/features/inventory/pages/Inventory", () => ({
   __esModule: true,
   default: () => <div data-testid="route-inventory">Inventory page</div>,
 }));
 
-jest.mock("@/app/components/chat/ChatContainer", () => ({
+jest.mock("@/app/features/chat/components/ChatContainer", () => ({
   __esModule: true,
   ChatContainer: () => <div data-testid="route-chat">Chat container</div>,
   default: () => <div data-testid="route-chat">Chat container</div>,
 }));
 
-jest.mock("@/app/components/ProtectedRoute", () => ({
+jest.mock("@/app/ui/layout/guards/ProtectedRoute", () => ({
   __esModule: true,
   default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-jest.mock("@/app/components/OrgGuard", () => ({
+jest.mock("@/app/ui/layout/guards/OrgGuard", () => ({
   __esModule: true,
   default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
@@ -40,7 +40,7 @@ jest.mock("next/navigation", () => ({
   }),
 }));
 
-jest.mock("@/app/pages/SignIn/SignIn", () => ({
+jest.mock("@/app/features/auth/pages/SignIn/SignIn", () => ({
   __esModule: true,
   default: () => <div data-testid="route-signin">Sign In</div>,
 }));

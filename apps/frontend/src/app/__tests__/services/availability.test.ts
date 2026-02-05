@@ -4,29 +4,29 @@ import {
   getOveridesForPrimaryDate,
   createOveride,
   deleteOveride,
-} from "../../services/availability";
-import * as axiosService from "../../services/axios";
-import { useAvailabilityStore } from "../../stores/availabilityStore";
-import { useOrgStore } from "../../stores/orgStore";
-import { ApiAvailability, ApiOverrides } from "../../components/Availability/utils";
+} from "@/app/features/organization/services/availabilityService";
+import * as axiosService from "@/app/services/axios";
+import { useAvailabilityStore } from "@/app/stores/availabilityStore";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { ApiAvailability, ApiOverrides } from "@/app/features/appointments/components/Availability/utils";
 
 // ----------------------------------------------------------------------------
 // 1. Mocks
 // ----------------------------------------------------------------------------
 
-jest.mock("../../services/axios", () => ({
+jest.mock("@/app/services/axios", () => ({
   getData: jest.fn(),
   postData: jest.fn(),
   deleteData: jest.fn(),
 }));
 
-jest.mock("../../stores/availabilityStore", () => ({
+jest.mock("@/app/stores/availabilityStore", () => ({
   useAvailabilityStore: {
     getState: jest.fn(),
   },
 }));
 
-jest.mock("../../stores/orgStore", () => ({
+jest.mock("@/app/stores/orgStore", () => ({
   useOrgStore: {
     getState: jest.fn(),
   },

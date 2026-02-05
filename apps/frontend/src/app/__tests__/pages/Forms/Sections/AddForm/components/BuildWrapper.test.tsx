@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import BuilderWrapper from "../../../../../../pages/Forms/Sections/AddForm/components/BuildWrapper";
-import { FormField } from "@/app/types/forms";
+import BuilderWrapper from "@/app/features/forms/pages/Forms/Sections/AddForm/components/BuildWrapper";
+import { FormField } from "@/app/features/forms/types/forms";
 
 // --- Mocks ---
 

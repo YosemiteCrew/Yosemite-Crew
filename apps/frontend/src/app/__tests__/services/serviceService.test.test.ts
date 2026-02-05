@@ -1,8 +1,8 @@
 import axios from "axios";
-import { loadServicesForOrg } from "../../services/serviceService";
-import { getData } from "../../services/axios";
-import { useOrgStore } from "../../stores/orgStore";
-import { useServiceStore } from "../../stores/serviceStore";
+import { loadServicesForOrg } from "@/app/features/organization/services/serviceService";
+import { getData } from "@/app/services/axios";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { useServiceStore } from "@/app/stores/serviceStore";
 import { fromServiceRequestDTO } from "@yosemite-crew/types";
 
 // --- Mocks ---
@@ -21,18 +21,18 @@ jest.mock("axios", () => {
 });
 
 // 2. Mock Axios Service Helper
-jest.mock("../../services/axios");
+jest.mock("@/app/services/axios");
 const mockedGetData = getData as jest.Mock;
 const mockedIsAxiosError = axios.isAxiosError as unknown as jest.Mock;
 
 // 3. Mock Stores
-jest.mock("../../stores/orgStore", () => ({
+jest.mock("@/app/stores/orgStore", () => ({
   useOrgStore: {
     getState: jest.fn(),
   },
 }));
 
-jest.mock("../../stores/serviceStore", () => ({
+jest.mock("@/app/stores/serviceStore", () => ({
   useServiceStore: {
     getState: jest.fn(),
   },

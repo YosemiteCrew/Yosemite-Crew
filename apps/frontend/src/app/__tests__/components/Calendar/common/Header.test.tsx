@@ -1,14 +1,14 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import Header from "@/app/components/Calendar/common/Header";
+import Header from "@/app/features/appointments/components/Calendar/common/Header";
 
 // --- Mocks ---
 
 // Mock Helper
-jest.mock("@/app/components/Calendar/helpers", () => ({
+jest.mock("@/app/features/appointments/components/Calendar/helpers", () => ({
   getMonthYear: jest.fn(() => "January 2023"),
 }));
-import { getMonthYear } from "@/app/components/Calendar/helpers";
+import { getMonthYear } from "@/app/features/appointments/components/Calendar/helpers";
 
 describe("Header Component", () => {
   const mockSetCurrentDate = jest.fn();

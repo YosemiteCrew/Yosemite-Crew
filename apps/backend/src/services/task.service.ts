@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import TaskModel, {
   TaskDocument,
   TaskStatus,
@@ -50,6 +51,45 @@ const DEFAULT_PMS_URL =
   process.env.APP_URL ??
   "https://app.yosemitecrew.com";
 
+const TASK_STATUSES= new Set<TaskStatus> ([
+  "PENDING",
+  "IN_PROGRESS",
+  "COMPLETED",
+  "CANCELLED",
+]);
+
+const TASK_AUDIENCES = new Set<TaskAudience>(["EMPLOYEE_TASK", "PARENT_TASK"]);
+
+const asNonEmptyString = (value: unknown): string | undefined => {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed || undefined;
+};
+
+const isValidDate = (value: unknown): value is Date =>
+  value instanceof Date && !Number.isNaN(value.getTime());
+
+const ensureObjectId = (value: unknown, field: string): string => {
+  if (typeof value !== "string" || !Types.ObjectId.isValid(value)) {
+    throw new TaskServiceError(`Invalid ${field}`, 400);
+  }
+  return value;
+};
+
+const sanitizeStatusList = (value: unknown): TaskStatus[] | undefined => {
+  if (!Array.isArray(value)) return undefined;
+  const filtered = value.filter(
+    (status): status is TaskStatus =>
+      typeof status === "string" && TASK_STATUSES.has(status as TaskStatus),
+  );
+  return filtered.length ? filtered : undefined;
+};
+
+const sanitizeAudience = (value: unknown): TaskAudience | undefined =>
+  typeof value === "string" && TASK_AUDIENCES.has(value as TaskAudience)
+    ? (value as TaskAudience)
+    : undefined;
+
 const buildDisplayName = (
   user?: { firstName?: string; lastName?: string } | null,
 ) => {
@@ -100,6 +140,83 @@ const sendTaskAssignmentEmail = async (task: TaskDocument) => {
   } catch (error) {
     logger.error("Failed to send task assignment email.", error);
   }
+};
+
+const assertCanUpdateTask = (isCreator: boolean, isAssignee: boolean) => {
+  if (!isCreator && !isAssignee) {
+    throw new TaskServiceError("Not allowed to update this task", 403);
+  }
+};
+
+const applyAssigneeUpdate = (
+  task: TaskDocument,
+  updates: TaskUpdateInput,
+  isCreator: boolean,
+) => {
+  // 🔒 Only creator can reassign
+  if (updates.assignedTo === undefined) return;
+  if (!isCreator) {
+    throw new TaskServiceError("Only task creator can reassign task", 403);
+  }
+  task.assignedTo = updates.assignedTo;
+};
+
+const applyFieldUpdates = (task: TaskDocument, updates: TaskUpdateInput) => {
+  if (updates.name !== undefined) task.name = updates.name;
+  if (updates.description !== undefined) task.description = updates.description;
+  if (updates.additionalNotes !== undefined)
+    task.additionalNotes = updates.additionalNotes;
+  if (updates.dueAt !== undefined) task.dueAt = updates.dueAt;
+  if (updates.timezone !== undefined)
+    task.timezone = updates.timezone ?? undefined;
+  if (updates.medication !== undefined) {
+    task.medication =
+      updates.medication === null
+        ? undefined
+        : sanitizeMedication(updates.medication);
+  }
+  if (updates.observationToolId !== undefined) {
+    task.observationToolId = updates.observationToolId ?? undefined;
+  }
+  if (updates.reminder !== undefined) {
+    task.reminder =
+      updates.reminder === null
+        ? undefined
+        : {
+            enabled: updates.reminder.enabled,
+            offsetMinutes: updates.reminder.offsetMinutes,
+            scheduledNotificationId: task.reminder?.scheduledNotificationId,
+          };
+  }
+  if (updates.syncWithCalendar !== undefined) {
+    task.syncWithCalendar = updates.syncWithCalendar;
+  }
+  if (updates.attachments !== undefined) {
+    task.attachments = updates.attachments;
+  }
+};
+
+const applyRecurrenceUpdate = (task: TaskDocument, updates: TaskUpdateInput) => {
+  if (updates.recurrence === undefined) return;
+  if (updates.recurrence === null) {
+    task.recurrence = undefined;
+    return;
+  }
+  if (task.recurrence) {
+    task.recurrence.type = updates.recurrence.type;
+    task.recurrence.cronExpression =
+      updates.recurrence.cronExpression ?? task.recurrence.cronExpression;
+    task.recurrence.endDate =
+      updates.recurrence.endDate ?? task.recurrence.endDate;
+    return;
+  }
+  task.recurrence = {
+    type: updates.recurrence.type,
+    isMaster: true,
+    masterTaskId: undefined,
+    cronExpression: updates.recurrence.cronExpression ?? undefined,
+    endDate: updates.recurrence.endDate ?? undefined,
+  };
 };
 
 const normalizeDoseTime = (value: unknown): string | undefined => {
@@ -291,8 +408,9 @@ export const TaskService = {
   async createFromLibrary(
     input: CreateFromLibraryInput,
   ): Promise<TaskDocument> {
+    const libraryTaskId = ensureObjectId(input.libraryTaskId, "libraryTaskId");
     const library = await TaskLibraryDefinitionModel.findById(
-      input.libraryTaskId,
+      libraryTaskId,
     ).exec();
 
     if (!library || !library.isActive) {
@@ -356,7 +474,8 @@ export const TaskService = {
   async createFromTemplate(
     input: CreateFromTemplateInput,
   ): Promise<TaskDocument> {
-    const template = await TaskTemplateModel.findById(input.templateId).exec();
+    const templateId = ensureObjectId(input.templateId, "templateId");
+    const template = await TaskTemplateModel.findById(templateId).exec();
 
     if (!template || !template.isActive) {
       throw new TaskServiceError("Task template not found or inactive", 404);
@@ -530,78 +649,10 @@ export const TaskService = {
 
     const isCreator = task.createdBy === actorId;
     const isAssignee = task.assignedTo === actorId;
-
-    if (!isCreator && !isAssignee) {
-      throw new TaskServiceError("Not allowed to update this task", 403);
-    }
-
-    // 🔒 Only creator can reassign
-    if (updates.assignedTo !== undefined) {
-      if (!isCreator) {
-        throw new TaskServiceError("Only task creator can reassign task", 403);
-      }
-      task.assignedTo = updates.assignedTo;
-    }
-
-    if (updates.name !== undefined) task.name = updates.name;
-    if (updates.description !== undefined)
-      task.description = updates.description;
-    if (updates.additionalNotes !== undefined)
-      task.additionalNotes = updates.additionalNotes;
-    if (updates.dueAt !== undefined) task.dueAt = updates.dueAt;
-
-    if (updates.timezone !== undefined)
-      task.timezone = updates.timezone ?? undefined;
-
-    if (updates.medication !== undefined) {
-      task.medication =
-        updates.medication === null
-          ? undefined
-          : sanitizeMedication(updates.medication);
-    }
-
-    if (updates.observationToolId !== undefined) {
-      task.observationToolId = updates.observationToolId ?? undefined;
-    }
-
-    if (updates.reminder !== undefined) {
-      task.reminder =
-        updates.reminder === null
-          ? undefined
-          : {
-              enabled: updates.reminder.enabled,
-              offsetMinutes: updates.reminder.offsetMinutes,
-              scheduledNotificationId: task.reminder?.scheduledNotificationId,
-            };
-    }
-
-    if (updates.syncWithCalendar !== undefined) {
-      task.syncWithCalendar = updates.syncWithCalendar;
-    }
-
-    if (updates.attachments !== undefined) {
-      task.attachments = updates.attachments;
-    }
-
-    if (updates.recurrence !== undefined) {
-      if (updates.recurrence === null) {
-        task.recurrence = undefined;
-      } else if (task.recurrence) {
-        task.recurrence.type = updates.recurrence.type;
-        task.recurrence.cronExpression =
-          updates.recurrence.cronExpression ?? task.recurrence.cronExpression;
-        task.recurrence.endDate =
-          updates.recurrence.endDate ?? task.recurrence.endDate;
-      } else {
-        task.recurrence = {
-          type: updates.recurrence.type,
-          isMaster: true,
-          masterTaskId: undefined,
-          cronExpression: updates.recurrence.cronExpression ?? undefined,
-          endDate: updates.recurrence.endDate ?? undefined,
-        };
-      }
-    }
+    assertCanUpdateTask(isCreator, isAssignee);
+    applyAssigneeUpdate(task, updates, isCreator);
+    applyFieldUpdates(task, updates);
+    applyRecurrenceUpdate(task, updates);
 
     await task.save();
     return task;
@@ -666,18 +717,30 @@ export const TaskService = {
     toDueAt?: Date;
     status?: TaskStatus[];
   }): Promise<TaskDocument[]> {
+    const parentId = asNonEmptyString(params.parentId);
+    if (!parentId) {
+      throw new TaskServiceError("Invalid parentId");
+    }
+
     const filter: Record<string, unknown> = {
       audience: "PARENT_TASK",
-      $or: [{ assignedTo: params.parentId }, { createdBy: params.parentId }],
+      $or: [{ assignedTo: parentId }, { createdBy: parentId }],
     };
 
-    if (params.companionId) filter.companionId = params.companionId;
-    if (params.status?.length) filter.status = { $in: params.status };
+    const companionId = asNonEmptyString(params.companionId);
+    if (companionId) filter.companionId = companionId;
 
-    if (params.fromDueAt || params.toDueAt) {
+    const status = sanitizeStatusList(params.status);
+    if (status) filter.status = { $in: status };
+
+    const fromDueAt = isValidDate(params.fromDueAt)
+      ? params.fromDueAt
+      : undefined;
+    const toDueAt = isValidDate(params.toDueAt) ? params.toDueAt : undefined;
+    if (fromDueAt || toDueAt) {
       const dueAtFilter: { $gte?: Date; $lte?: Date } = {};
-      if (params.fromDueAt) dueAtFilter.$gte = params.fromDueAt;
-      if (params.toDueAt) dueAtFilter.$lte = params.toDueAt;
+      if (fromDueAt) dueAtFilter.$gte = fromDueAt;
+      if (toDueAt) dueAtFilter.$lte = toDueAt;
       filter.dueAt = dueAtFilter;
     }
 
@@ -692,19 +755,33 @@ export const TaskService = {
     toDueAt?: Date;
     status?: TaskStatus[];
   }): Promise<TaskDocument[]> {
+    const organisationId = asNonEmptyString(params.organisationId);
+    if (!organisationId) {
+      throw new TaskServiceError("Invalid organisationId");
+    }
+
     const filter: Record<string, unknown> = {
       audience: "EMPLOYEE_TASK",
-      organisationId: params.organisationId,
+      organisationId,
     };
 
-    if (params.userId) filter.assignedTo = params.userId;
-    if (params.companionId) filter.companionId = params.companionId;
-    if (params.status?.length) filter.status = { $in: params.status };
+    const userId = asNonEmptyString(params.userId);
+    if (userId) filter.assignedTo = userId;
 
-    if (params.fromDueAt || params.toDueAt) {
+    const companionId = asNonEmptyString(params.companionId);
+    if (companionId) filter.companionId = companionId;
+
+    const status = sanitizeStatusList(params.status);
+    if (status) filter.status = { $in: status };
+
+    const fromDueAt = isValidDate(params.fromDueAt)
+      ? params.fromDueAt
+      : undefined;
+    const toDueAt = isValidDate(params.toDueAt) ? params.toDueAt : undefined;
+    if (fromDueAt || toDueAt) {
       const dueAtFilter: { $gte?: Date; $lte?: Date } = {};
-      if (params.fromDueAt) dueAtFilter.$gte = params.fromDueAt;
-      if (params.toDueAt) dueAtFilter.$lte = params.toDueAt;
+      if (fromDueAt) dueAtFilter.$gte = fromDueAt;
+      if (toDueAt) dueAtFilter.$lte = toDueAt;
       filter.dueAt = dueAtFilter;
     }
 
@@ -718,17 +795,29 @@ export const TaskService = {
     toDueAt?: Date;
     status?: TaskStatus[];
   }): Promise<TaskDocument[]> {
+    const companionId = asNonEmptyString(params.companionId);
+    if (!companionId) {
+      throw new TaskServiceError("Invalid companionId");
+    }
+
     const filter: Record<string, unknown> = {
-      companionId: params.companionId,
+      companionId,
     };
 
-    if (params.audience) filter.audience = params.audience;
-    if (params.status?.length) filter.status = { $in: params.status };
+    const audience = sanitizeAudience(params.audience);
+    if (audience) filter.audience = audience;
 
-    if (params.fromDueAt || params.toDueAt) {
+    const status = sanitizeStatusList(params.status);
+    if (status) filter.status = { $in: status };
+
+    const fromDueAt = isValidDate(params.fromDueAt)
+      ? params.fromDueAt
+      : undefined;
+    const toDueAt = isValidDate(params.toDueAt) ? params.toDueAt : undefined;
+    if (fromDueAt || toDueAt) {
       const dueAtFilter: { $gte?: Date; $lte?: Date } = {};
-      if (params.fromDueAt) dueAtFilter.$gte = params.fromDueAt;
-      if (params.toDueAt) dueAtFilter.$lte = params.toDueAt;
+      if (fromDueAt) dueAtFilter.$gte = fromDueAt;
+      if (toDueAt) dueAtFilter.$lte = toDueAt;
       filter.dueAt = dueAtFilter;
     }
 

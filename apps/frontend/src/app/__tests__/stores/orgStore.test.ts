@@ -1,4 +1,4 @@
-import { useOrgStore } from "../../stores/orgStore";
+import { useOrgStore } from "@/app/stores/orgStore";
 import { Organisation, UserOrganization } from "@yosemite-crew/types";
 
 // --- Mock Data ---

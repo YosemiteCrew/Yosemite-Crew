@@ -4,7 +4,7 @@ import { useSpecialityStore } from "@/app/stores/specialityStore";
 import {
   computeOrgOnboardingStep,
   OnboardingStep,
-} from "@/app/utils/orgOnboarding";
+} from "@/app/lib/orgOnboarding";
 import type { Organisation, Speciality } from "@yosemite-crew/types";
 
 export const useOrgOnboarding = (

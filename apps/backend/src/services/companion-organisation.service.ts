@@ -11,6 +11,8 @@ import { toFHIR as toFHIRCompanion } from "./companion.service";
 import { toFHIR as toFHIRParent } from "./parent.service";
 import { AuditTrailService } from "./audit-trail.service";
 
+type BusinessType = "HOSPITAL" | "BREEDER" | "BOARDER" | "GROOMER";
+
 export class CompanionOrganisationServiceError extends Error {
   constructor(
     message: string,
@@ -54,7 +56,7 @@ export const CompanionOrganisationService = {
     parentId: Types.ObjectId | string;
     companionId: Types.ObjectId | string;
     organisationId: Types.ObjectId | string;
-    organisationType: "HOSPITAL" | "BREEDER" | "BOARDER" | "GROOMER";
+    organisationType: BusinessType;
   }): Promise<CompanionOrganisationDocument> {
     const parent = ensureObjectId(parentId, "parentId");
     const companion = ensureObjectId(companionId, "companionId");
@@ -104,7 +106,7 @@ export const CompanionOrganisationService = {
     pmsUserId: string;
     companionId: Types.ObjectId | string;
     organisationId: Types.ObjectId | string;
-    organisationType: "HOSPITAL" | "BREEDER" | "BOARDER" | "GROOMER";
+    organisationType: BusinessType;
   }): Promise<CompanionOrganisationDocument> {
     const companion = ensureObjectId(companionId, "companionId");
     const org = ensureObjectId(organisationId, "organisationId");
@@ -153,7 +155,7 @@ export const CompanionOrganisationService = {
   }: {
     parentId: Types.ObjectId | string;
     companionId: Types.ObjectId | string;
-    organisationType: "HOSPITAL" | "BREEDER" | "BOARDER" | "GROOMER";
+    organisationType: BusinessType;
     email?: string | null;
     name?: string | null;
     placesId?: string | null;
@@ -291,7 +293,7 @@ export const CompanionOrganisationService = {
     companionId: string | Types.ObjectId;
     organisationId: string | Types.ObjectId;
     pmsUserId: string;
-    organisationType: "HOSPITAL" | "BREEDER" | "BOARDER" | "GROOMER";
+    organisationType: BusinessType;
   }) {
     return this.linkByPmsUser({
       pmsUserId,

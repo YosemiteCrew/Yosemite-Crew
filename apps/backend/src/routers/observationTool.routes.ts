@@ -100,7 +100,7 @@ router.post(
   ObservationToolSubmissionController.linkAppointment,
 );
 
-router.get(
+router.post(
   "/pms/appointments/:appointmentId/submissions",
   authorizeCognito,
   ObservationToolSubmissionController.listForAppointment,

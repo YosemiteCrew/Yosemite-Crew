@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
 const showErrorTostMock = jest.fn();
-jest.mock("@/app/components/Toast/Toast", () => ({
+jest.mock("@/app/ui/overlays/Toast/Toast", () => ({
   useErrorTost: () => ({
     showErrorTost: showErrorTostMock,
     ErrorTostPopup: <div data-testid="toast" />,
@@ -18,7 +18,7 @@ jest.mock("@/app/stores/authStore", () => ({
 }));
 
 let latestOtpModalProps: any;
-jest.mock("@/app/components/OtpModal/OtpModal", () => ({
+jest.mock("@/app/ui/overlays/OtpModal/OtpModal", () => ({
   __esModule: true,
   default: (props: any) => {
     latestOtpModalProps = props;
@@ -26,7 +26,7 @@ jest.mock("@/app/components/OtpModal/OtpModal", () => ({
   },
 }));
 
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   __esModule: true,
   default: ({
     inlabel,
@@ -47,7 +47,7 @@ jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/FormInputPass/FormInputPass", () => ({
+jest.mock("@/app/ui/inputs/FormInputPass/FormInputPass", () => ({
   __esModule: true,
   default: ({
     inlabel,
@@ -93,7 +93,7 @@ jest.mock("react-bootstrap", () => {
       {children}
     </form>
   );
-  jest.mock("@/app/components/Buttons", () => ({
+  jest.mock("@/app/ui/primitives/Buttons", () => ({
     Primary: ({
       text,
       onClick,
@@ -133,7 +133,7 @@ jest.mock("react-bootstrap", () => {
   };
 });
 
-import SignUp from "@/app/pages/SignUp/SignUp";
+import SignUp from "@/app/features/auth/pages/SignUp/SignUp";
 
 describe("SignUp page", () => {
   beforeEach(() => {

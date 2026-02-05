@@ -8,7 +8,7 @@ jest.mock("@/app/stores/authStore", () => ({
   useAuthStore: () => useAuthStoreMock(),
 }));
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   __esModule: true,
   Primary: ({ text, href }: any) => (
     <a href={href} data-testid={`primary-${text}`}>
@@ -22,14 +22,14 @@ jest.mock("@/app/components/Buttons", () => ({
   ),
 }));
 
-jest.mock("@/app/components/DevRouteGuard/DevRouteGuard", () => ({
+jest.mock("@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard", () => ({
   __esModule: true,
   default: ({ children }: any) => (
     <div data-testid="dev-guard">{children}</div>
   ),
 }));
 
-import DeveloperPortalHome from "@/app/pages/DeveloperPortalHome/DeveloperPortalHome";
+import DeveloperPortalHome from "@/app/features/developers/pages/DeveloperPortalHome/DeveloperPortalHome";
 
 const createSession = (payload: any) => ({
   getIdToken: () => ({

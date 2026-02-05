@@ -6,6 +6,7 @@ import "./workers";
 
 const PORT = process.env.PORT || 3000;
 
+// NOSONAR – top-level await not supported in this runtime
 async function startServer() {
   try {
     await connectDB();

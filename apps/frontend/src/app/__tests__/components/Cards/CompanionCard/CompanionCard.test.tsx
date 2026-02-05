@@ -3,30 +3,30 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import CompanionCard from "@/app/components/Cards/CompanionCard/CompanionCard";
+import CompanionCard from "@/app/ui/cards/CompanionCard/CompanionCard";
 
 jest.mock("next/image", () => ({
   __esModule: true,
   default: (props: any) => <img alt={props.alt || ""} {...props} />,
 }));
 
-jest.mock("@/app/components/DataTable/CompanionsTable", () => ({
+jest.mock("@/app/ui/tables/CompanionsTable", () => ({
   getStatusStyle: jest.fn(() => ({ backgroundColor: "pink", color: "white" })),
 }));
 
-jest.mock("@/app/utils/date", () => ({
+jest.mock("@/app/lib/date", () => ({
   getAgeInYears: jest.fn(() => "2y"),
 }));
 
-jest.mock("@/app/utils/urls", () => ({
+jest.mock("@/app/lib/urls", () => ({
   getSafeImageUrl: jest.fn(() => "image"),
 }));
 
-jest.mock("@/app/utils/validators", () => ({
+jest.mock("@/app/lib/validators", () => ({
   toTitleCase: (value: string) => value.toUpperCase(),
 }));
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Secondary: ({ text, onClick }: any) => (
     <button type="button" onClick={onClick}>
       {text}

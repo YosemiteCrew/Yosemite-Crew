@@ -1,14 +1,14 @@
 import { renderHook } from "@testing-library/react";
-import { useLoadTeam, useTeamForPrimaryOrg } from "../../hooks/useTeam";
-import { useOrgStore } from "../../stores/orgStore";
-import { useTeamStore } from "../../stores/teamStore";
-import { loadTeam } from "../../services/teamService";
+import { useLoadTeam, useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { useTeamStore } from "@/app/stores/teamStore";
+import { loadTeam } from "@/app/features/organization/services/teamService";
 
 // --- Mocks ---
 
-jest.mock("../../stores/orgStore");
-jest.mock("../../stores/teamStore");
-jest.mock("../../services/teamService", () => ({
+jest.mock("@/app/stores/orgStore");
+jest.mock("@/app/stores/teamStore");
+jest.mock("@/app/features/organization/services/teamService", () => ({
   loadTeam: jest.fn(),
 }));
 

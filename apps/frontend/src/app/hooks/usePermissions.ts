@@ -1,6 +1,6 @@
 import { useMemo, useCallback } from "react";
 import { useOrgStore } from "@/app/stores/orgStore";
-import type { Permission } from "../utils/permissions";
+import type { Permission } from "@/app/lib/permissions";
 
 type CanInput =
   | Permission

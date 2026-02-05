@@ -22,7 +22,7 @@ const getStripeClient = () => {
   const apiKey = process.env.STRIPE_SECRET_KEY;
   if (!apiKey) throw new Error("STRIPE_SECRET_KEY is not configured");
 
-  stripeClient = new Stripe(apiKey, { apiVersion: "2025-11-17.clover" });
+  stripeClient = new Stripe(apiKey, { apiVersion: "2026-01-28.clover" });
   return stripeClient;
 };
 
@@ -169,13 +169,6 @@ export const StripeService = {
       billing.connectAccountId = org.stripeAccountId;
       await billing.save();
     }
-
-    // // Gate upgrade on Connect readiness
-    // if (!billing.canAcceptPayments) {
-    //   throw new Error(
-    //     "Stripe account not ready. Complete onboarding/verification first.",
-    //   );
-    // }
 
     const seats = await computeBillableSeats(orgId);
     if (seats < 1)
@@ -934,33 +927,14 @@ export const StripeService = {
     // Idempotency
     if (invoice.status === "PAID") return;
 
-    // ✅ Accept ONLY if invoice expects PAYMENT_LINK
-    if (invoice.paymentCollectionMethod !== "PAYMENT_LINK") {
-      // Late or invalid payment → refund
-      const piId =
-        typeof session.payment_intent === "string"
-          ? session.payment_intent
-          : null;
+    const shouldRefundPayment =
+      invoice.paymentCollectionMethod !== "PAYMENT_LINK" ||
+      (invoice.stripeCheckoutSessionId &&
+        invoice.stripeCheckoutSessionId !== session.id);
 
-      if (piId) {
-        await this._refundByPaymentIntentId(piId);
-      }
-      return;
-    }
-
-    // Ensure session matches what we issued
-    if (
-      invoice.stripeCheckoutSessionId &&
-      invoice.stripeCheckoutSessionId !== session.id
-    ) {
-      const piId =
-        typeof session.payment_intent === "string"
-          ? session.payment_intent
-          : null;
-
-      if (piId) {
-        await this._refundByPaymentIntentId(piId);
-      }
+    // Late or invalid payment → refund
+    if (shouldRefundPayment) {
+      await this._refundCheckoutSession(session);
       return;
     }
 
@@ -994,6 +968,17 @@ export const StripeService = {
         ),
       );
     }
+  },
+
+  async _refundCheckoutSession(session: Stripe.Checkout.Session) {
+    const paymentIntentId =
+      typeof session.payment_intent === "string"
+        ? session.payment_intent
+        : null;
+
+    if (!paymentIntentId) return;
+
+    await this._refundByPaymentIntentId(paymentIntentId);
   },
 
   async _refundByPaymentIntentId(paymentIntentId: string) {

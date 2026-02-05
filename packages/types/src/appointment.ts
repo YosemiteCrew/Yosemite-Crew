@@ -235,7 +235,9 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
 
   const speciesExtesnion = FHIRappointment.extension?.find(p => p.id?.includes("species"))
   const breedExtension = FHIRappointment.extension?.find(p => p.id?.includes("breed"))
-  const emergencyExtension = FHIRappointment.extension?.find(p => p.url?.includes(EXT_EMERGENCY))
+  const emergencyExtension = FHIRappointment.extension?.find(
+    p => p.url === EXT_EMERGENCY,
+  )
   const leadProfileExtension = leadParticipant?.extension?.find(ext => ext.url === EXT_LEAD_PROFILE_URL)
 
   const pmsStatus = FHIRappointment.status // fallback if unknown status

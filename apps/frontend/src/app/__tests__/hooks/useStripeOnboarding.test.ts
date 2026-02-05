@@ -2,24 +2,24 @@ import { renderHook, act } from "@testing-library/react";
 import {
   useStripeOnboarding,
   useSubscriptionCounterUpdate,
-} from "../../hooks/useStripeOnboarding";
-import { useOrgStore } from "../../stores/orgStore";
-import { useSubscriptionStore } from "../../stores/subscriptionStore";
-import * as stripeService from "../../services/stripeService";
+} from "@/app/hooks/useStripeOnboarding";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { useSubscriptionStore } from "@/app/stores/subscriptionStore";
+import * as stripeService from "@/app/features/billing/services/stripeService";
 
 // ----------------------------------------------------------------------------
 // 1. Mocks
 // ----------------------------------------------------------------------------
 
-jest.mock("../../stores/orgStore", () => ({
+jest.mock("@/app/stores/orgStore", () => ({
   useOrgStore: jest.fn(),
 }));
 
-jest.mock("../../stores/subscriptionStore", () => ({
+jest.mock("@/app/stores/subscriptionStore", () => ({
   useSubscriptionStore: jest.fn(),
 }));
 
-jest.mock("../../services/stripeService", () => ({
+jest.mock("@/app/features/billing/services/stripeService", () => ({
   checkStatus: jest.fn(),
 }));
 

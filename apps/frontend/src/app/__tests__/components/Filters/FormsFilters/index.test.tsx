@@ -1,18 +1,18 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import FormsFilters from "@/app/components/Filters/FormsFilters";
-import { FormsProps } from "@/app/types/forms";
+import FormsFilters from "@/app/ui/filters/FormsFilters";
+import { FormsProps } from "@/app/features/forms/types/forms";
 
 // --- Mocks ---
 
 // Mock the constants from the types file
-jest.mock("@/app/types/forms", () => ({
+jest.mock("@/app/features/forms/types/forms", () => ({
   FormsStatusFilters: ["All", "Active", "Archived"],
   FormsCategoryOptions: ["Registration", "Feedback", "Survey"],
 }));
 
 // Mock Search Component
-jest.mock("@/app/components/Inputs/Search", () => ({
+jest.mock("@/app/ui/inputs/Search", () => ({
   __esModule: true,
   default: ({ value, setSearch }: any) => (
     <input
@@ -25,7 +25,7 @@ jest.mock("@/app/components/Inputs/Search", () => ({
 }));
 
 // Mock LabelDropdown Component
-jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
+jest.mock("@/app/ui/inputs/Dropdown/LabelDropdown", () => ({
   __esModule: true,
   default: ({ defaultOption, onSelect, options }: any) => (
     <div data-testid="mock-dropdown">

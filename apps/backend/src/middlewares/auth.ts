@@ -169,6 +169,7 @@ const verifyFirebaseToken = async (token: string): Promise<JwtPayload> => {
   try {
     return await admin.auth().verifyIdToken(token);
   } catch (err) {
+    logger.error("Failed to verify Firebase token", err);
     throw new Error("Invalid Firebase token");
   }
 };
@@ -181,8 +182,14 @@ const detectProvider = (
   const iss = decoded.iss;
   if (!iss) return null;
 
-  if (iss.includes("securetoken.google.com")) return "firebase";
-  else return "cognito";
+  try {
+    const issuer = new URL(iss);
+    if (issuer.host === "securetoken.google.com") return "firebase";
+  } catch {
+    return null;
+  }
+
+  return "cognito";
 };
 
 export interface CognitoJwtPayload extends JwtPayload {

@@ -133,7 +133,7 @@ export const UserProfileController = {
     try {
       const { organizationId } = req.params;
       const userId = resolveUserIdFromRequest(req);
-      if (!organizationId) {
+      if (typeof organizationId !== "string" || !organizationId) {
         return res.status(400).json({
           message: "organizationId and userId are required in params",
         });

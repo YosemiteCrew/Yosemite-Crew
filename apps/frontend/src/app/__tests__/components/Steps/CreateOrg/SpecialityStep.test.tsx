@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import SpecialityStep from "../../../../components/Steps/CreateOrg/SpecialityStep";
-import { createSpeciality } from "../../../../services/specialityService";
+import SpecialityStep from "@/app/features/onboarding/components/Steps/CreateOrg/SpecialityStep";
+import { createSpeciality } from "@/app/features/organization/services/specialityService";
 import { useRouter } from "next/navigation";
 import { Speciality } from "@yosemite-crew/types";
 
@@ -10,12 +10,12 @@ jest.mock("next/navigation", () => ({
   useRouter: jest.fn(),
 }));
 
-jest.mock("../../../../services/specialityService", () => ({
+jest.mock("@/app/features/organization/services/specialityService", () => ({
   createSpeciality: jest.fn(),
 }));
 
 jest.mock(
-  "../../../../components/Inputs/SpecialitySearch/SpecialitySearch",
+  "@/app/ui/inputs/SpecialitySearch/SpecialitySearch",
   () =>
     ({ setSpecialities }: any) => (
       <div data-testid="search-component">
@@ -35,14 +35,14 @@ jest.mock(
 );
 
 jest.mock(
-  "../../../../components/Cards/SpecialityCard/SpecialityCard",
+  "@/app/ui/cards/SpecialityCard/SpecialityCard",
   () =>
     ({ speciality }: any) => (
       <div data-testid="speciality-card">{speciality.name}</div>
     )
 );
 
-jest.mock("../../../../components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ onClick, text }: any) => (
     <button data-testid="btn-next" onClick={onClick}>
       {text}

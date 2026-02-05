@@ -2,28 +2,28 @@ import {
   loadDocumentsForOrgPrimaryOrg,
   createDocument,
   updateDocument,
-} from "../../services/documentService";
-import { getData, postData, patchData } from "../../services/axios";
-import { useOrgStore } from "../../stores/orgStore";
-import { useOrganizationDocumentStore } from "../../stores/documentStore";
-import { OrganizationDocument } from "../../types/document";
+} from "@/app/features/documents/services/documentService";
+import { getData, postData, patchData } from "@/app/services/axios";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { useOrganizationDocumentStore } from "@/app/stores/documentStore";
+import { OrganizationDocument } from "@/app/features/documents/types/document";
 
 // --- Mocks ---
 
 // 1. Mock Axios Helpers
-jest.mock("../../services/axios");
+jest.mock("@/app/services/axios");
 const mockedGetData = getData as jest.Mock;
 const mockedPostData = postData as jest.Mock;
 const mockedPatchData = patchData as jest.Mock;
 
 // 2. Mock Stores
-jest.mock("../../stores/orgStore", () => ({
+jest.mock("@/app/stores/orgStore", () => ({
   useOrgStore: {
     getState: jest.fn(),
   },
 }));
 
-jest.mock("../../stores/documentStore", () => ({
+jest.mock("@/app/stores/documentStore", () => ({
   useOrganizationDocumentStore: {
     getState: jest.fn(),
   },

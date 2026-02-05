@@ -1,14 +1,14 @@
 import React from "react";
 import { render, screen, fireEvent, within } from "@testing-library/react";
-import DocumentsTable from "@/app/components/DataTable/DocumentsTable";
-import { OrganizationDocument } from "@/app/types/document";
+import DocumentsTable from "@/app/ui/tables/DocumentsTable";
+import { OrganizationDocument } from "@/app/features/documents/types/document";
 
 // --- Mocks ---
 
 // REMOVED: GenericTable mock.
 // We will integration test with the real table component to avoid module resolution/mocking issues.
 
-jest.mock("@/app/components/Cards/DocumentsCard", () => ({
+jest.mock("@/app/ui/cards/DocumentsCard", () => ({
   __esModule: true,
   default: ({ document, handleViewDocument }: any) => (
     <div data-testid="documents-card">

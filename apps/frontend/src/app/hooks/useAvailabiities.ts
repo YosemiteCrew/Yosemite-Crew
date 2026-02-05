@@ -1,11 +1,11 @@
 import { useEffect, useMemo } from "react";
-import { loadAvailability } from "../services/availability";
-import { useOrgStore } from "../stores/orgStore";
-import { useAvailabilityStore } from "../stores/availabilityStore";
+import { loadAvailability } from "@/app/features/organization/services/availabilityService";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { useAvailabilityStore } from "@/app/stores/availabilityStore";
 import {
   AvailabilityState,
   convertFromGetApi,
-} from "../components/Availability/utils";
+} from "@/app/features/appointments/components/Availability/utils";
 
 export const useLoadAvailabilities = () => {
   const availabilityStatus = useAvailabilityStore((s) => s.status);

@@ -2,7 +2,7 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import AppointmentTask from "@/app/components/Summary/AppointmentTask";
+import AppointmentTask from "@/app/ui/widgets/Summary/AppointmentTask";
 
 const useAppointmentsMock = jest.fn();
 const useTasksMock = jest.fn();
@@ -22,29 +22,29 @@ jest.mock("@/app/hooks/usePermissions", () => ({
   usePermissions: () => usePermissionsMock(),
 }));
 
-jest.mock("@/app/components/DataTable/Appointments", () => (props: any) => {
+jest.mock("@/app/ui/tables/Appointments", () => (props: any) => {
   appointmentsSpy(props);
   return <div data-testid="appointments-table" />;
 });
 
-jest.mock("@/app/components/DataTable/Tasks", () => (props: any) => {
+jest.mock("@/app/ui/tables/Tasks", () => (props: any) => {
   tasksSpy(props);
   return <div data-testid="tasks-table" />;
 });
 
-jest.mock("@/app/pages/Appointments/Sections/AppointmentInfo", () => (props: any) => (
+jest.mock("@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo", () => (props: any) => (
   <div data-testid="appointment-info" />
 ));
 
-jest.mock("@/app/pages/Tasks/Sections/TaskInfo", () => (props: any) => (
+jest.mock("@/app/features/tasks/pages/Tasks/Sections/TaskInfo", () => (props: any) => (
   <div data-testid="task-info" />
 ));
 
-jest.mock("@/app/pages/Appointments/Sections/Reschedule", () => (props: any) => (
+jest.mock("@/app/features/appointments/pages/Appointments/Sections/Reschedule", () => (props: any) => (
   <div data-testid="reschedule" />
 ));
 
-jest.mock("@/app/components/PermissionGate", () => ({
+jest.mock("@/app/ui/layout/guards/PermissionGate", () => ({
   PermissionGate: ({ children }: any) => <div>{children}</div>,
 }));
 

@@ -1,6 +1,6 @@
 import React from "react";
-import Footer from "@/app/components/Footer/Footer";
-import TermsAndConditions from "@/app/pages/TermsAndConditions/TermsAndConditions";
+import Footer from "@/app/ui/widgets/Footer/Footer";
+import TermsAndConditions from "@/app/features/legal/pages/TermsAndConditions";
 
 function page() {
   return (

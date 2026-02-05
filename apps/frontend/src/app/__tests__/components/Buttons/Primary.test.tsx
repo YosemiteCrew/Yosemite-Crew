@@ -6,7 +6,7 @@ jest.mock("next/link", () => {
   return ({ children, ...props }: any) => <a {...props}>{children}</a>;
 });
 
-import Primary from "@/app/components/Buttons/Primary";
+import Primary from "@/app/ui/primitives/Buttons/Primary";
 
 describe("Primary button", () => {
   test("renders the provided text and href", () => {

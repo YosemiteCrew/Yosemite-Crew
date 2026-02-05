@@ -21,6 +21,15 @@ export class ObservationToolSubmissionServiceError extends Error {
 
 const SAFE_ID_FALLBACK = /^[A-Za-z0-9_-]+$/;
 
+const asNonEmptyString = (value: unknown): string | undefined => {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed || undefined;
+};
+
+const isValidDate = (value: unknown): value is Date =>
+  value instanceof Date && !Number.isNaN(value.getTime());
+
 const assertObjectId = (value: unknown, field: string): string => {
   if (typeof value !== "string") {
     throw new ObservationToolSubmissionServiceError(
@@ -90,37 +99,150 @@ const computeScore = (
   let total = 0;
   let usedScoring = false;
 
+  const getMappedScore = (
+    scoring: ObservationToolDefinitionDocument["fields"][number]["scoring"],
+    answer: unknown,
+  ): number | undefined => {
+    if (
+      !scoring?.map ||
+      !(
+        typeof answer === "string" ||
+        typeof answer === "number" ||
+        typeof answer === "boolean"
+      )
+    ) {
+      return undefined;
+    }
+
+    const mapped = scoring.map[String(answer)];
+    return typeof mapped === "number" ? mapped : undefined;
+  };
+
+  const isScorableAnswer = (answer: unknown): boolean =>
+    answer === true ||
+    (typeof answer === "string" && answer.trim() !== "") ||
+    (typeof answer === "number" && !Number.isNaN(answer));
+
   for (const field of tool.fields) {
     const answer = answers[field.key];
     if (!field.scoring) continue;
 
-    if (
-      field.scoring.map &&
-      (typeof answer === "string" ||
-        typeof answer === "number" ||
-        typeof answer === "boolean")
-    ) {
-      const mapped = field.scoring.map[String(answer)];
-      if (typeof mapped === "number") {
-        total += mapped;
-        usedScoring = true;
-        continue;
-      }
+    const mappedScore = getMappedScore(field.scoring, answer);
+    if (typeof mappedScore === "number") {
+      total += mappedScore;
+      usedScoring = true;
+      continue;
     }
 
-    if (typeof field.scoring.points === "number") {
-      if (
-        answer === true ||
-        (typeof answer === "string" && answer.trim() !== "") ||
-        (typeof answer === "number" && !Number.isNaN(answer))
-      ) {
-        total += field.scoring.points;
-        usedScoring = true;
-      }
+    if (
+      typeof field.scoring.points === "number" &&
+      isScorableAnswer(answer)
+    ) {
+      total += field.scoring.points;
+      usedScoring = true;
     }
   }
 
   return usedScoring ? total : undefined;
+};
+
+const assertSubmissionInput = (
+  input: CreateObservationToolSubmissionInput,
+): void => {
+  if (!input.toolId) {
+    throw new ObservationToolSubmissionServiceError("toolId is required", 400);
+  }
+  if (!input.companionId) {
+    throw new ObservationToolSubmissionServiceError(
+      "companionId is required",
+      400,
+    );
+  }
+  if (!input.filledBy) {
+    throw new ObservationToolSubmissionServiceError(
+      "filledBy is required",
+      400,
+    );
+  }
+  if (!input.answers || typeof input.answers !== "object") {
+    throw new ObservationToolSubmissionServiceError(
+      "answers are required",
+      400,
+    );
+  }
+};
+
+const assertTaskSubmission = async (
+  taskId: string,
+  input: CreateObservationToolSubmissionInput,
+): Promise<void> => {
+  const existing = await ObservationToolSubmissionModel.findOne({ taskId })
+    .setOptions({ sanitizeFilter: true })
+    .lean();
+
+  if (existing) {
+    throw new ObservationToolSubmissionServiceError(
+      "Observation already submitted for this task",
+      409,
+    );
+  }
+
+  const task = await TaskModel.findById(taskId).lean();
+  if (!task) {
+    throw new ObservationToolSubmissionServiceError("Task not found", 404);
+  }
+  if (task.assignedTo !== input.filledBy) {
+    throw new ObservationToolSubmissionServiceError(
+      "Not allowed to submit this task",
+      403,
+    );
+  }
+  if (task.companionId !== input.companionId) {
+    throw new ObservationToolSubmissionServiceError(
+      "companionId does not match task",
+      400,
+    );
+  }
+  if (task.observationToolId && task.observationToolId !== input.toolId) {
+    throw new ObservationToolSubmissionServiceError(
+      "toolId does not match task observationToolId",
+      400,
+    );
+  }
+};
+
+const applyStringFilter = (
+  q: Record<string, unknown>,
+  key: "companionId" | "toolId",
+  value: unknown,
+): void => {
+  if (value === undefined) return;
+  const normalized = asNonEmptyString(value);
+  if (!normalized) {
+    throw new ObservationToolSubmissionServiceError(
+      `Invalid ${key}`,
+      400,
+    );
+  }
+  q[key] = normalized;
+};
+
+const applyDateRangeFilter = (
+  q: Record<string, unknown>,
+  fromDate?: Date,
+  toDate?: Date,
+): void => {
+  if (!fromDate && !toDate) return;
+  if (fromDate && !isValidDate(fromDate)) {
+    throw new ObservationToolSubmissionServiceError("Invalid fromDate", 400);
+  }
+  if (toDate && !isValidDate(toDate)) {
+    throw new ObservationToolSubmissionServiceError("Invalid toDate", 400);
+  }
+  const createdAt: { $gte?: Date; $lte?: Date } = {};
+  if (fromDate) createdAt.$gte = fromDate;
+  if (toDate) createdAt.$lte = toDate;
+  q.createdAt = createdAt;
 };
 
 export const ObservationToolSubmissionService = {
@@ -131,30 +253,7 @@ export const ObservationToolSubmissionService = {
       ? assertObjectId(input.taskId, "taskId")
       : undefined;
 
-    if (!input.toolId) {
-      throw new ObservationToolSubmissionServiceError(
-        "toolId is required",
-        400,
-      );
-    }
-    if (!input.companionId) {
-      throw new ObservationToolSubmissionServiceError(
-        "companionId is required",
-        400,
-      );
-    }
-    if (!input.filledBy) {
-      throw new ObservationToolSubmissionServiceError(
-        "filledBy is required",
-        400,
-      );
-    }
-    if (!input.answers || typeof input.answers !== "object") {
-      throw new ObservationToolSubmissionServiceError(
-        "answers are required",
-        400,
-      );
-    }
+    assertSubmissionInput(input);
 
     const tool = await ObservationToolDefinitionModel.findById(
       input.toolId,
@@ -169,50 +268,7 @@ export const ObservationToolSubmissionService = {
 
     // ✅ Task-based validation & authorization
     if (taskId) {
-      // 1) prevent duplicate OT submission for same task
-      const existing = await ObservationToolSubmissionModel.findOne({
-        taskId,
-      })
-        .setOptions({ sanitizeFilter: true })
-        .lean();
-
-      if (existing) {
-        throw new ObservationToolSubmissionServiceError(
-          "Observation already submitted for this task",
-          409,
-        );
-      }
-
-      // 2) ensure task exists
-      const task = await TaskModel.findById(taskId).lean();
-      if (!task) {
-        throw new ObservationToolSubmissionServiceError("Task not found", 404);
-      }
-
-      // 3) parent can only submit their own assigned tasks
-      if (task.assignedTo !== input.filledBy) {
-        throw new ObservationToolSubmissionServiceError(
-          "Not allowed to submit this task",
-          403,
-        );
-      }
-
-      // 4) ensure submission matches task context
-      if (task.companionId !== input.companionId) {
-        throw new ObservationToolSubmissionServiceError(
-          "companionId does not match task",
-          400,
-        );
-      }
-
-      // If you store observationToolId on task, enforce it:
-      // (Your Task schema already has observationToolId.)
-      if (task.observationToolId && task.observationToolId !== input.toolId) {
-        throw new ObservationToolSubmissionServiceError(
-          "toolId does not match task observationToolId",
-          400,
-        );
-      }
+      await assertTaskSubmission(taskId, input);
     }
 
     const score = computeScore(tool, input.answers);
@@ -289,15 +345,9 @@ export const ObservationToolSubmissionService = {
   ): Promise<ObservationToolSubmissionDocument[]> {
     const q: Record<string, unknown> = {};
 
-    if (filter.companionId) q.companionId = filter.companionId;
-    if (filter.toolId) q.toolId = filter.toolId;
-
-    if (filter.fromDate || filter.toDate) {
-      const createdAt: { $gte?: Date; $lte?: Date } = {};
-      if (filter.fromDate) createdAt.$gte = filter.fromDate;
-      if (filter.toDate) createdAt.$lte = filter.toDate;
-      q.createdAt = createdAt;
-    }
+    applyStringFilter(q, "companionId", filter.companionId);
+    applyStringFilter(q, "toolId", filter.toolId);
+    applyDateRangeFilter(q, filter.fromDate, filter.toDate);
 
     return ObservationToolSubmissionModel.find(q)
       .setOptions({ sanitizeFilter: true })

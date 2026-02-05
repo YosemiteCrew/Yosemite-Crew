@@ -1,7 +1,7 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
+import LabelDropdown from "@/app/ui/inputs/Dropdown/LabelDropdown";
 
 jest.mock("react-icons/fa6", () => ({
   FaCaretDown: () => <span data-testid="icon-caret" />,

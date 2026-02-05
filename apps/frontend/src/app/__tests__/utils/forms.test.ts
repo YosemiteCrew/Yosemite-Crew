@@ -7,14 +7,14 @@ import {
   buildFHIRPayload,
   questionnaireToForm,
   mapQuestionnaireToUI,
-} from "@/app/utils/forms";
+} from "@/app/lib/forms";
 import {
   fromFormRequestDTO,
   toFormResponseDTO,
   Form,
 } from "@yosemite-crew/types";
 // Fixed: Changed import name from 'FormCategory' to 'FormsCategory'
-import { FormsCategory } from "@/app/types/forms";
+import { FormsCategory } from "@/app/features/forms/types/forms";
 
 // --- Mocks ---
 
@@ -32,7 +32,7 @@ jest.mock("@yosemite-crew/types", () => ({
 }));
 
 // Mock the constants file to control CategoryTemplates data
-jest.mock("@/app/types/forms", () => {
+jest.mock("@/app/features/forms/types/forms", () => {
   return {
     CategoryTemplates: {
       Medical: [

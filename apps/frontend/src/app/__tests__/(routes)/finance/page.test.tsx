@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import Page from "@/app/(routes)/(app)/finance/page";
 
-jest.mock("@/app/pages/Finance", () => {
+jest.mock("@/app/features/finance/pages/Finance", () => {
   return function MockProtectedFinance() {
     return <div data-testid="protected-finance-mock">Finance Dashboard</div>;
   };

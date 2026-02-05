@@ -9,7 +9,7 @@ import {
 import "@testing-library/jest-dom";
 
 const showErrorTostMock = jest.fn();
-jest.mock("@/app/components/Toast/Toast", () => ({
+jest.mock("@/app/ui/overlays/Toast/Toast", () => ({
   useErrorTost: () => ({
     showErrorTost: showErrorTostMock,
     ErrorTostPopup: <div data-testid="toast" />,
@@ -31,7 +31,7 @@ jest.mock("next/navigation", () => ({
   }),
 }));
 
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   __esModule: true,
   default: ({
     inlabel,
@@ -52,7 +52,7 @@ jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/FormInputPass/FormInputPass", () => ({
+jest.mock("@/app/ui/inputs/FormInputPass/FormInputPass", () => ({
   __esModule: true,
   default: ({
     inlabel,
@@ -75,7 +75,7 @@ jest.mock("@/app/components/Inputs/FormInputPass/FormInputPass", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({
     text,
     onClick,
@@ -104,7 +104,7 @@ jest.mock("next/link", () => {
   return ({ children, ...props }: any) => <a {...props}>{children}</a>;
 });
 
-import ForgotPassword from "@/app/pages/ForgotPassword/ForgotPassword";
+import ForgotPassword from "@/app/features/auth/pages/ForgotPassword/ForgotPassword";
 
 describe("ForgotPassword page", () => {
   beforeAll(() => {

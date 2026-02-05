@@ -1,4 +1,4 @@
-import { computeOrgOnboardingStep } from "../../utils/orgOnboarding";
+import { computeOrgOnboardingStep } from "@/app/lib/orgOnboarding";
 import type { Organisation, Speciality } from "@yosemite-crew/types";
 
 // Mock Data Helper to create a valid org quickly

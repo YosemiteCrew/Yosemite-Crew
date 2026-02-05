@@ -2,7 +2,7 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import ProtectedAppointments from "@/app/pages/Appointments";
+import ProtectedAppointments from "@/app/features/appointments/pages/Appointments";
 
 const useAppointmentsMock = jest.fn();
 const usePermissionsMock = jest.fn();
@@ -12,12 +12,12 @@ const calendarSpy = jest.fn();
 const tableSpy = jest.fn();
 const addAppointmentSpy = jest.fn();
 
-jest.mock("@/app/components/ProtectedRoute", () => ({
+jest.mock("@/app/ui/layout/guards/ProtectedRoute", () => ({
   __esModule: true,
   default: ({ children }: any) => <div>{children}</div>,
 }));
 
-jest.mock("@/app/components/OrgGuard", () => ({
+jest.mock("@/app/ui/layout/guards/OrgGuard", () => ({
   __esModule: true,
   default: ({ children }: any) => <div>{children}</div>,
 }));
@@ -34,11 +34,11 @@ jest.mock("@/app/stores/searchStore", () => ({
   useSearchStore: (selector: any) => useSearchStoreMock(selector),
 }));
 
-jest.mock("@/app/components/PermissionGate", () => ({
+jest.mock("@/app/ui/layout/guards/PermissionGate", () => ({
   PermissionGate: ({ children }: any) => <div>{children}</div>,
 }));
 
-jest.mock("@/app/components/TitleCalendar", () => (props: any) => (
+jest.mock("@/app/ui/widgets/TitleCalendar", () => (props: any) => (
   <div>
     <button type="button" onClick={() => props.setActiveView("calendar")}
     >
@@ -54,30 +54,30 @@ jest.mock("@/app/components/TitleCalendar", () => (props: any) => (
   </div>
 ));
 
-jest.mock("@/app/components/Filters/Filters", () => () => (
+jest.mock("@/app/ui/filters/Filters", () => () => (
   <div data-testid="filters" />
 ));
 
-jest.mock("@/app/components/Calendar/AppointmentCalendar", () => (props: any) => {
+jest.mock("@/app/features/appointments/components/Calendar/AppointmentCalendar", () => (props: any) => {
   calendarSpy(props);
   return <div data-testid="appointment-calendar" />;
 });
 
-jest.mock("@/app/components/DataTable/Appointments", () => (props: any) => {
+jest.mock("@/app/ui/tables/Appointments", () => (props: any) => {
   tableSpy(props);
   return <div data-testid="appointments-table" />;
 });
 
-jest.mock("@/app/pages/Appointments/Sections/AddAppointment", () => (props: any) => {
+jest.mock("@/app/features/appointments/pages/Appointments/Sections/AddAppointment", () => (props: any) => {
   addAppointmentSpy(props);
   return props.showModal ? <div data-testid="add-appointment" /> : null;
 });
 
-jest.mock("@/app/pages/Appointments/Sections/AppointmentInfo", () => () => (
+jest.mock("@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo", () => () => (
   <div data-testid="appointment-info" />
 ));
 
-jest.mock("@/app/pages/Appointments/Sections/Reschedule", () => () => (
+jest.mock("@/app/features/appointments/pages/Appointments/Sections/Reschedule", () => () => (
   <div data-testid="reschedule" />
 ));
 

@@ -1,6 +1,6 @@
-import Cookies from "@/app/components/Cookies/Cookies";
-import Github from "@/app/components/Github/Github";
-import Header from "@/app/components/Header/Header";
+import Cookies from "@/app/ui/widgets/Cookies/Cookies";
+import Github from "@/app/ui/widgets/Github/Github";
+import Header from "@/app/ui/layout/Header/Header";
 
 interface PublicLayoutProps {
   children: React.ReactNode;

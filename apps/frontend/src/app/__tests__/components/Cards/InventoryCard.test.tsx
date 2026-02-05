@@ -2,7 +2,7 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import InventoryCard from "@/app/components/Cards/InventoryCard";
+import InventoryCard from "@/app/ui/cards/InventoryCard";
 
 describe("<InventoryCard />", () => {
   const item = {

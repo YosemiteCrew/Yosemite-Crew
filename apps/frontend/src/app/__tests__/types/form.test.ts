@@ -5,7 +5,7 @@ import {
   medicationRouteOptions,
   buildMedicationFields, // This is exported and safe to use
   CategoryTemplates,
-} from '@/app/types/forms';
+} from '@/app/features/forms/types/forms';
 // Removed unused type imports and local helpers as they caused TypeErrors
 
 describe('Forms Data and Utility Functions', () => {

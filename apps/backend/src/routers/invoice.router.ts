@@ -6,7 +6,7 @@ const router = Router();
 
 // Routes for Mobile
 
-router.get(
+router.post(
   "/mobile/appointment/:appointmentId",
   authorizeCognitoMobile,
   InvoiceController.listInvoicesForAppointment,
@@ -32,7 +32,7 @@ router.post(
 );
 
 // List invoices for an appointment
-router.get(
+router.post(
   "/appointment/:appointmentId",
   authorizeCognito,
   InvoiceController.listInvoicesForAppointment,

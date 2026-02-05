@@ -1,11 +1,11 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import AddTask from "@/app/components/CompanionInfo/Sections/AddTask";
+import AddTask from "@/app/features/companions/components/Sections/AddTask";
 
 // --- Mocks ---
 
 // Mock the Accordion to verify props passed to it
-jest.mock("@/app/components/Accordion/Accordion", () => {
+jest.mock("@/app/ui/primitives/Accordion/Accordion", () => {
   return function MockAccordion(props: any) {
     return (
       <div data-testid="accordion-mock">

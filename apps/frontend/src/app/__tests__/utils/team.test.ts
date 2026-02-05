@@ -1,4 +1,4 @@
-import { allowDelete } from "@/app/utils/team";
+import { allowDelete } from "@/app/lib/team";
 
 describe("team utilities", () => {
   describe("allowDelete", () => {

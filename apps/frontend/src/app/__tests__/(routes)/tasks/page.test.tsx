@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import Page from "@/app/(routes)/(app)/tasks/page";
 
-jest.mock("@/app/pages/Tasks", () => {
+jest.mock("@/app/features/tasks/pages/Tasks", () => {
   return function MockProtectedTasks() {
     return <div data-testid="protected-tasks-mock">Tasks Content</div>;
   };

@@ -20,7 +20,7 @@ export interface Parent {
 }
 
 export const PARENT_PROFILE_COMPLETION_EXTENSION_URL =
-    "http://example.org/fhir/StructureDefinition/parent-profile-completed";
+    "https://yosemitecrew.com/fhir/StructureDefinition/parent-profile-completed";
 
 export function toFHIRRelatedPerson(parent: Parent): RelatedPerson {
     const id = parent.id ? String(parent.id) : undefined

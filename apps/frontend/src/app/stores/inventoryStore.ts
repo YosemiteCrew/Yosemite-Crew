@@ -2,7 +2,7 @@ import { create } from "zustand";
 import {
   InventoryItem,
   InventoryTurnoverItem,
-} from "@/app/pages/Inventory/types";
+} from "@/app/features/inventory/pages/Inventory/types";
 
 type InventoryStatus = "idle" | "loading" | "loaded" | "error";
 

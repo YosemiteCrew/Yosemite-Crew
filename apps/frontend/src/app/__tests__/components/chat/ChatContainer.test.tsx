@@ -8,12 +8,12 @@ import {
 } from "@testing-library/react";
 import ProtectedChatContainer, {
   ChatContainer,
-} from "../../../components/chat/ChatContainer";
-import * as streamChatService from "@/app/services/streamChatService";
-import * as chatService from "@/app/services/chatService";
+} from "@/app/features/chat/components/ChatContainer";
+import * as streamChatService from "@/app/features/chat/services/streamChatService";
+import * as chatService from "@/app/features/chat/services/chatService";
 import { useAuthStore } from "@/app/stores/authStore";
 import { useOrgStore } from "@/app/stores/orgStore";
-import { useChannelStateContext } from "stream-chat-react";
+import { useChannelStateContext, useChatContext } from "stream-chat-react";
 
 // ----------------------------------------------------------------------------
 // 1. Mocks & Setup
@@ -29,20 +29,23 @@ jest.mock("@/app/stores/orgStore", () => ({
 }));
 
 // Mock Services
-jest.mock("@/app/services/streamChatService", () => ({
+jest.mock("@/app/features/chat/services/streamChatService", () => ({
   getChatClient: jest.fn(),
   connectStreamUser: jest.fn(),
   endChatChannel: jest.fn(),
+  getAppointmentChannel: jest.fn(),
 }));
 
-jest.mock("@/app/services/chatService", () => ({
+jest.mock("@/app/features/chat/services/chatService", () => ({
   createOrgDirectChat: jest.fn(),
   createOrgGroupChat: jest.fn(),
   fetchOrgUsers: jest.fn(),
+  getChatSessions: jest.fn(),
   addGroupMembers: jest.fn(),
   removeGroupMembers: jest.fn(),
   updateGroup: jest.fn(),
   deleteGroup: jest.fn(),
+  getChatSession: jest.fn(),
   listOrgChatSessions: jest.fn(),
 }));
 
@@ -110,22 +113,24 @@ jest.mock("stream-chat-react", () => {
     ChannelPreviewMessenger: ({ displayTitle }: any) => (
       <div>{displayTitle}</div>
     ),
+    ComponentProvider: ({ children }: any) => <>{children}</>,
     useChannelStateContext: jest.fn(),
+    useChatContext: jest.fn(),
   };
 });
 
 // Mock UI Components
-jest.mock("../../../components/Loader", () => ({
+jest.mock("@/app/ui/overlays/Loader", () => ({
   YosemiteLoader: () => <div data-testid="loader">Loading...</div>,
 }));
 
-jest.mock("../../../components/Modal", () => ({
+jest.mock("@/app/ui/overlays/Modal", () => ({
   __esModule: true,
   default: ({ showModal, children }: any) =>
     showModal ? <div data-testid="group-modal">{children}</div> : null,
 }));
 
-jest.mock("../../../components/Inputs/FormInput/FormInput", () => ({
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   __esModule: true,
   default: ({ value, onChange, onFocus, onBlur, inlabel }: any) => (
     <input
@@ -139,7 +144,7 @@ jest.mock("../../../components/Inputs/FormInput/FormInput", () => ({
   ),
 }));
 
-jest.mock("../../../components/Icons/Close", () => ({
+jest.mock("@/app/ui/primitives/Icons/Close", () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button onClick={onClick} data-testid="close-icon">
@@ -148,14 +153,14 @@ jest.mock("../../../components/Icons/Close", () => ({
   ),
 }));
 
-jest.mock("../../../components/ProtectedRoute", () => ({
+jest.mock("@/app/ui/layout/guards/ProtectedRoute", () => ({
   __esModule: true,
   default: ({ children }: any) => (
     <div data-testid="protected-route">{children}</div>
   ),
 }));
 
-jest.mock("../../../components/OrgGuard", () => ({
+jest.mock("@/app/ui/layout/guards/OrgGuard", () => ({
   __esModule: true,
   default: ({ children }: any) => <div data-testid="org-guard">{children}</div>,
 }));
@@ -171,13 +176,21 @@ describe("ChatContainer", () => {
   const mockUseOrgStore = useOrgStore as unknown as jest.Mock;
   const mockUseChannelStateContext =
     useChannelStateContext as unknown as jest.Mock;
+  const mockUseChatContext = useChatContext as unknown as jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
     (streamChatService.getChatClient as jest.Mock).mockReturnValue(mockClient);
+    (streamChatService.getAppointmentChannel as jest.Mock).mockResolvedValue(
+      defaultMockChannel
+    );
 
     // Default mock context return
     mockUseChannelStateContext.mockReturnValue({ channel: defaultMockChannel });
+    mockUseChatContext.mockReturnValue({
+      client: mockClient,
+      setActiveChannel: jest.fn(),
+    });
 
     // Default Store State
     mockUseAuthStore.mockImplementation((selector: any) =>
@@ -200,6 +213,9 @@ describe("ChatContainer", () => {
       { id: "u2", userId: "user-2", name: "User Two", email: "u2@test.com" },
       { id: "u3", userId: "user-3", name: "User Three", email: "u3@test.com" },
     ]);
+    (chatService.getChatSessions as jest.Mock).mockResolvedValue({
+      channels: [],
+    });
     (chatService.listOrgChatSessions as jest.Mock).mockResolvedValue([]);
 
     // Mock Create Group response
@@ -418,13 +434,11 @@ describe("ChatContainer", () => {
     });
 
     await waitFor(() => {
-      expect(mockClient.channel).toHaveBeenCalledWith(
-        "messaging",
-        "appointment-123",
-      );
+      expect(streamChatService.getAppointmentChannel).toHaveBeenCalledWith("123");
     });
-
-    expect(screen.queryByTestId("channel-list")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(mockUseChatContext().setActiveChannel).toHaveBeenCalled();
+    });
   });
 
   it("handles closing session", async () => {
@@ -434,6 +448,10 @@ describe("ChatContainer", () => {
       data: { appointmentId: "123", chatCategory: "clients" },
     };
     mockUseChannelStateContext.mockReturnValue({ channel: clientChannel });
+    (streamChatService.getAppointmentChannel as jest.Mock).mockResolvedValue(
+      clientChannel
+    );
+    (chatService.getChatSession as jest.Mock).mockResolvedValue({ _id: "session-123" });
 
     await act(async () => {
       render(<ChatContainer appointmentId="123" />);
@@ -448,7 +466,7 @@ describe("ChatContainer", () => {
     });
 
     await waitFor(() => {
-      expect(streamChatService.endChatChannel).toHaveBeenCalledWith("123");
+      expect(streamChatService.endChatChannel).toHaveBeenCalledWith("session-123");
     });
   });
 
@@ -460,6 +478,3 @@ describe("ChatContainer", () => {
     expect(screen.getByTestId("org-guard")).toBeInTheDocument();
   });
 });
-
-
-

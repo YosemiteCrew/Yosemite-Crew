@@ -2,16 +2,16 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import AppointmentInfoModal from "@/app/pages/Appointments/Sections/AppointmentInfo";
-import { fetchSubmissions } from "@/app/services/soapService";
+import AppointmentInfoModal from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo";
+import { fetchSubmissions } from "@/app/features/appointments/services/soapService";
 
-jest.mock("@/app/components/Modal", () => ({
+jest.mock("@/app/ui/overlays/Modal", () => ({
   __esModule: true,
   default: ({ showModal, children }: any) =>
     showModal ? <div data-testid="modal">{children}</div> : null,
 }));
 
-jest.mock("@/app/components/Labels/Labels", () => ({
+jest.mock("@/app/ui/widgets/Labels/Labels", () => ({
   __esModule: true,
   default: ({ labels, setActiveLabel, setActiveSubLabel }: any) => (
     <div>
@@ -32,7 +32,7 @@ jest.mock("@/app/components/Labels/Labels", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Icons/Close", () => ({
+jest.mock("@/app/ui/primitives/Icons/Close", () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>
@@ -41,82 +41,82 @@ jest.mock("@/app/components/Icons/Close", () => ({
   ),
 }));
 
-jest.mock("@/app/pages/Appointments/Sections/AppointmentInfo/Info/AppointmentInfo", () => ({
+jest.mock("@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Info/AppointmentInfo", () => ({
   __esModule: true,
   default: () => <div>appointment-info-section</div>,
 }));
 
-jest.mock("@/app/pages/Appointments/Sections/AppointmentInfo/Info/Companion", () => ({
+jest.mock("@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Info/Companion", () => ({
   __esModule: true,
   default: () => <div>companion-section</div>,
 }));
 
-jest.mock("@/app/pages/Appointments/Sections/AppointmentInfo/Info/History", () => ({
+jest.mock("@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Info/History", () => ({
   __esModule: true,
   default: () => <div>history-section</div>,
 }));
 
-jest.mock("@/app/pages/Appointments/Sections/AppointmentInfo/Prescription/Subjective", () => ({
+jest.mock("@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Subjective", () => ({
   __esModule: true,
   default: () => <div>subjective-section</div>,
 }));
 
-jest.mock("@/app/pages/Appointments/Sections/AppointmentInfo/Prescription/Objective", () => ({
+jest.mock("@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Objective", () => ({
   __esModule: true,
   default: () => <div>objective-section</div>,
 }));
 
-jest.mock("@/app/pages/Appointments/Sections/AppointmentInfo/Prescription/Assessment", () => ({
+jest.mock("@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Assessment", () => ({
   __esModule: true,
   default: () => <div>assessment-section</div>,
 }));
 
-jest.mock("@/app/pages/Appointments/Sections/AppointmentInfo/Prescription/Plan", () => ({
+jest.mock("@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Plan", () => ({
   __esModule: true,
   default: () => <div>plan-section</div>,
 }));
 
-jest.mock("@/app/pages/Appointments/Sections/AppointmentInfo/Prescription/Audit", () => ({
+jest.mock("@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Audit", () => ({
   __esModule: true,
   default: () => <div>audit-section</div>,
 }));
 
-jest.mock("@/app/pages/Appointments/Sections/AppointmentInfo/Prescription/Discharge", () => ({
+jest.mock("@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Discharge", () => ({
   __esModule: true,
   default: () => <div>discharge-section</div>,
 }));
 
-jest.mock("@/app/pages/Appointments/Sections/AppointmentInfo/Prescription/Documents", () => ({
+jest.mock("@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Documents", () => ({
   __esModule: true,
   default: () => <div>documents-section</div>,
 }));
 
-jest.mock("@/app/pages/Appointments/Sections/AppointmentInfo/Tasks/Chat", () => ({
+jest.mock("@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Tasks/Chat", () => ({
   __esModule: true,
   default: () => <div>chat-section</div>,
 }));
 
-jest.mock("@/app/pages/Appointments/Sections/AppointmentInfo/Tasks/Task", () => ({
+jest.mock("@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Tasks/Task", () => ({
   __esModule: true,
   default: () => <div>task-section</div>,
 }));
 
-jest.mock("@/app/pages/Appointments/Sections/AppointmentInfo/Finance/Summary", () => ({
+jest.mock("@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Finance/Summary", () => ({
   __esModule: true,
   default: () => <div>summary-section</div>,
 }));
 
-jest.mock("@/app/pages/Appointments/Sections/AppointmentInfo/Finance/Details", () => ({
+jest.mock("@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Finance/Details", () => ({
   __esModule: true,
   default: () => <div>details-section</div>,
 }));
 
-jest.mock("@/app/services/soapService", () => ({
+jest.mock("@/app/features/appointments/services/soapService", () => ({
   fetchSubmissions: jest.fn(),
   createSubmission: jest.fn(),
 }));
 
-jest.mock("@/app/services/appointmentFormsService", () => ({
+jest.mock("@/app/features/forms/services/appointmentFormsService", () => ({
   fetchAppointmentForms: jest.fn().mockResolvedValue([]),
   submitAppointmentForm: jest.fn(),
   getAppointmentFormSubmission: jest.fn(),

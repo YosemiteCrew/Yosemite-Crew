@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
-import ProtectedRoute from "@/app/components/ProtectedRoute";
+import ProtectedRoute from "@/app/ui/layout/guards/ProtectedRoute";
 
 // 1. Mock dependencies
 import { useRouter, usePathname } from "next/navigation";

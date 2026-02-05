@@ -9,11 +9,11 @@ import {
   getShortWeekday,
   getDateNumberPadded,
   getFormattedDate,
-} from "@/app/components/Calendar/weekHelpers";
+} from "@/app/features/appointments/components/Calendar/weekHelpers";
 import { Appointment } from "@yosemite-crew/types";
 
 // Mock isSameDay helper to ensure unit isolation
-jest.mock("@/app/components/Calendar/helpers", () => ({
+jest.mock("@/app/features/appointments/components/Calendar/helpers", () => ({
   isSameDay: (a: Date, b: Date) =>
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&

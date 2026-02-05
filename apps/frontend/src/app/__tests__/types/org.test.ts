@@ -7,7 +7,7 @@ import {
   InviteProps,
   Speciality,
   ServiceWeb,
-} from "../../types/org";
+} from "@/app/features/organization/types/org";
 import {
   Organisation,
   UserOrganization,

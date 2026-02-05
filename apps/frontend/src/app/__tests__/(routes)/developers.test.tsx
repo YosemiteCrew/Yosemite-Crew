@@ -5,22 +5,22 @@ import "@testing-library/jest-dom";
 const signInMock = jest.fn(() => <div data-testid="dev-signin-page" />);
 const signUpMock = jest.fn(() => <div data-testid="dev-signup-page" />);
 
-jest.mock("@/app/pages/DeveloperLanding/DeveloperLanding", () => ({
+jest.mock("@/app/features/marketing/pages/DeveloperLanding/DeveloperLanding", () => ({
   __esModule: true,
   default: () => <div data-testid="dev-landing" />,
 }));
 
-jest.mock("@/app/pages/DeveloperDocs/DeveloperDocs", () => ({
+jest.mock("@/app/features/developers/pages/DeveloperDocs/DeveloperDocs", () => ({
   __esModule: true,
   default: () => <div data-testid="dev-docs" />,
 }));
 
-jest.mock("@/app/pages/DeveloperPortalHome/DeveloperPortalHome", () => ({
+jest.mock("@/app/features/developers/pages/DeveloperPortalHome/DeveloperPortalHome", () => ({
   __esModule: true,
   default: () => <div data-testid="dev-portal-home" />,
 }));
 
-jest.mock("@/app/components/DevRouteGuard/DevRouteGuard", () => ({
+jest.mock("@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard", () => ({
   __esModule: true,
   default: ({ children }: any) => (
     <div data-testid="dev-guard">{children}</div>
@@ -43,12 +43,12 @@ jest.mock("@/app/stores/authStore", () => ({
   }),
 }));
 
-jest.mock("@/app/pages/SignIn/SignIn", () => ({
+jest.mock("@/app/features/auth/pages/SignIn/SignIn", () => ({
   __esModule: true,
   default: (props: any) => signInMock(),
 }));
 
-jest.mock("@/app/pages/SignUp/SignUp", () => ({
+jest.mock("@/app/features/auth/pages/SignUp/SignUp", () => ({
   __esModule: true,
   default: (props: any) => signUpMock(),
 }));

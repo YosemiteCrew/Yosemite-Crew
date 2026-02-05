@@ -1,8 +1,8 @@
 import { useEffect, useMemo } from "react";
-import { useOrgStore } from "../stores/orgStore";
-import { loadAppointmentsForPrimaryOrg } from "../services/appointmentService";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { loadAppointmentsForPrimaryOrg } from "@/app/features/appointments/services/appointmentService";
 import { Appointment } from "@yosemite-crew/types";
-import { useAppointmentStore } from "../stores/appointmentStore";
+import { useAppointmentStore } from "@/app/stores/appointmentStore";
 
 export const useLoadAppointmentsForPrimaryOrg = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);

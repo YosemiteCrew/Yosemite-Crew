@@ -3,26 +3,26 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import CompanionsTable from "@/app/components/DataTable/CompanionsTable";
+import CompanionsTable from "@/app/ui/tables/CompanionsTable";
 
 jest.mock("next/image", () => ({
   __esModule: true,
   default: (props: any) => <img alt={props.alt || ""} {...props} />,
 }));
 
-jest.mock("@/app/utils/date", () => ({
+jest.mock("@/app/lib/date", () => ({
   getAgeInYears: jest.fn(() => "2y"),
 }));
 
-jest.mock("@/app/utils/urls", () => ({
+jest.mock("@/app/lib/urls", () => ({
   getSafeImageUrl: jest.fn(() => "image"),
 }));
 
-jest.mock("@/app/utils/validators", () => ({
+jest.mock("@/app/lib/validators", () => ({
   toTitleCase: (value: string) => value.toUpperCase(),
 }));
 
-jest.mock("@/app/components/GenericTable/GenericTable", () => ({
+jest.mock("@/app/ui/tables/GenericTable/GenericTable", () => ({
   __esModule: true,
   default: ({ data, columns }: any) => (
     <div data-testid="table">
@@ -39,7 +39,7 @@ jest.mock("@/app/components/GenericTable/GenericTable", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Cards/CompanionCard/CompanionCard", () => ({
+jest.mock("@/app/ui/cards/CompanionCard/CompanionCard", () => ({
   __esModule: true,
   default: ({ companion }: any) => (
     <div data-testid="companion-card">{companion.companion.name}</div>

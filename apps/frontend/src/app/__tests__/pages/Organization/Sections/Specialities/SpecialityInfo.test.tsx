@@ -2,7 +2,7 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import SpecialityInfo from "@/app/pages/Organization/Sections/Specialities/SpecialityInfo";
+import SpecialityInfo from "@/app/features/organization/pages/Organization/Sections/Specialities/SpecialityInfo";
 
 const deleteSpecialityMock = jest.fn();
 const updateSpecialityMock = jest.fn();
@@ -13,13 +13,13 @@ jest.mock("@/app/hooks/useTeam", () => ({
   useTeamForPrimaryOrg: () => [{ _id: "team-1", name: "Alex" }],
 }));
 
-jest.mock("@/app/services/specialityService", () => ({
+jest.mock("@/app/features/organization/services/specialityService", () => ({
   deleteSpeciality: (...args: any[]) => deleteSpecialityMock(...args),
   updateSpeciality: (...args: any[]) => updateSpecialityMock(...args),
   updateService: (...args: any[]) => updateServiceMock(...args),
 }));
 
-jest.mock("@/app/services/serviceService", () => ({
+jest.mock("@/app/features/organization/services/serviceService", () => ({
   deleteService: (...args: any[]) => deleteServiceMock(...args),
 }));
 
@@ -31,31 +31,31 @@ jest.mock("react-icons/md", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Modal", () => ({
+jest.mock("@/app/ui/overlays/Modal", () => ({
   __esModule: true,
   default: ({ showModal, children }: any) => (showModal ? <div>{children}</div> : null),
 }));
 
-jest.mock("@/app/components/Icons/Close", () => ({
+jest.mock("@/app/ui/primitives/Icons/Close", () => ({
   __esModule: true,
   default: () => <div />,
 }));
 
 const accordionCalls: any[] = [];
 
-jest.mock("@/app/components/Accordion/EditableAccordion", () => (props: any) => {
+jest.mock("@/app/ui/primitives/Accordion/EditableAccordion", () => (props: any) => {
   accordionCalls.push(props);
   return <div data-testid="editable-accordion" />;
 });
 
-jest.mock("@/app/components/Accordion/Accordion", () => (props: any) => (
+jest.mock("@/app/ui/primitives/Accordion/Accordion", () => (props: any) => (
   <div>
     <div>{props.title}</div>
     <div>{props.children}</div>
   </div>
 ));
 
-jest.mock("@/app/components/Inputs/ServiceSearch/ServiceSearchEdit", () => () => (
+jest.mock("@/app/ui/inputs/ServiceSearch/ServiceSearchEdit", () => () => (
   <div data-testid="service-search" />
 ));
 

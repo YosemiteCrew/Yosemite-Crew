@@ -1,15 +1,15 @@
 import React from "react";
 import { render } from "@testing-library/react";
-import Assessment from "@/app/pages/Appointments/Sections/AppointmentInfo/Prescription/Assessment";
-import Objective from "@/app/pages/Appointments/Sections/AppointmentInfo/Prescription/Objective";
-import Subjective from "@/app/pages/Appointments/Sections/AppointmentInfo/Prescription/Subjective";
-import Discharge from "@/app/pages/Appointments/Sections/AppointmentInfo/Prescription/Discharge";
-import Plan from "@/app/pages/Appointments/Sections/AppointmentInfo/Prescription/Plan";
+import Assessment from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Assessment";
+import Objective from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Objective";
+import Subjective from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Subjective";
+import Discharge from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Discharge";
+import Plan from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Plan";
 
 const sectionSpy = jest.fn();
 
 jest.mock(
-  "@/app/pages/Appointments/Sections/AppointmentInfo/Prescription/PrescriptionFormSection",
+  "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/PrescriptionFormSection",
   () => ({
     __esModule: true,
     default: (props: any) => {

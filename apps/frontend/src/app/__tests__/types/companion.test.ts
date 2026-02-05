@@ -1,4 +1,4 @@
-import { Specie, Breed } from "../../types/companion";
+import { Specie, Breed } from "@/app/features/companions/types/companion";
 
 describe("Companion Types Definition", () => {
 

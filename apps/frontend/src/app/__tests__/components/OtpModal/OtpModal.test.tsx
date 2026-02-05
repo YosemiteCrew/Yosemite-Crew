@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import OtpModal from "@/app/components/OtpModal/OtpModal";
+import OtpModal from "@/app/ui/overlays/OtpModal/OtpModal";
 import { useAuthStore } from "@/app/stores/authStore";
 import { useSignOut } from "@/app/hooks/useAuth";
 import { useRouter } from "next/navigation";

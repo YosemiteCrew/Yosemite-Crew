@@ -1,12 +1,12 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import BooleanBuilder from "../../../../../../../pages/Forms/Sections/AddForm/components/Boolean/BooleanBuilder";
-import { FormField } from "@/app/types/forms";
+import BooleanBuilder from "@/app/features/forms/pages/Forms/Sections/AddForm/components/Boolean/BooleanBuilder";
+import { FormField } from "@/app/features/forms/types/forms";
 
 // --- Mock UI Components ---
 // Mocking FormInput allows us to test the logic of passing props and handling changes
 // without relying on the implementation details of the input component itself.
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   __esModule: true,
   default: ({ value, onChange, inlabel }: any) => (
     <input

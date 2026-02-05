@@ -1,8 +1,8 @@
 import { useEffect, useMemo } from "react";
-import { useFormsStore } from "../stores/formsStore";
-import { FormsCategory, FormsProps } from "../types/forms";
-import { useOrgStore } from "../stores/orgStore";
-import { loadForms } from "../services/formService";
+import { useFormsStore } from "@/app/stores/formsStore";
+import { FormsCategory, FormsProps } from "@/app/features/forms/types/forms";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { loadForms } from "@/app/features/forms/services/formService";
 
 export const useLoadFormsForPrimaryOrg = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);

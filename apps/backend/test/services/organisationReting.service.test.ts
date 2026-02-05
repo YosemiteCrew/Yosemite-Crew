@@ -27,6 +27,9 @@ const mockedOrgModel = OrganizationModel as unknown as {
 };
 
 describe("OrganizationRatingService", () => {
+  const orgId = "507f1f77bcf86cd799439021";
+  const otherOrgId = "507f1f77bcf86cd799439022";
+  const userId = "507f1f77bcf86cd799439023";
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -38,18 +41,18 @@ describe("OrganizationRatingService", () => {
         .mockResolvedValueOnce();
 
       const result = await OrganizationRatingService.rateOrganisation(
-        "org-1",
-        "user-1",
+        orgId,
+        userId,
         5,
         "great",
       );
 
       expect(mockedRatingModel.findOneAndUpdate).toHaveBeenCalledWith(
-        { organizationId: "org-1", userId: "user-1" },
+        { organizationId: orgId, userId: userId },
         { rating: 5, review: "great" },
         { upsert: true, new: true },
       );
-      expect(recalcSpy).toHaveBeenCalledWith("org-1");
+      expect(recalcSpy).toHaveBeenCalledWith(orgId);
       expect(result).toEqual({ success: true });
     });
   });
@@ -57,12 +60,12 @@ describe("OrganizationRatingService", () => {
   describe("recalculateAverageRating", () => {
     it("updates organisation with averaged stats when ratings exist", async () => {
       mockedRatingModel.aggregate.mockResolvedValueOnce([
-        { _id: "org-1", averageRating: 4.33, ratingCount: 3 },
+        { _id: orgId, averageRating: 4.33, ratingCount: 3 },
       ]);
 
-      await OrganizationRatingService.recalculateAverageRating("org-1");
+      await OrganizationRatingService.recalculateAverageRating(orgId);
 
-      expect(mockedOrgModel.findByIdAndUpdate).toHaveBeenCalledWith("org-1", {
+      expect(mockedOrgModel.findByIdAndUpdate).toHaveBeenCalledWith(orgId, {
         averageRating: "4.3",
         ratingCount: 3,
       });
@@ -71,9 +74,9 @@ describe("OrganizationRatingService", () => {
     it("resets organisation stats when no ratings found", async () => {
       mockedRatingModel.aggregate.mockResolvedValueOnce([]);
 
-      await OrganizationRatingService.recalculateAverageRating("org-2");
+      await OrganizationRatingService.recalculateAverageRating(otherOrgId);
 
-      expect(mockedOrgModel.findByIdAndUpdate).toHaveBeenCalledWith("org-2", {
+      expect(mockedOrgModel.findByIdAndUpdate).toHaveBeenCalledWith(otherOrgId, {
         averageRating: 0,
         ratingCount: 0,
       });

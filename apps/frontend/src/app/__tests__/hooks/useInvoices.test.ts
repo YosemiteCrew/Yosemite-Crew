@@ -1,14 +1,14 @@
 import { renderHook } from "@testing-library/react";
-import { useLoadInvoicesForPrimaryOrg, useInvoicesForPrimaryOrg } from "../../hooks/useInvoices";
-import { useOrgStore } from "../../stores/orgStore";
-import { useInvoiceStore } from "../../stores/invoiceStore";
-import { loadInvoicesForOrgPrimaryOrg } from "../../services/invoiceService";
+import { useLoadInvoicesForPrimaryOrg, useInvoicesForPrimaryOrg } from "@/app/hooks/useInvoices";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { useInvoiceStore } from "@/app/stores/invoiceStore";
+import { loadInvoicesForOrgPrimaryOrg } from "@/app/features/billing/services/invoiceService";
 
 // --- Mocks ---
 
-jest.mock("../../stores/orgStore");
-jest.mock("../../stores/invoiceStore");
-jest.mock("../../services/invoiceService");
+jest.mock("@/app/stores/orgStore");
+jest.mock("@/app/stores/invoiceStore");
+jest.mock("@/app/features/billing/services/invoiceService");
 
 describe("useInvoices Hooks", () => {
   let mockOrgState: any;

@@ -2,26 +2,26 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import AppointmentCard from "@/app/components/Cards/AppointmentCard";
+import AppointmentCard from "@/app/ui/cards/AppointmentCard";
 
-jest.mock("@/app/components/DataTable/Appointments", () => ({
+jest.mock("@/app/ui/tables/Appointments", () => ({
   getStatusStyle: jest.fn(() => ({ backgroundColor: "pink", color: "white" })),
 }));
 
-jest.mock("@/app/utils/forms", () => ({
+jest.mock("@/app/lib/forms", () => ({
   formatDateLabel: jest.fn(() => "Jan 06, 2025"),
   formatTimeLabel: jest.fn(() => "09:00 AM"),
 }));
 
-jest.mock("@/app/utils/validators", () => ({
+jest.mock("@/app/lib/validators", () => ({
   toTitle: (value: string) => value.toUpperCase(),
 }));
 
-jest.mock("@/app/utils/appointments", () => ({
+jest.mock("@/app/lib/appointments", () => ({
   allowReschedule: jest.fn(() => true),
 }));
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Secondary: ({ text, onClick }: any) => (
     <button type="button" onClick={onClick}>
       {text}

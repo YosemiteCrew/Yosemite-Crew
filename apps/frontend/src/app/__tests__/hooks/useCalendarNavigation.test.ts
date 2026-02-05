@@ -8,7 +8,7 @@ import { useState } from "react";
 describe("useCalendarNavigation", () => {
   describe("useCalendarNavigation hook", () => {
     it("increments date by one day when handleNextDay is called", () => {
-      const initialDate = new Date("2024-01-15");
+      const initialDate = new Date(2024, 0, 15);
 
       const { result } = renderHook(() => {
         const [date, setDate] = useState(initialDate);
@@ -24,7 +24,7 @@ describe("useCalendarNavigation", () => {
     });
 
     it("decrements date by one day when handlePrevDay is called", () => {
-      const initialDate = new Date("2024-01-15");
+      const initialDate = new Date(2024, 0, 15);
 
       const { result } = renderHook(() => {
         const [date, setDate] = useState(initialDate);
@@ -40,7 +40,7 @@ describe("useCalendarNavigation", () => {
     });
 
     it("handles month transition when going to next day", () => {
-      const initialDate = new Date("2024-01-31");
+      const initialDate = new Date(2024, 0, 31);
 
       const { result } = renderHook(() => {
         const [date, setDate] = useState(initialDate);
@@ -57,7 +57,7 @@ describe("useCalendarNavigation", () => {
     });
 
     it("handles month transition when going to prev day", () => {
-      const initialDate = new Date("2024-02-01");
+      const initialDate = new Date(2024, 1, 1);
 
       const { result } = renderHook(() => {
         const [date, setDate] = useState(initialDate);
@@ -74,7 +74,7 @@ describe("useCalendarNavigation", () => {
     });
 
     it("returns stable callbacks", () => {
-      const initialDate = new Date("2024-01-15");
+      const initialDate = new Date(2024, 0, 15);
 
       const { result, rerender } = renderHook(() => {
         const [date, setDate] = useState(initialDate);
@@ -94,7 +94,7 @@ describe("useCalendarNavigation", () => {
 
   describe("getDateDisplay", () => {
     it("returns correct weekday and date number", () => {
-      const date = new Date("2024-01-15");
+      const date = new Date(2024, 0, 15);
       const result = getDateDisplay(date);
 
       expect(result.weekday).toBe("Monday");
@@ -102,7 +102,7 @@ describe("useCalendarNavigation", () => {
     });
 
     it("returns Sunday for Sunday dates", () => {
-      const date = new Date("2024-01-14");
+      const date = new Date(2024, 0, 14);
       const result = getDateDisplay(date);
 
       expect(result.weekday).toBe("Sunday");
@@ -110,27 +110,27 @@ describe("useCalendarNavigation", () => {
     });
 
     it("returns correct date for end of month", () => {
-      const date = new Date("2024-01-31");
+      const date = new Date(2024, 0, 31);
       const result = getDateDisplay(date);
 
       expect(result.dateNumber).toBe(31);
     });
 
     it("returns correct date for first of month", () => {
-      const date = new Date("2024-02-01");
+      const date = new Date(2024, 1, 1);
       const result = getDateDisplay(date);
 
       expect(result.dateNumber).toBe(1);
     });
 
     it("returns correct weekday for different days", () => {
-      const wednesday = new Date("2024-01-17");
+      const wednesday = new Date(2024, 0, 17);
       expect(getDateDisplay(wednesday).weekday).toBe("Wednesday");
 
-      const friday = new Date("2024-01-19");
+      const friday = new Date(2024, 0, 19);
       expect(getDateDisplay(friday).weekday).toBe("Friday");
 
-      const saturday = new Date("2024-01-20");
+      const saturday = new Date(2024, 0, 20);
       expect(getDateDisplay(saturday).weekday).toBe("Saturday");
     });
   });

@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 // Import Path: Go up 6 levels to 'src/app', then down to 'pages'
-import Companion from "../../../../../../pages/Appointments/Sections/AppointmentInfo/Info/Companion";
+import Companion from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Info/Companion";
 import { useCompanionStore } from "@/app/stores/companionStore";
 import { useParentStore } from "@/app/stores/parentStore";
 import { Appointment } from "@yosemite-crew/types";
@@ -12,7 +12,7 @@ jest.mock("@/app/stores/companionStore");
 jest.mock("@/app/stores/parentStore");
 
 // Mock EditableAccordion to inspect the props passed to it
-jest.mock("@/app/components/Accordion/EditableAccordion", () => ({
+jest.mock("@/app/ui/primitives/Accordion/EditableAccordion", () => ({
   __esModule: true,
   default: ({ title, data }: any) => (
     <div data-testid={`accordion-${title}`}>

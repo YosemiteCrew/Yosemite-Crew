@@ -6,10 +6,10 @@ import {
   hideInventoryItem,
   unhideInventoryItem,
   fetchInventoryTurnover,
-} from "../../services/inventoryService";
-import { getData, postData, patchData } from "../../services/axios";
+} from "@/app/features/inventory/services/inventoryService";
+import { getData, postData, patchData } from "@/app/services/axios";
 import axios from "axios";
-import { InventoryRequestPayload, InventoryBatchPayload } from "../../pages/Inventory/types";
+import { InventoryRequestPayload, InventoryBatchPayload } from "@/app/features/inventory/pages/Inventory/types";
 
 // --- Mocks ---
 
@@ -27,7 +27,7 @@ jest.mock("axios", () => {
 });
 
 // 2. Mock Axios Service Helper
-jest.mock("../../services/axios");
+jest.mock("@/app/services/axios");
 const mockedGetData = getData as jest.Mock;
 const mockedPostData = postData as jest.Mock;
 const mockedPatchData = patchData as jest.Mock;

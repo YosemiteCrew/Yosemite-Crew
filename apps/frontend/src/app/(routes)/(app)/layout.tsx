@@ -1,4 +1,4 @@
-import SessionInitializer from "@/app/components/SessionInitializer";
+import SessionInitializer from "@/app/ui/layout/SessionInitializer";
 
 interface AppLayoutProps {
   children: React.ReactNode;

@@ -1,21 +1,21 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import AddSpeciality from "@/app/pages/Organization/Sections/Specialities/AddSpeciality";
+import AddSpeciality from "@/app/features/organization/pages/Organization/Sections/Specialities/AddSpeciality";
 
 const createBulkMock = jest.fn();
 
-jest.mock("@/app/services/specialityService", () => ({
+jest.mock("@/app/features/organization/services/specialityService", () => ({
   createBulkSpecialityServices: (...args: any[]) => createBulkMock(...args),
 }));
 
-jest.mock("@/app/components/Modal", () => ({
+jest.mock("@/app/ui/overlays/Modal", () => ({
   __esModule: true,
   default: ({ showModal, children }: any) =>
     showModal ? <div data-testid="modal">{children}</div> : null,
 }));
 
-jest.mock("@/app/components/Icons/Close", () => ({
+jest.mock("@/app/ui/primitives/Icons/Close", () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>
@@ -24,7 +24,7 @@ jest.mock("@/app/components/Icons/Close", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Accordion/Accordion", () => ({
+jest.mock("@/app/ui/primitives/Accordion/Accordion", () => ({
   __esModule: true,
   default: ({ title, children, onDeleteClick }: any) => (
     <div>
@@ -35,12 +35,12 @@ jest.mock("@/app/components/Accordion/Accordion", () => ({
   ),
 }));
 
-jest.mock("@/app/pages/Organization/Sections/Specialities/SpecialityCard", () => ({
+jest.mock("@/app/features/organization/pages/Organization/Sections/Specialities/SpecialityCard", () => ({
   __esModule: true,
   default: () => <div>speciality-card</div>,
 }));
 
-jest.mock("@/app/components/Inputs/SpecialitySearch/SpecialitySearchWeb", () => ({
+jest.mock("@/app/ui/inputs/SpecialitySearch/SpecialitySearchWeb", () => ({
   __esModule: true,
   default: ({ setSpecialities }: any) => (
     <button
@@ -52,7 +52,7 @@ jest.mock("@/app/components/Inputs/SpecialitySearch/SpecialitySearchWeb", () => 
   ),
 }));
 
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("@/app/ui/primitives/Buttons", () => ({
   Primary: ({ text, onClick }: any) => (
     <button type="button" onClick={onClick}>
       {text}

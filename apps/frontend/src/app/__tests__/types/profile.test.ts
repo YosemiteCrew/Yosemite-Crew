@@ -1,4 +1,4 @@
-import { GenderOptions } from "@/app/types/profile";
+import { GenderOptions } from "@/app/features/users/types/profile";
 
 describe("profile types", () => {
   it("exposes gender options", () => {

@@ -49,12 +49,12 @@ type ChangeStatusRequestBody = {
 type CreateTaskTemplateRequestBody = Omit<CreateTaskTemplateInput, "createdBy">;
 type UpdateTaskTemplateRequestBody = UpdateTaskTemplateInput;
 
-const TASK_STATUSES: TaskStatus[] = [
+const TASK_STATUSES = new Set<TaskStatus>([
   "PENDING",
   "IN_PROGRESS",
   "COMPLETED",
   "CANCELLED",
-];
+]);
 
 const parseStatusList = (
   status?: string | string[],
@@ -62,7 +62,7 @@ const parseStatusList = (
   if (!status) return undefined;
   const values = Array.isArray(status) ? status : status.split(",");
   const parsed = values.filter((value): value is TaskStatus =>
-    TASK_STATUSES.includes(value as TaskStatus),
+    TASK_STATUSES.has(value as TaskStatus),
   );
   return parsed.length ? parsed : undefined;
 };
@@ -72,7 +72,7 @@ const parseStatusValue = (
 ): TaskStatus | undefined => {
   if (!status) return undefined;
   const value = Array.isArray(status) ? status[0] : status;
-  return TASK_STATUSES.includes(value as TaskStatus)
+  return TASK_STATUSES.has(value as TaskStatus)
     ? (value as TaskStatus)
     : undefined;
 };
