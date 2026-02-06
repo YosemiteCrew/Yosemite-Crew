@@ -1,6 +1,3 @@
-// Set timezone to UTC for this test file to ensure consistent formatting
-process.env.TZ = 'UTC';
-
 import {
   normalizeTimeString,
   formatTimeLocale,
@@ -10,6 +7,19 @@ import {
 } from '../../../../src/features/appointments/utils/timeFormatting';
 
 describe('timeFormatting utils', () => {
+  let originalTZ: string | undefined;
+
+  // Set TZ only for this test suite
+  beforeAll(() => {
+    originalTZ = process.env.TZ;
+    process.env.TZ = 'UTC';
+  });
+
+  // Restore original TZ after tests
+  afterAll(() => {
+    process.env.TZ = originalTZ;
+  });
+
   // =========================================================================
   // 1. normalizeTimeString
   // =========================================================================
@@ -47,7 +57,6 @@ describe('timeFormatting utils', () => {
   // 3. formatTimeRange
   // =========================================================================
   describe('formatTimeRange', () => {
-
     it('returns null if start is missing', () => {
       expect(formatTimeRange('2023-01-01', null, '15:00')).toBeNull();
     });
@@ -67,7 +76,6 @@ describe('timeFormatting utils', () => {
   // 5. formatDateTime
   // =========================================================================
   describe('formatDateTime', () => {
-
     it('formats date only if time is missing', () => {
       const result = formatDateTime('2024-12-25', null);
       expect(result).toBe('Dec 25, 2024');
