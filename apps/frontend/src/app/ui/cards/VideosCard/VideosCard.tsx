@@ -8,15 +8,26 @@ import { Primary } from "@/app/ui/primitives/Buttons";
 import { guidesData } from "@/app/features/guides/data/guidesData";
 
 const previewVideos = guidesData.slice(0, 3);
+const STORAGE_KEY = "yc_dashboard_videos_hidden";
 
 const VideosCard = () => {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return window.localStorage.getItem(STORAGE_KEY) !== "true";
+  });
   const [showModal, setShowModal] = useState(false);
   const [activeVideo, setActiveVideo] = useState<(typeof previewVideos)[number] | null>(null);
 
   const handleOpenVideo = (video: (typeof previewVideos)[number]) => {
     setActiveVideo(video);
     setShowModal(true);
+  };
+
+  const handleClose = () => {
+    setOpen(false);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(STORAGE_KEY, "true");
+    }
   };
 
   return (
@@ -29,7 +40,7 @@ const VideosCard = () => {
             </div>
             <div className="flex items-center gap-2">
               <Primary text="View More" href="/guides" classname="px-5! py-2! text-body-4" />
-              <Close onClick={() => setOpen(false)} />
+              <Close onClick={handleClose} />
             </div>
           </div>
           <div className="text-body-3 text-text-tertiary">

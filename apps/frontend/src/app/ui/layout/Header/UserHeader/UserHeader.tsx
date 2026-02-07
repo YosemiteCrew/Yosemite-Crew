@@ -60,6 +60,9 @@ const UserHeader = () => {
   const handleLogout = async () => {
     try {
       await signOut();
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem("yc_dashboard_videos_hidden");
+      }
       console.log("✅ Signed out using Cognito signout");
       router.replace(logoutRedirect);
     } catch (error) {
