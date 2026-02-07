@@ -4,31 +4,17 @@ import { FaCirclePlay } from "react-icons/fa6";
 
 import Close from "@/app/ui/primitives/Icons/Close";
 import CenterModal from "@/app/ui/overlays/Modal/CenterModal";
+import { Primary } from "@/app/ui/primitives/Buttons";
+import { guidesData } from "@/app/features/guides/data/guidesData";
 
-const DemoVideos = [
-  {
-    image: "https://d2il6osz49gpup.cloudfront.net/Images/landingbg1.jpg",
-    src: "https://d2il6osz49gpup.cloudfront.net/videos/addTeam.mp4",
-    title: "Inviting your team",
-  },
-  {
-    image: "https://d2il6osz49gpup.cloudfront.net/Images/landingbg2.jpg",
-    src: "https://d2il6osz49gpup.cloudfront.net/videos/addCompanion.mp4",
-    title: "How to add companions",
-  },
-  {
-    image: "https://d2il6osz49gpup.cloudfront.net/Images/landingbg3.jpg",
-    src: "https://d2il6osz49gpup.cloudfront.net/videos/formModule.mp4",
-    title: "How to use forms",
-  },
-];
+const previewVideos = guidesData.slice(0, 3);
 
 const VideosCard = () => {
   const [open, setOpen] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [activeVideo, setActiveVideo] = useState<(typeof DemoVideos)[number] | null>(null);
+  const [activeVideo, setActiveVideo] = useState<(typeof previewVideos)[number] | null>(null);
 
-  const handleOpenVideo = (video: (typeof DemoVideos)[number]) => {
+  const handleOpenVideo = (video: (typeof previewVideos)[number]) => {
     setActiveVideo(video);
     setShowModal(true);
   };
@@ -37,27 +23,30 @@ const VideosCard = () => {
     open && (
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-0">
-          <div className="flex items-center justify-between w-full">
+          <div className="flex items-center justify-between w-full gap-3">
             <div className="text-body-1 text-text-primary">
               Make the most of your wait — Start exploring instead.
             </div>
-            <Close onClick={() => setOpen(false)} />
+            <div className="flex items-center gap-2">
+              <Primary text="View More" href="/guides" classname="px-5! py-2! text-body-4" />
+              <Close onClick={() => setOpen(false)} />
+            </div>
           </div>
           <div className="text-body-3 text-text-tertiary">
             Here’s everything you can explore and prepare.
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {DemoVideos.map((video) => (
+          {previewVideos.map((video) => (
             <button
               type="button"
               className="rounded-2xl! border border-card-border bg-white flex flex-col cursor-pointer text-left"
-              key={video.title}
+              key={video.id}
               onClick={() => handleOpenVideo(video)}
               aria-label={`Play video: ${video.title}`}
             >
               <div
-                style={{ backgroundImage: `url(${video.image})` }}
+                style={{ backgroundImage: `url(${video.thumbnailUrl})` }}
                 className="min-h-[250px] sm:min-h-[350px] md:min-h-[270px] relative bg-no-repeat bg-cover bg-center w-full rounded-t-2xl flex items-center justify-center"
               >
                 <div className="absolute inset-0 bg-black/40 rounded-t-2xl"></div>
@@ -89,12 +78,12 @@ const VideosCard = () => {
             <div className="rounded-2xl border border-card-border overflow-hidden">
               {activeVideo ? (
                 <video
-                  key={activeVideo.src}
+                  key={activeVideo.videoUrl}
                   className="w-full h-auto"
                   controls
                   preload="metadata"
                 >
-                  <source src={activeVideo.src} type="video/mp4" />
+                  <source src={activeVideo.videoUrl} type="video/mp4" />
                   <track
                     kind="captions"
                     src="data:text/vtt,WEBVTT"

@@ -132,7 +132,8 @@ const UserHeader = () => {
     pathname.startsWith("/settings") ||
     pathname.startsWith("/organization") ||
     pathname.startsWith("/organizations") ||
-    pathname.startsWith("/dashboard");
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/guides");
 
   return (
     <div className="flex items-center justify-between px-3 sm:px-12! lg:px-[36px]! w-full h-20 gap-0">
@@ -328,6 +329,15 @@ const UserHeader = () => {
               >
                 Settings
               </Link>
+              {!isDev && (
+                <Link
+                  href="/guides"
+                  onClick={() => setSelectProfile(false)}
+                  className="text-center px-[1.25rem] py-[0.75rem] text-body-4 w-full text-text-secondary! hover:bg-card-hover rounded-2xl! transition-all duration-300"
+                >
+                  Guides
+                </Link>
+              )}
               <button
                 onClick={handleLogout}
                 className="px-[1.25rem] py-[0.75rem] text-body-4 w-full text-text-error hover:bg-card-hover rounded-2xl! transition-all duration-300"
