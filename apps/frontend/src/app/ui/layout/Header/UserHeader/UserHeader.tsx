@@ -27,6 +27,15 @@ const UserHeader = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const isDev = pathname.startsWith("/developers");
   const routes = isDev ? headerDevRoutes : headerAppRoutes;
+  const mobileRoutes = isDev
+    ? routes
+    : (() => {
+        const next = [...routes];
+        const signOutIndex = next.findIndex((route) => route.name === "Sign out");
+        const insertIndex = signOutIndex === -1 ? next.length : signOutIndex;
+        next.splice(insertIndex, 0, { name: "Guides", href: "/guides", verify: false });
+        return next;
+      })();
   const [selectOrg, setSelectOrg] = useState(false);
   const [selectProfile, setSelectProfile] = useState(false);
   const orgs = useOrgList();
@@ -189,7 +198,7 @@ const UserHeader = () => {
           </div>
         )}
         <div className="flex flex-col gap-3">
-          {routes.map((route, index) => {
+          {mobileRoutes.map((route, index) => {
             const needsVerifiedOrg = route.verify;
             // Developer portal routes don't need org verification
             const isDisabled = isDev
