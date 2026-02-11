@@ -128,7 +128,12 @@ const Appointments = () => {
             )}
           </div>
 
-          <AddAppointment showModal={addPopup} setShowModal={setAddPopup} />
+          <AddAppointment
+            showModal={addPopup}
+            setShowModal={setAddPopup}
+            setActiveFilter={setActiveFilter}
+            setActiveStatus={setActiveStatus}
+          />
           {activeAppointment && (
             <AppoitmentInfo
               showModal={viewPopup}

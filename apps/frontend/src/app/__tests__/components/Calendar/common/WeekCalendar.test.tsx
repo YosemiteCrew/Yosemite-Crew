@@ -21,6 +21,7 @@ jest.mock("@/app/features/appointments/components/Calendar/helpers", () => ({
   EVENT_VERTICAL_GAP_PX: 2,
   MINUTES_PER_STEP: 60,
   PIXELS_PER_STEP: 60,
+  isSameDay: () => false,
   isAllDayForDate: jest.fn((event: any) => event.id === "all-day"),
 }));
 

@@ -12,7 +12,7 @@ const UserLabels = ({ team, currentDate }: UserLabels) => {
   const currentUserId = attributes?.sub || attributes?.email;
 
   return (
-    <div className="grid grid-flow-col auto-cols-[200px] min-w-max border-b border-grey-light py-3">
+    <div className="grid grid-flow-col auto-cols-[200px] min-w-max py-3">
       {team.map((user, idx) => {
         const isCurrentUser =
           !!currentUserId && user.practionerId === currentUserId;

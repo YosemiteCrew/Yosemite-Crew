@@ -11,11 +11,19 @@ jest.mock("@/app/hooks/useTeam", () => ({
 const mockAppointmentsForUser = jest.fn();
 jest.mock("@/app/features/appointments/components/Calendar/helpers", () => ({
   appointentsForUser: (...args: any[]) => mockAppointmentsForUser(...args),
+  isSameDay: () => true,
+  MINUTES_PER_STEP: 5,
+  PIXELS_PER_STEP: 25,
+}));
+
+jest.mock("@/app/features/appointments/components/Calendar/weekHelpers", () => ({
+  eventsForDayHour: jest.fn(() => []),
+  HOURS_IN_DAY: 1,
 }));
 
 const userLabelsSpy = jest.fn();
 
-jest.mock("@/app/features/appointments/components/Calendar/Task/UserLabels", () => (props: any) => {
+jest.mock("@/app/features/appointments/components/Calendar/common/UserLabels", () => (props: any) => {
   userLabelsSpy(props);
   return <div data-testid="user-labels" />;
 });
@@ -91,7 +99,7 @@ describe("UserCalendar (Appointments)", () => {
       expect.objectContaining({
         handleViewAppointment,
         handleRescheduleAppointment,
-        height: 350,
+        height: 300,
       })
     );
   });

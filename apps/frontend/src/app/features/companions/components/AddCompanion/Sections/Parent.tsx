@@ -24,6 +24,7 @@ type ParentProps = {
 const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
   const [formDataErrors, setFormDataErrors] = useState<{
     firstName?: string;
+    lastName?: string;
     email?: string;
     phoneNumber?: string;
     dateOfBirth?: string;
@@ -75,12 +76,14 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
   const handleNext = () => {
     const errors: {
       firstName?: string;
+      lastName?: string;
       email?: string;
       phoneNumber?: string;
       dateOfBirth?: string;
       country?: string;
     } = {};
     if (!formData.firstName) errors.firstName = "First name is required";
+    if (!formData.lastName) errors.lastName = "Last name is required";
     if (!formData.email) errors.email = "Email is required";
     if (!formData.phoneNumber) errors.phoneNumber = "Number is required";
     if (!formData.birthDate) errors.dateOfBirth = "Date of birth is required";
@@ -148,10 +151,11 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
                 intype="text"
                 inname="name"
                 value={formData.lastName || ""}
-                inlabel="Last name (Optional)"
+                inlabel="Last name"
                 onChange={(e) =>
                   setFormData({ ...formData, lastName: e.target.value })
                 }
+                error={formDataErrors.lastName}
                 className="min-h-12!"
               />
             </div>
