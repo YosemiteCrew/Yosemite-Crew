@@ -54,7 +54,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
         </div>
         <div className="overflow-x-auto">
           <div className="min-w-max">
-            <DayLabels days={days} />
+            <DayLabels days={days} currentDate={date} />
             <div className="max-h-[500px] overflow-y-auto">
               <div className="grid grid-flow-col auto-cols-[200px] min-w-max">
                 {days.map((day, index) => (

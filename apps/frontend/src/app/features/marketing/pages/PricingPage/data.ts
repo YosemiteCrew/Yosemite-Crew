@@ -35,7 +35,7 @@ export const PricingPlans = [
     recommended: true,
     amount: "€12",
     amountYearly: "€10",
-    amountLabel: "per member / month",
+    amountLabel: "per user / month",
     description: "Flexible growth for pet businesses that need to scale on demand.",
     buttonText: "Get started",
     buttonSrc: "/signup",
