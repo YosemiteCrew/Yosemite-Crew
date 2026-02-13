@@ -432,7 +432,7 @@ const ProfileCard = ({
               </div>
               {!org?.isVerified && (
                 <Primary
-                  text="Book onboarding call"
+                  text="Verify business profile"
                   href="/book-onboarding"
                   classname=""
                 />
