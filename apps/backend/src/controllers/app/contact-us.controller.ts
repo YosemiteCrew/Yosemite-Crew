@@ -4,6 +4,7 @@ import {
   ContactService,
   ContactServiceError,
   type CreateContactRequestInput,
+  type CreateWebContactRequestInput,
 } from "src/services/contact-us.service";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
@@ -42,6 +43,7 @@ const toContactType = (value: unknown): ContactType | undefined =>
     : undefined;
 
 type CreateContactRequestBody = CreateContactRequestInput;
+type CreateWebContactRequestBody = CreateWebContactRequestInput;
 
 type ListContactQuery = {
   status?: ContactStatus;
@@ -109,6 +111,47 @@ export const ContactController = {
         return res.status(err.statusCode).json({ message: err.message });
       }
       console.error("Error creating contact request", err);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  async createWeb(
+    this: void,
+    req: Request<unknown, unknown, CreateWebContactRequestBody>,
+    res: Response,
+  ) {
+    try {
+      const {
+        type,
+        source,
+        message,
+        fullName,
+        email,
+        phone,
+        organisationId,
+        dsarDetails,
+        attachments,
+      } = req.body;
+
+      const payload = {
+        type,
+        source,
+        message,
+        fullName,
+        email,
+        phone,
+        organisationId,
+        dsarDetails,
+        attachments,
+      };
+
+      const doc = await ContactService.createWebRequest(payload);
+      res.status(201).json({ id: doc._id.toString() });
+    } catch (err) {
+      if (err instanceof ContactServiceError) {
+        return res.status(err.statusCode).json({ message: err.message });
+      }
+      console.error("Error creating web contact request", err);
       res.status(500).json({ message: "Internal server error" });
     }
   },

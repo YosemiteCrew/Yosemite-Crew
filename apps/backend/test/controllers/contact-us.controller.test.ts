@@ -11,6 +11,7 @@ jest.mock("../../src/services/contact-us.service", () => {
     ...actual,
     ContactService: {
       createRequest: jest.fn(),
+      createWebRequest: jest.fn(),
       listRequests: jest.fn(),
       getById: jest.fn(),
       updateStatus: jest.fn(),
@@ -26,6 +27,7 @@ jest.mock("../../src/services/authUserMobile.service", () => ({
 
 const mockedContactService = ContactService as unknown as {
   createRequest: jest.Mock;
+  createWebRequest: jest.Mock;
   listRequests: jest.Mock;
   getById: jest.Mock;
   updateStatus: jest.Mock;
@@ -172,6 +174,61 @@ describe("ContactController", () => {
       expect(res.json).toHaveBeenCalledWith({
         message: "Internal server error",
       });
+    });
+  });
+
+  describe("createWeb", () => {
+    it("creates a web contact request", async () => {
+      mockedContactService.createWebRequest.mockResolvedValueOnce({
+        _id: { toString: () => "contact-web-1" },
+      });
+      const req = {
+        body: {
+          type: "GENERAL_ENQUIRY",
+          source: "PMS_WEB",
+          message: "Help",
+          fullName: "Web User",
+          email: "web@user.com",
+          phone: "1234567890",
+        },
+      } as any;
+      const res = createResponse();
+
+      await ContactController.createWeb(req as any, res as any);
+
+      expect(mockedContactService.createWebRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "GENERAL_ENQUIRY",
+          source: "PMS_WEB",
+          message: "Help",
+          fullName: "Web User",
+          email: "web@user.com",
+          phone: "1234567890",
+        }),
+      );
+      expect(res.status).toHaveBeenCalledWith(201);
+      expect(res.json).toHaveBeenCalledWith({ id: "contact-web-1" });
+    });
+
+    it("handles ContactServiceError responses", async () => {
+      mockedContactService.createWebRequest.mockRejectedValueOnce(
+        new ContactServiceError("invalid", 422),
+      );
+      const req = {
+        body: {
+          type: "GENERAL_ENQUIRY",
+          source: "PMS_WEB",
+          message: "Help",
+          fullName: "Web User",
+          email: "web@user.com",
+        },
+      } as any;
+      const res = createResponse();
+
+      await ContactController.createWeb(req as any, res as any);
+
+      expect(res.status).toHaveBeenCalledWith(422);
+      expect(res.json).toHaveBeenCalledWith({ message: "invalid" });
     });
   });
 

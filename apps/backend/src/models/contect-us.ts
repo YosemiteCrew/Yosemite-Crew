@@ -100,6 +100,8 @@ export interface ContactRequestMongo {
 
   subject: string;
   message: string;
+  fullName?: string;
+  phone?: string;
 
   // who is talking, optional depending on whether user is logged in
   userId?: string;
@@ -144,6 +146,8 @@ const ContactRequestSchema = new Schema<ContactRequestMongo>(
 
     subject: { type: String, required: true },
     message: { type: String, required: true },
+    fullName: { type: String },
+    phone: { type: String },
 
     userId: { type: String, index: true },
     email: { type: String },
