@@ -4,6 +4,7 @@ import {
   ContactServiceError,
 } from "../../src/services/contact-us.service";
 import { AuthUserMobileService } from "../../src/services/authUserMobile.service";
+import { generatePresignedUrl, getURLForKey } from "../../src/middlewares/upload";
 
 jest.mock("../../src/services/contact-us.service", () => {
   const actual = jest.requireActual("../../src/services/contact-us.service");
@@ -25,6 +26,11 @@ jest.mock("../../src/services/authUserMobile.service", () => ({
   },
 }));
 
+jest.mock("../../src/middlewares/upload", () => ({
+  generatePresignedUrl: jest.fn(),
+  getURLForKey: jest.fn(),
+}));
+
 const mockedContactService = ContactService as unknown as {
   createRequest: jest.Mock;
   createWebRequest: jest.Mock;
@@ -36,6 +42,9 @@ const mockedContactService = ContactService as unknown as {
 const mockedAuthUserMobileService = AuthUserMobileService as unknown as {
   getByProviderUserId: jest.Mock;
 };
+
+const mockedGeneratePresignedUrl = generatePresignedUrl as jest.Mock;
+const mockedGetURLForKey = getURLForKey as jest.Mock;
 
 const createResponse = () => {
   const res = {
@@ -294,6 +303,57 @@ describe("ContactController", () => {
       await ContactController.updateStatus(req as any, res as any);
 
       expect(res.json).toHaveBeenCalledWith(updated);
+    });
+  });
+
+  describe("getAttachmentUploadUrl", () => {
+    it("returns 400 if mimeType is missing", async () => {
+      const req = { body: {} } as any;
+      const res = createResponse();
+
+      await ContactController.getAttachmentUploadUrl(req as any, res as any);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "mimeType is required in the request body.",
+      });
+    });
+
+    it("returns presigned upload URL with fileUrl", async () => {
+      mockedGeneratePresignedUrl.mockResolvedValueOnce({
+        url: "https://upload.url",
+        key: "contact-us/abc.png",
+      });
+      mockedGetURLForKey.mockReturnValueOnce("https://cdn/abc.png");
+      const req = { body: { mimeType: "image/png" } } as any;
+      const res = createResponse();
+
+      await ContactController.getAttachmentUploadUrl(req as any, res as any);
+
+      expect(mockedGeneratePresignedUrl).toHaveBeenCalledWith(
+        "image/png",
+        "custom",
+        "contact-us",
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({
+        uploadUrl: "https://upload.url",
+        s3Key: "contact-us/abc.png",
+        fileUrl: "https://cdn/abc.png",
+      });
+    });
+
+    it("handles errors", async () => {
+      mockedGeneratePresignedUrl.mockRejectedValueOnce(new Error("fail"));
+      const req = { body: { mimeType: "image/png" } } as any;
+      const res = createResponse();
+
+      await ContactController.getAttachmentUploadUrl(req as any, res as any);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Unable to generate upload URL",
+      });
     });
   });
 });

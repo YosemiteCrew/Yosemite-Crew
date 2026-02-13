@@ -540,6 +540,17 @@ export const InvoiceService = {
 
     recalculateTotals(invoice);
     invoice.updatedAt = new Date();
+
+    // If a Checkout Session already exists, its amount cannot be updated.
+    // Clear it so the next checkout uses fresh totals.
+    if (
+      invoice.paymentCollectionMethod === "PAYMENT_LINK" &&
+      invoice.stripeCheckoutSessionId
+    ) {
+      invoice.stripeCheckoutSessionId = undefined;
+      invoice.stripeCheckoutUrl = null;
+    }
+
     await invoice.save();
 
     const targets = await resolveAuditTargetsForInvoice(invoice);

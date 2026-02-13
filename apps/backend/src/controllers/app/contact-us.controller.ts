@@ -6,6 +6,7 @@ import {
   type CreateContactRequestInput,
   type CreateWebContactRequestInput,
 } from "src/services/contact-us.service";
+import { generatePresignedUrl, getURLForKey } from "src/middlewares/upload";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { type ContactType, type ContactStatus } from "src/models/contect-us";
@@ -153,6 +154,39 @@ export const ContactController = {
       }
       console.error("Error creating web contact request", err);
       res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  async getAttachmentUploadUrl(this: void, req: Request, res: Response) {
+    try {
+      const rawBody: unknown = req.body;
+      const mimeType =
+        typeof rawBody === "object" && rawBody !== null && "mimeType" in rawBody
+          ? (rawBody as { mimeType?: unknown }).mimeType
+          : undefined;
+
+      if (typeof mimeType !== "string" || !mimeType) {
+        return res
+          .status(400)
+          .json({ message: "mimeType is required in the request body." });
+      }
+
+      const { url, key } = await generatePresignedUrl(
+        mimeType,
+        "custom",
+        "contact-us",
+      );
+
+      return res.status(200).json({
+        uploadUrl: url,
+        s3Key: key,
+        fileUrl: getURLForKey(key),
+      });
+    } catch (err) {
+      console.error("Error generating contact-us upload URL", err);
+      return res
+        .status(500)
+        .json({ message: "Unable to generate upload URL" });
     }
   },
 
