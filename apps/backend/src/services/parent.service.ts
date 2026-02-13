@@ -62,11 +62,11 @@ export const toFHIR = (doc: ParentDocument) => {
 const computeProfileCompletion = (p: ParentMongo | ParentDocument) => {
   return Boolean(
     p.firstName &&
-      p.lastName &&
-      p.email &&
-      p.phoneNumber &&
-      p.birthDate &&
-      p.address,
+    p.lastName &&
+    p.email &&
+    p.phoneNumber &&
+    p.birthDate &&
+    p.address,
   );
 };
 

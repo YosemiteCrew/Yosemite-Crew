@@ -8,7 +8,7 @@ import TaskLibraryDefinitionModel, {
 import { Types } from "mongoose";
 
 // Mock the Mongoose Model
-jest.mock('../../src/models/taskLibraryDefinition');
+jest.mock("../../src/models/taskLibraryDefinition");
 
 describe("TaskLibraryService", () => {
   const validId = new Types.ObjectId().toString();
@@ -17,84 +17,88 @@ describe("TaskLibraryService", () => {
     jest.clearAllMocks();
   });
 
-  describe('TaskLibraryServiceError', () => {
-    it('should create an error with default status code', () => {
-      const err = new TaskLibraryServiceError('Test Error');
-      expect(err.message).toBe('Test Error');
+  describe("TaskLibraryServiceError", () => {
+    it("should create an error with default status code", () => {
+      const err = new TaskLibraryServiceError("Test Error");
+      expect(err.message).toBe("Test Error");
       expect(err.statusCode).toBe(400);
-      expect(err.name).toBe('TaskLibraryServiceError');
+      expect(err.name).toBe("TaskLibraryServiceError");
     });
 
-    it('should create an error with custom status code', () => {
-      const err = new TaskLibraryServiceError('Payment Required', 402);
+    it("should create an error with custom status code", () => {
+      const err = new TaskLibraryServiceError("Payment Required", 402);
       expect(err.statusCode).toBe(402);
     });
   });
 
-  describe('create', () => {
+  describe("create", () => {
     const validInput = {
-      kind: 'HYGIENE' as TaskKind,
-      category: 'Health',
-      name: 'Checkup',
-      defaultDescription: 'Routine check',
+      kind: "HYGIENE" as TaskKind,
+      category: "Health",
+      name: "Checkup",
+      defaultDescription: "Routine check",
       schema: {},
     };
 
-    it('should throw 400 if required fields are missing', async () => {
+    it("should throw 400 if required fields are missing", async () => {
       await expect(
-        TaskLibraryService.create({ ...validInput, name: '' } as any)
-      ).rejects.toThrow('kind, category and name are required');
+        TaskLibraryService.create({ ...validInput, name: "" } as any),
+      ).rejects.toThrow("kind, category and name are required");
     });
 
-    it('should throw 400 if MEDICATION kind is missing medicationFields', async () => {
-      const input = { ...validInput, kind: 'MEDICATION' as TaskKind, schema: {} };
+    it("should throw 400 if MEDICATION kind is missing medicationFields", async () => {
+      const input = {
+        ...validInput,
+        kind: "MEDICATION" as TaskKind,
+        schema: {},
+      };
       await expect(TaskLibraryService.create(input)).rejects.toThrow(
-        'medicationFields required for MEDICATION task'
+        "medicationFields required for MEDICATION task",
       );
     });
 
-    it('should throw 400 if OBSERVATION_TOOL kind is not set to true', async () => {
+    it("should throw 400 if OBSERVATION_TOOL kind is not set to true", async () => {
       const input = {
         ...validInput,
-        kind: 'OBSERVATION_TOOL' as TaskKind,
+        kind: "OBSERVATION_TOOL" as TaskKind,
         schema: { requiresObservationTool: false },
       };
       await expect(TaskLibraryService.create(input)).rejects.toThrow(
-        'requiresObservationTool must be true for OBSERVATION_TOOL task'
+        "requiresObservationTool must be true for OBSERVATION_TOOL task",
       );
     });
 
-    it('should throw 400 if CUSTOM recurrence is missing cronExpression', async () => {
+    it("should throw 400 if CUSTOM recurrence is missing cronExpression", async () => {
       const input = {
         ...validInput,
         schema: {
           recurrence: {
-            default: { type: 'CUSTOM', editable: true },
+            default: { type: "CUSTOM", editable: true },
           },
         } as any,
       };
       await expect(TaskLibraryService.create(input)).rejects.toThrow(
-        'cronExpression required for CUSTOM recurrence'
+        "cronExpression required for CUSTOM recurrence",
       );
     });
 
-    it('should throw 409 if task definition already exists', async () => {
+    it("should throw 409 if task definition already exists", async () => {
       // Mock findOne to return an existing document
       (TaskLibraryDefinitionModel.findOne as jest.Mock).mockReturnValue({
-        lean: jest.fn().mockResolvedValue({ _id: 'existing-id' }),
+        lean: jest.fn().mockResolvedValue({ _id: "existing-id" }),
       });
 
       await expect(TaskLibraryService.create(validInput)).rejects.toThrow(
-        'Task definition with same name and kind already exists'
+        "Task definition with same name and kind already exists",
       );
       expect(TaskLibraryDefinitionModel.findOne).toHaveBeenCalledWith({
-        source: 'YC_LIBRARY',
+        source: "YC_LIBRARY",
         name: validInput.name,
         kind: validInput.kind,
       });
     });
 
-    it('should create a new task library definition successfully', async () => {
+    it("should create a new task library definition successfully", async () => {
       // Mock findOne to return null (does not exist)
       (TaskLibraryDefinitionModel.findOne as jest.Mock).mockReturnValue({
         lean: jest.fn().mockResolvedValue(null),
@@ -102,15 +106,15 @@ describe("TaskLibraryService", () => {
 
       // Mock create
       (TaskLibraryDefinitionModel.create as jest.Mock).mockResolvedValue({
-        _id: 'new-id',
+        _id: "new-id",
         ...validInput,
       });
 
       const result = await TaskLibraryService.create(validInput);
 
-      expect(result).toHaveProperty('_id', 'new-id');
+      expect(result).toHaveProperty("_id", "new-id");
       expect(TaskLibraryDefinitionModel.create).toHaveBeenCalledWith({
-        source: 'YC_LIBRARY',
+        source: "YC_LIBRARY",
         kind: validInput.kind,
         category: validInput.category,
         name: validInput.name,
@@ -125,7 +129,7 @@ describe("TaskLibraryService", () => {
       });
     });
 
-    it('should pass through explicit schema values', async () => {
+    it("should pass through explicit schema values", async () => {
       (TaskLibraryDefinitionModel.findOne as jest.Mock).mockReturnValue({
         lean: jest.fn().mockResolvedValue(null),
       });
@@ -135,7 +139,7 @@ describe("TaskLibraryService", () => {
         schema: {
           medicationFields: { hasDosage: true },
           requiresObservationTool: true,
-          recurrence: { default: { type: 'DAILY' } },
+          recurrence: { default: { type: "DAILY" } },
         } as any,
       };
 
@@ -146,16 +150,16 @@ describe("TaskLibraryService", () => {
           schema: {
             medicationFields: { hasDosage: true },
             requiresObservationTool: true,
-            recurrence: { default: { type: 'DAILY' } },
+            recurrence: { default: { type: "DAILY" } },
           },
-        })
+        }),
       );
     });
   });
 
-  describe('listActive', () => {
-    it('should list all active tasks', async () => {
-      const mockExec = jest.fn().mockResolvedValue(['task1', 'task2']);
+  describe("listActive", () => {
+    it("should list all active tasks", async () => {
+      const mockExec = jest.fn().mockResolvedValue(["task1", "task2"]);
       const mockSort = jest.fn().mockReturnValue({ exec: mockExec });
       (TaskLibraryDefinitionModel.find as jest.Mock).mockReturnValue({
         sort: mockSort,
@@ -167,27 +171,27 @@ describe("TaskLibraryService", () => {
         isActive: true,
       });
       expect(mockSort).toHaveBeenCalledWith({ category: 1, name: 1 });
-      expect(result).toEqual(['task1', 'task2']);
+      expect(result).toEqual(["task1", "task2"]);
     });
 
-    it('should list active tasks filtered by kind', async () => {
-      const mockExec = jest.fn().mockResolvedValue(['task1']);
+    it("should list active tasks filtered by kind", async () => {
+      const mockExec = jest.fn().mockResolvedValue(["task1"]);
       const mockSort = jest.fn().mockReturnValue({ exec: mockExec });
       (TaskLibraryDefinitionModel.find as jest.Mock).mockReturnValue({
         sort: mockSort,
       });
 
-      await TaskLibraryService.listActive('MEDICATION' as TaskKind);
+      await TaskLibraryService.listActive("MEDICATION" as TaskKind);
 
       expect(TaskLibraryDefinitionModel.find).toHaveBeenCalledWith({
         isActive: true,
-        kind: 'MEDICATION',
+        kind: "MEDICATION",
       });
     });
   });
 
-  describe('getById', () => {
-    it('should return the document if found', async () => {
+  describe("getById", () => {
+    it("should return the document if found", async () => {
       const mockExec = jest.fn().mockResolvedValue({ _id: validId });
       (TaskLibraryDefinitionModel.findById as jest.Mock).mockReturnValue({
         exec: mockExec,
@@ -197,27 +201,27 @@ describe("TaskLibraryService", () => {
       expect(result).toEqual({ _id: validId });
     });
 
-    it('should throw 404 if not found', async () => {
+    it("should throw 404 if not found", async () => {
       const mockExec = jest.fn().mockResolvedValue(null);
       (TaskLibraryDefinitionModel.findById as jest.Mock).mockReturnValue({
         exec: mockExec,
       });
 
       await expect(TaskLibraryService.getById(validId)).rejects.toThrow(
-        'Library task not found'
+        "Library task not found",
       );
     });
   });
 
-  describe('update', () => {
-    it('should throw 404 if task not found', async () => {
+  describe("update", () => {
+    it("should throw 404 if task not found", async () => {
       (TaskLibraryDefinitionModel.findById as jest.Mock).mockReturnValue({
         exec: jest.fn().mockResolvedValue(null),
       });
 
-      await expect(
-        TaskLibraryService.getById(validId),
-      ).rejects.toBeInstanceOf(TaskLibraryServiceError);
+      await expect(TaskLibraryService.getById(validId)).rejects.toBeInstanceOf(
+        TaskLibraryServiceError,
+      );
     });
   });
 });

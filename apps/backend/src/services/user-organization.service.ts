@@ -828,7 +828,7 @@ export const UserOrganizationService = {
     const priorRoleCode = existing.roleCode;
     const priorRoleDisplay = existing.roleDisplay;
     const priorPermissions = [...(existing.effectivePermissions ?? [])].sort(
-      (a, b) => a.localeCompare(b)
+      (a, b) => a.localeCompare(b),
     );
 
     const wasActive = existing.active;
@@ -859,7 +859,7 @@ export const UserOrganizationService = {
     }
 
     const nextPermissions = [...(document.effectivePermissions ?? [])].sort(
-      (a, b) => a.localeCompare(b)
+      (a, b) => a.localeCompare(b),
     );
     const permissionsChanged =
       priorRoleCode !== document.roleCode ||

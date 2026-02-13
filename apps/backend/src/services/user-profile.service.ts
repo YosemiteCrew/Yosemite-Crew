@@ -476,7 +476,7 @@ const buildDomainProfile = (
   };
 
   const idSource = raw._id ?? document._id;
-  
+
   let id: string | undefined;
 
   if (typeof idSource === "string") {

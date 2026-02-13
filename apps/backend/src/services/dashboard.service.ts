@@ -207,11 +207,7 @@ export const DashboardService = {
             _id: null,
             revenue: {
               $sum: {
-                $cond: [
-                  { $eq: ["$status", "COMPLETED"] },
-                  "$totalPrice",
-                  0,
-                ],
+                $cond: [{ $eq: ["$status", "COMPLETED"] }, "$totalPrice", 0],
               },
             },
             count: { $sum: 1 },

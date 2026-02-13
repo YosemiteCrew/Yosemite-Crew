@@ -243,8 +243,7 @@ export const FormController = {
   getSOAPNotesByAppointment: async (req: Request, res: Response) => {
     try {
       const { appointmentId } = req.params;
-      const { latestOnly } =
-        (req.body as Record<string, unknown>) ?? {};
+      const { latestOnly } = (req.body as Record<string, unknown>) ?? {};
       const latestOnlyFlag = latestOnly === true || latestOnly === "true";
 
       const result = await FormService.getSOAPNotesByAppointment(

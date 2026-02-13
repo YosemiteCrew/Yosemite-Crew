@@ -10,7 +10,10 @@ import { OccupancyModel } from "src/models/occupancy";
 dayjs.extend(utc);
 
 export class AvailabilityServiceError extends Error {
-  constructor(message: string, public statusCode = 400) {
+  constructor(
+    message: string,
+    public statusCode = 400,
+  ) {
     super(message);
     this.name = "AvailabilityServiceError";
   }
@@ -370,10 +373,7 @@ export const AvailabilityService = {
     });
 
     // Load base availability
-    const base = await this.getBaseAvailability(
-      safeOrganisationId,
-      safeUserId,
-    );
+    const base = await this.getBaseAvailability(safeOrganisationId, safeUserId);
 
     // Convert base into map: { MONDAY → [...slots] }
     const map = new Map<DayOfWeek, AvailabilitySlotMongo[]>();
@@ -494,8 +494,6 @@ export const AvailabilityService = {
         nowUtc.isSame(slotStart) || nowUtc.isAfter(slotStart);
       return startsNowOrEarlier && nowUtc.isBefore(slotEnd);
     });
-
-
 
     if (activeSlot) return "Available";
     if (slots.length === 0) return "Off-Duty";

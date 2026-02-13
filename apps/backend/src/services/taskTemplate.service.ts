@@ -164,10 +164,7 @@ export const TaskTemplateService = {
   },
 
   async listForOrganisation(organisationId: string, kind?: TaskKind) {
-    const safeOrganisationId = ensureObjectId(
-      organisationId,
-      "organisationId",
-    );
+    const safeOrganisationId = ensureObjectId(organisationId, "organisationId");
     const filter: Record<string, unknown> = {
       organisationId: safeOrganisationId,
       isActive: true,

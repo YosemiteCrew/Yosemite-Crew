@@ -134,10 +134,7 @@ const computeScore = (
       continue;
     }
 
-    if (
-      typeof field.scoring.points === "number" &&
-      isScorableAnswer(answer)
-    ) {
+    if (typeof field.scoring.points === "number" && isScorableAnswer(answer)) {
       total += field.scoring.points;
       usedScoring = true;
     }
@@ -219,10 +216,7 @@ const applyStringFilter = (
   if (value === undefined) return;
   const normalized = asNonEmptyString(value);
   if (!normalized) {
-    throw new ObservationToolSubmissionServiceError(
-      `Invalid ${key}`,
-      400,
-    );
+    throw new ObservationToolSubmissionServiceError(`Invalid ${key}`, 400);
   }
   q[key] = normalized;
 };

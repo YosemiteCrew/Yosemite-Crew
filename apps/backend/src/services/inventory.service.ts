@@ -54,7 +54,7 @@ export class InventoryServiceError extends Error {
   }
 }
 
-const BUSINESS_TYPES = new Set<BusinessType> ([
+const BUSINESS_TYPES = new Set<BusinessType>([
   "HOSPITAL",
   "GROOMING",
   "BOARDING",
@@ -666,9 +666,7 @@ export const InventoryService = {
       });
 
       // Apply extra filters
-      if (
-        !shouldIncludeItem({ filter, stockHealth, expiringWithinDays })
-      ) {
+      if (!shouldIncludeItem({ filter, stockHealth, expiringWithinDays })) {
         continue;
       }
 
@@ -842,8 +840,7 @@ export const InventoryService = {
       );
     }
 
-    const { onHand, allocated } =
-      await recomputeStockFromBatches(safeItemId);
+    const { onHand, allocated } = await recomputeStockFromBatches(safeItemId);
     item.onHand = onHand;
     item.allocated = allocated;
     await item.save();
@@ -1172,7 +1169,9 @@ export const InventoryVendorService = {
       organisationId,
       "organisationId",
     );
-    return InventoryVendorModel.find({ organisationId: safeOrganisationId }).exec();
+    return InventoryVendorModel.find({
+      organisationId: safeOrganisationId,
+    }).exec();
   },
 
   async getVendor(vendorId: string) {
@@ -1228,7 +1227,9 @@ export const InventoryMetaFieldService = {
     if (!safeBusinessType) {
       throw new InventoryServiceError("Invalid businessType", 400);
     }
-    return InventoryMetaFieldModel.find({ businessType: safeBusinessType }).exec();
+    return InventoryMetaFieldModel.find({
+      businessType: safeBusinessType,
+    }).exec();
   },
 };
 

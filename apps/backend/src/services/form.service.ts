@@ -89,7 +89,9 @@ const resolveUserNameMap = async (userIds: string[]) => {
   return map;
 };
 
-const applyUserNamesToForm = <T extends { createdBy: string; updatedBy: string }>(
+const applyUserNamesToForm = <
+  T extends { createdBy: string; updatedBy: string },
+>(
   form: T,
   nameMap: Map<string, string>,
 ) => ({
@@ -190,9 +192,7 @@ const fetchTemplateForms = async (
   return FormModel.find(filter).lean<LeanForm[]>();
 };
 
-const fetchFormsByIds = async (
-  formIds: Set<string>,
-): Promise<LeanForm[]> => {
+const fetchFormsByIds = async (formIds: Set<string>): Promise<LeanForm[]> => {
   if (!formIds.size) return [];
   return FormModel.find({
     _id: { $in: [...formIds] },
@@ -257,9 +257,8 @@ const resolveSignedPdfUrl = async (
   orgId: string,
 ) => {
   if (!submission.signing?.documentId) return undefined;
-  const documensoApiKey = await DocumensoService.resolveOrganisationApiKey(
-    orgId,
-  );
+  const documensoApiKey =
+    await DocumensoService.resolveOrganisationApiKey(orgId);
   if (!documensoApiKey) return undefined;
   return DocumensoService.downloadSignedDocument({
     documentId: Number.parseInt(submission.signing.documentId, 10),
@@ -706,7 +705,7 @@ export const FormService = {
       "SOAP-Objective": "Objective",
       "SOAP-Assessment": "Assessment",
       "SOAP-Plan": "Plan",
-      "Discharge": "Discharge",
+      Discharge: "Discharge",
     };
 
     const appointmentObjectId = ensureObjectId(
@@ -753,9 +752,7 @@ export const FormService = {
 
     // Load forms for soapType lookup
     const formIds = [
-      ...new Set(
-        submissions.map((s) => normalizeObjectId(s.formId)),
-      ),
+      ...new Set(submissions.map((s) => normalizeObjectId(s.formId))),
     ];
 
     type FormLean = {
@@ -894,7 +891,7 @@ export const FormService = {
     appointmentId: string;
     serviceId?: string;
     species?: string;
-    isPMS?: boolean
+    isPMS?: boolean;
   }) {
     const appointmentId = ensureObjectId(
       params.appointmentId,

@@ -27,8 +27,8 @@ const isOrganizationPayload = (
 ): payload is OrganizationFHIRPayload =>
   Boolean(
     payload &&
-      typeof payload === "object" &&
-      (payload as { resourceType?: string }).resourceType === "Organization",
+    typeof payload === "object" &&
+    (payload as { resourceType?: string }).resourceType === "Organization",
   );
 
 export const OrganizationController = {

@@ -136,9 +136,7 @@ export const StripeService = {
         account_onboarding: { enabled: true },
         tax_settings: {
           enabled: true,
-          features: {
-
-          }
+          features: {},
         },
         tax_registrations: {
           enabled: true,
@@ -208,10 +206,10 @@ export const StripeService = {
       mode: "subscription",
       customer: billing.stripeCustomerId,
       line_items: [
-        { 
+        {
           price: priceId,
           quantity: seats,
-        }
+        },
       ],
       success_url: successUrl,
       cancel_url: cancelUrl,
@@ -223,21 +221,21 @@ export const StripeService = {
         },
       },
       tax_id_collection: {
-        enabled: true
+        enabled: true,
       },
       automatic_tax: {
         enabled: true,
       },
-      billing_address_collection: 'auto',
+      billing_address_collection: "auto",
       metadata: {
         orgId: String(orgId),
         interval,
         seats: String(seats),
       },
-      customer_update : {
-        name : 'auto',
-        address : 'auto'
-      }
+      customer_update: {
+        name: "auto",
+        address: "auto",
+      },
     });
 
     return { url: session.url };
@@ -449,11 +447,17 @@ export const StripeService = {
     }
     if (invoice.stripeCheckoutSessionId) {
       // optionally return existing url to re-send
-      return { sessionId: invoice.stripeCheckoutSessionId, url: invoice.stripeCheckoutUrl };
+      return {
+        sessionId: invoice.stripeCheckoutSessionId,
+        url: invoice.stripeCheckoutUrl,
+      };
     }
 
-    const organisation = await OrganizationModel.findById(invoice.organisationId);
-    if (!organisation?.stripeAccountId) throw new Error("Organisation not connected to Stripe");
+    const organisation = await OrganizationModel.findById(
+      invoice.organisationId,
+    );
+    if (!organisation?.stripeAccountId)
+      throw new Error("Organisation not connected to Stripe");
 
     // Optional expiry (recommended): e.g. 24 hours
     const expiresAt = Math.floor((Date.now() + 24 * 60 * 60 * 1000) / 1000);
@@ -520,9 +524,9 @@ export const StripeService = {
     });
 
     return {
-      status : session.payment_status,
-      total : session.amount_total ? session.amount_total/100 : 0
-    }
+      status: session.payment_status,
+      total: session.amount_total ? session.amount_total / 100 : 0,
+    };
   },
 
   async refundPaymentIntent(paymentIntentId: string) {
@@ -655,7 +659,6 @@ export const StripeService = {
     } else if (session.mode === "payment") {
       return this._handleInvoiceCheckout(session);
     }
-
   },
 
   async _handleSubscriptionUpdated(subscription: Stripe.Subscription) {
@@ -994,7 +997,11 @@ export const StripeService = {
 
       await stripe.refunds.create({ charge: charge.id });
     } catch (err) {
-      logger.error("Failed to auto-refund payment intent", paymentIntentId, err);
+      logger.error(
+        "Failed to auto-refund payment intent",
+        paymentIntentId,
+        err,
+      );
     }
   },
 };

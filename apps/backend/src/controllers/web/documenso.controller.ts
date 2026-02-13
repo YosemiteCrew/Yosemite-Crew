@@ -9,7 +9,10 @@ import {
 import OrganizationModel from "src/models/organization";
 import UserModel from "src/models/user";
 import UserOrganizationModel from "src/models/user-organization";
-import { DocumensoExternalRole, DocumensoService } from "src/services/documenso.service";
+import {
+  DocumensoExternalRole,
+  DocumensoService,
+} from "src/services/documenso.service";
 import { OrganizationService } from "src/services/organization.service";
 import type { AuthenticatedRequest } from "src/middlewares/auth";
 import logger from "src/utils/logger";
@@ -137,7 +140,7 @@ const mapRoleToDocumenso = (roleCode?: string): DocumensoExternalRole => {
 };
 
 export const DocumensoAuthController = {
-  createRedirectUrl : async (req: Request<{ orgId: string }>, res: Response) => {
+  createRedirectUrl: async (req: Request<{ orgId: string }>, res: Response) => {
     try {
       const authRequest = req as AuthenticatedRequest;
       const { orgId } = req.params;
@@ -218,7 +221,7 @@ const buildOrganizationLookupQuery = (reference: string) => {
 export const DocumensoKeyController = {
   async storeApiKey(req: Request<{ orgId: string }>, res: Response) {
     try {
-      logger.info("Getting Webhook request from documenso")
+      logger.info("Getting Webhook request from documenso");
       const signature = req.headers["x-documenso-signature"] as
         | string
         | undefined;
@@ -243,7 +246,9 @@ export const DocumensoKeyController = {
         .update(payload)
         .digest("hex");
 
-      if (!crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature))) {
+      if (
+        !crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature))
+      ) {
         logger.warn("Documenso key webhook signature invalid");
         return res.status(401).json({ message: "Invalid signature." });
       }

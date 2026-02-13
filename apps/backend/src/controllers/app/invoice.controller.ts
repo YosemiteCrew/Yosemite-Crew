@@ -74,7 +74,11 @@ export const InvoiceController = {
       return res.status(500).json({ message: "Internal server error" });
     }
   },
-  async createCheckoutSessionForInvoice(this: void, req: Request, res: Response) {
+  async createCheckoutSessionForInvoice(
+    this: void,
+    req: Request,
+    res: Response,
+  ) {
     try {
       const invoiceId = req.params.invoiceId;
       if (!invoiceId) {

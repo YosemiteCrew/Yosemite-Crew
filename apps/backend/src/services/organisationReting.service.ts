@@ -64,10 +64,7 @@ export const OrganizationRatingService = {
   },
 
   async isUserRatedOrganisation(organisationId: string, userId: string) {
-    const safeOrganisationId = ensureObjectId(
-      organisationId,
-      "organisationId",
-    );
+    const safeOrganisationId = ensureObjectId(organisationId, "organisationId");
     const safeUserId = ensureObjectId(userId, "userId");
     const existingRating = await OrganisationRatingModel.findOne({
       organizationId: safeOrganisationId,

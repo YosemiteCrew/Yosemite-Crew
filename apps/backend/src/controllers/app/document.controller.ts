@@ -164,9 +164,7 @@ export const DocumentController = {
       }
 
       if (!organisationId) {
-        return res
-          .status(400)
-          .json({ message: "organisationId is required." });
+        return res.status(400).json({ message: "organisationId is required." });
       }
 
       const body = req.body;

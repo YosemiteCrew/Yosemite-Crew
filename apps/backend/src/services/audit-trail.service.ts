@@ -162,9 +162,7 @@ export const AuditTrailService = {
       .lean();
 
     const nextCursor =
-      entries.length > 0
-        ? entries.at(-1)!.occurredAt.toISOString()
-        : null;
+      entries.length > 0 ? entries.at(-1)!.occurredAt.toISOString() : null;
 
     return { entries, nextCursor };
   },
@@ -203,9 +201,7 @@ export const AuditTrailService = {
       .lean();
 
     const nextCursor =
-      entries.length > 0
-        ? entries.at(-1)!.occurredAt.toISOString()
-        : null;
+      entries.length > 0 ? entries.at(-1)!.occurredAt.toISOString() : null;
 
     return { entries, nextCursor };
   },

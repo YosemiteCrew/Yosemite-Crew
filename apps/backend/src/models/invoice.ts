@@ -60,7 +60,6 @@ export interface InvoiceMongo {
   stripeReceiptUrl?: string;
   stripeCheckoutSessionId?: string;
   stripeCheckoutUrl?: string | null;
-  
 
   status: InvoiceStatusMongo;
 
@@ -96,7 +95,7 @@ const InvoiceSchema = new Schema<InvoiceMongo>(
 
     paymentCollectionMethod: {
       type: String,
-      enum: ["PAYMENT_INTENT","PAYMENT_LINK"],
+      enum: ["PAYMENT_INTENT", "PAYMENT_LINK"],
       default: "PAYMENT_INTENT",
     },
 

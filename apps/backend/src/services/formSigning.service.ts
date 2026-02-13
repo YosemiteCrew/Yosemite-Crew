@@ -9,7 +9,9 @@ import { ParentModel } from "src/models/parent";
 import UserModel from "src/models/user";
 import logger from "src/utils/logger";
 
-const hasToHexString = (value: unknown): value is { toHexString: () => string } =>
+const hasToHexString = (
+  value: unknown,
+): value is { toHexString: () => string } =>
   typeof (value as { toHexString?: unknown })?.toHexString === "function";
 
 export class FormSigningService {
@@ -139,8 +141,9 @@ export class FormSigningService {
       isParent,
     );
 
-    const documensoApiKey =
-      await FormSigningService.resolveDocumensoKeyOrThrow(form.orgId);
+    const documensoApiKey = await FormSigningService.resolveDocumensoKeyOrThrow(
+      form.orgId,
+    );
 
     // 4️⃣ Generate PDF ONCE
     const pdf = await generateFormSubmissionPdf({

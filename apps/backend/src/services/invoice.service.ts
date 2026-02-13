@@ -41,7 +41,9 @@ const ensureObjectId = (val: unknown, field: string): Types.ObjectId => {
   throw new InvoiceServiceError(`Invalid ${field}`, 400);
 };
 
-const getOrgBillingCurrency = async (organisationId?: string | Types.ObjectId) => {
+const getOrgBillingCurrency = async (
+  organisationId?: string | Types.ObjectId,
+) => {
   if (!organisationId) return "usd";
   const billing = await OrgBilling.findOne({ orgId: organisationId });
   return billing?.currency ?? "usd";
@@ -56,10 +58,10 @@ const resolveAuditTargetsForInvoice = async (invoice: InvoiceDocument) => {
   }
 
   if (invoice.appointmentId) {
-    const appointment = await AppointmentModel.findById(
-      invoice.appointmentId,
-      { organisationId: 1, "companion.id": 1 },
-    ).lean();
+    const appointment = await AppointmentModel.findById(invoice.appointmentId, {
+      organisationId: 1,
+      "companion.id": 1,
+    }).lean();
 
     if (appointment?.organisationId && appointment?.companion?.id) {
       return {
@@ -175,7 +177,7 @@ export const InvoiceService = {
         discountPercent?: number;
       }[];
       notes?: string;
-      paymentCollectionMethod: "PAYMENT_INTENT" | "PAYMENT_LINK"
+      paymentCollectionMethod: "PAYMENT_INTENT" | "PAYMENT_LINK";
     },
     session?: mongoose.ClientSession,
   ) {
@@ -561,10 +563,7 @@ export const InvoiceService = {
     return toDomain(invoice);
   },
 
-  async addChargesToAppointment(
-    appointmentId: string,
-    items: InvoiceItem[],
-  ) {
+  async addChargesToAppointment(appointmentId: string, items: InvoiceItem[]) {
     const invoice = await this.findOpenInvoiceForAppointment(appointmentId);
 
     // No open invoice → create EXTRA invoice
@@ -692,9 +691,8 @@ export const InvoiceService = {
   },
 
   async createCheckoutSessionAndEmailParent(invoiceId: string) {
-    const checkout = await StripeService.createCheckoutSessionForInvoice(
-      invoiceId,
-    );
+    const checkout =
+      await StripeService.createCheckoutSessionForInvoice(invoiceId);
 
     const invoice = await InvoiceModel.findById(invoiceId).lean();
     if (!invoice) {

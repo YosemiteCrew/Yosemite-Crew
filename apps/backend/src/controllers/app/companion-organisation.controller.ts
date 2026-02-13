@@ -9,6 +9,7 @@ import { ParentService } from "src/services/parent.service";
 import OrganizationModel, {
   type OrganizationMongo,
 } from "src/models/organization";
+import { AuthUserMobileService } from "src/services/authUserMobile.service";
 
 type OrganisationType = OrganizationMongo["type"];
 
@@ -119,8 +120,11 @@ export const CompanionOrganisationController = {
       if (!authUserId)
         return res.status(401).json({ message: "User not authenticated" });
 
-      const parent = await ParentService.findByLinkedUserId(authUserId);
-      if (!parent) return res.status(401).json({ message: "Parent not found" });
+      const authUser =
+        await AuthUserMobileService.getByProviderUserId(authUserId);
+
+      if (!authUser?.parentId)
+        return res.status(401).json({ message: "Parent not found" });
 
       const linkPayload = parseLinkPayload(req.body);
       if (!linkPayload) {
@@ -131,7 +135,7 @@ export const CompanionOrganisationController = {
       }
 
       const link = await CompanionOrganisationService.linkByParent({
-        parentId: parent._id,
+        parentId: authUser.parentId,
         ...linkPayload,
       });
 

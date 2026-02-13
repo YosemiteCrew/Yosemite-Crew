@@ -62,10 +62,7 @@ const extractOrganizationIdentifier = (reference: unknown): string => {
   const lastSegment = segments.at(-1);
 
   if (!lastSegment || lastSegment.toLowerCase() === "organization") {
-    throw new UserServiceError(
-      "Invalid organization reference format.",
-      400,
-    );
+    throw new UserServiceError("Invalid organization reference format.", 400);
   }
 
   return lastSegment;
@@ -244,9 +241,9 @@ export const UserService = {
   },
 
   async updateName(payload: {
-    userId : string,
-    firstName : string,
-    lastName : string
+    userId: string;
+    firstName: string;
+    lastName: string;
   }): Promise<UserDomain> {
     const userId = requireSafeIdentifier(payload.userId, "User id");
     const firstName = requireString(payload.firstName, "First name");

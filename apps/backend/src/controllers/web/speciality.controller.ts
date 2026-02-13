@@ -11,8 +11,8 @@ const isFHIRSpecialityPayload = (
 ): payload is SpecialityFHIRPayload => {
   return Boolean(
     payload &&
-      typeof payload === "object" &&
-      (payload as { resourceType?: string }).resourceType === "Organization",
+    typeof payload === "object" &&
+    (payload as { resourceType?: string }).resourceType === "Organization",
   );
 };
 

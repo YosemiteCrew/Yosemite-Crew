@@ -95,7 +95,6 @@ const sanitizeSlot = (value: unknown, index: number): AvailabilitySlotMongo => {
     }
   }
 
-
   return {
     startTime,
     endTime,
@@ -211,7 +210,7 @@ const buildDomainAvailability = (
   }) as BaseAvailabilityMongo & { _id: unknown };
 
   const idSource = raw._id ?? document._id;
-  
+
   let id: string | undefined;
 
   if (typeof idSource === "string") {

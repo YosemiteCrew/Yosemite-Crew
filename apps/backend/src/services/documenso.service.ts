@@ -9,7 +9,8 @@ import logger from "src/utils/logger";
 const BASE_URL = process.env["DOCUMENSO_BASE_URL"] ?? "";
 const API_KEY = process.env["DOCUMENSO_API_KEY"] ?? "";
 const PUBLIC_BASE_URL = process.env["DOCUMENSO_HOST_URL"] ?? "";
-const EXTERNAL_AUTH_SECRET = process.env["DOCUMENSO_EXTERNAL_AUTH_SECRET"] ?? "";
+const EXTERNAL_AUTH_SECRET =
+  process.env["DOCUMENSO_EXTERNAL_AUTH_SECRET"] ?? "";
 
 const documensoClients = new Map<string, Documenso>();
 

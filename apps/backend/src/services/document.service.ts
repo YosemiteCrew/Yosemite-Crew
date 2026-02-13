@@ -53,9 +53,7 @@ const validateCategoryAndSubcategory = (
 ): void => {
   const upperCategory = String(category).toUpperCase();
 
-  if (
-    !Object.hasOwn(VALID_CATEGORY_SUBCATEGORIES, upperCategory)
-  ) {
+  if (!Object.hasOwn(VALID_CATEGORY_SUBCATEGORIES, upperCategory)) {
     throw new DocumentServiceError(
       `Invalid document category: ${category}`,
       400,

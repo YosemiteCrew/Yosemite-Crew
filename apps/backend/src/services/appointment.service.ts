@@ -789,12 +789,12 @@ export const AppointmentService = {
             },
           ],
           notes: appointment.concern,
-          paymentCollectionMethod: "PAYMENT_LINK"
+          paymentCollectionMethod: "PAYMENT_LINK",
         },
         session,
       );
 
-      let checkout
+      let checkout;
 
       await session.commitTransaction();
       await session.endSession();
@@ -859,7 +859,7 @@ export const AppointmentService = {
       return {
         appointment: toAppointmentResponseDTO(toDomain(doc)),
         invoice,
-        checkout
+        checkout,
       };
     } catch (err) {
       await session.abortTransaction();
@@ -889,10 +889,7 @@ export const AppointmentService = {
       );
     }
 
-    const appointmentObjectId = ensureObjectId(
-      appointmentId,
-      "appointmentId",
-    );
+    const appointmentObjectId = ensureObjectId(appointmentId, "appointmentId");
     const appointment = await AppointmentModel.findOne({
       _id: appointmentObjectId,
       status: "REQUESTED",

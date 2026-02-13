@@ -242,9 +242,7 @@ export const ChatService = {
       throw new ChatServiceError("Cannot chat with yourself");
     }
 
-    const members = [userA, userB].sort(
-      (a, b) => a.localeCompare(b),
-    );
+    const members = [userA, userB].sort((a, b) => a.localeCompare(b));
 
     const existing = await ChatSessionModel.findOne({
       type: "ORG_DIRECT",

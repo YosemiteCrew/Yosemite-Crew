@@ -51,7 +51,7 @@ const DEFAULT_PMS_URL =
   process.env.APP_URL ??
   "https://app.yosemitecrew.com";
 
-const TASK_STATUSES= new Set<TaskStatus> ([
+const TASK_STATUSES = new Set<TaskStatus>([
   "PENDING",
   "IN_PROGRESS",
   "COMPLETED",
@@ -196,7 +196,10 @@ const applyFieldUpdates = (task: TaskDocument, updates: TaskUpdateInput) => {
   }
 };
 
-const applyRecurrenceUpdate = (task: TaskDocument, updates: TaskUpdateInput) => {
+const applyRecurrenceUpdate = (
+  task: TaskDocument,
+  updates: TaskUpdateInput,
+) => {
   if (updates.recurrence === undefined) return;
   if (updates.recurrence === null) {
     task.recurrence = undefined;
@@ -409,9 +412,8 @@ export const TaskService = {
     input: CreateFromLibraryInput,
   ): Promise<TaskDocument> {
     const libraryTaskId = ensureObjectId(input.libraryTaskId, "libraryTaskId");
-    const library = await TaskLibraryDefinitionModel.findById(
-      libraryTaskId,
-    ).exec();
+    const library =
+      await TaskLibraryDefinitionModel.findById(libraryTaskId).exec();
 
     if (!library || !library.isActive) {
       throw new TaskServiceError("Library task not found or inactive", 404);
