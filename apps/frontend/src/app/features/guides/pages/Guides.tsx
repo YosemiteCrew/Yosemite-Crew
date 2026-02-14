@@ -75,8 +75,8 @@ const Guides = () => {
       <div className="flex flex-wrap items-center justify-between gap-3 mt-2">
         <div className="flex flex-col gap-1">
           <div className="text-text-primary text-heading-1">
-            Guides & Tutorials
-            <span className="text-text-tertiary">{" (" + guidesData.length + ")"}</span>
+            Guides & Tutorials{" "}
+            <span className="text-text-tertiary">{`(${guidesData.length})`}</span>
           </div>
           <p className="text-body-3 text-text-secondary max-w-3xl mb-0!">
             Learn how to set up your animal health practice, streamline workflows, and get the most from Yosemite.

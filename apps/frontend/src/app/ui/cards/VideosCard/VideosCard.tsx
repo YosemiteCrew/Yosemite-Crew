@@ -12,8 +12,8 @@ const STORAGE_KEY = "yc_dashboard_videos_hidden";
 
 const VideosCard = () => {
   const [open, setOpen] = useState(() => {
-    if (typeof window === "undefined") return true;
-    return window.localStorage.getItem(STORAGE_KEY) !== "true";
+    if (typeof globalThis.window === "undefined") return true;
+    return globalThis.localStorage.getItem(STORAGE_KEY) !== "true";
   });
   const [showModal, setShowModal] = useState(false);
   const [activeVideo, setActiveVideo] = useState<(typeof previewVideos)[number] | null>(null);
@@ -25,8 +25,8 @@ const VideosCard = () => {
 
   const handleClose = () => {
     setOpen(false);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, "true");
+    if (typeof globalThis.window !== "undefined") {
+      globalThis.localStorage.setItem(STORAGE_KEY, "true");
     }
   };
 
