@@ -60,7 +60,7 @@ const UserHeader = () => {
   const handleLogout = async () => {
     try {
       await signOut();
-      if (typeof globalThis.window !== "undefined") {
+      if (globalThis.window !== undefined) {
         globalThis.localStorage.removeItem("yc_dashboard_videos_hidden");
       }
       console.log("✅ Signed out using Cognito signout");
