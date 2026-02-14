@@ -35,7 +35,7 @@
 
 .TrustHeroTitle {
   font-family: var(--grotesk-font);
-  font-size: 3rem;
+  font-size: 3rem; /* 48px */
   font-weight: 500;
   line-height: 1.1;
   color: var(--color-text-primary);
@@ -45,7 +45,7 @@
 
 .TrustHeroSubtitle {
   font-family: var(--satoshi-font);
-  font-size: 1.125rem;
+  font-size: 1.125rem; /* 18px */
   font-weight: 400;
   line-height: 1.5;
   color: var(--color-text-primary);
@@ -66,7 +66,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 1rem;
+  font-size: 1rem; /* 16px */
   font-weight: 500;
   color: var(--color-text-primary);
   text-decoration: none;
@@ -151,7 +151,7 @@
 .SectionTitle {
   font-family: var(--grotesk-font);
   font-weight: 500;
-  font-size: 1.75rem;
+  font-size: 1.75rem; /* 28px */
   line-height: 1.2;
   color: var(--black-text);
   margin-bottom: 24px;
@@ -188,7 +188,7 @@
 
 .CardTitle {
   font-family: var(--grotesk-font);
-  font-size: 1.25rem;
+  font-size: 1.25rem; /* 20px */
   font-weight: 500;
   line-height: 1.2;
   color: var(--color-text-primary);
@@ -225,7 +225,7 @@
 
 .OverviewControlCard h3 {
   font-family: var(--grotesk-font);
-  font-size: 1rem;
+  font-size: 1rem; /* 16px, slightly smaller for dashboard */
   font-weight: 700;
   margin: 0 0 12px 0;
   display: flex;
@@ -242,7 +242,7 @@
 
 .OverviewControlList li {
   font-family: var(--satoshi-font);
-  font-size: 1rem;
+  font-size: 1rem; /* 16px */
   color: var(--color-text-secondary);
   margin-bottom: 8px;
   display: flex;
@@ -306,7 +306,7 @@
   gap: 8px;
   padding: 10px 18px;
   border-radius: 8px;
-  font-size: 0.9rem;
+  font-size: 0.9rem; /* 14-15px */
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -371,7 +371,7 @@
 
 .ContactTitle {
   font-family: var(--grotesk-font);
-  font-size: 1.75rem;
+  font-size: 1.75rem; /* 28px */
   font-weight: 500;
   color: var(--black-text);
   margin: 0;
@@ -379,7 +379,7 @@
 
 .ContactText {
   font-family: var(--satoshi-font);
-  font-size: 1.125rem;
+  font-size: 1.125rem; /* 18px */
   color: var(--color-text-secondary);
   margin: 0;
   max-width: 600px;
@@ -445,7 +445,7 @@
 .ModalHeader h3 {
   margin: 0;
   font-family: var(--grotesk-font);
-  font-size: 1.5rem;
+  font-size: 1.5rem; /* 24px */
   font-weight: 500;
   color: var(--black-text);
 }
@@ -546,6 +546,7 @@
   background: var(--color-brand-700);
 }
 
+/* --- Responsive --- */
 @media screen and (max-width: 1024px) {
   .OverviewSplit {
     grid-template-columns: 1fr;

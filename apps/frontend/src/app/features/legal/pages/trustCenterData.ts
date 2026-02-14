@@ -2,7 +2,7 @@ export const trustCenterData = {
   hero: {
     title: "Security, Privacy, and Compliance",
     subtitle:
-      "At Yosemite Crew, protecting your veterinary practice’s data is not just a feature it’s our foundation. We use enterprise-grade security to ensure your data is safe, compliant, and always available.",
+      "At Yosemite Crew, protecting your veterinary practice’s data is not just a feature—it’s our foundation. We use enterprise-grade security to ensure your data is safe, compliant, and always available.",
     lastUpdated: "February 2026",
     email: "support@yosemitecrew.com",
     privacyLink: "/privacy-policy",

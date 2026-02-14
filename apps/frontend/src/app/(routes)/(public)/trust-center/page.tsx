@@ -1,6 +1,6 @@
 import React from "react";
 import { TrustCenter } from "@/app/features/legal";
-import Footer from "@/app/ui/widgets/Footer/Footer"; 
+import Footer from "@/app/ui/widgets/Footer/Footer";
 
 const TrustCenterPage = () => {
   return (
