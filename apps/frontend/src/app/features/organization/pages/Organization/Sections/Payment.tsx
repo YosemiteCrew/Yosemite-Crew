@@ -16,7 +16,7 @@ const BasicFields: ProfileField[] = [
   field("Joining date", "joiningDate", "date"),
   field("Appointments", "appointments", "country"),
   field("Observational tools", "obervationalTools", "text", true, false),
-  field("Members", "members"),
+  field("Users", "members"),
 ];
 
 const Payment = () => {

@@ -6,7 +6,7 @@ describe("DayLabels", () => {
   it("renders weekday and date number for each day", () => {
     const days = [new Date(2025, 0, 6, 12), new Date(2025, 0, 7, 12)];
 
-    render(<DayLabels days={days} />);
+    render(<DayLabels days={days} currentDate={days[0]} />);
 
     expect(screen.getByText("Mon")).toBeInTheDocument();
     expect(screen.getByText("Tue")).toBeInTheDocument();

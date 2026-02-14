@@ -2,10 +2,11 @@ import React, { useMemo, useRef } from "react";
 import {
   EVENT_HORIZONTAL_GAP_PX,
   EVENT_VERTICAL_GAP_PX,
-  getDayWindow,
   getTotalWindowHeightPx,
   isAllDayForDate,
   layoutDayEvents,
+  DAY_START_MINUTES,
+  DAY_END_MINUTES,
 } from "@/app/features/appointments/components/Calendar/helpers";
 import { LaidOutEvent } from "@/app/features/appointments/types/calendar";
 import TimeLabels from "@/app/features/appointments/components/Calendar/common/TimeLabels";
@@ -54,10 +55,8 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
     return { allDayEvents: allDay, timedEvents: timed };
   }, [events, date]);
 
-  const { windowStart, windowEnd } = useMemo(
-    () => getDayWindow(timedEvents),
-    [timedEvents]
-  );
+  const windowStart = DAY_START_MINUTES;
+  const windowEnd = DAY_END_MINUTES;
 
   const totalHeightPx = useMemo(
     () => getTotalWindowHeightPx(windowStart, windowEnd),

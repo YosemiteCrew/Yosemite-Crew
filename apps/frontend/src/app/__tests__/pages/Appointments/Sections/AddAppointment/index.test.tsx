@@ -161,7 +161,7 @@ jest.mock("@/app/ui/inputs/Slotpicker", () => ({
     <div data-testid="slot-picker">
       {timeSlots.map((slot: any, i: number) => (
         <button
-          key={i}
+          key={i+"slot"}
           data-testid={`slot-${i}`}
           onClick={() => setSelectedSlot(slot)}
         >
@@ -194,9 +194,13 @@ jest.mock("@/app/ui/primitives/Icons/Close", () => ({
 
 describe("AddAppointment Component", () => {
   const mockSetShowModal = jest.fn();
+  const mockSetActiveStatus = jest.fn();
+  const mockSetActiveFilter = jest.fn();
   const defaultProps = {
     showModal: true,
     setShowModal: mockSetShowModal,
+    setActiveStatus: mockSetActiveStatus,
+    setActiveFilter: mockSetActiveFilter,
   };
 
   const mockSlots: Slot[] = [

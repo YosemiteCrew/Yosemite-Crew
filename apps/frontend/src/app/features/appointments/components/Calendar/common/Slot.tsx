@@ -30,9 +30,7 @@ const Slot: React.FC<SlotProps> = ({
       <div
         className={`relative border-l border-grey-light text-caption-1 text-text-primary flex items-center justify-center ${dayIndex === length && "border-r"}`}
         style={{ height: `${height}px` }}
-      >
-        No appointments
-      </div>
+      ></div>
     );
   }
   return (
@@ -55,7 +53,10 @@ const Slot: React.FC<SlotProps> = ({
               <div className="text-body-4 truncate">{ev.companion.name}</div>
               <div className="flex items-center gap-1">
                 <Image
-                  src={getSafeImageUrl("", ev.companion.species.toLowerCase() as ImageType)}
+                  src={getSafeImageUrl(
+                    "",
+                    ev.companion.species.toLowerCase() as ImageType,
+                  )}
                   height={30}
                   width={30}
                   className="rounded-full flex-none"
