@@ -109,7 +109,7 @@ const SignatureActions = ({
     try {
       const url = await resolveSignedUrl();
       if (url) {
-        window.open(url, "_blank", "noopener,noreferrer");
+        globalThis.open(url, "_blank", "noopener,noreferrer");
       } else {
         setError("Signed document not available yet.");
       }
