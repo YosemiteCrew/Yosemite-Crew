@@ -19,10 +19,10 @@ describe("VideosCard", () => {
     expect(
       screen.getByText("Make the most of your wait — Start exploring instead.")
     ).toBeInTheDocument();
-    expect(screen.getByText("Inviting your team")).toBeInTheDocument();
-    expect(screen.getByText("How to add companions")).toBeInTheDocument();
+    expect(screen.getByText("Invite your team")).toBeInTheDocument();
+    expect(screen.getByText("Add companions")).toBeInTheDocument();
     expect(
-      screen.getByText("How to use forms")
+      screen.getByText("Build and share forms")
     ).toBeInTheDocument();
   });
 

@@ -1,11 +1,10 @@
 "use client";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import ProtectedRoute from "@/app/ui/layout/guards/ProtectedRoute";
 import OrgGuard from "@/app/ui/layout/guards/OrgGuard";
 import { useLoadOrg } from "@/app/hooks/useLoadOrg";
 import { useOrgStore } from "@/app/stores/orgStore";
 import { fetchDocumensoRedirectUrl } from "@/app/features/documents/services/documensoService";
-import { Primary } from "@/app/ui/primitives/Buttons";
 import { YosemiteLoader } from "@/app/ui/overlays/Loader";
 
 const DocSigning = () => {
@@ -47,12 +46,6 @@ const DocSigning = () => {
     void run();
   }, [primaryOrgId]);
 
-  const handleOpenPortal = useCallback(() => {
-    if (portalUrl) {
-      window.open(portalUrl, "_blank", "noopener,noreferrer");
-    }
-  }, [portalUrl]);
-
   let content: React.ReactNode;
   if (loading) {
     content = (
@@ -63,35 +56,23 @@ const DocSigning = () => {
   } else if (error) {
     content = <div className="text-body-3 text-error-main">{error}</div>;
   } else {
-    content = (
+    content = portalUrl ? (
+      <div className="w-full h-[calc(100vh-140px)] rounded-2xl overflow-hidden border border-card-border bg-white">
+        <iframe
+          src="http://localhost:3000/"
+          className="w-full h-full"
+          title="Doc Signing Portal"
+          allow="clipboard-read; clipboard-write; fullscreen"
+        />
+      </div>
+    ) : (
       <div className="flex flex-col items-center justify-center gap-6 py-16 px-4">
         <div className="flex flex-col items-center gap-4 max-w-lg text-center">
           <h2 className="text-heading-2 text-text-primary">
             Document Signing Portal
           </h2>
           <p className="text-body-3 text-text-secondary">
-            View, manage, and sign documents securely. Track document status,
-            review audit trails, and manage all your organisation&apos;s documents in one place.
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-3 mt-4">
-          <Primary
-            text="Open Doc Signing Portal"
-            href="#"
-            onClick={handleOpenPortal}
-            isDisabled={!portalUrl}
-          />
-          {!portalUrl && (
-            <p className="text-body-4 text-text-tertiary text-center">
-              Portal link not available
-            </p>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-2 mt-8 text-center">
-          <p className="text-body-4 text-text-tertiary">
-            The portal will open in a new tab for the best experience.
+            Portal link not available
           </p>
         </div>
       </div>
