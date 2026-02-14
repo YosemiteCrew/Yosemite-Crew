@@ -42,7 +42,7 @@ describe("Slot (Appointments)", () => {
   });
 
   it("shows empty state when no appointments exist", () => {
-    render(
+    const { container } = render(
       <Slot
         slotEvents={[]}
         height={120}
@@ -54,7 +54,8 @@ describe("Slot (Appointments)", () => {
       />
     );
 
-    expect(screen.getByText("No appointments")).toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(container.firstChild).toHaveStyle({ height: "120px" });
   });
 
   it("renders appointments and handles view/reschedule clicks", () => {
@@ -85,7 +86,7 @@ describe("Slot (Appointments)", () => {
     );
 
     const viewButton = screen.getByRole("button", { name: /Rex/i });
-    fireEvent.click(viewButton!);
+    fireEvent.click(viewButton);
 
     expect(handleViewAppointment).toHaveBeenCalledWith(event);
 

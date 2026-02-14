@@ -85,7 +85,7 @@ const Upgrade = () => {
               {selectedLabel === "month" ? "€12" : "€10"}
             </div>
             <div className="text-caption-1 text-text-primary mb-1.5">
-              per member / month
+              per user / month
             </div>
           </div>
         </div>

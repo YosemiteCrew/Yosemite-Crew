@@ -8,6 +8,7 @@ import {
 } from "@/app/features/appointments/components/Calendar/weekHelpers";
 import {
   EVENT_VERTICAL_GAP_PX,
+  isSameDay,
   isAllDayForDate,
   MINUTES_PER_STEP,
   PIXELS_PER_STEP,
@@ -103,8 +104,8 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     const minutesInHour = minutesSinceMidnight % 60;
     const topPx =
       hourIndex * (height + EVENT_VERTICAL_GAP_PX) +
-      (minutesInHour / 60) * height +
-      8;
+      (minutesInHour / 60) * height -
+      20;
 
     return { topPx, todayIndex };
   }, [weekStart, days, height]);
@@ -120,11 +121,8 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
 
   return (
     <div className="h-full flex flex-col">
-      <div
-        ref={scrollRef}
-        className="w-full flex-1 overflow-x-auto relative rounded-2xl max-w-[calc(100vw-32px)] sm:max-w-[calc(100vw-96px)] lg:max-w-[calc(100vw-300px)]"
-      >
-        <div className="max-h-[800px] overflow-y-auto w-full">
+      <div className="w-full flex-1 overflow-x-auto relative rounded-2xl max-w-[calc(100vw-32px)] sm:max-w-[calc(100vw-96px)] lg:max-w-[calc(100vw-300px)]">
+        <div ref={scrollRef} className="max-h-[800px] overflow-y-auto min-w-max">
           <div className="sticky top-0 z-30 bg-white">
             <div className="grid border-b border-grey-light py-3 grid-cols-[80px_minmax(0,1fr)_80px] min-w-max bg-white">
               <div className="sticky left-0 z-40 bg-white flex items-center justify-center">
@@ -136,15 +134,30 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                     weekday: "short",
                   });
                   const dateNumber = day.getDate();
+                  const isCurrentDate = isSameDay(day, date);
+                  const isToday = isSameDay(day, new Date());
+                  let dateNumberClass =
+                    "bg-card-bg text-text-secondary border-transparent";
+                  if (isCurrentDate) {
+                    dateNumberClass = "bg-text-brand text-white border-transparent";
+                  } else if (isToday) {
+                    dateNumberClass = "bg-white text-text-primary border-card-border";
+                  }
                   return (
                     <div
                       key={idx + day.getDate()}
                       className="flex items-center justify-center flex-col"
                     >
-                      <div className="text-body-4 text-text-brand">
+                      <div
+                        className={`text-body-4 ${
+                          isCurrentDate ? "text-text-brand" : "text-text-primary"
+                        }`}
+                      >
                         {weekday}
                       </div>
-                      <div className="text-body-4-emphasis text-white h-12 w-12 flex items-center justify-center rounded-full bg-text-brand">
+                      <div
+                        className={`text-body-4-emphasis h-12 w-12 flex items-center justify-center rounded-full border ${dateNumberClass}`}
+                      >
                         {dateNumber}
                       </div>
                     </div>
@@ -262,7 +275,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                       >
                         {idx === nowPosition.todayIndex && (
                           <div
-                            className="absolute left-1 right-0 z-10 w-full"
+                            className="absolute left-0 right-2 z-10 w-full"
                             style={{
                               top: nowPosition.topPx,
                               transform: "translateY(-50%)",

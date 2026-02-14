@@ -91,7 +91,9 @@ describe("WeekCalendar (Task)", () => {
     );
 
     expect(screen.getByTestId("day-labels")).toBeInTheDocument();
-    expect(dayLabelsSpy).toHaveBeenCalledWith({ days });
+    expect(dayLabelsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ days, currentDate: weekStart })
+    );
 
     const slots = screen.getAllByTestId("task-slot");
     expect(slots).toHaveLength(days.length);
