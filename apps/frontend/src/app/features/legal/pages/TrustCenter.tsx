@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { trustCenterData } from "./trustCenterData";
+// Standard icons
 import {
   FiMail,
   FiLink,
@@ -46,6 +47,8 @@ const TrustCenter = () => {
     alert("Link copied to clipboard!");
   };
 
+  // --- Render Helpers ---
+
   const renderCertifications = () => (
     <div className="SectionGrid">
       {certifications.map((cert, index) => (
@@ -58,7 +61,6 @@ const TrustCenter = () => {
             padding: "24px",
           }}
         >
-          {/* Logo Container for Next/Image */}
           <div
             style={{
               position: "relative",
@@ -215,20 +217,35 @@ const TrustCenter = () => {
 
   return (
     <div className="TrustPageWrapper">
-      {/* 1. HERO SECTION */}
+      {/* 1. HERO SECTION (Compact) */}
       <section className="TrustHeroSec">
         <div className="TrustHeroContainer">
-          <div className="TrustHeroContent">
-            <h1 className="TrustHeroTitle">{hero.title}</h1>
-            <p className="TrustHeroSubtitle">{hero.subtitle}</p>
+          <div className="TrustHeroSplit">
+            {/* Left Content */}
+            <div className="TrustHeroContent">
+              <h1 className="TrustHeroTitle">{hero.title}</h1>
+              <p className="TrustHeroSubtitle">{hero.subtitle}</p>
 
-            <div className="HeroMetaLinks">
-              <a href={`mailto:${hero.email}`} className="HeroLink">
-                <FiMail className="HeroIcon" /> {hero.email}
-              </a>
-              <Link href={hero.privacyLink || "#"} className="HeroLink">
-                <FiLink className="HeroIcon" /> Privacy Policy
-              </Link>
+              <div className="HeroMetaLinks">
+                <a href={`mailto:${hero.email}`} className="HeroLink">
+                  <FiMail className="HeroIcon" /> {hero.email}
+                </a>
+                <Link href={hero.privacyLink || "#"} className="HeroLink">
+                  <FiLink className="HeroIcon" /> Privacy Policy
+                </Link>
+              </div>
+            </div>
+
+            {/* Right Image (Smaller) */}
+            <div className="TrustHeroImage">
+              <Image
+                src="https://d2il6osz49gpup.cloudfront.net/contactus-page/Contact.png"
+                alt="Security Illustration"
+                width={320}
+                height={250}
+                style={{ objectFit: "contain", width: "100%", height: "auto" }}
+                priority
+              />
             </div>
           </div>
         </div>
@@ -429,20 +446,20 @@ const TrustCenter = () => {
                   View all <FiChevronRight />
                 </button>
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "16px" }}>
+
+              <div className="SubprocGrid">
                 {subProcessors.map((sub, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      padding: "12px 20px",
-                      background: "var(--color-neutral-100)",
-                      borderRadius: "8px",
-                      fontSize: "0.9rem",
-                      fontWeight: "500",
-                      color: "var(--color-text-primary)",
-                    }}
-                  >
-                    {sub.name}
+                  <div key={index} className="SubprocCard">
+                    <div className="SubprocIcon">
+                      {sub.logo && (
+                        <Image
+                          src={sub.logo}
+                          alt={sub.name}
+                          fill
+                          style={{ objectFit: "contain" }}
+                        />
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -485,7 +502,32 @@ const TrustCenter = () => {
               <tbody>
                 {subProcessors.map((sub, index) => (
                   <tr key={index}>
-                    <td style={{ fontWeight: "500" }}>{sub.name}</td>
+                    <td
+                      style={{
+                        fontWeight: "500",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "12px",
+                      }}
+                    >
+                      {sub.logo && (
+                        <div
+                          style={{
+                            position: "relative",
+                            width: "24px",
+                            height: "24px",
+                          }}
+                        >
+                          <Image
+                            src={sub.logo}
+                            alt={sub.name}
+                            fill
+                            style={{ objectFit: "contain" }}
+                          />
+                        </div>
+                      )}
+                      {sub.name}
+                    </td>
                     <td>{sub.service}</td>
                     <td>{sub.location}</td>
                   </tr>
@@ -495,16 +537,22 @@ const TrustCenter = () => {
           </div>
         )}
 
-        {/* --- SIMPLE CONTACT SECTION --- */}
-        <div className="TrustContactSection">
-          <h2 className="ContactTitle">Have questions about security?</h2>
-          <p className="ContactText">
-            Whether you have a question or believe you've found a vulnerability,
-            our team is ready to help.
-          </p>
-          <Link href="/contact" className="ContactBtn">
-            Contact Us
-          </Link>
+        {/* --- NEW NEED HELP CARD --- */}
+        <div style={{ marginTop: "80px", marginBottom: "40px" }}>
+          <div className="NeedHelpDiv">
+            <div className="Needhelpitem">
+              <div className="helpText">
+                <h3>Have questions about security?</h3>
+                <p>
+                  Got questions or found vulnerability? Just reach out to us!
+                  Our team is here to help.
+                </p>
+              </div>
+              <div className="helpbtn">
+                <Link href="/contact">Contact support</Link>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -523,17 +571,17 @@ const TrustCenter = () => {
             </div>
 
             <div className="ModalBody">
-              <div
-                style={{
-                  background: "var(--color-brand-100)",
-                  padding: "12px",
-                  borderRadius: "8px",
-                  fontSize: "0.9rem",
-                  color: "var(--color-text-secondary)",
-                }}
-              >
-                You are requesting access to: <br />
-                <strong>{selectedResource}</strong>
+              {/* Updated Banner Style */}
+              <div className="ResourceInfoBox">
+                <span style={{ color: "var(--color-text-secondary)" }}>
+                  You are requesting access to:
+                </span>
+                <br />
+                <strong
+                  style={{ color: "var(--blue-text)", fontSize: "1.05rem" }}
+                >
+                  {selectedResource}
+                </strong>
               </div>
 
               <div className="FormGrid">
@@ -567,12 +615,14 @@ const TrustCenter = () => {
 
               <div className="FormGroup">
                 <label>Reason for Request</label>
-                <select className="FormInput">
-                  <option>Select a reason...</option>
-                  <option>Due Diligence</option>
-                  <option>Customer Audit</option>
-                  <option>Internal Review</option>
-                  <option>Other</option>
+                <select className="FormInput" defaultValue="">
+                  <option value="" disabled>
+                    Select a reason...
+                  </option>
+                  <option value="due_diligence">Due Diligence</option>
+                  <option value="audit">Customer Audit</option>
+                  <option value="internal_review">Internal Review</option>
+                  <option value="other">Other</option>
                 </select>
               </div>
             </div>

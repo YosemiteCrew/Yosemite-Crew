@@ -114,19 +114,25 @@ export const trustCenterData = {
 
   subProcessors: [
     {
-      name: "Amazon Web Services (AWS)",
+      name: "Amazon Web Services",
       service: "Cloud Infrastructure & Storage",
       location: "Luxembourg (EU)",
+      // Official AWS Logo
+      logo: "https://upload.wikimedia.org/wikipedia/commons/9/93/Amazon_Web_Services_Logo.svg",
     },
     {
       name: "MongoDB",
       service: "Database Hosting",
       location: "Ireland (EU)",
+      // Official MongoDB Logo
+      logo: "https://upload.wikimedia.org/wikipedia/commons/9/93/MongoDB_Logo.svg",
     },
     {
-      name: "Google Cloud Platform",
+      name: "Google Cloud",
       service: "Maps & Analytics Services",
       location: "Ireland (EU)",
+      // Official Google Cloud Logo
+      logo: "https://upload.wikimedia.org/wikipedia/commons/5/51/Google_Cloud_logo.svg",
     },
   ],
 };
