@@ -124,7 +124,7 @@ const mapItem = (
 };
 
 export const fetchAppointmentForms = async (appointmentId: string): Promise<AppointmentFormsResponse> => {
-  const res = await getData<AppointmentFormsApiResponse>(
+  const res = await postData<AppointmentFormsApiResponse, { isPMS: boolean }>(
     `/fhir/v1/form/appointments/${appointmentId}/forms`,
     { isPMS: false },
   );

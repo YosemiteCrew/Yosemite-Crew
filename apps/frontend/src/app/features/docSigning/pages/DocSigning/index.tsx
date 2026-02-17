@@ -57,9 +57,9 @@ const DocSigning = () => {
     content = <div className="text-body-3 text-error-main">{error}</div>;
   } else {
     content = portalUrl ? (
-      <div className="w-full h-[calc(100vh-140px)] rounded-2xl overflow-hidden border border-card-border bg-white">
+      <div className="w-full h-full min-h-[calc(100vh-140px)] overflow-hidden pb-3">
         <iframe
-          src="http://localhost:3000/"
+          src={portalUrl}
           className="w-full h-full"
           title="Doc Signing Portal"
           allow="clipboard-read; clipboard-write; fullscreen"
