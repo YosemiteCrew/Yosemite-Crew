@@ -2,7 +2,7 @@ export const trustCenterData = {
   hero: {
     title: "Security, Privacy, and Compliance",
     subtitle:
-      "At Yosemite Crew, protecting your veterinary practice’s data is not just a feature—it’s our foundation. We use enterprise-grade security to ensure your data is safe, compliant, and always available.",
+      "At Yosemite Crew, protecting your veterinary practice’s data is not just a feature it’s our foundation. We use enterprise-grade security to ensure your data is safe, compliant, and always available.",
     lastUpdated: "February 2026",
     email: "support@yosemitecrew.com",
     privacyLink: "/privacy-policy",
@@ -117,21 +117,18 @@ export const trustCenterData = {
       name: "Amazon Web Services",
       service: "Cloud Infrastructure & Storage",
       location: "Luxembourg (EU)",
-      // Official AWS Logo
       logo: "https://upload.wikimedia.org/wikipedia/commons/9/93/Amazon_Web_Services_Logo.svg",
     },
     {
       name: "MongoDB",
       service: "Database Hosting",
       location: "Ireland (EU)",
-      // Official MongoDB Logo
       logo: "https://upload.wikimedia.org/wikipedia/commons/9/93/MongoDB_Logo.svg",
     },
     {
       name: "Google Cloud",
       service: "Maps & Analytics Services",
       location: "Ireland (EU)",
-      // Official Google Cloud Logo
       logo: "https://upload.wikimedia.org/wikipedia/commons/5/51/Google_Cloud_logo.svg",
     },
   ],
