@@ -1,4 +1,3 @@
-/* --- Global Styles --- */
 .TrustPageWrapper {
   width: 100%;
   background-color: var(--whitebg);
@@ -6,7 +5,6 @@
   color: var(--black-text);
 }
 
-/* --- Hero Section (Compact) --- */
 .TrustHeroSec {
   position: relative;
   background: linear-gradient(
@@ -44,11 +42,11 @@
 }
 
 .TrustHeroImage {
-  flex: 0.8;
+  flex: 1;
   display: flex;
   justify-content: flex-end;
-  max-width: 320px;
-  height: auto;
+  align-items: center;
+  max-width: none;
 }
 
 .TrustHeroTitle {
@@ -102,7 +100,6 @@
   color: var(--color-text-secondary);
 }
 
-/* --- Tab Navigation --- */
 .TrustNavBarSticky {
   position: sticky;
   top: 0;
@@ -160,11 +157,10 @@
   border-radius: 3px 3px 0 0;
 }
 
-/* --- Content --- */
 .TrustContentContainer {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 60px 24px 0px;
+  padding: 60px 24px 10px;
   min-height: 500px;
 }
 
@@ -195,12 +191,6 @@
   gap: 16px;
 }
 
-.PremiumCard:hover {
-  transform: translateY(-4px);
-  box-shadow: 0px 12px 24px rgba(0, 0, 0, 0.08);
-  border-color: var(--color-brand-300);
-}
-
 .CardHeader {
   display: flex;
   align-items: center;
@@ -221,7 +211,6 @@
   margin: 0;
 }
 
-/* --- Overview Dashboard --- */
 .OverviewDashboard {
   display: flex;
   flex-direction: column;
@@ -250,14 +239,8 @@
   height: 100%;
 }
 
-.OverviewControlCard:hover {
-  border-color: var(--color-brand-300);
-  transform: translateY(-2px);
-  box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.05);
-}
-
 .OverviewControlCard h3 {
-  font-family: var(--grotesk-font);
+  font-family: var(--satoshi-font);
   font-size: 1rem;
   font-weight: 700;
   margin: 0 0 12px 0;
@@ -304,11 +287,6 @@
   cursor: pointer;
 }
 
-.OverviewResourceItem:hover {
-  transform: translateX(4px);
-  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.05);
-}
-
 .OverviewSubproc {
   background: var(--whitebg);
   border: 1px solid var(--lightgrey);
@@ -316,7 +294,6 @@
   padding: 30px;
 }
 
-/* --- New Subprocessor Card Styles --- */
 .SubprocGrid {
   display: flex;
   flex-wrap: wrap;
@@ -336,12 +313,6 @@
   transition: all 0.2s ease;
 }
 
-.SubprocCard:hover {
-  border-color: var(--color-brand-300);
-  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05);
-  transform: translateY(-2px);
-}
-
 .SubprocIcon {
   position: relative;
   width: 120px;
@@ -351,7 +322,6 @@
   justify-content: center;
 }
 
-/* --- Resources --- */
 .ResourceList {
   display: flex;
   flex-direction: column;
@@ -367,11 +337,6 @@
   border: 1px solid var(--lightgrey);
   border-radius: 16px;
   transition: 0.2s ease;
-}
-
-.ResourceItem:hover {
-  background: var(--color-brand-100);
-  border-color: var(--color-brand-300);
 }
 
 .ResourceActions {
@@ -436,65 +401,67 @@
   font-size: 1rem;
 }
 
-/* --- NEW NEED HELP CARD --- */
 .NeedHelpDiv {
   position: relative;
+  margin-top: 60px;
   padding-bottom: 20px;
 }
 
-.Needhelpitem {
-  background-color: var(--black-bg);
-  padding: 32px 48px;
+.TrustNeedHelpItem {
+  background-color: #1F1F1F;
+  padding: 48px;
   border-radius: 28px;
   display: flex;
   flex-direction: column;
-  gap: 32px;
-  min-height: 214px;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 280px;
   max-width: 960px;
   width: 100%;
-  justify-content: space-between;
   position: relative;
   margin: 0 auto;
+  overflow: visible !important;
 }
 
-.Needhelpitem::after {
+.TrustNeedHelpItem::after {
   position: absolute;
-  content: " ";
-  background: url("https://d2il6osz49gpup.cloudfront.net/Images/doghelp.png") no-repeat;
-  background-size: 100% 100%;
-  right: 0;
+  content: "";
+  background-image: url("https://d2il6osz49gpup.cloudfront.net/Images/catTrust.png");
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: bottom right;
+  right: 40px;
   bottom: 0;
+  height: 140%;
   width: 450px;
-  height: 299px;
+  pointer-events: none;
 }
 
 .helpText {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 12px;
   position: relative;
   z-index: 2;
+  max-width: 55%;
+  margin-bottom: 24px;
 }
 
 .helpText h3 {
-  font-family: var(--satoshi-font);
-  font-size: 1.75rem;
+  font-family: var(--grotesk-font);
+  font-size: 2rem;
   font-weight: 500;
-  line-height: 2.125rem;
-  letter-spacing: -0.02em;
-  color: var(--white-text);
+  color: #ffffff;
   margin: 0;
 }
 
 .helpText p {
   font-family: var(--satoshi-font);
-  font-size: 1rem;
+  font-size: 1.1rem;
   font-weight: 400;
-  line-height: 1.5rem;
-  letter-spacing: -0.02em;
-  color: var(--white-text);
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.8);
   margin: 0;
-  max-width: 300px;
 }
 
 .helpbtn {
@@ -503,36 +470,33 @@
 }
 
 .helpbtn a {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  background-color: var(--blue-text);
-  border: 1px solid var(--blue-text);
-  border-radius: 16px;
-  padding: 12px 32px;
+  background-color: #ffffff;
+  border: 1px solid #ffffff;
+  border-radius: 12px;
+  padding: 14px 32px;
   font-size: 1rem;
-  font-weight: 500;
-  line-height: 1.25rem;
+  font-weight: 600;
+  color: #000000;
   font-family: var(--satoshi-font);
-  color: var(--white-text);
-  width: fit-content;
-  transition: all 0.3s ease-in-out;
   text-decoration: none;
+  transition: all 0.2s ease;
 }
 
 .helpbtn a:hover {
   transform: scale(1.05);
+  background-color: #f2f2f2;
 }
 
-/* --- REFINED MODAL STYLES --- */
 .ModalOverlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.5); /* Proper dim overlay */
+  background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -544,16 +508,16 @@
 .ModalContent {
   background: #ffffff;
   width: 100%;
-  max-width: 550px; /* Optimal reading width */
+  max-width: 600px;
   border-radius: 20px;
   padding: 32px;
-  box-shadow: 0px 20px 40px rgba(0, 0, 0, 0.15); /* Premium shadow */
+  box-shadow: 0px 24px 48px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
   gap: 24px;
   max-height: 90vh;
   overflow-y: auto;
-  animation: slideUp 0.3s ease-out;
+  animation: slideUp 0.2s ease-out;
 }
 
 @keyframes slideUp {
@@ -565,7 +529,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-bottom: 8px;
+  border-bottom: 1px solid #f3f4f6;
+  padding-bottom: 16px;
 }
 
 .ModalHeader h3 {
@@ -602,7 +567,6 @@
   gap: 20px;
 }
 
-/* Updated Banner Style (Cleaner) */
 .ResourceInfoBox {
   background: var(--color-brand-100);
   padding: 16px;
@@ -632,17 +596,22 @@
   font-family: var(--satoshi-font);
 }
 
-/* FIXED INPUTS: White background, proper border */
 .FormInput {
   width: 100%;
   padding: 12px 16px;
-  border: 1px solid #e5e7eb; /* Subtle gray border */
+  border: 1px solid #d1d5db;
   border-radius: 12px;
   font-family: var(--satoshi-font);
   font-size: 1rem;
-  background-color: #ffffff; /* Explicit white */
+  background-color: #ffffff;
   color: var(--black-text);
   transition: all 0.2s ease;
+}
+
+.FormInput:focus {
+  outline: none;
+  border-color: var(--blue-text);
+  box-shadow: 0 0 0 3px var(--color-brand-100);
 }
 
 .FormInput::placeholder {
@@ -654,13 +623,6 @@
   border-color: #9ca3af;
 }
 
-.FormInput:focus {
-  outline: none;
-  border-color: var(--blue-text);
-  box-shadow: 0 0 0 3px var(--color-brand-100);
-}
-
-/* Fix Dropdown appearance */
 select.FormInput {
   cursor: pointer;
   background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23333%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
@@ -674,7 +636,7 @@ select.FormInput {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  margin-top: 8px;
+  margin-top: 12px;
   padding-top: 20px;
   border-top: 1px solid #f3f4f6;
 }
@@ -712,7 +674,6 @@ select.FormInput {
   background: var(--color-brand-700);
 }
 
-/* --- Responsive Media Queries --- */
 @media screen and (max-width: 1024px) {
   .OverviewSplit {
     grid-template-columns: 1fr;
@@ -720,12 +681,9 @@ select.FormInput {
   .TrustHeroTitle {
     font-size: 2.25rem;
   }
-  .Needhelpitem::after {
-    right: -50px;
-    bottom: 0px;
-    width: 400px;
-    height: 299px;
-    background-size: cover;
+  .TrustNeedHelpItem::after {
+    width: 350px;
+    height: 120%;
   }
 }
 
@@ -760,18 +718,28 @@ select.FormInput {
     width: 100%;
     justify-content: space-between;
   }
-  .helpbtn a {
-    padding: 11px 32px;
+  .TrustNeedHelpItem {
+    padding: 32px 24px;
+    align-items: center;
+    text-align: center;
+    min-height: auto;
+    overflow: hidden;
   }
-  .Needhelpitem {
-    padding: 24px;
+  .helpText {
+    max-width: 100%;
+    align-items: center;
   }
-  .Needhelpitem::after {
-    right: 0px;
-    bottom: 0px;
-    width: 300px;
+  .TrustNeedHelpItem::after {
+    position: relative;
+    width: 100%;
     height: 250px;
-    background-size: cover;
+    background-position: center bottom;
+    margin-top: 20px;
+    right: auto;
+    bottom: auto;
+  }
+  .helpbtn a {
+    width: 100%;
   }
 }
 
@@ -782,27 +750,5 @@ select.FormInput {
   .ModalContent {
     padding: 24px;
     max-width: 90%;
-  }
-  .Needhelpitem {
-    gap: 16px;
-    min-height: 140px;
-  }
-  .helpbtn a {
-    padding: 10px 14px;
-  }
-  .helpText h3 {
-    font-size: 16px;
-  }
-  .helpText p {
-    font-size: 11px;
-    max-width: 150px;
-    line-height: 120%;
-  }
-  .Needhelpitem::after {
-    right: -20px;
-    bottom: 0px;
-    width: 200px;
-    height: 150px;
-    background-size: cover;
   }
 }
