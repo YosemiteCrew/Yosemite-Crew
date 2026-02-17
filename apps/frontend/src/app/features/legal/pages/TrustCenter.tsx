@@ -4,7 +4,6 @@ import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { trustCenterData } from "./trustCenterData";
-// Standard icons
 import {
   FiMail,
   FiLink,
@@ -42,19 +41,21 @@ const TrustCenter = () => {
   };
 
   const handleCopyLink = (id: string) => {
-    const url = `${window.location.origin}/trust-center#${id}`;
+    const url = `${globalThis.location.origin}/trust-center#${id}`;
     navigator.clipboard.writeText(url);
     alert("Link copied to clipboard!");
   };
 
-  // --- Render Helpers ---
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+  };
 
   const renderCertifications = () => (
     <div className="SectionGrid">
-      {certifications.map((cert, index) => (
+      {certifications.map((cert) => (
         <div
           className="PremiumCard"
-          key={index}
+          key={cert.name}
           style={{
             alignItems: "center",
             flexDirection: "row",
@@ -116,8 +117,8 @@ const TrustCenter = () => {
 
   const renderResources = () => (
     <div className="ResourceList">
-      {resources.map((res, index) => (
-        <div className="ResourceItem" key={index}>
+      {resources.map((res) => (
+        <div className="ResourceItem" key={res.title}>
           <div>
             <h3
               style={{
@@ -170,8 +171,8 @@ const TrustCenter = () => {
 
   const renderControls = () => (
     <div className="SectionGrid">
-      {securityPillars.map((pillar, index) => (
-        <div className="PremiumCard" key={index}>
+      {securityPillars.map((pillar: any) => (
+        <div className="PremiumCard" key={pillar.title}>
           <div className="CardHeader">
             <span className="CardIcon">{pillar.icon}</span>
             <h3 className="CardTitle">{pillar.title}</h3>
@@ -188,9 +189,9 @@ const TrustCenter = () => {
           <ul
             style={{ paddingLeft: "0", listStyle: "none", marginTop: "10px" }}
           >
-            {pillar.items.map((item, idx) => (
+            {pillar.items.map((item: string) => (
               <li
-                key={idx}
+                key={item}
                 style={{
                   marginBottom: "8px",
                   display: "flex",
@@ -217,7 +218,7 @@ const TrustCenter = () => {
 
   return (
     <div className="TrustPageWrapper">
-      {/* 1. HERO SECTION (Compact) */}
+      {/* 1. HERO SECTION */}
       <section className="TrustHeroSec">
         <div className="TrustHeroContainer">
           <div className="TrustHeroSplit">
@@ -236,10 +237,10 @@ const TrustCenter = () => {
               </div>
             </div>
 
-            {/* Right Image (Smaller) */}
+            {/* Right Image */}
             <div className="TrustHeroImage">
               <Image
-                src="https://d2il6osz49gpup.cloudfront.net/contactus-page/Contact.png"
+                src="https://d2il6osz49gpup.cloudfront.net/Images/securityTrust.png"
                 alt="Security Illustration"
                 width={320}
                 height={250}
@@ -254,6 +255,7 @@ const TrustCenter = () => {
       {/* 2. TAB NAVIGATION */}
       <div className="TrustNavBarSticky">
         <div className="TrustNavContainer">
+          {/* Fix: Used tab name as key */}
           {tabs.map((tab) => (
             <button
               key={tab}
@@ -314,8 +316,8 @@ const TrustCenter = () => {
                   </button>
                 </div>
                 <div className="OverviewControlsGrid">
-                  {securityPillars.slice(0, 4).map((pillar, index) => (
-                    <div className="OverviewControlCard" key={index}>
+                  {securityPillars.slice(0, 4).map((pillar: any) => (
+                    <div className="OverviewControlCard" key={pillar.title}>
                       <h3>
                         <span style={{ fontSize: "1.2rem" }}>
                           {pillar.icon}
@@ -323,8 +325,8 @@ const TrustCenter = () => {
                         {pillar.title}
                       </h3>
                       <ul className="OverviewControlList">
-                        {pillar.items.slice(0, 3).map((item, idx) => (
-                          <li key={idx}>
+                        {pillar.items.slice(0, 3).map((item: string) => (
+                          <li key={item}>
                             <FiCheckCircle
                               style={{
                                 color: "var(--color-success-500)",
@@ -374,13 +376,24 @@ const TrustCenter = () => {
                 </div>
 
                 <div style={{ display: "flex", flexDirection: "column" }}>
-                  {resources.slice(0, 3).map((res, index) => (
+                  {resources.slice(0, 3).map((res) => (
                     <div
                       className="OverviewResourceItem"
-                      key={index}
+                      key={res.title}
+                      role="button"
+                      tabIndex={0}
                       onClick={() =>
                         res.locked ? handleRequestAccess(res.title) : null
                       }
+                      onKeyDown={(e) => {
+                        if (
+                          res.locked &&
+                          (e.key === "Enter" || e.key === " ")
+                        ) {
+                          e.preventDefault();
+                          handleRequestAccess(res.title);
+                        }
+                      }}
                     >
                       <div>
                         <div
@@ -414,7 +427,6 @@ const TrustCenter = () => {
               </div>
             </div>
 
-            {/* Subprocessors Summary */}
             <div className="OverviewSubproc">
               <div
                 style={{
@@ -446,10 +458,9 @@ const TrustCenter = () => {
                   View all <FiChevronRight />
                 </button>
               </div>
-
               <div className="SubprocGrid">
-                {subProcessors.map((sub, index) => (
-                  <div key={index} className="SubprocCard">
+                {subProcessors.map((sub) => (
+                  <div key={sub.name} className="SubprocCard">
                     <div className="SubprocIcon">
                       {sub.logo && (
                         <Image
@@ -467,7 +478,6 @@ const TrustCenter = () => {
           </div>
         )}
 
-        {/* --- OTHER TABS --- */}
         {activeTab === "Resources" && (
           <div>
             <h2 className="SectionTitle" style={{ marginBottom: "30px" }}>
@@ -500,8 +510,8 @@ const TrustCenter = () => {
                 </tr>
               </thead>
               <tbody>
-                {subProcessors.map((sub, index) => (
-                  <tr key={index}>
+                {subProcessors.map((sub) => (
+                  <tr key={sub.name}>
                     <td
                       style={{
                         fontWeight: "500",
@@ -540,7 +550,7 @@ const TrustCenter = () => {
         {/* --- NEW NEED HELP CARD --- */}
         <div style={{ marginTop: "80px", marginBottom: "40px" }}>
           <div className="NeedHelpDiv">
-            <div className="Needhelpitem">
+            <div className="TrustNeedHelpItem">
               <div className="helpText">
                 <h3>Have questions about security?</h3>
                 <p>
@@ -558,20 +568,33 @@ const TrustCenter = () => {
 
       {/* --- REQUEST ACCESS MODAL --- */}
       {isModalOpen && (
-        <div className="ModalOverlay" onClick={() => setIsModalOpen(false)}>
-          <div className="ModalContent" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="ModalOverlay"
+          role="button"
+          tabIndex={-1}
+          onClick={handleModalClose}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") handleModalClose();
+          }}
+        >
+          <div
+            className="ModalContent"
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="ModalHeader">
               <h3>Request Access</h3>
               <button
                 className="CloseBtn"
-                onClick={() => setIsModalOpen(false)}
+                onClick={handleModalClose}
+                aria-label="Close modal"
               >
                 <FiX />
               </button>
             </div>
 
             <div className="ModalBody">
-              {/* Updated Banner Style */}
               <div className="ResourceInfoBox">
                 <span style={{ color: "var(--color-text-secondary)" }}>
                   You are requesting access to:
@@ -586,18 +609,29 @@ const TrustCenter = () => {
 
               <div className="FormGrid">
                 <div className="FormGroup">
-                  <label>First Name</label>
-                  <input type="text" className="FormInput" placeholder="Jane" />
+                  <label htmlFor="firstName">First Name</label>
+                  <input
+                    id="firstName"
+                    type="text"
+                    className="FormInput"
+                    placeholder="Jane"
+                  />
                 </div>
                 <div className="FormGroup">
-                  <label>Last Name</label>
-                  <input type="text" className="FormInput" placeholder="Doe" />
+                  <label htmlFor="lastName">Last Name</label>
+                  <input
+                    id="lastName"
+                    type="text"
+                    className="FormInput"
+                    placeholder="Doe"
+                  />
                 </div>
               </div>
 
               <div className="FormGroup">
-                <label>Work Email</label>
+                <label htmlFor="workEmail">Work Email</label>
                 <input
+                  id="workEmail"
                   type="email"
                   placeholder="jane@company.com"
                   className="FormInput"
@@ -605,8 +639,9 @@ const TrustCenter = () => {
               </div>
 
               <div className="FormGroup">
-                <label>Company Name</label>
+                <label htmlFor="companyName">Company Name</label>
                 <input
+                  id="companyName"
                   type="text"
                   placeholder="Acme Inc."
                   className="FormInput"
@@ -614,8 +649,8 @@ const TrustCenter = () => {
               </div>
 
               <div className="FormGroup">
-                <label>Reason for Request</label>
-                <select className="FormInput" defaultValue="">
+                <label htmlFor="reason">Reason for Request</label>
+                <select id="reason" className="FormInput" defaultValue="">
                   <option value="" disabled>
                     Select a reason...
                   </option>
@@ -628,17 +663,14 @@ const TrustCenter = () => {
             </div>
 
             <div className="ModalFooter">
-              <button
-                className="CancelBtn"
-                onClick={() => setIsModalOpen(false)}
-              >
+              <button className="CancelBtn" onClick={handleModalClose}>
                 Cancel
               </button>
               <button
                 className="SubmitBtn"
                 onClick={() => {
                   alert("Request sent! Our team will review your credentials.");
-                  setIsModalOpen(false);
+                  handleModalClose();
                 }}
               >
                 Request Access
