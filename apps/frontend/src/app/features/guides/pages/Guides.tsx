@@ -26,6 +26,7 @@ const Guides = () => {
   const [activeCategory, setActiveCategory] = useState("All");
   const [showModal, setShowModal] = useState(false);
   const [activeVideo, setActiveVideo] = useState<GuideVideo | null>(null);
+  const [isVideoLoaded, setIsVideoLoaded] = useState(false);
 
   const categories = useMemo(() => {
     const items = new Set<string>();
@@ -67,6 +68,7 @@ const Guides = () => {
 
   const handleOpenVideo = (video: GuideVideo) => {
     setActiveVideo(video);
+    setIsVideoLoaded(false);
     setShowModal(true);
   };
 
@@ -207,7 +209,10 @@ const Guides = () => {
         <CenterModal
           showModal={showModal}
           setShowModal={setShowModal}
-          onClose={() => setShowModal(false)}
+          onClose={() => {
+            setShowModal(false);
+            setIsVideoLoaded(false);
+          }}
           containerClassName="sm:w-[720px] md:w-[860px] lg:w-[980px] max-w-[95vw]"
         >
           <div className="relative flex items-center justify-center">
@@ -215,16 +220,23 @@ const Guides = () => {
               {activeVideo?.title ?? "Video"}
             </div>
             <div className="absolute right-0">
-              <Close onClick={() => setShowModal(false)} />
+              <Close
+                onClick={() => {
+                  setShowModal(false);
+                  setIsVideoLoaded(false);
+                }}
+              />
             </div>
           </div>
-          <div className="rounded-2xl border border-card-border overflow-hidden">
+          <div className="relative rounded-2xl border border-card-border overflow-hidden">
             {activeVideo ? (
               <video
                 key={activeVideo.videoUrl}
                 className="w-full h-auto"
                 controls
                 preload="metadata"
+                poster={activeVideo.thumbnailUrl}
+                onLoadedData={() => setIsVideoLoaded(true)}
               >
                 <source src={activeVideo.videoUrl} type="video/mp4" />
                 <track
@@ -237,6 +249,13 @@ const Guides = () => {
               </video>
             ) : (
               <div className="w-full aspect-video bg-black/80" />
+            )}
+            {activeVideo && !isVideoLoaded && (
+              <div
+                className="absolute inset-0 bg-no-repeat bg-cover bg-center"
+                style={{ backgroundImage: `url(${activeVideo.thumbnailUrl})` }}
+                aria-hidden="true"
+              />
             )}
           </div>
         </CenterModal>

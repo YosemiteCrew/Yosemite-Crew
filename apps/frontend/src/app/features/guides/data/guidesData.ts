@@ -9,7 +9,7 @@ export const guidesData: GuideVideo[] = [
     category: "Getting started",
     tags: ["team", "roles", "access"],
     videoUrl: "https://d2il6osz49gpup.cloudfront.net/videos/addTeam.mp4",
-    thumbnailUrl: "https://d2il6osz49gpup.cloudfront.net/Images/landingbg1.jpg",
+    thumbnailUrl: "https://d2il6osz49gpup.cloudfront.net/guideImages/1.png",
     featured: true,
   },
   {
@@ -20,7 +20,7 @@ export const guidesData: GuideVideo[] = [
     category: "Companions",
     tags: ["companions", "profiles", "pets"],
     videoUrl: "https://d2il6osz49gpup.cloudfront.net/videos/addCompanion.mp4",
-    thumbnailUrl: "https://d2il6osz49gpup.cloudfront.net/Images/landingbg2.jpg",
+    thumbnailUrl: "https://d2il6osz49gpup.cloudfront.net/guideImages/2.png",
   },
   {
     id: "forms-module",
@@ -30,6 +30,6 @@ export const guidesData: GuideVideo[] = [
     category: "Forms",
     tags: ["forms", "templates", "signatures"],
     videoUrl: "https://d2il6osz49gpup.cloudfront.net/videos/formModule.mp4",
-    thumbnailUrl: "https://d2il6osz49gpup.cloudfront.net/Images/landingbg3.jpg",
+    thumbnailUrl: "https://d2il6osz49gpup.cloudfront.net/guideImages/3.png",
   },
 ];
