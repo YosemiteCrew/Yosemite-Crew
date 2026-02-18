@@ -24,7 +24,7 @@ const SigningOverlay = () => {
             aria-label="Close signing frame"
             style={{ pointerEvents: "auto" }}
           >
-            <Close />
+            <Close iconOnly />
           </button>
         </div>
         {url ? (

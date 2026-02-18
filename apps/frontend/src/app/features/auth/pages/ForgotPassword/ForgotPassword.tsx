@@ -55,11 +55,11 @@ const ForgotPassword = () => {
     }
   };
 
-  const handleOtp = async (e: React.FormEvent) => {
+  const handleOtp = async (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
     if (!email) {
       if (globalThis.window) {
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        globalThis.scrollTo({ top: 0, behavior: "smooth" });
       }
       showErrorTost({
         message: "Email is required",
@@ -81,7 +81,7 @@ const ForgotPassword = () => {
       const data = await forgotPassword(email);
       if (data) {
         if (globalThis.window) {
-          window.scrollTo({ top: 0, behavior: "smooth" });
+          globalThis.scrollTo({ top: 0, behavior: "smooth" });
         }
         showErrorTost({
           message:
@@ -101,7 +101,7 @@ const ForgotPassword = () => {
       }
     } catch (error: unknown) {
       if (globalThis.window) {
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        globalThis.scrollTo({ top: 0, behavior: "smooth" });
       }
       const axiosError = error as AxiosError<{ message: string }>;
       showErrorTost({
@@ -120,12 +120,12 @@ const ForgotPassword = () => {
     }
   };
 
-  const handleVerifyOtp = async (e: React.FormEvent) => {
+  const handleVerifyOtp = async (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
 
     if (otp.includes("")) {
       if (globalThis.window) {
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        globalThis.scrollTo({ top: 0, behavior: "smooth" });
       }
       showErrorTost({
         message: "Please enter the full OTP",
@@ -147,12 +147,12 @@ const ForgotPassword = () => {
     setShowVerifyCode(false);
   };
 
-  const handlePasswordChange = async (e: React.FormEvent) => {
+  const handlePasswordChange = async (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
 
     if (!password || !confirmPassword) {
       if (globalThis.window) {
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        globalThis.scrollTo({ top: 0, behavior: "smooth" });
       }
       showErrorTost({
         message: "Both Passwords are required",
@@ -172,7 +172,7 @@ const ForgotPassword = () => {
 
     if (password !== confirmPassword) {
       if (globalThis.window) {
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        globalThis.scrollTo({ top: 0, behavior: "smooth" });
       }
       showErrorTost({
         message: "Passwords do not match",
@@ -219,7 +219,7 @@ const ForgotPassword = () => {
       }
     } catch (error: any) {
       if (globalThis.window) {
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        globalThis.scrollTo({ top: 0, behavior: "smooth" });
       }
       if (error?.code === "CodeMismatchException") {
         setShowVerifyCode(true);

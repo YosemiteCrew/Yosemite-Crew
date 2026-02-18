@@ -1,5 +1,5 @@
 import { createSubmission, fetchSubmissions } from "@/app/features/appointments/services/soapService";
-import { getData, postData } from "@/app/services/axios";
+import { postData } from "@/app/services/axios";
 import { toFormSubmissionResponseDTO, FormSubmission } from "@yosemite-crew/types";
 import { logger } from "@/app/lib/logger";
 
@@ -9,7 +9,6 @@ jest.mock("@yosemite-crew/types", () => ({
   toFormSubmissionResponseDTO: jest.fn(),
 }));
 
-const mockedGetData = getData as jest.Mock;
 const mockedPostData = postData as jest.Mock;
 const mockedToDTO = toFormSubmissionResponseDTO as jest.Mock;
 
@@ -89,23 +88,24 @@ describe("SOAP Service", () => {
     it("throws error immediately if appointmentId is missing", async () => {
       // Cast to string to simulate runtime failure or empty string input
       await expect(fetchSubmissions("")).rejects.toThrow("Appointment Id is required");
-      expect(mockedGetData).not.toHaveBeenCalled();
+      expect(mockedPostData).not.toHaveBeenCalled();
     });
 
-    it("sends GET request and returns data on success", async () => {
-      mockedGetData.mockResolvedValue({ data: mockSoapResponse });
+    it("sends POST request and returns data on success", async () => {
+      mockedPostData.mockResolvedValue({ data: mockSoapResponse });
 
       const result = await fetchSubmissions("appt-1");
 
-      expect(mockedGetData).toHaveBeenCalledWith(
-        "fhir/v1/form/appointments/appt-1/soap-notes"
+      expect(mockedPostData).toHaveBeenCalledWith(
+        "fhir/v1/form/appointments/appt-1/soap-notes",
+        {}
       );
       expect(result).toEqual(mockSoapResponse);
     });
 
     it("logs error and rethrows when API fails", async () => {
       const error = new Error("Fetch Failed");
-      mockedGetData.mockRejectedValue(error);
+      mockedPostData.mockRejectedValue(error);
 
       const errorSpy = jest.spyOn(logger, "error").mockImplementation(() => {});
 
