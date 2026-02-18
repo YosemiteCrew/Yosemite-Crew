@@ -1,4 +1,4 @@
-import { getData, postData } from "@/app/services/axios";
+import { postData } from "@/app/services/axios";
 import {
   Form,
   FormSubmission,
