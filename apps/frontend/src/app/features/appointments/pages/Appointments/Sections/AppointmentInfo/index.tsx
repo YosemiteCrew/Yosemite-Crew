@@ -907,6 +907,10 @@ const AppoitmentInfo = ({
     },
     [formsById, resolveAppointmentFormEntry],
   );
+  const withSignatureMetaRef = useRef(withSignatureMeta);
+  useEffect(() => {
+    withSignatureMetaRef.current = withSignatureMeta;
+  }, [withSignatureMeta]);
 
   useEffect(() => {
     const current = labels.find((l) => l.key === activeLabel);
@@ -963,15 +967,15 @@ const AppoitmentInfo = ({
       }
       try {
         const soap = await fetchSubmissions(appointmentId);
-        console.log(soap)
         if (cancelled) return;
+        const applySignatureMeta = withSignatureMetaRef.current;
         setFormData((prev) => ({
           ...prev,
-          subjective: withSignatureMeta(soap?.soapNotes?.Subjective),
-          objective: withSignatureMeta(soap?.soapNotes?.Objective),
-          assessment: withSignatureMeta(soap?.soapNotes?.Assessment),
-          plan: withSignatureMeta(soap?.soapNotes?.Plan),
-          discharge: withSignatureMeta(soap?.soapNotes?.Discharge),
+          subjective: applySignatureMeta(soap?.soapNotes?.Subjective),
+          objective: applySignatureMeta(soap?.soapNotes?.Objective),
+          assessment: applySignatureMeta(soap?.soapNotes?.Assessment),
+          plan: applySignatureMeta(soap?.soapNotes?.Plan),
+          discharge: applySignatureMeta(soap?.soapNotes?.Discharge),
           // not present in GetSOAPResponse, keep as-is / empty
           total: prev.total ?? "",
           subTotal: prev.subTotal ?? "",
@@ -988,15 +992,18 @@ const AppoitmentInfo = ({
     return () => {
       cancelled = true;
     };
-  }, [activeAppointment?.id, withSignatureMeta]);
+  }, [activeAppointment?.id]);
 
   useEffect(() => {
     void loadAppointmentForms();
-  }, [loadAppointmentForms]);
+  }, [activeAppointment?.id, loadAppointmentForms]);
 
+  const prevSigningOverlayOpenRef = useRef(signingOverlayOpen);
   useEffect(() => {
     // When signing overlay closes, refresh forms so signature status updates without a full page reload.
-    if (signingOverlayOpen) return;
+    const wasOpen = prevSigningOverlayOpenRef.current;
+    prevSigningOverlayOpenRef.current = signingOverlayOpen;
+    if (!wasOpen || signingOverlayOpen) return;
     void loadAppointmentForms();
   }, [signingOverlayOpen, loadAppointmentForms]);
 

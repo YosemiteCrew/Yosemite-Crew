@@ -39,7 +39,7 @@ const InvoiceInfo = ({
   const handleGenerate = () => {};
 
   const handleDownload = (link: string | undefined) => {
-    window.open(link, "_blank");
+    globalThis.open(link, "_blank");
   };
 
   const appointmentInfoData = useMemo(() => {

@@ -88,7 +88,7 @@ const CompanionDocumentsSection = ({
       const data = await loadDocumentDownloadURL(id);
       if (data.length > 0) {
         const docURL = data[0].url;
-        window.open(docURL, "_blank");
+        globalThis.open(docURL, "_blank");
       }
     } catch (error) {
       console.log(error);

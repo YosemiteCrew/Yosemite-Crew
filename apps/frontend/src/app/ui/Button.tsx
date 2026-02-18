@@ -1,4 +1,4 @@
-import type { CSSProperties, FormEvent } from "react";
+import type { CSSProperties, MouseEvent } from "react";
 import Primary from "@/app/ui/primitives/Buttons/Primary";
 import Secondary from "@/app/ui/primitives/Buttons/Secondary";
 import Delete from "@/app/ui/primitives/Buttons/Delete";
@@ -9,7 +9,7 @@ export type ButtonSize = "default" | "large";
 export type ButtonProps = {
   text: string;
   href: string;
-  onClick?: (e: FormEvent<Element>) => void;
+  onClick?: (e: MouseEvent<HTMLAnchorElement>) => void;
   style?: CSSProperties;
   className?: string;
   isDisabled?: boolean;

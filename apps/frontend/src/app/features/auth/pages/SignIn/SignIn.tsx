@@ -63,7 +63,7 @@ const SignIn = ({
     }
   };
 
-  const handleSignIn = async (e: React.FormEvent) => {
+  const handleSignIn = async (e: React.SyntheticEvent) => {
     e.preventDefault();
 
     const errors: { email?: string; pError?: string } = {};

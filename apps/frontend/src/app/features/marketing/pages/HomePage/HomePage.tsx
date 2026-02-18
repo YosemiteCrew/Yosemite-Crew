@@ -1,5 +1,5 @@
 "use client";
-import React, { ReactNode, FormEvent } from "react";
+import React, { ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -296,7 +296,7 @@ type ButtonProps = {
   icon: ReactNode;
   text: string;
   href: string;
-  onClick?: (e: FormEvent<Element>) => void;
+  onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
   style?: React.CSSProperties;
 };
 

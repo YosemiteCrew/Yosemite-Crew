@@ -47,7 +47,7 @@ const Details = ({ activeAppointment }: DetailsProps) => {
   };
 
   const handleDownload = (link: string | undefined) => {
-    window.open(link, "_blank");
+    globalThis.open(link, "_blank");
   };
 
   return (
