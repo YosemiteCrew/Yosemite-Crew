@@ -786,7 +786,10 @@ const AppoitmentInfo = ({
       }));
   }, [allForms, orgType]);
 
-  const labels = getLabelsForOrgType(orgType, hospitalLabels);
+  const labels = useMemo(
+    () => getLabelsForOrgType(orgType, hospitalLabels),
+    [orgType],
+  );
 
   useEffect(() => {
     if (!showModal || !initialViewIntent) return;

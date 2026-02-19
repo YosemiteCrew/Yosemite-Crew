@@ -3,6 +3,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
 import AppointmentCard from "@/app/ui/cards/AppointmentCard";
+import { AppointmentViewIntent } from "@/app/features/appointments/types/calendar";
+import { Appointment } from "@yosemite-crew/types";
 
 jest.mock("@/app/ui/tables/Appointments", () => ({
   getStatusStyle: jest.fn(() => ({ backgroundColor: "pink", color: "white" })),
@@ -24,6 +26,12 @@ jest.mock("@/app/lib/appointments", () => ({
 describe("AppointmentCard", () => {
   const handleViewAppointment = jest.fn();
   const handleRescheduleAppointment = jest.fn();
+  const getSoapViewIntent: jest.MockedFunction<
+    (appointment: Appointment) => AppointmentViewIntent
+  > = jest.fn((_appointment: Appointment): AppointmentViewIntent => ({
+    label: "prescription",
+    subLabel: "subjective",
+  }));
 
   const appointment: any = {
     status: "COMPLETED",
@@ -46,6 +54,7 @@ describe("AppointmentCard", () => {
       <AppointmentCard
         appointment={appointment}
         handleViewAppointment={handleViewAppointment}
+        getSoapViewIntent={getSoapViewIntent}
         handleRescheduleAppointment={handleRescheduleAppointment}
         canEditAppointments
       />
@@ -73,6 +82,7 @@ describe("AppointmentCard", () => {
       <AppointmentCard
         appointment={appointment}
         handleViewAppointment={handleViewAppointment}
+        getSoapViewIntent={getSoapViewIntent}
         handleRescheduleAppointment={handleRescheduleAppointment}
         canEditAppointments
       />
@@ -90,6 +100,7 @@ describe("AppointmentCard", () => {
       <AppointmentCard
         appointment={{ ...appointment, status: "REQUESTED" }}
         handleViewAppointment={handleViewAppointment}
+        getSoapViewIntent={getSoapViewIntent}
         handleRescheduleAppointment={handleRescheduleAppointment}
         canEditAppointments
       />

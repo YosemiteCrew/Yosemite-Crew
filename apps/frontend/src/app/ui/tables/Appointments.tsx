@@ -21,6 +21,7 @@ import { toTitle } from "@/app/lib/validators";
 import { allowReschedule } from "@/app/lib/appointments";
 import { getStatusStyle } from "@/app/config/statusConfig";
 import { AppointmentViewIntent } from "@/app/features/appointments/types/calendar";
+import { useOrgStore } from "@/app/stores/orgStore";
 
 import "./DataTable.css";
 import { getSafeImageUrl, ImageType } from "@/app/lib/urls";
@@ -53,6 +54,23 @@ const Appointments = ({
   canEditAppointments,
   small = false,
 }: AppointmentTableProps) => {
+  const orgsById = useOrgStore((s) => s.orgsById);
+
+  const getSoapViewIntent = (
+    appointment: Appointment,
+  ): AppointmentViewIntent => {
+    const orgType =
+      (appointment.organisationId &&
+        orgsById[appointment.organisationId]?.type) ||
+      "HOSPITAL";
+
+    if (orgType === "HOSPITAL") {
+      return { label: "prescription", subLabel: "subjective" };
+    }
+
+    return { label: "care", subLabel: "forms" };
+  };
+
   const handleViewAppointment = (
     appointment: Appointment,
     intent?: AppointmentViewIntent,
@@ -268,10 +286,7 @@ const Appointments = ({
               )}
               <button
                 onClick={() =>
-                  handleViewAppointment(item, {
-                    label: "prescription",
-                    subLabel: "subjective",
-                  })
+                  handleViewAppointment(item, getSoapViewIntent(item))
                 }
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                 title="SOAP"
@@ -322,6 +337,7 @@ const Appointments = ({
               key={"key-appointment" + i}
               appointment={item}
               handleViewAppointment={handleViewAppointment}
+              getSoapViewIntent={getSoapViewIntent}
               handleRescheduleAppointment={handleRescheduleAppointment}
               handleChangeStatusAppointment={handleChangeStatusAppointment}
               canEditAppointments={canEditAppointments}

@@ -17,6 +17,7 @@ type AppointmentCardProps = {
     appointment: Appointment,
     intent?: AppointmentViewIntent,
   ) => void;
+  getSoapViewIntent: (appointment: Appointment) => AppointmentViewIntent;
   handleRescheduleAppointment: (appointment: Appointment) => void;
   handleChangeStatusAppointment?: (appointment: Appointment) => void;
   canEditAppointments: boolean;
@@ -25,6 +26,7 @@ type AppointmentCardProps = {
 const AppointmentCard = ({
   appointment,
   handleViewAppointment,
+  getSoapViewIntent,
   handleRescheduleAppointment,
   handleChangeStatusAppointment,
   canEditAppointments,
@@ -73,10 +75,7 @@ const AppointmentCard = ({
             )}
             <button
               onClick={() =>
-                handleViewAppointment(appointment, {
-                  label: "prescription",
-                  subLabel: "subjective",
-                })
+                handleViewAppointment(appointment, getSoapViewIntent(appointment))
               }
               className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
               title="SOAP"
