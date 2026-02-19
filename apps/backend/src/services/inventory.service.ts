@@ -17,6 +17,13 @@ import type {
   InventoryItemMongo,
   InventoryVendorMongo,
 } from "src/models/inventory";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import {
+  InventoryBusinessType,
+  InventoryItemStatus,
+  Prisma,
+} from "@prisma/client";
 
 // Make sure this matches your schema's BusinessType
 export type BusinessType =
@@ -425,10 +432,29 @@ const ensureObjectId = (id: string, fieldName = "id"): string => {
  * HELPER: log stock movment
  */
 const logMovement = async (payload: StockMovementInput) => {
-  await StockMovementModel.create({
+  const doc = await StockMovementModel.create({
     ...payload,
     createdAt: new Date(),
   });
+
+  if (shouldDualWrite) {
+    try {
+      await prisma.inventoryStockMovement.create({
+        data: {
+          id: doc._id.toString(),
+          itemId: doc.itemId ?? undefined,
+          batchId: doc.batchId ?? undefined,
+          change: doc.change ?? undefined,
+          reason: doc.reason ?? undefined,
+          referenceId: doc.referenceId ?? undefined,
+          userId: doc.userId ?? undefined,
+          createdAt: doc.createdAt ?? new Date(),
+        },
+      });
+    } catch (err) {
+      handleDualWriteError("InventoryStockMovement", err);
+    }
+  }
 };
 
 const computeTurnoverStatus = (
@@ -438,6 +464,160 @@ const computeTurnoverStatus = (
   if (turnsPerYear >= 6) return "HEALTHY";
   if (turnsPerYear >= 3) return "MODERATE";
   return "LOW";
+};
+
+const toPrismaInventoryItemData = (doc: InventoryItemDocument) => {
+  const obj = doc.toObject() as InventoryItemMongo & {
+    _id: Types.ObjectId;
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+
+  return {
+    id: obj._id.toString(),
+    organisationId: obj.organisationId,
+    businessType: obj.businessType as InventoryBusinessType,
+    name: obj.name,
+    sku: obj.sku ?? undefined,
+    category: obj.category,
+    subCategory: obj.subCategory ?? undefined,
+    description: obj.description ?? undefined,
+    imageUrl: obj.imageUrl ?? undefined,
+    attributes: (obj.attributes ?? {}) as unknown as Prisma.InputJsonValue,
+    onHand: obj.onHand ?? 0,
+    allocated: obj.allocated ?? 0,
+    reorderLevel: obj.reorderLevel ?? undefined,
+    unitCost: obj.unitCost ?? undefined,
+    sellingPrice: obj.sellingPrice ?? undefined,
+    currency: obj.currency ?? undefined,
+    vendorId: obj.vendorId ?? undefined,
+    status: obj.status as InventoryItemStatus,
+    createdAt: obj.createdAt ?? undefined,
+    updatedAt: obj.updatedAt ?? undefined,
+  };
+};
+
+const syncInventoryItemToPostgres = async (doc: InventoryItemDocument) => {
+  if (!shouldDualWrite) return;
+  try {
+    const data = toPrismaInventoryItemData(doc);
+    await prisma.inventoryItem.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+  } catch (err) {
+    handleDualWriteError("InventoryItem", err);
+  }
+};
+
+const syncInventoryBatchToPostgres = async (
+  doc: InventoryBatchDocument,
+) => {
+  if (!shouldDualWrite) return;
+  try {
+    await prisma.inventoryBatch.upsert({
+      where: { id: doc._id.toString() },
+      create: {
+        id: doc._id.toString(),
+        itemId: doc.itemId,
+        organisationId: doc.organisationId,
+        batchNumber: doc.batchNumber ?? undefined,
+        lotNumber: doc.lotNumber ?? undefined,
+        regulatoryTrackingId: doc.regulatoryTrackingId ?? undefined,
+        manufactureDate: doc.manufactureDate ?? undefined,
+        expiryDate: doc.expiryDate ?? undefined,
+        minShelfLifeAlertDate: doc.minShelfLifeAlertDate ?? undefined,
+        quantity: doc.quantity ?? 0,
+        allocated: doc.allocated ?? 0,
+        createdAt: doc.createdAt ?? undefined,
+        updatedAt: doc.updatedAt ?? undefined,
+      },
+      update: {
+        batchNumber: doc.batchNumber ?? undefined,
+        lotNumber: doc.lotNumber ?? undefined,
+        regulatoryTrackingId: doc.regulatoryTrackingId ?? undefined,
+        manufactureDate: doc.manufactureDate ?? undefined,
+        expiryDate: doc.expiryDate ?? undefined,
+        minShelfLifeAlertDate: doc.minShelfLifeAlertDate ?? undefined,
+        quantity: doc.quantity ?? 0,
+        allocated: doc.allocated ?? 0,
+        updatedAt: doc.updatedAt ?? undefined,
+      },
+    });
+  } catch (err) {
+    handleDualWriteError("InventoryBatch", err);
+  }
+};
+
+const syncInventoryVendorToPostgres = async (
+  doc: InventoryVendorDocument,
+) => {
+  if (!shouldDualWrite) return;
+  try {
+    await prisma.inventoryVendor.upsert({
+      where: { id: doc._id.toString() },
+      create: {
+        id: doc._id.toString(),
+        organisationId: doc.organisationId,
+        name: doc.name,
+        brand: doc.brand ?? undefined,
+        vendorType: doc.vendorType ?? undefined,
+        licenseNumber: doc.licenseNumber ?? undefined,
+        paymentTerms: doc.paymentTerms ?? undefined,
+        deliveryFrequency: doc.deliveryFrequency ?? undefined,
+        leadTimeDays: doc.leadTimeDays ?? undefined,
+        contactInfo: (doc.contactInfo ?? undefined) as unknown as Prisma.InputJsonValue,
+        createdAt: doc.createdAt ?? undefined,
+        updatedAt: doc.updatedAt ?? undefined,
+      },
+      update: {
+        name: doc.name,
+        brand: doc.brand ?? undefined,
+        vendorType: doc.vendorType ?? undefined,
+        licenseNumber: doc.licenseNumber ?? undefined,
+        paymentTerms: doc.paymentTerms ?? undefined,
+        deliveryFrequency: doc.deliveryFrequency ?? undefined,
+        leadTimeDays: doc.leadTimeDays ?? undefined,
+        contactInfo: (doc.contactInfo ?? undefined) as unknown as Prisma.InputJsonValue,
+        updatedAt: doc.updatedAt ?? undefined,
+      },
+    });
+  } catch (err) {
+    handleDualWriteError("InventoryVendor", err);
+  }
+};
+
+const syncInventoryMetaFieldToPostgres = async (
+  doc: InventoryMetaFieldDocument,
+) => {
+  if (!shouldDualWrite) return;
+  try {
+    await prisma.inventoryMetaField.upsert({
+      where: {
+        businessType_fieldKey: {
+          businessType: doc.businessType,
+          fieldKey: doc.fieldKey,
+        },
+      },
+      create: {
+        id: doc._id.toString(),
+        businessType: doc.businessType,
+        fieldKey: doc.fieldKey,
+        label: doc.label,
+        values: doc.values ?? [],
+        createdAt: doc.createdAt ?? undefined,
+        updatedAt: doc.updatedAt ?? undefined,
+      },
+      update: {
+        label: doc.label,
+        values: doc.values ?? [],
+        updatedAt: doc.updatedAt ?? undefined,
+      },
+    });
+  } catch (err) {
+    handleDualWriteError("InventoryMetaField", err);
+  }
 };
 
 export const InventoryService = {
@@ -493,6 +673,7 @@ export const InventoryService = {
 
       status: input.status ?? "ACTIVE",
     });
+    await syncInventoryItemToPostgres(item);
 
     // 2. If batches were provided, insert them and recompute stock
     if (input.batches?.length) {
@@ -509,7 +690,30 @@ export const InventoryService = {
         allocated: b.allocated ?? 0,
       }));
 
-      await InventoryBatchModel.insertMany(payloads);
+      const createdBatches = await InventoryBatchModel.insertMany(payloads);
+      if (shouldDualWrite && createdBatches.length) {
+        try {
+          await prisma.inventoryBatch.createMany({
+            data: createdBatches.map((doc) => ({
+              id: doc._id.toString(),
+              itemId: doc.itemId,
+              organisationId: doc.organisationId,
+              batchNumber: doc.batchNumber ?? undefined,
+              lotNumber: doc.lotNumber ?? undefined,
+              regulatoryTrackingId: doc.regulatoryTrackingId ?? undefined,
+              manufactureDate: doc.manufactureDate ?? undefined,
+              expiryDate: doc.expiryDate ?? undefined,
+              minShelfLifeAlertDate: doc.minShelfLifeAlertDate ?? undefined,
+              quantity: doc.quantity ?? 0,
+              allocated: doc.allocated ?? 0,
+              createdAt: doc.createdAt ?? undefined,
+              updatedAt: doc.updatedAt ?? undefined,
+            })),
+          });
+        } catch (err) {
+          handleDualWriteError("InventoryBatch bulk", err);
+        }
+      }
 
       const { onHand, allocated } = await recomputeStockFromBatches(
         item._id.toString(),
@@ -517,6 +721,7 @@ export const InventoryService = {
       item.onHand = onHand;
       item.allocated = allocated;
       await item.save();
+      await syncInventoryItemToPostgres(item);
     }
 
     const batches = await InventoryBatchModel.find({
@@ -572,6 +777,7 @@ export const InventoryService = {
     if (input.status !== undefined) item.status = input.status;
 
     await item.save();
+    await syncInventoryItemToPostgres(item);
 
     const batches = await InventoryBatchModel.find({
       itemId,
@@ -597,6 +803,7 @@ export const InventoryService = {
     }
     item.status = "HIDDEN";
     await item.save();
+    await syncInventoryItemToPostgres(item);
     return item;
   },
 
@@ -608,6 +815,7 @@ export const InventoryService = {
     }
     item.status = "DELETED";
     await item.save();
+    await syncInventoryItemToPostgres(item);
     return item;
   },
 
@@ -619,6 +827,7 @@ export const InventoryService = {
     }
     item.status = "ACTIVE";
     await item.save();
+    await syncInventoryItemToPostgres(item);
     return item;
   },
 
@@ -731,11 +940,13 @@ export const InventoryService = {
       quantity: batchInput.quantity,
       allocated: batchInput.allocated ?? 0,
     });
+    await syncInventoryBatchToPostgres(batch);
 
     const { onHand, allocated } = await recomputeStockFromBatches(itemId);
     item.onHand = onHand;
     item.allocated = allocated;
     await item.save();
+    await syncInventoryItemToPostgres(item);
 
     return batch;
   },
@@ -764,6 +975,7 @@ export const InventoryService = {
     if (input.allocated !== undefined) batch.allocated = input.allocated;
 
     await batch.save();
+    await syncInventoryBatchToPostgres(batch);
 
     // recompute stock
     const { onHand, allocated } = await recomputeStockFromBatches(
@@ -773,6 +985,16 @@ export const InventoryService = {
       onHand,
       allocated,
     }).exec();
+    if (shouldDualWrite) {
+      try {
+        await prisma.inventoryItem.updateMany({
+          where: { id: batch.itemId.toString() },
+          data: { onHand, allocated },
+        });
+      } catch (err) {
+        handleDualWriteError("InventoryItem updateStock", err);
+      }
+    }
 
     return batch;
   },
@@ -786,12 +1008,31 @@ export const InventoryService = {
     const itemId = batch.itemId.toString();
 
     await batch.deleteOne();
+    if (shouldDualWrite) {
+      try {
+        await prisma.inventoryBatch.deleteMany({
+          where: { id: batch._id.toString() },
+        });
+      } catch (err) {
+        handleDualWriteError("InventoryBatch delete", err);
+      }
+    }
 
     const { onHand, allocated } = await recomputeStockFromBatches(itemId);
     await InventoryItemModel.findByIdAndUpdate(itemId, {
       onHand,
       allocated,
     }).exec();
+    if (shouldDualWrite) {
+      try {
+        await prisma.inventoryItem.updateMany({
+          where: { id: itemId },
+          data: { onHand, allocated },
+        });
+      } catch (err) {
+        handleDualWriteError("InventoryItem updateStock", err);
+      }
+    }
   },
 
   // ─────────────────────────────────────────────
@@ -830,6 +1071,7 @@ export const InventoryService = {
       batch.quantity = availableInBatch - consume;
       remaining -= consume;
       await batch.save();
+      await syncInventoryBatchToPostgres(batch);
     }
 
     if (remaining > 0) {
@@ -844,6 +1086,7 @@ export const InventoryService = {
     item.onHand = onHand;
     item.allocated = allocated;
     await item.save();
+    await syncInventoryItemToPostgres(item);
 
     // Later you can log StockMovement here
     return item;
@@ -1002,12 +1245,13 @@ export const InventoryAdjustmentService = {
     // Positive delta = increase (create virtual adjustment batch)
     // Negative delta = decrease (consume FIFO batches)
     if (delta > 0) {
-      await InventoryBatchModel.create({
+      const batch = await InventoryBatchModel.create({
         itemId: item._id.toString(),
         quantity: delta,
         allocatedQuantity: 0,
         notes: "Manual adjustment increase",
       });
+      await syncInventoryBatchToPostgres(batch);
 
       await logMovement({
         itemId: safeItemId,
@@ -1029,6 +1273,7 @@ export const InventoryAdjustmentService = {
         batch.quantity -= consume;
         remaining -= consume;
         await batch.save();
+        await syncInventoryBatchToPostgres(batch);
 
         await logMovement({
           itemId: input.itemId,
@@ -1059,6 +1304,7 @@ export const InventoryAdjustmentService = {
     item.onHand = onHand;
     item.allocated = allocated;
     await item.save();
+    await syncInventoryItemToPostgres(item);
 
     return item;
   },
@@ -1085,6 +1331,7 @@ export const InventoryAllocationService = {
 
     item.allocated += quantity;
     await item.save();
+    await syncInventoryItemToPostgres(item);
 
     await logMovement({
       itemId,
@@ -1112,6 +1359,7 @@ export const InventoryAllocationService = {
 
     item.allocated = Math.max(0, item.allocated - quantity);
     await item.save();
+    await syncInventoryItemToPostgres(item);
 
     await logMovement({
       itemId,
@@ -1144,10 +1392,12 @@ export const InventoryVendorService = {
       "organisationId",
     );
 
-    return InventoryVendorModel.create({
+    const vendor = await InventoryVendorModel.create({
       ...input,
       organisationId,
     });
+    await syncInventoryVendorToPostgres(vendor);
+    return vendor;
   },
 
   async updateVendor(
@@ -1161,6 +1411,7 @@ export const InventoryVendorService = {
 
     Object.assign(vendor, updates);
     await vendor.save();
+    await syncInventoryVendorToPostgres(vendor);
     return vendor;
   },
 
@@ -1182,6 +1433,13 @@ export const InventoryVendorService = {
   async deleteVendor(vendorId: string) {
     ensureObjectId(vendorId);
     await InventoryVendorModel.findByIdAndDelete(vendorId);
+    if (shouldDualWrite) {
+      try {
+        await prisma.inventoryVendor.deleteMany({ where: { id: vendorId } });
+      } catch (err) {
+        handleDualWriteError("InventoryVendor delete", err);
+      }
+    }
   },
 };
 
@@ -1197,10 +1455,12 @@ export const InventoryMetaFieldService = {
       throw new InventoryServiceError("Invalid businessType", 400);
     }
 
-    return InventoryMetaFieldModel.create({
+    const field = await InventoryMetaFieldModel.create({
       ...input,
       businessType,
     });
+    await syncInventoryMetaFieldToPostgres(field);
+    return field;
   },
 
   async updateField(
@@ -1214,12 +1474,22 @@ export const InventoryMetaFieldService = {
 
     Object.assign(field, updates);
     await field.save();
+    await syncInventoryMetaFieldToPostgres(field);
     return field;
   },
 
   async deleteField(fieldId: string) {
     ensureObjectId(fieldId);
     await InventoryMetaFieldModel.findByIdAndDelete(fieldId);
+    if (shouldDualWrite) {
+      try {
+        await prisma.inventoryMetaField.deleteMany({
+          where: { id: fieldId },
+        });
+      } catch (err) {
+        handleDualWriteError("InventoryMetaField delete", err);
+      }
+    }
   },
 
   async listFields(businessType: string) {

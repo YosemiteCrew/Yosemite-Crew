@@ -17,6 +17,13 @@ import { AuditTrailService } from "./audit-trail.service";
 import { sendEmailTemplate } from "src/utils/email";
 import logger from "src/utils/logger";
 import { OrgBilling } from "src/models/organization.billing";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import {
+  InvoiceStatus as PrismaInvoiceStatus,
+  PaymentCollectionMethod,
+  Prisma,
+} from "@prisma/client";
 
 export class InvoiceServiceError extends Error {
   constructor(
@@ -140,6 +147,57 @@ const toDomain = (doc: InvoiceDocument): Invoice => {
   };
 };
 
+const toPrismaInvoiceData = (doc: InvoiceDocument) => {
+  const obj = doc.toObject() as InvoiceMongo & {
+    _id: Types.ObjectId;
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+
+  return {
+    id: obj._id.toString(),
+    parentId: obj.parentId?.toString() ?? undefined,
+    companionId: obj.companionId?.toString() ?? undefined,
+    organisationId: obj.organisationId?.toString() ?? undefined,
+    appointmentId: obj.appointmentId?.toString() ?? undefined,
+    items: obj.items as unknown as Prisma.InputJsonValue,
+    subtotal: obj.subtotal,
+    discountTotal: obj.discountTotal ?? 0,
+    taxTotal: obj.taxTotal ?? 0,
+    taxPercent: obj.taxPercent ?? 0,
+    totalAmount: obj.totalAmount,
+    currency: obj.currency,
+    paymentCollectionMethod: obj.paymentCollectionMethod as PaymentCollectionMethod,
+    stripePaymentIntentId: obj.stripePaymentIntentId ?? undefined,
+    stripePaymentLinkId: obj.stripePaymentLinkId ?? undefined,
+    stripeInvoiceId: obj.stripeInvoiceId ?? undefined,
+    stripeCustomerId: obj.stripeCustomerId ?? undefined,
+    stripeChargeId: obj.stripeChargeId ?? undefined,
+    stripeReceiptUrl: obj.stripeReceiptUrl ?? undefined,
+    stripeCheckoutSessionId: obj.stripeCheckoutSessionId ?? undefined,
+    stripeCheckoutUrl: obj.stripeCheckoutUrl ?? undefined,
+    status: obj.status as PrismaInvoiceStatus,
+    metadata: (obj.metadata ?? undefined) as unknown as Prisma.InputJsonValue,
+    paidAt: obj.paidAt ?? undefined,
+    createdAt: obj.createdAt ?? undefined,
+    updatedAt: obj.updatedAt ?? undefined,
+  };
+};
+
+const syncInvoiceToPostgres = async (doc: InvoiceDocument) => {
+  if (!shouldDualWrite) return;
+  try {
+    const data = toPrismaInvoiceData(doc);
+    await prisma.invoice.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+  } catch (err) {
+    handleDualWriteError("Invoice", err);
+  }
+};
+
 const recalculateTotals = (invoice: InvoiceDocument) => {
   invoice.subtotal = invoice.items.reduce(
     (sum, i) => sum + i.quantity * i.unitPrice,
@@ -239,6 +297,7 @@ export const InvoiceService = {
     );
 
     const createdInvoice = Array.isArray(invoice) ? invoice[0] : invoice;
+    await syncInvoiceToPostgres(createdInvoice);
 
     await AuditTrailService.recordSafely({
       organisationId: input.organisationId,
@@ -298,6 +357,7 @@ export const InvoiceService = {
 
     recalculateTotals(invoice);
     await invoice.save();
+    await syncInvoiceToPostgres(invoice);
 
     await AuditTrailService.recordSafely({
       organisationId: appointment.organisationId,
@@ -336,6 +396,10 @@ export const InvoiceService = {
 
     if (!doc) throw new InvoiceServiceError("Invoice not found.", 404);
 
+    await syncInvoiceToPostgres(doc);
+
+    await syncInvoiceToPostgres(doc);
+
     return toDomain(doc);
   },
 
@@ -361,6 +425,7 @@ export const InvoiceService = {
     );
 
     if (invoice) {
+      await syncInvoiceToPostgres(invoice);
       const targets = await resolveAuditTargetsForInvoice(invoice);
       if (targets.organisationId && targets.companionId) {
         await AuditTrailService.recordSafely({
@@ -392,6 +457,8 @@ export const InvoiceService = {
     );
 
     if (!doc) throw new InvoiceServiceError("Invoice not found.", 404);
+
+    await syncInvoiceToPostgres(doc);
 
     const targets = await resolveAuditTargetsForInvoice(doc);
     if (targets.organisationId && targets.companionId) {
@@ -450,6 +517,7 @@ export const InvoiceService = {
 
     invoice.status = status;
     await invoice.save();
+    await syncInvoiceToPostgres(invoice);
 
     const targets = await resolveAuditTargetsForInvoice(invoice);
     if (targets.organisationId && targets.companionId) {
@@ -552,6 +620,7 @@ export const InvoiceService = {
     }
 
     await invoice.save();
+    await syncInvoiceToPostgres(invoice);
 
     const targets = await resolveAuditTargetsForInvoice(invoice);
     if (targets.organisationId && targets.companionId) {
@@ -618,6 +687,7 @@ export const InvoiceService = {
         cancellationReason: reason,
       };
       await invoice.save();
+      await syncInvoiceToPostgres(invoice);
 
       const targets = await resolveAuditTargetsForInvoice(invoice);
       if (targets.organisationId && targets.companionId) {
@@ -663,6 +733,7 @@ export const InvoiceService = {
       };
 
       await invoice.save();
+      await syncInvoiceToPostgres(invoice);
 
       const targets = await resolveAuditTargetsForInvoice(invoice);
       if (targets.organisationId && targets.companionId) {

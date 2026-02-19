@@ -24,6 +24,9 @@ import logger from "src/utils/logger";
 import UserProfileModel from "src/models/user-profile";
 import { OrgBilling } from "src/models/organization.billing";
 import { OrgUsageCounters } from "src/models/organisation.usage.counter";
+import { Prisma, OrganizationType } from "@prisma/client";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 
 const TAX_ID_EXTENSION_URL =
   "http://example.org/fhir/StructureDefinition/taxId";
@@ -45,6 +48,104 @@ const ORGANIZATION_TYPES = new Set<Organisation["type"]>([
   "BOARDER",
   "GROOMER",
 ]);
+
+const toPrismaOrganizationData = (doc: OrganizationDocument) => {
+  const obj = doc.toObject() as OrganizationMongo & {
+    _id: Types.ObjectId;
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+
+  return {
+    id: obj._id.toString(),
+    fhirId: obj.fhirId ?? undefined,
+    name: obj.name,
+    taxId: obj.taxId,
+    dunsNumber: obj.DUNSNumber ?? undefined,
+    imageUrl: obj.imageURL ?? undefined,
+    type: obj.type as OrganizationType,
+    phoneNo: obj.phoneNo,
+    website: obj.website ?? undefined,
+    documensoTeamId: obj.documensoTeamId ?? undefined,
+    documensoApiKey: obj.documensoApiKey ?? undefined,
+    isVerified: obj.isVerified ?? false,
+    isActive: obj.isActive ?? true,
+    typeCoding: (obj.typeCoding ?? undefined) as unknown as Prisma.InputJsonValue,
+    healthAndSafetyCertNo: obj.healthAndSafetyCertNo ?? undefined,
+    animalWelfareComplianceCertNo:
+      obj.animalWelfareComplianceCertNo ?? undefined,
+    fireAndEmergencyCertNo: obj.fireAndEmergencyCertNo ?? undefined,
+    googlePlacesId: obj.googlePlacesId ?? undefined,
+    stripeAccountId: obj.stripeAccountId ?? undefined,
+    averageRating: obj.averageRating ?? 0,
+    ratingCount: obj.ratingCount ?? 0,
+    createdAt: obj.createdAt ?? undefined,
+    updatedAt: obj.updatedAt ?? undefined,
+  };
+};
+
+const syncOrganizationAddressToPostgres = async (
+  organizationId: string,
+  address: OrganizationMongo["address"],
+) => {
+  if (!shouldDualWrite) return;
+
+  if (!address) {
+    try {
+      await prisma.organizationAddress.deleteMany({
+        where: { organizationId },
+      });
+    } catch (err) {
+      handleDualWriteError("OrganizationAddress delete", err);
+    }
+    return;
+  }
+
+  try {
+    await prisma.organizationAddress.upsert({
+      where: { organizationId },
+      create: {
+        organizationId,
+        addressLine: address.addressLine ?? undefined,
+        country: address.country ?? undefined,
+        city: address.city ?? undefined,
+        state: address.state ?? undefined,
+        postalCode: address.postalCode ?? undefined,
+        latitude: address.latitude ?? undefined,
+        longitude: address.longitude ?? undefined,
+        location: (address.location ?? undefined) as unknown as Prisma.InputJsonValue,
+      },
+      update: {
+        addressLine: address.addressLine ?? undefined,
+        country: address.country ?? undefined,
+        city: address.city ?? undefined,
+        state: address.state ?? undefined,
+        postalCode: address.postalCode ?? undefined,
+        latitude: address.latitude ?? undefined,
+        longitude: address.longitude ?? undefined,
+        location: (address.location ?? undefined) as unknown as Prisma.InputJsonValue,
+      },
+    });
+  } catch (err) {
+    handleDualWriteError("OrganizationAddress", err);
+  }
+};
+
+const syncOrganizationToPostgres = async (doc: OrganizationDocument) => {
+  if (!shouldDualWrite) return;
+  try {
+    const data = toPrismaOrganizationData(doc);
+    await prisma.organization.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+    const obj = doc.toObject() as OrganizationMongo & { _id: Types.ObjectId };
+    await syncOrganizationAddressToPostgres(data.id, obj.address);
+  } catch (err) {
+    handleDualWriteError("Organization", err);
+  }
+};
 
 type ExtensionLike = {
   url?: string;
@@ -529,10 +630,46 @@ export const OrganizationService = {
       document = await OrganizationModel.create(persistable);
       created = true;
 
-      await Promise.all([
+      const [billingDoc, usageDoc] = await Promise.all([
         OrgBilling.create({ orgId: document._id }),
         OrgUsageCounters.create({ orgId: document._id }),
       ]);
+
+      if (shouldDualWrite) {
+        try {
+          await prisma.organizationBilling.create({
+            data: {
+              id: billingDoc._id.toString(),
+              orgId: document._id.toString(),
+              createdAt: billingDoc.createdAt ?? undefined,
+              updatedAt: billingDoc.updatedAt ?? undefined,
+            },
+          });
+        } catch (err) {
+          handleDualWriteError("OrganizationBilling", err);
+        }
+
+        try {
+          await prisma.organizationUsageCounter.create({
+            data: {
+              id: usageDoc._id.toString(),
+              orgId: document._id.toString(),
+              appointmentsUsed: usageDoc.appointmentsUsed ?? 0,
+              toolsUsed: usageDoc.toolsUsed ?? 0,
+              usersActiveCount: usageDoc.usersActiveCount ?? 0,
+              usersBillableCount: usageDoc.usersBillableCount ?? 0,
+              freeAppointmentsLimit: usageDoc.freeAppointmentsLimit ?? 120,
+              freeToolsLimit: usageDoc.freeToolsLimit ?? 200,
+              freeUsersLimit: usageDoc.freeUsersLimit ?? 10,
+              freeLimitReachedAt: usageDoc.freeLimitReachedAt ?? undefined,
+              createdAt: usageDoc.createdAt ?? undefined,
+              updatedAt: usageDoc.updatedAt ?? undefined,
+            },
+          });
+        } catch (err) {
+          handleDualWriteError("OrganizationUsageCounter", err);
+        }
+      }
 
       // Link organization to user if userId is provided
       if (userId) {
@@ -551,13 +688,32 @@ export const OrganizationService = {
         });
 
         if (!existingProfile) {
-          await UserProfileModel.create({
+          const profileDoc = await UserProfileModel.create({
             userId,
             organizationId: document._id.toString(),
             personalDetails: {}, // empty
             professionalDetails: {}, // empty
             status: "DRAFT", // auto-set
           });
+
+          if (shouldDualWrite) {
+            try {
+              await prisma.userProfile.create({
+                data: {
+                  id: profileDoc._id.toString(),
+                  userId,
+                  organizationId: document._id.toString(),
+                  personalDetails: {} as Prisma.InputJsonValue,
+                  professionalDetails: {} as Prisma.InputJsonValue,
+                  status: "DRAFT",
+                  createdAt: profileDoc.createdAt ?? undefined,
+                  updatedAt: profileDoc.updatedAt ?? undefined,
+                },
+              });
+            } catch (err) {
+              handleDualWriteError("UserProfile", err);
+            }
+          }
         }
       }
 
@@ -577,6 +733,8 @@ export const OrganizationService = {
         await this.updateProfilePhotoUrl(document._id.toString(), profileUrl);
       }
     }
+
+    await syncOrganizationToPostgres(document);
 
     const response = buildFHIRResponse(
       document,
@@ -613,6 +771,7 @@ export const OrganizationService = {
       await UserOrganizationService.deleteAllByOrganizationId(id);
       await SpecialityService.deleteAllByOrganizationId(id);
       await OrganisationRoomService.deleteAllByOrganizationId(id);
+      await syncOrganizationToPostgres(result);
     }
     return Boolean(result);
   },
@@ -630,6 +789,8 @@ export const OrganizationService = {
       return null;
     }
 
+    await syncOrganizationToPostgres(document);
+
     return buildFHIRResponse(document, typeCoding ? { typeCoding } : undefined);
   },
 
@@ -644,6 +805,8 @@ export const OrganizationService = {
       return null;
     }
 
+    await syncOrganizationToPostgres(document);
+
     return buildFHIRResponse(document);
   },
 
@@ -657,6 +820,8 @@ export const OrganizationService = {
     if (!document) {
       return null;
     }
+
+    await syncOrganizationToPostgres(document);
 
     return buildFHIRResponse(document);
   },

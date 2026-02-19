@@ -1,4 +1,4 @@
-import { Types } from "mongoose";
+import { Types, type HydratedDocument } from "mongoose";
 import {
   FormModel,
   FormFieldModel,
@@ -26,6 +26,15 @@ import OrganizationModel from "src/models/organization";
 import { DocumensoService } from "./documenso.service";
 import { AuditTrailService } from "./audit-trail.service";
 import UserModel from "src/models/user";
+import {
+  FormRequiredSigner as PrismaFormRequiredSigner,
+  FormStatus as PrismaFormStatus,
+  FormVisibilityType as PrismaFormVisibilityType,
+  OrganizationType as PrismaOrganizationType,
+  Prisma,
+} from "@prisma/client";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 
 export class FormServiceError extends Error {
   constructor(
@@ -36,6 +45,18 @@ export class FormServiceError extends Error {
     this.name = "FormServiceError";
   }
 }
+
+type FormVersionDoc = HydratedDocument<IFormVersionDocument> & {
+  _id: Types.ObjectId;
+  createdAt?: Date;
+  updatedAt?: Date;
+};
+
+type FormSubmissionDoc = HydratedDocument<FormSubmissionDocument> & {
+  _id: Types.ObjectId;
+  createdAt?: Date;
+  updatedAt?: Date;
+};
 
 const ensureObjectId = (id: string | Types.ObjectId, label: string) => {
   if (id instanceof Types.ObjectId) return id;
@@ -311,6 +332,43 @@ const flattenFields = (schema: FormField[]): FormField[] => {
   return out;
 };
 
+const toPrismaFormData = (doc: Form) => ({
+  id: normalizeObjectId(doc._id as unknown as NormalizableObjectId),
+  orgId: doc.orgId,
+  businessType: (doc.businessType ?? undefined) as PrismaOrganizationType | undefined,
+  name: doc.name,
+  category: doc.category,
+  description: doc.description ?? undefined,
+  visibilityType: doc.visibilityType as PrismaFormVisibilityType,
+  serviceId: Array.isArray(doc.serviceId)
+    ? doc.serviceId
+    : doc.serviceId
+      ? [doc.serviceId]
+      : [],
+  speciesFilter: doc.speciesFilter ?? [],
+  requiredSigner: (doc.requiredSigner ?? undefined) as PrismaFormRequiredSigner | undefined,
+  status: doc.status as PrismaFormStatus,
+  schema: doc.schema as unknown as Prisma.InputJsonValue,
+  createdBy: doc.createdBy,
+  updatedBy: doc.updatedBy,
+  createdAt: (doc as unknown as { createdAt?: Date }).createdAt ?? undefined,
+  updatedAt: (doc as unknown as { updatedAt?: Date }).updatedAt ?? undefined,
+});
+
+const syncFormToPostgres = async (doc: Form) => {
+  if (!shouldDualWrite) return;
+  try {
+    const data = toPrismaFormData(doc);
+    await prisma.form.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+  } catch (err) {
+    handleDualWriteError("Form", err);
+  }
+};
+
 const syncFormFields = async (formId: string, schema: FormField[]) => {
   await FormFieldModel.deleteMany({ formId });
 
@@ -331,6 +389,33 @@ const syncFormFields = async (formId: string, schema: FormField[]) => {
       meta: f.meta,
     })),
   );
+
+  if (shouldDualWrite) {
+    try {
+      await prisma.formField.deleteMany({ where: { formId } });
+      if (flat.length) {
+        await prisma.formField.createMany({
+          data: flat.map((f) => ({
+            formId,
+            fieldId: f.id,
+            type: f.type,
+            label: f.label,
+            placeholder: f.placeholder ?? undefined,
+            required: f.required ?? undefined,
+            order: f.order ?? undefined,
+            group: f.group ?? undefined,
+            options:
+              "options" in f && Array.isArray(f.options)
+                ? (f.options as unknown as Prisma.InputJsonValue)
+                : undefined,
+            meta: (f.meta ?? undefined) as unknown as Prisma.InputJsonValue,
+          })),
+        });
+      }
+    } catch (err) {
+      handleDualWriteError("FormField", err);
+    }
+  }
 };
 
 export const FormService = {
@@ -376,6 +461,7 @@ export const FormService = {
       updatedBy: userId,
     });
 
+    await syncFormToPostgres(doc.toObject());
     await syncFormFields(doc._id.toString(), internal.schema);
 
     const form = doc.toObject();
@@ -467,6 +553,7 @@ export const FormService = {
 
     await existing.save();
 
+    await syncFormToPostgres(existing.toObject());
     await syncFormFields(formId, internal.schema);
 
     const form = existing.toObject();
@@ -489,7 +576,7 @@ export const FormService = {
 
     const nextVersion = lastVersion ? lastVersion.version + 1 : 1;
 
-    await FormVersionModel.create({
+    const versionDoc: FormVersionDoc = await FormVersionModel.create({
       formId: fid,
       version: nextVersion,
       schemaSnapshot: form.schema,
@@ -500,6 +587,27 @@ export const FormService = {
     form.status = "published";
     form.updatedBy = userId;
     await form.save();
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.formVersion.create({
+          data: {
+            id: versionDoc._id.toString(),
+            formId: fid.toString(),
+            version: nextVersion,
+            schemaSnapshot: form.schema as unknown as Prisma.InputJsonValue,
+            fieldsSnapshot: fields as unknown as Prisma.InputJsonValue,
+            publishedAt: versionDoc.publishedAt ?? new Date(),
+            createdAt: versionDoc.createdAt ?? undefined,
+            updatedAt: versionDoc.updatedAt ?? undefined,
+          },
+        });
+      } catch (err) {
+        handleDualWriteError("FormVersion", err);
+      }
+    }
+
+    await syncFormToPostgres(form.toObject());
 
     return { formId, version: nextVersion };
   },
@@ -514,6 +622,8 @@ export const FormService = {
     form.updatedBy = userId;
     await form.save();
 
+    await syncFormToPostgres(form.toObject());
+
     return form.toObject();
   },
 
@@ -527,10 +637,15 @@ export const FormService = {
     form.updatedBy = userId;
     await form.save();
 
+    await syncFormToPostgres(form.toObject());
+
     return form.toObject();
   },
 
-  async submitFHIR(response: FormSubmissionRequestDTO, schema?: FormField[]) {
+  async submitFHIR(
+    response: FormSubmissionRequestDTO,
+    schema?: FormField[],
+  ): Promise<FormSubmission> {
     const initialSubmission: FormSubmission = fromFormSubmissionRequestDTO(
       response,
       schema,
@@ -561,7 +676,8 @@ export const FormService = {
           }
         : submission.signing;
 
-    const created = await FormSubmissionModel.create({
+    const formIdString = String(submission.formId);
+    const created: FormSubmissionDoc = await FormSubmissionModel.create({
       formId: submission.formId,
       formVersion: submission.formVersion,
       appointmentId: submission.appointmentId,
@@ -573,6 +689,29 @@ export const FormService = {
       signing,
     });
 
+    if (shouldDualWrite) {
+      try {
+        await prisma.formSubmission.create({
+          data: {
+            id: created._id.toString(),
+            formId: formIdString,
+            formVersion: submission.formVersion,
+            appointmentId: submission.appointmentId ?? undefined,
+            companionId: submission.companionId ?? undefined,
+            parentId: submission.parentId ?? undefined,
+            submittedBy: submission.submittedBy ?? undefined,
+            answers: submission.answers as unknown as Prisma.InputJsonValue,
+            submittedAt: submission.submittedAt,
+            signing: (signing ?? undefined) as unknown as Prisma.InputJsonValue,
+            createdAt: created.createdAt ?? undefined,
+            updatedAt: created.updatedAt ?? undefined,
+          },
+        });
+      } catch (err) {
+        handleDualWriteError("FormSubmission", err);
+      }
+    }
+
     if (submission.appointmentId) {
       const appointmentObjectId = ensureObjectId(
         submission.appointmentId,
@@ -580,8 +719,23 @@ export const FormService = {
       );
       await AppointmentModel.updateOne(
         { _id: appointmentObjectId },
-        { $addToSet: { formIds: submission.formId.toString() } },
+        { $addToSet: { formIds: formIdString } },
       );
+
+      if (shouldDualWrite) {
+        try {
+          await prisma.appointment.updateMany({
+            where: { id: submission.appointmentId },
+            data: {
+              formIds: {
+                push: formIdString,
+              },
+            },
+          });
+        } catch (err) {
+          handleDualWriteError("Appointment formIds", err);
+        }
+      }
     }
 
     if (submission.companionId) {
@@ -597,7 +751,7 @@ export const FormService = {
           actorType: submission.parentId ? "PARENT" : "SYSTEM",
           actorId: submission.parentId ?? null,
           entityType: "FORM",
-          entityId: submission.formId.toString(),
+          entityId: formIdString,
           metadata: {
             submissionId: created._id.toString(),
             appointmentId: submission.appointmentId,
@@ -607,7 +761,7 @@ export const FormService = {
       }
     }
 
-    return created.toObject();
+    return created.toObject() as unknown as FormSubmission;
   },
 
   async getSubmission(submissionId: string) {

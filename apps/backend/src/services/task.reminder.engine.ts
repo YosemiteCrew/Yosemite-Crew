@@ -7,6 +7,9 @@ import TaskModel from "src/models/task";
 import { NotificationService } from "src/services/notification.service";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
 import CompanionModel from "src/models/companion";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import { Prisma } from "@prisma/client";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -75,6 +78,20 @@ export const TaskReminderEngine = {
         task.reminder!.scheduledNotificationId = result?.[0]?.token ?? "sent";
 
         await task.save();
+
+        if (shouldDualWrite) {
+          try {
+            await prisma.task.updateMany({
+              where: { id: task._id.toString() },
+              data: {
+                reminder: task.reminder as unknown as Prisma.InputJsonValue,
+                updatedAt: task.updatedAt ?? undefined,
+              },
+            });
+          } catch (err) {
+            handleDualWriteError("Task reminder update", err);
+          }
+        }
       } catch (err) {
         console.error(`Failed reminder for task ${String(task._id)}`, err);
       }

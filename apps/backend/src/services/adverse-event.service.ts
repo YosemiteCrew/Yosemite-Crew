@@ -4,6 +4,9 @@ import AdverseEventReportModel, {
 } from "../models/adverse-event";
 import { FilterQuery } from "mongoose";
 import { AdverseEventReport, AdverseEventStatus } from "@yosemite-crew/types";
+import { Prisma } from "@prisma/client";
+import { prisma } from "../config/prisma";
+import logger from "../utils/logger";
 
 export class AdverseEventServiceError extends Error {
   constructor(
@@ -60,6 +63,34 @@ export const AdverseEventService = {
       status: "SUBMITTED",
     });
 
+    if (process.env.DUAL_WRITE_ENABLED === "true") {
+      try {
+        await prisma.adverseEventReport.create({
+          data: {
+            id: doc._id.toString(),
+            organisationId: input.organisationId ?? undefined,
+            appointmentId: input.appointmentId ?? undefined,
+            reporter: input.reporter as unknown as Prisma.InputJsonValue,
+            companion: input.companion as unknown as Prisma.InputJsonValue,
+            product: input.product as unknown as Prisma.InputJsonValue,
+            destinations: input.destinations as unknown as Prisma.InputJsonValue,
+            consent: {
+              agreedToContact: input.consent?.agreedToContact ?? false,
+              agreedToTermsAt: input.consent?.agreedToTermsAt ?? new Date(),
+            } as unknown as Prisma.InputJsonValue,
+            status: "SUBMITTED",
+            createdAt: doc.createdAt ?? undefined,
+            updatedAt: doc.updatedAt ?? undefined,
+          },
+        });
+      } catch (err) {
+        logger.error(`AdverseEvent dual-write failed: ${String(err)}`);
+        if (process.env.DUAL_WRITE_STRICT === "true") {
+          throw err;
+        }
+      }
+    }
+
     return toDomain(doc);
   },
 
@@ -89,6 +120,20 @@ export const AdverseEventService = {
 
     doc.status = status;
     await doc.save();
+
+    if (process.env.DUAL_WRITE_ENABLED === "true") {
+      try {
+        await prisma.adverseEventReport.updateMany({
+          where: { id },
+          data: { status },
+        });
+      } catch (err) {
+        logger.error(`AdverseEvent dual-write status failed: ${String(err)}`);
+        if (process.env.DUAL_WRITE_STRICT === "true") {
+          throw err;
+        }
+      }
+    }
     return toDomain(doc);
   },
 };

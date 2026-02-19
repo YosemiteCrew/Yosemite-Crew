@@ -1,13 +1,30 @@
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import { Types } from "mongoose";
 import BaseAvailabilityModel, {
   DayOfWeek,
   AvailabilitySlotMongo,
 } from "src/models/base-availability";
-import WeeklyAvailabilityOverrideModel from "src/models/weekly-availablity-override";
-import { OccupancyModel } from "src/models/occupancy";
+import WeeklyAvailabilityOverrideModel, {
+  type WeeklyAvailabilityOverrideDocument,
+} from "src/models/weekly-availablity-override";
+import { OccupancyModel, type OccupancyDocument } from "src/models/occupancy";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import { Prisma, OccupancySourceType } from "@prisma/client";
 
 dayjs.extend(utc);
+
+type OccupancyDocumentWithTimestamps = OccupancyDocument & {
+  _id: Types.ObjectId;
+  createdAt?: Date;
+  updatedAt?: Date;
+};
+
+type WeeklyAvailabilityOverrideDocumentWithId =
+  WeeklyAvailabilityOverrideDocument & {
+    _id: Types.ObjectId;
+  };
 
 export class AvailabilityServiceError extends Error {
   constructor(
@@ -97,6 +114,109 @@ function normalizeWeekStart(date: Date) {
     .toDate(); // Monday
 }
 
+const syncBaseAvailabilityToPostgres = async (
+  organisationId: string,
+  userId: string,
+  rows: Array<{
+    dayOfWeek: DayOfWeek;
+    slots: AvailabilitySlotMongo[];
+  }>,
+) => {
+  if (!shouldDualWrite) return;
+  try {
+    await prisma.baseAvailability.deleteMany({ where: { userId, organisationId } });
+    if (rows.length) {
+      await prisma.baseAvailability.createMany({
+        data: rows.map((row) => ({
+          userId,
+          organisationId,
+          dayOfWeek: row.dayOfWeek as never,
+          slots: row.slots as unknown as Prisma.InputJsonValue,
+        })),
+      });
+    }
+  } catch (err) {
+    handleDualWriteError("BaseAvailability", err);
+  }
+};
+
+const syncWeeklyOverrideToPostgres = async (doc: {
+  id: string;
+  userId: string;
+  organisationId: string;
+  weekStartDate: Date;
+  overrides: Array<{ dayOfWeek: DayOfWeek; slots: AvailabilitySlotMongo[] }>;
+  createdAt?: Date;
+  updatedAt?: Date;
+}) => {
+  if (!shouldDualWrite) return;
+  try {
+    await prisma.weeklyAvailabilityOverride.upsert({
+      where: {
+        userId_organisationId_weekStartDate: {
+          userId: doc.userId,
+          organisationId: doc.organisationId,
+          weekStartDate: doc.weekStartDate,
+        },
+      },
+      create: {
+        id: doc.id,
+        userId: doc.userId,
+        organisationId: doc.organisationId,
+        weekStartDate: doc.weekStartDate,
+        overrides: doc.overrides as unknown as Prisma.InputJsonValue,
+        createdAt: doc.createdAt ?? undefined,
+        updatedAt: doc.updatedAt ?? undefined,
+      },
+      update: {
+        overrides: doc.overrides as unknown as Prisma.InputJsonValue,
+        updatedAt: doc.updatedAt ?? undefined,
+      },
+    });
+  } catch (err) {
+    handleDualWriteError("WeeklyAvailabilityOverride", err);
+  }
+};
+
+const syncOccupancyToPostgres = async (doc: {
+  _id: { toString(): string };
+  userId: string;
+  organisationId: string;
+  startTime: Date;
+  endTime: Date;
+  sourceType: OccupancySourceType;
+  referenceId?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}) => {
+  if (!shouldDualWrite) return;
+  try {
+    await prisma.occupancy.upsert({
+      where: { id: doc._id.toString() },
+      create: {
+        id: doc._id.toString(),
+        userId: doc.userId,
+        organisationId: doc.organisationId,
+        startTime: doc.startTime,
+        endTime: doc.endTime,
+        sourceType: doc.sourceType,
+        referenceId: doc.referenceId ?? undefined,
+        createdAt: doc.createdAt ?? undefined,
+        updatedAt: doc.updatedAt ?? undefined,
+      },
+      update: {
+        startTime: doc.startTime,
+        endTime: doc.endTime,
+        sourceType: doc.sourceType,
+        referenceId: doc.referenceId ?? undefined,
+        updatedAt: doc.updatedAt ?? undefined,
+      },
+    });
+  } catch (err) {
+    handleDualWriteError("Occupancy", err);
+  }
+};
+
 // Generate Bookablble slots
 export function generateBookableWindows(
   date: string,
@@ -160,7 +280,9 @@ export const AvailabilityService = {
       slots: a.slots,
     }));
 
-    return BaseAvailabilityModel.insertMany(rows);
+    const docs = await BaseAvailabilityModel.insertMany(rows);
+    await syncBaseAvailabilityToPostgres(safeOrganisationId, safeUserId, rows);
+    return docs;
   },
 
   async getBaseAvailability(organisationId: string, userId: string) {
@@ -187,6 +309,16 @@ export const AvailabilityService = {
       organisationId: safeOrganisationId,
       userId: safeUserId,
     });
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.baseAvailability.deleteMany({
+          where: { organisationId: safeOrganisationId, userId: safeUserId },
+        });
+      } catch (err) {
+        handleDualWriteError("BaseAvailability delete", err);
+      }
+    }
   },
 
   // Weekly Overrides
@@ -205,11 +337,11 @@ export const AvailabilityService = {
     const safeWeekDate = ensureValidDate(weekDate, "weekDate");
     const weekStartDate = normalizeWeekStart(safeWeekDate);
 
-    const existing = await WeeklyAvailabilityOverrideModel.findOne({
+    const existing = (await WeeklyAvailabilityOverrideModel.findOne({
       userId: safeUserId,
       organisationId: safeOrganisationId,
       weekStartDate,
-    });
+    }));
 
     if (existing) {
       const idx = existing.overrides.findIndex(
@@ -218,12 +350,31 @@ export const AvailabilityService = {
       if (idx >= 0) existing.overrides[idx] = override;
       else existing.overrides.push(override);
       await existing.save();
-    } else {
-      await WeeklyAvailabilityOverrideModel.create({
-        userId: safeUserId,
-        organisationId: safeOrganisationId,
+      await syncWeeklyOverrideToPostgres({
+        id: String(existing._id),
+        userId: existing.userId,
+        organisationId: existing.organisationId,
         weekStartDate,
-        overrides: [override],
+        overrides: existing.overrides,
+        createdAt: existing.createdAt ?? undefined,
+        updatedAt: existing.updatedAt ?? undefined,
+      });
+    } else {
+      const created =
+        (await WeeklyAvailabilityOverrideModel.create({
+          userId: safeUserId,
+          organisationId: safeOrganisationId,
+          weekStartDate,
+          overrides: [override],
+        })) as WeeklyAvailabilityOverrideDocumentWithId;
+      await syncWeeklyOverrideToPostgres({
+        id: String(created._id),
+        userId: created.userId,
+        organisationId: created.organisationId,
+        weekStartDate,
+        overrides: created.overrides,
+        createdAt: created.createdAt ?? undefined,
+        updatedAt: created.updatedAt ?? undefined,
       });
     }
   },
@@ -264,6 +415,20 @@ export const AvailabilityService = {
       organisationId: safeOrganisationId,
       weekStartDate: normalizeWeekStart(safeWeekDate),
     });
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.weeklyAvailabilityOverride.deleteMany({
+          where: {
+            userId: safeUserId,
+            organisationId: safeOrganisationId,
+            weekStartDate: normalizeWeekStart(safeWeekDate),
+          },
+        });
+      } catch (err) {
+        handleDualWriteError("WeeklyAvailabilityOverride delete", err);
+      }
+    }
   },
 
   // Occupancies
@@ -284,13 +449,26 @@ export const AvailabilityService = {
     const safeStartTime = ensureValidDate(startTime, "startTime");
     const safeEndTime = ensureValidDate(endTime, "endTime");
 
-    await OccupancyModel.create({
-      userId: safeUserId,
-      organisationId: safeOrganisationId,
-      startTime: safeStartTime,
-      endTime: safeEndTime,
-      sourceType,
-      referenceId,
+    const doc = (await OccupancyModel.create(
+      {
+        userId: safeUserId,
+        organisationId: safeOrganisationId,
+        startTime: safeStartTime,
+        endTime: safeEndTime,
+        sourceType,
+        referenceId,
+      },
+    )) as OccupancyDocumentWithTimestamps;
+    await syncOccupancyToPostgres({
+      _id: doc._id,
+      userId: doc.userId,
+      organisationId: doc.organisationId,
+      startTime: doc.startTime,
+      endTime: doc.endTime,
+      sourceType: doc.sourceType,
+      referenceId: doc.referenceId ?? undefined,
+      createdAt: doc.createdAt ?? undefined,
+      updatedAt: doc.updatedAt ?? undefined,
     });
   },
 
@@ -316,7 +494,29 @@ export const AvailabilityService = {
       userId: safeUserId,
     }));
 
-    await OccupancyModel.insertMany(docs);
+    const created = (await OccupancyModel.insertMany(
+      docs,
+    )) as OccupancyDocumentWithTimestamps[];
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.occupancy.createMany({
+          data: created.map((doc) => ({
+            id: doc._id.toString(),
+            userId: doc.userId,
+            organisationId: doc.organisationId,
+            startTime: doc.startTime,
+            endTime: doc.endTime,
+            sourceType: doc.sourceType,
+            referenceId: doc.referenceId ?? undefined,
+            createdAt: doc.createdAt ?? undefined,
+            updatedAt: doc.updatedAt ?? undefined,
+          })),
+        });
+      } catch (err) {
+        handleDualWriteError("Occupancy bulk", err);
+      }
+    }
   },
 
   async getOccupancy(

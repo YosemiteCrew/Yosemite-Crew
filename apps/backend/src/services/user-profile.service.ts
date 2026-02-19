@@ -16,6 +16,9 @@ import {
 } from "./base-availability.service";
 import UserOrganizationModel from "src/models/user-organization";
 import { getURLForKey } from "src/middlewares/upload";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import { Prisma, UserProfileStatus } from "@prisma/client";
 
 export class UserProfileServiceError extends Error {
   constructor(
@@ -453,6 +456,91 @@ const determineProfileStatus = (
     : "DRAFT";
 };
 
+const toPrismaUserProfileData = (doc: UserProfileDocument) => {
+  const obj = doc.toObject({ virtuals: false }) as UserProfileMongo & {
+    _id: { toString(): string };
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+
+  return {
+    id: obj._id.toString(),
+    userId: obj.userId,
+    organizationId: obj.organizationId,
+    personalDetails: (obj.personalDetails ?? undefined) as unknown as Prisma.InputJsonValue,
+    professionalDetails: (obj.professionalDetails ?? undefined) as unknown as Prisma.InputJsonValue,
+    status: (obj.status ?? "DRAFT") as UserProfileStatus,
+    createdAt: obj.createdAt ?? undefined,
+    updatedAt: obj.updatedAt ?? undefined,
+  };
+};
+
+const syncUserProfileAddressToPostgres = async (
+  userProfileId: string,
+  address: UserProfileAddressMongo | undefined,
+) => {
+  if (!shouldDualWrite) return;
+  if (!address) {
+    try {
+      await prisma.userProfileAddress.deleteMany({
+        where: { userProfileId },
+      });
+    } catch (err) {
+      handleDualWriteError("UserProfileAddress delete", err);
+    }
+    return;
+  }
+
+  try {
+    await prisma.userProfileAddress.upsert({
+      where: { userProfileId },
+      create: {
+        userProfileId,
+        addressLine: address.addressLine ?? undefined,
+        country: address.country ?? undefined,
+        city: address.city ?? undefined,
+        state: address.state ?? undefined,
+        postalCode: address.postalCode ?? undefined,
+        latitude: address.latitude ?? undefined,
+        longitude: address.longitude ?? undefined,
+      },
+      update: {
+        addressLine: address.addressLine ?? undefined,
+        country: address.country ?? undefined,
+        city: address.city ?? undefined,
+        state: address.state ?? undefined,
+        postalCode: address.postalCode ?? undefined,
+        latitude: address.latitude ?? undefined,
+        longitude: address.longitude ?? undefined,
+      },
+    });
+  } catch (err) {
+    handleDualWriteError("UserProfileAddress", err);
+  }
+};
+
+const syncUserProfileToPostgres = async (doc: UserProfileDocument) => {
+  if (!shouldDualWrite) return;
+  try {
+    const data = toPrismaUserProfileData(doc);
+    await prisma.userProfile.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+
+    const obj = doc.toObject({ virtuals: false }) as UserProfileMongo & {
+      _id: { toString(): string };
+    };
+    await syncUserProfileAddressToPostgres(
+      data.id,
+      obj.personalDetails?.address,
+    );
+  } catch (err) {
+    handleDualWriteError("UserProfile", err);
+  }
+};
+
 const applyProfileStatus = async (
   document: UserProfileDocument,
   availability: UserAvailability[],
@@ -462,6 +550,7 @@ const applyProfileStatus = async (
   if (document.status !== status) {
     document.status = status;
     await document.save();
+    await syncUserProfileToPostgres(document);
   }
 
   return status;
@@ -604,6 +693,7 @@ export const UserProfileService = {
     );
 
     const document = await UserProfileModel.create(attributes);
+    await syncUserProfileToPostgres(document);
 
     let availability: UserAvailability[] = [];
 
@@ -663,6 +753,8 @@ export const UserProfileService = {
     }
 
     const status = await applyProfileStatus(document, availability);
+
+    await syncUserProfileToPostgres(document);
 
     return buildDomainProfile(document, { statusOverride: status });
   },

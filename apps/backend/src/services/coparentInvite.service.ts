@@ -1,12 +1,17 @@
 import { randomUUID } from "node:crypto";
 import { Types } from "mongoose";
 
-import { CoParentInviteModel } from "../models/coparentInvite";
+import {
+  CoParentInviteModel,
+  type CoParentInviteDocument,
+} from "../models/coparentInvite";
 import { ParentModel } from "src/models/parent";
 import CompanionModel from "../models/companion";
 import { ParentCompanionService } from "./parent-companion.service";
 import { ParentService } from "./parent.service";
 import ParentCompanionModel from "src/models/parent-companion";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 
 export class CoParentInviteServiceError extends Error {
   constructor(
@@ -17,6 +22,11 @@ export class CoParentInviteServiceError extends Error {
     this.name = "CoParentInviteServiceError";
   }
 }
+
+type CoParentInviteDocumentWithTimestamps = CoParentInviteDocument & {
+  createdAt?: Date;
+  updatedAt?: Date;
+};
 
 const INVITE_EXPIRY_HOURS = 24;
 
@@ -49,14 +59,37 @@ export const CoParentInviteService = {
       Date.now() + INVITE_EXPIRY_HOURS * 60 * 60 * 1000,
     );
 
-    await CoParentInviteModel.create({
+    const doc = (await CoParentInviteModel.create({
       email: email.toLowerCase(),
       companionId: new Types.ObjectId(companionId),
       invitedByParentId: new Types.ObjectId(invitedByParentId),
       inviteToken,
       expiresAt,
       inviteeName,
-    });
+    })) as CoParentInviteDocumentWithTimestamps;
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.coParentInvite.create({
+          data: {
+            id: doc._id.toString(),
+            email: email.toLowerCase(),
+            inviteeName: inviteeName ?? undefined,
+            companionId,
+            invitedByParentId,
+            inviteToken,
+            expiresAt,
+            acceptedAt: undefined,
+            diclinedAt: undefined,
+            consumed: false,
+            createdAt: doc.createdAt ?? undefined,
+            updatedAt: doc.updatedAt ?? undefined,
+          },
+        });
+      } catch (err) {
+        handleDualWriteError("CoParentInvite", err);
+      }
+    }
 
     return {
       inviteToken,
@@ -188,6 +221,20 @@ export const CoParentInviteService = {
     inviteDoc.acceptedAt = new Date();
     await inviteDoc.save();
 
+    if (shouldDualWrite) {
+      try {
+        await prisma.coParentInvite.updateMany({
+          where: { id: inviteDoc._id.toString() },
+          data: {
+            consumed: true,
+            acceptedAt: inviteDoc.acceptedAt ?? undefined,
+          },
+        });
+      } catch (err) {
+        handleDualWriteError("CoParentInvite accept", err);
+      }
+    }
+
     return {
       message: "Invite accepted successfully.",
       parentId: parentDoc._id.toString(),
@@ -226,6 +273,20 @@ export const CoParentInviteService = {
     invite.consumed = true;
     invite.diclinedAt = new Date();
     await invite.save();
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.coParentInvite.updateMany({
+          where: { id: invite._id.toString() },
+          data: {
+            consumed: true,
+            diclinedAt: invite.diclinedAt ?? undefined,
+          },
+        });
+      } catch (err) {
+        handleDualWriteError("CoParentInvite decline", err);
+      }
+    }
 
     return {
       message: "Invite declined successfully.",

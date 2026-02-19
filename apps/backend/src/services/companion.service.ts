@@ -14,6 +14,14 @@ import {
   type RecordStatus,
   type SourceType,
 } from "@yosemite-crew/types";
+import {
+  Prisma,
+  CompanionType as PrismaCompanionType,
+  Gender as PrismaGender,
+  SourceType as PrismaSourceType,
+  RecordStatus as PrismaRecordStatus,
+} from "@prisma/client";
+import { prisma } from "src/config/prisma";
 
 import {
   ParentCompanionService,
@@ -68,6 +76,62 @@ const toPersistable = (payload: CompanionRequestDTO): CompanionMongo => {
     medicalRecords: companion.medicalRecords,
     // isProfileComplete is set in service logic below
   };
+};
+
+const shouldDualWriteCompanions = process.env.DUAL_WRITE_ENABLED === "true";
+
+const toPrismaCompanionData = (doc: CompanionDocument) => {
+  const plain = doc.toObject() as CompanionMongo & {
+    _id: Types.ObjectId;
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+
+  return {
+    id: plain._id.toString(),
+    name: plain.name,
+    type: plain.type as PrismaCompanionType,
+    breed: plain.breed ?? "",
+    dateOfBirth: plain.dateOfBirth,
+    gender: plain.gender as PrismaGender,
+    photoUrl: plain.photoUrl ?? undefined,
+    currentWeight: plain.currentWeight ?? undefined,
+    colour: plain.colour ?? undefined,
+    allergy: plain.allergy ?? undefined,
+    bloodGroup: plain.bloodGroup ?? undefined,
+    isNeutered: plain.isNeutered ?? undefined,
+    ageWhenNeutered: plain.ageWhenNeutered ?? undefined,
+    microchipNumber: plain.microchipNumber ?? undefined,
+    passportNumber: plain.passportNumber ?? undefined,
+    isInsured: plain.isInsured ?? false,
+    insurance: (plain.insurance ?? undefined) as unknown as Prisma.InputJsonValue,
+    countryOfOrigin: plain.countryOfOrigin ?? undefined,
+    source: plain.source as PrismaSourceType,
+    status: plain.status as PrismaRecordStatus,
+    physicalAttribute: (plain.physicalAttribute ?? undefined) as unknown as Prisma.InputJsonValue,
+    breedingInfo: (plain.breedingInfo ?? undefined) as unknown as Prisma.InputJsonValue,
+    medicalRecords: (plain.medicalRecords ?? undefined) as unknown as Prisma.InputJsonValue,
+    isProfileComplete: plain.isProfileComplete ?? false,
+    createdAt: plain.createdAt ?? undefined,
+    updatedAt: plain.updatedAt ?? undefined,
+  };
+};
+
+const syncCompanionToPostgres = async (doc: CompanionDocument) => {
+  if (!shouldDualWriteCompanions) return;
+  try {
+    const data = toPrismaCompanionData(doc);
+    await prisma.companion.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+  } catch (err) {
+    logger.error(`Companion dual-write failed: ${String(err)}`);
+    if (process.env.DUAL_WRITE_STRICT === "true") {
+      throw err;
+    }
+  }
 };
 
 /**
@@ -255,6 +319,7 @@ export const CompanionService = {
         document.photoUrl = profileUrl;
         await document.save();
       }
+      await syncCompanionToPostgres(document);
       // Create default tasks based on companion type
       void createDefaultTasks({
         organisationId: context.parentMongoId?.toString(),
@@ -357,6 +422,8 @@ export const CompanionService = {
 
     if (!document) return null;
 
+    await syncCompanionToPostgres(document);
+
     return { response: toFHIR(document) };
   },
 
@@ -394,6 +461,8 @@ export const CompanionService = {
     );
 
     if (!document) return null;
+
+    await syncCompanionToPostgres(document);
 
     return { response: toFHIR(document) };
   },
@@ -442,6 +511,17 @@ export const CompanionService = {
 
       // Remove resource
       await CompanionModel.deleteOne({ _id: document._id });
+
+      if (shouldDualWriteCompanions) {
+        try {
+          await prisma.companion.deleteMany({ where: { id } });
+        } catch (err) {
+          logger.error(`Companion dual-write delete failed: ${String(err)}`);
+          if (process.env.DUAL_WRITE_STRICT === "true") {
+            throw err;
+          }
+        }
+      }
     } catch (error) {
       if (error instanceof ParentCompanionServiceError) {
         throw new CompanionServiceError(error.message, error.statusCode);

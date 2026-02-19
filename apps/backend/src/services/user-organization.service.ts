@@ -23,6 +23,8 @@ import { StripeService } from "./stripe.service";
 import { sendFreePlanLimitReachedEmail } from "src/utils/org-usage-notifications";
 import { sendEmailTemplate } from "src/utils/email";
 import logger from "src/utils/logger";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 
 export type UserOrganizationFHIRPayload = UserOrganizationRequestDTO;
 
@@ -55,6 +57,45 @@ const buildDisplayName = (
   if (!user) return undefined;
   const parts = [user.firstName, user.lastName].filter(Boolean);
   return parts.length ? parts.join(" ") : undefined;
+};
+
+const toPrismaUserOrganizationData = (doc: UserOrganizationDocument) => {
+  const obj = doc.toObject() as UserOrganizationMongo & {
+    _id: { toString(): string };
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+
+  return {
+    id: obj._id.toString(),
+    fhirId: obj.fhirId ?? undefined,
+    practitionerReference: obj.practitionerReference,
+    organizationReference: obj.organizationReference,
+    roleCode: obj.roleCode,
+    roleDisplay: obj.roleDisplay ?? undefined,
+    active: obj.active ?? true,
+    extraPermissions: obj.extraPermissions ?? [],
+    revokedPermissions: obj.revokedPermissions ?? [],
+    effectivePermissions: obj.effectivePermissions ?? [],
+    createdAt: obj.createdAt ?? undefined,
+    updatedAt: obj.updatedAt ?? undefined,
+  };
+};
+
+const syncUserOrganizationToPostgres = async (
+  doc: UserOrganizationDocument,
+) => {
+  if (!shouldDualWrite) return;
+  try {
+    const data = toPrismaUserOrganizationData(doc);
+    await prisma.userOrganization.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+  } catch (err) {
+    handleDualWriteError("UserOrganization", err);
+  }
 };
 
 const resolveOrganisationName = async (reference: string) => {
@@ -309,12 +350,50 @@ const extractOrganizationIdentifier = (reference: string): string => {
   return lastSegment;
 };
 
-const ensureOrgUsageCounters = async (orgId: Types.ObjectId) =>
-  OrgUsageCounters.findOneAndUpdate(
+const ensureOrgUsageCounters = async (orgId: Types.ObjectId) => {
+  const doc = await OrgUsageCounters.findOneAndUpdate(
     { orgId },
     { $setOnInsert: { orgId } },
     { new: true, upsert: true, setDefaultsOnInsert: true },
   );
+
+  if (doc && shouldDualWrite) {
+    try {
+      await prisma.organizationUsageCounter.upsert({
+        where: { orgId: orgId.toString() },
+        create: {
+          id: doc._id.toString(),
+          orgId: orgId.toString(),
+          appointmentsUsed: doc.appointmentsUsed ?? 0,
+          toolsUsed: doc.toolsUsed ?? 0,
+          usersActiveCount: doc.usersActiveCount ?? 0,
+          usersBillableCount: doc.usersBillableCount ?? 0,
+          freeAppointmentsLimit: doc.freeAppointmentsLimit ?? 120,
+          freeToolsLimit: doc.freeToolsLimit ?? 200,
+          freeUsersLimit: doc.freeUsersLimit ?? 10,
+          freeLimitReachedAt: doc.freeLimitReachedAt ?? undefined,
+          createdAt: doc.createdAt ?? undefined,
+          updatedAt: doc.updatedAt ?? undefined,
+        },
+        update: {
+          appointmentsUsed: doc.appointmentsUsed ?? 0,
+          toolsUsed: doc.toolsUsed ?? 0,
+          usersActiveCount: doc.usersActiveCount ?? 0,
+          usersBillableCount: doc.usersBillableCount ?? 0,
+          freeAppointmentsLimit: doc.freeAppointmentsLimit ?? 120,
+          freeToolsLimit: doc.freeToolsLimit ?? 200,
+          freeUsersLimit: doc.freeUsersLimit ?? 10,
+          freeLimitReachedAt: doc.freeLimitReachedAt ?? undefined,
+          updatedAt: doc.updatedAt ?? undefined,
+        },
+      });
+    } catch (err) {
+      handleDualWriteError("OrganizationUsageCounter ensure", err);
+    }
+  }
+
+  return doc;
+};
 
 const isFreePlan = async (orgId: Types.ObjectId) => {
   const billing = await OrgBilling.findOne({ orgId }).select("plan").lean();
@@ -338,6 +417,18 @@ const markFreeLimitReachedAt = async (
     { _id: usage._id, freeLimitReachedAt: null },
     { $set: { freeLimitReachedAt: new Date() } },
   );
+
+  if (shouldDualWrite && updated.modifiedCount > 0) {
+    try {
+      await prisma.organizationUsageCounter.updateMany({
+        where: { orgId: usage.orgId.toString() },
+        data: { freeLimitReachedAt: new Date() },
+      });
+    } catch (err) {
+      handleDualWriteError("OrganizationUsageCounter freeLimitReachedAt", err);
+    }
+  }
+
   return updated.modifiedCount > 0;
 };
 
@@ -380,6 +471,17 @@ const reserveMemberSlot = async (orgId: Types.ObjectId) => {
     if (didReachLimit) {
       void sendFreePlanLimitReachedEmail({ orgId, usage: updated });
     }
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.organizationUsageCounter.updateMany({
+          where: { orgId: orgId.toString() },
+          data: { usersActiveCount: updated.usersActiveCount ?? 0 },
+        });
+      } catch (err) {
+        handleDualWriteError("OrganizationUsageCounter reserve", err);
+      }
+    }
     return true;
   }
 
@@ -388,6 +490,17 @@ const reserveMemberSlot = async (orgId: Types.ObjectId) => {
     { $inc: { usersActiveCount: 1 } },
     { new: true },
   );
+
+  if (shouldDualWrite) {
+    try {
+      await prisma.organizationUsageCounter.updateMany({
+        where: { orgId: orgId.toString() },
+        data: { usersActiveCount: { increment: 1 } },
+      });
+    } catch (err) {
+      handleDualWriteError("OrganizationUsageCounter reserve", err);
+    }
+  }
   return true;
 };
 
@@ -396,6 +509,17 @@ const releaseMemberSlot = async (orgId: Types.ObjectId) => {
     { orgId },
     { $inc: { usersActiveCount: -1 } },
   );
+
+  if (shouldDualWrite) {
+    try {
+      await prisma.organizationUsageCounter.updateMany({
+        where: { orgId: orgId.toString() },
+        data: { usersActiveCount: { decrement: 1 } },
+      });
+    } catch (err) {
+      handleDualWriteError("OrganizationUsageCounter release", err);
+    }
+  }
 };
 
 const buildOrganizationLookupQuery = (reference: string) => {
@@ -703,6 +827,8 @@ export const UserOrganizationService = {
       await syncSeatsIfBusiness(orgObjectId);
     }
 
+    await syncUserOrganizationToPostgres(document);
+
     return {
       response: toUserOrganizationResponseDTO(
         buildUserOrganizationDomain(document),
@@ -735,6 +861,8 @@ export const UserOrganizationService = {
     if (orgObjectId) {
       await syncSeatsIfBusiness(orgObjectId);
     }
+
+    await syncUserOrganizationToPostgres(document);
 
     return toUserOrganizationResponseDTO(buildUserOrganizationDomain(document));
   },
@@ -812,6 +940,14 @@ export const UserOrganizationService = {
       await syncSeatsIfBusiness(orgObjectId);
     }
 
+    if (doc && shouldDualWrite) {
+      try {
+        await prisma.userOrganization.deleteMany({ where: { id: doc._id.toString() } });
+      } catch (err) {
+        handleDualWriteError("UserOrganization delete", err);
+      }
+    }
+
     return Boolean(doc);
   },
 
@@ -875,6 +1011,8 @@ export const UserOrganizationService = {
       });
     }
 
+    await syncUserOrganizationToPostgres(document);
+
     return toUserOrganizationResponseDTO(buildUserOrganizationDomain(document));
   },
 
@@ -909,6 +1047,8 @@ export const UserOrganizationService = {
         500,
       );
     }
+
+    await syncUserOrganizationToPostgres(document);
   },
 
   async deleteAllByOrganizationId(organisationId: string) {
@@ -917,6 +1057,16 @@ export const UserOrganizationService = {
     await UserOrganizationModel.deleteMany({
       organizationReference: orgId,
     }).exec();
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.userOrganization.deleteMany({
+          where: { organizationReference: orgId },
+        });
+      } catch (err) {
+        handleDualWriteError("UserOrganization deleteAllByOrganizationId", err);
+      }
+    }
   },
 
   async listByUserId(id: string) {

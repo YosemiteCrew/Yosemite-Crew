@@ -12,6 +12,12 @@ import SpecialityModel, { type SpecialityDocument } from "../models/speciality";
 import logger from "../utils/logger";
 import type { InviteStatus, OrganisationInvite } from "@yosemite-crew/types";
 import {
+  OrganisationInviteEmploymentType,
+  OrganisationInviteStatus,
+} from "@prisma/client";
+import { prisma } from "../config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "../utils/dual-write";
+import {
   UserOrganizationService,
   UserOrganizationServiceError,
 } from "./user-organization.service";
@@ -186,6 +192,40 @@ const buildInviteResponse = (
     createdAt: rest.createdAt,
     updatedAt: rest.updatedAt,
   };
+};
+
+const toPrismaOrganisationInviteData = (doc: OrganisationInviteDocument) => ({
+  id: doc._id.toString(),
+  organisationId: doc.organisationId,
+  invitedByUserId: doc.invitedByUserId,
+  departmentIds: doc.departmentIds ?? [],
+  inviteeEmail: doc.inviteeEmail,
+  inviteeName: doc.inviteeName ?? undefined,
+  role: doc.role,
+  employmentType:
+    (doc.employmentType ?? undefined) as OrganisationInviteEmploymentType | undefined,
+  token: doc.token,
+  status: doc.status as OrganisationInviteStatus,
+  expiresAt: doc.expiresAt,
+  acceptedAt: doc.acceptedAt ?? undefined,
+  createdAt: doc.createdAt ?? undefined,
+  updatedAt: doc.updatedAt ?? undefined,
+});
+
+const syncOrganisationInviteToPostgres = async (
+  doc: OrganisationInviteDocument,
+) => {
+  if (!shouldDualWrite) return;
+  try {
+    const data = toPrismaOrganisationInviteData(doc);
+    await prisma.organisationInvite.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+  } catch (err) {
+    handleDualWriteError("OrganisationInvite", err);
+  }
 };
 
 const findOrganisationOrThrow = async (
@@ -395,6 +435,8 @@ export const OrganisationInviteService = {
       employmentType,
     });
 
+    await syncOrganisationInviteToPostgres(invite);
+
     logger.info("Organisation invite created/replaced.", {
       inviteId: invite._id?.toString(),
       organisationId,
@@ -493,6 +535,7 @@ export const OrganisationInviteService = {
       if (invite.status !== "EXPIRED") {
         invite.status = "EXPIRED";
         await invite.save();
+        await syncOrganisationInviteToPostgres(invite);
       }
       throw new OrganisationInviteServiceError("Invitation has expired.", 410);
     }
@@ -537,6 +580,7 @@ export const OrganisationInviteService = {
     invite.status = "ACCEPTED";
     invite.acceptedAt = new Date();
     await invite.save();
+    await syncOrganisationInviteToPostgres(invite);
 
     await Promise.all(
       departments.map((department) =>
@@ -591,6 +635,7 @@ export const OrganisationInviteService = {
       if (invite.status !== "EXPIRED") {
         invite.status = "EXPIRED";
         await invite.save();
+        await syncOrganisationInviteToPostgres(invite);
       }
       throw new OrganisationInviteServiceError("Invitation has expired.", 410);
     }
@@ -607,6 +652,7 @@ export const OrganisationInviteService = {
     invite.status = "REJECTED" as InviteStatus;
     invite.acceptedAt = undefined;
     await invite.save();
+    await syncOrganisationInviteToPostgres(invite);
 
     logger.info("Organisation invite rejected.", {
       inviteId: invite._id?.toString(),

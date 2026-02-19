@@ -9,6 +9,8 @@ import { UserOrganizationService } from "./user-organization.service";
 import { User } from "@yosemite-crew/types";
 import { CognitoService } from "./cognito.service";
 import { OrganizationService } from "./organization.service";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 
 export class UserServiceError extends Error {
   constructor(
@@ -121,6 +123,40 @@ const toUserDomain = (document: UserDocument): UserDomain => {
   };
 };
 
+const syncUserToPostgres = async (doc: UserDocument) => {
+  if (!shouldDualWrite) return;
+  try {
+    const obj = doc.toObject() as UserMongo & {
+      _id: { toString(): string };
+      createdAt?: Date;
+      updatedAt?: Date;
+    };
+    await prisma.user.upsert({
+      where: { id: obj._id.toString() },
+      create: {
+        id: obj._id.toString(),
+        userId: obj.userId,
+        email: obj.email,
+        isActive: obj.isActive ?? true,
+        firstName: obj.firstName ?? undefined,
+        lastName: obj.lastName ?? undefined,
+        createdAt: obj.createdAt ?? undefined,
+        updatedAt: obj.updatedAt ?? undefined,
+      },
+      update: {
+        userId: obj.userId,
+        email: obj.email,
+        isActive: obj.isActive ?? true,
+        firstName: obj.firstName ?? undefined,
+        lastName: obj.lastName ?? undefined,
+        updatedAt: obj.updatedAt ?? undefined,
+      },
+    });
+  } catch (err) {
+    handleDualWriteError("User", err);
+  }
+};
+
 export const UserService = {
   async create(payload: User): Promise<UserDomain> {
     const attributes = sanitizeUserAttributes(payload);
@@ -158,6 +194,8 @@ export const UserService = {
       lastName: payload.lastName,
       isActive: attributes.isActive,
     });
+
+    await syncUserToPostgres(document);
 
     return toUserDomain(document);
   },
@@ -227,11 +265,41 @@ export const UserService = {
       }),
     ]);
 
+    if (shouldDualWrite) {
+      try {
+        await prisma.userProfile.deleteMany({ where: { userId } });
+      } catch (err) {
+        handleDualWriteError("UserProfile delete", err);
+      }
+
+      try {
+        await prisma.baseAvailability.deleteMany({ where: { userId } });
+      } catch (err) {
+        handleDualWriteError("BaseAvailability delete", err);
+      }
+
+      try {
+        await prisma.weeklyAvailabilityOverride.deleteMany({ where: { userId } });
+      } catch (err) {
+        handleDualWriteError("WeeklyAvailabilityOverride delete", err);
+      }
+
+      try {
+        await prisma.occupancy.deleteMany({ where: { userId } });
+      } catch (err) {
+        handleDualWriteError("Occupancy delete", err);
+      }
+    }
+
     const updated = await UserModel.findOneAndUpdate(
       { userId },
       { $set: { isActive: false } },
       { sanitizeFilter: true },
     );
+
+    if (updated) {
+      await syncUserToPostgres(updated);
+    }
 
     for (const organizationId of ownerOrganizationIds) {
       await OrganizationService.deleteById(organizationId);
@@ -272,6 +340,8 @@ export const UserService = {
     user.lastName = lastName;
 
     await user.save();
+
+    await syncUserToPostgres(user);
 
     return toUserDomain(user);
   },

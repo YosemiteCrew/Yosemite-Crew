@@ -7,6 +7,9 @@ import ContactRequestModel, {
   ContactType,
   DsraDetails,
 } from "../models/contect-us";
+import { Prisma } from "@prisma/client";
+import { prisma } from "../config/prisma";
+import logger from "../utils/logger";
 
 export class ContactServiceError extends Error {
   constructor(
@@ -75,6 +78,44 @@ export const ContactService = {
       ...input,
       status: "OPEN",
     });
+
+    if (process.env.DUAL_WRITE_ENABLED === "true") {
+      try {
+        const dsarDetails = input.dsarDetails
+          ? (input.dsarDetails as unknown as Prisma.InputJsonValue)
+          : undefined;
+        const attachments = input.attachments
+          ? (input.attachments as unknown as Prisma.InputJsonValue)
+          : undefined;
+
+        await prisma.contactRequest.create({
+          data: {
+            id: doc._id.toString(),
+            type: input.type,
+            source: input.source,
+            subject: input.subject,
+            message: input.message,
+            userId: input.userId,
+            email: input.email,
+            organisationId: input.organisationId,
+            companionId: input.companionId,
+            parentId: input.parentId,
+            dsarDetails,
+            complaintContext: undefined,
+            attachments,
+            status: "OPEN",
+            internalNotes: undefined,
+            createdAt: doc.createdAt ?? undefined,
+            updatedAt: doc.updatedAt ?? undefined,
+          },
+        });
+      } catch (err) {
+        logger.error(`ContactRequest dual-write failed: ${String(err)}`);
+        if (process.env.DUAL_WRITE_STRICT === "true") {
+          throw err;
+        }
+      }
+    }
     return doc;
   },
 
@@ -132,6 +173,26 @@ export const ContactService = {
   },
 
   async updateStatus(id: string, status: ContactStatus) {
-    return ContactRequestModel.findByIdAndUpdate(id, { status }, { new: true });
+    const updated = await ContactRequestModel.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true },
+    );
+
+    if (updated && process.env.DUAL_WRITE_ENABLED === "true") {
+      try {
+        await prisma.contactRequest.updateMany({
+          where: { id },
+          data: { status },
+        });
+      } catch (err) {
+        logger.error(`ContactRequest dual-write status failed: ${String(err)}`);
+        if (process.env.DUAL_WRITE_STRICT === "true") {
+          throw err;
+        }
+      }
+    }
+
+    return updated;
   },
 };

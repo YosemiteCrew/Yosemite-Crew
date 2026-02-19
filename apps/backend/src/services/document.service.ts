@@ -10,6 +10,8 @@ import {
 } from "src/middlewares/upload";
 import escapeStringRegex from "escape-string-regexp";
 import { AuditTrailService } from "./audit-trail.service";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 
 export class DocumentServiceError extends Error {
   constructor(
@@ -279,6 +281,75 @@ const mapDocumentToDto = (doc: DocumentDocument): DocumentDto => {
   };
 };
 
+const toPrismaDocumentData = (doc: DocumentDocument) => {
+  const obj = doc.toObject() as DocumentMongo & {
+    _id: Types.ObjectId;
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+
+  return {
+    id: obj._id.toString(),
+    companionId: obj.companionId.toString(),
+    appointmentId: obj.appointmentId ? obj.appointmentId.toString() : undefined,
+    category: obj.category,
+    subcategory: obj.subcategory ?? undefined,
+    visitType: obj.visitType ?? undefined,
+    title: obj.title,
+    issuingBusinessName: obj.issuingBusinessName ?? undefined,
+    issueDate: obj.issueDate ?? undefined,
+    uploadedByParentId: obj.uploadedByParentId
+      ? obj.uploadedByParentId.toString()
+      : undefined,
+    uploadedByPmsUserId: obj.uploadedByPmsUserId ?? undefined,
+    pmsVisible: obj.pmsVisible ?? false,
+    syncedFromPms: obj.syncedFromPms ?? false,
+    createdAt: obj.createdAt ?? undefined,
+    updatedAt: obj.updatedAt ?? undefined,
+  };
+};
+
+const syncDocumentAttachmentsToPostgres = async (
+  documentId: string,
+  attachments: DocumentAttachmentInput[],
+) => {
+  if (!shouldDualWrite) return;
+  try {
+    await prisma.documentAttachment.deleteMany({ where: { documentId } });
+    if (attachments.length) {
+      await prisma.documentAttachment.createMany({
+        data: attachments.map((att) => ({
+          documentId,
+          key: String(att.key),
+          mimeType: String(att.mimeType),
+          size: typeof att.size === "number" ? att.size : undefined,
+        })),
+      });
+    }
+  } catch (err) {
+    handleDualWriteError("DocumentAttachment", err);
+  }
+};
+
+const syncDocumentToPostgres = async (doc: DocumentDocument) => {
+  if (!shouldDualWrite) return;
+  try {
+    const data = toPrismaDocumentData(doc);
+    await prisma.document.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+    const obj = doc.toObject() as DocumentMongo & { _id: Types.ObjectId };
+    await syncDocumentAttachmentsToPostgres(
+      data.id,
+      (obj.attachments ?? []) as DocumentAttachmentInput[],
+    );
+  } catch (err) {
+    handleDualWriteError("Document", err);
+  }
+};
+
 const buildPersistableDocument = (
   input: CreateDocumentInput,
   context: DocumentCreateContext,
@@ -373,6 +444,8 @@ export const DocumentService = {
   ): Promise<DocumentDto> {
     const persistable = buildPersistableDocument(input, context);
     const doc = await DocumentModel.create(persistable);
+
+    await syncDocumentToPostgres(doc);
 
     if (context.organisationId) {
       await AuditTrailService.recordSafely({
@@ -502,6 +575,19 @@ export const DocumentService = {
       await deleteFromS3(attachment.key);
     }
     await DocumentModel.deleteOne({ _id }).exec();
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.documentAttachment.deleteMany({
+          where: { documentId: _id.toString() },
+        });
+        await prisma.document.deleteMany({
+          where: { id: _id.toString() },
+        });
+      } catch (err) {
+        handleDualWriteError("Document delete", err);
+      }
+    }
     return true;
   },
 
@@ -567,6 +653,8 @@ export const DocumentService = {
 
     // 7. Save the updated document
     await doc.save();
+
+    await syncDocumentToPostgres(doc);
 
     if (context.organisationId) {
       await AuditTrailService.recordSafely({

@@ -12,6 +12,8 @@ import {
   fromAppointmentRequestDTO,
   toAppointmentResponseDTO,
 } from "@yosemite-crew/types";
+import { Prisma } from "@prisma/client";
+import { prisma } from "src/config/prisma";
 import ServiceModel from "src/models/service";
 import { InvoiceService } from "./invoice.service";
 import { StripeService } from "./stripe.service";
@@ -27,6 +29,7 @@ import { FormService, FormServiceError } from "./form.service";
 import { OrgBilling } from "src/models/organization.billing";
 import { OrgUsageCounters } from "src/models/organisation.usage.counter";
 import { sendEmailTemplate } from "src/utils/email";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 import logger from "src/utils/logger";
 import { sendFreePlanLimitReachedEmail } from "src/utils/org-usage-notifications";
 import { AuditTrailService } from "./audit-trail.service";
@@ -215,12 +218,50 @@ const maybeCreateObservationToolTask = async (
   });
 };
 
-const ensureOrgUsageCounters = async (orgId: Types.ObjectId) =>
-  OrgUsageCounters.findOneAndUpdate(
+const ensureOrgUsageCounters = async (orgId: Types.ObjectId) => {
+  const doc = await OrgUsageCounters.findOneAndUpdate(
     { orgId },
     { $setOnInsert: { orgId } },
     { new: true, upsert: true, setDefaultsOnInsert: true },
   );
+
+  if (doc && shouldDualWrite) {
+    try {
+      await prisma.organizationUsageCounter.upsert({
+        where: { orgId: orgId.toString() },
+        create: {
+          id: doc._id.toString(),
+          orgId: orgId.toString(),
+          appointmentsUsed: doc.appointmentsUsed ?? 0,
+          toolsUsed: doc.toolsUsed ?? 0,
+          usersActiveCount: doc.usersActiveCount ?? 0,
+          usersBillableCount: doc.usersBillableCount ?? 0,
+          freeAppointmentsLimit: doc.freeAppointmentsLimit ?? 120,
+          freeToolsLimit: doc.freeToolsLimit ?? 200,
+          freeUsersLimit: doc.freeUsersLimit ?? 10,
+          freeLimitReachedAt: doc.freeLimitReachedAt ?? undefined,
+          createdAt: doc.createdAt ?? undefined,
+          updatedAt: doc.updatedAt ?? undefined,
+        },
+        update: {
+          appointmentsUsed: doc.appointmentsUsed ?? 0,
+          toolsUsed: doc.toolsUsed ?? 0,
+          usersActiveCount: doc.usersActiveCount ?? 0,
+          usersBillableCount: doc.usersBillableCount ?? 0,
+          freeAppointmentsLimit: doc.freeAppointmentsLimit ?? 120,
+          freeToolsLimit: doc.freeToolsLimit ?? 200,
+          freeUsersLimit: doc.freeUsersLimit ?? 10,
+          freeLimitReachedAt: doc.freeLimitReachedAt ?? undefined,
+          updatedAt: doc.updatedAt ?? undefined,
+        },
+      });
+    } catch (err) {
+      handleDualWriteError("OrganizationUsageCounter ensure", err);
+    }
+  }
+
+  return doc;
+};
 
 const isFreePlan = async (orgId: Types.ObjectId) => {
   const billing = await OrgBilling.findOne({ orgId }).select("plan").lean();
@@ -240,10 +281,22 @@ const markFreeLimitReachedAt = async (
     return false;
   }
 
+  const reachedAt = new Date();
   const updated = await OrgUsageCounters.updateOne(
     { _id: usage._id, freeLimitReachedAt: null },
-    { $set: { freeLimitReachedAt: new Date() } },
+    { $set: { freeLimitReachedAt: reachedAt } },
   );
+
+  if (shouldDualWrite && updated.modifiedCount > 0) {
+    try {
+      await prisma.organizationUsageCounter.updateMany({
+        where: { orgId: usage.orgId.toString() },
+        data: { freeLimitReachedAt: reachedAt },
+      });
+    } catch (err) {
+      handleDualWriteError("OrganizationUsageCounter freeLimitReachedAt", err);
+    }
+  }
   return updated.modifiedCount > 0;
 };
 
@@ -407,6 +460,27 @@ const reserveAppointmentUsage = async (
       throw new AppointmentServiceError(message, 403);
     }
 
+    if (shouldDualWrite) {
+      try {
+        await prisma.organizationUsageCounter.updateMany({
+          where: { orgId: orgId.toString() },
+          data: {
+            appointmentsUsed: updated.appointmentsUsed ?? 0,
+            toolsUsed: updated.toolsUsed ?? 0,
+            usersActiveCount: updated.usersActiveCount ?? 0,
+            usersBillableCount: updated.usersBillableCount ?? 0,
+            freeAppointmentsLimit: updated.freeAppointmentsLimit ?? 120,
+            freeToolsLimit: updated.freeToolsLimit ?? 200,
+            freeUsersLimit: updated.freeUsersLimit ?? 10,
+            freeLimitReachedAt: updated.freeLimitReachedAt ?? undefined,
+            updatedAt: updated.updatedAt ?? undefined,
+          },
+        });
+      } catch (err) {
+        handleDualWriteError("OrganizationUsageCounter reserve", err);
+      }
+    }
+
     const didReachLimit = await markFreeLimitReachedAt(updated);
     if (didReachLimit) {
       void sendFreePlanLimitReachedEmail({ orgId, usage: updated });
@@ -414,11 +488,32 @@ const reserveAppointmentUsage = async (
     return { orgId, inc };
   }
 
-  await OrgUsageCounters.findOneAndUpdate(
+  const updated = await OrgUsageCounters.findOneAndUpdate(
     { orgId },
     { $inc: inc },
     { new: true },
   );
+
+  if (updated && shouldDualWrite) {
+    try {
+      await prisma.organizationUsageCounter.updateMany({
+        where: { orgId: orgId.toString() },
+        data: {
+          appointmentsUsed: updated.appointmentsUsed ?? 0,
+          toolsUsed: updated.toolsUsed ?? 0,
+          usersActiveCount: updated.usersActiveCount ?? 0,
+          usersBillableCount: updated.usersBillableCount ?? 0,
+          freeAppointmentsLimit: updated.freeAppointmentsLimit ?? 120,
+          freeToolsLimit: updated.freeToolsLimit ?? 200,
+          freeUsersLimit: updated.freeUsersLimit ?? 10,
+          freeLimitReachedAt: updated.freeLimitReachedAt ?? undefined,
+          updatedAt: updated.updatedAt ?? undefined,
+        },
+      });
+    } catch (err) {
+      handleDualWriteError("OrganizationUsageCounter reserve", err);
+    }
+  }
 
   return { orgId, inc };
 };
@@ -434,6 +529,29 @@ const releaseAppointmentUsage = async (reservation: {
   );
 
   await OrgUsageCounters.updateOne({ orgId: reservation.orgId }, { $inc: dec });
+
+  if (shouldDualWrite) {
+    try {
+      const data: Prisma.OrganizationUsageCounterUpdateManyMutationInput = {};
+      if (typeof reservation.inc.appointmentsUsed === "number") {
+        data.appointmentsUsed = {
+          increment: -reservation.inc.appointmentsUsed,
+        };
+      }
+      if (typeof reservation.inc.toolsUsed === "number") {
+        data.toolsUsed = { increment: -reservation.inc.toolsUsed };
+      }
+
+      if (Object.keys(data).length > 0) {
+        await prisma.organizationUsageCounter.updateMany({
+          where: { orgId: reservation.orgId.toString() },
+          data,
+        });
+      }
+    } catch (err) {
+      handleDualWriteError("OrganizationUsageCounter release", err);
+    }
+  }
 };
 
 const toDomain = (doc: AppointmentDocument): Appointment => {
@@ -516,6 +634,58 @@ const toPersistable = (appointment: Appointment): AppointmentMongo => ({
   formIds: appointment.formIds ?? [],
   expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
 });
+
+const toPrismaAppointmentData = (
+  doc: AppointmentDocument | (AppointmentMongo & { _id?: Types.ObjectId }),
+) => {
+  const obj =
+    "toObject" in doc && typeof doc.toObject === "function"
+      ? (doc.toObject() as AppointmentMongo & { _id: Types.ObjectId })
+      : (doc as AppointmentMongo & { _id?: Types.ObjectId });
+
+  if (!obj._id) {
+    throw new AppointmentServiceError("Appointment missing id", 500);
+  }
+
+  return {
+    id: obj._id.toString(),
+    companion: obj.companion as unknown as Prisma.InputJsonValue,
+    lead: (obj.lead ?? undefined) as unknown as Prisma.InputJsonValue,
+    supportStaff: (obj.supportStaff ?? []) as unknown as Prisma.InputJsonValue,
+    room: (obj.room ?? undefined) as unknown as Prisma.InputJsonValue,
+    appointmentType: (obj.appointmentType ?? undefined) as unknown as Prisma.InputJsonValue,
+    organisationId: obj.organisationId,
+    appointmentDate: obj.appointmentDate,
+    startTime: obj.startTime,
+    endTime: obj.endTime,
+    timeSlot: obj.timeSlot,
+    durationMinutes: obj.durationMinutes,
+    status: obj.status,
+    isEmergency: obj.isEmergency ?? false,
+    concern: obj.concern ?? undefined,
+    attachments: (obj.attachments ?? undefined) as unknown as Prisma.InputJsonValue,
+    formIds: obj.formIds ?? [],
+    expiresAt: obj.expiresAt ?? undefined,
+    createdAt: obj.createdAt ?? undefined,
+    updatedAt: obj.updatedAt ?? undefined,
+  };
+};
+
+const syncAppointmentToPostgres = async (
+  doc: AppointmentDocument | (AppointmentMongo & { _id?: Types.ObjectId }),
+) => {
+  if (!shouldDualWrite) return;
+  try {
+    const data = toPrismaAppointmentData(doc);
+    await prisma.appointment.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+  } catch (err) {
+    handleDualWriteError("Appointment", err);
+  }
+};
 
 type DateRangeQuery = {
   $gte?: Date;
@@ -623,6 +793,8 @@ export const AppointmentService = {
       await releaseAppointmentUsage(usageReservation);
       throw error;
     }
+
+    await syncAppointmentToPostgres(savedAppointment);
 
     await AuditTrailService.recordSafely({
       organisationId: appointment.organisationId,
@@ -799,6 +971,8 @@ export const AppointmentService = {
       await session.commitTransaction();
       await session.endSession();
 
+      await syncAppointmentToPostgres(doc);
+
       await AuditTrailService.recordSafely({
         organisationId: appointment.organisationId,
         companionId: appointment.companion.id,
@@ -963,6 +1137,8 @@ export const AppointmentService = {
       await session.commitTransaction();
       await session.endSession();
 
+      await syncAppointmentToPostgres(appointment);
+
       await AuditTrailService.recordSafely({
         organisationId: appointment.organisationId,
         companionId: appointment.companion.id,
@@ -1041,6 +1217,8 @@ export const AppointmentService = {
       await session.commitTransaction();
       await session.endSession();
 
+      await syncAppointmentToPostgres(appointment);
+
       await AuditTrailService.recordSafely({
         organisationId: appointment.organisationId,
         companionId: appointment.companion.id,
@@ -1102,6 +1280,7 @@ export const AppointmentService = {
     // Mark appointment cancelled
     appointment.status = "CANCELLED";
     await appointment.save();
+    await syncAppointmentToPostgres(appointment);
 
     await AuditTrailService.recordSafely({
       organisationId: appointment.organisationId,
@@ -1155,6 +1334,7 @@ export const AppointmentService = {
     appointment.updatedAt = new Date();
 
     await appointment.save();
+    await syncAppointmentToPostgres(appointment);
 
     await AuditTrailService.recordSafely({
       organisationId: appointment.organisationId,
@@ -1285,6 +1465,8 @@ export const AppointmentService = {
       await session.commitTransaction();
       await session.endSession();
 
+      await syncAppointmentToPostgres(appointment);
+
       return toAppointmentResponseDTO(toDomain(appointment));
     } catch (err) {
       await session.abortTransaction();
@@ -1360,6 +1542,7 @@ export const AppointmentService = {
     if (!updated) {
       throw new AppointmentServiceError("Appointment not found", 404);
     }
+    await syncAppointmentToPostgres(updated);
 
     for (const formId of newIds) {
       await AuditTrailService.recordSafely({
@@ -1400,6 +1583,8 @@ export const AppointmentService = {
     appointment.status = "CHECKED_IN";
     appointment.updatedAt = new Date();
     await appointment.save();
+    await syncAppointmentToPostgres(appointment);
+    await syncAppointmentToPostgres(appointment);
 
     await AuditTrailService.recordSafely({
       organisationId: appointment.organisationId,
@@ -1554,6 +1739,8 @@ export const AppointmentService = {
 
       await session.commitTransaction();
       await session.endSession();
+
+      await syncAppointmentToPostgres(existing);
 
       await AuditTrailService.recordSafely({
         organisationId: existing.organisationId,
@@ -1823,6 +2010,23 @@ export const AppointmentService = {
         },
       },
     );
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.appointment.updateMany({
+          where: {
+            status: "UPCOMING",
+            endTime: { lt: cutoffTime },
+          },
+          data: {
+            status: "NO_SHOW",
+            updatedAt: new Date(),
+          },
+        });
+      } catch (err) {
+        handleDualWriteError("Appointment no-show", err);
+      }
+    }
 
     return {
       matched: result.matchedCount,

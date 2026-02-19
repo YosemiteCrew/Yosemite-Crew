@@ -10,6 +10,13 @@ import { ParentModel } from "src/models/parent";
 import { toFHIR as toFHIRCompanion } from "./companion.service";
 import { toFHIR as toFHIRParent } from "./parent.service";
 import { AuditTrailService } from "./audit-trail.service";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import {
+  CompanionOrganisationRole,
+  CompanionOrganisationStatus,
+  OrganisationType,
+} from "@prisma/client";
 
 type BusinessType = "HOSPITAL" | "BREEDER" | "BOARDER" | "GROOMER";
 
@@ -46,6 +53,55 @@ const ensureObjectId = (value: string | Types.ObjectId, field: string) => {
   return new Types.ObjectId(value);
 };
 
+const toPrismaCompanionOrganisationData = (
+  doc: CompanionOrganisationDocument,
+) => {
+  const obj = doc.toObject() as CompanionOrganisationDocument & {
+    _id: Types.ObjectId;
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+
+  return {
+    id: obj._id.toString(),
+    companionId: obj.companionId.toString(),
+    organisationId: obj.organisationId
+      ? obj.organisationId.toString()
+      : undefined,
+    linkedByParentId: obj.linkedByParentId
+      ? obj.linkedByParentId.toString()
+      : undefined,
+    linkedByPmsUserId: obj.linkedByPmsUserId ?? undefined,
+    organisationType: obj.organisationType as OrganisationType,
+    role: obj.role as CompanionOrganisationRole,
+    status: obj.status as CompanionOrganisationStatus,
+    invitedViaEmail: obj.invitedViaEmail ?? undefined,
+    organisationName: obj.organisationName ?? undefined,
+    organisationPlacesId: obj.organisationPlacesId ?? undefined,
+    inviteToken: obj.inviteToken ?? undefined,
+    acceptedAt: obj.acceptedAt ?? undefined,
+    rejectedAt: obj.rejectedAt ?? undefined,
+    createdAt: obj.createdAt ?? undefined,
+    updatedAt: obj.updatedAt ?? undefined,
+  };
+};
+
+const syncCompanionOrganisationToPostgres = async (
+  doc: CompanionOrganisationDocument,
+) => {
+  if (!shouldDualWrite) return;
+  try {
+    const data = toPrismaCompanionOrganisationData(doc);
+    await prisma.companionOrganisation.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+  } catch (err) {
+    handleDualWriteError("CompanionOrganisation", err);
+  }
+};
+
 export const CompanionOrganisationService = {
   async linkByParent({
     parentId,
@@ -79,6 +135,8 @@ export const CompanionOrganisationService = {
       role: "ORGANISATION",
       status: "ACTIVE",
     });
+
+    await syncCompanionOrganisationToPostgres(link);
 
     await AuditTrailService.recordSafely({
       organisationId: org.toString(),
@@ -128,6 +186,8 @@ export const CompanionOrganisationService = {
       status: "PENDING",
     });
 
+    await syncCompanionOrganisationToPostgres(link);
+
     await AuditTrailService.recordSafely({
       organisationId: org.toString(),
       companionId: companion.toString(),
@@ -172,7 +232,7 @@ export const CompanionOrganisationService = {
 
     const token = randomUUID();
 
-    return CompanionOrganisationModel.create({
+    const link = await CompanionOrganisationModel.create({
       companionId: companion,
       linkedByParentId: parent,
       invitedViaEmail: email,
@@ -184,6 +244,9 @@ export const CompanionOrganisationService = {
       role: "ORGANISATION",
       status: "PENDING",
     });
+
+    await syncCompanionOrganisationToPostgres(link);
+    return link;
   },
 
   // Validate Invite Token
@@ -230,6 +293,8 @@ export const CompanionOrganisationService = {
 
     await invite.save();
 
+    await syncCompanionOrganisationToPostgres(invite);
+
     await AuditTrailService.recordSafely({
       organisationId: org.toString(),
       companionId: invite.companionId.toString(),
@@ -269,6 +334,8 @@ export const CompanionOrganisationService = {
     invite.inviteToken = null;
 
     await invite.save();
+
+    await syncCompanionOrganisationToPostgres(invite);
 
     await AuditTrailService.recordSafely({
       organisationId: org.toString(),
@@ -331,6 +398,8 @@ export const CompanionOrganisationService = {
       role: "ORGANISATION",
     });
 
+    await syncCompanionOrganisationToPostgres(link);
+
     await AuditTrailService.recordSafely({
       organisationId: org.toString(),
       companionId: companion.toString(),
@@ -354,6 +423,16 @@ export const CompanionOrganisationService = {
 
     if (!link)
       throw new CompanionOrganisationServiceError("Link not found", 404);
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.companionOrganisation.deleteMany({
+          where: { id: link._id.toString() },
+        });
+      } catch (err) {
+        handleDualWriteError("CompanionOrganisation delete", err);
+      }
+    }
 
     await AuditTrailService.recordSafely({
       organisationId: link.organisationId?.toString() ?? "",
@@ -393,6 +472,8 @@ export const CompanionOrganisationService = {
 
     await link.save();
 
+    await syncCompanionOrganisationToPostgres(link);
+
     await AuditTrailService.recordSafely({
       organisationId: link.organisationId?.toString() ?? "",
       companionId: link.companionId.toString(),
@@ -430,6 +511,8 @@ export const CompanionOrganisationService = {
     link.linkedByParentId = parentId;
 
     await link.save();
+
+    await syncCompanionOrganisationToPostgres(link);
 
     await AuditTrailService.recordSafely({
       organisationId: link.organisationId?.toString() ?? "",

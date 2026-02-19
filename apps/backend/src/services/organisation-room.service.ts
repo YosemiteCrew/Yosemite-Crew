@@ -11,6 +11,9 @@ import {
   type OrganisationRoomResponseDTO,
   type OrganisationRoom as OrganisationRoomDomain,
 } from "@yosemite-crew/types";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import { RoomType } from "@prisma/client";
 
 export type OrganisationRoomFHIRPayload = OrganisationRoomRequestDTO;
 
@@ -269,6 +272,42 @@ const resolveIdQuery = (id: unknown): { _id?: string; fhirId?: string } => {
   );
 };
 
+const toPrismaOrganisationRoomData = (doc: OrganisationRoomDocument) => {
+  const obj = doc.toObject() as OrganisationRoomMongo & {
+    _id: Types.ObjectId;
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+
+  return {
+    id: obj._id.toString(),
+    fhirId: obj.fhirId ?? undefined,
+    organisationId: obj.organisationId,
+    name: obj.name,
+    type: obj.type as RoomType,
+    assignedSpecialiteis: obj.assignedSpecialiteis ?? [],
+    assignedStaffs: obj.assignedStaffs ?? [],
+    createdAt: obj.createdAt ?? undefined,
+    updatedAt: obj.updatedAt ?? undefined,
+  };
+};
+
+const syncOrganisationRoomToPostgres = async (
+  doc: OrganisationRoomDocument,
+) => {
+  if (!shouldDualWrite) return;
+  try {
+    const data = toPrismaOrganisationRoomData(doc);
+    await prisma.organisationRoom.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+  } catch (err) {
+    handleDualWriteError("OrganisationRoom", err);
+  }
+};
+
 export const OrganisationRoomService = {
   async create(payload: OrganisationRoomFHIRPayload) {
     const { persistable, attributes } = createPersistableFromFHIR(payload);
@@ -292,6 +331,8 @@ export const OrganisationRoomService = {
       created = true;
     }
 
+    await syncOrganisationRoomToPostgres(document);
+
     const response = buildFHIRResponse(document);
     return { response, created };
   },
@@ -309,6 +350,8 @@ export const OrganisationRoomService = {
     if (!document) {
       return null;
     }
+
+    await syncOrganisationRoomToPostgres(document);
 
     return buildFHIRResponse(document);
   },
@@ -335,6 +378,16 @@ export const OrganisationRoomService = {
         500,
       );
     }
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.organisationRoom.deleteMany({
+          where: { organisationId: orgId },
+        });
+      } catch (err) {
+        handleDualWriteError("OrganisationRoom deleteAllByOrganizationId", err);
+      }
+    }
   },
 
   async delete(id: string) {
@@ -346,6 +399,16 @@ export const OrganisationRoomService = {
 
     if (!document) {
       return null;
+    }
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.organisationRoom.deleteMany({
+          where: { id: document._id.toString() },
+        });
+      } catch (err) {
+        handleDualWriteError("OrganisationRoom delete", err);
+      }
     }
 
     return buildFHIRResponse(document);

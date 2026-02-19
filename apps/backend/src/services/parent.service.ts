@@ -11,10 +11,13 @@ import {
   type ParentRequestDTO,
   type Parent,
 } from "@yosemite-crew/types";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 import { AuthUserMobileService } from "./authUserMobile.service";
 import { buildS3Key, moveFile } from "src/middlewares/upload";
 import logger from "src/utils/logger";
 import escapeStringRegexp from "escape-string-regexp";
+import { ParentCreatedFrom } from "@prisma/client";
 
 export class ParentServiceError extends Error {
   constructor(
@@ -68,6 +71,89 @@ const computeProfileCompletion = (p: ParentMongo | ParentDocument) => {
     p.birthDate &&
     p.address,
   );
+};
+
+const toPrismaParentData = (doc: ParentDocument) => {
+  const obj = doc.toObject() as ParentMongo & {
+    _id: Types.ObjectId;
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+
+  return {
+    id: obj._id.toString(),
+    firstName: obj.firstName,
+    lastName: obj.lastName ?? undefined,
+    birthDate: obj.birthDate ?? undefined,
+    email: obj.email,
+    phoneNumber: obj.phoneNumber ?? undefined,
+    currency: obj.currency ?? undefined,
+    profileImageUrl: obj.profileImageUrl ?? undefined,
+    isProfileComplete: obj.isProfileComplete ?? false,
+    linkedUserId: obj.linkedUserId ? obj.linkedUserId.toString() : undefined,
+    createdFrom: obj.createdFrom as ParentCreatedFrom,
+    createdAt: obj.createdAt ?? undefined,
+    updatedAt: obj.updatedAt ?? undefined,
+  };
+};
+
+const syncParentAddressToPostgres = async (
+  parentId: string,
+  address: ParentMongo["address"] | undefined,
+) => {
+  if (!shouldDualWrite) return;
+
+  if (!address) {
+    try {
+      await prisma.parentAddress.deleteMany({ where: { parentId } });
+    } catch (err) {
+      handleDualWriteError("ParentAddress delete", err);
+    }
+    return;
+  }
+
+  try {
+    await prisma.parentAddress.upsert({
+      where: { parentId },
+      create: {
+        parentId,
+        addressLine: address.addressLine ?? undefined,
+        country: address.country ?? undefined,
+        city: address.city ?? undefined,
+        state: address.state ?? undefined,
+        postalCode: address.postalCode ?? undefined,
+        latitude: address.latitude ?? undefined,
+        longitude: address.longitude ?? undefined,
+      },
+      update: {
+        addressLine: address.addressLine ?? undefined,
+        country: address.country ?? undefined,
+        city: address.city ?? undefined,
+        state: address.state ?? undefined,
+        postalCode: address.postalCode ?? undefined,
+        latitude: address.latitude ?? undefined,
+        longitude: address.longitude ?? undefined,
+      },
+    });
+  } catch (err) {
+    handleDualWriteError("ParentAddress", err);
+  }
+};
+
+const syncParentToPostgres = async (doc: ParentDocument) => {
+  if (!shouldDualWrite) return;
+  try {
+    const data = toPrismaParentData(doc);
+    await prisma.parent.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+    const obj = doc.toObject() as ParentMongo & { _id: Types.ObjectId };
+    await syncParentAddressToPostgres(data.id, obj.address);
+  } catch (err) {
+    handleDualWriteError("Parent", err);
+  }
 };
 
 /** Convert FHIR DTO → persistable Mongo object */
@@ -160,6 +246,8 @@ export const ParentService = {
 
     await doc.save();
 
+    await syncParentToPostgres(doc);
+
     const parentId = doc._id.toString();
 
     if (ctx.source === "mobile" && ctx.authUserId) {
@@ -226,6 +314,8 @@ export const ParentService = {
     doc.isProfileComplete = computeProfileCompletion(doc);
     await doc.save();
 
+    await syncParentToPostgres(doc);
+
     return {
       response: toFHIR(doc),
       isProfileComplete: doc.isProfileComplete ?? false,
@@ -250,6 +340,17 @@ export const ParentService = {
 
     const doc = await ParentModel.findOneAndDelete(query);
     if (!doc) return null;
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.parent.deleteMany({ where: { id: doc._id.toString() } });
+        await prisma.parentAddress.deleteMany({
+          where: { parentId: doc._id.toString() },
+        });
+      } catch (err) {
+        handleDualWriteError("Parent delete", err);
+      }
+    }
 
     return toFHIR(doc);
   },

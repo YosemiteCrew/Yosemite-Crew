@@ -4,6 +4,9 @@ import BaseAvailabilityModel, {
   type AvailabilitySlotMongo,
 } from "../models/base-availability";
 import type { UserAvailability, DayOfWeek } from "@yosemite-crew/types";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import { Prisma } from "@prisma/client";
 
 export class BaseAvailabilityServiceError extends Error {
   constructor(
@@ -233,6 +236,33 @@ const buildDomainAvailability = (
   });
 };
 
+const syncBaseAvailabilityToPostgres = async (
+  userId: string,
+  availability: BaseAvailabilityMongo[],
+) => {
+  if (!shouldDualWrite) return;
+  try {
+    await prisma.baseAvailability.deleteMany({ where: { userId } });
+    if (availability.length) {
+      const rows = availability
+        .filter((entry) => !!entry.organisationId)
+        .map((entry) => ({
+          userId,
+          organisationId: entry.organisationId as string,
+          dayOfWeek: entry.dayOfWeek as DayOfWeek,
+          slots: entry.slots as unknown as Prisma.InputJsonValue,
+        }));
+
+      if (!rows.length) return;
+      await prisma.baseAvailability.createMany({
+        data: rows,
+      });
+    }
+  } catch (err) {
+    handleDualWriteError("BaseAvailability", err);
+  }
+};
+
 export type CreateBaseAvailabilityPayload = {
   userId: unknown;
   availability: unknown;
@@ -345,6 +375,7 @@ export const BaseAvailabilityService = {
     }
 
     const documents = await BaseAvailabilityModel.insertMany(availability);
+    await syncBaseAvailabilityToPostgres(userId, availability);
 
     const domain = documents.map((doc) => buildDomainAvailability(doc));
     return sortByDayOrder(domain);
@@ -361,6 +392,7 @@ export const BaseAvailabilityService = {
 
     await BaseAvailabilityModel.deleteMany({ userId: identifier });
     const documents = await BaseAvailabilityModel.insertMany(availability);
+    await syncBaseAvailabilityToPostgres(identifier, availability);
 
     const domain = documents.map((doc) => buildDomainAvailability(doc));
     return sortByDayOrder(domain);

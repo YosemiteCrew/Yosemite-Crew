@@ -1,8 +1,49 @@
 import admin from "firebase-admin";
+import { NotificationType } from "@prisma/client";
 import logger from "src/utils/logger";
 import { NotificationPayload } from "src/utils/notificationTemplates";
 import { DeviceTokenService } from "./deviceToken.service";
 import { NotificationModel } from "src/models/notification";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+
+const createNotificationRecord = async (input: {
+  userId: string;
+  title: string;
+  body: string;
+  type: string;
+}) => {
+  const doc = await NotificationModel.create({
+    userId: input.userId,
+    title: input.title,
+    body: input.body,
+    type: input.type,
+    enabled: true,
+    isSeen: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+
+  if (shouldDualWrite) {
+    try {
+      await prisma.notification.create({
+        data: {
+          id: doc._id.toString(),
+          userId: input.userId,
+          title: input.title,
+          body: input.body,
+          type: input.type as NotificationType,
+          enabled: true,
+          isSeen: false,
+          createdAt: doc.createdAt ?? undefined,
+          updatedAt: doc.updatedAt ?? undefined,
+        },
+      });
+    } catch (err) {
+      handleDualWriteError("Notification", err);
+    }
+  }
+};
 
 export type Platform = "ANDROID" | "IOS" | "WEB";
 
@@ -156,15 +197,11 @@ export const NotificationService = {
       );
       results.push(result);
 
-      NotificationModel.insertOne({
+      void createNotificationRecord({
         userId,
         title: payload.title,
         body: payload.body,
-        type: payload.type,
-        enabled: true,
-        isSeen: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        type: payload.type ?? "GENERAL",
       }).catch((err) => {
         logger.error(
           `Failed to log notification for user ${userId}: ${
@@ -228,5 +265,16 @@ export const NotificationService = {
 
     notification.isSeen = true;
     await notification.save();
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.notification.updateMany({
+          where: { id: notification._id.toString() },
+          data: { isSeen: true },
+        });
+      } catch (err) {
+        handleDualWriteError("Notification markAsSeen", err);
+      }
+    }
   },
 };
