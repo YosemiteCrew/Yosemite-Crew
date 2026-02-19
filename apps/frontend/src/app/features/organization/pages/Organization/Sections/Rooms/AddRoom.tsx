@@ -11,6 +11,7 @@ import { useSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
 import { createRoom } from "@/app/features/organization/services/roomService";
 import LabelDropdown from "@/app/ui/inputs/Dropdown/LabelDropdown";
 import Close from "@/app/ui/primitives/Icons/Close";
+import { useNotify } from "@/app/hooks/useNotify";
 
 type AddRoomProps = {
   showModal: boolean;
@@ -28,6 +29,7 @@ const INITIAL_FORM_DATA: OrganisationRoom = {
 
 const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
   const teams = useTeamForPrimaryOrg();
+  const { notify } = useNotify();
   const specialities = useSpecialitiesForPrimaryOrg();
   const [formData, setFormData] = useState<OrganisationRoom>(INITIAL_FORM_DATA);
   const [formDataErrors, setFormDataErrors] = useState<{
@@ -40,7 +42,7 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
         label: team.name || team.practionerId,
         value: team.practionerId,
       })),
-    [teams]
+    [teams],
   );
 
   const SpecialitiesOptions = useMemo(
@@ -49,7 +51,7 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
         label: speciality.name,
         value: speciality._id || speciality.name,
       })),
-    [specialities]
+    [specialities],
   );
 
   const handleSave = async () => {
@@ -61,11 +63,19 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
     }
     try {
       await createRoom(formData);
+      notify("success", {
+        title: "Room created",
+        text: "Room has been created successfully.",
+      });
       setShowModal(false);
       setFormData(INITIAL_FORM_DATA);
       setFormDataErrors({});
     } catch (error) {
       console.log(error);
+      notify("error", {
+        title: "Unable to create room",
+        text: "Failed to create room. Please try again.",
+      });
     }
   };
 
@@ -129,11 +139,7 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
               />
             </div>
           </Accordion>
-          <Primary
-            href="#"
-            text="Save"
-            onClick={handleSave}
-          />
+          <Primary href="#" text="Save" onClick={handleSave} />
         </div>
       </div>
     </Modal>

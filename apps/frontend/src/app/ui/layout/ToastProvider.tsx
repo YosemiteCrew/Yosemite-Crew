@@ -1,7 +1,7 @@
 "use client";
 
 import { Slide, ToastContainer } from "react-toastify";
-import "react-toastify/ReactToastify.css";
+import "react-toastify/dist/ReactToastify.css";
 
 const ToastProvider = () => {
   return (

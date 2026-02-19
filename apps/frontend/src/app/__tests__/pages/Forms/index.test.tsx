@@ -185,7 +185,7 @@ describe("Forms Page", () => {
     // Verify Guards
     expect(screen.getByTestId("protected-route")).toBeInTheDocument();
     expect(screen.getByTestId("org-guard")).toBeInTheDocument();
-    expect(screen.getByText("Forms")).toBeInTheDocument();
+    expect(screen.getByText("Templates")).toBeInTheDocument();
 
     // Verify Load Effect
     await waitFor(() => {

@@ -36,9 +36,31 @@ jest.mock("@/app/ui/overlays/Modal", () => ({
   default: ({ showModal, children }: any) => (showModal ? <div>{children}</div> : null),
 }));
 
+jest.mock("@/app/ui/overlays/Modal/CenterModal", () => ({
+  __esModule: true,
+  default: ({ showModal, children }: any) => (showModal ? <div>{children}</div> : null),
+}));
+
 jest.mock("@/app/ui/primitives/Icons/Close", () => ({
   __esModule: true,
   default: () => <div />,
+}));
+
+jest.mock("@/app/ui/primitives/Buttons/Delete", () => ({
+  __esModule: true,
+  default: ({ onClick, text }: any) => (
+    <button type="button" onClick={onClick}>
+      {text}
+    </button>
+  ),
+}));
+
+jest.mock("@/app/ui/primitives/Buttons", () => ({
+  Secondary: ({ onClick, text }: any) => (
+    <button type="button" onClick={onClick}>
+      {text}
+    </button>
+  ),
 }));
 
 const accordionCalls: any[] = [];
@@ -95,6 +117,7 @@ describe("SpecialityInfo modal", () => {
     );
 
     fireEvent.click(screen.getByText("delete"));
+    fireEvent.click(screen.getByText("Delete"));
     await accordionCalls[0].onSave({
       name: "Updated",
       headName: "team-1",

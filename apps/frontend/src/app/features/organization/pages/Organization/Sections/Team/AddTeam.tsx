@@ -2,7 +2,10 @@ import Accordion from "@/app/ui/primitives/Accordion/Accordion";
 import FormInput from "@/app/ui/inputs/FormInput/FormInput";
 import Modal from "@/app/ui/overlays/Modal";
 import React, { useMemo, useState } from "react";
-import { EmploymentTypes, RoleOptions } from "@/app/features/organization/pages/Organization/types";
+import {
+  EmploymentTypes,
+  RoleOptions,
+} from "@/app/features/organization/pages/Organization/types";
 import { Primary } from "@/app/ui/primitives/Buttons";
 import SelectLabel from "@/app/ui/inputs/SelectLabel";
 import { useSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
@@ -15,6 +18,7 @@ import MultiSelectDropdown from "@/app/ui/inputs/MultiSelectDropdown";
 import { useSubscriptionCounterUpdate } from "@/app/hooks/useStripeOnboarding";
 import { useCanMoreForPrimaryOrg } from "@/app/hooks/useBilling";
 import { IoIosWarning } from "react-icons/io";
+import { useNotify } from "@/app/hooks/useNotify";
 
 type AddTeamProps = {
   showModal: boolean;
@@ -30,6 +34,7 @@ const initialData = {
 
 const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
   const specialities = useSpecialitiesForPrimaryOrg();
+  const { notify } = useNotify();
   const { refetch: refetchData } = useSubscriptionCounterUpdate();
   const { canMore, reason } = useCanMoreForPrimaryOrg("users");
   const [formData, setFormData] = useState<TeamFormDataType>(initialData);
@@ -70,10 +75,18 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
     try {
       await sendInvite(formData);
       await refetchData();
+      notify("success", {
+        title: "Invite sent",
+        text: "Invite has been sent successfully.",
+      });
       setShowModal(false);
       setFormData(initialData);
     } catch (error) {
       console.log(error);
+      notify("error", {
+        title: "Unable to send invite",
+        text: "Failed to send invite. Please try again.",
+      });
     }
   };
 

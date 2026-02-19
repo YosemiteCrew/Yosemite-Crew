@@ -20,6 +20,7 @@ type UserCalendarProps = {
   handleViewAppointment: any;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   handleRescheduleAppointment: any;
+  handleChangeStatusAppointment?: any;
   canEditAppointments: boolean;
 };
 
@@ -28,6 +29,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   date,
   handleViewAppointment,
   handleRescheduleAppointment,
+  handleChangeStatusAppointment,
   setCurrentDate,
   canEditAppointments,
 }) => {
@@ -106,6 +108,9 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                           dayIndex={index}
                           handleViewAppointment={handleViewAppointment}
                           handleRescheduleAppointment={handleRescheduleAppointment}
+                          handleChangeStatusAppointment={
+                            handleChangeStatusAppointment
+                          }
                           length={team.length - 1}
                           canEditAppointments={canEditAppointments}
                         />

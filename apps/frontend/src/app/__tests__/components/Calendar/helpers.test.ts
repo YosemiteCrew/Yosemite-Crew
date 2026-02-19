@@ -174,10 +174,10 @@ describe("Calendar Helpers", () => {
       } as Appointment;
 
       const res = computeVerticalPositionPx(event, windowStart, windowEnd);
-      // Start steps: (630 - 600) / 5 = 6 steps. 6 * 25px = 150px
-      // Duration: 60 mins / 5 = 12 steps. 12 * 25px = 300px
-      expect(res.topPx).toBe(150);
-      expect(res.heightPx).toBe(300);
+      // Start steps: (630 - 600) / 5 = 6 steps.
+      // Duration: 60 mins / 5 = 12 steps.
+      expect(res.topPx).toBe(6 * PIXELS_PER_STEP);
+      expect(res.heightPx).toBe(12 * PIXELS_PER_STEP);
     });
 
     it("clamps event extending beyond window boundaries", () => {
@@ -252,8 +252,10 @@ describe("Calendar Helpers", () => {
 
   describe("getTotalWindowHeightPx", () => {
     it("calculates height based on steps", () => {
-      // 120 mins = 24 steps. 24 * 25px = 600px.
-      expect(getTotalWindowHeightPx(0, 120)).toBe(600);
+      // 120 mins = 24 steps.
+      expect(getTotalWindowHeightPx(0, 120)).toBe(
+        (120 / MINUTES_PER_STEP) * PIXELS_PER_STEP,
+      );
     });
   });
 
@@ -279,7 +281,7 @@ describe("Calendar Helpers", () => {
 
       // Window 10:00 (600) to 11:00 (660)
       // 10:05 is 605 mins.
-      // (605 - 600) / 5 = 1 step. 1 * 25px = 25px.
+      // (605 - 600) / 5 = 1 step.
       expect(getNowTopPxForWindow(targetDate, 600, 660)).toBe(PIXELS_PER_STEP);
     });
 
@@ -290,8 +292,10 @@ describe("Calendar Helpers", () => {
 
       // Window 9:00 (540) to 10:00 (600)
       // Current time 720 is > 600. Should return windowEnd logic.
-      // Clamped to 600. (600 - 540) / 5 = 12 steps. 12 * 25 = 300.
-      expect(getNowTopPxForWindow(targetDate, 540, 600)).toBe(300);
+      // Clamped to 600. (600 - 540) / 5 = 12 steps.
+      expect(getNowTopPxForWindow(targetDate, 540, 600)).toBe(
+        (60 / MINUTES_PER_STEP) * PIXELS_PER_STEP,
+      );
     });
   });
 

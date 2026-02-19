@@ -21,14 +21,6 @@ jest.mock("@/app/lib/appointments", () => ({
   allowReschedule: jest.fn(() => true),
 }));
 
-jest.mock("@/app/ui/primitives/Buttons", () => ({
-  Secondary: ({ text, onClick }: any) => (
-    <button type="button" onClick={onClick}>
-      {text}
-    </button>
-  ),
-}));
-
 describe("AppointmentCard", () => {
   const handleViewAppointment = jest.fn();
   const handleRescheduleAppointment = jest.fn();
@@ -86,8 +78,8 @@ describe("AppointmentCard", () => {
       />
     );
 
-    fireEvent.click(screen.getByText("View"));
-    fireEvent.click(screen.getByText("Reschedule"));
+    fireEvent.click(screen.getByTitle("View"));
+    fireEvent.click(screen.getByTitle("Reschedule"));
 
     expect(handleViewAppointment).toHaveBeenCalledWith(appointment);
     expect(handleRescheduleAppointment).toHaveBeenCalledWith(appointment);
@@ -105,6 +97,6 @@ describe("AppointmentCard", () => {
 
     expect(screen.getByText("Accept")).toBeInTheDocument();
     expect(screen.getByText("Cancel")).toBeInTheDocument();
-    expect(screen.queryByText("View")).not.toBeInTheDocument();
+    expect(screen.queryByTitle("View")).not.toBeInTheDocument();
   });
 });

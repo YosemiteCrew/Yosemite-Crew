@@ -5,11 +5,14 @@ import Header from "@/app/features/appointments/components/Calendar/common/Heade
 import WeekCalendar from "@/app/features/appointments/components/Calendar/common/WeekCalendar";
 import { Appointment } from "@yosemite-crew/types";
 import UserCalendar from "@/app/features/appointments/components/Calendar/common/UserCalendar";
+import { AppointmentViewIntent } from "@/app/features/appointments/types/calendar";
 
 type AppointmentCalendarProps = {
   filteredList: Appointment[];
   setActiveAppointment?: (inventory: Appointment) => void;
   setViewPopup?: (open: boolean) => void;
+  setViewIntent?: (intent: AppointmentViewIntent | null) => void;
+  setChangeStatusPopup?: (open: boolean) => void;
   activeCalendar: string;
   currentDate: Date;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
@@ -23,6 +26,8 @@ const AppointmentCalendar = ({
   filteredList,
   setActiveAppointment,
   setViewPopup,
+  setViewIntent,
+  setChangeStatusPopup,
   activeCalendar,
   currentDate,
   setCurrentDate,
@@ -31,14 +36,23 @@ const AppointmentCalendar = ({
   setReschedulePopup,
   canEditAppointments
 }: AppointmentCalendarProps) => {
-  const handleViewAppointment = (appointment: Appointment) => {
+  const handleViewAppointment = (
+    appointment: Appointment,
+    intent?: AppointmentViewIntent,
+  ) => {
     setActiveAppointment?.(appointment);
+    setViewIntent?.(intent ?? null);
     setViewPopup?.(true);
   };
 
   const handleRescheduleAppointment = (appointment: Appointment) => {
     setActiveAppointment?.(appointment);
     setReschedulePopup?.(true);
+  };
+
+  const handleChangeStatusAppointment = (appointment: Appointment) => {
+    setActiveAppointment?.(appointment);
+    setChangeStatusPopup?.(true);
   };
 
   const dayEvents = useMemo(
@@ -58,6 +72,7 @@ const AppointmentCalendar = ({
           date={currentDate}
           handleViewAppointment={handleViewAppointment}
           handleRescheduleAppointment={handleRescheduleAppointment}
+          handleChangeStatusAppointment={handleChangeStatusAppointment}
           setCurrentDate={setCurrentDate}
           canEditAppointments={canEditAppointments}
         />
@@ -68,6 +83,7 @@ const AppointmentCalendar = ({
           date={currentDate}
           handleViewAppointment={handleViewAppointment}
           handleRescheduleAppointment={handleRescheduleAppointment}
+          handleChangeStatusAppointment={handleChangeStatusAppointment}
           weekStart={weekStart}
           setWeekStart={setWeekStart}
           setCurrentDate={setCurrentDate}
@@ -80,6 +96,7 @@ const AppointmentCalendar = ({
           date={currentDate}
           handleViewAppointment={handleViewAppointment}
           handleRescheduleAppointment={handleRescheduleAppointment}
+          handleChangeStatusAppointment={handleChangeStatusAppointment}
           setCurrentDate={setCurrentDate}
           canEditAppointments={canEditAppointments}
         />

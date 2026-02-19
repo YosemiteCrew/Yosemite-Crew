@@ -17,7 +17,11 @@ import { usePrimaryOrgProfile } from "@/app/hooks/useProfiles";
 import { Gender, UserProfile } from "@/app/features/users/types/profile";
 import { upsertUserProfile } from "@/app/features/organization/services/profileService";
 import { GenderOptions } from "@/app/features/companions/types/companion";
-import { EmploymentTypes, RoleOptions } from "@/app/features/organization/pages/Organization/types";
+import {
+  EmploymentTypes,
+  RoleOptions,
+} from "@/app/features/organization/pages/Organization/types";
+import { useNotify } from "@/app/hooks/useNotify";
 
 const ProfessionalFields = [
   {
@@ -109,7 +113,7 @@ const OrgRelatedFields = [
     required: false,
     editable: false,
     type: "select",
-    options: RoleOptions
+    options: RoleOptions,
   },
   {
     label: "Employment type",
@@ -117,7 +121,7 @@ const OrgRelatedFields = [
     required: false,
     editable: false,
     type: "select",
-    options: EmploymentTypes
+    options: EmploymentTypes,
   },
   {
     label: "Gender",
@@ -153,6 +157,7 @@ const OrgRelatedFields = [
 const OrgSection = () => {
   const { org, membership } = usePrimaryOrgWithMembership();
   const { availabilities } = usePrimaryAvailability();
+  const { notify } = useNotify();
   const profile = usePrimaryOrgProfile();
   const [availability, setAvailability] = useState<AvailabilityState>(
     daysOfWeek.reduce<AvailabilityState>((acc, day) => {
@@ -168,7 +173,7 @@ const OrgSection = () => {
         intervals: [{ ...DEFAULT_INTERVAL }],
       };
       return acc;
-    }, {} as AvailabilityState)
+    }, {} as AvailabilityState),
   );
   const [overides, setOverides] = useState<ApiOverrides[]>([]);
 
@@ -182,7 +187,7 @@ const OrgSection = () => {
       phoneNumber: profile?.personalDetails?.phoneNumber ?? "",
       country: profile?.personalDetails?.address?.country ?? "",
     }),
-    [org, membership, profile]
+    [org, membership, profile],
   );
 
   const addressData = useMemo(
@@ -192,7 +197,7 @@ const OrgSection = () => {
       city: profile?.personalDetails?.address?.city ?? "",
       postalCode: profile?.personalDetails?.address?.postalCode ?? "",
     }),
-    [profile]
+    [profile],
   );
 
   const professionalData = useMemo(
@@ -205,7 +210,7 @@ const OrgSection = () => {
       qualification: profile?.professionalDetails?.qualification ?? "",
       biography: profile?.professionalDetails?.biography ?? "",
     }),
-    [profile]
+    [profile],
   );
 
   useEffect(() => {
@@ -222,8 +227,16 @@ const OrgSection = () => {
         return;
       }
       await upsertAvailability(converted, null);
+      notify("success", {
+        title: "Availability updated",
+        text: "Availability have been updated successfully.",
+      });
     } catch (error) {
       console.log(error);
+      notify("error", {
+        title: "Unable to update availability details",
+        text: "Failed to update availability details. Please try again.",
+      });
     }
   };
 
@@ -247,8 +260,16 @@ const OrgSection = () => {
         },
       };
       await upsertUserProfile(payload);
+      notify("success", {
+        title: "Personal details updated",
+        text: "Personal details have been updated successfully.",
+      });
     } catch (error) {
       console.log(error);
+      notify("error", {
+        title: "Unable to update personal details",
+        text: "Failed to update personal details. Please try again.",
+      });
     }
   };
 
@@ -270,8 +291,16 @@ const OrgSection = () => {
         },
       };
       await upsertUserProfile(payload);
+      notify("success", {
+        title: "Address details updated",
+        text: "Address details have been updated successfully.",
+      });
     } catch (error) {
       console.log(error);
+      notify("error", {
+        title: "Unable to update address details",
+        text: "Failed to update address details. Please try again.",
+      });
     }
   };
 
@@ -292,8 +321,16 @@ const OrgSection = () => {
         },
       };
       await upsertUserProfile(payload);
+      notify("success", {
+        title: "Professional details updated",
+        text: "Professional details have been updated successfully.",
+      });
     } catch (error) {
       console.log(error);
+      notify("error", {
+        title: "Unable to update professional details",
+        text: "Failed to update professional details. Please try again.",
+      });
     }
   };
 
@@ -319,9 +356,7 @@ const OrgSection = () => {
       />
       <div className="border border-card-border rounded-2xl">
         <div className="px-6! py-3! border-b border-b-card-border flex items-center justify-between">
-          <div className="text-body-3 text-text-primary">
-            Availability
-          </div>
+          <div className="text-body-3 text-text-primary">Availability</div>
         </div>
         <div className="flex flex-col px-6! py-6! gap-6">
           <Availability
@@ -331,11 +366,7 @@ const OrgSection = () => {
             setOverides={setOverides}
           />
           <div className="w-full flex justify-end!">
-            <Primary
-              href="#"
-              text="Save"
-              onClick={handleClick}
-            />
+            <Primary href="#" text="Save" onClick={handleClick} />
           </div>
         </div>
       </div>

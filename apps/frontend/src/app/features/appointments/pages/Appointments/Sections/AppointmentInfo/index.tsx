@@ -51,6 +51,7 @@ import SigningOverlay from "@/app/ui/overlays/SigningOverlay";
 import ParentTask from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Tasks/ParentTask";
 import { useServicesForPrimaryOrgSpecialities } from "@/app/hooks/useSpecialities";
 import { useSigningOverlayStore } from "@/app/stores/signingOverlayStore";
+import { AppointmentViewIntent } from "@/app/features/appointments/types/calendar";
 
 const formatValue = (
   field: FormField,
@@ -631,6 +632,7 @@ type AppoitmentInfoProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
   activeAppointment: Appointment | null;
+  initialViewIntent?: AppointmentViewIntent | null;
 };
 
 export type ServiceEdit = Service & {
@@ -712,6 +714,7 @@ const AppoitmentInfo = ({
   showModal,
   setShowModal,
   activeAppointment,
+  initialViewIntent,
 }: AppoitmentInfoProps) => {
   const { can } = usePermissions();
   const canEdit = can(PERMISSIONS.PRESCRIPTION_EDIT_OWN);
@@ -784,6 +787,21 @@ const AppoitmentInfo = ({
   }, [allForms, orgType]);
 
   const labels = getLabelsForOrgType(orgType, hospitalLabels);
+
+  useEffect(() => {
+    if (!showModal || !initialViewIntent) return;
+    const targetLabel = labels.find((label) => label.key === initialViewIntent.label);
+    if (!targetLabel) return;
+    setActiveLabel(targetLabel.key as LabelKey);
+    const hasTargetSubLabel = initialViewIntent.subLabel
+      ? targetLabel.labels.some((label: { key: string }) => label.key === initialViewIntent.subLabel)
+      : false;
+    setActiveSubLabel(
+      hasTargetSubLabel
+        ? (initialViewIntent.subLabel as string)
+        : targetLabel.labels[0]?.key ?? "",
+    );
+  }, [showModal, initialViewIntent, labels]);
 
   const COMPONENT_MAP: Record<string, Record<string, React.FC<any>>> = {
     info: {

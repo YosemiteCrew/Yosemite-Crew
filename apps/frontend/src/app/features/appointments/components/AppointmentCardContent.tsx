@@ -11,7 +11,9 @@ type AppointmentCardContentProps = {
   appointment: Appointment;
 };
 
-export const AppointmentCompanionHeader = ({ appointment }: AppointmentCardContentProps) => (
+export const AppointmentCompanionHeader = ({
+  appointment,
+}: AppointmentCardContentProps) => (
   <div className="flex gap-2 items-center">
     <Image
       alt=""
@@ -32,7 +34,9 @@ export const AppointmentCompanionHeader = ({ appointment }: AppointmentCardConte
   </div>
 );
 
-export const AppointmentDetails = ({ appointment }: AppointmentCardContentProps) => (
+export const AppointmentDetails = ({
+  appointment,
+}: AppointmentCardContentProps) => (
   <>
     <AppointmentDetailField
       label="Breed / Species"
@@ -43,7 +47,10 @@ export const AppointmentDetails = ({ appointment }: AppointmentCardContentProps)
       value={`${formatDateLabel(appointment.appointmentDate)} / ${formatTimeLabel(appointment.startTime)}`}
     />
     <AppointmentDetailField label="Reason" value={appointment.concern} />
-    <AppointmentDetailField label="Service" value={appointment.appointmentType?.name} />
+    <AppointmentDetailField
+      label="Service"
+      value={appointment.appointmentType?.name}
+    />
     <AppointmentDetailField label="Room" value={appointment.room?.name} />
     <AppointmentDetailField label="Lead" value={appointment.lead?.name} />
     <AppointmentDetailField
@@ -53,16 +60,26 @@ export const AppointmentDetails = ({ appointment }: AppointmentCardContentProps)
   </>
 );
 
-export const AppointmentStatusBadge = ({ appointment }: AppointmentCardContentProps) => (
-  <div
-    style={getStatusStyle(appointment.status)}
-    className="w-full rounded-2xl h-12 flex items-center justify-center text-body-4"
-  >
-    {toTitle(appointment.status)}
-  </div>
-);
+export const AppointmentStatusBadge = ({
+  appointment,
+}: AppointmentCardContentProps) => {
+  const displayStatus =
+    appointment.status === "NO_PAYMENT" || appointment.status === "REQUESTED"
+      ? "REQUESTED"
+      : appointment.status;
+  return (
+    <div
+      style={getStatusStyle(displayStatus)}
+      className="w-full rounded-2xl h-12 flex items-center justify-center text-body-4"
+    >
+      {toTitle(displayStatus)}
+    </div>
+  );
+};
 
-const AppointmentCardContent = ({ appointment }: AppointmentCardContentProps) => (
+const AppointmentCardContent = ({
+  appointment,
+}: AppointmentCardContentProps) => (
   <>
     <AppointmentCompanionHeader appointment={appointment} />
     <AppointmentDetails appointment={appointment} />

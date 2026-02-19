@@ -22,8 +22,15 @@ jest.mock("@/app/lib/urls", () => ({
   getSafeImageUrl: jest.fn(() => "image"),
 }));
 
-jest.mock("react-icons/io", () => ({
-  IoIosCalendar: () => <span>reschedule</span>,
+jest.mock("react-icons/io5", () => ({
+  IoEyeOutline: () => <span>view</span>,
+  IoCalendarOutline: () => <span>reschedule</span>,
+  IoDocumentTextOutline: () => <span>soap</span>,
+  IoCardOutline: () => <span>finance</span>,
+}));
+
+jest.mock("react-icons/md", () => ({
+  MdOutlineAutorenew: () => <span>change-status</span>,
 }));
 
 describe("Slot (Appointments)", () => {
@@ -34,6 +41,10 @@ describe("Slot (Appointments)", () => {
   const event: any = {
     status: "in_progress",
     startTime: new Date("2025-01-06T09:00:00Z"),
+    endTime: new Date("2025-01-06T10:00:00Z"),
+    concern: "Checkup",
+    lead: { name: "Dr. Lee" },
+    appointmentType: { name: "Exam" },
     companion: { name: "Rex", species: "dog" },
   };
 
@@ -90,8 +101,10 @@ describe("Slot (Appointments)", () => {
 
     expect(handleViewAppointment).toHaveBeenCalledWith(event);
 
-    const rescheduleButton = screen.getByText("reschedule").closest("button");
-    fireEvent.click(rescheduleButton!);
+    fireEvent.mouseEnter(viewButton);
+
+    const rescheduleButton = screen.getByTitle(/reschedule/i);
+    fireEvent.click(rescheduleButton);
 
     expect(handleRescheduleAppointment).toHaveBeenCalledWith(event);
 
