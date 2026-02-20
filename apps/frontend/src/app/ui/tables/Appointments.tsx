@@ -3,7 +3,12 @@ import GenericTable from "@/app/ui/tables/GenericTable/GenericTable";
 import Image from "next/image";
 import { FaCheckCircle } from "react-icons/fa";
 import { IoIosCloseCircle, IoIosCalendar } from "react-icons/io";
-import { IoEye } from "react-icons/io5";
+import {
+  IoEyeOutline,
+  IoCardOutline,
+  IoDocumentTextOutline,
+} from "react-icons/io5";
+import { MdOutlineAutorenew } from "react-icons/md";
 import AppointmentCard from "@/app/ui/cards/AppointmentCard";
 import { Appointment } from "@yosemite-crew/types";
 import { formatDateLabel, formatTimeLabel } from "@/app/lib/forms";
@@ -15,6 +20,8 @@ import {
 import { toTitle } from "@/app/lib/validators";
 import { allowReschedule } from "@/app/lib/appointments";
 import { getStatusStyle } from "@/app/config/statusConfig";
+import { AppointmentViewIntent } from "@/app/features/appointments/types/calendar";
+import { useOrgStore } from "@/app/stores/orgStore";
 
 import "./DataTable.css";
 import { getSafeImageUrl, ImageType } from "@/app/lib/urls";
@@ -30,7 +37,9 @@ type AppointmentTableProps = {
   filteredList: Appointment[];
   setActiveAppointment?: (appointment: Appointment) => void;
   setViewPopup?: React.Dispatch<React.SetStateAction<boolean>>;
+  setViewIntent?: (intent: AppointmentViewIntent | null) => void;
   setReschedulePopup?: React.Dispatch<React.SetStateAction<boolean>>;
+  setChangeStatusPopup?: React.Dispatch<React.SetStateAction<boolean>>;
   canEditAppointments: boolean;
   small?: boolean;
 };
@@ -39,18 +48,46 @@ const Appointments = ({
   filteredList,
   setActiveAppointment,
   setViewPopup,
+  setViewIntent,
   setReschedulePopup,
+  setChangeStatusPopup,
   canEditAppointments,
   small = false,
 }: AppointmentTableProps) => {
-  const handleViewAppointment = (appointment: Appointment) => {
+  const orgsById = useOrgStore((s) => s.orgsById);
+
+  const getSoapViewIntent = (
+    appointment: Appointment,
+  ): AppointmentViewIntent => {
+    const orgType =
+      (appointment.organisationId &&
+        orgsById[appointment.organisationId]?.type) ||
+      "HOSPITAL";
+
+    if (orgType === "HOSPITAL") {
+      return { label: "prescription", subLabel: "subjective" };
+    }
+
+    return { label: "care", subLabel: "forms" };
+  };
+
+  const handleViewAppointment = (
+    appointment: Appointment,
+    intent?: AppointmentViewIntent,
+  ) => {
     setActiveAppointment?.(appointment);
+    setViewIntent?.(intent ?? null);
     setViewPopup?.(true);
   };
 
   const handleRescheduleAppointment = (appointment: Appointment) => {
     setActiveAppointment?.(appointment);
     setReschedulePopup?.(true);
+  };
+
+  const handleChangeStatusAppointment = (appointment: Appointment) => {
+    setActiveAppointment?.(appointment);
+    setChangeStatusPopup?.(true);
   };
 
   const handleAcceptAppointment = async (appointment: Appointment) => {
@@ -225,17 +262,49 @@ const Appointments = ({
               <button
                 onClick={() => handleViewAppointment(item)}
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                title="View"
               >
-                <IoEye size={20} color="#302F2E" />
+                <IoEyeOutline size={20} color="#302F2E" />
               </button>
+              {canEditAppointments && (
+                <button
+                  onClick={() => handleChangeStatusAppointment(item)}
+                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                  title="Change status"
+                >
+                  <MdOutlineAutorenew size={18} color="#302F2E" />
+                </button>
+              )}
               {canEditAppointments && allowReschedule(item.status) && (
                 <button
                   onClick={() => handleRescheduleAppointment(item)}
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                  title="Reschedule"
                 >
                   <IoIosCalendar size={18} color="#302F2E" />
                 </button>
               )}
+              <button
+                onClick={() =>
+                  handleViewAppointment(item, getSoapViewIntent(item))
+                }
+                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                title="SOAP"
+              >
+                <IoDocumentTextOutline size={18} color="#302F2E" />
+              </button>
+              <button
+                onClick={() =>
+                  handleViewAppointment(item, {
+                    label: "finance",
+                    subLabel: "summary",
+                  })
+                }
+                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                title="Finance"
+              >
+                <IoCardOutline size={18} color="#302F2E" />
+              </button>
             </div>
           )}
         </div>
@@ -268,7 +337,9 @@ const Appointments = ({
               key={"key-appointment" + i}
               appointment={item}
               handleViewAppointment={handleViewAppointment}
+              getSoapViewIntent={getSoapViewIntent}
               handleRescheduleAppointment={handleRescheduleAppointment}
+              handleChangeStatusAppointment={handleChangeStatusAppointment}
               canEditAppointments={canEditAppointments}
             />
           ));

@@ -11,12 +11,14 @@ import OrgGuard from "@/app/ui/layout/guards/OrgGuard";
 import { useAppointmentsForPrimaryOrg } from "@/app/hooks/useAppointments";
 import { Appointment } from "@yosemite-crew/types";
 import Reschedule from "@/app/features/appointments/pages/Appointments/Sections/Reschedule";
+import ChangeStatus from "@/app/features/appointments/pages/Appointments/Sections/ChangeStatus";
 import { useSearchStore } from "@/app/stores/searchStore";
 import Filters from "@/app/ui/filters/Filters";
 import {
   AppointmentFilters,
   AppointmentStatusFiltersUI,
 } from "@/app/features/appointments/types/appointments";
+import { AppointmentViewIntent } from "@/app/features/appointments/types/calendar";
 import { usePermissions } from "@/app/hooks/usePermissions";
 import { PERMISSIONS } from "@/app/lib/permissions";
 import { PermissionGate } from "@/app/ui/layout/guards/PermissionGate";
@@ -31,7 +33,9 @@ const Appointments = () => {
   const [activeStatus, setActiveStatus] = useState("all");
   const [addPopup, setAddPopup] = useState(false);
   const [viewPopup, setViewPopup] = useState(false);
+  const [viewIntent, setViewIntent] = useState<AppointmentViewIntent | null>(null);
   const [reschedulePopup, setReschedulePopup] = useState(false);
+  const [changeStatusPopup, setChangeStatusPopup] = useState(false);
   const [activeAppointment, setActiveAppointment] =
     useState<Appointment | null>(appointments[0] ?? null);
   const [activeCalendar, setActiveCalendar] = useState("week");
@@ -42,6 +46,12 @@ const Appointments = () => {
   useEffect(() => {
     setWeekStart(getStartOfWeek(currentDate));
   }, [currentDate, activeCalendar]);
+
+  useEffect(() => {
+    if (!viewPopup) {
+      setViewIntent(null);
+    }
+  }, [viewPopup]);
 
   useEffect(() => {
     setActiveAppointment((prev) => {
@@ -109,6 +119,8 @@ const Appointments = () => {
                 filteredList={filteredList}
                 setActiveAppointment={setActiveAppointment}
                 setViewPopup={setViewPopup}
+                setViewIntent={setViewIntent}
+                setChangeStatusPopup={setChangeStatusPopup}
                 activeCalendar={activeCalendar}
                 currentDate={currentDate}
                 setCurrentDate={setCurrentDate}
@@ -122,7 +134,9 @@ const Appointments = () => {
                 filteredList={filteredList}
                 setActiveAppointment={setActiveAppointment}
                 setViewPopup={setViewPopup}
+                setViewIntent={setViewIntent}
                 setReschedulePopup={setReschedulePopup}
+                setChangeStatusPopup={setChangeStatusPopup}
                 canEditAppointments={canEditAppointments}
               />
             )}
@@ -139,12 +153,20 @@ const Appointments = () => {
               showModal={viewPopup}
               setShowModal={setViewPopup}
               activeAppointment={activeAppointment}
+              initialViewIntent={viewIntent}
             />
           )}
           {canEditAppointments && activeAppointment && (
             <Reschedule
               showModal={reschedulePopup}
               setShowModal={setReschedulePopup}
+              activeAppointment={activeAppointment}
+            />
+          )}
+          {canEditAppointments && activeAppointment && (
+            <ChangeStatus
+              showModal={changeStatusPopup}
+              setShowModal={setChangeStatusPopup}
               activeAppointment={activeAppointment}
             />
           )}

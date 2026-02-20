@@ -104,7 +104,7 @@ export const updateDocument = async (document: OrganizationDocument) => {
   }
 };
 
-export const deleteRoom = async (room: OrganizationDocument) => {
+export const deleteDocument = async (room: OrganizationDocument) => {
   const { removeDocument } = useOrganizationDocumentStore.getState();
   try {
     const id = room._id;
