@@ -1,0 +1,20 @@
+# Copy this file to `apps/mobileAppYC/android/gradle.properties` and fill values.
+# Do not commit the real `gradle.properties` with secrets.
+
+# Gradle performance / stability
+org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+UseG1GC -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
+org.gradle.parallel=true
+org.gradle.caching=true
+
+# React Native Android flags
+android.useAndroidX=true
+android.enableJetifier=true
+newArchEnabled=true
+hermesEnabled=true
+
+# Release signing (required for release/bundle/publish tasks)
+# Use absolute path if possible to avoid path issues.
+YC_RELEASE_STORE_FILE=/absolute/path/to/my-release-key.keystore
+YC_RELEASE_STORE_PASSWORD=replace_with_store_password
+YC_RELEASE_KEY_ALIAS=replace_with_key_alias
+YC_RELEASE_KEY_PASSWORD=replace_with_key_password
