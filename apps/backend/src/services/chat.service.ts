@@ -281,6 +281,7 @@ export const ChatService = {
       getChatWindowFromAppointment(appointment);
 
     session = await ChatSessionModel.create({
+      type: "APPOINTMENT",
       appointmentId,
       channelId,
       organisationId: orgId,

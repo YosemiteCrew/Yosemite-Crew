@@ -83,6 +83,9 @@ const fieldAliases: Record<string, Record<string, string>> = {
   Parent: {
     address: "__skip__",
   },
+  Document: {
+    attachments: "__skip__",
+  },
 };
 
 const toIdString = (value: unknown): unknown => {

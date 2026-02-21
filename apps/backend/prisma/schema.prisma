@@ -122,6 +122,12 @@ enum OrganizationType {
   GROOMER
 }
 
+enum PetNamePreference {
+  COMPANION
+  ANIMAL
+  PATIENT
+}
+
 enum UserProfileStatus {
   DRAFT
   COMPLETED
@@ -393,6 +399,7 @@ model Organization {
   dunsNumber                  String?
   imageUrl                    String?
   type                        OrganizationType
+  petNamePreference           PetNamePreference? @default(COMPANION)
   phoneNo                     String
   website                     String?
   documensoTeamId             String?

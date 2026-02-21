@@ -10,6 +10,7 @@ export interface Organisation {
     DUNSNumber?: string
     imageURL?: string
     type: 'HOSPITAL' | 'BREEDER' | 'BOARDER' | 'GROOMER'
+    petNamePreference?: 'COMPANION' | 'ANIMAL' | 'PATIENT'
     phoneNo: string
     website?: string
     address?: Address
@@ -47,6 +48,8 @@ const TYPE_SYSTEM = 'http://example.org/fhir/CodeSystem/organisation-type'
 const GOOGLE_PLACE_ID_EXTENSION_URL = 'https://yosemitecrew.com/fhir/StructureDefinition/google-place-id'
 const STRIPE_ACCOUNT_ID_EXTENSION_URL =
     'https://yosemitecrew.com/fhir/StructureDefinition/stripe-account-id'
+const PET_NAME_PREFERENCE_EXTENSION_URL =
+    'https://yosemitecrew.com/fhir/StructureDefinition/pet-name-preference'
 
 const ORGANISATION_TYPE_CODING_MAP: Record<Organisation['type'], { code: string; display: string }> = {
     HOSPITAL: { code: 'hospital', display: 'Hospital' },
@@ -178,6 +181,13 @@ const buildExtensions = (organisation: Organisation): FHIROrganization['extensio
         })
     }
 
+    if (organisation.petNamePreference) {
+        extensions.push({
+            url: PET_NAME_PREFERENCE_EXTENSION_URL,
+            valueString: organisation.petNamePreference,
+        })
+    }
+
     return extensions.length ? extensions : undefined
 }
 
@@ -249,6 +259,18 @@ const extractImageUrl = (extensions: FHIROrganization['extension']): string | un
 const extractStringExtension = (extensions: FHIROrganization['extension'], url: string): string | undefined =>
     extensions?.find((extension) => extension.url === url)?.valueString
 
+const extractPetNamePreference = (
+    extensions: FHIROrganization['extension']
+): Organisation['petNamePreference'] | undefined => {
+    const value = extractStringExtension(extensions, PET_NAME_PREFERENCE_EXTENSION_URL)
+
+    if (value === 'COMPANION' || value === 'ANIMAL' || value === 'PATIENT') {
+        return value
+    }
+
+    return undefined
+}
+
 const extractType = (resource: FHIROrganization): Organisation['type'] => {
     const coding = resource.type?.[0]?.coding?.[0]
 
@@ -287,6 +309,7 @@ export const fromFHIROrganisation = (resource: FHIROrganization): Organisation =
         fireAndEmergencyCertNo: extractStringExtension(extensions, FIRE_EMERGENCY_CERT_EXTENSION_URL),
         googlePlacesId: extractStringExtension(extensions, GOOGLE_PLACE_ID_EXTENSION_URL),
         stripeAccountId: extractStringExtension(extensions, STRIPE_ACCOUNT_ID_EXTENSION_URL),
+        petNamePreference: extractPetNamePreference(extensions),
     }
 }
 

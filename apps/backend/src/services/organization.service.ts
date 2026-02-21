@@ -48,6 +48,11 @@ const ORGANIZATION_TYPES = new Set<Organisation["type"]>([
   "BOARDER",
   "GROOMER",
 ]);
+const PET_NAME_PREFERENCES = new Set<Organisation["petNamePreference"]>([
+  "COMPANION",
+  "ANIMAL",
+  "PATIENT",
+]);
 
 const toPrismaOrganizationData = (doc: OrganizationDocument) => {
   const obj = doc.toObject() as OrganizationMongo & {
@@ -64,6 +69,7 @@ const toPrismaOrganizationData = (doc: OrganizationDocument) => {
     dunsNumber: obj.DUNSNumber ?? undefined,
     imageUrl: obj.imageURL ?? undefined,
     type: obj.type as OrganizationType,
+    petNamePreference: obj.petNamePreference ?? undefined,
     phoneNo: obj.phoneNo,
     website: obj.website ?? undefined,
     documensoTeamId: obj.documensoTeamId ?? undefined,
@@ -340,6 +346,29 @@ const optionalSafeString = (
   return trimmed;
 };
 
+const optionalPetNamePreference = (
+  value: unknown,
+): Organisation["petNamePreference"] | undefined => {
+  if (value == null) {
+    return undefined;
+  }
+
+  if (typeof value !== "string") {
+    throw new OrganizationServiceError("Pet name preference must be a string.", 400);
+  }
+
+  const trimmed = value.trim().toUpperCase();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  if (!PET_NAME_PREFERENCES.has(trimmed as Organisation["petNamePreference"])) {
+    throw new OrganizationServiceError("Invalid pet name preference.", 400);
+  }
+
+  return trimmed as Organisation["petNamePreference"];
+};
+
 const optionalNumber = (
   value: unknown,
   fieldName: string,
@@ -485,6 +514,7 @@ const sanitizeBusinessAttributes = (
     dto.googlePlacesId ?? extras.googlePlacesId,
     "Google Places ID",
   );
+  const petNamePreference = optionalPetNamePreference(dto.petNamePreference);
 
   return {
     fhirId: ensureSafeIdentifier(dto.id),
@@ -493,6 +523,7 @@ const sanitizeBusinessAttributes = (
     DUNSNumber,
     imageURL,
     type,
+    petNamePreference,
     phoneNo,
     website,
     address,
@@ -524,6 +555,7 @@ const buildFHIRResponse = (
     DUNSNumber: rest.DUNSNumber,
     imageURL: rest.imageURL,
     type: coerceOrganizationType(rest.type),
+    petNamePreference: rest.petNamePreference,
     phoneNo: rest.phoneNo ?? "",
     website: rest.website,
     address: rest.address
