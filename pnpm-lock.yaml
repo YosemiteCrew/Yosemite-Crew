@@ -672,6 +672,9 @@ importers:
       ui-react-native:
         specifier: 'link: @aws-amplify/ui-react-native'
         version: 'link: @aws-amplify/ui-react-native'
+      use-sync-external-store:
+        specifier: ^1.6.0
+        version: 1.6.0(react@19.1.0)
       uuid:
         specifier: 9.0.1
         version: 9.0.1
@@ -21698,7 +21701,7 @@ packages:
       pretty-format: 29.7.0
       slash: 3.0.0
       strip-json-comments: 3.1.1
-      ts-node: 10.9.2(@types/node@22.19.11)(typescript@5.0.4)
+      ts-node: 10.9.2(@types/node@20.19.33)(typescript@5.9.3)
     transitivePeerDependencies:
       - babel-plugin-macros
       - supports-color
