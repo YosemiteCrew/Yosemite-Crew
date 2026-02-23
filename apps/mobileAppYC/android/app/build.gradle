@@ -87,7 +87,19 @@ def resolveReleaseProp(String name, Object defaultValue = null) {
 def isReleaseSigningRequired() {
     def taskNames = gradle.startParameter.taskNames.collect { it.toLowerCase() }
     return taskNames.any { task ->
-        task.contains("release") || task.contains("publish") || task.contains("bundle")
+        // Generic aggregate tasks can produce release artifacts.
+        if (task == "assemble" || task == "build") {
+            return true
+        }
+
+        // Explicit release artifact tasks (e.g., assembleRelease, bundleProdRelease, publishReleaseBundle).
+        def isArtifactTask = task.contains("assemble") ||
+            task.contains("bundle") ||
+            task.contains("publish") ||
+            task.contains("package") ||
+            task.contains("install")
+
+        return isArtifactTask && task.contains("release")
     }
 }
 
