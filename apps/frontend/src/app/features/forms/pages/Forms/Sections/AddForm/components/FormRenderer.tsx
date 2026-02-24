@@ -56,6 +56,7 @@ type FormRendererProps = {
   values: Record<string, any>;
   onChange: (id: string, value: any) => void;
   readOnly?: boolean;
+  depth?: number;
 };
 
 export const FormRenderer: React.FC<FormRendererProps> = ({
@@ -63,7 +64,52 @@ export const FormRenderer: React.FC<FormRendererProps> = ({
   values,
   onChange,
   readOnly = false,
+  depth = 0,
 }) => {
+  const getInteractiveTarget = (target: EventTarget | null): HTMLElement | null => {
+    if (!(target instanceof HTMLElement)) return null;
+    return target.closest(
+      "input, textarea, select, button, a, [tabindex], [contenteditable='true']"
+    ) as HTMLElement | null;
+  };
+
+  const preventReadOnlyFocus: React.PointerEventHandler<HTMLDivElement> = (e) => {
+    if (!readOnly) return;
+    const interactive = getInteractiveTarget(e.target);
+    if (!interactive) return;
+    e.preventDefault();
+    interactive.blur?.();
+  };
+
+  const handleReadOnlyFocusCapture: React.FocusEventHandler<HTMLDivElement> = (e) => {
+    if (!readOnly) return;
+    const interactive = getInteractiveTarget(e.target);
+    if (!interactive) return;
+    interactive.blur?.();
+  };
+
+  const isMedicationLikeGroup = (field: FormField): boolean =>
+    Boolean(field.meta?.medicationGroup || field.meta?.medicineId) ||
+    /medication|medications/i.test(field.id ?? "");
+
+  const getGroupContainerClass = (level: number, medicationGroup: boolean): string => {
+    if (level === 0) {
+      return "rounded-2xl border border-card-border bg-white px-4 py-4";
+    }
+    if (medicationGroup) {
+      return "rounded-xl border border-card-border bg-white px-3 py-3";
+    }
+    if (level === 1) {
+      return "rounded-xl border border-grey-light bg-white px-3 py-3";
+    }
+    return "rounded-lg border-l-2 border-card-border bg-white px-3 py-2";
+  };
+
+  const getGroupTitleClass = (level: number): string =>
+    level <= 1
+      ? "font-grotesk text-black-text text-[18px] font-medium"
+      : "font-grotesk text-black-text text-[16px] font-medium";
+
   const labelForField = (field: FormField): string => {
     const label = (field.label ?? "").trim();
     const id = field.id ?? "";
@@ -73,16 +119,21 @@ export const FormRenderer: React.FC<FormRendererProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-3">
+    <div
+      className="flex flex-col gap-3"
+      onPointerDownCapture={preventReadOnlyFocus}
+      onFocusCapture={handleReadOnlyFocusCapture}
+    >
       {fields.map((field) => {
         const fieldWithLabel = { ...field, label: labelForField(field) } as FormField;
         if (field.type === "group") {
+          const medicationGroup = isMedicationLikeGroup(field);
           return (
             <div
               key={field.id}
-              className="border border-grey-light rounded-md px-3 py-3 flex flex-col gap-3"
+              className={`${getGroupContainerClass(depth, medicationGroup)} flex flex-col gap-3`}
             >
-              <div className="font-grotesk text-black-text text-[18px] font-medium">
+              <div className={getGroupTitleClass(depth)}>
                 {fieldWithLabel.label || "Group"}
               </div>
               <FormRenderer
@@ -90,6 +141,7 @@ export const FormRenderer: React.FC<FormRendererProps> = ({
                 values={values}
                 onChange={onChange}
                 readOnly={readOnly}
+                depth={depth + 1}
               />
             </div>
           );

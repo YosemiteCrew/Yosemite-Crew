@@ -17,6 +17,7 @@ interface AccordionButtonProps {
   buttonClick?: any;
   showButton?: boolean;
   finance?: boolean;
+  keepMounted?: boolean;
 }
 
 type PaddingArgs = {
@@ -33,11 +34,9 @@ const getAccordionPaddingYClass = ({
   showButton,
 }: PaddingArgs): string => {
   if (finance) {
-    if (plan === "free") {
-      return "py-2";
-    }
-    if (plan === "business" && hasCustomerId) {
-      return "py-2";
+    // Keep finance accordions visually aligned with other sections.
+    if (plan === "free" || (plan === "business" && hasCustomerId)) {
+      return "py-[20px]";
     }
   }
   if (showButton) {
@@ -54,6 +53,7 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
   buttonClick,
   showButton = true,
   finance = false,
+  keepMounted = false,
 }) => {
   const subscription = useSubscriptionForPrimaryOrg();
   const { can } = usePermissions();
@@ -144,7 +144,11 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
         </div>
       </div>
 
-      {open && <div className={``}>{children}</div>}
+      {(open || keepMounted) && (
+        <div className={!open ? "hidden" : ""} aria-hidden={!open}>
+          {children}
+        </div>
+      )}
     </div>
   );
 };

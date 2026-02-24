@@ -1,4 +1,5 @@
 export { default as DeleteOrg } from "@/app/features/organization/pages/Organization/Sections/DeleteOrg";
+export { default as DocumentESigning } from "@/app/features/organization/pages/Organization/Sections/DocumentESigning";
 export { default as Documents } from "@/app/features/organization/pages/Organization/Sections/Documents/Documents";
 export { default as Payment } from "@/app/features/organization/pages/Organization/Sections/Payment";
 export { default as Profile } from "@/app/features/organization/pages/Organization/Sections/Profile";

@@ -10,6 +10,8 @@ import Fallback from "@/app/ui/overlays/Fallback";
 import { useCurrencyForPrimaryOrg } from "@/app/hooks/useBilling";
 import { formatMoney } from "@/app/lib/money";
 import { toNumberSafe } from "@/app/lib/validators";
+import { useInvoicesForPrimaryOrgAppointment } from "@/app/hooks/useInvoices";
+import InvoicePaymentActions from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Finance/InvoicePaymentActions";
 
 const AppointmentFields = [
   { label: "Service", key: "service", type: "text" },
@@ -37,6 +39,50 @@ const Summary = ({
   setFormData,
 }: SummaryProps) => {
   const currency = useCurrencyForPrimaryOrg();
+  const invoices = useInvoicesForPrimaryOrgAppointment(activeAppointment.id);
+
+  const latestInvoice = useMemo(() => {
+    if (!invoices.length) return undefined;
+    return [...invoices].sort((a, b) => {
+      const aTime = new Date(a.createdAt ?? 0).getTime();
+      const bTime = new Date(b.createdAt ?? 0).getTime();
+      return bTime - aTime;
+    })[0];
+  }, [invoices]);
+
+  const payableInvoice = useMemo(
+    () =>
+      [...invoices]
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt ?? 0).getTime() -
+            new Date(a.createdAt ?? 0).getTime(),
+        )
+        .find((inv) => inv.status !== "PAID"),
+    [invoices],
+  );
+
+  const totals = useMemo(() => {
+    if (!invoices.length) {
+      return {
+        subtotal: toNumberSafe(formData.subTotal),
+        discount: toNumberSafe(formData.discount),
+        tax: toNumberSafe(formData.tax),
+        total: toNumberSafe(formData.total),
+      };
+    }
+    return invoices.reduce(
+      (acc, inv) => ({
+        subtotal: acc.subtotal + toNumberSafe(inv.subtotal),
+        discount: acc.discount + toNumberSafe(inv.discountTotal),
+        tax: acc.tax + toNumberSafe(inv.taxTotal),
+        total: acc.total + toNumberSafe(inv.totalAmount),
+      }),
+      { subtotal: 0, discount: 0, tax: 0, total: 0 },
+    );
+  }, [invoices, formData.subTotal, formData.discount, formData.tax, formData.total]);
+
+  const actionInvoice = payableInvoice ?? latestInvoice;
 
   const AppointmentInfoData = useMemo(
     () => ({
@@ -77,10 +123,10 @@ const Summary = ({
             </div>
             <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
               <div className="text-body-4-emphasis text-text-tertiary">
-                SubTotal:{" "}
+                Subtotal:{" "}
               </div>
               <div className="text-body-4 text-text-primary text-right">
-                {formatMoney(toNumberSafe(formData.subTotal), currency)}
+                {formatMoney(totals.subtotal, currency)}
               </div>
             </div>
             <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
@@ -88,7 +134,7 @@ const Summary = ({
                 Discount:{" "}
               </div>
               <div className="text-body-4 text-text-primary text-right">
-                {formatMoney(toNumberSafe(formData.discount), currency)}
+                {formatMoney(totals.discount, currency)}
               </div>
             </div>
             <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
@@ -96,16 +142,22 @@ const Summary = ({
                 Tax:{" "}
               </div>
               <div className="text-body-4 text-text-primary text-right">
-                {formatMoney(toNumberSafe(formData.tax), currency)}
+                {formatMoney(totals.tax, currency)}
               </div>
             </div>
             <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
               <div className="text-body-4-emphasis text-text-tertiary">
-                Estimatted total:{" "}
+                Estimated total:{" "}
               </div>
               <div className="text-body-4 text-text-primary text-right">
-                {formatMoney(toNumberSafe(formData.total), currency)}
+                {formatMoney(totals.total, currency)}
               </div>
+            </div>
+            <div className="flex flex-col gap-3 mt-3">
+              <InvoicePaymentActions
+                invoiceId={actionInvoice?.id}
+                stripeReceiptUrl={actionInvoice?.stripeReceiptUrl}
+              />
             </div>
             <div className="text-caption-1 text-text-secondary py-2">
               <span className="text-[#247AED]">Note : </span>Yosemite Crew uses

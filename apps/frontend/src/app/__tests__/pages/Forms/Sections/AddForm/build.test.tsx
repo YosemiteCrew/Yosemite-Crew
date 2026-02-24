@@ -275,6 +275,28 @@ describe("Build Component", () => {
     expect(mockOnNext).toHaveBeenCalled();
   });
 
+  it("prevents deleting signature when signer is required", () => {
+    render(
+      <Build
+        formData={{
+          requiredSigner: "VET",
+          schema: [{ id: "sig-1", type: "signature", label: "Signature" }],
+        } as any}
+        setFormData={mockSetFormData}
+        onNext={mockOnNext}
+        serviceOptions={mockServiceOptions}
+      />
+    );
+
+    const beforeDeleteCalls = mockSetFormData.mock.calls.length;
+    fireEvent.click(screen.getByTestId("delete-field"));
+
+    expect(
+      screen.getByText("Cannot remove signature while 'Signed by' is selected.")
+    ).toBeInTheDocument();
+    expect(mockSetFormData.mock.calls.length).toBe(beforeDeleteCalls);
+  });
+
   // --- Section 2: Adding Fields ---
 
   it("adds a simple field via dropdown", () => {

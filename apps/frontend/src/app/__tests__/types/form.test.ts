@@ -15,11 +15,7 @@ describe('Forms Data and Utility Functions', () => {
   it('should verify formsCategories and FormsCategoryOptions are correct', () => {
     const expectedCategories = [
       "Consent form",
-      "SOAP-Subjective",
-      "SOAP-Objective",
-      "SOAP-Assessment",
-      "SOAP-Plan",
-      "Discharge",
+      "Prescription",
       "Boarder - Boarding Checklist",
       "Boarder - Dietary Plan",
       "Boarder - Medication Details",
@@ -121,19 +117,26 @@ describe('Forms Data and Utility Functions', () => {
         expect(CategoryTemplates.Custom).toEqual([]);
     });
 
-    it('should verify SOAP-Subjective template has one required textarea', () => {
-        const template = CategoryTemplates['SOAP-Subjective'];
-        expect(template.length).toBe(1);
-        expect(template[0].id).toBe('subjective_history');
-        expect(template[0].required).toBe(true);
-    });
+    it('should verify Prescription template has merged SOAP + discharge and single signature', () => {
+        const template = CategoryTemplates['Prescription'];
+        const flatten = (fields: any[]): any[] =>
+          fields.flatMap((f) => (f.type === 'group' ? [f, ...flatten(f.fields ?? [])] : [f]));
+        const flat = flatten(template as any[]);
 
-    it('should verify Discharge template fields including date and signature', () => {
-        const template = CategoryTemplates['Discharge'];
-        expect(template.length).toBe(5);
-
-        expect(template.find((f: any) => f.id === 'follow_up')?.type).toBe('date');
-        expect(template.find((f: any) => f.id === 'discharge_signature')?.type).toBe('signature');
+        expect(template.map((f: any) => f.label)).toEqual([
+          'Subjective',
+          'Objective',
+          'Assessment',
+          'Plan',
+          'Discharge summary',
+          'Signature',
+        ]);
+        expect(flat.find((f: any) => f.id === 'subjective_history')?.required).toBe(true);
+        expect(flat.find((f: any) => f.id === 'discharge_summary')?.type).toBe('textarea');
+        expect(flat.find((f: any) => f.id === 'follow_up')?.type).toBe('date');
+        const signatureFields = template.filter((f: any) => f.type === 'signature');
+        expect(signatureFields).toHaveLength(1);
+        expect(signatureFields[0].id).toBe('signature');
     });
   });
 });

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getStatusStyle } from "@/app/config/statusConfig";
 import Image from "next/image";
 import { Appointment } from "@yosemite-crew/types";
@@ -59,6 +59,20 @@ const Slot: React.FC<SlotProps> = ({
     };
   }, [activePopoverKey]);
 
+  const clearCloseTimer = useCallback(() => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  }, []);
+
+  const schedulePopoverClose = useCallback(() => {
+    clearCloseTimer();
+    closeTimerRef.current = setTimeout(() => {
+      setActivePopoverKey(null);
+    }, 120);
+  }, [clearCloseTimer]);
+
   useEffect(() => {
     const dialogEl = popoverDialogRef.current;
     if (!dialogEl || !activePopoverKey) return;
@@ -97,15 +111,15 @@ const Slot: React.FC<SlotProps> = ({
       dialogEl.removeEventListener("touchend", onTouchEnd);
       dialogEl.removeEventListener("keydown", onKeyDown);
     };
-  }, [activePopoverKey]);
+  }, [activePopoverKey, clearCloseTimer, schedulePopoverClose]);
 
   useEffect(() => {
     return () => {
       if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current);
+        clearCloseTimer();
       }
     };
-  }, []);
+  }, [clearCloseTimer]);
 
   const activeEvent = useMemo(
     () =>
@@ -143,20 +157,6 @@ const Slot: React.FC<SlotProps> = ({
       left,
       width: popoverWidth,
     };
-  };
-
-  const clearCloseTimer = () => {
-    if (closeTimerRef.current) {
-      clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = null;
-    }
-  };
-
-  const schedulePopoverClose = () => {
-    clearCloseTimer();
-    closeTimerRef.current = setTimeout(() => {
-      setActivePopoverKey(null);
-    }, 120);
   };
 
   const openPopover = (key: string, target: HTMLButtonElement) => {

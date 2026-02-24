@@ -8,11 +8,15 @@ import {
   FormsCategoryOptions,
   FormsProps,
   RequiredSignerOptions,
-  requiredSignerLabel,
   FormsUsage,
   FormsUsageOptions,
 } from "@/app/features/forms/types/forms";
 import { getCategoryTemplate } from "@/app/lib/forms";
+import {
+  ensureSingleSignatureAtEnd,
+  hasSignatureField,
+  removeSignatureFields,
+} from "@/app/lib/forms";
 import React, { useMemo, useState } from "react";
 import { Organisation } from "@yosemite-crew/types";
 import { useOrgStore } from "@/app/stores/orgStore";
@@ -46,10 +50,10 @@ const Details = ({
   const orgTypeOverride = process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE as Organisation["type"] | undefined;
   const effectiveOrgType = orgTypeOverride || orgType;
   const categoryOptions = useMemo(() => {
-    const base = new Set(["Consent form", "Discharge", "Custom"]);
+    const base = new Set(["Consent form", "Prescription", "Custom"]);
     if (effectiveOrgType === "HOSPITAL") {
       return FormsCategoryOptions.filter(
-        (c) => base.has(c) || c.startsWith("SOAP")
+        (c) => base.has(c)
       );
     }
     if (effectiveOrgType === "BOARDER") {
@@ -76,11 +80,18 @@ const Details = ({
     if (formDataErrors.category) {
       setFormDataErrors((prev) => ({ ...prev, category: undefined }));
     }
+    const template = category && shouldApplyTemplate ? getCategoryTemplate(category) : formData.schema;
+    const normalizedTemplate =
+      category === "Prescription"
+        ? (formData.requiredSigner
+          ? ensureSingleSignatureAtEnd(template ?? [])
+          : removeSignatureFields(template ?? []))
+        : template;
+
     setFormData((prev) => ({
       ...prev,
       category,
-      schema:
-        category && shouldApplyTemplate ? getCategoryTemplate(category) : prev.schema,
+      schema: normalizedTemplate,
     }));
   };
 
@@ -178,7 +189,7 @@ const Details = ({
             />
             <LabelDropdown
               placeholder="Signed by"
-              defaultOption={requiredSignerLabel(formData.requiredSigner)}
+              defaultOption={formData.requiredSigner}
               onSelect={(option) =>
                 {
                   if (formDataErrors.requiredSigner) {
@@ -187,10 +198,22 @@ const Details = ({
                       requiredSigner: undefined,
                     }));
                   }
-                  setFormData((prev) => ({
-                    ...prev,
-                    requiredSigner: option.value as FormsProps["requiredSigner"],
-                  }));
+                  const nextSigner = option.value as FormsProps["requiredSigner"];
+                  setFormData((prev) => {
+                    const next: FormsProps = {
+                      ...prev,
+                      requiredSigner: nextSigner,
+                    };
+                    if (!nextSigner) {
+                      next.schema = removeSignatureFields(next.schema ?? []);
+                    } else if (
+                      next.category === "Prescription" &&
+                      !hasSignatureField(next.schema ?? [])
+                    ) {
+                      next.schema = ensureSingleSignatureAtEnd(next.schema ?? []);
+                    }
+                    return next;
+                  });
                 }
               }
               options={RequiredSignerOptions}

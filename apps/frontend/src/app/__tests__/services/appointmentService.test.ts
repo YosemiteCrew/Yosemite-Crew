@@ -68,7 +68,7 @@ describe("Appointment Service", () => {
   const mockAppointmentStoreUpsertAppointment = jest.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
 
     // Default Store State Setup
     (useAppointmentStore.getState as jest.Mock).mockReturnValue({
@@ -408,26 +408,26 @@ describe("Appointment Service", () => {
   // --- Section 5: acceptAppointment ---
   describe("acceptAppointment", () => {
     it("returns if appointment.id is missing", async () => {
-      mockedPostData.mockResolvedValue({});
+      mockedPatchData.mockResolvedValue({});
       await acceptAppointment(makeBaseAppointment({ id: undefined }));
-      expect(mockedPostData).not.toHaveBeenCalled();
+      expect(mockedPatchData).not.toHaveBeenCalled();
       expect(mockAppointmentStoreUpsertAppointment).not.toHaveBeenCalled();
     });
 
-    it("posts accept route and upserts mapped appointment on success", async () => {
+    it("patches accept route and upserts mapped appointment on success", async () => {
       const appointment = makeBaseAppointment({ id: "appt-acc" });
       const fhirPayload = { fhir: "accept" };
       const returnedDTO = { id: "dto-acc" } as any as AppointmentResponseDTO;
       const returnedAppointment = makeBaseAppointment({ id: "appt-acc", status: "CHECKED_IN" });
 
       mockedToAppointmentDTO.mockReturnValue(fhirPayload);
-      mockedPostData.mockResolvedValue({ data: { data: { appointment: returnedDTO } } });
+      mockedPatchData.mockResolvedValue({ data: { data: { appointment: returnedDTO } } });
       mockedFromAppointmentDTO.mockReturnValue(returnedAppointment);
 
       await acceptAppointment(appointment);
 
-      expect(mockedPostData).toHaveBeenCalledWith(
-        "/fhir/v1/appointment/pms/appt-acc/accept",
+      expect(mockedPatchData).toHaveBeenCalledWith(
+        "/fhir/v1/appointment/pms/org-123/appt-acc/accept",
         fhirPayload
       );
       expect(mockAppointmentStoreUpsertAppointment).toHaveBeenCalledWith(returnedAppointment);
@@ -436,7 +436,7 @@ describe("Appointment Service", () => {
     it("logs error and rethrows on failure", async () => {
       const error = new Error("Accept Error");
       mockedToAppointmentDTO.mockReturnValue({ fhir: "accept" });
-      mockedPostData.mockRejectedValue(error);
+      mockedPatchData.mockRejectedValue(error);
       const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
 
       await expect(acceptAppointment(makeBaseAppointment({ id: "appt-acc2" }))).rejects.toThrow(
@@ -450,26 +450,26 @@ describe("Appointment Service", () => {
   // --- Section 6: cancelAppointment ---
   describe("cancelAppointment", () => {
     it("returns if appointment.id is missing", async () => {
-      mockedPostData.mockResolvedValue({});
+      mockedPatchData.mockResolvedValue({});
       await cancelAppointment(makeBaseAppointment({ id: undefined }));
-      expect(mockedPostData).not.toHaveBeenCalled();
+      expect(mockedPatchData).not.toHaveBeenCalled();
       expect(mockAppointmentStoreUpsertAppointment).not.toHaveBeenCalled();
     });
 
-    it("posts cancel route and upserts mapped appointment on success", async () => {
+    it("patches cancel route and upserts mapped appointment on success", async () => {
       const appointment = makeBaseAppointment({ id: "appt-can" });
       const fhirPayload = { fhir: "cancel" };
       const returnedDTO = { id: "dto-can" } as any as AppointmentResponseDTO;
       const returnedAppointment = makeBaseAppointment({ id: "appt-can", status: "CANCELLED" });
 
       mockedToAppointmentDTO.mockReturnValue(fhirPayload);
-      mockedPostData.mockResolvedValue({ data: { data: { appointment: returnedDTO } } });
+      mockedPatchData.mockResolvedValue({ data: { data: { appointment: returnedDTO } } });
       mockedFromAppointmentDTO.mockReturnValue(returnedAppointment);
 
       await cancelAppointment(appointment);
 
-      expect(mockedPostData).toHaveBeenCalledWith(
-        "/fhir/v1/appointment/pms/appt-can/cancel",
+      expect(mockedPatchData).toHaveBeenCalledWith(
+        "/fhir/v1/appointment/pms/org-123/appt-can/cancel",
         fhirPayload
       );
       expect(mockAppointmentStoreUpsertAppointment).toHaveBeenCalledWith(returnedAppointment);
@@ -478,7 +478,7 @@ describe("Appointment Service", () => {
     it("logs error and rethrows on failure", async () => {
       const error = new Error("Cancel Error");
       mockedToAppointmentDTO.mockReturnValue({ fhir: "cancel" });
-      mockedPostData.mockRejectedValue(error);
+      mockedPatchData.mockRejectedValue(error);
       const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
 
       await expect(cancelAppointment(makeBaseAppointment({ id: "appt-can2" }))).rejects.toThrow(

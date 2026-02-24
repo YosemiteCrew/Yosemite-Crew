@@ -159,10 +159,11 @@ const performAppointmentAction = async (
   }
   try {
     const fhirAppointment = toAppointmentResponseDTO(appointment);
-    const res = await postData<{
+      const { primaryOrgId } = useOrgStore.getState();
+    const res = await patchData<{
       data: { appointment: AppointmentResponseDTO };
     }>(
-      `/fhir/v1/appointment/pms/${appointment.id}/${action}`,
+      `/fhir/v1/appointment/pms/${primaryOrgId}/${appointment.id}/${action}`,
       fhirAppointment,
     );
     const data = res.data.data.appointment;
