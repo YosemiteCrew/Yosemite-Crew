@@ -103,18 +103,57 @@ const extractChannelId = (data: any): string | undefined => {
   );
 };
 
+const STREAM_CHANNEL_TYPES = new Set([
+  'messaging',
+  'team',
+  'livestream',
+  'commerce',
+  'gaming',
+]);
+
+const normalizeChannelType = (value: unknown): string | undefined => {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const normalized = value.trim();
+  if (!normalized) {
+    return undefined;
+  }
+
+  const lower = normalized.toLowerCase();
+  if (STREAM_CHANNEL_TYPES.has(lower)) {
+    return lower;
+  }
+
+  if (lower === 'appointment') {
+    return 'messaging';
+  }
+
+  if (lower === 'org_direct' || lower === 'org_group') {
+    return 'team';
+  }
+
+  // Allow custom Stream channel types while guarding backend session enums.
+  if (/^[a-z0-9_-]+$/.test(lower)) {
+    return lower;
+  }
+
+  return undefined;
+};
+
 const extractChannelType = (data: any): string => {
   const cid = data?.cid ?? data?.channel?.cid ?? data?.session?.cid;
   const cidParts =
     typeof cid === 'string' && cid.includes(':') ? cid.split(':') : null;
 
   return (
-    data?.channelType ??
-    data?.channel_type ??
-    data?.type ??
-    data?.channel?.type ??
-    data?.session?.channelType ??
-    (cidParts?.length === 2 ? cidParts[0] : undefined) ??
+    normalizeChannelType(data?.channelType) ??
+    normalizeChannelType(data?.channel_type) ??
+    normalizeChannelType(data?.type) ??
+    normalizeChannelType(data?.channel?.type) ??
+    normalizeChannelType(data?.session?.channelType) ??
+    normalizeChannelType(cidParts?.length === 2 ? cidParts[0] : undefined) ??
     'messaging'
   );
 };
@@ -153,7 +192,7 @@ export const createOrFetchChatSession = async (
     const headers = await buildHeaders();
 
     const response = await apiClient.post(
-      `${CHAT_BASE_PATH}/sessions/${sessionId}`,
+      `${CHAT_BASE_PATH}/appointments/${sessionId}`,
       undefined,
       {headers},
     );

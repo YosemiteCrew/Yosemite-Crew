@@ -777,7 +777,9 @@ export const appointmentApi = {
       `/fhir/v1/invoice/mobile/appointment/${encodeURIComponent(appointmentId)}`,
       {usePms: true},
     );
-    const {data} = await apiClient.get(url, {headers: withAuthHeaders(accessToken)});
+    const {data} = await apiClient.post(url, undefined, {
+      headers: withAuthHeaders(accessToken),
+    });
     let collection: any[] = [];
     if (Array.isArray(data?.data)) {
       collection = data.data;
