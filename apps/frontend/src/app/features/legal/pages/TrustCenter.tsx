@@ -41,7 +41,7 @@ const TrustCenter = () => {
   };
 
   const handleCopyLink = (id: string) => {
-    const url = `${globalThis.location.origin}/trust-center#${id}`;
+    const url = `${window.location.origin}/trust-center#${id}`;
     navigator.clipboard.writeText(url);
     alert("Link copied to clipboard!");
   };
@@ -49,6 +49,8 @@ const TrustCenter = () => {
   const handleModalClose = () => {
     setIsModalOpen(false);
   };
+
+  // --- Render Helpers ---
 
   const renderCertifications = () => (
     <div className="SectionGrid">
@@ -68,14 +70,38 @@ const TrustCenter = () => {
               width: "60px",
               height: "60px",
               flexShrink: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "2rem",
             }}
           >
-            <Image
-              src={cert.icon}
-              alt={cert.name}
-              fill
-              style={{ objectFit: "contain" }}
-            />
+            {/* Logic:
+              1. If it's a URL (http), render Image.
+              2. If it's text like "US" or "EU" (length <= 2), render as Bold Text.
+              3. Otherwise, render as Emoji.
+            */}
+            {cert.icon.startsWith("http") ? (
+              <Image
+                src={cert.icon}
+                alt={cert.name}
+                fill
+                style={{ objectFit: "contain" }}
+              />
+            ) : cert.icon.length <= 3 ? (
+              <span
+                style={{
+                  fontFamily: "var(--grotesk-font)",
+                  fontWeight: "700",
+                  fontSize: "1.75rem",
+                  color: "var(--color-text-primary)",
+                }}
+              >
+                {cert.icon}
+              </span>
+            ) : (
+              <span style={{ fontSize: "2.5rem" }}>{cert.icon}</span>
+            )}
           </div>
 
           <div style={{ flex: 1, paddingLeft: "20px" }}>
@@ -97,11 +123,15 @@ const TrustCenter = () => {
                 color:
                   cert.status === "Compliant"
                     ? "var(--color-success-600)"
-                    : "var(--color-warning-700)",
+                    : cert.status === "Planned"
+                      ? "var(--color-text-tertiary)"
+                      : "var(--color-warning-700)",
                 background:
                   cert.status === "Compliant"
                     ? "var(--color-success-100)"
-                    : "var(--color-warning-100)",
+                    : cert.status === "Planned"
+                      ? "var(--color-neutral-100)"
+                      : "var(--color-warning-100)",
                 padding: "4px 10px",
                 borderRadius: "100px",
                 display: "inline-block",
@@ -109,6 +139,18 @@ const TrustCenter = () => {
             >
               {cert.status}
             </span>
+            {cert.description && (
+              <p
+                style={{
+                  fontSize: "0.9rem",
+                  color: "var(--color-text-secondary)",
+                  marginTop: "8px",
+                  lineHeight: "1.4",
+                }}
+              >
+                {cert.description}
+              </p>
+            )}
           </div>
         </div>
       ))}
@@ -118,7 +160,18 @@ const TrustCenter = () => {
   const renderResources = () => (
     <div className="ResourceList">
       {resources.map((res) => (
-        <div className="ResourceItem" key={res.title}>
+        <button
+          className="OverviewResourceItem"
+          key={res.title}
+          type="button"
+          onClick={() => (res.locked ? handleRequestAccess(res.title) : null)}
+          style={{
+            width: "100%",
+            border: "none",
+            textAlign: "left",
+            font: "inherit",
+          }}
+        >
           <div>
             <h3
               style={{
@@ -141,30 +194,53 @@ const TrustCenter = () => {
             </span>
           </div>
           <div className="ResourceActions">
-            <button
+            <div
+              role="button"
+              tabIndex={0}
               className="ActionBtn Outline"
-              onClick={() => handleCopyLink(res.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCopyLink(res.id);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.stopPropagation();
+                  handleCopyLink(res.id);
+                }
+              }}
             >
               <FiLink /> Copy link
-            </button>
+            </div>
             {res.locked ? (
-              <button
+              <div
+                role="button"
+                tabIndex={0}
                 className="ActionBtn Filled"
-                onClick={() => handleRequestAccess(res.title)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRequestAccess(res.title);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.stopPropagation();
+                    handleRequestAccess(res.title);
+                  }
+                }}
               >
                 <FiLock /> Request access
-              </button>
+              </div>
             ) : (
               <Link
                 href={res.link || "#"}
                 className="ActionBtn Filled"
                 style={{ textDecoration: "none" }}
+                onClick={(e) => e.stopPropagation()}
               >
                 <FiDownload /> Download
               </Link>
             )}
           </div>
-        </div>
+        </button>
       ))}
     </div>
   );
@@ -222,7 +298,6 @@ const TrustCenter = () => {
       <section className="TrustHeroSec">
         <div className="TrustHeroContainer">
           <div className="TrustHeroSplit">
-            {/* Left Content */}
             <div className="TrustHeroContent">
               <h1 className="TrustHeroTitle">{hero.title}</h1>
               <p className="TrustHeroSubtitle">{hero.subtitle}</p>
@@ -237,7 +312,6 @@ const TrustCenter = () => {
               </div>
             </div>
 
-            {/* Right Image */}
             <div className="TrustHeroImage">
               <Image
                 src="https://d2il6osz49gpup.cloudfront.net/Images/securityTrust.png"
@@ -255,7 +329,6 @@ const TrustCenter = () => {
       {/* 2. TAB NAVIGATION */}
       <div className="TrustNavBarSticky">
         <div className="TrustNavContainer">
-          {/* Fix: Used tab name as key */}
           {tabs.map((tab) => (
             <button
               key={tab}
@@ -278,13 +351,12 @@ const TrustCenter = () => {
                 className="SectionTitle"
                 style={{ margin: 0, marginBottom: "20px" }}
               >
-                Compliance
+                Compliance & Regulations
               </h2>
               {renderCertifications()}
             </div>
             <div className="OverviewSplit">
-              {/* Left Column */}
-              <div>
+              <div className="OverviewLeftCol">
                 <div
                   style={{
                     display: "flex",
@@ -342,7 +414,6 @@ const TrustCenter = () => {
                 </div>
               </div>
 
-              {/* Right Column */}
               <div className="OverviewResourceCard">
                 <div
                   style={{
@@ -377,22 +448,18 @@ const TrustCenter = () => {
 
                 <div style={{ display: "flex", flexDirection: "column" }}>
                   {resources.slice(0, 3).map((res) => (
-                    <div
+                    <button
                       className="OverviewResourceItem"
                       key={res.title}
-                      role="button"
-                      tabIndex={0}
+                      type="button"
                       onClick={() =>
                         res.locked ? handleRequestAccess(res.title) : null
                       }
-                      onKeyDown={(e) => {
-                        if (
-                          res.locked &&
-                          (e.key === "Enter" || e.key === " ")
-                        ) {
-                          e.preventDefault();
-                          handleRequestAccess(res.title);
-                        }
+                      style={{
+                        width: "100%",
+                        border: "none",
+                        textAlign: "left",
+                        font: "inherit",
                       }}
                     >
                       <div>
@@ -421,7 +488,7 @@ const TrustCenter = () => {
                       ) : (
                         <FiDownload style={{ color: "var(--blue-text)" }} />
                       )}
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -478,6 +545,7 @@ const TrustCenter = () => {
           </div>
         )}
 
+        {/* --- OTHER TABS --- */}
         {activeTab === "Resources" && (
           <div>
             <h2 className="SectionTitle" style={{ marginBottom: "30px" }}>
@@ -570,12 +638,8 @@ const TrustCenter = () => {
       {isModalOpen && (
         <div
           className="ModalOverlay"
-          role="button"
-          tabIndex={-1}
+          role="presentation"
           onClick={handleModalClose}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") handleModalClose();
-          }}
         >
           <div
             className="ModalContent"
@@ -663,11 +727,16 @@ const TrustCenter = () => {
             </div>
 
             <div className="ModalFooter">
-              <button className="CancelBtn" onClick={handleModalClose}>
+              <button
+                className="CancelBtn"
+                onClick={handleModalClose}
+                type="button"
+              >
                 Cancel
               </button>
               <button
                 className="SubmitBtn"
+                type="button"
                 onClick={() => {
                   alert("Request sent! Our team will review your credentials.");
                   handleModalClose();

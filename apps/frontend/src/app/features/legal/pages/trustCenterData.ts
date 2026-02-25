@@ -2,7 +2,7 @@ export const trustCenterData = {
   hero: {
     title: "Security, Privacy, and Compliance",
     subtitle:
-      "At Yosemite Crew, protecting your veterinary practice’s data is not just a feature it’s our foundation. We use enterprise-grade security to ensure your data is safe, compliant, and always available.",
+      "At Yosemite Crew, protecting your veterinary practice’s data is not just a feature—it’s our foundation. We use enterprise-grade security to ensure your data is safe, compliant, and always available.",
     lastUpdated: "February 2026",
     email: "support@yosemitecrew.com",
     privacyLink: "/privacy-policy",
@@ -18,15 +18,51 @@ export const trustCenterData = {
     },
     {
       name: "SOC 2 Type I",
-      status: "In Progress",
-      description: "Currently in audit preparation phase.",
+      status: "Compliant",
+      description: "Audited security, availability, and confidentiality controls.",
       icon: "https://d2il6osz49gpup.cloudfront.net/footer/soc-2.png",
     },
     {
       name: "ISO 27001",
-      status: "In Progress",
-      description: "ISMS Framework implemented and active.",
+      status: "Planned",
+      description: "ISMS Framework implementation in progress.",
       icon: "https://d2il6osz49gpup.cloudfront.net/footer/iso.png",
+    },
+    {
+      name: "21 CFR Part 11",
+      status: "Compliant",
+      description: "FDA regulations for electronic records & signatures.",
+      icon: "📜",
+    },
+    {
+      name: "ESIGN Act",
+      status: "Compliant",
+      description: "U.S. federal law ensuring validity of e-signatures.",
+      icon: "🇺🇸",
+    },
+    {
+      name: "UETA",
+      status: "Compliant",
+      description: "U.S. state law for electronic transactions.",
+      icon: "⚖️",
+    },
+    {
+      name: "eIDAS (SES)",
+      status: "Compliant",
+      description: "EU regulation for electronic identification (Level 1).",
+      icon: "🇪🇺",
+    },
+    {
+      name: "ZertES",
+      status: "Planned",
+      description: "Swiss Federal law regulating electronic signatures.",
+      icon: "🇨🇭",
+    },
+    {
+      name: "HIPAA",
+      status: "Planned",
+      description: "Protection for patient health information privacy.",
+      icon: "🏥",
     },
   ],
 
