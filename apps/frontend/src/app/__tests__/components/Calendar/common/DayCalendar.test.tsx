@@ -70,6 +70,17 @@ jest.mock("react-icons/io", () => ({
   IoIosCalendar: () => <span>reschedule</span>,
 }));
 
+jest.mock("react-icons/io5", () => ({
+  IoEyeOutline: () => <span>view</span>,
+  IoCalendarOutline: () => <span>reschedule</span>,
+  IoDocumentTextOutline: () => <span>soap</span>,
+  IoCardOutline: () => <span>finance</span>,
+}));
+
+jest.mock("react-icons/md", () => ({
+  MdOutlineAutorenew: () => <span>change-status</span>,
+}));
+
 describe("DayCalendar (Appointments)", () => {
   const handleViewAppointment = jest.fn();
   const handleRescheduleAppointment = jest.fn();
@@ -165,13 +176,16 @@ describe("DayCalendar (Appointments)", () => {
       />
     );
 
+    const eventButton = screen.getByRole("button", { name: /Rex/i });
+    fireEvent.mouseEnter(eventButton);
+
     expect(screen.getByText("Service:")).toBeInTheDocument();
-    expect(screen.getByText("Grooming")).toBeInTheDocument();
+    expect(screen.getAllByText("Grooming").length).toBeGreaterThan(0);
     expect(screen.getByText("Lead:")).toBeInTheDocument();
     expect(screen.getByText("Dr. Lee")).toBeInTheDocument();
 
-    const rescheduleButton = screen.getByText("reschedule").closest("button");
-    fireEvent.click(rescheduleButton!);
+    const rescheduleButton = screen.getByTitle(/reschedule/i);
+    fireEvent.click(rescheduleButton);
 
     expect(handleRescheduleAppointment).toHaveBeenCalledWith(
       expect.objectContaining({ id: "timed" })

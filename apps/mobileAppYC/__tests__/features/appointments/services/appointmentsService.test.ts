@@ -416,7 +416,7 @@ describe('appointmentsService', () => {
         const { appointmentApi } = getModule();
         const client = getApiClient();
         const rawInvoice = { id: 'i1', appointmentId: 'a1' };
-        client.get.mockResolvedValue({ data: { data: [rawInvoice] } });
+        client.post.mockResolvedValue({ data: { data: [rawInvoice] } });
 
         const result = await appointmentApi.fetchInvoiceForAppointment({ appointmentId: 'a1', accessToken: mockToken });
         expect(result.invoice?.id).toBe('i1');
@@ -425,7 +425,7 @@ describe('appointmentsService', () => {
     it('fetchInvoiceForAppointment returns null if empty', async () => {
         const { appointmentApi } = getModule();
         const client = getApiClient();
-        client.get.mockResolvedValue({ data: [] });
+        client.post.mockResolvedValue({ data: [] });
         const result = await appointmentApi.fetchInvoiceForAppointment({ appointmentId: 'a1', accessToken: mockToken });
         expect(result.invoice).toBeNull();
     });
@@ -434,7 +434,7 @@ describe('appointmentsService', () => {
         const { appointmentApi } = getModule();
         const client = getApiClient();
         const rawInvoice = { id: 'i1' }; // No extensions
-        client.get.mockResolvedValue({ data: { data: [rawInvoice] } });
+        client.post.mockResolvedValue({ data: { data: [rawInvoice] } });
 
         const result = await appointmentApi.fetchInvoiceForAppointment({ appointmentId: 'a1', accessToken: mockToken });
         expect(result.invoice?.id).toBe('i1');

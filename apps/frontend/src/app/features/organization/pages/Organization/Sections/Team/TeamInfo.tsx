@@ -12,6 +12,8 @@ import {
   hasAtLeastOneAvailability,
 } from "@/app/features/appointments/components/Availability/utils";
 import Modal from "@/app/ui/overlays/Modal";
+import CenterModal from "@/app/ui/overlays/Modal/CenterModal";
+import ModalHeader from "@/app/ui/overlays/Modal/ModalHeader";
 import { Team } from "@/app/features/organization/types/team";
 import React, { useEffect, useMemo, useState } from "react";
 import PermissionsEditor, {
@@ -24,13 +26,19 @@ import {
   updateMember,
 } from "@/app/features/organization/services/teamService";
 import Close from "@/app/ui/primitives/Icons/Close";
-import { EmploymentTypes, RoleOptions } from "@/app/features/organization/pages/Organization/types";
+import {
+  EmploymentTypes,
+  RoleOptions,
+} from "@/app/features/organization/pages/Organization/types";
 import { useSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
 import { GenderOptions } from "@/app/features/companions/types/companion";
 import { MdDeleteForever } from "react-icons/md";
 import { Primary } from "@/app/ui/primitives/Buttons";
+import Secondary from "@/app/ui/primitives/Buttons/Secondary";
+import Delete from "@/app/ui/primitives/Buttons/Delete";
 import { useSubscriptionCounterUpdate } from "@/app/hooks/useStripeOnboarding";
 import { upsertTeamAvailability } from "@/app/features/organization/services/availabilityService";
+import { useNotify } from "@/app/hooks/useNotify";
 
 type TeamInfoProps = {
   showModal: boolean;
@@ -105,9 +113,11 @@ const TeamInfo = ({
   canEditTeam,
 }: TeamInfoProps) => {
   const specialities = useSpecialitiesForPrimaryOrg();
+  const { notify } = useNotify();
   const { refetch: refetchData } = useSubscriptionCounterUpdate();
   const [perms, setPerms] = React.useState<Permission[]>([]);
   const [role, setRole] = useState<RoleCode | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [availability, setAvailability] = useState<AvailabilityState>(
     daysOfWeek.reduce<AvailabilityState>((acc, day) => {
       const isWeekday =
@@ -169,6 +179,12 @@ const TeamInfo = ({
     };
   }, [showModal, activeTeam]);
 
+  useEffect(() => {
+    if (!showModal) {
+      setShowDeleteModal(false);
+    }
+  }, [showModal]);
+
   const orgInfoData = useMemo(
     () => ({
       role: activeTeam?.role ?? "",
@@ -219,10 +235,23 @@ const TeamInfo = ({
     try {
       await removeMember(activeTeam);
       await refetchData();
+      notify("success", {
+        title: "Team member deleted",
+        text: "Team member has been deleted successfully.",
+      });
+      setShowDeleteModal(false);
       setShowModal(false);
     } catch (error) {
       console.log(error);
+      notify("error", {
+        title: "Unable to delete team member",
+        text: "Failed to delete team member. Please try again.",
+      });
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
   };
 
   const handleMappingUpdate = async (values: any) => {
@@ -232,8 +261,16 @@ const TeamInfo = ({
         role: values.role,
       };
       await updateMember(member);
+      notify("success", {
+        title: "Team member updated",
+        text: "Team member has been updated successfully.",
+      });
     } catch (error) {
       console.log(error);
+      notify("error", {
+        title: "Unable to update team member",
+        text: "Failed to update team member. Please try again.",
+      });
     }
   };
 
@@ -261,8 +298,16 @@ const TeamInfo = ({
           revokedPermissions,
         }),
       );
+      notify("success", {
+        title: "Team member updated",
+        text: "Team member has been updated successfully.",
+      });
     } catch (error) {
       console.log(error);
+      notify("error", {
+        title: "Unable to update permissions",
+        text: "Failed to update permissions. Please try again.",
+      });
     }
   };
 
@@ -274,103 +319,134 @@ const TeamInfo = ({
         return;
       }
       await upsertTeamAvailability(activeTeam, converted, null);
+      notify("success", {
+        title: "Team member updated",
+        text: "Team member has been updated successfully.",
+      });
     } catch (error) {
       console.log(error);
+      notify("error", {
+        title: "Unable to update availability",
+        text: "Failed to update availability. Please try again.",
+      });
     }
   };
 
   return (
-    <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="flex flex-col h-full gap-6">
-        <div className="flex justify-between items-center">
-          <div className="opacity-0">
-            <Close onClick={() => {}} />
-          </div>
-          <div className="flex justify-center items-center gap-2">
-            <div className="text-body-1 text-text-primary">View team</div>
-          </div>
-          <Close onClick={() => setShowModal(false)} />
-        </div>
-        <div className="flex flex-col gap-8 overflow-y-auto flex-1 w-full scrollbar-hidden">
-          <div className={`flex items-center gap-2`}>
-            <div className="flex items-center justify-between w-full">
-              <div className="text-body-2 text-text-primary">
-                {activeTeam.name || "-"}
-              </div>
-              {canEditTeam && activeTeam.role !== "OWNER" && (
-                <MdDeleteForever
-                  className="cursor-pointer"
-                  onClick={handleDelete}
-                  size={26}
-                  color="#EA3729"
-                />
-              )}
+    <>
+      <Modal showModal={showModal} setShowModal={setShowModal}>
+        <div className="flex flex-col h-full gap-6">
+          <div className="flex justify-between items-center">
+            <div className="opacity-0">
+              <Close onClick={() => {}} />
             </div>
+            <div className="flex justify-center items-center gap-2">
+              <div className="text-body-1 text-text-primary">View team</div>
+            </div>
+            <Close onClick={() => setShowModal(false)} />
           </div>
-          <EditableAccordion
-            title="Org details"
-            fields={fields}
-            data={orgInfoData}
-            defaultOpen={true}
-            showEditIcon={canEditTeam}
-            onSave={handleMappingUpdate}
-          />
-          <EditableAccordion
-            title="Personal details"
-            fields={PersonalFields}
-            data={personalInfoData}
-            defaultOpen={true}
-            showEditIcon={false}
-          />
-          <EditableAccordion
-            title="Address details"
-            fields={AddressFields}
-            data={addressInfoData}
-            defaultOpen={false}
-            showEditIcon={false}
-          />
-          <EditableAccordion
-            title="Professional details"
-            fields={ProfessionalFields}
-            data={professionalInfoData}
-            defaultOpen={false}
-            showEditIcon={false}
-          />
-          {canEditTeam && (
-            <>
-              <Accordion
-                title="Availability"
-                defaultOpen={false}
-                showEditIcon={false}
-                isEditing={false}
-              >
-                <div className="flex flex-col w-full gap-3">
-                  <Availability
-                    availability={availability}
-                    setAvailability={setAvailability}
-                  />
-                  <div className="w-full flex justify-end! mb-1">
-                    <Primary
-                      href="#"
-                      text="Save"
-                      onClick={updateAvailability}
-                    />
-                  </div>
+          <div className="flex flex-col gap-8 overflow-y-auto flex-1 w-full scrollbar-hidden">
+            <div className={`flex items-center gap-2`}>
+              <div className="flex items-center justify-between w-full">
+                <div className="text-body-2 text-text-primary">
+                  {activeTeam.name || "-"}
                 </div>
-              </Accordion>
+                {canEditTeam && activeTeam.role !== "OWNER" && (
+                  <MdDeleteForever
+                    className="cursor-pointer"
+                    onClick={() => setShowDeleteModal(true)}
+                    size={26}
+                    color="#EA3729"
+                  />
+                )}
+              </div>
+            </div>
+            <EditableAccordion
+              title="Org details"
+              fields={fields}
+              data={orgInfoData}
+              defaultOpen={true}
+              showEditIcon={canEditTeam}
+              onSave={handleMappingUpdate}
+            />
+            <EditableAccordion
+              title="Personal details"
+              fields={PersonalFields}
+              data={personalInfoData}
+              defaultOpen={true}
+              showEditIcon={false}
+            />
+            <EditableAccordion
+              title="Address details"
+              fields={AddressFields}
+              data={addressInfoData}
+              defaultOpen={false}
+              showEditIcon={false}
+            />
+            <EditableAccordion
+              title="Professional details"
+              fields={ProfessionalFields}
+              data={professionalInfoData}
+              defaultOpen={false}
+              showEditIcon={false}
+            />
+            {canEditTeam && (
+              <>
+                <Accordion
+                  title="Availability"
+                  defaultOpen={false}
+                  showEditIcon={false}
+                  isEditing={false}
+                >
+                  <div className="flex flex-col w-full gap-3">
+                    <Availability
+                      availability={availability}
+                      setAvailability={setAvailability}
+                    />
+                    <div className="w-full flex justify-end! mb-1">
+                      <Primary
+                        href="#"
+                        text="Save"
+                        onClick={updateAvailability}
+                      />
+                    </div>
+                  </div>
+                </Accordion>
 
-              {role && perms && (
-                <PermissionsEditor
-                  role={role}
-                  onSave={handlePermUpdate}
-                  value={perms}
-                />
-              )}
-            </>
-          )}
+                {role && perms && (
+                  <PermissionsEditor
+                    role={role}
+                    onSave={handlePermUpdate}
+                    value={perms}
+                  />
+                )}
+              </>
+            )}
+          </div>
         </div>
-      </div>
-    </Modal>
+      </Modal>
+      {showDeleteModal && (
+        <CenterModal
+          showModal={showDeleteModal}
+          setShowModal={setShowDeleteModal}
+          onClose={handleDeleteCancel}
+        >
+          <ModalHeader
+            title="Delete team member"
+            onClose={handleDeleteCancel}
+          />
+          <div className="text-body-4 text-text-primary">
+            Are you sure you want to delete{" "}
+            <span className="text-body-4-emphasis"> {activeTeam.name}</span>?
+            This action cannot be undone.
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Secondary href="#" text="Cancel" onClick={handleDeleteCancel} />
+            <Delete href="#" onClick={handleDelete} text="Delete" />
+          </div>
+        </CenterModal>
+      )}
+    </>
   );
 };
 

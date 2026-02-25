@@ -15,7 +15,10 @@ import {
 } from "@/app/features/companions/components/AddCompanion/type";
 import Accordion from "@/app/ui/primitives/Accordion/Accordion";
 import FormDesc from "@/app/ui/inputs/FormDesc/FormDesc";
-import { StoredCompanion, StoredParent } from "@/app/features/companions/pages/Companions/types";
+import {
+  StoredCompanion,
+  StoredParent,
+} from "@/app/features/companions/pages/Companions/types";
 import Datepicker from "@/app/ui/inputs/Datepicker";
 import {
   createCompanion,
@@ -26,6 +29,7 @@ import {
 import SearchDropdown from "@/app/ui/inputs/SearchDropdown";
 import LabelDropdown from "@/app/ui/inputs/Dropdown/LabelDropdown";
 import { CompanionType } from "@yosemite-crew/types";
+import { useNotify } from "@/app/hooks/useNotify";
 
 type OptionProp = {
   label: string;
@@ -58,9 +62,10 @@ const Companion = ({
     insuranceCompany?: string;
   }>({});
   const [currentDate, setCurrentDate] = useState<Date | null>(
-    formData.dateOfBirth ? new Date(formData.dateOfBirth) : null
+    formData.dateOfBirth ? new Date(formData.dateOfBirth) : null,
   );
   const [query, setQuery] = useState("");
+  const { notify } = useNotify();
   const [results, setResults] = useState<StoredCompanion[]>([]);
 
   const options: OptionProp[] = useMemo(
@@ -71,7 +76,7 @@ const Companion = ({
           label: `${p.name}`,
         };
       }),
-    [results]
+    [results],
   );
 
   useEffect(() => {
@@ -126,6 +131,10 @@ const Companion = ({
     }
     try {
       await handleCreateCompanion();
+      notify("success", {
+        title: "Companion created",
+        text: "Companion has been created successfully.",
+      });
       setShowModal(false);
       setFormDataErrors({});
       setFormData(EMPTY_STORED_COMPANION);
@@ -133,6 +142,10 @@ const Companion = ({
       setActiveLabel("parents");
     } catch (error) {
       console.log(error);
+      notify("error", {
+        title: "Unable to create companion",
+        text: "Failed to create companion. Please try again.",
+      });
     }
   };
 

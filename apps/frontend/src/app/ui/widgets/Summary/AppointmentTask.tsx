@@ -16,6 +16,8 @@ import { PERMISSIONS } from "@/app/lib/permissions";
 import Reschedule from "@/app/features/appointments/pages/Appointments/Sections/Reschedule";
 import { usePermissions } from "@/app/hooks/usePermissions";
 import { AppointmentLabels, TaskLabels } from "@/app/config/statusConfig";
+import ChangeStatus from "@/app/features/appointments/pages/Appointments/Sections/ChangeStatus";
+import { AppointmentViewIntent } from "@/app/features/appointments";
 
 const AppointmentTask = () => {
   const appointments = useAppointmentsForPrimaryOrg();
@@ -26,6 +28,10 @@ const AppointmentTask = () => {
   const [viewPopup, setViewPopup] = useState(false);
   const [viewTaskPopup, setViewTaskPopup] = useState(false);
   const [reschedulePopup, setReschedulePopup] = useState(false);
+  const [changeStatusPopup, setChangeStatusPopup] = useState(false);
+  const [viewIntent, setViewIntent] = useState<AppointmentViewIntent | null>(
+    null,
+  );
   const [activeAppointment, setActiveAppointment] =
     useState<Appointment | null>(appointments[0] ?? null);
   const [activeTask, setActiveTask] = useState<Task | null>(tasks[0] ?? null);
@@ -37,6 +43,12 @@ const AppointmentTask = () => {
       ? AppointmentLabels[0].key
       : TaskLabels[0].key,
   );
+
+  useEffect(() => {
+    if (!viewPopup) {
+      setViewIntent(null);
+    }
+  }, [viewPopup]);
 
   useEffect(() => {
     setActiveAppointment((prev) => {
@@ -147,6 +159,8 @@ const AppointmentTask = () => {
             setViewPopup={setViewPopup}
             setReschedulePopup={setReschedulePopup}
             canEditAppointments={canEditAppointments}
+            setChangeStatusPopup={setChangeStatusPopup}
+            setViewIntent={setViewIntent}
             small
           />
         ) : (
@@ -163,6 +177,7 @@ const AppointmentTask = () => {
             showModal={viewPopup}
             setShowModal={setViewPopup}
             activeAppointment={activeAppointment}
+            initialViewIntent={viewIntent}
           />
         )}
 
@@ -178,6 +193,13 @@ const AppointmentTask = () => {
           <Reschedule
             showModal={reschedulePopup}
             setShowModal={setReschedulePopup}
+            activeAppointment={activeAppointment}
+          />
+        )}
+        {canEditAppointments && activeAppointment && (
+          <ChangeStatus
+            showModal={changeStatusPopup}
+            setShowModal={setChangeStatusPopup}
             activeAppointment={activeAppointment}
           />
         )}

@@ -58,7 +58,7 @@ const VideosCard = () => {
             >
               <div
                 style={{ backgroundImage: `url(${video.thumbnailUrl})` }}
-                className="min-h-[250px] sm:min-h-[350px] md:min-h-[270px] relative bg-no-repeat bg-cover bg-center w-full rounded-t-2xl flex items-center justify-center"
+                className="min-h-[200px] sm:min-h-[240px] md:min-h-[190px] relative bg-no-repeat bg-cover bg-center w-full rounded-t-2xl flex items-center justify-center"
               >
                 <div className="absolute inset-0 bg-black/40 rounded-t-2xl"></div>
                 <div className="relative">

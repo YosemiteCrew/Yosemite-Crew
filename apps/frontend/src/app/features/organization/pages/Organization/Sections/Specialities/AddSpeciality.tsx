@@ -7,6 +7,7 @@ import { SpecialityWeb } from "@/app/features/organization/types/speciality";
 import SpecialitySearchWeb from "@/app/ui/inputs/SpecialitySearch/SpecialitySearchWeb";
 import { createBulkSpecialityServices } from "@/app/features/organization/services/specialityService";
 import Close from "@/app/ui/primitives/Icons/Close";
+import { useNotify } from "@/app/hooks/useNotify";
 
 type AddSpecialityProps = {
   showModal: boolean;
@@ -20,6 +21,7 @@ const AddSpeciality = ({
   specialities,
 }: AddSpecialityProps) => {
   const [formData, setFormData] = useState<SpecialityWeb[]>([]);
+  const { notify } = useNotify();
 
   const removeSpeciality = (index: number) => {
     setFormData((prev) => prev.filter((_, i) => i !== index));
@@ -27,12 +29,19 @@ const AddSpeciality = ({
 
   const handleSubmit = async () => {
     try {
-      console.log(formData);
       await createBulkSpecialityServices(formData);
+      notify("success", {
+        title: "Specialities saved",
+        text: "Specialities have been saved successfully.",
+      });
       setFormData([]);
       setShowModal(false);
     } catch (err) {
       console.error("Failed to save specialities:", err);
+      notify("error", {
+        title: "Unable to save specialities",
+        text: "Failed to save specialities. Please try again.",
+      });
     }
   };
 

@@ -6,3 +6,8 @@ export type LaidOutEvent = Appointment & {
   columnIndex: number;
   columnsCount: number;
 };
+
+export type AppointmentViewIntent = {
+  label: "info" | "prescription" | "care" | "tasks" | "finance";
+  subLabel?: string;
+};
