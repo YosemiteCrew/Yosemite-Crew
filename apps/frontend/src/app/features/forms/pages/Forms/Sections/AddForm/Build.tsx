@@ -906,7 +906,7 @@ const Build = ({
     const rect =
       scrollable === builderRef.current
         ? scrollable.getBoundingClientRect()
-        : { top: 0, bottom: window.innerHeight, height: window.innerHeight };
+        : { top: 0, bottom: globalThis.innerHeight, height: globalThis.innerHeight };
     const softZone = Math.min(300, (rect.bottom - rect.top) / 2);
     const turboZone = softZone / 3;
     const distanceToTop = Math.max(0, clientY - rect.top);

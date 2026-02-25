@@ -27,6 +27,15 @@ const UserHeader = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const isDev = pathname.startsWith("/developers");
   const routes = isDev ? headerDevRoutes : headerAppRoutes;
+  const mobileRoutes = isDev
+    ? routes
+    : (() => {
+        const next = [...routes];
+        const signOutIndex = next.findIndex((route) => route.name === "Sign out");
+        const insertIndex = signOutIndex === -1 ? next.length : signOutIndex;
+        next.splice(insertIndex, 0, { name: "Guides", href: "/guides", verify: false });
+        return next;
+      })();
   const [selectOrg, setSelectOrg] = useState(false);
   const [selectProfile, setSelectProfile] = useState(false);
   const orgs = useOrgList();
@@ -51,6 +60,9 @@ const UserHeader = () => {
   const handleLogout = async () => {
     try {
       await signOut();
+      if (globalThis.window !== undefined) {
+        globalThis.localStorage.removeItem("yc_dashboard_videos_hidden");
+      }
       console.log("✅ Signed out using Cognito signout");
       router.replace(logoutRedirect);
     } catch (error) {
@@ -132,7 +144,8 @@ const UserHeader = () => {
     pathname.startsWith("/settings") ||
     pathname.startsWith("/organization") ||
     pathname.startsWith("/organizations") ||
-    pathname.startsWith("/dashboard");
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/guides");
 
   return (
     <div className="flex items-center justify-between px-3 sm:px-12! lg:px-[36px]! w-full h-20 gap-0">
@@ -188,7 +201,7 @@ const UserHeader = () => {
           </div>
         )}
         <div className="flex flex-col gap-3">
-          {routes.map((route, index) => {
+          {mobileRoutes.map((route, index) => {
             const needsVerifiedOrg = route.verify;
             // Developer portal routes don't need org verification
             const isDisabled = isDev
@@ -328,6 +341,15 @@ const UserHeader = () => {
               >
                 Settings
               </Link>
+              {!isDev && (
+                <Link
+                  href="/guides"
+                  onClick={() => setSelectProfile(false)}
+                  className="text-center px-[1.25rem] py-[0.75rem] text-body-4 w-full text-text-secondary! hover:bg-card-hover rounded-2xl! transition-all duration-300"
+                >
+                  Guides
+                </Link>
+              )}
               <button
                 onClick={handleLogout}
                 className="px-[1.25rem] py-[0.75rem] text-body-4 w-full text-text-error hover:bg-card-hover rounded-2xl! transition-all duration-300"

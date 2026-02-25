@@ -1,4 +1,4 @@
-import { FormEvent } from "react";
+import React from "react";
 import Link from "next/link";
 
 type ButtonSize = "default" | "large";
@@ -6,7 +6,7 @@ type ButtonSize = "default" | "large";
 type ButtonProps = {
   text: string;
   href: string;
-  onClick?: (e: FormEvent<Element>) => void;
+  onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
   style?: React.CSSProperties;
   className?: string;
   isDisabled?: boolean;

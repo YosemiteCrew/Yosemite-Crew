@@ -67,7 +67,7 @@ const DocumentInfo = ({
   };
 
   const handleDownload = () => {
-    window.open(activeDocument.fileUrl, "_blank");
+    globalThis.open(activeDocument.fileUrl, "_blank");
   };
 
   return (

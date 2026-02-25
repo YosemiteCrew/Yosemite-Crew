@@ -29,7 +29,7 @@ const Chat = ({ activeAppointment }: ChatProps) => {
   const currentUserId = attributes?.sub || attributes?.email;
   const isMyAppointment = activeAppointment?.lead?.id === currentUserId;
 
-  const handleOpenChat = async (e: React.FormEvent) => {
+  const handleOpenChat = async (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
     
     if (!activeAppointment?.id) {
@@ -117,7 +117,7 @@ const Chat = ({ activeAppointment }: ChatProps) => {
     };
   }, [activeAppointment?.id, isMyAppointment]);
 
-  const handleCloseChat = async (e: React.FormEvent) => {
+  const handleCloseChat = async (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
     
     if (!activeAppointment?.id) {

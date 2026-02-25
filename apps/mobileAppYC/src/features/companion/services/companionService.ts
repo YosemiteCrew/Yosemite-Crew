@@ -30,7 +30,9 @@ const COMPANION_ENDPOINT = '/fhir/v1/companion';
 const parentCompanionsEndpoint = (parentId: string) =>
   `/fhir/v1/parent/${encodeURIComponent(parentId)}/companions`;
 const COMPANION_INSURANCE_EXTENSION_URL =
-  'http://example.org/fhir/StructureDefinition/companion-insurance';
+  'https://yosemitecrew.com/fhir/StructureDefinition/companion-insurance';
+const LEGACY_EXTENSION_PREFIX = 'http://example.org/fhir/StructureDefinition/';
+const CURRENT_EXTENSION_PREFIX = 'https://yosemitecrew.com/fhir/StructureDefinition/';
 
 const logCompanionApiEvent = (
   phase: 'request' | 'response' | 'error',
@@ -45,6 +47,55 @@ const logCompanionApiEvent = (
 };
 
 type CompanionInput = (AddCompanionPayload & {id?: string}) | Companion;
+
+const normalizeLegacyExtensionUrls = (
+  resource: CompanionResponseDTO,
+): CompanionResponseDTO => {
+  if (!resource?.extension?.length) {
+    return resource;
+  }
+
+  const normalizedExtensions = resource.extension.map(extension => {
+    if (typeof extension.url === 'string' && extension.url.startsWith(LEGACY_EXTENSION_PREFIX)) {
+      return {
+        ...extension,
+        url: extension.url.replace(LEGACY_EXTENSION_PREFIX, CURRENT_EXTENSION_PREFIX),
+      };
+    }
+    return extension;
+  });
+
+  return {
+    ...resource,
+    extension: normalizedExtensions,
+  };
+};
+
+const normalizeOutgoingExtensionUrls = (
+  payload: CompanionRequestDTO,
+): CompanionRequestDTO => {
+  if (!payload?.extension?.length) {
+    return payload;
+  }
+
+  const normalizedExtensions = payload.extension.map(extension => {
+    if (
+      typeof extension.url === 'string' &&
+      extension.url.startsWith(CURRENT_EXTENSION_PREFIX)
+    ) {
+      return {
+        ...extension,
+        url: extension.url.replace(CURRENT_EXTENSION_PREFIX, LEGACY_EXTENSION_PREFIX),
+      };
+    }
+    return extension;
+  });
+
+  return {
+    ...payload,
+    extension: normalizedExtensions,
+  };
+};
 
 const resolveRemoteProfileImage = async ({
   imageUri,
@@ -383,8 +434,9 @@ const mapResponseToAppCompanion = (
   userId: string,
   persisted?: Companion,
 ): Companion => {
-  const attributes = fromCompanionRequestDTO(response);
-  const {companyName, policyNumber} = extractInsuranceDetails(response);
+  const normalizedResponse = normalizeLegacyExtensionUrls(response);
+  const attributes = fromCompanionRequestDTO(normalizedResponse);
+  const {companyName, policyNumber} = extractInsuranceDetails(normalizedResponse);
 
   const category = mapTypeToCategory(attributes.type);
   const dateOfBirth = attributes.dateOfBirth?.toISOString() ?? new Date().toISOString();
@@ -645,7 +697,9 @@ export const companionApi = {
       ...params.payload,
       profileImage: remotePhoto ?? null,
     });
-    const fhirPayload = toFHIRCompanion(backendCompanion);
+    const fhirPayload = normalizeOutgoingExtensionUrls(
+      toFHIRCompanion(backendCompanion),
+    );
     const {data} = await postCompanion(fhirPayload, params.accessToken);
     return mapResponseToAppCompanion(data, params.parentId);
   },
@@ -664,7 +718,9 @@ export const companionApi = {
       ...params.companion,
       profileImage: remotePhoto ?? null,
     });
-    const fhirPayload = toFHIRCompanion(backendCompanion);
+    const fhirPayload = normalizeOutgoingExtensionUrls(
+      toFHIRCompanion(backendCompanion),
+    );
     const {data} = await putCompanion(
       params.companion.id,
       fhirPayload,
