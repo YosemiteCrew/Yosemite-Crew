@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- Replace placeholders with your project values -->
+  <string name="app_name">YosemiteCrew</string>
+  <string name="facebook_app_id">YOUR_FACEBOOK_APP_ID</string>
+  <string name="facebook_client_token">YOUR_FACEBOOK_CLIENT_TOKEN</string>
+  <string name="fb_login_protocol_scheme">fbYOUR_FACEBOOK_APP_ID</string>
+  <string name="google_maps_api_key">YOUR_GOOGLE_MAPS_API_KEY</string>
+</resources>

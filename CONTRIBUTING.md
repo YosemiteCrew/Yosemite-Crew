@@ -1,200 +1,150 @@
-# Contributing to `Yosemite-Crew`
+# Contributing to Yosemite Crew
 
-We would love for you to contribute to `Yosemite-Crew` and help make it even better than it is
-today! As a contributor, here are the guidelines we would like you to follow:
+Thanks for contributing to Yosemite Crew. This repository is a pnpm + Turborepo monorepo with multiple apps and shared packages.
 
- - [Code of Conduct](#coc)
- - [Issues and Bugs](#issue)
- - [Feature Requests](#feature)
- - [Submission Guidelines](#submit)
- - [Coding Rules](#rules)
- - [Commit Message Guidelines](#commit)
+## Code of Conduct
 
-## <a name="coc"></a> Code of Conduct
-Please read and follow our [Code of Conduct][coc].
+Read and follow [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md).
 
-## <a name="issue"></a> Found a Bug?
-If you find a bug in the source code, you can help us by
-[submitting an issue][submit-issue] to our [GitHub Repository][github]. Even better, you can
-[submit a Pull Request][submit-pr] with a fix.
+## Engineering Standards
 
-## <a name="feature"></a> Missing a Feature?
-You can *request* a new feature by [submitting an issue](#submit-issue) to our GitHub
-Repository. If you would like to *implement* a new feature, please submit an issue with
-a proposal for your work first, to be sure that we can use it.
-Please consider what kind of change it is:
+- Repository standards: [docs/engineering-standards.md](./docs/engineering-standards.md)
+- AI/automation contribution policy: [AGENTS.md](./AGENTS.md)
 
-* For a **Major Feature**, first open an issue and outline your proposal so that it can be
-discussed. This will also allow us to better coordinate our efforts, prevent duplication of work,
-and help you to craft the change so that it is successfully accepted into the project.
-* **Small Features** can be crafted and directly [submitted as a Pull Request](#submit-pr).
+## Found a Bug?
 
-## <a name="submit"></a> Submission Guidelines
+If you find a bug, please open an issue with clear reproduction steps, expected behavior, and actual behavior.
+If you already have a fix, you can open a PR and link the issue.
 
-### <a name="submit-pr"></a> Submitting a Pull Request (PR)
-Before you submit your Pull Request (PR) consider the following guidelines:
+## Missing a Feature?
 
-* Search [GitHub](https://github.com/YosemiteCrew/Yosemite-Crew/pulls) for an open or closed PR
-  that relates to your submission. You don't want to duplicate effort.
-* Create a fork from Yosemite-Crew repository as it is described in [GitHub docs](https://docs.github.com/en/get-started/quickstart/fork-a-repo#forking-a-repository)
-* Clone your forked repository to your local machine using `git clone`. Clone dev branch if want to use the bleeding edge version.
+If you want to propose a feature, open an issue first so maintainers and contributors can align on scope before implementation.
+Small improvements can go directly as PRs, but major feature work should start with discussion.
 
-     ```shell
-     git clone https://github.com/yourusername/Yosemite-Crew.git
-     git clone -b dev https://github.com/yourusername/Yosemite-Crew.git
-     
-     cd Yosemite-Crew
-     ```
+## Repository Structure
 
-* Create a new branch for your changes instead of using the main branch.
+- `apps/backend` - API/backend
+- `apps/frontend` - web app
+- `apps/mobileAppYC` - React Native mobile app
+- `apps/dev-docs` - Docusaurus docs app
+- `packages/types` and `packages/fhirtypes` - shared packages
 
-     ```shell
-     git checkout -b your-branch-name
-     ```
+## Development Setup
 
-* Install the project dependencies.
+1. Fork and clone the repository.
+2. Install dependencies:
+   ```bash
+   pnpm install
+   ```
+3. Create a feature branch from `dev`:
+   ```bash
+   git checkout -b feat/your-change
+   ```
 
-     ```shell
-     pnpm install
-     ```
-     
-* Follow our [Coding Rules](#rules).
-* Make your changes.
-* Run `pnpm run lint` to ensure that lints passes for all projects or run `pnpm run lint --filter {appName}` to ensure all lints pass for the given project.
-* Run `pnpm run test` to ensure that tests passes for all projects or run `pnpm run test --filter {appName}` to ensure all tests pass for the given project.
-* Run `pnpm run build` to build all projects or run `pnpm run build --filter {appName}` to build a single project.
-* Commit your changes using a descriptive commit message that follows our
-  [commit message conventions](#commit). Adherence to these conventions
-  is necessary because release notes are automatically generated from these messages.
+`pnpm install` automatically runs `prepare`, which installs Husky hooks.
 
-     ```shell
-     git commit -a
-     ```
-  Note: the optional commit `-a` command-line option will automatically "add" and "rm" edited files.
+## Local Quality Gates
 
-* Push your branch to GitHub:
+Before opening a PR, run:
 
-    ```shell
-    git push origin your-branch-name
-    ```
-
-* In GitHub, send a pull request to `dev` branch.
-* If we suggest changes then:
-  * Make the required updates.
-  * Re-run above testing and linting commands to ensure lints and tests are still passing.
-  * Push to your GitHub repository (this will update your Pull Request):
-
-That's it! Thank you for your contribution!
-
-#### After your pull request is merged
-
-After your pull request is merged, you can safely delete your branch and pull the changes
-from the dev (upstream) repository:
-
-* Delete the remote branch on GitHub either through the GitHub web UI or your local shell as follows:
-
-    ```shell
-    git push origin --delete your-branch-name
-    ```
-
-* Check out the dev branch:
-
-    ```shell
-    git checkout dev -f
-    ```
-
-* Delete the local branch:
-
-    ```shell
-    git branch -D your-branch-name
-    ```
-
-* Update your dev with the latest upstream version:
-
-    ```shell
-    git pull --ff upstream dev
-    ```
-
-## <a name="rules"></a> Coding Rules
-To ensure consistency throughout the source code, keep these rules in mind as you are working:
-
-* All features or bug fixes **must be tested** by one or more specs (unit-tests).
-* All public API methods **must be documented**. (Details TBC).
-* We follow [Google's JavaScript Style Guide][js-style-guide].
-
-## <a name="commit"></a> Commit Message Guidelines
-
-We have very precise rules over how our git commit messages can be formatted.  This leads to **more
-readable messages** that are easy to follow when looking through the **project history**.  But also,
-we use the git commit messages to **generate the yosemite-crew change log**.
-
-### Commit Message Format
-Each commit message consists of a **header**, a **body** and a **footer**.  The header has a special
-format that includes a **type**, a **scope** and a **subject**:
-
+```bash
+pnpm run lint
+pnpm run type-check
+pnpm run test
+pnpm run build
 ```
+
+You can run commands for a single workspace with `--filter`, for example:
+
+```bash
+pnpm run lint --filter frontend
+pnpm run test --filter backend
+```
+
+## Commit Message Convention
+
+Commit messages are validated by `commitlint` (locally via Husky and in CI).
+
+Format:
+
+```text
 <type>(<scope>): <subject>
-<BLANK LINE>
-<body>
-<BLANK LINE>
-<footer>
 ```
 
-The **header** is mandatory and the **scope** of the header is optional.
+Allowed `type` values:
 
-Any line of the commit message cannot be longer 100 characters! This allows the message to be easier
-to read on GitHub as well as in various git tools.
+- `feat`
+- `fix`
+- `docs`
+- `style`
+- `refactor`
+- `perf`
+- `test`
+- `build`
+- `ci`
+- `chore`
+- `revert`
 
-The footer should contain a [closing reference to an issue](https://help.github.com/articles/closing-issues-via-commit-messages/) if any.
+Allowed `scope` values:
 
-Samples: (even more [samples](https://github.com/YosemiteCrew/Yosemite-Crew/commits/dev))
+- `backend`
+- `frontend`
+- `mobile`
+- `dev-docs`
+- `types`
+- `fhirtypes`
+- `repo`
+- `ci`
+- `docs`
 
+Rules:
+
+- Subject must be imperative and concise.
+- Max header length is 100 characters.
+
+Examples:
+
+- `feat(frontend): add appointment calendar filters`
+- `fix(backend): prevent duplicate invoice generation`
+- `docs(repo): clarify local setup for contributors`
+
+## Pull Request Standards
+
+PR titles must follow the same conventional format as commits:
+
+```text
+<type>(<scope>): <subject>
 ```
-docs(changelog): update change log to beta.5
+
+PR checklist:
+
+- Link the related issue (or explain why none exists).
+- Keep PRs focused and reasonably small.
+- Ensure local hooks pass (`pre-commit`, `commit-msg`, `pre-push`).
+- Ensure CI checks pass.
+- If behavior or setup changed, update docs in the same PR.
+
+Open PRs against the `dev` branch unless maintainers request otherwise.
+
+## After Your PR Is Merged
+
+You can safely clean up your branch and sync with upstream:
+
+```bash
+git push origin --delete your-branch-name
+git checkout dev
+git pull --ff upstream dev
+git branch -D your-branch-name
 ```
-```
-fix(release): need to depend on latest rxjs and zone.js
 
-The version in our package.json gets copied to the one we publish, and users need the latest of these.
-```
+## Security and Secret Hygiene
 
-### Revert
-If the commit reverts a previous commit, it should begin with `revert: `, followed by the header of the reverted commit. In the body, it should say: `This reverts commit <hash>.`, where the hash is the SHA of the commit being reverted.
+- Never commit `.env` files or credentials.
+- Staged changes are scanned locally with Secretlint in `pre-commit`.
+- GitHub Actions also scans for secrets using Gitleaks.
+- If you accidentally commit a secret, rotate it immediately and open a security report per [SECURITY.md](./SECURITY.md).
 
-### Type
-Must be one of the following:
+## Need Help
 
-* **chore**: Changes to the build process or auxiliary tools and libraries such as documentation generation
-* **ci**: Changes to our CI configuration files and scripts (example scopes: Travis, SauceLabs)
-* **docs**: Documentation only changes
-* **feat**: A new feature
-* **fix**: A bug fix
-* **perf**: A code change that improves performance
-* **refactor**: A code change that neither fixes a bug nor adds a feature
-* **style**: Changes that do not affect the meaning of the code (white-space, formatting, missing semi-colons, etc)
-* **test**: Adding missing tests or correcting existing tests
-
-### Scope
-The scope should be the name of the project or npm package affected (as perceived by person reading changelog generated from commit messages.
-
-The following is the list of supported scopes:
-
-* **website**
-* **api**
-
-### Subject
-The subject contains succinct description of the change:
-
-* use the imperative, present tense: "change" not "changed" nor "changes"
-* don't capitalize the first letter
-* no dot (.) at the end
-
-### Body
-Just as in the **subject**, use the imperative, present tense: "change" not "changed" nor "changes".
-The body should include the motivation for the change and contrast this with previous behaviour.
-
-### Footer
-The footer should contain any information about **Breaking Changes** and is also the place to
-reference GitHub issues that this commit **Closes**.
-
-**Breaking Changes** should start with the word `BREAKING CHANGE:` with space or two newlines. The rest of the commit message is then used for this.
+- Open a GitHub issue for bugs/features.
+- Join community channels linked in [README.md](./README.md).

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability report
+    url: https://github.com/YosemiteCrew/Yosemite-Crew/security/policy
+    about: Report vulnerabilities privately per SECURITY.md.
+  - name: Community support (Discord)
+    url: https://discord.gg/SwM6mX85KD
+    about: Ask setup and contribution questions in the community.
