@@ -56,7 +56,10 @@ export type Permission =
   | "org:onboarding"
   | "org:view"
   | "org:edit"
-  | "org:delete";
+  | "org:delete"
+  // Integrations
+  | "integrations:view:any"
+  | "integrations:edit:any";
 
 export type RoleCode =
   | "OWNER"
@@ -121,6 +124,9 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     "org:view",
     "org:edit",
 
+    "integrations:view:any",
+    "integrations:edit:any",
+
     "specialities:view:any",
     "specialities:edit:any",
 
@@ -176,6 +182,9 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     "org:view",
     "org:edit",
+
+    "integrations:view:any",
+    "integrations:edit:any",
 
     "specialities:view:any",
     "specialities:edit:any",

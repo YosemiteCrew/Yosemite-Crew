@@ -152,6 +152,17 @@ enum UserProfileDocumentType {
   OTHER
 }
 
+enum IntegrationProvider {
+  IDEXX
+}
+
+enum IntegrationStatus {
+  enabled
+  disabled
+  error
+  pending
+}
+
 model ContactRequest {
   id               String        @id @default(uuid())
   type             ContactType
@@ -177,6 +188,24 @@ model ContactRequest {
   @@index([organisationId])
   @@index([companionId])
   @@index([parentId])
+}
+
+model IntegrationAccount {
+  id             String              @id @default(uuid())
+  organisationId String
+  provider       IntegrationProvider
+  status         IntegrationStatus   @default(disabled)
+  enabledAt      DateTime?
+  disabledAt     DateTime?
+  lastSyncAt     DateTime?
+  lastError      String?
+  credentials    Json?
+  config         Json?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@unique([organisationId, provider])
+  @@index([organisationId])
 }
 
 model Companion {
