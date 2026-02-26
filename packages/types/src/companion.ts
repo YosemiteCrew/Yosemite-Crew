@@ -432,6 +432,16 @@ const buildExtensions = (companion: Companion): Extension[] => {
     companion.countryOfOrigin
   );
   addStringExtension(extensions, EXTENSION_SOURCE_URL, companion.source);
+  addStringExtension(
+    extensions,
+    EXTENSION_SPECIES_CODE_URL,
+    companion.speciesCode
+  );
+  addStringExtension(
+    extensions,
+    EXTENSION_BREED_CODE_URL,
+    companion.breedCode
+  );
   addPhysicalAttributeExtension(extensions, companion.physicalAttribute);
   addBreedingInfoExtension(extensions, companion.breedingInfo);
   addMedicalRecordsExtensions(extensions, companion.medicalRecords);

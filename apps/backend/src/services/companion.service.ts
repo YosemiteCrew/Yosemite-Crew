@@ -34,6 +34,7 @@ import CompanionOrganisationModel from "src/models/companion-organisation";
 import logger from "src/utils/logger";
 import { TaskLibraryService } from "./taskLibrary.service";
 import { CreateFromLibraryInput, TaskService } from "./task.service";
+import CodeEntryModel from "src/models/code-entry";
 
 export class CompanionServiceError extends Error {
   constructor(
@@ -55,6 +56,8 @@ const toPersistable = (payload: CompanionRequestDTO): CompanionMongo => {
     name: companion.name,
     type: companion.type,
     breed: companion.breed ?? "",
+    speciesCode: companion.speciesCode,
+    breedCode: companion.breedCode,
     dateOfBirth: companion.dateOfBirth,
     gender: companion.gender,
     photoUrl: companion.photoUrl,
@@ -92,6 +95,8 @@ const toPrismaCompanionData = (doc: CompanionDocument) => {
     name: plain.name,
     type: plain.type as PrismaCompanionType,
     breed: plain.breed ?? "",
+    speciesCode: plain.speciesCode ?? undefined,
+    breedCode: plain.breedCode ?? undefined,
     dateOfBirth: plain.dateOfBirth,
     gender: plain.gender as PrismaGender,
     photoUrl: plain.photoUrl ?? undefined,
@@ -149,6 +154,8 @@ export const toFHIR = (doc: CompanionDocument) => {
     name: plain.name,
     type: plain.type as CompanionType,
     breed: plain.breed ?? "",
+    speciesCode: plain.speciesCode,
+    breedCode: plain.breedCode,
     dateOfBirth: plain.dateOfBirth,
     gender: plain.gender as Gender,
     photoUrl: plain.photoUrl,
@@ -198,6 +205,38 @@ const computeIsProfileComplete = (
     const value = companion[field];
     return value !== undefined && value !== null && value !== "";
   });
+};
+
+const ensureCodeExists = async (
+  code: string,
+  type: "SPECIES" | "BREED",
+) => {
+  const entry = await CodeEntryModel.findOne(
+    {
+      system: "YOSEMITECODE",
+      code,
+      type,
+      active: true,
+    },
+    { _id: 1 },
+  ).lean();
+
+  if (!entry) {
+    logger.warn(`Invalid ${type} code provided: ${code}`);
+    throw new CompanionServiceError(
+      `Invalid ${type.toLowerCase()} code.`,
+      400,
+    );
+  }
+};
+
+const validateCompanionCodes = async (companion: Partial<CompanionMongo>) => {
+  if (companion.speciesCode) {
+    await ensureCodeExists(companion.speciesCode, "SPECIES");
+  }
+  if (companion.breedCode) {
+    await ensureCodeExists(companion.breedCode, "BREED");
+  }
 };
 
 type CompanionCreateContext = {
@@ -296,6 +335,7 @@ export const CompanionService = {
       );
     }
     const persistable = toPersistable(payload);
+    await validateCompanionCodes(persistable);
     persistable.isProfileComplete = computeIsProfileComplete(persistable);
 
     let document: CompanionDocument | null = null;
@@ -450,6 +490,7 @@ export const CompanionService = {
     if (!Types.ObjectId.isValid(id)) return null;
 
     const persistable = toPersistable(payload);
+    await validateCompanionCodes(persistable);
 
     // Backend-only recomputation
     persistable.isProfileComplete = computeIsProfileComplete(persistable);

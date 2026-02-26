@@ -36,4 +36,29 @@ export class IdexxClient {
   async validateCredentials(): Promise<void> {
     await this.http.get("/api/v1/auth/validate");
   }
+
+  async getRefVersions<T = unknown>(): Promise<T> {
+    const { data } = await this.http.get("/api/v1/ref/versions");
+    return data as T;
+  }
+
+  async getRefSpecies<T = unknown>(): Promise<T> {
+    const { data } = await this.http.get("/api/v1/ref/species");
+    return data as T;
+  }
+
+  async getRefBreeds<T = unknown>(): Promise<T> {
+    const { data } = await this.http.get("/api/v1/ref/breeds");
+    return data as T;
+  }
+
+  async getRefGenders<T = unknown>(): Promise<T> {
+    const { data } = await this.http.get("/api/v1/ref/genders");
+    return data as T;
+  }
+
+  async getRefTests<T = unknown>(): Promise<T> {
+    const { data } = await this.http.get("/api/v1/ref/tests");
+    return data as T;
+  }
 }

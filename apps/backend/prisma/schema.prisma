@@ -152,6 +152,21 @@ enum UserProfileDocumentType {
   OTHER
 }
 
+enum CodeSystem {
+  YOSEMITECODE
+  IDEXX
+  SNOMED
+  VENOM
+}
+
+enum CodeType {
+  SPECIES
+  BREED
+  GENDER
+  TEST
+  OTHER
+}
+
 enum IntegrationProvider {
   IDEXX
 }
@@ -208,11 +223,59 @@ model IntegrationAccount {
   @@index([organisationId])
 }
 
+model CodeEntry {
+  id        String     @id @default(uuid())
+  system    CodeSystem
+  code      String
+  display   String
+  type      CodeType
+  active    Boolean    @default(true)
+  synonyms  Json?
+  meta      Json?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@unique([system, code])
+  @@index([system, type, active])
+}
+
+model CodeMapping {
+  id            String     @id @default(uuid())
+  sourceSystem  CodeSystem
+  sourceCode    String
+  targetSystem  CodeSystem
+  targetCode    String
+  targetDisplay String?
+  targetVersion String?
+  active        Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@unique([sourceSystem, sourceCode, targetSystem, targetCode])
+  @@index([sourceSystem, sourceCode])
+  @@index([targetSystem, targetCode])
+}
+
+model CodeSyncState {
+  id           String     @id @default(uuid())
+  system       CodeSystem
+  kind         String
+  version      String
+  lastSyncedAt DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([system, kind])
+  @@index([system, kind])
+}
+
 model Companion {
   id               String        @id @default(uuid())
   name             String
   type             CompanionType
   breed            String
+  speciesCode      String?
+  breedCode        String?
   dateOfBirth      DateTime
   gender           Gender
   photoUrl         String?
