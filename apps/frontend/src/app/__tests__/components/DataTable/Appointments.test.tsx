@@ -59,7 +59,13 @@ jest.mock("react-icons/io", () => ({
 }));
 
 jest.mock("react-icons/io5", () => ({
-  IoEye: () => <span>view-icon</span>,
+  IoEyeOutline: () => <span>view-icon</span>,
+  IoDocumentTextOutline: () => <span>soap-icon</span>,
+  IoCardOutline: () => <span>finance-icon</span>,
+}));
+
+jest.mock("react-icons/md", () => ({
+  MdOutlineAutorenew: () => <span>change-status-icon</span>,
 }));
 
 describe("Appointments table", () => {

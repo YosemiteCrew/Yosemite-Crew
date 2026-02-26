@@ -149,7 +149,7 @@ describe('chatBackendService', () => {
       const result = await createOrFetchChatSession(sessionParams);
 
       expect(mockApiClient.post).toHaveBeenCalledWith(
-        expect.stringContaining('/sessions/sess-123'),
+        expect.stringContaining('/appointments/sess-123'),
         undefined,
         expect.anything()
       );
@@ -211,11 +211,19 @@ describe('chatBackendService', () => {
         mockApiClient.post.mockResolvedValueOnce({ data: { channelId: '1', channel_type: 'commerce' } });
         expect((await createOrFetchChatSession(sessionParams)).channelType).toBe('commerce');
 
-        // 3. From CID (messaging:id)
+        // 3. Backend session type should normalize to Stream type
+        mockApiClient.post.mockResolvedValueOnce({ data: { channelId: '1', type: 'APPOINTMENT' } });
+        expect((await createOrFetchChatSession(sessionParams)).channelType).toBe('messaging');
+
+        // 4. Backend org group type should normalize to Stream team channel
+        mockApiClient.post.mockResolvedValueOnce({ data: { channelId: '1', type: 'ORG_GROUP' } });
+        expect((await createOrFetchChatSession(sessionParams)).channelType).toBe('team');
+
+        // 5. From CID (messaging:id)
         mockApiClient.post.mockResolvedValueOnce({ data: { cid: 'custom:123' } });
         expect((await createOrFetchChatSession(sessionParams)).channelType).toBe('custom');
 
-        // 4. Default
+        // 6. Default
         mockApiClient.post.mockResolvedValueOnce({ data: { channelId: '1' } }); // No type info
         expect((await createOrFetchChatSession(sessionParams)).channelType).toBe('messaging');
     });

@@ -155,11 +155,15 @@ To run the app, you need to provide your own credentials for various services. W
 #### B. Android Native Configuration
 
 1.  **Firebase**: Download your `google-services.json` file from Firebase and place it in the `android/app/` directory.
-2.  **Other Keys**: Copy the sample `strings.xml` file:
+2.  **Gradle Properties**: Copy the sample Gradle properties file:
+    ```sh
+    cp apps/mobileAppYC/android/gradle.properties.example apps/mobileAppYC/android/gradle.properties
+    ```
+3.  **Other Keys**: Copy the sample `strings.xml` file:
     ```sh
     cp docs/android/app/src/main/res/values/stringsXml\(Example\).txt android/app/src/main/res/values/strings.xml
     ```
-3.  Open `android/app/src/main/res/values/strings.xml` and fill in all the required values.
+4.  Open `android/app/src/main/res/values/strings.xml` and fill in all the required values.
 
 #### C. iOS Native Configuration
 

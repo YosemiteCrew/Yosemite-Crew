@@ -119,13 +119,13 @@ const Forms = () => {
       <div className="flex justify-between items-center w-full flex-wrap gap-2">
         <div className="flex flex-col gap-1">
           <div className="text-text-primary text-heading-1">
-            Forms{""}
+            Templates{""}
             <span className="text-text-tertiary">
               {" (" + list.length + ")"}
             </span>
           </div>
           <p className="text-body-3 text-text-secondary max-w-3xl">
-            Build and reuse forms templates, link them to services, and use custom available templates.
+            Build and reuse templates, link them to services, and use custom available templates.
           </p>
         </div>
         {canEditForms && (
