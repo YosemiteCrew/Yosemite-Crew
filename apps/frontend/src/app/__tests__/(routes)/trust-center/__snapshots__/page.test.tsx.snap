@@ -1,0 +1,16 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`TrustCenterPage matches the snapshot structure 1`] = `
+<div>
+  <div
+    data-testid="mock-trust-center"
+  >
+    TrustCenter Component
+  </div>
+  <div
+    data-testid="mock-footer"
+  >
+    Footer Component
+  </div>
+</div>
+`;
