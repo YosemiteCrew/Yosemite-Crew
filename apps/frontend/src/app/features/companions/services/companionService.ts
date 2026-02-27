@@ -17,6 +17,15 @@ import {
 } from "@/app/features/companions/pages/Companions/types";
 import { useParentStore } from "@/app/stores/parentStore";
 
+const extractCompanionPayload = (
+  data: CompanionRequestDTO | { payload?: CompanionRequestDTO },
+): CompanionRequestDTO => {
+  if (data && typeof data === "object" && "payload" in data) {
+    return data.payload ?? (data as CompanionRequestDTO);
+  }
+  return data as CompanionRequestDTO;
+};
+
 export const loadCompanionsForPrimaryOrg = async (opts?: {
   silent?: boolean;
   force?: boolean;
@@ -130,11 +139,13 @@ export const createCompanion = async (
       payload: fhirCompanion,
       parentId: payload.parentId,
     };
-    const res = await postData<CompanionRequestDTO>(
+    const res = await postData<CompanionRequestDTO | { payload?: CompanionRequestDTO }>(
       "/fhir/v1/companion/org/" + primaryOrgId,
       body,
     );
-    const normalCompanion = fromCompanionRequestDTO(res.data);
+    const normalCompanion = fromCompanionRequestDTO(
+      extractCompanionPayload(res.data),
+    );
     const newCompanion: StoredCompanion = {
       ...normalCompanion,
       id: normalCompanion.id!,
@@ -272,15 +283,17 @@ export const updateCompanion = async (payload: StoredCompanion) => {
     return;
   }
   try {
-    if (payload.id || payload.parentId) {
-      throw new Error("COmpanion or Parent ID missing");
+    if (!payload.id || !payload.parentId) {
+      throw new Error("Companion or Parent ID missing");
     }
     const fhirCompanion = toCompanionResponseDTO(payload);
-    const res = await putData<CompanionRequestDTO>(
+    const res = await putData<CompanionRequestDTO | { payload?: CompanionRequestDTO }>(
       "/fhir/v1/companion/org/" + payload.id,
-      fhirCompanion,
+      { payload: fhirCompanion },
     );
-    const normalCompanion = fromCompanionRequestDTO(res.data);
+    const normalCompanion = fromCompanionRequestDTO(
+      extractCompanionPayload(res.data),
+    );
     const newCompanion: StoredCompanion = {
       ...normalCompanion,
       id: payload.id,

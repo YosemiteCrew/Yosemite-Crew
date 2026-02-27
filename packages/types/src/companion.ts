@@ -36,6 +36,8 @@ export interface Companion {
   name: string;
   type: CompanionType;
   breed: string;
+  speciesCode?: string;
+  breedCode?: string;
   dateOfBirth: Date;
   gender: Gender;
   photoUrl?: string;
@@ -128,6 +130,10 @@ export const EXTENSION_MEDICAL_RECORD_URL =
   "https://yosemitecrew.com/fhir/StructureDefinition/companion-medical-record";
 export const EXTENSION_PROFILE_COMPLETE_URL =
   "https://yosemitecrew.com/fhir/StructureDefinition/companion-profile-complete";
+export const EXTENSION_SPECIES_CODE_URL =
+  "https://yosemitecrew.com/fhir/StructureDefinition/companion-species-code";
+export const EXTENSION_BREED_CODE_URL =
+  "https://yosemitecrew.com/fhir/StructureDefinition/companion-breed-code";
 
 type SpeciesConfig = {
   code?: string;
@@ -409,6 +415,8 @@ const buildIdentifiers = (companion: Companion): Identifier[] => {
 const buildExtensions = (companion: Companion): Extension[] => {
   const extensions: Extension[] = [];
 
+  addStringExtension(extensions, EXTENSION_SPECIES_CODE_URL, companion.speciesCode);
+  addStringExtension(extensions, EXTENSION_BREED_CODE_URL, companion.breedCode);
   addDecimalExtension(extensions, EXTENSION_WEIGHT_URL, companion.currentWeight);
   addStringExtension(extensions, EXTENSION_COLOUR_URL, companion.colour);
   addStringExtension(extensions, EXTENSION_ALLERGY_URL, companion.allergy);
@@ -874,6 +882,8 @@ export const fromFHIRCompanion = (dto: Patient): Companion => {
     name,
     type: species,
     breed,
+    speciesCode: parseStringExtension(extensions, EXTENSION_SPECIES_CODE_URL),
+    breedCode: parseStringExtension(extensions, EXTENSION_BREED_CODE_URL),
     dateOfBirth,
     gender: parseGender(dto.gender),
     photoUrl: parsePhoto(dto.photo),

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import Parent from "@/app/features/companions/components/AddCompanion/Sections/Parent";
+import type { ParentSectionRef } from "@/app/features/companions/components/AddCompanion/Sections/Parent";
 import Companion from "@/app/features/companions/components/AddCompanion/Sections/Companion";
 import Modal from "@/app/ui/overlays/Modal";
 import { EMPTY_STORED_COMPANION, EMPTY_STORED_PARENT } from "@/app/features/companions/components/AddCompanion/type";
@@ -26,6 +27,7 @@ type AddCompanionProps = {
 const AddCompanion = ({ showModal, setShowModal }: AddCompanionProps) => {
   const [activeLabel, setActiveLabel] = useState<string>("parents");
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const parentSectionRef = useRef<ParentSectionRef | null>(null);
   const [parentFormData, setParentFormData] =
     useState<StoredParent>(EMPTY_STORED_PARENT);
   const [companionFormData, setCompanionFormData] = useState<StoredCompanion>(
@@ -35,6 +37,16 @@ const AddCompanion = ({ showModal, setShowModal }: AddCompanionProps) => {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
   }, [activeLabel]);
+
+  const handleLabelChange = (label: string) => {
+    if (label === "companion" && activeLabel === "parents") {
+      const isParentValid = parentSectionRef.current?.validateStep();
+      if (isParentValid === false) {
+        return;
+      }
+    }
+    setActiveLabel(label);
+  };
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
@@ -52,8 +64,7 @@ const AddCompanion = ({ showModal, setShowModal }: AddCompanionProps) => {
         <Labels
           labels={LabelOptions}
           activeLabel={activeLabel}
-          setActiveLabel={setActiveLabel}
-          disableClicking
+          setActiveLabel={handleLabelChange}
         />
 
         <div
@@ -62,6 +73,7 @@ const AddCompanion = ({ showModal, setShowModal }: AddCompanionProps) => {
         >
           {activeLabel === "parents" && (
             <Parent
+              ref={parentSectionRef}
               setActiveLabel={setActiveLabel}
               formData={parentFormData}
               setFormData={setParentFormData}
