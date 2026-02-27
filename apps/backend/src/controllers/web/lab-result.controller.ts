@@ -3,6 +3,7 @@ import { OrgRequest } from "src/middlewares/rbac";
 import logger from "src/utils/logger";
 import { LabResultService, LabResultServiceError } from "src/services/lab-result.service";
 import { IdexxResultsQueryService } from "src/services/idexx-results-query.service";
+import { mapAxiosError } from "src/utils/external-error";
 
 export const LabResultController = {
   async list(req: Request, res: Response) {
@@ -23,6 +24,12 @@ export const LabResultController = {
 
       return res.status(200).json(results);
     } catch (error) {
+      const axiosError = mapAxiosError(error, "IDEXX request failed");
+      if (axiosError) {
+        return res
+          .status(axiosError.status)
+          .json({ message: axiosError.message, details: axiosError.details });
+      }
       if (error instanceof LabResultServiceError) {
         return res.status(error.statusCode).json({ message: error.message });
       }
@@ -53,6 +60,12 @@ export const LabResultController = {
 
       return res.status(404).json({ message: "Result not found." });
     } catch (error) {
+      const axiosError = mapAxiosError(error, "IDEXX request failed");
+      if (axiosError) {
+        return res
+          .status(axiosError.status)
+          .json({ message: axiosError.message, details: axiosError.details });
+      }
       logger.error("Failed to fetch lab result", error);
       return res.status(500).json({ message: "Failed to fetch lab result." });
     }
@@ -78,6 +91,12 @@ export const LabResultController = {
       if (disposition) res.setHeader("Content-Disposition", disposition);
       return res.status(200).send(Buffer.from(payload.data));
     } catch (error) {
+      const axiosError = mapAxiosError(error, "IDEXX request failed");
+      if (axiosError) {
+        return res
+          .status(axiosError.status)
+          .json({ message: axiosError.message, details: axiosError.details });
+      }
       logger.error("Failed to fetch result PDF", error);
       return res.status(500).json({ message: "Failed to fetch result PDF." });
     }
@@ -103,6 +122,12 @@ export const LabResultController = {
       if (disposition) res.setHeader("Content-Disposition", disposition);
       return res.status(200).send(Buffer.from(payload.data));
     } catch (error) {
+      const axiosError = mapAxiosError(error, "IDEXX request failed");
+      if (axiosError) {
+        return res
+          .status(axiosError.status)
+          .json({ message: axiosError.message, details: axiosError.details });
+      }
       logger.error("Failed to fetch result notifications PDF", error);
       return res.status(500).json({ message: "Failed to fetch result notifications PDF." });
     }
@@ -126,6 +151,12 @@ export const LabResultController = {
 
       return res.status(200).json(data);
     } catch (error) {
+      const axiosError = mapAxiosError(error, "IDEXX request failed");
+      if (axiosError) {
+        return res
+          .status(axiosError.status)
+          .json({ message: axiosError.message, details: axiosError.details });
+      }
       logger.error("Failed to search lab results", error);
       return res.status(500).json({ message: "Failed to search lab results." });
     }

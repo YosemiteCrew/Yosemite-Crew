@@ -90,6 +90,30 @@ export class IdexxClient {
     return response.data;
   }
 
+  async listCensus<T = unknown>(): Promise<T> {
+    const response = await this.http.get<T>("/api/v1/census");
+    return response.data;
+  }
+
+  async deleteCensus<T = unknown>(): Promise<T> {
+    const response = await this.http.delete<T>("/api/v1/census");
+    return response.data;
+  }
+
+  async getCensusById<T = unknown>(censusId: string): Promise<T> {
+    const response = await this.http.get<T>(
+      `/api/v1/census/${encodeURIComponent(censusId)}`,
+    );
+    return response.data;
+  }
+
+  async deleteCensusById<T = unknown>(censusId: string): Promise<T> {
+    const response = await this.http.delete<T>(
+      `/api/v1/census/${encodeURIComponent(censusId)}`,
+    );
+    return response.data;
+  }
+
   async getCensusPatient<T = unknown>(patientId: string): Promise<T> {
     const response = await this.http.get<T>(
       `/api/v1/census/patient?patientId=${encodeURIComponent(patientId)}`,
@@ -101,6 +125,11 @@ export class IdexxClient {
     const response = await this.http.delete<T>(
       `/api/v1/census/patient?patientId=${encodeURIComponent(patientId)}`,
     );
+    return response.data;
+  }
+
+  async listIvlsDevices<T = unknown>(): Promise<T> {
+    const response = await this.http.get<T>("/api/v1/ivls/devices");
     return response.data;
   }
 }
