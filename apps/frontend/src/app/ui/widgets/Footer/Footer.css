@@ -47,7 +47,7 @@
 .RytFooter {
   display: flex;
   justify-content: flex-end;
-  gap: 100px;
+  gap: 85px;
   flex-wrap: wrap;
 }
 .FtDiv {
