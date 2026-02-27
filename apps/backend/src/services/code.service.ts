@@ -25,6 +25,14 @@ export class CodeServiceError extends Error {
 const syncCodeEntryToPostgres = async (doc: CodeEntryDocument) => {
   if (!shouldDualWrite) return;
   try {
+    const toJsonInput = (
+      value: Record<string, unknown> | null | undefined,
+    ) => {
+      if (value === null) return Prisma.JsonNull;
+      if (value === undefined) return undefined;
+      return value as Prisma.InputJsonValue;
+    };
+
     await prisma.codeEntry.upsert({
       where: {
         system_code: {
@@ -42,7 +50,7 @@ const syncCodeEntryToPostgres = async (doc: CodeEntryDocument) => {
           doc.synonyms === null
             ? Prisma.JsonNull
             : (doc.synonyms ?? undefined),
-        meta: doc.meta === null ? Prisma.JsonNull : (doc.meta ?? undefined),
+        meta: toJsonInput(doc.meta),
       },
       update: {
         display: doc.display,
@@ -52,7 +60,7 @@ const syncCodeEntryToPostgres = async (doc: CodeEntryDocument) => {
           doc.synonyms === null
             ? Prisma.JsonNull
             : (doc.synonyms ?? undefined),
-        meta: doc.meta === null ? Prisma.JsonNull : (doc.meta ?? undefined),
+        meta: toJsonInput(doc.meta),
       },
     });
   } catch (err) {
@@ -93,7 +101,7 @@ const syncCodeMappingToPostgres = async (doc: CodeMappingDocument) => {
 };
 
 const ensureNonEmpty = (value: string | undefined, field: string) => {
-  if (!value || !value.trim()) {
+  if (!value?.trim()) {
     throw new CodeServiceError(`${field} is required.`, 400);
   }
 };

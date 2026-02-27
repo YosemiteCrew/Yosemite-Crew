@@ -7,13 +7,13 @@ const router = Router();
 router.get(
   "/entries",
   authorizeCognito,
-  CodeController.listEntries,
+  (req, res) => CodeController.listEntries(req, res),
 );
 
 router.get(
   "/mappings",
   authorizeCognito,
-  CodeController.listMappings,
+  (req, res) => CodeController.listMappings(req, res),
 );
 
 export default router;

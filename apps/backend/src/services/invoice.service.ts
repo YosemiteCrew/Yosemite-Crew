@@ -760,6 +760,94 @@ export const InvoiceService = {
     return { action: "NO_ACTION", status: invoice.status };
   },
 
+  async handleInvoiceCancellation(invoiceId: string, reason: string) {
+    const _id = ensureObjectId(invoiceId, "invoiceId");
+
+    const invoice = await InvoiceModel.findById(_id);
+    if (!invoice) {
+      throw new InvoiceServiceError("Invoice not found", 404);
+    }
+
+    if (["CANCELLED", "REFUNDED"].includes(invoice.status)) {
+      return { action: "ALREADY_HANDLED", status: invoice.status };
+    }
+
+    if (invoice.status === "AWAITING_PAYMENT" || invoice.status === "PENDING") {
+      invoice.status = "CANCELLED";
+      invoice.metadata = {
+        ...invoice.metadata,
+        cancellationReason: reason,
+      };
+      await invoice.save();
+      await syncInvoiceToPostgres(invoice);
+
+      const targets = await resolveAuditTargetsForInvoice(invoice);
+      if (targets.organisationId && targets.companionId) {
+        await AuditTrailService.recordSafely({
+          organisationId: targets.organisationId,
+          companionId: targets.companionId,
+          eventType: "INVOICE_CANCELLED",
+          actorType: "SYSTEM",
+          entityType: "INVOICE",
+          entityId: invoice._id.toString(),
+          metadata: {
+            status: invoice.status,
+            reason,
+          },
+        });
+      }
+
+      return { action: "CANCELLED_UNPAID", status: invoice.status };
+    }
+
+    if (invoice.status === "PAID") {
+      if (!invoice.stripePaymentIntentId) {
+        throw new InvoiceServiceError(
+          "Cannot refund: missing Stripe paymentIntentId",
+          500,
+        );
+      }
+
+      const refund = await StripeService.refundPaymentIntent(
+        invoice.stripePaymentIntentId,
+      );
+
+      invoice.status = "REFUNDED";
+      invoice.metadata = {
+        ...invoice.metadata,
+        cancellationReason: reason,
+        refundId: refund.refundId,
+        amount: refund.amountRefunded,
+        refundDate: new Date().toISOString(),
+      };
+
+      await invoice.save();
+      await syncInvoiceToPostgres(invoice);
+
+      const targets = await resolveAuditTargetsForInvoice(invoice);
+      if (targets.organisationId && targets.companionId) {
+        await AuditTrailService.recordSafely({
+          organisationId: targets.organisationId,
+          companionId: targets.companionId,
+          eventType: "INVOICE_REFUNDED",
+          actorType: "SYSTEM",
+          entityType: "INVOICE",
+          entityId: invoice._id.toString(),
+          metadata: {
+            status: invoice.status,
+            refundId: refund.refundId,
+            amount: refund.amountRefunded,
+            currency: invoice.currency,
+          },
+        });
+      }
+
+      return { action: "REFUNDED", status: invoice.status };
+    }
+
+    return { action: "NO_ACTION", status: invoice.status };
+  },
+
   async getByPaymentIntentId(paymentIntentId: string) {
     const doc = await InvoiceModel.findOne({
       stripePaymentIntentId: paymentIntentId,

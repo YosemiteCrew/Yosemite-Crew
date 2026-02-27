@@ -50,6 +50,9 @@ export type Permission =
   // Documents
   | "document:view:any"
   | "document:edit:any"
+  // Labs
+  | "labs:view:any"
+  | "labs:edit:any"
   // Org-level
   | "subscription:view:any"
   | "subscription:edit:any"
@@ -135,6 +138,9 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     "document:view:any",
     "document:edit:any",
+
+    "labs:view:any",
+    "labs:edit:any",
   ],
 
   ADMIN: [
@@ -194,6 +200,9 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     "document:view:any",
     "document:edit:any",
+
+    "labs:view:any",
+    "labs:edit:any",
   ],
 
   SUPERVISOR: [

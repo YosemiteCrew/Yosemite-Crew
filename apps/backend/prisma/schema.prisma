@@ -167,6 +167,22 @@ enum CodeType {
   OTHER
 }
 
+enum LabOrderStatus {
+  CREATED
+  SUBMITTED
+  AT_THE_LAB
+  PARTIAL
+  RUNNING
+  COMPLETE
+  CANCELLED
+  ERROR
+}
+
+enum LabOrderModality {
+  IN_HOUSE
+  REFERENCE_LAB
+}
+
 enum IntegrationProvider {
   IDEXX
 }
@@ -267,6 +283,80 @@ model CodeSyncState {
 
   @@unique([system, kind])
   @@index([system, kind])
+}
+
+model LabOrder {
+  id                     String           @id @default(uuid())
+  organisationId         String
+  provider               String
+  companionId            String
+  parentId               String
+  appointmentId          String?
+  createdByUserId        String?
+  status                 LabOrderStatus   @default(CREATED)
+  modality               LabOrderModality @default(REFERENCE_LAB)
+  idexxOrderId           String?
+  uiUrl                  String?
+  pdfUrl                 String?
+  tests                  Json?
+  veterinarian           String?
+  technician             String?
+  notes                  String?
+  specimenCollectionDate String?
+  ivls                   Json?
+  requestPayload         Json?
+  responsePayload        Json?
+  error                  String?
+  externalStatus         String?
+  invoiceId              String?
+  billedAt               DateTime?
+  billingError           String?
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+
+  @@index([organisationId])
+  @@index([provider])
+  @@index([idexxOrderId])
+  @@index([invoiceId])
+}
+
+model LabResult {
+  id                    String   @id @default(uuid())
+  organisationId        String?
+  provider              String
+  resultId              String
+  orderId               String?
+  requisitionId         String?
+  accessionId           String?
+  diagnosticSetId       String?
+  status                String?
+  statusDetail          String?
+  modality              String?
+  patientId             String?
+  patientName           String?
+  clientId              String?
+  clientFirstName       String?
+  clientLastName        String?
+  updatedDate           String?
+  updatedAuditDate      String?
+  specimenCollectionDate String?
+  rawPayload            Json?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([provider, resultId])
+  @@index([provider, orderId])
+  @@index([organisationId])
+}
+
+model LabResultSyncState {
+  id           String   @id @default(uuid())
+  provider     String   @unique
+  lastBatchId  String?
+  lastTimestamp String?
+  lastPolledAt DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model Companion {

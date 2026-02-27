@@ -208,28 +208,28 @@ export const IdexxReferenceService = {
       pimsVersion,
     });
 
-    const versions = (await client.getRefVersions()) as IdexxVersionResponse;
+    const versions = await client.getRefVersions<IdexxVersionResponse>();
 
     if (versions.species && (await shouldSync("species", versions.species))) {
-      const species = (await client.getRefSpecies()) as IdexxRefList<IdexxSpecies>;
+      const species = await client.getRefSpecies<IdexxRefList<IdexxSpecies>>();
       await syncSpecies(species);
       await markSynced("species", species.version);
     }
 
     if (versions.breeds && (await shouldSync("breeds", versions.breeds))) {
-      const breeds = (await client.getRefBreeds()) as IdexxRefList<IdexxBreed>;
+      const breeds = await client.getRefBreeds<IdexxRefList<IdexxBreed>>();
       await syncBreeds(breeds);
       await markSynced("breeds", breeds.version);
     }
 
     if (versions.genders && (await shouldSync("genders", versions.genders))) {
-      const genders = (await client.getRefGenders()) as IdexxRefList<IdexxGender>;
+      const genders = await client.getRefGenders<IdexxRefList<IdexxGender>>();
       await syncGenders(genders);
       await markSynced("genders", genders.version);
     }
 
     if (versions.tests && (await shouldSync("tests", versions.tests))) {
-      const tests = (await client.getRefTests()) as IdexxRefList<IdexxTest>;
+      const tests = await client.getRefTests<IdexxRefList<IdexxTest>>();
       await syncTests(tests);
       await markSynced("tests", tests.version);
     }
