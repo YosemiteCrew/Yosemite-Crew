@@ -209,7 +209,7 @@ const maybeBillSubmittedOrder = async (order: LabOrderDocument) => {
 export const LabOrderService = {
   async listProviderTests(
     providerInput: string,
-    params: { query?: string; limit?: number; codes?: string[] },
+    params: { query?: string; limit?: number; page?: number; codes?: string[] },
   ) {
     const provider = normalizeLabProvider(providerInput);
     if (!provider) {
@@ -234,15 +234,25 @@ export const LabOrderService = {
       ];
     }
 
-    const cursor = CodeEntryModel.find(filter)
-      .sort({ display: 1 })
-      .select({ system: 1, code: 1, display: 1, type: 1, meta: 1 });
+    const limit =
+      typeof params.limit === "number" && params.limit > 0
+        ? Math.min(params.limit, 200)
+        : 50;
+    const page =
+      typeof params.page === "number" && params.page > 0 ? params.page : 1;
+    const skip = (page - 1) * limit;
 
-    if (params.limit && params.limit > 0) {
-      cursor.limit(params.limit);
-    }
+    const [total, items] = await Promise.all([
+      CodeEntryModel.countDocuments(filter),
+      CodeEntryModel.find(filter)
+        .sort({ display: 1 })
+        .skip(skip)
+        .limit(limit)
+        .select({ system: 1, code: 1, display: 1, type: 1, meta: 1 })
+        .lean(),
+    ]);
 
-    return cursor.lean();
+    return { total, page, limit, tests: items };
   },
   async createOrder(providerInput: string, input: LabOrderCreateInput) {
     ensureNonEmpty(input.organisationId, "organisationId");

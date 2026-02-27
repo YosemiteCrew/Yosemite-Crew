@@ -20,9 +20,12 @@ export const LabOrderController = {
         return res.status(400).json({ message: "provider is required." });
       }
 
-      const query = typeof req.query.query === "string" ? req.query.query : undefined;
+      const query =
+        typeof req.query.query === "string" ? req.query.query : undefined;
       const limit =
         typeof req.query.limit === "string" ? Number(req.query.limit) : undefined;
+      const page =
+        typeof req.query.page === "string" ? Number(req.query.page) : undefined;
       const codesParam =
         typeof req.query.codes === "string" ? req.query.codes : undefined;
       const codes = codesParam
@@ -32,10 +35,11 @@ export const LabOrderController = {
       const tests = await LabOrderService.listProviderTests(provider, {
         query,
         limit: Number.isFinite(limit) ? limit : undefined,
+        page: Number.isFinite(page) ? page : undefined,
         codes,
       });
 
-      return res.status(200).json({ tests });
+      return res.status(200).json(tests);
     } catch (error) {
       if (error instanceof LabOrderServiceError) {
         return res.status(error.statusCode).json({ message: error.message });
