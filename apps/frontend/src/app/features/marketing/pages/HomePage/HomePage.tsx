@@ -1,16 +1,17 @@
-"use client";
-import React, { ReactNode } from "react";
-import Link from "next/link";
-import Image from "next/image";
+'use client';
+import React, { ReactNode } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
 
-import Footer from "@/app/ui/widgets/Footer/Footer";
-import { Primary } from "@/app/ui/primitives/Buttons";
-import FeatureBox from "@/app/features/marketing/pages/HomePage/FeatureBox/FeatureBox";
-import FocusCard from "@/app/features/marketing/pages/HomePage/FocusCard/FocusCard";
-import data from "./data.json";
-import { useAuthStore } from "@/app/stores/authStore";
+import Footer from '@/app/ui/widgets/Footer/Footer';
+import { Primary } from '@/app/ui/primitives/Buttons';
+import FeatureBox from '@/app/features/marketing/pages/HomePage/FeatureBox/FeatureBox';
+import FocusCard from '@/app/features/marketing/pages/HomePage/FocusCard/FocusCard';
+import data from './data';
+import { useAuthStore } from '@/app/stores/authStore';
+import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 
-import "./HomePage.css";
+import './HomePage.css';
 
 const HomePage = () => {
   const { focusCards, practiceFeatures, heroList } = data;
@@ -18,12 +19,12 @@ const HomePage = () => {
 
   const getCtaHref = () => {
     if (user) {
-      return role === "developer" ? "/developers/home" : "/organizations";
+      return role === 'developer' ? '/developers/home' : '/organizations';
     }
-    return "/signup";
+    return '/signup';
   };
 
-  const ctaText = user ? "Go to app" : "Get started free";
+  const ctaText = user ? 'Go to app' : 'Get started free';
 
   return (
     <>
@@ -32,7 +33,9 @@ const HomePage = () => {
           <div className="HomeHeroData">
             <div className="LeftHeroDiv">
               <div className="herotext">
-                <div className="text-display-1 text-text-primary type first">Helping you help pets,</div>
+                <div className="text-display-1 text-text-primary type first">
+                  Helping you help pets,
+                </div>
                 <div className="text-display-1 text-text-primary">
                   <span className="type second">without the hassle</span>
                 </div>
@@ -43,28 +46,24 @@ const HomePage = () => {
                     <div className="text-body-3 text-text-primary">
                       <Image
                         aria-hidden
-                        src="https://d2il6osz49gpup.cloudfront.net/Images/petfootblue.png"
+                        src={MEDIA_SOURCES.homePage.petFootBlue}
                         alt="petfoot"
                         width={20}
                         height={20}
-                      />{" "}
+                      />{' '}
                       {hero.title}
                     </div>
                   </div>
                 ))}
               </div>
               <div className="HeroBtn">
-                <Primary
-                  size="large"
-                  text={ctaText}
-                  href={getCtaHref()}
-                />
+                <Primary size="large" text={ctaText} href={getCtaHref()} />
               </div>
             </div>
             <div className="RytHeroDiv">
               <Image
                 aria-hidden
-                src="https://d2il6osz49gpup.cloudfront.net/Images/HeroBg.png"
+                src={MEDIA_SOURCES.homePage.heroBg}
                 alt="Hero"
                 width={733}
                 height={564}
@@ -78,7 +77,9 @@ const HomePage = () => {
         <div className="Container">
           <div className="PracticedData">
             <div className="PractHeading">
-              <div className="text-display-2 text-text-primary">Everything you need to run your pet business</div>
+              <div className="text-display-2 text-text-primary">
+                Everything you need to run your pet business
+              </div>
             </div>
             <div className="Practice_Box_Data">
               {practiceFeatures.map((feature, index) => (
@@ -101,8 +102,8 @@ const HomePage = () => {
             <div className="FocusTexted">
               <div className="text-display-2 text-text-primary">Focus on care, not admin</div>
               <div className="text-body-4 text-text-secondary">
-                The easy-to-use, cloud-based software that simplifies practice
-                management and elevates animal care.
+                The easy-to-use, cloud-based software that simplifies practice management and
+                elevates animal care.
               </div>
             </div>
             <div className="Focus_data">
@@ -137,7 +138,7 @@ const HomePage = () => {
                 <div className="expertBio">
                   <Image
                     aria-hidden
-                    src={`https://d2il6osz49gpup.cloudfront.net/Homepage/exprt1.png`}
+                    src={MEDIA_SOURCES.homePage.expert1}
                     alt="Hero"
                     width={50}
                     height={50}
@@ -161,7 +162,7 @@ const HomePage = () => {
                 <div className="expertBio purplebio">
                   <Image
                     aria-hidden
-                    src={`https://d2il6osz49gpup.cloudfront.net/Homepage/exprt2.png`}
+                    src={MEDIA_SOURCES.homePage.expert2}
                     alt="Hero"
                     width={50}
                     height={50}
@@ -186,7 +187,7 @@ const HomePage = () => {
                 <div className="expertBio greenbio">
                   <Image
                     aria-hidden
-                    src={`https://d2il6osz49gpup.cloudfront.net/Homepage/exprt3.png`}
+                    src={MEDIA_SOURCES.homePage.expert3}
                     alt="Hero"
                     width={50}
                     height={50}
@@ -208,38 +209,39 @@ const HomePage = () => {
         <div className="Container">
           <div className="whocareData">
             <div className="lftcare">
-              <div className="text-display-2 text-text-primary">Caring for vets, who care for pets</div>
+              <div className="text-display-2 text-text-primary">
+                Caring for vets, who care for pets
+              </div>
               <div className="text-body-4 text-text-secondary">
-                We prioritise your data security and compliance with
-                industry-leading standards. Our platform is fully compliant with
-                GDPR, SOC 2 and ISO 27001 standards.
+                We prioritise your data security and compliance with industry-leading standards. Our
+                platform is fully compliant with GDPR, SOC 2 and ISO 27001 standards.
               </div>
             </div>
             <div className="rytcare">
               <Image
                 aria-hidden
-                src="https://d2il6osz49gpup.cloudfront.net/footer/gdpr.png"
+                src={MEDIA_SOURCES.footer.gdpr}
                 alt="cllog1"
                 width={128}
                 height={128}
               />
               <Image
                 aria-hidden
-                src="https://d2il6osz49gpup.cloudfront.net/footer/soc-2.png"
+                src={MEDIA_SOURCES.footer.soc2}
                 alt="cllog2"
                 width={128}
                 height={128}
               />
               <Image
                 aria-hidden
-                src="https://d2il6osz49gpup.cloudfront.net/footer/iso.png"
+                src={MEDIA_SOURCES.footer.iso}
                 alt="cllog3"
                 width={128}
                 height={144}
               />
               <Image
                 aria-hidden
-                src="https://d2il6osz49gpup.cloudfront.net/footer/fhir.png"
+                src={MEDIA_SOURCES.footer.fhir}
                 alt="cllog4"
                 width={207}
                 height={50}
@@ -259,21 +261,17 @@ const HomePage = () => {
                     Better care is just a click away
                   </div>
                   <div className="text-body-4 text-text-secondary">
-                    Join hundreds of veterinary clinics already enhancing animal
-                    care and streamlining their workflow.
+                    Join hundreds of veterinary clinics already enhancing animal care and
+                    streamlining their workflow.
                   </div>
                 </div>
-                <Primary
-                  text={ctaText}
-                  href={getCtaHref()}
-                  size="large"
-                />
+                <Primary text={ctaText} href={getCtaHref()} size="large" />
               </div>
             </div>
             <div className="lftbetter">
               <Image
                 aria-hidden
-                src={`https://d2il6osz49gpup.cloudfront.net/Homepage/betterimg.png`}
+                src={MEDIA_SOURCES.homePage.betterImage}
                 alt="betterimg"
                 width={507}
                 height={433}
@@ -300,13 +298,7 @@ type ButtonProps = {
   style?: React.CSSProperties;
 };
 
-const FillBtn = ({
-  icon,
-  text,
-  onClick,
-  href,
-  style,
-}: Readonly<ButtonProps>) => {
+const FillBtn = ({ icon, text, onClick, href, style }: Readonly<ButtonProps>) => {
   return (
     <Link
       href={href}
@@ -323,13 +315,7 @@ const FillBtn = ({
     </Link>
   );
 };
-const UnFillBtn = ({
-  icon,
-  text,
-  href,
-  onClick,
-  style,
-}: Readonly<ButtonProps>) => {
+const UnFillBtn = ({ icon, text, href, onClick, style }: Readonly<ButtonProps>) => {
   return (
     <Link className="UnFillbtn" href={href} onClick={onClick} style={style}>
       {icon} {text}

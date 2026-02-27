@@ -20,8 +20,7 @@
 /* AboutHeroSec started  */
 .AboutHeroSec {
   padding: 24px 0px 80px 0px;
-  background: url("https://d2il6osz49gpup.cloudfront.net/Images/aboutbg.png")
-    no-repeat;
+  background: var(--img-bg-about) no-repeat;
   background-size: 100% 100%;
   background-size: cover;
   background-position: center;
@@ -84,7 +83,7 @@
 }
 .AbutheroBtm .abtherocard .AbtCardItem::after {
   position: absolute;
-  content: " ";
+  content: ' ';
   background: var(--black-bg);
   height: 4px;
   left: 0;

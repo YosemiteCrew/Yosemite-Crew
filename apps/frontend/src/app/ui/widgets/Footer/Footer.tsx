@@ -1,44 +1,45 @@
-"use client";
-import Image from "next/image";
-import Link from "next/link";
-import React, { useRef } from "react";
-import { Container } from "react-bootstrap";
-import { motion, Variants, useInView } from "framer-motion";
+'use client';
+import Image from 'next/image';
+import Link from 'next/link';
+import React, { useRef } from 'react';
+import { Container } from 'react-bootstrap';
+import { motion, Variants, useInView } from 'framer-motion';
+import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 
-import "./Footer.css";
+import './Footer.css';
 
 const footerLinks = [
   {
-    title: "Developers",
+    title: 'Developers',
     links: [
       {
-        label: "Developer portal",
-        href: "/developers/signup",
+        label: 'Developer portal',
+        href: '/developers/signup',
       },
       {
-        label: "Contributing",
-        href: "https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md",
-      },
-    ],
-  },
-  {
-    title: "Community",
-    links: [
-      { label: "Discord", href: "https://discord.gg/yosemitecrew" },
-      {
-        label: "GitHub",
-        href: "https://github.com/YosemiteCrew/Yosemite-Crew",
+        label: 'Contributing',
+        href: 'https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md',
       },
     ],
   },
   {
-    title: "Company",
+    title: 'Community',
     links: [
-      { label: "About us", href: "/about" },
-      { label: "Terms and conditions", href: "/terms-and-conditions" },
-      { label: "Privacy policy", href: "/privacy-policy" },
-      { label: "Pricing", href: "/pricing" },
-      { label: "Trust Center", href: "/trust-center" },
+      { label: 'Discord', href: 'https://discord.gg/yosemitecrew' },
+      {
+        label: 'GitHub',
+        href: 'https://github.com/YosemiteCrew/Yosemite-Crew',
+      },
+    ],
+  },
+  {
+    title: 'Company',
+    links: [
+      { label: 'About us', href: '/about' },
+      { label: 'Terms and conditions', href: '/terms-and-conditions' },
+      { label: 'Privacy policy', href: '/privacy-policy' },
+      { label: 'Pricing', href: '/pricing' },
+      { label: 'Trust Center', href: '/trust-center' },
     ],
   },
 ];
@@ -54,12 +55,12 @@ const containerVariants: Variants = {
 
 const ftDivVariants: Variants = {
   hidden: { opacity: 0, y: 40 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
 };
 
 const Footer = () => {
   const footerRef = useRef(null);
-  const inView = useInView(footerRef, { once: true, margin: "-100px" });
+  const inView = useInView(footerRef, { once: true, margin: '-100px' });
 
   return (
     <motion.footer
@@ -68,16 +69,16 @@ const Footer = () => {
       aria-label="Site Footer"
       initial={{ opacity: 0, y: 40 }}
       animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
-      transition={{ duration: 0.7, ease: "easeOut" }}
+      transition={{ duration: 0.7, ease: 'easeOut' }}
     >
       <Container>
         <div className="FooterData">
           <div className="FootTopData">
             <div className="leftFooter">
-              <Link href={"/"}>
+              <Link href={'/'}>
                 <Image
                   aria-hidden
-                  src="https://d2il6osz49gpup.cloudfront.net/Logo.png"
+                  src={MEDIA_SOURCES.logo}
                   alt="Yosemite Crew Logo"
                   width={90}
                   height={83}
@@ -86,7 +87,7 @@ const Footer = () => {
               <div className="ClientLogo" aria-label="Certifications">
                 <Image
                   aria-hidden
-                  src="https://d2il6osz49gpup.cloudfront.net/footer/gdpr.png"
+                  src={MEDIA_SOURCES.footer.gdpr}
                   alt="GDPR"
                   width={55}
                   height={56}
@@ -94,7 +95,7 @@ const Footer = () => {
                 />
                 <Image
                   aria-hidden
-                  src="https://d2il6osz49gpup.cloudfront.net/footer/soc-2.png"
+                  src={MEDIA_SOURCES.footer.soc2}
                   alt="SOC2"
                   width={56}
                   height={56}
@@ -102,7 +103,7 @@ const Footer = () => {
                 />
                 <Image
                   aria-hidden
-                  src="https://d2il6osz49gpup.cloudfront.net/footer/iso.png"
+                  src={MEDIA_SOURCES.footer.iso}
                   alt="ISO"
                   width={54}
                   height={60}
@@ -110,7 +111,7 @@ const Footer = () => {
                 />
                 <Image
                   aria-hidden
-                  src="https://d2il6osz49gpup.cloudfront.net/footer/fhir.png"
+                  src={MEDIA_SOURCES.footer.fhir}
                   alt="FHIR"
                   width={117}
                   height={28}
@@ -126,20 +127,14 @@ const Footer = () => {
               animate="visible"
             >
               {footerLinks.map((section) => (
-                <motion.div
-                  className="FtDiv"
-                  key={section.title}
-                  variants={ftDivVariants}
-                >
-                  <div className="text-heading-3 text-text-tertiary">
-                    {section.title}
-                  </div>
+                <motion.div className="FtDiv" key={section.title} variants={ftDivVariants}>
+                  <div className="text-heading-3 text-text-tertiary">{section.title}</div>
                   <ul className="FtLinks">
                     {section.links.map((link) => (
                       <li key={link.label}>
                         <Link
                           href={link.href}
-                          target={section.title === "Company" ? "" : "_blank"}
+                          target={section.title === 'Company' ? '' : '_blank'}
                           className="text-body-4 text-text-tertiary"
                         >
                           {link.label}
@@ -158,17 +153,16 @@ const Footer = () => {
                 Copyright &copy; 2026 DuneXploration
               </div>
               <div className="text-body-4 text-text-secondary text-center footer-copy-secondary">
-                DuneXploration UG (haftungsbeschränkt), Am Finther Weg 7, 55127
-                Mainz
+                DuneXploration UG (haftungsbeschränkt), Am Finther Weg 7, 55127 Mainz
                 <br />
-                email:{" "}
+                email:{' '}
                 <a
                   className="text-body-4 text-text-brand footer-copy-link"
                   href="mailto:support@yosemitecrew.com"
                 >
                   support@yosemitecrew.com
-                </a>{" "}
-                , phone:{" "}
+                </a>{' '}
+                , phone:{' '}
                 <a
                   className="text-body-4 text-text-brand footer-copy-link"
                   href="tel:+4915227763275"
@@ -177,8 +171,7 @@ const Footer = () => {
                 </a>
               </div>
               <div className="text-body-4 text-text-secondary text-center footer-copy-secondary">
-                Geschaftsfuhrer: Ankit Upadhyay Amtsgericht Mainz unter HRB
-                52778, VAT: DE367920596
+                Geschaftsfuhrer: Ankit Upadhyay Amtsgericht Mainz unter HRB 52778, VAT: DE367920596
               </div>
             </div>
           </div>

@@ -1,6 +1,7 @@
-import React, { useState } from "react";
-import { IoIosWarning } from "react-icons/io";
-import Image from "next/image";
+import React, { useState } from 'react';
+import { IoIosWarning } from 'react-icons/io';
+import Image from 'next/image';
+import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 
 type FormInputPassProps = {
   intype: string;
@@ -28,19 +29,19 @@ const FormInputPass = ({
     <div className="w-full">
       <div className="relative">
         <input
-          type={showPassword ? "text" : intype}
+          type={showPassword ? 'text' : intype}
           name={inname}
           id={inname}
-          value={value ?? ""}
+          value={value ?? ''}
           autoComplete="new-password"
           onChange={onChange}
           required
-          placeholder={""}
+          placeholder={''}
           className={`
             peer w-full min-h-12 rounded-2xl bg-transparent px-6 py-2.5
             text-body-4 text-text-primary
             outline-none border
-            ${error ? "border-input-border-error!" : "border-input-border-default!"}
+            ${error ? 'border-input-border-error!' : 'border-input-border-default!'}
             focus:border-input-border-active!
           `}
         />
@@ -65,7 +66,7 @@ const FormInputPass = ({
         </label>
         <Image
           aria-hidden
-          src="https://d2il6osz49gpup.cloudfront.net/Images/eyes.png"
+          src={MEDIA_SOURCES.auth.passwordEye}
           alt="eyes"
           width={24}
           height={24}

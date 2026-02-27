@@ -85,9 +85,8 @@
 }
 .Needhelpitem::after {
   position: absolute;
-  content: " ";
-  background: url("https://d2il6osz49gpup.cloudfront.net/Images/doghelp.png")
-    no-repeat;
+  content: ' ';
+  background: var(--img-bg-dog-help) no-repeat;
   background-size: 100% 100%;
   right: 0;
   bottom: 0;

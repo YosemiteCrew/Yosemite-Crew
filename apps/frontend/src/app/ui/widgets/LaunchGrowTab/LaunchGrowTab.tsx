@@ -1,64 +1,65 @@
-"use client";
-import React, { useState } from "react";
-import Image from "next/image";
-import { Icon } from "@iconify/react/dist/iconify.js";
+'use client';
+import React, { useState } from 'react';
+import Image from 'next/image';
+import { Icon } from '@iconify/react/dist/iconify.js';
+import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 
-import "./LaunchGrowTab.css";
+import './LaunchGrowTab.css';
 
 const Launchtabs = [
   {
     id: 1,
-    title: "APIs",
-    color: "#247AED",
-    icon: "https://d2il6osz49gpup.cloudfront.net/Images/buildlaunch1.png",
-    heading: "Application programming interface",
+    title: 'APIs',
+    color: '#247AED',
+    icon: MEDIA_SOURCES.launchGrow.tab1,
+    heading: 'Application programming interface',
     details: [
-      "Integrate essential veterinary features like appointment scheduling and medical records.",
-      "Enable smooth vet-owner communication with real-time updates.",
-      "Ensure secure, reliable API calls for consistent data sharing.",
-      "Scale effortlessly as your app grows with robust backend support.",
+      'Integrate essential veterinary features like appointment scheduling and medical records.',
+      'Enable smooth vet-owner communication with real-time updates.',
+      'Ensure secure, reliable API calls for consistent data sharing.',
+      'Scale effortlessly as your app grows with robust backend support.',
     ],
   },
   {
     id: 2,
-    title: "SDKs",
-    color: "#E9F2FD",
-    icon: "https://d2il6osz49gpup.cloudfront.net/Images/buildlaunch2.png",
-    heading: "Software development kit",
+    title: 'SDKs',
+    color: '#E9F2FD',
+    icon: MEDIA_SOURCES.launchGrow.tab2,
+    heading: 'Software development kit',
     details: [
-      "Provides APIs for authentication, user roles, patient records, appointment scheduling, and billing.",
-      "Enables handling of veterinary-specific data models (species, breeds, medical history, treatments, prescriptions).",
-      "Allows developers to create and publish custom plugins and microfrontends.",
-      "Offers access to practice performance dashboards, and compliance reporting.",
+      'Provides APIs for authentication, user roles, patient records, appointment scheduling, and billing.',
+      'Enables handling of veterinary-specific data models (species, breeds, medical history, treatments, prescriptions).',
+      'Allows developers to create and publish custom plugins and microfrontends.',
+      'Offers access to practice performance dashboards, and compliance reporting.',
     ],
   },
   {
     id: 3,
-    title: "PBT", // Shortened for mobile view consistency
-    fullTitle: "Pre-built templates",
-    color: "#BBD6F9",
-    icon: "https://d2il6osz49gpup.cloudfront.net/Images/buildlaunch3.png",
-    heading: "Pre-Built Templates",
+    title: 'PBT', // Shortened for mobile view consistency
+    fullTitle: 'Pre-built templates',
+    color: '#BBD6F9',
+    icon: MEDIA_SOURCES.launchGrow.tab3,
+    heading: 'Pre-Built Templates',
     details: [
-      "Pre-designed workflows for booking, rescheduling, and managing veterinary visits.",
-      "Standardised layout for patient history, diagnoses, treatments, and vaccination logs.",
-      "Auto-fill forms for medications, dosage instructions, and treatment plans.",
-      "Digital forms for surgery approvals, client consent, and companion onboarding.",
+      'Pre-designed workflows for booking, rescheduling, and managing veterinary visits.',
+      'Standardised layout for patient history, diagnoses, treatments, and vaccination logs.',
+      'Auto-fill forms for medications, dosage instructions, and treatment plans.',
+      'Digital forms for surgery approvals, client consent, and companion onboarding.',
     ],
   },
   {
     id: 4,
-    title: "Docs", // Shortened for mobile view consistency
-    fullTitle: "Documentation",
-    color: "#9AC2F7",
-    icon: "https://d2il6osz49gpup.cloudfront.net/Images/buildlaunch4.png",
-    heading: "Documentation",
+    title: 'Docs', // Shortened for mobile view consistency
+    fullTitle: 'Documentation',
+    color: '#9AC2F7',
+    icon: MEDIA_SOURCES.launchGrow.tab4,
+    heading: 'Documentation',
     details: [
-      "Endpoints, authentication methods, request/response examples, and SDK usage guides.",
-      "Instructions for building plugins, using microfrontends, and integrating third-party services.",
-      "Step-by-step instructions for clinic staff, including appointment management, medical records, and billing.",
-      "ISO27001, SOC2 Type 1, HL7 FHIR compatible and GDPR guidelines, encryption standards, access controls, and audit logs.",
-      "Installation steps, server requirements, version updates, and troubleshooting tips.",
+      'Endpoints, authentication methods, request/response examples, and SDK usage guides.',
+      'Instructions for building plugins, using microfrontends, and integrating third-party services.',
+      'Step-by-step instructions for clinic staff, including appointment management, medical records, and billing.',
+      'ISO27001, SOC2 Type 1, HL7 FHIR compatible and GDPR guidelines, encryption standards, access controls, and audit logs.',
+      'Installation steps, server requirements, version updates, and troubleshooting tips.',
     ],
   },
 ];
@@ -75,24 +76,18 @@ const LaunchGrowTab = () => {
         {Launchtabs.map((growtab) => (
           <button
             key={growtab.id}
-            className={`LaunchTabDiv ${activeTab === growtab.id ? "active" : ""}`}
+            className={`LaunchTabDiv ${activeTab === growtab.id ? 'active' : ''}`}
             style={{ backgroundColor: growtab.color }}
             onClick={() => setActiveTab(growtab.id)}
           >
-            <div
-              className="BuildText"
-              style={{ backgroundColor: growtab.color }}
-            >
-              <h6>{growtab.id.toString().padStart(2, "0")}</h6>
+            <div className="BuildText" style={{ backgroundColor: growtab.color }}>
+              <h6>{growtab.id.toString().padStart(2, '0')}</h6>
               <h3>{growtab.fullTitle || growtab.title}</h3>
             </div>
             {activeTab === growtab.id && (
               <div className="GrowTab_Content">
-                <div
-                  className="BuildText"
-                  style={{ backgroundColor: growtab.color }}
-                >
-                  <h6>{growtab.id.toString().padStart(2, "0")}</h6>
+                <div className="BuildText" style={{ backgroundColor: growtab.color }}>
+                  <h6>{growtab.id.toString().padStart(2, '0')}</h6>
                   <h3>{growtab.fullTitle || growtab.title}</h3>
                 </div>
                 <div className="GrowTabInner">
@@ -114,7 +109,7 @@ const LaunchGrowTab = () => {
                               icon="solar:verified-check-bold"
                               width="24"
                               height="24"
-                              style={{ color: "#247AED", flexShrink: 0 }}
+                              style={{ color: '#247AED', flexShrink: 0 }}
                             />
                             <span className="text-body-3">{detail}</span>
                           </li>
@@ -152,9 +147,9 @@ const LaunchGrowTab = () => {
                         width="20"
                         height="20"
                         style={{
-                          color: "#247AED",
+                          color: '#247AED',
                           flexShrink: 0,
-                          marginTop: "2px",
+                          marginTop: '2px',
                         }}
                       />
                       <span className="text-body-3">{detail}</span>
@@ -172,12 +167,12 @@ const LaunchGrowTab = () => {
         {Launchtabs.map((tab) => (
           <button
             key={tab.id}
-            className={`mobile-tab-button ${activeTab === tab.id ? "active" : ""}`}
+            className={`mobile-tab-button ${activeTab === tab.id ? 'active' : ''}`}
             onClick={() => setActiveTab(tab.id)}
           >
             {activeTab === tab.id
-              ? `${tab.id.toString().padStart(2, "0")} ${tab.title}`
-              : tab.id.toString().padStart(2, "0")}
+              ? `${tab.id.toString().padStart(2, '0')} ${tab.title}`
+              : tab.id.toString().padStart(2, '0')}
           </button>
         ))}
       </div>

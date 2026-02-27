@@ -1,3 +1,5 @@
+import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+
 export const trustCenterData = {
   hero: {
     title: 'Security, Privacy, and Compliance',
@@ -14,19 +16,19 @@ export const trustCenterData = {
       name: 'GDPR',
       status: 'Compliant',
       description: 'Fully compliant data processing with EU hosting.',
-      icon: 'https://d2il6osz49gpup.cloudfront.net/footer/gdpr.png',
+      icon: MEDIA_SOURCES.footer.gdpr,
     },
     {
       name: 'SOC 2 Type I',
       status: 'Compliant',
       description: 'Audited security, availability, and confidentiality controls.',
-      icon: 'https://d2il6osz49gpup.cloudfront.net/footer/soc-2.png',
+      icon: MEDIA_SOURCES.footer.soc2,
     },
     {
       name: 'ISO 27001',
       status: 'Compliant',
       description: 'Certified under ISO 27001:2022.',
-      icon: 'https://d2il6osz49gpup.cloudfront.net/footer/iso.png',
+      icon: MEDIA_SOURCES.footer.iso,
     },
     {
       name: '21 CFR Part 11',
@@ -153,25 +155,25 @@ export const trustCenterData = {
       name: 'Amazon Web Services',
       service: 'Cloud Infrastructure & Storage',
       location: 'Luxembourg (EU)',
-      logo: 'https://upload.wikimedia.org/wikipedia/commons/9/93/Amazon_Web_Services_Logo.svg',
+      logo: MEDIA_SOURCES.subProcessorLogos.aws,
     },
     {
       name: 'MongoDB',
       service: 'Database Hosting',
       location: 'Ireland (EU)',
-      logo: 'https://upload.wikimedia.org/wikipedia/commons/9/93/MongoDB_Logo.svg',
+      logo: MEDIA_SOURCES.subProcessorLogos.mongo,
     },
     {
       name: 'Google Cloud',
       service: 'Maps & Analytics Services',
       location: 'Ireland (EU)',
-      logo: 'https://upload.wikimedia.org/wikipedia/commons/5/51/Google_Cloud_logo.svg',
+      logo: MEDIA_SOURCES.subProcessorLogos.gcp,
     },
     {
       name: 'PostgreSQL',
       service: 'Relational Database',
       location: 'Ireland (EU)',
-      logo: 'https://upload.wikimedia.org/wikipedia/commons/2/29/Postgresql_elephant.svg',
+      logo: MEDIA_SOURCES.subProcessorLogos.postgres,
     },
   ],
 };

@@ -12,6 +12,7 @@ import { formatMoney } from '@/app/lib/money';
 import { toNumberSafe } from '@/app/lib/validators';
 import { useInvoicesForPrimaryOrgAppointment } from '@/app/hooks/useInvoices';
 import InvoicePaymentActions from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Finance/InvoicePaymentActions';
+import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 
 const AppointmentFields = [
   { label: 'Service', key: 'service', type: 'text' },
@@ -104,7 +105,7 @@ const Summary = ({ activeAppointment, formData }: SummaryProps) => {
               <div className="text-body-1 text-text-primary">Pay</div>
               <Image
                 alt={'Powered by stripe'}
-                src={'https://d2il6osz49gpup.cloudfront.net/payment/stripe.png'}
+                src={MEDIA_SOURCES.appointments.stripe}
                 height={30}
                 width={120}
               />
