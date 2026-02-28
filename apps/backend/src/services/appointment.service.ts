@@ -1382,15 +1382,21 @@ export const AppointmentService = {
       );
     }
 
-    const appointment = await AppointmentModel.findOne({
-      _id: appointmentId,
-      status: "UPCOMING",
-    });
+    const appointment = await AppointmentModel.findById(appointmentId);
 
     if (!appointment) {
+      throw new AppointmentServiceError("Appointment not found", 404);
+    }
+
+    const allowedStatuses: AppointmentStatus[] = [
+      "REQUESTED",
+      "UPCOMING",
+      "NO_PAYMENT",
+    ];
+    if (!allowedStatuses.includes(appointment.status)) {
       throw new AppointmentServiceError(
-        "Requested appointment not found or already processed",
-        404,
+        `Appointment cannot be updated in status ${appointment.status}`,
+        409,
       );
     }
 
@@ -1423,8 +1429,8 @@ export const AppointmentService = {
         const overlapping = await OccupancyModel.findOne({
           userId: extracted.lead?.id,
           organisationId,
-          startTime: { $lt: appointment.endTime },
-          endTime: { $gt: appointment.startTime },
+          startTime: { $lt: extracted.endTime },
+          endTime: { $gt: extracted.startTime },
         }).session(session);
 
         if (overlapping) {
@@ -1440,8 +1446,8 @@ export const AppointmentService = {
             {
               userId: extracted.lead?.id,
               organisationId,
-              startTime: appointment.startTime,
-              endTime: appointment.endTime,
+              startTime: extracted.startTime,
+              endTime: extracted.endTime,
               sourceType: "APPOINTMENT",
               referenceId: appointment._id.toString(),
             },
@@ -1458,6 +1464,15 @@ export const AppointmentService = {
 
       appointment.supportStaff = extracted.supportStaff ?? [];
       appointment.room = extracted.room ?? undefined;
+      appointment.startTime = extracted.startTime ?? appointment.startTime;
+      appointment.endTime = extracted.endTime ?? appointment.endTime;
+      appointment.appointmentDate =
+        extracted.startTime ?? appointment.appointmentDate;
+      appointment.timeSlot = extracted.startTime
+        ? dayjs(extracted.startTime).format("HH:mm")
+        : appointment.timeSlot;
+      appointment.durationMinutes =
+        extracted.durationMinutes ?? appointment.durationMinutes;
       appointment.updatedAt = new Date();
 
       await appointment.save({ session });

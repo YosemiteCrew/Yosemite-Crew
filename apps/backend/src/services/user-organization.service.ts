@@ -1151,7 +1151,10 @@ export const UserOrganizationService = {
 
       const speciality = await SpecialityModel.find({
         organisationId,
-        memberUserIds: userRef, // matches any element in the array
+        $or: [
+          { memberUserIds: userRef }, // matches any element in the array
+          { headUserId: userRef },
+        ],
       });
 
       const currentStatus = await AvailabilityService.getCurrentStatus(
