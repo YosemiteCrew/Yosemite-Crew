@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
@@ -46,7 +45,8 @@ jest.mock('@/app/stores/orgStore', () => ({
 jest.mock('@/app/hooks/useIntegrations', () => ({
   loadIntegrationsForPrimaryOrg: (...args: any[]) => loadIntegrationsForPrimaryOrgMock(...args),
   useIntegrationsForPrimaryOrg: () => useIntegrationsForPrimaryOrgMock(),
-  useIntegrationByProviderForPrimaryOrg: (...args: any[]) => useIntegrationByProviderForPrimaryOrgMock(...args),
+  useIntegrationByProviderForPrimaryOrg: (...args: any[]) =>
+    useIntegrationByProviderForPrimaryOrgMock(...args),
 }));
 
 jest.mock('@/app/stores/integrationStore', () => ({

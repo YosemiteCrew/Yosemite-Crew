@@ -1,22 +1,22 @@
-"use client";
-import React from "react";
-import { FaCalendar, FaTasks } from "react-icons/fa";
-import { IoEye, IoOpenOutline } from "react-icons/io5";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
+'use client';
+import React from 'react';
+import { FaCalendar, FaTasks } from 'react-icons/fa';
+import { IoEye, IoOpenOutline } from 'react-icons/io5';
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 
-import CompanionCard from "@/app/ui/cards/CompanionCard/CompanionCard";
-import GenericTable from "@/app/ui/tables/GenericTable/GenericTable";
-import { CompanionParent } from "@/app/features/companions/pages/Companions/types";
-import { Appointment } from "@yosemite-crew/types";
-import { useAppointmentsForPrimaryOrg } from "@/app/hooks/useAppointments";
+import CompanionCard from '@/app/ui/cards/CompanionCard/CompanionCard';
+import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
+import { CompanionParent } from '@/app/features/companions/pages/Companions/types';
+import { Appointment } from '@yosemite-crew/types';
+import { useAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
 
-import { getAgeInYears } from "@/app/lib/date";
-import { getSafeImageUrl, ImageType } from "@/app/lib/urls";
-import { toTitleCase } from "@/app/lib/validators";
-import { formatDateLabel, formatTimeLabel } from "@/app/lib/forms";
+import { getAgeInYears } from '@/app/lib/date';
+import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
+import { toTitleCase } from '@/app/lib/validators';
+import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
 
-import "./DataTable.css";
+import './DataTable.css';
 
 type Column<T> = {
   label: string;
@@ -38,14 +38,14 @@ type CompanionsTableProps = {
 
 export const getStatusStyle = (status: string) => {
   switch (status.toLowerCase()) {
-    case "active":
-      return { color: "#fff", backgroundColor: "#D28F9A" };
-    case "archived":
-      return { color: "#fff", backgroundColor: "#747283" };
-    case "inactive":
-      return { color: "#fff", backgroundColor: "#BF9FAA" };
+    case 'active':
+      return { color: '#fff', backgroundColor: '#D28F9A' };
+    case 'archived':
+      return { color: '#fff', backgroundColor: '#747283' };
+    case 'inactive':
+      return { color: '#fff', backgroundColor: '#BF9FAA' };
     default:
-      return { color: "#fff", backgroundColor: "rgba(107,114,128,0.1)" };
+      return { color: '#fff', backgroundColor: 'rgba(107,114,128,0.1)' };
   }
 };
 
@@ -59,6 +59,7 @@ const CompanionsTable = ({
   canEditAppointments,
   canEditTasks,
 }: CompanionsTableProps) => {
+  void activeCompanion;
   const router = useRouter();
   const appointments = useAppointmentsForPrimaryOrg();
 
@@ -66,31 +67,30 @@ const CompanionsTable = ({
     if (!companionId) return null;
     const now = Date.now();
     const upcomingStatuses = new Set([
-      "NO_PAYMENT",
-      "REQUESTED",
-      "UPCOMING",
-      "CHECKED_IN",
-      "IN_PROGRESS",
+      'NO_PAYMENT',
+      'REQUESTED',
+      'UPCOMING',
+      'CHECKED_IN',
+      'IN_PROGRESS',
     ]);
 
     const related = appointments
       .filter(
         (appointment) =>
           appointment?.companion?.id === companionId &&
-          upcomingStatuses.has(String(appointment.status ?? "").toUpperCase()),
+          upcomingStatuses.has(String(appointment.status ?? '').toUpperCase())
       )
       .sort(
         (a, b) =>
           new Date(a.startTime ?? a.appointmentDate).getTime() -
-          new Date(b.startTime ?? b.appointmentDate).getTime(),
+          new Date(b.startTime ?? b.appointmentDate).getTime()
       );
 
     if (related.length === 0) return null;
     return (
       related.find(
         (appointment) =>
-          new Date(appointment.startTime ?? appointment.appointmentDate).getTime() >=
-          now,
+          new Date(appointment.startTime ?? appointment.appointmentDate).getTime() >= now
       ) ?? related[0]
     );
   };
@@ -120,69 +120,63 @@ const CompanionsTable = ({
 
   const columns: Column<CompanionParent>[] = [
     {
-      label: "",
-      key: "image",
-      width: "5%",
+      label: '',
+      key: 'image',
+      width: '5%',
       render: (item: CompanionParent) => (
         <div className="appointment-profile w-10 h-10">
           <Image
             src={getSafeImageUrl(
               item.companion.photoUrl,
-              item.companion.type.toLowerCase() as ImageType,
+              item.companion.type.toLowerCase() as ImageType
             )}
             alt=""
             height={40}
             width={40}
             style={{
-              borderRadius: "50%",
-              objectFit: "cover",
-              maxWidth: "40px",
-              minWidth: "40px",
-              maxHeight: "40px",
+              borderRadius: '50%',
+              objectFit: 'cover',
+              maxWidth: '40px',
+              minWidth: '40px',
+              maxHeight: '40px',
             }}
           />
         </div>
       ),
     },
     {
-      label: "Name",
-      key: "name",
-      width: "15%",
+      label: 'Name',
+      key: 'name',
+      width: '15%',
       render: (item: CompanionParent) => (
         <div className="appointment-profile">
           <div className="appointment-profile-two">
-            <div className="appointment-profile-title">
-              {item.companion.name}
-            </div>
+            <div className="appointment-profile-title">{item.companion.name}</div>
             <div className="flex items-center">
               <div className="appointment-profile-sub truncate max-w-[60px]">
                 {item.companion.breed}
               </div>
-              <div className="appointment-profile-sub">
-                {"/" + item.companion.type}
-              </div>
+              <div className="appointment-profile-sub">{'/' + item.companion.type}</div>
             </div>
           </div>
         </div>
       ),
     },
     {
-      label: "Parent",
-      key: "parent",
-      width: "10%",
+      label: 'Parent',
+      key: 'parent',
+      width: '10%',
       render: (item: CompanionParent) => (
         <div className="appointment-profile-title">{item.parent.firstName}</div>
       ),
     },
     {
-      label: "Gender/Age",
-      key: "gender/age",
-      width: "10%",
+      label: 'Gender/Age',
+      key: 'gender/age',
+      width: '10%',
       render: (item: CompanionParent) => (
         <div className="appointment-profile-two">
-          <div className="appointment-profile-title">
-            {item.companion.gender}
-          </div>
+          <div className="appointment-profile-title">{item.companion.gender}</div>
           <div className="appointment-profile-title">
             {getAgeInYears(item.companion.dateOfBirth)}
           </div>
@@ -190,19 +184,17 @@ const CompanionsTable = ({
       ),
     },
     {
-      label: "Allergy",
-      key: "allergy",
-      width: "15%",
+      label: 'Allergy',
+      key: 'allergy',
+      width: '15%',
       render: (item: CompanionParent) => (
-        <div className="appointment-profile-title">
-          {item.companion.allergy || "-"}
-        </div>
+        <div className="appointment-profile-title">{item.companion.allergy || '-'}</div>
       ),
     },
     {
-      label: "Upcoming Appointment",
-      key: "Upcoming Appointment",
-      width: "20%",
+      label: 'Upcoming Appointment',
+      key: 'Upcoming Appointment',
+      width: '20%',
       render: (item: CompanionParent) => {
         const upcoming = getUpcomingAppointmentForCompanion(item.companion.id);
         if (!upcoming) {
@@ -237,22 +229,22 @@ const CompanionsTable = ({
       },
     },
     {
-      label: "Status",
-      key: "status",
-      width: "15%",
+      label: 'Status',
+      key: 'status',
+      width: '15%',
       render: (item: CompanionParent) => (
         <div
           className="appointment-status"
-          style={getStatusStyle(item.companion.status || "inactive")}
+          style={getStatusStyle(item.companion.status || 'inactive')}
         >
-          {toTitleCase(item.companion.status || "inactive")}
+          {toTitleCase(item.companion.status || 'inactive')}
         </div>
       ),
     },
     {
-      label: "Actions",
-      key: "actions",
-      width: "10%",
+      label: 'Actions',
+      key: 'actions',
+      width: '10%',
       render: (item: CompanionParent) => (
         <div className="action-btn-col">
           <button

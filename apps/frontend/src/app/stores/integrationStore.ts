@@ -1,7 +1,7 @@
-import { create } from "zustand";
-import { IntegrationProvider, OrgIntegration } from "@/app/features/integrations/services/types";
+import { create } from 'zustand';
+import { IntegrationProvider, OrgIntegration } from '@/app/features/integrations/services/types';
 
-type IntegrationStoreStatus = "idle" | "loading" | "loaded" | "error";
+type IntegrationStoreStatus = 'idle' | 'loading' | 'loaded' | 'error';
 
 type IntegrationState = {
   integrationIdsByOrgId: Record<string, string[]>;
@@ -12,10 +12,7 @@ type IntegrationState = {
   setIntegrationsForOrg: (orgId: string, integrations: OrgIntegration[]) => void;
   upsertIntegration: (integration: OrgIntegration) => void;
   getIntegrationsByOrgId: (orgId: string) => OrgIntegration[];
-  getIntegrationByProvider: (
-    orgId: string,
-    provider: IntegrationProvider,
-  ) => OrgIntegration | null;
+  getIntegrationByProvider: (orgId: string, provider: IntegrationProvider) => OrgIntegration | null;
   clearIntegrationsForOrg: (orgId: string) => void;
   clearIntegrations: () => void;
   startLoading: () => void;
@@ -26,7 +23,7 @@ type IntegrationState = {
 export const useIntegrationStore = create<IntegrationState>()((set, get) => ({
   integrationIdsByOrgId: {},
   integrationsById: {},
-  status: "idle",
+  status: 'idle',
   error: null,
   lastFetchedAt: null,
 
@@ -47,7 +44,7 @@ export const useIntegrationStore = create<IntegrationState>()((set, get) => ({
           ...state.integrationIdsByOrgId,
           [orgId]: nextIds,
         },
-        status: "loaded",
+        status: 'loaded',
         error: null,
         lastFetchedAt: new Date().toISOString(),
       };
@@ -69,7 +66,7 @@ export const useIntegrationStore = create<IntegrationState>()((set, get) => ({
       return {
         integrationsById,
         integrationIdsByOrgId,
-        status: "loaded",
+        status: 'loaded',
         error: null,
         lastFetchedAt: new Date().toISOString(),
       };
@@ -89,8 +86,7 @@ export const useIntegrationStore = create<IntegrationState>()((set, get) => ({
       get()
         .getIntegrationsByOrgId(orgId)
         .find(
-          (integration) =>
-            String(integration.provider ?? "").toLowerCase() === normalizedProvider,
+          (integration) => String(integration.provider ?? '').toLowerCase() === normalizedProvider
         ) ?? null
     );
   },
@@ -100,11 +96,12 @@ export const useIntegrationStore = create<IntegrationState>()((set, get) => ({
       const ids = state.integrationIdsByOrgId[orgId] ?? [];
       const integrationsById = { ...state.integrationsById };
       for (const id of ids) delete integrationsById[id];
-      const { [orgId]: _, ...restIndex } = state.integrationIdsByOrgId;
+      const restIndex = { ...state.integrationIdsByOrgId };
+      delete restIndex[orgId];
       return {
         integrationsById,
         integrationIdsByOrgId: restIndex,
-        status: "loaded",
+        status: 'loaded',
         error: null,
         lastFetchedAt: new Date().toISOString(),
       };
@@ -114,17 +111,17 @@ export const useIntegrationStore = create<IntegrationState>()((set, get) => ({
     set(() => ({
       integrationIdsByOrgId: {},
       integrationsById: {},
-      status: "idle",
+      status: 'idle',
       error: null,
       lastFetchedAt: null,
     })),
 
-  startLoading: () => set(() => ({ status: "loading", error: null })),
+  startLoading: () => set(() => ({ status: 'loading', error: null })),
   endLoading: () =>
     set(() => ({
-      status: "loaded",
+      status: 'loaded',
       error: null,
       lastFetchedAt: new Date().toISOString(),
     })),
-  setError: (message) => set(() => ({ status: "error", error: message })),
+  setError: (message) => set(() => ({ status: 'error', error: message })),
 }));

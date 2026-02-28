@@ -69,7 +69,9 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
   const [error, setError] = useState<string | null>(null);
   const [showOrderIframe, setShowOrderIframe] = useState(false);
   const [iframeInitialStatus, setIframeInitialStatus] = useState<string | null>(null);
-  const [iframeInitialResultProgress, setIframeInitialResultProgress] = useState<string | null>(null);
+  const [iframeInitialResultProgress, setIframeInitialResultProgress] = useState<string | null>(
+    null
+  );
   const [iframeInitialUpdatedAt, setIframeInitialUpdatedAt] = useState<string | null>(null);
   const [iframeOpenSource, setIframeOpenSource] = useState<'order' | 'followup'>('order');
   const [showPdfPreview, setShowPdfPreview] = useState(false);
@@ -81,12 +83,16 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
   const parentId = activeAppointment?.companion?.parent?.id;
   const resolveOrderUiUrl = (order: LabOrder | null) => {
     if (!order) return '';
-    const nested = String((order as unknown as { responsePayload?: { uiURL?: string } })?.responsePayload?.uiURL ?? '').trim();
+    const nested = String(
+      (order as unknown as { responsePayload?: { uiURL?: string } })?.responsePayload?.uiURL ?? ''
+    ).trim();
     return String(order.uiUrl ?? '').trim() || nested;
   };
   const resolveOrderPdfUrl = (order: LabOrder | null) => {
     if (!order) return '';
-    const nested = String((order as unknown as { responsePayload?: { pdfURL?: string } })?.responsePayload?.pdfURL ?? '').trim();
+    const nested = String(
+      (order as unknown as { responsePayload?: { pdfURL?: string } })?.responsePayload?.pdfURL ?? ''
+    ).trim();
     return String(order.pdfUrl ?? '').trim() || nested;
   };
   const getNormalizedLifecycleStatus = (order: LabOrder | null) =>
@@ -112,31 +118,43 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
     return normalized.charAt(0).toUpperCase() + normalized.slice(1);
   };
   const normalizeResultProgress = (status?: string | null) => {
-    const key = String(status ?? '').trim().toUpperCase();
+    const key = String(status ?? '')
+      .trim()
+      .toUpperCase();
     if (!key) return '';
-    if (key.includes('PARTIAL') || key.includes('INPROCESS') || key.includes('IN_PROCESS')) return 'In process';
+    if (key.includes('PARTIAL') || key.includes('INPROCESS') || key.includes('IN_PROCESS'))
+      return 'In process';
     if (key.includes('PENDING') || key.includes('RUNNING')) return 'In process';
     if (key.includes('COMPLETE') || key.includes('FINAL')) return 'Complete';
     if (key.includes('ERROR') || key.includes('FAIL')) return 'Error';
     return '';
   };
   const getResultOrderId = (result: LabResult) => {
-    const raw = result.rawPayload as { orderId?: string | number; requisitionId?: string | number } | undefined;
-    return String(result.orderId ?? result.requisitionId ?? raw?.orderId ?? raw?.requisitionId ?? '').trim();
+    const raw = result.rawPayload as
+      | { orderId?: string | number; requisitionId?: string | number }
+      | undefined;
+    return String(
+      result.orderId ?? result.requisitionId ?? raw?.orderId ?? raw?.requisitionId ?? ''
+    ).trim();
   };
-  const getOrderResultProgressFromResults = useCallback((allResults: LabResult[], orderId: string) => {
-    const statuses = allResults
-      .filter((result) => getResultOrderId(result) === String(orderId).trim())
-      .map((result) => {
-        const raw = result.rawPayload as { status?: string; statusDetail?: string } | undefined;
-        return normalizeResultProgress(result.statusDetail ?? result.status ?? raw?.statusDetail ?? raw?.status);
-      })
-      .filter(Boolean);
-    if (statuses.includes('In process')) return 'In process';
-    if (statuses.includes('Error')) return 'Error';
-    if (statuses.includes('Complete')) return 'Complete';
-    return '';
-  }, []);
+  const getOrderResultProgressFromResults = useCallback(
+    (allResults: LabResult[], orderId: string) => {
+      const statuses = allResults
+        .filter((result) => getResultOrderId(result) === String(orderId).trim())
+        .map((result) => {
+          const raw = result.rawPayload as { status?: string; statusDetail?: string } | undefined;
+          return normalizeResultProgress(
+            result.statusDetail ?? result.status ?? raw?.statusDetail ?? raw?.status
+          );
+        })
+        .filter(Boolean);
+      if (statuses.includes('In process')) return 'In process';
+      if (statuses.includes('Error')) return 'Error';
+      if (statuses.includes('Complete')) return 'Complete';
+      return '';
+    },
+    []
+  );
   const resultProgressByOrderId = useMemo(() => {
     const map = new Map<string, string>();
     appointmentOrders.forEach((order) => {
@@ -151,21 +169,24 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
   }, [appointmentOrders, results, getOrderResultProgressFromResults]);
   const canOpenFollowUpInCurrentOrder = Boolean(
     latestOrder &&
-      resolveOrderUiUrl(latestOrder) &&
-      !['INHOUSE', 'IN_HOUSE'].includes(String(latestOrder.modality ?? '').toUpperCase()) &&
-      normalizedOrderStatus !== 'CREATED'
+    resolveOrderUiUrl(latestOrder) &&
+    !['INHOUSE', 'IN_HOUSE'].includes(String(latestOrder.modality ?? '').toUpperCase()) &&
+    normalizedOrderStatus !== 'CREATED'
   );
   const getOrderDisplayStatus = (order: LabOrder) =>
-    resultProgressByOrderId.get(String(order.idexxOrderId ?? '').trim()) || formatOrderStatus(order);
+    resultProgressByOrderId.get(String(order.idexxOrderId ?? '').trim()) ||
+    formatOrderStatus(order);
   const getOrderStatusBadgeClass = (order: LabOrder) => {
     const resultProgress = resultProgressByOrderId.get(String(order.idexxOrderId ?? '').trim());
     if (resultProgress === 'Complete') return 'bg-green-50 text-green-800';
     if (resultProgress === 'In process') return 'bg-amber-50 text-amber-700';
     if (resultProgress === 'Error') return 'bg-red-50 text-red-700';
     const key = String(order.status ?? '').toLowerCase();
-    if (key.includes('submitted') || key.includes('complete') || key.includes('final')) return 'bg-green-50 text-green-800';
+    if (key.includes('submitted') || key.includes('complete') || key.includes('final'))
+      return 'bg-green-50 text-green-800';
     if (key.includes('created') || key.includes('pending')) return 'bg-amber-50 text-amber-700';
-    if (key.includes('error') || key.includes('failed') || key.includes('cancel')) return 'bg-red-50 text-red-700';
+    if (key.includes('error') || key.includes('failed') || key.includes('cancel'))
+      return 'bg-red-50 text-red-700';
     return 'bg-card-hover text-text-secondary';
   };
 
@@ -177,12 +198,15 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
     });
   }, []);
 
-  const upsertAppointmentOrder = useCallback((order: LabOrder) => {
-    setAppointmentOrders((prev) => {
-      const next = [order, ...prev.filter((item) => item._id !== order._id)];
-      return normalizeOrders(next);
-    });
-  }, [normalizeOrders]);
+  const upsertAppointmentOrder = useCallback(
+    (order: LabOrder) => {
+      setAppointmentOrders((prev) => {
+        const next = [order, ...prev.filter((item) => item._id !== order._id)];
+        return normalizeOrders(next);
+      });
+    },
+    [normalizeOrders]
+  );
 
   useEffect(() => {
     setSpecimenCollectionDate(new Date().toISOString().slice(0, 10));
@@ -322,9 +346,7 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
     setRefreshingResults(true);
     try {
       const appointmentOrderIds = new Set(
-        appointmentOrders
-          .map((order) => String(order.idexxOrderId ?? '').trim())
-          .filter(Boolean)
+        appointmentOrders.map((order) => String(order.idexxOrderId ?? '').trim()).filter(Boolean)
       );
       if (appointmentOrderIds.size === 0) {
         setResults([]);
@@ -347,12 +369,10 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
 
   useEffect(() => {
     void refreshResults();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [primaryOrgId, integrationEnabled, companionId, appointmentOrders]);
 
   useEffect(() => {
     void refreshCensus();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [primaryOrgId, integrationEnabled, companionId]);
 
   useEffect(() => {
@@ -373,9 +393,7 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
         upsertAppointmentOrder(next);
 
         const appointmentOrderIds = new Set(
-          appointmentOrders
-            .map((order) => String(order.idexxOrderId ?? '').trim())
-            .filter(Boolean)
+          appointmentOrders.map((order) => String(order.idexxOrderId ?? '').trim()).filter(Boolean)
         );
         if (appointmentOrderIds.size > 0) {
           const allResults = await listIdexxResults(primaryOrgId);
@@ -418,11 +436,17 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
     getOrderResultProgressFromResults,
   ]);
 
-  const openOrderIframe = (source: 'order' | 'followup', statusOverride?: string | null, targetOrder?: LabOrder) => {
+  const openOrderIframe = (
+    source: 'order' | 'followup',
+    statusOverride?: string | null,
+    targetOrder?: LabOrder
+  ) => {
     const orderForFrame = targetOrder ?? latestOrder;
     setIframeOpenSource(source);
     setIframeInitialStatus((statusOverride ?? orderForFrame?.status ?? '').toUpperCase() || null);
-    setIframeInitialResultProgress(resultProgressByOrderId.get(String(orderForFrame?.idexxOrderId ?? '').trim()) ?? null);
+    setIframeInitialResultProgress(
+      resultProgressByOrderId.get(String(orderForFrame?.idexxOrderId ?? '').trim()) ?? null
+    );
     setIframeInitialUpdatedAt(orderForFrame?.updatedAt ?? null);
     setShowOrderIframe(true);
   };
@@ -601,13 +625,15 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
     return `${currency} ${amount}`;
   };
 
-  const getTestTurnaround = (test: IdexxTest) => String(test.meta?.turnaround ?? '').trim() || 'TAT not listed';
-  const getTestSpecimen = (test: IdexxTest) => String(test.meta?.specimen ?? '').trim() || 'Specimen not listed';
-  const getDisplayCode = (test: IdexxTest) => String(test.meta?.displayCode ?? '').trim() || test.code;
-
+  const getTestTurnaround = (test: IdexxTest) =>
+    String(test.meta?.turnaround ?? '').trim() || 'TAT not listed';
+  const getTestSpecimen = (test: IdexxTest) =>
+    String(test.meta?.specimen ?? '').trim() || 'Specimen not listed';
   const parseFloatSafe = (value?: string): number | null => {
     if (!value) return null;
-    const cleaned = String(value).replace(/,/g, '.').replace(/[^0-9.+-]/g, '');
+    const cleaned = String(value)
+      .replace(/,/g, '.')
+      .replace(/[^0-9.+-]/g, '');
     const parsed = Number.parseFloat(cleaned);
     return Number.isFinite(parsed) ? parsed : null;
   };
@@ -628,11 +654,12 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
     if (!range || value == null) {
       return { canRender: false, percent: 0, markerClass: 'bg-text-secondary' };
     }
-    const percent = Math.min(100, Math.max(0, ((value - range.min) / (range.max - range.min)) * 100));
+    const percent = Math.min(
+      100,
+      Math.max(0, ((value - range.min) / (range.max - range.min)) * 100)
+    );
     const markerClass =
-      test.outOfRange || percent < 0 || percent > 100
-        ? 'bg-red-500'
-        : 'bg-text-primary';
+      test.outOfRange || percent < 0 || percent > 100 ? 'bg-red-500' : 'bg-text-primary';
     return { canRender: true, percent, markerClass };
   };
 
@@ -646,7 +673,10 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
         <div className="text-body-3 text-text-primary">
           IDEXX integration is not enabled for this organization.
         </div>
-        <Link href="/integrations" className="text-body-4 text-text-brand underline underline-offset-2">
+        <Link
+          href="/integrations"
+          className="text-body-4 text-text-brand underline underline-offset-2"
+        >
           Enable IDEXX in Integrations
         </Link>
       </div>
@@ -665,7 +695,9 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
               <div className="relative bg-white rounded-2xl shadow-2xl w-full h-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-2 border-b border-black/10">
                   <div className="text-body-2 text-text-primary">
-                    {iframeOpenSource === 'followup' ? 'IDEXX follow-up ordering' : 'IDEXX ordering'}
+                    {iframeOpenSource === 'followup'
+                      ? 'IDEXX follow-up ordering'
+                      : 'IDEXX ordering'}
                   </div>
                   <button
                     type="button"
@@ -699,375 +731,429 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
       />
 
       <div className="flex flex-col gap-4 w-full">
-      {error ? <div className="text-body-4 text-text-error">{error}</div> : null}
+        {error ? <div className="text-body-4 text-text-error">{error}</div> : null}
 
-      <Accordion title="Create lab order" defaultOpen showEditIcon={false} isEditing>
-        <div className="flex flex-col gap-3 py-2">
-          <SearchDropdown
-            placeholder="Search IDEXX tests"
-            options={tests.map((test) => ({
-              value: test.code,
-              label: `${test.display} (${test.code})`,
-              meta: test,
-            }))}
-            onSelect={addTest}
-            query={selectedTestLabel || query}
-            setQuery={(value: string) => {
-              setSelectedTestLabel(value);
-              setQuery(value);
-            }}
-            minChars={0}
-            onReachEnd={loadMoreTests}
-            hasMore={testsHasMore}
-            isLoadingMore={testsLoadingMore}
-            optionClassName="w-full text-start rounded-2xl! border border-card-border bg-white px-3 py-2 mb-2 last:mb-0 hover:bg-white transition-colors"
-            renderOption={(option) => {
-              const test = option.meta as IdexxTest | undefined;
-              if (!test) return option.label;
-              return (
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="text-body-4 text-text-primary pr-2">{test.display}</div>
-                    <div className="text-label-xsmall px-2 py-1 rounded bg-blue-50 text-blue-700 whitespace-nowrap">
-                      {formatTestPrice(test)}
+        <Accordion title="Create lab order" defaultOpen showEditIcon={false} isEditing>
+          <div className="flex flex-col gap-3 py-2">
+            <SearchDropdown
+              placeholder="Search IDEXX tests"
+              options={tests.map((test) => ({
+                value: test.code,
+                label: `${test.display} (${test.code})`,
+                meta: test,
+              }))}
+              onSelect={addTest}
+              query={selectedTestLabel || query}
+              setQuery={(value: string) => {
+                setSelectedTestLabel(value);
+                setQuery(value);
+              }}
+              minChars={0}
+              onReachEnd={loadMoreTests}
+              hasMore={testsHasMore}
+              isLoadingMore={testsLoadingMore}
+              optionClassName="w-full text-start rounded-2xl! border border-card-border bg-white px-3 py-2 mb-2 last:mb-0 hover:bg-white transition-colors"
+              renderOption={(option) => {
+                const test = option.meta as IdexxTest | undefined;
+                if (!test) return option.label;
+                return (
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="text-body-4 text-text-primary pr-2">{test.display}</div>
+                      <div className="text-label-xsmall px-2 py-1 rounded bg-blue-50 text-blue-700 whitespace-nowrap">
+                        {formatTestPrice(test)}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-caption-1 text-text-secondary">
+                      <span>Code: {test.code}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-caption-1 text-text-secondary">
+                      <span>Turnaround time: {getTestTurnaround(test)}</span>
+                      <span>Specimen: {getTestSpecimen(test)}</span>
                     </div>
                   </div>
-                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-caption-1 text-text-secondary">
-                    <span>Code: {test.code}</span>
+                );
+              }}
+            />
+
+            <div className="flex flex-wrap gap-2">
+              {selectedTests.length === 0 ? (
+                <div className="text-body-4 text-text-secondary">No tests selected yet.</div>
+              ) : (
+                selectedTests.map((test) => (
+                  <button
+                    key={test.code}
+                    type="button"
+                    onClick={() => removeTest(test.code)}
+                    className="rounded-xl! border border-card-border bg-white px-3 py-2 text-left min-w-[220px] max-w-[280px] transition-colors hover:bg-white"
+                    title="Remove test from selection"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="text-body-4 text-text-primary truncate">{test.display}</div>
+                      <div className="text-label-xsmall px-2 py-1 rounded bg-blue-50 text-blue-700 whitespace-nowrap">
+                        {formatTestPrice(test)}
+                      </div>
+                    </div>
+                    <div className="mt-0.5 text-caption-1 text-text-secondary truncate">
+                      {test.code} • Turnaround time: {getTestTurnaround(test)}
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+
+            <LabelDropdown
+              placeholder="Modality"
+              options={modalityOptions}
+              defaultOption={modality}
+              onSelect={(option) => setModality(option.value as 'REFERENCE_LAB' | 'INHOUSE')}
+            />
+            <div className="text-caption-1 text-text-secondary">
+              IDEXX test reference data does not explicitly flag tests as in-house vs
+              device-specific in this contract. Ordering modality and IVLS selection determine
+              in-house/device workflow.
+            </div>
+
+            {modality === 'INHOUSE' ? (
+              <LabelDropdown
+                placeholder="Select IVLS device"
+                options={devices.map((device) => ({
+                  label: `${device.displayName || 'IVLS'} (${device.deviceSerialNumber})`,
+                  value: device.deviceSerialNumber,
+                }))}
+                defaultOption={selectedIvls}
+                onSelect={(option) => setSelectedIvls(option.value)}
+                error={!selectedIvls ? 'IVLS device is required for in-house orders.' : undefined}
+              />
+            ) : null}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <LabelDropdown
+                placeholder="Veterinarian"
+                options={practitionerOptions}
+                defaultOption={veterinarian}
+                onSelect={(option) => setVeterinarian(option.value)}
+              />
+              <LabelDropdown
+                placeholder="Technician"
+                options={practitionerOptions}
+                defaultOption={technician}
+                onSelect={(option) => setTechnician(option.value)}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <FormInput
+                intype="date"
+                inname="lab-specimen-date"
+                inlabel="Specimen collection date"
+                value={specimenCollectionDate}
+                onChange={(e) => setSpecimenCollectionDate(e.target.value)}
+              />
+              <FormInput
+                intype="text"
+                inname="lab-notes"
+                inlabel="Notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </div>
+
+            <Primary
+              href="#"
+              text={creatingOrder ? 'Creating order...' : 'Create IDEXX order'}
+              onClick={handleCreateOrder}
+              isDisabled={
+                creatingOrder ||
+                loading ||
+                selectedTests.length === 0 ||
+                !companionId ||
+                (modality === 'INHOUSE' && !companionInCensus) ||
+                (modality === 'INHOUSE' && !inHouseCensusConfirmed) ||
+                (modality === 'INHOUSE' && !selectedIvls)
+              }
+            />
+            {modality === 'INHOUSE' && !companionInCensus ? (
+              <div className="text-caption-1 text-text-error">
+                Add this companion to IDEXX census before creating an in-house order.
+              </div>
+            ) : null}
+            {modality === 'INHOUSE' && companionInCensus && !inHouseCensusConfirmed ? (
+              <div className="text-caption-1 text-text-error">
+                Census sync is pending for the selected IVLS device. Refresh census after IVLS
+                confirms the patient.
+              </div>
+            ) : null}
+          </div>
+        </Accordion>
+
+        <Accordion title="In-house census" defaultOpen showEditIcon={false} isEditing>
+          <div className="flex flex-col gap-3 py-2">
+            <div className="text-body-4 text-text-secondary">
+              Required for in-house ordering when sending tests to IVLS devices.
+            </div>
+            <div
+              className={`rounded-2xl border p-3 ${companionInCensus ? 'border-green-200 bg-green-50' : 'border-card-border'}`}
+            >
+              <div className="text-body-4 text-text-primary">
+                Companion census status: {companionInCensus ? 'Added' : 'Not added'}
+              </div>
+              {companionInCensus ? (
+                <>
+                  <div className="text-caption-1 text-text-secondary mt-1">
+                    Companion is present in IDEXX census.
                   </div>
-                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-caption-1 text-text-secondary">
-                    <span>Turnaround time: {getTestTurnaround(test)}</span>
-                    <span>Specimen: {getTestSpecimen(test)}</span>
+                  <div className="text-caption-1 text-text-secondary mt-1">
+                    IVLS confirmation:{' '}
+                    {inHouseCensusConfirmed
+                      ? 'Confirmed for selected/current device'
+                      : 'Pending device confirmation'}
+                  </div>
+                </>
+              ) : (
+                <div className="mt-3">
+                  <Primary
+                    href="#"
+                    text={updatingCensus ? 'Adding to census...' : 'Add to census'}
+                    onClick={handleAddToCensus}
+                    isDisabled={updatingCensus || !companionId || !selectedIvls}
+                  />
+                </div>
+              )}
+            </div>
+            <Secondary href="#" text="Refresh census" onClick={() => void refreshCensus()} />
+          </div>
+        </Accordion>
+
+        <Accordion title="Order status and requisition" defaultOpen showEditIcon={false} isEditing>
+          <div className="flex flex-col gap-3 py-2">
+            <div className="flex items-center justify-end">
+              <Secondary
+                href="#"
+                text={ordersLoading ? 'Refreshing orders...' : 'Refresh appointment orders'}
+                onClick={() => void refreshAppointmentOrders()}
+                isDisabled={ordersLoading}
+              />
+            </div>
+            {!latestOrder ? (
+              <div className="text-body-4 text-text-secondary">
+                {ordersLoading
+                  ? 'Loading appointment lab orders...'
+                  : 'No lab orders found for this appointment yet.'}
+              </div>
+            ) : (
+              <>
+                <div className="rounded-2xl border border-card-border p-3 bg-white flex flex-col gap-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex flex-col gap-1">
+                      <div className="text-body-3 text-text-primary">
+                        Order {latestOrder.idexxOrderId}
+                      </div>
+                      <div className="text-caption-1 text-text-secondary">
+                        Updated:{' '}
+                        {latestOrder.updatedAt
+                          ? new Date(latestOrder.updatedAt).toLocaleString()
+                          : '-'}
+                      </div>
+                    </div>
+                    <span
+                      className={`text-label-xsmall px-2 py-1 rounded w-fit ${getOrderStatusBadgeClass(latestOrder)}`}
+                    >
+                      {getOrderDisplayStatus(latestOrder)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap justify-end">
+                    <Primary
+                      href="#"
+                      text={
+                        needsInitialOrderPlacement
+                          ? 'Resume order placement'
+                          : canOpenFollowUpInCurrentOrder
+                            ? 'Follow up'
+                            : 'Open IDEXX'
+                      }
+                      onClick={() =>
+                        openOrderIframe(canOpenFollowUpInCurrentOrder ? 'followup' : 'order')
+                      }
+                      isDisabled={!resolveOrderUiUrl(latestOrder)}
+                    />
+                    <Secondary
+                      href="#"
+                      text="Acknowledgment PDF"
+                      onClick={() => openOrderAcknowledgement(latestOrder)}
+                      isDisabled={!resolveOrderPdfUrl(latestOrder)}
+                    />
                   </div>
                 </div>
-              );
-            }}
-          />
+                {appointmentOrders.length > 1 ? (
+                  <div className="rounded-2xl border border-card-border p-3 flex flex-col gap-2">
+                    <div className="text-body-4 text-text-primary">
+                      Past orders in this appointment
+                    </div>
+                    {appointmentOrders
+                      .filter((order) => order._id !== latestOrder._id)
+                      .map((order) => {
+                        return (
+                          <div
+                            key={order._id}
+                            className="rounded-xl border border-card-border p-3 flex flex-col gap-2"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <div className="text-body-4 text-text-primary">
+                                  Order {order.idexxOrderId}
+                                </div>
+                                <div className="text-caption-1 text-text-secondary">
+                                  Updated:{' '}
+                                  {order.updatedAt
+                                    ? new Date(order.updatedAt).toLocaleString()
+                                    : '-'}
+                                </div>
+                              </div>
+                              <span
+                                className={`text-label-xsmall px-2 py-1 rounded w-fit ${getOrderStatusBadgeClass(order)}`}
+                              >
+                                {getOrderDisplayStatus(order)}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 justify-end">
+                              <Primary
+                                href="#"
+                                text="Open IDEXX"
+                                onClick={() => {
+                                  setActiveOrderForActions(order);
+                                  openOrderIframe('order', order.status, order);
+                                }}
+                                isDisabled={!resolveOrderUiUrl(order)}
+                              />
+                              <Secondary
+                                href="#"
+                                text="Acknowledgment PDF"
+                                onClick={() => openOrderAcknowledgement(order)}
+                                isDisabled={!resolveOrderPdfUrl(order)}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                ) : null}
+              </>
+            )}
+          </div>
+        </Accordion>
 
-          <div className="flex flex-wrap gap-2">
-            {selectedTests.length === 0 ? (
-              <div className="text-body-4 text-text-secondary">No tests selected yet.</div>
+        <Accordion title="Results" defaultOpen showEditIcon={false} isEditing>
+          <div className="flex flex-col gap-3 py-2">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="text-caption-1 text-text-secondary">
+                Results are filtered for this companion and all orders mapped to this appointment.
+              </div>
+              <div className="flex items-center gap-2 flex-wrap justify-end">
+                <Primary
+                  href="#"
+                  text={refreshingResults ? 'Refreshing...' : 'Refresh'}
+                  onClick={() => void refreshResults()}
+                  isDisabled={refreshingResults}
+                />
+                <Secondary href="/appointments/idexx-workspace" text="IDEXX workspace" />
+              </div>
+            </div>
+
+            {results.length === 0 ? (
+              <div className="text-body-4 text-text-secondary">No results available yet.</div>
             ) : (
-              selectedTests.map((test) => (
-                <button
-                  key={test.code}
-                  type="button"
-                  onClick={() => removeTest(test.code)}
-                  className="rounded-xl! border border-card-border bg-white px-3 py-2 text-left min-w-[220px] max-w-[280px] transition-colors hover:bg-white"
-                  title="Remove test from selection"
+              results.map((result, index) => (
+                <div
+                  key={result.resultId}
+                  className="rounded-2xl border border-card-border p-3 flex flex-col gap-2"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <div className="text-body-4 text-text-primary truncate">{test.display}</div>
-                    <div className="text-label-xsmall px-2 py-1 rounded bg-blue-50 text-blue-700 whitespace-nowrap">
-                      {formatTestPrice(test)}
+                    <div>
+                      <div className="text-body-3 text-text-primary">Result {index + 1}</div>
+                      <div className="text-caption-1 text-text-secondary">
+                        ID: {result.resultId} | Status: {toTitleCase(result.status)} | Order:{' '}
+                        {result.orderId ?? '-'}
+                      </div>
                     </div>
+                    <Primary
+                      href="#"
+                      text={pdfPreviewLoadingId === result.resultId ? '...' : 'PDF'}
+                      onClick={() => void openResultPdfPreview(result.resultId)}
+                      isDisabled={pdfPreviewLoadingId === result.resultId}
+                    />
                   </div>
-                  <div className="mt-0.5 text-caption-1 text-text-secondary truncate">
-                    {test.code} • Turnaround time: {getTestTurnaround(test)}
-                  </div>
-                </button>
+
+                  {(result.rawPayload?.categories ?? []).map((category) => (
+                    <div
+                      key={`${result.resultId}-${category.name}`}
+                      className="rounded-xl border border-card-border p-2"
+                    >
+                      <div className="text-body-4 text-text-primary mb-2">{category.name}</div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full min-w-[620px]">
+                          <thead>
+                            <tr className="border-b border-card-border">
+                              <th className="text-left text-caption-1 text-text-tertiary py-1 pr-2">
+                                Test
+                              </th>
+                              <th className="text-left text-caption-1 text-text-tertiary py-1 pr-2">
+                                Value
+                              </th>
+                              <th className="text-left text-caption-1 text-text-tertiary py-1 pr-2">
+                                Reference
+                              </th>
+                              <th className="text-left text-caption-1 text-text-tertiary py-1">
+                                Meter
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {category.tests.map((test, idx) => {
+                              const meter = getMeterMeta(test);
+                              return (
+                                <tr
+                                  key={`${category.name}-${test.name}-${idx}`}
+                                  className="border-b border-card-border last:border-0"
+                                >
+                                  <td className="text-caption-1 text-text-primary py-2 pr-2">
+                                    {test.name}
+                                  </td>
+                                  <td
+                                    className={`text-caption-1 py-2 pr-2 ${test.outOfRange ? 'text-red-600' : 'text-text-primary'}`}
+                                  >
+                                    <LabResultValue test={test} />
+                                  </td>
+                                  <td className="text-caption-1 text-text-secondary py-2 pr-2">
+                                    {test.referenceRange ?? '-'}
+                                  </td>
+                                  <td className="py-2">
+                                    {meter.canRender ? (
+                                      <div className="relative h-2 w-48 bg-card-hover rounded-full">
+                                        <div
+                                          className={`absolute top-1/2 -translate-y-1/2 w-1.5 h-4 rounded ${meter.markerClass}`}
+                                          style={{ left: `calc(${meter.percent}% - 3px)` }}
+                                        />
+                                      </div>
+                                    ) : (
+                                      <span className="text-caption-1 text-text-secondary">
+                                        N/A
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ))
             )}
           </div>
-
-          <LabelDropdown
-            placeholder="Modality"
-            options={modalityOptions}
-            defaultOption={modality}
-            onSelect={(option) => setModality(option.value as 'REFERENCE_LAB' | 'INHOUSE')}
-          />
-          <div className="text-caption-1 text-text-secondary">
-            IDEXX test reference data does not explicitly flag tests as in-house vs device-specific in this contract.
-            Ordering modality and IVLS selection determine in-house/device workflow.
-          </div>
-
-          {modality === 'INHOUSE' ? (
-            <LabelDropdown
-              placeholder="Select IVLS device"
-              options={devices.map((device) => ({
-                label: `${device.displayName || 'IVLS'} (${device.deviceSerialNumber})`,
-                value: device.deviceSerialNumber,
-              }))}
-              defaultOption={selectedIvls}
-              onSelect={(option) => setSelectedIvls(option.value)}
-              error={!selectedIvls ? 'IVLS device is required for in-house orders.' : undefined}
-            />
-          ) : null}
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <LabelDropdown
-              placeholder="Veterinarian"
-              options={practitionerOptions}
-              defaultOption={veterinarian}
-              onSelect={(option) => setVeterinarian(option.value)}
-            />
-            <LabelDropdown
-              placeholder="Technician"
-              options={practitionerOptions}
-              defaultOption={technician}
-              onSelect={(option) => setTechnician(option.value)}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <FormInput
-              intype="date"
-              inname="lab-specimen-date"
-              inlabel="Specimen collection date"
-              value={specimenCollectionDate}
-              onChange={(e) => setSpecimenCollectionDate(e.target.value)}
-            />
-            <FormInput
-              intype="text"
-              inname="lab-notes"
-              inlabel="Notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </div>
-
-          <Primary
-            href="#"
-            text={creatingOrder ? 'Creating order...' : 'Create IDEXX order'}
-            onClick={handleCreateOrder}
-            isDisabled={
-              creatingOrder ||
-              loading ||
-              selectedTests.length === 0 ||
-              !companionId ||
-              (modality === 'INHOUSE' && !companionInCensus) ||
-              (modality === 'INHOUSE' && !inHouseCensusConfirmed) ||
-              (modality === 'INHOUSE' && !selectedIvls)
-            }
-          />
-          {modality === 'INHOUSE' && !companionInCensus ? (
-            <div className="text-caption-1 text-text-error">
-              Add this companion to IDEXX census before creating an in-house order.
-            </div>
-          ) : null}
-          {modality === 'INHOUSE' && companionInCensus && !inHouseCensusConfirmed ? (
-            <div className="text-caption-1 text-text-error">
-              Census sync is pending for the selected IVLS device. Refresh census after IVLS confirms the patient.
-            </div>
-          ) : null}
-
-        </div>
-      </Accordion>
-
-      <Accordion title="In-house census" defaultOpen showEditIcon={false} isEditing>
-        <div className="flex flex-col gap-3 py-2">
-          <div className="text-body-4 text-text-secondary">
-            Required for in-house ordering when sending tests to IVLS devices.
-          </div>
-          <div
-            className={`rounded-2xl border p-3 ${companionInCensus ? 'border-green-200 bg-green-50' : 'border-card-border'}`}
-          >
-            <div className="text-body-4 text-text-primary">
-              Companion census status: {companionInCensus ? 'Added' : 'Not added'}
-            </div>
-            {companionInCensus ? (
-              <>
-                <div className="text-caption-1 text-text-secondary mt-1">
-                  Companion is present in IDEXX census.
-                </div>
-                <div className="text-caption-1 text-text-secondary mt-1">
-                  IVLS confirmation:{' '}
-                  {inHouseCensusConfirmed ? 'Confirmed for selected/current device' : 'Pending device confirmation'}
-                </div>
-              </>
-            ) : (
-              <div className="mt-3">
-                <Primary
-                  href="#"
-                  text={updatingCensus ? 'Adding to census...' : 'Add to census'}
-                  onClick={handleAddToCensus}
-                  isDisabled={updatingCensus || !companionId || !selectedIvls}
-                />
-              </div>
-            )}
-          </div>
-          <Secondary href="#" text="Refresh census" onClick={() => void refreshCensus()} />
-        </div>
-      </Accordion>
-
-      <Accordion title="Order status and requisition" defaultOpen showEditIcon={false} isEditing>
-        <div className="flex flex-col gap-3 py-2">
-          <div className="flex items-center justify-end">
-            <Secondary
-              href="#"
-              text={ordersLoading ? 'Refreshing orders...' : 'Refresh appointment orders'}
-              onClick={() => void refreshAppointmentOrders()}
-              isDisabled={ordersLoading}
-            />
-          </div>
-          {!latestOrder ? (
-            <div className="text-body-4 text-text-secondary">
-              {ordersLoading ? 'Loading appointment lab orders...' : 'No lab orders found for this appointment yet.'}
-            </div>
-          ) : (
-            <>
-              <div className="rounded-2xl border border-card-border p-3 bg-white flex flex-col gap-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex flex-col gap-1">
-                    <div className="text-body-3 text-text-primary">Order {latestOrder.idexxOrderId}</div>
-                    <div className="text-caption-1 text-text-secondary">
-                      Updated: {latestOrder.updatedAt ? new Date(latestOrder.updatedAt).toLocaleString() : '-'}
-                    </div>
-                  </div>
-                  <span className={`text-label-xsmall px-2 py-1 rounded w-fit ${getOrderStatusBadgeClass(latestOrder)}`}>
-                    {getOrderDisplayStatus(latestOrder)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap justify-end">
-                  <Primary
-                    href="#"
-                    text={
-                      needsInitialOrderPlacement
-                        ? 'Resume order placement'
-                        : canOpenFollowUpInCurrentOrder
-                          ? 'Follow up'
-                          : 'Open IDEXX'
-                    }
-                    onClick={() => openOrderIframe(canOpenFollowUpInCurrentOrder ? 'followup' : 'order')}
-                    isDisabled={!resolveOrderUiUrl(latestOrder)}
-                  />
-                  <Secondary
-                    href="#"
-                    text="Acknowledgment PDF"
-                    onClick={() => openOrderAcknowledgement(latestOrder)}
-                    isDisabled={!resolveOrderPdfUrl(latestOrder)}
-                  />
-                </div>
-              </div>
-              {appointmentOrders.length > 1 ? (
-                <div className="rounded-2xl border border-card-border p-3 flex flex-col gap-2">
-                  <div className="text-body-4 text-text-primary">Past orders in this appointment</div>
-                  {appointmentOrders
-                    .filter((order) => order._id !== latestOrder._id)
-                    .map((order) => {
-                      return (
-                        <div key={order._id} className="rounded-xl border border-card-border p-3 flex flex-col gap-2">
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <div className="text-body-4 text-text-primary">Order {order.idexxOrderId}</div>
-                              <div className="text-caption-1 text-text-secondary">Updated: {order.updatedAt ? new Date(order.updatedAt).toLocaleString() : '-'}</div>
-                            </div>
-                            <span className={`text-label-xsmall px-2 py-1 rounded w-fit ${getOrderStatusBadgeClass(order)}`}>
-                              {getOrderDisplayStatus(order)}
-                            </span>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2 justify-end">
-                            <Primary
-                              href="#"
-                              text="Open IDEXX"
-                              onClick={() => {
-                                setActiveOrderForActions(order);
-                                openOrderIframe('order', order.status, order);
-                              }}
-                              isDisabled={!resolveOrderUiUrl(order)}
-                            />
-                            <Secondary
-                              href="#"
-                              text="Acknowledgment PDF"
-                              onClick={() => openOrderAcknowledgement(order)}
-                              isDisabled={!resolveOrderPdfUrl(order)}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              ) : null}
-            </>
-          )}
-        </div>
-      </Accordion>
-
-      <Accordion title="Results" defaultOpen showEditIcon={false} isEditing>
-        <div className="flex flex-col gap-3 py-2">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="text-caption-1 text-text-secondary">
-              Results are filtered for this companion and all orders mapped to this appointment.
-            </div>
-            <div className="flex items-center gap-2 flex-wrap justify-end">
-              <Primary
-                href="#"
-                text={refreshingResults ? 'Refreshing...' : 'Refresh'}
-                onClick={() => void refreshResults()}
-                isDisabled={refreshingResults}
-              />
-              <Secondary href="/appointments/idexx-workspace" text="IDEXX workspace" />
-            </div>
-          </div>
-
-          {results.length === 0 ? (
-            <div className="text-body-4 text-text-secondary">No results available yet.</div>
-          ) : (
-            results.map((result, index) => (
-              <div key={result.resultId} className="rounded-2xl border border-card-border p-3 flex flex-col gap-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <div className="text-body-3 text-text-primary">Result {index + 1}</div>
-                    <div className="text-caption-1 text-text-secondary">
-                      ID: {result.resultId} | Status: {toTitleCase(result.status)} | Order: {result.orderId ?? '-'}
-                    </div>
-                  </div>
-                  <Primary
-                    href="#"
-                    text={pdfPreviewLoadingId === result.resultId ? '...' : 'PDF'}
-                    onClick={() => void openResultPdfPreview(result.resultId)}
-                    isDisabled={pdfPreviewLoadingId === result.resultId}
-                  />
-                </div>
-
-                {(result.rawPayload?.categories ?? []).map((category) => (
-                  <div key={`${result.resultId}-${category.name}`} className="rounded-xl border border-card-border p-2">
-                    <div className="text-body-4 text-text-primary mb-2">{category.name}</div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full min-w-[620px]">
-                        <thead>
-                          <tr className="border-b border-card-border">
-                            <th className="text-left text-caption-1 text-text-tertiary py-1 pr-2">Test</th>
-                            <th className="text-left text-caption-1 text-text-tertiary py-1 pr-2">Value</th>
-                            <th className="text-left text-caption-1 text-text-tertiary py-1 pr-2">Reference</th>
-                            <th className="text-left text-caption-1 text-text-tertiary py-1">Meter</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {category.tests.map((test, idx) => {
-                            const meter = getMeterMeta(test);
-                            return (
-                              <tr key={`${category.name}-${test.name}-${idx}`} className="border-b border-card-border last:border-0">
-                                <td className="text-caption-1 text-text-primary py-2 pr-2">{test.name}</td>
-                                <td className={`text-caption-1 py-2 pr-2 ${test.outOfRange ? 'text-red-600' : 'text-text-primary'}`}>
-                                  <LabResultValue test={test} />
-                                </td>
-                                <td className="text-caption-1 text-text-secondary py-2 pr-2">{test.referenceRange ?? '-'}</td>
-                                <td className="py-2">
-                                  {meter.canRender ? (
-                                    <div className="relative h-2 w-48 bg-card-hover rounded-full">
-                                      <div
-                                        className={`absolute top-1/2 -translate-y-1/2 w-1.5 h-4 rounded ${meter.markerClass}`}
-                                        style={{ left: `calc(${meter.percent}% - 3px)` }}
-                                      />
-                                    </div>
-                                  ) : (
-                                    <span className="text-caption-1 text-text-secondary">N/A</span>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ))
-          )}
-        </div>
-      </Accordion>
+        </Accordion>
       </div>
     </>
   );

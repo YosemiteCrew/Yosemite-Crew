@@ -24,8 +24,12 @@ import {
   listIdexxOrders,
   listIdexxResults,
 } from '@/app/features/integrations/services/idexxService';
-import { CensusEntry, LabOrder, LabResult, LabResultTest } from '@/app/features/integrations/services/types';
-import Modal from '@/app/ui/overlays/Modal';
+import {
+  CensusEntry,
+  LabOrder,
+  LabResult,
+  LabResultTest,
+} from '@/app/features/integrations/services/types';
 import ModalBase from '@/app/ui/overlays/Modal/ModalBase';
 import PdfPreviewOverlay from '@/app/ui/overlays/PdfPreviewOverlay';
 import Close from '@/app/ui/primitives/Icons/Close';
@@ -51,11 +55,17 @@ const formatTitleCase = (value?: string | null, fallback = 'Unknown') => {
 
 const getResultStatusStyle = (status?: string | null): React.CSSProperties => {
   const key = String(status ?? '').toLowerCase();
-  if (key.includes('complete') || key.includes('final')) return { color: '#F7F7F7', backgroundColor: '#D9A488' };
+  if (key.includes('complete') || key.includes('final'))
+    return { color: '#F7F7F7', backgroundColor: '#D9A488' };
   if (key.includes('error') || key.includes('fail') || key.includes('cancel')) {
     return { color: '#F7F7F7', backgroundColor: '#D28F9A' };
   }
-  if (key.includes('pending') || key.includes('running') || key.includes('partial') || key.includes('inprocess')) {
+  if (
+    key.includes('pending') ||
+    key.includes('running') ||
+    key.includes('partial') ||
+    key.includes('inprocess')
+  ) {
     return { color: '#F7F7F7', backgroundColor: '#747283' };
   }
   return { color: '#302F2E', backgroundColor: '#F1D4B0' };
@@ -63,7 +73,9 @@ const getResultStatusStyle = (status?: string | null): React.CSSProperties => {
 
 const parseFloatSafe = (value?: string): number | null => {
   if (!value) return null;
-  const cleaned = String(value).replace(/,/g, '.').replace(/[^0-9.+-]/g, '');
+  const cleaned = String(value)
+    .replace(/,/g, '.')
+    .replace(/[^0-9.+-]/g, '');
   const parsed = Number.parseFloat(cleaned);
   return Number.isFinite(parsed) ? parsed : null;
 };
@@ -86,12 +98,15 @@ const getMeterMeta = (test: LabResultTest) => {
   }
   const rawPercent = ((value - range.min) / (range.max - range.min)) * 100;
   const percent = Math.min(100, Math.max(0, rawPercent));
-  const markerClass = test.outOfRange || rawPercent < 0 || rawPercent > 100 ? 'bg-red-500' : 'bg-text-primary';
+  const markerClass =
+    test.outOfRange || rawPercent < 0 || rawPercent > 100 ? 'bg-red-500' : 'bg-text-primary';
   return { canRender: true, percent, markerClass };
 };
 
 const normalizeModality = (modality?: string | null): Exclude<ModalityFilter, 'ALL'> | null => {
-  const raw = String(modality ?? '').trim().toUpperCase();
+  const raw = String(modality ?? '')
+    .trim()
+    .toUpperCase();
   if (!raw) return null;
   if (raw === 'REFLAB' || raw === 'REFERENCE_LAB') return 'REFLAB';
   if (raw === 'INHOUSE' || raw === 'IN_HOUSE') return 'INHOUSE';
@@ -165,18 +180,21 @@ const IdexxWorkspacePage = () => {
     }
   }, [primaryOrgId, integrationEnabled]);
 
-  const getAppointmentLabsHref = useCallback((result: LabResult) => {
-    const orderId = String(result.orderId ?? '').trim();
-    const mappedAppointmentId = orderId ? appointmentIdByOrderId[orderId] : '';
-    const appointmentId = mappedAppointmentId || '';
-    if (!appointmentId) return '';
-    const params = new URLSearchParams({
-      appointmentId,
-      open: 'labs',
-      subLabel: 'idexx-labs',
-    });
-    return `/appointments?${params.toString()}`;
-  }, [appointmentIdByOrderId]);
+  const getAppointmentLabsHref = useCallback(
+    (result: LabResult) => {
+      const orderId = String(result.orderId ?? '').trim();
+      const mappedAppointmentId = orderId ? appointmentIdByOrderId[orderId] : '';
+      const appointmentId = mappedAppointmentId || '';
+      if (!appointmentId) return '';
+      const params = new URLSearchParams({
+        appointmentId,
+        open: 'labs',
+        subLabel: 'idexx-labs',
+      });
+      return `/appointments?${params.toString()}`;
+    },
+    [appointmentIdByOrderId]
+  );
 
   useEffect(() => {
     void refresh();
@@ -200,12 +218,24 @@ const IdexxWorkspacePage = () => {
 
       if (!q) return true;
       return (
-        String(result.resultId ?? '').toLowerCase().includes(q) ||
-        String(result.orderId ?? '').toLowerCase().includes(q) ||
-        String(result.patientName ?? '').toLowerCase().includes(q) ||
-        String(result.patientId ?? '').toLowerCase().includes(q) ||
-        String(result.requisitionId ?? '').toLowerCase().includes(q) ||
-        String(result.status ?? '').toLowerCase().includes(q)
+        String(result.resultId ?? '')
+          .toLowerCase()
+          .includes(q) ||
+        String(result.orderId ?? '')
+          .toLowerCase()
+          .includes(q) ||
+        String(result.patientName ?? '')
+          .toLowerCase()
+          .includes(q) ||
+        String(result.patientId ?? '')
+          .toLowerCase()
+          .includes(q) ||
+        String(result.requisitionId ?? '')
+          .toLowerCase()
+          .includes(q) ||
+        String(result.status ?? '')
+          .toLowerCase()
+          .includes(q)
       );
     });
   }, [results, query, modalityFilter]);
@@ -260,14 +290,18 @@ const IdexxWorkspacePage = () => {
 
   const getOrderUiUrl = useCallback((order: LabOrder | null) => {
     if (!order) return '';
-    const nestedUrl = String((order as unknown as { responsePayload?: { uiURL?: string } })?.responsePayload?.uiURL ?? '').trim();
+    const nestedUrl = String(
+      (order as unknown as { responsePayload?: { uiURL?: string } })?.responsePayload?.uiURL ?? ''
+    ).trim();
     const directUrl = String(order.uiUrl ?? '').trim();
     return directUrl || nestedUrl;
   }, []);
 
   const getOrderPdfUrl = useCallback((order: LabOrder | null) => {
     if (!order) return '';
-    const nestedUrl = String((order as unknown as { responsePayload?: { pdfURL?: string } })?.responsePayload?.pdfURL ?? '').trim();
+    const nestedUrl = String(
+      (order as unknown as { responsePayload?: { pdfURL?: string } })?.responsePayload?.pdfURL ?? ''
+    ).trim();
     const directUrl = String(order.pdfUrl ?? '').trim();
     return directUrl || nestedUrl;
   }, []);
@@ -312,28 +346,34 @@ const IdexxWorkspacePage = () => {
     };
   }, [pdfPreviewUrl]);
 
-  const openOrderAcknowledgement = useCallback((order: LabOrder | null) => {
-    const pdfUrl = getOrderPdfUrl(order);
-    if (!pdfUrl) {
-      setError('Acknowledgment PDF is not available for this order yet.');
-      return;
-    }
-    setError(null);
-    setPdfPreviewTitle(`IDEXX Order Acknowledgment #${order?.idexxOrderId ?? ''}`.trim());
-    setPdfPreviewUrl(pdfUrl);
-    setShowPdfPreview(true);
-  }, [getOrderPdfUrl]);
+  const openOrderAcknowledgement = useCallback(
+    (order: LabOrder | null) => {
+      const pdfUrl = getOrderPdfUrl(order);
+      if (!pdfUrl) {
+        setError('Acknowledgment PDF is not available for this order yet.');
+        return;
+      }
+      setError(null);
+      setPdfPreviewTitle(`IDEXX Order Acknowledgment #${order?.idexxOrderId ?? ''}`.trim());
+      setPdfPreviewUrl(pdfUrl);
+      setShowPdfPreview(true);
+    },
+    [getOrderPdfUrl]
+  );
 
-  const openFollowUpWorkspace = useCallback((order: LabOrder | null) => {
-    const uiUrl = getOrderUiUrl(order);
-    if (!uiUrl) {
-      setError('Follow-up workspace URL is not available for this order.');
-      return;
-    }
-    setError(null);
-    setFollowUpFrameUrl(uiUrl);
-    setShowFollowUpFrame(true);
-  }, [getOrderUiUrl]);
+  const openFollowUpWorkspace = useCallback(
+    (order: LabOrder | null) => {
+      const uiUrl = getOrderUiUrl(order);
+      if (!uiUrl) {
+        setError('Follow-up workspace URL is not available for this order.');
+        return;
+      }
+      setError(null);
+      setFollowUpFrameUrl(uiUrl);
+      setShowFollowUpFrame(true);
+    },
+    [getOrderUiUrl]
+  );
 
   const resultsColumns: Column<LabResult>[] = [
     {
@@ -344,7 +384,9 @@ const IdexxWorkspacePage = () => {
         <div className="flex flex-col">
           <div className="text-body-4 text-text-primary">{result.patientName ?? '-'}</div>
           <div className="text-caption-1 text-text-secondary">Result: {result.resultId}</div>
-          <div className="text-caption-1 text-text-secondary">Patient ID: {result.patientId ?? '-'}</div>
+          <div className="text-caption-1 text-text-secondary">
+            Patient ID: {result.patientId ?? '-'}
+          </div>
         </div>
       ),
     },
@@ -352,7 +394,11 @@ const IdexxWorkspacePage = () => {
       label: 'Updated',
       key: 'updatedAt',
       width: '13%',
-      render: (result) => <div className="text-body-4 text-text-primary">{formatDateTimeLocal(result.updatedAt, '-')}</div>,
+      render: (result) => (
+        <div className="text-body-4 text-text-primary">
+          {formatDateTimeLocal(result.updatedAt, '-')}
+        </div>
+      ),
     },
     {
       label: 'Status',
@@ -363,7 +409,9 @@ const IdexxWorkspacePage = () => {
           <div className="appointment-status w-fit" style={getResultStatusStyle(result.status)}>
             {formatTitleCase(result.status, '-')}
           </div>
-          {result.statusDetail ? <span className="text-caption-1 text-text-secondary">{result.statusDetail}</span> : null}
+          {result.statusDetail ? (
+            <span className="text-caption-1 text-text-secondary">{result.statusDetail}</span>
+          ) : null}
         </div>
       ),
     },
@@ -374,8 +422,12 @@ const IdexxWorkspacePage = () => {
       render: (result) => (
         <div className="flex flex-col">
           <div className="text-body-4 text-text-primary">{result.orderId ?? '-'}</div>
-          <div className="text-caption-1 text-text-secondary">Req: {result.requisitionId ?? '-'}</div>
-          <div className="text-caption-1 text-text-secondary">Accession: {result.accessionId ?? '-'}</div>
+          <div className="text-caption-1 text-text-secondary">
+            Req: {result.requisitionId ?? '-'}
+          </div>
+          <div className="text-caption-1 text-text-secondary">
+            Accession: {result.accessionId ?? '-'}
+          </div>
         </div>
       ),
     },
@@ -397,7 +449,12 @@ const IdexxWorkspacePage = () => {
                 <IoOpenOutline className="text-text-primary" size={16} />
               </Link>
             ) : null}
-            <Secondary href="#" text="Details" onClick={() => void openResultDetails(result)} className="px-4" />
+            <Secondary
+              href="#"
+              text="Details"
+              onClick={() => void openResultDetails(result)}
+              className="px-4"
+            />
             <Primary
               href="#"
               text={pdfPreviewLoadingId === result.resultId ? 'Loading PDF...' : 'PDF'}
@@ -422,8 +479,13 @@ const IdexxWorkspacePage = () => {
     return (
       <div className="flex flex-col gap-4 px-3! py-3! sm:px-12! lg:px-[60px]! sm:py-12!">
         <div className="text-heading-1 text-text-primary">IDEXX workspace</div>
-        <div className="text-body-3 text-text-secondary">IDEXX integration is currently disabled.</div>
-        <Link href="/integrations" className="text-body-4 text-text-brand underline underline-offset-2">
+        <div className="text-body-3 text-text-secondary">
+          IDEXX integration is currently disabled.
+        </div>
+        <Link
+          href="/integrations"
+          className="text-body-4 text-text-brand underline underline-offset-2"
+        >
           Open Integrations
         </Link>
       </div>
@@ -477,7 +539,8 @@ const IdexxWorkspacePage = () => {
         <div className="flex flex-col gap-1">
           <div className="text-heading-1 text-text-primary">IDEXX workspace</div>
           <p className="text-body-3 text-text-secondary max-w-3xl">
-            Manage diagnostic operations with result monitoring, census visibility, and order lookup.
+            Manage diagnostic operations with result monitoring, census visibility, and order
+            lookup.
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
@@ -487,7 +550,12 @@ const IdexxWorkspacePage = () => {
             onClick={() => setAutoRefresh((prev) => !prev)}
             className="px-4"
           />
-          <Primary href="#" text={loading ? 'Refreshing...' : 'Refresh'} onClick={() => void refresh()} className="px-4" />
+          <Primary
+            href="#"
+            text={loading ? 'Refreshing...' : 'Refresh'}
+            onClick={() => void refresh()}
+            className="px-4"
+          />
         </div>
       </div>
 
@@ -502,7 +570,9 @@ const IdexxWorkspacePage = () => {
         </div>
         <div className="rounded-2xl border border-card-border p-3 bg-white">
           <div className="text-caption-1 text-text-secondary">Last refreshed</div>
-          <div className="text-body-4 text-text-primary">{formatDateTimeLocal(lastRefreshedAt, 'Not refreshed yet')}</div>
+          <div className="text-body-4 text-text-primary">
+            {formatDateTimeLocal(lastRefreshedAt, 'Not refreshed yet')}
+          </div>
         </div>
       </div>
 
@@ -532,7 +602,10 @@ const IdexxWorkspacePage = () => {
             />
             <LabelDropdown
               placeholder="Page size"
-              options={PAGE_SIZE_OPTIONS.map((size) => ({ label: String(size), value: String(size) }))}
+              options={PAGE_SIZE_OPTIONS.map((size) => ({
+                label: String(size),
+                value: String(size),
+              }))}
               defaultOption={String(pageSize)}
               onSelect={(option) => {
                 setPageSize(Number(option.value));
@@ -547,15 +620,22 @@ const IdexxWorkspacePage = () => {
 
           <div className="flex xl:hidden flex-col gap-3">
             {paginatedResults.length === 0 ? (
-              <div className="rounded-2xl border border-card-border p-4 text-body-4 text-text-secondary">No results found.</div>
+              <div className="rounded-2xl border border-card-border p-4 text-body-4 text-text-secondary">
+                No results found.
+              </div>
             ) : (
               paginatedResults.map((result) => {
                 const appointmentLabsHref = getAppointmentLabsHref(result);
                 return (
-                  <div key={result.resultId} className="rounded-2xl border border-card-border p-3 bg-white flex flex-col gap-2">
+                  <div
+                    key={result.resultId}
+                    className="rounded-2xl border border-card-border p-3 bg-white flex flex-col gap-2"
+                  >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
-                        <div className="text-body-4 text-text-primary">{result.patientName ?? '-'}</div>
+                        <div className="text-body-4 text-text-primary">
+                          {result.patientName ?? '-'}
+                        </div>
                         <div
                           className="text-caption-1 text-text-secondary break-all"
                           style={{
@@ -568,19 +648,28 @@ const IdexxWorkspacePage = () => {
                           {result.resultId}
                         </div>
                       </div>
-                      <div className="appointment-status w-fit shrink-0" style={getResultStatusStyle(result.status)}>
+                      <div
+                        className="appointment-status w-fit shrink-0"
+                        style={getResultStatusStyle(result.status)}
+                      >
                         {formatTitleCase(result.status, '-')}
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-caption-1">
                       <div className="text-text-secondary">Updated</div>
-                      <div className="text-text-primary text-right">{formatDateTimeLocal(result.updatedAt, '-')}</div>
+                      <div className="text-text-primary text-right">
+                        {formatDateTimeLocal(result.updatedAt, '-')}
+                      </div>
                       <div className="text-text-secondary">Order</div>
                       <div className="text-text-primary text-right">{result.orderId ?? '-'}</div>
                       <div className="text-text-secondary">Req</div>
-                      <div className="text-text-primary text-right">{result.requisitionId ?? '-'}</div>
+                      <div className="text-text-primary text-right">
+                        {result.requisitionId ?? '-'}
+                      </div>
                       <div className="text-text-secondary">Accession</div>
-                      <div className="text-text-primary text-right">{result.accessionId ?? '-'}</div>
+                      <div className="text-text-primary text-right">
+                        {result.accessionId ?? '-'}
+                      </div>
                     </div>
                     <div className="flex items-center justify-end gap-2 flex-wrap pt-1">
                       {appointmentLabsHref ? (
@@ -593,7 +682,12 @@ const IdexxWorkspacePage = () => {
                           <IoOpenOutline className="text-text-primary" size={16} />
                         </Link>
                       ) : null}
-                      <Secondary href="#" text="Details" onClick={() => void openResultDetails(result)} className="px-4" />
+                      <Secondary
+                        href="#"
+                        text="Details"
+                        onClick={() => void openResultDetails(result)}
+                        className="px-4"
+                      />
                       <Primary
                         href="#"
                         text={pdfPreviewLoadingId === result.resultId ? 'Loading PDF...' : 'PDF'}
@@ -619,11 +713,15 @@ const IdexxWorkspacePage = () => {
                 disabled={page <= 1}
                 className={page <= 1 ? 'hover:bg-white! cursor-not-allowed opacity-40' : ''}
               />
-              <div className="text-body-4 text-text-primary">Page {page} / {totalPages}</div>
+              <div className="text-body-4 text-text-primary">
+                Page {page} / {totalPages}
+              </div>
               <Next
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
-                className={page >= totalPages ? 'hover:bg-white! cursor-not-allowed opacity-40' : ''}
+                className={
+                  page >= totalPages ? 'hover:bg-white! cursor-not-allowed opacity-40' : ''
+                }
               />
             </div>
           </div>
@@ -639,12 +737,19 @@ const IdexxWorkspacePage = () => {
               </div>
             ) : (
               censusEntries.map((entry) => (
-                <div key={`${entry.id}-${entry.patient.patientId}`} className="rounded-2xl border border-card-border p-3 bg-white">
+                <div
+                  key={`${entry.id}-${entry.patient.patientId}`}
+                  className="rounded-2xl border border-card-border p-3 bg-white"
+                >
                   <div className="text-body-4 text-text-primary">{entry.patient.name}</div>
-                  <div className="text-caption-1 text-text-secondary mt-0.5">Patient ID: {entry.patient.patientId}</div>
+                  <div className="text-caption-1 text-text-secondary mt-0.5">
+                    Patient ID: {entry.patient.patientId}
+                  </div>
                   <div className="mt-2 grid grid-cols-2 gap-2 text-caption-1">
                     <div className="text-text-secondary">Confirmed</div>
-                    <div className="text-right text-text-primary">{entry.confirmed ? 'Yes' : 'No'}</div>
+                    <div className="text-right text-text-primary">
+                      {entry.confirmed ? 'Yes' : 'No'}
+                    </div>
                     <div className="text-text-secondary">Veterinarian</div>
                     <div className="text-right text-text-primary">{entry.veterinarian ?? '-'}</div>
                   </div>
@@ -675,16 +780,25 @@ const IdexxWorkspacePage = () => {
 
             {orderLookup ? (
               <div className="rounded-2xl border border-card-border p-3 flex flex-col gap-1">
-                <div className="text-body-4 text-text-primary">Order {orderLookup.idexxOrderId}</div>
+                <div className="text-body-4 text-text-primary">
+                  Order {orderLookup.idexxOrderId}
+                </div>
                 <div className="text-caption-1 text-text-secondary">
                   Status: {formatTitleCase(orderLookup.status, '-')}
                   {orderLookup.externalStatus &&
-                  String(orderLookup.externalStatus).trim().toLowerCase() !== String(orderLookup.status ?? '').trim().toLowerCase()
+                  String(orderLookup.externalStatus).trim().toLowerCase() !==
+                    String(orderLookup.status ?? '')
+                      .trim()
+                      .toLowerCase()
                     ? ` (${formatTitleCase(orderLookup.externalStatus, '-')})`
                     : ''}
                 </div>
-                <div className="text-caption-1 text-text-secondary">Modality: {formatTitleCase(orderLookup.modality, '-')}</div>
-                <div className="text-caption-1 text-text-secondary">Updated: {formatDateTimeLocal(orderLookup.updatedAt, '-')}</div>
+                <div className="text-caption-1 text-text-secondary">
+                  Modality: {formatTitleCase(orderLookup.modality, '-')}
+                </div>
+                <div className="text-caption-1 text-text-secondary">
+                  Updated: {formatDateTimeLocal(orderLookup.updatedAt, '-')}
+                </div>
                 <div className="flex items-center justify-end gap-2 flex-wrap pt-2">
                   <Secondary
                     href="#"
@@ -722,7 +836,9 @@ const IdexxWorkspacePage = () => {
           <div className="flex items-center justify-between">
             <div>
               <div className="text-heading-3 text-text-primary">Result details</div>
-              <div className="text-body-4 text-text-secondary">Detailed diagnostic payload in Yosemite theme.</div>
+              <div className="text-body-4 text-text-secondary">
+                Detailed diagnostic payload in Yosemite theme.
+              </div>
             </div>
             <Close onClick={() => setShowResultModal(false)} />
           </div>
@@ -734,40 +850,68 @@ const IdexxWorkspacePage = () => {
           ) : (
             <div className="flex flex-col gap-3 flex-1 overflow-y-auto pr-1">
               <div className="rounded-2xl border border-card-border p-3">
-                <div className="text-body-4 text-text-primary">Result ID: {activeResultDetail.resultId}</div>
-                <div className="text-caption-1 text-text-secondary">
-                  Status: {formatTitleCase(activeResultDetail.status, '-')} {activeResultDetail.statusDetail ? `| ${activeResultDetail.statusDetail}` : ''}
+                <div className="text-body-4 text-text-primary">
+                  Result ID: {activeResultDetail.resultId}
                 </div>
-                <div className="text-caption-1 text-text-secondary">Order: {activeResultDetail.orderId ?? '-'}</div>
-                <div className="text-caption-1 text-text-secondary">Requisition: {activeResultDetail.requisitionId ?? '-'}</div>
                 <div className="text-caption-1 text-text-secondary">
-                  Patient: {activeResultDetail.patientName ?? '-'} ({activeResultDetail.patientId ?? '-'})
+                  Status: {formatTitleCase(activeResultDetail.status, '-')}{' '}
+                  {activeResultDetail.statusDetail ? `| ${activeResultDetail.statusDetail}` : ''}
+                </div>
+                <div className="text-caption-1 text-text-secondary">
+                  Order: {activeResultDetail.orderId ?? '-'}
+                </div>
+                <div className="text-caption-1 text-text-secondary">
+                  Requisition: {activeResultDetail.requisitionId ?? '-'}
+                </div>
+                <div className="text-caption-1 text-text-secondary">
+                  Patient: {activeResultDetail.patientName ?? '-'} (
+                  {activeResultDetail.patientId ?? '-'})
                 </div>
               </div>
 
               {(activeResultDetail.rawPayload?.categories ?? []).map((category) => (
-                <div key={`${activeResultDetail.resultId}-${category.name}`} className="rounded-2xl border border-card-border p-3">
+                <div
+                  key={`${activeResultDetail.resultId}-${category.name}`}
+                  className="rounded-2xl border border-card-border p-3"
+                >
                   <div className="text-body-4 text-text-primary mb-2">{category.name}</div>
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[620px]">
                       <thead>
                         <tr className="border-b border-card-border">
-                          <th className="text-left text-caption-1 text-text-tertiary py-1 pr-2">Test</th>
-                          <th className="text-left text-caption-1 text-text-tertiary py-1 pr-2">Value</th>
-                          <th className="text-left text-caption-1 text-text-tertiary py-1 pr-2">Reference</th>
-                          <th className="text-left text-caption-1 text-text-tertiary py-1">Meter</th>
+                          <th className="text-left text-caption-1 text-text-tertiary py-1 pr-2">
+                            Test
+                          </th>
+                          <th className="text-left text-caption-1 text-text-tertiary py-1 pr-2">
+                            Value
+                          </th>
+                          <th className="text-left text-caption-1 text-text-tertiary py-1 pr-2">
+                            Reference
+                          </th>
+                          <th className="text-left text-caption-1 text-text-tertiary py-1">
+                            Meter
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
                         {category.tests.map((test, idx) => {
                           const meter = getMeterMeta(test);
                           return (
-                            <tr key={`${category.name}-${test.name}-${idx}`} className="border-b border-card-border last:border-0">
-                              <td className="text-caption-1 text-text-primary py-2 pr-2">{test.name}</td>
-                              <td className={`text-caption-1 py-2 pr-2 ${test.outOfRange ? 'text-red-600' : 'text-text-primary'}`}>
+                            <tr
+                              key={`${category.name}-${test.name}-${idx}`}
+                              className="border-b border-card-border last:border-0"
+                            >
+                              <td className="text-caption-1 text-text-primary py-2 pr-2">
+                                {test.name}
+                              </td>
+                              <td
+                                className={`text-caption-1 py-2 pr-2 ${test.outOfRange ? 'text-red-600' : 'text-text-primary'}`}
+                              >
                                 <LabResultValue test={test} />
                               </td>
-                              <td className="text-caption-1 text-text-secondary py-2 pr-2">{test.referenceRange ?? '-'}</td>
+                              <td className="text-caption-1 text-text-secondary py-2 pr-2">
+                                {test.referenceRange ?? '-'}
+                              </td>
                               <td className="py-2">
                                 {meter.canRender ? (
                                   <div className="relative h-2 w-48 bg-card-hover rounded-full">

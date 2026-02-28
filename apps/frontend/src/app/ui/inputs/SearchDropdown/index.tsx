@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { IoIosSearch, IoIosWarning } from "react-icons/io";
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { IoIosSearch, IoIosWarning } from 'react-icons/io';
 
 type OptionProps = {
   value: string;
@@ -51,15 +51,12 @@ const SearchDropdown = ({
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(e.target as Node)
-      ) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setOpen(false);
       }
     }
-    if (open) document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    if (open) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [open]);
 
   const onSelectOption = (key: string) => {
@@ -81,7 +78,7 @@ const SearchDropdown = ({
   return (
     <div className="relative" ref={dropdownRef}>
       <div
-        className={`h-12 border px-4 py-2.5 flex items-center justify-center w-full ${canSearch ? "border-input-border-active! rounded-t-2xl!" : "border-input-border-default! rounded-2xl!"}`}
+        className={`h-12 border px-4 py-2.5 flex items-center justify-center w-full ${canSearch ? 'border-input-border-active! rounded-t-2xl!' : 'border-input-border-default! rounded-2xl!'}`}
       >
         <input
           type="text"
@@ -101,20 +98,22 @@ const SearchDropdown = ({
           className="border-input-border-active max-h-[200px] overflow-y-auto scrollbar-hidden z-99 absolute top-[100%] left-0 rounded-b-2xl border-l border-r border-b bg-white flex flex-col items-center w-full px-[12px] py-[10px]"
           onScroll={handleScroll}
         >
-          {filtered.map((option, i) => (
+          {filtered.map((option) => (
             <button
               key={option.value}
               onClick={() => onSelectOption(option.value)}
               className={
                 optionClassName ??
-                "px-[1.25rem] py-[0.75rem] text-body-4 hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full text-start"
+                'px-[1.25rem] py-[0.75rem] text-body-4 hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full text-start'
               }
             >
               {renderOption ? renderOption(option) : option.label}
             </button>
           ))}
           {isLoadingMore ? (
-            <div className="text-caption-1 py-2 text-text-secondary w-full text-center">Loading more tests...</div>
+            <div className="text-caption-1 py-2 text-text-secondary w-full text-center">
+              Loading more tests...
+            </div>
           ) : null}
         </div>
       )}

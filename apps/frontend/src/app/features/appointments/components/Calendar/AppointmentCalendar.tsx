@@ -1,20 +1,20 @@
-import React from "react";
-import { isSameDay } from "@/app/features/appointments/components/Calendar/helpers";
-import DayCalendar from "@/app/features/appointments/components/Calendar/common/DayCalendar";
-import Header from "@/app/features/appointments/components/Calendar/common/Header";
-import WeekCalendar from "@/app/features/appointments/components/Calendar/common/WeekCalendar";
-import { Appointment } from "@yosemite-crew/types";
-import UserCalendar from "@/app/features/appointments/components/Calendar/common/UserCalendar";
-import { AppointmentViewIntent } from "@/app/features/appointments/types/calendar";
-import { allowCalendarDrag } from "@/app/lib/appointments";
+import React from 'react';
+import { isSameDay } from '@/app/features/appointments/components/Calendar/helpers';
+import DayCalendar from '@/app/features/appointments/components/Calendar/common/DayCalendar';
+import Header from '@/app/features/appointments/components/Calendar/common/Header';
+import WeekCalendar from '@/app/features/appointments/components/Calendar/common/WeekCalendar';
+import { Appointment } from '@yosemite-crew/types';
+import UserCalendar from '@/app/features/appointments/components/Calendar/common/UserCalendar';
+import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
+import { allowCalendarDrag } from '@/app/lib/appointments';
 import {
   getSlotsForServiceAndDateForPrimaryOrg,
   updateAppointment,
-} from "@/app/features/appointments/services/appointmentService";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Slot } from "@/app/features/appointments/types/appointments";
-import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
-import { getWeekDays } from "@/app/features/appointments/components/Calendar/weekHelpers";
+} from '@/app/features/appointments/services/appointmentService';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Slot } from '@/app/features/appointments/types/appointments';
+import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
+import { getWeekDays } from '@/app/features/appointments/components/Calendar/weekHelpers';
 
 type AppointmentCalendarProps = {
   filteredList: Appointment[];
@@ -56,7 +56,7 @@ const AppointmentCalendar = ({
   weekStart,
   setWeekStart,
   setReschedulePopup,
-  canEditAppointments
+  canEditAppointments,
 }: AppointmentCalendarProps) => {
   const [draggedAppointmentId, setDraggedAppointmentId] = useState<string | null>(null);
   const [draggedAppointmentLabel, setDraggedAppointmentLabel] = useState<string | null>(null);
@@ -69,28 +69,24 @@ const AppointmentCalendar = ({
   const teams = useTeamForPrimaryOrg();
   const normalizeId = useCallback(
     (value?: string) =>
-      String(value ?? "")
+      String(value ?? '')
         .trim()
-        .split("/")
+        .split('/')
         .pop()
-        ?.toLowerCase() ?? "",
+        ?.toLowerCase() ?? '',
     []
   );
-  const snapToStep = (minutes: number, step = 5) =>
-    Math.round(minutes / step) * step;
-  const clampMinutes = (minutes: number) =>
-    Math.max(0, Math.min(24 * 60 - 5, snapToStep(minutes)));
+  const snapToStep = (minutes: number, step = 5) => Math.round(minutes / step) * step;
+  const clampMinutes = (minutes: number) => Math.max(0, Math.min(24 * 60 - 5, snapToStep(minutes)));
   const toLocalDayKey = (date: Date) => {
     const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
 
   const isAppointmentDraggable = (appointment: Appointment) =>
-    !!appointment.id &&
-    canEditAppointments &&
-    allowCalendarDrag(appointment.status as any);
+    !!appointment.id && canEditAppointments && allowCalendarDrag(appointment.status as any);
 
   const hasConflict = (
     moved: Appointment,
@@ -101,12 +97,11 @@ const AppointmentCalendar = ({
   ) => {
     return sourceAppointments.some((existing) => {
       if (!existing.id || existing.id === moved.id) return false;
-      if (existing.status === "CANCELLED" || existing.status === "NO_SHOW") return false;
+      if (existing.status === 'CANCELLED' || existing.status === 'NO_SHOW') return false;
       const existingStart = new Date(existing.startTime);
       const existingEnd = new Date(existing.endTime);
       const overlaps =
-        nextStart.getTime() < existingEnd.getTime() &&
-        nextEnd.getTime() > existingStart.getTime();
+        nextStart.getTime() < existingEnd.getTime() && nextEnd.getTime() > existingStart.getTime();
       if (!overlaps) return false;
 
       const movedLead = targetLeadId || moved.lead?.id;
@@ -127,8 +122,8 @@ const AppointmentCalendar = ({
       const normalizedCandidate = normalizeId(candidateId);
       const match = teams.find(
         (member) =>
-          normalizeId(member.practionerId || "") === normalizedCandidate ||
-          normalizeId(member._id || "") === normalizedCandidate
+          normalizeId(member.practionerId || '') === normalizedCandidate ||
+          normalizeId(member._id || '') === normalizedCandidate
       );
       return match?.practionerId || candidateId;
     },
@@ -147,57 +142,49 @@ const AppointmentCalendar = ({
       const normalizedTarget = normalizeId(targetLeadId);
       const target = teams.find(
         (member) =>
-          normalizeId(member.practionerId || "") === normalizedTarget ||
-          normalizeId(member._id || "") === normalizedTarget
+          normalizeId(member.practionerId || '') === normalizedTarget ||
+          normalizeId(member._id || '') === normalizedTarget
       );
       if (!target) return false;
       const appointmentSpeciality = appointment.appointmentType?.speciality;
       if (!appointmentSpeciality) return true;
       if (!Array.isArray(target.speciality) || target.speciality.length === 0) return true;
-      const expectedId = String((appointmentSpeciality as any).id ?? "").toLowerCase();
-      const expectedName = String((appointmentSpeciality as any).name ?? "").toLowerCase();
+      const expectedId = String((appointmentSpeciality as any).id ?? '').toLowerCase();
+      const expectedName = String((appointmentSpeciality as any).name ?? '').toLowerCase();
       return target.speciality.some((spec: any) => {
-        const id = String(spec?._id ?? spec?.id ?? "").toLowerCase();
-        const name = String(spec?.name ?? spec ?? "").toLowerCase();
+        const id = String(spec?._id ?? spec?.id ?? '').toLowerCase();
+        const name = String(spec?.name ?? spec ?? '').toLowerCase();
         return (expectedId && id === expectedId) || (expectedName && name === expectedName);
       });
     },
     [normalizeId, teams]
   );
 
-  const getSlotsForMoveValidation = useCallback(
-    async (serviceId: string, date: Date) => {
-      const cacheKey = `${serviceId}:${date.getFullYear()}-${String(
-        date.getMonth() + 1
-      ).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-      if (slotsCacheRef.current[cacheKey]) {
-        return slotsCacheRef.current[cacheKey];
-      }
-      const slots = await getSlotsForServiceAndDateForPrimaryOrg(serviceId, date);
-      slotsCacheRef.current[cacheKey] = slots;
-      return slots;
-    },
-    []
-  );
+  const getSlotsForMoveValidation = useCallback(async (serviceId: string, date: Date) => {
+    const cacheKey = `${serviceId}:${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+      2,
+      '0'
+    )}-${String(date.getDate()).padStart(2, '0')}`;
+    if (slotsCacheRef.current[cacheKey]) {
+      return slotsCacheRef.current[cacheKey];
+    }
+    const slots = await getSlotsForServiceAndDateForPrimaryOrg(serviceId, date);
+    slotsCacheRef.current[cacheKey] = slots;
+    return slots;
+  }, []);
 
-  const buildAppointmentStartFromLocalMinutes = useCallback(
-    (date: Date, minuteOfDay: number) => {
-      const clampedMinute = Math.max(
-        0,
-        Math.min(24 * 60 - 5, Math.round(minuteOfDay / 5) * 5)
-      );
-      return new Date(
-        date.getFullYear(),
-        date.getMonth(),
-        date.getDate(),
-        Math.floor(clampedMinute / 60),
-        clampedMinute % 60,
-        0,
-        0
-      );
-    },
-    []
-  );
+  const buildAppointmentStartFromLocalMinutes = useCallback((date: Date, minuteOfDay: number) => {
+    const clampedMinute = Math.max(0, Math.min(24 * 60 - 5, Math.round(minuteOfDay / 5) * 5));
+    return new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+      Math.floor(clampedMinute / 60),
+      clampedMinute % 60,
+      0,
+      0
+    );
+  }, []);
 
   const moveAppointment = async (
     date: Date,
@@ -207,11 +194,11 @@ const AppointmentCalendar = ({
     if (!draggedAppointmentId) return;
     const appointment = allAppointments.find((item) => item.id === draggedAppointmentId);
     if (!appointment || !appointment.id) {
-      setDragError("Unable to move this appointment.");
+      setDragError('Unable to move this appointment.');
       return;
     }
     if (!isAppointmentDraggable(appointment)) {
-      setDragError("Only no payment, requested, or upcoming appointments can be moved.");
+      setDragError('Only no payment, requested, or upcoming appointments can be moved.');
       return;
     }
 
@@ -221,30 +208,27 @@ const AppointmentCalendar = ({
       5 * 60 * 1000,
       new Date(appointment.endTime).getTime() - new Date(appointment.startTime).getTime()
     );
-    const durationMinutes = Math.max(5, Math.round(durationMs / 60000));
     const nextEnd = new Date(nextStart.getTime() + durationMs);
     const appointmentServiceId = appointment.appointmentType?.id;
-    const targetPractitionerId = resolvePractitionerId(
-      targetLeadId || appointment.lead?.id
-    );
+    const targetPractitionerId = resolvePractitionerId(targetLeadId || appointment.lead?.id);
 
     if (nextStart.getTime() < Date.now()) {
-      setDragError("Cannot move an appointment to a past time.");
+      setDragError('Cannot move an appointment to a past time.');
       return;
     }
     if (targetLeadId && !supportsSpeciality(targetLeadId, appointment)) {
-      setDragError("Selected team member is not configured for this speciality.");
+      setDragError('Selected team member is not configured for this speciality.');
       return;
     }
     if (appointmentServiceId && targetPractitionerId) {
       const availableStartMinutes = await ensureDragAvailability(date, targetLeadId);
       if (!availableStartMinutes.includes(snappedMinutes)) {
-        setDragError("No available slot for this service at the selected position.");
+        setDragError('No available slot for this service at the selected position.');
         return;
       }
     }
     if (hasConflict(appointment, nextStart, nextEnd, allAppointments, targetPractitionerId)) {
-      setDragError("Scheduling conflict detected with another appointment.");
+      setDragError('Scheduling conflict detected with another appointment.');
       return;
     }
 
@@ -258,12 +242,11 @@ const AppointmentCalendar = ({
               name:
                 teams.find(
                   (member) =>
-                    normalizeId(member.practionerId || "") ===
-                      normalizeId(targetPractitionerId) ||
-                    normalizeId(member._id || "") ===
-                      normalizeId(targetPractitionerId)
-                )
-                  ?.name || appointment.lead?.name || targetPractitionerId,
+                    normalizeId(member.practionerId || '') === normalizeId(targetPractitionerId) ||
+                    normalizeId(member._id || '') === normalizeId(targetPractitionerId)
+                )?.name ||
+                appointment.lead?.name ||
+                targetPractitionerId,
             }
           : appointment.lead,
         startTime: nextStart,
@@ -271,7 +254,7 @@ const AppointmentCalendar = ({
         appointmentDate: nextStart,
       });
     } catch {
-      setDragError("Unable to update appointment. Please try again.");
+      setDragError('Unable to update appointment. Please try again.');
     }
   };
 
@@ -283,7 +266,7 @@ const AppointmentCalendar = ({
         : null;
       const defaultLeadId = appointment?.lead?.id;
       const practitionerId = resolvePractitionerId(targetLeadId || defaultLeadId);
-      return `${dayKey}:${normalizeId(practitionerId || "")}`;
+      return `${dayKey}:${normalizeId(practitionerId || '')}`;
     },
     [allAppointments, dragContext, normalizeId, resolvePractitionerId]
   );
@@ -291,17 +274,13 @@ const AppointmentCalendar = ({
   const buildAvailableStartMinutes = useCallback(
     async (date: Date, targetLeadId?: string) => {
       if (!dragContext) return [];
-      const appointment = allAppointments.find(
-        (item) => item.id === dragContext.appointmentId
-      );
+      const appointment = allAppointments.find((item) => item.id === dragContext.appointmentId);
       if (!appointment) return [];
       if (targetLeadId && !supportsSpeciality(targetLeadId, appointment)) {
         return [];
       }
       const serviceId = dragContext.serviceId || appointment.appointmentType?.id;
-      const targetPractitionerId = resolvePractitionerId(
-        targetLeadId || appointment.lead?.id
-      );
+      const targetPractitionerId = resolvePractitionerId(targetLeadId || appointment.lead?.id);
       if (!serviceId || !targetPractitionerId) return [];
 
       const slots = await getSlotsForMoveValidation(serviceId, date);
@@ -401,15 +380,15 @@ const AppointmentCalendar = ({
   useEffect(() => {
     if (!dragContext) return;
     const prefetchTargets: Array<{ date: Date; targetLeadId?: string }> = [];
-    if (activeCalendar === "day") {
+    if (activeCalendar === 'day') {
       prefetchTargets.push({ date: currentDate });
-    } else if (activeCalendar === "week") {
+    } else if (activeCalendar === 'week') {
       prefetchTargets.push(
         ...getWeekDays(weekStart).map((date) => ({
           date,
         }))
       );
-    } else if (activeCalendar === "team") {
+    } else if (activeCalendar === 'team') {
       prefetchTargets.push(
         ...(teams || []).map((member) => ({
           date: currentDate,
@@ -418,9 +397,7 @@ const AppointmentCalendar = ({
       );
     }
     void Promise.all(
-      prefetchTargets.map((target) =>
-        ensureDragAvailability(target.date, target.targetLeadId)
-      )
+      prefetchTargets.map((target) => ensureDragAvailability(target.date, target.targetLeadId))
     );
   }, [activeCalendar, currentDate, dragContext, ensureDragAvailability, teams, weekStart]);
 
@@ -462,16 +439,13 @@ const AppointmentCalendar = ({
       }
     };
 
-    window.addEventListener("dragover", handleDragOver);
+    window.addEventListener('dragover', handleDragOver);
     return () => {
-      window.removeEventListener("dragover", handleDragOver);
+      window.removeEventListener('dragover', handleDragOver);
     };
   }, [draggedAppointmentId]);
 
-  const handleViewAppointment = (
-    appointment: Appointment,
-    intent?: AppointmentViewIntent,
-  ) => {
+  const handleViewAppointment = (appointment: Appointment, intent?: AppointmentViewIntent) => {
     setActiveAppointment?.(appointment);
     setViewIntent?.(intent ?? null);
     setViewPopup?.(true);
@@ -488,10 +462,7 @@ const AppointmentCalendar = ({
   };
 
   const dayEvents = useMemo(
-    () =>
-      filteredList.filter((event) =>
-        isSameDay(new Date(event.startTime), currentDate)
-      ),
+    () => filteredList.filter((event) => isSameDay(new Date(event.startTime), currentDate)),
     [filteredList, currentDate]
   );
 
@@ -503,7 +474,7 @@ const AppointmentCalendar = ({
           {dragError}
         </div>
       ) : null}
-      {activeCalendar === "day" && (
+      {activeCalendar === 'day' && (
         <DayCalendar
           events={dayEvents}
           date={currentDate}
@@ -518,13 +489,13 @@ const AppointmentCalendar = ({
           onAppointmentDragStart={(appointment) => {
             if (!isAppointmentDraggable(appointment)) return;
             setDraggedAppointmentId(appointment.id ?? null);
-            setDraggedAppointmentLabel(appointment.companion?.name ?? "Appointment");
+            setDraggedAppointmentLabel(appointment.companion?.name ?? 'Appointment');
             setDragError(null);
             dragAvailabilityCacheRef.current = {};
             dragAvailabilityPendingRef.current = {};
             setAvailabilityVersion((version) => version + 1);
             setDragContext({
-              appointmentId: appointment.id ?? "",
+              appointmentId: appointment.id ?? '',
               serviceId: appointment.appointmentType?.id,
               durationMinutes: Math.max(
                 5,
@@ -554,7 +525,7 @@ const AppointmentCalendar = ({
           }}
         />
       )}
-      {activeCalendar === "week" && (
+      {activeCalendar === 'week' && (
         <WeekCalendar
           events={filteredList}
           date={currentDate}
@@ -571,13 +542,13 @@ const AppointmentCalendar = ({
           onAppointmentDragStart={(appointment) => {
             if (!isAppointmentDraggable(appointment)) return;
             setDraggedAppointmentId(appointment.id ?? null);
-            setDraggedAppointmentLabel(appointment.companion?.name ?? "Appointment");
+            setDraggedAppointmentLabel(appointment.companion?.name ?? 'Appointment');
             setDragError(null);
             dragAvailabilityCacheRef.current = {};
             dragAvailabilityPendingRef.current = {};
             setAvailabilityVersion((version) => version + 1);
             setDragContext({
-              appointmentId: appointment.id ?? "",
+              appointmentId: appointment.id ?? '',
               serviceId: appointment.appointmentType?.id,
               durationMinutes: Math.max(
                 5,
@@ -607,7 +578,7 @@ const AppointmentCalendar = ({
           }}
         />
       )}
-      {activeCalendar === "team" && (
+      {activeCalendar === 'team' && (
         <UserCalendar
           events={dayEvents}
           date={currentDate}
@@ -622,13 +593,13 @@ const AppointmentCalendar = ({
           onAppointmentDragStart={(appointment) => {
             if (!isAppointmentDraggable(appointment)) return;
             setDraggedAppointmentId(appointment.id ?? null);
-            setDraggedAppointmentLabel(appointment.companion?.name ?? "Appointment");
+            setDraggedAppointmentLabel(appointment.companion?.name ?? 'Appointment');
             setDragError(null);
             dragAvailabilityCacheRef.current = {};
             dragAvailabilityPendingRef.current = {};
             setAvailabilityVersion((version) => version + 1);
             setDragContext({
-              appointmentId: appointment.id ?? "",
+              appointmentId: appointment.id ?? '',
               serviceId: appointment.appointmentType?.id,
               durationMinutes: Math.max(
                 5,
