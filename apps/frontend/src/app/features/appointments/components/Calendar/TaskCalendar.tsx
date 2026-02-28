@@ -1,14 +1,14 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { isSameDay } from "@/app/features/appointments/components/Calendar/helpers";
-import Header from "@/app/features/appointments/components/Calendar/common/Header";
-import DayCalendar from "@/app/features/appointments/components/Calendar/Task/DayCalendar";
-import WeekCalendar from "@/app/features/appointments/components/Calendar/Task/WeekCalendar";
-import UserCalendar from "@/app/features/appointments/components/Calendar/Task/UserCalendar";
-import { Task, TaskStatus } from "@/app/features/tasks/types/task";
-import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
-import { getProfileForUserForPrimaryOrg } from "@/app/features/organization/services/teamService";
-import { updateTask } from "@/app/features/tasks/services/taskService";
-import { useAuthStore } from "@/app/stores/authStore";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { isSameDay } from '@/app/features/appointments/components/Calendar/helpers';
+import Header from '@/app/features/appointments/components/Calendar/common/Header';
+import DayCalendar from '@/app/features/appointments/components/Calendar/Task/DayCalendar';
+import WeekCalendar from '@/app/features/appointments/components/Calendar/Task/WeekCalendar';
+import UserCalendar from '@/app/features/appointments/components/Calendar/Task/UserCalendar';
+import { Task, TaskStatus } from '@/app/features/tasks/types/task';
+import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
+import { getProfileForUserForPrimaryOrg } from '@/app/features/organization/services/teamService';
+import { updateTask } from '@/app/features/tasks/services/taskService';
+import { useAuthStore } from '@/app/stores/authStore';
 
 type TaskCalendarProps = {
   filteredList: Task[];
@@ -43,16 +43,12 @@ const TaskCalendar = ({
   const allTaskItems = allTasks ?? filteredList;
   const teams = useTeamForPrimaryOrg();
   const authUserId = useAuthStore(
-    (s) =>
-      s.attributes?.sub ||
-      s.attributes?.email ||
-      s.attributes?.["cognito:username"] ||
-      ""
+    (s) => s.attributes?.sub || s.attributes?.email || s.attributes?.['cognito:username'] || ''
   );
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [draggedTaskLabel, setDraggedTaskLabel] = useState<string | null>(null);
   const [dragError, setDragError] = useState<string | null>(null);
-  const [, setAvailabilityVersion] = useState(0);
+  const [availabilityVersion, setAvailabilityVersion] = useState(0);
   const availabilityCacheRef = useRef<Record<string, Record<string, DropAvailabilityInterval[]>>>(
     {}
   );
@@ -61,11 +57,11 @@ const TaskCalendar = ({
 
   const normalizeId = useCallback(
     (value?: string) =>
-      String(value ?? "")
+      String(value ?? '')
         .trim()
-        .split("/")
+        .split('/')
         .pop()
-        ?.toLowerCase() ?? "",
+        ?.toLowerCase() ?? '',
     []
   );
 
@@ -80,13 +76,11 @@ const TaskCalendar = ({
   };
 
   const getDayKey = (date: Date) =>
-    date
-      .toLocaleDateString("en-US", { weekday: "long" })
-      .toUpperCase();
+    date.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
 
   const resolveAssigneeId = useCallback(
     (candidateId?: string) => {
-      if (!candidateId) return "";
+      if (!candidateId) return '';
       const normalizedCandidate = normalizeId(candidateId);
       const member = teams.find(
         (team) =>
@@ -94,8 +88,7 @@ const TaskCalendar = ({
           normalizeId(team._id) === normalizedCandidate ||
           normalizeId((team as any).userId) === normalizedCandidate ||
           normalizeId((team as any).id) === normalizedCandidate ||
-          normalizeId((team as any).userOrganisation?.userId) ===
-            normalizedCandidate
+          normalizeId((team as any).userOrganisation?.userId) === normalizedCandidate
       );
       return (
         member?.practionerId ||
@@ -113,13 +106,8 @@ const TaskCalendar = ({
     (task: Task) => {
       const normalizedCurrentUser = normalizeId(authUserId);
       const isAssignedByCurrentUser =
-        !!normalizedCurrentUser &&
-        normalizeId(task.assignedBy) === normalizedCurrentUser;
-      return (
-        task.status !== "COMPLETED" &&
-        task.status !== "CANCELLED" &&
-        isAssignedByCurrentUser
-      );
+        !!normalizedCurrentUser && normalizeId(task.assignedBy) === normalizedCurrentUser;
+      return task.status !== 'COMPLETED' && task.status !== 'CANCELLED' && isAssignedByCurrentUser;
     },
     [authUserId, normalizeId]
   );
@@ -129,13 +117,11 @@ const TaskCalendar = ({
     (task: Task, targetAssigneeId?: string) => {
       const normalizedCurrentUser = normalizeId(authUserId);
       const isAssignedByCurrentUser =
-        !!normalizedCurrentUser &&
-        normalizeId(task.assignedBy) === normalizedCurrentUser;
+        !!normalizedCurrentUser && normalizeId(task.assignedBy) === normalizedCurrentUser;
       if (isAssignedByCurrentUser) return false;
       const currentAssignee = resolveAssigneeId(task.assignedTo);
       const nextAssignee = resolveAssigneeId(targetAssigneeId || task.assignedTo);
-      const isReassigning =
-        normalizeId(nextAssignee) !== normalizeId(currentAssignee);
+      const isReassigning = normalizeId(nextAssignee) !== normalizeId(currentAssignee);
       if (isReassigning) return true;
       return true;
     },
@@ -154,9 +140,7 @@ const TaskCalendar = ({
       }
       const task = (async () => {
         try {
-          const profile = (await getProfileForUserForPrimaryOrg(
-            resolvedAssigneeId
-          )) as {
+          const profile = (await getProfileForUserForPrimaryOrg(resolvedAssigneeId)) as {
             baseAvailability?: Array<{
               dayOfWeek?: string;
               slots?: Array<{
@@ -171,14 +155,14 @@ const TaskCalendar = ({
             ? profile.baseAvailability
             : [];
           for (const dayEntry of baseAvailability) {
-            const dayKey = String(dayEntry?.dayOfWeek ?? "").toUpperCase();
+            const dayKey = String(dayEntry?.dayOfWeek ?? '').toUpperCase();
             if (!dayKey) continue;
             const slots = Array.isArray(dayEntry?.slots) ? dayEntry.slots : [];
             const intervals: DropAvailabilityInterval[] = slots
               .filter((slot: any) => slot?.isAvailable !== false)
               .map((slot: any) => {
-                const start = toLocalMinutesFromUtcTime(slot?.startTime || "");
-                const end = toLocalMinutesFromUtcTime(slot?.endTime || "");
+                const start = toLocalMinutesFromUtcTime(slot?.startTime || '');
+                const end = toLocalMinutesFromUtcTime(slot?.endTime || '');
                 const latestStart = end - TASK_BLOCK_DURATION_MINUTES;
                 return {
                   startMinute: start,
@@ -186,8 +170,7 @@ const TaskCalendar = ({
                 };
               })
               .filter(
-                (interval: DropAvailabilityInterval) =>
-                  interval.endMinute >= interval.startMinute
+                (interval: DropAvailabilityInterval) => interval.endMinute >= interval.startMinute
               );
             output[dayKey] = intervals;
           }
@@ -209,10 +192,7 @@ const TaskCalendar = ({
     (date: Date, assigneeId?: string): DropAvailabilityInterval[] => {
       const draggedTask = allTaskItems.find((item) => item._id === draggedTaskId);
       const targetAssigneeId = assigneeId || draggedTask?.assignedTo;
-      if (
-        draggedTask &&
-        !shouldEnforceAvailability(draggedTask, targetAssigneeId)
-      ) {
+      if (draggedTask && !shouldEnforceAvailability(draggedTask, targetAssigneeId)) {
         return [
           {
             startMinute: 0,
@@ -226,13 +206,7 @@ const TaskCalendar = ({
       const dayKey = getDayKey(date);
       return availabilityCacheRef.current[assigneeKey]?.[dayKey] || [];
     },
-    [
-      allTaskItems,
-      draggedTaskId,
-      normalizeId,
-      resolveAssigneeId,
-      shouldEnforceAvailability,
-    ]
+    [allTaskItems, draggedTaskId, normalizeId, resolveAssigneeId, shouldEnforceAvailability]
   );
 
   const isMinuteAvailableForAssignee = useCallback(
@@ -243,42 +217,33 @@ const TaskCalendar = ({
       const intervals = getDropAvailabilityIntervals(date, resolvedAssigneeId);
       if (intervals.length === 0) return false;
       return intervals.some(
-        (interval) =>
-          minute >= interval.startMinute && minute <= interval.endMinute
+        (interval) => minute >= interval.startMinute && minute <= interval.endMinute
       );
     },
     [ensureAssigneeAvailability, getDropAvailabilityIntervals, resolveAssigneeId]
   );
 
-  const moveTask = async (
-    date: Date,
-    minuteOfDay: number,
-    targetAssigneeId?: string
-  ) => {
+  const moveTask = async (date: Date, minuteOfDay: number, targetAssigneeId?: string) => {
     if (!draggedTaskId) return;
     const task = allTaskItems.find((item) => item._id === draggedTaskId);
     if (!task?._id) return;
     if (!canEditTask(task)) {
-      setDragError("Only pending or in-progress tasks can be moved.");
+      setDragError('Only pending or in-progress tasks can be moved.');
       return;
     }
     const snappedMinute = clampMinutes(minuteOfDay);
-    const canReassign = task.audience === "EMPLOYEE_TASK";
+    const canReassign = task.audience === 'EMPLOYEE_TASK';
     const nextAssignee = resolveAssigneeId(
       (canReassign ? targetAssigneeId : undefined) || task.assignedTo
     );
     if (!nextAssignee) {
-      setDragError("Task assignee is required.");
+      setDragError('Task assignee is required.');
       return;
     }
     if (shouldEnforceAvailability(task, nextAssignee)) {
-      const isAvailable = await isMinuteAvailableForAssignee(
-        date,
-        snappedMinute,
-        nextAssignee
-      );
+      const isAvailable = await isMinuteAvailableForAssignee(date, snappedMinute, nextAssignee);
       if (!isAvailable) {
-        setDragError("Target assignee is unavailable at the selected time.");
+        setDragError('Target assignee is unavailable at the selected time.');
         return;
       }
     }
@@ -301,7 +266,7 @@ const TaskCalendar = ({
         dueAt: nextDueAt,
       });
     } catch {
-      setDragError("Unable to update task. Please try again.");
+      setDragError('Unable to update task. Please try again.');
     }
   };
 
@@ -312,7 +277,7 @@ const TaskCalendar = ({
         status,
       });
     } catch {
-      setDragError("Unable to update task status. Please try again.");
+      setDragError('Unable to update task status. Please try again.');
     }
   };
 
@@ -323,18 +288,18 @@ const TaskCalendar = ({
     const handleDragOver = (event: DragEvent) => {
       const x = event.clientX;
       const y = event.clientY;
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
+      const viewportWidth = globalThis.innerWidth;
+      const viewportHeight = globalThis.innerHeight;
 
       if (x >= 0 && x < edgeThreshold) {
-        window.scrollBy({ left: -scrollAmount });
+        globalThis.scrollBy({ left: -scrollAmount });
       } else if (x > viewportWidth - edgeThreshold) {
-        window.scrollBy({ left: scrollAmount });
+        globalThis.scrollBy({ left: scrollAmount });
       }
       if (y >= 0 && y < edgeThreshold) {
-        window.scrollBy({ top: -scrollAmount });
+        globalThis.scrollBy({ top: -scrollAmount });
       } else if (y > viewportHeight - edgeThreshold) {
-        window.scrollBy({ top: scrollAmount });
+        globalThis.scrollBy({ top: scrollAmount });
       }
 
       const hoveredElement = document.elementFromPoint(x, y) as HTMLElement | null;
@@ -354,9 +319,9 @@ const TaskCalendar = ({
       }
     };
 
-    window.addEventListener("dragover", handleDragOver);
-    return () => window.removeEventListener("dragover", handleDragOver);
-  }, [draggedTaskId]);
+    globalThis.addEventListener('dragover', handleDragOver);
+    return () => globalThis.removeEventListener('dragover', handleDragOver);
+  }, [draggedTaskId, availabilityVersion]);
 
   const handleViewTask = (appointment: Task) => {
     setActiveTask?.(appointment);
@@ -364,10 +329,7 @@ const TaskCalendar = ({
   };
 
   const dayEvents = useMemo(
-    () =>
-      filteredList.filter((event) =>
-        isSameDay(new Date(event.dueAt), currentDate)
-      ),
+    () => filteredList.filter((event) => isSameDay(new Date(event.dueAt), currentDate)),
     [filteredList, currentDate]
   );
 
@@ -379,7 +341,7 @@ const TaskCalendar = ({
           {dragError}
         </div>
       ) : null}
-      {activeCalendar === "day" && (
+      {activeCalendar === 'day' && (
         <DayCalendar
           events={dayEvents}
           date={currentDate}
@@ -394,9 +356,9 @@ const TaskCalendar = ({
             if (!canDragTask(task)) return;
             setDragError(null);
             setDraggedTaskId(task._id);
-            setDraggedTaskLabel(task.name || "Task");
+            setDraggedTaskLabel(task.name || 'Task');
             if (shouldEnforceAvailability(task, task.assignedTo)) {
-              void ensureAssigneeAvailability(task.assignedTo);
+              ensureAssigneeAvailability(task.assignedTo).catch(() => undefined);
             }
           }}
           onTaskDragEnd={() => {
@@ -404,7 +366,7 @@ const TaskCalendar = ({
             setDraggedTaskLabel(null);
           }}
           onTaskDropAt={(dropDate, minute) => {
-            void moveTask(dropDate, minute);
+            moveTask(dropDate, minute).catch(() => undefined);
             setDraggedTaskId(null);
             setDraggedTaskLabel(null);
           }}
@@ -412,13 +374,13 @@ const TaskCalendar = ({
             const task = allTaskItems.find((item) => item._id === draggedTaskId);
             if (!task) return;
             if (shouldEnforceAvailability(task, assigneeId || task.assignedTo)) {
-              void ensureAssigneeAvailability(assigneeId || task.assignedTo);
+              ensureAssigneeAvailability(assigneeId || task.assignedTo).catch(() => undefined);
             }
           }}
           getDropAvailabilityIntervals={getDropAvailabilityIntervals}
         />
       )}
-      {activeCalendar === "week" && (
+      {activeCalendar === 'week' && (
         <WeekCalendar
           events={filteredList}
           date={currentDate}
@@ -435,9 +397,9 @@ const TaskCalendar = ({
             if (!canDragTask(task)) return;
             setDragError(null);
             setDraggedTaskId(task._id);
-            setDraggedTaskLabel(task.name || "Task");
+            setDraggedTaskLabel(task.name || 'Task');
             if (shouldEnforceAvailability(task, task.assignedTo)) {
-              void ensureAssigneeAvailability(task.assignedTo);
+              ensureAssigneeAvailability(task.assignedTo).catch(() => undefined);
             }
           }}
           onTaskDragEnd={() => {
@@ -445,7 +407,7 @@ const TaskCalendar = ({
             setDraggedTaskLabel(null);
           }}
           onTaskDropAt={(dropDate, minute) => {
-            void moveTask(dropDate, minute);
+            moveTask(dropDate, minute).catch(() => undefined);
             setDraggedTaskId(null);
             setDraggedTaskLabel(null);
           }}
@@ -453,13 +415,13 @@ const TaskCalendar = ({
             const task = allTaskItems.find((item) => item._id === draggedTaskId);
             if (!task) return;
             if (shouldEnforceAvailability(task, assigneeId || task.assignedTo)) {
-              void ensureAssigneeAvailability(assigneeId || task.assignedTo);
+              ensureAssigneeAvailability(assigneeId || task.assignedTo).catch(() => undefined);
             }
           }}
           getDropAvailabilityIntervals={getDropAvailabilityIntervals}
         />
       )}
-      {activeCalendar === "team" && (
+      {activeCalendar === 'team' && (
         <UserCalendar
           events={dayEvents}
           date={currentDate}
@@ -474,9 +436,9 @@ const TaskCalendar = ({
             if (!canDragTask(task)) return;
             setDragError(null);
             setDraggedTaskId(task._id);
-            setDraggedTaskLabel(task.name || "Task");
+            setDraggedTaskLabel(task.name || 'Task');
             if (shouldEnforceAvailability(task, task.assignedTo)) {
-              void ensureAssigneeAvailability(task.assignedTo);
+              ensureAssigneeAvailability(task.assignedTo).catch(() => undefined);
             }
           }}
           onTaskDragEnd={() => {
@@ -484,7 +446,7 @@ const TaskCalendar = ({
             setDraggedTaskLabel(null);
           }}
           onTaskDropAt={(dropDate, minute, assigneeId) => {
-            void moveTask(dropDate, minute, assigneeId);
+            moveTask(dropDate, minute, assigneeId).catch(() => undefined);
             setDraggedTaskId(null);
             setDraggedTaskLabel(null);
           }}
@@ -492,7 +454,7 @@ const TaskCalendar = ({
             const task = allTaskItems.find((item) => item._id === draggedTaskId);
             if (!task) return;
             if (shouldEnforceAvailability(task, assigneeId || task.assignedTo)) {
-              void ensureAssigneeAvailability(assigneeId || task.assignedTo);
+              ensureAssigneeAvailability(assigneeId || task.assignedTo).catch(() => undefined);
             }
           }}
           getDropAvailabilityIntervals={getDropAvailabilityIntervals}

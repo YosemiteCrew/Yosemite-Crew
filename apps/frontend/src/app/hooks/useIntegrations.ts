@@ -1,11 +1,11 @@
-import { useEffect, useMemo } from "react";
-import { useOrgStore } from "@/app/stores/orgStore";
-import { useIntegrationStore } from "@/app/stores/integrationStore";
+import { useEffect, useMemo } from 'react';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { useIntegrationStore } from '@/app/stores/integrationStore';
 import {
   getApiErrorMessage,
   getOrgIntegrations,
-} from "@/app/features/integrations/services/idexxService";
-import { IntegrationProvider, OrgIntegration } from "@/app/features/integrations/services/types";
+} from '@/app/features/integrations/services/idexxService';
+import { IntegrationProvider, OrgIntegration } from '@/app/features/integrations/services/types';
 
 export const loadIntegrationsForPrimaryOrg = async (opts?: {
   force?: boolean;
@@ -22,12 +22,9 @@ export const loadIntegrationsForPrimaryOrg = async (opts?: {
   } = useIntegrationStore.getState();
 
   if (!primaryOrgId) return;
-  const hasOrgData = Object.prototype.hasOwnProperty.call(
-    integrationIdsByOrgId,
-    primaryOrgId,
-  );
+  const hasOrgData = Object.hasOwn(integrationIdsByOrgId, primaryOrgId);
   const shouldFetch =
-    opts?.force || status === "idle" || status === "error" || !lastFetchedAt || !hasOrgData;
+    opts?.force || status === 'idle' || status === 'error' || !lastFetchedAt || !hasOrgData;
   if (!shouldFetch) return;
 
   if (!opts?.silent) startLoading();
@@ -35,10 +32,7 @@ export const loadIntegrationsForPrimaryOrg = async (opts?: {
     const integrations = await getOrgIntegrations(primaryOrgId);
     setIntegrationsForOrg(primaryOrgId, integrations);
   } catch (error) {
-    const message = getApiErrorMessage(
-      error,
-      "Unable to load integrations at the moment.",
-    );
+    const message = getApiErrorMessage(error, 'Unable to load integrations at the moment.');
     setError(message);
     throw error;
   }
@@ -67,14 +61,13 @@ export const useIntegrationsForPrimaryOrg = (): OrgIntegration[] => {
 };
 
 export const useIntegrationByProviderForPrimaryOrg = (
-  provider: IntegrationProvider,
+  provider: IntegrationProvider
 ): OrgIntegration | null => {
   const integrations = useIntegrationsForPrimaryOrg();
   const normalizedProvider = provider.toLowerCase();
   return (
     integrations.find(
-      (integration) =>
-        String(integration.provider ?? "").toLowerCase() === normalizedProvider,
+      (integration) => String(integration.provider ?? '').toLowerCase() === normalizedProvider
     ) ?? null
   );
 };

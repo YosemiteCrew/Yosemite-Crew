@@ -1,27 +1,24 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getStatusStyle } from "@/app/config/statusConfig";
-import Image from "next/image";
-import { Appointment } from "@yosemite-crew/types";
-import { getSafeImageUrl, ImageType } from "@/app/lib/urls";
-import { allowReschedule } from "@/app/lib/appointments";
-import { AppointmentViewIntent } from "@/app/features/appointments/types/calendar";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { getStatusStyle } from '@/app/config/statusConfig';
+import Image from 'next/image';
+import { Appointment } from '@yosemite-crew/types';
+import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
+import { allowReschedule } from '@/app/lib/appointments';
+import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
 import {
   IoEyeOutline,
   IoCalendarOutline,
   IoDocumentTextOutline,
   IoCardOutline,
   IoFlaskOutline,
-} from "react-icons/io5";
-import { MdOutlineAutorenew } from "react-icons/md";
-import { createPortal } from "react-dom";
+} from 'react-icons/io5';
+import { MdOutlineAutorenew } from 'react-icons/md';
+import { createPortal } from 'react-dom';
 
 type SlotProps = {
   slotEvents: Appointment[];
   height: number;
-  handleViewAppointment: (
-    appt: Appointment,
-    intent?: AppointmentViewIntent,
-  ) => void;
+  handleViewAppointment: (appt: Appointment, intent?: AppointmentViewIntent) => void;
   handleRescheduleAppointment: (appt: Appointment) => void;
   handleChangeStatusAppointment?: (appt: Appointment) => void;
   dayIndex: number;
@@ -77,11 +74,11 @@ const Slot: React.FC<SlotProps> = ({
   useEffect(() => {
     if (!activePopoverKey) return;
     const closePopover = () => setActivePopoverKey(null);
-    window.addEventListener("scroll", closePopover, true);
-    window.addEventListener("resize", closePopover);
+    globalThis.addEventListener('scroll', closePopover, true);
+    globalThis.addEventListener('resize', closePopover);
     return () => {
-      window.removeEventListener("scroll", closePopover, true);
-      window.removeEventListener("resize", closePopover);
+      globalThis.removeEventListener('scroll', closePopover, true);
+      globalThis.removeEventListener('resize', closePopover);
     };
   }, [activePopoverKey]);
 
@@ -121,27 +118,27 @@ const Slot: React.FC<SlotProps> = ({
     const onTouchStart = () => clearCloseTimer();
     const onTouchEnd = () => schedulePopoverClose();
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+      if (event.key === 'Escape') {
         setActivePopoverKey(null);
       }
     };
 
-    dialogEl.addEventListener("mouseenter", onMouseEnter);
-    dialogEl.addEventListener("mouseleave", onMouseLeave);
-    dialogEl.addEventListener("focusin", onFocusIn);
-    dialogEl.addEventListener("focusout", onFocusOut);
-    dialogEl.addEventListener("touchstart", onTouchStart, { passive: true });
-    dialogEl.addEventListener("touchend", onTouchEnd, { passive: true });
-    dialogEl.addEventListener("keydown", onKeyDown);
+    dialogEl.addEventListener('mouseenter', onMouseEnter);
+    dialogEl.addEventListener('mouseleave', onMouseLeave);
+    dialogEl.addEventListener('focusin', onFocusIn);
+    dialogEl.addEventListener('focusout', onFocusOut);
+    dialogEl.addEventListener('touchstart', onTouchStart, { passive: true });
+    dialogEl.addEventListener('touchend', onTouchEnd, { passive: true });
+    dialogEl.addEventListener('keydown', onKeyDown);
 
     return () => {
-      dialogEl.removeEventListener("mouseenter", onMouseEnter);
-      dialogEl.removeEventListener("mouseleave", onMouseLeave);
-      dialogEl.removeEventListener("focusin", onFocusIn);
-      dialogEl.removeEventListener("focusout", onFocusOut);
-      dialogEl.removeEventListener("touchstart", onTouchStart);
-      dialogEl.removeEventListener("touchend", onTouchEnd);
-      dialogEl.removeEventListener("keydown", onKeyDown);
+      dialogEl.removeEventListener('mouseenter', onMouseEnter);
+      dialogEl.removeEventListener('mouseleave', onMouseLeave);
+      dialogEl.removeEventListener('focusin', onFocusIn);
+      dialogEl.removeEventListener('focusout', onFocusOut);
+      dialogEl.removeEventListener('touchstart', onTouchStart);
+      dialogEl.removeEventListener('touchend', onTouchEnd);
+      dialogEl.removeEventListener('keydown', onKeyDown);
     };
   }, [activePopoverKey, clearCloseTimer, schedulePopoverClose]);
 
@@ -154,49 +151,44 @@ const Slot: React.FC<SlotProps> = ({
   }, [clearCloseTimer]);
 
   const sortedSlotEvents = useMemo(
-    () =>
-      [...slotEvents].sort(
-        (a, b) => a.startTime.getTime() - b.startTime.getTime(),
-      ),
-    [slotEvents],
+    () => [...slotEvents].sort((a, b) => a.startTime.getTime() - b.startTime.getTime()),
+    [slotEvents]
   );
 
   const activeEvent = useMemo(
     () =>
       sortedSlotEvents.find(
-        (ev, i) =>
-          `${ev.companion.name}-${ev.startTime.toISOString()}-${i}` ===
-          activePopoverKey,
+        (ev, i) => `${ev.companion.name}-${ev.startTime.toISOString()}-${i}` === activePopoverKey
       ) ?? null,
-    [sortedSlotEvents, activePopoverKey],
+    [sortedSlotEvents, activePopoverKey]
   );
 
   const formatTimeRange = (event: Appointment) => {
-    const start = event.startTime.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
+    const start = event.startTime.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
     });
-    const end = event.endTime.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
+    const end = event.endTime.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
     });
     return `${start} - ${end}`;
   };
 
   const formatStatusLabel = (status?: string) => {
-    if (!status) return "Unknown";
+    if (!status) return 'Unknown';
     return status
       .toLowerCase()
-      .split("_")
+      .split('_')
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(" ");
+      .join(' ');
   };
 
   const getPopoverStyle = () => {
     if (!activeRect) return { top: 0, left: 0 };
     const popoverWidth = 360;
     const margin = 8;
-    const viewportWidth = window.innerWidth;
+    const viewportWidth = globalThis.innerWidth;
     const fitsRight = activeRect.right + margin + popoverWidth <= viewportWidth;
     const left = fitsRight
       ? activeRect.right + margin
@@ -217,24 +209,21 @@ const Slot: React.FC<SlotProps> = ({
 
   const setCustomDragGhost = (
     event: React.DragEvent<HTMLButtonElement>,
-    appointment: Appointment,
+    appointment: Appointment
   ) => {
-    const ghost = document.createElement("img");
-    ghost.src = getSafeImageUrl(
-      "",
-      appointment.companion.species.toLowerCase() as ImageType,
-    );
+    const ghost = document.createElement('img');
+    ghost.src = getSafeImageUrl('', appointment.companion.species.toLowerCase() as ImageType);
     ghost.width = 24;
     ghost.height = 24;
-    ghost.style.position = "fixed";
-    ghost.style.top = "-9999px";
-    ghost.style.left = "-9999px";
-    ghost.style.width = "24px";
-    ghost.style.height = "24px";
-    ghost.style.borderRadius = "999px";
+    ghost.style.position = 'fixed';
+    ghost.style.top = '-9999px';
+    ghost.style.left = '-9999px';
+    ghost.style.width = '24px';
+    ghost.style.height = '24px';
+    ghost.style.borderRadius = '999px';
     document.body.appendChild(ghost);
     event.dataTransfer.setDragImage(ghost, 12, 12);
-    window.setTimeout(() => {
+    globalThis.setTimeout(() => {
       ghost.remove();
     }, 0);
   };
@@ -254,10 +243,7 @@ const Slot: React.FC<SlotProps> = ({
     const snapped = Math.round(minute / 5) * 5;
     let bestMatch: { minute: number; distance: number } | null = null;
     for (const interval of dropAvailabilityIntervals) {
-      const candidateMinute = Math.max(
-        interval.startMinute,
-        Math.min(interval.endMinute, snapped)
-      );
+      const candidateMinute = Math.max(interval.startMinute, Math.min(interval.endMinute, snapped));
       const distance = Math.abs(minute - candidateMinute);
       if (!bestMatch || distance < bestMatch.distance) {
         bestMatch = { minute: candidateMinute, distance };
@@ -269,37 +255,25 @@ const Slot: React.FC<SlotProps> = ({
 
   const hourStart = dropHour * 60;
   const hourEnd = hourStart + 60;
-  const availabilitySegments = useMemo(
-    () => {
-      const effectiveDuration = Math.max(5, draggedAppointmentDurationMinutes ?? 5);
-      return dropAvailabilityIntervals
-        .map((interval) => {
-          const segmentStart = Math.max(hourStart, interval.startMinute);
-          const segmentEnd = Math.min(
-            hourEnd,
-            interval.endMinute + effectiveDuration
-          );
-          if (segmentEnd <= segmentStart) return null;
-          return {
-            top: ((segmentStart - hourStart) / 60) * height,
-            segmentHeight: Math.max(4, ((segmentEnd - segmentStart) / 60) * height),
-          };
-        })
-        .filter(Boolean) as Array<{ top: number; segmentHeight: number }>;
-    },
-    [
-      draggedAppointmentDurationMinutes,
-      dropAvailabilityIntervals,
-      height,
-      hourEnd,
-      hourStart,
-    ]
-  );
+  const availabilitySegments = useMemo(() => {
+    const effectiveDuration = Math.max(5, draggedAppointmentDurationMinutes ?? 5);
+    return dropAvailabilityIntervals
+      .map((interval) => {
+        const segmentStart = Math.max(hourStart, interval.startMinute);
+        const segmentEnd = Math.min(hourEnd, interval.endMinute + effectiveDuration);
+        if (segmentEnd <= segmentStart) return null;
+        return {
+          top: ((segmentStart - hourStart) / 60) * height,
+          segmentHeight: Math.max(4, ((segmentEnd - segmentStart) / 60) * height),
+        };
+      })
+      .filter(Boolean) as Array<{ top: number; segmentHeight: number }>;
+  }, [draggedAppointmentDurationMinutes, dropAvailabilityIntervals, height, hourEnd, hourStart]);
 
   return (
     <>
       <div
-        className={`relative overflow-auto scrollbar-hidden border-l border-grey-light ${dayIndex === length && "border-r"}`}
+        className={`relative overflow-auto scrollbar-hidden border-l border-grey-light ${dayIndex === length && 'border-r'}`}
         style={{ height: `${height}px` }}
         onDragOver={(event) => {
           if (!draggedAppointmentId) return;
@@ -358,7 +332,7 @@ const Slot: React.FC<SlotProps> = ({
             }}
           >
             <div className="h-full w-full flex items-center justify-center px-2 text-caption-1 text-text-brand truncate">
-              {draggedAppointmentLabel || "Appointment"}
+              {draggedAppointmentLabel || 'Appointment'}
             </div>
           </div>
         )}
@@ -366,78 +340,65 @@ const Slot: React.FC<SlotProps> = ({
           {(() => {
             let cursorMinute = 0;
             return sortedSlotEvents.map((ev, i) => {
-            const itemKey = `${ev.companion.name}-${ev.startTime.toISOString()}-${i}`;
-            const startMinute = ev.startTime.getMinutes();
-            const rawDurationMinutes = Math.max(
-              5,
-              Math.round((ev.endTime.getTime() - ev.startTime.getTime()) / 60000),
-            );
-            const visibleDurationMinutes = Math.max(
-              10,
-              Math.min(rawDurationMinutes, 60 - startMinute),
-            );
-            const gapMinutes = Math.max(0, startMinute - cursorMinute);
-            const marginTopPx = (gapMinutes / 60) * height;
-            const blockHeightPx = Math.max(
-              (visibleDurationMinutes / 60) * height - 2,
-              18,
-            );
-            cursorMinute = Math.max(
-              cursorMinute,
-              startMinute + visibleDurationMinutes,
-            );
-            return (
-              <div
-                key={itemKey}
-                className="rounded border border-[rgba(255,255,255,0.35)] px-2.5 py-1.5 flex items-center justify-between"
-                style={{
-                  ...getStatusStyle(ev.status),
-                  marginTop: marginTopPx,
-                  minHeight: blockHeightPx,
-                  height: blockHeightPx,
-                }}
-              >
-                <button
-                  type="button"
-                  className="h-full w-full flex-1 min-w-0 px-1 flex items-center justify-between cursor-pointer"
-                  onClick={() => handleViewAppointment(ev)}
-                  onMouseEnter={(event) =>
-                    openPopover(itemKey, event.currentTarget)
-                  }
-                  onMouseLeave={schedulePopoverClose}
-                  draggable={!!canDragAppointment?.(ev)}
-                  onDragStart={(event) => {
-                    event.dataTransfer.effectAllowed = "move";
-                    event.dataTransfer.setData("text/plain", ev.id ?? itemKey);
-                    setCustomDragGhost(event, ev);
-                    onAppointmentDragStart?.(ev);
-                  }}
-                  onDragEnd={() => {
-                    setDropPreviewMinute(null);
-                    onAppointmentDragEnd?.();
-                  }}
+              const itemKey = `${ev.companion.name}-${ev.startTime.toISOString()}-${i}`;
+              const startMinute = ev.startTime.getMinutes();
+              const rawDurationMinutes = Math.max(
+                5,
+                Math.round((ev.endTime.getTime() - ev.startTime.getTime()) / 60000)
+              );
+              const visibleDurationMinutes = Math.max(
+                10,
+                Math.min(rawDurationMinutes, 60 - startMinute)
+              );
+              const gapMinutes = Math.max(0, startMinute - cursorMinute);
+              const marginTopPx = (gapMinutes / 60) * height;
+              const blockHeightPx = Math.max((visibleDurationMinutes / 60) * height - 2, 18);
+              cursorMinute = Math.max(cursorMinute, startMinute + visibleDurationMinutes);
+              return (
+                <div
+                  key={itemKey}
+                  className="rounded border border-[rgba(255,255,255,0.35)] px-2.5 py-1.5 flex items-center justify-between"
                   style={{
-                    opacity: draggedAppointmentId === ev.id ? 0.55 : 1,
+                    ...getStatusStyle(ev.status),
+                    marginTop: marginTopPx,
+                    minHeight: blockHeightPx,
+                    height: blockHeightPx,
                   }}
                 >
-                  <div className="text-body-4 truncate">
-                    {ev.companion.name}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Image
-                      src={getSafeImageUrl(
-                        "",
-                        ev.companion.species.toLowerCase() as ImageType,
-                      )}
-                      height={30}
-                      width={30}
-                      className="rounded-full flex-none"
-                      alt={""}
-                    />
-                  </div>
-                </button>
-              </div>
-            );
+                  <button
+                    type="button"
+                    className="h-full w-full flex-1 min-w-0 px-1 flex items-center justify-between cursor-pointer"
+                    onClick={() => handleViewAppointment(ev)}
+                    onMouseEnter={(event) => openPopover(itemKey, event.currentTarget)}
+                    onMouseLeave={schedulePopoverClose}
+                    draggable={!!canDragAppointment?.(ev)}
+                    onDragStart={(event) => {
+                      event.dataTransfer.effectAllowed = 'move';
+                      event.dataTransfer.setData('text/plain', ev.id ?? itemKey);
+                      setCustomDragGhost(event, ev);
+                      onAppointmentDragStart?.(ev);
+                    }}
+                    onDragEnd={() => {
+                      setDropPreviewMinute(null);
+                      onAppointmentDragEnd?.();
+                    }}
+                    style={{
+                      opacity: draggedAppointmentId === ev.id ? 0.55 : 1,
+                    }}
+                  >
+                    <div className="text-body-4 truncate">{ev.companion.name}</div>
+                    <div className="flex items-center gap-1">
+                      <Image
+                        src={getSafeImageUrl('', ev.companion.species.toLowerCase() as ImageType)}
+                        height={30}
+                        width={30}
+                        className="rounded-full flex-none"
+                        alt={''}
+                      />
+                    </div>
+                  </button>
+                </div>
+              );
             });
           })()}
         </div>
@@ -458,8 +419,8 @@ const Slot: React.FC<SlotProps> = ({
               <div className="min-w-0 flex items-center gap-2">
                 <Image
                   src={getSafeImageUrl(
-                    "",
-                    activeEvent.companion.species.toLowerCase() as ImageType,
+                    '',
+                    activeEvent.companion.species.toLowerCase() as ImageType
                   )}
                   height={34}
                   width={34}
@@ -468,20 +429,17 @@ const Slot: React.FC<SlotProps> = ({
                 />
                 <div className="min-w-0">
                   <div className="text-body-3-emphasis text-text-primary truncate">
-                    {activeEvent.companion.name || "-"}
+                    {activeEvent.companion.name || '-'}
                   </div>
                   <div className="text-caption-1 text-text-secondary truncate">
-                    {activeEvent.companion.breed || "-"} /{" "}
-                    {activeEvent.companion.species || "-"}
+                    {activeEvent.companion.breed || '-'} / {activeEvent.companion.species || '-'}
                   </div>
                 </div>
               </div>
               <span
                 className="text-[10px] leading-4 font-medium px-2 py-1 rounded-full text-white whitespace-nowrap"
                 style={{
-                  backgroundColor:
-                    getStatusStyle(activeEvent.status).backgroundColor ||
-                    "#1a73e8",
+                  backgroundColor: getStatusStyle(activeEvent.status).backgroundColor || '#1a73e8',
                 }}
               >
                 {formatStatusLabel(activeEvent.status)}
@@ -495,25 +453,25 @@ const Slot: React.FC<SlotProps> = ({
               </div>
               <div className="text-caption-1 text-text-secondary">Parent</div>
               <div className="text-caption-1 text-text-primary text-right truncate">
-                {activeEvent.companion.parent?.name || "-"}
+                {activeEvent.companion.parent?.name || '-'}
               </div>
               <div className="text-caption-1 text-text-secondary">Lead</div>
               <div className="text-caption-1 text-text-primary text-right truncate">
-                {activeEvent.lead?.name || "-"}
+                {activeEvent.lead?.name || '-'}
               </div>
               <div className="text-caption-1 text-text-secondary">Service</div>
               <div className="text-caption-1 text-text-primary text-right truncate">
-                {activeEvent.appointmentType?.name || "-"}
+                {activeEvent.appointmentType?.name || '-'}
               </div>
               <div className="text-caption-1 text-text-secondary">Room</div>
               <div className="text-caption-1 text-text-primary text-right truncate">
-                {activeEvent.room?.name || "-"}
+                {activeEvent.room?.name || '-'}
               </div>
             </div>
 
             <div className="mt-2 text-caption-1 text-text-secondary">Reason</div>
             <div className="text-caption-1 text-text-primary min-h-6 line-clamp-2">
-              {activeEvent.concern || "-"}
+              {activeEvent.concern || '-'}
             </div>
 
             <div className="mt-3 flex items-center justify-end gap-1.5 border-t border-card-border pt-2">
@@ -564,8 +522,8 @@ const Slot: React.FC<SlotProps> = ({
                 className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
                 onClick={() => {
                   handleViewAppointment(activeEvent, {
-                    label: "prescription",
-                    subLabel: "subjective",
+                    label: 'prescription',
+                    subLabel: 'subjective',
                   });
                   setActivePopoverKey(null);
                 }}
@@ -578,8 +536,8 @@ const Slot: React.FC<SlotProps> = ({
                 className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
                 onClick={() => {
                   handleViewAppointment(activeEvent, {
-                    label: "finance",
-                    subLabel: "summary",
+                    label: 'finance',
+                    subLabel: 'summary',
                   });
                   setActivePopoverKey(null);
                 }}
@@ -592,8 +550,8 @@ const Slot: React.FC<SlotProps> = ({
                 className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
                 onClick={() => {
                   handleViewAppointment(activeEvent, {
-                    label: "labs",
-                    subLabel: "idexx-labs",
+                    label: 'labs',
+                    subLabel: 'idexx-labs',
                   });
                   setActivePopoverKey(null);
                 }}
@@ -602,7 +560,7 @@ const Slot: React.FC<SlotProps> = ({
               </button>
             </div>
           </dialog>,
-          document.body,
+          document.body
         )}
     </>
   );

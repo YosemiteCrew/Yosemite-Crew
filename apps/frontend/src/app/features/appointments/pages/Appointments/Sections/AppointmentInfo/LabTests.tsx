@@ -99,7 +99,7 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
     String(order?.externalStatus ?? order?.status ?? '')
       .trim()
       .toUpperCase()
-      .replace(/\s+/g, '_');
+      .replaceAll(/\s+/g, '_');
   const orderSortDate = (order: LabOrder) => order.updatedAt ?? order.createdAt ?? '';
   const normalizedOrderStatus = getNormalizedLifecycleStatus(latestOrder);
   const needsInitialOrderPlacement = normalizedOrderStatus === 'CREATED';
@@ -114,7 +114,7 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
   const toTitleCase = (value?: string | null) => {
     const raw = String(value ?? '').trim();
     if (!raw) return '-';
-    const normalized = raw.toLowerCase().replace(/[_-]+/g, ' ');
+    const normalized = raw.toLowerCase().replaceAll(/[_-]+/g, ' ');
     return normalized.charAt(0).toUpperCase() + normalized.slice(1);
   };
   const normalizeResultProgress = (status?: string | null) => {
@@ -631,9 +631,11 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
     String(test.meta?.specimen ?? '').trim() || 'Specimen not listed';
   const parseFloatSafe = (value?: string): number | null => {
     if (!value) return null;
-    const cleaned = String(value)
-      .replace(/,/g, '.')
-      .replace(/[^0-9.+-]/g, '');
+    const normalized = String(value).replaceAll(',', '.');
+    const allowedChars = '0123456789.+-';
+    const cleaned = Array.from(normalized)
+      .filter((char) => allowedChars.includes(char))
+      .join('');
     const parsed = Number.parseFloat(cleaned);
     return Number.isFinite(parsed) ? parsed : null;
   };

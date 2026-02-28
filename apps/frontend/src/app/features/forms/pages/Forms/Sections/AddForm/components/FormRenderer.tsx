@@ -1,31 +1,31 @@
-import { FormField, FormFieldType } from "@/app/features/forms/types/forms";
-import DropdownRenderer from "@/app/features/forms/pages/Forms/Sections/AddForm/components/Dropdown/DropdownRenderer";
-import InputRenderer from "@/app/features/forms/pages/Forms/Sections/AddForm/components/Input/InputRenderer";
-import SignatureRenderer from "@/app/features/forms/pages/Forms/Sections/AddForm/components/Signature/SignatureRenderer";
-import TextRenderer from "@/app/features/forms/pages/Forms/Sections/AddForm/components/Text/TextRenderer";
-import BooleanRenderer from "@/app/features/forms/pages/Forms/Sections/AddForm/components/Boolean/BooleanRenderer";
-import DateRenderer from "@/app/features/forms/pages/Forms/Sections/AddForm/components/Date/DateRenderer";
+import { FormField, FormFieldType } from '@/app/features/forms/types/forms';
+import DropdownRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Dropdown/DropdownRenderer';
+import InputRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Input/InputRenderer';
+import SignatureRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Signature/SignatureRenderer';
+import TextRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Text/TextRenderer';
+import BooleanRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Boolean/BooleanRenderer';
+import DateRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Date/DateRenderer';
 
 const humanizeKey = (key: string): string => {
   const withSpaces = key
-    .replaceAll(/[_-]+/g, " ")
-    .replaceAll(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replaceAll(/[_-]+/g, ' ')
+    .replaceAll(/([a-z0-9])([A-Z])/g, '$1 $2')
     .trim();
   return withSpaces
-    .split(" ")
+    .split(' ')
     .filter(Boolean)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+    .join(' ');
 };
 
 const getFallbackValue = (field: FormField) => {
-  if (field.type === "checkbox") return [];
-  if (field.type === "boolean") return false;
-  if (field.type === "number" || field.type === "date") return "";
-  if (field.type === "textarea" || field.type === "input") {
-    return field.placeholder || "";
+  if (field.type === 'checkbox') return [];
+  if (field.type === 'boolean') return false;
+  if (field.type === 'number' || field.type === 'date') return '';
+  if (field.type === 'textarea' || field.type === 'input') {
+    return field.placeholder || '';
   }
-  return "";
+  return '';
 };
 
 type RuntimeRendererProps = {
@@ -35,10 +35,7 @@ type RuntimeRendererProps = {
   readOnly?: boolean;
 };
 
-const runtimeComponentMap: Record<
-  FormFieldType,
-  React.ComponentType<RuntimeRendererProps>
-> = {
+const runtimeComponentMap: Record<FormFieldType, React.ComponentType<RuntimeRendererProps>> = {
   textarea: TextRenderer as any,
   input: InputRenderer as any,
   number: InputRenderer as any,
@@ -90,32 +87,32 @@ export const FormRenderer: React.FC<FormRendererProps> = ({
 
   const isMedicationLikeGroup = (field: FormField): boolean =>
     Boolean(field.meta?.medicationGroup || field.meta?.medicineId) ||
-    /medication|medications/i.test(field.id ?? "");
+    /medication|medications/i.test(field.id ?? '');
 
   const getGroupContainerClass = (level: number, medicationGroup: boolean): string => {
     if (level === 0) {
-      return "rounded-2xl border border-card-border bg-white px-4 py-4";
+      return 'rounded-2xl border border-card-border bg-white px-4 py-4';
     }
     if (medicationGroup) {
-      return "rounded-xl border border-card-border bg-white px-3 py-3";
+      return 'rounded-xl border border-card-border bg-white px-3 py-3';
     }
     if (level === 1) {
-      return "rounded-xl border border-grey-light bg-white px-3 py-3";
+      return 'rounded-xl border border-grey-light bg-white px-3 py-3';
     }
-    return "rounded-lg border-l-2 border-card-border bg-white px-3 py-2";
+    return 'rounded-lg border-l-2 border-card-border bg-white px-3 py-2';
   };
 
   const getGroupTitleClass = (level: number): string =>
     level <= 1
-      ? "font-grotesk text-black-text text-[18px] font-medium"
-      : "font-grotesk text-black-text text-[16px] font-medium";
+      ? 'font-grotesk text-black-text text-[18px] font-medium'
+      : 'font-grotesk text-black-text text-[16px] font-medium';
 
   const labelForField = (field: FormField): string => {
-    const label = (field.label ?? "").trim();
-    const id = field.id ?? "";
+    const label = (field.label ?? '').trim();
+    const id = field.id ?? '';
     if (label && label !== id) return label;
-    if (/_services$/i.test(id)) return "Services";
-    return humanizeKey(id || "Field");
+    if (/_services$/i.test(id)) return 'Services';
+    return humanizeKey(id || 'Field');
   };
 
   return (
@@ -125,17 +122,15 @@ export const FormRenderer: React.FC<FormRendererProps> = ({
       onFocusCapture={handleReadOnlyFocusCapture}
     >
       {fields.map((field) => {
-        const fieldWithLabel = { ...field, label: labelForField(field) } as FormField;
-        if (field.type === "group") {
+        const fieldWithLabel: FormField = { ...field, label: labelForField(field) };
+        if (field.type === 'group') {
           const medicationGroup = isMedicationLikeGroup(field);
           return (
             <div
               key={field.id}
               className={`${getGroupContainerClass(depth, medicationGroup)} flex flex-col gap-3`}
             >
-              <div className={getGroupTitleClass(depth)}>
-                {fieldWithLabel.label || "Group"}
-              </div>
+              <div className={getGroupTitleClass(depth)}>{fieldWithLabel.label || 'Group'}</div>
               <FormRenderer
                 fields={field.fields ?? []}
                 values={values}

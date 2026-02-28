@@ -44,7 +44,14 @@ const Sidebar = () => {
     <div className="sidebar">
       <div className="flex items-center justify-center h-20">
         <Link href="/" className="logo">
-          <Image src={MEDIA_SOURCES.logo} alt="Logo" width={90} height={83} priority />
+          <Image
+            src={MEDIA_SOURCES.logo}
+            alt="Logo"
+            width={90}
+            height={83}
+            style={{ height: 'auto' }}
+            priority
+          />
         </Link>
       </div>
       <div className="flex gap-3 flex-col">

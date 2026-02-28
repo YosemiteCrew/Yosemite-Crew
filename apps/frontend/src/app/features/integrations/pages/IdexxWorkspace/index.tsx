@@ -49,7 +49,7 @@ type ModalityFilter = 'ALL' | 'REFLAB' | 'INHOUSE';
 const formatTitleCase = (value?: string | null, fallback = 'Unknown') => {
   const raw = String(value ?? '').trim();
   if (!raw) return fallback;
-  const normalized = raw.toLowerCase().replace(/[_-]+/g, ' ');
+  const normalized = raw.toLowerCase().replaceAll(/[_-]+/g, ' ');
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 };
 
@@ -74,7 +74,7 @@ const getResultStatusStyle = (status?: string | null): React.CSSProperties => {
 const parseFloatSafe = (value?: string): number | null => {
   if (!value) return null;
   const cleaned = String(value)
-    .replace(/,/g, '.')
+    .replaceAll(',', '.')
     .replace(/[^0-9.+-]/g, '');
   const parsed = Number.parseFloat(cleaned);
   return Number.isFinite(parsed) ? parsed : null;
@@ -197,13 +197,13 @@ const IdexxWorkspacePage = () => {
   );
 
   useEffect(() => {
-    void refresh();
+    refresh().catch(() => undefined);
   }, [refresh]);
 
   useEffect(() => {
     if (!autoRefresh || !integrationEnabled) return;
     const timer = setInterval(() => {
-      void refresh();
+      refresh().catch(() => undefined);
     }, 30000);
     return () => clearInterval(timer);
   }, [autoRefresh, integrationEnabled, refresh]);
@@ -452,13 +452,13 @@ const IdexxWorkspacePage = () => {
             <Secondary
               href="#"
               text="Details"
-              onClick={() => void openResultDetails(result)}
+              onClick={() => openResultDetails(result).catch(() => undefined)}
               className="px-4"
             />
             <Primary
               href="#"
               text={pdfPreviewLoadingId === result.resultId ? 'Loading PDF...' : 'PDF'}
-              onClick={() => void openResultPdfPreview(result.resultId)}
+              onClick={() => openResultPdfPreview(result.resultId).catch(() => undefined)}
               className="px-4"
               isDisabled={pdfPreviewLoadingId === result.resultId}
             />
@@ -553,7 +553,7 @@ const IdexxWorkspacePage = () => {
           <Primary
             href="#"
             text={loading ? 'Refreshing...' : 'Refresh'}
-            onClick={() => void refresh()}
+            onClick={() => refresh().catch(() => undefined)}
             className="px-4"
           />
         </div>
@@ -685,13 +685,13 @@ const IdexxWorkspacePage = () => {
                       <Secondary
                         href="#"
                         text="Details"
-                        onClick={() => void openResultDetails(result)}
+                        onClick={() => openResultDetails(result).catch(() => undefined)}
                         className="px-4"
                       />
                       <Primary
                         href="#"
                         text={pdfPreviewLoadingId === result.resultId ? 'Loading PDF...' : 'PDF'}
-                        onClick={() => void openResultPdfPreview(result.resultId)}
+                        onClick={() => openResultPdfPreview(result.resultId).catch(() => undefined)}
                         className="px-4"
                         isDisabled={pdfPreviewLoadingId === result.resultId}
                       />

@@ -4,7 +4,10 @@ import AccordionButton from '@/app/ui/primitives/Accordion/AccordionButton';
 import { Secondary } from '@/app/ui/primitives/Buttons';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useIntegrationStore } from '@/app/stores/integrationStore';
-import { loadIntegrationsForPrimaryOrg, useIntegrationByProviderForPrimaryOrg } from '@/app/hooks/useIntegrations';
+import {
+  loadIntegrationsForPrimaryOrg,
+  useIntegrationByProviderForPrimaryOrg,
+} from '@/app/hooks/useIntegrations';
 import { listIdexxIvlsDevices } from '@/app/features/integrations/services/idexxService';
 import { IvlsDevice } from '@/app/features/integrations/services/types';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
@@ -20,14 +23,17 @@ const LinkedMedicalDevices = () => {
   const [refreshing, setRefreshing] = useState(false);
   const statusKey = (integration?.status ?? 'disabled').toLowerCase();
   const statusLabel = `${statusKey.charAt(0).toUpperCase()}${statusKey.slice(1)}`;
-  const statusClasses =
-    statusKey === 'enabled'
-      ? 'bg-green-50 text-green-800'
-      : statusKey === 'error'
-        ? 'bg-red-50 text-red-700'
-        : statusKey === 'pending'
-          ? 'bg-blue-50 text-blue-700'
-          : 'bg-amber-50 text-amber-700';
+  const getIntegrationStatusClass = (key: string) => {
+    if (key === 'enabled') return 'bg-green-50 text-green-800';
+    if (key === 'error') return 'bg-red-50 text-red-700';
+    if (key === 'pending') return 'bg-blue-50 text-blue-700';
+    return 'bg-amber-50 text-amber-700';
+  };
+  const statusClasses = getIntegrationStatusClass(statusKey);
+  const getDeviceStatusLabel = (value?: string) => {
+    const key = String(value || 'unknown').toLowerCase();
+    return `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
+  };
 
   useEffect(() => {
     const run = async () => {
@@ -55,9 +61,7 @@ const LinkedMedicalDevices = () => {
     try {
       await loadIntegrationsForPrimaryOrg({ force: true, silent: true });
       const nextIdexx =
-        useIntegrationStore
-          .getState()
-          .getIntegrationByProvider(primaryOrgId, 'IDEXX') ?? null;
+        useIntegrationStore.getState().getIntegrationByProvider(primaryOrgId, 'IDEXX') ?? null;
       if ((nextIdexx?.status ?? '').toLowerCase() === 'enabled') {
         const ivls = await listIdexxIvlsDevices(primaryOrgId);
         setDevices(ivls.ivlsDeviceList ?? []);
@@ -85,12 +89,12 @@ const LinkedMedicalDevices = () => {
             />
             <div>
               <div className="text-body-2 text-text-primary">IDEXX</div>
-              <div className="text-body-4 text-text-secondary">{devices.length} linked IVLS device(s)</div>
+              <div className="text-body-4 text-text-secondary">
+                {devices.length} linked IVLS device(s)
+              </div>
             </div>
           </div>
-          <div
-            className={`text-label-xsmall px-2 py-1 rounded ${statusClasses}`}
-          >
+          <div className={`text-label-xsmall px-2 py-1 rounded ${statusClasses}`}>
             {statusLabel}
           </div>
         </div>
@@ -102,13 +106,15 @@ const LinkedMedicalDevices = () => {
           <div className="text-caption-1 text-text-secondary">
             Last refreshed:{' '}
             <span className="text-text-primary">
-              {integrationsLastFetchedAt ? formatDateTimeLocal(integrationsLastFetchedAt) : 'Not refreshed yet'}
+              {integrationsLastFetchedAt
+                ? formatDateTimeLocal(integrationsLastFetchedAt)
+                : 'Not refreshed yet'}
             </span>
           </div>
           <button
             type="button"
             onClick={() => {
-              void handleManualRefresh();
+              handleManualRefresh().catch(() => undefined);
             }}
             className="h-8 w-8 rounded-full! border border-card-border flex items-center justify-center text-text-primary hover:bg-card-hover"
             aria-label="Refresh linked medical devices"
@@ -128,29 +134,35 @@ const LinkedMedicalDevices = () => {
         ) : (
           <div className="grid grid-cols-1 gap-2">
             {devices.map((device) => (
-              <div key={device.deviceSerialNumber} className="rounded-xl border border-card-border p-3 bg-card-bg">
+              <div
+                key={device.deviceSerialNumber}
+                className="rounded-xl border border-card-border p-3 bg-card-bg"
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="text-body-4 text-text-primary">{device.displayName || 'IVLS device'}</div>
-                    <div className="text-caption-1 text-text-secondary mt-0.5">{device.deviceSerialNumber}</div>
+                    <div className="text-body-4 text-text-primary">
+                      {device.displayName || 'IVLS device'}
+                    </div>
+                    <div className="text-caption-1 text-text-secondary mt-0.5">
+                      {device.deviceSerialNumber}
+                    </div>
                   </div>
                   <span
-                  className={`text-label-xsmall px-2 py-1 rounded ${
+                    className={`text-label-xsmall px-2 py-1 rounded ${
                       String(device.vcpActivatedStatus || '').toLowerCase() === 'active'
                         ? 'bg-green-50 text-green-800'
                         : 'bg-amber-50 text-amber-700'
                     }`}
                   >
-                    {(() => {
-                      const key = String(device.vcpActivatedStatus || 'unknown').toLowerCase();
-                      return `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
-                    })()}
+                    {getDeviceStatusLabel(device.vcpActivatedStatus)}
                   </span>
                 </div>
                 <div className="mt-2 grid grid-cols-2 gap-2 text-caption-1">
                   <div className="text-text-secondary">Last cloud poll</div>
                   <div className="text-text-primary text-right">
-                    {device.lastPolledCloudTime ? formatDateTimeLocal(device.lastPolledCloudTime) : 'Not available'}
+                    {device.lastPolledCloudTime
+                      ? formatDateTimeLocal(device.lastPolledCloudTime)
+                      : 'Not available'}
                   </div>
                 </div>
               </div>

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from 'react';
 import {
   DEFAULT_CALENDAR_FOCUS_MINUTES,
   EVENT_VERTICAL_GAP_PX,
@@ -11,13 +11,13 @@ import {
   startOfDayDate,
   MINUTES_PER_STEP,
   PIXELS_PER_STEP,
-} from "@/app/features/appointments/components/Calendar/helpers";
-import { HOURS_IN_DAY } from "@/app/features/appointments/components/Calendar/weekHelpers";
-import { Task, TaskStatus } from "@/app/features/tasks/types/task";
-import TaskSlot from "@/app/features/appointments/components/Calendar/Task/TaskSlot";
-import Back from "@/app/ui/primitives/Icons/Back";
-import Next from "@/app/ui/primitives/Icons/Next";
-import { useCalendarNavigation, getDateDisplay } from "@/app/hooks/useCalendarNavigation";
+} from '@/app/features/appointments/components/Calendar/helpers';
+import { HOURS_IN_DAY } from '@/app/features/appointments/components/Calendar/weekHelpers';
+import { Task, TaskStatus } from '@/app/features/tasks/types/task';
+import TaskSlot from '@/app/features/appointments/components/Calendar/Task/TaskSlot';
+import Back from '@/app/ui/primitives/Icons/Back';
+import Next from '@/app/ui/primitives/Icons/Next';
+import { useCalendarNavigation, getDateDisplay } from '@/app/hooks/useCalendarNavigation';
 
 type DropAvailabilityInterval = {
   startMinute: number;
@@ -89,21 +89,13 @@ const DayCalendar = ({
       startTime: new Date(task.dueAt),
       endTime: new Date(new Date(task.dueAt).getTime() + 30 * 60 * 1000),
     })) as Array<{ startTime: Date; endTime: Date }>;
-    const focusStart = getFirstRelevantTimedEventStart(
-      asTimed as any,
-      rangeStart,
-      rangeEnd
-    );
+    const focusStart = getFirstRelevantTimedEventStart(asTimed as any, rangeStart, rangeEnd);
+    const focusMinutes = focusStart
+      ? minutesSinceStartOfDay(focusStart)
+      : DEFAULT_CALENDAR_FOCUS_MINUTES;
     const topPx = nowPosition
       ? Math.max(0, nowPosition.topPx)
-      : getTopPxForMinutes(
-          focusStart
-            ? minutesSinceStartOfDay(focusStart)
-            : DEFAULT_CALENDAR_FOCUS_MINUTES,
-          height,
-          EVENT_VERTICAL_GAP_PX,
-          HOUR_ROW_TOP_OFFSET_PX
-        );
+      : getTopPxForMinutes(focusMinutes, height, EVENT_VERTICAL_GAP_PX, HOUR_ROW_TOP_OFFSET_PX);
     scrollContainerToTarget(scrollRef.current, topPx);
   }, [date, events, height, nowPosition]);
 
@@ -145,9 +137,9 @@ const DayCalendar = ({
                   className="text-caption-2 text-text-primary pl-2!"
                   style={{ height: `${height}px`, opacity: hour === 0 ? 0 : 1 }}
                 >
-                  {new Date(0, 0, 0, hour, 0, 0).toLocaleTimeString("en-US", {
-                    hour: "numeric",
-                    minute: "2-digit",
+                  {new Date(0, 0, 0, hour, 0, 0).toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
                   })}
                 </div>
                 <div className="relative pt-2" style={{ height: `${height}px` }}>
@@ -188,7 +180,7 @@ const DayCalendar = ({
                     className="absolute left-0 right-2 z-20"
                     style={{
                       top: nowPosition.topPx,
-                      transform: "translateY(-50%)",
+                      transform: 'translateY(-50%)',
                     }}
                   >
                     <div className="absolute left-[-5px] w-3 h-3 rounded-full bg-red-500 translate-y-[-50%]" />

@@ -54,7 +54,9 @@ const StatusPill = ({ status }: { status?: string }) => {
   const key = (status ?? 'disabled').toLowerCase();
   const normalizedLabel = `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
   return (
-    <span className={`text-label-xsmall px-2 py-1 rounded ${statusClasses[key] ?? 'bg-card-hover text-text-secondary'}`}>
+    <span
+      className={`text-label-xsmall px-2 py-1 rounded ${statusClasses[key] ?? 'bg-card-hover text-text-secondary'}`}
+    >
       {normalizedLabel}
     </span>
   );
@@ -99,7 +101,7 @@ const IntegrationsPage = () => {
         setDevices([]);
       }
     };
-    void run();
+    run().catch(() => undefined);
   }, [primaryOrgId, idexxIntegration?.status]);
 
   useEffect(() => {
@@ -122,9 +124,7 @@ const IntegrationsPage = () => {
     try {
       await loadIntegrationsForPrimaryOrg({ force: true, silent: true });
       const nextIdexx =
-        useIntegrationStore
-          .getState()
-          .getIntegrationByProvider(primaryOrgId, 'IDEXX') ?? null;
+        useIntegrationStore.getState().getIntegrationByProvider(primaryOrgId, 'IDEXX') ?? null;
       if ((nextIdexx?.status ?? '').toLowerCase() === 'enabled') {
         const ivls = await listIdexxIvlsDevices(primaryOrgId);
         setDevices(ivls.ivlsDeviceList ?? []);
@@ -144,7 +144,7 @@ const IntegrationsPage = () => {
     setError(null);
     setValidateState('idle');
     try {
-      const updated = await storeIntegrationCredentials(
+      await storeIntegrationCredentials(
         primaryOrgId,
         {
           credentials: {
@@ -154,10 +154,11 @@ const IntegrationsPage = () => {
         },
         'IDEXX'
       );
-      void updated;
       await loadIntegrationsForPrimaryOrg({ force: true, silent: true });
     } catch (e) {
-      setError(getApiErrorMessage(e, 'Unable to store IDEXX credentials. Please verify and retry.'));
+      setError(
+        getApiErrorMessage(e, 'Unable to store IDEXX credentials. Please verify and retry.')
+      );
     } finally {
       setSaving(false);
     }
@@ -187,7 +188,7 @@ const IntegrationsPage = () => {
     }
     const isDisconnecting = (idexxIntegration.status ?? '').toLowerCase() === 'enabled';
     if (isDisconnecting) {
-      const shouldDisconnect = window.confirm(
+      const shouldDisconnect = globalThis.confirm(
         'Disconnect IDEXX for this organization? Lab ordering and result syncing will be unavailable until re-enabled.'
       );
       if (!shouldDisconnect) return;
@@ -214,11 +215,9 @@ const IntegrationsPage = () => {
           return;
         }
       }
-      const next =
-        isDisconnecting
-          ? await disableIntegration(primaryOrgId, 'IDEXX')
-          : await enableIntegration(primaryOrgId, 'IDEXX');
-      void next;
+      const next = isDisconnecting
+        ? await disableIntegration(primaryOrgId, 'IDEXX')
+        : await enableIntegration(primaryOrgId, 'IDEXX');
       if (next.status === 'enabled') {
         const ivls = await listIdexxIvlsDevices(primaryOrgId);
         setDevices(ivls.ivlsDeviceList ?? []);
@@ -234,13 +233,16 @@ const IntegrationsPage = () => {
   };
 
   const linkedCount = useMemo(
-    () => integrations.filter((integration) => integration.status?.toLowerCase() === 'enabled').length,
+    () =>
+      integrations.filter((integration) => integration.status?.toLowerCase() === 'enabled').length,
     [integrations]
   );
 
   const idexxStatus = (idexxIntegration?.status ?? 'disabled').toLowerCase();
   const idexxEnabled = idexxStatus === 'enabled';
-  const credentialsStatusKey = String(idexxIntegration?.credentialsStatus ?? 'missing').toLowerCase();
+  const credentialsStatusKey = String(
+    idexxIntegration?.credentialsStatus ?? 'missing'
+  ).toLowerCase();
   const hasStoredCredentials =
     (credentialsStatusKey && credentialsStatusKey !== 'missing') ||
     Boolean(idexxIntegration?.lastValidatedAt);
@@ -249,6 +251,13 @@ const IntegrationsPage = () => {
     activeFilter === 'all' ||
     (activeFilter === 'installed' && idexxEnabled) ||
     (activeFilter === 'available' && !idexxEnabled);
+  const credentialsActionLabel = saving
+    ? hasStoredCredentials
+      ? 'Updating...'
+      : 'Saving...'
+    : hasStoredCredentials
+      ? 'Update credentials'
+      : 'Store credentials';
 
   return (
     <div className="flex flex-col gap-6 px-3! py-3! sm:px-12! lg:px-[60px]! sm:py-12!">
@@ -256,8 +265,8 @@ const IntegrationsPage = () => {
         <div className="flex flex-col gap-1">
           <div className="text-text-primary text-heading-1">Integrations</div>
           <p className="text-body-3 text-text-secondary max-w-3xl">
-            Connect and manage external tools for {primaryOrg?.name ?? 'your organization'}, including
-            IDEXX ordering and diagnostic results.
+            Connect and manage external tools for {primaryOrg?.name ?? 'your organization'},
+            including IDEXX ordering and diagnostic results.
           </p>
         </div>
         <div className="text-body-4 text-text-secondary rounded-2xl border border-card-border px-4 py-2">
@@ -309,7 +318,12 @@ const IntegrationsPage = () => {
               {idexxStatus === 'enabled' ? (
                 <Primary href="/appointments/idexx-workspace" text="View" />
               ) : (
-                <Primary href="#" text={saving ? 'Enabling...' : 'Enable'} onClick={handleEnableDisable} isDisabled={saving} />
+                <Primary
+                  href="#"
+                  text={saving ? 'Enabling...' : 'Enable'}
+                  onClick={handleEnableDisable}
+                  isDisabled={saving}
+                />
               )}
             </div>
           </div>
@@ -327,7 +341,9 @@ const IntegrationsPage = () => {
           <div className="flex items-center justify-between">
             <div>
               <div className="text-heading-3 text-text-primary">Integration settings</div>
-              <div className="text-body-4 text-text-secondary">Configure IDEXX for this organization</div>
+              <div className="text-body-4 text-text-secondary">
+                Configure IDEXX for this organization
+              </div>
             </div>
             <Close onClick={() => setShowSettings(false)} />
           </div>
@@ -335,13 +351,15 @@ const IntegrationsPage = () => {
             <div className="text-caption-1 text-text-secondary">
               Last refreshed:{' '}
               <span className="text-text-primary">
-                {integrationsLastFetchedAt ? formatDateTimeLocal(integrationsLastFetchedAt) : 'Not refreshed yet'}
+                {integrationsLastFetchedAt
+                  ? formatDateTimeLocal(integrationsLastFetchedAt)
+                  : 'Not refreshed yet'}
               </span>
             </div>
             <button
               type="button"
               onClick={() => {
-                void handleManualRefresh();
+                handleManualRefresh().catch(() => undefined);
               }}
               className="h-8 w-8 rounded-full! border border-card-border flex items-center justify-center text-text-primary hover:bg-card-hover"
               aria-label="Refresh integrations"
@@ -372,15 +390,7 @@ const IntegrationsPage = () => {
                 <div className="flex flex-wrap gap-2">
                   <Primary
                     href="#"
-                    text={
-                      saving
-                        ? hasStoredCredentials
-                          ? 'Updating...'
-                          : 'Saving...'
-                        : hasStoredCredentials
-                          ? 'Update credentials'
-                          : 'Store credentials'
-                    }
+                    text={credentialsActionLabel}
                     onClick={handleStoreCredentials}
                     isDisabled={saving || !username.trim() || !password.trim()}
                   />
@@ -392,7 +402,9 @@ const IntegrationsPage = () => {
                   />
                 </div>
                 {validateState !== 'idle' ? (
-                  <div className={`text-body-4 ${validateState === 'valid' ? 'text-green-700' : 'text-text-error'}`}>
+                  <div
+                    className={`text-body-4 ${validateState === 'valid' ? 'text-green-700' : 'text-text-error'}`}
+                  >
                     {validateState === 'valid'
                       ? 'Credentials validated successfully.'
                       : 'Credentials are invalid or not available.'}
@@ -403,7 +415,8 @@ const IntegrationsPage = () => {
                   <div className="text-right">
                     <span
                       className={`text-label-xsmall px-2 py-1 rounded ${
-                        credentialsStatusClasses[credentialsStatusKey] ?? 'bg-card-hover text-text-secondary'
+                        credentialsStatusClasses[credentialsStatusKey] ??
+                        'bg-card-hover text-text-secondary'
                       }`}
                     >
                       {credentialsStatusLabel}
@@ -427,7 +440,9 @@ const IntegrationsPage = () => {
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <div className="text-caption-1 text-text-secondary">Connected since</div>
-                  <div className="text-caption-1 text-text-primary">{formatDateTimeLocal(idexxIntegration?.enabledAt)}</div>
+                  <div className="text-caption-1 text-text-primary">
+                    {formatDateTimeLocal(idexxIntegration?.enabledAt)}
+                  </div>
                 </div>
                 <div className="text-caption-1 text-text-secondary">
                   Enabling IDEXX allows appointment lab ordering and results visibility.
@@ -452,8 +467,8 @@ const IntegrationsPage = () => {
                 </div>
                 {idexxEnabled ? (
                   <div className="text-caption-1 text-text-secondary">
-                    IDEXX is enabled. Use the Credentials section to rotate username/password and validate the
-                    connection.
+                    IDEXX is enabled. Use the Credentials section to rotate username/password and
+                    validate the connection.
                   </div>
                 ) : (
                   <div className="text-caption-1 text-text-secondary">
@@ -470,13 +485,17 @@ const IntegrationsPage = () => {
                 <div className="flex items-center justify-between gap-2">
                   <div className="text-caption-1 text-text-secondary">Last sync</div>
                   <div className="text-caption-1 text-text-primary">
-                    {idexxIntegration?.lastSyncAt ? formatDateTimeLocal(idexxIntegration.lastSyncAt) : 'Pending'}
+                    {idexxIntegration?.lastSyncAt
+                      ? formatDateTimeLocal(idexxIntegration.lastSyncAt)
+                      : 'Pending'}
                   </div>
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <div className="text-caption-1 text-text-secondary">Enabled at</div>
                   <div className="text-caption-1 text-text-primary">
-                    {idexxIntegration?.enabledAt ? formatDateTimeLocal(idexxIntegration.enabledAt) : 'Not enabled'}
+                    {idexxIntegration?.enabledAt
+                      ? formatDateTimeLocal(idexxIntegration.enabledAt)
+                      : 'Not enabled'}
                   </div>
                 </div>
                 <div className="flex items-center justify-between gap-2">
@@ -524,7 +543,9 @@ const IntegrationsPage = () => {
                           }`}
                         >
                           {(() => {
-                            const key = String(device.vcpActivatedStatus || 'unknown').toLowerCase();
+                            const key = String(
+                              device.vcpActivatedStatus || 'unknown'
+                            ).toLowerCase();
                             return `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
                           })()}
                         </span>

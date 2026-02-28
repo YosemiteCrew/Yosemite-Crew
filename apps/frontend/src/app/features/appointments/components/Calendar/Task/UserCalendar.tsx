@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from 'react';
 import {
   DEFAULT_CALENDAR_FOCUS_MINUTES,
   EVENT_VERTICAL_GAP_PX,
@@ -10,15 +10,15 @@ import {
   startOfDayDate,
   MINUTES_PER_STEP,
   PIXELS_PER_STEP,
-} from "@/app/features/appointments/components/Calendar/helpers";
-import { HOURS_IN_DAY } from "@/app/features/appointments/components/Calendar/weekHelpers";
-import TaskSlot from "@/app/features/appointments/components/Calendar/Task/TaskSlot";
-import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
-import UserLabels from "@/app/features/appointments/components/Calendar/Task/UserLabels";
-import { Task, TaskStatus } from "@/app/features/tasks/types/task";
-import Back from "@/app/ui/primitives/Icons/Back";
-import Next from "@/app/ui/primitives/Icons/Next";
-import { useCalendarNavigation } from "@/app/hooks/useCalendarNavigation";
+} from '@/app/features/appointments/components/Calendar/helpers';
+import { HOURS_IN_DAY } from '@/app/features/appointments/components/Calendar/weekHelpers';
+import TaskSlot from '@/app/features/appointments/components/Calendar/Task/TaskSlot';
+import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
+import UserLabels from '@/app/features/appointments/components/Calendar/Task/UserLabels';
+import { Task, TaskStatus } from '@/app/features/tasks/types/task';
+import Back from '@/app/ui/primitives/Icons/Back';
+import Next from '@/app/ui/primitives/Icons/Next';
+import { useCalendarNavigation } from '@/app/hooks/useCalendarNavigation';
 
 type DropAvailabilityInterval = {
   startMinute: number;
@@ -77,11 +77,11 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const normalizeId = (value?: string) =>
-    String(value ?? "")
+    String(value ?? '')
       .trim()
-      .split("/")
+      .split('/')
       .pop()
-      ?.toLowerCase() ?? "";
+      ?.toLowerCase() ?? '';
 
   const nowPosition = useMemo(() => {
     const now = new Date();
@@ -104,21 +104,13 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
       startTime: new Date(task.dueAt),
       endTime: new Date(new Date(task.dueAt).getTime() + 30 * 60 * 1000),
     })) as Array<{ startTime: Date; endTime: Date }>;
-    const focusStart = getFirstRelevantTimedEventStart(
-      asTimed as any,
-      rangeStart,
-      rangeEnd
-    );
+    const focusStart = getFirstRelevantTimedEventStart(asTimed as any, rangeStart, rangeEnd);
+    const focusMinutes = focusStart
+      ? minutesSinceStartOfDay(focusStart)
+      : DEFAULT_CALENDAR_FOCUS_MINUTES;
     const topPx = nowPosition
       ? Math.max(0, nowPosition.topPx)
-      : getTopPxForMinutes(
-          focusStart
-            ? minutesSinceStartOfDay(focusStart)
-            : DEFAULT_CALENDAR_FOCUS_MINUTES,
-          height,
-          EVENT_VERTICAL_GAP_PX,
-          HOUR_ROW_TOP_OFFSET_PX
-        );
+      : getTopPxForMinutes(focusMinutes, height, EVENT_VERTICAL_GAP_PX, HOUR_ROW_TOP_OFFSET_PX);
     scrollContainerToTarget(scrollRef.current, topPx);
   }, [date, events, height, nowPosition]);
 
@@ -155,9 +147,9 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                   className="sticky left-0 z-20 bg-white text-caption-2 text-text-primary pl-2!"
                   style={{ height: `${height}px`, opacity: hour === 0 ? 0 : 1 }}
                 >
-                  {new Date(0, 0, 0, hour, 0, 0).toLocaleTimeString("en-US", {
-                    hour: "numeric",
-                    minute: "2-digit",
+                  {new Date(0, 0, 0, hour, 0, 0).toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
                   })}
                 </div>
                 <div className="grid grid-flow-col auto-cols-[170px] min-w-max">
@@ -183,7 +175,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                     });
                     return (
                       <div
-                        key={`${user._id}-${hour}-${index}`}
+                        key={`${user._id}-${hour}`}
                         className="relative pt-2"
                         style={{ height: `${height}px` }}
                       >
@@ -215,10 +207,8 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                           onTaskDropAt={onTaskDropAt}
                           onDragHoverTarget={onDragHoverTarget}
                           dropAvailabilityIntervals={
-                            getDropAvailabilityIntervals?.(
-                              date,
-                              user.practionerId || user._id
-                            ) ?? []
+                            getDropAvailabilityIntervals?.(date, user.practionerId || user._id) ??
+                            []
                           }
                           draggedTaskDurationMinutes={draggedTaskDurationMinutes}
                         />
@@ -234,12 +224,12 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
               <div className="pointer-events-none absolute inset-0">
                 <div className="grid h-full grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
                   <div />
-                <div className="relative">
-                  <div
-                    className="absolute left-0 right-2 z-20"
-                    style={{
-                      top: nowPosition.topPx,
-                      transform: "translateY(-50%)",
+                  <div className="relative">
+                    <div
+                      className="absolute left-0 right-2 z-20"
+                      style={{
+                        top: nowPosition.topPx,
+                        transform: 'translateY(-50%)',
                       }}
                     >
                       <div className="absolute -left-[12px] w-3 h-3 rounded-full bg-red-500 translate-y-[-50%]" />

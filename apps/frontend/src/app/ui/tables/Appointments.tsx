@@ -1,31 +1,26 @@
-import React from "react";
-import GenericTable from "@/app/ui/tables/GenericTable/GenericTable";
-import Image from "next/image";
-import { FaCheckCircle } from "react-icons/fa";
-import { IoIosCloseCircle, IoIosCalendar } from "react-icons/io";
-import {
-  IoEyeOutline,
-  IoCardOutline,
-  IoDocumentTextOutline,
-} from "react-icons/io5";
-import { MdOutlineAutorenew } from "react-icons/md";
-import { MdScience } from "react-icons/md";
-import AppointmentCard from "@/app/ui/cards/AppointmentCard";
-import { Appointment } from "@yosemite-crew/types";
-import { formatDateLabel, formatTimeLabel } from "@/app/lib/forms";
+import React from 'react';
+import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
+import Image from 'next/image';
+import { FaCheckCircle } from 'react-icons/fa';
+import { IoIosCloseCircle, IoIosCalendar } from 'react-icons/io';
+import { IoEyeOutline, IoCardOutline, IoDocumentTextOutline } from 'react-icons/io5';
+import { MdOutlineAutorenew, MdScience } from 'react-icons/md';
+import AppointmentCard from '@/app/ui/cards/AppointmentCard';
+import { Appointment } from '@yosemite-crew/types';
+import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
 
 import {
   acceptAppointment,
   cancelAppointment,
-} from "@/app/features/appointments/services/appointmentService";
-import { toTitle } from "@/app/lib/validators";
-import { allowCalendarDrag } from "@/app/lib/appointments";
-import { getStatusStyle } from "@/app/config/statusConfig";
-import { AppointmentViewIntent } from "@/app/features/appointments/types/calendar";
-import { useOrgStore } from "@/app/stores/orgStore";
+} from '@/app/features/appointments/services/appointmentService';
+import { toTitle } from '@/app/lib/validators';
+import { allowCalendarDrag } from '@/app/lib/appointments';
+import { getStatusStyle } from '@/app/config/statusConfig';
+import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
+import { useOrgStore } from '@/app/stores/orgStore';
 
-import "./DataTable.css";
-import { getSafeImageUrl, ImageType } from "@/app/lib/urls";
+import './DataTable.css';
+import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 
 type Column<T> = {
   label: string;
@@ -57,25 +52,18 @@ const Appointments = ({
 }: AppointmentTableProps) => {
   const orgsById = useOrgStore((s) => s.orgsById);
 
-  const getSoapViewIntent = (
-    appointment: Appointment,
-  ): AppointmentViewIntent => {
+  const getSoapViewIntent = (appointment: Appointment): AppointmentViewIntent => {
     const orgType =
-      (appointment.organisationId &&
-        orgsById[appointment.organisationId]?.type) ||
-      "HOSPITAL";
+      (appointment.organisationId && orgsById[appointment.organisationId]?.type) || 'HOSPITAL';
 
-    if (orgType === "HOSPITAL") {
-      return { label: "prescription", subLabel: "subjective" };
+    if (orgType === 'HOSPITAL') {
+      return { label: 'prescription', subLabel: 'subjective' };
     }
 
-    return { label: "care", subLabel: "forms" };
+    return { label: 'care', subLabel: 'forms' };
   };
 
-  const handleViewAppointment = (
-    appointment: Appointment,
-    intent?: AppointmentViewIntent,
-  ) => {
+  const handleViewAppointment = (appointment: Appointment, intent?: AppointmentViewIntent) => {
     setActiveAppointment?.(appointment);
     setViewIntent?.(intent ?? null);
     setViewPopup?.(true);
@@ -109,106 +97,92 @@ const Appointments = ({
 
   const columns: Column<Appointment>[] = [
     {
-      label: "",
-      key: "logo",
-      width: "5%",
+      label: '',
+      key: 'logo',
+      width: '5%',
       render: (item: Appointment) => (
         <div className="appointment-profile w-10 h-10">
           <Image
-            src={getSafeImageUrl("", item.companion.species as ImageType)}
+            src={getSafeImageUrl('', item.companion.species as ImageType)}
             alt=""
             height={40}
             width={40}
-            style={{ borderRadius: "50%" }}
+            style={{ borderRadius: '50%' }}
           />
         </div>
       ),
     },
     {
-      label: "Name",
-      key: "name",
-      width: "10%",
+      label: 'Name',
+      key: 'name',
+      width: '10%',
       render: (item: Appointment) => (
         <div className="appointment-profile truncate">
           <div className="appointment-profile-two">
-            <div className="appointment-profile-title">
-              {item?.companion?.name || "-"}
-            </div>
+            <div className="appointment-profile-title">{item?.companion?.name || '-'}</div>
             <div className="appointment-profile-sub truncate">
-              {item?.companion?.parent?.name || ""}
+              {item?.companion?.parent?.name || ''}
             </div>
           </div>
         </div>
       ),
     },
     {
-      label: "Reason",
-      key: "reason",
-      width: "10%",
+      label: 'Reason',
+      key: 'reason',
+      width: '10%',
       render: (item: Appointment) => (
         <div className="appointment-profile-two truncate">
-          <div className="appointment-profile-title">{item.concern || "-"}</div>
-          {item.isEmergency && (
-            <div className="appointment-emergency-label">Emergency</div>
-          )}
+          <div className="appointment-profile-title">{item.concern || '-'}</div>
+          {item.isEmergency && <div className="appointment-emergency-label">Emergency</div>}
         </div>
       ),
     },
     {
-      label: "Service",
-      key: "service",
-      width: "10%",
+      label: 'Service',
+      key: 'service',
+      width: '10%',
       render: (item: Appointment) => (
-        <div className="appointment-profile-title">
-          {item.appointmentType?.name || "-"}
-        </div>
+        <div className="appointment-profile-title">{item.appointmentType?.name || '-'}</div>
       ),
     },
     {
-      label: "Room",
-      key: "room",
-      width: "10%",
+      label: 'Room',
+      key: 'room',
+      width: '10%',
       render: (item: Appointment) => (
-        <div className="appointment-profile-title">
-          {item.room?.name || "-"}
-        </div>
+        <div className="appointment-profile-title">{item.room?.name || '-'}</div>
       ),
     },
     {
-      label: "Date/Time",
-      key: "date/time",
-      width: "10%",
+      label: 'Date/Time',
+      key: 'date/time',
+      width: '10%',
       render: (item: Appointment) => (
         <div className="appointment-profile-two">
-          <div className="appointment-profile-sub">
-            {formatDateLabel(item.appointmentDate)}
-          </div>
-          <div className="appointment-profile-title">
-            {formatTimeLabel(item.startTime)}
-          </div>
+          <div className="appointment-profile-sub">{formatDateLabel(item.appointmentDate)}</div>
+          <div className="appointment-profile-title">{formatTimeLabel(item.startTime)}</div>
         </div>
       ),
     },
     {
-      label: "Lead",
-      key: "lead",
-      width: "10%",
+      label: 'Lead',
+      key: 'lead',
+      width: '10%',
       render: (item: Appointment) => (
         <div className="appointment-profile-two">
-          <div className="appointment-profile-title">
-            {item.lead?.name || "-"}
-          </div>
+          <div className="appointment-profile-title">{item.lead?.name || '-'}</div>
         </div>
       ),
     },
     {
-      label: "Support",
-      key: "support",
-      width: "10%",
+      label: 'Support',
+      key: 'support',
+      width: '10%',
       render: (item: Appointment) => (
         <div className="appointment-profile-two">
           {item.supportStaff?.map((sup, i) => (
-            <div key={"sup" + i} className="appointment-profile-sub">
+            <div key={'sup' + i} className="appointment-profile-sub">
               {sup.name}
             </div>
           ))}
@@ -216,36 +190,31 @@ const Appointments = ({
       ),
     },
     {
-      label: "Status",
-      key: "status",
-      width: "15%",
+      label: 'Status',
+      key: 'status',
+      width: '15%',
       render: (item: Appointment) => {
         const displayStatus =
-          item.status === "NO_PAYMENT" || item.status === "REQUESTED"
-            ? "REQUESTED"
-            : item.status;
+          item.status === 'NO_PAYMENT' || item.status === 'REQUESTED' ? 'REQUESTED' : item.status;
 
         return (
-          <div
-            className="appointment-status"
-            style={getStatusStyle(displayStatus)}
-          >
+          <div className="appointment-status" style={getStatusStyle(displayStatus)}>
             {toTitle(displayStatus)}
           </div>
         );
       },
     },
     {
-      label: "Actions",
-      key: "actions",
-      width: "10%",
+      label: 'Actions',
+      key: 'actions',
+      width: '10%',
       render: (item: Appointment) => (
         <div className="action-btn-col">
-          {item.status === "REQUESTED" ? (
+          {item.status === 'REQUESTED' ? (
             <>
               <button
                 className="action-btn"
-                style={{ background: "#E6F4EF" }}
+                style={{ background: '#E6F4EF' }}
                 onClick={() => handleAcceptAppointment(item)}
               >
                 <FaCheckCircle size={22} color="#54B492" />
@@ -253,7 +222,7 @@ const Appointments = ({
               <button
                 onClick={() => handleCancelAppointment(item)}
                 className="action-btn"
-                style={{ background: "#FDEBEA" }}
+                style={{ background: '#FDEBEA' }}
               >
                 <IoIosCloseCircle size={24} color="#EA3729" />
               </button>
@@ -286,9 +255,7 @@ const Appointments = ({
                 </button>
               )}
               <button
-                onClick={() =>
-                  handleViewAppointment(item, getSoapViewIntent(item))
-                }
+                onClick={() => handleViewAppointment(item, getSoapViewIntent(item))}
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                 title="SOAP"
               >
@@ -297,8 +264,8 @@ const Appointments = ({
               <button
                 onClick={() =>
                   handleViewAppointment(item, {
-                    label: "finance",
-                    subLabel: "summary",
+                    label: 'finance',
+                    subLabel: 'summary',
                   })
                 }
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
@@ -309,8 +276,8 @@ const Appointments = ({
               <button
                 onClick={() =>
                   handleViewAppointment(item, {
-                    label: "labs",
-                    subLabel: "idexx-labs",
+                    label: 'labs',
+                    subLabel: 'idexx-labs',
                   })
                 }
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
@@ -347,7 +314,7 @@ const Appointments = ({
           }
           return filteredList.map((item, i) => (
             <AppointmentCard
-              key={"key-appointment" + i}
+              key={'key-appointment' + i}
               appointment={item}
               handleViewAppointment={handleViewAppointment}
               getSoapViewIntent={getSoapViewIntent}

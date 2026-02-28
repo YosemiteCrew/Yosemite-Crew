@@ -10,7 +10,7 @@ type ParsedCultureResult = {
 
 const parseCultureResult = (raw: string): ParsedCultureResult => {
   const lines = raw
-    .replace(/\r/g, '')
+    .replaceAll('\r', '')
     .split('\n')
     .map((line) => line.trim())
     .filter(Boolean);
@@ -26,7 +26,7 @@ const parseCultureResult = (raw: string): ParsedCultureResult => {
   for (const line of lines) {
     if (line.startsWith('**INTERPRETATION KEY')) {
       inInterpretation = true;
-      parsed.interpretation.push(line.replace(/\*\*/g, '').trim());
+      parsed.interpretation.push(line.replaceAll('**', '').trim());
       continue;
     }
     if (inInterpretation) {
@@ -34,29 +34,52 @@ const parseCultureResult = (raw: string): ParsedCultureResult => {
       continue;
     }
 
-    const kvMatch = line.match(/^([^:]+):\s*(.+)$/);
-    if (kvMatch && !/^Isolate\s+\d+/i.test(line)) {
-      parsed.summary.push({ label: kvMatch[1].trim(), value: kvMatch[2].trim() });
+    const colonIndex = line.indexOf(':');
+    const beforeColon = colonIndex > -1 ? line.slice(0, colonIndex).trim() : '';
+    const afterColon = colonIndex > -1 ? line.slice(colonIndex + 1).trim() : '';
+    const isolatePrefix = beforeColon.toLowerCase().startsWith('isolate ');
+    if (colonIndex > -1 && beforeColon && afterColon && !isolatePrefix) {
+      parsed.summary.push({ label: beforeColon, value: afterColon });
       continue;
     }
 
-    const isolateMatch = line.match(/^Isolate\s+\d+:\s*(.+)$/i);
-    if (isolateMatch) {
-      parsed.isolates.push(isolateMatch[1].trim());
-      continue;
+    if (isolatePrefix && afterColon) {
+      const isolateNumber = Number.parseInt(beforeColon.slice('isolate '.length).trim(), 10);
+      if (Number.isFinite(isolateNumber)) {
+        parsed.isolates.push(afterColon);
+        continue;
+      }
     }
 
-    if (/^Isolate\s+\d+\s+MIC/i.test(line)) {
-      continue;
+    const lowerLine = line.toLowerCase();
+    if (lowerLine.startsWith('isolate ')) {
+      const micIndex = lowerLine.indexOf(' mic');
+      if (micIndex > -1) {
+        const isolateNumber = Number.parseInt(line.slice('isolate '.length, micIndex).trim(), 10);
+        if (Number.isFinite(isolateNumber)) {
+          continue;
+        }
+      }
     }
 
-    const susceptibilityMatch = line.match(/^(.+?)\s+([SIRTF]|N\/I)\s+(.+)$/i);
-    if (susceptibilityMatch) {
-      parsed.susceptibility.push({
-        antibiotic: susceptibilityMatch[1].trim(),
-        interpretation: susceptibilityMatch[2].trim().toUpperCase(),
-        mic: susceptibilityMatch[3].trim(),
-      });
+    const susceptibilityParts = line.split(/\s+/);
+    if (susceptibilityParts.length >= 3) {
+      const interpretationToken = susceptibilityParts[susceptibilityParts.length - 2].toUpperCase();
+      if (['S', 'I', 'R', 'T', 'F', 'N/I'].includes(interpretationToken)) {
+        const antibiotic = susceptibilityParts
+          .slice(0, susceptibilityParts.length - 2)
+          .join(' ')
+          .trim();
+        const mic = susceptibilityParts[susceptibilityParts.length - 1].trim();
+        if (antibiotic && mic) {
+          parsed.susceptibility.push({
+            antibiotic,
+            interpretation: interpretationToken,
+            mic,
+          });
+        }
+      }
+      continue;
     }
   }
 
@@ -65,7 +88,8 @@ const parseCultureResult = (raw: string): ParsedCultureResult => {
 
 const LabResultValue = ({ test }: { test: LabResultTest }) => {
   const resultText = String(test.result ?? '');
-  const isCultureLike = /culture results/i.test(String(test.name ?? '')) && /isolate/i.test(resultText);
+  const isCultureLike =
+    /culture results/i.test(String(test.name ?? '')) && /isolate/i.test(resultText);
 
   if (!isCultureLike) {
     return (
@@ -82,10 +106,12 @@ const LabResultValue = ({ test }: { test: LabResultTest }) => {
     <div className="flex flex-col gap-2 max-h-52 overflow-y-auto pr-1">
       {parsed.summary.length > 0 ? (
         <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1">
-          {parsed.summary.map((item, idx) => (
-            <React.Fragment key={`summary-${idx}`}>
+          {parsed.summary.map((item) => (
+            <React.Fragment key={`summary-${item.label}-${item.value}`}>
               <div className="text-caption-1 text-text-secondary">{item.label}</div>
-              <div className="text-caption-1 text-text-primary whitespace-pre-wrap break-words">{item.value}</div>
+              <div className="text-caption-1 text-text-primary whitespace-pre-wrap break-words">
+                {item.value}
+              </div>
             </React.Fragment>
           ))}
         </div>
@@ -94,7 +120,7 @@ const LabResultValue = ({ test }: { test: LabResultTest }) => {
       {parsed.isolates.length > 0 ? (
         <div className="flex flex-col gap-1">
           {parsed.isolates.map((isolate, idx) => (
-            <div key={`isolate-${idx}`} className="text-caption-1 text-text-primary">
+            <div key={`isolate-${isolate}`} className="text-caption-1 text-text-primary">
               Isolate {idx + 1}: {isolate}
             </div>
           ))}
@@ -106,16 +132,23 @@ const LabResultValue = ({ test }: { test: LabResultTest }) => {
           <table className="min-w-[360px] w-full">
             <thead>
               <tr className="border-b border-card-border">
-                <th className="text-left text-caption-1 text-text-tertiary py-1 pr-2">Antibiotic</th>
+                <th className="text-left text-caption-1 text-text-tertiary py-1 pr-2">
+                  Antibiotic
+                </th>
                 <th className="text-left text-caption-1 text-text-tertiary py-1 pr-2">Result</th>
                 <th className="text-left text-caption-1 text-text-tertiary py-1">MIC</th>
               </tr>
             </thead>
             <tbody>
-              {parsed.susceptibility.map((row, idx) => (
-                <tr key={`sus-${idx}`} className="border-b border-card-border last:border-0">
+              {parsed.susceptibility.map((row) => (
+                <tr
+                  key={`sus-${row.antibiotic}-${row.interpretation}-${row.mic}`}
+                  className="border-b border-card-border last:border-0"
+                >
                   <td className="text-caption-1 text-text-primary py-1 pr-2">{row.antibiotic}</td>
-                  <td className="text-caption-1 text-text-primary py-1 pr-2">{row.interpretation}</td>
+                  <td className="text-caption-1 text-text-primary py-1 pr-2">
+                    {row.interpretation}
+                  </td>
                   <td className="text-caption-1 text-text-primary py-1">{row.mic}</td>
                 </tr>
               ))}
@@ -126,7 +159,9 @@ const LabResultValue = ({ test }: { test: LabResultTest }) => {
 
       {parsed.interpretation.length > 0 ? (
         <details>
-          <summary className="text-caption-1 text-text-secondary cursor-pointer">Interpretation notes</summary>
+          <summary className="text-caption-1 text-text-secondary cursor-pointer">
+            Interpretation notes
+          </summary>
           <div className="text-caption-1 text-text-secondary whitespace-pre-wrap break-words mt-1">
             {parsed.interpretation.join('\n')}
           </div>

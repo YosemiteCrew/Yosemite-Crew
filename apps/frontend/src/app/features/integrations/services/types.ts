@@ -1,13 +1,13 @@
 export type IntegrationProvider = 'IDEXX';
 
-export type IntegrationStatus = 'enabled' | 'disabled' | 'error' | 'pending' | string;
+export type IntegrationStatus = 'enabled' | 'disabled' | 'error' | 'pending';
 
 export type OrgIntegration = {
   _id: string;
   organisationId: string;
   provider: IntegrationProvider;
   status: IntegrationStatus;
-  credentialsStatus?: 'valid' | 'invalid' | 'missing' | string;
+  credentialsStatus?: 'valid' | 'invalid' | 'missing';
   lastValidatedAt?: string | null;
   enabledAt?: string | null;
   disabledAt?: string | null;

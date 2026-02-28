@@ -121,11 +121,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
     const rangeStart = new Date(date);
     rangeStart.setHours(0, 0, 0, 0);
     const rangeEnd = nextDay(rangeStart);
-    const focusStart = getFirstRelevantTimedEventStart(
-      timedEvents,
-      rangeStart,
-      rangeEnd
-    );
+    const focusStart = getFirstRelevantTimedEventStart(timedEvents, rangeStart, rangeEnd);
 
     const focusMinutes = focusStart
       ? minutesSinceStartOfDay(focusStart)
@@ -146,11 +142,11 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
   useEffect(() => {
     if (!activePopoverKey) return;
     const closePopover = () => setActivePopoverKey(null);
-    window.addEventListener('scroll', closePopover, true);
-    window.addEventListener('resize', closePopover);
+    globalThis.addEventListener('scroll', closePopover, true);
+    globalThis.addEventListener('resize', closePopover);
     return () => {
-      window.removeEventListener('scroll', closePopover, true);
-      window.removeEventListener('resize', closePopover);
+      globalThis.removeEventListener('scroll', closePopover, true);
+      globalThis.removeEventListener('resize', closePopover);
     };
   }, [activePopoverKey]);
 
@@ -261,7 +257,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
     if (!activeRect) return { top: 0, left: 0 };
     const popoverWidth = 360;
     const margin = 8;
-    const viewportWidth = window.innerWidth;
+    const viewportWidth = globalThis.innerWidth;
     const preferredLeft = activeRect.right + margin;
     const maxLeft = viewportWidth - popoverWidth - margin;
     const left = Math.max(margin, Math.min(preferredLeft, maxLeft));
@@ -281,13 +277,10 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
 
   const setCustomDragGhost = (
     event: React.DragEvent<HTMLButtonElement>,
-    appointment: Appointment,
+    appointment: Appointment
   ) => {
     const ghost = document.createElement('img');
-    ghost.src = getSafeImageUrl(
-      '',
-      appointment.companion.species.toLowerCase() as ImageType,
-    );
+    ghost.src = getSafeImageUrl('', appointment.companion.species.toLowerCase() as ImageType);
     ghost.width = 24;
     ghost.height = 24;
     ghost.style.position = 'fixed';
@@ -298,7 +291,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
     ghost.style.borderRadius = '999px';
     document.body.appendChild(ghost);
     event.dataTransfer.setDragImage(ghost, 12, 12);
-    window.setTimeout(() => {
+    globalThis.setTimeout(() => {
       ghost.remove();
     }, 0);
   };
@@ -318,10 +311,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
     const snapped = Math.round(minute / 5) * 5;
     let bestMatch: { minute: number; distance: number } | null = null;
     for (const interval of availabilityIntervals) {
-      const candidateMinute = Math.max(
-        interval.startMinute,
-        Math.min(interval.endMinute, snapped)
-      );
+      const candidateMinute = Math.max(interval.startMinute, Math.min(interval.endMinute, snapped));
       const distance = Math.abs(minute - candidateMinute);
       if (!bestMatch || distance < bestMatch.distance) {
         bestMatch = { minute: candidateMinute, distance };
@@ -416,23 +406,13 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
         >
           <TimeLabels windowStart={windowStart} windowEnd={windowEnd} />
           <div className="relative h-full">
-            <HorizontalLines
-              date={date}
-              windowStart={windowStart}
-              windowEnd={windowEnd}
-            />
+            <HorizontalLines date={date} windowStart={windowStart} windowEnd={windowEnd} />
             {draggedAppointmentId &&
               availabilityIntervals.map((interval, index) => {
-                const effectiveDuration = Math.max(
-                  5,
-                  draggedAppointmentDurationMinutes ?? 5
-                );
+                const effectiveDuration = Math.max(5, draggedAppointmentDurationMinutes ?? 5);
                 const top =
                   ((interval.startMinute - windowStart) / MINUTES_PER_STEP) * PIXELS_PER_STEP;
-                const bottomMinute = Math.min(
-                  windowEnd,
-                  interval.endMinute + effectiveDuration
-                );
+                const bottomMinute = Math.min(windowEnd, interval.endMinute + effectiveDuration);
                 const height = Math.max(
                   6,
                   ((bottomMinute - interval.startMinute) / MINUTES_PER_STEP) * PIXELS_PER_STEP
@@ -457,8 +437,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                   style={{
                     height: Math.max(
                       12,
-                      ((Math.max(5, draggedAppointmentDurationMinutes ?? 30)) /
-                        MINUTES_PER_STEP) *
+                      (Math.max(5, draggedAppointmentDurationMinutes ?? 30) / MINUTES_PER_STEP) *
                         PIXELS_PER_STEP
                     ),
                   }}
@@ -540,7 +519,10 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex items-center gap-2">
                 <Image
-                  src={getSafeImageUrl('', activeEvent.companion.species.toLowerCase() as ImageType)}
+                  src={getSafeImageUrl(
+                    '',
+                    activeEvent.companion.species.toLowerCase() as ImageType
+                  )}
                   height={34}
                   width={34}
                   className="rounded-full border border-card-border bg-white"

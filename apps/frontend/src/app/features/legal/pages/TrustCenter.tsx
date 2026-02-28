@@ -42,7 +42,7 @@ const TrustCenter = () => {
   };
 
   const handleCopyLink = (id: string) => {
-    const url = `${window.location.origin}/trust-center#${id}`;
+    const url = `${globalThis.location.origin}/trust-center#${id}`;
     navigator.clipboard.writeText(url);
     alert('Link copied to clipboard!');
   };
@@ -156,11 +156,9 @@ const TrustCenter = () => {
   const renderResources = () => (
     <div className="ResourceList">
       {resources.map((res) => (
-        <button
+        <div
           className="OverviewResourceItem"
           key={res.title}
-          type="button"
-          onClick={() => (res.locked ? handleRequestAccess(res.title) : null)}
           style={{
             width: '100%',
             border: 'none',
@@ -190,41 +188,27 @@ const TrustCenter = () => {
             </span>
           </div>
           <div className="ResourceActions">
-            <div
-              role="button"
-              tabIndex={0}
+            <button
+              type="button"
               className="ActionBtn Outline"
               onClick={(e) => {
                 e.stopPropagation();
                 handleCopyLink(res.id);
               }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.stopPropagation();
-                  handleCopyLink(res.id);
-                }
-              }}
             >
               <FiLink /> Copy link
-            </div>
+            </button>
             {res.locked ? (
-              <div
-                role="button"
-                tabIndex={0}
+              <button
+                type="button"
                 className="ActionBtn Filled"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleRequestAccess(res.title);
                 }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.stopPropagation();
-                    handleRequestAccess(res.title);
-                  }
-                }}
               >
                 <FiLock /> Request access
-              </div>
+              </button>
             ) : (
               <Link
                 href={res.link || '#'}
@@ -236,7 +220,7 @@ const TrustCenter = () => {
               </Link>
             )}
           </div>
-        </button>
+        </div>
       ))}
     </div>
   );
@@ -430,11 +414,9 @@ const TrustCenter = () => {
 
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   {resources.slice(0, 3).map((res) => (
-                    <button
+                    <div
                       className="OverviewResourceItem"
                       key={res.title}
-                      type="button"
-                      onClick={() => (res.locked ? handleRequestAccess(res.title) : null)}
                       style={{
                         width: '100%',
                         border: 'none',
@@ -466,7 +448,7 @@ const TrustCenter = () => {
                       ) : (
                         <FiDownload style={{ color: 'var(--blue-text)' }} />
                       )}
-                    </button>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -611,10 +593,10 @@ const TrustCenter = () => {
 
       {/* --- REQUEST ACCESS MODAL --- */}
       {isModalOpen && (
-        <div className="ModalOverlay" role="presentation" onClick={handleModalClose}>
-          <div
+        <div className="ModalOverlay" onClick={handleModalClose}>
+          <dialog
             className="ModalContent"
-            role="dialog"
+            open
             aria-modal="true"
             onClick={(e) => e.stopPropagation()}
           >
@@ -691,7 +673,7 @@ const TrustCenter = () => {
                 Request Access
               </button>
             </div>
-          </div>
+          </dialog>
         </div>
       )}
     </div>
