@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   EVENT_HORIZONTAL_GAP_PX,
   EVENT_VERTICAL_GAP_PX,
@@ -107,6 +107,20 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
     };
   }, [activePopoverKey]);
 
+  const clearCloseTimer = useCallback(() => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  }, []);
+
+  const schedulePopoverClose = useCallback(() => {
+    clearCloseTimer();
+    closeTimerRef.current = setTimeout(() => {
+      setActivePopoverKey(null);
+    }, 120);
+  }, [clearCloseTimer]);
+
   useEffect(() => {
     const dialogEl = popoverDialogRef.current;
     if (!dialogEl || !activePopoverKey) return;
@@ -145,15 +159,15 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
       dialogEl.removeEventListener("touchend", onTouchEnd);
       dialogEl.removeEventListener("keydown", onKeyDown);
     };
-  }, [activePopoverKey]);
+  }, [activePopoverKey, clearCloseTimer, schedulePopoverClose]);
 
   useEffect(() => {
     return () => {
       if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current);
+        clearCloseTimer();
       }
     };
-  }, []);
+  }, [clearCloseTimer]);
 
   const getEventKey = (
     event: Appointment,
@@ -200,20 +214,6 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
       left,
       width: popoverWidth,
     };
-  };
-
-  const clearCloseTimer = () => {
-    if (closeTimerRef.current) {
-      clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = null;
-    }
-  };
-
-  const schedulePopoverClose = () => {
-    clearCloseTimer();
-    closeTimerRef.current = setTimeout(() => {
-      setActivePopoverKey(null);
-    }, 120);
   };
 
   const openPopover = (key: string, target: HTMLButtonElement) => {

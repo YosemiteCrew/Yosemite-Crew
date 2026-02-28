@@ -8,6 +8,7 @@ import {
 } from "@testing-library/react";
 import Companion from "@/app/features/companions/components/AddCompanion/Sections/Companion";
 import * as companionService from "@/app/features/companions/services/companionService";
+import * as codeEntriesService from "@/app/features/companions/services/codeEntriesService";
 import {
   EMPTY_STORED_COMPANION,
   EMPTY_STORED_PARENT,
@@ -24,6 +25,11 @@ jest.mock("@/app/features/companions/services/companionService", () => ({
   createParent: jest.fn(),
   getCompanionForParent: jest.fn(),
   linkCompanion: jest.fn(),
+}));
+
+jest.mock("@/app/features/companions/services/codeEntriesService", () => ({
+  fetchSpeciesCodeEntries: jest.fn(),
+  fetchBreedCodeEntries: jest.fn(),
 }));
 
 // Mock Child Components
@@ -128,7 +134,7 @@ jest.mock("@/app/ui/inputs/Dropdown/LabelDropdown", () => ({
         data-testid={`dropdown-${placeholder}`}
         onClick={() =>
           onSelect({
-            value: placeholder === "Species" ? "Canine" : "Golden Retriever",
+            value: placeholder === "Species" ? "dog" : "Golden Retriever",
             label: "Selected",
           })
         }
@@ -180,6 +186,12 @@ describe("Companion Component", () => {
     (companionService.getCompanionForParent as jest.Mock).mockResolvedValue([]);
     (companionService.createParent as jest.Mock).mockResolvedValue(
       "new-parent-id",
+    );
+    (codeEntriesService.fetchSpeciesCodeEntries as jest.Mock).mockImplementation(
+      () => new Promise(() => {}),
+    );
+    (codeEntriesService.fetchBreedCodeEntries as jest.Mock).mockImplementation(
+      () => new Promise(() => {}),
     );
   });
 
@@ -261,7 +273,7 @@ describe("Companion Component", () => {
 
     fireEvent.click(screen.getByTestId("dropdown-Species"));
     expect(mockSetFormData).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "Canine" }),
+      expect.objectContaining({ type: "dog" }),
     );
 
     fireEvent.click(screen.getByTestId("dropdown-Breed"));
@@ -279,9 +291,7 @@ describe("Companion Component", () => {
     });
     expect(mockSetFormData).toHaveBeenCalled();
 
-    fireEvent.change(screen.getByTestId("input-Blood (optional)"), {
-      target: { value: "O+" },
-    });
+    fireEvent.click(screen.getByTestId("dropdown-Blood group (optional)"));
     expect(mockSetFormData).toHaveBeenCalled();
 
     fireEvent.change(

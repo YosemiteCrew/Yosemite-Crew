@@ -16,6 +16,7 @@ const BuilderWrapper: React.FC<{
   onDrop?: (e: React.DragEvent<HTMLDivElement>) => void;
   onDragEnd?: (e: React.DragEvent<HTMLDivElement>) => void;
   isDragging?: boolean;
+  compact?: boolean;
   children: React.ReactNode;
 }> = ({
   field,
@@ -30,6 +31,7 @@ const BuilderWrapper: React.FC<{
   onDrop,
   onDragEnd,
   isDragging,
+  compact = false,
   children,
 }) => {
   const wrapperRef = React.useRef<HTMLDivElement | null>(null);
@@ -88,7 +90,7 @@ const BuilderWrapper: React.FC<{
     <section
       ref={wrapperRef}
       aria-label={`${title} field`}
-      className={`border border-grey-light rounded-2xl px-3 py-3 flex flex-col gap-3 bg-white ${
+      className={`${compact ? "border border-card-border rounded-xl px-3 py-2 gap-2 bg-white" : "border border-grey-light rounded-2xl px-3 py-3 gap-3 bg-white"} flex flex-col ${
         isDragging ? "rounded-2xl" : ""
       }`}
       {...dragProps}
@@ -101,7 +103,7 @@ const BuilderWrapper: React.FC<{
             className={`cursor-grab ${draggable ? "opacity-100" : "opacity-50"}`}
             data-drag-handle
           />
-          <div className="font-grotesk text-black-text text-[18px] font-medium">
+          <div className={`font-grotesk text-black-text ${compact ? "text-[16px]" : "text-[18px]"} font-medium`}>
             {title}
           </div>
         </div>

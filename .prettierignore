@@ -1,0 +1,9 @@
+node_modules
+.turbo
+.next
+dist
+coverage
+.scannerwork
+pnpm-lock.yaml
+apps/mobileAppYC/android
+apps/mobileAppYC/ios

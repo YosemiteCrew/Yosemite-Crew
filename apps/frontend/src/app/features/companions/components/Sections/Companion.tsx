@@ -5,7 +5,7 @@ import { GenderOptionsSmall, PetSourceOptions } from "@/app/features/companions/
 import { updateCompanion } from "@/app/features/companions/services/companionService";
 import { NeuteredOptions } from "@/app/features/companions/components/AddCompanion/type";
 
-const Fields = [
+const BaseFields = [
   { label: "Date of birth", key: "dateOfBirth", type: "date", required: true },
   {
     label: "Gender",
@@ -32,25 +32,47 @@ const Fields = [
   },
   { label: "Microchip number", key: "microchipNumber", type: "text" },
   { label: "Passport number", key: "passportNumber", type: "text" },
-  { label: "Insurance policy", key: "companyName", type: "text" },
-  { label: "Insurance number", key: "policyNumber", type: "text" },
+  { label: "Insurance status", key: "insuranceStatus", type: "text" },
 ];
+
+const toNonNegativeNumber = (value: unknown): number | undefined => {
+  const parsed = Number.parseFloat((value ?? "").toString());
+  if (Number.isNaN(parsed)) {
+    return undefined;
+  }
+  return Math.max(0, parsed);
+};
 
 type CompanionType = {
   companion: CompanionParent;
 };
 
 const Companion = ({ companion }: CompanionType) => {
+  const hasInsuranceDetails =
+    Boolean(companion.companion?.insurance?.companyName) ||
+    Boolean(companion.companion?.insurance?.policyNumber);
+  const isInsured = Boolean(companion.companion?.isInsured) || hasInsuranceDetails;
+  const fields = isInsured
+    ? [
+        ...BaseFields,
+        { label: "Insurance policy", key: "companyName", type: "text" },
+        { label: "Insurance number", key: "policyNumber", type: "text" },
+      ]
+    : BaseFields;
+
   const handleSave = async (values: any) => {
     try {
       const newCompanion: StoredCompanion = {
         ...companion.companion,
         dateOfBirth: new Date(values.dateOfBirth),
         gender: values.gender,
-        currentWeight: Number(values.currentWeight),
+        currentWeight: toNonNegativeNumber(values.currentWeight),
         colour: values.colour,
         isneutered: values.isneutered === "true",
-        ageWhenNeutered: values.ageWhenNeutered,
+        ageWhenNeutered:
+          values.isneutered === "true"
+            ? toNonNegativeNumber(values.ageWhenNeutered)?.toString()
+            : "",
         bloodGroup: values.bloodGroup,
         countryOfOrigin: values.country,
         source: values.source,
@@ -74,13 +96,15 @@ const Companion = ({ companion }: CompanionType) => {
     <div className="flex flex-col gap-6 w-full">
       <EditableAccordion
         title="Companion information"
-        fields={Fields}
+        fields={fields}
         data={{
           ...companion.companion,
           ...companion.companion.insurance,
+          insuranceStatus: isInsured ? "Insured" : "Not insured",
           isneutered: companion.companion.isneutered ? "true" : "false",
         }}
         defaultOpen={true}
+        compactInlineActions
         onSave={handleSave}
       />
     </div>

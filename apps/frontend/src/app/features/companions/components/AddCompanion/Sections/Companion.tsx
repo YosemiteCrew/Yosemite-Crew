@@ -3,7 +3,6 @@ import { Primary, Secondary } from "@/app/ui/primitives/Buttons";
 import FormInput from "@/app/ui/inputs/FormInput/FormInput";
 import SelectLabel from "@/app/ui/inputs/SelectLabel";
 import {
-  BreedMap,
   CountriesOptions,
   EMPTY_STORED_COMPANION,
   EMPTY_STORED_PARENT,
@@ -11,7 +10,6 @@ import {
   InsuredOptions,
   NeuteredOptions,
   OriginOptions,
-  SpeciesOptions,
 } from "@/app/features/companions/components/AddCompanion/type";
 import Accordion from "@/app/ui/primitives/Accordion/Accordion";
 import FormDesc from "@/app/ui/inputs/FormDesc/FormDesc";
@@ -30,10 +28,73 @@ import SearchDropdown from "@/app/ui/inputs/SearchDropdown";
 import LabelDropdown from "@/app/ui/inputs/Dropdown/LabelDropdown";
 import { CompanionType } from "@yosemite-crew/types";
 import { useNotify } from "@/app/hooks/useNotify";
+import {
+  fetchBreedCodeEntries,
+  fetchSpeciesCodeEntries,
+} from "@/app/features/companions/services/codeEntriesService";
 
 type OptionProp = {
   label: string;
   value: string;
+};
+
+type SpeciesOption = OptionProp & {
+  type: CompanionType;
+  speciesCode: string;
+  speciesQuery: string;
+};
+
+type BreedOption = OptionProp & {
+  breedCode: string;
+  speciesCode: string;
+};
+
+const DEFAULT_SPECIES_OPTIONS: SpeciesOption[] = [
+  { label: "Dog", value: "dog", type: "dog", speciesCode: "", speciesQuery: "canine" },
+  { label: "Cat", value: "cat", type: "cat", speciesCode: "", speciesQuery: "feline" },
+  { label: "Horse", value: "horse", type: "horse", speciesCode: "", speciesQuery: "equine" },
+];
+
+const BLOOD_GROUP_OPTIONS_BY_SPECIES: Record<CompanionType, OptionProp[]> = {
+  cat: ["A", "B", "AB", "Unknown"].map((group) => ({
+    value: group,
+    label: group,
+  })),
+  dog: [
+    "DEA 1.1 Positive",
+    "DEA 1.1 Negative",
+    "DEA 1.2 Positive",
+    "DEA 1.2 Negative",
+    "DEA 3 Positive",
+    "DEA 3 Negative",
+    "DEA 4 Positive",
+    "DEA 4 Negative",
+    "DEA 5 Positive",
+    "DEA 5 Negative",
+    "DEA 7 Positive",
+    "DEA 7 Negative",
+    "Universal Donor",
+    "Unknown",
+  ].map((group) => ({
+    value: group,
+    label: group,
+  })),
+  horse: ["Aa", "Ca", "Da", "Ka", "Pa", "Qa", "Ua", "Universal Donor", "Unknown"].map(
+    (group) => ({
+      value: group,
+      label: group,
+    }),
+  ),
+  other: [{ value: "Unknown", label: "Unknown" }],
+};
+
+const toNonNegativeNumber = (value: string | number | undefined) => {
+  const parsed =
+    typeof value === "number" ? value : Number.parseFloat((value ?? "").toString());
+  if (Number.isNaN(parsed)) {
+    return undefined;
+  }
+  return Math.max(0, parsed);
 };
 
 type CompanionProps = {
@@ -58,6 +119,7 @@ const Companion = ({
     species?: string;
     breed?: string;
     dateOfBirth?: string;
+    ageWhenNeutered?: string;
     insuranceNumber?: string;
     insuranceCompany?: string;
   }>({});
@@ -67,6 +129,10 @@ const Companion = ({
   const [query, setQuery] = useState("");
   const { notify } = useNotify();
   const [results, setResults] = useState<StoredCompanion[]>([]);
+  const [speciesOptions, setSpeciesOptions] = useState<SpeciesOption[]>(
+    DEFAULT_SPECIES_OPTIONS,
+  );
+  const [breedOptions, setBreedOptions] = useState<BreedOption[]>([]);
 
   const options: OptionProp[] = useMemo(
     () =>
@@ -106,6 +172,64 @@ const Companion = ({
     }));
   }, [currentDate, setFormData]);
 
+  useEffect(() => {
+    let mounted = true;
+    fetchSpeciesCodeEntries()
+      .then((entries) => {
+        if (!mounted) {
+          return;
+        }
+        const mapped = DEFAULT_SPECIES_OPTIONS.map((option) => {
+          const entry = entries.find(
+            (item) => item.display.toLowerCase() === option.speciesQuery,
+          );
+          return {
+            ...option,
+            speciesCode: entry?.code ?? "",
+          };
+        });
+        setSpeciesOptions(mapped);
+      })
+      .catch(() => {
+        if (mounted) {
+          setSpeciesOptions(DEFAULT_SPECIES_OPTIONS);
+        }
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const selected = speciesOptions.find((option) => option.type === formData.type);
+    if (!selected) {
+      setBreedOptions([]);
+      return;
+    }
+    let mounted = true;
+    fetchBreedCodeEntries(selected.speciesQuery)
+      .then((entries) => {
+        if (!mounted) {
+          return;
+        }
+        const nextOptions: BreedOption[] = entries.map((entry) => ({
+          value: entry.display,
+          label: entry.display,
+          breedCode: entry.code,
+          speciesCode: entry.meta?.speciesCode ?? selected.speciesCode,
+        }));
+        setBreedOptions(nextOptions);
+      })
+      .catch(() => {
+        if (mounted) {
+          setBreedOptions([]);
+        }
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [formData.type, speciesOptions]);
+
   const handleSubmit = async () => {
     const errors: {
       name?: string;
@@ -114,11 +238,15 @@ const Companion = ({
       insuranceNumber?: string;
       insuranceCompany?: string;
       dateOfBirth?: string;
+      ageWhenNeutered?: string;
     } = {};
     if (!formData.name) errors.name = "Name is required";
     if (!formData.type) errors.species = "Species is required";
     if (!formData.breed) errors.breed = "Breed is required";
     if (!formData.dateOfBirth) errors.dateOfBirth = "Date of birth is required";
+    if (formData.isneutered && !formData.ageWhenNeutered) {
+      errors.ageWhenNeutered = "Age when neutered is required";
+    }
     if (formData.isInsured) {
       if (!formData.insurance?.companyName)
         errors.insuranceCompany = "Company name is required";
@@ -218,23 +346,42 @@ const Companion = ({
             <div className="grid grid-cols-2 gap-3">
               <LabelDropdown
                 placeholder="Species"
-                onSelect={(option) =>
+                onSelect={(option) => {
+                  const selected = speciesOptions.find(
+                    (item) => item.value === option.value,
+                  );
                   setFormData({
                     ...formData,
-                    type: option.value as CompanionType,
-                  })
-                }
+                    type: (selected?.type ?? option.value) as CompanionType,
+                    speciesCode: selected?.speciesCode ?? "",
+                    breed: "",
+                    breedCode: "",
+                    bloodGroup: "",
+                  });
+                }}
                 defaultOption={formData.type}
-                options={SpeciesOptions}
+                options={speciesOptions}
                 error={formDataErrors.species}
               />
               <LabelDropdown
                 placeholder="Breed"
-                onSelect={(option) =>
-                  setFormData({ ...formData, breed: option.value })
-                }
+                onSelect={(option) => {
+                  const selected = breedOptions.find(
+                    (item) => item.value === option.value,
+                  );
+                  setFormData({
+                    ...formData,
+                    breed: option.value,
+                    breedCode: selected?.breedCode ?? "",
+                    speciesCode:
+                      selected?.speciesCode ??
+                      speciesOptions.find((item) => item.type === formData.type)
+                        ?.speciesCode ??
+                      formData.speciesCode,
+                  });
+                }}
                 defaultOption={formData.breed}
-                options={BreedMap[formData.type] ?? []}
+                options={breedOptions}
                 error={formDataErrors.breed}
               />
             </div>
@@ -261,9 +408,26 @@ const Companion = ({
                 setFormData({
                   ...formData,
                   isneutered: value === "true",
+                  ageWhenNeutered: value === "true" ? formData.ageWhenNeutered : "",
                 })
               }
             />
+            {formData.isneutered && (
+              <FormInput
+                intype="number"
+                inname="ageWhenNeutered"
+                value={formData.ageWhenNeutered || ""}
+                inlabel="Age when neutered"
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    ageWhenNeutered: e.target.value.replace("-", ""),
+                  })
+                }
+                error={formDataErrors.ageWhenNeutered}
+                className="min-h-12!"
+              />
+            )}
             <div className="grid grid-cols-2 gap-3">
               <FormInput
                 intype="text"
@@ -275,15 +439,13 @@ const Companion = ({
                 }
                 className="min-h-12!"
               />
-              <FormInput
-                intype="text"
-                inname="blood"
-                value={formData.bloodGroup || ""}
-                inlabel="Blood (optional)"
-                onChange={(e) =>
-                  setFormData({ ...formData, bloodGroup: e.target.value })
+              <LabelDropdown
+                placeholder="Blood group (optional)"
+                onSelect={(option) =>
+                  setFormData({ ...formData, bloodGroup: option.value })
                 }
-                className="min-h-12!"
+                defaultOption={formData.bloodGroup || ""}
+                options={BLOOD_GROUP_OPTIONS_BY_SPECIES[formData.type] ?? []}
               />
             </div>
             <FormInput
@@ -294,7 +456,7 @@ const Companion = ({
               onChange={(e) =>
                 setFormData({
                   ...formData,
-                  currentWeight: Number(e.target.value),
+                  currentWeight: toNonNegativeNumber(e.target.value),
                 })
               }
               className="min-h-12!"
@@ -325,14 +487,14 @@ const Companion = ({
               className="min-h-12!"
             />
             <FormInput
-              intype="number"
+              intype="text"
               inname="passport"
               value={formData.passportNumber || ""}
               inlabel="Passport number (optional)"
               onChange={(e) =>
                 setFormData({
                   ...formData,
-                  passportNumber: e.target.value,
+                  passportNumber: e.target.value.replace(/[^0-9a-zA-Z-]/g, ""),
                 })
               }
               className="min-h-12!"
@@ -407,18 +569,16 @@ const Companion = ({
           </div>
         </Accordion>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="flex justify-center items-center gap-3 w-full flex-row">
         <Secondary
           href="#"
           text="Back"
           onClick={() => setActiveLabel("parents")}
-          className="max-h-12! text-lg! tracking-wide!"
         />
         <Primary
           href="#"
           text="Save"
           onClick={handleSubmit}
-          classname="max-h-12! text-lg! tracking-wide!"
         />
       </div>
     </div>

@@ -45,84 +45,15 @@ import { Primary } from "@/app/ui/primitives/Buttons";
 import { SoapNoteSubmission } from "@/app/features/appointments/types/soap";
 import SignatureActions from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Submissions/SignatureActions";
 import { hasSignatureField } from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/signatureUtils";
-import { useServiceStore } from "@/app/stores/serviceStore";
-import { humanizeKey } from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/labelUtils";
 import SigningOverlay from "@/app/ui/overlays/SigningOverlay";
 import ParentTask from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Tasks/ParentTask";
 import { useServicesForPrimaryOrgSpecialities } from "@/app/hooks/useSpecialities";
 import { useSigningOverlayStore } from "@/app/stores/signingOverlayStore";
 import { AppointmentViewIntent } from "@/app/features/appointments/types/calendar";
 
-const formatValue = (
-  field: FormField,
-  value: any,
-  submission?: FormSubmission,
-  servicesById?: Record<string, any>,
-): string => {
-  const resolveService = (val: string): string | undefined => {
-    if (!servicesById) return undefined;
-    return servicesById[val]?.name || servicesById[val]?.displayName;
-  };
-
-  const formatSignature = (): string => {
-    const isSigned =
-      submission?.signing?.status === "SIGNED" ||
-      Boolean(submission?.signing?.pdf?.url);
-    return isSigned ? "Signed" : "Not signed";
-  };
-
-  const formatDateLike = (): string => {
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return `${value}`;
-    return (field.type as string) === "time"
-      ? d.toLocaleTimeString()
-      : d.toLocaleDateString();
-  };
-
-  const formatArray = (): string => {
-    const mapped = value
-      .map((v: unknown) => resolveService(String(v)) ?? `${v}`)
-      .filter(Boolean)
-      .join(", ");
-    return mapped || "—";
-  };
-
-  const formatObject = (): string => {
-    if (Object.keys(value ?? {}).length === 0) return "—";
-    return JSON.stringify(value);
-  };
-
-  if (value === undefined || value === null) return "—";
-  if (field.type === "signature") return formatSignature();
-  if (field.type === "date" || (field.type as string) === "time") return formatDateLike();
-  if (field.type === "boolean") return value ? "Yes" : "No";
-  if (Array.isArray(value)) return formatArray();
-  const serviceName = typeof value === "string" ? resolveService(value) : undefined;
-  if (serviceName) return serviceName;
-  if (typeof value === "object") return formatObject();
-  return `${value}`;
-};
-
-const resolveLabel = (field: FormField): string => {
-  const id = field.id ?? "";
-  const rawLabel = field.label ?? "";
-  const normalizedId = id.toLowerCase();
-
-  const isServicesField = normalizedId.endsWith("services");
-
-  const humanized = humanizeKey(id);
-  let cleanedLabel = humanized;
-  if (rawLabel && rawLabel !== id) {
-    cleanedLabel = rawLabel;
-  } else if (isServicesField) {
-    cleanedLabel = "Services";
-  }
-
-  return cleanedLabel || humanized;
-};
 
 const ALLOWED_CATEGORIES_BY_ORG: Record<string, string[]> = {
-  HOSPITAL: ["Discharge", "Consent form", "Custom"],
+  HOSPITAL: ["Prescription", "Consent form", "Custom"],
   BOARDER: [
     "Boarding Checklist",
     "Dietary Plan",
@@ -168,9 +99,8 @@ const getLabelsForOrgType = (orgType: string | undefined, hospitalLabels: any[])
       key: "care",
       name: "Care plan",
       labels: [
-        { key: "forms", name: "Forms" },
+        { key: "forms", name: "Templates" },
         { key: "audit-trail", name: "Audit trail" },
-        { key: "discharge-summary", name: "Discharge summary" },
         { key: "documents", name: "Documents" },
       ],
     },
@@ -178,14 +108,6 @@ const getLabelsForOrgType = (orgType: string | undefined, hospitalLabels: any[])
     hospitalLabels[3],
   ];
 };
-
-const flattenFields = (fields: FormField[]): FormField[] =>
-  fields.flatMap((f) => {
-    if (f.type === "group" && Array.isArray(f.fields)) {
-      return flattenFields(f.fields);
-    }
-    return [f];
-  });
 
 type CustomFormsSectionProps = {
   forms: AppointmentFormEntry[];
@@ -260,7 +182,6 @@ const CustomFormsView = ({
   onFormLinked?: (entry: AppointmentFormEntry) => void;
 }) => {
   const attributes = useAuthStore.getState().attributes;
-  const servicesById = useServiceStore((s) => s.servicesById);
   const [valuesByForm, setValuesByForm] = useState<Record<string, Record<string, any>>>({});
   const [submittingId, setSubmittingId] = useState<string | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
@@ -297,7 +218,7 @@ const CustomFormsView = ({
 
   return (
     <Accordion
-      title="Forms"
+      title="Templates"
       defaultOpen={true}
       showEditIcon={false}
       isEditing
@@ -452,7 +373,6 @@ const CustomFormsView = ({
         ) : null}
 
       {forms.map((entry, idx) => {
-        const flat = flattenFields(entry.form.schema ?? []);
         const answers = entry.submission?.answers ?? {};
         const requiredSigner = entry.form.requiredSigner ?? "";
         const isClientSigner = requiredSigner === "CLIENT";
@@ -482,39 +402,39 @@ const CustomFormsView = ({
           isSigned,
           isClientSigner,
         );
+        const shouldOpenByDefault = label === "Signature Pending";
+        const signatureActions =
+          submissionWithMeta?.signatureRequired ? (
+            <SignatureActions
+              submission={submissionWithMeta}
+              onStatusChange={(submissionId, updates) =>
+                onSubmissionUpdate?.(submissionId, updates)
+              }
+            />
+          ) : null;
         return (
           <Accordion
             key={key}
             title={entry.form.name}
-            defaultOpen={false}
+            defaultOpen={shouldOpenByDefault}
             showEditIcon={false}
             isEditing
-            rightElement={<FormBadge label={label} badgeClass={badgeClass} />}
+            rightElement={
+              signatureActions ?? <FormBadge label={label} badgeClass={badgeClass} />
+            }
           >
             {entry.submission ? (
               <div className="border border-card-border rounded-2xl p-4 flex flex-col gap-2">
-                {flat.map((field) => (
-                  <div key={field.id} className="flex flex-col gap-1">
-                    <div className="text-body-4 text-text-secondary">
-                      {resolveLabel(field)}
-                    </div>
-                    <div className="text-body-3 text-text-primary">
-                      {formatValue(
-                        field,
-                        (answers as Record<string, unknown>)[field.id],
-                        submissionWithMeta ?? undefined,
-                        servicesById,
-                      )}
-                    </div>
-                  </div>
-                ))}
+                <FormRenderer
+                  fields={entry.form.schema ?? []}
+                  values={answers as Record<string, unknown>}
+                  onChange={() => {}}
+                  readOnly
+                />
                 {submissionWithMeta?.signatureRequired ? (
-                  <SignatureActions
-                    submission={submissionWithMeta}
-                    onStatusChange={(submissionId, updates) =>
-                      onSubmissionUpdate?.(submissionId, updates)
-                    }
-                  />
+                  <div className="mt-3">
+                    <FormBadge label={label} badgeClass={badgeClass} />
+                  </div>
                 ) : null}
                 {isClientSigner ? (
                   <div className="text-xs text-text-secondary">
@@ -681,13 +601,8 @@ const hospitalLabels = [
     key: "prescription",
     name: "Prescription",
     labels: [
-      { key: "subjective", name: "Subjective" },
-      { key: "objective", name: "Objective" },
-      { key: "assessment", name: "Assessment" },
-      { key: "plan", name: "Plan" },
+      { key: "forms", name: "Templates" },
       { key: "audit-trail", name: "Audit trail" },
-      { key: "discharge-summary", name: "Discharge summary" },
-      { key: "forms", name: "Forms" },
       { key: "documents", name: "Documents" },
     ],
   },
@@ -705,7 +620,7 @@ const hospitalLabels = [
     name: "Finance",
     labels: [
       { key: "summary", name: "Summary" },
-      { key: "payment-details", name: "Payment details" },
+      { key: "payment-details", name: "Invoices" },
     ],
   },
 ];

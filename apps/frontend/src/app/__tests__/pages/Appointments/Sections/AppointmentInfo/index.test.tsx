@@ -24,9 +24,9 @@ jest.mock("@/app/ui/widgets/Labels/Labels", () => ({
           {label.name}
         </button>
       ))}
-      <button type="button" onClick={() => setActiveSubLabel("plan")}
+      <button type="button" onClick={() => setActiveSubLabel("forms")}
       >
-        Plan
+        Templates
       </button>
     </div>
   ),
@@ -171,7 +171,7 @@ describe("AppointmentInfo modal", () => {
     });
   });
 
-  it("switches to prescription plan section", () => {
+  it("switches to prescription templates section", () => {
     render(
       <AppointmentInfoModal
         showModal
@@ -181,8 +181,8 @@ describe("AppointmentInfo modal", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Prescription" }));
-    fireEvent.click(screen.getByRole("button", { name: "Plan" }));
+    fireEvent.click(screen.getByRole("button", { name: "Templates" }));
 
-    expect(screen.getByText("plan-section")).toBeInTheDocument();
+    expect(screen.getByText(/loading forms/i)).toBeInTheDocument();
   });
 });

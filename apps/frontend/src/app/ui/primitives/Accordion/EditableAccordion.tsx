@@ -31,6 +31,7 @@ type EditableAccordionProps = {
   onSave?: (values: FormValues) => void | Promise<void>;
   onDelete?: () => void;
   hideInlineActions?: boolean;
+  compactInlineActions?: boolean;
   onEditingChange?: (isEditing: boolean) => void;
   onRegisterActions?: (
     actions: {
@@ -475,6 +476,7 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
   onSave,
   onDelete,
   hideInlineActions = false,
+  compactInlineActions = false,
   onEditingChange,
   onRegisterActions,
 }) => {
@@ -604,11 +606,23 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
       </Accordion>
 
       {isEditing && !hideInlineActions && (
-        <div className="flex justify-end items-end gap-3 w-full flex-col">
+        <div
+          className={
+            compactInlineActions
+              ? "flex justify-center items-center gap-3 w-full flex-row"
+              : "flex justify-end items-end gap-3 w-full flex-col"
+          }
+        >
           {error && (
             <div className="text-red-600 text-sm text-center">{error}</div>
           )}
-          <div className="grid grid-cols-2 gap-3 w-full">
+          <div
+            className={
+              compactInlineActions
+                ? "flex items-center justify-center gap-3"
+                : "grid grid-cols-2 gap-3 w-full"
+            }
+          >
             <Secondary href="#" onClick={handleCancel} text="Cancel" />
             <Primary href="#" text="Save" onClick={handleSave} />
           </div>

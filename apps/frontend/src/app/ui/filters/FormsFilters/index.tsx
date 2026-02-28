@@ -4,12 +4,12 @@ import {
   FormsProps,
   FormsStatus,
   FormsStatusFilters,
-} from "@/app/features/forms/types/forms";
-import React, { useEffect, useMemo, useState } from "react";
-import LabelDropdown from "@/app/ui/inputs/Dropdown/LabelDropdown";
-import { getStatusStyle as getFormsStatusStyle } from "@/app/ui/tables/FormsTable";
-import { useOrgStore } from "@/app/stores/orgStore";
-import { Organisation } from "@yosemite-crew/types";
+} from '@/app/features/forms/types/forms';
+import React, { useEffect, useMemo, useState } from 'react';
+import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
+import { getStatusStyle as getFormsStatusStyle } from '@/app/ui/tables/FormsTable';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { Organisation } from '@yosemite-crew/types';
 
 type FormsFiltersProps = {
   list: FormsProps[];
@@ -17,65 +17,53 @@ type FormsFiltersProps = {
   searchQuery?: string;
 };
 
-const FormsFilters = ({ list, setFilteredList, searchQuery = "" }: FormsFiltersProps) => {
-  const [activeStatus, setActiveStatus] = useState<FormsStatus | "All">("All");
-  const [activeCategory, setActiveCategory] = useState<FormsCategory | "All">(
-    "All"
-  );
+const FormsFilters = ({ list, setFilteredList, searchQuery = '' }: FormsFiltersProps) => {
+  const [activeStatus, setActiveStatus] = useState<FormsStatus | 'All'>('All');
+  const [activeCategory, setActiveCategory] = useState<FormsCategory | 'All'>('All');
 
   const orgType = useOrgStore((s) =>
-    s.primaryOrgId ? s.orgsById[s.primaryOrgId]?.type : undefined,
+    s.primaryOrgId ? s.orgsById[s.primaryOrgId]?.type : undefined
   );
-  const orgTypeOverride = process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE as Organisation["type"] | undefined;
+  const orgTypeOverride = process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE as
+    | Organisation['type']
+    | undefined;
   const effectiveOrgType = orgTypeOverride || orgType;
 
   const filteredCategoryOptions = useMemo(() => {
-    const base = new Set(["Consent form", "Discharge", "Custom"]);
+    const base = new Set(['Consent form', 'Discharge', 'Prescription', 'Custom']);
     const allowed = (() => {
-      if (effectiveOrgType === "HOSPITAL") {
-        return FormsCategoryOptions.filter(
-          (c) => base.has(c) || c.startsWith("SOAP")
-        );
+      if (effectiveOrgType === 'HOSPITAL') {
+        return FormsCategoryOptions.filter((c) => base.has(c) || c.startsWith('SOAP'));
       }
-      if (effectiveOrgType === "BOARDER") {
-        return FormsCategoryOptions.filter(
-          (c) => base.has(c) || c.startsWith("Boarder")
-        );
+      if (effectiveOrgType === 'BOARDER') {
+        return FormsCategoryOptions.filter((c) => base.has(c) || c.startsWith('Boarder'));
       }
-      if (effectiveOrgType === "BREEDER") {
-        return FormsCategoryOptions.filter(
-          (c) => base.has(c) || c.startsWith("Breeder")
-        );
+      if (effectiveOrgType === 'BREEDER') {
+        return FormsCategoryOptions.filter((c) => base.has(c) || c.startsWith('Breeder'));
       }
-      if (effectiveOrgType === "GROOMER") {
-        return FormsCategoryOptions.filter(
-          (c) => base.has(c) || c.startsWith("Groomer")
-        );
+      if (effectiveOrgType === 'GROOMER') {
+        return FormsCategoryOptions.filter((c) => base.has(c) || c.startsWith('Groomer'));
       }
       return FormsCategoryOptions;
     })();
 
-    return ["All", ...allowed].map((cat) => ({ label: cat, value: cat }));
+    return ['All', ...allowed].map((cat) => ({ label: cat, value: cat }));
   }, [effectiveOrgType]);
 
   useEffect(() => {
     const allowedValues = new Set(filteredCategoryOptions.map((opt) => opt.value));
     if (!allowedValues.has(activeCategory)) {
-      setActiveCategory("All");
+      setActiveCategory('All');
     }
   }, [filteredCategoryOptions, activeCategory]);
 
   const filteredList = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return list.filter((item) => {
-      const matchesStatus =
-        activeStatus === "All" || item.status === activeStatus;
-      const matchesCategory =
-        activeCategory === "All" || item.category === activeCategory;
+      const matchesStatus = activeStatus === 'All' || item.status === activeStatus;
+      const matchesCategory = activeCategory === 'All' || item.category === activeCategory;
       const matchesQuery =
-        !q ||
-        item.name?.toLowerCase().includes(q) ||
-        item.category?.toLowerCase().includes(q);
+        !q || item.name?.toLowerCase().includes(q) || item.category?.toLowerCase().includes(q);
       return matchesStatus && matchesCategory && matchesQuery;
     });
   }, [list, activeCategory, activeStatus, searchQuery]);
@@ -90,9 +78,9 @@ const FormsFilters = ({ list, setFilteredList, searchQuery = "" }: FormsFiltersP
         {FormsStatusFilters.map((status) => {
           const active = status === activeStatus;
           const statusStyle =
-            status === "All"
-              ? { color: "#EAF3FF", backgroundColor: "#247AED" }
-              : getFormsStatusStyle(status || "");
+            status === 'All'
+              ? { color: '#EAF3FF', backgroundColor: '#247AED' }
+              : getFormsStatusStyle(status || '');
 
           return (
             <button
@@ -112,7 +100,7 @@ const FormsFilters = ({ list, setFilteredList, searchQuery = "" }: FormsFiltersP
           options={filteredCategoryOptions}
           defaultOption={activeCategory}
           onSelect={(option) => {
-            setActiveCategory(option.value as FormsCategory | "All");
+            setActiveCategory(option.value as FormsCategory | 'All');
           }}
         />
       </div>

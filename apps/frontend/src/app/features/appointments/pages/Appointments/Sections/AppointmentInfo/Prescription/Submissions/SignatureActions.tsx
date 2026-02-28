@@ -178,12 +178,12 @@ const SignatureActions = ({
   if (!submissionId || !shouldShowActions) return null;
 
   return (
-    <div className="flex flex-col gap-2 mt-3">
+    <div className="flex flex-col gap-2">
       <div className="flex flex-wrap gap-2">
         {isSigned ? null : (
           <Primary
             href="#"
-            text={loading === "sign" ? "Starting..." : "Sign document"}
+            text={loading === "sign" ? "..." : "Sign"}
             onClick={handleSign}
             isDisabled={loading === "sign"}
             size="default"
@@ -193,7 +193,7 @@ const SignatureActions = ({
         {isSigned ? (
           <Primary
             href="#"
-            text={loading === "view" ? "Loading…" : "View signed doc"}
+            text={loading === "view" ? "..." : "View"}
             onClick={handleViewSigned}
             isDisabled={loading === "view"}
             size="default"

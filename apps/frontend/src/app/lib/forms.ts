@@ -73,6 +73,38 @@ export const getCategoryTemplate = (
   category: FormsCategory
 ): FormField[] => (CategoryTemplates[category] ?? []).map(cloneField);
 
+export const hasSignatureField = (fields: FormField[] = []): boolean =>
+  fields.some((field) =>
+    field.type === "signature" ||
+    (field.type === "group" && hasSignatureField((field.fields ?? []) as FormField[]))
+  );
+
+export const removeSignatureFields = (fields: FormField[] = []): FormField[] =>
+  fields
+    .filter((field) => field.type !== "signature")
+    .map((field) => {
+      if (field.type !== "group") return field;
+      return {
+        ...field,
+        fields: removeSignatureFields((field.fields ?? []) as FormField[]),
+      } as FormField;
+    });
+
+export const ensureSingleSignatureAtEnd = (
+  fields: FormField[] = [],
+  label = "Signature",
+): FormField[] => {
+  const withoutSignatures = removeSignatureFields(fields);
+  return [
+    ...withoutSignatures,
+    {
+      id: "signature",
+      type: "signature",
+      label,
+    } as FormField,
+  ];
+};
+
 export const questionnaireToForm = (dto: FormResponseDTO): Form => {
   return fromFormRequestDTO(dto);
 };

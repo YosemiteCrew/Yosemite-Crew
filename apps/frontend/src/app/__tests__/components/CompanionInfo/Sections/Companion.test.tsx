@@ -26,7 +26,7 @@ describe("CompanionInfo Companion section", () => {
     render(<Companion companion={companion} />);
 
     expect(screen.getByText("Companion information")).toBeInTheDocument();
-    expect(screen.getByTestId("fields-count")).toHaveTextContent("13");
+    expect(screen.getByTestId("fields-count")).toHaveTextContent("14");
     expect(screen.getByTestId("data-name")).toHaveTextContent("Buddy");
   });
 });

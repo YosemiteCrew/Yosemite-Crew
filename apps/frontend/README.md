@@ -29,8 +29,8 @@ The frontend is built on the Next.js App Router and organized around feature mod
 
 [![SonarQube Cloud](https://sonarcloud.io/images/project_badges/sonarcloud-light.svg)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Frontend)
 
-| Quality Gate | Coverage | Bugs | Code Smells | Reliability | Security | Maintainability |
-| --- | --- | --- | --- | --- | --- | --- |
+| Quality Gate                                                                                                                                                                                                              | Coverage                                                                                                                                                                                                   | Bugs                                                                                                                                                                                               | Code Smells                                                                                                                                                                                                      | Reliability                                                                                                                                                                                                                    | Security                                                                                                                                                                                                                 | Maintainability                                                                                                                                                                                                              |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Frontend&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Frontend) | [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Frontend&metric=coverage)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Frontend) | [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Frontend&metric=bugs)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Frontend) | [![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Frontend&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Frontend) | [![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Frontend&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Frontend) | [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Frontend&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Frontend) | [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Frontend&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Frontend) |
 
 ## ✅ Prerequisites
@@ -56,6 +56,7 @@ cp apps/frontend/.env.example apps/frontend/.env
 ```
 
 Required keys (see `.env.example`):
+
 - `NEXT_PUBLIC_BASE_URL`
 - `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`
 - `NEXT_PUBLIC_COGNITO_USERPOOLID`
@@ -70,6 +71,7 @@ Required keys (see `.env.example`):
 - `SANDBOX_PUBLISH`
 
 Optional dev flags:
+
 - `NEXT_PUBLIC_DISABLE_AUTH_GUARD` (dev only)
 - `NEXT_PUBLIC_ORG_TYPE_OVERRIDE` (UI testing)
 
@@ -85,14 +87,22 @@ The app runs at `http://localhost:3000`.
 
 From `apps/frontend`:
 
-| Command | Description |
-| --- | --- |
-| `pnpm dev` | Start the dev server |
-| `pnpm build` | Build for production |
-| `pnpm start` | Start the production server |
-| `pnpm lint` | Run ESLint |
-| `pnpm type-check` | Run TypeScript checks |
-| `pnpm test` | Run Jest tests |
+| Command           | Description                 |
+| ----------------- | --------------------------- |
+| `pnpm dev`        | Start the dev server        |
+| `pnpm build`      | Build for production        |
+| `pnpm start`      | Start the production server |
+| `pnpm lint`       | Run ESLint                  |
+| `pnpm type-check` | Run TypeScript checks       |
+| `pnpm test`       | Run Jest tests              |
+
+## 🔑 Shared Dev Login
+
+Use this account for testing on the deployed dev web app:
+
+- URL: `https://dev.yosemitecrew.com/signin`
+- Email: `test@yosemitecrew.com`
+- Password: `Yosemitecrew@123`
 
 ## 🧱 Project Structure
 
@@ -112,6 +122,7 @@ src/app
 ## 🧩 Feature Modules
 
 Feature folders are the default unit of ownership. Each feature includes:
+
 - `pages/` for feature screens used by routes
 - `components/` for feature‑specific UI
 - `services/` for API calls
@@ -120,6 +131,7 @@ Feature folders are the default unit of ownership. Each feature includes:
 ## 🎨 UI System
 
 Shared UI lives in `src/app/ui`:
+
 - Primitives (buttons, accordion, layout scaffolding)
 - Inputs (form controls, dropdowns, datepickers)
 - Widgets (uploaders, labels, charts, tables)
@@ -127,6 +139,7 @@ Shared UI lives in `src/app/ui`:
 ## 🔐 Development Auth Override
 
 To bypass auth guards locally:
+
 1. Set `NEXT_PUBLIC_DISABLE_AUTH_GUARD=true` in `apps/frontend/.env`
 2. Restart the dev server
 
