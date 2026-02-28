@@ -16,7 +16,7 @@ const disableIntegrationMock = jest.fn();
 
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: (props: any) => <img alt={props.alt} {...props} />,
+  default: ({ alt }: any) => <span data-testid="mock-next-image">{alt || ''}</span>,
 }));
 
 jest.mock('next/link', () => ({
@@ -164,7 +164,7 @@ describe('Integrations settings', () => {
     render(<ProtectedIntegrations />);
 
     await waitFor(() => {
-      expect(screen.getByText('IDEXX')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Settings' })).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
@@ -192,7 +192,7 @@ describe('Integrations settings', () => {
     render(<ProtectedIntegrations />);
 
     await waitFor(() => {
-      expect(screen.getByText('IDEXX')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Settings' })).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Settings' }));

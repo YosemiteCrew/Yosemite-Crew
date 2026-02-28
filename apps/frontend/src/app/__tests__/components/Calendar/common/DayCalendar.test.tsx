@@ -6,7 +6,7 @@ import DayCalendar from '@/app/features/appointments/components/Calendar/common/
 
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: (props: any) => <img alt={props.alt || ''} {...props} />,
+  default: ({ alt }: any) => <span data-testid="mock-next-image">{alt || ''}</span>,
 }));
 
 const mockGetDayWindow = jest.fn((events: any[]) => {

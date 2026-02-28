@@ -6,7 +6,7 @@ import Slot from '@/app/features/appointments/components/Calendar/common/Slot';
 
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: (props: any) => <img alt={props.alt || ''} {...props} />,
+  default: ({ alt }: any) => <span data-testid="mock-next-image">{alt || ''}</span>,
 }));
 
 jest.mock('@/app/ui/tables/Appointments', () => ({

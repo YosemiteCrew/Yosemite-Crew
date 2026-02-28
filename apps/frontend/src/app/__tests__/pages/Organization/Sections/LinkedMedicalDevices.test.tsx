@@ -44,7 +44,7 @@ jest.mock('@/app/features/integrations/services/idexxService', () => ({
 
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: (props: any) => <img alt={props.alt} {...props} />,
+  default: ({ alt }: any) => <span data-testid="mock-next-image">{alt || ''}</span>,
 }));
 
 describe('LinkedMedicalDevices', () => {

@@ -330,7 +330,7 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
     }
   }, [activeAppointment?.id, integrationEnabled, normalizeOrders, primaryOrgId]);
 
-  const refreshCensus = async () => {
+  const refreshCensus = useCallback(async () => {
     if (!primaryOrgId || !integrationEnabled) return;
     try {
       const entries = await getIdexxCensus(primaryOrgId);
@@ -339,9 +339,9 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
       setCensusEntries([]);
       setError(getApiErrorMessage(e, 'Unable to load IDEXX census.'));
     }
-  };
+  }, [integrationEnabled, primaryOrgId]);
 
-  const refreshResults = async () => {
+  const refreshResults = useCallback(async () => {
     if (!primaryOrgId || !integrationEnabled) return;
     setRefreshingResults(true);
     try {
@@ -365,15 +365,15 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
     } finally {
       setRefreshingResults(false);
     }
-  };
+  }, [appointmentOrders, companionId, integrationEnabled, primaryOrgId]);
 
   useEffect(() => {
     void refreshResults();
-  }, [primaryOrgId, integrationEnabled, companionId, appointmentOrders]);
+  }, [refreshResults]);
 
   useEffect(() => {
     void refreshCensus();
-  }, [primaryOrgId, integrationEnabled, companionId]);
+  }, [refreshCensus]);
 
   useEffect(() => {
     void refreshAppointmentOrders();
