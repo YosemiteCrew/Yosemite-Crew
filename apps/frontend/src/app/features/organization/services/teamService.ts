@@ -158,7 +158,7 @@ export const removeMember = async (member: Team) => {
     await deleteData("/fhir/v1/user-organization/" + id);
     removeTeam(id);
   } catch (err) {
-    console.error("Failed to delete room:", err);
+    console.error("Failed to delete member:", err);
     throw err;
   }
 };

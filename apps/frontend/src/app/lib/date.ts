@@ -79,3 +79,13 @@ export function applyUtcTime(base: Date, hhmm: string) {
   d.setUTCHours(h, m, 0, 0);
   return d;
 }
+
+export const formatDateTimeLocal = (
+  value?: Date | string | number | null,
+  fallback = "Not available"
+): string => {
+  if (value == null || value === "") return fallback;
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return fallback;
+  return date.toLocaleString();
+};

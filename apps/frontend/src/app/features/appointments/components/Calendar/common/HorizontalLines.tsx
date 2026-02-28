@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useMemo } from "react";
 import {
   MINUTES_PER_STEP,
   PIXELS_PER_STEP,
@@ -8,14 +8,13 @@ import {
 
 type HorizontalLinesProps = {
   date: Date;
-  scrollRef: any;
+  scrollRef?: unknown;
   windowStart: number; // minutes since 00:00
   windowEnd: number; // minutes since 00:00
 };
 
 const HorizontalLines = ({
   date,
-  scrollRef,
   windowStart,
   windowEnd,
 }: HorizontalLinesProps) => {
@@ -28,22 +27,6 @@ const HorizontalLines = ({
     () => getNowTopPxForWindow(date, windowStart, windowEnd),
     [date, windowStart, windowEnd]
   );
-
-  // Scroll to "now" (within the window). If now is outside, this will scroll near the end.
-  useEffect(() => {
-    if (!scrollRef.current || nowTopPx == null) return;
-    const container = scrollRef.current;
-
-    const targetScrollTop = Math.max(
-      0,
-      Math.min(
-        nowTopPx - container.clientHeight / 2,
-        totalHeightPx - container.clientHeight
-      )
-    );
-
-    container.scrollTop = targetScrollTop;
-  }, [nowTopPx, totalHeightPx, scrollRef]);
 
   // Draw hour lines only for hours that fall inside the window
   const hourLines = useMemo(() => {

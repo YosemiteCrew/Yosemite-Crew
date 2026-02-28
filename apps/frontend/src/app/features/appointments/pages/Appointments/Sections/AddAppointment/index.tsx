@@ -173,7 +173,7 @@ const AddAppointment = ({
                     <Secondary
                       text="Add companions"
                       href="/companions"
-                      className="w-full"
+                      className="w-auto min-w-[160px]"
                     />
                   </div>
                 )}
@@ -227,14 +227,16 @@ const AddAppointment = ({
               }
             />
           </div>
-          <div className="flex flex-col items-end gap-2 w-full">
+          <div className="flex flex-col items-center gap-2 w-full pb-3">
             <BookingErrorMessage error={formDataErrors.booking} />
-            <Primary
-              href="#"
-              text="Book appointment"
-              onClick={onSubmit}
-              classname="w-full"
-            />
+            <div className="flex flex-row items-center justify-center gap-2 w-full flex-wrap">
+              <Primary
+                href="#"
+                text="Book appointment"
+                onClick={onSubmit}
+                classname="w-auto min-w-[170px]"
+              />
+            </div>
           </div>
         </div>
       </div>

@@ -6,9 +6,8 @@ import { getFormattedDate } from "@/app/features/appointments/components/Calenda
 import { Task } from "@/app/features/tasks/types/task";
 
 import "./DataTable.css";
-import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
-import { Team } from "@/app/features/organization/types/team";
 import { toTitleCase } from "@/app/lib/validators";
+import { useMemberMap } from "@/app/hooks/useMemberMap";
 
 type Column<T> = {
   label: string;
@@ -43,18 +42,12 @@ const Tasks = ({
   setViewPopup,
   small = false,
 }: TaskTableProps) => {
-  const teams = useTeamForPrimaryOrg();
-
-  const memberMap = React.useMemo(() => {
-    const map = new Map<string, string>();
-    teams?.forEach((member: Team) => {
-      map.set(member.practionerId, member.name || "-");
-    });
-    return map;
-  }, [teams]);
-
-  const getMemberNameById = (id?: string) =>
-    id ? (memberMap.get(id) ?? "-") : "-";
+  const { resolveMemberName } = useMemberMap();
+  const getMemberNameById = (id?: string) => {
+    if (!id) return "-";
+    const resolved = resolveMemberName(id);
+    return resolved === "-" ? id : resolved;
+  };
 
   const handleViewTask = (task: Task) => {
     setActiveTask?.(task);

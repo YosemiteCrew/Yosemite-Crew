@@ -97,6 +97,7 @@ const Tasks = () => {
             {activeView === "calendar" ? (
               <TaskCalendar
                 filteredList={filteredList}
+                allTasks={tasks}
                 setActiveTask={setActiveTask}
                 setViewPopup={setViewPopup}
                 activeCalendar={activeCalendar}
@@ -104,6 +105,7 @@ const Tasks = () => {
                 setCurrentDate={setCurrentDate}
                 weekStart={weekStart}
                 setWeekStart={setWeekStart}
+                canEditTasks={canEditTasks}
               />
             ) : (
               <TasksTable

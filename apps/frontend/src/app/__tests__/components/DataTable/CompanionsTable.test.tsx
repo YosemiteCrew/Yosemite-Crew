@@ -5,13 +5,31 @@ import "@testing-library/jest-dom";
 
 import CompanionsTable from "@/app/ui/tables/CompanionsTable";
 
+const useAppointmentsForPrimaryOrgMock = jest.fn();
+const pushMock = jest.fn();
+
 jest.mock("next/image", () => ({
   __esModule: true,
   default: (props: any) => <img alt={props.alt || ""} {...props} />,
 }));
 
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: pushMock,
+  }),
+}));
+
+jest.mock("@/app/hooks/useAppointments", () => ({
+  useAppointmentsForPrimaryOrg: () => useAppointmentsForPrimaryOrgMock(),
+}));
+
 jest.mock("@/app/lib/date", () => ({
   getAgeInYears: jest.fn(() => "2y"),
+}));
+
+jest.mock("@/app/lib/forms", () => ({
+  formatDateLabel: jest.fn(() => "Jan 6, 2025"),
+  formatTimeLabel: jest.fn(() => "10:00 AM"),
 }));
 
 jest.mock("@/app/lib/urls", () => ({
@@ -53,11 +71,13 @@ jest.mock("react-icons/fa", () => ({
 
 jest.mock("react-icons/io5", () => ({
   IoEye: () => <span>view-icon</span>,
+  IoOpenOutline: () => <span>open-icon</span>,
 }));
 
 describe("CompanionsTable", () => {
   const companion: any = {
     companion: {
+      id: "c1",
       name: "Buddy",
       breed: "Labrador",
       type: "Dog",
@@ -69,6 +89,19 @@ describe("CompanionsTable", () => {
     },
     parent: { firstName: "Sam" },
   };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    useAppointmentsForPrimaryOrgMock.mockReturnValue([
+      {
+        id: "appt-1",
+        status: "UPCOMING",
+        appointmentDate: new Date("2025-01-06T10:00:00.000Z"),
+        startTime: new Date("2025-01-06T10:00:00.000Z"),
+        companion: { id: "c1", name: "Buddy" },
+      },
+    ]);
+  });
 
   it("handles view, schedule, and task actions", () => {
     const setActiveCompanion = jest.fn();
@@ -90,6 +123,7 @@ describe("CompanionsTable", () => {
     );
 
     fireEvent.click(screen.getByText("view-icon").closest("button")!);
+    fireEvent.click(screen.getByTitle("Open appointment"));
     fireEvent.click(screen.getByText("calendar-icon").closest("button")!);
     fireEvent.click(screen.getByText("task-icon").closest("button")!);
 
@@ -97,6 +131,7 @@ describe("CompanionsTable", () => {
     expect(setViewCompanion).toHaveBeenCalledWith(true);
     expect(setBookAppointment).toHaveBeenCalledWith(true);
     expect(setAddTask).toHaveBeenCalledWith(true);
+    expect(pushMock).toHaveBeenCalledWith("/appointments?appointmentId=appt-1");
   });
 
   it("shows empty state for mobile list", () => {

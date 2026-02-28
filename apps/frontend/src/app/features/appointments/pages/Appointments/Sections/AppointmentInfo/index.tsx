@@ -50,6 +50,7 @@ import SignatureActions from '@/app/features/appointments/pages/Appointments/Sec
 import { hasSignatureField } from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/signatureUtils';
 import SigningOverlay from '@/app/ui/overlays/SigningOverlay';
 import ParentTask from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Tasks/ParentTask';
+import LabTests from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/LabTests';
 import { useServicesForPrimaryOrgSpecialities } from '@/app/hooks/useSpecialities';
 import { useSigningOverlayStore } from '@/app/stores/signingOverlayStore';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
@@ -109,6 +110,7 @@ const getLabelsForOrgType = (orgType: string | undefined, hospitalLabels: any[])
     },
     hospitalLabels[2],
     hospitalLabels[3],
+    hospitalLabels[4],
   ];
 };
 
@@ -540,6 +542,8 @@ type AppoitmentInfoProps = {
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
   activeAppointment: Appointment | null;
   initialViewIntent?: AppointmentViewIntent | null;
+  canEditAppointments?: boolean;
+  onReschedule?: (appointment: Appointment) => void;
 };
 
 export type ServiceEdit = Service & {
@@ -572,7 +576,7 @@ export const createEmptyFormData = (): FormDataProps => ({
   lineItems: [],
 });
 
-type LabelKey = 'info' | 'prescription' | 'care' | 'tasks' | 'finance';
+type LabelKey = 'info' | 'prescription' | 'care' | 'tasks' | 'finance' | 'labs';
 
 const hospitalLabels = [
   {
@@ -610,6 +614,24 @@ const hospitalLabels = [
       { key: 'payment-details', name: 'Invoices' },
     ],
   },
+  {
+    key: 'labs',
+    name: 'Labs',
+    labels: [
+      {
+        key: 'idexx-labs',
+        name: (
+          <Image
+            src={MEDIA_SOURCES.futureAssets.idexxLogoUrl}
+            alt="IDEXX"
+            width={94}
+            height={40}
+            className="object-contain"
+          />
+        ),
+      },
+    ],
+  },
 ];
 
 const AppoitmentInfo = ({
@@ -617,6 +639,8 @@ const AppoitmentInfo = ({
   setShowModal,
   activeAppointment,
   initialViewIntent,
+  canEditAppointments = false,
+  onReschedule,
 }: AppoitmentInfoProps) => {
   const { can } = usePermissions();
   const canEdit = can(PERMISSIONS.PRESCRIPTION_EDIT_OWN);
@@ -734,6 +758,9 @@ const AppoitmentInfo = ({
     finance: {
       summary: Summary,
       'payment-details': Details,
+    },
+    labs: {
+      'idexx-labs': LabTests,
     },
   };
 
@@ -937,7 +964,11 @@ const AppoitmentInfo = ({
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <SigningOverlay />
-      <div className="flex flex-col h-full gap-6">
+      <div
+        className={`flex flex-col h-full ${
+          activeLabel === 'labs' ? 'gap-1' : 'gap-3'
+        }`}
+      >
         <div className="flex flex-col gap-3">
           <div className="flex justify-between items-center">
             <div className="flex justify-center items-center gap-2">
@@ -974,6 +1005,8 @@ const AppoitmentInfo = ({
               formData={formData}
               setFormData={setFormData}
               canEdit={canEdit}
+              canEditAppointments={canEditAppointments}
+              onReschedule={onReschedule}
               forms={customForms}
               loading={customFormsLoading}
               error={customFormsError}

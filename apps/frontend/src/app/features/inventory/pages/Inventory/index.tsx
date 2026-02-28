@@ -19,6 +19,7 @@ import { BusinessType, BusinessTypes } from "@/app/features/organization/types/o
 import { useOrgStore } from "@/app/stores/orgStore";
 import { useLoadOrg } from "@/app/hooks/useLoadOrg";
 import { useInventoryModule } from "@/app/hooks/useInventory";
+import { useRoomsForPrimaryOrg } from "@/app/hooks/useRooms";
 import OrgGuard from "@/app/ui/layout/guards/OrgGuard";
 import { useSearchStore } from "@/app/stores/searchStore";
 import { usePermissions } from "@/app/hooks/usePermissions";
@@ -34,6 +35,7 @@ const Inventory = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const orgsById = useOrgStore((s) => s.orgsById);
   const primaryOrg = primaryOrgId ? orgsById[primaryOrgId] : null;
+  const rooms = useRoomsForPrimaryOrg();
   const headerSearchQuery = useSearchStore((s) => s.query);
 
   const [businessType, setBusinessType] = useState<BusinessType | null>(
@@ -91,6 +93,15 @@ const Inventory = () => {
     () => CategoryOptionsByBusiness[resolvedBusinessType] ?? [],
     [resolvedBusinessType]
   );
+
+  const stockLocationOptions = useMemo(() => {
+    const roomNames = rooms
+      .map((room) => room?.name?.trim())
+      .filter((name): name is string => Boolean(name));
+    return roomNames.length > 0
+      ? Array.from(new Set(roomNames))
+      : undefined;
+  }, [rooms]);
 
   useEffect(() => {
     setFilteredTurnoverList(turnover);
@@ -303,6 +314,7 @@ const Inventory = () => {
           setShowModal={setAddPopup}
           businessType={resolvedBusinessType}
           onSubmit={handleCreateInventory}
+          stockLocationOptions={stockLocationOptions}
         />
 
         {activeInventory && (
@@ -317,6 +329,7 @@ const Inventory = () => {
             onHide={handleHideInventory}
             onUnhide={handleUnhideInventory}
             canEdit={canEditInventory}
+            stockLocationOptions={stockLocationOptions}
           />
         )}
       </PermissionGate>

@@ -12,7 +12,7 @@ const UserLabels = ({ team, currentDate }: UserLabels) => {
   const currentUserId = attributes?.sub || attributes?.email;
 
   return (
-    <div className="grid grid-flow-col auto-cols-[200px] min-w-max border-b border-grey-light py-3">
+    <div className="grid grid-flow-col auto-cols-[170px] min-w-max border-b border-grey-light py-3">
       {team.map((user, idx) => {
         const isCurrentUser =
           !!currentUserId && user.practionerId === currentUserId;
@@ -33,7 +33,7 @@ const UserLabels = ({ team, currentDate }: UserLabels) => {
               {user.name || ""}
             </div>
             <div className="text-body-4 text-text-brand">{weekday}</div>
-            <div className="text-body-4-emphasis text-white h-12 w-12 flex items-center justify-center rounded-full bg-text-brand">
+            <div className="text-body-4-emphasis text-white h-10 w-10 flex items-center justify-center rounded-full bg-text-brand">
               {dateNumber}
             </div>
           </div>

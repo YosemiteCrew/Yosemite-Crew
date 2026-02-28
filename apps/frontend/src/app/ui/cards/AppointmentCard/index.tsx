@@ -10,6 +10,7 @@ import {
   IoDocumentTextOutline,
 } from "react-icons/io5";
 import { MdOutlineAutorenew } from "react-icons/md";
+import { MdScience } from "react-icons/md";
 
 type AppointmentCardProps = {
   appointment: Appointment;
@@ -93,6 +94,18 @@ const AppointmentCard = ({
               title="Finance"
             >
               <IoCardOutline size={18} color="#302F2E" />
+            </button>
+            <button
+              onClick={() =>
+                handleViewAppointment(appointment, {
+                  label: "labs",
+                  subLabel: "idexx-labs",
+                })
+              }
+              className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+              title="Lab tests"
+            >
+              <MdScience size={18} color="#302F2E" />
             </button>
           </div>
         )}

@@ -9,6 +9,7 @@ import {
   IoDocumentTextOutline,
 } from "react-icons/io5";
 import { MdOutlineAutorenew } from "react-icons/md";
+import { MdScience } from "react-icons/md";
 import AppointmentCard from "@/app/ui/cards/AppointmentCard";
 import { Appointment } from "@yosemite-crew/types";
 import { formatDateLabel, formatTimeLabel } from "@/app/lib/forms";
@@ -18,7 +19,7 @@ import {
   cancelAppointment,
 } from "@/app/features/appointments/services/appointmentService";
 import { toTitle } from "@/app/lib/validators";
-import { allowReschedule } from "@/app/lib/appointments";
+import { allowCalendarDrag } from "@/app/lib/appointments";
 import { getStatusStyle } from "@/app/config/statusConfig";
 import { AppointmentViewIntent } from "@/app/features/appointments/types/calendar";
 import { useOrgStore } from "@/app/stores/orgStore";
@@ -275,7 +276,7 @@ const Appointments = ({
                   <MdOutlineAutorenew size={18} color="#302F2E" />
                 </button>
               )}
-              {canEditAppointments && allowReschedule(item.status) && (
+              {canEditAppointments && allowCalendarDrag(item.status as any) && (
                 <button
                   onClick={() => handleRescheduleAppointment(item)}
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
@@ -304,6 +305,18 @@ const Appointments = ({
                 title="Finance"
               >
                 <IoCardOutline size={18} color="#302F2E" />
+              </button>
+              <button
+                onClick={() =>
+                  handleViewAppointment(item, {
+                    label: "labs",
+                    subLabel: "idexx-labs",
+                  })
+                }
+                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                title="Lab tests"
+              >
+                <MdScience size={18} color="#302F2E" />
               </button>
             </div>
           )}

@@ -10,8 +10,10 @@ import {
   AppointmentStatusOptions,
 } from "@/app/features/appointments/types/appointments";
 import { PERMISSIONS } from "@/app/lib/permissions";
+import { allowCalendarDrag } from "@/app/lib/appointments";
 import { Appointment } from "@yosemite-crew/types";
 import React, { useMemo } from "react";
+import { RiEdit2Fill } from "react-icons/ri";
 
 const getAppointmentFields = ({
   RoomOptions,
@@ -75,9 +77,15 @@ const getStaffFields = ({
 
 type AppointmentInfoProps = {
   activeAppointment: Appointment;
+  canEditAppointments?: boolean;
+  onReschedule?: (appointment: Appointment) => void;
 };
 
-const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
+const AppointmentInfo = ({
+  activeAppointment,
+  canEditAppointments: canEditAppointmentsProp = false,
+  onReschedule,
+}: AppointmentInfoProps) => {
   const rooms = useRoomsForPrimaryOrg();
   const teams = useTeamForPrimaryOrg();
   const { can } = usePermissions();
@@ -185,6 +193,10 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
 
 
   const canEditAppointments = can(PERMISSIONS.APPOINTMENTS_EDIT_ANY) && canEditByStatus;
+  const canRescheduleAppointment =
+    canEditAppointmentsProp &&
+    can(PERMISSIONS.APPOINTMENTS_EDIT_ANY) &&
+    allowCalendarDrag(activeAppointment.status as any);
 
   return (
     <div className="flex flex-col gap-6 w-full">
@@ -196,6 +208,22 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
         defaultOpen={true}
         onSave={handleAppointmentUpdate}
         showEditIcon={canEditAppointments}
+        rightElement={
+          canRescheduleAppointment ? (
+            <button
+              type="button"
+              className="h-7 w-7 rounded-full flex items-center justify-center"
+              title="Reschedule"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onReschedule?.(activeAppointment);
+              }}
+            >
+              <RiEdit2Fill size={14} color="#302f2e" />
+            </button>
+          ) : null
+        }
       />
       <EditableAccordion
         key={"staff-key"}

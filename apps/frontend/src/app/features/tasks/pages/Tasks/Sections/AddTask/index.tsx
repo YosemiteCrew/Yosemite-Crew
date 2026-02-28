@@ -51,8 +51,8 @@ const AddTask = ({ showModal, setShowModal }: AddTaskProps) => {
   const TeamOptions = useMemo(
     () =>
       teams?.map((team) => ({
-        label: team.name || team.practionerId,
-        value: team.practionerId,
+        label: team.name || team.practionerId || team._id,
+        value: team.practionerId || team._id,
       })),
     [teams]
   );
@@ -110,21 +110,21 @@ const AddTask = ({ showModal, setShowModal }: AddTaskProps) => {
               }
             }}
           />
-          <div className="flex justify-end items-end gap-3 w-full flex-col">
+          <div className="flex justify-end items-center gap-3 w-full flex-col pb-3">
             {error && (
               <div className="text-red-600 text-sm text-center">{error}</div>
             )}
-            <div className="flex gap-3 w-full">
+            <div className="flex gap-3 justify-center w-full flex-wrap">
               <Secondary
                 href="#"
                 text="Save as template"
-                className="w-full hidden"
+                className="hidden"
                 onClick={handleCreateTemplate}
               />
               <Primary
                 href="#"
                 text="Save"
-                classname="w-full"
+                classname="w-auto min-w-[140px]"
                 onClick={handleCreate}
               />
             </div>

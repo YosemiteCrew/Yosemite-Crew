@@ -88,7 +88,7 @@ const AddDocument = ({ showModal, setShowModal }: AddDocumentProps) => {
 
         <div className="flex overflow-y-auto flex-1 w-full flex-col gap-6 justify-between scrollbar-hidden">
           <Accordion
-            title="Add room"
+            title="Add document"
             defaultOpen
             showEditIcon={false}
             isEditing={true}

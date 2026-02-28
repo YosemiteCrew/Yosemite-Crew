@@ -14,6 +14,7 @@ export const appRoutes: RouteItem[] = [
   { name: "Finance", href: "/finance", verify: true },
   { name: "Companions", href: "/companions", verify: true },
   { name: "Inventory", href: "/inventory", verify: true },
+  { name: "Integrations", href: "/integrations", verify: true },
   { name: "Templates", href: "/forms", verify: true },
 ];
 

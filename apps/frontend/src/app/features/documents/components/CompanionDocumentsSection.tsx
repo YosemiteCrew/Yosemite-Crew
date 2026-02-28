@@ -22,7 +22,7 @@ import {
   loadDocumentDownloadURL,
 } from "@/app/features/companions/services/companionDocumentService";
 import { toTitle } from "@/app/lib/validators";
-import { formatDateLabel } from "@/app/lib/forms";
+import { formatDateLabel, formatTimeLabel } from "@/app/lib/forms";
 import CompanionDoc from "@/app/ui/widgets/UploadImage/CompanionDoc";
 
 type CompanionDocumentsSectionProps = {
@@ -74,7 +74,8 @@ const CompanionDocumentsSection = ({
     }
     try {
       await createCompanionDocument(formData, companionId);
-      await loadCompanionDocument(companionId);
+      const data = await loadCompanionDocument(companionId);
+      setRecords(data ?? []);
       setFormData(emptyCompanionRecord);
       setFormDataErrors({});
       setFile(null);
@@ -99,6 +100,24 @@ const CompanionDocumentsSection = ({
     formData.category === "HEALTH"
       ? HealthCategoryOptions
       : HygieneCategoryOptions;
+
+  const formatTextValue = (value?: string | null) => {
+    if (!value) return "-";
+    return toTitle(value);
+  };
+
+  const getDocumentSource = (doc: CompanionRecord) =>
+    doc.issuingBusinessName ||
+    (doc.syncedFromPms ? "PMS" : doc.uploadedByParentId ? "Pet parent" : "Staff");
+
+  const getAttachmentSummary = (doc: CompanionRecord) => {
+    if (!doc.attachments?.length) return "No attachments";
+    const first = doc.attachments[0];
+    const mime = first?.mimeType ? first.mimeType.split("/").pop()?.toUpperCase() : "FILE";
+    return doc.attachments.length > 1
+      ? `${doc.attachments.length} files (${mime || "FILE"})`
+      : `1 file (${mime || "FILE"})`;
+  };
 
   return (
     <PermissionGate
@@ -184,45 +203,81 @@ const CompanionDocumentsSection = ({
               {records.map((doc) => (
                 <div
                   key={doc.id}
-                  className="w-full rounded-2xl border border-card-border bg-white px-3 py-3 flex flex-col justify-between gap-2 cursor-pointer"
+                  className="w-full rounded-2xl border border-card-border bg-white px-4 py-4 flex flex-col gap-3"
                 >
-                  <div className="text-body-3-emphasis text-text-primary">
-                    {doc.title}
-                  </div>
-                  <div className="flex gap-1">
-                    <div className="text-caption-1 text-text-extra">
-                      Category:
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-body-3-emphasis text-text-primary break-words">
+                        {doc.title || "Untitled document"}
+                      </div>
+                      <div className="text-caption-1 text-text-secondary mt-1">
+                        Issued by {getDocumentSource(doc)}
+                      </div>
                     </div>
-                    <div className="text-caption-1 text-text-primary">
-                      {toTitle(doc.category)}
-                    </div>
-                  </div>
-                  <div className="flex gap-1">
-                    <div className="text-caption-1 text-text-extra">
-                      Sub-category:
-                    </div>
-                    <div className="text-caption-1 text-text-primary">
-                      {toTitle(doc.subcategory)}
-                    </div>
-                  </div>
-                  <div className="flex gap-1">
-                    <div className="text-caption-1 text-text-extra">Visit:</div>
-                    <div className="text-caption-1 text-text-primary">
-                      {toTitle(doc.visitType)}
-                    </div>
-                  </div>
-                  <div className="flex gap-1">
-                    <div className="text-caption-1 text-text-extra">Date:</div>
-                    <div className="text-caption-1 text-text-primary">
-                      {formatDateLabel(doc.issueDate)}
+                    <div className="flex items-center gap-1 flex-wrap justify-end">
+                      {doc.pmsVisible ? (
+                        <span className="text-label-xsmall px-2 py-1 rounded bg-blue-50 text-blue-700 whitespace-nowrap">
+                          PMS visible
+                        </span>
+                      ) : null}
+                      {doc.syncedFromPms ? (
+                        <span className="text-label-xsmall px-2 py-1 rounded bg-green-50 text-green-800 whitespace-nowrap">
+                          Synced
+                        </span>
+                      ) : (
+                        <span className="text-label-xsmall px-2 py-1 rounded bg-amber-50 text-amber-700 whitespace-nowrap">
+                          Manual
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <div className="flex gap-3 w-full">
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <div className="text-caption-1 text-text-extra">
+                        Category:
+                      </div>
+                      <div className="text-caption-1 text-text-primary">
+                        {formatTextValue(doc.category)}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="text-caption-1 text-text-extra">
+                        Sub-category:
+                      </div>
+                      <div className="text-caption-1 text-text-primary">
+                        {formatTextValue(doc.subcategory)}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="text-caption-1 text-text-extra">
+                        Visit:
+                      </div>
+                      <div className="text-caption-1 text-text-primary">
+                        {formatTextValue(doc.visitType)}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="text-caption-1 text-text-extra">
+                        Issue date:
+                      </div>
+                      <div className="text-caption-1 text-text-primary">
+                        {doc.issueDate
+                          ? `${formatDateLabel(doc.issueDate)} ${formatTimeLabel(doc.issueDate)}`
+                          : "-"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 pt-2 border-t border-card-border">
+                    <div className="text-caption-1 text-text-secondary">
+                      {getAttachmentSummary(doc)}
+                    </div>
                     <Secondary
                       href="#"
                       onClick={() => handleDownload(doc.id)}
-                      text="Download"
-                      className="w-full"
+                      text="Open file"
+                      className="w-auto min-w-[120px]"
                     />
                   </div>
                 </div>

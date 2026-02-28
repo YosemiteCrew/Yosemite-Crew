@@ -252,11 +252,12 @@ describe("Appointment Service", () => {
 
   // --- Section 3: updateAppointment ---
   describe("updateAppointment", () => {
-    it("warns and returns if no primaryOrgId is selected", async () => {
+    it("warns and returns if no org id is available from store or payload", async () => {
       (useOrgStore.getState as jest.Mock).mockReturnValue({ primaryOrgId: null });
       const consoleSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+      const payload = makeBaseAppointment({ organisationId: undefined });
 
-      await updateAppointment(makeBaseAppointment());
+      await updateAppointment(payload);
 
       expect(consoleSpy).toHaveBeenCalledWith(
         "No primary organization selected. Cannot update appointment."

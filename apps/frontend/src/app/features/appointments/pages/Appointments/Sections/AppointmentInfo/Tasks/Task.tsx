@@ -70,21 +70,21 @@ const Task = () => {
             }
           />
         </Accordion>
-        <div className="flex justify-end items-end gap-3 w-full flex-col">
+        <div className="flex justify-end items-center gap-3 w-full flex-col pb-3">
           {error && (
             <div className="text-red-600 text-sm text-center">{error}</div>
           )}
-          <div className="flex gap-3 w-full">
+          <div className="flex gap-3 justify-center w-full flex-wrap">
             <Secondary
               href="#"
               text="Save as template"
-              className="w-full hidden"
+              className="hidden"
               onClick={handleCreateTemplate}
             />
             <Primary
               href="#"
               text="Save"
-              classname="w-full"
+              classname="w-auto min-w-[140px]"
               onClick={handleCreate}
             />
           </div>

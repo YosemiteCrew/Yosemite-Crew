@@ -8,7 +8,7 @@ type DayLabels = {
 
 const DayLabels = ({ days, currentDate }: DayLabels) => {
   return (
-    <div className="grid grid-flow-col auto-cols-[200px] min-w-max border-b border-grey-light py-3">
+    <div className="grid grid-flow-col auto-cols-[170px] min-w-max border-b border-grey-light py-3">
       {days.map((day, idx) => {
         const weekday = day.toLocaleDateString("en-US", {
           weekday: "short",
@@ -36,7 +36,7 @@ const DayLabels = ({ days, currentDate }: DayLabels) => {
               {weekday}
             </div>
             <div
-              className={`text-body-4-emphasis h-12 w-12 flex items-center justify-center rounded-full border ${dateNumberClass}`}
+              className={`text-body-4-emphasis h-10 w-10 flex items-center justify-center rounded-full border ${dateNumberClass}`}
             >
               {dateNumber}
             </div>

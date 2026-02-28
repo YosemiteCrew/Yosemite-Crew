@@ -14,6 +14,7 @@ jest.mock("@/app/features/appointments/services/appointmentService", () => ({
 
 jest.mock("@/app/lib/appointments", () => ({
   allowReschedule: jest.fn(() => true),
+  allowCalendarDrag: jest.fn(() => true),
 }));
 
 jest.mock("@/app/lib/forms", () => ({
@@ -66,6 +67,7 @@ jest.mock("react-icons/io5", () => ({
 
 jest.mock("react-icons/md", () => ({
   MdOutlineAutorenew: () => <span>change-status-icon</span>,
+  MdScience: () => <span>labs-icon</span>,
 }));
 
 describe("Appointments table", () => {

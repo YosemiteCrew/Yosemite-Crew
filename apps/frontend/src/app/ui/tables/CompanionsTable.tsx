@@ -1,16 +1,20 @@
 "use client";
 import React from "react";
 import { FaCalendar, FaTasks } from "react-icons/fa";
-import { IoEye } from "react-icons/io5";
+import { IoEye, IoOpenOutline } from "react-icons/io5";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 import CompanionCard from "@/app/ui/cards/CompanionCard/CompanionCard";
 import GenericTable from "@/app/ui/tables/GenericTable/GenericTable";
 import { CompanionParent } from "@/app/features/companions/pages/Companions/types";
+import { Appointment } from "@yosemite-crew/types";
+import { useAppointmentsForPrimaryOrg } from "@/app/hooks/useAppointments";
 
 import { getAgeInYears } from "@/app/lib/date";
 import { getSafeImageUrl, ImageType } from "@/app/lib/urls";
 import { toTitleCase } from "@/app/lib/validators";
+import { formatDateLabel, formatTimeLabel } from "@/app/lib/forms";
 
 import "./DataTable.css";
 
@@ -55,6 +59,50 @@ const CompanionsTable = ({
   canEditAppointments,
   canEditTasks,
 }: CompanionsTableProps) => {
+  const router = useRouter();
+  const appointments = useAppointmentsForPrimaryOrg();
+
+  const getUpcomingAppointmentForCompanion = (companionId?: string) => {
+    if (!companionId) return null;
+    const now = Date.now();
+    const upcomingStatuses = new Set([
+      "NO_PAYMENT",
+      "REQUESTED",
+      "UPCOMING",
+      "CHECKED_IN",
+      "IN_PROGRESS",
+    ]);
+
+    const related = appointments
+      .filter(
+        (appointment) =>
+          appointment?.companion?.id === companionId &&
+          upcomingStatuses.has(String(appointment.status ?? "").toUpperCase()),
+      )
+      .sort(
+        (a, b) =>
+          new Date(a.startTime ?? a.appointmentDate).getTime() -
+          new Date(b.startTime ?? b.appointmentDate).getTime(),
+      );
+
+    if (related.length === 0) return null;
+    return (
+      related.find(
+        (appointment) =>
+          new Date(appointment.startTime ?? appointment.appointmentDate).getTime() >=
+          now,
+      ) ?? related[0]
+    );
+  };
+
+  const goToAppointment = (appointment: Appointment) => {
+    if (!appointment?.id) return;
+    const params = new URLSearchParams({
+      appointmentId: appointment.id,
+    });
+    router.push(`/appointments?${params.toString()}`);
+  };
+
   const handleViewCompanion = (companion: CompanionParent) => {
     setActiveCompanion(companion);
     setViewCompanion(true);
@@ -155,12 +203,38 @@ const CompanionsTable = ({
       label: "Upcoming Appointment",
       key: "Upcoming Appointment",
       width: "20%",
-      render: (item: CompanionParent) => (
-        <div className="appointment-profile-two">
-          <div className="appointment-profile-title">{"-"}</div>
-          <div className="appointment-profile-sub">{""}</div>
-        </div>
-      ),
+      render: (item: CompanionParent) => {
+        const upcoming = getUpcomingAppointmentForCompanion(item.companion.id);
+        if (!upcoming) {
+          return (
+            <div className="appointment-profile-two">
+              <div className="appointment-profile-title">-</div>
+              <div className="appointment-profile-sub" />
+            </div>
+          );
+        }
+
+        return (
+          <button
+            type="button"
+            onClick={() => goToAppointment(upcoming)}
+            className="w-full text-left rounded-xl! border border-card-border px-2 py-1.5 hover:bg-card-hover transition-colors"
+            title="Open appointment"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="appointment-profile-two min-w-0">
+                <div className="appointment-profile-title truncate">
+                  {formatDateLabel(upcoming.appointmentDate)}
+                </div>
+                <div className="appointment-profile-sub truncate">
+                  {formatTimeLabel(upcoming.startTime)}
+                </div>
+              </div>
+              <IoOpenOutline size={15} color="#302F2E" />
+            </div>
+          </button>
+        );
+      },
     },
     {
       label: "Status",

@@ -65,6 +65,7 @@ describe("AppointmentCalendar", () => {
     render(
       <AppointmentCalendar
         filteredList={appointments as any}
+        allAppointments={appointments as any}
         setActiveAppointment={setActiveAppointment}
         setViewPopup={setViewPopup}
         activeCalendar="day"
@@ -93,6 +94,7 @@ describe("AppointmentCalendar", () => {
     render(
       <AppointmentCalendar
         filteredList={appointments as any}
+        allAppointments={appointments as any}
         setActiveAppointment={setActiveAppointment}
         setViewPopup={setViewPopup}
         activeCalendar="week"
@@ -114,6 +116,7 @@ describe("AppointmentCalendar", () => {
     render(
       <AppointmentCalendar
         filteredList={appointments as any}
+        allAppointments={appointments as any}
         setActiveAppointment={setActiveAppointment}
         setViewPopup={setViewPopup}
         activeCalendar="team"

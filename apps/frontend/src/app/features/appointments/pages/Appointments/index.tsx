@@ -1,5 +1,6 @@
 "use client";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import ProtectedRoute from "@/app/ui/layout/guards/ProtectedRoute";
 import AppointmentsTable from "@/app/ui/tables/Appointments";
 import AddAppointment from "@/app/features/appointments/pages/Appointments/Sections/AddAppointment";
@@ -23,12 +24,19 @@ import { usePermissions } from "@/app/hooks/usePermissions";
 import { PERMISSIONS } from "@/app/lib/permissions";
 import { PermissionGate } from "@/app/ui/layout/guards/PermissionGate";
 import Fallback from "@/app/ui/overlays/Fallback";
+import { Secondary } from "@/app/ui/primitives/Buttons";
+import { useIntegrationByProviderForPrimaryOrg } from "@/app/hooks/useIntegrations";
 
 const Appointments = () => {
   const appointments = useAppointmentsForPrimaryOrg();
   const { can } = usePermissions();
   const canEditAppointments = can(PERMISSIONS.APPOINTMENTS_EDIT_ANY);
+  const idexxIntegration = useIntegrationByProviderForPrimaryOrg("IDEXX");
+  const showIdexxWorkspaceButton =
+    (idexxIntegration?.status ?? "").toLowerCase() === "enabled";
   const query = useSearchStore((s) => s.query);
+  const searchParams = useSearchParams();
+  const handledDeepLinkRef = useRef<string | null>(null);
   const [activeFilter, setActiveFilter] = useState("all");
   const [activeStatus, setActiveStatus] = useState("all");
   const [addPopup, setAddPopup] = useState(false);
@@ -38,7 +46,7 @@ const Appointments = () => {
   const [changeStatusPopup, setChangeStatusPopup] = useState(false);
   const [activeAppointment, setActiveAppointment] =
     useState<Appointment | null>(appointments[0] ?? null);
-  const [activeCalendar, setActiveCalendar] = useState("week");
+  const [activeCalendar, setActiveCalendar] = useState("team");
   const [activeView, setActiveView] = useState("calendar");
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [weekStart, setWeekStart] = useState(getStartOfWeek(currentDate));
@@ -64,6 +72,28 @@ const Appointments = () => {
     });
   }, [appointments]);
 
+  useEffect(() => {
+    const appointmentId = String(searchParams.get("appointmentId") ?? "").trim();
+    const open = String(searchParams.get("open") ?? "").trim().toLowerCase();
+    const subLabel = String(searchParams.get("subLabel") ?? "idexx-labs").trim();
+    if (!appointmentId) return;
+
+    const deepLinkKey = `${appointmentId}:${open || "details"}:${subLabel}`;
+    if (handledDeepLinkRef.current === deepLinkKey) return;
+
+    const target = appointments.find((appointment) => appointment.id === appointmentId);
+    if (!target) return;
+
+    setActiveAppointment(target);
+    if (open === "labs") {
+      setViewIntent({ label: "labs", subLabel });
+    } else {
+      setViewIntent(null);
+    }
+    setViewPopup(true);
+    handledDeepLinkRef.current = deepLinkKey;
+  }, [appointments, searchParams]);
+
   const filteredList = useMemo(() => {
     const q = query.trim().toLowerCase();
     const filterWanted = activeFilter.toLowerCase();
@@ -85,7 +115,7 @@ const Appointments = () => {
   }, [appointments, activeStatus, activeFilter, query]);
 
   return (
-    <div className="flex flex-col relative">
+    <div className="flex flex-col relative min-w-0">
       <div className="flex flex-col gap-6 px-3! py-3! sm:px-12! lg:px-[60px]! sm:py-12!">
         <TitleCalendar
           activeCalendar={activeCalendar}
@@ -99,6 +129,11 @@ const Appointments = () => {
           activeView={activeView}
           setActiveView={setActiveView}
           showAdd={canEditAppointments}
+          actionBeforeAdd={
+            showIdexxWorkspaceButton ? (
+              <Secondary href="/appointments/idexx-workspace" text="IDEXX workspace" />
+            ) : null
+          }
         />
 
         <PermissionGate
@@ -117,6 +152,7 @@ const Appointments = () => {
             {activeView === "calendar" ? (
               <AppointmentCalendar
                 filteredList={filteredList}
+                allAppointments={appointments}
                 setActiveAppointment={setActiveAppointment}
                 setViewPopup={setViewPopup}
                 setViewIntent={setViewIntent}
@@ -154,6 +190,12 @@ const Appointments = () => {
               setShowModal={setViewPopup}
               activeAppointment={activeAppointment}
               initialViewIntent={viewIntent}
+              canEditAppointments={canEditAppointments}
+              onReschedule={(appointment) => {
+                setActiveAppointment(appointment);
+                setViewPopup(false);
+                setReschedulePopup(true);
+              }}
             />
           )}
           {canEditAppointments && activeAppointment && (

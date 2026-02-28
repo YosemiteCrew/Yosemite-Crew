@@ -19,10 +19,10 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
     <div className="flex h-screen flex-1 lg:overflow-hidden">
       <Sidebar />
 
-      <div className="flex flex-col flex-1">
+      <div className="flex flex-col flex-1 min-w-0">
         <Header user />
 
-        <div className="pt-20 flex-1 lg:pt-0 lg:overflow-y-scroll">
+        <div className="pt-20 flex-1 lg:pt-0 lg:overflow-y-scroll lg:[scrollbar-gutter:stable] min-w-0">
           {isChecking ? null : children}
         </div>
       </div>

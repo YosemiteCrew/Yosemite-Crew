@@ -97,8 +97,10 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
     >
       <div className="flex items-center justify-between">
         <button
-          className="flex items-center gap-2"
+          type="button"
+          className="flex flex-1 items-center gap-2 text-left"
           onClick={() => setOpen(!open)}
+          aria-label={title}
         >
           <IoIosArrowDown
             size={22}

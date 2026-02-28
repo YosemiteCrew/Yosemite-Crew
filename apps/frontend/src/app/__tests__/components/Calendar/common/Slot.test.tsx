@@ -27,6 +27,7 @@ jest.mock("react-icons/io5", () => ({
   IoCalendarOutline: () => <span>reschedule</span>,
   IoDocumentTextOutline: () => <span>soap</span>,
   IoCardOutline: () => <span>finance</span>,
+  IoFlaskOutline: () => <span>lab</span>,
 }));
 
 jest.mock("react-icons/md", () => ({

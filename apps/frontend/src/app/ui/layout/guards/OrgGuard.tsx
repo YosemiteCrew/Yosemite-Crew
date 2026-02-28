@@ -23,6 +23,7 @@ import { BusinessType } from "@/app/features/organization/types/org";
 import { useLoadTasksForPrimaryOrg } from "@/app/hooks/useTask";
 import { useLoadSubscriptionCounterForPrimaryOrg } from "@/app/hooks/useBilling";
 import { useLoadInvoicesForPrimaryOrg } from "@/app/hooks/useInvoices";
+import { useLoadIntegrationsForPrimaryOrg } from "@/app/hooks/useIntegrations";
 
 type OrgGuardProps = {
   children: React.ReactNode;
@@ -102,6 +103,7 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
   useLoadTasksForPrimaryOrg();
   useLoadDocumentsForPrimaryOrg();
   useLoadFormsForPrimaryOrg();
+  useLoadIntegrationsForPrimaryOrg();
 
   const router = useRouter();
   const pathname = usePathname();

@@ -20,7 +20,6 @@ describe("HorizontalLines Component", () => {
 
   const defaultProps = {
     date: mockDate,
-    scrollRef: mockScrollRef,
     windowStart: 0, // 00:00
     windowEnd: 600, // 10:00 (600 mins)
   };
@@ -95,36 +94,14 @@ describe("HorizontalLines Component", () => {
     expect(redCircle).not.toBeInTheDocument();
   });
 
-  // --- 3. Auto-Scroll Effect ---
+  // --- 3. Legacy scrollRef compatibility ---
 
-  it("scrolls container to center the current time indicator", () => {
+  it("accepts legacy scrollRef prop without mutating scroll position", () => {
     (getNowTopPxForWindow as jest.Mock).mockReturnValue(500); // Target position
-    // Container Height: 500. Total Height: 1000.
-    // Expected Scroll: Target (500) - Half Container (250) = 250.
 
-    render(<HorizontalLines {...defaultProps} />);
-
-    expect(mockScrollRef.current.scrollTop).toBe(250);
-  });
-
-  it("clamps scroll to 0 if time is at the very top", () => {
-    (getNowTopPxForWindow as jest.Mock).mockReturnValue(50); // Near top
-    // 50 - 250 = -200 -> Clamped to 0
-
-    render(<HorizontalLines {...defaultProps} />);
+    render(<HorizontalLines {...defaultProps} scrollRef={mockScrollRef} />);
 
     expect(mockScrollRef.current.scrollTop).toBe(0);
-  });
-
-  it("clamps scroll to max if time is at the very bottom", () => {
-    (getNowTopPxForWindow as jest.Mock).mockReturnValue(950); // Near bottom
-    // 950 - 250 = 700.
-    // Max scroll: Total (1000) - Container (500) = 500.
-    // Math.min(700, 500) = 500.
-
-    render(<HorizontalLines {...defaultProps} />);
-
-    expect(mockScrollRef.current.scrollTop).toBe(500);
   });
 
   it("does not scroll if scrollRef is null (safety check)", () => {

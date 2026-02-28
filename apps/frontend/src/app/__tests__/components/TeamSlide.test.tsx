@@ -6,7 +6,7 @@ import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 
 jest.mock('next/image', () => {
   const MockImage = (props: any) => {
-    return <img {...props} alt={props.alt} />;
+    return React.createElement('img', { ...props, alt: props.alt });
   };
   MockImage.displayName = 'MockNextImage';
   return {

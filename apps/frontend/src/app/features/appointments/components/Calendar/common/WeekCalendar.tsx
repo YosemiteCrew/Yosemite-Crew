@@ -7,11 +7,17 @@ import {
   HOURS_IN_DAY,
 } from "@/app/features/appointments/components/Calendar/weekHelpers";
 import {
+  DEFAULT_CALENDAR_FOCUS_MINUTES,
   EVENT_VERTICAL_GAP_PX,
+  getFirstRelevantTimedEventStart,
+  getTopPxForMinutes,
   isSameDay,
   isAllDayForDate,
+  minutesSinceStartOfDay,
+  nextDay,
   MINUTES_PER_STEP,
   PIXELS_PER_STEP,
+  scrollContainerToTarget,
 } from "@/app/features/appointments/components/Calendar/helpers";
 import Slot from "@/app/features/appointments/components/Calendar/common/Slot";
 import { getStatusStyle } from "@/app/config/statusConfig";
@@ -20,6 +26,7 @@ import Back from "@/app/ui/primitives/Icons/Back";
 import Next from "@/app/ui/primitives/Icons/Next";
 
 const PIXELS_PER_MINUTE = PIXELS_PER_STEP / MINUTES_PER_STEP;
+const HOUR_ROW_TOP_OFFSET_PX = 8;
 
 type WeekCalendarProps = {
   events: Appointment[];
@@ -31,6 +38,18 @@ type WeekCalendarProps = {
   handleRescheduleAppointment: any;
   handleChangeStatusAppointment?: any;
   canEditAppointments: boolean;
+  draggedAppointmentId?: string | null;
+  draggedAppointmentLabel?: string | null;
+  canDragAppointment?: (appointment: Appointment) => boolean;
+  onAppointmentDragStart?: (appointment: Appointment) => void;
+  onAppointmentDragEnd?: () => void;
+  onAppointmentDropAt?: (date: Date, minuteOfDay: number, targetLeadId?: string) => void;
+  onDragHoverTarget?: (date: Date, targetLeadId?: string) => void;
+  getDropAvailabilityIntervals?: (
+    date: Date,
+    targetLeadId?: string
+  ) => Array<{ startMinute: number; endMinute: number }>;
+  draggedAppointmentDurationMinutes?: number;
 };
 
 const WeekCalendar: React.FC<WeekCalendarProps> = ({
@@ -43,6 +62,15 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   handleRescheduleAppointment,
   handleChangeStatusAppointment,
   canEditAppointments,
+  draggedAppointmentId,
+  draggedAppointmentLabel,
+  canDragAppointment,
+  onAppointmentDragStart,
+  onAppointmentDragEnd,
+  onAppointmentDropAt,
+  onDragHoverTarget,
+  getDropAvailabilityIntervals,
+  draggedAppointmentDurationMinutes,
 }) => {
   const days = useMemo<Date[]>(() => getWeekDays(weekStart), [weekStart]);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -102,35 +130,61 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     if (todayIndex === -1) return null;
 
     const minutesSinceMidnight = now.getHours() * 60 + now.getMinutes();
-    const hourIndex = Math.floor(minutesSinceMidnight / 60);
-    const minutesInHour = minutesSinceMidnight % 60;
-    const topPx =
-      hourIndex * (height + EVENT_VERTICAL_GAP_PX) +
-      (minutesInHour / 60) * height -
-      20;
+    const topPx = getTopPxForMinutes(
+      minutesSinceMidnight,
+      height,
+      EVENT_VERTICAL_GAP_PX,
+      HOUR_ROW_TOP_OFFSET_PX
+    );
 
     return { topPx, todayIndex };
   }, [weekStart, days, height]);
 
   useEffect(() => {
-    if (!scrollRef.current || !nowPosition) return;
-    const container = scrollRef.current;
-    const target = nowPosition.topPx - container.clientHeight / 2;
-    container.scrollTop = Math.max(0, target);
-  }, [nowPosition]);
+    if (!scrollRef.current) return;
+
+    const rangeStart = new Date(days[0]);
+    rangeStart.setHours(0, 0, 0, 0);
+    const rangeEnd = nextDay(days[days.length - 1]);
+    const focusStart = getFirstRelevantTimedEventStart(
+      timedEvents,
+      rangeStart,
+      rangeEnd
+    );
+
+    const topPx = nowPosition
+      ? Math.max(0, nowPosition.topPx)
+      : getTopPxForMinutes(
+          focusStart
+            ? minutesSinceStartOfDay(focusStart)
+            : DEFAULT_CALENDAR_FOCUS_MINUTES,
+          height,
+          EVENT_VERTICAL_GAP_PX,
+          HOUR_ROW_TOP_OFFSET_PX
+        );
+
+    scrollContainerToTarget(scrollRef.current, topPx);
+  }, [days, height, nowPosition, timedEvents]);
 
   const hasAnyAllDay = allDayByDay.some((list) => list.length > 0);
 
   return (
     <div className="h-full flex flex-col">
-      <div className="w-full flex-1 overflow-x-auto relative rounded-2xl max-w-[calc(100vw-32px)] sm:max-w-[calc(100vw-96px)] lg:max-w-[calc(100vw-300px)]">
-        <div ref={scrollRef} className="max-h-[800px] overflow-y-auto min-w-max">
+      <div
+        className="w-full flex-1 overflow-x-auto relative rounded-2xl max-w-[calc(100vw-32px)] sm:max-w-[calc(100vw-96px)] lg:max-w-[calc(100vw-300px)]"
+        data-calendar-scroll="true"
+      >
+        <div
+          ref={scrollRef}
+          className="max-h-[680px] overflow-y-auto min-w-max"
+          data-calendar-scroll="true"
+        >
           <div className="sticky top-0 z-30 bg-white">
-            <div className="grid border-b border-grey-light py-3 grid-cols-[80px_minmax(0,1fr)_80px] min-w-max bg-white">
+            <div className="grid border-b border-grey-light py-3 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max bg-white">
               <div className="sticky left-0 z-40 bg-white flex items-center justify-center">
                 <Back onClick={handlePrevWeek} />
               </div>
-              <div className="grid grid-flow-col auto-cols-[160px] bg-white">
+              <div className="grid grid-flow-col auto-cols-[140px] bg-white">
                 {days.map((day, idx) => {
                   const weekday = day.toLocaleDateString("en-US", {
                     weekday: "short",
@@ -158,7 +212,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                         {weekday}
                       </div>
                       <div
-                        className={`text-body-4-emphasis h-12 w-12 flex items-center justify-center rounded-full border ${dateNumberClass}`}
+                        className={`text-body-4-emphasis h-10 w-10 flex items-center justify-center rounded-full border ${dateNumberClass}`}
                       >
                         {dateNumber}
                       </div>
@@ -173,11 +227,11 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
 
             {hasAnyAllDay && (
               <div className="border-b border-grey-light bg-slate-50">
-                <div className="grid py-2 grid-cols-[80px_minmax(0,1fr)_80px] min-w-max">
+                <div className="grid py-2 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
                   <div className="sticky left-0 z-40 bg-slate-50 text-xs font-satoshi text-[#747473] flex items-start pr-2">
                     All-day
                   </div>
-                  <div className="grid grid-flow-col auto-cols-[160px] min-w-max">
+                  <div className="grid grid-flow-col auto-cols-[140px] min-w-max">
                     {days.map((day, idx) => {
                       const dayAllEvents = allDayByDay[idx];
                       return (
@@ -217,7 +271,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
             {Array.from({ length: HOURS_IN_DAY }, (_, hour) => (
               <div
                 key={hour}
-                className="grid gap-y-0.5 grid-cols-[80px_minmax(0,1fr)_80px] min-w-max"
+                className="grid gap-y-0.5 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max"
               >
                 <div
                   className="sticky left-0 z-20 bg-white text-caption-2 text-text-primary pl-2!"
@@ -228,7 +282,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                     minute: "2-digit",
                   })}
                 </div>
-                <div className="grid grid-flow-col auto-cols-[160px] min-w-max">
+                <div className="grid grid-flow-col auto-cols-[140px] min-w-max">
                   {days.map((day, dayIndex) => {
                     const slotEvents = eventsForDayHour(timedEvents, day, hour);
                     return (
@@ -253,6 +307,19 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                           }
                           canEditAppointments={canEditAppointments}
                           length={days.length - 1}
+                          draggedAppointmentId={draggedAppointmentId}
+                          draggedAppointmentLabel={draggedAppointmentLabel}
+                          canDragAppointment={canDragAppointment}
+                          onAppointmentDragStart={onAppointmentDragStart}
+                          onAppointmentDragEnd={onAppointmentDragEnd}
+                          onAppointmentDropAt={onAppointmentDropAt}
+                          onDragHoverTarget={onDragHoverTarget}
+                          dropAvailabilityIntervals={getDropAvailabilityIntervals?.(day) ?? []}
+                          draggedAppointmentDurationMinutes={
+                            draggedAppointmentDurationMinutes
+                          }
+                          dropDate={day}
+                          dropHour={hour}
                         />
                       </div>
                     );
@@ -270,9 +337,9 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                 className="pointer-events-none absolute inset-0"
                 style={{ top: 0 }}
               >
-                <div className="grid h-full grid-cols-[80px_minmax(0,1fr)_80px] min-w-max">
+                <div className="grid h-full grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
                   <div />
-                  <div className="grid grid-flow-col auto-cols-[160px] min-w-max">
+                  <div className="grid grid-flow-col auto-cols-[140px] min-w-max">
                     {days.map((_, idx) => (
                       <div
                         key={idx + "appointent-now-key"}

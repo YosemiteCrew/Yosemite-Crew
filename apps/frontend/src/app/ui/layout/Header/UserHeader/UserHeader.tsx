@@ -128,6 +128,7 @@ const UserHeader = () => {
   const getSearchPlaceholder = () => {
     if (pathname.startsWith('/appointments')) return 'Search appointments';
     if (pathname.startsWith('/inventory')) return 'Search inventory';
+    if (pathname.startsWith('/integrations')) return 'Search integrations';
     if (pathname.startsWith('/forms')) return 'Search forms';
     if (pathname.startsWith('/companions')) return 'Search companions';
     if (pathname.startsWith('/tasks')) return 'Search tasks';
@@ -136,12 +137,14 @@ const UserHeader = () => {
   };
 
   const hideSearch =
+    pathname.startsWith('/appointments/idexx-workspace') ||
     pathname.startsWith('/chat') ||
     pathname.startsWith('/settings') ||
     pathname.startsWith('/organization') ||
     pathname.startsWith('/organizations') ||
     pathname.startsWith('/dashboard') ||
-    pathname.startsWith('/guides');
+    pathname.startsWith('/guides') ||
+    pathname.startsWith('/integrations');
 
   return (
     <div className="flex items-center justify-between px-3 sm:px-12! lg:px-[36px]! w-full h-20 gap-0">

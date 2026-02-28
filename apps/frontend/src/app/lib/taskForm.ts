@@ -5,16 +5,30 @@ export type TaskFormErrors = {
   name?: string;
   assignedTo?: string;
   category?: string;
+  dueAt?: string;
+  reminder?: string;
   templateId?: string;
   libraryTaskId?: string;
 };
 
 export const validateTaskForm = (formData: Task): TaskFormErrors => {
   const errors: TaskFormErrors = {};
-  if (!formData.assignedTo)
+  if (!formData.assignedTo?.trim())
     errors.assignedTo = "Please select a companion or staff";
-  if (!formData.name) errors.name = "Name is required";
-  if (!formData.category) errors.category = "Category is required";
+  if (!formData.name?.trim()) errors.name = "Name is required";
+  if (!formData.category?.trim()) errors.category = "Category is required";
+  if (!formData.dueAt || Number.isNaN(new Date(formData.dueAt).getTime())) {
+    errors.dueAt = "Due date and time are required";
+  }
+  if (formData.audience === "PARENT_TASK" && !formData.companionId) {
+    errors.assignedTo = "Please select a valid companion";
+  }
+  if (formData.reminder?.enabled) {
+    const reminderMinutes = Number(formData.reminder.offsetMinutes);
+    if (!Number.isFinite(reminderMinutes) || reminderMinutes <= 0) {
+      errors.reminder = "Reminder minutes must be greater than 0";
+    }
+  }
   if (formData.source === "ORG_TEMPLATE" && !formData.templateId) {
     errors.templateId = "Template is required";
   }

@@ -45,7 +45,7 @@ jest.mock('react-icons/io5', () => ({
 
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: (props: any) => <img alt={props.alt} {...props} />,
+  default: (props: any) => React.createElement('img', { ...props, alt: props.alt }),
 }));
 
 describe('LogoUpdator', () => {

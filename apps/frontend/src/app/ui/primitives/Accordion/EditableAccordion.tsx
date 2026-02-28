@@ -26,6 +26,7 @@ type EditableAccordionProps = {
   data: Record<string, any>;
   defaultOpen?: boolean;
   showEditIcon?: boolean;
+  rightElement?: React.ReactNode;
   readOnly?: boolean;
   showDeleteIcon?: boolean;
   onSave?: (values: FormValues) => void | Promise<void>;
@@ -471,6 +472,7 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
   data,
   defaultOpen = false,
   showEditIcon = true,
+  rightElement,
   readOnly = false,
   showDeleteIcon = false,
   onSave,
@@ -576,6 +578,7 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
         onEditClick={() => !readOnly && setIsEditing((prev) => !prev)}
         isEditing={effectiveEditing}
         showEditIcon={!readOnly && showEditIcon}
+        rightElement={rightElement}
         showDeleteIcon={showDeleteIcon}
         onDeleteClick={onDelete}
       >

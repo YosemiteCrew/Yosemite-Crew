@@ -1,7 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  DEFAULT_CALENDAR_FOCUS_MINUTES,
   EVENT_HORIZONTAL_GAP_PX,
   EVENT_VERTICAL_GAP_PX,
+  getFirstRelevantTimedEventStart,
+  getNowTopPxForWindow,
+  MINUTES_PER_STEP,
+  PIXELS_PER_STEP,
+  minutesSinceStartOfDay,
+  nextDay,
+  scrollContainerToTarget,
   getTotalWindowHeightPx,
   isAllDayForDate,
   layoutDayEvents,
@@ -23,6 +31,7 @@ import {
   IoCalendarOutline,
   IoDocumentTextOutline,
   IoCardOutline,
+  IoFlaskOutline,
 } from 'react-icons/io5';
 import { MdOutlineAutorenew } from 'react-icons/md';
 import { useCalendarNavigation, getDateDisplay } from '@/app/hooks/useCalendarNavigation';
@@ -37,6 +46,18 @@ type DayCalendarProps = {
   handleRescheduleAppointment: (appointment: Appointment) => void;
   handleChangeStatusAppointment?: (appointment: Appointment) => void;
   canEditAppointments: boolean;
+  draggedAppointmentId?: string | null;
+  draggedAppointmentLabel?: string | null;
+  canDragAppointment?: (appointment: Appointment) => boolean;
+  onAppointmentDragStart?: (appointment: Appointment) => void;
+  onAppointmentDragEnd?: () => void;
+  onAppointmentDropAt?: (date: Date, minuteOfDay: number, targetLeadId?: string) => void;
+  onDragHoverTarget?: (date: Date, targetLeadId?: string) => void;
+  getDropAvailabilityIntervals?: (
+    date: Date,
+    targetLeadId?: string
+  ) => Array<{ startMinute: number; endMinute: number }>;
+  draggedAppointmentDurationMinutes?: number;
 };
 
 export const DayCalendar: React.FC<DayCalendarProps> = ({
@@ -47,6 +68,15 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
   handleChangeStatusAppointment,
   canEditAppointments,
   setCurrentDate,
+  draggedAppointmentId,
+  draggedAppointmentLabel,
+  canDragAppointment,
+  onAppointmentDragStart,
+  onAppointmentDragEnd,
+  onAppointmentDropAt,
+  onDragHoverTarget,
+  getDropAvailabilityIntervals,
+  draggedAppointmentDurationMinutes,
 }) => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const popoverDialogRef = useRef<HTMLDialogElement | null>(null);
@@ -54,6 +84,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
   const [activePopoverKey, setActivePopoverKey] = useState<string | null>(null);
   const [activeRect, setActiveRect] = useState<DOMRect | null>(null);
   const [isMounted, setIsMounted] = useState(false);
+  const [dropPreviewMinute, setDropPreviewMinute] = useState<number | null>(null);
   const { handleNextDay, handlePrevDay } = useCalendarNavigation(setCurrentDate);
   const { weekday, dateNumber } = getDateDisplay(date);
 
@@ -83,6 +114,31 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
     [timedEvents, windowStart, windowEnd]
   );
 
+  const focusTopPx = useMemo(() => {
+    const nowTopPx = getNowTopPxForWindow(date, windowStart, windowEnd);
+    if (nowTopPx != null) return nowTopPx;
+
+    const rangeStart = new Date(date);
+    rangeStart.setHours(0, 0, 0, 0);
+    const rangeEnd = nextDay(rangeStart);
+    const focusStart = getFirstRelevantTimedEventStart(
+      timedEvents,
+      rangeStart,
+      rangeEnd
+    );
+
+    const focusMinutes = focusStart
+      ? minutesSinceStartOfDay(focusStart)
+      : DEFAULT_CALENDAR_FOCUS_MINUTES;
+    const clampedMinutes = Math.max(windowStart, Math.min(focusMinutes, windowEnd));
+    return ((clampedMinutes - windowStart) / MINUTES_PER_STEP) * PIXELS_PER_STEP;
+  }, [date, timedEvents, windowStart, windowEnd]);
+
+  useEffect(() => {
+    if (!scrollRef.current) return;
+    scrollContainerToTarget(scrollRef.current, focusTopPx);
+  }, [focusTopPx]);
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
@@ -97,6 +153,12 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
       window.removeEventListener('resize', closePopover);
     };
   }, [activePopoverKey]);
+
+  useEffect(() => {
+    if (!draggedAppointmentId) return;
+    setActivePopoverKey(null);
+    setDropPreviewMinute(null);
+  }, [draggedAppointmentId]);
 
   const clearCloseTimer = useCallback(() => {
     if (closeTimerRef.current) {
@@ -186,6 +248,15 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
     return `${start} - ${end}`;
   };
 
+  const formatStatusLabel = (status?: string) => {
+    if (!status) return 'Unknown';
+    return status
+      .toLowerCase()
+      .split('_')
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+  };
+
   const getPopoverStyle = () => {
     if (!activeRect) return { top: 0, left: 0 };
     const popoverWidth = 360;
@@ -202,9 +273,62 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
   };
 
   const openPopover = (key: string, target: HTMLButtonElement) => {
+    if (draggedAppointmentId) return;
     clearCloseTimer();
     setActiveRect(target.getBoundingClientRect());
     setActivePopoverKey(key);
+  };
+
+  const setCustomDragGhost = (
+    event: React.DragEvent<HTMLButtonElement>,
+    appointment: Appointment,
+  ) => {
+    const ghost = document.createElement('img');
+    ghost.src = getSafeImageUrl(
+      '',
+      appointment.companion.species.toLowerCase() as ImageType,
+    );
+    ghost.width = 24;
+    ghost.height = 24;
+    ghost.style.position = 'fixed';
+    ghost.style.top = '-9999px';
+    ghost.style.left = '-9999px';
+    ghost.style.width = '24px';
+    ghost.style.height = '24px';
+    ghost.style.borderRadius = '999px';
+    document.body.appendChild(ghost);
+    event.dataTransfer.setDragImage(ghost, 12, 12);
+    window.setTimeout(() => {
+      ghost.remove();
+    }, 0);
+  };
+
+  const getMinuteFromTimelinePointer = (clientY: number, container: HTMLDivElement) => {
+    const rect = container.getBoundingClientRect();
+    const y = Math.max(0, Math.min(rect.height, clientY - rect.top));
+    const ratio = rect.height > 0 ? y / rect.height : 0;
+    const rawMinute = windowStart + ratio * (windowEnd - windowStart);
+    return Math.max(windowStart, Math.min(windowEnd, Math.round(rawMinute / 5) * 5));
+  };
+
+  const availabilityIntervals = getDropAvailabilityIntervals?.(date) ?? [];
+
+  const getNearestAvailableMinute = (minute: number) => {
+    const DROP_TOLERANCE_MINUTES = 12;
+    const snapped = Math.round(minute / 5) * 5;
+    let bestMatch: { minute: number; distance: number } | null = null;
+    for (const interval of availabilityIntervals) {
+      const candidateMinute = Math.max(
+        interval.startMinute,
+        Math.min(interval.endMinute, snapped)
+      );
+      const distance = Math.abs(minute - candidateMinute);
+      if (!bestMatch || distance < bestMatch.distance) {
+        bestMatch = { minute: candidateMinute, distance };
+      }
+    }
+    if (!bestMatch || bestMatch.distance > DROP_TOLERANCE_MINUTES) return null;
+    return bestMatch.minute;
   };
 
   return (
@@ -213,7 +337,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
         <Back onClick={handlePrevDay} />
         <div className="flex flex-col">
           <div className="text-body-4 text-text-brand">{weekday}</div>
-          <div className="text-body-4-emphasis text-white h-12 w-12 flex items-center justify-center rounded-full bg-text-brand">
+          <div className="text-body-4-emphasis text-white h-10 w-10 flex items-center justify-center rounded-full bg-text-brand">
             {dateNumber}
           </div>
         </div>
@@ -250,21 +374,101 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
           </div>
         </div>
       )}
-      <div className="overflow-y-auto overflow-x-hidden flex-1 px-2 max-h-[800px]" ref={scrollRef}>
+      <div
+        className="overflow-y-auto overflow-x-hidden flex-1 px-2 max-h-[680px]"
+        ref={scrollRef}
+        data-calendar-scroll="true"
+      >
         <div
-          className="grid grid-cols-[60px_1fr]"
+          className="grid grid-cols-[52px_1fr]"
           style={{
             height: totalHeightPx,
+          }}
+          onDragOver={(event) => {
+            if (!draggedAppointmentId) return;
+            event.preventDefault();
+            onDragHoverTarget?.(date);
+            const minute = getMinuteFromTimelinePointer(
+              event.clientY,
+              event.currentTarget as HTMLDivElement
+            );
+            setDropPreviewMinute(getNearestAvailableMinute(minute));
+          }}
+          onDragLeave={(event) => {
+            if (!draggedAppointmentId) return;
+            const nextTarget = event.relatedTarget as Node | null;
+            if (!nextTarget || !event.currentTarget.contains(nextTarget)) {
+              setDropPreviewMinute(null);
+            }
+          }}
+          onDrop={(event) => {
+            if (!draggedAppointmentId || !onAppointmentDropAt) return;
+            event.preventDefault();
+            const minute = getMinuteFromTimelinePointer(
+              event.clientY,
+              event.currentTarget as HTMLDivElement
+            );
+            const nearest = getNearestAvailableMinute(minute);
+            setDropPreviewMinute(null);
+            if (nearest == null) return;
+            onAppointmentDropAt(date, nearest);
           }}
         >
           <TimeLabels windowStart={windowStart} windowEnd={windowEnd} />
           <div className="relative h-full">
             <HorizontalLines
               date={date}
-              scrollRef={scrollRef}
               windowStart={windowStart}
               windowEnd={windowEnd}
             />
+            {draggedAppointmentId &&
+              availabilityIntervals.map((interval, index) => {
+                const effectiveDuration = Math.max(
+                  5,
+                  draggedAppointmentDurationMinutes ?? 5
+                );
+                const top =
+                  ((interval.startMinute - windowStart) / MINUTES_PER_STEP) * PIXELS_PER_STEP;
+                const bottomMinute = Math.min(
+                  windowEnd,
+                  interval.endMinute + effectiveDuration
+                );
+                const height = Math.max(
+                  6,
+                  ((bottomMinute - interval.startMinute) / MINUTES_PER_STEP) * PIXELS_PER_STEP
+                );
+                return (
+                  <div
+                    key={`drag-availability-${interval.startMinute}-${interval.endMinute}-${index}`}
+                    className="pointer-events-none absolute left-1 right-1 z-20 rounded-xl border border-grey-light bg-[rgba(42,168,121,0.12)]"
+                    style={{ top, height }}
+                  />
+                );
+              })}
+            {draggedAppointmentId && dropPreviewMinute != null && (
+              <div
+                className="pointer-events-none absolute left-0 right-0 z-30"
+                style={{
+                  top: ((dropPreviewMinute - windowStart) / MINUTES_PER_STEP) * PIXELS_PER_STEP,
+                }}
+              >
+                <div
+                  className="rounded-xl border-2 border-dashed border-grey-light bg-[rgba(36,122,237,0.18)]"
+                  style={{
+                    height: Math.max(
+                      12,
+                      ((Math.max(5, draggedAppointmentDurationMinutes ?? 30)) /
+                        MINUTES_PER_STEP) *
+                        PIXELS_PER_STEP
+                    ),
+                  }}
+                >
+                  <div className="h-full w-full flex items-center justify-center px-2 text-caption-1 text-text-brand truncate">
+                    {draggedAppointmentLabel || 'Appointment'}
+                  </div>
+                </div>
+              </div>
+            )}
             {laidOut.map((ev, i) => {
               const itemKey = getEventKey(ev, i, 'timed');
               const widthPercent = 100 / ev.columnsCount;
@@ -285,10 +489,24 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                 >
                   <button
                     type="button"
-                    className="flex-1 min-w-0 flex items-center justify-between cursor-pointer"
+                    className="h-full w-full flex-1 min-w-0 flex items-center justify-between cursor-pointer"
                     onClick={() => handleViewAppointment(ev)}
                     onMouseEnter={(event) => openPopover(itemKey, event.currentTarget)}
                     onMouseLeave={schedulePopoverClose}
+                    draggable={!!canDragAppointment?.(ev)}
+                    onDragStart={(event) => {
+                      event.dataTransfer.effectAllowed = 'move';
+                      event.dataTransfer.setData('text/plain', ev.id ?? itemKey);
+                      setCustomDragGhost(event, ev);
+                      onAppointmentDragStart?.(ev);
+                    }}
+                    onDragEnd={() => {
+                      setDropPreviewMinute(null);
+                      onAppointmentDragEnd?.();
+                    }}
+                    style={{
+                      opacity: draggedAppointmentId === ev.id ? 0.55 : 1,
+                    }}
                   >
                     <div className="text-body-4 truncate">{ev.companion.name}</div>
                     <div className="flex items-center gap-1">
@@ -308,22 +526,79 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
         </div>
       </div>
       {isMounted &&
+        !draggedAppointmentId &&
         activeEvent &&
         activeRect &&
         createPortal(
           <dialog
             ref={popoverDialogRef}
             open
-            className="fixed z-120 rounded-2xl border border-card-border bg-white px-3 pt-2 pb-3"
+            className="fixed z-120 w-[380px] rounded-2xl border border-card-border bg-white p-3 shadow-[0_18px_45px_rgba(0,0,0,0.14)]"
             style={getPopoverStyle()}
             aria-label="Appointment quick actions"
           >
-            <div className="flex items-center justify-end gap-1">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex items-center gap-2">
+                <Image
+                  src={getSafeImageUrl('', activeEvent.companion.species.toLowerCase() as ImageType)}
+                  height={34}
+                  width={34}
+                  className="rounded-full border border-card-border bg-white"
+                  alt={''}
+                />
+                <div className="min-w-0">
+                  <div className="text-body-3-emphasis text-text-primary truncate">
+                    {activeEvent.companion.name || '-'}
+                  </div>
+                  <div className="text-caption-1 text-text-secondary truncate">
+                    {activeEvent.companion.breed || '-'} / {activeEvent.companion.species || '-'}
+                  </div>
+                </div>
+              </div>
+              <span
+                className="text-[10px] leading-4 font-medium px-2 py-1 rounded-full text-white whitespace-nowrap"
+                style={{
+                  backgroundColor: getStatusStyle(activeEvent.status).backgroundColor || '#1a73e8',
+                }}
+              >
+                {formatStatusLabel(activeEvent.status)}
+              </span>
+            </div>
+
+            <div className="mt-3 rounded-xl border border-card-border bg-card-hover px-3 py-2 grid grid-cols-2 gap-x-3 gap-y-1">
+              <div className="text-caption-1 text-text-secondary">Time</div>
+              <div className="text-caption-1 text-text-primary text-right truncate">
+                {formatTimeRange(activeEvent)}
+              </div>
+              <div className="text-caption-1 text-text-secondary">Parent</div>
+              <div className="text-caption-1 text-text-primary text-right truncate">
+                {activeEvent.companion.parent?.name || '-'}
+              </div>
+              <div className="text-caption-1 text-text-secondary">Lead</div>
+              <div className="text-caption-1 text-text-primary text-right truncate">
+                {activeEvent.lead?.name || '-'}
+              </div>
+              <div className="text-caption-1 text-text-secondary">Service</div>
+              <div className="text-caption-1 text-text-primary text-right truncate">
+                {activeEvent.appointmentType?.name || '-'}
+              </div>
+              <div className="text-caption-1 text-text-secondary">Room</div>
+              <div className="text-caption-1 text-text-primary text-right truncate">
+                {activeEvent.room?.name || '-'}
+              </div>
+            </div>
+
+            <div className="mt-2 text-caption-1 text-text-secondary">Reason</div>
+            <div className="text-caption-1 text-text-primary min-h-6 line-clamp-2">
+              {activeEvent.concern || '-'}
+            </div>
+
+            <div className="mt-3 flex items-center justify-end gap-1.5 border-t border-card-border pt-2">
               {canEditAppointments && (
                 <button
                   type="button"
                   title="Change status"
-                  className="h-8 w-8 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg"
+                  className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
                   onClick={() => {
                     if (handleChangeStatusAppointment) {
                       handleChangeStatusAppointment(activeEvent);
@@ -339,7 +614,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
               <button
                 type="button"
                 title="View"
-                className="h-8 w-8 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg"
+                className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
                 onClick={() => {
                   handleViewAppointment(activeEvent);
                   setActivePopoverKey(null);
@@ -351,7 +626,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                 <button
                   type="button"
                   title="Reschedule"
-                  className="h-8 w-8 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg"
+                  className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
                   onClick={() => {
                     handleRescheduleAppointment(activeEvent);
                     setActivePopoverKey(null);
@@ -363,7 +638,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
               <button
                 type="button"
                 title="SOAP"
-                className="h-8 w-8 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg"
+                className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
                 onClick={() => {
                   handleViewAppointment(activeEvent, {
                     label: 'prescription',
@@ -377,7 +652,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
               <button
                 type="button"
                 title="Finance"
-                className="h-8 w-8 rounded-full! flex items-center justify-center text-[#3c4043] hover:bg-[#e3e7ea]"
+                className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
                 onClick={() => {
                   handleViewAppointment(activeEvent, {
                     label: 'finance',
@@ -388,35 +663,20 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
               >
                 <IoCardOutline size={18} />
               </button>
-            </div>
-
-            <div className="mt-1 flex items-start gap-3">
-              <div
-                className="h-3 w-3 rounded-full mt-2 flex-none"
-                style={{
-                  backgroundColor: getStatusStyle(activeEvent.status).backgroundColor || '#1a73e8',
+              <button
+                type="button"
+                title="Labs"
+                className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
+                onClick={() => {
+                  handleViewAppointment(activeEvent, {
+                    label: 'labs',
+                    subLabel: 'idexx-labs',
+                  });
+                  setActivePopoverKey(null);
                 }}
-              />
-              <div className="min-w-0 flex-1 flex flex-col gap-1">
-                <div className="text-body-3 truncate">{activeEvent.companion.name || '-'}</div>
-                <div className="text-caption-1 text-black-text">
-                  <span className="font-medium">Parent:</span>{' '}
-                  {activeEvent.companion.parent?.name || '-'}
-                </div>
-                <div className="text-caption-1 text-black-text">
-                  <span className="font-medium">Lead:</span> {activeEvent.lead?.name || '-'}
-                </div>
-                <div className="text-caption-1 text-black-text">
-                  <span className="font-medium">Reason:</span> {activeEvent.concern || '-'}
-                </div>
-                <div className="text-caption-1 text-black-text">
-                  <span className="font-medium">Service:</span>{' '}
-                  {activeEvent.appointmentType?.name || '-'}
-                </div>
-                <div className="text-caption-1 text-black-text">
-                  <span className="font-medium">Time:</span> {formatTimeRange(activeEvent)}
-                </div>
-              </div>
+              >
+                <IoFlaskOutline size={18} />
+              </button>
             </div>
           </dialog>,
           document.body

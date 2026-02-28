@@ -17,15 +17,37 @@ const mockGetDayWindow = jest.fn((_events: any[]) => ({
 const mockGetTotalWindowHeightPx = jest.fn((_start: number, _end: number) => 200);
 const mockIsAllDayForDate = jest.fn();
 const mockLayoutDayEvents = jest.fn();
+const mockGetNowTopPxForWindow = jest.fn<any, any[]>(() => null);
+const mockGetFirstRelevantTimedEventStart = jest.fn<any, any[]>(() => null);
+const mockMinutesSinceStartOfDay = jest.fn<any, any[]>(() => 0);
+const mockScrollContainerToTarget = jest.fn<any, any[]>();
 
 jest.mock("@/app/features/appointments/components/Calendar/helpers", () => ({
+  DEFAULT_CALENDAR_FOCUS_MINUTES: 540,
   EVENT_HORIZONTAL_GAP_PX: 4,
   EVENT_VERTICAL_GAP_PX: 2,
+  DAY_START_MINUTES: 0,
+  DAY_END_MINUTES: 24 * 60,
+  MINUTES_PER_STEP: 5,
+  PIXELS_PER_STEP: 20,
   getDayWindow: (events: any[]) => mockGetDayWindow(events),
   getTotalWindowHeightPx: (start: number, end: number) =>
     mockGetTotalWindowHeightPx(start, end),
-  isAllDayForDate: (...args: any[]) => mockIsAllDayForDate(...args),
-  layoutDayEvents: (...args: any[]) => mockLayoutDayEvents(...args),
+  isAllDayForDate: (event: any, date: Date) => mockIsAllDayForDate(event, date),
+  layoutDayEvents: (events: any[], start: number, end: number) =>
+    mockLayoutDayEvents(events, start, end),
+  getNowTopPxForWindow: (date: Date, windowStart: number, windowEnd: number) =>
+    mockGetNowTopPxForWindow(date, windowStart, windowEnd),
+  getFirstRelevantTimedEventStart: (
+    events: any[],
+    rangeStart: Date,
+    rangeEnd: Date,
+    now?: Date
+  ) => mockGetFirstRelevantTimedEventStart(events, rangeStart, rangeEnd, now),
+  minutesSinceStartOfDay: (date: Date) => mockMinutesSinceStartOfDay(date),
+  nextDay: (date: Date) => new Date(date.getTime() + 24 * 60 * 60 * 1000),
+  scrollContainerToTarget: (container: HTMLElement, targetTopPx: number) =>
+    mockScrollContainerToTarget(container, targetTopPx),
 }));
 
 jest.mock("@/app/features/appointments/components/Calendar/common/TimeLabels", () => () => (
@@ -75,6 +97,7 @@ jest.mock("react-icons/io5", () => ({
   IoCalendarOutline: () => <span>reschedule</span>,
   IoDocumentTextOutline: () => <span>soap</span>,
   IoCardOutline: () => <span>finance</span>,
+  IoFlaskOutline: () => <span>lab</span>,
 }));
 
 jest.mock("react-icons/md", () => ({
@@ -179,9 +202,9 @@ describe("DayCalendar (Appointments)", () => {
     const eventButton = screen.getByRole("button", { name: /Rex/i });
     fireEvent.mouseEnter(eventButton);
 
-    expect(screen.getByText("Service:")).toBeInTheDocument();
+    expect(screen.getByText("Service")).toBeInTheDocument();
     expect(screen.getAllByText("Grooming").length).toBeGreaterThan(0);
-    expect(screen.getByText("Lead:")).toBeInTheDocument();
+    expect(screen.getByText("Lead")).toBeInTheDocument();
     expect(screen.getByText("Dr. Lee")).toBeInTheDocument();
 
     const rescheduleButton = screen.getByTitle(/reschedule/i);

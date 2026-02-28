@@ -10,10 +10,26 @@ jest.mock("@/app/hooks/useTeam", () => ({
 
 const mockAppointmentsForUser = jest.fn();
 jest.mock("@/app/features/appointments/components/Calendar/helpers", () => ({
+  DEFAULT_CALENDAR_FOCUS_MINUTES: 540,
+  EVENT_VERTICAL_GAP_PX: 2,
   appointentsForUser: (...args: any[]) => mockAppointmentsForUser(...args),
+  getFirstRelevantTimedEventStart: jest.fn(() => null),
+  getTopPxForMinutes: jest.fn((minutes: number, hourHeight: number, gap: number, offset = 0) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return hours * (hourHeight + gap) + (mins / 60) * hourHeight + offset;
+  }),
   isSameDay: () => true,
   MINUTES_PER_STEP: 5,
   PIXELS_PER_STEP: 25,
+  minutesSinceStartOfDay: jest.fn((date: Date) => date.getHours() * 60 + date.getMinutes()),
+  nextDay: jest.fn((date: Date) => new Date(date.getTime() + 24 * 60 * 60 * 1000)),
+  scrollContainerToTarget: jest.fn(),
+  startOfDayDate: jest.fn((date: Date) => {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }),
 }));
 
 jest.mock("@/app/features/appointments/components/Calendar/weekHelpers", () => ({

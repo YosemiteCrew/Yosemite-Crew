@@ -3,7 +3,11 @@ import { Primary, Secondary } from "@/app/ui/primitives/Buttons";
 import CenterModal from "@/app/ui/overlays/Modal/CenterModal";
 import ModalHeader from "@/app/ui/overlays/Modal/ModalHeader";
 import { Appointment } from "@yosemite-crew/types";
-import { updateAppointment } from "@/app/features/appointments/services/appointmentService";
+import {
+  acceptAppointment,
+  cancelAppointment,
+  checkInAppointment,
+} from "@/app/features/appointments/services/appointmentService";
 import LabelDropdown from "@/app/ui/inputs/Dropdown/LabelDropdown";
 import {
   AppointmentStatus,
@@ -25,6 +29,7 @@ const ChangeStatus = ({
     (activeAppointment.status as AppointmentStatus) ?? "REQUESTED",
   );
   const [saving, setSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     setSelectedStatus(
@@ -37,19 +42,50 @@ const ChangeStatus = ({
     setSelectedStatus(
       (activeAppointment.status as AppointmentStatus) ?? "REQUESTED",
     );
+    setErrorMessage(null);
   };
+
+  const getUnsupportedTransitionMessage = (
+    from: AppointmentStatus,
+    to: AppointmentStatus,
+  ) =>
+    `Status change ${from} -> ${to} is not supported by current backend endpoints.`;
 
   const handleSave = async () => {
     if (!activeAppointment?.id || saving) return;
     try {
       setSaving(true);
-      await updateAppointment({
-        ...activeAppointment,
-        status: selectedStatus,
-      });
+      setErrorMessage(null);
+      const currentStatus =
+        (activeAppointment.status as AppointmentStatus) ?? "REQUESTED";
+
+      if (currentStatus === selectedStatus) {
+        setShowModal(false);
+        return;
+      }
+
+      if (selectedStatus === "CANCELLED") {
+        await cancelAppointment(activeAppointment);
+      } else if (
+        selectedStatus === "UPCOMING" &&
+        (currentStatus === "REQUESTED" || currentStatus === "NO_PAYMENT")
+      ) {
+        await acceptAppointment(activeAppointment);
+      } else if (
+        selectedStatus === "CHECKED_IN" &&
+        currentStatus === "UPCOMING"
+      ) {
+        await checkInAppointment(activeAppointment);
+      } else {
+        setErrorMessage(
+          getUnsupportedTransitionMessage(currentStatus, selectedStatus),
+        );
+        return;
+      }
       setShowModal(false);
     } catch (error) {
       console.log(error);
+      setErrorMessage("Unable to update status. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -77,21 +113,24 @@ const ChangeStatus = ({
               }
             />
           </div>
+          {errorMessage ? (
+            <p className="text-sm text-red-600">{errorMessage}</p>
+          ) : null}
         </div>
-        <div className="flex items-center justify-end gap-2 w-full">
+        <div className="flex items-center justify-center gap-2 w-full pb-3 flex-wrap">
           <Secondary
             href="#"
             text="Cancel"
             onClick={handleCancel}
             isDisabled={saving}
-            className="w-full!"
+            className="w-auto min-w-[120px]"
           />
           <Primary
             href="#"
             text={saving ? "Saving..." : "Update"}
             onClick={handleSave}
             isDisabled={saving}
-            classname="w-full!"
+            classname="w-auto min-w-[120px]"
           />
         </div>
       </div>

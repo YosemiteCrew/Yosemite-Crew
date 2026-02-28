@@ -37,15 +37,28 @@ export const DAY_START_MINUTES = 0;
 export const DAY_END_MINUTES = 24 * 60;
 
 export const MINUTES_PER_STEP = 5;
-export const PIXELS_PER_STEP = 25;
+export const PIXELS_PER_STEP = 20;
 export const EVENT_VERTICAL_GAP_PX = 2;
 export const EVENT_HORIZONTAL_GAP_PX = 2;
+export const DEFAULT_CALENDAR_FOCUS_MINUTES = 9 * 60;
 
 export const TOTAL_DAY_HEIGHT_PX =
   ((DAY_END_MINUTES - DAY_START_MINUTES) / MINUTES_PER_STEP) * PIXELS_PER_STEP;
 
 export function minutesSinceStartOfDay(date: Date) {
   return date.getHours() * 60 + date.getMinutes();
+}
+
+export function startOfDayDate(date: Date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+export function nextDay(date: Date) {
+  const d = startOfDayDate(date);
+  d.setDate(d.getDate() + 1);
+  return d;
 }
 
 export function snapToStep(mins: number, step = MINUTES_PER_STEP) {
@@ -102,8 +115,6 @@ export function computeVerticalPositionPx(
   end = Math.max(windowStart, Math.min(end, windowEnd));
   // if it would collapse, pin to at least one step
   if (end <= start) end = Math.min(windowEnd, start + MINUTES_PER_STEP);
-  start = snapDown(start);
-  end = snapUp(end);
   if (end <= start) end = Math.min(windowEnd, start + MINUTES_PER_STEP);
   const startSteps = (start - windowStart) / MINUTES_PER_STEP;
   const durationSteps = (end - start) / MINUTES_PER_STEP;
@@ -188,9 +199,7 @@ export function getNowTopPxForWindow(
 
   // Your rule: if now is outside the window, clamp to END
   const clamped = mins >= windowStart && mins <= windowEnd ? mins : windowEnd;
-
-  const snapped = snapDown(clamped);
-  const steps = (snapped - windowStart) / MINUTES_PER_STEP;
+  const steps = (clamped - windowStart) / MINUTES_PER_STEP;
 
   return steps * PIXELS_PER_STEP;
 }
@@ -201,6 +210,45 @@ export function isAllDayForDate(ev: Appointment, day: Date): boolean {
   const endOfDay = new Date(day);
   endOfDay.setHours(23, 59, 59, 999);
   return ev.startTime <= startOfDay && ev.endTime >= endOfDay;
+}
+
+export function getTopPxForMinutes(
+  minutesSinceMidnight: number,
+  hourHeightPx: number,
+  hourGapPx = 0,
+  offsetPx = 0,
+) {
+  const hours = Math.floor(minutesSinceMidnight / 60);
+  const minutesInHour = minutesSinceMidnight % 60;
+  return (
+    hours * (hourHeightPx + hourGapPx) +
+    (minutesInHour / 60) * hourHeightPx +
+    offsetPx
+  );
+}
+
+export function getFirstRelevantTimedEventStart(
+  events: Appointment[],
+  rangeStart: Date,
+  rangeEnd: Date,
+  now = new Date(),
+) {
+  const startsInRange = events
+    .map((event) => event.startTime)
+    .filter((startTime) => startTime >= rangeStart && startTime < rangeEnd)
+    .sort((a, b) => a.getTime() - b.getTime());
+
+  const upcoming = startsInRange.find((startTime) => startTime >= now);
+  return upcoming ?? startsInRange[0] ?? null;
+}
+
+export function scrollContainerToTarget(
+  container: HTMLElement,
+  targetTopPx: number,
+) {
+  const centeredTop = targetTopPx - container.clientHeight / 2;
+  const maxTop = Math.max(0, container.scrollHeight - container.clientHeight);
+  container.scrollTop = Math.max(0, Math.min(centeredTop, maxTop));
 }
 
 export function eventsForDay(events: Task[], day: Date): Task[] {

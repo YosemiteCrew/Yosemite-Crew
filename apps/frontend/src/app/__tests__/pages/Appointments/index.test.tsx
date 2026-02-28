@@ -7,6 +7,7 @@ import ProtectedAppointments from "@/app/features/appointments/pages/Appointment
 const useAppointmentsMock = jest.fn();
 const usePermissionsMock = jest.fn();
 const useSearchStoreMock = jest.fn();
+const useSearchParamsMock = jest.fn();
 
 const calendarSpy = jest.fn();
 const tableSpy = jest.fn();
@@ -32,6 +33,10 @@ jest.mock("@/app/hooks/usePermissions", () => ({
 
 jest.mock("@/app/stores/searchStore", () => ({
   useSearchStore: (selector: any) => useSearchStoreMock(selector),
+}));
+
+jest.mock("next/navigation", () => ({
+  useSearchParams: () => useSearchParamsMock(),
 }));
 
 jest.mock("@/app/ui/layout/guards/PermissionGate", () => ({
@@ -104,6 +109,9 @@ describe("Appointments page", () => {
     useSearchStoreMock.mockImplementation((selector: any) =>
       selector({ query: "buddy" })
     );
+    useSearchParamsMock.mockReturnValue({
+      get: () => null,
+    });
   });
 
   it("renders calendar view with filtered list and toggles to table", () => {

@@ -165,6 +165,17 @@ jest.mock("@/app/features/inventory/components/AddInventory/InventoryConfig", ()
           },
         },
       ],
+      stock: [
+        {
+          kind: "item",
+          field: {
+            name: "stockLocation",
+            component: "dropdown",
+            placeholder: "Stock location / Storage area",
+            options: ["Static location"],
+          },
+        },
+      ],
     },
   },
 }));
@@ -324,6 +335,22 @@ describe("FormSection Component", () => {
       ["selected_val"],
       undefined
     );
+  });
+
+  it("uses room-driven stock location options when provided", () => {
+    render(
+      <FormSection
+        {...defaultProps}
+        sectionKey={"stock" as any}
+        sectionTitle="Stock details"
+        formData={{ stock: { stockLocation: "Room A" } } as any}
+        stockLocationOptions={["Room A", "Room B"]}
+      />
+    );
+
+    const dropdown = screen.getByTestId("dropdown-Stock location / Storage area");
+    expect(dropdown).toHaveValue("Room A");
+    expect(screen.getByRole("option", { name: "Room B" })).toBeInTheDocument();
   });
 
   it("renders Batch section with Add/Remove buttons", () => {

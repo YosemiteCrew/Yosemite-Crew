@@ -34,6 +34,7 @@ type FormSectionProps = {
   onClear?: () => void;
   onAddBatch?: () => void;
   onRemoveBatch?: (index: number) => void;
+  stockLocationOptions?: string[];
 };
 
 const FormSection: React.FC<FormSectionProps> = ({
@@ -49,6 +50,7 @@ const FormSection: React.FC<FormSectionProps> = ({
   onClear,
   onAddBatch,
   onRemoveBatch,
+  stockLocationOptions,
 }) => {
   const configForBusiness = InventoryFormConfig[businessType] || {};
   const sectionConfig = configForBusiness[sectionKey];
@@ -157,7 +159,14 @@ const FormSection: React.FC<FormSectionProps> = ({
     }
 
     if (component === "dropdown") {
-      const dropdownOptions = (options || []).map((opt) =>
+      const resolvedOptions =
+        sectionKey === "stock" &&
+        field.name === "stockLocation" &&
+        stockLocationOptions &&
+        stockLocationOptions.length > 0
+          ? stockLocationOptions
+          : options || [];
+      const dropdownOptions = resolvedOptions.map((opt) =>
         typeof opt === "string" ? { label: opt, value: opt } : opt
       );
       return (

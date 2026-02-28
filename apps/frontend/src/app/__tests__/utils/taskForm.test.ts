@@ -13,6 +13,7 @@ describe("taskForm utilities", () => {
       _id: "task-1",
       name: "Test Task",
       assignedTo: "user-1",
+      companionId: "companion-1",
       category: "MEDICATION",
       source: "CUSTOM",
       status: "PENDING",
@@ -41,6 +42,30 @@ describe("taskForm utilities", () => {
       const task = { ...baseTask, category: "" as any };
       const errors = validateTaskForm(task);
       expect(errors.category).toBe("Category is required");
+    });
+
+    it("returns error when dueAt is invalid", () => {
+      const task = { ...baseTask, dueAt: new Date("invalid") as any };
+      const errors = validateTaskForm(task);
+      expect(errors.dueAt).toBe("Due date and time are required");
+    });
+
+    it("returns error for parent task when companion is missing", () => {
+      const task = { ...baseTask, companionId: undefined };
+      const errors = validateTaskForm(task);
+      expect(errors.assignedTo).toBe("Please select a valid companion");
+    });
+
+    it("returns error for invalid reminder offset when reminder is enabled", () => {
+      const task = {
+        ...baseTask,
+        reminder: {
+          enabled: true,
+          offsetMinutes: 0,
+        },
+      };
+      const errors = validateTaskForm(task);
+      expect(errors.reminder).toBe("Reminder minutes must be greater than 0");
     });
 
     it("returns error when source is ORG_TEMPLATE but templateId is missing", () => {
