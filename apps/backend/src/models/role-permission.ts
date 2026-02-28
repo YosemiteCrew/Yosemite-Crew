@@ -301,6 +301,9 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     "room:edit:any",
 
     "document:view:any",
+
+    "labs:view:any",
+    "labs:edit:any",
   ],
 
   TECHNICIAN: [
@@ -343,6 +346,9 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     "room:edit:any",
 
     "document:view:any",
+
+    "labs:view:any",
+    "labs:edit:any",
   ],
 
   ASSISTANT: [

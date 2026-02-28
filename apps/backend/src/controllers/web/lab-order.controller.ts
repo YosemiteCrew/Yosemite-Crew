@@ -5,8 +5,43 @@ import {
   LabOrderService,
   LabOrderServiceError,
 } from "src/services/lab-order.service";
+import type { LabOrderStatus } from "src/models/lab-order";
 
 export const LabOrderController = {
+  async listOrders(req: Request, res: Response) {
+    try {
+      const orgReq = req as OrgRequest;
+      const organisationId = orgReq.organisationId ?? req.params.organisationId;
+      const provider = req.params.provider;
+
+      if (!organisationId) {
+        return res.status(400).json({ message: "organisationId is required." });
+      }
+      if (!provider) {
+        return res.status(400).json({ message: "provider is required." });
+      }
+
+      const { appointmentId, companionId, status, limit } = req.query as Record<string, string>;
+
+      const orders = await LabOrderService.listOrders({
+        organisationId,
+        appointmentId,
+        companionId,
+        provider,
+        status: status as LabOrderStatus | undefined,
+        limit: limit ? Number(limit) : undefined,
+      });
+
+      return res.status(200).json({ orders });
+    } catch (error) {
+      if (error instanceof LabOrderServiceError) {
+        return res.status(error.statusCode).json({ message: error.message });
+      }
+      logger.error("Failed to list lab orders", error);
+      return res.status(500).json({ message: "Failed to list lab orders." });
+    }
+  },
+
   async listProviderTests(req: Request, res: Response) {
     try {
       const orgReq = req as OrgRequest;

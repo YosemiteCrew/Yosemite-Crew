@@ -493,4 +493,40 @@ export const LabOrderService = {
 
     return existing.toObject();
   },
+
+  async listOrders(params: {
+    organisationId: string;
+    appointmentId?: string;
+    companionId?: string;
+    provider?: string;
+    status?: LabOrderStatus;
+    limit?: number;
+  }) {
+    const { organisationId, appointmentId, companionId, provider, status, limit } =
+      params;
+
+    if (!organisationId) {
+      throw new LabOrderServiceError("organisationId is required.", 400);
+    }
+
+    const filter: Record<string, unknown> = { organisationId };
+    if (appointmentId) filter.appointmentId = appointmentId;
+    if (companionId) filter.companionId = companionId;
+    if (provider) {
+      const normalized = normalizeLabProvider(provider);
+      if (!normalized) {
+        throw new LabOrderServiceError("Unsupported lab provider.", 400);
+      }
+      filter.provider = normalized;
+    }
+    if (status) filter.status = status;
+
+    const cursor = LabOrderModel.find(filter)
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (limit && limit > 0) cursor.limit(limit);
+
+    return cursor.exec();
+  },
 };

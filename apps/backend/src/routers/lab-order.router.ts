@@ -7,6 +7,14 @@ import { LabCensusController } from "src/controllers/web/lab-census.controller";
 const router = Router();
 
 router.get(
+  "/pms/organisation/:organisationId/:provider/orders",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("labs:view:any"),
+  (req, res) => LabOrderController.listOrders(req, res),
+);
+
+router.get(
   "/pms/organisation/:organisationId/:provider/tests",
   authorizeCognito,
   withOrgPermissions(),
