@@ -1194,4 +1194,40 @@ export const UserOrganizationService = {
 
     return results;
   },
+
+  async recomputeAllEffectivePermissions() {
+    const cursor = UserOrganizationModel.find({})
+      .select({
+        roleCode: 1,
+        extraPermissions: 1,
+        revokedPermissions: 1,
+        effectivePermissions: 1,
+      })
+      .cursor();
+
+    let scannedCount = 0;
+    let updatedCount = 0;
+
+    for await (const doc of cursor) {
+      scannedCount += 1;
+      const computed = computeEffectivePermissions(
+        doc.roleCode as RoleCode,
+        doc.extraPermissions,
+        doc.revokedPermissions,
+      );
+      const current = doc.effectivePermissions ?? [];
+      const same =
+        current.length === computed.length &&
+        computed.every((perm) => current.includes(perm));
+      if (!same) {
+        await UserOrganizationModel.updateOne(
+          { _id: doc._id },
+          { $set: { effectivePermissions: computed } },
+        );
+        updatedCount += 1;
+      }
+    }
+
+    return { scannedCount, updatedCount };
+  },
 };

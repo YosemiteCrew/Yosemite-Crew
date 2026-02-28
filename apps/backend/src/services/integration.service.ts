@@ -57,6 +57,8 @@ const syncIntegrationAccountToPostgres = async (
         disabledAt: doc.disabledAt ?? null,
         lastSyncAt: doc.lastSyncAt ?? null,
         lastError: doc.lastError ?? null,
+        credentialsStatus: doc.credentialsStatus ?? "missing",
+        lastValidatedAt: doc.lastValidatedAt ?? null,
         credentials: doc.credentials as Prisma.InputJsonValue ?? Prisma.JsonNull,
         config: doc.credentials as Prisma.InputJsonValue ?? Prisma.JsonNull
       },
@@ -66,6 +68,8 @@ const syncIntegrationAccountToPostgres = async (
         disabledAt: doc.disabledAt ?? null,
         lastSyncAt: doc.lastSyncAt ?? null,
         lastError: doc.lastError ?? null,
+        credentialsStatus: doc.credentialsStatus ?? "missing",
+        lastValidatedAt: doc.lastValidatedAt ?? null,
         credentials: doc.credentials as Prisma.InputJsonValue ?? Prisma.JsonNull,
         config: doc.credentials as Prisma.InputJsonValue ?? Prisma.JsonNull,  
       },
@@ -110,11 +114,23 @@ export const IntegrationService = {
       throw new IntegrationServiceError("credentials are required.", 400);
     }
 
+    const adapter = getIntegrationAdapter(normalized);
+    const validation = await adapter.validateCredentials(credentials);
+    if (!validation.ok) {
+      throw new IntegrationServiceError(
+        `Integration validation failed: ${validation.reason}`,
+        400,
+      );
+    }
+
     const update = {
       credentials,
       config: config ?? null,
       status: "disabled",
       disabledAt: new Date(),
+      credentialsStatus: "valid",
+      lastValidatedAt: new Date(),
+      lastError: null,
     };
 
     const saved = await IntegrationAccountModel.findOneAndUpdate(
@@ -216,7 +232,28 @@ export const IntegrationService = {
     }
 
     const adapter = getIntegrationAdapter(normalized);
-    return adapter.validateCredentials(account.credentials);
+    const result = await adapter.validateCredentials(account.credentials);
+
+    await IntegrationAccountModel.updateOne(
+      { organisationId, provider: normalized },
+      {
+        $set: {
+          credentialsStatus: result.ok ? "valid" : "invalid",
+          lastValidatedAt: new Date(),
+          lastError: result.ok ? null : result.reason,
+        },
+      },
+    );
+
+    const updated = await IntegrationAccountModel.findOne({
+      organisationId,
+      provider: normalized,
+    });
+    if (updated) {
+      await syncIntegrationAccountToPostgres(updated);
+    }
+
+    return result;
   },
 
   async requireAccount(

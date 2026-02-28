@@ -8,6 +8,12 @@ export type IntegrationStatus =
   | "error"
   | "pending";
 
+export type IntegrationCredentialsStatus =
+  | "missing"
+  | "invalid"
+  | "valid"
+  | "pending";
+
 export type IdexxCredentials = {
   username: string;
   password: string;

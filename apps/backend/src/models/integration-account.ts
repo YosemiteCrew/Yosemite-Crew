@@ -1,5 +1,9 @@
 import { Schema, model, type HydratedDocument } from "mongoose";
-import type { IntegrationProvider, IntegrationStatus } from "src/integrations";
+import type {
+  IntegrationProvider,
+  IntegrationStatus,
+  IntegrationCredentialsStatus,
+} from "src/integrations";
 
 export interface IntegrationAccountMongo {
   organisationId: string;
@@ -9,6 +13,8 @@ export interface IntegrationAccountMongo {
   disabledAt?: Date | null;
   lastSyncAt?: Date | null;
   lastError?: string | null;
+  credentialsStatus?: IntegrationCredentialsStatus;
+  lastValidatedAt?: Date | null;
   credentials?: Record<string, unknown> | null;
   config?: Record<string, unknown> | null;
   createdAt?: Date;
@@ -29,6 +35,12 @@ const IntegrationAccountSchema = new Schema<IntegrationAccountMongo>(
     disabledAt: { type: Date, default: null },
     lastSyncAt: { type: Date, default: null },
     lastError: { type: String, default: null },
+    credentialsStatus: {
+      type: String,
+      enum: ["missing", "invalid", "valid", "pending"],
+      default: "missing",
+    },
+    lastValidatedAt: { type: Date, default: null },
     credentials: { type: Schema.Types.Mixed, default: null },
     config: { type: Schema.Types.Mixed, default: null },
   },

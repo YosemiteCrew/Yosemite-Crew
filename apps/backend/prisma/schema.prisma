@@ -194,6 +194,13 @@ enum IntegrationStatus {
   pending
 }
 
+enum IntegrationCredentialsStatus {
+  missing
+  invalid
+  valid
+  pending
+}
+
 model ContactRequest {
   id               String        @id @default(uuid())
   type             ContactType
@@ -230,6 +237,8 @@ model IntegrationAccount {
   disabledAt     DateTime?
   lastSyncAt     DateTime?
   lastError      String?
+  credentialsStatus IntegrationCredentialsStatus @default(missing)
+  lastValidatedAt   DateTime?
   credentials    Json?
   config         Json?
   createdAt      DateTime            @default(now())
