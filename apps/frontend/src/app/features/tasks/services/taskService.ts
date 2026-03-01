@@ -110,7 +110,7 @@ export const updateTask = async (payload: Task) => {
 };
 
 export const changeTaskStatus = async (task: Task) => {
-  const { upsertTask } = useTaskStore.getState();
+  const { upsertTask, tasksById } = useTaskStore.getState();
 
   const { primaryOrgId } = useOrgStore.getState();
   if (!primaryOrgId) {
@@ -122,11 +122,28 @@ export const changeTaskStatus = async (task: Task) => {
     return;
   }
   try {
+    const existingTask = tasksById[task._id];
+    // Keep task list responsive even if status API returns a partial entity.
+    upsertTask({
+      ...(existingTask ?? ({} as Task)),
+      ...task,
+      organisationId: task.organisationId || existingTask?.organisationId || primaryOrgId,
+    } as Task);
+
     const payload = {
       status: task.status,
     };
     const res = await postData<Task>('/v1/task/pms/' + task._id + '/status', payload);
-    const normalTask = res.data;
+    const normalTask = {
+      ...(existingTask ?? ({} as Task)),
+      ...task,
+      ...(res.data ?? ({} as Task)),
+      organisationId:
+        res.data?.organisationId ||
+        task.organisationId ||
+        existingTask?.organisationId ||
+        primaryOrgId,
+    };
     upsertTask(normalTask);
   } catch (err) {
     console.error('Failed to update task:', err);

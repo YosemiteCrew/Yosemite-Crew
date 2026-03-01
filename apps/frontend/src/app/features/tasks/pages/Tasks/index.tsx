@@ -116,7 +116,7 @@ const Tasks = () => {
           </div>
 
           <AddTask showModal={addPopup} setShowModal={setAddPopup} />
-          {activeTask && (
+          {activeTask && viewPopup && (
             <TaskInfo showModal={viewPopup} setShowModal={setViewPopup} activeTask={activeTask} />
           )}
         </PermissionGate>

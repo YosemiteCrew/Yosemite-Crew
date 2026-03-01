@@ -29,7 +29,7 @@ const TaskInfo = ({ showModal, setShowModal, activeTask }: TaskInfoProps) => {
   const companions = useCompanionsForPrimaryOrg();
   const { resolveMemberName } = useMemberMap();
   const { can } = usePermissions();
-  const canEditTasks = can(PERMISSIONS.TASKS_EDIT_ANY) || can(PERMISSIONS.TASKS_EDIT_OWN);
+  const hasTaskEditPermission = can(PERMISSIONS.TASKS_EDIT_ANY) || can(PERMISSIONS.TASKS_EDIT_OWN);
   const currentUserId = useAuthStore((s) => s.attributes?.sub || '');
   const normalizeId = useCallback(
     (value?: string) =>
@@ -46,8 +46,14 @@ const TaskInfo = ({ showModal, setShowModal, activeTask }: TaskInfoProps) => {
     () => normalizeId(activeTask.assignedTo) === normalizeId(currentUserId),
     [activeTask.assignedTo, currentUserId, normalizeId]
   );
-  const canEditOnlyStatus = canEditTasks && isAssignedToCurrentUser && !isAssignedByCurrentUser;
-  const canEditExceptStatus = canEditTasks && isAssignedByCurrentUser && !isAssignedToCurrentUser;
+  const editMode = useMemo(() => {
+    if (!hasTaskEditPermission) return 'NONE' as const;
+    if (isAssignedByCurrentUser) return 'DETAILS_ONLY' as const;
+    if (isAssignedToCurrentUser) return 'STATUS_ONLY' as const;
+    return 'NONE' as const;
+  }, [hasTaskEditPermission, isAssignedByCurrentUser, isAssignedToCurrentUser]);
+  const canEditOnlyStatus = editMode === 'STATUS_ONLY';
+  const canEditExceptStatus = editMode === 'DETAILS_ONLY';
   const resolveMemberDisplay = useCallback(
     (id?: string) => {
       if (!id) return '-';
@@ -75,21 +81,23 @@ const TaskInfo = ({ showModal, setShowModal, activeTask }: TaskInfoProps) => {
   }, [activeTask.assignedTo, resolveMemberDisplay, teams]);
 
   const parentTaskOptions = useMemo(() => {
-    const options = companions.map((companion) => ({
-      label: companion.name || companion.parentId || companion.id,
-      value: companion.parentId,
-    }));
+    const options = companions
+      .filter((companion) => Boolean(companion.parentId))
+      .map((companion) => ({
+        label: resolveMemberDisplay(companion.parentId) || companion.parentId || companion.id,
+        value: companion.parentId,
+      }));
     if (
       activeTask.assignedTo &&
       !options.some((option) => option.value === activeTask.assignedTo)
     ) {
       options.push({
-        label: activeTask.assignedTo,
+        label: resolveMemberDisplay(activeTask.assignedTo),
         value: activeTask.assignedTo,
       });
     }
     return options;
-  }, [activeTask.assignedTo, companions]);
+  }, [activeTask.assignedTo, companions, resolveMemberDisplay]);
 
   const assigneeOptions = useMemo(
     () => (activeTask.audience === 'PARENT_TASK' ? parentTaskOptions : teamOptions),
@@ -246,6 +254,9 @@ const TaskInfo = ({ showModal, setShowModal, activeTask }: TaskInfoProps) => {
 
   const handleUpdate = async (values: any) => {
     try {
+      if (editMode === 'NONE') {
+        return;
+      }
       if (canEditOnlyStatus) {
         await changeTaskStatus({
           ...activeTask,
@@ -317,13 +328,13 @@ const TaskInfo = ({ showModal, setShowModal, activeTask }: TaskInfoProps) => {
         </div>
         <div className="flex overflow-y-auto flex-1 scrollbar-hidden">
           <EditableAccordion
-            key={'task-key'}
+            key={`task-${activeTask._id}`}
             title={'Task details'}
             fields={taskFields}
             data={taskData}
             defaultOpen={true}
             onSave={(values) => handleUpdate(values)}
-            showEditIcon={canEditTasks && hasEditableFields}
+            showEditIcon={editMode !== 'NONE' && hasEditableFields}
           />
         </div>
       </div>

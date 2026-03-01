@@ -18,6 +18,7 @@ const taskStoreState: any = {
   status: 'idle',
   setTasksForOrg: jest.fn(),
   upsertTask: jest.fn(),
+  tasksById: {},
 };
 
 jest.mock('@/app/services/axios', () => ({
@@ -80,10 +81,24 @@ describe('taskService', () => {
 
   it('changes task status', async () => {
     postDataMock.mockResolvedValue({ data: { _id: 't1' } });
+    taskStoreState.tasksById = {
+      t1: {
+        _id: 't1',
+        organisationId: 'org-1',
+        status: 'PENDING',
+      },
+    };
 
     await changeTaskStatus({ _id: 't1', status: 'COMPLETED' } as any);
 
     expect(postDataMock).toHaveBeenCalledWith('/v1/task/pms/t1/status', { status: 'COMPLETED' });
+    expect(taskStoreState.upsertTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        _id: 't1',
+        organisationId: 'org-1',
+        status: 'COMPLETED',
+      })
+    );
   });
 
   it('creates task template', async () => {
