@@ -79,11 +79,11 @@ describe('taskService', () => {
   });
 
   it('changes task status', async () => {
-    patchDataMock.mockResolvedValue({ data: { _id: 't1' } });
+    postDataMock.mockResolvedValue({ data: { _id: 't1' } });
 
     await changeTaskStatus({ _id: 't1', status: 'COMPLETED' } as any);
 
-    expect(patchDataMock).toHaveBeenCalledWith('/v1/task/pms/t1', { status: 'COMPLETED' });
+    expect(postDataMock).toHaveBeenCalledWith('/v1/task/pms/t1/status', { status: 'COMPLETED' });
   });
 
   it('creates task template', async () => {

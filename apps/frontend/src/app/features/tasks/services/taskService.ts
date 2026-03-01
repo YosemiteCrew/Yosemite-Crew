@@ -125,7 +125,7 @@ export const changeTaskStatus = async (task: Task) => {
     const payload = {
       status: task.status,
     };
-    const res = await patchData<Task>('/v1/task/pms/' + task._id, payload);
+    const res = await postData<Task>('/v1/task/pms/' + task._id + '/status', payload);
     const normalTask = res.data;
     upsertTask(normalTask);
   } catch (err) {
