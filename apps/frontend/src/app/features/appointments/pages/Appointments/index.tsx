@@ -7,7 +7,7 @@ import AddAppointment from '@/app/features/appointments/pages/Appointments/Secti
 import AppoitmentInfo from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo';
 import TitleCalendar from '@/app/ui/widgets/TitleCalendar';
 import AppointmentCalendar from '@/app/features/appointments/components/Calendar/AppointmentCalendar';
-import { getStartOfWeek } from '@/app/features/appointments/components/Calendar/weekHelpers';
+import { startOfDay } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import { useAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
 import { Appointment } from '@yosemite-crew/types';
@@ -50,10 +50,12 @@ const Appointments = () => {
   const [activeCalendar, setActiveCalendar] = useState('team');
   const [activeView, setActiveView] = useState('calendar');
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
-  const [weekStart, setWeekStart] = useState(getStartOfWeek(currentDate));
+  const [weekStart, setWeekStart] = useState(startOfDay(currentDate));
 
   useEffect(() => {
-    setWeekStart(getStartOfWeek(currentDate));
+    if (activeCalendar === 'week') {
+      setWeekStart(startOfDay(currentDate));
+    }
   }, [currentDate, activeCalendar]);
 
   useEffect(() => {
@@ -134,7 +136,7 @@ const Appointments = () => {
           showAdd={canEditAppointments}
           actionBeforeAdd={
             showIdexxWorkspaceButton ? (
-              <Secondary href="/appointments/idexx-workspace" text="IDEXX workspace" />
+              <Secondary href="/appointments/idexx-workspace" text="IDEXX Hub" />
             ) : null
           }
         />

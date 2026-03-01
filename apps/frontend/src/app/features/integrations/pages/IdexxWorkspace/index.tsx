@@ -174,7 +174,7 @@ const IdexxWorkspacePage = () => {
       setAppointmentIdByOrderId(nextAppointmentIdByOrderId);
       setLastRefreshedAt(new Date().toISOString());
     } catch (e) {
-      setError(getApiErrorMessage(e, 'Unable to load IDEXX workspace data.'));
+      setError(getApiErrorMessage(e, 'Unable to load IDEXX Hub data.'));
     } finally {
       setLoading(false);
     }
@@ -478,7 +478,7 @@ const IdexxWorkspacePage = () => {
   if (!integrationEnabled && !loading) {
     return (
       <div className="flex flex-col gap-4 px-3! py-3! sm:px-12! lg:px-[60px]! sm:py-12!">
-        <div className="text-heading-1 text-text-primary">IDEXX workspace</div>
+        <div className="text-heading-1 text-text-primary">IDEXX Hub</div>
         <div className="text-body-3 text-text-secondary">
           IDEXX integration is currently disabled.
         </div>
@@ -510,7 +510,7 @@ const IdexxWorkspacePage = () => {
             >
               <div className="relative bg-white rounded-2xl shadow-2xl w-full h-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-2 border-b border-black/10">
-                  <div className="text-body-2 text-text-primary">IDEXX follow-up workspace</div>
+                  <div className="text-body-2 text-text-primary">IDEXX follow-up hub</div>
                   <button
                     type="button"
                     onClick={() => setShowFollowUpFrame(false)}
@@ -523,7 +523,7 @@ const IdexxWorkspacePage = () => {
                 </div>
                 <iframe
                   src={followUpFrameUrl}
-                  title="IDEXX follow-up workspace"
+                  title="IDEXX follow-up hub"
                   className="flex-1 w-full border-0"
                   loading="lazy"
                   allowFullScreen
@@ -537,7 +537,7 @@ const IdexxWorkspacePage = () => {
 
       <div className="flex justify-between items-start gap-3 flex-wrap">
         <div className="flex flex-col gap-1">
-          <div className="text-heading-1 text-text-primary">IDEXX workspace</div>
+          <div className="text-heading-1 text-text-primary">IDEXX Hub</div>
           <p className="text-body-3 text-text-secondary max-w-3xl">
             Manage diagnostic operations with result monitoring, census visibility, and order
             lookup.

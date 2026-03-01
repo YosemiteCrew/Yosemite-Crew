@@ -621,8 +621,19 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
     if (!amount) return 'Rate unavailable';
     const currency = String(test.meta?.currencyCode ?? '').trim();
     if (!currency) return amount;
-    if (currency.toUpperCase() === 'USD') return `$${amount}`;
-    return `${currency} ${amount}`;
+
+    const numericAmount = Number.parseFloat(amount.replace(/,/g, '.').replace(/[^0-9.+-]/g, ''));
+    if (!Number.isFinite(numericAmount)) return `${currency.toUpperCase()} ${amount}`;
+
+    try {
+      return new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency: currency.toUpperCase(),
+        currencyDisplay: 'symbol',
+      }).format(numericAmount);
+    } catch {
+      return `${currency.toUpperCase()} ${amount}`;
+    }
   };
 
   const getTestTurnaround = (test: IdexxTest) =>
@@ -1058,7 +1069,7 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
                   onClick={() => void refreshResults()}
                   isDisabled={refreshingResults}
                 />
-                <Secondary href="/appointments/idexx-workspace" text="IDEXX workspace" />
+                <Secondary href="/appointments/idexx-workspace" text="IDEXX Hub" />
               </div>
             </div>
 

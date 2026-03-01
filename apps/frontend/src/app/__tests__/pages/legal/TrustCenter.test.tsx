@@ -5,8 +5,12 @@ import TrustCenter from '@/app/features/legal/pages/TrustCenter';
 // 1. Mock next/image to filter out Next.js specific props to prevent console errors
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: ({ src, alt, style, ...props }: any) => {
-    return <img src={src} alt={alt} style={style} {...props} />;
+  default: (rawProps: any) => {
+    const { src, alt, style, ...props } = rawProps;
+    delete props.priority;
+    delete props.fill;
+    delete props.loader;
+    return React.createElement('img', { src, alt, style, ...props });
   },
 }));
 

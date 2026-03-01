@@ -510,7 +510,7 @@ const IntegrationsPage = () => {
                   <div className="text-caption-1 text-text-secondary">Linked IVLS devices</div>
                   <div className="text-caption-1 text-text-primary">{devices.length}</div>
                 </div>
-                <Secondary href="/appointments/idexx-workspace" text="Open IDEXX workspace" />
+                <Secondary href="/appointments/idexx-workspace" text="IDEXX Hub" />
               </div>
             </Accordion>
 

@@ -113,7 +113,7 @@ jest.mock('@/app/features/integrations/services/idexxService', () => ({
   getIdexxResultById: (...args: any[]) => getIdexxResultByIdMock(...args),
 }));
 
-describe('IDEXX Workspace page', () => {
+describe('IDEXX Hub page', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     window.localStorage.clear();
@@ -227,7 +227,9 @@ describe('IDEXX Workspace page', () => {
       const links = screen.getAllByRole('link');
       expect(
         links.some((link) =>
-          String(link.getAttribute('href')).includes('/appointments?appointmentId=appt-1&open=labs&subLabel=idexx-labs')
+          String(link.getAttribute('href')).includes(
+            '/appointments?appointmentId=appt-1&open=labs&subLabel=idexx-labs'
+          )
         )
       ).toBe(true);
     });
