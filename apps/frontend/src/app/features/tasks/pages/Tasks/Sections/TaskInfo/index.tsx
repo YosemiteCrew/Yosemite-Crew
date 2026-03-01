@@ -4,7 +4,7 @@ import Modal from '@/app/ui/overlays/Modal';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { useCompanionsForPrimaryOrg } from '@/app/hooks/useCompanion';
-import { updateTask } from '@/app/features/tasks/services/taskService';
+import { updateTask, changeTaskStatus } from '@/app/features/tasks/services/taskService';
 import {
   Task,
   TaskKindOptions,
@@ -16,7 +16,6 @@ import React, { useCallback, useMemo } from 'react';
 import { applyUtcTime, generateTimeSlots } from '@/app/lib/date';
 import { useMemberMap } from '@/app/hooks/useMemberMap';
 import { useAuthStore } from '@/app/stores/authStore';
-import { changeTaskStatus } from '@/app/features/tasks/services/taskService';
 
 type TaskInfoProps = {
   showModal: boolean;
@@ -143,7 +142,7 @@ const TaskInfo = ({ showModal, setShowModal, activeTask }: TaskInfoProps) => {
         key: 'name',
         type: 'text',
         required: true,
-        editable: canEditOnlyStatus ? false : true,
+        editable: !canEditOnlyStatus,
       },
       {
         label: 'Category',
@@ -151,19 +150,19 @@ const TaskInfo = ({ showModal, setShowModal, activeTask }: TaskInfoProps) => {
         type: 'select',
         options: categoryOptions,
         required: true,
-        editable: canEditOnlyStatus ? false : true,
+        editable: !canEditOnlyStatus,
       },
       {
         label: 'Description',
         key: 'description',
         type: 'text',
-        editable: canEditOnlyStatus ? false : true,
+        editable: !canEditOnlyStatus,
       },
       {
         label: 'Additional notes',
         key: 'additionalNotes',
         type: 'text',
-        editable: canEditOnlyStatus ? false : true,
+        editable: !canEditOnlyStatus,
       },
       { label: 'From', key: 'assignedBy', type: 'text', editable: false },
       {
@@ -171,49 +170,49 @@ const TaskInfo = ({ showModal, setShowModal, activeTask }: TaskInfoProps) => {
         key: 'assignedToId',
         type: 'dropdown',
         options: assigneeOptions,
-        editable: canEditOnlyStatus ? false : true,
+        editable: !canEditOnlyStatus,
       },
-      { label: 'Due date', key: 'dueAt', type: 'date', editable: canEditOnlyStatus ? false : true },
+      { label: 'Due date', key: 'dueAt', type: 'date', editable: !canEditOnlyStatus },
       {
         label: 'Due time',
         key: 'dueTime',
         type: 'dropdown',
         options: timeOptions,
-        editable: canEditOnlyStatus ? false : true,
+        editable: !canEditOnlyStatus,
       },
       {
         label: 'Reminder',
         key: 'reminderEnabled',
         type: 'select',
         options: reminderEnabledOptions,
-        editable: canEditOnlyStatus ? false : true,
+        editable: !canEditOnlyStatus,
       },
       {
         label: 'Reminder offset (minutes)',
         key: 'reminderOffsetMinutes',
         type: 'number',
-        editable: canEditOnlyStatus ? false : true,
+        editable: !canEditOnlyStatus,
       },
       {
         label: 'Recurrence',
         key: 'recurrenceType',
         type: 'select',
         options: TaskRecurrenceOptions,
-        editable: canEditOnlyStatus ? false : true,
+        editable: !canEditOnlyStatus,
       },
       {
         label: 'Sync with calendar',
         key: 'syncWithCalendar',
         type: 'select',
         options: syncOptions,
-        editable: canEditOnlyStatus ? false : true,
+        editable: !canEditOnlyStatus,
       },
       {
         label: 'Status',
         key: 'status',
         type: 'select',
         options: TaskStatusOptions,
-        editable: canEditExceptStatus ? false : true,
+        editable: !canEditExceptStatus,
       },
     ],
     [

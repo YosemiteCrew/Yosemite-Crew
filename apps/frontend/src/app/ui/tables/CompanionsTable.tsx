@@ -27,7 +27,6 @@ type Column<T> = {
 
 type CompanionsTableProps = {
   filteredList: CompanionParent[];
-  activeCompanion: CompanionParent | null;
   setActiveCompanion: (companion: CompanionParent) => void;
   setViewCompanion: (open: boolean) => void;
   setBookAppointment: (open: boolean) => void;
@@ -51,7 +50,6 @@ export const getStatusStyle = (status: string) => {
 
 const CompanionsTable = ({
   filteredList,
-  activeCompanion,
   setActiveCompanion,
   setViewCompanion,
   setBookAppointment,
@@ -59,7 +57,6 @@ const CompanionsTable = ({
   canEditAppointments,
   canEditTasks,
 }: CompanionsTableProps) => {
-  void activeCompanion;
   const router = useRouter();
   const appointments = useAppointmentsForPrimaryOrg();
 

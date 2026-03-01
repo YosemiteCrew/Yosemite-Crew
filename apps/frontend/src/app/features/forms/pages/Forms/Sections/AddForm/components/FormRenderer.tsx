@@ -65,9 +65,10 @@ export const FormRenderer: React.FC<FormRendererProps> = ({
 }) => {
   const getInteractiveTarget = (target: EventTarget | null): HTMLElement | null => {
     if (!(target instanceof HTMLElement)) return null;
-    return target.closest(
+    const closest = target.closest(
       "input, textarea, select, button, a, [tabindex], [contenteditable='true']"
-    ) as HTMLElement | null;
+    );
+    return closest instanceof HTMLElement ? closest : null;
   };
 
   const preventReadOnlyFocus: React.PointerEventHandler<HTMLDivElement> = (e) => {

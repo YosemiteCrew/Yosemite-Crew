@@ -238,7 +238,7 @@ export function autoScrollCalendarHorizontally(
 
   let node: HTMLElement | null = startNode;
   while (node) {
-    const isCalendarScroller = node.getAttribute('data-calendar-scroll') === 'true';
+    const isCalendarScroller = node.dataset.calendarScroll === 'true';
     const canScrollX = node.scrollWidth > node.clientWidth + 1;
     if (isCalendarScroller && canScrollX) {
       const rect = node.getBoundingClientRect();

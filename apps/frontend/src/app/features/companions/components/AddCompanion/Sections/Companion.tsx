@@ -171,13 +171,11 @@ const Companion = ({
         if (!mounted) {
           return;
         }
-        const mapped = DEFAULT_SPECIES_OPTIONS.map((option) => {
-          const entry = entries.find((item) => item.display.toLowerCase() === option.speciesQuery);
-          return {
-            ...option,
-            speciesCode: entry?.code ?? '',
-          };
-        });
+        const entryByQuery = new Map(entries.map((item) => [item.display.toLowerCase(), item]));
+        const mapped = DEFAULT_SPECIES_OPTIONS.map((option) => ({
+          ...option,
+          speciesCode: entryByQuery.get(option.speciesQuery)?.code ?? '',
+        }));
         setSpeciesOptions(mapped);
       })
       .catch(() => {

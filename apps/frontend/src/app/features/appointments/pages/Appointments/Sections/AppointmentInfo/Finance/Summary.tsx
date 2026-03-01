@@ -32,7 +32,6 @@ const PAYABLE_INVOICE_STATUSES = new Set(['PENDING', 'AWAITING_PAYMENT']);
 
 type SummaryProps = {
   formData: FormDataProps;
-  setFormData: React.Dispatch<React.SetStateAction<FormDataProps>>;
   activeAppointment: Appointment;
 };
 

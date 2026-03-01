@@ -370,6 +370,8 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
         data-calendar-scroll="true"
       >
         <div
+          role="application"
+          tabIndex={-1}
           className="grid grid-cols-[52px_1fr]"
           style={{
             height: totalHeightPx,

@@ -81,8 +81,6 @@ const getStaffFields = ({ TeamOptions }: { TeamOptions: { label: string; value: 
 
 type AppointmentInfoProps = {
   activeAppointment: Appointment;
-  canEditAppointments?: boolean;
-  onReschedule?: (appointment: Appointment) => void;
 };
 
 const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
@@ -448,22 +446,24 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
             <div className="flex flex-col">
               {appointmentFields.map((field) => {
                 const data = (AppointmentInfoData as Record<string, any>)[field.key];
-                const formattedDate =
-                  data instanceof Date
-                    ? formatDisplayDate(data.toISOString())
-                    : typeof data === 'string'
-                      ? formatDisplayDate(data)
-                      : '';
-                const display =
-                  field.key === 'room'
-                    ? RoomOptions.find((option) => option.value === data)?.label || '-'
-                    : field.key === 'status'
-                      ? data || '-'
-                      : field.key === 'date'
-                        ? formattedDate || '-'
-                        : field.key === 'time'
-                          ? formatTimeLabel(data) || '-'
-                          : data || '-';
+                let formattedDate = '';
+                if (data instanceof Date) {
+                  formattedDate = formatDisplayDate(data.toISOString());
+                } else if (typeof data === 'string') {
+                  formattedDate = formatDisplayDate(data);
+                }
+                let display: string;
+                if (field.key === 'room') {
+                  display = RoomOptions.find((option) => option.value === data)?.label || '-';
+                } else if (field.key === 'status') {
+                  display = data || '-';
+                } else if (field.key === 'date') {
+                  display = formattedDate || '-';
+                } else if (field.key === 'time') {
+                  display = formatTimeLabel(data) || '-';
+                } else {
+                  display = data || '-';
+                }
                 return (
                   <div
                     key={field.key}

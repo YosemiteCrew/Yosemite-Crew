@@ -47,7 +47,7 @@ const AddTask = ({ showModal, setShowModal }: AddTaskProps) => {
       if (!companion.parentId) return;
       const resolvedName = resolveMemberName(companion.parentId);
       byParent.set(companion.parentId, {
-        label: resolvedName !== '-' ? resolvedName : companion.name || companion.parentId,
+        label: resolvedName === '-' ? companion.name || companion.parentId : resolvedName,
         value: companion.parentId,
       });
     });

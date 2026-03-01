@@ -192,7 +192,7 @@ const AppointmentCalendar = ({
   ) => {
     if (!draggedAppointmentId) return;
     const appointment = allAppointments.find((item) => item.id === draggedAppointmentId);
-    if (!appointment || !appointment.id) {
+    if (!appointment) {
       setDragError('Unable to move this appointment.');
       return;
     }
@@ -270,6 +270,50 @@ const AppointmentCalendar = ({
     [allAppointments, dragContext, normalizeId, resolvePractitionerId]
   );
 
+  const collectValidMinutesForSlot = useCallback(
+    (
+      slot: Slot,
+      params: {
+        date: Date;
+        appointment: Appointment;
+        normalizedTargetPractitionerId: string;
+        targetPractitionerId: string;
+        durationMinutes: number;
+        durationMs: number;
+        nowMs: number;
+        minutesSet: Set<number>;
+      }
+    ) => {
+      const hasTargetVet = (slot.vetIds ?? []).some(
+        (vetId) => normalizeId(vetId) === params.normalizedTargetPractitionerId
+      );
+      if (!hasTargetVet) return;
+      const slotStartMinutes = toLocalMinutesFromUtcTime(slot.startTime);
+      const slotEndMinutes = toLocalMinutesFromUtcTime(slot.endTime);
+      const latestStartMinute = slotEndMinutes - params.durationMinutes;
+      if (latestStartMinute < slotStartMinutes) return;
+      const startMinute = Math.ceil(slotStartMinutes / 5) * 5;
+      const endMinute = Math.floor(latestStartMinute / 5) * 5;
+      for (let minute = startMinute; minute <= endMinute; minute += 5) {
+        const nextStart = buildAppointmentStartFromLocalMinutes(params.date, minute);
+        if (nextStart.getTime() < params.nowMs) continue;
+        const nextEnd = new Date(nextStart.getTime() + params.durationMs);
+        if (
+          hasConflict(
+            params.appointment,
+            nextStart,
+            nextEnd,
+            allAppointments,
+            params.targetPractitionerId
+          )
+        )
+          continue;
+        params.minutesSet.add(minute);
+      }
+    },
+    [allAppointments, buildAppointmentStartFromLocalMinutes, normalizeId]
+  );
+
   const buildAvailableStartMinutes = useCallback(
     async (date: Date, targetLeadId?: string) => {
       if (!dragContext) return [];
@@ -289,32 +333,23 @@ const AppointmentCalendar = ({
       const minutesSet = new Set<number>();
 
       for (const slot of slots) {
-        const hasTargetVet = (slot.vetIds ?? []).some(
-          (vetId) => normalizeId(vetId) === normalizedTargetPractitionerId
-        );
-        if (!hasTargetVet) continue;
-        const slotStartMinutes = toLocalMinutesFromUtcTime(slot.startTime);
-        const slotEndMinutes = toLocalMinutesFromUtcTime(slot.endTime);
-        const latestStartMinute = slotEndMinutes - dragContext.durationMinutes;
-        if (latestStartMinute < slotStartMinutes) continue;
-        const startMinute = Math.ceil(slotStartMinutes / 5) * 5;
-        const endMinute = Math.floor(latestStartMinute / 5) * 5;
-        for (let minute = startMinute; minute <= endMinute; minute += 5) {
-          const nextStart = buildAppointmentStartFromLocalMinutes(date, minute);
-          if (nextStart.getTime() < nowMs) continue;
-          const nextEnd = new Date(nextStart.getTime() + durationMs);
-          if (hasConflict(appointment, nextStart, nextEnd, allAppointments, targetPractitionerId)) {
-            continue;
-          }
-          minutesSet.add(minute);
-        }
+        collectValidMinutesForSlot(slot, {
+          date,
+          appointment,
+          normalizedTargetPractitionerId,
+          targetPractitionerId,
+          durationMinutes: dragContext.durationMinutes,
+          durationMs,
+          nowMs,
+          minutesSet,
+        });
       }
 
       return Array.from(minutesSet).sort((a, b) => a - b);
     },
     [
       allAppointments,
-      buildAppointmentStartFromLocalMinutes,
+      collectValidMinutesForSlot,
       dragContext,
       getSlotsForMoveValidation,
       normalizeId,
@@ -332,7 +367,7 @@ const AppointmentCalendar = ({
       }
       if (dragAvailabilityPendingRef.current[key]) {
         await dragAvailabilityPendingRef.current[key];
-        return dragAvailabilityCacheRef.current[key] || [];
+        return dragAvailabilityCacheRef.current[key] ?? [];
       }
       const task = (async () => {
         try {
@@ -347,7 +382,7 @@ const AppointmentCalendar = ({
       dragAvailabilityPendingRef.current[key] = task;
       await task;
       delete dragAvailabilityPendingRef.current[key];
-      return dragAvailabilityCacheRef.current[key] || [];
+      return dragAvailabilityCacheRef.current[key] ?? [];
     },
     [buildAvailableStartMinutes, dragContext, getAvailabilityKey]
   );

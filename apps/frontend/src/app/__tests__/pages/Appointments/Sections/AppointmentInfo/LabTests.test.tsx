@@ -63,10 +63,7 @@ jest.mock('@/app/ui/inputs/SearchDropdown', () => ({
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
-      <button
-        type="button"
-        onClick={() => onSelect(options[0]?.value ?? '9126')}
-      >
+      <button type="button" onClick={() => onSelect(options[0]?.value ?? '9126')}>
         Select {placeholder}
       </button>
     </div>
@@ -244,5 +241,47 @@ describe('LabTests', () => {
     });
 
     expect(screen.queryByText('Result 1')).not.toBeInTheDocument();
+  });
+
+  it('marks meter marker red when value is outside range even without outOfRange flag', async () => {
+    listIdexxOrdersMock.mockResolvedValue([
+      {
+        _id: 'ord-1',
+        organisationId: 'org-1',
+        provider: 'IDEXX',
+        companionId: 'patient-1',
+        status: 'SUBMITTED',
+        modality: 'REFERENCE_LAB',
+        idexxOrderId: '100329789',
+        tests: ['9126'],
+      },
+    ]);
+    listIdexxResultsMock.mockResolvedValue([
+      {
+        _id: 'result-db-2',
+        provider: 'IDEXX',
+        resultId: 'result-2',
+        orderId: '100329789',
+        patientId: 'patient-1',
+        patientName: 'Buddy',
+        status: 'FINAL',
+        rawPayload: {
+          categories: [
+            {
+              name: 'Chemistry',
+              tests: [{ name: 'ALT', result: '150', referenceRange: '10 - 100' }],
+            },
+          ],
+        },
+      },
+    ]);
+
+    const { container } = render(<LabTests activeAppointment={appointment} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('ALT')).toBeInTheDocument();
+    });
+
+    expect(container.querySelector('div.bg-red-500')).toBeInTheDocument();
   });
 });

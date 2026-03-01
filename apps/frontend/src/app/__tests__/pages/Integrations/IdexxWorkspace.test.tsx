@@ -234,4 +234,39 @@ describe('IDEXX Hub page', () => {
       ).toBe(true);
     });
   });
+
+  it('resolves appointment labs link from requisitionId when orderId is missing', async () => {
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue({ status: 'enabled' });
+    listIdexxResultsMock.mockResolvedValue([
+      {
+        _id: 'r2',
+        provider: 'IDEXX',
+        resultId: 'result-2',
+        requisitionId: 'req-100',
+        patientId: 'patient-1',
+        patientName: 'Buddy',
+        status: 'FINAL',
+      },
+    ]);
+    listIdexxOrdersMock.mockResolvedValue([
+      {
+        _id: 'ord-2',
+        idexxOrderId: 'req-100',
+        appointmentId: 'appt-1',
+      },
+    ]);
+
+    render(<ProtectedIdexxWorkspace />);
+
+    await waitFor(() => {
+      const links = screen.getAllByRole('link');
+      expect(
+        links.some((link) =>
+          String(link.getAttribute('href')).includes(
+            '/appointments?appointmentId=appt-1&open=labs&subLabel=idexx-labs'
+          )
+        )
+      ).toBe(true);
+    });
+  });
 });

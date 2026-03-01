@@ -30,7 +30,6 @@ const HOUR_ROW_TOP_OFFSET_PX = 8;
 
 type WeekCalendarProps = {
   events: Appointment[];
-  date?: Date;
   handleViewAppointment: any;
   weekStart: Date;
   setWeekStart: React.Dispatch<React.SetStateAction<Date>>;
@@ -54,7 +53,6 @@ type WeekCalendarProps = {
 
 const WeekCalendar: React.FC<WeekCalendarProps> = ({
   events,
-  date,
   handleViewAppointment,
   weekStart,
   setWeekStart,
@@ -72,7 +70,6 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   getDropAvailabilityIntervals,
   draggedAppointmentDurationMinutes,
 }) => {
-  void date;
   const days = useMemo<Date[]>(() => getWeekDays(weekStart), [weekStart]);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const height = PIXELS_PER_MINUTE * 60;

@@ -55,101 +55,106 @@ const TrustCenter = () => {
 
   const renderCertifications = () => (
     <div className="SectionGrid">
-      {certifications.map((cert) => (
-        <div
-          className="PremiumCard"
-          key={cert.name}
-          style={{
-            alignItems: 'center',
-            flexDirection: 'row',
-            padding: '24px',
-          }}
-        >
-          <div
-            style={{
-              position: 'relative',
-              width: '60px',
-              height: '60px',
-              flexShrink: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '2rem',
-            }}
-          >
-            {/* Logic:
-              1. If it's a URL (http), render Image.
-              2. If it's text like "US" or "EU" (length <= 2), render as Bold Text.
-              3. Otherwise, render as Emoji.
-            */}
-            {cert.icon.startsWith('http') ? (
-              <Image src={cert.icon} alt={cert.name} fill style={{ objectFit: 'contain' }} />
-            ) : cert.icon.length <= 3 ? (
-              <span
-                style={{
-                  fontFamily: 'var(--grotesk-font)',
-                  fontWeight: '700',
-                  fontSize: '1.75rem',
-                  color: 'var(--color-text-primary)',
-                }}
-              >
-                {cert.icon}
-              </span>
-            ) : (
-              <span style={{ fontSize: '2.5rem' }}>{cert.icon}</span>
-            )}
-          </div>
-
-          <div style={{ flex: 1, paddingLeft: '20px' }}>
-            <h3
-              style={{
-                fontFamily: 'var(--grotesk-font)',
-                fontWeight: '500',
-                margin: '0 0 6px 0',
-                fontSize: '1.25rem',
-              }}
-            >
-              {cert.name}
-            </h3>
+      {certifications.map((cert) => {
+        let statusColor: string;
+        let statusBackground: string;
+        if (cert.status === 'Compliant') {
+          statusColor = 'var(--color-success-600)';
+          statusBackground = 'var(--color-success-100)';
+        } else if (cert.status === 'Planned') {
+          statusColor = 'var(--color-text-tertiary)';
+          statusBackground = 'var(--color-neutral-100)';
+        } else {
+          statusColor = 'var(--color-warning-700)';
+          statusBackground = 'var(--color-warning-100)';
+        }
+        let certIcon: React.ReactNode;
+        if (cert.icon.startsWith('http')) {
+          certIcon = (
+            <Image src={cert.icon} alt={cert.name} fill style={{ objectFit: 'contain' }} />
+          );
+        } else if (cert.icon.length <= 3) {
+          certIcon = (
             <span
               style={{
-                fontSize: '0.8rem',
+                fontFamily: 'var(--grotesk-font)',
                 fontWeight: '700',
-                fontFamily: 'var(--satoshi-font)',
-                color:
-                  cert.status === 'Compliant'
-                    ? 'var(--color-success-600)'
-                    : cert.status === 'Planned'
-                      ? 'var(--color-text-tertiary)'
-                      : 'var(--color-warning-700)',
-                background:
-                  cert.status === 'Compliant'
-                    ? 'var(--color-success-100)'
-                    : cert.status === 'Planned'
-                      ? 'var(--color-neutral-100)'
-                      : 'var(--color-warning-100)',
-                padding: '4px 10px',
-                borderRadius: '100px',
-                display: 'inline-block',
+                fontSize: '1.75rem',
+                color: 'var(--color-text-primary)',
               }}
             >
-              {cert.status}
+              {cert.icon}
             </span>
-            {cert.description && (
-              <p
+          );
+        } else {
+          certIcon = <span style={{ fontSize: '2.5rem' }}>{cert.icon}</span>;
+        }
+        return (
+          <div
+            className="PremiumCard"
+            key={cert.name}
+            style={{
+              alignItems: 'center',
+              flexDirection: 'row',
+              padding: '24px',
+            }}
+          >
+            <div
+              style={{
+                position: 'relative',
+                width: '60px',
+                height: '60px',
+                flexShrink: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '2rem',
+              }}
+            >
+              {certIcon}
+            </div>
+
+            <div style={{ flex: 1, paddingLeft: '20px' }}>
+              <h3
                 style={{
-                  fontSize: '0.9rem',
-                  color: 'var(--color-text-secondary)',
-                  marginTop: '8px',
-                  lineHeight: '1.4',
+                  fontFamily: 'var(--grotesk-font)',
+                  fontWeight: '500',
+                  margin: '0 0 6px 0',
+                  fontSize: '1.25rem',
                 }}
               >
-                {cert.description}
-              </p>
-            )}
+                {cert.name}
+              </h3>
+              <span
+                style={{
+                  fontSize: '0.8rem',
+                  fontWeight: '700',
+                  fontFamily: 'var(--satoshi-font)',
+                  color: statusColor,
+                  background: statusBackground,
+                  padding: '4px 10px',
+                  borderRadius: '100px',
+                  display: 'inline-block',
+                }}
+              >
+                {cert.status}
+              </span>
+              {cert.description && (
+                <p
+                  style={{
+                    fontSize: '0.9rem',
+                    color: 'var(--color-text-secondary)',
+                    marginTop: '8px',
+                    lineHeight: '1.4',
+                  }}
+                >
+                  {cert.description}
+                </p>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 
@@ -593,13 +598,14 @@ const TrustCenter = () => {
 
       {/* --- REQUEST ACCESS MODAL --- */}
       {isModalOpen && (
-        <div className="ModalOverlay" onClick={handleModalClose}>
-          <dialog
-            className="ModalContent"
-            open
-            aria-modal="true"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="ModalOverlay">
+          <button
+            type="button"
+            className="ModalBackdropButton"
+            onClick={handleModalClose}
+            aria-label="Close modal overlay"
+          />
+          <dialog className="ModalContent" open aria-modal="true">
             <div className="ModalHeader">
               <h3>Request Access</h3>
               <button className="CloseBtn" onClick={handleModalClose} aria-label="Close modal">

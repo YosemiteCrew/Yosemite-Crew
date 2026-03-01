@@ -274,6 +274,8 @@ const Slot: React.FC<SlotProps> = ({
   return (
     <>
       <div
+        role="application"
+        tabIndex={-1}
         className={`relative overflow-auto scrollbar-hidden border-l border-grey-light ${dayIndex === length && 'border-r'}`}
         style={{ height: `${height}px` }}
         onDragOver={(event) => {

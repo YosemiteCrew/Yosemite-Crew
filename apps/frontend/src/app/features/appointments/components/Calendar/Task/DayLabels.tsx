@@ -7,9 +7,12 @@ type DayLabels = {
 };
 
 const DayLabels = ({ days, currentDate }: DayLabels) => {
-  void currentDate;
+  const currentDateIso = currentDate?.toISOString() ?? '';
   return (
-    <div className="grid grid-flow-col auto-cols-[170px] min-w-max border-b border-grey-light py-3">
+    <div
+      className="grid grid-flow-col auto-cols-[170px] min-w-max border-b border-grey-light py-3"
+      data-current-date={currentDateIso}
+    >
       {days.map((day, idx) => {
         const weekday = day.toLocaleDateString('en-US', {
           weekday: 'short',

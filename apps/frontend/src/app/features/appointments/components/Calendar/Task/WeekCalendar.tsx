@@ -231,8 +231,8 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                 <div className="grid h-full grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
                   <div />
                   <div className="grid grid-flow-col auto-cols-[170px] min-w-max">
-                    {days.map((_, idx) => (
-                      <div key={`now-line-${idx}`} className="relative">
+                    {days.map((day, idx) => (
+                      <div key={`now-line-${day.toISOString()}`} className="relative">
                         {idx === nowPosition.todayIndex && (
                           <div
                             className="absolute left-0 right-2 z-20"

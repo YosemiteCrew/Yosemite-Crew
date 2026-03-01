@@ -138,7 +138,7 @@ describe('AppointmentInfo section', () => {
   });
 
   it('updates appointment from inline appointment details editor', async () => {
-    render(<AppointmentInfo activeAppointment={activeAppointment} canEditAppointments />);
+    render(<AppointmentInfo activeAppointment={activeAppointment} />);
 
     fireEvent.click(screen.getByTestId('edit-Appointments details'));
     fireEvent.click(screen.getByTestId('pick-slot'));

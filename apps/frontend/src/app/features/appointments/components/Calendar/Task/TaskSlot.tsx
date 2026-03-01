@@ -132,6 +132,8 @@ const TaskSlot = ({
 
   return (
     <div
+      role="application"
+      tabIndex={-1}
       className={`relative bg-white border-l border-grey-light ${resolvedDayIndex === length ? 'border-r' : ''}`}
       style={{ height: `${height}px` }}
       onDragOver={(event) => {

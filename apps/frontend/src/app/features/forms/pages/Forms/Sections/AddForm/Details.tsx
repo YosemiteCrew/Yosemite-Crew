@@ -75,12 +75,12 @@ const Details = ({
     }
     const template =
       category && shouldApplyTemplate ? getCategoryTemplate(category) : formData.schema;
-    const normalizedTemplate =
-      category === 'Prescription'
-        ? formData.requiredSigner
-          ? ensureSingleSignatureAtEnd(template ?? [])
-          : removeSignatureFields(template ?? [])
-        : template;
+    let normalizedTemplate = template;
+    if (category === 'Prescription') {
+      normalizedTemplate = formData.requiredSigner
+        ? ensureSingleSignatureAtEnd(template ?? [])
+        : removeSignatureFields(template ?? []);
+    }
 
     setFormData((prev) => ({
       ...prev,

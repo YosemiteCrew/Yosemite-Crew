@@ -109,7 +109,6 @@ describe('CompanionsTable', () => {
     render(
       <CompanionsTable
         filteredList={[companion]}
-        activeCompanion={null}
         setActiveCompanion={setActiveCompanion}
         setViewCompanion={setViewCompanion}
         setBookAppointment={setBookAppointment}
@@ -135,7 +134,6 @@ describe('CompanionsTable', () => {
     render(
       <CompanionsTable
         filteredList={[]}
-        activeCompanion={null}
         setActiveCompanion={jest.fn()}
         setViewCompanion={jest.fn()}
         setBookAppointment={jest.fn()}

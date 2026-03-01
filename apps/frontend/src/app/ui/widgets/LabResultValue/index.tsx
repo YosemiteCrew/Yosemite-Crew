@@ -8,6 +8,49 @@ type ParsedCultureResult = {
   interpretation: string[];
 };
 
+const SUSCEPTIBILITY_TOKENS = new Set(['S', 'I', 'R', 'T', 'F', 'N/I']);
+
+const tryParseSummaryOrIsolate = (line: string, parsed: ParsedCultureResult): boolean => {
+  const colonIndex = line.indexOf(':');
+  if (colonIndex === -1) return false;
+  const beforeColon = line.slice(0, colonIndex).trim();
+  const afterColon = line.slice(colonIndex + 1).trim();
+  if (!beforeColon || !afterColon) return false;
+  const isolatePrefix = beforeColon.toLowerCase().startsWith('isolate ');
+  if (!isolatePrefix) {
+    parsed.summary.push({ label: beforeColon, value: afterColon });
+    return true;
+  }
+  const isolateNumber = Number.parseInt(beforeColon.slice('isolate '.length).trim(), 10);
+  if (Number.isFinite(isolateNumber)) {
+    parsed.isolates.push(afterColon);
+    return true;
+  }
+  return false;
+};
+
+const isMicHeaderLine = (line: string): boolean => {
+  const lower = line.toLowerCase();
+  if (!lower.startsWith('isolate ')) return false;
+  const micIndex = lower.indexOf(' mic');
+  if (micIndex === -1) return false;
+  const isolateNumber = Number.parseInt(line.slice('isolate '.length, micIndex).trim(), 10);
+  return Number.isFinite(isolateNumber);
+};
+
+const tryParseSusceptibility = (line: string, parsed: ParsedCultureResult): boolean => {
+  const parts = line.split(/\s+/);
+  if (parts.length < 3) return false;
+  const interpretationToken = parts.at(-2)!.toUpperCase();
+  if (!SUSCEPTIBILITY_TOKENS.has(interpretationToken)) return false;
+  const antibiotic = parts.slice(0, -2).join(' ').trim();
+  const mic = parts.at(-1)!.trim();
+  if (antibiotic && mic) {
+    parsed.susceptibility.push({ antibiotic, interpretation: interpretationToken, mic });
+  }
+  return true;
+};
+
 const parseCultureResult = (raw: string): ParsedCultureResult => {
   const lines = raw
     .replaceAll('\r', '')
@@ -33,54 +76,9 @@ const parseCultureResult = (raw: string): ParsedCultureResult => {
       parsed.interpretation.push(line);
       continue;
     }
-
-    const colonIndex = line.indexOf(':');
-    const beforeColon = colonIndex > -1 ? line.slice(0, colonIndex).trim() : '';
-    const afterColon = colonIndex > -1 ? line.slice(colonIndex + 1).trim() : '';
-    const isolatePrefix = beforeColon.toLowerCase().startsWith('isolate ');
-    if (colonIndex > -1 && beforeColon && afterColon && !isolatePrefix) {
-      parsed.summary.push({ label: beforeColon, value: afterColon });
-      continue;
-    }
-
-    if (isolatePrefix && afterColon) {
-      const isolateNumber = Number.parseInt(beforeColon.slice('isolate '.length).trim(), 10);
-      if (Number.isFinite(isolateNumber)) {
-        parsed.isolates.push(afterColon);
-        continue;
-      }
-    }
-
-    const lowerLine = line.toLowerCase();
-    if (lowerLine.startsWith('isolate ')) {
-      const micIndex = lowerLine.indexOf(' mic');
-      if (micIndex > -1) {
-        const isolateNumber = Number.parseInt(line.slice('isolate '.length, micIndex).trim(), 10);
-        if (Number.isFinite(isolateNumber)) {
-          continue;
-        }
-      }
-    }
-
-    const susceptibilityParts = line.split(/\s+/);
-    if (susceptibilityParts.length >= 3) {
-      const interpretationToken = susceptibilityParts[susceptibilityParts.length - 2].toUpperCase();
-      if (['S', 'I', 'R', 'T', 'F', 'N/I'].includes(interpretationToken)) {
-        const antibiotic = susceptibilityParts
-          .slice(0, susceptibilityParts.length - 2)
-          .join(' ')
-          .trim();
-        const mic = susceptibilityParts[susceptibilityParts.length - 1].trim();
-        if (antibiotic && mic) {
-          parsed.susceptibility.push({
-            antibiotic,
-            interpretation: interpretationToken,
-            mic,
-          });
-        }
-      }
-      continue;
-    }
+    if (tryParseSummaryOrIsolate(line, parsed)) continue;
+    if (isMicHeaderLine(line)) continue;
+    tryParseSusceptibility(line, parsed);
   }
 
   return parsed;
