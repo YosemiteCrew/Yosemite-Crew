@@ -63,7 +63,9 @@ export function withOrgPermissions() {
         (mapping as any).revokedPermissions,
       );
 
-      if (!samePermissions(effectivePermissions, computed)) {
+      if (samePermissions(effectivePermissions, computed)) {
+        typedReq.userPermissions = effectivePermissions;
+      } else {
         const updated = await UserOrganizationModel.findByIdAndUpdate(
           (mapping as any)._id,
           { $set: { effectivePermissions: computed } },
@@ -72,8 +74,6 @@ export function withOrgPermissions() {
         typedReq.userPermissions = normalizePermissions(
           (updated as any)?.effectivePermissions ?? computed,
         );
-      } else {
-        typedReq.userPermissions = effectivePermissions;
       }
 
       typedReq.organisationId = orgId;
