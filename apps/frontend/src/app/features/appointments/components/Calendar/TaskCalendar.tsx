@@ -383,7 +383,6 @@ const TaskCalendar = ({
       {activeCalendar === 'week' && (
         <WeekCalendar
           events={filteredList}
-          date={currentDate}
           handleViewTask={handleViewTask}
           onQuickStatusChange={handleQuickStatusChange}
           weekStart={weekStart}

@@ -38,6 +38,24 @@
 .plansFeaturesHeading {
   margin: 0;
 }
+.pricingFeatureWithBrand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  flex-wrap: wrap;
+}
+.pricingFeatureBrandLogo {
+  width: 128px;
+  height: auto;
+  object-fit: contain;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+}
+.pricingFootnote {
+  margin-top: -20px;
+}
 @media screen and (max-width: 1280px) {
   .pricingSection {
     padding: 32px 32px;
@@ -60,6 +78,9 @@
   }
   .PricingPage-header {
     gap: 16px;
+  }
+  .pricingFootnote {
+    margin-top: -8px;
   }
   /* Typography handled by global classes */
 }

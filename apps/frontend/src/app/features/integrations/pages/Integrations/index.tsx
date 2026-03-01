@@ -46,7 +46,7 @@ const credentialsStatusClasses: Record<string, string> = {
 
 const integrationFilters = [
   { key: 'all', label: 'All', bg: '#247AED', text: '#EAF3FF' },
-  { key: 'installed', label: 'Installed', bg: '#F1D4B0', text: '#302f2e' },
+  { key: 'connected', label: 'Connected', bg: '#F1D4B0', text: '#302f2e' },
   { key: 'available', label: 'Available', bg: '#D9A488', text: '#F7F7F7' },
 ] as const;
 
@@ -77,7 +77,7 @@ const IntegrationsPage = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [validateState, setValidateState] = useState<'idle' | 'valid' | 'invalid'>('idle');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'installed' | 'available'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'connected' | 'available'>('all');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -249,7 +249,7 @@ const IntegrationsPage = () => {
   const credentialsStatusLabel = `${credentialsStatusKey.charAt(0).toUpperCase()}${credentialsStatusKey.slice(1)}`;
   const showIdexxCard =
     activeFilter === 'all' ||
-    (activeFilter === 'installed' && idexxEnabled) ||
+    (activeFilter === 'connected' && idexxEnabled) ||
     (activeFilter === 'available' && !idexxEnabled);
   const credentialsActionLabel = saving
     ? hasStoredCredentials
@@ -283,7 +283,7 @@ const IntegrationsPage = () => {
             <button
               key={tab.key}
               type="button"
-              onClick={() => setActiveFilter(tab.key as 'all' | 'installed' | 'available')}
+              onClick={() => setActiveFilter(tab.key as 'all' | 'connected' | 'available')}
               className="min-w-20 text-body-4 px-3 py-[6px] rounded-2xl! border border-card-border! transition-all duration-300 hover:bg-card-hover hover:border-card-hover! text-text-tertiary"
               style={isActive ? { backgroundColor: tab.bg, color: tab.text } : undefined}
             >
@@ -316,7 +316,14 @@ const IntegrationsPage = () => {
             <div className="flex items-center justify-end gap-2">
               <Secondary href="#" text="Settings" onClick={() => setShowSettings(true)} />
               {idexxStatus === 'enabled' ? (
-                <Primary href="/appointments/idexx-workspace" text="View" />
+                <>
+                  <Primary
+                    href="#"
+                    text={saving ? 'Disabling...' : 'Disable'}
+                    onClick={handleEnableDisable}
+                    isDisabled={saving}
+                  />
+                </>
               ) : (
                 <Primary
                   href="#"
@@ -330,10 +337,12 @@ const IntegrationsPage = () => {
         </div>
       ) : null}
 
-      {integrationStatus !== 'loading' && !idexxIntegration ? (
-        <div className="text-body-4 text-text-secondary">
-          IDEXX is not configured yet. Open settings to store credentials and enable it.
-        </div>
+      {integrationStatus !== 'loading' && activeFilter === 'connected' && !idexxEnabled ? (
+        <div className="text-body-4 text-text-secondary">No connected integrations yet.</div>
+      ) : null}
+
+      {integrationStatus !== 'loading' && activeFilter === 'available' && idexxEnabled ? (
+        <div className="text-body-4 text-text-secondary">No available integrations right now.</div>
       ) : null}
 
       <Modal showModal={showSettings} setShowModal={setShowSettings}>

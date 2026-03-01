@@ -5,6 +5,7 @@ import { Appointment } from '@yosemite-crew/types';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { allowReschedule } from '@/app/lib/appointments';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
+import { autoScrollCalendarHorizontally } from '@/app/features/appointments/components/Calendar/helpers';
 import {
   IoEyeOutline,
   IoCalendarOutline,
@@ -278,6 +279,7 @@ const Slot: React.FC<SlotProps> = ({
         onDragOver={(event) => {
           if (!draggedAppointmentId) return;
           event.preventDefault();
+          autoScrollCalendarHorizontally(event.clientX, event.currentTarget as HTMLDivElement);
           if (dropDate) {
             onDragHoverTarget?.(dropDate, dropPractitionerId);
           }

@@ -15,6 +15,8 @@ import { PERMISSIONS } from '@/app/lib/permissions';
 import React, { useCallback, useMemo } from 'react';
 import { applyUtcTime, generateTimeSlots } from '@/app/lib/date';
 import { useMemberMap } from '@/app/hooks/useMemberMap';
+import { useAuthStore } from '@/app/stores/authStore';
+import { changeTaskStatus } from '@/app/features/tasks/services/taskService';
 
 type TaskInfoProps = {
   showModal: boolean;
@@ -27,7 +29,25 @@ const TaskInfo = ({ showModal, setShowModal, activeTask }: TaskInfoProps) => {
   const companions = useCompanionsForPrimaryOrg();
   const { resolveMemberName } = useMemberMap();
   const { can } = usePermissions();
-  const canEditTasks = can(PERMISSIONS.TASKS_EDIT_ANY);
+  const canEditTasks = can(PERMISSIONS.TASKS_EDIT_ANY) || can(PERMISSIONS.TASKS_EDIT_OWN);
+  const currentUserId = useAuthStore((s) => s.attributes?.sub || '');
+  const normalizeId = useCallback(
+    (value?: string) =>
+      String(value || '')
+        .trim()
+        .toLowerCase(),
+    []
+  );
+  const isAssignedByCurrentUser = useMemo(
+    () => normalizeId(activeTask.assignedBy) === normalizeId(currentUserId),
+    [activeTask.assignedBy, currentUserId, normalizeId]
+  );
+  const isAssignedToCurrentUser = useMemo(
+    () => normalizeId(activeTask.assignedTo) === normalizeId(currentUserId),
+    [activeTask.assignedTo, currentUserId, normalizeId]
+  );
+  const canEditOnlyStatus = canEditTasks && isAssignedToCurrentUser && !isAssignedByCurrentUser;
+  const canEditExceptStatus = canEditTasks && isAssignedByCurrentUser && !isAssignedToCurrentUser;
   const resolveMemberDisplay = useCallback(
     (id?: string) => {
       if (!id) return '-';
@@ -110,61 +130,98 @@ const TaskInfo = ({ showModal, setShowModal, activeTask }: TaskInfoProps) => {
 
   const taskFields = useMemo(
     () => [
-      { label: 'Task', key: 'name', type: 'text', required: true },
+      {
+        label: 'Task',
+        key: 'name',
+        type: 'text',
+        required: true,
+        editable: canEditOnlyStatus ? false : true,
+      },
       {
         label: 'Category',
         key: 'category',
         type: 'select',
         options: categoryOptions,
         required: true,
+        editable: canEditOnlyStatus ? false : true,
       },
-      { label: 'Description', key: 'description', type: 'text' },
-      { label: 'Additional notes', key: 'additionalNotes', type: 'text' },
+      {
+        label: 'Description',
+        key: 'description',
+        type: 'text',
+        editable: canEditOnlyStatus ? false : true,
+      },
+      {
+        label: 'Additional notes',
+        key: 'additionalNotes',
+        type: 'text',
+        editable: canEditOnlyStatus ? false : true,
+      },
       { label: 'From', key: 'assignedBy', type: 'text', editable: false },
       {
         label: 'To',
         key: 'assignedToId',
         type: 'dropdown',
         options: assigneeOptions,
+        editable: canEditOnlyStatus ? false : true,
       },
-      { label: 'Due date', key: 'dueAt', type: 'date' },
+      { label: 'Due date', key: 'dueAt', type: 'date', editable: canEditOnlyStatus ? false : true },
       {
         label: 'Due time',
         key: 'dueTime',
         type: 'dropdown',
         options: timeOptions,
+        editable: canEditOnlyStatus ? false : true,
       },
       {
         label: 'Reminder',
         key: 'reminderEnabled',
         type: 'select',
         options: reminderEnabledOptions,
+        editable: canEditOnlyStatus ? false : true,
       },
       {
         label: 'Reminder offset (minutes)',
         key: 'reminderOffsetMinutes',
         type: 'number',
+        editable: canEditOnlyStatus ? false : true,
       },
       {
         label: 'Recurrence',
         key: 'recurrenceType',
         type: 'select',
         options: TaskRecurrenceOptions,
+        editable: canEditOnlyStatus ? false : true,
       },
       {
         label: 'Sync with calendar',
         key: 'syncWithCalendar',
         type: 'select',
         options: syncOptions,
+        editable: canEditOnlyStatus ? false : true,
       },
       {
         label: 'Status',
         key: 'status',
         type: 'select',
         options: TaskStatusOptions,
+        editable: canEditExceptStatus ? false : true,
       },
     ],
-    [assigneeOptions, categoryOptions, reminderEnabledOptions, syncOptions, timeOptions]
+    [
+      assigneeOptions,
+      canEditExceptStatus,
+      canEditOnlyStatus,
+      categoryOptions,
+      reminderEnabledOptions,
+      syncOptions,
+      timeOptions,
+    ]
+  );
+
+  const hasEditableFields = useMemo(
+    () => taskFields.some((field) => field.editable !== false),
+    [taskFields]
   );
 
   const taskData = useMemo(
@@ -189,6 +246,15 @@ const TaskInfo = ({ showModal, setShowModal, activeTask }: TaskInfoProps) => {
 
   const handleUpdate = async (values: any) => {
     try {
+      if (canEditOnlyStatus) {
+        await changeTaskStatus({
+          ...activeTask,
+          status: values.status || activeTask.status,
+        });
+        setShowModal(false);
+        return;
+      }
+
       const reminderEnabled = String(values.reminderEnabled ?? taskData.reminderEnabled) === 'true';
       const reminderOffsetRaw = String(
         values.reminderOffsetMinutes ?? taskData.reminderOffsetMinutes ?? ''
@@ -205,13 +271,22 @@ const TaskInfo = ({ showModal, setShowModal, activeTask }: TaskInfoProps) => {
           : undefined;
       const dueDate = new Date(values.dueAt || activeTask.dueAt);
       const dueTimeValue = String(values.dueTime || taskData.dueTime);
+      const resolveAssigneeId = () => {
+        const raw = String(values.assignedToId ?? values.assignedTo ?? '').trim();
+        if (!raw) return activeTask.assignedTo;
+        const byValue = assigneeOptions.find((option) => String(option.value) === raw);
+        if (byValue) return byValue.value;
+        const byLabel = assigneeOptions.find((option) => String(option.label) === raw);
+        if (byLabel) return byLabel.value;
+        return raw;
+      };
       const payload: Task = {
         ...activeTask,
         name: values.name,
         description: values.description,
         additionalNotes: values.additionalNotes,
         category: values.category,
-        assignedTo: values.assignedToId || activeTask.assignedTo,
+        assignedTo: resolveAssigneeId(),
         dueAt: applyUtcTime(dueDate, dueTimeValue),
         recurrence: {
           ...(activeTask.recurrence || { isMaster: false }),
@@ -219,7 +294,7 @@ const TaskInfo = ({ showModal, setShowModal, activeTask }: TaskInfoProps) => {
         },
         reminder,
         syncWithCalendar: String(values.syncWithCalendar ?? taskData.syncWithCalendar) === 'true',
-        status: values.status,
+        status: canEditExceptStatus ? activeTask.status : values.status,
       };
       await updateTask(payload);
       setShowModal(false);
@@ -248,7 +323,7 @@ const TaskInfo = ({ showModal, setShowModal, activeTask }: TaskInfoProps) => {
             data={taskData}
             defaultOpen={true}
             onSave={(values) => handleUpdate(values)}
-            showEditIcon={canEditTasks}
+            showEditIcon={canEditTasks && hasEditableFields}
           />
         </div>
       </div>

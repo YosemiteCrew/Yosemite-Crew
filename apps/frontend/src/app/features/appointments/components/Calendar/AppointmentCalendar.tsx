@@ -527,7 +527,6 @@ const AppointmentCalendar = ({
       {activeCalendar === 'week' && (
         <WeekCalendar
           events={filteredList}
-          date={currentDate}
           handleViewAppointment={handleViewAppointment}
           handleRescheduleAppointment={handleRescheduleAppointment}
           handleChangeStatusAppointment={handleChangeStatusAppointment}

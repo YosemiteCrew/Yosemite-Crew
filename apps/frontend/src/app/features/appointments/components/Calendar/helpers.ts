@@ -1,7 +1,7 @@
-import { LaidOutEvent } from "@/app/features/appointments/types/calendar";
-import { Task } from "@/app/features/tasks/types/task";
-import { Team } from "@/app/features/organization/types/team";
-import { Appointment } from "@yosemite-crew/types";
+import { LaidOutEvent } from '@/app/features/appointments/types/calendar';
+import { Task } from '@/app/features/tasks/types/task';
+import { Team } from '@/app/features/organization/types/team';
+import { Appointment } from '@yosemite-crew/types';
 
 export function isSameDay(a?: Date | null, b?: Date | null) {
   if (!a || !b) return false;
@@ -13,22 +13,19 @@ export function isSameDay(a?: Date | null, b?: Date | null) {
 }
 
 export const isSameMonth = (a?: Date | null, b?: Date | null) =>
-  !!a &&
-  !!b &&
-  a.getFullYear() === b.getFullYear() &&
-  a.getMonth() === b.getMonth();
+  !!a && !!b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
 
 export const getMonthYear = (date: Date) => {
-  return date.toLocaleDateString("en-US", {
-    month: "long",
-    year: "numeric",
+  return date.toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
   });
 };
 
 export const getDayWithDate = (date: Date) => {
-  const weekday = date.toLocaleDateString("en-US", { weekday: "long" });
+  const weekday = date.toLocaleDateString('en-US', { weekday: 'long' });
 
-  const dayNumber = date.toLocaleDateString("en-US", { day: "2-digit" }); // "03"
+  const dayNumber = date.toLocaleDateString('en-US', { day: '2-digit' }); // "03"
 
   return `${weekday} ${dayNumber}`;
 };
@@ -103,7 +100,7 @@ export function getDayWindow(events: Appointment[]) {
 export function computeVerticalPositionPx(
   event: Appointment,
   windowStart: number,
-  windowEnd: number,
+  windowEnd: number
 ) {
   const DAY_END = 24 * 60;
   let start = minutesSinceStartOfDay(event.startTime);
@@ -127,13 +124,11 @@ export function computeVerticalPositionPx(
 export function layoutDayEvents(
   events: Appointment[],
   windowStart: number,
-  windowEnd: number,
+  windowEnd: number
 ): LaidOutEvent[] {
   if (events.length === 0) return [];
 
-  const sorted = [...events].sort(
-    (a, b) => a.startTime.getTime() - b.startTime.getTime(),
-  );
+  const sorted = [...events].sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
 
   type TmpEvent = LaidOutEvent & { clusterId: number };
   const result: TmpEvent[] = [];
@@ -141,11 +136,7 @@ export function layoutDayEvents(
   let clusterId = 0;
 
   for (const ev of sorted) {
-    const { topPx, heightPx } = computeVerticalPositionPx(
-      ev,
-      windowStart,
-      windowEnd,
-    );
+    const { topPx, heightPx } = computeVerticalPositionPx(ev, windowStart, windowEnd);
 
     active = active.filter((a) => a.endTime > ev.startTime);
     if (active.length === 0) clusterId++;
@@ -169,10 +160,7 @@ export function layoutDayEvents(
 
   const clusterMax: Record<number, number> = {};
   for (const ev of result) {
-    clusterMax[ev.clusterId] = Math.max(
-      clusterMax[ev.clusterId] ?? 0,
-      ev.columnIndex,
-    );
+    clusterMax[ev.clusterId] = Math.max(clusterMax[ev.clusterId] ?? 0, ev.columnIndex);
   }
 
   return result.map((ev) => ({
@@ -185,11 +173,7 @@ export function getTotalWindowHeightPx(windowStart: number, windowEnd: number) {
   return ((windowEnd - windowStart) / MINUTES_PER_STEP) * PIXELS_PER_STEP;
 }
 
-export function getNowTopPxForWindow(
-  date: Date,
-  windowStart: number,
-  windowEnd: number,
-) {
+export function getNowTopPxForWindow(date: Date, windowStart: number, windowEnd: number) {
   const now = new Date();
 
   // Only show the red line on the same day
@@ -216,22 +200,18 @@ export function getTopPxForMinutes(
   minutesSinceMidnight: number,
   hourHeightPx: number,
   hourGapPx = 0,
-  offsetPx = 0,
+  offsetPx = 0
 ) {
   const hours = Math.floor(minutesSinceMidnight / 60);
   const minutesInHour = minutesSinceMidnight % 60;
-  return (
-    hours * (hourHeightPx + hourGapPx) +
-    (minutesInHour / 60) * hourHeightPx +
-    offsetPx
-  );
+  return hours * (hourHeightPx + hourGapPx) + (minutesInHour / 60) * hourHeightPx + offsetPx;
 }
 
 export function getFirstRelevantTimedEventStart(
   events: Appointment[],
   rangeStart: Date,
   rangeEnd: Date,
-  now = new Date(),
+  now = new Date()
 ) {
   const startsInRange = events
     .map((event) => event.startTime)
@@ -242,13 +222,39 @@ export function getFirstRelevantTimedEventStart(
   return upcoming ?? startsInRange[0] ?? null;
 }
 
-export function scrollContainerToTarget(
-  container: HTMLElement,
-  targetTopPx: number,
-) {
+export function scrollContainerToTarget(container: HTMLElement, targetTopPx: number) {
   const centeredTop = targetTopPx - container.clientHeight / 2;
   const maxTop = Math.max(0, container.scrollHeight - container.clientHeight);
   container.scrollTop = Math.max(0, Math.min(centeredTop, maxTop));
+}
+
+export function autoScrollCalendarHorizontally(
+  clientX: number,
+  startNode: HTMLElement | null,
+  options?: { edgeThresholdPx?: number; stepPx?: number }
+) {
+  const edgeThresholdPx = options?.edgeThresholdPx ?? 72;
+  const stepPx = options?.stepPx ?? 28;
+
+  let node: HTMLElement | null = startNode;
+  while (node) {
+    const isCalendarScroller = node.getAttribute('data-calendar-scroll') === 'true';
+    const canScrollX = node.scrollWidth > node.clientWidth + 1;
+    if (isCalendarScroller && canScrollX) {
+      const rect = node.getBoundingClientRect();
+      const maxScrollLeft = Math.max(0, node.scrollWidth - node.clientWidth);
+      if (clientX <= rect.left + edgeThresholdPx) {
+        node.scrollLeft = Math.max(0, node.scrollLeft - stepPx);
+        return;
+      }
+      if (clientX >= rect.right - edgeThresholdPx) {
+        node.scrollLeft = Math.min(maxScrollLeft, node.scrollLeft + stepPx);
+        return;
+      }
+      return;
+    }
+    node = node.parentElement;
+  }
 }
 
 export function eventsForDay(events: Task[], day: Date): Task[] {
@@ -266,15 +272,12 @@ export function eventsForDay(events: Task[], day: Date): Task[] {
 export function eventsForUser(events: Task[], user: Team): Task[] {
   const id = user.practionerId;
   return events.filter((event) => {
-    const assignedTo = event.assignedTo?.toLowerCase() || "";
+    const assignedTo = event.assignedTo?.toLowerCase() || '';
     return assignedTo === id;
   });
 }
 
-export function appointentsForUser(
-  events: Appointment[],
-  user: Team,
-): Appointment[] {
+export function appointentsForUser(events: Appointment[], user: Team): Appointment[] {
   const id = user.practionerId;
   return events.filter((event) => {
     const leadId = event.lead?.id;

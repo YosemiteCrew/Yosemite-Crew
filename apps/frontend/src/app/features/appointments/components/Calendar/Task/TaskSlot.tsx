@@ -1,9 +1,10 @@
-import React, { useMemo, useState } from "react";
-import { IoEyeOutline } from "react-icons/io5";
-import { FaCheckCircle } from "react-icons/fa";
-import { getStatusStyle } from "@/app/ui/tables/Tasks";
-import { Task, TaskStatus } from "@/app/features/tasks/types/task";
-import { useMemberMap } from "@/app/hooks/useMemberMap";
+import React, { useMemo, useState } from 'react';
+import { IoEyeOutline } from 'react-icons/io5';
+import { FaCheckCircle } from 'react-icons/fa';
+import { getStatusStyle } from '@/app/ui/tables/Tasks';
+import { Task, TaskStatus } from '@/app/features/tasks/types/task';
+import { useMemberMap } from '@/app/hooks/useMemberMap';
+import { autoScrollCalendarHorizontally } from '@/app/features/appointments/components/Calendar/helpers';
 
 type DropAvailabilityInterval = {
   startMinute: number;
@@ -70,14 +71,17 @@ const TaskSlot = ({
         const segmentEnd = Math.min(hourEndMinute, interval.endMinute + duration);
         if (segmentEnd <= segmentStart) return null;
         const top = ((segmentStart - hourStartMinute) / 60) * height;
-        const segmentHeight = Math.max(
-          6,
-          ((segmentEnd - segmentStart) / 60) * height
-        );
+        const segmentHeight = Math.max(6, ((segmentEnd - segmentStart) / 60) * height);
         return { top, height: segmentHeight };
       })
       .filter(Boolean) as Array<{ top: number; height: number }>;
-  }, [draggedTaskDurationMinutes, dropAvailabilityIntervals, height, hourEndMinute, hourStartMinute]);
+  }, [
+    draggedTaskDurationMinutes,
+    dropAvailabilityIntervals,
+    height,
+    hourEndMinute,
+    hourStartMinute,
+  ]);
 
   const laidOutEvents = useMemo(() => {
     const sorted = [...slotEvents].sort(
@@ -88,10 +92,7 @@ const TaskSlot = ({
       const dueAt = new Date(task.dueAt);
       const taskStartMinute = hourStartMinute + dueAt.getMinutes();
       let laneIndex = 0;
-      while (
-        laneIndex < laneEnds.length &&
-        laneEnds[laneIndex] > taskStartMinute
-      ) {
+      while (laneIndex < laneEnds.length && laneEnds[laneIndex] > taskStartMinute) {
         laneIndex += 1;
       }
       const blockEnd = taskStartMinute + TASK_BLOCK_DURATION_MINUTES;
@@ -99,7 +100,7 @@ const TaskSlot = ({
       return {
         task,
         laneIndex,
-        top: ((dueAt.getMinutes() / 60) * height),
+        top: (dueAt.getMinutes() / 60) * height,
       };
     });
     const laneCount = Math.max(1, laneEnds.length);
@@ -119,10 +120,7 @@ const TaskSlot = ({
     const snapped = Math.round(minute / 5) * 5;
     let bestMatch: { minute: number; distance: number } | null = null;
     for (const interval of dropAvailabilityIntervals) {
-      const candidateMinute = Math.max(
-        interval.startMinute,
-        Math.min(interval.endMinute, snapped)
-      );
+      const candidateMinute = Math.max(interval.startMinute, Math.min(interval.endMinute, snapped));
       const distance = Math.abs(minute - candidateMinute);
       if (!bestMatch || distance < bestMatch.distance) {
         bestMatch = { minute: candidateMinute, distance };
@@ -134,16 +132,14 @@ const TaskSlot = ({
 
   return (
     <div
-      className={`relative bg-white border-l border-grey-light ${resolvedDayIndex === length ? "border-r" : ""}`}
+      className={`relative bg-white border-l border-grey-light ${resolvedDayIndex === length ? 'border-r' : ''}`}
       style={{ height: `${height}px` }}
       onDragOver={(event) => {
         if (!draggedTaskId) return;
         event.preventDefault();
+        autoScrollCalendarHorizontally(event.clientX, event.currentTarget as HTMLDivElement);
         onDragHoverTarget?.(dropDate, dropAssigneeId);
-        const minute = getMinuteFromPointer(
-          event.clientY,
-          event.currentTarget as HTMLDivElement
-        );
+        const minute = getMinuteFromPointer(event.clientY, event.currentTarget as HTMLDivElement);
         setDropPreviewMinute(getNearestAvailableMinute(minute));
       }}
       onDragLeave={(event) => {
@@ -156,10 +152,7 @@ const TaskSlot = ({
       onDrop={(event) => {
         if (!draggedTaskId || !onTaskDropAt) return;
         event.preventDefault();
-        const minute = getMinuteFromPointer(
-          event.clientY,
-          event.currentTarget as HTMLDivElement
-        );
+        const minute = getMinuteFromPointer(event.clientY, event.currentTarget as HTMLDivElement);
         const nearest = getNearestAvailableMinute(minute);
         setDropPreviewMinute(null);
         if (nearest == null) return;
@@ -187,14 +180,11 @@ const TaskSlot = ({
           <div
             className="rounded-xl border-2 border-dashed border-grey-light bg-[rgba(36,122,237,0.18)]"
             style={{
-              height: Math.max(
-                12,
-                ((Math.max(5, draggedTaskDurationMinutes) / 60) * height)
-              ),
+              height: Math.max(12, (Math.max(5, draggedTaskDurationMinutes) / 60) * height),
             }}
           >
             <div className="h-full w-full flex items-center justify-center px-2 text-caption-1 text-text-brand truncate">
-              {draggedTaskLabel || "Task"}
+              {draggedTaskLabel || 'Task'}
             </div>
           </div>
         </div>
@@ -245,22 +235,20 @@ const TaskSlot = ({
               >
                 <IoEyeOutline size={12} color="#302F2E" />
               </button>
-              {canEditTasks &&
-                onQuickStatusChange &&
-                task.status !== "COMPLETED" && (
-                  <button
-                    type="button"
-                    title="Mark completed"
-                    className="h-6 w-6 rounded-full bg-white/95 border border-card-border flex items-center justify-center cursor-pointer"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      onQuickStatusChange(task, "COMPLETED");
-                    }}
-                  >
-                    <FaCheckCircle size={11} color="#2AA879" />
-                  </button>
-                )}
+              {canEditTasks && onQuickStatusChange && task.status !== 'COMPLETED' && (
+                <button
+                  type="button"
+                  title="Mark completed"
+                  className="h-6 w-6 rounded-full bg-white/95 border border-card-border flex items-center justify-center cursor-pointer"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onQuickStatusChange(task, 'COMPLETED');
+                  }}
+                >
+                  <FaCheckCircle size={11} color="#2AA879" />
+                </button>
+              )}
             </div>
           </div>
         );

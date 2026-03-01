@@ -30,7 +30,7 @@ const HOUR_ROW_TOP_OFFSET_PX = 8;
 
 type WeekCalendarProps = {
   events: Appointment[];
-  date: Date;
+  date?: Date;
   handleViewAppointment: any;
   weekStart: Date;
   setWeekStart: React.Dispatch<React.SetStateAction<Date>>;
@@ -72,6 +72,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   getDropAvailabilityIntervals,
   draggedAppointmentDurationMinutes,
 }) => {
+  void date;
   const days = useMemo<Date[]>(() => getWeekDays(weekStart), [weekStart]);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const height = PIXELS_PER_MINUTE * 60;
@@ -184,14 +185,10 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                     weekday: 'short',
                   });
                   const dateNumber = day.getDate();
-                  const isCurrentDate = isSameDay(day, date);
                   const isToday = isSameDay(day, new Date());
-                  let dateNumberClass = 'bg-card-bg text-text-secondary border-transparent';
-                  if (isCurrentDate) {
-                    dateNumberClass = 'bg-text-brand text-white border-transparent';
-                  } else if (isToday) {
-                    dateNumberClass = 'bg-white text-text-primary border-card-border';
-                  }
+                  const dateNumberClass = isToday
+                    ? 'bg-text-brand text-white border-transparent'
+                    : 'bg-card-bg text-text-secondary border-transparent';
                   return (
                     <div
                       key={day.toISOString()}
@@ -199,7 +196,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                     >
                       <div
                         className={`text-body-4 ${
-                          isCurrentDate ? 'text-text-brand' : 'text-text-primary'
+                          isToday ? 'text-text-brand' : 'text-text-primary'
                         }`}
                       >
                         {weekday}

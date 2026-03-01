@@ -28,7 +28,7 @@ type DropAvailabilityInterval = {
 
 type WeekCalendarProps = {
   events: Task[];
-  date: Date;
+  date?: Date;
   handleViewTask: (task: Task) => void;
   onQuickStatusChange?: (task: Task, status: TaskStatus) => void;
   weekStart: Date;
@@ -51,7 +51,7 @@ type WeekCalendarProps = {
 
 const WeekCalendar: React.FC<WeekCalendarProps> = ({
   events,
-  date,
+  date: _date,
   handleViewTask,
   onQuickStatusChange,
   weekStart,
@@ -160,7 +160,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                 <Back onClick={handlePrevWeek} />
               </div>
               <div className="bg-white">
-                <DayLabels days={days} currentDate={date} />
+                <DayLabels days={days} currentDate={_date ?? weekStart} />
               </div>
               <div className="sticky right-0 z-40 bg-white flex items-center justify-center">
                 <Next onClick={handleNextWeek} />
