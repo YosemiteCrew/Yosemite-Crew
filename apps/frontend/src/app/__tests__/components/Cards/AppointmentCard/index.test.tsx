@@ -28,12 +28,13 @@ describe('AppointmentCard', () => {
   const handleRescheduleAppointment = jest.fn();
   const getSoapViewIntent: jest.MockedFunction<
     (appointment: Appointment) => AppointmentViewIntent
-  > = jest.fn(
-    (): AppointmentViewIntent => ({
+  > = jest.fn((appointment: Appointment): AppointmentViewIntent => {
+    void appointment;
+    return {
       label: 'prescription',
       subLabel: 'subjective',
-    })
-  );
+    };
+  });
 
   const appointment: any = {
     status: 'COMPLETED',
