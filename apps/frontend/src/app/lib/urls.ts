@@ -1,10 +1,12 @@
+import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+
 const DEFAULT_IMAGES = {
-  dog: ["https://d2il6osz49gpup.cloudfront.net/avatar/dog.png"],
-  cat: ["https://d2il6osz49gpup.cloudfront.net/avatar/cat.png"],
-  horse: ["https://d2il6osz49gpup.cloudfront.net/avatar/horse.png"],
-  other: ["https://d2il6osz49gpup.cloudfront.net/avatar/dog.png"],
-  person: ["https://d2il6osz49gpup.cloudfront.net/avatar/parent1.png"],
-  business: ["https://d2il6osz49gpup.cloudfront.net/avatar/business1.png"],
+  dog: [MEDIA_SOURCES.avatars.dog],
+  cat: [MEDIA_SOURCES.avatars.cat],
+  horse: [MEDIA_SOURCES.avatars.horse],
+  other: [MEDIA_SOURCES.avatars.dog],
+  person: [MEDIA_SOURCES.avatars.person],
+  business: [MEDIA_SOURCES.avatars.business],
 } as const;
 
 export type ImageType = keyof typeof DEFAULT_IMAGES;
@@ -19,10 +21,7 @@ const pick = (arr?: readonly string[]) => {
   return pool[0];
 };
 
-export const getSafeImageUrl = (
-  src: string | null | undefined,
-  type: ImageType
-): string => {
+export const getSafeImageUrl = (src: string | null | undefined, type: ImageType): string => {
   const fallbackPool = DEFAULT_IMAGES[type] ?? DEFAULT_IMAGES.other;
   return isHttpsImageUrl(src) ? src : pick(fallbackPool);
 };

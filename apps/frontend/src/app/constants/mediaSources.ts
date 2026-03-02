@@ -1,0 +1,132 @@
+const YC_CDN_BASE_URL = 'https://d2il6osz49gpup.cloudfront.net';
+const YC_ORG_CDN_BASE_URL = 'https://d2kyjiikho62xx.cloudfront.net';
+
+const ycCdn = (path: string) => `${YC_CDN_BASE_URL}/${path}`;
+const ycOrgCdn = (path: string) => `${YC_ORG_CDN_BASE_URL}/${path}`;
+
+export const MEDIA_SOURCES = {
+  futureAssets: {
+    idexxLogoFileName: 'idexxLogo.png',
+    idexxLogoS3Key: 'integrations/idexxLogo.png',
+    idexxLogoUrl: ycCdn('integrations/idexxLogo.png'),
+  },
+  logo: ycCdn('Logo.png'),
+  avatars: {
+    dog: ycCdn('avatar/dog.png'),
+    cat: ycCdn('avatar/cat.png'),
+    horse: ycCdn('avatar/horse.png'),
+    person: ycCdn('avatar/parent1.png'),
+    business: ycCdn('avatar/business1.png'),
+  },
+  footer: {
+    gdpr: ycCdn('footer/gdpr.png'),
+    soc2: ycCdn('footer/soc-2.png'),
+    iso: ycCdn('footer/iso.png'),
+    fhir: ycCdn('footer/fhir.png'),
+    afterPattern: ycCdn('Images/ftafter.png'),
+  },
+  auth: {
+    background: ycCdn('Images/SignUpBg.png'),
+    passwordEye: ycCdn('Images/eyes.png'),
+  },
+  cookies: {
+    cookie: ycCdn('Images/cookie.png'),
+    background: ycCdn('Images/cookie-bg.png'),
+  },
+  launchGrow: {
+    tab1: ycCdn('Images/buildlaunch1.png'),
+    tab2: ycCdn('Images/buildlaunch2.png'),
+    tab3: ycCdn('Images/buildlaunch3.png'),
+    tab4: ycCdn('Images/buildlaunch4.png'),
+  },
+  team: {
+    harshit: ycCdn('aboutus-page/harshit.png'),
+    anna: ycCdn('aboutus-page/anna.png'),
+    ankit: ycCdn('aboutus-page/ankit.png'),
+    harshvardhan: ycCdn('aboutus-page/harshvardhan.png'),
+    surbhi: ycCdn('aboutus-page/surbhi.png'),
+    suryansh: ycCdn('aboutus-page/suryansh.png'),
+  },
+  aboutUs: {
+    storyImage: ycCdn('aboutus-page/aboutnew.png'),
+  },
+  contactUs: {
+    heroImage: ycCdn('contactus-page/Contact.png'),
+    uploadIcon: ycCdn('contactus-page/upload.png'),
+  },
+  developerLanding: {
+    hero: ycCdn('Images/devlogin.png'),
+    choose1: ycCdn('Images/devchose1.png'),
+    choose2: ycCdn('Images/devchose2.png'),
+    choose3: ycCdn('Images/devchose3.png'),
+    choose4: ycCdn('Images/devchose4.png'),
+    choose5: ycCdn('Images/devchose5.png'),
+    choose6: ycCdn('Images/devchose6.png'),
+    step1: ycCdn('Images/devstep1.png'),
+    step2: ycCdn('Images/devstep2.png'),
+    step3: ycCdn('Images/devstep3.png'),
+    build: ycCdn('Devlperlanding/devlpbuild.png'),
+  },
+  homePage: {
+    petFootBlue: ycCdn('Images/petfootblue.png'),
+    heroBg: ycCdn('Images/HeroBg.png'),
+    betterImage: ycCdn('Homepage/betterimg.png'),
+    expert1: ycCdn('Homepage/exprt1.png'),
+    expert2: ycCdn('Homepage/exprt2.png'),
+    expert3: ycCdn('Homepage/exprt3.png'),
+    practice1: ycCdn('Images/pract1.png'),
+    practice2: ycCdn('Images/pract2.png'),
+    practice3: ycCdn('Images/pract3.png'),
+    practice4: ycCdn('Images/pract4.png'),
+    practice5: ycCdn('Images/pract5.png'),
+    practice6: ycCdn('Images/pract6.png'),
+    practice7: ycCdn('Images/pract7.png'),
+    practice8: ycCdn('Images/pract8.png'),
+    focus1: ycCdn('Images/focus1.png'),
+    focus2: ycCdn('Images/focus2.png'),
+    focus3: ycCdn('Images/focus3.png'),
+    focus4: ycCdn('Images/focus4.png'),
+    focus5: ycCdn('Images/focus5.png'),
+  },
+  landing: {
+    dog: ycCdn('MainLanding/landingDog.png'),
+    horse: ycCdn('MainLanding/landingHorse.png'),
+    infoPms: ycCdn('MainLanding/landing_pms.png'),
+    infoApp: ycCdn('MainLanding/landing_app.png'),
+    infoPricing: ycCdn('MainLanding/landing_pricing.png'),
+    infoDeveloper: ycCdn('Images/landingimg4.png'),
+    slide1: ycCdn('Images/landingbg1.jpg'),
+    slide2: ycCdn('Images/landingbg2.jpg'),
+    slide3: ycCdn('Images/landingbg3.jpg'),
+  },
+  petOwner: {
+    hero: ycCdn('pet-parent/petparent.png'),
+    possibilities: ycCdn('pet-parent/pawsibilities.png'),
+    appImage: ycCdn('Images/petapppic.png'),
+  },
+  trustCenter: {
+    security: ycCdn('Images/securityTrust.png'),
+    cat: ycCdn('Images/catTrust.png'),
+  },
+  appointments: {
+    companionAvatar: ycCdn('Images/ftafter.png'),
+    stripe: ycCdn('payment/stripe.png'),
+  },
+  guides: {
+    addTeamVideo: ycCdn('videos/addTeam.mp4'),
+    addCompanionVideo: ycCdn('videos/addCompanion.mp4'),
+    formsVideo: ycCdn('videos/formModule.mp4'),
+    thumb1: ycCdn('guideImages/1.png'),
+    thumb2: ycCdn('guideImages/2.png'),
+    thumb3: ycCdn('guideImages/3.png'),
+  },
+  subProcessorLogos: {
+    aws: 'https://upload.wikimedia.org/wikipedia/commons/9/93/Amazon_Web_Services_Logo.svg',
+    mongo: 'https://upload.wikimedia.org/wikipedia/commons/9/93/MongoDB_Logo.svg',
+    gcp: 'https://upload.wikimedia.org/wikipedia/commons/5/51/Google_Cloud_logo.svg',
+    postgres: 'https://upload.wikimedia.org/wikipedia/commons/2/29/Postgresql_elephant.svg',
+  },
+  organization: {
+    fromS3Key: (s3Key: string) => ycOrgCdn(s3Key),
+  },
+} as const;

@@ -104,11 +104,11 @@ export const updateDocument = async (document: OrganizationDocument) => {
   }
 };
 
-export const deleteDocument = async (room: OrganizationDocument) => {
+export const deleteDocument = async (document: OrganizationDocument) => {
   const { removeDocument } = useOrganizationDocumentStore.getState();
   try {
-    const id = room._id;
-    const orgId = room.organisationId;
+    const id = document._id;
+    const orgId = document.organisationId;
     if (!id || !orgId) {
       throw new Error("Document ID is missing.");
     }

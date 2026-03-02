@@ -1,18 +1,19 @@
-"use client";
-import React, { useState } from "react";
-import { AxiosError } from "axios";
-import { Form } from "react-bootstrap";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Icon } from "@iconify/react/dist/iconify.js";
+'use client';
+import React, { useState } from 'react';
+import { AxiosError } from 'axios';
+import { Form } from 'react-bootstrap';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { Icon } from '@iconify/react/dist/iconify.js';
 
-import { useErrorTost } from "@/app/ui/overlays/Toast/Toast";
-import { useAuthStore } from "@/app/stores/authStore";
-import FormInputPass from "@/app/ui/inputs/FormInputPass/FormInputPass";
-import FormInput from "@/app/ui/inputs/FormInput/FormInput";
+import { useErrorTost } from '@/app/ui/overlays/Toast/Toast';
+import { useAuthStore } from '@/app/stores/authStore';
+import FormInputPass from '@/app/ui/inputs/FormInputPass/FormInputPass';
+import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 
-import "./ForgotPassword.css";
-import { Primary, Secondary } from "@/app/ui/primitives/Buttons";
+import './ForgotPassword.css';
+import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 
 const ForgotPassword = () => {
   const router = useRouter();
@@ -21,11 +22,11 @@ const ForgotPassword = () => {
 
   const [showVerifyCode, setShowVerifyCode] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
-  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -49,7 +50,7 @@ const ForgotPassword = () => {
     e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>,
     index: number
   ) => {
-    if (e.key === "Backspace" && otp[index] === "") {
+    if (e.key === 'Backspace' && otp[index] === '') {
       const prevInput = document.getElementById(`otp-input-${index - 1}`);
       if (prevInput) prevInput.focus();
     }
@@ -59,20 +60,15 @@ const ForgotPassword = () => {
     e.preventDefault();
     if (!email) {
       if (globalThis.window) {
-        globalThis.scrollTo({ top: 0, behavior: "smooth" });
+        globalThis.scrollTo({ top: 0, behavior: 'smooth' });
       }
       showErrorTost({
-        message: "Email is required",
-        errortext: "Error",
+        message: 'Email is required',
+        errortext: 'Error',
         iconElement: (
-          <Icon
-            icon="solar:danger-triangle-bold"
-            width="20"
-            height="20"
-            color="#EA3729"
-          />
+          <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />
         ),
-        className: "errofoundbg",
+        className: 'errofoundbg',
       });
       return;
     }
@@ -81,41 +77,30 @@ const ForgotPassword = () => {
       const data = await forgotPassword(email);
       if (data) {
         if (globalThis.window) {
-          globalThis.scrollTo({ top: 0, behavior: "smooth" });
+          globalThis.scrollTo({ top: 0, behavior: 'smooth' });
         }
         showErrorTost({
-          message:
-            "If an account with this email exists, a reset code has been sent",
-          errortext: "Success",
+          message: 'If an account with this email exists, a reset code has been sent',
+          errortext: 'Success',
           iconElement: (
-            <Icon
-              icon="solar:danger-triangle-bold"
-              width="20"
-              height="20"
-              color="#00C853"
-            />
+            <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#00C853" />
           ),
-          className: "CongratsBg",
+          className: 'CongratsBg',
         });
         setShowVerifyCode(true);
       }
     } catch (error: unknown) {
       if (globalThis.window) {
-        globalThis.scrollTo({ top: 0, behavior: "smooth" });
+        globalThis.scrollTo({ top: 0, behavior: 'smooth' });
       }
       const axiosError = error as AxiosError<{ message: string }>;
       showErrorTost({
-        message: `OTP failed: ${axiosError.response?.data?.message || "Unable to connect to the server."}`,
-        errortext: "Error",
+        message: `OTP failed: ${axiosError.response?.data?.message || 'Unable to connect to the server.'}`,
+        errortext: 'Error',
         iconElement: (
-          <Icon
-            icon="solar:danger-triangle-bold"
-            width="20"
-            height="20"
-            color="#EA3729"
-          />
+          <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />
         ),
-        className: "errofoundbg",
+        className: 'errofoundbg',
       });
     }
   };
@@ -123,22 +108,17 @@ const ForgotPassword = () => {
   const handleVerifyOtp = async (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
 
-    if (otp.includes("")) {
+    if (otp.includes('')) {
       if (globalThis.window) {
-        globalThis.scrollTo({ top: 0, behavior: "smooth" });
+        globalThis.scrollTo({ top: 0, behavior: 'smooth' });
       }
       showErrorTost({
-        message: "Please enter the full OTP",
-        errortext: "Error",
+        message: 'Please enter the full OTP',
+        errortext: 'Error',
         iconElement: (
-          <Icon
-            icon="solar:danger-triangle-bold"
-            width="20"
-            height="20"
-            color="#EA3729"
-          />
+          <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />
         ),
-        className: "errofoundbg",
+        className: 'errofoundbg',
       });
       return;
     }
@@ -152,110 +132,85 @@ const ForgotPassword = () => {
 
     if (!password || !confirmPassword) {
       if (globalThis.window) {
-        globalThis.scrollTo({ top: 0, behavior: "smooth" });
+        globalThis.scrollTo({ top: 0, behavior: 'smooth' });
       }
       showErrorTost({
-        message: "Both Passwords are required",
-        errortext: "Error",
+        message: 'Both Passwords are required',
+        errortext: 'Error',
         iconElement: (
-          <Icon
-            icon="solar:danger-triangle-bold"
-            width="20"
-            height="20"
-            color="#EA3729"
-          />
+          <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />
         ),
-        className: "errofoundbg",
+        className: 'errofoundbg',
       });
       return;
     }
 
     if (password !== confirmPassword) {
       if (globalThis.window) {
-        globalThis.scrollTo({ top: 0, behavior: "smooth" });
+        globalThis.scrollTo({ top: 0, behavior: 'smooth' });
       }
       showErrorTost({
-        message: "Passwords do not match",
-        errortext: "Error",
+        message: 'Passwords do not match',
+        errortext: 'Error',
         iconElement: (
-          <Icon
-            icon="solar:danger-triangle-bold"
-            width="20"
-            height="20"
-            color="#EA3729"
-          />
+          <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />
         ),
-        className: "errofoundbg",
+        className: 'errofoundbg',
       });
       return;
     }
 
     try {
-      const success = await resetPassword(email, otp.join(""), password);
+      const success = await resetPassword(email, otp.join(''), password);
       if (success) {
         showErrorTost({
-          message: "Password Changed successfully",
-          errortext: "Success",
+          message: 'Password Changed successfully',
+          errortext: 'Success',
           iconElement: (
-            <Icon
-              icon="solar:danger-triangle-bold"
-              width="20"
-              height="20"
-              color="#00C853"
-            />
+            <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#00C853" />
           ),
-          className: "CongratsBg",
+          className: 'CongratsBg',
         });
         setTimeout(() => {
-          router.push("/signin");
+          router.push('/signin');
         }, 3000);
         setTimeout(() => {
           setShowNewPassword(false);
           setShowVerifyCode(false);
-          setPassword("");
-          setConfirmPassword("");
-          setOtp(["", "", "", "", "", ""]);
+          setPassword('');
+          setConfirmPassword('');
+          setOtp(['', '', '', '', '', '']);
         }, 5000);
       }
     } catch (error: any) {
       if (globalThis.window) {
-        globalThis.scrollTo({ top: 0, behavior: "smooth" });
+        globalThis.scrollTo({ top: 0, behavior: 'smooth' });
       }
-      if (error?.code === "CodeMismatchException") {
+      if (error?.code === 'CodeMismatchException') {
         setShowVerifyCode(true);
         showErrorTost({
-          message: "Code Mismatch",
-          errortext: "Error",
+          message: 'Code Mismatch',
+          errortext: 'Error',
           iconElement: (
-            <Icon
-              icon="solar:danger-triangle-bold"
-              width="20"
-              height="20"
-              color="#EA3729"
-            />
+            <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />
           ),
-          className: "errofoundbg",
+          className: 'errofoundbg',
         });
       } else {
         setShowVerifyCode(false);
         showErrorTost({
-          message: "Something went wrong",
-          errortext: "Error",
+          message: 'Something went wrong',
+          errortext: 'Error',
           iconElement: (
-            <Icon
-              icon="solar:danger-triangle-bold"
-              width="20"
-              height="20"
-              color="#EA3729"
-            />
+            <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />
           ),
-          className: "errofoundbg",
+          className: 'errofoundbg',
         });
       }
       setShowNewPassword(false);
-      setPassword("");
-      setConfirmPassword("");
-      setOtp(["", "", "", "", "", ""]);
+      setPassword('');
+      setConfirmPassword('');
+      setOtp(['', '', '', '', '', '']);
     }
   };
 
@@ -263,10 +218,10 @@ const ForgotPassword = () => {
     <section
       className={`
         relative flex w-full flex-1 items-center justify-center
-        bg-[url('https://d2il6osz49gpup.cloudfront.net/Images/SignUpBg.png')]
         bg-cover bg-center bg-no-repeat
         h-[calc(100vh-80px)]
       `}
+      style={{ backgroundImage: `url(${MEDIA_SOURCES.auth.background})` }}
     >
       {ErrorTostPopup}
       <div
@@ -281,13 +236,10 @@ const ForgotPassword = () => {
         {!showVerifyCode && !showNewPassword && (
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-2">
-              <div className="text-display-2 text-text-primary text-center">
-                Forgot password?
-              </div>
+              <div className="text-display-2 text-text-primary text-center">Forgot password?</div>
               <div className="text-body-4 text-text-primary text-center">
-                {" "}
-                Enter your registered email, and we’ll send you a code to reset
-                it.
+                {' '}
+                Enter your registered email, and we’ll send you a code to reset it.
               </div>
             </div>
             <Form className="flex flex-col gap-6">
@@ -309,17 +261,14 @@ const ForgotPassword = () => {
         {showVerifyCode && (
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-2">
-              <div className="text-display-2 text-text-primary text-center">
-                Verify code
-              </div>
+              <div className="text-display-2 text-text-primary text-center">Verify code</div>
               <div className="text-body-4 text-text-primary text-center">
-                {" "}
-                Enter the code we just sent to your email to proceed with
-                resetting your password.
+                {' '}
+                Enter the code we just sent to your email to proceed with resetting your password.
               </div>
             </div>
 
-            <Form style={{ marginBottom: "0px" }}>
+            <Form style={{ marginBottom: '0px' }}>
               <div className="verifyInput">
                 {otp.map((digit, index) => (
                   <Form.Control
@@ -340,17 +289,17 @@ const ForgotPassword = () => {
                 href="#"
                 onClick={handleVerifyOtp}
                 text="Verify code"
-                style={{ width: "100%" }}
+                style={{ width: '100%' }}
               />
               <Secondary
                 href="#"
                 text="Back"
                 onClick={() => setShowVerifyCode(false)}
-                style={{ width: "100%" }}
+                style={{ width: '100%' }}
               />
               <div className="text-body-4 text-text-primary">
-                {" "}
-                Didn&apos;t receive the code?{" "}
+                {' '}
+                Didn&apos;t receive the code?{' '}
                 <Link href="#" onClick={handleOtp} className="text-text-brand">
                   Request New Code
                 </Link>
@@ -363,9 +312,7 @@ const ForgotPassword = () => {
           <div className="flex flex-col gap-6 w-full">
             <Form className="flex flex-col gap-6 w-full">
               <div className="flex flex-col gap-6 w-full">
-                <div className="text-display-2 text-text-primary text-center">
-                  Set new password
-                </div>
+                <div className="text-display-2 text-text-primary text-center">Set new password</div>
                 <div className="flex flex-col gap-3">
                   <FormInputPass
                     intype="password"
@@ -384,16 +331,8 @@ const ForgotPassword = () => {
                 </div>
               </div>
               <div className="flex flex-col gap-3 w-full">
-                <Primary
-                  href="#"
-                  onClick={handlePasswordChange}
-                  text="Reset password"
-                />
-                <Secondary
-                  href="#"
-                  text="Back"
-                  onClick={() => setShowNewPassword(false)}
-                />
+                <Primary href="#" onClick={handlePasswordChange} text="Reset password" />
+                <Secondary href="#" text="Back" onClick={() => setShowNewPassword(false)} />
               </div>
             </Form>
           </div>

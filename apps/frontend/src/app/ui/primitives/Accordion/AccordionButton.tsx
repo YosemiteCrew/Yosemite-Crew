@@ -1,13 +1,11 @@
-import React, { useEffect, useState } from "react";
-import { IoIosArrowDown, IoIosWarning } from "react-icons/io";
-import { Secondary } from "@/app/ui/primitives/Buttons";
-import {
-  getStripeBillingPortal
-} from "@/app/features/billing/services/billingService";
-import { useSubscriptionForPrimaryOrg } from "@/app/hooks/useBilling";
-import { usePermissions } from "@/app/hooks/usePermissions";
-import { PERMISSIONS } from "@/app/lib/permissions";
-import Upgrade from "@/app/ui/widgets/Upgrade";
+import React, { useEffect, useState } from 'react';
+import { IoIosArrowDown, IoIosWarning } from 'react-icons/io';
+import { Secondary } from '@/app/ui/primitives/Buttons';
+import { getStripeBillingPortal } from '@/app/features/billing/services/billingService';
+import { useSubscriptionForPrimaryOrg } from '@/app/hooks/useBilling';
+import { usePermissions } from '@/app/hooks/usePermissions';
+import { PERMISSIONS } from '@/app/lib/permissions';
+import Upgrade from '@/app/ui/widgets/Upgrade';
 
 interface AccordionButtonProps {
   title: string;
@@ -35,14 +33,14 @@ const getAccordionPaddingYClass = ({
 }: PaddingArgs): string => {
   if (finance) {
     // Keep finance accordions visually aligned with other sections.
-    if (plan === "free" || (plan === "business" && hasCustomerId)) {
-      return "py-[20px]";
+    if (plan === 'free' || (plan === 'business' && hasCustomerId)) {
+      return 'py-[20px]';
     }
   }
   if (showButton) {
-    return "py-2";
+    return 'py-2';
   }
-  return "py-[20px]";
+  return 'py-[20px]';
 };
 
 const AccordionButton: React.FC<AccordionButtonProps> = ({
@@ -77,7 +75,7 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
       const url = await getStripeBillingPortal();
       globalThis.location.href = url;
     } catch (e: any) {
-      setError(e?.message || "Failed to open billing portal");
+      setError(e?.message || 'Failed to open billing portal');
     } finally {
       setLoadingPortal(false);
     }
@@ -97,15 +95,15 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
     >
       <div className="flex items-center justify-between">
         <button
-          className="flex items-center gap-2"
+          type="button"
+          className="flex flex-1 items-center gap-2 text-left"
           onClick={() => setOpen(!open)}
+          aria-label={title}
         >
           <IoIosArrowDown
             size={22}
             color="#302f2e"
-            className={`text-black-text transition-transform ${
-              open ? "rotate-0" : "-rotate-90"
-            }`}
+            className={`text-black-text transition-transform ${open ? 'rotate-0' : '-rotate-90'}`}
           />
           <div className="text-heading-3 text-text-primary">{title}</div>
         </button>
@@ -122,11 +120,7 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
             </div>
           )}
           {showButton && buttonTitle && (
-            <Secondary
-              href="#"
-              onClick={() => buttonClick(true)}
-              text={buttonTitle}
-            />
+            <Secondary href="#" onClick={() => buttonClick(true)} text={buttonTitle} />
           )}
           {canEditSubscription && finance && (
             <div className="flex items-center gap-3">
@@ -134,18 +128,18 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
                 <Secondary
                   href="#"
                   onClick={handleBillingPortal}
-                  text={loadingPortal ? "Opening..." : "Billing portal"}
+                  text={loadingPortal ? 'Opening...' : 'Billing portal'}
                   isDisabled={loadingPortal}
                 />
               )}
-              {plan === "free" && <Upgrade />}
+              {plan === 'free' && <Upgrade />}
             </div>
           )}
         </div>
       </div>
 
       {(open || keepMounted) && (
-        <div className={!open ? "hidden" : ""} aria-hidden={!open}>
+        <div className={open ? '' : 'hidden'} aria-hidden={!open}>
           {children}
         </div>
       )}

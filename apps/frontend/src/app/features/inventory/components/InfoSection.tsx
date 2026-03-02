@@ -31,6 +31,7 @@ type InfoSectionProps = {
         }
       | null
   ) => void;
+  stockLocationOptions?: string[];
 };
 
 type EditableField = {
@@ -49,6 +50,7 @@ const InfoSection: React.FC<InfoSectionProps> = ({
   disableEditing = false,
   onEditingChange,
   onRegisterActions,
+  stockLocationOptions,
 }) => {
   const configForBusiness = InventoryFormConfig[businessType] || {};
   const sectionConfig = configForBusiness[sectionKey];
@@ -73,11 +75,19 @@ const InfoSection: React.FC<InfoSectionProps> = ({
     } else {
       type = "text";
     }
+    const resolvedOptions =
+      sectionKey === "stock" &&
+      field.name === "stockLocation" &&
+      stockLocationOptions &&
+      stockLocationOptions.length > 0
+        ? stockLocationOptions
+        : field.options;
+
     return {
       label,
       key: field.name,
       type,
-      options: field.component === "dropdown" ? field.options : undefined,
+      options: field.component === "dropdown" ? resolvedOptions : undefined,
     };
   };
 

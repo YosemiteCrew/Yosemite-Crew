@@ -632,6 +632,7 @@ type InventoryInfoProps = {
   onHide: (itemId: string) => Promise<void>;
   onUnhide: (itemId: string) => Promise<void>;
   canEdit?: boolean;
+  stockLocationOptions?: string[];
 };
 
 const modalSections: { key: InventorySectionKey; name: string }[] = [
@@ -669,6 +670,7 @@ const InventoryInfo = ({
   onAddBatch,
   onUpdateBatch,
   canEdit = true,
+  stockLocationOptions,
 }: InventoryInfoProps) => {
   const [activeLabel, setActiveLabel] = useState<InventorySectionKey>(
     modalSections[0].key
@@ -878,6 +880,7 @@ const InventoryInfo = ({
                   onSaveSection={handleSectionSave}
                   disableEditing={!canEdit || isUpdating || isHiding}
                   onEditingChange={setIsSectionEditing}
+                  stockLocationOptions={stockLocationOptions}
                   onRegisterActions={(actions) => {
                     sectionActions.current = actions;
                   }}

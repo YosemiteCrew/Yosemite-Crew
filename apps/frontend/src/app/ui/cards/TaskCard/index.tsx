@@ -1,28 +1,26 @@
-import React from "react";
-import { getStatusStyle } from "@/app/ui/tables/Tasks";
-import { getFormattedDate } from "@/app/features/appointments/components/Calendar/weekHelpers";
-import { Task } from "@/app/features/tasks/types/task";
-import { Secondary } from "@/app/ui/primitives/Buttons";
-import { toTitleCase } from "@/app/lib/validators";
+import React from 'react';
+import { getStatusStyle } from '@/app/ui/tables/Tasks';
+import { getFormattedDate } from '@/app/features/appointments/components/Calendar/weekHelpers';
+import { Task } from '@/app/features/tasks/types/task';
+import { Secondary } from '@/app/ui/primitives/Buttons';
+import { toTitleCase } from '@/app/lib/validators';
 
 type TaskCardProps = {
   item: Task;
+  assignedByLabel?: string;
+  assignedToLabel?: string;
   handleViewTask: any;
 };
 
-const TaskCard = ({ item, handleViewTask }: TaskCardProps) => {
+const TaskCard = ({ item, assignedByLabel, assignedToLabel, handleViewTask }: TaskCardProps) => {
   return (
     <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-white px-3 py-3 flex flex-col justify-between gap-2 cursor-pointer">
       <div className="flex gap-1">
-        <div className="text-body-3-emphasis text-text-primary">
-          {item.name}
-        </div>
+        <div className="text-body-3-emphasis text-text-primary">{item.name}</div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Description:</div>
-        <div className="text-caption-1 text-text-primary">
-          {item.description}
-        </div>
+        <div className="text-caption-1 text-text-primary">{item.description}</div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Category:</div>
@@ -30,21 +28,15 @@ const TaskCard = ({ item, handleViewTask }: TaskCardProps) => {
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">From:</div>
-        <div className="text-caption-1 text-text-primary">
-          {item.assignedBy}
-        </div>
+        <div className="text-caption-1 text-text-primary">{assignedByLabel || item.assignedBy}</div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">To:</div>
-        <div className="text-caption-1 text-text-primary">
-          {item.assignedTo}
-        </div>
+        <div className="text-caption-1 text-text-primary">{assignedToLabel || item.assignedTo}</div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Due date:</div>
-        <div className="text-caption-1 text-text-primary">
-          {getFormattedDate(item.dueAt)}
-        </div>
+        <div className="text-caption-1 text-text-primary">{getFormattedDate(item.dueAt)}</div>
       </div>
       <div
         style={getStatusStyle(item.status)}
@@ -53,12 +45,7 @@ const TaskCard = ({ item, handleViewTask }: TaskCardProps) => {
         {toTitleCase(item.status)}
       </div>
       <div className="flex gap-3 w-full">
-        <Secondary
-          href="#"
-          onClick={() => handleViewTask(item)}
-          text="View"
-          className="w-full"
-        />
+        <Secondary href="#" onClick={() => handleViewTask(item)} text="View" className="w-full" />
       </div>
     </div>
   );

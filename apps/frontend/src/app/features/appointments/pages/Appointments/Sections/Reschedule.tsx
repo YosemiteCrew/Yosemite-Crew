@@ -81,7 +81,7 @@ const Reschedule = ({
     }
     try {
       const payload: Appointment = {
-        ...activeAppointment,
+        ...formData,
         status: "REQUESTED",
       };
       await updateAppointment(payload);

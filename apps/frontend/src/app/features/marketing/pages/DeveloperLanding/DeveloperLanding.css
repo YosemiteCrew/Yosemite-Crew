@@ -121,8 +121,8 @@
 }
 .DevYousmiteBoxed::after {
   position: absolute;
-  content: " ";
-  background: url("https://d2il6osz49gpup.cloudfront.net/Images/devcoseafter.png");
+  content: ' ';
+  background: var(--img-bg-dev-cose-after);
   background-size: 100% 100%;
   height: 200px;
   width: 200px;
@@ -510,10 +510,9 @@
   justify-content: center;
 }
 .SimpleStepSec::after {
-  content: " ";
+  content: ' ';
   position: absolute;
-  background: url("https://d2il6osz49gpup.cloudfront.net/Images/devlins.png")
-    no-repeat;
+  background: var(--img-bg-dev-lines) no-repeat;
   background-size: 100% 100%;
   width: 744px;
   left: -100px;
@@ -659,10 +658,9 @@
   z-index: 1;
 }
 .DevlpPricingSec::after {
-  content: " ";
+  content: ' ';
   position: absolute;
-  background: url("https://d2il6osz49gpup.cloudfront.net/Images/devlins.png")
-    no-repeat;
+  background: var(--img-bg-dev-lines) no-repeat;
   background-size: 100% 100%;
   width: 744px;
   left: -150px;
@@ -701,10 +699,9 @@
   overflow: hidden;
 }
 .DevPricBox::after {
-  content: " ";
+  content: ' ';
   position: absolute;
-  background: url("https://d2il6osz49gpup.cloudfront.net/Images/fits1.png")
-    no-repeat;
+  background: var(--img-bg-fits-1) no-repeat;
   background-size: 100% 100%;
   width: 160px;
   left: 0px;
@@ -735,8 +732,7 @@
   margin: 0;
 }
 .DevPricBox:nth-of-type(2)::after {
-  background: url("https://d2il6osz49gpup.cloudfront.net/Images/fits2.png")
-    no-repeat;
+  background: var(--img-bg-fits-2) no-repeat;
   background-size: 100% 100%;
   width: 160px;
   left: 0px;
@@ -744,8 +740,7 @@
   height: 200px;
 }
 .DevPricBox:nth-of-type(3)::after {
-  background: url("https://d2il6osz49gpup.cloudfront.net/Images/fits3.png")
-    no-repeat;
+  background: var(--img-bg-fits-3) no-repeat;
   background-size: 100% 100%;
   width: 160px;
   left: 0px;
@@ -772,10 +767,9 @@
   z-index: 1;
 }
 .ReadyBuildData::after {
-  content: " ";
+  content: ' ';
   position: absolute;
-  background: url("https://d2il6osz49gpup.cloudfront.net/Images/leftbuild.png")
-    no-repeat;
+  background: var(--img-bg-left-build) no-repeat;
   transform: rotate(180deg);
   background-size: 100% 100%;
   width: 386px;
@@ -785,10 +779,9 @@
   z-index: -1;
 }
 .ReadyBuildData::before {
-  content: " ";
+  content: ' ';
   position: absolute;
-  background: url("https://d2il6osz49gpup.cloudfront.net/Images/rightbuild.png")
-    no-repeat;
+  background: var(--img-bg-right-build) no-repeat;
   transform: rotate(180deg);
   background-size: 100% 100%;
   width: 386px;

@@ -81,9 +81,15 @@ export type CompanionRecord = {
   attachments: Attachment[];
   appointmentId?: string;
   companionId?: string;
-  visitType?: VisitType;
+  visitType?: VisitType | null;
   issuingBusinessName?: string;
   issueDate?: string;
+  pmsVisible?: boolean;
+  syncedFromPms?: boolean;
+  uploadedByParentId?: string | null;
+  uploadedByPmsUserId?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export const emptyCompanionRecord: CompanionRecord = {

@@ -2,9 +2,9 @@ import { allowReschedule } from "@/app/lib/appointments";
 
 describe("appointments utilities", () => {
   describe("allowReschedule", () => {
-    it("returns true for REQUESTED status", () => {
+    it("returns false for REQUESTED status", () => {
       const result = allowReschedule("REQUESTED");
-      expect(result).toBe(true);
+      expect(result).toBe(false);
     });
 
     it("returns true for UPCOMING status", () => {

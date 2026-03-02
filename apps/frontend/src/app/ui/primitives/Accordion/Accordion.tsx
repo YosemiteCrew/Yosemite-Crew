@@ -32,11 +32,15 @@ const Accordion: React.FC<AccordionProps> = ({
     children && !(Array.isArray(children) && children.length === 0);
 
   return (
-    <div className={`flex flex-col w-full ${open ? "gap-1" : "gap-0"}`}>
-      <div className={`flex items-center justify-between w-full border-card-border px-3 py-3 ${open ? "border-x border-t rounded-t-2xl" : "border rounded-2xl"}`}>
+    <div className="flex flex-col w-full gap-0">
+      <div
+        className={`flex items-center justify-between w-full border-card-border px-3 py-3 ${open ? "border-x border-t rounded-t-2xl" : "border rounded-2xl"}`}
+      >
         <button
-          className="flex items-center gap-2.5"
+          type="button"
+          className="flex flex-1 items-center gap-2.5 text-left"
           onClick={() => setOpen(!open)}
+          aria-label={title}
         >
           <IoIosArrowDown
             size={20}

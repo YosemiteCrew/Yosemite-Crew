@@ -1,15 +1,15 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
-import Accordion from "@/app/ui/primitives/Accordion/Accordion";
-import FormInput from "@/app/ui/inputs/FormInput/FormInput";
-import { Primary, Secondary } from "@/app/ui/primitives/Buttons";
-import MultiSelectDropdown from "@/app/ui/inputs/MultiSelectDropdown";
-import Datepicker from "@/app/ui/inputs/Datepicker";
-import { formatDisplayDate } from "@/app/features/inventory/pages/Inventory/utils";
-import { getFormattedDate } from "@/app/features/appointments/components/Calendar/weekHelpers";
-import { formatTimeLabel } from "@/app/lib/forms";
-import { toTitleCase } from "@/app/lib/validators";
-import LabelDropdown from "@/app/ui/inputs/Dropdown/LabelDropdown";
-import { CountriesOptions } from "@/app/features/companions/components/AddCompanion/type";
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import Accordion from '@/app/ui/primitives/Accordion/Accordion';
+import FormInput from '@/app/ui/inputs/FormInput/FormInput';
+import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import MultiSelectDropdown from '@/app/ui/inputs/MultiSelectDropdown';
+import Datepicker from '@/app/ui/inputs/Datepicker';
+import { formatDisplayDate } from '@/app/features/inventory/pages/Inventory/utils';
+import { getFormattedDate } from '@/app/features/appointments/components/Calendar/weekHelpers';
+import { formatTimeLabel } from '@/app/lib/forms';
+import { toTitleCase } from '@/app/lib/validators';
+import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
+import { CountriesOptions } from '@/app/features/companions/components/AddCompanion/type';
 
 export type FieldConfig = {
   label: string;
@@ -26,6 +26,7 @@ type EditableAccordionProps = {
   data: Record<string, any>;
   defaultOpen?: boolean;
   showEditIcon?: boolean;
+  rightElement?: React.ReactNode;
   readOnly?: boolean;
   showDeleteIcon?: boolean;
   onSave?: (values: FormValues) => void | Promise<void>;
@@ -62,27 +63,23 @@ const FieldComponents: Record<
           $
         </div>
         <FormInput
-          intype={field.type || "text"}
+          intype={field.type || 'text'}
           inname={field.key}
           value={value}
           inlabel={field.label}
           error={error}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            onChange(e.target.value)
-          }
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
           className="min-h-12! pl-10!"
         />
       </div>
     ) : (
       <FormInput
-        intype={field.type || "text"}
+        intype={field.type || 'text'}
         inname={field.key}
         value={value}
         inlabel={field.label}
         error={error}
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-          onChange(e.target.value)
-        }
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
         className="min-h-12!"
       />
     );
@@ -95,34 +92,30 @@ const FieldComponents: Record<
           $
         </div>
         <FormInput
-          intype={field.type || "text"}
+          intype={field.type || 'text'}
           inname={field.key}
           value={value}
           inlabel={field.label}
           error={error}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            onChange(e.target.value)
-          }
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
           className="min-h-12! pl-10!"
         />
       </div>
     ) : (
       <FormInput
-        intype={field.type || "text"}
+        intype={field.type || 'text'}
         inname={field.key}
         value={value}
         inlabel={field.label}
         error={error}
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-          onChange(e.target.value)
-        }
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
         className="min-h-12!"
       />
     );
   },
   select: ({ field, value, onChange, error }) => {
     const normalizedOptions = (field.options || []).map((opt: any) =>
-      typeof opt === "string" ? { label: opt, value: opt } : opt
+      typeof opt === 'string' ? { label: opt, value: opt } : opt
     );
     return (
       <LabelDropdown
@@ -136,7 +129,7 @@ const FieldComponents: Record<
   },
   dropdown: ({ field, value, onChange, error }) => {
     const normalizedOptions = (field.options || []).map((opt: any) =>
-      typeof opt === "string" ? { label: opt, value: opt } : opt
+      typeof opt === 'string' ? { label: opt, value: opt } : opt
     );
     return (
       <LabelDropdown
@@ -157,7 +150,7 @@ const FieldComponents: Record<
       error={error}
     />
   ),
-  country: ({ field, value, onChange, error }) => (
+  country: ({ value, onChange, error }) => (
     <LabelDropdown
       placeholder="Choose country"
       onSelect={(option: { value: string }) => onChange(option.value)}
@@ -169,29 +162,27 @@ const FieldComponents: Record<
   date: ({ field, value, onChange, error }) => {
     const parseDate = (val: any): Date | null => {
       if (!val) return null;
-      if (typeof val === "string" && val.includes("/")) {
-        const [dd, mm, yyyy] = val.split("/");
+      if (typeof val === 'string' && val.includes('/')) {
+        const [dd, mm, yyyy] = val.split('/');
         const parsed = new Date(`${yyyy}-${mm}-${dd}`);
         if (!Number.isNaN(parsed.getTime())) return parsed;
       }
       const parsed = new Date(val);
       return Number.isNaN(parsed.getTime()) ? null : parsed;
     };
-    const formatDate = (date: Date) => date.toISOString().split("T")[0];
+    const formatDate = (date: Date) => date.toISOString().split('T')[0];
     return (
       <Datepicker
         currentDate={parseDate(value)}
-        setCurrentDate={(
-          next: Date | null | ((prev: Date | null) => Date | null)
-        ) => {
+        setCurrentDate={(next: Date | null | ((prev: Date | null) => Date | null)) => {
           const resolved =
-            typeof next === "function"
+            typeof next === 'function'
               ? (next as (prev: Date | null) => Date | null)(parseDate(value))
               : next;
           if (resolved) {
             onChange(formatDate(resolved));
           } else {
-            onChange("");
+            onChange('');
           }
         }}
         type="input"
@@ -200,30 +191,26 @@ const FieldComponents: Record<
       />
     );
   },
-  time: ({ field, value, onChange, error }) => (
+  time: ({ field, value, error }) => (
     <FormInput
-      intype={"text"}
+      intype={'text'}
       inname={field.key}
       value={formatTimeLabel(value)}
       inlabel={field.label}
       error={error}
-      onChange={(_e: React.ChangeEvent<HTMLInputElement>) => {}}
+      onChange={() => {}}
       className="min-h-12!"
     />
   ),
 };
 
-const normalizeOptions = (
-  options?: Array<string | { label: string; value: string }>
-) =>
+const normalizeOptions = (options?: Array<string | { label: string; value: string }>) =>
   options?.map((option: any) =>
-    typeof option === "string" ? { label: option, value: option } : option
+    typeof option === 'string' ? { label: option, value: option } : option
   ) ?? [];
 
-const resolveLabel = (
-  options: Array<{ label: string; value: string }>,
-  value: string
-) => options.find((o) => o.value === value)?.label ?? value;
+const resolveLabel = (options: Array<{ label: string; value: string }>, value: string) =>
+  options.find((o) => o.value === value)?.label ?? value;
 
 const RenderField = (
   field: any,
@@ -231,227 +218,157 @@ const RenderField = (
   error: string | undefined,
   onChange: (value: any) => void
 ) => {
-  const type = field.type || "text";
-  const Component = FieldComponents[type] || FieldComponents["text"];
-  return (
-    <Component field={field} value={value} error={error} onChange={onChange} />
-  );
+  const type = field.type || 'text';
+  const Component = FieldComponents[type] || FieldComponents['text'];
+  return <Component field={field} value={value} error={error} onChange={onChange} />;
 };
 
 const isCurrencyField = (fieldKey: string) => {
-  return fieldKey === "purchaseCost" || fieldKey === "selling";
-};
-
-const formatCurrencyValue = (value: any) => {
-  if (!value || value === "-") return "-";
-  return `$${value}`;
+  return fieldKey === 'purchaseCost' || fieldKey === 'selling';
 };
 
 const FieldValueComponents: Record<
   string,
   React.FC<{
     field: any;
-    index: number;
-    fields: any;
     formValues: FormValues;
   }>
 > = {
-  text: ({ field, index, fields, formValues }) => (
-    <div
-      className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}
-    >
-      <div className="text-body-4-emphasis text-text-tertiary">
-        {field.label}
-      </div>
+  text: ({ field, formValues }) => (
+    <div className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}>
+      <div className="text-body-4-emphasis text-text-tertiary">{field.label}</div>
       <div className="text-body-4 text-text-primary text-right">
         {Array.isArray(formValues[field.key])
-          ? (formValues[field.key] as string[]).join(", ")
-          : formValues[field.key] || "-"}
+          ? (formValues[field.key] as string[]).join(', ')
+          : formValues[field.key] || '-'}
       </div>
     </div>
   ),
-  status: ({ field, index, fields, formValues }) => (
-    <div
-      className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}
-    >
-      <div className="text-body-4-emphasis text-text-tertiary">
-        {field.label}
-      </div>
+  status: ({ field, formValues }) => (
+    <div className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}>
+      <div className="text-body-4-emphasis text-text-tertiary">{field.label}</div>
       <div className="text-body-4 text-text-primary text-right">
         {toTitleCase(formValues[field.key])}
       </div>
     </div>
   ),
-  number: ({ field, index, fields, formValues }) => (
-    <div
-      className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}
-    >
-      <div className="text-body-4-emphasis text-text-tertiary">
-        {field.label}
-      </div>
-      <div className="text-body-4 text-text-primary text-right">
-        {formValues[field.key] || "-"}
-      </div>
+  number: ({ field, formValues }) => (
+    <div className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}>
+      <div className="text-body-4-emphasis text-text-tertiary">{field.label}</div>
+      <div className="text-body-4 text-text-primary text-right">{formValues[field.key] || '-'}</div>
     </div>
   ),
-  select: ({ field, index, fields, formValues }) => (
-    <div
-      className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}
-    >
-      <div className="text-body-4-emphasis text-text-tertiary">
-        {field.label}
-      </div>
+  select: ({ field, formValues }) => (
+    <div className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}>
+      <div className="text-body-4-emphasis text-text-tertiary">{field.label}</div>
       <div className="text-body-4 text-text-primary text-right">
         {(() => {
           const value = formValues[field.key];
           const options = normalizeOptions(field.options);
           if (options.length) return resolveLabel(options, value);
-          return value || "-";
+          return value || '-';
         })()}
       </div>
     </div>
   ),
-  dropdown: ({ field, index, fields, formValues }) => (
-    <div
-      className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}
-    >
-      <div className="text-body-4-emphasis text-text-tertiary">
-        {field.label}
-      </div>
+  dropdown: ({ field, formValues }) => (
+    <div className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}>
+      <div className="text-body-4-emphasis text-text-tertiary">{field.label}</div>
       <div className="text-body-4 text-text-primary text-right">
         {(() => {
           const value = formValues[field.key];
           const options = normalizeOptions(field.options);
           if (options.length) return resolveLabel(options, value);
-          return value || "-";
+          return value || '-';
         })()}
       </div>
     </div>
   ),
-  multiSelect: ({ field, index, fields, formValues }) => (
-    <div
-      className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}
-    >
-      <div className="text-body-4-emphasis text-text-tertiary">
-        {field.label}
-      </div>
+  multiSelect: ({ field, formValues }) => (
+    <div className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}>
+      <div className="text-body-4-emphasis text-text-tertiary">{field.label}</div>
       <div className="text-body-4 text-text-primary text-right">
         {(() => {
           const value = formValues[field.key];
           const options = normalizeOptions(field.options);
           if (Array.isArray(value)) {
-            if (!value.length) return "-";
+            if (!value.length) return '-';
             if (options.length) {
-              return value
-                .map((v: string) => resolveLabel(options, v))
-                .join(", ");
+              return value.map((v: string) => resolveLabel(options, v)).join(', ');
             }
-            return value.join(", ");
+            return value.join(', ');
           }
           if (options.length) {
             return resolveLabel(options, value);
           }
-          return value || "-";
+          return value || '-';
         })()}
       </div>
     </div>
   ),
-  country: ({ field, index, fields, formValues }) => (
-    <div
-      className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}
-    >
-      <div className="text-body-4-emphasis text-text-tertiary">
-        {field.label}
-      </div>
-      <div className="text-body-4 text-text-primary text-right">
-        {formValues[field.key] || "-"}
-      </div>
+  country: ({ field, formValues }) => (
+    <div className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}>
+      <div className="text-body-4-emphasis text-text-tertiary">{field.label}</div>
+      <div className="text-body-4 text-text-primary text-right">{formValues[field.key] || '-'}</div>
     </div>
   ),
-  date: ({ field, index, fields, formValues }) => {
+  date: ({ field, formValues }) => {
     const value = formValues[field.key];
     return (
       <div
         className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}
       >
-        <div className="text-body-4-emphasis text-text-tertiary">
-          {field.label}
-        </div>
+        <div className="text-body-4-emphasis text-text-tertiary">{field.label}</div>
         <div className="text-body-4 text-text-primary text-right">
-          {typeof value === "string"
-            ? formatDisplayDate(value) || "-"
+          {typeof value === 'string'
+            ? formatDisplayDate(value) || '-'
             : getFormattedDate(formValues[field.key])}
         </div>
       </div>
     );
   },
-  time: ({ field, index, fields, formValues }) => {
+  time: ({ field, formValues }) => {
     const value = formValues[field.key];
     return (
       <div
         className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}
       >
-        <div className="text-body-4-emphasis text-text-tertiary">
-          {field.label}
-        </div>
-        <div className="text-body-4 text-text-primary text-right">
-          {formatTimeLabel(value)}
-        </div>
+        <div className="text-body-4-emphasis text-text-tertiary">{field.label}</div>
+        <div className="text-body-4 text-text-primary text-right">{formatTimeLabel(value)}</div>
       </div>
     );
   },
 };
 
-const RenderValue = (
-  field: any,
-  index: number,
-  fields: any,
-  formValues: FormValues
-) => {
-  const type = field.type || "text";
-  const Component = FieldValueComponents[type] || FieldValueComponents["text"];
-  return (
-    <Component
-      field={field}
-      index={index}
-      fields={fields}
-      formValues={formValues}
-    />
-  );
+const RenderValue = (field: any, formValues: FormValues) => {
+  const type = field.type || 'text';
+  const Component = FieldValueComponents[type] || FieldValueComponents['text'];
+  return <Component field={field} formValues={formValues} />;
 };
 
 type FormValues = Record<string, any>;
 
-const buildInitialValues = (
-  fields: FieldConfig[],
-  data: Record<string, any>
-): FormValues =>
+const buildInitialValues = (fields: FieldConfig[], data: Record<string, any>): FormValues =>
   fields.reduce((acc, field) => {
     if (!isFieldEditable(field)) return acc;
     const initialValue = data?.[field.key];
-    if (field.type === "multiSelect") {
+    if (field.type === 'multiSelect') {
       let value: string | string[] = [];
       if (Array.isArray(initialValue)) {
         value = initialValue;
-      } else if (
-        typeof initialValue === "string" &&
-        initialValue.trim() !== ""
-      ) {
+      } else if (typeof initialValue === 'string' && initialValue.trim() !== '') {
         value = [initialValue];
       }
       acc[field.key] = value;
-    } else if (field.type === "date") {
-      acc[field.key] = initialValue ?? "";
+    } else if (field.type === 'date') {
+      acc[field.key] = initialValue ?? '';
     } else {
-      acc[field.key] = initialValue ?? "";
+      acc[field.key] = initialValue ?? '';
     }
     return acc;
   }, {} as FormValues);
 
-const getRequiredError = (
-  field: FieldConfig,
-  value: any
-): string | undefined => {
+const getRequiredError = (field: FieldConfig, value: any): string | undefined => {
   if (!isFieldEditable(field)) return undefined;
   if (!field.required) return undefined;
   const label = `${field.label} is required`;
@@ -459,10 +376,10 @@ const getRequiredError = (
   if (Array.isArray(value)) {
     return value.length === 0 ? label : undefined;
   }
-  if (field.type === "number") {
+  if (field.type === 'number') {
     return value ? undefined : label;
   }
-  return (value || "").toString().trim() ? undefined : label;
+  return (value || '').toString().trim() ? undefined : label;
 };
 
 const EditableAccordion: React.FC<EditableAccordionProps> = ({
@@ -471,6 +388,7 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
   data,
   defaultOpen = false,
   showEditIcon = true,
+  rightElement,
   readOnly = false,
   showDeleteIcon = false,
   onSave,
@@ -482,12 +400,8 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [formValues, setFormValues] = useState<FormValues>(() =>
-    buildInitialValues(fields, data)
-  );
-  const [formValuesErrors, setFormValuesErrors] = useState<
-    Record<string, string | undefined>
-  >({});
+  const [formValues, setFormValues] = useState<FormValues>(() => buildInitialValues(fields, data));
+  const [formValuesErrors, setFormValuesErrors] = useState<Record<string, string | undefined>>({});
 
   useEffect(() => {
     setFormValues(buildInitialValues(fields, data));
@@ -532,8 +446,8 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
       setIsEditing(false);
       setError(null);
     } catch (e) {
-      console.error("Failed to save accordion data:", e);
-      setError("Failed to save changes. Please try again.");
+      console.error('Failed to save accordion data:', e);
+      setError('Failed to save changes. Please try again.');
     }
   }, [formValues, onSave, validate]);
 
@@ -551,22 +465,11 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
       isEditing: () => isEditing,
     });
     return () => onRegisterActions?.(null);
-  }, [
-    onRegisterActions,
-    handleSave,
-    handleCancel,
-    isEditing,
-    onEditingChange,
-    fields,
-    data,
-  ]);
+  }, [onRegisterActions, handleSave, handleCancel, isEditing, onEditingChange, fields, data]);
 
   const effectiveEditing = readOnly ? false : isEditing;
 
-  const displayValues: FormValues = useMemo(
-    () => ({ ...data, ...formValues }),
-    [data, formValues]
-  );
+  const displayValues: FormValues = useMemo(() => ({ ...data, ...formValues }), [data, formValues]);
 
   return (
     <div className="flex flex-col gap-3 w-full">
@@ -576,13 +479,13 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
         onEditClick={() => !readOnly && setIsEditing((prev) => !prev)}
         isEditing={effectiveEditing}
         showEditIcon={!readOnly && showEditIcon}
+        rightElement={rightElement}
         showDeleteIcon={showDeleteIcon}
         onDeleteClick={onDelete}
       >
         <div className={`flex flex-col`}>
-          {fields.map((field, index) => {
-            const canEditThisField =
-              !readOnly && effectiveEditing && isFieldEditable(field);
+          {fields.map((field) => {
+            const canEditThisField = !readOnly && effectiveEditing && isFieldEditable(field);
             return (
               <div key={field.key}>
                 {canEditThisField ? (
@@ -595,9 +498,7 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
                     )}
                   </div>
                 ) : (
-                  <div className="flex-1">
-                    {RenderValue(field, index, fields, displayValues)}
-                  </div>
+                  <div className="flex-1">{RenderValue(field, displayValues)}</div>
                 )}
               </div>
             );
@@ -609,18 +510,16 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
         <div
           className={
             compactInlineActions
-              ? "flex justify-center items-center gap-3 w-full flex-row"
-              : "flex justify-end items-end gap-3 w-full flex-col"
+              ? 'flex justify-center items-center gap-3 w-full flex-row'
+              : 'flex justify-end items-end gap-3 w-full flex-col'
           }
         >
-          {error && (
-            <div className="text-red-600 text-sm text-center">{error}</div>
-          )}
+          {error && <div className="text-red-600 text-sm text-center">{error}</div>}
           <div
             className={
               compactInlineActions
-                ? "flex items-center justify-center gap-3"
-                : "grid grid-cols-2 gap-3 w-full"
+                ? 'flex items-center justify-center gap-3'
+                : 'grid grid-cols-2 gap-3 w-full'
             }
           >
             <Secondary href="#" onClick={handleCancel} text="Cancel" />

@@ -81,7 +81,8 @@ export const createAppointment = async (appointment: Appointment) => {
 export const updateAppointment = async (payload: Appointment) => {
   const { upsertAppointment } = useAppointmentStore.getState();
   const { primaryOrgId } = useOrgStore.getState();
-  if (!primaryOrgId) {
+  const organisationIdForRequest = primaryOrgId ?? payload.organisationId;
+  if (!organisationIdForRequest) {
     console.warn(
       "No primary organization selected. Cannot update appointment.",
     );
@@ -92,11 +93,17 @@ export const updateAppointment = async (payload: Appointment) => {
     return;
   }
   try {
-    const fhirAppointment = toAppointmentResponseDTO(payload);
+    const fhirAppointment = toAppointmentResponseDTO({
+      ...payload,
+      organisationId: organisationIdForRequest,
+    });
     const res = await patchData<{
       data: AppointmentResponseDTO;
     }>(
-      "/fhir/v1/appointment/pms/" + payload.organisationId + "/" + payload.id,
+      "/fhir/v1/appointment/pms/" +
+        organisationIdForRequest +
+        "/" +
+        payload.id,
       fhirAppointment,
     );
     const data = res.data.data;
@@ -151,19 +158,24 @@ export const toSlotsArray = (res: AvailabilityResponse): Slot[] =>
 
 const performAppointmentAction = async (
   appointment: Appointment,
-  action: "accept" | "cancel",
+  action: "accept" | "cancel" | "checkin" | "reject",
 ) => {
   const { upsertAppointment } = useAppointmentStore.getState();
+  const { primaryOrgId } = useOrgStore.getState();
+  const organisationIdForRequest = primaryOrgId ?? appointment.organisationId;
   if (!appointment.id) {
+    return;
+  }
+  if (!organisationIdForRequest) {
+    console.warn(`No organization selected. Cannot ${action} appointment.`);
     return;
   }
   try {
     const fhirAppointment = toAppointmentResponseDTO(appointment);
-      const { primaryOrgId } = useOrgStore.getState();
     const res = await patchData<{
       data: { appointment: AppointmentResponseDTO };
     }>(
-      `/fhir/v1/appointment/pms/${primaryOrgId}/${appointment.id}/${action}`,
+      `/fhir/v1/appointment/pms/${organisationIdForRequest}/${appointment.id}/${action}`,
       fhirAppointment,
     );
     const data = res.data.data.appointment;
@@ -180,6 +192,12 @@ export const acceptAppointment = (appointment: Appointment) =>
 
 export const cancelAppointment = (appointment: Appointment) =>
   performAppointmentAction(appointment, "cancel");
+
+export const checkInAppointment = (appointment: Appointment) =>
+  performAppointmentAction(appointment, "checkin");
+
+export const rejectAppointment = (appointment: Appointment) =>
+  performAppointmentAction(appointment, "reject");
 
 export const consumeInventory = async (inventory: InventoryConsumeRequest) => {
   const { primaryOrgId } = useOrgStore.getState();

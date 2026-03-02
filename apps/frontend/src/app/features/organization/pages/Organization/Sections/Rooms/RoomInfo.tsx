@@ -109,7 +109,7 @@ const RoomInfo = ({
     try {
       const formData: OrganisationRoom = {
         id: activeRoom.id,
-        organisationId: activeRoom.id,
+        organisationId: activeRoom.organisationId,
         name: values.name,
         type: values.type,
         assignedSpecialiteis: values.assignedSpecialiteis,

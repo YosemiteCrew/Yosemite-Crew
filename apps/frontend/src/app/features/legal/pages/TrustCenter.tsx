@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import React, { useState } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import { trustCenterData } from "./trustCenterData";
+import React, { useState } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { trustCenterData } from './trustCenterData';
 import {
   FiMail,
   FiLink,
@@ -12,21 +12,22 @@ import {
   FiCheckCircle,
   FiChevronRight,
   FiX,
-} from "react-icons/fi";
-import "./TrustCenter.css";
+} from 'react-icons/fi';
+import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import './TrustCenter.css';
 
 const TrustCenter = () => {
-  const [activeTab, setActiveTab] = useState("Overview");
+  const [activeTab, setActiveTab] = useState('Overview');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedResource, setSelectedResource] = useState<string | null>(null);
 
   const {
     hero = {
-      title: "",
-      subtitle: "",
-      lastUpdated: "",
-      email: "",
-      privacyLink: "",
+      title: '',
+      subtitle: '',
+      lastUpdated: '',
+      email: '',
+      privacyLink: '',
     },
     certifications = [],
     resources = [],
@@ -41,9 +42,9 @@ const TrustCenter = () => {
   };
 
   const handleCopyLink = (id: string) => {
-    const url = `${window.location.origin}/trust-center#${id}`;
+    const url = `${globalThis.location.origin}/trust-center#${id}`;
     navigator.clipboard.writeText(url);
-    alert("Link copied to clipboard!");
+    alert('Link copied to clipboard!');
   };
 
   const handleModalClose = () => {
@@ -54,193 +55,177 @@ const TrustCenter = () => {
 
   const renderCertifications = () => (
     <div className="SectionGrid">
-      {certifications.map((cert) => (
-        <div
-          className="PremiumCard"
-          key={cert.name}
-          style={{
-            alignItems: "center",
-            flexDirection: "row",
-            padding: "24px",
-          }}
-        >
-          <div
-            style={{
-              position: "relative",
-              width: "60px",
-              height: "60px",
-              flexShrink: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "2rem",
-            }}
-          >
-            {/* Logic:
-              1. If it's a URL (http), render Image.
-              2. If it's text like "US" or "EU" (length <= 2), render as Bold Text.
-              3. Otherwise, render as Emoji.
-            */}
-            {cert.icon.startsWith("http") ? (
-              <Image
-                src={cert.icon}
-                alt={cert.name}
-                fill
-                style={{ objectFit: "contain" }}
-              />
-            ) : cert.icon.length <= 3 ? (
-              <span
-                style={{
-                  fontFamily: "var(--grotesk-font)",
-                  fontWeight: "700",
-                  fontSize: "1.75rem",
-                  color: "var(--color-text-primary)",
-                }}
-              >
-                {cert.icon}
-              </span>
-            ) : (
-              <span style={{ fontSize: "2.5rem" }}>{cert.icon}</span>
-            )}
-          </div>
-
-          <div style={{ flex: 1, paddingLeft: "20px" }}>
-            <h3
-              style={{
-                fontFamily: "var(--grotesk-font)",
-                fontWeight: "500",
-                margin: "0 0 6px 0",
-                fontSize: "1.25rem",
-              }}
-            >
-              {cert.name}
-            </h3>
+      {certifications.map((cert) => {
+        let statusColor: string;
+        let statusBackground: string;
+        if (cert.status === 'Compliant') {
+          statusColor = 'var(--color-success-600)';
+          statusBackground = 'var(--color-success-100)';
+        } else if (cert.status === 'Planned') {
+          statusColor = 'var(--color-text-tertiary)';
+          statusBackground = 'var(--color-neutral-100)';
+        } else {
+          statusColor = 'var(--color-warning-700)';
+          statusBackground = 'var(--color-warning-100)';
+        }
+        let certIcon: React.ReactNode;
+        if (cert.icon.startsWith('http')) {
+          certIcon = (
+            <Image src={cert.icon} alt={cert.name} fill style={{ objectFit: 'contain' }} />
+          );
+        } else if (cert.icon.length <= 3) {
+          certIcon = (
             <span
               style={{
-                fontSize: "0.8rem",
-                fontWeight: "700",
-                fontFamily: "var(--satoshi-font)",
-                color:
-                  cert.status === "Compliant"
-                    ? "var(--color-success-600)"
-                    : cert.status === "Planned"
-                      ? "var(--color-text-tertiary)"
-                      : "var(--color-warning-700)",
-                background:
-                  cert.status === "Compliant"
-                    ? "var(--color-success-100)"
-                    : cert.status === "Planned"
-                      ? "var(--color-neutral-100)"
-                      : "var(--color-warning-100)",
-                padding: "4px 10px",
-                borderRadius: "100px",
-                display: "inline-block",
+                fontFamily: 'var(--grotesk-font)',
+                fontWeight: '700',
+                fontSize: '1.75rem',
+                color: 'var(--color-text-primary)',
               }}
             >
-              {cert.status}
+              {cert.icon}
             </span>
-            {cert.description && (
-              <p
+          );
+        } else {
+          certIcon = <span style={{ fontSize: '2.5rem' }}>{cert.icon}</span>;
+        }
+        return (
+          <div
+            className="PremiumCard"
+            key={cert.name}
+            style={{
+              alignItems: 'center',
+              flexDirection: 'row',
+              padding: '24px',
+            }}
+          >
+            <div
+              style={{
+                position: 'relative',
+                width: '60px',
+                height: '60px',
+                flexShrink: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '2rem',
+              }}
+            >
+              {certIcon}
+            </div>
+
+            <div style={{ flex: 1, paddingLeft: '20px' }}>
+              <h3
                 style={{
-                  fontSize: "0.9rem",
-                  color: "var(--color-text-secondary)",
-                  marginTop: "8px",
-                  lineHeight: "1.4",
+                  fontFamily: 'var(--grotesk-font)',
+                  fontWeight: '500',
+                  margin: '0 0 6px 0',
+                  fontSize: '1.25rem',
                 }}
               >
-                {cert.description}
-              </p>
-            )}
+                {cert.name}
+              </h3>
+              <span
+                style={{
+                  fontSize: '0.8rem',
+                  fontWeight: '700',
+                  fontFamily: 'var(--satoshi-font)',
+                  color: statusColor,
+                  background: statusBackground,
+                  padding: '4px 10px',
+                  borderRadius: '100px',
+                  display: 'inline-block',
+                }}
+              >
+                {cert.status}
+              </span>
+              {cert.description && (
+                <p
+                  style={{
+                    fontSize: '0.9rem',
+                    color: 'var(--color-text-secondary)',
+                    marginTop: '8px',
+                    lineHeight: '1.4',
+                  }}
+                >
+                  {cert.description}
+                </p>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 
   const renderResources = () => (
     <div className="ResourceList">
       {resources.map((res) => (
-        <button
+        <div
           className="OverviewResourceItem"
           key={res.title}
-          type="button"
-          onClick={() => (res.locked ? handleRequestAccess(res.title) : null)}
           style={{
-            width: "100%",
-            border: "none",
-            textAlign: "left",
-            font: "inherit",
+            width: '100%',
+            border: 'none',
+            textAlign: 'left',
+            font: 'inherit',
           }}
         >
           <div>
             <h3
               style={{
-                fontFamily: "var(--grotesk-font)",
-                fontWeight: "500",
-                fontSize: "1.125rem",
+                fontFamily: 'var(--grotesk-font)',
+                fontWeight: '500',
+                fontSize: '1.125rem',
                 margin: 0,
-                marginBottom: "4px",
+                marginBottom: '4px',
               }}
             >
               {res.title}
             </h3>
             <span
               style={{
-                fontSize: "0.9rem",
-                color: "var(--color-text-tertiary)",
+                fontSize: '0.9rem',
+                color: 'var(--color-text-tertiary)',
               }}
             >
               {res.type}
             </span>
           </div>
           <div className="ResourceActions">
-            <div
-              role="button"
-              tabIndex={0}
+            <button
+              type="button"
               className="ActionBtn Outline"
               onClick={(e) => {
                 e.stopPropagation();
                 handleCopyLink(res.id);
               }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.stopPropagation();
-                  handleCopyLink(res.id);
-                }
-              }}
             >
               <FiLink /> Copy link
-            </div>
+            </button>
             {res.locked ? (
-              <div
-                role="button"
-                tabIndex={0}
+              <button
+                type="button"
                 className="ActionBtn Filled"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleRequestAccess(res.title);
                 }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.stopPropagation();
-                    handleRequestAccess(res.title);
-                  }
-                }}
               >
                 <FiLock /> Request access
-              </div>
+              </button>
             ) : (
               <Link
-                href={res.link || "#"}
+                href={res.link || '#'}
                 className="ActionBtn Filled"
-                style={{ textDecoration: "none" }}
+                style={{ textDecoration: 'none' }}
                 onClick={(e) => e.stopPropagation()}
               >
                 <FiDownload /> Download
               </Link>
             )}
           </div>
-        </button>
+        </div>
       ))}
     </div>
   );
@@ -255,30 +240,28 @@ const TrustCenter = () => {
           </div>
           <p
             style={{
-              fontSize: "1rem",
-              color: "var(--color-text-secondary)",
-              lineHeight: "1.5",
+              fontSize: '1rem',
+              color: 'var(--color-text-secondary)',
+              lineHeight: '1.5',
             }}
           >
             {pillar.description}
           </p>
-          <ul
-            style={{ paddingLeft: "0", listStyle: "none", marginTop: "10px" }}
-          >
+          <ul style={{ paddingLeft: '0', listStyle: 'none', marginTop: '10px' }}>
             {pillar.items.map((item: string) => (
               <li
                 key={item}
                 style={{
-                  marginBottom: "8px",
-                  display: "flex",
-                  gap: "10px",
-                  fontSize: "1rem",
+                  marginBottom: '8px',
+                  display: 'flex',
+                  gap: '10px',
+                  fontSize: '1rem',
                 }}
               >
                 <span
                   style={{
-                    color: "var(--color-success-500)",
-                    fontWeight: "bold",
+                    color: 'var(--color-success-500)',
+                    fontWeight: 'bold',
                   }}
                 >
                   ✓
@@ -306,7 +289,7 @@ const TrustCenter = () => {
                 <a href={`mailto:${hero.email}`} className="HeroLink">
                   <FiMail className="HeroIcon" /> {hero.email}
                 </a>
-                <Link href={hero.privacyLink || "#"} className="HeroLink">
+                <Link href={hero.privacyLink || '#'} className="HeroLink">
                   <FiLink className="HeroIcon" /> Privacy Policy
                 </Link>
               </div>
@@ -314,11 +297,11 @@ const TrustCenter = () => {
 
             <div className="TrustHeroImage">
               <Image
-                src="https://d2il6osz49gpup.cloudfront.net/Images/securityTrust.png"
+                src={MEDIA_SOURCES.trustCenter.security}
                 alt="Security Illustration"
                 width={320}
                 height={250}
-                style={{ objectFit: "contain", width: "100%", height: "auto" }}
+                style={{ objectFit: 'contain', width: '100%', height: 'auto' }}
                 priority
               />
             </div>
@@ -333,7 +316,7 @@ const TrustCenter = () => {
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`TrustTabBtn ${activeTab === tab ? "Active" : ""}`}
+              className={`TrustTabBtn ${activeTab === tab ? 'Active' : ''}`}
             >
               {tab}
             </button>
@@ -344,13 +327,10 @@ const TrustCenter = () => {
       {/* 3. MAIN CONTENT */}
       <div className="TrustContentContainer">
         {/* TAB: OVERVIEW */}
-        {activeTab === "Overview" && (
+        {activeTab === 'Overview' && (
           <div className="OverviewDashboard">
             <div>
-              <h2
-                className="SectionTitle"
-                style={{ margin: 0, marginBottom: "20px" }}
-              >
+              <h2 className="SectionTitle" style={{ margin: 0, marginBottom: '20px' }}>
                 Compliance & Regulations
               </h2>
               {renderCertifications()}
@@ -359,29 +339,26 @@ const TrustCenter = () => {
               <div className="OverviewLeftCol">
                 <div
                   style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: "20px",
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '20px',
                   }}
                 >
-                  <h2
-                    className="SectionTitle"
-                    style={{ fontSize: "1.5rem", margin: 0 }}
-                  >
+                  <h2 className="SectionTitle" style={{ fontSize: '1.5rem', margin: 0 }}>
                     Security Controls
                   </h2>
                   <button
-                    onClick={() => setActiveTab("Controls")}
+                    onClick={() => setActiveTab('Controls')}
                     style={{
-                      background: "none",
-                      border: "none",
-                      color: "var(--blue-text)",
-                      fontWeight: "500",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "4px",
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--blue-text)',
+                      fontWeight: '500',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
                     }}
                   >
                     View all <FiChevronRight />
@@ -391,18 +368,15 @@ const TrustCenter = () => {
                   {securityPillars.slice(0, 4).map((pillar: any) => (
                     <div className="OverviewControlCard" key={pillar.title}>
                       <h3>
-                        <span style={{ fontSize: "1.2rem" }}>
-                          {pillar.icon}
-                        </span>{" "}
-                        {pillar.title}
+                        <span style={{ fontSize: '1.2rem' }}>{pillar.icon}</span> {pillar.title}
                       </h3>
                       <ul className="OverviewControlList">
                         {pillar.items.slice(0, 3).map((item: string) => (
                           <li key={item}>
                             <FiCheckCircle
                               style={{
-                                color: "var(--color-success-500)",
-                                minWidth: "14px",
+                                color: 'var(--color-success-500)',
+                                minWidth: '14px',
                               }}
                             />
                             {item}
@@ -417,78 +391,69 @@ const TrustCenter = () => {
               <div className="OverviewResourceCard">
                 <div
                   style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: "20px",
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '20px',
                   }}
                 >
-                  <h2
-                    className="SectionTitle"
-                    style={{ fontSize: "1.5rem", margin: 0 }}
-                  >
+                  <h2 className="SectionTitle" style={{ fontSize: '1.5rem', margin: 0 }}>
                     Resources
                   </h2>
                   <button
-                    onClick={() => setActiveTab("Resources")}
+                    onClick={() => setActiveTab('Resources')}
                     style={{
-                      background: "none",
-                      border: "none",
-                      color: "var(--blue-text)",
-                      fontWeight: "500",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "4px",
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--blue-text)',
+                      fontWeight: '500',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
                     }}
                   >
                     View all <FiChevronRight />
                   </button>
                 </div>
 
-                <div style={{ display: "flex", flexDirection: "column" }}>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
                   {resources.slice(0, 3).map((res) => (
-                    <button
+                    <div
                       className="OverviewResourceItem"
                       key={res.title}
-                      type="button"
-                      onClick={() =>
-                        res.locked ? handleRequestAccess(res.title) : null
-                      }
                       style={{
-                        width: "100%",
-                        border: "none",
-                        textAlign: "left",
-                        font: "inherit",
+                        width: '100%',
+                        border: 'none',
+                        textAlign: 'left',
+                        font: 'inherit',
                       }}
                     >
                       <div>
                         <div
                           style={{
-                            fontFamily: "var(--grotesk-font)",
-                            fontWeight: "500",
-                            fontSize: "0.95rem",
+                            fontFamily: 'var(--grotesk-font)',
+                            fontWeight: '500',
+                            fontSize: '0.95rem',
                           }}
                         >
                           {res.title}
                         </div>
                         <div
                           style={{
-                            fontSize: "0.8rem",
-                            color: "var(--color-text-tertiary)",
+                            fontSize: '0.8rem',
+                            color: 'var(--color-text-tertiary)',
                           }}
                         >
                           {res.type}
                         </div>
                       </div>
                       {res.locked ? (
-                        <FiLock
-                          style={{ color: "var(--color-text-tertiary)" }}
-                        />
+                        <FiLock style={{ color: 'var(--color-text-tertiary)' }} />
                       ) : (
-                        <FiDownload style={{ color: "var(--blue-text)" }} />
+                        <FiDownload style={{ color: 'var(--blue-text)' }} />
                       )}
-                    </button>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -497,29 +462,26 @@ const TrustCenter = () => {
             <div className="OverviewSubproc">
               <div
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: "20px",
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '20px',
                 }}
               >
-                <h2
-                  className="SectionTitle"
-                  style={{ fontSize: "1.5rem", margin: 0 }}
-                >
+                <h2 className="SectionTitle" style={{ fontSize: '1.5rem', margin: 0 }}>
                   Sub-processors
                 </h2>
                 <button
-                  onClick={() => setActiveTab("Subprocessors")}
+                  onClick={() => setActiveTab('Subprocessors')}
                   style={{
-                    background: "none",
-                    border: "none",
-                    color: "var(--blue-text)",
-                    fontWeight: "500",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "4px",
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--blue-text)',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
                   }}
                 >
                   View all <FiChevronRight />
@@ -534,7 +496,7 @@ const TrustCenter = () => {
                           src={sub.logo}
                           alt={sub.name}
                           fill
-                          style={{ objectFit: "contain" }}
+                          style={{ objectFit: 'contain' }}
                         />
                       )}
                     </div>
@@ -546,27 +508,27 @@ const TrustCenter = () => {
         )}
 
         {/* --- OTHER TABS --- */}
-        {activeTab === "Resources" && (
+        {activeTab === 'Resources' && (
           <div>
-            <h2 className="SectionTitle" style={{ marginBottom: "30px" }}>
+            <h2 className="SectionTitle" style={{ marginBottom: '30px' }}>
               Security Resources
             </h2>
             {renderResources()}
           </div>
         )}
 
-        {activeTab === "Controls" && (
+        {activeTab === 'Controls' && (
           <div>
-            <h2 className="SectionTitle" style={{ marginBottom: "30px" }}>
+            <h2 className="SectionTitle" style={{ marginBottom: '30px' }}>
               Security Controls (ISMS)
             </h2>
             {renderControls()}
           </div>
         )}
 
-        {activeTab === "Subprocessors" && (
+        {activeTab === 'Subprocessors' && (
           <div className="PremiumCard">
-            <h2 className="CardTitle" style={{ marginBottom: "20px" }}>
+            <h2 className="CardTitle" style={{ marginBottom: '20px' }}>
               Authorized Sub-processors
             </h2>
             <table className="SubTable">
@@ -582,25 +544,25 @@ const TrustCenter = () => {
                   <tr key={sub.name}>
                     <td
                       style={{
-                        fontWeight: "500",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "12px",
+                        fontWeight: '500',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
                       }}
                     >
                       {sub.logo && (
                         <div
                           style={{
-                            position: "relative",
-                            width: "24px",
-                            height: "24px",
+                            position: 'relative',
+                            width: '24px',
+                            height: '24px',
                           }}
                         >
                           <Image
                             src={sub.logo}
                             alt={sub.name}
                             fill
-                            style={{ objectFit: "contain" }}
+                            style={{ objectFit: 'contain' }}
                           />
                         </div>
                       )}
@@ -616,14 +578,14 @@ const TrustCenter = () => {
         )}
 
         {/* --- NEW NEED HELP CARD --- */}
-        <div style={{ marginTop: "80px", marginBottom: "40px" }}>
+        <div style={{ marginTop: '80px', marginBottom: '40px' }}>
           <div className="NeedHelpDiv">
             <div className="TrustNeedHelpItem">
               <div className="helpText">
                 <h3>Have questions about security?</h3>
                 <p>
-                  Got questions or found vulnerability? Just reach out to us!
-                  Our team is here to help.
+                  Got questions or found vulnerability? Just reach out to us! Our team is here to
+                  help.
                 </p>
               </div>
               <div className="helpbtn">
@@ -636,37 +598,28 @@ const TrustCenter = () => {
 
       {/* --- REQUEST ACCESS MODAL --- */}
       {isModalOpen && (
-        <div
-          className="ModalOverlay"
-          role="presentation"
-          onClick={handleModalClose}
-        >
-          <div
-            className="ModalContent"
-            role="dialog"
-            aria-modal="true"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="ModalOverlay">
+          <button
+            type="button"
+            className="ModalBackdropButton"
+            onClick={handleModalClose}
+            aria-label="Close modal overlay"
+          />
+          <dialog className="ModalContent" open aria-modal="true">
             <div className="ModalHeader">
               <h3>Request Access</h3>
-              <button
-                className="CloseBtn"
-                onClick={handleModalClose}
-                aria-label="Close modal"
-              >
+              <button className="CloseBtn" onClick={handleModalClose} aria-label="Close modal">
                 <FiX />
               </button>
             </div>
 
             <div className="ModalBody">
               <div className="ResourceInfoBox">
-                <span style={{ color: "var(--color-text-secondary)" }}>
+                <span style={{ color: 'var(--color-text-secondary)' }}>
                   You are requesting access to:
                 </span>
                 <br />
-                <strong
-                  style={{ color: "var(--blue-text)", fontSize: "1.05rem" }}
-                >
+                <strong style={{ color: 'var(--blue-text)', fontSize: '1.05rem' }}>
                   {selectedResource}
                 </strong>
               </div>
@@ -674,21 +627,11 @@ const TrustCenter = () => {
               <div className="FormGrid">
                 <div className="FormGroup">
                   <label htmlFor="firstName">First Name</label>
-                  <input
-                    id="firstName"
-                    type="text"
-                    className="FormInput"
-                    placeholder="Jane"
-                  />
+                  <input id="firstName" type="text" className="FormInput" placeholder="Jane" />
                 </div>
                 <div className="FormGroup">
                   <label htmlFor="lastName">Last Name</label>
-                  <input
-                    id="lastName"
-                    type="text"
-                    className="FormInput"
-                    placeholder="Doe"
-                  />
+                  <input id="lastName" type="text" className="FormInput" placeholder="Doe" />
                 </div>
               </div>
 
@@ -704,12 +647,7 @@ const TrustCenter = () => {
 
               <div className="FormGroup">
                 <label htmlFor="companyName">Company Name</label>
-                <input
-                  id="companyName"
-                  type="text"
-                  placeholder="Acme Inc."
-                  className="FormInput"
-                />
+                <input id="companyName" type="text" placeholder="Acme Inc." className="FormInput" />
               </div>
 
               <div className="FormGroup">
@@ -727,25 +665,21 @@ const TrustCenter = () => {
             </div>
 
             <div className="ModalFooter">
-              <button
-                className="CancelBtn"
-                onClick={handleModalClose}
-                type="button"
-              >
+              <button className="CancelBtn" onClick={handleModalClose} type="button">
                 Cancel
               </button>
               <button
                 className="SubmitBtn"
                 type="button"
                 onClick={() => {
-                  alert("Request sent! Our team will review your credentials.");
+                  alert('Request sent! Our team will review your credentials.');
                   handleModalClose();
                 }}
               >
                 Request Access
               </button>
             </div>
-          </div>
+          </dialog>
         </div>
       )}
     </div>

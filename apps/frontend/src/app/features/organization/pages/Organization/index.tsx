@@ -9,6 +9,7 @@ import {
   Payment,
   Documents,
   DocumentESigning,
+  LinkedMedicalDevices,
   DeleteOrg,
 } from "@/app/features/organization/pages/Organization/Sections";
 import { usePrimaryOrg } from "@/app/hooks/useOrgSelectors";
@@ -28,6 +29,7 @@ const Organization = () => {
           <Team />
           <Rooms />
           <Payment />
+          <LinkedMedicalDevices />
           <Documents />
           <DocumentESigning />
         </>

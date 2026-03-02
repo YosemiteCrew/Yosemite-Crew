@@ -1,4 +1,4 @@
-.FaqSection{
+.FaqSection {
   max-width: 960px;
   width: 100%;
   margin: 0 auto;
@@ -69,13 +69,13 @@
 }
 
 .accordion-button::after {
-  background: url("https://d2il6osz49gpup.cloudfront.net/Images/rightfaq.png") !important;
+  background: var(--img-bg-rightfaq) !important;
   background-size: 100% 100% !important;
   width: 50px !important;
   height: 50px !important;
 }
 .accordion-button:not(.collapsed)::after {
-  background: url("https://d2il6osz49gpup.cloudfront.net/Images/downfaq.png") !important;
+  background: var(--img-bg-downfaq) !important;
   background-size: 100% 100% !important;
   width: 32px !important;
   height: 32px !important;

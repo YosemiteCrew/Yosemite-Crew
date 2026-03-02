@@ -1,18 +1,22 @@
-"use client";
-import React from "react";
-import { FaCalendar, FaTasks } from "react-icons/fa";
-import { IoEye } from "react-icons/io5";
-import Image from "next/image";
+'use client';
+import React from 'react';
+import { FaCalendar, FaTasks } from 'react-icons/fa';
+import { IoEye, IoOpenOutline } from 'react-icons/io5';
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 
-import CompanionCard from "@/app/ui/cards/CompanionCard/CompanionCard";
-import GenericTable from "@/app/ui/tables/GenericTable/GenericTable";
-import { CompanionParent } from "@/app/features/companions/pages/Companions/types";
+import CompanionCard from '@/app/ui/cards/CompanionCard/CompanionCard';
+import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
+import { CompanionParent } from '@/app/features/companions/pages/Companions/types';
+import { Appointment } from '@yosemite-crew/types';
+import { useAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
 
-import { getAgeInYears } from "@/app/lib/date";
-import { getSafeImageUrl, ImageType } from "@/app/lib/urls";
-import { toTitleCase } from "@/app/lib/validators";
+import { getAgeInYears } from '@/app/lib/date';
+import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
+import { toTitleCase } from '@/app/lib/validators';
+import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
 
-import "./DataTable.css";
+import './DataTable.css';
 
 type Column<T> = {
   label: string;
@@ -23,7 +27,6 @@ type Column<T> = {
 
 type CompanionsTableProps = {
   filteredList: CompanionParent[];
-  activeCompanion: CompanionParent | null;
   setActiveCompanion: (companion: CompanionParent) => void;
   setViewCompanion: (open: boolean) => void;
   setBookAppointment: (open: boolean) => void;
@@ -34,20 +37,19 @@ type CompanionsTableProps = {
 
 export const getStatusStyle = (status: string) => {
   switch (status.toLowerCase()) {
-    case "active":
-      return { color: "#fff", backgroundColor: "#D28F9A" };
-    case "archived":
-      return { color: "#fff", backgroundColor: "#747283" };
-    case "inactive":
-      return { color: "#fff", backgroundColor: "#BF9FAA" };
+    case 'active':
+      return { color: '#fff', backgroundColor: '#D28F9A' };
+    case 'archived':
+      return { color: '#fff', backgroundColor: '#747283' };
+    case 'inactive':
+      return { color: '#fff', backgroundColor: '#BF9FAA' };
     default:
-      return { color: "#fff", backgroundColor: "rgba(107,114,128,0.1)" };
+      return { color: '#fff', backgroundColor: 'rgba(107,114,128,0.1)' };
   }
 };
 
 const CompanionsTable = ({
   filteredList,
-  activeCompanion,
   setActiveCompanion,
   setViewCompanion,
   setBookAppointment,
@@ -55,6 +57,49 @@ const CompanionsTable = ({
   canEditAppointments,
   canEditTasks,
 }: CompanionsTableProps) => {
+  const router = useRouter();
+  const appointments = useAppointmentsForPrimaryOrg();
+
+  const getUpcomingAppointmentForCompanion = (companionId?: string) => {
+    if (!companionId) return null;
+    const now = Date.now();
+    const upcomingStatuses = new Set([
+      'NO_PAYMENT',
+      'REQUESTED',
+      'UPCOMING',
+      'CHECKED_IN',
+      'IN_PROGRESS',
+    ]);
+
+    const related = appointments
+      .filter(
+        (appointment) =>
+          appointment?.companion?.id === companionId &&
+          upcomingStatuses.has(String(appointment.status ?? '').toUpperCase())
+      )
+      .sort(
+        (a, b) =>
+          new Date(a.startTime ?? a.appointmentDate).getTime() -
+          new Date(b.startTime ?? b.appointmentDate).getTime()
+      );
+
+    if (related.length === 0) return null;
+    return (
+      related.find(
+        (appointment) =>
+          new Date(appointment.startTime ?? appointment.appointmentDate).getTime() >= now
+      ) ?? related[0]
+    );
+  };
+
+  const goToAppointment = (appointment: Appointment) => {
+    if (!appointment?.id) return;
+    const params = new URLSearchParams({
+      appointmentId: appointment.id,
+    });
+    router.push(`/appointments?${params.toString()}`);
+  };
+
   const handleViewCompanion = (companion: CompanionParent) => {
     setActiveCompanion(companion);
     setViewCompanion(true);
@@ -72,69 +117,63 @@ const CompanionsTable = ({
 
   const columns: Column<CompanionParent>[] = [
     {
-      label: "",
-      key: "image",
-      width: "5%",
+      label: '',
+      key: 'image',
+      width: '5%',
       render: (item: CompanionParent) => (
         <div className="appointment-profile w-10 h-10">
           <Image
             src={getSafeImageUrl(
               item.companion.photoUrl,
-              item.companion.type.toLowerCase() as ImageType,
+              item.companion.type.toLowerCase() as ImageType
             )}
             alt=""
             height={40}
             width={40}
             style={{
-              borderRadius: "50%",
-              objectFit: "cover",
-              maxWidth: "40px",
-              minWidth: "40px",
-              maxHeight: "40px",
+              borderRadius: '50%',
+              objectFit: 'cover',
+              maxWidth: '40px',
+              minWidth: '40px',
+              maxHeight: '40px',
             }}
           />
         </div>
       ),
     },
     {
-      label: "Name",
-      key: "name",
-      width: "15%",
+      label: 'Name',
+      key: 'name',
+      width: '15%',
       render: (item: CompanionParent) => (
         <div className="appointment-profile">
           <div className="appointment-profile-two">
-            <div className="appointment-profile-title">
-              {item.companion.name}
-            </div>
+            <div className="appointment-profile-title">{item.companion.name}</div>
             <div className="flex items-center">
               <div className="appointment-profile-sub truncate max-w-[60px]">
                 {item.companion.breed}
               </div>
-              <div className="appointment-profile-sub">
-                {"/" + item.companion.type}
-              </div>
+              <div className="appointment-profile-sub">{'/' + item.companion.type}</div>
             </div>
           </div>
         </div>
       ),
     },
     {
-      label: "Parent",
-      key: "parent",
-      width: "10%",
+      label: 'Parent',
+      key: 'parent',
+      width: '10%',
       render: (item: CompanionParent) => (
         <div className="appointment-profile-title">{item.parent.firstName}</div>
       ),
     },
     {
-      label: "Gender/Age",
-      key: "gender/age",
-      width: "10%",
+      label: 'Gender/Age',
+      key: 'gender/age',
+      width: '10%',
       render: (item: CompanionParent) => (
         <div className="appointment-profile-two">
-          <div className="appointment-profile-title">
-            {item.companion.gender}
-          </div>
+          <div className="appointment-profile-title">{item.companion.gender}</div>
           <div className="appointment-profile-title">
             {getAgeInYears(item.companion.dateOfBirth)}
           </div>
@@ -142,43 +181,67 @@ const CompanionsTable = ({
       ),
     },
     {
-      label: "Allergy",
-      key: "allergy",
-      width: "15%",
+      label: 'Allergy',
+      key: 'allergy',
+      width: '15%',
       render: (item: CompanionParent) => (
-        <div className="appointment-profile-title">
-          {item.companion.allergy || "-"}
-        </div>
+        <div className="appointment-profile-title">{item.companion.allergy || '-'}</div>
       ),
     },
     {
-      label: "Upcoming Appointment",
-      key: "Upcoming Appointment",
-      width: "20%",
-      render: (item: CompanionParent) => (
-        <div className="appointment-profile-two">
-          <div className="appointment-profile-title">{"-"}</div>
-          <div className="appointment-profile-sub">{""}</div>
-        </div>
-      ),
+      label: 'Upcoming Appointment',
+      key: 'Upcoming Appointment',
+      width: '20%',
+      render: (item: CompanionParent) => {
+        const upcoming = getUpcomingAppointmentForCompanion(item.companion.id);
+        if (!upcoming) {
+          return (
+            <div className="appointment-profile-two">
+              <div className="appointment-profile-title">-</div>
+              <div className="appointment-profile-sub" />
+            </div>
+          );
+        }
+
+        return (
+          <button
+            type="button"
+            onClick={() => goToAppointment(upcoming)}
+            className="w-full text-left rounded-xl! border border-card-border px-2 py-1.5 hover:bg-card-hover transition-colors"
+            title="Open appointment"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="appointment-profile-two min-w-0">
+                <div className="appointment-profile-title truncate">
+                  {formatDateLabel(upcoming.appointmentDate)}
+                </div>
+                <div className="appointment-profile-sub truncate">
+                  {formatTimeLabel(upcoming.startTime)}
+                </div>
+              </div>
+              <IoOpenOutline size={15} color="#302F2E" />
+            </div>
+          </button>
+        );
+      },
     },
     {
-      label: "Status",
-      key: "status",
-      width: "15%",
+      label: 'Status',
+      key: 'status',
+      width: '15%',
       render: (item: CompanionParent) => (
         <div
           className="appointment-status"
-          style={getStatusStyle(item.companion.status || "inactive")}
+          style={getStatusStyle(item.companion.status || 'inactive')}
         >
-          {toTitleCase(item.companion.status || "inactive")}
+          {toTitleCase(item.companion.status || 'inactive')}
         </div>
       ),
     },
     {
-      label: "Actions",
-      key: "actions",
-      width: "10%",
+      label: 'Actions',
+      key: 'actions',
+      width: '10%',
       render: (item: CompanionParent) => (
         <div className="action-btn-col">
           <button

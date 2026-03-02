@@ -1,11 +1,12 @@
-import React, { useEffect, useMemo, useState } from "react";
-import Fallback from "@/app/ui/overlays/Fallback";
-import { PermissionGate } from "@/app/ui/layout/guards/PermissionGate";
-import { PERMISSIONS } from "@/app/lib/permissions";
-import { Appointment } from "@yosemite-crew/types";
-import { AuditTrail } from "@/app/features/audit/types/audit";
-import { getAppointmentAuditTrail } from "@/app/features/audit/services/auditService";
-import { toTitle } from "@/app/lib/validators";
+import React, { useEffect, useMemo, useState } from 'react';
+import Fallback from '@/app/ui/overlays/Fallback';
+import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
+import { PERMISSIONS } from '@/app/lib/permissions';
+import { Appointment } from '@yosemite-crew/types';
+import { AuditTrail } from '@/app/features/audit/types/audit';
+import { getAppointmentAuditTrail } from '@/app/features/audit/services/auditService';
+import { toTitle } from '@/app/lib/validators';
+import { formatDateTimeLocal } from '@/app/lib/date';
 
 type AuditProps = {
   activeAppointment: Appointment;
@@ -39,10 +40,7 @@ const Audit = ({ activeAppointment }: AuditProps) => {
   }, [appointmentId]);
 
   return (
-    <PermissionGate
-      allOf={[PERMISSIONS.AUDIT_VIEW_ANY]}
-      fallback={<Fallback />}
-    >
+    <PermissionGate allOf={[PERMISSIONS.AUDIT_VIEW_ANY]} fallback={<Fallback />}>
       <div className="w-full">
         {entries.length === 0 ? (
           <div className="w-full flex items-center justify-center text-body-4 text-text-primary">
@@ -67,12 +65,12 @@ const Audit = ({ activeAppointment }: AuditProps) => {
 
                     <div className="text-caption-1 text-text-secondary">
                       Actor: {toTitle(e.actorType)}
-                      {e.actorName ? " - " + toTitle(e.actorName) : ""}
+                      {e.actorName ? ' - ' + toTitle(e.actorName) : ''}
                     </div>
                   </div>
 
                   <div className="text-caption-1 text-text-secondary whitespace-nowrap">
-                    {formatDateTime(e.occurredAt)}
+                    {formatDateTimeLocal(e.occurredAt, '—')}
                   </div>
                 </div>
               </div>
@@ -85,23 +83,3 @@ const Audit = ({ activeAppointment }: AuditProps) => {
 };
 
 export default Audit;
-
-function formatDateTime(d: Date | string) {
-  const date = typeof d === "string" ? new Date(d) : d;
-  if (Number.isNaN(date.getTime())) return "—";
-  return new Intl.DateTimeFormat(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
-
-function safeStringify(value: unknown) {
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
-}

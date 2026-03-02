@@ -31,6 +31,7 @@ import {
   RoleOptions,
 } from "@/app/features/organization/pages/Organization/types";
 import { useSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
+import { usePrimaryOrgWithMembership } from "@/app/hooks/useOrgSelectors";
 import { GenderOptions } from "@/app/features/companions/types/companion";
 import { MdDeleteForever } from "react-icons/md";
 import { Primary } from "@/app/ui/primitives/Buttons";
@@ -39,6 +40,8 @@ import Delete from "@/app/ui/primitives/Buttons/Delete";
 import { useSubscriptionCounterUpdate } from "@/app/hooks/useStripeOnboarding";
 import { upsertTeamAvailability } from "@/app/features/organization/services/availabilityService";
 import { useNotify } from "@/app/hooks/useNotify";
+import { upsertUserProfile } from "@/app/features/organization/services/profileService";
+import { UserProfile } from "@/app/features/users/types/profile";
 
 type TeamInfoProps = {
   showModal: boolean;
@@ -50,9 +53,15 @@ type TeamInfoProps = {
 const getFields = ({
   SpecialitiesOptions,
   activeTeam,
+  canEditRole,
+  canEditEmploymentType,
+  canEditDepartment,
 }: {
   SpecialitiesOptions: { label: string; value: string }[];
   activeTeam: Team;
+  canEditRole: boolean;
+  canEditEmploymentType: boolean;
+  canEditDepartment: boolean;
 }) =>
   [
     {
@@ -60,21 +69,21 @@ const getFields = ({
       key: "role",
       type: "select",
       options: activeTeam.role === "OWNER" ? RoleOptions : RoleOptions.slice(1),
-      editable: activeTeam.role !== "OWNER",
+      editable: canEditRole,
     },
     {
       label: "Employment type",
       key: "employmentType",
       type: "select",
       options: EmploymentTypes,
-      editable: false,
+      editable: canEditEmploymentType,
     },
     {
       label: "Department",
       key: "speciality",
       type: "multiSelect",
       options: SpecialitiesOptions,
-      editable: false,
+      editable: canEditDepartment,
     },
   ] satisfies FieldConfig[];
 
@@ -113,6 +122,7 @@ const TeamInfo = ({
   canEditTeam,
 }: TeamInfoProps) => {
   const specialities = useSpecialitiesForPrimaryOrg();
+  const { membership } = usePrimaryOrgWithMembership();
   const { notify } = useNotify();
   const { refetch: refetchData } = useSubscriptionCounterUpdate();
   const [perms, setPerms] = React.useState<Permission[]>([]);
@@ -137,6 +147,22 @@ const TeamInfo = ({
 
   const [profile, setProfile] = useState<any>(null);
 
+  const normalizeId = (value?: string) =>
+    String(value ?? "")
+      .trim()
+      .split("/")
+      .pop()
+      ?.toLowerCase() ?? "";
+
+  const isSelfMember =
+    normalizeId(activeTeam?.practionerId) ===
+    normalizeId(membership?.practitionerReference);
+  const canEditRole = canEditTeam && activeTeam.role !== "OWNER";
+  const canEditEmploymentType = canEditTeam && isSelfMember;
+  const canEditDepartment = false;
+  const canEditOrgDetails =
+    canEditRole || canEditEmploymentType || canEditDepartment;
+
   useEffect(() => {
     if (activeTeam) {
       setPerms(activeTeam.effectivePermissions);
@@ -158,8 +184,21 @@ const TeamInfo = ({
   );
 
   const fields = useMemo(
-    () => getFields({ SpecialitiesOptions, activeTeam }),
-    [SpecialitiesOptions, activeTeam],
+    () =>
+      getFields({
+        SpecialitiesOptions,
+        activeTeam,
+        canEditRole,
+        canEditEmploymentType,
+        canEditDepartment,
+      }),
+    [
+      SpecialitiesOptions,
+      activeTeam,
+      canEditRole,
+      canEditEmploymentType,
+      canEditDepartment,
+    ],
   );
 
   useEffect(() => {
@@ -256,11 +295,32 @@ const TeamInfo = ({
 
   const handleMappingUpdate = async (values: any) => {
     try {
-      const member: Team = {
-        ...activeTeam,
-        role: values.role,
-      };
-      await updateMember(member);
+      if (canEditRole && values.role && values.role !== activeTeam.role) {
+        const member: Team = {
+          ...activeTeam,
+          role: values.role,
+        };
+        await updateMember(member);
+      }
+
+      if (canEditEmploymentType && profile?.profile) {
+        const nextEmploymentType = values.employmentType || "";
+        const currentEmploymentType =
+          profile.profile.personalDetails?.employmentType || "";
+        if (nextEmploymentType !== currentEmploymentType) {
+          const payload: UserProfile = {
+            ...profile.profile,
+            _id: profile.profile?._id,
+            personalDetails: {
+              ...profile.profile.personalDetails,
+              employmentType: nextEmploymentType,
+            },
+          };
+          await upsertUserProfile(payload);
+        }
+      }
+
+      await refetchData();
       notify("success", {
         title: "Team member updated",
         text: "Team member has been updated successfully.",
@@ -366,7 +426,7 @@ const TeamInfo = ({
               fields={fields}
               data={orgInfoData}
               defaultOpen={true}
-              showEditIcon={canEditTeam}
+              showEditIcon={canEditOrgDetails}
               onSave={handleMappingUpdate}
             />
             <EditableAccordion

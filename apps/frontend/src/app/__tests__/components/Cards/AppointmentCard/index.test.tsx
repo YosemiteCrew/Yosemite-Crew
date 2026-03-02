@@ -1,55 +1,58 @@
-import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
-import "@testing-library/jest-dom";
+import React from 'react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
 
-import AppointmentCard from "@/app/ui/cards/AppointmentCard";
-import { AppointmentViewIntent } from "@/app/features/appointments/types/calendar";
-import { Appointment } from "@yosemite-crew/types";
+import AppointmentCard from '@/app/ui/cards/AppointmentCard';
+import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
+import { Appointment } from '@yosemite-crew/types';
 
-jest.mock("@/app/ui/tables/Appointments", () => ({
-  getStatusStyle: jest.fn(() => ({ backgroundColor: "pink", color: "white" })),
+jest.mock('@/app/ui/tables/Appointments', () => ({
+  getStatusStyle: jest.fn(() => ({ backgroundColor: 'pink', color: 'white' })),
 }));
 
-jest.mock("@/app/lib/forms", () => ({
-  formatDateLabel: jest.fn(() => "Jan 06, 2025"),
-  formatTimeLabel: jest.fn(() => "09:00 AM"),
+jest.mock('@/app/lib/forms', () => ({
+  formatDateLabel: jest.fn(() => 'Jan 06, 2025'),
+  formatTimeLabel: jest.fn(() => '09:00 AM'),
 }));
 
-jest.mock("@/app/lib/validators", () => ({
+jest.mock('@/app/lib/validators', () => ({
   toTitle: (value: string) => value.toUpperCase(),
 }));
 
-jest.mock("@/app/lib/appointments", () => ({
-  allowReschedule: jest.fn(() => true),
+jest.mock('@/app/lib/appointments', () => ({
+  allowCalendarDrag: jest.fn(() => true),
 }));
 
-describe("AppointmentCard", () => {
+describe('AppointmentCard', () => {
   const handleViewAppointment = jest.fn();
   const handleRescheduleAppointment = jest.fn();
   const getSoapViewIntent: jest.MockedFunction<
     (appointment: Appointment) => AppointmentViewIntent
-  > = jest.fn((_appointment: Appointment): AppointmentViewIntent => ({
-    label: "prescription",
-    subLabel: "subjective",
-  }));
+  > = jest.fn((appointment: Appointment): AppointmentViewIntent => {
+    void appointment;
+    return {
+      label: 'prescription',
+      subLabel: 'subjective',
+    };
+  });
 
   const appointment: any = {
-    status: "COMPLETED",
-    appointmentDate: new Date("2025-01-06T00:00:00Z"),
-    startTime: new Date("2025-01-06T09:00:00Z"),
-    companion: { name: "Buddy", parent: { name: "Sam" }, species: "dog" },
-    appointmentType: { name: "Checkup" },
-    room: { name: "Room A" },
-    lead: { name: "Dr. Lee" },
-    supportStaff: [{ name: "Taylor" }],
-    concern: "Vaccines",
+    status: 'COMPLETED',
+    appointmentDate: new Date('2025-01-06T00:00:00Z'),
+    startTime: new Date('2025-01-06T09:00:00Z'),
+    companion: { name: 'Buddy', parent: { name: 'Sam' }, species: 'dog' },
+    appointmentType: { name: 'Checkup' },
+    room: { name: 'Room A' },
+    lead: { name: 'Dr. Lee' },
+    supportStaff: [{ name: 'Taylor' }],
+    concern: 'Vaccines',
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it("renders appointment details and status", () => {
+  it('renders appointment details and status', () => {
     render(
       <AppointmentCard
         appointment={appointment}
@@ -60,24 +63,24 @@ describe("AppointmentCard", () => {
       />
     );
 
-    expect(screen.getByText("Buddy")).toBeInTheDocument();
-    expect(screen.getByText("Sam")).toBeInTheDocument();
-    expect(screen.getByText("Date / Time:")).toBeInTheDocument();
-    expect(screen.getByText("Jan 06, 2025 / 09:00 AM")).toBeInTheDocument();
-    expect(screen.getByText("Reason:")).toBeInTheDocument();
-    expect(screen.getByText("Vaccines")).toBeInTheDocument();
-    expect(screen.getByText("Service:")).toBeInTheDocument();
-    expect(screen.getByText("Checkup")).toBeInTheDocument();
-    expect(screen.getByText("Room:")).toBeInTheDocument();
-    expect(screen.getByText("Room A")).toBeInTheDocument();
-    expect(screen.getByText("Lead:")).toBeInTheDocument();
-    expect(screen.getByText("Dr. Lee")).toBeInTheDocument();
-    expect(screen.getByText("Staff:")).toBeInTheDocument();
-    expect(screen.getByText("Taylor")).toBeInTheDocument();
-    expect(screen.getByText("COMPLETED")).toBeInTheDocument();
+    expect(screen.getByText('Buddy')).toBeInTheDocument();
+    expect(screen.getByText('Sam')).toBeInTheDocument();
+    expect(screen.getByText('Date / Time:')).toBeInTheDocument();
+    expect(screen.getByText('Jan 06, 2025 / 09:00 AM')).toBeInTheDocument();
+    expect(screen.getByText('Reason:')).toBeInTheDocument();
+    expect(screen.getByText('Vaccines')).toBeInTheDocument();
+    expect(screen.getByText('Service:')).toBeInTheDocument();
+    expect(screen.getByText('Checkup')).toBeInTheDocument();
+    expect(screen.getByText('Room:')).toBeInTheDocument();
+    expect(screen.getByText('Room A')).toBeInTheDocument();
+    expect(screen.getByText('Lead:')).toBeInTheDocument();
+    expect(screen.getByText('Dr. Lee')).toBeInTheDocument();
+    expect(screen.getByText('Staff:')).toBeInTheDocument();
+    expect(screen.getByText('Taylor')).toBeInTheDocument();
+    expect(screen.getByText('COMPLETED')).toBeInTheDocument();
   });
 
-  it("calls handlers on view/reschedule", () => {
+  it('calls handlers on view/reschedule', () => {
     render(
       <AppointmentCard
         appointment={appointment}
@@ -88,17 +91,17 @@ describe("AppointmentCard", () => {
       />
     );
 
-    fireEvent.click(screen.getByTitle("View"));
-    fireEvent.click(screen.getByTitle("Reschedule"));
+    fireEvent.click(screen.getByTitle('View'));
+    fireEvent.click(screen.getByTitle('Reschedule'));
 
     expect(handleViewAppointment).toHaveBeenCalledWith(appointment);
     expect(handleRescheduleAppointment).toHaveBeenCalledWith(appointment);
   });
 
-  it("renders accept/cancel actions for requested status", () => {
+  it('renders accept/cancel actions for requested status', () => {
     render(
       <AppointmentCard
-        appointment={{ ...appointment, status: "REQUESTED" }}
+        appointment={{ ...appointment, status: 'REQUESTED' }}
         handleViewAppointment={handleViewAppointment}
         getSoapViewIntent={getSoapViewIntent}
         handleRescheduleAppointment={handleRescheduleAppointment}
@@ -106,8 +109,8 @@ describe("AppointmentCard", () => {
       />
     );
 
-    expect(screen.getByText("Accept")).toBeInTheDocument();
-    expect(screen.getByText("Cancel")).toBeInTheDocument();
-    expect(screen.queryByTitle("View")).not.toBeInTheDocument();
+    expect(screen.getByText('Accept')).toBeInTheDocument();
+    expect(screen.getByText('Cancel')).toBeInTheDocument();
+    expect(screen.queryByTitle('View')).not.toBeInTheDocument();
   });
 });

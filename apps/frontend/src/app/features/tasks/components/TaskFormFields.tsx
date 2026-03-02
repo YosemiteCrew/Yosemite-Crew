@@ -150,6 +150,7 @@ const TaskFormFields = ({
       setCurrentDate={setDue}
       placeholder="Due date"
       type="input"
+      error={formDataErrors.dueAt}
     />
     <LabelDropdown
       placeholder="Due time"
@@ -164,6 +165,7 @@ const TaskFormFields = ({
       inname="reminder"
       value={String(formData.reminder?.offsetMinutes) || ""}
       inlabel="Reminder (in minutes)"
+      error={formDataErrors.reminder}
       onChange={(e) => {
         const raw = e.target.value;
         if (raw === "") {

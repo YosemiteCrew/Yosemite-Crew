@@ -8,6 +8,6 @@ export type LaidOutEvent = Appointment & {
 };
 
 export type AppointmentViewIntent = {
-  label: "info" | "prescription" | "care" | "tasks" | "finance";
+  label: "info" | "prescription" | "care" | "tasks" | "finance" | "labs";
   subLabel?: string;
 };

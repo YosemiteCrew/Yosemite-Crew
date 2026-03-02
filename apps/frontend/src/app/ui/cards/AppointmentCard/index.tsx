@@ -1,22 +1,15 @@
-import React from "react";
-import { Appointment } from "@yosemite-crew/types";
-import { allowReschedule } from "@/app/lib/appointments";
-import AppointmentCardContent from "@/app/features/appointments/components/AppointmentCardContent";
-import { AppointmentViewIntent } from "@/app/features/appointments/types/calendar";
-import { IoIosCalendar } from "react-icons/io";
-import {
-  IoEyeOutline,
-  IoCardOutline,
-  IoDocumentTextOutline,
-} from "react-icons/io5";
-import { MdOutlineAutorenew } from "react-icons/md";
+import React from 'react';
+import { Appointment } from '@yosemite-crew/types';
+import { allowCalendarDrag } from '@/app/lib/appointments';
+import AppointmentCardContent from '@/app/features/appointments/components/AppointmentCardContent';
+import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
+import { IoIosCalendar } from 'react-icons/io';
+import { IoEyeOutline, IoCardOutline, IoDocumentTextOutline } from 'react-icons/io5';
+import { MdOutlineAutorenew, MdScience } from 'react-icons/md';
 
 type AppointmentCardProps = {
   appointment: Appointment;
-  handleViewAppointment: (
-    appointment: Appointment,
-    intent?: AppointmentViewIntent,
-  ) => void;
+  handleViewAppointment: (appointment: Appointment, intent?: AppointmentViewIntent) => void;
   getSoapViewIntent: (appointment: Appointment) => AppointmentViewIntent;
   handleRescheduleAppointment: (appointment: Appointment) => void;
   handleChangeStatusAppointment?: (appointment: Appointment) => void;
@@ -35,7 +28,7 @@ const AppointmentCard = ({
     <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-white px-3 py-3 flex flex-col justify-between gap-2 cursor-pointer">
       <AppointmentCardContent appointment={appointment} />
       <div className="flex gap-3 w-full">
-        {appointment.status === "REQUESTED" ? (
+        {appointment.status === 'REQUESTED' ? (
           <>
             <button className="text-body-4-emphasis w-full text-[#54B492]! bg-[#E6F4EF] rounded-2xl! h-12 flex items-center justify-center cursor-pointer">
               Accept
@@ -55,16 +48,14 @@ const AppointmentCard = ({
             </button>
             {canEditAppointments && (
               <button
-                onClick={() =>
-                  handleChangeStatusAppointment?.(appointment)
-                }
+                onClick={() => handleChangeStatusAppointment?.(appointment)}
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                 title="Change status"
               >
                 <MdOutlineAutorenew size={18} color="#302F2E" />
               </button>
             )}
-            {canEditAppointments && allowReschedule(appointment.status) && (
+            {canEditAppointments && allowCalendarDrag(appointment.status) && (
               <button
                 onClick={() => handleRescheduleAppointment(appointment)}
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
@@ -74,9 +65,7 @@ const AppointmentCard = ({
               </button>
             )}
             <button
-              onClick={() =>
-                handleViewAppointment(appointment, getSoapViewIntent(appointment))
-              }
+              onClick={() => handleViewAppointment(appointment, getSoapViewIntent(appointment))}
               className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
               title="SOAP"
             >
@@ -85,14 +74,26 @@ const AppointmentCard = ({
             <button
               onClick={() =>
                 handleViewAppointment(appointment, {
-                  label: "finance",
-                  subLabel: "summary",
+                  label: 'finance',
+                  subLabel: 'summary',
                 })
               }
               className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
               title="Finance"
             >
               <IoCardOutline size={18} color="#302F2E" />
+            </button>
+            <button
+              onClick={() =>
+                handleViewAppointment(appointment, {
+                  label: 'labs',
+                  subLabel: 'idexx-labs',
+                })
+              }
+              className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+              title="Lab tests"
+            >
+              <MdScience size={18} color="#302F2E" />
             </button>
           </div>
         )}

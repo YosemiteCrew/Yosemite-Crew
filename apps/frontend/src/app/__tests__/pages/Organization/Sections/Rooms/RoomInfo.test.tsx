@@ -39,6 +39,7 @@ jest.mock("@/app/ui/primitives/Accordion/EditableAccordion", () => (props: any) 
 describe("RoomInfo modal", () => {
   const activeRoom: any = {
     id: "room-1",
+    organisationId: "org-1",
     name: "Room A",
     type: "EXAM",
     assignedSpecialiteis: [],
@@ -68,7 +69,11 @@ describe("RoomInfo modal", () => {
     });
 
     expect(updateRoomMock).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "room-1", name: "Updated" })
+      expect.objectContaining({
+        id: "room-1",
+        organisationId: "org-1",
+        name: "Updated",
+      })
     );
   });
 });
