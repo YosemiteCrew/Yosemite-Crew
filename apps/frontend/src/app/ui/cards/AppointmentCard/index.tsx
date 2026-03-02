@@ -1,6 +1,6 @@
 import React from 'react';
 import { Appointment } from '@yosemite-crew/types';
-import { allowReschedule } from '@/app/lib/appointments';
+import { allowCalendarDrag } from '@/app/lib/appointments';
 import AppointmentCardContent from '@/app/features/appointments/components/AppointmentCardContent';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
 import { IoIosCalendar } from 'react-icons/io';
@@ -55,7 +55,7 @@ const AppointmentCard = ({
                 <MdOutlineAutorenew size={18} color="#302F2E" />
               </button>
             )}
-            {canEditAppointments && allowReschedule(appointment.status) && (
+            {canEditAppointments && allowCalendarDrag(appointment.status) && (
               <button
                 onClick={() => handleRescheduleAppointment(appointment)}
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"

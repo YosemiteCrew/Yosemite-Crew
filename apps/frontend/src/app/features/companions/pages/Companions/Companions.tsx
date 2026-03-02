@@ -105,7 +105,7 @@ const Companions = () => {
         </div>
 
         <AddCompanion showModal={addPopup} setShowModal={setAddPopup} />
-        {activeCompanion && (
+        {activeCompanion && viewCompanion && (
           <CompanionInfo
             showModal={viewCompanion}
             setShowModal={setViewCompanion}
