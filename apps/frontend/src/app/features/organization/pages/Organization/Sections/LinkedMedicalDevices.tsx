@@ -102,7 +102,7 @@ const LinkedMedicalDevices = () => {
         <div className="text-caption-1 text-text-secondary">
           Manage IDEXX credentials, enablement, and device links from Integrations settings.
         </div>
-        <div className="flex items-center justify-between rounded-xl border border-card-border px-3 py-2 bg-card-bg">
+        <div className="flex items-center justify-between rounded-xl border border-card-border px-3 py-2 ">
           <div className="text-caption-1 text-text-secondary">
             Last refreshed:{' '}
             <span className="text-text-primary">
@@ -128,7 +128,7 @@ const LinkedMedicalDevices = () => {
         {error ? <div className="text-caption-1 text-text-error">{error}</div> : null}
 
         {devices.length === 0 ? (
-          <div className="rounded-xl border border-card-border p-3 text-body-4 text-text-secondary bg-card-bg">
+          <div className="rounded-xl border border-card-border p-3 text-body-4 text-text-secondary ">
             No linked IVLS devices found.
           </div>
         ) : (
@@ -136,7 +136,7 @@ const LinkedMedicalDevices = () => {
             {devices.map((device) => (
               <div
                 key={device.deviceSerialNumber}
-                className="rounded-xl border border-card-border p-3 bg-card-bg"
+                className="rounded-xl border border-card-border p-3 "
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>

@@ -106,10 +106,7 @@ const DeviceCard = ({ device }: { device: IvlsDevice }) => {
   const statusClass =
     statusKey === 'active' ? 'bg-green-50 text-green-800' : 'bg-amber-50 text-amber-700';
   return (
-    <div
-      key={device.deviceSerialNumber}
-      className="rounded-2xl border border-card-border p-3 bg-card-bg"
-    >
+    <div key={device.deviceSerialNumber} className="rounded-2xl border border-card-border p-3">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-body-4 text-text-primary">{device.displayName || 'IVLS device'}</div>
