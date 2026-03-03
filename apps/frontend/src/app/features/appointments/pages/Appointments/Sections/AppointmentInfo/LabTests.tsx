@@ -209,6 +209,38 @@ const getOrderStatusBadgeClass = (
   return 'bg-card-hover text-text-secondary';
 };
 
+const shouldCloseOrderIframe = (args: {
+  source: 'order' | 'followup';
+  initialStatus: string | null;
+  nextStatus: string;
+  initialUpdatedAt: string | null;
+  nextUpdatedAt?: string;
+  initialOrderId: string | null;
+  newestKnownOrderId: string;
+}) => {
+  const {
+    source,
+    initialStatus,
+    nextStatus,
+    initialUpdatedAt,
+    nextUpdatedAt,
+    initialOrderId,
+    newestKnownOrderId,
+  } = args;
+
+  if (source === 'order') {
+    const startedAsCreated = initialStatus === 'CREATED' || !initialStatus;
+    return startedAsCreated && nextStatus === 'SUBMITTED';
+  }
+
+  const updatedAtChanged = Boolean(
+    initialUpdatedAt && nextUpdatedAt && nextUpdatedAt !== initialUpdatedAt
+  );
+  const followUpOrderCreated =
+    Boolean(initialOrderId) && Boolean(newestKnownOrderId) && newestKnownOrderId !== initialOrderId;
+  return updatedAtChanged || followUpOrderCreated;
+};
+
 // ---------- Sub-components ----------
 
 const LabResultMeter = ({ test }: { test: LabResultTest }) => {
@@ -360,6 +392,8 @@ const useLabTests = (activeAppointment: Appointment | null) => {
     null
   );
   const [iframeInitialUpdatedAt, setIframeInitialUpdatedAt] = useState<string | null>(null);
+  const [iframeInitialOrderId, setIframeInitialOrderId] = useState<string | null>(null);
+  const [iframeOrderUiUrl, setIframeOrderUiUrl] = useState<string | null>(null);
   const [iframeOpenSource, setIframeOpenSource] = useState<'order' | 'followup'>('order');
   const [showPdfPreview, setShowPdfPreview] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
@@ -554,16 +588,17 @@ const useLabTests = (activeAppointment: Appointment | null) => {
 
   useEffect(() => {
     if (!showOrderIframe) return;
-    if (!primaryOrgId || !latestOrder?.idexxOrderId) return;
+    if (!primaryOrgId || !iframeInitialOrderId) return;
 
     const interval = setInterval(async () => {
       try {
         const next = await getIdexxOrderById({
           organisationId: primaryOrgId,
-          idexxOrderId: latestOrder.idexxOrderId,
+          idexxOrderId: iframeInitialOrderId,
         });
         setLatestOrder(next);
         upsertAppointmentOrder(next);
+        let newestKnownOrderId = String(next.idexxOrderId ?? '').trim();
 
         const appointmentOrderIds = new Set(
           appointmentOrders.map((order) => String(order.idexxOrderId ?? '').trim()).filter(Boolean)
@@ -579,16 +614,45 @@ const useLabTests = (activeAppointment: Appointment | null) => {
 
           const nextProgress = getOrderResultProgressFromResults(filtered, next.idexxOrderId);
           if ((iframeInitialResultProgress ?? '') !== (nextProgress ?? '') && nextProgress) {
-            setShowOrderIframe(false);
+            if (iframeOpenSource === 'followup') {
+              setShowOrderIframe(false);
+              return;
+            }
           }
         }
 
-        const nextStatus = String(next.status ?? '').toUpperCase();
-        if (iframeInitialStatus && nextStatus && nextStatus !== iframeInitialStatus) {
-          setShowOrderIframe(false);
+        if (iframeOpenSource === 'followup' && activeAppointment?.id) {
+          const refreshedOrders = await listIdexxOrders({
+            organisationId: primaryOrgId,
+            appointmentId: activeAppointment.id,
+          });
+          const normalizedOrders = normalizeOrders(refreshedOrders);
+          if (normalizedOrders.length > 0) {
+            setAppointmentOrders(normalizedOrders);
+            setLatestOrder((prev) => {
+              if (!prev) return normalizedOrders[0];
+              return (
+                normalizedOrders.find((order) => order._id === prev._id) ?? normalizedOrders[0]
+              );
+            });
+            newestKnownOrderId = String(normalizedOrders[0].idexxOrderId ?? '').trim();
+          }
         }
-        if (iframeInitialUpdatedAt && next.updatedAt && next.updatedAt !== iframeInitialUpdatedAt) {
+
+        const nextStatus = getNormalizedLifecycleStatus(next);
+        if (
+          shouldCloseOrderIframe({
+            source: iframeOpenSource,
+            initialStatus: iframeInitialStatus,
+            nextStatus,
+            initialUpdatedAt: iframeInitialUpdatedAt,
+            nextUpdatedAt: next.updatedAt,
+            initialOrderId: iframeInitialOrderId,
+            newestKnownOrderId,
+          })
+        ) {
           setShowOrderIframe(false);
+          return;
         }
       } catch (e) {
         setError(getApiErrorMessage(e, 'Unable to poll order status while IDEXX frame is open.'));
@@ -599,7 +663,9 @@ const useLabTests = (activeAppointment: Appointment | null) => {
   }, [
     showOrderIframe,
     primaryOrgId,
-    latestOrder?.idexxOrderId,
+    activeAppointment?.id,
+    iframeInitialOrderId,
+    iframeOpenSource,
     iframeInitialStatus,
     iframeInitialResultProgress,
     iframeInitialUpdatedAt,
@@ -611,12 +677,18 @@ const useLabTests = (activeAppointment: Appointment | null) => {
   const openOrderIframe = useCallback(
     (source: 'order' | 'followup', statusOverride?: string | null, targetOrder?: LabOrder) => {
       const orderForFrame = targetOrder ?? latestOrder;
+      const frameOrderId = String(orderForFrame?.idexxOrderId ?? '').trim();
+      const frameUiUrl = resolveOrderUiUrl(orderForFrame);
+      if (!frameOrderId || !frameUiUrl) {
+        setError('IDEXX order frame is not available for this order.');
+        return;
+      }
       setIframeOpenSource(source);
       setIframeInitialStatus((statusOverride ?? orderForFrame?.status ?? '').toUpperCase() || null);
-      setIframeInitialResultProgress(
-        resultProgressByOrderId.get(String(orderForFrame?.idexxOrderId ?? '').trim()) ?? null
-      );
+      setIframeInitialResultProgress(resultProgressByOrderId.get(frameOrderId) ?? null);
       setIframeInitialUpdatedAt(orderForFrame?.updatedAt ?? null);
+      setIframeInitialOrderId(frameOrderId);
+      setIframeOrderUiUrl(frameUiUrl);
       setShowOrderIframe(true);
     },
     [latestOrder, resultProgressByOrderId]
@@ -837,6 +909,7 @@ const useLabTests = (activeAppointment: Appointment | null) => {
     updatingCensus,
     refreshingResults,
     showOrderIframe,
+    iframeOrderUiUrl,
     iframeOpenSource,
     showPdfPreview,
     pdfPreviewUrl,
@@ -1241,7 +1314,7 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
 
   const iframeTitle =
     s.iframeOpenSource === 'followup' ? 'IDEXX follow-up ordering' : 'IDEXX ordering';
-  const orderIframeUrl = resolveOrderUiUrl(s.latestOrder);
+  const orderIframeUrl = s.iframeOrderUiUrl || resolveOrderUiUrl(s.latestOrder);
   let orderButtonText = 'Open IDEXX';
   if (s.needsInitialOrderPlacement) {
     orderButtonText = 'Resume order placement';
