@@ -1,37 +1,55 @@
 import {useMemo, useCallback} from 'react';
 import {useSelector} from 'react-redux';
 import type {RootState} from '@/app/store';
-import type {CoParentPermissions, ParentCompanionAccess} from '@/features/coParent';
+import type {
+  CoParentPermissions,
+  ParentCompanionAccess,
+} from '@/features/coParent';
 
 const EMPTY_ACCESS_MAP: Record<string, ParentCompanionAccess> = {};
 
 /**
- * Hook for managing appointment-specific permissions
  * Provides unified access to permission checking across screens
  */
 export const usePermissions = (selectedCompanionId?: string | null) => {
   const accessMap = useSelector(
-    (state: RootState) => state.coParent?.accessByCompanionId ?? EMPTY_ACCESS_MAP,
+    (state: RootState) =>
+      state.coParent?.accessByCompanionId ?? EMPTY_ACCESS_MAP,
   );
-  const defaultAccess = useSelector((state: RootState) => state.coParent?.defaultAccess ?? null);
-  const globalRole = useSelector((state: RootState) => state.coParent?.lastFetchedRole);
-  const globalPermissions = useSelector((state: RootState) => state.coParent?.lastFetchedPermissions);
+  const defaultAccess = useSelector(
+    (state: RootState) => state.coParent?.defaultAccess ?? null,
+  );
+  const globalRole = useSelector(
+    (state: RootState) => state.coParent?.lastFetchedRole,
+  );
+  const globalPermissions = useSelector(
+    (state: RootState) => state.coParent?.lastFetchedPermissions,
+  );
 
   const accessForCompanion = useMemo(
     () =>
       selectedCompanionId
-        ? accessMap[selectedCompanionId] ?? defaultAccess ?? null
+        ? (accessMap[selectedCompanionId] ?? defaultAccess ?? null)
         : defaultAccess,
     [selectedCompanionId, accessMap, defaultAccess],
   );
 
   const role = useMemo(
-    () => (accessForCompanion?.role ?? defaultAccess?.role ?? globalRole ?? '').toUpperCase(),
+    () =>
+      (
+        accessForCompanion?.role ??
+        defaultAccess?.role ??
+        globalRole ??
+        ''
+      ).toUpperCase(),
     [accessForCompanion, defaultAccess, globalRole],
   );
 
   const permissions = useMemo(
-    () => accessForCompanion?.permissions ?? defaultAccess?.permissions ?? globalPermissions,
+    () =>
+      accessForCompanion?.permissions ??
+      defaultAccess?.permissions ??
+      globalPermissions,
     [accessForCompanion, defaultAccess, globalPermissions],
   );
 
