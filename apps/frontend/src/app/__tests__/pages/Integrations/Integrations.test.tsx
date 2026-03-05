@@ -13,6 +13,9 @@ const storeIntegrationCredentialsMock = jest.fn();
 const validateIntegrationCredentialsMock = jest.fn();
 const enableIntegrationMock = jest.fn();
 const disableIntegrationMock = jest.fn();
+const enableMerckMock = jest.fn();
+const disableMerckMock = jest.fn();
+const refreshMerckIntegrationMock = jest.fn();
 
 jest.mock('next/image', () => ({
   __esModule: true,
@@ -52,7 +55,7 @@ jest.mock('@/app/hooks/useMerckIntegration', () => ({
   useResolvedMerckIntegrationForPrimaryOrg: jest.fn(() => ({
     integration: { provider: 'MERCK_MANUALS', status: 'enabled', source: 'synthetic' },
     isEnabled: true,
-    refresh: jest.fn(),
+    refresh: refreshMerckIntegrationMock,
   })),
 }));
 
@@ -129,8 +132,8 @@ jest.mock('@/app/features/integrations/services/idexxService', () => ({
 }));
 jest.mock('@/app/features/integrations/services/merckService', () => ({
   getMerckGateway: jest.fn(() => ({
-    enable: jest.fn(async () => ({ provider: 'MERCK_MANUALS', status: 'enabled' })),
-    disable: jest.fn(async () => ({ provider: 'MERCK_MANUALS', status: 'disabled' })),
+    enable: (...args: any[]) => enableMerckMock(...args),
+    disable: (...args: any[]) => disableMerckMock(...args),
     getStatus: jest.fn(),
     search: jest.fn(),
   })),
@@ -139,6 +142,8 @@ jest.mock('@/app/features/integrations/services/merckService', () => ({
 describe('Integrations settings', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    enableMerckMock.mockResolvedValue({ provider: 'MERCK_MANUALS', status: 'enabled' });
+    disableMerckMock.mockResolvedValue({ provider: 'MERCK_MANUALS', status: 'disabled' });
     const enabledIntegration = {
       _id: 'int-1',
       organisationId: 'org-1',
@@ -258,5 +263,18 @@ describe('Integrations settings', () => {
       )
     ).toBeInTheDocument();
     expect(screen.getByText('Integration settings')).toBeInTheDocument();
+  });
+
+  it('reloads integrations and refreshes Merck status after toggling Merck', async () => {
+    render(<ProtectedIntegrations />);
+
+    const merckDisableButton = await screen.findByRole('button', { name: 'Disable Merck Manuals' });
+    fireEvent.click(merckDisableButton);
+
+    await waitFor(() => {
+      expect(disableMerckMock).toHaveBeenCalledWith('org-1');
+      expect(loadIntegrationsForPrimaryOrgMock).toHaveBeenCalledWith({ force: true, silent: true });
+      expect(refreshMerckIntegrationMock).toHaveBeenCalled();
+    });
   });
 });

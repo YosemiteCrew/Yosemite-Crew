@@ -398,6 +398,7 @@ const useIntegrationsPage = () => {
       } else {
         await gateway.enable(primaryOrgId);
       }
+      await loadIntegrationsForPrimaryOrg({ force: true, silent: true });
       refreshMerckIntegration();
     } catch (e) {
       setError(getApiErrorMessage(e, 'Unable to update Merck Manuals status.'));

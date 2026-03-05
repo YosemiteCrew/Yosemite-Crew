@@ -243,6 +243,7 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
   const [readerUrl, setReaderUrl] = useState<string | null>(null);
 
   const requestIdRef = useRef(0);
+  const performSearchRef = useRef<((nextQuery?: string) => Promise<void>) | null>(null);
 
   useEffect(() => {
     if (!primaryOrgId) return;
@@ -308,9 +309,13 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
   );
 
   useEffect(() => {
+    performSearchRef.current = performSearch;
+  }, [performSearch]);
+
+  useEffect(() => {
     if (!routeQuery || !isEnabled) return;
-    void performSearch(routeQuery);
-  }, [routeQuery, isEnabled, performSearch]);
+    void performSearchRef.current?.(routeQuery);
+  }, [routeQuery, isEnabled]);
 
   const onCopyUrl = async (url: string) => {
     try {
