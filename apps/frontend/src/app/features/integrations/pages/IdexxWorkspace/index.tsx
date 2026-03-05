@@ -170,13 +170,17 @@ const buildResultsColumns = ({
     key: 'status',
     width: '16%',
     render: (result) => (
-      <div className="flex flex-col gap-1">
-        <div className="appointment-status w-fit" style={getResultStatusStyle(result.status)}>
-          {formatTitleCase(result.status, '-')}
+      <div className="w-full flex justify-start">
+        <div className="inline-flex flex-col items-center gap-1">
+          <div className="appointment-status w-fit" style={getResultStatusStyle(result.status)}>
+            {formatTitleCase(result.status, '-')}
+          </div>
+          {result.statusDetail ? (
+            <span className="text-caption-1 text-text-secondary text-center">
+              {result.statusDetail}
+            </span>
+          ) : null}
         </div>
-        {result.statusDetail ? (
-          <span className="text-caption-1 text-text-secondary">{result.statusDetail}</span>
-        ) : null}
       </div>
     ),
   },
