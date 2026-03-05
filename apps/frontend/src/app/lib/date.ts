@@ -1,10 +1,5 @@
 import { Option } from '@/app/features/companions/types/companion';
-
-const DISPLAY_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
-  month: 'short',
-  day: 'numeric',
-  year: 'numeric',
-});
+import { formatDateInPreferredTimeZone, formatUtcClockTimeLabel } from '@/app/lib/timezone';
 
 const toValidDate = (value?: Date | string | number | null): Date | null => {
   if (value == null || value === '') return null;
@@ -72,11 +67,7 @@ export function generateTimeSlots(intervalMinutes = 15): Option[] {
   for (let minutes = 0; minutes < 24 * 60; minutes += intervalMinutes) {
     const utcDate = new Date(baseDateUTC.getTime() + minutes * 60_000);
     const value = utcDate.toISOString().slice(11, 16);
-    const label = utcDate.toLocaleTimeString(undefined, {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
+    const label = formatUtcClockTimeLabel(value);
     slots.push({ value, label });
   }
   return slots;
@@ -89,10 +80,25 @@ export function applyUtcTime(base: Date, hhmm: string) {
   return d;
 }
 
+export const getUtcTimeValue = (
+  value?: Date | string | number | null,
+  fallback = '00:00'
+): string => {
+  const date = toValidDate(value);
+  if (!date) return fallback;
+  const hours = String(date.getUTCHours()).padStart(2, '0');
+  const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+};
+
 export const formatDisplayDate = (value?: Date | string | number | null, fallback = ''): string => {
   const date = toValidDate(value);
   if (!date) return fallback;
-  return DISPLAY_DATE_FORMATTER.format(date);
+  return formatDateInPreferredTimeZone(date, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 };
 
 export const formatDateTimeLocal = (
@@ -102,6 +108,29 @@ export const formatDateTimeLocal = (
   const date = toValidDate(value);
   if (!date) return fallback;
   const formattedDate = formatDisplayDate(date, fallback);
-  const formattedTime = date.toLocaleTimeString();
+  const formattedTime = formatDateInPreferredTimeZone(date, {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
   return `${formattedDate}, ${formattedTime}`;
+};
+
+export const formatTimeInPreferredTimeZone = (
+  value?: Date | string | number | null,
+  fallback = ''
+): string => {
+  const date = toValidDate(value);
+  if (!date) return fallback;
+  return formatDateInPreferredTimeZone(date, {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+};
+
+export const toUtcCalendarDate = (value?: Date | string | number | null): Date => {
+  const date = toValidDate(value);
+  if (!date) return new Date();
+  return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 };

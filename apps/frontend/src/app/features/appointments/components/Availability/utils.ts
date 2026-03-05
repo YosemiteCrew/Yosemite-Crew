@@ -1,3 +1,5 @@
+import { formatUtcClockTimeLabel } from '@/app/lib/timezone';
+
 export interface TimeOption {
   value: string;
   label: string;
@@ -11,29 +13,18 @@ export interface DayAvailability {
   intervals: Interval[];
 }
 export type AvailabilityState = Record<string, DayAvailability>;
-export type SetAvailability = React.Dispatch<
-  React.SetStateAction<AvailabilityState>
->;
+export type SetAvailability = React.Dispatch<React.SetStateAction<AvailabilityState>>;
 
 export const formatUtcTimeToLocalLabel = (value: string): string => {
-  if (!value) return value;
-  const date = new Date(`1970-01-01T${value}:00Z`);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-  return date.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
+  return formatUtcClockTimeLabel(value);
 };
 
 export const generateTimeOptions = (): TimeOption[] => {
-  const options = [];
+  const options: TimeOption[] = [];
   for (let hour = 0; hour < 24; hour++) {
     for (let min = 0; min < 60; min += 15) {
-      const hh = hour.toString().padStart(2, "0");
-      const mm = min.toString().padStart(2, "0");
+      const hh = hour.toString().padStart(2, '0');
+      const mm = min.toString().padStart(2, '0');
       const label = formatUtcTimeToLocalLabel(`${hh}:${mm}`);
       options.push({
         value: `${hh}:${mm}`,
@@ -41,32 +32,31 @@ export const generateTimeOptions = (): TimeOption[] => {
       });
     }
   }
-  options.push({ value: "23:59", label: formatUtcTimeToLocalLabel("23:59") });
+  options.push({ value: '23:59', label: formatUtcTimeToLocalLabel('23:59') });
   return options;
 };
 
-export const timeOptions: TimeOption[] = generateTimeOptions();
+export const buildTimeIndex = (options: TimeOption[]): Map<string, number> =>
+  new Map(options.map((opt, idx) => [opt.value, idx]));
 
-export const timeIndex: Map<string, number> = new Map(
-  timeOptions.map((opt, idx) => [opt.value, idx])
-);
+export const timeOptions: TimeOption[] = generateTimeOptions();
+export const timeIndex: Map<string, number> = buildTimeIndex(timeOptions);
 
 export const getTimeLabelFromValue = (value: string): string => {
-  const match = timeOptions.find((e) => e.value === value);
-  return match ? match.label : formatUtcTimeToLocalLabel(value);
+  return formatUtcTimeToLocalLabel(value);
 };
 
 export const daysOfWeek = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
 ] as const;
 
-export const DEFAULT_INTERVAL: Interval = { start: "09:00", end: "17:00" };
+export const DEFAULT_INTERVAL: Interval = { start: '09:00', end: '17:00' };
 
 export type ApiAvailability = {
   availabilities: {
@@ -75,12 +65,10 @@ export type ApiAvailability = {
   }[];
 };
 
-export const convertAvailability = (
-  availability: AvailabilityState
-): ApiAvailability => {
+export const convertAvailability = (availability: AvailabilityState): ApiAvailability => {
   const result = {
     availabilities: Object.entries(availability)
-      .filter(([_, data]) => data.enabled)
+      .filter(([, data]) => data.enabled)
       .map(([day, data]) => {
         const validSlots = data.intervals
           .filter((interval) => interval.start && interval.end)
@@ -120,19 +108,19 @@ export type ApiOverridesSlot = {
   startTime: string;
   endTime: string;
   _id?: string;
-}
+};
 
 export type ApiOverridesDay = {
   dayOfWeek: string;
   slots: ApiOverridesSlot[];
   _id?: string;
-}
+};
 
 export type ApiOverrides = {
   _id: string;
   userId?: string;
   organisationId: string;
-  weekStartDate: Date
+  weekStartDate: Date;
   dayOfWeek: string;
   overrides: ApiOverridesDay[];
   createdAt?: string;
@@ -145,20 +133,18 @@ export type GetAvailabilityResponse = {
   data: ApiDayAvailability[];
 };
 
-export const convertFromGetApi = (
-  apiData: ApiDayAvailability[]
-): AvailabilityState => {
+export const convertFromGetApi = (apiData: ApiDayAvailability[]): AvailabilityState => {
   const hasAnyAvailableSlot = apiData.some((entry) =>
     entry.slots?.some((slot) => slot.isAvailable)
   );
   if (!hasAnyAvailableSlot) {
     return daysOfWeek.reduce<AvailabilityState>((acc, day) => {
       const isWeekday =
-        day === "Monday" ||
-        day === "Tuesday" ||
-        day === "Wednesday" ||
-        day === "Thursday" ||
-        day === "Friday";
+        day === 'Monday' ||
+        day === 'Tuesday' ||
+        day === 'Wednesday' ||
+        day === 'Thursday' ||
+        day === 'Friday';
 
       acc[day] = {
         enabled: isWeekday,
@@ -195,11 +181,6 @@ export const convertFromGetApi = (
   return result;
 };
 
-export const hasAtLeastOneAvailability = (
-  converted: ApiAvailability
-): boolean => {
-  return (
-    Array.isArray(converted.availabilities) &&
-    converted.availabilities.length > 0
-  );
+export const hasAtLeastOneAvailability = (converted: ApiAvailability): boolean => {
+  return Array.isArray(converted.availabilities) && converted.availabilities.length > 0;
 };

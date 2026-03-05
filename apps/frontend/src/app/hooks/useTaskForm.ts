@@ -1,26 +1,27 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   createTask,
   createTaskTemplate,
   getTaskLibrary,
   getTaskTemplatesForPrimaryOrg,
-} from "@/app/features/tasks/services/taskService";
-import { Option } from "@/app/features/companions/types/companion";
+} from '@/app/features/tasks/services/taskService';
+import { Option } from '@/app/features/companions/types/companion';
 import {
   EMPTY_COMPANION_TASK,
   EMPTY_TASK,
   Task,
   TaskLibrary,
   TaskTemplate,
-} from "@/app/features/tasks/types/task";
-import { applyUtcTime, generateTimeSlots } from "@/app/lib/date";
+} from '@/app/features/tasks/types/task';
+import { applyUtcTime, generateTimeSlots, getUtcTimeValue } from '@/app/lib/date';
+import { getPreferredTimeZone } from '@/app/lib/timezone';
 import {
   applyTemplateToForm,
   buildTaskTemplate,
   TaskFormErrors,
   toTemplateOptions,
   validateTaskForm,
-} from "@/app/lib/taskForm";
+} from '@/app/lib/taskForm';
 
 export type UseTaskFormOptions = {
   initialTask?: Partial<Task>;
@@ -30,12 +31,7 @@ export type UseTaskFormOptions = {
 };
 
 export const useTaskForm = (options: UseTaskFormOptions = {}) => {
-  const {
-    initialTask,
-    isCompanionTask = false,
-    loadOnMount = true,
-    onSuccess,
-  } = options;
+  const { initialTask, isCompanionTask = false, loadOnMount = true, onSuccess } = options;
 
   const emptyTask = isCompanionTask ? EMPTY_COMPANION_TASK : EMPTY_TASK;
 
@@ -44,7 +40,7 @@ export const useTaskForm = (options: UseTaskFormOptions = {}) => {
     ...initialTask,
   });
   const [due, setDue] = useState<Date | null>(new Date());
-  const [dueTimeUtc, setDueTimeUtc] = useState("05:30");
+  const [dueTimeUtc, setDueTimeUtc] = useState(getUtcTimeValue(initialTask?.dueAt, '00:00'));
   const [formDataErrors, setFormDataErrors] = useState<TaskFormErrors>({});
   const [orgTemplates, setOrgTemplates] = useState<TaskTemplate[]>([]);
   const [libraryTemplates, setLibraryTemplates] = useState<TaskLibrary[]>([]);
@@ -64,6 +60,7 @@ export const useTaskForm = (options: UseTaskFormOptions = {}) => {
     setFormData((prev) => ({
       ...prev,
       dueAt: dueTimeUtc ? applyUtcTime(due, dueTimeUtc) : due,
+      timezone: prev.timezone || getPreferredTimeZone(),
     }));
   }, [due, dueTimeUtc]);
 
@@ -71,38 +68,33 @@ export const useTaskForm = (options: UseTaskFormOptions = {}) => {
     if (!loadOnMount) return;
 
     const load = async () => {
-      if (
-        formData.source !== "ORG_TEMPLATE" &&
-        formData.source !== "YC_LIBRARY"
-      )
-        return;
+      if (formData.source !== 'ORG_TEMPLATE' && formData.source !== 'YC_LIBRARY') return;
       try {
-        if (formData.source === "ORG_TEMPLATE") {
+        if (formData.source === 'ORG_TEMPLATE') {
           const data = await getTaskTemplatesForPrimaryOrg();
           setOrgTemplates(data);
-        } else if (formData.source === "YC_LIBRARY") {
+        } else if (formData.source === 'YC_LIBRARY') {
           const data = await getTaskLibrary();
           setLibraryTemplates(data);
         }
       } catch (err) {
-        console.log("Error loading templates:", err);
+        console.log('Error loading templates:', err);
       }
     };
     load();
   }, [loadOnMount, formData.source]);
 
   const templateOptions: Option[] = useMemo(() => {
-    const list =
-      formData.source === "ORG_TEMPLATE" ? orgTemplates : libraryTemplates;
+    const list = formData.source === 'ORG_TEMPLATE' ? orgTemplates : libraryTemplates;
     return toTemplateOptions(list);
   }, [formData.source, orgTemplates, libraryTemplates]);
 
   const selectTemplate = useCallback(
     (templateId: string) => {
       let template;
-      if (formData.source === "ORG_TEMPLATE") {
+      if (formData.source === 'ORG_TEMPLATE') {
         template = orgTemplates.find((t) => t._id === templateId);
-      } else if (formData.source === "YC_LIBRARY") {
+      } else if (formData.source === 'YC_LIBRARY') {
         template = libraryTemplates.find((t) => t._id === templateId);
       }
       if (template) {
@@ -126,7 +118,7 @@ export const useTaskForm = (options: UseTaskFormOptions = {}) => {
       return true;
     } catch (err) {
       console.log(err);
-      setError("Failed to create task. Please try again.");
+      setError('Failed to create task. Please try again.');
       return false;
     } finally {
       setIsLoading(false);
@@ -150,7 +142,7 @@ export const useTaskForm = (options: UseTaskFormOptions = {}) => {
       return true;
     } catch (err) {
       console.log(err);
-      setError("Failed to create task template. Please try again.");
+      setError('Failed to create task template. Please try again.');
       return false;
     } finally {
       setIsLoading(false);

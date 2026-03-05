@@ -12,7 +12,7 @@ import {
   AppointmentStatusOptions,
   Slot,
 } from '@/app/features/appointments/types/appointments';
-import { buildUtcDateFromDateAndTime, getDurationMinutes } from '@/app/lib/date';
+import { buildUtcDateFromDateAndTime, getDurationMinutes, toUtcCalendarDate } from '@/app/lib/date';
 import { Appointment } from '@yosemite-crew/types';
 import React, { useEffect, useMemo, useState } from 'react';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
@@ -179,7 +179,7 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
       leadId: activeAppointment.lead?.id ?? '',
       supportIds: activeAppointment.supportStaff?.map((s) => s.id) ?? [],
     });
-    setSelectedDate(new Date(activeAppointment.appointmentDate));
+    setSelectedDate(toUtcCalendarDate(activeAppointment.appointmentDate));
     setSelectedSlot(null);
     setTimeSlots([]);
     setErrors({});
@@ -295,7 +295,7 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
       leadId: activeAppointment.lead?.id ?? '',
       supportIds: activeAppointment.supportStaff?.map((s) => s.id) ?? [],
     });
-    setSelectedDate(new Date(activeAppointment.appointmentDate));
+    setSelectedDate(toUtcCalendarDate(activeAppointment.appointmentDate));
     setSelectedSlot(null);
     setTimeSlots([]);
   };

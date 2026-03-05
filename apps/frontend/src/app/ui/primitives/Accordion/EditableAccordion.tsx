@@ -7,6 +7,7 @@ import Datepicker from '@/app/ui/inputs/Datepicker';
 import { formatDisplayDate } from '@/app/features/inventory/pages/Inventory/utils';
 import { getFormattedDate } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import { formatTimeLabel } from '@/app/lib/forms';
+import { formatDateLocal } from '@/app/lib/date';
 import { toTitleCase } from '@/app/lib/validators';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import { CountriesOptions } from '@/app/features/companions/components/AddCompanion/type';
@@ -167,10 +168,15 @@ const FieldComponents: Record<
         const parsed = new Date(`${yyyy}-${mm}-${dd}`);
         if (!Number.isNaN(parsed.getTime())) return parsed;
       }
+      if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) {
+        const [yyyy, mm, dd] = val.split('-').map(Number);
+        const parsed = new Date(yyyy, mm - 1, dd);
+        if (!Number.isNaN(parsed.getTime())) return parsed;
+      }
       const parsed = new Date(val);
       return Number.isNaN(parsed.getTime()) ? null : parsed;
     };
-    const formatDate = (date: Date) => date.toISOString().split('T')[0];
+    const formatDate = (date: Date) => formatDateLocal(date);
     return (
       <Datepicker
         currentDate={parseDate(value)}
