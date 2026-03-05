@@ -110,8 +110,14 @@ const setMerckStatusMap = (next: Record<string, IntegrationStatus>) => {
   window.localStorage.setItem(MERCK_STATUS_STORAGE_KEY, JSON.stringify(next));
 };
 
-export const isMerckMockMode = () =>
-  String(process.env.NEXT_PUBLIC_MERCK_MODE ?? 'mock') !== 'live';
+const resolveMerckMode = (): 'mock' | 'live' => {
+  const raw = String(process.env.NEXT_PUBLIC_MERCK_MODE ?? '')
+    .trim()
+    .toLowerCase();
+  return raw === 'live' ? 'live' : 'mock';
+};
+
+export const isMerckMockMode = () => resolveMerckMode() === 'mock';
 
 export const getMerckMockStatusForOrg = (organisationId: string): IntegrationStatus => {
   const map = getMerckStatusMap();

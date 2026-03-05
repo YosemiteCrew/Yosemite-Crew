@@ -21,6 +21,13 @@ describe('merckService', () => {
     expect(resolved.status).toBe('enabled');
   });
 
+  it('defaults to mock mode when env is empty', () => {
+    process.env.NEXT_PUBLIC_MERCK_MODE = '';
+    const resolved = resolveMerckIntegration('org-1', []);
+    expect(resolved.source).toBe('synthetic');
+    expect(resolved.status).toBe('enabled');
+  });
+
   it('uses local status override in mock mode', () => {
     setMerckMockStatusForOrg('org-1', 'disabled');
 

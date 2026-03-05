@@ -32,6 +32,7 @@ import {
   LabResultTest,
   LabResult,
 } from '@/app/features/integrations/services/types';
+import { formatDateTimeLocal } from '@/app/lib/date';
 
 const TESTS_PAGE_SIZE = 25;
 
@@ -327,7 +328,7 @@ const PastOrderCard = ({
       <div>
         <div className="text-body-4 text-text-primary">Order {order.idexxOrderId}</div>
         <div className="text-caption-1 text-text-secondary">
-          Updated: {order.updatedAt ? new Date(order.updatedAt).toLocaleString() : '-'}
+          Updated: {formatDateTimeLocal(order.updatedAt, '-')}
         </div>
       </div>
       <span
@@ -1168,10 +1169,7 @@ const LabOrderStatus = ({
                   Order {s.latestOrder.idexxOrderId}
                 </div>
                 <div className="text-caption-1 text-text-secondary">
-                  Updated:{' '}
-                  {s.latestOrder.updatedAt
-                    ? new Date(s.latestOrder.updatedAt).toLocaleString()
-                    : '-'}
+                  Updated: {formatDateTimeLocal(s.latestOrder.updatedAt, '-')}
                 </div>
               </div>
               <span

@@ -13,6 +13,7 @@ import {
   FormsStatus,
   FormsUsage,
 } from '@/app/features/forms/types/forms';
+import { formatDisplayDate } from '@/app/lib/date';
 
 const statusToLabelMap: Record<Form['status'], FormsStatus> = {
   draft: 'Draft',
@@ -32,10 +33,7 @@ const toList = (val?: string | string[]): string[] => {
 };
 
 export const formatDateLabel = (value?: Date | string): string => {
-  if (!value) return '';
-  const d = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleDateString();
+  return formatDisplayDate(value, '');
 };
 
 export const formatTimeLabel = (value?: Date | string): string => {

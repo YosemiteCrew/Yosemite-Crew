@@ -33,7 +33,7 @@ jest.mock('next/link', () => ({
 jest.mock('next/image', () => ({
   __esModule: true,
   default: ({ src, alt }: { src: string; alt: string }) => (
-    <img src={src} alt={alt} data-testid="next-image" />
+    <span data-testid="next-image" data-src={src} data-alt={alt} />
   ),
 }));
 

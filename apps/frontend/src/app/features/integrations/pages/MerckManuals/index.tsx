@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { createPortal } from 'react-dom';
@@ -28,6 +28,7 @@ import {
   getMerckSubtopicPillStyle,
   MERCK_HL7_INFOBUTTON_NOTICE,
 } from '@/app/features/integrations/constants/merck';
+import { formatDateTimeLocal } from '@/app/lib/date';
 import { IoCloseOutline, IoCopyOutline, IoOpenOutline, IoOptionsOutline } from 'react-icons/io5';
 
 type MerckManualsPageProps = {
@@ -69,10 +70,7 @@ const setRecentSearches = (orgId: string, audience: MerckAudience, value: string
 };
 
 const safeDate = (value?: string | null) => {
-  if (!value) return 'N/A';
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return 'N/A';
-  return parsed.toLocaleString();
+  return formatDateTimeLocal(value, 'N/A');
 };
 
 const AudienceToggle = ({
@@ -262,54 +260,57 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
     return () => clearTimeout(timer);
   }, [copied]);
 
-  const performSearch = async (nextQuery?: string) => {
-    if (!primaryOrgId) return;
-    const resolvedQuery = (nextQuery ?? query).trim();
-    if (!resolvedQuery) return;
+  const performSearch = useCallback(
+    async (nextQuery?: string) => {
+      if (!primaryOrgId) return;
+      const resolvedQuery = (nextQuery ?? query).trim();
+      if (!resolvedQuery) return;
 
-    requestIdRef.current += 1;
-    const reqId = requestIdRef.current;
-    setLoading(true);
-    setError(null);
+      requestIdRef.current += 1;
+      const reqId = requestIdRef.current;
+      setLoading(true);
+      setError(null);
 
-    try {
-      const gateway = getMerckGateway();
-      const response = await gateway.search({
-        organisationId: primaryOrgId,
-        query: resolvedQuery,
-        audience,
-        language,
-        media,
-        code: code.trim() || undefined,
-        displayName: displayName.trim() || undefined,
-        subTopicDisplay: subTopicDisplay.trim() || undefined,
-      });
+      try {
+        const gateway = getMerckGateway();
+        const response = await gateway.search({
+          organisationId: primaryOrgId,
+          query: resolvedQuery,
+          audience,
+          language,
+          media,
+          code: code.trim() || undefined,
+          displayName: displayName.trim() || undefined,
+          subTopicDisplay: subTopicDisplay.trim() || undefined,
+        });
 
-      if (reqId !== requestIdRef.current) return;
+        if (reqId !== requestIdRef.current) return;
 
-      const filtered = response.entries.filter(
-        (entry) =>
-          isAllowedMerckUrl(entry.primaryUrl) &&
-          entry.subLinks.every((link) => isAllowedMerckUrl(link.url))
-      );
-      setEntries(filtered);
-      setRecentSearches(primaryOrgId, audience, resolvedQuery);
-      setRecentSearchesState(getRecentSearches(primaryOrgId, audience));
-    } catch (e: any) {
-      if (reqId !== requestIdRef.current) return;
-      setEntries([]);
-      setError(e?.response?.data?.message || e?.message || 'Unable to search manuals right now.');
-    } finally {
-      if (reqId === requestIdRef.current) {
-        setLoading(false);
+        const filtered = response.entries.filter(
+          (entry) =>
+            isAllowedMerckUrl(entry.primaryUrl) &&
+            entry.subLinks.every((link) => isAllowedMerckUrl(link.url))
+        );
+        setEntries(filtered);
+        setRecentSearches(primaryOrgId, audience, resolvedQuery);
+        setRecentSearchesState(getRecentSearches(primaryOrgId, audience));
+      } catch (e: any) {
+        if (reqId !== requestIdRef.current) return;
+        setEntries([]);
+        setError(e?.response?.data?.message || e?.message || 'Unable to search manuals right now.');
+      } finally {
+        if (reqId === requestIdRef.current) {
+          setLoading(false);
+        }
       }
-    }
-  };
+    },
+    [audience, code, displayName, language, media, primaryOrgId, query, subTopicDisplay]
+  );
 
   useEffect(() => {
     if (!routeQuery || !isEnabled) return;
     void performSearch(routeQuery);
-  }, [routeQuery, isEnabled]);
+  }, [routeQuery, isEnabled, performSearch]);
 
   const onCopyUrl = async (url: string) => {
     try {
