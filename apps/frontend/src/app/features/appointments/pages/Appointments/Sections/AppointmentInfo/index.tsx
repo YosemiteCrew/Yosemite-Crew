@@ -1022,7 +1022,7 @@ const AppoitmentInfo = ({
           />
         </div>
 
-        <div ref={scrollRef} className="flex overflow-y-auto flex-1 scrollbar-hidden">
+        <div ref={scrollRef} className="flex overflow-y-auto flex-1 scrollbar-custom">
           {Content ? (
             <Content
               activeAppointment={activeAppointment}
