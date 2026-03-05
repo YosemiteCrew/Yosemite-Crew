@@ -18,6 +18,7 @@ import HamburgerMenuButton from '@/app/ui/layout/Header/HamburgerMenuButton';
 import MobileMenu from '@/app/ui/layout/Header/MobileMenu';
 import { headerAppRoutes, headerDevRoutes } from '@/app/config/routes';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
 
 const UserHeader = () => {
   const { signOut } = useSignOut();
@@ -27,6 +28,7 @@ const UserHeader = () => {
   const profile = usePrimaryOrgProfile();
   const [menuOpen, setMenuOpen] = useState(false);
   const isDev = pathname.startsWith('/developers');
+  const { isEnabled: merckEnabled } = useResolvedMerckIntegrationForPrimaryOrg();
   const routes = isDev ? headerDevRoutes : headerAppRoutes;
   const mobileRoutes = isDev
     ? routes
@@ -34,6 +36,13 @@ const UserHeader = () => {
         const next = [...routes];
         const signOutIndex = next.findIndex((route) => route.name === 'Sign out');
         const insertIndex = signOutIndex === -1 ? next.length : signOutIndex;
+        if (merckEnabled) {
+          next.splice(insertIndex, 0, {
+            name: 'Merck Manuals',
+            href: '/integrations/merck-manuals',
+            verify: true,
+          });
+        }
         next.splice(insertIndex, 0, { name: 'Guides', href: '/guides', verify: false });
         return next;
       })();
@@ -128,6 +137,7 @@ const UserHeader = () => {
   const getSearchPlaceholder = () => {
     if (pathname.startsWith('/appointments')) return 'Search appointments';
     if (pathname.startsWith('/inventory')) return 'Search inventory';
+    if (pathname.startsWith('/integrations/idexx-workspace')) return 'Search result / order';
     if (pathname.startsWith('/integrations')) return 'Search integrations';
     if (pathname.startsWith('/forms')) return 'Search forms';
     if (pathname.startsWith('/companions')) return 'Search companions';
@@ -144,7 +154,7 @@ const UserHeader = () => {
     pathname.startsWith('/organizations') ||
     pathname.startsWith('/dashboard') ||
     pathname.startsWith('/guides') ||
-    pathname.startsWith('/integrations');
+    (pathname.startsWith('/integrations') && !pathname.startsWith('/integrations/idexx-workspace'));
 
   return (
     <div className="flex items-center justify-between px-3 sm:px-12! lg:px-[36px]! w-full h-20 gap-0">
@@ -321,6 +331,15 @@ const UserHeader = () => {
               >
                 Settings
               </Link>
+              {!isDev && merckEnabled && (
+                <Link
+                  href="/integrations/merck-manuals"
+                  onClick={() => setSelectProfile(false)}
+                  className="text-center px-[1.25rem] py-[0.75rem] text-body-4 w-full text-text-secondary! hover:bg-card-hover rounded-2xl! transition-all duration-300"
+                >
+                  Merck Manuals
+                </Link>
+              )}
               {!isDev && (
                 <Link
                   href="/guides"

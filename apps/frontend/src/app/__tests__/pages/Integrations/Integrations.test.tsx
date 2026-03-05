@@ -48,6 +48,13 @@ jest.mock('@/app/hooks/useIntegrations', () => ({
   useIntegrationByProviderForPrimaryOrg: (...args: any[]) =>
     useIntegrationByProviderForPrimaryOrgMock(...args),
 }));
+jest.mock('@/app/hooks/useMerckIntegration', () => ({
+  useResolvedMerckIntegrationForPrimaryOrg: jest.fn(() => ({
+    integration: { provider: 'MERCK_MANUALS', status: 'enabled', source: 'synthetic' },
+    isEnabled: true,
+    refresh: jest.fn(),
+  })),
+}));
 
 jest.mock('@/app/stores/integrationStore', () => ({
   useIntegrationStore: (selector: any) =>
@@ -119,6 +126,14 @@ jest.mock('@/app/features/integrations/services/idexxService', () => ({
   validateIntegrationCredentials: (...args: any[]) => validateIntegrationCredentialsMock(...args),
   enableIntegration: (...args: any[]) => enableIntegrationMock(...args),
   disableIntegration: (...args: any[]) => disableIntegrationMock(...args),
+}));
+jest.mock('@/app/features/integrations/services/merckService', () => ({
+  getMerckGateway: jest.fn(() => ({
+    enable: jest.fn(async () => ({ provider: 'MERCK_MANUALS', status: 'enabled' })),
+    disable: jest.fn(async () => ({ provider: 'MERCK_MANUALS', status: 'disabled' })),
+    getStatus: jest.fn(),
+    search: jest.fn(),
+  })),
 }));
 
 describe('Integrations settings', () => {

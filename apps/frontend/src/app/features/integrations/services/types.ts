@@ -1,4 +1,4 @@
-export type IntegrationProvider = 'IDEXX';
+export type IntegrationProvider = 'IDEXX' | 'MERCK_MANUALS';
 
 export type IntegrationStatus = 'enabled' | 'disabled' | 'error' | 'pending';
 
@@ -7,6 +7,7 @@ export type OrgIntegration = {
   organisationId: string;
   provider: IntegrationProvider;
   status: IntegrationStatus;
+  source?: 'backend' | 'synthetic';
   credentialsStatus?: 'valid' | 'invalid' | 'missing';
   lastValidatedAt?: string | null;
   enabledAt?: string | null;
@@ -165,4 +166,51 @@ export type LabResult = {
     status?: string;
     updatedDate?: string;
   };
+};
+
+export type MerckAudience = 'PROV' | 'PAT';
+export type MerckLanguage = 'en' | 'es';
+export type MerckMediaMode = 'hybrid' | 'print' | 'full';
+
+export type MerckLink = {
+  label: string;
+  url: string;
+};
+
+export type MerckEntry = {
+  id: string;
+  title: string;
+  summaryText: string;
+  updatedAt: string | null;
+  audience: MerckAudience;
+  primaryUrl: string;
+  subLinks: MerckLink[];
+};
+
+export type MerckSearchMeta = {
+  requestId: string;
+  source: string;
+  updatedAt: string | null;
+  audience: MerckAudience;
+  language: MerckLanguage;
+  totalResults: number;
+};
+
+export type MerckSearchResponse = {
+  meta: MerckSearchMeta;
+  entries: MerckEntry[];
+};
+
+export type MerckSearchRequest = {
+  organisationId: string;
+  query: string;
+  audience: MerckAudience;
+  language?: MerckLanguage;
+  media?: MerckMediaMode;
+  code?: string;
+  codeSystem?: string;
+  displayName?: string;
+  originalText?: string;
+  subTopicCode?: string;
+  subTopicDisplay?: string;
 };

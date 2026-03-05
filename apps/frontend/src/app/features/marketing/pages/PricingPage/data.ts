@@ -3,6 +3,7 @@ const COMMON_FEATURES = {
   TEMPLATES: 'Templates module',
   DOC_SIGNING: 'Document e-signing portal',
   IDEX_INTEGRATION: 'IDEXX integration for lab tests and diagnostics',
+  MERCK_INTEGRATION: 'Merck Manuals integration for veterinary clinical knowledge',
   CHAT: 'Internal + companion parent chat',
   SECURITY: 'Security & compliance integrations (SOC2, ISO 27001, GDPR)',
 };
@@ -32,6 +33,7 @@ export const PricingPlans = [
       COMMON_FEATURES.TEMPLATES,
       COMMON_FEATURES.DOC_SIGNING,
       COMMON_FEATURES.IDEX_INTEGRATION,
+      COMMON_FEATURES.MERCK_INTEGRATION,
       COMMON_FEATURES.CHAT,
       COMMON_FEATURES.SECURITY,
     ],
@@ -54,6 +56,7 @@ export const PricingPlans = [
       COMMON_FEATURES.TEMPLATES,
       COMMON_FEATURES.DOC_SIGNING,
       COMMON_FEATURES.IDEX_INTEGRATION,
+      COMMON_FEATURES.MERCK_INTEGRATION,
       COMMON_FEATURES.CHAT,
       COMMON_FEATURES.SECURITY,
     ],
@@ -77,6 +80,7 @@ export const PricingPlans = [
       COMMON_FEATURES.TEMPLATES,
       COMMON_FEATURES.DOC_SIGNING,
       COMMON_FEATURES.IDEX_INTEGRATION,
+      COMMON_FEATURES.MERCK_INTEGRATION,
       COMMON_FEATURES.CHAT,
       COMMON_FEATURES.SECURITY,
     ],
@@ -106,7 +110,7 @@ export const TableData = [
     rows: [
       yesYes('IDEXX integration'),
       row('RadAnalyzer integration', 'Coming soon', 'Coming soon'),
-      row('Merck Vet Manual integration', 'Coming soon', 'Coming soon'),
+      yesYes('Merck Manuals integration'),
     ],
   },
   {

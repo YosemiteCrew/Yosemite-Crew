@@ -51,10 +51,12 @@ import { hasSignatureField } from '@/app/features/appointments/pages/Appointment
 import SigningOverlay from '@/app/ui/overlays/SigningOverlay';
 import ParentTask from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Tasks/ParentTask';
 import LabTests from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/LabTests';
+import AppointmentMerckSearch from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/AppointmentMerckSearch';
 import { useServicesForPrimaryOrgSpecialities } from '@/app/hooks/useSpecialities';
 import { useSigningOverlayStore } from '@/app/stores/signingOverlayStore';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
 
 const ALLOWED_CATEGORIES_BY_ORG: Record<string, string[]> = {
   HOSPITAL: ['Prescription', 'Consent form', 'Custom'],
@@ -595,6 +597,18 @@ const hospitalLabels = [
       { key: 'forms', name: 'Templates' },
       { key: 'audit-trail', name: 'Audit trail' },
       { key: 'documents', name: 'Documents' },
+      {
+        key: 'merck-manuals',
+        name: (
+          <Image
+            src={MEDIA_SOURCES.futureAssets.merckLogoUrl}
+            alt="Merck Manuals"
+            width={82}
+            height={34}
+            className="object-contain"
+          />
+        ),
+      },
     ],
   },
   {
@@ -691,6 +705,7 @@ const AppoitmentInfo = ({
   const formIds = useFormsStore((s) => s.formIds);
   const allForms = formIds.map((id) => formsById[id]).filter(Boolean);
   const signingOverlayOpen = useSigningOverlayStore((s) => s.open);
+  const { isEnabled: merckEnabled } = useResolvedMerckIntegrationForPrimaryOrg();
   const templatesForOrg = useMemo(() => {
     const trimPrefix = (text?: string | null) =>
       (text ?? '').replace(/^(Boarder|Breeder|Groomer)\s*-\s*/i, '');
@@ -709,7 +724,19 @@ const AppoitmentInfo = ({
       }));
   }, [allForms, orgType]);
 
-  const labels = useMemo(() => getLabelsForOrgType(orgType, hospitalLabels), [orgType]);
+  const labels = useMemo(() => {
+    const base = getLabelsForOrgType(orgType, hospitalLabels);
+    if (merckEnabled) return base;
+    return base.map((label: any) => {
+      if (label.key !== 'prescription') return label;
+      return {
+        ...label,
+        labels: (label.labels ?? []).filter(
+          (item: { key: string }) => item.key !== 'merck-manuals'
+        ),
+      };
+    });
+  }, [orgType, merckEnabled]);
 
   useEffect(() => {
     if (!showModal || !initialViewIntent) return;
@@ -743,6 +770,7 @@ const AppoitmentInfo = ({
       'discharge-summary': Discharge,
       forms: CustomFormsSection,
       documents: Documents,
+      'merck-manuals': AppointmentMerckSearch,
     },
     care: {
       forms: CustomFormsSection,
@@ -964,11 +992,7 @@ const AppoitmentInfo = ({
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <SigningOverlay />
-      <div
-        className={`flex flex-col h-full ${
-          activeLabel === 'labs' ? 'gap-1' : 'gap-3'
-        }`}
-      >
+      <div className={`flex flex-col h-full ${activeLabel === 'labs' ? 'gap-1' : 'gap-3'}`}>
         <div className="flex flex-col gap-3">
           <div className="flex justify-between items-center">
             <div className="flex justify-center items-center gap-2">

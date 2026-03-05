@@ -9,6 +9,9 @@ export const MEDIA_SOURCES = {
     idexxLogoFileName: 'idexxLogo.png',
     idexxLogoS3Key: 'integrations/idexxLogo.png',
     idexxLogoUrl: ycCdn('integrations/idexxLogo.png'),
+    merckLogoFileName: 'merckLogo.png',
+    merckLogoS3Key: 'integrations/merckLogo.png',
+    merckLogoUrl: ycCdn('integrations/merckLogo.png'),
   },
   logo: ycCdn('Logo.png'),
   avatars: {

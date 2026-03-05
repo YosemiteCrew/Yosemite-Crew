@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import Image from 'next/image';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
@@ -29,8 +28,10 @@ import {
   validateIntegrationCredentials,
 } from '@/app/features/integrations/services/idexxService';
 import { IvlsDevice } from '@/app/features/integrations/services/types';
+import { getMerckGateway } from '@/app/features/integrations/services/merckService';
+import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
 import Close from '@/app/ui/primitives/Icons/Close';
-import { IoOpenOutline, IoRefreshOutline } from 'react-icons/io5';
+import { IoRefreshOutline, IoTrashOutline } from 'react-icons/io5';
 
 const statusClasses: Record<string, string> = {
   enabled: 'bg-green-50 text-green-800',
@@ -295,6 +296,11 @@ const useIntegrationsPage = () => {
   const primaryOrg = usePrimaryOrg();
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const integrations = useIntegrationsForPrimaryOrg();
+  const {
+    integration: merckIntegration,
+    isEnabled: merckEnabled,
+    refresh: refreshMerckIntegration,
+  } = useResolvedMerckIntegrationForPrimaryOrg();
   const idexxIntegration = useIntegrationByProviderForPrimaryOrg('IDEXX');
   const integrationStatus = useIntegrationStore((s) => s.status);
   const integrationError = useIntegrationStore((s) => s.error);
@@ -303,6 +309,7 @@ const useIntegrationsPage = () => {
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [merckSaving, setMerckSaving] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [validateState, setValidateState] = useState<ValidateState>('idle');
@@ -351,11 +358,15 @@ const useIntegrationsPage = () => {
       setShowSettings,
     });
 
-  const linkedCount = useMemo(
-    () =>
-      integrations.filter((integration) => integration.status?.toLowerCase() === 'enabled').length,
-    [integrations]
-  );
+  const linkedCount = useMemo(() => {
+    const enabledProviders = new Set(
+      integrations
+        .filter((integration) => integration.status?.toLowerCase() === 'enabled')
+        .map((integration) => integration.provider)
+    );
+    if (merckEnabled) enabledProviders.add('MERCK_MANUALS');
+    return enabledProviders.size;
+  }, [integrations, merckEnabled]);
 
   const idexxStatus = (idexxIntegration?.status ?? 'disabled').toLowerCase();
   const idexxEnabled = idexxStatus === 'enabled';
@@ -370,7 +381,30 @@ const useIntegrationsPage = () => {
     activeFilter === 'all' ||
     (activeFilter === 'connected' && idexxEnabled) ||
     (activeFilter === 'available' && !idexxEnabled);
+  const showMerckCard =
+    activeFilter === 'all' ||
+    (activeFilter === 'connected' && merckEnabled) ||
+    (activeFilter === 'available' && !merckEnabled);
   const credentialsActionLabel = getCredentialsActionLabel(saving, hasStoredCredentials);
+
+  const handleMerckEnableDisable = useCallback(async () => {
+    if (!primaryOrgId || merckSaving) return;
+    setMerckSaving(true);
+    setError(null);
+    try {
+      const gateway = getMerckGateway();
+      if (merckEnabled) {
+        await gateway.disable(primaryOrgId);
+      } else {
+        await gateway.enable(primaryOrgId);
+      }
+      refreshMerckIntegration();
+    } catch (e) {
+      setError(getApiErrorMessage(e, 'Unable to update Merck Manuals status.'));
+    } finally {
+      setMerckSaving(false);
+    }
+  }, [primaryOrgId, merckEnabled, merckSaving, refreshMerckIntegration]);
 
   return {
     primaryOrg,
@@ -394,15 +428,20 @@ const useIntegrationsPage = () => {
     setActiveFilter,
     error,
     linkedCount,
+    merckIntegration,
+    merckEnabled,
+    merckSaving,
     credentialsStatusKey,
     credentialsStatusLabel,
     hasStoredCredentials,
     showIdexxCard,
+    showMerckCard,
     credentialsActionLabel,
     handleManualRefresh,
     handleStoreCredentials,
     handleValidate,
     handleEnableDisable,
+    handleMerckEnableDisable,
   };
 };
 
@@ -613,10 +652,17 @@ const IntegrationsPage = () => {
   const s = useIntegrationsPage();
 
   const showNoConnected =
-    s.integrationStatus !== 'loading' && s.activeFilter === 'connected' && !s.idexxEnabled;
+    s.integrationStatus !== 'loading' &&
+    s.activeFilter === 'connected' &&
+    !s.idexxEnabled &&
+    !s.merckEnabled;
   const showNoAvailable =
-    s.integrationStatus !== 'loading' && s.activeFilter === 'available' && s.idexxEnabled;
+    s.integrationStatus !== 'loading' &&
+    s.activeFilter === 'available' &&
+    s.idexxEnabled &&
+    s.merckEnabled;
   const idexxCardButtonLabel = getIdexxCardButtonLabel(s.saving, s.idexxEnabled);
+  const merckCardButtonLabel = getIdexxCardButtonLabel(s.merckSaving, s.merckEnabled);
 
   return (
     <div className="flex flex-col gap-6 px-3! py-3! sm:px-12! lg:px-[60px]! sm:py-12!">
@@ -625,7 +671,7 @@ const IntegrationsPage = () => {
           <div className="text-text-primary text-heading-1">Integrations</div>
           <p className="text-body-3 text-text-secondary max-w-3xl">
             Connect and manage external tools for {s.primaryOrg?.name ?? 'your organization'},
-            including IDEXX ordering and diagnostic results.
+            including diagnostics, clinical knowledge, communication, and operational workflows.
           </p>
         </div>
         <div className="text-body-4 text-text-secondary rounded-2xl border border-card-border px-4 py-2">
@@ -652,46 +698,131 @@ const IntegrationsPage = () => {
         })}
       </div>
 
-      {s.showIdexxCard ? (
-        <div className="rounded-2xl border border-card-border p-4 max-w-[430px] flex items-start gap-4 min-h-[245px]">
-          <div className="shrink-0">
-            <Image
-              src={MEDIA_SOURCES.futureAssets.idexxLogoUrl}
-              alt="IDEXX"
-              width={72}
-              height={72}
-              className="rounded-xl border border-card-border bg-white p-2"
-            />
-          </div>
-          <div className="flex-1 min-w-0 flex flex-col gap-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="text-heading-3 text-text-primary pt-1">IDEXX</div>
-              <StatusPill status={s.idexxIntegration?.status} />
+      {s.showIdexxCard || s.showMerckCard ? (
+        <div className="flex flex-wrap gap-4 items-stretch">
+          {s.showIdexxCard ? (
+            <div className="rounded-2xl border border-card-border p-4 w-full md:flex-1 md:min-w-[320px] xl:max-w-[430px] flex items-stretch gap-4 min-h-[245px]">
+              <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
+                <div className="h-[72px] w-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center">
+                  <Image
+                    src={MEDIA_SOURCES.futureAssets.idexxLogoUrl}
+                    alt="IDEXX"
+                    width={56}
+                    height={56}
+                    className="object-contain max-h-[56px] max-w-[56px] h-auto w-auto"
+                  />
+                </div>
+                {s.idexxEnabled ? (
+                  <button
+                    type="button"
+                    onClick={s.handleEnableDisable}
+                    aria-label="Disable IDEXX quick action"
+                    title="Disable IDEXX quick action"
+                    className="h-10 w-10 rounded-2xl! border border-red-200 flex items-center justify-center hover:bg-red-50 transition-colors cursor-pointer"
+                  >
+                    <IoTrashOutline className="text-red-600" size={16} />
+                  </button>
+                ) : (
+                  <div className="h-10 w-10" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0 flex flex-col justify-between">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="text-heading-3 text-text-primary pt-1">IDEXX</div>
+                    <StatusPill status={s.idexxIntegration?.status} />
+                  </div>
+                  <div className="text-body-4 text-text-secondary line-clamp-4">
+                    IDEXX diagnostics integration for lab ordering, in-house device workflows, and
+                    clinical result visibility in Yosemite.
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 w-full items-center">
+                  <Secondary
+                    href="#"
+                    text="Settings"
+                    onClick={() => s.setShowSettings(true)}
+                    className="w-full px-4"
+                  />
+                  {s.idexxEnabled ? (
+                    <Primary
+                      href="/appointments/idexx-workspace"
+                      text="View"
+                      className="w-full px-4"
+                    />
+                  ) : (
+                    <Primary
+                      href="#"
+                      text={idexxCardButtonLabel}
+                      onClick={s.handleEnableDisable}
+                      isDisabled={s.saving}
+                      className="w-full px-4"
+                    />
+                  )}
+                </div>
+              </div>
             </div>
-            <div className="text-body-4 text-text-secondary line-clamp-4">
-              IDEXX diagnostics integration for lab ordering, in-house device workflows, and
-              clinical result visibility in Yosemite.
+          ) : null}
+
+          {s.showMerckCard ? (
+            <div className="rounded-2xl border border-card-border p-4 w-full md:flex-1 md:min-w-[320px] xl:max-w-[430px] flex items-stretch gap-4 min-h-[245px]">
+              <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
+                <div className="h-[72px] w-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center">
+                  <Image
+                    src={MEDIA_SOURCES.futureAssets.merckLogoUrl}
+                    alt="Merck Manuals"
+                    width={56}
+                    height={56}
+                    className="object-contain max-h-[56px] max-w-[56px] h-auto w-auto"
+                  />
+                </div>
+                {s.merckEnabled ? (
+                  <button
+                    type="button"
+                    onClick={s.handleMerckEnableDisable}
+                    aria-label="Disable Merck Manuals"
+                    title="Disable Merck Manuals"
+                    className="h-10 w-10 rounded-2xl! border border-red-200 flex items-center justify-center hover:bg-red-50 transition-colors cursor-pointer"
+                  >
+                    <IoTrashOutline className="text-red-600" size={16} />
+                  </button>
+                ) : (
+                  <div className="h-10 w-10" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0 flex flex-col justify-between">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="text-heading-3 text-text-primary pt-1">Merck Manuals</div>
+                    <StatusPill status={s.merckIntegration?.status} />
+                  </div>
+                  <div className="text-body-4 text-text-secondary line-clamp-4">
+                    Veterinary manuals search and reader experience with professional and consumer
+                    content modes.
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <div className="flex w-full items-center justify-end">
+                    {s.merckEnabled ? (
+                      <Primary
+                        href="/integrations/merck-manuals"
+                        text="View"
+                        className="w-full max-w-[160px] px-4"
+                      />
+                    ) : (
+                      <Primary
+                        href="#"
+                        text={merckCardButtonLabel}
+                        onClick={s.handleMerckEnableDisable}
+                        isDisabled={s.merckSaving}
+                        className="w-full max-w-[160px] px-4"
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center justify-end gap-2">
-              {s.idexxEnabled ? (
-                <Link
-                  href="/appointments/idexx-workspace"
-                  aria-label="View IDEXX Hub"
-                  title="View IDEXX Hub"
-                  className="p-2 rounded-full hover:bg-card-hover transition-colors"
-                >
-                  <IoOpenOutline className="text-text-primary" size={16} />
-                </Link>
-              ) : null}
-              <Secondary href="#" text="Settings" onClick={() => s.setShowSettings(true)} />
-              <Primary
-                href="#"
-                text={idexxCardButtonLabel}
-                onClick={s.handleEnableDisable}
-                isDisabled={s.saving}
-              />
-            </div>
-          </div>
+          ) : null}
         </div>
       ) : null}
 
