@@ -687,7 +687,7 @@ const ChannelHeaderWithCounterpart: React.FC<{
   const [closingSession, setClosingSession] = useState(false);
   const [sessionClosed, setSessionClosed] = useState(false);
   const { title } = getChannelDisplayInfo(channel, currentUserId);
-  const scope = channel ? resolveChannelScope(channel, currentUserId) : 'colleagues';
+  const scope = channel ? resolveChannelScope(channel) : 'colleagues';
   const channelMemberCount = channel?.state?.members
     ? Object.keys(channel.state.members).length
     : 0;
