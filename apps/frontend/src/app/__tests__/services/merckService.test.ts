@@ -107,5 +107,9 @@ describe('merckService', () => {
     expect(isAllowedMerckUrl('https://www.msdmanuals.com/x')).toBe(true);
     expect(isAllowedMerckUrl('https://www.merckmanuals.com/x')).toBe(true);
     expect(isAllowedMerckUrl('https://example.com/x')).toBe(false);
+    expect(isAllowedMerckUrl('https://msdmanuals.com.evil.com/x')).toBe(false);
+    expect(isAllowedMerckUrl('https://evilmsdmanuals.com/x')).toBe(false);
+    expect(isAllowedMerckUrl('https://merckmanuals.com.evil.com/x')).toBe(false);
+    expect(isAllowedMerckUrl('https://evilmerckmanuals.com/x')).toBe(false);
   });
 });

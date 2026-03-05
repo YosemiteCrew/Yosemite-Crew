@@ -371,12 +371,13 @@ export const isAllowedMerckUrl = (value: string): boolean => {
   try {
     const url = new URL(value);
     const host = url.hostname.toLowerCase();
-    return (
-      host.endsWith('merckvetmanual.com') ||
-      host.endsWith('msdvetmanual.com') ||
-      host.endsWith('merckmanuals.com') ||
-      host.endsWith('msdmanuals.com')
-    );
+    const allowedDomains = [
+      'merckvetmanual.com',
+      'msdvetmanual.com',
+      'merckmanuals.com',
+      'msdmanuals.com',
+    ];
+    return allowedDomains.some((domain) => host === domain || host.endsWith(`.${domain}`));
   } catch {
     return false;
   }
