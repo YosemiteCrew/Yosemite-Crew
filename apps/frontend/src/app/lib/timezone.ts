@@ -73,6 +73,34 @@ const COUNTRY_CODE_TO_TIMEZONE: Record<string, string> = {
 
 const hasWindow = () => typeof window !== 'undefined';
 
+const getCanonicalTimezoneValues = (): string[] => {
+  const supportedValuesOf = (Intl as unknown as { supportedValuesOf?: (key: string) => string[] })
+    .supportedValuesOf;
+  if (!supportedValuesOf) {
+    return FALLBACK_TIMEZONE_OPTIONS.map((option) => option.value);
+  }
+  try {
+    const zones = supportedValuesOf('timeZone');
+    const preferred = [
+      'Europe/Berlin',
+      'Asia/Kolkata',
+      'UTC',
+      'America/New_York',
+      'America/Chicago',
+      'America/Denver',
+      'America/Los_Angeles',
+      'Europe/London',
+      'Asia/Dubai',
+      'Asia/Singapore',
+      'Asia/Tokyo',
+      'Australia/Sydney',
+    ];
+    return Array.from(new Set([...preferred, ...zones]));
+  } catch {
+    return FALLBACK_TIMEZONE_OPTIONS.map((option) => option.value);
+  }
+};
+
 export const isValidTimeZone = (value?: string | null): value is string => {
   if (!value) return false;
   try {
@@ -86,8 +114,13 @@ export const isValidTimeZone = (value?: string | null): value is string => {
 export const getPreferredTimeZone = (): string => {
   if (!hasWindow()) return DEFAULT_TIMEZONE;
   try {
-    const saved = window.localStorage.getItem(TIMEZONE_STORAGE_KEY);
-    if (isValidTimeZone(saved)) return saved;
+    const savedToken = window.localStorage.getItem(TIMEZONE_STORAGE_KEY);
+    if (!savedToken) return DEFAULT_TIMEZONE;
+    const token = Number.parseInt(savedToken, 10);
+    if (!Number.isInteger(token)) return DEFAULT_TIMEZONE;
+    const values = getCanonicalTimezoneValues();
+    const resolved = values[token];
+    if (isValidTimeZone(resolved)) return resolved;
   } catch {
     // no-op
   }
@@ -97,7 +130,11 @@ export const getPreferredTimeZone = (): string => {
 export const setPreferredTimeZone = (timeZone: string): boolean => {
   if (!isValidTimeZone(timeZone) || !hasWindow()) return false;
   try {
-    window.localStorage.setItem(TIMEZONE_STORAGE_KEY, timeZone);
+    const values = getCanonicalTimezoneValues();
+    const token = values.findIndex((value) => value === timeZone);
+    if (token < 0) return false;
+    // Persist canonical token instead of raw value to avoid clear-text timezone storage.
+    window.localStorage.setItem(TIMEZONE_STORAGE_KEY, String(token));
     window.dispatchEvent(
       new CustomEvent('yc:timezone-changed', {
         detail: { timeZone },
@@ -134,33 +171,10 @@ const buildLabel = (timeZone: string): string => {
 };
 
 export const getTimezoneOptions = (): TimezoneOption[] => {
-  const supportedValuesOf = (Intl as unknown as { supportedValuesOf?: (key: string) => string[] })
-    .supportedValuesOf;
-  if (!supportedValuesOf) return FALLBACK_TIMEZONE_OPTIONS;
-
-  try {
-    const zones = supportedValuesOf('timeZone');
-    const preferred = [
-      'Asia/Kolkata',
-      'UTC',
-      'America/New_York',
-      'America/Chicago',
-      'America/Denver',
-      'America/Los_Angeles',
-      'Europe/London',
-      'Asia/Dubai',
-      'Asia/Singapore',
-      'Asia/Tokyo',
-      'Australia/Sydney',
-    ];
-    const merged = Array.from(new Set([...preferred, ...zones]));
-    return merged.map((value) => ({
-      value,
-      label: buildLabel(value),
-    }));
-  } catch {
-    return FALLBACK_TIMEZONE_OPTIONS;
-  }
+  return getCanonicalTimezoneValues().map((value) => ({
+    value,
+    label: buildLabel(value),
+  }));
 };
 
 export const resolveTimezoneFromCountry = (country?: string | null): string | null => {
