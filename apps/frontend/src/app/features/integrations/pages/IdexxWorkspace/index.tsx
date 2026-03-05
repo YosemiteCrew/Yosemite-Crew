@@ -14,6 +14,7 @@ import '@/app/ui/tables/DataTable.css';
 import Back from '@/app/ui/primitives/Icons/Back';
 import Next from '@/app/ui/primitives/Icons/Next';
 import { useOrgStore } from '@/app/stores/orgStore';
+import { useSearchStore } from '@/app/stores/searchStore';
 import { useIntegrationByProviderForPrimaryOrg } from '@/app/hooks/useIntegrations';
 import {
   getApiErrorMessage,
@@ -169,13 +170,17 @@ const buildResultsColumns = ({
     key: 'status',
     width: '16%',
     render: (result) => (
-      <div className="flex flex-col gap-1">
-        <div className="appointment-status w-fit" style={getResultStatusStyle(result.status)}>
-          {formatTitleCase(result.status, '-')}
+      <div className="w-full flex justify-start">
+        <div className="inline-flex flex-col items-center gap-1">
+          <div className="appointment-status w-fit" style={getResultStatusStyle(result.status)}>
+            {formatTitleCase(result.status, '-')}
+          </div>
+          {result.statusDetail ? (
+            <span className="text-caption-1 text-text-secondary text-center">
+              {result.statusDetail}
+            </span>
+          ) : null}
         </div>
-        {result.statusDetail ? (
-          <span className="text-caption-1 text-text-secondary">{result.statusDetail}</span>
-        ) : null}
       </div>
     ),
   },
@@ -899,7 +904,7 @@ const useIdexxWorkspacePage = () => {
   const [results, setResults] = useState<LabResult[]>([]);
   const [censusEntries, setCensusEntries] = useState<CensusEntry[]>([]);
   const [appointmentIdByOrderId, setAppointmentIdByOrderId] = useState<Record<string, string>>({});
-  const [query, setQuery] = useState('');
+  const headerSearchQuery = useSearchStore((s) => s.query);
   const [modalityFilter, setModalityFilter] = useState<ModalityFilter>('ALL');
   const [pageSize, setPageSize] = useState(5);
   const [page, setPage] = useState(1);
@@ -960,7 +965,7 @@ const useIdexxWorkspacePage = () => {
   }, [autoRefresh, integrationEnabled, refresh]);
 
   const filteredResults = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = headerSearchQuery.trim().toLowerCase();
     return results.filter((result) => {
       if (modalityFilter !== 'ALL') {
         const resultModality = normalizeModality(result.modality);
@@ -968,7 +973,7 @@ const useIdexxWorkspacePage = () => {
       }
       return !q || matchesResultQuery(result, q);
     });
-  }, [results, query, modalityFilter]);
+  }, [results, headerSearchQuery, modalityFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredResults.length / pageSize));
 
@@ -980,6 +985,10 @@ const useIdexxWorkspacePage = () => {
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [headerSearchQuery]);
 
   const resultsColumns = useMemo(
     () =>
@@ -1008,8 +1017,6 @@ const useIdexxWorkspacePage = () => {
     error,
     autoRefresh,
     setAutoRefresh,
-    query,
-    setQuery,
     modalityFilter,
     setModalityFilter,
     pageSize,
@@ -1127,38 +1134,32 @@ const IdexxWorkspacePage = () => {
 
       <Accordion title="Diagnostic orders and results" defaultOpen showEditIcon={false} isEditing>
         <div className="flex flex-col gap-3 py-2">
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-            <FormInput
-              intype="text"
-              inname="idexx-results-search"
-              inlabel="Search result / order"
-              value={s.query}
-              onChange={(e) => {
-                s.setQuery(e.target.value);
-                s.setPage(1);
-              }}
-            />
-            <LabelDropdown
-              placeholder="Modality"
-              options={MODALITY_FILTERS}
-              defaultOption={s.modalityFilter}
-              onSelect={(option) => {
-                s.setModalityFilter(option.value as ModalityFilter);
-                s.setPage(1);
-              }}
-            />
-            <LabelDropdown
-              placeholder="Page size"
-              options={PAGE_SIZE_OPTIONS.map((size) => ({
-                label: String(size),
-                value: String(size),
-              }))}
-              defaultOption={String(s.pageSize)}
-              onSelect={(option) => {
-                s.setPageSize(Number(option.value));
-                s.setPage(1);
-              }}
-            />
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="w-full sm:w-[220px]">
+              <LabelDropdown
+                placeholder="Modality"
+                options={MODALITY_FILTERS}
+                defaultOption={s.modalityFilter}
+                onSelect={(option) => {
+                  s.setModalityFilter(option.value as ModalityFilter);
+                  s.setPage(1);
+                }}
+              />
+            </div>
+            <div className="w-full sm:w-[180px]">
+              <LabelDropdown
+                placeholder="Page size"
+                options={PAGE_SIZE_OPTIONS.map((size) => ({
+                  label: String(size),
+                  value: String(size),
+                }))}
+                defaultOption={String(s.pageSize)}
+                onSelect={(option) => {
+                  s.setPageSize(Number(option.value));
+                  s.setPage(1);
+                }}
+              />
+            </div>
           </div>
 
           <div className="hidden xl:flex">
@@ -1216,7 +1217,9 @@ const IdexxWorkspacePage = () => {
                 inname="idexx-order-id"
                 inlabel="IDEXX order ID"
                 value={s.orderLookupId}
-                onChange={(e) => s.setOrderLookupId(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  s.setOrderLookupId(e.target.value)
+                }
               />
               <Primary
                 href="#"

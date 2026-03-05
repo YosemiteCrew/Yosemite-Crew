@@ -19,6 +19,7 @@ import {
   fetchBreedCodeEntries,
   fetchSpeciesCodeEntries,
 } from '@/app/features/companions/services/codeEntriesService';
+import { formatDisplayDate } from '@/app/lib/date';
 
 type OptionProp = {
   label: string;
@@ -106,9 +107,7 @@ const toNonNegativeNumber = (value: string | number | undefined) => {
 
 const formatDateLabel = (value?: Date | string) => {
   if (!value) return '-';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '-';
-  return date.toLocaleDateString();
+  return formatDisplayDate(value, '-');
 };
 
 const validateCompanionForm = (

@@ -9,6 +9,7 @@ import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { getProfileForUserForPrimaryOrg } from '@/app/features/organization/services/teamService';
 import { updateTask } from '@/app/features/tasks/services/taskService';
 import { useAuthStore } from '@/app/stores/authStore';
+import { getPreferredTimeZone, utcClockTimeToMinutesInPreferredTimeZone } from '@/app/lib/timezone';
 
 type TaskCalendarProps = {
   filteredList: Task[];
@@ -69,10 +70,7 @@ const TaskCalendar = ({
     Math.max(0, Math.min(24 * 60 - 5, Math.round(minutes / 5) * 5));
 
   const toLocalMinutesFromUtcTime = (utcTime: string) => {
-    if (!utcTime) return 0;
-    const date = new Date(`1970-01-01T${utcTime}:00Z`);
-    if (Number.isNaN(date.getTime())) return 0;
-    return date.getHours() * 60 + date.getMinutes();
+    return utcClockTimeToMinutesInPreferredTimeZone(utcTime);
   };
 
   const getDayKey = (date: Date) =>
@@ -264,6 +262,7 @@ const TaskCalendar = ({
         ...task,
         assignedTo: nextAssignee,
         dueAt: nextDueAt,
+        timezone: task.timezone || getPreferredTimeZone(),
       });
     } catch {
       setDragError('Unable to update task. Please try again.');

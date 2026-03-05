@@ -48,6 +48,18 @@ export const getStatusStyle = (status: string) => {
   }
 };
 
+const formatDisplayValue = (value?: string | null, fallback = '-') => {
+  const normalized = String(value ?? '').trim();
+  if (!normalized) return fallback;
+  return toTitleCase(normalized);
+};
+
+const formatAgeWithUnit = (dateOfBirth: Date | string) => {
+  const age = getAgeInYears(dateOfBirth);
+  if (!Number.isFinite(age) || age < 0) return '-';
+  return `${age} ${age === 1 ? 'Yr' : 'Yrs'}`;
+};
+
 const CompanionsTable = ({
   filteredList,
   setActiveCompanion,
@@ -148,12 +160,14 @@ const CompanionsTable = ({
       render: (item: CompanionParent) => (
         <div className="appointment-profile">
           <div className="appointment-profile-two">
-            <div className="appointment-profile-title">{item.companion.name}</div>
+            <div className="appointment-profile-title">
+              {formatDisplayValue(item.companion.name)}
+            </div>
             <div className="flex items-center">
-              <div className="appointment-profile-sub truncate max-w-[60px]">
-                {item.companion.breed}
+              <div className="appointment-profile-sub truncate max-w-[75px] mr-1">
+                {formatDisplayValue(item.companion.breed)}
               </div>
-              <div className="appointment-profile-sub">{'/' + item.companion.type}</div>
+              <div className="appointment-profile-sub">{`/ ${toTitleCase(item.companion.type)}`}</div>
             </div>
           </div>
         </div>
@@ -164,7 +178,7 @@ const CompanionsTable = ({
       key: 'parent',
       width: '10%',
       render: (item: CompanionParent) => (
-        <div className="appointment-profile-title">{item.parent.firstName}</div>
+        <div className="appointment-profile-title">{formatDisplayValue(item.parent.firstName)}</div>
       ),
     },
     {
@@ -173,9 +187,11 @@ const CompanionsTable = ({
       width: '10%',
       render: (item: CompanionParent) => (
         <div className="appointment-profile-two">
-          <div className="appointment-profile-title">{item.companion.gender}</div>
           <div className="appointment-profile-title">
-            {getAgeInYears(item.companion.dateOfBirth)}
+            {formatDisplayValue(item.companion.gender)}
+          </div>
+          <div className="appointment-profile-title">
+            {formatAgeWithUnit(item.companion.dateOfBirth)}
           </div>
         </div>
       ),
@@ -185,7 +201,9 @@ const CompanionsTable = ({
       key: 'allergy',
       width: '15%',
       render: (item: CompanionParent) => (
-        <div className="appointment-profile-title">{item.companion.allergy || '-'}</div>
+        <div className="appointment-profile-title">
+          {formatDisplayValue(item.companion.allergy)}
+        </div>
       ),
     },
     {

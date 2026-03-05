@@ -14,6 +14,7 @@ import {
 import { Slot } from '@/app/features/appointments/types/appointments';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { getWeekDays } from '@/app/features/appointments/components/Calendar/weekHelpers';
+import { utcClockTimeToMinutesInPreferredTimeZone } from '@/app/lib/timezone';
 
 type AppointmentCalendarProps = {
   filteredList: Appointment[];
@@ -130,10 +131,7 @@ const AppointmentCalendar = ({
   );
 
   const toLocalMinutesFromUtcTime = (utcTime: string) => {
-    if (!utcTime) return 0;
-    const date = new Date(`1970-01-01T${utcTime}:00Z`);
-    if (Number.isNaN(date.getTime())) return 0;
-    return date.getHours() * 60 + date.getMinutes();
+    return utcClockTimeToMinutesInPreferredTimeZone(utcTime);
   };
 
   const supportsSpeciality = useCallback(

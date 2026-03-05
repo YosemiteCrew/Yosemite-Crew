@@ -1,5 +1,4 @@
-
-import { BusinessType } from "@/app/features/organization/types/org";
+import { BusinessType } from '@/app/features/organization/types/org';
 import {
   InventoryApiItem,
   InventoryBatchPayload,
@@ -9,11 +8,12 @@ import {
   InventoryStatus,
   StockHealthStatus,
   BatchValues,
-} from "@/app/features/inventory/pages/Inventory/types";
+} from '@/app/features/inventory/pages/Inventory/types';
+import { formatDisplayDate as formatGlobalDisplayDate } from '@/app/lib/date';
 
 export const toStringSafe = (value: any): string => {
-  if (value === undefined || value === null) return "";
-  if (typeof value === "number" && Number.isNaN(value)) return "";
+  if (value === undefined || value === null) return '';
+  if (typeof value === 'number' && Number.isNaN(value)) return '';
   return String(value);
 };
 
@@ -24,7 +24,7 @@ export const toNumberSafe = (value: any): number | undefined => {
 
 const cleanObject = (obj: Record<string, any>) =>
   Object.entries(obj).reduce<Record<string, any>>((acc, [key, value]) => {
-    if (value === undefined || value === null || value === "") return acc;
+    if (value === undefined || value === null || value === '') return acc;
     if (Array.isArray(value) && value.length === 0) return acc;
     acc[key] = value;
     return acc;
@@ -32,8 +32,8 @@ const cleanObject = (obj: Record<string, any>) =>
 
 const parseDateSafe = (value?: string): Date | null => {
   if (!value) return null;
-  if (value.includes("/")) {
-    const [dd, mm, yyyy] = value.split("/");
+  if (value.includes('/')) {
+    const [dd, mm, yyyy] = value.split('/');
     const parsed = new Date(`${yyyy}-${mm}-${dd}`);
     if (!Number.isNaN(parsed.getTime())) return parsed;
   }
@@ -42,23 +42,9 @@ const parseDateSafe = (value?: string): Date | null => {
 };
 
 export const formatDisplayDate = (value?: string): string => {
-  if (!value) return "";
-  const normalize = (val: string) => {
-    if (val.includes("/")) {
-      const [dd, mm, yyyy] = val.split("/");
-      const parsed = new Date(`${yyyy}-${mm}-${dd}`);
-      if (!Number.isNaN(parsed.getTime())) return parsed;
-    }
-    const parsed = new Date(val);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
-  };
-  const date = normalize(value);
-  if (!date) return "";
-  return date.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  if (!value) return '';
+  const normalizedDate = parseDateSafe(value);
+  return normalizedDate ? formatGlobalDisplayDate(normalizedDate, '') : '';
 };
 
 export const calculateBatchTotals = (
@@ -100,16 +86,15 @@ export const calculateBatchTotals = (
   };
 };
 
-
 export const formatStatusLabel = (status?: string): string => {
-  const key = (status || "").toString().trim().toUpperCase();
+  const key = (status || '').toString().trim().toUpperCase();
   switch (key) {
-    case "ACTIVE":
-      return "Active";
-    case "HIDDEN":
-      return "Hidden";
+    case 'ACTIVE':
+      return 'Active';
+    case 'HIDDEN':
+      return 'Hidden';
     default:
-      return status || "Active";
+      return status || 'Active';
   }
 };
 
@@ -117,68 +102,64 @@ const normalizeStatus = (status?: string): InventoryStatus | undefined => {
   if (!status) return undefined;
   const normalized = status.trim().toUpperCase();
   switch (normalized) {
-    case "ACTIVE":
-      return "ACTIVE";
-    case "HIDDEN":
-      return "HIDDEN";
+    case 'ACTIVE':
+      return 'ACTIVE';
+    case 'HIDDEN':
+      return 'HIDDEN';
     default:
       // For any unrecognized status, default to ACTIVE
-      return "ACTIVE";
+      return 'ACTIVE';
   }
 };
 
-export const formatStockHealthLabel = (
-  stockHealth?: StockHealthStatus
-): string => {
-  const key = (stockHealth || "").toString().trim().toUpperCase();
+export const formatStockHealthLabel = (stockHealth?: StockHealthStatus): string => {
+  const key = (stockHealth || '').toString().trim().toUpperCase();
   switch (key) {
-    case "LOW_STOCK":
-      return "Low stock";
-    case "HEALTHY":
-      return "Healthy";
-    case "EXPIRED":
-      return "Expired";
-    case "EXPIRING_SOON":
-      return "Expiring soon";
+    case 'LOW_STOCK':
+      return 'Low stock';
+    case 'HEALTHY':
+      return 'Healthy';
+    case 'EXPIRED':
+      return 'Expired';
+    case 'EXPIRING_SOON':
+      return 'Expiring soon';
     default:
-      return "";
+      return '';
   }
 };
 
 export const getStatusBadgeStyle = (statusLabel?: string) => {
-  const key = (statusLabel || "").toLowerCase();
+  const key = (statusLabel || '').toLowerCase();
   switch (key) {
-    case "low stock":
-      return { color: "#F7F7F7", backgroundColor: "#BF9FAA" };
-    case "expired":
-    case "out of stock":
-      return { color: "#F7F7F7", backgroundColor: "#D28F9A" };
-    case "hidden":
-      return { color: "#F7F7F7", backgroundColor: "#A8A181" };
-    case "expiring soon":
-      return { color: "#F7F7F7", backgroundColor: "#5C614B" };
-    case "healthy":
-      return { color: "#F7F7F7", backgroundColor: "#D9A488" };
-    case "active":
-      return { color: "#302f2e", backgroundColor: "#F1D4B0" };
+    case 'low stock':
+      return { color: '#F7F7F7', backgroundColor: '#BF9FAA' };
+    case 'expired':
+    case 'out of stock':
+      return { color: '#F7F7F7', backgroundColor: '#D28F9A' };
+    case 'hidden':
+      return { color: '#F7F7F7', backgroundColor: '#A8A181' };
+    case 'expiring soon':
+      return { color: '#F7F7F7', backgroundColor: '#5C614B' };
+    case 'healthy':
+      return { color: '#F7F7F7', backgroundColor: '#D9A488' };
+    case 'active':
+      return { color: '#302f2e', backgroundColor: '#F1D4B0' };
     default:
-      return { color: "#EAF3FF", backgroundColor: "#247AED" };
+      return { color: '#EAF3FF', backgroundColor: '#247AED' };
   }
 };
 
-export const mapApiItemToInventoryItem = (
-  apiItem: InventoryApiItem
-): InventoryItem => {
+export const mapApiItemToInventoryItem = (apiItem: InventoryApiItem): InventoryItem => {
   const attributes = apiItem.attributes ?? {};
   const statusLabel = formatStatusLabel(apiItem.status);
   const stockHealthLabel = formatStockHealthLabel(apiItem.stockHealth);
   const normalizeStringOrArray = (val: any): string | string[] => {
     if (Array.isArray(val)) return val.filter(Boolean);
-    if (val === undefined || val === null) return "";
+    if (val === undefined || val === null) return '';
     return String(val);
   };
 
-  const firstDefined = <T,>(...vals: (T | undefined)[]): T | undefined => {
+  const firstDefined = <T>(...vals: (T | undefined)[]): T | undefined => {
     for (const val of vals) {
       if (val !== undefined) return val;
     }
@@ -199,17 +180,13 @@ export const mapApiItemToInventoryItem = (
           attributes.serial ??
           apiItem.sku
       ),
-      manufactureDate: toStringSafe(
-        b.manufactureDate ?? attributes.manufactureDate
-      ),
+      manufactureDate: toStringSafe(b.manufactureDate ?? attributes.manufactureDate),
       expiryDate: toStringSafe(b.expiryDate ?? attributes.expiryDate),
       serial: toStringSafe(b.lotNumber ?? attributes.serial),
       tracking: toStringSafe(b.regulatoryTrackingId ?? attributes.tracking),
       litterId: toStringSafe(attributes.litterId),
       nextRefillDate: toStringSafe(
-        b.minShelfLifeAlertDate ??
-          attributes.minShelfLifeAlertDate ??
-          attributes.nextRefillDate
+        b.minShelfLifeAlertDate ?? attributes.minShelfLifeAlertDate ?? attributes.nextRefillDate
       ),
       minShelfLifeAlertDate: toStringSafe(
         b.minShelfLifeAlertDate ?? attributes.minShelfLifeAlertDate
@@ -226,8 +203,9 @@ export const mapApiItemToInventoryItem = (
       .map((b) => ({ batch: b, date: parseDateSafe(b.expiryDate) }))
       .filter((entry) => entry.date !== null) as { batch: BatchValues; date: Date }[];
     if (withExpiry.length) {
-      return withExpiry.reduce((earliest, current) =>
-        current.date.getTime() < earliest.date.getTime() ? current : earliest,
+      return withExpiry.reduce(
+        (earliest, current) =>
+          current.date.getTime() < earliest.date.getTime() ? current : earliest,
         withExpiry[0]
       ).batch;
     }
@@ -250,13 +228,10 @@ export const mapApiItemToInventoryItem = (
   const available = firstDefined(
     batchTotals.available,
     toNumberSafe(attributes.available),
-    onHandVal !== undefined && allocatedVal !== undefined
-      ? onHandVal - allocatedVal
-      : onHandVal
+    onHandVal !== undefined && allocatedVal !== undefined ? onHandVal - allocatedVal : onHandVal
   );
 
   const primaryBatch = selectPrimaryBatch(batches);
-
 
   return {
     id: apiItem._id,
@@ -271,12 +246,12 @@ export const mapApiItemToInventoryItem = (
     updatedAt: apiItem.updatedAt,
     batches,
     basicInfo: {
-      name: apiItem.name ?? "",
-      category: apiItem.category ?? "",
-      subCategory: apiItem.subCategory ?? "",
+      name: apiItem.name ?? '',
+      category: apiItem.category ?? '',
+      subCategory: apiItem.subCategory ?? '',
       department: toStringSafe(attributes.department),
-      description: apiItem.description ?? "",
-      status: statusLabel || stockHealthLabel || "Active",
+      description: apiItem.description ?? '',
+      status: statusLabel || stockHealthLabel || 'Active',
       itemType: toStringSafe(attributes.itemType),
       prescriptionRequired: toStringSafe(attributes.prescriptionRequired),
       regulationType: toStringSafe(attributes.regulationType),
@@ -292,9 +267,7 @@ export const mapApiItemToInventoryItem = (
     },
     classification: {
       form: toStringSafe(attributes.form),
-      unitofMeasure: normalizeStringOrArray(
-        attributes.unitofMeasure ?? attributes.unitOfMeasure
-      ),
+      unitofMeasure: normalizeStringOrArray(attributes.unitofMeasure ?? attributes.unitOfMeasure),
       species: normalizeStringOrArray(attributes.species),
       administration: toStringSafe(attributes.administration),
       therapeuticClass: toStringSafe(attributes.therapeuticClass),
@@ -331,9 +304,7 @@ export const mapApiItemToInventoryItem = (
       leadTime: toStringSafe(attributes.leadTime),
     },
     stock: {
-      current: toStringSafe(
-        onHandVal ?? toNumberSafe(attributes.current) ?? attributes.current
-      ),
+      current: toStringSafe(onHandVal ?? toNumberSafe(attributes.current) ?? attributes.current),
       allocated: toStringSafe(allocatedVal ?? attributes.allocated),
       available: toStringSafe(available),
       reorderLevel: toStringSafe(apiItem.reorderLevel),
@@ -351,9 +322,7 @@ export const mapApiItemToInventoryItem = (
           attributes.serial ??
           apiItem.sku
       ),
-      manufactureDate: toStringSafe(
-        primaryBatch?.manufactureDate ?? attributes.manufactureDate
-      ),
+      manufactureDate: toStringSafe(primaryBatch?.manufactureDate ?? attributes.manufactureDate),
       expiryDate: toStringSafe(
         primaryBatch?.expiryDate ??
           attributes.expiryDate ??
@@ -383,33 +352,29 @@ export const mapApiItemToInventoryItem = (
   };
 };
 
-const normalizeStatusForApi = (
-  status?: string
-) => {
-  const value = (status || "").toString().trim();
-  if (!value) return "ACTIVE";
-  return value.replaceAll(/\s+/g, "_").toUpperCase();
+const normalizeStatusForApi = (status?: string) => {
+  const value = (status || '').toString().trim();
+  if (!value) return 'ACTIVE';
+  return value.replaceAll(/\s+/g, '_').toUpperCase();
 };
 
-export const buildBatchPayload = (
-  batch: BatchValues
-): InventoryBatchPayload | undefined => {
+export const buildBatchPayload = (batch: BatchValues): InventoryBatchPayload | undefined => {
   const quantity = toNumberSafe(
     batch.quantity ?? (batch as any).current ?? (batch as any).available
   );
   const allocated = toNumberSafe(batch.allocated ?? (batch as any).allocated);
   const normalizeDateForApi = (val?: string) => {
     if (!val) return undefined;
-    if (val.includes("/")) {
-      const [dd, mm, yyyy] = val.split("/");
+    if (val.includes('/')) {
+      const [dd, mm, yyyy] = val.split('/');
       const parsed = new Date(`${yyyy}-${mm}-${dd}`);
       if (!Number.isNaN(parsed.getTime())) {
-        return parsed.toISOString().split("T")[0];
+        return parsed.toISOString().split('T')[0];
       }
     }
     const parsed = new Date(val);
     if (!Number.isNaN(parsed.getTime())) {
-      return parsed.toISOString().split("T")[0];
+      return parsed.toISOString().split('T')[0];
     }
     return undefined;
   };
@@ -421,9 +386,7 @@ export const buildBatchPayload = (
   );
   const manufactureRaw = toStringSafe(batch.manufactureDate);
   const expiryRaw = toStringSafe(batch.expiryDate);
-  const minShelfRaw = toStringSafe(
-    batch.nextRefillDate ?? batch.minShelfLifeAlertDate
-  );
+  const minShelfRaw = toStringSafe(batch.nextRefillDate ?? batch.minShelfLifeAlertDate);
 
   const payload: InventoryBatchPayload = cleanObject({
     _id: batch._id,
@@ -447,14 +410,10 @@ export const buildInventoryPayload = (
   organisationId: string,
   businessType: BusinessType
 ): InventoryRequestPayload => {
-  const statusForApi = normalizeStatusForApi(
-    formData.status ?? formData.basicInfo.status
-  );
+  const statusForApi = normalizeStatusForApi(formData.status ?? formData.basicInfo.status);
 
   const batchesSource =
-    formData.batches && formData.batches.length > 0
-      ? formData.batches
-      : [formData.batch];
+    formData.batches && formData.batches.length > 0 ? formData.batches : [formData.batch];
   const batchPayloads = batchesSource
     .map((b) => buildBatchPayload(b))
     .filter(Boolean) as InventoryBatchPayload[];
@@ -514,7 +473,7 @@ export const buildInventoryPayload = (
     reorderLevel: toNumberSafe(formData.stock.reorderLevel),
     unitCost: toNumberSafe(formData.pricing.purchaseCost),
     sellingPrice: toNumberSafe(formData.pricing.selling),
-    currency: "USD",
+    currency: 'USD',
     vendorId: formData.vendor.vendor,
     status: statusForApi,
   };
@@ -527,17 +486,13 @@ export const buildInventoryPayload = (
 };
 
 export const defaultFilters: InventoryFiltersState = {
-  category: "all",
-  status: "ALL",
-  search: "",
+  category: 'all',
+  status: 'ALL',
+  search: '',
 };
 
 export const displayStatusLabel = (item: InventoryItem): string => {
   const status = formatStatusLabel(item.status || item.basicInfo.status);
-  if (status.toLowerCase() === "hidden") return "Hidden";
-  return (
-    formatStockHealthLabel(item.stockHealth) ||
-    status ||
-    "Active"
-  );
+  if (status.toLowerCase() === 'hidden') return 'Hidden';
+  return formatStockHealthLabel(item.stockHealth) || status || 'Active';
 };

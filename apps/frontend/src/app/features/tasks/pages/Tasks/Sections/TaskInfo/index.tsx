@@ -16,6 +16,7 @@ import React, { useCallback, useMemo } from 'react';
 import { applyUtcTime, generateTimeSlots } from '@/app/lib/date';
 import { useMemberMap } from '@/app/hooks/useMemberMap';
 import { useAuthStore } from '@/app/stores/authStore';
+import { getPreferredTimeZone } from '@/app/lib/timezone';
 
 type TaskInfoProps = {
   showModal: boolean;
@@ -106,7 +107,7 @@ const TaskInfo = ({ showModal, setShowModal, activeTask }: TaskInfoProps) => {
   const timeOptions = useMemo(
     () =>
       generateTimeSlots(15).map((slot) => ({
-        label: slot.value,
+        label: slot.label,
         value: slot.value,
       })),
     []
@@ -279,7 +280,12 @@ const TaskInfo = ({ showModal, setShowModal, activeTask }: TaskInfoProps) => {
               offsetMinutes: reminderOffset,
             }
           : undefined;
-      const dueDate = new Date(values.dueAt || activeTask.dueAt);
+      const dueDateValue = values.dueAt || activeTask.dueAt;
+      let dueDate = new Date(dueDateValue);
+      if (typeof dueDateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dueDateValue)) {
+        const [yyyy, mm, dd] = dueDateValue.split('-').map(Number);
+        dueDate = new Date(yyyy, mm - 1, dd);
+      }
       const dueTimeValue = String(values.dueTime || taskData.dueTime);
       const resolveAssigneeId = () => {
         const raw = String(values.assignedToId ?? values.assignedTo ?? '').trim();
@@ -298,6 +304,7 @@ const TaskInfo = ({ showModal, setShowModal, activeTask }: TaskInfoProps) => {
         category: values.category,
         assignedTo: resolveAssigneeId(),
         dueAt: applyUtcTime(dueDate, dueTimeValue),
+        timezone: activeTask.timezone || getPreferredTimeZone(),
         recurrence: {
           ...(activeTask.recurrence || { isMaster: false }),
           type: values.recurrenceType || activeTask.recurrence?.type || 'ONCE',

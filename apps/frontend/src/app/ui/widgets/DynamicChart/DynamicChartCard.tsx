@@ -1,5 +1,5 @@
-"use client";
-import React from "react";
+'use client';
+import React from 'react';
 import {
   ResponsiveContainer,
   BarChart,
@@ -10,32 +10,72 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
-} from "recharts";
-import { LayoutType } from "recharts/types/util/types";
+} from 'recharts';
+import { LayoutType } from 'recharts/types/util/types';
 
 type ChartProps = {
   data: any[];
-  type?: "bar" | "line";
+  type?: 'bar' | 'line';
   keys: { name: string; color: string }[];
   yTickFormatter?: (value: number) => string;
+  yAxisWidth?: number;
   layout?: LayoutType;
+  barSize?: number;
   hideKeys?: boolean;
+  xAxisLabel?: string;
+  yAxisLabel?: string;
 };
 
 const DynamicChartCard: React.FC<ChartProps> = ({
   data,
-  type = "bar",
+  type = 'bar',
   keys,
   yTickFormatter,
+  yAxisWidth,
   layout,
+  barSize,
   hideKeys = false,
+  xAxisLabel,
+  yAxisLabel,
 }) => {
+  const chartMargin = {
+    top: 0,
+    right: 0,
+    left: yAxisLabel ? 28 : 0,
+    bottom: xAxisLabel ? 26 : 0,
+  };
+
   const renderChart = () => {
-    if (type === "line") {
+    if (type === 'line') {
       return (
-        <LineChart data={data}>
-          <XAxis dataKey="month" />
-          <YAxis tickFormatter={yTickFormatter} />
+        <LineChart data={data} margin={chartMargin}>
+          <XAxis
+            dataKey="month"
+            label={
+              xAxisLabel
+                ? {
+                    value: xAxisLabel,
+                    position: 'insideBottom',
+                    offset: -2,
+                    dy: 16,
+                  }
+                : undefined
+            }
+          />
+          <YAxis
+            tickFormatter={yTickFormatter}
+            label={
+              yAxisLabel
+                ? {
+                    value: yAxisLabel,
+                    angle: -90,
+                    position: 'insideLeft',
+                    offset: 4,
+                    dx: -16,
+                  }
+                : undefined
+            }
+          />
           <Tooltip />
           {keys.map((key) => (
             <Line
@@ -56,23 +96,44 @@ const DynamicChartCard: React.FC<ChartProps> = ({
         data={data}
         layout={layout}
         style={{
-          height: "100%",
-          maxHeight: "100%",
-          width: "100%",
-          maxWidth: "100%",
+          height: '100%',
+          maxHeight: '100%',
+          width: '100%',
+          maxWidth: '100%',
         }}
-        margin={{
-          top: 0,
-          right: 0,
-          left: -30,
-          bottom: 0,
-        }}
+        margin={chartMargin}
       >
         <CartesianGrid strokeDasharray="4 4" vertical={false} />
-        <XAxis dataKey="month" />
-        <YAxis tickFormatter={yTickFormatter} />
+        <XAxis
+          dataKey="month"
+          label={
+            xAxisLabel
+              ? {
+                  value: xAxisLabel,
+                  position: 'insideBottom',
+                  offset: -2,
+                  dy: 16,
+                }
+              : undefined
+          }
+        />
+        <YAxis
+          tickFormatter={yTickFormatter}
+          width={yAxisWidth}
+          label={
+            yAxisLabel
+              ? {
+                  value: yAxisLabel,
+                  angle: -90,
+                  position: 'insideLeft',
+                  offset: 4,
+                  dx: -16,
+                }
+              : undefined
+          }
+        />
         {keys.map((key) => (
-          <Bar key={key.name} dataKey={key.name} fill={key.color} stackId="a" />
+          <Bar key={key.name} dataKey={key.name} fill={key.color} stackId="a" barSize={barSize} />
         ))}
       </BarChart>
     );
@@ -86,11 +147,11 @@ const DynamicChartCard: React.FC<ChartProps> = ({
             <span key={key.name} className="flex items-center gap-1.5">
               <span
                 style={{
-                  width: "16px",
-                  height: "16px",
+                  width: '16px',
+                  height: '16px',
                   backgroundColor: key.color,
-                  borderRadius: "50%",
-                  display: "inline-block",
+                  borderRadius: '50%',
+                  display: 'inline-block',
                 }}
               />
               <span className="text-capton-1 text-text-primary">{key.name}</span>
@@ -98,10 +159,7 @@ const DynamicChartCard: React.FC<ChartProps> = ({
           ))}
         </div>
       )}
-      <ResponsiveContainer
-        width="100%"
-        height={300}
-      >
+      <ResponsiveContainer width="100%" height={300}>
         {renderChart()}
       </ResponsiveContainer>
     </div>

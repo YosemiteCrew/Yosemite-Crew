@@ -80,8 +80,11 @@ const Appointments = () => {
     const open = String(searchParams.get('open') ?? '')
       .trim()
       .toLowerCase();
-    const subLabel = String(searchParams.get('subLabel') ?? 'idexx-labs').trim();
+    const subLabelRaw = String(searchParams.get('subLabel') ?? '').trim();
     if (!appointmentId) return;
+
+    const subLabel =
+      subLabelRaw || (open === 'finance' ? 'summary' : open === 'labs' ? 'idexx-labs' : '');
 
     const deepLinkKey = `${appointmentId}:${open || 'details'}:${subLabel}`;
     if (handledDeepLinkRef.current === deepLinkKey) return;
@@ -92,6 +95,8 @@ const Appointments = () => {
     setActiveAppointment(target);
     if (open === 'labs') {
       setViewIntent({ label: 'labs', subLabel });
+    } else if (open === 'finance') {
+      setViewIntent({ label: 'finance', subLabel: subLabel || 'summary' });
     } else {
       setViewIntent(null);
     }

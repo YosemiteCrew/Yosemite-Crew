@@ -32,6 +32,7 @@ import {
   LabResultTest,
   LabResult,
 } from '@/app/features/integrations/services/types';
+import { formatDateTimeLocal } from '@/app/lib/date';
 
 const TESTS_PAGE_SIZE = 25;
 
@@ -209,6 +210,60 @@ const getOrderStatusBadgeClass = (
   return 'bg-card-hover text-text-secondary';
 };
 
+const shouldCloseOrderIframe = (args: {
+  source: 'order' | 'followup';
+  initialStatus: string | null;
+  nextStatus: string;
+  nextHasAcknowledgement: boolean;
+  sawNonSubmittedStatus: boolean;
+  initialUpdatedAt: string | null;
+  nextUpdatedAt?: string;
+  initialOrderId: string | null;
+  newestKnownOrderId: string;
+}) => {
+  const {
+    source,
+    initialStatus,
+    nextStatus,
+    nextHasAcknowledgement,
+    sawNonSubmittedStatus,
+    initialUpdatedAt,
+    nextUpdatedAt,
+    initialOrderId,
+    newestKnownOrderId,
+  } = args;
+
+  if (source === 'order') {
+    const initialStatusKey = String(initialStatus ?? '')
+      .trim()
+      .toUpperCase()
+      .replaceAll(/\s+/g, '_');
+    const startedAsCreated = initialStatusKey === 'CREATED' || !initialStatusKey;
+    const startedAsInProgress = ['IN_PROCESS', 'INPROCESS', 'PENDING'].includes(initialStatusKey);
+    const updatedAtChanged = Boolean(
+      initialUpdatedAt && nextUpdatedAt && nextUpdatedAt !== initialUpdatedAt
+    );
+    if (startedAsCreated) {
+      return nextStatus === 'SUBMITTED' && nextHasAcknowledgement;
+    }
+    if (startedAsInProgress) {
+      return (
+        (sawNonSubmittedStatus || updatedAtChanged) &&
+        nextStatus === 'SUBMITTED' &&
+        nextHasAcknowledgement
+      );
+    }
+    return false;
+  }
+
+  const updatedAtChanged = Boolean(
+    initialUpdatedAt && nextUpdatedAt && nextUpdatedAt !== initialUpdatedAt
+  );
+  const followUpOrderCreated =
+    Boolean(initialOrderId) && Boolean(newestKnownOrderId) && newestKnownOrderId !== initialOrderId;
+  return updatedAtChanged || followUpOrderCreated;
+};
+
 // ---------- Sub-components ----------
 
 const LabResultMeter = ({ test }: { test: LabResultTest }) => {
@@ -276,6 +331,7 @@ const PastOrderCard = ({
   resultProgressByOrderId,
   getOrderDisplayStatus,
   openOrderIframe,
+  openResultPdfForOrder,
   openOrderAcknowledgement,
   setActiveOrderForActions,
 }: {
@@ -287,6 +343,7 @@ const PastOrderCard = ({
     statusOverride?: string | null,
     targetOrder?: LabOrder
   ) => void;
+  openResultPdfForOrder: (o: LabOrder) => void;
   openOrderAcknowledgement: (o: LabOrder) => void;
   setActiveOrderForActions: (o: LabOrder) => void;
 }) => (
@@ -295,7 +352,7 @@ const PastOrderCard = ({
       <div>
         <div className="text-body-4 text-text-primary">Order {order.idexxOrderId}</div>
         <div className="text-caption-1 text-text-secondary">
-          Updated: {order.updatedAt ? new Date(order.updatedAt).toLocaleString() : '-'}
+          Updated: {formatDateTimeLocal(order.updatedAt, '-')}
         </div>
       </div>
       <span
@@ -305,15 +362,19 @@ const PastOrderCard = ({
       </span>
     </div>
     <div className="flex flex-wrap items-center gap-2 justify-end">
-      <Primary
-        href="#"
-        text="Open IDEXX"
-        onClick={() => {
-          setActiveOrderForActions(order);
-          openOrderIframe('order', order.status, order);
-        }}
-        isDisabled={!resolveOrderUiUrl(order)}
-      />
+      {getOrderDisplayStatus(order) === 'Complete' ? (
+        <Primary href="#" text="Result PDF" onClick={() => openResultPdfForOrder(order)} />
+      ) : (
+        <Primary
+          href="#"
+          text="Open IDEXX"
+          onClick={() => {
+            setActiveOrderForActions(order);
+            openOrderIframe('order', order.status, order);
+          }}
+          isDisabled={!resolveOrderUiUrl(order)}
+        />
+      )}
       <Secondary
         href="#"
         text="Acknowledgment PDF"
@@ -360,7 +421,10 @@ const useLabTests = (activeAppointment: Appointment | null) => {
     null
   );
   const [iframeInitialUpdatedAt, setIframeInitialUpdatedAt] = useState<string | null>(null);
+  const [iframeInitialOrderId, setIframeInitialOrderId] = useState<string | null>(null);
+  const [iframeOrderUiUrl, setIframeOrderUiUrl] = useState<string | null>(null);
   const [iframeOpenSource, setIframeOpenSource] = useState<'order' | 'followup'>('order');
+  const [iframeSawNonSubmittedStatus, setIframeSawNonSubmittedStatus] = useState(false);
   const [showPdfPreview, setShowPdfPreview] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [pdfPreviewTitle, setPdfPreviewTitle] = useState('IDEXX PDF');
@@ -554,41 +618,77 @@ const useLabTests = (activeAppointment: Appointment | null) => {
 
   useEffect(() => {
     if (!showOrderIframe) return;
-    if (!primaryOrgId || !latestOrder?.idexxOrderId) return;
+    if (!primaryOrgId || !iframeInitialOrderId) return;
 
     const interval = setInterval(async () => {
       try {
         const next = await getIdexxOrderById({
           organisationId: primaryOrgId,
-          idexxOrderId: latestOrder.idexxOrderId,
+          idexxOrderId: iframeInitialOrderId,
         });
         setLatestOrder(next);
         upsertAppointmentOrder(next);
+        let newestKnownOrderId = String(next.idexxOrderId ?? '').trim();
 
-        const appointmentOrderIds = new Set(
-          appointmentOrders.map((order) => String(order.idexxOrderId ?? '').trim()).filter(Boolean)
-        );
-        if (appointmentOrderIds.size > 0) {
-          const allResults = await listIdexxResults(primaryOrgId);
-          const filtered = allResults.filter((result) => {
-            const companionMatch = companionId ? result.patientId === companionId : true;
-            const resultOrderId = getResultOrderId(result);
-            return companionMatch && appointmentOrderIds.has(resultOrderId);
+        if (iframeOpenSource === 'followup' && activeAppointment?.id) {
+          const appointmentOrderIds = new Set(
+            appointmentOrders
+              .map((order) => String(order.idexxOrderId ?? '').trim())
+              .filter(Boolean)
+          );
+          if (appointmentOrderIds.size > 0) {
+            const allResults = await listIdexxResults(primaryOrgId);
+            const filtered = allResults.filter((result) => {
+              const companionMatch = companionId ? result.patientId === companionId : true;
+              const resultOrderId = getResultOrderId(result);
+              return companionMatch && appointmentOrderIds.has(resultOrderId);
+            });
+            setResults(filtered);
+
+            const nextProgress = getOrderResultProgressFromResults(filtered, next.idexxOrderId);
+            if ((iframeInitialResultProgress ?? '') !== (nextProgress ?? '') && nextProgress) {
+              setShowOrderIframe(false);
+              return;
+            }
+          }
+
+          const refreshedOrders = await listIdexxOrders({
+            organisationId: primaryOrgId,
+            appointmentId: activeAppointment.id,
           });
-          setResults(filtered);
-
-          const nextProgress = getOrderResultProgressFromResults(filtered, next.idexxOrderId);
-          if ((iframeInitialResultProgress ?? '') !== (nextProgress ?? '') && nextProgress) {
-            setShowOrderIframe(false);
+          const normalizedOrders = normalizeOrders(refreshedOrders);
+          if (normalizedOrders.length > 0) {
+            setAppointmentOrders(normalizedOrders);
+            setLatestOrder((prev) => {
+              if (!prev) return normalizedOrders[0];
+              return (
+                normalizedOrders.find((order) => order._id === prev._id) ?? normalizedOrders[0]
+              );
+            });
+            newestKnownOrderId = String(normalizedOrders[0].idexxOrderId ?? '').trim();
           }
         }
 
-        const nextStatus = String(next.status ?? '').toUpperCase();
-        if (iframeInitialStatus && nextStatus && nextStatus !== iframeInitialStatus) {
-          setShowOrderIframe(false);
+        const nextStatus = getNormalizedLifecycleStatus(next);
+        if (nextStatus !== 'SUBMITTED') {
+          setIframeSawNonSubmittedStatus(true);
         }
-        if (iframeInitialUpdatedAt && next.updatedAt && next.updatedAt !== iframeInitialUpdatedAt) {
+        const nextHasAcknowledgement = Boolean(resolveOrderPdfUrl(next));
+        if (
+          shouldCloseOrderIframe({
+            source: iframeOpenSource,
+            initialStatus: iframeInitialStatus,
+            nextStatus,
+            nextHasAcknowledgement,
+            sawNonSubmittedStatus: iframeSawNonSubmittedStatus,
+            initialUpdatedAt: iframeInitialUpdatedAt,
+            nextUpdatedAt: next.updatedAt,
+            initialOrderId: iframeInitialOrderId,
+            newestKnownOrderId,
+          })
+        ) {
           setShowOrderIframe(false);
+          return;
         }
       } catch (e) {
         setError(getApiErrorMessage(e, 'Unable to poll order status while IDEXX frame is open.'));
@@ -599,10 +699,13 @@ const useLabTests = (activeAppointment: Appointment | null) => {
   }, [
     showOrderIframe,
     primaryOrgId,
-    latestOrder?.idexxOrderId,
+    activeAppointment?.id,
+    iframeInitialOrderId,
+    iframeOpenSource,
     iframeInitialStatus,
     iframeInitialResultProgress,
     iframeInitialUpdatedAt,
+    iframeSawNonSubmittedStatus,
     upsertAppointmentOrder,
     appointmentOrders,
     companionId,
@@ -611,12 +714,19 @@ const useLabTests = (activeAppointment: Appointment | null) => {
   const openOrderIframe = useCallback(
     (source: 'order' | 'followup', statusOverride?: string | null, targetOrder?: LabOrder) => {
       const orderForFrame = targetOrder ?? latestOrder;
+      const frameOrderId = String(orderForFrame?.idexxOrderId ?? '').trim();
+      const frameUiUrl = resolveOrderUiUrl(orderForFrame);
+      if (!frameOrderId || !frameUiUrl) {
+        setError('IDEXX order frame is not available for this order.');
+        return;
+      }
       setIframeOpenSource(source);
       setIframeInitialStatus((statusOverride ?? orderForFrame?.status ?? '').toUpperCase() || null);
-      setIframeInitialResultProgress(
-        resultProgressByOrderId.get(String(orderForFrame?.idexxOrderId ?? '').trim()) ?? null
-      );
+      setIframeInitialResultProgress(resultProgressByOrderId.get(frameOrderId) ?? null);
       setIframeInitialUpdatedAt(orderForFrame?.updatedAt ?? null);
+      setIframeInitialOrderId(frameOrderId);
+      setIframeOrderUiUrl(frameUiUrl);
+      setIframeSawNonSubmittedStatus(false);
       setShowOrderIframe(true);
     },
     [latestOrder, resultProgressByOrderId]
@@ -652,6 +762,27 @@ const useLabTests = (activeAppointment: Appointment | null) => {
       }
     },
     [primaryOrgId, pdfPreviewLoadingId, pdfPreviewUrl]
+  );
+
+  const openResultPdfForOrder = useCallback(
+    async (order: LabOrder) => {
+      const orderId = String(order.idexxOrderId ?? '').trim();
+      if (!orderId) return;
+      const candidates = results
+        .filter((result) => getResultOrderId(result) === orderId)
+        .sort((a, b) => {
+          const aTime = Date.parse(a.updatedAt ?? a.createdAt ?? '');
+          const bTime = Date.parse(b.updatedAt ?? b.createdAt ?? '');
+          return bTime - aTime;
+        });
+      const latest = candidates[0];
+      if (!latest?.resultId) {
+        setError('Result PDF is not available for this order yet.');
+        return;
+      }
+      await openResultPdfPreview(latest.resultId);
+    },
+    [openResultPdfPreview, results]
   );
 
   useEffect(() => {
@@ -716,7 +847,7 @@ const useLabTests = (activeAppointment: Appointment | null) => {
       setSelectedTests([]);
       setSelectedTestLabel('');
       setQuery('');
-      openOrderIframe('order', created.status);
+      openOrderIframe('order', created.status, created);
       await refreshAppointmentOrders();
       await refreshResults();
     } catch (e) {
@@ -837,6 +968,7 @@ const useLabTests = (activeAppointment: Appointment | null) => {
     updatingCensus,
     refreshingResults,
     showOrderIframe,
+    iframeOrderUiUrl,
     iframeOpenSource,
     showPdfPreview,
     pdfPreviewUrl,
@@ -860,6 +992,7 @@ const useLabTests = (activeAppointment: Appointment | null) => {
     closeOrderIframeManually,
     closePdfPreview,
     openResultPdfPreview,
+    openResultPdfForOrder,
     openOrderAcknowledgement,
     setActiveOrderForActions,
     addTest,
@@ -1095,10 +1228,7 @@ const LabOrderStatus = ({
                   Order {s.latestOrder.idexxOrderId}
                 </div>
                 <div className="text-caption-1 text-text-secondary">
-                  Updated:{' '}
-                  {s.latestOrder.updatedAt
-                    ? new Date(s.latestOrder.updatedAt).toLocaleString()
-                    : '-'}
+                  Updated: {formatDateTimeLocal(s.latestOrder.updatedAt, '-')}
                 </div>
               </div>
               <span
@@ -1110,11 +1240,24 @@ const LabOrderStatus = ({
             <div className="flex items-center gap-2 flex-wrap justify-end">
               <Primary
                 href="#"
-                text={orderButtonText}
-                onClick={() =>
-                  s.openOrderIframe(s.canOpenFollowUpInCurrentOrder ? 'followup' : 'order')
+                text={
+                  s.getOrderDisplayStatus(s.latestOrder) === 'Complete'
+                    ? 'Result PDF'
+                    : orderButtonText
                 }
-                isDisabled={!resolveOrderUiUrl(s.latestOrder)}
+                onClick={() => {
+                  if (!s.latestOrder) return;
+                  if (s.getOrderDisplayStatus(s.latestOrder) === 'Complete') {
+                    void s.openResultPdfForOrder(s.latestOrder);
+                    return;
+                  }
+                  s.openOrderIframe(s.canOpenFollowUpInCurrentOrder ? 'followup' : 'order');
+                }}
+                isDisabled={
+                  s.getOrderDisplayStatus(s.latestOrder) === 'Complete'
+                    ? false
+                    : !resolveOrderUiUrl(s.latestOrder)
+                }
               />
               <Secondary
                 href="#"
@@ -1136,6 +1279,7 @@ const LabOrderStatus = ({
                     resultProgressByOrderId={s.resultProgressByOrderId}
                     getOrderDisplayStatus={s.getOrderDisplayStatus}
                     openOrderIframe={s.openOrderIframe}
+                    openResultPdfForOrder={s.openResultPdfForOrder}
                     openOrderAcknowledgement={s.openOrderAcknowledgement}
                     setActiveOrderForActions={s.setActiveOrderForActions}
                   />
@@ -1241,7 +1385,7 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
 
   const iframeTitle =
     s.iframeOpenSource === 'followup' ? 'IDEXX follow-up ordering' : 'IDEXX ordering';
-  const orderIframeUrl = resolveOrderUiUrl(s.latestOrder);
+  const orderIframeUrl = s.iframeOrderUiUrl || resolveOrderUiUrl(s.latestOrder);
   let orderButtonText = 'Open IDEXX';
   if (s.needsInitialOrderPlacement) {
     orderButtonText = 'Resume order placement';

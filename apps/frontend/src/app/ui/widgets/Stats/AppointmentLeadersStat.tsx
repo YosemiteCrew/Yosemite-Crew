@@ -1,31 +1,42 @@
-import React from "react";
-import CardHeader from "@/app/ui/cards/CardHeader/CardHeader";
-import DynamicChartCard from "@/app/ui/widgets/DynamicChart/DynamicChartCard";
-
-const blankData = [
-  { month: "Mar", Completed: 0, Cancelled: 0 },
-  { month: "Apr", Completed: 0, Cancelled: 0 },
-  { month: "May", Completed: 0, Cancelled: 0 },
-  { month: "Jun", Completed: 0, Cancelled: 0 },
-  { month: "Jul", Completed: 0, Cancelled: 0 },
-  { month: "Aug", Completed: 0, Cancelled: 0 },
-];
+import React, { useEffect, useState } from 'react';
+import CardHeader from '@/app/ui/cards/CardHeader/CardHeader';
+import DynamicChartCard from '@/app/ui/widgets/DynamicChart/DynamicChartCard';
+import {
+  DashboardDurationOption,
+  mapDashboardDurationOption,
+  useDashboardAnalytics,
+} from '@/app/features/dashboard/hooks/useDashboardAnalytics';
 
 const AppointmentLeadersStat = () => {
+  const [selectedDuration, setSelectedDuration] = useState<DashboardDurationOption>('Last week');
+  const analytics = useDashboardAnalytics(mapDashboardDurationOption(selectedDuration));
+  const durationOptions = analytics.durationOptions.appointmentLeaders;
+
+  useEffect(() => {
+    if (!durationOptions.includes(selectedDuration)) {
+      setSelectedDuration(durationOptions[0] ?? 'Last week');
+    }
+  }, [durationOptions, selectedDuration]);
+
   return (
     <div className="flex flex-col gap-2">
       <CardHeader
-        title={"Appointment leaders"}
-        options={["Last week", "Last month", "Last 6 months", "Last 1 year"]}
+        title={'Appointment leaders'}
+        options={durationOptions}
+        selected={selectedDuration}
+        onSelect={(next) => setSelectedDuration(next as DashboardDurationOption)}
       />
       <DynamicChartCard
-        data={blankData}
-        layout={"vertical"}
+        data={analytics.appointmentLeaders}
         keys={[
-          { name: "Completed", color: "#111" },
-          { name: "Cancelled", color: "#ccc" },
+          { name: 'Completed', color: '#111' },
+          { name: 'Cancelled', color: '#ccc' },
         ]}
-        hideKeys={true}
+        hideKeys={false}
+        yAxisWidth={32}
+        barSize={14}
+        xAxisLabel="Leaders"
+        yAxisLabel="Appointments"
       />
     </div>
   );

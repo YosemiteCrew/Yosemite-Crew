@@ -38,6 +38,20 @@ const renderFeatureName = (name: string) => {
     );
   }
 
+  if (name === 'Merck Manuals integration') {
+    return (
+      <div className="pricingFeatureWithBrand">
+        <Image
+          src={MEDIA_SOURCES.futureAssets.merckLogoUrl}
+          alt="Merck Manuals"
+          width={96}
+          height={36}
+          className="pricingFeatureBrandLogo my-4"
+        />
+      </div>
+    );
+  }
+
   return name;
 };
 
@@ -269,21 +283,31 @@ const PricingPage = () => {
                     <tbody className="w-full">
                       {table.rows.map((row) => (
                         <tr key={row.name}>
-                          <td
-                            className={`w-1/3 ${row.name === 'IDEXX integration' ? 'py-1' : 'py-3'} pl-4! md:pl-6! border-t! border-grey-light! font-satoshi font-semibold text-[15px] text-grey-noti`}
-                          >
-                            {renderFeatureName(row.name)}
-                          </td>
-                          <td
-                            className={`w-1/3 ${row.name === 'IDEXX integration' ? 'py-1' : 'py-3'} pl-4! md:pl-6! border-t! border-grey-light! font-satoshi font-semibold text-[15px] text-grey-noti`}
-                          >
-                            {renderCell(row.free)}
-                          </td>
-                          <td
-                            className={`w-1/3 ${row.name === 'IDEXX integration' ? 'py-1' : 'py-3'} pl-4! md:pl-6! border-t! border-grey-light! font-satoshi font-semibold text-[15px] text-grey-noti`}
-                          >
-                            {renderCell(row.business)}
-                          </td>
+                          {(() => {
+                            const isBrandedIntegrationRow =
+                              row.name === 'IDEXX integration' ||
+                              row.name === 'Merck Manuals integration';
+                            const cellPaddingClass = isBrandedIntegrationRow ? 'py-1' : 'py-3';
+                            return (
+                              <>
+                                <td
+                                  className={`w-1/3 ${cellPaddingClass} pl-4! md:pl-6! border-t! border-grey-light! font-satoshi font-semibold text-[15px] text-grey-noti`}
+                                >
+                                  {renderFeatureName(row.name)}
+                                </td>
+                                <td
+                                  className={`w-1/3 ${cellPaddingClass} pl-4! md:pl-6! border-t! border-grey-light! font-satoshi font-semibold text-[15px] text-grey-noti`}
+                                >
+                                  {renderCell(row.free)}
+                                </td>
+                                <td
+                                  className={`w-1/3 ${cellPaddingClass} pl-4! md:pl-6! border-t! border-grey-light! font-satoshi font-semibold text-[15px] text-grey-noti`}
+                                >
+                                  {renderCell(row.business)}
+                                </td>
+                              </>
+                            );
+                          })()}
                         </tr>
                       ))}
                     </tbody>

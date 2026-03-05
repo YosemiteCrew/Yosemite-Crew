@@ -1,26 +1,42 @@
-import Modal from "@/app/ui/overlays/Modal";
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import Details from "@/app/features/forms/pages/Forms/Sections/AddForm/Details";
-import Build from "@/app/features/forms/pages/Forms/Sections/AddForm/Build";
-import Review from "@/app/features/forms/pages/Forms/Sections/AddForm/Review";
-import { FormsCategory, FormsProps } from "@/app/features/forms/types/forms";
-import { publishForm, saveFormDraft } from "@/app/features/forms/services/formService";
-import Close from "@/app/ui/primitives/Icons/Close";
-import Labels from "@/app/ui/widgets/Labels/Labels";
-import { useOrgStore } from "@/app/stores/orgStore";
+import Modal from '@/app/ui/overlays/Modal';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import Image from 'next/image';
+import Details from '@/app/features/forms/pages/Forms/Sections/AddForm/Details';
+import Build from '@/app/features/forms/pages/Forms/Sections/AddForm/Build';
+import Review from '@/app/features/forms/pages/Forms/Sections/AddForm/Review';
+import AppointmentMerckSearch from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/AppointmentMerckSearch';
+import { FormsCategory, FormsProps } from '@/app/features/forms/types/forms';
+import { publishForm, saveFormDraft } from '@/app/features/forms/services/formService';
+import Close from '@/app/ui/primitives/Icons/Close';
+import Labels from '@/app/ui/widgets/Labels/Labels';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
 
 const LabelOptions = [
   {
-    name: "Form details",
-    key: "form-details",
+    name: 'Form details',
+    key: 'form-details',
   },
   {
-    name: "Build form",
-    key: "build-form",
+    name: 'Build form',
+    key: 'build-form',
   },
   {
-    name: "Review",
-    key: "review",
+    name: 'Review',
+    key: 'review',
+  },
+  {
+    name: (
+      <Image
+        src={MEDIA_SOURCES.futureAssets.merckLogoUrl}
+        alt="Merck Manuals"
+        width={74}
+        height={28}
+        className="object-contain"
+      />
+    ),
+    key: 'merck-manuals',
   },
 ];
 
@@ -37,13 +53,13 @@ type AddFormProps = {
 const defaultForm = (): FormsProps => {
   const primaryOrg = useOrgStore.getState().getPrimaryOrg?.();
   return {
-    name: "",
-    category: "" as FormsCategory,
-    usage: "Internal",
+    name: '',
+    category: '' as FormsCategory,
+    usage: 'Internal',
     requiredSigner: undefined,
-    updatedBy: "",
-    lastUpdated: "",
-    status: "Draft",
+    updatedBy: '',
+    lastUpdated: '',
+    status: 'Draft',
     schema: [],
     businessType: primaryOrg?.type,
   };
@@ -58,24 +74,31 @@ const AddForm = ({
   draft,
   onDraftChange,
 }: AddFormProps) => {
-  const [activeLabel, setActiveLabel] = useState("form-details");
-  const [formData, setFormData] = useState<FormsProps>(
-    draft ?? initialForm ?? defaultForm()
-  );
+  const [activeLabel, setActiveLabel] = useState('form-details');
+  const [formData, setFormData] = useState<FormsProps>(draft ?? initialForm ?? defaultForm());
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const detailValidatorRef = useRef<() => boolean>(() => true);
   const buildValidatorRef = useRef<() => boolean>(() => true);
   const [isSaving, setIsSaving] = useState(false);
   const wasOpenRef = useRef(false);
+  const { isEnabled: merckEnabled } = useResolvedMerckIntegrationForPrimaryOrg();
 
   const isEditing = useMemo(() => Boolean(initialForm?._id), [initialForm]);
+  const labelOptions = useMemo(
+    () =>
+      merckEnabled ? LabelOptions : LabelOptions.filter((label) => label.key !== 'merck-manuals'),
+    [merckEnabled]
+  );
 
   useEffect(() => {
     if (showModal && !wasOpenRef.current) {
-      setActiveLabel("form-details");
+      setActiveLabel('form-details');
       const next = {
         ...(initialForm ?? draft ?? defaultForm()),
-        businessType: initialForm?.businessType ?? draft?.businessType ?? useOrgStore.getState().getPrimaryOrg?.()?.type,
+        businessType:
+          initialForm?.businessType ??
+          draft?.businessType ??
+          useOrgStore.getState().getPrimaryOrg?.()?.type,
       };
       setFormData(next);
       wasOpenRef.current = true;
@@ -93,39 +116,30 @@ const AddForm = ({
 
   const closeModal = () => {
     setFormData(defaultForm());
-    setActiveLabel("form-details");
+    setActiveLabel('form-details');
     onDraftChange?.(null);
-    setActiveLabel("form-details");
+    setActiveLabel('form-details');
     setShowModal(false);
     onClose?.();
   };
 
   const goToNextStep = () => {
-    if (activeLabel === "form-details") {
+    if (activeLabel === 'form-details') {
       if (!detailValidatorRef.current()) return;
-      setActiveLabel("build-form");
-    } else if (activeLabel === "build-form") {
+      setActiveLabel('build-form');
+    } else if (activeLabel === 'build-form') {
       if (!buildValidatorRef.current()) return;
-      setActiveLabel("review");
+      setActiveLabel('review');
     }
   };
 
   const handleLabelClick = (target: string) => {
     if (target === activeLabel) return;
-    const order = ["form-details", "build-form", "review"] as const;
-    const currentIndex = order.indexOf(activeLabel as any);
-    const targetIndex = order.indexOf(target as any);
-    if (currentIndex === -1 || targetIndex === -1) {
-      setActiveLabel(target);
-      return;
+    if (target === 'build-form' || target === 'review') {
+      if (!detailValidatorRef.current()) return;
     }
-
-    if (targetIndex > currentIndex) {
-      for (let i = 0; i < targetIndex; i++) {
-        if (order[i] === "form-details" && !detailValidatorRef.current())
-          return;
-        if (order[i] === "build-form" && !buildValidatorRef.current()) return;
-      }
+    if (target === 'review') {
+      if (!buildValidatorRef.current()) return;
     }
     setActiveLabel(target);
   };
@@ -135,15 +149,15 @@ const AddForm = ({
     try {
       const saved = await saveFormDraft({
         ...formData,
-        status: "Draft",
+        status: 'Draft',
       });
       setFormData(saved);
       onDraftChange?.(null);
       setFormData(defaultForm());
-      setActiveLabel("form-details");
+      setActiveLabel('form-details');
       closeModal();
     } catch (err) {
-      console.error("Failed to save draft", err);
+      console.error('Failed to save draft', err);
     } finally {
       setIsSaving(false);
     }
@@ -155,22 +169,28 @@ const AddForm = ({
       const saved = await saveFormDraft(formData);
       if (saved._id) {
         await publishForm(saved._id);
-        setFormData({ ...saved, status: "Published" });
+        setFormData({ ...saved, status: 'Published' });
       }
       onDraftChange?.(null);
       setFormData(defaultForm());
-      setActiveLabel("form-details");
+      setActiveLabel('form-details');
       closeModal();
     } catch (err) {
-      console.error("Failed to publish form", err);
+      console.error('Failed to publish form', err);
     } finally {
       setIsSaving(false);
     }
   };
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
+    scrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
   }, [activeLabel]);
+
+  useEffect(() => {
+    if (!merckEnabled && activeLabel === 'merck-manuals') {
+      setActiveLabel('form-details');
+    }
+  }, [merckEnabled, activeLabel]);
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal} onClose={onClose}>
@@ -181,23 +201,21 @@ const AddForm = ({
           </div>
           <div className="flex justify-center items-center gap-2">
             <div className="text-body-1 text-text-primary">
-              {isEditing ? "Edit form" : "Add form"}
+              {isEditing ? 'Edit form' : 'Add form'}
             </div>
           </div>
           <Close onClick={closeModal} />
         </div>
 
-        <Labels
-          labels={LabelOptions}
-          activeLabel={activeLabel}
-          setActiveLabel={handleLabelClick}
-        />
+        <Labels labels={labelOptions} activeLabel={activeLabel} setActiveLabel={handleLabelClick} />
 
         <div
           ref={scrollRef}
-          className="flex overflow-y-auto flex-1 scrollbar-hidden"
+          className={`flex overflow-y-auto scrollbar-hidden ${
+            activeLabel === 'merck-manuals' ? '' : 'flex-1'
+          }`}
         >
-          {activeLabel === "form-details" && (
+          {activeLabel === 'form-details' && (
             <Details
               formData={formData}
               setFormData={setFormData}
@@ -208,7 +226,7 @@ const AddForm = ({
               }}
             />
           )}
-          {activeLabel === "build-form" && (
+          {activeLabel === 'build-form' && (
             <Build
               formData={formData}
               setFormData={setFormData}
@@ -219,7 +237,7 @@ const AddForm = ({
               }}
             />
           )}
-          {activeLabel === "review" && (
+          {activeLabel === 'review' && (
             <Review
               formData={formData}
               onPublish={handlePublish}
@@ -228,6 +246,9 @@ const AddForm = ({
               loading={isSaving}
               isEditing={isEditing}
             />
+          )}
+          {merckEnabled && activeLabel === 'merck-manuals' && (
+            <AppointmentMerckSearch activeAppointment={null} />
           )}
         </div>
       </div>
