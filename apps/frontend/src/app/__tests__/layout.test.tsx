@@ -1,27 +1,54 @@
 import React from "react";
-
-jest.mock("@/app/components/SessionInitializer", () => ({
-  __esModule: true,
-  default: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="sessioninitializer-mock">{children}</div>
-  ),
-}));
-
-import { metadata } from "@/app/layout";
+import { render, screen } from "@testing-library/react";
+import RootLayout, { metadata } from "@/app/layout";
 
 describe("RootLayout", () => {
-  test("exports correct metadata", () => {
-    expect(metadata.title).toBe("Yosemite Crew");
-    expect(metadata.description).toBe(
-      "Get Yosemite Crew PMS for your pet business"
+  const originalError = console.error;
+  beforeAll(() => {
+    console.error = (...args) => {
+      const message = typeof args[0] === "string" ? args[0] : "";
+      // Filter React DOM nesting warnings that occur when testing layout components
+      if (
+        /cannot be a child of/i.test(message) ||
+        /cannot appear as a child of/i.test(message) ||
+        /hydration/i.test(message)
+      ) {
+        return;
+      }
+      originalError.call(console, ...args);
+    };
+  });
+
+  afterAll(() => {
+    console.error = originalError;
+  });
+
+  it("renders the layout structure with children", () => {
+    render(
+      <RootLayout>
+        <div data-testid="test-child">Hello World</div>
+      </RootLayout>
     );
+
+    const child = screen.getByTestId("test-child");
+    expect(child).toBeInTheDocument();
+  });
+
+  it("has the correct metadata configuration", () => {
+    expect(metadata).toEqual(
+      expect.objectContaining({
+        title: "Yosemite Crew",
+        description: "Get Yosemite Crew PMS for your pet business",
+        manifest: "/site.webmanifest",
+      })
+    );
+
+    expect(Array.isArray(metadata.icons)).toBe(true);
     expect(metadata.icons).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ url: "/favicon.ico" }),
-        expect.objectContaining({ url: "/favicon-32x32.png" }),
-        expect.objectContaining({ url: "/favicon-16x16.png" }),
+        expect.objectContaining({ url: "/favicon.ico", type: "image/x-icon" }),
+        expect.objectContaining({ sizes: "32x32", type: "image/png" }),
       ])
     );
-    expect(metadata.manifest).toBe("/site.webmanifest");
   });
 });

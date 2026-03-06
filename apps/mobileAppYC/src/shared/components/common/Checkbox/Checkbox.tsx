@@ -7,8 +7,10 @@ import {
   StyleSheet,
   TextStyle,
   StyleProp,
+  Image,
 } from 'react-native';
-import { useTheme } from '@/hooks';
+import {useTheme} from '@/hooks';
+import {Images} from '@/assets/images';
 
 interface CheckboxProps {
   value: boolean;
@@ -27,6 +29,7 @@ export const Checkbox: React.FC<CheckboxProps> = ({
 }) => {
   const { theme } = useTheme();
   const styles = createStyles(theme);
+  const checkboxIcon = value ? Images.checkFill : Images.checkEmpty;
 
   return (
     <View style={styles.container}>
@@ -34,17 +37,12 @@ export const Checkbox: React.FC<CheckboxProps> = ({
         style={styles.checkboxContainer}
         onPress={() => onValueChange(!value)}
         activeOpacity={0.7}
+        accessibilityRole="checkbox"
+        accessibilityState={{checked: value}}
+        accessibilityHint={typeof label === 'string' ? label : undefined}
       >
-        <View
-          style={[
-            styles.checkbox,
-            value && styles.checkboxChecked,
-            error && styles.checkboxError,
-          ]}
-        >
-          {value && (
-            <Text style={styles.checkmark}>✓</Text>
-          )}
+        <View style={[styles.checkboxWrapper, error && styles.checkboxError]}>
+          <Image source={checkboxIcon} style={styles.checkboxIcon} />
         </View>
         {label ? (
           <Text style={[styles.label, labelStyle as any]}>{label}</Text>
@@ -60,33 +58,29 @@ export const Checkbox: React.FC<CheckboxProps> = ({
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      marginBottom: 8,
+      marginBottom: theme.spacing['2'],
     },
     checkboxContainer: {
-  flexDirection: 'row',
-  alignItems: 'flex-start',
+      flexDirection: 'row',
+      alignItems: 'center',
     },
-    checkbox: {
-      width: 20,
-      height: 20,
-      borderWidth: 2,
-      borderColor: theme.colors.border,
-      borderRadius: 4,
+    checkboxWrapper: {
+      width: theme.spacing['6'],
+      height: theme.spacing['6'],
       justifyContent: 'center',
       alignItems: 'center',
-      marginRight: 8,
+      marginRight: theme.spacing['2'],
+      borderRadius: theme.borderRadius.xs,
+      borderWidth: 1,
+      borderColor: 'transparent',
     },
-    checkboxChecked: {
-      backgroundColor: theme.colors.primary,
-      borderColor: theme.colors.primary,
+    checkboxIcon: {
+      width: '100%',
+      height: '100%',
+      resizeMode: 'contain',
     },
     checkboxError: {
       borderColor: theme.colors.error,
-    },
-    checkmark: {
-      color: theme.colors.white,
-      fontSize: 12,
-      fontWeight: 'bold',
     },
     label: {
       ...theme.typography.paragraph,
@@ -95,8 +89,8 @@ const createStyles = (theme: any) =>
     },
     errorText: {
       color: theme.colors.error,
-      fontSize: 12,
-      marginTop: 4,
-      marginLeft: 28,
+      ...theme.typography.bodySmall,
+      marginTop: theme.spacing['1'],
+      marginLeft: theme.spacing['7'],
     },
   });

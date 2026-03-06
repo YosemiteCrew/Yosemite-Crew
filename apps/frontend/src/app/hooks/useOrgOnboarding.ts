@@ -4,7 +4,7 @@ import { useSpecialityStore } from "@/app/stores/specialityStore";
 import {
   computeOrgOnboardingStep,
   OnboardingStep,
-} from "@/app/utils/orgOnboarding";
+} from "@/app/lib/orgOnboarding";
 import type { Organisation, Speciality } from "@yosemite-crew/types";
 
 export const useOrgOnboarding = (
@@ -14,6 +14,7 @@ export const useOrgOnboarding = (
   step: OnboardingStep;
   specialities: Speciality[];
 } => {
+  const orgStatus = useOrgStore((s) => s.status);
   const org = useOrgStore((s) =>
     orgId ? ((s.orgsById[orgId] as Organisation | undefined) ?? null) : null
   );
@@ -27,14 +28,27 @@ export const useOrgOnboarding = (
   );
 
   const { step, specialities, effectiveOrg } = useMemo(() => {
-    if (!orgId || !org || !membership) {
+    if (!orgId) {
       return {
         step: 0 as OnboardingStep,
         specialities: [] as Speciality[],
         effectiveOrg: null as Organisation | null,
       };
     }
-
+    if (orgStatus === "loading" || orgStatus === "idle") {
+      return {
+        step: 0 as OnboardingStep,
+        specialities: [] as Speciality[],
+        effectiveOrg: null as Organisation | null,
+      };
+    }
+    if (!org || !membership) {
+      return {
+        step: 0 as OnboardingStep,
+        specialities: [] as Speciality[],
+        effectiveOrg: null as Organisation | null,
+      };
+    }
     const role = (
       membership.roleDisplay ??
       membership.roleCode ??
@@ -58,7 +72,14 @@ export const useOrgOnboarding = (
     const step = computeOrgOnboardingStep(org, specialities);
 
     return { step, specialities, effectiveOrg: org };
-  }, [orgId, org, specialitiesById, specialityIdsByOrgId, membership]);
+  }, [
+    orgId,
+    org,
+    specialitiesById,
+    specialityIdsByOrgId,
+    membership,
+    orgStatus,
+  ]);
 
   return {
     org: effectiveOrg,

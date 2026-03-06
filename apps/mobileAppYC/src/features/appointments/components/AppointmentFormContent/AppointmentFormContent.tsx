@@ -241,29 +241,29 @@ export const AppointmentFormContent: React.FC<AppointmentFormContentProps> = ({
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      gap: theme.spacing[3],
+      gap: theme.spacing['3'],
     },
     summaryCard: {
-      marginBottom: theme.spacing[1],
+      marginBottom: theme.spacing['1'],
     },
     sectionTitle: {
       ...theme.typography.titleMedium,
       color: theme.colors.secondary,
-      marginTop: theme.spacing[1],
+      marginTop: theme.spacing['1'],
     },
     inputContainer: {
-      marginTop: theme.spacing[3],
+      marginTop: theme.spacing['3'],
     },
     multilineInput: {
       minHeight: 100,
       textAlignVertical: 'top',
-      paddingTop: theme.spacing[2],
+      paddingTop: theme.spacing['2'],
     },
     checkboxRow: {
       flexDirection: 'row',
       alignItems: 'flex-start',
-      marginBottom: theme.spacing[3],
-      gap: theme.spacing[2],
+      marginBottom: theme.spacing['3'],
+      gap: theme.spacing['2'],
     },
     checkboxLabel: {
       ...theme.typography.body14,
@@ -274,11 +274,11 @@ const createStyles = (theme: any) =>
     emptySlotsText: {
       ...theme.typography.body12,
       color: theme.colors.textSecondary,
-      paddingBottom: theme.spacing[6],
+      paddingBottom: theme.spacing['6'],
     },
     actionsContainer: {
-      marginTop: theme.spacing[4],
-      marginBottom: theme.spacing[2],
+      marginTop: theme.spacing['4'],
+      marginBottom: theme.spacing['2'],
     },
   });
 

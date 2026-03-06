@@ -241,19 +241,19 @@ const createStyles = (theme: any) =>
     companionRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: theme.spacing[1],
+      paddingVertical: theme.spacing['1'],
     },
     companionTouchable: {
       width: 96,
     },
     companionItem: {
       alignItems: 'center',
-      gap: theme.spacing[2.5],
+      gap: theme.spacing['2.5'],
     },
     companionAvatarRing: {
       width: 64,
       height: 64,
-      borderRadius: 32,
+      borderRadius: theme.borderRadius.full,
       borderWidth: 2,
       borderColor: theme.colors.primaryTint,
       alignItems: 'center',
@@ -290,18 +290,18 @@ const createStyles = (theme: any) =>
       alignSelf: 'stretch',
     },
     companionMeta: {
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.primary,
     },
     addCompanionItem: {
       alignItems: 'center',
-      gap: theme.spacing[2.5],
+      gap: theme.spacing['2.5'],
     },
     addCompanionCircle: {
       width: 64,
       height: 64,
-      marginBottom: theme.spacing[2.5],
-      borderRadius: 32,
+      marginBottom: theme.spacing['2.5'],
+      borderRadius: theme.borderRadius.full,
       borderWidth: 2,
       borderStyle: 'dashed',
       borderColor: theme.colors.primaryTintStrong,
@@ -315,7 +315,7 @@ const createStyles = (theme: any) =>
       resizeMode: 'contain',
     },
     addCompanionLabel: {
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.primary,
       textAlign: 'center',
     },

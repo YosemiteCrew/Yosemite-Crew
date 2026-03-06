@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, screen} from '@testing-library/react-native';
 import {QRScannerScreen} from '../../../../src/features/linkedBusinesses/screens/QRScannerScreen';
 import * as Redux from 'react-redux';
@@ -28,24 +29,7 @@ jest.spyOn(Redux, 'useSelector').mockReturnValue(false); // Default loading stat
 
 // 3. Mock Hooks & Assets
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        background: 'white',
-        text: 'black',
-        textSecondary: 'gray',
-        primary: 'blue',
-      },
-      spacing: [0, 4, 8, 12, 16, 24, 32], // Mock array for spacing
-      borderRadius: {md: 8},
-      typography: {
-        h3: {fontSize: 24, fontWeight: 'bold'},
-        bodySmall: {fontSize: 12},
-        titleSmall: {fontSize: 14, fontWeight: 'bold'},
-        bodyExtraSmall: {fontSize: 10},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 4. Mock Components

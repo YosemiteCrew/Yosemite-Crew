@@ -1,12 +1,8 @@
 import { createTaskFormSectionStyles } from '@/features/tasks/components/shared/taskFormStyles';
+import {mockTheme} from '../../setup/mockTheme';
 
 // Mock the theme object
-const mockTheme = {
-  spacing: {
-    '3': 12,
-    '4': 16,
-  },
-};
+
 
 describe('createTaskFormSectionStyles', () => {
   it('creates the correct style object from the theme', () => {

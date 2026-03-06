@@ -13,6 +13,7 @@ jest.mock('react-native-safe-area-context', () => ({
     const {View: MockView} = require('react-native');
     return MockReact.createElement(MockView, props, children);
   },
+  useSafeAreaInsets: () => ({top: 0, bottom: 0, left: 0, right: 0}),
 }));
 
 describe('SafeArea', () => {
@@ -173,7 +174,7 @@ describe('SafeArea', () => {
       const views = tree.root.findAllByType(View);
       const safeAreaView = views.find(view => view.props.edges !== undefined);
       if (safeAreaView) {
-        expect(safeAreaView.props.edges).toEqual(['top', 'bottom', 'left', 'right']);
+        expect(safeAreaView.props.edges).toEqual(['top']);
       }
     });
 

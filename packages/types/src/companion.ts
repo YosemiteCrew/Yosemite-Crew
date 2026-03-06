@@ -36,6 +36,8 @@ export interface Companion {
   name: string;
   type: CompanionType;
   breed: string;
+  speciesCode?: string;
+  breedCode?: string;
   dateOfBirth: Date;
   gender: Gender;
   photoUrl?: string;
@@ -105,29 +107,33 @@ export const MICROCHIP_IDENTIFIER_SYSTEM_URL =
 export const PASSPORT_IDENTIFIER_SYSTEM_URL =
   "http://example.org/fhir/Identifier/passport";
 export const EXTENSION_BLOOD_GROUP_URL =
-  "http://example.org/fhir/StructureDefinition/companion-blood-group";
+  "https://yosemitecrew.com/fhir/StructureDefinition/companion-blood-group";
 export const EXTENSION_COLOUR_URL =
-  "http://example.org/fhir/StructureDefinition/companion-colour";
+  "https://yosemitecrew.com/fhir/StructureDefinition/companion-colour";
 export const EXTENSION_COUNTRY_OF_ORIGIN_URL =
-  "http://example.org/fhir/StructureDefinition/companion-country-of-origin";
+  "https://yosemitecrew.com/fhir/StructureDefinition/companion-country-of-origin";
 export const EXTENSION_SOURCE_URL =
-  "http://example.org/fhir/StructureDefinition/companion-source";
+  "https://yosemitecrew.com/fhir/StructureDefinition/companion-source";
 export const EXTENSION_WEIGHT_URL =
-  "http://example.org/fhir/StructureDefinition/companion-weight";
+  "https://yosemitecrew.com/fhir/StructureDefinition/companion-weight";
 export const EXTENSION_ALLERGY_URL =
-  "http://example.org/fhir/StructureDefinition/companion-allergy";
+  "https://yosemitecrew.com/fhir/StructureDefinition/companion-allergy";
 export const EXTENSION_AGE_WHEN_NEUTERED_URL =
-  "http://example.org/fhir/StructureDefinition/companion-age-when-neutered";
+  "https://yosemitecrew.com/fhir/StructureDefinition/companion-age-when-neutered";
 export const EXTENSION_INSURANCE_URL =
-  "http://example.org/fhir/StructureDefinition/companion-insurance";
+  "https://yosemitecrew.com/fhir/StructureDefinition/companion-insurance";
 export const EXTENSION_PHYSICAL_ATTRIBUTE_URL =
-  "http://example.org/fhir/StructureDefinition/companion-physical-attributes";
+  "https://yosemitecrew.com/fhir/StructureDefinition/companion-physical-attributes";
 export const EXTENSION_BREEDING_INFO_URL =
-  "http://example.org/fhir/StructureDefinition/companion-breeding-info";
+  "https://yosemitecrew.com/fhir/StructureDefinition/companion-breeding-info";
 export const EXTENSION_MEDICAL_RECORD_URL =
-  "http://example.org/fhir/StructureDefinition/companion-medical-record";
+  "https://yosemitecrew.com/fhir/StructureDefinition/companion-medical-record";
 export const EXTENSION_PROFILE_COMPLETE_URL =
-  "http://example.org/fhir/StructureDefinition/companion-profile-complete";
+  "https://yosemitecrew.com/fhir/StructureDefinition/companion-profile-complete";
+export const EXTENSION_SPECIES_CODE_URL =
+  "https://yosemitecrew.com/fhir/StructureDefinition/companion-species-code";
+export const EXTENSION_BREED_CODE_URL =
+  "https://yosemitecrew.com/fhir/StructureDefinition/companion-breed-code";
 
 type SpeciesConfig = {
   code?: string;
@@ -409,6 +415,8 @@ const buildIdentifiers = (companion: Companion): Identifier[] => {
 const buildExtensions = (companion: Companion): Extension[] => {
   const extensions: Extension[] = [];
 
+  addStringExtension(extensions, EXTENSION_SPECIES_CODE_URL, companion.speciesCode);
+  addStringExtension(extensions, EXTENSION_BREED_CODE_URL, companion.breedCode);
   addDecimalExtension(extensions, EXTENSION_WEIGHT_URL, companion.currentWeight);
   addStringExtension(extensions, EXTENSION_COLOUR_URL, companion.colour);
   addStringExtension(extensions, EXTENSION_ALLERGY_URL, companion.allergy);
@@ -874,6 +882,8 @@ export const fromFHIRCompanion = (dto: Patient): Companion => {
     name,
     type: species,
     breed,
+    speciesCode: parseStringExtension(extensions, EXTENSION_SPECIES_CODE_URL),
+    breedCode: parseStringExtension(extensions, EXTENSION_BREED_CODE_URL),
     dateOfBirth,
     gender: parseGender(dto.gender),
     photoUrl: parsePhoto(dto.photo),

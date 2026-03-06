@@ -4,7 +4,7 @@ exports[`GenericEmptyScreen renders correctly and matches snapshot 1`] = `
 <View
   style={
     {
-      "backgroundColor": "#ffffff",
+      "backgroundColor": "#FFFEFE",
       "flex": 1,
     }
   }
@@ -37,9 +37,9 @@ exports[`GenericEmptyScreen renders correctly and matches snapshot 1`] = `
     <Text
       style={
         {
-          "color": "#111111",
-          "fontSize": 24,
-          "fontWeight": "bold",
+          "color": "#302F2E",
+          "fontSize": 28,
+          "fontWeight": "600",
           "marginBottom": 12,
           "textAlign": "center",
         }
@@ -50,8 +50,10 @@ exports[`GenericEmptyScreen renders correctly and matches snapshot 1`] = `
     <Text
       style={
         {
-          "color": "#666666",
+          "color": "#747473",
+          "fontFamily": "Satoshi-Regular",
           "fontSize": 14,
+          "fontWeight": "400",
           "lineHeight": 22,
           "textAlign": "center",
         }

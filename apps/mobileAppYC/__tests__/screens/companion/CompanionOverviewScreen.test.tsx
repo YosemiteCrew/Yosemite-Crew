@@ -120,6 +120,7 @@ jest.mock('react-native', () => {
     },
     Platform: {OS: 'android', select: jest.fn(options => options.android)},
     Alert: mockAlert,
+    StatusBar: 'StatusBar',
     BackHandler: {
       addEventListener: mockAddEventListener.mockImplementation(
         (event, callback) => {
@@ -150,6 +151,11 @@ jest.mock('react-native', () => {
 });
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: 'SafeAreaView',
+  useSafeAreaInsets: () => ({top: 0, right: 0, bottom: 0, left: 0}),
+}));
+jest.mock('@callstack/liquid-glass', () => ({
+  LiquidGlassView: 'LiquidGlassView',
+  isLiquidGlassSupported: jest.fn(() => false),
 }));
 
 // --- Component Mocks ---
@@ -357,18 +363,21 @@ jest.mock('@/shared/utils/commonHelpers', () => ({
   capitalize: jest.fn(s => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '')),
   displayNeutered: jest.fn(s => {
     if (s === 'neutered') return 'Neutered';
-    if (s === 'intact') return 'Intact';
-    return 'Unknown';
+    if (s === 'not-neutered') return 'Not neutered';
+    return '';
   }),
   displayInsured: jest.fn(s => {
     if (s === 'insured') return 'Insured';
-    if (s === 'not-insured') return 'Not Insured';
-    return 'Unknown';
-  }), // Corrected key here
+    if (s === 'not-insured') return 'Not insured';
+    return '';
+  }),
   displayOrigin: jest.fn(s => {
+    if (s === 'shop') return 'Shop';
     if (s === 'breeder') return 'Breeder';
-    if (s === 'rescue') return 'Rescue / Shelter';
-    return s || 'Unknown';
+    if (s === 'foster-shelter') return 'Foster/ Shelter';
+    if (s === 'friends-family') return 'Friends or family';
+    if (s === 'unknown') return 'Unknown';
+    return '';
   }),
 }));
 
@@ -521,22 +530,25 @@ describe('CompanionOverviewScreen', () => {
       require('@/shared/utils/commonHelpers').displayNeutered as jest.Mock
     ).mockImplementation(s => {
       if (s === 'neutered') return 'Neutered';
-      if (s === 'intact') return 'Intact';
-      return 'Unknown';
+      if (s === 'not-neutered') return 'Not neutered';
+      return '';
     });
     (
       require('@/shared/utils/commonHelpers').displayInsured as jest.Mock
     ).mockImplementation(s => {
       if (s === 'insured') return 'Insured';
-      if (s === 'not-insured') return 'Not Insured';
-      return 'Unknown';
-    }); // Corrected key
+      if (s === 'not-insured') return 'Not insured';
+      return '';
+    });
     (
       require('@/shared/utils/commonHelpers').displayOrigin as jest.Mock
     ).mockImplementation(s => {
+      if (s === 'shop') return 'Shop';
       if (s === 'breeder') return 'Breeder';
-      if (s === 'rescue') return 'Rescue / Shelter';
-      return s || 'Unknown';
+      if (s === 'foster-shelter') return 'Foster/ Shelter';
+      if (s === 'friends-family') return 'Friends or family';
+      if (s === 'unknown') return 'Unknown';
+      return '';
     });
   });
 
@@ -757,15 +769,14 @@ describe('CompanionOverviewScreen', () => {
     );
     fireEvent.press(screen.getByTestId('row-button-Neutered-status'));
     const neuteredSheet = screen.getByTestId('neutered-sheet');
-    // FIX for ts(2322): Use correct literal type 'intact'
-    fireEvent(neuteredSheet, 'onSave', 'intact' as Companion['neuteredStatus']);
+    fireEvent(neuteredSheet, 'onSave', 'not-neutered' as Companion['neuteredStatus']);
     await waitFor(() =>
       expect(
         require('@/features/companion').updateCompanionProfile,
       ).toHaveBeenCalledWith({
         parentId: mockCompanion.userId,
         updatedCompanion: expect.objectContaining({
-          neuteredStatus: 'intact',
+          neuteredStatus: 'not-neutered',
           ageWhenNeutered: null,
           updatedAt: expect.any(String),
         }),
@@ -773,7 +784,7 @@ describe('CompanionOverviewScreen', () => {
     );
     renderWithState({
       ...mockCompanion,
-      neuteredStatus: 'intact' as Companion['neuteredStatus'],
+      neuteredStatus: 'not-neutered' as Companion['neuteredStatus'],
       ageWhenNeutered: null,
     }); // Reflect state change
     expect(screen.queryByTestId('inline-edit-Age-when-neutered')).toBeNull();
@@ -781,7 +792,7 @@ describe('CompanionOverviewScreen', () => {
       within(screen.getByTestId('row-button-Neutered-status')).getByTestId(
         'value',
       ),
-    ).toHaveTextContent('Intact');
+    ).toHaveTextContent('Not neutered');
   });
 
   it('shows and resets insurance details based on insured status', async () => {
@@ -801,7 +812,6 @@ describe('CompanionOverviewScreen', () => {
     );
     fireEvent.press(screen.getByTestId('row-button-Insurance-status'));
     const insuredSheet = screen.getByTestId('insured-sheet');
-    // FIX for ts(2820): Use correct literal type 'not-insured'
     fireEvent(
       insuredSheet,
       'onSave',
@@ -832,7 +842,7 @@ describe('CompanionOverviewScreen', () => {
       within(screen.getByTestId('row-button-Insurance-status')).getByTestId(
         'value',
       ),
-    ).toHaveTextContent('Not Insured'); // Uses display helper
+    ).toHaveTextContent('Not insured'); // Uses display helper
   });
 
   it('shows alert when updateCompanionProfile dispatch fails', async () => {
@@ -972,14 +982,14 @@ describe('CompanionOverviewScreen', () => {
     renderWithState(mockCompanion);
     fireEvent.press(screen.getByTestId('row-button-My-pet-comes-from'));
     const originSheet = screen.getByTestId('origin-sheet');
-    fireEvent(originSheet, 'onSave', 'rescue');
+    fireEvent(originSheet, 'onSave', 'foster-shelter');
     await waitFor(() =>
       expect(
         require('@/features/companion').updateCompanionProfile,
       ).toHaveBeenCalledWith({
         parentId: mockCompanion.userId,
         updatedCompanion: expect.objectContaining({
-          origin: 'rescue',
+          origin: 'foster-shelter',
           updatedAt: expect.any(String),
         }),
       }),

@@ -67,6 +67,7 @@ export type LinkedBusinessStackParamList = {
     distance?: number;
     placeId: string;
     organisationId?: string;
+    returnTo?: {tab: keyof TabParamList; screen?: string};
   };
   QRScanner: {
     companionId: string;
@@ -98,7 +99,7 @@ export type AppointmentStackParamList = {
   MyAppointmentsEmpty: undefined;
   MyAppointments: { resetKey?: number } | undefined;
   BrowseBusinesses: { serviceName?: string; autoFocusSearch?: boolean } | undefined;
-  BusinessDetails: { businessId: string };
+  BusinessDetails: { businessId: string; returnTo?: {tab: keyof TabParamList; screen?: string} };
   BookingForm: {
     businessId: string;
     serviceId?: string;
@@ -128,12 +129,31 @@ export type AppointmentStackParamList = {
   };
   EditAppointment: { appointmentId: string; mode?: 'reschedule' };
   BusinessesList: { category: 'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder' | 'clinic' };
+  TermsAndConditions: undefined;
+  PrivacyPolicy: undefined;
   OrganisationDocument: {
     organisationId: string;
     organisationName?: string | null;
     category: OrganisationDocumentCategory;
   };
+  AppointmentForm: {
+    appointmentId: string;
+    formId: string;
+    mode?: 'fill' | 'view';
+    allowSign?: boolean;
+  };
+  FormSigning: {
+    appointmentId: string;
+    submissionId: string;
+    signingUrl?: string | null;
+    formTitle?: string | null;
+  };
 };
+
+export type LegalStackParamList =
+  HomeStackParamList &
+  AppointmentStackParamList &
+  AuthStackParamList;
 
 export type ExpenseStackParamList = {
   ExpensesMain: undefined;
@@ -147,10 +167,11 @@ export type ExpenseStackParamList = {
 export type TaskStackParamList = {
   TasksMain: undefined;
   TasksList: { category: TaskCategory };
-  AddTask: undefined;
+  AddTask: { reuseTaskId?: string } | undefined;
   TaskView: { taskId: string; source?: 'home' | 'tasks' };
   EditTask: { taskId: string; source?: 'home' | 'tasks' };
   ObservationalTool: { taskId: string };
+  ObservationalToolPreview: { taskId: string; submissionId?: string | null; toolId?: string | null };
 };
 
 export type AdverseEventStackParamList = {

@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, act} from '@testing-library/react-native';
 import {TermsAndConditionsScreen} from '@/features/legal/screens/TermsAndConditionsScreen';
 import {Alert} from 'react-native';
@@ -23,12 +24,7 @@ jest.mock('@/features/auth/context/AuthContext', () => ({
 
 // 3. Mock Hooks & Styles
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {secondary: 'blue'},
-      spacing: {s: 4, m: 8},
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 4. Mock Services

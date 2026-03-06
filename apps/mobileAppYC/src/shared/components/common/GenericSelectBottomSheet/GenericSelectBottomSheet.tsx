@@ -6,13 +6,15 @@ import {
   StyleSheet,
   FlatList,
   Image,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import CustomBottomSheet from '@/shared/components/common/BottomSheet/BottomSheet';
 import type { BottomSheetRef } from '@/shared/components/common/BottomSheet/BottomSheet';
 import {BottomSheetHeader} from '@/shared/components/common/BottomSheetHeader/BottomSheetHeader';
 import { Input } from '@/shared/components/common/Input/Input';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
-import { useTheme } from '@/hooks';
+import { useTheme, useKeyboardVisible } from '@/hooks';
 import { Images } from '@/assets/images';
 
 export interface GenericSelectBottomSheetRef {
@@ -64,6 +66,7 @@ export const GenericSelectBottomSheet = forwardRef<
 }, ref) => {
   const { theme } = useTheme();
   const bottomSheetRef = useRef<BottomSheetRef>(null);
+  const isKeyboardVisible = useKeyboardVisible();
 
   // Track whether the sheet is open so we only render the backdrop when visible.
   const [isSheetVisible, setIsSheetVisible] = useState(false);
@@ -73,6 +76,15 @@ export const GenericSelectBottomSheet = forwardRef<
 
   const styles = createStyles(theme, maxListHeight);
   const searchIconSource = Images?.searchIcon ?? null;
+
+  // Dynamic snap points based on keyboard visibility
+  const dynamicSnapPoints = useMemo(() => {
+    if (isKeyboardVisible) {
+      // When keyboard is open, expand to accommodate it
+      return ['95%', '95%'];
+    }
+    return snapPoints;
+  }, [isKeyboardVisible, snapPoints]);
 
   const filteredItems = useMemo(() => {
     if (!hasSearch || !searchQuery.trim()) return items;
@@ -92,6 +104,9 @@ export const GenericSelectBottomSheet = forwardRef<
   );
 
   const handleItemPress = (item: SelectItem) => {
+    // Dismiss keyboard when selecting an item
+    Keyboard.dismiss();
+
     if (mode === 'select') {
       // Auto-select mode: immediately save and close
       onSave(item);
@@ -133,31 +148,50 @@ export const GenericSelectBottomSheet = forwardRef<
   bottomSheetRef.current?.snapToIndex(0);
     },
     close: () => {
+  Keyboard.dismiss();
   bottomSheetRef.current?.close();
     },
   }));
 
   const handleSave = () => {
+    Keyboard.dismiss();
     onSave(tempItem);
     bottomSheetRef.current?.close();
   };
 
   const handleCancel = () => {
+    Keyboard.dismiss();
     setTempItem(selectedItem);
     setSearchQuery('');
     bottomSheetRef.current?.close();
   };
 
+  const handleBackdropPress = () => {
+    Keyboard.dismiss();
+  };
+
+  const handleSheetAnimate = () => {
+    // Only dismiss keyboard when closing, not when animating between snap points
+    if (!isKeyboardVisible) {
+      Keyboard.dismiss();
+    }
+  };
+
   return (
     <CustomBottomSheet
       ref={bottomSheetRef}
-      snapPoints={snapPoints}
+      snapPoints={dynamicSnapPoints}
       initialIndex={-1}
+      zIndex={100}
       onChange={index => {
         // Gorhom BottomSheet returns -1 when fully closed
         setIsSheetVisible(index !== -1);
+        if (index === -1) {
+          Keyboard.dismiss();
+        }
         onSheetChange?.(index);
       }}
+      onAnimate={handleSheetAnimate}
       enablePanDownToClose
       enableDynamicSizing={false}
       enableContentPanningGesture={false}
@@ -169,13 +203,15 @@ export const GenericSelectBottomSheet = forwardRef<
       backdropAppearsOnIndex={0}
       backdropDisappearsOnIndex={-1}
       backdropPressBehavior="close"
+      onBackdropPress={handleBackdropPress}
       contentType="view"
       backgroundStyle={styles.bottomSheetBackground}
       handleIndicatorStyle={styles.bottomSheetHandle}
       keyboardBehavior="interactive"
       keyboardBlurBehavior="restore"
       android_keyboardInputMode="adjustResize">
-      <View style={styles.container}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <View style={styles.container}>
         {/* Header */}
         <BottomSheetHeader
           title={title}
@@ -229,6 +265,8 @@ export const GenericSelectBottomSheet = forwardRef<
             showsVerticalScrollIndicator
             contentContainerStyle={styles.listContent}
             nestedScrollEnabled
+            keyboardShouldPersistTaps="handled"
+            onScrollBeginDrag={Keyboard.dismiss}
             ListEmptyComponent={renderEmptyList}
           />
         </View>
@@ -241,12 +279,12 @@ export const GenericSelectBottomSheet = forwardRef<
               onPress={handleCancel}
               style={styles.cancelButton}
               textStyle={styles.cancelButtonText}
-              tintColor="#FFFFFF"
+              tintColor={theme.colors.white}
               shadowIntensity="light"
               forceBorder
-              borderColor="rgba(0, 0, 0, 0.12)"
-              height={56}
-              borderRadius={16}
+              borderColor={theme.colors.borderMuted}
+              height={theme.spacing['14']}
+              borderRadius={theme.borderRadius.lg}
             />
 
             <LiquidGlassButton
@@ -257,13 +295,14 @@ export const GenericSelectBottomSheet = forwardRef<
               tintColor={theme.colors.secondary}
               shadowIntensity="medium"
               forceBorder
-              borderColor="rgba(255, 255, 255, 0.35)"
-              height={56}
-              borderRadius={16}
+              borderColor={theme.colors.borderMuted}
+              height={theme.spacing['14']}
+              borderRadius={theme.borderRadius.lg}
             />
           </View>
         )}
-      </View>
+        </View>
+      </TouchableWithoutFeedback>
     </CustomBottomSheet>
   );
 });
@@ -301,6 +340,8 @@ const createStyles = (theme: any, maxListHeight: number) =>
     },
     listWrapper: {
       maxHeight: maxListHeight,
+      minHeight: maxListHeight,
+      flexShrink: 0,
       marginBottom: theme.spacing['2'],
     },
     listContent: {
@@ -310,7 +351,7 @@ const createStyles = (theme: any, maxListHeight: number) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingVertical: 14,
+      paddingVertical: theme.spacing['3.5'],
       paddingHorizontal: theme.spacing['3'],
       borderRadius: theme.borderRadius.base,
       marginBottom: theme.spacing['1'],
@@ -328,15 +369,14 @@ const createStyles = (theme: any, maxListHeight: number) =>
     checkmark: {
       width: theme.spacing['5'],
       height: theme.spacing['5'],
-      borderRadius: theme.spacing['5'] / 2,
+      borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.primary,
       justifyContent: 'center',
       alignItems: 'center',
     },
     checkmarkText: {
+      ...theme.typography.labelSmallBold,
       color: theme.colors.white,
-      fontSize: theme.spacing['3'],
-      fontWeight: 'bold',
     },
     buttonContainer: {
       flexDirection: 'row',
@@ -364,13 +404,13 @@ const createStyles = (theme: any, maxListHeight: number) =>
     },
     bottomSheetBackground: {
       backgroundColor: theme.colors.background,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
+      borderTopLeftRadius: theme.spacing['6'],
+      borderTopRightRadius: theme.spacing['6'],
     },
     bottomSheetHandle: {
-      backgroundColor: theme.colors.black,
-      width: 80,
-      height: 6,
+      backgroundColor: theme.colors.text,
+      width: theme.spacing['20'],
+      height: theme.spacing['1.25'],
       opacity: 0.2,
     },
     touchableItem: {

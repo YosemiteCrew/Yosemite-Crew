@@ -1,21 +1,18 @@
 import { useEffect, useMemo } from "react";
 import { useOrgStore } from "@/app/stores/orgStore";
 import { useSpecialityStore } from "@/app/stores/specialityStore";
-import { loadSpecialitiesForOrg } from "@/app/services/specialityService";
-import { useServiceStore } from "../stores/serviceStore";
+import { loadSpecialitiesForOrg } from "@/app/features/organization/services/specialityService";
+import { useServiceStore } from "@/app/stores/serviceStore";
 import { Service, Speciality } from "@yosemite-crew/types";
-import { SpecialityWeb } from "../types/speciality";
+import { SpecialityWeb } from "@/app/features/organization/types/speciality";
 
 export const useLoadSpecialitiesForPrimaryOrg = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
-  const specialityStatus = useSpecialityStore((s) => s.status);
 
   useEffect(() => {
     if (!primaryOrgId) return;
-    if (specialityStatus === "idle") {
-      void loadSpecialitiesForOrg();
-    }
-  }, [primaryOrgId, specialityStatus]);
+    void loadSpecialitiesForOrg({ force: true });
+  }, [primaryOrgId]);
 };
 
 export const useSpecialitiesForPrimaryOrg = (): Speciality[] => {

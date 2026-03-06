@@ -9,6 +9,37 @@ import { OccupancyModel } from "src/models/occupancy";
 
 dayjs.extend(utc);
 
+export class AvailabilityServiceError extends Error {
+  constructor(message: string, public statusCode = 400) {
+    super(message);
+    this.name = "AvailabilityServiceError";
+  }
+}
+
+const asNonEmptyString = (value: unknown): string | undefined => {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed || undefined;
+};
+
+const ensureNonEmptyString = (value: unknown, field: string): string => {
+  const trimmed = asNonEmptyString(value);
+  if (!trimmed) {
+    throw new AvailabilityServiceError(`Invalid ${field}`);
+  }
+  return trimmed;
+};
+
+const isValidDate = (value: unknown): value is Date =>
+  value instanceof Date && !Number.isNaN(value.getTime());
+
+const ensureValidDate = (value: unknown, field: string): Date => {
+  if (!isValidDate(value)) {
+    throw new AvailabilityServiceError(`Invalid ${field}`);
+  }
+  return value;
+};
+
 /* Split one slot into possibly 3 parts around an occupancy */
 function splitSlotAroundOccupancy(
   slot: AvailabilitySlotMongo,
@@ -108,11 +139,20 @@ export const AvailabilityService = {
       slots: AvailabilitySlotMongo[];
     }[],
   ) {
-    await BaseAvailabilityModel.deleteMany({ userId, organisationId });
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
+    const safeUserId = ensureNonEmptyString(userId, "userId");
+
+    await BaseAvailabilityModel.deleteMany({
+      userId: safeUserId,
+      organisationId: safeOrganisationId,
+    });
 
     const rows = availabilities.map((a) => ({
-      organisationId,
-      userId,
+      organisationId: safeOrganisationId,
+      userId: safeUserId,
       dayOfWeek: a.dayOfWeek,
       slots: a.slots,
     }));
@@ -121,11 +161,29 @@ export const AvailabilityService = {
   },
 
   async getBaseAvailability(organisationId: string, userId: string) {
-    return BaseAvailabilityModel.find({ organisationId, userId });
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
+    const safeUserId = ensureNonEmptyString(userId, "userId");
+
+    return BaseAvailabilityModel.find({
+      organisationId: safeOrganisationId,
+      userId: safeUserId,
+    });
   },
 
   async deleteBaseAvailability(organisationId: string, userId: string) {
-    await BaseAvailabilityModel.deleteMany({ organisationId, userId });
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
+    const safeUserId = ensureNonEmptyString(userId, "userId");
+
+    await BaseAvailabilityModel.deleteMany({
+      organisationId: safeOrganisationId,
+      userId: safeUserId,
+    });
   },
 
   // Weekly Overrides
@@ -136,11 +194,17 @@ export const AvailabilityService = {
     weekDate: Date,
     override: { dayOfWeek: DayOfWeek; slots: AvailabilitySlotMongo[] },
   ) {
-    const weekStartDate = normalizeWeekStart(weekDate);
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
+    const safeUserId = ensureNonEmptyString(userId, "userId");
+    const safeWeekDate = ensureValidDate(weekDate, "weekDate");
+    const weekStartDate = normalizeWeekStart(safeWeekDate);
 
     const existing = await WeeklyAvailabilityOverrideModel.findOne({
-      userId,
-      organisationId,
+      userId: safeUserId,
+      organisationId: safeOrganisationId,
       weekStartDate,
     });
 
@@ -153,8 +217,8 @@ export const AvailabilityService = {
       await existing.save();
     } else {
       await WeeklyAvailabilityOverrideModel.create({
-        userId,
-        organisationId,
+        userId: safeUserId,
+        organisationId: safeOrganisationId,
         weekStartDate,
         overrides: [override],
       });
@@ -166,10 +230,17 @@ export const AvailabilityService = {
     userId: string,
     weekDate: Date,
   ) {
-    return WeeklyAvailabilityOverrideModel.findOne({
-      userId,
+    const safeOrganisationId = ensureNonEmptyString(
       organisationId,
-      weekStartDate: normalizeWeekStart(weekDate),
+      "organisationId",
+    );
+    const safeUserId = ensureNonEmptyString(userId, "userId");
+    const safeWeekDate = ensureValidDate(weekDate, "weekDate");
+
+    return WeeklyAvailabilityOverrideModel.findOne({
+      userId: safeUserId,
+      organisationId: safeOrganisationId,
+      weekStartDate: normalizeWeekStart(safeWeekDate),
     });
   },
 
@@ -178,10 +249,17 @@ export const AvailabilityService = {
     userId: string,
     weekDate: Date,
   ) {
-    await WeeklyAvailabilityOverrideModel.deleteOne({
-      userId,
+    const safeOrganisationId = ensureNonEmptyString(
       organisationId,
-      weekStartDate: normalizeWeekStart(weekDate),
+      "organisationId",
+    );
+    const safeUserId = ensureNonEmptyString(userId, "userId");
+    const safeWeekDate = ensureValidDate(weekDate, "weekDate");
+
+    await WeeklyAvailabilityOverrideModel.deleteOne({
+      userId: safeUserId,
+      organisationId: safeOrganisationId,
+      weekStartDate: normalizeWeekStart(safeWeekDate),
     });
   },
 
@@ -195,11 +273,19 @@ export const AvailabilityService = {
     sourceType: "APPOINTMENT" | "BLOCKED" | "SURGERY",
     referenceId?: string,
   ) {
-    await OccupancyModel.create({
-      userId,
+    const safeOrganisationId = ensureNonEmptyString(
       organisationId,
-      startTime,
-      endTime,
+      "organisationId",
+    );
+    const safeUserId = ensureNonEmptyString(userId, "userId");
+    const safeStartTime = ensureValidDate(startTime, "startTime");
+    const safeEndTime = ensureValidDate(endTime, "endTime");
+
+    await OccupancyModel.create({
+      userId: safeUserId,
+      organisationId: safeOrganisationId,
+      startTime: safeStartTime,
+      endTime: safeEndTime,
       sourceType,
       referenceId,
     });
@@ -215,10 +301,16 @@ export const AvailabilityService = {
       referenceId?: string;
     }[],
   ): Promise<void> {
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
+    const safeUserId = ensureNonEmptyString(userId, "userId");
+
     const docs = items.map((i) => ({
       ...i,
-      organisationId,
-      userId,
+      organisationId: safeOrganisationId,
+      userId: safeUserId,
     }));
 
     await OccupancyModel.insertMany(docs);
@@ -230,11 +322,19 @@ export const AvailabilityService = {
     from: Date,
     to: Date,
   ) {
-    return OccupancyModel.find({
-      userId,
+    const safeOrganisationId = ensureNonEmptyString(
       organisationId,
-      startTime: { $lt: to },
-      endTime: { $gt: from },
+      "organisationId",
+    );
+    const safeUserId = ensureNonEmptyString(userId, "userId");
+    const safeFrom = ensureValidDate(from, "from");
+    const safeTo = ensureValidDate(to, "to");
+
+    return OccupancyModel.find({
+      userId: safeUserId,
+      organisationId: safeOrganisationId,
+      startTime: { $lt: safeTo },
+      endTime: { $gt: safeFrom },
     }).lean();
   },
 
@@ -245,8 +345,15 @@ export const AvailabilityService = {
     userId: string,
     referenceDate: Date,
   ) {
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
+    const safeUserId = ensureNonEmptyString(userId, "userId");
+    const safeReferenceDate = ensureValidDate(referenceDate, "referenceDate");
+
     // Always calculate week starting Monday (UTC)
-    const weekStart = dayjs(referenceDate)
+    const weekStart = dayjs(safeReferenceDate)
       .utc()
       .startOf("week") // Sunday
       .add(1, "day") // => Monday
@@ -263,7 +370,10 @@ export const AvailabilityService = {
     });
 
     // Load base availability
-    const base = await this.getBaseAvailability(organisationId, userId);
+    const base = await this.getBaseAvailability(
+      safeOrganisationId,
+      safeUserId,
+    );
 
     // Convert base into map: { MONDAY → [...slots] }
     const map = new Map<DayOfWeek, AvailabilitySlotMongo[]>();
@@ -274,8 +384,8 @@ export const AvailabilityService = {
 
     // Load weekly override (if exists)
     const override = await this.getWeeklyAvailabilityOverride(
-      organisationId,
-      userId,
+      safeOrganisationId,
+      safeUserId,
       weekStart,
     );
 
@@ -289,8 +399,8 @@ export const AvailabilityService = {
     const weekEnd = dayjs(weekStart).add(7, "day").endOf("day").toDate();
 
     const occupancies = await OccupancyModel.find({
-      userId,
-      organisationId,
+      userId: safeUserId,
+      organisationId: safeOrganisationId,
       $or: [{ startTime: { $lte: weekEnd }, endTime: { $gte: weekStart } }],
     }).lean();
 
@@ -329,14 +439,16 @@ export const AvailabilityService = {
     userId: string,
     referenceDate: Date,
   ) {
+    const safeReferenceDate = ensureValidDate(referenceDate, "referenceDate");
+
     const week = await this.getWeeklyFinalAvailability(
       organisationId,
       userId,
-      referenceDate,
+      safeReferenceDate,
     );
 
-    const dayOfWeek = getDayOfWeekFromDate(referenceDate);
-    const dateStr = getDateString(referenceDate);
+    const dayOfWeek = getDayOfWeekFromDate(safeReferenceDate);
+    const dateStr = getDateString(safeReferenceDate);
 
     const dayEntry = week.find((d) => d.dayOfWeek === dayOfWeek);
 
@@ -350,35 +462,45 @@ export const AvailabilityService = {
   async getCurrentStatus(
     organisationId: string,
     userId: string,
-  ): Promise<"Consulting" | "Available" | "Off-Duty" | "Requested"> {
-    const now = dayjs();
-    const today = now.toDate();
-
-    const { slots } = await this.getFinalAvailabilityForDate(
+  ): Promise<"Consulting" | "Available" | "Off-Duty" | "Unavailable"> {
+    const safeOrganisationId = ensureNonEmptyString(
       organisationId,
-      userId,
+      "organisationId",
+    );
+    const safeUserId = ensureNonEmptyString(userId, "userId");
+
+    const nowUtc = dayjs.utc();
+    const today = nowUtc.toDate();
+
+    const { slots, date } = await this.getFinalAvailabilityForDate(
+      safeOrganisationId,
+      safeUserId,
       today,
     );
 
     const occupied = await OccupancyModel.exists({
-      organisationId,
-      userId,
-      startTime: { $lte: now.toDate() },
-      endTime: { $gte: now.toDate() },
+      organisationId: safeOrganisationId,
+      userId: safeUserId,
+      startTime: { $lte: nowUtc.toDate() },
+      endTime: { $gte: nowUtc.toDate() },
     });
 
     if (occupied) return "Consulting";
 
-    const activeSlot = slots.find(
-      (s) =>
-        now.isAfter(dayjs(s.startTime, "HH:mm")) &&
-        now.isBefore(dayjs(s.endTime, "HH:mm")),
-    );
+    const activeSlot = slots.find((s) => {
+      const slotStart = dayjs.utc(`${date}T${s.startTime}:00`);
+      const slotEnd = dayjs.utc(`${date}T${s.endTime}:00`);
+      const startsNowOrEarlier =
+        nowUtc.isSame(slotStart) || nowUtc.isAfter(slotStart);
+      return startsNowOrEarlier && nowUtc.isBefore(slotEnd);
+    });
+
+
 
     if (activeSlot) return "Available";
     if (slots.length === 0) return "Off-Duty";
 
-    return "Requested";
+    return "Unavailable";
   },
 
   // Get Bookable slots
@@ -389,11 +511,13 @@ export const AvailabilityService = {
     windowMinutes: number,
     referenceDate: Date,
   ) {
+    const safeReferenceDate = ensureValidDate(referenceDate, "referenceDate");
+
     // 1. Get final availability (with occupancy applied)
     const finalForDate = await this.getFinalAvailabilityForDate(
       organisationId,
       userId,
-      referenceDate,
+      safeReferenceDate,
     );
 
     const dateStr = finalForDate.date;
@@ -407,5 +531,32 @@ export const AvailabilityService = {
       dayOfWeek: finalForDate.dayOfWeek,
       windows,
     };
+  },
+
+  async getWeeklyWorkingHours(
+    organisationId: string,
+    userId: string,
+    referenceDate: Date,
+  ): Promise<number> {
+    const safeReferenceDate = ensureValidDate(referenceDate, "referenceDate");
+
+    const weekly = await this.getWeeklyFinalAvailability(
+      organisationId,
+      userId,
+      safeReferenceDate,
+    );
+
+    let totalMinutes = 0;
+
+    for (const day of weekly) {
+      for (const slot of day.slots) {
+        const start = dayjs.utc(`${day.date}T${slot.startTime}:00`);
+        const end = dayjs.utc(`${day.date}T${slot.endTime}:00`);
+        const diff = end.diff(start, "minute");
+        if (diff > 0) totalMinutes += diff;
+      }
+    }
+
+    return totalMinutes / 60; // hours
   },
 };

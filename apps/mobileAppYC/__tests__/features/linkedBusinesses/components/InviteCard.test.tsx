@@ -1,35 +1,12 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, screen} from '@testing-library/react-native';
 import InviteCard from '../../../../src/features/linkedBusinesses/components/InviteCard';
 
 // --- Mocks ---
 
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        text: 'black',
-        textSecondary: 'gray',
-        background: 'white',
-        surface: 'gray',
-        border: 'black',
-        secondary: 'blue',
-        white: 'white',
-      },
-      spacing: [0, 4, 8, 12, 16, 20], // Array access style based on usage in component (theme.spacing[4])
-      typography: {
-        h4Alt: {fontSize: 20, fontWeight: 'bold'},
-        labelXsBold: {fontSize: 12, fontWeight: 'bold'},
-        bodyExtraSmall: {fontSize: 10},
-        captionBoldSatoshi: {fontSize: 12, fontWeight: 'bold'},
-        titleSmall: {fontSize: 14},
-      },
-      borderRadius: {
-        md: 8,
-        lg: 12,
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 jest.mock('@/shared/components/common/LiquidGlassCard/LiquidGlassCard', () => ({

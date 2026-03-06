@@ -14,8 +14,15 @@ import type {
   ObservationalTool,
   TaskFrequency,
 } from '@/features/tasks/types';
+import {mockTheme} from '../../setup/mockTheme';
 
 // --- Mocks ---
+
+jest.mock('@/hooks', () => ({
+  useTheme: () => ({theme: require('../../setup/mockTheme').mockTheme, isDark: false}),
+  useAppDispatch: () => jest.fn(),
+  useAppSelector: jest.fn(),
+}));
 
 // FIX 3: Update mocked component path
 jest.mock('@/shared/components/common', () => {
@@ -129,6 +136,11 @@ jest.mock('@/features/tasks/components/shared/taskFormStyles', () => ({
   createTaskFormSectionStyles: jest.fn(() => ({})),
 }));
 
+// Mock resolveObservationalToolLabel
+jest.mock('@/features/tasks/utils/taskLabels', () => ({
+  resolveObservationalToolLabel: jest.fn((tool: string) => tool),
+}));
+
 // Mock RN Image
 jest.mock('react-native/Libraries/Image/Image', () => {
   const {View, Text} = require('react-native');
@@ -142,7 +154,7 @@ jest.mock('react-native/Libraries/Image/Image', () => {
 });
 
 // --- Mock Data ---
-const mockTheme = {spacing: {}, colors: {}, typography: {}};
+
 
 const baseFormData: TaskFormData = {
   title: 'Take Observational Tool',
@@ -189,7 +201,6 @@ const renderComponent = (
 
   const mockUpdateField = jest.fn();
   const mockOnOpenObservationalToolSheet = jest.fn();
-  const mockOnOpenDatePicker = jest.fn();
   const mockOnOpenTimePicker = jest.fn();
   const mockOnOpenTaskFrequencySheet = jest.fn();
 
@@ -202,7 +213,6 @@ const renderComponent = (
       errors={fullErrors}
       updateField={mockUpdateField}
       onOpenObservationalToolSheet={mockOnOpenObservationalToolSheet}
-      onOpenDatePicker={mockOnOpenDatePicker}
       onOpenTimePicker={mockOnOpenTimePicker}
       onOpenTaskFrequencySheet={mockOnOpenTaskFrequencySheet}
       theme={mockTheme}
@@ -212,7 +222,6 @@ const renderComponent = (
   return {
     mockUpdateField,
     mockOnOpenObservationalToolSheet,
-    mockOnOpenDatePicker,
     mockOnOpenTimePicker,
     mockOnOpenTaskFrequencySheet,
   };
@@ -238,7 +247,7 @@ describe('ObservationalToolFormSection', () => {
       expect(
         screen.getByText('Placeholder: Select observational tool'),
       ).toBeTruthy();
-      expect(screen.getByText('Placeholder: Date')).toBeTruthy();
+      // Note: Date is now handled by TaskFormFields with CalendarMonthStrip
       expect(screen.getByText('Placeholder: Time')).toBeTruthy();
       expect(screen.getByText('Placeholder: Task frequency')).toBeTruthy();
     });
@@ -258,11 +267,11 @@ describe('ObservationalToolFormSection', () => {
         },
       });
 
-      expect(mockFormatDateForDisplay).toHaveBeenCalledWith(testDate);
+      // Date is handled by TaskFormFields with CalendarMonthStrip
       expect(mockFormatTimeForDisplay).toHaveBeenCalledWith(testTime);
 
       expect(screen.getByText(`Value: ${tool}`)).toBeTruthy();
-      expect(screen.getByText('Value: FormattedDate: 2025-10-29')).toBeTruthy();
+      // Note: Date display is now handled by CalendarMonthStrip in TaskFormFields
       expect(screen.getByText('Value: FormattedTime: 14:30:00')).toBeTruthy();
       expect(screen.getByText(`Value: ${freq}`)).toBeTruthy();
     });
@@ -271,14 +280,13 @@ describe('ObservationalToolFormSection', () => {
       renderComponent({
         errors: {
           observationalTool: 'Tool error',
-          date: 'Date error',
           time: 'Time error',
           frequency: 'Frequency error',
         },
       });
 
       expect(screen.getByText('Error: Tool error')).toBeTruthy();
-      expect(screen.getByText('Error: Date error')).toBeTruthy();
+      // Note: Date errors are handled by TaskFormFields
       expect(screen.getByText('Error: Time error')).toBeTruthy();
       expect(screen.getByText('Error: Frequency error')).toBeTruthy();
     });
@@ -293,10 +301,7 @@ describe('ObservationalToolFormSection', () => {
         within(toolInput).getByText(`Icon: ${Images.dropdownIcon}`),
       ).toBeTruthy();
 
-      const dateInput = screen.getByTestId('mock-touchable-Date');
-      expect(
-        within(dateInput).getByText(`Icon: ${Images.calendarIcon}`),
-      ).toBeTruthy();
+      // Note: Date icon is now handled by TaskFormFields with CalendarMonthStrip
 
       const timeInput = screen.getByTestId('mock-touchable-Time');
       expect(
@@ -326,11 +331,7 @@ describe('ObservationalToolFormSection', () => {
       expect(mockOnOpenObservationalToolSheet).toHaveBeenCalledTimes(1);
     });
 
-    it('calls onOpenDatePicker when pressed', () => {
-      const {mockOnOpenDatePicker} = renderComponent();
-      fireEvent.press(screen.getByTestId('mock-touchable-Date'));
-      expect(mockOnOpenDatePicker).toHaveBeenCalledTimes(1);
-    });
+    // Note: Date picker interaction is now handled by TaskFormFields with CalendarMonthStrip
 
     it('calls onOpenTimePicker when pressed', () => {
       const {mockOnOpenTimePicker} = renderComponent();

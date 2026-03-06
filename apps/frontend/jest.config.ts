@@ -21,6 +21,9 @@ const config: Config = {
   // The directory where Jest should store its cached dependency information
   // cacheDirectory: "/private/var/folders/vv/3t3btncj0416sw4f557ff9km0000gn/T/jest_dx",
 
+  // Disable watchman to avoid permission issues in constrained environments.
+  watchman: false,
+
   // Automatically clear mock calls, instances, contexts and results before every test
   clearMocks: true,
 
@@ -28,7 +31,16 @@ const config: Config = {
   collectCoverage: true,
 
   // An array of glob patterns indicating a set of files for which coverage information should be collected
-  collectCoverageFrom: ["<rootDir>/src/app/**/*.{ts,tsx}"],
+  collectCoverageFrom: [
+    "<rootDir>/src/**/*.{ts,tsx}",
+    "!<rootDir>/src/**/*.d.ts",
+    "!<rootDir>/src/**/*.test.ts",
+    "!<rootDir>/src/**/*.test.tsx",
+    "!<rootDir>/src/**/*.spec.ts",
+    "!<rootDir>/src/**/*.spec.tsx",
+    "!<rootDir>/src/**/tests/**",
+    "!<rootDir>/src/**/__tests__/**",
+  ],
 
   // The directory where Jest should output its coverage files
   coverageDirectory: "coverage",
@@ -42,12 +54,7 @@ const config: Config = {
   coverageProvider: "v8",
 
   // A list of reporter names that Jest uses when writing coverage reports
-  // coverageReporters: [
-  //   "json",
-  //   "text",
-  //   "lcov",
-  //   "clover"
-  // ],
+  coverageReporters: ["text-summary", "lcov"],
 
   // An object that configures minimum threshold enforcement for coverage results
   // coverageThreshold: undefined,
@@ -154,8 +161,12 @@ const config: Config = {
   // A list of paths to modules that run some code to configure or set up the testing framework before each test
   setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
 
+
   // The number of seconds after which a test is considered as slow and reported as such in the results.
-  // slowTestThreshold: 5,
+  slowTestThreshold: 5,
+
+  // Test timeout to prevent infinite runs
+  testTimeout: 30000,
 
   // A list of paths to snapshot serializer modules Jest should use for snapshot testing
   // snapshotSerializers: [],

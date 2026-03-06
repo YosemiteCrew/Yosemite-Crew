@@ -38,6 +38,11 @@ Object.defineProperty(globalThis, "IntersectionObserver", {
   value: IntersectionObserverMock,
 });
 
+Object.defineProperty(HTMLElement.prototype, "scrollTo", {
+  value: jest.fn(),
+  writable: true,
+});
+
 beforeAll(() => {
   window.scrollTo = jest.fn();
   // Silence noisy logs but keep them visible locally by toggling with an env flag if you want
@@ -50,6 +55,9 @@ beforeAll(() => {
   jest.spyOn(console, "error").mockImplementation((...args) => {
     throw new Error("Unexpected console.error: " + args.join(" "));
   });
+
+  // Set a default timeout for all tests to prevent infinite runs
+  jest.setTimeout(30000); // 30 seconds
 });
 
 afterAll(() => {
@@ -70,7 +78,7 @@ jest.mock("@iconify/react/dist/iconify.js", () => ({
 }));
 
 // Mock Next.js navigation hooks for tests
-jest.mock('next/navigation', () => ({
+jest.mock("next/navigation", () => ({
   useRouter: () => ({
     push: jest.fn(),
     replace: jest.fn(),
@@ -82,3 +90,9 @@ jest.mock('next/navigation', () => ({
   }),
   usePathname: () => "/",
 }));
+
+// Global test cleanup to prevent hanging
+afterEach(() => {
+  // Clear any pending timers
+  jest.clearAllTimers();
+});

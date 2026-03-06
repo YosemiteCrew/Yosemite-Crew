@@ -1,12 +1,5 @@
 import React from 'react';
-import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {ActivityIndicator, ScrollView, Text, View} from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {Header} from '@/shared/components/common';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
@@ -21,6 +14,8 @@ import {
   type OrganisationDocument,
 } from '../services/organisationDocumentService';
 import type {AppointmentStackParamList} from '@/navigation/types';
+import {useCommonScreenStyles} from '@/shared/utils/screenStyles';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
 type Props = NativeStackScreenProps<AppointmentStackParamList, 'OrganisationDocument'>;
 
@@ -80,7 +75,7 @@ export const OrganisationDocumentScreen: React.FC<Props> = ({navigation, route})
   const {organisationId, organisationName, category} = route.params;
   const {theme} = useTheme();
   const baseStyles = React.useMemo(() => createLegalStyles(theme), [theme]);
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const styles = useCommonScreenStyles(theme);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [sections, setSections] = React.useState<LegalSection[]>([]);
@@ -131,8 +126,9 @@ export const OrganisationDocumentScreen: React.FC<Props> = ({navigation, route})
   } else if (error) {
     content = (
       <LiquidGlassCard
-        glassEffect="regular"
-        interactive
+        glassEffect="clear"
+        padding="4"
+        shadow="sm"
         style={styles.statusCard}
         fallbackStyle={styles.cardFallback}>
         <Text style={styles.statusTitle}>Unable to load</Text>
@@ -141,7 +137,7 @@ export const OrganisationDocumentScreen: React.FC<Props> = ({navigation, route})
           title="Retry"
           onPress={loadDocuments}
           height={48}
-          borderRadius={14}
+          borderRadius={16}
           shadowIntensity="medium"
         />
       </LiquidGlassCard>
@@ -151,8 +147,9 @@ export const OrganisationDocumentScreen: React.FC<Props> = ({navigation, route})
   } else {
     content = (
       <LiquidGlassCard
-        glassEffect="regular"
-        interactive
+        glassEffect="clear"
+        padding="4"
+        shadow="sm"
         style={styles.statusCard}
         fallbackStyle={styles.cardFallback}>
         <Text style={styles.statusTitle}>No content available</Text>
@@ -164,50 +161,33 @@ export const OrganisationDocumentScreen: React.FC<Props> = ({navigation, route})
   }
 
   return (
-    <SafeAreaView style={baseStyles.safeArea}>
-      <Header
-        title={screenTitle}
-        showBackButton
-        onBack={() => navigation.goBack()}
-      />
-
-      <ScrollView
-        style={baseStyles.container}
-        contentContainerStyle={[
-          baseStyles.contentContainer,
-          !hasContent && !error && !loading ? styles.centerContent : null,
-        ]}
-        showsVerticalScrollIndicator={false}>
-        {content}
-      </ScrollView>
-    </SafeAreaView>
+    <LiquidGlassHeaderScreen
+      header={
+        <Header
+          title={screenTitle}
+          showBackButton
+          onBack={() => navigation.goBack()}
+          glass={false}
+        />
+      }
+      cardGap={theme.spacing['3']}
+      contentPadding={theme.spacing['1']}
+      useSafeAreaView
+      showBottomFade={false}>
+      {contentPaddingStyle => (
+        <ScrollView
+          style={baseStyles.container}
+          contentContainerStyle={[
+            baseStyles.contentContainer,
+            contentPaddingStyle,
+            !hasContent && !error && !loading ? styles.centerContent : null,
+          ]}
+          showsVerticalScrollIndicator={false}>
+          {content}
+        </ScrollView>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
-
-const createStyles = (theme: any) =>
-  StyleSheet.create({
-    statusCard: {
-      gap: theme.spacing['2'],
-      padding: theme.spacing['4'],
-    },
-    centerContent: {
-      flexGrow: 1,
-      justifyContent: 'center',
-    },
-    statusTitle: {
-      ...theme.typography.subtitleBold14,
-      color: theme.colors.text,
-    },
-    statusText: {
-      ...theme.typography.subtitleRegular14,
-      color: theme.colors.textSecondary,
-    },
-    cardFallback: {
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.cardBackground,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-    },
-  });
 
 export default OrganisationDocumentScreen;

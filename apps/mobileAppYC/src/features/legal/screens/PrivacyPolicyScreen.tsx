@@ -12,9 +12,9 @@ if (__DEV__) {
   }
 }
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
-import type {HomeStackParamList} from '@/navigation/types';
+import type {LegalStackParamList} from '@/navigation/types';
 
-type PrivacyScreenProps = NativeStackScreenProps<HomeStackParamList, 'PrivacyPolicy'>;
+type PrivacyScreenProps = NativeStackScreenProps<LegalStackParamList, 'PrivacyPolicy'>;
 
 export const PrivacyPolicyScreen: React.FC<PrivacyScreenProps> = (props) => (
   <LegalScreen

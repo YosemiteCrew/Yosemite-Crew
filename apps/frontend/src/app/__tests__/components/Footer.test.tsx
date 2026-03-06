@@ -1,7 +1,8 @@
+/* eslint-disable @next/next/no-img-element */
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import Footer from "@/app/components/Footer/Footer";
+import Footer from "@/app/ui/widgets/Footer/Footer";
 
 jest.mock("next/image", () => {
     const MockImage = (props: any) => {
@@ -50,19 +51,19 @@ describe("Footer Component", () => {
     });
 
     it("should render all navigation section titles", () => {
-        expect(screen.getByRole("heading", { name: "Developers" })).toBeInTheDocument();
-        expect(screen.getByRole("heading", { name: "Community" })).toBeInTheDocument();
-        expect(screen.getByRole("heading", { name: "Company" })).toBeInTheDocument();
+        expect(screen.getByText("Developers")).toBeInTheDocument();
+        expect(screen.getByText("Community")).toBeInTheDocument();
+        expect(screen.getByText("Company")).toBeInTheDocument();
     });
 
     it("should render all navigation links with correct href attributes", () => {
         const gettingStartedLink = screen.getByRole("link", { name: "Developer portal" });
         expect(gettingStartedLink).toBeInTheDocument();
-        expect(gettingStartedLink).toHaveAttribute("href","https://github.com/YosemiteCrew/Yosemite-Crew/");
+        expect(gettingStartedLink).toHaveAttribute("href", "/developers/signup");
 
         const discordLink = screen.getByRole("link", { name: "Discord" });
         expect(discordLink).toBeInTheDocument();
-        expect(discordLink).toHaveAttribute("href", "https://discord.gg/4zDVekEz");
+        expect(discordLink).toHaveAttribute("href", "https://discord.gg/yosemitecrew");
 
         const aboutUsLink = screen.getByRole("link", { name: "About us" });
         expect(aboutUsLink).toBeInTheDocument();
@@ -70,7 +71,9 @@ describe("Footer Component", () => {
     });
 
     it("should render the copyright and contact information", () => {
-        expect(screen.getByText(/Copyright © 2025 DuneXploration/i)).toBeInTheDocument();
+        expect(screen.getByText((_content, element) => {
+            return element?.textContent === 'Copyright © 2026 DuneXploration';
+        })).toBeInTheDocument();
 
         const emailLink = screen.getByRole("link", { name: "support@yosemitecrew.com" });
         expect(emailLink).toBeInTheDocument();

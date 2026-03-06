@@ -1,7 +1,7 @@
 import "../../../jest.mocks/testMocks";
 
 import React from "react";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
 const mockPathname = jest.fn();
@@ -17,7 +17,7 @@ jest.mock("@/app/stores/authStore", () => ({
   useAuthStore: () => mockUseAuthStore(),
 }));
 
-import GuestHeader from "@/app/components/Header/GuestHeader/GuestHeader";
+import GuestHeader from "@/app/ui/layout/Header/GuestHeader/GuestHeader";
 
 describe("GuestHeader", () => {
   beforeEach(() => {
@@ -41,35 +41,33 @@ describe("GuestHeader", () => {
     expect(ctas[0]).toHaveAttribute("href", "/organizations");
   });
 
-  test("hides CTA on auth routes", () => {
+  test("shows Sign up CTA on signin page for unauthenticated users", () => {
     mockPathname.mockReturnValue("/signin");
     mockUseAuthStore.mockReturnValue({ user: null });
 
     render(<GuestHeader />);
-    expect(screen.queryByTestId("primary-btn")).not.toBeInTheDocument();
+    const cta = screen.queryByTestId("primary-btn");
+    expect(cta).toBeInTheDocument();
+    expect(cta).toHaveTextContent("Sign up");
+    expect(cta).toHaveAttribute("href", "/signup");
   });
 
-  test("mobile menu navigates with animation delay", () => {
-    mockPathname.mockReturnValue("/pricing");
+  test("shows Sign in CTA on signup page for unauthenticated users", () => {
+    mockPathname.mockReturnValue("/signup");
     mockUseAuthStore.mockReturnValue({ user: null });
 
     render(<GuestHeader />);
+    const cta = screen.queryByTestId("primary-btn");
+    expect(cta).toBeInTheDocument();
+    expect(cta).toHaveTextContent("Sign in");
+    expect(cta).toHaveAttribute("href", "/signin");
+  });
 
-    fireEvent.click(screen.getByLabelText("Open menu"));
-    const pricingButton = screen
-      .getAllByRole("button", { name: "Pricing" })
-      .find((el) => el.classList.contains("mobile-menu-item-button"));
-    expect(pricingButton).toBeDefined();
+  test("hides CTA on organizations page", () => {
+    mockPathname.mockReturnValue("/organizations");
+    mockUseAuthStore.mockReturnValue({ user: { id: "123" } });
 
-    if (!pricingButton) {
-      throw new Error("Pricing button not found in mobile menu");
-    }
-
-    fireEvent.click(pricingButton);
-    act(() => {
-      jest.advanceTimersByTime(400);
-    });
-
-    expect(mockPush).toHaveBeenCalledWith("/pricing");
+    render(<GuestHeader />);
+    expect(screen.queryByTestId("primary-btn")).not.toBeInTheDocument();
   });
 });

@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {Header, Input, TouchableInput} from '@/shared/components/common';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
@@ -1036,6 +1036,8 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
           }}
           glassEffect="regular"
           interactive
+          tintColor={theme.colors.secondary}
+          borderColor={theme.colors.borderMuted}
           style={styles.button}
           textStyle={styles.buttonText}
           height={56}
@@ -1063,84 +1065,94 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <Header
-        title="Contact us"
-        showBackButton
-        onBack={() => navigation.goBack()}
-      />
-
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
-          style={styles.flex}
-          contentContainerStyle={styles.contentContainer}
-          showsVerticalScrollIndicator={false}>
-          <View style={styles.heroCard}>
-            <Image source={Images.contactHero} style={styles.heroImage} />
-            <View style={styles.heroTextContainerCenter}>
-              <Text style={styles.heroTitle}>We’re happy to help</Text>
-            </View>
-          </View>
-
-          <PillSelector
-            options={CONTACT_TABS.map(tab => ({id: tab.id, label: tab.label}))}
-            selectedId={activeTab}
-            onSelect={id => setActiveTab(id as ContactTabId)}
-            containerStyle={styles.pillContainer}
-            allowScroll={false}
+    <>
+      <LiquidGlassHeaderScreen
+        header={
+          <Header
+            title="Contact us"
+            showBackButton
+            onBack={() => navigation.goBack()}
+            glass={false}
           />
-
-          {renderActiveTabContent()}
-        </ScrollView>
-      </KeyboardAvoidingView>
-
-      <DataSubjectLawBottomSheet
-        ref={lawSheetRef}
-        selectedLawId={dsarForm.lawId}
-        onSelect={item => {
-          const nextLawId = item?.id ?? null;
-          setDsarForm(prev => ({
-            ...prev,
-            lawId: nextLawId,
-            otherLawNotes: nextLawId === 'other' ? prev.otherLawNotes : '',
-          }));
-          setDsarErrors(prev => {
-            const next = {...prev};
-            if (next.lawId) {
-              delete next.lawId;
-            }
-            if (nextLawId !== 'other' && next.otherLawNotes) {
-              delete next.otherLawNotes;
-            }
-            return next;
-          });
-        }}
-      />
-      <UploadDocumentBottomSheet
-        ref={uploadSheetRef}
-        onTakePhoto={() => {
-          handleTakePhoto();
-        }}
-        onChooseGallery={() => {
-          handleChooseFromGallery();
-        }}
-        onUploadDrive={() => {
-          handleUploadFromDrive();
-        }}
-      />
-
-      <DeleteDocumentBottomSheet
-        ref={deleteSheetRef}
-        documentTitle={
-          fileToDelete
-            ? complaintAttachments.find(f => f.id === fileToDelete)?.name
-            : 'this file'
         }
-        onDelete={confirmDeleteFile}
-      />
-    </SafeAreaView>
+        contentPadding={theme.spacing['3']}
+        useSafeAreaView
+        containerStyle={styles.safeArea}
+        showBottomFade={false}>
+        {contentPaddingStyle => (
+          <KeyboardAvoidingView
+            style={styles.flex}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <ScrollView
+              style={styles.flex}
+              contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}
+              showsVerticalScrollIndicator={false}>
+              <View style={styles.heroCard}>
+                <Image source={Images.contactHero} style={styles.heroImage} />
+                <View style={styles.heroTextContainerCenter}>
+                  <Text style={styles.heroTitle}>We’re happy to help</Text>
+                </View>
+              </View>
+
+              <PillSelector
+                options={CONTACT_TABS.map(tab => ({id: tab.id, label: tab.label}))}
+                selectedId={activeTab}
+                onSelect={id => setActiveTab(id as ContactTabId)}
+                containerStyle={styles.pillContainer}
+                allowScroll={false}
+              />
+
+              {renderActiveTabContent()}
+            </ScrollView>
+          </KeyboardAvoidingView>
+        )}
+      </LiquidGlassHeaderScreen>
+
+    <DataSubjectLawBottomSheet
+      ref={lawSheetRef}
+      selectedLawId={dsarForm.lawId}
+      onSelect={item => {
+        const nextLawId = item?.id ?? null;
+        setDsarForm(prev => ({
+          ...prev,
+          lawId: nextLawId,
+          otherLawNotes: nextLawId === 'other' ? prev.otherLawNotes : '',
+        }));
+        setDsarErrors(prev => {
+          const next = {...prev};
+          if (next.lawId) {
+            delete next.lawId;
+          }
+          if (nextLawId !== 'other' && next.otherLawNotes) {
+            delete next.otherLawNotes;
+          }
+          return next;
+        });
+      }}
+    />
+    <UploadDocumentBottomSheet
+      ref={uploadSheetRef}
+      onTakePhoto={() => {
+        handleTakePhoto();
+      }}
+      onChooseGallery={() => {
+        handleChooseFromGallery();
+      }}
+      onUploadDrive={() => {
+        handleUploadFromDrive();
+      }}
+    />
+
+    <DeleteDocumentBottomSheet
+      ref={deleteSheetRef}
+      documentTitle={
+        fileToDelete
+          ? complaintAttachments.find(f => f.id === fileToDelete)?.name
+          : 'this file'
+      }
+      onDelete={confirmDeleteFile}
+    />
+    </>
   );
 };
 
@@ -1154,7 +1166,6 @@ const createStyles = (theme: any) =>
       flex: 1,
     },
     contentContainer: {
-      marginTop: -20,
       paddingBottom: theme.spacing['10'],
       paddingHorizontal: theme.spacing['5'],
       gap: theme.spacing['4'],
@@ -1166,8 +1177,8 @@ const createStyles = (theme: any) =>
       padding: theme.spacing['4'],
     },
     heroImage: {
-      width: 320,
-      height: 320,
+      width: theme.spacing['80'],
+      height: theme.spacing['80'],
       resizeMode: 'contain',
       alignSelf: 'center',
     },
@@ -1182,8 +1193,6 @@ const createStyles = (theme: any) =>
     },
     heroTitle: {
       ...theme.typography.h3,
-      fontSize: 29,
-      letterSpacing: -0.29,
       color: theme.colors.text,
       textAlign: 'center',
     },
@@ -1192,8 +1201,8 @@ const createStyles = (theme: any) =>
       color: theme.colors.textSecondary,
     },
     dropdownIcon: {
-      width: 20,
-      height: 20,
+      width: theme.spacing['5'],
+      height: theme.spacing['5'],
       resizeMode: 'contain',
       tintColor: theme.colors.textSecondary,
     },
@@ -1216,17 +1225,13 @@ const createStyles = (theme: any) =>
       minHeight: 120,
     },
     sectionLabel: {
-      fontFamily:
-        theme.typography.titleSmall.fontFamily || 'ClashGrotesk-Medium',
-      fontSize: 16,
-      fontWeight: '500',
-      lineHeight: 16 * 1.2,
+      ...theme.typography.titleSmall,
       color: theme.colors.text,
     },
     optionsBox: {
       borderWidth: 1,
       borderColor: theme.colors.border,
-      borderRadius: 16,
+      borderRadius: theme.borderRadius.lg,
       overflow: 'hidden',
       backgroundColor: theme.colors.cardBackground,
     },
@@ -1245,7 +1250,7 @@ const createStyles = (theme: any) =>
       ...theme.typography.paragraphBold,
     },
     errorText: {
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.error,
       marginTop: 3,
       marginBottom: theme.spacing['3'],
@@ -1256,15 +1261,11 @@ const createStyles = (theme: any) =>
     },
     checkboxLabel: {
       ...theme.typography.subtitleRegular14,
-      fontSize: 15,
-      fontWeight: '400',
       color: theme.colors.text,
       letterSpacing: -0.3,
     },
     checkboxLabelChecked: {
       ...theme.typography.subtitleBold14,
-      fontSize: 15,
-      fontWeight: '700',
       color: theme.colors.text,
       letterSpacing: -0.3,
     },
@@ -1280,8 +1281,8 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.primarySurface,
     },
     uploadIcon: {
-      width: 40,
-      height: 40,
+      width: theme.spacing['10'],
+      height: theme.spacing['10'],
       tintColor: theme.colors.primary,
       resizeMode: 'contain',
     },
@@ -1295,10 +1296,10 @@ const createStyles = (theme: any) =>
       borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
       borderColor: theme.colors.borderMuted,
-      shadowColor: '#000000',
-      shadowOffset: {width: 0, height: 8},
+      shadowColor: theme.colors.black,
+      shadowOffset: {width: 0, height: theme.spacing['2']},
       shadowOpacity: 0.15,
-      shadowRadius: 12,
+      shadowRadius: theme.spacing['3'],
       elevation: 4,
     },
     buttonText: {

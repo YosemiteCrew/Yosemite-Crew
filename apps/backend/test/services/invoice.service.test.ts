@@ -1,3 +1,4 @@
+import { jest, describe, it, expect, beforeEach } from "@jest/globals";
 import { Types } from "mongoose";
 import { InvoiceService, InvoiceServiceError } from "../../src/services/invoice.service";
 import InvoiceModel from "../../src/models/invoice";
@@ -27,6 +28,13 @@ jest.mock("../../src/models/organization", () => ({
 jest.mock("../../src/services/stripe.service", () => ({
   StripeService: {
     refundPaymentIntent: jest.fn(),
+  },
+}));
+jest.mock("../../src/services/stripe.service");
+jest.mock("../../src/services/notification.service");
+jest.mock("../../src/services/audit-trail.service", () => ({
+  AuditTrailService: {
+    recordSafely: jest.fn(),
   },
 }));
 
@@ -109,6 +117,10 @@ const mockSortChain = {
 };
 
 describe("InvoiceService", () => {
+  const validId = new Types.ObjectId().toString();
+  const appointmentId = new Types.ObjectId().toString();
+  const parentId = new Types.ObjectId().toString();
+
   beforeEach(() => {
     jest.clearAllMocks();
     (InvoiceModel.find as jest.Mock).mockReturnValue(mockSortChain);

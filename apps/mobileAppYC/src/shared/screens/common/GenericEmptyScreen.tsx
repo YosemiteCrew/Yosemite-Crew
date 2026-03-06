@@ -46,18 +46,18 @@ const createStyles = (theme: any) =>
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      paddingHorizontal: theme.spacing[6],
+      paddingHorizontal: theme.spacing['6'],
     },
     emptyImage: {
       width: 200,
       height: 200,
       resizeMode: 'contain',
-      marginBottom: theme.spacing[6],
+      marginBottom: theme.spacing['6'],
     },
     title: {
       ...theme.typography.headlineMedium,
       color: theme.colors.secondary,
-      marginBottom: theme.spacing[3],
+      marginBottom: theme.spacing['3'],
       textAlign: 'center',
     },
     subtitle: {

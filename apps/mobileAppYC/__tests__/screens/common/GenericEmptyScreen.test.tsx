@@ -1,29 +1,18 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render} from '@testing-library/react-native';
 import {GenericEmptyScreen} from '@/shared/screens/common/GenericEmptyScreen';
 
 // --- Mocks ---
 
 // 1. Mock hooks
-jest.mock('@/hooks', () => ({
-  useTheme: jest.fn(() => ({
-    theme: {
-      colors: {
-        background: '#ffffff',
-        secondary: '#111111',
-        textSecondary: '#666666',
-      },
-      spacing: {
-        3: 12,
-        6: 24,
-      },
-      typography: {
-        headlineMedium: {fontSize: 24, fontWeight: 'bold'},
-        bodyMedium: {fontSize: 14},
-      },
-    },
-  })),
-}));
+jest.mock('@/hooks', () => {
+  const {mockTheme: theme} = require('../setup/mockTheme');
+  return {
+    __esModule: true,
+    useTheme: jest.fn(() => ({theme, isDark: false})),
+  };
+});
 
 // 2. Mock Components
 // We define the mock function inline to avoid Jest hoisting issues (variable undefined)
@@ -103,17 +92,17 @@ describe('GenericEmptyScreen', () => {
     // Verify styles derived from useTheme mock
     expect(titleText.props.style).toEqual(
       expect.objectContaining({
-        color: '#111111', // theme.colors.secondary
+        color: mockTheme.colors.secondary,
         textAlign: 'center',
-        marginBottom: 12, // theme.spacing[3]
+        marginBottom: mockTheme.spacing['3'],
       }),
     );
 
     expect(subtitleText.props.style).toEqual(
       expect.objectContaining({
-        color: '#666666', // theme.colors.textSecondary
+        color: mockTheme.colors.textSecondary,
         textAlign: 'center',
-        fontSize: 14,
+        fontSize: mockTheme.typography.bodyMedium.fontSize,
       }),
     );
   });

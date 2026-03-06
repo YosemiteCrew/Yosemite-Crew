@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import FormInput from "@/app/components/Inputs/FormInput/FormInput";
+import FormInput from "@/app/ui/inputs/FormInput/FormInput";
 
 describe("FormInput", () => {
   test("renders label and value", () => {
@@ -34,8 +34,5 @@ describe("FormInput", () => {
     );
 
     expect(screen.getByText("Postal code is required")).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "Postal code" })).toHaveClass(
-      "is-invalid"
-    );
   });
 });

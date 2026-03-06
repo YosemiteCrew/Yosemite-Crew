@@ -2,6 +2,7 @@ import React from 'react';
 import {render, fireEvent} from '@testing-library/react-native';
 import {BottomSheetHeader} from '@/shared/components/common/BottomSheetHeader/BottomSheetHeader';
 import {Images} from '@/assets/images';
+import {mockTheme} from '../../setup/mockTheme';
 
 // --- Mocks ---
 
@@ -35,6 +36,9 @@ jest.mock('react-native', () => {
     ),
     // FIX: Add a stable testID for the icon
     Image: createMockComponent('Image', 'mock-image'),
+    Appearance: {
+      getColorScheme: jest.fn(() => 'light'),
+    },
     StyleSheet: {
       create: jest.fn(styles => styles),
       flatten: jest.fn(style => style),
@@ -46,24 +50,25 @@ jest.mock('react-native', () => {
   };
 });
 
+jest.mock(
+  '@/shared/components/common/LiquidGlassIconButton/LiquidGlassIconButton',
+  () => {
+    const {TouchableOpacity: MockTouchableOpacity} =
+      jest.requireActual('react-native');
+    return {
+      LiquidGlassIconButton: ({children, onPress}: any) => (
+        <MockTouchableOpacity
+          testID="mock-liquid-glass-icon-button"
+          onPress={onPress}>
+          {children}
+        </MockTouchableOpacity>
+      ),
+    };
+  },
+);
+
 // --- Test Setup ---
-const mockTheme = {
-  spacing: {
-    '2': 4,
-    '4': 8,
-    '6': 12,
-    '8': 16,
-  },
-  typography: {
-    h3: {
-      fontSize: 20,
-      fontWeight: 'bold',
-    },
-  },
-  colors: {
-    text: '#000000',
-  },
-};
+
 
 describe('BottomSheetHeader', () => {
   const mockOnClose = jest.fn();
@@ -94,7 +99,7 @@ describe('BottomSheetHeader', () => {
     );
 
     // FIX: Use getByTestId for both button and icon
-    const closeButton = getByTestId('mock-touchable-opacity');
+    const closeButton = getByTestId('mock-liquid-glass-icon-button');
     const closeIcon = getByTestId('mock-image');
 
     expect(closeButton).toBeTruthy();
@@ -112,7 +117,7 @@ describe('BottomSheetHeader', () => {
     );
 
     // FIX: Use getByTestId to find the button
-    const closeButton = getByTestId('mock-touchable-opacity');
+    const closeButton = getByTestId('mock-liquid-glass-icon-button');
     fireEvent.press(closeButton);
 
     expect(mockOnClose).toHaveBeenCalledTimes(1);
@@ -128,7 +133,7 @@ describe('BottomSheetHeader', () => {
       />,
     );
     // FIX: Use queryByTestId for both
-    expect(queryByTestId('mock-touchable-opacity')).toBeNull();
+    expect(queryByTestId('mock-liquid-glass-icon-button')).toBeNull();
     expect(queryByTestId('mock-image')).toBeNull();
   });
 
@@ -142,7 +147,7 @@ describe('BottomSheetHeader', () => {
       />,
     );
     // FIX: Use queryByTestId for both
-    expect(queryByTestId('mock-touchable-opacity')).toBeNull();
+    expect(queryByTestId('mock-liquid-glass-icon-button')).toBeNull();
     expect(queryByTestId('mock-image')).toBeNull();
   });
 });

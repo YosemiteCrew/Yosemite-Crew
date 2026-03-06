@@ -146,7 +146,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
   if (!currentCoParent || !permissions) {
     if (!loading) {
       return (
-        <SafeAreaView style={commonStyles.container}>
+        <SafeAreaView style={commonStyles.container} edges={['top']}>
           <Header title="Co-Parent Permissions" showBackButton onBack={() => navigation.goBack()} />
           <View style={commonStyles.centerContent}>
             <Text style={styles.profileEmail}>Unable to load co-parent details.</Text>
@@ -155,7 +155,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
       );
     }
     return (
-      <SafeAreaView style={commonStyles.container}>
+      <SafeAreaView style={commonStyles.container} edges={['top']}>
         <Header title="Co-Parent Permissions" showBackButton onBack={() => navigation.goBack()} />
         <View style={commonStyles.centerContent}>
           <GifLoader />
@@ -330,7 +330,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
   }
 
   return (
-    <SafeAreaView style={commonStyles.container}>
+    <SafeAreaView style={commonStyles.container} edges={['top']}>
       <Header
         title="Co-Parent permissions"
         showBackButton
@@ -574,17 +574,17 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
 const createStyles = (theme: any) =>
   StyleSheet.create({
     content: {
-      paddingHorizontal: theme.spacing[4],
-      paddingBottom: theme.spacing[24],
+      paddingHorizontal: theme.spacing['4'],
+      paddingBottom: theme.spacing['24'],
     },
     profileCard: {
-      paddingVertical: theme.spacing[3],
-      paddingHorizontal: theme.spacing[4],
-      marginTop: theme.spacing[4],
+      paddingVertical: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['4'],
+      marginTop: theme.spacing['4'],
     },
     card: {
-      paddingVertical: theme.spacing[2],
-      paddingHorizontal: theme.spacing[4],
+      paddingVertical: theme.spacing['2'],
+      paddingHorizontal: theme.spacing['4'],
     },
     cardFallback: {
       borderRadius: theme.borderRadius.lg,
@@ -593,17 +593,17 @@ const createStyles = (theme: any) =>
     profileRow: {
       flexDirection: 'row',
       alignItems: 'flex-start',
-      gap: theme.spacing[3],
+      gap: theme.spacing['3'],
     },
     profileAvatar: {
-      width: 70,
-      height: 70,
-      borderRadius: 40,
+      width: theme.spacing['18'],
+      height: theme.spacing['18'],
+      borderRadius: theme.borderRadius.full,
     },
     profileAvatarInitials: {
-      width: 70,
-      height: 70,
-      borderRadius: 40,
+      width: theme.spacing['18'],
+      height: theme.spacing['18'],
+      borderRadius: theme.borderRadius.full,
       backgroundColor: theme.colors.lightBlueBackground,
       justifyContent: 'center',
       alignItems: 'center',
@@ -620,13 +620,13 @@ const createStyles = (theme: any) =>
     profileName: {
       ...theme.typography.titleLarge,
       color: theme.colors.text,
-      marginBottom: theme.spacing[2],
+      marginBottom: theme.spacing['2'],
     },
     contactRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[2],
-      marginBottom: theme.spacing[1],
+      gap: theme.spacing['2'],
+      marginBottom: theme.spacing['1'],
     },
     contactIcon: {
       width: 16,
@@ -642,20 +642,20 @@ const createStyles = (theme: any) =>
       color: theme.colors.text,
     },
     selectCompanionHeader: {
-      marginTop: theme.spacing[4],
-      marginBottom: theme.spacing[3],
+      marginTop: theme.spacing['4'],
+      marginBottom: theme.spacing['3'],
     },
     selectCompanionTitle: {
       ...theme.typography.titleLarge,
       color: theme.colors.secondary,
-            paddingHorizontal: theme.spacing[4],
+            paddingHorizontal: theme.spacing['4'],
     },
     noteContainer: {
-      marginTop: theme.spacing[6],
-           paddingHorizontal: theme.spacing[4],
+      marginTop: theme.spacing['6'],
+           paddingHorizontal: theme.spacing['4'],
     },
     noteText: {
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       textAlign: 'justify',
     },
     noteLabel: {
@@ -665,22 +665,22 @@ const createStyles = (theme: any) =>
       color: theme.colors.placeholder,
     },
     sectionContainer: {
-      gap: theme.spacing[4],
-      paddingBlock: theme.spacing[6],
+      gap: theme.spacing['4'],
+      paddingBlock: theme.spacing['6'],
     },
     sectionTitle: {
       ...theme.typography.h5,
       color: theme.colors.secondary,
     },
     permissionsHeader: {
-      gap: theme.spacing[2],
+      gap: theme.spacing['2'],
 
     },
     permissionRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      paddingVertical: theme.spacing[3],
+      paddingVertical: theme.spacing['3'],
     },
     permissionLabel: {
       ...theme.typography.inputLabel,
@@ -692,14 +692,14 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.border,
     },
     saveButton: {
-      marginTop: theme.spacing[4],
+      marginTop: theme.spacing['4'],
     },
     readOnlyNote: {
       ...theme.typography.bodySmall,
       color: theme.colors.placeholder,
       textAlign: 'center',
-      paddingHorizontal: theme.spacing[4],
-      marginTop: theme.spacing[4],
+      paddingHorizontal: theme.spacing['4'],
+      marginTop: theme.spacing['4'],
     },
   });
 

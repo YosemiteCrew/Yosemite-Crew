@@ -320,7 +320,7 @@ describe('LiquidGlassButton', () => {
             <LiquidGlassButton
               title="Tinted"
               onPress={() => {}}
-              tintColor="#FF0000"
+              tintColor='#F44336'
             />
           )
         );

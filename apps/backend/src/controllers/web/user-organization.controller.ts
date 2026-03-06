@@ -21,7 +21,7 @@ export const UserOrganizationController = {
     try {
       const payload = req.body as UserOrganizationFHIRPayload | undefined;
 
-      if (!payload || payload.resourceType !== "PractitionerRole") {
+      if (payload?.resourceType !== "PractitionerRole") {
         res.status(400).json({
           message: "Invalid payload. Expected FHIR PractitionerRole resource.",
         });
@@ -123,7 +123,7 @@ export const UserOrganizationController = {
         return;
       }
 
-      if (!payload || payload.resourceType !== "PractitionerRole") {
+      if (payload?.resourceType !== "PractitionerRole") {
         res.status(400).json({
           message: "Invalid payload. Expected FHIR PractitionerRole resource.",
         });
@@ -172,6 +172,32 @@ export const UserOrganizationController = {
         "Failed to list current user's organization mappings",
         error,
       );
+      res.status(500).json({
+        message: "Unable to list current user's organization mappings.",
+      });
+    }
+  },
+
+  listByOrganisationId: async (req: Request, res: Response) => {
+    try {
+      const { organisationId } = req.params;
+
+      if (!organisationId) {
+        return res.status(400).json({
+          message: "Organisation Id is required and type should be string.",
+        });
+      }
+
+      const result =
+        await UserOrganizationService.listByOrganisationId(organisationId);
+      return res.status(200).json(result);
+    } catch (error) {
+      if (error instanceof UserOrganizationServiceError) {
+        res.status(error.statusCode).json({ message: error.message });
+        return;
+      }
+
+      logger.error("Failed to list current organization's mappings", error);
       res.status(500).json({
         message: "Unable to list current user's organization mappings.",
       });

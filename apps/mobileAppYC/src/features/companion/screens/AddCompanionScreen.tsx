@@ -13,9 +13,11 @@ import {
   BackHandler,
   type KeyboardTypeOptions,
 } from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {DiscardChangesBottomSheet} from '@/shared/components/common/DiscardChangesBottomSheet/DiscardChangesBottomSheet';
 import {useForm, Controller, type ControllerProps} from 'react-hook-form';
 import {SafeArea, Input, Header} from '@/shared/components/common';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {ProfileImagePicker} from '@/shared/components/common/ProfileImagePicker/ProfileImagePicker';
 import {TileSelector} from '@/shared/components/common/TileSelector/TileSelector';
 import {
@@ -40,13 +42,11 @@ import {
 
 import {useTheme} from '@/hooks';
 import {createFormScreenStyles} from '@/shared/utils/formScreenStyles';
+import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 import {Images} from '@/assets/images';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {HomeStackParamList} from '@/navigation/types';
 import COUNTRIES from '@/shared/utils/countryList.json';
-import CAT_BREEDS from '@/features/companion/data/catBreeds.json';
-import DOG_BREEDS from '@/features/companion/data/dogBreeds.json';
-import HORSE_BREEDS from '@/features/companion/data/horseBreeds.json';
 import type {
   CompanionCategory,
   CompanionGender,
@@ -61,6 +61,13 @@ import {addCompanion} from '@/features/companion';
 import {useAuth} from '@/features/auth/context/AuthContext';
 import {usePreferences} from '@/features/preferences/PreferencesContext';
 import {convertWeight} from '@/shared/utils/measurementSystem';
+import {getFreshStoredTokens} from '@/features/auth/sessionManager';
+import {
+  fetchBreedCodeEntries,
+  fetchSpeciesCodeEntries,
+  type BreedCodeEntry,
+  type SpeciesCodeEntry,
+} from '@/features/companion/services/codeEntriesService';
 
 type AddCompanionScreenProps = NativeStackScreenProps<
   HomeStackParamList,
@@ -69,8 +76,10 @@ type AddCompanionScreenProps = NativeStackScreenProps<
 
 interface FormData {
   category: CompanionCategory | null;
+  speciesCode: string | null;
   name: string;
   breed: Breed | null;
+  breedCode: string | null;
   dateOfBirth: Date | null;
   gender: CompanionGender | null;
   currentWeight: string;
@@ -94,6 +103,18 @@ const COMPANION_CATEGORIES = [
   {value: 'dog', label: 'Dog'},
   {value: 'horse', label: 'Horse'},
 ];
+
+const CATEGORY_TO_SPECIES_QUERY: Record<CompanionCategory, string> = {
+  dog: 'canine',
+  cat: 'feline',
+  horse: 'equine',
+};
+
+const CATEGORY_TO_SPECIES_LABEL: Record<CompanionCategory, string> = {
+  dog: 'Dog',
+  cat: 'Cat',
+  horse: 'Horse',
+};
 
 const GENDER_OPTIONS = [
   {value: 'male', label: 'Male'},
@@ -123,6 +144,8 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
 }) => {
   const {theme} = useTheme();
   const styles = createStyles(theme);
+  const insets = useSafeAreaInsets();
+  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
   const dispatch = useDispatch<AppDispatch>();
   const {user} = useAuth();
   const {weightUnit} = usePreferences();
@@ -136,6 +159,10 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState('');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [speciesByCategory, setSpeciesByCategory] = useState<
+    Partial<Record<CompanionCategory, SpeciesCodeEntry>>
+  >({});
+  const [breedOptions, setBreedOptions] = useState<Breed[]>([]);
 
   // Track which bottom sheet is currently open
   const [openBottomSheet, setOpenBottomSheet] = useState<'breed' | 'bloodGroup' | 'country' | null>(null);
@@ -152,8 +179,10 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
   } = useForm<FormData>({
     defaultValues: {
       category: null,
+      speciesCode: null,
       name: '',
       breed: null,
+      breedCode: null,
       dateOfBirth: null,
       gender: null,
       currentWeight: '',
@@ -255,19 +284,92 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
   const dateOfBirth = watch('dateOfBirth');
   const profileImage = watch('profileImage');
 
-// eslint-disable-next-line @typescript-eslint/no-shadow
-const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => {
-  switch (category) {
-    case 'cat':
-      return CAT_BREEDS as Breed[];
-    case 'dog':
-      return DOG_BREEDS as Breed[];
-    case 'horse':
-      return HORSE_BREEDS as Breed[];
-    default:
-      return []; // ✅ Fix: return an empty array
-  }
-};
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const tokens = await getFreshStoredTokens();
+        if (!tokens?.accessToken) {
+          return;
+        }
+        const speciesEntries = await fetchSpeciesCodeEntries(tokens.accessToken);
+        if (!mounted) {
+          return;
+        }
+
+        const byCategory: Partial<Record<CompanionCategory, SpeciesCodeEntry>> = {};
+        for (const entry of speciesEntries) {
+          const normalized = entry.display?.toLowerCase().trim();
+          if (normalized === 'canine') {
+            byCategory.dog = entry;
+          } else if (normalized === 'feline') {
+            byCategory.cat = entry;
+          } else if (normalized === 'equine') {
+            byCategory.horse = entry;
+          }
+        }
+        setSpeciesByCategory(byCategory);
+      } catch (error) {
+        console.warn('[Companion] Unable to load species code entries', error);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      if (!category) {
+        setBreedOptions([]);
+        setValue('speciesCode', null, {shouldValidate: false});
+        setValue('breed', null, {shouldValidate: false});
+        setValue('breedCode', null, {shouldValidate: false});
+        return;
+      }
+
+      setValue('speciesCode', speciesByCategory[category]?.code ?? null, {
+        shouldValidate: false,
+      });
+      setValue('breed', null, {shouldValidate: false});
+      setValue('breedCode', null, {shouldValidate: false});
+
+      try {
+        const tokens = await getFreshStoredTokens();
+        if (!tokens?.accessToken) {
+          return;
+        }
+        const entries = await fetchBreedCodeEntries(
+          CATEGORY_TO_SPECIES_QUERY[category],
+          tokens.accessToken,
+        );
+        if (!mounted) {
+          return;
+        }
+
+        const mappedBreeds: Breed[] = entries.map(
+          (entry: BreedCodeEntry, index: number) => ({
+            speciesId: index + 1,
+            speciesName: CATEGORY_TO_SPECIES_LABEL[category],
+            breedId: index + 1,
+            breedName: entry.display,
+            speciesCode: entry.meta?.speciesCode ?? speciesByCategory[category]?.code,
+            breedCode: entry.code,
+          }),
+        );
+        setBreedOptions(mappedBreeds);
+      } catch (error) {
+        setBreedOptions([]);
+        console.warn('[Companion] Unable to load breed code entries', error);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [category, setValue, speciesByCategory]);
 
 
 
@@ -330,10 +432,14 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
   const handleBreedSave = useCallback(
     (selectedBreed: Breed | null) => {
       setValue('breed', selectedBreed, {shouldValidate: true});
+      setValue('breedCode', selectedBreed?.breedCode ?? null, {shouldValidate: false});
+      setValue('speciesCode', selectedBreed?.speciesCode ?? speciesByCategory[category ?? 'dog']?.code ?? null, {
+        shouldValidate: false,
+      });
       setOpenBottomSheet(null);
       setHasUnsavedChanges(true);
     },
-    [setValue],
+    [category, setValue, speciesByCategory],
   );
 
   const handleBloodGroupPress = useCallback(() => {
@@ -403,8 +509,16 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
   };
 
   const handleStep2Next = async () => {
-    const fieldsToValidate = ['name', 'gender', 'dateOfBirth'] as const;
+    const fieldsToValidate = ['name', 'breed', 'gender', 'dateOfBirth', 'neuteredStatus', 'ageWhenNeutered'] as const;
     const isValid = await trigger(fieldsToValidate);
+
+    if (!breed) {
+      setError('breed', {
+        type: 'manual',
+        message: 'Breed is required',
+      });
+      return;
+    }
 
     if (!dateOfBirth) {
       setError('dateOfBirth', {
@@ -414,8 +528,24 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
       return;
     }
 
+    if (!watch('neuteredStatus')) {
+      setError('neuteredStatus', {
+        type: 'manual',
+        message: 'Neutered status is required',
+      });
+      return;
+    }
+
+    if (watch('neuteredStatus') === 'neutered' && !watch('ageWhenNeutered')?.trim()) {
+      setError('ageWhenNeutered', {
+        type: 'manual',
+        message: 'Age when neutered is required',
+      });
+      return;
+    }
+
     if (isValid) {
-      clearErrors('dateOfBirth');
+      clearErrors(['breed', 'dateOfBirth', 'neuteredStatus', 'ageWhenNeutered']);
       setCurrentStep(3);
     }
   };
@@ -458,8 +588,10 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
 
     const companionPayload = {
       category: data.category,
+      speciesCode: data.speciesCode,
       name: data.name,
       breed: data.breed,
+      breedCode: data.breedCode,
       dateOfBirth: data.dateOfBirth?.toISOString() ?? null,
       gender: data.gender,
       currentWeight: weightInKg,
@@ -585,6 +717,7 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
         <Controller
           control={control}
           name="breed"
+          rules={{required: 'Breed is required'}}
           render={() => (
             <TouchableInput
               label="Breed"
@@ -697,6 +830,21 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
             label: 'Age when neutered',
             placeholder: 'e.g., 1 Year',
             maxLength: 20,
+            rules: {
+              required: neuteredStatus === 'neutered' ? 'Age when neutered is required' : false,
+              validate: (value) => {
+                if (neuteredStatus === 'neutered' && value) {
+                  const numValue = Number.parseFloat(value);
+                  if (Number.isNaN(numValue)) {
+                    return 'Please enter a valid number';
+                  }
+                  if (numValue <= 0) {
+                    return 'Age must be greater than 0';
+                  }
+                }
+                return true;
+              },
+            },
             dynamicSuffix: (value) => {
               const numValue = Number.parseFloat(value);
               if (Number.isNaN(numValue)) return '';
@@ -867,19 +1015,45 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
   const isPrimaryButtonLoading = isFinalStep && isSubmitting;
 
   return (
-    <SafeArea style={styles.container}>
+    <>
+      <SafeArea style={styles.container} edges={[]}>
+      <View
+        style={styles.topSection}
+        onLayout={event => {
+          const height = event.nativeEvent.layout.height;
+          if (height !== topGlassHeight) {
+            setTopGlassHeight(height);
+          }
+        }}>
+        <View style={styles.topGlassShadowWrapper}>
+          <LiquidGlassCard
+            glassEffect="clear"
+            interactive={false}
+            shadow="none"
+            style={[styles.topGlassCard, {paddingTop: insets.top}]}
+            fallbackStyle={styles.topGlassFallback}>
+            <Header
+              title={currentStep === 1 ? 'Choose your companion' : 'Add companion'}
+              showBackButton
+              onBack={handleGoBack}
+              glass={false}
+            />
+          </LiquidGlassCard>
+        </View>
+      </View>
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}>
-        <Header
-          title={currentStep === 1 ? 'Choose your companion' : 'Add companion'}
-          showBackButton
-          onBack={handleGoBack}
-        />
-
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            topGlassHeight
+              ? {paddingTop: topGlassHeight + theme.spacing['3']}
+              : null,
+            {paddingBottom: theme.spacing['24'] + Math.max(insets.bottom, theme.spacing['3'])},
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
           {currentStep === 1 && renderStep1()}
@@ -891,7 +1065,11 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
           <Text style={styles.submissionError}>{submissionError}</Text>
         ) : null}
 
-        <View style={styles.buttonContainer}>
+        <View
+          style={[
+            styles.buttonContainer,
+            {paddingBottom: theme.spacing['4'] + Math.max(insets.bottom, theme.spacing['3'])},
+          ]}>
           <LiquidGlassButton
             title={primaryButtonLabel}
             onPress={handlePrimaryButtonPress}
@@ -900,9 +1078,9 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
             tintColor={theme.colors.secondary}
             shadowIntensity="medium"
             forceBorder
-            borderColor="rgba(255, 255, 255, 0.35)"
-            height={56}
-            borderRadius={16}
+            borderColor={theme.colors.borderMuted}
+            height={theme.spacing['14']}
+            borderRadius={theme.borderRadius.lg}
             loading={isPrimaryButtonLoading}
             disabled={isPrimaryButtonLoading}
           />
@@ -918,13 +1096,14 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
         />
       </KeyboardAvoidingView>
 
+      </SafeArea>
+
       <BreedBottomSheet
         ref={breedSheetRef}
-        breeds={getBreedListByCategory(category)}
+        breeds={breedOptions}
         selectedBreed={breed}
         onSave={handleBreedSave}
       />
-
 
       <BloodGroupBottomSheet
         ref={bloodGroupSheetRef}
@@ -946,13 +1125,14 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
         ref={discardSheetRef}
         onDiscard={() => navigation.goBack()}
       />
-    </SafeArea>
+    </>
   );
 };
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
     ...createFormScreenStyles(theme),
+    ...createLiquidGlassHeaderStyles(theme),
     stepContainer: {
       flex: 1,
     },
@@ -996,13 +1176,12 @@ const createStyles = (theme: any) =>
       width: '100%',
       height: 3,
       backgroundColor: theme.colors.primary,
-      borderRadius: 2,
+      borderRadius: theme.borderRadius.xs,
       marginTop: theme.spacing['1'],
     },
     suffixText: {
       ...theme.typography.input,
       color: theme.colors.textSecondary,
-      fontSize: 16,
       marginLeft: theme.spacing['2'],
     },
   });

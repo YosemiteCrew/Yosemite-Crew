@@ -28,6 +28,34 @@ const formatDosageText = (dosages: any[]): string | undefined => {
   return `${dosages.length} dosage${pluralSuffix}`;
 };
 
+const formatDosageTime = (timeString: string): string => {
+  try {
+    let date: Date;
+    if (timeString.includes('T')) {
+      // ISO format
+      date = new Date(timeString);
+    } else if (timeString.includes(':')) {
+      // Time-only format (HH:mm or HH:mm:ss)
+      const [hours, minutes, seconds] = timeString.split(':').map(Number);
+      if (Number.isNaN(hours) || Number.isNaN(minutes)) return 'Invalid time';
+      date = new Date();
+      date.setHours(hours, minutes, seconds || 0, 0);
+    } else {
+      return 'Invalid time';
+    }
+
+    if (Number.isNaN(date.getTime())) return 'Invalid time';
+
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  } catch {
+    return 'Invalid time';
+  }
+};
+
 export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
   formData,
   errors,
@@ -55,6 +83,17 @@ export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
           onChangeText={text => updateField('title', text)}
           error={errors.title}
           editable={false}
+        />
+      </View>
+
+      <View style={styles.fieldGroup}>
+        <Input
+          label="Task description (optional)"
+          value={formData.description}
+          onChangeText={text => updateField('description', text)}
+          multiline
+          numberOfLines={3}
+          inputStyle={styles.textArea}
         />
       </View>
 
@@ -113,11 +152,7 @@ export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
               <View style={styles.dosageDisplayField}>
                 <Input
                   label="Time"
-                  value={new Date(dosage.time).toLocaleTimeString('en-US', {
-                    hour: 'numeric',
-                    minute: '2-digit',
-                    hour12: true,
-                  })}
+                  value={formatDosageTime(dosage.time)}
                   editable={false}
                   pointerEvents="none"
                   icon={<Image source={Images.clockIcon} style={styles.calendarIcon} />}
@@ -148,25 +183,23 @@ export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
             value={formData.startDate ? formatDateForDisplay(formData.startDate) : undefined}
             placeholder="Start Date"
             onPress={onOpenStartDatePicker}
-            rightComponent={
-              <Image source={Images.calendarIcon} style={styles.calendarIcon} />
-            }
+            rightComponent={<Image source={Images.calendarIcon} style={styles.calendarIcon} />}
             error={errors.startDate}
           />
         </View>
 
-        <View style={styles.dateTimeField}>
-          <TouchableInput
-            label={formData.endDate ? 'End Date' : undefined}
-            value={formData.endDate ? formatDateForDisplay(formData.endDate) : undefined}
-            placeholder="End Date"
-            onPress={onOpenEndDatePicker}
-            rightComponent={
-              <Image source={Images.calendarIcon} style={styles.calendarIcon} />
-            }
-            error={errors.endDate}
-          />
-        </View>
+        {formData.medicationFrequency !== 'once' && (
+          <View style={styles.dateTimeField}>
+            <TouchableInput
+              label={formData.endDate ? 'End Date' : undefined}
+              value={formData.endDate ? formatDateForDisplay(formData.endDate) : undefined}
+              placeholder="End Date"
+              onPress={onOpenEndDatePicker}
+              rightComponent={<Image source={Images.calendarIcon} style={styles.calendarIcon} />}
+              error={errors.endDate}
+            />
+          </View>
+        )}
       </View>
     </>
   );
@@ -175,15 +208,15 @@ export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
 const createMedicationStyles = (theme: any) =>
   StyleSheet.create({
     dosageDisplayContainer: {
-      gap: theme.spacing[3],
-      marginBottom: theme.spacing[4],
+      gap: theme.spacing['3'],
+      marginBottom: theme.spacing['4'],
     },
     dosageDisplayRow: {
       flexDirection: 'row',
-      gap: theme.spacing[3],
-      paddingVertical: theme.spacing[2],
-      paddingHorizontal: theme.spacing[2],
-      borderRadius: 8,
+      gap: theme.spacing['3'],
+      paddingVertical: theme.spacing['2'],
+      paddingHorizontal: theme.spacing['2'],
+      borderRadius: theme.borderRadius.sm,
       backgroundColor: 'transparent',
     },
     dosageDisplayField: {

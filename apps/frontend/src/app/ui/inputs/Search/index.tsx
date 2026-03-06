@@ -1,0 +1,28 @@
+import React from 'react';
+import { IoIosSearch } from 'react-icons/io';
+
+type SearchProps = {
+  value: string;
+  setSearch: (value: string) => void;
+  className?: string;
+  placeholder?: string;
+};
+
+const Search = ({ value, setSearch, className, placeholder = 'Search' }: SearchProps) => {
+  return (
+    <div
+      className={`${className ?? ''} h-12 w-60 xl:w-[280px] rounded-2xl border! border-input-border-default! px-6 flex items-center justify-center`}
+    >
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => setSearch(e.target.value)}
+        className="outline-none border-0 w-full text-body-4 placeholder:text-text-secondary text-text-primary"
+        placeholder={placeholder}
+      />
+      <IoIosSearch size={22} color="#302F2E" className="cursor-pointer" />
+    </div>
+  );
+};
+
+export default Search;

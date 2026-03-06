@@ -56,6 +56,10 @@ const generateCreatePayload = (overrides = {}) => ({
 });
 
 describe("UserProfileService", () => {
+  const userId = "user_123";
+  const orgId = "org_456";
+  const profileId = new Types.ObjectId().toString();
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -254,6 +258,9 @@ describe("UserProfileService", () => {
     });
   });
 
+  // ======================================================================
+  // 1. CREATE
+  // ======================================================================
   describe("create", () => {
     it("should throw if profile already exists", async () => {
       (UserProfileModel.findOne as jest.Mock).mockResolvedValue({}); // Found

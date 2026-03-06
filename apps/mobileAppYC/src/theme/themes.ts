@@ -23,7 +23,7 @@ export interface Theme {
     onPrimary: string;
     border: string;
     borderMuted: string;
-    borderSeperator:string;
+    borderSeparator: string;
     placeholder: string;
     cardBackground: string;
     cardOverlay: string;
@@ -32,11 +32,16 @@ export interface Theme {
     error: string;
     info: string;
     errorSurface: string;
+    successSurface: string;
+    warningSurface: string;
+    infoSurface: string;
     transparent: string;
     overlay: string;
     whiteOverlay70: string;
     black: string;
     white: string;
+    gray800: string;
+    inputBackground: string;
     neutralShadow: string;
   };
   typography: typeof typography;
@@ -66,7 +71,7 @@ export const lightTheme: Theme = {
     onPrimary: colors.onPrimary,
     border: colors.border,
     borderMuted: colors.borderMuted,
-    borderSeperator:colors.borderSeperator,
+    borderSeparator: colors.borderSeparator,
     placeholder: colors.placeholder,
     cardBackground: colors.cardBackground,
     cardOverlay: colors.cardOverlay,
@@ -75,11 +80,16 @@ export const lightTheme: Theme = {
     error: colors.error,
     info: colors.info,
     errorSurface: colors.errorSurface,
+    successSurface: colors.successSurface,
+    warningSurface: colors.warningSurface,
+    infoSurface: colors.infoSurface,
     transparent: colors.transparent,
     overlay: colors.overlay,
     whiteOverlay70: colors.whiteOverlay70,
     black: colors.black,
     white: colors.white,
+    gray800: colors.gray800,
+    inputBackground: colors.inputBackground,
     neutralShadow: colors.neutralShadow,
   },
   typography,
@@ -109,7 +119,7 @@ export const darkTheme: Theme = {
     onPrimary: colors.textDark,
     border: colors.borderDark,
     borderMuted: colors.borderDark,
-    borderSeperator : colors.borderSeperator,
+    borderSeparator: colors.borderSeparator,
     placeholder: colors.placeholder,
     cardBackground: colors.cardBackground,
     cardOverlay: colors.overlay,
@@ -118,11 +128,16 @@ export const darkTheme: Theme = {
     error: colors.error,
     info: colors.info,
     errorSurface: colors.errorSurface,
+    successSurface: colors.successSurface,
+    warningSurface: colors.warningSurface,
+    infoSurface: colors.infoSurface,
     transparent: colors.transparent,
     overlay: colors.overlayLight,
     whiteOverlay70: colors.whiteOverlay70,
     black: colors.black,
     white: colors.white,
+    gray800: colors.gray800,
+    inputBackground: colors.inputBackground,
     neutralShadow: colors.overlay,
   },
   typography,

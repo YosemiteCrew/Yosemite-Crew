@@ -27,6 +27,7 @@ export const Modal: React.FC<ModalProps> = ({
   transparent = true,
 }) => {
   const { theme } = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
 
   return (
     <RNModal
@@ -49,12 +50,12 @@ export const Modal: React.FC<ModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: theme.colors.overlay,
   },
   backdrop: {
     position: 'absolute',
@@ -66,8 +67,8 @@ const styles = StyleSheet.create({
   content: {
     width: screenWidth * 0.9,
     maxHeight: screenHeight * 0.8,
-    borderRadius: 16,
-    padding: 24,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing['6'],
     alignItems: 'center',
   },
 });

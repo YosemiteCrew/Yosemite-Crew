@@ -13,7 +13,7 @@ jest.mock("@/app/stores/authStore", () => ({
   useAuthStore: jest.fn(),
 }));
 
-jest.mock("@/app/pages/ForgotPassword/ForgotPassword", () => ({
+jest.mock("@/app/features/auth/pages/ForgotPassword/ForgotPassword", () => ({
   __esModule: true,
   default: () => (
     <div data-testid="forgotpassword-mock">ForgotPasswordPage Mock</div>
@@ -21,7 +21,7 @@ jest.mock("@/app/pages/ForgotPassword/ForgotPassword", () => ({
 }));
 
 import { useAuthStore } from "@/app/stores/authStore";
-import Page, * as PageModule from "@/app/(routes)/forgot-password/page";
+import Page, * as PageModule from "@/app/(routes)/(public)/forgot-password/page";
 
 const useAuthStoreMock = useAuthStore as unknown as jest.MockedFunction<
   typeof useAuthStore

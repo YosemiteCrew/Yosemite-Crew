@@ -8,7 +8,7 @@ import {
 } from "../../services/organization.service";
 import { AuthenticatedRequest } from "../../middlewares/auth";
 import { generatePresignedUrl } from "src/middlewares/upload";
-import { stringify } from "querystring";
+import { stringify } from "node:querystring";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { ParentModel } from "src/models/parent";
 import helpers from "src/utils/helper";
@@ -208,7 +208,7 @@ export const OrganizationController = {
     }
   },
 
-  async getNearbyPaginated(req: Request, res: Response) {
+  getNearbyPaginated: async (req: Request, res: Response) => {
     try {
       const latString = req.query.lat as string | undefined;
       const lngString = req.query.lng as string | undefined;

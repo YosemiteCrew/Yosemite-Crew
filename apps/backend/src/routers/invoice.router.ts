@@ -6,7 +6,7 @@ const router = Router();
 
 // Routes for Mobile
 
-router.get(
+router.post(
   "/mobile/appointment/:appointmentId",
   authorizeCognitoMobile,
   InvoiceController.listInvoicesForAppointment,
@@ -25,8 +25,14 @@ router.get(
 );
 // Routes for PMS
 
+router.post(
+  "/appointment/:appointmentId/charges",
+  authorizeCognito,
+  InvoiceController.addChargesToAppointment,
+);
+
 // List invoices for an appointment
-router.get(
+router.post(
   "/appointment/:appointmentId",
   authorizeCognito,
   InvoiceController.listInvoicesForAppointment,
@@ -37,6 +43,19 @@ router.get(
   "/payment-intent/:paymentIntentId",
   authorizeCognito,
   InvoiceController.getInvoiceByPaymentIntentId,
+);
+
+router.get(
+  "/organisation/:organisationId/list",
+  authorizeCognito,
+  InvoiceController.listInvoicesForOrganisation,
+);
+
+// Create checkout session for invoice and email parent
+router.post(
+  "/:invoiceId/checkout-session",
+  authorizeCognito,
+  InvoiceController.createCheckoutSessionForInvoice,
 );
 
 // Get invoice by ID

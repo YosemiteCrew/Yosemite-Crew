@@ -1,8 +1,15 @@
 import React from 'react';
 import {render, screen, fireEvent} from '@testing-library/react-native';
 import {TaskFormFooter} from '@/features/tasks/components/form/TaskFormFooter';
+import {mockTheme} from '../../setup/mockTheme';
 
 // --- Mocks ---
+
+jest.mock('@/hooks', () => ({
+  useTheme: () => ({theme: require('../../setup/mockTheme').mockTheme, isDark: false}),
+  useAppDispatch: () => jest.fn(),
+  useAppSelector: jest.fn(),
+}));
 
 // Mock the LiquidGlassButton
 jest.mock(
@@ -47,12 +54,7 @@ const mockStyles = {
   saveButton: {height: 56},
   saveButtonText: {fontSize: 18},
 };
-const mockTheme = {
-  colors: {
-    secondary: 'blue',
-    borderMuted: 'grey',
-  },
-};
+
 
 const renderComponent = (
   props: Partial<React.ComponentProps<typeof TaskFormFooter>>,
@@ -130,12 +132,11 @@ describe('TaskFormFooter', () => {
     expect(buttonProps.style).toBe(mockStyles.saveButton);
     expect(buttonProps.textStyle).toBe(mockStyles.saveButtonText);
     expect(buttonProps.tintColor).toBe(mockTheme.colors.secondary);
-    expect(buttonProps.borderColor).toBe(mockTheme.colors.borderMuted);
 
-    // Check static props
-    expect(buttonProps.forceBorder).toBe(true);
-    expect(buttonProps.shadowIntensity).toBe('medium');
+    // Check static props - component now uses glassEffect and shadowIntensity='none'
+    expect(buttonProps.glassEffect).toBe('clear');
+    expect(buttonProps.shadowIntensity).toBe('none');
     expect(buttonProps.height).toBe(56);
-    expect(buttonProps.borderRadius).toBe(16);
+    expect(buttonProps.borderRadius).toBe(mockTheme.borderRadius.lg);
   });
 });

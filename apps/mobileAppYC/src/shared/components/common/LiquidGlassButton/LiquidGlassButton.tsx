@@ -18,16 +18,15 @@ import {
   isLiquidGlassSupported,
 } from '@callstack/liquid-glass';
 import {useTheme} from '@/hooks';
+import {UI_FEATURE_FLAGS} from '@/config/variables';
 
-const LIGHT_GLASS_TINT = 'rgba(255, 255, 255, 0.65)';
-const DARK_GLASS_TINT = 'rgba(28, 28, 30, 0.55)';
+// Crystal clear glass defaults - minimal tint for maximum clarity
+const IOS_LIGHT_GLASS_TINT = 'rgba(255, 255, 255, 0.5)';
+const IOS_DARK_GLASS_TINT = 'rgba(28, 28, 30, 0.55)';
+const ANDROID_LIGHT_GLASS_TINT = 'rgba(255, 255, 255, 0.92)';
+const ANDROID_DARK_GLASS_TINT = 'rgba(28, 28, 30, 0.82)';
 // Set to true to fall back to static styling on iOS if native glass misbehaves.
 const LOCK_IOS_GLASS_APPEARANCE = false;
-const SHADOW_MAP = {
-  light: {shadowOpacity: 0.1, shadowRadius: 4, elevation: 1},
-  medium: {shadowOpacity: 0.15, shadowRadius: 8, elevation: 3},
-  strong: {shadowOpacity: 0.25, shadowRadius: 12, elevation: 5},
-} as const;
 
 const WHITE_COLOR_ALIASES = [
   '#ffffff',
@@ -98,16 +97,18 @@ const isWhiteOrLightColor = (color?: string): boolean => {
   return false;
 };
 
-const buildShadowStyle = (intensity: GlassButtonProps['shadowIntensity']) => {
+const buildShadowStyle = (intensity: GlassButtonProps['shadowIntensity'], themeShadows: any) => {
   if (!intensity || intensity === 'none') {
-    return {};
+    return themeShadows.none;
   }
 
-  return {
-    shadowColor: '#000000',
-    shadowOffset: {width: 0, height: 2},
-    ...SHADOW_MAP[intensity],
-  };
+  const shadowMap = {
+    light: themeShadows.xs,
+    medium: themeShadows.sm,
+    strong: themeShadows.md,
+  } as const;
+
+  return shadowMap[intensity];
 };
 
 const SIZE_CONFIG = {
@@ -138,11 +139,15 @@ const buildFallbackSurfaceStyle = ({
   isDark,
   borderColor,
   isLightTint,
+  shadowIntensity,
+  themeShadows,
 }: {
   tintColor?: string;
   isDark: boolean;
   borderColor?: string;
   isLightTint: boolean;
+  shadowIntensity: GlassButtonProps['shadowIntensity'];
+  themeShadows: any;
 }): ViewStyle => {
   // For white-ish buttons, use pure white (not translucent)
   let backgroundColor: string;
@@ -172,6 +177,7 @@ const buildFallbackSurfaceStyle = ({
     backgroundColor,
     borderWidth: 1,
     borderColor: computedBorderColor,
+    ...buildShadowStyle(shadowIntensity, themeShadows),
   };
 };
 
@@ -180,23 +186,40 @@ const buildGlassSurfaceStyle = ({
   isLightTint,
   forceBorder,
   shadowIntensity,
+  themeShadows,
 }: {
   borderColor?: string;
   isLightTint: boolean;
   forceBorder: boolean;
   shadowIntensity: GlassButtonProps['shadowIntensity'];
+  themeShadows: any;
 }): ViewStyle => {
-  const shouldAddBorder = forceBorder || isLightTint;
-  const borderColorValue =
-    borderColor ??
-    (isLightTint
-      ? 'rgba(0, 0, 0, 0.15)'
-      : 'rgba(255, 255, 255, 0.2)');
+  const shouldAddBorder = forceBorder;
+
+  // For light tint buttons, remove border and force a shadow instead
+  const effectiveShadowIntensity = isLightTint && shadowIntensity === 'light'
+    ? 'medium'
+    : shadowIntensity;
+
+  // If light tint, no border at all unless forceBorder is explicitly set
+  let borderWidth: number;
+  if (shouldAddBorder) {
+    borderWidth = 1;
+  } else if (isLightTint) {
+    borderWidth = 0;
+  } else {
+    borderWidth = 0.5;
+  }
+
+  const defaultBorderColor = isLightTint
+    ? 'rgba(0, 0, 0, 0.15)'
+    : 'rgba(255, 255, 255, 0.2)';
+  const borderColorValue = borderColor ?? defaultBorderColor;
 
   return {
-    borderWidth: shouldAddBorder ? 1 : 0.5,
+    borderWidth,
     borderColor: borderColorValue,
-    ...(shouldAddBorder ? buildShadowStyle(shadowIntensity) : {}),
+    ...buildShadowStyle(effectiveShadowIntensity, themeShadows),
   };
 };
 
@@ -275,6 +298,7 @@ interface GlassButtonProps {
   title?: string;
   onPress: () => void;
   size?: 'small' | 'medium' | 'large';
+  compact?: boolean;
   disabled?: boolean;
   loading?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -302,6 +326,7 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
   title,
   onPress,
   size = 'medium',
+  compact = false,
   disabled = false,
   loading = false,
   style,
@@ -309,7 +334,7 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
   glassEffect = 'regular',
   interactive = true,
   tintColor,
-  colorScheme = 'system',
+  colorScheme = 'light',
   width,
   height,
   minWidth,
@@ -324,21 +349,28 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
   shadowIntensity = 'light',
 }) => {
   const {theme, isDark} = useTheme();
+  const forceGlobalBorder = UI_FEATURE_FLAGS.forceLiquidGlassBorder;
+  const forceBorderEnabled = forceBorder || forceGlobalBorder;
+  const forcedBorderColor = forceBorderEnabled ? '#EAEAEA' : borderColor;
   const useNativeGlass =
     Platform.OS === 'ios' && isLiquidGlassSupported && !LOCK_IOS_GLASS_APPEARANCE;
+  const resolvedColorScheme = React.useMemo(() => {
+    if (colorScheme === 'system') {
+      return 'light';
+    }
+    return colorScheme;
+  }, [colorScheme]);
   const resolvedTintColor = React.useMemo(() => {
     if (tintColor) {
       return tintColor;
     }
-    return isDark ? DARK_GLASS_TINT : LIGHT_GLASS_TINT;
-  }, [isDark, tintColor]);
-
-  const resolvedColorScheme = React.useMemo(() => {
-    if (colorScheme !== 'system') {
-      return colorScheme;
+    if (Platform.OS === 'android') {
+      return resolvedColorScheme === 'dark'
+        ? ANDROID_DARK_GLASS_TINT
+        : ANDROID_LIGHT_GLASS_TINT;
     }
-    return isDark ? 'dark' : 'light';
-  }, [colorScheme, isDark]);
+    return resolvedColorScheme === 'dark' ? IOS_DARK_GLASS_TINT : IOS_LIGHT_GLASS_TINT;
+  }, [resolvedColorScheme, tintColor]);
   const borderRadiusValue = React.useMemo(
     () =>
       resolveBorderRadius(
@@ -359,14 +391,13 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
       height,
       minWidth,
       maxWidth,
-      overflow: 'hidden',
     }),
     [borderRadiusValue, height, maxWidth, minWidth, width],
   );
 
   const sizeStyle = React.useMemo(
-    () => buildSizeStyle(size, theme.spacing, height, minHeight),
-    [height, minHeight, size, theme.spacing],
+    () => (compact ? {} : buildSizeStyle(size, theme.spacing, height, minHeight)),
+    [compact, height, minHeight, size, theme.spacing],
   );
 
   const isLightTint = React.useMemo(
@@ -377,27 +408,31 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
   const surfaceStyle = React.useMemo(() => {
     if (useNativeGlass) {
       return buildGlassSurfaceStyle({
-        borderColor,
+        borderColor: forcedBorderColor,
         isLightTint,
-        forceBorder,
+        forceBorder: forceBorderEnabled,
         shadowIntensity,
+        themeShadows: theme.shadows,
       });
     }
 
     return buildFallbackSurfaceStyle({
       tintColor: resolvedTintColor,
       isDark,
-      borderColor,
+      borderColor: forcedBorderColor,
       isLightTint,
+      shadowIntensity,
+      themeShadows: theme.shadows,
     });
   }, [
-    borderColor,
-    forceBorder,
+    forcedBorderColor,
+    forceBorderEnabled,
     isLightTint,
     resolvedTintColor,
     shadowIntensity,
     useNativeGlass,
     isDark,
+    theme.shadows,
   ]);
 
   const buttonStyle = React.useMemo(
@@ -409,80 +444,19 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
     [baseButtonStyle, sizeStyle, surfaceStyle],
   );
 
-  const flattenedIosOverrides = React.useMemo(
-    () =>
-      (useNativeGlass
-        ? (StyleSheet.flatten(style) as ViewStyle | undefined)
-        : undefined),
-    [style, useNativeGlass],
+  const flattenedStyle = React.useMemo(
+    () => StyleSheet.flatten(style) as ViewStyle | undefined,
+    [style],
   );
 
-  const iosOverlayShapeStyle = React.useMemo(() => {
-    if (!useNativeGlass) {
-      return undefined;
-    }
-
-    const overrides = flattenedIosOverrides;
-    const shape: ViewStyle = {};
-    const baseRadius =
-      typeof overrides?.borderRadius === 'number'
-        ? overrides.borderRadius
-        : borderRadiusValue;
-
-    if (typeof baseRadius === 'number') {
-      shape.borderRadius = baseRadius;
-    }
-
-    const radiusKeys = [
-      'borderTopLeftRadius',
-      'borderTopRightRadius',
-      'borderBottomLeftRadius',
-      'borderBottomRightRadius',
-    ] as const;
-    for (const key of radiusKeys) {
-      const value = overrides?.[key];
-      if (typeof value === 'number') {
-        shape[key] = value;
-      }
-    }
-
-    return shape;
-  }, [borderRadiusValue, flattenedIosOverrides, useNativeGlass]);
-
-  const iosOverlayBackground = React.useMemo(() => {
-    if (!useNativeGlass) {
-      return undefined;
-    }
-
-    const fromStyle = flattenedIosOverrides?.backgroundColor as string | undefined;
-    if (isWhiteOrLightColor(fromStyle)) {
-      return '#FFFFFF';
-    }
-    if (isWhiteOrLightColor(tintColor)) {
-      return '#FFFFFF';
-    }
-    if (isWhiteOrLightColor(resolvedTintColor)) {
-      return '#FFFFFF';
-    }
-    return fromStyle ?? resolvedTintColor;
-  }, [flattenedIosOverrides, resolvedTintColor, tintColor, useNativeGlass]);
-
-  // Slightly extend overlay to avoid a hairline gap near rounded corners
-  const iosOverlayFill = React.useMemo(() => {
-    const inset = StyleSheet.hairlineWidth;
-    return {
-      position: 'absolute' as const,
-      top: -inset,
-      left: -inset,
-      right: -inset,
-      bottom: -inset,
-    };
-  }, []);
-
-  const clipStyles = React.useMemo(
-    () => StyleSheet.create({clip: {overflow: 'hidden'}}),
-    [],
-  );
+  const hasExplicitSize = React.useMemo(() => {
+    return (
+      typeof width === 'number' ||
+      typeof height === 'number' ||
+      typeof flattenedStyle?.width === 'number' ||
+      typeof flattenedStyle?.height === 'number'
+    );
+  }, [flattenedStyle?.height, flattenedStyle?.width, height, width]);
 
   const textColor = React.useMemo(
     () =>
@@ -522,9 +496,33 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
     [isDark, theme.colors, resolvedTintColor, useNativeGlass],
   );
 
+  const customContentWrapperStyle = React.useMemo<ViewStyle>(
+    () => ({
+      width: '100%',
+      height: '100%',
+      alignItems: 'center',
+      justifyContent: 'center',
+    }),
+    [],
+  );
+
+  const pressableStyle = React.useMemo<ViewStyle>(
+    () => ({
+      justifyContent: 'center',
+      alignItems: 'center',
+      flexDirection: 'row',
+      ...(hasExplicitSize ? {width: '100%', height: '100%'} : {}),
+    }),
+    [hasExplicitSize],
+  );
+
   const getButtonContent = () => {
     if (customContent) {
-      return customContent;
+      return (
+        <View style={customContentWrapperStyle}>
+          {customContent}
+        </View>
+      );
     }
 
     return (
@@ -567,23 +565,8 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
         effect={glassEffect}
         tintColor={resolvedTintColor}
         colorScheme={resolvedColorScheme}>
-        <View
-          pointerEvents="none"
-          style={[
-            iosOverlayFill,
-            iosOverlayShapeStyle,
-            { backgroundColor: iosOverlayBackground ?? resolvedTintColor },
-            clipStyles.clip,
-          ]}
-        />
         <TouchableOpacity
-          style={{
-            width: '100%',
-            height: '100%',
-            justifyContent: 'center',
-            alignItems: 'center',
-            flexDirection: 'row',
-          }}
+          style={pressableStyle}
           onPress={onPress}
           disabled={disabled || loading}
           activeOpacity={1}>

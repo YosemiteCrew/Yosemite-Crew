@@ -1,0 +1,179 @@
+import {
+  Form,
+  FormField,
+  FormRequestDTO,
+  FormResponseDTO,
+  fromFormRequestDTO,
+  toFormResponseDTO,
+} from '@yosemite-crew/types';
+import {
+  CategoryTemplates,
+  FormsCategory,
+  FormsProps,
+  FormsStatus,
+  FormsUsage,
+} from '@/app/features/forms/types/forms';
+import { formatDisplayDate, formatTimeInPreferredTimeZone } from '@/app/lib/date';
+
+const statusToLabelMap: Record<Form['status'], FormsStatus> = {
+  draft: 'Draft',
+  published: 'Published',
+  archived: 'Archived',
+};
+
+const labelToStatusMap: Record<FormsStatus, Form['status']> = {
+  Draft: 'draft',
+  Published: 'published',
+  Archived: 'archived',
+};
+
+const toList = (val?: string | string[]): string[] => {
+  if (!val) return [];
+  return Array.isArray(val) ? val : [val];
+};
+
+export const formatDateLabel = (value?: Date | string): string => {
+  return formatDisplayDate(value, '');
+};
+
+export const formatTimeLabel = (value?: Date | string): string => {
+  return formatTimeInPreferredTimeZone(value, '');
+};
+
+export const statusToLabel = (status?: Form['status']): FormsStatus => {
+  if (!status) return 'Draft';
+  return statusToLabelMap[status] ?? 'Draft';
+};
+
+export const labelToStatus = (label?: FormsStatus): Form['status'] => {
+  if (!label) return 'draft';
+  return labelToStatusMap[label] ?? 'draft';
+};
+
+const cloneField = (field: FormField): FormField => {
+  if (field.type === 'group') {
+    return {
+      ...field,
+      fields: (field.fields ?? []).map(cloneField),
+    };
+  }
+  return { ...field };
+};
+
+export const getCategoryTemplate = (category: FormsCategory): FormField[] =>
+  (CategoryTemplates[category] ?? []).map(cloneField);
+
+export const hasSignatureField = (fields: FormField[] = []): boolean =>
+  fields.some(
+    (field) =>
+      field.type === 'signature' ||
+      (field.type === 'group' && hasSignatureField(field.fields ?? []))
+  );
+
+export const removeSignatureFields = (fields: FormField[] = []): FormField[] =>
+  fields
+    .filter((field) => field.type !== 'signature')
+    .map((field) => {
+      if (field.type !== 'group') return field;
+      return {
+        ...field,
+        fields: removeSignatureFields(field.fields ?? []),
+      };
+    });
+
+export const ensureSingleSignatureAtEnd = (
+  fields: FormField[] = [],
+  label = 'Signature'
+): FormField[] => {
+  const withoutSignatures = removeSignatureFields(fields);
+  return [
+    ...withoutSignatures,
+    {
+      id: 'signature',
+      type: 'signature',
+      label,
+    } as FormField,
+  ];
+};
+
+export const questionnaireToForm = (dto: FormResponseDTO): Form => {
+  return fromFormRequestDTO(dto);
+};
+
+export const mapFormToUI = (form: Form): FormsProps => ({
+  _id: form._id,
+  orgId: form.orgId,
+  name: form.name,
+  description: form.description,
+  businessType: (form as any).businessType,
+  services: toList(form.serviceId),
+  species: form.speciesFilter ?? [],
+  category: form.category as FormsCategory,
+  requiredSigner: form.requiredSigner ?? '',
+  usage: (() => {
+    const visibility = (form.visibilityType as FormsUsage) ?? 'Internal';
+    if (typeof visibility === 'string') {
+      const normalized = visibility.toLowerCase().replaceAll(/\s|-/g, '');
+      if (
+        normalized === 'internal&external' ||
+        normalized === 'internal_external' ||
+        normalized === 'interna_external'
+      ) {
+        return 'Internal & External';
+      }
+    }
+    return visibility;
+  })(),
+  updatedBy: form.updatedBy || '',
+  lastUpdated: formatDateLabel(form.updatedAt ?? form.createdAt),
+  status: statusToLabel(form.status),
+  schema: (form.schema ?? []).map(cloneField),
+});
+
+export const mapQuestionnaireToUI = (dto: FormResponseDTO): FormsProps =>
+  mapFormToUI(questionnaireToForm(dto));
+
+type BuildPayloadArgs = {
+  form: FormsProps;
+  orgId: string;
+  userId: string;
+  fallbackToTemplate?: boolean;
+};
+
+export const buildFHIRPayload = ({
+  form,
+  orgId,
+  userId,
+  fallbackToTemplate = true,
+}: BuildPayloadArgs): FormRequestDTO => {
+  const hasSchema = Boolean(form.schema?.length);
+  const templateSchema = !hasSchema && fallbackToTemplate ? getCategoryTemplate(form.category) : [];
+  const schema = hasSchema ? form.schema : templateSchema;
+
+  const now = new Date();
+  const usage = form.usage ?? 'Internal';
+  const visibilityType = (
+    usage === 'Internal & External' ? 'Internal_External' : usage
+  ) as Form['visibilityType']; // backend supports Internal_External; local types lag
+
+  const normalized: Form & { businessType?: any } = {
+    _id: form._id ?? '',
+    orgId: orgId,
+    name: form.name,
+    category: form.category,
+    description: form.description,
+    visibilityType,
+    serviceId: form.services?.length ? form.services : undefined,
+    speciesFilter: form.species?.length ? form.species : undefined,
+    requiredSigner: form.requiredSigner || undefined,
+    status: labelToStatus(form.status),
+    schema,
+    createdBy: (form as any).createdBy || userId,
+    updatedBy: userId,
+    createdAt: (form as any).createdAt || now,
+    updatedAt: now,
+    businessType: form.businessType,
+  };
+
+  return toFormResponseDTO(normalized);
+};

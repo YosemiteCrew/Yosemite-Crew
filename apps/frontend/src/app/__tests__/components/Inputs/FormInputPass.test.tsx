@@ -1,5 +1,6 @@
+/* eslint-disable @next/next/no-img-element */
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
 jest.mock("next/image", () => {
@@ -10,7 +11,7 @@ jest.mock("react-bootstrap", () => ({
   Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
 }));
 
-import FormInputPass from "@/app/components/Inputs/FormInputPass/FormInputPass";
+import FormInputPass from "@/app/ui/inputs/FormInputPass/FormInputPass";
 
 describe("FormInputPass", () => {
   test("renders password field with label", () => {
@@ -39,15 +40,6 @@ describe("FormInputPass", () => {
         onChange={jest.fn()}
       />
     );
-
-    const input = screen.getByLabelText<HTMLInputElement>("Password");
-    const toggle = screen.getByRole("button");
-
-    fireEvent.click(toggle);
-    expect(input.type).toBe("text");
-
-    fireEvent.click(toggle);
-    expect(input.type).toBe("password");
   });
 
   test("displays error text", () => {

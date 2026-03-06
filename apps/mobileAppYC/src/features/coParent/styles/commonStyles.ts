@@ -15,11 +15,7 @@ export const createCommonCoParentStyles = (theme: any) =>
       borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
       borderColor: theme.colors.borderMuted,
-      shadowColor: '#000000',
-      shadowOffset: {width: 0, height: 8},
-      shadowOpacity: 0.15,
-      shadowRadius: 12,
-      elevation: 4,
+      ...theme.shadows.lg,
     },
     buttonText: {
       color: theme.colors.white,

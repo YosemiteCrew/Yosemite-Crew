@@ -2,11 +2,22 @@ import React from 'react';
 import { render } from '@testing-library/react-native';
 import { CategoryTile } from '@/shared/components/common/CategoryTile/CategoryTile';
 import { Images } from '@/assets/images';
+import { mockTheme } from '../setup/mockTheme';
+import { useTheme } from '@/hooks';
 // Removed 'View' import as it's not used directly in the test file, only in mocks
 
 // --- Mocks ---
 
-// 1. Spy on the props passed to the child component
+// 1. Mock useTheme
+jest.mock('@/hooks', () => {
+  const {mockTheme: theme} = require('../setup/mockTheme');
+  return {
+    __esModule: true,
+    useTheme: jest.fn(() => ({theme, isDark: false})),
+  };
+});
+
+// 2. Spy on the props passed to the child component
 const mockIconInfoTile = jest.fn();
 
 jest.mock('@/shared/components/common/tiles/IconInfoTile', () => {
@@ -56,6 +67,10 @@ jest.mock('react-native', () => {
     },
     Platform: RN.Platform,
     PixelRatio: RN.PixelRatio,
+    Appearance: {
+      getColorScheme: jest.fn(() => 'light'),
+      addChangeListener: jest.fn(() => ({ remove: jest.fn() })),
+    },
   };
 });
 
@@ -67,6 +82,7 @@ describe('CategoryTile', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (useTheme as jest.Mock).mockReturnValue({ theme: mockTheme, isDark: false });
   });
 
   it('passes all props correctly to IconInfoTile with defaults', () => {
@@ -98,7 +114,7 @@ describe('CategoryTile', () => {
     expect(rightArrow.props.source).toBe(Images.rightArrow);
     expect(rightArrow.props.style).toEqual(
       expect.objectContaining({
-        tintColor: '#7A7F85',
+        tintColor: '#747473',
       }),
     );
   });

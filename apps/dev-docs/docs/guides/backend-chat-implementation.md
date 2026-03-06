@@ -597,7 +597,6 @@ Update your Appointment model to include chat references:
 **Files**:
 - `apps/frontend/src/app/services/streamChatService.ts` - Stream client
 - `apps/frontend/src/app/components/chat/ChatContainer.tsx` - Chat UI
-- `apps/frontend/src/app/utils/mockStreamBackend.ts` - Mock service (replace with API calls)
 
 **Key Functions to Update**:
 1. `connectStreamUser()` - Get token from `/api/chat/token`
@@ -617,7 +616,7 @@ Update your Appointment model to include chat references:
 3. **Configure Environment Variables**
 
 4. **Update Frontend Mock Services**:
-   - Replace `mockStreamBackend.ts` calls with HTTP requests to your endpoints
+   - Replace any mock chat calls with HTTP requests to your endpoints
    - Keep all existing frontend code unchanged
 
 5. **Test End-to-End**:

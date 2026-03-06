@@ -1,0 +1,326 @@
+'use client';
+import React, { ReactNode } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+
+import Footer from '@/app/ui/widgets/Footer/Footer';
+import { Primary } from '@/app/ui/primitives/Buttons';
+import FeatureBox from '@/app/features/marketing/pages/HomePage/FeatureBox/FeatureBox';
+import FocusCard from '@/app/features/marketing/pages/HomePage/FocusCard/FocusCard';
+import data from './data';
+import { useAuthStore } from '@/app/stores/authStore';
+import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+
+import './HomePage.css';
+
+const HomePage = () => {
+  const { focusCards, practiceFeatures, heroList } = data;
+  const { user, role } = useAuthStore();
+
+  const getCtaHref = () => {
+    if (user) {
+      return role === 'developer' ? '/developers/home' : '/organizations';
+    }
+    return '/signup';
+  };
+
+  const ctaText = user ? 'Go to app' : 'Get started free';
+
+  return (
+    <>
+      <section className="HomeHeroSection">
+        <div className="Container">
+          <div className="HomeHeroData">
+            <div className="LeftHeroDiv">
+              <div className="herotext">
+                <div className="text-display-1 text-text-primary type first">
+                  Helping you help pets,
+                </div>
+                <div className="text-display-1 text-text-primary">
+                  <span className="type second">without the hassle</span>
+                </div>
+              </div>
+              <div className="heroPara">
+                {heroList.map((hero, index) => (
+                  <div className="paraitem" key={index + hero.title}>
+                    <div className="text-body-3 text-text-primary">
+                      <Image
+                        aria-hidden
+                        src={MEDIA_SOURCES.homePage.petFootBlue}
+                        alt="petfoot"
+                        width={20}
+                        height={20}
+                      />{' '}
+                      {hero.title}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="HeroBtn">
+                <Primary size="large" text={ctaText} href={getCtaHref()} />
+              </div>
+            </div>
+            <div className="RytHeroDiv">
+              <Image
+                aria-hidden
+                src={MEDIA_SOURCES.homePage.heroBg}
+                alt="Hero"
+                width={733}
+                height={564}
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="PracticedSection">
+        <div className="Container">
+          <div className="PracticedData">
+            <div className="PractHeading">
+              <div className="text-display-2 text-text-primary">
+                Everything you need to run your pet business
+              </div>
+            </div>
+            <div className="Practice_Box_Data">
+              {practiceFeatures.map((feature, index) => (
+                <FeatureBox
+                  key={index + feature.title}
+                  Bpimg={feature.image}
+                  BpTxt1={feature.title}
+                  BpTxt2={feature.title2}
+                  BpPara={feature.description}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="FocusSection">
+        <div className="Container">
+          <div className="FocusData">
+            <div className="FocusTexted">
+              <div className="text-display-2 text-text-primary">Focus on care, not admin</div>
+              <div className="text-body-4 text-text-secondary">
+                The easy-to-use, cloud-based software that simplifies practice management and
+                elevates animal care.
+              </div>
+            </div>
+            <div className="Focus_data">
+              {focusCards.map((card, index) => (
+                <FocusCard
+                  key={index + card.title}
+                  Focimg={card.img}
+                  focname={card.title}
+                  focpara={card.description}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* <section className="TrustExpertSec">
+        <Container>
+          <div className="ExptMaindata">
+            <div className="ExprtTexted">
+              <h4>Trusted by Veterinary Experts</h4>
+            </div>
+            <div className="TrustExpertData">
+              <div className="Expertitems">
+                <div className="expertPara">
+                  <p>
+                    Yosemite Crew has transformed the way we manage our clinic.
+                    The open-source platform allows us to customize it to our
+                    needs, and the automated workflows save us hours every week!
+                  </p>
+                </div>
+                <div className="expertBio">
+                  <Image
+                    aria-hidden
+                    src={MEDIA_SOURCES.homePage.expert1}
+                    alt="Hero"
+                    width={50}
+                    height={50}
+                  />
+                  <div className="exprtName">
+                    <h6>Dr. Sarah Mitchell</h6>
+                    <p>
+                      Senior Veterinarian <br /> Paws & Claws Animal Hospital
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="Expertitems purpleitem">
+                <div className="expertPara">
+                  <p>
+                    Our team is more efficient, and our clients love the mobile
+                    app. It’s made communication so much easier, and patient
+                    care is more organized than ever.t
+                  </p>
+                </div>
+                <div className="expertBio purplebio">
+                  <Image
+                    aria-hidden
+                    src={MEDIA_SOURCES.homePage.expert2}
+                    alt="Hero"
+                    width={50}
+                    height={50}
+                  />
+                  <div className="exprtName">
+                    <h6>Dr. Michael Lawson</h6>
+                    <p>
+                      Director <br /> Healthy Paws Veterinary Center
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="Expertitems greenitem">
+                <div className="expertPara">
+                  <p>
+                    Switching to Yosemite Crew was the best decision for our
+                    practice. The integration with third-party tools and
+                    real-time analytics have given us incredible insights into
+                    how to improve our operations.
+                  </p>
+                </div>
+                <div className="expertBio greenbio">
+                  <Image
+                    aria-hidden
+                    src={MEDIA_SOURCES.homePage.expert3}
+                    alt="Hero"
+                    width={50}
+                    height={50}
+                  />
+                  <div className="exprtName">
+                    <h6>Dr. Emily Carter</h6>
+                    <p>
+                      Clinic Manager <br /> Furry Friends Veterinary Clinic
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Container>
+      </section> */}
+
+      <section className="WhoCareSection">
+        <div className="Container">
+          <div className="whocareData">
+            <div className="lftcare">
+              <div className="text-display-2 text-text-primary">
+                Caring for vets, who care for pets
+              </div>
+              <div className="text-body-4 text-text-secondary">
+                We prioritise your data security and compliance with industry-leading standards. Our
+                platform is fully compliant with GDPR, SOC 2 and ISO 27001 standards.
+              </div>
+            </div>
+            <div className="rytcare">
+              <Image
+                aria-hidden
+                src={MEDIA_SOURCES.footer.gdpr}
+                alt="cllog1"
+                width={128}
+                height={128}
+              />
+              <Image
+                aria-hidden
+                src={MEDIA_SOURCES.footer.soc2}
+                alt="cllog2"
+                width={128}
+                height={128}
+              />
+              <Image
+                aria-hidden
+                src={MEDIA_SOURCES.footer.iso}
+                alt="cllog3"
+                width={128}
+                height={144}
+              />
+              <Image
+                aria-hidden
+                src={MEDIA_SOURCES.footer.fhir}
+                alt="cllog4"
+                width={207}
+                height={50}
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="BetterCareSec">
+        <div className="Container">
+          <div className="BettercareBox">
+            <div className="lftbetter">
+              <div className="betInner">
+                <div className="careText">
+                  <div className="text-display-2 text-text-primary">
+                    Better care is just a click away
+                  </div>
+                  <div className="text-body-4 text-text-secondary">
+                    Join hundreds of veterinary clinics already enhancing animal care and
+                    streamlining their workflow.
+                  </div>
+                </div>
+                <Primary text={ctaText} href={getCtaHref()} size="large" />
+              </div>
+            </div>
+            <div className="lftbetter">
+              <Image
+                aria-hidden
+                src={MEDIA_SOURCES.homePage.betterImage}
+                alt="betterimg"
+                width={507}
+                height={433}
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <Footer />
+    </>
+  );
+};
+
+export default HomePage;
+
+// ButtonProps
+
+type ButtonProps = {
+  icon: ReactNode;
+  text: string;
+  href: string;
+  onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
+  style?: React.CSSProperties;
+};
+
+const FillBtn = ({ icon, text, onClick, href, style }: Readonly<ButtonProps>) => {
+  return (
+    <Link
+      href={href}
+      className="Fillbtn"
+      onClick={(e) => {
+        if (onClick) {
+          e.preventDefault(); // ✅ stops immediate navigation
+          onClick(e); // ✅ trigger your handler
+        }
+      }}
+      style={style}
+    >
+      {icon} {text}
+    </Link>
+  );
+};
+const UnFillBtn = ({ icon, text, href, onClick, style }: Readonly<ButtonProps>) => {
+  return (
+    <Link className="UnFillbtn" href={href} onClick={onClick} style={style}>
+      {icon} {text}
+    </Link>
+  );
+};
+
+export { FillBtn, UnFillBtn };

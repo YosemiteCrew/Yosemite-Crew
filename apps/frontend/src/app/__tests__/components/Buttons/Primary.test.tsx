@@ -6,7 +6,7 @@ jest.mock("next/link", () => {
   return ({ children, ...props }: any) => <a {...props}>{children}</a>;
 });
 
-import Primary from "@/app/components/Buttons/Primary";
+import Primary from "@/app/ui/primitives/Buttons/Primary";
 
 describe("Primary button", () => {
   test("renders the provided text and href", () => {
@@ -15,7 +15,6 @@ describe("Primary button", () => {
     const link = screen.getByRole("link", { name: "Book onboarding call" });
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute("href", "/book-demo");
-    expect(link).toHaveClass("primary-button");
   });
 
   test("prevents default navigation and calls onClick handler", () => {

@@ -82,12 +82,12 @@ export const InlineEditRow: React.FC<InlineEditRowProps> = ({
           onPress={cancelEdit}
           style={styles.cancelButton}
           textStyle={styles.cancelButtonText}
-          tintColor="#FFFFFF"
+          tintColor={theme.colors.white}
           shadowIntensity="light"
           forceBorder
-          borderColor="rgba(0, 0, 0, 0.12)"
-          height={48}
-          borderRadius={14}
+          borderColor={theme.colors.borderMuted}
+          height={theme.spacing['12']}
+          borderRadius={theme.borderRadius.md}
         />
 
         <LiquidGlassButton
@@ -98,9 +98,9 @@ export const InlineEditRow: React.FC<InlineEditRowProps> = ({
           tintColor={theme.colors.secondary}
           shadowIntensity="medium"
           forceBorder
-          borderColor="rgba(255, 255, 255, 0.35)"
-          height={48}
-          borderRadius={14}
+          borderColor={theme.colors.borderMuted}
+          height={theme.spacing['12']}
+          borderRadius={theme.borderRadius.md}
         />
       </View>
     </View>
@@ -112,23 +112,23 @@ const createStyles = (theme: any) =>
     row: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: theme.spacing[3],
-      paddingHorizontal: theme.spacing[3],
+      paddingVertical: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['3'],
     },
     label: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.secondary,
+      ...theme.typography.body,
+      color: theme.colors.textSecondary,
       flex: 1,
     },
     valueContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[3],
+      gap: theme.spacing['3'],
       maxWidth: '60%',
     },
     value: {
-      ...theme.typography.bodySmall,
-      color: theme.colors.textSecondary,
+      ...theme.typography.bodyMedium,
+      color: theme.colors.secondary,
       textAlign: 'right',
     },
     rightArrow: {
@@ -139,7 +139,6 @@ const createStyles = (theme: any) =>
     editContainer: {
       paddingVertical: theme.spacing['4'],
       paddingHorizontal: theme.spacing['5'],
-      backgroundColor: theme.colors.background,
     },
     inputContainer: {
       marginBottom: theme.spacing['5'],
@@ -151,7 +150,6 @@ const createStyles = (theme: any) =>
     },
     cancelButton: {
       flex: 1,
-      backgroundColor: theme.colors.white,
     },
     cancelButtonText: {
       ...theme.typography.paragraphBold,

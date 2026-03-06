@@ -21,7 +21,7 @@ jest.mock("react-icons/io", () => ({
   ),
 }));
 
-import Accordion from "@/app/components/Accordion/Accordion";
+import Accordion from "@/app/ui/primitives/Accordion/Accordion";
 
 describe("<Accordion />", () => {
   test("renders title and children when defaultOpen is true", () => {

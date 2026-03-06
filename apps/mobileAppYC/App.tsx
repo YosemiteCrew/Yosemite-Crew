@@ -28,17 +28,28 @@ import { AuthProvider, useAuth } from '@/features/auth/context/AuthContext';
 import {configureSocialProviders} from '@/features/auth/services/socialAuth';
 import { ErrorBoundary } from '@/shared/components/common/ErrorBoundary';
 import { PreferencesProvider } from '@/features/preferences/PreferencesContext';
+import { GlobalLoaderProvider } from '@/context/GlobalLoaderContext';
+import { BottomFadeOverlay } from '@/shared/components/common';
 import {
   initializeNotifications,
   type NotificationNavigationIntent,
 } from '@/shared/services/firebaseNotifications';
+import {fetchMobileConfig, isProductionMobileEnv, type MobileConfig} from '@/shared/services/mobileConfig';
 import {
   registerDeviceToken,
   unregisterDeviceToken,
 } from '@/shared/services/deviceTokenRegistry';
 import {useAppDispatch} from '@/app/hooks';
 import type {RootStackParamList} from '@/navigation/types';
-import {STRIPE_CONFIG} from '@/config/variables';
+import {
+  API_CONFIG,
+  AUTH_FEATURE_FLAGS,
+  MOBILE_CONFIG_BEHAVIOR,
+  STRIPE_CONFIG,
+  UI_FEATURE_FLAGS,
+} from '@/config/variables';
+import {updateApiClientBaseConfig} from '@/shared/services/apiClient';
+import {observationToolApi} from '@/features/observationalTools/services/observationToolService';
 
 Amplify.configure(outputs);
 
@@ -46,16 +57,45 @@ LogBox.ignoreLogs([
   'This method is deprecated (as well as all React Native Firebase namespaced API)',
 ]);
 
+const coerceBooleanFlag = (value: boolean | string | null | undefined): boolean => {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true') {
+      return true;
+    }
+    if (normalized === 'false') {
+      return false;
+    }
+  }
+  return false;
+};
 
-  const noop = () => {};
-  console.log = noop;
-  console.info = noop;
-  console.debug = noop;
-  console.trace = noop;
+const resolveApiBaseUrlForEnv = (env?: MobileConfig['env']): string => {
+  if (isProductionMobileEnv(env)) {
+    return 'https://api.yosemitecrew.com';
+  }
+  return 'https://devapi.yosemitecrew.com';
+};
+
+const shouldDisableReviewLogin = (env?: MobileConfig['env']): boolean => {
+  return isProductionMobileEnv(env);
+};
+
+
+  // const noop = () => {};
+  // console.log = noop;
+  // console.info = noop;
+  // console.debug = noop;
+  // console.trace = noop;
 
 
 function App(): React.JSX.Element {
   const [isSplashVisible, setIsSplashVisible] = useState(true);
+  const [mobileConfig, setMobileConfig] = useState<MobileConfig | null>(null);
+  const [isConfigLoading, setIsConfigLoading] = useState(true);
   const navigationRef = useNavigationContainerRef<RootStackParamList>();
   const pendingIntentRef = useRef<NotificationNavigationIntent | null>(null);
 
@@ -64,12 +104,83 @@ function App(): React.JSX.Element {
   }, []);
 
   useEffect(() => {
-    if (!STRIPE_CONFIG.publishableKey) {
+    let mounted = true;
+
+    const loadMobileConfig = async () => {
+      try {
+        // console.log('[MobileConfig] Loading mobile config…', {
+        //   skipRemoteFetch: MOBILE_CONFIG_BEHAVIOR.skipRemoteFetch,
+        //   hasOverride: Boolean(MOBILE_CONFIG_BEHAVIOR.override),
+        // });
+
+        let config: MobileConfig | null = null;
+
+        if (!MOBILE_CONFIG_BEHAVIOR.skipRemoteFetch) {
+          config = await fetchMobileConfig();
+        }
+
+        if (MOBILE_CONFIG_BEHAVIOR.override) {
+          config = {
+            ...(config ?? {}),
+            ...MOBILE_CONFIG_BEHAVIOR.override,
+          } as MobileConfig;
+        }
+
+        if (config && mounted) {
+          const resolvedBaseUrl = resolveApiBaseUrlForEnv(config.env);
+          API_CONFIG.baseUrl = resolvedBaseUrl;
+          API_CONFIG.pmsBaseUrl = resolvedBaseUrl;
+          updateApiClientBaseConfig({
+            baseUrl: resolvedBaseUrl,
+            timeoutMs: API_CONFIG.timeoutMs,
+          });
+
+          if (shouldDisableReviewLogin(config.env)) {
+            AUTH_FEATURE_FLAGS.enableReviewLogin = false;
+          }
+
+          UI_FEATURE_FLAGS.forceLiquidGlassBorder = coerceBooleanFlag(
+            config.forceLiquidGlassBorder ?? UI_FEATURE_FLAGS.forceLiquidGlassBorder,
+          );
+
+          // console.log('[MobileConfig] Applied config', {
+          //   env: config.env,
+          //   baseUrl: API_CONFIG.baseUrl,
+          //   enableReviewLogin: AUTH_FEATURE_FLAGS.enableReviewLogin,
+          //   forceLiquidGlassBorder: UI_FEATURE_FLAGS.forceLiquidGlassBorder,
+          //   stripeKeyPresent: Boolean(config.stripePublishableKey),
+          // });
+
+          setMobileConfig(config);
+        }
+      } catch (error) {
+        if (mounted) {
+          console.warn('[MobileConfig] Failed to fetch config', error);
+        }
+      } finally {
+        if (mounted) {
+          setIsConfigLoading(false);
+        }
+      }
+    };
+
+    loadMobileConfig();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const resolvedPublishableKey =
+    mobileConfig?.stripePublishableKey ?? STRIPE_CONFIG.publishableKey;
+
+  useEffect(() => {
+    if (!resolvedPublishableKey && !isConfigLoading) {
       console.warn(
-        '[Stripe] Missing publishableKey. Add STRIPE_CONFIG in variables.local.ts to enable payments.',
+        '[Stripe] Missing publishableKey from mobile config API and local config.',
       );
     }
-  }, []);
+  }, [isConfigLoading, resolvedPublishableKey]);
 
   const handleSplashAnimationEnd = () => {
     setIsSplashVisible(false);
@@ -97,6 +208,10 @@ function App(): React.JSX.Element {
     return <CustomSplashScreen onAnimationEnd={handleSplashAnimationEnd} />;
   }
 
+  if (isConfigLoading) {
+    return <CustomSplashScreen onAnimationEnd={handleSplashAnimationEnd} />;
+  }
+
   return (
     <Provider store={store}>
       <PersistGate loading={<CustomSplashScreen onAnimationEnd={() => {}} />} persistor={persistor}>
@@ -104,16 +219,18 @@ function App(): React.JSX.Element {
           <SafeAreaProvider>
             <AuthProvider>
               <PreferencesProvider>
-                <NotificationBootstrap onNavigate={handleNotificationNavigation}>
-                  <StripeProvider
-                    publishableKey={STRIPE_CONFIG.publishableKey}
-                    urlScheme={STRIPE_CONFIG.urlScheme}
-                  >
-                    <NavigationContainer ref={navigationRef} onReady={handleNavigationReady}>
-                      <AppContent />
-                    </NavigationContainer>
-                  </StripeProvider>
-                </NotificationBootstrap>
+                <GlobalLoaderProvider>
+                  <NotificationBootstrap onNavigate={handleNotificationNavigation}>
+                    <StripeProvider
+                      publishableKey={resolvedPublishableKey ?? ''}
+                      urlScheme={STRIPE_CONFIG.urlScheme}
+                    >
+                      <NavigationContainer ref={navigationRef} onReady={handleNavigationReady}>
+                        <AppContent />
+                      </NavigationContainer>
+                    </StripeProvider>
+                  </NotificationBootstrap>
+                </GlobalLoaderProvider>
               </PreferencesProvider>
             </AuthProvider>
           </SafeAreaProvider>
@@ -135,6 +252,7 @@ function AppContent(): React.JSX.Element {
         <ErrorBoundary>
           <AppNavigator />
         </ErrorBoundary>
+        <BottomFadeOverlay height={30} intensity="medium" bottomOffset={0} />
     </>
   );
 }
@@ -183,6 +301,18 @@ const NotificationBootstrap: React.FC<NotificationBootstrapProps> = ({
   }, []);
 
   useEffect(() => {
+    if (!isLoggedIn) return;
+    const preloadTools = async () => {
+      try {
+        await observationToolApi.list({onlyActive: true});
+      } catch (error) {
+        console.warn('[ObservationTools] Failed to preload tools', error);
+      }
+    };
+    preloadTools();
+  }, [isLoggedIn]);
+
+  useEffect(() => {
     let mounted = true;
 
     const setup = async () => {
@@ -195,7 +325,7 @@ const NotificationBootstrap: React.FC<NotificationBootstrapProps> = ({
             }
           },
           onTokenUpdate: async token => {
-            console.log('[Notifications] FCM token updated', token);
+            // console.log('[Notifications] FCM token updated', token);
             latestTokenRef.current = token;
             if (authStatusRef.current.isLoggedIn) {
               await syncRegisterToken(token);

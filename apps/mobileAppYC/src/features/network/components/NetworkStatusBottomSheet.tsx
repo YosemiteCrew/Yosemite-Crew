@@ -89,21 +89,21 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     bottomSheetBackground: {
       backgroundColor: theme.colors.surface,
-      borderTopLeftRadius: theme.borderRadius['3xl'],
-      borderTopRightRadius: theme.borderRadius['3xl'],
+      borderTopLeftRadius: theme.spacing['6'],
+      borderTopRightRadius: theme.spacing['6'],
     },
     bottomSheetHandle: {
       backgroundColor: theme.colors.borderMuted,
     },
     container: {
-      gap: theme.spacing[4],
-      paddingHorizontal: theme.spacing[5],
-      paddingBottom: theme.spacing[12],
+      gap: theme.spacing['4'],
+      paddingHorizontal: theme.spacing['5'],
+      paddingBottom: theme.spacing['12'],
     },
     imageContainer: {
       alignItems: 'center',
       justifyContent: 'center',
-      marginVertical: theme.spacing[3],
+      marginVertical: theme.spacing['3'],
       height: 200,
     },
     image: {
@@ -112,12 +112,12 @@ const createStyles = (theme: any) =>
     },
     messageContainer: {
       alignItems: 'center',
-      marginVertical: theme.spacing[2],
+      marginVertical: theme.spacing['2'],
     },
     messageTitle: {
       ...theme.typography.titleLarge,
       color: theme.colors.secondary,
-      marginBottom: theme.spacing[2],
+      marginBottom: theme.spacing['2'],
       textAlign: 'center',
     },
     messageSubtitle: {

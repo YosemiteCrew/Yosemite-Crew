@@ -1,0 +1,59 @@
+import React from "react";
+import { Invite } from "@/app/features/organization/types/team";
+
+import "./InviteCard.css";
+import { toTitle, toTitleCase } from "@/app/lib/validators";
+
+type InviteCardProps = {
+  invite: Invite;
+  handleAccept: (invite: Invite) => Promise<void>;
+  handleReject: (invite: Invite) => void;
+};
+
+const InviteCard = ({
+  invite,
+  handleAccept,
+  handleReject,
+}: InviteCardProps) => {
+  return (
+    <div className="invite-card">
+      <div className="text-body-3-emphasis text-text-brand">
+        {invite.organisationName}
+      </div>
+      <div className="invite-card-item">
+        <div className="text-caption-1 text-text-extra">Type :</div>
+        <div className="text-caption-1 text-text-primary">
+          {toTitleCase(invite.organisationType)}
+        </div>
+      </div>
+      <div className="invite-card-item">
+        <div className="text-caption-1 text-text-extra">Role :</div>
+        <div className="text-caption-1 text-text-primary">
+          {toTitleCase(invite.role)}
+        </div>
+      </div>
+      <div className="invite-card-item">
+        <div className="text-caption-1 text-text-extra">Employee type :</div>
+        <div className="text-caption-1 text-text-primary">
+          {toTitle(invite.employmentType)}
+        </div>
+      </div>
+      <div className="invite-card-actions">
+        <button
+          onClick={() => handleAccept(invite)}
+          className="invite-card-action"
+        >
+          Accept
+        </button>
+        <button
+          onClick={() => handleReject(invite)}
+          className="invite-card-action"
+        >
+          Decline
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default InviteCard;

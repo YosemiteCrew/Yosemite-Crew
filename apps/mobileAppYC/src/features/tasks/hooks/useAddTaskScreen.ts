@@ -8,6 +8,8 @@ import {useTaskFormSetup} from './useTaskFormSetup';
 import {useTaskFormHelpers} from './useTaskFormHelpers';
 import {useScreenHandlers} from './useScreenHandlers';
 import {validateTaskForm} from '@/features/tasks/screens/AddTaskScreen/validation';
+import {fetchCoParents} from '@/features/coParent/thunks';
+import {selectAuthUser} from '@/features/auth/selectors';
 
 /**
  * Consolidated hook for AddTaskScreen
@@ -19,6 +21,7 @@ export const useAddTaskScreen = (navigation: any) => {
   const companions = useSelector((state: RootState) => state.companion.companions);
   const selectedCompanionId = useSelector((state: RootState) => state.companion.selectedCompanionId);
   const loading = useSelector((state: RootState) => state.tasks.loading);
+  const currentUser = useSelector(selectAuthUser);
 
   const formSetup = useTaskFormSetup();
   const {formData, hasUnsavedChanges, setErrors, setHasUnsavedChanges, updateField, clearError} = formSetup;
@@ -52,6 +55,25 @@ export const useAddTaskScreen = (navigation: any) => {
       dispatch(setSelectedCompanion(companionId));
     }
   };
+
+  useEffect(() => {
+    if (selectedCompanionId) {
+      const companion = companions.find(c => c.id === selectedCompanionId);
+      dispatch(fetchCoParents({
+        companionId: selectedCompanionId,
+        companionName: companion?.name,
+        companionImage: companion?.profileImage ?? undefined,
+      }));
+    }
+  }, [companions, dispatch, selectedCompanionId]);
+
+  // Default self-assign when no assignee is selected
+  useEffect(() => {
+    const selfId = currentUser?.parentId ?? currentUser?.id;
+    if (selfId && !formData.assignedTo) {
+      updateField('assignedTo', selfId);
+    }
+  }, [currentUser?.id, currentUser?.parentId, formData.assignedTo, updateField]);
 
   const {validateForm, showErrorAlert, handleBack, sheetHandlers} = useScreenHandlers({
     hasUnsavedChanges,

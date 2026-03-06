@@ -1,5 +1,6 @@
 // src/utils/mockTaskData.ts - Mock data for testing task module
 import type {Task} from '@/features/tasks/types';
+import {formatDateToISODate} from '@/shared/utils/dateHelpers';
 
 const today = new Date();
 const tomorrow = new Date(today);
@@ -12,13 +13,6 @@ const formatTime = (hours: number, minutes: number = 0): string => {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 };
 
-const formatDateToISOString = (date: Date): string => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
 export const MOCK_TASKS: Task[] = [
   // Health - Medication Tasks
   {
@@ -27,7 +21,7 @@ export const MOCK_TASKS: Task[] = [
     category: 'health',
     subcategory: 'vaccination',
     title: 'Give Allergy Medication',
-    date: formatDateToISOString(today),
+    date: formatDateToISODate(today),
     time: formatTime(9, 0),
     frequency: 'daily',
     status: 'pending',
@@ -59,7 +53,7 @@ export const MOCK_TASKS: Task[] = [
     category: 'health',
     subcategory: 'parasite-prevention',
     title: 'Flea and Tick Prevention',
-    date: formatDateToISOString(today),
+    date: formatDateToISODate(today),
     time: formatTime(14, 0),
     frequency: 'weekly',
     status: 'pending',
@@ -92,7 +86,7 @@ export const MOCK_TASKS: Task[] = [
     companionId: 'companion-1',
     category: 'hygiene',
     title: 'Brush Teeth',
-    date: formatDateToISOString(today),
+    date: formatDateToISODate(today),
     time: formatTime(20, 0),
     frequency: 'daily',
     status: 'pending',
@@ -112,7 +106,7 @@ export const MOCK_TASKS: Task[] = [
     companionId: 'companion-1',
     category: 'hygiene',
     title: 'Take Bath',
-    date: formatDateToISOString(tomorrow),
+    date: formatDateToISODate(tomorrow),
     time: formatTime(10, 0),
     frequency: 'weekly',
     status: 'pending',
@@ -134,7 +128,7 @@ export const MOCK_TASKS: Task[] = [
     companionId: 'companion-1',
     category: 'dietary',
     title: 'Morning Meals',
-    date: formatDateToISOString(today),
+    date: formatDateToISODate(today),
     time: formatTime(8, 0),
     frequency: 'daily',
     status: 'completed',
@@ -155,7 +149,7 @@ export const MOCK_TASKS: Task[] = [
     companionId: 'companion-1',
     category: 'dietary',
     title: 'Evening Meals',
-    date: formatDateToISOString(today),
+    date: formatDateToISODate(today),
     time: formatTime(18, 0),
     frequency: 'daily',
     status: 'pending',
@@ -178,7 +172,7 @@ export const MOCK_TASKS: Task[] = [
     category: 'custom',
     title: 'Vet Appointment Follow-up Call',
     additionalNote: 'Call vet clinic to check on test results',
-    date: formatDateToISOString(tomorrow),
+    date: formatDateToISODate(tomorrow),
     time: formatTime(11, 0),
     frequency: 'once',
     status: 'pending',

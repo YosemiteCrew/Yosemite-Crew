@@ -27,8 +27,8 @@ export const createBottomSheetImperativeHandle = (
 export const createBottomSheetStyles = (theme: any) => ({
   bottomSheetBackground: {
     backgroundColor: theme.colors.background,
-    borderTopLeftRadius: theme.borderRadius['3xl'],
-    borderTopRightRadius: theme.borderRadius['3xl'],
+    borderTopLeftRadius: theme.spacing['6'],
+    borderTopRightRadius: theme.spacing['6'],
   },
   bottomSheetHandle: {
     backgroundColor: theme.colors.borderMuted,
@@ -58,7 +58,6 @@ export const createBottomSheetContainerStyles = (theme: any) => ({
   closeButton: {
     position: 'absolute' as const,
     right: 0,
-    padding: theme.spacing['2'],
   },
   closeIcon: {
     width: theme.spacing['6'],

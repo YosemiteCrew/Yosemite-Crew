@@ -113,8 +113,10 @@ export const TaskBottomSheets: React.FC<TaskBottomSheetsProps> = ({
       <CalendarSyncBottomSheet
         ref={refs.calendarSyncSheetRef}
         selectedProvider={formData.calendarProvider}
-        onSelect={provider => {
-          updateField('calendarProvider', provider);
+        onSelect={(providerId, providerName) => {
+          console.log('[TaskBottomSheets] Calendar selected:', {providerId, providerName});
+          updateField('calendarProvider', providerId);
+          updateField('calendarProviderName', providerName);
           handlers.closeTaskSheet();
         }}
         onSheetChange={handleSheetChange}

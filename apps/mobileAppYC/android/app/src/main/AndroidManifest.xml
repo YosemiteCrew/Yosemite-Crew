@@ -12,6 +12,9 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <!-- Calendar sync -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
     <!-- Audio Recording -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
@@ -44,7 +47,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:allowBackup="false"
         android:theme="@style/AppTheme"
-        android:usesCleartextTraffic="true"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:supportsRtl="true">
 
         <!-- Facebook SDK App ID & Client Token -->
@@ -59,7 +62,7 @@
             android:value="yc_general_notifications" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@mipmap/ic_launcher" />
+            android:resource="@drawable/ic_notification" />
 
         <!-- Facebook SDK Activities -->
         <activity

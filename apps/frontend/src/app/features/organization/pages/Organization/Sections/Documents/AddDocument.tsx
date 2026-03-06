@@ -1,0 +1,164 @@
+import Accordion from "@/app/ui/primitives/Accordion/Accordion";
+import { Primary } from "@/app/ui/primitives/Buttons";
+import FormDesc from "@/app/ui/inputs/FormDesc/FormDesc";
+import FormInput from "@/app/ui/inputs/FormInput/FormInput";
+import Modal from "@/app/ui/overlays/Modal";
+import {
+  OrganizationDocument,
+  OrgDocumentCategory,
+} from "@/app/features/documents/types/document";
+import React, { useState } from "react";
+import { OrgDocumentCategoryOptions } from "@/app/features/organization/pages/Organization/types";
+import { createDocument } from "@/app/features/documents/services/documentService";
+import DocUploader from "@/app/ui/widgets/UploadImage/DocUploader";
+import { useOrgStore } from "@/app/stores/orgStore";
+import LabelDropdown from "@/app/ui/inputs/Dropdown/LabelDropdown";
+import Close from "@/app/ui/primitives/Icons/Close";
+import { IoIosWarning } from "react-icons/io";
+import { useNotify } from "@/app/hooks/useNotify";
+
+type AddDocumentProps = {
+  showModal: boolean;
+  setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
+};
+
+const INITIAL_FORM_DATA: OrganizationDocument = {
+  _id: "",
+  organisationId: "",
+  title: "",
+  description: "",
+  fileUrl: "",
+  category: "CANCELLATION_POLICY",
+};
+
+const AddDocument = ({ showModal, setShowModal }: AddDocumentProps) => {
+  const primaryOrdId = useOrgStore.getState().primaryOrgId;
+  const { notify } = useNotify();
+  const [formData, setFormData] =
+    useState<OrganizationDocument>(INITIAL_FORM_DATA);
+  const [formDataErrors, setFormDataErrors] = useState<{
+    title?: string;
+    fileUrl?: string;
+  }>({});
+  const [file, setFile] = useState<File | null>(null);
+
+  const handleSave = async () => {
+    const errors: { title?: string; fileUrl?: string } = {};
+    if (!formData.title) errors.title = "Name is required";
+    if (!formData.fileUrl) errors.fileUrl = "File is required";
+    setFormDataErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
+    try {
+      await createDocument(formData);
+      notify("success", {
+        title: "Document created",
+        text: "Document has been created successfully.",
+      });
+      setShowModal(false);
+      setFormData(INITIAL_FORM_DATA);
+      setFormDataErrors({});
+      setFile(null);
+    } catch (error) {
+      console.log(error);
+      notify("error", {
+        title: "Unable to create document",
+        text: "Failed to create document. Please try again.",
+      });
+    }
+  };
+
+  if (!primaryOrdId) {
+    return null;
+  }
+
+  return (
+    <Modal showModal={showModal} setShowModal={setShowModal}>
+      <div className="flex flex-col h-full gap-6">
+        <div className="flex justify-between items-center">
+          <div className="opacity-0">
+            <Close onClick={() => {}} />
+          </div>
+          <div className="flex justify-center items-center gap-2">
+            <div className="text-body-1 text-text-primary">Add document</div>
+          </div>
+          <Close onClick={() => setShowModal(false)} />
+        </div>
+
+        <div className="flex overflow-y-auto flex-1 w-full flex-col gap-6 justify-between scrollbar-hidden">
+          <Accordion
+            title="Add document"
+            defaultOpen
+            showEditIcon={false}
+            isEditing={true}
+          >
+            <div className="flex flex-col gap-3">
+              <FormInput
+                intype="text"
+                inname="title"
+                value={formData.title}
+                inlabel="Document title"
+                onChange={(e) =>
+                  setFormData({ ...formData, title: e.target.value })
+                }
+                error={formDataErrors.title}
+                className="min-h-12!"
+              />
+              <LabelDropdown
+                placeholder="Type"
+                onSelect={(option) =>
+                  setFormData({
+                    ...formData,
+                    category: option.value as OrgDocumentCategory,
+                  })
+                }
+                defaultOption={formData.category}
+                options={OrgDocumentCategoryOptions}
+              />
+              <FormDesc
+                intype="text"
+                inname="description"
+                value={formData.description || ""}
+                inlabel="Description"
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
+                className="min-h-[120px]!"
+              />
+              <div className="flex flex-col gap-1">
+                <DocUploader
+                  placeholder="Upload document"
+                  apiUrl={`/v1/organisation-document/pms/${primaryOrdId}/documents/upload`}
+                  onChange={(s) => setFormData({ ...formData, fileUrl: s })}
+                  file={file}
+                  setFile={setFile}
+                  error={formDataErrors.fileUrl}
+                />
+                {formDataErrors.fileUrl && (
+                  <div
+                    className={`
+                            mt-1.5 flex items-center gap-1 px-4
+                            text-caption-2 text-text-error
+                          `}
+                  >
+                    <IoIosWarning className="text-text-error" size={14} />
+                    <span>{formDataErrors.fileUrl}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </Accordion>
+          <Primary
+            href="#"
+            text="Save"
+            classname="max-h-12! text-lg! tracking-wide!"
+            onClick={handleSave}
+          />
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
+export default AddDocument;

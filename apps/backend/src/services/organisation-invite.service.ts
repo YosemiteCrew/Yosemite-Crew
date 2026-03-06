@@ -10,16 +10,25 @@ import OrganizationModel, {
 } from "../models/organization";
 import SpecialityModel, { type SpecialityDocument } from "../models/speciality";
 import logger from "../utils/logger";
-import type { OrganisationInvite } from "@yosemite-crew/types";
-import { UserOrganizationService } from "./user-organization.service";
-import { renderOrganisationInviteTemplate } from "../utils/email-templates";
-import { sendEmail } from "../utils/email";
+import type { InviteStatus, OrganisationInvite } from "@yosemite-crew/types";
+import {
+  UserOrganizationService,
+  UserOrganizationServiceError,
+} from "./user-organization.service";
+import { sendEmailTemplate } from "../utils/email";
+import UserModel from "src/models/user";
 
 const IDENTIFIER_PATTERN = /^[A-Za-z0-9\-.]{1,64}$/;
 const DEFAULT_ACCEPT_URL = "https://app.yosemitecrew.com/invite";
 const ACCEPT_INVITE_BASE_URL =
   process.env.ORG_INVITE_ACCEPT_BASE_URL ??
   process.env.INVITE_ACCEPT_BASE_URL ??
+  process.env.FRONTEND_BASE_URL ??
+  process.env.APP_URL ??
+  DEFAULT_ACCEPT_URL;
+const DECLINE_INVITE_BASE_URL =
+  process.env.ORG_INVITE_DECLINE_BASE_URL ??
+  process.env.INVITE_DECLINE_BASE_URL ??
   process.env.FRONTEND_BASE_URL ??
   process.env.APP_URL ??
   DEFAULT_ACCEPT_URL;
@@ -165,7 +174,7 @@ const buildInviteResponse = (
     _id: _id.toString(),
     organisationId: rest.organisationId,
     invitedByUserId: rest.invitedByUserId,
-    departmentId: rest.departmentId,
+    departmentIds: rest.departmentIds,
     inviteeEmail: rest.inviteeEmail,
     inviteeName: rest.inviteeName,
     role: rest.role,
@@ -221,12 +230,8 @@ const ensureUserOrganizationMembership = async (
   role: string,
   userId: string,
 ) => {
-  const practitionerReference = userId.startsWith("Practitioner/")
-    ? userId
-    : `Practitioner/${userId}`;
-  const organizationReference = organisationId.startsWith("Organization/")
-    ? organisationId
-    : `Organization/${organisationId}`;
+  const practitionerReference = userId.replace(/^Practitioner\//, "");
+  const organizationReference = organisationId.replace(/^Organization\//, "");
 
   try {
     await UserOrganizationService.createUserOrganizationMapping({
@@ -237,6 +242,10 @@ const ensureUserOrganizationMembership = async (
       active: true,
     });
   } catch (error) {
+    if (error instanceof UserOrganizationServiceError) {
+      throw new OrganisationInviteServiceError(error.message, error.statusCode);
+    }
+
     const duplicateKey =
       typeof error === "object" &&
       error !== null &&
@@ -282,7 +291,6 @@ const buildAcceptInviteUrl = (token: string): string => {
 
   try {
     const url = new URL(trimmedBase);
-    url.searchParams.set("token", token);
     return url.toString();
   } catch {
     const base = trimmedBase.endsWith("/")
@@ -292,25 +300,49 @@ const buildAcceptInviteUrl = (token: string): string => {
   }
 };
 
+const buildDeclineInviteUrl = (token: string): string | undefined => {
+  const trimmedBase = DECLINE_INVITE_BASE_URL?.trim();
+
+  if (!trimmedBase) {
+    return undefined;
+  }
+
+  try {
+    const url = new URL(trimmedBase);
+    url.searchParams.set("token", token);
+    url.searchParams.set("action", "decline");
+    return url.toString();
+  } catch {
+    const base = trimmedBase.endsWith("/")
+      ? trimmedBase.slice(0, -1)
+      : trimmedBase;
+    const separator = base.includes("?") ? "&" : "?";
+    return `${base}${separator}token=${encodeURIComponent(token)}&action=decline`;
+  }
+};
+
 const sendInviteEmail = async (
   invite: OrganisationInviteDocument,
   organisation: OrganizationMongo,
 ) => {
   const acceptUrl = buildAcceptInviteUrl(invite.token);
-  const template = renderOrganisationInviteTemplate({
-    organisationName: organisation.name ?? "your organisation",
-    inviteeName: invite.inviteeName,
-    inviterName: undefined,
-    acceptUrl,
-    expiresAt: invite.expiresAt,
-    supportEmail: SUPPORT_EMAIL_ADDRESS,
-  });
+  const declineUrl = buildDeclineInviteUrl(invite.token);
 
-  await sendEmail({
+  const inviter = await UserModel.findOne({
+    userId: invite.invitedByUserId,
+  });
+  await sendEmailTemplate({
     to: invite.inviteeEmail,
-    subject: template.subject,
-    htmlBody: template.htmlBody,
-    textBody: template.textBody,
+    templateId: "organisationInvite",
+    templateData: {
+      organisationName: organisation.name ?? "your organisation",
+      inviteeName: invite.inviteeName,
+      inviterName: inviter?.firstName + " " + inviter?.lastName,
+      acceptUrl,
+      declineUrl,
+      expiresAt: invite.expiresAt,
+      supportEmail: SUPPORT_EMAIL_ADDRESS,
+    },
   });
 };
 
@@ -322,9 +354,18 @@ export const OrganisationInviteService = {
       payload.organisationId,
       "Organisation identifier",
     );
-    const departmentId = normalizeIdentifier(
-      payload.departmentId,
-      "Department identifier",
+    if (
+      !Array.isArray(payload.departmentIds) ||
+      payload.departmentIds.length === 0
+    ) {
+      throw new OrganisationInviteServiceError(
+        "At least one department must be specified.",
+        400,
+      );
+    }
+
+    const departmentIds = payload.departmentIds.map((id, index) =>
+      normalizeIdentifier(id, `Department identifier at index ${index}`),
     );
     const invitedByUserId = requireString(
       payload.invitedByUserId,
@@ -338,11 +379,15 @@ export const OrganisationInviteService = {
     const employmentType = validateEmploymentType(payload.employmentType);
 
     const organisation = await findOrganisationOrThrow(organisationId);
-    await ensureDepartmentBelongsToOrganisation(departmentId, organisationId);
+    await Promise.all(
+      departmentIds.map((departmentId) =>
+        ensureDepartmentBelongsToOrganisation(departmentId, organisationId),
+      ),
+    );
 
     const invite = await OrganisationInviteModel.createOrReplaceInvite({
       organisationId,
-      departmentId,
+      departmentIds,
       invitedByUserId,
       inviteeEmail,
       inviteeName,
@@ -394,7 +439,21 @@ export const OrganisationInviteService = {
       expiresAt: { $gt: new Date(Date.now()) },
     }).sort({ createdAt: -1 });
 
-    return invites.map((invite) => buildInviteResponse(invite));
+    if (!invites.length) return [];
+    const results = [];
+    for (const invite of invites) {
+      const organisation = await OrganizationModel.findOne({
+        _id: new Types.ObjectId(invite.organisationId),
+      });
+
+      results.push({
+        invite: buildInviteResponse(invite),
+        organisationName: organisation?.name,
+        organisationType: organisation?.type,
+      });
+    }
+
+    return results;
   },
 
   async acceptInvite({
@@ -446,14 +505,14 @@ export const OrganisationInviteService = {
     }
 
     await findOrganisationOrThrow(invite.organisationId);
-    const department = await ensureDepartmentBelongsToOrganisation(
-      invite.departmentId,
-      invite.organisationId,
+    const departments = await Promise.all(
+      invite.departmentIds.map((departmentId) =>
+        ensureDepartmentBelongsToOrganisation(
+          departmentId,
+          invite.organisationId,
+        ),
+      ),
     );
-
-    invite.status = "ACCEPTED";
-    invite.acceptedAt = new Date();
-    await invite.save();
 
     try {
       await ensureUserOrganizationMembership(
@@ -475,9 +534,81 @@ export const OrganisationInviteService = {
       );
     }
 
-    await addUserToDepartment(department, safeUserId);
+    invite.status = "ACCEPTED";
+    invite.acceptedAt = new Date();
+    await invite.save();
+
+    await Promise.all(
+      departments.map((department) =>
+        addUserToDepartment(department, safeUserId),
+      ),
+    );
 
     logger.info("Organisation invite accepted.", {
+      inviteId: invite._id?.toString(),
+      organisationId: invite.organisationId,
+      userId: safeUserId,
+    });
+
+    return buildInviteResponse(invite);
+  },
+
+  async rejectInvite({
+    token,
+    userId,
+    userEmail,
+  }: AcceptInvitePayload): Promise<OrganisationInviteResponse> {
+    const safeToken = requireString(token, "Invite token");
+    const safeUserId = requireString(userId, "User identifier");
+    const safeEmail = normalizeEmail(userEmail);
+
+    const invite = await OrganisationInviteModel.findOne({
+      token: safeToken,
+    }).setOptions({
+      sanitizeFilter: true,
+    });
+
+    if (!invite) {
+      throw new OrganisationInviteServiceError("Invitation not found.", 404);
+    }
+
+    // Check that the invite is still rejectable
+    if (invite.status === "ACCEPTED") {
+      throw new OrganisationInviteServiceError(
+        "Invitation already accepted.",
+        409,
+      );
+    }
+
+    if (invite.status === "CANCELLED") {
+      throw new OrganisationInviteServiceError(
+        "Invitation has been cancelled.",
+        410,
+      );
+    }
+
+    if (invite.status === "EXPIRED" || invite.expiresAt <= new Date()) {
+      if (invite.status !== "EXPIRED") {
+        invite.status = "EXPIRED";
+        await invite.save();
+      }
+      throw new OrganisationInviteServiceError("Invitation has expired.", 410);
+    }
+
+    // Email must match
+    if (invite.inviteeEmail !== safeEmail) {
+      throw new OrganisationInviteServiceError(
+        "Invite email does not match authenticated user.",
+        403,
+      );
+    }
+
+    // Mark as rejected
+    invite.status = "REJECTED" as InviteStatus;
+    invite.acceptedAt = undefined;
+    await invite.save();
+
+    logger.info("Organisation invite rejected.", {
       inviteId: invite._id?.toString(),
       organisationId: invite.organisationId,
       userId: safeUserId,

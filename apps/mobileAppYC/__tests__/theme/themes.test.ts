@@ -29,8 +29,8 @@ describe('themes', () => {
     });
 
     it('should have border radius configuration', () => {
-      expect(lightTheme.borderRadius.sm).toBe(4);
-      expect(lightTheme.borderRadius.base).toBe(8);
+      expect(lightTheme.borderRadius.sm).toBe(16);
+      expect(lightTheme.borderRadius.base).toBe(16);
       expect(lightTheme.borderRadius.lg).toBe(16);
       expect(lightTheme.borderRadius.full).toBe(9999);
     });

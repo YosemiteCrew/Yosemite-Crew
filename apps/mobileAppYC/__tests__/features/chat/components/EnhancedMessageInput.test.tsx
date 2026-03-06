@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, act} from '@testing-library/react-native';
 // Ensure this path matches exactly where you saved the component.
 // If VS Code still complains, try restarting the TS server (Ctrl+Shift+P -> Restart TS Server)
@@ -22,16 +23,7 @@ import {useChannelContext} from 'stream-chat-react-native';
 
 // 1. Mock Theme Hook
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        background: '#ffffff',
-        border: '#e0e0e0',
-        primary: 'blue',
-        primaryTint: '#e6f0fe',
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 2. Mock Stream Chat

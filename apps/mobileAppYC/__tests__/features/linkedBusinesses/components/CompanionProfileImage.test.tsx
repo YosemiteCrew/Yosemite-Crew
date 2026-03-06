@@ -1,29 +1,12 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, screen} from '@testing-library/react-native';
 import {CompanionProfileImage} from '../../../../src/features/linkedBusinesses/components/CompanionProfileImage';
 
 // --- Mocks ---
 
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        lightBlueBackground: '#E6F0FF',
-        primary: 'blue',
-        secondary: 'darkblue',
-        textSecondary: 'gray',
-      },
-      spacing: {
-        '1': 4,
-        '4': 16,
-        '6': 24,
-      },
-      typography: {
-        h4: {fontSize: 20, fontWeight: 'bold'},
-        labelMdBold: {fontSize: 12, fontWeight: 'bold'},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 jest.mock('@/assets/images', () => ({

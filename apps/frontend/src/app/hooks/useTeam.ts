@@ -1,18 +1,15 @@
 import { useEffect, useMemo } from "react";
-import { useOrgStore } from "../stores/orgStore";
-import { loadTeam } from "../services/teamService";
-import { Team } from "../types/team";
-import { useTeamStore } from "../stores/teamStore";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { loadTeam } from "@/app/features/organization/services/teamService";
+import { Team } from "@/app/features/organization/types/team";
+import { useTeamStore } from "@/app/stores/teamStore";
 
 export const useLoadTeam = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
-  const teamStatus = useTeamStore((s) => s.status);
 
   useEffect(() => {
     if (!primaryOrgId) return;
-    if (teamStatus === "idle") {
-      void loadTeam();
-    }
+    void loadTeam({ force: true });
   }, [primaryOrgId]);
 };
 

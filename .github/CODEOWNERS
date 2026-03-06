@@ -1,0 +1,8 @@
+# Default ownership
+* @YosemiteCrew
+
+# Repository governance
+/.github/ @YosemiteCrew
+/AGENTS.md @YosemiteCrew
+/CONTRIBUTING.md @YosemiteCrew
+/SECURITY.md @YosemiteCrew

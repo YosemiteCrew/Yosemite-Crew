@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, forwardRef, useImperativeHandle, useRef } from 'react';
-import { ViewStyle } from 'react-native';
+import { View, ViewStyle } from 'react-native';
 import BottomSheet, {
   BottomSheetView,
   BottomSheetScrollView,
@@ -9,6 +9,7 @@ import BottomSheet, {
   BottomSheetFooterProps,
   BottomSheetHandle,
   BottomSheetHandleProps,
+  type BottomSheetBackgroundProps,
 } from '@gorhom/bottom-sheet';
 import type { BottomSheetMethods } from '@gorhom/bottom-sheet/lib/typescript/types';
 import type { WithSpringConfig, WithTimingConfig } from 'react-native-reanimated';
@@ -167,6 +168,13 @@ const CustomBottomSheet = forwardRef<BottomSheetRef, CustomBottomSheetProps>(
       [customHandle, handleComponent, handleStyle, handleIndicatorStyle]
     );
 
+    const renderBackground = useCallback(
+      (props: BottomSheetBackgroundProps) => (
+        <View style={[props.style, backgroundStyle]} />
+      ),
+      [backgroundStyle]
+    );
+
     // Content renderer based on type
     const renderContent = () => {
       switch (contentType) {
@@ -207,7 +215,7 @@ const CustomBottomSheet = forwardRef<BottomSheetRef, CustomBottomSheetProps>(
         enableContentPanningGesture={enableContentPanningGesture}
         enableHandlePanningGesture={enableHandlePanningGesture}
         style={[style, { zIndex: zIndex ?? 1 }]}
-        backgroundStyle={backgroundStyle}
+        backgroundComponent={renderBackground}
         backdropComponent={enableBackdrop ? renderBackdrop : undefined}
         handleComponent={renderHandle}
         footerComponent={footerComponent}

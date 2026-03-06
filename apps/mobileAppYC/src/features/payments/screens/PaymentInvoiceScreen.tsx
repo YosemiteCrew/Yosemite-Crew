@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
-import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {useTheme} from '@/hooks';
@@ -37,6 +36,10 @@ import {usePaymentHandler} from '@/features/payments/hooks/usePaymentHandler';
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
 import {resolveCurrencyForBusiness, normalizeCurrencyCode} from '@/shared/utils/currencyResolver';
 import {isDummyPhoto as isDummyPhotoUrl} from '@/features/appointments/utils/photoUtils';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
+import {normalizeImageUri} from '@/shared/utils/imageUri';
+import {AvatarGroup} from '@/shared/components/common/AvatarGroup/AvatarGroup';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -47,7 +50,8 @@ const useGuardianInfo = (authUser: any, invoice: any) => {
       .join(' ')
       .trim() || authUser?.email || invoice?.billedToName || 'Pet guardian';
     const guardianInitial = guardianName.trim().charAt(0).toUpperCase() || 'Y';
-    const guardianAvatar = authUser?.profilePicture ? {uri: authUser.profilePicture} : null;
+    const normalizedUri = normalizeImageUri(authUser?.profilePicture);
+    const guardianAvatar = normalizedUri ? {uri: normalizedUri} : null;
     const guardianEmail = authUser?.email ?? invoice?.billedToEmail ?? '—';
     return {guardianName, guardianInitial, guardianAvatar, guardianEmail};
   }, [authUser?.firstName, authUser?.lastName, authUser?.email, authUser?.profilePicture, invoice?.billedToName, invoice?.billedToEmail]);
@@ -57,7 +61,8 @@ const useCompanionInfo = (companion: any) => {
   return useMemo(() => {
     const companionName = companion?.name ?? 'Companion';
     const companionInitial = companionName.trim().charAt(0).toUpperCase() || 'C';
-    const companionAvatar = companion?.profileImage ? {uri: companion.profileImage} : null;
+    const normalizedUri = normalizeImageUri(companion?.profileImage);
+    const companionAvatar = normalizedUri ? {uri: normalizedUri} : null;
     return {companionName, companionInitial, companionAvatar};
   }, [companion?.name, companion?.profileImage]);
 };
@@ -206,21 +211,30 @@ const InvoiceDetailsCard = ({
   apt: any;
   styles: any;
 }) => (
-  <View style={styles.metaCard}>
-    <Text style={styles.metaTitle}>Invoice details</Text>
-    <MetaRow label="Invoice number" value={invoiceNumberDisplay} />
-    <MetaRow
-      label="Appointment ID"
-      value={effectiveInvoice?.appointmentId ?? apt?.id ?? '—'}
-    />
-    <MetaRow
-      label="Invoice date"
-      value={formatDateTimeDisplay(effectiveInvoice?.invoiceDate)}
-    />
-    <MetaRow
-      label="Due till"
-      value={formatDateTimeDisplay(effectiveInvoice?.dueDate)}
-    />
+  <View style={styles.cardShadowWrapper}>
+    <LiquidGlassCard
+      glassEffect="clear"
+      padding="4"
+      shadow="base"
+      style={styles.glassCard}
+      fallbackStyle={styles.cardFallback}>
+      <View style={styles.cardContent}>
+        <Text style={styles.metaTitle}>Invoice details</Text>
+        <MetaRow label="Invoice number" value={invoiceNumberDisplay} />
+        <MetaRow
+          label="Appointment ID"
+          value={effectiveInvoice?.appointmentId ?? apt?.id ?? '—'}
+        />
+        <MetaRow
+          label="Invoice date"
+          value={formatDateTimeDisplay(effectiveInvoice?.invoiceDate)}
+        />
+        <MetaRow
+          label="Due till"
+          value={formatDateTimeDisplay(effectiveInvoice?.dueDate)}
+        />
+      </View>
+    </LiquidGlassCard>
   </View>
 );
 
@@ -258,7 +272,7 @@ const RefundSection = ({
             }
           }}
           height={48}
-          borderRadius={12}
+          borderRadius={16}
           tintColor={theme.colors.secondary}
           shadowIntensity="light"
           textStyle={styles.confirmPrimaryButtonText}
@@ -287,40 +301,43 @@ const InvoiceForCard = ({
   companionName: string;
   styles: any;
 }) => (
-  <View style={styles.invoiceForCard}>
-    <Text style={styles.metaTitle}>Invoice for</Text>
-    <View style={styles.invoiceForRow}>
-      <View style={styles.avatarStack}>
-        <View style={[styles.avatarCircle, styles.avatarCompanion]}>
-          {companionAvatar ? (
-            <Image source={companionAvatar} style={styles.avatarImage} />
-          ) : (
-            <Text style={styles.avatarInitial}>{companionInitial}</Text>
-          )}
-        </View>
-        <View style={[styles.avatarCircle, styles.avatarGuardian]}>
-          {guardianAvatar ? (
-            <Image source={guardianAvatar} style={styles.avatarImage} />
-          ) : (
-            <Text style={styles.avatarInitial}>{guardianInitial}</Text>
-          )}
+  <View style={styles.cardShadowWrapper}>
+    <LiquidGlassCard
+      glassEffect="clear"
+      padding="4"
+      shadow="base"
+      style={styles.glassCard}
+      fallbackStyle={styles.cardFallback}>
+      <View style={styles.cardContent}>
+        <Text style={styles.metaTitle}>Invoice for</Text>
+        <View style={styles.invoiceForRow}>
+          <AvatarGroup
+            avatars={[
+              {source: guardianAvatar ?? undefined, placeholder: guardianInitial},
+              {source: companionAvatar ?? undefined, placeholder: companionInitial},
+            ]}
+           size={46}
+                  overlap={-10}
+            direction="column"
+            containerStyle={styles.avatarGroup}
+          />
+          <View style={styles.invoiceInfoColumn}>
+            <View style={styles.invoiceInfoRow}>
+              <Image source={Images.emailIcon} style={styles.infoIcon} />
+              <Text style={styles.invoiceContactText}>{guardianEmail}</Text>
+            </View>
+            <View style={styles.invoiceInfoRow}>
+              <Image source={Images.locationIcon} style={styles.infoIcon} />
+              <Text style={styles.invoiceAddressText}>{guardianAddress}</Text>
+            </View>
+            <Text style={styles.appointmentForText}>
+              Appointment for :{' '}
+              <Text style={styles.appointmentForName}>{companionName}</Text>
+            </Text>
+          </View>
         </View>
       </View>
-      <View style={styles.invoiceInfoColumn}>
-        <View style={styles.invoiceInfoRow}>
-          <Image source={Images.emailIcon} style={styles.infoIcon} />
-          <Text style={styles.invoiceContactText}>{guardianEmail}</Text>
-        </View>
-        <View style={styles.invoiceInfoRow}>
-          <Image source={Images.locationIcon} style={styles.infoIcon} />
-          <Text style={styles.invoiceAddressText}>{guardianAddress}</Text>
-        </View>
-        <Text style={styles.appointmentForText}>
-          Appointment for :{' '}
-          <Text style={styles.appointmentForName}>{companionName}</Text>
-        </Text>
-      </View>
-    </View>
+    </LiquidGlassCard>
   </View>
 );
 
@@ -343,63 +360,72 @@ const BreakdownCard = ({
   currency: string;
   styles: any;
 }) => (
-  <View style={styles.breakdownCard}>
-    <Text style={styles.metaTitle}>Description</Text>
-    {effectiveInvoice?.items?.map((item: InvoiceItem) => (
-      <BreakdownRow
-        key={buildInvoiceItemKey(item)}
-        label={item.description}
-        value={formatMoney(item.lineTotal)}
-      />
-    ))}
-    {Array.isArray(effectiveInvoice?.totalPriceComponent) &&
-    effectiveInvoice.totalPriceComponent.length > 0 ? (
-      effectiveInvoice.totalPriceComponent
-        .filter((pc: any) => {
-          const codeText = (pc?.code?.text ?? '').toLowerCase();
-          const typeText = (pc?.type ?? '').toString().toLowerCase();
-          return codeText !== 'grand-total' && typeText !== 'informational';
-        })
-        .map((pc: any, idx: number) => {
-        const rawLabel =
-          pc.code?.text ??
-          pc.type?.toString().replaceAll('_', ' ').replaceAll('-', ' ') ??
-          `Line ${idx + 1}`;
-        const label =
-          rawLabel.length > 0 ? rawLabel.charAt(0).toUpperCase() + rawLabel.slice(1) : rawLabel;
-        const value =
-          typeof pc.amount?.value === 'number'
-            ? `${resolveCurrencySymbol(pc.amount?.currency ?? currency ?? 'USD')}${pc.amount.value.toFixed(2)}`
-            : '—';
-        return (
+  <View style={styles.cardShadowWrapper}>
+    <LiquidGlassCard
+      glassEffect="clear"
+      padding="4"
+      shadow="base"
+      style={styles.glassCard}
+      fallbackStyle={styles.cardFallback}>
+      <View style={styles.cardContent}>
+        <Text style={styles.metaTitle}>Description</Text>
+        {effectiveInvoice?.items?.map((item: InvoiceItem) => (
           <BreakdownRow
-            key={`${label}-${idx}`}
-            label={label}
-            value={value}
-            subtle={label.toLowerCase().includes('discount')}
+            key={buildInvoiceItemKey(item)}
+            label={item.description}
+            value={formatMoney(item.lineTotal)}
           />
-        );
-      })
-    ) : (
-      <>
-        <BreakdownRow label="Sub Total" value={formatMoney(subtotal)} subtle />
-        {!!discountAmount && (
-          <BreakdownRow
-            label="Discount"
-            value={`-${formatMoney(discountAmount)}`}
-            subtle
-          />
+        ))}
+        {Array.isArray(effectiveInvoice?.totalPriceComponent) &&
+        effectiveInvoice.totalPriceComponent.length > 0 ? (
+          effectiveInvoice.totalPriceComponent
+            .filter((pc: any) => {
+              const codeText = (pc?.code?.text ?? '').toLowerCase();
+              const typeText = (pc?.type ?? '').toString().toLowerCase();
+              return codeText !== 'grand-total' && typeText !== 'informational';
+            })
+            .map((pc: any, idx: number) => {
+            const rawLabel =
+              pc.code?.text ??
+              pc.type?.toString().replaceAll('_', ' ').replaceAll('-', ' ') ??
+              `Line ${idx + 1}`;
+            const label =
+              rawLabel.length > 0 ? rawLabel.charAt(0).toUpperCase() + rawLabel.slice(1) : rawLabel;
+            const value =
+              typeof pc.amount?.value === 'number'
+                ? `${resolveCurrencySymbol(pc.amount?.currency ?? currency ?? 'USD')}${pc.amount.value.toFixed(2)}`
+                : '—';
+            return (
+              <BreakdownRow
+                key={`${label}-${idx}`}
+                label={label}
+                value={value}
+                subtle={label.toLowerCase().includes('discount')}
+              />
+            );
+          })
+        ) : (
+          <>
+            <BreakdownRow label="Sub Total" value={formatMoney(subtotal)} subtle />
+            {!!discountAmount && (
+              <BreakdownRow
+                label="Discount"
+                value={`-${formatMoney(discountAmount)}`}
+                subtle
+              />
+            )}
+            {!!taxAmount && (
+              <BreakdownRow label="Tax" value={formatMoney(taxAmount)} subtle />
+            )}
+          </>
         )}
-        {!!taxAmount && (
-          <BreakdownRow label="Tax" value={formatMoney(taxAmount)} subtle />
-        )}
-      </>
-    )}
-    <BreakdownRow label="Total" value={formatMoney(total)} highlight />
-    <Text style={styles.breakdownNote}>
-      Price calculated as: Sum of line-item (Qty × Unit Price) – Discounts +
-      Taxes.
-    </Text>
+        <BreakdownRow label="Total" value={formatMoney(total)} highlight />
+        <Text style={styles.breakdownNote}>
+          Price calculated as: Sum of line-item (Qty × Unit Price) – Discounts +
+          Taxes.
+        </Text>
+      </View>
+    </LiquidGlassCard>
   </View>
 );
 
@@ -414,34 +440,43 @@ const ReceiptCard = ({
 }) => {
   if (!receiptUrl) return null;
   return (
-    <View style={styles.previewCard}>
-      <Text style={styles.metaTitle}>Invoice & receipt</Text>
-      <LiquidGlassButton
-        title="View invoice"
-        onPress={() => {
-          Linking.canOpenURL(receiptUrl)
-            .then(canOpen => {
-              if (canOpen) {
-                return Linking.openURL(receiptUrl);
-              }
-              throw new Error('cannot-open');
-            })
-            .catch(() =>
-              Alert.alert(
-                'Unable to open invoice',
-                'Please try again or copy the link from your receipt.',
-              ),
-            );
-        }}
-        height={48}
-        borderRadius={12}
-        tintColor={theme.colors.secondary}
-        shadowIntensity="medium"
-        textStyle={styles.confirmPrimaryButtonText}
-      />
-      <Text style={styles.missingSubtitle}>
-        You will be redirected to the secure Stripe receipt in your browser.
-      </Text>
+    <View style={styles.cardShadowWrapper}>
+      <LiquidGlassCard
+        glassEffect="clear"
+        padding="4"
+        shadow="base"
+        style={styles.glassCard}
+        fallbackStyle={styles.cardFallback}>
+        <View style={styles.cardContent}>
+          <Text style={styles.metaTitle}>Invoice & receipt</Text>
+          <LiquidGlassButton
+            title="View invoice"
+            onPress={() => {
+              Linking.canOpenURL(receiptUrl)
+                .then(canOpen => {
+                  if (canOpen) {
+                    return Linking.openURL(receiptUrl);
+                  }
+                  throw new Error('cannot-open');
+                })
+                .catch(() =>
+                  Alert.alert(
+                    'Unable to open invoice',
+                    'Please try again or copy the link from your receipt.',
+                  ),
+                );
+            }}
+            height={48}
+            borderRadius={16}
+            tintColor={theme.colors.secondary}
+            shadowIntensity="medium"
+            textStyle={styles.confirmPrimaryButtonText}
+          />
+          <Text style={styles.missingSubtitle}>
+            You will be redirected to the secure Stripe receipt in your browser.
+          </Text>
+        </View>
+      </LiquidGlassCard>
     </View>
   );
 };
@@ -457,21 +492,30 @@ const TermsCard = ({
   businessAddress?: string;
   styles: any;
 }) => (
-  <View style={styles.termsCard}>
-    <Text style={styles.metaTitle}>Payment terms & legal</Text>
-    <Text style={styles.termsLine}>
-      Payment is due by {paymentDueLabel}. Late or failed payments may result in rescheduling or cancellation; card transactions are processed securely via Stripe.
-    </Text>
-    <Text style={styles.termsLine}>
-      Services are provided by {businessName}
-      {businessAddress && businessAddress !== '—' ? ` (${businessAddress})` : ''}. Charges reflect veterinary/professional services rendered and may include taxes or approved follow-up care.
-    </Text>
-    <Text style={styles.termsLine}>
-      Refunds or billing disputes are handled by the clinic in line with applicable consumer laws. Keep your receipt and contact the clinic directly for questions or adjustments.
-    </Text>
-    <Text style={styles.termsLine}>
-      This invoice is not emergency advice. If your pet needs urgent care, contact the clinic or local emergency services immediately.
-    </Text>
+  <View style={styles.cardShadowWrapper}>
+    <LiquidGlassCard
+      glassEffect="clear"
+      padding="4"
+      shadow="base"
+      style={styles.glassCard}
+      fallbackStyle={styles.cardFallback}>
+      <View style={styles.cardContent}>
+        <Text style={styles.metaTitle}>Payment terms & legal</Text>
+        <Text style={styles.termsLine}>
+          Payment is due by {paymentDueLabel}. Late or failed payments may result in rescheduling or cancellation; card transactions are processed securely via Stripe.
+        </Text>
+        <Text style={styles.termsLine}>
+          Services are provided by {businessName}
+          {businessAddress && businessAddress !== '—' ? ` (${businessAddress})` : ''}. Charges reflect veterinary/professional services rendered and may include taxes or approved follow-up care.
+        </Text>
+        <Text style={styles.termsLine}>
+          Refunds or billing disputes are handled by the clinic in line with applicable consumer laws. Keep your receipt and contact the clinic directly for questions or adjustments.
+        </Text>
+        <Text style={styles.termsLine}>
+          This invoice is not emergency advice. If your companion needs urgent care, contact the clinic or local emergency services immediately.
+        </Text>
+      </View>
+    </LiquidGlassCard>
   </View>
 );
 
@@ -565,6 +609,7 @@ const useEnsurePaymentData = ({
   invoiceRequestedRef,
   isInvoiceIncomplete,
   isInvoiceBasedFlow,
+  setInvoiceLoading,
 }: {
   appointmentId: string;
   aptStatus?: string;
@@ -575,6 +620,7 @@ const useEnsurePaymentData = ({
   invoiceRequestedRef: React.RefObject<boolean>;
   isInvoiceIncomplete: boolean;
   isInvoiceBasedFlow: boolean;
+  setInvoiceLoading: (value: boolean) => void;
 }) => {
   useEffect(() => {
     if (isInvoiceBasedFlow) {
@@ -601,7 +647,13 @@ const useEnsurePaymentData = ({
 
       if (shouldFetchInvoice) {
         invoiceRequestedRef.current = true;
-        dispatch(fetchInvoiceForAppointment({appointmentId}));
+        setInvoiceLoading(true);
+        dispatch(fetchInvoiceForAppointment({appointmentId}))
+          .unwrap()
+          .catch(() => {
+            // best-effort; missing invoice handled in UI
+          })
+          .finally(() => setInvoiceLoading(false));
       }
     }
   }, [
@@ -614,6 +666,7 @@ const useEnsurePaymentData = ({
     invoiceRequestedRef,
     isInvoiceIncomplete,
     isInvoiceBasedFlow,
+    setInvoiceLoading,
   ]);
 };
 
@@ -623,41 +676,140 @@ const getHeaderTitle = (isInvoiceBasedFlow: boolean, isPaymentPendingStatus: boo
   return 'Invoice details';
 };
 
+const resolveInvoice = ({
+  isInvoiceBasedFlow,
+  routeInvoice,
+  invoiceFromStore,
+}: {
+  isInvoiceBasedFlow: boolean;
+  routeInvoice?: Invoice | null;
+  invoiceFromStore?: Invoice | null;
+}) => {
+  return isInvoiceBasedFlow
+    ? routeInvoice ?? invoiceFromStore ?? null
+    : invoiceFromStore ?? routeInvoice ?? null;
+};
+
+const resolveInvoiceOrganisation = (invoice: Invoice | null) => {
+  const organisation = (invoice as any)?.organisation;
+  const organisationAddress = organisation?.address;
+  const invoiceBusinessAddress = organisationAddress
+    ? [
+        organisationAddress.addressLine,
+        organisationAddress.city,
+        organisationAddress.state,
+        organisationAddress.postalCode,
+      ]
+        .filter(Boolean)
+        .join(', ')
+    : undefined;
+  const invoiceGooglePlaceId =
+    organisation?.placesId ??
+    organisation?.placeId ??
+    organisation?.googlePlacesId ??
+    undefined;
+
+  return {
+    invoiceBusinessName: organisation?.name,
+    invoiceBusinessAddress,
+    invoiceGooglePlaceId,
+    invoiceBusinessImage: organisation?.image,
+  };
+};
+
+const resolveBusinessName = ({
+  invoiceBusinessName,
+  businessName,
+  appointmentName,
+}: {
+  invoiceBusinessName?: string;
+  businessName?: string;
+  appointmentName?: string;
+}) => {
+  return (invoiceBusinessName ?? businessName ?? appointmentName)?.trim() || 'Yosemite Crew';
+};
+
+const resolveBusinessAddress = ({
+  invoiceBusinessAddress,
+  businessAddress,
+  appointmentAddress,
+}: {
+  invoiceBusinessAddress?: string;
+  businessAddress?: string;
+  appointmentAddress?: string;
+}) => {
+  return invoiceBusinessAddress ?? businessAddress ?? appointmentAddress ?? undefined;
+};
+
+const resolvePaymentIntent = ({
+  isInvoiceBasedFlow,
+  routeIntent,
+  invoicePaymentIntent,
+  appointmentPaymentIntent,
+  fallbackPaymentIntent,
+}: {
+  isInvoiceBasedFlow: boolean;
+  routeIntent?: PaymentIntentInfo | null;
+  invoicePaymentIntent?: PaymentIntentInfo | null;
+  appointmentPaymentIntent?: PaymentIntentInfo | null;
+  fallbackPaymentIntent?: PaymentIntentInfo | null;
+}) => {
+  return (
+    (isInvoiceBasedFlow ? routeIntent ?? invoicePaymentIntent : invoicePaymentIntent) ??
+    routeIntent ??
+    appointmentPaymentIntent ??
+    fallbackPaymentIntent ??
+    null
+  );
+};
+
+const resolvePaymentPendingStatus = ({
+  isInvoiceBasedFlow,
+  invoiceStatus,
+  aptPaymentPending,
+}: {
+  isInvoiceBasedFlow: boolean;
+  invoiceStatus?: string | null;
+  aptPaymentPending: boolean;
+}) => {
+  return isInvoiceBasedFlow ? isInvoicePending(invoiceStatus) : aptPaymentPending;
+};
+
+const resolveShouldShowPay = ({
+  isPaymentPendingStatus,
+  isInvoiceBasedFlow,
+  invoiceStatus,
+  clientSecret,
+}: {
+  isPaymentPendingStatus: boolean;
+  isInvoiceBasedFlow: boolean;
+  invoiceStatus?: string | null;
+  clientSecret?: string | null;
+}) => {
+  return (
+    (isPaymentPendingStatus || (isInvoiceBasedFlow && isInvoicePending(invoiceStatus))) &&
+    Boolean(clientSecret)
+  );
+};
+
 const useInvoiceLoadingState = ({
   effectiveInvoice,
-  isPaymentPendingStatus,
-  invoiceRequestedRef,
-  paymentIntentRequestedRef,
-  paymentIntent,
+  invoiceLoading,
+  paymentIntentLoading,
 }: {
   effectiveInvoice: Invoice | null;
-  isPaymentPendingStatus: boolean;
-  invoiceRequestedRef: React.RefObject<boolean>;
-  paymentIntentRequestedRef: React.RefObject<boolean>;
-  paymentIntent: PaymentIntentInfo | null;
+  invoiceLoading: boolean;
+  paymentIntentLoading: boolean;
 }) => {
-  const invoiceRequested = invoiceRequestedRef.current;
-  const paymentIntentRequested = paymentIntentRequestedRef.current;
-
   return useMemo(() => {
     const isInvoiceLoaded = Boolean(effectiveInvoice);
-    const isPaymentIntentLoading =
-      paymentIntentRequested &&
-      (!paymentIntent?.clientSecret || !paymentIntent?.paymentIntentId);
-    const isInvoiceLoading =
-      (!isInvoiceLoaded && (isPaymentPendingStatus || invoiceRequested)) ||
-      (!isInvoiceLoaded && isPaymentIntentLoading);
-    const shouldShowLoadingNotice =
-      isInvoiceLoading || isPaymentIntentLoading || (!isInvoiceLoaded && isPaymentPendingStatus);
+    const shouldShowLoadingNotice = invoiceLoading || paymentIntentLoading;
 
-    return {isInvoiceLoaded, isPaymentIntentLoading, shouldShowLoadingNotice};
+    return {isInvoiceLoaded, isPaymentIntentLoading: paymentIntentLoading, shouldShowLoadingNotice};
   }, [
     effectiveInvoice,
-    invoiceRequested,
-    isPaymentPendingStatus,
-    paymentIntent?.clientSecret,
-    paymentIntent?.paymentIntentId,
-    paymentIntentRequested,
+    invoiceLoading,
+    paymentIntentLoading,
   ]);
 };
 
@@ -713,13 +865,22 @@ const buildInvoiceContent = ({
       />
 
       {hasRefund ? (
-        <View style={styles.metaCard}>
-          <RefundSection
-            effectiveInvoice={effectiveInvoice}
-            refundAmountDisplay={refundAmountDisplay}
-            theme={theme}
-            styles={styles}
-          />
+        <View style={styles.cardShadowWrapper}>
+          <LiquidGlassCard
+            glassEffect="clear"
+            padding="4"
+            shadow="base"
+            style={styles.glassCard}
+            fallbackStyle={styles.cardFallback}>
+            <View style={styles.cardContent}>
+              <RefundSection
+                effectiveInvoice={effectiveInvoice}
+                refundAmountDisplay={refundAmountDisplay}
+                theme={theme}
+                styles={styles}
+              />
+            </View>
+          </LiquidGlassCard>
         </View>
       ) : null}
 
@@ -796,51 +957,50 @@ export const PaymentInvoiceScreen: React.FC = () => {
   const routeIntent = routeParams.paymentIntent;
   const invoiceRequestedRef = useRef(false);
   const paymentIntentRequestedRef = useRef(false);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const [paymentIntentLoading, setPaymentIntentLoading] = useState(false);
 
   // Reset one-shot guards when navigating between different appointments
   useEffect(() => {
     invoiceRequestedRef.current = false;
     paymentIntentRequestedRef.current = false;
+    setInvoiceLoading(false);
+    setPaymentIntentLoading(false);
   }, [appointmentId]);
 
   const invoiceFromStore = useSelector(
     appointmentId ? selectInvoiceForAppointment(appointmentId) : () => null,
   );
   const isInvoiceBasedFlow = Boolean(routeInvoice || expenseId); // expense/invoice-based flow
-  const invoicePreferred = isInvoiceBasedFlow
-    ? routeInvoice ?? invoiceFromStore ?? null
-    : invoiceFromStore ?? routeInvoice ?? null;
-  const invoice = invoicePreferred;
+  const invoice = resolveInvoice({
+    isInvoiceBasedFlow,
+    routeInvoice,
+    invoiceFromStore,
+  });
   const fallbackPaymentIntent = routeIntent ?? routeInvoice?.paymentIntent ?? null;
   const {apt, business, service, companion} = useAppointmentSelectors(appointmentId, companionId);
   const authUser = useSelector(selectAuthUser);
   const [fallbackPhoto, setFallbackPhoto] = useState<string | null>(null);
 
   // Extract organization details from invoice if available (expense/invoice-based flow)
-  const invoiceOrganisation = (invoice as any)?.organisation;
-  const invoiceOrganisationAddress = invoiceOrganisation?.address;
-  const invoiceBusinessName = invoiceOrganisation?.name;
-  const invoiceGooglePlaceId =
-    invoiceOrganisation?.placesId ??
-    invoiceOrganisation?.placeId ??
-    invoiceOrganisation?.googlePlacesId ??
-    null;
-  const invoiceBusinessAddress = invoiceOrganisationAddress
-    ? [
-        invoiceOrganisationAddress.addressLine,
-        invoiceOrganisationAddress.city,
-        invoiceOrganisationAddress.state,
-        invoiceOrganisationAddress.postalCode,
-      ]
-        .filter(Boolean)
-        .join(', ')
-    : undefined;
-  const invoiceBusinessImage = invoiceOrganisation?.image;
+  const {
+    invoiceBusinessName,
+    invoiceBusinessAddress,
+    invoiceGooglePlaceId,
+    invoiceBusinessImage,
+  } = resolveInvoiceOrganisation(invoice);
 
   // Use invoice organization if available, otherwise use appointment/business data
-  const businessName =
-    (invoiceBusinessName ?? business?.name ?? apt?.organisationName)?.trim() || 'Yosemite Crew';
-  const businessAddress = invoiceBusinessAddress ?? business?.address ?? apt?.organisationAddress ?? undefined;
+  const businessName = resolveBusinessName({
+    invoiceBusinessName,
+    businessName: business?.name,
+    appointmentName: apt?.organisationName ?? undefined,
+  });
+  const businessAddress = resolveBusinessAddress({
+    invoiceBusinessAddress,
+    businessAddress: business?.address,
+    appointmentAddress: apt?.organisationAddress ?? undefined,
+  });
 
   const {guardianName, guardianInitial, guardianAvatar, guardianEmail} = useGuardianInfo(authUser, invoice);
   const {companionName, companionInitial, companionAvatar} = useCompanionInfo(companion);
@@ -864,12 +1024,13 @@ export const PaymentInvoiceScreen: React.FC = () => {
     invoice?.billedToName,
   ]);
 
-  const paymentIntent =
-    (isInvoiceBasedFlow ? routeIntent ?? invoice?.paymentIntent : invoice?.paymentIntent) ??
-    routeIntent ??
-    apt?.paymentIntent ??
-    fallbackPaymentIntent ??
-    null;
+  const paymentIntent = resolvePaymentIntent({
+    isInvoiceBasedFlow,
+    routeIntent,
+    invoicePaymentIntent: invoice?.paymentIntent,
+    appointmentPaymentIntent: apt?.paymentIntent,
+    fallbackPaymentIntent,
+  });
   const googlePlacesId =
     invoiceGooglePlaceId ??
     business?.googlePlacesId ??
@@ -886,11 +1047,13 @@ export const PaymentInvoiceScreen: React.FC = () => {
   };
 
   const effectiveInvoice = buildInvoices(invoice, paymentIntent, appointmentId);
-  const invoiceToCheck = invoicePreferred;
+  const invoiceToCheck = invoice;
   const {isPaymentPendingStatus: aptPaymentPending} = usePaymentStatus(apt?.status);
-  const isPaymentPendingStatus = isInvoiceBasedFlow
-    ? isInvoicePending(invoiceToCheck?.status)
-    : aptPaymentPending;
+  const isPaymentPendingStatus = resolvePaymentPendingStatus({
+    isInvoiceBasedFlow,
+    invoiceStatus: invoiceToCheck?.status,
+    aptPaymentPending,
+  });
   const invoiceIncomplete = isInvoiceMissingTotals(invoiceToCheck);
 
   useFetchAppointmentById({appointmentId, apt: isInvoiceBasedFlow ? {} : apt, dispatch});
@@ -909,6 +1072,7 @@ export const PaymentInvoiceScreen: React.FC = () => {
     invoiceRequestedRef,
     isInvoiceIncomplete: invoiceIncomplete,
     isInvoiceBasedFlow,
+    setInvoiceLoading,
   });
 
   useEffect(() => {
@@ -921,7 +1085,13 @@ export const PaymentInvoiceScreen: React.FC = () => {
       return;
     }
     paymentIntentRequestedRef.current = true;
-    dispatch(fetchPaymentIntentForAppointment({appointmentId}));
+    setPaymentIntentLoading(true);
+    dispatch(fetchPaymentIntentForAppointment({appointmentId}))
+      .unwrap()
+      .catch(() => {
+        // best-effort
+      })
+      .finally(() => setPaymentIntentLoading(false));
   }, [
     appointmentId,
     dispatch,
@@ -938,17 +1108,17 @@ export const PaymentInvoiceScreen: React.FC = () => {
     [currencySymbol],
   );
   const {subtotal, discountAmount, taxAmount, total} = useInvoiceCalculations(effectiveInvoice);
-  const shouldShowPay =
-    (isPaymentPendingStatus ||
-      (isInvoiceBasedFlow && isInvoicePending(invoiceToCheck?.status))) &&
-    !!clientSecret;
+  const shouldShowPay = resolveShouldShowPay({
+    isPaymentPendingStatus,
+    isInvoiceBasedFlow,
+    invoiceStatus: invoiceToCheck?.status,
+    clientSecret,
+  });
   const headerTitle = getHeaderTitle(isInvoiceBasedFlow, isPaymentPendingStatus);
   const {shouldShowLoadingNotice} = useInvoiceLoadingState({
     effectiveInvoice,
-    isPaymentPendingStatus,
-    invoiceRequestedRef,
-    paymentIntentRequestedRef,
-    paymentIntent,
+    invoiceLoading,
+    paymentIntentLoading,
   });
   const paymentDueLabel = formatDateOnlyDisplay(effectiveInvoice?.dueDate ?? apt?.date ?? null);
 
@@ -1033,31 +1203,49 @@ export const PaymentInvoiceScreen: React.FC = () => {
   );
 
   return (
-    <SafeArea>
-      <Header
-        title={headerTitle}
-        showBackButton
-        onBack={() => navigation.goBack()}
-      />
-      <ScrollView contentContainerStyle={styles.container}>
-        <SummaryCards
-          businessSummary={summaryBusiness as any}
-          service={service}
-          serviceName={apt?.serviceName}
-          cardStyle={styles.summaryCard}
+    <LiquidGlassHeaderScreen
+      header={
+        <Header
+          title={headerTitle}
+          showBackButton
+          onBack={() => navigation.goBack()}
+          glass={false}
         />
-        {content}
-      </ScrollView>
-    </SafeArea>
+      }
+      edges={[]}
+      cardGap={theme.spacing['4']}
+      contentPadding={theme.spacing['4']}>
+      {contentPaddingStyle => (
+        <ScrollView
+          contentContainerStyle={[
+            styles.container,
+            contentPaddingStyle,
+          ]}
+          showsVerticalScrollIndicator={false}>
+          <SummaryCards
+            businessSummary={summaryBusiness as any}
+            service={service}
+            serviceName={apt?.serviceName}
+            cardStyle={styles.summaryCard}
+            interactive={false}
+          />
+          {content}
+        </ScrollView>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
-const MetaRow = ({label, value}: {label: string; value: string}) => (
-  <View style={metaStyles.row}>
-    <Text style={metaStyles.label}>{label}</Text>
-    <Text style={metaStyles.value}>{value}</Text>
-  </View>
-);
+const MetaRow = ({label, value}: {label: string; value: string}) => {
+  const {theme} = useTheme();
+  const styles = metaStyles(theme);
+  return (
+    <View style={styles.row}>
+      <Text style={styles.label}>{label}</Text>
+      <Text style={styles.value}>{value}</Text>
+    </View>
+  );
+};
 
 const BreakdownRow = ({
   label,
@@ -1069,46 +1257,75 @@ const BreakdownRow = ({
   value: string;
   highlight?: boolean;
   subtle?: boolean;
-}) => (
-  <View
-    style={[
-      breakdownStyles.row,
-      highlight && breakdownStyles.rowHighlight,
-      subtle && breakdownStyles.rowSubtle,
-    ]}>
-    <Text
+}) => {
+  const {theme} = useTheme();
+  const styles = breakdownStyles(theme);
+  return (
+    <View
       style={[
-        breakdownStyles.label,
-        highlight && breakdownStyles.labelHighlight,
+        styles.row,
+        highlight && styles.rowHighlight,
+        subtle && styles.rowSubtle,
       ]}>
-      {label}
-    </Text>
-    <Text
-      style={[
-        breakdownStyles.value,
-        highlight && breakdownStyles.valueHighlight,
-      ]}>
-      {value}
-    </Text>
-  </View>
-);
+      <Text
+        style={[
+          styles.label,
+          highlight && styles.labelHighlight,
+        ]}>
+        {label}
+      </Text>
+      <Text
+        style={[
+          styles.value,
+          highlight && styles.valueHighlight,
+        ]}>
+        {value}
+      </Text>
+    </View>
+  );
+};
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      padding: theme.spacing[4],
-      paddingBottom: theme.spacing[24],
-      gap: theme.spacing[2],
+      paddingBottom: theme.spacing['24'],
+      paddingHorizontal: theme.spacing['5'],
+      paddingTop: theme.spacing['6'],
+      gap: theme.spacing['6'],
     },
     summaryCard: {
-      marginBottom: theme.spacing[2],
+      marginBottom: theme.spacing['1'],
+    },
+    cardShadowWrapper: {
+      borderRadius: theme.borderRadius.lg,
+      backgroundColor: theme.colors.cardBackground,
+      ...theme.shadows.lg,
+      shadowColor: theme.colors.neutralShadow,
+      overflow: 'visible',
+    },
+    glassCard: {
+      backgroundColor: theme.colors.cardBackground,
+      borderRadius: theme.borderRadius.lg,
+      padding: 0,
+      gap: theme.spacing['2'],
+    },
+    cardContent: {
+      gap: theme.spacing['2'],
+      padding: theme.spacing['4'],
+      backgroundColor: 'transparent',
+    },
+    cardFallback: {
+      backgroundColor: theme.colors.cardBackground,
+      borderRadius: theme.borderRadius.lg,
+      borderWidth: 0,
+      borderColor: 'transparent',
     },
     loadingBox: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[2],
-      padding: theme.spacing[3],
-      borderRadius: 12,
+      gap: theme.spacing['2'],
+      padding: theme.spacing['3'],
+      borderRadius: theme.borderRadius.md,
       backgroundColor: theme.colors.cardBackground,
       borderWidth: 1,
       borderColor: theme.colors.borderMuted ?? theme.colors.border,
@@ -1118,39 +1335,37 @@ const createStyles = (theme: any) =>
       color: theme.colors.textSecondary,
     },
     metaCard: {
-      borderRadius: 16,
+      borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.cardBackground,
-      padding: theme.spacing[4],
-      gap: theme.spacing[1],
-      marginBottom: theme.spacing[2],
+      padding: theme.spacing['4'],
+      gap: theme.spacing['2'],
+      // Spacing handled by container gap
     },
     metaTitle: {
       ...theme.typography.titleSmall,
       color: theme.colors.secondary,
-      marginBottom: theme.spacing[1],
     },
     warningText: {
       ...theme.typography.body12,
-      color: '#F59E0B',
-      marginBottom: theme.spacing[2],
+      color: theme.colors.warning,
     },
     missingContainer: {
       flex: 1,
-      padding: theme.spacing[4],
+      padding: theme.spacing['4'],
       alignItems: 'center',
       justifyContent: 'center',
-      gap: theme.spacing[2.5],
+      gap: theme.spacing['2.5'],
     },
     missingBadge: {
-      paddingHorizontal: theme.spacing[2.5],
-      paddingVertical: theme.spacing[1],
-      borderRadius: 999,
+      paddingHorizontal: theme.spacing['2.5'],
+      paddingVertical: theme.spacing['1'],
+      borderRadius: theme.borderRadius.full,
       backgroundColor: theme.colors.primaryTint,
     },
     missingBadgeText: {
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.primary,
     },
     missingTitle: {
@@ -1161,41 +1376,44 @@ const createStyles = (theme: any) =>
       ...theme.typography.body14,
       color: theme.colors.textSecondary,
       textAlign: 'center',
-      lineHeight: 20,
+      lineHeight: theme.spacing['5'],
     },
     invoiceForCard: {
-      borderRadius: 16,
+      borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.cardBackground,
-      padding: theme.spacing[4],
-      gap: theme.spacing[1],
+      padding: theme.spacing['4'],
+      gap: theme.spacing['3'],
     },
     previewCard: {
-      borderRadius: 16,
+      borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.cardBackground,
-      padding: theme.spacing[4],
-      gap: theme.spacing[2],
+      padding: theme.spacing['4'],
+      gap: theme.spacing['2'],
     },
     invoiceForRow: {
       flexDirection: 'row',
-      alignItems: 'center',
-      gap: theme.spacing[3],
+      alignItems: 'flex-start',
+      gap: theme.spacing['3'],
+    },
+    avatarGroup: {
+      minWidth: theme.spacing['14'],
     },
     invoiceInfoColumn: {
       flex: 1,
-      gap: theme.spacing[1],
+      gap: theme.spacing['1'],
     },
     invoiceInfoRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[2],
+      gap: theme.spacing['2'],
     },
     infoIcon: {
-      width: 18,
-      height: 18,
+      width: theme.spacing['4.5'],
+      height: theme.spacing['4.5'],
       resizeMode: 'contain',
       tintColor: theme.colors.secondary,
     },
@@ -1211,83 +1429,45 @@ const createStyles = (theme: any) =>
     appointmentForText: {
       ...theme.typography.body14,
       color: theme.colors.textSecondary,
-      marginTop: theme.spacing[2],
+      marginTop: theme.spacing['2'],
     },
     appointmentForName: {
       ...theme.typography.titleSmall,
       color: theme.colors.secondary,
     },
-    avatarStack: {
-      width: 80,
-      height: 104,
-      justifyContent: 'center',
-      alignItems: 'center',
-      position: 'relative',
-    },
-    avatarCircle: {
-      width: 56,
-      height: 56,
-      borderRadius: 28,
-      borderWidth: 2,
-      borderColor: theme.colors.surface,
-      backgroundColor: theme.colors.lightBlueBackground,
-      justifyContent: 'center',
-      alignItems: 'center',
-      position: 'absolute',
-      shadowColor: '#000',
-      shadowOpacity: 0.08,
-      shadowRadius: 6,
-      elevation: 3,
-    },
-    avatarGuardian: {
-      top: 0,
-    },
-    avatarCompanion: {
-      top: 44,
-    },
-    avatarImage: {
-      width: '100%',
-      height: '100%',
-      borderRadius: 28,
-    },
-    avatarInitial: {
-      ...theme.typography.titleSmall,
-      color: theme.colors.primary,
-      fontWeight: '700',
-    },
     breakdownCard: {
-      borderRadius: 16,
+      borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.cardBackground,
-      padding: theme.spacing[4],
-      gap: theme.spacing[1.5],
+      padding: theme.spacing['4'],
+      gap: theme.spacing['2'],
     },
     breakdownNote: {
       ...theme.typography.body12,
       color: theme.colors.textSecondary,
-      marginTop: theme.spacing[1],
+      marginTop: theme.spacing['1'],
     },
     termsCard: {
-      borderRadius: 16,
+      borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.cardBackground,
-      padding: theme.spacing[4],
-      gap: theme.spacing[1],
+      padding: theme.spacing['4'],
+      gap: theme.spacing['1'],
     },
     termsLine: {
       ...theme.typography.body12,
       color: theme.colors.textSecondary,
-      lineHeight: 18,
+      lineHeight: theme.spacing['4.5'],
     },
     refundLinkRow: {
-      gap: theme.spacing[2],
-      marginTop: theme.spacing[2],
+      gap: theme.spacing['2'],
+      marginTop: theme.spacing['2'],
     },
     buttonContainer: {
-      gap: theme.spacing[3],
-      marginTop: theme.spacing[2],
+      gap: theme.spacing['3'],
+      marginTop: theme.spacing['2'],
     },
     confirmPrimaryButtonText: {
       ...theme.typography.button,
@@ -1296,56 +1476,52 @@ const createStyles = (theme: any) =>
     },
   });
 
-const metaStyles = StyleSheet.create({
+const metaStyles = (theme: any) => StyleSheet.create({
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 6,
+    paddingVertical: theme.spacing['2'],
   },
   label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#595958',
+    ...theme.typography.labelSmall,
+    color: theme.colors.placeholder,
   },
   value: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#302F2E',
+    ...theme.typography.labelSmall,
+    color: theme.colors.secondary,
   },
 });
 
-const breakdownStyles = StyleSheet.create({
+const breakdownStyles = (theme: any) => StyleSheet.create({
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: theme.spacing['2'],
   },
   rowHighlight: {
-    backgroundColor: '#247AED',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing['3'],
+    paddingVertical: theme.spacing['2.5'],
   },
   rowSubtle: {
     opacity: 0.8,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#302F2E',
+    ...theme.typography.labelSmall,
+    color: theme.colors.secondary,
   },
   labelHighlight: {
-    color: '#FFFFFF',
+    color: theme.colors.white,
   },
   value: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#302F2E',
+    ...theme.typography.labelSmall,
+    color: theme.colors.secondary,
   },
   valueHighlight: {
-    color: '#FFFFFF',
+    color: theme.colors.white,
   },
 });
 

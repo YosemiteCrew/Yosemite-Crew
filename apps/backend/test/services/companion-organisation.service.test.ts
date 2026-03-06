@@ -53,6 +53,40 @@ describe('CompanionOrganisationService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (AuditTrailService.recordSafely as jest.Mock).mockResolvedValue(undefined);
+  });
+
+  describe("Validation (ensureObjectId)", () => {
+    it("should throw if ID is invalid string", async () => {
+      await expect(
+        CompanionOrganisationService.linkByParent({
+          parentId: "invalid",
+          companionId: validCompanionId,
+          organisationId: validOrgId,
+          organisationType: "HOSPITAL",
+        }),
+      ).rejects.toThrow("Invalid parentId");
+    });
+
+    it("should throw if ID contains injection chars ($)", async () => {
+      await expect(
+        CompanionOrganisationService.linkByParent({
+          parentId: "$invalid",
+          companionId: validCompanionId,
+          organisationId: validOrgId,
+          organisationType: "HOSPITAL",
+        }),
+      ).rejects.toThrow("Invalid parentId");
+    });
+
+    it("should throw if ID is not a string or ObjectId", async () => {
+      await expect(
+        CompanionOrganisationService.linkByParent({
+          // @ts-expect-error Intentional invalid type for test coverage.
+          parentId: 123,
+        }),
+      ).rejects.toThrow("Invalid parentId");
+    });
   });
 
   describe('CompanionOrganisationServiceError', () => {
@@ -184,6 +218,7 @@ describe('CompanionOrganisationService', () => {
         })
       ).rejects.toThrow(new CompanionOrganisationServiceError('Email required or Name', 400));
     });
+  });
 
     it('should create invite with token when valid inputs are provided', async () => {
       (randomUUID as jest.Mock).mockReturnValue('mock-uuid-token');

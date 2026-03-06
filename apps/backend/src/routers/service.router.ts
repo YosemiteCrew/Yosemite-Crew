@@ -8,6 +8,10 @@ router.get(
   "/organisation/search",
   ServiceController.listOrganisationByServiceName,
 );
+router.get(
+  "/organisation/:organisationId",
+  ServiceController.listByOrganisation,
+);
 router.post("/bookable-slots", ServiceController.getBookableSlotsForService);
 router.get("/:id", ServiceController.getServiceById);
 router.patch("/:id", ServiceController.updateService);

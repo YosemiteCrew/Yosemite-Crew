@@ -1,11 +1,17 @@
 import { create } from "zustand";
-import { ApiDayAvailability } from "../components/Availability/utils";
+import {
+  ApiDayAvailability,
+  ApiOverrides,
+} from "@/app/features/appointments/components/Availability/utils";
 
 type AvailabilityStatus = "idle" | "loading" | "loaded" | "error";
 
 type AvailabilityState = {
   availabilitiesById: Record<string, ApiDayAvailability>;
   availabilityIdsByOrgId: Record<string, string[]>;
+
+  overridesById: Record<string, ApiOverrides>;
+  overrideIdsByOrgId: Record<string, string[]>;
 
   status: AvailabilityStatus;
   error: string | null;
@@ -15,7 +21,12 @@ type AvailabilityState = {
   setAvailabilitiesForOrg: (orgId: string, items: ApiDayAvailability[]) => void;
   upsertAvailabilityStore: (item: ApiDayAvailability) => void;
   removeAvailability: (id: string) => void;
+  clearAvailabilitiesForOrg: (orgId: string) => void;
   getAvailabilitiesByOrgId: (orgId: string) => ApiDayAvailability[];
+  setOverrides: (items: ApiOverrides[]) => void;
+  setOverridesForOrg: (orgId: string, items: ApiOverrides[]) => void;
+  upsertOverideStore: (item: ApiOverrides) => void;
+  removeOverride: (id: string) => void;
   clearAvailabilities: () => void;
   startLoading: () => void;
   endLoading: () => void;
@@ -25,6 +36,8 @@ type AvailabilityState = {
 export const useAvailabilityStore = create<AvailabilityState>()((set, get) => ({
   availabilitiesById: {},
   availabilityIdsByOrgId: {},
+  overridesById: {},
+  overrideIdsByOrgId: {},
   status: "idle",
   error: null,
   lastFetchedAt: null,
@@ -125,6 +138,25 @@ export const useAvailabilityStore = create<AvailabilityState>()((set, get) => ({
       };
     }),
 
+  clearAvailabilitiesForOrg: (orgId: string) =>
+    set((state) => {
+      const ids = state.availabilityIdsByOrgId[orgId] ?? [];
+      if (!ids.length) {
+        const { [orgId]: _, ...restIds } = state.availabilityIdsByOrgId;
+        return { availabilityIdsByOrgId: restIds };
+      }
+      const availabilitiesById = { ...state.availabilitiesById };
+      for (const id of ids) delete availabilitiesById[id];
+      const { [orgId]: _, ...restIds } = state.availabilityIdsByOrgId;
+      return {
+        availabilitiesById,
+        availabilityIdsByOrgId: restIds,
+        status: "loaded",
+        error: null,
+        lastFetchedAt: new Date().toISOString(),
+      };
+    }),
+
   clearAvailabilities: () =>
     set(() => ({
       availabilitiesById: {},
@@ -133,6 +165,88 @@ export const useAvailabilityStore = create<AvailabilityState>()((set, get) => ({
       error: null,
       lastFetchedAt: null,
     })),
+
+  setOverrides: (items) =>
+    set((state) => {
+      const overridesById: Record<string, ApiOverrides> = {};
+      const overrideIdsByOrgId: Record<string, string[]> = {};
+      for (const o of items) {
+        const id = o._id;
+        const orgId = o.organisationId;
+        overridesById[id] = { ...o, _id: id };
+        if (!overrideIdsByOrgId[orgId]) overrideIdsByOrgId[orgId] = [];
+        overrideIdsByOrgId[orgId].push(id);
+      }
+      return {
+        ...state,
+        overridesById,
+        overrideIdsByOrgId,
+        status: "loaded",
+        error: null,
+      };
+    }),
+
+  setOverridesForOrg: (orgId, items) =>
+    set((state) => {
+      const overridesById = { ...state.overridesById };
+      const existingIds = state.overrideIdsByOrgId[orgId] ?? [];
+      for (const id of existingIds) delete overridesById[id];
+      const newIds: string[] = [];
+      for (const item of items) {
+        const id = item._id;
+        overridesById[id] = item;
+        newIds.push(id);
+      }
+      return {
+        ...state,
+        overridesById,
+        overrideIdsByOrgId: {
+          ...state.overrideIdsByOrgId,
+          [orgId]: newIds,
+        },
+        status: "loaded",
+        error: null,
+      };
+    }),
+
+  upsertOverideStore: (item) =>
+    set((state) => {
+      const id = item._id;
+      const orgId = item.organisationId;
+      const exists = !!state.overridesById[id];
+      const overridesById: Record<string, ApiOverrides> = {
+        ...state.overridesById,
+        [id]: exists ? { ...state.overridesById[id], ...item } : item,
+      };
+      const existingIds = state.overrideIdsByOrgId[orgId] ?? [];
+      const ids = existingIds.includes(id) ? existingIds : [...existingIds, id];
+      const overrideIdsByOrgId = {
+        ...state.overrideIdsByOrgId,
+        [orgId]: ids,
+      };
+      return {
+        overridesById,
+        overrideIdsByOrgId,
+        status: "loaded",
+        error: null,
+      };
+    }),
+
+  removeOverride: (id: string) =>
+    set((state) => {
+      const removed = state.overridesById[id];
+      if (!removed) return state;
+      const orgId = removed.organisationId;
+      const { [id]: _, ...restAvailabilitiesById } = state.overridesById;
+      const overrideIdsByOrgId = {
+        ...state.overrideIdsByOrgId,
+        [orgId]: state.overrideIdsByOrgId[orgId]?.filter((x) => x !== id) ?? [],
+      };
+      return {
+        overridesById: restAvailabilitiesById,
+        overrideIdsByOrgId,
+      };
+    }),
 
   startLoading: () =>
     set(() => ({

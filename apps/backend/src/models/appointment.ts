@@ -8,7 +8,8 @@ export type AppointmentStatus =
   | "CHECKED_IN"
   | "IN_PROGRESS"
   | "COMPLETED"
-  | "CANCELLED";
+  | "CANCELLED"
+  | "NO_SHOW";
 
 export interface AppointmentMongo {
   companion: {
@@ -52,8 +53,11 @@ export interface AppointmentMongo {
     contentType?: string;
   }[];
 
+  formIds?: string[];
+
   createdAt?: Date;
   updatedAt?: Date;
+  expiresAt?: Date;
 }
 
 const AppointmentSchema = new Schema<AppointmentMongo>(
@@ -116,6 +120,7 @@ const AppointmentSchema = new Schema<AppointmentMongo>(
         "COMPLETED",
         "CANCELLED",
         "NO_PAYMENT",
+        "NO_SHOW",
       ],
       default: "NO_PAYMENT",
     },
@@ -131,6 +136,9 @@ const AppointmentSchema = new Schema<AppointmentMongo>(
         contentType: { type: String },
       },
     ],
+
+    formIds: { type: [String], default: [] },
+    expiresAt: { type: Date },
   },
   { timestamps: true },
 );
@@ -140,6 +148,7 @@ AppointmentSchema.index({ organisationId: 1, appointmentDate: 1 });
 AppointmentSchema.index({ "companion.id": 1, appointmentDate: -1 });
 AppointmentSchema.index({ "supportStaff.id": 1 });
 AppointmentSchema.index({ status: 1 });
+AppointmentSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 AppointmentSchema.index(
   {

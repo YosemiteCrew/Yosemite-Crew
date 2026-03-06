@@ -1,3 +1,4 @@
+import { jest, describe, it, expect, beforeEach } from "@jest/globals";
 import { Types } from "mongoose";
 import {
   ServiceService,
@@ -27,6 +28,7 @@ jest.mock("../../src/utils/helper", () => ({
 
 jest.mock("escape-string-regexp", () => jest.fn((str) => str));
 
+// Mock DTO mappers to be identity functions for easier testing
 jest.mock("@yosemite-crew/types", () => ({
   fromServiceRequestDTO: jest.fn((dto) => dto),
   toServiceResponseDTO: jest.fn((dto) => ({ ...dto, mapped: true })),
@@ -71,6 +73,11 @@ const makeMockDoc = (overrides: any = {}, toObjectOverrides: any = {}) => {
 };
 
 describe("ServiceService", () => {
+  const serviceId = new Types.ObjectId().toString();
+  const orgId = new Types.ObjectId().toString();
+  const specialityId = new Types.ObjectId().toString();
+  const toolId = new Types.ObjectId().toString();
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -175,7 +182,6 @@ describe("ServiceService", () => {
       const res = await ServiceService.listByOrganisation(new Types.ObjectId().toString());
       expect(res).toHaveLength(1);
     });
-  });
 
   describe("update", () => {
     const validId = new Types.ObjectId().toString();

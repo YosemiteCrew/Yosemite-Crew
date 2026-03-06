@@ -77,9 +77,30 @@ def enableProguardInReleaseBuilds = true
  * this variant is about 6MiB larger per architecture than default.
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
+def hermesEnabled = (project.findProperty("hermesEnabled") ?: "true").toString()
+project.ext.set("hermesEnabled", hermesEnabled)
 
 def resolveReleaseProp(String name, Object defaultValue = null) {
     return System.getenv(name) ?: project.findProperty(name) ?: defaultValue
+}
+
+def isReleaseSigningRequired() {
+    def taskNames = gradle.startParameter.taskNames.collect { it.toLowerCase() }
+    return taskNames.any { task ->
+        // Generic aggregate tasks can produce release artifacts.
+        if (task == "assemble" || task == "build") {
+            return true
+        }
+
+        // Explicit release artifact tasks (e.g., assembleRelease, bundleProdRelease, publishReleaseBundle).
+        def isArtifactTask = task.contains("assemble") ||
+            task.contains("bundle") ||
+            task.contains("publish") ||
+            task.contains("package") ||
+            task.contains("install")
+
+        return isArtifactTask && task.contains("release")
+    }
 }
 
 android {
@@ -92,8 +113,8 @@ android {
         applicationId "com.mobileappyc"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 7
-        versionName "1.0.5"
+        versionCode 8
+        versionName "1.0.6"
     }
     signingConfigs {
         debug {
@@ -109,11 +130,20 @@ android {
             def keyPass = resolveReleaseProp('YC_RELEASE_KEY_PASSWORD')
 
             if (!storeFilePath || !storePass || !keyAliasVal || !keyPass) {
-                throw new GradleException(
-                    "Release signing properties missing. " +
-                    "Set YC_RELEASE_STORE_FILE, YC_RELEASE_STORE_PASSWORD, YC_RELEASE_KEY_ALIAS, YC_RELEASE_KEY_PASSWORD " +
-                    "in your environment or gradle.properties (e.g., ~/.gradle/gradle.properties)."
-                )
+                if (isReleaseSigningRequired()) {
+                    throw new GradleException(
+                        "Release signing properties missing. " +
+                        "Set YC_RELEASE_STORE_FILE, YC_RELEASE_STORE_PASSWORD, YC_RELEASE_KEY_ALIAS, YC_RELEASE_KEY_PASSWORD " +
+                        "in your environment or gradle.properties (e.g., ~/.gradle/gradle.properties)."
+                    )
+                }
+
+                // Allow non-release tasks (e.g., clean/lint/test) without local release secrets.
+                storeFile file('debug.keystore')
+                storePassword 'android'
+                keyAlias 'androiddebugkey'
+                keyPassword 'android'
+                return
             }
 
             storeFile file(storeFilePath)
@@ -141,6 +171,9 @@ dependencies {
     implementation project(':react-native-fbsdk-next')
     implementation platform('com.google.firebase:firebase-bom:33.4.0')
     implementation 'com.google.firebase:firebase-messaging'
+
+    // AndroidX Core for edge-to-edge support
+    implementation 'androidx.core:core-ktx:1.15.0'
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")

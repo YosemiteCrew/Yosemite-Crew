@@ -7,6 +7,11 @@ import { assertSafeString } from "src/utils/sanitize";
 import ParentCompanionModel from "src/models/parent-companion";
 import CompanionModel from "../models/companion";
 import { ParentModel } from "src/models/parent";
+import { toFHIR as toFHIRCompanion } from "./companion.service";
+import { toFHIR as toFHIRParent } from "./parent.service";
+import { AuditTrailService } from "./audit-trail.service";
+
+type BusinessType = "HOSPITAL" | "BREEDER" | "BOARDER" | "GROOMER";
 
 export class CompanionOrganisationServiceError extends Error {
   constructor(
@@ -51,7 +56,7 @@ export const CompanionOrganisationService = {
     parentId: Types.ObjectId | string;
     companionId: Types.ObjectId | string;
     organisationId: Types.ObjectId | string;
-    organisationType: "HOSPITAL" | "BREEDER" | "BOARDER" | "GROOMER";
+    organisationType: BusinessType;
   }): Promise<CompanionOrganisationDocument> {
     const parent = ensureObjectId(parentId, "parentId");
     const companion = ensureObjectId(companionId, "companionId");
@@ -66,7 +71,7 @@ export const CompanionOrganisationService = {
 
     if (existing) return existing;
 
-    return CompanionOrganisationModel.create({
+    const link = await CompanionOrganisationModel.create({
       companionId: companion,
       organisationId: org,
       linkedByParentId: parent,
@@ -74,6 +79,22 @@ export const CompanionOrganisationService = {
       role: "ORGANISATION",
       status: "ACTIVE",
     });
+
+    await AuditTrailService.recordSafely({
+      organisationId: org.toString(),
+      companionId: companion.toString(),
+      eventType: "COMPANION_ORG_LINK_CREATED",
+      actorType: "PARENT",
+      actorId: parent.toString(),
+      entityType: "COMPANION_ORGANISATION",
+      entityId: link._id.toString(),
+      metadata: {
+        organisationType,
+        status: link.status,
+      },
+    });
+
+    return link;
   },
 
   async linkByPmsUser({
@@ -85,7 +106,7 @@ export const CompanionOrganisationService = {
     pmsUserId: string;
     companionId: Types.ObjectId | string;
     organisationId: Types.ObjectId | string;
-    organisationType: "HOSPITAL" | "BREEDER" | "BOARDER" | "GROOMER";
+    organisationType: BusinessType;
   }): Promise<CompanionOrganisationDocument> {
     const companion = ensureObjectId(companionId, "companionId");
     const org = ensureObjectId(organisationId, "organisationId");
@@ -98,7 +119,7 @@ export const CompanionOrganisationService = {
 
     if (existing) return existing;
 
-    return CompanionOrganisationModel.create({
+    const link = await CompanionOrganisationModel.create({
       companionId: companion,
       organisationId: org,
       linkedByPmsUserId: pmsUserId,
@@ -106,6 +127,22 @@ export const CompanionOrganisationService = {
       role: "ORGANISATION",
       status: "PENDING",
     });
+
+    await AuditTrailService.recordSafely({
+      organisationId: org.toString(),
+      companionId: companion.toString(),
+      eventType: "COMPANION_ORG_LINK_REQUESTED",
+      actorType: "PMS_USER",
+      actorId: pmsUserId,
+      entityType: "COMPANION_ORGANISATION",
+      entityId: link._id.toString(),
+      metadata: {
+        organisationType,
+        status: link.status,
+      },
+    });
+
+    return link;
   },
 
   async sendInvite({
@@ -118,7 +155,7 @@ export const CompanionOrganisationService = {
   }: {
     parentId: Types.ObjectId | string;
     companionId: Types.ObjectId | string;
-    organisationType: "HOSPITAL" | "BREEDER" | "BOARDER" | "GROOMER";
+    organisationType: BusinessType;
     email?: string | null;
     name?: string | null;
     placesId?: string | null;
@@ -193,6 +230,19 @@ export const CompanionOrganisationService = {
 
     await invite.save();
 
+    await AuditTrailService.recordSafely({
+      organisationId: org.toString(),
+      companionId: invite.companionId.toString(),
+      eventType: "COMPANION_ORG_INVITE_ACCEPTED",
+      actorType: "SYSTEM",
+      entityType: "COMPANION_ORGANISATION",
+      entityId: invite._id.toString(),
+      metadata: {
+        organisationType: invite.organisationType,
+        status: invite.status,
+      },
+    });
+
     return invite;
   },
 
@@ -219,6 +269,19 @@ export const CompanionOrganisationService = {
     invite.inviteToken = null;
 
     await invite.save();
+
+    await AuditTrailService.recordSafely({
+      organisationId: org.toString(),
+      companionId: invite.companionId.toString(),
+      eventType: "COMPANION_ORG_INVITE_REJECTED",
+      actorType: "SYSTEM",
+      entityType: "COMPANION_ORGANISATION",
+      entityId: invite._id.toString(),
+      metadata: {
+        organisationType: invite.organisationType,
+        status: invite.status,
+      },
+    });
   },
 
   async linkOnCompanionCreatedByPms({
@@ -230,7 +293,7 @@ export const CompanionOrganisationService = {
     companionId: string | Types.ObjectId;
     organisationId: string | Types.ObjectId;
     pmsUserId: string;
-    organisationType: "HOSPITAL" | "BREEDER" | "BOARDER" | "GROOMER";
+    organisationType: BusinessType;
   }) {
     return this.linkByPmsUser({
       pmsUserId,
@@ -260,26 +323,50 @@ export const CompanionOrganisationService = {
 
     if (existing) return existing;
 
-    return CompanionOrganisationModel.create({
+    const link = await CompanionOrganisationModel.create({
       companionId: companion,
       organisationId: org,
       organisationType,
       status: "ACTIVE",
       role: "ORGANISATION",
     });
+
+    await AuditTrailService.recordSafely({
+      organisationId: org.toString(),
+      companionId: companion.toString(),
+      eventType: "COMPANION_ORG_LINK_AUTO",
+      actorType: "SYSTEM",
+      entityType: "COMPANION_ORGANISATION",
+      entityId: link._id.toString(),
+      metadata: {
+        organisationType,
+        status: link.status,
+      },
+    });
+
+    return link;
   },
 
   async revokeLink(linkId: string | Types.ObjectId) {
     const id = ensureObjectId(linkId, "linkId");
 
-    const link = await CompanionOrganisationModel.findByIdAndUpdate(
-      id,
-      { status: "REVOKED" },
-      { new: true },
-    );
+    const link = await CompanionOrganisationModel.findByIdAndDelete(id);
 
     if (!link)
       throw new CompanionOrganisationServiceError("Link not found", 404);
+
+    await AuditTrailService.recordSafely({
+      organisationId: link.organisationId?.toString() ?? "",
+      companionId: link.companionId.toString(),
+      eventType: "COMPANION_ORG_LINK_REVOKED",
+      actorType: "SYSTEM",
+      entityType: "COMPANION_ORGANISATION",
+      entityId: link._id.toString(),
+      metadata: {
+        organisationType: link.organisationType,
+        status: link.status,
+      },
+    });
 
     return link;
   },
@@ -306,6 +393,20 @@ export const CompanionOrganisationService = {
 
     await link.save();
 
+    await AuditTrailService.recordSafely({
+      organisationId: link.organisationId?.toString() ?? "",
+      companionId: link.companionId.toString(),
+      eventType: "COMPANION_ORG_LINK_APPROVED",
+      actorType: "PARENT",
+      actorId: parentId.toString(),
+      entityType: "COMPANION_ORGANISATION",
+      entityId: link._id.toString(),
+      metadata: {
+        organisationType: link.organisationType,
+        status: link.status,
+      },
+    });
+
     return link;
   },
 
@@ -330,6 +431,20 @@ export const CompanionOrganisationService = {
 
     await link.save();
 
+    await AuditTrailService.recordSafely({
+      organisationId: link.organisationId?.toString() ?? "",
+      companionId: link.companionId.toString(),
+      eventType: "COMPANION_ORG_LINK_REJECTED",
+      actorType: "PARENT",
+      actorId: parentId.toString(),
+      entityType: "COMPANION_ORGANISATION",
+      entityId: link._id.toString(),
+      metadata: {
+        organisationType: link.organisationType,
+        status: link.status,
+      },
+    });
+
     return link;
   },
 
@@ -347,7 +462,13 @@ export const CompanionOrganisationService = {
     const links = await CompanionOrganisationModel.find({
       companionId: id,
       organisationType: type,
-      status: { $in: ["ACTIVE", "PENDING"] },
+      $or: [
+        { status: "ACTIVE" },
+        {
+          status: "PENDING",
+          organisationId: { $ne: null }, // <-- key line
+        },
+      ],
     }).populate(
       "organisationId",
       "name imageURL phoneNo address googlePlacesId",
@@ -372,6 +493,46 @@ export const CompanionOrganisationService = {
 
   async getLinksForOrganisation(organisationId: string | Types.ObjectId) {
     const id = ensureObjectId(organisationId, "organisationId");
-    return CompanionOrganisationModel.find({ organisationId: id });
+
+    const links = await CompanionOrganisationModel.find({
+      organisationId: id,
+      status: { $in: ["ACTIVE", "PENDING"] },
+    });
+
+    const results = await Promise.all(
+      links.map(async (link) => {
+        // 1️⃣ Fetch companion
+        const companion = await CompanionModel.findById(link.companionId);
+        if (!companion) {
+          // orphaned link → skip
+          return null;
+        }
+
+        // 2️⃣ Fetch primary parent
+        const parentLink = await ParentCompanionModel.findOne({
+          companionId: companion._id,
+          role: "PRIMARY",
+          status: "ACTIVE",
+        });
+
+        const parent = parentLink
+          ? await ParentModel.findById(parentLink.parentId)
+          : null;
+
+        return {
+          linkId: link._id.toString(),
+          organisationId: link.organisationId?.toString(),
+          organisationType: link.organisationType,
+          status: link.status,
+
+          // ✅ SAFE
+          companion: toFHIRCompanion(companion),
+          parent: parent ? toFHIRParent(parent) : null,
+        };
+      }),
+    );
+
+    // Remove nulls caused by orphaned links
+    return results.filter(Boolean);
   },
 };

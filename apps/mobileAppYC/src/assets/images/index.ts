@@ -7,6 +7,10 @@ export const Images = {
   catLaptop: require('./auth/cat-laptop.png'),
 
   // Icons
+  downArrow: require('./icons/downArrow.png'),
+  checkEmpty: require('./icons/checkEmpty.png'),
+  checkFill: require('./icons/checkFill.png'),
+  copyIcon: require('./icons/copyIcon.png'),
   offlineImage: require('./icons/offlineImage.png'),
   yosemiteLogo: require('./icons/yosemiteLogo.png'),
   backIcon: require('./icons/back.png'),

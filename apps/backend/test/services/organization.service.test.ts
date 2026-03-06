@@ -47,6 +47,12 @@ jest.mock("../../src/services/user-organization.service", () => ({
     deleteAllByOrganizationId: jest.fn(),
   },
 }));
+jest.mock("../../src/models/organization.billing", () => ({
+  OrgBilling: { create: jest.fn() },
+}));
+jest.mock("../../src/models/organisation.usage.counter", () => ({
+  OrgUsageCounters: { create: jest.fn() },
+}));
 
 jest.mock("../../src/services/speciality.service", () => ({
   SpecialityService: {

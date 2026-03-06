@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { UserProfile } from "../types/profile";
+import type { UserProfile } from "@/app/features/users/types/profile";
 
 export type UserProfileStatus = "idle" | "loading" | "loaded" | "error";
 
@@ -11,6 +11,7 @@ type UserProfileState = {
 
   setProfiles: (profiles: UserProfile[]) => void;
   addProfile: (profile: UserProfile) => void;
+  clearProfileForOrg: (orgId: string) => void;
   updateProfile: (profile: UserProfile) => void;
   getProfileById: (orgId: string) => UserProfile | undefined;
   clearProfiles: () => void;
@@ -53,6 +54,7 @@ export const useUserProfileStore = create<UserProfileState>()((set, get) => ({
           ...state.profilesByOrgId,
           [profile.organizationId]: profile,
         },
+        status: "loaded"
       };
     }),
 
@@ -81,6 +83,18 @@ export const useUserProfileStore = create<UserProfileState>()((set, get) => ({
             ...profile,
           },
         },
+        status: "loaded"
+      };
+    }),
+
+  clearProfileForOrg: (orgId) =>
+    set((state) => {
+      if (!state.profilesByOrgId[orgId]) return state;
+      const { [orgId]: _, ...rest } = state.profilesByOrgId;
+      return {
+        profilesByOrgId: rest,
+        status: "loaded",
+        error: null,
       };
     }),
 
@@ -91,7 +105,7 @@ export const useUserProfileStore = create<UserProfileState>()((set, get) => ({
 
   clearProfiles: () =>
     set(() => ({
-      profilesById: {},
+      profilesByOrgId: {},
       status: "idle",
       error: null,
     })),

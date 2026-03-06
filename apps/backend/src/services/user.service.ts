@@ -1,6 +1,14 @@
 import validator from "validator";
 import UserModel, { type UserDocument, type UserMongo } from "../models/user";
+import UserOrganizationModel from "../models/user-organization";
+import UserProfileModel from "../models/user-profile";
+import BaseAvailabilityModel from "../models/base-availability";
+import WeeklyAvailabilityOverrideModel from "../models/weekly-availablity-override";
+import { OccupancyModel } from "../models/occupancy";
+import { UserOrganizationService } from "./user-organization.service";
 import { User } from "@yosemite-crew/types";
+import { CognitoService } from "./cognito.service";
+import { OrganizationService } from "./organization.service";
 
 export class UserServiceError extends Error {
   constructor(
@@ -46,6 +54,21 @@ const requireSafeIdentifier = (value: unknown, field: string): string => {
   }
 
   return identifier;
+};
+
+const extractOrganizationIdentifier = (reference: unknown): string => {
+  const trimmed = requireString(reference, "Organization reference");
+  const segments = trimmed.split("/").filter(Boolean);
+  const lastSegment = segments.at(-1);
+
+  if (!lastSegment || lastSegment.toLowerCase() === "organization") {
+    throw new UserServiceError(
+      "Invalid organization reference format.",
+      400,
+    );
+  }
+
+  return lastSegment;
 };
 
 const toBoolean = (value: unknown, field: string): boolean => {
@@ -154,6 +177,106 @@ export const UserService = {
     }
 
     return toUserDomain(document);
+  },
+
+  async deleteById(id: unknown): Promise<boolean> {
+    const userId = requireSafeIdentifier(id, "User id");
+
+    const existing = await UserModel.findOne({ userId }, null, {
+      sanitizeFilter: true,
+    }).lean();
+
+    if (!existing) {
+      return false;
+    }
+
+    const mappings = await UserOrganizationModel.find(
+      {
+        $or: [
+          { practitionerReference: userId },
+          { practitionerReference: `Practitioner/${userId}` },
+        ],
+      },
+      { roleCode: 1, organizationReference: 1 },
+      { sanitizeFilter: true },
+    ).lean();
+
+    const ownerOrganizationIds = new Set<string>();
+
+    for (const mapping of mappings) {
+      if (mapping.roleCode?.toUpperCase() === "OWNER") {
+        ownerOrganizationIds.add(
+          extractOrganizationIdentifier(mapping.organizationReference),
+        );
+      }
+    }
+
+    for (const mapping of mappings) {
+      await UserOrganizationService.deleteById(mapping._id.toString());
+    }
+
+    await Promise.all([
+      UserProfileModel.deleteMany({ userId }).setOptions({
+        sanitizeFilter: true,
+      }),
+      BaseAvailabilityModel.deleteMany({ userId }).setOptions({
+        sanitizeFilter: true,
+      }),
+      WeeklyAvailabilityOverrideModel.deleteMany({ userId }).setOptions({
+        sanitizeFilter: true,
+      }),
+      OccupancyModel.deleteMany({ userId }).setOptions({
+        sanitizeFilter: true,
+      }),
+    ]);
+
+    const updated = await UserModel.findOneAndUpdate(
+      { userId },
+      { $set: { isActive: false } },
+      { sanitizeFilter: true },
+    );
+
+    for (const organizationId of ownerOrganizationIds) {
+      await OrganizationService.deleteById(organizationId);
+    }
+
+    return Boolean(updated);
+  },
+
+  async updateName(payload: {
+    userId : string,
+    firstName : string,
+    lastName : string
+  }): Promise<UserDomain> {
+    const userId = requireSafeIdentifier(payload.userId, "User id");
+    const firstName = requireString(payload.firstName, "First name");
+    const lastName = requireString(payload.lastName, "Last name");
+
+    const user = await UserModel.findOne({ userId }, null, {
+      sanitizeFilter: true,
+    });
+
+    if (!user) {
+      throw new UserServiceError("User not found.", 404);
+    }
+
+    if (user.firstName === firstName && user.lastName === lastName) {
+      return toUserDomain(user);
+    }
+
+    await CognitoService.updateUserName({
+      userPoolId: process.env.COGNITO_USER_POOL_ID!,
+      cognitoUserId: userId,
+      firstName,
+      lastName,
+    });
+
+    user.firstName = firstName;
+    user.lastName = lastName;
+
+    await user.save();
+
+    return toUserDomain(user);
   },
 };
 

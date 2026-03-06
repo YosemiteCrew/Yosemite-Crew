@@ -4,7 +4,7 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
 <View
   style={
     {
-      "backgroundColor": "#FFFFFF",
+      "backgroundColor": "#FFFEFE",
       "flex": 1,
     }
   }
@@ -109,7 +109,7 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
         <View
           style={
             {
-              "backgroundColor": "#FFFFFF",
+              "backgroundColor": "#FFFEFE",
               "height": 1334,
               "position": "relative",
               "width": 750,
@@ -167,7 +167,7 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
               style={
                 [
                   {
-                    "borderRadius": 4,
+                    "borderRadius": 9999,
                     "height": 8,
                     "marginHorizontal": 4,
                     "width": 8,
@@ -183,13 +183,13 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
               style={
                 [
                   {
-                    "borderRadius": 4,
+                    "borderRadius": 9999,
                     "height": 8,
                     "marginHorizontal": 4,
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#888888",
+                    "backgroundColor": "#747473",
                     "opacity": 0.3,
                   },
                 ]
@@ -199,13 +199,13 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
               style={
                 [
                   {
-                    "borderRadius": 4,
+                    "borderRadius": 9999,
                     "height": 8,
                     "marginHorizontal": 4,
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#888888",
+                    "backgroundColor": "#747473",
                     "opacity": 0.3,
                   },
                 ]
@@ -215,13 +215,13 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
               style={
                 [
                   {
-                    "borderRadius": 4,
+                    "borderRadius": 9999,
                     "height": 8,
                     "marginHorizontal": 4,
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#888888",
+                    "backgroundColor": "#747473",
                     "opacity": 0.3,
                   },
                 ]
@@ -277,7 +277,7 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
         <View
           style={
             {
-              "backgroundColor": "#FFFFFF",
+              "backgroundColor": "#FFFEFE",
               "height": 1334,
               "position": "relative",
               "width": 750,
@@ -335,7 +335,7 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
               style={
                 [
                   {
-                    "borderRadius": 4,
+                    "borderRadius": 9999,
                     "height": 8,
                     "marginHorizontal": 4,
                     "width": 8,
@@ -351,13 +351,13 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
               style={
                 [
                   {
-                    "borderRadius": 4,
+                    "borderRadius": 9999,
                     "height": 8,
                     "marginHorizontal": 4,
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#888888",
+                    "backgroundColor": "#747473",
                     "opacity": 0.3,
                   },
                 ]
@@ -367,13 +367,13 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
               style={
                 [
                   {
-                    "borderRadius": 4,
+                    "borderRadius": 9999,
                     "height": 8,
                     "marginHorizontal": 4,
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#888888",
+                    "backgroundColor": "#747473",
                     "opacity": 0.3,
                   },
                 ]
@@ -383,13 +383,13 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
               style={
                 [
                   {
-                    "borderRadius": 4,
+                    "borderRadius": 9999,
                     "height": 8,
                     "marginHorizontal": 4,
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#888888",
+                    "backgroundColor": "#747473",
                     "opacity": 0.3,
                   },
                 ]
@@ -445,7 +445,7 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
         <View
           style={
             {
-              "backgroundColor": "#FFFFFF",
+              "backgroundColor": "#FFFEFE",
               "height": 1334,
               "position": "relative",
               "width": 750,
@@ -503,7 +503,7 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
               style={
                 [
                   {
-                    "borderRadius": 4,
+                    "borderRadius": 9999,
                     "height": 8,
                     "marginHorizontal": 4,
                     "width": 8,
@@ -519,13 +519,13 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
               style={
                 [
                   {
-                    "borderRadius": 4,
+                    "borderRadius": 9999,
                     "height": 8,
                     "marginHorizontal": 4,
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#888888",
+                    "backgroundColor": "#747473",
                     "opacity": 0.3,
                   },
                 ]
@@ -535,13 +535,13 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
               style={
                 [
                   {
-                    "borderRadius": 4,
+                    "borderRadius": 9999,
                     "height": 8,
                     "marginHorizontal": 4,
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#888888",
+                    "backgroundColor": "#747473",
                     "opacity": 0.3,
                   },
                 ]
@@ -551,13 +551,13 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
               style={
                 [
                   {
-                    "borderRadius": 4,
+                    "borderRadius": 9999,
                     "height": 8,
                     "marginHorizontal": 4,
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#888888",
+                    "backgroundColor": "#747473",
                     "opacity": 0.3,
                   },
                 ]
@@ -613,7 +613,7 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
         <View
           style={
             {
-              "backgroundColor": "#FFFFFF",
+              "backgroundColor": "#FFFEFE",
               "height": 1334,
               "position": "relative",
               "width": 750,
@@ -671,7 +671,7 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
               style={
                 [
                   {
-                    "borderRadius": 4,
+                    "borderRadius": 9999,
                     "height": 8,
                     "marginHorizontal": 4,
                     "width": 8,
@@ -687,13 +687,13 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
               style={
                 [
                   {
-                    "borderRadius": 4,
+                    "borderRadius": 9999,
                     "height": 8,
                     "marginHorizontal": 4,
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#888888",
+                    "backgroundColor": "#747473",
                     "opacity": 0.3,
                   },
                 ]
@@ -703,13 +703,13 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
               style={
                 [
                   {
-                    "borderRadius": 4,
+                    "borderRadius": 9999,
                     "height": 8,
                     "marginHorizontal": 4,
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#888888",
+                    "backgroundColor": "#747473",
                     "opacity": 0.3,
                   },
                 ]
@@ -719,13 +719,13 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
               style={
                 [
                   {
-                    "borderRadius": 4,
+                    "borderRadius": 9999,
                     "height": 8,
                     "marginHorizontal": 4,
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#888888",
+                    "backgroundColor": "#747473",
                     "opacity": 0.3,
                   },
                 ]
@@ -806,15 +806,15 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
               onStartShouldSetResponder={[Function]}
               style={
                 {
-                  "elevation": 8,
+                  "elevation": 4,
                   "opacity": 1,
-                  "shadowColor": "#000",
+                  "shadowColor": "#000000",
                   "shadowOffset": {
                     "height": 4,
                     "width": 0,
                   },
                   "shadowOpacity": 0.15,
-                  "shadowRadius": 8,
+                  "shadowRadius": 6,
                 }
               }
               testID="liquid-glass-button"

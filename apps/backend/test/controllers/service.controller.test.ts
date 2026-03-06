@@ -63,6 +63,23 @@ describe("ServiceController", () => {
   let res: Response;
 
   beforeEach(() => {
+    jsonMock = jest.fn();
+    sendMock = jest.fn();
+    statusMock = jest.fn().mockReturnValue({ json: jsonMock, send: sendMock });
+
+    req = {
+      headers: {},
+      params: {},
+      body: {},
+      query: {},
+    };
+
+    res = {
+      status: statusMock,
+      json: jsonMock,
+      send: sendMock,
+    } as unknown as Response;
+
     jest.clearAllMocks();
     res = mockResponse();
   });

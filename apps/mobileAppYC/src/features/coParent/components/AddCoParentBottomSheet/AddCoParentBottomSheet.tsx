@@ -66,7 +66,7 @@ export const AddCoParentBottomSheet = forwardRef<
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      gap: theme.spacing[4],
+      gap: theme.spacing['4'],
     },
   });
 

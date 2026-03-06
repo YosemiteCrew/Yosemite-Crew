@@ -15,6 +15,8 @@ import type {AppDispatch, RootState} from '@/app/store';
 
 import {Header} from '@/shared/components/common/Header/Header';
 import {GifLoader} from '@/shared/components/common';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {useTheme} from '@/hooks';
 import {capitalize, displayNeutered, displayInsured, displayOrigin} from '@/shared/utils/commonHelpers';
 import {createFormScreenStyles} from '@/shared/utils/formScreenStyles';
@@ -274,7 +276,7 @@ export const CompanionOverviewScreen: React.FC<
 
   if (safeCompanion == null) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={[]}>
         <Header title="Overview" showBackButton onBack={goBack} />
         <View style={styles.centered}>
           {isLoading ? (
@@ -288,16 +290,23 @@ export const CompanionOverviewScreen: React.FC<
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Header
-        title={`${safeCompanion.name}'s Overview`}
-        showBackButton
-        onBack={goBack}
-      />
-
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}>
+    <>
+      <LiquidGlassHeaderScreen
+        header={
+          <Header
+            title={`${safeCompanion.name}'s Overview`}
+            showBackButton
+            onBack={goBack}
+            glass={false}
+          />
+        }
+        cardGap={theme.spacing['3']}
+        contentPadding={theme.spacing['1']}>
+        {contentPaddingStyle => (
+          <>
+            <ScrollView
+              contentContainerStyle={[styles.content, contentPaddingStyle]}
+              showsVerticalScrollIndicator={false}>
         <CompanionProfileHeader
           name={safeCompanion.name}
           breedName={safeCompanion.breed?.breedName}
@@ -307,6 +316,7 @@ export const CompanionOverviewScreen: React.FC<
         />
 
         {/* Card with rows */}
+      <View style={styles.glassShadowWrapper}>
         <LiquidGlassCard
           glassEffect="clear"
           interactive
@@ -519,11 +529,29 @@ export const CompanionOverviewScreen: React.FC<
                 originSheetRef.current?.open();
               }}
             />
-          </View>
-        </LiquidGlassCard>
-      </ScrollView>
+            </View>
+          </LiquidGlassCard>
+        </View>
+            </ScrollView>
 
-      {/* ====== Bottom Sheets / Pickers ====== */}
+            <SimpleDatePicker
+              value={
+                safeCompanion.dateOfBirth ? new Date(safeCompanion.dateOfBirth) : null
+              }
+              onDateChange={date => {
+                applyPatch({dateOfBirth: date ? date.toISOString() : null});
+                setShowDobPicker(false);
+              }}
+              show={showDobPicker}
+              onDismiss={() => setShowDobPicker(false)}
+              maximumDate={new Date()}
+              mode="date"
+            />
+          </>
+        )}
+      </LiquidGlassHeaderScreen>
+
+      {/* ====== Bottom Sheets ====== */}
       <BreedBottomSheet
         ref={breedSheetRef}
         // You likely have a util to supply list by category; here we use current category's breed list from Add screen util
@@ -603,25 +631,12 @@ export const CompanionOverviewScreen: React.FC<
           setOpenBottomSheet(null);
         }}
       />
-
-      <SimpleDatePicker
-        value={
-          safeCompanion.dateOfBirth ? new Date(safeCompanion.dateOfBirth) : null
-        }
-        onDateChange={date => {
-          applyPatch({dateOfBirth: date ? date.toISOString() : null});
-          setShowDobPicker(false);
-        }}
-        show={showDobPicker}
-        onDismiss={() => setShowDobPicker(false)}
-        maximumDate={new Date()}
-        mode="date"
-      />
-    </SafeAreaView>
+    </>
   );
 };
 
-import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
+
+import {createGlassCardStyles} from '@/shared/utils/screenStyles';
 
 // Helper functions moved to @/shared/utils/commonHelpers:
 // - capitalize, displayNeutered, displayInsured, displayOrigin
@@ -658,4 +673,5 @@ function getSelectedCountryObject(countryName?: string | null) {
 const createStyles = (theme: any) =>
   StyleSheet.create({
     ...createFormScreenStyles(theme),
+    ...createGlassCardStyles(theme),
   });

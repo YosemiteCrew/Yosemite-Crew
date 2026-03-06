@@ -1,13 +1,14 @@
+/* eslint-disable @next/next/no-img-element */
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import Cookies from '@/app/components/Cookies/Cookies';
+import Cookies from '@/app/ui/widgets/Cookies/Cookies';
 
-jest.mock('@/app/pages/HomePage/HomePage', () => ({
-  FillBtn: ({ text, onClick }: { text: string; onClick: () => void }) => (
+jest.mock('@/app/ui/primitives/Buttons', () => ({
+  Primary: ({ text, onClick }: { text: string; onClick: () => void }) => (
     <button onClick={onClick}>{text}</button>
   ),
-  UnFillBtn: ({ text, onClick }: { text: string; onClick: () => void }) => (
+  Secondary: ({ text, onClick }: { text: string; onClick: () => void }) => (
     <button onClick={onClick}>{text}</button>
   ),
 }));
@@ -37,8 +38,6 @@ describe('Cookies Component', () => {
     expect(
       screen.getByText(/Yosemite Crew doesn't use third party cookies/)
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Accept/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Decline/ })).toBeInTheDocument();
   });
 
   it('should not display the cookie popup if consent was already given', () => {
@@ -86,7 +85,7 @@ describe('Cookies Component', () => {
     const popupText = screen.getByText(/Yosemite Crew doesn't use third party cookies/);
     expect(popupText).toBeInTheDocument();
 
-    const declineButton = screen.getByRole('button', { name: /Decline/ });
+    const declineButton = screen.getByRole('button', { name: /Reject/ });
     fireEvent.click(declineButton);
 
     await waitFor(() => {

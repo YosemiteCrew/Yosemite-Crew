@@ -22,6 +22,8 @@ import SpecialityModel from "src/models/speciality";
 import ServiceModel from "src/models/service";
 import logger from "src/utils/logger";
 import UserProfileModel from "src/models/user-profile";
+import { OrgBilling } from "src/models/organization.billing";
+import { OrgUsageCounters } from "src/models/organisation.usage.counter";
 
 const TAX_ID_EXTENSION_URL =
   "http://example.org/fhir/StructureDefinition/taxId";
@@ -440,6 +442,7 @@ const buildFHIRResponse = (
     animalWelfareComplianceCertNo: rest.animalWelfareComplianceCertNo,
     fireAndEmergencyCertNo: rest.fireAndEmergencyCertNo,
     googlePlacesId: rest.googlePlacesId,
+    stripeAccountId: rest.stripeAccountId,
   };
 
   const responseOptions = options ?? (typeCoding ? { typeCoding } : undefined);
@@ -526,6 +529,11 @@ export const OrganizationService = {
       document = await OrganizationModel.create(persistable);
       created = true;
 
+      await Promise.all([
+        OrgBilling.create({ orgId: document._id }),
+        OrgUsageCounters.create({ orgId: document._id }),
+      ]);
+
       // Link organization to user if userId is provided
       if (userId) {
         const userOrg: UserOrganization = {
@@ -596,8 +604,9 @@ export const OrganizationService = {
   },
 
   async deleteById(id: string) {
-    const result = await OrganizationModel.findOneAndDelete(
+    const result = await OrganizationModel.findOneAndUpdate(
       resolveIdQuery(id),
+      { $set: { isActive: false } },
       { sanitizeFilter: true },
     );
     if (result) {
@@ -739,6 +748,8 @@ export const OrganizationService = {
             $maxDistance: radius,
           },
         },
+        isVerified: true,
+        isActive: true,
       },
       {
         _id: 1,

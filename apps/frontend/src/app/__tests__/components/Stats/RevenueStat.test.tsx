@@ -1,42 +1,30 @@
-import React from "react";
-import { render } from "@testing-library/react";
+import React from 'react';
+import { render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import RevenueStat from '@/app/ui/widgets/Stats/RevenueStat';
+import CardHeader from '@/app/ui/cards/CardHeader/CardHeader';
+import DynamicChartCard from '@/app/ui/widgets/DynamicChart/DynamicChartCard';
 
-const mockCardHeader = jest.fn();
-const mockChart = jest.fn();
-
-jest.mock("@/app/components/Cards/CardHeader/CardHeader", () => ({
+jest.mock('@/app/ui/cards/CardHeader/CardHeader', () => ({
   __esModule: true,
-  default: (props: any) => {
-    mockCardHeader(props);
-    return null;
-  },
+  default: jest.fn(({ title }: any) => <div data-testid="card-header">{title}</div>),
 }));
 
-jest.mock("@/app/components/BarGraph/DynamicChartCard", () => ({
+jest.mock('@/app/ui/widgets/DynamicChart/DynamicChartCard', () => ({
   __esModule: true,
-  default: (props: any) => {
-    mockChart(props);
-    return null;
-  },
+  default: jest.fn(({ data, keys }: any) => (
+    <div data-testid="chart" data-points={data.length} data-keys={keys.length} />
+  )),
 }));
 
-import RevenueStat from "@/app/components/Stats/RevenueStat";
-
-describe("RevenueStat", () => {
-  test("renders Revenue chart with default config", () => {
+describe('RevenueStat', () => {
+  it('renders header and chart data', () => {
     render(<RevenueStat />);
 
-    expect(mockCardHeader).toHaveBeenCalledWith(
-      expect.objectContaining({ title: "Revenue" })
-    );
-    expect(mockChart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.any(Array),
-        keys: [
-          { name: "Completed", color: "#111" },
-          { name: "Cancelled", color: "#ccc" },
-        ],
-      })
-    );
+    expect(screen.getByTestId('card-header')).toHaveTextContent('Revenue');
+    expect(screen.getByTestId('chart')).toHaveAttribute('data-points', '7');
+    expect(screen.getByTestId('chart')).toHaveAttribute('data-keys', '2');
+    expect(CardHeader).toHaveBeenCalled();
+    expect(DynamicChartCard).toHaveBeenCalled();
   });
 });

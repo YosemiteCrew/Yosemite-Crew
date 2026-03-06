@@ -26,6 +26,10 @@ jest.mock('../../src/services/form.service', () => {
       submitFHIR: jest.fn(),
       getSubmission: jest.fn(),
       listSubmissions: jest.fn(),
+      getSOAPNotesByAppointment: jest.fn(),
+      getConsentFormForParent: jest.fn(),
+      getFormsForAppointment: jest.fn(),
+      generatePDFForSubmission: jest.fn(),
     },
   };
 });
@@ -42,6 +46,25 @@ describe('FormController', () => {
   let res: any;
 
   beforeEach(() => {
+    jsonMock = jest.fn();
+    sendMock = jest.fn();
+    setHeaderMock = jest.fn();
+    statusMock = jest.fn().mockReturnValue({ json: jsonMock, send: sendMock });
+
+    req = {
+      headers: {},
+      params: {},
+      body: {},
+      query: {},
+    };
+
+    res = {
+      status: statusMock,
+      json: jsonMock,
+      send: sendMock,
+      setHeader: setHeaderMock,
+    } as unknown as Response;
+
     jest.clearAllMocks();
 
     req = {

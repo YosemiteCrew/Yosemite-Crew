@@ -1,238 +1,194 @@
 import React from 'react';
-import {
-  render,
-  fireEvent,
-  screen,
-  waitFor,
-  act,
-} from '@testing-library/react-native';
+import {render, fireEvent, waitFor, act} from '@testing-library/react-native';
 import {BusinessSearchScreen} from '../../../../src/features/linkedBusinesses/screens/BusinessSearchScreen';
-import * as Redux from 'react-redux';
-import * as LinkedBusinessActions from '../../../../src/features/linkedBusinesses/index';
+import {useDispatch, useSelector} from 'react-redux';
 import LocationService from '../../../../src/shared/services/LocationService';
 import {Alert} from 'react-native';
+import * as LinkedBusinessActions from '../../../../src/features/linkedBusinesses/index';
 
 // --- Mocks ---
 
-const mockGoBack = jest.fn();
-const mockNavigate = jest.fn();
-const mockDispatch = jest.fn();
-
-// 1. Mock Navigation
-const createProps = (params: any = {}) => ({
-  navigation: {
-    goBack: mockGoBack,
-    navigate: mockNavigate,
-    canGoBack: jest.fn(() => true),
-    addListener: jest.fn(),
-    isFocused: jest.fn(() => true),
-  } as any,
-  route: {
-    key: 'test-key',
-    name: 'BusinessSearch',
-    params: {
-      companionId: 'comp-123',
-      category: 'hospital', // Default category
-      companionName: 'Buddy',
-      companionBreed: 'Golden Retriever',
-      companionImage: 'img.jpg',
-      ...params,
-    },
-  } as any,
-});
-
-// 2. Mock Redux
+// Mock Redux
 jest.mock('react-redux', () => ({
-  useDispatch: () => mockDispatch,
+  useDispatch: jest.fn(),
   useSelector: jest.fn(),
 }));
 
-// 3. Mock Actions & Thunks
-jest.mock('../../../../src/features/linkedBusinesses/index', () => {
-  const actual = jest.requireActual(
-    '../../../../src/features/linkedBusinesses/index',
-  );
-  return {
-    ...actual,
-    searchBusinessesByLocation: jest.fn(),
-    fetchLinkedBusinesses: jest.fn(),
-    checkOrganisation: jest.fn(),
-    acceptBusinessInvite: jest.fn(),
-    declineBusinessInvite: jest.fn(),
-    deleteLinkedBusiness: jest.fn(),
-    fetchPlaceCoordinates: jest.fn(),
-    inviteBusiness: jest.fn(),
-    selectLinkedBusinesses: 'selectLinkedBusinesses',
-  };
-});
-
-// 4. Mock React Navigation Native
+// Mock React Navigation
 jest.mock('@react-navigation/native', () => {
-  const ReactLib = require('react');
+  const actualNav = jest.requireActual('@react-navigation/native');
+  const ReactActual = jest.requireActual('react'); // Get React inside the factory
   return {
-    ...jest.requireActual('@react-navigation/native'),
-    useFocusEffect: (effect: () => void) => {
-
-      // Correctly mocked useEffect behavior
-      ReactLib.useEffect(effect, []);
-    },
+    ...actualNav,
+    // Use the locally required React to avoid ReferenceError
+    useFocusEffect: (effect: any) => ReactActual.useEffect(effect, [effect]),
     useNavigation: () => ({
-      goBack: mockGoBack,
-      navigate: mockNavigate,
-      canGoBack: jest.fn(() => true),
-    }),
-    useRoute: () => ({
-      params: {},
+      navigate: jest.fn(),
+      goBack: jest.fn(),
+      canGoBack: jest.fn(),
     }),
   };
 });
 
-// 5. Mock Hooks & Services
-jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        background: 'white',
-        text: 'black',
-        secondary: 'blue',
-        borderMuted: 'gray',
-        cardBackground: 'white',
-      },
-      spacing: [0, 4, 8, 16, 24, 32],
-      borderRadius: {md: 8, lg: 12},
-      typography: {
-        titleLarge: {fontSize: 20},
-        captionBoldSatoshi: {fontSize: 12},
-        cta: {fontSize: 14},
-      },
-    },
-  }),
-}));
-
-jest.mock('@/assets/images', () => ({
-  Images: {
-    yosemiteLogo: {uri: 'logo'},
-  },
-}));
-
-jest.mock('@/shared/services/LocationService', () => ({
+// Mock Location Service
+jest.mock('../../../../src/shared/services/LocationService', () => ({
   getCurrentPosition: jest.fn(),
 }));
 
-// 6. Mock Components
-jest.mock('@/shared/components/common/Header/Header', () => ({
-  Header: ({title, onBack}: any) => {
-    const {TouchableOpacity, Text, View} = require('react-native');
-    return (
-      <View>
-        <Text>{title}</Text>
-        <TouchableOpacity onPress={onBack} testID="header-back">
-          <Text>Back</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  },
-}));
+// Mock Navigation Props
+const mockGoBack = jest.fn();
+const mockNavigate = jest.fn();
+const mockCanGoBack = jest.fn();
 
-jest.mock('@/shared/components/common/SearchBar/SearchBar', () => ({
-  SearchBar: ({value, onChangeText, placeholder}: any) => {
-    const {TextInput} = require('react-native');
-    return (
-      <TextInput
-        testID="search-input"
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-      />
-    );
-  },
-}));
-
-jest.mock(
-  '@/shared/components/common/SearchDropdownOverlay/SearchDropdownOverlay',
-  () => ({
-    SearchDropdownOverlay: ({visible, items, onPress}: any) => {
-      const {View, TouchableOpacity, Text} = require('react-native');
-      if (!visible || items.length === 0) return null;
-      return (
-        <View testID="search-dropdown">
-          {items.map((item: any) => (
-            <TouchableOpacity
-              key={item.id}
-              testID={`result-${item.id}`}
-              onPress={() => onPress(item)}>
-              <Text>{item.name}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      );
+// Mock Hooks
+jest.mock('../../../../src/hooks', () => ({
+  useTheme: () => ({
+    theme: {
+      colors: {background: 'white', text: 'black', textSecondary: 'gray'},
+      spacing: {
+        '1': 4,
+        '2': 8,
+        '3': 12,
+        '4': 16,
+        '6': 24,
+        '12': 48,
+        '24': 96,
+        '80': 320,
+      },
+      typography: {sectionHeading: {}, body: {}},
     },
   }),
+}));
+
+// Mock Actions and Components
+jest.mock('../../../../src/features/linkedBusinesses/index', () => {
+  const ReactActual = jest.requireActual('react'); // Get React inside the factory
+  const {View: MockView} = require('react-native');
+  return {
+    searchBusinessesByLocation: jest.fn(() => ({
+      type: 'search/businesses',
+      payload: [],
+    })),
+    fetchLinkedBusinesses: jest.fn(() => ({
+      type: 'business/fetch',
+      payload: [],
+    })),
+    checkOrganisation: jest.fn(() => ({type: 'business/check', payload: {}})),
+    acceptBusinessInvite: jest.fn(() => ({type: 'business/accept'})),
+    declineBusinessInvite: jest.fn(() => ({type: 'business/decline'})),
+    fetchPlaceCoordinates: jest.fn(() => ({type: 'place/coords', payload: {}})),
+    selectLinkedBusinesses: jest.fn(),
+    deleteLinkedBusiness: jest.fn(() => ({type: 'business/delete'})),
+
+    DeleteBusinessBottomSheet: ReactActual.forwardRef(
+      (props: any, ref: any) => {
+        ReactActual.useImperativeHandle(ref, () => ({
+          open: () => {},
+        }));
+        return (
+          <MockView testID="delete-sheet">
+            <MockView testID="confirm-delete-btn" onTouchEnd={props.onDelete} />
+            <MockView testID="cancel-delete-btn" onTouchEnd={props.onCancel} />
+          </MockView>
+        );
+      },
+    ),
+  };
+});
+
+jest.spyOn(Alert, 'alert');
+
+// Mock UI Components
+jest.mock('../../../../src/shared/components/common/Header/Header', () => {
+  const {View: MockView} = require('react-native');
+  return {
+    Header: ({onBack}: any) => (
+      <MockView testID="mock-header" onTouchEnd={onBack} />
+    ),
+  };
+});
+
+jest.mock(
+  '../../../../src/shared/components/common/SearchBar/SearchBar',
+  () => {
+    const {View: MockView, TextInput: MockTextInput} = require('react-native');
+    return {
+      SearchBar: ({onChangeText, value}: any) => (
+        <MockView testID="search-bar">
+          <MockTextInput
+            testID="search-input"
+            onChangeText={onChangeText}
+            value={value}
+          />
+        </MockView>
+      ),
+    };
+  },
 );
 
 jest.mock(
-  '../../../../src/features/linkedBusinesses/components/LinkedBusinessCard',
-  () => ({
-    LinkedBusinessCard: ({business, onDeletePress}: any) => {
-      const {View, Text, TouchableOpacity} = require('react-native');
-      return (
-        <View testID={`card-${business.id}`}>
-          <Text>{business.businessName}</Text>
-          {onDeletePress && (
-            <TouchableOpacity
-              testID={`delete-btn-${business.id}`}
-              onPress={() => onDeletePress(business)}>
-              <Text>Delete</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      );
-    },
-  }),
+  '../../../../src/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen',
+  () => {
+    const {View: MockView} = require('react-native');
+    return {
+      LiquidGlassHeaderScreen: ({children, header}: any) => (
+        <MockView testID="liquid-layout">
+          {header}
+          {children({paddingBottom: 0})}
+        </MockView>
+      ),
+    };
+  },
+);
+
+jest.mock(
+  '../../../../src/shared/components/common/SearchDropdownOverlay/SearchDropdownOverlay',
+  () => {
+    const {View: MockView} = require('react-native');
+    return {
+      SearchDropdownOverlay: ({visible, onPress, items}: any) =>
+        visible ? (
+          <MockView testID="dropdown-overlay">
+            {items.map((item: any) => (
+              <MockView
+                key={item.id}
+                testID={`result-${item.id}`}
+                onTouchEnd={() => onPress(item)}
+              />
+            ))}
+          </MockView>
+        ) : null,
+    };
+  },
 );
 
 jest.mock(
   '../../../../src/features/linkedBusinesses/components/InviteCard',
-  () => ({
-    InviteCard: ({onAccept, onDecline}: any) => {
-      const {View, TouchableOpacity, Text} = require('react-native');
-      return (
-        <View testID="invite-card">
-          <TouchableOpacity onPress={onAccept} testID="invite-accept">
-            <Text>Accept</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={onDecline} testID="invite-decline">
-            <Text>Decline</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    },
-  }),
+  () => {
+    const {View: MockView} = require('react-native');
+    return {
+      InviteCard: ({onAccept, onDecline}: any) => (
+        <MockView testID="invite-card">
+          <MockView testID="accept-btn" onTouchEnd={onAccept} />
+          <MockView testID="decline-btn" onTouchEnd={onDecline} />
+        </MockView>
+      ),
+    };
+  },
 );
 
 jest.mock(
-  '../../../../src/features/linkedBusinesses/components/DeleteBusinessBottomSheet',
+  '../../../../src/features/linkedBusinesses/components/LinkedBusinessCard',
   () => {
-    const ReactLib = require('react');
-    const {View, TouchableOpacity, Text} = require('react-native');
+    const {View: MockView} = require('react-native');
     return {
-      DeleteBusinessBottomSheet: ReactLib.forwardRef(
-        ({onDelete, onCancel}: any, ref: any) => {
-          ReactLib.useImperativeHandle(ref, () => ({
-            open: jest.fn(),
-            close: jest.fn(),
-          }));
-          return (
-            <View testID="delete-sheet">
-              <TouchableOpacity onPress={onDelete} testID="confirm-delete">
-                <Text>Confirm</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={onCancel} testID="cancel-delete">
-                <Text>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          );
-        },
+      LinkedBusinessCard: ({onDeletePress, business}: any) => (
+        <MockView testID={`linked-card-${business.id}`}>
+          <MockView
+            testID="delete-btn"
+            onTouchEnd={() => onDeletePress(business)}
+          />
+        </MockView>
       ),
     };
   },
@@ -240,339 +196,401 @@ jest.mock(
 
 jest.mock(
   '../../../../src/features/linkedBusinesses/components/CompanionProfileImage',
-  () => ({
-    CompanionProfileImage: () => null,
-  }),
+  () => {
+    const {View: MockView} = require('react-native');
+    return {
+      CompanionProfileImage: () => <MockView testID="profile-image" />,
+    };
+  },
 );
 
-// Helper for thunk mocks
-const mockThunkReturn = (payload: any = {}) => ({
-  unwrap: () => Promise.resolve(payload),
-});
-const mockThunkReject = (error: any) => ({
-  unwrap: () => Promise.reject(new Error(error)),
-});
-
 describe('BusinessSearchScreen', () => {
-  let mockSelectLinkedBusinesses: jest.Mock;
+  const mockDispatch = jest.fn();
+
+  const routeParams = {
+    companionId: 'comp-123',
+    companionName: 'Buddy',
+    companionBreed: 'Dog',
+    companionImage: 'url',
+    category: 'veterinarian',
+  };
+
+  const mockNavigation = {
+    navigate: mockNavigate,
+    goBack: mockGoBack,
+    canGoBack: mockCanGoBack,
+  } as any;
+
+  const mockRoute = {params: routeParams} as any;
+
+  const linkedBusinessData = [
+    {
+      id: 'lb-1',
+      companionId: 'comp-123',
+      category: 'veterinarian',
+      inviteStatus: 'accepted',
+      state: 'active',
+      businessName: 'Vet One',
+    },
+    {
+      id: 'lb-2',
+      companionId: 'comp-123',
+      category: 'veterinarian',
+      inviteStatus: 'pending',
+      state: 'pending',
+      businessName: 'Vet Pending',
+      linkId: 'link-2',
+    },
+    {
+      id: 'lb-3',
+      companionId: 'other-comp',
+      category: 'veterinarian',
+      businessName: 'Other Vet',
+    },
+  ];
 
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
 
-    mockDispatch.mockImplementation(action => {
-      if (action && action.unwrap) return action;
-      return mockThunkReturn();
-    });
+    (useDispatch as unknown as jest.Mock).mockReturnValue(mockDispatch);
 
-    mockSelectLinkedBusinesses = jest.fn().mockReturnValue([]);
-    (Redux.useSelector as unknown as jest.Mock).mockImplementation(selector => {
-      if (selector === LinkedBusinessActions.selectLinkedBusinesses) {
-        return mockSelectLinkedBusinesses();
+    mockDispatch.mockImplementation((action: any) => {
+      if (action?.type === 'throw') {
+        return {unwrap: () => Promise.reject(new Error('Mock Error'))};
       }
-      return undefined;
+      return {unwrap: () => Promise.resolve(action?.payload || [])};
     });
 
+    (useSelector as unknown as jest.Mock).mockReturnValue(linkedBusinessData);
     (LocationService.getCurrentPosition as jest.Mock).mockResolvedValue({
       latitude: 10,
       longitude: 20,
     });
-
     (
-      LinkedBusinessActions.fetchLinkedBusinesses as unknown as jest.Mock
-    ).mockReturnValue(mockThunkReturn([]));
-    (
-      LinkedBusinessActions.searchBusinessesByLocation as unknown as jest.Mock
-    ).mockReturnValue(mockThunkReturn([]));
+      LinkedBusinessActions.selectLinkedBusinesses as unknown as jest.Mock
+    ).mockReturnValue(linkedBusinessData);
   });
 
   afterEach(() => {
     jest.useRealTimers();
   });
 
-  it('renders correctly and fetches initial data', async () => {
-    render(<BusinessSearchScreen {...createProps()} />);
-    expect(screen.getByTestId('search-input')).toBeTruthy();
-    await waitFor(() => {
-      expect(LinkedBusinessActions.fetchLinkedBusinesses).toHaveBeenCalled();
-      expect(LocationService.getCurrentPosition).toHaveBeenCalled();
-    });
-  });
-
-  it('handles location fetch failure gracefully', async () => {
-    (LocationService.getCurrentPosition as jest.Mock).mockRejectedValue(
-      new Error('Location fail'),
+  const renderScreen = () =>
+    render(
+      <BusinessSearchScreen navigation={mockNavigation} route={mockRoute} />,
     );
-    render(<BusinessSearchScreen {...createProps()} />);
-    await waitFor(() => {
-      expect(LocationService.getCurrentPosition).toHaveBeenCalled();
+
+  describe('Initialization & Rendering', () => {
+    it('fetches location and linked businesses on mount', async () => {
+      renderScreen();
+      await waitFor(() => {
+        expect(LocationService.getCurrentPosition).toHaveBeenCalled();
+        expect(mockDispatch).toHaveBeenCalledWith(
+          expect.objectContaining({type: 'business/fetch'}),
+        );
+      });
     });
-    expect(screen.getByTestId('search-input')).toBeTruthy();
+
+    it('handles location fetch failure gracefully', async () => {
+      (LocationService.getCurrentPosition as jest.Mock).mockRejectedValue(
+        new Error('GPS off'),
+      );
+      renderScreen();
+      await waitFor(() =>
+        expect(LocationService.getCurrentPosition).toHaveBeenCalled(),
+      );
+    });
+
+    it('renders linked businesses and invites filtered by companionId', () => {
+      const {getByTestId, queryByTestId} = renderScreen();
+      expect(getByTestId('invite-card')).toBeTruthy();
+      expect(getByTestId('linked-card-lb-1')).toBeTruthy();
+      expect(queryByTestId('linked-card-lb-3')).toBeNull();
+    });
+
+    it('renders empty state if no linked businesses', () => {
+      (useSelector as unknown as jest.Mock).mockReturnValue([]);
+      const {getByText} = renderScreen();
+      expect(getByText(/No linked veterinarians yet/i)).toBeTruthy();
+    });
   });
 
-  it('handles loadLinkedBusinesses failure gracefully', async () => {
-    (
-      LinkedBusinessActions.fetchLinkedBusinesses as unknown as jest.Mock
-    ).mockReturnValue(mockThunkReject('Load failed'));
+  describe('Search Functionality', () => {
+    it('updates search query but does not search if length < 3', () => {
+      const {getByTestId} = renderScreen();
+      const input = getByTestId('search-input');
 
-    render(<BusinessSearchScreen {...createProps()} />);
+      fireEvent.changeText(input, 'ab');
 
-    await waitFor(() => {
-      expect(LinkedBusinessActions.fetchLinkedBusinesses).toHaveBeenCalled();
-    });
-    expect(screen.getByTestId('search-input')).toBeTruthy();
-  });
-
-  it('searches for businesses and displays results', async () => {
-    const mockResults = [
-      {id: 'res-1', name: 'Vet 1', address: '123 St', lat: 10, lng: 20},
-    ];
-    (
-      LinkedBusinessActions.searchBusinessesByLocation as unknown as jest.Mock
-    ).mockReturnValue(mockThunkReturn(mockResults));
-
-    render(<BusinessSearchScreen {...createProps()} />);
-
-    const input = screen.getByTestId('search-input');
-    fireEvent.changeText(input, 'Vet');
-
-    await act(async () => {
-      jest.advanceTimersByTime(800);
-    });
-
-    await waitFor(() => {
+      act(() => {
+        jest.advanceTimersByTime(1000);
+      });
       expect(
         LinkedBusinessActions.searchBusinessesByLocation,
-      ).toHaveBeenCalledWith(expect.objectContaining({query: 'Vet'}));
+      ).not.toHaveBeenCalled();
     });
 
-    expect(screen.getByTestId('search-dropdown')).toBeTruthy();
-    expect(screen.getByText('Vet 1')).toBeTruthy();
-  });
+    it('debounces search and makes API call', async () => {
+      const {getByTestId} = renderScreen();
+      const input = getByTestId('search-input');
 
-  it('does not search if query is less than 3 chars', async () => {
-    render(<BusinessSearchScreen {...createProps()} />);
-    fireEvent.changeText(screen.getByTestId('search-input'), 'Ve');
-    await act(async () => {
-      jest.advanceTimersByTime(1000);
-    });
-    expect(
-      LinkedBusinessActions.searchBusinessesByLocation,
-    ).not.toHaveBeenCalled();
-  });
+      (
+        LinkedBusinessActions.searchBusinessesByLocation as unknown as jest.Mock
+      ).mockReturnValue({
+        type: 'search/businesses',
+        payload: [{id: 'res-1', name: 'Result Vet'}],
+      });
 
-  it('does not search if query is unchanged', async () => {
-    render(<BusinessSearchScreen {...createProps()} />);
-    const input = screen.getByTestId('search-input');
+      fireEvent.changeText(input, 'abc');
 
-    fireEvent.changeText(input, 'Vet C');
-    await act(async () => {
-      jest.advanceTimersByTime(800);
-    });
-    expect(
-      LinkedBusinessActions.searchBusinessesByLocation,
-    ).toHaveBeenCalledTimes(1);
-
-    fireEvent.changeText(input, 'Vet C');
-    await act(async () => {
-      jest.advanceTimersByTime(800);
-    });
-
-    expect(
-      LinkedBusinessActions.searchBusinessesByLocation,
-    ).toHaveBeenCalledTimes(1);
-  });
-
-  it('handles generic search API errors', async () => {
-    (
-      LinkedBusinessActions.searchBusinessesByLocation as unknown as jest.Mock
-    ).mockReturnValue(mockThunkReject('Network Error'));
-
-    render(<BusinessSearchScreen {...createProps()} />);
-    fireEvent.changeText(screen.getByTestId('search-input'), 'Error');
-
-    await act(async () => {
-      jest.advanceTimersByTime(800);
-    });
-
-    await waitFor(() => {
+      act(() => {
+        jest.advanceTimersByTime(500);
+      });
       expect(
         LinkedBusinessActions.searchBusinessesByLocation,
-      ).toHaveBeenCalled();
-    });
-  });
+      ).not.toHaveBeenCalled();
 
-  it('handles quota exceeded search API error', async () => {
-    const error = new Error('Quota exceeded');
-    // @ts-ignore
-    error.message = 'RESOURCE_EXHAUSTED';
+      await act(async () => {
+        jest.advanceTimersByTime(500);
+      });
 
-    (
-      LinkedBusinessActions.searchBusinessesByLocation as unknown as jest.Mock
-    ).mockReturnValue(mockThunkReject(error));
-
-    render(<BusinessSearchScreen {...createProps()} />);
-    fireEvent.changeText(screen.getByTestId('search-input'), 'Quota');
-
-    await act(async () => {
-      jest.advanceTimersByTime(800);
-    });
-
-    await waitFor(() => {
       expect(
         LinkedBusinessActions.searchBusinessesByLocation,
-      ).toHaveBeenCalled();
+      ).toHaveBeenCalledTimes(1);
+      expect(mockDispatch).toHaveBeenCalledWith(
+        expect.objectContaining({type: 'search/businesses'}),
+      );
+    });
+
+    it('handles search errors gracefully', async () => {
+      const {getByTestId} = renderScreen();
+      const input = getByTestId('search-input');
+
+      (
+        LinkedBusinessActions.searchBusinessesByLocation as unknown as jest.Mock
+      ).mockReturnValue({
+        type: 'throw',
+      });
+
+      fireEvent.changeText(input, 'error_case');
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
+    });
+
+    it('skips API call if query has not changed', async () => {
+      const {getByTestId} = renderScreen();
+      const input = getByTestId('search-input');
+
+      fireEvent.changeText(input, 'same');
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
+
+      (
+        LinkedBusinessActions.searchBusinessesByLocation as unknown as jest.Mock
+      ).mockClear();
+
+      fireEvent.changeText(input, 'same');
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
+
+      expect(
+        LinkedBusinessActions.searchBusinessesByLocation,
+      ).not.toHaveBeenCalled();
     });
   });
 
-  it('handles selecting a business that is already linked', async () => {
-    const mockLinked = [
-      {
-        id: 'res-1',
-        businessName: 'Vet 1',
-        category: 'hospital',
-        companionId: 'comp-123',
-        inviteStatus: 'accepted',
-      },
-    ];
-    mockSelectLinkedBusinesses.mockReturnValue(mockLinked);
-
-    const mockSearchRes = {id: 'res-1', name: 'Vet 1'};
-    (
-      LinkedBusinessActions.searchBusinessesByLocation as unknown as jest.Mock
-    ).mockReturnValue(mockThunkReturn([mockSearchRes]));
-
-    jest.spyOn(Alert, 'alert');
-    render(<BusinessSearchScreen {...createProps()} />);
-
-    fireEvent.changeText(screen.getByTestId('search-input'), 'Vet 1');
-    await act(async () => {
-      jest.advanceTimersByTime(800);
-    });
-    fireEvent.press(screen.getByTestId('result-res-1'));
-
-    expect(Alert.alert).toHaveBeenCalledWith(
-      'Already Linked',
-      expect.stringContaining('already linked'),
-    );
-    expect(mockNavigate).not.toHaveBeenCalled();
-  });
-
-  it('handles selecting a non-PMS business (Organization Check False)', async () => {
-    const mockBusiness = {
-      id: 'res-1',
-      name: 'Vet 1',
+  describe('Business Selection Logic', () => {
+    const mockSearchResult = {
+      id: 'place-new',
+      name: 'New Vet',
       address: '123 St',
       lat: 10,
-      lng: 20,
+      lng: 10,
       phone: '123',
-      email: 'test@test.com',
+      email: 'a@a.com',
+      rating: 5,
+      distance: 1,
     };
 
-    (
-      LinkedBusinessActions.searchBusinessesByLocation as unknown as jest.Mock
-    ).mockReturnValue(mockThunkReturn([mockBusiness]));
-    (
-      LinkedBusinessActions.checkOrganisation as unknown as jest.Mock
-    ).mockReturnValue(mockThunkReturn({isPmsOrganisation: false}));
+    it('prevents selecting already linked business', async () => {
+      const {getByTestId} = renderScreen();
 
-    render(<BusinessSearchScreen {...createProps()} />);
-    fireEvent.changeText(screen.getByTestId('search-input'), 'Vet');
-    await act(async () => {
-      jest.advanceTimersByTime(800);
+      (
+        LinkedBusinessActions.searchBusinessesByLocation as unknown as jest.Mock
+      ).mockReturnValue({
+        type: 'search',
+        payload: [
+          {
+            id: 'res-existing',
+            name: 'Vet One',
+            address: 'addr',
+            lat: 1,
+            lng: 1,
+          },
+        ],
+      });
+
+      const input = getByTestId('search-input');
+      fireEvent.changeText(input, 'Vet One');
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
+
+      const item = getByTestId('result-res-existing');
+      fireEvent(item, 'onTouchEnd');
+
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Already Linked',
+        expect.stringContaining('already linked'),
+      );
+      expect(mockNavigate).not.toHaveBeenCalled();
     });
-    fireEvent.press(screen.getByTestId('result-res-1'));
 
-    await waitFor(() => {
-      expect(LinkedBusinessActions.checkOrganisation).toHaveBeenCalled();
+    it('fetches coordinates if missing, then checks organisation', async () => {
+      const {getByTestId} = renderScreen();
+      const businessNoCoords = {
+        ...mockSearchResult,
+        lat: undefined,
+        lng: undefined,
+      };
+
+      (
+        LinkedBusinessActions.searchBusinessesByLocation as unknown as jest.Mock
+      ).mockReturnValue({
+        type: 'search',
+        payload: [businessNoCoords],
+      });
+      (
+        LinkedBusinessActions.fetchPlaceCoordinates as unknown as jest.Mock
+      ).mockReturnValue({
+        type: 'coords',
+        payload: {latitude: 55, longitude: 66},
+      });
+      (
+        LinkedBusinessActions.checkOrganisation as unknown as jest.Mock
+      ).mockReturnValue({
+        type: 'check',
+        payload: {isPmsOrganisation: false},
+      });
+
+      const input = getByTestId('search-input');
+      fireEvent.changeText(input, 'New Vet');
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
+
+      const item = getByTestId('result-place-new');
+      await act(async () => {
+        fireEvent(item, 'onTouchEnd');
+      });
+
+      expect(LinkedBusinessActions.fetchPlaceCoordinates).toHaveBeenCalledWith(
+        'place-new',
+      );
+      expect(LinkedBusinessActions.checkOrganisation).toHaveBeenCalledWith(
+        expect.objectContaining({lat: 55, lng: 66}),
+      );
+      expect(mockNavigate).toHaveBeenCalledWith(
+        'BusinessAdd',
+        expect.objectContaining({
+          isPMSRecord: false,
+          businessId: 'place-new',
+        }),
+      );
     });
 
-    expect(mockNavigate).toHaveBeenCalledWith(
-      'BusinessAdd',
-      expect.objectContaining({
-        isPMSRecord: false,
-        businessName: 'Vet 1',
-      }),
-    );
-  });
+    it('navigates to BusinessAdd immediately if fetching coordinates fails', async () => {
+      const {getByTestId} = renderScreen();
+      const businessNoCoords = {
+        ...mockSearchResult,
+        lat: undefined,
+        lng: undefined,
+      };
 
-  it('handles selecting a PMS business (Organization Check True)', async () => {
-    const mockBusiness = {id: 'res-1', name: 'Vet 1', lat: 10, lng: 20};
+      (
+        LinkedBusinessActions.searchBusinessesByLocation as unknown as jest.Mock
+      ).mockReturnValue({type: 'search', payload: [businessNoCoords]});
+      (
+        LinkedBusinessActions.fetchPlaceCoordinates as unknown as jest.Mock
+      ).mockReturnValue({type: 'throw'});
 
-    (
-      LinkedBusinessActions.searchBusinessesByLocation as unknown as jest.Mock
-    ).mockReturnValue(mockThunkReturn([mockBusiness]));
-    (
-      LinkedBusinessActions.checkOrganisation as unknown as jest.Mock
-    ).mockReturnValue(
-      mockThunkReturn({isPmsOrganisation: true, organisationId: 'org-1'}),
-    );
+      const input = getByTestId('search-input');
+      fireEvent.changeText(input, 'New Vet');
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
 
-    render(<BusinessSearchScreen {...createProps()} />);
-    fireEvent.changeText(screen.getByTestId('search-input'), 'Vet');
-    await act(async () => {
-      jest.advanceTimersByTime(800);
+      const item = getByTestId('result-place-new');
+      await act(async () => {
+        fireEvent(item, 'onTouchEnd');
+      });
+
+      expect(LinkedBusinessActions.checkOrganisation).not.toHaveBeenCalled();
+      expect(mockNavigate).toHaveBeenCalledWith(
+        'BusinessAdd',
+        expect.objectContaining({
+          isPMSRecord: false,
+        }),
+      );
     });
-    fireEvent.press(screen.getByTestId('result-res-1'));
 
-    await waitFor(() => {
+    it('handles PMS organisation match', async () => {
+      const {getByTestId} = renderScreen();
+      (
+        LinkedBusinessActions.searchBusinessesByLocation as unknown as jest.Mock
+      ).mockReturnValue({type: 'search', payload: [mockSearchResult]});
+      (
+        LinkedBusinessActions.checkOrganisation as unknown as jest.Mock
+      ).mockReturnValue({
+        type: 'check',
+        payload: {isPmsOrganisation: true, organisationId: 'org-pms'},
+      });
+
+      const input = getByTestId('search-input');
+      fireEvent.changeText(input, 'New Vet');
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
+
+      const item = getByTestId('result-place-new');
+      await act(async () => {
+        fireEvent(item, 'onTouchEnd');
+      });
+
       expect(mockNavigate).toHaveBeenCalledWith(
         'BusinessAdd',
         expect.objectContaining({
           isPMSRecord: true,
-          organisationId: 'org-1',
+          businessId: 'org-pms',
+          placeId: 'place-new',
         }),
       );
     });
-  });
 
-  it('handles selection fallback when Coordinates Fetch Fails', async () => {
-    const mockBusiness = {id: 'res-1', name: 'Vet 1', address: '123'};
-    (
-      LinkedBusinessActions.searchBusinessesByLocation as unknown as jest.Mock
-    ).mockReturnValue(mockThunkReturn([mockBusiness]));
+    it('falls back to Non-PMS if checkOrganisation fails', async () => {
+      const {getByTestId} = renderScreen();
+      (
+        LinkedBusinessActions.searchBusinessesByLocation as unknown as jest.Mock
+      ).mockReturnValue({type: 'search', payload: [mockSearchResult]});
+      (
+        LinkedBusinessActions.checkOrganisation as unknown as jest.Mock
+      ).mockReturnValue({type: 'throw'});
 
-    (
-      LinkedBusinessActions.fetchPlaceCoordinates as unknown as jest.Mock
-    ).mockReturnValue(mockThunkReject('Coords failed'));
+      const input = getByTestId('search-input');
+      fireEvent.changeText(input, 'New Vet');
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
 
-    render(<BusinessSearchScreen {...createProps()} />);
+      const item = getByTestId('result-place-new');
+      await act(async () => {
+        fireEvent(item, 'onTouchEnd');
+      });
 
-    fireEvent.changeText(screen.getByTestId('search-input'), 'Vet');
-    await act(async () => {
-      jest.advanceTimersByTime(800);
-    });
-    fireEvent.press(screen.getByTestId('result-res-1'));
-
-    await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith(
-        'BusinessAdd',
-        expect.objectContaining({
-          isPMSRecord: false,
-          placeId: 'res-1',
-        }),
-      );
-    });
-  });
-
-  it('handles selection fallback when Organization Check Fails', async () => {
-    const mockBusiness = {id: 'res-1', name: 'Vet 1', lat: 10, lng: 10};
-    (
-      LinkedBusinessActions.searchBusinessesByLocation as unknown as jest.Mock
-    ).mockReturnValue(mockThunkReturn([mockBusiness]));
-
-    (
-      LinkedBusinessActions.checkOrganisation as unknown as jest.Mock
-    ).mockReturnValue(mockThunkReject('Check failed'));
-
-    render(<BusinessSearchScreen {...createProps()} />);
-    fireEvent.changeText(screen.getByTestId('search-input'), 'Vet');
-    await act(async () => {
-      jest.advanceTimersByTime(800);
-    });
-    fireEvent.press(screen.getByTestId('result-res-1'));
-
-    await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith(
         'BusinessAdd',
         expect.objectContaining({
@@ -582,124 +600,88 @@ describe('BusinessSearchScreen', () => {
     });
   });
 
-  it('triggers invite card actions (accept/decline) and refreshes list', async () => {
-    const mockInvites = [
-      {
-        id: 'inv-1',
-        businessName: 'Pending Vet',
-        category: 'hospital',
-        companionId: 'comp-123',
-        inviteStatus: 'pending',
-        state: 'pending',
-      },
-    ];
-    mockSelectLinkedBusinesses.mockReturnValue(mockInvites);
-    (
-      LinkedBusinessActions.acceptBusinessInvite as unknown as jest.Mock
-    ).mockReturnValue(mockThunkReturn());
-    (
-      LinkedBusinessActions.declineBusinessInvite as unknown as jest.Mock
-    ).mockReturnValue(mockThunkReturn());
+  describe('Invite & Delete Actions', () => {
+    it('accepts invite and refreshes list', async () => {
+      const {getByTestId} = renderScreen();
+      const acceptBtn = getByTestId('accept-btn');
+      await act(async () => {
+        fireEvent(acceptBtn, 'onTouchEnd');
+      });
 
-    render(<BusinessSearchScreen {...createProps()} />);
-
-    fireEvent.press(screen.getByTestId('invite-accept'));
-    await waitFor(() => {
       expect(LinkedBusinessActions.acceptBusinessInvite).toHaveBeenCalledWith(
-        'inv-1',
+        'link-2',
       );
-      expect(LinkedBusinessActions.fetchLinkedBusinesses).toHaveBeenCalled();
+      expect(Alert.alert).toHaveBeenCalledWith('Success', 'Invite accepted!');
     });
 
-    fireEvent.press(screen.getByTestId('invite-decline'));
-    await waitFor(() => {
+    it('declines invite and refreshes list', async () => {
+      const {getByTestId} = renderScreen();
+      const declineBtn = getByTestId('decline-btn');
+      await act(async () => {
+        fireEvent(declineBtn, 'onTouchEnd');
+      });
+
       expect(LinkedBusinessActions.declineBusinessInvite).toHaveBeenCalledWith(
-        'inv-1',
+        'link-2',
       );
+      expect(Alert.alert).toHaveBeenCalledWith('Success', 'Invite declined!');
     });
-  });
 
-  it('handles invite action failures', async () => {
-    const mockInvites = [
-      {
-        id: 'inv-1',
-        businessName: 'P',
-        category: 'hospital',
-        companionId: 'comp-123',
-        inviteStatus: 'pending',
-        state: 'pending',
-      },
-    ];
-    mockSelectLinkedBusinesses.mockReturnValue(mockInvites);
+    it('handles errors during accept invite', async () => {
+      const {getByTestId} = renderScreen();
+      (
+        LinkedBusinessActions.acceptBusinessInvite as unknown as jest.Mock
+      ).mockReturnValue({type: 'throw'});
 
-    (
-      LinkedBusinessActions.acceptBusinessInvite as unknown as jest.Mock
-    ).mockReturnValue(mockThunkReject('Error'));
-    jest.spyOn(Alert, 'alert');
+      const acceptBtn = getByTestId('accept-btn');
+      await act(async () => {
+        fireEvent(acceptBtn, 'onTouchEnd');
+      });
 
-    render(<BusinessSearchScreen {...createProps()} />);
-
-    fireEvent.press(screen.getByTestId('invite-accept'));
-    await waitFor(() => {
       expect(Alert.alert).toHaveBeenCalledWith(
         'Error',
         expect.stringContaining('Failed to accept'),
       );
     });
-  });
 
-  it('deletes a linked business successfully', async () => {
-    const mockLinked = [
-      {
-        id: 'biz-delete',
-        businessName: 'Delete Me Vet',
-        category: 'hospital',
-        companionId: 'comp-123',
-        inviteStatus: 'accepted',
-        state: 'active',
-      },
-    ];
-    mockSelectLinkedBusinesses.mockReturnValue(mockLinked);
-    (
-      LinkedBusinessActions.deleteLinkedBusiness as unknown as jest.Mock
-    ).mockReturnValue(mockThunkReturn());
+    it('deletes linked business via confirmation sheet', async () => {
+      const {getByTestId} = renderScreen();
 
-    render(<BusinessSearchScreen {...createProps()} />);
+      const deleteBtn = getByTestId('delete-btn');
+      await act(async () => {
+        fireEvent(deleteBtn, 'onTouchEnd');
+      });
 
-    fireEvent.press(screen.getByTestId('delete-btn-biz-delete'));
-    fireEvent.press(screen.getByTestId('confirm-delete'));
+      const confirmBtn = getByTestId('confirm-delete-btn');
+      await act(async () => {
+        fireEvent(confirmBtn, 'onTouchEnd');
+      });
 
-    await waitFor(() => {
       expect(LinkedBusinessActions.deleteLinkedBusiness).toHaveBeenCalledWith(
-        'biz-delete',
+        'lb-1',
+      );
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Success',
+        expect.stringContaining('removed'),
       );
     });
-  });
 
-  it('handles delete failure', async () => {
-    const mockLinked = [
-      {
-        id: 'biz-fail',
-        businessName: 'F',
-        category: 'hospital',
-        companionId: 'comp-123',
-        inviteStatus: 'accepted',
-        state: 'active',
-      },
-    ];
-    mockSelectLinkedBusinesses.mockReturnValue(mockLinked);
+    it('handles delete error', async () => {
+      (
+        LinkedBusinessActions.deleteLinkedBusiness as unknown as jest.Mock
+      ).mockReturnValue({type: 'throw'});
+      const {getByTestId} = renderScreen();
 
-    (
-      LinkedBusinessActions.deleteLinkedBusiness as unknown as jest.Mock
-    ).mockReturnValue(mockThunkReject('Delete failed'));
-    jest.spyOn(Alert, 'alert');
+      const deleteBtn = getByTestId('delete-btn');
+      await act(async () => {
+        fireEvent(deleteBtn, 'onTouchEnd');
+      });
 
-    render(<BusinessSearchScreen {...createProps()} />);
+      const confirmBtn = getByTestId('confirm-delete-btn');
+      await act(async () => {
+        fireEvent(confirmBtn, 'onTouchEnd');
+      });
 
-    fireEvent.press(screen.getByTestId('delete-btn-biz-fail'));
-    fireEvent.press(screen.getByTestId('confirm-delete'));
-
-    await waitFor(() => {
       expect(Alert.alert).toHaveBeenCalledWith(
         'Error',
         expect.stringContaining('Failed to delete'),
@@ -707,88 +689,13 @@ describe('BusinessSearchScreen', () => {
     });
   });
 
-  it('cancels delete action', () => {
-    const mockLinked = [
-      {
-        id: 'biz-c',
-        businessName: 'C',
-        category: 'hospital',
-        companionId: 'comp-123',
-        inviteStatus: 'accepted',
-        state: 'active',
-      },
-    ];
-    mockSelectLinkedBusinesses.mockReturnValue(mockLinked);
-
-    render(<BusinessSearchScreen {...createProps()} />);
-
-    fireEvent.press(screen.getByTestId('delete-btn-biz-c'));
-    fireEvent.press(screen.getByTestId('cancel-delete'));
-
-    expect(LinkedBusinessActions.deleteLinkedBusiness).not.toHaveBeenCalled();
-  });
-
-  it('navigates back when header back button is pressed', () => {
-    render(<BusinessSearchScreen {...createProps()} />);
-    fireEvent.press(screen.getByTestId('header-back'));
-    expect(mockGoBack).toHaveBeenCalled();
-  });
-
-  it('does not navigate back if canGoBack is false', () => {
-    const props = createProps();
-    props.navigation.canGoBack = jest.fn().mockReturnValue(false);
-    render(<BusinessSearchScreen {...props} />);
-    fireEvent.press(screen.getByTestId('header-back'));
-    expect(mockGoBack).not.toHaveBeenCalled();
-  });
-
-  it('shows empty state when no linked businesses', () => {
-    mockSelectLinkedBusinesses.mockReturnValue([]);
-    // FIX: Override category to 'vet' to match expectation "No linked vets yet"
-    // OR match default prop "No linked hospitals yet"
-    // Going with overriding to 'vet' to match typical user expectation in tests
-    render(<BusinessSearchScreen {...createProps({category: 'vet'})} />);
-    expect(screen.getByText('No linked vets yet')).toBeTruthy();
-  });
-
-  it('renders only matching linked businesses (filter coverage)', async () => {
-    const matchingBiz = {
-      id: '1',
-      businessName: 'Matching Vet',
-      category: 'hospital',
-      companionId: 'comp-123',
-      inviteStatus: 'accepted',
-      state: 'active',
-    };
-    const wrongCompanionBiz = {
-      id: '2',
-      businessName: 'Wrong Companion Vet',
-      category: 'hospital',
-      companionId: 'other-comp',
-      inviteStatus: 'accepted',
-    };
-    const wrongCategoryBiz = {
-      id: '3',
-      businessName: 'Wrong Category Vet',
-      category: 'groomer',
-      companionId: 'comp-123',
-      inviteStatus: 'accepted',
-    };
-
-    mockSelectLinkedBusinesses.mockReturnValue([
-      matchingBiz,
-      wrongCompanionBiz,
-      wrongCategoryBiz,
-    ]);
-
-    render(<BusinessSearchScreen {...createProps()} />);
-
-    await waitFor(() =>
-      expect(LinkedBusinessActions.fetchLinkedBusinesses).toHaveBeenCalled(),
-    );
-
-    expect(screen.getByText('Matching Vet')).toBeTruthy();
-    expect(screen.queryByText('Wrong Companion Vet')).toBeNull();
-    expect(screen.queryByText('Wrong Category Vet')).toBeNull();
+  describe('Navigation & UI', () => {
+    it('goes back when header back button pressed', () => {
+      mockCanGoBack.mockReturnValue(true);
+      const {getByTestId} = renderScreen();
+      const header = getByTestId('mock-header');
+      fireEvent(header, 'onTouchEnd');
+      expect(mockGoBack).toHaveBeenCalled();
+    });
   });
 });

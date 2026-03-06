@@ -1,0 +1,171 @@
+.table-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+}
+.card-list {
+  display: none;
+}
+@media screen and (max-width: 1280px) {
+  .table-list {
+    display: none;
+  }
+  .card-list {
+    display: flex;
+    gap: 16px;
+    flex-direction: column;
+  }
+}
+.InviteDetails {
+  color: var(--yc-upated-contrat1, #247aed);
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 150%;
+  letter-spacing: -0.32px;
+  font-family: var(--satoshi-font);
+  cursor: pointer;
+}
+.InviteTime {
+  color: var(--yc-updated, #302f2e);
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 150%;
+  letter-spacing: -0.32px;
+  font-family: var(--satoshi-font);
+}
+.InviteExpires {
+  color: var(--yc-updated, #302f2e);
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 150%;
+  letter-spacing: -0.32px;
+  font-family: var(--satoshi-font);
+}
+
+.OrgListDetails {
+  color: var(--yc-upated-contrat1, #247aed);
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 150%;
+  letter-spacing: -0.32px;
+  font-family: var(--satoshi-font);
+  cursor: pointer;
+}
+.OrgStatus {
+  display: flex;
+  padding: 8px 16px;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  border-radius: 16px;
+  background: var(--pendingbg, #fef3e9);
+  color: var(--pendingtext, #f68523);
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 150%;
+  letter-spacing: -0.32px;
+  font-family: var(--satoshi-font);
+}
+.OrgListDetailsCol {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+}
+.action-btn-col {
+  display: inline-flex;
+  align-items: center;
+  width: max-content;
+  gap: 8px;
+}
+.action-btn {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 50%;
+  height: 40px;
+  width: 40px;
+  cursor: pointer;
+}
+.action-btn-text {
+  color: var(#302f2e);
+  text-align: center;
+  font-family: var(--grotesk-font);
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 120%; /* 19.2px */
+  letter-spacing: -0.32px;
+}
+
+.appointment-profile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.appointment-profile-two {
+  display: flex;
+  flex-direction: column;
+}
+.appointment-profile-title {
+  font-family: var(--satoshi-font);
+  color: var(--yc-updated, #302f2e);
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 150%;
+  letter-spacing: -0.32px;
+}
+.appointment-profile-sub {
+  font-family: var(--satoshi-font);
+  color: var(--yc-updated, #302f2e);
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 150%;
+  letter-spacing: -0.32px;
+}
+.appointment-status {
+  display: flex;
+  padding: 8px 16px;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  align-self: stretch;
+  border-radius: 16px;
+  background: #eaeaea;
+  color: var(--black-text);
+  text-align: center;
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 150%;
+  letter-spacing: -0.32px;
+  font-family: var(--satoshi-font);
+}
+.appointment-emergency-label {
+  display: flex;
+  height: 25px;
+  width: 72px;
+  padding: 8px;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: #fdebea;
+  color: var(--error-color);
+  font-family: var(--satoshi-font);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 150%;
+  letter-spacing: -0.32px;
+}

@@ -17,6 +17,7 @@ type RescheduleRequestBody = {
 type CancelBody = { reason?: string };
 
 type UploadUrlBody = { companionId?: string; mimeType?: string };
+type AttachFormsBody = { formIds?: string[] };
 
 const resolveUserIdFromRequest = (req: Request): string | undefined => {
   const authRequest = req as AuthenticatedRequest;
@@ -241,6 +242,30 @@ export const AppointmentController = {
     }
   },
 
+  checkInAppointmentForPMS: async (
+    req: Request<{ appointmentId: string }>,
+    res: Response,
+  ) => {
+    try {
+      const { appointmentId } = req.params;
+
+      const result = await AppointmentService.checkInAppointment(appointmentId);
+
+      return res
+        .status(200)
+        .json({ message: "Appointment checked in", data: result });
+    } catch (err: unknown) {
+      logger.error("Appiontement check-in error: ", err);
+      const { status, message } = parseError(
+        err,
+        "Failed to check-in appointment",
+      );
+      return res.status(status).json({
+        message,
+      });
+    }
+  },
+
   updateFromPms: async (
     req: Request<{ appointmentId: string }, unknown, AppointmentRequestDTO>,
     res: Response,
@@ -266,6 +291,36 @@ export const AppointmentController = {
       return res.status(status).json({
         message,
       });
+    }
+  },
+
+  attachFormsToAppointment: async (
+    req: Request<{ appointmentId: string }, unknown, AttachFormsBody>,
+    res: Response,
+  ) => {
+    try {
+      const { appointmentId } = req.params;
+      const { formIds } = req.body;
+
+      if (!Array.isArray(formIds) || formIds.length === 0) {
+        return res.status(400).json({ message: "formIds are required" });
+      }
+
+      const result = await AppointmentService.attachFormsToAppointment(
+        appointmentId,
+        formIds,
+      );
+
+      return res
+        .status(200)
+        .json({ message: "Forms attached", data: result });
+    } catch (err: unknown) {
+      logger.error("Appointment form attach error: ", err);
+      const { status, message } = parseError(
+        err,
+        "Failed to attach forms",
+      );
+      return res.status(status).json({ message });
     }
   },
 
@@ -375,6 +430,30 @@ export const AppointmentController = {
     }
   },
 
+  listByCompanionForOrganisation: async (
+    req: Request<{ organisationId: string; companionId: string }>,
+    res: Response,
+  ) => {
+    try {
+      const { organisationId, companionId } = req.params;
+
+      const data =
+        await AppointmentService.getAppointmentsForCompanionByOrganisation(
+          companionId,
+          organisationId,
+        );
+
+      return res.status(200).json({ data });
+    } catch (err: unknown) {
+      logger.error("Appiontement search error: ", err);
+      const { status, message } = parseError(
+        err,
+        "Failed to fetch companion appointments for organisation",
+      );
+      return res.status(status).json({ message });
+    }
+  },
+
   listByParent: async (req: Request<{ parentId: string }>, res: Response) => {
     try {
       const { parentId } = req.params;
@@ -405,14 +484,18 @@ export const AppointmentController = {
       const { organisationId } = req.params;
       const { status, startDate, endDate } = req.query;
 
+      let parsedStatus: AppointmentStatus[] | undefined;
+
+      if (Array.isArray(status)) {
+        parsedStatus = status.map(String) as AppointmentStatus[];
+      } else if (typeof status === "string") {
+        parsedStatus = status.split(",") as AppointmentStatus[];
+      }
+
       const data = await AppointmentService.getAppointmentsForOrganisation(
         organisationId,
         {
-          status: Array.isArray(status)
-            ? (status.map(String) as AppointmentStatus[])
-            : typeof status === "string"
-              ? (status.split(",") as AppointmentStatus[])
-              : undefined,
+          status: parsedStatus,
           startDate:
             typeof startDate === "string" || typeof startDate === "number"
               ? new Date(startDate)

@@ -1,0 +1,319 @@
+.Container {
+  padding: 32px 80px;
+  max-width: 1560px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+@media screen and (max-width: 1280px) {
+  .Container {
+    padding: 24px 48px;
+  }
+}
+@media screen and (max-width: 768px) {
+  .Container {
+    padding: 24px 16px;
+  }
+}
+
+/* AboutHeroSec started  */
+.AboutHeroSec {
+  padding: 24px 0px 80px 0px;
+  background: var(--img-bg-about) no-repeat;
+  background-size: 100% 100%;
+  background-size: cover;
+  background-position: center;
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+.AboutHeroSec .AbtHeroData {
+  display: flex;
+  flex-direction: column;
+  gap: 13vh;
+  width: 100%;
+  padding-top: 40px;
+}
+.AboutHeroSec .AbtHeroData .abttopHero {
+  background: #ffffffb2;
+  max-width: 1080px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  border-radius: 16px;
+  gap: 16px;
+}
+.AboutHeroSec .AbtHeroData .abttopHero > div {
+  max-width: 951px;
+  text-align: center;
+  margin: 0;
+}
+.AbutheroBtm {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin: 0 auto;
+  width: 100%;
+  max-width: 1080px;
+}
+.AbutheroBtm > div:first-child {
+  margin: 0;
+}
+.AbutheroBtm .abtherocard {
+  display: flex;
+  gap: 32px;
+  justify-content: space-between;
+}
+.AbutheroBtm .abtherocard .AbtCardItem {
+  max-width: 340px;
+  min-height: 324px;
+  box-shadow: 0px 28.93px 63.5px 0px #450e1529;
+  background: var(--whitebg);
+  border-radius: 20px 20px 0px 0px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+}
+.AbutheroBtm .abtherocard .AbtCardItem::after {
+  position: absolute;
+  content: ' ';
+  background: var(--black-bg);
+  height: 4px;
+  left: 0;
+  bottom: 0;
+  width: 56px;
+}
+.AbutheroBtm .abtherocard .AbtCardItem .head {
+  border-radius: 20px 20px 0px 0px;
+  min-height: 62px;
+  display: flex;
+  align-items: center;
+  padding: 0px 16px;
+  background: var(--black-bg);
+}
+.AbutheroBtm .abtherocard .AbtCardItem .head > div {
+  margin: 0;
+}
+.AbutheroBtm .abtherocard .AbtCardItem .body {
+  padding: 12px;
+  min-height: 214px;
+}
+.AbutheroBtm .abtherocard .AbtCardItem .body > div {
+  margin: 0;
+}
+@media screen and (max-width: 1280px) {
+  .AboutHeroSec {
+    padding-top: 48px;
+    padding-bottom: 64px;
+  }
+  .AboutHeroSec .AbtHeroData {
+    gap: 48px;
+    padding-top: 32px;
+  }
+  .AboutHeroSec .AbtHeroData .abttopHero {
+    max-width: 650px;
+    padding: 32px 40px;
+  }
+  .AboutHeroSec .AbtHeroData .abttopHero > div:first-child {
+    font-size: 2.0625rem;
+    line-height: 2.5rem;
+  }
+  .AboutHeroSec .AbtHeroData .abttopHero > div:last-child {
+    font-size: 1.375rem;
+    line-height: 1.75rem;
+  }
+  .AbutheroBtm > div:first-child {
+    font-size: 2.0625rem;
+    line-height: 2.5rem;
+  }
+  .AbutheroBtm .abtherocard .AbtCardItem .head > div {
+    font-size: 0.8125rem;
+    line-height: 1.1875rem;
+  }
+  .AbutheroBtm .abtherocard .AbtCardItem .body > div {
+    font-size: 0.8125rem;
+    line-height: 1.1875rem;
+  }
+  .AbutheroBtm .abtherocard .AbtCardItem {
+    max-width: 240px;
+    min-height: 211px;
+  }
+}
+@media screen and (max-width: 768px) {
+  .AboutHeroSec {
+    padding-top: 32px;
+    padding-bottom: 56px;
+    height: auto;
+    min-height: 100vh;
+  }
+  .AboutHeroSec .AbtHeroData {
+    gap: 32px;
+    padding-top: 24px;
+  }
+  .AboutHeroSec .AbtHeroData .abttopHero {
+    max-width: 100%;
+    padding: 20px;
+    gap: 12px;
+  }
+  .AboutHeroSec .AbtHeroData .abttopHero > div:last-child {
+    font-size: 1.125rem !important;
+    line-height: 1.625rem !important;
+  }
+  .AbutheroBtm > div:first-child,
+  .AbutheroBtm .text-display-2 {
+    color: var(--color-neutral-0) !important;
+  }
+  .AbutheroBtm .abtherocard {
+    flex-direction: column;
+    gap: 16px;
+    padding: 0 8px;
+  }
+  .AbutheroBtm .abtherocard .AbtCardItem {
+    max-width: 100%;
+    min-height: 174px;
+    gap: 8px;
+  }
+  .AbutheroBtm .abtherocard .AbtCardItem .body {
+    min-height: fit-content;
+    padding: 0px 8px 10px;
+  }
+}
+/* AboutHeroSec started  */
+
+/* OurStorySec started  */
+.OurStorySec {
+  padding: 24px 0px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.OurStorySec .StoryData {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-gap: 50px;
+  align-items: center;
+}
+.OurStorySec .StoryData img {
+  width: 100%;
+  height: auto;
+}
+.OurStorySec .StoryData .storyTexted,
+.OurStorySec .StoryData .storyTexted .ourstorypara {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-right: 0px;
+}
+.OurStorySec .StoryData .storyTexted > div:first-child {
+  margin: 0;
+}
+.OurStorySec .StoryData .storyTexted .ourstorypara > div {
+  margin: 0;
+}
+@media screen and (max-width: 1280px) {
+  .OurStorySec .StoryData {
+    grid-gap: 32px;
+  }
+  .OurStorySec .StoryData .storyTexted,
+  .OurStorySec .StoryData .storyTexted .ourstorypara {
+    padding-right: 0px;
+    gap: 12px;
+  }
+  .OurStorySec .StoryData .storyTexted > div:first-child {
+    font-size: 2.0625rem;
+    line-height: 2.5rem;
+  }
+  .OurStorySec .StoryData .storyTexted .ourstorypara > div {
+    font-size: 0.8125rem;
+    line-height: 1.1875rem;
+  }
+}
+@media screen and (max-width: 768px) {
+  .OurStorySec .StoryData {
+    grid-gap: 16px;
+    grid-template-columns: 1fr;
+  }
+  .OurStorySec {
+    padding: 24px 0px;
+  }
+  .OurStorySec .StoryData .storyTexted,
+  .OurStorySec .StoryData .storyTexted .ourstorypara {
+    gap: 8px;
+    align-items: center;
+    text-align: center;
+  }
+  /* Typography handled by global classes */
+}
+/* OurStorySec Ended  */
+
+/* AbtTeamSec Started  */
+.AbtTeamSec {
+  padding: 0px 0px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.AbtTeamSec .AbtTeamdata {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  width: 100%;
+}
+.AbtTeamSec .AbtTeamdata .AbtTeamHead {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  max-width: 900px;
+  margin: 0 auto;
+  text-align: center;
+}
+.AbtTeamSec .AbtTeamdata .AbtTeamHead > div {
+  margin: 0;
+}
+.AbtTeamSec .AbtTeamdata .AbtTeamHead .para {
+  max-width: 736px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.AbtTeamSec .AbtTeamdata .AbtTeamHead .para > div {
+  margin: 0;
+}
+@media screen and (max-width: 1280px) {
+  .AbtTeamSec .AbtTeamdata {
+    gap: 20px;
+  }
+  .AbtTeamSec .AbtTeamdata .AbtTeamHead > div:first-child {
+    font-size: 2.0625rem;
+    line-height: 2.5rem;
+  }
+  .AbtTeamSec .AbtTeamdata .AbtTeamHead > div:nth-child(2) {
+    font-size: 1.75rem;
+    line-height: 2.125rem;
+  }
+  .AbtTeamSec .AbtTeamdata .AbtTeamHead .para > div {
+    font-size: 1.1875rem;
+    line-height: 1.5625rem;
+  }
+}
+@media screen and (max-width: 768px) {
+  .AbtTeamSec .AbtTeamdata .AbtTeamHead > div:nth-child(2) {
+    font-size: 1.125rem !important;
+    line-height: 1.625rem !important;
+  }
+  .AbtTeamSec .AbtTeamdata .AbtTeamHead .para > div {
+    font-size: 1.125rem !important;
+    line-height: 1.625rem !important;
+  }
+  /* Typography handled by global classes */
+}
+/* AbtTeamSec Ended  */

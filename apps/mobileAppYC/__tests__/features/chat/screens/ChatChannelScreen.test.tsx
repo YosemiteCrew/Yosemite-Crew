@@ -1,6 +1,7 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, waitFor, fireEvent, act} from '@testing-library/react-native';
-import {ChatChannelScreen} from '@/features/chat/screens/ChatChannelScreen';
+import {ChatChannelScreen} from '../../../../src/features/chat/screens/ChatChannelScreen';
 import {Alert} from 'react-native';
 import {useRoute} from '@react-navigation/native';
 import {useSelector} from 'react-redux';
@@ -8,8 +9,7 @@ import {
   getChatClient,
   connectStreamUser,
   getAppointmentChannel,
-} from '@/features/chat/services/streamChatService';
-import {GifLoader} from '@/shared/components/common/GifLoader/GifLoader';
+} from '../../../../src/features/chat/services/streamChatService';
 
 // --- Mocks ---
 
@@ -35,7 +35,7 @@ jest.mock('react-redux', () => ({
 }));
 
 // 3. Stream Chat Service
-jest.mock('@/features/chat/services/streamChatService', () => ({
+jest.mock('../../../../src/features/chat/services/streamChatService', () => ({
   getChatClient: jest.fn(),
   connectStreamUser: jest.fn(),
   getAppointmentChannel: jest.fn(),
@@ -65,22 +65,10 @@ jest.mock('stream-chat-react-native', () => {
 
 // 5. Common Components & Hooks
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        background: '#ffffff',
-        primary: 'blue',
-        textSecondary: 'gray',
-        error: 'red',
-      },
-      typography: {
-        bodyMedium: {},
-        bodySmall: {},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
+// Mock Header specifically
 jest.mock('@/shared/components/common/Header/Header', () => ({
   Header: ({title, onBack}: any) => {
     const {TouchableOpacity, Text, View} = require('react-native');
@@ -93,13 +81,26 @@ jest.mock('@/shared/components/common/Header/Header', () => ({
   },
 }));
 
-jest.mock('@/features/chat/components/CustomAttachment', () => ({
+// Mock GifLoader via the common index to ensure it renders text for the test
+jest.mock('@/shared/components/common', () => {
+  const {View, Text} = require('react-native');
+  return {
+    GifLoader: () => (
+      <View testID="loading-indicator">
+        <Text>Loading chat...</Text>
+      </View>
+    ),
+  };
+});
+
+jest.mock('../../../../src/features/chat/components/CustomAttachment', () => ({
   CustomAttachment: () => null,
 }));
 
 // 6. Safe Area
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({children}: any) => <>{children}</>,
+  useSafeAreaInsets: () => ({top: 0, bottom: 0, left: 0, right: 0}),
 }));
 
 describe('ChatChannelScreen', () => {
@@ -147,9 +148,8 @@ describe('ChatChannelScreen', () => {
     (connectStreamUser as jest.Mock).mockImplementation(
       () => new Promise(() => {}),
     );
-    const {UNSAFE_getByType} = render(<ChatChannelScreen />);
-    // The loading state now uses the Loading component with GifLoader
-    expect(UNSAFE_getByType(GifLoader)).toBeTruthy();
+    const {getByText} = render(<ChatChannelScreen />);
+    expect(getByText('Loading chat...')).toBeTruthy();
   });
 
   it('initializes chat successfully and renders channel', async () => {
@@ -210,7 +210,7 @@ describe('ChatChannelScreen', () => {
     await waitFor(() => {
       expect(connectStreamUser).toHaveBeenCalledWith(
         'user-123',
-        'Pet Owner',
+        'Pet Parent',
         undefined,
       );
     });

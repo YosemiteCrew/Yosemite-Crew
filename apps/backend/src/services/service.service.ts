@@ -20,6 +20,10 @@ import helpers from "src/utils/helper";
 
 dayjs.extend(utc);
 
+type BookableSlotWithVets = AvailabilitySlotMongo & {
+  vetIds: string[];
+};
+
 export class ServiceServiceError extends Error {
   constructor(
     message: string,
@@ -50,6 +54,8 @@ const mapDocToDomain = (doc: ServiceDocument): Service => {
     cost: o.cost,
     maxDiscount: o.maxDiscount ?? null,
     specialityId: o.specialityId?.toString() ?? null,
+    serviceType: o.serviceType,
+    observationToolId: o.observationToolId?.toString() ?? null,
     isActive: o.isActive,
     createdAt: o.createdAt,
     updatedAt: o.updatedAt,
@@ -70,6 +76,10 @@ export const ServiceService = {
       maxDiscount: service.maxDiscount ?? null,
       specialityId: service.specialityId
         ? ensureObjectId(service.specialityId, "specialityId")
+        : null,
+      serviceType: service.serviceType,
+      observationToolId: service.observationToolId
+        ? ensureObjectId(service.observationToolId, "observationToolId")
         : null,
       isActive: service.isActive,
     };
@@ -118,6 +128,16 @@ export const ServiceService = {
     if (serviceUpdates.maxDiscount != null)
       doc.maxDiscount = serviceUpdates.maxDiscount;
 
+    if (serviceUpdates.serviceType) {
+      doc.serviceType = serviceUpdates.serviceType;
+    }
+
+    if (serviceUpdates.observationToolId !== undefined) {
+      doc.observationToolId = serviceUpdates.observationToolId
+        ? ensureObjectId(serviceUpdates.observationToolId, "observationToolId")
+        : null;
+    }
+
     if (serviceUpdates.specialityId)
       doc.specialityId = ensureObjectId(
         serviceUpdates.specialityId,
@@ -140,6 +160,12 @@ export const ServiceService = {
     await doc.deleteOne();
 
     return true;
+  },
+
+  async deleteAllBySpecialityId(specialityId: string) {
+    await ServiceModel.deleteMany({
+      specialityId: specialityId,
+    }).exec();
   },
 
   async search(query: string, organisationId?: string) {
@@ -208,7 +234,7 @@ export const ServiceService = {
   ) {
     const id = ensureObjectId(serviceId, "serviceId");
 
-    const service = await ServiceModel.findOne({ _id: id });
+    const service = await ServiceModel.findById(id);
     if (!service) throw new Error("Service not found");
 
     const { specialityId, durationMinutes } = service;
@@ -225,7 +251,10 @@ export const ServiceService = {
       };
     }
 
-    const allWindows: AvailabilitySlotMongo[] = [];
+    /**
+     * STEP 1: Collect slots with vetId attached
+     */
+    const allSlots: Array<BookableSlotWithVets> = [];
 
     for (const vetId of vetIds) {
       const result = await AvailabilityService.getBookableSlotsForDate(
@@ -236,22 +265,39 @@ export const ServiceService = {
       );
 
       if (result?.windows?.length) {
-        allWindows.push(...result.windows);
+        for (const slot of result.windows) {
+          allSlots.push({
+            ...slot,
+            vetIds: [vetId],
+          });
+        }
       }
     }
 
-    const uniqueSlotsMap = new Map<string, AvailabilitySlotMongo>();
+    /**
+     * STEP 2: Deduplicate slots and merge vetIds
+     */
+    const slotMap = new Map<string, BookableSlotWithVets>();
 
-    for (const w of allWindows) {
-      const key = `${w.startTime}-${w.endTime}`;
-      uniqueSlotsMap.set(key, w);
+    for (const slot of allSlots) {
+      const key = `${slot.startTime}-${slot.endTime}`;
+
+      if (slotMap.has(key)) {
+        const existing = slotMap.get(key)!;
+        existing.vetIds.push(...slot.vetIds);
+      } else {
+        slotMap.set(key, slot);
+      }
     }
 
-    let finalWindows: AvailabilitySlotMongo[] = Array.from(
-      uniqueSlotsMap.values(),
-    );
+    let finalWindows = Array.from(slotMap.values()).map((slot) => ({
+      ...slot,
+      vetIds: Array.from(new Set(slot.vetIds)), // ensure uniqueness
+    }));
 
-    // Remove past slots if referenceDate == today
+    /**
+     * STEP 3: Remove past slots if today
+     */
     const todayStr = dayjs().utc().format("YYYY-MM-DD");
     const refStr = dayjs(referenceDate).utc().format("YYYY-MM-DD");
 
@@ -259,12 +305,18 @@ export const ServiceService = {
       const now = dayjs().utc();
 
       finalWindows = finalWindows.filter((slot) => {
-        const slotTime = dayjs(`${refStr} ${slot.startTime}`).utc();
+        const slotTime = dayjs.utc(
+          `${refStr} ${slot.startTime}`,
+          "YYYY-MM-DD HH:mm",
+          true,
+        );
         return slotTime.isAfter(now);
       });
     }
 
-    // Sort ascending by time
+    /**
+     * STEP 4: Sort slots by start time
+     */
     finalWindows.sort((a, b) => {
       const t1 = dayjs(`2000-01-01 ${a.startTime}`);
       const t2 = dayjs(`2000-01-01 ${b.startTime}`);

@@ -14,6 +14,8 @@ import {
   BaseAvailabilityService,
   BaseAvailabilityServiceError,
 } from "./base-availability.service";
+import UserOrganizationModel from "src/models/user-organization";
+import { getURLForKey } from "src/middlewares/upload";
 
 export class UserProfileServiceError extends Error {
   constructor(
@@ -258,10 +260,10 @@ const sanitizeDocuments = (
       );
     }
 
-    const fileUrl = requireString(
-      record.fileUrl,
-      `Professional document[${index}].fileUrl`,
+    const fileUrl = getURLForKey(
+      requireString(record.fileUrl, `Professional document[${index}].fileUrl`),
     );
+
     const uploadedAt = optionalDate(
       record.uploadedAt,
       `Professional document[${index}].uploadedAt`,
@@ -342,43 +344,45 @@ const sanitizeProfessionalDetails = (
   });
 };
 
+const pruneArray = (value: unknown[]): void => {
+  for (let index = value.length - 1; index >= 0; index -= 1) {
+    const next = pruneUndefined(value[index]);
+
+    if (next === undefined) {
+      value.splice(index, 1);
+    } else {
+      value[index] = next;
+    }
+  }
+};
+
+const pruneRecord = (value: UnknownRecord): void => {
+  for (const key of Object.keys(value)) {
+    const next = pruneUndefined(value[key]);
+
+    if (next === undefined) {
+      delete value[key];
+    } else {
+      value[key] = next;
+    }
+  }
+};
+
 const pruneUndefined = <T>(value: T): T => {
   if (Array.isArray(value)) {
-    const arrayValue = value as unknown[];
-
-    for (let index = arrayValue.length - 1; index >= 0; index -= 1) {
-      const next = pruneUndefined(arrayValue[index]);
-
-      if (next === undefined) {
-        arrayValue.splice(index, 1);
-      } else {
-        arrayValue[index] = next;
-      }
-    }
-
+    pruneArray(value as unknown[]);
     return value;
   }
 
-  if (value && typeof value === "object") {
-    if (value instanceof Date) {
-      return value;
-    }
-
-    const record = value as UnknownRecord;
-
-    for (const key of Object.keys(record)) {
-      const next = pruneUndefined(record[key]);
-
-      if (next === undefined) {
-        delete record[key];
-      } else {
-        record[key] = next;
-      }
-    }
-
+  if (!value || typeof value !== "object") {
     return value;
   }
 
+  if (value instanceof Date) {
+    return value;
+  }
+
+  pruneRecord(value as UnknownRecord);
   return value;
 };
 
@@ -472,14 +476,18 @@ const buildDomainProfile = (
   };
 
   const idSource = raw._id ?? document._id;
-  const id =
-    typeof idSource === "string"
-      ? idSource
-      : typeof idSource === "object" &&
-          idSource !== null &&
-          "toString" in idSource
-        ? String((idSource as { toString: () => string }).toString())
-        : undefined;
+  
+  let id: string | undefined;
+
+  if (typeof idSource === "string") {
+    id = idSource;
+  } else if (
+    typeof idSource === "object" &&
+    idSource !== null &&
+    "toString" in idSource
+  ) {
+    id = String((idSource as { toString: () => string }).toString());
+  }
 
   const personalDetails = raw.personalDetails
     ? pruneUndefined({
@@ -520,22 +528,16 @@ export type CreateUserProfilePayload = {
   organizationId: unknown;
   personalDetails?: unknown;
   professionalDetails?: unknown;
-  baseAvailability: unknown;
 };
 
 export type UpdateUserProfilePayload = {
   personalDetails?: unknown;
   professionalDetails?: unknown;
-  baseAvailability?: unknown;
 };
 
 const sanitizeCreatePayload = (
   payload: CreateUserProfilePayload,
-): { profile: UserProfileMongo; baseAvailability: unknown } => {
-  if (!("baseAvailability" in payload)) {
-    throw new UserProfileServiceError("Base availability is required.", 400);
-  }
-
+): { profile: UserProfileMongo } => {
   const personalDetails = sanitizePersonalDetails(payload.personalDetails);
   const professionalDetails = sanitizeProfessionalDetails(
     payload.professionalDetails,
@@ -548,12 +550,12 @@ const sanitizeCreatePayload = (
     professionalDetails,
   });
 
-  return { profile, baseAvailability: payload.baseAvailability };
+  return { profile };
 };
 
 const sanitizeUpdatePayload = (
   payload: UpdateUserProfilePayload,
-): { attributes: Partial<UserProfileMongo>; baseAvailability?: unknown } => {
+): { attributes: Partial<UserProfileMongo> } => {
   const sanitized: Partial<UserProfileMongo> = {};
   let hasProfileUpdate = false;
 
@@ -571,24 +573,18 @@ const sanitizeUpdatePayload = (
     hasProfileUpdate = true;
   }
 
-  const hasAvailabilityUpdate = "baseAvailability" in payload;
-
-  if (!hasProfileUpdate && !hasAvailabilityUpdate) {
+  if (!hasProfileUpdate) {
     throw new UserProfileServiceError("No updatable fields provided.", 400);
   }
 
   return {
     attributes: pruneUndefined(sanitized),
-    baseAvailability: hasAvailabilityUpdate
-      ? payload.baseAvailability
-      : undefined,
   };
 };
 
 export const UserProfileService = {
   async create(payload: CreateUserProfilePayload): Promise<UserProfileType> {
-    const { profile: attributes, baseAvailability } =
-      sanitizeCreatePayload(payload);
+    const { profile: attributes } = sanitizeCreatePayload(payload);
 
     const existing = await UserProfileModel.findOne(
       { userId: attributes.userId, organizationId: attributes.organizationId },
@@ -603,18 +599,19 @@ export const UserProfileService = {
       );
     }
 
+    attributes.personalDetails!.profilePictureUrl = getURLForKey(
+      attributes.personalDetails!.profilePictureUrl!,
+    );
+
     const document = await UserProfileModel.create(attributes);
 
-    let availability: UserAvailability[];
+    let availability: UserAvailability[] = [];
 
     try {
-      availability = await BaseAvailabilityService.create({
-        userId: attributes.userId,
-        availability: baseAvailability,
-      });
+      availability = await BaseAvailabilityService.getByUserId(
+        attributes.userId,
+      );
     } catch (error: unknown) {
-      await UserProfileModel.deleteOne({ _id: document._id });
-
       if (error instanceof BaseAvailabilityServiceError) {
         throw new UserProfileServiceError(error.message, error.statusCode);
       }
@@ -634,7 +631,7 @@ export const UserProfileService = {
   ): Promise<UserProfileType | null> {
     const identifier = requireUserId(userId);
     const organizationIdentifier = requireOrganizationId(organizationId);
-    const { attributes, baseAvailability } = sanitizeUpdatePayload(payload);
+    const { attributes } = sanitizeUpdatePayload(payload);
 
     const document =
       Object.keys(attributes).length > 0
@@ -653,16 +650,10 @@ export const UserProfileService = {
       return null;
     }
 
-    let availability: UserAvailability[];
+    let availability: UserAvailability[] = [];
 
     try {
-      if (baseAvailability !== undefined) {
-        availability = await BaseAvailabilityService.update(identifier, {
-          availability: baseAvailability,
-        });
-      } else {
-        availability = await BaseAvailabilityService.getByUserId(identifier);
-      }
+      availability = await BaseAvailabilityService.getByUserId(identifier);
     } catch (error: unknown) {
       if (error instanceof BaseAvailabilityServiceError) {
         throw new UserProfileServiceError(error.message, error.statusCode);
@@ -676,10 +667,7 @@ export const UserProfileService = {
     return buildDomainProfile(document, { statusOverride: status });
   },
 
-  async getByUserId(
-    userId: unknown,
-    organizationId: unknown,
-  ): Promise<UserProfileType | null> {
+  async getByUserId(userId: unknown, organizationId: unknown) {
     const identifier = requireUserId(userId);
     const organizationIdentifier = requireOrganizationId(organizationId);
 
@@ -707,6 +695,15 @@ export const UserProfileService = {
 
     const status = await applyProfileStatus(document, availability);
 
-    return buildDomainProfile(document, { statusOverride: status });
+    const userOrganisation = await UserOrganizationModel.findOne({
+      practitionerReference: userId,
+      organizationReference: organizationId,
+    });
+
+    return {
+      profile: buildDomainProfile(document, { statusOverride: status }),
+      mapping: userOrganisation,
+      baseAvailability: availability,
+    };
   },
 };

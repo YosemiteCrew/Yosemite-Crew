@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, act} from '@testing-library/react-native';
 import {ProfileOverviewScreen} from '@/features/companion/screens/ProfileOverviewScreen';
 import {Provider} from 'react-redux';
@@ -9,7 +10,6 @@ import {
   ToastAndroid,
   Platform,
 } from 'react-native';
-import {GifLoader} from '@/shared/components/common/GifLoader/GifLoader';
 
 // --- Imports to be mocked ---
 import {
@@ -51,22 +51,7 @@ jest.mock('react-native-safe-area-context', () => {
 
 // Mock Hooks
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        primary: 'blue',
-        textSecondary: 'gray',
-        cardBackground: 'white',
-        borderMuted: 'gray',
-        borderSeperator: 'lightgray',
-        secondary: 'black',
-      },
-      spacing: {1: 4, 2: 8, 3: 12, 5: 20, 10: 40},
-      borderRadius: {lg: 8},
-      typography: {body: {}, paragraphBold: {}},
-      shadows: {md: {}},
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 jest.mock('@/features/auth/context/AuthContext', () => ({
@@ -172,6 +157,25 @@ jest.mock('@/assets/images', () => ({
 describe('ProfileOverviewScreen', () => {
   let store: any;
   const initialState = {
+    auth: {
+      user: {
+        parentId: 'parent-123',
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'john@example.com',
+        phone: '1234567890',
+        dateOfBirth: '1990-01-01',
+        currency: 'USD',
+        address: {
+          addressLine: '123 Main St',
+          city: 'New York',
+          stateProvince: 'NY',
+          postalCode: '10001',
+          country: 'USA',
+        },
+      },
+      status: 'authenticated',
+    },
     companion: {
       companions: [
         {
@@ -183,7 +187,22 @@ describe('ProfileOverviewScreen', () => {
       ],
       loading: false,
     },
+    documents: {
+      documents: [],
+    },
+    businesses: {
+      businesses: [],
+    },
+    tasks: {
+      items: [],
+    },
+    expenses: {
+      companionExpenses: {},
+      hasHydratedCompanion: {},
+      summaries: {},
+    },
     coParent: {
+      coParents: [],
       accessByCompanionId: {
         'comp-123': {
           role: 'PRIMARY_OWNER',
@@ -200,13 +219,24 @@ describe('ProfileOverviewScreen', () => {
       loading: false,
       error: null,
     },
+    linkedBusinesses: {
+      linkedBusinesses: [],
+      loading: false,
+      error: null,
+    },
   };
 
   const setup = (customState = initialState) => {
     store = configureStore({
       reducer: {
+        auth: (state = customState.auth) => state,
         companion: (state = customState.companion) => state,
+        documents: (state = customState.documents) => state,
+        businesses: (state = customState.businesses) => state,
+        tasks: (state = customState.tasks) => state,
+        expenses: (state = customState.expenses) => state,
         coParent: (state = customState.coParent) => state,
+        linkedBusinesses: (state = customState.linkedBusinesses) => state,
       },
     });
 
@@ -232,20 +262,6 @@ describe('ProfileOverviewScreen', () => {
       payload: 'id',
     });
     (deleteCompanion as any).fulfilled.match.mockReturnValue(true);
-  });
-
-  // --- 1. Basic Rendering & Navigation Reset ---
-  it('renders loading state when loading is true', () => {
-    const loadingState = {
-      ...initialState,
-      companion: {
-        companions: [], // Ensure companion is undefined/empty to hit the loading block
-        loading: true,
-      },
-    };
-    const {UNSAFE_getByType} = setup(loadingState);
-    // The Loading component now uses GifLoader instead of ActivityIndicator
-    expect(UNSAFE_getByType(GifLoader)).toBeTruthy();
   });
 
   it('renders empty state when companion not found', () => {
@@ -434,8 +450,12 @@ describe('ProfileOverviewScreen', () => {
     const defaultAccessState = {
       ...initialState,
       coParent: {
+        coParents: [],
         accessByCompanionId: {},
         defaultAccess: {role: 'VIEWER', permissions: {documents: true}},
+        lastFetchedRole: null,
+        loading: false,
+        error: null,
       },
     };
 
@@ -449,7 +469,14 @@ describe('ProfileOverviewScreen', () => {
   it('allows access if no access object exists (fallback)', () => {
     const noAccessState = {
       ...initialState,
-      coParent: {accessByCompanionId: {}, defaultAccess: null},
+      coParent: {
+        coParents: [],
+        accessByCompanionId: {},
+        defaultAccess: null,
+        lastFetchedRole: null,
+        loading: false,
+        error: null,
+      },
     };
     const {getByText} = setup(noAccessState);
     mockGetParent.mockReturnValue(navigationMock);

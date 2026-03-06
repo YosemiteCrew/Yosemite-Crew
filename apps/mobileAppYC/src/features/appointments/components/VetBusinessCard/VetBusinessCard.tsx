@@ -1,8 +1,9 @@
 import React, {useMemo} from 'react';
-import {View, Text, StyleSheet, Image, TouchableOpacity, ViewStyle, ImageSourcePropType} from 'react-native';
+import {View, Text, StyleSheet, Image, TouchableOpacity, ViewStyle, ImageSourcePropType, Platform} from 'react-native';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {resolveImageSource} from '@/shared/utils/resolveImageSource';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 
 export interface VetBusinessCardProps {
   photo?: ImageSourcePropType | number | string;
@@ -52,7 +53,12 @@ export const VetBusinessCard: React.FC<VetBusinessCardProps> = ({
   }, [name, fallbackPhoto, imageSource, photo, onImageLoadError]);
 
   return (
-    <View style={[styles.card, style]}>
+    <LiquidGlassCard
+      glassEffect="clear"
+      padding="0"
+      shadow="sm"
+      style={[styles.card, style]}
+      fallbackStyle={styles.cardFallback}>
       <Image source={resolvedImageSource} style={styles.photo} resizeMode="cover" defaultSource={Images.hospitalIcon} onError={handleImageLoadError} />
       <View style={styles.contentPadding}>
         <View style={styles.infoContainer}>
@@ -108,7 +114,7 @@ export const VetBusinessCard: React.FC<VetBusinessCardProps> = ({
         )}
         </View>
       </View>
-    </View>
+    </LiquidGlassCard>
   );
 };
 
@@ -116,94 +122,100 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     card: {
       flexDirection: 'column',
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      borderRadius: 16,
       backgroundColor: theme.colors.cardBackground,
       overflow: 'hidden',
     },
+    cardFallback: {
+      backgroundColor: theme.colors.cardBackground,
+      borderWidth: Platform.OS === 'android' ? 1 : 0,
+      borderColor: theme.colors.borderMuted,
+      ...theme.shadows.base,
+      shadowColor: theme.colors.neutralShadow,
+    },
     photo: {
       width: '100%',
-      height: 230,
-      borderRadius: 12,
+      height: theme.spacing['60'],
+      borderRadius: theme.borderRadius.md,
       backgroundColor: theme.colors.border + '20',
     },
     contentPadding: {
-      paddingHorizontal: theme.spacing[4],
-      paddingVertical: theme.spacing[3],
+      paddingHorizontal: theme.spacing['4'],
+      paddingVertical: theme.spacing['3'],
     },
     infoContainer: {
-      gap: 3,
+      gap: theme.spacing['1'],
     },
     name: {
-      ...theme.typography.h6Clash,
-      color: '#302F2E',
-      marginBottom: 15,
-      lineHeight: 22,
+      ...theme.typography.mobileBodyEmphasis,
+      color: theme.colors.secondary,
+      marginBottom: theme.spacing['3.5'],
+      overflow: 'hidden',
     },
     openHours: {
       ...theme.typography.subtitleBold14,
-      color: '#302f2e9a',
-      marginBottom: 15,
+      color: theme.colors.secondary + '9a',
+      marginBottom: theme.spacing['3.5'],
     },
     metaRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[2],
-      marginBottom: 15,
+      gap: theme.spacing['2'],
+      marginBottom: theme.spacing['3.5'],
       flexWrap: 'wrap',
     },
     metaItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[1],
+      gap: theme.spacing['1'],
     },
     metaIcon: {
-      width: 16,
-      height: 16,
+      width: theme.spacing['4'],
+      height: theme.spacing['4'],
       resizeMode: 'contain',
     },
     metaText: {
-      ...theme.typography.businessTitle16,
-      color: '#302F2E',
-      lineHeight: 16,
+      ...theme.typography.mobileFootnote,
+      color: theme.colors.secondary,
+      overflow: 'hidden',
     },
     addressRow: {
       flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: theme.spacing[2],
-      marginBottom: 15,
+      alignItems: 'center',
+      gap: theme.spacing['2'],
+      marginBottom: theme.spacing['3.5'],
     },
     addressText: {
-      ...theme.typography.inputLabel,
-      color: '#302F2E',
+      ...theme.typography.mobileFootnote,
+      color: theme.colors.secondary,
       flex: 1,
+      overflow: 'hidden',
     },
     websiteRow: {
       flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: theme.spacing[2],
-      marginBottom: 15,
+      alignItems: 'center',
+      gap: theme.spacing['2'],
+      marginBottom: theme.spacing['3.5'],
     },
     websiteText: {
-      ...theme.typography.inputLabel,
-      color: '#302F2E',
+      ...theme.typography.mobileFootnote,
+      color: theme.colors.secondary,
       flex: 1,
+      overflow: 'hidden',
     },
     meta: {
       ...theme.typography.body14,
-      color: '#595958',
+      color: theme.colors.placeholder,
     },
     cta: {
-      marginTop: theme.spacing[2],
-      marginHorizontal: -theme.spacing[4],
-      marginBottom: -theme.spacing[3],
-      marginLeft: -theme.spacing[4],
-      marginRight: -theme.spacing[4],
-      paddingVertical: 12,
-      paddingHorizontal: theme.spacing[4],
+      marginTop: theme.spacing['2'],
+      marginHorizontal: -theme.spacing['4'],
+      marginBottom: -theme.spacing['3'],
+      marginLeft: -theme.spacing['4'],
+      marginRight: -theme.spacing['4'],
+      paddingVertical: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['4'],
       alignItems: 'center',
-      borderRadius: 12,
+      borderRadius: theme.borderRadius.md,
       borderWidth: 1,
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.surface,

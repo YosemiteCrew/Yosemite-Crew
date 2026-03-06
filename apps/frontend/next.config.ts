@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
       "images.unsplash.com",
       "plus.unsplash.com", // ✅ add this!
       "yosemitecrew-backend.s3.eu-central-1.amazonaws.com",
+      "cdn.yc.dev"
     ],
   },
   outputFileTracingExcludes: {

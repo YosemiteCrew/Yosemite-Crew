@@ -1,3 +1,5 @@
+import {TextStyle} from 'react-native';
+
 export const fonts = {
   CLASH_DISPLAY_BOLD: 'ClashDisplay-Bold',
   CLASH_DISPLAY_EXTRA_LIGHT: 'ClashDisplay-Extralight',
@@ -17,12 +19,19 @@ export const fonts = {
 } as const;
 
 export const fontSizes = {
+  xxs: 10,
   xs: 12,
+  '13': 13,
   sm: 14,
+  '15': 15,
   base: 16,
+  '17': 17,
   lg: 18,
+  '19': 19,
   xl: 20,
+  '23': 23,
   '2xl': 24,
+  '26': 26,
   '3xl': 30,
   '4xl': 36,
   '5xl': 48,
@@ -47,321 +56,278 @@ export const lineHeights = {
   loose: 2,
 } as const;
 
+const createTextStyle = (
+  size: number,
+  lineHeight: number,
+  family: string,
+  weight: TextStyle['fontWeight'],
+  letterSpacing = 0,
+): TextStyle => ({
+  fontFamily: family,
+  fontSize: size,
+  lineHeight,
+  fontWeight: weight,
+  letterSpacing,
+});
+
+const h1Size = fontSizes['4xl']; // 36
+const h2Size = fontSizes['3xl']; // 30
+const h3Size = fontSizes['26']; // 26
+const h4Size = fontSizes.xl; // 20
+const h5Size = fontSizes.lg; // 18
+const h6Size = fontSizes.base; // 16
+
+const bodySize = fontSizes.base; // 16
+const bodySmallSize = fontSizes.sm; // 14
+const bodyXsSize = fontSizes.xs; // 12
+
+const bodyLineHeight = Math.round(bodySize * 1.5); // 24
+const bodySmallLineHeight = Math.round(bodySmallSize * 1.45); // 20
+const bodyXsLineHeight = Math.round(bodyXsSize * 1.5); // 18
+
+const h1: TextStyle = createTextStyle(
+  h1Size,
+  Math.round(h1Size * 1.2),
+  fonts.CLASH_DISPLAY_BOLD,
+  fontWeights.bold,
+  -0.4,
+);
+const h2: TextStyle = createTextStyle(
+  h2Size,
+  Math.round(h2Size * 1.25),
+  fonts.CLASH_DISPLAY_SEMIBOLD,
+  fontWeights.semibold,
+  -0.32,
+);
+const h3: TextStyle = createTextStyle(
+  h3Size,
+  Math.round(h3Size * 1.25),
+  fonts.CLASH_GRO_MEDIUM,
+  fontWeights.medium,
+  -0.28,
+);
+const h4: TextStyle = createTextStyle(
+  h4Size,
+  Math.round(h4Size * 1.3),
+  fonts.CLASH_GRO_MEDIUM,
+  fontWeights.medium,
+  -0.2,
+);
+const h5: TextStyle = createTextStyle(
+  h5Size,
+  Math.round(h5Size * 1.33),
+  fonts.CLASH_GRO_MEDIUM,
+  fontWeights.medium,
+  -0.18,
+);
+const h6: TextStyle = createTextStyle(
+  h6Size,
+  Math.round(h6Size * 1.38),
+  fonts.CLASH_GRO_MEDIUM,
+  fontWeights.medium,
+  -0.14,
+);
+
+const body: TextStyle = createTextStyle(
+  bodySize,
+  bodyLineHeight,
+  fonts.SATOSHI_REGULAR,
+  fontWeights.normal,
+  -0.16,
+);
+const bodyMedium: TextStyle = {
+  ...body,
+  fontFamily: fonts.SATOSHI_MEDIUM,
+  fontWeight: fontWeights.medium,
+};
+const bodyBold: TextStyle = {
+  ...body,
+  fontFamily: fonts.SATOSHI_BOLD,
+  fontWeight: fontWeights.bold,
+};
+
+const bodySmall: TextStyle = createTextStyle(
+  bodySmallSize,
+  bodySmallLineHeight,
+  fonts.SATOSHI_REGULAR,
+  fontWeights.normal,
+  -0.12,
+);
+const bodySmallMedium: TextStyle = {
+  ...bodySmall,
+  fontFamily: fonts.SATOSHI_MEDIUM,
+  fontWeight: fontWeights.medium,
+};
+const bodySmallBold: TextStyle = {
+  ...bodySmall,
+  fontFamily: fonts.SATOSHI_BOLD,
+  fontWeight: fontWeights.bold,
+};
+
+const bodyXs: TextStyle = createTextStyle(
+  bodyXsSize,
+  bodyXsLineHeight,
+  fonts.SATOSHI_REGULAR,
+  fontWeights.normal,
+  -0.08,
+);
+const bodyXsBold: TextStyle = {
+  ...bodyXs,
+  fontFamily: fonts.SATOSHI_BOLD,
+  fontWeight: fontWeights.bold,
+};
+
+const caption: TextStyle = {
+  ...bodyXs,
+  fontFamily: fonts.SF_PRO_TEXT_REGULAR,
+};
+const captionBold: TextStyle = {
+  ...bodyXs,
+  fontFamily: fonts.SF_PRO_TEXT_SEMIBOLD,
+  fontWeight: fontWeights.semibold,
+};
+
 export const typography = {
-  // Headings
-  h1: {
-    fontFamily: fonts.CLASH_DISPLAY_BOLD,
-    fontSize: fontSizes['4xl'],
-    lineHeight: fontSizes['4xl'] * lineHeights.tight,
-    fontWeight: fontWeights.bold,
-  },
-  h2: {
-    fontFamily: fonts.CLASH_DISPLAY_BOLD,
-    fontSize: fontSizes['3xl'],
-    lineHeight: fontSizes['3xl'] * lineHeights.tight,
-    fontWeight: fontWeights.bold,
-  },
-  h3: {
-    fontFamily: fonts.CLASH_GRO_MEDIUM, // matches "Clash Grotesk Medium"
-    fontSize: 26, // exact from Figma
-    lineHeight: 26 * 1.2, // 120% → 31.2px
-    fontWeight: fontWeights.medium, // 500
-    letterSpacing: -0.26, // matches design
-  },
-  h4: {
-    fontFamily: fonts.CLASH_DISPLAY_SEMIBOLD,
-    fontSize: fontSizes.xl,
-    lineHeight: fontSizes.xl * lineHeights.snug,
-    fontWeight: fontWeights.semibold,
-  },
-  h5: {
-    fontFamily: fonts.CLASH_DISPLAY_MEDIUM,
-    fontSize: fontSizes.lg,
-    lineHeight: fontSizes.lg * lineHeights.normal,
-    fontWeight: fontWeights.medium,
-  },
-  h6: {
-    fontFamily: fonts.CLASH_DISPLAY_MEDIUM,
-    fontSize: fontSizes.base,
-    lineHeight: fontSizes.base * lineHeights.normal,
-    fontWeight: fontWeights.medium,
-  },
-  titleLarge: {
-    fontFamily: fonts.CLASH_GRO_MEDIUM,
-    fontSize: fontSizes.xl,
-    lineHeight: fontSizes.xl * 1.2,
-    fontWeight: fontWeights.medium,
-    letterSpacing: -0.2,
-  },
-  titleMedium: {
-    fontFamily: fonts.CLASH_GRO_MEDIUM,
-    fontSize: fontSizes.lg,
-    lineHeight: fontSizes.lg * 1.2,
-    fontWeight: fontWeights.medium,
-    letterSpacing: -0.18,
-  },
-  titleSmall: {
-    fontFamily: fonts.CLASH_GRO_MEDIUM,
-    fontSize: fontSizes.base,
-    lineHeight: fontSizes.base * 1.2,
-    fontWeight: fontWeights.medium,
-    letterSpacing: -0.16,
-  },
-  paragraph: {
-    fontFamily: fonts.SATOSHI_REGULAR,
-    fontSize: fontSizes.base,
-    lineHeight: fontSizes.base * 1.2,
-    fontWeight: fontWeights.normal,
-    letterSpacing: -0.32,
-  },
-  paragraphBold: {
-    fontFamily: fonts.SATOSHI_BOLD,
-    fontSize: fontSizes.base,
-    lineHeight: fontSizes.base * 1.2,
-    fontWeight: fontWeights.bold,
-    letterSpacing: -0.32,
-  },
-  cta: {
-    fontFamily: fonts.CLASH_GRO_MEDIUM,
-    fontSize: 18,
-    lineHeight: 18,
-    fontWeight: fontWeights.medium,
-    letterSpacing: -0.18,
-  },
+  // Core headings
+  heading: h3,
+  h1,
+  h2,
+  h3,
+  h4,
+  h4Alt: h4,
+  h5,
+  h5Clash23: h3,
+  h6,
+  h6Clash: h6,
+  headlineMedium: {...h2, letterSpacing: -0.2},
 
-  // Body text
-  bodyLarge: {
-    fontFamily: fonts.SATOSHI_REGULAR,
-    fontSize: fontSizes.lg,
-    lineHeight: fontSizes.lg * lineHeights.relaxed,
-    fontWeight: fontWeights.normal,
-  },
-  body: {
-    fontFamily: fonts.SATOSHI_REGULAR,
-    fontSize: fontSizes.base,
-    lineHeight: fontSizes.base * lineHeights.normal,
-    fontWeight: fontWeights.normal,
-  },
-  bodySmall: {
-    fontFamily: fonts.SATOSHI_REGULAR,
-    fontSize: fontSizes.sm,
-    lineHeight: fontSizes.sm * lineHeights.normal,
-    fontWeight: fontWeights.normal,
-  },
-  bodySmallTight: {
-    fontFamily: fonts.SATOSHI_REGULAR,
-    fontSize: fontSizes.sm,
-    lineHeight: fontSizes.sm * 1.4,
-    fontWeight: fontWeights.normal,
-  },
-  bodyExtraSmall: {
-    fontFamily: fonts.SATOSHI_REGULAR,
-    fontSize: 13,
-    lineHeight: 16,
-    fontWeight: fontWeights.normal,
-  },
+  // Titles
+  title: h3,
+  titleLarge: h4,
+  titleMedium: h5,
+  titleSmall: h6,
+  screenTitle: {...h6, letterSpacing: -0.12},
+  businessSectionTitle20: h4,
 
-  // Labels
-  label: {
-    fontFamily: fonts.SATOSHI_MEDIUM,
-    fontSize: fontSizes.base,
-    lineHeight: fontSizes.base * lineHeights.normal,
-    fontWeight: fontWeights.medium,
-  },
-  labelSmall: {
-    fontFamily: fonts.SATOSHI_MEDIUM,
-    fontSize: fontSizes.sm,
-    lineHeight: fontSizes.sm * lineHeights.normal,
-    fontWeight: fontWeights.medium,
-  },
-  labelXxsBold: {
-    fontFamily: fonts.SATOSHI_BOLD,
-    fontSize: 12,
-    lineHeight: 12 * 1.2,
-    fontWeight: fontWeights.bold,
-    letterSpacing: 0,
-  },
-  labelXsBold: {
-    fontFamily: fonts.SATOSHI_BOLD,
-    fontSize: 13,
-    lineHeight: 13 * 1.2,
-    fontWeight: fontWeights.bold,
-    letterSpacing: 0,
-  },
-
-  // Captions
-  caption: {
-    fontFamily: fonts.SF_PRO_TEXT_REGULAR,
-    fontSize: fontSizes.xs,
-    lineHeight: fontSizes.xs * lineHeights.normal,
-    fontWeight: fontWeights.normal,
-  },
-  captionBold: {
-    fontFamily: fonts.SF_PRO_TEXT_SEMIBOLD,
-    fontSize: fontSizes.xs,
-    lineHeight: fontSizes.xs * lineHeights.normal,
-    fontWeight: fontWeights.semibold,
-  },
-
-  // Buttons
-  button: {
-    fontFamily: fonts.SATOSHI_MEDIUM,
-    fontSize: fontSizes.base,
-    lineHeight: fontSizes.base * lineHeights.tight,
-    fontWeight: fontWeights.medium,
-  },
-  buttonSmall: {
-    fontFamily: fonts.SATOSHI_MEDIUM,
-    fontSize: fontSizes.sm,
-    lineHeight: fontSizes.sm * lineHeights.none,
-    fontWeight: fontWeights.medium,
-  },
-  screenTitle: {
-    fontFamily: fonts.CLASH_GRO_MEDIUM,
-    fontSize: 16,
-    lineHeight: 16 * 1.2,
-    fontWeight: fontWeights.medium,
-    letterSpacing: -0.16,
-  },
-  inputLabel: {
-    fontFamily: fonts.SATOSHI_BOLD,
-    fontSize: 14,
-    lineHeight: 16,
-    fontWeight: fontWeights.bold,
-    letterSpacing: -0.42,
-  },
-  input: {
-    fontFamily: fonts.SATOSHI_REGULAR,
-    fontSize: 16,
-    lineHeight: 16 * 1.2,
-    fontWeight: fontWeights.normal,
-    letterSpacing: -0.32,
-  },
-  inputFilled: {
-    fontFamily: fonts.SATOSHI_MEDIUM,
-    fontSize: 16,
-    lineHeight: 16,
-    fontWeight: fontWeights.medium,
-    letterSpacing: -0.48,
-  },
-  inputError: {
-    fontFamily: fonts.SATOSHI_BOLD,
-    fontSize: 14,
-    lineHeight: 16,
-    fontWeight: fontWeights.bold,
-    letterSpacing: -0.42,
-    color: '#EA3729',
-  },
-  tabLabelFocused: {
-    fontFamily: fonts.SATOSHI_BLACK,
-    fontSize: 12,
-    lineHeight: 12 * 1.2,
-    fontWeight: fontWeights.black,
-  },
-  tabLabel: {
-    fontFamily: fonts.SATOSHI_MEDIUM,
-    fontSize: 12,
-    lineHeight: 12 * 1.2,
-    fontWeight: fontWeights.medium,
-  },
-  h4Alt: {
-    fontFamily: fonts.CLASH_GRO_MEDIUM,
-    fontSize: 23,
-    lineHeight: 23 * 1.2,
-    fontWeight: fontWeights.medium,
-    letterSpacing: -0.23,
-  },
-  // Custom additions to match designs precisely
-  h5Clash23: {
-    fontFamily: fonts.CLASH_GRO_MEDIUM, // "Clash Grotesk Medium"
-    fontSize: 23,
-    lineHeight: 23 * 1.2,
-    fontWeight: fontWeights.medium,
-    letterSpacing: -0.46,
-  },
-  paragraph18Bold: {
-    fontFamily: fonts.SATOSHI_BOLD,
-    fontSize: 18,
-    lineHeight: 18 * 1.2,
-    fontWeight: fontWeights.bold,
-    letterSpacing: -0.36,
-  },
-  subtitleBold14: {
-    fontFamily: fonts.SATOSHI_BOLD,
-    opacity: 0.6,
-    fontSize: 14,
-    lineHeight: 14 * 1.2,
-    fontWeight: fontWeights.bold,
-  },
+  // Paragraph / body
+  paragraph: body,
+  paragraphBold: bodyBold,
+  paragraph18Bold: bodyMedium,
   clashBody13: {
     fontFamily: fonts.CLASH_GRO_MEDIUM,
-    fontSize: 13,
-    lineHeight: 13 * 1.2,
+    fontSize: fontSizes['13'],
+    lineHeight: Math.round(fontSizes['13'] * 1.4),
     fontWeight: fontWeights.medium,
-    letterSpacing: -0.13,
+    letterSpacing: -0.1,
+  },
+  body,
+  bodyMedium,
+  bodyLarge: {
+    ...bodyMedium,
+    fontSize: fontSizes.lg,
+    lineHeight: Math.round(fontSizes.lg * 1.4),
+  },
+  bodySmall,
+  bodySmallTight: {...bodySmall, lineHeight: Math.round(bodySmall.fontSize! * 1.3)},
+  bodyExtraSmall: bodyXs,
+  body12: bodyXs,
+  body13: {
+    ...bodySmall,
+    fontSize: fontSizes['13'],
+    lineHeight: Math.round(fontSizes['13'] * 1.4),
+  },
+  body14: {
+    ...bodySmall,
+    fontSize: fontSizes.sm,
+    lineHeight: Math.round(fontSizes.sm * 1.4),
+  },
+  bodyBold,
+
+  // Labels
+  label: bodyMedium,
+  labelMdBold: {...bodyMedium, fontWeight: fontWeights.bold},
+  labelSmall: bodySmallMedium,
+  labelSmallBold: bodySmallBold,
+  labelSmBold: bodySmallBold,
+  labelXs: {...bodyXs, fontFamily: fonts.SATOSHI_MEDIUM, fontWeight: fontWeights.medium},
+  labelXxsBold: bodyXsBold,
+
+  // Captions
+  caption,
+  captionBold,
+  captionBoldSatoshi: bodySmallBold,
+
+  // Buttons & CTA
+  button: bodyMedium,
+  buttonSmall: bodySmallMedium,
+  buttonLarge: {
+    ...bodyMedium,
+    fontSize: fontSizes.lg,
+    lineHeight: Math.round(fontSizes.lg * 1.25),
   },
   buttonH6Clash19: {
     fontFamily: fonts.CLASH_GRO_MEDIUM,
-    fontSize: 19,
-    lineHeight: 19 * 1.2,
+    fontSize: fontSizes['19'],
+    lineHeight: Math.round(fontSizes['19'] * 1.3),
     fontWeight: fontWeights.medium,
-    letterSpacing: -0.38,
+    letterSpacing: -0.2,
   },
-  // H6 Clash - for TaskCard and TasksMainScreen date selector
-  h6Clash: {
-    fontFamily: fonts.CLASH_GRO_MEDIUM,
-    fontSize: 18,
-    lineHeight: 18 * 1.2,
-    fontWeight: fontWeights.medium,
-    letterSpacing: -0.18,
+  cta: bodyMedium,
+
+  // Inputs
+  input: body,
+  inputFilled: bodyMedium,
+  inputLabel: bodySmallBold,
+  inputError: bodySmallBold,
+
+  // Navigation / tabs
+  tabLabel: {
+    fontFamily: fonts.SATOSHI_REGULAR,
+    fontSize: fontSizes['13'],
+    lineHeight: Math.round(fontSizes['13'] * 1.2), // 15.6px (120%)
+    fontWeight: fontWeights.normal,
+    letterSpacing: 0,
   },
-  // Caption Bold - for companion names and date/time text
-  captionBoldSatoshi: {
+  tabLabelFocused: bodySmallBold,
+
+  // Subtitles / helper text
+  subtitleBold12: bodyXsBold,
+  subtitleBold14: bodySmallBold,
+  subtitleRegular14: bodySmall,
+  pillSubtitleBold15: {
     fontFamily: fonts.SATOSHI_BOLD,
-    fontSize: 13,
-    lineHeight: 13 * 1.2,
+    fontSize: fontSizes['15'],
+    lineHeight: Math.round(fontSizes['15'] * 1.4),
+    fontWeight: fontWeights.bold,
+    letterSpacing: -0.2,
+  },
+
+  // Section headings
+  sectionHeading: {
+    fontFamily: fonts.SATOSHI_BOLD,
+    fontSize: fontSizes['17'],
+    lineHeight: 22,
     fontWeight: fontWeights.bold,
     letterSpacing: 0,
   },
 
-  // Appointments/Browse: additional tokens for card/pills parity
-  businessTitle16: {
-    fontFamily: fonts.CLASH_GRO_MEDIUM,
-    fontSize: 16,
-    lineHeight: 16 * 1.2,
+  // Mobile specific styles
+  mobileBodyEmphasis: {
+    fontFamily: fonts.SATOSHI_MEDIUM,
+    fontSize: fontSizes['17'],
+    lineHeight: 22,
     fontWeight: fontWeights.medium,
-    letterSpacing: -0.16,
+    letterSpacing: 0,
   },
-  subtitleBold12: {
-    fontFamily: fonts.SATOSHI_BOLD,
-    fontSize: 12,
-    lineHeight: 12 * 1.2,
-    fontWeight: fontWeights.bold,
-  },
-  body12: {
+  mobileFootnote: {
     fontFamily: fonts.SATOSHI_REGULAR,
-    fontSize: 12,
-    lineHeight: 12 * 1.3,
+    fontSize: fontSizes['13'],
+    lineHeight: 20,
     fontWeight: fontWeights.normal,
+    letterSpacing: 0,
   },
-  pillSubtitleBold15: {
-    fontFamily: fonts.SATOSHI_BOLD,
-    fontSize: 15,
-    lineHeight: 24,
-    fontWeight: fontWeights.bold,
-    letterSpacing: -0.3,
-  },
-  businessSectionTitle20: {
-    fontFamily: fonts.CLASH_GRO_MEDIUM,
-    fontSize: 20,
-    lineHeight: 24,
-    fontWeight: fontWeights.medium,
-    letterSpacing: -0.2,
-  },
-  subtitleRegular14: {
-    fontFamily: fonts.SATOSHI_REGULAR,
-    fontSize: 14,
-    lineHeight: 14 * 1.2,
-    fontWeight: fontWeights.normal,
-  },
+
+  // Font family helpers for legacy usage
+  SATOSHI_BOLD: fonts.SATOSHI_BOLD,
+  SATOSHI_REGULAR: fonts.SATOSHI_REGULAR,
 } as const;

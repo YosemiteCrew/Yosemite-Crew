@@ -6,6 +6,7 @@ import {selectAuthUser} from '@/features/auth/selectors';
 import {Images} from '@/assets/images';
 import {createIconStyles} from '@/shared/utils/iconStyles';
 import type {TaskFormData, TaskFormErrors} from '@/features/tasks/types';
+import {selectAcceptedCoParents} from '@/features/coParent/selectors';
 
 interface CommonTaskFieldsProps {
   formData: TaskFormData;
@@ -25,15 +26,30 @@ export const CommonTaskFields: React.FC<CommonTaskFieldsProps> = ({
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const iconStyles = React.useMemo(() => createIconStyles(theme), [theme]);
   const currentUser = useSelector(selectAuthUser);
+  const coParents = useSelector(selectAcceptedCoParents);
 
   // Get the assigned user's display name
   const getAssignedUserName = (): string => {
     if (!formData.assignedTo) return '';
-    // Check if the assigned user is the current user
-    if (currentUser && currentUser.id === formData.assignedTo) {
+    const selfId = currentUser?.parentId ?? currentUser?.id;
+    if (selfId && selfId === formData.assignedTo && currentUser) {
       return currentUser.firstName || currentUser.email || 'You';
     }
-    return formData.assignedTo; // Fallback to ID if user not found
+    const coParentMatch = coParents.find(
+      cp =>
+        (cp.parentId && cp.parentId === formData.assignedTo) ||
+        (cp.id && cp.id === formData.assignedTo) ||
+        (cp.userId && cp.userId === formData.assignedTo),
+    );
+    if (coParentMatch) {
+      const fullName = [coParentMatch.firstName, coParentMatch.lastName]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+      return fullName || coParentMatch.email || 'Co-parent';
+    }
+    // Fallback to ID if user not found
+    return formData.assignedTo;
   };
 
   return (
@@ -74,18 +90,18 @@ const createStyles = (theme: any) =>
       gap: 0,
     },
     fieldGroup: {
-      marginBottom: theme.spacing[4],
-      gap: theme.spacing[1],
+      marginBottom: theme.spacing['4'],
+      gap: theme.spacing['1'],
     },
     textArea: {
       minHeight: 100,
       textAlignVertical: 'top',
     },
     errorText: {
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.error,
       marginTop: 3,
-      marginBottom: theme.spacing[3],
-      marginLeft: theme.spacing[1],
+      marginBottom: theme.spacing['3'],
+      marginLeft: theme.spacing['1'],
     },
   });

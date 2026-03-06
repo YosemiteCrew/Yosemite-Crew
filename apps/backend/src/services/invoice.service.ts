@@ -1,4 +1,4 @@
-import { Types } from "mongoose";
+import mongoose, { Types } from "mongoose";
 import InvoiceModel, { InvoiceDocument, InvoiceMongo } from "../models/invoice";
 import AppointmentModel from "src/models/appointment";
 import {
@@ -10,8 +10,13 @@ import {
 import { Currency } from "@yosemite-crew/fhirtypes";
 import { StripeService } from "./stripe.service";
 import OrganizationModel from "src/models/organization";
+import { ParentModel } from "src/models/parent";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
 import { NotificationService } from "./notification.service";
+import { AuditTrailService } from "./audit-trail.service";
+import { sendEmailTemplate } from "src/utils/email";
+import logger from "src/utils/logger";
+import { OrgBilling } from "src/models/organization.billing";
 
 export class InvoiceServiceError extends Error {
   constructor(
@@ -23,6 +28,9 @@ export class InvoiceServiceError extends Error {
   }
 }
 
+const SUPPORT_EMAIL_ADDRESS =
+  process.env.SUPPORT_EMAIL_ADDRESS ?? "support@yosemitecrew.com";
+
 const ensureObjectId = (val: unknown, field: string): Types.ObjectId => {
   if (val instanceof Types.ObjectId) return val;
 
@@ -31,6 +39,40 @@ const ensureObjectId = (val: unknown, field: string): Types.ObjectId => {
   }
 
   throw new InvoiceServiceError(`Invalid ${field}`, 400);
+};
+
+const getOrgBillingCurrency = async (organisationId?: string | Types.ObjectId) => {
+  if (!organisationId) return "usd";
+  const billing = await OrgBilling.findOne({ orgId: organisationId });
+  return billing?.currency ?? "usd";
+};
+
+const resolveAuditTargetsForInvoice = async (invoice: InvoiceDocument) => {
+  if (invoice.organisationId && invoice.companionId) {
+    return {
+      organisationId: invoice.organisationId,
+      companionId: invoice.companionId,
+    };
+  }
+
+  if (invoice.appointmentId) {
+    const appointment = await AppointmentModel.findById(
+      invoice.appointmentId,
+      { organisationId: 1, "companion.id": 1 },
+    ).lean();
+
+    if (appointment?.organisationId && appointment?.companion?.id) {
+      return {
+        organisationId: appointment.organisationId,
+        companionId: appointment.companion.id,
+      };
+    }
+  }
+
+  return {
+    organisationId: invoice.organisationId,
+    companionId: invoice.companionId,
+  };
 };
 
 const toDomain = (doc: InvoiceDocument): Invoice => {
@@ -85,30 +127,63 @@ const toDomain = (doc: InvoiceDocument): Invoice => {
     stripeCustomerId: o.stripeCustomerId ?? undefined,
     stripeChargeId: o.stripeChargeId ?? undefined,
     stripeReceiptUrl: o.stripeReceiptUrl ?? undefined,
+    stripeCheckoutSessionId: o.stripeCheckoutSessionId ?? undefined,
+    stripeCheckoutUrl: o.stripeCheckoutUrl ?? undefined,
+    paymentCollectionMethod: o.paymentCollectionMethod,
     status: o.status as InvoiceStatus,
     metadata,
+    paidAt: o.paidAt ?? undefined,
     createdAt: o.createdAt,
     updatedAt: o.updatedAt,
   };
 };
 
+const recalculateTotals = (invoice: InvoiceDocument) => {
+  invoice.subtotal = invoice.items.reduce(
+    (sum, i) => sum + i.quantity * i.unitPrice,
+    0,
+  );
+
+  invoice.discountTotal = invoice.items.reduce(
+    (sum, i) =>
+      sum +
+      (i.discountPercent
+        ? (i.discountPercent / 100) * i.unitPrice * i.quantity
+        : 0),
+    0,
+  );
+
+  invoice.taxPercent = invoice.taxPercent ?? 0;
+  invoice.taxTotal =
+    (invoice.taxPercent / 100) * (invoice.subtotal - invoice.discountTotal);
+
+  invoice.totalAmount =
+    invoice.subtotal - invoice.discountTotal + invoice.taxTotal;
+};
+
 export const InvoiceService = {
-  async createDraftForAppointment(input: {
-    appointmentId: string;
-    parentId: string;
-    organisationId: string;
-    companionId: string;
-    currency: string;
-    items: {
-      description: string;
-      quantity: number;
-      unitPrice: number;
-      discountPercent?: number;
-    }[];
-    notes?: string;
-  }) {
+  async createDraftForAppointment(
+    input: {
+      appointmentId: string;
+      parentId: string;
+      organisationId: string;
+      companionId: string;
+      items: {
+        description: string;
+        quantity: number;
+        unitPrice: number;
+        discountPercent?: number;
+      }[];
+      notes?: string;
+      paymentCollectionMethod: "PAYMENT_INTENT" | "PAYMENT_LINK"
+    },
+    session?: mongoose.ClientSession,
+  ) {
     // 1. Validate appointment exists
-    const appointment = await AppointmentModel.findById(input.appointmentId);
+    const appointment = await AppointmentModel.findById(
+      input.appointmentId,
+    ).session(session ?? null);
+
     if (!appointment) {
       throw new InvoiceServiceError("Appointment not found", 404);
     }
@@ -130,6 +205,7 @@ export const InvoiceService = {
 
     const taxTotal = 0; // add GST/VAT logic later
     const totalPayable = subtotal - discountTotal + taxTotal;
+    const currency = await getOrgBillingCurrency(input.organisationId);
 
     const itemsDetailed = input.items.map((item) => ({
       ...item,
@@ -138,28 +214,113 @@ export const InvoiceService = {
     }));
 
     // 3. Create invoice
-    const invoice = await InvoiceModel.create({
-      appointmentId: input.appointmentId,
-      parentId: input.parentId,
+    const invoice = await InvoiceModel.create(
+      [
+        {
+          appointmentId: input.appointmentId,
+          parentId: input.parentId,
+          organisationId: input.organisationId,
+          currency,
+
+          status: "AWAITING_PAYMENT",
+          paymentCollectionMethod: input.paymentCollectionMethod,
+          items: itemsDetailed,
+          subtotal,
+          discountTotal,
+          taxTotal,
+          totalAmount: totalPayable,
+
+          notes: input.notes,
+        },
+      ],
+      { session },
+    );
+
+    const createdInvoice = Array.isArray(invoice) ? invoice[0] : invoice;
+
+    await AuditTrailService.recordSafely({
       organisationId: input.organisationId,
-      currency: input.currency,
-
-      status: "AWAITING_PAYMENT",
-
-      items: itemsDetailed,
-      subtotal,
-      discountTotal,
-      taxTotal,
-      totalAmount: totalPayable,
-
-      notes: input.notes,
+      companionId: appointment.companion.id,
+      eventType: "INVOICE_CREATED",
+      actorType: "SYSTEM",
+      entityType: "INVOICE",
+      entityId: createdInvoice._id.toString(),
+      metadata: {
+        appointmentId: input.appointmentId,
+        status: createdInvoice.status,
+        totalAmount: createdInvoice.totalAmount,
+        currency: createdInvoice.currency,
+      },
     });
 
-    const notificationPayload =
-      NotificationTemplates.Payment.PAYMENT_PENDING(totalPayable);
+    const notificationPayload = NotificationTemplates.Payment.PAYMENT_PENDING(
+      totalPayable,
+      currency,
+    );
     await NotificationService.sendToUser(input.parentId, notificationPayload);
 
     return invoice;
+  },
+
+  async createExtraInvoiceForAppointment(input: {
+    appointmentId: string;
+    items: InvoiceItem[];
+    metadata?: Record<string, string | number | boolean | undefined>;
+  }) {
+    const appointment = await AppointmentModel.findById(input.appointmentId);
+    if (!appointment) {
+      throw new InvoiceServiceError("Appointment not found", 404);
+    }
+
+    const currency = await getOrgBillingCurrency(appointment.organisationId);
+    const invoice = new InvoiceModel({
+      appointmentId: appointment._id,
+      parentId: appointment.companion.parent.id,
+      companionId: appointment.companion.id,
+      organisationId: appointment.organisationId,
+      currency,
+
+      purpose: "APPOINTMENT_EXTRA",
+      status: "AWAITING_PAYMENT",
+
+      items: input.items.map((item) => ({
+        ...item,
+        name: item.description,
+        total: item.quantity * item.unitPrice,
+      })),
+      metadata: {
+        ...input.metadata,
+        source: "EXTRA_CHARGES",
+      },
+    });
+
+    recalculateTotals(invoice);
+    await invoice.save();
+
+    await AuditTrailService.recordSafely({
+      organisationId: appointment.organisationId,
+      companionId: appointment.companion.id,
+      eventType: "INVOICE_CREATED",
+      actorType: "SYSTEM",
+      entityType: "INVOICE",
+      entityId: invoice._id.toString(),
+      metadata: {
+        appointmentId: appointment._id.toString(),
+        status: invoice.status,
+        totalAmount: invoice.totalAmount,
+        currency: invoice.currency,
+      },
+    });
+
+    await NotificationService.sendToUser(
+      appointment.companion.parent.id,
+      NotificationTemplates.Payment.PAYMENT_PENDING(
+        invoice.totalAmount,
+        invoice.currency,
+      ),
+    );
+
+    return toDomain(invoice);
   },
 
   async attachStripeDetails(invoiceId: string, updates: Partial<Invoice>) {
@@ -176,18 +337,47 @@ export const InvoiceService = {
     return toDomain(doc);
   },
 
-  async markPaid(invoiceId: string) {
-    const _id = ensureObjectId(invoiceId, "invoiceId");
-
-    const doc = await InvoiceModel.findByIdAndUpdate(
-      _id,
-      { $set: { status: "PAID" } },
+  async markInvoicePaid(params: {
+    invoiceId: string;
+    stripePaymentIntentId?: string;
+    stripeChargeId?: string;
+    stripeReceiptUrl?: string;
+  }) {
+    const invoice = await InvoiceModel.findOneAndUpdate(
+      { _id: params.invoiceId, status: { $ne: "PAID" } },
+      {
+        $set: {
+          status: "PAID",
+          paidAt: new Date(),
+          stripePaymentIntentId: params.stripePaymentIntentId,
+          stripeChargeId: params.stripeChargeId,
+          stripeReceiptUrl: params.stripeReceiptUrl,
+          updatedAt: new Date(),
+        },
+      },
       { new: true },
     );
 
-    if (!doc) throw new InvoiceServiceError("Invoice not found.", 404);
+    if (invoice) {
+      const targets = await resolveAuditTargetsForInvoice(invoice);
+      if (targets.organisationId && targets.companionId) {
+        await AuditTrailService.recordSafely({
+          organisationId: targets.organisationId,
+          companionId: targets.companionId,
+          eventType: "INVOICE_PAID",
+          actorType: "SYSTEM",
+          entityType: "INVOICE",
+          entityId: invoice._id.toString(),
+          metadata: {
+            status: invoice.status,
+            totalAmount: invoice.totalAmount,
+            currency: invoice.currency,
+          },
+        });
+      }
+    }
 
-    return doc;
+    return invoice;
   },
 
   async markFailed(invoiceId: string) {
@@ -200,6 +390,23 @@ export const InvoiceService = {
     );
 
     if (!doc) throw new InvoiceServiceError("Invoice not found.", 404);
+
+    const targets = await resolveAuditTargetsForInvoice(doc);
+    if (targets.organisationId && targets.companionId) {
+      await AuditTrailService.recordSafely({
+        organisationId: targets.organisationId,
+        companionId: targets.companionId,
+        eventType: "INVOICE_FAILED",
+        actorType: "SYSTEM",
+        entityType: "INVOICE",
+        entityId: doc._id.toString(),
+        metadata: {
+          status: doc.status,
+          totalAmount: doc.totalAmount,
+          currency: doc.currency,
+        },
+      });
+    }
 
     return doc;
   },
@@ -215,6 +422,23 @@ export const InvoiceService = {
 
     if (!doc) throw new InvoiceServiceError("Invoice not found.", 404);
 
+    const targets = await resolveAuditTargetsForInvoice(doc);
+    if (targets.organisationId && targets.companionId) {
+      await AuditTrailService.recordSafely({
+        organisationId: targets.organisationId,
+        companionId: targets.companionId,
+        eventType: "INVOICE_REFUNDED",
+        actorType: "SYSTEM",
+        entityType: "INVOICE",
+        entityId: doc._id.toString(),
+        metadata: {
+          status: doc.status,
+          totalAmount: doc.totalAmount,
+          currency: doc.currency,
+        },
+      });
+    }
+
     return toDomain(doc);
   },
 
@@ -224,6 +448,21 @@ export const InvoiceService = {
 
     invoice.status = status;
     await invoice.save();
+
+    const targets = await resolveAuditTargetsForInvoice(invoice);
+    if (targets.organisationId && targets.companionId) {
+      await AuditTrailService.recordSafely({
+        organisationId: targets.organisationId,
+        companionId: targets.companionId,
+        eventType: "INVOICE_UPDATED",
+        actorType: "SYSTEM",
+        entityType: "INVOICE",
+        entityId: invoice._id.toString(),
+        metadata: {
+          status: invoice.status,
+        },
+      });
+    }
     return invoice;
   },
 
@@ -278,16 +517,15 @@ export const InvoiceService = {
     return docs.map((d) => toInvoiceResponseDTO(toDomain(d)));
   },
 
-  async addItemsToInvoice(invoiceId: string, newItems: InvoiceItem[]) {
+  async addItemsToInvoice(invoiceId: string, items: InvoiceItem[]) {
     const invoice = await InvoiceModel.findById(invoiceId);
     if (!invoice) throw new InvoiceServiceError("Invoice not found", 404);
 
     if (invoice.status === "PAID") {
-      throw new InvoiceServiceError("Cannot modify a paid invoice.", 409);
+      throw new InvoiceServiceError("Cannot modify a paid invoice", 409);
     }
 
-    // 1. Add each item
-    for (const item of newItems) {
+    for (const item of items) {
       invoice.items.push({
         ...item,
         total:
@@ -298,16 +536,54 @@ export const InvoiceService = {
       });
     }
 
-    // 2. Recalculate totals
-    invoice.subtotal = invoice.items.reduce((sum, it) => sum + it.total, 0);
-    invoice.taxPercent = invoice.taxPercent ?? 0;
-    invoice.totalAmount =
-      invoice.subtotal + (invoice.taxPercent / 100) * invoice.subtotal;
-
+    recalculateTotals(invoice);
     invoice.updatedAt = new Date();
     await invoice.save();
 
-    return invoice;
+    const targets = await resolveAuditTargetsForInvoice(invoice);
+    if (targets.organisationId && targets.companionId) {
+      await AuditTrailService.recordSafely({
+        organisationId: targets.organisationId,
+        companionId: targets.companionId,
+        eventType: "INVOICE_UPDATED",
+        actorType: "SYSTEM",
+        entityType: "INVOICE",
+        entityId: invoice._id.toString(),
+        metadata: {
+          status: invoice.status,
+          totalAmount: invoice.totalAmount,
+          currency: invoice.currency,
+          itemsAdded: items.length,
+        },
+      });
+    }
+
+    return toDomain(invoice);
+  },
+
+  async addChargesToAppointment(
+    appointmentId: string,
+    items: InvoiceItem[],
+  ) {
+    const invoice = await this.findOpenInvoiceForAppointment(appointmentId);
+
+    // No open invoice → create EXTRA invoice
+    if (!invoice) {
+      return this.createExtraInvoiceForAppointment({
+        appointmentId,
+        items,
+      });
+    }
+
+    // Open invoice exists → append
+    return this.addItemsToInvoice(invoice._id.toString(), items);
+  },
+
+  async findOpenInvoiceForAppointment(appointmentId: string) {
+    return InvoiceModel.findOne({
+      appointmentId,
+      status: { $in: ["AWAITING_PAYMENT", "PENDING"] },
+    }).sort({ createdAt: -1 });
   },
 
   async handleAppointmentCancellation(appointmentId: string, reason: string) {
@@ -332,6 +608,22 @@ export const InvoiceService = {
         cancellationReason: reason,
       };
       await invoice.save();
+
+      const targets = await resolveAuditTargetsForInvoice(invoice);
+      if (targets.organisationId && targets.companionId) {
+        await AuditTrailService.recordSafely({
+          organisationId: targets.organisationId,
+          companionId: targets.companionId,
+          eventType: "INVOICE_CANCELLED",
+          actorType: "SYSTEM",
+          entityType: "INVOICE",
+          entityId: invoice._id.toString(),
+          metadata: {
+            status: invoice.status,
+            reason,
+          },
+        });
+      }
       return { action: "CANCELLED_UNPAID" };
     }
 
@@ -362,6 +654,24 @@ export const InvoiceService = {
 
       await invoice.save();
 
+      const targets = await resolveAuditTargetsForInvoice(invoice);
+      if (targets.organisationId && targets.companionId) {
+        await AuditTrailService.recordSafely({
+          organisationId: targets.organisationId,
+          companionId: targets.companionId,
+          eventType: "INVOICE_REFUNDED",
+          actorType: "SYSTEM",
+          entityType: "INVOICE",
+          entityId: invoice._id.toString(),
+          metadata: {
+            status: invoice.status,
+            reason,
+            refundId: refund.refundId,
+            amount: refund.amountRefunded,
+          },
+        });
+      }
+
       return { action: "REFUNDED", refundId: refund.refundId };
     }
 
@@ -379,5 +689,59 @@ export const InvoiceService = {
     }
 
     return toInvoiceResponseDTO(toDomain(doc));
+  },
+
+  async createCheckoutSessionAndEmailParent(invoiceId: string) {
+    const checkout = await StripeService.createCheckoutSessionForInvoice(
+      invoiceId,
+    );
+
+    const invoice = await InvoiceModel.findById(invoiceId).lean();
+    if (!invoice) {
+      throw new InvoiceServiceError("Invoice not found.", 404);
+    }
+
+    let emailSent = false;
+    if (checkout?.url && invoice.parentId) {
+      const parent = await ParentModel.findById(invoice.parentId)
+        .select("email firstName lastName")
+        .lean();
+      const organisation = invoice.organisationId
+        ? await OrganizationModel.findById(invoice.organisationId)
+            .select("name")
+            .lean()
+        : null;
+      const parentName = parent
+        ? [parent.firstName, parent.lastName].filter(Boolean).join(" ")
+        : undefined;
+      const amountText =
+        typeof invoice.totalAmount === "number" && invoice.currency
+          ? `${invoice.currency.toUpperCase()} ${invoice.totalAmount.toFixed(2)}`
+          : undefined;
+
+      if (parent?.email) {
+        try {
+          await sendEmailTemplate({
+            to: parent.email,
+            templateId: "invoicePaymentCheckout",
+            templateData: {
+              parentName,
+              organisationName: organisation?.name ?? undefined,
+              invoiceId: invoice._id.toString(),
+              amountText,
+              checkoutUrl: checkout.url,
+              ctaUrl: checkout.url,
+              ctaLabel: "Pay Invoice",
+              supportEmail: SUPPORT_EMAIL_ADDRESS,
+            },
+          });
+          emailSent = true;
+        } catch (error) {
+          logger.error("Failed to send invoice checkout email.", error);
+        }
+      }
+    }
+
+    return { checkout, emailSent };
   },
 };

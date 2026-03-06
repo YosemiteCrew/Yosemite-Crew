@@ -7,13 +7,19 @@ const FormSchema = new Schema<Form>(
   {
     orgId: { type: String, required: true },
 
+    businessType: {
+      type: String,
+      enum: ["HOSPITAL", "BREEDER", "BOARDER", "GROOMER"],
+      required: false,
+    },
+
     name: { type: String, required: true },
     category: { type: String, required: true },
     description: String,
 
     visibilityType: {
       type: String,
-      enum: ["Internal", "External"],
+      enum: ["Internal", "External", "Internal_External"],
       required: true,
     },
 
@@ -26,6 +32,12 @@ const FormSchema = new Schema<Form>(
     speciesFilter: {
       type: [String],
       default: undefined,
+    },
+
+    requiredSigner: {
+      type: String,
+      enum: ["CLIENT", "VET"],
+      required: false,
     },
 
     status: {
@@ -49,6 +61,7 @@ const FormSchema = new Schema<Form>(
 
 FormSchema.index({ orgId: 1, status: 1 });
 FormSchema.index({ orgId: 1, category: 1 });
+FormSchema.index({ orgId: 1, businessType: 1, category: 1, status: 1 });
 FormSchema.index({ serviceId: 1 });
 FormSchema.index({ status: 1 });
 
@@ -148,6 +161,28 @@ export const FormVersionModel = model<IFormVersionDocument>(
 );
 
 // Schema for FormSubmission
+export interface SigningInfo {
+  required: boolean;
+
+  status: "NOT_STARTED" | "IN_PROGRESS" | "SIGNED";
+
+  provider: "DOCUMENSO";
+
+  documentId?: string;
+
+  signedAt?: Date;
+
+  signer?: {
+    userId?: string;
+    email?: string;
+    role: "CLIENT" | "VET";
+  };
+
+  pdf?: {
+    url?: string;
+    sha256?: string;
+  };
+}
 
 export interface FormSubmissionDocument {
   formId: Schema.Types.ObjectId; // Reference to Form
@@ -158,6 +193,7 @@ export interface FormSubmissionDocument {
   submittedBy?: string;
   answers: Record<string, unknown>;
   submittedAt: Date;
+  signing?: SigningInfo;
 }
 
 const FormSubmissionSchema = new Schema<FormSubmissionDocument>(
@@ -176,6 +212,38 @@ const FormSubmissionSchema = new Schema<FormSubmissionDocument>(
     },
 
     submittedAt: { type: Date, default: Date.now },
+
+    signing: {
+      required: { type: Boolean, default: false },
+
+      status: {
+        type: String,
+        enum: ["NOT_STARTED", "IN_PROGRESS", "SIGNED"],
+      },
+
+      provider: {
+        type: String,
+        enum: ["DOCUMENSO"],
+      },
+
+      documentId: String,
+
+      signedAt: Date,
+
+      signer: {
+        userId: String,
+        email: String,
+        role: {
+          type: String,
+          enum: ["CLIENT", "VET"],
+        },
+      },
+
+      pdf: {
+        url: String,
+        sha256: String,
+      },
+    },
   },
   { timestamps: true },
 );
@@ -186,6 +254,7 @@ FormSubmissionSchema.index({ appointmentId: 1 });
 FormSubmissionSchema.index({ companionId: 1 });
 FormSubmissionSchema.index({ parentId: 1 });
 FormSubmissionSchema.index({ submittedAt: -1 });
+FormSubmissionSchema.index({ "signing.documentId": 1 });
 
 export const FormSubmissionModel = model<FormSubmissionDocument>(
   "FormSubmission",

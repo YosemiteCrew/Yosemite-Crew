@@ -11,6 +11,28 @@ if (typeof global.__DEV__ === 'undefined') {
   global.__DEV__ = true;
 }
 
+// Reduce noisy warnings in test output (keeps other warnings visible)
+const originalConsoleWarn = console.warn.bind(console);
+console.warn = (...args) => {
+  const first = args[0];
+  if (
+    typeof first === 'string' &&
+    (first.includes('Unable to resolve ../../../lib/commonjs/spec/NativeDocumentPicker') ||
+      first.includes('ToastAndroid is not supported on this platform.'))
+  ) {
+    return;
+  }
+  return originalConsoleWarn(...args);
+};
+
+// ToastAndroid fallback logs warnings in Jest; stub it to a no-op.
+try {
+  const rn = require('react-native');
+  if (rn?.ToastAndroid) {
+    rn.ToastAndroid.show = jest.fn();
+  }
+} catch {}
+
 try {
   const {Platform} = require('react-native');
   Platform.constants = Platform.constants || {};
@@ -133,6 +155,19 @@ jest.mock('@callstack/liquid-glass', () => {
   };
 });
 
+// Mock safe area context helpers for screens relying on insets
+jest.mock('react-native-safe-area-context', () => {
+  const React = require('react');
+  const {View} = require('react-native');
+  return {
+    __esModule: true,
+    SafeAreaView: ({children, ...props}) =>
+      React.createElement(View, props, children),
+    SafeAreaProvider: ({children}) => children,
+    useSafeAreaInsets: () => ({top: 0, right: 0, bottom: 0, left: 0}),
+  };
+});
+
 // Mock Gorhom Bottom Sheet to avoid requiring native implementation in tests
 jest.mock('@gorhom/bottom-sheet', () => {
   const React = require('react');
@@ -200,6 +235,40 @@ jest.mock('@gorhom/bottom-sheet', () => {
   };
 });
 
+// Provide a shared jest.fn-based mock for the theme hook so tests can override
+try {
+  jest.mock('@/hooks', () => {
+    /**
+     * Avoid spreading `jest.requireActual('@/hooks')` here.
+     *
+     * The `src/hooks/index.ts` module uses re-export getters (e.g. `export {useAppDispatch} ...`).
+     * Spreading/enumerating the actual export object eagerly evaluates those getters during setup,
+     * which can throw in Jest if some dependencies haven't been initialized yet.
+     *
+     * Instead, load the actual module and override `useTheme` in-place without enumerating.
+     */
+    const actual = jest.requireActual('@/hooks');
+    const {createMockUseTheme} = require('./__tests__/setup/mockTheme');
+    const mockUseTheme = jest.fn(() => createMockUseTheme());
+
+    try {
+      Object.defineProperty(actual, 'useTheme', {
+        value: mockUseTheme,
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      });
+    } catch {
+      // Fallback if defineProperty fails for any reason
+      actual.useTheme = mockUseTheme;
+    }
+
+    return actual;
+  });
+} catch {
+  // Ignore if helper is unavailable; individual tests can still mock useTheme
+}
+
 // Mock react-native-blob-util to avoid requiring native modules in tests
 jest.mock('react-native-blob-util', () => {
   const mockFetch = jest.fn(() =>
@@ -225,6 +294,16 @@ jest.mock('react-native-blob-util', () => {
     wrap: mockWrap,
   };
 });
+
+// Mock clipboard to avoid TurboModuleRegistry errors in tests
+jest.mock('@react-native-clipboard/clipboard', () => ({
+  __esModule: true,
+  default: {
+    getString: jest.fn(),
+    setString: jest.fn(),
+    hasString: jest.fn(),
+  },
+}));
 
 // Safe area context mock to avoid native dependency requirements
 jest.mock('react-native-safe-area-context', () => {

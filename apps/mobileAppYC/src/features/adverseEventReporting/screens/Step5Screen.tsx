@@ -365,7 +365,7 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
             label="Tablet - Piece"
             labelStyle={styles.checkboxLabelInline}
           />
-          <View style={{width: theme.spacing[4]}} />
+          <View style={{width: theme.spacing['4']}} />
           <Checkbox
             value={formData.quantityUnit === 'liquid'}
             onValueChange={val =>
@@ -506,17 +506,17 @@ const createStyles = (theme: any) =>
     sectionTitle: {
       ...theme.typography.h6Clash,
       color: theme.colors.secondary,
-      marginBottom: theme.spacing[4],
+      marginBottom: theme.spacing['4'],
     },
     input: {
-      marginBottom: theme.spacing[4],
+      marginBottom: theme.spacing['4'],
     },
     checkboxRow: {
       flexDirection: 'row',
       alignItems: 'center',
       paddingLeft: 10,
-      marginBottom: theme.spacing[2],
-      marginTop: theme.spacing[1],
+      marginBottom: theme.spacing['2'],
+      marginTop: theme.spacing['1'],
     },
     checkboxLabel: {
       ...theme.typography.body,
@@ -528,21 +528,21 @@ const createStyles = (theme: any) =>
       flex: 0,
     },
     uploadSection: {
-      marginBottom: theme.spacing[6],
+      marginBottom: theme.spacing['6'],
     },
     uploadLabel: {
       // Satoshi 14 Bold, 120% line-height
       ...theme.typography.subtitleBold14,
       color: theme.colors.secondary,
       opacity: 1,
-      marginBottom: theme.spacing[3],
+      marginBottom: theme.spacing['3'],
     },
     uploadButton: {
       borderWidth: 2,
       borderColor: theme.colors.primary,
       borderStyle: 'dashed',
       borderRadius: theme.borderRadius.lg,
-      paddingVertical: theme.spacing[8],
+      paddingVertical: theme.spacing['8'],
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -550,7 +550,7 @@ const createStyles = (theme: any) =>
       width: 40,
       height: 40,
       resizeMode: 'contain',
-      marginBottom: theme.spacing[2],
+      marginBottom: theme.spacing['2'],
       tintColor: theme.colors.primary,
     },
     uploadText: {

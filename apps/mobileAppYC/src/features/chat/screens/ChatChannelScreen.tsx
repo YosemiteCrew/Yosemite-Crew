@@ -19,7 +19,6 @@ import {
   OverlayProvider,
   MessageInput,
 } from 'stream-chat-react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
 import type {Channel as StreamChannel} from 'stream-chat';
 import {useRoute, useNavigation} from '@react-navigation/native';
 import type {NavigationProp} from '@react-navigation/native';
@@ -35,6 +34,7 @@ import {GifLoader} from '@/shared/components/common';
 import {selectAuthUser} from '@/features/auth/selectors';
 import {CustomAttachment} from '../components/CustomAttachment';
 import type {TabParamList} from '@/navigation/types';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
 type RouteParams = {
   appointmentId: string;
@@ -79,7 +79,7 @@ export const ChatChannelScreen: React.FC = () => {
       const displayName =
         [authUser.firstName, authUser.lastName].filter(Boolean).join(' ').trim() ||
         authUser.email ||
-        'Pet Owner';
+        'Pet Parent';
       const avatar = authUser.profilePicture ?? undefined;
       const chatUserId = authUser.parentId ?? authUser.id;
 
@@ -166,125 +166,144 @@ export const ChatChannelScreen: React.FC = () => {
     };
   }, [initChat]);
 
+  const handleBackPress = useCallback(() => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation
+        .getParent<NavigationProp<TabParamList> | undefined>()
+        ?.navigate?.('Appointments', {screen: 'MyAppointments'});
+    }
+  }, [navigation]);
+
   // Loading state
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <Header
-          title={doctorName}
-          showBackButton
-          onBack={() => navigation.goBack()}
-        />
-        <View style={styles.centerContainer}>
-          <GifLoader />
-        </View>
-      </SafeAreaView>
+      <LiquidGlassHeaderScreen
+        header={
+          <Header
+            title={doctorName}
+            showBackButton
+            onBack={handleBackPress}
+            glass={false}
+          />
+        }
+        useSafeAreaView
+        containerStyle={styles.container}
+        showBottomFade={false}>
+        {() => (
+          <View style={styles.contentWrapper}>
+            <View style={styles.centerContainer}>
+              <GifLoader />
+            </View>
+          </View>
+        )}
+      </LiquidGlassHeaderScreen>
     );
   }
 
   // Error state
   if (error || !channel || !client) {
     return (
-      <SafeAreaView style={styles.container}>
-        <Header
-          title={doctorName}
-          showBackButton
-          onBack={() => navigation.goBack()}
-        />
-        <View style={styles.centerContainer}>
-          <Text style={styles.errorText}>
-            {error || 'Unable to load chat'}
-          </Text>
-          <Text style={styles.errorSubtext}>
-            {!error && 'Please check your connection and try again'}
-          </Text>
-        </View>
-      </SafeAreaView>
+      <LiquidGlassHeaderScreen
+        header={
+          <Header
+            title={doctorName}
+            showBackButton
+            onBack={handleBackPress}
+            glass={false}
+          />
+        }
+        useSafeAreaView
+        containerStyle={styles.container}
+        showBottomFade={false}>
+        {() => (
+          <View style={styles.contentWrapper}>
+            <View style={styles.centerContainer}>
+              <Text style={styles.errorText}>
+                {error || 'Unable to load chat'}
+              </Text>
+              <Text style={styles.errorSubtext}>
+                {!error && 'Please check your connection and try again'}
+              </Text>
+            </View>
+          </View>
+        )}
+      </LiquidGlassHeaderScreen>
     );
   }
 
   // Chat UI
   return (
-    <SafeAreaView style={styles.root}>
-      <Header
-        title={doctorName}
-        showBackButton
-        onBack={() => {
-          if (navigation.canGoBack()) {
-            navigation.goBack();
-          } else {
-            navigation
-              .getParent<NavigationProp<TabParamList> | undefined>()
-              ?.navigate?.('Appointments', {screen: 'MyAppointments'});
-          }
-        }}
-      />
-      <View style={styles.chatWrapper}>
-        <OverlayProvider>
-          <Chat client={client}>
-            <Channel
-              channel={channel}
-              Attachment={CustomAttachment}
-            >
-              <MessageList
-                onThreadSelect={threadMessage => {
-                  if (threadMessage?.id) {
-                    console.log('[Chat] Thread selected:', threadMessage.id);
-                  }
-                }}
-              />
-              <MessageInput
-              />
-            </Channel>
-          </Chat>
-        </OverlayProvider>
-      </View>
-    </SafeAreaView>
+    <LiquidGlassHeaderScreen
+      header={
+        <Header
+          title={doctorName}
+          showBackButton
+          onBack={handleBackPress}
+          glass={false}
+        />
+      }
+      useSafeAreaView
+      containerStyle={styles.container}
+      showBottomFade={false}>
+      {() => (
+        <View style={styles.contentWrapper}>
+          <View style={styles.chatWrapper}>
+            <OverlayProvider>
+              <Chat client={client}>
+                <Channel
+                  channel={channel}
+                  Attachment={CustomAttachment}
+                >
+                  <MessageList
+                    onThreadSelect={threadMessage => {
+                      if (threadMessage?.id) {
+                        console.log('[Chat] Thread selected:', threadMessage.id);
+                      }
+                    }}
+                  />
+                  <MessageInput
+                  />
+                </Channel>
+              </Chat>
+            </OverlayProvider>
+          </View>
+        </View>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    // Main SafeAreaView - takes full screen including safe areas
-    root: {
-      flex: 1,
-      backgroundColor: theme.colors.background || '#fff',
-      flexDirection: 'column',
-    },
-    // Chat container - takes remaining space after header
-    chatWrapper: {
-      flex: 1,
-      backgroundColor: theme.colors.background || '#fff',
-    },
-    // Loading/Error states
     container: {
       flex: 1,
-      backgroundColor: theme.colors.background || '#fff',
+      backgroundColor: theme.colors.background,
+    },
+    contentWrapper: {
+      flex: 1,
+    },
+    chatWrapper: {
+      flex: 1,
+      paddingBottom: theme.spacing['6'],
     },
     centerContainer: {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
-      paddingHorizontal: 20,
-    },
-    loadingText: {
-      marginTop: 16,
-      fontSize: 16,
-      color: theme.colors.textSecondary || '#666',
-      ...theme.typography?.bodyMedium,
+      paddingHorizontal: theme.spacing['5'],
     },
     errorText: {
-      fontSize: 16,
-      color: theme.colors.error || '#ff0000',
+      ...theme.typography.body,
+      color: theme.colors.error,
       textAlign: 'center',
-      marginBottom: 8,
-      ...theme.typography?.bodyMedium,
+      marginBottom: theme.spacing['2'],
     },
     errorSubtext: {
-      fontSize: 14,
-      color: theme.colors.textSecondary || '#999',
+      ...theme.typography.bodySmall,
+      color: theme.colors.textSecondary,
       textAlign: 'center',
-      ...theme.typography?.bodySmall,
     },
   });
 
