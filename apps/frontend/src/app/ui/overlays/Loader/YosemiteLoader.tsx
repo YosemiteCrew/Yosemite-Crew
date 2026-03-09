@@ -1,8 +1,7 @@
-/* eslint-disable @next/next/no-img-element */
-import React from "react";
-import "./YosemiteLoader.css";
+import React from 'react';
+import './YosemiteLoader.css';
 
-type LoaderVariant = "inline" | "fullscreen";
+type LoaderVariant = 'inline' | 'fullscreen' | 'fullscreen-translucent';
 
 type YosemiteLoaderProps = {
   variant?: LoaderVariant;
@@ -12,19 +11,20 @@ type YosemiteLoaderProps = {
 };
 
 const YosemiteLoader: React.FC<YosemiteLoaderProps> = ({
-  variant = "inline",
+  variant = 'inline',
   label,
   size = 80,
   testId,
 }) => {
-  const isFullscreen = variant === "fullscreen";
+  const variantClass =
+    variant === 'fullscreen'
+      ? 'yosemite-loader--fullscreen'
+      : variant === 'fullscreen-translucent'
+        ? 'yosemite-loader--fullscreen-translucent'
+        : 'yosemite-loader--inline';
 
   return (
-    <output
-      className={`yosemite-loader ${isFullscreen ? "yosemite-loader--fullscreen" : "yosemite-loader--inline"}`}
-      aria-live="polite"
-      data-testid={testId}
-    >
+    <output className={`yosemite-loader ${variantClass}`} aria-live="polite" data-testid={testId}>
       <img
         src="/assets/yosemiteLoader.gif"
         alt="Loading"

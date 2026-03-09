@@ -1,5 +1,6 @@
 'use client';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import TasksTable from '@/app/ui/tables/Tasks';
 import AddTask from '@/app/features/tasks/pages/Tasks/Sections/AddTask';
@@ -7,6 +8,7 @@ import TaskInfo from '@/app/features/tasks/pages/Tasks/Sections/TaskInfo';
 import TitleCalendar from '@/app/ui/widgets/TitleCalendar';
 import { startOfDay } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import TaskCalendar from '@/app/features/appointments/components/Calendar/TaskCalendar';
+import TaskBoard from '@/app/features/tasks/components/TaskBoard';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import { useTasksForPrimaryOrg } from '@/app/hooks/useTask';
 import { Task, TaskFilters, TaskStatusFilters } from '@/app/features/tasks/types/task';
@@ -22,6 +24,11 @@ const Tasks = () => {
   const { can } = usePermissions();
   const canEditTasks = can(PERMISSIONS.TASKS_EDIT_ANY);
   const query = useSearchStore((s) => s.query);
+  const searchParams = useSearchParams();
+  const handledDeepLinkRef = useRef<string | null>(null);
+  const plannerSectionRef = useRef<HTMLDivElement | null>(null);
+  const plannerAutoLockRef = useRef(false);
+  const lastScrollYRef = useRef(0);
   const [activeFilter, setActiveFilter] = useState('all');
   const [activeStatus, setActiveStatus] = useState('all');
   const [addPopup, setAddPopup] = useState(false);
@@ -31,6 +38,42 @@ const Tasks = () => {
   const [activeView, setActiveView] = useState('calendar');
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [weekStart, setWeekStart] = useState(startOfDay(currentDate));
+
+  useEffect(() => {
+    if (activeView === 'list') return;
+    if (typeof window === 'undefined') return;
+
+    lastScrollYRef.current = window.scrollY;
+
+    const onScroll = () => {
+      const section = plannerSectionRef.current;
+      if (!section) return;
+
+      const currentY = window.scrollY;
+      const isScrollingDown = currentY > lastScrollYRef.current;
+      lastScrollYRef.current = currentY;
+
+      const rect = section.getBoundingClientRect();
+      const shouldLockToSection =
+        isScrollingDown &&
+        rect.top <= 140 &&
+        rect.top >= -220 &&
+        rect.bottom > window.innerHeight * 0.55;
+
+      if (shouldLockToSection && !plannerAutoLockRef.current) {
+        plannerAutoLockRef.current = true;
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+
+      if (rect.top > 220) {
+        plannerAutoLockRef.current = false;
+      }
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [activeView]);
 
   useEffect(() => {
     if (activeCalendar === 'week') {
@@ -49,6 +92,19 @@ const Tasks = () => {
     });
   }, [tasks]);
 
+  useEffect(() => {
+    const taskId = String(searchParams.get('taskId') ?? '').trim();
+    if (!taskId) return;
+    if (handledDeepLinkRef.current === taskId) return;
+
+    const target = tasks.find((task) => task._id === taskId);
+    if (!target) return;
+
+    setActiveTask(target);
+    setViewPopup(true);
+    handledDeepLinkRef.current = taskId;
+  }, [tasks, searchParams]);
+
   const filteredList = useMemo(() => {
     const q = query.trim().toLowerCase();
     const filterWanted = activeFilter.toLowerCase();
@@ -58,13 +114,14 @@ const Tasks = () => {
       const status = item.status?.toLowerCase();
       const filter = item.audience?.toLowerCase();
 
-      const matchesStatus = statusWanted === 'all' || status === statusWanted;
+      const matchesStatus =
+        activeView === 'board' || statusWanted === 'all' || status === statusWanted;
       const matchesFilter = filterWanted === 'all' || filter === filterWanted;
       const matchesQuery = !q || item.name?.toLowerCase().includes(q);
 
       return matchesStatus && matchesFilter && matchesQuery;
     });
-  }, [tasks, activeStatus, activeFilter, query]);
+  }, [tasks, activeStatus, activeFilter, query, activeView]);
 
   return (
     <div className="flex flex-col relative">
@@ -81,38 +138,61 @@ const Tasks = () => {
           activeView={activeView}
           setActiveView={setActiveView}
           showAdd={canEditTasks}
+          viewOptions={['calendar', 'board', 'list']}
         />
 
         <PermissionGate allOf={[PERMISSIONS.TASKS_VIEW_ANY]} fallback={<Fallback />}>
           <div className="w-full flex flex-col gap-3">
-            <Filters
-              filterOptions={TaskFilters}
-              statusOptions={TaskStatusFilters}
-              activeFilter={activeFilter}
-              activeStatus={activeStatus}
-              setActiveFilter={setActiveFilter}
-              setActiveStatus={setActiveStatus}
-            />
-            {activeView === 'calendar' ? (
-              <TaskCalendar
-                filteredList={filteredList}
-                allTasks={tasks}
-                setActiveTask={setActiveTask}
-                setViewPopup={setViewPopup}
-                activeCalendar={activeCalendar}
-                currentDate={currentDate}
-                setCurrentDate={setCurrentDate}
-                weekStart={weekStart}
-                setWeekStart={setWeekStart}
-                canEditTasks={canEditTasks}
-              />
-            ) : (
-              <TasksTable
-                filteredList={filteredList}
-                setActiveTask={setActiveTask}
-                setViewPopup={setViewPopup}
+            {activeView !== 'board' && (
+              <Filters
+                filterOptions={TaskFilters}
+                statusOptions={TaskStatusFilters}
+                activeFilter={activeFilter}
+                activeStatus={activeStatus}
+                setActiveFilter={setActiveFilter}
+                setActiveStatus={setActiveStatus}
               />
             )}
+            <div
+              ref={plannerSectionRef}
+              className={
+                activeView === 'list'
+                  ? 'w-full'
+                  : 'w-full h-[calc(100vh-220px)] min-h-[620px] max-h-[calc(100vh-220px)]'
+              }
+            >
+              {activeView === 'calendar' ? (
+                <TaskCalendar
+                  filteredList={filteredList}
+                  allTasks={tasks}
+                  setActiveTask={setActiveTask}
+                  setViewPopup={setViewPopup}
+                  activeCalendar={activeCalendar}
+                  setActiveCalendar={setActiveCalendar}
+                  currentDate={currentDate}
+                  setCurrentDate={setCurrentDate}
+                  weekStart={weekStart}
+                  setWeekStart={setWeekStart}
+                  canEditTasks={canEditTasks}
+                />
+              ) : activeView === 'board' ? (
+                <TaskBoard
+                  tasks={filteredList}
+                  currentDate={currentDate}
+                  setCurrentDate={setCurrentDate}
+                  canEditTasks={canEditTasks}
+                  setActiveTask={setActiveTask}
+                  setViewPopup={setViewPopup}
+                  onAddTask={() => setAddPopup(true)}
+                />
+              ) : (
+                <TasksTable
+                  filteredList={filteredList}
+                  setActiveTask={setActiveTask}
+                  setViewPopup={setViewPopup}
+                />
+              )}
+            </div>
           </div>
 
           <AddTask showModal={addPopup} setShowModal={setAddPopup} />

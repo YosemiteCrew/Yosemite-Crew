@@ -231,4 +231,155 @@ export const utcClockTimeToMinutesInPreferredTimeZone = (value: string): number 
   return hour * 60 + minute;
 };
 
+export type PreferredTimeZoneClock = {
+  minutes: number;
+  dayOffset: number;
+};
+
+export const utcClockTimeToPreferredTimeZoneClock = (value: string): PreferredTimeZoneClock => {
+  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(value);
+  if (!match) return { minutes: 0, dayOffset: 0 };
+  const targetDate = new Date(Date.UTC(1970, 0, 1, Number(match[1]), Number(match[2]), 0, 0));
+  const tz = getPreferredTimeZone();
+
+  const parseDateParts = (date: Date) => {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(date);
+
+    const getPart = (type: Intl.DateTimeFormatPartTypes) =>
+      Number(parts.find((part) => part.type === type)?.value ?? '0');
+
+    return {
+      year: getPart('year'),
+      month: getPart('month'),
+      day: getPart('day'),
+      hour: getPart('hour'),
+      minute: getPart('minute'),
+    };
+  };
+
+  const baseParts = parseDateParts(new Date(Date.UTC(1970, 0, 1, 0, 0, 0, 0)));
+  const targetParts = parseDateParts(targetDate);
+
+  const baseDayIndex = Math.floor(
+    Date.UTC(baseParts.year, baseParts.month - 1, baseParts.day) / 86_400_000
+  );
+  const targetDayIndex = Math.floor(
+    Date.UTC(targetParts.year, targetParts.month - 1, targetParts.day) / 86_400_000
+  );
+
+  return {
+    minutes: targetParts.hour * 60 + targetParts.minute,
+    dayOffset: targetDayIndex - baseDayIndex,
+  };
+};
+
+export type PreferredTimeZoneDateParts = {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+};
+
+const getLocalDateKey = (value: Date): string => {
+  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(
+    value.getDate()
+  ).padStart(2, '0')}`;
+};
+
+export const getDatePartsInPreferredTimeZone = (value: Date): PreferredTimeZoneDateParts => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: getPreferredTimeZone(),
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(value);
+
+  const getPart = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value ?? '0');
+
+  return {
+    year: getPart('year'),
+    month: getPart('month'),
+    day: getPart('day'),
+    hour: getPart('hour'),
+    minute: getPart('minute'),
+  };
+};
+
+export const getDateKeyInPreferredTimeZone = (value: Date): string => {
+  const parts = getDatePartsInPreferredTimeZone(value);
+  return `${parts.year}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(
+    2,
+    '0'
+  )}`;
+};
+
+export const isOnPreferredTimeZoneCalendarDay = (value: Date, calendarDay: Date): boolean => {
+  return getDateKeyInPreferredTimeZone(value) === getLocalDateKey(calendarDay);
+};
+
+export const getMinutesSinceStartOfDayInPreferredTimeZone = (value: Date): number => {
+  const parts = getDatePartsInPreferredTimeZone(value);
+  return parts.hour * 60 + parts.minute;
+};
+
+export const getHourInPreferredTimeZone = (value: Date): number => {
+  return getDatePartsInPreferredTimeZone(value).hour;
+};
+
+const getOffsetMinutesForTimeZoneAtInstant = (timeZone: string, instant: Date): number => {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    timeZoneName: 'shortOffset',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  });
+  const offsetLabel = formatter
+    .formatToParts(instant)
+    .find((part) => part.type === 'timeZoneName')?.value;
+  const match = /GMT([+-])(\d{1,2})(?::?(\d{2}))?/.exec(offsetLabel ?? '');
+  if (!match) return 0;
+  const sign = match[1] === '-' ? -1 : 1;
+  const hours = Number(match[2] ?? '0');
+  const minutes = Number(match[3] ?? '0');
+  return sign * (hours * 60 + minutes);
+};
+
+export const buildDateInPreferredTimeZone = (calendarDay: Date, minuteOfDay: number): Date => {
+  const year = calendarDay.getFullYear();
+  const month = calendarDay.getMonth();
+  const day = calendarDay.getDate();
+  const clampedMinute = Math.max(0, Math.min(24 * 60 - 1, Math.round(minuteOfDay)));
+  const hour = Math.floor(clampedMinute / 60);
+  const minute = clampedMinute % 60;
+  const naiveUtcMs = Date.UTC(year, month, day, hour, minute, 0, 0);
+  const timeZone = getPreferredTimeZone();
+
+  let instant = new Date(naiveUtcMs);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const offsetMinutes = getOffsetMinutesForTimeZoneAtInstant(timeZone, instant);
+    const nextInstant = new Date(naiveUtcMs - offsetMinutes * 60_000);
+    if (Math.abs(nextInstant.getTime() - instant.getTime()) < 60_000) {
+      instant = nextInstant;
+      break;
+    }
+    instant = nextInstant;
+  }
+
+  return instant;
+};
+
 export { TIMEZONE_STORAGE_KEY, DEFAULT_TIMEZONE };

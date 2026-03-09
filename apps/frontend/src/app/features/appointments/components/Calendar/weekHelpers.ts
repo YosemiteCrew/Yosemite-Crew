@@ -1,6 +1,6 @@
 import { Appointment } from '@yosemite-crew/types';
-import { isSameDay } from '@/app/features/appointments/components/Calendar/helpers';
 import { formatDisplayDate } from '@/app/lib/date';
+import { getHourInPreferredTimeZone, isOnPreferredTimeZoneCalendarDay } from '@/app/lib/timezone';
 
 export const HOURS_IN_DAY = 24;
 
@@ -21,7 +21,10 @@ export function getWeekDays(weekStart: Date): Date[] {
 
 export function eventsForDayHour(events: Appointment[], day: Date, hour: number): Appointment[] {
   return events.filter((ev) => {
-    return isSameDay(ev.startTime, day) && ev.startTime.getHours() === hour;
+    return (
+      isOnPreferredTimeZoneCalendarDay(ev.startTime, day) &&
+      getHourInPreferredTimeZone(ev.startTime) === hour
+    );
   });
 }
 

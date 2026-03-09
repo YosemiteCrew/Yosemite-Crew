@@ -1,5 +1,6 @@
 'use client';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import Filters from '@/app/ui/filters/Filters';
@@ -28,6 +29,8 @@ const Companions = () => {
   const canEditAppointments = can(PERMISSIONS.APPOINTMENTS_EDIT_ANY);
   const canEditTasks = can(PERMISSIONS.TASKS_EDIT_ANY);
   const query = useSearchStore((s) => s.query);
+  const searchParams = useSearchParams();
+  const handledDeepLinkRef = useRef<string | null>(null);
   const [activeFilter, setActiveFilter] = useState('all');
   const [activeStatus, setActiveStatus] = useState('all');
   const [addPopup, setAddPopup] = useState(false);
@@ -48,6 +51,19 @@ const Companions = () => {
       return companions[0];
     });
   }, [companions]);
+
+  useEffect(() => {
+    const companionId = String(searchParams.get('companionId') ?? '').trim();
+    if (!companionId) return;
+    if (handledDeepLinkRef.current === companionId) return;
+
+    const target = companions.find((item) => item.companion.id === companionId);
+    if (!target) return;
+
+    setActiveCompanion(target);
+    setViewCompanion(true);
+    handledDeepLinkRef.current = companionId;
+  }, [companions, searchParams]);
 
   const filteredList = useMemo(() => {
     const q = query.trim().toLowerCase();

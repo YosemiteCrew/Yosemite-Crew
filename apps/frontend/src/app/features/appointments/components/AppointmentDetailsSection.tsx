@@ -1,7 +1,7 @@
-import React from "react";
-import Accordion from "@/app/ui/primitives/Accordion/Accordion";
-import LabelDropdown from "@/app/ui/inputs/Dropdown/LabelDropdown";
-import FormDesc from "@/app/ui/inputs/FormDesc/FormDesc";
+import React from 'react';
+import Accordion from '@/app/ui/primitives/Accordion/Accordion';
+import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
+import FormDesc from '@/app/ui/inputs/FormDesc/FormDesc';
 
 type Option = { label: string; value: string };
 
@@ -15,7 +15,13 @@ type AppointmentDetailsSectionProps = {
   servicesOptions: Option[];
   onServiceSelect: (option: Option) => void;
   concern: string;
+  concernError?: string;
   onConcernChange: (value: string) => void;
+  onConcernFocus?: () => void;
+  onConcernBlur?: () => void;
+  defaultOpen?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
 const AppointmentDetailsSection = ({
@@ -28,10 +34,19 @@ const AppointmentDetailsSection = ({
   servicesOptions,
   onServiceSelect,
   concern,
+  concernError,
   onConcernChange,
+  onConcernFocus,
+  onConcernBlur,
+  defaultOpen,
+  open,
+  onOpenChange,
 }: AppointmentDetailsSectionProps) => (
   <Accordion
     title="Appointment details"
+    defaultOpen={defaultOpen}
+    open={open}
+    onOpenChange={onOpenChange}
     showEditIcon={false}
     isEditing={true}
   >
@@ -55,7 +70,10 @@ const AppointmentDetailsSection = ({
         inname="Describe concern"
         value={concern}
         inlabel="Describe concern"
+        error={concernError}
         onChange={(e) => onConcernChange(e.target.value)}
+        onFocus={() => onConcernFocus?.()}
+        onBlur={() => onConcernBlur?.()}
         className="min-h-[120px]!"
       />
     </div>

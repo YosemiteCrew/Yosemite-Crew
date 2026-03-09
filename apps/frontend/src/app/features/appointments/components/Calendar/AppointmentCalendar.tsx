@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { isSameDay } from '@/app/features/appointments/components/Calendar/helpers';
 import DayCalendar from '@/app/features/appointments/components/Calendar/common/DayCalendar';
 import Header from '@/app/features/appointments/components/Calendar/common/Header';
 import WeekCalendar from '@/app/features/appointments/components/Calendar/common/WeekCalendar';
 import { Appointment } from '@yosemite-crew/types';
 import UserCalendar from '@/app/features/appointments/components/Calendar/common/UserCalendar';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
+import { AppointmentDraftPrefill } from '@/app/features/appointments/types/calendar';
 import { allowCalendarDrag } from '@/app/lib/appointments';
 import {
   getSlotsForServiceAndDateForPrimaryOrg,
@@ -14,7 +14,17 @@ import {
 import { Slot } from '@/app/features/appointments/types/appointments';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { getWeekDays } from '@/app/features/appointments/components/Calendar/weekHelpers';
-import { utcClockTimeToMinutesInPreferredTimeZone } from '@/app/lib/timezone';
+import {
+  buildDateInPreferredTimeZone,
+  formatDateInPreferredTimeZone,
+  isOnPreferredTimeZoneCalendarDay,
+  utcClockTimeToPreferredTimeZoneClock,
+} from '@/app/lib/timezone';
+import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
+import { useAuthStore } from '@/app/stores/authStore';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { useAvailabilityStore } from '@/app/stores/availabilityStore';
+import { useLoadAvailabilities } from '@/app/hooks/useAvailabiities';
 
 type AppointmentCalendarProps = {
   filteredList: Appointment[];
@@ -24,12 +34,15 @@ type AppointmentCalendarProps = {
   setViewIntent?: (intent: AppointmentViewIntent | null) => void;
   setChangeStatusPopup?: (open: boolean) => void;
   activeCalendar: string;
+  setActiveCalendar?: React.Dispatch<React.SetStateAction<string>>;
   currentDate: Date;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   weekStart: Date;
   setWeekStart: React.Dispatch<React.SetStateAction<Date>>;
   setReschedulePopup: React.Dispatch<React.SetStateAction<boolean>>;
   canEditAppointments: boolean;
+  onCreateFromCalendarSlot?: (prefill: AppointmentDraftPrefill) => void;
+  onAddAppointment?: () => void;
 };
 
 type DropAvailabilityInterval = {
@@ -51,22 +64,58 @@ const AppointmentCalendar = ({
   setViewIntent,
   setChangeStatusPopup,
   activeCalendar,
+  setActiveCalendar,
   currentDate,
   setCurrentDate,
   weekStart,
   setWeekStart,
   setReschedulePopup,
   canEditAppointments,
+  onCreateFromCalendarSlot,
+  onAddAppointment,
 }: AppointmentCalendarProps) => {
+  const getErrorMessage = useCallback((error: unknown, fallback: string) => {
+    const candidate = error as
+      | { response?: { data?: unknown } }
+      | { data?: unknown }
+      | { message?: string };
+
+    const responseData =
+      candidate && 'response' in candidate ? candidate.response?.data : undefined;
+    if (typeof responseData === 'string' && responseData.trim()) return responseData.trim();
+    if (responseData && typeof responseData === 'object') {
+      const data = responseData as Record<string, unknown>;
+      const nestedMessage =
+        (typeof data.message === 'string' && data.message) ||
+        (typeof data.error === 'string' && data.error) ||
+        (typeof data.details === 'string' && data.details);
+      if (nestedMessage && nestedMessage.trim()) return nestedMessage.trim();
+    }
+
+    if (candidate && typeof candidate === 'object' && 'message' in candidate) {
+      const message = candidate.message;
+      if (typeof message === 'string' && message.trim()) return message.trim();
+    }
+    return fallback;
+  }, []);
+
   const [draggedAppointmentId, setDraggedAppointmentId] = useState<string | null>(null);
   const [draggedAppointmentLabel, setDraggedAppointmentLabel] = useState<string | null>(null);
   const [dragError, setDragError] = useState<string | null>(null);
   const [dragContext, setDragContext] = useState<DragContext | null>(null);
+  const [zoomMode, setZoomMode] = useState<CalendarZoomMode>('in');
   const [availabilityVersion, setAvailabilityVersion] = useState(0);
   const slotsCacheRef = useRef<Partial<Record<string, Slot[]>>>({});
   const dragAvailabilityCacheRef = useRef<Partial<Record<string, number[]>>>({});
   const dragAvailabilityPendingRef = useRef<Partial<Record<string, Promise<void>>>>({});
   const teams = useTeamForPrimaryOrg();
+  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
+  const availabilityIdsByOrgId = useAvailabilityStore((s) => s.availabilityIdsByOrgId);
+  const availabilitiesById = useAvailabilityStore((s) => s.availabilitiesById);
+  useLoadAvailabilities();
+  const authUserId = useAuthStore(
+    (s) => s.attributes?.sub || s.attributes?.email || s.attributes?.['cognito:username'] || ''
+  );
   const normalizeId = useCallback(
     (value?: string) =>
       String(value ?? '')
@@ -78,13 +127,14 @@ const AppointmentCalendar = ({
   );
   const snapToStep = (minutes: number, step = 5) => Math.round(minutes / step) * step;
   const clampMinutes = (minutes: number) => Math.max(0, Math.min(24 * 60 - 5, snapToStep(minutes)));
-  const toLocalDayKey = (date: Date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
+  const toLocalDayKey = (date: Date) =>
+    formatDateInPreferredTimeZone(date, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+  const getDayOfWeekKey = (date: Date) =>
+    formatDateInPreferredTimeZone(date, { weekday: 'long' }).toUpperCase();
   const isAppointmentDraggable = (appointment: Appointment) =>
     !!appointment.id && canEditAppointments && allowCalendarDrag(appointment.status as any);
 
@@ -130,8 +180,22 @@ const AppointmentCalendar = ({
     [normalizeId, teams]
   );
 
-  const toLocalMinutesFromUtcTime = (utcTime: string) => {
-    return utcClockTimeToMinutesInPreferredTimeZone(utcTime);
+  const getCurrentUserPractitionerId = useCallback(() => {
+    const normalizedCurrentUser = normalizeId(authUserId);
+    if (!normalizedCurrentUser) return undefined;
+    const member = teams.find(
+      (team) =>
+        normalizeId(team.practionerId) === normalizedCurrentUser ||
+        normalizeId(team._id) === normalizedCurrentUser ||
+        normalizeId((team as any).userId) === normalizedCurrentUser ||
+        normalizeId((team as any).id) === normalizedCurrentUser ||
+        normalizeId((team as any).userOrganisation?.userId) === normalizedCurrentUser
+    );
+    return member?.practionerId || member?._id;
+  }, [authUserId, normalizeId, teams]);
+
+  const toLocalClockFromUtcTime = (utcTime: string) => {
+    return utcClockTimeToPreferredTimeZoneClock(utcTime);
   };
 
   const supportsSpeciality = useCallback(
@@ -170,18 +234,13 @@ const AppointmentCalendar = ({
     return slots;
   }, []);
 
-  const buildAppointmentStartFromLocalMinutes = useCallback((date: Date, minuteOfDay: number) => {
-    const clampedMinute = Math.max(0, Math.min(24 * 60 - 5, Math.round(minuteOfDay / 5) * 5));
-    return new Date(
-      date.getFullYear(),
-      date.getMonth(),
-      date.getDate(),
-      Math.floor(clampedMinute / 60),
-      clampedMinute % 60,
-      0,
-      0
-    );
-  }, []);
+  const buildAppointmentStartFromCalendarMinutes = useCallback(
+    (date: Date, minuteOfDay: number) => {
+      const clampedMinute = Math.max(0, Math.min(24 * 60 - 5, Math.round(minuteOfDay / 5) * 5));
+      return buildDateInPreferredTimeZone(date, clampedMinute);
+    },
+    []
+  );
 
   const moveAppointment = async (
     date: Date,
@@ -200,7 +259,7 @@ const AppointmentCalendar = ({
     }
 
     const snappedMinutes = clampMinutes(minutesSinceMidnight);
-    const nextStart = buildAppointmentStartFromLocalMinutes(date, snappedMinutes);
+    const nextStart = buildAppointmentStartFromCalendarMinutes(date, snappedMinutes);
     const durationMs = Math.max(
       5 * 60 * 1000,
       new Date(appointment.endTime).getTime() - new Date(appointment.startTime).getTime()
@@ -219,7 +278,7 @@ const AppointmentCalendar = ({
     }
     if (appointmentServiceId && targetPractitionerId) {
       const availableStartMinutes = await ensureDragAvailability(date, targetLeadId);
-      if (!availableStartMinutes.includes(snappedMinutes)) {
+      if (availableStartMinutes.length > 0 && !availableStartMinutes.includes(snappedMinutes)) {
         setDragError('No available slot for this service at the selected position.');
         return;
       }
@@ -250,8 +309,8 @@ const AppointmentCalendar = ({
         endTime: nextEnd,
         appointmentDate: nextStart,
       });
-    } catch {
-      setDragError('Unable to update appointment. Please try again.');
+    } catch (error) {
+      setDragError(getErrorMessage(error, 'Unable to update appointment. Please try again.'));
     }
   };
 
@@ -266,6 +325,90 @@ const AppointmentCalendar = ({
       return `${dayKey}:${normalizeId(practitionerId || '')}`;
     },
     [allAppointments, dragContext, normalizeId, resolvePractitionerId]
+  );
+
+  const getViewAvailabilityIntervals = useCallback(
+    (date: Date, targetLeadId?: string): DropAvailabilityInterval[] => {
+      if (!primaryOrgId) return [];
+      const dayKey = getDayOfWeekKey(date);
+      const ids = availabilityIdsByOrgId[primaryOrgId] ?? [];
+      const dayAvailabilities = ids
+        .map((id) => availabilitiesById[id])
+        .filter((item) => item?.dayOfWeek === dayKey);
+      if (!dayAvailabilities.length) return [];
+
+      const normalizedTarget = normalizeId(targetLeadId);
+      const matchedTargetMember = normalizedTarget
+        ? teams.find(
+            (member) =>
+              normalizeId(member.practionerId) === normalizedTarget ||
+              normalizeId(member._id) === normalizedTarget ||
+              normalizeId((member as any).userId) === normalizedTarget ||
+              normalizeId((member as any).id) === normalizedTarget ||
+              normalizeId((member as any).userOrganisation?.userId) === normalizedTarget
+          )
+        : null;
+      const targetIds = normalizedTarget
+        ? new Set(
+            [
+              normalizedTarget,
+              normalizeId(matchedTargetMember?.practionerId),
+              normalizeId(matchedTargetMember?._id),
+              normalizeId((matchedTargetMember as any)?.userId),
+              normalizeId((matchedTargetMember as any)?.id),
+              normalizeId((matchedTargetMember as any)?.userOrganisation?.userId),
+            ].filter(Boolean)
+          )
+        : null;
+      const employeeAvailabilities = dayAvailabilities.filter(
+        (item) => item.userId && String(item.userId).trim()
+      );
+      const orgLevelAvailabilities = dayAvailabilities.filter(
+        (item) => !item.userId || !String(item.userId).trim()
+      );
+
+      // If a specific employee is targeted, scope strictly to that employee.
+      // For day/week personal views, caller provides current user practitioner id.
+      const scoped = normalizedTarget
+        ? employeeAvailabilities.filter((item) => targetIds?.has(normalizeId(item.userId)))
+        : employeeAvailabilities;
+      const source = normalizedTarget ? scoped : scoped.length ? scoped : orgLevelAvailabilities;
+      if (source.length) {
+        return source
+          .flatMap((item) =>
+            (item.slots ?? [])
+              .filter((slot) => slot?.isAvailable)
+              .map((slot) => {
+                const startClock = utcClockTimeToPreferredTimeZoneClock(slot.startTime);
+                const endClock = utcClockTimeToPreferredTimeZoneClock(slot.endTime);
+                const startMinute = Math.max(
+                  0,
+                  Math.min(24 * 60, startClock.dayOffset * 24 * 60 + startClock.minutes)
+                );
+                let endMinute = endClock.dayOffset * 24 * 60 + endClock.minutes;
+                if (endMinute <= startMinute) endMinute += 24 * 60;
+                endMinute = Math.max(0, Math.min(24 * 60, endMinute));
+                if (endMinute <= startMinute) {
+                  endMinute = startMinute + 5;
+                }
+                return {
+                  startMinute,
+                  endMinute,
+                };
+              })
+          )
+          .filter((interval) => interval.endMinute > interval.startMinute);
+      }
+
+      return [];
+    },
+    [availabilityIdsByOrgId, availabilitiesById, normalizeId, primaryOrgId, teams]
+  );
+
+  const getCurrentUserViewAvailabilityIntervals = useCallback(
+    (date: Date): DropAvailabilityInterval[] =>
+      getViewAvailabilityIntervals(date, getCurrentUserPractitionerId()),
+    [getCurrentUserPractitionerId, getViewAvailabilityIntervals]
   );
 
   const collectValidMinutesForSlot = useCallback(
@@ -286,14 +429,20 @@ const AppointmentCalendar = ({
         (vetId) => normalizeId(vetId) === params.normalizedTargetPractitionerId
       );
       if (!hasTargetVet) return;
-      const slotStartMinutes = toLocalMinutesFromUtcTime(slot.startTime);
-      const slotEndMinutes = toLocalMinutesFromUtcTime(slot.endTime);
-      const latestStartMinute = slotEndMinutes - params.durationMinutes;
-      if (latestStartMinute < slotStartMinutes) return;
-      const startMinute = Math.ceil(slotStartMinutes / 5) * 5;
-      const endMinute = Math.floor(latestStartMinute / 5) * 5;
+      const slotStartClock = toLocalClockFromUtcTime(slot.startTime);
+      const slotEndClock = toLocalClockFromUtcTime(slot.endTime);
+      const slotStartAbsoluteMinute = slotStartClock.dayOffset * 1440 + slotStartClock.minutes;
+      let slotEndAbsoluteMinute = slotEndClock.dayOffset * 1440 + slotEndClock.minutes;
+      if (slotEndAbsoluteMinute <= slotStartAbsoluteMinute) {
+        slotEndAbsoluteMinute += 1440;
+      }
+      const latestStartAbsoluteMinute = slotEndAbsoluteMinute - params.durationMinutes;
+      if (latestStartAbsoluteMinute < slotStartAbsoluteMinute) return;
+      const startMinute = Math.ceil(slotStartAbsoluteMinute / 5) * 5;
+      const endMinute = Math.floor(latestStartAbsoluteMinute / 5) * 5;
       for (let minute = startMinute; minute <= endMinute; minute += 5) {
-        const nextStart = buildAppointmentStartFromLocalMinutes(params.date, minute);
+        if (minute < 0 || minute > 24 * 60 - 5) continue;
+        const nextStart = buildAppointmentStartFromCalendarMinutes(params.date, minute);
         if (nextStart.getTime() < params.nowMs) continue;
         const nextEnd = new Date(nextStart.getTime() + params.durationMs);
         if (
@@ -309,7 +458,7 @@ const AppointmentCalendar = ({
         params.minutesSet.add(minute);
       }
     },
-    [allAppointments, buildAppointmentStartFromLocalMinutes, normalizeId]
+    [allAppointments, buildAppointmentStartFromCalendarMinutes, normalizeId]
   );
 
   const buildAvailableStartMinutes = useCallback(
@@ -493,14 +642,48 @@ const AppointmentCalendar = ({
     setChangeStatusPopup?.(true);
   };
 
+  const handleCreateFromCalendarSlot = useCallback(
+    (date: Date, minuteOfDay: number, targetLeadId?: string) => {
+      if (!onCreateFromCalendarSlot || !canEditAppointments) return;
+      const defaultLeadId =
+        activeCalendar === 'team'
+          ? resolvePractitionerId(targetLeadId)
+          : getCurrentUserPractitionerId();
+      onCreateFromCalendarSlot({
+        date,
+        minuteOfDay,
+        leadId: defaultLeadId,
+      });
+    },
+    [
+      activeCalendar,
+      canEditAppointments,
+      getCurrentUserPractitionerId,
+      onCreateFromCalendarSlot,
+      resolvePractitionerId,
+    ]
+  );
+
   const dayEvents = useMemo(
-    () => filteredList.filter((event) => isSameDay(new Date(event.startTime), currentDate)),
+    () =>
+      filteredList.filter((event) =>
+        isOnPreferredTimeZoneCalendarDay(event.startTime, currentDate)
+      ),
     [filteredList, currentDate]
   );
 
   return (
-    <div className="border border-grey-light rounded-2xl w-full flex flex-col">
-      <Header currentDate={currentDate} setCurrentDate={setCurrentDate} />
+    <div className="h-full min-h-0 border border-grey-light rounded-2xl overflow-hidden w-full flex flex-col">
+      <Header
+        currentDate={currentDate}
+        setCurrentDate={setCurrentDate}
+        zoomMode={zoomMode}
+        setZoomMode={setZoomMode}
+        activeCalendar={activeCalendar}
+        setActiveCalendar={setActiveCalendar}
+        showAddButton={canEditAppointments}
+        onAddButtonClick={onAddAppointment}
+      />
       {dragError ? (
         <div className="px-3 py-2 text-caption-1 text-text-error border-b border-card-border">
           {dragError}
@@ -510,6 +693,7 @@ const AppointmentCalendar = ({
         <DayCalendar
           events={dayEvents}
           date={currentDate}
+          zoomMode={zoomMode}
           handleViewAppointment={handleViewAppointment}
           handleRescheduleAppointment={handleRescheduleAppointment}
           handleChangeStatusAppointment={handleChangeStatusAppointment}
@@ -548,6 +732,7 @@ const AppointmentCalendar = ({
             ensureDragAvailability(dropDate, targetLeadId).catch(() => undefined);
           }}
           getDropAvailabilityIntervals={getDropAvailabilityIntervals}
+          getVisibleAvailabilityIntervals={getCurrentUserViewAvailabilityIntervals}
           draggedAppointmentDurationMinutes={dragContext?.durationMinutes}
           onAppointmentDropAt={(dropDate, minute) => {
             moveAppointment(dropDate, minute).catch(() => undefined);
@@ -555,11 +740,13 @@ const AppointmentCalendar = ({
             setDraggedAppointmentLabel(null);
             setDragContext(null);
           }}
+          onCreateAppointmentAt={handleCreateFromCalendarSlot}
         />
       )}
       {activeCalendar === 'week' && (
         <WeekCalendar
           events={filteredList}
+          zoomMode={zoomMode}
           handleViewAppointment={handleViewAppointment}
           handleRescheduleAppointment={handleRescheduleAppointment}
           handleChangeStatusAppointment={handleChangeStatusAppointment}
@@ -600,6 +787,7 @@ const AppointmentCalendar = ({
             ensureDragAvailability(dropDate, targetLeadId).catch(() => undefined);
           }}
           getDropAvailabilityIntervals={getDropAvailabilityIntervals}
+          getVisibleAvailabilityIntervals={getCurrentUserViewAvailabilityIntervals}
           draggedAppointmentDurationMinutes={dragContext?.durationMinutes}
           onAppointmentDropAt={(dropDate, minute) => {
             moveAppointment(dropDate, minute).catch(() => undefined);
@@ -607,12 +795,15 @@ const AppointmentCalendar = ({
             setDraggedAppointmentLabel(null);
             setDragContext(null);
           }}
+          onCreateAppointmentAt={handleCreateFromCalendarSlot}
         />
       )}
       {activeCalendar === 'team' && (
         <UserCalendar
           events={dayEvents}
           date={currentDate}
+          zoomMode={zoomMode}
+          forceFullDayInZoomIn
           handleViewAppointment={handleViewAppointment}
           handleRescheduleAppointment={handleRescheduleAppointment}
           handleChangeStatusAppointment={handleChangeStatusAppointment}
@@ -651,6 +842,7 @@ const AppointmentCalendar = ({
             ensureDragAvailability(dropDate, targetLeadId).catch(() => undefined);
           }}
           getDropAvailabilityIntervals={getDropAvailabilityIntervals}
+          getVisibleAvailabilityIntervals={getViewAvailabilityIntervals}
           draggedAppointmentDurationMinutes={dragContext?.durationMinutes}
           onAppointmentDropAt={(dropDate, minute, targetLeadId) => {
             moveAppointment(dropDate, minute, targetLeadId).catch(() => undefined);
@@ -658,6 +850,7 @@ const AppointmentCalendar = ({
             setDraggedAppointmentLabel(null);
             setDragContext(null);
           }}
+          onCreateAppointmentAt={handleCreateFromCalendarSlot}
         />
       )}
     </div>

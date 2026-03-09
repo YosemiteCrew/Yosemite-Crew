@@ -137,6 +137,7 @@ const Summary = ({ activeAppointment, formData }: SummaryProps) => {
               <InvoicePaymentActions
                 invoiceId={actionInvoice?.id}
                 stripeReceiptUrl={actionInvoice?.stripeReceiptUrl}
+                activeAppointment={activeAppointment}
               />
             </div>
             <div className="text-caption-1 text-text-secondary py-2">

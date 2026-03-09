@@ -8,7 +8,7 @@ import {
 import { Slot } from '@/app/features/appointments/types/appointments';
 import { buildUtcDateFromDateAndTime, getDurationMinutes, toUtcCalendarDate } from '@/app/lib/date';
 import { Appointment } from '@yosemite-crew/types';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import DateTimePickerSection from '@/app/features/appointments/components/DateTimePickerSection';
 
@@ -32,6 +32,27 @@ const Reschedule = ({ showModal, setShowModal, activeAppointment }: ReschedulePr
     slot?: string;
   }>({});
 
+  const getLeadOptionsForSlot = useCallback(
+    (slot: Slot | null) => {
+      if (!teams?.length || !slot) return [];
+      const foundSlot = timeSlots.find(
+        (s) => s.startTime === slot.startTime && s.endTime === slot.endTime
+      );
+      if (!foundSlot?.vetIds?.length) return [];
+      const vetIdSet = new Set(foundSlot.vetIds);
+      return teams
+        .filter((team) => {
+          const id = team.practionerId || team._id;
+          return !!id && vetIdSet.has(id);
+        })
+        .map((team) => ({
+          label: team.name || team.practionerId || team._id,
+          value: team.practionerId || team._id,
+        }));
+    },
+    [teams, timeSlots]
+  );
+
   useEffect(() => {
     if (activeAppointment) {
       setFormData(activeAppointment);
@@ -40,17 +61,52 @@ const Reschedule = ({ showModal, setShowModal, activeAppointment }: ReschedulePr
   }, [activeAppointment]);
 
   const LeadOptions = useMemo(() => {
-    if (!teams?.length || !selectedSlot) return [];
-    const slot = timeSlots.find((s) => s.startTime === selectedSlot.startTime);
-    if (!slot?.vetIds?.length) return [];
-    const vetIdSet = new Set(slot.vetIds);
-    return teams
-      .filter((team) => vetIdSet.has(team.practionerId))
-      .map((team) => ({
-        label: team.name || team.practionerId,
-        value: team.practionerId,
+    return getLeadOptionsForSlot(selectedSlot);
+  }, [getLeadOptionsForSlot, selectedSlot]);
+
+  useEffect(() => {
+    if (!selectedSlot) return;
+    const options = getLeadOptionsForSlot(selectedSlot);
+    const currentLeadId = formData.lead?.id || '';
+
+    if (options.length === 0) {
+      setSelectedSlot(null);
+      setFormData((prev) => ({ ...prev, lead: undefined }));
+      setFormDataErrors((prev) => ({
+        ...prev,
+        slot: 'No lead is available for this slot. Please choose another slot.',
+        leadId: 'No lead is available for this slot.',
       }));
-  }, [teams, timeSlots, selectedSlot]);
+      return;
+    }
+
+    if (options.length === 1) {
+      const onlyLead = options[0];
+      if (currentLeadId !== onlyLead.value) {
+        setFormData((prev) => ({
+          ...prev,
+          lead: {
+            id: onlyLead.value,
+            name: onlyLead.label,
+          },
+        }));
+      }
+      setFormDataErrors((prev) => ({ ...prev, slot: undefined, leadId: undefined }));
+      return;
+    }
+
+    const hasSelectedValidLead = options.some((option) => option.value === currentLeadId);
+    if (!hasSelectedValidLead) {
+      setFormData((prev) => ({ ...prev, lead: undefined }));
+      setFormDataErrors((prev) => ({
+        ...prev,
+        slot: undefined,
+        leadId: 'Multiple leads are available. Please choose a lead.',
+      }));
+      return;
+    }
+    setFormDataErrors((prev) => ({ ...prev, slot: undefined, leadId: undefined }));
+  }, [selectedSlot, getLeadOptionsForSlot, formData.lead?.id]);
 
   const handleCancel = () => {
     setShowModal(false);
@@ -65,9 +121,24 @@ const Reschedule = ({ showModal, setShowModal, activeAppointment }: ReschedulePr
       duration?: string;
       slot?: string;
     } = {};
-    if (!formData.lead?.id) errors.leadId = 'Please select a lead';
+    const slotLeadOptions = getLeadOptionsForSlot(selectedSlot);
     if (!formData.durationMinutes) errors.duration = 'Please select a duration';
     if (!selectedSlot) errors.slot = 'Please select a slot';
+    if (selectedSlot && slotLeadOptions.length === 0) {
+      errors.slot = 'No lead is available for this slot. Please choose another slot.';
+      errors.leadId = 'No lead is available for this slot.';
+    }
+    if (selectedSlot && slotLeadOptions.length > 1 && !formData.lead?.id) {
+      errors.leadId = 'Multiple leads are available. Please choose a lead.';
+    }
+    if (
+      selectedSlot &&
+      formData.lead?.id &&
+      slotLeadOptions.length > 0 &&
+      !slotLeadOptions.some((option) => option.value === formData.lead?.id)
+    ) {
+      errors.leadId = 'Selected lead is not available for this slot.';
+    }
     setFormDataErrors(errors);
     if (Object.keys(errors).length > 0) {
       return;
@@ -131,6 +202,7 @@ const Reschedule = ({ showModal, setShowModal, activeAppointment }: ReschedulePr
         id: option.value,
       },
     });
+    setFormDataErrors((prev) => ({ ...prev, leadId: undefined }));
   };
 
   return (

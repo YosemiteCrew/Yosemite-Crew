@@ -1,4 +1,4 @@
-import { Appointment } from "@yosemite-crew/types";
+import { Appointment } from '@yosemite-crew/types';
 
 export type LaidOutEvent = Appointment & {
   topPx: number;
@@ -8,6 +8,12 @@ export type LaidOutEvent = Appointment & {
 };
 
 export type AppointmentViewIntent = {
-  label: "info" | "prescription" | "care" | "tasks" | "finance" | "labs";
+  label: 'info' | 'prescription' | 'care' | 'tasks' | 'finance' | 'labs';
   subLabel?: string;
+};
+
+export type AppointmentDraftPrefill = {
+  date: Date;
+  minuteOfDay: number;
+  leadId?: string;
 };

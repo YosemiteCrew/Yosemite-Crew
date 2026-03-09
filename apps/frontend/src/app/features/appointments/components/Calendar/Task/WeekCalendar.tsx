@@ -7,19 +7,29 @@ import {
 } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import {
   DEFAULT_CALENDAR_FOCUS_MINUTES,
-  EVENT_VERTICAL_GAP_PX,
   getFirstRelevantTimedEventStart,
   getTopPxForMinutes,
-  minutesSinceStartOfDay,
   scrollContainerToTarget,
-  MINUTES_PER_STEP,
-  PIXELS_PER_STEP,
 } from '@/app/features/appointments/components/Calendar/helpers';
 import DayLabels from '@/app/features/appointments/components/Calendar/Task/DayLabels';
 import TaskSlot from '@/app/features/appointments/components/Calendar/Task/TaskSlot';
 import { Task, TaskStatus } from '@/app/features/tasks/types/task';
 import Back from '@/app/ui/primitives/Icons/Back';
 import Next from '@/app/ui/primitives/Icons/Next';
+import {
+  CalendarZoomMode,
+  formatHourLabel,
+  getCalendarColumnGridStyle,
+  getHourRowHeightPx,
+} from '@/app/features/appointments/components/Calendar/calendarLayout';
+import {
+  getHourInPreferredTimeZone,
+  getMinutesSinceStartOfDayInPreferredTimeZone,
+  isOnPreferredTimeZoneCalendarDay,
+} from '@/app/lib/timezone';
+import { useCalendarNow } from '@/app/features/appointments/components/Calendar/useCalendarNow';
+
+const HOUR_ROW_GAP_PX = 0;
 
 type DropAvailabilityInterval = {
   startMinute: number;
@@ -29,6 +39,7 @@ type DropAvailabilityInterval = {
 type WeekCalendarProps = {
   events: Task[];
   date?: Date;
+  zoomMode?: CalendarZoomMode;
   handleViewTask: (task: Task) => void;
   onQuickStatusChange?: (task: Task, status: TaskStatus) => void;
   weekStart: Date;
@@ -52,6 +63,7 @@ type WeekCalendarProps = {
 const WeekCalendar: React.FC<WeekCalendarProps> = ({
   events,
   date: _date,
+  zoomMode = 'in',
   handleViewTask,
   onQuickStatusChange,
   weekStart,
@@ -68,12 +80,6 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   getDropAvailabilityIntervals,
   draggedTaskDurationMinutes,
 }) => {
-  const isSameDayLocal = (a?: Date | null, b?: Date | null) =>
-    !!a &&
-    !!b &&
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate();
   const nextDayLocal = (dateValue: Date) => {
     const next = new Date(dateValue);
     next.setHours(0, 0, 0, 0);
@@ -83,28 +89,35 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
 
   const days = useMemo<Date[]>(() => getWeekDays(weekStart), [weekStart]);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const height = (PIXELS_PER_STEP / MINUTES_PER_STEP) * 60;
-  const HOUR_ROW_TOP_OFFSET_PX = 8;
+  const now = useCalendarNow();
+  const height = getHourRowHeightPx(zoomMode);
+  const dayColumnsStyle = useMemo(
+    () => getCalendarColumnGridStyle(days.length, zoomMode === 'out' ? 108 : 170),
+    [days.length, zoomMode]
+  );
+  const HOUR_ROW_TOP_OFFSET_PX = zoomMode === 'out' ? 0 : 8;
+  const fallbackDayKey = (value: Date) =>
+    new Intl.DateTimeFormat('en-CA', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(value);
 
   const nowPosition = useMemo(() => {
-    const now = new Date();
-    const weekStartDay = new Date(weekStart);
-    weekStartDay.setHours(0, 0, 0, 0);
-    const weekEndDay = new Date(weekStartDay);
-    weekEndDay.setDate(weekEndDay.getDate() + 7);
-    if (now < weekStartDay || now >= weekEndDay) return null;
-
-    const todayIndex = days.findIndex((day) => isSameDayLocal(day, now));
+    const todayIndex = days.findIndex(
+      (day) =>
+        isOnPreferredTimeZoneCalendarDay(now, day) || fallbackDayKey(day) === fallbackDayKey(now)
+    );
     if (todayIndex === -1) return null;
 
     const topPx = getTopPxForMinutes(
-      now.getHours() * 60 + now.getMinutes(),
+      getMinutesSinceStartOfDayInPreferredTimeZone(now),
       height,
-      EVENT_VERTICAL_GAP_PX,
+      HOUR_ROW_GAP_PX,
       HOUR_ROW_TOP_OFFSET_PX
     );
     return { topPx, todayIndex };
-  }, [days, height, weekStart]);
+  }, [days, height, now]);
 
   useEffect(() => {
     if (!scrollRef.current) return;
@@ -119,11 +132,11 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     })) as Array<{ startTime: Date; endTime: Date }>;
     const focusStart = getFirstRelevantTimedEventStart(asTimed as any, rangeStart, rangeEnd);
     const focusMinutes = focusStart
-      ? minutesSinceStartOfDay(focusStart)
+      ? getMinutesSinceStartOfDayInPreferredTimeZone(focusStart)
       : DEFAULT_CALENDAR_FOCUS_MINUTES;
     const topPx = nowPosition
       ? Math.max(0, nowPosition.topPx)
-      : getTopPxForMinutes(focusMinutes, height, EVENT_VERTICAL_GAP_PX, HOUR_ROW_TOP_OFFSET_PX);
+      : getTopPxForMinutes(focusMinutes, height, HOUR_ROW_GAP_PX, HOUR_ROW_TOP_OFFSET_PX);
     scrollContainerToTarget(scrollRef.current, topPx);
   }, [days, events, height, nowPosition]);
 
@@ -146,12 +159,19 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   return (
     <div className="h-full flex flex-col">
       <div
-        className="w-full flex-1 overflow-x-auto relative rounded-2xl max-w-[calc(100vw-32px)] sm:max-w-[calc(100vw-96px)] lg:max-w-[calc(100vw-300px)]"
+        className="w-full flex-1 overflow-x-auto overflow-y-hidden relative rounded-2xl"
         data-calendar-scroll="true"
       >
         <div
           ref={scrollRef}
-          className="max-h-[680px] overflow-y-auto min-w-max"
+          className="min-w-max h-full flex flex-col relative"
+          style={{
+            height: '100%',
+            maxHeight: '100%',
+            minHeight: 0,
+            overflowY: 'auto',
+            paddingBottom: zoomMode === 'out' ? 12 : 0,
+          }}
           data-calendar-scroll="true"
         >
           <div className="sticky top-0 z-30 bg-white">
@@ -160,7 +180,11 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                 <Back onClick={handlePrevWeek} />
               </div>
               <div className="bg-white">
-                <DayLabels days={days} currentDate={_date ?? weekStart} />
+                <DayLabels
+                  days={days}
+                  currentDate={_date ?? weekStart}
+                  columnsStyle={dayColumnsStyle}
+                />
               </div>
               <div className="sticky right-0 z-40 bg-white flex items-center justify-center">
                 <Next onClick={handleNextWeek} />
@@ -168,41 +192,43 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
             </div>
           </div>
 
-          <div className="relative">
+          <div className="relative pt-1 pb-3">
             {Array.from({ length: HOURS_IN_DAY }, (_, hour) => (
-              <div
-                key={hour}
-                className="grid gap-y-0.5 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max"
-              >
+              <div key={hour} className="grid grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
                 <div
                   className="sticky left-0 z-20 bg-white text-caption-2 text-text-primary pl-2!"
-                  style={{ height: `${height}px`, opacity: hour === 0 ? 0 : 1 }}
+                  style={{ height: `${height}px`, paddingTop: hour === 0 ? 4 : 0 }}
                 >
-                  {new Date(0, 0, 0, hour, 0, 0).toLocaleTimeString('en-US', {
-                    hour: 'numeric',
-                    minute: '2-digit',
-                  })}
+                  {formatHourLabel(hour)}
                 </div>
-                <div className="grid grid-flow-col auto-cols-[170px] min-w-max">
+                <div className="grid min-w-max" style={dayColumnsStyle}>
                   {days.map((day, dayIndex) => {
                     const slotEvents = events.filter((task) => {
                       const dueAt = new Date(task.dueAt);
-                      return isSameDayLocal(dueAt, day) && dueAt.getHours() === hour;
+                      return (
+                        isOnPreferredTimeZoneCalendarDay(dueAt, day) &&
+                        getHourInPreferredTimeZone(dueAt) === hour
+                      );
                     });
                     return (
                       <div
                         key={`${day.getTime()}-${hour}`}
-                        className="relative pt-2"
+                        className={`relative ${zoomMode === 'out' ? 'pt-0' : 'pt-2'}`}
                         style={{ height: `${height}px` }}
                       >
                         {hour !== 0 && (
-                          <div className="pointer-events-none absolute inset-x-0 top-2 z-10 border-t border-grey-light" />
+                          <div
+                            className={`pointer-events-none absolute inset-x-0 z-10 border-t border-grey-light ${
+                              zoomMode === 'out' ? 'top-0' : 'top-2'
+                            }`}
+                          />
                         )}
                         <TaskSlot
                           slotEvents={slotEvents}
                           handleViewTask={handleViewTask}
                           onQuickStatusChange={onQuickStatusChange}
                           canEditTasks={canEditTasks}
+                          zoomMode={zoomMode}
                           dayIndex={dayIndex}
                           length={days.length - 1}
                           height={height}
@@ -225,12 +251,12 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                 <div className="sticky right-0 z-20 bg-white" style={{ height: `${height}px` }} />
               </div>
             ))}
-
+            <div style={{ height: zoomMode === 'out' ? 48 : 12 }} />
             {nowPosition && (
-              <div className="pointer-events-none absolute inset-0">
+              <div className="pointer-events-none absolute inset-0" style={{ top: 0 }}>
                 <div className="grid h-full grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
                   <div />
-                  <div className="grid grid-flow-col auto-cols-[170px] min-w-max">
+                  <div className="grid min-w-max" style={dayColumnsStyle}>
                     {days.map((day, idx) => (
                       <div key={`now-line-${day.toISOString()}`} className="relative">
                         {idx === nowPosition.todayIndex && (

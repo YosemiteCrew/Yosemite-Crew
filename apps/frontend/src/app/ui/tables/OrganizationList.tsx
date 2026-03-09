@@ -1,14 +1,15 @@
-"use client";
-import React from "react";
-import { useRouter } from "next/navigation";
+'use client';
+import React from 'react';
+import { useRouter } from 'next/navigation';
 
-import OrgCard from "@/app/ui/cards/OrgCard/OrgCard";
-import GenericTable from "@/app/ui/tables/GenericTable/GenericTable";
-import { useOrgStore } from "@/app/stores/orgStore";
-import { OrgWithMembership } from "@/app/features/organization/types/org";
+import OrgCard from '@/app/ui/cards/OrgCard/OrgCard';
+import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { OrgWithMembership } from '@/app/features/organization/types/org';
 
-import "./DataTable.css";
-import { toTitleCase } from "@/app/lib/validators";
+import './DataTable.css';
+import { toTitleCase } from '@/app/lib/validators';
+import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
 
 type Column<T> = {
   label: string;
@@ -23,12 +24,12 @@ type OrganizationListProps = {
 
 export const getStatusStyle = (status: string) => {
   switch (status?.toLowerCase()) {
-    case "active":
-      return { color: "#54B492", backgroundColor: "#E6F4EF" };
-    case "pending":
-      return { color: "#F68523", backgroundColor: "#FEF3E9" };
+    case 'active':
+      return { color: '#54B492', backgroundColor: '#E6F4EF' };
+    case 'pending':
+      return { color: '#F68523', backgroundColor: '#FEF3E9' };
     default:
-      return { color: "#fff", backgroundColor: "#247AED" };
+      return { color: '#fff', backgroundColor: '#247AED' };
   }
 };
 
@@ -40,54 +41,50 @@ const OrganizationList = ({ orgs }: OrganizationListProps) => {
     const id = org.org._id?.toString() || org.org.name;
     setPrimaryOrg(id);
     if (org.org.isVerified) {
-      router.push("/dashboard");
+      const role = org.membership?.roleDisplay ?? org.membership?.roleCode;
+      router.push(resolveDefaultOpenScreenRoute(role));
     } else {
-      router.push("/create-org?orgId=" + id);
+      router.push('/create-org?orgId=' + id);
     }
   };
 
   const columns: Column<OrgWithMembership>[] = [
     {
-      label: "Name",
-      key: "name",
-      width: "30%",
+      label: 'Name',
+      key: 'name',
+      width: '30%',
       render: (item: OrgWithMembership) => (
-        <button
-          onClick={() => handleOrgClick(item)}
-          className="OrgListDetails text-left"
-        >
+        <button onClick={() => handleOrgClick(item)} className="OrgListDetails text-left">
           {item.org.name}
         </button>
       ),
     },
     {
-      label: "Type",
-      key: "type",
-      width: "25%",
+      label: 'Type',
+      key: 'type',
+      width: '25%',
       render: (item: OrgWithMembership) => (
         <div className="InviteTime">{toTitleCase(item.org.type)}</div>
       ),
     },
     {
-      label: "Role",
-      key: "role",
-      width: "25%",
+      label: 'Role',
+      key: 'role',
+      width: '25%',
       render: (item: OrgWithMembership) => (
-        <div className="InviteExpires">
-          {toTitleCase(item.membership?.roleDisplay)}
-        </div>
+        <div className="InviteExpires">{toTitleCase(item.membership?.roleDisplay)}</div>
       ),
     },
     {
-      label: "Status",
-      key: "status",
-      width: "20%",
+      label: 'Status',
+      key: 'status',
+      width: '20%',
       render: (item: OrgWithMembership) => (
         <div
           className="OrgStatus"
-          style={getStatusStyle(item.org.isVerified ? "Active" : "Pending")}
+          style={getStatusStyle(item.org.isVerified ? 'Active' : 'Pending')}
         >
-          {item.org.isVerified ? "Active" : "Pending"}
+          {item.org.isVerified ? 'Active' : 'Pending'}
         </div>
       ),
     },
@@ -96,13 +93,7 @@ const OrganizationList = ({ orgs }: OrganizationListProps) => {
   return (
     <div className="table-wrapper">
       <div className="table-list">
-        <GenericTable
-          data={orgs}
-          columns={columns}
-          bordered={false}
-          pageSize={5}
-          pagination
-        />
+        <GenericTable data={orgs} columns={columns} bordered={false} pageSize={5} pagination />
       </div>
       <div className="card-list">
         {(() => {
@@ -114,11 +105,7 @@ const OrganizationList = ({ orgs }: OrganizationListProps) => {
             );
           }
           return orgs.map((org, index) => (
-            <OrgCard
-              key={org.org.name + index}
-              org={org}
-              handleOrgClick={handleOrgClick}
-            />
+            <OrgCard key={org.org.name + index} org={org} handleOrgClick={handleOrgClick} />
           ));
         })()}
       </div>

@@ -7,10 +7,8 @@ import {
   getNowTopPxForWindow,
   MINUTES_PER_STEP,
   PIXELS_PER_STEP,
-  minutesSinceStartOfDay,
   nextDay,
   scrollContainerToTarget,
-  getTotalWindowHeightPx,
   isAllDayForDate,
   layoutDayEvents,
   DAY_START_MINUTES,
@@ -37,10 +35,32 @@ import { MdOutlineAutorenew } from 'react-icons/md';
 import { useCalendarNavigation, getDateDisplay } from '@/app/hooks/useCalendarNavigation';
 import { createPortal } from 'react-dom';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import {
+  CalendarZoomMode,
+  getPixelsPerStepForZoom,
+} from '@/app/features/appointments/components/Calendar/calendarLayout';
+import {
+  formatDateInPreferredTimeZone,
+  getMinutesSinceStartOfDayInPreferredTimeZone,
+} from '@/app/lib/timezone';
+import { useCalendarNow } from '@/app/features/appointments/components/Calendar/useCalendarNow';
+import { useInvoicesForPrimaryOrg } from '@/app/hooks/useInvoices';
+import {
+  createInvoiceByAppointmentId,
+  getAppointmentPaymentDisplay,
+} from '@/app/lib/paymentStatus';
+import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
+import {
+  acceptAppointment,
+  rejectAppointment,
+} from '@/app/features/appointments/services/appointmentService';
+import { FaCheckCircle } from 'react-icons/fa';
+import { IoIosCloseCircle } from 'react-icons/io';
 
 type DayCalendarProps = {
   events: Appointment[];
   date: Date;
+  zoomMode?: CalendarZoomMode;
   handleViewAppointment: (appointment: Appointment, intent?: AppointmentViewIntent) => void;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   handleRescheduleAppointment: (appointment: Appointment) => void;
@@ -53,7 +73,12 @@ type DayCalendarProps = {
   onAppointmentDragEnd?: () => void;
   onAppointmentDropAt?: (date: Date, minuteOfDay: number, targetLeadId?: string) => void;
   onDragHoverTarget?: (date: Date, targetLeadId?: string) => void;
+  onCreateAppointmentAt?: (date: Date, minuteOfDay: number, targetLeadId?: string) => void;
   getDropAvailabilityIntervals?: (
+    date: Date,
+    targetLeadId?: string
+  ) => Array<{ startMinute: number; endMinute: number }>;
+  getVisibleAvailabilityIntervals?: (
     date: Date,
     targetLeadId?: string
   ) => Array<{ startMinute: number; endMinute: number }>;
@@ -63,6 +88,7 @@ type DayCalendarProps = {
 export const DayCalendar: React.FC<DayCalendarProps> = ({
   events,
   date,
+  zoomMode = 'in',
   handleViewAppointment,
   handleRescheduleAppointment,
   handleChangeStatusAppointment,
@@ -75,7 +101,9 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
   onAppointmentDragEnd,
   onAppointmentDropAt,
   onDragHoverTarget,
+  onCreateAppointmentAt,
   getDropAvailabilityIntervals,
+  getVisibleAvailabilityIntervals,
   draggedAppointmentDurationMinutes,
 }) => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -83,10 +111,14 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activePopoverKey, setActivePopoverKey] = useState<string | null>(null);
   const [activeRect, setActiveRect] = useState<DOMRect | null>(null);
+  const [activeCursor, setActiveCursor] = useState<{ x: number; y: number } | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [dropPreviewMinute, setDropPreviewMinute] = useState<number | null>(null);
   const { handleNextDay, handlePrevDay } = useCalendarNavigation(setCurrentDate);
   const { weekday, dateNumber } = getDateDisplay(date);
+  const now = useCalendarNow();
+  const invoices = useInvoicesForPrimaryOrg();
+  const invoicesByAppointmentId = useMemo(() => createInvoiceByAppointmentId(invoices), [invoices]);
 
   const { allDayEvents, timedEvents } = useMemo(() => {
     const allDay: Appointment[] = [];
@@ -101,12 +133,42 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
     return { allDayEvents: allDay, timedEvents: timed };
   }, [events, date]);
 
-  const windowStart = DAY_START_MINUTES;
-  const windowEnd = DAY_END_MINUTES;
+  const { windowStart, windowEnd } = useMemo(() => {
+    if (zoomMode === 'out') {
+      return { windowStart: DAY_START_MINUTES, windowEnd: DAY_END_MINUTES };
+    }
+    const availability = getVisibleAvailabilityIntervals?.(date) ?? [];
+    const mins: number[] = [];
+    availability.forEach((interval) => {
+      mins.push(interval.startMinute, interval.endMinute);
+    });
+    timedEvents.forEach((event) => {
+      mins.push(
+        getMinutesSinceStartOfDayInPreferredTimeZone(event.startTime),
+        getMinutesSinceStartOfDayInPreferredTimeZone(event.endTime)
+      );
+    });
+    if (!mins.length) {
+      return { windowStart: DAY_START_MINUTES, windowEnd: DAY_END_MINUTES };
+    }
+    const minMinute = Math.max(DAY_START_MINUTES, Math.min(...mins) - 30);
+    const maxMinute = Math.min(DAY_END_MINUTES, Math.max(...mins) + 30);
+    const snappedStart = Math.max(DAY_START_MINUTES, Math.floor(minMinute / 60) * 60);
+    const snappedEnd = Math.min(DAY_END_MINUTES, Math.ceil(maxMinute / 60) * 60);
+    if (snappedEnd - snappedStart < 120) {
+      return {
+        windowStart: Math.max(DAY_START_MINUTES, snappedStart - 60),
+        windowEnd: Math.min(DAY_END_MINUTES, snappedEnd + 60),
+      };
+    }
+    return { windowStart: snappedStart, windowEnd: snappedEnd };
+  }, [date, getVisibleAvailabilityIntervals, timedEvents, zoomMode]);
+  const pixelsPerStep = getPixelsPerStepForZoom(zoomMode);
+  const yScale = pixelsPerStep / PIXELS_PER_STEP;
 
   const totalHeightPx = useMemo(
-    () => getTotalWindowHeightPx(windowStart, windowEnd),
-    [windowStart, windowEnd]
+    () => ((windowEnd - windowStart) / MINUTES_PER_STEP) * pixelsPerStep,
+    [pixelsPerStep, windowEnd, windowStart]
   );
 
   const laidOut: LaidOutEvent[] = useMemo(
@@ -115,8 +177,8 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
   );
 
   const focusTopPx = useMemo(() => {
-    const nowTopPx = getNowTopPxForWindow(date, windowStart, windowEnd);
-    if (nowTopPx != null) return nowTopPx;
+    const nowTopPx = getNowTopPxForWindow(date, windowStart, windowEnd, now);
+    if (nowTopPx != null) return nowTopPx * yScale;
 
     const rangeStart = new Date(date);
     rangeStart.setHours(0, 0, 0, 0);
@@ -124,11 +186,11 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
     const focusStart = getFirstRelevantTimedEventStart(timedEvents, rangeStart, rangeEnd);
 
     const focusMinutes = focusStart
-      ? minutesSinceStartOfDay(focusStart)
+      ? getMinutesSinceStartOfDayInPreferredTimeZone(focusStart)
       : DEFAULT_CALENDAR_FOCUS_MINUTES;
     const clampedMinutes = Math.max(windowStart, Math.min(focusMinutes, windowEnd));
-    return ((clampedMinutes - windowStart) / MINUTES_PER_STEP) * PIXELS_PER_STEP;
-  }, [date, timedEvents, windowStart, windowEnd]);
+    return ((clampedMinutes - windowStart) / MINUTES_PER_STEP) * pixelsPerStep;
+  }, [date, now, timedEvents, windowStart, windowEnd, pixelsPerStep, yScale]);
 
   useEffect(() => {
     if (!scrollRef.current) return;
@@ -231,13 +293,17 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
       laidOut.find((event, idx) => getEventKey(event, idx, 'timed') === activePopoverKey) ?? null
     );
   }, [activePopoverKey, allDayEvents, laidOut]);
+  const activeEventPayment = useMemo(
+    () => (activeEvent ? getAppointmentPaymentDisplay(activeEvent, invoicesByAppointmentId) : null),
+    [activeEvent, invoicesByAppointmentId]
+  );
 
   const formatTimeRange = (event: Appointment) => {
-    const start = event.startTime.toLocaleTimeString('en-US', {
+    const start = formatDateInPreferredTimeZone(event.startTime, {
       hour: 'numeric',
       minute: '2-digit',
     });
-    const end = event.endTime.toLocaleTimeString('en-US', {
+    const end = formatDateInPreferredTimeZone(event.endTime, {
       hour: 'numeric',
       minute: '2-digit',
     });
@@ -256,22 +322,42 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
   const getPopoverStyle = () => {
     if (!activeRect) return { top: 0, left: 0 };
     const popoverWidth = 360;
+    const popoverHeight = 340;
     const margin = 8;
     const viewportWidth = globalThis.innerWidth;
-    const preferredLeft = activeRect.right + margin;
-    const maxLeft = viewportWidth - popoverWidth - margin;
-    const left = Math.max(margin, Math.min(preferredLeft, maxLeft));
+    const viewportHeight = globalThis.innerHeight;
+    const anchorX = activeCursor?.x ?? activeRect.left + activeRect.width / 2;
+    const anchorY = activeCursor?.y ?? activeRect.top;
+    const availableRight = viewportWidth - anchorX - margin;
+    const availableLeft = anchorX - margin;
+    const shouldPlaceRight = availableRight >= popoverWidth || availableRight >= availableLeft;
+    const preferredLeft = shouldPlaceRight ? anchorX + margin : anchorX - popoverWidth - margin;
+    const left = Math.max(margin, Math.min(preferredLeft, viewportWidth - popoverWidth - margin));
+    const placeAbove = anchorY + popoverHeight + margin > viewportHeight;
+    const top = placeAbove
+      ? Math.max(margin, anchorY - popoverHeight - margin)
+      : Math.max(margin, anchorY);
     return {
-      top: Math.max(margin, activeRect.top),
+      top,
       left,
       width: popoverWidth,
     };
   };
 
-  const openPopover = (key: string, target: HTMLButtonElement) => {
+  const openPopover = (
+    key: string,
+    target: HTMLButtonElement,
+    clientX?: number,
+    clientY?: number
+  ) => {
     if (draggedAppointmentId) return;
     clearCloseTimer();
     setActiveRect(target.getBoundingClientRect());
+    if (typeof clientX === 'number' && typeof clientY === 'number') {
+      setActiveCursor({ x: clientX, y: clientY });
+    } else {
+      setActiveCursor(null);
+    }
     setActivePopoverKey(key);
   };
 
@@ -344,7 +430,9 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                   key={itemKey}
                   type="button"
                   onClick={() => handleViewAppointment(ev)}
-                  onMouseEnter={(event) => openPopover(itemKey, event.currentTarget)}
+                  onMouseEnter={(event) =>
+                    openPopover(itemKey, event.currentTarget, event.clientX, event.clientY)
+                  }
                   onMouseLeave={schedulePopoverClose}
                   className="flex items-center gap-2 rounded-full! px-3 py-1 text-xs font-satoshi"
                   style={getStatusStyle(ev.status)}
@@ -365,7 +453,13 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
         </div>
       )}
       <div
-        className="overflow-y-auto overflow-x-hidden flex-1 px-2 max-h-[680px]"
+        className="overflow-x-hidden flex-1 px-2 pt-2 pb-3"
+        style={{
+          height: '100%',
+          maxHeight: '100%',
+          minHeight: 0,
+          overflowY: 'auto',
+        }}
         ref={scrollRef}
         data-calendar-scroll="true"
       >
@@ -405,19 +499,47 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
             if (nearest == null) return;
             onAppointmentDropAt(date, nearest);
           }}
+          onClick={(event) => {
+            if (!onCreateAppointmentAt || draggedAppointmentId) return;
+            if ((event.target as HTMLElement).closest('button')) return;
+            const minute = getMinuteFromTimelinePointer(
+              event.clientY,
+              event.currentTarget as HTMLDivElement
+            );
+            onCreateAppointmentAt(date, Math.round(minute / 5) * 5);
+          }}
+          onDoubleClick={(event) => {
+            if (!onCreateAppointmentAt || draggedAppointmentId) return;
+            if ((event.target as HTMLElement).closest('button')) return;
+            const minute = getMinuteFromTimelinePointer(
+              event.clientY,
+              event.currentTarget as HTMLDivElement
+            );
+            onCreateAppointmentAt(date, Math.round(minute / 5) * 5);
+          }}
         >
-          <TimeLabels windowStart={windowStart} windowEnd={windowEnd} />
+          <TimeLabels
+            windowStart={windowStart}
+            windowEnd={windowEnd}
+            pixelsPerStep={pixelsPerStep}
+          />
           <div className="relative h-full">
-            <HorizontalLines date={date} windowStart={windowStart} windowEnd={windowEnd} />
+            <HorizontalLines
+              date={date}
+              now={now}
+              windowStart={windowStart}
+              windowEnd={windowEnd}
+              pixelsPerStep={pixelsPerStep}
+            />
             {draggedAppointmentId &&
               availabilityIntervals.map((interval, index) => {
                 const effectiveDuration = Math.max(5, draggedAppointmentDurationMinutes ?? 5);
                 const top =
-                  ((interval.startMinute - windowStart) / MINUTES_PER_STEP) * PIXELS_PER_STEP;
+                  ((interval.startMinute - windowStart) / MINUTES_PER_STEP) * pixelsPerStep;
                 const bottomMinute = Math.min(windowEnd, interval.endMinute + effectiveDuration);
                 const height = Math.max(
                   6,
-                  ((bottomMinute - interval.startMinute) / MINUTES_PER_STEP) * PIXELS_PER_STEP
+                  ((bottomMinute - interval.startMinute) / MINUTES_PER_STEP) * pixelsPerStep
                 );
                 return (
                   <div
@@ -431,7 +553,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
               <div
                 className="pointer-events-none absolute left-0 right-0 z-30"
                 style={{
-                  top: ((dropPreviewMinute - windowStart) / MINUTES_PER_STEP) * PIXELS_PER_STEP,
+                  top: ((dropPreviewMinute - windowStart) / MINUTES_PER_STEP) * pixelsPerStep,
                 }}
               >
                 <div
@@ -440,7 +562,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                     height: Math.max(
                       12,
                       (Math.max(5, draggedAppointmentDurationMinutes ?? 30) / MINUTES_PER_STEP) *
-                        PIXELS_PER_STEP
+                        pixelsPerStep
                     ),
                   }}
                 >
@@ -456,55 +578,108 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
               const leftPercent = widthPercent * ev.columnIndex;
               const horizontalGapPx = EVENT_HORIZONTAL_GAP_PX;
               const verticalGapPx = EVENT_VERTICAL_GAP_PX;
+              const isZoomOut = zoomMode === 'out';
+              const statusStyle = getStatusStyle(ev.status);
+              const parentName = ev.companion.parent?.name?.trim() ?? '';
+              const concern = ev.concern?.trim() ?? '';
+              const subtitle = [parentName, concern].filter(Boolean).join(' • ');
+              const markerTitle = subtitle
+                ? `${ev.companion.name} • ${subtitle}`
+                : ev.companion.name;
+              const draggable = !!canDragAppointment?.(ev);
               return (
                 <div
                   key={ev.companion.name + i}
-                  className="absolute rounded-2xl! px-3 py-1 overflow-hidden scrollbar-hidden whitespace-nowrap text-ellipsis flex items-center justify-between"
+                  className={`absolute scrollbar-hidden ${isZoomOut ? 'rounded-md! px-0 py-0 border-0 bg-transparent' : 'rounded-xl! px-2 py-1.5 overflow-hidden'}`}
                   style={{
-                    top: ev.topPx,
-                    height: Math.max(ev.heightPx - verticalGapPx, 12),
+                    top: ev.topPx * yScale,
+                    height: Math.max(
+                      ev.heightPx * yScale - (isZoomOut ? 0 : verticalGapPx),
+                      isZoomOut ? 3 : 40
+                    ),
                     left: `calc(${leftPercent}% + ${horizontalGapPx}px)`,
                     width: `calc(${widthPercent}% - ${horizontalGapPx * 2}px)`,
-                    ...getStatusStyle(ev.status),
+                    ...(isZoomOut ? {} : statusStyle),
                   }}
                 >
+                  {isZoomOut && (
+                    <span
+                      aria-hidden
+                      className="pointer-events-none absolute inset-y-0 left-0.5 right-0.5 rounded-sm"
+                      style={{
+                        backgroundColor: statusStyle.backgroundColor,
+                      }}
+                    />
+                  )}
                   <button
                     type="button"
-                    className="h-full w-full flex-1 min-w-0 flex items-center justify-between cursor-pointer"
+                    className={`min-w-0 ${
+                      draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
+                    } ${isZoomOut ? 'absolute inset-x-0 -inset-y-2 z-20' : 'h-full w-full flex items-center gap-2'}`}
                     onClick={() => handleViewAppointment(ev)}
-                    onMouseEnter={(event) => openPopover(itemKey, event.currentTarget)}
+                    onMouseEnter={(event) =>
+                      openPopover(itemKey, event.currentTarget, event.clientX, event.clientY)
+                    }
                     onMouseLeave={schedulePopoverClose}
-                    draggable={!!canDragAppointment?.(ev)}
+                    draggable={draggable}
+                    title={markerTitle}
                     onDragStart={(event) => {
                       event.dataTransfer.effectAllowed = 'move';
                       event.dataTransfer.setData('text/plain', ev.id ?? itemKey);
                       setCustomDragGhost(event, ev);
+                      document.body.style.cursor = 'grabbing';
                       onAppointmentDragStart?.(ev);
                     }}
                     onDragEnd={() => {
                       setDropPreviewMinute(null);
+                      document.body.style.cursor = '';
                       onAppointmentDragEnd?.();
                     }}
                     style={{
                       opacity: draggedAppointmentId === ev.id ? 0.55 : 1,
                     }}
                   >
-                    <div className="text-body-4 truncate">{ev.companion.name}</div>
-                    <div className="flex items-center gap-1">
-                      <Image
-                        src={getSafeImageUrl('', ev.companion.species.toLowerCase() as ImageType)}
-                        height={30}
-                        width={30}
-                        className="rounded-full flex-none"
-                        alt={''}
-                      />
-                    </div>
+                    {!isZoomOut && (
+                      <>
+                        <div className="flex-none self-center max-w-[72px]">
+                          <span className="block rounded-full bg-white/85 px-1.5 py-0.5 text-[9px] font-semibold leading-[11px] text-black-text whitespace-normal break-words text-center">
+                            {formatStatusLabel(ev.status)}
+                          </span>
+                        </div>
+                        <div className="min-w-0 flex-1 self-center">
+                          <div className="w-full flex flex-col items-center justify-center text-center gap-0.5">
+                            <div className="truncate w-full text-caption-1 font-semibold">
+                              {ev.companion.name}
+                            </div>
+                            {subtitle && (
+                              <div className="text-[10px] w-full truncate opacity-95">
+                                {subtitle}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex-none self-center">
+                          <Image
+                            src={getSafeImageUrl(
+                              '',
+                              ev.companion.species.toLowerCase() as ImageType
+                            )}
+                            height={26}
+                            width={26}
+                            className="rounded-full border border-white/60"
+                            alt=""
+                          />
+                        </div>
+                      </>
+                    )}
+                    {isZoomOut && <span className="sr-only">{markerTitle}</span>}
                   </button>
                 </div>
               );
             })}
           </div>
         </div>
+        <div style={{ height: zoomMode === 'out' ? 72 : 12 }} />
       </div>
       {isMounted &&
         !draggedAppointmentId &&
@@ -514,7 +689,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
           <dialog
             ref={popoverDialogRef}
             open
-            className="fixed z-120 w-[380px] rounded-2xl border border-card-border bg-white p-3 shadow-[0_18px_45px_rgba(0,0,0,0.14)]"
+            className="fixed z-[1000] w-[380px] rounded-2xl border border-card-border bg-white p-3 shadow-[0_18px_45px_rgba(0,0,0,0.14)]"
             style={getPopoverStyle()}
             aria-label="Appointment quick actions"
           >
@@ -570,6 +745,13 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
               <div className="text-caption-1 text-text-primary text-right truncate">
                 {activeEvent.room?.name || '-'}
               </div>
+              <div className="text-caption-1 text-text-secondary">Payment</div>
+              <div
+                className="text-caption-1 text-right truncate font-medium"
+                style={{ color: activeEventPayment?.textColor || '#302F2E' }}
+              >
+                {activeEventPayment?.label || '-'}
+              </div>
             </div>
 
             <div className="mt-2 text-caption-1 text-text-secondary">Reason</div>
@@ -578,89 +760,132 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
             </div>
 
             <div className="mt-3 flex items-center justify-end gap-1.5 border-t border-card-border pt-2">
+              {canEditAppointments &&
+                (activeEvent.status === 'REQUESTED' || activeEvent.status === 'NO_PAYMENT') && (
+                  <>
+                    <GlassTooltip content="Accept request" side="top">
+                      <button
+                        type="button"
+                        title="Accept request"
+                        className="h-9 w-9 rounded-full! flex items-center justify-center hover:bg-[#E6F4EF] border border-card-border"
+                        onClick={async () => {
+                          await acceptAppointment(activeEvent);
+                          setActivePopoverKey(null);
+                        }}
+                      >
+                        <FaCheckCircle size={18} color="#54B492" />
+                      </button>
+                    </GlassTooltip>
+                    <GlassTooltip content="Decline request" side="top">
+                      <button
+                        type="button"
+                        title="Decline request"
+                        className="h-9 w-9 rounded-full! flex items-center justify-center hover:bg-[#FDEBEA] border border-card-border"
+                        onClick={async () => {
+                          await rejectAppointment(activeEvent);
+                          setActivePopoverKey(null);
+                        }}
+                      >
+                        <IoIosCloseCircle size={20} color="#EA3729" />
+                      </button>
+                    </GlassTooltip>
+                  </>
+                )}
               {canEditAppointments && (
+                <GlassTooltip content="Change status" side="top">
+                  <button
+                    type="button"
+                    title="Change status"
+                    className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
+                    onClick={() => {
+                      if (handleChangeStatusAppointment) {
+                        handleChangeStatusAppointment(activeEvent);
+                      } else {
+                        handleViewAppointment(activeEvent);
+                      }
+                      setActivePopoverKey(null);
+                    }}
+                  >
+                    <MdOutlineAutorenew size={18} />
+                  </button>
+                </GlassTooltip>
+              )}
+              <GlassTooltip content="View appointment" side="top">
                 <button
                   type="button"
-                  title="Change status"
+                  title="View appointment"
                   className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
                   onClick={() => {
-                    if (handleChangeStatusAppointment) {
-                      handleChangeStatusAppointment(activeEvent);
-                    } else {
-                      handleViewAppointment(activeEvent);
-                    }
+                    handleViewAppointment(activeEvent);
                     setActivePopoverKey(null);
                   }}
                 >
-                  <MdOutlineAutorenew size={18} />
+                  <IoEyeOutline size={18} />
                 </button>
-              )}
-              <button
-                type="button"
-                title="View"
-                className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
-                onClick={() => {
-                  handleViewAppointment(activeEvent);
-                  setActivePopoverKey(null);
-                }}
-              >
-                <IoEyeOutline size={18} />
-              </button>
+              </GlassTooltip>
               {canEditAppointments && allowReschedule(activeEvent.status) && (
+                <GlassTooltip content="Reschedule" side="top">
+                  <button
+                    type="button"
+                    title="Reschedule"
+                    className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
+                    onClick={() => {
+                      handleRescheduleAppointment(activeEvent);
+                      setActivePopoverKey(null);
+                    }}
+                  >
+                    <IoCalendarOutline size={18} />
+                  </button>
+                </GlassTooltip>
+              )}
+              <GlassTooltip content="SOAP / notes" side="top">
                 <button
                   type="button"
-                  title="Reschedule"
+                  title="SOAP / notes"
                   className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
                   onClick={() => {
-                    handleRescheduleAppointment(activeEvent);
+                    handleViewAppointment(activeEvent, {
+                      label: 'prescription',
+                      subLabel: 'subjective',
+                    });
                     setActivePopoverKey(null);
                   }}
                 >
-                  <IoCalendarOutline size={18} />
+                  <IoDocumentTextOutline size={18} />
                 </button>
-              )}
-              <button
-                type="button"
-                title="SOAP"
-                className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
-                onClick={() => {
-                  handleViewAppointment(activeEvent, {
-                    label: 'prescription',
-                    subLabel: 'subjective',
-                  });
-                  setActivePopoverKey(null);
-                }}
-              >
-                <IoDocumentTextOutline size={18} />
-              </button>
-              <button
-                type="button"
-                title="Finance"
-                className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
-                onClick={() => {
-                  handleViewAppointment(activeEvent, {
-                    label: 'finance',
-                    subLabel: 'summary',
-                  });
-                  setActivePopoverKey(null);
-                }}
-              >
-                <IoCardOutline size={18} />
-              </button>
-              <button
-                type="button"
-                title="Labs"
-                className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
-                onClick={() => {
-                  handleViewAppointment(activeEvent, {
-                    label: 'labs',
-                    subLabel: 'idexx-labs',
-                  });
-                  setActivePopoverKey(null);
-                }}
-              >
-                <IoFlaskOutline size={18} />
-              </button>
+              </GlassTooltip>
+              <GlassTooltip content="Finance summary" side="top">
+                <button
+                  type="button"
+                  title="Finance summary"
+                  className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
+                  onClick={() => {
+                    handleViewAppointment(activeEvent, {
+                      label: 'finance',
+                      subLabel: 'summary',
+                    });
+                    setActivePopoverKey(null);
+                  }}
+                >
+                  <IoCardOutline size={18} />
+                </button>
+              </GlassTooltip>
+              <GlassTooltip content="Lab tests" side="top">
+                <button
+                  type="button"
+                  title="Lab tests"
+                  className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
+                  onClick={() => {
+                    handleViewAppointment(activeEvent, {
+                      label: 'labs',
+                      subLabel: 'idexx-labs',
+                    });
+                    setActivePopoverKey(null);
+                  }}
+                >
+                  <IoFlaskOutline size={18} />
+                </button>
+              </GlassTooltip>
             </div>
           </dialog>,
           document.body

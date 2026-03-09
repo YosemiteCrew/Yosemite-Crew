@@ -14,11 +14,14 @@ import Image from 'next/image';
 import { getSafeImageUrl } from '@/app/lib/urls';
 import Search from '@/app/ui/inputs/Search';
 import { useSearchStore } from '@/app/stores/searchStore';
+import { useUniversalSearchStore } from '@/app/stores/universalSearchStore';
 import HamburgerMenuButton from '@/app/ui/layout/Header/HamburgerMenuButton';
 import MobileMenu from '@/app/ui/layout/Header/MobileMenu';
 import { headerAppRoutes, headerDevRoutes } from '@/app/config/routes';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
+import { startRouteLoader } from '@/app/lib/routeLoader';
+import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
 
 const UserHeader = () => {
   const { signOut } = useSignOut();
@@ -51,9 +54,11 @@ const UserHeader = () => {
   const orgs = useOrgList();
   const primaryOrg = usePrimaryOrg();
   const setPrimaryOrg = useOrgStore((s) => s.setPrimaryOrg);
+  const membershipsByOrgId = useOrgStore((s) => s.membershipsByOrgId);
   const query = useSearchStore((s) => s.query);
   const setQuery = useSearchStore((s) => s.setQuery);
   const clear = useSearchStore((s) => s.clear);
+  const openUniversalSearch = useUniversalSearchStore((s) => s.open);
   const orgDropdownRef = useRef<HTMLDivElement>(null);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -72,6 +77,7 @@ const UserHeader = () => {
         globalThis.localStorage.removeItem('yc_dashboard_videos_hidden');
       }
       console.log('✅ Signed out using Cognito signout');
+      startRouteLoader();
       router.replace(logoutRedirect);
     } catch (error) {
       console.error('⚠️ Cognito signout error:', error);
@@ -81,15 +87,19 @@ const UserHeader = () => {
   const handleOrgClick = (orgId: string) => {
     setPrimaryOrg(orgId);
     setSelectOrg(false);
-    router.push('/dashboard');
+    const role = membershipsByOrgId[orgId]?.roleDisplay ?? membershipsByOrgId[orgId]?.roleCode;
+    startRouteLoader();
+    router.push(resolveDefaultOpenScreenRoute(role));
   };
 
   const handleMobileOrgClick = (orgId: string) => {
     setPrimaryOrg(orgId);
     setSelectOrg(false);
     setMenuOpen(false);
+    const role = membershipsByOrgId[orgId]?.roleDisplay ?? membershipsByOrgId[orgId]?.roleCode;
     setTimeout(() => {
-      router.push('/dashboard');
+      startRouteLoader();
+      router.push(resolveDefaultOpenScreenRoute(role));
     }, 300);
   };
 
@@ -99,6 +109,7 @@ const UserHeader = () => {
       if (item.name === 'Sign out') {
         handleLogout();
       } else {
+        startRouteLoader();
         router.push(item.href);
       }
     }, 400);
@@ -135,6 +146,7 @@ const UserHeader = () => {
   const orgVerified = !!primaryOrg?.isVerified;
 
   const getSearchPlaceholder = () => {
+    if (pathname.startsWith('/appointments/idexx-workspace')) return 'Search result / order';
     if (pathname.startsWith('/appointments')) return 'Search appointments';
     if (pathname.startsWith('/inventory')) return 'Search inventory';
     if (pathname.startsWith('/integrations/idexx-workspace')) return 'Search result / order';
@@ -147,7 +159,6 @@ const UserHeader = () => {
   };
 
   const hideSearch =
-    pathname.startsWith('/appointments/idexx-workspace') ||
     pathname.startsWith('/chat') ||
     pathname.startsWith('/settings') ||
     pathname.startsWith('/organization') ||
@@ -299,6 +310,24 @@ const UserHeader = () => {
             placeholder={getSearchPlaceholder()}
           />
         )}
+        <button
+          type="button"
+          onClick={openUniversalSearch}
+          className="hidden lg:flex h-12 items-center gap-2 rounded-2xl! border border-input-border-default bg-white px-3.5 text-body-4 text-text-secondary hover:border-input-border-active hover:text-text-brand hover:bg-brand-100/40 transition-all duration-200"
+          aria-label="Open universal search"
+        >
+          <span className="rounded-md border border-card-border bg-white px-1.5 py-0.5 text-caption-1 leading-none">
+            ⌘
+          </span>
+          <span className="text-caption-1 text-text-secondary/70">/</span>
+          <span className="rounded-md border border-card-border bg-white px-1.5 py-0.5 text-caption-1 leading-none">
+            Ctrl
+          </span>
+          <span className="text-caption-1 text-text-secondary/70">+</span>
+          <span className="rounded-md border border-card-border bg-white px-1.5 py-0.5 text-caption-1 leading-none">
+            K
+          </span>
+        </button>
 
         <MdNotificationsActive color="#302f2e" size={22} style={{ cursor: 'pointer' }} />
 

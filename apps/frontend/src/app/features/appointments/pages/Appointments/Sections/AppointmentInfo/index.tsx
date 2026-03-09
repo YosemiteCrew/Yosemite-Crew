@@ -123,6 +123,7 @@ type CustomFormsSectionProps = {
   canEdit: boolean;
   activeAppointment: Appointment | null;
   templates: { value: string; label: string; schema: FormField[]; form: any }[];
+  accordionTitle?: string;
   onSubmission?: (entry: AppointmentFormEntry) => void;
   onSubmissionUpdate?: (
     submissionId: string,
@@ -142,6 +143,7 @@ const CustomFormsSection: React.FC<CustomFormsSectionProps> = ({
   canEdit,
   activeAppointment,
   templates,
+  accordionTitle,
   onSubmission,
   onSubmissionUpdate,
   onFormLinked,
@@ -156,6 +158,7 @@ const CustomFormsSection: React.FC<CustomFormsSectionProps> = ({
     onSubmissionUpdate={onSubmissionUpdate}
     onFormLinked={onFormLinked}
     templates={templates}
+    accordionTitle={accordionTitle}
   />
 );
 
@@ -167,6 +170,7 @@ const CustomFormsView = ({
   activeAppointment,
   onSubmission,
   templates,
+  accordionTitle,
   onSubmissionUpdate,
   onFormLinked,
 }: {
@@ -177,6 +181,7 @@ const CustomFormsView = ({
   activeAppointment: Appointment | null;
   onSubmission?: (entry: AppointmentFormEntry) => void;
   templates: { value: string; label: string; schema: FormField[]; form: any }[];
+  accordionTitle?: string;
   onSubmissionUpdate?: (
     submissionId: string,
     updates: Partial<FormSubmission> & { signatureRequired?: boolean }
@@ -219,12 +224,17 @@ const CustomFormsView = ({
   };
 
   return (
-    <Accordion title="Templates" defaultOpen={true} showEditIcon={false} isEditing>
+    <Accordion
+      title={accordionTitle || 'Templates'}
+      defaultOpen={true}
+      showEditIcon={false}
+      isEditing
+    >
       <div className="flex flex-col gap-4 w-full">
         {canEdit ? (
           <div className="flex flex-col gap-3">
             <SearchDropdown
-              placeholder="Search form templates"
+              placeholder="Search templates"
               options={templates.map((t) => ({ value: t.value, label: t.label }))}
               onSelect={(id: string) => {
                 const match = templates.find((t) => t.value === id);
@@ -511,7 +521,7 @@ const CustomFormsView = ({
         })}
         {forms.length === 0 ? (
           <Accordion
-            title="Previous form submissions"
+            title="Previous Submissions"
             defaultOpen={false}
             showEditIcon={false}
             isEditing
@@ -643,6 +653,8 @@ const hospitalLabels = [
             className="object-contain"
           />
         ),
+        redirectHref: '/appointments/idexx-workspace',
+        redirectLabel: 'Open IDEXX Hub',
       },
     ],
   },
@@ -725,7 +737,17 @@ const AppoitmentInfo = ({
   }, [allForms, orgType]);
 
   const labels = useMemo(() => {
-    const base = getLabelsForOrgType(orgType, hospitalLabels);
+    const base = getLabelsForOrgType(orgType, hospitalLabels).map((label: any) => {
+      if (orgType === 'HOSPITAL' && label.key === 'prescription') {
+        return {
+          ...label,
+          labels: (label.labels ?? []).map((subLabel: any) =>
+            subLabel.key === 'forms' ? { ...subLabel, name: 'Medical Notes' } : subLabel
+          ),
+        };
+      }
+      return label;
+    });
     if (merckEnabled) return base;
     return base.map((label: any) => {
       if (label.key !== 'prescription') return label;
@@ -737,6 +759,8 @@ const AppoitmentInfo = ({
       };
     });
   }, [orgType, merckEnabled]);
+  const formsAccordionTitle =
+    orgType === 'HOSPITAL' && activeLabel === 'prescription' ? 'Medical Notes' : 'Templates';
 
   useEffect(() => {
     if (!showModal || !initialViewIntent) return;
@@ -1035,6 +1059,7 @@ const AppoitmentInfo = ({
               loading={customFormsLoading}
               error={customFormsError}
               templates={templatesForOrg}
+              accordionTitle={formsAccordionTitle}
               onSubmission={upsertCustomForm}
               onFormLinked={upsertCustomForm}
               onSubmissionUpdate={updateCustomFormSubmission}

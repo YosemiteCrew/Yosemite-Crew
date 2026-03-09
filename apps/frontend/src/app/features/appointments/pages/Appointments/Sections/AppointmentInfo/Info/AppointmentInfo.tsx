@@ -2,6 +2,7 @@ import EditableAccordion, { FieldConfig } from '@/app/ui/primitives/Accordion/Ed
 import { useRoomsForPrimaryOrg } from '@/app/hooks/useRooms';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import {
+  changeAppointmentStatus,
   getSlotsForServiceAndDateForPrimaryOrg,
   updateAppointment,
 } from '@/app/features/appointments/services/appointmentService';
@@ -14,7 +15,7 @@ import {
 } from '@/app/features/appointments/types/appointments';
 import { buildUtcDateFromDateAndTime, getDurationMinutes, toUtcCalendarDate } from '@/app/lib/date';
 import { Appointment } from '@yosemite-crew/types';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import FormDesc from '@/app/ui/inputs/FormDesc/FormDesc';
@@ -108,6 +109,27 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [timeSlots, setTimeSlots] = useState<Slot[]>([]);
 
+  const getLeadOptionsForSlot = useCallback(
+    (slot: Slot | null) => {
+      if (!teams?.length || !slot) return [];
+      const foundSlot = timeSlots.find(
+        (s) => s.startTime === slot.startTime && s.endTime === slot.endTime
+      );
+      if (!foundSlot?.vetIds?.length) return [];
+      const vetIdSet = new Set(foundSlot.vetIds);
+      return teams
+        .filter((team) => {
+          const teamId = team.practionerId || team._id;
+          return teamId ? vetIdSet.has(teamId) : false;
+        })
+        .map((team) => ({
+          label: team.name || team.practionerId || team._id,
+          value: team.practionerId || team._id,
+        }));
+    },
+    [teams, timeSlots]
+  );
+
   const RoomOptions = useMemo(
     () =>
       rooms?.map((room) => ({
@@ -150,20 +172,8 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
   );
 
   const LeadOptions = useMemo(() => {
-    if (!teams?.length || !selectedSlot) return [];
-    const slot = timeSlots.find((s) => s.startTime === selectedSlot.startTime);
-    if (!slot?.vetIds?.length) return [];
-    const vetIdSet = new Set(slot.vetIds);
-    return teams
-      .filter((team) => {
-        const teamId = team.practionerId || team._id;
-        return teamId ? vetIdSet.has(teamId) : false;
-      })
-      .map((team) => ({
-        label: team.name || team.practionerId || team._id,
-        value: team.practionerId || team._id,
-      }));
-  }, [teams, timeSlots, selectedSlot]);
+    return getLeadOptionsForSlot(selectedSlot);
+  }, [getLeadOptionsForSlot, selectedSlot]);
 
   const staffFields = useMemo(() => getStaffFields({ TeamOptions }), [TeamOptions]);
 
@@ -230,6 +240,44 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
     activeAppointment.startTime,
     activeAppointment.endTime,
   ]);
+
+  useEffect(() => {
+    if (!isEditingAppointment || !selectedSlot) return;
+    const options = getLeadOptionsForSlot(selectedSlot);
+    const currentLeadId = appointmentValues.leadId;
+
+    if (options.length === 0) {
+      setSelectedSlot(null);
+      setAppointmentValues((prev) => ({ ...prev, leadId: '' }));
+      setErrors((prev) => ({
+        ...prev,
+        slot: 'No lead is available for this slot. Please choose another slot.',
+        leadId: 'No lead is available for this slot.',
+      }));
+      return;
+    }
+
+    if (options.length === 1) {
+      const onlyLead = options[0];
+      if (currentLeadId !== onlyLead.value) {
+        setAppointmentValues((prev) => ({ ...prev, leadId: onlyLead.value }));
+      }
+      setErrors((prev) => ({ ...prev, slot: undefined, leadId: undefined }));
+      return;
+    }
+
+    const hasSelectedValidLead = options.some((option) => option.value === currentLeadId);
+    if (!hasSelectedValidLead) {
+      setAppointmentValues((prev) => ({ ...prev, leadId: '' }));
+      setErrors((prev) => ({
+        ...prev,
+        slot: undefined,
+        leadId: 'Multiple leads are available. Please choose a lead.',
+      }));
+      return;
+    }
+    setErrors((prev) => ({ ...prev, slot: undefined, leadId: undefined }));
+  }, [isEditingAppointment, selectedSlot, getLeadOptionsForSlot, appointmentValues.leadId]);
 
   const AppointmentInfoData = useMemo(
     () => ({
@@ -304,10 +352,25 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
 
   const handleAppointmentSave = async () => {
     const formErrors: typeof errors = {};
+    const slotLeadOptions = getLeadOptionsForSlot(selectedSlot);
     if (!appointmentValues.specialityId) formErrors.specialityId = 'Please select a speciality';
     if (!appointmentValues.serviceId) formErrors.serviceId = 'Please select a service';
     if (!selectedSlot) formErrors.slot = 'Please select a slot';
-    if (!appointmentValues.leadId) formErrors.leadId = 'Please select a lead';
+    if (selectedSlot && slotLeadOptions.length === 0) {
+      formErrors.slot = 'No lead is available for this slot. Please choose another slot.';
+      formErrors.leadId = 'No lead is available for this slot.';
+    }
+    if (selectedSlot && slotLeadOptions.length > 1 && !appointmentValues.leadId) {
+      formErrors.leadId = 'Multiple leads are available. Please choose a lead.';
+    }
+    if (
+      selectedSlot &&
+      appointmentValues.leadId &&
+      slotLeadOptions.length > 0 &&
+      !slotLeadOptions.some((option) => option.value === appointmentValues.leadId)
+    ) {
+      formErrors.leadId = 'Selected lead is not available for this slot.';
+    }
     setErrors(formErrors);
     if (Object.keys(formErrors).length > 0) return;
 
@@ -335,7 +398,7 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
       ...activeAppointment,
       concern: appointmentValues.concern,
       room,
-      status: appointmentValues.status as AppointmentStatus,
+      status: activeAppointment.status,
       appointmentType: {
         id: appointmentValues.serviceId,
         name: service?.name || activeAppointment.appointmentType?.name || '',
@@ -358,6 +421,11 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
     };
 
     await updateAppointment(updatedAppointment);
+    const nextStatus = appointmentValues.status as AppointmentStatus;
+    const currentStatus = activeAppointment.status as AppointmentStatus;
+    if (nextStatus && nextStatus !== currentStatus) {
+      await changeAppointmentStatus(activeAppointment, nextStatus);
+    }
     setIsEditingAppointment(false);
     setErrors({});
   };
@@ -416,9 +484,10 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
                 leadId={appointmentValues.leadId}
                 leadError={errors.leadId}
                 leadOptions={LeadOptions}
-                onLeadSelect={(option) =>
-                  setAppointmentValues((prev) => ({ ...prev, leadId: option.value }))
-                }
+                onLeadSelect={(option) => {
+                  setAppointmentValues((prev) => ({ ...prev, leadId: option.value }));
+                  setErrors((prev) => ({ ...prev, leadId: undefined }));
+                }}
                 supportStaffIds={appointmentValues.supportIds}
                 teamOptions={TeamOptions}
                 onSupportStaffChange={(ids) =>

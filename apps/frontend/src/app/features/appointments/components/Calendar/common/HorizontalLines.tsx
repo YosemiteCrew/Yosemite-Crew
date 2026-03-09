@@ -3,25 +3,41 @@ import {
   MINUTES_PER_STEP,
   PIXELS_PER_STEP,
   getNowTopPxForWindow,
-  getTotalWindowHeightPx,
 } from '@/app/features/appointments/components/Calendar/helpers';
+import { formatDateInPreferredTimeZone } from '@/app/lib/timezone';
 
 type HorizontalLinesProps = {
   date: Date;
+  now?: Date;
   windowStart: number; // minutes since 00:00
   windowEnd: number; // minutes since 00:00
+  pixelsPerStep?: number;
 };
 
-const HorizontalLines = ({ date, windowStart, windowEnd }: HorizontalLinesProps) => {
+const HorizontalLines = ({
+  date,
+  now,
+  windowStart,
+  windowEnd,
+  pixelsPerStep = PIXELS_PER_STEP,
+}: HorizontalLinesProps) => {
   const totalHeightPx = useMemo(
-    () => getTotalWindowHeightPx(windowStart, windowEnd),
-    [windowStart, windowEnd]
+    () => ((windowEnd - windowStart) / MINUTES_PER_STEP) * pixelsPerStep,
+    [pixelsPerStep, windowEnd, windowStart]
   );
 
-  const nowTopPx = useMemo(
-    () => getNowTopPxForWindow(date, windowStart, windowEnd),
-    [date, windowStart, windowEnd]
-  );
+  const nowTopPx = useMemo(() => {
+    const baseTopPx = getNowTopPxForWindow(date, windowStart, windowEnd, now);
+    if (baseTopPx == null) return null;
+    return baseTopPx * (pixelsPerStep / PIXELS_PER_STEP);
+  }, [date, now, pixelsPerStep, windowStart, windowEnd]);
+  const nowTimeLabel = useMemo(() => {
+    if (nowTopPx == null) return null;
+    return formatDateInPreferredTimeZone(now ?? new Date(), {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  }, [now, nowTopPx]);
 
   // Draw hour lines only for hours that fall inside the window
   const hourLines = useMemo(() => {
@@ -32,7 +48,7 @@ const HorizontalLines = ({ date, windowStart, windowEnd }: HorizontalLinesProps)
       const hour = startHour + i;
       const minsFromMidnight = hour * 60;
 
-      const top = ((minsFromMidnight - windowStart) / MINUTES_PER_STEP) * PIXELS_PER_STEP;
+      const top = ((minsFromMidnight - windowStart) / MINUTES_PER_STEP) * pixelsPerStep;
 
       // avoid drawing at exact top/bottom edges if you want
       if (top <= 0 || top >= totalHeightPx) return null;
@@ -45,13 +61,18 @@ const HorizontalLines = ({ date, windowStart, windowEnd }: HorizontalLinesProps)
         />
       );
     }).filter(Boolean);
-  }, [windowStart, windowEnd, totalHeightPx]);
+  }, [pixelsPerStep, windowStart, windowEnd, totalHeightPx]);
 
   return (
     <>
       {hourLines}
       {nowTopPx != null && (
         <div className="absolute left-0 right-0 z-10" style={{ top: nowTopPx }}>
+          {nowTimeLabel && (
+            <div className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold text-red-500 whitespace-nowrap">
+              {nowTimeLabel}
+            </div>
+          )}
           <div className="absolute left-[-5px] w-3 h-3 rounded-full bg-red-500 translate-y-[-50%]" />
           <div className="border-t-2 border-t-red-500 translate-y-[-50%]" />
         </div>

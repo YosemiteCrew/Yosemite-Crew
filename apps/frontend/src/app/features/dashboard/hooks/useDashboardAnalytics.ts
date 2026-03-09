@@ -55,8 +55,7 @@ const resolveDashboardAnalyticsMode = (): 'mock' | 'live' => {
   return raw === 'live' ? 'live' : 'mock';
 };
 
-const isDashboardMockMode = () =>
-  process.env.NODE_ENV === 'development' && resolveDashboardAnalyticsMode() === 'mock';
+const isDashboardMockMode = () => resolveDashboardAnalyticsMode() === 'mock';
 
 export const mapDashboardDurationOption = (option: string): DashboardDuration => {
   switch (option) {

@@ -13,6 +13,7 @@ import { TextFade } from '@/app/ui/widgets/Animations/TextFade';
 import StarRipple from '@/app/features/marketing/components/LandingPage/StarRipple';
 import { useAuthStore } from '@/app/stores/authStore';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
 
 import './LandingPage.css';
 
@@ -24,7 +25,7 @@ const NewHeroSection = () => {
 
   const getCtaHref = () => {
     if (user) {
-      return role === 'developer' ? '/developers/home' : '/organizations';
+      return role === 'developer' ? '/developers/home' : resolveDefaultOpenScreenRoute(role);
     }
     return '/signup';
   };

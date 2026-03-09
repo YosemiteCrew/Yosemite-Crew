@@ -11,6 +11,7 @@ const useSearchParamsMock = jest.fn();
 
 const calendarSpy = jest.fn();
 const tableSpy = jest.fn();
+const boardSpy = jest.fn();
 const addAppointmentSpy = jest.fn();
 const appointmentInfoSpy = jest.fn();
 
@@ -68,6 +69,11 @@ jest.mock(
   }
 );
 
+jest.mock('@/app/features/appointments/components/AppointmentBoard', () => (props: any) => {
+  boardSpy(props);
+  return <div data-testid="appointment-board" />;
+});
+
 jest.mock('@/app/ui/tables/Appointments', () => (props: any) => {
   tableSpy(props);
   return <div data-testid="appointments-table" />;
@@ -119,9 +125,17 @@ describe('Appointments page', () => {
     });
   });
 
-  it('renders calendar view with filtered list and toggles to table', () => {
+  it('renders board view by default and toggles to calendar/list', () => {
     render(<ProtectedAppointments />);
 
+    expect(screen.getByTestId('appointment-board')).toBeInTheDocument();
+    expect(boardSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        appointments: [expect.objectContaining({ id: 'a1' })],
+      })
+    );
+
+    fireEvent.click(screen.getByText('Calendar'));
     expect(screen.getByTestId('appointment-calendar')).toBeInTheDocument();
     expect(calendarSpy).toHaveBeenCalledWith(
       expect.objectContaining({

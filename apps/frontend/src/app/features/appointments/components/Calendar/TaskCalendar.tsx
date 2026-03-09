@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { isSameDay } from '@/app/features/appointments/components/Calendar/helpers';
 import Header from '@/app/features/appointments/components/Calendar/common/Header';
 import DayCalendar from '@/app/features/appointments/components/Calendar/Task/DayCalendar';
 import WeekCalendar from '@/app/features/appointments/components/Calendar/Task/WeekCalendar';
@@ -9,7 +8,14 @@ import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { getProfileForUserForPrimaryOrg } from '@/app/features/organization/services/teamService';
 import { updateTask } from '@/app/features/tasks/services/taskService';
 import { useAuthStore } from '@/app/stores/authStore';
-import { getPreferredTimeZone, utcClockTimeToMinutesInPreferredTimeZone } from '@/app/lib/timezone';
+import {
+  buildDateInPreferredTimeZone,
+  formatDateInPreferredTimeZone,
+  getPreferredTimeZone,
+  isOnPreferredTimeZoneCalendarDay,
+  utcClockTimeToPreferredTimeZoneClock,
+} from '@/app/lib/timezone';
+import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
 
 type TaskCalendarProps = {
   filteredList: Task[];
@@ -17,6 +23,7 @@ type TaskCalendarProps = {
   setActiveTask?: (inventory: Task) => void;
   setViewPopup?: (open: boolean) => void;
   activeCalendar: string;
+  setActiveCalendar?: React.Dispatch<React.SetStateAction<string>>;
   currentDate: Date;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   weekStart: Date;
@@ -29,12 +36,23 @@ type DropAvailabilityInterval = {
   endMinute: number;
 };
 
+const WEEKDAY_ORDER = [
+  'SUNDAY',
+  'MONDAY',
+  'TUESDAY',
+  'WEDNESDAY',
+  'THURSDAY',
+  'FRIDAY',
+  'SATURDAY',
+];
+
 const TaskCalendar = ({
   filteredList,
   allTasks,
   setActiveTask,
   setViewPopup,
   activeCalendar,
+  setActiveCalendar,
   currentDate,
   setCurrentDate,
   weekStart,
@@ -49,6 +67,7 @@ const TaskCalendar = ({
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [draggedTaskLabel, setDraggedTaskLabel] = useState<string | null>(null);
   const [dragError, setDragError] = useState<string | null>(null);
+  const [zoomMode, setZoomMode] = useState<CalendarZoomMode>('in');
   const [availabilityVersion, setAvailabilityVersion] = useState(0);
   const availabilityCacheRef = useRef<Record<string, Record<string, DropAvailabilityInterval[]>>>(
     {}
@@ -69,12 +88,20 @@ const TaskCalendar = ({
   const clampMinutes = (minutes: number) =>
     Math.max(0, Math.min(24 * 60 - 5, Math.round(minutes / 5) * 5));
 
-  const toLocalMinutesFromUtcTime = (utcTime: string) => {
-    return utcClockTimeToMinutesInPreferredTimeZone(utcTime);
+  const toLocalClockFromUtcTime = (utcTime: string) => {
+    return utcClockTimeToPreferredTimeZoneClock(utcTime);
   };
 
   const getDayKey = (date: Date) =>
-    date.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
+    formatDateInPreferredTimeZone(date, { weekday: 'long' }).toUpperCase();
+
+  const shiftDayKey = useCallback((dayKey: string, offset: number): string => {
+    const index = WEEKDAY_ORDER.indexOf(String(dayKey || '').toUpperCase());
+    if (index < 0) return String(dayKey || '').toUpperCase();
+    const shifted = (index + offset) % WEEKDAY_ORDER.length;
+    const safe = shifted < 0 ? shifted + WEEKDAY_ORDER.length : shifted;
+    return WEEKDAY_ORDER[safe];
+  }, []);
 
   const resolveAssigneeId = useCallback(
     (candidateId?: string) => {
@@ -153,24 +180,40 @@ const TaskCalendar = ({
             ? profile.baseAvailability
             : [];
           for (const dayEntry of baseAvailability) {
-            const dayKey = String(dayEntry?.dayOfWeek ?? '').toUpperCase();
-            if (!dayKey) continue;
+            const sourceDayKey = String(dayEntry?.dayOfWeek ?? '').toUpperCase();
+            if (!sourceDayKey) continue;
             const slots = Array.isArray(dayEntry?.slots) ? dayEntry.slots : [];
-            const intervals: DropAvailabilityInterval[] = slots
-              .filter((slot: any) => slot?.isAvailable !== false)
-              .map((slot: any) => {
-                const start = toLocalMinutesFromUtcTime(slot?.startTime || '');
-                const end = toLocalMinutesFromUtcTime(slot?.endTime || '');
-                const latestStart = end - TASK_BLOCK_DURATION_MINUTES;
-                return {
-                  startMinute: start,
-                  endMinute: Math.max(start, latestStart),
-                };
-              })
-              .filter(
-                (interval: DropAvailabilityInterval) => interval.endMinute >= interval.startMinute
-              );
-            output[dayKey] = intervals;
+            const appendInterval = (dayKey: string, interval: DropAvailabilityInterval) => {
+              if (!output[dayKey]) output[dayKey] = [];
+              output[dayKey].push(interval);
+            };
+
+            for (const slot of slots) {
+              if (slot?.isAvailable === false) continue;
+              const startClock = toLocalClockFromUtcTime(slot?.startTime || '');
+              const endClock = toLocalClockFromUtcTime(slot?.endTime || '');
+              const startAbsoluteMinute = startClock.dayOffset * 1440 + startClock.minutes;
+              let endAbsoluteMinute = endClock.dayOffset * 1440 + endClock.minutes;
+              if (endAbsoluteMinute <= startAbsoluteMinute) {
+                endAbsoluteMinute += 1440;
+              }
+              const latestStartAbsoluteMinute = endAbsoluteMinute - TASK_BLOCK_DURATION_MINUTES;
+              if (latestStartAbsoluteMinute < startAbsoluteMinute) continue;
+
+              const firstDayOffset = Math.floor(startAbsoluteMinute / 1440);
+              const lastDayOffset = Math.floor(latestStartAbsoluteMinute / 1440);
+
+              for (let offset = firstDayOffset; offset <= lastDayOffset; offset++) {
+                const dayStartMinute = offset * 1440;
+                const localStart = Math.max(startAbsoluteMinute, dayStartMinute);
+                const localEnd = Math.min(latestStartAbsoluteMinute, dayStartMinute + 1435);
+                if (localEnd < localStart) continue;
+                appendInterval(shiftDayKey(sourceDayKey, offset), {
+                  startMinute: localStart - dayStartMinute,
+                  endMinute: localEnd - dayStartMinute,
+                });
+              }
+            }
           }
           availabilityCacheRef.current[cacheKey] = output;
           setAvailabilityVersion((version) => version + 1);
@@ -183,7 +226,7 @@ const TaskCalendar = ({
       await task;
       delete availabilityPendingRef.current[cacheKey];
     },
-    [normalizeId, resolveAssigneeId]
+    [normalizeId, resolveAssigneeId, shiftDayKey]
   );
 
   const getDropAvailabilityIntervals = useCallback(
@@ -246,15 +289,7 @@ const TaskCalendar = ({
       }
     }
 
-    const nextDueAt = new Date(
-      date.getFullYear(),
-      date.getMonth(),
-      date.getDate(),
-      Math.floor(snappedMinute / 60),
-      snappedMinute % 60,
-      0,
-      0
-    );
+    const nextDueAt = buildDateInPreferredTimeZone(date, snappedMinute);
 
     try {
       setDragError(null);
@@ -328,13 +363,23 @@ const TaskCalendar = ({
   };
 
   const dayEvents = useMemo(
-    () => filteredList.filter((event) => isSameDay(new Date(event.dueAt), currentDate)),
+    () =>
+      filteredList.filter((event) =>
+        isOnPreferredTimeZoneCalendarDay(new Date(event.dueAt), currentDate)
+      ),
     [filteredList, currentDate]
   );
 
   return (
-    <div className="border border-grey-light rounded-2xl w-full flex flex-col">
-      <Header currentDate={currentDate} setCurrentDate={setCurrentDate} />
+    <div className="border border-grey-light rounded-2xl w-full h-full min-h-0 flex flex-col overflow-hidden">
+      <Header
+        currentDate={currentDate}
+        setCurrentDate={setCurrentDate}
+        zoomMode={zoomMode}
+        setZoomMode={setZoomMode}
+        activeCalendar={activeCalendar}
+        setActiveCalendar={setActiveCalendar}
+      />
       {dragError ? (
         <div className="px-3 py-2 text-caption-1 text-text-error border-b border-card-border">
           {dragError}
@@ -344,6 +389,7 @@ const TaskCalendar = ({
         <DayCalendar
           events={dayEvents}
           date={currentDate}
+          zoomMode={zoomMode}
           handleViewTask={handleViewTask}
           onQuickStatusChange={handleQuickStatusChange}
           setCurrentDate={setCurrentDate}
@@ -382,6 +428,7 @@ const TaskCalendar = ({
       {activeCalendar === 'week' && (
         <WeekCalendar
           events={filteredList}
+          zoomMode={zoomMode}
           handleViewTask={handleViewTask}
           onQuickStatusChange={handleQuickStatusChange}
           weekStart={weekStart}
@@ -423,6 +470,7 @@ const TaskCalendar = ({
         <UserCalendar
           events={dayEvents}
           date={currentDate}
+          zoomMode={zoomMode}
           handleViewTask={handleViewTask}
           onQuickStatusChange={handleQuickStatusChange}
           setCurrentDate={setCurrentDate}

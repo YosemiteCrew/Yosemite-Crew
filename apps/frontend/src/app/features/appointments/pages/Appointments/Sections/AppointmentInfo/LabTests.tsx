@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createPortal } from 'react-dom';
+import { MdOpenInNew } from 'react-icons/md';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
@@ -1312,7 +1313,13 @@ const LabResultsList = ({ s }: { s: UseLabTestsReturn }) => (
             onClick={() => void s.refreshResults()}
             isDisabled={s.refreshingResults}
           />
-          <Secondary href="/appointments/idexx-workspace" text="IDEXX Hub" />
+          <Link
+            href="/appointments/idexx-workspace"
+            aria-label="Open IDEXX Hub"
+            className="h-8 w-8 rounded-full border border-card-border bg-white text-text-secondary hover:text-text-brand hover:border-text-brand transition-colors inline-flex items-center justify-center"
+          >
+            <MdOpenInNew size={16} />
+          </Link>
         </div>
       </div>
 
