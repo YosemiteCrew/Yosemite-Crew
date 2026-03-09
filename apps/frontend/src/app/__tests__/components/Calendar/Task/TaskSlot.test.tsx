@@ -1,50 +1,48 @@
-import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
-import "@testing-library/jest-dom";
+import React from 'react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
 
-import TaskSlot from "@/app/features/appointments/components/Calendar/Task/TaskSlot";
-import { Task } from "@/app/features/tasks/types/task";
+import TaskSlot from '@/app/features/appointments/components/Calendar/Task/TaskSlot';
+import { Task } from '@/app/features/tasks/types/task';
 
-jest.mock("@/app/hooks/useTeam", () => ({
+jest.mock('@/app/hooks/useTeam', () => ({
   useTeamForPrimaryOrg: jest.fn(),
 }));
 
-jest.mock("@/app/ui/tables/Tasks", () => ({
-  getStatusStyle: jest.fn(() => ({ backgroundColor: "pink", color: "white" })),
+jest.mock('@/app/ui/tables/Tasks', () => ({
+  getStatusStyle: jest.fn(() => ({ backgroundColor: 'pink', color: 'white' })),
 }));
 
-import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
+import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 
-describe("TaskSlot", () => {
+describe('TaskSlot', () => {
   const handleViewTask = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([
-      { _id: "user-1", name: "Alex" },
-    ]);
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([{ _id: 'user-1', name: 'Alex' }]);
   });
 
-  it("renders tasks with member names and triggers view handler", () => {
+  it('renders tasks with member names and triggers view handler', () => {
     const slotEvents: Task[] = [
       {
-        name: "Task A",
-        dueAt: new Date("2025-01-06T10:00:00Z"),
-        status: "PENDING",
-        assignedTo: "user-1",
-        _id: "",
-        audience: "EMPLOYEE_TASK",
-        source: "CUSTOM",
-        category: "",
+        name: 'Task A',
+        dueAt: new Date('2025-01-06T10:00:00Z'),
+        status: 'PENDING',
+        assignedTo: 'user-1',
+        _id: '',
+        audience: 'EMPLOYEE_TASK',
+        source: 'CUSTOM',
+        category: '',
       } as Task,
       {
-        name: "Task B",
-        dueAt: new Date("2025-01-06T11:00:00Z"),
-        status: "COMPLETED",
-        _id: "",
-        audience: "EMPLOYEE_TASK",
-        source: "CUSTOM",
-        category: "",
+        name: 'Task B',
+        dueAt: new Date('2025-01-06T11:00:00Z'),
+        status: 'COMPLETED',
+        _id: '',
+        audience: 'EMPLOYEE_TASK',
+        source: 'CUSTOM',
+        category: '',
       } as Task,
     ];
 
@@ -58,33 +56,27 @@ describe("TaskSlot", () => {
       />
     );
 
-    expect(screen.getByText("Task A")).toBeInTheDocument();
-    expect(screen.getByText("Alex")).toBeInTheDocument();
-    expect(screen.getByText("Task B")).toBeInTheDocument();
-    expect(screen.getByText("-")).toBeInTheDocument();
+    expect(screen.getByText('Task A')).toBeInTheDocument();
+    expect(screen.getByText(/To:\s*Alex/)).toBeInTheDocument();
+    expect(screen.getByText('Task B')).toBeInTheDocument();
+    expect(screen.getAllByText(/From:\s*-/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/To:\s*-/)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText("Task A").closest("button")!);
+    fireEvent.click(screen.getByText('Task A').closest('button')!);
     expect(handleViewTask).toHaveBeenCalledWith(slotEvents[0]);
 
-    const container = screen
-      .getByText("Task A")
-      .closest("button")!.parentElement;
-    expect(container).toHaveStyle("height: 98px");
+    const container = screen.getByText('Task A').closest('button')!.parentElement;
+    expect(container).toHaveStyle('height: 98px');
   });
 
-  it("renders empty state when no tasks exist", () => {
+  it('renders empty slot area when no tasks exist', () => {
     render(
-      <TaskSlot
-        slotEvents={[]}
-        handleViewTask={handleViewTask}
-        index={1}
-        length={1}
-        height={180}
-      />
+      <TaskSlot slotEvents={[]} handleViewTask={handleViewTask} index={1} length={1} height={180} />
     );
 
-    const emptyState = screen.getByText("No tasks available");
-    expect(emptyState).toBeInTheDocument();
-    expect(emptyState).toHaveStyle("height: 180px");
+    const slotContainer = screen.getByRole('application');
+    expect(slotContainer).toBeInTheDocument();
+    expect(slotContainer).toHaveStyle('height: 180px');
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 });

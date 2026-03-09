@@ -4,6 +4,20 @@ import '@testing-library/jest-dom';
 import RevenueLeadersStat from '@/app/ui/widgets/Stats/RevenueLeadersStat';
 import CardHeader from '@/app/ui/cards/CardHeader/CardHeader';
 
+jest.mock('@/app/hooks/useBilling', () => ({
+  useCurrencyForPrimaryOrg: () => 'USD',
+}));
+
+jest.mock('@/app/features/dashboard/hooks/useDashboardAnalytics', () => ({
+  mapDashboardDurationOption: (value: string) => value,
+  useDashboardAnalytics: () => ({
+    durationOptions: {
+      revenueLeaders: ['Last week'],
+    },
+    revenueLeaders: [],
+  }),
+}));
+
 jest.mock('@/app/ui/cards/CardHeader/CardHeader', () => ({
   __esModule: true,
   default: jest.fn(({ title }: any) => <div data-testid="card-header">{title}</div>),

@@ -117,7 +117,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
       HOUR_ROW_TOP_OFFSET_PX
     );
     return { topPx, todayIndex };
-  }, [days, height, now]);
+  }, [days, height, now, HOUR_ROW_TOP_OFFSET_PX]);
 
   useEffect(() => {
     if (!scrollRef.current) return;
@@ -138,7 +138,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
       ? Math.max(0, nowPosition.topPx)
       : getTopPxForMinutes(focusMinutes, height, HOUR_ROW_GAP_PX, HOUR_ROW_TOP_OFFSET_PX);
     scrollContainerToTarget(scrollRef.current, topPx);
-  }, [days, events, height, nowPosition]);
+  }, [days, events, height, nowPosition, HOUR_ROW_TOP_OFFSET_PX]);
 
   const handlePrevWeek = () => {
     setWeekStart((prev) => {

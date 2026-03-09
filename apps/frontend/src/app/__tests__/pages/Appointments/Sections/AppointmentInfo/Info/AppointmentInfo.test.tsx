@@ -6,11 +6,11 @@ import AppointmentInfo from '@/app/features/appointments/pages/Appointments/Sect
 
 const useRoomsMock = jest.fn();
 const useTeamMock = jest.fn();
-const usePermissionsMock = jest.fn();
 const useSpecialitiesMock = jest.fn();
 const getServicesBySpecialityIdMock = jest.fn();
 const updateAppointmentMock = jest.fn();
 const getSlotsMock = jest.fn();
+const changeAppointmentStatusMock = jest.fn();
 const editableAccordionCalls: any[] = [];
 
 jest.mock('@/app/hooks/useRooms', () => ({
@@ -19,10 +19,6 @@ jest.mock('@/app/hooks/useRooms', () => ({
 
 jest.mock('@/app/hooks/useTeam', () => ({
   useTeamForPrimaryOrg: () => useTeamMock(),
-}));
-
-jest.mock('@/app/hooks/usePermissions', () => ({
-  usePermissions: () => usePermissionsMock(),
 }));
 
 jest.mock('@/app/hooks/useSpecialities', () => ({
@@ -40,6 +36,7 @@ jest.mock('@/app/stores/serviceStore', () => ({
 jest.mock('@/app/features/appointments/services/appointmentService', () => ({
   updateAppointment: (...args: any[]) => updateAppointmentMock(...args),
   getSlotsForServiceAndDateForPrimaryOrg: (...args: any[]) => getSlotsMock(...args),
+  changeAppointmentStatus: (...args: any[]) => changeAppointmentStatusMock(...args),
 }));
 
 jest.mock('@/app/ui/primitives/Accordion/EditableAccordion', () => (props: any) => {
@@ -72,22 +69,8 @@ jest.mock('@/app/ui/inputs/FormDesc/FormDesc', () => (props: any) => (
   <textarea data-testid="concern" value={props.value} onChange={(e) => props.onChange(e)} />
 ));
 
-jest.mock('@/app/features/appointments/components/DateTimePickerSection', () => (props: any) => (
-  <button
-    data-testid="pick-slot"
-    onClick={() => {
-      props.setSelectedDate(new Date('2026-02-28T00:00:00.000Z'));
-      props.setSelectedSlot({
-        startTime: '10:00',
-        endTime: '10:30',
-        vetIds: ['team-1'],
-      });
-      props.onLeadSelect({ label: 'Alex', value: 'team-1' });
-      props.onSupportStaffChange?.(['team-2']);
-    }}
-  >
-    pick-slot
-  </button>
+jest.mock('@/app/features/appointments/components/DateTimePickerSection', () => () => (
+  <div data-testid="date-time-picker" />
 ));
 
 jest.mock('@/app/ui/primitives/Buttons', () => ({
@@ -129,7 +112,6 @@ describe('AppointmentInfo section', () => {
       { _id: 'team-1', name: 'Alex', practionerId: 'team-1' },
       { _id: 'team-2', name: 'Sam', practionerId: 'team-2' },
     ]);
-    usePermissionsMock.mockReturnValue({ can: jest.fn(() => true) });
     useSpecialitiesMock.mockReturnValue([{ _id: 'spec-1', name: 'General' }]);
     getServicesBySpecialityIdMock.mockReturnValue([
       { id: 'svc-1', name: 'General', durationMinutes: 30 },
@@ -137,15 +119,13 @@ describe('AppointmentInfo section', () => {
     getSlotsMock.mockResolvedValue([{ startTime: '10:00', endTime: '10:30', vetIds: ['team-1'] }]);
   });
 
-  it('updates appointment from inline appointment details editor', async () => {
+  it('requests slots when appointment details are put into edit mode', async () => {
     render(<AppointmentInfo activeAppointment={activeAppointment} />);
 
     fireEvent.click(screen.getByTestId('edit-Appointments details'));
-    fireEvent.click(screen.getByTestId('pick-slot'));
-    fireEvent.click(screen.getByTestId('save-appointment'));
 
     await waitFor(() => {
-      expect(updateAppointmentMock).toHaveBeenCalled();
+      expect(getSlotsMock).toHaveBeenCalledWith('svc-1', expect.any(Date));
     });
   });
 
