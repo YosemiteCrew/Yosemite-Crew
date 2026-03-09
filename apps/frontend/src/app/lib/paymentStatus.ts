@@ -114,7 +114,18 @@ export const getAppointmentPaymentDisplay = (
   appointment: Appointment,
   invoicesByAppointmentId: Record<string, Invoice> = {}
 ): PaymentDisplay => {
-  const explicitPaymentStatus = String((appointment as any).paymentStatus ?? '')
+  const extensionPaymentStatus = Array.isArray((appointment as any)?.extension)
+    ? String(
+        (appointment as any).extension.find(
+          (ext: any) =>
+            String(ext?.url || '') ===
+            'https://yosemitecrew.com/fhir/StructureDefinition/appointment-payment-status'
+        )?.valueString ?? ''
+      )
+    : '';
+  const explicitPaymentStatus = String(
+    (appointment as any).paymentStatus ?? extensionPaymentStatus ?? ''
+  )
     .trim()
     .toUpperCase();
   const normalizedPaymentStatus = explicitPaymentStatus.replace(/[\s-]+/g, '_');

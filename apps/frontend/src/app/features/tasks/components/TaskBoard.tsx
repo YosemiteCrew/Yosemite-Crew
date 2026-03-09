@@ -102,6 +102,25 @@ const TaskBoard = ({
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const [showMineOnly, setShowMineOnly] = useState(false);
 
+  const buildDragPreview = (source: HTMLElement): HTMLElement => {
+    const preview = source.cloneNode(true) as HTMLElement;
+    preview.style.position = 'fixed';
+    preview.style.top = '-10000px';
+    preview.style.left = '-10000px';
+    preview.style.width = `${source.offsetWidth}px`;
+    preview.style.maxWidth = `${source.offsetWidth}px`;
+    preview.style.pointerEvents = 'none';
+    preview.style.borderRadius = '16px';
+    preview.style.overflow = 'hidden';
+    preview.style.boxShadow = 'none';
+    preview.style.background = '#fff';
+    preview.style.transform = 'scale(1)';
+    preview.style.opacity = '1';
+    preview.style.zIndex = '99999';
+    document.body.appendChild(preview);
+    return preview;
+  };
+
   const normalizeId = (value?: string | null) =>
     String(value ?? '')
       .trim()
@@ -186,6 +205,48 @@ const TaskBoard = ({
     setViewPopup?.(true);
   };
 
+  const getEdgeScrollDelta = (clientPosition: number, start: number, end: number) => {
+    const EDGE_PX = 56;
+    const SPEED_PX = 24;
+    if (clientPosition - start < EDGE_PX) return -SPEED_PX;
+    if (end - clientPosition < EDGE_PX) return SPEED_PX;
+    return 0;
+  };
+
+  const canScrollVertically = (el: HTMLElement, delta: number) => {
+    if (delta < 0) return el.scrollTop > 0;
+    if (delta > 0) return el.scrollTop + el.clientHeight < el.scrollHeight - 1;
+    return false;
+  };
+
+  const canScrollHorizontally = (el: HTMLElement, delta: number) => {
+    if (delta < 0) return el.scrollLeft > 0;
+    if (delta > 0) return el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
+    return false;
+  };
+
+  const autoScrollBoardOnDrag = (
+    event: React.DragEvent<HTMLElement>,
+    innerScrollable?: HTMLElement | null
+  ) => {
+    const innerRect = innerScrollable?.getBoundingClientRect();
+    const deltaInnerY = innerRect
+      ? getEdgeScrollDelta(event.clientY, innerRect.top, innerRect.bottom)
+      : 0;
+    if (innerScrollable && deltaInnerY !== 0 && canScrollVertically(innerScrollable, deltaInnerY)) {
+      innerScrollable.scrollBy({ top: deltaInnerY });
+      return;
+    }
+
+    const boardRoot = (event.currentTarget.closest('[data-board-scroll-root="true"]') ||
+      event.currentTarget) as HTMLElement;
+    const boardRect = boardRoot.getBoundingClientRect();
+    const deltaBoardX = getEdgeScrollDelta(event.clientX, boardRect.left, boardRect.right);
+    if (deltaBoardX !== 0 && canScrollHorizontally(boardRoot, deltaBoardX)) {
+      boardRoot.scrollBy({ left: deltaBoardX });
+    }
+  };
+
   const moveToStatus = async (taskId: string, nextStatus: BoardStatus) => {
     const task = todayTasks.find((item) => item._id === taskId);
     if (!task?._id) return;
@@ -262,97 +323,119 @@ const TaskBoard = ({
       </div>
 
       <div
-        className="flex-1 min-h-0 overflow-y-auto p-3 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 auto-rows-min"
+        className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden p-3"
         data-calendar-scroll="true"
+        data-board-scroll-root="true"
+        onDragOver={(event) => {
+          if (!draggedTaskId || !canEditTasks) return;
+          autoScrollBoardOnDrag(event);
+        }}
       >
-        {BOARD_COLUMNS.map((column) => {
-          const columnTasks = groupedTasks[column.key];
-          const hasTasks = columnTasks.length > 0;
-          const style = getStatusStyle(column.key);
-          return (
-            <div
-              key={column.key}
-              className="w-full rounded-2xl border border-card-border bg-white overflow-hidden flex flex-col min-h-0"
-              onDragOver={(event) => {
-                if (!draggedTaskId || !canEditTasks) return;
-                event.preventDefault();
-              }}
-              onDrop={(event) => {
-                if (!draggedTaskId || !canEditTasks) return;
-                event.preventDefault();
-                void moveToStatus(draggedTaskId, column.key);
-                setDraggedTaskId(null);
-              }}
-            >
+        <div className="h-full min-w-max flex items-stretch gap-3">
+          {BOARD_COLUMNS.map((column) => {
+            const columnTasks = groupedTasks[column.key];
+            const hasTasks = columnTasks.length > 0;
+            const style = getStatusStyle(column.key);
+            return (
               <div
-                className="rounded-t-2xl border-b border-card-border px-3 py-2"
-                style={{ backgroundColor: style.backgroundColor }}
+                key={column.key}
+                className="w-[320px] min-w-[320px] max-w-[320px] h-full rounded-2xl border border-card-border bg-white overflow-hidden flex flex-col min-h-0"
+                onDragOver={(event) => {
+                  if (!draggedTaskId || !canEditTasks) return;
+                  event.preventDefault();
+                  autoScrollBoardOnDrag(event);
+                }}
+                onDrop={(event) => {
+                  if (!draggedTaskId || !canEditTasks) return;
+                  event.preventDefault();
+                  void moveToStatus(draggedTaskId, column.key);
+                  setDraggedTaskId(null);
+                }}
               >
-                <div className="flex items-center justify-between">
-                  <div className="text-body-4-emphasis text-text-primary">{column.label}</div>
-                  <div className="text-caption-1 rounded-full px-2 py-0.5 bg-white text-black-text">
-                    {columnTasks.length}
+                <div
+                  className="rounded-t-2xl border-b border-card-border px-3 py-2"
+                  style={{ backgroundColor: style.backgroundColor }}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="text-body-4-emphasis text-text-primary">{column.label}</div>
+                    <div className="text-caption-1 rounded-full px-2 py-0.5 bg-white text-black-text">
+                      {columnTasks.length}
+                    </div>
                   </div>
                 </div>
+                <div
+                  className="flex-1 min-h-0 h-0 flex flex-col gap-2 p-3 pb-4 bg-white overflow-y-auto"
+                  data-calendar-scroll="true"
+                  onDragOver={(event) => {
+                    if (!draggedTaskId || !canEditTasks) return;
+                    event.preventDefault();
+                    autoScrollBoardOnDrag(event, event.currentTarget);
+                  }}
+                >
+                  {columnTasks.map((task) => (
+                    <button
+                      key={task._id}
+                      type="button"
+                      className={`w-full rounded-2xl! overflow-hidden border border-card-border bg-white px-3 py-2 text-left transition-shadow ${
+                        draggedTaskId === (task._id ?? null)
+                          ? 'opacity-60 shadow-none'
+                          : 'hover:border-input-border-active! hover:bg-card-hover!'
+                      }`}
+                      onClick={() => openTask(task)}
+                      draggable={canEditTasks}
+                      onDragStart={(event) => {
+                        setDraggedTaskId(task._id ?? null);
+                        event.dataTransfer.effectAllowed = 'move';
+                        event.dataTransfer.setData('text/plain', task._id ?? '');
+                        const preview = buildDragPreview(event.currentTarget);
+                        event.dataTransfer.setDragImage(preview, 24, 24);
+                        requestAnimationFrame(() => {
+                          preview.remove();
+                        });
+                      }}
+                      onDragEnd={() => setDraggedTaskId(null)}
+                    >
+                      <div className="truncate text-caption-1 font-semibold text-text-primary">
+                        {task.name || '-'}
+                      </div>
+                      <div className="mt-1 truncate text-[10px] text-text-secondary">From</div>
+                      <div className="truncate text-[10px] text-text-primary">
+                        {resolveDisplayName(task.assignedBy)}
+                      </div>
+                      <div className="mt-1 truncate text-[10px] text-text-secondary">To</div>
+                      <div className="truncate text-[10px] text-text-primary">
+                        {resolveDisplayName(task.assignedTo)}
+                      </div>
+                      <div className="mt-1 truncate text-[10px] text-text-secondary">Due date</div>
+                      <div className="truncate text-[10px] text-text-primary">
+                        {formatDateInPreferredTimeZone(new Date(task.dueAt), {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}
+                      </div>
+                      <div className="mt-1 truncate text-[10px] text-text-secondary">Due time</div>
+                      <div className="truncate text-[10px] text-text-primary">
+                        {formatDateInPreferredTimeZone(new Date(task.dueAt), {
+                          hour: 'numeric',
+                          minute: '2-digit',
+                        })}
+                      </div>
+                      {updatingStatusId === task._id && (
+                        <div className="mt-1 text-[10px] text-text-secondary">Updating...</div>
+                      )}
+                    </button>
+                  ))}
+                  {!hasTasks && (
+                    <div className="rounded-2xl border border-dashed border-card-border bg-white px-3 py-4 text-center text-caption-1 text-text-secondary">
+                      No tasks
+                    </div>
+                  )}
+                </div>
               </div>
-              <div
-                className={`flex flex-col gap-2 p-3 bg-white min-h-0 ${
-                  hasTasks
-                    ? 'min-h-[280px] max-h-[calc(100vh-240px)] overflow-y-auto overscroll-contain'
-                    : 'min-h-[110px] max-h-[150px] overflow-y-hidden'
-                }`}
-                data-calendar-scroll="true"
-              >
-                {columnTasks.map((task) => (
-                  <button
-                    key={task._id}
-                    type="button"
-                    className="w-full rounded-2xl! overflow-hidden border border-card-border bg-white px-3 py-2 text-left hover:shadow-[0_0_8px_0_rgba(0,0,0,0.1)]"
-                    onClick={() => openTask(task)}
-                    draggable={canEditTasks}
-                    onDragStart={() => setDraggedTaskId(task._id ?? null)}
-                    onDragEnd={() => setDraggedTaskId(null)}
-                  >
-                    <div className="truncate text-caption-1 font-semibold text-text-primary">
-                      {task.name || '-'}
-                    </div>
-                    <div className="mt-1 truncate text-[10px] text-text-secondary">From</div>
-                    <div className="truncate text-[10px] text-text-primary">
-                      {resolveDisplayName(task.assignedBy)}
-                    </div>
-                    <div className="mt-1 truncate text-[10px] text-text-secondary">To</div>
-                    <div className="truncate text-[10px] text-text-primary">
-                      {resolveDisplayName(task.assignedTo)}
-                    </div>
-                    <div className="mt-1 truncate text-[10px] text-text-secondary">Due date</div>
-                    <div className="truncate text-[10px] text-text-primary">
-                      {formatDateInPreferredTimeZone(new Date(task.dueAt), {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
-                    </div>
-                    <div className="mt-1 truncate text-[10px] text-text-secondary">Due time</div>
-                    <div className="truncate text-[10px] text-text-primary">
-                      {formatDateInPreferredTimeZone(new Date(task.dueAt), {
-                        hour: 'numeric',
-                        minute: '2-digit',
-                      })}
-                    </div>
-                    {updatingStatusId === task._id && (
-                      <div className="mt-1 text-[10px] text-text-secondary">Updating...</div>
-                    )}
-                  </button>
-                ))}
-                {!hasTasks && (
-                  <div className="rounded-2xl border border-dashed border-card-border bg-white px-3 py-4 text-center text-caption-1 text-text-secondary">
-                    No tasks
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );

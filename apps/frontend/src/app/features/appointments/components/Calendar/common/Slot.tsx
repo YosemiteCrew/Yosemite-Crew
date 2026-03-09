@@ -13,7 +13,7 @@ import {
   IoCardOutline,
   IoFlaskOutline,
 } from 'react-icons/io5';
-import { MdOutlineAutorenew } from 'react-icons/md';
+import { MdMeetingRoom, MdOutlineAutorenew } from 'react-icons/md';
 import { createPortal } from 'react-dom';
 import { formatDateInPreferredTimeZone, getDatePartsInPreferredTimeZone } from '@/app/lib/timezone';
 import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
@@ -32,6 +32,7 @@ type SlotProps = {
   handleViewAppointment: (appt: Appointment, intent?: AppointmentViewIntent) => void;
   handleRescheduleAppointment: (appt: Appointment) => void;
   handleChangeStatusAppointment?: (appt: Appointment) => void;
+  handleChangeRoomAppointment?: (appt: Appointment) => void;
   dayIndex: number;
   length: number;
   canEditAppointments: boolean;
@@ -58,6 +59,7 @@ const Slot: React.FC<SlotProps> = ({
   handleViewAppointment,
   handleRescheduleAppointment,
   handleChangeStatusAppointment,
+  handleChangeRoomAppointment,
   dayIndex,
   length,
   canEditAppointments,
@@ -604,7 +606,7 @@ const Slot: React.FC<SlotProps> = ({
               {activeEvent.concern || '-'}
             </div>
 
-            <div className="mt-3 flex items-center justify-end gap-1.5 border-t border-card-border pt-2">
+            <div className="mt-3 flex items-center justify-end gap-1.5 border-t border-card-border pt-2 flex-wrap">
               {canEditAppointments &&
                 (activeEvent.status === 'REQUESTED' || activeEvent.status === 'NO_PAYMENT') && (
                   <>
@@ -680,6 +682,21 @@ const Slot: React.FC<SlotProps> = ({
                     }}
                   >
                     <IoCalendarOutline size={18} />
+                  </button>
+                </GlassTooltip>
+              )}
+              {canEditAppointments && (
+                <GlassTooltip content="Assign room" side="top">
+                  <button
+                    type="button"
+                    title="Assign room"
+                    className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
+                    onClick={() => {
+                      handleChangeRoomAppointment?.(activeEvent);
+                      setActivePopoverKey(null);
+                    }}
+                  >
+                    <MdMeetingRoom size={18} />
                   </button>
                 </GlassTooltip>
               )}

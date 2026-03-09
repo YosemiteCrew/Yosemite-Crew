@@ -33,6 +33,7 @@ type AppointmentCalendarProps = {
   setViewPopup?: (open: boolean) => void;
   setViewIntent?: (intent: AppointmentViewIntent | null) => void;
   setChangeStatusPopup?: (open: boolean) => void;
+  setChangeRoomPopup?: (open: boolean) => void;
   activeCalendar: string;
   setActiveCalendar?: React.Dispatch<React.SetStateAction<string>>;
   currentDate: Date;
@@ -63,6 +64,7 @@ const AppointmentCalendar = ({
   setViewPopup,
   setViewIntent,
   setChangeStatusPopup,
+  setChangeRoomPopup,
   activeCalendar,
   setActiveCalendar,
   currentDate,
@@ -642,6 +644,11 @@ const AppointmentCalendar = ({
     setChangeStatusPopup?.(true);
   };
 
+  const handleChangeRoomAppointment = (appointment: Appointment) => {
+    setActiveAppointment?.(appointment);
+    setChangeRoomPopup?.(true);
+  };
+
   const handleCreateFromCalendarSlot = useCallback(
     (date: Date, minuteOfDay: number, targetLeadId?: string) => {
       if (!onCreateFromCalendarSlot || !canEditAppointments) return;
@@ -664,12 +671,28 @@ const AppointmentCalendar = ({
     ]
   );
 
+  const myAppointments = useMemo(() => {
+    const currentLeadId = normalizeId(getCurrentUserPractitionerId() || authUserId);
+    if (!currentLeadId) return filteredList;
+    return filteredList.filter(
+      (appointment) => normalizeId(appointment.lead?.id) === currentLeadId
+    );
+  }, [authUserId, filteredList, getCurrentUserPractitionerId, normalizeId]);
+
   const dayEvents = useMemo(
     () =>
       filteredList.filter((event) =>
         isOnPreferredTimeZoneCalendarDay(event.startTime, currentDate)
       ),
     [filteredList, currentDate]
+  );
+
+  const myDayEvents = useMemo(
+    () =>
+      myAppointments.filter((event) =>
+        isOnPreferredTimeZoneCalendarDay(event.startTime, currentDate)
+      ),
+    [myAppointments, currentDate]
   );
 
   return (
@@ -691,12 +714,13 @@ const AppointmentCalendar = ({
       ) : null}
       {activeCalendar === 'day' && (
         <DayCalendar
-          events={dayEvents}
+          events={myDayEvents}
           date={currentDate}
           zoomMode={zoomMode}
           handleViewAppointment={handleViewAppointment}
           handleRescheduleAppointment={handleRescheduleAppointment}
           handleChangeStatusAppointment={handleChangeStatusAppointment}
+          handleChangeRoomAppointment={handleChangeRoomAppointment}
           setCurrentDate={setCurrentDate}
           canEditAppointments={canEditAppointments}
           draggedAppointmentId={draggedAppointmentId}
@@ -745,11 +769,12 @@ const AppointmentCalendar = ({
       )}
       {activeCalendar === 'week' && (
         <WeekCalendar
-          events={filteredList}
+          events={myAppointments}
           zoomMode={zoomMode}
           handleViewAppointment={handleViewAppointment}
           handleRescheduleAppointment={handleRescheduleAppointment}
           handleChangeStatusAppointment={handleChangeStatusAppointment}
+          handleChangeRoomAppointment={handleChangeRoomAppointment}
           weekStart={weekStart}
           setWeekStart={setWeekStart}
           setCurrentDate={setCurrentDate}
@@ -807,6 +832,7 @@ const AppointmentCalendar = ({
           handleViewAppointment={handleViewAppointment}
           handleRescheduleAppointment={handleRescheduleAppointment}
           handleChangeStatusAppointment={handleChangeStatusAppointment}
+          handleChangeRoomAppointment={handleChangeRoomAppointment}
           setCurrentDate={setCurrentDate}
           canEditAppointments={canEditAppointments}
           draggedAppointmentId={draggedAppointmentId}

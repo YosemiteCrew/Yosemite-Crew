@@ -674,6 +674,7 @@ const AppoitmentInfo = ({
   const [activeLabel, setActiveLabel] = useState<LabelKey>(hospitalLabels[0].key as LabelKey);
   const [activeSubLabel, setActiveSubLabel] = useState<string>(hospitalLabels[0].labels[0].key);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const lastOpenedAppointmentIdRef = useRef<string | null>(null);
 
   const [customForms, setCustomForms] = useState<AppointmentFormEntry[]>([]);
   const [customFormsLoading, setCustomFormsLoading] = useState(false);
@@ -778,6 +779,24 @@ const AppoitmentInfo = ({
         : (targetLabel.labels[0]?.key ?? '')
     );
   }, [showModal, initialViewIntent, labels]);
+
+  useEffect(() => {
+    if (!showModal) return;
+    const currentAppointmentId = activeAppointment?.id ?? null;
+    const lastAppointmentId = lastOpenedAppointmentIdRef.current;
+    const isDifferentAppointment =
+      !!currentAppointmentId && !!lastAppointmentId && currentAppointmentId !== lastAppointmentId;
+
+    if (isDifferentAppointment && !initialViewIntent) {
+      const defaultLabel = labels[0];
+      setActiveLabel(defaultLabel.key as LabelKey);
+      setActiveSubLabel(defaultLabel.labels[0]?.key ?? '');
+    }
+
+    if (currentAppointmentId) {
+      lastOpenedAppointmentIdRef.current = currentAppointmentId;
+    }
+  }, [showModal, activeAppointment?.id, initialViewIntent, labels]);
 
   const COMPONENT_MAP: Record<string, Record<string, React.FC<any>>> = {
     info: {

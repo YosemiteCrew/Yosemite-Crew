@@ -10,7 +10,6 @@ import {
   getCompanionTerminologyForOrg,
   rewriteCompanionTerminologyText,
 } from '@/app/lib/companionTerminology';
-import '@stripe/connect-js';
 
 const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
   const status = useAuthStore((s) => s.status);

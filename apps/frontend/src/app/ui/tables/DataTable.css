@@ -85,6 +85,13 @@
   width: max-content;
   gap: 8px;
 }
+.action-btn-grid {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  width: 184px;
+  gap: 8px;
+}
 .action-btn {
   display: flex;
   justify-content: center;

@@ -14,6 +14,7 @@ import { useAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
 import { Appointment } from '@yosemite-crew/types';
 import Reschedule from '@/app/features/appointments/pages/Appointments/Sections/Reschedule';
 import ChangeStatus from '@/app/features/appointments/pages/Appointments/Sections/ChangeStatus';
+import ChangeRoom from '@/app/features/appointments/pages/Appointments/Sections/ChangeRoom';
 import { useSearchStore } from '@/app/stores/searchStore';
 import Filters from '@/app/ui/filters/Filters';
 import {
@@ -48,6 +49,7 @@ const Appointments = () => {
   const [viewIntent, setViewIntent] = useState<AppointmentViewIntent | null>(null);
   const [reschedulePopup, setReschedulePopup] = useState(false);
   const [changeStatusPopup, setChangeStatusPopup] = useState(false);
+  const [changeRoomPopup, setChangeRoomPopup] = useState(false);
   const [activeAppointment, setActiveAppointment] = useState<Appointment | null>(
     appointments[0] ?? null
   );
@@ -210,6 +212,7 @@ const Appointments = () => {
                   setViewPopup={setViewPopup}
                   setViewIntent={setViewIntent}
                   setChangeStatusPopup={setChangeStatusPopup}
+                  setChangeRoomPopup={setChangeRoomPopup}
                   activeCalendar={activeCalendar}
                   setActiveCalendar={setActiveCalendar}
                   currentDate={currentDate}
@@ -236,6 +239,7 @@ const Appointments = () => {
                   setActiveAppointment={setActiveAppointment}
                   setViewPopup={setViewPopup}
                   setViewIntent={setViewIntent}
+                  setChangeRoomPopup={setChangeRoomPopup}
                   onAddAppointment={() => {
                     setAddAppointmentPrefill(null);
                     setAddPopup(true);
@@ -249,6 +253,7 @@ const Appointments = () => {
                   setViewIntent={setViewIntent}
                   setReschedulePopup={setReschedulePopup}
                   setChangeStatusPopup={setChangeStatusPopup}
+                  setChangeRoomPopup={setChangeRoomPopup}
                   canEditAppointments={canEditAppointments}
                 />
               )}
@@ -288,6 +293,13 @@ const Appointments = () => {
             <ChangeStatus
               showModal={changeStatusPopup}
               setShowModal={setChangeStatusPopup}
+              activeAppointment={activeAppointment}
+            />
+          )}
+          {canEditAppointments && activeAppointment && (
+            <ChangeRoom
+              showModal={changeRoomPopup}
+              setShowModal={setChangeRoomPopup}
               activeAppointment={activeAppointment}
             />
           )}

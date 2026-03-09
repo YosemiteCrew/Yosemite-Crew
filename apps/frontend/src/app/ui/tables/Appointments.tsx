@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { FaCheckCircle } from 'react-icons/fa';
 import { IoIosCloseCircle, IoIosCalendar } from 'react-icons/io';
 import { IoEyeOutline, IoCardOutline, IoDocumentTextOutline } from 'react-icons/io5';
-import { MdOutlineAutorenew, MdScience } from 'react-icons/md';
+import { MdMeetingRoom, MdOutlineAutorenew, MdScience } from 'react-icons/md';
 import AppointmentCard from '@/app/ui/cards/AppointmentCard';
 import { Appointment } from '@yosemite-crew/types';
 import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
@@ -43,6 +43,7 @@ type AppointmentTableProps = {
   setViewIntent?: (intent: AppointmentViewIntent | null) => void;
   setReschedulePopup?: React.Dispatch<React.SetStateAction<boolean>>;
   setChangeStatusPopup?: React.Dispatch<React.SetStateAction<boolean>>;
+  setChangeRoomPopup?: React.Dispatch<React.SetStateAction<boolean>>;
   canEditAppointments: boolean;
   small?: boolean;
 };
@@ -54,6 +55,7 @@ const Appointments = ({
   setViewIntent,
   setReschedulePopup,
   setChangeStatusPopup,
+  setChangeRoomPopup,
   canEditAppointments,
   small = false,
 }: AppointmentTableProps) => {
@@ -89,6 +91,11 @@ const Appointments = ({
   const handleChangeStatusAppointment = (appointment: Appointment) => {
     setActiveAppointment?.(appointment);
     setChangeStatusPopup?.(true);
+  };
+
+  const handleChangeRoomAppointment = (appointment: Appointment) => {
+    setActiveAppointment?.(appointment);
+    setChangeRoomPopup?.(true);
   };
 
   const handleAcceptAppointment = async (appointment: Appointment) => {
@@ -257,7 +264,7 @@ const Appointments = ({
               </GlassTooltip>
             </>
           ) : (
-            <div className="action-btn-col">
+            <div className="action-btn-grid">
               <GlassTooltip content="View appointment" side="bottom">
                 <button
                   onClick={() => handleViewAppointment(item)}
@@ -283,6 +290,16 @@ const Appointments = ({
                     className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                   >
                     <IoIosCalendar size={18} color="#302F2E" />
+                  </button>
+                </GlassTooltip>
+              )}
+              {canEditAppointments && (
+                <GlassTooltip content="Assign room" side="bottom">
+                  <button
+                    onClick={() => handleChangeRoomAppointment(item)}
+                    className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                  >
+                    <MdMeetingRoom size={18} color="#302F2E" />
                   </button>
                 </GlassTooltip>
               )}
@@ -355,6 +372,7 @@ const Appointments = ({
               getSoapViewIntent={getSoapViewIntent}
               handleRescheduleAppointment={handleRescheduleAppointment}
               handleChangeStatusAppointment={handleChangeStatusAppointment}
+              handleChangeRoomAppointment={handleChangeRoomAppointment}
               canEditAppointments={canEditAppointments}
             />
           ));

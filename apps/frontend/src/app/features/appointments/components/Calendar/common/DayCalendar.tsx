@@ -31,7 +31,7 @@ import {
   IoCardOutline,
   IoFlaskOutline,
 } from 'react-icons/io5';
-import { MdOutlineAutorenew } from 'react-icons/md';
+import { MdMeetingRoom, MdOutlineAutorenew } from 'react-icons/md';
 import { useCalendarNavigation, getDateDisplay } from '@/app/hooks/useCalendarNavigation';
 import { createPortal } from 'react-dom';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
@@ -65,6 +65,7 @@ type DayCalendarProps = {
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   handleRescheduleAppointment: (appointment: Appointment) => void;
   handleChangeStatusAppointment?: (appointment: Appointment) => void;
+  handleChangeRoomAppointment?: (appointment: Appointment) => void;
   canEditAppointments: boolean;
   draggedAppointmentId?: string | null;
   draggedAppointmentLabel?: string | null;
@@ -92,6 +93,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
   handleViewAppointment,
   handleRescheduleAppointment,
   handleChangeStatusAppointment,
+  handleChangeRoomAppointment,
   canEditAppointments,
   setCurrentDate,
   draggedAppointmentId,
@@ -759,7 +761,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
               {activeEvent.concern || '-'}
             </div>
 
-            <div className="mt-3 flex items-center justify-end gap-1.5 border-t border-card-border pt-2">
+            <div className="mt-3 flex items-center justify-end gap-1.5 border-t border-card-border pt-2 flex-wrap">
               {canEditAppointments &&
                 (activeEvent.status === 'REQUESTED' || activeEvent.status === 'NO_PAYMENT') && (
                   <>
@@ -835,6 +837,21 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                     }}
                   >
                     <IoCalendarOutline size={18} />
+                  </button>
+                </GlassTooltip>
+              )}
+              {canEditAppointments && (
+                <GlassTooltip content="Assign room" side="top">
+                  <button
+                    type="button"
+                    title="Assign room"
+                    className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
+                    onClick={() => {
+                      handleChangeRoomAppointment?.(activeEvent);
+                      setActivePopoverKey(null);
+                    }}
+                  >
+                    <MdMeetingRoom size={18} />
                   </button>
                 </GlassTooltip>
               )}

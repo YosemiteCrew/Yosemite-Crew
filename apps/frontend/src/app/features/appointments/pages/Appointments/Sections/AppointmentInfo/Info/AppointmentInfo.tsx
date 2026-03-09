@@ -1,4 +1,4 @@
-import EditableAccordion, { FieldConfig } from '@/app/ui/primitives/Accordion/EditableAccordion';
+import { FieldConfig } from '@/app/ui/primitives/Accordion/EditableAccordion';
 import { useRoomsForPrimaryOrg } from '@/app/hooks/useRooms';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import {
@@ -61,22 +61,17 @@ const getAppointmentFields = ({
       type: 'select',
       options: AppointmentStatusOptions,
     },
-  ] satisfies FieldConfig[];
-
-const getStaffFields = ({ TeamOptions }: { TeamOptions: { label: string; value: string }[] }) =>
-  [
     {
       label: 'Lead',
       key: 'lead',
-      type: 'select',
-      options: TeamOptions,
+      type: 'text',
       editable: false,
     },
     {
       label: 'Staff',
       key: 'staff',
-      type: 'multiSelect',
-      options: TeamOptions,
+      type: 'text',
+      editable: false,
     },
   ] satisfies FieldConfig[];
 
@@ -108,6 +103,14 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [timeSlots, setTimeSlots] = useState<Slot[]>([]);
+  const lastAppointmentIdRef = React.useRef<string | undefined>(undefined);
+  const normalizeId = useCallback((value?: string | null) => {
+    return String(value ?? '')
+      .trim()
+      .split('/')
+      .pop()
+      ?.toLowerCase();
+  }, []);
 
   const getLeadOptionsForSlot = useCallback(
     (slot: Slot | null) => {
@@ -116,18 +119,26 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
         (s) => s.startTime === slot.startTime && s.endTime === slot.endTime
       );
       if (!foundSlot?.vetIds?.length) return [];
-      const vetIdSet = new Set(foundSlot.vetIds);
+      const vetIdSet = new Set(
+        foundSlot.vetIds.map((id) => normalizeId(id)).filter(Boolean) as string[]
+      );
       return teams
         .filter((team) => {
-          const teamId = team.practionerId || team._id;
-          return teamId ? vetIdSet.has(teamId) : false;
+          const normalizedTeamIds = [
+            normalizeId(team.practionerId),
+            normalizeId(team._id),
+            normalizeId((team as any).userId),
+            normalizeId((team as any).id),
+            normalizeId((team as any).userOrganisation?.userId),
+          ].filter(Boolean) as string[];
+          return normalizedTeamIds.some((id) => vetIdSet.has(id));
         })
         .map((team) => ({
           label: team.name || team.practionerId || team._id,
           value: team.practionerId || team._id,
         }));
     },
-    [teams, timeSlots]
+    [teams, timeSlots, normalizeId]
   );
 
   const RoomOptions = useMemo(
@@ -175,11 +186,16 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
     return getLeadOptionsForSlot(selectedSlot);
   }, [getLeadOptionsForSlot, selectedSlot]);
 
-  const staffFields = useMemo(() => getStaffFields({ TeamOptions }), [TeamOptions]);
-
   const appointmentFields = useMemo(() => getAppointmentFields({ RoomOptions }), [RoomOptions]);
 
   useEffect(() => {
+    const currentId = activeAppointment.id;
+    const previousId = lastAppointmentIdRef.current;
+    if (previousId && currentId && previousId !== currentId) {
+      setIsEditingAppointment(false);
+    }
+    lastAppointmentIdRef.current = currentId;
+
     setAppointmentValues({
       concern: activeAppointment.concern ?? '',
       room: activeAppointment.room?.id ?? '',
@@ -266,7 +282,9 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
       return;
     }
 
-    const hasSelectedValidLead = options.some((option) => option.value === currentLeadId);
+    const hasSelectedValidLead = options.some(
+      (option) => normalizeId(option.value) === normalizeId(currentLeadId)
+    );
     if (!hasSelectedValidLead) {
       setAppointmentValues((prev) => ({ ...prev, leadId: '' }));
       setErrors((prev) => ({
@@ -287,42 +305,15 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
       date: activeAppointment.appointmentDate ?? '',
       time: activeAppointment.startTime ?? '',
       status: activeAppointment.status ?? '',
+      lead: activeAppointment.lead?.name ?? '',
+      staff:
+        activeAppointment.supportStaff
+          ?.map((s) => s.name)
+          .filter(Boolean)
+          .join(', ') ?? '',
     }),
     [activeAppointment]
   );
-
-  const StaffInfoData = useMemo(
-    () => ({
-      lead: activeAppointment.lead?.id ?? '',
-      staff: activeAppointment.supportStaff?.map((s) => s.id) ?? '',
-    }),
-    [activeAppointment]
-  );
-
-  const handleStaffUpdate = async (values: any) => {
-    try {
-      const teamIds = values.staff;
-      const team =
-        teamIds?.length > 0
-          ? teams
-              .filter((member) => {
-                const memberId = member.practionerId || member._id;
-                return memberId ? teamIds.includes(memberId) : false;
-              })
-              .map((member) => ({
-                id: member.practionerId || member._id,
-                name: member.name || member.practionerId || member._id,
-              }))
-          : [];
-      const formData: Appointment = {
-        ...activeAppointment,
-        supportStaff: team,
-      };
-      await updateAppointment(formData);
-    } catch (error) {
-      console.log(error);
-    }
-  };
 
   const canEditByStatus = useMemo(() => {
     const status = activeAppointment.status as AppointmentStatus | undefined;
@@ -367,7 +358,9 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
       selectedSlot &&
       appointmentValues.leadId &&
       slotLeadOptions.length > 0 &&
-      !slotLeadOptions.some((option) => option.value === appointmentValues.leadId)
+      !slotLeadOptions.some(
+        (option) => normalizeId(option.value) === normalizeId(appointmentValues.leadId)
+      )
     ) {
       formErrors.leadId = 'Selected lead is not available for this slot.';
     }
@@ -553,15 +546,6 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
           </div>
         )}
       </div>
-      <EditableAccordion
-        key={'staff-key'}
-        title={'Staff details'}
-        fields={staffFields}
-        data={StaffInfoData}
-        defaultOpen={true}
-        onSave={handleStaffUpdate}
-        showEditIcon={canEditAppointments}
-      />
     </div>
   );
 };
