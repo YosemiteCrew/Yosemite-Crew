@@ -324,6 +324,7 @@ describe("StripeService", () => {
     });
   });
 
+<<<<<<< HEAD
   describe("createCustomerPortalSession", () => {
     it("should throw if no stripeCustomerId", async () => {
       (OrgBilling.findOneAndUpdate as jest.Mock).mockResolvedValueOnce({
@@ -331,6 +332,17 @@ describe("StripeService", () => {
       });
       (OrgUsageCounters.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
         {},
+=======
+  describe("Payment Intents (Appointment & Invoice)", () => {
+    it("createPaymentIntentForAppointment: creates intent", async () => {
+      (AppointmentModel.findById as jest.Mock).mockReturnValue(
+        mockChain({
+          status: "REQUESTED",
+          appointmentType: { id: "srv-1" },
+          organisationId: "org-1",
+          companion: { parent: { id: "p-1" }, id: "c-1" },
+        }),
+>>>>>>> f99238ab (feat: adds support for timezones in user-profile and parent-profile. Also fixes  status for appointment)
       );
       await expect(
         StripeService.createCustomerPortalSession("org_1"),

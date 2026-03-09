@@ -18,6 +18,7 @@ export interface UserProfilePersonalDetailsMongo {
   address?: UserProfileAddressMongo;
   phoneNumber?: string;
   profilePictureUrl?: string;
+  timezone?: string;
 }
 
 export interface UserProfileDocumentMongo {
@@ -70,6 +71,7 @@ const PersonalDetailsSchema = new Schema<UserProfilePersonalDetailsMongo>(
     address: { type: AddressSchema },
     phoneNumber: { type: String, trim: true },
     profilePictureUrl: { type: String, trim: true },
+    timezone: { type: String, trim: true },
   },
   { _id: false },
 );

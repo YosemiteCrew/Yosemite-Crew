@@ -235,7 +235,10 @@ export const InvoiceService = {
         discountPercent?: number;
       }[];
       notes?: string;
-      paymentCollectionMethod: "PAYMENT_INTENT" | "PAYMENT_LINK";
+      paymentCollectionMethod:
+        | "PAYMENT_INTENT"
+        | "PAYMENT_LINK"
+        | "PAYMENT_AT_CLINIC";
     },
     session?: mongoose.ClientSession,
   ) {
@@ -445,6 +448,30 @@ export const InvoiceService = {
     }
 
     return invoice;
+  },
+
+  async markInvoicePaidManually(invoiceId: string) {
+    const doc = await InvoiceModel.findById(invoiceId);
+    if (!doc) {
+      throw new InvoiceServiceError("Invoice not found.", 404);
+    }
+
+    if (doc.paymentCollectionMethod !== "PAYMENT_AT_CLINIC") {
+      throw new InvoiceServiceError(
+        "Invoice is not marked for in-clinic payment.",
+        409,
+      );
+    }
+
+    if (["CANCELLED", "REFUNDED"].includes(doc.status)) {
+      throw new InvoiceServiceError("Invoice cannot be marked paid.", 409);
+    }
+
+    const updated = await this.markInvoicePaid({
+      invoiceId: doc._id.toString(),
+    });
+
+    return updated ? toInvoiceResponseDTO(toDomain(updated)) : null;
   },
 
   async markFailed(invoiceId: string) {

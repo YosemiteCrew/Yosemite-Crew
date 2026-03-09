@@ -84,11 +84,8 @@
     "eslint": "^9.27.0",
     "jest": "^29.7.0",
     "nodemon": "^3.1.9",
-<<<<<<< HEAD
     "playwright": "^1.58.2",
-=======
     "prisma": "^5.22.0",
->>>>>>> d3c23800 (chore(migrate): fixes #1382 to do migration from mongodb to postgress)
     "ts-jest": "^29.3.4",
     "ts-node": "^10.9.2",
     "tsx": "^4.19.4",

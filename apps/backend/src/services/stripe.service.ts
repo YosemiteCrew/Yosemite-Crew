@@ -590,8 +590,12 @@ export const StripeService = {
     const appointment = await AppointmentModel.findById(appointmentId);
     if (!appointment) throw new Error("Appointment not found");
 
-    if (appointment.status !== "NO_PAYMENT")
-      throw new Error("Appointment does not require payment");
+    const rawStatus = appointment.status as string;
+    const normalizedStatus =
+      rawStatus === "NO_PAYMENT" ? "REQUESTED" : rawStatus;
+    if (!["REQUESTED", "UPCOMING"].includes(normalizedStatus)) {
+      throw new Error("Appointment does not allow payment");
+    }
 
     const service = await ServiceModel.findById(
       appointment.appointmentType?.id,
@@ -641,6 +645,9 @@ export const StripeService = {
 
     if (!["AWAITING_PAYMENT", "PENDING"].includes(invoice.status)) {
       throw new Error("Invoice is not payable");
+    }
+    if (invoice.paymentCollectionMethod === "PAYMENT_AT_CLINIC") {
+      throw new Error("Invoice is marked for in-clinic payment");
     }
 
     // 🔒 Switch payment path if coming from PAYMENT_LINK
@@ -736,6 +743,9 @@ export const StripeService = {
     // Guard: payable only
     if (!["AWAITING_PAYMENT", "PENDING"].includes(invoice.status)) {
       throw new Error("Invoice is not payable");
+    }
+    if (invoice.paymentCollectionMethod === "PAYMENT_AT_CLINIC") {
+      throw new Error("Invoice is marked for in-clinic payment");
     }
 
     // Guard: don’t start two payment paths
@@ -1230,7 +1240,8 @@ export const StripeService = {
             taxTotal: invoice.taxTotal ?? 0,
             taxPercent: invoice.taxPercent ?? 0,
             totalAmount: invoice.totalAmount,
-            paymentCollectionMethod: invoice.paymentCollectionMethod,
+            paymentCollectionMethod:
+              invoice.paymentCollectionMethod as Prisma.InvoiceCreateInput["paymentCollectionMethod"],
             stripePaymentIntentId: invoice.stripePaymentIntentId ?? undefined,
             stripeChargeId: invoice.stripeChargeId ?? undefined,
             stripeReceiptUrl: invoice.stripeReceiptUrl ?? undefined,

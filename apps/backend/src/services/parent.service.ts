@@ -29,6 +29,42 @@ export class ParentServiceError extends Error {
   }
 }
 
+const OFFSET_TIMEZONE_REGEX = /^(?:UTC)?[+-](?:0\d|1\d|2[0-3]):[0-5]\d$/;
+
+const isValidTimezone = (value: string): boolean => {
+  if (value === "UTC") {
+    return true;
+  }
+
+  if (OFFSET_TIMEZONE_REGEX.test(value)) {
+    return true;
+  }
+
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: value }).format();
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const validateTimezone = (value: string, field: string): string => {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    throw new ParentServiceError(`${field} cannot be empty.`, 400);
+  }
+
+  if (!isValidTimezone(trimmed)) {
+    throw new ParentServiceError(
+      `${field} must be a valid IANA timezone or UTC offset.`,
+      400,
+    );
+  }
+
+  return trimmed;
+};
+
 /* ------------------------------ Helpers ------------------------------ */
 
 const ensureMongoId = (id: string): Types.ObjectId => {
@@ -50,6 +86,7 @@ export const toFHIR = (doc: ParentDocument) => {
     email: json.email,
     phoneNumber: json.phoneNumber,
     currency: json.currency,
+    timezone: json.timezone,
     profileImageUrl: json.profileImageUrl,
     isProfileComplete: json.isProfileComplete ?? false,
     linkedUserId: json.linkedUserId?.toString() ?? null,
@@ -88,6 +125,7 @@ const toPrismaParentData = (doc: ParentDocument) => {
     email: obj.email,
     phoneNumber: obj.phoneNumber ?? undefined,
     currency: obj.currency ?? undefined,
+    timezone: obj.timezone ?? undefined,
     profileImageUrl: obj.profileImageUrl ?? undefined,
     isProfileComplete: obj.isProfileComplete ?? false,
     linkedUserId: obj.linkedUserId ? obj.linkedUserId.toString() : undefined,
@@ -164,6 +202,10 @@ const toPersistable = (dto: ParentRequestDTO): ParentMongo => {
     throw new ParentServiceError("Parent email is required.", 400);
   }
 
+  if (parent.timezone) {
+    parent.timezone = validateTimezone(parent.timezone, "Timezone");
+  }
+
   return {
     firstName: parent.firstName,
     lastName: parent.lastName,
@@ -171,6 +213,7 @@ const toPersistable = (dto: ParentRequestDTO): ParentMongo => {
     email: parent.email.toLowerCase(),
     phoneNumber: parent.phoneNumber,
     currency: parent.currency,
+    timezone: parent.timezone,
     profileImageUrl: parent.profileImageUrl,
     createdFrom: parent.createdFrom,
     linkedUserId: parent.linkedUserId

@@ -127,7 +127,7 @@ export const AppointmentController = {
   ) => {
     try {
       const dto = req.body;
-      const { createPayment } = req.query;
+      const { createPayment, paymentCollectionMethod } = req.query;
 
       const shouldCreatePayment =
         createPayment === "true" || createPayment === "1";
@@ -135,6 +135,9 @@ export const AppointmentController = {
       const result = await AppointmentService.createAppointmentFromPms(
         dto,
         shouldCreatePayment,
+        typeof paymentCollectionMethod === "string"
+          ? paymentCollectionMethod
+          : undefined,
       );
 
       return res

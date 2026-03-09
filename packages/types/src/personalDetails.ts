@@ -7,4 +7,5 @@ export type PersonalDetails = {
   address?: Address
   phoneNumber?: string;
   profilePictureUrl?: string;
+  timezone?: string;
 };

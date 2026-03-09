@@ -102,6 +102,42 @@ const optionalString = (value: unknown, field: string): string | undefined => {
   return trimmed;
 };
 
+const OFFSET_TIMEZONE_REGEX = /^(?:UTC)?[+-](?:0\d|1\d|2[0-3]):[0-5]\d$/;
+
+const isValidTimezone = (value: string): boolean => {
+  if (value === "UTC") {
+    return true;
+  }
+
+  if (OFFSET_TIMEZONE_REGEX.test(value)) {
+    return true;
+  }
+
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: value }).format();
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const optionalTimezone = (value: unknown, field: string): string | undefined => {
+  const trimmed = optionalString(value, field);
+
+  if (!trimmed) {
+    return undefined;
+  }
+
+  if (!isValidTimezone(trimmed)) {
+    throw new UserProfileServiceError(
+      `${field} must be a valid IANA timezone or UTC offset.`,
+      400,
+    );
+  }
+
+  return trimmed;
+};
+
 const optionalEnum = <T extends string>(
   value: unknown,
   allowed: readonly T[],
@@ -318,6 +354,7 @@ const sanitizePersonalDetails = (
       record.profilePictureUrl,
       "Profile picture URL",
     ),
+    timezone: optionalTimezone(record.timezone, "Timezone"),
   });
 };
 

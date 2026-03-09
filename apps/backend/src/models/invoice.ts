@@ -8,7 +8,10 @@ export type InvoiceStatusMongo =
   | "CANCELLED"
   | "REFUNDED";
 
-export type PaymentCollectionMethodMongo = "PAYMENT_INTENT" | "PAYMENT_LINK";
+export type PaymentCollectionMethodMongo =
+  | "PAYMENT_INTENT"
+  | "PAYMENT_LINK"
+  | "PAYMENT_AT_CLINIC";
 
 export type InvoiceItemMongo = {
   id?: string;
@@ -95,7 +98,7 @@ const InvoiceSchema = new Schema<InvoiceMongo>(
 
     paymentCollectionMethod: {
       type: String,
-      enum: ["PAYMENT_INTENT", "PAYMENT_LINK"],
+      enum: ["PAYMENT_INTENT", "PAYMENT_LINK", "PAYMENT_AT_CLINIC"],
       default: "PAYMENT_INTENT",
     },
 

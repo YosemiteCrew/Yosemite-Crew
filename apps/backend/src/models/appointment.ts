@@ -2,7 +2,6 @@
 import mongoose, { Schema, HydratedDocument } from "mongoose";
 
 export type AppointmentStatus =
-  | "NO_PAYMENT"
   | "REQUESTED"
   | "UPCOMING"
   | "CHECKED_IN"
@@ -119,10 +118,9 @@ const AppointmentSchema = new Schema<AppointmentMongo>(
         "IN_PROGRESS",
         "COMPLETED",
         "CANCELLED",
-        "NO_PAYMENT",
         "NO_SHOW",
       ],
-      default: "NO_PAYMENT",
+      default: "REQUESTED",
     },
 
     isEmergency: { type: Boolean, default: false },

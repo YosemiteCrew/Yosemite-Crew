@@ -87,7 +87,6 @@ enum ParentCompanionStatus {
 }
 
 enum AppointmentStatus {
-  NO_PAYMENT
   REQUESTED
   UPCOMING
   CHECKED_IN
@@ -501,7 +500,7 @@ model Appointment {
   endTime           DateTime
   timeSlot          String
   durationMinutes   Int
-  status            AppointmentStatus @default(NO_PAYMENT)
+  status            AppointmentStatus @default(REQUESTED)
   isEmergency       Boolean           @default(false)
   concern           String?
   attachments       Json?
@@ -555,6 +554,7 @@ model Parent {
   email            String
   phoneNumber      String?
   currency         String?
+  timezone         String?
   profileImageUrl  String?
   isProfileComplete Boolean          @default(false)
   linkedUserId     String?
@@ -930,6 +930,7 @@ enum InvoiceStatus {
 enum PaymentCollectionMethod {
   PAYMENT_INTENT
   PAYMENT_LINK
+  PAYMENT_AT_CLINIC
 }
 
 enum FormVisibilityType {
