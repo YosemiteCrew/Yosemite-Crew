@@ -295,7 +295,13 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
       return;
     }
     setErrors((prev) => ({ ...prev, slot: undefined, leadId: undefined }));
-  }, [isEditingAppointment, selectedSlot, getLeadOptionsForSlot, appointmentValues.leadId]);
+  }, [
+    isEditingAppointment,
+    selectedSlot,
+    getLeadOptionsForSlot,
+    appointmentValues.leadId,
+    normalizeId,
+  ]);
 
   const AppointmentInfoData = useMemo(
     () => ({

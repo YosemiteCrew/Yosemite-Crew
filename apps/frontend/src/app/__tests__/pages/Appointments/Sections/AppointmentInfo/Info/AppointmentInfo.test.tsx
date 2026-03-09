@@ -11,8 +11,6 @@ const getServicesBySpecialityIdMock = jest.fn();
 const updateAppointmentMock = jest.fn();
 const getSlotsMock = jest.fn();
 const changeAppointmentStatusMock = jest.fn();
-const editableAccordionCalls: any[] = [];
-
 jest.mock('@/app/hooks/useRooms', () => ({
   useRoomsForPrimaryOrg: () => useRoomsMock(),
 }));
@@ -38,11 +36,6 @@ jest.mock('@/app/features/appointments/services/appointmentService', () => ({
   getSlotsForServiceAndDateForPrimaryOrg: (...args: any[]) => getSlotsMock(...args),
   changeAppointmentStatus: (...args: any[]) => changeAppointmentStatusMock(...args),
 }));
-
-jest.mock('@/app/ui/primitives/Accordion/EditableAccordion', () => (props: any) => {
-  editableAccordionCalls.push(props);
-  return <div data-testid={`editable-${props.title}`} />;
-});
 
 jest.mock('@/app/ui/primitives/Accordion/Accordion', () => (props: any) => (
   <div>
@@ -106,7 +99,6 @@ describe('AppointmentInfo section', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    editableAccordionCalls.length = 0;
     useRoomsMock.mockReturnValue([{ id: 'room-1', name: 'Room A' }]);
     useTeamMock.mockReturnValue([
       { _id: 'team-1', name: 'Alex', practionerId: 'team-1' },
@@ -129,16 +121,13 @@ describe('AppointmentInfo section', () => {
     });
   });
 
-  it('calls updateAppointment when saving staff fields', async () => {
+  it('renders staff details in read-only appointment info', async () => {
     render(<AppointmentInfo activeAppointment={activeAppointment} />);
 
-    const staffAccordion = editableAccordionCalls.find((item) => item.title === 'Staff details');
-    await staffAccordion.onSave({ staff: ['team-2'] });
-
-    expect(updateAppointmentMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        supportStaff: [{ id: 'team-2', name: 'Sam' }],
-      })
-    );
+    expect(screen.getByText('Lead')).toBeInTheDocument();
+    expect(screen.getByText('Alex')).toBeInTheDocument();
+    expect(screen.getByText('Staff')).toBeInTheDocument();
+    expect(screen.getByText('Sam')).toBeInTheDocument();
+    expect(updateAppointmentMock).not.toHaveBeenCalled();
   });
 });

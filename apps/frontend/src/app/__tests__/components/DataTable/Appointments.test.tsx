@@ -64,6 +64,7 @@ jest.mock('react-icons/io5', () => ({
 }));
 
 jest.mock('react-icons/md', () => ({
+  MdMeetingRoom: () => <span>room-icon</span>,
   MdOutlineAutorenew: () => <span>change-status-icon</span>,
   MdScience: () => <span>labs-icon</span>,
 }));
