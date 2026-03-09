@@ -3,7 +3,10 @@ import { NotificationTemplates } from "../../src/utils/notificationTemplates";
 describe("NotificationTemplates", () => {
   describe("Appointment Notifications", () => {
     it("should format REQUESTED correctly", () => {
-      const result = NotificationTemplates.Appointment.REQUESTED("Buddy", "10:00 AM");
+      const result = NotificationTemplates.Appointment.REQUESTED(
+        "Buddy",
+        "10:00 AM",
+      );
       expect(result).toEqual({
         title: "Appointment Request Sent! 🐾",
         body: "Buddy is all set! Your appointment request for 10:00 AM has been sent to the clinic.",
@@ -12,7 +15,10 @@ describe("NotificationTemplates", () => {
     });
 
     it("should format APPROVED correctly", () => {
-      const result = NotificationTemplates.Appointment.APPROVED("Max", "Tomorrow at 2:00 PM");
+      const result = NotificationTemplates.Appointment.APPROVED(
+        "Max",
+        "Tomorrow at 2:00 PM",
+      );
       expect(result).toEqual({
         title: "Appointment Confirmed! 🎉",
         body: "Great news! Max's appointment is confirmed for Tomorrow at 2:00 PM. See you soon!",
@@ -30,7 +36,10 @@ describe("NotificationTemplates", () => {
     });
 
     it("should format REMINDER correctly", () => {
-      const result = NotificationTemplates.Appointment.REMINDER("Luna", "04:30 PM");
+      const result = NotificationTemplates.Appointment.REMINDER(
+        "Luna",
+        "04:30 PM",
+      );
       expect(result).toEqual({
         title: "Upcoming Appointment ⏰",
         body: "A little nudge! Luna has an appointment at 04:30 PM. Don’t forget!",
@@ -39,7 +48,10 @@ describe("NotificationTemplates", () => {
     });
 
     it("should format RESCHEDULED correctly", () => {
-      const result = NotificationTemplates.Appointment.RESCHEDULED("Charlie", "Friday at 1:00 PM");
+      const result = NotificationTemplates.Appointment.RESCHEDULED(
+        "Charlie",
+        "Friday at 1:00 PM",
+      );
       expect(result).toEqual({
         title: "Appointment Rescheduled 🔁",
         body: "Charlie's appointment has been moved to Friday at 1:00 PM. Thanks for staying flexible!",
@@ -50,19 +62,22 @@ describe("NotificationTemplates", () => {
 
   describe("Payment Notifications", () => {
     it("should format PAYMENT_PENDING correctly", () => {
-      const result = NotificationTemplates.Payment.PAYMENT_PENDING(1500);
+      const result = NotificationTemplates.Payment.PAYMENT_PENDING(1500, "INR");
       expect(result).toEqual({
         title: "Payment Pending 💳",
-        body: "A quick reminder! You have a pending payment of ₹1500. Tap to complete it.",
+        body: "A quick reminder! You have a pending payment of 1500 INR. Tap to complete it.",
         type: "PAYMENTS",
       });
     });
 
     it("should format PAYMENT_SUCCESS correctly", () => {
-      const result = NotificationTemplates.Payment.PAYMENT_SUCCESS(500.5);
+      const result = NotificationTemplates.Payment.PAYMENT_SUCCESS(
+        500.5,
+        "INR",
+      );
       expect(result).toEqual({
         title: "Payment Successful! 🥳",
-        body: "Woohoo! Your payment of ₹500.5 went through. Thanks for taking great care of your companion!",
+        body: "Woohoo! Your payment of 500.5 INR went through. Thanks for taking great care of your companion!",
         type: "PAYMENTS",
       });
     });
@@ -77,10 +92,10 @@ describe("NotificationTemplates", () => {
     });
 
     it("should format REFUND_ISSUED correctly", () => {
-      const result = NotificationTemplates.Payment.REFUND_ISSUED(200);
+      const result = NotificationTemplates.Payment.REFUND_ISSUED(200, "INR");
       expect(result).toEqual({
         title: "Refund Processed 💸",
-        body: "A refund of ₹200 has been processed. Check your bank for updates.",
+        body: "A refund of 200 INR has been processed. Check your bank for updates.",
         type: "PAYMENTS",
       });
     });
@@ -89,7 +104,10 @@ describe("NotificationTemplates", () => {
   describe("Expense Notifications", () => {
     it("should format EXPENSE_ADDED correctly and lowercase the category", () => {
       // Pass an uppercase category to ensure .toLowerCase() is covered and works properly
-      const result = NotificationTemplates.Expense.EXPENSE_ADDED("Daisy", "GROOMING");
+      const result = NotificationTemplates.Expense.EXPENSE_ADDED(
+        "Daisy",
+        "GROOMING",
+      );
       expect(result).toEqual({
         title: "New Expense Added 📘",
         body: "You added a new grooming expense for Daisy.",
