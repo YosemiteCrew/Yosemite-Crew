@@ -1,366 +1,718 @@
-import { UserProfileService, UserProfileServiceError } from "../../src/services/user-profile.service";
+import { Types } from "mongoose";
+import {
+  UserProfileService,
+  UserProfileServiceError,
+} from "../../src/services/user-profile.service";
 import UserProfileModel from "../../src/models/user-profile";
-import { BaseAvailabilityService, BaseAvailabilityServiceError } from "../../src/services/base-availability.service";
+import {
+  BaseAvailabilityService,
+  BaseAvailabilityServiceError,
+} from "../../src/services/base-availability.service";
+import UserOrganizationModel from "src/models/user-organization";
+import { getURLForKey } from "src/middlewares/upload";
 
-// --- MOCKS ---
+// --- Global Mocks Setup ---
+jest.mock("src/middlewares/upload", () => ({
+  __esModule: true,
+  getURLForKey: jest.fn((key) => `https://s3.example.com/${key}`),
+}));
+
 jest.mock("../../src/models/user-profile", () => ({
   __esModule: true,
   default: {
     findOne: jest.fn(),
     create: jest.fn(),
     findOneAndUpdate: jest.fn(),
-    deleteOne: jest.fn(),
   },
 }));
 
-jest.mock("../../src/services/base-availability.service", () => ({
-  BaseAvailabilityService: {
-    create: jest.fn(),
-    update: jest.fn(),
-    getByUserId: jest.fn(),
+jest.mock("src/models/user-organization", () => ({
+  __esModule: true,
+  default: {
+    findOne: jest.fn(),
   },
-  BaseAvailabilityServiceError: class extends Error {
-    constructor(message: string, public statusCode: number) {
+}));
+
+jest.mock("../../src/services/base-availability.service", () => {
+  class MockBaseAvailabilityServiceError extends Error {
+    constructor(
+      message: string,
+      public statusCode: number,
+    ) {
       super(message);
       this.name = "BaseAvailabilityServiceError";
     }
-  },
-}));
-
-// --- TEST UTILS ---
-const validAvailability = [{ slots: [{ startTime: "09:00", endTime: "17:00", isAvailable: true }] }];
-const invalidAvailability = [{ slots: [{ startTime: "09:00", endTime: "17:00", isAvailable: false }] }];
-
-const mockDocument = (overrides = {}, rawOverride = {}) => ({
-  _id: "doc-id",
-  userId: "user-123",
-  organizationId: "org-123",
-  status: "DRAFT",
-  createdAt: new Date(),
-  updatedAt: new Date(),
-  save: jest.fn(),
-  toObject: jest.fn().mockReturnValue({
-    _id: "doc-id",
-    userId: "user-123",
-    organizationId: "org-123",
-    ...rawOverride,
-  }),
-  ...overrides,
-});
-
-const generateCreatePayload = (overrides = {}) => ({
-  userId: "user-123",
-  organizationId: "org-123",
-  baseAvailability: validAvailability,
-  ...overrides,
+  }
+  return {
+    __esModule: true,
+    BaseAvailabilityServiceError: MockBaseAvailabilityServiceError,
+    BaseAvailabilityService: {
+      getByUserId: jest.fn(),
+    },
+  };
 });
 
 describe("UserProfileService", () => {
-  const userId = "user_123";
-  const orgId = "org_456";
-  const profileId = new Types.ObjectId().toString();
+  const mockSave = jest.fn();
+
+  const createMockDoc = (overrides: any = {}) => {
+    const data = {
+      _id: new Types.ObjectId(),
+      userId: "user1",
+      organizationId: "org1",
+      status: "DRAFT",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      ...overrides,
+    };
+    return {
+      ...data,
+      toObject: () => data,
+      save: mockSave.mockResolvedValue(true),
+    };
+  };
+
+  const completeAvailability = [
+    { slots: [{ startTime: "09:00", endTime: "10:00", isAvailable: true }] },
+  ];
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   describe("UserProfileServiceError", () => {
-    it("should instantiate correctly", () => {
-      const err = new UserProfileServiceError("Test error", 404);
-      expect(err.message).toBe("Test error");
-      expect(err.statusCode).toBe(404);
+    it("should set properties correctly", () => {
+      const err = new UserProfileServiceError("Test", 400);
+      expect(err.message).toBe("Test");
+      expect(err.statusCode).toBe(400);
       expect(err.name).toBe("UserProfileServiceError");
     });
   });
 
-  describe("Validation & Sanitization (Tested via create/update)", () => {
-    it("should throw if baseAvailability is missing on create", async () => {
-      await expect(UserProfileService.create({ userId: "1", organizationId: "2" } as any))
-        .rejects.toThrow(new UserProfileServiceError("Base availability is required.", 400));
-    });
-
-    it("should reject payloads with missing updatable fields on update", async () => {
-      await expect(UserProfileService.update("user-123", "org-123", {}))
-        .rejects.toThrow("No updatable fields provided.");
-    });
-
-    it("should throw on invalid User/Org ID formats", async () => {
-      await expect(UserProfileService.create(generateCreatePayload({ userId: "invalid id!" })))
-        .rejects.toThrow("Invalid user id format.");
-      await expect(UserProfileService.create(generateCreatePayload({ organizationId: "invalid org @!" })))
-        .rejects.toThrow("Invalid organization id format.");
-      await expect(UserProfileService.create(generateCreatePayload({ userId: "valid", organizationId: 123 })))
-        .rejects.toThrow("Organization id is required."); // not a string
-      await expect(UserProfileService.create(generateCreatePayload({ userId: "   " })))
-        .rejects.toThrow("User id cannot be empty.");
-    });
-
-    it("should throw on query operators ($)", async () => {
-      await expect(UserProfileService.create(generateCreatePayload({ userId: "user$123" })))
-        .rejects.toThrow("Invalid character in User id.");
-      await expect(UserProfileService.create(generateCreatePayload({ personalDetails: { phoneNumber: "$12345" } })))
-        .rejects.toThrow("Invalid character in Phone number.");
-    });
-
-    it("should enforce plain objects", async () => {
-      await expect(UserProfileService.create(generateCreatePayload({ personalDetails: [] })))
-        .rejects.toThrow("Personal details must be an object.");
-    });
-
-    it("should handle optional strings", async () => {
-      (UserProfileModel.findOne as jest.Mock).mockResolvedValue(null);
-      (UserProfileModel.create as jest.Mock).mockResolvedValue(mockDocument());
-      (BaseAvailabilityService.create as jest.Mock).mockResolvedValue(validAvailability);
-
-      const payload = generateCreatePayload({ personalDetails: { phoneNumber: "   " } }); // empty trimmed
-      await UserProfileService.create(payload); // Shouldn't throw
-    });
-
-    it("should validate optionalEnum", async () => {
-      await expect(UserProfileService.create(generateCreatePayload({ personalDetails: { gender: 123 } })))
-        .rejects.toThrow("Gender must be a string.");
-      await expect(UserProfileService.create(generateCreatePayload({ personalDetails: { gender: "ALIEN" } })))
-        .rejects.toThrow("Gender must be one of: MALE, FEMALE, OTHER.");
-
-      // Empty string becomes undefined
-      (UserProfileModel.findOne as jest.Mock).mockResolvedValue(null);
-      (UserProfileModel.create as jest.Mock).mockResolvedValue(mockDocument());
-      (BaseAvailabilityService.create as jest.Mock).mockResolvedValue(validAvailability);
-      await UserProfileService.create(generateCreatePayload({ personalDetails: { gender: "   " } }));
-    });
-
-    it("should validate optionalDate", async () => {
-      // Invalid date object
-      await expect(UserProfileService.create(generateCreatePayload({ personalDetails: { dateOfBirth: new Date("invalid") } })))
-        .rejects.toThrow("Date of birth must be a valid date.");
-
-      // Invalid string format
-      await expect(UserProfileService.create(generateCreatePayload({ personalDetails: { dateOfBirth: "not-a-date" } })))
-        .rejects.toThrow("Date of birth must be a valid date.");
-
-      // Invalid type
-      await expect(UserProfileService.create(generateCreatePayload({ personalDetails: { dateOfBirth: {} } })))
-        .rejects.toThrow("Date of birth must be a date string.");
-
-      // Valid date object
-      (UserProfileModel.findOne as jest.Mock).mockResolvedValue(null);
-      (UserProfileModel.create as jest.Mock).mockResolvedValue(mockDocument());
-      (BaseAvailabilityService.create as jest.Mock).mockResolvedValue(validAvailability);
-      await UserProfileService.create(generateCreatePayload({ personalDetails: { dateOfBirth: new Date() } }));
-    });
-
-    it("should validate optionalNumber", async () => {
-      await expect(UserProfileService.create(generateCreatePayload({ personalDetails: { address: { latitude: Number.NaN } } })))
-        .rejects.toThrow("Address latitude must be a valid number.");
-
-      await expect(UserProfileService.create(generateCreatePayload({ personalDetails: { address: { latitude: "abc" } } })))
-        .rejects.toThrow("Address latitude must be a valid number.");
-
-      await expect(UserProfileService.create(generateCreatePayload({ personalDetails: { address: { latitude: {} } } })))
-        .rejects.toThrow("Address latitude must be a number.");
-
-      // Valid string number, number, and empty string
-      (UserProfileModel.findOne as jest.Mock).mockResolvedValue(null);
-      (UserProfileModel.create as jest.Mock).mockResolvedValue(mockDocument());
-      (BaseAvailabilityService.create as jest.Mock).mockResolvedValue(validAvailability);
-      await UserProfileService.create(generateCreatePayload({ personalDetails: { address: { latitude: "45.5", longitude: 90, postalCode: "  " } } }));
-    });
-
-    it("should validate sanitizeDocuments", async () => {
-      await expect(UserProfileService.create(generateCreatePayload({ professionalDetails: { documents: {} } })))
-        .rejects.toThrow("Professional documents must be an array.");
-
-      await expect(UserProfileService.create(generateCreatePayload({ professionalDetails: { documents: [{}] } })))
-        .rejects.toThrow("Professional document[0].type is required.");
-
-      await expect(UserProfileService.create(generateCreatePayload({ professionalDetails: { documents: [{ type: "LICENSE", fileUrl: "url" }] } })))
-        .rejects.toThrow("Professional document[0].uploadedAt is required.");
-
-      await expect(UserProfileService.create(generateCreatePayload({ professionalDetails: { documents: [{ type: "LICENSE", fileUrl: "url", uploadedAt: new Date(), verified: "yes" }] } })))
-        .rejects.toThrow("Professional document[0].verified must be a boolean.");
-    });
-
-    it("should correctly pruneUndefined (Objects)", async () => {
-      (UserProfileModel.findOne as jest.Mock).mockResolvedValue(null);
-      (UserProfileModel.create as jest.Mock).mockResolvedValue(mockDocument());
-      (BaseAvailabilityService.create as jest.Mock).mockResolvedValue(validAvailability);
-
-      const payload = generateCreatePayload({
-        professionalDetails: {
-          specialization: "Cardio",
-          biography: undefined, // Object key undefined
-          documents: [
-            { type: "LICENSE", fileUrl: "url", uploadedAt: new Date() }
-          ]
-        }
+  describe("Validation & Sanitization (Implicitly tested via create)", () => {
+    describe("requireUserId & requireOrganizationId", () => {
+      it("should throw if value is not a string", async () => {
+        await expect(
+          UserProfileService.create({
+            userId: 123,
+            organizationId: "o1",
+          } as any),
+        ).rejects.toThrow(
+          new UserProfileServiceError("User id is required.", 400),
+        );
       });
-      await UserProfileService.create(payload as any);
-      expect(UserProfileModel.create).toHaveBeenCalledWith(expect.objectContaining({
-        professionalDetails: expect.objectContaining({ documents: expect.any(Array) })
-      }));
+
+      it("should throw if value is empty", async () => {
+        await expect(
+          UserProfileService.create({ userId: "   ", organizationId: "o1" }),
+        ).rejects.toThrow(
+          new UserProfileServiceError("User id cannot be empty.", 400),
+        );
+      });
+
+      it("should throw if value contains $ (forbidQueryOperators)", async () => {
+        await expect(
+          UserProfileService.create({
+            userId: "user$name",
+            organizationId: "o1",
+          }),
+        ).rejects.toThrow(
+          new UserProfileServiceError("Invalid character in User id.", 400),
+        );
+      });
+
+      it("should throw if regex fails (format check)", async () => {
+        await expect(
+          UserProfileService.create({
+            userId: "invalid name!",
+            organizationId: "o1",
+          }),
+        ).rejects.toThrow(
+          new UserProfileServiceError("Invalid user id format.", 400),
+        );
+      });
+    });
+
+    describe("assertPlainObject", () => {
+      it("should throw if personalDetails is an array or string", async () => {
+        await expect(
+          UserProfileService.create({
+            userId: "u1",
+            organizationId: "o1",
+            personalDetails: [],
+          }),
+        ).rejects.toThrow(
+          new UserProfileServiceError(
+            "Personal details must be an object.",
+            400,
+          ),
+        );
+
+        await expect(
+          UserProfileService.create({
+            userId: "u1",
+            organizationId: "o1",
+            personalDetails: "str",
+          }),
+        ).rejects.toThrow(
+          new UserProfileServiceError(
+            "Personal details must be an object.",
+            400,
+          ),
+        );
+      });
+    });
+
+    describe("optionalEnum", () => {
+      it("should throw if enum value is not a string", async () => {
+        await expect(
+          UserProfileService.create({
+            userId: "u1",
+            organizationId: "o1",
+            personalDetails: { gender: 123 },
+          }),
+        ).rejects.toThrow(
+          new UserProfileServiceError("Gender must be a string.", 400),
+        );
+      });
+
+      it("should throw if enum value is invalid", async () => {
+        await expect(
+          UserProfileService.create({
+            userId: "u1",
+            organizationId: "o1",
+            personalDetails: { gender: "ALIEN" },
+          }),
+        ).rejects.toThrow(
+          new UserProfileServiceError(
+            "Gender must be one of: MALE, FEMALE, OTHER.",
+            400,
+          ),
+        );
+      });
+
+      it("should ignore empty enum strings gracefully", async () => {
+        (UserProfileModel.findOne as jest.Mock).mockResolvedValue(null);
+        (UserProfileModel.create as jest.Mock).mockResolvedValue(
+          createMockDoc({ personalDetails: { profilePictureUrl: "key" } }),
+        );
+        (BaseAvailabilityService.getByUserId as jest.Mock).mockResolvedValue(
+          [],
+        );
+
+        const res = await UserProfileService.create({
+          userId: "u1",
+          organizationId: "o1",
+          personalDetails: { gender: "   ", profilePictureUrl: "key" },
+        });
+        expect(res.personalDetails?.gender).toBeUndefined();
+      });
+    });
+
+    describe("optionalDate", () => {
+      it("should throw if date is an invalid string", async () => {
+        await expect(
+          UserProfileService.create({
+            userId: "u1",
+            organizationId: "o1",
+            personalDetails: { dateOfBirth: "not-a-date" },
+          }),
+        ).rejects.toThrow(
+          new UserProfileServiceError(
+            "Date of birth must be a valid date.",
+            400,
+          ),
+        );
+      });
+
+      it("should throw if date is an invalid Date object", async () => {
+        await expect(
+          UserProfileService.create({
+            userId: "u1",
+            organizationId: "o1",
+            personalDetails: { dateOfBirth: new Date("invalid") },
+          }),
+        ).rejects.toThrow(
+          new UserProfileServiceError(
+            "Date of birth must be a valid date.",
+            400,
+          ),
+        );
+      });
+
+      it("should throw if value is completely incompatible type (e.g. object)", async () => {
+        await expect(
+          UserProfileService.create({
+            userId: "u1",
+            organizationId: "o1",
+            personalDetails: { dateOfBirth: {} },
+          }),
+        ).rejects.toThrow(
+          new UserProfileServiceError(
+            "Date of birth must be a date string.",
+            400,
+          ),
+        );
+      });
+
+      it("should accept a valid Date object", async () => {
+        (UserProfileModel.findOne as jest.Mock).mockResolvedValue(null);
+        (UserProfileModel.create as jest.Mock).mockResolvedValue(
+          createMockDoc({ personalDetails: { profilePictureUrl: "key" } }),
+        );
+        (BaseAvailabilityService.getByUserId as jest.Mock).mockResolvedValue(
+          [],
+        );
+
+        const d = new Date();
+        await UserProfileService.create({
+          userId: "u1",
+          organizationId: "o1",
+          personalDetails: { dateOfBirth: d, profilePictureUrl: "key" },
+        });
+        expect(UserProfileModel.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            personalDetails: expect.objectContaining({ dateOfBirth: d }),
+          }),
+        );
+      });
+    });
+
+    describe("optionalNumber", () => {
+      it("should throw if number is NaN", async () => {
+        await expect(
+          UserProfileService.create({
+            userId: "u1",
+            organizationId: "o1",
+            professionalDetails: { yearsOfExperience: Number.NaN },
+          }),
+        ).rejects.toThrow(
+          new UserProfileServiceError(
+            "Years of experience must be a valid number.",
+            400,
+          ),
+        );
+      });
+
+      it("should throw if string number is invalid", async () => {
+        await expect(
+          UserProfileService.create({
+            userId: "u1",
+            organizationId: "o1",
+            professionalDetails: { yearsOfExperience: "abc" },
+          }),
+        ).rejects.toThrow(
+          new UserProfileServiceError(
+            "Years of experience must be a valid number.",
+            400,
+          ),
+        );
+      });
+
+      it("should throw if completely invalid type (e.g., boolean)", async () => {
+        await expect(
+          UserProfileService.create({
+            userId: "u1",
+            organizationId: "o1",
+            professionalDetails: { yearsOfExperience: true },
+          }),
+        ).rejects.toThrow(
+          new UserProfileServiceError(
+            "Years of experience must be a number.",
+            400,
+          ),
+        );
+      });
+
+      it("should parse valid string number", async () => {
+        (UserProfileModel.findOne as jest.Mock).mockResolvedValue(null);
+        (UserProfileModel.create as jest.Mock).mockResolvedValue(
+          createMockDoc({ personalDetails: { profilePictureUrl: "key" } }),
+        );
+        (BaseAvailabilityService.getByUserId as jest.Mock).mockResolvedValue(
+          [],
+        );
+
+        await UserProfileService.create({
+          userId: "u1",
+          organizationId: "o1",
+          personalDetails: { profilePictureUrl: "key" },
+          professionalDetails: { yearsOfExperience: " 5 " },
+        });
+
+        expect(UserProfileModel.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            professionalDetails: expect.objectContaining({
+              yearsOfExperience: 5,
+            }),
+          }),
+        );
+      });
+    });
+
+    describe("sanitizeDocuments", () => {
+      it("should throw if documents is not an array", async () => {
+        await expect(
+          UserProfileService.create({
+            userId: "u1",
+            organizationId: "o1",
+            professionalDetails: { documents: "str" },
+          }),
+        ).rejects.toThrow(
+          new UserProfileServiceError(
+            "Professional documents must be an array.",
+            400,
+          ),
+        );
+      });
+
+      it("should throw if document missing type", async () => {
+        await expect(
+          UserProfileService.create({
+            userId: "u1",
+            organizationId: "o1",
+            professionalDetails: { documents: [{}] },
+          }),
+        ).rejects.toThrow(
+          new UserProfileServiceError(
+            "Professional document[0].type is required.",
+            400,
+          ),
+        );
+      });
+
+      it("should throw if document missing uploadedAt", async () => {
+        await expect(
+          UserProfileService.create({
+            userId: "u1",
+            organizationId: "o1",
+            professionalDetails: {
+              documents: [{ type: "CV", fileUrl: "key" }],
+            },
+          }),
+        ).rejects.toThrow(
+          new UserProfileServiceError(
+            "Professional document[0].uploadedAt is required.",
+            400,
+          ),
+        );
+      });
+
+      it("should map verified boolean properly and reject invalid types", async () => {
+        await expect(
+          UserProfileService.create({
+            userId: "u1",
+            organizationId: "o1",
+            professionalDetails: {
+              documents: [
+                {
+                  type: "CV",
+                  fileUrl: "key",
+                  uploadedAt: new Date(),
+                  verified: "yes",
+                },
+              ],
+            },
+          }),
+        ).rejects.toThrow(
+          new UserProfileServiceError(
+            "Professional document[0].verified must be a boolean.",
+            400,
+          ),
+        );
+      });
+
+      it("should successfully map documents and apply getURLForKey", async () => {
+        (UserProfileModel.findOne as jest.Mock).mockResolvedValue(null);
+        (UserProfileModel.create as jest.Mock).mockResolvedValue(
+          createMockDoc({ personalDetails: { profilePictureUrl: "key" } }),
+        );
+        (BaseAvailabilityService.getByUserId as jest.Mock).mockResolvedValue(
+          [],
+        );
+
+        await UserProfileService.create({
+          userId: "u1",
+          organizationId: "o1",
+          personalDetails: { profilePictureUrl: "key" },
+          professionalDetails: {
+            documents: [
+              {
+                type: "CV",
+                fileUrl: "test-key",
+                uploadedAt: new Date(),
+                verified: true,
+              },
+            ],
+          },
+        });
+
+        expect(getURLForKey).toHaveBeenCalledWith("test-key");
+        expect(UserProfileModel.create).toHaveBeenCalled();
+      });
     });
   });
 
-  describe("Completeness & Status Logic (determineProfileStatus)", () => {
-    it("should return DRAFT if missing details or availability", async () => {
+  describe("Pruning (pruneUndefined, pruneArray, pruneRecord)", () => {
+    it("should strip undefined values from nested objects and arrays", async () => {
       (UserProfileModel.findOne as jest.Mock).mockResolvedValue(null);
-      const doc = mockDocument(); // Missing details
-      (UserProfileModel.create as jest.Mock).mockResolvedValue(doc);
-      (BaseAvailabilityService.create as jest.Mock).mockResolvedValue(invalidAvailability); // triggers draft
+      (UserProfileModel.create as jest.Mock).mockResolvedValue(
+        createMockDoc({ personalDetails: { profilePictureUrl: "key" } }),
+      );
+      (BaseAvailabilityService.getByUserId as jest.Mock).mockResolvedValue([]);
 
-      await UserProfileService.create(generateCreatePayload());
-      expect(doc.status).toBe("DRAFT");
-      expect(doc.save).not.toHaveBeenCalled(); // status was already DRAFT
-    });
+      await UserProfileService.create({
+        userId: "u1",
+        organizationId: "o1",
+        personalDetails: { profilePictureUrl: "key" },
+        professionalDetails: {
+          specialization: "Spec",
+          biography: undefined, // Pruned from object
+        },
+      });
 
-    it("should return COMPLETED if everything is valid", async () => {
-      (UserProfileModel.findOne as jest.Mock).mockResolvedValue(null);
-
-      const fullDetails = {
-        personalDetails: { gender: "MALE", employmentType: "FULL_TIME", phoneNumber: "123", address: { addressLine: "A", city: "C", state: "S", postalCode: "P", country: "C" } },
-        professionalDetails: { medicalLicenseNumber: "M", specialization: "S", qualification: "Q" }
-      };
-
-      const doc = mockDocument({ status: "DRAFT", ...fullDetails }); // Provide details to the mock!
-      (UserProfileModel.create as jest.Mock).mockResolvedValue(doc);
-      (BaseAvailabilityService.create as jest.Mock).mockResolvedValue(validAvailability);
-
-      const payload = generateCreatePayload(fullDetails);
-
-      const result = await UserProfileService.create(payload);
-      expect(result.status).toBe("COMPLETED");
-      expect(doc.save).toHaveBeenCalled(); // should have been saved to transition DRAFT -> COMPLETED
+      expect(UserProfileModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          professionalDetails: { specialization: "Spec" }, // strictly no biography key
+        }),
+      );
     });
   });
 
-  describe("buildDomainProfile", () => {
-    it("should handle varied _id sources (object with toString, missing id, etc)", async () => {
-      const doc = mockDocument({}, { _id: { toString: () => "obj-id" } });
-      (UserProfileModel.findOne as jest.Mock).mockResolvedValue(doc);
-      (BaseAvailabilityService.getByUserId as jest.Mock).mockResolvedValue(validAvailability);
-
-      const result = await UserProfileService.getByUserId("user-123", "org-123");
-      expect(result?._id).toBe("obj-id");
-    });
-
-    it("should prune deep structures inside toObject representation", async () => {
-      const rawOverride = {
-        personalDetails: { gender: "MALE", address: { city: "City", state: undefined } },
-        professionalDetails: { documents: [{ type: "CV", fileUrl: "url", verified: undefined }, undefined] }
-      };
-      const doc = mockDocument({}, rawOverride);
-      (UserProfileModel.findOne as jest.Mock).mockResolvedValue(doc);
-      (BaseAvailabilityService.getByUserId as jest.Mock).mockResolvedValue(validAvailability);
-
-      const result = await UserProfileService.getByUserId("user-123", "org-123");
-      expect(result?.personalDetails?.address).toBeDefined();
-      expect(result?.professionalDetails?.documents).toHaveLength(1);
-    });
-  });
-
-  // ======================================================================
-  // 1. CREATE
-  // ======================================================================
   describe("create", () => {
-    it("should throw if profile already exists", async () => {
-      (UserProfileModel.findOne as jest.Mock).mockResolvedValue({}); // Found
-      await expect(UserProfileService.create(generateCreatePayload())).rejects.toThrow("Profile already exists for this user in this organization.");
+    it("should throw 409 if profile already exists", async () => {
+      (UserProfileModel.findOne as jest.Mock).mockResolvedValue({
+        id: "exists",
+      });
+      await expect(
+        UserProfileService.create({ userId: "u1", organizationId: "o1" }),
+      ).rejects.toThrow(
+        new UserProfileServiceError(
+          "Profile already exists for this user in this organization.",
+          409,
+        ),
+      );
     });
 
-    it("should delete profile and rethrow BaseAvailabilityServiceError", async () => {
+    it("should properly map BaseAvailabilityServiceError", async () => {
       (UserProfileModel.findOne as jest.Mock).mockResolvedValue(null);
-      (UserProfileModel.create as jest.Mock).mockResolvedValue(mockDocument());
-      (BaseAvailabilityService.create as jest.Mock).mockRejectedValue(new BaseAvailabilityServiceError("Avail err", 400));
+      (UserProfileModel.create as jest.Mock).mockResolvedValue(
+        createMockDoc({ personalDetails: { profilePictureUrl: "key" } }),
+      );
+      (BaseAvailabilityService.getByUserId as jest.Mock).mockRejectedValue(
+        new BaseAvailabilityServiceError("Avail error", 503),
+      );
 
-      await expect(UserProfileService.create(generateCreatePayload()))
-        .rejects.toThrow(new UserProfileServiceError("Avail err", 400));
-      expect(UserProfileModel.deleteOne).toHaveBeenCalledWith({ _id: "doc-id" });
+      await expect(
+        UserProfileService.create({
+          userId: "u1",
+          organizationId: "o1",
+          personalDetails: { profilePictureUrl: "key" },
+        }),
+      ).rejects.toThrow(new UserProfileServiceError("Avail error", 503));
     });
 
-    it("should delete profile and rethrow generic error", async () => {
+    it("should throw generic errors if availability fetching fails randomly", async () => {
       (UserProfileModel.findOne as jest.Mock).mockResolvedValue(null);
-      (UserProfileModel.create as jest.Mock).mockResolvedValue(mockDocument());
-      (BaseAvailabilityService.create as jest.Mock).mockRejectedValue(new Error("Generic DB Err"));
+      (UserProfileModel.create as jest.Mock).mockResolvedValue(
+        createMockDoc({ personalDetails: { profilePictureUrl: "key" } }),
+      );
+      (BaseAvailabilityService.getByUserId as jest.Mock).mockRejectedValue(
+        new Error("System crash"),
+      );
 
-      await expect(UserProfileService.create(generateCreatePayload()))
-        .rejects.toThrow("Generic DB Err");
-      expect(UserProfileModel.deleteOne).toHaveBeenCalledWith({ _id: "doc-id" });
+      await expect(
+        UserProfileService.create({
+          userId: "u1",
+          organizationId: "o1",
+          personalDetails: { profilePictureUrl: "key" },
+        }),
+      ).rejects.toThrow(new Error("System crash"));
     });
   });
 
   describe("update", () => {
+    it("should throw 400 if no fields are provided", async () => {
+      await expect(UserProfileService.update("u1", "o1", {})).rejects.toThrow(
+        new UserProfileServiceError("No updatable fields provided.", 400),
+      );
+    });
+
     it("should return null if profile not found", async () => {
       (UserProfileModel.findOneAndUpdate as jest.Mock).mockResolvedValue(null);
-      const res = await UserProfileService.update("user-123", "org-123", { personalDetails: { gender: "MALE" } });
+      const res = await UserProfileService.update("u1", "o1", {
+        personalDetails: { gender: "MALE" },
+      });
       expect(res).toBeNull();
     });
 
-    it("should use findOne if NO attributes updated (only availability)", async () => {
-      const doc = mockDocument();
-      (UserProfileModel.findOne as jest.Mock).mockResolvedValue(doc);
-      (BaseAvailabilityService.update as jest.Mock).mockResolvedValue(validAvailability);
+    it("should fallback to findOne if payload prunes completely to empty objects", async () => {
+      // payload has personalDetails, so it bypasses the throw, but pruning removes all keys inside.
+      (UserProfileModel.findOne as jest.Mock).mockResolvedValue(
+        createMockDoc(),
+      );
+      (BaseAvailabilityService.getByUserId as jest.Mock).mockResolvedValue([]);
 
-      const res = await UserProfileService.update("user-123", "org-123", { baseAvailability: validAvailability });
-      expect(UserProfileModel.findOne).toHaveBeenCalled();
-      expect(BaseAvailabilityService.update).toHaveBeenCalled();
-      expect(res).toBeDefined();
+      await UserProfileService.update("u1", "o1", { personalDetails: null });
+
+      // Because `Object.keys(attributes).length` becomes 0 (after empty pruning), it uses findOne instead of findOneAndUpdate
+      expect(UserProfileModel.findOne).toHaveBeenCalledWith(
+        { userId: "u1", organizationId: "o1" },
+        null,
+        { sanitizeFilter: true },
+      );
     });
 
-    it("should fetch availability if NOT provided in payload", async () => {
-      const doc = mockDocument();
-      (UserProfileModel.findOneAndUpdate as jest.Mock).mockResolvedValue(doc);
-      (BaseAvailabilityService.getByUserId as jest.Mock).mockResolvedValue(validAvailability);
+    it("should successfully update and return mapped domain profile", async () => {
+      const mockDoc = createMockDoc({
+        _id: { toString: () => "obj_id_string" },
+      });
+      (UserProfileModel.findOneAndUpdate as jest.Mock).mockResolvedValue(
+        mockDoc,
+      );
+      (BaseAvailabilityService.getByUserId as jest.Mock).mockResolvedValue([]);
 
-      await UserProfileService.update("user-123", "org-123", { personalDetails: { gender: "MALE" } });
-      expect(BaseAvailabilityService.getByUserId).toHaveBeenCalledWith("user-123");
+      const res = await UserProfileService.update("u1", "o1", {
+        personalDetails: { gender: "FEMALE" },
+      });
+
+      expect(UserProfileModel.findOneAndUpdate).toHaveBeenCalled();
+      expect(res?._id).toBe("obj_id_string"); // Maps _id toString
     });
 
-    it("should rethrow BaseAvailabilityServiceError on update", async () => {
-      (UserProfileModel.findOneAndUpdate as jest.Mock).mockResolvedValue(mockDocument());
-      (BaseAvailabilityService.update as jest.Mock).mockRejectedValue(new BaseAvailabilityServiceError("Avail err", 400));
+    it("should map BaseAvailabilityServiceError properly on update", async () => {
+      (UserProfileModel.findOneAndUpdate as jest.Mock).mockResolvedValue(
+        createMockDoc(),
+      );
+      (BaseAvailabilityService.getByUserId as jest.Mock).mockRejectedValue(
+        new BaseAvailabilityServiceError("Avail error", 400),
+      );
 
-      await expect(UserProfileService.update("user-123", "org-123", { personalDetails: { gender: "MALE" }, baseAvailability: {} }))
-        .rejects.toThrow(new UserProfileServiceError("Avail err", 400));
-    });
-
-    it("should rethrow generic error on update", async () => {
-      (UserProfileModel.findOneAndUpdate as jest.Mock).mockResolvedValue(mockDocument());
-      (BaseAvailabilityService.update as jest.Mock).mockRejectedValue(new Error("Fail"));
-
-      await expect(UserProfileService.update("user-123", "org-123", { personalDetails: { gender: "MALE" }, baseAvailability: {} }))
-        .rejects.toThrow("Fail");
+      await expect(
+        UserProfileService.update("u1", "o1", {
+          personalDetails: { gender: "MALE" },
+        }),
+      ).rejects.toThrow(new UserProfileServiceError("Avail error", 400));
     });
   });
 
   describe("getByUserId", () => {
-    it("should return null if profile not found", async () => {
+    it("should return null if not found", async () => {
       (UserProfileModel.findOne as jest.Mock).mockResolvedValue(null);
-      const res = await UserProfileService.getByUserId("user-123", "org-123");
+      const res = await UserProfileService.getByUserId("u1", "o1");
       expect(res).toBeNull();
     });
 
-    it("should return domain profile if found", async () => {
-      (UserProfileModel.findOne as jest.Mock).mockResolvedValue(mockDocument());
-      (BaseAvailabilityService.getByUserId as jest.Mock).mockResolvedValue(validAvailability);
+    it("should return data successfully", async () => {
+      (UserProfileModel.findOne as jest.Mock).mockResolvedValue(
+        createMockDoc(),
+      );
+      (UserOrganizationModel.findOne as jest.Mock).mockResolvedValue({
+        role: "ADMIN",
+      });
+      (BaseAvailabilityService.getByUserId as jest.Mock).mockResolvedValue(
+        completeAvailability,
+      );
 
-      const res = await UserProfileService.getByUserId("user-123", "org-123");
-      expect(res).toBeDefined();
+      const res = await UserProfileService.getByUserId("u1", "o1");
+
+      expect(res?.mapping).toEqual({ role: "ADMIN" });
+      expect(res?.baseAvailability).toEqual(completeAvailability);
+      expect(res?.profile.status).toBe("DRAFT"); // Fallback because mockDoc doesn't have all details
     });
 
-    it("should rethrow BaseAvailabilityServiceError on get", async () => {
-      (UserProfileModel.findOne as jest.Mock).mockResolvedValue(mockDocument());
-      (BaseAvailabilityService.getByUserId as jest.Mock).mockRejectedValue(new BaseAvailabilityServiceError("Avail err", 400));
+    it("should throw mapped availability error", async () => {
+      (UserProfileModel.findOne as jest.Mock).mockResolvedValue(
+        createMockDoc(),
+      );
+      (BaseAvailabilityService.getByUserId as jest.Mock).mockRejectedValue(
+        new BaseAvailabilityServiceError("err", 404),
+      );
 
-      await expect(UserProfileService.getByUserId("user-123", "org-123"))
-        .rejects.toThrow(new UserProfileServiceError("Avail err", 400));
+      await expect(UserProfileService.getByUserId("u1", "o1")).rejects.toThrow(
+        new UserProfileServiceError("err", 404),
+      );
+    });
+  });
+
+  describe("Status Resolution (determineProfileStatus & applyProfileStatus)", () => {
+    const fullPersonal = {
+      gender: "MALE",
+      employmentType: "FULL_TIME",
+      phoneNumber: "123",
+      address: {
+        addressLine: "a",
+        city: "c",
+        state: "s",
+        postalCode: "p",
+        country: "co",
+      },
+    };
+    const fullProfessional = {
+      medicalLicenseNumber: "1",
+      specialization: "A",
+      qualification: "Q",
+    };
+
+    it("should be COMPLETED if all fields exist and availability is valid, and save if changed", async () => {
+      const mockDoc = createMockDoc({
+        status: "DRAFT", // Started as Draft
+        personalDetails: fullPersonal,
+        professionalDetails: fullProfessional,
+      });
+      (UserProfileModel.findOne as jest.Mock).mockResolvedValue(mockDoc);
+      (UserOrganizationModel.findOne as jest.Mock).mockResolvedValue({});
+      (BaseAvailabilityService.getByUserId as jest.Mock).mockResolvedValue(
+        completeAvailability,
+      );
+
+      const res = await UserProfileService.getByUserId("u1", "o1");
+
+      expect(res?.profile.status).toBe("COMPLETED");
+      expect(mockDoc.status).toBe("COMPLETED"); // Changed
+      expect(mockSave).toHaveBeenCalled(); // Triggered save
     });
 
-    it("should rethrow generic error on get", async () => {
-      (UserProfileModel.findOne as jest.Mock).mockResolvedValue(mockDocument());
-      (BaseAvailabilityService.getByUserId as jest.Mock).mockRejectedValue(new Error("Fail"));
+    it("should remain DRAFT if availability has no valid slots", async () => {
+      const mockDoc = createMockDoc({
+        personalDetails: fullPersonal,
+        professionalDetails: fullProfessional,
+      });
+      (UserProfileModel.findOne as jest.Mock).mockResolvedValue(mockDoc);
+      (BaseAvailabilityService.getByUserId as jest.Mock).mockResolvedValue([
+        { slots: [{ startTime: "", endTime: "", isAvailable: false }] },
+      ]);
 
-      await expect(UserProfileService.getByUserId("user-123", "org-123"))
-        .rejects.toThrow("Fail");
+      const res = await UserProfileService.getByUserId("u1", "o1");
+      expect(res?.profile.status).toBe("DRAFT");
+    });
+
+    it("should remain DRAFT if personal details are incomplete (missing address or field)", async () => {
+      const mockDoc = createMockDoc({
+        personalDetails: { ...fullPersonal, address: undefined },
+        professionalDetails: fullProfessional,
+      });
+      (UserProfileModel.findOne as jest.Mock).mockResolvedValue(mockDoc);
+      (BaseAvailabilityService.getByUserId as jest.Mock).mockResolvedValue(
+        completeAvailability,
+      );
+
+      const res = await UserProfileService.getByUserId("u1", "o1");
+      expect(res?.profile.status).toBe("DRAFT");
+    });
+
+    it("should remain DRAFT if professional details are incomplete (missing license)", async () => {
+      const mockDoc = createMockDoc({
+        personalDetails: fullPersonal,
+        professionalDetails: { ...fullProfessional, medicalLicenseNumber: "" },
+      });
+      (UserProfileModel.findOne as jest.Mock).mockResolvedValue(mockDoc);
+      (BaseAvailabilityService.getByUserId as jest.Mock).mockResolvedValue(
+        completeAvailability,
+      );
+
+      const res = await UserProfileService.getByUserId("u1", "o1");
+      expect(res?.profile.status).toBe("DRAFT");
     });
   });
 });
