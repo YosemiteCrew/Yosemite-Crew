@@ -48,7 +48,7 @@ const mockRequest = (overrides: Record<string, any> = {}): Request =>
     query: {},
     headers: {},
     ...overrides,
-  } as unknown as Request);
+  }) as unknown as Request;
 
 const mockResponse = (): Response => {
   const res: any = {};
@@ -59,28 +59,12 @@ const mockResponse = (): Response => {
 };
 
 describe("ServiceController", () => {
-  let req: Request;
-  let res: Response;
+  let req: any;
+  let res: any;
 
   beforeEach(() => {
-    jsonMock = jest.fn();
-    sendMock = jest.fn();
-    statusMock = jest.fn().mockReturnValue({ json: jsonMock, send: sendMock });
-
-    req = {
-      headers: {},
-      params: {},
-      body: {},
-      query: {},
-    };
-
-    res = {
-      status: statusMock,
-      json: jsonMock,
-      send: sendMock,
-    } as unknown as Response;
-
     jest.clearAllMocks();
+    req = mockRequest();
     res = mockResponse();
   });
 
@@ -90,7 +74,7 @@ describe("ServiceController", () => {
       const customError = new ServiceServiceError("Custom Error", 409);
       (ServiceService.create as jest.Mock).mockRejectedValueOnce(customError);
 
-      await ServiceController.createService(req as any, res as any);
+      await ServiceController.createService(req, res);
       expect(res.status).toHaveBeenCalledWith(409);
       expect(res.json).toHaveBeenCalledWith({ message: "Custom Error" });
     });
@@ -100,10 +84,14 @@ describe("ServiceController", () => {
         query: { serviceName: "Vet" },
         headers: { "x-user-id": "header-user" },
       });
-      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValueOnce(null);
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValueOnce(null);
 
-      await ServiceController.listOrganisationByServiceName(req as any, res as any);
-      expect(AuthUserMobileService.getByProviderUserId).toHaveBeenCalledWith("header-user");
+      await ServiceController.listOrganisationByServiceName(req, res);
+      expect(AuthUserMobileService.getByProviderUserId).toHaveBeenCalledWith(
+        "header-user",
+      );
     });
 
     it("resolves userId from auth object if headers are missing", async () => {
@@ -111,10 +99,14 @@ describe("ServiceController", () => {
         query: { serviceName: "Vet" },
         userId: "auth-user", // simulated AuthenticatedRequest
       });
-      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValueOnce(null);
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValueOnce(null);
 
-      await ServiceController.listOrganisationByServiceName(req as any, res as any);
-      expect(AuthUserMobileService.getByProviderUserId).toHaveBeenCalledWith("auth-user");
+      await ServiceController.listOrganisationByServiceName(req, res);
+      expect(AuthUserMobileService.getByProviderUserId).toHaveBeenCalledWith(
+        "auth-user",
+      );
     });
   });
 
@@ -123,7 +115,7 @@ describe("ServiceController", () => {
       req = mockRequest({ body: { name: "Test Service" } });
       (ServiceService.create as jest.Mock).mockResolvedValueOnce({ id: "1" });
 
-      await ServiceController.createService(req as any, res as any);
+      await ServiceController.createService(req, res);
 
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.json).toHaveBeenCalledWith({ id: "1" });
@@ -131,8 +123,10 @@ describe("ServiceController", () => {
 
     it("returns 500 on generic error", async () => {
       req = mockRequest();
-      (ServiceService.create as jest.Mock).mockRejectedValueOnce(new Error("Fail"));
-      await ServiceController.createService(req as any, res as any);
+      (ServiceService.create as jest.Mock).mockRejectedValueOnce(
+        new Error("Fail"),
+      );
+      await ServiceController.createService(req, res);
       expect(res.status).toHaveBeenCalledWith(500);
       expect(logger.error).toHaveBeenCalled();
     });
@@ -143,7 +137,7 @@ describe("ServiceController", () => {
       req = mockRequest({ params: { id: "123" }, body: { cost: 100 } });
       (ServiceService.update as jest.Mock).mockResolvedValueOnce({ id: "123" });
 
-      await ServiceController.updateService(req as any, res as any);
+      await ServiceController.updateService(req, res);
 
       expect(ServiceService.update).toHaveBeenCalledWith("123", { cost: 100 });
       expect(res.status).toHaveBeenCalledWith(200);
@@ -151,8 +145,10 @@ describe("ServiceController", () => {
 
     it("returns 500 on error", async () => {
       req = mockRequest({ params: { id: "123" } });
-      (ServiceService.update as jest.Mock).mockRejectedValueOnce(new Error("Fail"));
-      await ServiceController.updateService(req as any, res as any);
+      (ServiceService.update as jest.Mock).mockRejectedValueOnce(
+        new Error("Fail"),
+      );
+      await ServiceController.updateService(req, res);
       expect(res.status).toHaveBeenCalledWith(500);
     });
   });
@@ -162,7 +158,7 @@ describe("ServiceController", () => {
       req = mockRequest({ params: { id: "123" } });
       (ServiceService.delete as jest.Mock).mockResolvedValueOnce(true);
 
-      await ServiceController.deleteService(req as any, res as any);
+      await ServiceController.deleteService(req, res);
 
       expect(ServiceService.delete).toHaveBeenCalledWith("123");
       expect(res.status).toHaveBeenCalledWith(204);
@@ -171,8 +167,10 @@ describe("ServiceController", () => {
 
     it("returns 500 on error", async () => {
       req = mockRequest({ params: { id: "123" } });
-      (ServiceService.delete as jest.Mock).mockRejectedValueOnce(new Error("Fail"));
-      await ServiceController.deleteService(req as any, res as any);
+      (ServiceService.delete as jest.Mock).mockRejectedValueOnce(
+        new Error("Fail"),
+      );
+      await ServiceController.deleteService(req, res);
       expect(res.status).toHaveBeenCalledWith(500);
     });
   });
@@ -180,9 +178,11 @@ describe("ServiceController", () => {
   describe("getServiceById", () => {
     it("returns 200 when found", async () => {
       req = mockRequest({ params: { id: "123" } });
-      (ServiceService.getById as jest.Mock).mockResolvedValueOnce({ id: "123" });
+      (ServiceService.getById as jest.Mock).mockResolvedValueOnce({
+        id: "123",
+      });
 
-      await ServiceController.getServiceById(req as any, res as any);
+      await ServiceController.getServiceById(req, res);
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({ id: "123" });
     });
@@ -191,15 +191,17 @@ describe("ServiceController", () => {
       req = mockRequest({ params: { id: "123" } });
       (ServiceService.getById as jest.Mock).mockResolvedValueOnce(null);
 
-      await ServiceController.getServiceById(req as any, res as any);
+      await ServiceController.getServiceById(req, res);
       expect(res.status).toHaveBeenCalledWith(404);
       expect(res.json).toHaveBeenCalledWith({ message: "Service not found." });
     });
 
     it("returns 500 on error", async () => {
       req = mockRequest({ params: { id: "123" } });
-      (ServiceService.getById as jest.Mock).mockRejectedValueOnce(new Error("Fail"));
-      await ServiceController.getServiceById(req as any, res as any);
+      (ServiceService.getById as jest.Mock).mockRejectedValueOnce(
+        new Error("Fail"),
+      );
+      await ServiceController.getServiceById(req, res);
       expect(res.status).toHaveBeenCalledWith(500);
     });
   });
@@ -207,17 +209,22 @@ describe("ServiceController", () => {
   describe("listServicesBySpeciality", () => {
     it("returns 200 on success", async () => {
       req = mockRequest({ params: { specialityId: "s1" } });
-      (ServiceService.listBySpeciality as jest.Mock).mockResolvedValueOnce(["s1", "s2"]);
+      (ServiceService.listBySpeciality as jest.Mock).mockResolvedValueOnce([
+        "s1",
+        "s2",
+      ]);
 
-      await ServiceController.listServicesBySpeciality(req as any, res as any);
+      await ServiceController.listServicesBySpeciality(req, res);
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith(["s1", "s2"]);
     });
 
     it("returns 500 on error", async () => {
       req = mockRequest({ params: { specialityId: "s1" } });
-      (ServiceService.listBySpeciality as jest.Mock).mockRejectedValueOnce(new Error("Fail"));
-      await ServiceController.listServicesBySpeciality(req as any, res as any);
+      (ServiceService.listBySpeciality as jest.Mock).mockRejectedValueOnce(
+        new Error("Fail"),
+      );
+      await ServiceController.listServicesBySpeciality(req, res);
       expect(res.status).toHaveBeenCalledWith(500);
     });
   });
@@ -225,77 +232,119 @@ describe("ServiceController", () => {
   describe("listOrganisationByServiceName", () => {
     it("returns 400 if serviceName is missing", async () => {
       req = mockRequest({ query: {} });
-      await ServiceController.listOrganisationByServiceName(req as any, res as any);
+      await ServiceController.listOrganisationByServiceName(req, res);
       expect(res.status).toHaveBeenCalledWith(400);
     });
 
     it("returns 400 if provided lat/lng are invalid numbers", async () => {
-      req = mockRequest({ query: { serviceName: "Vet", lat: "abc", lng: "def" } });
-      await ServiceController.listOrganisationByServiceName(req as any, res as any);
+      req = mockRequest({
+        query: { serviceName: "Vet", lat: "abc", lng: "def" },
+      });
+      await ServiceController.listOrganisationByServiceName(req, res);
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ message: "lat and lng must be valid numbers" });
+      expect(res.json).toHaveBeenCalledWith({
+        message: "lat and lng must be valid numbers",
+      });
     });
 
     it("returns 200 if valid lat/lng are provided in query", async () => {
-      req = mockRequest({ query: { serviceName: "Vet", lat: "40.7", lng: "-74.1" } }); // Changed to non-zero fractions
-      (ServiceService.listOrganisationsProvidingServiceNearby as jest.Mock).mockResolvedValueOnce(["org1"]);
+      req = mockRequest({
+        query: { serviceName: "Vet", lat: "40.7", lng: "-74.1" },
+      }); // Changed to non-zero fractions
+      (
+        ServiceService.listOrganisationsProvidingServiceNearby as jest.Mock
+      ).mockResolvedValueOnce(["org1"]);
 
-      await ServiceController.listOrganisationByServiceName(req as any, res as any);
+      await ServiceController.listOrganisationByServiceName(req, res);
 
-      expect(ServiceService.listOrganisationsProvidingServiceNearby).toHaveBeenCalledWith("Vet", 40.7, -74.1);
+      expect(
+        ServiceService.listOrganisationsProvidingServiceNearby,
+      ).toHaveBeenCalledWith("Vet", 40.7, -74.1);
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith(["org1"]);
     });
 
     it("returns 400 if lat/lng omitted and user not authenticated", async () => {
       req = mockRequest({ query: { serviceName: "Vet" } }); // No headers, no auth user
-      await ServiceController.listOrganisationByServiceName(req as any, res as any);
+      await ServiceController.listOrganisationByServiceName(req, res);
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith("Povide Latitude and Longitude if no authenticated request.");
+      expect(res.json).toHaveBeenCalledWith(
+        "Povide Latitude and Longitude if no authenticated request.",
+      );
     });
 
     it("returns 400 if parent address is missing/incomplete", async () => {
       req = mockRequest({ query: { serviceName: "Vet" }, userId: "auth-1" });
-      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValueOnce({ parentId: "p1" });
-      (ParentModel.findById as jest.Mock).mockResolvedValueOnce({ address: { city: "NY" } }); // Missing postalCode
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValueOnce({ parentId: "p1" });
+      (ParentModel.findById as jest.Mock).mockResolvedValueOnce({
+        address: { city: "NY" },
+      }); // Missing postalCode
 
-      await ServiceController.listOrganisationByServiceName(req as any, res as any);
+      await ServiceController.listOrganisationByServiceName(req, res);
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ message: "Location not provided and user has no saved city/pincode." });
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Location not provided and user has no saved city/pincode.",
+      });
     });
 
     it("returns 400 if geolocation from parent address fails", async () => {
       req = mockRequest({ query: { serviceName: "Vet" }, userId: "auth-1" });
-      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValueOnce({ parentId: "p1" });
-      (ParentModel.findById as jest.Mock).mockResolvedValueOnce({ address: { city: "NY", postalCode: "10001" } });
-      (helpers.getGeoLocation as jest.Mock).mockResolvedValueOnce({ lat: null, lng: null });
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValueOnce({ parentId: "p1" });
+      (ParentModel.findById as jest.Mock).mockResolvedValueOnce({
+        address: { city: "NY", postalCode: "10001" },
+      });
+      (helpers.getGeoLocation as jest.Mock).mockResolvedValueOnce({
+        lat: null,
+        lng: null,
+      });
 
-      await ServiceController.listOrganisationByServiceName(req as any, res as any);
+      await ServiceController.listOrganisationByServiceName(req, res);
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ message: "Unable to resolve location from city and postal code." });
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Unable to resolve location from city and postal code.",
+      });
     });
 
     it("returns 200 when geolocating successfully from parent address", async () => {
       req = mockRequest({ query: { serviceName: "Vet" }, userId: "auth-1" });
-      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValueOnce({ parentId: "p1" });
-      (ParentModel.findById as jest.Mock).mockResolvedValueOnce({ address: { city: "NY", postalCode: "10001" } });
-      (helpers.getGeoLocation as jest.Mock).mockResolvedValueOnce({ lat: 40.7, lng: -74.1 }); // Changed to non-zero fractions
-      (ServiceService.listOrganisationsProvidingServiceNearby as jest.Mock).mockResolvedValueOnce(["org2"]);
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValueOnce({ parentId: "p1" });
+      (ParentModel.findById as jest.Mock).mockResolvedValueOnce({
+        address: { city: "NY", postalCode: "10001" },
+      });
+      (helpers.getGeoLocation as jest.Mock).mockResolvedValueOnce({
+        lat: 40.7,
+        lng: -74.1,
+      }); // Changed to non-zero fractions
+      (
+        ServiceService.listOrganisationsProvidingServiceNearby as jest.Mock
+      ).mockResolvedValueOnce(["org2"]);
 
-      await ServiceController.listOrganisationByServiceName(req as any, res as any);
+      await ServiceController.listOrganisationByServiceName(req, res);
 
       expect(helpers.getGeoLocation).toHaveBeenCalledWith("NY 10001");
-      expect(ServiceService.listOrganisationsProvidingServiceNearby).toHaveBeenCalledWith("Vet", 40.7, -74.1);
+      expect(
+        ServiceService.listOrganisationsProvidingServiceNearby,
+      ).toHaveBeenCalledWith("Vet", 40.7, -74.1);
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith(["org2"]);
     });
 
     it("returns 500 on unexpected errors", async () => {
       // Provide valid lat/lng to bypass the auth checks so it actually hits the service call
-      req = mockRequest({ query: { serviceName: "Vet", lat: "40.5", lng: "-73.5" } });
-      (ServiceService.listOrganisationsProvidingServiceNearby as jest.Mock).mockRejectedValueOnce(new Error("Fail"));
+      req = mockRequest({
+        query: { serviceName: "Vet", lat: "40.5", lng: "-73.5" },
+      });
+      (
+        ServiceService.listOrganisationsProvidingServiceNearby as jest.Mock
+      ).mockRejectedValueOnce(new Error("Fail"));
 
-      await ServiceController.listOrganisationByServiceName(req as any, res as any);
+      await ServiceController.listOrganisationByServiceName(req, res);
       expect(res.status).toHaveBeenCalledWith(500);
     });
   });
@@ -303,33 +352,58 @@ describe("ServiceController", () => {
   describe("getBookableSlotsForService", () => {
     it("returns 400 if payload is missing fields", async () => {
       req = mockRequest({ body: { serviceId: "1" } }); // missing orgId and date
-      await ServiceController.getBookableSlotsForService(req as any, res as any);
+      await ServiceController.getBookableSlotsForService(req, res);
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: "serviceId, organisationId and date are required" }));
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: "serviceId, organisationId and date are required",
+        }),
+      );
     });
 
     it("returns 400 if date format is invalid", async () => {
-      req = mockRequest({ body: { serviceId: "1", organisationId: "2", date: "invalid-date" } });
-      await ServiceController.getBookableSlotsForService(req as any, res as any);
+      req = mockRequest({
+        body: { serviceId: "1", organisationId: "2", date: "invalid-date" },
+      });
+      await ServiceController.getBookableSlotsForService(req, res);
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: "Invalid date format (use YYYY-MM-DD)" }));
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: "Invalid date format (use YYYY-MM-DD)",
+        }),
+      );
     });
 
     it("returns 200 on success", async () => {
-      req = mockRequest({ body: { serviceId: "1", organisationId: "2", date: "2026-01-01" } });
-      (ServiceService.getBookableSlotsService as jest.Mock).mockResolvedValueOnce({ slots: [] });
+      req = mockRequest({
+        body: { serviceId: "1", organisationId: "2", date: "2026-01-01" },
+      });
+      (
+        ServiceService.getBookableSlotsService as jest.Mock
+      ).mockResolvedValueOnce({ slots: [] });
 
-      await ServiceController.getBookableSlotsForService(req as any, res as any);
-      expect(ServiceService.getBookableSlotsService).toHaveBeenCalledWith("1", "2", expect.any(Date));
+      await ServiceController.getBookableSlotsForService(req, res);
+      expect(ServiceService.getBookableSlotsService).toHaveBeenCalledWith(
+        "1",
+        "2",
+        expect.any(Date),
+      );
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith({ success: true, data: { slots: [] } });
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        data: { slots: [] },
+      });
     });
 
     it("returns 500 on error", async () => {
-      req = mockRequest({ body: { serviceId: "1", organisationId: "2", date: "2026-01-01" } });
-      (ServiceService.getBookableSlotsService as jest.Mock).mockRejectedValueOnce(new Error("Fail"));
+      req = mockRequest({
+        body: { serviceId: "1", organisationId: "2", date: "2026-01-01" },
+      });
+      (
+        ServiceService.getBookableSlotsService as jest.Mock
+      ).mockRejectedValueOnce(new Error("Fail"));
 
-      await ServiceController.getBookableSlotsForService(req as any, res as any);
+      await ServiceController.getBookableSlotsForService(req, res);
       expect(res.status).toHaveBeenCalledWith(500);
     });
   });
