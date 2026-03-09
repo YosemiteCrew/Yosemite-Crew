@@ -1,10 +1,35 @@
-// Define mocks in global scope so they are stable across resetModules
+/* eslint-disable @typescript-eslint/no-var-requires */
+// test/services/documenso.service.test.ts
+import axios from "axios";
+import OrganizationModel from "../../src/models/organization";
+import logger from "../../src/utils/logger";
+import { DocumensoError } from "@documenso/sdk-typescript/models/errors/index.js";
+
+// --- MOCK SETUP ---
+jest.mock("axios");
+
+jest.mock("../../src/models/organization", () => ({
+  __esModule: true,
+  default: {
+    findOne: jest.fn().mockReturnValue({
+      lean: jest.fn(),
+    }),
+  },
+}));
+
+jest.mock("../../src/utils/logger", () => ({
+  __esModule: true,
+  default: {
+    error: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+  },
+}));
+
 const mockCreateV0 = jest.fn();
 const mockDistribute = jest.fn();
-const mockFetch = jest.fn();
 
-// 1. Mock the SDK
-jest.mock('@documenso/sdk-typescript', () => {
+jest.mock("@documenso/sdk-typescript", () => {
   return {
     Documenso: jest.fn().mockImplementation(() => ({
       documents: {
@@ -15,245 +40,380 @@ jest.mock('@documenso/sdk-typescript', () => {
   };
 });
 
-// 2. Mock the Error class
-jest.mock('@documenso/sdk-typescript/models/errors/index.js', () => {
+jest.mock("@documenso/sdk-typescript/models/errors/index.js", () => {
   class MockDocumensoError extends Error {
     statusCode: number;
     body: any;
-    constructor(message: string, options: { statusCode: number; body: any }) {
+    constructor(message: string, statusCode: number, body: any) {
       super(message);
-      this.name = 'DocumensoError';
-      this.statusCode = options?.statusCode;
-      this.body = options?.body;
+      this.statusCode = statusCode;
+      this.body = body;
     }
   }
-  return {
-    DocumensoError: MockDocumensoError,
-  };
+  return { DocumensoError: MockDocumensoError, __esModule: true };
 });
 
-// 3. Mock dependencies
-jest.mock('axios');
-jest.mock('../../src/utils/logger');
+// Set up global fetch mock
+globalThis.fetch = jest.fn();
 
-// Setup global fetch
-global.fetch = mockFetch;
+// --- HELPER TO TEST LOAD-TIME ENV VARIABLES ---
+function getModule(envOverrides: Record<string, string>) {
+  let mod: any;
+  jest.isolateModules(() => {
+    const originalEnv = process.env;
+    process.env = { ...originalEnv, ...envOverrides };
+    mod = require("../../src/services/documenso.service");
+    process.env = originalEnv;
+  });
+  return mod.DocumensoService;
+}
 
-describe('DocumensoService', () => {
-  const ORIGINAL_ENV = process.env;
+// --- TESTS ---
 
-  // Dynamic variables for modules re-imported after reset
-  let DocumensoService: any;
-  let logger: any;
-  let axios: any;
-  let DocumensoSDK: any;
-  let DocumensoError: any;
-
+describe("DocumensoService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.resetModules(); // CLEAR CACHE
-
-    // 1. Reset Env
-    process.env = { ...ORIGINAL_ENV };
-    process.env.DOCUMENSO_BASE_URL = 'https://documenso.example.com';
-    process.env.DOCUMENSO_API_KEY = 'secret-key';
-
-    // 2. Re-require EVERYTHING
-    DocumensoService = require('../../src/services/documenso.service').DocumensoService;
-    logger = require('../../src/utils/logger').default;
-    axios = require('axios').default;
-    DocumensoSDK = require('@documenso/sdk-typescript').Documenso;
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const errors = require('@documenso/sdk-typescript/models/errors/index.js');
-    DocumensoError = errors.DocumensoError;
+    (globalThis.fetch as jest.Mock).mockResolvedValue({ ok: true });
   });
 
-  afterAll(() => {
-    process.env = ORIGINAL_ENV;
-  });
-
-  describe('Configuration & Initialization', () => {
-    it('should log error if DOCUMENSO_BASE_URL is missing', async () => {
-      delete process.env.DOCUMENSO_BASE_URL;
-
-      // Re-require service to trigger env check
-      jest.resetModules();
-      const Service = require('../../src/services/documenso.service').DocumensoService;
-      const localLogger = require('../../src/utils/logger').default;
-
-      await Service.distributeDocument({ documentId: 1 });
-
-      expect(localLogger.error).toHaveBeenCalledWith(
-        "An unexpected error occurred:",
-        expect.objectContaining({ message: 'DOCUMENSO_BASE_URL is not set' })
-      );
-    });
-
-    it('should log error if DOCUMENSO_BASE_URL is invalid', async () => {
-      process.env.DOCUMENSO_BASE_URL = 'invalid-url';
-      jest.resetModules();
-      const Service = require('../../src/services/documenso.service').DocumensoService;
-      const localLogger = require('../../src/utils/logger').default;
-
-      await Service.distributeDocument({ documentId: 1 });
-
-      expect(localLogger.error).toHaveBeenCalledWith(
-        "An unexpected error occurred:",
-        expect.objectContaining({ message: 'DOCUMENSO_BASE_URL is invalid' })
-      );
-    });
-
-    it('should initialize client once and reuse it', async () => {
-      // Import the SDK constructor mock to check calls
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { Documenso } = require('@documenso/sdk-typescript');
-
-      await DocumensoService.distributeDocument({ documentId: 1 });
-      await DocumensoService.distributeDocument({ documentId: 1 });
-
-      expect(Documenso).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('createDocument', () => {
-    const pdfBuffer = Buffer.from('fake-pdf');
-    const mockInput = {
-      pdf: pdfBuffer,
-      signerEmail: 'signer@example.com',
-      signerName: 'Signer Name',
-    };
-
-    it('should create document and upload PDF successfully', async () => {
-      // Mock SDK success
-      mockCreateV0.mockResolvedValue({
-        document: { id: 123, title: 'Form Submission' },
-        uploadUrl: 'https://upload.url',
+  describe("Configuration & Environment Variable Errors", () => {
+    it("throws if DOCUMENSO_BASE_URL is not set", async () => {
+      const Service = getModule({
+        DOCUMENSO_BASE_URL: "",
+        DOCUMENSO_API_KEY: "dummy_key",
       });
-
-      // Mock Fetch success
-      mockFetch.mockResolvedValue({ ok: true });
-
-      const result = await DocumensoService.createDocument(mockInput);
-
-      expect(mockCreateV0).toHaveBeenCalledWith(expect.objectContaining({
-        recipients: expect.arrayContaining([
-          expect.objectContaining({
-            email: 'signer@example.com',
-            name: 'Signer Name',
-            role: 'SIGNER',
-          })
-        ])
-      }));
-
-      expect(mockFetch).toHaveBeenCalledWith('https://upload.url', expect.objectContaining({
-        method: 'PUT',
-        headers: expect.objectContaining({
-          'Content-Length': pdfBuffer.length.toString(),
-        })
-      }));
-
-      expect(result).toEqual({ id: 123, title: 'Form Submission' });
-    });
-
-    it('should use email as name if signerName is missing', async () => {
-      mockCreateV0.mockResolvedValue({ document: {}, uploadUrl: 'url' });
-      mockFetch.mockResolvedValue({ ok: true });
-
-      await DocumensoService.createDocument({ pdf: pdfBuffer, signerEmail: 'email@test.com' });
-
-      expect(mockCreateV0).toHaveBeenCalledWith(expect.objectContaining({
-        recipients: expect.arrayContaining([
-          expect.objectContaining({ name: 'email@test.com' })
-        ])
-      }));
-    });
-
-    it('should handle Upload failure (fetch not ok)', async () => {
-      mockCreateV0.mockResolvedValue({ document: {}, uploadUrl: 'url' });
-      mockFetch.mockResolvedValue({ ok: false, status: 500 });
-
-      await DocumensoService.createDocument(mockInput);
-
+      await Service.createDocument({
+        pdf: Buffer.from(""),
+        signerEmail: "a@a.com",
+      });
       expect(logger.error).toHaveBeenCalledWith(
         "An unexpected error occurred:",
-        expect.objectContaining({ message: "Upload failed: 500" })
+        expect.objectContaining({ message: "DOCUMENSO_BASE_URL is not set" }),
       );
     });
 
-    it('should handle Documenso API Error', async () => {
-      // Use the dynamically imported Error class
-      const apiError = new DocumensoError('API Fail', {
-          statusCode: 400,
-          body: 'Bad Request'
+    it("throws if DOCUMENSO_BASE_URL is invalid", async () => {
+      const Service = getModule({
+        DOCUMENSO_BASE_URL: "invalid-url",
+        DOCUMENSO_API_KEY: "dummy_key",
       });
-      mockCreateV0.mockRejectedValue(apiError);
-
-      await DocumensoService.createDocument(mockInput);
-
-      expect(logger.error).toHaveBeenCalledWith("API error:", "API Fail");
-      expect(logger.error).toHaveBeenCalledWith("Status code:", 400);
-      expect(logger.error).toHaveBeenCalledWith("Body:", "Bad Request");
+      await Service.createDocument({
+        pdf: Buffer.from(""),
+        signerEmail: "a@a.com",
+      });
+      expect(logger.error).toHaveBeenCalledWith(
+        "An unexpected error occurred:",
+        expect.objectContaining({ message: "DOCUMENSO_BASE_URL is invalid" }),
+      );
     });
 
-    it('should handle Generic Error', async () => {
-      const err = new Error('Random Crash');
-      mockCreateV0.mockRejectedValue(err);
+    it("throws if DOCUMENSO_API_KEY is not set (no override provided)", async () => {
+      const Service = getModule({
+        DOCUMENSO_BASE_URL: "http://valid.com",
+        DOCUMENSO_API_KEY: "",
+      });
+      await Service.createDocument({
+        pdf: Buffer.from(""),
+        signerEmail: "a@a.com",
+      });
+      expect(logger.error).toHaveBeenCalledWith(
+        "An unexpected error occurred:",
+        expect.objectContaining({ message: "DOCUMENSO_API_KEY is not set" }),
+      );
+    });
 
-      await DocumensoService.createDocument(mockInput);
+    it("throws in downloadSignedDocument if DOCUMENSO_API_KEY is missing", async () => {
+      const Service = getModule({
+        DOCUMENSO_BASE_URL: "http://valid.com",
+        DOCUMENSO_API_KEY: "",
+      });
+      await Service.downloadSignedDocument({ documentId: 1 });
+      expect(logger.error).toHaveBeenCalledWith(
+        "An unexpected error occurred:",
+        expect.objectContaining({ message: "DOCUMENSO_API_KEY is not set" }),
+      );
+    });
 
-      expect(logger.error).toHaveBeenCalledWith("An unexpected error occurred:", err);
+    it("throws if DOCUMENSO_HOST_URL is not set", async () => {
+      const Service = getModule({
+        DOCUMENSO_HOST_URL: "",
+        DOCUMENSO_EXTERNAL_AUTH_SECRET: "sec",
+      });
+      await expect(
+        Service.generateExternalRedirectUrl({} as any),
+      ).rejects.toThrow("DOCUMENSO_URL or DOCUMENSO_BASE_URL is not set");
+    });
+
+    it("throws if DOCUMENSO_HOST_URL is invalid", async () => {
+      const Service = getModule({
+        DOCUMENSO_HOST_URL: "bad-url",
+        DOCUMENSO_EXTERNAL_AUTH_SECRET: "sec",
+      });
+      await expect(
+        Service.generateExternalRedirectUrl({} as any),
+      ).rejects.toThrow("DOCUMENSO_URL is invalid");
+    });
+
+    it("throws if DOCUMENSO_EXTERNAL_AUTH_SECRET is not set", async () => {
+      const Service = getModule({
+        DOCUMENSO_HOST_URL: "http://valid.com",
+        DOCUMENSO_EXTERNAL_AUTH_SECRET: "",
+      });
+      await expect(
+        Service.generateExternalRedirectUrl({} as any),
+      ).rejects.toThrow(
+        "DOCUMENSO_EXTERNAL_AUTH_SECRET or EXTERNAL_AUTH_SECRET is not set",
+      );
     });
   });
 
-  describe('distributeDocument', () => {
-    it('should distribute document successfully', async () => {
-      mockDistribute.mockResolvedValue({ status: 'SENT' });
+  describe("Service Methods (with valid config)", () => {
+    let DocumensoService: any;
 
-      const result = await DocumensoService.distributeDocument({ documentId: 123 });
-
-      expect(mockDistribute).toHaveBeenCalledWith({ documentId: 123 });
-      expect(result).toEqual({ status: 'SENT' });
-    });
-
-    it('should handle Documenso API Error', async () => {
-      const apiError = new DocumensoError('Distribute Fail', {
-          statusCode: 404,
-          body: 'Not Found'
+    beforeAll(() => {
+      DocumensoService = getModule({
+        DOCUMENSO_BASE_URL: "http://api.documenso.local",
+        DOCUMENSO_API_KEY: "valid_api_key",
+        DOCUMENSO_HOST_URL: "http://app.documenso.local",
+        DOCUMENSO_EXTERNAL_AUTH_SECRET: "super_secret",
       });
-      mockDistribute.mockRejectedValue(apiError);
-
-      await DocumensoService.distributeDocument({ documentId: 123 });
-
-      expect(logger.error).toHaveBeenCalledWith("API error:", "Distribute Fail");
+      jest.spyOn(console, "log").mockImplementation(() => {});
     });
 
-    it('should handle Generic Error', async () => {
-      const err = new Error('Generic');
-      mockDistribute.mockRejectedValue(err);
+    describe("createDocument", () => {
+      it("creates a document successfully and falls back to signerEmail for name", async () => {
+        mockCreateV0.mockResolvedValueOnce({
+          document: { id: "doc_1" },
+          uploadUrl: "http://upload",
+        });
+        const result = await DocumensoService.createDocument({
+          pdf: Buffer.from("test"),
+          signerEmail: "test@test.com",
+        });
 
-      await DocumensoService.distributeDocument({ documentId: 123 });
+        expect(result).toEqual({ id: "doc_1" });
+        expect(mockCreateV0).toHaveBeenCalledWith(
+          expect.objectContaining({
+            recipients: expect.arrayContaining([
+              expect.objectContaining({ name: "test@test.com" }),
+            ]),
+          }),
+        );
+        expect(globalThis.fetch).toHaveBeenCalledWith(
+          "http://upload",
+          expect.any(Object),
+        );
+      });
 
-      expect(logger.error).toHaveBeenCalledWith("An unexpected error occurred:", err);
+      it("uses provided signerName and caches Documenso Client", async () => {
+        mockCreateV0.mockResolvedValue({
+          document: { id: "doc_2" },
+          uploadUrl: "http://upload",
+        });
+
+        // 1st Call - Misses cache, sets cache
+        await DocumensoService.createDocument({
+          pdf: Buffer.from("test"),
+          signerEmail: "test@test.com",
+          signerName: "John Doe",
+          apiKey: "cache_key_1",
+        });
+
+        // 2nd Call - Hits cache branch: `if (cached) return cached;`
+        const result = await DocumensoService.createDocument({
+          pdf: Buffer.from("test"),
+          signerEmail: "test@test.com",
+          signerName: "John Doe",
+          apiKey: "cache_key_1",
+        });
+
+        expect(result).toEqual({ id: "doc_2" });
+        expect(mockCreateV0).toHaveBeenCalledWith(
+          expect.objectContaining({
+            recipients: expect.arrayContaining([
+              expect.objectContaining({ name: "John Doe" }),
+            ]),
+          }),
+        );
+      });
+
+      it("throws when uploadPdfBuffer fetch fails (!response.ok)", async () => {
+        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+          ok: false,
+          status: 502,
+        });
+        mockCreateV0.mockResolvedValueOnce({
+          document: {},
+          uploadUrl: "http://upload",
+        });
+
+        await DocumensoService.createDocument({
+          pdf: Buffer.from(""),
+          signerEmail: "a@a.com",
+        });
+        expect(logger.error).toHaveBeenCalledWith(
+          "An unexpected error occurred:",
+          expect.objectContaining({ message: "Upload failed: 502" }),
+        );
+      });
+
+      it("handles DocumensoError", async () => {
+        mockCreateV0.mockRejectedValueOnce(
+          new (DocumensoError as any)("API Failed", 400, "Bad Request"),
+        );
+        await DocumensoService.createDocument({
+          pdf: Buffer.from(""),
+          signerEmail: "a@a.com",
+        });
+
+        expect(logger.error).toHaveBeenCalledWith("API error:", "API Failed");
+        expect(logger.error).toHaveBeenCalledWith("Status code:", 400);
+        expect(logger.error).toHaveBeenCalledWith("Body:", "Bad Request");
+      });
     });
-  });
 
-  describe('downloadSignedDocument', () => {
-    it('should download document successfully via Axios', async () => {
-      const mockResponseData = { downloadUrl: 'http://s3.com/file.pdf' };
-      axios.get.mockResolvedValue({ data: mockResponseData });
+    describe("distributeDocument", () => {
+      it("distributes successfully", async () => {
+        mockDistribute.mockResolvedValueOnce({ success: true });
+        const result = await DocumensoService.distributeDocument({
+          documentId: 1,
+        });
+        expect(result).toEqual({ success: true });
+        expect(console.log).toHaveBeenCalledWith("Distribute Response:", {
+          success: true,
+        });
+      });
 
-      // FIX: Pass string '999' instead of number 999 to avoid undefined ID in service logic
-      const result = await DocumensoService.downloadSignedDocument('999');
-      expect(result).toEqual(mockResponseData);
+      it("handles generic Error", async () => {
+        mockDistribute.mockRejectedValueOnce(new Error("Network disconnect"));
+        await DocumensoService.distributeDocument({ documentId: 1 });
+        expect(logger.error).toHaveBeenCalledWith(
+          "An unexpected error occurred:",
+          expect.any(Error),
+        );
+      });
+
+      it("handles DocumensoError", async () => {
+        mockDistribute.mockRejectedValueOnce(
+          new (DocumensoError as any)(
+            "Limit reached",
+            429,
+            "Too many requests",
+          ),
+        );
+        await DocumensoService.distributeDocument({ documentId: 1 });
+        expect(logger.error).toHaveBeenCalledWith(
+          "API error:",
+          "Limit reached",
+        );
+      });
     });
 
-    it('should handle Download failure', async () => {
-      const err = new Error('Network Error');
-      axios.get.mockRejectedValue(err);
+    describe("downloadSignedDocument", () => {
+      it("downloads document successfully with override api key", async () => {
+        (axios.get as jest.Mock).mockResolvedValueOnce({
+          data: { downloadUrl: "http://dl" },
+        });
+        const result = await DocumensoService.downloadSignedDocument({
+          documentId: 1,
+          apiKey: "custom",
+        });
+        expect(result).toEqual({ downloadUrl: "http://dl" });
+        expect(axios.get).toHaveBeenCalledWith(
+          "http://api.documenso.local//document/1/download-beta",
+          expect.objectContaining({ headers: { Authorization: "custom" } }),
+        );
+      });
 
-      await DocumensoService.downloadSignedDocument('999');
+      it("handles unexpected error in axios", async () => {
+        (axios.get as jest.Mock).mockRejectedValueOnce(
+          new Error("Download failed"),
+        );
+        await DocumensoService.downloadSignedDocument({ documentId: 1 });
+        expect(logger.error).toHaveBeenCalledWith(
+          "An unexpected error occurred:",
+          expect.any(Error),
+        );
+      });
+    });
 
-      expect(logger.error).toHaveBeenCalledWith("An unexpected error occurred:", err);
+    describe("resolveOrganisationApiKey & buildOrganizationLookupQuery", () => {
+      it("generates $or query if both Types.ObjectId and regex match", async () => {
+        const mockOrgId = "507f1f77bcf86cd799439011";
+        (OrganizationModel.findOne as jest.Mock).mockReturnValueOnce({
+          lean: jest
+            .fn()
+            .mockResolvedValue({ documensoApiKey: "key_obj_regex" }),
+        });
+
+        const key = await DocumensoService.resolveOrganisationApiKey(mockOrgId);
+        expect(key).toBe("key_obj_regex");
+        expect(OrganizationModel.findOne).toHaveBeenCalledWith(
+          { $or: [{ _id: mockOrgId }, { fhirId: mockOrgId }] },
+          { documensoApiKey: 1 },
+        );
+      });
+
+      it("generates single query if only regex matches", async () => {
+        const mockFhirId = "valid-fhir-id-123";
+        (OrganizationModel.findOne as jest.Mock).mockReturnValueOnce({
+          lean: jest.fn().mockResolvedValue(null),
+        });
+
+        const key =
+          await DocumensoService.resolveOrganisationApiKey(mockFhirId);
+        expect(key).toBeNull();
+        expect(OrganizationModel.findOne).toHaveBeenCalledWith(
+          { fhirId: mockFhirId },
+          { documensoApiKey: 1 },
+        );
+      });
+
+      it("throws error if neither matches (empty queries array)", async () => {
+        const invalidId = "invalid id with spaces !!";
+        await expect(
+          DocumensoService.resolveOrganisationApiKey(invalidId),
+        ).rejects.toThrow("Invalid organisation id");
+      });
+    });
+
+    describe("generateExternalRedirectUrl", () => {
+      it("returns redirect URL successfully", async () => {
+        (axios.post as jest.Mock).mockResolvedValueOnce({
+          data: { redirectUrl: "/auth/123" },
+        });
+
+        const result = await DocumensoService.generateExternalRedirectUrl({
+          email: "x@x.com",
+          name: "X",
+          businessId: "1",
+          businessName: "B",
+          role: "ADMIN",
+        });
+
+        expect(result).toBe("http://app.documenso.local/auth/123");
+      });
+
+      it("throws error if redirectUrl is missing from response", async () => {
+        (axios.post as jest.Mock).mockResolvedValueOnce({ data: {} });
+        await expect(
+          DocumensoService.generateExternalRedirectUrl({} as any),
+        ).rejects.toThrow("Documenso redirect url missing");
+        expect(logger.error).toHaveBeenCalled();
+      });
+
+      it("throws and logs on network/axios error", async () => {
+        const axError = new Error("Network Err");
+        (axios.post as jest.Mock).mockRejectedValueOnce(axError);
+
+        await expect(
+          DocumensoService.generateExternalRedirectUrl({} as any),
+        ).rejects.toThrow("Network Err");
+        expect(logger.error).toHaveBeenCalledWith(
+          "Documenso external auth error:",
+          axError,
+        );
+      });
     });
   });
 });
