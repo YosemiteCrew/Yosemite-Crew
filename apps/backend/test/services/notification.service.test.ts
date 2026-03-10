@@ -1,216 +1,283 @@
-import admin from "firebase-admin";
 import { NotificationService } from "../../src/services/notification.service";
 import { DeviceTokenService } from "../../src/services/deviceToken.service";
 import { NotificationModel } from "../../src/models/notification";
 import logger from "../../src/utils/logger";
+import { NotificationPayload } from "../../src/utils/notificationTemplates";
 
-jest.mock("firebase-admin", () => {
-  const send = jest.fn();
-  const messaging = jest.fn(() => ({ send }));
-  return {
-    __esModule: true,
-    default: { messaging },
-    messaging,
-  };
-});
-
-jest.mock("../../src/services/deviceToken.service", () => ({
-  DeviceTokenService: {
-    getTokensForUser: jest.fn(),
-    removeToken: jest.fn(),
-  },
-}));
-
-jest.mock("../../src/models/notification", () => ({
-  NotificationModel: {
-    find: jest.fn(),
-    findById: jest.fn(),
-    insertOne: jest.fn(),
+// 1. Mock External Dependencies
+const mockSend = jest.fn();
+jest.mock("firebase-admin", () => ({
+  __esModule: true,
+  default: {
+    messaging: jest.fn(() => ({
+      send: mockSend,
+    })),
   },
 }));
 
 jest.mock("../../src/utils/logger", () => ({
-  info: jest.fn(),
-  warn: jest.fn(),
-  error: jest.fn(),
+  __esModule: true,
+  default: {
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+  },
 }));
 
-const mockedAdmin = admin as unknown as { messaging: jest.Mock };
-const mockedDeviceTokenService = DeviceTokenService as unknown as {
-  getTokensForUser: jest.Mock;
-  removeToken: jest.Mock;
-};
-const mockedNotificationModel = NotificationModel as unknown as {
-  find: jest.Mock;
-  findById: jest.Mock;
-  insertOne: jest.Mock;
-};
-const mockedLogger = logger as unknown as {
-  info: jest.Mock;
-  warn: jest.Mock;
-  error: jest.Mock;
-};
+jest.mock("../../src/services/deviceToken.service", () => ({
+  DeviceTokenService: {
+    removeToken: jest.fn(),
+    getTokensForUser: jest.fn(),
+  },
+}));
+
+// Mongoose query chain helper
+const mockLean = jest.fn();
+const mockSort = jest.fn().mockReturnValue({ lean: mockLean });
+
+jest.mock("../../src/models/notification", () => ({
+  NotificationModel: {
+    insertOne: jest.fn(),
+    find: jest.fn(() => ({ sort: mockSort })),
+    findById: jest.fn(),
+  },
+}));
 
 describe("NotificationService", () => {
+  const payload: NotificationPayload = {
+    title: "Test Title",
+    body: "Test Body",
+    type: "TEST_TYPE" as any,
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   describe("sendToDevice", () => {
-    it("returns failure when token is invalid", async () => {
-      const result = await NotificationService.sendToDevice(
-        "",
-        { title: "t", body: "b", type: "CHAT_MESSAGE" },
-        {},
-      );
-
-      expect(result.success).toBe(false);
-      expect(mockedAdmin.messaging).not.toHaveBeenCalled();
+    it("returns error if token is missing or empty", async () => {
+      const res = await NotificationService.sendToDevice("   ", payload);
+      expect(res).toEqual({
+        token: "   ",
+        success: false,
+        error: "Invalid token",
+      });
     });
 
-    it("sends message via FCM", async () => {
-      const sendMock = mockedAdmin.messaging().send as jest.Mock;
-      sendMock.mockResolvedValueOnce("ok");
+    it("successfully sends a push notification", async () => {
+      mockSend.mockResolvedValueOnce("message-id-123");
 
-      const payload = { title: "Hello", body: "World", type: "CHAT_MESSAGE" };
-      const result = await NotificationService.sendToDevice("token-1", payload);
+      const res = await NotificationService.sendToDevice("valid-token", payload, {
+        data: { custom: "data" },
+        dryRun: true,
+      });
 
-      expect(sendMock).toHaveBeenCalledWith(
+      expect(mockSend).toHaveBeenCalledWith(
         expect.objectContaining({
-          token: "token-1",
-          notification: { title: "Hello", body: "World" },
+          token: "valid-token",
+          notification: { title: "Test Title", body: "Test Body" },
+          data: { custom: "data" },
+          android: expect.any(Object),
+          apns: expect.any(Object),
         }),
-        undefined,
+        true // dryRun
       );
-      expect(result).toEqual({ token: "token-1", success: true });
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining("Notification sent"));
+      expect(res).toEqual({ token: "valid-token", success: true });
     });
 
-    it("cleans up invalid tokens", async () => {
-      const sendMock = mockedAdmin.messaging().send as jest.Mock;
-      sendMock.mockRejectedValueOnce({
+    it("uses default empty object for data if not provided", async () => {
+      mockSend.mockResolvedValueOnce("msg-id");
+      await NotificationService.sendToDevice("token", payload);
+      expect(mockSend).toHaveBeenCalledWith(
+        expect.objectContaining({ data: {} }),
+        undefined
+      );
+    });
+
+    it("handles generic send errors", async () => {
+      mockSend.mockRejectedValueOnce(new Error("FCM Timeout"));
+
+      const res = await NotificationService.sendToDevice("token", payload);
+
+      expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("FCM Timeout"));
+      expect(res).toEqual({ token: "token", success: false, error: "FCM Timeout" });
+    });
+
+    it("handles non-Error objects thrown by FCM", async () => {
+      mockSend.mockRejectedValueOnce("String error thrown");
+
+      const res = await NotificationService.sendToDevice("token", payload);
+
+      expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("Unknown FCM error"));
+      expect(res.error).toBe("Unknown FCM error");
+    });
+
+    it("removes invalid registration tokens", async () => {
+      mockSend.mockRejectedValueOnce({
         code: "messaging/invalid-registration-token",
       });
+      (DeviceTokenService.removeToken as jest.Mock).mockResolvedValueOnce(true);
 
-      const result = await NotificationService.sendToDevice("bad-token", {
-        title: "t",
-        body: "b",
-        type: "CHAT_MESSAGE",
+      const res = await NotificationService.sendToDevice("bad-token", payload);
+
+      expect(DeviceTokenService.removeToken).toHaveBeenCalledWith("bad-token");
+      expect(res.success).toBe(false);
+    });
+
+    it("handles errors during token cleanup (instance of Error)", async () => {
+      mockSend.mockRejectedValueOnce({
+        code: "messaging/registration-token-not-registered",
       });
-
-      expect(mockedDeviceTokenService.removeToken).toHaveBeenCalledWith(
-        "bad-token",
+      (DeviceTokenService.removeToken as jest.Mock).mockRejectedValueOnce(
+        new Error("Cleanup Failed")
       );
-      expect(result.success).toBe(false);
-      expect(result.error).toBeDefined();
+
+      await NotificationService.sendToDevice("bad-token", payload);
+
+      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining("Cleanup Failed"));
+    });
+
+    it("handles errors during token cleanup (non-Error fallback)", async () => {
+      mockSend.mockRejectedValueOnce({
+        code: "messaging/invalid-registration-token",
+      });
+      (DeviceTokenService.removeToken as jest.Mock).mockRejectedValueOnce("Weird error");
+
+      await NotificationService.sendToDevice("bad-token", payload);
+
+      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining("Unknown error"));
     });
   });
 
   describe("sendToUser", () => {
-    it("throws when userId is missing", async () => {
-      await expect(
-        NotificationService.sendToUser("", {
-          title: "t",
-          body: "b",
-          type: "CHAT_MESSAGE",
-        }),
-      ).rejects.toThrow("userId is required");
+    it("throws if userId is missing", async () => {
+      await expect(NotificationService.sendToUser("", payload)).rejects.toThrow(
+        "userId is required"
+      );
     });
 
-    it("sends to all user tokens and logs notification", async () => {
-      const sendMock = mockedAdmin.messaging().send as jest.Mock;
-      sendMock.mockResolvedValue("ok");
-      mockedDeviceTokenService.getTokensForUser.mockResolvedValueOnce([
+    it("returns empty array and logs if no tokens found", async () => {
+      (DeviceTokenService.getTokensForUser as jest.Mock).mockResolvedValueOnce([]);
+
+      const res = await NotificationService.sendToUser("user1", payload);
+
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining("No device tokens found"));
+      expect(res).toEqual([]);
+    });
+
+    it("loops through tokens, skips invalid records, and logs DB errors asynchronously", async () => {
+      // Notice: we mock `deviceToken` here because the source code accesses `record.deviceToken`
+      const mockTokens = [
+        null, // Should hit `if (!record) continue;`
         { deviceToken: "token-1" },
+      ];
+      (DeviceTokenService.getTokensForUser as jest.Mock).mockResolvedValueOnce(mockTokens);
+      mockSend.mockResolvedValue("msg-id");
+
+      // Force NotificationModel.insertOne to throw to test the catch block
+      (NotificationModel.insertOne as jest.Mock).mockRejectedValueOnce(
+        new Error("DB Insert Failed")
+      );
+
+      const res = await NotificationService.sendToUser("user1", payload);
+
+      // We must wait a tick for the dangling .catch() on insertOne to execute
+      await new Promise(process.nextTick);
+
+      expect(res).toHaveLength(1);
+      expect(res[0].token).toBe("token-1");
+      expect(NotificationModel.insertOne).toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("DB Insert Failed"));
+    });
+
+    it("handles non-Error objects in DB insert catch block", async () => {
+      (DeviceTokenService.getTokensForUser as jest.Mock).mockResolvedValueOnce([
         { deviceToken: "token-2" },
       ]);
-      mockedNotificationModel.insertOne.mockResolvedValue(undefined);
+      mockSend.mockResolvedValue("msg-id");
+      (NotificationModel.insertOne as jest.Mock).mockRejectedValueOnce("String DB Error");
 
-      const results = await NotificationService.sendToUser("user-1", {
-        title: "Hello",
-        body: "World",
-        type: "CHAT_MESSAGE",
-      });
+      await NotificationService.sendToUser("user1", payload);
+      await new Promise(process.nextTick); // flush dangling promises
 
-      expect(mockedDeviceTokenService.getTokensForUser).toHaveBeenCalledWith(
-        "user-1",
-      );
-      expect(
-        (mockedAdmin.messaging().send as jest.Mock).mock.calls.length,
-      ).toBe(2);
-      expect(mockedNotificationModel.insertOne).toHaveBeenCalledTimes(2);
-      expect(results).toHaveLength(2);
-      expect(mockedLogger.info).toHaveBeenCalledWith(
-        expect.stringContaining("Notification sent to token"),
-      );
+      expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("Unknown error"));
     });
   });
 
   describe("sendToUsers", () => {
-    it("aggregates per-user results", async () => {
-      jest
+    it("returns a mapped summary of successful and failed user sends", async () => {
+      // We spy on the class method to easily trigger a success and a failure
+      const sendToUserSpy = jest
         .spyOn(NotificationService, "sendToUser")
-        .mockResolvedValueOnce([{ token: "a", success: true }])
-        .mockResolvedValueOnce([{ token: "b", success: false, error: "x" }]);
+        .mockResolvedValueOnce([{ token: "t1", success: true }]) // User 1 succeeds
+        .mockRejectedValueOnce(new Error("User processing failed")); // User 2 fails
 
-      const summary = await NotificationService.sendToUsers(["u1", "u2"], {
-        title: "t",
-        body: "b",
-        type: "CHAT_MESSAGE",
-      });
+      const res = await NotificationService.sendToUsers(["u1", "u2"], payload);
 
-      expect(summary).toEqual({
-        u1: [{ token: "a", success: true }],
-        u2: [{ token: "b", success: false, error: "x" }],
-      });
+      expect(res["u1"]).toEqual([{ token: "t1", success: true }]);
+      expect(res["u2"]).toEqual([{ token: "", success: false, error: "User processing failed" }]);
+      expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("User processing failed"));
+
+      sendToUserSpy.mockRestore();
+    });
+
+    it("handles non-Error objects thrown during user fan-out", async () => {
+      const sendToUserSpy = jest
+        .spyOn(NotificationService, "sendToUser")
+        .mockRejectedValueOnce("Generic string error");
+
+      const res = await NotificationService.sendToUsers(["u1"], payload);
+
+      expect(res["u1"][0].error).toBe("Unknown error");
+      expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("Unknown error"));
+
+      sendToUserSpy.mockRestore();
     });
   });
 
   describe("listNotificationsForUser", () => {
-    it("throws on invalid user id", async () => {
-      await expect(
-        NotificationService.listNotificationsForUser(""),
-      ).rejects.toThrow("userId is required");
+    it("throws if userId is missing", async () => {
+      await expect(NotificationService.listNotificationsForUser("")).rejects.toThrow(
+        "userId is required"
+      );
     });
 
-    it("returns sorted notifications", async () => {
-      const lean = jest.fn().mockResolvedValueOnce([{ id: "1" }]);
-      const sort = jest.fn().mockReturnValue({ lean });
-      mockedNotificationModel.find.mockReturnValueOnce({ sort } as any);
+    it("returns leaned and sorted notifications", async () => {
+      mockLean.mockResolvedValueOnce([{ id: "notif1" }]);
 
-      const result = await NotificationService.listNotificationsForUser("u1");
+      const res = await NotificationService.listNotificationsForUser("user1");
 
-      expect(mockedNotificationModel.find).toHaveBeenCalledWith({
-        userId: "u1",
-      });
-      expect(sort).toHaveBeenCalledWith({ createdAt: -1 });
-      expect(result).toEqual([{ id: "1" }]);
+      expect(NotificationModel.find).toHaveBeenCalledWith({ userId: "user1" });
+      expect(mockSort).toHaveBeenCalledWith({ createdAt: -1 });
+      expect(mockLean).toHaveBeenCalled();
+      expect(res).toEqual([{ id: "notif1" }]);
     });
   });
 
   describe("markNotificationAsSeen", () => {
-    it("throws when id is empty", async () => {
-      await expect(
-        NotificationService.markNotificationAsSeen(""),
-      ).rejects.toThrow("notificationId is required");
+    it("throws if notificationId is missing", async () => {
+      await expect(NotificationService.markNotificationAsSeen("")).rejects.toThrow(
+        "notificationId is required"
+      );
     });
 
-    it("throws when notification not found", async () => {
-      mockedNotificationModel.findById.mockResolvedValueOnce(null);
+    it("throws if notification is not found", async () => {
+      (NotificationModel.findById as jest.Mock).mockResolvedValueOnce(null);
 
       await expect(
-        NotificationService.markNotificationAsSeen("missing"),
+        NotificationService.markNotificationAsSeen("notif-123")
       ).rejects.toThrow("Notification not found");
     });
 
-    it("marks notification as seen", async () => {
-      const save = jest.fn();
-      const doc = { isSeen: false, save } as any;
-      mockedNotificationModel.findById.mockResolvedValueOnce(doc);
+    it("marks notification as seen and saves it", async () => {
+      const mockDoc = { isSeen: false, save: jest.fn().mockResolvedValue(true) };
+      (NotificationModel.findById as jest.Mock).mockResolvedValueOnce(mockDoc);
 
-      await NotificationService.markNotificationAsSeen("notif-1");
+      await NotificationService.markNotificationAsSeen("notif-123");
 
-      expect(doc.isSeen).toBe(true);
-      expect(save).toHaveBeenCalled();
+      expect(mockDoc.isSeen).toBe(true);
+      expect(mockDoc.save).toHaveBeenCalled();
     });
   });
 });

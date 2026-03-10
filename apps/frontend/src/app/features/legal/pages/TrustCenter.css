@@ -1,0 +1,770 @@
+.TrustPageWrapper {
+  width: 100%;
+  background-color: var(--whitebg);
+  font-family: var(--satoshi-font);
+  color: var(--black-text);
+}
+
+.TrustHeroSec {
+  position: relative;
+  background: linear-gradient(135deg, var(--color-brand-300) 0%, var(--color-brand-100) 100%);
+  padding: 20px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.TrustHeroContainer {
+  max-width: 1280px;
+  width: 100%;
+  padding: 0 24px;
+  margin: 0 auto;
+}
+
+.TrustHeroSplit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 300px;
+}
+
+.TrustHeroContent {
+  flex: 1.2;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  text-align: left;
+}
+
+.TrustHeroImage {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  max-width: none;
+}
+
+.TrustHeroTitle {
+  font-family: var(--grotesk-font);
+  font-size: 2.75rem;
+  font-weight: 500;
+  line-height: 1.1;
+  color: var(--color-text-primary);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.TrustHeroSubtitle {
+  font-family: var(--satoshi-font);
+  font-size: 1.1rem;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--color-text-primary);
+  margin: 0;
+  opacity: 0.9;
+  max-width: 600px;
+}
+
+.HeroMetaLinks {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.HeroLink {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  text-decoration: none;
+  transition: color 0.2s;
+  font-family: var(--satoshi-font);
+}
+
+.HeroLink:hover {
+  color: var(--blue-text);
+  text-decoration: underline;
+}
+
+.HeroIcon {
+  font-size: 1.1rem;
+  color: var(--color-text-secondary);
+}
+
+.TrustNavBarSticky {
+  position: sticky;
+  top: 0;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--lightgrey);
+  z-index: 100;
+  padding: 0 24px;
+}
+
+.TrustNavContainer {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  gap: 40px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.TrustNavContainer::-webkit-scrollbar {
+  display: none;
+}
+
+.TrustTabBtn {
+  background: none;
+  border: none;
+  padding: 16px 0;
+  font-family: var(--satoshi-font);
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  position: relative;
+  transition: color 0.3s ease;
+  white-space: nowrap;
+}
+
+.TrustTabBtn:hover {
+  color: var(--blue-text);
+}
+
+.TrustTabBtn.Active {
+  color: var(--blue-text);
+  font-weight: 700;
+}
+
+.TrustTabBtn.Active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background-color: var(--blue-text);
+  border-radius: 3px 3px 0 0;
+}
+
+.TrustContentContainer {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 60px 24px 10px;
+  min-height: 500px;
+}
+
+.SectionTitle {
+  font-family: var(--grotesk-font);
+  font-weight: 500;
+  font-size: 1.75rem;
+  line-height: 1.2;
+  color: var(--black-text);
+  margin-bottom: 24px;
+}
+
+.SectionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 24px;
+}
+
+.PremiumCard {
+  background: var(--whitebg);
+  border: 1px solid var(--lightgrey);
+  border-radius: 20px;
+  padding: 32px;
+  box-shadow: 0px 0px 8px 0px rgba(0, 0, 0, 0.04);
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.CardHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.CardIcon {
+  font-size: 2rem;
+}
+
+.CardTitle {
+  font-family: var(--grotesk-font);
+  font-size: 1.25rem;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.OverviewDashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 60px;
+}
+
+.OverviewSplit {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 30px;
+}
+
+.OverviewControlsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.OverviewControlCard {
+  background: var(--whitebg);
+  border: 1px solid var(--lightgrey);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.02);
+  transition: all 0.2s ease;
+  height: 100%;
+}
+
+.OverviewControlCard h3 {
+  font-family: var(--satoshi-font);
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 12px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-primary);
+}
+
+.OverviewControlList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.OverviewControlList li {
+  font-family: var(--satoshi-font);
+  font-size: 1rem;
+  color: var(--color-text-secondary);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  line-height: 1.5;
+}
+
+.OverviewResourceCard {
+  background: var(--color-brand-100);
+  border-radius: 20px;
+  padding: 30px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.OverviewResourceItem {
+  background: var(--whitebg);
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.02);
+  transition: 0.2s ease;
+  cursor: pointer;
+}
+
+.OverviewSubproc {
+  background: var(--whitebg);
+  border: 1px solid var(--lightgrey);
+  border-radius: 20px;
+  padding: 30px;
+}
+
+.SubprocGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.SubprocCard {
+  background: var(--whitebg);
+  border: 1px solid var(--lightgrey);
+  border-radius: 12px;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 140px;
+  height: 80px;
+  transition: all 0.2s ease;
+}
+
+.SubprocIcon {
+  position: relative;
+  width: 120px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ResourceList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ResourceItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px;
+  background: var(--whitebg);
+  border: 1px solid var(--lightgrey);
+  border-radius: 16px;
+  transition: 0.2s ease;
+}
+
+.ResourceActions {
+  display: flex;
+  gap: 12px;
+}
+
+.ActionBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: var(--satoshi-font);
+}
+
+.ActionBtn.Outline {
+  background: transparent;
+  border: 1px solid var(--color-card-border);
+  color: var(--color-text-secondary);
+}
+
+.ActionBtn.Outline:hover {
+  border-color: var(--blue-text);
+  color: var(--blue-text);
+  background: var(--whitebg);
+}
+
+.ActionBtn.Filled {
+  background: transparent;
+  border: 1px solid var(--color-card-border);
+  color: var(--color-text-primary);
+}
+
+.ActionBtn.Filled:hover {
+  background: var(--color-neutral-100);
+  border-color: var(--black-text);
+}
+
+.SubTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+.SubTable th {
+  text-align: left;
+  padding: 16px;
+  background: var(--color-brand-100);
+  color: var(--color-text-secondary);
+  font-weight: 700;
+  font-family: var(--satoshi-font);
+  font-size: 1rem;
+}
+.SubTable td {
+  padding: 16px;
+  border-bottom: 1px solid var(--lightgrey);
+  color: var(--color-text-primary);
+  font-family: var(--satoshi-font);
+  font-size: 1rem;
+}
+
+.NeedHelpDiv {
+  position: relative;
+  margin-top: 60px;
+  padding-bottom: 20px;
+}
+
+.TrustNeedHelpItem {
+  background-color: #1f1f1f;
+  padding: 48px;
+  border-radius: 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 280px;
+  max-width: 960px;
+  width: 100%;
+  position: relative;
+  margin: 0 auto;
+  overflow: visible !important;
+}
+
+.TrustNeedHelpItem::after {
+  position: absolute;
+  content: '';
+  background-image: var(--img-bg-cat-trust);
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: bottom right;
+  right: 40px;
+  bottom: 0;
+  height: 140%;
+  width: 450px;
+  pointer-events: none;
+}
+
+.helpText {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  z-index: 2;
+  max-width: 55%;
+  margin-bottom: 24px;
+}
+
+.helpText h3 {
+  font-family: var(--grotesk-font);
+  font-size: 2rem;
+  font-weight: 500;
+  color: #ffffff;
+  margin: 0;
+}
+
+.helpText p {
+  font-family: var(--satoshi-font);
+  font-size: 1.1rem;
+  font-weight: 400;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0;
+}
+
+.helpbtn {
+  position: relative;
+  z-index: 2;
+}
+
+.helpbtn a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #ffffff;
+  border: 1px solid #ffffff;
+  border-radius: 12px;
+  padding: 14px 32px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #000000;
+  font-family: var(--satoshi-font);
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.helpbtn a:hover {
+  transform: scale(1.05);
+  background-color: #f2f2f2;
+}
+
+.ModalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 20px;
+}
+
+.ModalBackdropButton {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.ModalContent {
+  background: #ffffff;
+  width: 100%;
+  max-width: 600px;
+  border-radius: 20px;
+  padding: 32px;
+  box-shadow: 0px 24px 48px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: slideUp 0.2s ease-out;
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ModalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #f3f4f6;
+  padding-bottom: 16px;
+}
+
+.ModalHeader h3 {
+  margin: 0;
+  font-family: var(--grotesk-font);
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--black-text);
+  letter-spacing: -0.01em;
+}
+
+.CloseBtn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--color-text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+  padding: 4px;
+  border-radius: 50%;
+}
+
+.CloseBtn:hover {
+  color: var(--black-text);
+  background-color: var(--color-neutral-100);
+}
+
+.ModalBody {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.ResourceInfoBox {
+  background: var(--color-brand-100);
+  padding: 16px;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  color: var(--color-text-primary);
+  line-height: 1.5;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.FormGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.FormGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.FormGroup label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-family: var(--satoshi-font);
+}
+
+.FormInput {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  font-family: var(--satoshi-font);
+  font-size: 1rem;
+  background-color: #ffffff;
+  color: var(--black-text);
+  transition: all 0.2s ease;
+}
+
+.FormInput:focus {
+  outline: none;
+  border-color: var(--blue-text);
+  box-shadow: 0 0 0 3px var(--color-brand-100);
+}
+
+.FormInput::placeholder {
+  color: #9ca3af;
+  opacity: 1;
+}
+
+.FormInput:hover {
+  border-color: #9ca3af;
+}
+
+select.FormInput {
+  cursor: pointer;
+  background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23333%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E');
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  background-size: 10px;
+  appearance: none;
+}
+
+.ModalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 20px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.CancelBtn {
+  padding: 10px 20px;
+  background: transparent;
+  border: 1px solid transparent;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  border-radius: 10px;
+  font-family: var(--satoshi-font);
+  transition: background 0.2s;
+}
+
+.CancelBtn:hover {
+  background: var(--color-neutral-100);
+  color: var(--black-text);
+}
+
+.SubmitBtn {
+  padding: 10px 24px;
+  background: var(--blue-text);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--satoshi-font);
+  transition: background 0.2s;
+}
+
+.SubmitBtn:hover {
+  background: var(--color-brand-700);
+}
+
+@media screen and (max-width: 1024px) {
+  .OverviewSplit {
+    grid-template-columns: 1fr;
+  }
+  .TrustHeroTitle {
+    font-size: 2.25rem;
+  }
+  .TrustNeedHelpItem::after {
+    width: 350px;
+    height: 120%;
+  }
+}
+
+@media screen and (max-width: 900px) {
+  .TrustHeroSplit {
+    flex-direction: column-reverse;
+    text-align: center;
+    gap: 32px;
+  }
+  .TrustHeroContent {
+    align-items: center;
+  }
+  .TrustHeroImage {
+    justify-content: center;
+    max-width: 280px;
+  }
+  .HeroMetaLinks {
+    justify-content: center;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .SectionGrid {
+    grid-template-columns: 1fr;
+  }
+  .ResourceItem {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .ResourceActions {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .TrustNeedHelpItem {
+    padding: 32px 24px;
+    align-items: center;
+    text-align: center;
+    min-height: auto;
+    overflow: hidden;
+  }
+  .helpText {
+    max-width: 100%;
+    align-items: center;
+  }
+  .TrustNeedHelpItem::after {
+    position: relative;
+    width: 100%;
+    height: 250px;
+    background-position: center bottom;
+    margin-top: 20px;
+    right: auto;
+    bottom: auto;
+  }
+  .helpbtn a {
+    width: 100%;
+  }
+}
+
+@media screen and (max-width: 600px) {
+  .FormGrid {
+    grid-template-columns: 1fr;
+  }
+  .ModalContent {
+    padding: 24px;
+    max-width: 90%;
+  }
+}

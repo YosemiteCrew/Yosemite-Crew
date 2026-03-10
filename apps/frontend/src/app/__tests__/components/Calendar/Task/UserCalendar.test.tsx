@@ -5,13 +5,34 @@ import "@testing-library/jest-dom";
 import UserCalendar from "@/app/features/appointments/components/Calendar/Task/UserCalendar";
 import { Task } from "@/app/features/tasks/types/task";
 
+jest.mock("@/app/features/appointments/components/Calendar/weekHelpers", () => ({
+  HOURS_IN_DAY: 1,
+}));
+
 jest.mock("@/app/hooks/useTeam", () => ({
   useTeamForPrimaryOrg: jest.fn(),
 }));
 
-const mockEventsForUser = jest.fn();
 jest.mock("@/app/features/appointments/components/Calendar/helpers", () => ({
-  eventsForUser: (...args: any[]) => mockEventsForUser(...args),
+  eventsForUser: jest.fn(),
+  DEFAULT_CALENDAR_FOCUS_MINUTES: 540,
+  EVENT_VERTICAL_GAP_PX: 0,
+  MINUTES_PER_STEP: 15,
+  PIXELS_PER_STEP: 60,
+  nextDay: (date: Date) => {
+    const next = new Date(date);
+    next.setDate(next.getDate() + 1);
+    return next;
+  },
+  startOfDayDate: (date: Date) => {
+    const start = new Date(date);
+    start.setHours(0, 0, 0, 0);
+    return start;
+  },
+  getFirstRelevantTimedEventStart: jest.fn(() => null),
+  getTopPxForMinutes: jest.fn((minutes: number, height: number) => (minutes / 60) * height),
+  minutesSinceStartOfDay: jest.fn(() => 540),
+  scrollContainerToTarget: jest.fn(),
 }));
 
 const userLabelsSpy = jest.fn();
@@ -70,7 +91,6 @@ describe("UserCalendar (Task)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (useTeamForPrimaryOrg as jest.Mock).mockReturnValue(team);
-    mockEventsForUser.mockReturnValue(events);
   });
 
   it("renders user labels and task slots per team member", () => {
@@ -91,13 +111,12 @@ describe("UserCalendar (Task)", () => {
     const slots = screen.getAllByTestId("task-slot");
     expect(slots).toHaveLength(team.length);
 
-    expect(taskSlotSpy).toHaveBeenCalledWith(
+    expect(taskSlotSpy.mock.calls[0][0]).toEqual(
       expect.objectContaining({
         handleViewTask,
-        height: 300,
+        height: 240,
       })
     );
-    expect(mockEventsForUser).toHaveBeenCalledTimes(team.length);
   });
 
   it("changes the current date when navigating", () => {

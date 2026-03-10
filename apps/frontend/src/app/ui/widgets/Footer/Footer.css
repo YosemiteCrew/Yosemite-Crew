@@ -6,9 +6,8 @@
 }
 .Footersec::after {
   position: absolute;
-  content: " ";
-  background: url("https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png")
-    no-repeat;
+  content: ' ';
+  background: var(--img-bg-ftafter) no-repeat;
   background-size: 100% 100%;
   width: 80px;
   height: 80px;
@@ -47,7 +46,7 @@
 .RytFooter {
   display: flex;
   justify-content: flex-end;
-  gap: 100px;
+  gap: 85px;
   flex-wrap: wrap;
 }
 .FtDiv {
@@ -88,7 +87,7 @@
 }
 
 .FtLinks a::after {
-  content: "";
+  content: '';
   position: absolute;
   left: 0;
   bottom: -2px;

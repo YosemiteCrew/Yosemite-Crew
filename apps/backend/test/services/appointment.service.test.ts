@@ -1,593 +1,1100 @@
-import mongoose, { Types } from 'mongoose';
-import dayjs from 'dayjs';
-import { AppointmentService, AppointmentServiceError } from '../../src/services/appointment.service';
+import mongoose, { Types } from "mongoose";
+import {
+  AppointmentService,
+  AppointmentServiceError,
+} from "../../src/services/appointment.service";
+import AppointmentModel from "../../src/models/appointment";
+import ServiceModel from "src/models/service";
+import { InvoiceService } from "../../src/services/invoice.service";
+import { StripeService } from "../../src/services/stripe.service";
+import { OccupancyModel } from "src/models/occupancy";
+import OrganizationModel from "src/models/organization";
+import UserProfileModel from "src/models/user-profile";
+import UserModel from "src/models/user";
+import { ParentModel } from "src/models/parent";
+import { NotificationService } from "../../src/services/notification.service";
+import { TaskService } from "../../src/services/task.service";
+import { FormService, FormServiceError } from "../../src/services/form.service";
+import { OrgBilling } from "src/models/organization.billing";
+import { OrgUsageCounters } from "src/models/organisation.usage.counter";
+import { sendEmailTemplate } from "src/utils/email";
+import { AuditTrailService } from "../../src/services/audit-trail.service";
+import { FormModel } from "src/models/form";
 
-// --- Imports needed for Mocking ---
-import { fromAppointmentRequestDTO } from '@yosemite-crew/types';
+// --- Global Mocks Setup ---
 
-// Models
-import AppointmentModel from '../../src/models/appointment';
-import ServiceModel from '../../src/models/service';
-import { OccupancyModel } from '../../src/models/occupancy';
-import OrganizationModel from '../../src/models/organization';
-import UserProfileModel from '../../src/models/user-profile';
-import UserModel from '../../src/models/user';
-import { OrgBilling } from '../../src/models/organization.billing';
-import { OrgUsageCounters } from '../../src/models/organisation.usage.counter';
-
-// Services & Utils
-import { InvoiceService } from '../../src/services/invoice.service';
-import { StripeService } from '../../src/services/stripe.service';
-import { NotificationService } from '../../src/services/notification.service';
-import { TaskService } from '../../src/services/task.service';
-import { FormService, FormServiceError } from '../../src/services/form.service';
-import { sendEmailTemplate } from '../../src/utils/email';
-import { sendFreePlanLimitReachedEmail } from '../../src/utils/org-usage-notifications';
-import logger from '../../src/utils/logger';
-
-// --- Global Constants ---
-const VALID_ORG_ID = '507f1f77bcf86cd799439011';
-const VALID_APP_ID = '507f1f77bcf86cd799439012';
-const VALID_SERVICE_ID = '507f1f77bcf86cd799439013';
-
-// --- Mocks ---
-
-// 1. Mock DTO Mappers
-jest.mock('@yosemite-crew/types', () => ({
-  fromAppointmentRequestDTO: jest.fn(),
-  toAppointmentResponseDTO: (obj: any) => obj,
+jest.mock("@yosemite-crew/types", () => ({
+  ...jest.requireActual("@yosemite-crew/types"),
+  fromAppointmentRequestDTO: jest.fn((dto) => dto),
+  toAppointmentResponseDTO: jest.fn((obj) => obj),
 }));
 
-// 2. Mock Mongoose
-jest.mock('mongoose', () => {
-  const original = jest.requireActual('mongoose');
+jest.mock("../../src/services/invoice.service", () => ({
+  InvoiceService: {
+    createDraftForAppointment: jest.fn(),
+    handleAppointmentCancellation: jest.fn(),
+  },
+}));
+
+jest.mock("../../src/services/stripe.service", () => ({
+  StripeService: {
+    createPaymentIntentForAppointment: jest.fn(),
+    createCheckoutSessionForInvoice: jest.fn(),
+  },
+}));
+
+jest.mock("../../src/services/notification.service", () => ({
+  NotificationService: {
+    sendToUser: jest.fn(),
+  },
+}));
+
+jest.mock("../../src/services/task.service", () => ({
+  TaskService: {
+    createCustom: jest.fn(),
+  },
+}));
+
+jest.mock("../../src/services/form.service", () => {
+  class MockFormServiceError extends Error {
+    constructor(
+      message: string,
+      public statusCode: number,
+    ) {
+      super(message);
+      this.name = "FormServiceError";
+    }
+  }
   return {
-    ...original,
-    startSession: jest.fn(),
-    Types: original.Types,
+    FormServiceError: MockFormServiceError,
+    FormService: {
+      getConsentFormForParent: jest.fn(),
+    },
   };
 });
 
-// 3. Mock Models & Services
-jest.mock('../../src/models/appointment');
-jest.mock('../../src/models/service');
-jest.mock('../../src/models/occupancy');
-jest.mock('../../src/models/organization');
-jest.mock('../../src/models/user-profile');
-jest.mock('../../src/models/user');
-jest.mock('../../src/models/organization.billing');
-jest.mock('../../src/models/organisation.usage.counter');
-jest.mock('../../src/services/invoice.service');
-jest.mock('../../src/services/stripe.service');
-jest.mock('../../src/services/notification.service');
-jest.mock('../../src/services/task.service');
-jest.mock('../../src/services/form.service');
-jest.mock('../../src/utils/email');
-jest.mock('../../src/utils/org-usage-notifications');
-jest.mock('../../src/utils/logger');
+jest.mock("../../src/services/audit-trail.service", () => ({
+  AuditTrailService: {
+    recordSafely: jest.fn(),
+  },
+}));
 
-// --- Helpers ---
+jest.mock("src/utils/email", () => ({
+  sendEmailTemplate: jest.fn(),
+}));
 
-// FIX: Improved chain helper to ensure thenable compatibility
-const mockChain = (result: any) => {
-  const chain: any = {
-    select: jest.fn().mockReturnThis(),
-    sort: jest.fn().mockReturnThis(),
-    lean: jest.fn().mockResolvedValue(result),
-    session: jest.fn().mockReturnThis(),
-    exec: jest.fn().mockResolvedValue(result),
-  };
-  // Important: Making the chain awaitable directly
-  chain.then = (resolve: any, reject: any) => Promise.resolve(result).then(resolve, reject);
-  return chain;
+jest.mock("src/utils/org-usage-notifications", () => ({
+  sendFreePlanLimitReachedEmail: jest.fn(),
+}));
+
+jest.mock("src/utils/logger", () => ({
+  __esModule: true,
+  default: {
+    error: jest.fn(),
+  },
+}));
+
+// Mongoose Models Mocking
+jest.mock("../../src/models/appointment", () => ({
+  __esModule: true,
+  default: {
+    create: jest.fn(),
+    findOne: jest.fn(),
+    findById: jest.fn(),
+    find: jest.fn(),
+    findByIdAndUpdate: jest.fn(),
+    updateMany: jest.fn(),
+  },
+}));
+
+jest.mock("src/models/service", () => ({
+  __esModule: true,
+  default: { findOne: jest.fn() },
+}));
+jest.mock("src/models/occupancy", () => ({
+  __esModule: true,
+  OccupancyModel: {
+    findOne: jest.fn(),
+    create: jest.fn(),
+    deleteMany: jest.fn(),
+  },
+}));
+jest.mock("src/models/organization", () => ({
+  __esModule: true,
+  default: { findById: jest.fn(), find: jest.fn() },
+}));
+jest.mock("src/models/user-profile", () => ({
+  __esModule: true,
+  default: { findOne: jest.fn() },
+}));
+jest.mock("src/models/user", () => ({
+  __esModule: true,
+  default: { find: jest.fn() },
+}));
+jest.mock("src/models/parent", () => ({
+  __esModule: true,
+  ParentModel: { findById: jest.fn() },
+}));
+jest.mock("src/models/organization.billing", () => ({
+  __esModule: true,
+  OrgBilling: { findOne: jest.fn() },
+}));
+jest.mock("src/models/organisation.usage.counter", () => ({
+  __esModule: true,
+  OrgUsageCounters: {
+    findOneAndUpdate: jest.fn(),
+    findOne: jest.fn(),
+    updateOne: jest.fn(),
+  },
+}));
+jest.mock("src/models/form", () => ({
+  __esModule: true,
+  FormModel: { find: jest.fn() },
+}));
+
+// Transaction Mocks
+const mockSession = {
+  startTransaction: jest.fn(),
+  commitTransaction: jest.fn(),
+  abortTransaction: jest.fn(),
+  endSession: jest.fn(),
+};
+jest.spyOn(mongoose, "startSession").mockResolvedValue(mockSession as any);
+
+// Query Chain Factory to handle .session().lean().sort() etc without TDZ issues
+const createQueryChain = (resolvedValue: any) => {
+  const p = Promise.resolve(resolvedValue);
+  (p as any).select = jest.fn().mockReturnValue(p);
+  (p as any).lean = jest.fn().mockResolvedValue(resolvedValue);
+  (p as any).sort = jest.fn().mockReturnValue(p);
+  (p as any).session = jest.fn().mockReturnValue(p);
+  (p as any).exec = jest.fn().mockResolvedValue(resolvedValue);
+  return p;
 };
 
-const mockDoc = (data: any = {}) => {
-  const _id = data._id ? new Types.ObjectId(data._id) : new Types.ObjectId(VALID_APP_ID);
-
-  const defaults = {
-    _id,
-    organisationId: new Types.ObjectId(VALID_ORG_ID),
+// Unified helper to construct robust mock Mongoose documents to prevent "toObject" mapping crashes
+const createMockDoc = (overrides = {}) => {
+  const baseId = new Types.ObjectId();
+  const data = {
+    _id: baseId,
+    organisationId: baseId,
     companion: {
-        id: 'c1',
-        name: 'Buddy',
-        parent: { id: 'p1', name: 'Parent', email: 'p@test.com' }
+      id: baseId.toString(),
+      parent: { id: baseId.toString() },
+      name: "Pet",
     },
-    appointmentType: { id: VALID_SERVICE_ID, name: 'Consult' },
-    startTime: new Date(),
-    endTime: new Date(Date.now() + 3600000),
-    status: 'REQUESTED',
-    appointmentDate: new Date(),
-    timeSlot: '10:00',
-    durationMinutes: 60,
-    isEmergency: false,
-    formIds: [],
-    lead: { id: 'l1', name: 'Lead Vet' },
+    lead: { id: baseId.toString(), name: "Vet" },
     supportStaff: [],
-    room: { id: 'r1', name: 'Exam Room' }
+    room: { id: baseId.toString(), name: "Room 1" },
+    appointmentType: { id: baseId.toString(), name: "Consult" },
+    startTime: new Date("2026-01-01T10:00:00Z"),
+    endTime: new Date("2026-01-01T11:00:00Z"),
+    status: "UPCOMING",
+    formIds: [],
+    attachments: [],
+    concern: undefined as string | undefined, // Fixed TS "concern does not exist"
+    ...overrides,
   };
-
-  const merged = { ...defaults, ...data };
-
   return {
-    ...merged,
-    toObject: jest.fn().mockReturnValue(merged),
-    save: jest.fn().mockResolvedValue(merged),
+    ...data,
+    toObject: () => data,
+    save: jest.fn().mockResolvedValue(true),
   };
 };
 
-describe('AppointmentService', () => {
-  const mockFromDto = fromAppointmentRequestDTO as jest.Mock;
-
-  const mockSession = {
-    startTransaction: jest.fn(),
-    commitTransaction: jest.fn(),
-    abortTransaction: jest.fn(),
-    endSession: jest.fn(),
-  };
+describe("AppointmentService", () => {
+  const validId = new Types.ObjectId().toHexString();
+  const validObjId = new Types.ObjectId();
 
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.useRealTimers(); // FIX: Prevent leaks from other files causing timeouts
-    (mongoose.startSession as jest.Mock).mockResolvedValue(mockSession);
-
-    // Default DTO Mock Return (Happy Path)
-    mockFromDto.mockReturnValue({
-        organisationId: VALID_ORG_ID,
-        companion: { id: 'c1', parent: { id: 'p1' } },
-        appointmentType: { id: VALID_SERVICE_ID },
-        startTime: new Date(),
-        endTime: new Date(Date.now() + 3600000),
-        durationMinutes: 60,
-        lead: { id: 'l1' },
-        participant: [],
-        serviceType: 'REGULAR',
-        notes: 'Test notes'
-    });
-
-    (OccupancyModel.deleteMany as jest.Mock).mockReturnValue(mockChain({}));
-    (OccupancyModel.findOne as jest.Mock).mockReturnValue(mockChain(null));
-    (AppointmentModel.findOne as jest.Mock).mockReturnValue(mockChain(null));
-    (AppointmentModel.findById as jest.Mock).mockReturnValue(mockChain(null));
-    (OrganizationModel.findById as jest.Mock).mockReturnValue(mockChain({ name: 'Org' }));
   });
 
-  // ---------------------------------------------------------
-  // 1. Mobile Requests (createRequestedFromMobile)
-  // ---------------------------------------------------------
-  describe('createRequestedFromMobile', () => {
-    const validDto = { resourceType: 'Appointment' } as any;
-
-    it('should create request successfully', async () => {
-      (ServiceModel.findOne as jest.Mock).mockResolvedValue({ serviceType: 'REGULAR', _id: VALID_SERVICE_ID });
-      (OrgBilling.findOne as jest.Mock).mockReturnValue(mockChain({ plan: 'pro' }));
-      (OrgUsageCounters.findOneAndUpdate as jest.Mock).mockResolvedValue({});
-      (FormService.getConsentFormForParent as jest.Mock).mockResolvedValue({ id: 'form1' });
-
-      const savedDoc = mockDoc({ _id: VALID_APP_ID });
-      (AppointmentModel.create as jest.Mock).mockResolvedValue(savedDoc);
-      (StripeService.createPaymentIntentForAppointment as jest.Mock).mockResolvedValue({});
-
-      const res = await AppointmentService.createRequestedFromMobile(validDto);
-
-      expect(AppointmentModel.create).toHaveBeenCalled();
-      expect(res.paymentIntent).toBeDefined();
+  describe("AppointmentServiceError & ensureObjectId", () => {
+    it("should configure error properties correctly", () => {
+      const err = new AppointmentServiceError("Test", 400);
+      expect(err.message).toBe("Test");
+      expect(err.statusCode).toBe(400);
+      expect(err.name).toBe("AppointmentServiceError");
     });
 
-    it('should handle Observation Tool service type', async () => {
-      (ServiceModel.findOne as jest.Mock).mockResolvedValue({
-        serviceType: 'OBSERVATION_TOOL',
-        observationToolId: { _id: 'obs1' }
-      });
-      (OrgBilling.findOne as jest.Mock).mockReturnValue(mockChain({ plan: 'pro' }));
-      (OrgUsageCounters.findOneAndUpdate as jest.Mock).mockResolvedValue({});
-      (AppointmentModel.create as jest.Mock).mockResolvedValue(mockDoc({ _id: VALID_APP_ID }));
-      (FormService.getConsentFormForParent as jest.Mock).mockResolvedValue(null);
-
-      await AppointmentService.createRequestedFromMobile(validDto);
-
-      expect(TaskService.createCustom).toHaveBeenCalledWith(expect.objectContaining({
-        category: 'Observation Tool'
-      }));
+    it("ensureObjectId throws on invalid string", async () => {
+      await expect(AppointmentService.getById("invalid")).rejects.toThrow(
+        new AppointmentServiceError("Invalid AppointmentId", 400),
+      );
     });
+  });
 
-    it('should throw if validation fails', async () => {
-      mockFromDto.mockReturnValueOnce({
-        organisationId: undefined,
-        companion: { id: 'c1', parent: { id: 'p1' } }
-      });
+  describe("createRequestedFromMobile", () => {
+    const baseDto = {
+      organisationId: validId,
+      companion: { id: validId, parent: { id: validId } },
+      appointmentType: { id: validId },
+      startTime: new Date(),
+      endTime: new Date(),
+      durationMinutes: 30,
+      concern: "Checkup",
+    };
 
-      await expect(AppointmentService.createRequestedFromMobile(validDto))
-        .rejects.toThrow('organisationId is required');
-    });
-
-    it('should release usage if db create fails', async () => {
-      (ServiceModel.findOne as jest.Mock).mockResolvedValue({ serviceType: 'REGULAR' });
-      (OrgBilling.findOne as jest.Mock).mockReturnValue(mockChain({ plan: 'pro' }));
-      (OrgUsageCounters.findOneAndUpdate as jest.Mock).mockResolvedValue({});
-      (FormService.getConsentFormForParent as jest.Mock).mockResolvedValue(null);
-
-      (AppointmentModel.create as jest.Mock).mockRejectedValue(new AppointmentServiceError('DB Fail', 500));
-
-      await expect(AppointmentService.createRequestedFromMobile(validDto)).rejects.toThrow('DB Fail');
-
-      expect(OrgUsageCounters.updateOne).toHaveBeenCalledWith(
-        { orgId: expect.anything() },
-        { $inc: { appointmentsUsed: -1 } }
+    it("should throw 400 if organisationId is missing", async () => {
+      await expect(
+        AppointmentService.createRequestedFromMobile({
+          ...baseDto,
+          organisationId: undefined,
+        } as any),
+      ).rejects.toThrow(
+        new AppointmentServiceError("organisationId is required", 400),
       );
     });
 
-    it('should handle missing consent form gracefully', async () => {
-      (ServiceModel.findOne as jest.Mock).mockResolvedValue({ serviceType: 'REGULAR' });
-      (OrgBilling.findOne as jest.Mock).mockReturnValue(mockChain({ plan: 'pro' }));
-      (OrgUsageCounters.findOneAndUpdate as jest.Mock).mockResolvedValue({});
-      (AppointmentModel.create as jest.Mock).mockResolvedValue(mockDoc({ _id: VALID_APP_ID }));
-      (StripeService.createPaymentIntentForAppointment as jest.Mock).mockResolvedValue({});
+    it("should throw 400 if companion or parent is missing", async () => {
+      await expect(
+        AppointmentService.createRequestedFromMobile({
+          ...baseDto,
+          companion: {},
+        } as any),
+      ).rejects.toThrow(
+        new AppointmentServiceError(
+          "Companion and parent details are required",
+          400,
+        ),
+      );
+    });
 
-      // FIX: Return null instead of throwing to simulate "No Form Found" logic
-      (FormService.getConsentFormForParent as jest.Mock).mockResolvedValue(null);
+    it("should throw 400 if time details are missing", async () => {
+      await expect(
+        AppointmentService.createRequestedFromMobile({
+          ...baseDto,
+          startTime: undefined,
+        } as any),
+      ).rejects.toThrow(
+        new AppointmentServiceError(
+          "startTime, endTime, durationMinutes required",
+          400,
+        ),
+      );
+    });
 
-      await AppointmentService.createRequestedFromMobile(validDto);
-      expect(AppointmentModel.create).toHaveBeenCalled();
+    it("should throw 404 if service is invalid", async () => {
+      (ServiceModel.findOne as jest.Mock).mockResolvedValue(null);
+      await expect(
+        AppointmentService.createRequestedFromMobile(baseDto as any),
+      ).rejects.toThrow(
+        new AppointmentServiceError("Invalid service selected", 404),
+      );
+    });
+
+    it("should throw 403 if free plan limit reached", async () => {
+      (ServiceModel.findOne as jest.Mock).mockResolvedValue({
+        serviceType: "STANDARD",
+      });
+      (OrgUsageCounters.findOneAndUpdate as jest.Mock)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null); // simulate limit reached
+      (OrgBilling.findOne as jest.Mock).mockReturnValue(
+        createQueryChain({ plan: "free" }),
+      );
+      (OrgUsageCounters.findOne as jest.Mock).mockResolvedValue({
+        appointmentsUsed: 10,
+        freeAppointmentsLimit: 10,
+      });
+
+      await expect(
+        AppointmentService.createRequestedFromMobile(baseDto as any),
+      ).rejects.toThrow(
+        new AppointmentServiceError(
+          "Free plan appointment limit reached.",
+          403,
+        ),
+      );
+    });
+
+    it("should catch FormService exceptions safely unless 404", async () => {
+      (ServiceModel.findOne as jest.Mock).mockResolvedValue({
+        serviceType: "STANDARD",
+      });
+      (OrgUsageCounters.findOneAndUpdate as jest.Mock).mockResolvedValue({}); // usage ok
+      (OrgBilling.findOne as jest.Mock).mockReturnValue(
+        createQueryChain({ plan: "pro" }),
+      );
+
+      // Simulate a hard DB crash in FormService
+      (FormService.getConsentFormForParent as jest.Mock).mockRejectedValue(
+        new Error("Hard crash"),
+      );
+
+      await expect(
+        AppointmentService.createRequestedFromMobile(baseDto as any),
+      ).rejects.toThrow(new Error("Hard crash"));
+    });
+
+    it("should handle 404 FormServiceError safely and create appointment successfully", async () => {
+      (ServiceModel.findOne as jest.Mock).mockResolvedValue({
+        serviceType: "OBSERVATION_TOOL",
+        observationToolId: validId,
+      });
+      (OrgUsageCounters.findOneAndUpdate as jest.Mock).mockResolvedValue({
+        _id: validId,
+        appointmentsUsed: 1,
+      });
+      (OrgBilling.findOne as jest.Mock).mockReturnValue(
+        createQueryChain({ plan: "pro" }),
+      );
+
+      // 404 should be caught and ignored
+      (FormService.getConsentFormForParent as jest.Mock).mockRejectedValue(
+        new FormServiceError("Not Found", 404),
+      );
+
+      const mockCreated = createMockDoc({ status: "NO_PAYMENT" });
+      (AppointmentModel.create as jest.Mock).mockResolvedValue(mockCreated);
+      (
+        StripeService.createPaymentIntentForAppointment as jest.Mock
+      ).mockResolvedValue("pi_123");
+
+      const res = await AppointmentService.createRequestedFromMobile(
+        baseDto as any,
+      );
+
+      expect(res.paymentIntent).toBe("pi_123");
+      expect(AuditTrailService.recordSafely).toHaveBeenCalled();
+      expect(TaskService.createCustom).toHaveBeenCalled(); // Because OBSERVATION_TOOL
+    });
+
+    it("should release usage reservation if creation fails", async () => {
+      (ServiceModel.findOne as jest.Mock).mockResolvedValue({
+        serviceType: "STANDARD",
+      });
+      (OrgUsageCounters.findOneAndUpdate as jest.Mock).mockResolvedValue({
+        _id: validId,
+        appointmentsUsed: 1,
+      });
+      (OrgBilling.findOne as jest.Mock).mockReturnValue(
+        createQueryChain({ plan: "pro" }),
+      );
+      (FormService.getConsentFormForParent as jest.Mock).mockResolvedValue(
+        null,
+      );
+
+      (AppointmentModel.create as jest.Mock).mockRejectedValue(
+        new Error("DB failure"),
+      );
+
+      await expect(
+        AppointmentService.createRequestedFromMobile(baseDto as any),
+      ).rejects.toThrow("DB failure");
+      expect(OrgUsageCounters.updateOne).toHaveBeenCalled(); // release limit called
     });
   });
 
-  // ---------------------------------------------------------
-  // 2. PMS Creation (createAppointmentFromPms)
-  // ---------------------------------------------------------
-  describe('createAppointmentFromPms', () => {
-    const validPmsDto = { resourceType: 'Appointment' } as any;
+  describe("createAppointmentFromPms", () => {
+    const basePmsDto = {
+      organisationId: validId,
+      companion: { id: validId, parent: { id: validId }, name: "Pet" },
+      appointmentType: { id: validId, name: "Consult" },
+      lead: { id: validId, name: "Dr. Smith" },
+      supportStaff: [{ id: "s1", name: "Nurse" }],
+      startTime: new Date(),
+      endTime: new Date(),
+      durationMinutes: 30,
+      room: { id: "r1", name: "Room 1" },
+    };
 
-    it('should throw on occupancy conflict', async () => {
-      (ServiceModel.findOne as jest.Mock).mockReturnValue(mockChain({ cost: 100 }));
-      (OrgBilling.findOne as jest.Mock).mockReturnValue(mockChain({ plan: 'pro' }));
-      (OrgUsageCounters.findOneAndUpdate as jest.Mock).mockResolvedValue({});
-      (FormService.getConsentFormForParent as jest.Mock).mockResolvedValue(null);
+    it("should throw 400 on validation failures", async () => {
+      await expect(
+        AppointmentService.createAppointmentFromPms(
+          { ...basePmsDto, lead: undefined } as any,
+          false,
+        ),
+      ).rejects.toThrow(
+        new AppointmentServiceError(
+          "Lead veterinarian (vet) is required.",
+          400,
+        ),
+      );
 
-      (OccupancyModel.findOne as jest.Mock).mockReturnValue(mockChain({ _id: 'occ1' }));
+      await expect(
+        AppointmentService.createAppointmentFromPms(
+          { ...basePmsDto, appointmentType: undefined } as any,
+          false,
+        ),
+      ).rejects.toThrow(
+        new AppointmentServiceError(
+          "Service (appointmentType.id) is required.",
+          400,
+        ),
+      );
+    });
 
-      await expect(AppointmentService.createAppointmentFromPms(validPmsDto, false))
-        .rejects.toThrow('Selected vet is not available');
+    it("should throw 404 if service not found", async () => {
+      (ServiceModel.findOne as jest.Mock).mockReturnValue(
+        createQueryChain(null),
+      );
+      await expect(
+        AppointmentService.createAppointmentFromPms(basePmsDto as any, false),
+      ).rejects.toThrow(
+        new AppointmentServiceError(
+          "Invalid or inactive service for this organisation.",
+          404,
+        ),
+      );
+    });
+
+    it("should throw 409 if overlapping occupancy", async () => {
+      (ServiceModel.findOne as jest.Mock).mockReturnValue(
+        createQueryChain({ cost: 100 }),
+      );
+      (OrgUsageCounters.findOneAndUpdate as jest.Mock).mockResolvedValue({
+        _id: validId,
+      });
+      (OrgBilling.findOne as jest.Mock).mockReturnValue(
+        createQueryChain({ plan: "pro" }),
+      );
+      (FormService.getConsentFormForParent as jest.Mock).mockResolvedValue({
+        id: "form1",
+      });
+
+      // Simulate overlap
+      (OccupancyModel.findOne as jest.Mock).mockReturnValue(
+        createQueryChain({ _id: "occ1" }),
+      );
+
+      await expect(
+        AppointmentService.createAppointmentFromPms(basePmsDto as any, false),
+      ).rejects.toThrow(
+        new AppointmentServiceError(
+          "Selected vet is not available for this time slot.",
+          409,
+        ),
+      );
 
       expect(mockSession.abortTransaction).toHaveBeenCalled();
     });
 
-    it('should enforce Free Plan Limits', async () => {
-      (ServiceModel.findOne as jest.Mock).mockReturnValue(mockChain({ cost: 100 }));
-      (OrgBilling.findOne as jest.Mock).mockReturnValue(mockChain({ plan: 'free' }));
-      (OrgUsageCounters.findOneAndUpdate as jest.Mock).mockResolvedValue(null);
-      (OrgUsageCounters.findOne as jest.Mock).mockResolvedValue({
-        appointmentsUsed: 10, freeAppointmentsLimit: 5
+    it("should create successfully, handle email branches, and return data", async () => {
+      (ServiceModel.findOne as jest.Mock).mockReturnValue(
+        createQueryChain({
+          cost: 100,
+          serviceType: "OBSERVATION_TOOL",
+          observationToolId: { _id: validObjId },
+        }),
+      ); // Hitting observationTool object branch
+      (OrgUsageCounters.findOneAndUpdate as jest.Mock).mockResolvedValue({
+        _id: validId,
       });
+      (OrgBilling.findOne as jest.Mock).mockReturnValue(
+        createQueryChain({ plan: "pro" }),
+      );
+      (FormService.getConsentFormForParent as jest.Mock).mockResolvedValue(
+        null,
+      );
+      (OccupancyModel.findOne as jest.Mock).mockReturnValue(
+        createQueryChain(null),
+      ); // No overlap
 
-      await expect(AppointmentService.createAppointmentFromPms(validPmsDto, false))
-        .rejects.toThrow('Free plan appointment limit reached');
+      const mockAppt = createMockDoc({
+        formIds: ["f1"],
+        companion: basePmsDto.companion,
+        lead: basePmsDto.lead,
+        appointmentType: basePmsDto.appointmentType,
+      });
+      (AppointmentModel.create as jest.Mock).mockResolvedValue([mockAppt]);
+      (InvoiceService.createDraftForAppointment as jest.Mock).mockResolvedValue(
+        [{ _id: validObjId, totalAmount: 100, currency: "usd" }],
+      );
+
+      (
+        StripeService.createCheckoutSessionForInvoice as jest.Mock
+      ).mockResolvedValue({ url: "http://checkout.link" });
+      (ParentModel.findById as jest.Mock).mockReturnValue(
+        createQueryChain({ email: "test@test.com", firstName: "John" }),
+      ); // Testing buildDisplayName branch
+
+      // Testing organisation name branches
+      (OrganizationModel.findById as jest.Mock).mockReturnValue(
+        createQueryChain({ name: "OrgName" }),
+      );
+      (UserModel.find as jest.Mock).mockReturnValue(
+        createQueryChain([
+          { userId: validId, email: "vet@vet.com" },
+          { userId: "s1", email: "nurse@vet.com" },
+        ]),
+      );
+
+      const res = await AppointmentService.createAppointmentFromPms(
+        basePmsDto as any,
+        true,
+      ); // createPayment = true
+
+      expect(mockSession.commitTransaction).toHaveBeenCalled();
+      expect(OccupancyModel.create).toHaveBeenCalled();
+      expect(StripeService.createCheckoutSessionForInvoice).toHaveBeenCalled();
+      expect(TaskService.createCustom).toHaveBeenCalled(); // Observation tool
+      expect(sendEmailTemplate).toHaveBeenCalled(); // Checkout email & Assignment emails
+      expect((res as any).appointment.id).toBeDefined();
     });
   });
 
-  // ---------------------------------------------------------
-  // 3. Approval
-  // ---------------------------------------------------------
-  describe('approveRequestedFromPms', () => {
-    const approvalDto: any = {
-        resourceType: 'Appointment',
-        id: VALID_APP_ID,
+  describe("approveRequestedFromPms & extractApprovalFieldsFromFHIR", () => {
+    it("should throw 400 if appointment ID is missing", async () => {
+      await expect(
+        AppointmentService.approveRequestedFromPms("", {} as any),
+      ).rejects.toThrow(
+        new AppointmentServiceError("Appointment ID missing", 400),
+      );
+    });
+
+    it("should throw 400 if FHIR payload lacks lead vet (PPRF)", async () => {
+      await expect(
+        AppointmentService.approveRequestedFromPms(validId, {
+          participant: [],
+        } as any),
+      ).rejects.toThrow(
+        new AppointmentServiceError(
+          "Lead vet (Practitioner with code=PPRF) is required",
+          400,
+        ),
+      );
+    });
+
+    it("should throw 404 if appointment not found", async () => {
+      const fhir = {
         participant: [
-            { actor: { reference: 'Practitioner/l1', display: 'Dr. Lead' }, type: [{ coding: [{ code: 'PPRF' }] }] },
-            { actor: { reference: 'Location/room1', display: 'Room 1' }, type: [{ coding: [{ code: 'LOC' }] }] }
-        ]
+          {
+            type: [{ coding: [{ code: "PPRF" }] }],
+            actor: { reference: "Practitioner/vet1" },
+          },
+        ],
+      };
+      (AppointmentModel.findOne as jest.Mock).mockResolvedValue(null);
+      await expect(
+        AppointmentService.approveRequestedFromPms(validId, fhir as any),
+      ).rejects.toThrow(
+        new AppointmentServiceError(
+          "Requested appointment not found or already processed",
+          404,
+        ),
+      );
+    });
+
+    it("should successfully approve, extract FHIR fields, update occupancy and notify", async () => {
+      // FHIR with Lead, Support Staff, and Room to hit all extract branches
+      const fhir = {
+        participant: [
+          {
+            type: [{ coding: [{ code: "PPRF" }] }],
+            actor: { reference: "Practitioner/vet1", display: "Vet1" },
+          },
+          {
+            type: [{ coding: [{ code: "SPRF" }] }],
+            actor: { reference: "Practitioner/sup1", display: "Sup1" },
+          },
+          {
+            type: [{ coding: [{ code: "LOC" }] }],
+            actor: { reference: "Location/loc1", display: "Room1" },
+          },
+        ],
+      };
+
+      const mockAppt: any = createMockDoc({ status: "REQUESTED" });
+      (AppointmentModel.findOne as jest.Mock).mockResolvedValue(mockAppt);
+      (OccupancyModel.findOne as jest.Mock).mockReturnValue(
+        createQueryChain(null),
+      );
+      (UserProfileModel.findOne as jest.Mock).mockResolvedValue(null); // Fallback profile Url test
+
+      // Simulate `typeof OrganizationModel.findById !== "function"` logic in helper
+      const originalFindById = OrganizationModel.findById;
+      (OrganizationModel as any).findById = "not-a-function";
+
+      const res = await AppointmentService.approveRequestedFromPms(
+        validId,
+        fhir as any,
+      );
+
+      expect(OccupancyModel.create).toHaveBeenCalled();
+      expect(mockAppt.status).toBe("UPCOMING");
+      expect(mockAppt.lead.id).toBe("vet1");
+      expect(mockAppt.save).toHaveBeenCalled();
+      expect(NotificationService.sendToUser).toHaveBeenCalled();
+      expect((res as any).id).toBeDefined();
+
+      // Restore original
+      OrganizationModel.findById = originalFindById;
+    });
+
+    it("should handle transaction aborts safely", async () => {
+      const fhir = {
+        participant: [
+          {
+            type: [{ coding: [{ code: "PPRF" }] }],
+            actor: { reference: "Practitioner/vet1" },
+          },
+        ],
+      };
+      const mockAppt = createMockDoc({ status: "REQUESTED" });
+      (AppointmentModel.findOne as jest.Mock).mockResolvedValue(mockAppt);
+      (OccupancyModel.findOne as jest.Mock).mockReturnValue(
+        createQueryChain({ _id: "overlap" }),
+      ); // Triggers 409
+
+      await expect(
+        AppointmentService.approveRequestedFromPms(validId, fhir as any),
+      ).rejects.toThrow();
+      expect(mockSession.abortTransaction).toHaveBeenCalled();
+    });
+  });
+
+  describe("cancelAppointment", () => {
+    it("should throw 404 if not found", async () => {
+      (AppointmentModel.findById as jest.Mock).mockReturnValue(
+        createQueryChain(null),
+      );
+      await expect(
+        AppointmentService.cancelAppointment(validId),
+      ).rejects.toThrow(
+        new AppointmentServiceError("Appointment not found", 404),
+      );
+    });
+
+    it("should return early if already CANCELLED", async () => {
+      const mockDoc = createMockDoc({ status: "CANCELLED" });
+      (AppointmentModel.findById as jest.Mock).mockReturnValue(
+        createQueryChain(mockDoc),
+      );
+      const res = await AppointmentService.cancelAppointment(validId);
+      expect((res as any).status).toBe("CANCELLED");
+      expect(mockSession.abortTransaction).toHaveBeenCalled();
+    });
+
+    it("should successfully cancel, handle invoice, and delete occupancy", async () => {
+      const mockDoc = createMockDoc({ status: "UPCOMING" });
+      (AppointmentModel.findById as jest.Mock).mockReturnValue(
+        createQueryChain(mockDoc),
+      );
+      (
+        InvoiceService.handleAppointmentCancellation as jest.Mock
+      ).mockResolvedValue(true);
+      (OccupancyModel.deleteMany as jest.Mock).mockReturnValue(
+        createQueryChain(true),
+      );
+
+      await AppointmentService.cancelAppointment(validId, "No show");
+
+      expect(InvoiceService.handleAppointmentCancellation).toHaveBeenCalledWith(
+        validId,
+        "No show",
+      );
+      expect(mockDoc.status).toBe("CANCELLED");
+      expect(OccupancyModel.deleteMany).toHaveBeenCalled();
+      expect(AuditTrailService.recordSafely).toHaveBeenCalled();
+      expect(mockSession.commitTransaction).toHaveBeenCalled();
+    });
+  });
+
+  describe("cancelAppointmentFromParent", () => {
+    it("should throw 404 if not found", async () => {
+      (AppointmentModel.findById as jest.Mock).mockResolvedValue(null);
+      await expect(
+        AppointmentService.cancelAppointmentFromParent(validId, validId, "r"),
+      ).rejects.toThrow(
+        new AppointmentServiceError("Appointment not found", 404),
+      );
+    });
+
+    it("should throw 403 if parentId mismatches", async () => {
+      const mockDoc = createMockDoc({ companion: { parent: { id: "other" } } });
+      (AppointmentModel.findById as jest.Mock).mockResolvedValue(mockDoc);
+      await expect(
+        AppointmentService.cancelAppointmentFromParent(validId, validId, "r"),
+      ).rejects.toThrow(
+        new AppointmentServiceError("Not your appointment", 403),
+      );
+    });
+
+    it("should throw 400 if status is not cancellable", async () => {
+      const mockDoc = createMockDoc({
+        companion: { parent: { id: validId } },
+        status: "COMPLETED",
+      });
+      (AppointmentModel.findById as jest.Mock).mockResolvedValue(mockDoc);
+      await expect(
+        AppointmentService.cancelAppointmentFromParent(validId, validId, "r"),
+      ).rejects.toThrow(
+        new AppointmentServiceError(
+          "Only requested or upcoming appointments can be cancelled",
+          400,
+        ),
+      );
+    });
+
+    it("should throw 400 if invoice cancellation fails", async () => {
+      const mockDoc = createMockDoc({
+        companion: { parent: { id: validId } },
+        status: "UPCOMING",
+      });
+      (AppointmentModel.findById as jest.Mock).mockResolvedValue(mockDoc);
+      (
+        InvoiceService.handleAppointmentCancellation as jest.Mock
+      ).mockResolvedValue(null);
+      await expect(
+        AppointmentService.cancelAppointmentFromParent(validId, validId, "r"),
+      ).rejects.toThrow(
+        new AppointmentServiceError("Not able to cancle appointment", 400),
+      ); // Typo matching source code
+    });
+
+    it("should successfully cancel appointment", async () => {
+      const mockDoc = createMockDoc({
+        companion: { parent: { id: validId } },
+        status: "UPCOMING",
+      });
+      (AppointmentModel.findById as jest.Mock).mockResolvedValue(mockDoc);
+      (
+        InvoiceService.handleAppointmentCancellation as jest.Mock
+      ).mockResolvedValue(true);
+
+      await AppointmentService.cancelAppointmentFromParent(
+        validId,
+        validId,
+        "reason",
+      );
+
+      expect(mockDoc.status).toBe("CANCELLED");
+      expect(OccupancyModel.deleteMany).toHaveBeenCalled();
+    });
+  });
+
+  describe("rejectRequestedAppointment", () => {
+    it("should throw 404 if not found", async () => {
+      (AppointmentModel.findById as jest.Mock).mockResolvedValue(null);
+      await expect(
+        AppointmentService.rejectRequestedAppointment(validId),
+      ).rejects.toThrow(
+        new AppointmentServiceError("Appointment not found.", 404),
+      );
+    });
+
+    it("should throw 400 if not REQUESTED", async () => {
+      const mockDoc = createMockDoc({ status: "UPCOMING" });
+      (AppointmentModel.findById as jest.Mock).mockResolvedValue(mockDoc);
+      await expect(
+        AppointmentService.rejectRequestedAppointment(validId),
+      ).rejects.toThrow(
+        new AppointmentServiceError(
+          "Only REQUESTED appointments can be rejected.",
+          400,
+        ),
+      );
+    });
+
+    it("should reject successfully and default reason", async () => {
+      const mockDoc: any = createMockDoc({ status: "REQUESTED" });
+      (AppointmentModel.findById as jest.Mock).mockResolvedValue(mockDoc);
+
+      await AppointmentService.rejectRequestedAppointment(validId); // no reason passed
+      expect(mockDoc.status).toBe("CANCELLED");
+      expect(mockDoc.concern).toBe("Rejected by organisation"); // default fallback
+      expect(NotificationService.sendToUser).toHaveBeenCalled();
+    });
+  });
+
+  describe("updateAppointmentPMS", () => {
+    it("should throw 400 if id missing", async () => {
+      await expect(
+        AppointmentService.updateAppointmentPMS("", {} as any),
+      ).rejects.toThrow();
+    });
+
+    it("should throw 400 if lead is missing", async () => {
+      await expect(
+        AppointmentService.updateAppointmentPMS(validId, {
+          lead: undefined,
+        } as any),
+      ).rejects.toThrow();
+    });
+
+    it("should throw 404 if not found", async () => {
+      (AppointmentModel.findOne as jest.Mock).mockResolvedValue(null);
+      await expect(
+        AppointmentService.updateAppointmentPMS(validId, {
+          lead: { id: "l1" },
+        } as any),
+      ).rejects.toThrow();
+    });
+
+    it("should update occupancy and appointment fields safely", async () => {
+      const oldTime = new Date("2026-01-01");
+      const newTime = new Date("2026-01-02");
+      const mockDoc: any = createMockDoc({
+        status: "UPCOMING",
+        lead: { id: "old_lead" },
+        startTime: oldTime,
+        endTime: oldTime,
+      });
+
+      (AppointmentModel.findOne as jest.Mock).mockResolvedValue(mockDoc);
+      (OccupancyModel.findOne as jest.Mock).mockReturnValue(
+        createQueryChain(null),
+      );
+
+      await AppointmentService.updateAppointmentPMS(validId, {
+        lead: { id: "new_lead" },
+        startTime: newTime,
+        endTime: newTime,
+      } as any);
+
+      expect(OccupancyModel.deleteMany).toHaveBeenCalled(); // Triggered because vet/time changed
+      expect(OccupancyModel.create).toHaveBeenCalled();
+      expect(mockDoc.lead.id).toBe("new_lead");
+      expect(mockSession.commitTransaction).toHaveBeenCalled();
+    });
+  });
+
+  describe("attachFormsToAppointment", () => {
+    it("should throw 400 for bad parameters", async () => {
+      await expect(
+        AppointmentService.attachFormsToAppointment("", ["f1"]),
+      ).rejects.toThrow("Appointment ID is required");
+      await expect(
+        AppointmentService.attachFormsToAppointment(validId, []),
+      ).rejects.toThrow("formIds are required");
+      await expect(
+        AppointmentService.attachFormsToAppointment(validId, ["  "]),
+      ).rejects.toThrow("formIds are required"); // empty after trim
+    });
+
+    it("should throw 404 if appointment not found", async () => {
+      (AppointmentModel.findById as jest.Mock).mockResolvedValue(null);
+      await expect(
+        AppointmentService.attachFormsToAppointment(validId, [validId]),
+      ).rejects.toThrow("Appointment not found");
+    });
+
+    it("should throw 404 if some forms missing", async () => {
+      const mockDoc = createMockDoc();
+      (AppointmentModel.findById as jest.Mock).mockResolvedValue(mockDoc);
+      (FormModel.find as jest.Mock).mockReturnValue(createQueryChain([])); // found 0 forms
+      await expect(
+        AppointmentService.attachFormsToAppointment(validId, [validId]),
+      ).rejects.toThrow(/Forms not found:/);
+    });
+
+    it("should return unmodified doc if all forms already attached", async () => {
+      const mockDoc = createMockDoc({ formIds: [validId] });
+      (AppointmentModel.findById as jest.Mock).mockResolvedValue(mockDoc);
+      // Ensure the returned ID explicitly matches validId so it successfully clears the "missing forms" check
+      (FormModel.find as jest.Mock).mockReturnValue(
+        createQueryChain([{ _id: new Types.ObjectId(validId) }]),
+      );
+
+      await AppointmentService.attachFormsToAppointment(validId, [validId]);
+      expect(AppointmentModel.findByIdAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it("should attach new forms successfully", async () => {
+      const mockDoc = createMockDoc({ formIds: [] });
+      (AppointmentModel.findById as jest.Mock).mockResolvedValue(mockDoc);
+      // Ensure the returned ID explicitly matches validId so it successfully clears the "missing forms" check
+      (FormModel.find as jest.Mock).mockReturnValue(
+        createQueryChain([{ _id: new Types.ObjectId(validId) }]),
+      );
+
+      const updatedDoc = createMockDoc({ formIds: [validId] });
+      (AppointmentModel.findByIdAndUpdate as jest.Mock).mockResolvedValue(
+        updatedDoc,
+      );
+
+      await AppointmentService.attachFormsToAppointment(validId, [validId]);
+      expect(AppointmentModel.findByIdAndUpdate).toHaveBeenCalled();
+      expect(AuditTrailService.recordSafely).toHaveBeenCalled();
+    });
+  });
+
+  describe("checkInAppointment & checkInAppointmentParent", () => {
+    it("checkInAppointmentParent: should throw if mismatch or invalid state", async () => {
+      const mockDoc = createMockDoc({ companion: { parent: { id: "other" } } });
+      (AppointmentModel.findById as jest.Mock).mockResolvedValue(mockDoc);
+      await expect(
+        AppointmentService.checkInAppointmentParent(validId, validId),
+      ).rejects.toThrow("Not your appointment");
+
+      const mockDoc2 = createMockDoc({
+        companion: { parent: { id: validId } },
+        status: "COMPLETED",
+      });
+      (AppointmentModel.findById as jest.Mock).mockResolvedValue(mockDoc2);
+      await expect(
+        AppointmentService.checkInAppointmentParent(validId, validId),
+      ).rejects.toThrow("Only upcoming appointments can be checked in");
+    });
+
+    it("checkInAppointmentParent: should check in successfully", async () => {
+      const mockDoc = createMockDoc({
+        status: "UPCOMING",
+        companion: { parent: { id: validId } },
+      });
+      (AppointmentModel.findById as jest.Mock).mockResolvedValue(mockDoc);
+      await AppointmentService.checkInAppointmentParent(validId, validId);
+      expect(mockDoc.status).toBe("CHECKED_IN");
+    });
+
+    it("checkInAppointment: should check in successfully", async () => {
+      const mockDoc = createMockDoc({ status: "UPCOMING" });
+      (AppointmentModel.findById as jest.Mock).mockResolvedValue(mockDoc);
+      await AppointmentService.checkInAppointment(validId);
+      expect(mockDoc.status).toBe("CHECKED_IN");
+    });
+  });
+
+  describe("rescheduleFromParent", () => {
+    const validChanges = {
+      startTime: new Date(),
+      endTime: new Date(Date.now() + 100000),
+      durationMinutes: 30,
+      concern: "c",
+      isEmergency: true,
     };
 
-    it('should approve and create occupancy', async () => {
-        const appointmentDoc = mockDoc({ _id: VALID_APP_ID, status: 'REQUESTED' });
-        (AppointmentModel.findOne as jest.Mock).mockResolvedValue(appointmentDoc);
-        (OccupancyModel.findOne as jest.Mock).mockReturnValue(mockChain(null));
-        (UserProfileModel.findOne as jest.Mock).mockResolvedValue({ personalDetails: { profilePictureUrl: 'url' } });
+    it("should throw 400 for invalid dates", async () => {
+      await expect(
+        AppointmentService.rescheduleFromParent(validId, validId, {
+          startTime: "invalid",
+          endTime: "invalid",
+        }),
+      ).rejects.toThrow("Invalid startTime/endTime");
 
-        await AppointmentService.approveRequestedFromPms(VALID_APP_ID, approvalDto);
-
-        expect(appointmentDoc.status).toBe('UPCOMING');
-        expect(OccupancyModel.create).toHaveBeenCalled();
-        expect(NotificationService.sendToUser).toHaveBeenCalled();
+      await expect(
+        AppointmentService.rescheduleFromParent(validId, validId, {
+          startTime: new Date(Date.now() + 100000),
+          endTime: new Date(),
+        }),
+      ).rejects.toThrow("startTime must be before endTime");
     });
 
-    it('should throw if missing lead vet', async () => {
-        const invalid = { ...approvalDto, participant: [] };
-        await expect(AppointmentService.approveRequestedFromPms(VALID_APP_ID, invalid))
-            .rejects.toThrow('Lead vet');
+    it("should throw 403 if parent mismatch", async () => {
+      const mockDoc = createMockDoc({ companion: { parent: { id: "other" } } });
+      (AppointmentModel.findById as jest.Mock).mockReturnValue(
+        createQueryChain(mockDoc),
+      );
+      await expect(
+        AppointmentService.rescheduleFromParent(validId, validId, validChanges),
+      ).rejects.toThrow("You are not allowed to modify this appointment.");
     });
 
-    it('should throw if appointment not found', async () => {
-        (AppointmentModel.findOne as jest.Mock).mockResolvedValue(null);
-        await expect(AppointmentService.approveRequestedFromPms(VALID_APP_ID, approvalDto))
-            .rejects.toThrow('Requested appointment not found');
+    it("should convert UPCOMING to REQUESTED and remove occupancy safely", async () => {
+      const mockDoc: any = createMockDoc({
+        status: "UPCOMING",
+        companion: { parent: { id: validId } },
+      });
+      (AppointmentModel.findById as jest.Mock).mockReturnValue(
+        createQueryChain(mockDoc),
+      );
+      (OccupancyModel.deleteMany as jest.Mock).mockReturnValue(
+        createQueryChain(true),
+      );
+
+      await AppointmentService.rescheduleFromParent(
+        validId,
+        validId,
+        validChanges,
+      );
+
+      expect(mockDoc.status).toBe("REQUESTED");
+      expect(mockDoc.lead).toBeUndefined(); // Cleared
+      expect(OccupancyModel.deleteMany).toHaveBeenCalled();
     });
   });
 
-  // ---------------------------------------------------------
-  // 4. Cancellation
-  // ---------------------------------------------------------
-  describe('cancelAppointment', () => {
-      it('should cancel and refund', async () => {
-          const appDoc = mockDoc({
-              _id: VALID_APP_ID, status: 'UPCOMING', lead: { id: 'l1' }
-          });
+  describe("Fetch and List Methods", () => {
+    it("getAppointmentsForCompanion: handles empty and maps orgs", async () => {
+      (AppointmentModel.find as jest.Mock).mockReturnValue(
+        createQueryChain([]),
+      );
+      expect(
+        await AppointmentService.getAppointmentsForCompanion(validId),
+      ).toEqual([]);
 
-          (AppointmentModel.findById as jest.Mock).mockReturnValue(mockChain(appDoc));
+      const mockDoc = createMockDoc();
+      (AppointmentModel.find as jest.Mock).mockReturnValue(
+        createQueryChain([mockDoc]),
+      );
+      (OrganizationModel.find as jest.Mock).mockReturnValue(
+        createQueryChain([{ _id: mockDoc.organisationId, name: "Org" }]),
+      );
 
-          await AppointmentService.cancelAppointment(VALID_APP_ID, 'Bad weather');
+      const res = await AppointmentService.getAppointmentsForCompanion(validId);
+      expect(res[0]?.organisation?.name).toBe("Org");
+    });
 
-          expect(InvoiceService.handleAppointmentCancellation).toHaveBeenCalledWith(VALID_APP_ID, 'Bad weather');
-          expect(appDoc.status).toBe('CANCELLED');
-          expect(OccupancyModel.deleteMany).toHaveBeenCalled();
-      });
+    it("other filters (ForCompanionByOrg, ForParent, ForOrg, ForLead, ForStaff, ByDate, Search) return mapped dtos", async () => {
+      const mockDoc = createMockDoc();
+      (AppointmentModel.find as jest.Mock).mockReturnValue(
+        createQueryChain([mockDoc]),
+      );
 
-      it('should handle already cancelled gracefully', async () => {
-          const appDoc = mockDoc({ _id: VALID_APP_ID, status: 'CANCELLED' });
-          (AppointmentModel.findById as jest.Mock).mockReturnValue(mockChain(appDoc));
-
-          await AppointmentService.cancelAppointment(VALID_APP_ID);
-
-          expect(InvoiceService.handleAppointmentCancellation).not.toHaveBeenCalled();
-      });
+      expect(
+        await AppointmentService.getAppointmentsForCompanionByOrganisation(
+          validId,
+          validId,
+        ),
+      ).toHaveLength(1);
+      expect(
+        await AppointmentService.getAppointmentsForParent(validId),
+      ).toHaveLength(1);
+      expect(
+        await AppointmentService.getAppointmentsForOrganisation(validId, {
+          status: ["UPCOMING"],
+          startDate: new Date(),
+          endDate: new Date(),
+        }),
+      ).toHaveLength(1);
+      expect(
+        await AppointmentService.getAppointmentsForLead(validId, validId),
+      ).toHaveLength(1);
+      expect(
+        await AppointmentService.getAppointmentsForSupportStaff(
+          validId,
+          validId,
+        ),
+      ).toHaveLength(1);
+      expect(
+        await AppointmentService.getAppointmentsByDateRange(
+          validId,
+          new Date(),
+          new Date(),
+          ["UPCOMING"],
+        ),
+      ).toHaveLength(1);
+      expect(
+        await AppointmentService.searchAppointments({
+          status: ["UPCOMING"],
+          startDate: new Date(),
+          endDate: new Date(),
+        }),
+      ).toHaveLength(1);
+    });
   });
 
-  describe('cancelAppointmentFromParent', () => {
-      it('should cancel if owned by parent', async () => {
-          const appDoc = mockDoc({
-              _id: VALID_APP_ID, status: 'UPCOMING'
-          });
-          (AppointmentModel.findById as jest.Mock).mockResolvedValue(appDoc);
-          (InvoiceService.handleAppointmentCancellation as jest.Mock).mockResolvedValue(true);
-
-          await AppointmentService.cancelAppointmentFromParent(VALID_APP_ID, 'p1', 'Reason');
-
-          expect(appDoc.status).toBe('CANCELLED');
+  describe("markNoShowAppointments", () => {
+    it("should call updateMany with correct cutoff logic", async () => {
+      (AppointmentModel.updateMany as jest.Mock).mockResolvedValue({
+        matchedCount: 5,
+        modifiedCount: 3,
       });
-
-      it('should throw if not owner', async () => {
-          const appDoc = mockDoc();
-          (AppointmentModel.findById as jest.Mock).mockResolvedValue(appDoc);
-
-          await expect(AppointmentService.cancelAppointmentFromParent(VALID_APP_ID, 'p2', 'R'))
-            .rejects.toThrow('Not your appointment');
+      const res = await AppointmentService.markNoShowAppointments({
+        graceMinutes: 10,
       });
-  });
-
-  describe('rejectRequestedAppointment', () => {
-      it('should reject requested appointment', async () => {
-          const appDoc = mockDoc({ status: 'REQUESTED' });
-          (AppointmentModel.findById as jest.Mock).mockResolvedValue(appDoc);
-
-          await AppointmentService.rejectRequestedAppointment(VALID_APP_ID);
-
-          expect(appDoc.status).toBe('CANCELLED');
-          expect(appDoc.concern).toBe('Rejected by organisation');
-      });
-
-      it('should throw if not REQUESTED', async () => {
-          const appDoc = mockDoc({ status: 'UPCOMING' });
-          (AppointmentModel.findById as jest.Mock).mockResolvedValue(appDoc);
-          await expect(AppointmentService.rejectRequestedAppointment(VALID_APP_ID)).rejects.toThrow('Only REQUESTED');
-      });
-  });
-
-  // ---------------------------------------------------------
-  // 5. Update
-  // ---------------------------------------------------------
-  describe('updateAppointmentPMS', () => {
-      const updateDto: any = { resourceType: 'Appointment' };
-
-      it('should update appointment and occupancy if vet changes', async () => {
-          mockFromDto.mockReturnValueOnce({
-             lead: { id: 'newLead' }, startTime: new Date(), endTime: new Date(),
-             organisationId: VALID_ORG_ID,
-             companion: { id: 'c1', parent: { id: 'p1' } }
-          });
-
-          const appDoc = mockDoc({
-              _id: VALID_APP_ID, status: 'UPCOMING',
-              lead: { id: 'oldLead' }
-          });
-
-          (AppointmentModel.findOne as jest.Mock).mockResolvedValue(appDoc);
-          (OccupancyModel.findOne as jest.Mock).mockReturnValue(mockChain(null));
-          (OccupancyModel.deleteMany as jest.Mock).mockReturnValue(mockChain({}));
-
-          await AppointmentService.updateAppointmentPMS(VALID_APP_ID, updateDto);
-
-          expect(OccupancyModel.deleteMany).toHaveBeenCalled();
-          expect(OccupancyModel.create).toHaveBeenCalled();
-          expect(appDoc.lead.id).toBe('newLead');
-      });
-
-      it('should throw if conflict on new slot', async () => {
-          mockFromDto.mockReturnValueOnce({
-             lead: { id: 'newLead' }, startTime: new Date(), endTime: new Date(),
-             organisationId: VALID_ORG_ID,
-             companion: { id: 'c1', parent: { id: 'p1' } }
-          });
-
-          const appDoc = mockDoc({
-              _id: VALID_APP_ID, status: 'UPCOMING', lead: { id: 'oldLead' }
-          });
-          (AppointmentModel.findOne as jest.Mock).mockResolvedValue(appDoc);
-          (OccupancyModel.findOne as jest.Mock).mockReturnValue(mockChain({ _id: 'conflict' }));
-
-          await expect(AppointmentService.updateAppointmentPMS(VALID_APP_ID, updateDto))
-            .rejects.toThrow('Selected vet is not available');
-      });
-  });
-
-  // ---------------------------------------------------------
-  // 6. Check In
-  // ---------------------------------------------------------
-  describe('checkInAppointment', () => {
-      it('should check in', async () => {
-          const appDoc = mockDoc({ status: 'UPCOMING' });
-          (AppointmentModel.findById as jest.Mock).mockResolvedValue(appDoc);
-          await AppointmentService.checkInAppointment(VALID_APP_ID);
-          expect(appDoc.status).toBe('CHECKED_IN');
-      });
-
-      it('should throw if wrong status', async () => {
-          const appDoc = mockDoc({ status: 'REQUESTED' });
-          (AppointmentModel.findById as jest.Mock).mockResolvedValue(appDoc);
-          await expect(AppointmentService.checkInAppointment(VALID_APP_ID)).rejects.toThrow('Only upcoming');
-      });
-  });
-
-  describe('checkInAppointmentParent', () => {
-      it('should check in if owner', async () => {
-          const appDoc = mockDoc({ status: 'UPCOMING' });
-          (AppointmentModel.findById as jest.Mock).mockResolvedValue(appDoc);
-          await AppointmentService.checkInAppointmentParent(VALID_APP_ID, 'p1');
-          expect(appDoc.status).toBe('CHECKED_IN');
-      });
-
-      it('should throw if not owner', async () => {
-          const appDoc = mockDoc();
-          (AppointmentModel.findById as jest.Mock).mockResolvedValue(appDoc);
-          await expect(AppointmentService.checkInAppointmentParent(VALID_APP_ID, 'p2')).rejects.toThrow('Not your appointment');
-      });
-  });
-
-  // ---------------------------------------------------------
-  // 7. Reschedule (rescheduleFromParent)
-  // ---------------------------------------------------------
-  describe('rescheduleFromParent', () => {
-      const changes = { startTime: new Date().toISOString(), endTime: new Date(Date.now() + 3600).toISOString() };
-
-      it('should reschedule REQUESTED appointment', async () => {
-          const appDoc = mockDoc({ status: 'REQUESTED' });
-          (AppointmentModel.findById as jest.Mock).mockReturnValue(mockChain(appDoc));
-
-          await AppointmentService.rescheduleFromParent(VALID_APP_ID, 'p1', changes);
-
-          expect(appDoc.status).toBe('REQUESTED');
-          expect(appDoc.startTime).toEqual(new Date(changes.startTime));
-      });
-
-      it('should reschedule UPCOMING appointment back to REQUESTED', async () => {
-          const appDoc = mockDoc({ status: 'UPCOMING', lead: { id: 'v1' } });
-          (AppointmentModel.findById as jest.Mock).mockReturnValue(mockChain(appDoc));
-          (OccupancyModel.deleteMany as jest.Mock).mockReturnValue(mockChain({}));
-
-          await AppointmentService.rescheduleFromParent(VALID_APP_ID, 'p1', changes);
-
-          expect(appDoc.status).toBe('REQUESTED');
-          expect(appDoc.lead).toBeUndefined();
-          expect(OccupancyModel.deleteMany).toHaveBeenCalled();
-      });
-
-      it('should throw if invalid times', async () => {
-          await expect(AppointmentService.rescheduleFromParent(VALID_APP_ID, 'p1', { startTime: 'invalid', endTime: 'invalid' }))
-            .rejects.toThrow('Invalid startTime/endTime');
-      });
-  });
-
-  // ---------------------------------------------------------
-  // 8. Queries (Getters)
-  // ---------------------------------------------------------
-  describe('Queries', () => {
-      it('getAppointmentsForCompanion', async () => {
-          const app = mockDoc({ organisationId: VALID_ORG_ID });
-          (AppointmentModel.find as jest.Mock).mockReturnValue(mockChain([app]));
-          (OrganizationModel.find as jest.Mock).mockReturnValue(mockChain([{ _id: VALID_ORG_ID }]));
-
-          const res = await AppointmentService.getAppointmentsForCompanion('c1');
-          expect(res).toHaveLength(1);
-          expect(res[0].organisation).toBeDefined();
-      });
-
-      it('getById', async () => {
-          const app = mockDoc();
-          (AppointmentModel.findById as jest.Mock).mockResolvedValue(app);
-          const res = await AppointmentService.getById(VALID_APP_ID);
-          expect(res.id).toBe(VALID_APP_ID);
-      });
-
-      it('getAppointmentsForParent', async () => {
-          const app = mockDoc();
-          (AppointmentModel.find as jest.Mock).mockReturnValue(mockChain([app]));
-          const res = await AppointmentService.getAppointmentsForParent('p1');
-          expect(res).toHaveLength(1);
-      });
-
-      it('getAppointmentsForOrganisation with filters', async () => {
-          const app = mockDoc();
-          (AppointmentModel.find as jest.Mock).mockReturnValue(mockChain([app]));
-          await AppointmentService.getAppointmentsForOrganisation(VALID_ORG_ID, {
-              status: ['UPCOMING'], startDate: new Date(), endDate: new Date()
-          });
-          expect(AppointmentModel.find).toHaveBeenCalledWith(expect.objectContaining({
-              organisationId: VALID_ORG_ID, status: { $in: ['UPCOMING'] }
-          }));
-      });
-
-      it('getAppointmentsForLead', async () => {
-          const app = mockDoc();
-          (AppointmentModel.find as jest.Mock).mockReturnValue(mockChain([app]));
-          await AppointmentService.getAppointmentsForLead('l1', VALID_ORG_ID);
-          expect(AppointmentModel.find).toHaveBeenCalledWith(expect.objectContaining({ 'lead.id': 'l1' }));
-      });
-
-      it('searchAppointments', async () => {
-          const app = mockDoc();
-          (AppointmentModel.find as jest.Mock).mockReturnValue(mockChain([app]));
-          await AppointmentService.searchAppointments({ companionId: 'c1', status: ['CANCELLED'] });
-          expect(AppointmentModel.find).toHaveBeenCalled();
-      });
-  });
-
-  // ---------------------------------------------------------
-  // 9. Batch Ops (markNoShowAppointments)
-  // ---------------------------------------------------------
-  describe('markNoShowAppointments', () => {
-      it('should update expired upcoming appointments', async () => {
-          (AppointmentModel.updateMany as jest.Mock).mockResolvedValue({ matchedCount: 5, modifiedCount: 5 });
-
-          const res = await AppointmentService.markNoShowAppointments({ graceMinutes: 20 });
-
-          expect(AppointmentModel.updateMany).toHaveBeenCalledWith(
-              expect.objectContaining({ status: 'UPCOMING', endTime: { $lt: expect.any(Date) } }),
-              expect.anything()
-          );
-          expect(res.modified).toBe(5);
-      });
-  });
-
-  // ---------------------------------------------------------
-  // 10. Helpers Coverage
-  // ---------------------------------------------------------
-  describe('Helpers (Coverage)', () => {
-      it('sendAppointmentAssignmentEmails handles errors gracefully', async () => {
-          // FIX: Ensure the companion object HAS the parent structure nested inside it
-          const appDoc = mockDoc({
-              _id: VALID_APP_ID,
-              status: 'REQUESTED',
-              lead: { id: 'l1' },
-              companion: {
-                  name: 'C',
-                  parent: { id: 'p1', email: 'e' } // <--- restored parent object
-              }
-          });
-
-          (UserModel.find as jest.Mock).mockReturnValue(mockChain([{ userId: 'l1', email: 'e' }]));
-          (sendEmailTemplate as jest.Mock).mockRejectedValue(new Error('Mail fail'));
-
-          (AppointmentModel.findOne as jest.Mock).mockResolvedValue(appDoc);
-          (OccupancyModel.findOne as jest.Mock).mockReturnValue(mockChain(null));
-          (UserProfileModel.findOne as jest.Mock).mockResolvedValue({});
-
-          const dto = {
-             resourceType: 'Appointment',
-             participant: [{ actor: { reference: 'Practitioner/l1' }, type: [{ coding: [{ code: 'PPRF' }] }] }]
-          };
-
-          await AppointmentService.approveRequestedFromPms(VALID_APP_ID, dto as any);
-
-          expect(logger.error).toHaveBeenCalledWith('Failed to send appointment assignment email.', expect.any(Error));
-      });
+      expect(AppointmentModel.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: "UPCOMING",
+          endTime: expect.any(Object),
+        }),
+        expect.objectContaining({
+          $set: expect.objectContaining({ status: "NO_SHOW" }),
+        }),
+      );
+      expect(res.modified).toBe(3);
+    });
   });
 });

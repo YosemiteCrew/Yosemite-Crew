@@ -1,5 +1,5 @@
-import React from "react";
-import { IoIosSearch } from "react-icons/io";
+import React from 'react';
+import { IoIosSearch } from 'react-icons/io';
 
 type SearchProps = {
   value: string;
@@ -8,10 +8,10 @@ type SearchProps = {
   placeholder?: string;
 };
 
-const Search = ({ value, setSearch, className, placeholder = "Search" }: SearchProps) => {
+const Search = ({ value, setSearch, className, placeholder = 'Search' }: SearchProps) => {
   return (
     <div
-      className={`${className ?? ""} w-60 xl:w-[280px] rounded-2xl border! border-input-border-default! px-6 py-[7px] flex items-center justify-center`}
+      className={`${className ?? ''} h-12 w-60 xl:w-[280px] rounded-2xl border! border-input-border-default! px-6 flex items-center justify-center`}
     >
       <input
         type="text"

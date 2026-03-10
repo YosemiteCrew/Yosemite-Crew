@@ -6,6 +6,7 @@ import { BusinessOptions } from "@/app/features/organization/types/org";
 import { PermissionGate } from "@/app/ui/layout/guards/PermissionGate";
 import { PERMISSIONS } from "@/app/lib/permissions";
 import { usePermissions } from "@/app/hooks/usePermissions";
+import { useNotify } from "@/app/hooks/useNotify";
 
 type FieldType = "text" | "select" | "country" | "date";
 
@@ -24,7 +25,7 @@ export const field = (
   type: FieldType = "text",
   editable: boolean = true,
   required: boolean = true,
-  options?: { label: string; value: string }[]
+  options?: { label: string; value: string }[],
 ): ProfileField => ({ label, key, type, editable, required, options });
 
 const BasicFields: ProfileField[] = [
@@ -51,6 +52,7 @@ const Profile = ({ primaryOrg }: ProfileProps) => {
   const [formData, setFormData] = useState<Organisation>(primaryOrg);
   const { can } = usePermissions();
   const canEditOrg = can(PERMISSIONS.ORG_EDIT);
+  const { notify } = useNotify();
 
   const handleOrgSave = async (values: Record<string, string>) => {
     const updated: Organisation = {
@@ -64,8 +66,16 @@ const Profile = ({ primaryOrg }: ProfileProps) => {
     try {
       await updateOrg(updated);
       setFormData(updated);
+      notify("success", {
+        title: "Organization updated",
+        text: "Organization details have been updated successfully.",
+      });
     } catch (error: any) {
       console.error("Error updating organization:", error);
+      notify("error", {
+        title: "Unable to update organization",
+        text: "Failed to update organization. Please try again.",
+      });
     }
   };
 
@@ -80,8 +90,16 @@ const Profile = ({ primaryOrg }: ProfileProps) => {
     try {
       await updateOrg(updated);
       setFormData(updated);
+      notify("success", {
+        title: "Organization updated",
+        text: "Organization details have been updated successfully.",
+      });
     } catch (error: any) {
       console.error("Error updating organization:", error);
+      notify("error", {
+        title: "Unable to update organization",
+        text: "Failed to update organization. Please try again.",
+      });
     }
   };
 

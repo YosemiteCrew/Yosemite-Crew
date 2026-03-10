@@ -1,11 +1,12 @@
-import React from "react";
-import Image from "next/image";
-import Link from "next/link";
-import { Icon } from "@iconify/react/dist/iconify.js";
+import React from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { Icon } from '@iconify/react/dist/iconify.js';
 
-import Footer from "@/app/ui/widgets/Footer/Footer";
+import Footer from '@/app/ui/widgets/Footer/Footer';
+import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 
-import "./PetOwner.css";
+import './PetOwner.css';
 
 const PetOwner = () => {
   return (
@@ -16,12 +17,13 @@ const PetOwner = () => {
           <div className="PwtOwnerContainer">
             <div className="Downlode_Data">
               <div className="downlodetext">
-                <div className="text-display-1 text-text-primary">Your companion&rsquo;s health, in your hands</div>
+                <div className="text-display-1 text-text-primary">
+                  Your companion&rsquo;s health, in your hands
+                </div>
                 <div className="text-body-3 text-text-primary">
-                  Manage your companion&rsquo;s health records, hygiene, dietary
-                  plans, and schedule vet appointments - all in one app that
-                  connects you with groomers, boarders, sitters, vets, and
-                  clinics for dogs, cats, or horses.
+                  Manage your companion&rsquo;s health records, hygiene, dietary plans, and schedule
+                  vet appointments - all in one app that connects you with groomers, boarders,
+                  sitters, vets, and clinics for dogs, cats, or horses.
                 </div>
                 <PetDownBtn launched={true} />
               </div>
@@ -30,7 +32,7 @@ const PetOwner = () => {
                 width={800}
                 height={1000}
                 quality={100}
-                src="https://d2il6osz49gpup.cloudfront.net/pet-parent/petparent.png"
+                src={MEDIA_SOURCES.petOwner.hero}
                 priority
               />
             </div>
@@ -41,15 +43,13 @@ const PetOwner = () => {
           <div className="PwtOwnerContainer">
             <div className="ToolkitData">
               <div className="ToolkitHead">
-                <div className="text-display-2 text-text-primary">Your companion&rsquo;s all-in-one toolkit</div>
+                <div className="text-display-2 text-text-primary">
+                  Your companion&rsquo;s all-in-one toolkit
+                </div>
               </div>
               <div className="ToolkitCard">
                 <div className="CardToolItem">
-                  <Icon
-                    icon="solar:calendar-mark-bold"
-                    width="150"
-                    height="150"
-                  />
+                  <Icon icon="solar:calendar-mark-bold" width="150" height="150" />
                   <div className="text-heading-3 text-white">Book and manage appointments</div>
                 </div>
                 <div className="CardToolItem">
@@ -65,12 +65,10 @@ const PetOwner = () => {
                   <div className="text-heading-3 text-white">Medication and health monitoring</div>
                 </div>
                 <div className="CardToolItem">
-                  <Icon
-                    icon="solar:chat-round-like-bold"
-                    width="150"
-                    height="150"
-                  />
-                  <div className="text-heading-3 text-white">Hygiene maintenance and dietary plans</div>
+                  <Icon icon="solar:chat-round-like-bold" width="150" height="150" />
+                  <div className="text-heading-3 text-white">
+                    Hygiene maintenance and dietary plans
+                  </div>
                 </div>
               </div>
             </div>
@@ -87,8 +85,7 @@ const PetOwner = () => {
               <div className="flex items-center justify-center bg-[#EAF3FF] w-full -rotate-2 BrownDiv">
                 <div className="flex gap-2 xl:gap-4 flex-col py-2! md:py-4! pl-16! pr-4! sm:pl-0! sm:pr-0! sm:max-w-[400px] md:max-w-[600px] xl:max-w-[1000px]">
                   <div className="font-satoshi text-black-text text-[1rem] md:text-[1.375rem] xl:text-[2.5rem] font-medium">
-                    This app has been a game-changer! I never forget my dog&rsquo;s
-                    meds anymore
+                    This app has been a game-changer! I never forget my dog&rsquo;s meds anymore
                   </div>
                   <div className="font-satoshi text-grey-noti text-[0.875rem] md:text-[1rem] xl:text-[1.75rem] font-medium text-right">
                     ~ Germaine, Dog parent
@@ -129,7 +126,7 @@ const PetOwner = () => {
               <div className="GlimpsImage">
                 <Image
                   aria-hidden
-                  src="https://d2il6osz49gpup.cloudfront.net/pet-parent/pawsibilities.png"
+                  src={MEDIA_SOURCES.petOwner.possibilities}
                   alt="glimpsimg"
                   width={1291}
                   height={917}
@@ -145,10 +142,12 @@ const PetOwner = () => {
             <div className="PetAppData">
               <div className="LftpetApp">
                 <div className="PetAppText">
-                  <div className="text-display-2 text-text-primary">The only companion app you&rsquo;ll ever need</div>
+                  <div className="text-display-2 text-text-primary">
+                    The only companion app you&rsquo;ll ever need
+                  </div>
                   <div className="text-body-4 text-text-primary">
-                    Download Yosemite Crew app today and take the first step
-                    towards better health for your companions.
+                    Download Yosemite Crew app today and take the first step towards better health
+                    for your companions.
                   </div>
                 </div>
                 <PetDownBtn launched={true} />
@@ -156,7 +155,7 @@ const PetOwner = () => {
               <div className="RytpetApp">
                 <Image
                   aria-hidden
-                  src="https://d2il6osz49gpup.cloudfront.net/Images/petapppic.png"
+                  src={MEDIA_SOURCES.petOwner.appImage}
                   alt="petapppic"
                   width={569}
                   height={569}
@@ -182,7 +181,7 @@ const PetDownBtn = ({ launched = false }: Readonly<PetDownBtnProps>) => {
     return (
       <div className="ComingSoonBtn">
         <Icon
-          icon={"solar:star-bold"}
+          icon={'solar:star-bold'}
           width="18"
           height="18"
           color="#fff"

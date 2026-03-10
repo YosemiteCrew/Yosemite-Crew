@@ -3,10 +3,14 @@ import Modal from "@/app/ui/overlays/Modal";
 import { OrganizationDocument } from "@/app/features/documents/types/document";
 import React, { useState } from "react";
 import { OrgDocumentCategoryOptions } from "@/app/features/organization/pages/Organization/types";
-import { deleteRoom, updateDocument } from "@/app/features/documents/services/documentService";
+import {
+  deleteDocument,
+  updateDocument,
+} from "@/app/features/documents/services/documentService";
 import DocUploader from "@/app/ui/widgets/UploadImage/DocUploader";
 import { Primary, Secondary } from "@/app/ui/primitives/Buttons";
 import Close from "@/app/ui/primitives/Icons/Close";
+import { useNotify } from "@/app/hooks/useNotify";
 
 type DocumentInfoProps = {
   showModal: boolean;
@@ -34,6 +38,7 @@ const DocumentInfo = ({
 }: DocumentInfoProps) => {
   const [file, setFile] = useState<File | null>(null);
   const [fileUrl, setFileUrl] = useState<string>("");
+  const { notify } = useNotify();
 
   const handleUpdate = async (values: any) => {
     try {
@@ -46,9 +51,17 @@ const DocumentInfo = ({
         category: values.category,
       };
       await updateDocument(formData);
+      notify("success", {
+        title: "Document updated",
+        text: "Document details have been updated successfully.",
+      });
       setShowModal(false);
     } catch (error) {
       console.log(error);
+      notify("error", {
+        title: "Unable to update document",
+        text: "Failed to update document. Please try again.",
+      });
     }
   };
 
@@ -59,15 +72,40 @@ const DocumentInfo = ({
         fileUrl,
       };
       await updateDocument(formData);
+      notify("success", {
+        title: "Document updated",
+        text: "Document details have been updated successfully.",
+      });
       setFile(null);
       setShowModal(false);
     } catch (error) {
       console.log(error);
+      notify("error", {
+        title: "Unable to update document",
+        text: "Failed to update document. Please try again.",
+      });
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      await deleteDocument(activeDocument);
+      notify("success", {
+        title: "Document deleted",
+        text: "Document has been deleted successfully.",
+      });
+      setShowModal(false);
+    } catch (error) {
+      console.log(error);
+      notify("error", {
+        title: "Unable to delete document",
+        text: "Failed to delete document. Please try again.",
+      });
     }
   };
 
   const handleDownload = () => {
-    window.open(activeDocument.fileUrl, "_blank");
+    globalThis.open(activeDocument.fileUrl, "_blank");
   };
 
   return (
@@ -93,7 +131,7 @@ const DocumentInfo = ({
               onSave={handleUpdate}
               showEditIcon={canEditDocument}
               showDeleteIcon={canEditDocument}
-              onDelete={() => deleteRoom(activeDocument)}
+              onDelete={handleDelete}
             />
             {canEditDocument && (
               <DocUploader

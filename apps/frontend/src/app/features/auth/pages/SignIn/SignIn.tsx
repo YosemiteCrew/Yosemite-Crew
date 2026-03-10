@@ -1,18 +1,19 @@
-"use client";
-import Link from "next/link";
-import React, { useState } from "react";
-import { Form } from "react-bootstrap";
-import { Icon } from "@iconify/react/dist/iconify.js";
+'use client';
+import Link from 'next/link';
+import React, { useState } from 'react';
+import { Form } from 'react-bootstrap';
+import { Icon } from '@iconify/react/dist/iconify.js';
 
-import FormInputPass from "@/app/ui/inputs/FormInputPass/FormInputPass";
-import FormInput from "@/app/ui/inputs/FormInput/FormInput";
-import { useErrorTost } from "@/app/ui/overlays/Toast/Toast";
-import { useAuthStore } from "@/app/stores/authStore";
-import OtpModal from "@/app/ui/overlays/OtpModal/OtpModal";
-import { Primary } from "@/app/ui/primitives/Buttons";
-import { useRouter } from "next/navigation";
+import FormInputPass from '@/app/ui/inputs/FormInputPass/FormInputPass';
+import FormInput from '@/app/ui/inputs/FormInput/FormInput';
+import { useErrorTost } from '@/app/ui/overlays/Toast/Toast';
+import { useAuthStore } from '@/app/stores/authStore';
+import OtpModal from '@/app/ui/overlays/OtpModal/OtpModal';
+import { Primary } from '@/app/ui/primitives/Buttons';
+import { useRouter } from 'next/navigation';
+import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 
-import "../AuthPages.css";
+import '../AuthPages.css';
 
 type SignInProps = {
   redirectPath?: string;
@@ -22,16 +23,15 @@ type SignInProps = {
 };
 
 const SignIn = ({
-  redirectPath = "/organizations",
-  signupHref = "/signup",
-  allowNext = true,
+  redirectPath = '/organizations',
+  signupHref = '/signup',
   isDeveloper = false,
 }: Readonly<SignInProps>) => {
   const { signIn, resendCode } = useAuthStore();
   const router = useRouter();
   const { showErrorTost, ErrorTostPopup } = useErrorTost();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [inputErrors, setInputErrors] = useState<{
     email?: string;
     pError?: string;
@@ -46,29 +46,24 @@ const SignIn = ({
         setShowVerifyModal(true);
       }
     } catch (error: any) {
-      globalThis.window?.scrollTo({ top: 0, behavior: "smooth" });
+      globalThis.window?.scrollTo({ top: 0, behavior: 'smooth' });
       showErrorTost({
-        message: error.message || "Error resending code.",
-        errortext: "Error",
+        message: error.message || 'Error resending code.',
+        errortext: 'Error',
         iconElement: (
-          <Icon
-            icon="solar:danger-triangle-bold"
-            width="20"
-            height="20"
-            color="#EA3729"
-          />
+          <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />
         ),
-        className: "errofoundbg",
+        className: 'errofoundbg',
       });
     }
   };
 
-  const handleSignIn = async (e: React.FormEvent) => {
+  const handleSignIn = async (e: React.SyntheticEvent) => {
     e.preventDefault();
 
     const errors: { email?: string; pError?: string } = {};
-    if (!email) errors.email = "Email is required";
-    if (!password) errors.pError = "Password is required";
+    if (!email) errors.email = 'Email is required';
+    if (!password) errors.pError = 'Password is required';
     setInputErrors(errors);
     if (Object.keys(errors).length > 0) {
       return;
@@ -77,27 +72,19 @@ const SignIn = ({
     try {
       await signIn(email, password);
       // Set devAuth flag BEFORE redirect so DevRouteGuard can read it
-      globalThis.window?.sessionStorage?.setItem(
-        "devAuth",
-        isDeveloper ? "true" : "false",
-      );
+      globalThis.window?.sessionStorage?.setItem('devAuth', isDeveloper ? 'true' : 'false');
       router.push(redirectPath);
     } catch (error: any) {
-      if (error?.code === "UserNotConfirmedException") {
+      if (error?.code === 'UserNotConfirmedException') {
         await handleCodeResendonError();
       } else {
         showErrorTost({
           message: error.message || `Sign in failed`,
-          errortext: "Error",
+          errortext: 'Error',
           iconElement: (
-            <Icon
-              icon="solar:danger-triangle-bold"
-              width="20"
-              height="20"
-              color="#EA3729"
-            />
+            <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />
           ),
-          className: "errofoundbg",
+          className: 'errofoundbg',
         });
       }
     }
@@ -107,10 +94,10 @@ const SignIn = ({
     <section
       className={`
         relative flex w-full flex-1 items-center justify-center
-        bg-[url('https://d2il6osz49gpup.cloudfront.net/Images/SignUpBg.png')]
         bg-cover bg-center bg-no-repeat
         h-[calc(100vh-80px)]
       `}
+      style={{ backgroundImage: `url(${MEDIA_SOURCES.auth.background})` }}
     >
       {ErrorTostPopup}
       <div
@@ -123,15 +110,10 @@ const SignIn = ({
           elevation-1
         `}
       >
-        <Form
-          onSubmit={handleSignIn}
-          className="flex h-full w-full flex-col gap-6"
-        >
+        <Form onSubmit={handleSignIn} className="flex h-full w-full flex-col gap-6">
           <div className="flex w-full flex-col gap-6">
             <div className="text-display-2 text-text-primary text-center auth-title">
-              {isDeveloper
-                ? "Sign in to your developer account"
-                : "Sign in"}
+              {isDeveloper ? 'Sign in to your developer account' : 'Sign in'}
             </div>
             <div className="flex w-full flex-col gap-3">
               <FormInput
@@ -161,15 +143,10 @@ const SignIn = ({
             </div>
           </div>
           <div className="flex flex-col gap-3 items-center">
-            <Primary
-              text="Sign in"
-              onClick={handleSignIn}
-              href="#"
-              style={{ width: "100%" }}
-            />
+            <Primary text="Sign in" onClick={handleSignIn} href="#" style={{ width: '100%' }} />
             <div className="text-body-4 text-text-primary auth-inline-text">
-              {" "}
-              Don&apos;t have an account?{" "}
+              {' '}
+              Don&apos;t have an account?{' '}
               <Link href={signupHref} className="text-text-brand">
                 Sign up
               </Link>

@@ -1,45 +1,74 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from 'react';
 import {
   eventsForDayHour,
   getNextWeek,
   getPrevWeek,
   getWeekDays,
   HOURS_IN_DAY,
-} from "@/app/features/appointments/components/Calendar/weekHelpers";
+} from '@/app/features/appointments/components/Calendar/weekHelpers';
 import {
+  DEFAULT_CALENDAR_FOCUS_MINUTES,
   EVENT_VERTICAL_GAP_PX,
+  getFirstRelevantTimedEventStart,
+  getTopPxForMinutes,
+  isSameDay,
   isAllDayForDate,
+  minutesSinceStartOfDay,
+  nextDay,
   MINUTES_PER_STEP,
   PIXELS_PER_STEP,
-} from "@/app/features/appointments/components/Calendar/helpers";
-import Slot from "@/app/features/appointments/components/Calendar/common/Slot";
-import { getStatusStyle } from "@/app/config/statusConfig";
-import { Appointment } from "@yosemite-crew/types";
-import Back from "@/app/ui/primitives/Icons/Back";
-import Next from "@/app/ui/primitives/Icons/Next";
+  scrollContainerToTarget,
+} from '@/app/features/appointments/components/Calendar/helpers';
+import Slot from '@/app/features/appointments/components/Calendar/common/Slot';
+import { getStatusStyle } from '@/app/config/statusConfig';
+import { Appointment } from '@yosemite-crew/types';
+import Back from '@/app/ui/primitives/Icons/Back';
+import Next from '@/app/ui/primitives/Icons/Next';
 
 const PIXELS_PER_MINUTE = PIXELS_PER_STEP / MINUTES_PER_STEP;
+const HOUR_ROW_TOP_OFFSET_PX = 8;
 
 type WeekCalendarProps = {
   events: Appointment[];
-  date: Date;
   handleViewAppointment: any;
   weekStart: Date;
   setWeekStart: React.Dispatch<React.SetStateAction<Date>>;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   handleRescheduleAppointment: any;
+  handleChangeStatusAppointment?: any;
   canEditAppointments: boolean;
+  draggedAppointmentId?: string | null;
+  draggedAppointmentLabel?: string | null;
+  canDragAppointment?: (appointment: Appointment) => boolean;
+  onAppointmentDragStart?: (appointment: Appointment) => void;
+  onAppointmentDragEnd?: () => void;
+  onAppointmentDropAt?: (date: Date, minuteOfDay: number, targetLeadId?: string) => void;
+  onDragHoverTarget?: (date: Date, targetLeadId?: string) => void;
+  getDropAvailabilityIntervals?: (
+    date: Date,
+    targetLeadId?: string
+  ) => Array<{ startMinute: number; endMinute: number }>;
+  draggedAppointmentDurationMinutes?: number;
 };
 
 const WeekCalendar: React.FC<WeekCalendarProps> = ({
   events,
-  date,
   handleViewAppointment,
   weekStart,
   setWeekStart,
   setCurrentDate,
   handleRescheduleAppointment,
+  handleChangeStatusAppointment,
   canEditAppointments,
+  draggedAppointmentId,
+  draggedAppointmentLabel,
+  canDragAppointment,
+  onAppointmentDragStart,
+  onAppointmentDragEnd,
+  onAppointmentDropAt,
+  onDragHoverTarget,
+  getDropAvailabilityIntervals,
+  draggedAppointmentDurationMinutes,
 }) => {
   const days = useMemo<Date[]>(() => getWeekDays(weekStart), [weekStart]);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -99,52 +128,79 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     if (todayIndex === -1) return null;
 
     const minutesSinceMidnight = now.getHours() * 60 + now.getMinutes();
-    const hourIndex = Math.floor(minutesSinceMidnight / 60);
-    const minutesInHour = minutesSinceMidnight % 60;
-    const topPx =
-      hourIndex * (height + EVENT_VERTICAL_GAP_PX) +
-      (minutesInHour / 60) * height +
-      8;
+    const topPx = getTopPxForMinutes(
+      minutesSinceMidnight,
+      height,
+      EVENT_VERTICAL_GAP_PX,
+      HOUR_ROW_TOP_OFFSET_PX
+    );
 
     return { topPx, todayIndex };
   }, [weekStart, days, height]);
 
   useEffect(() => {
-    if (!scrollRef.current || !nowPosition) return;
-    const container = scrollRef.current;
-    const target = nowPosition.topPx - container.clientHeight / 2;
-    container.scrollTop = Math.max(0, target);
-  }, [nowPosition]);
+    if (!scrollRef.current) return;
+
+    const rangeStart = new Date(days[0]);
+    rangeStart.setHours(0, 0, 0, 0);
+    const lastDay = days.at(-1);
+    if (!lastDay) return;
+    const rangeEnd = nextDay(lastDay);
+    const focusStart = getFirstRelevantTimedEventStart(timedEvents, rangeStart, rangeEnd);
+
+    const focusMinutes = focusStart
+      ? minutesSinceStartOfDay(focusStart)
+      : DEFAULT_CALENDAR_FOCUS_MINUTES;
+    const topPx = nowPosition
+      ? Math.max(0, nowPosition.topPx)
+      : getTopPxForMinutes(focusMinutes, height, EVENT_VERTICAL_GAP_PX, HOUR_ROW_TOP_OFFSET_PX);
+
+    scrollContainerToTarget(scrollRef.current, topPx);
+  }, [days, height, nowPosition, timedEvents]);
 
   const hasAnyAllDay = allDayByDay.some((list) => list.length > 0);
 
   return (
     <div className="h-full flex flex-col">
       <div
-        ref={scrollRef}
         className="w-full flex-1 overflow-x-auto relative rounded-2xl max-w-[calc(100vw-32px)] sm:max-w-[calc(100vw-96px)] lg:max-w-[calc(100vw-300px)]"
+        data-calendar-scroll="true"
       >
-        <div className="max-h-[800px] overflow-y-auto w-full">
+        <div
+          ref={scrollRef}
+          className="max-h-[680px] overflow-y-auto min-w-max"
+          data-calendar-scroll="true"
+        >
           <div className="sticky top-0 z-30 bg-white">
-            <div className="grid border-b border-grey-light py-3 grid-cols-[80px_minmax(0,1fr)_80px] min-w-max bg-white">
+            <div className="grid border-b border-grey-light py-3 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max bg-white">
               <div className="sticky left-0 z-40 bg-white flex items-center justify-center">
                 <Back onClick={handlePrevWeek} />
               </div>
-              <div className="grid grid-flow-col auto-cols-[160px] bg-white">
-                {days.map((day, idx) => {
-                  const weekday = day.toLocaleDateString("en-US", {
-                    weekday: "short",
+              <div className="grid grid-flow-col auto-cols-[140px] bg-white">
+                {days.map((day) => {
+                  const weekday = day.toLocaleDateString('en-US', {
+                    weekday: 'short',
                   });
                   const dateNumber = day.getDate();
+                  const isToday = isSameDay(day, new Date());
+                  const dateNumberClass = isToday
+                    ? 'bg-text-brand text-white border-transparent'
+                    : 'bg-card-bg text-text-secondary border-transparent';
                   return (
                     <div
-                      key={idx + day.getDate()}
+                      key={day.toISOString()}
                       className="flex items-center justify-center flex-col"
                     >
-                      <div className="text-body-4 text-text-brand">
+                      <div
+                        className={`text-body-4 ${
+                          isToday ? 'text-text-brand' : 'text-text-primary'
+                        }`}
+                      >
                         {weekday}
                       </div>
-                      <div className="text-body-4-emphasis text-white h-12 w-12 flex items-center justify-center rounded-full bg-text-brand">
+                      <div
+                        className={`text-body-4-emphasis h-10 w-10 flex items-center justify-center rounded-full border ${dateNumberClass}`}
+                      >
                         {dateNumber}
                       </div>
                     </div>
@@ -158,18 +214,15 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
 
             {hasAnyAllDay && (
               <div className="border-b border-grey-light bg-slate-50">
-                <div className="grid py-2 grid-cols-[80px_minmax(0,1fr)_80px] min-w-max">
+                <div className="grid py-2 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
                   <div className="sticky left-0 z-40 bg-slate-50 text-xs font-satoshi text-[#747473] flex items-start pr-2">
                     All-day
                   </div>
-                  <div className="grid grid-flow-col auto-cols-[160px] min-w-max">
+                  <div className="grid grid-flow-col auto-cols-[140px] min-w-max">
                     {days.map((day, idx) => {
                       const dayAllEvents = allDayByDay[idx];
                       return (
-                        <div
-                          key={day.toISOString()}
-                          className="flex flex-col gap-1 pr-2"
-                        >
+                        <div key={day.toISOString()} className="flex flex-col gap-1 pr-2">
                           {dayAllEvents.map((ev) => (
                             <button
                               key={`${ev.companion.name}-${ev.startTime.toISOString()}`}
@@ -184,7 +237,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                               }}
                             >
                               <div className="font-medium truncate">
-                                {ev.companion.name} • {ev.concern || ""}
+                                {ev.companion.name} • {ev.concern || ''}
                               </div>
                             </button>
                           ))}
@@ -202,23 +255,23 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
             {Array.from({ length: HOURS_IN_DAY }, (_, hour) => (
               <div
                 key={hour}
-                className="grid gap-y-0.5 grid-cols-[80px_minmax(0,1fr)_80px] min-w-max"
+                className="grid gap-y-0.5 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max"
               >
                 <div
                   className="sticky left-0 z-20 bg-white text-caption-2 text-text-primary pl-2!"
-                  style={{ height: height + "px", opacity: hour === 0 ? 0 : 1 }}
+                  style={{ height: height + 'px', opacity: hour === 0 ? 0 : 1 }}
                 >
-                  {new Date(0, 0, 0, hour, 0, 0).toLocaleTimeString("en-US", {
-                    hour: "numeric",
-                    minute: "2-digit",
+                  {new Date(0, 0, 0, hour, 0, 0).toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
                   })}
                 </div>
-                <div className="grid grid-flow-col auto-cols-[160px] min-w-max">
+                <div className="grid grid-flow-col auto-cols-[140px] min-w-max">
                   {days.map((day, dayIndex) => {
                     const slotEvents = eventsForDayHour(timedEvents, day, hour);
                     return (
                       <div
-                        key={day.getDate() + dayIndex}
+                        key={`${day.toISOString()}-${hour}`}
                         className="relative pt-2"
                         style={{ height: `${height}px` }}
                       >
@@ -230,42 +283,43 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                           height={height}
                           dayIndex={dayIndex}
                           handleViewAppointment={handleViewAppointment}
-                          handleRescheduleAppointment={
-                            handleRescheduleAppointment
-                          }
+                          handleRescheduleAppointment={handleRescheduleAppointment}
+                          handleChangeStatusAppointment={handleChangeStatusAppointment}
                           canEditAppointments={canEditAppointments}
                           length={days.length - 1}
+                          draggedAppointmentId={draggedAppointmentId}
+                          draggedAppointmentLabel={draggedAppointmentLabel}
+                          canDragAppointment={canDragAppointment}
+                          onAppointmentDragStart={onAppointmentDragStart}
+                          onAppointmentDragEnd={onAppointmentDragEnd}
+                          onAppointmentDropAt={onAppointmentDropAt}
+                          onDragHoverTarget={onDragHoverTarget}
+                          dropAvailabilityIntervals={getDropAvailabilityIntervals?.(day) ?? []}
+                          draggedAppointmentDurationMinutes={draggedAppointmentDurationMinutes}
+                          dropDate={day}
+                          dropHour={hour}
                         />
                       </div>
                     );
                   })}
                 </div>
-                <div
-                  className="sticky right-0 z-20 bg-white"
-                  style={{ height }}
-                />
+                <div className="sticky right-0 z-20 bg-white" style={{ height }} />
               </div>
             ))}
 
             {nowPosition && (
-              <div
-                className="pointer-events-none absolute inset-0"
-                style={{ top: 0 }}
-              >
-                <div className="grid h-full grid-cols-[80px_minmax(0,1fr)_80px] min-w-max">
+              <div className="pointer-events-none absolute inset-0" style={{ top: 0 }}>
+                <div className="grid h-full grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
                   <div />
-                  <div className="grid grid-flow-col auto-cols-[160px] min-w-max">
-                    {days.map((_, idx) => (
-                      <div
-                        key={idx + "appointent-now-key"}
-                        className="relative"
-                      >
-                        {idx === nowPosition.todayIndex && (
+                  <div className="grid grid-flow-col auto-cols-[140px] min-w-max">
+                    {days.map((day, dayIndex) => (
+                      <div key={`appointment-now-${day.toISOString()}`} className="relative">
+                        {dayIndex === nowPosition.todayIndex && (
                           <div
-                            className="absolute left-1 right-0 z-10 w-full"
+                            className="absolute left-0 right-2 z-10 w-full"
                             style={{
                               top: nowPosition.topPx,
-                              transform: "translateY(-50%)",
+                              transform: 'translateY(-50%)',
                             }}
                           >
                             <div className="absolute left-[-5px] w-3 h-3 rounded-full bg-red-500 translate-y-[-50%]" />

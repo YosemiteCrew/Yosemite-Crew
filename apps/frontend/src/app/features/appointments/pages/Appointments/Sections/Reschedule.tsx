@@ -1,19 +1,16 @@
-import { Primary } from "@/app/ui/primitives/Buttons";
-import CenterModal from "@/app/ui/overlays/Modal/CenterModal";
-import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
+import { Primary } from '@/app/ui/primitives/Buttons';
+import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
+import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import {
   getSlotsForServiceAndDateForPrimaryOrg,
   updateAppointment,
-} from "@/app/features/appointments/services/appointmentService";
-import { Slot } from "@/app/features/appointments/types/appointments";
-import {
-  buildUtcDateFromDateAndTime,
-  getDurationMinutes,
-} from "@/app/lib/date";
-import { Appointment } from "@yosemite-crew/types";
-import React, { useEffect, useMemo, useState } from "react";
-import ModalHeader from "@/app/ui/overlays/Modal/ModalHeader";
-import DateTimePickerSection from "@/app/features/appointments/components/DateTimePickerSection";
+} from '@/app/features/appointments/services/appointmentService';
+import { Slot } from '@/app/features/appointments/types/appointments';
+import { buildUtcDateFromDateAndTime, getDurationMinutes, toUtcCalendarDate } from '@/app/lib/date';
+import { Appointment } from '@yosemite-crew/types';
+import React, { useEffect, useMemo, useState } from 'react';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
+import DateTimePickerSection from '@/app/features/appointments/components/DateTimePickerSection';
 
 type RescheduleProp = {
   showModal: boolean;
@@ -21,15 +18,11 @@ type RescheduleProp = {
   activeAppointment: Appointment;
 };
 
-const Reschedule = ({
-  showModal,
-  setShowModal,
-  activeAppointment,
-}: RescheduleProp) => {
+const Reschedule = ({ showModal, setShowModal, activeAppointment }: RescheduleProp) => {
   const teams = useTeamForPrimaryOrg();
   const [formData, setFormData] = useState<Appointment>(activeAppointment);
   const [selectedDate, setSelectedDate] = useState<Date>(
-    activeAppointment.appointmentDate
+    toUtcCalendarDate(activeAppointment.appointmentDate)
   );
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [timeSlots, setTimeSlots] = useState<Slot[]>([]);
@@ -42,7 +35,7 @@ const Reschedule = ({
   useEffect(() => {
     if (activeAppointment) {
       setFormData(activeAppointment);
-      setSelectedDate(activeAppointment.appointmentDate);
+      setSelectedDate(toUtcCalendarDate(activeAppointment.appointmentDate));
     }
   }, [activeAppointment]);
 
@@ -72,17 +65,17 @@ const Reschedule = ({
       duration?: string;
       slot?: string;
     } = {};
-    if (!formData.lead?.id) errors.leadId = "Please select a lead";
-    if (!formData.durationMinutes) errors.duration = "Please select a duration";
-    if (!selectedSlot) errors.slot = "Please select a slot";
+    if (!formData.lead?.id) errors.leadId = 'Please select a lead';
+    if (!formData.durationMinutes) errors.duration = 'Please select a duration';
+    if (!selectedSlot) errors.slot = 'Please select a slot';
     setFormDataErrors(errors);
     if (Object.keys(errors).length > 0) {
       return;
     }
     try {
       const payload: Appointment = {
-        ...activeAppointment,
-        status: "REQUESTED",
+        ...formData,
+        status: 'REQUESTED',
       };
       await updateAppointment(payload);
       setShowModal(false);
@@ -103,10 +96,7 @@ const Reschedule = ({
     let cancelled = false;
     (async () => {
       try {
-        const slots = await getSlotsForServiceAndDateForPrimaryOrg(
-          appointmentTypeId,
-          selectedDate
-        );
+        const slots = await getSlotsForServiceAndDateForPrimaryOrg(appointmentTypeId, selectedDate);
         if (cancelled) return;
         setTimeSlots(slots);
         setSelectedSlot(slots.length > 0 ? slots[0] : null);
@@ -126,19 +116,10 @@ const Reschedule = ({
     if (!selectedSlot || !selectedDate) return;
     setFormData((prev) => ({
       ...prev,
-      startTime: buildUtcDateFromDateAndTime(
-        selectedDate,
-        selectedSlot.startTime
-      ),
+      startTime: buildUtcDateFromDateAndTime(selectedDate, selectedSlot.startTime),
       endTime: buildUtcDateFromDateAndTime(selectedDate, selectedSlot.endTime),
-      appointmentDate: buildUtcDateFromDateAndTime(
-        selectedDate,
-        selectedSlot.startTime
-      ),
-      durationMinutes: getDurationMinutes(
-        selectedSlot.startTime,
-        selectedSlot.endTime
-      ),
+      appointmentDate: buildUtcDateFromDateAndTime(selectedDate, selectedSlot.startTime),
+      durationMinutes: getDurationMinutes(selectedSlot.startTime, selectedSlot.endTime),
     }));
   }, [selectedSlot, selectedDate]);
 
@@ -153,11 +134,7 @@ const Reschedule = ({
   };
 
   return (
-    <CenterModal
-      showModal={showModal}
-      setShowModal={setShowModal}
-      onClose={handleCancel}
-    >
+    <CenterModal showModal={showModal} setShowModal={setShowModal} onClose={handleCancel}>
       <div className="flex flex-col gap-3">
         <ModalHeader title="Reschedule" onClose={handleCancel} />
         <DateTimePickerSection
@@ -173,11 +150,7 @@ const Reschedule = ({
           onLeadSelect={handleLeadSelect}
           showSupportStaff={false}
         />
-        <Primary
-          href="#"
-          text="Send request"
-          onClick={handleAppointmentUpdate}
-        />
+        <Primary href="#" text="Send request" onClick={handleAppointmentUpdate} />
       </div>
     </CenterModal>
   );

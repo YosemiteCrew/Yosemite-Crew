@@ -33,13 +33,17 @@ const LabelDropdown = ({
   } = useDropdown({ searchable });
 
   useEffect(() => {
-    if (!defaultOption) {
+    if (defaultOption === undefined) {
       setSelected(null);
       return;
     }
-    const found = options.find((option) => option.value === defaultOption);
+    const found = options.find(
+      (option) => option.value === defaultOption || option.label === defaultOption
+    );
     if (found) {
       setSelected(found);
+    } else {
+      setSelected(null);
     }
   }, [defaultOption, options]);
 

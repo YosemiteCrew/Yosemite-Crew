@@ -69,7 +69,7 @@ describe("TaskSlot", () => {
     const container = screen
       .getByText("Task A")
       .closest("button")!.parentElement;
-    expect(container).toHaveStyle("height: 200px");
+    expect(container).toHaveStyle("height: 98px");
   });
 
   it("renders empty state when no tasks exist", () => {

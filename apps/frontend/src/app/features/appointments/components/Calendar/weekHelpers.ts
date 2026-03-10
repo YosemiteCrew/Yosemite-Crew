@@ -1,5 +1,6 @@
-import { Appointment } from "@yosemite-crew/types";
-import { isSameDay } from "@/app/features/appointments/components/Calendar/helpers";
+import { Appointment } from '@yosemite-crew/types';
+import { isSameDay } from '@/app/features/appointments/components/Calendar/helpers';
+import { formatDisplayDate } from '@/app/lib/date';
 
 export const HOURS_IN_DAY = 24;
 
@@ -18,11 +19,7 @@ export function getWeekDays(weekStart: Date): Date[] {
   });
 }
 
-export function eventsForDayHour(
-  events: Appointment[],
-  day: Date,
-  hour: number
-): Appointment[] {
+export function eventsForDayHour(events: Appointment[], day: Date, hour: number): Appointment[] {
   return events.filter((ev) => {
     return isSameDay(ev.startTime, day) && ev.startTime.getHours() === hour;
   });
@@ -50,18 +47,13 @@ export function getStartOfWeek(date: Date, weekStartsOn: 0 | 1 = 1): Date {
 }
 
 export function getShortWeekday(date: Date): string {
-  return date.toLocaleDateString("en-US", { weekday: "short" });
+  return date.toLocaleDateString('en-US', { weekday: 'short' });
 }
 
 export function getDateNumberPadded(date: Date): string {
-  return String(date.getDate()).padStart(2, "0");
+  return String(date.getDate()).padStart(2, '0');
 }
 
 export function getFormattedDate(date: Date): string {
-  const t = new Date(date);
-  return t.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  return formatDisplayDate(date);
 }

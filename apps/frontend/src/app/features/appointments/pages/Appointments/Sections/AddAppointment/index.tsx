@@ -17,6 +17,8 @@ import BookingErrorMessage from "@/app/features/appointments/components/BookingE
 type AddAppointmentProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
+  setActiveStatus: React.Dispatch<React.SetStateAction<string>>;
+  setActiveFilter: React.Dispatch<React.SetStateAction<string>>;
 };
 
 export const EMPTY_APPOINTMENT: Appointment = {
@@ -46,7 +48,12 @@ export const EMPTY_APPOINTMENT: Appointment = {
   concern: "",
 };
 
-const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
+const AddAppointment = ({
+  showModal,
+  setShowModal,
+  setActiveStatus,
+  setActiveFilter,
+}: AddAppointmentProps) => {
   const companions = useCompanionsParentsForPrimaryOrg();
   const [query, setQuery] = useState("");
 
@@ -72,7 +79,11 @@ const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
     handleLeadSelect,
     handleSupportStaffChange,
   } = useAppointmentForm({
-    onSuccess: () => setShowModal(false),
+    onSuccess: () => {
+      setShowModal(false)
+      setActiveFilter("all")
+      setActiveStatus('all')
+    },
   });
 
   const CompanionOptions = useMemo(
@@ -119,7 +130,10 @@ const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <div className="flex flex-col h-full gap-6">
-        <ModalHeader title="Add appointment" onClose={() => setShowModal(false)} />
+        <ModalHeader
+          title="Add appointment"
+          onClose={() => setShowModal(false)}
+        />
 
         <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
           <div className="flex flex-col gap-6 w-full">
@@ -159,7 +173,7 @@ const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
                     <Secondary
                       text="Add companions"
                       href="/companions"
-                      className="w-full"
+                      className="w-auto min-w-[160px]"
                     />
                   </div>
                 )}
@@ -213,14 +227,16 @@ const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
               }
             />
           </div>
-          <div className="flex flex-col items-end gap-2 w-full">
+          <div className="flex flex-col items-center gap-2 w-full pb-3">
             <BookingErrorMessage error={formDataErrors.booking} />
-            <Primary
-              href="#"
-              text="Book appointment"
-              onClick={onSubmit}
-              classname="w-full"
-            />
+            <div className="flex flex-row items-center justify-center gap-2 w-full flex-wrap">
+              <Primary
+                href="#"
+                text="Book appointment"
+                onClick={onSubmit}
+                classname="w-auto min-w-[170px]"
+              />
+            </div>
           </div>
         </div>
       </div>

@@ -16,7 +16,7 @@ export const loadRoomsForOrgPrimaryOrg = async (opts?: {
     useOrganisationRoomStore.getState();
   const primaryOrgId = useOrgStore.getState().primaryOrgId;
   if (!primaryOrgId) {
-    console.warn("No primary organization selected. Cannot load specialities.");
+    console.warn("No primary organization selected. Cannot load rooms.");
     return;
   }
   if (!shouldFetchRooms(status, opts)) return;
@@ -30,7 +30,7 @@ export const loadRoomsForOrgPrimaryOrg = async (opts?: {
     );
     setRoomsForOrg(primaryOrgId, rooms);
   } catch (err) {
-    console.error("Failed to load specialities:", err);
+    console.error("Failed to load rooms:", err);
     throw err;
   }
 };
@@ -47,7 +47,7 @@ export const createRoom = async (room: OrganisationRoom) => {
   const { upsertRoom } = useOrganisationRoomStore.getState();
   const { primaryOrgId } = useOrgStore.getState();
   if (!primaryOrgId) {
-    console.warn("No primary organization selected. Cannot load companions.");
+    console.warn("No primary organization selected. Cannot create room.");
     return;
   }
   try {
@@ -63,7 +63,7 @@ export const createRoom = async (room: OrganisationRoom) => {
     const normalRoom = fromOrganisationRoomRequestDTO(res.data);
     upsertRoom(normalRoom);
   } catch (err) {
-    console.error("Failed to create service:", err);
+    console.error("Failed to create room:", err);
     throw err;
   }
 };
@@ -72,7 +72,7 @@ export const updateRoom = async (payload: OrganisationRoom) => {
   const { upsertRoom } = useOrganisationRoomStore.getState();
   const { primaryOrgId } = useOrgStore.getState();
   if (!primaryOrgId) {
-    console.warn("No primary organization selected. Cannot load companions.");
+    console.warn("No primary organization selected. Cannot update room.");
     return;
   }
   try {
@@ -84,7 +84,7 @@ export const updateRoom = async (payload: OrganisationRoom) => {
     const normalRoom = fromOrganisationRoomRequestDTO(res.data);
     upsertRoom(normalRoom);
   } catch (err) {
-    console.error("Failed to create service:", err);
+    console.error("Failed to update room:", err);
     throw err;
   }
 };

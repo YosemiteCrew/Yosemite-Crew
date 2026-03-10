@@ -1,29 +1,41 @@
-import React from "react";
-import CardHeader from "@/app/ui/cards/CardHeader/CardHeader";
-import DynamicChartCard from "@/app/ui/widgets/DynamicChart/DynamicChartCard";
-
-const blankData = [
-  { month: "Mar", Completed: 0, Cancelled: 0 },
-  { month: "Apr", Completed: 0, Cancelled: 0 },
-  { month: "May", Completed: 0, Cancelled: 0 },
-  { month: "Jun", Completed: 0, Cancelled: 0 },
-  { month: "Jul", Completed: 0, Cancelled: 0 },
-  { month: "Aug", Completed: 0, Cancelled: 0 },
-];
+import React, { useEffect, useState } from 'react';
+import CardHeader from '@/app/ui/cards/CardHeader/CardHeader';
+import DynamicChartCard from '@/app/ui/widgets/DynamicChart/DynamicChartCard';
+import {
+  DashboardDurationOption,
+  mapDashboardDurationOption,
+  useDashboardAnalytics,
+} from '@/app/features/dashboard/hooks/useDashboardAnalytics';
 
 const AppointmentStat = () => {
+  const [selectedDuration, setSelectedDuration] = useState<DashboardDurationOption>('Last week');
+  const analytics = useDashboardAnalytics(mapDashboardDurationOption(selectedDuration));
+  const durationOptions = analytics.durationOptions.appointments;
+
+  useEffect(() => {
+    if (!durationOptions.includes(selectedDuration)) {
+      setSelectedDuration(durationOptions[0] ?? 'Last week');
+    }
+  }, [durationOptions, selectedDuration]);
+
   return (
     <div className="flex flex-col gap-2">
       <CardHeader
-        title={"Appointments"}
-        options={["Last week", "Last month", "Last 6 months", "Last 1 year"]}
+        title={'Appointments'}
+        options={durationOptions}
+        selected={selectedDuration}
+        onSelect={(next) => setSelectedDuration(next as DashboardDurationOption)}
       />
       <DynamicChartCard
-        data={blankData}
+        data={analytics.charts.appointments}
         keys={[
-          { name: "Completed", color: "#111" },
-          { name: "Cancelled", color: "#ccc" },
+          { name: 'Completed', color: '#111' },
+          { name: 'Cancelled', color: '#ccc' },
         ]}
+        yAxisWidth={32}
+        barSize={16}
+        xAxisLabel="Time"
+        yAxisLabel="Appointments"
       />
     </div>
   );

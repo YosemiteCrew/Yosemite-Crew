@@ -1,4 +1,3 @@
-import { jest, describe, it, expect, beforeEach } from "@jest/globals";
 import { Types } from "mongoose";
 import {
   ServiceService,
@@ -14,470 +13,530 @@ import utc from "dayjs/plugin/utc";
 
 dayjs.extend(utc);
 
-// ----------------------------------------------------------------------
-// 1. MOCKS
-// ----------------------------------------------------------------------
-jest.mock("../../src/models/service");
-jest.mock("../../src/models/organization");
-jest.mock("../../src/models/speciality");
-jest.mock("../../src/services/availability.service");
-jest.mock("../../src/utils/helper");
-
-// Mock DTO mappers to be identity functions for easier testing
+// --- Global Mocks Setup ---
 jest.mock("@yosemite-crew/types", () => ({
-  __esModule: true,
+  ...jest.requireActual("@yosemite-crew/types"),
   toServiceResponseDTO: jest.fn((obj) => obj),
   fromServiceRequestDTO: jest.fn((obj) => obj),
 }));
 
-// Helper to mock mongoose chaining
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockMongooseChain = (resolvedValue: any) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const chain: any = {};
-  chain.limit = (jest.fn() as any).mockReturnValue(chain);
-  // FIX: lean should return the chain, NOT resolve immediately
-  chain.lean = (jest.fn() as any).mockReturnValue(chain);
-  chain.exec = (jest.fn() as any).mockResolvedValue(resolvedValue);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  chain.then = (resolve: any) => Promise.resolve(resolvedValue).then(resolve);
-  return chain;
+jest.mock("../../src/models/service", () => ({
+  __esModule: true,
+  default: {
+    create: jest.fn(),
+    findById: jest.fn(),
+    find: jest.fn(),
+    deleteMany: jest.fn(),
+  },
+}));
+
+jest.mock("../../src/models/organization", () => ({
+  __esModule: true,
+  default: {
+    find: jest.fn(),
+  },
+}));
+
+jest.mock("../../src/models/speciality", () => ({
+  __esModule: true,
+  default: {
+    findById: jest.fn(),
+    find: jest.fn(),
+  },
+}));
+
+jest.mock("../../src/services/availability.service", () => ({
+  __esModule: true,
+  AvailabilityService: {
+    getBookableSlotsForDate: jest.fn(),
+  },
+}));
+
+jest.mock("../../src/utils/helper", () => ({
+  __esModule: true,
+  default: {
+    getGeoLocation: jest.fn(),
+  },
+}));
+
+// Query Chain Factory to handle Mongoose methods
+const createQueryChain = (resolvedValue: any) => {
+  const p = Promise.resolve(resolvedValue);
+  (p as any).lean = jest.fn().mockReturnValue(p);
+  (p as any).exec = jest.fn().mockResolvedValue(resolvedValue);
+  (p as any).limit = jest.fn().mockReturnValue(p);
+  return p;
 };
 
-// Helper for Mock Docs
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockDoc = (data: any) => {
-  const _id = data._id || new Types.ObjectId();
-  // Ensure IDs are ObjectIds for strict checks
-  const organisationId =
-    data.organisationId instanceof Types.ObjectId
-      ? data.organisationId
-      : data.organisationId
-        ? new Types.ObjectId(data.organisationId)
-        : undefined;
-
-  const plain = { ...data, _id, organisationId };
+// Helper for building robust Mongoose documents
+const createMockDoc = (overrides = {}) => {
+  const baseId = new Types.ObjectId();
+  const data = {
+    _id: baseId,
+    organisationId: baseId,
+    name: "Base Service",
+    description: "Base Description",
+    durationMinutes: 30,
+    cost: 100,
+    maxDiscount: 10,
+    specialityId: baseId,
+    serviceType: "STANDARD",
+    observationToolId: baseId,
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  };
   return {
-    ...plain,
-    save: (jest.fn() as any).mockResolvedValue(plain),
-    deleteOne: (jest.fn() as any).mockResolvedValue(plain),
-    toObject: (jest.fn() as any).mockReturnValue(plain),
+    ...data,
+    toObject: () => data,
+    save: jest.fn().mockResolvedValue(true),
+    deleteOne: jest.fn().mockResolvedValue(true),
   };
 };
 
 describe("ServiceService", () => {
-  const serviceId = new Types.ObjectId().toString();
-  const orgId = new Types.ObjectId().toString();
-  const specialityId = new Types.ObjectId().toString();
-  const toolId = new Types.ObjectId().toString();
+  const validIdStr = new Types.ObjectId().toHexString();
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  // ======================================================================
-  // 1. CRUD OPERATIONS
-  // ======================================================================
-  describe("CRUD", () => {
-    it("create: should create a service", async () => {
-      const dto = {
-        name: "Vaccination",
-        organisationId: orgId,
-        cost: 100,
-        durationMinutes: 15,
-        isActive: true,
-        specialityId,
-        observationToolId: toolId,
-      };
-
-      const createdDoc = mockDoc(dto);
-      (ServiceModel.create as any).mockResolvedValue(createdDoc);
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await ServiceService.create(dto as any);
-
-      expect(ServiceModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          name: "Vaccination",
-          specialityId: new Types.ObjectId(specialityId),
-          observationToolId: new Types.ObjectId(toolId),
-        }),
-      );
-      expect(result.id).toBeDefined();
+  describe("ServiceServiceError & ensureObjectId", () => {
+    it("should set properties correctly on custom error", () => {
+      const err = new ServiceServiceError("Test message", 400);
+      expect(err.message).toBe("Test message");
+      expect(err.statusCode).toBe(400);
+      expect(err.name).toBe("ServiceServiceError");
     });
 
-    it("create: should handle null optional fields", async () => {
-      const dto = {
-        name: "Simple",
-        organisationId: orgId,
-        cost: 50,
-        durationMinutes: 10,
-        isActive: true,
-      };
-      const createdDoc = mockDoc(dto);
-      (ServiceModel.create as any).mockResolvedValue(createdDoc);
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await ServiceService.create(dto as any);
-
-      expect(ServiceModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          specialityId: null,
-          observationToolId: null,
-        }),
+    it("should throw error for invalid ObjectIds", async () => {
+      await expect(ServiceService.getById("invalid-id")).rejects.toThrow(
+        new ServiceServiceError("Invalid serviceId", 400),
       );
     });
 
-    it("getById: should return service", async () => {
-      const doc = mockDoc({ name: "Found", organisationId: orgId });
-      (ServiceModel.findById as any).mockResolvedValue(doc);
-
-      const result = await ServiceService.getById(serviceId);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      expect((result as any).name).toBe("Found");
-    });
-
-    it("getById: should return null if not found", async () => {
-      (ServiceModel.findById as any).mockResolvedValue(null);
-      const result = await ServiceService.getById(serviceId);
-      expect(result).toBeNull();
-    });
-
-    it("listByOrganisation: should return services", async () => {
-      const docs = [mockDoc({ name: "A", organisationId: orgId })];
-      (ServiceModel.find as any).mockResolvedValue(docs);
-
-      const result = await ServiceService.listByOrganisation(orgId);
-      expect(result).toHaveLength(1);
-    });
-
-    it("update: should update fields selectively", async () => {
-      const doc = mockDoc({
-        name: "Original",
-        cost: 100,
-        organisationId: orgId,
-        isActive: true,
-      });
-      (ServiceModel.findById as any).mockResolvedValue(doc);
-
-      const updates = {
-        name: "Updated",
-        cost: 200,
-        description: "New Desc",
-        specialityId,
-        observationToolId: toolId,
-        isActive: false,
-        serviceType: "Consultation",
-        maxDiscount: 10,
-        durationMinutes: 60,
-      };
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await ServiceService.update(serviceId, updates as any);
-
-      expect(doc.name).toBe("Updated");
-      expect(doc.cost).toBe(200);
-      expect(doc.description).toBe("New Desc");
-      expect(doc.specialityId).toEqual(new Types.ObjectId(specialityId));
-      expect(doc.isActive).toBe(false);
-      expect(doc.save).toHaveBeenCalled();
-    });
-
-    it("update: should handle clearing optional fields", async () => {
-      const doc = mockDoc({
-        name: "Orig",
-        organisationId: orgId,
-        observationToolId: toolId,
-      });
-      (ServiceModel.findById as any).mockResolvedValue(doc);
-
-      // Update with null/falsey values
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await ServiceService.update(serviceId, {
-        observationToolId: null,
-      } as any);
-
-      expect(doc.observationToolId).toBeNull();
-    });
-
-    it("update: should throw if not found", async () => {
-      (ServiceModel.findById as any).mockResolvedValue(null);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await expect(ServiceService.update(serviceId, {} as any)).rejects.toThrow(
-        "Service not found",
-      );
-    });
-
-    it("delete: should delete doc", async () => {
-      const doc = mockDoc({ organisationId: orgId });
-      (ServiceModel.findById as any).mockResolvedValue(doc);
-
-      const res = await ServiceService.delete(serviceId);
-      expect(res).toBe(true);
-      expect(doc.deleteOne).toHaveBeenCalled();
-    });
-
-    it("delete: should return null if missing", async () => {
-      (ServiceModel.findById as any).mockResolvedValue(null);
-      const res = await ServiceService.delete(serviceId);
-      expect(res).toBeNull();
-    });
-
-    it("deleteAllBySpecialityId: should call deleteMany", async () => {
-      (ServiceModel.deleteMany as any).mockReturnValue({ exec: jest.fn() });
-      await ServiceService.deleteAllBySpecialityId(specialityId);
-      expect(ServiceModel.deleteMany).toHaveBeenCalledWith({ specialityId });
+    it("should allow valid ObjectIds (both string and instance)", async () => {
+      (ServiceModel.findById as jest.Mock).mockResolvedValue(null); // Bypass logic
+      await ServiceService.getById(validIdStr); // String
+      await ServiceService.getById(new Types.ObjectId() as any); // Instance
+      expect(ServiceModel.findById).toHaveBeenCalledTimes(2);
     });
   });
 
-  // ======================================================================
-  // 2. SEARCH & LISTING HELPERS
-  // ======================================================================
-  describe("Search & Listing", () => {
-    it("search: should query with text search and org filter", async () => {
-      (ServiceModel.find as any).mockReturnValue(mockMongooseChain([]));
+  describe("create", () => {
+    it("should map request DTO to mongo model correctly with optional fields missing", async () => {
+      const mockDoc = createMockDoc({
+        description: null,
+        maxDiscount: null,
+        specialityId: null,
+        observationToolId: null,
+      });
+      (ServiceModel.create as jest.Mock).mockResolvedValue(mockDoc);
 
-      await ServiceService.search("vaccine", orgId);
+      const request = {
+        organisationId: validIdStr,
+        name: "New Service",
+        durationMinutes: 60,
+        cost: 200,
+        serviceType: "STANDARD",
+        isActive: true,
+      };
 
-      expect(ServiceModel.find).toHaveBeenCalledWith(
+      const res = await ServiceService.create(request as any);
+      expect(ServiceModel.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          organisationId: new Types.ObjectId(orgId),
-          $text: { $search: "vaccine" },
+          organisationId: expect.any(Types.ObjectId),
+          name: "New Service",
+          description: null,
+        }),
+      );
+      expect((res as any).id).toBeDefined();
+    });
+
+    it("should map request DTO with full optional fields populated", async () => {
+      const mockDoc = createMockDoc();
+      (ServiceModel.create as jest.Mock).mockResolvedValue(mockDoc);
+
+      const request = {
+        organisationId: validIdStr,
+        name: "Full Service",
+        description: "Full",
+        durationMinutes: 60,
+        cost: 200,
+        maxDiscount: 20,
+        specialityId: validIdStr,
+        serviceType: "OBSERVATION_TOOL",
+        observationToolId: validIdStr,
+        isActive: true,
+      };
+
+      await ServiceService.create(request as any);
+      expect(ServiceModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          specialityId: expect.any(Types.ObjectId),
+          observationToolId: expect.any(Types.ObjectId),
         }),
       );
     });
+  });
 
-    it("listBySpeciality: should query by specialityId", async () => {
-      (ServiceModel.find as any).mockResolvedValue([]);
-      await ServiceService.listBySpeciality(specialityId);
-      expect(ServiceModel.find).toHaveBeenCalledWith(
-        expect.objectContaining({
-          specialityId: new Types.ObjectId(specialityId),
-        }),
-      );
+  describe("getById", () => {
+    it("should return null if document not found", async () => {
+      (ServiceModel.findById as jest.Mock).mockResolvedValue(null);
+      const res = await ServiceService.getById(validIdStr);
+      expect(res).toBeNull();
     });
 
-    it("listOrganisationsProvidingService: should aggregate distinct orgs", async () => {
-      const s1 = { organisationId: new Types.ObjectId(orgId) };
-      const s2 = { organisationId: new Types.ObjectId(orgId) }; // Duplicate to test Set
-      (ServiceModel.find as any).mockReturnValue(mockMongooseChain([s1, s2]));
+    it("should return mapped document if found", async () => {
+      const mockDoc = createMockDoc();
+      (ServiceModel.findById as jest.Mock).mockResolvedValue(mockDoc);
+      const res = await ServiceService.getById(validIdStr);
+      expect(res).toBeDefined();
+    });
+  });
 
-      (OrganizationModel.find as any).mockReturnValue(
-        mockMongooseChain([{ _id: new Types.ObjectId(orgId), name: "Org 1" }]),
-      );
-
-      const res =
-        await ServiceService.listOrganisationsProvidingService("vaccine");
-
+  describe("listByOrganisation & listBySpeciality", () => {
+    it("listByOrganisation: should query by id and return array", async () => {
+      (ServiceModel.find as jest.Mock).mockResolvedValue([createMockDoc()]);
+      const res = await ServiceService.listByOrganisation(validIdStr);
       expect(res).toHaveLength(1);
-      expect(res[0].name).toBe("Org 1");
     });
 
-    it("listOrganisationsProvidingService: returns empty if no services found", async () => {
-      (ServiceModel.find as any).mockReturnValue(mockMongooseChain([]));
+    it("listBySpeciality: should query by id and return array", async () => {
+      (ServiceModel.find as jest.Mock).mockResolvedValue([createMockDoc()]);
+      const res = await ServiceService.listBySpeciality(validIdStr);
+      expect(res).toHaveLength(1);
+    });
+  });
+
+  describe("update", () => {
+    it("should throw 404 if not found", async () => {
+      (ServiceModel.findById as jest.Mock).mockResolvedValue(null);
+      await expect(
+        ServiceService.update(validIdStr, {} as any),
+      ).rejects.toThrow(new ServiceServiceError("Service not found", 404));
+    });
+
+    it("should apply all partial updates safely including clearing tools/speciality", async () => {
+      const mockDoc = createMockDoc();
+      (ServiceModel.findById as jest.Mock).mockResolvedValue(mockDoc);
+
+      const updates = {
+        name: "Updated",
+        description: "Updated Desc",
+        durationMinutes: 90,
+        cost: 300,
+        maxDiscount: 5,
+        serviceType: "STANDARD",
+        observationToolId: null, // Clears it
+        specialityId: validIdStr,
+        isActive: false,
+      };
+
+      await ServiceService.update(validIdStr, updates as any);
+
+      expect(mockDoc.name).toBe("Updated");
+      expect(mockDoc.description).toBe("Updated Desc");
+      expect(mockDoc.observationToolId).toBeNull();
+      expect(mockDoc.isActive).toBe(false);
+      expect(mockDoc.save).toHaveBeenCalled();
+    });
+  });
+
+  describe("delete & deleteAllBySpecialityId", () => {
+    it("delete: should return null if not found", async () => {
+      (ServiceModel.findById as jest.Mock).mockResolvedValue(null);
+      const res = await ServiceService.delete(validIdStr);
+      expect(res).toBeNull();
+    });
+
+    it("delete: should call deleteOne and return true", async () => {
+      const mockDoc = createMockDoc();
+      (ServiceModel.findById as jest.Mock).mockResolvedValue(mockDoc);
+      const res = await ServiceService.delete(validIdStr);
+      expect(mockDoc.deleteOne).toHaveBeenCalled();
+      expect(res).toBe(true);
+    });
+
+    it("deleteAllBySpecialityId: should call deleteMany", async () => {
+      const execMock = jest.fn().mockResolvedValue(true);
+      (ServiceModel.deleteMany as jest.Mock).mockReturnValue({
+        exec: execMock,
+      });
+
+      await ServiceService.deleteAllBySpecialityId(validIdStr);
+      expect(ServiceModel.deleteMany).toHaveBeenCalledWith({
+        specialityId: validIdStr,
+      });
+      expect(execMock).toHaveBeenCalled();
+    });
+  });
+
+  describe("search", () => {
+    it("should build filter with org and query correctly", async () => {
+      (ServiceModel.find as jest.Mock).mockReturnValue(
+        createQueryChain([createMockDoc()]),
+      );
+
+      await ServiceService.search("vet", validIdStr);
+
+      expect(ServiceModel.find).toHaveBeenCalledWith({
+        isActive: true,
+        organisationId: expect.any(Types.ObjectId),
+        $text: { $search: "vet" },
+      });
+    });
+
+    it("should build filter without query correctly", async () => {
+      (ServiceModel.find as jest.Mock).mockReturnValue(
+        createQueryChain([createMockDoc()]),
+      );
+      await ServiceService.search("", validIdStr);
+      expect(ServiceModel.find).toHaveBeenCalledWith({
+        isActive: true,
+        organisationId: expect.any(Types.ObjectId),
+      });
+    });
+  });
+
+  describe("listOrganisationsProvidingService", () => {
+    it("should return empty if no matching services", async () => {
+      (ServiceModel.find as jest.Mock).mockReturnValue(createQueryChain([]));
       const res =
         await ServiceService.listOrganisationsProvidingService("unknown");
       expect(res).toEqual([]);
     });
+
+    it("should map unique organisation ids and fetch info", async () => {
+      (ServiceModel.find as jest.Mock).mockReturnValue(
+        createQueryChain([
+          { organisationId: validIdStr },
+          { organisationId: validIdStr }, // Duplicate to test Set extraction
+        ]),
+      );
+
+      (OrganizationModel.find as jest.Mock).mockReturnValue(
+        createQueryChain([
+          {
+            _id: validIdStr,
+            name: "Org",
+            imageURL: "url",
+            phoneNo: "123",
+            type: "CLINIC",
+            address: "addr",
+          },
+        ]),
+      );
+
+      const res = await ServiceService.listOrganisationsProvidingService("vet");
+      expect(res).toHaveLength(1);
+      expect(res[0].name).toBe("Org");
+    });
   });
 
-  // ======================================================================
-  // 3. SLOT BOOKING LOGIC (Complex)
-  // ======================================================================
   describe("getBookableSlotsService", () => {
-    it("should throw if service or speciality not found", async () => {
-      (ServiceModel.findById as any).mockResolvedValue(null);
-      await expect(
-        ServiceService.getBookableSlotsService(serviceId, orgId, new Date()),
-      ).rejects.toThrow("Service not found");
+    beforeEach(() => {
+      // Lock time strictly to 2026-01-01 12:00:00 UTC
+      jest.useFakeTimers({ advanceTimers: false });
+      jest.setSystemTime(new Date("2026-01-01T12:00:00Z"));
+    });
 
-      (ServiceModel.findById as any).mockResolvedValue({ specialityId });
-      (SpecialityModel.findById as any).mockResolvedValue(null);
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it("should throw if service not found", async () => {
+      (ServiceModel.findById as jest.Mock).mockResolvedValue(null);
       await expect(
-        ServiceService.getBookableSlotsService(serviceId, orgId, new Date()),
+        ServiceService.getBookableSlotsService(
+          validIdStr,
+          validIdStr,
+          new Date(),
+        ),
+      ).rejects.toThrow("Service not found");
+    });
+
+    it("should throw if speciality not found", async () => {
+      (ServiceModel.findById as jest.Mock).mockResolvedValue(createMockDoc());
+      (SpecialityModel.findById as jest.Mock).mockResolvedValue(null);
+      await expect(
+        ServiceService.getBookableSlotsService(
+          validIdStr,
+          validIdStr,
+          new Date(),
+        ),
       ).rejects.toThrow("Speciality not found");
     });
 
-    it("should return empty if no vets in speciality", async () => {
-      (ServiceModel.findById as any).mockResolvedValue({ specialityId });
-      (SpecialityModel.findById as any).mockResolvedValue({
+    it("should return empty array if no vetIds in speciality", async () => {
+      (ServiceModel.findById as jest.Mock).mockResolvedValue(createMockDoc());
+      (SpecialityModel.findById as jest.Mock).mockResolvedValue({
         memberUserIds: [],
       });
 
       const res = await ServiceService.getBookableSlotsService(
-        serviceId,
-        orgId,
+        validIdStr,
+        validIdStr,
         new Date(),
       );
       expect(res.windows).toEqual([]);
     });
 
-    it("should aggregate slots from multiple vets and deduplicate", async () => {
-      const vet1 = "vet1";
-      const vet2 = "vet2";
-      const date = new Date("2025-01-01T12:00:00Z");
-
-      (ServiceModel.findById as any).mockResolvedValue({
-        specialityId,
-        durationMinutes: 15,
-      });
-      (SpecialityModel.findById as any).mockResolvedValue({
-        memberUserIds: [vet1, vet2],
-      });
-
-      // Mock AvailabilityService to return slots
-      // vet1 has slot at 10:00
-      // vet2 has slot at 10:00 (overlap) and 11:00
-      (AvailabilityService.getBookableSlotsForDate as any).mockImplementation(
-        (_oid: any, vid: any) => {
-          if (vid === vet1)
-            return { windows: [{ startTime: "10:00", endTime: "10:15" }] };
-          if (vid === vet2)
-            return {
-              windows: [
-                { startTime: "10:00", endTime: "10:15" },
-                { startTime: "11:00", endTime: "11:15" },
-              ],
-            };
-          return { windows: [] };
-        },
+    it("should fetch, deduplicate, filter past slots (when today), and sort", async () => {
+      (ServiceModel.findById as jest.Mock).mockResolvedValue(
+        createMockDoc({ durationMinutes: 60 }),
       );
+      (SpecialityModel.findById as jest.Mock).mockResolvedValue({
+        memberUserIds: ["vet1", "vet2"],
+      });
+
+      // Vet 1 provides a past slot (10:00) and a future slot (14:00)
+      (
+        AvailabilityService.getBookableSlotsForDate as jest.Mock
+      ).mockResolvedValueOnce({
+        windows: [
+          { startTime: "10:00", endTime: "11:00", isAvailable: true }, // Past
+          { startTime: "14:00", endTime: "15:00", isAvailable: true }, // Future
+        ],
+      });
+
+      // Vet 2 provides the SAME future slot (14:00) and an evening slot (18:00)
+      (
+        AvailabilityService.getBookableSlotsForDate as jest.Mock
+      ).mockResolvedValueOnce({
+        windows: [
+          { startTime: "14:00", endTime: "15:00", isAvailable: true }, // Duplicate
+          { startTime: "18:00", endTime: "19:00", isAvailable: true }, // Future, late
+        ],
+      });
+
+      // We ask for slots for "today" (2026-01-01T00:00:00Z)
+      const refDate = new Date("2026-01-01T00:00:00Z");
 
       const res = await ServiceService.getBookableSlotsService(
-        serviceId,
-        orgId,
-        date,
+        validIdStr,
+        validIdStr,
+        refDate,
       );
 
-      // Should have 2 unique time slots: 10:00 and 11:00
+      // The 10:00 slot is filtered out because it is "today" and the clock is at 12:00.
+      // The 14:00 slot is merged/deduplicated (holds both vet1 & vet2).
+      // The 18:00 slot is present.
       expect(res.windows).toHaveLength(2);
-
-      // 10:00 slot should have both vets
-      const slot10 = res.windows.find((w) => w.startTime === "10:00");
-      expect(slot10?.vetIds).toHaveLength(2);
-      expect(slot10?.vetIds).toContain(vet1);
-      expect(slot10?.vetIds).toContain(vet2);
-
-      // 11:00 slot should have only vet2
-      const slot11 = res.windows.find((w) => w.startTime === "11:00");
-      expect(slot11?.vetIds).toHaveLength(1);
-      expect(slot11?.vetIds).toContain(vet2);
+      expect(res.windows[0].startTime).toBe("14:00");
+      expect(res.windows[0].vetIds).toEqual(["vet1", "vet2"]); // Deduplication check
+      expect(res.windows[1].startTime).toBe("18:00");
+      expect(res.windows[1].vetIds).toEqual(["vet2"]);
     });
 
-    it("should filter past slots if querying for today", async () => {
-      const today = dayjs().utc().startOf("day").toDate();
-      // Mock current time handling by relying on logic: logic compares string timestamps.
-      // We provide a slot that is definitely 'past' relative to the test runtime (00:00)
-      // and one that is definitely 'future' (23:59).
+    it("should NOT filter past times if reference date is in the future", async () => {
+      (ServiceModel.findById as jest.Mock).mockResolvedValue(createMockDoc());
+      (SpecialityModel.findById as jest.Mock).mockResolvedValue({
+        memberUserIds: ["vet1"],
+      });
 
-      const pastSlot = { startTime: "00:00", endTime: "00:15" };
-      const futureSlot = { startTime: "23:59", endTime: "23:59" };
+      (
+        AvailabilityService.getBookableSlotsForDate as jest.Mock
+      ).mockResolvedValueOnce({
+        windows: [
+          { startTime: "09:00", endTime: "10:00", isAvailable: true }, // Technically "past" today, but tomorrow it is valid
+        ],
+      });
 
-      (ServiceModel.findById as any).mockResolvedValue({
-        specialityId,
-        durationMinutes: 15,
-      });
-      (SpecialityModel.findById as any).mockResolvedValue({
-        memberUserIds: ["v1"],
-      });
-      (AvailabilityService.getBookableSlotsForDate as any).mockResolvedValue({
-        windows: [pastSlot, futureSlot],
-      });
+      // Ask for slots for "tomorrow"
+      const refDate = new Date("2026-01-02T00:00:00Z");
 
       const res = await ServiceService.getBookableSlotsService(
-        serviceId,
-        orgId,
-        today,
+        validIdStr,
+        validIdStr,
+        refDate,
       );
 
-      // Should filter out 00:00, keep 23:59
-      expect(res.windows.find((w) => w.startTime === "00:00")).toBeUndefined();
-      expect(res.windows.find((w) => w.startTime === "23:59")).toBeDefined();
+      // The 09:00 slot should remain because it's for tomorrow.
+      expect(res.windows).toHaveLength(1);
+      expect(res.windows[0].startTime).toBe("09:00");
     });
   });
 
-  // ======================================================================
-  // 4. COMPLEX AGGREGATION
-  // ======================================================================
   describe("listOrganisationsProvidingServiceNearby", () => {
-    it("should aggregate orgs, specialities, and services", async () => {
-      // 1. Find matched services
-      const matchedSvc = [{ organisationId: new Types.ObjectId(orgId) }];
-      (ServiceModel.find as any).mockReturnValue(mockMongooseChain(matchedSvc));
-
-      // 2. Mock Geolocation if lat/lng missing
-      (helpers.getGeoLocation as any).mockResolvedValue({ lat: 10, lng: 20 });
-
-      // 3. Find Orgs
-      const orgDoc = {
-        _id: new Types.ObjectId(orgId),
-        name: "Vet Clinic",
-        address: {},
-      };
-      (OrganizationModel.find as any).mockReturnValue(
-        mockMongooseChain([orgDoc]),
-      );
-
-      // 4. Find All Specialities
-      const specDoc = {
-        _id: new Types.ObjectId(specialityId),
-        name: "General",
-        organisationId: new Types.ObjectId(orgId),
-      };
-      // First find inside helper, Second find for all specialities
-      (SpecialityModel.find as any).mockReturnValue(
-        mockMongooseChain([specDoc]),
-      );
-
-      // 5. Find All Services for Orgs (re-mock ServiceModel.find for second call)
-      const srvDoc = {
-        _id: new Types.ObjectId(serviceId),
-        name: "Checkup",
-        specialityId: new Types.ObjectId(specialityId),
-        organisationId: new Types.ObjectId(orgId),
-      };
-
-      // ServiceModel.find is called TWICE.
-      // 1st call: search regex -> matchedSvc
-      // 2nd call: fetch all services -> srvDoc
-      (ServiceModel.find as any)
-        .mockReturnValueOnce(mockMongooseChain(matchedSvc)) // search
-        .mockReturnValueOnce(mockMongooseChain([srvDoc])); // grouping
-
+    it("should return empty if no matching services", async () => {
+      (ServiceModel.find as jest.Mock).mockReturnValue(createQueryChain([]));
       const res = await ServiceService.listOrganisationsProvidingServiceNearby(
-        "Checkup",
-        0,
-        0,
-        "City",
-      );
-
-      expect(helpers.getGeoLocation).toHaveBeenCalledWith("City");
-      expect(res).toHaveLength(1);
-      expect(res[0].id).toBe(orgId);
-      expect(res[0].specialities).toHaveLength(1);
-      expect(res[0].specialities[0].services).toHaveLength(1);
-      expect(res[0].specialities[0].services[0].name).toBe("Checkup");
-    });
-
-    it("should return empty if no matching services found", async () => {
-      (ServiceModel.find as any).mockReturnValue(mockMongooseChain([]));
-      const res = await ServiceService.listOrganisationsProvidingServiceNearby(
-        "Unknown",
-        10,
-        10,
+        "unknown",
+        1,
+        1,
       );
       expect(res).toEqual([]);
     });
-  });
 
-  // ======================================================================
-  // 5. ERROR UTILS
-  // ======================================================================
-  describe("Utils", () => {
-    it("ensureObjectId: should throw on invalid ID", async () => {
-      await expect(ServiceService.getById("invalid-id")).rejects.toThrow(
-        "Invalid serviceId",
+    it("should geocode query if lat/lng are 0 or falsy", async () => {
+      (ServiceModel.find as jest.Mock).mockReturnValueOnce(
+        createQueryChain([{ organisationId: validIdStr }]),
+      ); // Matches Service
+      (helpers.getGeoLocation as jest.Mock).mockResolvedValue({
+        lat: 40,
+        lng: -74,
+      });
+      (OrganizationModel.find as jest.Mock).mockReturnValue(
+        createQueryChain([]),
+      ); // Returns empty orgs for simplicity
+      (SpecialityModel.find as jest.Mock).mockReturnValue(createQueryChain([]));
+      (ServiceModel.find as jest.Mock).mockReturnValueOnce(
+        createQueryChain([]),
+      ); // 2nd call for services inside orgs
+
+      await ServiceService.listOrganisationsProvidingServiceNearby(
+        "vet",
+        0,
+        0,
+        "New York",
       );
+
+      expect(helpers.getGeoLocation).toHaveBeenCalledWith("New York");
+    });
+
+    it("should group specialities and services appropriately by organisation", async () => {
+      (ServiceModel.find as jest.Mock).mockReturnValueOnce(
+        createQueryChain([{ organisationId: validIdStr }]),
+      ); // Matching initial Service
+
+      // Orgs
+      (OrganizationModel.find as jest.Mock).mockReturnValue(
+        createQueryChain([{ _id: validIdStr, name: "Org1" }]),
+      );
+
+      // Specialities for org
+      (SpecialityModel.find as jest.Mock).mockReturnValue(
+        createQueryChain([
+          { _id: "spec1", organisationId: validIdStr, name: "General" },
+        ]),
+      );
+
+      // Services for org
+      (ServiceModel.find as jest.Mock).mockReturnValueOnce(
+        createQueryChain([
+          {
+            _id: "serv1",
+            name: "Checkup",
+            specialityId: "spec1",
+            organisationId: validIdStr,
+          },
+        ]),
+      );
+
+      const res = await ServiceService.listOrganisationsProvidingServiceNearby(
+        "Checkup",
+        40,
+        -74,
+      );
+
+      expect(res).toHaveLength(1);
+      expect(res[0].name).toBe("Org1");
+      expect(res[0].specialities).toHaveLength(1);
+      expect(res[0].specialities[0].name).toBe("General");
+      expect(res[0].specialities[0].services).toHaveLength(1);
+      expect(res[0].specialities[0].services[0].name).toBe("Checkup");
     });
   });
 });

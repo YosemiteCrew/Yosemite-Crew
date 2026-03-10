@@ -24,7 +24,9 @@ jest.mock("@/app/features/organization/pages/Organization/Sections", () => ({
   Rooms: () => <div data-testid="rooms" />,
   Team: () => <div data-testid="team" />,
   Payment: () => <div data-testid="payment" />,
+  LinkedMedicalDevices: () => <div data-testid="linked-medical-devices" />,
   Documents: () => <div data-testid="documents" />,
+  DocumentESigning: () => <div data-testid="document-e-signing" />,
   DeleteOrg: () => <div data-testid="delete-org" />,
 }));
 
@@ -43,7 +45,9 @@ describe("Organization page", () => {
     expect(screen.getByTestId("team")).toBeInTheDocument();
     expect(screen.getByTestId("rooms")).toBeInTheDocument();
     expect(screen.getByTestId("payment")).toBeInTheDocument();
+    expect(screen.getByTestId("linked-medical-devices")).toBeInTheDocument();
     expect(screen.getByTestId("documents")).toBeInTheDocument();
+    expect(screen.getByTestId("document-e-signing")).toBeInTheDocument();
     expect(screen.getByTestId("delete-org")).toBeInTheDocument();
   });
 
@@ -57,7 +61,9 @@ describe("Organization page", () => {
     expect(screen.queryByTestId("team")).not.toBeInTheDocument();
     expect(screen.queryByTestId("rooms")).not.toBeInTheDocument();
     expect(screen.queryByTestId("payment")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("linked-medical-devices")).not.toBeInTheDocument();
     expect(screen.queryByTestId("documents")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("document-e-signing")).not.toBeInTheDocument();
     expect(screen.getByTestId("delete-org")).toBeInTheDocument();
   });
 });

@@ -1,4 +1,4 @@
-import { FormEvent } from "react";
+import React from "react";
 import Link from "next/link";
 
 type ButtonSize = "default" | "large";
@@ -6,7 +6,7 @@ type ButtonSize = "default" | "large";
 type ButtonProps = {
   text: string;
   href: string;
-  onClick?: (e: FormEvent<Element>) => void;
+  onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
   style?: React.CSSProperties;
   className?: string;
   isDisabled?: boolean;
@@ -28,7 +28,7 @@ const Secondary = ({
   size = "default",
 }: Readonly<ButtonProps>) => {
   const baseClasses =
-    "px-8 flex items-center justify-center rounded-2xl! transition-all duration-300 ease-in-out";
+    "px-8 flex items-center justify-center rounded-2xl! transition-all duration-300 ease-in-out text-body-3-emphasis text-center font-satoshi";
 
   return (
     <Link

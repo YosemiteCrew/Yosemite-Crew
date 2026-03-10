@@ -1,4 +1,5 @@
-import { Types } from 'mongoose';
+import { Types } from "mongoose";
+import dayjs from "dayjs";
 import {
   InventoryService,
   InventoryAdjustmentService,
@@ -6,545 +7,998 @@ import {
   InventoryVendorService,
   InventoryMetaFieldService,
   InventoryAlertService,
-} from '../../src/services/inventory.service';
-
+  InventoryServiceError,
+} from "../../src/services/inventory.service";
 import {
   InventoryItemModel,
   InventoryBatchModel,
   InventoryVendorModel,
   InventoryMetaFieldModel,
   StockMovementModel,
-} from '../../src/models/inventory';
+} from "../../src/models/inventory";
+import { OrgBilling } from "../../src/models/organization.billing";
 
-// --- Mocks ---
-jest.mock('../../src/models/inventory');
+jest.mock("../../src/models/inventory", () => ({
+  InventoryItemModel: {
+    create: jest.fn(),
+    findById: jest.fn(),
+    find: jest.fn(),
+    findByIdAndUpdate: jest.fn(),
+  },
+  InventoryBatchModel: {
+    create: jest.fn(),
+    findById: jest.fn(),
+    find: jest.fn(),
+    insertMany: jest.fn(),
+    aggregate: jest.fn(),
+  },
+  InventoryVendorModel: {
+    create: jest.fn(),
+    findById: jest.fn(),
+    find: jest.fn(),
+    findByIdAndDelete: jest.fn(),
+  },
+  InventoryMetaFieldModel: {
+    create: jest.fn(),
+    findById: jest.fn(),
+    find: jest.fn(),
+    findByIdAndDelete: jest.fn(),
+  },
+  StockMovementModel: {
+    create: jest.fn(),
+    find: jest.fn(),
+  },
+}));
 
-// Helper to mock Mongoose chainable queries
-const mockChain = (result: any) => ({
+jest.mock("../../src/models/organization.billing", () => ({
+  OrgBilling: {
+    findOne: jest.fn(),
+  },
+}));
+
+const validId = new Types.ObjectId().toString();
+
+const createChainable = (resolvedValue: any) => ({
   sort: jest.fn().mockReturnThis(),
-  skip: jest.fn().mockReturnThis(),
-  limit: jest.fn().mockReturnThis(),
-  lean: jest.fn().mockResolvedValue(result),
-  exec: jest.fn().mockResolvedValue(result),
+  exec: jest.fn().mockResolvedValue(resolvedValue),
+  lean: jest.fn().mockResolvedValue(resolvedValue),
 });
 
-// Stable Constants
-const VALID_ID_STR = '507f1f77bcf86cd799439011';
-const VALID_ID_OBJ = new Types.ObjectId(VALID_ID_STR);
-const VALID_ORG_ID = '507f1f77bcf86cd799439099';
+const createMockDoc = (data: any) => ({
+  _id: validId,
+  ...data,
+  save: jest.fn().mockResolvedValue(true),
+  deleteOne: jest.fn().mockResolvedValue(true),
+  toObject: jest.fn().mockReturnValue({ _id: validId, ...data }),
+});
 
-/**
- * Robust Mock Document Generator
- */
-const mockDoc = (data: any = {}) => {
-  const _id = data._id
-    ? (data._id instanceof Types.ObjectId ? data._id : new Types.ObjectId(data._id))
-    : new Types.ObjectId();
-
-  return {
-    ...data,
-    _id,
-    id: _id.toString(),
-    save: jest.fn().mockImplementation(function (this: any) { return Promise.resolve(this); }),
-    toObject: jest.fn().mockImplementation(function (this: any) {
-      const { save, toObject, deleteOne, ...pojo } = this;
-      return { ...pojo, _id };
-    }),
-    deleteOne: jest.fn().mockResolvedValue(true),
-  };
-};
-
-describe('Inventory Services', () => {
-  // Removed global fake timers to prevent timeouts in other tests
+describe("Inventory Service Suite", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+
+    (InventoryItemModel.findByIdAndUpdate as jest.Mock).mockReturnValue(
+      createChainable(true),
+    );
   });
 
-  // ─────────────────────────────────────────────
-  // 1. InventoryService
-  // ─────────────────────────────────────────────
-  describe('InventoryService', () => {
-
-    describe('createItem', () => {
-      it('should throw if required fields missing', async () => {
-        await expect(InventoryService.createItem({} as any))
-          .rejects.toThrow('organisationId is required');
-        await expect(InventoryService.createItem({ organisationId: '1' } as any))
-          .rejects.toThrow('name is required');
-        await expect(InventoryService.createItem({ organisationId: '1', name: 'N' } as any))
-          .rejects.toThrow('category is required');
-      });
-    });
-
-    describe('updateItem', () => {
-      it('should throw if item not found', async () => {
-        (InventoryItemModel.findById as jest.Mock).mockReturnValue(mockChain(null));
-        await expect(InventoryService.updateItem(VALID_ID_STR, {})).rejects.toThrow('Inventory item not found');
-      });
-
-      it('should update fields', async () => {
-        const itemDoc = mockDoc({ _id: VALID_ID_OBJ });
-        (InventoryItemModel.findById as jest.Mock).mockReturnValue(mockChain(itemDoc));
-        (InventoryBatchModel.find as jest.Mock).mockReturnValue(mockChain([]));
-
-        await InventoryService.updateItem(VALID_ID_STR, {
-          name: 'New Name',
-          unitCost: 10,
-          status: 'HIDDEN'
-        });
-
-        expect(itemDoc.name).toBe('New Name');
-        expect(itemDoc.unitCost).toBe(10);
-        expect(itemDoc.status).toBe('HIDDEN');
-        expect(itemDoc.save).toHaveBeenCalled();
-      });
-    });
-
-    describe('State Changes', () => {
-      it('should hide item', async () => {
-        const item = mockDoc({});
-        (InventoryItemModel.findById as jest.Mock).mockReturnValue(mockChain(item));
-        await InventoryService.hideItem(VALID_ID_STR);
-        expect(item.status).toBe('HIDDEN');
-      });
-
-      it('should archive item', async () => {
-        const item = mockDoc({});
-        (InventoryItemModel.findById as jest.Mock).mockReturnValue(mockChain(item));
-        await InventoryService.archiveItem(VALID_ID_STR);
-        expect(item.status).toBe('DELETED');
-      });
-
-      it('should activate item', async () => {
-        const item = mockDoc({});
-        (InventoryItemModel.findById as jest.Mock).mockReturnValue(mockChain(item));
-        await InventoryService.activeItem(VALID_ID_STR);
-        expect(item.status).toBe('ACTIVE');
-      });
-
-      it('should throw if item not found during state change', async () => {
-        (InventoryItemModel.findById as jest.Mock).mockReturnValue(mockChain(null));
-        await expect(InventoryService.hideItem(VALID_ID_STR)).rejects.toThrow('Inventory item not found');
-      });
-    });
-
-    describe('listItems', () => {
-      it('should filter by stockHealth (lowStockOnly)', async () => {
-        const item = mockDoc({ onHand: 10, reorderLevel: 5 }); // HEALTHY
-        (InventoryItemModel.find as jest.Mock).mockReturnValue(mockChain([item]));
-        (InventoryBatchModel.find as jest.Mock).mockReturnValue(mockChain([]));
-
-        const res = await InventoryService.listItems({ organisationId: VALID_ORG_ID, lowStockOnly: true });
-        expect(res).toHaveLength(0);
-      });
-
-      it('should filter by stockHealth (expiredOnly)', async () => {
-        const item = mockDoc({});
-        (InventoryItemModel.find as jest.Mock).mockReturnValue(mockChain([item]));
-        (InventoryBatchModel.find as jest.Mock).mockReturnValue(mockChain([]));
-
-        const res = await InventoryService.listItems({ organisationId: VALID_ORG_ID, expiredOnly: true });
-        expect(res).toHaveLength(0);
-      });
-
-      it('should filter by stockHealth (expiringWithinDays)', async () => {
-        const item = mockDoc({});
-        (InventoryItemModel.find as jest.Mock).mockReturnValue(mockChain([item]));
-        (InventoryBatchModel.find as jest.Mock).mockReturnValue(mockChain([]));
-
-        const res = await InventoryService.listItems({ organisationId: VALID_ORG_ID, expiringWithinDays: 7 });
-        expect(res).toHaveLength(0);
-      });
-    });
-
-    describe('getItemWithBatches', () => {
-        it('should return item and batches', async () => {
-            (InventoryItemModel.findById as jest.Mock).mockReturnValue(mockChain(mockDoc({ name: 'I' })));
-            (InventoryBatchModel.find as jest.Mock).mockReturnValue(mockChain([]));
-            const res = await InventoryService.getItemWithBatches(VALID_ID_STR, VALID_ORG_ID);
-            expect(res.item).toBeDefined();
-        });
-
-        it('should throw if not found', async () => {
-            (InventoryItemModel.findById as jest.Mock).mockReturnValue(mockChain(null));
-            await expect(InventoryService.getItemWithBatches(VALID_ID_STR, VALID_ORG_ID)).rejects.toThrow('not found');
-        });
-    });
-
-    describe('Batch Operations', () => {
-        it('should add batch and recompute item stock', async () => {
-            const item = mockDoc({ _id: VALID_ID_OBJ, onHand: 0 });
-            (InventoryItemModel.findById as jest.Mock).mockResolvedValue(item);
-            (InventoryBatchModel.create as jest.Mock).mockResolvedValue({});
-
-            (InventoryBatchModel.find as jest.Mock)
-                .mockReturnValue(mockChain([
-                    mockDoc({ quantity: 10, allocated: 5 })
-                ]));
-
-            await InventoryService.addBatch(VALID_ID_STR, { quantity: 10 });
-
-            expect(item.onHand).toBe(10);
-            expect(item.allocated).toBe(5);
-            expect(item.save).toHaveBeenCalled();
-        });
-
-        it('should throw if adding batch to missing item', async () => {
-            (InventoryItemModel.findById as jest.Mock).mockResolvedValue(null);
-            await expect(InventoryService.addBatch(VALID_ID_STR, { quantity: 1 })).rejects.toThrow('not found');
-        });
-
-        it('should update batch and recompute', async () => {
-            const batch = mockDoc({ itemId: VALID_ID_OBJ });
-            (InventoryBatchModel.findById as jest.Mock).mockReturnValue(mockChain(batch));
-            (InventoryBatchModel.find as jest.Mock).mockReturnValue(mockChain([{ quantity: 20 }]));
-            (InventoryItemModel.findByIdAndUpdate as jest.Mock).mockReturnValue(mockChain({}));
-
-            await InventoryService.updateBatch(VALID_ID_STR, { quantity: 20 });
-
-            expect(batch.quantity).toBe(20);
-            expect(batch.save).toHaveBeenCalled();
-            expect(InventoryItemModel.findByIdAndUpdate).toHaveBeenCalledWith(VALID_ID_OBJ, { onHand: 20, allocated: 0 });
-        });
-
-        it('should throw if updating missing batch', async () => {
-            (InventoryBatchModel.findById as jest.Mock).mockReturnValue(mockChain(null));
-            await expect(InventoryService.updateBatch(VALID_ID_STR, {})).rejects.toThrow('Batch not found');
-        });
-
-        it('should delete batch and recompute', async () => {
-            const batch = mockDoc({ itemId: VALID_ID_OBJ });
-            (InventoryBatchModel.findById as jest.Mock).mockReturnValue(mockChain(batch));
-            (InventoryBatchModel.find as jest.Mock).mockReturnValue(mockChain([]));
-            (InventoryItemModel.findByIdAndUpdate as jest.Mock).mockReturnValue(mockChain({}));
-
-            await InventoryService.deleteBatch(VALID_ID_STR);
-
-            expect(batch.deleteOne).toHaveBeenCalled();
-            expect(InventoryItemModel.findByIdAndUpdate).toHaveBeenCalledWith(VALID_ID_STR, { onHand: 0, allocated: 0 });
-        });
-
-        it('should do nothing if deleting missing batch', async () => {
-            (InventoryBatchModel.findById as jest.Mock).mockReturnValue(mockChain(null));
-            await InventoryService.deleteBatch(VALID_ID_STR);
-            expect(InventoryItemModel.findByIdAndUpdate).not.toHaveBeenCalled();
-        });
-    });
-
-    describe('consumeStock', () => {
-        it('should consume strictly from batches (FIFO) and update item', async () => {
-            const item = mockDoc({ _id: VALID_ID_OBJ, onHand: 10 });
-            (InventoryItemModel.findById as jest.Mock).mockReturnValue(mockChain(item));
-
-            const b1 = mockDoc({ _id: '507f1f77bcf86cd799439022', quantity: 3, save: jest.fn() });
-            const b2 = mockDoc({ _id: '507f1f77bcf86cd799439023', quantity: 5, save: jest.fn() });
-
-            (InventoryBatchModel.find as jest.Mock)
-                .mockReturnValueOnce(mockChain([b1, b2])) // consume loop
-                .mockReturnValueOnce(mockChain([{ quantity: 3 }])); // recompute
-
-            await InventoryService.consumeStock({ itemId: VALID_ID_STR, quantity: 5, reason: 'OTHER' });
-
-            expect(b1.quantity).toBe(0);
-            expect(b2.quantity).toBe(3);
-            expect(b1.save).toHaveBeenCalled();
-            expect(b2.save).toHaveBeenCalled();
-            expect(item.save).toHaveBeenCalled();
-        });
-
-        it('should skip empty batches', async () => {
-            const item = mockDoc({ _id: VALID_ID_OBJ, onHand: 5 });
-            (InventoryItemModel.findById as jest.Mock).mockReturnValue(mockChain(item));
-
-            const b1 = mockDoc({ quantity: 0 });
-            const b2 = mockDoc({ quantity: 5 });
-            (InventoryBatchModel.find as jest.Mock).mockReturnValueOnce(mockChain([b1, b2]));
-            (InventoryBatchModel.find as jest.Mock).mockReturnValueOnce(mockChain([]));
-
-            await InventoryService.consumeStock({ itemId: VALID_ID_STR, quantity: 1, reason: 'OTHER' });
-
-            expect(b1.save).not.toHaveBeenCalled();
-            expect(b2.quantity).toBe(4);
-        });
-
-        it('should throw if quantity <= 0', async () => {
-            await expect(InventoryService.consumeStock({ itemId: VALID_ID_STR, quantity: 0, reason: 'OTHER' }))
-                .rejects.toThrow('quantity must be > 0');
-        });
-
-        it('should throw if item not found', async () => {
-            (InventoryItemModel.findById as jest.Mock).mockReturnValue(mockChain(null));
-            await expect(InventoryService.consumeStock({ itemId: VALID_ID_STR, quantity: 1, reason: 'OTHER' }))
-                .rejects.toThrow('Inventory item not found');
-        });
-
-        it('should throw if insufficient total stock', async () => {
-            const item = mockDoc({ onHand: 5 });
-            (InventoryItemModel.findById as jest.Mock).mockReturnValue(mockChain(item));
-            await expect(InventoryService.consumeStock({ itemId: VALID_ID_STR, quantity: 10, reason: 'OTHER' }))
-                .rejects.toThrow('Insufficient stock');
-        });
-
-        it('should throw safely if batches exhausted before quantity met', async () => {
-            const item = mockDoc({ onHand: 10 });
-            (InventoryItemModel.findById as jest.Mock).mockReturnValue(mockChain(item));
-
-            const b1 = mockDoc({ quantity: 2 });
-            (InventoryBatchModel.find as jest.Mock).mockReturnValueOnce(mockChain([b1]));
-
-            await expect(InventoryService.consumeStock({ itemId: VALID_ID_STR, quantity: 5, reason: 'OTHER' }))
-                .rejects.toThrow('Failed to consume full requested quantity');
-        });
-    });
-
-    describe('getInventoryTurnoverByItem', () => {
-        it('should return empty array if no items', async () => {
-            (InventoryItemModel.find as jest.Mock).mockReturnValue(mockChain([]));
-            const res = await InventoryService.getInventoryTurnoverByItem({ organisationId: VALID_ORG_ID });
-            expect(res).toHaveLength(0);
-        });
+  describe("InventoryServiceError", () => {
+    it("should instantiate correctly with defaults", () => {
+      const err = new InventoryServiceError("Test Error");
+      expect(err.message).toBe("Test Error");
+      expect(err.statusCode).toBe(400);
+      expect(err.name).toBe("InventoryServiceError");
     });
   });
 
-  // ─────────────────────────────────────────────
-  // 2. InventoryAdjustmentService
-  // ─────────────────────────────────────────────
-  describe('InventoryAdjustmentService', () => {
-    it('should handle positive adjustment', async () => {
-        const item = mockDoc({ _id: VALID_ID_OBJ, onHand: 10 });
-        (InventoryItemModel.findById as jest.Mock).mockResolvedValue(item);
-        (InventoryBatchModel.create as jest.Mock).mockResolvedValue({});
-        (InventoryBatchModel.find as jest.Mock).mockResolvedValue([{ quantity: 15, allocated: 0 }]);
-
-        await InventoryAdjustmentService.adjustStock({
-            itemId: VALID_ID_STR, newOnHand: 15, reason: 'Fix'
-        });
-
-        expect(InventoryBatchModel.create).toHaveBeenCalledWith(expect.objectContaining({ quantity: 5 }));
-        expect(StockMovementModel.create).toHaveBeenCalledWith(expect.objectContaining({ change: 5 }));
-        expect(item.onHand).toBe(15);
+  describe("InventoryService.createItem", () => {
+    it("throws if organisationId is missing", async () => {
+      await expect(InventoryService.createItem({} as any)).rejects.toThrow(
+        "organisationId is required",
+      );
+    });
+    it("throws if name is missing", async () => {
+      await expect(
+        InventoryService.createItem({ organisationId: "org1" } as any),
+      ).rejects.toThrow("name is required");
+    });
+    it("throws if category is missing", async () => {
+      await expect(
+        InventoryService.createItem({
+          organisationId: "org1",
+          name: "n",
+        } as any),
+      ).rejects.toThrow("category is required");
+    });
+    it("throws if businessType is invalid", async () => {
+      await expect(
+        InventoryService.createItem({
+          organisationId: "org1",
+          name: "n",
+          category: "c",
+          businessType: "INVALID" as any,
+        }),
+      ).rejects.toThrow("Invalid businessType");
     });
 
-    it('should handle negative adjustment', async () => {
-        const item = mockDoc({ _id: VALID_ID_OBJ, onHand: 10 });
-        (InventoryItemModel.findById as jest.Mock).mockResolvedValue(item);
+    it("creates an item successfully without batches", async () => {
+      (OrgBilling.findOne as jest.Mock).mockResolvedValueOnce(null); // test fallback to "usd"
+      const mockDoc = createMockDoc({ _id: validId, organisationId: "org1" });
+      (InventoryItemModel.create as jest.Mock).mockResolvedValueOnce(mockDoc);
+      (InventoryBatchModel.find as jest.Mock).mockReturnValueOnce(
+        createChainable([]),
+      );
 
-        const b1 = mockDoc({ quantity: 10, save: jest.fn() });
-        (InventoryBatchModel.find as jest.Mock)
-            .mockReturnValueOnce(mockChain([b1]))
-            .mockReturnValueOnce([{ quantity: 5 }]);
+      const res = await InventoryService.createItem({
+        organisationId: "org1",
+        name: "Item",
+        category: "Cat",
+        businessType: "HOSPITAL",
+        subCategory: "Sub",
+        attributes: { size: "L" },
+        unitCost: 10,
+        status: "ACTIVE",
+      });
 
-        await InventoryAdjustmentService.adjustStock({
-            itemId: VALID_ID_STR, newOnHand: 5, reason: 'Fix'
-        });
-
-        expect(b1.quantity).toBe(5);
-        expect(StockMovementModel.create).toHaveBeenCalledWith(expect.objectContaining({ change: -5 }));
-        expect(item.onHand).toBe(5);
+      expect(InventoryItemModel.create).toHaveBeenCalled();
+      expect(res.item).toEqual(mockDoc);
+      expect(res.batches).toEqual([]);
     });
 
-    it('should throw if insufficient stock for negative adjustment', async () => {
-        const item = mockDoc({ onHand: 10 });
-        (InventoryItemModel.findById as jest.Mock).mockResolvedValue(item);
-        (InventoryBatchModel.find as jest.Mock).mockReturnValue(mockChain([]));
+    it("creates an item and handles batches (recomputing stock)", async () => {
+      (OrgBilling.findOne as jest.Mock).mockResolvedValueOnce({
+        currency: "eur",
+      });
+      const mockDoc = createMockDoc({
+        _id: validId,
+        organisationId: "org1",
+        onHand: 0,
+        allocated: 0,
+      });
+      (InventoryItemModel.create as jest.Mock).mockResolvedValueOnce(mockDoc);
 
-        await expect(InventoryAdjustmentService.adjustStock({
-            itemId: VALID_ID_STR, newOnHand: 5, reason: 'Fix'
-        })).rejects.toThrow('Insufficient stock');
-    });
+      const batches = [
+        { quantity: 5, expiryDate: new Date("2026-01-01") }, // no allocated defaults to 0
+        { quantity: 10, allocated: 2, expiryDate: new Date("2025-01-01") }, // nearest expiry
+        { quantity: 0 }, // no expiry
+      ];
 
-    it('should throw if item not found', async () => {
-        (InventoryItemModel.findById as jest.Mock).mockResolvedValue(null);
-        await expect(InventoryAdjustmentService.adjustStock({ itemId: VALID_ID_STR, newOnHand: 5, reason: 'R' }))
-            .rejects.toThrow('Item not found');
-    });
-  });
+      (InventoryBatchModel.insertMany as jest.Mock).mockResolvedValueOnce(true);
+      (InventoryBatchModel.find as jest.Mock)
+        .mockReturnValueOnce({ lean: jest.fn().mockResolvedValue(batches) }) // For recompute
+        .mockReturnValueOnce(createChainable(batches)); // For final return
 
-  // ─────────────────────────────────────────────
-  // 3. InventoryAllocationService
-  // ─────────────────────────────────────────────
-  describe('InventoryAllocationService', () => {
-    it('should allocate stock', async () => {
-        const item = mockDoc({ onHand: 10, allocated: 2 });
-        (InventoryItemModel.findById as jest.Mock).mockResolvedValue(item);
+      const res = await InventoryService.createItem({
+        organisationId: "org1",
+        name: "Item",
+        category: "Cat",
+        businessType: "HOSPITAL",
+        batches: batches as any,
+      });
 
-        await InventoryAllocationService.allocateStock({ itemId: VALID_ID_STR, quantity: 5, referenceId: 'ref' });
-
-        expect(item.allocated).toBe(7);
-        expect(item.save).toHaveBeenCalled();
-        expect(StockMovementModel.create).toHaveBeenCalled();
-    });
-
-    it('should throw if not enough unallocated stock', async () => {
-        const item = mockDoc({ onHand: 10, allocated: 8 });
-        (InventoryItemModel.findById as jest.Mock).mockResolvedValue(item);
-        await expect(InventoryAllocationService.allocateStock({ itemId: VALID_ID_STR, quantity: 3, referenceId: 'ref' }))
-            .rejects.toThrow('Not enough unallocated stock');
-    });
-
-    it('should throw if item not found during allocation', async () => {
-        (InventoryItemModel.findById as jest.Mock).mockResolvedValue(null);
-        await expect(InventoryAllocationService.allocateStock({ itemId: VALID_ID_STR, quantity: 1, referenceId: 'r' }))
-            .rejects.toThrow('Item not found');
-    });
-
-    it('should release allocated stock', async () => {
-        const item = mockDoc({ allocated: 5 });
-        (InventoryItemModel.findById as jest.Mock).mockResolvedValue(item);
-
-        await InventoryAllocationService.releaseAllocatedStock({ itemId: VALID_ID_STR, quantity: 2, referenceId: 'ref' });
-
-        expect(item.allocated).toBe(3);
-        expect(item.save).toHaveBeenCalled();
-    });
-
-    it('should release stock but not go below zero', async () => {
-        const item = mockDoc({ allocated: 2 });
-        (InventoryItemModel.findById as jest.Mock).mockResolvedValue(item);
-
-        await InventoryAllocationService.releaseAllocatedStock({ itemId: VALID_ID_STR, quantity: 5, referenceId: 'ref' });
-
-        expect(item.allocated).toBe(0);
-    });
-
-    it('should throw if item not found during release', async () => {
-        (InventoryItemModel.findById as jest.Mock).mockResolvedValue(null);
-        await expect(InventoryAllocationService.releaseAllocatedStock({ itemId: VALID_ID_STR, quantity: 1, referenceId: 'r' }))
-            .rejects.toThrow('Item not found');
+      expect(InventoryBatchModel.insertMany).toHaveBeenCalled();
+      expect(mockDoc.onHand).toBe(15);
+      expect(mockDoc.allocated).toBe(2);
+      expect(mockDoc.save).toHaveBeenCalled();
+      expect(res.batches).toHaveLength(3);
     });
   });
 
-  // ======================================================================
-  // 5. InventoryMetaFieldService
-  // ======================================================================
+  describe("InventoryService.updateItem", () => {
+    it("throws if itemId is invalid", async () => {
+      await expect(InventoryService.updateItem("bad-id", {})).rejects.toThrow(
+        "Invalid itemId",
+      );
+    });
+    it("throws if item not found", async () => {
+      (InventoryItemModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable(null),
+      );
+      await expect(InventoryService.updateItem(validId, {})).rejects.toThrow(
+        "Inventory item not found",
+      );
+    });
+
+    it("updates all fields correctly", async () => {
+      const mockDoc = createMockDoc({ organisationId: "org1" });
+      (InventoryItemModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable(mockDoc),
+      );
+      (OrgBilling.findOne as jest.Mock).mockResolvedValueOnce({
+        currency: "gbp",
+      });
+      (InventoryBatchModel.find as jest.Mock).mockReturnValueOnce(
+        createChainable([]),
+      );
+
+      await InventoryService.updateItem(validId, {
+        name: "New",
+        sku: "SKU1",
+        category: "C",
+        subCategory: "S",
+        description: "D",
+        imageUrl: "I",
+        attributes: { a: 1 },
+        unitCost: 100,
+        sellingPrice: 150,
+        currency: "usd", // will be overridden by getOrgBillingCurrency
+        reorderLevel: 5,
+        vendorId: validId,
+        status: "HIDDEN",
+      });
+
+      expect(mockDoc.name).toBe("New");
+      expect(mockDoc.currency).toBe("gbp");
+      expect(mockDoc.save).toHaveBeenCalled();
+    });
+
+    it("handles undefined/null resets perfectly", async () => {
+      const mockDoc = createMockDoc({ organisationId: "org1" });
+      (InventoryItemModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable(mockDoc),
+      );
+      (InventoryBatchModel.find as jest.Mock).mockReturnValueOnce(
+        createChainable([]),
+      );
+
+      await InventoryService.updateItem(validId, {
+        unitCost: null,
+        sellingPrice: null,
+        reorderLevel: null,
+        vendorId: null,
+      });
+
+      expect(mockDoc.unitCost).toBeUndefined();
+      expect(mockDoc.save).toHaveBeenCalled();
+    });
+
+    it("updates nothing if empty input (hits uncovered negative branches)", async () => {
+      const mockDoc = createMockDoc({ organisationId: "org1" });
+      (InventoryItemModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable(mockDoc),
+      );
+      (InventoryBatchModel.find as jest.Mock).mockReturnValueOnce(
+        createChainable([]),
+      );
+
+      await InventoryService.updateItem(validId, {});
+
+      expect(mockDoc.save).toHaveBeenCalled();
+    });
+  });
+
+  describe("InventoryService status toggles (hide/archive/active)", () => {
+    it("hideItem works", async () => {
+      const mockDoc = createMockDoc({ status: "ACTIVE" });
+      (InventoryItemModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable(mockDoc),
+      );
+      await InventoryService.hideItem(validId);
+      expect(mockDoc.status).toBe("HIDDEN");
+    });
+    it("archiveItem works", async () => {
+      const mockDoc = createMockDoc({ status: "ACTIVE" });
+      (InventoryItemModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable(mockDoc),
+      );
+      await InventoryService.archiveItem(validId);
+      expect(mockDoc.status).toBe("DELETED");
+    });
+    it("activeItem works", async () => {
+      const mockDoc = createMockDoc({ status: "HIDDEN" });
+      (InventoryItemModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable(mockDoc),
+      );
+      await InventoryService.activeItem(validId);
+      expect(mockDoc.status).toBe("ACTIVE");
+    });
+    it("throws if not found", async () => {
+      (InventoryItemModel.findById as jest.Mock).mockReturnValue(
+        createChainable(null),
+      );
+      await expect(InventoryService.hideItem(validId)).rejects.toThrow(
+        "Inventory item not found",
+      );
+      await expect(InventoryService.archiveItem(validId)).rejects.toThrow(
+        "Inventory item not found",
+      );
+      await expect(InventoryService.activeItem(validId)).rejects.toThrow(
+        "Inventory item not found",
+      );
+    });
+  });
+
+  describe("InventoryService.listItems", () => {
+    it("throws on missing organisationId", async () => {
+      await expect(InventoryService.listItems({} as any)).rejects.toThrow(
+        "Invalid organisationId",
+      );
+    });
+
+    it("throws on invalid businessType, category, or subCategory strings", async () => {
+      await expect(
+        InventoryService.listItems({
+          organisationId: "org",
+          businessType: "BAD" as any,
+        }),
+      ).rejects.toThrow("Invalid businessType");
+      await expect(
+        InventoryService.listItems({ organisationId: "org", category: " " }),
+      ).rejects.toThrow("Invalid category");
+      await expect(
+        InventoryService.listItems({ organisationId: "org", subCategory: " " }),
+      ).rejects.toThrow("Invalid subCategory");
+    });
+
+    it("handles status array correctly (empty, invalid, valid)", async () => {
+      const res1 = await InventoryService.listItems({
+        organisationId: "org",
+        status: [],
+      });
+      expect(res1).toEqual([]);
+
+      await expect(
+        InventoryService.listItems({
+          organisationId: "org",
+          status: ["BAD"] as any,
+        }),
+      ).rejects.toThrow("Invalid status");
+
+      await expect(
+        InventoryService.listItems({
+          organisationId: "org",
+          status: "BAD" as any,
+        }),
+      ).rejects.toThrow("Invalid status");
+    });
+
+    it("applies search regex and filter logic perfectly (including negative dates/NaN)", async () => {
+      const mockItemExpired = createMockDoc({
+        _id: new Types.ObjectId(),
+        name: "Expired Item",
+        onHand: 10,
+        reorderLevel: null,
+      });
+      const mockItemLow = createMockDoc({
+        _id: new Types.ObjectId(),
+        name: "Low Item",
+        onHand: 2,
+        reorderLevel: 5,
+      });
+      const mockItemSoon = createMockDoc({
+        _id: new Types.ObjectId(),
+        name: "Soon Item",
+        onHand: 20,
+      });
+      const mockItemHealthy = createMockDoc({
+        _id: new Types.ObjectId(),
+        name: "Healthy",
+        onHand: 50,
+      });
+
+      (InventoryItemModel.find as jest.Mock).mockReturnValueOnce(
+        createChainable([
+          mockItemExpired,
+          mockItemLow,
+          mockItemSoon,
+          mockItemHealthy,
+        ]),
+      );
+
+      const batches = [
+        {
+          itemId: mockItemExpired._id,
+          expiryDate: dayjs().subtract(5, "day").toDate(),
+        }, // EXPIRED
+        {
+          itemId: mockItemSoon._id,
+          expiryDate: dayjs().add(3, "day").toDate(),
+        }, // EXPIRING_SOON
+      ];
+      (InventoryBatchModel.find as jest.Mock).mockReturnValueOnce(
+        createChainable(batches),
+      );
+
+      const res = await InventoryService.listItems({
+        organisationId: "org",
+        search: "Item.*[test]", // Tests escapeRegex
+        status: ["ACTIVE", "HIDDEN"],
+        lowStockOnly: false,
+        expiredOnly: false,
+        expiringWithinDays: -5, // tests sanitizePositiveNumber negative path -> falls back undefined
+      });
+
+      expect(res).toHaveLength(4);
+      expect(res[0].stockHealth).toBe("EXPIRED");
+      expect(res[2].stockHealth).toBe("EXPIRING_SOON");
+    });
+
+    it("applies expiredOnly and lowStockOnly logic", async () => {
+      const mockItem = createMockDoc({
+        _id: new Types.ObjectId(),
+        onHand: 1,
+        reorderLevel: 5,
+      }); // LOW_STOCK
+      (InventoryItemModel.find as jest.Mock).mockReturnValueOnce(
+        createChainable([mockItem]),
+      );
+      (InventoryBatchModel.find as jest.Mock).mockReturnValueOnce(
+        createChainable([]),
+      );
+
+      const res = await InventoryService.listItems({
+        organisationId: "org",
+        expiredOnly: true,
+      });
+      expect(res).toHaveLength(0);
+
+      (InventoryItemModel.find as jest.Mock).mockReturnValueOnce(
+        createChainable([mockItem]),
+      );
+      (InventoryBatchModel.find as jest.Mock).mockReturnValueOnce(
+        createChainable([]),
+      );
+      const res2 = await InventoryService.listItems({
+        organisationId: "org",
+        lowStockOnly: true,
+      });
+      expect(res2).toHaveLength(1);
+    });
+  });
+
+  describe("InventoryService.getItemWithBatches", () => {
+    it("throws if not found", async () => {
+      (InventoryItemModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable(null),
+      );
+      (InventoryBatchModel.find as jest.Mock).mockReturnValueOnce(
+        createChainable([]),
+      );
+      await expect(
+        InventoryService.getItemWithBatches(validId, "org"),
+      ).rejects.toThrow("Inventory item not found");
+    });
+    it("returns item and batches", async () => {
+      (InventoryItemModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable({ id: 1 }),
+      );
+      (InventoryBatchModel.find as jest.Mock).mockReturnValueOnce(
+        createChainable([{ id: 2 }]),
+      );
+      const res = await InventoryService.getItemWithBatches(validId, "org");
+      expect(res.item).toEqual({ id: 1 });
+      expect(res.batches).toHaveLength(1);
+    });
+  });
+
+  describe("InventoryService Batch Operations", () => {
+    it("addBatch: success", async () => {
+      const mockItem = createMockDoc({ organisationId: "org" });
+      (InventoryItemModel.findById as jest.Mock).mockResolvedValueOnce(
+        mockItem,
+      );
+      (InventoryBatchModel.create as jest.Mock).mockResolvedValueOnce({
+        id: "b1",
+      });
+      (InventoryBatchModel.find as jest.Mock).mockReturnValueOnce({
+        lean: jest.fn().mockResolvedValue([{ quantity: 10 }]),
+      }); // Recompute
+
+      await InventoryService.addBatch(validId, { quantity: 10 });
+      expect(mockItem.onHand).toBe(10);
+    });
+
+    it("addBatch: throws if itemId is invalid (tests ensureObjectId default parameter fallback)", async () => {
+      await expect(
+        InventoryService.addBatch("bad-id", { quantity: 1 }),
+      ).rejects.toThrow("Invalid id");
+    });
+
+    it("addBatch: throws if item not found", async () => {
+      (InventoryItemModel.findById as jest.Mock).mockResolvedValueOnce(null);
+      await expect(
+        InventoryService.addBatch(validId, { quantity: 10 }),
+      ).rejects.toThrow("Inventory item not found");
+    });
+
+    it("updateBatch: success", async () => {
+      const mockBatch = createMockDoc({ itemId: validId, quantity: 5 });
+      (InventoryBatchModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable(mockBatch),
+      );
+      (InventoryBatchModel.find as jest.Mock).mockReturnValueOnce({
+        lean: jest.fn().mockResolvedValue([{ quantity: 20 }]),
+      }); // Recompute
+
+      await InventoryService.updateBatch(validId, {
+        batchNumber: "B1",
+        lotNumber: "L1",
+        regulatoryTrackingId: "R1",
+        manufactureDate: new Date(),
+        expiryDate: new Date(),
+        minShelfLifeAlertDate: new Date(),
+        quantity: 20,
+        allocated: 5,
+      });
+
+      expect(mockBatch.batchNumber).toBe("B1");
+    });
+
+    it("updateBatch: handles empty input gracefully (hits negative branch logic)", async () => {
+      const mockBatch = createMockDoc({ itemId: validId, quantity: 5 });
+      (InventoryBatchModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable(mockBatch),
+      );
+      (InventoryBatchModel.find as jest.Mock).mockReturnValueOnce({
+        lean: jest.fn().mockResolvedValue([]),
+      }); // Recompute empty
+
+      await InventoryService.updateBatch(validId, {});
+      expect(mockBatch.save).toHaveBeenCalled();
+    });
+
+    it("updateBatch: throws if batch not found", async () => {
+      (InventoryBatchModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable(null),
+      );
+      await expect(InventoryService.updateBatch(validId, {})).rejects.toThrow(
+        "Batch not found",
+      );
+    });
+
+    it("deleteBatch: success and skip if not found", async () => {
+      (InventoryBatchModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable(null),
+      );
+      await InventoryService.deleteBatch(validId); // skips silently
+
+      const mockBatch = createMockDoc({ itemId: validId });
+      (InventoryBatchModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable(mockBatch),
+      );
+      (InventoryBatchModel.find as jest.Mock).mockReturnValueOnce({
+        lean: jest.fn().mockResolvedValue([]),
+      }); // Recompute empty
+
+      await InventoryService.deleteBatch(validId);
+      expect(mockBatch.deleteOne).toHaveBeenCalled();
+      expect(InventoryItemModel.findByIdAndUpdate).toHaveBeenCalled();
+    });
+  });
+
+  describe("InventoryService.consumeStock & bulkConsumeStock", () => {
+    it("consumeStock: quantity <= 0 throws", async () => {
+      await expect(
+        InventoryService.consumeStock({
+          itemId: validId,
+          quantity: 0,
+          reason: "OTHER",
+        }),
+      ).rejects.toThrow("quantity must be > 0");
+    });
+
+    it("consumeStock: item not found throws", async () => {
+      (InventoryItemModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable(null),
+      );
+      await expect(
+        InventoryService.consumeStock({
+          itemId: validId,
+          quantity: 5,
+          reason: "OTHER",
+        }),
+      ).rejects.toThrow("Inventory item not found");
+    });
+
+    it("consumeStock: insufficient stock throws", async () => {
+      (InventoryItemModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable({ onHand: 2 }),
+      );
+      await expect(
+        InventoryService.consumeStock({
+          itemId: validId,
+          quantity: 5,
+          reason: "OTHER",
+        }),
+      ).rejects.toThrow("Insufficient stock");
+    });
+
+    it("consumeStock: consumes FIFO and recomputes", async () => {
+      const mockItem = createMockDoc({ onHand: 10 });
+      (InventoryItemModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable(mockItem),
+      );
+
+      const b1 = createMockDoc({ quantity: 0 }); // Skip empty
+      const b2 = createMockDoc({ quantity: 3 }); // Consumed fully
+      const b3 = createMockDoc({ quantity: 10 }); // Consumed partially (2)
+
+      (InventoryBatchModel.find as jest.Mock)
+        .mockReturnValueOnce(createChainable([b1, b2, b3])) // loop
+        .mockReturnValueOnce({
+          lean: jest.fn().mockResolvedValue([{ quantity: 5 }]),
+        }); // recompute
+
+      await InventoryService.consumeStock({
+        itemId: validId,
+        quantity: 5,
+        reason: "OTHER",
+      });
+
+      expect(b2.quantity).toBe(0);
+      expect(b3.quantity).toBe(8);
+      expect(mockItem.onHand).toBe(5); // Result of recompute
+    });
+
+    it("consumeStock: throws 500 if remaining > 0 (data integrity error)", async () => {
+      const mockItem = createMockDoc({ onHand: 10 }); // Item thinks it has 10
+      (InventoryItemModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable(mockItem),
+      );
+
+      const b1 = createMockDoc({ quantity: 2 }); // Batches actually only have 2
+      (InventoryBatchModel.find as jest.Mock).mockReturnValueOnce(
+        createChainable([b1]),
+      );
+
+      await expect(
+        InventoryService.consumeStock({
+          itemId: validId,
+          quantity: 5,
+          reason: "OTHER",
+        }),
+      ).rejects.toThrow("Failed to consume full requested quantity");
+    });
+
+    it("bulkConsumeStock: empty array throws", async () => {
+      await expect(
+        InventoryService.bulkConsumeStock({ items: [] }),
+      ).rejects.toThrow("items must be a non-empty array");
+    });
+
+    it("bulkConsumeStock: succeeds", async () => {
+      jest
+        .spyOn(InventoryService, "consumeStock")
+        .mockResolvedValue({ id: 1 } as any);
+      const res = await InventoryService.bulkConsumeStock({
+        items: [{ itemId: validId, quantity: 1, reason: "OTHER" }],
+      });
+      expect(res).toEqual([{ id: 1 }]);
+    });
+  });
+
+  describe("InventoryService.getInventoryTurnoverByItem", () => {
+    it("throws on invalid dates", async () => {
+      await expect(
+        InventoryService.getInventoryTurnoverByItem({
+          organisationId: "org",
+          to: new Date("invalid"),
+        }),
+      ).rejects.toThrow("Invalid to");
+      await expect(
+        InventoryService.getInventoryTurnoverByItem({
+          organisationId: "org",
+          from: new Date("invalid"),
+        }),
+      ).rejects.toThrow("Invalid from");
+    });
+
+    it("returns empty if no items", async () => {
+      (InventoryItemModel.find as jest.Mock).mockReturnValueOnce(
+        createChainable([]),
+      );
+      const res = await InventoryService.getInventoryTurnoverByItem({
+        organisationId: "org",
+      });
+      expect(res).toEqual([]);
+    });
+
+    it("calculates turnover correctly across all bands", async () => {
+      const item1 = { _id: new Types.ObjectId(), name: "i1", onHand: 10 }; // EXCELLENT (Turns: 12+)
+      const item2 = { _id: new Types.ObjectId(), name: "i2", onHand: 10 }; // HEALTHY (Turns: 6-11)
+      const item3 = { _id: new Types.ObjectId(), name: "i3", onHand: 10 }; // MODERATE (Turns: 3-5)
+      const item4 = { _id: new Types.ObjectId(), name: "i4", onHand: 10 }; // LOW (Turns: <3)
+      const item5 = { _id: new Types.ObjectId(), name: "i5", onHand: 0 }; // Div by zero edge case
+
+      (InventoryItemModel.find as jest.Mock).mockReturnValueOnce(
+        createChainable([item1, item2, item3, item4, item5]),
+      );
+
+      // Purchases
+      (StockMovementModel.find as jest.Mock).mockReturnValueOnce({
+        lean: jest.fn().mockResolvedValue([
+          { itemId: item1._id, change: 120 },
+          { itemId: item2._id, change: 60 },
+          { itemId: item3._id, change: 30 },
+          { itemId: item4._id, change: 10 },
+        ]),
+      });
+
+      (InventoryBatchModel.aggregate as jest.Mock)
+        .mockResolvedValueOnce([{ qty: 10 }])
+        .mockResolvedValueOnce([{ qty: 10 }])
+        .mockResolvedValueOnce([{ qty: 10 }])
+        .mockResolvedValueOnce([{ qty: 10 }])
+        .mockResolvedValueOnce([{ qty: 0 }]); // For item 5
+
+      const res = await InventoryService.getInventoryTurnoverByItem({
+        organisationId: "org",
+      });
+
+      expect(res).toHaveLength(5);
+      expect(res[0].status).toBe("EXCELLENT");
+      expect(res[1].status).toBe("HEALTHY");
+      expect(res[2].status).toBe("MODERATE");
+      expect(res[3].status).toBe("LOW");
+      expect(res[4].turnsPerYear).toBe(0); // 0/0 edge case handled
+    });
+  });
+
+  describe("InventoryAdjustmentService", () => {
+    it("throws if item not found", async () => {
+      (InventoryItemModel.findById as jest.Mock).mockResolvedValueOnce(null);
+      await expect(
+        InventoryAdjustmentService.adjustStock({
+          itemId: validId,
+          newOnHand: 10,
+          reason: "R",
+        }),
+      ).rejects.toThrow();
+    });
+
+    it("handles positive delta (creates batch)", async () => {
+      const mockItem = createMockDoc({ onHand: 5 });
+      (InventoryItemModel.findById as jest.Mock).mockResolvedValueOnce(
+        mockItem,
+      );
+      (InventoryBatchModel.find as jest.Mock).mockResolvedValueOnce([
+        { quantity: 10 },
+      ]);
+
+      await InventoryAdjustmentService.adjustStock({
+        itemId: validId,
+        newOnHand: 10,
+        reason: "R",
+      });
+
+      expect(InventoryBatchModel.create).toHaveBeenCalled(); // virtual batch
+      expect(StockMovementModel.create).toHaveBeenCalled(); // log movement
+      expect(mockItem.onHand).toBe(10);
+    });
+
+    it("handles negative delta (consumes batches)", async () => {
+      const mockItem = createMockDoc({ onHand: 10 });
+      (InventoryItemModel.findById as jest.Mock).mockResolvedValueOnce(
+        mockItem,
+      );
+
+      const b1 = createMockDoc({ quantity: 5 }); // consumed fully
+      (InventoryBatchModel.find as jest.Mock)
+        .mockReturnValueOnce(createChainable([b1])) // for consumption
+        .mockResolvedValueOnce([]); // for recompute
+
+      await InventoryAdjustmentService.adjustStock({
+        itemId: validId,
+        newOnHand: 5,
+        reason: "R",
+      });
+      expect(b1.quantity).toBe(0);
+      expect(StockMovementModel.create).toHaveBeenCalled();
+    });
+
+    it("handles zero delta (bypasses logic directly to recompute)", async () => {
+      const mockItem = createMockDoc({ onHand: 10 });
+      (InventoryItemModel.findById as jest.Mock).mockResolvedValueOnce(
+        mockItem,
+      );
+      (InventoryBatchModel.find as jest.Mock).mockResolvedValueOnce([]); // Recompute empty
+
+      await InventoryAdjustmentService.adjustStock({
+        itemId: validId,
+        newOnHand: 10,
+        reason: "R",
+      });
+
+      expect(StockMovementModel.create).not.toHaveBeenCalled();
+      expect(mockItem.onHand).toBe(0); // Because recompute returned empty batches
+    });
+
+    it("throws 400 if negative delta exceeds available batches", async () => {
+      const mockItem = createMockDoc({ onHand: 10 });
+      (InventoryItemModel.findById as jest.Mock).mockResolvedValueOnce(
+        mockItem,
+      );
+
+      (InventoryBatchModel.find as jest.Mock).mockReturnValueOnce(
+        createChainable([createMockDoc({ quantity: 1 })]),
+      );
+
+      await expect(
+        InventoryAdjustmentService.adjustStock({
+          itemId: validId,
+          newOnHand: 5,
+          reason: "R",
+        }),
+      ).rejects.toThrow("Insufficient stock for adjustment");
+    });
+  });
+
+  describe("InventoryAllocationService", () => {
+    it("allocateStock: throws if not found", async () => {
+      (InventoryItemModel.findById as jest.Mock).mockResolvedValueOnce(null);
+      await expect(
+        InventoryAllocationService.allocateStock({
+          itemId: validId,
+          quantity: 1,
+          referenceId: "R",
+        }),
+      ).rejects.toThrow();
+    });
+    it("allocateStock: throws if insufficient unallocated stock", async () => {
+      (InventoryItemModel.findById as jest.Mock).mockResolvedValueOnce(
+        createMockDoc({ onHand: 10, allocated: 9 }),
+      );
+      await expect(
+        InventoryAllocationService.allocateStock({
+          itemId: validId,
+          quantity: 2,
+          referenceId: "R",
+        }),
+      ).rejects.toThrow("Not enough unallocated stock");
+    });
+    it("allocateStock: success", async () => {
+      const mockItem = createMockDoc({ onHand: 10, allocated: 0 });
+      (InventoryItemModel.findById as jest.Mock).mockResolvedValueOnce(
+        mockItem,
+      );
+      await InventoryAllocationService.allocateStock({
+        itemId: validId,
+        quantity: 2,
+        referenceId: "R",
+      });
+      expect(mockItem.allocated).toBe(2);
+      expect(StockMovementModel.create).toHaveBeenCalled();
+    });
+
+    it("releaseAllocatedStock: throws if not found", async () => {
+      (InventoryItemModel.findById as jest.Mock).mockResolvedValueOnce(null);
+      await expect(
+        InventoryAllocationService.releaseAllocatedStock({
+          itemId: validId,
+          quantity: 1,
+          referenceId: "R",
+        }),
+      ).rejects.toThrow();
+    });
+    it("releaseAllocatedStock: success (floors at 0)", async () => {
+      const mockItem = createMockDoc({ allocated: 1 });
+      (InventoryItemModel.findById as jest.Mock).mockResolvedValueOnce(
+        mockItem,
+      );
+      await InventoryAllocationService.releaseAllocatedStock({
+        itemId: validId,
+        quantity: 5,
+        referenceId: "R",
+      });
+      expect(mockItem.allocated).toBe(0);
+      expect(StockMovementModel.create).toHaveBeenCalled();
+    });
+  });
+
+  describe("InventoryVendorService", () => {
+    it("createVendor", async () => {
+      await expect(
+        InventoryVendorService.createVendor({} as any),
+      ).rejects.toThrow("organisationId required");
+      await InventoryVendorService.createVendor({
+        organisationId: "org",
+        name: "V",
+      });
+      expect(InventoryVendorModel.create).toHaveBeenCalled();
+    });
+    it("updateVendor", async () => {
+      (InventoryVendorModel.findById as jest.Mock).mockResolvedValueOnce(null);
+      await expect(
+        InventoryVendorService.updateVendor(validId, {}),
+      ).rejects.toThrow("Vendor not found");
+
+      const mockDoc = createMockDoc({ name: "A" });
+      (InventoryVendorModel.findById as jest.Mock).mockResolvedValueOnce(
+        mockDoc,
+      );
+      await InventoryVendorService.updateVendor(validId, { name: "B" });
+      expect(mockDoc.name).toBe("B");
+    });
+    it("listVendors", async () => {
+      (InventoryVendorModel.find as jest.Mock).mockReturnValueOnce(
+        createChainable([]),
+      );
+      await InventoryVendorService.listVendors("org");
+      expect(InventoryVendorModel.find).toHaveBeenCalled();
+    });
+    it("getVendor", async () => {
+      await InventoryVendorService.getVendor(validId);
+      expect(InventoryVendorModel.findById).toHaveBeenCalled();
+    });
+    it("deleteVendor", async () => {
+      await InventoryVendorService.deleteVendor(validId);
+      expect(InventoryVendorModel.findByIdAndDelete).toHaveBeenCalled();
+    });
+  });
+
   describe("InventoryMetaFieldService", () => {
     it("createField", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (InventoryMetaFieldModel.create as any).mockResolvedValue({} as any);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await expect(
+        InventoryMetaFieldService.createField({ businessType: "BAD" } as any),
+      ).rejects.toThrow();
       await InventoryMetaFieldService.createField({
-        businessType: "GENERAL",
-        fieldKey: "color",
-        label: "Color",
-        values: ["Black", "White"],
-      } as any);
+        businessType: "HOSPITAL",
+        fieldKey: "k",
+        label: "l",
+        values: [],
+      });
       expect(InventoryMetaFieldModel.create).toHaveBeenCalled();
     });
-
-    it("updateField: success", async () => {
-      const field = mockDoc({ label: "Old" });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (InventoryMetaFieldModel.findById as any).mockResolvedValue(field as any);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await InventoryMetaFieldService.updateField(
-        new Types.ObjectId().toString(),
-        { label: "New" } as any,
+    it("updateField", async () => {
+      (InventoryMetaFieldModel.findById as jest.Mock).mockResolvedValueOnce(
+        null,
       );
-      expect(field.label).toBe("New");
-    });
-
-    it("updateField: not found", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (InventoryMetaFieldModel.findById as any).mockResolvedValue(null as any);
       await expect(
-        InventoryMetaFieldService.updateField(
-          new Types.ObjectId().toString(),
-          {},
-        ),
-      ).rejects.toThrow("not found");
-    });
+        InventoryMetaFieldService.updateField(validId, {}),
+      ).rejects.toThrow();
 
+      const mockDoc = createMockDoc({ label: "A" });
+      (InventoryMetaFieldModel.findById as jest.Mock).mockResolvedValueOnce(
+        mockDoc,
+      );
+      await InventoryMetaFieldService.updateField(validId, { label: "B" });
+      expect(mockDoc.label).toBe("B");
+    });
     it("deleteField", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (InventoryMetaFieldModel.findByIdAndDelete as any).mockResolvedValue(
-        {} as any,
-      );
-      await InventoryMetaFieldService.deleteField(
-        new Types.ObjectId().toString(),
-      );
+      await InventoryMetaFieldService.deleteField(validId);
       expect(InventoryMetaFieldModel.findByIdAndDelete).toHaveBeenCalled();
     });
-
     it("listFields", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (InventoryMetaFieldModel.find as any).mockReturnValue(
-        mockChain([]),
+      await expect(
+        InventoryMetaFieldService.listFields("BAD"),
+      ).rejects.toThrow();
+      (InventoryMetaFieldModel.find as jest.Mock).mockReturnValueOnce(
+        createChainable([]),
       );
-      await InventoryMetaFieldService.listFields("GENERAL");
-      expect(InventoryMetaFieldModel.find).toHaveBeenCalledWith({
-        businessType: "GENERAL",
-      });
+      await InventoryMetaFieldService.listFields("HOSPITAL");
+      expect(InventoryMetaFieldModel.find).toHaveBeenCalled();
     });
   });
 
-  describe('InventoryMetaFieldService', () => {
-    it('should create field', async () => {
-        await InventoryMetaFieldService.createField({
-          businessType: 'GENERAL',
-          fieldKey: 'color',
-          label: 'Color',
-          values: ['Black', 'White'],
-        } as any);
-        expect(InventoryMetaFieldModel.create).toHaveBeenCalled();
+  describe("InventoryAlertService", () => {
+    it("getLowStockItems skips items with no reorder level and filters correctly", async () => {
+      const i1 = { onHand: 10 }; // Skip (no reorderLevel)
+      const i2 = { onHand: 10, reorderLevel: 5 }; // Skip (onHand > reorder)
+      const i3 = { onHand: 2, reorderLevel: 5 }; // Include
+      const i4 = { reorderLevel: 5 }; // onHand is undefined, defaults to 0 <= 5 (Include)
+      (InventoryItemModel.find as jest.Mock).mockResolvedValueOnce([
+        i1,
+        i2,
+        i3,
+        i4,
+      ]);
+
+      const res = await InventoryAlertService.getLowStockItems("org");
+      expect(res).toHaveLength(2);
+      expect(res[0]).toBe(i3);
+      expect(res[1]).toBe(i4);
     });
 
-    it('should update field', async () => {
-        const f = mockDoc({});
-        (InventoryMetaFieldModel.findById as jest.Mock).mockResolvedValue(f);
-        await InventoryMetaFieldService.updateField(VALID_ID_STR, { label: 'L' });
-        expect(f.label).toBe('L');
-    });
+    it("getExpiringItems works with default and provided days, and negative fallback", async () => {
+      await InventoryAlertService.getExpiringItems("org");
+      expect(InventoryBatchModel.find).toHaveBeenCalledWith(
+        expect.objectContaining({ expiryDate: expect.any(Object) }),
+      );
 
-    it('should throw if field missing', async () => {
-        (InventoryMetaFieldModel.findById as jest.Mock).mockResolvedValue(null);
-        await expect(InventoryMetaFieldService.updateField(VALID_ID_STR, {})).rejects.toThrow('Meta field not found');
-    });
+      await InventoryAlertService.getExpiringItems("org", 10);
+      expect(InventoryBatchModel.find).toHaveBeenCalledTimes(2);
 
-    it('should delete field', async () => {
-        await InventoryMetaFieldService.deleteField(VALID_ID_STR);
-        expect(InventoryMetaFieldModel.findByIdAndDelete).toHaveBeenCalled();
-    });
-
-    it('should list fields', async () => {
-        (InventoryMetaFieldModel.find as jest.Mock).mockReturnValue(mockChain([]));
-        await InventoryMetaFieldService.listFields('GENERAL');
-        expect(InventoryMetaFieldModel.find).toHaveBeenCalledWith({
-          businessType: 'GENERAL',
-        });
-    });
-  });
-
-  describe('InventoryAlertService', () => {
-    // FIX: Define mockDate here to ensure it's available in this scope
-    const mockDate = new Date('2025-01-01T12:00:00Z');
-
-    beforeEach(() => {
-        jest.useFakeTimers();
-        jest.setSystemTime(mockDate);
-    });
-
-    afterEach(() => {
-        jest.useRealTimers();
-    });
-
-    it('should get low stock items', async () => {
-        const i1 = { onHand: 2, reorderLevel: 5 }; // Low
-        const i2 = { onHand: 10, reorderLevel: 5 }; // Ok
-        const i3 = { onHand: 5 }; // No reorder level -> skip
-
-        (InventoryItemModel.find as jest.Mock).mockResolvedValue([i1, i2, i3]);
-
-        const res = await InventoryAlertService.getLowStockItems(VALID_ORG_ID);
-        expect(res).toHaveLength(1);
-        expect(res[0]).toBe(i1);
-    });
-
-    it('should get expiring items', async () => {
-        (InventoryBatchModel.find as jest.Mock).mockResolvedValue([]);
-        await InventoryAlertService.getExpiringItems(VALID_ORG_ID, 7);
-        expect(InventoryBatchModel.find).toHaveBeenCalledWith(expect.objectContaining({
-            expiryDate: { $lte: expect.any(Date) }
-        }));
+      await InventoryAlertService.getExpiringItems("org", -5);
+      expect(InventoryBatchModel.find).toHaveBeenCalledTimes(3);
     });
   });
 });

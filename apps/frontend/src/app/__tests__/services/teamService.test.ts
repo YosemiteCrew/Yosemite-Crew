@@ -369,7 +369,7 @@ describe("Team Service", () => {
       const member = {} as any; // No _id
       await expect(removeMember(member)).rejects.toThrow("Member ID is missing.");
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "Failed to delete room:",
+        "Failed to delete member:",
         expect.any(Error)
       );
     });
@@ -393,7 +393,7 @@ describe("Team Service", () => {
 
       await expect(removeMember(member)).rejects.toThrow("Delete failed");
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "Failed to delete room:",
+        "Failed to delete member:",
         error
       );
     });

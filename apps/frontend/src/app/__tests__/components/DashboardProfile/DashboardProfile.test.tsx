@@ -67,8 +67,8 @@ describe("DashboardProfile", () => {
     expect(
       screen.getByText("Verification in progress — Limited access enabled")
     ).toBeInTheDocument();
-    expect(screen.getByText("Book onboarding call")).toBeInTheDocument();
-    expect(screen.getByText(/Note/)).toBeInTheDocument();
+    expect(screen.getByText("Verify business profile")).toBeInTheDocument();
+    expect(screen.getByText(/Note\s*:/)).toBeInTheDocument();
   });
 
   it("does not show onboarding notice when verified", () => {

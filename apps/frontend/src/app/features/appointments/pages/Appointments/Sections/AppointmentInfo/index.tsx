@@ -1,190 +1,120 @@
-import Labels from "@/app/ui/widgets/Labels/Labels";
-import Modal from "@/app/ui/overlays/Modal";
-import Image from "next/image";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Summary from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Finance/Summary";
-import Task from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Tasks/Task";
-import AppointmentInfo from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Info/AppointmentInfo";
-import Companion from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Info/Companion";
-import History from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Info/History";
-import Subjective from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Subjective";
-import Objective from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Objective";
-import Assessment from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Assessment";
-import Chat from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Tasks/Chat";
-import Details from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Finance/Details";
-import Documents from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Documents";
-import Discharge from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Discharge";
-import Audit from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Audit";
-import Plan from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Plan";
+import Labels from '@/app/ui/widgets/Labels/Labels';
+import Modal from '@/app/ui/overlays/Modal';
+import Image from 'next/image';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Summary from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Finance/Summary';
+import Task from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Tasks/Task';
+import AppointmentInfo from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Info/AppointmentInfo';
+import Companion from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Info/Companion';
+import History from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Info/History';
+import Subjective from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Subjective';
+import Objective from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Objective';
+import Assessment from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Assessment';
+import Chat from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Tasks/Chat';
+import Details from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Finance/Details';
+import Documents from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Documents';
+import Discharge from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Discharge';
+import Audit from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Audit';
+import Plan from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Plan';
 import {
   Appointment,
   FormSubmission,
   InvoiceItem,
   Organisation,
   Service,
-} from "@yosemite-crew/types";
-import { createSubmission, fetchSubmissions } from "@/app/features/appointments/services/soapService";
-import Close from "@/app/ui/primitives/Icons/Close";
-import { usePermissions } from "@/app/hooks/usePermissions";
-import { PERMISSIONS } from "@/app/lib/permissions";
+} from '@yosemite-crew/types';
+import {
+  createSubmission,
+  fetchSubmissions,
+} from '@/app/features/appointments/services/soapService';
+import Close from '@/app/ui/primitives/Icons/Close';
+import { usePermissions } from '@/app/hooks/usePermissions';
+import { PERMISSIONS } from '@/app/lib/permissions';
 import {
   fetchAppointmentForms,
   linkAppointmentForms,
-} from "@/app/features/forms/services/appointmentFormsService";
-import { useOrgStore } from "@/app/stores/orgStore";
-import { AppointmentFormEntry } from "@/app/features/appointments/types/appointmentForms";
-import { FormField } from "@/app/features/forms/types/forms";
-import FormRenderer from "@/app/features/forms/pages/Forms/Sections/AddForm/components/FormRenderer";
-import { buildInitialValues } from "@/app/features/forms/pages/Forms/Sections/AddForm/Review";
-import { useAuthStore } from "@/app/stores/authStore";
-import SearchDropdown from "@/app/ui/inputs/SearchDropdown";
-import { useFormsStore } from "@/app/stores/formsStore";
-import { useLoadFormsForPrimaryOrg } from "@/app/hooks/useForms";
-import Accordion from "@/app/ui/primitives/Accordion/Accordion";
-import { Primary } from "@/app/ui/primitives/Buttons";
-import { SoapNoteSubmission } from "@/app/features/appointments/types/soap";
-import SignatureActions from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Submissions/SignatureActions";
-import { hasSignatureField } from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/signatureUtils";
-import { useServiceStore } from "@/app/stores/serviceStore";
-import { humanizeKey } from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/labelUtils";
-import SigningOverlay from "@/app/ui/overlays/SigningOverlay";
-import ParentTask from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Tasks/ParentTask";
-import { useServicesForPrimaryOrgSpecialities } from "@/app/hooks/useSpecialities";
-import { useSigningOverlayStore } from "@/app/stores/signingOverlayStore";
-
-const formatValue = (
-  field: FormField,
-  value: any,
-  submission?: FormSubmission,
-  servicesById?: Record<string, any>,
-): string => {
-  const resolveService = (val: string): string | undefined => {
-    if (!servicesById) return undefined;
-    return servicesById[val]?.name || servicesById[val]?.displayName;
-  };
-
-  const formatSignature = (): string => {
-    const isSigned =
-      submission?.signing?.status === "SIGNED" ||
-      Boolean(submission?.signing?.pdf?.url);
-    return isSigned ? "Signed" : "Not signed";
-  };
-
-  const formatDateLike = (): string => {
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return `${value}`;
-    return (field.type as string) === "time"
-      ? d.toLocaleTimeString()
-      : d.toLocaleDateString();
-  };
-
-  const formatArray = (): string => {
-    const mapped = value
-      .map((v: unknown) => resolveService(String(v)) ?? `${v}`)
-      .filter(Boolean)
-      .join(", ");
-    return mapped || "—";
-  };
-
-  const formatObject = (): string => {
-    if (Object.keys(value ?? {}).length === 0) return "—";
-    return JSON.stringify(value);
-  };
-
-  if (value === undefined || value === null) return "—";
-  if (field.type === "signature") return formatSignature();
-  if (field.type === "date" || (field.type as string) === "time") return formatDateLike();
-  if (field.type === "boolean") return value ? "Yes" : "No";
-  if (Array.isArray(value)) return formatArray();
-  const serviceName = typeof value === "string" ? resolveService(value) : undefined;
-  if (serviceName) return serviceName;
-  if (typeof value === "object") return formatObject();
-  return `${value}`;
-};
-
-const resolveLabel = (field: FormField): string => {
-  const id = field.id ?? "";
-  const rawLabel = field.label ?? "";
-  const normalizedId = id.toLowerCase();
-
-  const isServicesField = normalizedId.endsWith("services");
-
-  const humanized = humanizeKey(id);
-  let cleanedLabel = humanized;
-  if (rawLabel && rawLabel !== id) {
-    cleanedLabel = rawLabel;
-  } else if (isServicesField) {
-    cleanedLabel = "Services";
-  }
-
-  return cleanedLabel || humanized;
-};
+} from '@/app/features/forms/services/appointmentFormsService';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { AppointmentFormEntry } from '@/app/features/appointments/types/appointmentForms';
+import { FormField } from '@/app/features/forms/types/forms';
+import FormRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/FormRenderer';
+import { buildInitialValues } from '@/app/features/forms/pages/Forms/Sections/AddForm/Review';
+import { useAuthStore } from '@/app/stores/authStore';
+import SearchDropdown from '@/app/ui/inputs/SearchDropdown';
+import { useFormsStore } from '@/app/stores/formsStore';
+import { useLoadFormsForPrimaryOrg } from '@/app/hooks/useForms';
+import Accordion from '@/app/ui/primitives/Accordion/Accordion';
+import { Primary } from '@/app/ui/primitives/Buttons';
+import { SoapNoteSubmission } from '@/app/features/appointments/types/soap';
+import SignatureActions from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Submissions/SignatureActions';
+import { hasSignatureField } from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/signatureUtils';
+import SigningOverlay from '@/app/ui/overlays/SigningOverlay';
+import ParentTask from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Tasks/ParentTask';
+import LabTests from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/LabTests';
+import AppointmentMerckSearch from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/AppointmentMerckSearch';
+import { useServicesForPrimaryOrgSpecialities } from '@/app/hooks/useSpecialities';
+import { useSigningOverlayStore } from '@/app/stores/signingOverlayStore';
+import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
+import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
 
 const ALLOWED_CATEGORIES_BY_ORG: Record<string, string[]> = {
-  HOSPITAL: ["Discharge", "Consent form", "Custom"],
+  HOSPITAL: ['Prescription', 'Consent form', 'Custom'],
   BOARDER: [
-    "Boarding Checklist",
-    "Dietary Plan",
-    "Medication Details",
-    "Daily Summary",
-    "Schedule",
-    "Belongings",
-    "Consent form",
-    "Discharge",
+    'Boarding Checklist',
+    'Dietary Plan',
+    'Medication Details',
+    'Daily Summary',
+    'Schedule',
+    'Belongings',
+    'Consent form',
+    'Discharge',
   ],
   BREEDER: [
-    "Health & Behavior",
-    "Mating Log",
-    "Consultation & Planning",
-    "Mating & Fertility Preferences",
-    "Belongings",
-    "Check-in",
-    "Pregnancy Care",
-    "Health Summary",
-    "Consent form",
-    "Discharge",
+    'Health & Behavior',
+    'Mating Log',
+    'Consultation & Planning',
+    'Mating & Fertility Preferences',
+    'Belongings',
+    'Check-in',
+    'Pregnancy Care',
+    'Health Summary',
+    'Consent form',
+    'Discharge',
   ],
   GROOMER: [
-    "Service Request & Preferences",
-    "Grooming Prep",
-    "Bathing & Cleaning Worklog",
-    "Haircut / Styling Worklog",
-    "Spa Add-ons Worklog",
-    "Health Requirements",
-    "Consent form",
-    "Discharge",
+    'Service Request & Preferences',
+    'Grooming Prep',
+    'Bathing & Cleaning Worklog',
+    'Haircut / Styling Worklog',
+    'Spa Add-ons Worklog',
+    'Health Requirements',
+    'Consent form',
+    'Discharge',
   ],
 };
 
 const getAllowedCategories = (orgType?: string) =>
-  ALLOWED_CATEGORIES_BY_ORG[orgType ?? ""] ?? ALLOWED_CATEGORIES_BY_ORG.GROOMER;
+  ALLOWED_CATEGORIES_BY_ORG[orgType ?? ''] ?? ALLOWED_CATEGORIES_BY_ORG.GROOMER;
 
 const getLabelsForOrgType = (orgType: string | undefined, hospitalLabels: any[]) => {
-  if (orgType === "HOSPITAL") return hospitalLabels;
+  if (orgType === 'HOSPITAL') return hospitalLabels;
   return [
     hospitalLabels[0],
     {
-      key: "care",
-      name: "Care plan",
+      key: 'care',
+      name: 'Care plan',
       labels: [
-        { key: "forms", name: "Forms" },
-        { key: "audit-trail", name: "Audit trail" },
-        { key: "discharge-summary", name: "Discharge summary" },
-        { key: "documents", name: "Documents" },
+        { key: 'forms', name: 'Templates' },
+        { key: 'audit-trail', name: 'Audit trail' },
+        { key: 'documents', name: 'Documents' },
       ],
     },
     hospitalLabels[2],
     hospitalLabels[3],
+    hospitalLabels[4],
   ];
 };
-
-const flattenFields = (fields: FormField[]): FormField[] =>
-  fields.flatMap((f) => {
-    if (f.type === "group" && Array.isArray(f.fields)) {
-      return flattenFields(f.fields);
-    }
-    return [f];
-  });
 
 type CustomFormsSectionProps = {
   forms: AppointmentFormEntry[];
@@ -196,18 +126,13 @@ type CustomFormsSectionProps = {
   onSubmission?: (entry: AppointmentFormEntry) => void;
   onSubmissionUpdate?: (
     submissionId: string,
-    updates: Partial<FormSubmission> & { signatureRequired?: boolean },
+    updates: Partial<FormSubmission> & { signatureRequired?: boolean }
   ) => void;
   onFormLinked?: (entry: AppointmentFormEntry) => void;
 };
 
-const FormBadge: React.FC<{ label: string; badgeClass: string }> = ({
-  label,
-  badgeClass,
-}) => (
-  <span className={`text-label-xsmall px-2 py-1 rounded ${badgeClass}`}>
-    {label}
-  </span>
+const FormBadge: React.FC<{ label: string; badgeClass: string }> = ({ label, badgeClass }) => (
+  <span className={`text-label-xsmall px-2 py-1 rounded ${badgeClass}`}>{label}</span>
 );
 
 const CustomFormsSection: React.FC<CustomFormsSectionProps> = ({
@@ -254,18 +179,17 @@ const CustomFormsView = ({
   templates: { value: string; label: string; schema: FormField[]; form: any }[];
   onSubmissionUpdate?: (
     submissionId: string,
-    updates: Partial<FormSubmission> & { signatureRequired?: boolean },
+    updates: Partial<FormSubmission> & { signatureRequired?: boolean }
   ) => void;
   onFormLinked?: (entry: AppointmentFormEntry) => void;
 }) => {
   const attributes = useAuthStore.getState().attributes;
-  const servicesById = useServiceStore((s) => s.servicesById);
   const [valuesByForm, setValuesByForm] = useState<Record<string, Record<string, any>>>({});
   const [submittingId, setSubmittingId] = useState<string | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
-  const [selectedTemplateLabel, setSelectedTemplateLabel] = useState<string>("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [selectedTemplateLabel, setSelectedTemplateLabel] = useState<string>('');
 
   if (loading) {
     return <div className="text-body-3 text-text-primary">Loading forms…</div>;
@@ -278,325 +202,313 @@ const CustomFormsView = ({
     entry: AppointmentFormEntry,
     needsSignature: boolean | undefined,
     isSigned: boolean,
-    isClientSigner: boolean,
+    isClientSigner: boolean
   ) => {
-    const isCompleted = entry.status === "completed" && (!needsSignature || isSigned);
-    let label = "Pending";
+    const isCompleted = entry.status === 'completed' && (!needsSignature || isSigned);
+    let label = 'Pending';
     if (isClientSigner) {
-      label = isSigned ? "Signed by pet parent" : "Pending parent signature";
+      label = isSigned ? 'Signed by pet parent' : 'Pending parent signature';
     } else if (isCompleted) {
-      label = "Completed";
+      label = 'Completed';
     } else if (needsSignature && !isSigned) {
-      label = "Signature Pending";
+      label = 'Signature Pending';
     }
     const badgeClass =
-      isSigned || isCompleted ? "bg-green-50 text-green-800" : "bg-amber-50 text-amber-700";
+      isSigned || isCompleted ? 'bg-green-50 text-green-800' : 'bg-amber-50 text-amber-700';
     return { label, badgeClass };
   };
 
   return (
-    <Accordion
-      title="Forms"
-      defaultOpen={true}
-      showEditIcon={false}
-      isEditing
-    >
+    <Accordion title="Templates" defaultOpen={true} showEditIcon={false} isEditing>
       <div className="flex flex-col gap-4 w-full">
         {canEdit ? (
           <div className="flex flex-col gap-3">
-          <SearchDropdown
-            placeholder="Search form templates"
-            options={templates.map((t) => ({ value: t.value, label: t.label }))}
-            onSelect={(id: string) => {
-              const match = templates.find((t) => t.value === id);
-              setSelectedTemplateId(id);
-              setSelectedTemplateLabel(match?.label ?? id);
-            }}
-            query={selectedTemplateLabel}
-            setQuery={(val: string) => setSelectedTemplateLabel(val)}
-            minChars={0}
-          />
-          {selectedTemplateId ? (
-            (() => {
-              const template = templates.find((t) => t.value === selectedTemplateId);
-              const schema = template?.schema ?? [];
-              const isClientSigner = template?.form?.requiredSigner === "CLIENT";
-              return (
-                <div className="border border-card-border rounded-2xl p-4">
-                  <FormRenderer
-                    fields={schema}
-                    values={
-                      valuesByForm[selectedTemplateId] ??
-                      buildInitialValues(schema)
-                    }
-                    onChange={(id, value) =>
-                      setValuesByForm((prev) => ({
-                        ...prev,
-                        [selectedTemplateId]: {
-                          ...(prev[selectedTemplateId] ?? buildInitialValues(schema)),
-                          [id]: value,
-                        },
-                      }))
-                    }
-                    readOnly={isClientSigner}
-                  />
-                </div>
-              );
-            })()
-          ) : null}
-          {selectedTemplateId ? (
-            (() => {
-              const template = templates.find((t) => t.value === selectedTemplateId);
-              const isClientSigner = template?.form?.requiredSigner === "CLIENT";
-              if (isClientSigner) {
-                return (
-                  <Primary
-                    href="#"
-                    text={sendingId === selectedTemplateId ? "Sending..." : "Send to parent"}
-                    onClick={async () => {
-                      if (!activeAppointment?.id || !selectedTemplateId || !template?.form) return;
-                      setSubmitError(null);
-                      setSendingId(selectedTemplateId);
-                      try {
-                        const orgId = activeAppointment.organisationId;
-                        if (!orgId) {
-                          setSubmitError("Organisation not found.");
-                          setSendingId(null);
+            <SearchDropdown
+              placeholder="Search form templates"
+              options={templates.map((t) => ({ value: t.value, label: t.label }))}
+              onSelect={(id: string) => {
+                const match = templates.find((t) => t.value === id);
+                setSelectedTemplateId(id);
+                setSelectedTemplateLabel(match?.label ?? id);
+              }}
+              query={selectedTemplateLabel}
+              setQuery={(val: string) => setSelectedTemplateLabel(val)}
+              minChars={0}
+            />
+            {selectedTemplateId
+              ? (() => {
+                  const template = templates.find((t) => t.value === selectedTemplateId);
+                  const schema = template?.schema ?? [];
+                  const isClientSigner = template?.form?.requiredSigner === 'CLIENT';
+                  return (
+                    <div className="border border-card-border rounded-2xl p-4">
+                      <FormRenderer
+                        fields={schema}
+                        values={valuesByForm[selectedTemplateId] ?? buildInitialValues(schema)}
+                        onChange={(id, value) =>
+                          setValuesByForm((prev) => ({
+                            ...prev,
+                            [selectedTemplateId]: {
+                              ...(prev[selectedTemplateId] ?? buildInitialValues(schema)),
+                              [id]: value,
+                            },
+                          }))
+                        }
+                        readOnly={isClientSigner}
+                      />
+                    </div>
+                  );
+                })()
+              : null}
+            {selectedTemplateId
+              ? (() => {
+                  const template = templates.find((t) => t.value === selectedTemplateId);
+                  const isClientSigner = template?.form?.requiredSigner === 'CLIENT';
+                  if (isClientSigner) {
+                    return (
+                      <Primary
+                        href="#"
+                        text={sendingId === selectedTemplateId ? 'Sending...' : 'Send to parent'}
+                        onClick={async () => {
+                          if (!activeAppointment?.id || !selectedTemplateId || !template?.form)
+                            return;
+                          setSubmitError(null);
+                          setSendingId(selectedTemplateId);
+                          try {
+                            const orgId = activeAppointment.organisationId;
+                            if (!orgId) {
+                              setSubmitError('Organisation not found.');
+                              setSendingId(null);
+                              return;
+                            }
+                            await linkAppointmentForms({
+                              organisationId: orgId,
+                              appointmentId: activeAppointment.id,
+                              formIds: [template.form._id ?? template.value],
+                            });
+                            onFormLinked?.({
+                              form: template.form,
+                              submission: null,
+                              status: 'pending',
+                            });
+                            setSelectedTemplateId('');
+                            setSelectedTemplateLabel('');
+                          } catch (e) {
+                            console.error('Failed to send form to parent', e);
+                            setSubmitError('Failed to send form. Please try again.');
+                          } finally {
+                            setSendingId(null);
+                          }
+                        }}
+                      />
+                    );
+                  }
+                  return (
+                    <Primary
+                      href="#"
+                      text={submittingId === selectedTemplateId ? 'Saving...' : 'Save'}
+                      onClick={async () => {
+                        if (!activeAppointment?.id || !attributes?.sub || !selectedTemplateId)
+                          return;
+                        setSubmitError(null);
+                        setSubmittingId(selectedTemplateId);
+                        if (!template) {
+                          setSubmitError('Template not found');
+                          setSubmittingId(null);
                           return;
                         }
-                        await linkAppointmentForms({
-                          organisationId: orgId,
-                          appointmentId: activeAppointment.id,
-                          formIds: [template.form._id ?? template.value],
-                        });
-                        onFormLinked?.({
-                          form: template.form,
-                          submission: null,
-                          status: "pending",
-                        });
-                        setSelectedTemplateId("");
-                        setSelectedTemplateLabel("");
-                      } catch (e) {
-                        console.error("Failed to send form to parent", e);
-                        setSubmitError("Failed to send form. Please try again.");
-                      } finally {
-                        setSendingId(null);
-                      }
-                    }}
-                  />
-                );
-              }
-              return (
-                <Primary
-                  href="#"
-                  text={submittingId === selectedTemplateId ? "Saving..." : "Save"}
-                  onClick={async () => {
-                    if (!activeAppointment?.id || !attributes?.sub || !selectedTemplateId) return;
-                    setSubmitError(null);
-                    setSubmittingId(selectedTemplateId);
-                    if (!template) {
-                      setSubmitError("Template not found");
-                      setSubmittingId(null);
-                      return;
-                    }
-                    try {
-                      const requiredSigner = template.form?.requiredSigner ?? "";
-                      const requiresSignature =
-                        requiredSigner === "VET" &&
-                        hasSignatureField(template.schema);
-                    const companion = activeAppointment?.companion;
-                    const submission: FormSubmission = {
-                      _id: "",
-                      formVersion: 1,
-                      submittedAt: new Date(),
-                      formId: template.value,
-                      appointmentId: activeAppointment.id,
-                      companionId: companion?.id ?? "",
-                      parentId: companion?.parent?.id ?? "",
-                      answers: valuesByForm[selectedTemplateId] ?? buildInitialValues(template.schema),
-                      submittedBy: attributes.sub,
-                    };
-                      const created = await createSubmission(submission);
-                      const submissionWithSigning = requiresSignature
-                        ? {
-                            ...created,
-                            signatureRequired: true,
-                            signing:
-                              created.signing ?? {
-                                required: true,
-                                status: "NOT_STARTED",
-                                provider: "DOCUMENSO",
-                              },
-                          }
-                        : created;
-                      onSubmission?.({
-                        form: template.form,
-                        submission: submissionWithSigning,
-                        status: "completed",
-                      });
-                      setSelectedTemplateId("");
-                      setSelectedTemplateLabel("");
-                    } catch (e) {
-                      console.error("Failed to submit form", e);
-                      setSubmitError("Failed to submit form. Please try again.");
-                    } finally {
-                      setSubmittingId(null);
-                    }
-                  }}
-                />
-              );
-            })()
-            ) : null}
+                        try {
+                          const requiredSigner = template.form?.requiredSigner ?? '';
+                          const requiresSignature =
+                            requiredSigner === 'VET' && hasSignatureField(template.schema);
+                          const companion = activeAppointment?.companion;
+                          const submission: FormSubmission = {
+                            _id: '',
+                            formVersion: 1,
+                            submittedAt: new Date(),
+                            formId: template.value,
+                            appointmentId: activeAppointment.id,
+                            companionId: companion?.id ?? '',
+                            parentId: companion?.parent?.id ?? '',
+                            answers:
+                              valuesByForm[selectedTemplateId] ??
+                              buildInitialValues(template.schema),
+                            submittedBy: attributes.sub,
+                          };
+                          const created = await createSubmission(submission);
+                          const submissionWithSigning = requiresSignature
+                            ? {
+                                ...created,
+                                signatureRequired: true,
+                                signing: created.signing ?? {
+                                  required: true,
+                                  status: 'NOT_STARTED',
+                                  provider: 'DOCUMENSO',
+                                },
+                              }
+                            : created;
+                          onSubmission?.({
+                            form: template.form,
+                            submission: submissionWithSigning,
+                            status: 'completed',
+                          });
+                          setSelectedTemplateId('');
+                          setSelectedTemplateLabel('');
+                        } catch (e) {
+                          console.error('Failed to submit form', e);
+                          setSubmitError('Failed to submit form. Please try again.');
+                        } finally {
+                          setSubmittingId(null);
+                        }
+                      }}
+                    />
+                  );
+                })()
+              : null}
           </div>
         ) : null}
 
-      {forms.map((entry, idx) => {
-        const flat = flattenFields(entry.form.schema ?? []);
-        const answers = entry.submission?.answers ?? {};
-        const requiredSigner = entry.form.requiredSigner ?? "";
-        const isClientSigner = requiredSigner === "CLIENT";
-        const isExplicitNone = requiredSigner === "";
-        const signatureRequired =
-          !isClientSigner &&
-          !isExplicitNone &&
-          requiredSigner === "VET" &&
-          hasSignatureField(entry.form.schema ?? []);
-        const formId = entry.form._id ?? entry.form.name;
-        const formValues =
-          valuesByForm[formId] ?? buildInitialValues(entry.form.schema ?? []);
-        const key = entry.submission?._id ?? `${formId}-${idx}`;
-        const submissionWithMeta = entry.submission
-          ? ({
-              ...entry.submission,
-              signatureRequired,
-            } satisfies FormSubmission & { signatureRequired?: boolean })
-          : null;
-        const signingStatus = submissionWithMeta?.signing?.status;
-        const isSigned =
-          signingStatus === "SIGNED" || Boolean(submissionWithMeta?.signing?.pdf?.url);
-        const needsSignature = submissionWithMeta?.signatureRequired;
-        const { label, badgeClass } = getFormBadge(
-          entry,
-          needsSignature,
-          isSigned,
-          isClientSigner,
-        );
-        return (
-          <Accordion
-            key={key}
-            title={entry.form.name}
-            defaultOpen={false}
-            showEditIcon={false}
-            isEditing
-            rightElement={<FormBadge label={label} badgeClass={badgeClass} />}
-          >
-            {entry.submission ? (
-              <div className="border border-card-border rounded-2xl p-4 flex flex-col gap-2">
-                {flat.map((field) => (
-                  <div key={field.id} className="flex flex-col gap-1">
-                    <div className="text-body-4 text-text-secondary">
-                      {resolveLabel(field)}
-                    </div>
-                    <div className="text-body-3 text-text-primary">
-                      {formatValue(
-                        field,
-                        (answers as Record<string, unknown>)[field.id],
-                        submissionWithMeta ?? undefined,
-                        servicesById,
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {submissionWithMeta?.signatureRequired ? (
-                  <SignatureActions
-                    submission={submissionWithMeta}
-                    onStatusChange={(submissionId, updates) =>
-                      onSubmissionUpdate?.(submissionId, updates)
-                    }
-                  />
-                ) : null}
-                {isClientSigner ? (
-                  <div className="text-xs text-text-secondary">
-                    {isSigned
-                      ? "Signed by pet parent."
-                      : "Sent to pet parent. It will update when they sign the document."}
-                  </div>
-                ) : null}
-              </div>
-            ) : (
-              <div className="flex flex-col gap-3">
-                <div className="border border-card-border rounded-2xl p-4">
+        {forms.map((entry, idx) => {
+          const answers = entry.submission?.answers ?? {};
+          const requiredSigner = entry.form.requiredSigner ?? '';
+          const isClientSigner = requiredSigner === 'CLIENT';
+          const isExplicitNone = requiredSigner === '';
+          const signatureRequired =
+            !isClientSigner &&
+            !isExplicitNone &&
+            requiredSigner === 'VET' &&
+            hasSignatureField(entry.form.schema ?? []);
+          const formId = entry.form._id ?? entry.form.name;
+          const formValues = valuesByForm[formId] ?? buildInitialValues(entry.form.schema ?? []);
+          const key = entry.submission?._id ?? `${formId}-${idx}`;
+          const submissionWithMeta = entry.submission
+            ? ({
+                ...entry.submission,
+                signatureRequired,
+              } satisfies FormSubmission & { signatureRequired?: boolean })
+            : null;
+          const signingStatus = submissionWithMeta?.signing?.status;
+          const isSigned =
+            signingStatus === 'SIGNED' || Boolean(submissionWithMeta?.signing?.pdf?.url);
+          const needsSignature = submissionWithMeta?.signatureRequired;
+          const { label, badgeClass } = getFormBadge(
+            entry,
+            needsSignature,
+            isSigned,
+            isClientSigner
+          );
+          const shouldOpenByDefault = label === 'Signature Pending';
+          const signatureActions = submissionWithMeta?.signatureRequired ? (
+            <SignatureActions
+              submission={submissionWithMeta}
+              onStatusChange={(submissionId, updates) =>
+                onSubmissionUpdate?.(submissionId, updates)
+              }
+            />
+          ) : null;
+          return (
+            <Accordion
+              key={key}
+              title={entry.form.name}
+              defaultOpen={shouldOpenByDefault}
+              showEditIcon={false}
+              isEditing
+              rightElement={signatureActions ?? <FormBadge label={label} badgeClass={badgeClass} />}
+            >
+              {entry.submission ? (
+                <div className="border border-card-border rounded-2xl p-4 flex flex-col gap-2">
                   <FormRenderer
                     fields={entry.form.schema ?? []}
-                    values={formValues}
-                    onChange={(id, value) =>
-                      setValuesByForm((prev) => ({
-                        ...prev,
-                        [formId]: { ...(prev[formId] ?? formValues), [id]: value },
-                      }))
-                    }
-                    readOnly={!canEdit || isClientSigner}
+                    values={answers as Record<string, unknown>}
+                    onChange={() => {}}
+                    readOnly
                   />
+                  {submissionWithMeta?.signatureRequired ? (
+                    <div className="mt-3">
+                      <FormBadge label={label} badgeClass={badgeClass} />
+                    </div>
+                  ) : null}
+                  {isClientSigner ? (
+                    <div className="text-xs text-text-secondary">
+                      {isSigned
+                        ? 'Signed by pet parent.'
+                        : 'Sent to pet parent. It will update when they sign the document.'}
+                    </div>
+                  ) : null}
                 </div>
-                {canEdit && !isClientSigner && (
-                  <Primary
-                    href="#"
-                    text={submittingId === formId ? "Saving..." : "Save"}
-                    onClick={async () => {
-                      if (!activeAppointment?.id || !attributes?.sub) return;
-                      setSubmitError(null);
-                      setSubmittingId(formId);
-                      try {
-                        const requiresSignature = signatureRequired;
-                        const companion = activeAppointment?.companion;
-                        const submission: FormSubmission = {
-                          _id: "",
-                          formVersion: entry.submission?.formVersion ?? 1,
-                          submittedAt: new Date(),
-                          formId: entry.form._id,
-                          appointmentId: activeAppointment.id,
-                          companionId: companion?.id ?? "",
-                          parentId: companion?.parent?.id ?? "",
-                          answers: valuesByForm[formId] ?? formValues,
-                          submittedBy: attributes.sub,
-                        };
-                        const created = await createSubmission(submission);
-                        const submissionWithSigning = requiresSignature
-                          ? {
-                              ...created,
-                              signatureRequired: true,
-                              signing:
-                                created.signing ?? {
-                                  required: true,
-                                  status: "NOT_STARTED",
-                                  provider: "DOCUMENSO",
-                                },
-                            }
-                          : created;
-                        onSubmission?.({
-                          form: entry.form,
-                          submission: submissionWithSigning,
-                          status: "completed",
-                        });
-                      } catch (e) {
-                        console.error("Failed to submit form", e);
-                        setSubmitError("Failed to submit form. Please try again.");
-                      } finally {
-                        setSubmittingId(null);
+              ) : (
+                <div className="flex flex-col gap-3">
+                  <div className="border border-card-border rounded-2xl p-4">
+                    <FormRenderer
+                      fields={entry.form.schema ?? []}
+                      values={formValues}
+                      onChange={(id, value) =>
+                        setValuesByForm((prev) => ({
+                          ...prev,
+                          [formId]: { ...(prev[formId] ?? formValues), [id]: value },
+                        }))
                       }
-                    }}
-                  />
-                )}
-                {isClientSigner ? (
-                  <div className="text-xs text-text-secondary">
-                    Sent to pet parent. It will update when they sign the document.
+                      readOnly={!canEdit || isClientSigner}
+                    />
                   </div>
-                ) : null}
-              </div>
-            )}
-          </Accordion>
-        );
-      })}
+                  {canEdit && !isClientSigner && (
+                    <Primary
+                      href="#"
+                      text={submittingId === formId ? 'Saving...' : 'Save'}
+                      onClick={async () => {
+                        if (!activeAppointment?.id || !attributes?.sub) return;
+                        setSubmitError(null);
+                        setSubmittingId(formId);
+                        try {
+                          const requiresSignature = signatureRequired;
+                          const companion = activeAppointment?.companion;
+                          const submission: FormSubmission = {
+                            _id: '',
+                            formVersion: entry.submission?.formVersion ?? 1,
+                            submittedAt: new Date(),
+                            formId: entry.form._id,
+                            appointmentId: activeAppointment.id,
+                            companionId: companion?.id ?? '',
+                            parentId: companion?.parent?.id ?? '',
+                            answers: valuesByForm[formId] ?? formValues,
+                            submittedBy: attributes.sub,
+                          };
+                          const created = await createSubmission(submission);
+                          const submissionWithSigning = requiresSignature
+                            ? {
+                                ...created,
+                                signatureRequired: true,
+                                signing: created.signing ?? {
+                                  required: true,
+                                  status: 'NOT_STARTED',
+                                  provider: 'DOCUMENSO',
+                                },
+                              }
+                            : created;
+                          onSubmission?.({
+                            form: entry.form,
+                            submission: submissionWithSigning,
+                            status: 'completed',
+                          });
+                        } catch (e) {
+                          console.error('Failed to submit form', e);
+                          setSubmitError('Failed to submit form. Please try again.');
+                        } finally {
+                          setSubmittingId(null);
+                        }
+                      }}
+                    />
+                  )}
+                  {isClientSigner ? (
+                    <div className="text-xs text-text-secondary">
+                      Sent to pet parent. It will update when they sign the document.
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </Accordion>
+          );
+        })}
         {forms.length === 0 ? (
           <Accordion
             title="Previous form submissions"
@@ -614,8 +526,8 @@ const CustomFormsView = ({
 };
 
 const toNumber = (v: unknown): number => {
-  if (typeof v === "number") return v;
-  if (typeof v === "string") {
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string') {
     const n = Number.parseFloat(v);
     return Number.isFinite(n) ? n : 0;
   }
@@ -623,7 +535,7 @@ const toNumber = (v: unknown): number => {
   return 0;
 };
 
-const getTaxPercent = (activeAppointment: Appointment | null): number => {
+const getTaxPercent = (): number => {
   return 0;
 };
 
@@ -631,6 +543,9 @@ type AppoitmentInfoProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
   activeAppointment: Appointment | null;
+  initialViewIntent?: AppointmentViewIntent | null;
+  canEditAppointments?: boolean;
+  onReschedule?: (appointment: Appointment) => void;
 };
 
 export type ServiceEdit = Service & {
@@ -656,54 +571,79 @@ export const createEmptyFormData = (): FormDataProps => ({
   assessment: [],
   discharge: [],
   plan: [],
-  total: "",
-  discount: "",
-  subTotal: "",
-  tax: "",
+  total: '',
+  discount: '',
+  subTotal: '',
+  tax: '',
   lineItems: [],
 });
 
-type LabelKey = "info" | "prescription" | "care" | "tasks" | "finance";
+type LabelKey = 'info' | 'prescription' | 'care' | 'tasks' | 'finance' | 'labs';
 
 const hospitalLabels = [
   {
-    key: "info",
-    name: "Info",
+    key: 'info',
+    name: 'Info',
     labels: [
-      { key: "appointment", name: "Appointment" },
-      { key: "companion", name: "Companion" },
-      { key: "history", name: "History" },
+      { key: 'appointment', name: 'Appointment' },
+      { key: 'companion', name: 'Companion' },
+      { key: 'history', name: 'History' },
     ],
   },
   {
-    key: "prescription",
-    name: "Prescription",
+    key: 'prescription',
+    name: 'Prescription',
     labels: [
-      { key: "subjective", name: "Subjective" },
-      { key: "objective", name: "Objective" },
-      { key: "assessment", name: "Assessment" },
-      { key: "plan", name: "Plan" },
-      { key: "audit-trail", name: "Audit trail" },
-      { key: "discharge-summary", name: "Discharge summary" },
-      { key: "forms", name: "Forms" },
-      { key: "documents", name: "Documents" },
+      { key: 'forms', name: 'Templates' },
+      { key: 'audit-trail', name: 'Audit trail' },
+      { key: 'documents', name: 'Documents' },
+      {
+        key: 'merck-manuals',
+        name: (
+          <Image
+            src={MEDIA_SOURCES.futureAssets.merckLogoUrl}
+            alt="Merck Manuals"
+            width={82}
+            height={34}
+            className="object-contain"
+          />
+        ),
+      },
     ],
   },
   {
-    key: "tasks",
-    name: "Tasks",
+    key: 'tasks',
+    name: 'Tasks',
     labels: [
-      { key: "parent-chat", name: "Companion parent chat" },
-      { key: "task", name: "Task" },
-      { key: "parent-task", name: "Parent task" },
+      { key: 'parent-chat', name: 'Companion parent chat' },
+      { key: 'task', name: 'Task' },
+      { key: 'parent-task', name: 'Parent task' },
     ],
   },
   {
-    key: "finance",
-    name: "Finance",
+    key: 'finance',
+    name: 'Finance',
     labels: [
-      { key: "summary", name: "Summary" },
-      { key: "payment-details", name: "Payment details" },
+      { key: 'summary', name: 'Summary' },
+      { key: 'payment-details', name: 'Invoices' },
+    ],
+  },
+  {
+    key: 'labs',
+    name: 'Labs',
+    labels: [
+      {
+        key: 'idexx-labs',
+        name: (
+          <Image
+            src={MEDIA_SOURCES.futureAssets.idexxLogoUrl}
+            alt="IDEXX"
+            width={94}
+            height={40}
+            className="object-contain"
+          />
+        ),
+      },
     ],
   },
 ];
@@ -712,14 +652,15 @@ const AppoitmentInfo = ({
   showModal,
   setShowModal,
   activeAppointment,
+  initialViewIntent,
+  canEditAppointments = false,
+  onReschedule,
 }: AppoitmentInfoProps) => {
   const { can } = usePermissions();
   const canEdit = can(PERMISSIONS.PRESCRIPTION_EDIT_OWN);
   const services = useServicesForPrimaryOrgSpecialities();
   const [activeLabel, setActiveLabel] = useState<LabelKey>(hospitalLabels[0].key as LabelKey);
-  const [activeSubLabel, setActiveSubLabel] = useState<string>(
-    hospitalLabels[0].labels[0].key,
-  );
+  const [activeSubLabel, setActiveSubLabel] = useState<string>(hospitalLabels[0].labels[0].key);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const [customForms, setCustomForms] = useState<AppointmentFormEntry[]>([]);
@@ -728,7 +669,7 @@ const AppoitmentInfo = ({
   const upsertCustomForm = useCallback((entry: AppointmentFormEntry) => {
     setCustomForms((prev) => {
       const existsIdx = prev.findIndex(
-        (e) => (e.form._id ?? e.form.name) === (entry.form._id ?? entry.form.name),
+        (e) => (e.form._id ?? e.form.name) === (entry.form._id ?? entry.form.name)
       );
       if (existsIdx === -1) {
         return [entry, ...prev];
@@ -740,7 +681,7 @@ const AppoitmentInfo = ({
   }, []);
   const updateCustomFormSubmission = (
     submissionId: string,
-    updates: Partial<FormSubmission> & { signatureRequired?: boolean },
+    updates: Partial<FormSubmission> & { signatureRequired?: boolean }
   ) => {
     setCustomForms((prev) =>
       prev.map((entry) =>
@@ -748,26 +689,26 @@ const AppoitmentInfo = ({
         (entry.submission as { submissionId?: string } | null | undefined)?.submissionId ===
           submissionId
           ? { ...entry, submission: { ...entry.submission!, ...updates } }
-          : entry,
-      ),
+          : entry
+      )
     );
   };
 
   const orgsById = useOrgStore((s) => s.orgsById);
   const orgTypeOverride = process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE;
   const orgType =
-    (orgTypeOverride as Organisation["type"] | undefined) ||
-    (activeAppointment?.organisationId &&
-      orgsById[activeAppointment.organisationId]?.type) ||
-    "HOSPITAL";
+    (orgTypeOverride as Organisation['type'] | undefined) ||
+    (activeAppointment?.organisationId && orgsById[activeAppointment.organisationId]?.type) ||
+    'HOSPITAL';
   const formsById = useFormsStore((s) => s.formsById);
   useLoadFormsForPrimaryOrg();
   const formIds = useFormsStore((s) => s.formIds);
   const allForms = formIds.map((id) => formsById[id]).filter(Boolean);
   const signingOverlayOpen = useSigningOverlayStore((s) => s.open);
+  const { isEnabled: merckEnabled } = useResolvedMerckIntegrationForPrimaryOrg();
   const templatesForOrg = useMemo(() => {
     const trimPrefix = (text?: string | null) =>
-      (text ?? "").replace(/^(Boarder|Breeder|Groomer)\s*-\s*/i, "");
+      (text ?? '').replace(/^(Boarder|Breeder|Groomer)\s*-\s*/i, '');
     const matchesAllowed = (category: string, allowed: string[]) => {
       const normalized = trimPrefix(category);
       return allowed.includes(category) || allowed.includes(normalized);
@@ -783,7 +724,36 @@ const AppoitmentInfo = ({
       }));
   }, [allForms, orgType]);
 
-  const labels = getLabelsForOrgType(orgType, hospitalLabels);
+  const labels = useMemo(() => {
+    const base = getLabelsForOrgType(orgType, hospitalLabels);
+    if (merckEnabled) return base;
+    return base.map((label: any) => {
+      if (label.key !== 'prescription') return label;
+      return {
+        ...label,
+        labels: (label.labels ?? []).filter(
+          (item: { key: string }) => item.key !== 'merck-manuals'
+        ),
+      };
+    });
+  }, [orgType, merckEnabled]);
+
+  useEffect(() => {
+    if (!showModal || !initialViewIntent) return;
+    const targetLabel = labels.find((label) => label.key === initialViewIntent.label);
+    if (!targetLabel) return;
+    setActiveLabel(targetLabel.key as LabelKey);
+    const hasTargetSubLabel = initialViewIntent.subLabel
+      ? targetLabel.labels.some(
+          (label: { key: string }) => label.key === initialViewIntent.subLabel
+        )
+      : false;
+    setActiveSubLabel(
+      hasTargetSubLabel
+        ? (initialViewIntent.subLabel as string)
+        : (targetLabel.labels[0]?.key ?? '')
+    );
+  }, [showModal, initialViewIntent, labels]);
 
   const COMPONENT_MAP: Record<string, Record<string, React.FC<any>>> = {
     info: {
@@ -796,32 +766,34 @@ const AppoitmentInfo = ({
       objective: Objective,
       assessment: Assessment,
       plan: Plan,
-      "audit-trail": Audit,
-      "discharge-summary": Discharge,
+      'audit-trail': Audit,
+      'discharge-summary': Discharge,
       forms: CustomFormsSection,
       documents: Documents,
+      'merck-manuals': AppointmentMerckSearch,
     },
     care: {
       forms: CustomFormsSection,
       documents: Documents,
-      "audit-trail": Audit,
-      "discharge-summary": Discharge,
+      'audit-trail': Audit,
+      'discharge-summary': Discharge,
     },
     tasks: {
-      "parent-chat": Chat,
+      'parent-chat': Chat,
       task: Task,
-      "parent-task": ParentTask,
+      'parent-task': ParentTask,
     },
     finance: {
       summary: Summary,
-      "payment-details": Details,
+      'payment-details': Details,
+    },
+    labs: {
+      'idexx-labs': LabTests,
     },
   };
 
   const Content = COMPONENT_MAP[activeLabel]?.[activeSubLabel];
-  const [formData, setFormData] = useState<FormDataProps>(
-    createEmptyFormData(),
-  );
+  const [formData, setFormData] = useState<FormDataProps>(createEmptyFormData());
 
   const loadAppointmentForms = useCallback(async () => {
     if (!activeAppointment?.id) {
@@ -836,8 +808,8 @@ const AppoitmentInfo = ({
       const res = await fetchAppointmentForms(activeAppointment.id);
       setCustomForms(res.forms);
     } catch (e) {
-      console.error("Failed to load appointment forms:", e);
-      setCustomFormsError("Unable to load forms");
+      console.error('Failed to load appointment forms:', e);
+      setCustomFormsError('Unable to load forms');
       setCustomForms([]);
     } finally {
       setCustomFormsLoading(false);
@@ -851,7 +823,8 @@ const AppoitmentInfo = ({
       if (submissionId) {
         return customForms.find((entry) => {
           const entryId =
-            entry.submission?._id || (entry.submission as SoapNoteSubmission | undefined)?.submissionId;
+            entry.submission?._id ||
+            (entry.submission as SoapNoteSubmission | undefined)?.submissionId;
           return entryId && String(entryId) === String(submissionId);
         });
       }
@@ -860,7 +833,7 @@ const AppoitmentInfo = ({
       }
       return undefined;
     },
-    [customForms],
+    [customForms]
   );
 
   const withSignatureMeta = useCallback(
@@ -875,26 +848,23 @@ const AppoitmentInfo = ({
         const hasSigningData = Boolean(
           mergedSigning?.status || mergedSigning?.pdf?.url || mergedSigning?.documentId
         );
-        const requiredSigner = form?.requiredSigner ?? "";
-        const isClientSigner = requiredSigner === "CLIENT";
-        const isExplicitNone = requiredSigner === "";
+        const requiredSigner = form?.requiredSigner ?? '';
+        const isClientSigner = requiredSigner === 'CLIENT';
+        const isExplicitNone = requiredSigner === '';
         const requiresSignature =
           !isClientSigner &&
           !isExplicitNone &&
-          requiredSigner === "VET" &&
+          requiredSigner === 'VET' &&
           Boolean(
-            (sub as SoapNoteSubmission).signatureRequired ||
-              schemaHasSignature ||
-              hasSigningData,
+            (sub as SoapNoteSubmission).signatureRequired || schemaHasSignature || hasSigningData
           );
-        let signing: SoapNoteSubmission["signing"] | undefined;
+        let signing: SoapNoteSubmission['signing'] | undefined;
         if (requiresSignature) {
-          signing =
-            mergedSigning ?? {
-              required: true,
-              status: "NOT_STARTED",
-              provider: "DOCUMENSO",
-            };
+          signing = mergedSigning ?? {
+            required: true,
+            status: 'NOT_STARTED',
+            provider: 'DOCUMENSO',
+          };
         } else if (hasSigningData) {
           signing = mergedSigning;
         }
@@ -905,8 +875,12 @@ const AppoitmentInfo = ({
         };
       });
     },
-    [formsById, resolveAppointmentFormEntry],
+    [formsById, resolveAppointmentFormEntry]
   );
+  const withSignatureMetaRef = useRef(withSignatureMeta);
+  useEffect(() => {
+    withSignatureMetaRef.current = withSignatureMeta;
+  }, [withSignatureMeta]);
 
   useEffect(() => {
     const current = labels.find((l) => l.key === activeLabel);
@@ -933,15 +907,12 @@ const AppoitmentInfo = ({
     if (!appointmentId) return;
 
     setFormData((prev) => {
-      const itemsSubTotal = (prev.lineItems ?? []).reduce(
-        (sum, li) => sum + toNumber(li.total),
-        0,
-      );
+      const itemsSubTotal = (prev.lineItems ?? []).reduce((sum, li) => sum + toNumber(li.total), 0);
       const serviceId = activeAppointment?.appointmentType?.id;
       const service = services.find((s) => s.id === serviceId);
       const serviceCost = service ? toNumber(service.cost) : 0;
       const subTotal = itemsSubTotal + serviceCost;
-      const taxPercent = getTaxPercent(activeAppointment);
+      const taxPercent = getTaxPercent();
       const taxTotal = (subTotal * taxPercent) / 100;
       const total = subTotal + taxTotal;
       return {
@@ -963,24 +934,24 @@ const AppoitmentInfo = ({
       }
       try {
         const soap = await fetchSubmissions(appointmentId);
-        console.log(soap)
         if (cancelled) return;
+        const applySignatureMeta = withSignatureMetaRef.current;
         setFormData((prev) => ({
           ...prev,
-          subjective: withSignatureMeta(soap?.soapNotes?.Subjective),
-          objective: withSignatureMeta(soap?.soapNotes?.Objective),
-          assessment: withSignatureMeta(soap?.soapNotes?.Assessment),
-          plan: withSignatureMeta(soap?.soapNotes?.Plan),
-          discharge: withSignatureMeta(soap?.soapNotes?.Discharge),
+          subjective: applySignatureMeta(soap?.soapNotes?.Subjective),
+          objective: applySignatureMeta(soap?.soapNotes?.Objective),
+          assessment: applySignatureMeta(soap?.soapNotes?.Assessment),
+          plan: applySignatureMeta(soap?.soapNotes?.Plan),
+          discharge: applySignatureMeta(soap?.soapNotes?.Discharge),
           // not present in GetSOAPResponse, keep as-is / empty
-          total: prev.total ?? "",
-          subTotal: prev.subTotal ?? "",
-          tax: prev.tax ?? "",
-          discount: prev.discount ?? "",
+          total: prev.total ?? '',
+          subTotal: prev.subTotal ?? '',
+          tax: prev.tax ?? '',
+          discount: prev.discount ?? '',
         }));
       } catch (e) {
         if (cancelled) return;
-        console.error("Failed to fetch submissions:", e);
+        console.error('Failed to fetch submissions:', e);
         setFormData(createEmptyFormData());
       }
     };
@@ -988,15 +959,18 @@ const AppoitmentInfo = ({
     return () => {
       cancelled = true;
     };
-  }, [activeAppointment?.id, withSignatureMeta]);
+  }, [activeAppointment?.id]);
 
   useEffect(() => {
     void loadAppointmentForms();
-  }, [loadAppointmentForms]);
+  }, [activeAppointment?.id, loadAppointmentForms]);
 
+  const prevSigningOverlayOpenRef = useRef(signingOverlayOpen);
   useEffect(() => {
     // When signing overlay closes, refresh forms so signature status updates without a full page reload.
-    if (signingOverlayOpen) return;
+    const wasOpen = prevSigningOverlayOpenRef.current;
+    prevSigningOverlayOpenRef.current = signingOverlayOpen;
+    if (!wasOpen || signingOverlayOpen) return;
     void loadAppointmentForms();
   }, [signingOverlayOpen, loadAppointmentForms]);
 
@@ -1012,19 +986,19 @@ const AppoitmentInfo = ({
   }, [formsById, customForms, withSignatureMeta]);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
+    scrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
   }, [activeLabel, activeSubLabel]);
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <SigningOverlay />
-      <div className="flex flex-col h-full gap-6">
+      <div className={`flex flex-col h-full ${activeLabel === 'labs' ? 'gap-1' : 'gap-3'}`}>
         <div className="flex flex-col gap-3">
           <div className="flex justify-between items-center">
             <div className="flex justify-center items-center gap-2">
               <Image
                 alt="pet image"
-                src={"https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"}
+                src={MEDIA_SOURCES.appointments.companionAvatar}
                 className="rounded-full"
                 height={40}
                 width={40}
@@ -1048,16 +1022,15 @@ const AppoitmentInfo = ({
           />
         </div>
 
-        <div
-          ref={scrollRef}
-          className="flex overflow-y-auto flex-1 scrollbar-hidden"
-        >
+        <div ref={scrollRef} className="flex overflow-y-auto flex-1 scrollbar-custom">
           {Content ? (
             <Content
               activeAppointment={activeAppointment}
               formData={formData}
               setFormData={setFormData}
               canEdit={canEdit}
+              canEditAppointments={canEditAppointments}
+              onReschedule={onReschedule}
               forms={customForms}
               loading={customFormsLoading}
               error={customFormsError}

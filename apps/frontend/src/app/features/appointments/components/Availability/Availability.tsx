@@ -1,18 +1,19 @@
-import React from "react";
+import React from 'react';
 import {
   daysOfWeek,
-  timeIndex,
-  timeOptions,
   DEFAULT_INTERVAL,
   AvailabilityState,
   TimeOption,
   Interval,
   SetAvailability,
   ApiOverrides,
-} from "@/app/features/appointments/components/Availability/utils";
-import TimeSlot from "@/app/features/appointments/components/Availability/TimeSlot";
-import { FaCirclePlus, FaCircleMinus } from "react-icons/fa6";
-import Dublicate from "@/app/features/appointments/components/Availability/Dublicate";
+  buildTimeIndex,
+  generateTimeOptions,
+} from '@/app/features/appointments/components/Availability/utils';
+import TimeSlot from '@/app/features/appointments/components/Availability/TimeSlot';
+import { FaCirclePlus, FaCircleMinus } from 'react-icons/fa6';
+import Dublicate from '@/app/features/appointments/components/Availability/Dublicate';
+import { useMemo } from 'react';
 
 type AvailabilityProps = {
   availability: AvailabilityState;
@@ -21,12 +22,10 @@ type AvailabilityProps = {
   setOverides?: React.Dispatch<React.SetStateAction<ApiOverrides[]>>;
 };
 
-const Availability: React.FC<AvailabilityProps> = ({
-  availability,
-  setAvailability,
-  overides,
-  setOverides,
-}) => {
+const Availability: React.FC<AvailabilityProps> = ({ availability, setAvailability }) => {
+  const timeOptions = useMemo(() => generateTimeOptions(), []);
+  const timeIndex = useMemo(() => buildTimeIndex(timeOptions), [timeOptions]);
+
   const toggleDay = (day: string) => {
     setAvailability((prev: AvailabilityState) => ({
       ...prev,
@@ -66,7 +65,7 @@ const Availability: React.FC<AvailabilityProps> = ({
 
   return (
     <div className="flex flex-col gap-2! sm:gap-4! w-full">
-      {daysOfWeek.map((day: string, dayIndex: number) => (
+      {daysOfWeek.map((day: string) => (
         <div key={day} className="flex items-start w-full gap-3 sm:gap-6 flex-wrap">
           <div className="flex items-center gap-2 w-[130px]">
             <input
@@ -80,59 +79,54 @@ const Availability: React.FC<AvailabilityProps> = ({
 
           {availability[day].enabled && (
             <div className="flex flex-col gap-1 sm:gap-3">
-              {availability[day].intervals.map(
-                (interval: Interval, i: number) => {
-                  const endOptions = getEndOptions(interval.start);
-                  return (
-                    <div
-                      key={i + interval.start}
-                      className="flex items-center gap-1 sm:gap-3"
-                    >
-                      <TimeSlot
-                        interval={interval}
-                        timeOptions={timeOptions}
-                        setAvailability={setAvailability}
-                        day={day}
-                        intervalIndex={i}
-                        field="start"
-                      />
-                      <TimeSlot
-                        interval={interval}
-                        timeOptions={endOptions}
-                        setAvailability={setAvailability}
-                        day={day}
-                        intervalIndex={i}
-                        field="end"
-                      />
-                      {i === 0 ? (
-                        <div className="border-none outline-none bg-white flex items-center justify-center">
-                          <FaCirclePlus
-                            color="#302f2e"
-                            size={20}
-                            onClick={() => addInterval(day)}
-                            className="cursor-pointer"
-                          />
-                        </div>
-                      ) : (
-                        <div className="border-none outline-none bg-white flex items-center justify-center">
-                          <FaCircleMinus
-                            color="#302f2e"
-                            size={20}
-                            onClick={() => deleteInterval(day, i)}
-                            className="cursor-pointer"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  );
-                }
-              )}
+              {availability[day].intervals.map((interval: Interval, i: number) => {
+                const endOptions = getEndOptions(interval.start);
+                return (
+                  <div key={i + interval.start} className="flex items-center gap-1 sm:gap-3">
+                    <TimeSlot
+                      interval={interval}
+                      timeOptions={timeOptions}
+                      timeIndex={timeIndex}
+                      setAvailability={setAvailability}
+                      day={day}
+                      intervalIndex={i}
+                      field="start"
+                    />
+                    <TimeSlot
+                      interval={interval}
+                      timeOptions={endOptions}
+                      timeIndex={timeIndex}
+                      setAvailability={setAvailability}
+                      day={day}
+                      intervalIndex={i}
+                      field="end"
+                    />
+                    {i === 0 ? (
+                      <div className="border-none outline-none bg-white flex items-center justify-center">
+                        <FaCirclePlus
+                          color="#302f2e"
+                          size={20}
+                          onClick={() => addInterval(day)}
+                          className="cursor-pointer"
+                        />
+                      </div>
+                    ) : (
+                      <div className="border-none outline-none bg-white flex items-center justify-center">
+                        <FaCircleMinus
+                          color="#302f2e"
+                          size={20}
+                          onClick={() => deleteInterval(day, i)}
+                          className="cursor-pointer"
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 
-          {availability[day].enabled && (
-            <Dublicate setAvailability={setAvailability} day={day} />
-          )}
+          {availability[day].enabled && <Dublicate setAvailability={setAvailability} day={day} />}
         </div>
       ))}
     </div>

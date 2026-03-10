@@ -15,6 +15,10 @@ import DateBuilder from "@/app/features/forms/pages/Forms/Sections/AddForm/compo
 import { useOrgStore } from "@/app/stores/orgStore";
 import { fetchInventoryItems } from "@/app/features/inventory/services/inventoryService";
 import { InventoryApiItem } from "@/app/features/inventory/pages/Inventory/types";
+import {
+  ensureSingleSignatureAtEnd,
+  hasSignatureField,
+} from "@/app/lib/forms";
 
 type BuildProps = {
   formData: FormsProps;
@@ -170,7 +174,8 @@ const fieldFactory: Record<OptionKey, (id: string, serviceOptions?: { label: str
 const AddFieldDropdown: React.FC<{
   onSelect: (key: OptionKey) => void;
   buttonClassName?: string;
-}> = ({ onSelect, buttonClassName }) => {
+  options?: OptionProp[];
+}> = ({ onSelect, buttonClassName, options = addOptions }) => {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   useOutsideClick(dropdownRef, () => setOpen(false));
@@ -185,7 +190,7 @@ const AddFieldDropdown: React.FC<{
       />
       {open && (
         <div className="absolute top-[120%] z-10 right-0 rounded-2xl border border-grey-noti bg-white shadow-md! flex flex-col items-center w-[160px]">
-          {addOptions.map((option, i) => (
+          {options.map((option, i) => (
             <button
               key={option.key}
               onClick={() => {
@@ -504,6 +509,7 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
                 key={nested.id}
                 field={nested}
                 onDelete={() => removeNestedField(nested.id)}
+                compact
               >
                 <MedicationGroupBuilder
                   field={nested}
@@ -520,6 +526,7 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
               key={nested.id}
               field={nested}
               onDelete={() => removeNestedField(nested.id)}
+              compact
             >
               <GroupBuilder
                 field={nested}
@@ -591,8 +598,9 @@ const renderNestedField = (
         key={nested.id}
         field={nested}
         onDelete={() => removeMedicine(nested.id)}
+        compact
       >
-        <div className="flex flex-col gap-3 border border-grey-light rounded-2xl p-3">
+        <div className="flex flex-col gap-3">
           <div className="font-grotesk text-black-text text-[16px] font-medium">
             {nested.label}
           </div>
@@ -805,6 +813,12 @@ const Build = ({
     return fieldFactory[key](id, serviceOptions);
   };
 
+  const canUseSignature = formData.requiredSigner !== undefined && formData.requiredSigner !== "";
+  const addOptionsForContext = React.useMemo(
+    () => addOptions.filter((opt) => opt.key !== "signature" || canUseSignature),
+    [canUseSignature],
+  );
+
   const updateFieldInForm = (
     prev: FormsProps,
     fieldId: string,
@@ -818,6 +832,22 @@ const Build = ({
 
   const handleFieldChange = (fieldId: string, updatedField: FormField) => {
     setFormData((prev) => updateFieldInForm(prev, fieldId, updatedField));
+  };
+
+  const canDeleteField = (fieldId: string): boolean => {
+    const field = (formData.schema ?? []).find((f) => f.id === fieldId);
+    const signerRequired = formData.requiredSigner !== undefined && formData.requiredSigner !== "";
+    if (signerRequired && field?.type === "signature") {
+      setBuildError("Cannot remove signature while 'Signed by' is selected.");
+      return false;
+    }
+    return true;
+  };
+
+  const handleDeleteField = (fieldId: string) => {
+    if (!canDeleteField(fieldId)) return;
+    setBuildError("");
+    setFormData((prev) => removeFieldById(prev, fieldId));
   };
 
   const removeFieldById = (form: FormsProps, id: string): FormsProps => ({
@@ -834,6 +864,17 @@ const Build = ({
   };
 
   const addField = (key: OptionKey) => {
+    if (key === "signature") {
+      if (!canUseSignature) {
+        setBuildError("Select 'Signed by' in Form details before adding a signature field.");
+        return;
+      }
+      if (hasSignatureField(formData.schema ?? [])) {
+        setBuildError("Only one signature field is allowed per form.");
+        return;
+      }
+    }
+
     const hasTreatmentPlan =
       formData.schema?.some(
         (f) => f.id === "treatment_plan" && f.type === "group"
@@ -850,8 +891,12 @@ const Build = ({
     }
     setFormData((prev) => ({
       ...prev,
-      schema: [...(prev.schema ?? []), newField],
+      schema:
+        key === "signature" && prev.category === "Prescription"
+          ? ensureSingleSignatureAtEnd([...(prev.schema ?? []), newField])
+          : [...(prev.schema ?? []), newField],
     }));
+    setBuildError("");
   };
 
   const moveField = (index: number, direction: "up" | "down") => {
@@ -906,7 +951,7 @@ const Build = ({
     const rect =
       scrollable === builderRef.current
         ? scrollable.getBoundingClientRect()
-        : { top: 0, bottom: window.innerHeight, height: window.innerHeight };
+        : { top: 0, bottom: globalThis.innerHeight, height: globalThis.innerHeight };
     const softZone = Math.min(300, (rect.bottom - rect.top) / 2);
     const turboZone = softZone / 3;
     const distanceToTop = Math.max(0, clientY - rect.top);
@@ -1013,7 +1058,11 @@ const Build = ({
           <div className="font-grotesk text-black-text text-[23px] font-medium">
             Build form
           </div>
-          <AddFieldDropdown onSelect={addField} buttonClassName="w-fit" />
+          <AddFieldDropdown
+            onSelect={addField}
+            buttonClassName="w-fit"
+            options={addOptionsForContext}
+          />
         </div>
 
         {formData.schema?.map((field, index) => {
@@ -1029,9 +1078,7 @@ const Build = ({
                 <BuilderWrapper
                   key={fieldId}
                   field={field}
-                  onDelete={() =>
-                    setFormData((prev) => removeFieldById(prev, fieldId))
-                  }
+                  onDelete={() => handleDeleteField(fieldId)}
                   onMoveUp={() => moveField(index, "up")}
                   onMoveDown={() => moveField(index, "down")}
                   canMoveUp={canMoveUp}
@@ -1062,9 +1109,7 @@ const Build = ({
                 <BuilderWrapper
                   key={ensured.id}
                   field={ensured}
-                  onDelete={() =>
-                    setFormData((prev) => removeFieldById(prev, fieldId))
-                  }
+                  onDelete={() => handleDeleteField(fieldId)}
                   onMoveUp={() => moveField(index, "up")}
                   onMoveDown={() => moveField(index, "down")}
                   canMoveUp={canMoveUp}
@@ -1093,9 +1138,7 @@ const Build = ({
               <BuilderWrapper
                 key={fieldId}
                 field={field}
-                onDelete={() =>
-                  setFormData((prev) => removeFieldById(prev, fieldId))
-                }
+                onDelete={() => handleDeleteField(fieldId)}
                 onMoveUp={() => moveField(index, "up")}
                 onMoveDown={() => moveField(index, "down")}
                 canMoveUp={canMoveUp}
@@ -1125,9 +1168,7 @@ const Build = ({
               onChange={(updatedField) =>
                 handleFieldChange(fieldId, updatedField)
               }
-              onDelete={() =>
-                setFormData((prev) => removeFieldById(prev, fieldId))
-              }
+              onDelete={() => handleDeleteField(fieldId)}
               onMoveUp={() => moveField(index, "up")}
               onMoveDown={() => moveField(index, "down")}
               canMoveUp={canMoveUp}
@@ -1155,6 +1196,7 @@ const Build = ({
             <AddFieldDropdown
               onSelect={addField}
               buttonClassName="w-fit"
+              options={addOptionsForContext}
             />
             <span className="text-sm font-satoshi font-medium text-grey-noti">
               Add Field

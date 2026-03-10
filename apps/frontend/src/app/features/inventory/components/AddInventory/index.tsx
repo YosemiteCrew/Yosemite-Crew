@@ -113,6 +113,7 @@ type AddInventoryProps = {
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
   businessType: BusinessType;
   onSubmit: (data: InventoryItem) => Promise<void>;
+  stockLocationOptions?: string[];
 };
 
 const AddInventory = ({
@@ -120,6 +121,7 @@ const AddInventory = ({
   setShowModal,
   businessType,
   onSubmit,
+  stockLocationOptions,
 }: AddInventoryProps) => {
   const [activeLabel, setActiveLabel] = useState<InventorySectionKey>(
     labels[0].key
@@ -463,6 +465,7 @@ const AddInventory = ({
                 };
               })
             }
+            stockLocationOptions={stockLocationOptions}
           />
         </div>
       </div>

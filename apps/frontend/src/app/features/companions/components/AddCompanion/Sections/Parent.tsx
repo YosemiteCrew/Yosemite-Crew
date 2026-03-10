@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useState,
+} from "react";
 import FormInput from "@/app/ui/inputs/FormInput/FormInput";
 import { Primary } from "@/app/ui/primitives/Buttons";
 import Accordion from "@/app/ui/primitives/Accordion/Accordion";
@@ -21,9 +27,15 @@ type ParentProps = {
   setFormData: React.Dispatch<React.SetStateAction<StoredParent>>;
 };
 
-const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
+export interface ParentSectionRef {
+  validateStep: () => boolean;
+}
+
+const Parent = forwardRef<ParentSectionRef, ParentProps>(
+  ({ setActiveLabel, formData, setFormData }, ref) => {
   const [formDataErrors, setFormDataErrors] = useState<{
     firstName?: string;
+    lastName?: string;
     email?: string;
     phoneNumber?: string;
     dateOfBirth?: string;
@@ -72,15 +84,17 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
     }));
   }, [currentDate, setFormData]);
 
-  const handleNext = () => {
+  const validateStep = () => {
     const errors: {
       firstName?: string;
+      lastName?: string;
       email?: string;
       phoneNumber?: string;
       dateOfBirth?: string;
       country?: string;
     } = {};
     if (!formData.firstName) errors.firstName = "First name is required";
+    if (!formData.lastName) errors.lastName = "Last name is required";
     if (!formData.email) errors.email = "Email is required";
     if (!formData.phoneNumber) errors.phoneNumber = "Number is required";
     if (!formData.birthDate) errors.dateOfBirth = "Date of birth is required";
@@ -99,10 +113,22 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
 
     setFormDataErrors(errors);
     if (Object.keys(errors).length > 0) {
+      return false;
+    }
+    return true;
+  };
+
+  useImperativeHandle(ref, () => ({
+    validateStep,
+  }));
+
+  const handleNext = () => {
+    const isValid = validateStep();
+    if (!isValid) {
       return;
     }
-    setActiveLabel("companion");
     setFormDataErrors({});
+    setActiveLabel("companion");
   };
 
   const handleSelect = (parentId: string) => {
@@ -148,10 +174,11 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
                 intype="text"
                 inname="name"
                 value={formData.lastName || ""}
-                inlabel="Last name (Optional)"
+                inlabel="Last name"
                 onChange={(e) =>
                   setFormData({ ...formData, lastName: e.target.value })
                 }
+                error={formDataErrors.lastName}
                 className="min-h-12!"
               />
             </div>
@@ -256,14 +283,17 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
         </Accordion>
       </div>
 
-      <Primary
-        href="#"
-        text="Next"
-        onClick={handleNext}
-        classname="max-h-12! text-lg! tracking-wide!"
-      />
+      <div className="flex justify-center items-center gap-3 w-full flex-row">
+        <Primary
+          href="#"
+          text="Next"
+          onClick={handleNext}
+        />
+      </div>
     </div>
   );
-};
+});
+
+Parent.displayName = "Parent";
 
 export default Parent;

@@ -1,39 +1,41 @@
-"use client";
-import React, { useEffect, useMemo, useState } from "react";
-import ProtectedRoute from "@/app/ui/layout/guards/ProtectedRoute";
-import TasksTable from "@/app/ui/tables/Tasks";
-import AddTask from "@/app/features/tasks/pages/Tasks/Sections/AddTask";
-import TaskInfo from "@/app/features/tasks/pages/Tasks/Sections/TaskInfo";
-import TitleCalendar from "@/app/ui/widgets/TitleCalendar";
-import { getStartOfWeek } from "@/app/features/appointments/components/Calendar/weekHelpers";
-import TaskCalendar from "@/app/features/appointments/components/Calendar/TaskCalendar";
-import OrgGuard from "@/app/ui/layout/guards/OrgGuard";
-import { useTasksForPrimaryOrg } from "@/app/hooks/useTask";
-import { Task, TaskFilters, TaskStatusFilters } from "@/app/features/tasks/types/task";
-import { useSearchStore } from "@/app/stores/searchStore";
-import Filters from "@/app/ui/filters/Filters";
-import { usePermissions } from "@/app/hooks/usePermissions";
-import { PERMISSIONS } from "@/app/lib/permissions";
-import { PermissionGate } from "@/app/ui/layout/guards/PermissionGate";
-import Fallback from "@/app/ui/overlays/Fallback";
+'use client';
+import React, { useEffect, useMemo, useState } from 'react';
+import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
+import TasksTable from '@/app/ui/tables/Tasks';
+import AddTask from '@/app/features/tasks/pages/Tasks/Sections/AddTask';
+import TaskInfo from '@/app/features/tasks/pages/Tasks/Sections/TaskInfo';
+import TitleCalendar from '@/app/ui/widgets/TitleCalendar';
+import { startOfDay } from '@/app/features/appointments/components/Calendar/weekHelpers';
+import TaskCalendar from '@/app/features/appointments/components/Calendar/TaskCalendar';
+import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
+import { useTasksForPrimaryOrg } from '@/app/hooks/useTask';
+import { Task, TaskFilters, TaskStatusFilters } from '@/app/features/tasks/types/task';
+import { useSearchStore } from '@/app/stores/searchStore';
+import Filters from '@/app/ui/filters/Filters';
+import { usePermissions } from '@/app/hooks/usePermissions';
+import { PERMISSIONS } from '@/app/lib/permissions';
+import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
+import Fallback from '@/app/ui/overlays/Fallback';
 
 const Tasks = () => {
   const tasks = useTasksForPrimaryOrg();
   const { can } = usePermissions();
   const canEditTasks = can(PERMISSIONS.TASKS_EDIT_ANY);
   const query = useSearchStore((s) => s.query);
-  const [activeFilter, setActiveFilter] = useState("all");
-  const [activeStatus, setActiveStatus] = useState("all");
+  const [activeFilter, setActiveFilter] = useState('all');
+  const [activeStatus, setActiveStatus] = useState('all');
   const [addPopup, setAddPopup] = useState(false);
   const [viewPopup, setViewPopup] = useState(false);
   const [activeTask, setActiveTask] = useState<Task | null>(tasks[0] ?? null);
-  const [activeCalendar, setActiveCalendar] = useState("week");
-  const [activeView, setActiveView] = useState("calendar");
+  const [activeCalendar, setActiveCalendar] = useState('week');
+  const [activeView, setActiveView] = useState('calendar');
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
-  const [weekStart, setWeekStart] = useState(getStartOfWeek(currentDate));
+  const [weekStart, setWeekStart] = useState(startOfDay(currentDate));
 
   useEffect(() => {
-    setWeekStart(getStartOfWeek(currentDate));
+    if (activeCalendar === 'week') {
+      setWeekStart(startOfDay(currentDate));
+    }
   }, [currentDate, activeCalendar]);
 
   useEffect(() => {
@@ -56,8 +58,8 @@ const Tasks = () => {
       const status = item.status?.toLowerCase();
       const filter = item.audience?.toLowerCase();
 
-      const matchesStatus = statusWanted === "all" || status === statusWanted;
-      const matchesFilter = filterWanted === "all" || filter === filterWanted;
+      const matchesStatus = statusWanted === 'all' || status === statusWanted;
+      const matchesFilter = filterWanted === 'all' || filter === filterWanted;
       const matchesQuery = !q || item.name?.toLowerCase().includes(q);
 
       return matchesStatus && matchesFilter && matchesQuery;
@@ -81,10 +83,7 @@ const Tasks = () => {
           showAdd={canEditTasks}
         />
 
-        <PermissionGate
-          allOf={[PERMISSIONS.TASKS_VIEW_ANY]}
-          fallback={<Fallback />}
-        >
+        <PermissionGate allOf={[PERMISSIONS.TASKS_VIEW_ANY]} fallback={<Fallback />}>
           <div className="w-full flex flex-col gap-3">
             <Filters
               filterOptions={TaskFilters}
@@ -94,9 +93,10 @@ const Tasks = () => {
               setActiveFilter={setActiveFilter}
               setActiveStatus={setActiveStatus}
             />
-            {activeView === "calendar" ? (
+            {activeView === 'calendar' ? (
               <TaskCalendar
                 filteredList={filteredList}
+                allTasks={tasks}
                 setActiveTask={setActiveTask}
                 setViewPopup={setViewPopup}
                 activeCalendar={activeCalendar}
@@ -104,6 +104,7 @@ const Tasks = () => {
                 setCurrentDate={setCurrentDate}
                 weekStart={weekStart}
                 setWeekStart={setWeekStart}
+                canEditTasks={canEditTasks}
               />
             ) : (
               <TasksTable
@@ -115,12 +116,8 @@ const Tasks = () => {
           </div>
 
           <AddTask showModal={addPopup} setShowModal={setAddPopup} />
-          {activeTask && (
-            <TaskInfo
-              showModal={viewPopup}
-              setShowModal={setViewPopup}
-              activeTask={activeTask}
-            />
+          {activeTask && viewPopup && (
+            <TaskInfo showModal={viewPopup} setShowModal={setViewPopup} activeTask={activeTask} />
           )}
         </PermissionGate>
       </div>

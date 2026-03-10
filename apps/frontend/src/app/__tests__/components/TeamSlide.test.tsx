@@ -1,43 +1,39 @@
-/* eslint-disable @next/next/no-img-element */
-import React from "react";
-import { render, screen } from "@testing-library/react";
-import "@testing-library/jest-dom";
-import TeamSlide from "@/app/ui/widgets/TeamSlide/TeamSlide";
+import React from 'react';
+import { render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import TeamSlide from '@/app/ui/widgets/TeamSlide/TeamSlide';
+import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 
-jest.mock("next/image", () => {
-    const MockImage = (props: any) => {
-        return <img {...props} alt={props.alt} />;
-    };
-    MockImage.displayName = "MockNextImage";
-    return {
-        __esModule: true,
-        default: MockImage,
-    };
+jest.mock('next/image', () => {
+  const MockImage = (props: any) => {
+    return React.createElement('img', { ...props, alt: props.alt });
+  };
+  MockImage.displayName = 'MockNextImage';
+  return {
+    __esModule: true,
+    default: MockImage,
+  };
 });
 
-describe("TeamSlide Component", () => {
-    it("should render all team member images with correct alt text", () => {
-        render(<TeamSlide />);
+describe('TeamSlide Component', () => {
+  it('should render all team member images with correct alt text', () => {
+    render(<TeamSlide />);
 
-        const teamMembers = ["Surbhi", "Ankit", "Harshvardhan", "Anna", "Suryansh"];
+    const teamMembers = ['Surbhi', 'Ankit', 'Harshvardhan', 'Anna', 'Suryansh'];
 
-        for (const name of teamMembers) {
-            const image = screen.getByAltText(name);
-            expect(image).toBeInTheDocument();
-        }
-    });
+    for (const name of teamMembers) {
+      const image = screen.getByAltText(name);
+      expect(image).toBeInTheDocument();
+    }
+  });
 
-    it("should have the correct image sources", () => {
-        render(<TeamSlide />);
+  it('should have the correct image sources', () => {
+    render(<TeamSlide />);
 
-        const surbhiImage = screen.getByAltText("Surbhi");
-        expect(surbhiImage).toHaveAttribute(
-            'src', "https://d2il6osz49gpup.cloudfront.net/aboutus-page/surbhi.png"
-        );
+    const surbhiImage = screen.getByAltText('Surbhi');
+    expect(surbhiImage).toHaveAttribute('src', MEDIA_SOURCES.team.surbhi);
 
-        const ankitImage = screen.getByAltText("Ankit");
-        expect(ankitImage).toHaveAttribute(
-            'src', "https://d2il6osz49gpup.cloudfront.net/aboutus-page/ankit.png"
-        );
-    });
+    const ankitImage = screen.getByAltText('Ankit');
+    expect(ankitImage).toHaveAttribute('src', MEDIA_SOURCES.team.ankit);
+  });
 });

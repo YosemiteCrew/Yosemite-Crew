@@ -51,8 +51,8 @@ describe("BookOnboarding Page", () => {
 
     expect(protectedRoute).toContainElement(orgGuard);
 
-    // 2. Verify Title (Render coverage)
-    expect(screen.getByText("Book onboarding call")).toBeInTheDocument();
+    // 2. Verify Cal embed renders
+    expect(screen.getByTestId("cal-component")).toBeInTheDocument();
   });
 
   it("initializes the Cal API on mount", async () => {

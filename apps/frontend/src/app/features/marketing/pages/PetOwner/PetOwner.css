@@ -235,9 +235,8 @@
 }
 .BrownDiv::after {
   position: absolute;
-  content: " ";
-  background: url("https://d2il6osz49gpup.cloudfront.net/Images/Paws1after.png")
-    no-repeat;
+  content: ' ';
+  background: var(--img-bg-paws-1-after) no-repeat;
   background-size: 100% 100%;
   left: 55px;
   top: -55px;
@@ -247,9 +246,8 @@
 }
 .PurpleDiv::after {
   position: absolute;
-  content: " ";
-  background: url("https://d2il6osz49gpup.cloudfront.net/Images/Paws2after.png")
-    no-repeat;
+  content: ' ';
+  background: var(--img-bg-paws-2-after) no-repeat;
   background-size: 100% 100%;
   top: -10px;
   right: 95px;
@@ -259,9 +257,8 @@
 }
 .GreenDiv::after {
   position: absolute;
-  content: " ";
-  background: url("https://d2il6osz49gpup.cloudfront.net/Images/Paws3after.png")
-    no-repeat;
+  content: ' ';
+  background: var(--img-bg-paws-3-after) no-repeat;
   background-size: 100% 100%;
   left: 160px;
   bottom: -22px;
@@ -351,8 +348,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: url("https://d2il6osz49gpup.cloudfront.net/Images/glimpsbg.png")
-    no-repeat;
+  background: var(--img-bg-glimps) no-repeat;
   background-size: 100% 80%;
   margin-top: 50px;
   padding-bottom: 55vh;
@@ -407,9 +403,8 @@
 }
 .PetAppSec::after {
   position: absolute;
-  content: " ";
-  background: url("https://d2il6osz49gpup.cloudfront.net/Images/LINES.png")
-    no-repeat;
+  content: ' ';
+  background: var(--img-bg-lines) no-repeat;
   background-size: 100% 100%;
   top: 50px;
   left: 0;

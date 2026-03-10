@@ -15,12 +15,16 @@ export interface Breed {
   speciesName: string;
   breedId: number;
   breedName: string;
+  speciesCode?: string;
+  breedCode?: string;
 }
 
 export interface CompanionProfileData {
   category: CompanionCategory;
+  speciesCode: string | null;
   name: string;
   breed: Breed | null;
+  breedCode: string | null;
   dateOfBirth: string | null;
   gender: CompanionGender;
   currentWeight: number | null;

@@ -15,6 +15,7 @@ import { useOrgStore } from "@/app/stores/orgStore";
 import LabelDropdown from "@/app/ui/inputs/Dropdown/LabelDropdown";
 import Close from "@/app/ui/primitives/Icons/Close";
 import { IoIosWarning } from "react-icons/io";
+import { useNotify } from "@/app/hooks/useNotify";
 
 type AddDocumentProps = {
   showModal: boolean;
@@ -32,6 +33,7 @@ const INITIAL_FORM_DATA: OrganizationDocument = {
 
 const AddDocument = ({ showModal, setShowModal }: AddDocumentProps) => {
   const primaryOrdId = useOrgStore.getState().primaryOrgId;
+  const { notify } = useNotify();
   const [formData, setFormData] =
     useState<OrganizationDocument>(INITIAL_FORM_DATA);
   const [formDataErrors, setFormDataErrors] = useState<{
@@ -50,12 +52,20 @@ const AddDocument = ({ showModal, setShowModal }: AddDocumentProps) => {
     }
     try {
       await createDocument(formData);
+      notify("success", {
+        title: "Document created",
+        text: "Document has been created successfully.",
+      });
       setShowModal(false);
       setFormData(INITIAL_FORM_DATA);
       setFormDataErrors({});
       setFile(null);
     } catch (error) {
       console.log(error);
+      notify("error", {
+        title: "Unable to create document",
+        text: "Failed to create document. Please try again.",
+      });
     }
   };
 
@@ -78,7 +88,7 @@ const AddDocument = ({ showModal, setShowModal }: AddDocumentProps) => {
 
         <div className="flex overflow-y-auto flex-1 w-full flex-col gap-6 justify-between scrollbar-hidden">
           <Accordion
-            title="Add room"
+            title="Add document"
             defaultOpen
             showEditIcon={false}
             isEditing={true}

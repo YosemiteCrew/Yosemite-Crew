@@ -1,6 +1,3 @@
-import dogbreeds from "@/app/lib/data/dogBreeds";
-import catbreeds from "@/app/lib/data/catBreeds";
-import horsebreeds from "@/app/lib/data/horseBreeds";
 import { StoredCompanion, StoredParent } from "@/app/features/companions/pages/Companions/types";
 import countries from "@/app/lib/data/countryList";
 
@@ -43,20 +40,6 @@ export type Breed = {
   breedId: number;
   breedName: string;
 };
-export const BreedMap: Record<string, Option[]> = {
-  dog: dogbreeds.map((breed) => ({
-    value: breed.breedId + "",
-    label: breed.breedName,
-  })),
-  cat: catbreeds.map((breed) => ({
-    value: breed.breedId + "",
-    label: breed.breedName,
-  })),
-  horse: horsebreeds.map((breed) => ({
-    value: breed.breedId + "",
-    label: breed.breedName,
-  })),
-};
 
 export const CountriesOptions: Option[] = countries.map((country) => ({
   value: country.name,
@@ -88,7 +71,9 @@ export const EMPTY_STORED_COMPANION: StoredCompanion = {
   parentId: "",
   name: "",
   type: "dog",
+  speciesCode: "",
   breed: "",
+  breedCode: "",
   dateOfBirth: new Date(),
   gender: "unknown",
   currentWeight: undefined,

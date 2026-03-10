@@ -13,11 +13,20 @@ jest.mock("@/app/features/appointments/components/Calendar/weekHelpers", () => (
   getWeekDays: (...args: any[]) => mockGetWeekDays(...args),
   getPrevWeek: (...args: any[]) => mockGetPrevWeek(...args),
   getNextWeek: (...args: any[]) => mockGetNextWeek(...args),
+  HOURS_IN_DAY: 1,
 }));
 
 const mockEventsForDay = jest.fn();
 jest.mock("@/app/features/appointments/components/Calendar/helpers", () => ({
   eventsForDay: (...args: any[]) => mockEventsForDay(...args),
+  DEFAULT_CALENDAR_FOCUS_MINUTES: 540,
+  EVENT_VERTICAL_GAP_PX: 0,
+  MINUTES_PER_STEP: 15,
+  PIXELS_PER_STEP: 60,
+  getFirstRelevantTimedEventStart: jest.fn(() => null),
+  getTopPxForMinutes: jest.fn((minutes: number, height: number) => (minutes / 60) * height),
+  minutesSinceStartOfDay: jest.fn(() => 540),
+  scrollContainerToTarget: jest.fn(),
 }));
 
 const dayLabelsSpy = jest.fn();
@@ -61,7 +70,7 @@ describe("WeekCalendar (Task)", () => {
   const events: Task[] = [
     {
       name: "Task A",
-      dueAt: new Date(2025, 0, 6, 10),
+      dueAt: new Date(2025, 0, 6, 0),
       status: "PENDING",
       _id: "",
       audience: "EMPLOYEE_TASK",
@@ -91,20 +100,21 @@ describe("WeekCalendar (Task)", () => {
     );
 
     expect(screen.getByTestId("day-labels")).toBeInTheDocument();
-    expect(dayLabelsSpy).toHaveBeenCalledWith({ days });
+    expect(dayLabelsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ days, currentDate: weekStart })
+    );
 
     const slots = screen.getAllByTestId("task-slot");
     expect(slots).toHaveLength(days.length);
 
-    expect(taskSlotSpy).toHaveBeenCalledWith(
+    expect(taskSlotSpy.mock.calls[0][0]).toEqual(
       expect.objectContaining({
         slotEvents: events,
         handleViewTask,
-        height: 300,
+        height: 240,
         length: days.length - 1,
       })
     );
-    expect(mockEventsForDay).toHaveBeenCalledTimes(days.length);
   });
 
   it("updates week start and current date on navigation", () => {

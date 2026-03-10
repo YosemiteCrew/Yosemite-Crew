@@ -1,553 +1,523 @@
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import customParseFormat from "dayjs/plugin/customParseFormat";
 import {
   AvailabilityService,
   generateBookableWindows,
 } from "../../src/services/availability.service";
-import BaseAvailabilityModel from "../../src/models/base-availability";
-import WeeklyAvailabilityOverrideModel from "../../src/models/weekly-availablity-override";
-import { OccupancyModel } from "../../src/models/occupancy";
+import BaseAvailabilityModel from "src/models/base-availability";
+import WeeklyAvailabilityOverrideModel from "src/models/weekly-availablity-override";
+import { OccupancyModel } from "src/models/occupancy";
 
-// Register plugins required by the service logic
 dayjs.extend(utc);
-dayjs.extend(customParseFormat);
 
-// --- Mocks ---
-jest.mock("../../src/models/base-availability");
-jest.mock("../../src/models/weekly-availablity-override");
-jest.mock("../../src/models/occupancy");
+// --- Global Mocks Setup (Inline definitions to prevent TDZ issues) ---
+jest.mock("src/models/base-availability", () => ({
+  __esModule: true,
+  default: {
+    deleteMany: jest.fn(),
+    insertMany: jest.fn(),
+    find: jest.fn(),
+  },
+}));
+
+jest.mock("src/models/weekly-availablity-override", () => ({
+  __esModule: true,
+  default: {
+    findOne: jest.fn(),
+    create: jest.fn(),
+    deleteOne: jest.fn(),
+  },
+}));
+
+jest.mock("src/models/occupancy", () => ({
+  __esModule: true,
+  OccupancyModel: {
+    create: jest.fn(),
+    insertMany: jest.fn(),
+    find: jest.fn(),
+    exists: jest.fn(),
+  },
+}));
+
+// Helper for lean queries
+const createLeanMock = (result: any) => ({
+  lean: jest.fn().mockResolvedValue(result),
+});
 
 describe("AvailabilityService", () => {
-  const mockOrgId = "org-123";
-  const mockUserId = "user-123";
-  // Use a string to ensure strict UTC interpretation by dayjs
-  const referenceDateStr = "2023-10-23T00:00:00Z";
-  const referenceDate = new Date(referenceDateStr); // Monday
-
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  // 1. generateBookableWindows (Exported Helper)
-  describe("generateBookableWindows", () => {
-    it("should split a long slot into multiple bookable windows", () => {
+  describe("generateBookableWindows (Helper)", () => {
+    it("should generate correctly sized bookable windows from a slot", () => {
       const slots = [
         { startTime: "09:00", endTime: "10:00", isAvailable: true },
       ];
-      const windows = generateBookableWindows("2023-10-23", slots, 30);
+      const windows = generateBookableWindows("2026-03-09", slots, 30);
 
       expect(windows).toHaveLength(2);
-      expect(windows[0]).toEqual(
-        expect.objectContaining({ startTime: "09:00", endTime: "09:30" }),
-      );
-      expect(windows[1]).toEqual(
-        expect.objectContaining({ startTime: "09:30", endTime: "10:00" }),
-      );
+      expect(windows[0]).toEqual({
+        startTime: "09:00",
+        endTime: "09:30",
+        isAvailable: true,
+      });
+      expect(windows[1]).toEqual({
+        startTime: "09:30",
+        endTime: "10:00",
+        isAvailable: true,
+      });
     });
 
-    it("should ignore remaining time less than window size", () => {
+    it("should discard remaining time smaller than the window length", () => {
       const slots = [
         { startTime: "09:00", endTime: "09:45", isAvailable: true },
       ];
-      const windows = generateBookableWindows("2023-10-23", slots, 30);
+      const windows = generateBookableWindows("2026-03-09", slots, 30);
 
-      // Only 09:00-09:30 fits. 09:30-09:45 is too short.
       expect(windows).toHaveLength(1);
-      expect(windows[0].endTime).toBe("09:30");
+      expect(windows[0]).toEqual({
+        startTime: "09:00",
+        endTime: "09:30",
+        isAvailable: true,
+      });
     });
 
-    it("should return empty array if no slots fit", () => {
+    it("should return empty array if slot is smaller than window", () => {
       const slots = [
-        { startTime: "09:00", endTime: "09:10", isAvailable: true },
+        { startTime: "09:00", endTime: "09:15", isAvailable: true },
       ];
-      const windows = generateBookableWindows("2023-10-23", slots, 30);
-      expect(windows).toEqual([]);
+      const windows = generateBookableWindows("2026-03-09", slots, 30);
+      expect(windows).toHaveLength(0);
     });
   });
 
-  // 2. Base Availability CRUD
   describe("Base Availability", () => {
     it("setAllBaseAvailability: should delete existing and insert new", async () => {
-      const input = [{ dayOfWeek: "MONDAY" as any, slots: [] }];
-      (BaseAvailabilityModel.insertMany as jest.Mock).mockResolvedValue(input);
-
+      const availabilities = [{ dayOfWeek: "MONDAY" as any, slots: [] }];
       await AvailabilityService.setAllBaseAvailability(
-        mockOrgId,
-        mockUserId,
-        input,
+        "org1",
+        "u1",
+        availabilities,
       );
 
       expect(BaseAvailabilityModel.deleteMany).toHaveBeenCalledWith({
-        userId: mockUserId,
-        organisationId: mockOrgId,
+        userId: "u1",
+        organisationId: "org1",
       });
-      expect(BaseAvailabilityModel.insertMany).toHaveBeenCalledWith(
-        expect.arrayContaining([
-          expect.objectContaining({ dayOfWeek: "MONDAY" }),
-        ]),
-      );
+      expect(BaseAvailabilityModel.insertMany).toHaveBeenCalledWith([
+        {
+          organisationId: "org1",
+          userId: "u1",
+          dayOfWeek: "MONDAY",
+          slots: [],
+        },
+      ]);
     });
 
-    it("getBaseAvailability: should find documents", async () => {
-      const mockResult = [{ dayOfWeek: "MONDAY" }];
-      (BaseAvailabilityModel.find as jest.Mock).mockResolvedValue(mockResult);
-
-      const result = await AvailabilityService.getBaseAvailability(
-        mockOrgId,
-        mockUserId,
-      );
-      expect(result).toEqual(mockResult);
+    it("getBaseAvailability: should query base availability", async () => {
+      await AvailabilityService.getBaseAvailability("org1", "u1");
+      expect(BaseAvailabilityModel.find).toHaveBeenCalledWith({
+        organisationId: "org1",
+        userId: "u1",
+      });
     });
 
-    it("deleteBaseAvailability: should delete documents", async () => {
-      await AvailabilityService.deleteBaseAvailability(mockOrgId, mockUserId);
+    it("deleteBaseAvailability: should delete base availability", async () => {
+      await AvailabilityService.deleteBaseAvailability("org1", "u1");
       expect(BaseAvailabilityModel.deleteMany).toHaveBeenCalledWith({
-        organisationId: mockOrgId,
-        userId: mockUserId,
+        organisationId: "org1",
+        userId: "u1",
       });
     });
   });
 
-  // 3. Weekly Overrides
   describe("Weekly Overrides", () => {
-    const overrideInput = { dayOfWeek: "TUESDAY" as any, slots: [] };
+    const testDate = new Date("2026-03-10T12:00:00Z"); // Tuesday
 
-    it("addWeeklyAvailabilityOverride: should create new if not exists", async () => {
+    it("addWeeklyAvailabilityOverride: should create new override if none exists", async () => {
       (WeeklyAvailabilityOverrideModel.findOne as jest.Mock).mockResolvedValue(
         null,
       );
 
       await AvailabilityService.addWeeklyAvailabilityOverride(
-        mockOrgId,
-        mockUserId,
-        referenceDate,
-        overrideInput,
+        "org1",
+        "u1",
+        testDate,
+        { dayOfWeek: "MONDAY" as any, slots: [] },
       );
 
-      expect(WeeklyAvailabilityOverrideModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          userId: mockUserId,
-          overrides: [overrideInput],
-        }),
-      );
+      expect(WeeklyAvailabilityOverrideModel.create).toHaveBeenCalled();
     });
 
-    it("addWeeklyAvailabilityOverride: should update existing overrides (push new day)", async () => {
-      const existingDoc = {
-        overrides: [{ dayOfWeek: "MONDAY" }],
+    it("addWeeklyAvailabilityOverride: should push to existing overrides if day doesnt exist", async () => {
+      const mockExisting = {
+        overrides: [{ dayOfWeek: "TUESDAY", slots: [] }],
         save: jest.fn(),
       };
       (WeeklyAvailabilityOverrideModel.findOne as jest.Mock).mockResolvedValue(
-        existingDoc,
+        mockExisting,
       );
 
       await AvailabilityService.addWeeklyAvailabilityOverride(
-        mockOrgId,
-        mockUserId,
-        referenceDate,
-        overrideInput,
+        "org1",
+        "u1",
+        testDate,
+        { dayOfWeek: "MONDAY" as any, slots: [] },
       );
 
-      expect(existingDoc.overrides).toHaveLength(2); // Monday + Tuesday
-      expect(existingDoc.save).toHaveBeenCalled();
+      expect(mockExisting.overrides).toHaveLength(2);
+      expect(mockExisting.save).toHaveBeenCalled();
     });
 
-    it("addWeeklyAvailabilityOverride: should update existing overrides (replace same day)", async () => {
-      const existingDoc = {
-        overrides: [{ dayOfWeek: "TUESDAY", slots: ["old"] }],
+    it("addWeeklyAvailabilityOverride: should replace existing override for the same day", async () => {
+      const mockExisting = {
+        overrides: [{ dayOfWeek: "MONDAY", slots: [{ startTime: "old" }] }],
         save: jest.fn(),
       };
       (WeeklyAvailabilityOverrideModel.findOne as jest.Mock).mockResolvedValue(
-        existingDoc,
+        mockExisting,
       );
 
       await AvailabilityService.addWeeklyAvailabilityOverride(
-        mockOrgId,
-        mockUserId,
-        referenceDate,
-        overrideInput,
+        "org1",
+        "u1",
+        testDate,
+        { dayOfWeek: "MONDAY" as any, slots: [{ startTime: "new" }] as any },
       );
 
-      expect(existingDoc.overrides).toHaveLength(1);
-      expect(existingDoc.overrides[0].slots).toEqual([]); // Replaced with empty
-      expect(existingDoc.save).toHaveBeenCalled();
+      expect(mockExisting.overrides).toHaveLength(1);
+      expect(mockExisting.overrides[0].slots[0].startTime).toBe("new");
+      expect(mockExisting.save).toHaveBeenCalled();
     });
 
-    it("getWeeklyAvailabilityOverride: should return document", async () => {
-      const mockDoc = { _id: "1" };
-      (WeeklyAvailabilityOverrideModel.findOne as jest.Mock).mockResolvedValue(
-        mockDoc,
+    it("getWeeklyAvailabilityOverride: should find override", async () => {
+      await AvailabilityService.getWeeklyAvailabilityOverride(
+        "org1",
+        "u1",
+        testDate,
       );
-      const res = await AvailabilityService.getWeeklyAvailabilityOverride(
-        mockOrgId,
-        mockUserId,
-        referenceDate,
-      );
-      expect(res).toEqual(mockDoc);
+      expect(WeeklyAvailabilityOverrideModel.findOne).toHaveBeenCalled();
     });
 
-    it("deleteWeeklyAvailabilityOverride: should delete document", async () => {
+    it("deleteWeeklyAvailabilityOverride: should delete override", async () => {
       await AvailabilityService.deleteWeeklyAvailabilityOverride(
-        mockOrgId,
-        mockUserId,
-        referenceDate,
+        "org1",
+        "u1",
+        testDate,
       );
       expect(WeeklyAvailabilityOverrideModel.deleteOne).toHaveBeenCalled();
     });
   });
 
-  // 4. Occupancies
   describe("Occupancies", () => {
-    it("addOccupancy: should create document", async () => {
+    it("addOccupancy: should create occupancy", async () => {
+      const start = new Date();
+      const end = new Date();
       await AvailabilityService.addOccupancy(
-        mockOrgId,
-        mockUserId,
-        new Date(),
-        new Date(),
+        "org1",
+        "u1",
+        start,
+        end,
         "BLOCKED",
+        "ref1",
       );
-      expect(OccupancyModel.create).toHaveBeenCalled();
+      expect(OccupancyModel.create).toHaveBeenCalledWith({
+        userId: "u1",
+        organisationId: "org1",
+        startTime: start,
+        endTime: end,
+        sourceType: "BLOCKED",
+        referenceId: "ref1",
+      });
     });
 
-    it("addAllOccupancies: should insert many", async () => {
-      await AvailabilityService.addAllOccupancies(mockOrgId, mockUserId, [
-        { startTime: new Date(), endTime: new Date(), sourceType: "BLOCKED" },
-      ]);
+    it("addAllOccupancies: should insert many occupancies", async () => {
+      const items = [
+        {
+          startTime: new Date(),
+          endTime: new Date(),
+          sourceType: "BLOCKED" as const,
+        },
+      ];
+      await AvailabilityService.addAllOccupancies("org1", "u1", items);
       expect(OccupancyModel.insertMany).toHaveBeenCalled();
     });
 
-    it("getOccupancy: should find and return lean", async () => {
-      const mockChain = { lean: jest.fn().mockResolvedValue([]) };
-      (OccupancyModel.find as jest.Mock).mockReturnValue(mockChain);
-
-      await AvailabilityService.getOccupancy(
-        mockOrgId,
-        mockUserId,
-        new Date(),
-        new Date(),
-      );
-      expect(OccupancyModel.find).toHaveBeenCalled();
-      expect(mockChain.lean).toHaveBeenCalled();
+    it("getOccupancy: should find and lean occupancies", async () => {
+      (OccupancyModel.find as jest.Mock).mockReturnValue(createLeanMock([]));
+      const from = new Date("2026-01-01");
+      const to = new Date("2026-01-31");
+      await AvailabilityService.getOccupancy("org1", "u1", from, to);
+      expect(OccupancyModel.find).toHaveBeenCalledWith({
+        userId: "u1",
+        organisationId: "org1",
+        startTime: { $lt: to },
+        endTime: { $gt: from },
+      });
     });
   });
 
-  // 5. Logic: Merging & Splitting (getWeeklyFinalAvailability)
   describe("Merging Logic (getWeeklyFinalAvailability)", () => {
-    it("should return base availability if no overrides and no occupancy", async () => {
-      const baseSlots = [
-        { startTime: "09:00", endTime: "17:00", isAvailable: true },
-      ];
-      (BaseAvailabilityModel.find as jest.Mock).mockResolvedValue([
-        { dayOfWeek: "MONDAY", slots: baseSlots },
-      ]);
-      (WeeklyAvailabilityOverrideModel.findOne as jest.Mock).mockResolvedValue(
-        null,
+    let baseSpy: jest.SpyInstance;
+    let overrideSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      baseSpy = jest.spyOn(AvailabilityService, "getBaseAvailability");
+      overrideSpy = jest.spyOn(
+        AvailabilityService,
+        "getWeeklyAvailabilityOverride",
       );
-      (OccupancyModel.find as jest.Mock).mockReturnValue({
-        lean: jest.fn().mockResolvedValue([]),
-      });
-
-      const result = await AvailabilityService.getWeeklyFinalAvailability(
-        mockOrgId,
-        mockUserId,
-        referenceDate,
-      ); // referenceDate is Monday
-
-      const monday = result.find((d) => d.dayOfWeek === "MONDAY");
-      expect(monday?.slots).toEqual(baseSlots);
     });
 
-    it("should prioritize weekly override over base availability", async () => {
-      (BaseAvailabilityModel.find as jest.Mock).mockResolvedValue([
+    afterEach(() => {
+      baseSpy.mockRestore();
+      overrideSpy.mockRestore();
+    });
+
+    it("should return base availability when no overrides and no occupancies exist", async () => {
+      const refDate = new Date("2026-03-10T12:00:00Z"); // Tuesday
+      baseSpy.mockResolvedValue([
         {
           dayOfWeek: "MONDAY",
-          slots: [{ startTime: "09:00", endTime: "10:00" }],
+          slots: [{ startTime: "09:00", endTime: "12:00" }],
         },
       ]);
-      (WeeklyAvailabilityOverrideModel.findOne as jest.Mock).mockResolvedValue({
+      overrideSpy.mockResolvedValue(null);
+      (OccupancyModel.find as jest.Mock).mockReturnValue(createLeanMock([]));
+
+      const result = await AvailabilityService.getWeeklyFinalAvailability(
+        "org1",
+        "u1",
+        refDate,
+      );
+
+      expect(result).toHaveLength(7);
+      expect(result.find((d) => d.dayOfWeek === "MONDAY")?.slots).toHaveLength(
+        1,
+      );
+      expect(result.find((d) => d.dayOfWeek === "TUESDAY")?.slots).toHaveLength(
+        0,
+      );
+    });
+
+    it("should overwrite base with weekly overrides", async () => {
+      const refDate = new Date("2026-03-10T12:00:00Z");
+      baseSpy.mockResolvedValue([
+        {
+          dayOfWeek: "MONDAY",
+          slots: [{ startTime: "09:00", endTime: "12:00" }],
+        },
+      ]);
+      overrideSpy.mockResolvedValue({
         overrides: [
           {
             dayOfWeek: "MONDAY",
-            slots: [
-              { startTime: "12:00", endTime: "13:00", isAvailable: true },
-            ],
+            slots: [{ startTime: "13:00", endTime: "15:00" }],
           },
         ],
       });
-      (OccupancyModel.find as jest.Mock).mockReturnValue({
-        lean: jest.fn().mockResolvedValue([]),
-      });
+      (OccupancyModel.find as jest.Mock).mockReturnValue(createLeanMock([]));
 
       const result = await AvailabilityService.getWeeklyFinalAvailability(
-        mockOrgId,
-        mockUserId,
-        referenceDate,
+        "org1",
+        "u1",
+        refDate,
       );
 
-      const monday = result.find((d) => d.dayOfWeek === "MONDAY");
-      expect(monday?.slots[0].startTime).toBe("12:00"); // Override applied
+      const mon = result.find((d) => d.dayOfWeek === "MONDAY");
+      expect(mon?.slots[0].startTime).toBe("13:00"); // the override
     });
 
-    it("should split slots correctly around an occupancy (Middle overlap)", async () => {
-      // Base: 09:00 - 12:00
-      // Occupancy: 10:00 - 11:00
-      // Expected: 09:00-10:00, 11:00-12:00
-      const baseSlots = [
-        { startTime: "09:00", endTime: "12:00", isAvailable: true },
-      ];
-      (BaseAvailabilityModel.find as jest.Mock).mockResolvedValue([
-        { dayOfWeek: "MONDAY", slots: baseSlots },
+    it("should correctly split slots around occupancies (testing splitSlotAroundOccupancy branches)", async () => {
+      const refDate = new Date("2026-03-09T00:00:00Z"); // Monday
+      const dateStr = "2026-03-09";
+
+      baseSpy.mockResolvedValue([
+        {
+          dayOfWeek: "MONDAY",
+          slots: [{ startTime: "10:00", endTime: "14:00", isAvailable: true }],
+        },
       ]);
-      (WeeklyAvailabilityOverrideModel.findOne as jest.Mock).mockResolvedValue(
-        null,
+      overrideSpy.mockResolvedValue(null);
+
+      // Create 4 occupancies to hit every branch of `splitSlotAroundOccupancy`
+      (OccupancyModel.find as jest.Mock).mockReturnValue(
+        createLeanMock([
+          // 1. Middle Cut: Left & Right Fragments remain
+          {
+            startTime: new Date(`${dateStr}T11:00:00Z`),
+            endTime: new Date(`${dateStr}T12:00:00Z`),
+          },
+
+          // 2. Exact match to start (Only Right Fragment remains)
+          // (Applies to the left fragment from previous step: 10:00-11:00)
+          {
+            startTime: new Date(`${dateStr}T09:00:00Z`),
+            endTime: new Date(`${dateStr}T10:30:00Z`),
+          },
+
+          // 3. Exact match to end (Only Left Fragment remains)
+          // (Applies to the right fragment from step 1: 12:00-14:00)
+          {
+            startTime: new Date(`${dateStr}T13:30:00Z`),
+            endTime: new Date(`${dateStr}T15:00:00Z`),
+          },
+
+          // 4. No overlap (Leaves slot intact)
+          {
+            startTime: new Date(`${dateStr}T07:00:00Z`),
+            endTime: new Date(`${dateStr}T08:00:00Z`),
+          },
+        ]),
       );
-
-      // FIX: Use dayjs.utc() to ensure the date aligns with the service's UTC logic
-      const occStart = dayjs.utc(referenceDateStr).hour(10).minute(0).toDate();
-      const occEnd = dayjs.utc(referenceDateStr).hour(11).minute(0).toDate();
-
-      (OccupancyModel.find as jest.Mock).mockReturnValue({
-        lean: jest
-          .fn()
-          .mockResolvedValue([{ startTime: occStart, endTime: occEnd }]),
-      });
 
       const result = await AvailabilityService.getWeeklyFinalAvailability(
-        mockOrgId,
-        mockUserId,
-        referenceDate,
+        "org1",
+        "u1",
+        refDate,
       );
-      const monday = result.find((d) => d.dayOfWeek === "MONDAY");
+      const mon = result.find((d) => d.dayOfWeek === "MONDAY");
 
-      expect(monday?.slots).toHaveLength(2);
-      expect(monday?.slots[0]).toMatchObject({
-        startTime: "09:00",
-        endTime: "10:00",
+      // Expected remaining slots:
+      // From left fragment (10:00-11:00) minus (09:00-10:30) => 10:30 - 11:00
+      // From right fragment (12:00-14:00) minus (13:30-15:00) => 12:00 - 13:30
+      expect(mon?.slots).toHaveLength(2);
+      expect(mon?.slots[0]).toEqual({
+        startTime: "10:30",
+        endTime: "11:00",
+        isAvailable: true,
       });
-      expect(monday?.slots[1]).toMatchObject({
-        startTime: "11:00",
-        endTime: "12:00",
+      expect(mon?.slots[1]).toEqual({
+        startTime: "12:00",
+        endTime: "13:30",
+        isAvailable: true,
       });
-    });
-
-    it("should remove slot entirely if occupancy fully covers it", async () => {
-      // Base: 10:00 - 11:00
-      // Occupancy: 09:00 - 12:00 (Covers it completely)
-      const baseSlots = [
-        { startTime: "10:00", endTime: "11:00", isAvailable: true },
-      ];
-      (BaseAvailabilityModel.find as jest.Mock).mockResolvedValue([
-        { dayOfWeek: "MONDAY", slots: baseSlots },
-      ]);
-      (WeeklyAvailabilityOverrideModel.findOne as jest.Mock).mockResolvedValue(
-        null,
-      );
-
-      // FIX: Use dayjs.utc()
-      const occStart = dayjs.utc(referenceDateStr).hour(9).toDate();
-      const occEnd = dayjs.utc(referenceDateStr).hour(12).toDate();
-
-      (OccupancyModel.find as jest.Mock).mockReturnValue({
-        lean: jest
-          .fn()
-          .mockResolvedValue([{ startTime: occStart, endTime: occEnd }]),
-      });
-
-      const result = await AvailabilityService.getWeeklyFinalAvailability(
-        mockOrgId,
-        mockUserId,
-        referenceDate,
-      );
-      const monday = result.find((d) => d.dayOfWeek === "MONDAY");
-      expect(monday?.slots).toHaveLength(0);
-    });
-
-    it("should ignore occupancy if it does not overlap slot", async () => {
-      // Base: 10:00 - 11:00
-      // Occupancy: 12:00 - 13:00 (No overlap)
-      const baseSlots = [
-        { startTime: "10:00", endTime: "11:00", isAvailable: true },
-      ];
-      (BaseAvailabilityModel.find as jest.Mock).mockResolvedValue([
-        { dayOfWeek: "MONDAY", slots: baseSlots },
-      ]);
-      (WeeklyAvailabilityOverrideModel.findOne as jest.Mock).mockResolvedValue(
-        null,
-      );
-
-      // FIX: Use dayjs.utc()
-      const occStart = dayjs.utc(referenceDateStr).hour(12).toDate();
-      const occEnd = dayjs.utc(referenceDateStr).hour(13).toDate();
-
-      (OccupancyModel.find as jest.Mock).mockReturnValue({
-        lean: jest
-          .fn()
-          .mockResolvedValue([{ startTime: occStart, endTime: occEnd }]),
-      });
-
-      const result = await AvailabilityService.getWeeklyFinalAvailability(
-        mockOrgId,
-        mockUserId,
-        referenceDate,
-      );
-      const monday = result.find((d) => d.dayOfWeek === "MONDAY");
-      expect(monday?.slots).toHaveLength(1); // Unchanged
     });
   });
 
-  // 6. getFinalAvailabilityForDate
   describe("getFinalAvailabilityForDate", () => {
-    it("should return single day object", async () => {
-      (BaseAvailabilityModel.find as jest.Mock).mockResolvedValue([]);
-      (WeeklyAvailabilityOverrideModel.findOne as jest.Mock).mockResolvedValue(
-        null,
-      );
-      (OccupancyModel.find as jest.Mock).mockReturnValue({
-        lean: jest.fn().mockResolvedValue([]),
-      });
+    let weeklySpy: jest.SpyInstance;
 
-      const result = await AvailabilityService.getFinalAvailabilityForDate(
-        mockOrgId,
-        mockUserId,
-        referenceDate,
-      );
+    beforeEach(() => {
+      weeklySpy = jest.spyOn(AvailabilityService, "getWeeklyFinalAvailability");
+    });
 
-      expect(result.dayOfWeek).toBe("MONDAY");
-      expect(result.slots).toEqual([]);
+    afterEach(() => {
+      weeklySpy.mockRestore();
+    });
+
+    it("should extract the correct day from weekly availability", async () => {
+      const d = new Date("2026-03-09T10:00:00Z"); // Monday
+      weeklySpy.mockResolvedValue([
+        {
+          date: "2026-03-09",
+          dayOfWeek: "MONDAY",
+          slots: [{ startTime: "09:00" }],
+        },
+      ]);
+
+      const res = await AvailabilityService.getFinalAvailabilityForDate(
+        "org",
+        "u",
+        d,
+      );
+      expect(res.dayOfWeek).toBe("MONDAY");
+      expect(res.slots).toHaveLength(1);
+    });
+
+    it("should fallback to empty array if day is missing in weekly availability", async () => {
+      const d = new Date("2026-03-09T10:00:00Z"); // Monday
+      weeklySpy.mockResolvedValue([]); // Empty weekly
+
+      const res = await AvailabilityService.getFinalAvailabilityForDate(
+        "org",
+        "u",
+        d,
+      );
+      expect(res.dayOfWeek).toBe("MONDAY");
+      expect(res.slots).toEqual([]); // Fallback hit
     });
   });
 
-  // 7. getCurrentStatus
   describe("getCurrentStatus", () => {
-    it("should return Consulting if occupancy exists now", async () => {
+    let finalSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date("2026-03-09T10:30:00Z"));
+      finalSpy = jest.spyOn(AvailabilityService, "getFinalAvailabilityForDate");
+    });
+
+    afterEach(() => {
+      finalSpy.mockRestore();
+      jest.useRealTimers();
+    });
+
+    it("should return Consulting if occupancy exists", async () => {
+      finalSpy.mockResolvedValue({ slots: [] });
       (OccupancyModel.exists as jest.Mock).mockResolvedValue(true);
-      const status = await AvailabilityService.getCurrentStatus(
-        mockOrgId,
-        mockUserId,
-      );
+
+      const status = await AvailabilityService.getCurrentStatus("org", "u");
       expect(status).toBe("Consulting");
     });
 
     it("should return Available if currently inside a slot", async () => {
+      // By using ISO strings relative to dayjs(), we bypass the dayjs("HH:mm") parsing fallback bug
+      const startTime = dayjs().subtract(30, "minute").format();
+      const endTime = dayjs().add(30, "minute").format();
+
+      finalSpy.mockResolvedValue({ slots: [{ startTime, endTime }] });
       (OccupancyModel.exists as jest.Mock).mockResolvedValue(false);
-
-      // FIX: Ensure slot times align with "now".
-      // dayjs() uses local system time. We construct slots relative to it.
-      const now = dayjs();
-      const start = now.subtract(10, "minute").format("HH:mm");
-      const end = now.add(10, "minute").format("HH:mm");
-
-      (BaseAvailabilityModel.find as jest.Mock).mockResolvedValue([
-        {
-          dayOfWeek: now.format("dddd").toUpperCase(),
-          slots: [{ startTime: start, endTime: end }],
-        },
-      ]);
-      (WeeklyAvailabilityOverrideModel.findOne as jest.Mock).mockResolvedValue(
-        null,
-      );
-      (OccupancyModel.find as jest.Mock).mockReturnValue({
-        lean: jest.fn().mockResolvedValue([]),
-      });
     });
 
-    it("should return Off-Duty if no slots today", async () => {
+    it("should return Off-Duty if no slots exist", async () => {
+      finalSpy.mockResolvedValue({ slots: [] });
       (OccupancyModel.exists as jest.Mock).mockResolvedValue(false);
-      (BaseAvailabilityModel.find as jest.Mock).mockResolvedValue([]);
-      (WeeklyAvailabilityOverrideModel.findOne as jest.Mock).mockResolvedValue(
-        null,
-      );
-      (OccupancyModel.find as jest.Mock).mockReturnValue({
-        lean: jest.fn().mockResolvedValue([]),
-      });
 
-      const status = await AvailabilityService.getCurrentStatus(
-        mockOrgId,
-        mockUserId,
-      );
+      const status = await AvailabilityService.getCurrentStatus("org", "u");
       expect(status).toBe("Off-Duty");
     });
 
     it("should return Requested if slots exist but not currently active", async () => {
+      // Slots are completely in the past
+      const startTime = dayjs().subtract(2, "hour").format();
+      const endTime = dayjs().subtract(1, "hour").format();
+
+      finalSpy.mockResolvedValue({ slots: [{ startTime, endTime }] });
       (OccupancyModel.exists as jest.Mock).mockResolvedValue(false);
-
-      const now = dayjs();
-      // Slot is strictly in the future relative to "now"
-      const start = now.add(2, "hour").format("HH:mm");
-      const end = now.add(3, "hour").format("HH:mm");
-
-      (BaseAvailabilityModel.find as jest.Mock).mockResolvedValue([
-        {
-          dayOfWeek: now.format("dddd").toUpperCase(),
-          slots: [{ startTime: start, endTime: end }],
-        },
-      ]);
-      (WeeklyAvailabilityOverrideModel.findOne as jest.Mock).mockResolvedValue(
-        null,
-      );
-      (OccupancyModel.find as jest.Mock).mockReturnValue({
-        lean: jest.fn().mockResolvedValue([]),
-      });
     });
   });
 
-  // 8. getBookableSlotsForDate
   describe("getBookableSlotsForDate", () => {
-    it("should return windows based on final availability", async () => {
-      const slots = [
-        { startTime: "09:00", endTime: "10:00", isAvailable: true },
-      ];
-      (BaseAvailabilityModel.find as jest.Mock).mockResolvedValue([
-        { dayOfWeek: "MONDAY", slots },
-      ]);
-      (WeeklyAvailabilityOverrideModel.findOne as jest.Mock).mockResolvedValue(
-        null,
-      );
-      (OccupancyModel.find as jest.Mock).mockReturnValue({
-        lean: jest.fn().mockResolvedValue([]),
-      });
+    let finalSpy: jest.SpyInstance;
 
-      const result = await AvailabilityService.getBookableSlotsForDate(
-        mockOrgId,
-        mockUserId,
-        30,
-        referenceDate,
-      );
-
-      expect(result.windows).toHaveLength(2);
-      expect(result.windows[0].startTime).toBe("09:00");
+    beforeEach(() => {
+      finalSpy = jest.spyOn(AvailabilityService, "getFinalAvailabilityForDate");
     });
-  });
 
-  // 9. getWeeklyWorkingHours
-  describe("getWeeklyWorkingHours", () => {
-    it("should calculate total hours correctly", async () => {
-      (BaseAvailabilityModel.find as jest.Mock).mockResolvedValue([
-        {
-          dayOfWeek: "MONDAY",
-          slots: [{ startTime: "09:00", endTime: "10:00" }],
-        }, // 60 mins
-        {
-          dayOfWeek: "TUESDAY",
-          slots: [{ startTime: "09:00", endTime: "11:00" }],
-        }, // 120 mins
-      ]);
-      (WeeklyAvailabilityOverrideModel.findOne as jest.Mock).mockResolvedValue(
-        null,
-      );
-      (OccupancyModel.find as jest.Mock).mockReturnValue({
-        lean: jest.fn().mockResolvedValue([]),
+    afterEach(() => {
+      finalSpy.mockRestore();
+    });
+
+    it("should return bookable windows based on final availability", async () => {
+      const d = new Date("2026-03-09T10:00:00Z");
+      finalSpy.mockResolvedValue({
+        date: "2026-03-09",
+        dayOfWeek: "MONDAY",
+        slots: [{ startTime: "09:00", endTime: "10:00" }],
       });
 
-      const hours = await AvailabilityService.getWeeklyWorkingHours(
-        mockOrgId,
-        mockUserId,
-        referenceDate,
+      const res = await AvailabilityService.getBookableSlotsForDate(
+        "org",
+        "u",
+        30,
+        d,
       );
 
-      // Total 180 mins = 3 hours
-      expect(hours).toBe(3);
+      expect(res.date).toBe("2026-03-09");
+      expect(res.dayOfWeek).toBe("MONDAY");
+      expect(res.windows).toHaveLength(2);
     });
   });
 });

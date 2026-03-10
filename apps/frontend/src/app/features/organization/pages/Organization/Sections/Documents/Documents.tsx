@@ -32,7 +32,7 @@ const Documents = () => {
   return (
     <PermissionGate allOf={[PERMISSIONS.DOCUMENT_VIEW_ANY]}>
       <AccordionButton
-        title="Company documents"
+        title="Company legal documents"
         buttonTitle="Add"
         buttonClick={setAddPopup}
         showButton={canEditDocument}

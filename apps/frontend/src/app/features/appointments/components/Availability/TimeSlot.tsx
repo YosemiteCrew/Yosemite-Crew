@@ -1,17 +1,17 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from 'react';
 import {
   AvailabilityState,
   getTimeLabelFromValue,
   Interval,
-  timeIndex,
   TimeOption,
-} from "@/app/features/appointments/components/Availability/utils";
+} from '@/app/features/appointments/components/Availability/utils';
 
 type Field = keyof Interval;
 
 interface TimeSlotProps {
   interval: Interval;
   timeOptions: TimeOption[];
+  timeIndex: Map<string, number>;
   setAvailability: React.Dispatch<React.SetStateAction<AvailabilityState>>;
   day: string;
   intervalIndex: number;
@@ -21,6 +21,7 @@ interface TimeSlotProps {
 const TimeSlot: React.FC<TimeSlotProps> = ({
   interval,
   timeOptions,
+  timeIndex,
   setAvailability,
   day,
   intervalIndex,
@@ -37,8 +38,8 @@ const TimeSlot: React.FC<TimeSlotProps> = ({
       // Reset end if start becomes later than current end
       const startIdx = timeIndex.get(interval.start) ?? -1;
       const endIdx = timeIndex.get(interval.end) ?? -1;
-      if (field === "start" && interval.end && startIdx >= endIdx) {
-        interval.end = "";
+      if (field === 'start' && interval.end && startIdx >= endIdx) {
+        interval.end = '';
       }
 
       updated[intervalIndex] = interval;
@@ -56,9 +57,9 @@ const TimeSlot: React.FC<TimeSlotProps> = ({
         setOpen(false);
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
 
@@ -69,7 +70,7 @@ const TimeSlot: React.FC<TimeSlotProps> = ({
         onClick={() => setOpen((e: boolean) => !e)}
       >
         <span className="text-body-4 text-text-primary ">
-          {getTimeLabelFromValue(interval[field]) || "Select"}
+          {getTimeLabelFromValue(interval[field]) || 'Select'}
         </span>
       </button>
       {open && (
@@ -80,9 +81,7 @@ const TimeSlot: React.FC<TimeSlotProps> = ({
               className="border-none outline-none bg-white text-center py-2 hover:bg-card-hover! rounded-2xl! transition-all duration-300"
               onClick={() => handleTimeChange(opt.value)}
             >
-              <span className="text-body-4 text-text-primary ">
-                {opt.label}
-              </span>
+              <span className="text-body-4 text-text-primary ">{opt.label}</span>
             </button>
           ))}
         </div>

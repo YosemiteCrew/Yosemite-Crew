@@ -85,11 +85,11 @@ const shouldDisableReviewLogin = (env?: MobileConfig['env']): boolean => {
 };
 
 
-  const noop = () => {};
-  console.log = noop;
-  console.info = noop;
-  console.debug = noop;
-  console.trace = noop;
+  // const noop = () => {};
+  // console.log = noop;
+  // console.info = noop;
+  // console.debug = noop;
+  // console.trace = noop;
 
 
 function App(): React.JSX.Element {

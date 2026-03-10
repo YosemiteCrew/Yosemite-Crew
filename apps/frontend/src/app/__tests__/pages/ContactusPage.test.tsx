@@ -4,7 +4,6 @@ import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
 import ContactusPage from "@/app/features/marketing/pages/ContactusPage/ContactusPage";
 import { postData } from "@/app/services/axios";
-import { toFhirSupportTicket } from "@yosemite-crew/fhir";
 
 jest.mock("@/app/ui/widgets/Footer/Footer", () => {
   return function MockFooter() {
@@ -49,19 +48,11 @@ jest.mock("@/app/services/axios", () => ({
 }));
 const mockedPostData = postData as jest.Mock;
 
-jest.mock("@yosemite-crew/fhir");
-const mockedToFhirSupportTicket = toFhirSupportTicket as jest.Mock;
-
 describe("ContactusPage", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockedToFhirSupportTicket.mockImplementation((data) => ({
-      ...data,
-      fhir: "converted",
-    }));
-    mockedPostData.mockResolvedValue({ status: 200 });
+    mockedPostData.mockResolvedValue({ data: { id: "contact-id" } });
   });
-
   it('should render the initial form correctly with "General Enquiry" selected', () => {
     render(<ContactusPage />);
     expect(
@@ -145,16 +136,17 @@ describe("ContactusPage", () => {
 
       await waitFor(() => expect(submitButton).toBeEnabled());
       fireEvent.click(submitButton);
-
-      await waitFor(() => {
-        expect(mockedToFhirSupportTicket).toHaveBeenCalledWith(
-          expect.objectContaining({ fullName: "John Doe" })
-        );
-        expect(mockedPostData).toHaveBeenCalledWith(
-          "/fhir/v1/support/request-support",
-          expect.any(Object)
-        );
-      });
+      await waitFor(() => expect(mockedPostData).toHaveBeenCalledTimes(1));
+      expect(mockedPostData).toHaveBeenCalledWith(
+        "/v1/contact-us/contact-web",
+        {
+          type: "GENERAL_ENQUIRY",
+          message: "This is a test message.",
+          fullName: "John Doe",
+          email: "john.doe@example.com",
+          source: "PMS_WEB",
+        },
+      );
     });
 
     it("should submit a feature request successfully", async () => {
@@ -177,13 +169,17 @@ describe("ContactusPage", () => {
 
       await waitFor(() => expect(submitButton).toBeEnabled());
       fireEvent.click(submitButton);
-
-      await waitFor(() => {
-        expect(mockedToFhirSupportTicket).toHaveBeenCalledWith(
-          expect.objectContaining({ category: "Feature Request" })
-        );
-        expect(mockedPostData).toHaveBeenCalled();
-      });
+      await waitFor(() => expect(mockedPostData).toHaveBeenCalledTimes(1));
+      expect(mockedPostData).toHaveBeenCalledWith(
+        "/v1/contact-us/contact-web",
+        {
+          type: "FEATURE_REQUEST",
+          message: "This is a feature request.",
+          fullName: "John Doe",
+          email: "john.doe@example.com",
+          source: "PMS_WEB",
+        },
+      );
     });
 
     it("should enable submit button when complaint form is valid and submit successfully", async () => {
@@ -223,7 +219,19 @@ describe("ContactusPage", () => {
 
       fireEvent.click(submitButton);
 
-      await waitFor(() => expect(mockedPostData).toHaveBeenCalled());
+      await waitFor(() => expect(mockedPostData).toHaveBeenCalledTimes(1));
+      expect(mockedPostData).toHaveBeenCalledWith(
+        "/v1/contact-us/contact-web",
+        {
+          type: "COMPLAINT",
+          message: "This is a complaint.",
+          fullName: "Jane Doe",
+          email: "jane.doe@example.com",
+          source: "PMS_WEB",
+        },
+      );
+      expect(screen.getByLabelText("Full Name")).toHaveValue("");
+      expect(screen.getByLabelText("Enter Email Address")).toHaveValue("");
     });
 
     it("should show validation error on complaint form", async () => {
@@ -254,11 +262,11 @@ describe("ContactusPage", () => {
       });
       fireEvent.click(
         screen.getByLabelText(
-          "The person, or the parent / guardian of the person, whose name appears above"
+          "The person whose name appears above"
         )
       );
       fireEvent.change(screen.getByTestId("dynamic-select"), {
-        target: { value: "UK GDPR / Data Protection Act 2018" },
+        target: { value: "UK_GDPR" },
       });
       fireEvent.click(
         screen.getByLabelText("Access your personal information")
@@ -272,13 +280,26 @@ describe("ContactusPage", () => {
       await waitFor(() => expect(submitButton).toBeEnabled());
 
       fireEvent.click(submitButton);
-
-      await waitFor(() => {
-        expect(mockedPostData).toHaveBeenCalledWith(
-          "/fhir/v1/support/request-support",
-          expect.objectContaining({ fhir: "converted" })
-        );
-      });
+      await waitFor(() => expect(mockedPostData).toHaveBeenCalledTimes(1));
+      expect(mockedPostData).toHaveBeenCalledWith(
+        "/v1/contact-us/contact-web",
+        {
+          type: "DSAR",
+          message: "DSAR request.",
+          fullName: "Sam Smith",
+          email: "sam.smith@example.com",
+          source: "PMS_WEB",
+          dsarDetails: {
+            requesterType: "SELF",
+            lawBasis: "UK_GDPR",
+            rightsRequested: ["ACCESS_PERSONAL_INFORMATION"],
+            declarationAccepted: true,
+          },
+        },
+      );
+      expect(screen.getByLabelText("Full Name")).toHaveValue("");
+      expect(screen.getByLabelText("Enter Email Address")).toHaveValue("");
+      expect(screen.getByRole("radio", { name: "General Enquiry" })).toBeChecked();
     });
 
     it("should keep submit button disabled if DSAR form is almost valid", async () => {
@@ -300,7 +321,7 @@ describe("ContactusPage", () => {
       });
       fireEvent.click(
         screen.getByLabelText(
-          "The person, or the parent / guardian of the person, whose name appears above"
+          "The person whose name appears above"
         )
       );
       fireEvent.change(screen.getByTestId("dynamic-select"), {
@@ -339,11 +360,9 @@ describe("ContactusPage", () => {
       await waitFor(() => expect(submitButton).toBeEnabled());
       fireEvent.click(submitButton);
 
-      expect(await screen.findByText("submitting...")).toBeInTheDocument();
-
-      await waitFor(() => expect(mockedPostData).toHaveBeenCalled());
-
-      expect(await screen.findByText("Send message")).toBeInTheDocument();
+      await waitFor(() => expect(mockedPostData).toHaveBeenCalledTimes(1));
+      expect(screen.queryByText("submitting...")).not.toBeInTheDocument();
+      expect(screen.getByText("Send message")).toBeInTheDocument();
     });
   });
 });

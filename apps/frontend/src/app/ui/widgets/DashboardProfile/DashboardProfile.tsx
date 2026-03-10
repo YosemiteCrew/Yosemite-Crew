@@ -52,7 +52,7 @@ const DashboardProfile = () => {
                   Verification in progress — Limited access enabled
                 </span>
               </div>
-              <Primary text="Book onboarding call" href="/book-onboarding" />
+              <Primary text="Verify business profile" href="/book-onboarding" />
             </>
           )}
         </div>
