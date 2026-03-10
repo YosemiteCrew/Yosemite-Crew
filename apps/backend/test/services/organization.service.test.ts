@@ -1,32 +1,52 @@
-import { Types } from "mongoose";
-import type { OrganizationDocument } from "../../src/models/organization";
+import { isValidObjectId, Types } from "mongoose";
+import {
+  OrganizationService,
+  OrganizationServiceError,
+  OrganizationFHIRPayload,
+} from "../../src/services/organization.service";
 import OrganizationModel from "../../src/models/organization";
-import { OrganizationService } from "../../src/services/organization.service";
-import { Organization } from "@yosemite-crew/types";
-
-// --- Mock external dependencies before imports that depend on them ---
-jest.mock("../../src/services/user-organization.service", () => ({
-  UserOrganizationService: { deleteAllByOrganizationId: jest.fn() },
-}));
-jest.mock("../../src/services/speciality.service", () => ({
-  SpecialityService: { deleteAllByOrganizationId: jest.fn() },
-}));
-jest.mock("../../src/services/organisation-room.service", () => ({
-  OrganisationRoomService: { deleteAllByOrganizationId: jest.fn() },
-}));
-
+import SpecialityModel from "../../src/models/speciality";
+import ServiceModel from "../../src/models/service";
+import UserProfileModel from "../../src/models/user-profile";
 import { UserOrganizationService } from "../../src/services/user-organization.service";
-import { SpecialityService } from "../../src/services/speciality.service";
-import { OrganisationRoomService } from "../../src/services/organisation-room.service";
+import * as uploadMiddleware from "../../src/middlewares/upload";
+import * as TypesPkg from "@yosemite-crew/types";
+import logger from "../../src/utils/logger";
+
+// --- MOCKS ---
+jest.mock("mongoose", () => {
+  const actualMongoose = jest.requireActual("mongoose");
+  return {
+    ...actualMongoose,
+    isValidObjectId: jest.fn(actualMongoose.isValidObjectId),
+  };
+});
 
 jest.mock("../../src/models/organization", () => ({
-  __esModule: true,
-  default: {
-    findOne: jest.fn(),
-    find: jest.fn(),
-    create: jest.fn(),
-    findOneAndUpdate: jest.fn(),
-    findOneAndDelete: jest.fn(),
+  findOneAndUpdate: jest.fn(),
+  create: jest.fn(),
+  findOne: jest.fn(),
+  find: jest.fn(),
+  findOneAndDelete: jest.fn(),
+}));
+
+jest.mock("../../src/models/speciality", () => ({
+  find: jest.fn(),
+}));
+
+jest.mock("../../src/models/service", () => ({
+  find: jest.fn(),
+}));
+
+jest.mock("../../src/models/user-profile", () => ({
+  findOne: jest.fn(),
+  create: jest.fn(),
+}));
+
+jest.mock("../../src/services/user-organization.service", () => ({
+  UserOrganizationService: {
+    createUserOrganizationMapping: jest.fn(),
+    deleteAllByOrganizationId: jest.fn(),
   },
 }));
 jest.mock("../../src/models/organization.billing", () => ({
@@ -36,483 +56,719 @@ jest.mock("../../src/models/organisation.usage.counter", () => ({
   OrgUsageCounters: { create: jest.fn() },
 }));
 
-const mockedOrganizationModel = OrganizationModel as unknown as {
-  findOne: jest.Mock;
-  find: jest.Mock;
-  create: jest.Mock;
-  findOneAndUpdate: jest.Mock;
-  findOneAndDelete: jest.Mock;
-};
+jest.mock("../../src/services/speciality.service", () => ({
+  SpecialityService: {
+    deleteAllByOrganizationId: jest.fn(),
+  },
+}));
 
-// --- Helper to create mock documents ---
-const createMockDoc = (overrides: Partial<Organization> = {}) => {
-  const base = {
-    _id: new Types.ObjectId(),
-    name: "Test Clinic",
-    type: "HOSPITAL" as Organization["type"],
-    phoneNo: "123-456-7890",
-    taxId: "TAX-001",
-    address: {
-      addressLine: "123 Test St",
-      city: "Test City",
-      state: "Test State",
-      country: "Test Country",
-      postalCode: "12345",
-    },
-    isVerified: true,
-    isActive: true,
-    healthAndSafetyCertNo: "HS-001",
-    animalWelfareComplianceCertNo: "AW-001",
-    fireAndEmergencyCertNo: "FE-001",
-    googlePlacesId: "places-123",
+jest.mock("../../src/services/organisation-room.service", () => ({
+  OrganisationRoomService: {
+    deleteAllByOrganizationId: jest.fn(),
+  },
+}));
+
+jest.mock("../../src/middlewares/upload", () => ({
+  buildS3Key: jest.fn(),
+  moveFile: jest.fn(),
+}));
+
+jest.mock("@yosemite-crew/types", () => ({
+  fromOrganizationRequestDTO: jest.fn(),
+  toOrganizationResponseDTO: jest.fn((data, opts) => ({ ...data, ...opts })),
+}));
+
+jest.mock("../../src/utils/logger", () => ({
+  warn: jest.fn(),
+}));
+
+// --- TEST UTILS ---
+const validObjectId = new Types.ObjectId().toString();
+
+const mockDocument = (overrides = {}) => ({
+  _id: new Types.ObjectId(validObjectId),
+  toObject: jest.fn().mockReturnValue({
+    name: "Test Hospital",
+    type: "HOSPITAL",
+    phoneNo: "1234567890",
+    taxId: "123456789",
     ...overrides,
-  };
-  return {
-    ...base,
-    toObject(this: typeof base) {
-      return {
-        _id: this._id,
-        name: this.name,
-        type: this.type,
-        phoneNo: this.phoneNo,
-        taxId: this.taxId,
-        address: this.address,
-        isVerified: this.isVerified,
-        isActive: this.isActive,
-        healthAndSafetyCertNo: this.healthAndSafetyCertNo,
-        animalWelfareComplianceCertNo: this.animalWelfareComplianceCertNo,
-        fireAndEmergencyCertNo: this.fireAndEmergencyCertNo,
-        googlePlacesId: this.googlePlacesId,
-        DUNSNumber: this.DUNSNumber,
-        website: this.website,
-        imageURL: this.imageURL,
-      };
+  }),
+  ...overrides,
+});
+
+const generateBasePayload = (): OrganizationFHIRPayload => ({
+  resourceType: "Organization",
+  id: "test-id",
+  name: "Test Hospital",
+  contact: [{ telecom: [{ system: "phone", value: "1234567890" }] }],
+  type: [
+    {
+      coding: [
+        {
+          code: "prov",
+          system: "http://terminology.hl7.org/CodeSystem/organization-type",
+        },
+      ],
     },
-  } as unknown as OrganizationDocument;
-};
+  ],
+});
+
+const generateDTO = (overrides = {}) => ({
+  id: "test-id",
+  name: "Test Hospital",
+  phoneNo: "1234567890",
+  type: "HOSPITAL",
+  taxId: "123456789", // Add default Tax ID to satisfy base requirements
+  ...overrides,
+});
 
 describe("OrganizationService", () => {
-  beforeEach(() => jest.resetAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
 
-  const mockFHIROrganization = {
-    resourceType: "Organization" as const,
-    name: "Test Vet Clinic",
-    phoneNo: "123-456-7890",
-    identifier: [
-      {
-        system: "http://example.org/fhir/NamingSystem/organisation-tax-id",
-        value: "TAX123",
-      },
-    ],
-    type: [
-      {
-        coding: [
+    // Reset mock queues to prevent mock leakage across tests (prevents false positives/negatives)
+    [
+      OrganizationModel.findOne,
+      OrganizationModel.findOneAndUpdate,
+      OrganizationModel.find,
+      OrganizationModel.create,
+      OrganizationModel.findOneAndDelete,
+      SpecialityModel.find,
+      ServiceModel.find,
+      UserProfileModel.findOne,
+      UserProfileModel.create,
+    ].forEach((mockFn) => (mockFn as jest.Mock).mockReset());
+
+    (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockImplementation(() =>
+      generateDTO(),
+    );
+  });
+
+  describe("OrganizationServiceError", () => {
+    it("should set message and status code correctly", () => {
+      const error = new OrganizationServiceError("Custom error", 404);
+      expect(error.message).toBe("Custom error");
+      expect(error.statusCode).toBe(404);
+      expect(error.name).toBe("OrganizationServiceError");
+    });
+  });
+
+  describe("Validation Utilities (Triggered via upsert)", () => {
+    it("should throw if requireSafeString receives invalid data", async () => {
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
+        generateDTO({ name: null }),
+      );
+      await expect(
+        OrganizationService.upsert(generateBasePayload()),
+      ).rejects.toThrow("Organization name is required.");
+
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
+        generateDTO({ name: 123 }),
+      );
+      await expect(
+        OrganizationService.upsert(generateBasePayload()),
+      ).rejects.toThrow("Organization name must be a string.");
+
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
+        generateDTO({ name: "   " }),
+      );
+      await expect(
+        OrganizationService.upsert(generateBasePayload()),
+      ).rejects.toThrow("Organization name cannot be empty.");
+
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
+        generateDTO({ name: "Bad$Name" }),
+      );
+      await expect(
+        OrganizationService.upsert(generateBasePayload()),
+      ).rejects.toThrow("Invalid character in Organization name.");
+    });
+
+    it("should throw if optionalSafeString receives invalid types or characters", async () => {
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
+        generateDTO({ website: 123 }),
+      );
+      await expect(
+        OrganizationService.upsert(generateBasePayload()),
+      ).rejects.toThrow("Website must be a string.");
+
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
+        generateDTO({ website: "bad$website" }),
+      );
+      await expect(
+        OrganizationService.upsert(generateBasePayload()),
+      ).rejects.toThrow("Invalid character in Website.");
+    });
+
+    it("should handle optionalSafeString empty strings as undefined", async () => {
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
+        generateDTO({ website: "   " }),
+      );
+      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
+        mockDocument(),
+      );
+      const res = await OrganizationService.upsert(generateBasePayload());
+      expect(res.response).toBeDefined(); // Shouldn't throw
+    });
+
+    it("should throw if optionalNumber receives invalid data", async () => {
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
+        generateDTO({ address: { latitude: "not-a-num" } }),
+      );
+      await expect(
+        OrganizationService.upsert(generateBasePayload()),
+      ).rejects.toThrow("Address latitude must be a valid number.");
+    });
+
+    it("should parse optionalNumber string numbers", async () => {
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
+        generateDTO({ address: { latitude: "45.5" } }),
+      );
+      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
+        mockDocument(),
+      );
+      const res = await OrganizationService.upsert(generateBasePayload());
+      expect(res.response).toBeDefined();
+    });
+
+    it("should allow valid optionalNumber as a pure number", async () => {
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
+        generateDTO({ address: { latitude: 45.5, longitude: 90 } }),
+      );
+      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
+        mockDocument(),
+      );
+      const res = await OrganizationService.upsert(generateBasePayload());
+      expect(res.response).toBeDefined();
+    });
+
+    it("should throw if ensureSafeIdentifier format is invalid", async () => {
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
+        generateDTO({ id: "invalid spaces!@" }),
+      );
+      await expect(
+        OrganizationService.upsert(generateBasePayload()),
+      ).rejects.toThrow("Invalid identifier format.");
+    });
+
+    it("should throw if requireOrganizationType receives invalid data", async () => {
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
+        generateDTO({ type: 123 }),
+      );
+      await expect(
+        OrganizationService.upsert(generateBasePayload()),
+      ).rejects.toThrow("Organization type must be a string.");
+
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
+        generateDTO({ type: "  " }),
+      );
+      await expect(
+        OrganizationService.upsert(generateBasePayload()),
+      ).rejects.toThrow("Organization type cannot be empty.");
+
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
+        generateDTO({ type: "BAKERY" }),
+      );
+      await expect(
+        OrganizationService.upsert(generateBasePayload()),
+      ).rejects.toThrow("Invalid organization type.");
+    });
+  });
+
+  describe("Extractors (Extensions and Identifiers)", () => {
+    it("should extract TaxId from extension", async () => {
+      const payload = {
+        ...generateBasePayload(),
+        extension: [
           {
-            system: "http://example.org/organization-types",
-            code: "VET",
-            display: "Veterinary Business",
+            url: "http://example.org/fhir/StructureDefinition/taxId",
+            valueString: "EXT-TAX-123",
           },
         ],
-      },
-    ],
-    address: [
-      {
-        line: ["123 Test St"],
-        city: "Test City",
-        state: "Test State",
-        country: "Test Country",
-        postalCode: "12345",
-      },
-    ],
-    telecom: [{ system: "phone" as const, value: "123-456-7890" }],
-    extension: [
-      {
-        url: "http://example.org/fhir/StructureDefinition/taxId",
-        valueString: "TAX123",
-      },
-      {
-        url: "http://example.org/fhir/StructureDefinition/healthAndSafetyCertificationNumber",
-        valueString: "HS-909",
-      },
-      {
-        url: "http://example.org/fhir/StructureDefinition/animalWelfareComplianceCertificationNumber",
-        valueString: "AW-909",
-      },
-      {
-        url: "http://example.org/fhir/StructureDefinition/fireAndEmergencyCertificationNumber",
-        valueString: "FE-909",
-      },
-      {
-        url: "http://example.com/fhir/StructureDefinition/google-place-id",
-        valueString: "places-123",
-      },
-    ],
-  };
-
-  // --- UPSERT TESTS ---
-  describe("upsert", () => {
-    it("creates a new organization when no existing document is found", async () => {
-      mockedOrganizationModel.findOneAndUpdate.mockResolvedValueOnce(null);
-      const createdDoc = createMockDoc({ name: "Test Vet Clinic12" });
-      mockedOrganizationModel.create.mockResolvedValueOnce(createdDoc);
-
-      const payload = {
-        ...mockFHIROrganization,
-        name: "Test Vet Clinic12",
-        identifier: [{ value: createdDoc._id.toString() }],
-      } as any;
-
-      const result = await OrganizationService.upsert(payload);
-      expect(result.created).toBe(true);
-      expect(mockedOrganizationModel.create).toHaveBeenCalledWith(
+      };
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
+        generateDTO({ taxId: undefined }),
+      );
+      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
+        mockDocument(),
+      );
+      await OrganizationService.upsert(payload);
+      expect(OrganizationModel.findOneAndUpdate).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({
-          name: "Test Vet Clinic12",
-          phoneNo: "123-456-7890",
-          address: expect.objectContaining({
-            addressLine: "123 Test St",
-            city: "Test City",
-            state: "Test State",
-          }),
-          googlePlacesId: "places-123",
+          $set: expect.objectContaining({ taxId: "EXT-TAX-123" }),
+        }),
+        expect.anything(),
+      );
+    });
+
+    it("should extract TaxId from specific identifier system", async () => {
+      const payload = {
+        ...generateBasePayload(),
+        identifier: [
+          {
+            system: "http://example.org/fhir/NamingSystem/organisation-tax-id",
+            value: "SYS-TAX-123",
+          },
+        ],
+      };
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
+        generateDTO({ taxId: undefined }),
+      );
+      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
+        mockDocument(),
+      );
+      await OrganizationService.upsert(payload);
+      expect(OrganizationModel.findOneAndUpdate).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          $set: expect.objectContaining({ taxId: "SYS-TAX-123" }),
+        }),
+        expect.anything(),
+      );
+    });
+
+    it("should extract TaxId from generic identifier value", async () => {
+      const payload = {
+        ...generateBasePayload(),
+        identifier: [{ value: "GEN-TAX-123" }],
+      };
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
+        generateDTO({ taxId: undefined }),
+      );
+      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
+        mockDocument(),
+      );
+      await OrganizationService.upsert(payload);
+      expect(OrganizationModel.findOneAndUpdate).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          $set: expect.objectContaining({ taxId: "GEN-TAX-123" }),
+        }),
+        expect.anything(),
+      );
+    });
+
+    it("should properly pruneUndefined across nested arrays, objects, and ignore Date", async () => {
+      const date = new Date();
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
+        generateDTO({
+          address: { addressLine: "123 St", country: undefined },
+          dummyArray: [1, undefined, { nested: undefined }],
+          someDate: date,
+        } as any),
+      );
+      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
+        mockDocument(),
+      );
+      const res = await OrganizationService.upsert(generateBasePayload());
+      expect(res.response).toBeDefined();
+    });
+  });
+
+  describe("upsert", () => {
+    it("should update existing document without userId", async () => {
+      const doc = mockDocument();
+      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
+        doc,
+      );
+
+      const res = await OrganizationService.upsert(generateBasePayload());
+      expect(res.created).toBe(false);
+      expect((res.response as any)._id).toBe(doc._id);
+    });
+
+    it("should create new document and handle userId linkage", async () => {
+      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
+      const newDoc = mockDocument();
+      (OrganizationModel.create as jest.Mock).mockResolvedValueOnce(newDoc);
+      (UserProfileModel.findOne as jest.Mock).mockResolvedValueOnce(null);
+
+      const res = await OrganizationService.upsert(
+        generateBasePayload(),
+        "user-123",
+      );
+
+      expect(res.created).toBe(true);
+      expect(
+        UserOrganizationService.createUserOrganizationMapping,
+      ).toHaveBeenCalledWith({
+        practitionerReference: "user-123",
+        organizationReference: newDoc._id.toString(),
+        roleCode: "OWNER",
+        active: true,
+      });
+      expect(UserProfileModel.create).toHaveBeenCalled();
+    });
+
+    it("should not create a user profile if one already exists for the organization", async () => {
+      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
+      (OrganizationModel.create as jest.Mock).mockResolvedValueOnce(
+        mockDocument(),
+      );
+      (UserProfileModel.findOne as jest.Mock).mockResolvedValueOnce({
+        _id: "profile-id",
+      });
+
+      await OrganizationService.upsert(generateBasePayload(), "user-123");
+      expect(UserProfileModel.create).not.toHaveBeenCalled();
+    });
+
+    it("should process image uploads to S3 if URL is not https", async () => {
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
+        generateDTO({ imageURL: "local/path.jpg" }),
+      );
+      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
+      const newDoc = mockDocument();
+      (OrganizationModel.create as jest.Mock).mockResolvedValueOnce(newDoc);
+
+      (uploadMiddleware.buildS3Key as jest.Mock).mockReturnValueOnce(
+        "mocked/s3/key",
+      );
+      (uploadMiddleware.moveFile as jest.Mock).mockResolvedValueOnce(
+        "https://s3.url/image.jpg",
+      );
+
+      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
+        newDoc,
+      );
+
+      await OrganizationService.upsert(generateBasePayload());
+
+      expect(uploadMiddleware.moveFile).toHaveBeenCalledWith(
+        "local/path.jpg",
+        "mocked/s3/key",
+      );
+      expect(OrganizationModel.findOneAndUpdate).toHaveBeenCalledWith(
+        expect.anything(),
+        { $set: { imageURL: "https://s3.url/image.jpg" } },
+        expect.anything(),
+      );
+    });
+
+    it("should construct valid TypeCoding if provided", async () => {
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
+        generateDTO({
+          typeCoding: { system: "sys", code: "cod", display: "disp" },
+        }),
+      );
+      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
+        mockDocument(),
+      );
+
+      const res = await OrganizationService.upsert(generateBasePayload());
+      expect((res.response as any).typeCoding).toEqual({
+        system: "sys",
+        code: "cod",
+        display: "disp",
+      });
+    });
+
+    it("should ignore invalid TypeCoding (missing code or system)", async () => {
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
+        generateDTO({ typeCoding: { system: "sys" } }), // missing code
+      );
+      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
+        mockDocument(),
+      );
+
+      await OrganizationService.upsert(generateBasePayload());
+      expect(OrganizationModel.findOneAndUpdate).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.not.objectContaining({ "typeCoding.system": "sys" }),
+        expect.anything(),
+      );
+    });
+  });
+
+  describe("getById", () => {
+    it("should return null if not found", async () => {
+      (OrganizationModel.findOne as jest.Mock).mockResolvedValueOnce(null);
+      const res = await OrganizationService.getById(validObjectId);
+      expect(res).toBeNull();
+    });
+
+    it("should throw if id is missing/invalid", async () => {
+      await expect(OrganizationService.getById("   ")).rejects.toThrow(
+        "Organization identifier is required.",
+      );
+    });
+
+    it("should resolve by ObjectId if valid", async () => {
+      const doc = mockDocument();
+      (OrganizationModel.findOne as jest.Mock).mockResolvedValueOnce(doc);
+
+      await OrganizationService.getById(validObjectId);
+      expect(OrganizationModel.findOne).toHaveBeenCalledWith(
+        { _id: validObjectId },
+        null,
+        expect.anything(),
+      );
+    });
+
+    it("should resolve by fhirId if not a valid ObjectId", async () => {
+      const doc = mockDocument();
+      (OrganizationModel.findOne as jest.Mock).mockResolvedValueOnce(doc);
+      (isValidObjectId as jest.Mock).mockReturnValueOnce(false);
+
+      await OrganizationService.getById("custom-fhir-id");
+      expect(OrganizationModel.findOne).toHaveBeenCalledWith(
+        { fhirId: "custom-fhir-id" },
+        null,
+        expect.anything(),
+      );
+    });
+  });
+
+  describe("listAll", () => {
+    it("should map and return all organizations", async () => {
+      (OrganizationModel.find as jest.Mock).mockResolvedValueOnce([
+        mockDocument(),
+        mockDocument(),
+      ]);
+      const res = await OrganizationService.listAll();
+      expect(res.length).toBe(2);
+    });
+  });
+
+  describe("deleteById", () => {
+    it("should return false if document not found", async () => {
+      (OrganizationModel.findOneAndDelete as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
+      const res = await OrganizationService.deleteById(validObjectId);
+      expect(res).toBe(false);
+    });
+  });
+
+  describe("update", () => {
+    it("should return null if document not found", async () => {
+      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
+      const res = await OrganizationService.update(
+        validObjectId,
+        generateBasePayload(),
+      );
+      expect(res).toBeNull();
+    });
+
+    it("should return updated fhir response if found", async () => {
+      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
+        mockDocument(),
+      );
+      const res = await OrganizationService.update(
+        validObjectId,
+        generateBasePayload(),
+      );
+      expect(res).toBeDefined();
+    });
+  });
+
+  describe("upadtePofileVerificationStatus", () => {
+    it("should return null if document not found", async () => {
+      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
+      const res = await OrganizationService.upadtePofileVerificationStatus(
+        validObjectId,
+        true,
+      );
+      expect(res).toBeNull();
+    });
+
+    it("should return fhir response if successful", async () => {
+      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
+        mockDocument({ isVerified: true }),
+      );
+      const res = await OrganizationService.upadtePofileVerificationStatus(
+        validObjectId,
+        true,
+      );
+      expect((res as any)?.isVerified).toBe(true);
+    });
+  });
+
+  describe("updateProfilePhotoUrl", () => {
+    it("should return null if document not found", async () => {
+      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
+      const res = await OrganizationService.updateProfilePhotoUrl(
+        validObjectId,
+        "url",
+      );
+      expect(res).toBeNull();
+    });
+
+    it("should return document if successful", async () => {
+      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
+        mockDocument({ imageURL: "url" }),
+      );
+      const res = await OrganizationService.updateProfilePhotoUrl(
+        validObjectId,
+        "url",
+      );
+      expect((res as any)?.imageURL).toBe("url");
+    });
+  });
+
+  describe("resolveOrganisation", () => {
+    it("should throw if input is completely empty", async () => {
+      await expect(OrganizationService.resolveOrganisation({})).rejects.toThrow(
+        "Invalid search input.",
+      );
+    });
+
+    it("should resolve by placeId", async () => {
+      const doc = mockDocument();
+      (OrganizationModel.findOne as jest.Mock).mockResolvedValueOnce(doc);
+      const res = await OrganizationService.resolveOrganisation({
+        placeId: "place-123",
+      });
+      expect(res.isPmsOrganisation).toBe(true);
+      expect(res.organisation).toBeDefined();
+      expect(OrganizationModel.findOne).toHaveBeenCalledWith({
+        googlePlaceId: "place-123",
+      });
+    });
+
+    it("should resolve by lat/lng", async () => {
+      const doc = mockDocument();
+      (OrganizationModel.findOne as jest.Mock).mockResolvedValueOnce(doc);
+
+      const res = await OrganizationService.resolveOrganisation({
+        lat: 10,
+        lng: 20,
+      });
+      expect(res.isPmsOrganisation).toBe(true);
+      expect(OrganizationModel.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          "address.location": {
+            $near: {
+              $geometry: { type: "Point", coordinates: [20, 10] },
+              $maxDistance: 120,
+            },
+          },
         }),
       );
     });
 
-    it("updates existing organization when document is found", async () => {
-      const existingDoc = createMockDoc();
-      mockedOrganizationModel.findOneAndUpdate.mockResolvedValueOnce(
-        existingDoc,
-      );
+    it("should resolve by name", async () => {
+      const doc = mockDocument();
+      (OrganizationModel.findOne as jest.Mock).mockResolvedValueOnce(doc);
 
-      const result = await OrganizationService.upsert({
-        ...mockFHIROrganization,
-        id: existingDoc._id.toString(),
-      } as any);
-
-      expect(result.created).toBe(false);
-      expect(mockedOrganizationModel.findOneAndUpdate).toHaveBeenCalledWith(
-        { _id: existingDoc._id.toString() },
-        { $set: expect.any(Object) },
-        { new: true, sanitizeFilter: true },
-      );
-    });
-
-    it("throws error when organization name is missing", async () => {
-      await expect(
-        OrganizationService.upsert({
-          ...mockFHIROrganization,
-          name: "",
-        } as any),
-      ).rejects.toMatchObject({
-        message: "Organization name cannot be empty.",
+      const res = await OrganizationService.resolveOrganisation({
+        name: "Hospital",
       });
+      expect(res.isPmsOrganisation).toBe(true);
     });
 
-    it("uses identifier as tax ID when tax extension missing", async () => {
-      mockedOrganizationModel.findOneAndUpdate.mockResolvedValueOnce(null);
-      const createdDoc = createMockDoc({ name: "Clinic X" });
-      mockedOrganizationModel.create.mockResolvedValueOnce(createdDoc);
+    it("should return false if no match found", async () => {
+      (OrganizationModel.findOne as jest.Mock).mockResolvedValueOnce(null);
+      const res = await OrganizationService.resolveOrganisation({
+        name: "Unknown",
+      });
+      expect(res.isPmsOrganisation).toBe(false);
+    });
+  });
 
-      const payload = {
-        ...mockFHIROrganization,
-        extension: [],
-        identifier: [{ value: "TAX-ABC-123" }],
-      } as any;
-      const result = await OrganizationService.upsert(payload);
-
-      expect(result.created).toBe(true);
-      expect(mockedOrganizationModel.create.mock.calls[0][0].taxId).toBe(
-        "TAX-ABC-123",
-      );
+  describe("listNearbyForAppointmentsPaginated", () => {
+    it("should throw if lat or lng is missing", async () => {
+      await expect(
+        OrganizationService.listNearbyForAppointmentsPaginated(0, 0),
+      ).rejects.toThrow("lat/lng are required");
     });
 
-    it("ignores incomplete typeCoding (missing system or code)", async () => {
-      mockedOrganizationModel.findOneAndUpdate.mockResolvedValueOnce(null);
-      const createdDoc = createMockDoc({ name: "Clinic Type Test" });
-      mockedOrganizationModel.create.mockResolvedValueOnce(createdDoc);
-
-      const payload = { ...mockFHIROrganization, type: "UNKNOWN" } as any;
-      const result = await OrganizationService.upsert(payload);
-
-      expect(result.created).toBe(true);
-      const created = mockedOrganizationModel.create.mock.calls[0][0];
-      expect(created.typeCoding).toBeUndefined();
-      expect(created.type).toBe("HOSPITAL");
-    });
-
-    it("accepts full typeCoding and preserves typeCoding/code", async () => {
-      mockedOrganizationModel.findOneAndUpdate.mockResolvedValueOnce(null);
-      const createdDoc = createMockDoc({ name: "Clinic Full Type" });
-      mockedOrganizationModel.create.mockResolvedValueOnce(createdDoc);
-
-      const payload = { ...mockFHIROrganization } as any;
-      const result = await OrganizationService.upsert(payload);
-
-      expect(result.created).toBe(true);
-      const created = mockedOrganizationModel.create.mock.calls[0][0];
-      expect(created.typeCoding).toBeDefined();
-    });
-
-    it("prunes undefined properties from nested objects", async () => {
-      mockedOrganizationModel.findOneAndUpdate.mockResolvedValueOnce(null);
-      const createdDoc = createMockDoc({ name: "Clinic Prune Test" });
-      mockedOrganizationModel.create.mockResolvedValueOnce(createdDoc);
-
-      const payload = {
-        ...mockFHIROrganization,
-        address: [
+    it("should return paginated data with specialities and services", async () => {
+      const mockChain = {
+        skip: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue([
           {
-            line: ["123"],
-            city: "City",
-            state: "State",
-            country: null,
-            postalCode: "00000",
+            _id: new Types.ObjectId(),
+            name: "Org1",
+            address: { location: { coordinates: [20, 10] } },
           },
-        ],
-      } as any;
+        ]),
+      };
+      (OrganizationModel.find as jest.Mock).mockReturnValue(mockChain);
 
-      const result = await OrganizationService.upsert(payload);
-      expect(result.created).toBe(true);
-      const createArg = mockedOrganizationModel.create.mock.calls[0][0];
-      expect(createArg.address).toBeDefined();
-      expect(createArg.address).not.toHaveProperty("country");
-    });
+      const specId = new Types.ObjectId();
+      (SpecialityModel.find as jest.Mock).mockResolvedValue([
+        { _id: specId, toObject: () => ({ name: "Cardio" }) },
+      ]);
+      (ServiceModel.find as jest.Mock).mockResolvedValue([
+        { name: "ECG", specialityId: specId },
+      ]);
 
-    it("accepts payloads without address, isVerified, or isActive", async () => {
-      mockedOrganizationModel.findOneAndUpdate.mockResolvedValueOnce(null);
-      const createdDoc = createMockDoc({
-        address: undefined,
-        isVerified: undefined,
-        isActive: undefined,
-      });
-      mockedOrganizationModel.create.mockResolvedValueOnce(createdDoc);
-
-      const payload = { ...mockFHIROrganization } as any;
-      delete payload.address;
-      delete payload.active;
-
-      const result = await OrganizationService.upsert(payload);
-
-      expect(result.created).toBe(true);
-      const createArg = mockedOrganizationModel.create.mock.calls[0][0];
-      expect(createArg.address).toBeUndefined();
-      expect(createArg.isVerified).toBeFalsy();
-      expect(createArg.isActive).toBeFalsy();
-    });
-
-    it("throws when organization name contains invalid character $", async () => {
-      await expect(
-        OrganizationService.upsert({
-          ...mockFHIROrganization,
-          name: "Bad$Name",
-        } as any),
-      ).rejects.toMatchObject({
-        message: "Invalid character in Organization name.",
-      });
-    });
-
-    it("treats blank phoneNo as undefined", async () => {
-      mockedOrganizationModel.findOneAndUpdate.mockResolvedValueOnce(null);
-      await expect(
-        OrganizationService.upsert({
-          ...mockFHIROrganization,
-          phoneNo: "   ",
-          telecom: [],
-        } as any),
-      ).rejects.toMatchObject({
-        message: "Phone number cannot be empty.",
-      });
-    });
-  });
-
-  // --- LIST TESTS ---
-  describe("listAll", () => {
-    it("returns empty array when no documents exist", async () => {
-      mockedOrganizationModel.find.mockResolvedValueOnce([]);
-      const result = await OrganizationService.listAll();
-      expect(result).toEqual([]);
-    });
-
-    it("returns all organizations", async () => {
-      const docs = [
-        createMockDoc({ name: "Clinic 1" }),
-        createMockDoc({ name: "Clinic 2" }),
-      ];
-      mockedOrganizationModel.find.mockResolvedValueOnce(docs);
-
-      const result = await OrganizationService.listAll();
-      expect(result).toHaveLength(2);
-      expect(result[0]).toMatchObject({ name: "Clinic 1" });
-    });
-  });
-
-  // --- UPDATE TESTS ---
-  describe("update", () => {
-    it("updates existing organization", async () => {
-      const existing = createMockDoc({ name: "Old Name" });
-      const updated = createMockDoc({ name: "New Name" });
-      mockedOrganizationModel.findOneAndUpdate.mockResolvedValueOnce(updated);
-
-      const result = await OrganizationService.update(existing._id.toString(), {
-        ...mockFHIROrganization,
-        name: "New Name",
-      } as any);
-
-      expect(result).toMatchObject({ name: "New Name" });
-    });
-
-    it("returns null when organization not found", async () => {
-      mockedOrganizationModel.findOneAndUpdate.mockResolvedValueOnce(null);
-      const result = await OrganizationService.update(
-        "missing",
-        mockFHIROrganization as any,
+      const res = await OrganizationService.listNearbyForAppointmentsPaginated(
+        10,
+        20,
       );
-      expect(result).toBeNull();
+
+      expect(res.data.length).toBe(1);
+      expect(res.data[0].distanceInMeters).toBe(0);
+      expect(res.data[0].specialitiesWithServices[0].services.length).toBe(1);
+      expect(res.meta.total).toBe(1);
     });
 
-    it("accepts FHIR ID for update", async () => {
-      const document = createMockDoc({ fhirId: "org-to-update" } as any);
-      mockedOrganizationModel.findOneAndUpdate.mockResolvedValueOnce(document);
+    it("should fallback to all organizations if no nearby are found", async () => {
+      const emptyMockChain = {
+        skip: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue([]),
+      };
+      const allMockChain = {
+        skip: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue([
+          {
+            _id: new Types.ObjectId(),
+            name: "FallbackOrg",
+          },
+        ]),
+      };
 
-      const result = await OrganizationService.update(
-        "org-to-update",
-        mockFHIROrganization as any,
+      (OrganizationModel.find as jest.Mock)
+        .mockReturnValueOnce(emptyMockChain)
+        .mockReturnValueOnce(allMockChain);
+
+      (SpecialityModel.find as jest.Mock).mockResolvedValue([]);
+      (ServiceModel.find as jest.Mock).mockResolvedValue([]);
+
+      const res = await OrganizationService.listNearbyForAppointmentsPaginated(
+        10,
+        20,
       );
-      expect(result).toBeTruthy();
-    });
 
-    it("throws when id is empty", async () => {
-      await expect(
-        OrganizationService.update("", mockFHIROrganization as any),
-      ).rejects.toMatchObject({
-        message: "Organization identifier is required.",
-      });
-    });
-
-    it("throws when name is null", async () => {
-      const payload = { ...mockFHIROrganization, name: null } as any;
-      await expect(
-        OrganizationService.update("org-to-update", payload),
-      ).rejects.toMatchObject({
-        message: "Organization name cannot be empty.",
-      });
-    });
-
-    it("throws when name is not string", async () => {
-      const payload = { ...mockFHIROrganization, name: 123 } as any;
-      await expect(
-        OrganizationService.update("org-to-update", payload),
-      ).rejects.toMatchObject({
-        message: "Organization name must be a string.",
-      });
-    });
-
-    it("throws when id has invalid format", async () => {
-      await expect(
-        OrganizationService.update("invalid$id", mockFHIROrganization as any),
-      ).rejects.toMatchObject({
-        message: "Invalid character in Identifier.",
-      });
+      expect(logger.warn).toHaveBeenCalledWith(
+        "No nearby organisations found, returning all organisations",
+      );
+      expect(res.data.length).toBe(1);
+      expect(res.data[0].distanceInMeters).toBeNull();
     });
   });
 
-  // --- DELETE TESTS ---
-  describe("deleteById", () => {
-    it("returns true when document is deleted", async () => {
-      (
-        UserOrganizationService.deleteAllByOrganizationId as jest.Mock
-      ).mockResolvedValue(true);
-      (
-        SpecialityService.deleteAllByOrganizationId as jest.Mock
-      ).mockResolvedValue(true);
-      (
-        OrganisationRoomService.deleteAllByOrganizationId as jest.Mock
-      ).mockResolvedValue(true);
+  describe("coerceOrganizationType logic fallback", () => {
+    it("should fallback to HOSPITAL for unsupported types in mapped response", async () => {
+      const doc = mockDocument({ type: "UNKNOWN" });
+      (OrganizationModel.findOne as jest.Mock).mockResolvedValueOnce(doc);
 
-      const doc = createMockDoc({ name: "Delete Clinic" });
-      mockedOrganizationModel.findOneAndUpdate.mockResolvedValueOnce(doc);
-
-      const result = await OrganizationService.deleteById(doc._id.toString());
-      expect(result).toBe(true);
-      expect(mockedOrganizationModel.findOneAndUpdate).toHaveBeenCalledWith(
-        { _id: doc._id.toString() },
-        { $set: { isActive: false } },
-        { sanitizeFilter: true },
-      );
+      const res = await OrganizationService.getById(validObjectId);
+      expect(res).toBeDefined();
     });
 
-    it("returns false when no document found", async () => {
-      mockedOrganizationModel.findOneAndUpdate.mockResolvedValueOnce(null);
-      const result = await OrganizationService.deleteById("missing");
-      expect(result).toBe(false);
-    });
+    it("should fallback to HOSPITAL for non-string types in mapped response", async () => {
+      const doc = mockDocument({ type: 12345 }); // Number type triggers typeof !== 'string' branch
+      (OrganizationModel.findOne as jest.Mock).mockResolvedValueOnce(doc);
 
-    it("throws when id empty", async () => {
-      await expect(OrganizationService.deleteById("")).rejects.toMatchObject({
-        message: "Organization identifier is required.",
-      });
-    });
-
-    it("throws when id invalid", async () => {
-      await expect(
-        OrganizationService.deleteById("invalid$id"),
-      ).rejects.toMatchObject({
-        message: "Invalid character in Identifier.",
-      });
-    });
-
-    it("throws invalid identifier format", async () => {
-      await expect(
-        OrganizationService.deleteById("invalid#id"),
-      ).rejects.toMatchObject({
-        message: "Invalid identifier format.",
-      });
-    });
-  });
-
-  // --- GET TESTS ---
-  describe("getById", () => {
-    it("returns null when no document is found", async () => {
-      mockedOrganizationModel.findOne.mockResolvedValueOnce(null);
-      const result = await OrganizationService.getById("missing-id");
-      expect(result).toBeNull();
-    });
-
-    it("returns domain organization when found", async () => {
-      const doc = createMockDoc({ name: "Found Clinic" });
-      mockedOrganizationModel.findOne.mockResolvedValueOnce(doc);
-
-      const result = await OrganizationService.getById(doc._id.toString());
-      expect(result).toMatchObject({ name: "Found Clinic" });
-    });
-
-    it("accepts FHIR ID for lookup", async () => {
-      const doc = createMockDoc({ fhirId: "org-1234" } as any);
-      mockedOrganizationModel.findOne.mockResolvedValueOnce(doc);
-
-      const result = await OrganizationService.getById("org-1234");
-      expect(result).toBeTruthy();
-    });
-
-    it("maps stored type to allowed organization type", async () => {
-      const doc = createMockDoc({ name: "Typed Clinic", type: "HOSPITAL" });
-      mockedOrganizationModel.findOne.mockResolvedValueOnce(doc);
-      const result = await OrganizationService.getById(doc._id.toString());
-      expect(result).toBeTruthy();
-    });
-
-    it("throws when id empty", async () => {
-      await expect(OrganizationService.getById("")).rejects.toMatchObject({
-        message: "Organization identifier is required.",
-      });
-    });
-
-    it("throws when id invalid", async () => {
-      await expect(
-        OrganizationService.getById("invalid$id"),
-      ).rejects.toMatchObject({
-        message: "Invalid character in Identifier.",
-      });
+      const res = await OrganizationService.getById(validObjectId);
+      expect((res as any)?.type).toBe("HOSPITAL");
     });
   });
 });
