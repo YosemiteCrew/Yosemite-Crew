@@ -1,6 +1,7 @@
 import { CompanionOrganisationController } from '../../src/controllers/app/companion-organisation.controller';
 import { CompanionOrganisationService, CompanionOrganisationServiceError } from '../../src/services/companion-organisation.service';
 import { ParentService } from 'src/services/parent.service';
+import { AuthUserMobileService } from 'src/services/authUserMobile.service';
 import OrganizationModel from 'src/models/organization';
 import logger from '../../src/utils/logger';
 
@@ -37,6 +38,13 @@ jest.mock('src/services/parent.service', () => ({
   __esModule: true,
   ParentService: {
     findByLinkedUserId: jest.fn(),
+  },
+}));
+
+jest.mock('src/services/authUserMobile.service', () => ({
+  __esModule: true,
+  AuthUserMobileService: {
+    getByProviderUserId: jest.fn(),
   },
 }));
 
@@ -78,21 +86,21 @@ describe('CompanionOrganisationController', () => {
   describe('resolveUserIdFromRequest & Payload Parsers (Implicitly Tested)', () => {
     it('should use x-user-id if available', async () => {
       req.headers['x-user-id'] = 'header_id';
-      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({ _id: 'pid' });
+      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValue({ parentId: 'pid' });
       req.body = { companionId: 'c1', organisationId: 'o1', organisationType: 'HOSPITAL' };
 
       await CompanionOrganisationController.linkByParent(req, res);
-      expect(ParentService.findByLinkedUserId).toHaveBeenCalledWith('header_id');
+      expect(AuthUserMobileService.getByProviderUserId).toHaveBeenCalledWith('header_id');
     });
 
     it('should fall back to authReq.userId if headers missing or not string', async () => {
       req.headers = undefined; // Force branch coverage for `req.headers?.`
       req.userId = 'auth_id';
-      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({ _id: 'pid' });
+      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValue({ parentId: 'pid' });
       req.body = { companionId: 'c1', organisationId: 'o1', organisationType: 'HOSPITAL' };
 
       await CompanionOrganisationController.linkByParent(req, res);
-      expect(ParentService.findByLinkedUserId).toHaveBeenCalledWith('auth_id');
+      expect(AuthUserMobileService.getByProviderUserId).toHaveBeenCalledWith('auth_id');
     });
 
     it('should handle falsy authReq.userId properly (hits final return)', async () => {
@@ -105,7 +113,7 @@ describe('CompanionOrganisationController', () => {
     it('parseLinkPayload: should reject null body', async () => {
       req.body = null;
       req.userId = 'u1';
-      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({ _id: 'pid' });
+      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValue({ parentId: 'pid' });
       await CompanionOrganisationController.linkByParent(req, res);
       expect(res.status).toHaveBeenCalledWith(400);
     });
@@ -113,14 +121,14 @@ describe('CompanionOrganisationController', () => {
 
   describe('linkByParent', () => {
     it('should return 401 if parent not found', async () => {
-      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue(null);
+      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValue(null);
       await CompanionOrganisationController.linkByParent(req, res);
       expect(res.status).toHaveBeenCalledWith(401);
       expect(res.json).toHaveBeenCalledWith({ message: 'Parent not found' });
     });
 
     it('should return 400 if link payload is invalid', async () => {
-      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({ _id: 'pid' });
+      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValue({ parentId: 'pid' });
       req.body = { companionId: 'c1', organisationId: 'o1', organisationType: 'INVALID_TYPE' };
 
       await CompanionOrganisationController.linkByParent(req, res);
@@ -128,7 +136,7 @@ describe('CompanionOrganisationController', () => {
     });
 
     it('should successfully link by parent', async () => {
-      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({ _id: 'pid' });
+      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValue({ parentId: 'pid' });
       req.body = { companionId: 'c1', organisationId: 'o1', organisationType: 'HOSPITAL' };
       (CompanionOrganisationService.linkByParent as jest.Mock).mockResolvedValue('link_data');
 
@@ -139,7 +147,7 @@ describe('CompanionOrganisationController', () => {
     });
 
     it('should handle custom CompanionOrganisationServiceError', async () => {
-      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({ _id: 'pid' });
+      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValue({ parentId: 'pid' });
       req.body = { companionId: 'c1', organisationId: 'o1', organisationType: 'HOSPITAL' };
       (CompanionOrganisationService.linkByParent as jest.Mock).mockRejectedValue(new CompanionOrganisationServiceError('Custom Error', 409));
 
@@ -149,7 +157,7 @@ describe('CompanionOrganisationController', () => {
     });
 
     it('should handle generic errors', async () => {
-      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({ _id: 'pid' });
+      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValue({ parentId: 'pid' });
       req.body = { companionId: 'c1', organisationId: 'o1', organisationType: 'HOSPITAL' };
       (CompanionOrganisationService.linkByParent as jest.Mock).mockRejectedValue(new Error('DB Error'));
 

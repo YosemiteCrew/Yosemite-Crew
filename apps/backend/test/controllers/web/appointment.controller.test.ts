@@ -206,7 +206,7 @@ describe("AppointmentController", () => {
       // Expect req.body (dto) and true
       expect(
         mockedAppointmentService.createAppointmentFromPms,
-      ).toHaveBeenCalledWith(req.body, true);
+      ).toHaveBeenCalledWith(req.body, true, undefined);
       expect(statusMock).toHaveBeenCalledWith(201);
     });
 
@@ -220,7 +220,7 @@ describe("AppointmentController", () => {
       await AppointmentController.createFromPms(req as any, res as Response);
       expect(
         mockedAppointmentService.createAppointmentFromPms,
-      ).toHaveBeenCalledWith({}, true);
+      ).toHaveBeenCalledWith({}, true, undefined);
     });
 
     it("should success (201) with createPayment=false", async () => {
@@ -233,7 +233,7 @@ describe("AppointmentController", () => {
       await AppointmentController.createFromPms(req as any, res as Response);
       expect(
         mockedAppointmentService.createAppointmentFromPms,
-      ).toHaveBeenCalledWith({}, false);
+      ).toHaveBeenCalledWith({}, false, undefined);
     });
 
     it("should handle error", async () => {

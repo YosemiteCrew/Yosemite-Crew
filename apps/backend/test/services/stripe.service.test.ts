@@ -39,6 +39,12 @@ jest.mock("../../src/utils/logger", () => ({
   },
 }));
 
+jest.mock("src/utils/dual-write", () => ({
+  shouldDualWrite: false,
+  isDualWriteStrict: false,
+  handleDualWriteError: jest.fn(),
+}));
+
 // Default Exports
 jest.mock("../../src/models/invoice", () => ({
   __esModule: true,
@@ -324,7 +330,29 @@ describe("StripeService", () => {
     });
   });
 
-<<<<<<< HEAD
+  describe("Payment Intents (Appointment & Invoice)", () => {
+    it("createPaymentIntentForAppointment: creates intent for REQUESTED", async () => {
+      (AppointmentModel.findById as jest.Mock).mockResolvedValueOnce({
+        status: "REQUESTED",
+        appointmentType: { id: "srv-1" },
+        organisationId: "org-1",
+        companion: { parent: { id: "p-1" }, id: "c-1" },
+      });
+      (ServiceModel.findById as jest.Mock).mockResolvedValueOnce({ cost: 100 });
+      (OrganizationModel.findById as jest.Mock).mockResolvedValueOnce({
+        stripeAccountId: "acct_1",
+      });
+      mStripe.paymentIntents.create.mockResolvedValueOnce({
+        id: "pi_123",
+        client_secret: "sec_123",
+      });
+
+      const res =
+        await StripeService.createPaymentIntentForAppointment("app_1");
+      expect(res.clientSecret).toBe("sec_123");
+    });
+  });
+
   describe("createCustomerPortalSession", () => {
     it("should throw if no stripeCustomerId", async () => {
       (OrgBilling.findOneAndUpdate as jest.Mock).mockResolvedValueOnce({
@@ -332,17 +360,6 @@ describe("StripeService", () => {
       });
       (OrgUsageCounters.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
         {},
-=======
-  describe("Payment Intents (Appointment & Invoice)", () => {
-    it("createPaymentIntentForAppointment: creates intent", async () => {
-      (AppointmentModel.findById as jest.Mock).mockReturnValue(
-        mockChain({
-          status: "REQUESTED",
-          appointmentType: { id: "srv-1" },
-          organisationId: "org-1",
-          companion: { parent: { id: "p-1" }, id: "c-1" },
-        }),
->>>>>>> f99238ab (feat: adds support for timezones in user-profile and parent-profile. Also fixes  status for appointment)
       );
       await expect(
         StripeService.createCustomerPortalSession("org_1"),
@@ -440,13 +457,13 @@ describe("StripeService", () => {
       ).rejects.toThrow("Appointment not found");
     });
 
-    it("should throw if appointment does not require payment", async () => {
+    it("should throw if appointment does not allow payment", async () => {
       (AppointmentModel.findById as jest.Mock).mockResolvedValueOnce({
         status: "CONFIRMED",
       });
       await expect(
         StripeService.createPaymentIntentForAppointment("app_1"),
-      ).rejects.toThrow("Appointment does not require payment");
+      ).rejects.toThrow("Appointment does not allow payment");
     });
 
     it("should throw if service not found", async () => {

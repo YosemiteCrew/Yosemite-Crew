@@ -37,7 +37,7 @@ const mockSort = jest.fn().mockReturnValue({ lean: mockLean });
 
 jest.mock("../../src/models/notification", () => ({
   NotificationModel: {
-    insertOne: jest.fn(),
+    create: jest.fn(),
     find: jest.fn(() => ({ sort: mockSort })),
     findById: jest.fn(),
   },
@@ -175,8 +175,8 @@ describe("NotificationService", () => {
       (DeviceTokenService.getTokensForUser as jest.Mock).mockResolvedValueOnce(mockTokens);
       mockSend.mockResolvedValue("msg-id");
 
-      // Force NotificationModel.insertOne to throw to test the catch block
-      (NotificationModel.insertOne as jest.Mock).mockRejectedValueOnce(
+      // Force NotificationModel.create to throw to test the catch block
+      (NotificationModel.create as jest.Mock).mockRejectedValueOnce(
         new Error("DB Insert Failed")
       );
 
@@ -187,7 +187,7 @@ describe("NotificationService", () => {
 
       expect(res).toHaveLength(1);
       expect(res[0].token).toBe("token-1");
-      expect(NotificationModel.insertOne).toHaveBeenCalled();
+      expect(NotificationModel.create).toHaveBeenCalled();
       expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("DB Insert Failed"));
     });
 
@@ -196,7 +196,7 @@ describe("NotificationService", () => {
         { deviceToken: "token-2" },
       ]);
       mockSend.mockResolvedValue("msg-id");
-      (NotificationModel.insertOne as jest.Mock).mockRejectedValueOnce("String DB Error");
+      (NotificationModel.create as jest.Mock).mockRejectedValueOnce("String DB Error");
 
       await NotificationService.sendToUser("user1", payload);
       await new Promise(process.nextTick); // flush dangling promises

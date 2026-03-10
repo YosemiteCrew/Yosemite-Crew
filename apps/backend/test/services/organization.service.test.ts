@@ -82,6 +82,12 @@ jest.mock("../../src/utils/logger", () => ({
   warn: jest.fn(),
 }));
 
+jest.mock("src/utils/dual-write", () => ({
+  shouldDualWrite: false,
+  isDualWriteStrict: false,
+  handleDualWriteError: jest.fn(),
+}));
+
 // --- TEST UTILS ---
 const validObjectId = new Types.ObjectId().toString();
 
