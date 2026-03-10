@@ -232,6 +232,9 @@ importers:
       '@yosemite-crew/types':
         specifier: workspace:^
         version: link:../../packages/types
+      chromium-bidi:
+        specifier: ^15.0.0
+        version: 15.0.0(devtools-protocol@0.0.1596832)
       esbuild:
         specifier: ^0.25.4
         version: 0.25.12
@@ -16888,6 +16891,16 @@ packages:
     engines: {node: '>=6.0'}
     dev: false
 
+  /chromium-bidi@15.0.0(devtools-protocol@0.0.1596832):
+    resolution: {integrity: sha512-ESWZM1u85CoeSozBXXG9M73S5tH0EjkqnFJoQ6F3MHs2YGe0CLVMaRvhGxetLP6w4GVR59+/cpWvDLUpLvJXLQ==}
+    peerDependencies:
+      devtools-protocol: '*'
+    dependencies:
+      devtools-protocol: 0.0.1596832
+      mitt: 3.0.1
+      zod: 3.25.76
+    dev: true
+
   /chromium-edge-launcher@0.2.0:
     resolution: {integrity: sha512-JfJjUnq25y9yg4FABRRVPmBGWPZZi+AQXT4mxupb67766/0UlhG8PAZCz6xzEMXTbW3CsSoE8PcCWA49n35mKg==}
     dependencies:
@@ -18250,6 +18263,10 @@ packages:
     dependencies:
       dequal: 2.0.3
     dev: false
+
+  /devtools-protocol@0.0.1596832:
+    resolution: {integrity: sha512-IwRVIiCa4mpaKeLcZ2cmGpG0hP8ls3zj3zg87Z/JwULm2xYmhOcMrwdeHos6xaANQHGEXzSCzji+6kEuZu873A==}
+    dev: true
 
   /diff-sequences@29.6.3:
     resolution: {integrity: sha512-EjePK1srD3P08o2j4f0ExnylqRs5B9tJjcp9t1krH2qRi8CCdsYfwe9JgSLurFBWwq4uOlipzfk5fHNvwFKr8Q==}
