@@ -29,7 +29,18 @@ export class ParentServiceError extends Error {
   }
 }
 
-const OFFSET_TIMEZONE_REGEX = /^(?:UTC)?[+-](?:0\d|1\d|2[0-3]):[0-5]\d$/;
+const OFFSET_TIMEZONE_REGEX = /^(?:UTC)?[+-](?:0?\d|1\d|2[0-3]):[0-5]\d$/;
+const COMBINED_TIMEZONE_REGEX =
+  /^UTC[+-](?:0?\d|1\d|2[0-3]):[0-5]\d\s*-\s*(.+)$/;
+
+const isValidIanaTimezone = (value: string): boolean => {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: value }).format();
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 const isValidTimezone = (value: string): boolean => {
   if (value === "UTC") {
@@ -40,29 +51,31 @@ const isValidTimezone = (value: string): boolean => {
     return true;
   }
 
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: value }).format();
-    return true;
-  } catch {
-    return false;
-  }
+  return isValidIanaTimezone(value);
 };
 
 const validateTimezone = (value: string, field: string): string => {
   const trimmed = value.trim();
 
-  if (!trimmed) {
+  const combinedMatch = COMBINED_TIMEZONE_REGEX.exec(trimmed);
+  const normalized = combinedMatch
+    ? isValidIanaTimezone(combinedMatch[1].trim())
+      ? combinedMatch[1].trim()
+      : trimmed
+    : trimmed;
+
+  if (!normalized) {
     throw new ParentServiceError(`${field} cannot be empty.`, 400);
   }
 
-  if (!isValidTimezone(trimmed)) {
+  if (!isValidTimezone(normalized)) {
     throw new ParentServiceError(
       `${field} must be a valid IANA timezone or UTC offset.`,
       400,
     );
   }
 
-  return trimmed;
+  return normalized;
 };
 
 /* ------------------------------ Helpers ------------------------------ */
