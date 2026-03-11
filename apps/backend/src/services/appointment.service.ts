@@ -1588,7 +1588,12 @@ export const AppointmentService = {
       throw new AppointmentServiceError("Appointment not found", 404);
     }
 
-    const allowedStatuses: AppointmentStatus[] = ["REQUESTED", "UPCOMING"];
+    const allowedStatuses: AppointmentStatus[] = [
+      "REQUESTED",
+      "UPCOMING",
+      "CHECKED_IN",
+      "IN_PROGRESS",
+    ];
     const normalizedStatus = normalizeAppointmentStatus(
       appointment.status as LegacyAppointmentStatus,
     );
@@ -1656,6 +1661,15 @@ export const AppointmentService = {
       }
 
       // Apply PMS updates
+      if (extracted.status && extracted.status !== appointment.status) {
+        assertAppointmentStatusTransition(
+          appointment.status as LegacyAppointmentStatus,
+          extracted.status,
+          "updateAppointmentPMS",
+        );
+        appointment.status = extracted.status;
+      }
+
       appointment.lead = {
         id: extracted.lead?.id,
         name: extracted.lead?.name ?? "Vet",
