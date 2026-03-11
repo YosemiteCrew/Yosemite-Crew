@@ -21,6 +21,7 @@ jest.mock('@/app/lib/validators', () => ({
 
 jest.mock('@/app/lib/appointments', () => ({
   allowCalendarDrag: jest.fn(() => true),
+  normalizeAppointmentStatus: (status: string) => (status === 'NO_PAYMENT' ? 'REQUESTED' : status),
 }));
 
 describe('AppointmentCard', () => {

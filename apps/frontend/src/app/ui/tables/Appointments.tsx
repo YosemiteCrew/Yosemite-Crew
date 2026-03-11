@@ -14,7 +14,11 @@ import {
   cancelAppointment,
 } from '@/app/features/appointments/services/appointmentService';
 import { toTitle } from '@/app/lib/validators';
-import { allowCalendarDrag } from '@/app/lib/appointments';
+import {
+  allowCalendarDrag,
+  normalizeAppointmentStatus,
+  type LegacyAppointmentStatus,
+} from '@/app/lib/appointments';
 import { getStatusStyle } from '@/app/config/statusConfig';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -195,7 +199,7 @@ const Appointments = ({
       width: '15%',
       render: (item: Appointment) => {
         const displayStatus =
-          item.status === 'NO_PAYMENT' || item.status === 'REQUESTED' ? 'REQUESTED' : item.status;
+          normalizeAppointmentStatus(item.status as LegacyAppointmentStatus) ?? 'REQUESTED';
 
         return (
           <div className="appointment-status" style={getStatusStyle(displayStatus)}>
