@@ -1,7 +1,7 @@
 // src/services/task.reminder.engine.ts
 import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
-import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc.js";
+import timezone from "dayjs/plugin/timezone.js";
 
 import TaskModel from "src/models/task";
 import { NotificationService } from "src/services/notification.service";

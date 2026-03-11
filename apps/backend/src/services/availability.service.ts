@@ -1,5 +1,5 @@
 import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
+import utc from "dayjs/plugin/utc.js";
 import { Types } from "mongoose";
 import BaseAvailabilityModel, {
   DayOfWeek,
@@ -124,7 +124,9 @@ const syncBaseAvailabilityToPostgres = async (
 ) => {
   if (!shouldDualWrite) return;
   try {
-    await prisma.baseAvailability.deleteMany({ where: { userId, organisationId } });
+    await prisma.baseAvailability.deleteMany({
+      where: { userId, organisationId },
+    });
     if (rows.length) {
       await prisma.baseAvailability.createMany({
         data: rows.map((row) => ({
@@ -337,11 +339,11 @@ export const AvailabilityService = {
     const safeWeekDate = ensureValidDate(weekDate, "weekDate");
     const weekStartDate = normalizeWeekStart(safeWeekDate);
 
-    const existing = (await WeeklyAvailabilityOverrideModel.findOne({
+    const existing = await WeeklyAvailabilityOverrideModel.findOne({
       userId: safeUserId,
       organisationId: safeOrganisationId,
       weekStartDate,
-    }));
+    });
 
     if (existing) {
       const idx = existing.overrides.findIndex(
@@ -360,13 +362,12 @@ export const AvailabilityService = {
         updatedAt: existing.updatedAt ?? undefined,
       });
     } else {
-      const created =
-        (await WeeklyAvailabilityOverrideModel.create({
-          userId: safeUserId,
-          organisationId: safeOrganisationId,
-          weekStartDate,
-          overrides: [override],
-        })) as WeeklyAvailabilityOverrideDocumentWithId;
+      const created = (await WeeklyAvailabilityOverrideModel.create({
+        userId: safeUserId,
+        organisationId: safeOrganisationId,
+        weekStartDate,
+        overrides: [override],
+      })) as WeeklyAvailabilityOverrideDocumentWithId;
       await syncWeeklyOverrideToPostgres({
         id: String(created._id),
         userId: created.userId,
@@ -449,16 +450,14 @@ export const AvailabilityService = {
     const safeStartTime = ensureValidDate(startTime, "startTime");
     const safeEndTime = ensureValidDate(endTime, "endTime");
 
-    const doc = (await OccupancyModel.create(
-      {
-        userId: safeUserId,
-        organisationId: safeOrganisationId,
-        startTime: safeStartTime,
-        endTime: safeEndTime,
-        sourceType,
-        referenceId,
-      },
-    )) as OccupancyDocumentWithTimestamps;
+    const doc = (await OccupancyModel.create({
+      userId: safeUserId,
+      organisationId: safeOrganisationId,
+      startTime: safeStartTime,
+      endTime: safeEndTime,
+      sourceType,
+      referenceId,
+    })) as OccupancyDocumentWithTimestamps;
     await syncOccupancyToPostgres({
       _id: doc._id,
       userId: doc.userId,

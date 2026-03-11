@@ -1,7 +1,7 @@
 // src/services/task.recurrence.engine.ts
 import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
-import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc.js";
+import timezone from "dayjs/plugin/timezone.js";
 import cronParser from "cron-parser";
 
 dayjs.extend(utc);
@@ -195,15 +195,19 @@ const syncTaskToPostgres = async (doc: TaskDocument) => {
         category: obj.category,
         name: obj.name,
         description: obj.description ?? undefined,
-        medication: (obj.medication ?? undefined) as unknown as Prisma.InputJsonValue,
+        medication: (obj.medication ??
+          undefined) as unknown as Prisma.InputJsonValue,
         observationToolId: obj.observationToolId ?? undefined,
         dueAt: obj.dueAt,
         timezone: obj.timezone ?? undefined,
-        recurrence: (obj.recurrence ?? undefined) as unknown as Prisma.InputJsonValue,
-        reminder: (obj.reminder ?? undefined) as unknown as Prisma.InputJsonValue,
+        recurrence: (obj.recurrence ??
+          undefined) as unknown as Prisma.InputJsonValue,
+        reminder: (obj.reminder ??
+          undefined) as unknown as Prisma.InputJsonValue,
         syncWithCalendar: obj.syncWithCalendar ?? undefined,
         calendarEventId: obj.calendarEventId ?? undefined,
-        attachments: (obj.attachments ?? undefined) as unknown as Prisma.InputJsonValue,
+        attachments: (obj.attachments ??
+          undefined) as unknown as Prisma.InputJsonValue,
         status: obj.status as TaskStatus,
         completedAt: obj.completedAt ?? undefined,
         completedBy: obj.completedBy ?? undefined,

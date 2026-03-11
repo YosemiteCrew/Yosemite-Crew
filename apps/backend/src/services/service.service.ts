@@ -4,7 +4,7 @@ import ServiceModel, {
   type ServiceDocument,
 } from "../models/service";
 import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
+import utc from "dayjs/plugin/utc.js";
 import {
   toServiceResponseDTO,
   fromServiceRequestDTO,
