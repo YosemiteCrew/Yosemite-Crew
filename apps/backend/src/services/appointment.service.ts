@@ -62,6 +62,36 @@ const normalizeAppointmentStatus = (
   status: LegacyAppointmentStatus,
 ): AppointmentStatus => (status === "NO_PAYMENT" ? "REQUESTED" : status);
 
+const APPOINTMENT_STATUS_TRANSITIONS: Record<
+  AppointmentStatus,
+  AppointmentStatus[]
+> = {
+  REQUESTED: ["UPCOMING", "CANCELLED"],
+  UPCOMING: ["CHECKED_IN", "CANCELLED", "NO_SHOW", "REQUESTED"],
+  CHECKED_IN: ["IN_PROGRESS", "CANCELLED"],
+  IN_PROGRESS: ["COMPLETED", "CANCELLED"],
+  COMPLETED: [],
+  CANCELLED: [],
+  NO_SHOW: [],
+};
+
+const assertAppointmentStatusTransition = (
+  current: LegacyAppointmentStatus,
+  next: AppointmentStatus,
+  context: string,
+) => {
+  const normalizedCurrent = normalizeAppointmentStatus(current);
+  if (normalizedCurrent === next) return;
+
+  const allowed = APPOINTMENT_STATUS_TRANSITIONS[normalizedCurrent] ?? [];
+  if (!allowed.includes(next)) {
+    throw new AppointmentServiceError(
+      `Appointment cannot transition from ${normalizedCurrent} to ${next} in ${context}.`,
+      409,
+    );
+  }
+};
+
 const resolvePaymentCollectionMethod = (
   value?: string,
 ): PaymentCollectionMethod | undefined => {
@@ -768,7 +798,8 @@ const toPrismaAppointmentData = (
     lead: (obj.lead ?? undefined) as unknown as Prisma.InputJsonValue,
     supportStaff: (obj.supportStaff ?? []) as unknown as Prisma.InputJsonValue,
     room: (obj.room ?? undefined) as unknown as Prisma.InputJsonValue,
-    appointmentType: (obj.appointmentType ?? undefined) as unknown as Prisma.InputJsonValue,
+    appointmentType: (obj.appointmentType ??
+      undefined) as unknown as Prisma.InputJsonValue,
     organisationId: obj.organisationId,
     appointmentDate: obj.appointmentDate,
     startTime: obj.startTime,
@@ -778,7 +809,8 @@ const toPrismaAppointmentData = (
     status: normalizeAppointmentStatus(obj.status as LegacyAppointmentStatus),
     isEmergency: obj.isEmergency ?? false,
     concern: obj.concern ?? undefined,
-    attachments: (obj.attachments ?? undefined) as unknown as Prisma.InputJsonValue,
+    attachments: (obj.attachments ??
+      undefined) as unknown as Prisma.InputJsonValue,
     formIds: obj.formIds ?? [],
     expiresAt: obj.expiresAt ?? undefined,
     createdAt: obj.createdAt ?? undefined,
@@ -941,9 +973,8 @@ export const AppointmentService = {
     );
 
     return {
-      appointment: await toAppointmentResponseDTOWithPaymentStatus(
-        savedAppointment,
-      ),
+      appointment:
+        await toAppointmentResponseDTOWithPaymentStatus(savedAppointment),
       paymentIntent,
     };
   },
@@ -961,10 +992,12 @@ export const AppointmentService = {
     validateAppointmentFromPmsInput(input);
 
     const resolvedPaymentCollectionMethod =
-      resolvePaymentCollectionMethod(paymentCollectionMethod) ??
-      "PAYMENT_LINK";
+      resolvePaymentCollectionMethod(paymentCollectionMethod) ?? "PAYMENT_LINK";
 
-    if (resolvedPaymentCollectionMethod === "PAYMENT_AT_CLINIC" && createPayment) {
+    if (
+      resolvedPaymentCollectionMethod === "PAYMENT_AT_CLINIC" &&
+      createPayment
+    ) {
       throw new AppointmentServiceError(
         "Cannot create online payment for in-clinic collection.",
         400,
@@ -1211,6 +1244,11 @@ export const AppointmentService = {
         404,
       );
     }
+    assertAppointmentStatusTransition(
+      appointment.status as LegacyAppointmentStatus,
+      "UPCOMING",
+      "approveRequestedFromPms",
+    );
 
     const organisationId = appointment.organisationId;
 
@@ -1266,6 +1304,11 @@ export const AppointmentService = {
       appointment.supportStaff = extracted.supportStaff ?? [];
       appointment.room = extracted.room ?? undefined;
 
+      assertAppointmentStatusTransition(
+        appointment.status as LegacyAppointmentStatus,
+        "UPCOMING",
+        "approveRequestedFromPms",
+      );
       appointment.status = "UPCOMING";
       appointment.updatedAt = new Date();
 
@@ -1336,6 +1379,11 @@ export const AppointmentService = {
       );
 
       // --- 4. Cancel appointment
+      assertAppointmentStatusTransition(
+        appointment.status as LegacyAppointmentStatus,
+        "CANCELLED",
+        "cancelAppointment",
+      );
       appointment.status = "CANCELLED";
       appointment.concern = reason ?? appointment.concern;
       appointment.updatedAt = new Date();
@@ -1406,6 +1454,11 @@ export const AppointmentService = {
         400,
       );
     }
+    assertAppointmentStatusTransition(
+      appointment.status as LegacyAppointmentStatus,
+      "CANCELLED",
+      "cancelAppointmentFromParent",
+    );
 
     // Cancel invoice and refund
     const result = await InvoiceService.handleAppointmentCancellation(
@@ -1463,6 +1516,11 @@ export const AppointmentService = {
         400,
       );
     }
+    assertAppointmentStatusTransition(
+      appointment.status as LegacyAppointmentStatus,
+      "CANCELLED",
+      "rejectRequestedAppointment",
+    );
 
     const rejectReason = reason! || "Rejected by organisation";
 
@@ -1736,6 +1794,11 @@ export const AppointmentService = {
       );
     }
 
+    assertAppointmentStatusTransition(
+      appointment.status as LegacyAppointmentStatus,
+      "CHECKED_IN",
+      "checkInAppointmentParent",
+    );
     appointment.status = "CHECKED_IN";
     appointment.updatedAt = new Date();
     await appointment.save();
@@ -1772,6 +1835,11 @@ export const AppointmentService = {
       );
     }
 
+    assertAppointmentStatusTransition(
+      appointment.status as LegacyAppointmentStatus,
+      "CHECKED_IN",
+      "checkInAppointment",
+    );
     appointment.status = "CHECKED_IN";
     appointment.updatedAt = new Date();
     await appointment.save();
@@ -1845,18 +1913,29 @@ export const AppointmentService = {
       }
 
       // 2. Status checks
-      if (existing.status === "COMPLETED" || existing.status === "CANCELLED") {
+      const normalizedStatus = normalizeAppointmentStatus(
+        existing.status as LegacyAppointmentStatus,
+      );
+      if (
+        normalizedStatus === "COMPLETED" ||
+        normalizedStatus === "CANCELLED"
+      ) {
         throw new AppointmentServiceError(
           "Completed or cancelled appointments cannot be rescheduled.",
           400,
         );
       }
 
-      let newStatus = existing.status;
+      let newStatus = normalizedStatus;
 
       // If appointment was already approved (UPCOMING),
       // move it back to REQUESTED and clear vet/staff/room.
-      if (existing.status === "UPCOMING") {
+      if (normalizedStatus === "UPCOMING") {
+        assertAppointmentStatusTransition(
+          existing.status as LegacyAppointmentStatus,
+          "REQUESTED",
+          "rescheduleFromParent",
+        );
         newStatus = "REQUESTED";
 
         // Clear assignment; PMS will re-assign
