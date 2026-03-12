@@ -37,11 +37,11 @@ export const DashboardController = {
   appointmentsTrend: async (req: Request, res: Response) => {
     try {
       const { organisationId } = req.params;
-      const months = req.query.months ? Number(req.query.months) : 6;
+      const range = (req.query.range as SummaryRange) ?? "last_30_days";
 
       const data = await DashboardService.getAppointmentsTrend({
         organisationId,
-        months,
+        range,
       });
 
       res.json(data);
@@ -60,11 +60,11 @@ export const DashboardController = {
   revenueTrend: async (req: Request, res: Response) => {
     try {
       const { organisationId } = req.params;
-      const months = req.query.months ? Number(req.query.months) : 6;
+      const range = (req.query.range as SummaryRange) ?? "last_30_days";
 
       const data = await DashboardService.getRevenueTrend({
         organisationId,
-        months,
+        range,
       });
 
       res.json(data);
@@ -137,6 +137,7 @@ export const DashboardController = {
       const { organisationId } = req.params;
 
       const year = req.query.year ? Number(req.query.year) : undefined;
+      const range = req.query.range as SummaryRange | undefined;
       const targetTurnsPerYear = req.query.targetTurns
         ? Number(req.query.targetTurns)
         : undefined;
@@ -145,6 +146,7 @@ export const DashboardController = {
         organisationId,
         year,
         targetTurnsPerYear,
+        range,
       });
 
       res.json(data);
@@ -165,12 +167,14 @@ export const DashboardController = {
       const { organisationId } = req.params;
 
       const year = req.query.year ? Number(req.query.year) : undefined;
+      const range = req.query.range as SummaryRange | undefined;
       const limit = req.query.limit ? Number(req.query.limit) : 10;
 
       const data = await DashboardService.getProductTurnover({
         organisationId,
         year,
         limit,
+        range,
       });
 
       res.json(data);

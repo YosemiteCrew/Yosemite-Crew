@@ -31,6 +31,8 @@ export type SummaryRange =
   | "this_month"
   | "last_month";
 
+export type DashboardRange = SummaryRange;
+
 export interface DashboardSummary {
   revenue: number;
   appointments: number;
@@ -257,24 +259,21 @@ export const DashboardService = {
   // ─────────────────────────────────────────────
   async getAppointmentsTrend(params: {
     organisationId: string;
-    months?: number; // default 6
+    range?: DashboardRange; // default last_30_days
   }): Promise<AppointmentsTrendPoint[]> {
     const { organisationId } = params;
-    const months = params.months ?? 6;
+    const range = params.range ?? "last_30_days";
     if (!organisationId) {
       throw new DashboardServiceError("organisationId is required", 400);
     }
 
-    const start = dayjs()
-      .subtract(months - 1, "month")
-      .startOf("month")
-      .toDate();
+    const { from, to } = resolveRange(range);
 
     const agg = await AppointmentModel.aggregate<AppointmentTrendAgg>([
       {
         $match: {
           organisationId,
-          startTime: { $gte: start },
+          startTime: { $gte: from, $lte: to },
         },
       },
       {
@@ -321,25 +320,22 @@ export const DashboardService = {
   // ─────────────────────────────────────────────
   async getRevenueTrend(params: {
     organisationId: string;
-    months?: number;
+    range?: DashboardRange; // default last_30_days
   }): Promise<RevenueTrendPoint[]> {
     const { organisationId } = params;
-    const months = params.months ?? 6;
+    const range = params.range ?? "last_30_days";
     if (!organisationId) {
       throw new DashboardServiceError("organisationId is required", 400);
     }
 
-    const start = dayjs()
-      .subtract(months - 1, "month")
-      .startOf("month")
-      .toDate();
+    const { from, to } = resolveRange(range);
 
     const agg = await InvoiceModel.aggregate<RevenueTrendAgg>([
       {
         $match: {
           organisationId,
           status: "PAID",
-          paidAt: { $gte: start },
+          paidAt: { $gte: from, $lte: to },
         },
       },
       {
@@ -474,8 +470,10 @@ export const DashboardService = {
     organisationId: string;
     year?: number; // default current year
     targetTurnsPerYear?: number;
+    range?: DashboardRange;
   }): Promise<InventoryTurnoverSummary> {
     const { organisationId } = params;
+    const range = params.range;
     const year = params.year ?? dayjs().year();
     const targetTurnsPerYear = params.targetTurnsPerYear ?? 8; // arbitrary target
 
@@ -483,8 +481,12 @@ export const DashboardService = {
       throw new DashboardServiceError("organisationId is required", 400);
     }
 
-    const startOfYear = dayjs().year(year).startOf("year").toDate();
-    const endOfYear = dayjs().year(year).endOf("year").toDate();
+    const { from, to } = range
+      ? resolveRange(range)
+      : {
+          from: dayjs().year(year).startOf("year").toDate(),
+          to: dayjs().year(year).endOf("year").toDate(),
+        };
 
     // 1) Sum up all negative stock movements (consumption)
     const consumptionAgg =
@@ -492,7 +494,7 @@ export const DashboardService = {
         {
           $match: {
             organisationId,
-            createdAt: { $gte: startOfYear, $lte: endOfYear },
+            createdAt: { $gte: from, $lte: to },
             change: { $lt: 0 },
           },
         },
@@ -531,7 +533,7 @@ export const DashboardService = {
         {
           $match: {
             organisationId,
-            createdAt: { $gte: startOfYear, $lte: endOfYear },
+            createdAt: { $gte: from, $lte: to },
             change: { $lt: 0 },
           },
         },
@@ -579,8 +581,10 @@ export const DashboardService = {
     organisationId: string;
     limit?: number;
     year?: number;
+    range?: DashboardRange;
   }): Promise<ProductTurnoverPoint[]> {
     const { organisationId } = params;
+    const range = params.range;
     const year = params.year ?? dayjs().year();
     const limit = params.limit ?? 10;
 
@@ -588,15 +592,19 @@ export const DashboardService = {
       throw new DashboardServiceError("organisationId is required", 400);
     }
 
-    const startOfYear = dayjs().year(year).startOf("year").toDate();
-    const endOfYear = dayjs().year(year).endOf("year").toDate();
+    const { from, to } = range
+      ? resolveRange(range)
+      : {
+          from: dayjs().year(year).startOf("year").toDate(),
+          to: dayjs().year(year).endOf("year").toDate(),
+        };
 
     // 1) Consumption per item
     const agg = await StockMovementModel.aggregate<ProductConsumptionAgg>([
       {
         $match: {
           organisationId,
-          createdAt: { $gte: startOfYear, $lte: endOfYear },
+          createdAt: { $gte: from, $lte: to },
           change: { $lt: 0 },
         },
       },
