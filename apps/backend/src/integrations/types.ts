@@ -1,12 +1,8 @@
-export const INTEGRATION_PROVIDERS = ["IDEXX"] as const;
+export const INTEGRATION_PROVIDERS = ["IDEXX", "MERCK_MANUALS"] as const;
 
 export type IntegrationProvider = (typeof INTEGRATION_PROVIDERS)[number];
 
-export type IntegrationStatus =
-  | "enabled"
-  | "disabled"
-  | "error"
-  | "pending";
+export type IntegrationStatus = "enabled" | "disabled" | "error" | "pending";
 
 export type IntegrationCredentialsStatus =
   | "missing"
@@ -20,9 +16,7 @@ export type IdexxCredentials = {
   labAccountId?: string;
 };
 
-export type IntegrationCredentials =
-  | IdexxCredentials
-  | Record<string, unknown>;
+export type IntegrationCredentials = IdexxCredentials | Record<string, unknown>;
 export type IntegrationConfig = Record<string, unknown>;
 
 export type IntegrationValidationResult =
@@ -41,5 +35,6 @@ export const normalizeProvider = (
   if (!value) return null;
   const normalized = value.trim().toUpperCase();
   if (normalized === "IDEXX") return "IDEXX";
+  if (normalized === "MERCK_MANUALS") return "MERCK_MANUALS";
   return null;
 };

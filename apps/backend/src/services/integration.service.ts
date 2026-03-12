@@ -37,10 +37,18 @@ const ensureNonEmptyString = (value: string, field: string) => {
   }
 };
 
+const isMerckProvider = (provider: IntegrationProvider) =>
+  provider === "MERCK_MANUALS";
+
+const supportsPrismaProvider = (
+  provider: IntegrationProvider,
+): provider is "IDEXX" => provider === "IDEXX";
+
 const syncIntegrationAccountToPostgres = async (
   doc: IntegrationAccountDocument,
 ) => {
   if (!shouldDualWrite) return;
+  if (!supportsPrismaProvider(doc.provider)) return;
   try {
     await prisma.integrationAccount.upsert({
       where: {
@@ -59,8 +67,9 @@ const syncIntegrationAccountToPostgres = async (
         lastError: doc.lastError ?? null,
         credentialsStatus: doc.credentialsStatus ?? "missing",
         lastValidatedAt: doc.lastValidatedAt ?? null,
-        credentials: doc.credentials as Prisma.InputJsonValue ?? Prisma.JsonNull,
-        config: doc.credentials as Prisma.InputJsonValue ?? Prisma.JsonNull
+        credentials:
+          (doc.credentials as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+        config: (doc.credentials as Prisma.InputJsonValue) ?? Prisma.JsonNull,
       },
       update: {
         status: doc.status,
@@ -70,8 +79,9 @@ const syncIntegrationAccountToPostgres = async (
         lastError: doc.lastError ?? null,
         credentialsStatus: doc.credentialsStatus ?? "missing",
         lastValidatedAt: doc.lastValidatedAt ?? null,
-        credentials: doc.credentials as Prisma.InputJsonValue ?? Prisma.JsonNull,
-        config: doc.credentials as Prisma.InputJsonValue ?? Prisma.JsonNull,  
+        credentials:
+          (doc.credentials as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+        config: (doc.credentials as Prisma.InputJsonValue) ?? Prisma.JsonNull,
       },
     });
   } catch (err) {
@@ -82,12 +92,56 @@ const syncIntegrationAccountToPostgres = async (
 export const IntegrationService = {
   ensureProvider,
 
+  async ensureMerckAccount(organisationId: string) {
+    ensureNonEmptyString(organisationId, "organisationId");
+    const existing = await IntegrationAccountModel.findOne({
+      organisationId,
+      provider: "MERCK_MANUALS",
+    })
+      .select({ credentials: 0 })
+      .lean();
+
+    if (existing) {
+      return existing;
+    }
+
+    const created = new IntegrationAccountModel({
+      organisationId,
+      provider: "MERCK_MANUALS",
+      status: "enabled",
+      enabledAt: new Date(),
+      disabledAt: null,
+      lastError: null,
+      credentialsStatus: "valid",
+      lastValidatedAt: new Date(),
+    });
+
+    await created.save();
+    await syncIntegrationAccountToPostgres(created);
+    const fresh = await IntegrationAccountModel.findOne({
+      organisationId,
+      provider: "MERCK_MANUALS",
+    })
+      .select({ credentials: 0 })
+      .lean();
+    return fresh ?? created.toJSON();
+  },
+
   async listForOrganisation(organisationId: string) {
     ensureNonEmptyString(organisationId, "organisationId");
-    return IntegrationAccountModel.find({ organisationId })
+    const list = await IntegrationAccountModel.find({ organisationId })
       .select({ credentials: 0 })
       .sort({ provider: 1 })
       .lean();
+
+    const hasMerck = list.some((item) => item.provider === "MERCK_MANUALS");
+    if (!hasMerck) {
+      const merck = await this.ensureMerckAccount(organisationId);
+      list.push(merck as (typeof list)[number]);
+      list.sort((a, b) => String(a.provider).localeCompare(String(b.provider)));
+    }
+
+    return list;
   },
 
   async getForOrganisation(organisationId: string, provider: string) {
@@ -151,6 +205,39 @@ export const IntegrationService = {
     ensureNonEmptyString(organisationId, "organisationId");
     const normalized = ensureProvider(provider);
 
+    if (isMerckProvider(normalized)) {
+      const existing = await IntegrationAccountModel.findOne({
+        organisationId,
+        provider: normalized,
+      });
+
+      if (existing) {
+        existing.status = "enabled";
+        existing.enabledAt = new Date();
+        existing.disabledAt = null;
+        existing.lastError = null;
+        existing.credentialsStatus = "valid";
+        existing.lastValidatedAt = new Date();
+        await existing.save();
+        await syncIntegrationAccountToPostgres(existing);
+        return existing.toJSON();
+      }
+
+      const created = new IntegrationAccountModel({
+        organisationId,
+        provider: normalized,
+        status: "enabled",
+        enabledAt: new Date(),
+        disabledAt: null,
+        lastError: null,
+        credentialsStatus: "valid",
+        lastValidatedAt: new Date(),
+      });
+      await created.save();
+      await syncIntegrationAccountToPostgres(created);
+      return created.toJSON();
+    }
+
     const existing = await IntegrationAccountModel.findOne({
       organisationId,
       provider: normalized,
@@ -197,6 +284,37 @@ export const IntegrationService = {
     ensureNonEmptyString(organisationId, "organisationId");
     const normalized = ensureProvider(provider);
 
+    if (isMerckProvider(normalized)) {
+      const existing = await IntegrationAccountModel.findOne({
+        organisationId,
+        provider: normalized,
+      });
+
+      if (!existing) {
+        const created = new IntegrationAccountModel({
+          organisationId,
+          provider: normalized,
+          status: "disabled",
+          disabledAt: new Date(),
+          enabledAt: null,
+          lastError: null,
+          credentialsStatus: "valid",
+          lastValidatedAt: new Date(),
+        });
+        await created.save();
+        await syncIntegrationAccountToPostgres(created);
+        return created.toJSON();
+      }
+
+      existing.status = "disabled";
+      existing.disabledAt = new Date();
+      existing.enabledAt = null;
+
+      await existing.save();
+      await syncIntegrationAccountToPostgres(existing);
+      return existing.toJSON();
+    }
+
     const existing = await IntegrationAccountModel.findOne({
       organisationId,
       provider: normalized,
@@ -222,13 +340,20 @@ export const IntegrationService = {
     ensureNonEmptyString(organisationId, "organisationId");
     const normalized = ensureProvider(provider);
 
+    if (isMerckProvider(normalized)) {
+      return { ok: true };
+    }
+
     const account = await IntegrationAccountModel.findOne({
       organisationId,
       provider: normalized,
     }).lean();
 
     if (!account?.credentials) {
-      throw new IntegrationServiceError("Integration credentials missing.", 400);
+      throw new IntegrationServiceError(
+        "Integration credentials missing.",
+        400,
+      );
     }
 
     const adapter = getIntegrationAdapter(normalized);

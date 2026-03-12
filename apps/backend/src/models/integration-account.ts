@@ -24,7 +24,12 @@ export interface IntegrationAccountMongo {
 const IntegrationAccountSchema = new Schema<IntegrationAccountMongo>(
   {
     organisationId: { type: String, required: true, index: true },
-    provider: { type: String, required: true, enum: ["IDEXX"], index: true },
+    provider: {
+      type: String,
+      required: true,
+      enum: ["IDEXX", "MERCK_MANUALS"],
+      index: true,
+    },
     status: {
       type: String,
       required: true,
