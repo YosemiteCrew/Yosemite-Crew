@@ -137,7 +137,7 @@ export const IntegrationService = {
     const hasMerck = list.some((item) => item.provider === "MERCK_MANUALS");
     if (!hasMerck) {
       const merck = await this.ensureMerckAccount(organisationId);
-      list.push(merck as (typeof list)[number]);
+      list.push(merck);
       list.sort((a, b) => String(a.provider).localeCompare(String(b.provider)));
     }
 

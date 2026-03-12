@@ -4,6 +4,7 @@ import { OrgRequest } from "src/middlewares/rbac";
 import logger from "src/utils/logger";
 import { MerckService, MerckServiceError } from "src/services/merck.service";
 import { mapAxiosError } from "src/utils/external-error";
+import UserProfileModel from "src/models/user-profile";
 
 export const MerckController = {
   async searchManuals(req: Request, res: Response) {
@@ -19,6 +20,7 @@ export const MerckController = {
         });
       }
 
+      const query = req.query as Record<string, string | undefined>;
       const {
         q,
         audience,
@@ -30,14 +32,28 @@ export const MerckController = {
         originalText,
         subTopicCode,
         subTopicDisplay,
-      } = req.query as Record<string, string>;
+        timezone,
+      } = query;
+
+      const userId = orgReq.userId;
+      let resolvedTimezone = timezone;
+      if (!resolvedTimezone && userId) {
+        const profile = await UserProfileModel.findOne({
+          userId,
+          organizationId: organisationId,
+        })
+          .select({ "personalDetails.timezone": 1 })
+          .lean();
+        resolvedTimezone = profile?.personalDetails?.timezone;
+      }
 
       const result = await MerckService.search({
         organisationId,
-        query: q,
+        query: q ?? "",
         audience: audience as "PROV" | "PAT" | undefined,
         language: language as "en" | "es" | undefined,
         media: media as "hybrid" | "print" | "full" | undefined,
+        timezone: resolvedTimezone,
         code,
         codeSystem,
         displayName,

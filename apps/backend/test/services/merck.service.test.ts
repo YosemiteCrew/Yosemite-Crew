@@ -23,6 +23,10 @@ describe("MerckService", () => {
     jest.clearAllMocks();
     process.env.MERCK_HEALTHLINK_BASE_URL =
       "https://www.msdvetmanual.com/custom/infobutton/search";
+    process.env.MERCK_HEALTHLINK_BASE_URL_US_CA =
+      "https://www.merckvetmanual.com/custom/infobutton/search";
+    process.env.MERCK_HEALTHLINK_BASE_URL_GLOBAL =
+      "https://www.msdvetmanual.com/custom/infobutton/search";
     process.env.MERCK_HEALTHLINK_USERNAME = "user";
     process.env.MERCK_HEALTHLINK_PASSWORD = "pass";
     process.env.MERCK_HEALTHLINK_TIMEOUT_MS = "10000";
@@ -145,14 +149,61 @@ describe("MerckService", () => {
     await MerckService.search({
       organisationId: "org-1",
       query: "test",
+      timezone: "America/New_York",
       requestId: "req-5",
     });
 
     expect(MerckHealthlinkClient).toHaveBeenCalledWith(
       expect.objectContaining({
-        baseUrl: process.env.MERCK_HEALTHLINK_BASE_URL,
+        baseUrl: process.env.MERCK_HEALTHLINK_BASE_URL_US_CA,
         username: process.env.MERCK_HEALTHLINK_USERNAME,
         password: process.env.MERCK_HEALTHLINK_PASSWORD,
+      }),
+    );
+  });
+
+  it("routes to US/Canada base URL when timezone is US", async () => {
+    (IntegrationService.ensureMerckAccount as jest.Mock).mockResolvedValue({
+      status: "enabled",
+    });
+
+    mockSearch.mockResolvedValueOnce(
+      JSON.stringify({ feed: { id: "feed-2", entry: [] } }),
+    );
+
+    await MerckService.search({
+      organisationId: "org-1",
+      query: "test",
+      timezone: "America/Los_Angeles",
+      requestId: "req-6",
+    });
+
+    expect(MerckHealthlinkClient).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseUrl: process.env.MERCK_HEALTHLINK_BASE_URL_US_CA,
+      }),
+    );
+  });
+
+  it("routes to global base URL when timezone is invalid", async () => {
+    (IntegrationService.ensureMerckAccount as jest.Mock).mockResolvedValue({
+      status: "enabled",
+    });
+
+    mockSearch.mockResolvedValueOnce(
+      JSON.stringify({ feed: { id: "feed-3", entry: [] } }),
+    );
+
+    await MerckService.search({
+      organisationId: "org-1",
+      query: "test",
+      timezone: "Invalid/Timezone",
+      requestId: "req-7",
+    });
+
+    expect(MerckHealthlinkClient).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseUrl: process.env.MERCK_HEALTHLINK_BASE_URL_GLOBAL,
       }),
     );
   });

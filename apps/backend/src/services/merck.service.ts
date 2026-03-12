@@ -13,6 +13,7 @@ export type MerckSearchParams = {
   audience?: MerckAudience;
   language?: MerckLanguage;
   media?: MerckMedia;
+  timezone?: string;
   code?: string;
   codeSystem?: string;
   displayName?: string;
@@ -67,6 +68,68 @@ const CODE_SYSTEM_NAMES = new Set([
   "SNOMED-CT",
 ]);
 const ALLOWED_DOMAINS = ["merckvetmanual.com", "msdvetmanual.com"];
+const US_CANADA_TIMEZONES = new Set([
+  "America/Anchorage",
+  "America/Chicago",
+  "America/Denver",
+  "America/Detroit",
+  "America/Indiana/Indianapolis",
+  "America/Indiana/Knox",
+  "America/Indiana/Marengo",
+  "America/Indiana/Petersburg",
+  "America/Indiana/Tell_City",
+  "America/Indiana/Vevay",
+  "America/Indiana/Vincennes",
+  "America/Indiana/Winamac",
+  "America/Juneau",
+  "America/Kentucky/Louisville",
+  "America/Kentucky/Monticello",
+  "America/Los_Angeles",
+  "America/Menominee",
+  "America/New_York",
+  "America/Nome",
+  "America/North_Dakota/Beulah",
+  "America/North_Dakota/Center",
+  "America/North_Dakota/New_Salem",
+  "America/Phoenix",
+  "America/Sitka",
+  "America/Metlakatla",
+  "America/Adak",
+  "America/Boise",
+  "America/Indianapolis",
+  "America/Port-au-Prince",
+  "America/Toronto",
+  "America/Vancouver",
+  "America/Edmonton",
+  "America/Halifax",
+  "America/Winnipeg",
+  "America/Regina",
+  "America/St_Johns",
+  "America/Yellowknife",
+  "America/Whitehorse",
+  "America/Iqaluit",
+  "America/Moncton",
+  "America/Atikokan",
+  "America/Blanc-Sablon",
+  "America/Glace_Bay",
+  "America/Goose_Bay",
+  "America/Inuvik",
+  "America/Rankin_Inlet",
+  "America/Swift_Current",
+  "America/Thunder_Bay",
+  "America/Resolute",
+  "America/Ojinaga",
+  "America/Pangnirtung",
+  "America/Fort_Nelson",
+  "America/Creston",
+  "America/Dawson",
+  "America/Dawson_Creek",
+  "America/Cambridge_Bay",
+  "America/Nipigon",
+  "America/Rainy_River",
+]);
+
+const OFFSET_TIMEZONE_REGEX = /^(?:UTC)?[+-](?:0?\d|1\d|2[0-3]):[0-5]\d$/;
 
 const ensureNonEmptyString = (value: unknown, field: string): string => {
   if (typeof value !== "string" || !value.trim()) {
@@ -112,6 +175,23 @@ const isAllowedMerckUrl = (value: string): boolean => {
   } catch {
     return false;
   }
+};
+
+const isValidIanaTimezone = (value: string): boolean => {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: value }).format();
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const isUsCanadaTimezone = (value: string): boolean => {
+  if (!value) return false;
+  if (OFFSET_TIMEZONE_REGEX.test(value)) return false;
+  if (!isValidIanaTimezone(value)) return false;
+  if (value.startsWith("US/") || value.startsWith("Canada/")) return true;
+  return US_CANADA_TIMEZONES.has(value);
 };
 
 const stripHtml = (value: string): string =>
@@ -399,8 +479,7 @@ const normalizeFromXml = (
   };
 };
 
-const getMerckClient = () => {
-  const baseUrl = process.env.MERCK_HEALTHLINK_BASE_URL;
+const getMerckClient = (baseUrl: string) => {
   const username = process.env.MERCK_HEALTHLINK_USERNAME;
   const password = process.env.MERCK_HEALTHLINK_PASSWORD;
   const timeout = process.env.MERCK_HEALTHLINK_TIMEOUT_MS;
@@ -440,6 +519,42 @@ const getMerckClient = () => {
     password,
     timeoutMs,
   });
+};
+
+const selectMerckBaseUrl = (timezone?: string) => {
+  const usCaBase =
+    process.env.MERCK_HEALTHLINK_BASE_URL_US_CA ??
+    process.env.MERCK_HEALTHLINK_BASE_URL ??
+    "";
+  const globalBase =
+    process.env.MERCK_HEALTHLINK_BASE_URL_GLOBAL ??
+    process.env.MERCK_HEALTHLINK_BASE_URL ??
+    "";
+
+  if (!globalBase && !usCaBase) {
+    throw new MerckServiceError(
+      "Merck Healthlink base URL is not configured.",
+      500,
+    );
+  }
+
+  if (timezone && isUsCanadaTimezone(timezone)) {
+    const selected = usCaBase || globalBase;
+    return {
+      baseUrl: selected,
+      host: new URL(selected).hostname,
+      reason: "timezone-us-canada",
+    };
+  }
+
+  const selected = globalBase || usCaBase;
+  const reason = timezone
+    ? isValidIanaTimezone(timezone)
+      ? "timezone-global"
+      : "timezone-invalid"
+    : "timezone-missing";
+
+  return { baseUrl: selected, host: new URL(selected).hostname, reason };
 };
 
 const buildSearchParams = (input: MerckSearchParams) => {
@@ -558,7 +673,8 @@ export const MerckService = {
       media: media ?? "hybrid",
     });
 
-    const client = getMerckClient();
+    const routing = selectMerckBaseUrl(input.timezone);
+    const client = getMerckClient(routing.baseUrl);
 
     const start = Date.now();
     try {
@@ -574,6 +690,10 @@ export const MerckService = {
       );
       logger.info("Merck search completed", {
         organisationId,
+        upstreamHost: routing.host,
+        upstreamBaseUrl: routing.baseUrl,
+        routingReason: routing.reason,
+        timezone: input.timezone ?? null,
         audience: resolvedAudience,
         language: resolvedLanguage,
         media: resolvedMedia,
@@ -596,6 +716,10 @@ export const MerckService = {
           );
           logger.info("Merck search completed after retry", {
             organisationId,
+            upstreamHost: routing.host,
+            upstreamBaseUrl: routing.baseUrl,
+            routingReason: routing.reason,
+            timezone: input.timezone ?? null,
             audience: resolvedAudience,
             language: resolvedLanguage,
             media: resolvedMedia,
@@ -607,6 +731,10 @@ export const MerckService = {
           logger.error("Merck search retry failed", {
             organisationId,
             requestId: input.requestId,
+            upstreamHost: routing.host,
+            upstreamBaseUrl: routing.baseUrl,
+            routingReason: routing.reason,
+            timezone: input.timezone ?? null,
             error: retryError,
           });
           throw retryError;
@@ -616,6 +744,10 @@ export const MerckService = {
       logger.error("Merck search failed", {
         organisationId,
         requestId: input.requestId,
+        upstreamHost: routing.host,
+        upstreamBaseUrl: routing.baseUrl,
+        routingReason: routing.reason,
+        timezone: input.timezone ?? null,
         error,
       });
       throw error;
