@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import {
   DEFAULT_CALENDAR_FOCUS_MINUTES,
   getFirstRelevantTimedEventStart,
+  getNowTopPxForHourRange,
   getTopPxForMinutes,
   nextDay,
   scrollContainerToTarget,
@@ -24,6 +25,7 @@ import {
 import {
   getHourInPreferredTimeZone,
   getMinutesSinceStartOfDayInPreferredTimeZone,
+  formatDateInPreferredTimeZone,
   isOnPreferredTimeZoneCalendarDay,
 } from '@/app/lib/timezone';
 import { useCalendarNow } from '@/app/features/appointments/components/Calendar/useCalendarNow';
@@ -55,6 +57,7 @@ type UserCalendarProps = {
     targetAssigneeId?: string
   ) => DropAvailabilityInterval[];
   draggedTaskDurationMinutes?: number;
+  slotStepMinutes?: number;
 };
 
 const UserCalendar: React.FC<UserCalendarProps> = ({
@@ -74,6 +77,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   onDragHoverTarget,
   getDropAvailabilityIntervals,
   draggedTaskDurationMinutes,
+  slotStepMinutes = 15,
 }) => {
   const team = useTeamForPrimaryOrg();
   const now = useCalendarNow();
@@ -85,6 +89,8 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
     () => getCalendarColumnGridStyle(team.length, zoomMode === 'out' ? 108 : 170),
     [team.length, zoomMode]
   );
+  const weekday = formatDateInPreferredTimeZone(date, { weekday: 'short' });
+  const dateNumber = formatDateInPreferredTimeZone(date, { day: 'numeric' });
 
   const normalizeId = (value?: string) =>
     String(value ?? '')
@@ -92,16 +98,27 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
       .split('/')
       .pop()
       ?.toLowerCase() ?? '';
+  const slotOffsetMinutes = useMemo(() => {
+    const step = Math.max(5, Math.round(slotStepMinutes || 15));
+    if (step >= 60) return [];
+    const offsets: number[] = [];
+    for (let minute = step; minute < 60; minute += step) {
+      offsets.push(minute);
+    }
+    return offsets;
+  }, [slotStepMinutes]);
+  const lastVisibleHour = HOURS_IN_DAY - 1;
 
   const nowPosition = useMemo(() => {
-    if (!isOnPreferredTimeZoneCalendarDay(now, date)) return null;
-    const minutesSinceMidnight = getMinutesSinceStartOfDayInPreferredTimeZone(now);
-    const topPx = getTopPxForMinutes(
-      minutesSinceMidnight,
+    const topPx = getNowTopPxForHourRange(
+      date,
+      0,
+      HOURS_IN_DAY - 1,
       height,
-      HOUR_ROW_GAP_PX,
+      now,
       HOUR_ROW_TOP_OFFSET_PX
     );
+    if (topPx == null) return null;
     return { topPx };
   }, [date, height, now]);
 
@@ -130,12 +147,18 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
         data-calendar-scroll="true"
       >
         <div className="min-w-max h-full flex flex-col">
-          <div className="grid border-b border-grey-light py-3 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max bg-white">
+          <div className="grid border-b border-grey-light py-2 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max bg-white">
             <div className="sticky left-0 z-30 bg-white flex items-center justify-center">
               <Back onClick={handlePrevDay} />
             </div>
-            <div className="bg-white min-w-max">
-              <UserLabels team={team} currentDate={date} columnsStyle={teamColumnsStyle} />
+            <div className="bg-white min-w-max flex flex-col items-center gap-1">
+              <div className="flex items-center gap-2">
+                <div className="text-body-4 text-text-brand">{weekday}</div>
+                <div className="text-body-4-emphasis text-white h-8 w-8 flex items-center justify-center rounded-full bg-text-brand">
+                  {dateNumber}
+                </div>
+              </div>
+              <UserLabels team={team} columnsStyle={teamColumnsStyle} />
             </div>
             <div className="sticky right-0 z-30 bg-white flex items-center justify-center">
               <Next onClick={handleNextDay} />
@@ -150,18 +173,19 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
               maxHeight: '100%',
               minHeight: 0,
               overflowY: 'auto',
-              paddingBottom: zoomMode === 'out' ? 12 : 0,
+              paddingBottom: zoomMode === 'out' ? 30 : 40,
+              paddingTop: 12,
             }}
             data-calendar-scroll="true"
           >
-            <div className="pt-1 pb-3">
+            <div className="relative pt-2 pb-4">
               {Array.from({ length: HOURS_IN_DAY }, (_, hour) => (
                 <div key={hour} className="grid grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
                   <div
-                    className="sticky left-0 z-20 bg-white text-caption-2 text-text-primary pl-2!"
-                    style={{ height: `${height}px`, paddingTop: hour === 0 ? 4 : 0 }}
+                    className="sticky left-0 z-20 bg-white text-caption-2 text-text-primary pl-2! relative"
+                    style={{ height: `${height}px` }}
                   >
-                    {formatHourLabel(hour)}
+                    <span className="absolute top-0 -translate-y-1/2">{formatHourLabel(hour)}</span>
                   </div>
                   <div className="grid min-w-max" style={teamColumnsStyle}>
                     {team?.map((user, index) => {
@@ -187,16 +211,9 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                       return (
                         <div
                           key={`${user._id}-${hour}`}
-                          className={`relative ${zoomMode === 'out' ? 'pt-0' : 'pt-2'}`}
+                          className="relative"
                           style={{ height: `${height}px` }}
                         >
-                          {hour !== 0 && (
-                            <div
-                              className={`pointer-events-none absolute inset-x-0 z-10 border-t border-grey-light ${
-                                zoomMode === 'out' ? 'top-0' : 'top-2'
-                              }`}
-                            />
-                          )}
                           <TaskSlot
                             slotEvents={slotEvents}
                             handleViewTask={handleViewTask}
@@ -228,6 +245,19 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                             }
                             draggedTaskDurationMinutes={draggedTaskDurationMinutes}
                           />
+                          <div className="pointer-events-none absolute inset-0 z-10">
+                            <div className="absolute inset-x-0 top-0 border-t border-[#C3CEDC]" />
+                            {slotOffsetMinutes.map((minute) => (
+                              <div
+                                key={`${user._id}-${hour}-slot-${minute}`}
+                                className="absolute inset-x-0 border-t border-[#E9EDF3]"
+                                style={{ top: `${(minute / 60) * 100}%` }}
+                              />
+                            ))}
+                            {hour === lastVisibleHour && (
+                              <div className="absolute inset-x-0 top-full border-t border-[#C3CEDC]" />
+                            )}
+                          </div>
                         </div>
                       );
                     })}
@@ -235,29 +265,27 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                   <div className="sticky right-0 z-20 bg-white" style={{ height: `${height}px` }} />
                 </div>
               ))}
-              <div style={{ height: zoomMode === 'out' ? 48 : 12 }} />
-            </div>
-
-            {nowPosition && (
-              <div className="pointer-events-none absolute inset-0">
-                <div className="grid h-full grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
-                  <div />
-                  <div className="relative">
-                    <div
-                      className="absolute left-0 right-2 z-20"
-                      style={{
-                        top: nowPosition.topPx,
-                        transform: 'translateY(-50%)',
-                      }}
-                    >
-                      <div className="absolute -left-[12px] w-3 h-3 rounded-full bg-red-500 translate-y-[-50%]" />
-                      <div className="border-t-2 border-t-red-500 translate-y-[-50%]" />
+              <div style={{ height: zoomMode === 'out' ? 30 : 40 }} />
+              {nowPosition && (
+                <div className="pointer-events-none absolute inset-0">
+                  <div className="grid h-full grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
+                    <div />
+                    <div className="relative">
+                      <div
+                        className="absolute left-0 right-2 z-20"
+                        style={{
+                          top: nowPosition.topPx,
+                        }}
+                      >
+                        <div className="absolute -left-[12px] w-3 h-3 rounded-full bg-red-500 translate-y-[-50%]" />
+                        <div className="border-t-2 border-t-red-500 translate-y-[-50%]" />
+                      </div>
                     </div>
+                    <div />
                   </div>
-                  <div />
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>

@@ -9,6 +9,7 @@ import {
 import {
   DEFAULT_CALENDAR_FOCUS_MINUTES,
   getFirstRelevantTimedEventStart,
+  getNowTopPxForHourRange,
   isAllDayForDate,
   nextDay,
   scrollContainerToTarget,
@@ -32,7 +33,7 @@ import {
 import { useCalendarNow } from '@/app/features/appointments/components/Calendar/useCalendarNow';
 import { useInvoicesForPrimaryOrg } from '@/app/hooks/useInvoices';
 import { createInvoiceByAppointmentId } from '@/app/lib/paymentStatus';
-const HOUR_ROW_TOP_OFFSET_PX = 8;
+const HOUR_ROW_TOP_OFFSET_PX = 0;
 type WeekCalendarProps = {
   events: Appointment[];
   zoomMode?: CalendarZoomMode;
@@ -61,6 +62,7 @@ type WeekCalendarProps = {
     targetLeadId?: string
   ) => Array<{ startMinute: number; endMinute: number }>;
   draggedAppointmentDurationMinutes?: number;
+  slotStepMinutes?: number;
 };
 
 const WeekCalendar: React.FC<WeekCalendarProps> = ({
@@ -85,6 +87,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   getDropAvailabilityIntervals,
   getVisibleAvailabilityIntervals,
   draggedAppointmentDurationMinutes,
+  slotStepMinutes = 15,
 }) => {
   const days = useMemo<Date[]>(() => getWeekDays(weekStart), [weekStart]);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -150,6 +153,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
       ),
     [visibleHourRange.endHour, visibleHourRange.startHour]
   );
+  const lastVisibleHour = visibleHours[visibleHours.length - 1] ?? visibleHourRange.endHour;
 
   const handlePrevWeek = () => {
     setWeekStart((prev) => {
@@ -171,13 +175,18 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     const todayIndex = days.findIndex((day) => isOnPreferredTimeZoneCalendarDay(now, day));
     if (todayIndex === -1) return null;
 
-    const minutesSinceMidnight = getMinutesSinceStartOfDayInPreferredTimeZone(now);
-    const topPx =
-      ((minutesSinceMidnight - visibleHourRange.startHour * 60) / 60) * height +
-      HOUR_ROW_TOP_OFFSET_PX;
+    const topPx = getNowTopPxForHourRange(
+      days[todayIndex],
+      visibleHourRange.startHour,
+      visibleHourRange.endHour,
+      height,
+      now,
+      HOUR_ROW_TOP_OFFSET_PX
+    );
+    if (topPx == null) return null;
 
     return { topPx, todayIndex };
-  }, [days, height, now, visibleHourRange.startHour]);
+  }, [days, height, now, visibleHourRange.endHour, visibleHourRange.startHour]);
   const nowTimeLabel = useMemo(() => {
     if (!nowPosition) return null;
     return formatDateInPreferredTimeZone(now, {
@@ -207,6 +216,15 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   }, [days, height, nowPosition, timedEvents, visibleHourRange.startHour]);
 
   const hasAnyAllDay = allDayByDay.some((list) => list.length > 0);
+  const slotOffsetMinutes = useMemo(() => {
+    const step = Math.max(5, Math.round(slotStepMinutes || 15));
+    if (step >= 60) return [];
+    const offsets: number[] = [];
+    for (let minute = step; minute < 60; minute += step) {
+      offsets.push(minute);
+    }
+    return offsets;
+  }, [slotStepMinutes]);
 
   return (
     <div className="h-full flex flex-col">
@@ -214,19 +232,8 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
         className="w-full flex-1 overflow-x-auto relative rounded-2xl"
         data-calendar-scroll="true"
       >
-        <div
-          ref={scrollRef}
-          className="min-w-max"
-          style={{
-            height: '100%',
-            maxHeight: '100%',
-            minHeight: 0,
-            overflowY: 'auto',
-            paddingBottom: zoomMode === 'out' ? 12 : 0,
-          }}
-          data-calendar-scroll="true"
-        >
-          <div className="sticky top-0 z-30 bg-white">
+        <div className="min-w-max h-full flex flex-col">
+          <div className="z-30 bg-white">
             <div className="grid border-b border-grey-light py-3 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max bg-white">
               <div className="sticky left-0 z-40 bg-white flex items-center justify-center">
                 <Back onClick={handlePrevWeek} />
@@ -242,10 +249,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                     ? 'bg-text-brand text-white border-transparent'
                     : 'bg-card-bg text-text-secondary border-transparent';
                   return (
-                    <div
-                      key={day.toISOString()}
-                      className="flex items-center justify-center flex-col"
-                    >
+                    <div key={day.toISOString()} className="flex items-center justify-center gap-2">
                       <div
                         className={`text-body-4 ${
                           isToday ? 'text-text-brand' : 'text-text-primary'
@@ -306,96 +310,122 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
             )}
           </div>
 
-          <div className="relative pt-1 pb-3">
-            {visibleHours.map((hour) => (
-              <div key={hour} className="grid grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
-                <div
-                  className="sticky left-0 z-20 bg-white text-caption-2 text-text-primary pl-2!"
-                  style={{ height: height + 'px', paddingTop: hour === 0 ? 4 : 0 }}
-                >
-                  {formatHourLabel(hour)}
-                </div>
-                <div className="grid min-w-max" style={dayColumnsStyle}>
-                  {days.map((day, dayIndex) => {
-                    const slotEvents = eventsForDayHour(timedEvents, day, hour);
-                    return (
-                      <div
-                        key={`${day.toISOString()}-${hour}`}
-                        className={`relative ${zoomMode === 'out' ? 'pt-0' : 'pt-2'}`}
-                        style={{ height: `${height}px` }}
-                      >
-                        {hour !== 0 && (
-                          <div
-                            className={`pointer-events-none absolute inset-x-0 z-10 border-t border-grey-light ${
-                              zoomMode === 'out' ? 'top-0' : 'top-2'
-                            }`}
-                          />
-                        )}
-                        <Slot
-                          slotEvents={slotEvents}
-                          height={height}
-                          zoomMode={zoomMode}
-                          dayIndex={dayIndex}
-                          handleViewAppointment={handleViewAppointment}
-                          handleRescheduleAppointment={handleRescheduleAppointment}
-                          handleChangeStatusAppointment={handleChangeStatusAppointment}
-                          handleChangeRoomAppointment={handleChangeRoomAppointment}
-                          canEditAppointments={canEditAppointments}
-                          length={days.length - 1}
-                          draggedAppointmentId={draggedAppointmentId}
-                          draggedAppointmentLabel={draggedAppointmentLabel}
-                          canDragAppointment={canDragAppointment}
-                          onAppointmentDragStart={onAppointmentDragStart}
-                          onAppointmentDragEnd={onAppointmentDragEnd}
-                          onAppointmentDropAt={onAppointmentDropAt}
-                          onDragHoverTarget={onDragHoverTarget}
-                          onCreateAppointmentAt={onCreateAppointmentAt}
-                          dropAvailabilityIntervals={getDropAvailabilityIntervals?.(day) ?? []}
-                          draggedAppointmentDurationMinutes={draggedAppointmentDurationMinutes}
-                          dropDate={day}
-                          dropHour={hour}
-                          invoicesByAppointmentId={invoicesByAppointmentId}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="sticky right-0 z-20 bg-white" style={{ height }} />
-              </div>
-            ))}
-            <div style={{ height: zoomMode === 'out' ? 48 : 12 }} />
-
-            {nowPosition && (
-              <div className="pointer-events-none absolute inset-0" style={{ top: 0 }}>
-                <div className="grid h-full grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
-                  <div />
-                  <div className="grid min-w-max" style={dayColumnsStyle}>
-                    {days.map((day, dayIndex) => (
-                      <div key={`appointment-now-${day.toISOString()}`} className="relative">
-                        {dayIndex === nowPosition.todayIndex && (
-                          <div
-                            className="absolute left-0 right-2 z-20 w-full"
-                            style={{
-                              top: nowPosition.topPx,
-                              transform: 'translateY(-50%)',
-                            }}
-                          >
-                            {nowTimeLabel && (
-                              <div className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold text-red-500 whitespace-nowrap">
-                                {nowTimeLabel}
-                              </div>
-                            )}
-                            <div className="absolute left-[-5px] w-3 h-3 rounded-full bg-red-500 translate-y-[-50%]" />
-                            <div className="border-t-2 border-t-red-500 translate-y-[-50%]" />
-                          </div>
-                        )}
-                      </div>
-                    ))}
+          <div
+            ref={scrollRef}
+            className="min-w-max flex-1 min-h-0"
+            style={{
+              height: '100%',
+              maxHeight: '100%',
+              minHeight: 0,
+              overflowY: 'auto',
+              paddingBottom: zoomMode === 'out' ? 30 : 40,
+            }}
+            data-calendar-scroll="true"
+          >
+            <div className="relative pb-4">
+              {visibleHours.map((hour) => (
+                <div key={hour} className="grid grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
+                  <div
+                    className="sticky left-0 z-20 bg-white text-caption-2 text-text-primary pl-2! relative"
+                    style={{ height: height + 'px' }}
+                  >
+                    <span
+                      className={`absolute top-0 ${
+                        hour === visibleHours[0] ? 'translate-y-0' : '-translate-y-1/2'
+                      }`}
+                    >
+                      {formatHourLabel(hour)}
+                    </span>
                   </div>
-                  <div />
+                  <div className="grid min-w-max" style={dayColumnsStyle}>
+                    {days.map((day, dayIndex) => {
+                      const slotEvents = eventsForDayHour(timedEvents, day, hour);
+                      return (
+                        <div
+                          key={`${day.toISOString()}-${hour}`}
+                          className="relative"
+                          style={{ height: `${height}px` }}
+                        >
+                          <Slot
+                            slotEvents={slotEvents}
+                            height={height}
+                            zoomMode={zoomMode}
+                            dayIndex={dayIndex}
+                            handleViewAppointment={handleViewAppointment}
+                            handleRescheduleAppointment={handleRescheduleAppointment}
+                            handleChangeStatusAppointment={handleChangeStatusAppointment}
+                            handleChangeRoomAppointment={handleChangeRoomAppointment}
+                            canEditAppointments={canEditAppointments}
+                            length={days.length - 1}
+                            draggedAppointmentId={draggedAppointmentId}
+                            draggedAppointmentLabel={draggedAppointmentLabel}
+                            canDragAppointment={canDragAppointment}
+                            onAppointmentDragStart={onAppointmentDragStart}
+                            onAppointmentDragEnd={onAppointmentDragEnd}
+                            onAppointmentDropAt={onAppointmentDropAt}
+                            onDragHoverTarget={onDragHoverTarget}
+                            onCreateAppointmentAt={onCreateAppointmentAt}
+                            dropAvailabilityIntervals={getDropAvailabilityIntervals?.(day) ?? []}
+                            draggedAppointmentDurationMinutes={draggedAppointmentDurationMinutes}
+                            dropDate={day}
+                            dropHour={hour}
+                            invoicesByAppointmentId={invoicesByAppointmentId}
+                          />
+                          <div className="pointer-events-none absolute inset-0 z-10">
+                            <div className="absolute inset-x-0 top-0 border-t border-[#C3CEDC]" />
+                            {slotOffsetMinutes.map((minute) => (
+                              <div
+                                key={`${day.toISOString()}-${hour}-slot-${minute}`}
+                                className="absolute inset-x-0 border-t border-[#E9EDF3]"
+                                style={{
+                                  top: `${(minute / 60) * 100}%`,
+                                }}
+                              />
+                            ))}
+                            {hour === lastVisibleHour && (
+                              <div className="absolute inset-x-0 top-full border-t border-[#C3CEDC]" />
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="sticky right-0 z-20 bg-white" style={{ height }} />
                 </div>
-              </div>
-            )}
+              ))}
+              <div style={{ height: zoomMode === 'out' ? 30 : 40 }} />
+
+              {nowPosition && (
+                <div className="pointer-events-none absolute inset-0" style={{ top: 0 }}>
+                  <div className="grid h-full grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
+                    <div />
+                    <div className="grid min-w-max" style={dayColumnsStyle}>
+                      {days.map((day, dayIndex) => (
+                        <div key={`appointment-now-${day.toISOString()}`} className="relative">
+                          {dayIndex === nowPosition.todayIndex && (
+                            <div
+                              className="absolute left-0 right-2 z-20 w-full"
+                              style={{
+                                top: nowPosition.topPx,
+                              }}
+                            >
+                              {nowTimeLabel && (
+                                <div className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold text-red-500 whitespace-nowrap">
+                                  {nowTimeLabel}
+                                </div>
+                              )}
+                              <div className="absolute left-[-5px] w-3 h-3 rounded-full bg-red-500 translate-y-[-50%]" />
+                              <div className="border-t-2 border-t-red-500 translate-y-[-50%]" />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

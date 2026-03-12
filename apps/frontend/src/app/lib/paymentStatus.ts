@@ -1,11 +1,11 @@
 import { Appointment, Invoice } from '@yosemite-crew/types';
 import { normalizeAppointmentId } from '@/app/lib/invoice';
 
-export type AppointmentPaymentState = 'PAID' | 'UNPAID' | 'PAID_CASH';
+export type AppointmentPaymentState = 'PAID' | 'UNPAID' | 'PAID_CASH' | 'PAYMENT_AT_CLINIC';
 
 type PaymentDisplay = {
   state: AppointmentPaymentState;
-  label: 'Paid' | 'Unpaid' | 'Paid - Cash';
+  label: 'Paid' | 'Unpaid' | 'Paid - Cash' | 'Payment at Clinic';
   textColor: string;
   badgeBackgroundColor: string;
   badgeTextColor: string;
@@ -32,6 +32,13 @@ const PAYMENT_DISPLAY: Record<AppointmentPaymentState, PaymentDisplay> = {
     textColor: '#247AED',
     badgeBackgroundColor: '#E8F0FE',
     badgeTextColor: '#247AED',
+  },
+  PAYMENT_AT_CLINIC: {
+    state: 'PAYMENT_AT_CLINIC',
+    label: 'Payment at Clinic',
+    textColor: '#F68523',
+    badgeBackgroundColor: '#FEF3E9',
+    badgeTextColor: '#F68523',
   },
 };
 
@@ -132,6 +139,7 @@ export const getAppointmentPaymentDisplay = (
   if (normalizedPaymentStatus === 'PAID') return PAYMENT_DISPLAY.PAID;
   if (normalizedPaymentStatus === 'UNPAID') return PAYMENT_DISPLAY.UNPAID;
   if (normalizedPaymentStatus === 'PAID_CASH') return PAYMENT_DISPLAY.PAID_CASH;
+  if (normalizedPaymentStatus === 'PAYMENT_AT_CLINIC') return PAYMENT_DISPLAY.PAYMENT_AT_CLINIC;
 
   const appointmentId = normalizeAppointmentId(appointment.id);
   const invoice = appointmentId ? invoicesByAppointmentId[appointmentId] : undefined;

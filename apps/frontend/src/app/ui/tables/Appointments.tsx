@@ -15,7 +15,13 @@ import {
   rejectAppointment,
 } from '@/app/features/appointments/services/appointmentService';
 import { toTitle } from '@/app/lib/validators';
-import { allowCalendarDrag } from '@/app/lib/appointments';
+import {
+  allowCalendarDrag,
+  canAssignAppointmentRoom,
+  canShowStatusChangeAction,
+  getClinicalNotesLabel,
+  isRequestedLikeStatus,
+} from '@/app/lib/appointments';
 import { getStatusStyle } from '@/app/config/statusConfig';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -242,111 +248,121 @@ const Appointments = ({
       width: '10%',
       render: (item: Appointment) => (
         <div className="action-btn-col">
-          {item.status === 'REQUESTED' ? (
-            <>
-              <GlassTooltip content="Accept request" side="bottom">
-                <button
-                  className="action-btn"
-                  style={{ background: '#E6F4EF' }}
-                  onClick={() => handleAcceptAppointment(item)}
-                >
-                  <FaCheckCircle size={22} color="#54B492" />
-                </button>
-              </GlassTooltip>
-              <GlassTooltip content="Decline request" side="bottom">
-                <button
-                  onClick={() => handleCancelAppointment(item)}
-                  className="action-btn"
-                  style={{ background: '#FDEBEA' }}
-                >
-                  <IoIosCloseCircle size={24} color="#EA3729" />
-                </button>
-              </GlassTooltip>
-            </>
-          ) : (
-            <div className="action-btn-grid">
-              <GlassTooltip content="View appointment" side="bottom">
-                <button
-                  onClick={() => handleViewAppointment(item)}
-                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-                >
-                  <IoEyeOutline size={20} color="#302F2E" />
-                </button>
-              </GlassTooltip>
-              {canEditAppointments && (
-                <GlassTooltip content="Change status" side="bottom">
-                  <button
-                    onClick={() => handleChangeStatusAppointment(item)}
-                    className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-                  >
-                    <MdOutlineAutorenew size={18} color="#302F2E" />
-                  </button>
-                </GlassTooltip>
-              )}
-              {canEditAppointments && allowCalendarDrag(item.status as any) && (
-                <GlassTooltip content="Reschedule" side="bottom">
-                  <button
-                    onClick={() => handleRescheduleAppointment(item)}
-                    className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-                  >
-                    <IoIosCalendar size={18} color="#302F2E" />
-                  </button>
-                </GlassTooltip>
-              )}
-              {canEditAppointments && (
-                <GlassTooltip content="Assign room" side="bottom">
-                  <button
-                    onClick={() => handleChangeRoomAppointment(item)}
-                    className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-                  >
-                    <MdMeetingRoom size={18} color="#302F2E" />
-                  </button>
-                </GlassTooltip>
-              )}
-              <GlassTooltip content="SOAP / notes" side="bottom">
-                <button
-                  onClick={() => handleViewAppointment(item, getSoapViewIntent(item))}
-                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-                >
-                  <IoDocumentTextOutline size={18} color="#302F2E" />
-                </button>
-              </GlassTooltip>
-              <GlassTooltip content="Finance summary" side="bottom">
-                <button
-                  onClick={() =>
-                    handleViewAppointment(item, {
-                      label: 'finance',
-                      subLabel: 'summary',
-                    })
-                  }
-                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-                >
-                  <IoCardOutline size={18} color="#302F2E" />
-                </button>
-              </GlassTooltip>
-              <GlassTooltip content="Lab tests" side="bottom">
-                <button
-                  onClick={() =>
-                    handleViewAppointment(item, {
-                      label: 'labs',
-                      subLabel: 'idexx-labs',
-                    })
-                  }
-                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-                >
-                  <MdScience size={18} color="#302F2E" />
-                </button>
-              </GlassTooltip>
-            </div>
-          )}
+          {(() => {
+            const orgType =
+              (item.organisationId && orgsById[item.organisationId]?.type) || 'HOSPITAL';
+            const clinicalNotesLabel = getClinicalNotesLabel(orgType);
+            return (
+              <>
+                {isRequestedLikeStatus(item.status) ? (
+                  <>
+                    <GlassTooltip content="Accept request" side="bottom">
+                      <button
+                        className="action-btn"
+                        style={{ background: '#E6F4EF' }}
+                        onClick={() => handleAcceptAppointment(item)}
+                      >
+                        <FaCheckCircle size={22} color="#54B492" />
+                      </button>
+                    </GlassTooltip>
+                    <GlassTooltip content="Decline request" side="bottom">
+                      <button
+                        onClick={() => handleCancelAppointment(item)}
+                        className="action-btn"
+                        style={{ background: '#FDEBEA' }}
+                      >
+                        <IoIosCloseCircle size={24} color="#EA3729" />
+                      </button>
+                    </GlassTooltip>
+                  </>
+                ) : (
+                  <div className="action-btn-grid">
+                    <GlassTooltip content="View appointment" side="bottom">
+                      <button
+                        onClick={() => handleViewAppointment(item)}
+                        className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                      >
+                        <IoEyeOutline size={20} color="#302F2E" />
+                      </button>
+                    </GlassTooltip>
+                    {canEditAppointments && canShowStatusChangeAction(item.status) && (
+                      <GlassTooltip content="Change status" side="bottom">
+                        <button
+                          onClick={() => handleChangeStatusAppointment(item)}
+                          className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                        >
+                          <MdOutlineAutorenew size={18} color="#302F2E" />
+                        </button>
+                      </GlassTooltip>
+                    )}
+                    {canEditAppointments && allowCalendarDrag(item.status as any) && (
+                      <GlassTooltip content="Reschedule" side="bottom">
+                        <button
+                          onClick={() => handleRescheduleAppointment(item)}
+                          className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                        >
+                          <IoIosCalendar size={18} color="#302F2E" />
+                        </button>
+                      </GlassTooltip>
+                    )}
+                    {canEditAppointments && canAssignAppointmentRoom(item.status) && (
+                      <GlassTooltip content="Assign room" side="bottom">
+                        <button
+                          onClick={() => handleChangeRoomAppointment(item)}
+                          className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                        >
+                          <MdMeetingRoom size={18} color="#302F2E" />
+                        </button>
+                      </GlassTooltip>
+                    )}
+                    <GlassTooltip content={clinicalNotesLabel} side="bottom">
+                      <button
+                        onClick={() => handleViewAppointment(item, getSoapViewIntent(item))}
+                        className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                        title={clinicalNotesLabel}
+                      >
+                        <IoDocumentTextOutline size={18} color="#302F2E" />
+                      </button>
+                    </GlassTooltip>
+                    <GlassTooltip content="Finance summary" side="bottom">
+                      <button
+                        onClick={() =>
+                          handleViewAppointment(item, {
+                            label: 'finance',
+                            subLabel: 'summary',
+                          })
+                        }
+                        className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                      >
+                        <IoCardOutline size={18} color="#302F2E" />
+                      </button>
+                    </GlassTooltip>
+                    <GlassTooltip content="Lab tests" side="bottom">
+                      <button
+                        onClick={() =>
+                          handleViewAppointment(item, {
+                            label: 'labs',
+                            subLabel: 'idexx-labs',
+                          })
+                        }
+                        className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                      >
+                        <MdScience size={18} color="#302F2E" />
+                      </button>
+                    </GlassTooltip>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       ),
     },
   ];
 
   return (
-    <div className="table-wrapper">
-      <div className="table-list">
+    <div className="table-wrapper h-full min-h-0 overflow-hidden">
+      <div className="table-list h-full min-h-0 overflow-y-auto pr-1 pb-3">
         <GenericTable
           data={filteredList}
           columns={columns}
@@ -355,7 +371,7 @@ const Appointments = ({
           pageSize={small ? 5 : 10}
         />
       </div>
-      <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
+      <div className="xl:hidden h-full min-h-0 overflow-y-auto pr-1 pb-2 sm:pb-3 flex gap-4 sm:gap-6 flex-wrap content-start">
         {(() => {
           if (filteredList.length === 0) {
             return (

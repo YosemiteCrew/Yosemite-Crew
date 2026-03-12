@@ -376,7 +376,7 @@ const TaskBoard = ({
                     <button
                       key={task._id}
                       type="button"
-                      className={`w-full rounded-2xl! overflow-hidden border border-card-border bg-white px-3 py-2 text-left transition-shadow ${
+                      className={`w-full min-h-[142px] shrink-0 rounded-2xl! overflow-hidden border border-card-border bg-white px-4 py-3 text-left transition-colors flex flex-col items-stretch justify-start ${
                         draggedTaskId === (task._id ?? null)
                           ? 'opacity-60 shadow-none'
                           : 'hover:border-input-border-active! hover:bg-card-hover!'

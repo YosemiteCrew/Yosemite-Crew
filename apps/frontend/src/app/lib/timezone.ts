@@ -1,7 +1,12 @@
 import countries from '@/app/lib/data/countryList';
 
 const TIMEZONE_STORAGE_KEY = 'yc_preferred_timezone';
+const TIMEZONE_MANUAL_OVERRIDE_BY_ORG_KEY = 'yc_timezone_manual_override_by_org';
+const TIMEZONE_SYNC_MODE_BY_ORG_KEY = 'yc_timezone_sync_mode_by_org';
 const DEFAULT_TIMEZONE = 'Europe/Berlin';
+const DEFAULT_TIMEZONE_SYNC_MODE = 'device';
+
+export type TimezoneSyncMode = 'device' | 'custom';
 
 export type TimezoneOption = {
   label: string;
@@ -73,6 +78,44 @@ const COUNTRY_CODE_TO_TIMEZONE: Record<string, string> = {
 
 const hasWindow = () => typeof window !== 'undefined';
 
+const parseManualOverrideMap = (): Record<string, boolean> => {
+  if (!hasWindow()) return {};
+  try {
+    const raw = window.localStorage.getItem(TIMEZONE_MANUAL_OVERRIDE_BY_ORG_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    return Object.fromEntries(Object.entries(parsed).map(([key, value]) => [key, Boolean(value)]));
+  } catch {
+    return {};
+  }
+};
+
+const parseSyncModeMap = (): Record<string, TimezoneSyncMode> => {
+  if (!hasWindow()) return {};
+  try {
+    const raw = window.localStorage.getItem(TIMEZONE_SYNC_MODE_BY_ORG_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const entries = Object.entries(parsed)
+      .map(([key, value]) => [key, String(value).trim().toLowerCase()] as const)
+      .filter(([, value]) => value === 'device' || value === 'custom')
+      .map(([key, value]) => [key, value as TimezoneSyncMode] as const);
+    return Object.fromEntries(entries);
+  } catch {
+    return {};
+  }
+};
+
+const writeSyncModeMap = (value: Record<string, TimezoneSyncMode>): boolean => {
+  if (!hasWindow()) return false;
+  try {
+    window.localStorage.setItem(TIMEZONE_SYNC_MODE_BY_ORG_KEY, JSON.stringify(value));
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const getCanonicalTimezoneValues = (): string[] => {
   const supportedValuesOf = (Intl as unknown as { supportedValuesOf?: (key: string) => string[] })
     .supportedValuesOf;
@@ -109,6 +152,50 @@ export const isValidTimeZone = (value?: string | null): value is string => {
   } catch {
     return false;
   }
+};
+
+export const parseTimezoneFromProfileValue = (timezone?: string | null): string => {
+  if (!timezone) return DEFAULT_TIMEZONE;
+  const timezoneValue = String(timezone);
+  const isValidTimezone = (value?: string | null): boolean => isValidTimeZone(value);
+  if (isValidTimezone(timezoneValue)) return timezoneValue;
+  const segment = timezoneValue.split(' - ').at(-1)?.trim();
+  if (segment && isValidTimezone(segment)) return segment;
+  return DEFAULT_TIMEZONE;
+};
+
+export const getSystemTimeZone = (): string => {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (isValidTimeZone(tz)) return tz;
+  } catch {
+    // no-op
+  }
+  return DEFAULT_TIMEZONE;
+};
+
+export const getTimezoneSyncModeForOrg = (orgId?: string | null): TimezoneSyncMode => {
+  const normalizedOrgId = String(orgId ?? '').trim();
+  if (!normalizedOrgId) return DEFAULT_TIMEZONE_SYNC_MODE;
+  const modeMap = parseSyncModeMap();
+  const mode = modeMap[normalizedOrgId];
+  if (mode === 'device' || mode === 'custom') return mode;
+
+  // Migration path from legacy manual override flag.
+  const manualOverrideMap = parseManualOverrideMap();
+  if (manualOverrideMap[normalizedOrgId]) return 'custom';
+  return DEFAULT_TIMEZONE_SYNC_MODE;
+};
+
+export const setTimezoneSyncModeForOrg = (
+  orgId: string | undefined,
+  mode: TimezoneSyncMode
+): boolean => {
+  const normalizedOrgId = String(orgId ?? '').trim();
+  if (!normalizedOrgId || (mode !== 'device' && mode !== 'custom')) return false;
+  const map = parseSyncModeMap();
+  map[normalizedOrgId] = mode;
+  return writeSyncModeMap(map);
 };
 
 export const getPreferredTimeZone = (): string => {
@@ -333,6 +420,24 @@ export const isOnPreferredTimeZoneCalendarDay = (value: Date, calendarDay: Date)
 export const getMinutesSinceStartOfDayInPreferredTimeZone = (value: Date): number => {
   const parts = getDatePartsInPreferredTimeZone(value);
   return parts.hour * 60 + parts.minute;
+};
+
+export const getPreciseMinutesSinceStartOfDayInPreferredTimeZone = (value: Date): number => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: getPreferredTimeZone(),
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(value);
+
+  const getPart = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value ?? '0');
+
+  const hour = getPart('hour');
+  const minute = getPart('minute');
+  const second = getPart('second');
+  return hour * 60 + minute + second / 60 + value.getMilliseconds() / 60_000;
 };
 
 export const getHourInPreferredTimeZone = (value: Date): number => {

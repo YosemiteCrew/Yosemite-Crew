@@ -423,6 +423,7 @@ const TaskCalendar = ({
             }
           }}
           getDropAvailabilityIntervals={getDropAvailabilityIntervals}
+          slotStepMinutes={15}
         />
       )}
       {activeCalendar === 'week' && (
@@ -464,6 +465,7 @@ const TaskCalendar = ({
             }
           }}
           getDropAvailabilityIntervals={getDropAvailabilityIntervals}
+          slotStepMinutes={15}
         />
       )}
       {activeCalendar === 'team' && (
@@ -504,6 +506,7 @@ const TaskCalendar = ({
             }
           }}
           getDropAvailabilityIntervals={getDropAvailabilityIntervals}
+          slotStepMinutes={15}
         />
       )}
     </div>

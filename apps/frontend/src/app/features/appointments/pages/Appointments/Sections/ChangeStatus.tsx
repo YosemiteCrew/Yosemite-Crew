@@ -9,6 +9,13 @@ import {
   AppointmentStatus,
   AppointmentStatusOptions,
 } from '@/app/features/appointments/types/appointments';
+import {
+  canTransitionAppointmentStatus,
+  getAllowedAppointmentStatusTransitions,
+  getInvalidAppointmentStatusTransitionMessage,
+  normalizeAppointmentStatus,
+} from '@/app/lib/appointments';
+import { useNotify } from '@/app/hooks/useNotify';
 
 type ChangeStatusProps = {
   showModal: boolean;
@@ -17,6 +24,7 @@ type ChangeStatusProps = {
 };
 
 const ChangeStatus = ({ showModal, setShowModal, activeAppointment }: ChangeStatusProps) => {
+  const { notify } = useNotify();
   const [selectedStatus, setSelectedStatus] = useState<AppointmentStatus>(
     (activeAppointment.status as AppointmentStatus) ?? 'REQUESTED'
   );
@@ -26,6 +34,18 @@ const ChangeStatus = ({ showModal, setShowModal, activeAppointment }: ChangeStat
   useEffect(() => {
     setSelectedStatus((activeAppointment.status as AppointmentStatus) ?? 'REQUESTED');
   }, [activeAppointment]);
+
+  const availableStatusOptions = React.useMemo(() => {
+    const currentStatus = normalizeAppointmentStatus(activeAppointment.status);
+    if (!currentStatus) return [];
+    const allowed = new Set<AppointmentStatus>([
+      currentStatus,
+      ...getAllowedAppointmentStatusTransitions(currentStatus),
+    ]);
+    return AppointmentStatusOptions.filter(
+      (option) => option.value !== 'NO_PAYMENT' && allowed.has(option.value as AppointmentStatus)
+    );
+  }, [activeAppointment.status]);
 
   const handleCancel = () => {
     setShowModal(false);
@@ -42,6 +62,13 @@ const ChangeStatus = ({ showModal, setShowModal, activeAppointment }: ChangeStat
 
       if (currentStatus === selectedStatus) {
         setShowModal(false);
+        return;
+      }
+      if (!canTransitionAppointmentStatus(currentStatus, selectedStatus)) {
+        notify('warning', {
+          title: 'Status update blocked',
+          text: getInvalidAppointmentStatusTransitionMessage(currentStatus, selectedStatus),
+        });
         return;
       }
 
@@ -63,7 +90,7 @@ const ChangeStatus = ({ showModal, setShowModal, activeAppointment }: ChangeStat
           <div className={`${saving ? 'pointer-events-none opacity-60' : ''}`}>
             <LabelDropdown
               placeholder="Appointment status"
-              options={AppointmentStatusOptions.filter((option) => option.value !== 'NO_PAYMENT')}
+              options={availableStatusOptions}
               defaultOption={selectedStatus}
               searchable={false}
               onSelect={(option) => setSelectedStatus(option.value as AppointmentStatus)}

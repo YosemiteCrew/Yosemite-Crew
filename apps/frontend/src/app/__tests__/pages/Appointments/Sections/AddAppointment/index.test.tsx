@@ -87,6 +87,7 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
       {text}
     </button>
   ),
+  Secondary: ({ text, onClick }: any) => <button onClick={onClick}>{text}</button>,
 }));
 
 jest.mock('@/app/ui/inputs/SearchDropdown', () => ({
@@ -211,7 +212,7 @@ describe('AddAppointment Component', () => {
   it('shows companion validation when submitting without required input', async () => {
     render(<AddAppointment {...defaultProps} />);
 
-    fireEvent.click(screen.getByTestId('submit-btn'));
+    fireEvent.click(screen.getByText('Book appointment'));
 
     await waitFor(() => {
       expect(screen.getByTestId('err-companion')).toBeInTheDocument();

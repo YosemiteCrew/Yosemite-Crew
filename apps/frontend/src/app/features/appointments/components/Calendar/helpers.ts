@@ -4,6 +4,7 @@ import { Team } from '@/app/features/organization/types/team';
 import { Appointment } from '@yosemite-crew/types';
 import {
   getMinutesSinceStartOfDayInPreferredTimeZone,
+  getPreciseMinutesSinceStartOfDayInPreferredTimeZone,
   isOnPreferredTimeZoneCalendarDay,
 } from '@/app/lib/timezone';
 
@@ -186,13 +187,30 @@ export function getNowTopPxForWindow(
   // Only show the red line on the same day
   if (!isOnPreferredTimeZoneCalendarDay(now, date)) return null;
 
-  const mins = getMinutesSinceStartOfDayInPreferredTimeZone(now);
+  const mins = getPreciseMinutesSinceStartOfDayInPreferredTimeZone(now);
 
-  // Your rule: if now is outside the window, clamp to END
-  const clamped = mins >= windowStart && mins <= windowEnd ? mins : windowEnd;
-  const steps = (clamped - windowStart) / MINUTES_PER_STEP;
+  if (mins < windowStart || mins > windowEnd) return null;
+  const steps = (mins - windowStart) / MINUTES_PER_STEP;
 
   return steps * PIXELS_PER_STEP;
+}
+
+export function getNowTopPxForHourRange(
+  date: Date,
+  startHour: number,
+  endHour: number,
+  hourHeightPx: number,
+  now: Date = new Date(),
+  topOffsetPx = 0
+) {
+  if (!isOnPreferredTimeZoneCalendarDay(now, date)) return null;
+
+  const mins = getPreciseMinutesSinceStartOfDayInPreferredTimeZone(now);
+  const rangeStartMinutes = startHour * 60;
+  const rangeEndMinutes = (endHour + 1) * 60;
+  if (mins < rangeStartMinutes || mins > rangeEndMinutes) return null;
+
+  return ((mins - rangeStartMinutes) / 60) * hourHeightPx + topOffsetPx;
 }
 
 export function isAllDayForDate(ev: Appointment, day: Date): boolean {

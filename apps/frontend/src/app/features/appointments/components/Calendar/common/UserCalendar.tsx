@@ -3,6 +3,7 @@ import {
   DEFAULT_CALENDAR_FOCUS_MINUTES,
   appointentsForUser,
   getFirstRelevantTimedEventStart,
+  getNowTopPxForHourRange,
   nextDay,
   scrollContainerToTarget,
   startOfDayDate,
@@ -61,6 +62,7 @@ type UserCalendarProps = {
   ) => Array<{ startMinute: number; endMinute: number }>;
   draggedAppointmentDurationMinutes?: number;
   forceFullDayInZoomIn?: boolean;
+  slotStepMinutes?: number;
 };
 
 const UserCalendar: React.FC<UserCalendarProps> = ({
@@ -85,6 +87,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   getVisibleAvailabilityIntervals,
   draggedAppointmentDurationMinutes,
   forceFullDayInZoomIn = false,
+  slotStepMinutes = 15,
 }) => {
   const HOUR_ROW_TOP_OFFSET_PX = 8;
   const team = useTeamForPrimaryOrg();
@@ -137,15 +140,21 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
       ),
     [visibleHourRange.endHour, visibleHourRange.startHour]
   );
+  const lastVisibleHour = visibleHours[visibleHours.length - 1] ?? visibleHourRange.endHour;
 
   const nowPosition = useMemo(() => {
     if (!isOnPreferredTimeZoneCalendarDay(now, date)) return null;
-    const minutesSinceMidnight = getMinutesSinceStartOfDayInPreferredTimeZone(now);
-    const topPx =
-      ((minutesSinceMidnight - visibleHourRange.startHour * 60) / 60) * height +
-      HOUR_ROW_TOP_OFFSET_PX;
+    const topPx = getNowTopPxForHourRange(
+      date,
+      visibleHourRange.startHour,
+      visibleHourRange.endHour,
+      height,
+      now,
+      HOUR_ROW_TOP_OFFSET_PX
+    );
+    if (topPx == null) return null;
     return { topPx };
-  }, [date, height, now, visibleHourRange.startHour]);
+  }, [date, height, now, visibleHourRange.endHour, visibleHourRange.startHour]);
   const nowTimeLabel = useMemo(() => {
     if (!nowPosition) return null;
     return formatDateInPreferredTimeZone(now, {
@@ -153,6 +162,15 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
       minute: '2-digit',
     });
   }, [now, nowPosition]);
+  const slotOffsetMinutes = useMemo(() => {
+    const step = Math.max(5, Math.round(slotStepMinutes || 15));
+    if (step >= 60) return [];
+    const offsets: number[] = [];
+    for (let minute = step; minute < 60; minute += step) {
+      offsets.push(minute);
+    }
+    return offsets;
+  }, [slotStepMinutes]);
 
   useEffect(() => {
     if (!scrollRef.current) return;
@@ -201,18 +219,19 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
               maxHeight: '100%',
               minHeight: 0,
               overflowY: 'auto',
-              paddingBottom: zoomMode === 'out' ? 12 : 0,
+              paddingBottom: zoomMode === 'out' ? 30 : 40,
+              paddingTop: 12,
             }}
             data-calendar-scroll="true"
           >
-            <div className="pt-1 pb-3">
+            <div className="relative pt-2 pb-4">
               {visibleHours.map((hour) => (
                 <div key={hour} className="grid grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
                   <div
-                    className="sticky left-0 z-20 bg-white text-caption-2 text-text-primary pl-2!"
-                    style={{ height: height + 'px', paddingTop: hour === 0 ? 4 : 0 }}
+                    className="sticky left-0 z-20 bg-white text-caption-2 text-text-primary pl-2! relative"
+                    style={{ height: height + 'px' }}
                   >
-                    {formatHourLabel(hour)}
+                    <span className="absolute top-0 -translate-y-1/2">{formatHourLabel(hour)}</span>
                   </div>
                   <div className="grid min-w-max" style={teamColumnsStyle}>
                     {team?.map((user, index) => {
@@ -224,16 +243,9 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                       return (
                         <div
                           key={`${user._id}-${hour}`}
-                          className={`relative ${zoomMode === 'out' ? 'pt-0' : 'pt-2'}`}
+                          className="relative"
                           style={{ height: `${height}px` }}
                         >
-                          {hour !== 0 && (
-                            <div
-                              className={`pointer-events-none absolute inset-x-0 z-10 border-t border-grey-light ${
-                                zoomMode === 'out' ? 'top-0' : 'top-2'
-                              }`}
-                            />
-                          )}
                           <Slot
                             slotEvents={slotEvents}
                             height={height}
@@ -263,6 +275,21 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                             dropPractitionerId={user.practionerId || user._id}
                             invoicesByAppointmentId={invoicesByAppointmentId}
                           />
+                          <div className="pointer-events-none absolute inset-0 z-10">
+                            <div className="absolute inset-x-0 top-0 border-t border-[#C3CEDC]" />
+                            {slotOffsetMinutes.map((minute) => (
+                              <div
+                                key={`${user._id}-${hour}-slot-${minute}`}
+                                className="absolute inset-x-0 border-t border-[#E9EDF3]"
+                                style={{
+                                  top: `${(minute / 60) * 100}%`,
+                                }}
+                              />
+                            ))}
+                            {hour === lastVisibleHour && (
+                              <div className="absolute inset-x-0 top-full border-t border-[#C3CEDC]" />
+                            )}
+                          </div>
                         </div>
                       );
                     })}
@@ -270,34 +297,32 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                   <div className="sticky right-0 z-20 bg-white" style={{ height: height + 'px' }} />
                 </div>
               ))}
-              <div style={{ height: zoomMode === 'out' ? 48 : 12 }} />
-            </div>
-
-            {nowPosition && (
-              <div className="pointer-events-none absolute inset-0">
-                <div className="grid h-full grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
-                  <div />
-                  <div className="relative">
-                    <div
-                      className="absolute left-0 right-2 z-20"
-                      style={{
-                        top: nowPosition.topPx,
-                        transform: 'translateY(-50%)',
-                      }}
-                    >
-                      {nowTimeLabel && (
-                        <div className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold text-red-500 whitespace-nowrap">
-                          {nowTimeLabel}
-                        </div>
-                      )}
-                      <div className="absolute -left-[12px] w-3 h-3 rounded-full bg-red-500 translate-y-[-50%]" />
-                      <div className="border-t-2 border-t-red-500 translate-y-[-50%]" />
+              <div style={{ height: zoomMode === 'out' ? 30 : 40 }} />
+              {nowPosition && (
+                <div className="pointer-events-none absolute inset-0">
+                  <div className="grid h-full grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
+                    <div />
+                    <div className="relative">
+                      <div
+                        className="absolute left-0 right-2 z-20"
+                        style={{
+                          top: nowPosition.topPx,
+                        }}
+                      >
+                        {nowTimeLabel && (
+                          <div className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold text-red-500 whitespace-nowrap">
+                            {nowTimeLabel}
+                          </div>
+                        )}
+                        <div className="absolute -left-[12px] w-3 h-3 rounded-full bg-red-500 translate-y-[-50%]" />
+                        <div className="border-t-2 border-t-red-500 translate-y-[-50%]" />
+                      </div>
                     </div>
+                    <div />
                   </div>
-                  <div />
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>

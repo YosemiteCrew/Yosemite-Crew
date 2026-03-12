@@ -6,13 +6,15 @@ type ModalProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
   onClose?: () => void;
+  canClose?: () => boolean;
 };
 
-const Modal = ({ children, showModal, setShowModal, onClose }: ModalProps) => (
+const Modal = ({ children, showModal, setShowModal, onClose, canClose }: ModalProps) => (
   <ModalBase
     showModal={showModal}
     setShowModal={setShowModal}
     onClose={onClose}
+    canClose={canClose}
     ignoreOutsideClick={(target) => Boolean(target?.closest("[data-signing-overlay='true']"))}
     overlayClassName={`fixed backdrop-blur-[2px] inset-0 bg-[#302f2e80] z-[1100] transition-opacity duration-300 ease-in-out ${
       showModal ? 'opacity-100' : 'opacity-0 pointer-events-none'

@@ -21,6 +21,13 @@ jest.mock('@/app/lib/validators', () => ({
 
 jest.mock('@/app/lib/appointments', () => ({
   allowCalendarDrag: jest.fn(() => true),
+  canAssignAppointmentRoom: jest.fn(() => true),
+  canShowStatusChangeAction: jest.fn(() => true),
+  getClinicalNotesIntent: jest.fn(() => ({ label: 'prescription', subLabel: 'subjective' })),
+  getClinicalNotesLabel: jest.fn(() => 'Prescription'),
+  isRequestedLikeStatus: jest.fn(
+    (status: string) => status === 'REQUESTED' || status === 'NO_PAYMENT'
+  ),
 }));
 
 describe('AppointmentCard', () => {
@@ -98,10 +105,10 @@ describe('AppointmentCard', () => {
     expect(handleRescheduleAppointment).toHaveBeenCalledWith(appointment);
   });
 
-  it('renders accept/cancel actions for requested status', () => {
+  it('renders accept/decline icon actions for requested-like status', () => {
     render(
       <AppointmentCard
-        appointment={{ ...appointment, status: 'REQUESTED' }}
+        appointment={{ ...appointment, status: 'NO_PAYMENT' }}
         handleViewAppointment={handleViewAppointment}
         getSoapViewIntent={getSoapViewIntent}
         handleRescheduleAppointment={handleRescheduleAppointment}
@@ -109,8 +116,7 @@ describe('AppointmentCard', () => {
       />
     );
 
-    expect(screen.getByText('Accept')).toBeInTheDocument();
-    expect(screen.getByText('Cancel')).toBeInTheDocument();
+    expect(screen.getAllByRole('button')).toHaveLength(2);
     expect(screen.queryByTitle('View')).not.toBeInTheDocument();
   });
 });

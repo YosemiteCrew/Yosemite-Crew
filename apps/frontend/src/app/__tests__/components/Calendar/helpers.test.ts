@@ -12,6 +12,7 @@ import {
   layoutDayEvents,
   getTotalWindowHeightPx,
   getNowTopPxForWindow,
+  getNowTopPxForHourRange,
   isAllDayForDate,
   eventsForDay,
   PIXELS_PER_STEP,
@@ -23,6 +24,8 @@ import { Task } from '@/app/features/tasks/types/task';
 jest.mock('@/app/lib/timezone', () => ({
   getMinutesSinceStartOfDayInPreferredTimeZone: (date: Date) =>
     date.getHours() * 60 + date.getMinutes(),
+  getPreciseMinutesSinceStartOfDayInPreferredTimeZone: (date: Date) =>
+    date.getHours() * 60 + date.getMinutes() + date.getSeconds() / 60,
   isOnPreferredTimeZoneCalendarDay: (a: Date, b: Date) =>
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
@@ -292,17 +295,41 @@ describe('Calendar Helpers', () => {
       expect(getNowTopPxForWindow(targetDate, 600, 660)).toBe(PIXELS_PER_STEP);
     });
 
-    it('clamps position to windowEnd if time is outside window', () => {
+    it('returns null if current time is outside the visible window', () => {
       // 12:00 PM (720 min)
       jest.setSystemTime(new Date(2023, 0, 1, 12, 0));
       const targetDate = new Date(2023, 0, 1);
 
-      // Window 9:00 (540) to 10:00 (600)
-      // Current time 720 is > 600. Should return windowEnd logic.
-      // Clamped to 600. (600 - 540) / 5 = 12 steps.
-      expect(getNowTopPxForWindow(targetDate, 540, 600)).toBe(
-        (60 / MINUTES_PER_STEP) * PIXELS_PER_STEP
-      );
+      // Window 9:00 (540) to 10:00 (600); now is outside.
+      expect(getNowTopPxForWindow(targetDate, 540, 600)).toBeNull();
+    });
+  });
+
+  describe('getNowTopPxForHourRange', () => {
+    beforeAll(() => {
+      jest.useFakeTimers();
+    });
+
+    afterAll(() => {
+      jest.useRealTimers();
+    });
+
+    it('returns a top position when now is in the visible hour range', () => {
+      jest.setSystemTime(new Date(2023, 0, 1, 10, 30));
+      const targetDate = new Date(2023, 0, 1);
+      expect(getNowTopPxForHourRange(targetDate, 9, 11, 60, undefined, 8)).toBe(98);
+    });
+
+    it('uses precise seconds without snapping to slot boundaries', () => {
+      jest.setSystemTime(new Date(2023, 0, 1, 10, 35, 30));
+      const targetDate = new Date(2023, 0, 1);
+      expect(getNowTopPxForHourRange(targetDate, 9, 11, 60, undefined, 8)).toBeCloseTo(103.5, 3);
+    });
+
+    it('returns null when now is outside the visible hour range', () => {
+      jest.setSystemTime(new Date(2023, 0, 1, 8, 15));
+      const targetDate = new Date(2023, 0, 1);
+      expect(getNowTopPxForHourRange(targetDate, 9, 11, 60, undefined, 8)).toBeNull();
     });
   });
 

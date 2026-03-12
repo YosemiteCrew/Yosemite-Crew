@@ -30,6 +30,7 @@ jest.mock('@/app/features/appointments/components/Calendar/helpers', () => ({
     return start;
   },
   getFirstRelevantTimedEventStart: jest.fn(() => null),
+  getNowTopPxForHourRange: jest.fn((_: Date, __: number, ___: number, height: number) => height),
   getTopPxForMinutes: jest.fn((minutes: number, height: number) => (minutes / 60) * height),
   minutesSinceStartOfDay: jest.fn(() => 540),
   scrollContainerToTarget: jest.fn(),

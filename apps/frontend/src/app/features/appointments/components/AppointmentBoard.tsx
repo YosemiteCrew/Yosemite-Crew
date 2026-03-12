@@ -27,10 +27,23 @@ import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { FaCheckCircle } from 'react-icons/fa';
 import { IoIosCloseCircle } from 'react-icons/io';
-import { allowCalendarDrag } from '@/app/lib/appointments';
+import {
+  allowCalendarDrag,
+  canAssignAppointmentRoom,
+  canShowStatusChangeAction,
+  canTransitionAppointmentStatus,
+  getAllowedAppointmentStatusTransitions,
+  getClinicalNotesIntent,
+  getClinicalNotesLabel,
+  getInvalidAppointmentStatusTransitionMessage,
+  isRequestedLikeStatus,
+  normalizeAppointmentStatus,
+} from '@/app/lib/appointments';
 import { IoIosCalendar } from 'react-icons/io';
 import { IoCardOutline, IoDocumentTextOutline, IoEyeOutline } from 'react-icons/io5';
 import { MdMeetingRoom, MdOutlineAutorenew, MdScience } from 'react-icons/md';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { useNotify } from '@/app/hooks/useNotify';
 
 type BoardStatus =
   | 'REQUESTED'
@@ -102,20 +115,9 @@ const BOARD_COLUMNS: Array<{ key: BoardStatus; label: string }> = [
 ];
 
 const normalizeStatus = (status?: string): BoardStatus | null => {
-  if (!status) return null;
-  if (status === 'NO_PAYMENT') return 'REQUESTED';
-  if (
-    status === 'REQUESTED' ||
-    status === 'UPCOMING' ||
-    status === 'CHECKED_IN' ||
-    status === 'IN_PROGRESS' ||
-    status === 'COMPLETED' ||
-    status === 'CANCELLED' ||
-    status === 'NO_SHOW'
-  ) {
-    return status;
-  }
-  return null;
+  const normalized = normalizeAppointmentStatus(status);
+  if (!normalized) return null;
+  return normalized === 'NO_PAYMENT' ? 'REQUESTED' : normalized;
 };
 
 type AppointmentBoardProps = {
@@ -145,6 +147,8 @@ const AppointmentBoard = ({
   setChangeRoomPopup,
   onAddAppointment,
 }: AppointmentBoardProps) => {
+  const { notify } = useNotify();
+  const orgsById = useOrgStore((s) => s.orgsById);
   const team = useTeamForPrimaryOrg();
   const authUserId = useAuthStore(
     (s) => s.attributes?.sub || s.attributes?.email || s.attributes?.['cognito:username'] || ''
@@ -302,6 +306,13 @@ const AppointmentBoard = ({
     const currentStatus = normalizeStatus(appointment.status);
     if (currentStatus === nextStatus) return;
     if (!canEditAppointments) return;
+    if (!canTransitionAppointmentStatus(appointment.status, nextStatus)) {
+      notify('warning', {
+        title: 'Status change blocked',
+        text: getInvalidAppointmentStatusTransitionMessage(appointment.status, nextStatus),
+      });
+      return;
+    }
 
     try {
       setUpdatingStatusId(appointment.id);
@@ -420,16 +431,27 @@ const AppointmentBoard = ({
                     }}
                   >
                     {columnAppointments.map((appointment) => (
-                      <button
+                      <div
                         key={appointment.id}
-                        type="button"
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Open appointment ${appointment.companion.name}`}
                         className={`w-full min-h-[142px] shrink-0 rounded-2xl! overflow-hidden border border-card-border bg-white px-4 py-3 text-left transition-colors flex flex-col items-stretch justify-start ${
                           draggedAppointmentId === (appointment.id ?? null)
                             ? 'opacity-60 shadow-none'
                             : 'hover:border-input-border-active! hover:bg-card-hover!'
                         }`}
                         onClick={() => openAppointment(appointment)}
-                        draggable={canEditAppointments}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            openAppointment(appointment);
+                          }
+                        }}
+                        draggable={
+                          canEditAppointments &&
+                          getAllowedAppointmentStatusTransitions(appointment.status).length > 0
+                        }
                         onDragStart={(event) => {
                           setDraggedAppointmentId(appointment.id ?? null);
                           event.dataTransfer.effectAllowed = 'move';
@@ -498,8 +520,7 @@ const AppointmentBoard = ({
                             );
                           })()}
                         </div>
-                        {(appointment.status === 'REQUESTED' ||
-                          appointment.status === 'NO_PAYMENT') && (
+                        {isRequestedLikeStatus(appointment.status) && (
                           <div className="mt-2 flex items-center justify-end gap-1">
                             <GlassTooltip content="Accept request" side="bottom">
                               <button
@@ -529,23 +550,23 @@ const AppointmentBoard = ({
                             </GlassTooltip>
                           </div>
                         )}
-                        {appointment.status !== 'REQUESTED' &&
-                          appointment.status !== 'NO_PAYMENT' && (
-                            <div className="mt-2 flex items-center gap-1.5 flex-wrap max-w-[184px]">
-                              <GlassTooltip content="View appointment" side="bottom">
-                                <button
-                                  type="button"
-                                  className="h-8 w-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
-                                  onClick={(event) => {
-                                    event.preventDefault();
-                                    event.stopPropagation();
-                                    openAppointmentWithIntent(appointment);
-                                  }}
-                                >
-                                  <IoEyeOutline size={16} color="#302F2E" />
-                                </button>
-                              </GlassTooltip>
-                              {canEditAppointments && (
+                        {!isRequestedLikeStatus(appointment.status) && (
+                          <div className="mt-2 flex items-center gap-1.5 flex-wrap max-w-[184px]">
+                            <GlassTooltip content="View appointment" side="bottom">
+                              <button
+                                type="button"
+                                className="h-8 w-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  openAppointmentWithIntent(appointment);
+                                }}
+                              >
+                                <IoEyeOutline size={16} color="#302F2E" />
+                              </button>
+                            </GlassTooltip>
+                            {canEditAppointments &&
+                              canShowStatusChangeAction(appointment.status) && (
                                 <GlassTooltip content="Change status" side="bottom">
                                   <button
                                     type="button"
@@ -560,23 +581,24 @@ const AppointmentBoard = ({
                                   </button>
                                 </GlassTooltip>
                               )}
-                              {canEditAppointments &&
-                                allowCalendarDrag(appointment.status as any) && (
-                                  <GlassTooltip content="Reschedule" side="bottom">
-                                    <button
-                                      type="button"
-                                      className="h-8 w-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
-                                      onClick={(event) => {
-                                        event.preventDefault();
-                                        event.stopPropagation();
-                                        openReschedule(appointment);
-                                      }}
-                                    >
-                                      <IoIosCalendar size={15} color="#302F2E" />
-                                    </button>
-                                  </GlassTooltip>
-                                )}
-                              {canEditAppointments && (
+                            {canEditAppointments &&
+                              allowCalendarDrag(appointment.status as any) && (
+                                <GlassTooltip content="Reschedule" side="bottom">
+                                  <button
+                                    type="button"
+                                    className="h-8 w-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+                                    onClick={(event) => {
+                                      event.preventDefault();
+                                      event.stopPropagation();
+                                      openReschedule(appointment);
+                                    }}
+                                  >
+                                    <IoIosCalendar size={15} color="#302F2E" />
+                                  </button>
+                                </GlassTooltip>
+                              )}
+                            {canEditAppointments &&
+                              canAssignAppointmentRoom(appointment.status) && (
                                 <GlassTooltip content="Assign room" side="bottom">
                                   <button
                                     type="button"
@@ -591,60 +613,68 @@ const AppointmentBoard = ({
                                   </button>
                                 </GlassTooltip>
                               )}
-                              <GlassTooltip content="SOAP / notes" side="bottom">
-                                <button
-                                  type="button"
-                                  className="h-8 w-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
-                                  onClick={(event) => {
-                                    event.preventDefault();
-                                    event.stopPropagation();
-                                    openAppointmentWithIntent(appointment, {
-                                      label: 'prescription',
-                                      subLabel: 'subjective',
-                                    });
-                                  }}
-                                >
-                                  <IoDocumentTextOutline size={15} color="#302F2E" />
-                                </button>
-                              </GlassTooltip>
-                              <GlassTooltip content="Finance summary" side="bottom">
-                                <button
-                                  type="button"
-                                  className="h-8 w-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
-                                  onClick={(event) => {
-                                    event.preventDefault();
-                                    event.stopPropagation();
-                                    openAppointmentWithIntent(appointment, {
-                                      label: 'finance',
-                                      subLabel: 'summary',
-                                    });
-                                  }}
-                                >
-                                  <IoCardOutline size={15} color="#302F2E" />
-                                </button>
-                              </GlassTooltip>
-                              <GlassTooltip content="Lab tests" side="bottom">
-                                <button
-                                  type="button"
-                                  className="h-8 w-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
-                                  onClick={(event) => {
-                                    event.preventDefault();
-                                    event.stopPropagation();
-                                    openAppointmentWithIntent(appointment, {
-                                      label: 'labs',
-                                      subLabel: 'idexx-labs',
-                                    });
-                                  }}
-                                >
-                                  <MdScience size={15} color="#302F2E" />
-                                </button>
-                              </GlassTooltip>
-                            </div>
-                          )}
+                            {(() => {
+                              const orgType =
+                                (appointment.organisationId &&
+                                  orgsById[appointment.organisationId]?.type) ||
+                                'HOSPITAL';
+                              const clinicalNotesLabel = getClinicalNotesLabel(orgType);
+                              const clinicalNotesIntent = getClinicalNotesIntent(orgType);
+                              return (
+                                <GlassTooltip content={clinicalNotesLabel} side="bottom">
+                                  <button
+                                    type="button"
+                                    className="h-8 w-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+                                    onClick={(event) => {
+                                      event.preventDefault();
+                                      event.stopPropagation();
+                                      openAppointmentWithIntent(appointment, clinicalNotesIntent);
+                                    }}
+                                    title={clinicalNotesLabel}
+                                  >
+                                    <IoDocumentTextOutline size={15} color="#302F2E" />
+                                  </button>
+                                </GlassTooltip>
+                              );
+                            })()}
+                            <GlassTooltip content="Finance summary" side="bottom">
+                              <button
+                                type="button"
+                                className="h-8 w-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  openAppointmentWithIntent(appointment, {
+                                    label: 'finance',
+                                    subLabel: 'summary',
+                                  });
+                                }}
+                              >
+                                <IoCardOutline size={15} color="#302F2E" />
+                              </button>
+                            </GlassTooltip>
+                            <GlassTooltip content="Lab tests" side="bottom">
+                              <button
+                                type="button"
+                                className="h-8 w-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  openAppointmentWithIntent(appointment, {
+                                    label: 'labs',
+                                    subLabel: 'idexx-labs',
+                                  });
+                                }}
+                              >
+                                <MdScience size={15} color="#302F2E" />
+                              </button>
+                            </GlassTooltip>
+                          </div>
+                        )}
                         {updatingStatusId === appointment.id && (
                           <div className="mt-1 text-[10px] text-text-secondary">Updating...</div>
                         )}
-                      </button>
+                      </div>
                     ))}
                     {!hasAppointments && (
                       <div className="rounded-2xl border border-dashed border-card-border bg-white px-3 py-4 text-center text-caption-1 text-text-secondary">

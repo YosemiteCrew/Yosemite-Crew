@@ -12,6 +12,7 @@ type HorizontalLinesProps = {
   windowStart: number; // minutes since 00:00
   windowEnd: number; // minutes since 00:00
   pixelsPerStep?: number;
+  slotStepMinutes?: number;
 };
 
 const HorizontalLines = ({
@@ -20,6 +21,7 @@ const HorizontalLines = ({
   windowStart,
   windowEnd,
   pixelsPerStep = PIXELS_PER_STEP,
+  slotStepMinutes = 15,
 }: HorizontalLinesProps) => {
   const totalHeightPx = useMemo(
     () => ((windowEnd - windowStart) / MINUTES_PER_STEP) * pixelsPerStep,
@@ -56,16 +58,43 @@ const HorizontalLines = ({
       return (
         <div
           key={hour}
-          className="absolute left-0 right-0 border-t border-t-grey-light"
+          className="absolute left-0 right-0 border-t border-[#C3CEDC]"
           style={{ top }}
         />
       );
     }).filter(Boolean);
   }, [pixelsPerStep, windowStart, windowEnd, totalHeightPx]);
 
+  const slotLines = useMemo(() => {
+    const step = Math.max(5, Math.round(slotStepMinutes || 15));
+    if (step >= 60) return [];
+    const lines: React.ReactNode[] = [];
+
+    for (let minute = windowStart + step; minute < windowEnd; minute += step) {
+      if (minute % 60 === 0) continue; // hour line already rendered above
+      const top = ((minute - windowStart) / MINUTES_PER_STEP) * pixelsPerStep;
+      if (top <= 0 || top >= totalHeightPx) continue;
+      lines.push(
+        <div
+          key={`slot-${minute}`}
+          className="absolute left-0 right-0 border-t border-[#E9EDF3]"
+          style={{ top }}
+        />
+      );
+    }
+
+    return lines;
+  }, [pixelsPerStep, slotStepMinutes, totalHeightPx, windowEnd, windowStart]);
+
   return (
     <>
+      <div className="absolute left-0 right-0 top-0 border-t border-[#C3CEDC]" />
+      {slotLines}
       {hourLines}
+      <div
+        className="absolute left-0 right-0 border-t border-[#C3CEDC]"
+        style={{ top: totalHeightPx }}
+      />
       {nowTopPx != null && (
         <div className="absolute left-0 right-0 z-10" style={{ top: nowTopPx }}>
           {nowTimeLabel && (

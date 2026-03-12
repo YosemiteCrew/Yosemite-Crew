@@ -185,7 +185,13 @@ const Appointments = () => {
         />
 
         <PermissionGate allOf={[PERMISSIONS.APPOINTMENTS_VIEW_ANY]} fallback={<Fallback />}>
-          <div className="w-full flex flex-col gap-3">
+          <div
+            className={
+              activeView === 'list'
+                ? 'w-full flex flex-col gap-3 h-[calc(100vh-248px)] min-h-[588px] max-h-[calc(100vh-248px)] lg:sticky lg:top-2 lg:mb-3 lg:h-[calc(100dvh-105px)] lg:min-h-[calc(100dvh-105px)] lg:max-h-[calc(100dvh-105px)]'
+                : 'w-full flex flex-col gap-3'
+            }
+          >
             {activeView !== 'board' && (
               <Filters
                 filterOptions={AppointmentFilters}
@@ -200,7 +206,7 @@ const Appointments = () => {
               ref={plannerSectionRef}
               className={
                 activeView === 'list'
-                  ? 'w-full'
+                  ? 'w-full flex-1 min-h-0 overflow-hidden'
                   : 'w-full h-[calc(100vh-248px)] min-h-[588px] max-h-[calc(100vh-248px)] lg:sticky lg:top-2 lg:mb-3 lg:h-[calc(100dvh-105px)] lg:min-h-[calc(100dvh-105px)] lg:max-h-[calc(100dvh-105px)]'
               }
             >
@@ -239,6 +245,8 @@ const Appointments = () => {
                   setActiveAppointment={setActiveAppointment}
                   setViewPopup={setViewPopup}
                   setViewIntent={setViewIntent}
+                  setChangeStatusPopup={setChangeStatusPopup}
+                  setReschedulePopup={setReschedulePopup}
                   setChangeRoomPopup={setChangeRoomPopup}
                   onAddAppointment={() => {
                     setAddAppointmentPrefill(null);
@@ -246,16 +254,18 @@ const Appointments = () => {
                   }}
                 />
               ) : (
-                <AppointmentsTable
-                  filteredList={filteredList}
-                  setActiveAppointment={setActiveAppointment}
-                  setViewPopup={setViewPopup}
-                  setViewIntent={setViewIntent}
-                  setReschedulePopup={setReschedulePopup}
-                  setChangeStatusPopup={setChangeStatusPopup}
-                  setChangeRoomPopup={setChangeRoomPopup}
-                  canEditAppointments={canEditAppointments}
-                />
+                <div className="h-full min-h-0 overflow-hidden">
+                  <AppointmentsTable
+                    filteredList={filteredList}
+                    setActiveAppointment={setActiveAppointment}
+                    setViewPopup={setViewPopup}
+                    setViewIntent={setViewIntent}
+                    setReschedulePopup={setReschedulePopup}
+                    setChangeStatusPopup={setChangeStatusPopup}
+                    setChangeRoomPopup={setChangeRoomPopup}
+                    canEditAppointments={canEditAppointments}
+                  />
+                </div>
               )}
             </div>
           </div>

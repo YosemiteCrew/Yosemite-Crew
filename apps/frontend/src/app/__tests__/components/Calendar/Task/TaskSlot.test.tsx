@@ -57,12 +57,11 @@ describe('TaskSlot', () => {
     );
 
     expect(screen.getByText('Task A')).toBeInTheDocument();
-    expect(screen.getByText(/To:\s*Alex/)).toBeInTheDocument();
     expect(screen.getByText('Task B')).toBeInTheDocument();
-    expect(screen.getAllByText(/From:\s*-/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/To:\s*-/)).toBeInTheDocument();
+    expect(screen.getByText(/Due:\s*11:00 AM/)).toBeInTheDocument();
+    expect(screen.getByText(/Due:\s*12:00 PM/)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('Task A').closest('button')!);
+    fireEvent.click(screen.getAllByTitle('View task')[0]);
     expect(handleViewTask).toHaveBeenCalledWith(slotEvents[0]);
 
     const container = screen.getByText('Task A').closest('button')!.parentElement;

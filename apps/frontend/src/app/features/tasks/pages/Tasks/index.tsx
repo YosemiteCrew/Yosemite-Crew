@@ -26,9 +26,6 @@ const Tasks = () => {
   const query = useSearchStore((s) => s.query);
   const searchParams = useSearchParams();
   const handledDeepLinkRef = useRef<string | null>(null);
-  const plannerSectionRef = useRef<HTMLDivElement | null>(null);
-  const plannerAutoLockRef = useRef(false);
-  const lastScrollYRef = useRef(0);
   const [activeFilter, setActiveFilter] = useState('all');
   const [activeStatus, setActiveStatus] = useState('all');
   const [addPopup, setAddPopup] = useState(false);
@@ -38,42 +35,6 @@ const Tasks = () => {
   const [activeView, setActiveView] = useState('calendar');
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [weekStart, setWeekStart] = useState(startOfDay(currentDate));
-
-  useEffect(() => {
-    if (activeView === 'list') return;
-    if (typeof window === 'undefined') return;
-
-    lastScrollYRef.current = window.scrollY;
-
-    const onScroll = () => {
-      const section = plannerSectionRef.current;
-      if (!section) return;
-
-      const currentY = window.scrollY;
-      const isScrollingDown = currentY > lastScrollYRef.current;
-      lastScrollYRef.current = currentY;
-
-      const rect = section.getBoundingClientRect();
-      const shouldLockToSection =
-        isScrollingDown &&
-        rect.top <= 140 &&
-        rect.top >= -220 &&
-        rect.bottom > window.innerHeight * 0.55;
-
-      if (shouldLockToSection && !plannerAutoLockRef.current) {
-        plannerAutoLockRef.current = true;
-        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        return;
-      }
-
-      if (rect.top > 220) {
-        plannerAutoLockRef.current = false;
-      }
-    };
-
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, [activeView]);
 
   useEffect(() => {
     if (activeCalendar === 'week') {
@@ -142,7 +103,13 @@ const Tasks = () => {
         />
 
         <PermissionGate allOf={[PERMISSIONS.TASKS_VIEW_ANY]} fallback={<Fallback />}>
-          <div className="w-full flex flex-col gap-3">
+          <div
+            className={
+              activeView === 'list'
+                ? 'w-full flex flex-col gap-3 h-[calc(100vh-220px)] min-h-[620px] max-h-[calc(100vh-220px)]'
+                : 'w-full flex flex-col gap-3'
+            }
+          >
             {activeView !== 'board' && (
               <Filters
                 filterOptions={TaskFilters}
@@ -154,10 +121,9 @@ const Tasks = () => {
               />
             )}
             <div
-              ref={plannerSectionRef}
               className={
                 activeView === 'list'
-                  ? 'w-full'
+                  ? 'w-full flex-1 min-h-0 overflow-hidden'
                   : 'w-full h-[calc(100vh-220px)] min-h-[620px] max-h-[calc(100vh-220px)]'
               }
             >
@@ -186,11 +152,13 @@ const Tasks = () => {
                   onAddTask={() => setAddPopup(true)}
                 />
               ) : (
-                <TasksTable
-                  filteredList={filteredList}
-                  setActiveTask={setActiveTask}
-                  setViewPopup={setViewPopup}
-                />
+                <div className="h-full min-h-0 overflow-hidden">
+                  <TasksTable
+                    filteredList={filteredList}
+                    setActiveTask={setActiveTask}
+                    setViewPopup={setViewPopup}
+                  />
+                </div>
               )}
             </div>
           </div>

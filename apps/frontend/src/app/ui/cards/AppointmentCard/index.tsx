@@ -1,16 +1,25 @@
 import React from 'react';
 import { Appointment } from '@yosemite-crew/types';
-import { allowCalendarDrag } from '@/app/lib/appointments';
+import {
+  allowCalendarDrag,
+  canAssignAppointmentRoom,
+  canShowStatusChangeAction,
+  getClinicalNotesIntent,
+  getClinicalNotesLabel,
+  isRequestedLikeStatus,
+} from '@/app/lib/appointments';
 import AppointmentCardContent from '@/app/features/appointments/components/AppointmentCardContent';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
-import { IoIosCalendar } from 'react-icons/io';
+import { IoIosCalendar, IoIosCloseCircle } from 'react-icons/io';
 import { IoEyeOutline, IoCardOutline, IoDocumentTextOutline } from 'react-icons/io5';
 import { MdMeetingRoom, MdOutlineAutorenew, MdScience } from 'react-icons/md';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
+import { FaCheckCircle } from 'react-icons/fa';
 import {
   acceptAppointment,
   rejectAppointment,
 } from '@/app/features/appointments/services/appointmentService';
+import { useOrgStore } from '@/app/stores/orgStore';
 
 type AppointmentCardProps = {
   appointment: Appointment;
@@ -31,26 +40,34 @@ const AppointmentCard = ({
   handleChangeRoomAppointment,
   canEditAppointments,
 }: AppointmentCardProps) => {
+  const orgsById = useOrgStore((s) => s.orgsById);
+  const orgType =
+    (appointment.organisationId && orgsById[appointment.organisationId]?.type) || 'HOSPITAL';
+  const clinicalNotesLabel = getClinicalNotesLabel(orgType);
+  const clinicalNotesIntent = getClinicalNotesIntent(orgType);
+
   return (
     <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-white px-3 py-3 flex flex-col justify-between gap-2 cursor-pointer">
       <AppointmentCardContent appointment={appointment} />
       <div className="flex gap-3 w-full">
-        {appointment.status === 'REQUESTED' ? (
+        {isRequestedLikeStatus(appointment.status) ? (
           <>
-            <GlassTooltip content="Accept request" side="bottom" className="w-full">
+            <GlassTooltip content="Accept request" side="bottom">
               <button
-                className="text-body-4-emphasis w-full text-[#54B492]! bg-[#E6F4EF] rounded-2xl! h-12 flex items-center justify-center cursor-pointer"
+                className="h-10 w-10 rounded-full! flex items-center justify-center cursor-pointer"
+                style={{ background: '#E6F4EF' }}
                 onClick={() => void acceptAppointment(appointment)}
               >
-                Accept
+                <FaCheckCircle size={22} color="#54B492" />
               </button>
             </GlassTooltip>
-            <GlassTooltip content="Decline request" side="bottom" className="w-full">
+            <GlassTooltip content="Decline request" side="bottom">
               <button
-                className="text-body-4-emphasis w-full text-[#EA3729]! bg-[#FDEBEA] rounded-2xl! h-12 flex items-center justify-center cursor-pointer"
+                className="h-10 w-10 rounded-full! flex items-center justify-center cursor-pointer"
+                style={{ background: '#FDEBEA' }}
                 onClick={() => void rejectAppointment(appointment)}
               >
-                Cancel
+                <IoIosCloseCircle size={24} color="#EA3729" />
               </button>
             </GlassTooltip>
           </>
@@ -65,7 +82,7 @@ const AppointmentCard = ({
                 <IoEyeOutline size={20} color="#302F2E" />
               </button>
             </GlassTooltip>
-            {canEditAppointments && (
+            {canEditAppointments && canShowStatusChangeAction(appointment.status) && (
               <GlassTooltip content="Change status" side="bottom">
                 <button
                   onClick={() => handleChangeStatusAppointment?.(appointment)}
@@ -87,7 +104,7 @@ const AppointmentCard = ({
                 </button>
               </GlassTooltip>
             )}
-            {canEditAppointments && (
+            {canEditAppointments && canAssignAppointmentRoom(appointment.status) && (
               <GlassTooltip content="Assign room" side="bottom">
                 <button
                   onClick={() => handleChangeRoomAppointment?.(appointment)}
@@ -98,11 +115,16 @@ const AppointmentCard = ({
                 </button>
               </GlassTooltip>
             )}
-            <GlassTooltip content="SOAP / notes" side="bottom">
+            <GlassTooltip content={clinicalNotesLabel} side="bottom">
               <button
-                onClick={() => handleViewAppointment(appointment, getSoapViewIntent(appointment))}
+                onClick={() =>
+                  handleViewAppointment(
+                    appointment,
+                    orgType === 'HOSPITAL' ? getSoapViewIntent(appointment) : clinicalNotesIntent
+                  )
+                }
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-                title="SOAP"
+                title={clinicalNotesLabel}
               >
                 <IoDocumentTextOutline size={18} color="#302F2E" />
               </button>

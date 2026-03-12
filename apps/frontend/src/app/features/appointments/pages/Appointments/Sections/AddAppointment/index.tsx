@@ -2,6 +2,7 @@ import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import SearchDropdown from '@/app/ui/inputs/SearchDropdown';
 import Modal from '@/app/ui/overlays/Modal';
+import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Appointment } from '@yosemite-crew/types';
 import { useCompanionsParentsForPrimaryOrg } from '@/app/hooks/useCompanion';
@@ -68,11 +69,12 @@ const AddAppointment = ({
   const step4Ref = useRef<HTMLDivElement | null>(null);
   const submitRef = useRef<HTMLDivElement | null>(null);
   const [query, setQuery] = useState('');
-  const [activeStep, setActiveStep] = useState(1);
+  const [activeStep, setActiveStep] = useState<number | null>(1);
   const [maxUnlockedStep, setMaxUnlockedStep] = useState(1);
   const [concernFocused, setConcernFocused] = useState(false);
   const [, setConcernBlurred] = useState(false);
   const [showAddCompanionModal, setShowAddCompanionModal] = useState(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   const {
     formData,
@@ -118,6 +120,20 @@ const AddAppointment = ({
   const dateTimeSatisfied = Boolean(selectedSlot && formData.lead?.id);
   const canShowDateTimeStep = maxUnlockedStep >= 3;
   const canShowBillingStep = maxUnlockedStep >= 4;
+  const hasUnsavedChanges = useMemo(
+    () =>
+      Boolean(
+        formData.companion.id ||
+        formData.appointmentType?.speciality?.id ||
+        formData.appointmentType?.id ||
+        formData.concern?.trim() ||
+        selectedSlot ||
+        formData.lead?.id ||
+        (formData.supportStaff?.length ?? 0) > 0 ||
+        formData.isEmergency
+      ),
+    [formData, selectedSlot]
+  );
 
   const scrollToStep = useCallback((ref: React.RefObject<HTMLDivElement | null>) => {
     ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -227,11 +243,32 @@ const AddAppointment = ({
     }
   };
 
+  const canCloseAddModal = useCallback(() => {
+    if (isLoading) return false;
+    if (!hasUnsavedChanges) return true;
+    setShowDiscardConfirm(true);
+    return false;
+  }, [hasUnsavedChanges, isLoading]);
+
+  const handleRequestClose = useCallback(() => {
+    if (!canCloseAddModal()) return;
+    setShowModal(false);
+  }, [canCloseAddModal, setShowModal]);
+
+  const handleDiscardAndClose = useCallback(() => {
+    setShowDiscardConfirm(false);
+    setShowModal(false);
+  }, [setShowModal]);
+
   return (
     <>
-      <Modal showModal={showModal && !showAddCompanionModal} setShowModal={setShowModal}>
+      <Modal
+        showModal={showModal && !showAddCompanionModal}
+        setShowModal={setShowModal}
+        canClose={canCloseAddModal}
+      >
         <div className="flex flex-col h-full gap-6">
-          <ModalHeader title="Add appointment" onClose={() => setShowModal(false)} />
+          <ModalHeader title="Add appointment" onClose={handleRequestClose} />
 
           <div
             ref={scrollContainerRef}
@@ -242,7 +279,7 @@ const AddAppointment = ({
                 title="Companion details"
                 defaultOpen={true}
                 open={activeStep === 1}
-                onOpenChange={(open) => open && setActiveStep(1)}
+                onOpenChange={(open) => setActiveStep(open ? 1 : null)}
                 showEditIcon={false}
                 isEditing={true}
               >
@@ -295,7 +332,7 @@ const AddAppointment = ({
                   <AppointmentDetailsSection
                     defaultOpen={activeStep === 2}
                     open={activeStep === 2}
-                    onOpenChange={(open) => open && setActiveStep(2)}
+                    onOpenChange={(open) => setActiveStep(open ? 2 : null)}
                     specialityId={formData.appointmentType?.speciality.id}
                     specialityError={formDataErrors.specialityId}
                     specialitiesOptions={SpecialitiesOptions}
@@ -348,7 +385,7 @@ const AddAppointment = ({
                     title="Select date & time"
                     defaultOpen={activeStep === 3}
                     open={activeStep === 3}
-                    onOpenChange={(open) => open && setActiveStep(3)}
+                    onOpenChange={(open) => setActiveStep(open ? 3 : null)}
                     showEditIcon={false}
                     isEditing={true}
                   >
@@ -375,7 +412,7 @@ const AddAppointment = ({
                   <BillableServicesSection
                     defaultOpen={activeStep === 4}
                     open={activeStep === 4}
-                    onOpenChange={(open) => open && setActiveStep(4)}
+                    onOpenChange={(open) => setActiveStep(open ? 4 : null)}
                     serviceId={formData.appointmentType?.id}
                     serviceName={formData.appointmentType?.name}
                     serviceFields={ServiceFields}
@@ -409,6 +446,27 @@ const AddAppointment = ({
         showModal={showAddCompanionModal}
         setShowModal={handleQuickAddCompanionVisibility}
       />
+      <CenterModal showModal={showDiscardConfirm} setShowModal={setShowDiscardConfirm}>
+        <div className="text-body-2 text-text-primary">Discard appointment draft?</div>
+        <div className="text-body-4 text-text-secondary">
+          You have unsaved changes in this appointment. If you close now, your entered details will
+          be lost.
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <Secondary
+            href="#"
+            text="Keep editing"
+            onClick={() => setShowDiscardConfirm(false)}
+            className="w-full"
+          />
+          <Primary
+            href="#"
+            text="Discard"
+            onClick={handleDiscardAndClose}
+            className="w-full bg-red-500!"
+          />
+        </div>
+      </CenterModal>
     </>
   );
 };

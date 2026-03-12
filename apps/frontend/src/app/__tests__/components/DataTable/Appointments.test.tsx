@@ -17,6 +17,12 @@ jest.mock('@/app/features/appointments/services/appointmentService', () => ({
 jest.mock('@/app/lib/appointments', () => ({
   allowReschedule: jest.fn(() => true),
   allowCalendarDrag: jest.fn(() => true),
+  canAssignAppointmentRoom: jest.fn(() => true),
+  canShowStatusChangeAction: jest.fn(() => true),
+  getClinicalNotesLabel: jest.fn(() => 'Prescription'),
+  isRequestedLikeStatus: jest.fn(
+    (status: string) => status === 'REQUESTED' || status === 'NO_PAYMENT'
+  ),
 }));
 
 jest.mock('@/app/lib/forms', () => ({
@@ -74,10 +80,10 @@ describe('Appointments table', () => {
     jest.clearAllMocks();
   });
 
-  it('handles accept/cancel actions for requested appointments', async () => {
+  it('handles accept/cancel actions for requested-like appointments', async () => {
     const appointment: any = {
       id: 'a1',
-      status: 'REQUESTED',
+      status: 'NO_PAYMENT',
       companion: {
         name: 'Buddy',
         species: 'dog',

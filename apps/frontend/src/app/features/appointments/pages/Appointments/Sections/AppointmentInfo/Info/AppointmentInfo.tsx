@@ -23,6 +23,16 @@ import DateTimePickerSection from '@/app/features/appointments/components/DateTi
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { formatDisplayDate } from '@/app/features/inventory/pages/Inventory/utils';
 import { formatTimeLabel } from '@/app/lib/forms';
+import {
+  allowReschedule,
+  canAssignAppointmentRoom,
+  canShowStatusChangeAction,
+  canTransitionAppointmentStatus,
+  getAllowedAppointmentStatusTransitions,
+  getInvalidAppointmentStatusTransitionMessage,
+  normalizeAppointmentStatus,
+} from '@/app/lib/appointments';
+import { useNotify } from '@/app/hooks/useNotify';
 
 const getAppointmentFields = ({
   RoomOptions,
@@ -80,6 +90,7 @@ type AppointmentInfoProps = {
 };
 
 const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
+  const { notify } = useNotify();
   const rooms = useRoomsForPrimaryOrg();
   const teams = useTeamForPrimaryOrg();
   const specialities = useSpecialitiesForPrimaryOrg();
@@ -187,6 +198,17 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
   }, [getLeadOptionsForSlot, selectedSlot]);
 
   const appointmentFields = useMemo(() => getAppointmentFields({ RoomOptions }), [RoomOptions]);
+  const allowedStatusOptions = useMemo(() => {
+    const currentStatus = normalizeAppointmentStatus(activeAppointment.status);
+    if (!currentStatus) return [];
+    const allowed = new Set<AppointmentStatus>([
+      currentStatus,
+      ...getAllowedAppointmentStatusTransitions(currentStatus),
+    ]);
+    return AppointmentStatusOptions.filter(
+      (option) => option.value !== 'NO_PAYMENT' && allowed.has(option.value as AppointmentStatus)
+    );
+  }, [activeAppointment.status]);
 
   useEffect(() => {
     const currentId = activeAppointment.id;
@@ -346,6 +368,11 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
   };
 
   const canEditAppointments = canEditByStatus;
+  const canRescheduleByStatus = allowReschedule(
+    (activeAppointment.status as AppointmentStatus) ?? 'REQUESTED'
+  );
+  const canAssignRoomByStatus = canAssignAppointmentRoom(activeAppointment.status);
+  const canChangeStatusByStatus = canShowStatusChangeAction(activeAppointment.status);
 
   const handleAppointmentSave = async () => {
     const formErrors: typeof errors = {};
@@ -372,6 +399,27 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
     }
     setErrors(formErrors);
     if (Object.keys(formErrors).length > 0) return;
+
+    const nextStartTime = buildUtcDateFromDateAndTime(selectedDate, selectedSlot!.startTime);
+    const nextEndTime = buildUtcDateFromDateAndTime(selectedDate, selectedSlot!.endTime);
+    const hasScheduleChanged =
+      new Date(activeAppointment.startTime).getTime() !== nextStartTime.getTime() ||
+      new Date(activeAppointment.endTime).getTime() !== nextEndTime.getTime();
+    if (hasScheduleChanged && !canRescheduleByStatus) {
+      notify('warning', {
+        title: 'Reschedule blocked',
+        text: 'Checked-in, in-progress, completed, cancelled, and no-show appointments cannot be rescheduled.',
+      });
+      return;
+    }
+    const hasRoomChanged = appointmentValues.room !== (activeAppointment.room?.id ?? '');
+    if (hasRoomChanged && !canAssignRoomByStatus) {
+      notify('warning', {
+        title: 'Room update blocked',
+        text: 'Room can only be changed for upcoming, checked-in, or in-progress appointments.',
+      });
+      return;
+    }
 
     const foundRoom = rooms.find((r) => r.id === appointmentValues.room);
     const room = foundRoom ? { id: foundRoom.id, name: foundRoom.name } : undefined;
@@ -413,9 +461,9 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
           }
         : activeAppointment.lead,
       supportStaff,
-      startTime: buildUtcDateFromDateAndTime(selectedDate, selectedSlot!.startTime),
-      endTime: buildUtcDateFromDateAndTime(selectedDate, selectedSlot!.endTime),
-      appointmentDate: buildUtcDateFromDateAndTime(selectedDate, selectedSlot!.startTime),
+      startTime: nextStartTime,
+      endTime: nextEndTime,
+      appointmentDate: nextStartTime,
       durationMinutes: getDurationMinutes(selectedSlot!.startTime, selectedSlot!.endTime),
     };
 
@@ -423,6 +471,20 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
     const nextStatus = appointmentValues.status as AppointmentStatus;
     const currentStatus = activeAppointment.status as AppointmentStatus;
     if (nextStatus && nextStatus !== currentStatus) {
+      if (!canChangeStatusByStatus) {
+        notify('warning', {
+          title: 'Status update blocked',
+          text: 'No status changes are available for this appointment.',
+        });
+        return;
+      }
+      if (!canTransitionAppointmentStatus(currentStatus, nextStatus)) {
+        notify('warning', {
+          title: 'Status update blocked',
+          text: getInvalidAppointmentStatusTransitionMessage(currentStatus, nextStatus),
+        });
+        return;
+      }
       await changeAppointmentStatus(activeAppointment, nextStatus);
     }
     setIsEditingAppointment(false);
@@ -493,22 +555,39 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
                   setAppointmentValues((prev) => ({ ...prev, supportIds: ids }))
                 }
               />
-              <LabelDropdown
-                placeholder="Room"
-                onSelect={(option) =>
-                  setAppointmentValues((prev) => ({ ...prev, room: option.value }))
-                }
-                defaultOption={appointmentValues.room}
-                options={RoomOptions}
-              />
-              <LabelDropdown
-                placeholder="Status"
-                onSelect={(option) =>
-                  setAppointmentValues((prev) => ({ ...prev, status: option.value }))
-                }
-                defaultOption={appointmentValues.status}
-                options={AppointmentStatusOptions}
-              />
+              {!canRescheduleByStatus ? (
+                <p className="text-caption-1 text-text-secondary">
+                  This appointment can no longer be rescheduled from edit mode.
+                </p>
+              ) : null}
+              {canAssignRoomByStatus ? (
+                <LabelDropdown
+                  placeholder="Room"
+                  onSelect={(option) =>
+                    setAppointmentValues((prev) => ({ ...prev, room: option.value }))
+                  }
+                  defaultOption={appointmentValues.room}
+                  options={RoomOptions}
+                />
+              ) : (
+                <p className="text-caption-1 text-text-secondary">
+                  Room assignment is not available for this status.
+                </p>
+              )}
+              {canChangeStatusByStatus ? (
+                <LabelDropdown
+                  placeholder="Status"
+                  onSelect={(option) =>
+                    setAppointmentValues((prev) => ({ ...prev, status: option.value }))
+                  }
+                  defaultOption={appointmentValues.status}
+                  options={allowedStatusOptions}
+                />
+              ) : (
+                <p className="text-caption-1 text-text-secondary">
+                  Status changes are not available for this appointment.
+                </p>
+              )}
             </div>
           ) : (
             <div className="flex flex-col">

@@ -5,19 +5,49 @@ export const useCalendarNow = (): Date => {
 
   useEffect(() => {
     const updateNow = () => setNowMs(Date.now());
-    const minuteTimer = globalThis.setInterval(updateNow, 60_000);
+    let minuteTimer: ReturnType<typeof setInterval> | null = null;
+    let minuteAlignTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const clearTimers = () => {
+      if (minuteAlignTimer) {
+        globalThis.clearTimeout(minuteAlignTimer);
+        minuteAlignTimer = null;
+      }
+      if (minuteTimer) {
+        globalThis.clearInterval(minuteTimer);
+        minuteTimer = null;
+      }
+    };
+
+    const scheduleMinuteUpdates = () => {
+      clearTimers();
+      const msIntoCurrentMinute = Date.now() % 60_000;
+      const msUntilNextMinute = msIntoCurrentMinute === 0 ? 60_000 : 60_000 - msIntoCurrentMinute;
+      minuteAlignTimer = globalThis.setTimeout(() => {
+        updateNow();
+        minuteTimer = globalThis.setInterval(updateNow, 60_000);
+      }, msUntilNextMinute);
+    };
+
+    updateNow();
+    scheduleMinuteUpdates();
+
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         updateNow();
+        scheduleMinuteUpdates();
       }
     };
-    const onTimezoneChange = () => updateNow();
+    const onTimezoneChange = () => {
+      updateNow();
+      scheduleMinuteUpdates();
+    };
 
     document.addEventListener('visibilitychange', onVisibilityChange);
     globalThis.addEventListener('yc:timezone-changed', onTimezoneChange as EventListener);
 
     return () => {
-      globalThis.clearInterval(minuteTimer);
+      clearTimers();
       document.removeEventListener('visibilitychange', onVisibilityChange);
       globalThis.removeEventListener('yc:timezone-changed', onTimezoneChange as EventListener);
     };

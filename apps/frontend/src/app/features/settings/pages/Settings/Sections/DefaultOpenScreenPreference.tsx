@@ -1,67 +1,97 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import { useNotify } from '@/app/hooks/useNotify';
-import { usePrimaryOrgWithMembership } from '@/app/hooks/useOrgSelectors';
-import {
-  DefaultOpenScreenRoute,
-  getRoleDefaultOpenScreenRoute,
-  getSavedDefaultOpenScreenRoute,
-  setSavedDefaultOpenScreenRoute,
-} from '@/app/lib/defaultOpenScreen';
+import { setSavedDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
 import {
   DefaultAppointmentsView,
-  getSavedDefaultAppointmentsView,
   setSavedDefaultAppointmentsView,
 } from '@/app/lib/defaultAppointmentsView';
-
-const ROLE_DEFAULT_VALUE = 'ROLE_DEFAULT';
+import { usePrimaryOrgProfile } from '@/app/hooks/useProfiles';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { patchUserProfile } from '@/app/features/organization/services/profileService';
+import {
+  appointmentViewToLocal,
+  defaultOpenScreenToRoute,
+  localToAppointmentView,
+  normalizePmsPreferences,
+  routeToDefaultOpenScreen,
+} from '@/app/features/settings/utils/pmsPreferences';
 
 const DefaultOpenScreenPreference = () => {
   const { notify } = useNotify();
-  const { membership } = usePrimaryOrgWithMembership();
-  const role = membership?.roleDisplay ?? membership?.roleCode;
-  const roleDefaultRoute = getRoleDefaultOpenScreenRoute(role);
-  const savedRoute = getSavedDefaultOpenScreenRoute();
+  const profile = usePrimaryOrgProfile();
+  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
+  const primaryOrgType = useOrgStore((s) =>
+    s.primaryOrgId ? s.orgsById[s.primaryOrgId]?.type : undefined
+  );
+  const pmsPreferences = normalizePmsPreferences(
+    profile?.personalDetails?.pmsPreferences,
+    primaryOrgType
+  );
+  const defaultRouteFromProfile = defaultOpenScreenToRoute(pmsPreferences.defaultOpenScreen);
+  const defaultViewFromProfile = appointmentViewToLocal(pmsPreferences.appointmentView);
+  const savedRoute = defaultRouteFromProfile;
+  const savedView = defaultViewFromProfile;
 
   const options = useMemo(
     () => [
-      {
-        value: ROLE_DEFAULT_VALUE,
-        label: `Role default (${roleDefaultRoute === '/dashboard' ? 'Dashboard' : 'Appointments'})`,
-      },
       { value: '/dashboard', label: 'Dashboard' },
       { value: '/appointments', label: 'Appointments' },
     ],
-    [roleDefaultRoute]
+    []
   );
 
-  const [selection, setSelection] = useState<string>(savedRoute ?? ROLE_DEFAULT_VALUE);
-  const [defaultView, setDefaultView] = useState<DefaultAppointmentsView>(
-    getSavedDefaultAppointmentsView() ?? 'board'
-  );
-  const resolvedRoute =
-    selection === ROLE_DEFAULT_VALUE ? roleDefaultRoute : (selection as DefaultOpenScreenRoute);
-  const shouldShowDefaultView = resolvedRoute === '/appointments';
+  const [selection, setSelection] = useState<string>(savedRoute);
+  const [defaultView, setDefaultView] = useState<DefaultAppointmentsView>(savedView);
+  const shouldShowDefaultView = selection === '/appointments';
 
-  const handleSave = () => {
-    const route = selection === ROLE_DEFAULT_VALUE ? null : (selection as DefaultOpenScreenRoute);
+  useEffect(() => {
+    setSelection(savedRoute);
+    setDefaultView(savedView);
+  }, [savedRoute, savedView]);
+
+  const handleSave = async () => {
+    if (!primaryOrgId) {
+      notify('error', {
+        title: 'Organization not selected',
+        text: 'Please select an organization and try again.',
+      });
+      return;
+    }
+    const route = selection === '/dashboard' ? '/dashboard' : '/appointments';
     const openScreenSaved = setSavedDefaultOpenScreenRoute(route);
     const defaultViewSaved = shouldShowDefaultView
       ? setSavedDefaultAppointmentsView(defaultView)
       : true;
-    const ok = openScreenSaved && defaultViewSaved;
-    if (ok) {
+    try {
+      await patchUserProfile(primaryOrgId, {
+        personalDetails: {
+          ...profile?.personalDetails,
+          pmsPreferences: {
+            ...pmsPreferences,
+            defaultOpenScreen: routeToDefaultOpenScreen(route),
+            appointmentView: localToAppointmentView(defaultView),
+          },
+        },
+      });
+      if (openScreenSaved && defaultViewSaved) {
+        notify('success', {
+          title: 'Defaults updated',
+          text: 'Your default landing screen preferences have been saved.',
+        });
+        return;
+      }
       notify('success', {
         title: 'Defaults updated',
-        text: 'Your default landing screen preferences have been saved.',
+        text: 'Saved to profile. Local cache refresh may require reloading.',
       });
-      return;
+    } catch {
+      notify('error', {
+        title: 'Unable to update defaults',
+        text: 'Please try again.',
+      });
     }
-    notify('error', {
-      title: 'Unable to update defaults',
-      text: 'Please try again.',
-    });
   };
 
   return (

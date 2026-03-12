@@ -15,6 +15,13 @@ jest.mock('@/app/ui/tables/Appointments', () => ({
 
 jest.mock('@/app/lib/appointments', () => ({
   allowReschedule: jest.fn(() => true),
+  canAssignAppointmentRoom: jest.fn(() => true),
+  canShowStatusChangeAction: jest.fn(() => true),
+  getClinicalNotesIntent: jest.fn(() => ({ label: 'prescription', subLabel: 'subjective' })),
+  getClinicalNotesLabel: jest.fn(() => 'Prescription'),
+  isRequestedLikeStatus: jest.fn(
+    (status: string) => status === 'REQUESTED' || status === 'NO_PAYMENT'
+  ),
 }));
 
 jest.mock('@/app/lib/urls', () => ({

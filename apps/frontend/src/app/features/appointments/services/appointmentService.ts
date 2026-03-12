@@ -16,8 +16,12 @@ import {
 } from '@/app/features/appointments/types/appointments';
 import { formatDateLocal } from '@/app/lib/date';
 import { fetchInventoryItems } from '@/app/features/inventory/services/inventoryService';
+import {
+  canTransitionAppointmentStatus,
+  getInvalidAppointmentStatusTransitionMessage,
+} from '@/app/lib/appointments';
 
-type AppointmentPaymentStatus = 'PAID' | 'UNPAID' | 'PAID_CASH';
+type AppointmentPaymentStatus = 'PAID' | 'UNPAID' | 'PAID_CASH' | 'PAYMENT_AT_CLINIC';
 
 const getOrgIdForAppointment = (appointment: Appointment) => {
   const { primaryOrgId } = useOrgStore.getState();
@@ -229,22 +233,10 @@ export const rejectAppointment = (appointment: Appointment) =>
   performAppointmentAction(appointment, 'reject');
 
 const performStatusUpdate = async (appointment: Appointment, nextStatus: AppointmentStatus) => {
-  if (!appointment.id) return;
-  const organisationIdForRequest = getOrgIdForAppointment(appointment);
-  if (!organisationIdForRequest) {
-    console.warn('No organization selected. Cannot update appointment status.');
-    return;
-  }
-
-  const endpoint = `/fhir/v1/appointment/pms/${organisationIdForRequest}/${appointment.id}/status`;
-  const payload = { status: nextStatus };
-  try {
-    const patchResponse = await patchData(endpoint, payload);
-    return upsertFromResponse(patchResponse, { ...appointment, status: nextStatus });
-  } catch {
-    const postResponse = await postData(endpoint, payload);
-    return upsertFromResponse(postResponse, { ...appointment, status: nextStatus });
-  }
+  return updateAppointment({
+    ...appointment,
+    status: nextStatus,
+  });
 };
 
 export const changeAppointmentStatus = async (
@@ -253,6 +245,9 @@ export const changeAppointmentStatus = async (
 ) => {
   const currentStatus = appointment.status as AppointmentStatus;
   if (currentStatus === nextStatus) return appointment;
+  if (!canTransitionAppointmentStatus(currentStatus, nextStatus)) {
+    throw new Error(getInvalidAppointmentStatusTransitionMessage(currentStatus, nextStatus));
+  }
 
   if (nextStatus === 'CHECKED_IN') {
     return checkInAppointment(appointment);
@@ -268,9 +263,6 @@ export const changeAppointmentStatus = async (
     nextStatus === 'CANCELLED'
   ) {
     return rejectAppointment(appointment);
-  }
-  if (nextStatus === 'CANCELLED') {
-    return cancelAppointment(appointment);
   }
 
   return performStatusUpdate(appointment, nextStatus);

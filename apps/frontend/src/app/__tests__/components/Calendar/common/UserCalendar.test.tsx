@@ -14,6 +14,7 @@ jest.mock('@/app/features/appointments/components/Calendar/helpers', () => ({
   EVENT_VERTICAL_GAP_PX: 2,
   appointentsForUser: (...args: any[]) => mockAppointmentsForUser(...args),
   getFirstRelevantTimedEventStart: jest.fn(() => null),
+  getNowTopPxForHourRange: jest.fn((_: Date, __: number, ___: number, height: number) => height),
   getTopPxForMinutes: jest.fn((minutes: number, hourHeight: number, gap: number, offset = 0) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;

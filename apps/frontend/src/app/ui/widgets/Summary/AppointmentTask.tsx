@@ -15,9 +15,11 @@ import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import Reschedule from '@/app/features/appointments/pages/Appointments/Sections/Reschedule';
 import { usePermissions } from '@/app/hooks/usePermissions';
-import { AppointmentLabels, TaskLabels } from '@/app/config/statusConfig';
 import ChangeStatus from '@/app/features/appointments/pages/Appointments/Sections/ChangeStatus';
 import { AppointmentViewIntent } from '@/app/features/appointments';
+import ChangeRoom from '@/app/features/appointments/pages/Appointments/Sections/ChangeRoom';
+import { AppointmentStatusFiltersUI } from '@/app/features/appointments/types/appointments';
+import { TaskStatusFilters } from '@/app/features/tasks/types/task';
 
 const AppointmentTask = () => {
   const appointments = useAppointmentsForPrimaryOrg();
@@ -29,16 +31,22 @@ const AppointmentTask = () => {
   const [viewTaskPopup, setViewTaskPopup] = useState(false);
   const [reschedulePopup, setReschedulePopup] = useState(false);
   const [changeStatusPopup, setChangeStatusPopup] = useState(false);
+  const [changeRoomPopup, setChangeRoomPopup] = useState(false);
   const [viewIntent, setViewIntent] = useState<AppointmentViewIntent | null>(null);
   const [activeAppointment, setActiveAppointment] = useState<Appointment | null>(
     appointments[0] ?? null
   );
   const [activeTask, setActiveTask] = useState<Task | null>(tasks[0] ?? null);
   const activeLabels = useMemo(() => {
-    return activeTable === 'Appointments' ? AppointmentLabels : TaskLabels;
+    if (activeTable === 'Appointments') {
+      return AppointmentStatusFiltersUI.filter((item) => item.key !== 'all');
+    }
+    return TaskStatusFilters.filter((item) => item.key !== 'all');
   }, [activeTable]);
   const [activeSubLabel, setActiveSubLabel] = useState(
-    activeTable === 'Appointments' ? AppointmentLabels[0].key : TaskLabels[0].key
+    activeTable === 'Appointments'
+      ? AppointmentStatusFiltersUI.find((item) => item.key !== 'all')?.key || 'requested'
+      : TaskStatusFilters.find((item) => item.key !== 'all')?.key || 'pending'
   );
 
   useEffect(() => {
@@ -46,6 +54,19 @@ const AppointmentTask = () => {
       setViewIntent(null);
     }
   }, [viewPopup]);
+
+  useEffect(() => {
+    if (activeTable === 'Appointments') {
+      setViewTaskPopup(false);
+      return;
+    }
+
+    setViewPopup(false);
+    setReschedulePopup(false);
+    setChangeStatusPopup(false);
+    setChangeRoomPopup(false);
+    setViewIntent(null);
+  }, [activeTable]);
 
   useEffect(() => {
     setActiveAppointment((prev) => {
@@ -71,9 +92,11 @@ const AppointmentTask = () => {
 
   useEffect(() => {
     if (activeTable === 'Appointments') {
-      setActiveSubLabel(AppointmentLabels[0].key);
+      setActiveSubLabel(
+        AppointmentStatusFiltersUI.find((item) => item.key !== 'all')?.key || 'requested'
+      );
     } else {
-      setActiveSubLabel(TaskLabels[0].key);
+      setActiveSubLabel(TaskStatusFilters.find((item) => item.key !== 'all')?.key || 'pending');
     }
   }, [activeTable]);
 
@@ -150,6 +173,7 @@ const AppointmentTask = () => {
             setReschedulePopup={setReschedulePopup}
             canEditAppointments={canEditAppointments}
             setChangeStatusPopup={setChangeStatusPopup}
+            setChangeRoomPopup={setChangeRoomPopup}
             setViewIntent={setViewIntent}
             small
           />
@@ -190,6 +214,13 @@ const AppointmentTask = () => {
           <ChangeStatus
             showModal={changeStatusPopup}
             setShowModal={setChangeStatusPopup}
+            activeAppointment={activeAppointment}
+          />
+        )}
+        {canEditAppointments && activeAppointment && (
+          <ChangeRoom
+            showModal={changeRoomPopup}
+            setShowModal={setChangeRoomPopup}
             activeAppointment={activeAppointment}
           />
         )}

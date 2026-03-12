@@ -17,7 +17,7 @@ export type AppointmentStatus =
   | 'CANCELLED'
   | 'NO_SHOW';
 
-export type AppointmentPaymentStatus = 'PAID' | 'UNPAID' | 'PAID_CASH';
+export type AppointmentPaymentStatus = 'PAID' | 'UNPAID' | 'PAID_CASH' | 'PAYMENT_AT_CLINIC';
 
 export type Appointment = {
   id?: string;
@@ -316,7 +316,10 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
     .toUpperCase()
     .replace(/[\s-]+/g, '_');
   const paymentStatus =
-    paymentStatusRaw === 'PAID' || paymentStatusRaw === 'UNPAID' || paymentStatusRaw === 'PAID_CASH'
+    paymentStatusRaw === 'PAID' ||
+    paymentStatusRaw === 'UNPAID' ||
+    paymentStatusRaw === 'PAID_CASH' ||
+    paymentStatusRaw === 'PAYMENT_AT_CLINIC'
       ? (paymentStatusRaw as AppointmentPaymentStatus)
       : undefined;
 

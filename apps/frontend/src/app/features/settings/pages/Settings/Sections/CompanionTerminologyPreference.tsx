@@ -6,27 +6,42 @@ import { useOrgStore } from '@/app/stores/orgStore';
 import { useRouter } from 'next/navigation';
 import {
   CompanionTerminologyOption,
-  getCompanionTerminologyForOrg,
   getCompanionTerminologyOptions,
   setCompanionTerminologyForOrg,
 } from '@/app/lib/companionTerminology';
+import { usePrimaryOrgProfile } from '@/app/hooks/useProfiles';
+import { patchUserProfile } from '@/app/features/organization/services/profileService';
+import {
+  getFallbackAnimalTerminology,
+  isValidAnimalTerminology,
+  normalizePmsPreferences,
+} from '@/app/features/settings/utils/pmsPreferences';
 
 const CompanionTerminologyPreference = () => {
   const router = useRouter();
   const { notify } = useNotify();
+  const profile = usePrimaryOrgProfile();
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const primaryOrgType = useOrgStore((s) =>
     s.primaryOrgId ? s.orgsById[s.primaryOrgId]?.type : undefined
   );
-  const [selection, setSelection] = useState<CompanionTerminologyOption>(
-    getCompanionTerminologyForOrg(primaryOrgId, primaryOrgType)
+  const fallbackAnimalTerminology = getFallbackAnimalTerminology(primaryOrgType);
+  const pmsPreferences = normalizePmsPreferences(
+    profile?.personalDetails?.pmsPreferences,
+    primaryOrgType
   );
+  const profileTerminology = isValidAnimalTerminology(
+    profile?.personalDetails?.pmsPreferences?.animalTerminology
+  )
+    ? profile?.personalDetails?.pmsPreferences?.animalTerminology
+    : fallbackAnimalTerminology;
+  const [selection, setSelection] = useState<CompanionTerminologyOption>(profileTerminology);
 
   useEffect(() => {
-    setSelection(getCompanionTerminologyForOrg(primaryOrgId, primaryOrgType));
-  }, [primaryOrgId, primaryOrgType]);
+    setSelection(profileTerminology);
+  }, [profileTerminology]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!primaryOrgId) {
       notify('error', {
         title: 'Organization not selected',
@@ -35,25 +50,42 @@ const CompanionTerminologyPreference = () => {
       return;
     }
 
-    const ok = setCompanionTerminologyForOrg(primaryOrgId, selection);
-    if (ok) {
-      notify('success', {
-        title: 'Terminology updated',
-        text: 'Companion naming preference has been saved.',
+    const localSaved = setCompanionTerminologyForOrg(primaryOrgId, selection);
+    try {
+      await patchUserProfile(primaryOrgId, {
+        personalDetails: {
+          ...profile?.personalDetails,
+          pmsPreferences: {
+            ...pmsPreferences,
+            animalTerminology: selection,
+          },
+        },
       });
+      if (localSaved) {
+        notify('success', {
+          title: 'Terminology updated',
+          text: 'Animal terminology preference has been saved.',
+        });
+      } else {
+        notify('success', {
+          title: 'Terminology updated',
+          text: 'Saved to profile. Local cache refresh may require reloading.',
+        });
+      }
       router.refresh();
       return;
+    } catch {
+      notify('error', {
+        title: 'Unable to update terminology',
+        text: 'Please try again.',
+      });
     }
-    notify('error', {
-      title: 'Unable to update terminology',
-      text: 'Please try again.',
-    });
   };
 
   return (
     <div className="border border-card-border rounded-2xl">
       <div className="px-6! py-3! border-b border-b-card-border flex items-center justify-between">
-        <div className="text-body-3 text-text-primary">Companion terminology</div>
+        <div className="text-body-3 text-text-primary">Animal terminology</div>
       </div>
       <div className="flex flex-col gap-3 px-6! py-6!">
         <div data-terminology-lock="true">

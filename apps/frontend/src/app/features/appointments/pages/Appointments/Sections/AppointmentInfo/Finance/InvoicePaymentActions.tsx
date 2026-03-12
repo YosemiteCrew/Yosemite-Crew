@@ -1,25 +1,35 @@
 import React, { useState } from 'react';
 import { Secondary } from '@/app/ui/primitives/Buttons';
-import { getPaymentLink } from '@/app/features/billing/services/invoiceService';
+import {
+  getPaymentLink,
+  loadInvoicesForOrgPrimaryOrg,
+  markInvoicePaid,
+} from '@/app/features/billing/services/invoiceService';
 import { Appointment } from '@yosemite-crew/types';
-import { updateAppointmentPaymentStatus } from '@/app/features/appointments/services/appointmentService';
+import { loadAppointmentsForPrimaryOrg } from '@/app/features/appointments/services/appointmentService';
 
 type InvoicePaymentActionsProps = {
   invoiceId?: string;
+  invoiceStatus?: string;
   stripeReceiptUrl?: string;
   activeAppointment?: Appointment;
 };
 
 const InvoicePaymentActions = ({
   invoiceId,
+  invoiceStatus,
   stripeReceiptUrl,
   activeAppointment,
 }: InvoicePaymentActionsProps) => {
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
   const [markingOfflinePaid, setMarkingOfflinePaid] = useState(false);
   const paymentState = String(activeAppointment?.paymentStatus ?? '').toUpperCase();
+  const normalizedInvoiceStatus = String(invoiceStatus ?? '').toUpperCase();
   const showOfflineCollect =
-    !stripeReceiptUrl && paymentState !== 'PAID' && paymentState !== 'PAID_CASH';
+    !stripeReceiptUrl &&
+    normalizedInvoiceStatus !== 'PAID' &&
+    paymentState !== 'PAID' &&
+    paymentState !== 'PAID_CASH';
 
   const handleGenerate = async () => {
     try {
@@ -47,10 +57,14 @@ const InvoicePaymentActions = ({
   };
 
   const handleCollectOfflinePayment = async () => {
-    if (!activeAppointment || markingOfflinePaid) return;
+    if (!invoiceId || markingOfflinePaid) return;
     try {
       setMarkingOfflinePaid(true);
-      await updateAppointmentPaymentStatus(activeAppointment, 'PAID_CASH');
+      await markInvoicePaid(invoiceId);
+      await Promise.all([
+        loadInvoicesForOrgPrimaryOrg({ force: true, silent: true }),
+        loadAppointmentsForPrimaryOrg({ force: true, silent: true }),
+      ]);
     } catch (error) {
       console.log(error);
     } finally {
@@ -70,7 +84,7 @@ const InvoicePaymentActions = ({
           text={markingOfflinePaid ? 'Saving...' : 'Collect payment offline'}
           href="#"
           onClick={handleCollectOfflinePayment}
-          isDisabled={!activeAppointment?.id || markingOfflinePaid}
+          isDisabled={!invoiceId || markingOfflinePaid}
         />
       ) : null}
       <Secondary

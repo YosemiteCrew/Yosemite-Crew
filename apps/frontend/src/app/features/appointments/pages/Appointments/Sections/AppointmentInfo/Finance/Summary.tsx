@@ -136,6 +136,7 @@ const Summary = ({ activeAppointment, formData }: SummaryProps) => {
             <div className="flex flex-col gap-3 mt-3">
               <InvoicePaymentActions
                 invoiceId={actionInvoice?.id}
+                invoiceStatus={actionInvoice?.status}
                 stripeReceiptUrl={actionInvoice?.stripeReceiptUrl}
                 activeAppointment={activeAppointment}
               />

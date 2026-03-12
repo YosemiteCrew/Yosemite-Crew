@@ -37,6 +37,9 @@ type TaskSlotProps = {
   dropAvailabilityIntervals?: DropAvailabilityInterval[];
   draggedTaskDurationMinutes?: number;
   zoomMode?: CalendarZoomMode;
+  showGridLines?: boolean;
+  slotOffsetMinutes?: number[];
+  isLastVisibleHour?: boolean;
 };
 
 const TaskSlot = ({
@@ -61,6 +64,9 @@ const TaskSlot = ({
   dropAvailabilityIntervals = [],
   draggedTaskDurationMinutes = 30,
   zoomMode = 'in',
+  showGridLines = false,
+  slotOffsetMinutes = [],
+  isLastVisibleHour = false,
 }: TaskSlotProps) => {
   const { resolveMemberName } = useMemberMap();
   const team = useTeamForPrimaryOrg();
@@ -340,6 +346,21 @@ const TaskSlot = ({
           onTaskDropAt(dropDate, nearest, dropAssigneeId);
         }}
       >
+        {showGridLines && (
+          <div className="pointer-events-none absolute inset-0 z-[5]">
+            <div className="absolute inset-x-0 top-0 border-t border-[#C3CEDC]" />
+            {slotOffsetMinutes.map((minute) => (
+              <div
+                key={`task-slot-grid-${hour}-${minute}`}
+                className="absolute inset-x-0 border-t border-[#E9EDF3]"
+                style={{ top: `${(minute / 60) * 100}%` }}
+              />
+            ))}
+            {isLastVisibleHour && (
+              <div className="absolute inset-x-0 top-full border-t border-[#C3CEDC]" />
+            )}
+          </div>
+        )}
         {draggedTaskId &&
           availabilitySegments.map((segment, index) => (
             <div
@@ -377,6 +398,7 @@ const TaskSlot = ({
           const markerHeight = isZoomOutMode
             ? Math.max(8, Math.min(12, (TASK_BLOCK_DURATION_MINUTES / 60) * height))
             : Math.max(44, (TASK_BLOCK_DURATION_MINUTES / 60) * height - 2);
+          const isCompact = !isZoomOutMode && laneCount > 1;
           const taskKey = task._id || `${task.name}-${String(task.dueAt)}-${eventIndex}`;
 
           return (
@@ -395,7 +417,7 @@ const TaskSlot = ({
                 className={`h-full w-full text-left ${
                   isZoomOutMode
                     ? 'rounded-full! overflow-hidden px-0 py-0 border border-transparent'
-                    : 'rounded-2xl! overflow-hidden px-2 py-1.5 flex flex-col justify-between'
+                    : `rounded-2xl! overflow-hidden ${isCompact ? 'px-1.5 py-1' : 'px-2 py-1.5'} flex flex-col justify-between`
                 }`}
                 style={{
                   ...getStatusStyle(task.status),
@@ -421,14 +443,24 @@ const TaskSlot = ({
               >
                 {!isZoomOutMode ? (
                   <>
-                    <div className="text-caption-1 text-white truncate">{task.name || '-'}</div>
-                    <div className="text-[10px] text-white/90 truncate">
-                      From: {resolveDisplayName(task.assignedBy)}
+                    <div
+                      className={`text-caption-1 text-white truncate ${isCompact ? 'text-center' : ''}`}
+                    >
+                      {task.name || '-'}
                     </div>
-                    <div className="text-[10px] text-white/90 truncate">
-                      To: {resolveDisplayName(task.assignedTo)}
-                    </div>
-                    <div className="text-[10px] text-white/90 truncate">
+                    {!isCompact && (
+                      <>
+                        <div className="text-[10px] text-white/90 truncate">
+                          From: {resolveDisplayName(task.assignedBy)}
+                        </div>
+                        <div className="text-[10px] text-white/90 truncate">
+                          To: {resolveDisplayName(task.assignedTo)}
+                        </div>
+                      </>
+                    )}
+                    <div
+                      className={`text-[10px] text-white/90 truncate ${isCompact ? 'text-center' : ''}`}
+                    >
                       Due:{' '}
                       {formatDateInPreferredTimeZone(new Date(task.dueAt), {
                         hour: 'numeric',

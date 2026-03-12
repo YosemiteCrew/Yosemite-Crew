@@ -122,8 +122,8 @@ const Tasks = ({ filteredList, setActiveTask, setViewPopup, small = false }: Tas
   ];
 
   return (
-    <div className="table-wrapper">
-      <div className="table-list">
+    <div className="table-wrapper h-full min-h-0 overflow-hidden" style={{ gap: 8 }}>
+      <div className="table-list h-full min-h-0 overflow-y-auto pr-1 pb-1">
         <GenericTable
           data={filteredList}
           columns={columns}
@@ -132,7 +132,7 @@ const Tasks = ({ filteredList, setActiveTask, setViewPopup, small = false }: Tas
           pageSize={small ? 5 : 10}
         />
       </div>
-      <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
+      <div className="xl:hidden h-full min-h-0 overflow-y-auto pr-1 pb-2 flex gap-4 sm:gap-6 flex-wrap content-start">
         {(() => {
           if (filteredList.length === 0) {
             return (

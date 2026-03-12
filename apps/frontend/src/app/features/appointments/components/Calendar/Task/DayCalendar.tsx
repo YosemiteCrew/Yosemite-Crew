@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import {
   DEFAULT_CALENDAR_FOCUS_MINUTES,
   getFirstRelevantTimedEventStart,
+  getNowTopPxForHourRange,
   getTopPxForMinutes,
   nextDay,
   scrollContainerToTarget,
@@ -52,6 +53,7 @@ type DayCalendarProps = {
     targetAssigneeId?: string
   ) => DropAvailabilityInterval[];
   draggedTaskDurationMinutes?: number;
+  slotStepMinutes?: number;
 };
 
 const DayCalendar = ({
@@ -71,6 +73,7 @@ const DayCalendar = ({
   onDragHoverTarget,
   getDropAvailabilityIntervals,
   draggedTaskDurationMinutes,
+  slotStepMinutes = 15,
 }: DayCalendarProps) => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const { handleNextDay, handlePrevDay } = useCalendarNavigation(setCurrentDate);
@@ -78,16 +81,27 @@ const DayCalendar = ({
   const now = useCalendarNow();
   const height = getHourRowHeightPx(zoomMode);
   const HOUR_ROW_TOP_OFFSET_PX = 8;
+  const lastVisibleHour = HOURS_IN_DAY - 1;
+  const slotOffsetMinutes = useMemo(() => {
+    const step = Math.max(5, Math.round(slotStepMinutes || 15));
+    if (step >= 60) return [];
+    const offsets: number[] = [];
+    for (let minute = step; minute < 60; minute += step) {
+      offsets.push(minute);
+    }
+    return offsets;
+  }, [slotStepMinutes]);
 
   const nowPosition = useMemo(() => {
-    if (!isOnPreferredTimeZoneCalendarDay(now, date)) return null;
-    const minutesSinceMidnight = getMinutesSinceStartOfDayInPreferredTimeZone(now);
-    const topPx = getTopPxForMinutes(
-      minutesSinceMidnight,
+    const topPx = getNowTopPxForHourRange(
+      date,
+      0,
+      HOURS_IN_DAY - 1,
       height,
-      HOUR_ROW_GAP_PX,
+      now,
       HOUR_ROW_TOP_OFFSET_PX
     );
+    if (topPx == null) return null;
     return { topPx };
   }, [date, height, now]);
 
@@ -113,7 +127,7 @@ const DayCalendar = ({
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between px-2 py-2 border-b border-grey-light">
         <Back onClick={handlePrevDay} />
-        <div className="flex flex-col items-center text-center">
+        <div className="flex items-center gap-2 text-center">
           <div className="text-body-4 text-text-brand">{weekday}</div>
           <div className="text-body-4-emphasis text-white h-10 w-10 flex items-center justify-center rounded-full bg-text-brand">
             {dateNumber}
@@ -130,11 +144,12 @@ const DayCalendar = ({
           maxHeight: '100%',
           minHeight: 0,
           overflowY: 'auto',
-          paddingBottom: zoomMode === 'out' ? 12 : 0,
+          paddingBottom: zoomMode === 'out' ? 30 : 40,
+          paddingTop: 12,
         }}
         data-calendar-scroll="true"
       >
-        <div className="relative pt-1 pb-3">
+        <div className="relative pt-2 pb-4">
           {Array.from({ length: HOURS_IN_DAY }, (_, hour) => {
             const slotEvents = events.filter((task) => {
               const dueAt = new Date(task.dueAt);
@@ -154,17 +169,7 @@ const DayCalendar = ({
                 >
                   {formatHourLabel(hour)}
                 </div>
-                <div
-                  className={`relative ${zoomMode === 'out' ? 'pt-0' : 'pt-2'}`}
-                  style={{ height: `${height}px` }}
-                >
-                  {hour !== 0 && (
-                    <div
-                      className={`pointer-events-none absolute inset-x-0 z-10 border-t border-grey-light ${
-                        zoomMode === 'out' ? 'top-0' : 'top-2'
-                      }`}
-                    />
-                  )}
+                <div className="relative" style={{ height: `${height}px` }}>
                   <TaskSlot
                     slotEvents={slotEvents}
                     handleViewTask={handleViewTask}
@@ -185,12 +190,15 @@ const DayCalendar = ({
                     onDragHoverTarget={onDragHoverTarget}
                     dropAvailabilityIntervals={getDropAvailabilityIntervals?.(date) ?? []}
                     draggedTaskDurationMinutes={draggedTaskDurationMinutes}
+                    showGridLines
+                    slotOffsetMinutes={slotOffsetMinutes}
+                    isLastVisibleHour={hour === lastVisibleHour}
                   />
                 </div>
               </div>
             );
           })}
-          <div style={{ height: zoomMode === 'out' ? 48 : 12 }} />
+          <div style={{ height: zoomMode === 'out' ? 30 : 40 }} />
 
           {nowPosition && (
             <div className="pointer-events-none absolute inset-0">
@@ -201,7 +209,6 @@ const DayCalendar = ({
                     className="absolute left-0 right-2 z-20"
                     style={{
                       top: nowPosition.topPx,
-                      transform: 'translateY(-50%)',
                     }}
                   >
                     <div className="absolute left-[-5px] w-3 h-3 rounded-full bg-red-500 translate-y-[-50%]" />

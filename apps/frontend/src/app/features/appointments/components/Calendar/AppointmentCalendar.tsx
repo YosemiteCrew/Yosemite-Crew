@@ -6,7 +6,11 @@ import { Appointment } from '@yosemite-crew/types';
 import UserCalendar from '@/app/features/appointments/components/Calendar/common/UserCalendar';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
 import { AppointmentDraftPrefill } from '@/app/features/appointments/types/calendar';
-import { allowCalendarDrag } from '@/app/lib/appointments';
+import {
+  allowCalendarDrag,
+  canAssignAppointmentRoom,
+  canShowStatusChangeAction,
+} from '@/app/lib/appointments';
 import {
   getSlotsForServiceAndDateForPrimaryOrg,
   updateAppointment,
@@ -25,7 +29,7 @@ import { useAuthStore } from '@/app/stores/authStore';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useAvailabilityStore } from '@/app/stores/availabilityStore';
 import { useLoadAvailabilities } from '@/app/hooks/useAvailabiities';
-
+import { useNotify } from '@/app/hooks/useNotify';
 type AppointmentCalendarProps = {
   filteredList: Appointment[];
   allAppointments: Appointment[];
@@ -76,6 +80,7 @@ const AppointmentCalendar = ({
   onCreateFromCalendarSlot,
   onAddAppointment,
 }: AppointmentCalendarProps) => {
+  const { notify } = useNotify();
   const getErrorMessage = useCallback((error: unknown, fallback: string) => {
     const candidate = error as
       | { response?: { data?: unknown } }
@@ -249,14 +254,19 @@ const AppointmentCalendar = ({
     minutesSinceMidnight: number,
     targetLeadId?: string
   ) => {
+    const warnDrag = (message: string) => {
+      setDragError(message);
+      notify('warning', { title: 'Move blocked', text: message });
+    };
+
     if (!draggedAppointmentId) return;
     const appointment = allAppointments.find((item) => item.id === draggedAppointmentId);
     if (!appointment) {
-      setDragError('Unable to move this appointment.');
+      warnDrag('Unable to move this appointment.');
       return;
     }
     if (!isAppointmentDraggable(appointment)) {
-      setDragError('Only no payment, requested, or upcoming appointments can be moved.');
+      warnDrag('Only requested and upcoming appointments can be moved.');
       return;
     }
 
@@ -271,22 +281,22 @@ const AppointmentCalendar = ({
     const targetPractitionerId = resolvePractitionerId(targetLeadId || appointment.lead?.id);
 
     if (nextStart.getTime() < Date.now()) {
-      setDragError('Cannot move an appointment to a past time.');
+      warnDrag('Cannot move an appointment to a past time.');
       return;
     }
     if (targetLeadId && !supportsSpeciality(targetLeadId, appointment)) {
-      setDragError('Selected team member is not configured for this speciality.');
+      warnDrag('Selected team member is not configured for this speciality.');
       return;
     }
     if (appointmentServiceId && targetPractitionerId) {
       const availableStartMinutes = await ensureDragAvailability(date, targetLeadId);
       if (availableStartMinutes.length > 0 && !availableStartMinutes.includes(snappedMinutes)) {
-        setDragError('No available slot for this service at the selected position.');
+        warnDrag('No available slot for this service at the selected position.');
         return;
       }
     }
     if (hasConflict(appointment, nextStart, nextEnd, allAppointments, targetPractitionerId)) {
-      setDragError('Scheduling conflict detected with another appointment.');
+      warnDrag('Scheduling conflict detected with another appointment.');
       return;
     }
 
@@ -635,16 +645,37 @@ const AppointmentCalendar = ({
   };
 
   const handleRescheduleAppointment = (appointment: Appointment) => {
+    if (!allowCalendarDrag(appointment.status as any)) {
+      notify('warning', {
+        title: 'Reschedule blocked',
+        text: 'Only requested and upcoming appointments can be rescheduled.',
+      });
+      return;
+    }
     setActiveAppointment?.(appointment);
     setReschedulePopup?.(true);
   };
 
   const handleChangeStatusAppointment = (appointment: Appointment) => {
+    if (!canShowStatusChangeAction(appointment.status)) {
+      notify('warning', {
+        title: 'Status change blocked',
+        text: 'No status changes are available for this appointment.',
+      });
+      return;
+    }
     setActiveAppointment?.(appointment);
     setChangeStatusPopup?.(true);
   };
 
   const handleChangeRoomAppointment = (appointment: Appointment) => {
+    if (!canAssignAppointmentRoom(appointment.status)) {
+      notify('warning', {
+        title: 'Room update blocked',
+        text: 'Room can only be changed for upcoming, checked-in, or in-progress appointments.',
+      });
+      return;
+    }
     setActiveAppointment?.(appointment);
     setChangeRoomPopup?.(true);
   };
@@ -765,6 +796,7 @@ const AppointmentCalendar = ({
             setDragContext(null);
           }}
           onCreateAppointmentAt={handleCreateFromCalendarSlot}
+          slotStepMinutes={15}
         />
       )}
       {activeCalendar === 'week' && (
@@ -821,6 +853,7 @@ const AppointmentCalendar = ({
             setDragContext(null);
           }}
           onCreateAppointmentAt={handleCreateFromCalendarSlot}
+          slotStepMinutes={15}
         />
       )}
       {activeCalendar === 'team' && (
@@ -877,6 +910,7 @@ const AppointmentCalendar = ({
             setDragContext(null);
           }}
           onCreateAppointmentAt={handleCreateFromCalendarSlot}
+          slotStepMinutes={15}
         />
       )}
     </div>

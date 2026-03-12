@@ -11,6 +11,8 @@ import { Appointment } from '@yosemite-crew/types';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import DateTimePickerSection from '@/app/features/appointments/components/DateTimePickerSection';
+import { allowReschedule } from '@/app/lib/appointments';
+import { useNotify } from '@/app/hooks/useNotify';
 
 type RescheduleProp = {
   showModal: boolean;
@@ -19,6 +21,7 @@ type RescheduleProp = {
 };
 
 const Reschedule = ({ showModal, setShowModal, activeAppointment }: RescheduleProp) => {
+  const { notify } = useNotify();
   const teams = useTeamForPrimaryOrg();
   const [formData, setFormData] = useState<Appointment>(activeAppointment);
   const [selectedDate, setSelectedDate] = useState<Date>(
@@ -116,6 +119,15 @@ const Reschedule = ({ showModal, setShowModal, activeAppointment }: ReschedulePr
   };
 
   const handleAppointmentUpdate = async () => {
+    if (!allowReschedule(activeAppointment.status as any)) {
+      notify('warning', {
+        title: 'Reschedule blocked',
+        text: 'Only requested and upcoming appointments can be rescheduled.',
+      });
+      setShowModal(false);
+      return;
+    }
+
     const errors: {
       leadId?: string;
       duration?: string;
@@ -144,10 +156,7 @@ const Reschedule = ({ showModal, setShowModal, activeAppointment }: ReschedulePr
       return;
     }
     try {
-      const payload: Appointment = {
-        ...formData,
-        status: 'REQUESTED',
-      };
+      const payload: Appointment = { ...formData, status: activeAppointment.status };
       await updateAppointment(payload);
       setShowModal(false);
       setFormDataErrors({});
@@ -182,6 +191,17 @@ const Reschedule = ({ showModal, setShowModal, activeAppointment }: ReschedulePr
       cancelled = true;
     };
   }, [formData.appointmentType?.id, selectedDate]);
+
+  useEffect(() => {
+    if (!showModal) return;
+    if (allowReschedule(activeAppointment.status as any)) return;
+
+    notify('warning', {
+      title: 'Reschedule blocked',
+      text: 'Checked-in, in-progress, completed, cancelled, and no-show appointments cannot be rescheduled.',
+    });
+    setShowModal(false);
+  }, [activeAppointment.status, notify, setShowModal, showModal]);
 
   useEffect(() => {
     if (!selectedSlot || !selectedDate) return;
