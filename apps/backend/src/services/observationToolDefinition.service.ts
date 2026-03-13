@@ -5,6 +5,9 @@ import {
   OTField,
   OTFieldType,
 } from "src/models/observationToolDefinition";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import { Prisma } from "@prisma/client";
 
 export class ObservationToolDefinitionServiceError extends Error {
   constructor(
@@ -27,6 +30,50 @@ const ensureObjectId = (value: unknown, field: string): string => {
     throw new ObservationToolDefinitionServiceError(`Invalid ${field}`, 400);
   }
   return value;
+};
+
+const toPrismaObservationToolDefinitionData = (
+  doc: ObservationToolDefinitionDocument,
+) => {
+  const obj = doc.toObject() as {
+    _id: { toString(): string };
+    name: string;
+    description?: string;
+    category: string;
+    fields: unknown[];
+    scoringRules?: unknown;
+    isActive?: boolean;
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+
+  return {
+    id: obj._id.toString(),
+    name: obj.name,
+    description: obj.description ?? undefined,
+    category: obj.category,
+    fields: obj.fields as unknown as Prisma.InputJsonValue,
+    scoringRules: (obj.scoringRules ?? undefined) as unknown as Prisma.InputJsonValue,
+    isActive: obj.isActive ?? true,
+    createdAt: obj.createdAt ?? undefined,
+    updatedAt: obj.updatedAt ?? undefined,
+  };
+};
+
+const syncObservationToolDefinitionToPostgres = async (
+  doc: ObservationToolDefinitionDocument,
+) => {
+  if (!shouldDualWrite) return;
+  try {
+    const data = toPrismaObservationToolDefinitionData(doc);
+    await prisma.observationToolDefinition.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+  } catch (err) {
+    handleDualWriteError("ObservationToolDefinition", err);
+  }
 };
 
 export interface CreateObservationToolDefinitionInput {
@@ -95,6 +142,8 @@ export const ObservationToolDefinitionService = {
       isActive: true,
     });
 
+    await syncObservationToolDefinitionToPostgres(doc);
+
     return doc;
   },
 
@@ -132,6 +181,7 @@ export const ObservationToolDefinitionService = {
     }
 
     await doc.save();
+    await syncObservationToolDefinitionToPostgres(doc);
     return doc;
   },
 
@@ -146,6 +196,7 @@ export const ObservationToolDefinitionService = {
     }
     doc.isActive = false;
     await doc.save();
+    await syncObservationToolDefinitionToPostgres(doc);
   },
 
   async list(params?: {

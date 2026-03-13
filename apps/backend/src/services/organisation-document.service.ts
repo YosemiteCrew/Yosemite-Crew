@@ -4,7 +4,13 @@ import OrganizationDocumentModel, {
   OrganizationDocumentMongo,
   OrgDocumentCategory,
 } from "../models/organisation-document";
+import {
+  OrgDocumentCategory as PrismaOrgDocumentCategory,
+  OrgDocumentVisibility as PrismaOrgDocumentVisibility,
+} from "@prisma/client";
 import { getURLForKey } from "src/middlewares/upload";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 
 export class OrgDocumentServiceError extends Error {
   constructor(
@@ -79,6 +85,30 @@ export const OrganizationDocumentService = {
       version: 1,
     });
 
+    if (shouldDualWrite) {
+      try {
+        await prisma.organizationDocument.create({
+          data: {
+            id: doc._id.toString(),
+            organisationId: input.organisationId,
+            title: input.title,
+            description: input.description ?? "",
+            category: input.category as PrismaOrgDocumentCategory,
+            fileUrl: input.fileUrl ?? undefined,
+            fileName: input.fileName ?? undefined,
+            fileType: input.fileType ?? undefined,
+            fileSize: input.fileSize ?? undefined,
+            visibility: (input.visibility ?? "INTERNAL") as PrismaOrgDocumentVisibility,
+            version: 1,
+            createdAt: doc.createdAt ?? undefined,
+            updatedAt: doc.updatedAt ?? undefined,
+          },
+        });
+      } catch (err) {
+        handleDualWriteError("OrganizationDocument", err);
+      }
+    }
+
     return doc;
   },
 
@@ -120,6 +150,29 @@ export const OrganizationDocumentService = {
     }
 
     await existing.save();
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.organizationDocument.updateMany({
+          where: { id: existing._id.toString() },
+          data: {
+            title: existing.title,
+            description: existing.description ?? undefined,
+            category: existing.category as PrismaOrgDocumentCategory,
+            fileUrl: existing.fileUrl ?? undefined,
+            fileName: existing.fileName ?? undefined,
+            fileType: existing.fileType ?? undefined,
+            fileSize: existing.fileSize ?? undefined,
+            visibility: existing.visibility as PrismaOrgDocumentVisibility,
+            version: existing.version ?? 1,
+            updatedAt: existing.updatedAt ?? undefined,
+          },
+        });
+      } catch (err) {
+        handleDualWriteError("OrganizationDocument update", err);
+      }
+    }
+
     return existing;
   },
 
@@ -132,6 +185,16 @@ export const OrganizationDocumentService = {
     const res = await OrganizationDocumentModel.findByIdAndDelete(_id);
     if (!res) {
       throw new OrgDocumentServiceError("Document not found", 404);
+    }
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.organizationDocument.deleteMany({
+          where: { id: documentId },
+        });
+      } catch (err) {
+        handleDualWriteError("OrganizationDocument delete", err);
+      }
     }
   },
 

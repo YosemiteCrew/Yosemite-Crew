@@ -148,20 +148,32 @@ describe("AppointmentController", () => {
 
       await AppointmentController.createFromPms(req as any, res as any);
 
-      expect(AppointmentService.createAppointmentFromPms).toHaveBeenCalledWith(expect.any(Object), true);
+      expect(AppointmentService.createAppointmentFromPms).toHaveBeenCalledWith(
+        expect.any(Object),
+        true,
+        undefined,
+      );
       expect(res.status).toHaveBeenCalledWith(201);
     });
 
     it("handles createPayment=1 string", async () => {
       req = mockRequest({ query: { createPayment: "1" } });
       await AppointmentController.createFromPms(req as any, res as any);
-      expect(AppointmentService.createAppointmentFromPms).toHaveBeenCalledWith(expect.any(Object), true);
+      expect(AppointmentService.createAppointmentFromPms).toHaveBeenCalledWith(
+        expect.any(Object),
+        true,
+        undefined,
+      );
     });
 
     it("handles createPayment false/missing", async () => {
       req = mockRequest({ query: {} });
       await AppointmentController.createFromPms(req as any, res as any);
-      expect(AppointmentService.createAppointmentFromPms).toHaveBeenCalledWith(expect.any(Object), false);
+      expect(AppointmentService.createAppointmentFromPms).toHaveBeenCalledWith(
+        expect.any(Object),
+        false,
+        undefined,
+      );
     });
 
     it("handles errors", async () => {

@@ -3,6 +3,14 @@ import TaskTemplateModel, {
   TaskTemplateDocument,
 } from "../models/taskTemplate";
 import { TaskKind } from "../models/taskLibraryDefinition";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import {
+  Prisma,
+  TaskKind as PrismaTaskKind,
+  TaskSource as PrismaTaskSource,
+  TaskTemplateRole,
+} from "@prisma/client";
 
 export class TaskTemplateServiceError extends Error {
   constructor(
@@ -32,6 +40,62 @@ const ensureObjectId = (value: unknown, field: string): string => {
     throw new TaskTemplateServiceError(`Invalid ${field}`, 400);
   }
   return value;
+};
+
+const toPrismaTaskTemplateData = (doc: TaskTemplateDocument) => {
+  const obj = doc.toObject() as {
+    _id: { toString(): string };
+    source: string;
+    organisationId: string;
+    libraryTaskId?: string;
+    category: string;
+    name: string;
+    description?: string;
+    kind: string;
+    defaultRole: string;
+    defaultMedication?: unknown;
+    defaultObservationToolId?: string;
+    defaultRecurrence?: unknown;
+    defaultReminderOffsetMinutes?: number;
+    isActive?: boolean;
+    createdBy: string;
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+
+  return {
+    id: obj._id.toString(),
+    source: obj.source as PrismaTaskSource,
+    organisationId: obj.organisationId,
+    libraryTaskId: obj.libraryTaskId ?? undefined,
+    category: obj.category,
+    name: obj.name,
+    description: obj.description ?? undefined,
+    kind: obj.kind as PrismaTaskKind,
+    defaultRole: obj.defaultRole as TaskTemplateRole,
+    defaultMedication: (obj.defaultMedication ?? undefined) as unknown as Prisma.InputJsonValue,
+    defaultObservationToolId: obj.defaultObservationToolId ?? undefined,
+    defaultRecurrence: (obj.defaultRecurrence ?? undefined) as unknown as Prisma.InputJsonValue,
+    defaultReminderOffsetMinutes: obj.defaultReminderOffsetMinutes ?? undefined,
+    isActive: obj.isActive ?? true,
+    createdBy: obj.createdBy,
+    createdAt: obj.createdAt ?? undefined,
+    updatedAt: obj.updatedAt ?? undefined,
+  };
+};
+
+const syncTaskTemplateToPostgres = async (doc: TaskTemplateDocument) => {
+  if (!shouldDualWrite) return;
+  try {
+    const data = toPrismaTaskTemplateData(doc);
+    await prisma.taskTemplate.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+  } catch (err) {
+    handleDualWriteError("TaskTemplate", err);
+  }
 };
 
 export interface CreateTaskTemplateInput {
@@ -110,6 +174,8 @@ export const TaskTemplateService = {
       createdBy: input.createdBy,
     });
 
+    await syncTaskTemplateToPostgres(doc);
+
     return doc;
   },
 
@@ -151,6 +217,7 @@ export const TaskTemplateService = {
     }
 
     await doc.save();
+    await syncTaskTemplateToPostgres(doc);
     return doc;
   },
 
@@ -161,13 +228,11 @@ export const TaskTemplateService = {
       throw new TaskTemplateServiceError("Task template not found", 404);
     doc.isActive = false;
     await doc.save();
+    await syncTaskTemplateToPostgres(doc);
   },
 
   async listForOrganisation(organisationId: string, kind?: TaskKind) {
-    const safeOrganisationId = ensureObjectId(
-      organisationId,
-      "organisationId",
-    );
+    const safeOrganisationId = ensureObjectId(organisationId, "organisationId");
     const filter: Record<string, unknown> = {
       organisationId: safeOrganisationId,
       isActive: true,

@@ -127,7 +127,7 @@ export const AppointmentController = {
   ) => {
     try {
       const dto = req.body;
-      const { createPayment } = req.query;
+      const { createPayment, paymentCollectionMethod } = req.query;
 
       const shouldCreatePayment =
         createPayment === "true" || createPayment === "1";
@@ -135,6 +135,9 @@ export const AppointmentController = {
       const result = await AppointmentService.createAppointmentFromPms(
         dto,
         shouldCreatePayment,
+        typeof paymentCollectionMethod === "string"
+          ? paymentCollectionMethod
+          : undefined,
       );
 
       return res
@@ -311,15 +314,10 @@ export const AppointmentController = {
         formIds,
       );
 
-      return res
-        .status(200)
-        .json({ message: "Forms attached", data: result });
+      return res.status(200).json({ message: "Forms attached", data: result });
     } catch (err: unknown) {
       logger.error("Appointment form attach error: ", err);
-      const { status, message } = parseError(
-        err,
-        "Failed to attach forms",
-      );
+      const { status, message } = parseError(err, "Failed to attach forms");
       return res.status(status).json({ message });
     }
   },

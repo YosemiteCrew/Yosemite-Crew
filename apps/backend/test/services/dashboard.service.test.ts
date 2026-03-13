@@ -4,6 +4,7 @@ import {
 } from "../../src/services/dashboard.service";
 import AppointmentModel from "../../src/models/appointment";
 import TaskModel from "../../src/models/task";
+import InvoiceModel from "../../src/models/invoice";
 import {
   InventoryItemModel,
   StockMovementModel,
@@ -12,6 +13,7 @@ import {
 // --- Mocks ---
 jest.mock("../../src/models/appointment");
 jest.mock("../../src/models/task");
+jest.mock("../../src/models/invoice");
 jest.mock("../../src/models/inventory", () => ({
   InventoryItemModel: {
     find: jest.fn(),
@@ -38,8 +40,12 @@ describe("DashboardService", () => {
 
     it("should return summary data correctly", async () => {
       // Mock Appointment Aggregation
-      const mockAgg = [{ _id: null, revenue: 1000, count: 5 }];
+      const mockAgg = [{ _id: null, revenue: 0, count: 5 }];
       (AppointmentModel.aggregate as jest.Mock).mockResolvedValue(mockAgg);
+
+      // Mock Invoice Aggregation
+      const mockRevenueAgg = [{ _id: null, revenue: 1000, count: 1 }];
+      (InvoiceModel.aggregate as jest.Mock).mockResolvedValue(mockRevenueAgg);
 
       // Mock Task Count
       const mockTaskCount = { exec: jest.fn().mockResolvedValue(10) };
@@ -61,6 +67,7 @@ describe("DashboardService", () => {
 
     it("should handle empty aggregation results (defaults to 0)", async () => {
       (AppointmentModel.aggregate as jest.Mock).mockResolvedValue([]);
+      (InvoiceModel.aggregate as jest.Mock).mockResolvedValue([]);
       (TaskModel.countDocuments as jest.Mock).mockReturnValue({
         exec: jest.fn().mockResolvedValue(0),
       });
@@ -87,6 +94,7 @@ describe("DashboardService", () => {
     ];
     test.each(ranges)("should resolve date range for %s", async (range) => {
       (AppointmentModel.aggregate as jest.Mock).mockResolvedValue([]);
+      (InvoiceModel.aggregate as jest.Mock).mockResolvedValue([]);
       (TaskModel.countDocuments as jest.Mock).mockReturnValue({
         exec: jest.fn().mockResolvedValue(0),
       });
@@ -97,6 +105,11 @@ describe("DashboardService", () => {
     });
 
     it("should fallback to default range logic for unknown inputs", async () => {
+      (AppointmentModel.aggregate as jest.Mock).mockResolvedValue([]);
+      (InvoiceModel.aggregate as jest.Mock).mockResolvedValue([]);
+      (TaskModel.countDocuments as jest.Mock).mockReturnValue({
+        exec: jest.fn().mockResolvedValue(0),
+      });
       await DashboardService.getSummary({
         organisationId: mockOrgId,
         range: "unknown" as SummaryRange,
@@ -151,7 +164,7 @@ describe("DashboardService", () => {
 
     it("should return revenue trend", async () => {
       const mockAgg = [{ _id: { year: 2023, month: 1 }, revenue: 5000 }];
-      (AppointmentModel.aggregate as jest.Mock).mockResolvedValue(mockAgg);
+      (InvoiceModel.aggregate as jest.Mock).mockResolvedValue(mockAgg);
 
       const result = await DashboardService.getRevenueTrend({
         organisationId: mockOrgId,
@@ -199,7 +212,7 @@ describe("DashboardService", () => {
         { _id: "SOP-A", revenue: 1000 },
         { _id: null, revenue: 500 },
       ];
-      (AppointmentModel.aggregate as jest.Mock).mockResolvedValue(mockAgg);
+      (InvoiceModel.aggregate as jest.Mock).mockResolvedValue(mockAgg);
 
       const result = await DashboardService.getRevenueLeaders({
         organisationId: mockOrgId,

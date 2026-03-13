@@ -9,7 +9,7 @@ import SpecialityModel from "../../src/models/speciality";
 import { AvailabilityService } from "../../src/services/availability.service";
 import helpers from "../../src/utils/helper";
 import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
+import utc from "dayjs/plugin/utc.js";
 
 dayjs.extend(utc);
 

@@ -5,6 +5,9 @@ import ExternalExpenseModel, {
 } from "src/models/expense";
 import InvoiceModel from "src/models/invoice";
 import OrganizationModel from "src/models/organization";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import { Prisma } from "@prisma/client";
 
 export class ExternalExpenseServiceError extends Error {
   constructor(
@@ -55,6 +58,32 @@ export const ExpenseService = {
       ...input,
       currency: input.currency ?? "USD",
     });
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.externalExpense.create({
+          data: {
+            id: doc._id.toString(),
+            companionId: doc.companionId.toString(),
+            parentId: doc.parentId.toString(),
+            category: doc.category,
+            subcategory: doc.subcategory ?? undefined,
+            visitType: doc.visitType ?? undefined,
+            expenseName: doc.expenseName,
+            businessName: doc.businessName ?? undefined,
+            date: doc.date,
+            amount: doc.amount,
+            currency: doc.currency ?? "USD",
+            attachments: (doc.attachments ?? undefined) as unknown as Prisma.InputJsonValue,
+            notes: doc.notes ?? undefined,
+            createdAt: doc.createdAt ?? undefined,
+            updatedAt: doc.updatedAt ?? undefined,
+          },
+        });
+      } catch (err) {
+        handleDualWriteError("ExternalExpense", err);
+      }
+    }
 
     return doc;
   },
@@ -170,6 +199,14 @@ export const ExpenseService = {
     if (result.deletedCount === 0) {
       throw new ExternalExpenseServiceError("Expense not found", 404);
     }
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.externalExpense.deleteMany({ where: { id: expenseId } });
+      } catch (err) {
+        handleDualWriteError("ExternalExpense delete", err);
+      }
+    }
   },
 
   async updateExpense(
@@ -188,6 +225,31 @@ export const ExpenseService = {
 
     if (!doc) {
       throw new ExternalExpenseServiceError("Expense not found", 404);
+    }
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.externalExpense.updateMany({
+          where: { id: doc._id.toString() },
+          data: {
+            companionId: doc.companionId.toString(),
+            parentId: doc.parentId.toString(),
+            category: doc.category,
+            subcategory: doc.subcategory ?? undefined,
+            visitType: doc.visitType ?? undefined,
+            expenseName: doc.expenseName,
+            businessName: doc.businessName ?? undefined,
+            date: doc.date,
+            amount: doc.amount,
+            currency: doc.currency ?? "USD",
+            attachments: (doc.attachments ?? undefined) as unknown as Prisma.InputJsonValue,
+            notes: doc.notes ?? undefined,
+            updatedAt: doc.updatedAt ?? undefined,
+          },
+        });
+      } catch (err) {
+        handleDualWriteError("ExternalExpense update", err);
+      }
     }
 
     return doc;

@@ -15,7 +15,7 @@ describe("ContactService", () => {
   // 1. createRequest
   describe("createRequest", () => {
     const baseInput: any = {
-      type: "GENERAL_INQUIRY",
+      type: "GENERAL_ENQUIRY",
       source: "MOBILE_APP",
       subject: "Help",
       message: "I need help",
@@ -117,6 +117,51 @@ describe("ContactService", () => {
           }),
         );
       });
+    });
+  });
+
+  describe("createWebRequest", () => {
+    const baseWebInput: any = {
+      type: "GENERAL_ENQUIRY",
+      source: "PMS_WEB",
+      message: "Need help",
+      fullName: "Web User",
+      email: "web@user.com",
+    };
+
+    it("should require message, fullName, and email", async () => {
+      await expect(
+        ContactService.createWebRequest({ ...baseWebInput, message: "" }),
+      ).rejects.toThrow("message is required");
+
+      await expect(
+        ContactService.createWebRequest({ ...baseWebInput, fullName: "" }),
+      ).rejects.toThrow("fullName is required");
+
+      await expect(
+        ContactService.createWebRequest({ ...baseWebInput, email: "" }),
+      ).rejects.toThrow("email is required");
+    });
+
+    it("should set subject from type and create the request", async () => {
+      (ContactRequestModel.create as jest.Mock).mockResolvedValue({
+        ...baseWebInput,
+        subject: "GENERAL_ENQUIRY",
+        status: "OPEN",
+        _id: "web-1",
+      });
+
+      const result = await ContactService.createWebRequest(baseWebInput);
+
+      expect(ContactRequestModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          subject: "GENERAL_ENQUIRY",
+          fullName: "Web User",
+          email: "web@user.com",
+          status: "OPEN",
+        }),
+      );
+      expect(result).toEqual(expect.objectContaining({ _id: "web-1" }));
     });
   });
 

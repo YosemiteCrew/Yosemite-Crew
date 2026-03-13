@@ -8,6 +8,9 @@ import {
   ObservationToolDefinitionDocument,
   ObservationToolAnswers,
 } from "src/models/observationToolDefinition";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import { Prisma } from "@prisma/client";
 
 export class ObservationToolSubmissionServiceError extends Error {
   constructor(
@@ -134,10 +137,7 @@ const computeScore = (
       continue;
     }
 
-    if (
-      typeof field.scoring.points === "number" &&
-      isScorableAnswer(answer)
-    ) {
+    if (typeof field.scoring.points === "number" && isScorableAnswer(answer)) {
       total += field.scoring.points;
       usedScoring = true;
     }
@@ -219,10 +219,7 @@ const applyStringFilter = (
   if (value === undefined) return;
   const normalized = asNonEmptyString(value);
   if (!normalized) {
-    throw new ObservationToolSubmissionServiceError(
-      `Invalid ${key}`,
-      400,
-    );
+    throw new ObservationToolSubmissionServiceError(`Invalid ${key}`, 400);
   }
   q[key] = normalized;
 };
@@ -243,6 +240,54 @@ const applyDateRangeFilter = (
   if (fromDate) createdAt.$gte = fromDate;
   if (toDate) createdAt.$lte = toDate;
   q.createdAt = createdAt;
+};
+
+const toPrismaObservationToolSubmissionData = (
+  doc: ObservationToolSubmissionDocument,
+) => {
+  const obj = doc.toObject() as {
+    _id: { toString(): string };
+    toolId: string;
+    taskId?: string;
+    companionId: string;
+    filledBy: string;
+    answers: unknown;
+    score?: number;
+    summary?: string;
+    evaluationAppointmentId?: string;
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+
+  return {
+    id: obj._id.toString(),
+    toolId: obj.toolId,
+    taskId: obj.taskId ?? undefined,
+    companionId: obj.companionId,
+    filledBy: obj.filledBy,
+    answers: obj.answers as Prisma.InputJsonValue,
+    score: obj.score ?? undefined,
+    summary: obj.summary ?? undefined,
+    evaluationAppointmentId: obj.evaluationAppointmentId ?? undefined,
+    createdAt: obj.createdAt ?? undefined,
+    updatedAt: obj.updatedAt ?? undefined,
+  };
+};
+
+const syncObservationToolSubmissionToPostgres = async (
+  doc: ObservationToolSubmissionDocument,
+) => {
+  if (!shouldDualWrite) return;
+  try {
+    const data = toPrismaObservationToolSubmissionData(doc);
+    await prisma.observationToolSubmission.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+  } catch (err) {
+    handleDualWriteError("ObservationToolSubmission", err);
+  }
 };
 
 export const ObservationToolSubmissionService = {
@@ -283,6 +328,8 @@ export const ObservationToolSubmissionService = {
       score,
       summary: input.summary,
     });
+
+    await syncObservationToolSubmissionToPostgres(doc);
 
     // ✅ If this submission came from a task → complete the task
     if (taskId) {
@@ -332,6 +379,7 @@ export const ObservationToolSubmissionService = {
 
     doc.evaluationAppointmentId = appointmentId;
     await doc.save();
+    await syncObservationToolSubmissionToPostgres(doc);
     return doc;
   },
 

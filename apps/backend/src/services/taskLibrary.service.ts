@@ -4,6 +4,14 @@ import TaskLibraryDefinitionModel, {
   TaskKind,
   Species,
 } from "../models/taskLibraryDefinition";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import {
+  Prisma,
+  TaskKind as PrismaTaskKind,
+  TaskLibrarySpecies,
+  TaskSource as PrismaTaskSource,
+} from "@prisma/client";
 
 export class TaskLibraryServiceError extends Error {
   constructor(
@@ -59,6 +67,55 @@ const ensureObjectId = (value: unknown, field: string): string => {
     throw new TaskLibraryServiceError(`Invalid ${field}`, 400);
   }
   return value;
+};
+
+const toPrismaTaskLibraryDefinitionData = (
+  doc: TaskLibraryDefinitionDocument,
+) => {
+  const obj = doc.toObject() as {
+    _id: { toString(): string };
+    source: string;
+    kind: string;
+    category: string;
+    name: string;
+    defaultDescription?: string;
+    schema: unknown;
+    applicableSpecies?: string[];
+    isActive?: boolean;
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+
+  return {
+    id: obj._id.toString(),
+    source: obj.source as PrismaTaskSource,
+    kind: obj.kind as PrismaTaskKind,
+    category: obj.category,
+    name: obj.name,
+    defaultDescription: obj.defaultDescription ?? undefined,
+    schema: obj.schema as Prisma.InputJsonValue,
+    applicableSpecies: (obj.applicableSpecies ??
+      []) as unknown as TaskLibrarySpecies[],
+    isActive: obj.isActive ?? true,
+    createdAt: obj.createdAt ?? undefined,
+    updatedAt: obj.updatedAt ?? undefined,
+  };
+};
+
+const syncTaskLibraryDefinitionToPostgres = async (
+  doc: TaskLibraryDefinitionDocument,
+) => {
+  if (!shouldDualWrite) return;
+  try {
+    const data = toPrismaTaskLibraryDefinitionData(doc);
+    await prisma.taskLibraryDefinition.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+  } catch (err) {
+    handleDualWriteError("TaskLibraryDefinition", err);
+  }
 };
 
 export interface CreateTaskLibraryDefinitionInput {
@@ -159,7 +216,7 @@ export const TaskLibraryService = {
       );
     }
 
-    return TaskLibraryDefinitionModel.create({
+    const doc = await TaskLibraryDefinitionModel.create({
       source: "YC_LIBRARY",
       kind,
       category: input.category,
@@ -173,6 +230,8 @@ export const TaskLibraryService = {
       },
       isActive: true,
     });
+    await syncTaskLibraryDefinitionToPostgres(doc);
+    return doc;
   },
 
   async listActive(kind?: TaskKind): Promise<TaskLibraryDefinitionDocument[]> {
@@ -265,6 +324,7 @@ export const TaskLibraryService = {
     }
 
     await doc.save();
+    await syncTaskLibraryDefinitionToPostgres(doc);
     return doc;
   },
 };

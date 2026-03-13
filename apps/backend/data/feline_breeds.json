@@ -1,0 +1,1948 @@
+[
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15238,
+    "name": "Abyssinian",
+    "slug": "abyssinian",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 22655,
+    "name": "Allerca Hypoallergenic Cat",
+    "slug": "allerca-hypoallergenic-cat",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 18082,
+    "name": "American Bobtail (unspecified)",
+    "slug": "american-bobtail-unspecified",
+    "active": true,
+    "synonyms": [],
+    "type": "UNSPECIFIED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": true
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15239,
+    "name": "American Bobtail, Long-Haired",
+    "slug": "american-bobtail-long-haired",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15240,
+    "name": "American Bobtail, Short-Haired",
+    "slug": "american-bobtail-short-haired",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15241,
+    "name": "American Curl",
+    "slug": "american-curl",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15242,
+    "name": "American Ringtail",
+    "slug": "american-ringtail",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15243,
+    "name": "American Short Hair",
+    "slug": "american-short-hair",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15244,
+    "name": "American Wire Hair",
+    "slug": "american-wire-hair",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15245,
+    "name": "Anatolian",
+    "slug": "anatolian",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15246,
+    "name": "Angora",
+    "slug": "angora",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 22656,
+    "name": "Arabian Mau",
+    "slug": "arabian-mau",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 22657,
+    "name": "Ashanti",
+    "slug": "ashanti",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 18084,
+    "name": "Asian",
+    "slug": "asian",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 18086,
+    "name": "Australian Mist (unspecified)",
+    "slug": "australian-mist-unspecified",
+    "active": true,
+    "synonyms": [],
+    "type": "UNSPECIFIED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": true
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15247,
+    "name": "Australian Mist, Non-spotted",
+    "slug": "australian-mist-non-spotted",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15248,
+    "name": "Australian Mist, Spotted",
+    "slug": "australian-mist-spotted",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 101008,
+    "name": "Australian Tundra",
+    "slug": "australian-tundra",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 22658,
+    "name": "Bahraini Dilmun Cat ( Delmun Cat )",
+    "slug": "bahraini-dilmun-cat-delmun-cat",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15249,
+    "name": "Balinese",
+    "slug": "balinese",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 22659,
+    "name": "Bambino",
+    "slug": "bambino",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15250,
+    "name": "Bengal",
+    "slug": "bengal",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15251,
+    "name": "Birman",
+    "slug": "birman",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15252,
+    "name": "Bombay",
+    "slug": "bombay",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15253,
+    "name": "Brazilian Long Hair",
+    "slug": "brazilian-long-hair",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15254,
+    "name": "Brazilian Short Hair",
+    "slug": "brazilian-short-hair",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 22407,
+    "name": "Breed not listed (Feline)",
+    "slug": "breed-not-listed-feline",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 18088,
+    "name": "British Black Tipped",
+    "slug": "british-black-tipped",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 18090,
+    "name": "British Blue",
+    "slug": "british-blue",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15255,
+    "name": "British Long Hair",
+    "slug": "british-long-hair",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15256,
+    "name": "British Red Spot",
+    "slug": "british-red-spot",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15257,
+    "name": "British Short Hair",
+    "slug": "british-short-hair",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15258,
+    "name": "Burmese",
+    "slug": "burmese",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15259,
+    "name": "Burmilla",
+    "slug": "burmilla",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15260,
+    "name": "Calico",
+    "slug": "calico",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15261,
+    "name": "California Spangled",
+    "slug": "california-spangled",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15262,
+    "name": "Chantilly (Tiffany)",
+    "slug": "chantilly-tiffany",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15263,
+    "name": "Chartreux",
+    "slug": "chartreux",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15264,
+    "name": "Chausie",
+    "slug": "chausie",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15265,
+    "name": "Chinchilla",
+    "slug": "chinchilla",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 22654,
+    "name": "Colourpoint Short Hair",
+    "slug": "colourpoint-short-hair",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15266,
+    "name": "Cornish Rex",
+    "slug": "cornish-rex",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15267,
+    "name": "Cross Breed",
+    "slug": "cross-breed",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15268,
+    "name": "Cymric",
+    "slug": "cymric",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15269,
+    "name": "Devon Rex",
+    "slug": "devon-rex",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15270,
+    "name": "Domestic Leopard Cat",
+    "slug": "domestic-leopard-cat",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15271,
+    "name": "Domestic Long Hair",
+    "slug": "domestic-long-hair",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15272,
+    "name": "Domestic Medium Hair",
+    "slug": "domestic-medium-hair",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15273,
+    "name": "Domestic Short Hair",
+    "slug": "domestic-short-hair",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 18747,
+    "name": "Domestic cat (hair length unspecified)",
+    "slug": "domestic-cat-hair-length-unspecified",
+    "active": true,
+    "synonyms": [],
+    "type": "UNSPECIFIED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": true
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15274,
+    "name": "Don Hairless",
+    "slug": "don-hairless",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15275,
+    "name": "Don Sphynx",
+    "slug": "don-sphynx",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15276,
+    "name": "Egyptian Black",
+    "slug": "egyptian-black",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15277,
+    "name": "Egyptian Mau",
+    "slug": "egyptian-mau",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 22661,
+    "name": "European (unspecified)",
+    "slug": "european-unspecified",
+    "active": true,
+    "synonyms": [],
+    "type": "UNSPECIFIED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": true
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 22660,
+    "name": "European Long Hair",
+    "slug": "european-long-hair",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15278,
+    "name": "European Short Hair",
+    "slug": "european-short-hair",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 22663,
+    "name": "European Tiger Cat",
+    "slug": "european-tiger-cat",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 18092,
+    "name": "Exotic (unspecified)",
+    "slug": "exotic-unspecified",
+    "active": true,
+    "synonyms": [],
+    "type": "UNSPECIFIED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": true
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15279,
+    "name": "Exotic Long Hair",
+    "slug": "exotic-long-hair",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15280,
+    "name": "Exotic Short Hair",
+    "slug": "exotic-short-hair",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15281,
+    "name": "Foreign White",
+    "slug": "foreign-white",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15282,
+    "name": "German Rex",
+    "slug": "german-rex",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15283,
+    "name": "Havana Brown",
+    "slug": "havana-brown",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15284,
+    "name": "Highland Fold",
+    "slug": "highland-fold",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15285,
+    "name": "Himalayan",
+    "slug": "himalayan",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15286,
+    "name": "Japanese Bobtail",
+    "slug": "japanese-bobtail",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15287,
+    "name": "Javanese",
+    "slug": "javanese",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15288,
+    "name": "Khao Manee",
+    "slug": "khao-manee",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15289,
+    "name": "Korat",
+    "slug": "korat",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15290,
+    "name": "Kurilean Bobtail, Long-Haired",
+    "slug": "kurilean-bobtail-long-haired",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15291,
+    "name": "Kurilean Bobtail, Short-Haired",
+    "slug": "kurilean-bobtail-short-haired",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 18094,
+    "name": "LaPerm (unspecified)",
+    "slug": "laperm-unspecified",
+    "active": true,
+    "synonyms": [],
+    "type": "UNSPECIFIED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": true
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15292,
+    "name": "LaPerm, Long-Haired",
+    "slug": "laperm-long-haired",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15293,
+    "name": "LaPerm, Short-Haired",
+    "slug": "laperm-short-haired",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15294,
+    "name": "Maine Coon",
+    "slug": "maine-coon",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15295,
+    "name": "Maltese",
+    "slug": "maltese",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 18096,
+    "name": "Manx (unspecified)",
+    "slug": "manx-unspecified",
+    "active": true,
+    "synonyms": [],
+    "type": "UNSPECIFIED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": true
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15296,
+    "name": "Manx, Long-Haired",
+    "slug": "manx-long-haired",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15297,
+    "name": "Manx, Short-Haired",
+    "slug": "manx-short-haired",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15298,
+    "name": "Manxamese",
+    "slug": "manxamese",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15299,
+    "name": "Minskin",
+    "slug": "minskin",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 22664,
+    "name": "Minuet ( Napoleon )",
+    "slug": "minuet-napoleon",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 18098,
+    "name": "Munchkin (Munchk) (unspecified)",
+    "slug": "munchkin-munchk-unspecified",
+    "active": true,
+    "synonyms": [],
+    "type": "UNSPECIFIED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": true
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15300,
+    "name": "Munchkin (Munchk), Long-Haired",
+    "slug": "munchkin-munchk-long-haired",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15301,
+    "name": "Munchkin (Munchk), Short-Haired",
+    "slug": "munchkin-munchk-short-haired",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15302,
+    "name": "Nebelung",
+    "slug": "nebelung",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15303,
+    "name": "Neva Masquerade (Colourpoint Siberian Forest Cat)",
+    "slug": "neva-masquerade-colourpoint-siberian-forest-cat",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15304,
+    "name": "Norwegian Forest",
+    "slug": "norwegian-forest",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15305,
+    "name": "Ocicat",
+    "slug": "ocicat",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15306,
+    "name": "Ojos Azules",
+    "slug": "ojos-azules",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15307,
+    "name": "Oregon Rex",
+    "slug": "oregon-rex",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 18100,
+    "name": "Oriental (unspecified)",
+    "slug": "oriental-unspecified",
+    "active": true,
+    "synonyms": [],
+    "type": "UNSPECIFIED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": true
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15308,
+    "name": "Oriental Long Hair",
+    "slug": "oriental-long-hair",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15309,
+    "name": "Oriental Short Hair",
+    "slug": "oriental-short-hair",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 18760,
+    "name": "Persian (unspecified)",
+    "slug": "persian-unspecified",
+    "active": true,
+    "synonyms": [],
+    "type": "UNSPECIFIED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": true
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 18762,
+    "name": "Persian, Blue",
+    "slug": "persian-blue",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 18763,
+    "name": "Persian, Colourpoint",
+    "slug": "persian-colourpoint",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 18764,
+    "name": "Persian, Smoke",
+    "slug": "persian-smoke",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15311,
+    "name": "Persian, Tabby",
+    "slug": "persian-tabby",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15312,
+    "name": "Peterbald",
+    "slug": "peterbald",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15313,
+    "name": "PixieBob",
+    "slug": "pixiebob",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 22662,
+    "name": "Polydactyl cat ( Hemingway cat )",
+    "slug": "polydactyl-cat-hemingway-cat",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 22405,
+    "name": "Purebred cross (Feline)",
+    "slug": "purebred-cross-feline",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15314,
+    "name": "Ragamuffin",
+    "slug": "ragamuffin",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15315,
+    "name": "Ragdoll",
+    "slug": "ragdoll",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 18759,
+    "name": "Rex (unspecified)",
+    "slug": "rex-unspecified",
+    "active": true,
+    "synonyms": [],
+    "type": "UNSPECIFIED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": true
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 18749,
+    "name": "Russian (unspecified)",
+    "slug": "russian-unspecified",
+    "active": true,
+    "synonyms": [],
+    "type": "UNSPECIFIED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": true
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 18751,
+    "name": "Russian Black",
+    "slug": "russian-black",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 18753,
+    "name": "Russian Blue",
+    "slug": "russian-blue",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 18755,
+    "name": "Russian Tabby",
+    "slug": "russian-tabby",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 18757,
+    "name": "Russian White",
+    "slug": "russian-white",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15318,
+    "name": "Savannah",
+    "slug": "savannah",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 18102,
+    "name": "Scottish Fold (unspecified)",
+    "slug": "scottish-fold-unspecified",
+    "active": true,
+    "synonyms": [],
+    "type": "UNSPECIFIED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": true
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15319,
+    "name": "Scottish Fold, Long-Haired",
+    "slug": "scottish-fold-long-haired",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15320,
+    "name": "Scottish Fold, Short-Haired",
+    "slug": "scottish-fold-short-haired",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15321,
+    "name": "Scottish Wildcat",
+    "slug": "scottish-wildcat",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15322,
+    "name": "Selkirk Rex",
+    "slug": "selkirk-rex",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15323,
+    "name": "Serengeti",
+    "slug": "serengeti",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15324,
+    "name": "Seychellois Long Hair",
+    "slug": "seychellois-long-hair",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15325,
+    "name": "Seychellois Short Hair",
+    "slug": "seychellois-short-hair",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15326,
+    "name": "Siamese",
+    "slug": "siamese",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15327,
+    "name": "Siberian",
+    "slug": "siberian",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15328,
+    "name": "Siberian Forest Cat",
+    "slug": "siberian-forest-cat",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15329,
+    "name": "Singapura",
+    "slug": "singapura",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15330,
+    "name": "Snowshoe",
+    "slug": "snowshoe",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15331,
+    "name": "Sokoke (African Short Hair)",
+    "slug": "sokoke-african-short-hair",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 7355,
+    "name": "Somali (unspecified)",
+    "slug": "somali-unspecified",
+    "active": true,
+    "synonyms": [],
+    "type": "UNSPECIFIED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": true
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 7356,
+    "name": "Somali Long Hair",
+    "slug": "somali-long-hair",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 7353,
+    "name": "Somali Short Hair",
+    "slug": "somali-short-hair",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15333,
+    "name": "Sphynx",
+    "slug": "sphynx",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 18104,
+    "name": "Thai",
+    "slug": "thai",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 22665,
+    "name": "Tiffanie",
+    "slug": "tiffanie",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15334,
+    "name": "Tonkinese",
+    "slug": "tonkinese",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15335,
+    "name": "Toyger",
+    "slug": "toyger",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15336,
+    "name": "Turkish Angora",
+    "slug": "turkish-angora",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15337,
+    "name": "Turkish Van",
+    "slug": "turkish-van",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15338,
+    "name": "Turkish Vankedisi (Van Kedisi)",
+    "slug": "turkish-vankedisi-van-kedisi",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "feline",
+    "speciesCode": 15459,
+    "venomId": 15339,
+    "name": "York Chocolate",
+    "slug": "york-chocolate",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  }
+]

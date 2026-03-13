@@ -17,6 +17,13 @@ import { AuditTrailService } from "./audit-trail.service";
 import { sendEmailTemplate } from "src/utils/email";
 import logger from "src/utils/logger";
 import { OrgBilling } from "src/models/organization.billing";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import {
+  InvoiceStatus as PrismaInvoiceStatus,
+  PaymentCollectionMethod,
+  Prisma,
+} from "@prisma/client";
 
 export class InvoiceServiceError extends Error {
   constructor(
@@ -41,7 +48,9 @@ const ensureObjectId = (val: unknown, field: string): Types.ObjectId => {
   throw new InvoiceServiceError(`Invalid ${field}`, 400);
 };
 
-const getOrgBillingCurrency = async (organisationId?: string | Types.ObjectId) => {
+const getOrgBillingCurrency = async (
+  organisationId?: string | Types.ObjectId,
+) => {
   if (!organisationId) return "usd";
   const billing = await OrgBilling.findOne({ orgId: organisationId });
   return billing?.currency ?? "usd";
@@ -56,10 +65,10 @@ const resolveAuditTargetsForInvoice = async (invoice: InvoiceDocument) => {
   }
 
   if (invoice.appointmentId) {
-    const appointment = await AppointmentModel.findById(
-      invoice.appointmentId,
-      { organisationId: 1, "companion.id": 1 },
-    ).lean();
+    const appointment = await AppointmentModel.findById(invoice.appointmentId, {
+      organisationId: 1,
+      "companion.id": 1,
+    }).lean();
 
     if (appointment?.organisationId && appointment?.companion?.id) {
       return {
@@ -138,6 +147,57 @@ const toDomain = (doc: InvoiceDocument): Invoice => {
   };
 };
 
+const toPrismaInvoiceData = (doc: InvoiceDocument) => {
+  const obj = doc.toObject() as InvoiceMongo & {
+    _id: Types.ObjectId;
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+
+  return {
+    id: obj._id.toString(),
+    parentId: obj.parentId?.toString() ?? undefined,
+    companionId: obj.companionId?.toString() ?? undefined,
+    organisationId: obj.organisationId?.toString() ?? undefined,
+    appointmentId: obj.appointmentId?.toString() ?? undefined,
+    items: obj.items as unknown as Prisma.InputJsonValue,
+    subtotal: obj.subtotal,
+    discountTotal: obj.discountTotal ?? 0,
+    taxTotal: obj.taxTotal ?? 0,
+    taxPercent: obj.taxPercent ?? 0,
+    totalAmount: obj.totalAmount,
+    currency: obj.currency,
+    paymentCollectionMethod: obj.paymentCollectionMethod as PaymentCollectionMethod,
+    stripePaymentIntentId: obj.stripePaymentIntentId ?? undefined,
+    stripePaymentLinkId: obj.stripePaymentLinkId ?? undefined,
+    stripeInvoiceId: obj.stripeInvoiceId ?? undefined,
+    stripeCustomerId: obj.stripeCustomerId ?? undefined,
+    stripeChargeId: obj.stripeChargeId ?? undefined,
+    stripeReceiptUrl: obj.stripeReceiptUrl ?? undefined,
+    stripeCheckoutSessionId: obj.stripeCheckoutSessionId ?? undefined,
+    stripeCheckoutUrl: obj.stripeCheckoutUrl ?? undefined,
+    status: obj.status as PrismaInvoiceStatus,
+    metadata: (obj.metadata ?? undefined) as unknown as Prisma.InputJsonValue,
+    paidAt: obj.paidAt ?? undefined,
+    createdAt: obj.createdAt ?? undefined,
+    updatedAt: obj.updatedAt ?? undefined,
+  };
+};
+
+const syncInvoiceToPostgres = async (doc: InvoiceDocument) => {
+  if (!shouldDualWrite) return;
+  try {
+    const data = toPrismaInvoiceData(doc);
+    await prisma.invoice.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+  } catch (err) {
+    handleDualWriteError("Invoice", err);
+  }
+};
+
 const recalculateTotals = (invoice: InvoiceDocument) => {
   invoice.subtotal = invoice.items.reduce(
     (sum, i) => sum + i.quantity * i.unitPrice,
@@ -175,7 +235,10 @@ export const InvoiceService = {
         discountPercent?: number;
       }[];
       notes?: string;
-      paymentCollectionMethod: "PAYMENT_INTENT" | "PAYMENT_LINK"
+      paymentCollectionMethod:
+        | "PAYMENT_INTENT"
+        | "PAYMENT_LINK"
+        | "PAYMENT_AT_CLINIC";
     },
     session?: mongoose.ClientSession,
   ) {
@@ -237,6 +300,7 @@ export const InvoiceService = {
     );
 
     const createdInvoice = Array.isArray(invoice) ? invoice[0] : invoice;
+    await syncInvoiceToPostgres(createdInvoice);
 
     await AuditTrailService.recordSafely({
       organisationId: input.organisationId,
@@ -296,6 +360,7 @@ export const InvoiceService = {
 
     recalculateTotals(invoice);
     await invoice.save();
+    await syncInvoiceToPostgres(invoice);
 
     await AuditTrailService.recordSafely({
       organisationId: appointment.organisationId,
@@ -334,6 +399,10 @@ export const InvoiceService = {
 
     if (!doc) throw new InvoiceServiceError("Invoice not found.", 404);
 
+    await syncInvoiceToPostgres(doc);
+
+    await syncInvoiceToPostgres(doc);
+
     return toDomain(doc);
   },
 
@@ -359,6 +428,7 @@ export const InvoiceService = {
     );
 
     if (invoice) {
+      await syncInvoiceToPostgres(invoice);
       const targets = await resolveAuditTargetsForInvoice(invoice);
       if (targets.organisationId && targets.companionId) {
         await AuditTrailService.recordSafely({
@@ -380,6 +450,30 @@ export const InvoiceService = {
     return invoice;
   },
 
+  async markInvoicePaidManually(invoiceId: string) {
+    const doc = await InvoiceModel.findById(invoiceId);
+    if (!doc) {
+      throw new InvoiceServiceError("Invoice not found.", 404);
+    }
+
+    if (doc.paymentCollectionMethod !== "PAYMENT_AT_CLINIC") {
+      throw new InvoiceServiceError(
+        "Invoice is not marked for in-clinic payment.",
+        409,
+      );
+    }
+
+    if (["CANCELLED", "REFUNDED"].includes(doc.status)) {
+      throw new InvoiceServiceError("Invoice cannot be marked paid.", 409);
+    }
+
+    const updated = await this.markInvoicePaid({
+      invoiceId: doc._id.toString(),
+    });
+
+    return updated ? toInvoiceResponseDTO(toDomain(updated)) : null;
+  },
+
   async markFailed(invoiceId: string) {
     const _id = ensureObjectId(invoiceId, "invoiceId");
 
@@ -390,6 +484,8 @@ export const InvoiceService = {
     );
 
     if (!doc) throw new InvoiceServiceError("Invoice not found.", 404);
+
+    await syncInvoiceToPostgres(doc);
 
     const targets = await resolveAuditTargetsForInvoice(doc);
     if (targets.organisationId && targets.companionId) {
@@ -448,6 +544,7 @@ export const InvoiceService = {
 
     invoice.status = status;
     await invoice.save();
+    await syncInvoiceToPostgres(invoice);
 
     const targets = await resolveAuditTargetsForInvoice(invoice);
     if (targets.organisationId && targets.companionId) {
@@ -538,7 +635,19 @@ export const InvoiceService = {
 
     recalculateTotals(invoice);
     invoice.updatedAt = new Date();
+
+    // If a Checkout Session already exists, its amount cannot be updated.
+    // Clear it so the next checkout uses fresh totals.
+    if (
+      invoice.paymentCollectionMethod === "PAYMENT_LINK" &&
+      invoice.stripeCheckoutSessionId
+    ) {
+      invoice.stripeCheckoutSessionId = undefined;
+      invoice.stripeCheckoutUrl = null;
+    }
+
     await invoice.save();
+    await syncInvoiceToPostgres(invoice);
 
     const targets = await resolveAuditTargetsForInvoice(invoice);
     if (targets.organisationId && targets.companionId) {
@@ -561,10 +670,7 @@ export const InvoiceService = {
     return toDomain(invoice);
   },
 
-  async addChargesToAppointment(
-    appointmentId: string,
-    items: InvoiceItem[],
-  ) {
+  async addChargesToAppointment(appointmentId: string, items: InvoiceItem[]) {
     const invoice = await this.findOpenInvoiceForAppointment(appointmentId);
 
     // No open invoice → create EXTRA invoice
@@ -608,6 +714,7 @@ export const InvoiceService = {
         cancellationReason: reason,
       };
       await invoice.save();
+      await syncInvoiceToPostgres(invoice);
 
       const targets = await resolveAuditTargetsForInvoice(invoice);
       if (targets.organisationId && targets.companionId) {
@@ -653,6 +760,7 @@ export const InvoiceService = {
       };
 
       await invoice.save();
+      await syncInvoiceToPostgres(invoice);
 
       const targets = await resolveAuditTargetsForInvoice(invoice);
       if (targets.organisationId && targets.companionId) {
@@ -679,6 +787,94 @@ export const InvoiceService = {
     return { action: "NO_ACTION", status: invoice.status };
   },
 
+  async handleInvoiceCancellation(invoiceId: string, reason: string) {
+    const _id = ensureObjectId(invoiceId, "invoiceId");
+
+    const invoice = await InvoiceModel.findById(_id);
+    if (!invoice) {
+      throw new InvoiceServiceError("Invoice not found", 404);
+    }
+
+    if (["CANCELLED", "REFUNDED"].includes(invoice.status)) {
+      return { action: "ALREADY_HANDLED", status: invoice.status };
+    }
+
+    if (invoice.status === "AWAITING_PAYMENT" || invoice.status === "PENDING") {
+      invoice.status = "CANCELLED";
+      invoice.metadata = {
+        ...invoice.metadata,
+        cancellationReason: reason,
+      };
+      await invoice.save();
+      await syncInvoiceToPostgres(invoice);
+
+      const targets = await resolveAuditTargetsForInvoice(invoice);
+      if (targets.organisationId && targets.companionId) {
+        await AuditTrailService.recordSafely({
+          organisationId: targets.organisationId,
+          companionId: targets.companionId,
+          eventType: "INVOICE_CANCELLED",
+          actorType: "SYSTEM",
+          entityType: "INVOICE",
+          entityId: invoice._id.toString(),
+          metadata: {
+            status: invoice.status,
+            reason,
+          },
+        });
+      }
+
+      return { action: "CANCELLED_UNPAID", status: invoice.status };
+    }
+
+    if (invoice.status === "PAID") {
+      if (!invoice.stripePaymentIntentId) {
+        throw new InvoiceServiceError(
+          "Cannot refund: missing Stripe paymentIntentId",
+          500,
+        );
+      }
+
+      const refund = await StripeService.refundPaymentIntent(
+        invoice.stripePaymentIntentId,
+      );
+
+      invoice.status = "REFUNDED";
+      invoice.metadata = {
+        ...invoice.metadata,
+        cancellationReason: reason,
+        refundId: refund.refundId,
+        amount: refund.amountRefunded,
+        refundDate: new Date().toISOString(),
+      };
+
+      await invoice.save();
+      await syncInvoiceToPostgres(invoice);
+
+      const targets = await resolveAuditTargetsForInvoice(invoice);
+      if (targets.organisationId && targets.companionId) {
+        await AuditTrailService.recordSafely({
+          organisationId: targets.organisationId,
+          companionId: targets.companionId,
+          eventType: "INVOICE_REFUNDED",
+          actorType: "SYSTEM",
+          entityType: "INVOICE",
+          entityId: invoice._id.toString(),
+          metadata: {
+            status: invoice.status,
+            refundId: refund.refundId,
+            amount: refund.amountRefunded,
+            currency: invoice.currency,
+          },
+        });
+      }
+
+      return { action: "REFUNDED", status: invoice.status };
+    }
+
+    return { action: "NO_ACTION", status: invoice.status };
+  },
+
   async getByPaymentIntentId(paymentIntentId: string) {
     const doc = await InvoiceModel.findOne({
       stripePaymentIntentId: paymentIntentId,
@@ -692,9 +888,8 @@ export const InvoiceService = {
   },
 
   async createCheckoutSessionAndEmailParent(invoiceId: string) {
-    const checkout = await StripeService.createCheckoutSessionForInvoice(
-      invoiceId,
-    );
+    const checkout =
+      await StripeService.createCheckoutSessionForInvoice(invoiceId);
 
     const invoice = await InvoiceModel.findById(invoiceId).lean();
     if (!invoice) {

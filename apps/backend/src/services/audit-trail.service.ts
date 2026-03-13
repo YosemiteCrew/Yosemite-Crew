@@ -4,6 +4,9 @@ import AuditTrailModel, {
   AuditEventType,
   type AuditTrailDocument,
 } from "../models/audit-trail";
+import { Prisma } from "@prisma/client";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 import logger from "src/utils/logger";
 import { ParentModel } from "src/models/parent";
 import UserModel from "src/models/user";
@@ -117,7 +120,7 @@ export const AuditTrailService = {
         actorId: input.actorId ?? null,
       }));
 
-    return AuditTrailModel.create({
+    const doc = await AuditTrailModel.create({
       organisationId,
       companionId,
       eventType: input.eventType,
@@ -129,6 +132,32 @@ export const AuditTrailService = {
       metadata: input.metadata ?? null,
       occurredAt: input.occurredAt ?? new Date(),
     });
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.auditTrail.create({
+          data: {
+            id: doc._id.toString(),
+            organisationId,
+            companionId,
+            eventType: input.eventType,
+            actorType: input.actorType ?? undefined,
+            actorId: input.actorId ?? undefined,
+            actorName: actorName ?? undefined,
+            entityType: input.entityType ?? undefined,
+            entityId: input.entityId ?? undefined,
+            metadata: (input.metadata ?? undefined) as unknown as Prisma.InputJsonValue,
+            occurredAt: input.occurredAt ?? new Date(),
+            createdAt: doc.createdAt ?? undefined,
+            updatedAt: doc.updatedAt ?? undefined,
+          },
+        });
+      } catch (err) {
+        handleDualWriteError("AuditTrail", err);
+      }
+    }
+
+    return doc;
   },
 
   async recordSafely(input: AuditTrailRecordInput): Promise<void> {
@@ -162,9 +191,7 @@ export const AuditTrailService = {
       .lean();
 
     const nextCursor =
-      entries.length > 0
-        ? entries.at(-1)!.occurredAt.toISOString()
-        : null;
+      entries.length > 0 ? entries.at(-1)!.occurredAt.toISOString() : null;
 
     return { entries, nextCursor };
   },
@@ -203,9 +230,7 @@ export const AuditTrailService = {
       .lean();
 
     const nextCursor =
-      entries.length > 0
-        ? entries.at(-1)!.occurredAt.toISOString()
-        : null;
+      entries.length > 0 ? entries.at(-1)!.occurredAt.toISOString() : null;
 
     return { entries, nextCursor };
   },

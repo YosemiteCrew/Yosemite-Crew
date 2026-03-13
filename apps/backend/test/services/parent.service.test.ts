@@ -37,6 +37,12 @@ jest.mock("../../src/utils/logger", () => ({
   warn: jest.fn(),
 }));
 
+jest.mock("src/utils/dual-write", () => ({
+  shouldDualWrite: false,
+  isDualWriteStrict: false,
+  handleDualWriteError: jest.fn(),
+}));
+
 // 3. Mock DTO mappings to pass data through directly
 jest.mock("@yosemite-crew/types", () => ({
   fromParentRequestDTO: jest.fn((dto) => dto),

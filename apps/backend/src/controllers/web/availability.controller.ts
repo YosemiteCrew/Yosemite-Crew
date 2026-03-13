@@ -123,7 +123,7 @@ export const AvailabilityController = {
 
   async setBaseAvailabilityForUser(
     req: Request<
-      { orgId: string, userId: string },
+      { orgId: string; userId: string },
       unknown,
       {
         availabilities?: {

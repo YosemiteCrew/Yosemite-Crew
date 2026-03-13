@@ -65,6 +65,7 @@ jest.mock('@/app/ui/tables/Appointments', () => ({
 
 jest.mock('@/app/lib/appointments', () => ({
   allowReschedule: jest.fn(() => true),
+  normalizeAppointmentStatus: (status: string) => (status === 'NO_PAYMENT' ? 'REQUESTED' : status),
 }));
 
 jest.mock('@/app/lib/urls', () => ({

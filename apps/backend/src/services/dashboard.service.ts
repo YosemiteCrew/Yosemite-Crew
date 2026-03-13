@@ -5,6 +5,7 @@ import { Types } from "mongoose";
 import AppointmentModel from "src/models/appointment";
 import TaskModel from "src/models/task";
 import { InventoryItemModel, StockMovementModel } from "src/models/inventory";
+import InvoiceModel from "src/models/invoice";
 // ⬆️ adjust import paths/model names if needed
 
 export class DashboardServiceError extends Error {
@@ -29,6 +30,8 @@ export type SummaryRange =
   | "last_week"
   | "this_month"
   | "last_month";
+
+export type DashboardRange = SummaryRange;
 
 export interface DashboardSummary {
   revenue: number;
@@ -190,10 +193,6 @@ export const DashboardService = {
 
     const { from, to } = resolveRange(range);
 
-    // NOTE: align field names with your Appointment schema:
-    // - status: "COMPLETED" | "CANCELLED" | ...
-    // - totalPrice / totalAmount
-    // - organisationId
     const [appointmentAgg, taskCount] = await Promise.all([
       AppointmentModel.aggregate<AppointmentSummaryAgg>([
         {
@@ -205,15 +204,7 @@ export const DashboardService = {
         {
           $group: {
             _id: null,
-            revenue: {
-              $sum: {
-                $cond: [
-                  { $eq: ["$status", "COMPLETED"] },
-                  "$totalPrice",
-                  0,
-                ],
-              },
-            },
+            revenue: { $sum: 0 },
             count: { $sum: 1 },
           },
         },
@@ -236,8 +227,27 @@ export const DashboardService = {
     // For now, return 0 and we can wire later.
     const staffOnDuty = 0;
 
+    const revenueAgg = await InvoiceModel.aggregate<AppointmentSummaryAgg>([
+      {
+        $match: {
+          organisationId,
+          status: "PAID",
+          paidAt: { $gte: from, $lte: to },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          revenue: { $sum: "$totalAmount" },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const revenueValue = revenueAgg[0]?.revenue ?? 0;
+
     return {
-      revenue: agg.revenue ?? 0,
+      revenue: revenueValue,
       appointments: agg.count ?? 0,
       tasks: taskCount ?? 0,
       staffOnDuty,
@@ -249,24 +259,21 @@ export const DashboardService = {
   // ─────────────────────────────────────────────
   async getAppointmentsTrend(params: {
     organisationId: string;
-    months?: number; // default 6
+    range?: DashboardRange; // default last_30_days
   }): Promise<AppointmentsTrendPoint[]> {
     const { organisationId } = params;
-    const months = params.months ?? 6;
+    const range = params.range ?? "last_30_days";
     if (!organisationId) {
       throw new DashboardServiceError("organisationId is required", 400);
     }
 
-    const start = dayjs()
-      .subtract(months - 1, "month")
-      .startOf("month")
-      .toDate();
+    const { from, to } = resolveRange(range);
 
     const agg = await AppointmentModel.aggregate<AppointmentTrendAgg>([
       {
         $match: {
           organisationId,
-          startTime: { $gte: start },
+          startTime: { $gte: from, $lte: to },
         },
       },
       {
@@ -313,34 +320,31 @@ export const DashboardService = {
   // ─────────────────────────────────────────────
   async getRevenueTrend(params: {
     organisationId: string;
-    months?: number;
+    range?: DashboardRange; // default last_30_days
   }): Promise<RevenueTrendPoint[]> {
     const { organisationId } = params;
-    const months = params.months ?? 6;
+    const range = params.range ?? "last_30_days";
     if (!organisationId) {
       throw new DashboardServiceError("organisationId is required", 400);
     }
 
-    const start = dayjs()
-      .subtract(months - 1, "month")
-      .startOf("month")
-      .toDate();
+    const { from, to } = resolveRange(range);
 
-    const agg = await AppointmentModel.aggregate<RevenueTrendAgg>([
+    const agg = await InvoiceModel.aggregate<RevenueTrendAgg>([
       {
         $match: {
           organisationId,
-          startTime: { $gte: start },
-          status: "COMPLETED",
+          status: "PAID",
+          paidAt: { $gte: from, $lte: to },
         },
       },
       {
         $group: {
           _id: {
-            year: { $year: "$startTime" },
-            month: { $month: "$startTime" },
+            year: { $year: "$paidAt" },
+            month: { $month: "$paidAt" },
           },
-          revenue: { $sum: "$totalPrice" },
+          revenue: { $sum: "$totalAmount" },
         },
       },
       { $sort: { "_id.year": 1, "_id.month": 1 } },
@@ -388,6 +392,7 @@ export const DashboardService = {
           organisationId,
           startTime: { $gte: from, $lte: to },
           status: "COMPLETED",
+          "lead.id": { $exists: true, $nin: [null, ""] },
         },
       },
       {
@@ -430,19 +435,19 @@ export const DashboardService = {
 
     const { from, to } = resolveRange(range);
 
-    // Group by serviceType / department / SOP – align with your schema
-    const agg = await AppointmentModel.aggregate<RevenueLeaderAgg>([
+    const agg = await InvoiceModel.aggregate<RevenueLeaderAgg>([
       {
         $match: {
           organisationId,
-          startTime: { $gte: from, $lte: to },
-          status: "COMPLETED",
+          status: "PAID",
+          paidAt: { $gte: from, $lte: to },
         },
       },
+      { $unwind: "$items" },
       {
         $group: {
-          _id: "$serviceType",
-          revenue: { $sum: "$totalPrice" },
+          _id: "$items.name",
+          revenue: { $sum: "$items.total" },
         },
       },
       { $sort: { revenue: -1 } },
@@ -465,8 +470,10 @@ export const DashboardService = {
     organisationId: string;
     year?: number; // default current year
     targetTurnsPerYear?: number;
+    range?: DashboardRange;
   }): Promise<InventoryTurnoverSummary> {
     const { organisationId } = params;
+    const range = params.range;
     const year = params.year ?? dayjs().year();
     const targetTurnsPerYear = params.targetTurnsPerYear ?? 8; // arbitrary target
 
@@ -474,8 +481,12 @@ export const DashboardService = {
       throw new DashboardServiceError("organisationId is required", 400);
     }
 
-    const startOfYear = dayjs().year(year).startOf("year").toDate();
-    const endOfYear = dayjs().year(year).endOf("year").toDate();
+    const { from, to } = range
+      ? resolveRange(range)
+      : {
+          from: dayjs().year(year).startOf("year").toDate(),
+          to: dayjs().year(year).endOf("year").toDate(),
+        };
 
     // 1) Sum up all negative stock movements (consumption)
     const consumptionAgg =
@@ -483,7 +494,7 @@ export const DashboardService = {
         {
           $match: {
             organisationId,
-            createdAt: { $gte: startOfYear, $lte: endOfYear },
+            createdAt: { $gte: from, $lte: to },
             change: { $lt: 0 },
           },
         },
@@ -522,7 +533,7 @@ export const DashboardService = {
         {
           $match: {
             organisationId,
-            createdAt: { $gte: startOfYear, $lte: endOfYear },
+            createdAt: { $gte: from, $lte: to },
             change: { $lt: 0 },
           },
         },
@@ -570,8 +581,10 @@ export const DashboardService = {
     organisationId: string;
     limit?: number;
     year?: number;
+    range?: DashboardRange;
   }): Promise<ProductTurnoverPoint[]> {
     const { organisationId } = params;
+    const range = params.range;
     const year = params.year ?? dayjs().year();
     const limit = params.limit ?? 10;
 
@@ -579,15 +592,19 @@ export const DashboardService = {
       throw new DashboardServiceError("organisationId is required", 400);
     }
 
-    const startOfYear = dayjs().year(year).startOf("year").toDate();
-    const endOfYear = dayjs().year(year).endOf("year").toDate();
+    const { from, to } = range
+      ? resolveRange(range)
+      : {
+          from: dayjs().year(year).startOf("year").toDate(),
+          to: dayjs().year(year).endOf("year").toDate(),
+        };
 
     // 1) Consumption per item
     const agg = await StockMovementModel.aggregate<ProductConsumptionAgg>([
       {
         $match: {
           organisationId,
-          createdAt: { $gte: startOfYear, $lte: endOfYear },
+          createdAt: { $gte: from, $lte: to },
           change: { $lt: 0 },
         },
       },

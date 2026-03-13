@@ -11,6 +11,7 @@ export interface Parent {
     phoneNumber?: string;
     address: Address;
     currency?: string;
+    timezone?: string;
     linkedUserId?: string | null;
     createdFrom: "pms" | "mobile" | "invited";
     profileImageUrl?: string;
@@ -21,6 +22,8 @@ export interface Parent {
 
 export const PARENT_PROFILE_COMPLETION_EXTENSION_URL =
     "https://yosemitecrew.com/fhir/StructureDefinition/parent-profile-completed";
+export const PARENT_TIMEZONE_EXTENSION_URL =
+    "https://yosemitecrew.com/fhir/StructureDefinition/parent-timezone";
 
 export function toFHIRRelatedPerson(parent: Parent): RelatedPerson {
     const id = parent.id ? String(parent.id) : undefined
@@ -69,6 +72,12 @@ export function toFHIRRelatedPerson(parent: Parent): RelatedPerson {
             valueBoolean: parent.isProfileComplete,
         });
     }
+    if (parent.timezone) {
+        extensions.push({
+            url: PARENT_TIMEZONE_EXTENSION_URL,
+            valueString: parent.timezone,
+        });
+    }
 
     const birthDate = parent.birthDate
         ? parent.birthDate.toISOString().split("T")[0]
@@ -106,10 +115,14 @@ export function fromFHIRRelatedPerson(resource: RelatedPerson): Parent {
     const profileImageUrl = rp.photo?.[0]?.url
 
     let isProfileComplete: boolean | undefined = undefined
+    let timezone: string | undefined = undefined
 
     rp.extension?.forEach(ext => {
         if (ext.url === PARENT_PROFILE_COMPLETION_EXTENSION_URL && typeof ext.valueBoolean === "boolean") {
             isProfileComplete = ext.valueBoolean
+        }
+        if (ext.url === PARENT_TIMEZONE_EXTENSION_URL && typeof ext.valueString === "string") {
+            timezone = ext.valueString
         }
     })
 
@@ -124,6 +137,7 @@ export function fromFHIRRelatedPerson(resource: RelatedPerson): Parent {
         birthDate,
         address,
         profileImageUrl,
+        timezone,
         createdFrom: "pms"
     }
 

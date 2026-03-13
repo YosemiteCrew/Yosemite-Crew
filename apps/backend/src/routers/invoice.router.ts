@@ -58,6 +58,13 @@ router.post(
   InvoiceController.createCheckoutSessionForInvoice,
 );
 
+// Mark invoice paid manually (in-clinic)
+router.post(
+  "/:invoiceId/mark-paid",
+  authorizeCognito,
+  InvoiceController.markInvoicePaidManually,
+);
+
 // Get invoice by ID
 router.get("/:invoiceId", authorizeCognito, InvoiceController.getInvoiceById);
 

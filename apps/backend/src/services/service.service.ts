@@ -4,7 +4,7 @@ import ServiceModel, {
   type ServiceDocument,
 } from "../models/service";
 import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
+import utc from "dayjs/plugin/utc.js";
 import {
   toServiceResponseDTO,
   fromServiceRequestDTO,
@@ -17,6 +17,9 @@ import SpecialityModel from "src/models/speciality";
 import { AvailabilitySlotMongo } from "src/models/base-availability";
 import { AvailabilityService } from "./availability.service";
 import helpers from "src/utils/helper";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import { ServiceType } from "@prisma/client";
 
 dayjs.extend(utc);
 
@@ -62,6 +65,44 @@ const mapDocToDomain = (doc: ServiceDocument): Service => {
   };
 };
 
+const toPrismaServiceData = (doc: ServiceDocument) => {
+  const obj = doc.toObject() as ServiceMongo & {
+    _id: Types.ObjectId;
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+
+  return {
+    id: obj._id.toString(),
+    organisationId: obj.organisationId.toString(),
+    name: obj.name,
+    description: obj.description ?? undefined,
+    durationMinutes: obj.durationMinutes,
+    cost: obj.cost,
+    maxDiscount: obj.maxDiscount ?? undefined,
+    specialityId: obj.specialityId?.toString() ?? undefined,
+    serviceType: obj.serviceType as ServiceType,
+    observationToolId: obj.observationToolId?.toString() ?? undefined,
+    isActive: obj.isActive ?? true,
+    createdAt: obj.createdAt ?? undefined,
+    updatedAt: obj.updatedAt ?? undefined,
+  };
+};
+
+const syncServiceToPostgres = async (doc: ServiceDocument) => {
+  if (!shouldDualWrite) return;
+  try {
+    const data = toPrismaServiceData(doc);
+    await prisma.service.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+  } catch (err) {
+    handleDualWriteError("Service", err);
+  }
+};
+
 export const ServiceService = {
   async create(dto: ServiceRequestDTO) {
     const service = fromServiceRequestDTO(dto);
@@ -85,6 +126,8 @@ export const ServiceService = {
     };
 
     const doc = await ServiceModel.create(mongoPayload);
+
+    await syncServiceToPostgres(doc);
 
     return toServiceResponseDTO(mapDocToDomain(doc));
   },
@@ -148,6 +191,8 @@ export const ServiceService = {
 
     await doc.save();
 
+    await syncServiceToPostgres(doc);
+
     return toServiceResponseDTO(mapDocToDomain(doc));
   },
 
@@ -159,6 +204,14 @@ export const ServiceService = {
 
     await doc.deleteOne();
 
+    if (shouldDualWrite) {
+      try {
+        await prisma.service.deleteMany({ where: { id: id } });
+      } catch (err) {
+        handleDualWriteError("Service delete", err);
+      }
+    }
+
     return true;
   },
 
@@ -166,6 +219,16 @@ export const ServiceService = {
     await ServiceModel.deleteMany({
       specialityId: specialityId,
     }).exec();
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.service.deleteMany({
+          where: { specialityId },
+        });
+      } catch (err) {
+        handleDualWriteError("Service deleteAllBySpecialityId", err);
+      }
+    }
   },
 
   async search(query: string, organisationId?: string) {

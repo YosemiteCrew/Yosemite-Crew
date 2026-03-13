@@ -94,6 +94,12 @@ jest.mock("src/utils/logger", () => ({
   },
 }));
 
+jest.mock("src/utils/dual-write", () => ({
+  shouldDualWrite: false,
+  isDualWriteStrict: false,
+  handleDualWriteError: jest.fn(),
+}));
+
 // Mongoose Models Mocking
 jest.mock("../../src/models/appointment", () => ({
   __esModule: true,
@@ -117,6 +123,15 @@ jest.mock("src/models/occupancy", () => ({
     findOne: jest.fn(),
     create: jest.fn(),
     deleteMany: jest.fn(),
+  },
+}));
+jest.mock("src/models/invoice", () => ({
+  __esModule: true,
+  default: {
+    aggregate: jest.fn().mockResolvedValue([]),
+    findById: jest.fn(),
+    find: jest.fn(),
+    updateOne: jest.fn(),
   },
 }));
 jest.mock("src/models/organization", () => ({
@@ -566,7 +581,7 @@ describe("AppointmentService", () => {
           },
         ],
       };
-      (AppointmentModel.findOne as jest.Mock).mockResolvedValue(null);
+      (AppointmentModel.findById as jest.Mock).mockResolvedValue(null);
       await expect(
         AppointmentService.approveRequestedFromPms(validId, fhir as any),
       ).rejects.toThrow(
@@ -597,7 +612,7 @@ describe("AppointmentService", () => {
       };
 
       const mockAppt: any = createMockDoc({ status: "REQUESTED" });
-      (AppointmentModel.findOne as jest.Mock).mockResolvedValue(mockAppt);
+      (AppointmentModel.findById as jest.Mock).mockResolvedValue(mockAppt);
       (OccupancyModel.findOne as jest.Mock).mockReturnValue(
         createQueryChain(null),
       );
@@ -633,7 +648,7 @@ describe("AppointmentService", () => {
         ],
       };
       const mockAppt = createMockDoc({ status: "REQUESTED" });
-      (AppointmentModel.findOne as jest.Mock).mockResolvedValue(mockAppt);
+      (AppointmentModel.findById as jest.Mock).mockResolvedValue(mockAppt);
       (OccupancyModel.findOne as jest.Mock).mockReturnValue(
         createQueryChain({ _id: "overlap" }),
       ); // Triggers 409
@@ -815,7 +830,7 @@ describe("AppointmentService", () => {
     });
 
     it("should throw 404 if not found", async () => {
-      (AppointmentModel.findOne as jest.Mock).mockResolvedValue(null);
+      (AppointmentModel.findById as jest.Mock).mockResolvedValue(null);
       await expect(
         AppointmentService.updateAppointmentPMS(validId, {
           lead: { id: "l1" },
@@ -833,7 +848,7 @@ describe("AppointmentService", () => {
         endTime: oldTime,
       });
 
-      (AppointmentModel.findOne as jest.Mock).mockResolvedValue(mockDoc);
+      (AppointmentModel.findById as jest.Mock).mockResolvedValue(mockDoc);
       (OccupancyModel.findOne as jest.Mock).mockReturnValue(
         createQueryChain(null),
       );

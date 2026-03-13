@@ -1,8 +1,5 @@
 import { Request, Response } from "express";
-import {
-  AuditEntityType,
-  AuditEventType,
-} from "src/models/audit-trail";
+import { AuditEntityType, AuditEventType } from "src/models/audit-trail";
 import {
   AuditTrailService,
   AuditTrailServiceError,
@@ -50,9 +47,7 @@ export const AuditTrailController = {
       const { companionId } = req.params;
 
       if (!organisationId) {
-        return res
-          .status(400)
-          .json({ message: "organisationId is required" });
+        return res.status(400).json({ message: "organisationId is required" });
       }
 
       if (!companionId) {
@@ -90,15 +85,11 @@ export const AuditTrailController = {
       const { appointmentId } = req.params;
 
       if (!organisationId) {
-        return res
-          .status(400)
-          .json({ message: "organisationId is required" });
+        return res.status(400).json({ message: "organisationId is required" });
       }
 
       if (!appointmentId) {
-        return res
-          .status(400)
-          .json({ message: "appointmentId is required" });
+        return res.status(400).json({ message: "appointmentId is required" });
       }
 
       const { limit, before } = parseListQuery(req);

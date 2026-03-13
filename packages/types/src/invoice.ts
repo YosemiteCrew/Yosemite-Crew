@@ -14,7 +14,10 @@ export type InvoiceStatus =
   | "CANCELLED"        
   | "REFUNDED";
 
-export type PaymentCollectionMethod = "PAYMENT_INTENT" | "PAYMENT_LINK";
+export type PaymentCollectionMethod =
+  | "PAYMENT_INTENT"
+  | "PAYMENT_LINK"
+  | "PAYMENT_AT_CLINIC";
 
 export type InvoiceItem = {
   id?: string;                

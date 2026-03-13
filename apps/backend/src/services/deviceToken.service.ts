@@ -1,4 +1,6 @@
 import { DeviceTokenModel } from "src/models/deviceToken";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 
 export const DeviceTokenService = {
   async registerToken(
@@ -13,6 +15,27 @@ export const DeviceTokenService = {
       { userId, platform },
       { upsert: true },
     );
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.deviceToken.upsert({
+          where: { deviceToken },
+          create: {
+            userId,
+            deviceToken,
+            platform,
+            isActive: true,
+          },
+          update: {
+            userId,
+            platform,
+            isActive: true,
+          },
+        });
+      } catch (err) {
+        handleDualWriteError("DeviceToken", err);
+      }
+    }
   },
 
   async getTokensForUser(userId: string) {
@@ -22,5 +45,13 @@ export const DeviceTokenService = {
 
   async removeToken(deviceToken: string) {
     await DeviceTokenModel.deleteOne({ deviceToken });
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.deviceToken.deleteMany({ where: { deviceToken } });
+      } catch (err) {
+        handleDualWriteError("DeviceToken delete", err);
+      }
+    }
   },
 };

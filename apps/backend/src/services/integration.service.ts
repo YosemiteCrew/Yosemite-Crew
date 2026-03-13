@@ -1,0 +1,402 @@
+import IntegrationAccountModel, {
+  IntegrationAccountDocument,
+} from "src/models/integration-account";
+import {
+  getIntegrationAdapter,
+  normalizeProvider,
+  type IntegrationConfig,
+  type IntegrationCredentials,
+  type IntegrationProvider,
+  type IntegrationValidationResult,
+} from "src/integrations";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import { Prisma } from "@prisma/client";
+
+export class IntegrationServiceError extends Error {
+  constructor(
+    message: string,
+    public readonly statusCode: number,
+  ) {
+    super(message);
+    this.name = "IntegrationServiceError";
+  }
+}
+
+const ensureProvider = (provider: string): IntegrationProvider => {
+  const normalized = normalizeProvider(provider);
+  if (!normalized) {
+    throw new IntegrationServiceError("Unsupported integration provider.", 400);
+  }
+  return normalized;
+};
+
+const ensureNonEmptyString = (value: string, field: string) => {
+  if (!value?.trim()) {
+    throw new IntegrationServiceError(`${field} is required.`, 400);
+  }
+};
+
+const isMerckProvider = (provider: IntegrationProvider) =>
+  provider === "MERCK_MANUALS";
+
+const supportsPrismaProvider = (
+  provider: IntegrationProvider,
+): provider is "IDEXX" => provider === "IDEXX";
+
+const syncIntegrationAccountToPostgres = async (
+  doc: IntegrationAccountDocument,
+) => {
+  if (!shouldDualWrite) return;
+  if (!supportsPrismaProvider(doc.provider)) return;
+  try {
+    await prisma.integrationAccount.upsert({
+      where: {
+        organisationId_provider: {
+          organisationId: doc.organisationId,
+          provider: doc.provider,
+        },
+      },
+      create: {
+        organisationId: doc.organisationId,
+        provider: doc.provider,
+        status: doc.status,
+        enabledAt: doc.enabledAt ?? null,
+        disabledAt: doc.disabledAt ?? null,
+        lastSyncAt: doc.lastSyncAt ?? null,
+        lastError: doc.lastError ?? null,
+        credentialsStatus: doc.credentialsStatus ?? "missing",
+        lastValidatedAt: doc.lastValidatedAt ?? null,
+        credentials:
+          (doc.credentials as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+        config: (doc.credentials as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+      },
+      update: {
+        status: doc.status,
+        enabledAt: doc.enabledAt ?? null,
+        disabledAt: doc.disabledAt ?? null,
+        lastSyncAt: doc.lastSyncAt ?? null,
+        lastError: doc.lastError ?? null,
+        credentialsStatus: doc.credentialsStatus ?? "missing",
+        lastValidatedAt: doc.lastValidatedAt ?? null,
+        credentials:
+          (doc.credentials as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+        config: (doc.credentials as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+      },
+    });
+  } catch (err) {
+    handleDualWriteError("IntegrationAccount", err);
+  }
+};
+
+export const IntegrationService = {
+  ensureProvider,
+
+  async ensureMerckAccount(organisationId: string) {
+    ensureNonEmptyString(organisationId, "organisationId");
+    const existing = await IntegrationAccountModel.findOne({
+      organisationId,
+      provider: "MERCK_MANUALS",
+    })
+      .select({ credentials: 0 })
+      .lean();
+
+    if (existing) {
+      return existing;
+    }
+
+    const created = new IntegrationAccountModel({
+      organisationId,
+      provider: "MERCK_MANUALS",
+      status: "enabled",
+      enabledAt: new Date(),
+      disabledAt: null,
+      lastError: null,
+      credentialsStatus: "valid",
+      lastValidatedAt: new Date(),
+    });
+
+    await created.save();
+    await syncIntegrationAccountToPostgres(created);
+    const fresh = await IntegrationAccountModel.findOne({
+      organisationId,
+      provider: "MERCK_MANUALS",
+    })
+      .select({ credentials: 0 })
+      .lean();
+    return fresh ?? created.toJSON();
+  },
+
+  async listForOrganisation(organisationId: string) {
+    ensureNonEmptyString(organisationId, "organisationId");
+    const list = await IntegrationAccountModel.find({ organisationId })
+      .select({ credentials: 0 })
+      .sort({ provider: 1 })
+      .lean();
+
+    const hasMerck = list.some((item) => item.provider === "MERCK_MANUALS");
+    if (!hasMerck) {
+      const merck = await this.ensureMerckAccount(organisationId);
+      list.push(merck);
+      list.sort((a, b) => String(a.provider).localeCompare(String(b.provider)));
+    }
+
+    return list;
+  },
+
+  async getForOrganisation(organisationId: string, provider: string) {
+    ensureNonEmptyString(organisationId, "organisationId");
+    const normalized = ensureProvider(provider);
+    return IntegrationAccountModel.findOne({
+      organisationId,
+      provider: normalized,
+    })
+      .select({ credentials: 0 })
+      .lean();
+  },
+
+  async upsertCredentials(
+    organisationId: string,
+    provider: string,
+    credentials: IntegrationCredentials,
+    config?: IntegrationConfig,
+  ) {
+    ensureNonEmptyString(organisationId, "organisationId");
+    const normalized = ensureProvider(provider);
+
+    if (!credentials || Object.keys(credentials).length === 0) {
+      throw new IntegrationServiceError("credentials are required.", 400);
+    }
+
+    const adapter = getIntegrationAdapter(normalized);
+    const validation = await adapter.validateCredentials(credentials);
+    if (!validation.ok) {
+      throw new IntegrationServiceError(
+        `Integration validation failed: ${validation.reason}`,
+        400,
+      );
+    }
+
+    const update = {
+      credentials,
+      config: config ?? null,
+      status: "disabled",
+      disabledAt: new Date(),
+      credentialsStatus: "valid",
+      lastValidatedAt: new Date(),
+      lastError: null,
+    };
+
+    const saved = await IntegrationAccountModel.findOneAndUpdate(
+      { organisationId, provider: normalized },
+      { $set: update, $setOnInsert: { organisationId, provider: normalized } },
+      { upsert: true, new: true },
+    );
+
+    if (saved) {
+      await syncIntegrationAccountToPostgres(saved);
+      return saved.toJSON();
+    }
+
+    return saved;
+  },
+
+  async setEnabled(organisationId: string, provider: string) {
+    ensureNonEmptyString(organisationId, "organisationId");
+    const normalized = ensureProvider(provider);
+
+    if (isMerckProvider(normalized)) {
+      const existing = await IntegrationAccountModel.findOne({
+        organisationId,
+        provider: normalized,
+      });
+
+      if (existing) {
+        existing.status = "enabled";
+        existing.enabledAt = new Date();
+        existing.disabledAt = null;
+        existing.lastError = null;
+        existing.credentialsStatus = "valid";
+        existing.lastValidatedAt = new Date();
+        await existing.save();
+        await syncIntegrationAccountToPostgres(existing);
+        return existing.toJSON();
+      }
+
+      const created = new IntegrationAccountModel({
+        organisationId,
+        provider: normalized,
+        status: "enabled",
+        enabledAt: new Date(),
+        disabledAt: null,
+        lastError: null,
+        credentialsStatus: "valid",
+        lastValidatedAt: new Date(),
+      });
+      await created.save();
+      await syncIntegrationAccountToPostgres(created);
+      return created.toJSON();
+    }
+
+    const existing = await IntegrationAccountModel.findOne({
+      organisationId,
+      provider: normalized,
+    });
+
+    if (!existing) {
+      throw new IntegrationServiceError(
+        "Integration credentials must be configured before enabling.",
+        400,
+      );
+    }
+
+    if (!existing.credentials) {
+      throw new IntegrationServiceError(
+        "Integration credentials are missing.",
+        400,
+      );
+    }
+
+    const validation = await this.validateCredentials(
+      organisationId,
+      normalized,
+    );
+
+    if (!validation.ok) {
+      throw new IntegrationServiceError(
+        `Integration validation failed: ${validation.reason}`,
+        400,
+      );
+    }
+
+    existing.status = "enabled";
+    existing.enabledAt = new Date();
+    existing.disabledAt = null;
+    existing.lastError = null;
+
+    await existing.save();
+    await syncIntegrationAccountToPostgres(existing);
+
+    return existing.toJSON();
+  },
+
+  async setDisabled(organisationId: string, provider: string) {
+    ensureNonEmptyString(organisationId, "organisationId");
+    const normalized = ensureProvider(provider);
+
+    if (isMerckProvider(normalized)) {
+      const existing = await IntegrationAccountModel.findOne({
+        organisationId,
+        provider: normalized,
+      });
+
+      if (!existing) {
+        const created = new IntegrationAccountModel({
+          organisationId,
+          provider: normalized,
+          status: "disabled",
+          disabledAt: new Date(),
+          enabledAt: null,
+          lastError: null,
+          credentialsStatus: "valid",
+          lastValidatedAt: new Date(),
+        });
+        await created.save();
+        await syncIntegrationAccountToPostgres(created);
+        return created.toJSON();
+      }
+
+      existing.status = "disabled";
+      existing.disabledAt = new Date();
+      existing.enabledAt = null;
+
+      await existing.save();
+      await syncIntegrationAccountToPostgres(existing);
+      return existing.toJSON();
+    }
+
+    const existing = await IntegrationAccountModel.findOne({
+      organisationId,
+      provider: normalized,
+    });
+
+    if (!existing) {
+      throw new IntegrationServiceError("Integration not found.", 404);
+    }
+
+    existing.status = "disabled";
+    existing.disabledAt = new Date();
+
+    await existing.save();
+    await syncIntegrationAccountToPostgres(existing);
+
+    return existing.toJSON();
+  },
+
+  async validateCredentials(
+    organisationId: string,
+    provider: string,
+  ): Promise<IntegrationValidationResult> {
+    ensureNonEmptyString(organisationId, "organisationId");
+    const normalized = ensureProvider(provider);
+
+    if (isMerckProvider(normalized)) {
+      return { ok: true };
+    }
+
+    const account = await IntegrationAccountModel.findOne({
+      organisationId,
+      provider: normalized,
+    }).lean();
+
+    if (!account?.credentials) {
+      throw new IntegrationServiceError(
+        "Integration credentials missing.",
+        400,
+      );
+    }
+
+    const adapter = getIntegrationAdapter(normalized);
+    const result = await adapter.validateCredentials(account.credentials);
+
+    await IntegrationAccountModel.updateOne(
+      { organisationId, provider: normalized },
+      {
+        $set: {
+          credentialsStatus: result.ok ? "valid" : "invalid",
+          lastValidatedAt: new Date(),
+          lastError: result.ok ? null : result.reason,
+        },
+      },
+    );
+
+    const updated = await IntegrationAccountModel.findOne({
+      organisationId,
+      provider: normalized,
+    });
+    if (updated) {
+      await syncIntegrationAccountToPostgres(updated);
+    }
+
+    return result;
+  },
+
+  async requireAccount(
+    organisationId: string,
+    provider: string,
+  ): Promise<IntegrationAccountDocument> {
+    ensureNonEmptyString(organisationId, "organisationId");
+    const normalized = ensureProvider(provider);
+
+    const account = await IntegrationAccountModel.findOne({
+      organisationId,
+      provider: normalized,
+    });
+
+    if (!account) {
+      throw new IntegrationServiceError("Integration not found.", 404);
+    }
+
+    return account;
+  },
+};

@@ -3,17 +3,37 @@ import {
   FormSubmissionModel,
   FormVersionModel,
 } from "src/models/form";
+import { type FormSubmissionDocument } from "src/models/form";
 import { DocumensoService } from "./documenso.service";
 import { generateFormSubmissionPdf } from "./formPDF.service";
 import { ParentModel } from "src/models/parent";
 import UserModel from "src/models/user";
 import logger from "src/utils/logger";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import { Prisma } from "@prisma/client";
+import { type HydratedDocument, Types } from "mongoose";
 
-const hasToHexString = (value: unknown): value is { toHexString: () => string } =>
-  typeof (value as { toHexString?: unknown })?.toHexString === "function";
+type FormSubmissionDoc = HydratedDocument<FormSubmissionDocument> & {
+  _id: Types.ObjectId;
+  createdAt?: Date;
+  updatedAt?: Date;
+};
+
+const hasToHexString = (
+  value: unknown,
+): value is { toHexString: () => string } => {
+  if (!value || typeof value !== "object") return false;
+  return (
+    "toHexString" in value &&
+    typeof (value as { toHexString?: unknown }).toHexString === "function"
+  );
+};
 
 export class FormSigningService {
-  private static async loadSubmissionOrThrow(submissionId: string) {
+  private static async loadSubmissionOrThrow(
+    submissionId: string,
+  ): Promise<FormSubmissionDoc> {
     const submission = await FormSubmissionModel.findById(submissionId);
     if (!submission) {
       throw new Error("Form submission not found");
@@ -139,8 +159,9 @@ export class FormSigningService {
       isParent,
     );
 
-    const documensoApiKey =
-      await FormSigningService.resolveDocumensoKeyOrThrow(form.orgId);
+    const documensoApiKey = await FormSigningService.resolveDocumensoKeyOrThrow(
+      form.orgId,
+    );
 
     // 4️⃣ Generate PDF ONCE
     const pdf = await generateFormSubmissionPdf({
@@ -191,6 +212,20 @@ export class FormSigningService {
     };
 
     await submission.save();
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.formSubmission.updateMany({
+          where: { id: submission._id.toString() },
+          data: {
+            signing: submission.signing as unknown as Prisma.InputJsonValue,
+            updatedAt: submission.updatedAt ?? undefined,
+          },
+        });
+      } catch (err) {
+        handleDualWriteError("FormSubmission signing", err);
+      }
+    }
     return {
       documentId: doc.id,
       signingUrl: `${process.env.DOCUMENSO_URL}/sign/${doc.recipients[0].token}`,

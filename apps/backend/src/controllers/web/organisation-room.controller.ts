@@ -11,8 +11,8 @@ const isFHIRLocationPayload = (
 ): payload is OrganisationRoomFHIRPayload => {
   return Boolean(
     payload &&
-      typeof payload === "object" &&
-      (payload as { resourceType?: string }).resourceType === "Location",
+    typeof payload === "object" &&
+    (payload as { resourceType?: string }).resourceType === "Location",
   );
 };
 

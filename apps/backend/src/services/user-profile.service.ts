@@ -16,6 +16,9 @@ import {
 } from "./base-availability.service";
 import UserOrganizationModel from "src/models/user-organization";
 import { getURLForKey } from "src/middlewares/upload";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import { Prisma, UserProfileStatus } from "@prisma/client";
 
 export class UserProfileServiceError extends Error {
   constructor(
@@ -97,6 +100,67 @@ const optionalString = (value: unknown, field: string): string | undefined => {
   forbidQueryOperators(trimmed, field);
 
   return trimmed;
+};
+
+const OFFSET_TIMEZONE_REGEX = /^(?:UTC)?[+-](?:0?\d|1\d|2[0-3]):[0-5]\d$/;
+const COMBINED_TIMEZONE_REGEX =
+  /^UTC[+-](?:0?\d|1\d|2[0-3]):[0-5]\d\s*-\s*(.+)$/;
+
+const isValidIanaTimezone = (value: string): boolean => {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: value }).format();
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const isValidTimezone = (value: string): boolean => {
+  if (value === "UTC") {
+    return true;
+  }
+
+  if (OFFSET_TIMEZONE_REGEX.test(value)) {
+    return true;
+  }
+
+  return isValidIanaTimezone(value);
+};
+
+const normalizeTimezoneInput = (value: string): string => {
+  const trimmed = value.trim();
+  const combinedMatch = COMBINED_TIMEZONE_REGEX.exec(trimmed);
+
+  if (combinedMatch) {
+    const iana = combinedMatch[1].trim();
+    if (isValidIanaTimezone(iana)) {
+      return iana;
+    }
+  }
+
+  return trimmed;
+};
+
+const optionalTimezone = (
+  value: unknown,
+  field: string,
+): string | undefined => {
+  const trimmed = optionalString(value, field);
+
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const normalized = normalizeTimezoneInput(trimmed);
+
+  if (!isValidTimezone(normalized)) {
+    throw new UserProfileServiceError(
+      `${field} must be a valid IANA timezone or UTC offset.`,
+      400,
+    );
+  }
+
+  return normalized;
 };
 
 const optionalEnum = <T extends string>(
@@ -230,6 +294,34 @@ const sanitizeAddress = (
   });
 };
 
+const sanitizePmsPreferences = (
+  value: unknown,
+): UserProfilePersonalDetailsMongo["pmsPreferences"] | undefined => {
+  if (value == null) {
+    return undefined;
+  }
+
+  const record = assertPlainObject(value, "PMS preferences");
+
+  return pruneUndefined({
+    defaultOpenScreen: optionalEnum(
+      record.defaultOpenScreen,
+      ["APPOINTMENTS", "DASHBOARD"] as const,
+      "Default open screen",
+    ),
+    appointmentView: optionalEnum(
+      record.appointmentView,
+      ["CALENDAR", "STATUS_BOARD", "TABLE"] as const,
+      "Appointment view",
+    ),
+    animalTerminology: optionalEnum(
+      record.animalTerminology,
+      ["ANIMAL", "COMPANION", "PET", "PATIENT"] as const,
+      "Animal terminology",
+    ),
+  });
+};
+
 const sanitizeDocuments = (
   value: unknown,
 ): UserProfileDocumentMongo[] | undefined => {
@@ -315,6 +407,8 @@ const sanitizePersonalDetails = (
       record.profilePictureUrl,
       "Profile picture URL",
     ),
+    timezone: optionalTimezone(record.timezone, "Timezone"),
+    pmsPreferences: sanitizePmsPreferences(record.pmsPreferences),
   });
 };
 
@@ -453,6 +547,93 @@ const determineProfileStatus = (
     : "DRAFT";
 };
 
+const toPrismaUserProfileData = (doc: UserProfileDocument) => {
+  const obj = doc.toObject({ virtuals: false }) as UserProfileMongo & {
+    _id: { toString(): string };
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+
+  return {
+    id: obj._id.toString(),
+    userId: obj.userId,
+    organizationId: obj.organizationId,
+    personalDetails: (obj.personalDetails ??
+      undefined) as unknown as Prisma.InputJsonValue,
+    professionalDetails: (obj.professionalDetails ??
+      undefined) as unknown as Prisma.InputJsonValue,
+    status: (obj.status ?? "DRAFT") as UserProfileStatus,
+    createdAt: obj.createdAt ?? undefined,
+    updatedAt: obj.updatedAt ?? undefined,
+  };
+};
+
+const syncUserProfileAddressToPostgres = async (
+  userProfileId: string,
+  address: UserProfileAddressMongo | undefined,
+) => {
+  if (!shouldDualWrite) return;
+  if (!address) {
+    try {
+      await prisma.userProfileAddress.deleteMany({
+        where: { userProfileId },
+      });
+    } catch (err) {
+      handleDualWriteError("UserProfileAddress delete", err);
+    }
+    return;
+  }
+
+  try {
+    await prisma.userProfileAddress.upsert({
+      where: { userProfileId },
+      create: {
+        userProfileId,
+        addressLine: address.addressLine ?? undefined,
+        country: address.country ?? undefined,
+        city: address.city ?? undefined,
+        state: address.state ?? undefined,
+        postalCode: address.postalCode ?? undefined,
+        latitude: address.latitude ?? undefined,
+        longitude: address.longitude ?? undefined,
+      },
+      update: {
+        addressLine: address.addressLine ?? undefined,
+        country: address.country ?? undefined,
+        city: address.city ?? undefined,
+        state: address.state ?? undefined,
+        postalCode: address.postalCode ?? undefined,
+        latitude: address.latitude ?? undefined,
+        longitude: address.longitude ?? undefined,
+      },
+    });
+  } catch (err) {
+    handleDualWriteError("UserProfileAddress", err);
+  }
+};
+
+const syncUserProfileToPostgres = async (doc: UserProfileDocument) => {
+  if (!shouldDualWrite) return;
+  try {
+    const data = toPrismaUserProfileData(doc);
+    await prisma.userProfile.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+
+    const obj = doc.toObject({ virtuals: false }) as UserProfileMongo & {
+      _id: { toString(): string };
+    };
+    await syncUserProfileAddressToPostgres(
+      data.id,
+      obj.personalDetails?.address,
+    );
+  } catch (err) {
+    handleDualWriteError("UserProfile", err);
+  }
+};
+
 const applyProfileStatus = async (
   document: UserProfileDocument,
   availability: UserAvailability[],
@@ -462,6 +643,7 @@ const applyProfileStatus = async (
   if (document.status !== status) {
     document.status = status;
     await document.save();
+    await syncUserProfileToPostgres(document);
   }
 
   return status;
@@ -476,7 +658,7 @@ const buildDomainProfile = (
   };
 
   const idSource = raw._id ?? document._id;
-  
+
   let id: string | undefined;
 
   if (typeof idSource === "string") {
@@ -521,6 +703,33 @@ const buildDomainProfile = (
   };
 
   return pruneUndefined(profile);
+};
+
+const applyPmsPreferenceDefaults = (
+  profile: UserProfileType,
+  roleCode?: string,
+): UserProfileType => {
+  const normalizedRole = roleCode?.toUpperCase();
+  const defaultOpenScreen =
+    normalizedRole === "OWNER" ? "DASHBOARD" : "APPOINTMENTS";
+
+  const existingPersonalDetails = profile.personalDetails ?? {};
+  const existingPrefs = existingPersonalDetails.pmsPreferences ?? {};
+
+  if (existingPrefs.defaultOpenScreen) {
+    return profile;
+  }
+
+  return {
+    ...profile,
+    personalDetails: {
+      ...existingPersonalDetails,
+      pmsPreferences: {
+        ...existingPrefs,
+        defaultOpenScreen,
+      },
+    },
+  };
 };
 
 export type CreateUserProfilePayload = {
@@ -604,6 +813,7 @@ export const UserProfileService = {
     );
 
     const document = await UserProfileModel.create(attributes);
+    await syncUserProfileToPostgres(document);
 
     let availability: UserAvailability[] = [];
 
@@ -621,7 +831,13 @@ export const UserProfileService = {
 
     const status = await applyProfileStatus(document, availability);
 
-    return buildDomainProfile(document, { statusOverride: status });
+    const userOrganisation = await UserOrganizationModel.findOne({
+      practitionerReference: attributes.userId,
+      organizationReference: attributes.organizationId,
+    });
+
+    const profile = buildDomainProfile(document, { statusOverride: status });
+    return applyPmsPreferenceDefaults(profile, userOrganisation?.roleCode);
   },
 
   async update(
@@ -664,7 +880,15 @@ export const UserProfileService = {
 
     const status = await applyProfileStatus(document, availability);
 
-    return buildDomainProfile(document, { statusOverride: status });
+    await syncUserProfileToPostgres(document);
+
+    const userOrganisation = await UserOrganizationModel.findOne({
+      practitionerReference: identifier,
+      organizationReference: organizationIdentifier,
+    });
+
+    const profile = buildDomainProfile(document, { statusOverride: status });
+    return applyPmsPreferenceDefaults(profile, userOrganisation?.roleCode);
   },
 
   async getByUserId(userId: unknown, organizationId: unknown) {
@@ -700,8 +924,13 @@ export const UserProfileService = {
       organizationReference: organizationId,
     });
 
+    const profile = applyPmsPreferenceDefaults(
+      buildDomainProfile(document, { statusOverride: status }),
+      userOrganisation?.roleCode,
+    );
+
     return {
-      profile: buildDomainProfile(document, { statusOverride: status }),
+      profile,
       mapping: userOrganisation,
       baseAvailability: availability,
     };

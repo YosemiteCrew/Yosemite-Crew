@@ -13,8 +13,115 @@ import { NotificationService } from "./notification.service";
 import { OrgBilling } from "src/models/organization.billing";
 import { OrgUsageCounters } from "src/models/organisation.usage.counter";
 import UserOrganizationModel from "src/models/user-organization";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import { Prisma, AccessState, BillingInterval, SubscriptionStatus } from "@prisma/client";
 
 let stripeClient: Stripe | null = null;
+
+type IdLike = { toString(): string } | string;
+
+const toIdString = (value: IdLike | null | undefined) =>
+  typeof value === "string" ? value : value?.toString?.();
+
+type OrgBillingDoc = {
+  _id?: IdLike;
+  orgId: IdLike;
+  connectAccountId?: string | null;
+  canAcceptPayments?: boolean;
+  connectChargesEnabled?: boolean;
+  connectPayoutsEnabled?: boolean;
+  connectDisabledReason?: string | null;
+  connectRequirements?: {
+    currentlyDue?: string[];
+    eventuallyDue?: string[];
+    pastDue?: string[];
+    pendingVerification?: string[];
+    errors?: unknown[];
+  } | null;
+  stripeCustomerId?: string | null;
+  stripeSubscriptionId?: string | null;
+  stripeSubscriptionItemId?: string | null;
+  stripePriceId?: string | null;
+  stripeProductId?: string | null;
+  stripeLivemode?: boolean;
+  plan?: "free" | "business";
+  billingInterval?: "month" | "year" | null;
+  currency?: string;
+  seatQuantity?: number;
+  seatQuantityUpdatedAt?: Date | null;
+  subscriptionStatus?: string | null;
+  cancelAtPeriodEnd?: boolean;
+  canceledAt?: Date | null;
+  currentPeriodStart?: Date | null;
+  currentPeriodEnd?: Date | null;
+  nextInvoiceAt?: Date | null;
+  lastInvoiceId?: string | null;
+  lastPaymentStatus?: string | null;
+  lastPaymentAt?: Date | null;
+  joinedAt?: Date | null;
+  upgradedAt?: Date | null;
+  downgradedAt?: Date | null;
+  accessState?: string | null;
+  gracePeriodEndsAt?: Date | null;
+  version?: number;
+  lastStripeEventId?: string | null;
+  createdAt?: Date;
+  updatedAt?: Date;
+};
+
+type OrgBillingMongooseDoc = OrgBillingDoc & {
+  save: () => Promise<OrgBillingMongooseDoc>;
+};
+
+type OrgUsageCountersDoc = {
+  _id?: IdLike;
+  orgId: IdLike;
+  appointmentsUsed?: number;
+  toolsUsed?: number;
+  usersActiveCount?: number;
+  usersBillableCount?: number;
+  freeAppointmentsLimit?: number;
+  freeToolsLimit?: number;
+  freeUsersLimit?: number;
+  freeLimitReachedAt?: Date | null;
+  createdAt?: Date;
+  updatedAt?: Date;
+};
+
+const toAccessState = (
+  value?: string | null,
+): AccessState | undefined => {
+  if (!value) return undefined;
+  if (value === "free") return "free";
+  if (value === "active") return "active";
+  if (value === "past_due") return "past_due";
+  if (value === "suspended") return "suspended";
+  return undefined;
+};
+
+const toBillingInterval = (
+  value?: string | null,
+): BillingInterval | undefined => {
+  if (value === "month" || value === "year") return value;
+  return undefined;
+};
+
+const toSubscriptionStatus = (
+  value?: string | null,
+): SubscriptionStatus | undefined => {
+  if (!value) return undefined;
+  if (value === "none") return "none";
+  if (value === "trialing") return "trialing";
+  if (value === "active") return "active";
+  if (value === "past_due") return "past_due";
+  if (value === "unpaid") return "unpaid";
+  if (value === "canceled") return "canceled";
+  if (value === "incomplete") return "incomplete";
+  if (value === "incomplete_expired") return "incomplete_expired";
+  if (value === "paused") return "paused";
+  return undefined;
+};
 
 const getStripeClient = () => {
   if (stripeClient) return stripeClient;
@@ -31,27 +138,168 @@ function toStripeAmount(amount: number): number {
 }
 
 async function getOrgBillingCurrency(orgId: string) {
-  const billing = await OrgBilling.findOne({ orgId });
+  const billing = (await OrgBilling.findOne({
+    orgId,
+  })) as unknown as OrgBillingDoc | null;
   return billing?.currency ?? "usd";
 }
 
 // --- Billing helpers ---
-async function ensureBillingDocs(orgId: string) {
+async function ensureBillingDocs(
+  orgId: string,
+): Promise<{ billing: OrgBillingMongooseDoc; usage: OrgUsageCountersDoc }> {
   const [billing, usage] = await Promise.all([
     OrgBilling.findOneAndUpdate(
       { orgId },
       { $setOnInsert: { orgId } },
       { upsert: true, new: true },
-    ),
+    ) as Promise<OrgBillingMongooseDoc | null>,
     OrgUsageCounters.findOneAndUpdate(
       { orgId },
       { $setOnInsert: { orgId } },
       { upsert: true, new: true },
-    ),
+    ) as Promise<OrgUsageCountersDoc | null>,
   ]);
+
+  if (!billing || !usage) {
+    throw new Error("Failed to initialize billing or usage counters");
+  }
+
+  await syncOrgBillingToPostgres(billing);
+  await syncOrgUsageToPostgres(usage);
 
   return { billing, usage };
 }
+
+const syncOrgBillingToPostgres = async (doc: OrgBillingDoc | null) => {
+  if (!shouldDualWrite || !doc) return;
+  const orgId = toIdString(doc.orgId);
+  if (!orgId) return;
+  const id = toIdString(doc._id) ?? orgId;
+  try {
+    await prisma.organizationBilling.upsert({
+      where: { orgId },
+      create: {
+        id,
+        orgId,
+        connectAccountId: doc.connectAccountId ?? undefined,
+        canAcceptPayments: doc.canAcceptPayments ?? false,
+        connectChargesEnabled: doc.connectChargesEnabled ?? false,
+        connectPayoutsEnabled: doc.connectPayoutsEnabled ?? false,
+        connectDisabledReason: doc.connectDisabledReason ?? undefined,
+        connectRequirements:
+          (doc.connectRequirements ?? undefined) as Prisma.InputJsonValue,
+        stripeCustomerId: doc.stripeCustomerId ?? undefined,
+        stripeSubscriptionId: doc.stripeSubscriptionId ?? undefined,
+        stripeSubscriptionItemId: doc.stripeSubscriptionItemId ?? undefined,
+        stripePriceId: doc.stripePriceId ?? undefined,
+        stripeProductId: doc.stripeProductId ?? undefined,
+        stripeLivemode: doc.stripeLivemode ?? false,
+        plan: doc.plan ?? "free",
+        billingInterval: toBillingInterval(doc.billingInterval),
+        currency: doc.currency ?? "usd",
+        seatQuantity: doc.seatQuantity ?? 0,
+        seatQuantityUpdatedAt: doc.seatQuantityUpdatedAt ?? undefined,
+        subscriptionStatus: toSubscriptionStatus(doc.subscriptionStatus) ?? "none",
+        cancelAtPeriodEnd: doc.cancelAtPeriodEnd ?? false,
+        canceledAt: doc.canceledAt ?? undefined,
+        currentPeriodStart: doc.currentPeriodStart ?? undefined,
+        currentPeriodEnd: doc.currentPeriodEnd ?? undefined,
+        nextInvoiceAt: doc.nextInvoiceAt ?? undefined,
+        lastInvoiceId: doc.lastInvoiceId ?? undefined,
+        lastPaymentStatus: doc.lastPaymentStatus ?? undefined,
+        lastPaymentAt: doc.lastPaymentAt ?? undefined,
+        joinedAt: doc.joinedAt ?? undefined,
+        upgradedAt: doc.upgradedAt ?? undefined,
+        downgradedAt: doc.downgradedAt ?? undefined,
+        accessState: toAccessState(doc.accessState) ?? "free",
+        gracePeriodEndsAt: doc.gracePeriodEndsAt ?? undefined,
+        version: doc.version ?? 0,
+        lastStripeEventId: doc.lastStripeEventId ?? undefined,
+        createdAt: doc.createdAt ?? undefined,
+        updatedAt: doc.updatedAt ?? undefined,
+      },
+      update: {
+        connectAccountId: doc.connectAccountId ?? undefined,
+        canAcceptPayments: doc.canAcceptPayments ?? false,
+        connectChargesEnabled: doc.connectChargesEnabled ?? false,
+        connectPayoutsEnabled: doc.connectPayoutsEnabled ?? false,
+        connectDisabledReason: doc.connectDisabledReason ?? undefined,
+        connectRequirements:
+          (doc.connectRequirements ?? undefined) as Prisma.InputJsonValue,
+        stripeCustomerId: doc.stripeCustomerId ?? undefined,
+        stripeSubscriptionId: doc.stripeSubscriptionId ?? undefined,
+        stripeSubscriptionItemId: doc.stripeSubscriptionItemId ?? undefined,
+        stripePriceId: doc.stripePriceId ?? undefined,
+        stripeProductId: doc.stripeProductId ?? undefined,
+        stripeLivemode: doc.stripeLivemode ?? false,
+        plan: doc.plan ?? "free",
+        billingInterval: toBillingInterval(doc.billingInterval),
+        currency: doc.currency ?? "usd",
+        seatQuantity: doc.seatQuantity ?? 0,
+        seatQuantityUpdatedAt: doc.seatQuantityUpdatedAt ?? undefined,
+        subscriptionStatus: toSubscriptionStatus(doc.subscriptionStatus) ?? "none",
+        cancelAtPeriodEnd: doc.cancelAtPeriodEnd ?? false,
+        canceledAt: doc.canceledAt ?? undefined,
+        currentPeriodStart: doc.currentPeriodStart ?? undefined,
+        currentPeriodEnd: doc.currentPeriodEnd ?? undefined,
+        nextInvoiceAt: doc.nextInvoiceAt ?? undefined,
+        lastInvoiceId: doc.lastInvoiceId ?? undefined,
+        lastPaymentStatus: doc.lastPaymentStatus ?? undefined,
+        lastPaymentAt: doc.lastPaymentAt ?? undefined,
+        joinedAt: doc.joinedAt ?? undefined,
+        upgradedAt: doc.upgradedAt ?? undefined,
+        downgradedAt: doc.downgradedAt ?? undefined,
+        accessState: toAccessState(doc.accessState) ?? "free",
+        gracePeriodEndsAt: doc.gracePeriodEndsAt ?? undefined,
+        version: doc.version ?? 0,
+        lastStripeEventId: doc.lastStripeEventId ?? undefined,
+        updatedAt: doc.updatedAt ?? undefined,
+      },
+    });
+  } catch (err) {
+    handleDualWriteError("OrganizationBilling", err);
+  }
+};
+
+const syncOrgUsageToPostgres = async (doc: OrgUsageCountersDoc | null) => {
+  if (!shouldDualWrite || !doc) return;
+  const orgId = toIdString(doc.orgId);
+  if (!orgId) return;
+  const id = toIdString(doc._id) ?? orgId;
+  try {
+    await prisma.organizationUsageCounter.upsert({
+      where: { orgId },
+      create: {
+        id,
+        orgId,
+        appointmentsUsed: doc.appointmentsUsed ?? 0,
+        toolsUsed: doc.toolsUsed ?? 0,
+        usersActiveCount: doc.usersActiveCount ?? 0,
+        usersBillableCount: doc.usersBillableCount ?? 0,
+        freeAppointmentsLimit: doc.freeAppointmentsLimit ?? 120,
+        freeToolsLimit: doc.freeToolsLimit ?? 200,
+        freeUsersLimit: doc.freeUsersLimit ?? 10,
+        freeLimitReachedAt: doc.freeLimitReachedAt ?? undefined,
+        createdAt: doc.createdAt ?? undefined,
+        updatedAt: doc.updatedAt ?? undefined,
+      },
+      update: {
+        appointmentsUsed: doc.appointmentsUsed ?? 0,
+        toolsUsed: doc.toolsUsed ?? 0,
+        usersActiveCount: doc.usersActiveCount ?? 0,
+        usersBillableCount: doc.usersBillableCount ?? 0,
+        freeAppointmentsLimit: doc.freeAppointmentsLimit ?? 120,
+        freeToolsLimit: doc.freeToolsLimit ?? 200,
+        freeUsersLimit: doc.freeUsersLimit ?? 10,
+        freeLimitReachedAt: doc.freeLimitReachedAt ?? undefined,
+        updatedAt: doc.updatedAt ?? undefined,
+      },
+    });
+  } catch (err) {
+    handleDualWriteError("OrganizationUsageCounter", err);
+  }
+};
 
 async function computeBillableSeats(orgId: string): Promise<number> {
   // Every active user in this org is billable
@@ -84,15 +332,27 @@ export const StripeService = {
     org.stripeAccountId = account.id;
     await org.save();
 
+    if (shouldDualWrite) {
+      try {
+        await prisma.organization.updateMany({
+          where: { id: organisationId },
+          data: { stripeAccountId: account.id },
+        });
+      } catch (err) {
+        handleDualWriteError("Organization stripeAccountId", err);
+      }
+    }
+
     // Ensure OrgBilling doc exists and store connectAccountId
-    await OrgBilling.findOneAndUpdate(
+    const billingDoc = (await OrgBilling.findOneAndUpdate(
       { orgId: organisationId },
       {
         $set: { connectAccountId: account.id },
         $setOnInsert: { orgId: organisationId },
       },
       { upsert: true, new: true },
-    );
+    )) as unknown as OrgBillingDoc | null;
+    await syncOrgBillingToPostgres(billingDoc);
 
     return { accountId: account.id };
   },
@@ -103,13 +363,13 @@ export const StripeService = {
       throw new Error("Organistaion not found");
     }
 
-    const orgBilling = await OrgBilling.findOne({
+    const orgBilling = (await OrgBilling.findOne({
       orgId: org._id,
-    }).lean();
+    }).lean()) as unknown as OrgBillingDoc | null;
 
-    const orgUsage = await OrgUsageCounters.findOne({
+    const orgUsage = (await OrgUsageCounters.findOne({
       orgId: org._id,
-    }).lean();
+    }).lean()) as unknown as OrgUsageCountersDoc | null;
 
     return {
       orgBilling: orgBilling,
@@ -123,9 +383,9 @@ export const StripeService = {
     const org = await OrganizationModel.findById(organisationId);
     if (!org) throw new Error("No Organisation Found");
 
-    const orgBilling = await OrgBilling.findOne({
+    const orgBilling = (await OrgBilling.findOne({
       orgId: org._id,
-    });
+    })) as unknown as OrgBillingDoc | null;
 
     if (!orgBilling?.connectAccountId)
       throw new Error("Organisation does not have a Stripe account");
@@ -136,9 +396,7 @@ export const StripeService = {
         account_onboarding: { enabled: true },
         tax_settings: {
           enabled: true,
-          features: {
-
-          }
+          features: {},
         },
         tax_registrations: {
           enabled: true,
@@ -168,6 +426,7 @@ export const StripeService = {
     if (!billing.connectAccountId && org.stripeAccountId) {
       billing.connectAccountId = org.stripeAccountId;
       await billing.save();
+      await syncOrgBillingToPostgres(billing);
     }
 
     const seats = await computeBillableSeats(orgId);
@@ -179,6 +438,16 @@ export const StripeService = {
       { orgId },
       { usersActiveCount: seats, usersBillableCount: seats },
     );
+    if (shouldDualWrite) {
+      try {
+        await prisma.organizationUsageCounter.updateMany({
+          where: { orgId },
+          data: { usersActiveCount: seats, usersBillableCount: seats },
+        });
+      } catch (err) {
+        handleDualWriteError("OrganizationUsageCounter snapshot", err);
+      }
+    }
 
     const priceId =
       interval === "month"
@@ -199,6 +468,7 @@ export const StripeService = {
 
       billing.stripeCustomerId = customer.id;
       await billing.save();
+      await syncOrgBillingToPostgres(billing);
     }
 
     const successUrl = `${process.env.APP_URL}/success?session_id={CHECKOUT_SESSION_ID}"`;
@@ -208,10 +478,10 @@ export const StripeService = {
       mode: "subscription",
       customer: billing.stripeCustomerId,
       line_items: [
-        { 
+        {
           price: priceId,
           quantity: seats,
-        }
+        },
       ],
       success_url: successUrl,
       cancel_url: cancelUrl,
@@ -223,21 +493,21 @@ export const StripeService = {
         },
       },
       tax_id_collection: {
-        enabled: true
+        enabled: true,
       },
       automatic_tax: {
         enabled: true,
       },
-      billing_address_collection: 'auto',
+      billing_address_collection: "auto",
       metadata: {
         orgId: String(orgId),
         interval,
         seats: String(seats),
       },
-      customer_update : {
-        name : 'auto',
-        address : 'auto'
-      }
+      customer_update: {
+        name: "auto",
+        address: "auto",
+      },
     });
 
     return { url: session.url };
@@ -265,13 +535,13 @@ export const StripeService = {
 
     if (billing.plan !== "business")
       return { updated: false, reason: "not_business" };
-    if (!billing.stripeSubscriptionItemId)
+    const subscriptionItemId = billing.stripeSubscriptionItemId;
+    if (!subscriptionItemId)
       return { updated: false, reason: "missing_item_id" };
 
     // Don’t sync if fully canceled/unpaid/suspended
-    if (
-      !["active", "trialing", "past_due"].includes(billing.subscriptionStatus)
-    ) {
+    const subscriptionStatus = billing.subscriptionStatus ?? "none";
+    if (!["active", "trialing", "past_due"].includes(subscriptionStatus)) {
       return { updated: false, reason: "subscription_not_syncable" };
     }
 
@@ -282,7 +552,7 @@ export const StripeService = {
     const prorationBehavior =
       newSeats > oldSeats ? "create_prorations" : "none";
 
-    await stripe.subscriptionItems.update(billing.stripeSubscriptionItemId, {
+    await stripe.subscriptionItems.update(subscriptionItemId, {
       quantity: newSeats,
       proration_behavior: prorationBehavior,
     });
@@ -291,10 +561,21 @@ export const StripeService = {
       { orgId },
       { usersActiveCount: newSeats, usersBillableCount: newSeats },
     );
+    if (shouldDualWrite) {
+      try {
+        await prisma.organizationUsageCounter.updateMany({
+          where: { orgId },
+          data: { usersActiveCount: newSeats, usersBillableCount: newSeats },
+        });
+      } catch (err) {
+        handleDualWriteError("OrganizationUsageCounter syncSeats", err);
+      }
+    }
 
     billing.seatQuantity = newSeats;
     billing.seatQuantityUpdatedAt = new Date();
     await billing.save();
+    await syncOrgBillingToPostgres(billing);
 
     return { updated: true, oldSeats, newSeats, prorationBehavior };
   },
@@ -309,8 +590,12 @@ export const StripeService = {
     const appointment = await AppointmentModel.findById(appointmentId);
     if (!appointment) throw new Error("Appointment not found");
 
-    if (appointment.status !== "NO_PAYMENT")
-      throw new Error("Appointment does not require payment");
+    const rawStatus = appointment.status as string;
+    const normalizedStatus =
+      rawStatus === "NO_PAYMENT" ? "REQUESTED" : rawStatus;
+    if (!["REQUESTED", "UPCOMING"].includes(normalizedStatus)) {
+      throw new Error("Appointment does not allow payment");
+    }
 
     const service = await ServiceModel.findById(
       appointment.appointmentType?.id,
@@ -361,6 +646,9 @@ export const StripeService = {
     if (!["AWAITING_PAYMENT", "PENDING"].includes(invoice.status)) {
       throw new Error("Invoice is not payable");
     }
+    if (invoice.paymentCollectionMethod === "PAYMENT_AT_CLINIC") {
+      throw new Error("Invoice is marked for in-clinic payment");
+    }
 
     // 🔒 Switch payment path if coming from PAYMENT_LINK
     if (
@@ -382,6 +670,20 @@ export const StripeService = {
           },
         },
       );
+      if (shouldDualWrite) {
+        try {
+          await prisma.invoice.updateMany({
+            where: { id: invoiceId },
+            data: {
+              paymentCollectionMethod: "PAYMENT_INTENT",
+              stripeCheckoutSessionId: null,
+              stripeCheckoutUrl: null,
+            },
+          });
+        } catch (err) {
+          handleDualWriteError("Invoice switch payment path", err);
+        }
+      }
 
       // 🔁 re-fetch to avoid stale state
       invoice = await InvoiceModel.findById(invoiceId);
@@ -442,6 +744,9 @@ export const StripeService = {
     if (!["AWAITING_PAYMENT", "PENDING"].includes(invoice.status)) {
       throw new Error("Invoice is not payable");
     }
+    if (invoice.paymentCollectionMethod === "PAYMENT_AT_CLINIC") {
+      throw new Error("Invoice is marked for in-clinic payment");
+    }
 
     // Guard: don’t start two payment paths
     if (invoice.stripePaymentIntentId) {
@@ -449,11 +754,17 @@ export const StripeService = {
     }
     if (invoice.stripeCheckoutSessionId) {
       // optionally return existing url to re-send
-      return { sessionId: invoice.stripeCheckoutSessionId, url: invoice.stripeCheckoutUrl };
+      return {
+        sessionId: invoice.stripeCheckoutSessionId,
+        url: invoice.stripeCheckoutUrl,
+      };
     }
 
-    const organisation = await OrganizationModel.findById(invoice.organisationId);
-    if (!organisation?.stripeAccountId) throw new Error("Organisation not connected to Stripe");
+    const organisation = await OrganizationModel.findById(
+      invoice.organisationId,
+    );
+    if (!organisation?.stripeAccountId)
+      throw new Error("Organisation not connected to Stripe");
 
     // Optional expiry (recommended): e.g. 24 hours
     const expiresAt = Math.floor((Date.now() + 24 * 60 * 60 * 1000) / 1000);
@@ -504,6 +815,20 @@ export const StripeService = {
         },
       },
     );
+    if (shouldDualWrite) {
+      try {
+        await prisma.invoice.updateMany({
+          where: { id: invoiceId },
+          data: {
+            paymentCollectionMethod: "PAYMENT_LINK",
+            stripeCheckoutSessionId: session.id,
+            stripeCheckoutUrl: session.url ?? undefined,
+          },
+        });
+      } catch (err) {
+        handleDualWriteError("Invoice checkout session", err);
+      }
+    }
 
     return { sessionId: session.id, url: session.url };
   },
@@ -520,9 +845,9 @@ export const StripeService = {
     });
 
     return {
-      status : session.payment_status,
-      total : session.amount_total ? session.amount_total/100 : 0
-    }
+      status: session.payment_status,
+      total: session.amount_total ? session.amount_total / 100 : 0,
+    };
   },
 
   async refundPaymentIntent(paymentIntentId: string) {
@@ -644,6 +969,29 @@ export const StripeService = {
         },
       },
     );
+    if (shouldDualWrite) {
+      try {
+        await prisma.organizationBilling.updateMany({
+          where: { connectAccountId: account.id },
+          data: {
+            currency: account.default_currency ?? undefined,
+            connectChargesEnabled: account.charges_enabled ?? false,
+            connectPayoutsEnabled: account.payouts_enabled ?? false,
+            canAcceptPayments: canAccept,
+            connectDisabledReason: account.requirements?.disabled_reason ?? undefined,
+            connectRequirements: {
+              currentlyDue: account.requirements?.currently_due ?? [],
+              eventuallyDue: account.requirements?.eventually_due ?? [],
+              pastDue: account.requirements?.past_due ?? [],
+              pendingVerification: account.requirements?.pending_verification ?? [],
+              errors: account.requirements?.errors ?? [],
+            } as unknown as Prisma.InputJsonValue,
+          },
+        });
+      } catch (err) {
+        handleDualWriteError("OrganizationBilling accountUpdated", err);
+      }
+    }
   },
 
   // ----------------------------
@@ -655,7 +1003,6 @@ export const StripeService = {
     } else if (session.mode === "payment") {
       return this._handleInvoiceCheckout(session);
     }
-
   },
 
   async _handleSubscriptionUpdated(subscription: Stripe.Subscription) {
@@ -676,6 +1023,25 @@ export const StripeService = {
         currentPeriodEnd: new Date(item.current_period_end * 1000),
       },
     );
+    if (shouldDualWrite) {
+      try {
+        await prisma.organizationBilling.updateMany({
+          where: { stripeSubscriptionId: subscription.id },
+          data: {
+            subscriptionStatus: toSubscriptionStatus(subscription.status) ?? "none",
+            cancelAtPeriodEnd: subscription.cancel_at_period_end ?? false,
+            canceledAt: subscription.canceled_at
+              ? new Date(subscription.canceled_at * 1000)
+              : undefined,
+            seatQuantity: item?.quantity ?? 0,
+            currentPeriodStart: new Date(item.current_period_start * 1000),
+            currentPeriodEnd: new Date(item.current_period_end * 1000),
+          },
+        });
+      } catch (err) {
+        handleDualWriteError("OrganizationBilling subscriptionUpdated", err);
+      }
+    }
   },
 
   async _handleSubscriptionDeleted(subscription: Stripe.Subscription) {
@@ -698,10 +1064,36 @@ export const StripeService = {
         gracePeriodEndsAt: null,
       },
     );
+    if (shouldDualWrite) {
+      try {
+        await prisma.organizationBilling.updateMany({
+          where: { stripeSubscriptionId: subscription.id },
+          data: {
+            plan: "free",
+            accessState: "free",
+            downgradedAt: new Date(),
+            subscriptionStatus: "canceled",
+            billingInterval: undefined,
+            stripeSubscriptionItemId: null,
+            stripePriceId: null,
+            cancelAtPeriodEnd: false,
+            currentPeriodStart: null,
+            currentPeriodEnd: null,
+            gracePeriodEndsAt: null,
+          },
+        });
+      } catch (err) {
+        handleDualWriteError("OrganizationBilling subscriptionDeleted", err);
+      }
+    }
   },
 
   async _handleInvoicePaid(invoice: Stripe.Invoice) {
-    const subscriptionId = invoice.lines.data[0].subscription;
+    const subscriptionValue = invoice.lines.data[0]?.subscription;
+    const subscriptionId =
+      typeof subscriptionValue === "string"
+        ? subscriptionValue
+        : subscriptionValue?.id;
     if (!subscriptionId) return;
 
     await OrgBilling.updateOne(
@@ -714,10 +1106,30 @@ export const StripeService = {
         gracePeriodEndsAt: null,
       },
     );
+    if (shouldDualWrite) {
+      try {
+        await prisma.organizationBilling.updateMany({
+          where: { stripeSubscriptionId: subscriptionId },
+          data: {
+            lastInvoiceId: invoice.id ?? undefined,
+            lastPaymentStatus: "paid",
+            lastPaymentAt: new Date(),
+            accessState: "active",
+            gracePeriodEndsAt: null,
+          },
+        });
+      } catch (err) {
+        handleDualWriteError("OrganizationBilling invoicePaid", err);
+      }
+    }
   },
 
   async _handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
-    const subscriptionId = invoice.lines.data[0].subscription;
+    const subscriptionValue = invoice.lines.data[0]?.subscription;
+    const subscriptionId =
+      typeof subscriptionValue === "string"
+        ? subscriptionValue
+        : subscriptionValue?.id;
     if (!subscriptionId) return;
 
     const graceEnd = addDays(new Date(), 7);
@@ -731,6 +1143,21 @@ export const StripeService = {
         gracePeriodEndsAt: graceEnd,
       },
     );
+    if (shouldDualWrite) {
+      try {
+        await prisma.organizationBilling.updateMany({
+          where: { stripeSubscriptionId: subscriptionId },
+          data: {
+            lastInvoiceId: invoice.id ?? undefined,
+            lastPaymentStatus: "failed",
+            accessState: "past_due",
+            gracePeriodEndsAt: graceEnd,
+          },
+        });
+      } catch (err) {
+        handleDualWriteError("OrganizationBilling invoicePaymentFailed", err);
+      }
+    }
   },
 
   // ----------------------------
@@ -796,6 +1223,36 @@ export const StripeService = {
       stripeChargeId: charge.id,
       stripeReceiptUrl: charge.receipt_url,
     });
+    if (shouldDualWrite) {
+      try {
+        await prisma.invoice.create({
+          data: {
+            id: invoice._id.toString(),
+            appointmentId,
+            organisationId: appointment.organisationId,
+            parentId: appointment.companion.parent.id,
+            companionId: appointment.companion.id,
+            currency: pi.currency,
+            status: "PAID",
+            items: invoice.items as unknown as Prisma.InputJsonValue,
+            subtotal: invoice.subtotal,
+            discountTotal: invoice.discountTotal ?? 0,
+            taxTotal: invoice.taxTotal ?? 0,
+            taxPercent: invoice.taxPercent ?? 0,
+            totalAmount: invoice.totalAmount,
+            paymentCollectionMethod:
+              invoice.paymentCollectionMethod as Prisma.InvoiceCreateInput["paymentCollectionMethod"],
+            stripePaymentIntentId: invoice.stripePaymentIntentId ?? undefined,
+            stripeChargeId: invoice.stripeChargeId ?? undefined,
+            stripeReceiptUrl: invoice.stripeReceiptUrl ?? undefined,
+            createdAt: invoice.createdAt ?? undefined,
+            updatedAt: invoice.updatedAt ?? undefined,
+          },
+        });
+      } catch (err) {
+        handleDualWriteError("Invoice create (appointment booking)", err);
+      }
+    }
 
     await AppointmentModel.updateOne(
       { _id: appointmentId },
@@ -808,6 +1265,20 @@ export const StripeService = {
         expiresAt: undefined,
       },
     );
+    if (shouldDualWrite) {
+      try {
+        await prisma.appointment.updateMany({
+          where: { id: appointmentId },
+          data: {
+            status: "REQUESTED",
+            updatedAt: new Date(),
+            expiresAt: null,
+          },
+        });
+      } catch (err) {
+        handleDualWriteError("Appointment booking payment", err);
+      }
+    }
 
     logger.info(
       `Appointment ${appointmentId} booking PAID. Invoice ${invoice.id} created`,
@@ -838,6 +1309,22 @@ export const StripeService = {
     invoice.stripeReceiptUrl = charge.receipt_url!;
     invoice.updatedAt = new Date();
     await invoice.save();
+    if (shouldDualWrite) {
+      try {
+        await prisma.invoice.updateMany({
+          where: { id: invoice._id.toString() },
+          data: {
+            status: "PAID",
+            stripePaymentIntentId: pi.id,
+            stripeChargeId: charge.id,
+            stripeReceiptUrl: charge.receipt_url ?? undefined,
+            updatedAt: new Date(),
+          },
+        });
+      } catch (err) {
+        handleDualWriteError("Invoice payment", err);
+      }
+    }
 
     logger.info(`Invoice ${invoiceId} marked PAID`);
   },
@@ -850,6 +1337,16 @@ export const StripeService = {
     if (!invoice) return;
 
     await InvoiceModel.updateOne({ _id: invoice._id }, { status: "FAILED" });
+    if (shouldDualWrite) {
+      try {
+        await prisma.invoice.updateMany({
+          where: { id: invoice._id.toString() },
+          data: { status: "FAILED" },
+        });
+      } catch (err) {
+        handleDualWriteError("Invoice failed", err);
+      }
+    }
     logger.warn(`Invoice ${invoice.id} marked FAILED`);
   },
 
@@ -861,6 +1358,16 @@ export const StripeService = {
     if (!invoice) return;
 
     await InvoiceModel.updateOne({ _id: invoice._id }, { status: "REFUNDED" });
+    if (shouldDualWrite) {
+      try {
+        await prisma.invoice.updateMany({
+          where: { id: invoice._id.toString() },
+          data: { status: "REFUNDED" },
+        });
+      } catch (err) {
+        handleDualWriteError("Invoice refunded", err);
+      }
+    }
 
     const notificationPayload = NotificationTemplates.Payment.REFUND_ISSUED(
       charge.amount / 100,
@@ -915,6 +1422,34 @@ export const StripeService = {
         gracePeriodEndsAt: null,
       },
     );
+    if (shouldDualWrite) {
+      try {
+        await prisma.organizationBilling.updateMany({
+          where: { stripeCustomerId: customerId },
+          data: {
+            plan: "business",
+            accessState: "active",
+            upgradedAt: new Date(),
+            stripeSubscriptionId: subscription.id,
+            stripeSubscriptionItemId: item.id,
+            stripePriceId: price.id,
+            stripeProductId: productId ?? null,
+            billingInterval: toBillingInterval(price.recurring?.interval),
+            joinedAt: new Date(),
+            subscriptionStatus: toSubscriptionStatus(subscription.status) ?? "none",
+            cancelAtPeriodEnd: subscription.cancel_at_period_end ?? false,
+            seatQuantity: item.quantity ?? 0,
+            seatQuantityUpdatedAt: new Date(),
+            currentPeriodStart: new Date(item.current_period_start * 1000),
+            currentPeriodEnd: new Date(item.current_period_end * 1000),
+            stripeLivemode: session.livemode ?? false,
+            gracePeriodEndsAt: null,
+          },
+        });
+      } catch (err) {
+        handleDualWriteError("OrganizationBilling subscriptionCheckout", err);
+      }
+    }
   },
 
   async _handleInvoiceCheckout(session: Stripe.Checkout.Session) {
@@ -949,6 +1484,16 @@ export const StripeService = {
         },
       },
     );
+    if (shouldDualWrite) {
+      try {
+        await prisma.invoice.updateMany({
+          where: { id: invoiceId },
+          data: { status: "PAID", paidAt: new Date(), updatedAt: new Date() },
+        });
+      } catch (err) {
+        handleDualWriteError("Invoice checkout paid", err);
+      }
+    }
 
     // Optional: update appointment state
     if (invoice.appointmentId) {
@@ -956,6 +1501,16 @@ export const StripeService = {
         { _id: invoice.appointmentId },
         { $set: { updatedAt: new Date() } },
       );
+      if (shouldDualWrite) {
+        try {
+          await prisma.appointment.updateMany({
+            where: { id: invoice.appointmentId },
+            data: { updatedAt: new Date() },
+          });
+        } catch (err) {
+          handleDualWriteError("Appointment update (invoice checkout)", err);
+        }
+      }
     }
 
     // Optional: notify parent
@@ -994,7 +1549,11 @@ export const StripeService = {
 
       await stripe.refunds.create({ charge: charge.id });
     } catch (err) {
-      logger.error("Failed to auto-refund payment intent", paymentIntentId, err);
+      logger.error(
+        "Failed to auto-refund payment intent",
+        paymentIntentId,
+        err,
+      );
     }
   },
 };

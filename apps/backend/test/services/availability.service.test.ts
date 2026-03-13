@@ -1,5 +1,5 @@
 import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
+import utc from "dayjs/plugin/utc.js";
 import {
   AvailabilityService,
   generateBookableWindows,
@@ -37,6 +37,12 @@ jest.mock("src/models/occupancy", () => ({
     find: jest.fn(),
     exists: jest.fn(),
   },
+}));
+
+jest.mock("src/utils/dual-write", () => ({
+  shouldDualWrite: false,
+  isDualWriteStrict: false,
+  handleDualWriteError: jest.fn(),
 }));
 
 // Helper for lean queries
@@ -139,6 +145,14 @@ describe("AvailabilityService", () => {
       (WeeklyAvailabilityOverrideModel.findOne as jest.Mock).mockResolvedValue(
         null,
       );
+      (WeeklyAvailabilityOverrideModel.create as jest.Mock).mockResolvedValue({
+        _id: "ov1",
+        userId: "u1",
+        organisationId: "org1",
+        overrides: [{ dayOfWeek: "MONDAY", slots: [] }],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
 
       await AvailabilityService.addWeeklyAvailabilityOverride(
         "org1",
@@ -214,6 +228,17 @@ describe("AvailabilityService", () => {
     it("addOccupancy: should create occupancy", async () => {
       const start = new Date();
       const end = new Date();
+      (OccupancyModel.create as jest.Mock).mockResolvedValue({
+        _id: "occ1",
+        userId: "u1",
+        organisationId: "org1",
+        startTime: start,
+        endTime: end,
+        sourceType: "BLOCKED",
+        referenceId: "ref1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
       await AvailabilityService.addOccupancy(
         "org1",
         "u1",

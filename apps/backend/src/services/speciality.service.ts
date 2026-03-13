@@ -16,6 +16,8 @@ import UserModel from "src/models/user";
 import OrganizationModel from "src/models/organization";
 import { sendEmailTemplate } from "src/utils/email";
 import logger from "src/utils/logger";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 
 export type SpecialityFHIRPayload = SpecialityRequestDTO;
 
@@ -308,6 +310,44 @@ const resolveIdQuery = (id: unknown): { _id?: string; fhirId?: string } => {
   );
 };
 
+const toPrismaSpecialityData = (doc: SpecialityDocument) => {
+  const obj = doc.toObject() as SpecialityMongo & {
+    _id: { toString(): string };
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+
+  return {
+    id: obj._id.toString(),
+    fhirId: obj.fhirId ?? undefined,
+    organisationId: obj.organisationId,
+    departmentMasterId: obj.departmentMasterId ?? undefined,
+    name: obj.name,
+    description: obj.description ?? undefined,
+    headUserId: obj.headUserId ?? undefined,
+    headName: obj.headName ?? undefined,
+    headProfilePicUrl: obj.headProfilePicUrl ?? undefined,
+    services: obj.services ?? [],
+    memberUserIds: obj.memberUserIds ?? [],
+    createdAt: obj.createdAt ?? undefined,
+    updatedAt: obj.updatedAt ?? undefined,
+  };
+};
+
+const syncSpecialityToPostgres = async (doc: SpecialityDocument) => {
+  if (!shouldDualWrite) return;
+  try {
+    const data = toPrismaSpecialityData(doc);
+    await prisma.speciality.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+  } catch (err) {
+    handleDualWriteError("Speciality", err);
+  }
+};
+
 export const SpecialityService = {
   async createOne(payload: SpecialityFHIRPayload) {
     const { persistable, attributes } = createPersistableFromFHIR(payload);
@@ -337,6 +377,10 @@ export const SpecialityService = {
     if (!document) {
       document = await SpecialityModel.create(persistable);
       created = true;
+    }
+
+    if (document) {
+      await syncSpecialityToPostgres(document);
     }
 
     if (document?.headUserId && document.headUserId !== previousHeadUserId) {
@@ -392,6 +436,8 @@ export const SpecialityService = {
       });
     }
 
+    await syncSpecialityToPostgres(document);
+
     return buildFHIRResponse(document);
   },
 
@@ -434,6 +480,14 @@ export const SpecialityService = {
     const orgId = requireOrganizationId(organisationId);
 
     await SpecialityModel.deleteMany({ organisationId: orgId }).exec();
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.speciality.deleteMany({ where: { organisationId: orgId } });
+      } catch (err) {
+        handleDualWriteError("Speciality deleteAllByOrganizationId", err);
+      }
+    }
   },
 
   async deleteSpeciality(specialityId: string, organisationId: string) {
@@ -462,5 +516,34 @@ export const SpecialityService = {
       { $pull: { assignedSpecialiteis: specialityId } },
       { sanitizeFilter: true },
     );
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.speciality.deleteMany({
+          where: { id: document._id.toString() },
+        });
+      } catch (err) {
+        handleDualWriteError("Speciality delete", err);
+      }
+
+      try {
+        const rooms = await prisma.organisationRoom.findMany({
+          where: {
+            assignedSpecialiteis: { has: specialityId },
+          },
+        });
+        for (const room of rooms) {
+          const next = (room.assignedSpecialiteis ?? []).filter(
+            (id) => id !== specialityId,
+          );
+          await prisma.organisationRoom.update({
+            where: { id: room.id },
+            data: { assignedSpecialiteis: next },
+          });
+        }
+      } catch (err) {
+        handleDualWriteError("OrganisationRoom updateSpeciality", err);
+      }
+    }
   },
 };

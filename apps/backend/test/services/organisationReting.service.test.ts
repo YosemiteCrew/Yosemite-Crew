@@ -76,10 +76,13 @@ describe("OrganizationRatingService", () => {
 
       await OrganizationRatingService.recalculateAverageRating(otherOrgId);
 
-      expect(mockedOrgModel.findByIdAndUpdate).toHaveBeenCalledWith(otherOrgId, {
-        averageRating: 0,
-        ratingCount: 0,
-      });
+      expect(mockedOrgModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        otherOrgId,
+        {
+          averageRating: 0,
+          ratingCount: 0,
+        },
+      );
     });
   });
 });

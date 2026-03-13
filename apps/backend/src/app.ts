@@ -5,7 +5,7 @@ import { registerRoutes } from "./routers";
 import { StripeController } from "./controllers/web/stripe.controller";
 import cors from "cors";
 import { DocumensoWebhookController } from "./controllers/web/documenso.controller";
-import mongoSanitize from 'express-mongo-sanitize';
+import mongoSanitize from "express-mongo-sanitize";
 
 export function createApp() {
   const app = express();
@@ -36,7 +36,6 @@ export function createApp() {
   app.use(fileUpload());
 
   if (process.env.LOCAL_DEVELOPMENT) {
-
     const allowedorigins = new Set([
       "http://localhost:3000", // Next.js / React
       "http://127.0.0.1:3000",

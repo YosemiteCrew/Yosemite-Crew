@@ -18,6 +18,7 @@ import { usePermissions } from '@/app/hooks/usePermissions';
 import { AppointmentLabels, TaskLabels } from '@/app/config/statusConfig';
 import ChangeStatus from '@/app/features/appointments/pages/Appointments/Sections/ChangeStatus';
 import { AppointmentViewIntent } from '@/app/features/appointments';
+import { normalizeAppointmentStatus, type LegacyAppointmentStatus } from '@/app/lib/appointments';
 
 const AppointmentTask = () => {
   const appointments = useAppointmentsForPrimaryOrg();
@@ -81,8 +82,8 @@ const AppointmentTask = () => {
     if (activeTable === 'Appointments') {
       const wanted = activeSubLabel.toLowerCase();
       return appointments.filter((item) => {
-        const s = item.status?.toLowerCase();
-        return s === wanted || (wanted === 'requested' && s === 'no_payment');
+        const s = normalizeAppointmentStatus(item.status as LegacyAppointmentStatus)?.toLowerCase();
+        return s === wanted;
       });
     }
     return [];

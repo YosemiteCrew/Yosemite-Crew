@@ -13,6 +13,14 @@ import CompanionModel from "../models/companion";
 import UserModel from "../models/user";
 import { sendEmailTemplate } from "../utils/email";
 import logger from "../utils/logger";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import {
+  Prisma,
+  TaskAudience as PrismaTaskAudience,
+  TaskSource as PrismaTaskSource,
+  TaskStatus as PrismaTaskStatus,
+} from "@prisma/client";
 
 export class TaskServiceError extends Error {
   constructor(
@@ -51,7 +59,7 @@ const DEFAULT_PMS_URL =
   process.env.APP_URL ??
   "https://app.yosemitecrew.com";
 
-const TASK_STATUSES= new Set<TaskStatus> ([
+const TASK_STATUSES = new Set<TaskStatus>([
   "PENDING",
   "IN_PROGRESS",
   "COMPLETED",
@@ -68,6 +76,114 @@ const asNonEmptyString = (value: unknown): string | undefined => {
 
 const isValidDate = (value: unknown): value is Date =>
   value instanceof Date && !Number.isNaN(value.getTime());
+
+const toPrismaTaskData = (doc: TaskDocument) => {
+  const obj = doc.toObject() as {
+    _id: { toString(): string };
+    organisationId?: string;
+    appointmentId?: string;
+    companionId?: string;
+    createdBy: string;
+    assignedBy?: string;
+    assignedTo: string;
+    audience: TaskAudience;
+    source: TaskSource;
+    libraryTaskId?: string;
+    templateId?: string;
+    category: string;
+    name: string;
+    description?: string;
+    additionalNotes?: string;
+    medication?: unknown;
+    observationToolId?: string;
+    dueAt: Date;
+    timezone?: string;
+    recurrence?: unknown;
+    reminder?: unknown;
+    syncWithCalendar?: boolean;
+    calendarEventId?: string;
+    attachments?: unknown;
+    status: TaskStatus;
+    completedAt?: Date;
+    completedBy?: string;
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+
+  return {
+    id: obj._id.toString(),
+    organisationId: obj.organisationId ?? undefined,
+    appointmentId: obj.appointmentId ?? undefined,
+    companionId: obj.companionId ?? undefined,
+    createdBy: obj.createdBy,
+    assignedBy: obj.assignedBy ?? undefined,
+    assignedTo: obj.assignedTo,
+    audience: obj.audience as PrismaTaskAudience,
+    source: obj.source as PrismaTaskSource,
+    libraryTaskId: obj.libraryTaskId ?? undefined,
+    templateId: obj.templateId ?? undefined,
+    category: obj.category,
+    name: obj.name,
+    description: obj.description ?? undefined,
+    additionalNotes: obj.additionalNotes ?? undefined,
+    medication: (obj.medication ?? undefined) as unknown as Prisma.InputJsonValue,
+    observationToolId: obj.observationToolId ?? undefined,
+    dueAt: obj.dueAt,
+    timezone: obj.timezone ?? undefined,
+    recurrence: (obj.recurrence ?? undefined) as unknown as Prisma.InputJsonValue,
+    reminder: (obj.reminder ?? undefined) as unknown as Prisma.InputJsonValue,
+    syncWithCalendar: obj.syncWithCalendar ?? undefined,
+    calendarEventId: obj.calendarEventId ?? undefined,
+    attachments: (obj.attachments ?? undefined) as unknown as Prisma.InputJsonValue,
+    status: obj.status as PrismaTaskStatus,
+    completedAt: obj.completedAt ?? undefined,
+    completedBy: obj.completedBy ?? undefined,
+    createdAt: obj.createdAt ?? undefined,
+    updatedAt: obj.updatedAt ?? undefined,
+  };
+};
+
+const syncTaskToPostgres = async (doc: TaskDocument) => {
+  if (!shouldDualWrite) return;
+  try {
+    const data = toPrismaTaskData(doc);
+    await prisma.task.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+  } catch (err) {
+    handleDualWriteError("Task", err);
+  }
+};
+
+const syncTaskCompletionToPostgres = async (
+  doc: TaskCompletionDocument,
+) => {
+  if (!shouldDualWrite) return;
+  try {
+    await prisma.taskCompletion.upsert({
+      where: { id: doc._id.toString() },
+      create: {
+        id: doc._id.toString(),
+        taskId: doc.taskId,
+        companionId: doc.companionId,
+        filledBy: doc.filledBy,
+        answers: doc.answers as unknown as Prisma.InputJsonValue,
+        score: doc.score ?? undefined,
+        summary: doc.summary ?? undefined,
+        createdAt: doc.createdAt ?? undefined,
+      },
+      update: {
+        answers: doc.answers as unknown as Prisma.InputJsonValue,
+        score: doc.score ?? undefined,
+        summary: doc.summary ?? undefined,
+      },
+    });
+  } catch (err) {
+    handleDualWriteError("TaskCompletion", err);
+  }
+};
 
 const ensureObjectId = (value: unknown, field: string): string => {
   if (typeof value !== "string" || !Types.ObjectId.isValid(value)) {
@@ -196,7 +312,10 @@ const applyFieldUpdates = (task: TaskDocument, updates: TaskUpdateInput) => {
   }
 };
 
-const applyRecurrenceUpdate = (task: TaskDocument, updates: TaskUpdateInput) => {
+const applyRecurrenceUpdate = (
+  task: TaskDocument,
+  updates: TaskUpdateInput,
+) => {
   if (updates.recurrence === undefined) return;
   if (updates.recurrence === null) {
     task.recurrence = undefined;
@@ -409,9 +528,8 @@ export const TaskService = {
     input: CreateFromLibraryInput,
   ): Promise<TaskDocument> {
     const libraryTaskId = ensureObjectId(input.libraryTaskId, "libraryTaskId");
-    const library = await TaskLibraryDefinitionModel.findById(
-      libraryTaskId,
-    ).exec();
+    const library =
+      await TaskLibraryDefinitionModel.findById(libraryTaskId).exec();
 
     if (!library || !library.isActive) {
       throw new TaskServiceError("Library task not found or inactive", 404);
@@ -465,6 +583,8 @@ export const TaskService = {
 
       status: "PENDING",
     });
+
+    await syncTaskToPostgres(doc);
 
     void sendTaskAssignmentEmail(doc);
 
@@ -574,6 +694,8 @@ export const TaskService = {
       status: "PENDING",
     });
 
+    await syncTaskToPostgres(doc);
+
     void sendTaskAssignmentEmail(doc);
 
     return doc;
@@ -634,6 +756,7 @@ export const TaskService = {
       status: "PENDING",
     });
     logger.info("Taske created -> ");
+    await syncTaskToPostgres(doc);
     void sendTaskAssignmentEmail(doc);
 
     return doc;
@@ -655,6 +778,7 @@ export const TaskService = {
     applyRecurrenceUpdate(task, updates);
 
     await task.save();
+    await syncTaskToPostgres(task);
     return task;
   },
 
@@ -700,9 +824,11 @@ export const TaskService = {
         score: completion.score,
         summary: completion.summary,
       });
+      await syncTaskCompletionToPostgres(completionDoc);
     }
 
     await task.save();
+    await syncTaskToPostgres(task);
     return { task, completion: completionDoc };
   },
 
@@ -836,6 +962,7 @@ export const TaskService = {
 
     task.appointmentId = input.appointmentId;
     await task.save();
+    await syncTaskToPostgres(task);
 
     return task;
   },

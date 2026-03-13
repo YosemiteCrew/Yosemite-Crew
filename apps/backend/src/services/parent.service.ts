@@ -11,10 +11,13 @@ import {
   type ParentRequestDTO,
   type Parent,
 } from "@yosemite-crew/types";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 import { AuthUserMobileService } from "./authUserMobile.service";
 import { buildS3Key, moveFile } from "src/middlewares/upload";
 import logger from "src/utils/logger";
 import escapeStringRegexp from "escape-string-regexp";
+import { ParentCreatedFrom } from "@prisma/client";
 
 export class ParentServiceError extends Error {
   constructor(
@@ -25,6 +28,55 @@ export class ParentServiceError extends Error {
     this.name = "ParentServiceError";
   }
 }
+
+const OFFSET_TIMEZONE_REGEX = /^(?:UTC)?[+-](?:0?\d|1\d|2[0-3]):[0-5]\d$/;
+const COMBINED_TIMEZONE_REGEX =
+  /^UTC[+-](?:0?\d|1\d|2[0-3]):[0-5]\d\s*-\s*(.+)$/;
+
+const isValidIanaTimezone = (value: string): boolean => {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: value }).format();
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const isValidTimezone = (value: string): boolean => {
+  if (value === "UTC") {
+    return true;
+  }
+
+  if (OFFSET_TIMEZONE_REGEX.test(value)) {
+    return true;
+  }
+
+  return isValidIanaTimezone(value);
+};
+
+const validateTimezone = (value: string, field: string): string => {
+  const trimmed = value.trim();
+
+  const combinedMatch = COMBINED_TIMEZONE_REGEX.exec(trimmed);
+  const normalized = combinedMatch
+    ? isValidIanaTimezone(combinedMatch[1].trim())
+      ? combinedMatch[1].trim()
+      : trimmed
+    : trimmed;
+
+  if (!normalized) {
+    throw new ParentServiceError(`${field} cannot be empty.`, 400);
+  }
+
+  if (!isValidTimezone(normalized)) {
+    throw new ParentServiceError(
+      `${field} must be a valid IANA timezone or UTC offset.`,
+      400,
+    );
+  }
+
+  return normalized;
+};
 
 /* ------------------------------ Helpers ------------------------------ */
 
@@ -47,6 +99,7 @@ export const toFHIR = (doc: ParentDocument) => {
     email: json.email,
     phoneNumber: json.phoneNumber,
     currency: json.currency,
+    timezone: json.timezone,
     profileImageUrl: json.profileImageUrl,
     isProfileComplete: json.isProfileComplete ?? false,
     linkedUserId: json.linkedUserId?.toString() ?? null,
@@ -62,12 +115,96 @@ export const toFHIR = (doc: ParentDocument) => {
 const computeProfileCompletion = (p: ParentMongo | ParentDocument) => {
   return Boolean(
     p.firstName &&
-      p.lastName &&
-      p.email &&
-      p.phoneNumber &&
-      p.birthDate &&
-      p.address,
+    p.lastName &&
+    p.email &&
+    p.phoneNumber &&
+    p.birthDate &&
+    p.address,
   );
+};
+
+const toPrismaParentData = (doc: ParentDocument) => {
+  const obj = doc.toObject() as ParentMongo & {
+    _id: Types.ObjectId;
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+
+  return {
+    id: obj._id.toString(),
+    firstName: obj.firstName,
+    lastName: obj.lastName ?? undefined,
+    birthDate: obj.birthDate ?? undefined,
+    email: obj.email,
+    phoneNumber: obj.phoneNumber ?? undefined,
+    currency: obj.currency ?? undefined,
+    timezone: obj.timezone ?? undefined,
+    profileImageUrl: obj.profileImageUrl ?? undefined,
+    isProfileComplete: obj.isProfileComplete ?? false,
+    linkedUserId: obj.linkedUserId ? obj.linkedUserId.toString() : undefined,
+    createdFrom: obj.createdFrom as ParentCreatedFrom,
+    createdAt: obj.createdAt ?? undefined,
+    updatedAt: obj.updatedAt ?? undefined,
+  };
+};
+
+const syncParentAddressToPostgres = async (
+  parentId: string,
+  address: ParentMongo["address"] | undefined,
+) => {
+  if (!shouldDualWrite) return;
+
+  if (!address) {
+    try {
+      await prisma.parentAddress.deleteMany({ where: { parentId } });
+    } catch (err) {
+      handleDualWriteError("ParentAddress delete", err);
+    }
+    return;
+  }
+
+  try {
+    await prisma.parentAddress.upsert({
+      where: { parentId },
+      create: {
+        parentId,
+        addressLine: address.addressLine ?? undefined,
+        country: address.country ?? undefined,
+        city: address.city ?? undefined,
+        state: address.state ?? undefined,
+        postalCode: address.postalCode ?? undefined,
+        latitude: address.latitude ?? undefined,
+        longitude: address.longitude ?? undefined,
+      },
+      update: {
+        addressLine: address.addressLine ?? undefined,
+        country: address.country ?? undefined,
+        city: address.city ?? undefined,
+        state: address.state ?? undefined,
+        postalCode: address.postalCode ?? undefined,
+        latitude: address.latitude ?? undefined,
+        longitude: address.longitude ?? undefined,
+      },
+    });
+  } catch (err) {
+    handleDualWriteError("ParentAddress", err);
+  }
+};
+
+const syncParentToPostgres = async (doc: ParentDocument) => {
+  if (!shouldDualWrite) return;
+  try {
+    const data = toPrismaParentData(doc);
+    await prisma.parent.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+    const obj = doc.toObject() as ParentMongo & { _id: Types.ObjectId };
+    await syncParentAddressToPostgres(data.id, obj.address);
+  } catch (err) {
+    handleDualWriteError("Parent", err);
+  }
 };
 
 /** Convert FHIR DTO → persistable Mongo object */
@@ -78,6 +215,10 @@ const toPersistable = (dto: ParentRequestDTO): ParentMongo => {
     throw new ParentServiceError("Parent email is required.", 400);
   }
 
+  if (parent.timezone) {
+    parent.timezone = validateTimezone(parent.timezone, "Timezone");
+  }
+
   return {
     firstName: parent.firstName,
     lastName: parent.lastName,
@@ -85,6 +226,7 @@ const toPersistable = (dto: ParentRequestDTO): ParentMongo => {
     email: parent.email.toLowerCase(),
     phoneNumber: parent.phoneNumber,
     currency: parent.currency,
+    timezone: parent.timezone,
     profileImageUrl: parent.profileImageUrl,
     createdFrom: parent.createdFrom,
     linkedUserId: parent.linkedUserId
@@ -160,6 +302,8 @@ export const ParentService = {
 
     await doc.save();
 
+    await syncParentToPostgres(doc);
+
     const parentId = doc._id.toString();
 
     if (ctx.source === "mobile" && ctx.authUserId) {
@@ -226,6 +370,8 @@ export const ParentService = {
     doc.isProfileComplete = computeProfileCompletion(doc);
     await doc.save();
 
+    await syncParentToPostgres(doc);
+
     return {
       response: toFHIR(doc),
       isProfileComplete: doc.isProfileComplete ?? false,
@@ -250,6 +396,17 @@ export const ParentService = {
 
     const doc = await ParentModel.findOneAndDelete(query);
     if (!doc) return null;
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.parent.deleteMany({ where: { id: doc._id.toString() } });
+        await prisma.parentAddress.deleteMany({
+          where: { parentId: doc._id.toString() },
+        });
+      } catch (err) {
+        handleDualWriteError("Parent delete", err);
+      }
+    }
 
     return toFHIR(doc);
   },

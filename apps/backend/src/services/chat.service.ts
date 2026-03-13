@@ -10,6 +10,9 @@ import ChatSessionModel, {
 import AppointmentModel, { AppointmentDocument } from "../models/appointment";
 import { UserProfileService } from "./user-profile.service";
 import { UserService } from "./user.service";
+import { Prisma, ChatSessionStatus, ChatSessionType as PrismaChatSessionType } from "@prisma/client";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 
 const STREAM_KEY = process.env.STREAM_API_KEY!;
 const STREAM_SECRET = process.env.STREAM_API_SECRET!;
@@ -71,6 +74,68 @@ const getChatWindowFromAppointment = (appointment: AppointmentDocument) => {
     allowedFrom: start.subtract(PRE_WINDOW_MINUTES, "minute").toDate(),
     allowedUntil: start.add(POST_WINDOW_MINUTES, "minute").toDate(),
   };
+};
+
+const toPrismaChatSessionData = (doc: ChatSessionDocument) => {
+  const obj = doc.toObject() as {
+    _id: { toString(): string };
+    type: ChatSessionType;
+    appointmentId?: string;
+    channelId: string;
+    organisationId: string;
+    companionId?: string;
+    parentId?: string;
+    vetId?: string | null;
+    supportStaffIds?: string[];
+    createdBy?: string;
+    title?: string;
+    isPrivate?: boolean;
+    members: string[];
+    participants?: unknown[];
+    status: string;
+    allowedFrom?: Date;
+    allowedUntil?: Date;
+    closedAt?: Date | null;
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+
+  return {
+    id: obj._id.toString(),
+    type: obj.type as PrismaChatSessionType,
+    appointmentId: obj.appointmentId ?? undefined,
+    channelId: obj.channelId,
+    organisationId: obj.organisationId,
+    companionId: obj.companionId ?? undefined,
+    parentId: obj.parentId ?? undefined,
+    vetId: obj.vetId ?? undefined,
+    supportStaffIds: obj.supportStaffIds ?? [],
+    createdBy: obj.createdBy ?? undefined,
+    title: obj.title ?? undefined,
+    isPrivate: obj.isPrivate ?? true,
+    members: obj.members ?? [],
+    participants: (obj.participants ?? undefined) as unknown as Prisma.InputJsonValue,
+    status: obj.status as ChatSessionStatus,
+    allowedFrom: obj.allowedFrom ?? undefined,
+    allowedUntil: obj.allowedUntil ?? undefined,
+    closedAt: obj.closedAt ?? undefined,
+    createdAt: obj.createdAt ?? undefined,
+    updatedAt: obj.updatedAt ?? undefined,
+  };
+};
+
+const syncChatSessionToPostgres = async (doc: ChatSessionDocument) => {
+  if (!shouldDualWrite) return;
+  try {
+    const data = toPrismaChatSessionData(doc);
+    await prisma.chatSession.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+  } catch (err) {
+    handleDualWriteError("ChatSession", err);
+  }
 };
 
 const canUseChatNow = (
@@ -216,6 +281,7 @@ export const ChatService = {
       getChatWindowFromAppointment(appointment);
 
     session = await ChatSessionModel.create({
+      type: "APPOINTMENT",
       appointmentId,
       channelId,
       organisationId: orgId,
@@ -227,6 +293,8 @@ export const ChatService = {
       allowedUntil,
       status: "ACTIVE",
     });
+
+    await syncChatSessionToPostgres(session);
 
     return session;
   },
@@ -242,9 +310,7 @@ export const ChatService = {
       throw new ChatServiceError("Cannot chat with yourself");
     }
 
-    const members = [userA, userB].sort(
-      (a, b) => a.localeCompare(b),
-    );
+    const members = [userA, userB].sort((a, b) => a.localeCompare(b));
 
     const existing = await ChatSessionModel.findOne({
       type: "ORG_DIRECT",
@@ -282,7 +348,7 @@ export const ChatService = {
       })
       .create();
 
-    return ChatSessionModel.create({
+    const session = await ChatSessionModel.create({
       type: "ORG_DIRECT",
       organisationId,
       channelId,
@@ -291,6 +357,8 @@ export const ChatService = {
       isPrivate: true,
       status: "ACTIVE",
     });
+    await syncChatSessionToPostgres(session);
+    return session;
   },
 
   /* ----------------------------- ORG GROUP CHAT --------------------------- */
@@ -342,7 +410,7 @@ export const ChatService = {
 
     await streamServer.channel("team", channelId, channelData).create();
 
-    return ChatSessionModel.create({
+    const session = await ChatSessionModel.create({
       type: "ORG_GROUP",
       organisationId,
       channelId,
@@ -352,6 +420,8 @@ export const ChatService = {
       isPrivate,
       status: "ACTIVE",
     });
+    await syncChatSessionToPostgres(session);
+    return session;
   },
 
   /* ------------------------------- OPEN CHAT ------------------------------ */
@@ -412,6 +482,7 @@ export const ChatService = {
     session.status = "CLOSED";
     session.closedAt = new Date();
     await session.save();
+    await syncChatSessionToPostgres(session);
   },
 
   async addMembersToGroup(
@@ -449,6 +520,7 @@ export const ChatService = {
 
     session.members.push(...newMembers);
     await session.save();
+    await syncChatSessionToPostgres(session);
 
     const channel = streamServer.channel("team", session.channelId);
     await channel.addMembers(newMembers);
@@ -480,6 +552,7 @@ export const ChatService = {
     }
 
     await session.save();
+    await syncChatSessionToPostgres(session);
 
     const channel = streamServer.channel("team", session.channelId);
     await channel.removeMembers(memberIds);
@@ -511,6 +584,7 @@ export const ChatService = {
     }
 
     await session.save();
+    await syncChatSessionToPostgres(session);
 
     const channel = streamServer.channel("team", session.channelId);
 
@@ -538,5 +612,13 @@ export const ChatService = {
     }
 
     await ChatSessionModel.deleteOne({ _id: sessionId });
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.chatSession.deleteMany({ where: { id: sessionId } });
+      } catch (err) {
+        handleDualWriteError("ChatSession delete", err);
+      }
+    }
   },
 };
