@@ -107,9 +107,10 @@ export const ContactService = {
   ): Promise<DashboardStatsResponse> {
     const match: RootFilterQuery<ContactRequestMongo> = {};
     if (filter.from || filter.to) {
-      match.createdAt = {};
-      if (filter.from) match.createdAt.$gte = filter.from;
-      if (filter.to) match.createdAt.$lte = filter.to;
+      const dateRange: { $gte?: Date; $lte?: Date } = {};
+      if (filter.from) dateRange.$gte = filter.from;
+      if (filter.to) dateRange.$lte = filter.to;
+      match.createdAt = dateRange;
     }
     if (filter.organisationId) {
       match.organisationId = filter.organisationId;
