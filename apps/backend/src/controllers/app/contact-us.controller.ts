@@ -5,6 +5,7 @@ import {
   ContactServiceError,
   type CreateContactRequestInput,
 } from "src/services/contact-us.service";
+import type { DashboardStatsFilter } from "src/services/contact-us.service";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { type ContactType, type ContactStatus } from "src/models/contect-us";
@@ -46,6 +47,12 @@ type CreateContactRequestBody = CreateContactRequestInput;
 type ListContactQuery = {
   status?: ContactStatus;
   type?: ContactType;
+  organisationId?: string;
+};
+
+type DashboardStatsQuery = {
+  from?: string;
+  to?: string;
   organisationId?: string;
 };
 
@@ -158,6 +165,38 @@ export const ContactController = {
       res.json(updated);
     } catch (err) {
       console.error("Error updating contact request status", err);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  async getDashboardStats(
+    this: void,
+    req: Request<unknown, unknown, unknown, DashboardStatsQuery>,
+    res: Response,
+  ) {
+    try {
+      const filter: DashboardStatsFilter = {};
+      const from = req.query.from;
+      const to = req.query.to;
+      if (typeof from === "string") {
+        filter.from = new Date(from);
+        if (isNaN(filter.from.getTime())) {
+          return res.status(400).json({ message: "Invalid from date" });
+        }
+      }
+      if (typeof to === "string") {
+        filter.to = new Date(to);
+        if (isNaN(filter.to.getTime())) {
+          return res.status(400).json({ message: "Invalid to date" });
+        }
+      }
+      if (typeof req.query.organisationId === "string") {
+        filter.organisationId = req.query.organisationId;
+      }
+      const stats = await ContactService.getDashboardStats(filter);
+      res.json(stats);
+    } catch (err) {
+      console.error("Error fetching dashboard stats", err);
       res.status(500).json({ message: "Internal server error" });
     }
   },

@@ -8,6 +8,25 @@ import ContactRequestModel, {
   DsraDetails,
 } from "../models/contect-us";
 
+export type DashboardStatsFilter = {
+  from?: Date;
+  to?: Date;
+  organisationId?: string;
+};
+
+export type CountByStatus = Record<ContactStatus, number>;
+
+export type TypeStats = {
+  count: number;
+  byStatus: CountByStatus;
+};
+
+export type DashboardStatsResponse = {
+  total: TypeStats;
+  byType: Record<ContactType, TypeStats>;
+  bySource: Record<ContactSource, number>;
+};
+
 export class ContactServiceError extends Error {
   constructor(
     message: string,
@@ -81,5 +100,106 @@ export const ContactService = {
 
   async updateStatus(id: string, status: ContactStatus) {
     return ContactRequestModel.findByIdAndUpdate(id, { status }, { new: true });
+  },
+
+  async getDashboardStats(
+    filter: DashboardStatsFilter = {},
+  ): Promise<DashboardStatsResponse> {
+    const match: RootFilterQuery<ContactRequestMongo> = {};
+    if (filter.from || filter.to) {
+      match.createdAt = {};
+      if (filter.from) match.createdAt.$gte = filter.from;
+      if (filter.to) match.createdAt.$lte = filter.to;
+    }
+    if (filter.organisationId) {
+      match.organisationId = filter.organisationId;
+    }
+
+    const emptyCountByStatus = (): CountByStatus =>
+      (["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"] as ContactStatus[]).reduce(
+        (acc, s) => ({ ...acc, [s]: 0 }),
+        {} as CountByStatus,
+      );
+
+    const types: ContactType[] = [
+      "GENERAL_ENQUIRY",
+      "FEATURE_REQUEST",
+      "DSAR",
+      "COMPLAINT",
+    ];
+    const sources: ContactSource[] = [
+      "MOBILE_APP",
+      "PMS_WEB",
+      "MARKETING_SITE",
+    ];
+
+    const byType = types.reduce(
+      (acc, t) => ({
+        ...acc,
+        [t]: { count: 0, byStatus: emptyCountByStatus() },
+      }),
+      {} as Record<ContactType, TypeStats>,
+    );
+    const bySource = sources.reduce(
+      (acc, s) => ({ ...acc, [s]: 0 }),
+      {} as Record<ContactSource, number>,
+    );
+
+    type FacetResult = {
+      byTypeStatus: Array<{
+        _id: { type?: ContactType; status?: ContactStatus };
+        count: number;
+      }>;
+      bySource: Array<{ _id?: ContactSource; count: number }>;
+    };
+
+    const agg = await ContactRequestModel.aggregate<FacetResult>([
+      ...(Object.keys(match).length ? [{ $match: match }] : []),
+      {
+        $facet: {
+          byTypeStatus: [
+            {
+              $group: {
+                _id: { type: "$type", status: "$status" },
+                count: { $sum: 1 },
+              },
+            },
+          ],
+          bySource: [{ $group: { _id: "$source", count: { $sum: 1 } } }],
+        },
+      },
+    ]);
+
+    const result = agg[0];
+    if (result?.byTypeStatus) {
+      for (const row of result.byTypeStatus) {
+        const type = row._id.type;
+        const status = row._id.status;
+        if (type && status && type in byType) {
+          byType[type].count += row.count;
+          byType[type].byStatus[status] = row.count;
+        }
+      }
+    }
+    if (result?.bySource) {
+      for (const row of result.bySource) {
+        const src = row._id;
+        if (src && src in bySource) {
+          bySource[src] = row.count;
+        }
+      }
+    }
+
+    const total: TypeStats = {
+      count: Object.values(byType).reduce((sum, t) => sum + t.count, 0),
+      byStatus: types.reduce((acc, t) => {
+        for (const s of Object.keys(acc) as ContactStatus[]) {
+          acc[s] += byType[t].byStatus[s] ?? 0;
+        }
+        return acc;
+      }, emptyCountByStatus()),
+    };
+
+    return { total, byType, bySource };
   },
 };
