@@ -18,13 +18,31 @@ export class MerckHealthlinkClient {
     });
   }
 
-  async search(params: Record<string, string>): Promise<string> {
+  async search(
+    params: Record<string, string>,
+    headers?: Record<string, string>,
+  ): Promise<{
+    data: string;
+    contentType: string | null;
+    status: number;
+    finalUrl: string | null;
+  }> {
     const response = await this.http.get<string>("", {
       params,
+      headers,
       responseType: "text",
     });
     const data: unknown = response.data;
-    if (typeof data === "string") return data;
-    return JSON.stringify(data ?? "");
+    const text = typeof data === "string" ? data : JSON.stringify(data ?? "");
+    const contentType = String(response.headers?.["content-type"] ?? "").trim();
+    const finalUrl =
+      (response.request as { res?: { responseUrl?: string } })?.res
+        ?.responseUrl ?? null;
+    return {
+      data: text,
+      contentType: contentType || null,
+      status: response.status,
+      finalUrl,
+    };
   }
 }

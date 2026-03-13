@@ -531,6 +531,17 @@ const selectMerckBaseUrl = (timezone?: string) => {
     process.env.MERCK_HEALTHLINK_BASE_URL ??
     "";
 
+  const normalizeBase = (value: string) => {
+    const trimmed = value.replace(/\/+$/, "");
+    if (trimmed.endsWith("/custom/infobutton/search")) {
+      return trimmed.replace(
+        "/custom/infobutton/search",
+        "/infobutton/searchjson",
+      );
+    }
+    return trimmed;
+  };
+
   if (!globalBase && !usCaBase) {
     throw new MerckServiceError(
       "Merck Healthlink base URL is not configured.",
@@ -539,7 +550,7 @@ const selectMerckBaseUrl = (timezone?: string) => {
   }
 
   if (timezone && isUsCanadaTimezone(timezone)) {
-    const selected = usCaBase || globalBase;
+    const selected = normalizeBase(usCaBase || globalBase);
     return {
       baseUrl: selected,
       host: new URL(selected).hostname,
@@ -547,7 +558,7 @@ const selectMerckBaseUrl = (timezone?: string) => {
     };
   }
 
-  const selected = globalBase || usCaBase;
+  const selected = normalizeBase(globalBase || usCaBase);
   const reason = timezone
     ? isValidIanaTimezone(timezone)
       ? "timezone-global"
@@ -571,10 +582,11 @@ const buildSearchParams = (input: MerckSearchParams) => {
   const subTopicCode = optionalString(input.subTopicCode);
   const subTopicDisplay = optionalString(input.subTopicDisplay);
 
+  const username = process.env.MERCK_HEALTHLINK_USERNAME ?? "";
+  const password = process.env.MERCK_HEALTHLINK_PASSWORD ?? "";
   const params: Record<string, string> = {
-    "holder.assignedEntity.name.n": process.env.MERCK_HEALTHLINK_USERNAME ?? "",
-    "holder.assignedEntity.certificateText.n":
-      process.env.MERCK_HEALTHLINK_PASSWORD ?? "",
+    "holder.assignedEntity.n": username,
+    "holder.assignedEntity.certificateText": password,
     "taskContext.c.c": "PROBLISTREV",
     informationRecipient: audience,
     "informationRecipient.languageCode.c": language,
@@ -603,7 +615,34 @@ const buildSearchParams = (input: MerckSearchParams) => {
     if (subTopicDisplay) params["subTopic.v.dn"] = subTopicDisplay;
   }
 
-  return { params, audience, language, media };
+  return { params, audience, language, media, username, password };
+};
+
+const buildAlternateBaseUrl = (baseUrl: string) => {
+  const trimmed = baseUrl.replace(/\/+$/, "");
+  if (trimmed.endsWith("/infobutton/searchjson")) {
+    return trimmed.replace(
+      "/infobutton/searchjson",
+      "/custom/infobutton/search",
+    );
+  }
+  return trimmed;
+};
+
+const buildAlternateParams = (params: Record<string, string>) => {
+  const next = { ...params };
+  const username = params["holder.assignedEntity.n"] ?? "";
+  const password = params["holder.assignedEntity.certificateText"] ?? "";
+  if (username) next["holder.assignedEntity.name.n"] = username;
+  if (password) next["holder.assignedEntity.certificateText.n"] = password;
+  return next;
+};
+
+const isHtmlPayload = (contentType: string | null, data: string) => {
+  if (contentType && contentType.toLowerCase().includes("text/html"))
+    return true;
+  const trimmed = data.trim().toLowerCase();
+  return trimmed.startsWith("<!doctype html") || trimmed.startsWith("<html");
 };
 
 const shouldRetry = (error: unknown): boolean => {
@@ -675,12 +714,33 @@ export const MerckService = {
 
     const routing = selectMerckBaseUrl(input.timezone);
     const client = getMerckClient(routing.baseUrl);
-
     const start = Date.now();
     try {
-      const raw = await client.search(params);
+      const upstream = await client.search(params, {
+        Accept:
+          "application/json, application/atom+xml, text/xml;q=0.9, */*;q=0.1",
+      });
+
+      let responsePayload = upstream.data;
+      if (isHtmlPayload(upstream.contentType, upstream.data)) {
+        const altBaseUrl = buildAlternateBaseUrl(routing.baseUrl);
+        const altParams = buildAlternateParams(params);
+        const altClient = getMerckClient(altBaseUrl);
+        const altUpstream = await altClient.search(altParams, {
+          Accept:
+            "application/json, application/atom+xml, text/xml;q=0.9, */*;q=0.1",
+        });
+        if (isHtmlPayload(altUpstream.contentType, altUpstream.data)) {
+          throw new MerckServiceError(
+            "Merck upstream returned HTML instead of Atom/JSON.",
+            502,
+          );
+        }
+        responsePayload = altUpstream.data;
+      }
+
       const response = parsePayload(
-        raw,
+        responsePayload,
         {
           audience: resolvedAudience,
           language: resolvedLanguage,
@@ -704,9 +764,18 @@ export const MerckService = {
     } catch (error) {
       if (shouldRetry(error)) {
         try {
-          const raw = await client.search(params);
+          const upstream = await client.search(params, {
+            Accept:
+              "application/json, application/atom+xml, text/xml;q=0.9, */*;q=0.1",
+          });
+          if (isHtmlPayload(upstream.contentType, upstream.data)) {
+            throw new MerckServiceError(
+              "Merck upstream returned HTML instead of Atom/JSON.",
+              502,
+            );
+          }
           const response = parsePayload(
-            raw,
+            upstream.data,
             {
               audience: resolvedAudience,
               language: resolvedLanguage,

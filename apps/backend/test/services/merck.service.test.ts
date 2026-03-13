@@ -55,7 +55,12 @@ describe("MerckService", () => {
       },
     };
 
-    mockSearch.mockResolvedValueOnce(JSON.stringify(payload));
+    mockSearch.mockResolvedValueOnce({
+      data: JSON.stringify(payload),
+      contentType: "application/json",
+      status: 200,
+      finalUrl: null,
+    });
 
     const result = await MerckService.search({
       organisationId: "org-1",
@@ -93,7 +98,12 @@ describe("MerckService", () => {
   </entry>
 </feed>`;
 
-    mockSearch.mockResolvedValueOnce(xml);
+    mockSearch.mockResolvedValueOnce({
+      data: xml,
+      contentType: "application/xml",
+      status: 200,
+      finalUrl: null,
+    });
 
     const result = await MerckService.search({
       organisationId: "org-1",
@@ -142,9 +152,12 @@ describe("MerckService", () => {
       status: "enabled",
     });
 
-    mockSearch.mockResolvedValueOnce(
-      JSON.stringify({ feed: { id: "feed-1", entry: [] } }),
-    );
+    mockSearch.mockResolvedValueOnce({
+      data: JSON.stringify({ feed: { id: "feed-1", entry: [] } }),
+      contentType: "application/json",
+      status: 200,
+      finalUrl: null,
+    });
 
     await MerckService.search({
       organisationId: "org-1",
@@ -167,9 +180,12 @@ describe("MerckService", () => {
       status: "enabled",
     });
 
-    mockSearch.mockResolvedValueOnce(
-      JSON.stringify({ feed: { id: "feed-2", entry: [] } }),
-    );
+    mockSearch.mockResolvedValueOnce({
+      data: JSON.stringify({ feed: { id: "feed-2", entry: [] } }),
+      contentType: "application/json",
+      status: 200,
+      finalUrl: null,
+    });
 
     await MerckService.search({
       organisationId: "org-1",
@@ -190,9 +206,12 @@ describe("MerckService", () => {
       status: "enabled",
     });
 
-    mockSearch.mockResolvedValueOnce(
-      JSON.stringify({ feed: { id: "feed-3", entry: [] } }),
-    );
+    mockSearch.mockResolvedValueOnce({
+      data: JSON.stringify({ feed: { id: "feed-3", entry: [] } }),
+      contentType: "application/json",
+      status: 200,
+      finalUrl: null,
+    });
 
     await MerckService.search({
       organisationId: "org-1",
