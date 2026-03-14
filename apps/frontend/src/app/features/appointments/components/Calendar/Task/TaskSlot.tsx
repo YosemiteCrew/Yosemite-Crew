@@ -1,14 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { IoEyeOutline } from 'react-icons/io5';
-import { FaCheckCircle } from 'react-icons/fa';
 import { getStatusStyle } from '@/app/ui/tables/Tasks';
-import { Task, TaskStatus } from '@/app/features/tasks/types/task';
-import { useMemberMap } from '@/app/hooks/useMemberMap';
-import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
+import { Task } from '@/app/features/tasks/types/task';
 import { autoScrollCalendarHorizontally } from '@/app/features/appointments/components/Calendar/helpers';
 import { formatDateInPreferredTimeZone, getDatePartsInPreferredTimeZone } from '@/app/lib/timezone';
 import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
 import { createPortal } from 'react-dom';
+import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
+import { MdOutlineAutorenew } from 'react-icons/md';
+import { IoIosCalendar } from 'react-icons/io';
+import {
+  canRescheduleTask,
+  canShowTaskStatusChangeAction,
+  getTaskQuickDetails,
+  getTaskStatusLabel,
+} from '@/app/lib/tasks';
 
 type DropAvailabilityInterval = {
   startMinute: number;
@@ -18,7 +24,8 @@ type DropAvailabilityInterval = {
 type TaskSlotProps = {
   slotEvents: Task[];
   handleViewTask: (task: Task) => void;
-  onQuickStatusChange?: (task: Task, status: TaskStatus) => void;
+  handleChangeStatusTask?: (task: Task) => void;
+  handleRescheduleTask?: (task: Task) => void;
   canEditTasks?: boolean;
   index?: number;
   dayIndex?: number;
@@ -33,6 +40,7 @@ type TaskSlotProps = {
   onTaskDragStart?: (task: Task) => void;
   onTaskDragEnd?: () => void;
   onTaskDropAt?: (date: Date, minuteOfDay: number, targetAssigneeId?: string) => void;
+  onCreateTaskAt?: (date: Date, minuteOfDay: number, targetAssigneeId?: string) => void;
   onDragHoverTarget?: (date: Date, targetAssigneeId?: string) => void;
   dropAvailabilityIntervals?: DropAvailabilityInterval[];
   draggedTaskDurationMinutes?: number;
@@ -40,12 +48,14 @@ type TaskSlotProps = {
   showGridLines?: boolean;
   slotOffsetMinutes?: number[];
   isLastVisibleHour?: boolean;
+  resolveDisplayName?: (memberId?: string) => string;
 };
 
 const TaskSlot = ({
   slotEvents,
   handleViewTask,
-  onQuickStatusChange,
+  handleChangeStatusTask,
+  handleRescheduleTask,
   canEditTasks = false,
   index,
   dayIndex = 0,
@@ -60,6 +70,7 @@ const TaskSlot = ({
   onTaskDragStart,
   onTaskDragEnd,
   onTaskDropAt,
+  onCreateTaskAt,
   onDragHoverTarget,
   dropAvailabilityIntervals = [],
   draggedTaskDurationMinutes = 30,
@@ -67,61 +78,29 @@ const TaskSlot = ({
   showGridLines = false,
   slotOffsetMinutes = [],
   isLastVisibleHour = false,
+  resolveDisplayName,
 }: TaskSlotProps) => {
-  const { resolveMemberName } = useMemberMap();
-  const team = useTeamForPrimaryOrg();
   const isZoomOutMode = zoomMode === 'out';
   const [dropPreviewMinute, setDropPreviewMinute] = useState<number | null>(null);
   const [activePopoverKey, setActivePopoverKey] = useState<string | null>(null);
   const [activeRect, setActiveRect] = useState<DOMRect | null>(null);
   const [activeCursor, setActiveCursor] = useState<{ x: number; y: number } | null>(null);
-  const [isMounted, setIsMounted] = useState(false);
   const popoverDialogRef = useRef<HTMLDialogElement | null>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resolvedDayIndex = dayIndex ?? index ?? 0;
   const hourStartMinute = hour * 60;
   const hourEndMinute = hourStartMinute + 60;
   const TASK_BLOCK_DURATION_MINUTES = 30;
-  const normalizeId = (value?: string | null) =>
-    String(value ?? '')
-      .trim()
-      .split('/')
-      .pop()
-      ?.toLowerCase() ?? '';
 
-  const teamNameById = useMemo(() => {
-    const map: Record<string, string> = {};
-    team.forEach((member) => {
-      const name = member.name || (member as any).displayName || '-';
-      const ids = [
-        member.practionerId,
-        member._id,
-        (member as any).userId,
-        (member as any).id,
-        (member as any).userOrganisation?.userId,
-      ];
-      ids.forEach((id) => {
-        const normalized = normalizeId(id);
-        if (normalized) map[normalized] = name;
-      });
-    });
-    return map;
-  }, [team]);
-
-  const resolveDisplayName = useCallback(
+  const getDisplayName = useCallback(
     (memberId?: string) => {
       const raw = String(memberId ?? '').trim();
       if (!raw) return '-';
-      const resolved = resolveMemberName(raw);
-      if (resolved && resolved !== '-') return resolved;
-      return teamNameById[normalizeId(raw)] || raw;
+      const resolved = resolveDisplayName?.(raw);
+      return resolved && resolved !== '-' ? resolved : raw;
     },
-    [resolveMemberName, teamNameById]
+    [resolveDisplayName]
   );
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   useEffect(() => {
     if (!activePopoverKey) return;
@@ -195,8 +174,8 @@ const TaskSlot = ({
 
   const getPopoverStyle = () => {
     if (!activeRect) return { top: 0, left: 0 };
-    const popoverWidth = 320;
-    const popoverHeight = 220;
+    const popoverWidth = 304;
+    const popoverHeight = 248;
     const margin = 8;
     const viewportWidth = globalThis.innerWidth;
     const viewportHeight = globalThis.innerHeight;
@@ -345,6 +324,18 @@ const TaskSlot = ({
           if (nearest == null) return;
           onTaskDropAt(dropDate, nearest, dropAssigneeId);
         }}
+        onClick={(event) => {
+          if (!onCreateTaskAt || draggedTaskId) return;
+          if ((event.target as HTMLElement).closest('button')) return;
+          const minute = getMinuteFromPointer(event.clientY, event.currentTarget as HTMLDivElement);
+          onCreateTaskAt(dropDate, Math.round(minute / 5) * 5, dropAssigneeId);
+        }}
+        onDoubleClick={(event) => {
+          if (!onCreateTaskAt || draggedTaskId) return;
+          if ((event.target as HTMLElement).closest('button')) return;
+          const minute = getMinuteFromPointer(event.clientY, event.currentTarget as HTMLDivElement);
+          onCreateTaskAt(dropDate, Math.round(minute / 5) * 5, dropAssigneeId);
+        }}
       >
         {showGridLines && (
           <div className="pointer-events-none absolute inset-0 z-[5]">
@@ -400,6 +391,11 @@ const TaskSlot = ({
             : Math.max(44, (TASK_BLOCK_DURATION_MINUTES / 60) * height - 2);
           const isCompact = !isZoomOutMode && laneCount > 1;
           const taskKey = task._id || `${task.name}-${String(task.dueAt)}-${eventIndex}`;
+          const dueTimeLabel = formatDateInPreferredTimeZone(new Date(task.dueAt), {
+            hour: 'numeric',
+            minute: '2-digit',
+          });
+          const markerTitle = `${task.name || 'Task'} • Due ${dueTimeLabel}`;
 
           return (
             <div
@@ -424,6 +420,7 @@ const TaskSlot = ({
                   borderColor: isZoomOutMode ? 'rgba(0,0,0,0.08)' : undefined,
                   borderRadius: isZoomOutMode ? 9999 : 16,
                 }}
+                title={markerTitle}
                 onClick={() => handleViewTask(task)}
                 draggable={!!canDragTask?.(task)}
                 onMouseEnter={(event) =>
@@ -448,103 +445,151 @@ const TaskSlot = ({
                     >
                       {task.name || '-'}
                     </div>
-                    {!isCompact && (
-                      <>
-                        <div className="text-[10px] text-white/90 truncate">
-                          From: {resolveDisplayName(task.assignedBy)}
-                        </div>
-                        <div className="text-[10px] text-white/90 truncate">
-                          To: {resolveDisplayName(task.assignedTo)}
-                        </div>
-                      </>
-                    )}
                     <div
                       className={`text-[10px] text-white/90 truncate ${isCompact ? 'text-center' : ''}`}
                     >
-                      Due:{' '}
-                      {formatDateInPreferredTimeZone(new Date(task.dueAt), {
-                        hour: 'numeric',
-                        minute: '2-digit',
-                      })}
+                      Due: {dueTimeLabel}
                     </div>
                   </>
                 ) : null}
               </button>
 
-              {!isZoomOutMode && (
-                <div className="absolute top-1 right-1 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                  <button
-                    type="button"
-                    title="View task"
-                    className="h-6 w-6 rounded-full bg-white/95 border border-card-border flex items-center justify-center cursor-pointer"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      handleViewTask(task);
-                    }}
-                  >
-                    <IoEyeOutline size={12} color="#302F2E" />
-                  </button>
-                  {canEditTasks && onQuickStatusChange && task.status !== 'COMPLETED' && (
-                    <button
-                      type="button"
-                      title="Mark completed"
-                      className="h-6 w-6 rounded-full bg-white/95 border border-card-border flex items-center justify-center cursor-pointer"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        onQuickStatusChange(task, 'COMPLETED');
-                      }}
-                    >
-                      <FaCheckCircle size={11} color="#2AA879" />
-                    </button>
-                  )}
-                </div>
-              )}
+              <div
+                className={`absolute flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 ${
+                  isZoomOutMode ? '-top-1 right-0' : 'top-1 right-1'
+                }`}
+              >
+                <button
+                  type="button"
+                  title="View task"
+                  className="h-6 w-6 rounded-full bg-white/95 border border-card-border flex items-center justify-center cursor-pointer shadow-sm"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    handleViewTask(task);
+                  }}
+                >
+                  <IoEyeOutline size={12} color="#302F2E" />
+                </button>
+              </div>
             </div>
           );
         })}
       </div>
 
-      {isMounted && activeTask && activePopoverKey
+      {activeTask && activePopoverKey && typeof document !== 'undefined'
         ? createPortal(
             <dialog
               ref={popoverDialogRef}
               open
-              className="fixed z-[1000] m-0 rounded-2xl border border-card-border bg-white p-4 shadow-[0_8px_30px_0_rgba(0,0,0,0.2)] outline-none"
+              className="fixed z-[1000] m-0 box-border w-[304px] max-w-[calc(100vw-16px)] rounded-2xl border border-card-border bg-white p-3 shadow-[0_8px_24px_0_rgba(0,0,0,0.16)] outline-none"
               style={getPopoverStyle()}
               onMouseEnter={clearCloseTimer}
               onMouseLeave={schedulePopoverClose}
               onFocus={clearCloseTimer}
               onBlur={schedulePopoverClose}
             >
-              <div className="flex flex-col gap-2 min-w-[280px]">
-                <div className="text-body-4-emphasis text-text-primary">
-                  {activeTask.name || '-'}
+              <div className="flex min-w-0 w-full flex-col gap-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-body-4-emphasis text-text-primary">
+                      {activeTask.name || '-'}
+                    </div>
+                    <div className="mt-0.5 text-[11px] leading-4 text-text-secondary">
+                      Due{' '}
+                      {formatDateInPreferredTimeZone(new Date(activeTask.dueAt), {
+                        month: 'short',
+                        day: '2-digit',
+                      })}
+                      {' • '}
+                      {formatDateInPreferredTimeZone(new Date(activeTask.dueAt), {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      })}
+                    </div>
+                  </div>
+                  <span
+                    className="shrink-0 rounded-full px-2 py-0.5 text-[10px] leading-4 font-medium text-white whitespace-nowrap"
+                    style={{
+                      backgroundColor:
+                        getStatusStyle(activeTask.status).backgroundColor || '#1a73e8',
+                    }}
+                  >
+                    {getTaskStatusLabel(activeTask.status)}
+                  </span>
                 </div>
-                <div className="text-caption-2 text-text-secondary">
-                  Status: {String(activeTask.status || '').replace('_', ' ')}
+                <div className="grid min-w-0 grid-cols-[auto,minmax(0,1fr)] gap-x-2 gap-y-1 rounded-xl border border-card-border bg-card-hover px-2.5 py-2">
+                  <div className="text-[11px] leading-4 text-text-secondary">From</div>
+                  <div className="min-w-0 text-[11px] leading-4 text-right text-text-primary truncate">
+                    {getDisplayName(activeTask.assignedBy)}
+                  </div>
+                  <div className="text-[11px] leading-4 text-text-secondary">To</div>
+                  <div className="min-w-0 text-[11px] leading-4 text-right text-text-primary truncate">
+                    {getDisplayName(activeTask.assignedTo)}
+                  </div>
+                  <div className="text-[11px] leading-4 text-text-secondary">Category</div>
+                  <div className="min-w-0 text-[11px] leading-4 text-right text-text-primary truncate">
+                    {activeTask.category || '-'}
+                  </div>
                 </div>
-                <div className="text-caption-2 text-text-secondary">
-                  From: {resolveDisplayName(activeTask.assignedBy)}
+                <div className="flex flex-col gap-1">
+                  {getTaskQuickDetails(activeTask)
+                    .slice(0, 2)
+                    .map((detail) => (
+                      <div key={detail.label} className="flex min-w-0 items-start gap-2">
+                        <div className="w-16 shrink-0 text-[11px] leading-4 text-text-secondary">
+                          {detail.label}
+                        </div>
+                        <div className="min-w-0 flex-1 text-[11px] leading-4 text-text-primary line-clamp-2">
+                          {detail.value}
+                        </div>
+                      </div>
+                    ))}
                 </div>
-                <div className="text-caption-2 text-text-secondary">
-                  To: {resolveDisplayName(activeTask.assignedTo)}
-                </div>
-                <div className="text-caption-2 text-text-secondary">
-                  Due date:{' '}
-                  {formatDateInPreferredTimeZone(new Date(activeTask.dueAt), {
-                    month: 'short',
-                    day: '2-digit',
-                    year: 'numeric',
-                  })}
-                </div>
-                <div className="text-caption-2 text-text-secondary">
-                  Due time:{' '}
-                  {formatDateInPreferredTimeZone(new Date(activeTask.dueAt), {
-                    hour: 'numeric',
-                    minute: '2-digit',
-                  })}
+                <div className="mt-1 flex min-w-0 flex-wrap items-center justify-end gap-1.5 border-t border-card-border pt-2">
+                  <GlassTooltip content="View task" side="top">
+                    <button
+                      type="button"
+                      title="View task"
+                      className="h-8 w-8 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
+                      onClick={() => {
+                        handleViewTask(activeTask);
+                        setActivePopoverKey(null);
+                      }}
+                    >
+                      <IoEyeOutline size={16} />
+                    </button>
+                  </GlassTooltip>
+                  {canEditTasks && canShowTaskStatusChangeAction(activeTask.status) && (
+                    <GlassTooltip content="Change status" side="top">
+                      <button
+                        type="button"
+                        title="Change status"
+                        className="h-8 w-8 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
+                        onClick={() => {
+                          handleChangeStatusTask?.(activeTask);
+                          setActivePopoverKey(null);
+                        }}
+                      >
+                        <MdOutlineAutorenew size={16} />
+                      </button>
+                    </GlassTooltip>
+                  )}
+                  {canEditTasks && canRescheduleTask(activeTask.status) && (
+                    <GlassTooltip content="Reschedule" side="top">
+                      <button
+                        type="button"
+                        title="Reschedule"
+                        className="h-8 w-8 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
+                        onClick={() => {
+                          handleRescheduleTask?.(activeTask);
+                          setActivePopoverKey(null);
+                        }}
+                      >
+                        <IoIosCalendar size={16} />
+                      </button>
+                    </GlassTooltip>
+                  )}
                 </div>
               </div>
             </dialog>,

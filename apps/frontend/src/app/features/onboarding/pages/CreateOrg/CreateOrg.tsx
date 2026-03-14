@@ -1,53 +1,53 @@
-"use client";
-import React, { useEffect, useState } from "react";
-import { HiShoppingBag } from "react-icons/hi2";
-import { IoLocationSharp } from "react-icons/io5";
-import { FaSuitcaseMedical } from "react-icons/fa6";
+'use client';
+import React, { useEffect, useState } from 'react';
+import { HiShoppingBag } from 'react-icons/hi2';
+import { IoLocationSharp } from 'react-icons/io5';
+import { FaSuitcaseMedical } from 'react-icons/fa6';
 
-import ProtectedRoute from "@/app/ui/layout/guards/ProtectedRoute";
-import CreateOrgProgress from "@/app/features/onboarding/components/Steps/Progress/Progress";
-import OrgStep from "@/app/features/onboarding/components/Steps/CreateOrg/OrgStep";
-import AddressStep from "@/app/features/onboarding/components/Steps/CreateOrg/AddressStep";
-import SpecialityStep from "@/app/features/onboarding/components/Steps/CreateOrg/SpecialityStep";
-import { Organisation, Speciality } from "@yosemite-crew/types";
-import { useOrgOnboarding } from "@/app/hooks/useOrgOnboarding";
-import { useRouter, useSearchParams } from "next/navigation";
+import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
+import CreateOrgProgress from '@/app/features/onboarding/components/Steps/Progress/Progress';
+import OrgStep from '@/app/features/onboarding/components/Steps/CreateOrg/OrgStep';
+import AddressStep from '@/app/features/onboarding/components/Steps/CreateOrg/AddressStep';
+import SpecialityStep from '@/app/features/onboarding/components/Steps/CreateOrg/SpecialityStep';
+import { Organisation, Speciality } from '@yosemite-crew/types';
+import { useOrgOnboarding } from '@/app/hooks/useOrgOnboarding';
+import { useRouter, useSearchParams } from 'next/navigation';
 
-import "./CreateOrg.css";
+import './CreateOrg.css';
 
 const OrgSteps = [
   {
-    title: "Organization",
+    title: 'Organization',
     logo: <HiShoppingBag color="#fff" size={20} />,
   },
   {
-    title: "Address",
+    title: 'Address',
     logo: <IoLocationSharp color="#fff" size={20} />,
   },
   {
-    title: "Specialties",
+    title: 'Specialties',
     logo: <FaSuitcaseMedical color="#fff" size={18} />,
   },
 ];
 
 const EMPTY_ORG: Organisation = {
-  _id: "",
+  _id: '',
   isActive: false,
   isVerified: false,
-  imageURL: "",
-  name: "",
-  type: "HOSPITAL",
-  DUNSNumber: "",
-  phoneNo: "",
-  taxId: "",
-  website: "",
-  googlePlacesId: "",
+  imageURL: '',
+  name: '',
+  type: 'HOSPITAL',
+  DUNSNumber: '',
+  phoneNo: '',
+  taxId: '',
+  website: '',
+  googlePlacesId: '',
   address: {
-    addressLine: "",
-    country: "",
-    city: "",
-    state: "",
-    postalCode: "",
+    addressLine: '',
+    country: '',
+    city: '',
+    state: '',
+    postalCode: '',
     latitude: 0,
     longitude: 0,
   },
@@ -56,12 +56,13 @@ const EMPTY_ORG: Organisation = {
 const CreateOrg = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const orgIdFromQuery = searchParams.get("orgId");
+  const orgIdFromQuery = searchParams.get('orgId');
 
   const {
     org,
     step: computedStep,
     specialities: storeSpecialities,
+    isReady,
   } = useOrgOnboarding(orgIdFromQuery);
 
   const [activeStep, setActiveStep] = useState<number>(computedStep);
@@ -69,8 +70,11 @@ const CreateOrg = () => {
   const [formData, setFormData] = useState<Organisation>(EMPTY_ORG);
 
   useEffect(() => {
+    if (!isReady) {
+      return;
+    }
     if (computedStep === 3) {
-      router.replace("/dashboard");
+      router.replace('/dashboard');
       return;
     }
     if (computedStep >= 0 && computedStep <= 2) {
@@ -82,10 +86,13 @@ const CreateOrg = () => {
     if (storeSpecialities.length > 0) {
       setSpecialities(storeSpecialities);
     }
-  }, [org, storeSpecialities, computedStep, router]);
+  }, [org, storeSpecialities, computedStep, isReady, router]);
 
-  const nextStep = () =>
-    setActiveStep((s) => Math.min(s + 1, OrgSteps.length - 1));
+  if (!isReady) {
+    return null;
+  }
+
+  const nextStep = () => setActiveStep((s) => Math.min(s + 1, OrgSteps.length - 1));
   const prevStep = () => setActiveStep((s) => Math.max(s - 1, 0));
 
   return (
@@ -94,11 +101,7 @@ const CreateOrg = () => {
       <div className="flex flex-col gap-6">
         <div className="create-org-title">Create organization</div>
         {activeStep === 0 && (
-          <OrgStep
-            nextStep={nextStep}
-            formData={formData}
-            setFormData={setFormData}
-          />
+          <OrgStep nextStep={nextStep} formData={formData} setFormData={setFormData} />
         )}
         {activeStep === 1 && (
           <AddressStep

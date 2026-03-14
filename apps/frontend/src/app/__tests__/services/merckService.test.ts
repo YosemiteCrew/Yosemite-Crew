@@ -1,39 +1,13 @@
 import {
-  createSyntheticMerckIntegration,
-  getMerckMockStatusForOrg,
   isAllowedMerckUrl,
   normalizeMerckSearchPayload,
   resolveMerckIntegration,
-  setMerckMockStatusForOrg,
 } from '@/app/features/integrations/services/merckService';
 
 describe('merckService', () => {
-  beforeEach(() => {
-    window.localStorage.clear();
-    process.env.NEXT_PUBLIC_MERCK_MODE = 'mock';
-  });
-
-  it('injects synthetic merck integration when backend provider is missing', () => {
+  it('returns null when backend merck provider is missing', () => {
     const resolved = resolveMerckIntegration('org-1', []);
-
-    expect(resolved.provider).toBe('MERCK_MANUALS');
-    expect(resolved.source).toBe('synthetic');
-    expect(resolved.status).toBe('enabled');
-  });
-
-  it('defaults to mock mode when env is empty', () => {
-    process.env.NEXT_PUBLIC_MERCK_MODE = '';
-    const resolved = resolveMerckIntegration('org-1', []);
-    expect(resolved.source).toBe('synthetic');
-    expect(resolved.status).toBe('enabled');
-  });
-
-  it('uses local status override in mock mode', () => {
-    setMerckMockStatusForOrg('org-1', 'disabled');
-
-    const resolved = resolveMerckIntegration('org-1', []);
-    expect(resolved.status).toBe('disabled');
-    expect(getMerckMockStatusForOrg('org-1')).toBe('disabled');
+    expect(resolved).toBeNull();
   });
 
   it('retains backend integration record when available', () => {
@@ -46,14 +20,12 @@ describe('merckService', () => {
       },
     ] as any);
 
-    expect(resolved._id).toBe('m1');
-    expect(resolved.provider).toBe('MERCK_MANUALS');
-  });
-
-  it('creates a synthetic integration scoped to org', () => {
-    const synthetic = createSyntheticMerckIntegration('org-x');
-    expect(synthetic.organisationId).toBe('org-x');
-    expect(synthetic.provider).toBe('MERCK_MANUALS');
+    expect(resolved).toMatchObject({
+      _id: 'm1',
+      provider: 'MERCK_MANUALS',
+      status: 'enabled',
+      source: 'backend',
+    });
   });
 
   it('normalizes raw feed payload into MerckSearchResponse', () => {

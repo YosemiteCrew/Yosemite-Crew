@@ -6,12 +6,19 @@ import { useAuthStore } from '@/app/stores/authStore';
 import Sidebar from '@/app/ui/layout/Sidebar/Sidebar';
 import UniversalSearchPalette from '@/app/ui/layout/UniversalSearch/UniversalSearchPalette';
 import { useOrgStore } from '@/app/stores/orgStore';
+import { useLoadOrg } from '@/app/hooks/useLoadOrg';
+import { useLoadProfiles } from '@/app/hooks/useProfiles';
+import { useLoadAvailabilities } from '@/app/hooks/useAvailabiities';
 import {
   getCompanionTerminologyForOrg,
   rewriteCompanionTerminologyText,
 } from '@/app/lib/companionTerminology';
 
 const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
+  useLoadOrg();
+  useLoadProfiles();
+  useLoadAvailabilities();
+
   const status = useAuthStore((s) => s.status);
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
 

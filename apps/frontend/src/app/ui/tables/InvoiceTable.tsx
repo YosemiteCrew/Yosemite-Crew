@@ -16,6 +16,7 @@ import {
   getCompanionNameFromAppointments,
   getParentNameFromAppointments,
 } from '@/app/lib/invoice';
+import { getInvoicePaymentMethodLabel } from '@/app/lib/invoicePaymentMethod';
 
 type Column<T> = {
   label: string;
@@ -198,11 +199,19 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
     {
       label: 'Status',
       key: 'status',
-      width: '15%',
+      width: '10%',
       render: (item: Invoice) => (
         <div className="appointment-status" style={getStatusStyle(item?.status)}>
           {toTitle(item?.status)}
         </div>
+      ),
+    },
+    {
+      label: 'Payment',
+      key: 'payment',
+      width: '10%',
+      render: (item: Invoice) => (
+        <div className="appointment-profile-title">{getInvoicePaymentMethodLabel(item)}</div>
       ),
     },
     {

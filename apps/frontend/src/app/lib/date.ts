@@ -1,5 +1,9 @@
 import { Option } from '@/app/features/companions/types/companion';
-import { formatDateInPreferredTimeZone, formatUtcClockTimeLabel } from '@/app/lib/timezone';
+import {
+  formatDateInPreferredTimeZone,
+  formatUtcClockTimeLabel,
+  getDatePartsInPreferredTimeZone,
+} from '@/app/lib/timezone';
 
 const toValidDate = (value?: Date | string | number | null): Date | null => {
   if (value == null || value === '') return null;
@@ -88,6 +92,18 @@ export const getUtcTimeValue = (
   if (!date) return fallback;
   const hours = String(date.getUTCHours()).padStart(2, '0');
   const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+};
+
+export const getPreferredTimeValue = (
+  value?: Date | string | number | null,
+  fallback = '00:00'
+): string => {
+  const date = toValidDate(value);
+  if (!date) return fallback;
+  const parts = getDatePartsInPreferredTimeZone(date);
+  const hours = String(parts.hour).padStart(2, '0');
+  const minutes = String(parts.minute).padStart(2, '0');
   return `${hours}:${minutes}`;
 };
 

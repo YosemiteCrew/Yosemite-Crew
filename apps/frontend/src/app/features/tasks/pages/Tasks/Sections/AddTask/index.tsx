@@ -6,7 +6,10 @@ import { useCompanionsForPrimaryOrg } from '@/app/hooks/useCompanion';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { useMemberMap } from '@/app/hooks/useMemberMap';
 import { useTaskForm } from '@/app/hooks/useTaskForm';
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
+import { getPreferredTimeValue } from '@/app/lib/date';
+import { getPreferredTimeZone } from '@/app/lib/timezone';
+import { Task } from '@/app/features/tasks/types/task';
 
 const TaskTypeOptions = [
   { value: 'EMPLOYEE_TASK', label: 'Employee Task' },
@@ -16,9 +19,11 @@ const TaskTypeOptions = [
 type AddTaskProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
+  prefill?: Partial<Task> | null;
+  onPrefillConsumed?: () => void;
 };
 
-const AddTask = ({ showModal, setShowModal }: AddTaskProps) => {
+const AddTask = ({ showModal, setShowModal, prefill, onPrefillConsumed }: AddTaskProps) => {
   const teams = useTeamForPrimaryOrg();
   const companions = useCompanionsForPrimaryOrg();
   const { resolveMemberName } = useMemberMap();
@@ -27,11 +32,11 @@ const AddTask = ({ showModal, setShowModal }: AddTaskProps) => {
     setFormData,
     due,
     setDue,
-    dueTimeUtc,
-    setDueTimeUtc,
+    dueTimeValue,
+    setDueTimeValue,
     formDataErrors,
     error,
-    timeSlots,
+    isLoading,
     templateOptions,
     selectTemplate,
     handleCreate,
@@ -40,6 +45,39 @@ const AddTask = ({ showModal, setShowModal }: AddTaskProps) => {
     isCompanionTask: false,
     onSuccess: () => setShowModal(false),
   });
+
+  useEffect(() => {
+    if (!showModal || !prefill) return;
+    const dueAtDate = prefill.dueAt ? new Date(prefill.dueAt) : new Date();
+    setDue(dueAtDate);
+    setDueTimeValue(getPreferredTimeValue(dueAtDate, '00:00'));
+    setFormData((prev) => ({
+      ...prev,
+      ...prefill,
+      _id: '',
+      organisationId: undefined,
+      appointmentId: undefined,
+      createdAt: undefined,
+      updatedAt: undefined,
+      completedAt: undefined,
+      completedBy: undefined,
+      calendarEventId: undefined,
+      status: 'PENDING',
+      source: prefill.source || 'CUSTOM',
+      audience: prefill.audience || prev.audience || 'EMPLOYEE_TASK',
+      assignedTo: prefill.assignedTo || '',
+      dueAt: dueAtDate,
+      timezone: prefill.timezone || prev.timezone || getPreferredTimeZone(),
+      recurrence: prefill.recurrence
+        ? {
+            ...prefill.recurrence,
+            isMaster: false,
+            masterTaskId: undefined,
+          }
+        : prev.recurrence,
+    }));
+    onPrefillConsumed?.();
+  }, [onPrefillConsumed, prefill, setDue, setDueTimeValue, setFormData, showModal]);
 
   const CompanionOptions = useMemo(() => {
     const byParent = new Map<string, { label: string; value: string }>();
@@ -74,11 +112,10 @@ const AddTask = ({ showModal, setShowModal }: AddTaskProps) => {
             setFormData={setFormData}
             formDataErrors={formDataErrors}
             templateOptions={templateOptions}
-            timeSlots={timeSlots}
             due={due}
             setDue={setDue}
-            dueTimeUtc={dueTimeUtc}
-            setDueTimeUtc={setDueTimeUtc}
+            dueTimeValue={dueTimeValue}
+            setDueTimeValue={setDueTimeValue}
             onSelectTemplate={selectTemplate}
             showAudienceSelect
             audienceOptions={TaskTypeOptions}
@@ -121,9 +158,10 @@ const AddTask = ({ showModal, setShowModal }: AddTaskProps) => {
               />
               <Primary
                 href="#"
-                text="Save"
+                text={isLoading ? 'Saving...' : 'Save'}
                 classname="w-auto min-w-[140px]"
                 onClick={handleCreate}
+                isDisabled={isLoading}
               />
             </div>
           </div>

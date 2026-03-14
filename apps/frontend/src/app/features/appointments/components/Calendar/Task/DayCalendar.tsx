@@ -9,7 +9,7 @@ import {
   startOfDayDate,
 } from '@/app/features/appointments/components/Calendar/helpers';
 import { HOURS_IN_DAY } from '@/app/features/appointments/components/Calendar/weekHelpers';
-import { Task, TaskStatus } from '@/app/features/tasks/types/task';
+import { Task } from '@/app/features/tasks/types/task';
 import TaskSlot from '@/app/features/appointments/components/Calendar/Task/TaskSlot';
 import Back from '@/app/ui/primitives/Icons/Back';
 import Next from '@/app/ui/primitives/Icons/Next';
@@ -20,6 +20,7 @@ import {
   getHourRowHeightPx,
 } from '@/app/features/appointments/components/Calendar/calendarLayout';
 import {
+  formatDateInPreferredTimeZone,
   getHourInPreferredTimeZone,
   getMinutesSinceStartOfDayInPreferredTimeZone,
   isOnPreferredTimeZoneCalendarDay,
@@ -38,7 +39,8 @@ type DayCalendarProps = {
   date: Date;
   zoomMode?: CalendarZoomMode;
   handleViewTask: (task: Task) => void;
-  onQuickStatusChange?: (task: Task, status: TaskStatus) => void;
+  handleChangeStatusTask?: (task: Task) => void;
+  handleRescheduleTask?: (task: Task) => void;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   canEditTasks?: boolean;
   draggedTaskId?: string | null;
@@ -47,6 +49,7 @@ type DayCalendarProps = {
   onTaskDragStart?: (task: Task) => void;
   onTaskDragEnd?: () => void;
   onTaskDropAt?: (date: Date, minuteOfDay: number, targetAssigneeId?: string) => void;
+  onCreateTaskAt?: (date: Date, minuteOfDay: number, targetAssigneeId?: string) => void;
   onDragHoverTarget?: (date: Date, targetAssigneeId?: string) => void;
   getDropAvailabilityIntervals?: (
     date: Date,
@@ -54,6 +57,7 @@ type DayCalendarProps = {
   ) => DropAvailabilityInterval[];
   draggedTaskDurationMinutes?: number;
   slotStepMinutes?: number;
+  resolveDisplayName?: (memberId?: string) => string;
 };
 
 const DayCalendar = ({
@@ -61,7 +65,8 @@ const DayCalendar = ({
   date,
   zoomMode = 'in',
   handleViewTask,
-  onQuickStatusChange,
+  handleChangeStatusTask,
+  handleRescheduleTask,
   setCurrentDate,
   canEditTasks = false,
   draggedTaskId,
@@ -70,10 +75,12 @@ const DayCalendar = ({
   onTaskDragStart,
   onTaskDragEnd,
   onTaskDropAt,
+  onCreateTaskAt,
   onDragHoverTarget,
   getDropAvailabilityIntervals,
   draggedTaskDurationMinutes,
   slotStepMinutes = 15,
+  resolveDisplayName,
 }: DayCalendarProps) => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const { handleNextDay, handlePrevDay } = useCalendarNavigation(setCurrentDate);
@@ -104,6 +111,24 @@ const DayCalendar = ({
     if (topPx == null) return null;
     return { topPx };
   }, [date, height, now]);
+  const nowTimeLabel = useMemo(() => {
+    if (!nowPosition) return null;
+    return formatDateInPreferredTimeZone(now, {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  }, [now, nowPosition]);
+  const eventsByHour = useMemo(() => {
+    const grouped: Task[][] = Array.from({ length: HOURS_IN_DAY }, () => []);
+    events.forEach((task) => {
+      const dueAt = new Date(task.dueAt);
+      if (!isOnPreferredTimeZoneCalendarDay(dueAt, date)) return;
+      const hour = getHourInPreferredTimeZone(dueAt);
+      if (hour < 0 || hour >= HOURS_IN_DAY) return;
+      grouped[hour].push(task);
+    });
+    return grouped;
+  }, [date, events]);
 
   useEffect(() => {
     if (!scrollRef.current) return;
@@ -151,29 +176,30 @@ const DayCalendar = ({
       >
         <div className="relative pt-2 pb-4">
           {Array.from({ length: HOURS_IN_DAY }, (_, hour) => {
-            const slotEvents = events.filter((task) => {
-              const dueAt = new Date(task.dueAt);
-              return (
-                isOnPreferredTimeZoneCalendarDay(dueAt, date) &&
-                getHourInPreferredTimeZone(dueAt) === hour
-              );
-            });
+            const slotEvents = eventsByHour[hour];
             return (
               <div
                 key={`task-day-hour-${hour}`}
                 className="grid grid-cols-[64px_minmax(0,1fr)] min-w-max"
               >
                 <div
-                  className="text-caption-2 text-text-primary pl-2!"
-                  style={{ height: `${height}px`, paddingTop: hour === 0 ? 4 : 0 }}
+                  className="text-caption-2 text-text-primary pl-2! relative"
+                  style={{ height: `${height}px` }}
                 >
-                  {formatHourLabel(hour)}
+                  <span
+                    className={`absolute top-0 ${
+                      hour === 0 ? 'translate-y-0' : '-translate-y-1/2'
+                    }`}
+                  >
+                    {formatHourLabel(hour)}
+                  </span>
                 </div>
                 <div className="relative" style={{ height: `${height}px` }}>
                   <TaskSlot
                     slotEvents={slotEvents}
                     handleViewTask={handleViewTask}
-                    onQuickStatusChange={onQuickStatusChange}
+                    handleChangeStatusTask={handleChangeStatusTask}
+                    handleRescheduleTask={handleRescheduleTask}
                     canEditTasks={canEditTasks}
                     zoomMode={zoomMode}
                     dayIndex={0}
@@ -187,12 +213,14 @@ const DayCalendar = ({
                     onTaskDragStart={onTaskDragStart}
                     onTaskDragEnd={onTaskDragEnd}
                     onTaskDropAt={onTaskDropAt}
+                    onCreateTaskAt={onCreateTaskAt}
                     onDragHoverTarget={onDragHoverTarget}
                     dropAvailabilityIntervals={getDropAvailabilityIntervals?.(date) ?? []}
                     draggedTaskDurationMinutes={draggedTaskDurationMinutes}
                     showGridLines
                     slotOffsetMinutes={slotOffsetMinutes}
                     isLastVisibleHour={hour === lastVisibleHour}
+                    resolveDisplayName={resolveDisplayName}
                   />
                 </div>
               </div>
@@ -211,6 +239,11 @@ const DayCalendar = ({
                       top: nowPosition.topPx,
                     }}
                   >
+                    {nowTimeLabel && (
+                      <div className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold text-red-500 whitespace-nowrap">
+                        {nowTimeLabel}
+                      </div>
+                    )}
                     <div className="absolute left-[-5px] w-3 h-3 rounded-full bg-red-500 translate-y-[-50%]" />
                     <div className="border-t-2 border-t-red-500 translate-y-[-50%]" />
                   </div>

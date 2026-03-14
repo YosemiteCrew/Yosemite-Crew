@@ -312,12 +312,6 @@ const PricingPage = () => {
                       ))}
                     </tbody>
                   </table>
-                  {table.head === 'Integrations & labs' ? (
-                    <div className="pricingFootnote text-[13px] font-satoshi text-grey-noti px-4! md:px-6! mt-2 pb-3!">
-                      * IDEXX hardware, analyzers, and tests are billed separately by IDEXX.
-                      Yosemite Crew does not charge an additional IDEXX integration fee.
-                    </div>
-                  ) : null}
                 </div>
               ))}
             </div>

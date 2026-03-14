@@ -1,4 +1,4 @@
-import { create } from "zustand";
+import { create } from 'zustand';
 import {
   CognitoUser,
   CognitoUserAttribute,
@@ -7,13 +7,13 @@ import {
   ICognitoUserPoolData,
   ISignUpResult,
   AuthenticationDetails,
-} from "amazon-cognito-identity-js";
-import { useOrgStore } from "@/app/stores/orgStore";
-import { logger } from "@/app/lib/logger";
+} from 'amazon-cognito-identity-js';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { logger } from '@/app/lib/logger';
 
 const poolData: ICognitoUserPoolData = {
-  UserPoolId: process.env.NEXT_PUBLIC_COGNITO_USERPOOLID || "",
-  ClientId: process.env.NEXT_PUBLIC_COGNITO_CLIENTID || "",
+  UserPoolId: process.env.NEXT_PUBLIC_COGNITO_USERPOOLID || '',
+  ClientId: process.env.NEXT_PUBLIC_COGNITO_CLIENTID || '',
 };
 
 let userPool: CognitoUserPool | undefined = undefined;
@@ -22,12 +22,7 @@ if (poolData.UserPoolId && poolData.ClientId) {
   userPool = new CognitoUserPool(poolData);
 }
 
-type Status =
-  | "idle"
-  | "checking"
-  | "authenticated"
-  | "unauthenticated"
-  | "signin-authenticated";
+type Status = 'idle' | 'checking' | 'authenticated' | 'unauthenticated' | 'signin-authenticated';
 
 type AuthStore = {
   user: CognitoUser | null;
@@ -44,17 +39,12 @@ type AuthStore = {
     lastName: string,
     role?: string
   ) => Promise<ISignUpResult | undefined>;
-  confirmSignUp: (
-    email: string,
-    code: string
-  ) => Promise<ISignUpResult | undefined>;
+  confirmSignUp: (email: string, code: string) => Promise<ISignUpResult | undefined>;
   resendCode: (email: string) => Promise<ISignUpResult | undefined>;
-  signIn: (
-    username: string,
-    password: string
-  ) => Promise<CognitoUserSession | null>;
+  signIn: (username: string, password: string) => Promise<CognitoUserSession | null>;
   checkSession: () => Promise<CognitoUserSession | null>;
   refreshSession: () => Promise<CognitoUserSession | null>;
+  getValidSession: (opts?: { forceRefresh?: boolean }) => Promise<CognitoUserSession | null>;
   signout: () => Promise<void>;
   forgotPassword: (email: string) => Promise<{
     CodeDeliveryDetails: {
@@ -63,35 +53,85 @@ type AuthStore = {
       Destination: string;
     };
   } | null>;
-  resetPassword: (
-    email: string,
-    code: string,
-    password: string
-  ) => Promise<string | null>;
+  resetPassword: (email: string, code: string, password: string) => Promise<string | null>;
   loadUserAttributes: () => Promise<Record<string, string> | null>;
+};
+
+let checkSessionPromise: Promise<CognitoUserSession | null> | null = null;
+let refreshSessionPromise: Promise<CognitoUserSession | null> | null = null;
+
+const getRoleFromSession = (session: CognitoUserSession): string => {
+  const idTokenPayload = session.getIdToken().decodePayload();
+  return idTokenPayload['custom:role'] || '';
+};
+
+const isSessionFresh = (session: CognitoUserSession | null | undefined, minBufferSeconds = 60) => {
+  if (!session?.isValid()) {
+    return false;
+  }
+  try {
+    const payload = session.getIdToken().decodePayload() as { exp?: number };
+    if (typeof payload.exp !== 'number') {
+      return true;
+    }
+    const nowInSeconds = Math.floor(Date.now() / 1000);
+    return payload.exp > nowInSeconds + minBufferSeconds;
+  } catch (error) {
+    logger.warn('Failed to inspect Cognito token expiry', error);
+    return session.isValid();
+  }
+};
+
+const syncAuthenticatedState = async (
+  set: (partial: Partial<AuthStore>) => void,
+  get: () => AuthStore,
+  cognitoUser: CognitoUser,
+  session: CognitoUserSession,
+  status: Status
+) => {
+  set({
+    user: cognitoUser,
+    session,
+    loading: false,
+    error: null,
+    role: getRoleFromSession(session),
+    status,
+  });
+  try {
+    await get().loadUserAttributes();
+  } catch (e) {
+    logger.error('Failed to load user attributes', e);
+  }
+};
+
+const getCurrentCognitoUser = () => {
+  if (!userPool) {
+    throw new Error('UserPool is not initialized');
+  }
+  return userPool.getCurrentUser();
 };
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
   user: null,
   attributes: null,
-  status: "idle",
+  status: 'idle',
   session: null,
   loading: false,
   error: null,
   role: null,
 
-  signUp: async (email, password, firstName, lastName, role = "member") => {
+  signUp: async (email, password, firstName, lastName, role = 'member') => {
     if (!userPool) {
-      throw new Error("UserPool is not initialized");
+      throw new Error('UserPool is not initialized');
     }
     const attributeList = [
-      new CognitoUserAttribute({ Name: "email", Value: email }),
+      new CognitoUserAttribute({ Name: 'email', Value: email }),
       new CognitoUserAttribute({
-        Name: "given_name",
+        Name: 'given_name',
         Value: firstName,
       }),
-      new CognitoUserAttribute({ Name: "family_name", Value: lastName }),
-      new CognitoUserAttribute({ Name: "custom:role", Value: role }),
+      new CognitoUserAttribute({ Name: 'family_name', Value: lastName }),
+      new CognitoUserAttribute({ Name: 'custom:role', Value: role }),
     ];
     return new Promise((resolve, reject) => {
       userPool.signUp(email, password, attributeList, [], (err, result) => {
@@ -105,7 +145,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
   confirmSignUp: async (email, code) => {
     if (!userPool) {
-      throw new Error("UserPool is not initialized");
+      throw new Error('UserPool is not initialized');
     }
     const userData = {
       Username: email,
@@ -124,7 +164,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
   resendCode: async (email) => {
     if (!userPool) {
-      throw new Error("UserPool is not initialized");
+      throw new Error('UserPool is not initialized');
     }
     const userData = {
       Username: email,
@@ -143,9 +183,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
   signIn: async (email, password) => {
     if (!userPool) {
-      throw new Error("UserPool is not initialized");
+      throw new Error('UserPool is not initialized');
     }
-    set({ loading: true, error: null, status: "checking" });
+    set({ loading: true, error: null, status: 'checking' });
     const authenticationDetails = new AuthenticationDetails({
       Username: email,
       Password: password,
@@ -156,38 +196,20 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     };
     const cognitoUser = new CognitoUser(userData);
 
-    const handleAuthSuccess = async (session: CognitoUserSession) => {
-      const idTokenPayload = session.getIdToken().decodePayload();
-      const role = idTokenPayload["custom:role"] || "";
-      set({
-        user: cognitoUser,
-        session,
-        loading: false,
-        error: null,
-        role,
-        status: "signin-authenticated",
-      });
-      try {
-        await get().loadUserAttributes();
-      } catch (e) {
-        logger.error("Failed to load user attributes", e);
-      }
-    };
-
     return new Promise((resolve, reject) => {
       cognitoUser.authenticateUser(authenticationDetails, {
         onSuccess: (session) => {
-          void handleAuthSuccess(session);
+          void syncAuthenticatedState(set, get, cognitoUser, session, 'signin-authenticated');
           resolve(session);
         },
         onFailure: (err) => {
           set({
             loading: false,
-            error: err.message || "Authentication failed",
+            error: err.message || 'Authentication failed',
             user: null,
             session: null,
             role: null,
-            status: "unauthenticated",
+            status: 'unauthenticated',
             attributes: null,
           });
           reject(err instanceof Error ? err : new Error(String(err)));
@@ -197,123 +219,113 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
   checkSession: async () => {
     if (!userPool) {
-      throw new Error("UserPool is not initialized");
+      throw new Error('UserPool is not initialized');
     }
-    set({ loading: true, error: null, status: "checking" });
-
-    const handleSessionSuccess = async (
-      cognitoUser: CognitoUser,
-      session: CognitoUserSession,
-      role: string
-    ) => {
-      set({
-        user: cognitoUser,
-        status: "authenticated",
-        session,
-        loading: false,
-        error: null,
-        role,
-      });
-      try {
-        await get().loadUserAttributes();
-      } catch (e) {
-        logger.error("Failed to load user attributes", e);
-      }
-    };
-    return new Promise((resolve, reject) => {
-      const cognitoUser = userPool.getCurrentUser();
+    if (checkSessionPromise) {
+      return checkSessionPromise;
+    }
+    set({ loading: true, error: null, status: 'checking' });
+    checkSessionPromise = new Promise<CognitoUserSession | null>((resolve) => {
+      const cognitoUser = getCurrentCognitoUser();
       if (!cognitoUser) {
-        set({
-          user: null,
-          session: null,
-          loading: false,
-          status: "unauthenticated",
-          attributes: null,
-        });
-        return resolve(null);
+        resetAuthState(set);
+        resolve(null);
+        return;
       }
-      cognitoUser.getSession(
-        (err: Error | null, session: CognitoUserSession) => {
-          if (err || !session?.isValid()) {
-            set({
-              user: null,
-              session: null,
-              loading: false,
-              error: err?.message || null,
-              status: "unauthenticated",
-              attributes: null,
-            });
-            return resolve(null);
-          }
-          const idTokenPayload = session.getIdToken().decodePayload();
-          const role = idTokenPayload["custom:role"] || "";
-          void handleSessionSuccess(cognitoUser, session, role);
-          resolve(session);
+      cognitoUser.getSession((err: Error | null, session: CognitoUserSession | null) => {
+        if (err || !isSessionFresh(session, 0)) {
+          set({
+            user: null,
+            session: null,
+            loading: false,
+            error: err?.message || null,
+            status: 'unauthenticated',
+            attributes: null,
+            role: null,
+          });
+          resolve(null);
+          return;
         }
-      );
+        void syncAuthenticatedState(
+          set,
+          get,
+          cognitoUser,
+          session as CognitoUserSession,
+          'authenticated'
+        );
+        resolve(session);
+      });
+    }).finally(() => {
+      checkSessionPromise = null;
     });
+    return checkSessionPromise;
   },
   refreshSession: async () => {
     if (!userPool) {
-      throw new Error("UserPool is not initialized");
+      throw new Error('UserPool is not initialized');
     }
-    const handleSessionSuccess = async (
-      cognitoUser: CognitoUser,
-      session: CognitoUserSession,
-      role: string
-    ) => {
-      set({
-        user: cognitoUser,
-        session,
-        role,
-      });
-      try {
-        await get().loadUserAttributes();
-      } catch (e) {
-        logger.error("Failed to load user attributes", e);
-      }
-    };
-
-    return new Promise((resolve) => {
-      const cognitoUser = userPool.getCurrentUser();
+    if (refreshSessionPromise) {
+      return refreshSessionPromise;
+    }
+    refreshSessionPromise = new Promise<CognitoUserSession | null>((resolve) => {
+      const cognitoUser = getCurrentCognitoUser();
       if (!cognitoUser) {
-        // Don't touch status here – let caller decide what to do
+        resetAuthState(set);
         resolve(null);
         return;
       }
 
-      cognitoUser.getSession(
-        (err: Error | null, session: CognitoUserSession | null) => {
-          if (err || !session?.isValid()) {
-            logger.warn("refreshSession failed or session invalid:", err);
-            resolve(null);
-            return;
-          }
-
-          const idTokenPayload = session.getIdToken().decodePayload();
-          const role = idTokenPayload["custom:role"] || "";
-          void handleSessionSuccess(cognitoUser, session, role);
-          resolve(session);
+      cognitoUser.getSession((err: Error | null, session: CognitoUserSession | null) => {
+        if (err || !isSessionFresh(session, 0)) {
+          logger.warn('refreshSession failed or session invalid:', err);
+          resetAuthState(set);
+          resolve(null);
+          return;
         }
-      );
+        void syncAuthenticatedState(
+          set,
+          get,
+          cognitoUser,
+          session as CognitoUserSession,
+          'authenticated'
+        );
+        resolve(session);
+      });
+    }).finally(() => {
+      refreshSessionPromise = null;
     });
+    return refreshSessionPromise;
+  },
+  getValidSession: async (opts) => {
+    const currentSession = get().session;
+    if (!opts?.forceRefresh && isSessionFresh(currentSession)) {
+      return currentSession;
+    }
+    const refreshedSession = await get().refreshSession();
+    if (refreshedSession) {
+      return refreshedSession;
+    }
+    if (opts?.forceRefresh) {
+      return null;
+    }
+    return get().checkSession();
   },
   signout: async () => {
-    if (typeof globalThis !== "undefined") {
-      globalThis.sessionStorage?.removeItem("devAuth");
+    if (typeof globalThis !== 'undefined') {
+      globalThis.sessionStorage?.removeItem('devAuth');
     }
     const { user } = get();
     const resetState = () => resetAuthState(set);
     resetState();
     if (!user) return;
-    if (typeof globalThis === "undefined") {
+    if (typeof globalThis === 'undefined') {
       return;
     }
     await performGlobalSignOut(user, resetState);
   },
   forgotPassword: async (email: string) => {
     if (!userPool) {
-      throw new Error("UserPool is not initialized");
+      throw new Error('UserPool is not initialized');
     }
     return new Promise((resolve, reject) => {
       const userData = {
@@ -323,17 +335,16 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       const cognitoUser = new CognitoUser(userData);
       cognitoUser.forgotPassword({
         onSuccess: (data) => {
-          logger.info("forgotPassword success", data);
+          logger.info('forgotPassword success', data);
           resolve(data);
         },
-        onFailure: (err) =>
-          reject(err instanceof Error ? err : new Error(String(err))),
+        onFailure: (err) => reject(err instanceof Error ? err : new Error(String(err))),
       });
     });
   },
   resetPassword: async (email: string, code: string, newPassword: string) => {
     if (!userPool) {
-      throw new Error("UserPool is not initialized");
+      throw new Error('UserPool is not initialized');
     }
     return new Promise((resolve, reject) => {
       const userData = {
@@ -342,9 +353,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       };
       const cognitoUser = new CognitoUser(userData);
       cognitoUser.confirmPassword(code, newPassword, {
-        onSuccess: () => resolve("success"),
-        onFailure: (err) =>
-          reject(err instanceof Error ? err : new Error(String(err))),
+        onSuccess: () => resolve('success'),
+        onFailure: (err) => reject(err instanceof Error ? err : new Error(String(err))),
       });
     });
   },
@@ -367,7 +377,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
 const resetAuthState = (set: (partial: Partial<AuthStore>) => void) => {
   set({
-    status: "unauthenticated",
+    status: 'unauthenticated',
     user: null,
     session: null,
     role: null,
@@ -378,21 +388,18 @@ const resetAuthState = (set: (partial: Partial<AuthStore>) => void) => {
   try {
     useOrgStore.getState().clearOrgs();
   } catch (err) {
-    logger.warn("Failed to clear org store on signout", err);
+    logger.warn('Failed to clear org store on signout', err);
   }
 };
 
-const performGlobalSignOut = (
-  user: CognitoUser,
-  resetState: () => void,
-): Promise<void> =>
+const performGlobalSignOut = (user: CognitoUser, resetState: () => void): Promise<void> =>
   new Promise((resolve) => {
     user.getSession((err: Error | null, session: CognitoUserSession | null) => {
       if (err || !session?.isValid()) {
         if (err) {
-          logger.warn("getSession failed during signout:", err);
+          logger.warn('getSession failed during signout:', err);
         } else {
-          logger.warn("Invalid session during signout");
+          logger.warn('Invalid session during signout');
         }
         resolve();
         return;
@@ -403,7 +410,7 @@ const performGlobalSignOut = (
           resolve();
         },
         onFailure: (signoutErr: Error | null) => {
-          logger.error("globalSignOut failed", signoutErr);
+          logger.error('globalSignOut failed', signoutErr);
           resetState();
           resolve();
         },

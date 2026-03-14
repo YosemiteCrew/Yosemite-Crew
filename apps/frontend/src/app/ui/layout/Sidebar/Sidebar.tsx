@@ -25,9 +25,6 @@ import { FaPaw } from 'react-icons/fa6';
 
 import { usePrimaryOrg } from '@/app/hooks/useOrgSelectors';
 import { useOrgStore } from '@/app/stores/orgStore';
-import { useLoadOrg } from '@/app/hooks/useLoadOrg';
-import { useLoadProfiles } from '@/app/hooks/useProfiles';
-import { useLoadAvailabilities } from '@/app/hooks/useAvailabiities';
 import { useLoadSpecialitiesForPrimaryOrg } from '@/app/hooks/useSpecialities';
 import { appRoutes, devRoutes } from '@/app/config/routes';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
@@ -56,9 +53,6 @@ const ROUTE_ICONS: Record<string, IconType> = {
 };
 
 const Sidebar = () => {
-  useLoadOrg();
-  useLoadProfiles();
-  useLoadAvailabilities();
   useLoadSpecialitiesForPrimaryOrg();
   const pathname = usePathname();
   const router = useRouter();

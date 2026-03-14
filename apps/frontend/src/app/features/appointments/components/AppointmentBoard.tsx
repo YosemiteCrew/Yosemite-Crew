@@ -33,6 +33,7 @@ import {
   canShowStatusChangeAction,
   canTransitionAppointmentStatus,
   getAllowedAppointmentStatusTransitions,
+  getPreferredNextAppointmentStatus,
   getClinicalNotesIntent,
   getClinicalNotesLabel,
   getInvalidAppointmentStatusTransitionMessage,
@@ -44,6 +45,7 @@ import { IoCardOutline, IoDocumentTextOutline, IoEyeOutline } from 'react-icons/
 import { MdMeetingRoom, MdOutlineAutorenew, MdScience } from 'react-icons/md';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useNotify } from '@/app/hooks/useNotify';
+import { AppointmentStatus } from '@/app/features/appointments/types/appointments';
 
 type BoardStatus =
   | 'REQUESTED'
@@ -129,6 +131,7 @@ type AppointmentBoardProps = {
   setViewPopup?: React.Dispatch<React.SetStateAction<boolean>>;
   setViewIntent?: (intent: AppointmentViewIntent | null) => void;
   setChangeStatusPopup?: React.Dispatch<React.SetStateAction<boolean>>;
+  setChangeStatusPreferredStatus?: React.Dispatch<React.SetStateAction<AppointmentStatus | null>>;
   setReschedulePopup?: React.Dispatch<React.SetStateAction<boolean>>;
   setChangeRoomPopup?: React.Dispatch<React.SetStateAction<boolean>>;
   onAddAppointment?: () => void;
@@ -143,6 +146,7 @@ const AppointmentBoard = ({
   setViewPopup,
   setViewIntent,
   setChangeStatusPopup,
+  setChangeStatusPreferredStatus,
   setReschedulePopup,
   setChangeRoomPopup,
   onAddAppointment,
@@ -245,6 +249,9 @@ const AppointmentBoard = ({
 
   const openChangeStatus = (appointment: Appointment) => {
     setActiveAppointment?.(appointment);
+    setChangeStatusPreferredStatus?.(
+      getPreferredNextAppointmentStatus(appointment.status as AppointmentStatus | string)
+    );
     setChangeStatusPopup?.(true);
   };
 

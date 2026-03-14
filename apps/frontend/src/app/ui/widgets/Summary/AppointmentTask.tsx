@@ -37,16 +37,12 @@ const AppointmentTask = () => {
     appointments[0] ?? null
   );
   const [activeTask, setActiveTask] = useState<Task | null>(tasks[0] ?? null);
-  const activeLabels = useMemo(() => {
-    if (activeTable === 'Appointments') {
-      return AppointmentStatusFiltersUI.filter((item) => item.key !== 'all');
-    }
-    return TaskStatusFilters.filter((item) => item.key !== 'all');
-  }, [activeTable]);
+  const activeLabels = useMemo(
+    () => (activeTable === 'Appointments' ? AppointmentStatusFiltersUI : TaskStatusFilters),
+    [activeTable]
+  );
   const [activeSubLabel, setActiveSubLabel] = useState(
-    activeTable === 'Appointments'
-      ? AppointmentStatusFiltersUI.find((item) => item.key !== 'all')?.key || 'requested'
-      : TaskStatusFilters.find((item) => item.key !== 'all')?.key || 'pending'
+    activeTable === 'Appointments' ? 'all' : 'all'
   );
 
   useEffect(() => {
@@ -92,16 +88,17 @@ const AppointmentTask = () => {
 
   useEffect(() => {
     if (activeTable === 'Appointments') {
-      setActiveSubLabel(
-        AppointmentStatusFiltersUI.find((item) => item.key !== 'all')?.key || 'requested'
-      );
+      setActiveSubLabel('all');
     } else {
-      setActiveSubLabel(TaskStatusFilters.find((item) => item.key !== 'all')?.key || 'pending');
+      setActiveSubLabel('all');
     }
   }, [activeTable]);
 
   const filteredList = useMemo(() => {
     if (activeTable === 'Appointments') {
+      if (activeSubLabel === 'all') {
+        return appointments;
+      }
       const wanted = activeSubLabel.toLowerCase();
       return appointments.filter((item) => {
         const s = item.status?.toLowerCase();
@@ -113,6 +110,9 @@ const AppointmentTask = () => {
 
   const filteredTaskList = useMemo(() => {
     if (activeTable === 'Tasks') {
+      if (activeSubLabel === 'all') {
+        return tasks;
+      }
       return tasks.filter((item) => {
         const matchesStatus = item.status.toLowerCase() === activeSubLabel.toLowerCase();
         return matchesStatus;

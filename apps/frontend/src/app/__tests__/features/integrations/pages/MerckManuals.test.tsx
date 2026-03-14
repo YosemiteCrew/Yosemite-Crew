@@ -89,7 +89,6 @@ jest.mock('@/app/constants/mediaSources', () => ({
 
 jest.mock('@/app/features/integrations/constants/merck', () => ({
   MERCK_COPYRIGHT_NOTICE: 'copyright',
-  MERCK_HL7_INFOBUTTON_NOTICE: 'hl7',
   getMerckSubtopicPillStyle: () => ({}),
 }));
 
@@ -241,18 +240,5 @@ describe('MerckManuals page', () => {
 
     await waitFor(() => expect(searchMock).toHaveBeenCalled());
     expect(searchMock).toHaveBeenCalledWith(expect.objectContaining({ query: 'renal disease' }));
-  });
-
-  it('renders synthetic mode notice when source is synthetic', () => {
-    useResolvedMerckIntegrationForPrimaryOrgMock.mockReturnValue({
-      integration: { source: 'synthetic' },
-      isEnabled: true,
-    });
-
-    render(<ProtectedMerckManuals />);
-
-    expect(
-      screen.getByText(/Running in mock mode\. Merck status and search data are mocked/i)
-    ).toBeInTheDocument();
   });
 });

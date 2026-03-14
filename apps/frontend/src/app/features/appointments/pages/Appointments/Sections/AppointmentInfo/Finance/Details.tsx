@@ -80,6 +80,7 @@ const Details = ({ activeAppointment }: DetailsProps) => {
                     <InvoicePaymentActions
                       invoiceId={payment.id}
                       invoiceStatus={payment.status}
+                      paymentCollectionMethod={(payment as any)?.paymentCollectionMethod}
                       stripeReceiptUrl={payment.stripeReceiptUrl}
                       activeAppointment={activeAppointment}
                     />

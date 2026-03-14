@@ -3,10 +3,11 @@ import {
   getPaymentLink,
   loadInvoicesForOrgPrimaryOrg,
   markInvoicePaid,
+  updateInvoicePaymentCollectionMethod,
 } from '@/app/features/billing/services/invoiceService';
 import { useInvoiceStore } from '@/app/stores/invoiceStore';
 import { useOrgStore } from '@/app/stores/orgStore';
-import { getData, postData } from '@/app/services/axios';
+import { getData, patchData, postData } from '@/app/services/axios';
 
 type InvoiceState = {
   startLoading: jest.Mock;
@@ -28,6 +29,7 @@ jest.mock('@/app/stores/orgStore', () => ({
 
 jest.mock('@/app/services/axios', () => ({
   getData: jest.fn(),
+  patchData: jest.fn(),
   postData: jest.fn(),
 }));
 
@@ -51,6 +53,7 @@ describe('invoiceService', () => {
     (useInvoiceStore.getState as jest.Mock).mockReturnValue(invoiceState);
     (useOrgStore.getState as jest.Mock).mockReturnValue(orgState);
     (getData as jest.Mock).mockResolvedValue({ data: [] });
+    (patchData as jest.Mock).mockResolvedValue({ data: {} });
     (postData as jest.Mock).mockResolvedValue({ data: {} });
   });
 
@@ -96,6 +99,14 @@ describe('invoiceService', () => {
     await markInvoicePaid('inv-1');
 
     expect(postData).toHaveBeenCalledWith('/fhir/v1/invoice/inv-1/mark-paid', {});
+  });
+
+  it('updates payment collection method before offline settlement', async () => {
+    await updateInvoicePaymentCollectionMethod('inv-1', 'PAYMENT_AT_CLINIC');
+
+    expect(patchData).toHaveBeenCalledWith('/fhir/v1/invoice/inv-1/payment-collection-method', {
+      paymentCollectionMethod: 'PAYMENT_AT_CLINIC',
+    });
   });
 
   it('loads without startLoading when silent option is enabled', async () => {
@@ -170,6 +181,22 @@ describe('invoiceService', () => {
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     await markInvoicePaid('inv-1');
     expect(postData).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it('throws when payment collection method invoice id is missing', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    await expect(updateInvoicePaymentCollectionMethod('', 'PAYMENT_AT_CLINIC')).rejects.toThrow(
+      'Invoice ID missing'
+    );
+    errorSpy.mockRestore();
+  });
+
+  it('returns early when updating payment collection method and org missing', async () => {
+    orgState.primaryOrgId = null;
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    await updateInvoicePaymentCollectionMethod('inv-1', 'PAYMENT_AT_CLINIC');
+    expect(patchData).not.toHaveBeenCalled();
     warnSpy.mockRestore();
   });
 });

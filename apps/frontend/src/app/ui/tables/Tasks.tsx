@@ -1,9 +1,17 @@
 import React from 'react';
 import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
-import { IoEye } from 'react-icons/io5';
+import { IoEyeOutline } from 'react-icons/io5';
+import { MdOutlineAutorenew } from 'react-icons/md';
+import { IoIosCalendar } from 'react-icons/io';
 import TaskCard from '@/app/ui/cards/TaskCard';
 import { getFormattedDate } from '@/app/features/appointments/components/Calendar/weekHelpers';
-import { Task } from '@/app/features/tasks/types/task';
+import { Task, TaskStatus } from '@/app/features/tasks/types/task';
+import {
+  canRescheduleTask,
+  canShowTaskStatusChangeAction,
+  getPreferredNextTaskStatus,
+} from '@/app/lib/tasks';
+import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 
 import './DataTable.css';
 import { toTitleCase } from '@/app/lib/validators';
@@ -20,6 +28,10 @@ type TaskTableProps = {
   filteredList: Task[];
   setActiveTask?: (inventory: Task) => void;
   setViewPopup?: (open: boolean) => void;
+  setChangeStatusPopup?: (open: boolean) => void;
+  setChangeStatusPreferredStatus?: React.Dispatch<React.SetStateAction<TaskStatus | null>>;
+  setReschedulePopup?: (open: boolean) => void;
+  canEditTasks?: boolean;
   small?: boolean;
 };
 
@@ -36,7 +48,16 @@ export const getStatusStyle = (status: string) => {
   }
 };
 
-const Tasks = ({ filteredList, setActiveTask, setViewPopup, small = false }: TaskTableProps) => {
+const Tasks = ({
+  filteredList,
+  setActiveTask,
+  setViewPopup,
+  setChangeStatusPopup,
+  setChangeStatusPreferredStatus,
+  setReschedulePopup,
+  canEditTasks = true,
+  small = false,
+}: TaskTableProps) => {
   const { resolveMemberName } = useMemberMap();
   const getMemberNameById = (id?: string) => {
     if (!id) return '-';
@@ -47,6 +68,17 @@ const Tasks = ({ filteredList, setActiveTask, setViewPopup, small = false }: Tas
   const handleViewTask = (task: Task) => {
     setActiveTask?.(task);
     setViewPopup?.(true);
+  };
+
+  const handleChangeStatusTask = (task: Task) => {
+    setActiveTask?.(task);
+    setChangeStatusPreferredStatus?.(getPreferredNextTaskStatus(task.status));
+    setChangeStatusPopup?.(true);
+  };
+
+  const handleRescheduleTask = (task: Task) => {
+    setActiveTask?.(task);
+    setReschedulePopup?.(true);
   };
 
   const columns: Column<Task>[] = [
@@ -110,12 +142,39 @@ const Tasks = ({ filteredList, setActiveTask, setViewPopup, small = false }: Tas
       width: '10%',
       render: (item: Task) => (
         <div className="action-btn-col">
-          <button
-            onClick={() => handleViewTask(item)}
-            className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-          >
-            <IoEye size={20} color="#302F2E" />
-          </button>
+          <div className="action-btn-grid">
+            <GlassTooltip content="View task" side="bottom">
+              <button
+                onClick={() => handleViewTask(item)}
+                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                title="View task"
+              >
+                <IoEyeOutline size={18} color="#302F2E" />
+              </button>
+            </GlassTooltip>
+            {canEditTasks && canShowTaskStatusChangeAction(item.status) && (
+              <GlassTooltip content="Change status" side="bottom">
+                <button
+                  onClick={() => handleChangeStatusTask(item)}
+                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                  title="Change status"
+                >
+                  <MdOutlineAutorenew size={18} color="#302F2E" />
+                </button>
+              </GlassTooltip>
+            )}
+            {canEditTasks && canRescheduleTask(item.status) && (
+              <GlassTooltip content="Reschedule" side="bottom">
+                <button
+                  onClick={() => handleRescheduleTask(item)}
+                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                  title="Reschedule"
+                >
+                  <IoIosCalendar size={18} color="#302F2E" />
+                </button>
+              </GlassTooltip>
+            )}
+          </div>
         </div>
       ),
     },
@@ -148,6 +207,9 @@ const Tasks = ({ filteredList, setActiveTask, setViewPopup, small = false }: Tas
               assignedByLabel={getMemberNameById(item.assignedBy)}
               assignedToLabel={getMemberNameById(item.assignedTo)}
               handleViewTask={handleViewTask}
+              handleChangeStatusTask={handleChangeStatusTask}
+              handleRescheduleTask={handleRescheduleTask}
+              canEditTasks={canEditTasks}
             />
           ));
         })()}

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import { Primary } from '@/app/ui/primitives/Buttons';
+import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import { IoCloseOutline, IoCopyOutline, IoOpenOutline, IoOptionsOutline } from 'react-icons/io5';
 import Close from '@/app/ui/primitives/Icons/Close';
 import { Appointment } from '@yosemite-crew/types';
@@ -22,7 +23,6 @@ import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import {
   MERCK_COPYRIGHT_NOTICE,
   getMerckSubtopicPillStyle,
-  MERCK_HL7_INFOBUTTON_NOTICE,
 } from '@/app/features/integrations/constants/merck';
 
 type AppointmentMerckSearchProps = {
@@ -122,6 +122,7 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
   const [readerOpen, setReaderOpen] = useState(false);
   const [readerUrl, setReaderUrl] = useState<string | null>(null);
   const [readerTitle, setReaderTitle] = useState('Merck Manual');
+  const [readerLoading, setReaderLoading] = useState(false);
   const requestRef = useRef(0);
 
   const performSearch = async () => {
@@ -171,6 +172,7 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
     }
     setReaderTitle(entry.title);
     setReaderUrl(url);
+    setReaderLoading(true);
     setReaderOpen(true);
   };
 
@@ -196,7 +198,7 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
 
   return (
     <>
-      <div className="w-full self-start min-w-0 overflow-x-hidden rounded-2xl border border-card-border p-4 flex flex-col gap-4">
+      <div className="w-full self-start min-w-0 overflow-hidden rounded-2xl border border-card-border p-4 flex h-full min-h-0 flex-col gap-4">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <Image
             src={MEDIA_SOURCES.futureAssets.merckLogoUrl}
@@ -335,76 +337,81 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
           </div>
         ) : null}
 
-        {error ? <div className="text-body-4 text-text-error">{error}</div> : null}
+        <div className="min-h-0 flex flex-1 flex-col gap-3">
+          {error ? <div className="text-body-4 text-text-error">{error}</div> : null}
 
-        <div className="flex flex-col gap-3">
-          {entries.length === 0 ? (
-            loading ? (
-              <div className="text-body-4 text-text-secondary">Searching manuals...</div>
-            ) : null
-          ) : (
-            entries.map((entry) => (
-              <div
-                key={entry.id}
-                className="w-full min-w-0 rounded-2xl border border-card-border p-4 flex flex-col gap-3 overflow-x-hidden"
-              >
-                <div className="flex items-start justify-between gap-2 min-w-0">
-                  <div className="text-body-2 text-text-primary break-words min-w-0">
-                    {entry.title}
-                  </div>
-                </div>
-                <div className="text-body-4 text-text-secondary line-clamp-3 break-words">
-                  {entry.summaryText || 'No summary available.'}
-                </div>
-
-                <div className="flex gap-2 flex-wrap items-center">
-                  <Primary
-                    href="#"
-                    text="Open"
-                    onClick={() => openReader(entry, entry.primaryUrl)}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => window.open(entry.primaryUrl, '_blank', 'noopener,noreferrer')}
-                    aria-label="Open in new tab"
-                    title="Open in new tab"
-                    className="h-12 w-12 rounded-2xl! border border-card-border flex items-center justify-center text-text-primary hover:bg-card-hover transition-colors cursor-pointer"
+          <div className="min-h-0 flex-1 overflow-y-auto pr-1 max-h-[min(60vh,560px)]">
+            <div className="flex flex-col gap-3">
+              {entries.length === 0 ? (
+                loading ? (
+                  <div className="text-body-4 text-text-secondary">Searching manuals...</div>
+                ) : null
+              ) : (
+                entries.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="w-full min-w-0 rounded-2xl border border-card-border p-4 flex flex-col gap-3 overflow-x-hidden"
                   >
-                    <IoOpenOutline size={18} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void copyUrl(entry.primaryUrl)}
-                    aria-label="Copy manual URL"
-                    title="Copy URL"
-                    className="h-12 w-12 rounded-2xl! border border-card-border flex items-center justify-center text-text-primary hover:bg-card-hover transition-colors cursor-pointer"
-                  >
-                    <IoCopyOutline size={18} />
-                  </button>
-                </div>
+                    <div className="flex items-start justify-between gap-2 min-w-0">
+                      <div className="text-body-2 text-text-primary break-words min-w-0">
+                        {entry.title}
+                      </div>
+                    </div>
+                    <div className="text-body-4 text-text-secondary line-clamp-3 break-words">
+                      {entry.summaryText || 'No summary available.'}
+                    </div>
 
-                {entry.subLinks.length > 0 ? (
-                  <div className="flex gap-2 flex-wrap min-w-0">
-                    {entry.subLinks.map((subLink) => (
+                    <div className="flex gap-2 flex-wrap items-center">
+                      <Primary
+                        href="#"
+                        text="Open"
+                        onClick={() => openReader(entry, entry.primaryUrl)}
+                      />
                       <button
-                        key={`${entry.id}-${subLink.label}`}
                         type="button"
-                        className="max-w-full px-3 py-1 rounded-2xl! border border-card-border text-body-4 text-text-secondary hover:bg-card-hover cursor-pointer break-words"
-                        style={getMerckSubtopicPillStyle(subLink.label)}
-                        onClick={() => openReader(entry, subLink.url)}
+                        onClick={() =>
+                          window.open(entry.primaryUrl, '_blank', 'noopener,noreferrer')
+                        }
+                        aria-label="Open in new tab"
+                        title="Open in new tab"
+                        className="h-12 w-12 rounded-2xl! border border-card-border flex items-center justify-center text-text-primary hover:bg-card-hover transition-colors cursor-pointer"
                       >
-                        {subLink.label}
+                        <IoOpenOutline size={18} />
                       </button>
-                    ))}
+                      <button
+                        type="button"
+                        onClick={() => void copyUrl(entry.primaryUrl)}
+                        aria-label="Copy manual URL"
+                        title="Copy URL"
+                        className="h-12 w-12 rounded-2xl! border border-card-border flex items-center justify-center text-text-primary hover:bg-card-hover transition-colors cursor-pointer"
+                      >
+                        <IoCopyOutline size={18} />
+                      </button>
+                    </div>
+
+                    {entry.subLinks.length > 0 ? (
+                      <div className="flex gap-2 flex-wrap min-w-0">
+                        {entry.subLinks.map((subLink) => (
+                          <button
+                            key={`${entry.id}-${subLink.label}`}
+                            type="button"
+                            className="max-w-full px-3 py-1 rounded-2xl! border border-card-border text-body-4 text-text-secondary hover:bg-card-hover cursor-pointer break-words"
+                            style={getMerckSubtopicPillStyle(subLink.label)}
+                            onClick={() => openReader(entry, subLink.url)}
+                          >
+                            {subLink.label}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
-                ) : null}
-              </div>
-            ))
-          )}
+                ))
+              )}
+            </div>
+          </div>
         </div>
         <div className="pt-1 flex flex-col gap-1">
           <div className="text-caption-1 text-text-secondary">{MERCK_COPYRIGHT_NOTICE}</div>
-          <div className="text-caption-1 text-text-secondary">{MERCK_HL7_INFOBUTTON_NOTICE}</div>
         </div>
       </div>
 
@@ -430,12 +437,24 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
                     <Close iconOnly />
                   </button>
                 </div>
-                <iframe
-                  src={readerUrl}
-                  title={readerTitle}
-                  className="flex-1 w-full border-0"
-                  loading="lazy"
-                />
+                <div className="relative flex-1">
+                  {readerLoading ? (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-white">
+                      <YosemiteLoader
+                        label="Loading Manual"
+                        size={120}
+                        testId="appointment-merck-reader-loader"
+                      />
+                    </div>
+                  ) : null}
+                  <iframe
+                    src={readerUrl}
+                    title={readerTitle}
+                    className="flex-1 w-full h-full border-0"
+                    loading="lazy"
+                    onLoad={() => setReaderLoading(false)}
+                  />
+                </div>
               </div>
             </div>,
             document.body

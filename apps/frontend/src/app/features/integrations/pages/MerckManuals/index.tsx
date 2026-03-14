@@ -9,6 +9,7 @@ import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import Close from '@/app/ui/primitives/Icons/Close';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
@@ -26,7 +27,6 @@ import {
 import {
   MERCK_COPYRIGHT_NOTICE,
   getMerckSubtopicPillStyle,
-  MERCK_HL7_INFOBUTTON_NOTICE,
 } from '@/app/features/integrations/constants/merck';
 import { formatDateTimeLocal } from '@/app/lib/date';
 import { IoCloseOutline, IoCopyOutline, IoOpenOutline, IoOptionsOutline } from 'react-icons/io5';
@@ -221,7 +221,7 @@ const EntryCard = ({
 const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
   const searchParams = useSearchParams();
   const routeQuery = String(searchParams.get('q') ?? '').trim();
-  const { integration: merckIntegration, isEnabled } = useResolvedMerckIntegrationForPrimaryOrg();
+  const { isEnabled } = useResolvedMerckIntegrationForPrimaryOrg();
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
 
   const [audience, setAudience] = useState<MerckAudience>('PROV');
@@ -241,6 +241,7 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
   const [readerOpen, setReaderOpen] = useState(false);
   const [readerTitle, setReaderTitle] = useState('Merck Manual');
   const [readerUrl, setReaderUrl] = useState<string | null>(null);
+  const [readerLoading, setReaderLoading] = useState(false);
 
   const requestIdRef = useRef(0);
   const performSearchRef = useRef<((nextQuery?: string) => Promise<void>) | null>(null);
@@ -333,12 +334,16 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
     }
     setReaderTitle(entry.title);
     setReaderUrl(url);
+    setReaderLoading(true);
     setReaderOpen(true);
   };
 
   const containerClassName = embedded
     ? 'w-full p-4 md:p-6 bg-white min-h-screen'
     : 'flex flex-col gap-6 px-3! py-3! sm:px-12! lg:px-[60px]! sm:py-12!';
+  const resultsContainerClassName = embedded
+    ? 'min-h-0 flex-1 overflow-y-auto pr-1'
+    : 'min-h-0 flex-1 overflow-y-auto pr-1 max-h-[calc(100vh-320px)] lg:max-h-[calc(100vh-280px)]';
 
   const disabled = !isEnabled;
 
@@ -375,7 +380,7 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
           {!embedded ? <Secondary href="/integrations" text="Manage Integrations" /> : null}
         </div>
       ) : (
-        <>
+        <div className="flex min-h-0 flex-col gap-4">
           <div className="rounded-2xl border border-card-border p-4 flex flex-col gap-3">
             <form
               className="flex items-center gap-2 flex-nowrap"
@@ -519,28 +524,32 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
             ) : null}
           </div>
 
-          {error ? <div className="text-body-4 text-text-error">{error}</div> : null}
-          {copied ? (
-            <div className="text-body-4 text-green-700">Copied URL to clipboard.</div>
-          ) : null}
+          <div className="min-h-0 flex flex-col gap-3">
+            {error ? <div className="text-body-4 text-text-error">{error}</div> : null}
+            {copied ? (
+              <div className="text-body-4 text-green-700">Copied URL to clipboard.</div>
+            ) : null}
 
-          <div className="flex flex-col gap-3">
-            {entries.length === 0 ? (
-              loading ? (
-                <div className="text-body-4 text-text-secondary">Searching manuals...</div>
-              ) : null
-            ) : (
-              entries.map((entry) => (
-                <EntryCard
-                  key={entry.id}
-                  entry={entry}
-                  onOpenInFrame={onOpenInFrame}
-                  onCopy={onCopyUrl}
-                />
-              ))
-            )}
+            <div className={resultsContainerClassName}>
+              <div className="flex flex-col gap-3">
+                {entries.length === 0 ? (
+                  loading ? (
+                    <div className="text-body-4 text-text-secondary">Searching manuals...</div>
+                  ) : null
+                ) : (
+                  entries.map((entry) => (
+                    <EntryCard
+                      key={entry.id}
+                      entry={entry}
+                      onOpenInFrame={onOpenInFrame}
+                      onCopy={onCopyUrl}
+                    />
+                  ))
+                )}
+              </div>
+            </div>
           </div>
-        </>
+        </div>
       )}
 
       {readerOpen && readerUrl && typeof document !== 'undefined'
@@ -558,12 +567,24 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
                     <Close iconOnly />
                   </button>
                 </div>
-                <iframe
-                  src={readerUrl}
-                  title={readerTitle}
-                  className="flex-1 w-full border-0"
-                  loading="lazy"
-                />
+                <div className="relative flex-1">
+                  {readerLoading ? (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-white">
+                      <YosemiteLoader
+                        label="Loading Manual"
+                        size={120}
+                        testId="merck-reader-loader"
+                      />
+                    </div>
+                  ) : null}
+                  <iframe
+                    src={readerUrl}
+                    title={readerTitle}
+                    className="flex-1 w-full h-full border-0"
+                    loading="lazy"
+                    onLoad={() => setReaderLoading(false)}
+                  />
+                </div>
                 <div className="p-3 border-t border-black/10 flex justify-end">
                   <Link
                     href={readerUrl}
@@ -580,15 +601,8 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
           )
         : null}
 
-      {!embedded && merckIntegration?.source === 'synthetic' ? (
-        <div className="text-caption-1 text-text-secondary">
-          Running in mock mode. Merck status and search data are mocked until backend APIs are
-          connected.
-        </div>
-      ) : null}
       <div className="pt-1 flex flex-col gap-1">
         <div className="text-caption-1 text-text-secondary">{MERCK_COPYRIGHT_NOTICE}</div>
-        <div className="text-caption-1 text-text-secondary">{MERCK_HL7_INFOBUTTON_NOTICE}</div>
       </div>
     </div>
   );

@@ -1,13 +1,15 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Header from '@/app/features/appointments/components/Calendar/common/Header';
 import DayCalendar from '@/app/features/appointments/components/Calendar/Task/DayCalendar';
 import WeekCalendar from '@/app/features/appointments/components/Calendar/Task/WeekCalendar';
 import UserCalendar from '@/app/features/appointments/components/Calendar/Task/UserCalendar';
 import { Task, TaskStatus } from '@/app/features/tasks/types/task';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
+import { useMemberMap } from '@/app/hooks/useMemberMap';
 import { getProfileForUserForPrimaryOrg } from '@/app/features/organization/services/teamService';
 import { updateTask } from '@/app/features/tasks/services/taskService';
 import { useAuthStore } from '@/app/stores/authStore';
+import { useNotify } from '@/app/hooks/useNotify';
 import {
   buildDateInPreferredTimeZone,
   formatDateInPreferredTimeZone,
@@ -16,12 +18,20 @@ import {
   utcClockTimeToPreferredTimeZoneClock,
 } from '@/app/lib/timezone';
 import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
+import {
+  canRescheduleTask,
+  canShowTaskStatusChangeAction,
+  getPreferredNextTaskStatus,
+} from '@/app/lib/tasks';
 
 type TaskCalendarProps = {
   filteredList: Task[];
   allTasks?: Task[];
   setActiveTask?: (inventory: Task) => void;
   setViewPopup?: (open: boolean) => void;
+  setChangeStatusPopup?: (open: boolean) => void;
+  setChangeStatusPreferredStatus?: React.Dispatch<React.SetStateAction<TaskStatus | null>>;
+  setReschedulePopup?: (open: boolean) => void;
   activeCalendar: string;
   setActiveCalendar?: React.Dispatch<React.SetStateAction<string>>;
   currentDate: Date;
@@ -29,6 +39,7 @@ type TaskCalendarProps = {
   weekStart: Date;
   setWeekStart: React.Dispatch<React.SetStateAction<Date>>;
   canEditTasks?: boolean;
+  onCreateFromCalendarSlot?: (prefill: { dueAt: Date; assignedTo?: string }) => void;
 };
 
 type DropAvailabilityInterval = {
@@ -51,6 +62,9 @@ const TaskCalendar = ({
   allTasks,
   setActiveTask,
   setViewPopup,
+  setChangeStatusPopup,
+  setChangeStatusPreferredStatus,
+  setReschedulePopup,
   activeCalendar,
   setActiveCalendar,
   currentDate,
@@ -58,9 +72,12 @@ const TaskCalendar = ({
   weekStart,
   setWeekStart,
   canEditTasks = false,
+  onCreateFromCalendarSlot,
 }: TaskCalendarProps) => {
+  const { notify } = useNotify();
   const allTaskItems = allTasks ?? filteredList;
   const teams = useTeamForPrimaryOrg();
+  const { resolveMemberName } = useMemberMap();
   const authUserId = useAuthStore(
     (s) => s.attributes?.sub || s.attributes?.email || s.attributes?.['cognito:username'] || ''
   );
@@ -137,6 +154,36 @@ const TaskCalendar = ({
     [authUserId, normalizeId]
   );
   const canDragTask = canEditTask;
+
+  const teamNameById = useMemo(() => {
+    const map: Record<string, string> = {};
+    teams.forEach((member) => {
+      const name = member.name || (member as any).displayName || '-';
+      const ids = [
+        member.practionerId,
+        member._id,
+        (member as any).userId,
+        (member as any).id,
+        (member as any).userOrganisation?.userId,
+      ];
+      ids.forEach((id) => {
+        const normalized = normalizeId(id);
+        if (normalized) map[normalized] = name;
+      });
+    });
+    return map;
+  }, [normalizeId, teams]);
+
+  const resolveDisplayName = useCallback(
+    (memberId?: string) => {
+      const raw = String(memberId ?? '').trim();
+      if (!raw) return '-';
+      const resolved = resolveMemberName(raw);
+      if (resolved && resolved !== '-') return resolved;
+      return teamNameById[normalizeId(raw)] || raw;
+    },
+    [normalizeId, resolveMemberName, teamNameById]
+  );
 
   const shouldEnforceAvailability = useCallback(
     (task: Task, targetAssigneeId?: string) => {
@@ -304,15 +351,29 @@ const TaskCalendar = ({
     }
   };
 
-  const handleQuickStatusChange = async (task: Task, status: TaskStatus) => {
-    try {
-      await updateTask({
-        ...task,
-        status,
+  const handleChangeStatusTask = (task: Task) => {
+    if (!canShowTaskStatusChangeAction(task.status)) {
+      notify('warning', {
+        title: 'Status change blocked',
+        text: 'No status changes are available for this task.',
       });
-    } catch {
-      setDragError('Unable to update task status. Please try again.');
+      return;
     }
+    setActiveTask?.(task);
+    setChangeStatusPreferredStatus?.(getPreferredNextTaskStatus(task.status));
+    setChangeStatusPopup?.(true);
+  };
+
+  const handleRescheduleTask = (task: Task) => {
+    if (!canRescheduleTask(task.status)) {
+      notify('warning', {
+        title: 'Reschedule blocked',
+        text: 'Completed and cancelled tasks cannot be rescheduled.',
+      });
+      return;
+    }
+    setActiveTask?.(task);
+    setReschedulePopup?.(true);
   };
 
   useEffect(() => {
@@ -362,6 +423,19 @@ const TaskCalendar = ({
     setViewPopup?.(true);
   };
 
+  const handleCreateTaskAt = useCallback(
+    (date: Date, minuteOfDay: number, targetAssigneeId?: string) => {
+      if (!canEditTasks || !onCreateFromCalendarSlot) return;
+      const dueAt = buildDateInPreferredTimeZone(date, clampMinutes(minuteOfDay));
+      const assignedTo = targetAssigneeId ? resolveAssigneeId(targetAssigneeId) : undefined;
+      onCreateFromCalendarSlot({
+        dueAt,
+        assignedTo: assignedTo || undefined,
+      });
+    },
+    [canEditTasks, onCreateFromCalendarSlot, resolveAssigneeId]
+  );
+
   const dayEvents = useMemo(
     () =>
       filteredList.filter((event) =>
@@ -391,7 +465,8 @@ const TaskCalendar = ({
           date={currentDate}
           zoomMode={zoomMode}
           handleViewTask={handleViewTask}
-          onQuickStatusChange={handleQuickStatusChange}
+          handleChangeStatusTask={handleChangeStatusTask}
+          handleRescheduleTask={handleRescheduleTask}
           setCurrentDate={setCurrentDate}
           canEditTasks={canEditTasks}
           draggedTaskId={draggedTaskId}
@@ -415,6 +490,7 @@ const TaskCalendar = ({
             setDraggedTaskId(null);
             setDraggedTaskLabel(null);
           }}
+          onCreateTaskAt={handleCreateTaskAt}
           onDragHoverTarget={(dropDate, assigneeId) => {
             const task = allTaskItems.find((item) => item._id === draggedTaskId);
             if (!task) return;
@@ -423,6 +499,7 @@ const TaskCalendar = ({
             }
           }}
           getDropAvailabilityIntervals={getDropAvailabilityIntervals}
+          resolveDisplayName={resolveDisplayName}
           slotStepMinutes={15}
         />
       )}
@@ -431,7 +508,8 @@ const TaskCalendar = ({
           events={filteredList}
           zoomMode={zoomMode}
           handleViewTask={handleViewTask}
-          onQuickStatusChange={handleQuickStatusChange}
+          handleChangeStatusTask={handleChangeStatusTask}
+          handleRescheduleTask={handleRescheduleTask}
           weekStart={weekStart}
           setWeekStart={setWeekStart}
           setCurrentDate={setCurrentDate}
@@ -457,6 +535,7 @@ const TaskCalendar = ({
             setDraggedTaskId(null);
             setDraggedTaskLabel(null);
           }}
+          onCreateTaskAt={handleCreateTaskAt}
           onDragHoverTarget={(dropDate, assigneeId) => {
             const task = allTaskItems.find((item) => item._id === draggedTaskId);
             if (!task) return;
@@ -465,6 +544,7 @@ const TaskCalendar = ({
             }
           }}
           getDropAvailabilityIntervals={getDropAvailabilityIntervals}
+          resolveDisplayName={resolveDisplayName}
           slotStepMinutes={15}
         />
       )}
@@ -474,7 +554,8 @@ const TaskCalendar = ({
           date={currentDate}
           zoomMode={zoomMode}
           handleViewTask={handleViewTask}
-          onQuickStatusChange={handleQuickStatusChange}
+          handleChangeStatusTask={handleChangeStatusTask}
+          handleRescheduleTask={handleRescheduleTask}
           setCurrentDate={setCurrentDate}
           canEditTasks={canEditTasks}
           draggedTaskId={draggedTaskId}
@@ -498,6 +579,7 @@ const TaskCalendar = ({
             setDraggedTaskId(null);
             setDraggedTaskLabel(null);
           }}
+          onCreateTaskAt={handleCreateTaskAt}
           onDragHoverTarget={(dropDate, assigneeId) => {
             const task = allTaskItems.find((item) => item._id === draggedTaskId);
             if (!task) return;
@@ -506,6 +588,7 @@ const TaskCalendar = ({
             }
           }}
           getDropAvailabilityIntervals={getDropAvailabilityIntervals}
+          resolveDisplayName={resolveDisplayName}
           slotStepMinutes={15}
         />
       )}
@@ -513,4 +596,4 @@ const TaskCalendar = ({
   );
 };
 
-export default TaskCalendar;
+export default memo(TaskCalendar);

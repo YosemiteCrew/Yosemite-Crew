@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   DEFAULT_CALENDAR_FOCUS_MINUTES,
   getFirstRelevantTimedEventStart,
@@ -12,7 +12,7 @@ import { HOURS_IN_DAY } from '@/app/features/appointments/components/Calendar/we
 import TaskSlot from '@/app/features/appointments/components/Calendar/Task/TaskSlot';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import UserLabels from '@/app/features/appointments/components/Calendar/Task/UserLabels';
-import { Task, TaskStatus } from '@/app/features/tasks/types/task';
+import { Task } from '@/app/features/tasks/types/task';
 import Back from '@/app/ui/primitives/Icons/Back';
 import Next from '@/app/ui/primitives/Icons/Next';
 import { useCalendarNavigation } from '@/app/hooks/useCalendarNavigation';
@@ -42,7 +42,8 @@ type UserCalendarProps = {
   date: Date;
   zoomMode?: CalendarZoomMode;
   handleViewTask: (task: Task) => void;
-  onQuickStatusChange?: (task: Task, status: TaskStatus) => void;
+  handleChangeStatusTask?: (task: Task) => void;
+  handleRescheduleTask?: (task: Task) => void;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   canEditTasks?: boolean;
   draggedTaskId?: string | null;
@@ -51,6 +52,7 @@ type UserCalendarProps = {
   onTaskDragStart?: (task: Task) => void;
   onTaskDragEnd?: () => void;
   onTaskDropAt?: (date: Date, minuteOfDay: number, targetAssigneeId?: string) => void;
+  onCreateTaskAt?: (date: Date, minuteOfDay: number, targetAssigneeId?: string) => void;
   onDragHoverTarget?: (date: Date, targetAssigneeId?: string) => void;
   getDropAvailabilityIntervals?: (
     date: Date,
@@ -58,6 +60,7 @@ type UserCalendarProps = {
   ) => DropAvailabilityInterval[];
   draggedTaskDurationMinutes?: number;
   slotStepMinutes?: number;
+  resolveDisplayName?: (memberId?: string) => string;
 };
 
 const UserCalendar: React.FC<UserCalendarProps> = ({
@@ -65,7 +68,8 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   date,
   zoomMode = 'in',
   handleViewTask,
-  onQuickStatusChange,
+  handleChangeStatusTask,
+  handleRescheduleTask,
   setCurrentDate,
   canEditTasks = false,
   draggedTaskId,
@@ -74,10 +78,12 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   onTaskDragStart,
   onTaskDragEnd,
   onTaskDropAt,
+  onCreateTaskAt,
   onDragHoverTarget,
   getDropAvailabilityIntervals,
   draggedTaskDurationMinutes,
   slotStepMinutes = 15,
+  resolveDisplayName,
 }) => {
   const team = useTeamForPrimaryOrg();
   const now = useCalendarNow();
@@ -92,12 +98,15 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   const weekday = formatDateInPreferredTimeZone(date, { weekday: 'short' });
   const dateNumber = formatDateInPreferredTimeZone(date, { day: 'numeric' });
 
-  const normalizeId = (value?: string) =>
-    String(value ?? '')
-      .trim()
-      .split('/')
-      .pop()
-      ?.toLowerCase() ?? '';
+  const normalizeId = useCallback(
+    (value?: string) =>
+      String(value ?? '')
+        .trim()
+        .split('/')
+        .pop()
+        ?.toLowerCase() ?? '',
+    []
+  );
   const slotOffsetMinutes = useMemo(() => {
     const step = Math.max(5, Math.round(slotStepMinutes || 15));
     if (step >= 60) return [];
@@ -108,6 +117,50 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
     return offsets;
   }, [slotStepMinutes]);
   const lastVisibleHour = HOURS_IN_DAY - 1;
+  const teamColumns = useMemo(
+    () =>
+      team.map((user) => ({
+        user,
+        key: user._id,
+        assigneeId:
+          user.practionerId ||
+          (user as any).userId ||
+          (user as any).id ||
+          (user as any).userOrganisation?.userId ||
+          user._id,
+        memberIds: new Set(
+          [
+            user.practionerId,
+            user._id,
+            (user as any).userId,
+            (user as any).id,
+            (user as any).userOrganisation?.userId,
+          ]
+            .filter(Boolean)
+            .map((value) => normalizeId(value))
+        ),
+      })),
+    [normalizeId, team]
+  );
+  const eventsByHourAndAssignee = useMemo(() => {
+    const grouped = new Map<string, Task[]>();
+    events.forEach((task) => {
+      const dueAt = new Date(task.dueAt);
+      if (!isOnPreferredTimeZoneCalendarDay(dueAt, date)) return;
+      const hour = getHourInPreferredTimeZone(dueAt);
+      if (hour < 0 || hour >= HOURS_IN_DAY) return;
+      const normalizedAssignee = normalizeId(task.assignedTo);
+      if (!normalizedAssignee) return;
+      teamColumns.forEach((column, index) => {
+        if (!column.memberIds.has(normalizedAssignee)) return;
+        const key = `${index}-${hour}`;
+        const list = grouped.get(key);
+        if (list) list.push(task);
+        else grouped.set(key, [task]);
+      });
+    });
+    return grouped;
+  }, [date, events, normalizeId, teamColumns]);
 
   const nowPosition = useMemo(() => {
     const topPx = getNowTopPxForHourRange(
@@ -121,6 +174,13 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
     if (topPx == null) return null;
     return { topPx };
   }, [date, height, now]);
+  const nowTimeLabel = useMemo(() => {
+    if (!nowPosition) return null;
+    return formatDateInPreferredTimeZone(now, {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  }, [now, nowPosition]);
 
   useEffect(() => {
     if (!scrollRef.current) return;
@@ -188,36 +248,20 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                     <span className="absolute top-0 -translate-y-1/2">{formatHourLabel(hour)}</span>
                   </div>
                   <div className="grid min-w-max" style={teamColumnsStyle}>
-                    {team?.map((user, index) => {
-                      const memberIds = new Set(
-                        [
-                          user.practionerId,
-                          user._id,
-                          (user as any).userId,
-                          (user as any).id,
-                          (user as any).userOrganisation?.userId,
-                        ]
-                          .filter(Boolean)
-                          .map((value) => normalizeId(value))
-                      );
-                      const slotEvents = events.filter((task) => {
-                        const dueAt = new Date(task.dueAt);
-                        return (
-                          getHourInPreferredTimeZone(dueAt) === hour &&
-                          isOnPreferredTimeZoneCalendarDay(dueAt, date) &&
-                          memberIds.has(normalizeId(task.assignedTo))
-                        );
-                      });
+                    {teamColumns.map((column, index) => {
+                      const { user } = column;
+                      const slotEvents = eventsByHourAndAssignee.get(`${index}-${hour}`) ?? [];
                       return (
                         <div
-                          key={`${user._id}-${hour}`}
+                          key={`${column.key}-${hour}`}
                           className="relative"
                           style={{ height: `${height}px` }}
                         >
                           <TaskSlot
                             slotEvents={slotEvents}
                             handleViewTask={handleViewTask}
-                            onQuickStatusChange={onQuickStatusChange}
+                            handleChangeStatusTask={handleChangeStatusTask}
+                            handleRescheduleTask={handleRescheduleTask}
                             canEditTasks={canEditTasks}
                             zoomMode={zoomMode}
                             dayIndex={index}
@@ -225,25 +269,20 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                             height={height}
                             hour={hour}
                             dropDate={date}
-                            dropAssigneeId={
-                              user.practionerId ||
-                              (user as any).userId ||
-                              (user as any).id ||
-                              (user as any).userOrganisation?.userId ||
-                              user._id
-                            }
+                            dropAssigneeId={column.assigneeId}
                             draggedTaskId={draggedTaskId}
                             draggedTaskLabel={draggedTaskLabel}
                             canDragTask={canDragTask}
                             onTaskDragStart={onTaskDragStart}
                             onTaskDragEnd={onTaskDragEnd}
                             onTaskDropAt={onTaskDropAt}
+                            onCreateTaskAt={onCreateTaskAt}
                             onDragHoverTarget={onDragHoverTarget}
                             dropAvailabilityIntervals={
-                              getDropAvailabilityIntervals?.(date, user.practionerId || user._id) ??
-                              []
+                              getDropAvailabilityIntervals?.(date, column.assigneeId) ?? []
                             }
                             draggedTaskDurationMinutes={draggedTaskDurationMinutes}
+                            resolveDisplayName={resolveDisplayName}
                           />
                           <div className="pointer-events-none absolute inset-0 z-10">
                             <div className="absolute inset-x-0 top-0 border-t border-[#C3CEDC]" />
@@ -277,6 +316,11 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                           top: nowPosition.topPx,
                         }}
                       >
+                        {nowTimeLabel && (
+                          <div className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold text-red-500 whitespace-nowrap">
+                            {nowTimeLabel}
+                          </div>
+                        )}
                         <div className="absolute -left-[12px] w-3 h-3 rounded-full bg-red-500 translate-y-[-50%]" />
                         <div className="border-t-2 border-t-red-500 translate-y-[-50%]" />
                       </div>

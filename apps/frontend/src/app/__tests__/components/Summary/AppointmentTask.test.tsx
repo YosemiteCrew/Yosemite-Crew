@@ -74,9 +74,10 @@ describe('AppointmentTask summary', () => {
 
     expect(screen.getByText('Schedule')).toBeInTheDocument();
     expect(screen.getByText('(2)')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
 
     const props = appointmentsSpy.mock.calls[0][0];
-    expect(props.filteredList).toEqual([appointments[0]]);
+    expect(props.filteredList).toEqual(appointments);
     expect(screen.getByTestId('reschedule')).toBeInTheDocument();
   });
 
@@ -88,6 +89,15 @@ describe('AppointmentTask summary', () => {
     expect(screen.getByTestId('tasks-table')).toBeInTheDocument();
 
     const latestProps = tasksSpy.mock.calls.at(-1)[0];
-    expect(latestProps.filteredList).toEqual([tasks[0]]);
+    expect(latestProps.filteredList).toEqual(tasks);
+  });
+
+  it('filters appointments when a specific status is selected', () => {
+    render(<AppointmentTask />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Requested' }));
+
+    const latestProps = appointmentsSpy.mock.calls.at(-1)[0];
+    expect(latestProps.filteredList).toEqual([appointments[0]]);
   });
 });

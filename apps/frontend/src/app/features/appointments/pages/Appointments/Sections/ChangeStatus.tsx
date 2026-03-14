@@ -21,19 +21,21 @@ type ChangeStatusProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
   activeAppointment: Appointment;
+  preferredStatus?: AppointmentStatus | null;
 };
 
-const ChangeStatus = ({ showModal, setShowModal, activeAppointment }: ChangeStatusProps) => {
+const ChangeStatus = ({
+  showModal,
+  setShowModal,
+  activeAppointment,
+  preferredStatus = null,
+}: ChangeStatusProps) => {
   const { notify } = useNotify();
   const [selectedStatus, setSelectedStatus] = useState<AppointmentStatus>(
     (activeAppointment.status as AppointmentStatus) ?? 'REQUESTED'
   );
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    setSelectedStatus((activeAppointment.status as AppointmentStatus) ?? 'REQUESTED');
-  }, [activeAppointment]);
 
   const availableStatusOptions = React.useMemo(() => {
     const currentStatus = normalizeAppointmentStatus(activeAppointment.status);
@@ -46,6 +48,24 @@ const ChangeStatus = ({ showModal, setShowModal, activeAppointment }: ChangeStat
       (option) => option.value !== 'NO_PAYMENT' && allowed.has(option.value as AppointmentStatus)
     );
   }, [activeAppointment.status]);
+
+  useEffect(() => {
+    const current = (activeAppointment.status as AppointmentStatus) ?? 'REQUESTED';
+    if (!showModal) {
+      setSelectedStatus(current);
+      return;
+    }
+
+    if (
+      preferredStatus &&
+      canTransitionAppointmentStatus(current, preferredStatus) &&
+      availableStatusOptions.some((option) => option.value === preferredStatus)
+    ) {
+      setSelectedStatus(preferredStatus);
+      return;
+    }
+    setSelectedStatus(current);
+  }, [activeAppointment.status, availableStatusOptions, preferredStatus, showModal]);
 
   const handleCancel = () => {
     setShowModal(false);

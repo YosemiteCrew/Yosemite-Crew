@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useIntegrationsForPrimaryOrg } from '@/app/hooks/useIntegrations';
-import {
-  getMerckGateway,
-  resolveMerckIntegration,
-} from '@/app/features/integrations/services/merckService';
+import { getMerckGateway } from '@/app/features/integrations/services/merckService';
 import { OrgIntegration } from '@/app/features/integrations/services/types';
 
 export const useResolvedMerckIntegrationForPrimaryOrg = () => {
@@ -26,8 +23,8 @@ export const useResolvedMerckIntegrationForPrimaryOrg = () => {
     };
 
     run().catch(() => {
-      if (!mounted || !primaryOrgId) return;
-      setResolvedIntegration(resolveMerckIntegration(primaryOrgId, integrations));
+      if (!mounted) return;
+      setResolvedIntegration(null);
     });
 
     return () => {
@@ -36,7 +33,7 @@ export const useResolvedMerckIntegrationForPrimaryOrg = () => {
   }, [primaryOrgId, integrations, refreshTick]);
 
   const isEnabled = useMemo(
-    () => (resolvedIntegration?.status ?? 'enabled').toLowerCase() === 'enabled',
+    () => (resolvedIntegration?.status ?? 'disabled').toLowerCase() === 'enabled',
     [resolvedIntegration?.status]
   );
 

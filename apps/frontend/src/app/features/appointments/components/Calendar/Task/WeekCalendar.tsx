@@ -14,7 +14,7 @@ import {
 } from '@/app/features/appointments/components/Calendar/helpers';
 import DayLabels from '@/app/features/appointments/components/Calendar/Task/DayLabels';
 import TaskSlot from '@/app/features/appointments/components/Calendar/Task/TaskSlot';
-import { Task, TaskStatus } from '@/app/features/tasks/types/task';
+import { Task } from '@/app/features/tasks/types/task';
 import Back from '@/app/ui/primitives/Icons/Back';
 import Next from '@/app/ui/primitives/Icons/Next';
 import {
@@ -24,6 +24,7 @@ import {
   getHourRowHeightPx,
 } from '@/app/features/appointments/components/Calendar/calendarLayout';
 import {
+  formatDateInPreferredTimeZone,
   getHourInPreferredTimeZone,
   getMinutesSinceStartOfDayInPreferredTimeZone,
   isOnPreferredTimeZoneCalendarDay,
@@ -42,7 +43,8 @@ type WeekCalendarProps = {
   date?: Date;
   zoomMode?: CalendarZoomMode;
   handleViewTask: (task: Task) => void;
-  onQuickStatusChange?: (task: Task, status: TaskStatus) => void;
+  handleChangeStatusTask?: (task: Task) => void;
+  handleRescheduleTask?: (task: Task) => void;
   weekStart: Date;
   setWeekStart: React.Dispatch<React.SetStateAction<Date>>;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
@@ -53,6 +55,7 @@ type WeekCalendarProps = {
   onTaskDragStart?: (task: Task) => void;
   onTaskDragEnd?: () => void;
   onTaskDropAt?: (date: Date, minuteOfDay: number, targetAssigneeId?: string) => void;
+  onCreateTaskAt?: (date: Date, minuteOfDay: number, targetAssigneeId?: string) => void;
   onDragHoverTarget?: (date: Date, targetAssigneeId?: string) => void;
   getDropAvailabilityIntervals?: (
     date: Date,
@@ -60,6 +63,7 @@ type WeekCalendarProps = {
   ) => DropAvailabilityInterval[];
   draggedTaskDurationMinutes?: number;
   slotStepMinutes?: number;
+  resolveDisplayName?: (memberId?: string) => string;
 };
 
 const WeekCalendar: React.FC<WeekCalendarProps> = ({
@@ -67,7 +71,8 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   date: _date,
   zoomMode = 'in',
   handleViewTask,
-  onQuickStatusChange,
+  handleChangeStatusTask,
+  handleRescheduleTask,
   weekStart,
   setWeekStart,
   setCurrentDate,
@@ -78,10 +83,12 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   onTaskDragStart,
   onTaskDragEnd,
   onTaskDropAt,
+  onCreateTaskAt,
   onDragHoverTarget,
   getDropAvailabilityIntervals,
   draggedTaskDurationMinutes,
   slotStepMinutes = 15,
+  resolveDisplayName,
 }) => {
   const nextDayLocal = (dateValue: Date) => {
     const next = new Date(dateValue);
@@ -124,6 +131,28 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     if (topPx == null) return null;
     return { topPx, todayIndex };
   }, [days, height, now, HOUR_ROW_TOP_OFFSET_PX]);
+  const nowTimeLabel = useMemo(() => {
+    if (!nowPosition) return null;
+    return formatDateInPreferredTimeZone(now, {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  }, [now, nowPosition]);
+  const eventsByDayHour = useMemo(() => {
+    const grouped = new Map<string, Task[]>();
+    events.forEach((task) => {
+      const dueAt = new Date(task.dueAt);
+      const dayIndex = days.findIndex((day) => isOnPreferredTimeZoneCalendarDay(dueAt, day));
+      if (dayIndex === -1) return;
+      const hour = getHourInPreferredTimeZone(dueAt);
+      if (hour < 0 || hour >= HOURS_IN_DAY) return;
+      const key = `${dayIndex}-${hour}`;
+      const list = grouped.get(key);
+      if (list) list.push(task);
+      else grouped.set(key, [task]);
+    });
+    return grouped;
+  }, [days, events]);
 
   useEffect(() => {
     if (!scrollRef.current) return;
@@ -216,13 +245,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                   </div>
                   <div className="grid min-w-max" style={dayColumnsStyle}>
                     {days.map((day, dayIndex) => {
-                      const slotEvents = events.filter((task) => {
-                        const dueAt = new Date(task.dueAt);
-                        return (
-                          isOnPreferredTimeZoneCalendarDay(dueAt, day) &&
-                          getHourInPreferredTimeZone(dueAt) === hour
-                        );
-                      });
+                      const slotEvents = eventsByDayHour.get(`${dayIndex}-${hour}`) ?? [];
                       return (
                         <div
                           key={`${day.getTime()}-${hour}`}
@@ -232,7 +255,8 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                           <TaskSlot
                             slotEvents={slotEvents}
                             handleViewTask={handleViewTask}
-                            onQuickStatusChange={onQuickStatusChange}
+                            handleChangeStatusTask={handleChangeStatusTask}
+                            handleRescheduleTask={handleRescheduleTask}
                             canEditTasks={canEditTasks}
                             zoomMode={zoomMode}
                             dayIndex={dayIndex}
@@ -246,9 +270,11 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                             onTaskDragStart={onTaskDragStart}
                             onTaskDragEnd={onTaskDragEnd}
                             onTaskDropAt={onTaskDropAt}
+                            onCreateTaskAt={onCreateTaskAt}
                             onDragHoverTarget={onDragHoverTarget}
                             dropAvailabilityIntervals={getDropAvailabilityIntervals?.(day) ?? []}
                             draggedTaskDurationMinutes={draggedTaskDurationMinutes}
+                            resolveDisplayName={resolveDisplayName}
                           />
                           <div className="pointer-events-none absolute inset-0 z-10">
                             <div className="absolute inset-x-0 top-0 border-t border-[#C3CEDC]" />
@@ -285,6 +311,11 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                                 top: nowPosition.topPx,
                               }}
                             >
+                              {nowTimeLabel && (
+                                <div className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold text-red-500 whitespace-nowrap">
+                                  {nowTimeLabel}
+                                </div>
+                              )}
                               <div className="absolute left-[-5px] w-3 h-3 rounded-full bg-red-500 translate-y-[-50%]" />
                               <div className="border-t-2 border-t-red-500 translate-y-[-50%]" />
                             </div>

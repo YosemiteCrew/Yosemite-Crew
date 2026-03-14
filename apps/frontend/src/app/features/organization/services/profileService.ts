@@ -9,6 +9,8 @@ import {
   setPreferredTimeZone,
 } from '@/app/lib/timezone';
 
+let loadProfilesPromise: Promise<void> | null = null;
+
 const syncProfileTimezoneToLocalDevice = async (
   orgId: string,
   profile: UserProfile
@@ -59,10 +61,13 @@ const syncProfileTimezoneToLocalDevice = async (
 export const loadProfiles = async (opts?: { silent?: boolean }) => {
   const { startLoading, setProfiles } = useUserProfileStore.getState();
   const { orgIds } = useOrgStore.getState();
+  if (loadProfilesPromise) {
+    return loadProfilesPromise;
+  }
   if (!opts?.silent) {
     startLoading();
   }
-  try {
+  loadProfilesPromise = (async () => {
     if (orgIds.length === 0) {
       return;
     }
@@ -81,10 +86,15 @@ export const loadProfiles = async (opts?: { silent?: boolean }) => {
       })
     );
     setProfiles(temp);
-  } catch (err: any) {
-    console.error('Failed to load orgs:', err);
-    throw err;
-  }
+  })()
+    .catch((err: any) => {
+      console.error('Failed to load orgs:', err);
+      throw err;
+    })
+    .finally(() => {
+      loadProfilesPromise = null;
+    });
+  return loadProfilesPromise;
 };
 
 export const createUserProfile = async (formData: UserProfile, orgIdFromQuery: string | null) => {

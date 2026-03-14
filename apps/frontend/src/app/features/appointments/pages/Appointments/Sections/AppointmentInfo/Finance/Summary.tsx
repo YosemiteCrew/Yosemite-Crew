@@ -137,6 +137,7 @@ const Summary = ({ activeAppointment, formData }: SummaryProps) => {
               <InvoicePaymentActions
                 invoiceId={actionInvoice?.id}
                 invoiceStatus={actionInvoice?.status}
+                paymentCollectionMethod={(actionInvoice as any)?.paymentCollectionMethod}
                 stripeReceiptUrl={actionInvoice?.stripeReceiptUrl}
                 activeAppointment={activeAppointment}
               />

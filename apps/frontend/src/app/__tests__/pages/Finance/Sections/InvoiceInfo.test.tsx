@@ -1,15 +1,15 @@
-import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
-import "@testing-library/jest-dom";
-import InvoiceInfo from "@/app/features/finance/pages/Finance/Sections/InvoiceInfo";
+import React from 'react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import InvoiceInfo from '@/app/features/finance/pages/Finance/Sections/InvoiceInfo';
 
-jest.mock("@/app/ui/overlays/Modal", () => ({
+jest.mock('@/app/ui/overlays/Modal', () => ({
   __esModule: true,
   default: ({ showModal, children }: any) =>
     showModal ? <div data-testid="modal">{children}</div> : null,
 }));
 
-jest.mock("@/app/ui/primitives/Icons/Close", () => ({
+jest.mock('@/app/ui/primitives/Icons/Close', () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>
@@ -18,31 +18,38 @@ jest.mock("@/app/ui/primitives/Icons/Close", () => ({
   ),
 }));
 
-jest.mock("@/app/ui/primitives/Accordion/EditableAccordion", () => ({
+jest.mock('@/app/ui/primitives/Accordion/EditableAccordion', () => ({
   __esModule: true,
-  default: ({ title }: any) => <div>{title}</div>,
+  default: ({ title, data }: any) => (
+    <div>
+      <div>{title}</div>
+      {data?.paymentMethod ? <div>{data.paymentMethod}</div> : null}
+    </div>
+  ),
 }));
 
-jest.mock("@/app/ui/primitives/Buttons", () => ({
+jest.mock('@/app/ui/primitives/Buttons', () => ({
   Primary: ({ text }: any) => <div>{text}</div>,
   Secondary: ({ text }: any) => <div>{text}</div>,
 }));
 
-describe("InvoiceInfo", () => {
-  it("renders modal and closes", () => {
+jest.mock('@/app/lib/invoicePaymentMethod', () => ({
+  getInvoicePaymentMethodLabel: () => 'Cash at Clinic',
+}));
+
+describe('InvoiceInfo', () => {
+  it('renders modal and closes', () => {
     const setShowModal = jest.fn();
     render(
-      <InvoiceInfo
-        showModal
-        setShowModal={setShowModal}
-        activeInvoice={{ metadata: {} } as any}
-      />
+      <InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={{ metadata: {} } as any} />
     );
 
-    expect(screen.getByTestId("modal")).toBeInTheDocument();
-    expect(screen.getByText("View invoice")).toBeInTheDocument();
+    expect(screen.getByTestId('modal')).toBeInTheDocument();
+    expect(screen.getByText('View invoice')).toBeInTheDocument();
+    expect(screen.getByText('Cash at Clinic')).toBeInTheDocument();
+    expect(screen.queryByText('Generate link')).not.toBeInTheDocument();
 
-    const closeButtons = screen.getAllByText("close");
+    const closeButtons = screen.getAllByText('close');
     fireEvent.click(closeButtons.at(-1)!);
     expect(setShowModal).toHaveBeenCalledWith(false);
   });

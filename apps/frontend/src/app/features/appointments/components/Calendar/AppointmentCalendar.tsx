@@ -10,6 +10,7 @@ import {
   allowCalendarDrag,
   canAssignAppointmentRoom,
   canShowStatusChangeAction,
+  getPreferredNextAppointmentStatus,
 } from '@/app/lib/appointments';
 import {
   getSlotsForServiceAndDateForPrimaryOrg,
@@ -30,6 +31,7 @@ import { useOrgStore } from '@/app/stores/orgStore';
 import { useAvailabilityStore } from '@/app/stores/availabilityStore';
 import { useLoadAvailabilities } from '@/app/hooks/useAvailabiities';
 import { useNotify } from '@/app/hooks/useNotify';
+import { AppointmentStatus } from '@/app/features/appointments/types/appointments';
 type AppointmentCalendarProps = {
   filteredList: Appointment[];
   allAppointments: Appointment[];
@@ -37,6 +39,7 @@ type AppointmentCalendarProps = {
   setViewPopup?: (open: boolean) => void;
   setViewIntent?: (intent: AppointmentViewIntent | null) => void;
   setChangeStatusPopup?: (open: boolean) => void;
+  setChangeStatusPreferredStatus?: React.Dispatch<React.SetStateAction<AppointmentStatus | null>>;
   setChangeRoomPopup?: (open: boolean) => void;
   activeCalendar: string;
   setActiveCalendar?: React.Dispatch<React.SetStateAction<string>>;
@@ -68,6 +71,7 @@ const AppointmentCalendar = ({
   setViewPopup,
   setViewIntent,
   setChangeStatusPopup,
+  setChangeStatusPreferredStatus,
   setChangeRoomPopup,
   activeCalendar,
   setActiveCalendar,
@@ -665,6 +669,9 @@ const AppointmentCalendar = ({
       return;
     }
     setActiveAppointment?.(appointment);
+    setChangeStatusPreferredStatus?.(
+      getPreferredNextAppointmentStatus(appointment.status as AppointmentStatus | string)
+    );
     setChangeStatusPopup?.(true);
   };
 

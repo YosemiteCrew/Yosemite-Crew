@@ -1,5 +1,5 @@
-import React from "react";
-import { IoIosWarning } from "react-icons/io";
+import React from 'react';
+import { IoIosWarning } from 'react-icons/io';
 
 type FormInputProps = {
   intype: string;
@@ -30,6 +30,16 @@ const FormInput = ({
   className,
   tabIndex,
 }: Readonly<FormInputProps>) => {
+  const handleInputClick = (e: React.MouseEvent<HTMLInputElement>) => {
+    onClick?.(e);
+    if (intype === 'time') {
+      const inputEl = e.currentTarget as HTMLInputElement & {
+        showPicker?: () => void;
+      };
+      inputEl.showPicker?.();
+    }
+  };
+
   return (
     <div className="w-full">
       <div className="relative">
@@ -37,7 +47,7 @@ const FormInput = ({
           type={intype}
           name={inname}
           id={inname}
-          value={value ?? ""}
+          value={value ?? ''}
           onChange={onChange}
           autoComplete="off"
           readOnly={readonly}
@@ -46,14 +56,14 @@ const FormInput = ({
           tabIndex={tabIndex}
           onFocus={onFocus}
           onBlur={onBlur}
-          onClick={onClick}
+          onClick={handleInputClick}
           className={`
             peer w-full min-h-12 rounded-2xl bg-transparent px-6 py-2.5
             text-body-4 text-text-primary
             outline-none border
-            ${error ? "border-input-border-error!" : "border-input-border-default!"}
+            ${error ? 'border-input-border-error!' : 'border-input-border-default!'}
             focus:border-input-border-active!
-            ${className ?? ""}
+            ${className ?? ''}
           `}
         />
         <label

@@ -132,6 +132,7 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
   const profile = useUserProfileStore((s) =>
     primaryOrgId ? (s.profilesByOrgId[primaryOrgId] ?? null) : null
   );
+  const profileStatus = useUserProfileStore((s) => s.status);
 
   const [checked, setChecked] = useState(false);
 
@@ -151,7 +152,11 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
       setChecked(true);
       return;
     }
-    if (isStatusPending(availabilityStatus) || isStatusPending(specialityStatus)) {
+    if (
+      isStatusPending(availabilityStatus) ||
+      isStatusPending(specialityStatus) ||
+      isStatusPending(profileStatus)
+    ) {
       return;
     }
 
@@ -210,6 +215,7 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
     getAvailabilitiesByOrgId,
     specialityStatus,
     availabilityStatus,
+    profileStatus,
     membership,
   ]);
 

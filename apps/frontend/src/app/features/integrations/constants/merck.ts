@@ -1,9 +1,6 @@
 export const MERCK_COPYRIGHT_NOTICE =
   'Copyright \u00a9 2021 Merck & Co., Inc., known as MSD outside of the US, Kenilworth, New Jersey, USA. All rights reserved.';
 
-export const MERCK_HL7_INFOBUTTON_NOTICE =
-  'The Manuals HealthLink integration in Yosemite PMS follows the HL7 Infobutton standard.';
-
 const MERCK_SUBTOPIC_STYLES = {
   fullSummary: { backgroundColor: '#247AED', color: '#EAF3FF', borderColor: '#247AED' },
   etiology: { backgroundColor: '#747283', color: '#F7F7F7', borderColor: '#747283' },

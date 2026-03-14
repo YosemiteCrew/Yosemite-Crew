@@ -19,11 +19,13 @@ import {
   allowCalendarDrag,
   canAssignAppointmentRoom,
   canShowStatusChangeAction,
+  getPreferredNextAppointmentStatus,
   getClinicalNotesLabel,
   isRequestedLikeStatus,
 } from '@/app/lib/appointments';
 import { getStatusStyle } from '@/app/config/statusConfig';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
+import { AppointmentStatus } from '@/app/features/appointments/types/appointments';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useInvoicesForPrimaryOrg } from '@/app/hooks/useInvoices';
 import {
@@ -49,6 +51,7 @@ type AppointmentTableProps = {
   setViewIntent?: (intent: AppointmentViewIntent | null) => void;
   setReschedulePopup?: React.Dispatch<React.SetStateAction<boolean>>;
   setChangeStatusPopup?: React.Dispatch<React.SetStateAction<boolean>>;
+  setChangeStatusPreferredStatus?: React.Dispatch<React.SetStateAction<AppointmentStatus | null>>;
   setChangeRoomPopup?: React.Dispatch<React.SetStateAction<boolean>>;
   canEditAppointments: boolean;
   small?: boolean;
@@ -61,6 +64,7 @@ const Appointments = ({
   setViewIntent,
   setReschedulePopup,
   setChangeStatusPopup,
+  setChangeStatusPreferredStatus,
   setChangeRoomPopup,
   canEditAppointments,
   small = false,
@@ -96,6 +100,9 @@ const Appointments = ({
 
   const handleChangeStatusAppointment = (appointment: Appointment) => {
     setActiveAppointment?.(appointment);
+    setChangeStatusPreferredStatus?.(
+      getPreferredNextAppointmentStatus(appointment.status as AppointmentStatus | string)
+    );
     setChangeStatusPopup?.(true);
   };
 

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 type ModalBaseProps = {
   children: React.ReactNode;
@@ -44,7 +45,9 @@ const ModalBase = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showModal, onClose, setShowModal, ignoreOutsideClick, canClose]);
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <>
       <button
         type="button"
@@ -56,7 +59,8 @@ const ModalBase = ({
       <div ref={popupRef} className={containerClassName}>
         {children}
       </div>
-    </>
+    </>,
+    document.body
   );
 };
 

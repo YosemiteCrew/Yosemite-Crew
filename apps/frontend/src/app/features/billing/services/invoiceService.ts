@@ -1,7 +1,9 @@
 import { fromInvoiceRequestDTO, InvoiceItem, InvoiceResponseDTO } from '@yosemite-crew/types';
 import { useInvoiceStore } from '@/app/stores/invoiceStore';
 import { useOrgStore } from '@/app/stores/orgStore';
-import { getData, postData } from '@/app/services/axios';
+import { getData, patchData, postData } from '@/app/services/axios';
+
+export type InvoicePaymentCollectionMethod = 'PAYMENT_AT_CLINIC';
 
 export const loadInvoicesForOrgPrimaryOrg = async (opts?: {
   silent?: boolean;
@@ -97,6 +99,28 @@ export const markInvoicePaid = async (invoiceId: string) => {
     return await postData(`/fhir/v1/invoice/${invoiceId}/mark-paid`, {});
   } catch (err) {
     console.error('Failed to mark invoice paid:', err);
+    throw err;
+  }
+};
+
+export const updateInvoicePaymentCollectionMethod = async (
+  invoiceId: string,
+  paymentCollectionMethod: InvoicePaymentCollectionMethod
+) => {
+  const primaryOrgId = useOrgStore.getState().primaryOrgId;
+  if (!primaryOrgId) {
+    console.warn('No primary organization selected. Cannot update payment collection method.');
+    return;
+  }
+  try {
+    if (!invoiceId) {
+      throw new Error('Invoice ID missing');
+    }
+    return await patchData(`/fhir/v1/invoice/${invoiceId}/payment-collection-method`, {
+      paymentCollectionMethod,
+    });
+  } catch (err) {
+    console.error('Failed to update invoice payment collection method:', err);
     throw err;
   }
 };

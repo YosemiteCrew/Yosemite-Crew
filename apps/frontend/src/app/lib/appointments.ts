@@ -19,7 +19,7 @@ const ALLOWED_STATUS_TRANSITIONS: Record<AppointmentStatus, AppointmentStatus[]>
   NO_PAYMENT: ['UPCOMING', 'CANCELLED'],
   REQUESTED: ['UPCOMING', 'CANCELLED'],
   UPCOMING: ['CHECKED_IN', 'CANCELLED', 'NO_SHOW'],
-  CHECKED_IN: ['IN_PROGRESS', 'COMPLETED'],
+  CHECKED_IN: ['IN_PROGRESS'],
   IN_PROGRESS: ['COMPLETED'],
   COMPLETED: [],
   CANCELLED: [],
@@ -98,6 +98,13 @@ export const getInvalidAppointmentStatusTransitionMessage = (
 export const canShowStatusChangeAction = (status?: AppointmentStatus | string | null) => {
   if (isRequestedLikeStatus(status)) return false;
   return getAllowedAppointmentStatusTransitions(status).length > 0;
+};
+
+export const getPreferredNextAppointmentStatus = (
+  status?: AppointmentStatus | string | null
+): AppointmentStatus | null => {
+  const allowed = getAllowedAppointmentStatusTransitions(status);
+  return allowed[0] ?? null;
 };
 
 export const canAssignAppointmentRoom = (status?: AppointmentStatus | string | null) => {

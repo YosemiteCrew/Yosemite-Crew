@@ -53,7 +53,7 @@ jest.mock('@/app/hooks/useIntegrations', () => ({
 }));
 jest.mock('@/app/hooks/useMerckIntegration', () => ({
   useResolvedMerckIntegrationForPrimaryOrg: jest.fn(() => ({
-    integration: { provider: 'MERCK_MANUALS', status: 'enabled', source: 'synthetic' },
+    integration: { provider: 'MERCK_MANUALS', status: 'enabled', source: 'backend' },
     isEnabled: true,
     refresh: refreshMerckIntegrationMock,
   })),

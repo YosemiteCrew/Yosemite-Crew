@@ -11,7 +11,7 @@ function Page() {
   const { status, role } = useAuthStore();
 
   useEffect(() => {
-    if (status === 'authenticated') {
+    if (status === 'authenticated' || status === 'signin-authenticated') {
       router.push(resolveDefaultOpenScreenRoute(role));
     }
   }, [status, role, router]);

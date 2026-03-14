@@ -7,6 +7,7 @@ import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
 import { formatDateLabel } from '@/app/lib/forms';
 import { formatMoney } from '@/app/lib/money';
 import { getAppointmentByIdFromList } from '@/app/lib/invoice';
+import { getInvoicePaymentMethodLabel } from '@/app/lib/invoicePaymentMethod';
 import { Invoice } from '@yosemite-crew/types';
 import React, { useMemo } from 'react';
 
@@ -21,6 +22,7 @@ const InvoiceFields = [
   { label: 'Tax', key: 'tax', type: 'text' },
   { label: 'Total', key: 'total', type: 'text' },
   { label: 'Date', key: 'date', type: 'text' },
+  { label: 'Payment', key: 'paymentMethod', type: 'text' },
 ];
 
 type InvoiceInfoProps = {
@@ -32,8 +34,6 @@ type InvoiceInfoProps = {
 const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProps) => {
   const appointments = useAppointmentsForPrimaryOrg();
   const currency = useCurrencyForPrimaryOrg();
-
-  const handleGenerate = () => {};
 
   const handleDownload = (link: string | undefined) => {
     globalThis.open(link, '_blank');
@@ -62,9 +62,19 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
       tax: formatMoney(activeInvoice?.taxTotal ?? 0, currency),
       total: formatMoney(activeInvoice?.totalAmount ?? 0, currency),
       date: formatDateLabel(activeInvoice?.createdAt),
+      paymentMethod: getInvoicePaymentMethodLabel(activeInvoice),
     }),
     [activeInvoice, currency]
   );
+
+  const paymentCollectionMethod = String(
+    (activeInvoice as any)?.paymentCollectionMethod ?? ''
+  ).toUpperCase();
+  const showDownload = Boolean(activeInvoice?.stripeReceiptUrl);
+  const showGenerateLink =
+    !showDownload &&
+    paymentCollectionMethod !== 'PAYMENT_AT_CLINIC' &&
+    activeInvoice?.status !== 'PAID';
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
@@ -98,15 +108,17 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
             />
           </div>
           <div className="flex flex-col gap-3 mt-2">
-            {activeInvoice?.stripeReceiptUrl ? (
+            {showDownload ? (
               <Secondary
                 text="Download"
                 href=""
-                onClick={() => handleDownload(activeInvoice.stripeReceiptUrl)}
+                onClick={() => handleDownload(activeInvoice?.stripeReceiptUrl)}
               />
-            ) : (
-              <Secondary text="Generate link" href="#" onClick={handleGenerate} />
-            )}
+            ) : showGenerateLink ? (
+              <div className="text-caption-1 text-text-secondary">
+                Payment link actions are available from the appointment finance flow.
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

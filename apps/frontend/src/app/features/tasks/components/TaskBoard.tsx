@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
+import Image from 'next/image';
 import { Task, TaskStatus } from '@/app/features/tasks/types/task';
 import { getStatusStyle } from '@/app/config/statusConfig';
-import { updateTask } from '@/app/features/tasks/services/taskService';
+import { changeTaskStatus } from '@/app/features/tasks/services/taskService';
 import {
   isOnPreferredTimeZoneCalendarDay,
   formatDateInPreferredTimeZone,
@@ -12,8 +13,20 @@ import Datepicker from '@/app/ui/inputs/Datepicker';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { useAuthStore } from '@/app/stores/authStore';
 import { IoAdd } from 'react-icons/io5';
+import { IoEyeOutline } from 'react-icons/io5';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { useMemberMap } from '@/app/hooks/useMemberMap';
+import { MdOutlineAutorenew } from 'react-icons/md';
+import { IoIosCalendar } from 'react-icons/io';
+import { useNotify } from '@/app/hooks/useNotify';
+import {
+  canRescheduleTask,
+  canTransitionTaskStatus,
+  canShowTaskStatusChangeAction,
+  getInvalidTaskStatusTransitionMessage,
+  getPreferredNextTaskStatus,
+  getTaskQuickDetails,
+} from '@/app/lib/tasks';
 
 type BoardStatus = TaskStatus;
 
@@ -74,6 +87,11 @@ const BOARD_COLUMNS: Array<{ key: BoardStatus; label: string }> = [
   { key: 'CANCELLED', label: 'Cancelled' },
 ];
 
+type MemberIdentity = {
+  name: string;
+  imageUrl?: string;
+};
+
 type TaskBoardProps = {
   tasks: Task[];
   currentDate: Date;
@@ -81,6 +99,9 @@ type TaskBoardProps = {
   canEditTasks: boolean;
   setActiveTask?: (task: Task) => void;
   setViewPopup?: React.Dispatch<React.SetStateAction<boolean>>;
+  setChangeStatusPopup?: React.Dispatch<React.SetStateAction<boolean>>;
+  setChangeStatusPreferredStatus?: React.Dispatch<React.SetStateAction<TaskStatus | null>>;
+  setReschedulePopup?: React.Dispatch<React.SetStateAction<boolean>>;
   onAddTask?: () => void;
 };
 
@@ -91,8 +112,12 @@ const TaskBoard = ({
   canEditTasks,
   setActiveTask,
   setViewPopup,
+  setChangeStatusPopup,
+  setChangeStatusPreferredStatus,
+  setReschedulePopup,
   onAddTask,
 }: TaskBoardProps) => {
+  const { notify } = useNotify();
   const team = useTeamForPrimaryOrg();
   const { resolveMemberName } = useMemberMap();
   const authUserId = useAuthStore(
@@ -167,13 +192,51 @@ const TaskBoard = ({
     return map;
   }, [team]);
 
-  const resolveDisplayName = (memberId?: string) => {
+  const teamIdentityById = useMemo(() => {
+    const map: Record<string, MemberIdentity> = {};
+    team.forEach((member) => {
+      const name = member.name || (member as any).displayName || '-';
+      const imageUrl = String(member.image || (member as any).profileUrl || '').trim() || undefined;
+      const ids = [
+        member.practionerId,
+        member._id,
+        (member as any).userId,
+        (member as any).id,
+        (member as any).userOrganisation?.userId,
+      ];
+      ids.forEach((id) => {
+        const normalized = normalizeId(id);
+        if (normalized) {
+          map[normalized] = { name, imageUrl };
+        }
+      });
+    });
+    return map;
+  }, [team]);
+
+  const resolveMemberIdentity = (memberId?: string): MemberIdentity => {
     const raw = String(memberId ?? '').trim();
-    if (!raw) return '-';
+    if (!raw) return { name: '-' };
     const resolved = resolveMemberName(raw);
-    if (resolved && resolved !== '-') return resolved;
-    return teamNameById[normalizeId(raw)] || raw;
+    const identity = teamIdentityById[normalizeId(raw)];
+    if (identity) {
+      return {
+        name: resolved && resolved !== '-' ? resolved : identity.name,
+        imageUrl: identity.imageUrl,
+      };
+    }
+    return {
+      name: resolved && resolved !== '-' ? resolved : teamNameById[normalizeId(raw)] || raw,
+    };
   };
+
+  const getInitials = (name: string) =>
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part.charAt(0).toUpperCase())
+      .join('') || '--';
 
   const todayTasks = useMemo(
     () =>
@@ -203,6 +266,17 @@ const TaskBoard = ({
   const openTask = (task: Task) => {
     setActiveTask?.(task);
     setViewPopup?.(true);
+  };
+
+  const openChangeStatus = (task: Task) => {
+    setActiveTask?.(task);
+    setChangeStatusPreferredStatus?.(getPreferredNextTaskStatus(task.status));
+    setChangeStatusPopup?.(true);
+  };
+
+  const openReschedule = (task: Task) => {
+    setActiveTask?.(task);
+    setReschedulePopup?.(true);
   };
 
   const getEdgeScrollDelta = (clientPosition: number, start: number, end: number) => {
@@ -252,10 +326,17 @@ const TaskBoard = ({
     if (!task?._id) return;
     if (task.status === nextStatus) return;
     if (!canEditTasks) return;
+    if (!canTransitionTaskStatus(task.status, nextStatus)) {
+      notify('warning', {
+        title: 'Status change blocked',
+        text: getInvalidTaskStatusTransitionMessage(task.status, nextStatus),
+      });
+      return;
+    }
 
     try {
       setUpdatingStatusId(task._id);
-      await updateTask({
+      await changeTaskStatus({
         ...task,
         status: nextStatus,
       });
@@ -372,60 +453,167 @@ const TaskBoard = ({
                     autoScrollBoardOnDrag(event, event.currentTarget);
                   }}
                 >
-                  {columnTasks.map((task) => (
-                    <button
-                      key={task._id}
-                      type="button"
-                      className={`w-full min-h-[142px] shrink-0 rounded-2xl! overflow-hidden border border-card-border bg-white px-4 py-3 text-left transition-colors flex flex-col items-stretch justify-start ${
-                        draggedTaskId === (task._id ?? null)
-                          ? 'opacity-60 shadow-none'
-                          : 'hover:border-input-border-active! hover:bg-card-hover!'
-                      }`}
-                      onClick={() => openTask(task)}
-                      draggable={canEditTasks}
-                      onDragStart={(event) => {
-                        setDraggedTaskId(task._id ?? null);
-                        event.dataTransfer.effectAllowed = 'move';
-                        event.dataTransfer.setData('text/plain', task._id ?? '');
-                        const preview = buildDragPreview(event.currentTarget);
-                        event.dataTransfer.setDragImage(preview, 24, 24);
-                        requestAnimationFrame(() => {
-                          preview.remove();
-                        });
-                      }}
-                      onDragEnd={() => setDraggedTaskId(null)}
-                    >
-                      <div className="truncate text-caption-1 font-semibold text-text-primary">
-                        {task.name || '-'}
+                  {columnTasks.map((task) => {
+                    const assignedBy = resolveMemberIdentity(task.assignedBy);
+                    const assignedTo = resolveMemberIdentity(task.assignedTo);
+                    return (
+                      <div
+                        key={task._id}
+                        role="button"
+                        tabIndex={0}
+                        className={`w-full min-h-[112px] shrink-0 rounded-2xl! overflow-hidden border border-card-border bg-gradient-to-b from-white to-card-hover px-3 py-2.5 text-left transition-colors flex flex-col items-stretch justify-start ${
+                          draggedTaskId === (task._id ?? null)
+                            ? 'opacity-60 shadow-none'
+                            : 'hover:border-input-border-active! hover:bg-card-hover!'
+                        }`}
+                        onClick={() => openTask(task)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            openTask(task);
+                          }
+                        }}
+                        draggable={canEditTasks && canShowTaskStatusChangeAction(task.status)}
+                        onDragStart={(event) => {
+                          setDraggedTaskId(task._id ?? null);
+                          event.dataTransfer.effectAllowed = 'move';
+                          event.dataTransfer.setData('text/plain', task._id ?? '');
+                          const preview = buildDragPreview(event.currentTarget);
+                          event.dataTransfer.setDragImage(preview, 24, 24);
+                          requestAnimationFrame(() => {
+                            preview.remove();
+                          });
+                        }}
+                        onDragEnd={() => setDraggedTaskId(null)}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="truncate text-[12px] leading-4 font-semibold text-text-primary">
+                            {task.name || '-'}
+                          </div>
+                          <div
+                            className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium"
+                            style={{
+                              backgroundColor: style.backgroundColor,
+                              color: style.color,
+                            }}
+                          >
+                            {column.label}
+                          </div>
+                        </div>
+
+                        <div className="mt-1.5 grid grid-cols-1 gap-1">
+                          {getTaskQuickDetails(task)
+                            .slice(0, 2)
+                            .map((item) => (
+                              <div
+                                key={item.label}
+                                className="flex items-start gap-1.5 text-[10px] leading-4 text-text-secondary"
+                              >
+                                <span className="shrink-0 font-medium text-text-primary">
+                                  {item.label}:
+                                </span>
+                                <span className="line-clamp-1 min-w-0">{item.value}</span>
+                              </div>
+                            ))}
+                          {[
+                            { label: 'From', value: assignedBy },
+                            { label: 'To', value: assignedTo },
+                          ].map((item) => (
+                            <div key={item.label} className="flex items-center gap-1.5">
+                              {item.value.imageUrl ? (
+                                <Image
+                                  src={item.value.imageUrl}
+                                  alt={item.value.name}
+                                  width={18}
+                                  height={18}
+                                  className="h-[18px] w-[18px] rounded-full border border-card-border object-cover"
+                                />
+                              ) : (
+                                <div className="h-[18px] w-[18px] rounded-full border border-card-border bg-white text-[8px] font-semibold text-text-secondary flex items-center justify-center">
+                                  {getInitials(item.value.name)}
+                                </div>
+                              )}
+                              <div className="min-w-0 flex items-center gap-1.5">
+                                <span className="text-[10px] text-text-secondary">
+                                  {item.label}
+                                </span>
+                                <span className="truncate text-[10px] text-text-primary">
+                                  {item.value.name}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="mt-1.5 rounded-xl border border-card-border bg-white/80 px-2 py-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[10px] text-text-secondary">Due</span>
+                            <span className="text-[10px] text-text-primary">
+                              {formatDateInPreferredTimeZone(new Date(task.dueAt), {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                              })}
+                              {' \u2022 '}
+                              {formatDateInPreferredTimeZone(new Date(task.dueAt), {
+                                hour: 'numeric',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="mt-1.5 flex items-center gap-1.5 flex-wrap max-w-[168px]">
+                          <GlassTooltip content="View task" side="bottom">
+                            <button
+                              type="button"
+                              className="h-7 w-7 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+                              onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                openTask(task);
+                              }}
+                            >
+                              <IoEyeOutline size={14} color="#302F2E" />
+                            </button>
+                          </GlassTooltip>
+                          {canEditTasks && canShowTaskStatusChangeAction(task.status) && (
+                            <GlassTooltip content="Change status" side="bottom">
+                              <button
+                                type="button"
+                                className="h-7 w-7 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  openChangeStatus(task);
+                                }}
+                              >
+                                <MdOutlineAutorenew size={13} color="#302F2E" />
+                              </button>
+                            </GlassTooltip>
+                          )}
+                          {canEditTasks && canRescheduleTask(task.status) && (
+                            <GlassTooltip content="Reschedule" side="bottom">
+                              <button
+                                type="button"
+                                className="h-7 w-7 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  openReschedule(task);
+                                }}
+                              >
+                                <IoIosCalendar size={13} color="#302F2E" />
+                              </button>
+                            </GlassTooltip>
+                          )}
+                        </div>
+
+                        {updatingStatusId === task._id && (
+                          <div className="mt-1 text-[10px] text-text-secondary">Updating...</div>
+                        )}
                       </div>
-                      <div className="mt-1 truncate text-[10px] text-text-secondary">From</div>
-                      <div className="truncate text-[10px] text-text-primary">
-                        {resolveDisplayName(task.assignedBy)}
-                      </div>
-                      <div className="mt-1 truncate text-[10px] text-text-secondary">To</div>
-                      <div className="truncate text-[10px] text-text-primary">
-                        {resolveDisplayName(task.assignedTo)}
-                      </div>
-                      <div className="mt-1 truncate text-[10px] text-text-secondary">Due date</div>
-                      <div className="truncate text-[10px] text-text-primary">
-                        {formatDateInPreferredTimeZone(new Date(task.dueAt), {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })}
-                      </div>
-                      <div className="mt-1 truncate text-[10px] text-text-secondary">Due time</div>
-                      <div className="truncate text-[10px] text-text-primary">
-                        {formatDateInPreferredTimeZone(new Date(task.dueAt), {
-                          hour: 'numeric',
-                          minute: '2-digit',
-                        })}
-                      </div>
-                      {updatingStatusId === task._id && (
-                        <div className="mt-1 text-[10px] text-text-secondary">Updating...</div>
-                      )}
-                    </button>
-                  ))}
+                    );
+                  })}
                   {!hasTasks && (
                     <div className="rounded-2xl border border-dashed border-card-border bg-white px-3 py-4 text-center text-caption-1 text-text-secondary">
                       No tasks
