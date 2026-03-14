@@ -69,6 +69,21 @@ const getOrgBillingCurrency = async (
   return billing?.currency ?? "usd";
 };
 
+const resolvePaymentCollectionMethod = (
+  value: string,
+): PaymentCollectionMethod => {
+  const normalized = value.trim().toUpperCase();
+  const allowed: PaymentCollectionMethod[] = [
+    "PAYMENT_INTENT",
+    "PAYMENT_LINK",
+    "PAYMENT_AT_CLINIC",
+  ];
+  if (!allowed.includes(normalized as PaymentCollectionMethod)) {
+    throw new InvoiceServiceError("Invalid payment collection method.", 400);
+  }
+  return normalized as PaymentCollectionMethod;
+};
+
 const resolveAuditTargetsForInvoice = async (invoice: InvoiceDocument) => {
   if (invoice.organisationId && invoice.companionId) {
     return {
@@ -902,6 +917,58 @@ export const InvoiceService = {
     return updated
       ? toInvoiceResponseDTO(toDomain(updated as InvoiceDocument))
       : null;
+  },
+
+  async updatePaymentCollectionMethod(
+    invoiceId: string,
+    paymentCollectionMethod: string,
+  ) {
+    const resolvedPaymentCollectionMethod = resolvePaymentCollectionMethod(
+      paymentCollectionMethod,
+    );
+
+    if (isReadFromPostgres()) {
+      const doc = await prisma.invoice.findUnique({ where: { id: invoiceId } });
+      if (!doc) {
+        throw new InvoiceServiceError("Invoice not found.", 404);
+      }
+
+      if (["PAID", "CANCELLED", "REFUNDED"].includes(doc.status)) {
+        throw new InvoiceServiceError("Invoice cannot be updated.", 409);
+      }
+
+      if (doc.paymentCollectionMethod === resolvedPaymentCollectionMethod) {
+        return toInvoiceResponseDTO(toDomainFromPrisma(doc));
+      }
+
+      const updated = await prisma.invoice.update({
+        where: { id: doc.id },
+        data: {
+          paymentCollectionMethod: resolvedPaymentCollectionMethod,
+        },
+      });
+
+      return toInvoiceResponseDTO(toDomainFromPrisma(updated));
+    }
+
+    const _id = ensureObjectId(invoiceId, "invoiceId");
+    const doc = await InvoiceModel.findById(_id);
+    if (!doc) {
+      throw new InvoiceServiceError("Invoice not found.", 404);
+    }
+
+    if (["PAID", "CANCELLED", "REFUNDED"].includes(doc.status)) {
+      throw new InvoiceServiceError("Invoice cannot be updated.", 409);
+    }
+
+    if (doc.paymentCollectionMethod !== resolvedPaymentCollectionMethod) {
+      doc.paymentCollectionMethod = resolvedPaymentCollectionMethod;
+      doc.updatedAt = new Date();
+      await doc.save();
+      await syncInvoiceToPostgres(doc);
+    }
+
+    return toInvoiceResponseDTO(toDomain(doc));
   },
 
   async markFailed(invoiceId: string) {

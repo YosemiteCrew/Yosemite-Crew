@@ -65,6 +65,13 @@ router.post(
   InvoiceController.markInvoicePaidManually,
 );
 
+// Update payment collection method
+router.patch(
+  "/:invoiceId/payment-collection-method",
+  authorizeCognito,
+  InvoiceController.updatePaymentCollectionMethod,
+);
+
 // Get invoice by ID
 router.get("/:invoiceId", authorizeCognito, InvoiceController.getInvoiceById);
 

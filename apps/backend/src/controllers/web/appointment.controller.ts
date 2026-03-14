@@ -128,6 +128,13 @@ export const AppointmentController = {
     try {
       const dto = req.body;
       const { createPayment, paymentCollectionMethod } = req.query;
+      const bodyWithMethod = dto as unknown as {
+        paymentCollectionMethod?: unknown;
+      };
+      const paymentCollectionMethodFromBody =
+        typeof bodyWithMethod.paymentCollectionMethod === "string"
+          ? bodyWithMethod.paymentCollectionMethod
+          : undefined;
 
       const shouldCreatePayment =
         createPayment === "true" || createPayment === "1";
@@ -137,7 +144,7 @@ export const AppointmentController = {
         shouldCreatePayment,
         typeof paymentCollectionMethod === "string"
           ? paymentCollectionMethod
-          : undefined,
+          : paymentCollectionMethodFromBody,
       );
 
       return res
