@@ -19,6 +19,15 @@ const resolveUserIdFromRequest = (req: Request): string | undefined => {
   return authRequest.userId;
 };
 
+const resolveParentId = (parent: {
+  id?: string;
+  _id?: { toString(): string };
+}): string => {
+  if ("id" in parent && typeof parent.id === "string") return parent.id;
+  if ("_id" in parent && parent._id) return parent._id.toString();
+  throw new Error("Parent id missing");
+};
+
 export const ParentCompanionController = {
   getLinksForParent: async (req: Request, res: Response) => {
     try {
@@ -83,7 +92,7 @@ export const ParentCompanionController = {
       }
 
       const updated = await ParentCompanionService.updatePermissions(
-        new Types.ObjectId(requestingParent._id.toString()),
+        new Types.ObjectId(resolveParentId(requestingParent)),
         new Types.ObjectId(targetParentId),
         new Types.ObjectId(companionId),
         updates,
@@ -123,7 +132,7 @@ export const ParentCompanionController = {
       }
 
       const updated = await ParentCompanionService.promoteToPrimary(
-        requestingParent._id,
+        new Types.ObjectId(resolveParentId(requestingParent)),
         new Types.ObjectId(companionId),
         new Types.ObjectId(targetParentId),
       );
@@ -162,7 +171,7 @@ export const ParentCompanionController = {
       }
 
       await ParentCompanionService.removeCoParent(
-        requestingParent._id,
+        new Types.ObjectId(resolveParentId(requestingParent)),
         new Types.ObjectId(coParentId),
         new Types.ObjectId(companionId),
         false,

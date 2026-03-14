@@ -1,7 +1,8 @@
 // services/account-withdrawal.service.ts
 import { AccountWithdrawalModel } from "../models/account-withdrawal";
 import { prisma } from "../config/prisma";
-import logger from "../utils/logger";
+import { isReadFromPostgres } from "src/config/read-switch";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 
 export class AccountWithdrawalServiceError extends Error {
   constructor(
@@ -37,22 +38,37 @@ export const AccountWithdrawalService = {
       );
     }
 
+    if (isReadFromPostgres()) {
+      return prisma.accountWithdrawal.create({
+        data: {
+          userId: input.userId ?? undefined,
+          fullName: input.fullName,
+          email: input.email,
+          address: input.address ?? undefined,
+          signatureText: input.signatureText ?? undefined,
+          message: input.message ?? undefined,
+          checkboxConfirmed: input.checkboxConfirmed,
+          status: "RECEIVED",
+        },
+      });
+    }
+
     const doc = await AccountWithdrawalModel.create({
       ...input,
       status: "RECEIVED",
     });
 
-    if (process.env.DUAL_WRITE_ENABLED === "true") {
+    if (shouldDualWrite) {
       try {
         await prisma.accountWithdrawal.create({
           data: {
             id: doc._id.toString(),
-            userId: input.userId,
+            userId: input.userId ?? undefined,
             fullName: input.fullName,
             email: input.email,
-            address: input.address,
-            signatureText: input.signatureText,
-            message: input.message,
+            address: input.address ?? undefined,
+            signatureText: input.signatureText ?? undefined,
+            message: input.message ?? undefined,
             checkboxConfirmed: input.checkboxConfirmed,
             status: "RECEIVED",
             processedAt: undefined,
@@ -62,10 +78,7 @@ export const AccountWithdrawalService = {
           },
         });
       } catch (err) {
-        logger.error(`AccountWithdrawal dual-write failed: ${String(err)}`);
-        if (process.env.DUAL_WRITE_STRICT === "true") {
-          throw err;
-        }
+        handleDualWriteError("AccountWithdrawal", err);
       }
     }
 
@@ -74,6 +87,11 @@ export const AccountWithdrawalService = {
 
   // For admin dashboard
   async listAll() {
+    if (isReadFromPostgres()) {
+      return prisma.accountWithdrawal.findMany({
+        orderBy: { createdAt: "desc" },
+      });
+    }
     return AccountWithdrawalModel.find().sort({ createdAt: -1 }).exec();
   },
 
@@ -82,6 +100,23 @@ export const AccountWithdrawalService = {
     status: "IN_REVIEW" | "COMPLETED" | "REJECTED",
     processedByUserId: string,
   ) {
+    if (isReadFromPostgres()) {
+      const existing = await prisma.accountWithdrawal.findUnique({
+        where: { id },
+      });
+      if (!existing) {
+        throw new AccountWithdrawalServiceError("Request not found", 404);
+      }
+      return prisma.accountWithdrawal.update({
+        where: { id },
+        data: {
+          status,
+          processedByUserId,
+          processedAt: new Date(),
+        },
+      });
+    }
+
     const doc = await AccountWithdrawalModel.findById(id);
     if (!doc) throw new AccountWithdrawalServiceError("Request not found", 404);
 
@@ -90,7 +125,7 @@ export const AccountWithdrawalService = {
     doc.processedAt = new Date();
     await doc.save();
 
-    if (process.env.DUAL_WRITE_ENABLED === "true") {
+    if (shouldDualWrite) {
       try {
         await prisma.accountWithdrawal.updateMany({
           where: { id },
@@ -101,10 +136,7 @@ export const AccountWithdrawalService = {
           },
         });
       } catch (err) {
-        logger.error(`AccountWithdrawal dual-write status failed: ${String(err)}`);
-        if (process.env.DUAL_WRITE_STRICT === "true") {
-          throw err;
-        }
+        handleDualWriteError("AccountWithdrawal", err);
       }
     }
     return doc;

@@ -15,7 +15,13 @@ import { OrgUsageCounters } from "src/models/organisation.usage.counter";
 import UserOrganizationModel from "src/models/user-organization";
 import { prisma } from "src/config/prisma";
 import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
-import { Prisma, AccessState, BillingInterval, SubscriptionStatus } from "@prisma/client";
+import {
+  Prisma,
+  AccessState,
+  BillingInterval,
+  SubscriptionStatus,
+} from "@prisma/client";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 let stripeClient: Stripe | null = null;
 
@@ -23,6 +29,27 @@ type IdLike = { toString(): string } | string;
 
 const toIdString = (value: IdLike | null | undefined) =>
   typeof value === "string" ? value : value?.toString?.();
+
+const extractAppointmentTypeId = (
+  value: Prisma.JsonValue | null,
+): string | undefined => {
+  if (!value || typeof value !== "object") return undefined;
+  const candidate = (value as Record<string, unknown>).id;
+  return typeof candidate === "string" ? candidate : undefined;
+};
+
+const extractCompanionRefs = (
+  value: Prisma.JsonValue,
+): { companionId?: string; parentId?: string } => {
+  if (!value || typeof value !== "object") return {};
+  const companion = value as Record<string, unknown>;
+  const companionId =
+    typeof companion.id === "string" ? companion.id : undefined;
+  const parent = companion.parent as Record<string, unknown> | undefined;
+  const parentId =
+    parent && typeof parent.id === "string" ? parent.id : undefined;
+  return { companionId, parentId };
+};
 
 type OrgBillingDoc = {
   _id?: IdLike;
@@ -89,9 +116,7 @@ type OrgUsageCountersDoc = {
   updatedAt?: Date;
 };
 
-const toAccessState = (
-  value?: string | null,
-): AccessState | undefined => {
+const toAccessState = (value?: string | null): AccessState | undefined => {
   if (!value) return undefined;
   if (value === "free") return "free";
   if (value === "active") return "active";
@@ -138,6 +163,13 @@ function toStripeAmount(amount: number): number {
 }
 
 async function getOrgBillingCurrency(orgId: string) {
+  if (isReadFromPostgres()) {
+    const billing = await prisma.organizationBilling.findUnique({
+      where: { orgId },
+      select: { currency: true },
+    });
+    return billing?.currency ?? "usd";
+  }
   const billing = (await OrgBilling.findOne({
     orgId,
   })) as unknown as OrgBillingDoc | null;
@@ -148,6 +180,26 @@ async function getOrgBillingCurrency(orgId: string) {
 async function ensureBillingDocs(
   orgId: string,
 ): Promise<{ billing: OrgBillingMongooseDoc; usage: OrgUsageCountersDoc }> {
+  if (isReadFromPostgres()) {
+    const [billing, usage] = await Promise.all([
+      prisma.organizationBilling.upsert({
+        where: { orgId },
+        create: { orgId },
+        update: {},
+      }),
+      prisma.organizationUsageCounter.upsert({
+        where: { orgId },
+        create: { orgId },
+        update: {},
+      }),
+    ]);
+
+    return {
+      billing: billing as unknown as OrgBillingMongooseDoc,
+      usage: usage as unknown as OrgUsageCountersDoc,
+    };
+  }
+
   const [billing, usage] = await Promise.all([
     OrgBilling.findOneAndUpdate(
       { orgId },
@@ -187,8 +239,8 @@ const syncOrgBillingToPostgres = async (doc: OrgBillingDoc | null) => {
         connectChargesEnabled: doc.connectChargesEnabled ?? false,
         connectPayoutsEnabled: doc.connectPayoutsEnabled ?? false,
         connectDisabledReason: doc.connectDisabledReason ?? undefined,
-        connectRequirements:
-          (doc.connectRequirements ?? undefined) as Prisma.InputJsonValue,
+        connectRequirements: (doc.connectRequirements ??
+          undefined) as Prisma.InputJsonValue,
         stripeCustomerId: doc.stripeCustomerId ?? undefined,
         stripeSubscriptionId: doc.stripeSubscriptionId ?? undefined,
         stripeSubscriptionItemId: doc.stripeSubscriptionItemId ?? undefined,
@@ -200,7 +252,8 @@ const syncOrgBillingToPostgres = async (doc: OrgBillingDoc | null) => {
         currency: doc.currency ?? "usd",
         seatQuantity: doc.seatQuantity ?? 0,
         seatQuantityUpdatedAt: doc.seatQuantityUpdatedAt ?? undefined,
-        subscriptionStatus: toSubscriptionStatus(doc.subscriptionStatus) ?? "none",
+        subscriptionStatus:
+          toSubscriptionStatus(doc.subscriptionStatus) ?? "none",
         cancelAtPeriodEnd: doc.cancelAtPeriodEnd ?? false,
         canceledAt: doc.canceledAt ?? undefined,
         currentPeriodStart: doc.currentPeriodStart ?? undefined,
@@ -225,8 +278,8 @@ const syncOrgBillingToPostgres = async (doc: OrgBillingDoc | null) => {
         connectChargesEnabled: doc.connectChargesEnabled ?? false,
         connectPayoutsEnabled: doc.connectPayoutsEnabled ?? false,
         connectDisabledReason: doc.connectDisabledReason ?? undefined,
-        connectRequirements:
-          (doc.connectRequirements ?? undefined) as Prisma.InputJsonValue,
+        connectRequirements: (doc.connectRequirements ??
+          undefined) as Prisma.InputJsonValue,
         stripeCustomerId: doc.stripeCustomerId ?? undefined,
         stripeSubscriptionId: doc.stripeSubscriptionId ?? undefined,
         stripeSubscriptionItemId: doc.stripeSubscriptionItemId ?? undefined,
@@ -238,7 +291,8 @@ const syncOrgBillingToPostgres = async (doc: OrgBillingDoc | null) => {
         currency: doc.currency ?? "usd",
         seatQuantity: doc.seatQuantity ?? 0,
         seatQuantityUpdatedAt: doc.seatQuantityUpdatedAt ?? undefined,
-        subscriptionStatus: toSubscriptionStatus(doc.subscriptionStatus) ?? "none",
+        subscriptionStatus:
+          toSubscriptionStatus(doc.subscriptionStatus) ?? "none",
         cancelAtPeriodEnd: doc.cancelAtPeriodEnd ?? false,
         canceledAt: doc.canceledAt ?? undefined,
         currentPeriodStart: doc.currentPeriodStart ?? undefined,
@@ -303,6 +357,11 @@ const syncOrgUsageToPostgres = async (doc: OrgUsageCountersDoc | null) => {
 
 async function computeBillableSeats(orgId: string): Promise<number> {
   // Every active user in this org is billable
+  if (isReadFromPostgres()) {
+    return prisma.userOrganization.count({
+      where: { organizationReference: orgId, active: true },
+    });
+  }
   return UserOrganizationModel.countDocuments({
     organizationReference: orgId,
     active: true,
@@ -319,6 +378,30 @@ export const StripeService = {
   // ----------------------------
   async createOrGetConnectedAccount(organisationId: string) {
     const stripe = getStripeClient();
+
+    if (isReadFromPostgres()) {
+      const org = await prisma.organization.findUnique({
+        where: { id: organisationId },
+      });
+      if (!org) throw new Error("Organisation not found");
+
+      if (org.stripeAccountId) return { accountId: org.stripeAccountId };
+
+      const account = await stripe.accounts.create({});
+
+      await prisma.organization.update({
+        where: { id: organisationId },
+        data: { stripeAccountId: account.id },
+      });
+
+      await prisma.organizationBilling.upsert({
+        where: { orgId: organisationId },
+        create: { orgId: organisationId, connectAccountId: account.id },
+        update: { connectAccountId: account.id },
+      });
+
+      return { accountId: account.id };
+    }
 
     const org = await OrganizationModel.findById(organisationId);
     if (!org) throw new Error("Organisation not found");
@@ -358,6 +441,18 @@ export const StripeService = {
   },
 
   async getAccountStatus(organisationId: string) {
+    if (isReadFromPostgres()) {
+      const [orgBilling, orgUsage] = await Promise.all([
+        prisma.organizationBilling.findUnique({
+          where: { orgId: organisationId },
+        }),
+        prisma.organizationUsageCounter.findUnique({
+          where: { orgId: organisationId },
+        }),
+      ]);
+      return { orgBilling, orgUsage };
+    }
+
     const org = await OrganizationModel.findById(organisationId);
     if (!org) {
       throw new Error("Organistaion not found");
@@ -379,6 +474,31 @@ export const StripeService = {
 
   async createOnboardingLink(organisationId: string) {
     const stripe = getStripeClient();
+
+    if (isReadFromPostgres()) {
+      const orgBilling = await prisma.organizationBilling.findUnique({
+        where: { orgId: organisationId },
+      });
+
+      if (!orgBilling?.connectAccountId)
+        throw new Error("Organisation does not have a Stripe account");
+
+      const accountSession = await stripe.accountSessions.create({
+        account: orgBilling.connectAccountId,
+        components: {
+          account_onboarding: { enabled: true },
+          tax_settings: {
+            enabled: true,
+            features: {},
+          },
+          tax_registrations: {
+            enabled: true,
+          },
+        },
+      });
+
+      return { client_secret: accountSession.client_secret };
+    }
 
     const org = await OrganizationModel.findById(organisationId);
     if (!org) throw new Error("No Organisation Found");
@@ -416,6 +536,99 @@ export const StripeService = {
     interval: "month" | "year",
   ) {
     const stripe = getStripeClient();
+
+    if (isReadFromPostgres()) {
+      const org = await prisma.organization.findUnique({
+        where: { id: orgId },
+      });
+      if (!org) throw new Error("Organisation not found");
+
+      const { billing } = await ensureBillingDocs(orgId);
+
+      if (!billing.connectAccountId && org.stripeAccountId) {
+        await prisma.organizationBilling.update({
+          where: { orgId },
+          data: { connectAccountId: org.stripeAccountId },
+        });
+      }
+
+      const seats = await computeBillableSeats(orgId);
+      if (seats < 1)
+        throw new Error(
+          "No users found. Add at least 1 user to start Business.",
+        );
+
+      await prisma.organizationUsageCounter.updateMany({
+        where: { orgId },
+        data: { usersActiveCount: seats, usersBillableCount: seats },
+      });
+
+      const priceId =
+        interval === "month"
+          ? process.env.STRIPE_PRICE_BUSINESS_MONTH
+          : process.env.STRIPE_PRICE_BUSINESS_YEAR;
+
+      if (!priceId) throw new Error("Missing STRIPE_PRICE_BUSINESS_* env vars");
+
+      let billingRow = await prisma.organizationBilling.findUnique({
+        where: { orgId },
+      });
+      if (!billingRow?.stripeCustomerId) {
+        const customer = await stripe.customers.create({
+          name: org.name,
+          metadata: {
+            orgId: String(orgId),
+            connectAccountId: String(billingRow?.connectAccountId ?? ""),
+          },
+        });
+
+        billingRow = await prisma.organizationBilling.update({
+          where: { orgId },
+          data: { stripeCustomerId: customer.id },
+        });
+      }
+
+      const successUrl = `${process.env.APP_URL}/success?session_id={CHECKOUT_SESSION_ID}"`;
+      const cancelUrl = `${process.env.APP_URL}/success?session_id={CHECKOUT_SESSION_ID}"`;
+
+      const session = await stripe.checkout.sessions.create({
+        mode: "subscription",
+        customer: billingRow?.stripeCustomerId ?? undefined,
+        line_items: [
+          {
+            price: priceId,
+            quantity: seats,
+          },
+        ],
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        allow_promotion_codes: true,
+        subscription_data: {
+          metadata: {
+            orgId: String(orgId),
+            connectAccountId: String(billingRow?.connectAccountId ?? ""),
+          },
+        },
+        tax_id_collection: {
+          enabled: true,
+        },
+        automatic_tax: {
+          enabled: true,
+        },
+        billing_address_collection: "auto",
+        metadata: {
+          orgId: String(orgId),
+          interval,
+          seats: String(seats),
+        },
+        customer_update: {
+          name: "auto",
+          address: "auto",
+        },
+      });
+
+      return { url: session.url };
+    }
 
     const org = await OrganizationModel.findById(orgId);
     if (!org) throw new Error("Organisation not found");
@@ -533,6 +746,50 @@ export const StripeService = {
     const stripe = getStripeClient();
     const { billing } = await ensureBillingDocs(orgId);
 
+    if (isReadFromPostgres()) {
+      const billingRow = await prisma.organizationBilling.findUnique({
+        where: { orgId },
+      });
+
+      if (!billingRow || billingRow.plan !== "business")
+        return { updated: false, reason: "not_business" };
+      const subscriptionItemId = billingRow.stripeSubscriptionItemId;
+      if (!subscriptionItemId)
+        return { updated: false, reason: "missing_item_id" };
+
+      const subscriptionStatus = billingRow.subscriptionStatus ?? "none";
+      if (!["active", "trialing", "past_due"].includes(subscriptionStatus)) {
+        return { updated: false, reason: "subscription_not_syncable" };
+      }
+
+      const newSeats = await computeBillableSeats(orgId);
+      const oldSeats = billingRow.seatQuantity ?? 0;
+      if (newSeats === oldSeats) return { updated: false, reason: "no_change" };
+
+      const prorationBehavior =
+        newSeats > oldSeats ? "create_prorations" : "none";
+
+      await stripe.subscriptionItems.update(subscriptionItemId, {
+        quantity: newSeats,
+        proration_behavior: prorationBehavior,
+      });
+
+      await prisma.organizationUsageCounter.updateMany({
+        where: { orgId },
+        data: { usersActiveCount: newSeats, usersBillableCount: newSeats },
+      });
+
+      await prisma.organizationBilling.update({
+        where: { orgId },
+        data: {
+          seatQuantity: newSeats,
+          seatQuantityUpdatedAt: new Date(),
+        },
+      });
+
+      return { updated: true, oldSeats, newSeats, prorationBehavior };
+    }
+
     if (billing.plan !== "business")
       return { updated: false, reason: "not_business" };
     const subscriptionItemId = billing.stripeSubscriptionItemId;
@@ -587,6 +844,67 @@ export const StripeService = {
   async createPaymentIntentForAppointment(appointmentId: string) {
     const stripe = getStripeClient();
 
+    if (isReadFromPostgres()) {
+      const appointment = await prisma.appointment.findUnique({
+        where: { id: appointmentId },
+        select: {
+          id: true,
+          status: true,
+          organisationId: true,
+          appointmentType: true,
+          companion: true,
+        },
+      });
+      if (!appointment) throw new Error("Appointment not found");
+
+      const normalizedStatus = appointment.status;
+      if (!["REQUESTED", "UPCOMING"].includes(normalizedStatus)) {
+        throw new Error("Appointment does not allow payment");
+      }
+
+      const serviceId = extractAppointmentTypeId(appointment.appointmentType);
+      if (!serviceId) throw new Error("Service not found");
+
+      const service = await prisma.service.findUnique({
+        where: { id: serviceId },
+      });
+      if (!service) throw new Error("Service not found");
+
+      const organisation = await prisma.organization.findUnique({
+        where: { id: appointment.organisationId },
+        select: { stripeAccountId: true },
+      });
+      if (!organisation?.stripeAccountId)
+        throw new Error("Organisation has no Stripe account");
+
+      const { parentId, companionId } = extractCompanionRefs(
+        appointment.companion,
+      );
+
+      const amount = toStripeAmount(service.cost);
+      const currency = await getOrgBillingCurrency(appointment.organisationId);
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount,
+        currency,
+        metadata: {
+          type: "APPOINTMENT_BOOKING",
+          appointmentId,
+          organisationId: appointment.organisationId,
+          parentId: parentId ?? "",
+          companionId: companionId ?? "",
+        },
+        transfer_data: { destination: organisation.stripeAccountId },
+      });
+
+      return {
+        paymentIntentId: paymentIntent.id,
+        clientSecret: paymentIntent.client_secret,
+        amount: service.cost,
+        currency,
+      };
+    }
+
     const appointment = await AppointmentModel.findById(appointmentId);
     if (!appointment) throw new Error("Appointment not found");
 
@@ -639,6 +957,86 @@ export const StripeService = {
 
   async createPaymentIntentForInvoice(invoiceId: string) {
     const stripe = getStripeClient();
+
+    if (isReadFromPostgres()) {
+      let invoice = await prisma.invoice.findUnique({
+        where: { id: invoiceId },
+      });
+      if (!invoice) throw new Error("Invoice not found");
+
+      if (!["AWAITING_PAYMENT", "PENDING"].includes(invoice.status)) {
+        throw new Error("Invoice is not payable");
+      }
+      if (invoice.paymentCollectionMethod === "PAYMENT_AT_CLINIC") {
+        throw new Error("Invoice is marked for in-clinic payment");
+      }
+
+      if (
+        invoice.stripeCheckoutSessionId &&
+        invoice.paymentCollectionMethod === "PAYMENT_LINK"
+      ) {
+        await prisma.invoice.updateMany({
+          where: { id: invoiceId },
+          data: {
+            paymentCollectionMethod: "PAYMENT_INTENT",
+            stripeCheckoutSessionId: null,
+            stripeCheckoutUrl: null,
+          },
+        });
+
+        invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
+        if (!invoice) throw new Error("Invoice not found after switch");
+      }
+
+      if (invoice.stripePaymentIntentId) {
+        return this.retrievePaymentIntent(invoice.stripePaymentIntentId);
+      }
+
+      if (!invoice.organisationId) {
+        throw new Error("Invoice missing organisation");
+      }
+
+      const organisation = await prisma.organization.findUnique({
+        where: { id: invoice.organisationId },
+        select: { stripeAccountId: true },
+      });
+      if (!organisation?.stripeAccountId) {
+        throw new Error(
+          "Organisation does not have a Stripe connected account",
+        );
+      }
+
+      const amountToPay = invoice.totalAmount;
+      const stripeAmount = toStripeAmount(amountToPay);
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: stripeAmount,
+        currency: invoice.currency || "usd",
+        metadata: {
+          type: "INVOICE_PAYMENT",
+          invoiceId,
+          appointmentId: invoice.appointmentId || "",
+          organisationId: invoice.organisationId ?? "",
+          parentId: invoice.parentId ?? "",
+          companionId: invoice.companionId ?? "",
+        },
+        description: `Payment for Invoice ${invoiceId}`,
+        transfer_data: { destination: organisation.stripeAccountId },
+      });
+
+      await InvoiceService.attachStripeDetails(invoiceId, {
+        stripePaymentIntentId: paymentIntent.id,
+        status: "AWAITING_PAYMENT",
+        paymentCollectionMethod: "PAYMENT_INTENT",
+      });
+
+      return {
+        paymentIntentId: paymentIntent.id,
+        clientSecret: paymentIntent.client_secret,
+        amount: amountToPay,
+        currency: invoice.currency || "usd",
+      };
+    }
 
     let invoice = await InvoiceModel.findById(invoiceId);
     if (!invoice) throw new Error("Invoice not found");
@@ -736,6 +1134,99 @@ export const StripeService = {
 
   async createCheckoutSessionForInvoice(invoiceId: string) {
     const stripe = getStripeClient();
+
+    if (isReadFromPostgres()) {
+      const invoice = await prisma.invoice.findUnique({
+        where: { id: invoiceId },
+      });
+      if (!invoice) throw new Error("Invoice not found");
+
+      if (!["AWAITING_PAYMENT", "PENDING"].includes(invoice.status)) {
+        throw new Error("Invoice is not payable");
+      }
+      if (invoice.paymentCollectionMethod === "PAYMENT_AT_CLINIC") {
+        throw new Error("Invoice is marked for in-clinic payment");
+      }
+
+      if (invoice.stripePaymentIntentId) {
+        throw new Error("Invoice already has a PaymentIntent");
+      }
+      if (invoice.stripeCheckoutSessionId) {
+        return {
+          sessionId: invoice.stripeCheckoutSessionId,
+          url: invoice.stripeCheckoutUrl,
+        };
+      }
+
+      if (!invoice.organisationId) {
+        throw new Error("Invoice missing organisation");
+      }
+
+      const organisation = await prisma.organization.findUnique({
+        where: { id: invoice.organisationId },
+        select: { stripeAccountId: true },
+      });
+      if (!organisation?.stripeAccountId)
+        throw new Error("Organisation not connected to Stripe");
+
+      const items = Array.isArray(invoice.items)
+        ? invoice.items
+        : ([] as unknown[]);
+      if (items.length === 0) {
+        throw new Error("Invoice items are missing");
+      }
+
+      const expiresAt = Math.floor((Date.now() + 24 * 60 * 60 * 1000) / 1000);
+
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        line_items: items.map((item) => ({
+          price_data: {
+            currency: invoice.currency || "usd",
+            product_data: {
+              name: (item as { name?: string }).name ?? "Service",
+              description:
+                (item as { description?: string }).description ?? undefined,
+            },
+            unit_amount: Math.round(
+              (item as { unitPrice: number }).unitPrice * 100,
+            ),
+          },
+          quantity: (item as { quantity: number }).quantity,
+        })),
+        metadata: {
+          type: "INVOICE_PAYMENT",
+          invoiceId: invoice.id,
+          appointmentId: invoice.appointmentId ?? "",
+          organisationId: invoice.organisationId ?? "",
+          parentId: invoice.parentId ?? "",
+        },
+        payment_intent_data: {
+          metadata: {
+            type: "INVOICE_PAYMENT",
+            invoiceId: invoice.id,
+            appointmentId: invoice.appointmentId ?? "",
+            organisationId: invoice.organisationId ?? "",
+            parentId: invoice.parentId ?? "",
+          },
+          transfer_data: { destination: organisation.stripeAccountId },
+        },
+        success_url: `${process.env.APP_URL}/success?session_id={CHECKOUT_SESSION_ID}"`,
+        cancel_url: `${process.env.APP_URL}/success?session_id={CHECKOUT_SESSION_ID}"`,
+        expires_at: expiresAt,
+      });
+
+      await prisma.invoice.updateMany({
+        where: { id: invoiceId },
+        data: {
+          paymentCollectionMethod: "PAYMENT_LINK",
+          stripeCheckoutSessionId: session.id,
+          stripeCheckoutUrl: session.url ?? undefined,
+        },
+      });
+
+      return { sessionId: session.id, url: session.url };
+    }
 
     const invoice = await InvoiceModel.findById(invoiceId);
     if (!invoice) throw new Error("Invoice not found");
@@ -853,6 +1344,30 @@ export const StripeService = {
   async refundPaymentIntent(paymentIntentId: string) {
     const stripe = getStripeClient();
 
+    if (isReadFromPostgres()) {
+      const invoice = await prisma.invoice.findFirst({
+        where: { stripePaymentIntentId: paymentIntentId },
+      });
+      if (!invoice) throw new Error("Invoice not found");
+
+      const paymentIntent = await stripe.paymentIntents.retrieve(
+        paymentIntentId,
+        { expand: ["latest_charge"] },
+      );
+
+      const charge = paymentIntent.latest_charge as Stripe.Charge;
+      if (!charge) throw new Error("No charge found for PaymentIntent");
+
+      const refund = await stripe.refunds.create({ charge: charge.id });
+      await InvoiceService.markRefunded(invoice.id);
+
+      return {
+        refundId: refund.id,
+        status: refund.status,
+        amountRefunded: refund.amount / 100,
+      };
+    }
+
     const invoice = await InvoiceModel.findOne({
       stripePaymentIntentId: paymentIntentId,
     });
@@ -952,6 +1467,29 @@ export const StripeService = {
     const canAccept =
       account.charges_enabled === true && account.payouts_enabled === true;
 
+    if (isReadFromPostgres()) {
+      await prisma.organizationBilling.updateMany({
+        where: { connectAccountId: account.id },
+        data: {
+          currency: account.default_currency ?? undefined,
+          connectChargesEnabled: account.charges_enabled ?? false,
+          connectPayoutsEnabled: account.payouts_enabled ?? false,
+          canAcceptPayments: canAccept,
+          connectDisabledReason:
+            account.requirements?.disabled_reason ?? undefined,
+          connectRequirements: {
+            currentlyDue: account.requirements?.currently_due ?? [],
+            eventuallyDue: account.requirements?.eventually_due ?? [],
+            pastDue: account.requirements?.past_due ?? [],
+            pendingVerification:
+              account.requirements?.pending_verification ?? [],
+            errors: account.requirements?.errors ?? [],
+          } as unknown as Prisma.InputJsonValue,
+        },
+      });
+      return;
+    }
+
     await OrgBilling.updateOne(
       { connectAccountId: account.id },
       {
@@ -978,12 +1516,14 @@ export const StripeService = {
             connectChargesEnabled: account.charges_enabled ?? false,
             connectPayoutsEnabled: account.payouts_enabled ?? false,
             canAcceptPayments: canAccept,
-            connectDisabledReason: account.requirements?.disabled_reason ?? undefined,
+            connectDisabledReason:
+              account.requirements?.disabled_reason ?? undefined,
             connectRequirements: {
               currentlyDue: account.requirements?.currently_due ?? [],
               eventuallyDue: account.requirements?.eventually_due ?? [],
               pastDue: account.requirements?.past_due ?? [],
-              pendingVerification: account.requirements?.pending_verification ?? [],
+              pendingVerification:
+                account.requirements?.pending_verification ?? [],
               errors: account.requirements?.errors ?? [],
             } as unknown as Prisma.InputJsonValue,
           },
@@ -1008,6 +1548,24 @@ export const StripeService = {
   async _handleSubscriptionUpdated(subscription: Stripe.Subscription) {
     const item = subscription.items.data[0];
 
+    if (isReadFromPostgres()) {
+      await prisma.organizationBilling.updateMany({
+        where: { stripeSubscriptionId: subscription.id },
+        data: {
+          subscriptionStatus:
+            toSubscriptionStatus(subscription.status) ?? "none",
+          cancelAtPeriodEnd: subscription.cancel_at_period_end ?? false,
+          canceledAt: subscription.canceled_at
+            ? new Date(subscription.canceled_at * 1000)
+            : undefined,
+          seatQuantity: item?.quantity ?? 0,
+          currentPeriodStart: new Date(item.current_period_start * 1000),
+          currentPeriodEnd: new Date(item.current_period_end * 1000),
+        },
+      });
+      return;
+    }
+
     await OrgBilling.updateOne(
       { stripeSubscriptionId: subscription.id },
       {
@@ -1028,7 +1586,8 @@ export const StripeService = {
         await prisma.organizationBilling.updateMany({
           where: { stripeSubscriptionId: subscription.id },
           data: {
-            subscriptionStatus: toSubscriptionStatus(subscription.status) ?? "none",
+            subscriptionStatus:
+              toSubscriptionStatus(subscription.status) ?? "none",
             cancelAtPeriodEnd: subscription.cancel_at_period_end ?? false,
             canceledAt: subscription.canceled_at
               ? new Date(subscription.canceled_at * 1000)
@@ -1045,6 +1604,26 @@ export const StripeService = {
   },
 
   async _handleSubscriptionDeleted(subscription: Stripe.Subscription) {
+    if (isReadFromPostgres()) {
+      await prisma.organizationBilling.updateMany({
+        where: { stripeSubscriptionId: subscription.id },
+        data: {
+          plan: "free",
+          accessState: "free",
+          downgradedAt: new Date(),
+          subscriptionStatus: "canceled",
+          billingInterval: null,
+          stripeSubscriptionItemId: null,
+          stripePriceId: null,
+          cancelAtPeriodEnd: false,
+          currentPeriodStart: null,
+          currentPeriodEnd: null,
+          gracePeriodEndsAt: null,
+        },
+      });
+      return;
+    }
+
     await OrgBilling.updateOne(
       { stripeSubscriptionId: subscription.id },
       {
@@ -1096,6 +1675,20 @@ export const StripeService = {
         : subscriptionValue?.id;
     if (!subscriptionId) return;
 
+    if (isReadFromPostgres()) {
+      await prisma.organizationBilling.updateMany({
+        where: { stripeSubscriptionId: subscriptionId },
+        data: {
+          lastInvoiceId: invoice.id ?? undefined,
+          lastPaymentStatus: "paid",
+          lastPaymentAt: new Date(),
+          accessState: "active",
+          gracePeriodEndsAt: null,
+        },
+      });
+      return;
+    }
+
     await OrgBilling.updateOne(
       { stripeSubscriptionId: subscriptionId },
       {
@@ -1133,6 +1726,19 @@ export const StripeService = {
     if (!subscriptionId) return;
 
     const graceEnd = addDays(new Date(), 7);
+
+    if (isReadFromPostgres()) {
+      await prisma.organizationBilling.updateMany({
+        where: { stripeSubscriptionId: subscriptionId },
+        data: {
+          lastInvoiceId: invoice.id ?? undefined,
+          lastPaymentStatus: "failed",
+          accessState: "past_due",
+          gracePeriodEndsAt: graceEnd,
+        },
+      });
+      return;
+    }
 
     await OrgBilling.updateOne(
       { stripeSubscriptionId: subscriptionId },
@@ -1179,6 +1785,78 @@ export const StripeService = {
     // (your existing code unchanged)
     const appointmentId = pi.metadata?.appointmentId;
     if (!appointmentId) return;
+
+    if (isReadFromPostgres()) {
+      const appointment = await prisma.appointment.findUnique({
+        where: { id: appointmentId },
+        select: {
+          id: true,
+          appointmentType: true,
+          organisationId: true,
+          companion: true,
+        },
+      });
+      if (!appointment) return;
+
+      const existingInvoice = await prisma.invoice.findFirst({
+        where: { appointmentId, status: "PAID" },
+      });
+      if (existingInvoice) return;
+
+      const chargeId = pi.latest_charge as string;
+      const charge = await getStripeClient().charges.retrieve(chargeId);
+
+      const serviceId = extractAppointmentTypeId(appointment.appointmentType);
+      if (!serviceId) return;
+
+      const service = await prisma.service.findUnique({
+        where: { id: serviceId },
+      });
+      if (!service) return;
+
+      const { parentId, companionId } = extractCompanionRefs(
+        appointment.companion,
+      );
+
+      await prisma.invoice.create({
+        data: {
+          appointmentId,
+          organisationId: appointment.organisationId,
+          parentId: parentId ?? undefined,
+          companionId: companionId ?? undefined,
+          currency: pi.currency ?? "usd",
+          status: "PAID",
+          items: [
+            {
+              name: service.name,
+              description: service.description ?? undefined,
+              quantity: 1,
+              unitPrice: service.cost,
+              total: service.cost,
+            },
+          ] as unknown as Prisma.InputJsonValue,
+          subtotal: service.cost,
+          discountTotal: 0,
+          taxTotal: 0,
+          totalAmount: service.cost,
+          stripePaymentIntentId: pi.id,
+          stripeChargeId: charge.id,
+          stripeReceiptUrl: charge.receipt_url ?? undefined,
+        },
+      });
+
+      await prisma.appointment.updateMany({
+        where: { id: appointmentId },
+        data: {
+          status: "REQUESTED",
+          updatedAt: new Date(),
+          expiresAt: null,
+        },
+      });
+
+      logger.info(`Appointment ${appointmentId} booking PAID. Invoice created`);
+      return;
+    }
 
     const appointment = await AppointmentModel.findById(appointmentId);
     if (!appointment) return;
@@ -1289,6 +1967,37 @@ export const StripeService = {
     const invoiceId = pi.metadata?.invoiceId;
     if (!invoiceId) return;
 
+    if (isReadFromPostgres()) {
+      const invoice = await prisma.invoice.findUnique({
+        where: { id: invoiceId },
+      });
+      if (!invoice) return;
+
+      if (invoice.status === "PAID") return;
+
+      if (invoice.paymentCollectionMethod !== "PAYMENT_INTENT") {
+        await this._refundByPaymentIntentId(pi.id);
+        return;
+      }
+
+      const chargeId = pi.latest_charge as string;
+      const charge = await getStripeClient().charges.retrieve(chargeId);
+
+      await prisma.invoice.updateMany({
+        where: { id: invoiceId },
+        data: {
+          status: "PAID",
+          stripePaymentIntentId: pi.id,
+          stripeChargeId: charge.id,
+          stripeReceiptUrl: charge.receipt_url ?? undefined,
+          updatedAt: new Date(),
+        },
+      });
+
+      logger.info(`Invoice ${invoiceId} marked PAID`);
+      return;
+    }
+
     const invoice = await InvoiceModel.findById(invoiceId);
     if (!invoice) return;
 
@@ -1333,6 +2042,19 @@ export const StripeService = {
     const appointmentId = pi.metadata?.appointmentId;
     if (!appointmentId) return;
 
+    if (isReadFromPostgres()) {
+      const invoice = await prisma.invoice.findFirst({
+        where: { appointmentId },
+      });
+      if (!invoice) return;
+      await prisma.invoice.updateMany({
+        where: { id: invoice.id },
+        data: { status: "FAILED" },
+      });
+      logger.warn(`Invoice ${invoice.id} marked FAILED`);
+      return;
+    }
+
     const invoice = await InvoiceModel.findOne({ appointmentId });
     if (!invoice) return;
 
@@ -1353,6 +2075,31 @@ export const StripeService = {
   async _handleRefund(charge: Stripe.Charge) {
     const appointmentId = charge.metadata?.appointmentId;
     if (!appointmentId) return;
+
+    if (isReadFromPostgres()) {
+      const invoice = await prisma.invoice.findFirst({
+        where: { appointmentId },
+      });
+      if (!invoice) return;
+      await prisma.invoice.updateMany({
+        where: { id: invoice.id },
+        data: { status: "REFUNDED" },
+      });
+
+      const notificationPayload = NotificationTemplates.Payment.REFUND_ISSUED(
+        charge.amount / 100,
+        charge.currency,
+      );
+      if (invoice.parentId) {
+        await NotificationService.sendToUser(
+          invoice.parentId,
+          notificationPayload,
+        );
+      }
+
+      logger.warn(`Invoice ${invoice.id} marked REFUNDED`);
+      return;
+    }
 
     const invoice = await InvoiceModel.findOne({ appointmentId });
     if (!invoice) return;
@@ -1396,6 +2143,33 @@ export const StripeService = {
     const productId =
       typeof price.product === "string" ? price.product : price.product?.id;
 
+    if (isReadFromPostgres()) {
+      await prisma.organizationBilling.updateMany({
+        where: { stripeCustomerId: customerId },
+        data: {
+          plan: "business",
+          accessState: "active",
+          upgradedAt: new Date(),
+          stripeSubscriptionId: subscription.id,
+          stripeSubscriptionItemId: item.id,
+          stripePriceId: price.id,
+          stripeProductId: productId ?? null,
+          billingInterval: toBillingInterval(price.recurring?.interval),
+          joinedAt: new Date(),
+          subscriptionStatus:
+            toSubscriptionStatus(subscription.status) ?? "none",
+          cancelAtPeriodEnd: subscription.cancel_at_period_end ?? false,
+          seatQuantity: item.quantity ?? 0,
+          seatQuantityUpdatedAt: new Date(),
+          currentPeriodStart: new Date(item.current_period_start * 1000),
+          currentPeriodEnd: new Date(item.current_period_end * 1000),
+          stripeLivemode: session.livemode ?? false,
+          gracePeriodEndsAt: null,
+        },
+      });
+      return;
+    }
+
     await OrgBilling.updateOne(
       { stripeCustomerId: customerId },
       {
@@ -1436,7 +2210,8 @@ export const StripeService = {
             stripeProductId: productId ?? null,
             billingInterval: toBillingInterval(price.recurring?.interval),
             joinedAt: new Date(),
-            subscriptionStatus: toSubscriptionStatus(subscription.status) ?? "none",
+            subscriptionStatus:
+              toSubscriptionStatus(subscription.status) ?? "none",
             cancelAtPeriodEnd: subscription.cancel_at_period_end ?? false,
             seatQuantity: item.quantity ?? 0,
             seatQuantityUpdatedAt: new Date(),
@@ -1455,6 +2230,48 @@ export const StripeService = {
   async _handleInvoiceCheckout(session: Stripe.Checkout.Session) {
     const invoiceId = session.metadata?.invoiceId;
     if (!invoiceId) return;
+
+    if (isReadFromPostgres()) {
+      const invoice = await prisma.invoice.findUnique({
+        where: { id: invoiceId },
+      });
+      if (!invoice) return;
+
+      if (invoice.status === "PAID") return;
+
+      const shouldRefundPayment =
+        invoice.paymentCollectionMethod !== "PAYMENT_LINK" ||
+        (invoice.stripeCheckoutSessionId &&
+          invoice.stripeCheckoutSessionId !== session.id);
+
+      if (shouldRefundPayment) {
+        await this._refundCheckoutSession(session);
+        return;
+      }
+
+      await prisma.invoice.updateMany({
+        where: { id: invoiceId },
+        data: { status: "PAID", paidAt: new Date(), updatedAt: new Date() },
+      });
+
+      if (invoice.appointmentId) {
+        await prisma.appointment.updateMany({
+          where: { id: invoice.appointmentId },
+          data: { updatedAt: new Date() },
+        });
+      }
+
+      if (invoice.parentId) {
+        await NotificationService.sendToUser(
+          invoice.parentId,
+          NotificationTemplates.Payment.PAYMENT_SUCCESS(
+            invoice.totalAmount,
+            invoice.currency,
+          ),
+        );
+      }
+      return;
+    }
 
     const invoice = await InvoiceModel.findById(invoiceId);
     if (!invoice) return;

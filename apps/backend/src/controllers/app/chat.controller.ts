@@ -5,6 +5,8 @@ import ChatSessionModel from "src/models/chatSession";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import logger from "src/utils/logger";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
+import { prisma } from "src/config/prisma";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 const resolveUserIdFromRequest = (req: Request): string | undefined => {
   const authReq = req as AuthenticatedRequest;
@@ -186,13 +188,22 @@ export const ChatController = {
         return res.status(400).json({ message: "organisationId required" });
       }
 
-      const sessions = await ChatSessionModel.find({
-        organisationId,
-        members: userId,
-        status: { $ne: "CLOSED" },
-      })
-        .sort({ updatedAt: -1 })
-        .lean();
+      const sessions = isReadFromPostgres()
+        ? await prisma.chatSession.findMany({
+            where: {
+              organisationId,
+              members: { has: userId },
+              status: { not: "CLOSED" },
+            },
+            orderBy: { updatedAt: "desc" },
+          })
+        : await ChatSessionModel.find({
+            organisationId,
+            members: userId,
+            status: { $ne: "CLOSED" },
+          })
+            .sort({ updatedAt: -1 })
+            .lean();
 
       return res.status(200).json(sessions);
     } catch (err) {

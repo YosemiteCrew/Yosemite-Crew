@@ -11,6 +11,7 @@ import CodeMappingModel, {
 import { prisma } from "src/config/prisma";
 import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 import { Prisma } from "@prisma/client";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 export class CodeServiceError extends Error {
   constructor(
@@ -25,9 +26,7 @@ export class CodeServiceError extends Error {
 const syncCodeEntryToPostgres = async (doc: CodeEntryDocument) => {
   if (!shouldDualWrite) return;
   try {
-    const toJsonInput = (
-      value: Record<string, unknown> | null | undefined,
-    ) => {
+    const toJsonInput = (value: Record<string, unknown> | null | undefined) => {
       if (value === null) return Prisma.JsonNull;
       if (value === undefined) return undefined;
       return value as Prisma.InputJsonValue;
@@ -47,9 +46,7 @@ const syncCodeEntryToPostgres = async (doc: CodeEntryDocument) => {
         type: doc.type,
         active: doc.active,
         synonyms:
-          doc.synonyms === null
-            ? Prisma.JsonNull
-            : (doc.synonyms ?? undefined),
+          doc.synonyms === null ? Prisma.JsonNull : (doc.synonyms ?? undefined),
         meta: toJsonInput(doc.meta),
       },
       update: {
@@ -57,9 +54,7 @@ const syncCodeEntryToPostgres = async (doc: CodeEntryDocument) => {
         type: doc.type,
         active: doc.active,
         synonyms:
-          doc.synonyms === null
-            ? Prisma.JsonNull
-            : (doc.synonyms ?? undefined),
+          doc.synonyms === null ? Prisma.JsonNull : (doc.synonyms ?? undefined),
         meta: toJsonInput(doc.meta),
       },
     });
@@ -172,6 +167,25 @@ export const CodeService = {
       ];
     }
 
+    if (isReadFromPostgres()) {
+      const where: Prisma.CodeEntryWhereInput = {};
+      if (system) where.system = system;
+      if (type) where.type = type;
+      if (typeof active === "boolean") where.active = active;
+      if (query) {
+        where.OR = [
+          { code: { contains: query, mode: "insensitive" } },
+          { display: { contains: query, mode: "insensitive" } },
+        ];
+      }
+
+      return prisma.codeEntry.findMany({
+        where,
+        orderBy: { display: "asc" },
+        take: limit && limit > 0 ? limit : undefined,
+      });
+    }
+
     const cursor = CodeEntryModel.find(filter).sort({ display: 1 });
 
     if (limit && limit > 0) {
@@ -197,6 +211,20 @@ export const CodeService = {
     if (targetSystem) filter.targetSystem = targetSystem;
     if (targetCode) filter.targetCode = targetCode;
     if (typeof active === "boolean") filter.active = active;
+
+    if (isReadFromPostgres()) {
+      const where: Prisma.CodeMappingWhereInput = {};
+      if (sourceSystem) where.sourceSystem = sourceSystem;
+      if (sourceCode) where.sourceCode = sourceCode;
+      if (targetSystem) where.targetSystem = targetSystem;
+      if (targetCode) where.targetCode = targetCode;
+      if (typeof active === "boolean") where.active = active;
+
+      return prisma.codeMapping.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+      });
+    }
 
     return CodeMappingModel.find(filter).sort({ createdAt: -1 }).lean();
   },

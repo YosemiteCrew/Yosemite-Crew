@@ -20,6 +20,7 @@ import helpers from "src/utils/helper";
 import { prisma } from "src/config/prisma";
 import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 import { ServiceType } from "@prisma/client";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 dayjs.extend(utc);
 
@@ -43,6 +44,71 @@ const ensureObjectId = (id: string | Types.ObjectId, field: string) => {
     throw new ServiceServiceError(`Invalid ${field}`, 400);
   }
   return new Types.ObjectId(id);
+};
+
+const requireSafeString = (value: string, field: string) => {
+  if (!value || typeof value !== "string") {
+    throw new ServiceServiceError(`Invalid ${field}`, 400);
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw new ServiceServiceError(`Invalid ${field}`, 400);
+  }
+  if (trimmed.includes("$")) {
+    throw new ServiceServiceError(`Invalid ${field}`, 400);
+  }
+  return trimmed;
+};
+
+const mapPrismaToDomain = (service: {
+  id: string;
+  organisationId: string;
+  name: string;
+  description: string | null;
+  durationMinutes: number;
+  cost: number;
+  maxDiscount: number | null;
+  specialityId: string | null;
+  serviceType: ServiceType;
+  observationToolId: string | null;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}): Service => ({
+  id: service.id,
+  organisationId: service.organisationId,
+  name: service.name,
+  description: service.description ?? null,
+  durationMinutes: service.durationMinutes,
+  cost: service.cost,
+  maxDiscount: service.maxDiscount ?? null,
+  specialityId: service.specialityId ?? null,
+  serviceType: service.serviceType,
+  observationToolId: service.observationToolId ?? null,
+  isActive: service.isActive,
+  createdAt: service.createdAt,
+  updatedAt: service.updatedAt,
+});
+
+const toRadians = (value: number) => (value * Math.PI) / 180;
+
+const calculateDistanceMeters = (
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+) => {
+  const earthRadiusMeters = 6371000;
+  const dLat = toRadians(lat2 - lat1);
+  const dLng = toRadians(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRadians(lat1)) *
+      Math.cos(toRadians(lat2)) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return earthRadiusMeters * c;
 };
 
 const mapDocToDomain = (doc: ServiceDocument): Service => {
@@ -133,6 +199,15 @@ export const ServiceService = {
   },
 
   async getById(id: string) {
+    if (isReadFromPostgres()) {
+      const safeId = requireSafeString(id, "serviceId");
+      const service = await prisma.service.findFirst({
+        where: { id: safeId },
+      });
+      if (!service) return null;
+      return toServiceResponseDTO(mapPrismaToDomain(service));
+    }
+
     const oid = ensureObjectId(id, "serviceId");
     const doc = await ServiceModel.findById(oid);
     if (!doc) return null;
@@ -140,6 +215,16 @@ export const ServiceService = {
   },
 
   async listByOrganisation(organisationId: string) {
+    if (isReadFromPostgres()) {
+      const safeOrgId = requireSafeString(organisationId, "organisationId");
+      const services = await prisma.service.findMany({
+        where: { organisationId: safeOrgId, isActive: true },
+      });
+      return services.map((service) =>
+        toServiceResponseDTO(mapPrismaToDomain(service)),
+      );
+    }
+
     const oid = ensureObjectId(organisationId, "organisationId");
     const docs = await ServiceModel.find({
       organisationId: oid,
@@ -232,6 +317,33 @@ export const ServiceService = {
   },
 
   async search(query: string, organisationId?: string) {
+    if (isReadFromPostgres()) {
+      const where: {
+        isActive: boolean;
+        organisationId?: string;
+        name?: { contains: string; mode: "insensitive" };
+      } = { isActive: true };
+
+      if (organisationId) {
+        where.organisationId = requireSafeString(
+          organisationId,
+          "organisationId",
+        );
+      }
+
+      if (query?.trim()) {
+        where.name = { contains: query.trim(), mode: "insensitive" };
+      }
+
+      const services = await prisma.service.findMany({
+        where,
+        take: 50,
+      });
+      return services.map((service) =>
+        toServiceResponseDTO(mapPrismaToDomain(service)),
+      );
+    }
+
     const filter: FilterQuery<ServiceMongo> = { isActive: true };
 
     if (organisationId) {
@@ -246,6 +358,16 @@ export const ServiceService = {
   },
 
   async listBySpeciality(specialityId: string) {
+    if (isReadFromPostgres()) {
+      const safeSpecId = requireSafeString(specialityId, "specialityId");
+      const services = await prisma.service.findMany({
+        where: { specialityId: safeSpecId, isActive: true },
+      });
+      return services.map((service) =>
+        toServiceResponseDTO(mapPrismaToDomain(service)),
+      );
+    }
+
     const specId = ensureObjectId(specialityId, "specialityId");
 
     const docs = await ServiceModel.find({
@@ -257,6 +379,44 @@ export const ServiceService = {
   },
 
   async listOrganisationsProvidingService(serviceName: string) {
+    if (isReadFromPostgres()) {
+      const safeName = serviceName.trim();
+      if (!safeName) return [];
+
+      const services = await prisma.service.findMany({
+        where: { name: { contains: safeName, mode: "insensitive" } },
+        select: { organisationId: true },
+      });
+
+      if (!services.length) return [];
+
+      const orgIds = [...new Set(services.map((s) => s.organisationId))];
+
+      const organisations = await prisma.organization.findMany({
+        where: { id: { in: orgIds } },
+        include: { address: true },
+      });
+
+      return organisations.map((org) => ({
+        id: org.id,
+        name: org.name,
+        imageURL: org.imageUrl ?? undefined,
+        phoneNo: org.phoneNo ?? undefined,
+        type: org.type,
+        address: org.address
+          ? {
+              addressLine: org.address.addressLine ?? undefined,
+              country: org.address.country ?? undefined,
+              city: org.address.city ?? undefined,
+              state: org.address.state ?? undefined,
+              postalCode: org.address.postalCode ?? undefined,
+              latitude: org.address.latitude ?? undefined,
+              longitude: org.address.longitude ?? undefined,
+            }
+          : undefined,
+      }));
+    }
+
     const safe = escapeStringRegexp(serviceName.trim());
     const searchRegex = new RegExp(safe);
 
@@ -295,6 +455,108 @@ export const ServiceService = {
     organisationId: string,
     referenceDate: Date,
   ) {
+    if (isReadFromPostgres()) {
+      const safeServiceId = requireSafeString(serviceId, "serviceId");
+      const service = await prisma.service.findFirst({
+        where: { id: safeServiceId },
+      });
+      if (!service) throw new Error("Service not found");
+
+      const { specialityId, durationMinutes } = service;
+
+      const speciality = await prisma.speciality.findFirst({
+        where: { id: specialityId ?? undefined },
+      });
+      if (!speciality) throw new Error("Speciality not found");
+
+      const vetIds = speciality.memberUserIds || [];
+
+      if (vetIds.length === 0) {
+        return {
+          date: referenceDate,
+          windows: [],
+        };
+      }
+
+      /**
+       * STEP 1: Collect slots with vetId attached
+       */
+      const allSlots: Array<BookableSlotWithVets> = [];
+
+      for (const vetId of vetIds) {
+        const result = await AvailabilityService.getBookableSlotsForDate(
+          organisationId,
+          vetId,
+          durationMinutes,
+          referenceDate,
+        );
+
+        if (result?.windows?.length) {
+          for (const slot of result.windows) {
+            allSlots.push({
+              ...slot,
+              vetIds: [vetId],
+            });
+          }
+        }
+      }
+
+      /**
+       * STEP 2: Deduplicate slots and merge vetIds
+       */
+      const slotMap = new Map<string, BookableSlotWithVets>();
+
+      for (const slot of allSlots) {
+        const key = `${slot.startTime}-${slot.endTime}`;
+
+        if (slotMap.has(key)) {
+          const existing = slotMap.get(key)!;
+          existing.vetIds.push(...slot.vetIds);
+        } else {
+          slotMap.set(key, slot);
+        }
+      }
+
+      let finalWindows = Array.from(slotMap.values()).map((slot) => ({
+        ...slot,
+        vetIds: Array.from(new Set(slot.vetIds)), // ensure uniqueness
+      }));
+
+      /**
+       * STEP 3: Remove past slots if today
+       */
+      const todayStr = dayjs().utc().format("YYYY-MM-DD");
+      const refStr = dayjs(referenceDate).utc().format("YYYY-MM-DD");
+
+      if (refStr === todayStr) {
+        const now = dayjs().utc();
+
+        finalWindows = finalWindows.filter((slot) => {
+          const slotTime = dayjs.utc(
+            `${refStr} ${slot.startTime}`,
+            "YYYY-MM-DD HH:mm",
+            true,
+          );
+          return slotTime.isAfter(now);
+        });
+      }
+
+      /**
+       * STEP 4: Sort slots by start time
+       */
+      finalWindows.sort((a, b) => {
+        const t1 = dayjs(`2000-01-01 ${a.startTime}`);
+        const t2 = dayjs(`2000-01-01 ${b.startTime}`);
+        return t1.valueOf() - t2.valueOf();
+      });
+
+      return {
+        date: refStr,
+        dayOfWeek: dayjs(referenceDate).utc().format("dddd").toUpperCase(),
+        windows: finalWindows,
+      };
+    }
+
     const id = ensureObjectId(serviceId, "serviceId");
 
     const service = await ServiceModel.findById(id);
@@ -400,6 +662,115 @@ export const ServiceService = {
     query?: string,
     radius = 5000,
   ) {
+    if (isReadFromPostgres()) {
+      const safeName = serviceName.trim();
+      if (!safeName) return [];
+
+      const matchedServices = await prisma.service.findMany({
+        where: { name: { contains: safeName, mode: "insensitive" } },
+        select: { organisationId: true },
+      });
+      if (!matchedServices.length) return [];
+
+      const orgIds = [...new Set(matchedServices.map((s) => s.organisationId))];
+
+      if (!lat && !lng) {
+        const result = (await helpers.getGeoLocation(query!)) as {
+          lat: number;
+          lng: number;
+        };
+        lat = result.lat;
+        lng = result.lng;
+      }
+
+      const metersPerDegreeLat = 111000;
+      const latDelta = radius / metersPerDegreeLat;
+      const lngDelta = radius / (metersPerDegreeLat * Math.cos(toRadians(lat)));
+
+      const organisations = await prisma.organization.findMany({
+        where: {
+          id: { in: orgIds },
+          address: {
+            is: {
+              latitude: { gte: lat - latDelta, lte: lat + latDelta },
+              longitude: { gte: lng - lngDelta, lte: lng + lngDelta },
+            },
+          },
+        },
+        include: { address: true },
+      });
+
+      const nearbyOrgs = organisations.filter((org) => {
+        if (!org.address?.latitude || !org.address?.longitude) {
+          return false;
+        }
+        const distance = calculateDistanceMeters(
+          lat,
+          lng,
+          org.address.latitude,
+          org.address.longitude,
+        );
+        return distance <= radius;
+      });
+
+      const allSpecialities = await prisma.speciality.findMany({
+        where: { organisationId: { in: orgIds } },
+        select: { id: true, name: true, organisationId: true },
+      });
+
+      const allServicesForOrgs = await prisma.service.findMany({
+        where: { organisationId: { in: orgIds } },
+        select: {
+          id: true,
+          name: true,
+          cost: true,
+          specialityId: true,
+          organisationId: true,
+        },
+      });
+
+      return nearbyOrgs.map((org) => {
+        const orgSpecialities = allSpecialities.filter(
+          (s) => s.organisationId === org.id,
+        );
+
+        const orgServices = allServicesForOrgs.filter(
+          (s) => s.organisationId === org.id,
+        );
+
+        const specialitiesWithServices = orgSpecialities.map((spec) => {
+          const specServices = orgServices.filter(
+            (srv) => srv.specialityId === spec.id,
+          );
+
+          return {
+            ...spec,
+            services: specServices,
+          };
+        });
+
+        return {
+          id: org.id,
+          name: org.name,
+          imageURL: org.imageUrl ?? undefined,
+          phoneNo: org.phoneNo ?? undefined,
+          type: org.type,
+          address: org.address
+            ? {
+                addressLine: org.address.addressLine ?? undefined,
+                country: org.address.country ?? undefined,
+                city: org.address.city ?? undefined,
+                state: org.address.state ?? undefined,
+                postalCode: org.address.postalCode ?? undefined,
+                latitude: org.address.latitude ?? undefined,
+                longitude: org.address.longitude ?? undefined,
+              }
+            : undefined,
+          specialities: specialitiesWithServices,
+        };
+      });
+    }
+
     const safe = escapeStringRegexp(serviceName.trim());
     const searchRegex = new RegExp(safe, "i");
 

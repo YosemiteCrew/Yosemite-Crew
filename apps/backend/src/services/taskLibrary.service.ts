@@ -12,6 +12,7 @@ import {
   TaskLibrarySpecies,
   TaskSource as PrismaTaskSource,
 } from "@prisma/client";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 export class TaskLibraryServiceError extends Error {
   constructor(
@@ -63,7 +64,10 @@ const sanitizeTaskName = (value: unknown, field = "name"): string => {
 };
 
 const ensureObjectId = (value: unknown, field: string): string => {
-  if (typeof value !== "string" || !Types.ObjectId.isValid(value)) {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new TaskLibraryServiceError(`Invalid ${field}`, 400);
+  }
+  if (!isReadFromPostgres() && !Types.ObjectId.isValid(value)) {
     throw new TaskLibraryServiceError(`Invalid ${field}`, 400);
   }
   return value;
@@ -216,6 +220,28 @@ export const TaskLibraryService = {
       );
     }
 
+    if (isReadFromPostgres()) {
+      const doc = await prisma.taskLibraryDefinition.create({
+        data: {
+          source: "YC_LIBRARY",
+          kind: kind as PrismaTaskKind,
+          category: input.category,
+          name: safeName,
+          defaultDescription: input.defaultDescription ?? undefined,
+          applicableSpecies: (input.applicableSpecies ??
+            []) as unknown as TaskLibrarySpecies[],
+          schema: {
+            medicationFields: input.schema.medicationFields ?? {},
+            requiresObservationTool:
+              input.schema.requiresObservationTool ?? false,
+            recurrence: input.schema.recurrence,
+          } as unknown as Prisma.InputJsonValue,
+          isActive: true,
+        },
+      });
+      return doc as unknown as TaskLibraryDefinitionDocument;
+    }
+
     const doc = await TaskLibraryDefinitionModel.create({
       source: "YC_LIBRARY",
       kind,
@@ -244,6 +270,24 @@ export const TaskLibraryService = {
       filter.kind = safeKind;
     }
 
+    if (isReadFromPostgres()) {
+      const where: { isActive: boolean; kind?: PrismaTaskKind } = {
+        isActive: true,
+      };
+      if (kind) {
+        const safeKind = sanitizeTaskKind(kind);
+        if (!safeKind) {
+          throw new TaskLibraryServiceError("Invalid kind", 400);
+        }
+        where.kind = safeKind as PrismaTaskKind;
+      }
+      const docs = await prisma.taskLibraryDefinition.findMany({
+        where,
+        orderBy: [{ category: "asc" }, { name: "asc" }],
+      });
+      return docs as unknown as TaskLibraryDefinitionDocument[];
+    }
+
     return TaskLibraryDefinitionModel.find(filter)
       .sort({ category: 1, name: 1 })
       .exec();
@@ -251,6 +295,16 @@ export const TaskLibraryService = {
 
   async getById(id: string): Promise<TaskLibraryDefinitionDocument> {
     const safeId = ensureObjectId(id, "id");
+    if (isReadFromPostgres()) {
+      const doc = await prisma.taskLibraryDefinition.findFirst({
+        where: { id: safeId },
+      });
+      if (!doc) {
+        throw new TaskLibraryServiceError("Library task not found", 404);
+      }
+      return doc as unknown as TaskLibraryDefinitionDocument;
+    }
+
     const doc = await TaskLibraryDefinitionModel.findById(safeId).exec();
     if (!doc) {
       throw new TaskLibraryServiceError("Library task not found", 404);
@@ -283,6 +337,30 @@ export const TaskLibraryService = {
       filter.kind = safeKind;
     }
 
+    if (isReadFromPostgres()) {
+      const where: Prisma.TaskLibraryDefinitionWhereInput = {
+        isActive: true,
+        OR: [
+          { applicableSpecies: { has: species as TaskLibrarySpecies } },
+          { applicableSpecies: { isEmpty: true } },
+        ],
+      };
+
+      if (params.kind) {
+        const safeKind = sanitizeTaskKind(params.kind);
+        if (!safeKind) {
+          throw new TaskLibraryServiceError("Invalid kind", 400);
+        }
+        where.kind = safeKind as PrismaTaskKind;
+      }
+
+      const docs = await prisma.taskLibraryDefinition.findMany({
+        where,
+        orderBy: [{ category: "asc" }, { name: "asc" }],
+      });
+      return docs as unknown as TaskLibraryDefinitionDocument[];
+    }
+
     return TaskLibraryDefinitionModel.find(filter)
       .sort({ category: 1, name: 1 })
       .exec();
@@ -293,6 +371,47 @@ export const TaskLibraryService = {
     input: UpdateTaskLibraryDefinitionInput,
   ): Promise<TaskLibraryDefinitionDocument> {
     const safeId = ensureObjectId(id, "id");
+    if (isReadFromPostgres()) {
+      const existing = await prisma.taskLibraryDefinition.findFirst({
+        where: { id: safeId },
+      });
+      if (!existing) {
+        throw new TaskLibraryServiceError("Library task not found", 404);
+      }
+
+      const updated = await prisma.taskLibraryDefinition.update({
+        where: { id: safeId },
+        data: {
+          category: input.category ?? existing.category,
+          name:
+            input.name !== undefined
+              ? sanitizeTaskName(input.name)
+              : existing.name,
+          defaultDescription:
+            input.defaultDescription !== undefined
+              ? (input.defaultDescription ?? undefined)
+              : (existing.defaultDescription ?? undefined),
+          applicableSpecies:
+            input.applicableSpecies !== undefined
+              ? ((input.applicableSpecies ??
+                  []) as unknown as TaskLibrarySpecies[])
+              : existing.applicableSpecies,
+          schema:
+            input.schema !== undefined
+              ? ({
+                  medicationFields: input.schema.medicationFields ?? {},
+                  requiresObservationTool:
+                    input.schema.requiresObservationTool ?? false,
+                  recurrence: input.schema.recurrence ?? undefined,
+                } as unknown as Prisma.InputJsonValue)
+              : (existing.schema as Prisma.InputJsonValue),
+          isActive: input.isActive ?? existing.isActive,
+        },
+      });
+
+      return updated as unknown as TaskLibraryDefinitionDocument;
+    }
+
     const doc = await TaskLibraryDefinitionModel.findById(safeId).exec();
     if (!doc) {
       throw new TaskLibraryServiceError("Library task not found", 404);

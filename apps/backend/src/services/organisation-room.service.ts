@@ -14,6 +14,7 @@ import {
 import { prisma } from "src/config/prisma";
 import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 import { RoomType } from "@prisma/client";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 export type OrganisationRoomFHIRPayload = OrganisationRoomRequestDTO;
 
@@ -237,6 +238,24 @@ const buildFHIRResponse = (
 ): OrganisationRoomResponseDTO =>
   toOrganisationRoomResponseDTO(buildDomainRoom(document));
 
+const buildFHIRResponseFromPrisma = (room: {
+  id: string;
+  fhirId: string | null;
+  organisationId: string;
+  name: string;
+  type: RoomType;
+  assignedSpecialiteis: string[];
+  assignedStaffs: string[];
+}): OrganisationRoomResponseDTO =>
+  toOrganisationRoomResponseDTO({
+    id: room.fhirId ?? room.id,
+    name: room.name,
+    organisationId: room.organisationId,
+    type: room.type,
+    assignedSpecialiteis: room.assignedSpecialiteis ?? [],
+    assignedStaffs: room.assignedStaffs ?? [],
+  });
+
 const createPersistableFromFHIR = (payload: OrganisationRoomFHIRPayload) => {
   if (payload?.resourceType !== "Location") {
     throw new OrganisationRoomServiceError(
@@ -358,6 +377,13 @@ export const OrganisationRoomService = {
 
   async getAllByOrganizationId(organisationId: string) {
     const orgId = requireOrganizationId(organisationId);
+
+    if (isReadFromPostgres()) {
+      const rooms = await prisma.organisationRoom.findMany({
+        where: { organisationId: orgId },
+      });
+      return rooms.map((room) => buildFHIRResponseFromPrisma(room));
+    }
 
     const documents = await OrganisationRoomModel.find({
       organisationId: orgId,

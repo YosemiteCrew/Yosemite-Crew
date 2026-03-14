@@ -28,6 +28,15 @@ const resolveUserIdFromRequest = (req: Request): string | undefined => {
   return Array.isArray(headerUserId) ? headerUserId[0] : authRequest.userId;
 };
 
+const resolveParentId = (parent: {
+  id?: string;
+  _id?: { toString(): string };
+}): string => {
+  if ("id" in parent && typeof parent.id === "string") return parent.id;
+  if ("_id" in parent && parent._id) return parent._id.toString();
+  throw new Error("Parent id missing");
+};
+
 export const CoParentInviteController = {
   sendInvite: async (req: Request, res: Response) => {
     try {
@@ -55,7 +64,7 @@ export const CoParentInviteController = {
       await CoParentInviteService.sendInvite({
         email,
         companionId,
-        invitedByParentId: inviterParent._id.toString(),
+        invitedByParentId: resolveParentId(inviterParent),
         inviteeName,
       });
 

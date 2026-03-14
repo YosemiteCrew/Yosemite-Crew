@@ -9,6 +9,8 @@ import CompanionModel from "../models/companion";
 import { ParentModel } from "src/models/parent";
 import { toFHIR as toFHIRCompanion } from "./companion.service";
 import { toFHIR as toFHIRParent } from "./parent.service";
+import { toFHIRFromPrisma as toFHIRCompanionFromPrisma } from "./companion.service";
+import { toFHIRFromPrisma as toFHIRParentFromPrisma } from "./parent.service";
 import { AuditTrailService } from "./audit-trail.service";
 import { prisma } from "src/config/prisma";
 import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
@@ -17,6 +19,7 @@ import {
   CompanionOrganisationStatus,
   OrganisationType,
 } from "@prisma/client";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 type BusinessType = "HOSPITAL" | "BREEDER" | "BOARDER" | "GROOMER";
 
@@ -253,6 +256,22 @@ export const CompanionOrganisationService = {
   async validateInvite(token: string) {
     if (!token)
       throw new CompanionOrganisationServiceError("Invite token missing", 400);
+
+    if (isReadFromPostgres()) {
+      const invite = await prisma.companionOrganisation.findFirst({
+        where: {
+          inviteToken: token,
+          status: "PENDING",
+        },
+      });
+      if (!invite) {
+        throw new CompanionOrganisationServiceError(
+          "Invalid or expired invite",
+          404,
+        );
+      }
+      return { ...invite, _id: invite.id };
+    }
 
     const invite = await CompanionOrganisationModel.findOne({
       inviteToken: token,
@@ -533,6 +552,12 @@ export const CompanionOrganisationService = {
 
   async getLinksForCompanion(companionId: string | Types.ObjectId) {
     const id = ensureObjectId(companionId, "companionId");
+    if (isReadFromPostgres()) {
+      const links = await prisma.companionOrganisation.findMany({
+        where: { companionId: id.toString() },
+      });
+      return links.map((link) => ({ ...link, _id: link.id }));
+    }
     return CompanionOrganisationModel.find({ companionId: id });
   },
 
@@ -542,6 +567,43 @@ export const CompanionOrganisationService = {
   ) {
     companionId = assertSafeString(companionId, "companionId");
     const id = ensureObjectId(companionId, "companionId");
+    if (isReadFromPostgres()) {
+      const links = await prisma.companionOrganisation.findMany({
+        where: {
+          companionId: id.toString(),
+          organisationType: type,
+          OR: [
+            { status: "ACTIVE" },
+            { status: "PENDING", organisationId: { not: null } },
+          ],
+        },
+      });
+
+      const parentLink = await prisma.parentCompanion.findFirst({
+        where: { companionId: id.toString(), role: "PRIMARY" },
+      });
+
+      const companion = await prisma.companion.findUnique({
+        where: { id: id.toString() },
+      });
+
+      const parent = parentLink
+        ? await prisma.parent.findUnique({
+            where: { id: parentLink.parentId },
+          })
+        : null;
+
+      return {
+        links: links.map((link) => ({ ...link, _id: link.id })),
+        parentName: parent
+          ? [parent.firstName, parent.lastName].filter(Boolean).join(" ")
+          : undefined,
+        email: parent?.email,
+        companionName: companion?.name,
+        phoneNumber: parent?.phoneNumber ?? undefined,
+      };
+    }
+
     const links = await CompanionOrganisationModel.find({
       companionId: id,
       organisationType: type,
@@ -576,6 +638,54 @@ export const CompanionOrganisationService = {
 
   async getLinksForOrganisation(organisationId: string | Types.ObjectId) {
     const id = ensureObjectId(organisationId, "organisationId");
+
+    if (isReadFromPostgres()) {
+      const links = await prisma.companionOrganisation.findMany({
+        where: {
+          organisationId: id.toString(),
+          status: { in: ["ACTIVE", "PENDING"] },
+        },
+      });
+
+      const companionIds = Array.from(new Set(links.map((l) => l.companionId)));
+      const companions = await prisma.companion.findMany({
+        where: { id: { in: companionIds } },
+      });
+      const companionMap = new Map(companions.map((c) => [c.id, c]));
+
+      const parentLinks = await prisma.parentCompanion.findMany({
+        where: {
+          companionId: { in: companionIds },
+          role: "PRIMARY",
+          status: "ACTIVE",
+        },
+      });
+      const parentIds = Array.from(new Set(parentLinks.map((l) => l.parentId)));
+      const parents = await prisma.parent.findMany({
+        where: { id: { in: parentIds } },
+      });
+      const parentMap = new Map(parents.map((p) => [p.id, p]));
+      const parentByCompanion = new Map(
+        parentLinks.map((l) => [l.companionId, l.parentId]),
+      );
+
+      const results = links.map((link) => {
+        const companion = companionMap.get(link.companionId);
+        const parentId = parentByCompanion.get(link.companionId);
+        const parent = parentId ? parentMap.get(parentId) : null;
+
+        return {
+          linkId: link.id,
+          organisationId: link.organisationId ?? undefined,
+          organisationType: link.organisationType,
+          status: link.status,
+          companion: companion ? toFHIRCompanionFromPrisma(companion) : null,
+          parent: parent ? toFHIRParentFromPrisma(parent) : null,
+        };
+      });
+
+      return results.filter(Boolean);
+    }
 
     const links = await CompanionOrganisationModel.find({
       organisationId: id,

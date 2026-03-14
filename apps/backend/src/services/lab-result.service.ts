@@ -1,6 +1,8 @@
 import LabResultModel from "src/models/lab-result";
 import LabOrderModel from "src/models/lab-order";
 import { Types } from "mongoose";
+import { prisma } from "src/config/prisma";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 export class LabResultServiceError extends Error {
   constructor(
@@ -21,6 +23,30 @@ export const LabResultService = {
     limit?: number;
   }) {
     const filter: Record<string, unknown> = {};
+
+    if (isReadFromPostgres()) {
+      const where: Record<string, unknown> = {};
+      if (params.organisationId) where.organisationId = params.organisationId;
+      if (params.provider) where.provider = params.provider;
+      if (params.orderId) where.orderId = params.orderId;
+
+      if (params.companionId) {
+        const orders = await prisma.labOrder.findMany({
+          where: { companionId: params.companionId },
+          select: { idexxOrderId: true },
+        });
+        const orderIds = orders
+          .map((o) => o.idexxOrderId)
+          .filter(Boolean) as string[];
+        where.orderId = { in: orderIds };
+      }
+
+      return prisma.labResult.findMany({
+        where,
+        orderBy: { updatedAt: "desc" },
+        take: params.limit && params.limit > 0 ? params.limit : undefined,
+      });
+    }
 
     if (params.organisationId) filter.organisationId = params.organisationId;
     if (params.provider) filter.provider = params.provider;
@@ -50,6 +76,9 @@ export const LabResultService = {
   },
 
   async getByResultId(provider: string, resultId: string) {
+    if (isReadFromPostgres()) {
+      return prisma.labResult.findFirst({ where: { provider, resultId } });
+    }
     return LabResultModel.findOne({ provider, resultId }).lean();
   },
 };

@@ -17,6 +17,7 @@ import logger from "src/utils/logger";
 import { uploadBufferAsFile } from "src/middlewares/upload";
 import { DocumentService } from "src/services/document.service";
 import { TaskService } from "src/services/task.service";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 type LatestResultsResponse = {
   batchId?: string;
@@ -30,9 +31,7 @@ type IdexxResult = Record<string, unknown> & {
   patient?: Record<string, unknown>;
 };
 
-const toJsonInput = (
-  value: Record<string, unknown> | null | undefined,
-) => {
+const toJsonInput = (value: Record<string, unknown> | null | undefined) => {
   if (value === null) return Prisma.JsonNull;
   if (value === undefined) return undefined;
   return value as Prisma.InputJsonValue;
@@ -221,12 +220,21 @@ const ensureResultDocument = async (params: {
   pdfBuffer: Buffer;
 }) => {
   const title = `Lab Result ${params.resultId}`;
-  const existing = await DocumentModel.findOne({
-    companionId: params.companionId,
-    category: "HEALTH",
-    subcategory: "LAB_TESTS",
-    title,
-  }).lean();
+  const existing = isReadFromPostgres()
+    ? await prisma.document.findFirst({
+        where: {
+          companionId: params.companionId,
+          category: "HEALTH",
+          subcategory: "LAB_TESTS",
+          title,
+        },
+      })
+    : await DocumentModel.findOne({
+        companionId: params.companionId,
+        category: "HEALTH",
+        subcategory: "LAB_TESTS",
+        title,
+      }).lean();
 
   if (existing) return;
 
@@ -279,7 +287,8 @@ export const IdexxResultsService = {
     });
 
     for (let i = 0; i < maxBatches; i += 1) {
-      const latest = await client.getLatestResults<LatestResultsResponse>(limit);
+      const latest =
+        await client.getLatestResults<LatestResultsResponse>(limit);
       const batchId = latest.batchId;
       const results = Array.isArray(latest.results) ? latest.results : [];
 
@@ -295,36 +304,62 @@ export const IdexxResultsService = {
         let companionId: string | null = null;
 
         if (orderId) {
-          const order = await LabOrderModel.findOne({
-            idexxOrderId: orderId,
-          }).lean();
-          organisationId = order?.organisationId ?? null;
-          appointmentId = order?.appointmentId
-            ? order.appointmentId.toString()
-            : null;
-          createdByUserId = order?.createdByUserId ?? null;
-          companionId = order?.companionId ? order.companionId.toString() : null;
+          if (isReadFromPostgres()) {
+            const order = await prisma.labOrder.findFirst({
+              where: { idexxOrderId: orderId },
+            });
+            organisationId = order?.organisationId ?? null;
+            appointmentId = order?.appointmentId ?? null;
+            createdByUserId = order?.createdByUserId ?? null;
+            companionId = order?.companionId ?? null;
 
-          if (order) {
-            const mappedStatus = mapResultStatusToLabOrder(result);
-            if (mappedStatus) {
-              await LabOrderModel.updateOne(
-                { _id: order._id },
-                {
-                  $set: {
+            if (order) {
+              const mappedStatus = mapResultStatusToLabOrder(result);
+              if (mappedStatus) {
+                await prisma.labOrder.updateMany({
+                  where: { id: order.id },
+                  data: {
                     status: mappedStatus,
                     externalStatus: coerceString(result.status),
-                    responsePayload: result,
+                    responsePayload: toJsonInput(result),
                   },
-                },
-              );
+                });
+              }
+            }
+          } else {
+            const order = await LabOrderModel.findOne({
+              idexxOrderId: orderId,
+            }).lean();
+            organisationId = order?.organisationId ?? null;
+            appointmentId = order?.appointmentId
+              ? order.appointmentId.toString()
+              : null;
+            createdByUserId = order?.createdByUserId ?? null;
+            companionId = order?.companionId
+              ? order.companionId.toString()
+              : null;
 
-              await syncLabOrderStatusToPostgres({
-                id: order._id.toString(),
-                status: mappedStatus,
-                externalStatus: coerceString(result.status),
-                responsePayload: result,
-              });
+            if (order) {
+              const mappedStatus = mapResultStatusToLabOrder(result);
+              if (mappedStatus) {
+                await LabOrderModel.updateOne(
+                  { _id: order._id },
+                  {
+                    $set: {
+                      status: mappedStatus,
+                      externalStatus: coerceString(result.status),
+                      responsePayload: result,
+                    },
+                  },
+                );
+
+                await syncLabOrderStatusToPostgres({
+                  id: order._id.toString(),
+                  status: mappedStatus,
+                  externalStatus: coerceString(result.status),
+                  responsePayload: result,
+                });
+              }
             }
           }
         }
@@ -332,10 +367,15 @@ export const IdexxResultsService = {
         const patient: Record<string, unknown> = result.patient ?? {};
         const resultId = coerceStringOrEmpty(result.resultId);
 
-        const saved = await LabResultModel.findOneAndUpdate(
-          { provider: "IDEXX", resultId },
-          {
-            $set: {
+        if (isReadFromPostgres()) {
+          await prisma.labResult.upsert({
+            where: {
+              provider_resultId: {
+                provider: "IDEXX",
+                resultId,
+              },
+            },
+            create: {
               organisationId,
               provider: "IDEXX",
               resultId,
@@ -353,15 +393,67 @@ export const IdexxResultsService = {
               clientLastName: coerceString(patient.clientLastName),
               updatedDate: coerceString(result.updatedDate),
               updatedAuditDate: coerceString(result.updatedAuditDate),
-              specimenCollectionDate: coerceString(result.specimenCollectionDate),
-              rawPayload: result,
+              specimenCollectionDate: coerceString(
+                result.specimenCollectionDate,
+              ),
+              rawPayload: toJsonInput(result),
             },
-          },
-          { upsert: true, new: true },
-        );
+            update: {
+              organisationId,
+              orderId,
+              requisitionId: coerceString(result.requisitionId),
+              accessionId: coerceString(result.accessionId),
+              diagnosticSetId: coerceString(result.diagnosticSetId),
+              status: coerceString(result.status),
+              statusDetail: coerceString(result.statusDetail),
+              modality: coerceString(result.modality),
+              patientId: coerceString(patient.patientId),
+              patientName: coerceString(patient.name),
+              clientId: coerceString(patient.clientId),
+              clientFirstName: coerceString(patient.clientFirstName),
+              clientLastName: coerceString(patient.clientLastName),
+              updatedDate: coerceString(result.updatedDate),
+              updatedAuditDate: coerceString(result.updatedAuditDate),
+              specimenCollectionDate: coerceString(
+                result.specimenCollectionDate,
+              ),
+              rawPayload: toJsonInput(result),
+            },
+          });
+        } else {
+          const saved = await LabResultModel.findOneAndUpdate(
+            { provider: "IDEXX", resultId },
+            {
+              $set: {
+                organisationId,
+                provider: "IDEXX",
+                resultId,
+                orderId,
+                requisitionId: coerceString(result.requisitionId),
+                accessionId: coerceString(result.accessionId),
+                diagnosticSetId: coerceString(result.diagnosticSetId),
+                status: coerceString(result.status),
+                statusDetail: coerceString(result.statusDetail),
+                modality: coerceString(result.modality),
+                patientId: coerceString(patient.patientId),
+                patientName: coerceString(patient.name),
+                clientId: coerceString(patient.clientId),
+                clientFirstName: coerceString(patient.clientFirstName),
+                clientLastName: coerceString(patient.clientLastName),
+                updatedDate: coerceString(result.updatedDate),
+                updatedAuditDate: coerceString(result.updatedAuditDate),
+                specimenCollectionDate: coerceString(
+                  result.specimenCollectionDate,
+                ),
+                rawPayload: result,
+              },
+            },
+            { upsert: true, new: true },
+          );
 
-        if (saved) {
-          await syncLabResultToPostgres(saved);
+          if (saved) {
+            await syncLabResultToPostgres(saved);
+          }
         }
 
         if (
@@ -396,20 +488,37 @@ export const IdexxResultsService = {
 
       await client.confirmLatestBatch(batchId);
 
-      const state = await LabResultSyncStateModel.findOneAndUpdate(
-        { provider: "IDEXX" },
-        {
-          $set: {
+      if (isReadFromPostgres()) {
+        await prisma.labResultSyncState.upsert({
+          where: { provider: "IDEXX" },
+          create: {
+            provider: "IDEXX",
             lastBatchId: String(batchId),
             lastTimestamp: latest.timestamp ?? null,
             lastPolledAt: new Date(),
           },
-        },
-        { upsert: true, new: true },
-      );
+          update: {
+            lastBatchId: String(batchId),
+            lastTimestamp: latest.timestamp ?? null,
+            lastPolledAt: new Date(),
+          },
+        });
+      } else {
+        const state = await LabResultSyncStateModel.findOneAndUpdate(
+          { provider: "IDEXX" },
+          {
+            $set: {
+              lastBatchId: String(batchId),
+              lastTimestamp: latest.timestamp ?? null,
+              lastPolledAt: new Date(),
+            },
+          },
+          { upsert: true, new: true },
+        );
 
-      if (state) {
-        await syncStateToPostgres(state);
+        if (state) {
+          await syncStateToPostgres(state);
+        }
       }
 
       if (!latest.hasMoreResults) break;

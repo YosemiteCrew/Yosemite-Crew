@@ -8,6 +8,7 @@ import {
 import { prisma } from "src/config/prisma";
 import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 import { Prisma } from "@prisma/client";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 export class ObservationToolDefinitionServiceError extends Error {
   constructor(
@@ -26,7 +27,10 @@ const asNonEmptyString = (value: unknown): string | undefined => {
 };
 
 const ensureObjectId = (value: unknown, field: string): string => {
-  if (typeof value !== "string" || !Types.ObjectId.isValid(value)) {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new ObservationToolDefinitionServiceError(`Invalid ${field}`, 400);
+  }
+  if (!isReadFromPostgres() && !Types.ObjectId.isValid(value)) {
     throw new ObservationToolDefinitionServiceError(`Invalid ${field}`, 400);
   }
   return value;
@@ -53,7 +57,8 @@ const toPrismaObservationToolDefinitionData = (
     description: obj.description ?? undefined,
     category: obj.category,
     fields: obj.fields as unknown as Prisma.InputJsonValue,
-    scoringRules: (obj.scoringRules ?? undefined) as unknown as Prisma.InputJsonValue,
+    scoringRules: (obj.scoringRules ??
+      undefined) as unknown as Prisma.InputJsonValue,
     isActive: obj.isActive ?? true,
     createdAt: obj.createdAt ?? undefined,
     updatedAt: obj.updatedAt ?? undefined,
@@ -126,6 +131,28 @@ export const ObservationToolDefinitionService = {
       );
     }
 
+    if (isReadFromPostgres()) {
+      const doc = await prisma.observationToolDefinition.create({
+        data: {
+          name: input.name,
+          description: input.description ?? undefined,
+          category: input.category,
+          fields: input.fields.map((f) => ({
+            key: f.key,
+            label: f.label,
+            type: f.type,
+            required: f.required ?? false,
+            options: f.options,
+            scoring: f.scoring,
+          })) as unknown as Prisma.InputJsonValue,
+          scoringRules: (input.scoringRules ??
+            undefined) as unknown as Prisma.InputJsonValue,
+          isActive: true,
+        },
+      });
+      return doc as unknown as ObservationToolDefinitionDocument;
+    }
+
     const doc = await ObservationToolDefinitionModel.create({
       name: input.name,
       description: input.description,
@@ -152,6 +179,49 @@ export const ObservationToolDefinitionService = {
     input: UpdateObservationToolDefinitionInput,
   ): Promise<ObservationToolDefinitionDocument> {
     const safeId = ensureObjectId(id, "id");
+    if (isReadFromPostgres()) {
+      const existing = await prisma.observationToolDefinition.findFirst({
+        where: { id: safeId },
+      });
+      if (!existing) {
+        throw new ObservationToolDefinitionServiceError(
+          "Observation tool not found",
+          404,
+        );
+      }
+
+      const updated = await prisma.observationToolDefinition.update({
+        where: { id: safeId },
+        data: {
+          name: input.name ?? existing.name,
+          description:
+            input.description !== undefined
+              ? (input.description ?? undefined)
+              : (existing.description ?? undefined),
+          category: input.category ?? existing.category,
+          fields:
+            input.fields !== undefined
+              ? (input.fields.map((f) => ({
+                  key: f.key,
+                  label: f.label,
+                  type: f.type,
+                  required: f.required ?? false,
+                  options: f.options,
+                  scoring: f.scoring,
+                })) as unknown as Prisma.InputJsonValue)
+              : (existing.fields as Prisma.InputJsonValue),
+          scoringRules:
+            input.scoringRules !== undefined
+              ? ((input.scoringRules ??
+                  undefined) as unknown as Prisma.InputJsonValue)
+              : (existing.scoringRules ?? undefined),
+          isActive: input.isActive ?? existing.isActive,
+        },
+      });
+
+      return updated as unknown as ObservationToolDefinitionDocument;
+    }
+
     const doc = await ObservationToolDefinitionModel.findById(safeId).exec();
     if (!doc) {
       throw new ObservationToolDefinitionServiceError(
@@ -187,6 +257,23 @@ export const ObservationToolDefinitionService = {
 
   async archive(id: string): Promise<void> {
     const safeId = ensureObjectId(id, "id");
+    if (isReadFromPostgres()) {
+      const existing = await prisma.observationToolDefinition.findFirst({
+        where: { id: safeId },
+      });
+      if (!existing) {
+        throw new ObservationToolDefinitionServiceError(
+          "Observation tool not found",
+          404,
+        );
+      }
+      await prisma.observationToolDefinition.update({
+        where: { id: safeId },
+        data: { isActive: false },
+      });
+      return;
+    }
+
     const doc = await ObservationToolDefinitionModel.findById(safeId).exec();
     if (!doc) {
       throw new ObservationToolDefinitionServiceError(
@@ -216,6 +303,28 @@ export const ObservationToolDefinitionService = {
     }
     if (params?.onlyActive) filter.isActive = true;
 
+    if (isReadFromPostgres()) {
+      const where: { category?: string; isActive?: boolean } = {};
+      if (params?.category !== undefined) {
+        const category = asNonEmptyString(params.category);
+        if (!category) {
+          throw new ObservationToolDefinitionServiceError(
+            "Invalid category",
+            400,
+          );
+        }
+        where.category = category;
+      }
+      if (params?.onlyActive) {
+        where.isActive = true;
+      }
+      const docs = await prisma.observationToolDefinition.findMany({
+        where,
+        orderBy: [{ category: "asc" }, { name: "asc" }],
+      });
+      return docs as unknown as ObservationToolDefinitionDocument[];
+    }
+
     return ObservationToolDefinitionModel.find(filter)
       .sort({ category: 1, name: 1 })
       .exec();
@@ -223,6 +332,19 @@ export const ObservationToolDefinitionService = {
 
   async getById(id: string): Promise<ObservationToolDefinitionDocument> {
     const safeId = ensureObjectId(id, "id");
+    if (isReadFromPostgres()) {
+      const doc = await prisma.observationToolDefinition.findFirst({
+        where: { id: safeId },
+      });
+      if (!doc) {
+        throw new ObservationToolDefinitionServiceError(
+          "Observation tool not found",
+          404,
+        );
+      }
+      return doc as unknown as ObservationToolDefinitionDocument;
+    }
+
     const doc = await ObservationToolDefinitionModel.findById(safeId).exec();
     if (!doc) {
       throw new ObservationToolDefinitionServiceError(

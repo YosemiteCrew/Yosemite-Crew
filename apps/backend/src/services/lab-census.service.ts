@@ -6,14 +6,25 @@ import { IntegrationService } from "src/services/integration.service";
 import { IdexxClient } from "src/integrations/idexx/idexx.client";
 import { normalizeLabProvider } from "src/labs";
 import { LabOrderServiceError } from "src/services/lab-order.service";
+import { prisma } from "src/config/prisma";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 const lookupIdexxMapping = async (yosemiteCode: string) => {
-  const mapping = await CodeMappingModel.findOne({
-    sourceSystem: "YOSEMITECODE",
-    sourceCode: yosemiteCode,
-    targetSystem: "IDEXX",
-    active: true,
-  }).lean();
+  const mapping = isReadFromPostgres()
+    ? await prisma.codeMapping.findFirst({
+        where: {
+          sourceSystem: "YOSEMITECODE",
+          sourceCode: yosemiteCode,
+          targetSystem: "IDEXX",
+          active: true,
+        },
+      })
+    : await CodeMappingModel.findOne({
+        sourceSystem: "YOSEMITECODE",
+        sourceCode: yosemiteCode,
+        targetSystem: "IDEXX",
+        active: true,
+      }).lean();
 
   if (!mapping) {
     throw new LabOrderServiceError(
@@ -35,18 +46,38 @@ const resolveGenderCode = (gender: string, isNeutered?: boolean) => {
   return "UNKNOWN";
 };
 
+type IdLike = Types.ObjectId | string;
+
+const toIdString = (value: IdLike) =>
+  typeof value === "string" ? value : value.toString();
+
+const resolveDocId = (doc: { id?: string; _id?: { toString(): string } }) => {
+  if ("id" in doc && typeof doc.id === "string") return doc.id;
+  if ("_id" in doc && doc._id) return doc._id.toString();
+  throw new LabOrderServiceError("Missing document id.", 500);
+};
+
 const buildCensusPayload = async (input: {
-  companionId: Types.ObjectId;
-  parentId: Types.ObjectId;
+  companionId: IdLike;
+  parentId: IdLike;
   veterinarian?: string | null;
   ivls?: Array<{ serialNumber: string }>;
 }) => {
-  const companion = await CompanionModel.findById(input.companionId).lean();
+  const companion = isReadFromPostgres()
+    ? await prisma.companion.findUnique({
+        where: { id: toIdString(input.companionId) },
+      })
+    : await CompanionModel.findById(input.companionId).lean();
   if (!companion) {
     throw new LabOrderServiceError("Companion not found.", 404);
   }
 
-  const parent = await ParentModel.findById(input.parentId).lean();
+  const parent = isReadFromPostgres()
+    ? await prisma.parent.findUnique({
+        where: { id: toIdString(input.parentId) },
+        include: { address: true },
+      })
+    : await ParentModel.findById(input.parentId).lean();
   if (!parent) {
     throw new LabOrderServiceError("Parent not found.", 404);
   }
@@ -67,11 +98,14 @@ const buildCensusPayload = async (input: {
 
   const speciesCode = await lookupIdexxMapping(companion.speciesCode);
   const breedCode = await lookupIdexxMapping(companion.breedCode);
-  const genderCode = resolveGenderCode(companion.gender, companion.isNeutered);
+  const genderCode = resolveGenderCode(
+    companion.gender,
+    companion.isNeutered ?? undefined,
+  );
 
   return {
     patient: {
-      patientId: companion._id.toString(),
+      patientId: resolveDocId(companion),
       name: companion.name,
       microchip: companion.microchipNumber ?? undefined,
       speciesCode,
@@ -81,7 +115,7 @@ const buildCensusPayload = async (input: {
         ? companion.dateOfBirth.toISOString().split("T")[0]
         : undefined,
       client: {
-        id: parent._id.toString(),
+        id: resolveDocId(parent),
         firstName: parent.firstName,
         lastName: parent.lastName,
         address: {
@@ -241,9 +275,13 @@ export const LabCensusService = {
       throw new LabOrderServiceError("Unsupported lab provider.", 400);
     }
 
-    const companionId = new Types.ObjectId(input.companionId);
+    const companionId = isReadFromPostgres()
+      ? input.companionId
+      : new Types.ObjectId(input.companionId);
     const parentId = input.parentId
-      ? new Types.ObjectId(input.parentId)
+      ? isReadFromPostgres()
+        ? input.parentId
+        : new Types.ObjectId(input.parentId)
       : null;
 
     if (!parentId) {

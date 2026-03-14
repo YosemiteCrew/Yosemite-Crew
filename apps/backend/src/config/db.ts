@@ -3,6 +3,11 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 import logger from "../utils/logger";
 
 export async function connectDB() {
+  if (process.env.READ_FROM_POSTGRES === "true") {
+    logger.info("Skipping MongoDB connection because READ_FROM_POSTGRES=true");
+    return;
+  }
+
   let mongoUri: string;
 
   if (process.env.USE_INMEMORY_DB === "true") {

@@ -586,7 +586,7 @@ describe("CompanionOrganisationService", () => {
           );
         expect(res).toHaveLength(1);
         expect(res[0]?.parent).toBeNull();
-        expect(res[0]?.companion.resourceType).toBe("Patient");
+        expect(res[0]?.companion?.resourceType).toBe("Patient");
       });
 
       it("should map both companion and parent successfully", async () => {

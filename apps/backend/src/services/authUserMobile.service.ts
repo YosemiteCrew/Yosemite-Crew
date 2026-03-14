@@ -9,6 +9,7 @@ import { prisma } from "src/config/prisma";
 import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 import logger from "src/utils/logger";
 import { assertSafeString } from "src/utils/sanitize";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 const toPrismaAuthUserMobileData = (doc: AuthUserMobileDocumet) => ({
   id: doc._id.toString(),
@@ -136,6 +137,24 @@ export const AuthUserMobileService = {
   ): Promise<AuthUserMobile | null> {
     providerUserId = assertSafeString(providerUserId, "providerUserId");
 
+    if (isReadFromPostgres()) {
+      const authUser = await prisma.authUserMobile.findFirst({
+        where: { providerUserId },
+      });
+      if (!authUser) return null;
+      return {
+        _id: authUser.id as unknown as Types.ObjectId,
+        authProvider: authUser.authProvider,
+        providerUserId: authUser.providerUserId,
+        email: authUser.email,
+        parentId: authUser.parentId
+          ? (authUser.parentId as unknown as Types.ObjectId)
+          : undefined,
+        createdAt: authUser.createdAt ?? undefined,
+        updatedAt: authUser.updatedAt ?? undefined,
+      } as AuthUserMobile;
+    }
+
     return AuthUserMobileModel.findOne({ providerUserId }).exec();
   },
 
@@ -143,6 +162,20 @@ export const AuthUserMobileService = {
     providerUserId: string,
   ): Promise<Types.ObjectId | null> {
     providerUserId = assertSafeString(providerUserId, "providerUserId");
+
+    if (isReadFromPostgres()) {
+      const authUser = await prisma.authUserMobile.findFirst({
+        where: { providerUserId },
+        select: { id: true },
+      });
+      if (!authUser) {
+        logger.warn(
+          `AuthUserMobile not found for providerUserId: ${providerUserId}`,
+        );
+        return null;
+      }
+      return authUser.id as unknown as Types.ObjectId;
+    }
 
     const doc = await AuthUserMobileModel.findOne(
       { providerUserId },

@@ -25,6 +25,8 @@ import { sendEmailTemplate } from "src/utils/email";
 import logger from "src/utils/logger";
 import { prisma } from "src/config/prisma";
 import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import { isReadFromPostgres } from "src/config/read-switch";
+import type { UserOrganization as PrismaUserOrganization } from "@prisma/client";
 
 export type UserOrganizationFHIRPayload = UserOrganizationRequestDTO;
 
@@ -612,6 +614,77 @@ const buildUserOrganizationDomain = (
   };
 };
 
+type PrismaUserOrganizationLite = Pick<
+  PrismaUserOrganization,
+  | "id"
+  | "fhirId"
+  | "practitionerReference"
+  | "organizationReference"
+  | "roleCode"
+  | "roleDisplay"
+  | "active"
+  | "extraPermissions"
+  | "revokedPermissions"
+  | "effectivePermissions"
+>;
+
+const buildUserOrganizationDomainFromPrisma = (
+  mapping: PrismaUserOrganizationLite,
+): UserOrganization => ({
+  _id: mapping.id,
+  fhirId: mapping.fhirId ?? undefined,
+  practitionerReference: mapping.practitionerReference,
+  organizationReference: mapping.organizationReference,
+  roleCode: mapping.roleCode,
+  roleDisplay: mapping.roleDisplay ?? undefined,
+  active: mapping.active ?? true,
+  extraPermissions: mapping.extraPermissions ?? [],
+  revokedPermissions: mapping.revokedPermissions ?? [],
+  effectivePermissions: computeEffectivePermissions(
+    mapping.roleCode as RoleCode,
+    mapping.extraPermissions ?? [],
+    mapping.revokedPermissions ?? [],
+  ),
+});
+
+const mapOrganizationFromPrisma = (org: {
+  id: string;
+  fhirId: string | null;
+  name: string;
+  imageUrl: string | null;
+  phoneNo: string;
+  type: string;
+  googlePlacesId: string | null;
+  address: {
+    addressLine: string | null;
+    country: string | null;
+    city: string | null;
+    state: string | null;
+    postalCode: string | null;
+    latitude: number | null;
+    longitude: number | null;
+  } | null;
+}) => ({
+  _id: org.id,
+  fhirId: org.fhirId ?? undefined,
+  name: org.name,
+  imageURL: org.imageUrl ?? undefined,
+  phoneNo: org.phoneNo ?? undefined,
+  type: org.type,
+  googlePlacesId: org.googlePlacesId ?? undefined,
+  address: org.address
+    ? {
+        addressLine: org.address.addressLine ?? undefined,
+        country: org.address.country ?? undefined,
+        city: org.address.city ?? undefined,
+        state: org.address.state ?? undefined,
+        postalCode: org.address.postalCode ?? undefined,
+        latitude: org.address.latitude ?? undefined,
+        longitude: org.address.longitude ?? undefined,
+      }
+    : undefined,
+});
+
 const createPersistableFromFHIR = (payload: UserOrganizationFHIRPayload) => {
   if (payload?.resourceType !== "PractitionerRole") {
     throw new UserOrganizationServiceError(
@@ -872,6 +945,46 @@ export const UserOrganizationService = {
   ): Promise<
     UserOrganizationResponseDTO | UserOrganizationResponseDTO[] | null
   > {
+    if (isReadFromPostgres()) {
+      const idQuery = resolveIdQuery(id);
+      if (idQuery) {
+        const mapping = await prisma.userOrganization.findFirst({
+          where: idQuery._id ? { id: idQuery._id } : { fhirId: idQuery.fhirId },
+        });
+
+        if (mapping) {
+          return toUserOrganizationResponseDTO(
+            buildUserOrganizationDomainFromPrisma(mapping),
+          );
+        }
+      }
+
+      const referenceQueries = buildReferenceLookups(id);
+      if (referenceQueries.length) {
+        const mappings = await prisma.userOrganization.findMany({
+          where: { OR: referenceQueries },
+        });
+
+        if (!mappings.length) {
+          return null;
+        }
+
+        if (mappings.length === 1) {
+          return toUserOrganizationResponseDTO(
+            buildUserOrganizationDomainFromPrisma(mappings[0]),
+          );
+        }
+
+        return mappings.map((mapping) =>
+          toUserOrganizationResponseDTO(
+            buildUserOrganizationDomainFromPrisma(mapping),
+          ),
+        );
+      }
+
+      return null;
+    }
+
     let document: UserOrganizationDocument | null = null;
     const idQuery = resolveIdQuery(id);
 
@@ -918,6 +1031,15 @@ export const UserOrganizationService = {
   },
 
   async listAll() {
+    if (isReadFromPostgres()) {
+      const mappings = await prisma.userOrganization.findMany();
+      return mappings.map((mapping) =>
+        toUserOrganizationResponseDTO(
+          buildUserOrganizationDomainFromPrisma(mapping),
+        ),
+      );
+    }
+
     const documents = await UserOrganizationModel.find();
     const mappings = documents.map((document) =>
       buildUserOrganizationDomain(document),
@@ -942,7 +1064,9 @@ export const UserOrganizationService = {
 
     if (doc && shouldDualWrite) {
       try {
-        await prisma.userOrganization.deleteMany({ where: { id: doc._id.toString() } });
+        await prisma.userOrganization.deleteMany({
+          where: { id: doc._id.toString() },
+        });
       } catch (err) {
         handleDualWriteError("UserOrganization delete", err);
       }
@@ -1071,6 +1195,65 @@ export const UserOrganizationService = {
 
   async listByUserId(id: string) {
     const userId = requireSafeString(id, "User Id");
+
+    if (isReadFromPostgres()) {
+      const mappings = await prisma.userOrganization.findMany({
+        where: {
+          practitionerReference: {
+            in: [userId, `Practitioner/${userId}`],
+          },
+        },
+      });
+
+      if (!mappings.length) {
+        return [];
+      }
+
+      const results = [];
+
+      for (const mapping of mappings) {
+        const organizationId = extractOrganizationIdentifier(
+          mapping.organizationReference,
+        );
+
+        const organization = await prisma.organization.findFirst({
+          where: {
+            OR: [{ id: organizationId }, { fhirId: organizationId }],
+          },
+          include: { address: true },
+        });
+
+        const mappingDomain = buildUserOrganizationDomainFromPrisma(mapping);
+        const effectivePermissions = mappingDomain.effectivePermissions ?? [];
+        const canViewBilling =
+          effectivePermissions.includes("billing:view:any") ||
+          effectivePermissions.includes("billing:edit:any") ||
+          effectivePermissions.includes("billing:edit:limited");
+
+        const [orgBilling, orgUsage] = canViewBilling
+          ? await Promise.all([
+              prisma.organizationBilling.findFirst({
+                where: { orgId: organizationId },
+              }),
+              prisma.organizationUsageCounter.findFirst({
+                where: { orgId: organizationId },
+              }),
+            ])
+          : [null, null];
+
+        results.push({
+          mapping: toUserOrganizationResponseDTO(mappingDomain),
+          organization: organization
+            ? mapOrganizationFromPrisma(organization)
+            : null,
+          orgBilling: orgBilling ? { ...orgBilling, _id: orgBilling.id } : null,
+          orgUsage: orgUsage ? { ...orgUsage, _id: orgUsage.id } : null,
+        });
+      }
+
+      return results;
+    }
+
     const mappings = await UserOrganizationModel.find({
       practitionerReference: userId,
     });
@@ -1125,6 +1308,99 @@ export const UserOrganizationService = {
 
   async listByOrganisationId(id: string) {
     const organisationId = requireSafeString(id, "User Id");
+
+    if (isReadFromPostgres()) {
+      const mappings = await prisma.userOrganization.findMany({
+        where: {
+          organizationReference: {
+            in: [organisationId, `Organization/${organisationId}`],
+          },
+        },
+        select: {
+          id: true,
+          fhirId: true,
+          practitionerReference: true,
+          organizationReference: true,
+          roleCode: true,
+          roleDisplay: true,
+          active: true,
+          extraPermissions: true,
+          revokedPermissions: true,
+          effectivePermissions: true,
+        },
+      });
+
+      if (!mappings.length) {
+        return [];
+      }
+
+      const results = [];
+      for (const mapping of mappings) {
+        const userRef = mapping.practitionerReference;
+        const userId =
+          extractReferenceId(userRef) ?? mapping.practitionerReference;
+
+        const [user, userProfile, speciality, currentStatus, weeklyHours] =
+          await Promise.all([
+            prisma.user.findFirst({ where: { userId } }),
+            prisma.userProfile.findFirst({ where: { userId } }),
+            prisma.speciality.findMany({
+              where: {
+                organisationId,
+                OR: [
+                  { memberUserIds: { has: userRef } },
+                  { headUserId: userRef },
+                ],
+              },
+            }),
+            AvailabilityService.getCurrentStatus(organisationId, userId),
+            AvailabilityService.getWeeklyWorkingHours(
+              organisationId,
+              userId,
+              new Date(),
+            ),
+          ]);
+
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+
+        const endOfDay = new Date();
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const count = await prisma.occupancy.count({
+          where: {
+            organisationId,
+            sourceType: "APPOINTMENT",
+            startTime: { gte: startOfDay, lte: endOfDay },
+          },
+        });
+
+        let name = "";
+        if (user?.firstName) name += user.firstName;
+        if (user?.lastName) name += ` ${user.lastName}`;
+
+        const personalDetails = userProfile?.personalDetails as
+          | { profilePictureUrl?: string }
+          | undefined;
+
+        const result = {
+          userOrganisation: toUserOrganizationResponseDTO(
+            buildUserOrganizationDomainFromPrisma(mapping),
+          ),
+          name,
+          profileUrl: personalDetails?.profilePictureUrl,
+          speciality,
+          currentStatus,
+          weeklyHours,
+          count,
+        };
+
+        results.push(result);
+      }
+
+      return results;
+    }
+
     const mappings = await UserOrganizationModel.find(
       {
         organizationReference: organisationId,

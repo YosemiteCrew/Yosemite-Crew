@@ -3,6 +3,8 @@ import { Types } from "mongoose";
 import OrganizationModel from "src/models/organization";
 import UserOrganizationModel from "src/models/user-organization";
 import UserModel from "src/models/user";
+import { prisma } from "src/config/prisma";
+import { isReadFromPostgres } from "src/config/read-switch";
 import { sendEmailTemplate } from "src/utils/email";
 import logger from "src/utils/logger";
 
@@ -17,7 +19,61 @@ const BILLING_SETTINGS_URL = process.env.APP_URL
 
 const extractReferenceId = (value: string) => value.split("/").pop()?.trim();
 
-const resolveOwnerUser = async (orgId: Types.ObjectId) => {
+const resolveOwnerUser = async (orgId: Types.ObjectId | string) => {
+  const orgIdString = typeof orgId === "string" ? orgId : orgId.toString();
+
+  if (isReadFromPostgres()) {
+    const organisation = await prisma.organization.findFirst({
+      where: { OR: [{ id: orgIdString }, { fhirId: orgIdString }] },
+      select: { id: true, name: true, fhirId: true },
+    });
+
+    if (!organisation) {
+      return null;
+    }
+
+    const orgReferenceCandidates = [
+      organisation.id,
+      `Organization/${organisation.id}`,
+      organisation.fhirId,
+      organisation.fhirId ? `Organization/${organisation.fhirId}` : undefined,
+    ].filter(Boolean) as string[];
+
+    const ownerMapping = await prisma.userOrganization.findFirst({
+      where: {
+        roleCode: "OWNER",
+        active: true,
+        organizationReference: { in: orgReferenceCandidates },
+      },
+      select: { practitionerReference: true },
+    });
+
+    if (!ownerMapping?.practitionerReference) {
+      return null;
+    }
+
+    const ownerUserId =
+      extractReferenceId(ownerMapping.practitionerReference) ??
+      ownerMapping.practitionerReference;
+
+    const ownerUser = await prisma.user.findFirst({
+      where: { userId: ownerUserId },
+      select: { email: true, firstName: true, lastName: true },
+    });
+
+    if (!ownerUser?.email) {
+      return null;
+    }
+
+    const nameParts = [ownerUser.firstName, ownerUser.lastName].filter(Boolean);
+
+    return {
+      email: ownerUser.email,
+      name: nameParts.length ? nameParts.join(" ") : undefined,
+      organisationName: organisation.name,
+    };
+  }
+
   const organisation = await OrganizationModel.findById(orgId)
     .select("name fhirId")
     .lean();
@@ -26,7 +82,6 @@ const resolveOwnerUser = async (orgId: Types.ObjectId) => {
     return null;
   }
 
-  const orgIdString = orgId.toString();
   const orgFhirId = organisation.fhirId;
   const orgReferenceCandidates = [
     orgIdString,
@@ -70,7 +125,7 @@ const resolveOwnerUser = async (orgId: Types.ObjectId) => {
 };
 
 export const sendFreePlanLimitReachedEmail = async (params: {
-  orgId: Types.ObjectId;
+  orgId: Types.ObjectId | string;
   usage: {
     appointmentsUsed?: number | null;
     toolsUsed?: number | null;

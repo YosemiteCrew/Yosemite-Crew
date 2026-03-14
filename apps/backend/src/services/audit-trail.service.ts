@@ -10,6 +10,7 @@ import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 import logger from "src/utils/logger";
 import { ParentModel } from "src/models/parent";
 import UserModel from "src/models/user";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 export class AuditTrailServiceError extends Error {
   constructor(
@@ -89,18 +90,42 @@ const resolveActorName = async (params: {
   if (!params.actorType || !params.actorId) return null;
 
   if (params.actorType === "PARENT") {
-    const parent = await ParentModel.findById(params.actorId)
-      .select("firstName lastName")
-      .lean();
-    return buildDisplayName(parent ?? null);
+    const parent = isReadFromPostgres()
+      ? await prisma.parent.findFirst({
+          where: { id: params.actorId },
+          select: { firstName: true, lastName: true },
+        })
+      : await ParentModel.findById(params.actorId)
+          .select("firstName lastName")
+          .lean();
+    return buildDisplayName(
+      parent
+        ? {
+            firstName: parent.firstName ?? undefined,
+            lastName: parent.lastName ?? undefined,
+          }
+        : null,
+    );
   }
 
   if (params.actorType === "PMS_USER") {
-    const user = await UserModel.findOne(
-      { userId: params.actorId },
-      { firstName: 1, lastName: 1 },
-    ).lean();
-    return buildDisplayName(user ?? null);
+    const user = isReadFromPostgres()
+      ? await prisma.user.findFirst({
+          where: { userId: params.actorId },
+          select: { firstName: true, lastName: true },
+        })
+      : await UserModel.findOne(
+          { userId: params.actorId },
+          { firstName: 1, lastName: 1 },
+        ).lean();
+    return buildDisplayName(
+      user
+        ? {
+            firstName: user.firstName ?? undefined,
+            lastName: user.lastName ?? undefined,
+          }
+        : null,
+    );
   }
 
   return null;
@@ -119,6 +144,25 @@ export const AuditTrailService = {
         actorType: input.actorType,
         actorId: input.actorId ?? null,
       }));
+
+    if (isReadFromPostgres()) {
+      const doc = await prisma.auditTrail.create({
+        data: {
+          organisationId,
+          companionId,
+          eventType: input.eventType,
+          actorType: input.actorType ?? undefined,
+          actorId: input.actorId ?? undefined,
+          actorName: actorName ?? undefined,
+          entityType: input.entityType ?? undefined,
+          entityId: input.entityId ?? undefined,
+          metadata: (input.metadata ??
+            undefined) as unknown as Prisma.InputJsonValue,
+          occurredAt: input.occurredAt ?? new Date(),
+        },
+      });
+      return doc as unknown as AuditTrailDocument;
+    }
 
     const doc = await AuditTrailModel.create({
       organisationId,
@@ -146,7 +190,8 @@ export const AuditTrailService = {
             actorName: actorName ?? undefined,
             entityType: input.entityType ?? undefined,
             entityId: input.entityId ?? undefined,
-            metadata: (input.metadata ?? undefined) as unknown as Prisma.InputJsonValue,
+            metadata: (input.metadata ??
+              undefined) as unknown as Prisma.InputJsonValue,
             occurredAt: input.occurredAt ?? new Date(),
             createdAt: doc.createdAt ?? undefined,
             updatedAt: doc.updatedAt ?? undefined,
@@ -185,6 +230,32 @@ export const AuditTrailService = {
       before: params.before,
     });
 
+    if (isReadFromPostgres()) {
+      const where: Prisma.AuditTrailWhereInput = {
+        organisationId: filters.organisationId as string,
+      };
+      if (filters.companionId)
+        where.companionId = filters.companionId as string;
+      if (filters.eventType)
+        where.eventType = { in: filters.eventType as AuditEventType[] };
+      if (filters.entityType)
+        where.entityType = { in: filters.entityType as AuditEntityType[] };
+      if (filters.occurredAt) {
+        where.occurredAt = { lt: (filters.occurredAt as { $lt: Date }).$lt };
+      }
+
+      const entries = await prisma.auditTrail.findMany({
+        where,
+        orderBy: { occurredAt: "desc" },
+        take: limit,
+      });
+
+      const nextCursor =
+        entries.length > 0 ? entries.at(-1)!.occurredAt.toISOString() : null;
+
+      return { entries, nextCursor };
+    }
+
     const entries = await AuditTrailModel.find(filters)
       .sort({ occurredAt: -1 })
       .limit(limit)
@@ -222,6 +293,36 @@ export const AuditTrailService = {
 
     if (params.before) {
       filters.occurredAt = { $lt: params.before };
+    }
+
+    if (isReadFromPostgres()) {
+      const where: Prisma.AuditTrailWhereInput = {
+        organisationId,
+        OR: [
+          { entityType: "APPOINTMENT", entityId: appointmentId },
+          {
+            metadata: {
+              path: ["appointmentId"],
+              equals: appointmentId,
+            },
+          },
+        ],
+      };
+
+      if (params.before) {
+        where.occurredAt = { lt: params.before };
+      }
+
+      const entries = await prisma.auditTrail.findMany({
+        where,
+        orderBy: { occurredAt: "desc" },
+        take: limit,
+      });
+
+      const nextCursor =
+        entries.length > 0 ? entries.at(-1)!.occurredAt.toISOString() : null;
+
+      return { entries, nextCursor };
     }
 
     const entries = await AuditTrailModel.find(filters)

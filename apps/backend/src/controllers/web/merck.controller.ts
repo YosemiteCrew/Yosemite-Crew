@@ -5,6 +5,8 @@ import logger from "src/utils/logger";
 import { MerckService, MerckServiceError } from "src/services/merck.service";
 import { mapAxiosError } from "src/utils/external-error";
 import UserProfileModel from "src/models/user-profile";
+import { prisma } from "src/config/prisma";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 export const MerckController = {
   async searchManuals(req: Request, res: Response) {
@@ -38,13 +40,22 @@ export const MerckController = {
       const userId = orgReq.userId;
       let resolvedTimezone = timezone;
       if (!resolvedTimezone && userId) {
-        const profile = await UserProfileModel.findOne({
-          userId,
-          organizationId: organisationId,
-        })
-          .select({ "personalDetails.timezone": 1 })
-          .lean();
-        resolvedTimezone = profile?.personalDetails?.timezone;
+        const profile = isReadFromPostgres()
+          ? await prisma.userProfile.findFirst({
+              where: { userId, organizationId: organisationId },
+              select: { personalDetails: true },
+            })
+          : await UserProfileModel.findOne({
+              userId,
+              organizationId: organisationId,
+            })
+              .select({ "personalDetails.timezone": 1 })
+              .lean();
+        const personalDetails = profile?.personalDetails as
+          | { timezone?: string }
+          | null
+          | undefined;
+        resolvedTimezone = personalDetails?.timezone;
       }
 
       const result = await MerckService.search({

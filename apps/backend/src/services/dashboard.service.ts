@@ -6,6 +6,8 @@ import AppointmentModel from "src/models/appointment";
 import TaskModel from "src/models/task";
 import { InventoryItemModel, StockMovementModel } from "src/models/inventory";
 import InvoiceModel from "src/models/invoice";
+import { prisma } from "src/config/prisma";
+import { isReadFromPostgres } from "src/config/read-switch";
 // ⬆️ adjust import paths/model names if needed
 
 export class DashboardServiceError extends Error {
@@ -193,6 +195,38 @@ export const DashboardService = {
 
     const { from, to } = resolveRange(range);
 
+    if (isReadFromPostgres()) {
+      const [appointmentsCount, taskCount, revenueAgg] = await Promise.all([
+        prisma.appointment.count({
+          where: {
+            organisationId,
+            startTime: { gte: from, lte: to },
+          },
+        }),
+        prisma.task.count({
+          where: {
+            organisationId,
+            createdAt: { gte: from, lte: to },
+          },
+        }),
+        prisma.invoice.aggregate({
+          where: {
+            organisationId,
+            status: "PAID",
+            paidAt: { gte: from, lte: to },
+          },
+          _sum: { totalAmount: true },
+        }),
+      ]);
+
+      return {
+        revenue: revenueAgg._sum.totalAmount ?? 0,
+        appointments: appointmentsCount ?? 0,
+        tasks: taskCount ?? 0,
+        staffOnDuty: 0,
+      };
+    }
+
     const [appointmentAgg, taskCount] = await Promise.all([
       AppointmentModel.aggregate<AppointmentSummaryAgg>([
         {
@@ -269,6 +303,50 @@ export const DashboardService = {
 
     const { from, to } = resolveRange(range);
 
+    if (isReadFromPostgres()) {
+      const rows = await prisma.appointment.findMany({
+        where: {
+          organisationId,
+          startTime: { gte: from, lte: to },
+        },
+        select: { startTime: true, status: true },
+      });
+
+      const bucket = new Map<
+        string,
+        { year: number; month: number; completed: number; cancelled: number }
+      >();
+      for (const row of rows) {
+        const year = dayjs(row.startTime).year();
+        const month = dayjs(row.startTime).month() + 1;
+        const key = `${year}-${month}`;
+        const entry = bucket.get(key) ?? {
+          year,
+          month,
+          completed: 0,
+          cancelled: 0,
+        };
+        if (row.status === "COMPLETED") entry.completed += 1;
+        if (row.status === "CANCELLED") entry.cancelled += 1;
+        bucket.set(key, entry);
+      }
+
+      return Array.from(bucket.values())
+        .sort((a, b) => a.year - b.year || a.month - b.month)
+        .map((row) => {
+          const d = dayjs()
+            .year(row.year)
+            .month(row.month - 1);
+          return {
+            label: d.format("MMM"),
+            year: row.year,
+            month: row.month,
+            completed: row.completed,
+            cancelled: row.cancelled,
+          };
+        });
+    }
+
     const agg = await AppointmentModel.aggregate<AppointmentTrendAgg>([
       {
         $match: {
@@ -330,6 +408,45 @@ export const DashboardService = {
 
     const { from, to } = resolveRange(range);
 
+    if (isReadFromPostgres()) {
+      const rows = await prisma.invoice.findMany({
+        where: {
+          organisationId,
+          status: "PAID",
+          paidAt: { gte: from, lte: to },
+        },
+        select: { paidAt: true, totalAmount: true },
+      });
+
+      const bucket = new Map<
+        string,
+        { year: number; month: number; revenue: number }
+      >();
+      for (const row of rows) {
+        if (!row.paidAt) continue;
+        const year = dayjs(row.paidAt).year();
+        const month = dayjs(row.paidAt).month() + 1;
+        const key = `${year}-${month}`;
+        const entry = bucket.get(key) ?? { year, month, revenue: 0 };
+        entry.revenue += row.totalAmount ?? 0;
+        bucket.set(key, entry);
+      }
+
+      return Array.from(bucket.values())
+        .sort((a, b) => a.year - b.year || a.month - b.month)
+        .map((row) => {
+          const d = dayjs()
+            .year(row.year)
+            .month(row.month - 1);
+          return {
+            label: d.format("MMM"),
+            year: row.year,
+            month: row.month,
+            revenue: row.revenue,
+          };
+        });
+    }
+
     const agg = await InvoiceModel.aggregate<RevenueTrendAgg>([
       {
         $match: {
@@ -385,6 +502,34 @@ export const DashboardService = {
 
     const { from, to } = resolveRange(range);
 
+    if (isReadFromPostgres()) {
+      const rows = await prisma.appointment.findMany({
+        where: {
+          organisationId,
+          startTime: { gte: from, lte: to },
+          status: "COMPLETED",
+        },
+        select: { lead: true },
+      });
+
+      const counts = new Map<string, number>();
+      for (const row of rows) {
+        if (!row.lead || typeof row.lead !== "object") continue;
+        const leadId = (row.lead as { id?: string }).id;
+        if (!leadId) continue;
+        counts.set(leadId, (counts.get(leadId) ?? 0) + 1);
+      }
+
+      return Array.from(counts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, limit)
+        .map(([staffId, completedAppointments]) => ({
+          staffId,
+          completedAppointments,
+          name: undefined,
+        }));
+    }
+
     // doctorId / clinicianId – adjust to your schema
     const agg = await AppointmentModel.aggregate<StaffLeaderAgg>([
       {
@@ -434,6 +579,35 @@ export const DashboardService = {
     }
 
     const { from, to } = resolveRange(range);
+
+    if (isReadFromPostgres()) {
+      const rows = await prisma.invoice.findMany({
+        where: {
+          organisationId,
+          status: "PAID",
+          paidAt: { gte: from, lte: to },
+        },
+        select: { items: true },
+      });
+
+      const totals = new Map<string, number>();
+      for (const row of rows) {
+        const items = Array.isArray(row.items) ? row.items : [];
+        for (const item of items as Array<{ name?: string; total?: number }>) {
+          const name = item.name ?? "Unknown";
+          totals.set(name, (totals.get(name) ?? 0) + (item.total ?? 0));
+        }
+      }
+
+      return Array.from(totals.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, limit)
+        .map(([label, revenue]) => ({
+          serviceKey: label,
+          label,
+          revenue,
+        }));
+    }
 
     const agg = await InvoiceModel.aggregate<RevenueLeaderAgg>([
       {
@@ -487,6 +661,75 @@ export const DashboardService = {
           from: dayjs().year(year).startOf("year").toDate(),
           to: dayjs().year(year).endOf("year").toDate(),
         };
+
+    if (isReadFromPostgres()) {
+      const items = await prisma.inventoryItem.findMany({
+        where: { organisationId },
+        select: { id: true, onHand: true, name: true },
+      });
+      const itemIds = items.map((item) => item.id);
+
+      const movements = itemIds.length
+        ? await prisma.inventoryStockMovement.findMany({
+            where: {
+              itemId: { in: itemIds },
+              createdAt: { gte: from, lte: to },
+              change: { lt: 0 },
+            },
+            select: { itemId: true, change: true, createdAt: true },
+          })
+        : [];
+
+      const totalConsumed = movements.reduce(
+        (sum, move) => sum + Math.abs(move.change ?? 0),
+        0,
+      );
+
+      const totalOnHand = items.reduce(
+        (sum, item) => sum + (item.onHand ?? 0),
+        0,
+      );
+      const avgOnHand = totalOnHand || 1;
+      const turnsPerYear = totalConsumed / avgOnHand;
+      const restockCycleDays =
+        turnsPerYear > 0 ? Math.round(365 / turnsPerYear) : null;
+
+      const bucket = new Map<
+        string,
+        { year: number; month: number; consumed: number }
+      >();
+      for (const move of movements) {
+        const year = dayjs(move.createdAt).year();
+        const month = dayjs(move.createdAt).month() + 1;
+        const key = `${year}-${month}`;
+        const entry = bucket.get(key) ?? { year, month, consumed: 0 };
+        entry.consumed += Math.abs(move.change ?? 0);
+        bucket.set(key, entry);
+      }
+
+      const trend = Array.from(bucket.values())
+        .sort((a, b) => a.year - b.year || a.month - b.month)
+        .map((row) => {
+          const d = dayjs()
+            .year(row.year)
+            .month(row.month - 1);
+          const monthlyAverageOnHand = avgOnHand;
+          const monthlyTurnover =
+            monthlyAverageOnHand > 0 ? row.consumed / monthlyAverageOnHand : 0;
+          return {
+            month: d.format("MMM"),
+            year: row.year,
+            turnover: monthlyTurnover,
+          };
+        });
+
+      return {
+        turnsPerYear,
+        restockCycleDays,
+        targetTurnsPerYear,
+        trend,
+      };
+    }
 
     // 1) Sum up all negative stock movements (consumption)
     const consumptionAgg =
@@ -598,6 +841,53 @@ export const DashboardService = {
           from: dayjs().year(year).startOf("year").toDate(),
           to: dayjs().year(year).endOf("year").toDate(),
         };
+
+    if (isReadFromPostgres()) {
+      const items = await prisma.inventoryItem.findMany({
+        where: { organisationId },
+        select: { id: true, name: true, onHand: true },
+      });
+      const itemIds = items.map((item) => item.id);
+
+      const movements = itemIds.length
+        ? await prisma.inventoryStockMovement.findMany({
+            where: {
+              itemId: { in: itemIds },
+              createdAt: { gte: from, lte: to },
+              change: { lt: 0 },
+            },
+            select: { itemId: true, change: true },
+          })
+        : [];
+
+      const consumptionByItem = new Map<string, number>();
+      for (const move of movements) {
+        if (!move.itemId) continue;
+        const current = consumptionByItem.get(move.itemId) ?? 0;
+        consumptionByItem.set(
+          move.itemId,
+          current + Math.abs(move.change ?? 0),
+        );
+      }
+
+      const itemMap = new Map(items.map((item) => [item.id, item]));
+
+      return Array.from(consumptionByItem.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, limit)
+        .map(([itemId, consumed]) => {
+          const item = itemMap.get(itemId);
+          const onHand = item?.onHand ?? 0;
+          const avgOnHand = onHand || 1;
+          const turnover = consumed / avgOnHand;
+
+          return {
+            itemId,
+            name: item?.name ?? "Unknown",
+            turnover,
+          };
+        });
+    }
 
     // 1) Consumption per item
     const agg = await StockMovementModel.aggregate<ProductConsumptionAgg>([

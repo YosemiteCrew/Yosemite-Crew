@@ -11,6 +11,7 @@ import {
 import { prisma } from "src/config/prisma";
 import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 import { Prisma } from "@prisma/client";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 export class ObservationToolSubmissionServiceError extends Error {
   constructor(
@@ -300,6 +301,95 @@ export const ObservationToolSubmissionService = {
 
     assertSubmissionInput(input);
 
+    if (isReadFromPostgres()) {
+      const tool = await prisma.observationToolDefinition.findFirst({
+        where: { id: input.toolId },
+      });
+
+      if (!tool || !tool.isActive) {
+        throw new ObservationToolSubmissionServiceError(
+          "Observation tool not found or inactive",
+          404,
+        );
+      }
+
+      if (taskId) {
+        const existing = await prisma.observationToolSubmission.findFirst({
+          where: { taskId },
+        });
+
+        if (existing) {
+          throw new ObservationToolSubmissionServiceError(
+            "Observation already submitted for this task",
+            409,
+          );
+        }
+
+        const task = await prisma.task.findFirst({
+          where: { id: taskId },
+        });
+
+        if (!task) {
+          throw new ObservationToolSubmissionServiceError(
+            "Task not found",
+            404,
+          );
+        }
+
+        if (task.assignedTo !== input.filledBy) {
+          throw new ObservationToolSubmissionServiceError(
+            "Not allowed to submit this task",
+            403,
+          );
+        }
+
+        if (task.companionId !== input.companionId) {
+          throw new ObservationToolSubmissionServiceError(
+            "companionId does not match task",
+            400,
+          );
+        }
+
+        if (task.observationToolId && task.observationToolId !== input.toolId) {
+          throw new ObservationToolSubmissionServiceError(
+            "toolId does not match task observationToolId",
+            400,
+          );
+        }
+      }
+
+      const toolForScore = {
+        fields: (tool.fields ??
+          []) as unknown as ObservationToolDefinitionDocument["fields"],
+      } as ObservationToolDefinitionDocument;
+
+      const score = computeScore(toolForScore, input.answers);
+
+      const doc = await prisma.observationToolSubmission.create({
+        data: {
+          toolId: input.toolId,
+          taskId,
+          companionId: input.companionId,
+          filledBy: input.filledBy,
+          answers: input.answers as Prisma.InputJsonValue,
+          score: score ?? undefined,
+          summary: input.summary ?? undefined,
+        },
+      });
+
+      // ✅ If this submission came from a task → complete the task
+      if (taskId) {
+        await TaskService.changeStatus(taskId, "COMPLETED", input.filledBy, {
+          filledBy: input.filledBy,
+          answers: input.answers,
+          score,
+          summary: input.summary,
+        });
+      }
+
+      return doc as unknown as ObservationToolSubmissionDocument;
+    }
+
     const tool = await ObservationToolDefinitionModel.findById(
       input.toolId,
     ).exec();
@@ -351,6 +441,39 @@ export const ObservationToolSubmissionService = {
     const submissionId = assertObjectId(input.submissionId, "submissionId");
     const appointmentId = assertObjectId(input.appointmentId, "appointmentId");
 
+    if (isReadFromPostgres()) {
+      const doc = await prisma.observationToolSubmission.findFirst({
+        where: { id: submissionId },
+      });
+
+      if (!doc) {
+        throw new ObservationToolSubmissionServiceError(
+          "Submission not found",
+          404,
+        );
+      }
+
+      if (input.enforceSingleSubmissionPerAppointment) {
+        const alreadyLinked = await prisma.observationToolSubmission.findFirst({
+          where: { evaluationAppointmentId: appointmentId },
+        });
+
+        if (alreadyLinked) {
+          throw new ObservationToolSubmissionServiceError(
+            "An observation submission is already linked to this appointment",
+            409,
+          );
+        }
+      }
+
+      const updated = await prisma.observationToolSubmission.update({
+        where: { id: submissionId },
+        data: { evaluationAppointmentId: appointmentId },
+      });
+
+      return updated as unknown as ObservationToolSubmissionDocument;
+    }
+
     const doc =
       await ObservationToolSubmissionModel.findById(submissionId).exec();
 
@@ -385,6 +508,14 @@ export const ObservationToolSubmissionService = {
 
   async getById(id: string): Promise<ObservationToolSubmissionDocument | null> {
     const safeId = assertObjectId(id, "id");
+    if (isReadFromPostgres()) {
+      const doc = await prisma.observationToolSubmission.findFirst({
+        where: { id: safeId },
+      });
+      return (doc ??
+        null) as unknown as ObservationToolSubmissionDocument | null;
+    }
+
     return ObservationToolSubmissionModel.findById(safeId).exec();
   },
 
@@ -397,6 +528,24 @@ export const ObservationToolSubmissionService = {
     applyStringFilter(q, "toolId", filter.toolId);
     applyDateRangeFilter(q, filter.fromDate, filter.toDate);
 
+    if (isReadFromPostgres()) {
+      const where: Prisma.ObservationToolSubmissionWhereInput = {};
+
+      if (filter.companionId) where.companionId = filter.companionId;
+      if (filter.toolId) where.toolId = filter.toolId;
+      if (filter.fromDate || filter.toDate) {
+        where.createdAt = {};
+        if (filter.fromDate) where.createdAt.gte = filter.fromDate;
+        if (filter.toDate) where.createdAt.lte = filter.toDate;
+      }
+
+      const docs = await prisma.observationToolSubmission.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+      });
+      return docs as unknown as ObservationToolSubmissionDocument[];
+    }
+
     return ObservationToolSubmissionModel.find(q)
       .setOptions({ sanitizeFilter: true })
       .sort({ createdAt: -1 })
@@ -407,6 +556,13 @@ export const ObservationToolSubmissionService = {
     appointmentId: string,
   ): Promise<ObservationToolSubmissionDocument[]> {
     const safeAppointmentId = assertObjectId(appointmentId, "appointmentId");
+    if (isReadFromPostgres()) {
+      const docs = await prisma.observationToolSubmission.findMany({
+        where: { evaluationAppointmentId: safeAppointmentId },
+        orderBy: { createdAt: "desc" },
+      });
+      return docs as unknown as ObservationToolSubmissionDocument[];
+    }
     return ObservationToolSubmissionModel.find({
       evaluationAppointmentId: safeAppointmentId,
     })
@@ -417,6 +573,14 @@ export const ObservationToolSubmissionService = {
 
   async getByTaskId(taskId: string) {
     const safeTaskId = assertObjectId(taskId, "taskId");
+
+    if (isReadFromPostgres()) {
+      const doc = await prisma.observationToolSubmission.findFirst({
+        where: { taskId: safeTaskId },
+      });
+      return (doc ??
+        null) as unknown as ObservationToolSubmissionDocument | null;
+    }
 
     return ObservationToolSubmissionModel.findOne({ taskId: safeTaskId })
       .setOptions({ sanitizeFilter: true })
@@ -438,6 +602,70 @@ export const ObservationToolSubmissionService = {
     answersPreview?: Record<string, unknown>;
   }> {
     const safeTaskId = assertObjectId(taskId, "taskId");
+    if (isReadFromPostgres()) {
+      const task = await prisma.task.findFirst({
+        where: { id: safeTaskId },
+      });
+      if (!task) {
+        throw new ObservationToolSubmissionServiceError("Task not found", 404);
+      }
+
+      if (!task.observationToolId) {
+        throw new ObservationToolSubmissionServiceError(
+          "Task has no observationToolId",
+          400,
+        );
+      }
+
+      const tool = await prisma.observationToolDefinition.findFirst({
+        where: { id: task.observationToolId },
+      });
+
+      if (!tool || !tool.isActive) {
+        throw new ObservationToolSubmissionServiceError(
+          "Observation tool not found or inactive",
+          404,
+        );
+      }
+
+      const submission = await prisma.observationToolSubmission.findFirst({
+        where: { taskId: safeTaskId },
+        orderBy: { createdAt: "desc" },
+      });
+
+      const submissionAnswers = submission?.answers as
+        | ObservationToolAnswers
+        | undefined;
+
+      const toolFields =
+        tool.fields as unknown as ObservationToolDefinitionDocument["fields"];
+
+      const answersPreview =
+        submissionAnswers && toolFields.length
+          ? Object.fromEntries(
+              toolFields
+                .slice(0, 5)
+                .map<[string, unknown]>((f) => [
+                  f.key,
+                  submissionAnswers[f.key],
+                ])
+                .filter(([, v]) => v !== undefined),
+            )
+          : undefined;
+
+      return {
+        taskId,
+        toolId: tool.id,
+        toolName: tool.name,
+        toolCategory: tool.category,
+        submissionId: submission?.id ?? undefined,
+        submittedAt: submission?.createdAt,
+        score: submission?.score ?? undefined,
+        summary: submission?.summary ?? undefined,
+        answersPreview,
+      };
+    }
+
     const task = await TaskModel.findById(safeTaskId).lean();
     if (!task) {
       throw new ObservationToolSubmissionServiceError("Task not found", 404);
@@ -504,6 +732,77 @@ export const ObservationToolSubmissionService = {
     appointmentId: string,
   ): Promise<AppointmentTaskPreview[]> {
     const safeAppointmentId = assertObjectId(appointmentId, "appointmentId");
+
+    if (isReadFromPostgres()) {
+      const tasks = await prisma.task.findMany({
+        where: {
+          appointmentId: safeAppointmentId,
+          observationToolId: { not: null },
+        },
+        select: {
+          id: true,
+          companionId: true,
+          status: true,
+          dueAt: true,
+          observationToolId: true,
+        },
+      });
+
+      if (!tasks.length) return [];
+
+      const taskIds = tasks.map((t) => t.id);
+      const toolIds = Array.from(
+        new Set(tasks.map((t) => String(t.observationToolId))),
+      );
+
+      const [tools, submissions] = await Promise.all([
+        prisma.observationToolDefinition.findMany({
+          where: { id: { in: toolIds } },
+          select: { id: true, name: true, category: true, isActive: true },
+        }),
+        prisma.observationToolSubmission.findMany({
+          where: { taskId: { in: taskIds } },
+          select: {
+            id: true,
+            taskId: true,
+            toolId: true,
+            score: true,
+            summary: true,
+            createdAt: true,
+            evaluationAppointmentId: true,
+          },
+        }),
+      ]);
+
+      const toolById = new Map(tools.map((t) => [t.id, t]));
+      const submissionByTaskId = new Map(
+        submissions.map((s) => [String(s.taskId), s]),
+      );
+
+      return tasks.flatMap<AppointmentTaskPreview>((t) => {
+        const tool = toolById.get(String(t.observationToolId));
+        if (!tool) return [];
+        const submission = submissionByTaskId.get(t.id);
+
+        return [
+          {
+            taskId: t.id,
+            companionId: t.companionId ?? undefined,
+            status: String(t.status),
+            dueAt: t.dueAt,
+            toolId: tool.id,
+            toolName: tool.name,
+            toolCategory: tool.category,
+            submissionId: submission?.id ?? undefined,
+            submittedAt: submission?.createdAt,
+            score: submission?.score ?? undefined,
+            summary: submission?.summary ?? undefined,
+            evaluationAppointmentId:
+              submission?.evaluationAppointmentId ?? undefined,
+          },
+        ];
+      });
+    }
 
     // find OT tasks under the appointment
     const tasks = await TaskModel.find({

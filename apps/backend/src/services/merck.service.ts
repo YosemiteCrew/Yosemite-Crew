@@ -691,7 +691,9 @@ export const MerckService = {
     );
     const media = optionalEnum(input.media, ALLOWED_MEDIA, "media");
 
-    const merck = await IntegrationService.ensureMerckAccount(organisationId);
+    const merck = (await IntegrationService.ensureMerckAccount(
+      organisationId,
+    )) as { status?: string };
     if (merck.status === "disabled") {
       throw new MerckServiceError(
         "Merck Manuals is disabled for this organization.",
