@@ -51,7 +51,10 @@ export const OrganizationRatingService = {
 
     // Upsert user rating
     const ratingDoc = await OrganisationRatingModel.findOneAndUpdate(
-      { organizationId: safeOrganizationId, userId: safeUserId },
+      {
+        organizationId: new Types.ObjectId(safeOrganizationId),
+        userId: new Types.ObjectId(safeUserId),
+      },
       { rating, review },
       { upsert: true, new: true, sanitizeFilter: true },
     );
@@ -120,7 +123,7 @@ export const OrganizationRatingService = {
       averageRating: number;
       ratingCount: number;
     }>([
-      { $match: { organizationId: safeOrgId } },
+      { $match: { organizationId: new Types.ObjectId(safeOrgId) } },
       {
         $group: {
           _id: "$organizationId",
@@ -132,7 +135,7 @@ export const OrganizationRatingService = {
 
     if (stats.length) {
       const { averageRating, ratingCount } = stats[0];
-      await OrganizationModel.findByIdAndUpdate(safeOrgId, {
+      await OrganizationModel.findByIdAndUpdate(new Types.ObjectId(safeOrgId), {
         averageRating: averageRating.toFixed(1),
         ratingCount,
       });
@@ -152,7 +155,7 @@ export const OrganizationRatingService = {
       }
     } else {
       // No ratings — reset values
-      await OrganizationModel.findByIdAndUpdate(safeOrgId, {
+      await OrganizationModel.findByIdAndUpdate(new Types.ObjectId(safeOrgId), {
         averageRating: 0,
         ratingCount: 0,
       });
@@ -190,8 +193,8 @@ export const OrganizationRatingService = {
     }
 
     const existingRating = await OrganisationRatingModel.findOne({
-      organizationId: safeOrganisationId,
-      userId: safeUserId,
+      organizationId: new Types.ObjectId(safeOrganisationId),
+      userId: new Types.ObjectId(safeUserId),
     });
     return {
       isRated: !!existingRating,

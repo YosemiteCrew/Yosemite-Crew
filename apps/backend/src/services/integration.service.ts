@@ -51,11 +51,21 @@ const ensureProvider = (provider: string): IntegrationProvider => {
   return normalized;
 };
 
+const ORGANISATION_ID_REGEX = /^[A-Za-z0-9_-]{1,64}$/;
+
 const ensureNonEmptyString = (value: string, field: string): string => {
   if (!value?.trim()) {
     throw new IntegrationServiceError(`${field} is required.`, 400);
   }
-  return value;
+  return value.trim();
+};
+
+const requireOrganisationId = (value: string): string => {
+  const trimmed = ensureNonEmptyString(value, "organisationId");
+  if (/[.$]/.test(trimmed) || !ORGANISATION_ID_REGEX.test(trimmed)) {
+    throw new IntegrationServiceError("Invalid organisationId.", 400);
+  }
+  return trimmed;
 };
 
 const isMerckProvider = (provider: IntegrationProvider) =>
@@ -114,10 +124,7 @@ export const IntegrationService = {
   ensureProvider,
 
   async ensureMerckAccount(organisationId: string) {
-    const safeOrganisationId = ensureNonEmptyString(
-      organisationId,
-      "organisationId",
-    );
+    const safeOrganisationId = requireOrganisationId(organisationId);
     if (isReadFromPostgres()) {
       const existing = await prisma.integrationAccount.findFirst({
         where: {
@@ -182,10 +189,7 @@ export const IntegrationService = {
   },
 
   async listForOrganisation(organisationId: string) {
-    const safeOrganisationId = ensureNonEmptyString(
-      organisationId,
-      "organisationId",
-    );
+    const safeOrganisationId = requireOrganisationId(organisationId);
     if (isReadFromPostgres()) {
       const list = await prisma.integrationAccount.findMany({
         where: { organisationId: safeOrganisationId },
@@ -228,10 +232,7 @@ export const IntegrationService = {
   },
 
   async getForOrganisation(organisationId: string, provider: string) {
-    const safeOrganisationId = ensureNonEmptyString(
-      organisationId,
-      "organisationId",
-    );
+    const safeOrganisationId = requireOrganisationId(organisationId);
     const normalized = ensureProvider(provider);
     if (isReadFromPostgres()) {
       return prisma.integrationAccount.findFirst({
@@ -254,7 +255,7 @@ export const IntegrationService = {
     credentials: IntegrationCredentials,
     config?: IntegrationConfig,
   ) {
-    ensureNonEmptyString(organisationId, "organisationId");
+    requireOrganisationId(organisationId);
     const normalized = ensureProvider(provider);
 
     if (!credentials || Object.keys(credentials).length === 0) {
@@ -280,10 +281,7 @@ export const IntegrationService = {
       lastError: null,
     };
 
-    const safeOrganisationId = ensureNonEmptyString(
-      organisationId,
-      "organisationId",
-    );
+    const safeOrganisationId = requireOrganisationId(organisationId);
 
     if (isReadFromPostgres()) {
       return prisma.integrationAccount.upsert({
@@ -337,10 +335,7 @@ export const IntegrationService = {
   },
 
   async setEnabled(organisationId: string, provider: string) {
-    const safeOrganisationId = ensureNonEmptyString(
-      organisationId,
-      "organisationId",
-    );
+    const safeOrganisationId = requireOrganisationId(organisationId);
     const normalized = ensureProvider(provider);
 
     if (isMerckProvider(normalized)) {
@@ -493,10 +488,7 @@ export const IntegrationService = {
   },
 
   async setDisabled(organisationId: string, provider: string) {
-    const safeOrganisationId = ensureNonEmptyString(
-      organisationId,
-      "organisationId",
-    );
+    const safeOrganisationId = requireOrganisationId(organisationId);
     const normalized = ensureProvider(provider);
 
     if (isMerckProvider(normalized)) {
@@ -600,10 +592,7 @@ export const IntegrationService = {
     organisationId: string,
     provider: string,
   ): Promise<IntegrationValidationResult> {
-    const safeOrganisationId = ensureNonEmptyString(
-      organisationId,
-      "organisationId",
-    );
+    const safeOrganisationId = requireOrganisationId(organisationId);
     const normalized = ensureProvider(provider);
 
     if (isMerckProvider(normalized)) {
@@ -671,10 +660,7 @@ export const IntegrationService = {
     organisationId: string,
     provider: string,
   ): Promise<IntegrationAccountDocument | PrismaIntegrationAccount> {
-    const safeOrganisationId = ensureNonEmptyString(
-      organisationId,
-      "organisationId",
-    );
+    const safeOrganisationId = requireOrganisationId(organisationId);
     const normalized = ensureProvider(provider);
 
     const account = isReadFromPostgres()

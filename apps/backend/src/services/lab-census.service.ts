@@ -76,7 +76,9 @@ const buildCensusPayload = async (input: {
     ? await prisma.companion.findUnique({
         where: { id: safeCompanionId.toString() },
       })
-    : await CompanionModel.findById(safeCompanionId).lean();
+    : await CompanionModel.findById(safeCompanionId)
+        .setOptions({ sanitizeFilter: true })
+        .lean();
   if (!companion) {
     throw new LabOrderServiceError("Companion not found.", 404);
   }
@@ -86,7 +88,9 @@ const buildCensusPayload = async (input: {
         where: { id: safeParentId.toString() },
         include: { address: true },
       })
-    : await ParentModel.findById(safeParentId).lean();
+    : await ParentModel.findById(safeParentId)
+        .setOptions({ sanitizeFilter: true })
+        .lean();
   if (!parent) {
     throw new LabOrderServiceError("Parent not found.", 404);
   }

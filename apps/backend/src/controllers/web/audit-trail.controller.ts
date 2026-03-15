@@ -52,9 +52,16 @@ export const AuditTrailController = {
     res: Response,
   ) => {
     try {
+      if (req.method === "GET") {
+        return res.status(405).json({
+          message: "Use POST with companionId in request body.",
+        });
+      }
       const orgReq = req as OrgRequest;
       const organisationId = orgReq.organisationId;
-      const { companionId } = req.params;
+      const body = req.body as { companionId?: string } | undefined;
+      const companionId =
+        typeof body?.companionId === "string" ? body.companionId.trim() : "";
 
       if (!organisationId) {
         return res.status(400).json({ message: "organisationId is required" });
@@ -92,9 +99,18 @@ export const AuditTrailController = {
     res: Response,
   ) => {
     try {
+      if (req.method === "GET") {
+        return res.status(405).json({
+          message: "Use POST with appointmentId in request body.",
+        });
+      }
       const orgReq = req as OrgRequest;
       const organisationId = orgReq.organisationId;
-      const { appointmentId } = req.params;
+      const body = req.body as { appointmentId?: string } | undefined;
+      const appointmentId =
+        typeof body?.appointmentId === "string"
+          ? body.appointmentId.trim()
+          : "";
 
       if (!organisationId) {
         return res.status(400).json({ message: "organisationId is required" });

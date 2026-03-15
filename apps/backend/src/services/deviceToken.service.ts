@@ -9,27 +9,35 @@ export const DeviceTokenService = {
     deviceToken: string,
     platform: "ios" | "android",
   ) {
-    if (!deviceToken) return;
-    if (!userId) return;
+    const safeUserId =
+      typeof userId === "string" && userId.trim() ? userId.trim() : "";
+    const safeDeviceToken =
+      typeof deviceToken === "string" && deviceToken.trim()
+        ? deviceToken.trim()
+        : "";
+    if (!safeDeviceToken || !safeUserId) return;
+    if (/[.$]/.test(safeDeviceToken) || /[.$]/.test(safeUserId)) {
+      return;
+    }
 
     await DeviceTokenModel.updateOne(
-      { deviceToken },
-      { userId, platform },
+      { deviceToken: safeDeviceToken },
+      { userId: safeUserId, platform },
       { upsert: true, sanitizeFilter: true },
     );
 
     if (shouldDualWrite) {
       try {
         await prisma.deviceToken.upsert({
-          where: { deviceToken },
+          where: { deviceToken: safeDeviceToken },
           create: {
-            userId,
-            deviceToken,
+            userId: safeUserId,
+            deviceToken: safeDeviceToken,
             platform,
             isActive: true,
           },
           update: {
-            userId,
+            userId: safeUserId,
             platform,
             isActive: true,
           },
