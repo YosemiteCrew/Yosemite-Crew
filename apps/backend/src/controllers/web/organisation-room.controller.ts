@@ -16,6 +16,37 @@ const isFHIRLocationPayload = (
   );
 };
 
+const requireParam = (
+  res: Response,
+  value: string | undefined,
+  message: string,
+): value is string => {
+  if (!value) {
+    res.status(400).json({ message });
+    return false;
+  }
+  return true;
+};
+
+const handleServiceError = (
+  res: Response,
+  error: unknown,
+  logMessage: string,
+  responseMessage: string,
+) => {
+  if (error instanceof OrganisationRoomServiceError) {
+    res.status(error.statusCode).json({ message: error.message });
+    return;
+  }
+
+  logger.error(logMessage, error);
+  res.status(500).json({ message: responseMessage });
+};
+
+const respondNotFound = (res: Response) => {
+  res.status(404).json({ message: "Organisation room not found." });
+};
+
 export const OrganisationRoomController = {
   create: async (req: Request, res: Response) => {
     try {
@@ -32,13 +63,12 @@ export const OrganisationRoomController = {
         await OrganisationRoomService.create(payload);
       res.status(created ? 201 : 200).json(response);
     } catch (error) {
-      if (error instanceof OrganisationRoomServiceError) {
-        res.status(error.statusCode).json({ message: error.message });
-        return;
-      }
-
-      logger.error("Failed to create organisation room", error);
-      res.status(500).json({ message: "Unable to create organisation room." });
+      handleServiceError(
+        res,
+        error,
+        "Failed to create organisation room",
+        "Unable to create organisation room.",
+      );
     }
   },
 
@@ -47,8 +77,7 @@ export const OrganisationRoomController = {
       const { id } = req.params;
       const payload = req.body as OrganisationRoomFHIRPayload | undefined;
 
-      if (!id) {
-        res.status(400).json({ message: "Room identifier is required." });
+      if (!requireParam(res, id, "Room identifier is required.")) {
         return;
       }
 
@@ -62,19 +91,18 @@ export const OrganisationRoomController = {
       const resource = await OrganisationRoomService.update(id, payload);
 
       if (!resource) {
-        res.status(404).json({ message: "Organisation room not found." });
+        respondNotFound(res);
         return;
       }
 
       res.status(200).json(resource);
     } catch (error) {
-      if (error instanceof OrganisationRoomServiceError) {
-        res.status(error.statusCode).json({ message: error.message });
-        return;
-      }
-
-      logger.error("Failed to update organisation room", error);
-      res.status(500).json({ message: "Unable to update organisation room." });
+      handleServiceError(
+        res,
+        error,
+        "Failed to update organisation room",
+        "Unable to update organisation room.",
+      );
     }
   },
 
@@ -82,10 +110,13 @@ export const OrganisationRoomController = {
     try {
       const { organizationId } = req.params;
 
-      if (!organizationId) {
-        res
-          .status(400)
-          .json({ message: "Organization identifier is required." });
+      if (
+        !requireParam(
+          res,
+          organizationId,
+          "Organization identifier is required.",
+        )
+      ) {
         return;
       }
 
@@ -93,15 +124,12 @@ export const OrganisationRoomController = {
         await OrganisationRoomService.getAllByOrganizationId(organizationId);
       res.status(200).json(resources);
     } catch (error) {
-      if (error instanceof OrganisationRoomServiceError) {
-        res.status(error.statusCode).json({ message: error.message });
-        return;
-      }
-
-      logger.error("Failed to retrieve organisation rooms", error);
-      res
-        .status(500)
-        .json({ message: "Unable to retrieve organisation rooms." });
+      handleServiceError(
+        res,
+        error,
+        "Failed to retrieve organisation rooms",
+        "Unable to retrieve organisation rooms.",
+      );
     }
   },
 
@@ -109,27 +137,25 @@ export const OrganisationRoomController = {
     try {
       const { id } = req.params;
 
-      if (!id) {
-        res.status(400).json({ message: "Room identifier is required." });
+      if (!requireParam(res, id, "Room identifier is required.")) {
         return;
       }
 
       const resource = await OrganisationRoomService.delete(id);
 
       if (!resource) {
-        res.status(404).json({ message: "Organisation room not found." });
+        respondNotFound(res);
         return;
       }
 
       res.status(200).json(resource);
     } catch (error) {
-      if (error instanceof OrganisationRoomServiceError) {
-        res.status(error.statusCode).json({ message: error.message });
-        return;
-      }
-
-      logger.error("Failed to delete organisation room", error);
-      res.status(500).json({ message: "Unable to delete organisation room." });
+      handleServiceError(
+        res,
+        error,
+        "Failed to delete organisation room",
+        "Unable to delete organisation room.",
+      );
     }
   },
 };

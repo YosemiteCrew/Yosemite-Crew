@@ -38,6 +38,7 @@ import { FormModel } from "src/models/form";
 import InvoiceModel from "src/models/invoice";
 import { isReadFromPostgres } from "src/config/read-switch";
 import { resolvePaymentCollectionMethod } from "src/utils/payment";
+import { ensureObjectId as ensureObjectIdStrict } from "src/utils/mongo";
 
 export class AppointmentServiceError extends Error {
   constructor(
@@ -49,13 +50,10 @@ export class AppointmentServiceError extends Error {
   }
 }
 
-const ensureObjectId = (id: string | Types.ObjectId, field: string) => {
-  if (id instanceof Types.ObjectId) return id;
-  if (!Types.ObjectId.isValid(id)) {
-    throw new AppointmentServiceError(`Invalid ${field}`, 400);
-  }
-  return new Types.ObjectId(id);
-};
+const ensureObjectId = (id: string | Types.ObjectId, field: string) =>
+  ensureObjectIdStrict(id, field, (message) => {
+    return new AppointmentServiceError(message, 400);
+  });
 
 type LegacyAppointmentStatus = AppointmentStatus | "NO_PAYMENT";
 
@@ -91,6 +89,42 @@ const assertAppointmentStatusTransition = (
       409,
     );
   }
+};
+
+const buildUsageCounterPayload = (doc: {
+  appointmentsUsed?: number | null;
+  toolsUsed?: number | null;
+  usersActiveCount?: number | null;
+  usersBillableCount?: number | null;
+  freeAppointmentsLimit?: number | null;
+  freeToolsLimit?: number | null;
+  freeUsersLimit?: number | null;
+  freeLimitReachedAt?: Date | null;
+  updatedAt?: Date | null;
+}) => ({
+  appointmentsUsed: doc.appointmentsUsed ?? 0,
+  toolsUsed: doc.toolsUsed ?? 0,
+  usersActiveCount: doc.usersActiveCount ?? 0,
+  usersBillableCount: doc.usersBillableCount ?? 0,
+  freeAppointmentsLimit: doc.freeAppointmentsLimit ?? 120,
+  freeToolsLimit: doc.freeToolsLimit ?? 200,
+  freeUsersLimit: doc.freeUsersLimit ?? 10,
+  freeLimitReachedAt: doc.freeLimitReachedAt ?? undefined,
+  updatedAt: doc.updatedAt ?? undefined,
+});
+
+const assertRequestedAppointment = (
+  status: LegacyAppointmentStatus,
+  context: string,
+) => {
+  const normalizedStatus = normalizeAppointmentStatus(status);
+  if (normalizedStatus !== "REQUESTED") {
+    throw new AppointmentServiceError(
+      "Requested appointment not found or already processed",
+      404,
+    );
+  }
+  assertAppointmentStatusTransition(status, "UPCOMING", context);
 };
 
 const resolvePaymentStatusByAppointmentIds = async (
@@ -189,40 +223,39 @@ const resolvePaymentStatusByAppointmentIds = async (
 
 type AppointmentRequestInput = ReturnType<typeof fromAppointmentRequestDTO>;
 
-const validateRequestedFromMobileInput = (input: AppointmentRequestInput) => {
+const requireBaseAppointmentInput = (
+  input: AppointmentRequestInput,
+  messages: {
+    organisation: string;
+    companion: string;
+    timing: string;
+  },
+) => {
   if (!input.organisationId) {
-    throw new AppointmentServiceError("organisationId is required", 400);
+    throw new AppointmentServiceError(messages.organisation, 400);
   }
   if (!input.companion?.id || !input.companion.parent?.id) {
-    throw new AppointmentServiceError(
-      "Companion and parent details are required",
-      400,
-    );
+    throw new AppointmentServiceError(messages.companion, 400);
   }
   if (!input.startTime || !input.endTime || !input.durationMinutes) {
-    throw new AppointmentServiceError(
-      "startTime, endTime, durationMinutes required",
-      400,
-    );
+    throw new AppointmentServiceError(messages.timing, 400);
   }
 };
 
+const validateRequestedFromMobileInput = (input: AppointmentRequestInput) => {
+  requireBaseAppointmentInput(input, {
+    organisation: "organisationId is required",
+    companion: "Companion and parent details are required",
+    timing: "startTime, endTime, durationMinutes required",
+  });
+};
+
 const validateAppointmentFromPmsInput = (input: AppointmentRequestInput) => {
-  if (!input.organisationId) {
-    throw new AppointmentServiceError("organisationId is required.", 400);
-  }
-  if (!input.companion?.id || !input.companion.parent?.id) {
-    throw new AppointmentServiceError(
-      "Companion and parent information is required.",
-      400,
-    );
-  }
-  if (!input.startTime || !input.endTime || !input.durationMinutes) {
-    throw new AppointmentServiceError(
-      "startTime, endTime and durationMinutes are required.",
-      400,
-    );
-  }
+  requireBaseAppointmentInput(input, {
+    organisation: "organisationId is required.",
+    companion: "Companion and parent information is required.",
+    timing: "startTime, endTime and durationMinutes are required.",
+  });
   if (!input.lead?.id) {
     throw new AppointmentServiceError(
       "Lead veterinarian (vet) is required.",
@@ -406,33 +439,16 @@ const ensureOrgUsageCounters = async (orgId: Types.ObjectId | string) => {
 
   if (doc && shouldDualWrite) {
     try {
+      const usagePayload = buildUsageCounterPayload(doc);
       await prisma.organizationUsageCounter.upsert({
         where: { orgId: orgId.toString() },
         create: {
           id: doc._id.toString(),
           orgId: orgId.toString(),
-          appointmentsUsed: doc.appointmentsUsed ?? 0,
-          toolsUsed: doc.toolsUsed ?? 0,
-          usersActiveCount: doc.usersActiveCount ?? 0,
-          usersBillableCount: doc.usersBillableCount ?? 0,
-          freeAppointmentsLimit: doc.freeAppointmentsLimit ?? 120,
-          freeToolsLimit: doc.freeToolsLimit ?? 200,
-          freeUsersLimit: doc.freeUsersLimit ?? 10,
-          freeLimitReachedAt: doc.freeLimitReachedAt ?? undefined,
+          ...usagePayload,
           createdAt: doc.createdAt ?? undefined,
-          updatedAt: doc.updatedAt ?? undefined,
         },
-        update: {
-          appointmentsUsed: doc.appointmentsUsed ?? 0,
-          toolsUsed: doc.toolsUsed ?? 0,
-          usersActiveCount: doc.usersActiveCount ?? 0,
-          usersBillableCount: doc.usersBillableCount ?? 0,
-          freeAppointmentsLimit: doc.freeAppointmentsLimit ?? 120,
-          freeToolsLimit: doc.freeToolsLimit ?? 200,
-          freeUsersLimit: doc.freeUsersLimit ?? 10,
-          freeLimitReachedAt: doc.freeLimitReachedAt ?? undefined,
-          updatedAt: doc.updatedAt ?? undefined,
-        },
+        update: usagePayload,
       });
     } catch (err) {
       handleDualWriteError("OrganizationUsageCounter ensure", err);
@@ -720,19 +736,10 @@ const reserveAppointmentUsage = async (
 
     if (shouldDualWrite) {
       try {
+        const usagePayload = buildUsageCounterPayload(updated);
         await prisma.organizationUsageCounter.updateMany({
           where: { orgId: orgId.toString() },
-          data: {
-            appointmentsUsed: updated.appointmentsUsed ?? 0,
-            toolsUsed: updated.toolsUsed ?? 0,
-            usersActiveCount: updated.usersActiveCount ?? 0,
-            usersBillableCount: updated.usersBillableCount ?? 0,
-            freeAppointmentsLimit: updated.freeAppointmentsLimit ?? 120,
-            freeToolsLimit: updated.freeToolsLimit ?? 200,
-            freeUsersLimit: updated.freeUsersLimit ?? 10,
-            freeLimitReachedAt: updated.freeLimitReachedAt ?? undefined,
-            updatedAt: updated.updatedAt ?? undefined,
-          },
+          data: usagePayload,
         });
       } catch (err) {
         handleDualWriteError("OrganizationUsageCounter reserve", err);
@@ -754,19 +761,10 @@ const reserveAppointmentUsage = async (
 
   if (updated && shouldDualWrite) {
     try {
+      const usagePayload = buildUsageCounterPayload(updated);
       await prisma.organizationUsageCounter.updateMany({
         where: { orgId: orgId.toString() },
-        data: {
-          appointmentsUsed: updated.appointmentsUsed ?? 0,
-          toolsUsed: updated.toolsUsed ?? 0,
-          usersActiveCount: updated.usersActiveCount ?? 0,
-          usersBillableCount: updated.usersBillableCount ?? 0,
-          freeAppointmentsLimit: updated.freeAppointmentsLimit ?? 120,
-          freeToolsLimit: updated.freeToolsLimit ?? 200,
-          freeUsersLimit: updated.freeUsersLimit ?? 10,
-          freeLimitReachedAt: updated.freeLimitReachedAt ?? undefined,
-          updatedAt: updated.updatedAt ?? undefined,
-        },
+        data: usagePayload,
       });
     } catch (err) {
       handleDualWriteError("OrganizationUsageCounter reserve", err);
@@ -829,12 +827,54 @@ const releaseAppointmentUsage = async (reservation: {
   }
 };
 
+const buildAppointmentDomain = (input: {
+  id?: string;
+  companion: Appointment["companion"];
+  lead?: Appointment["lead"];
+  supportStaff?: Appointment["supportStaff"];
+  room?: Appointment["room"];
+  appointmentType?: Appointment["appointmentType"];
+  organisationId: string;
+  appointmentDate: Date;
+  startTime: Date;
+  timeSlot: string;
+  durationMinutes: number;
+  endTime: Date;
+  status: LegacyAppointmentStatus;
+  isEmergency?: boolean;
+  concern?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  attachments?: Appointment["attachments"];
+  formIds?: string[];
+}): Appointment => ({
+  id: input.id,
+  companion: input.companion,
+  lead: input.lead ?? undefined,
+  supportStaff: input.supportStaff ?? [],
+  room: input.room ?? undefined,
+  appointmentType: input.appointmentType ?? undefined,
+  organisationId: input.organisationId,
+  appointmentDate: input.appointmentDate,
+  startTime: input.startTime,
+  timeSlot: input.timeSlot,
+  durationMinutes: input.durationMinutes,
+  endTime: input.endTime,
+  status: normalizeAppointmentStatus(input.status),
+  isEmergency: input.isEmergency ?? undefined,
+  concern: input.concern ?? undefined,
+  createdAt: input.createdAt,
+  updatedAt: input.updatedAt,
+  attachments: input.attachments,
+  formIds: input.formIds ?? [],
+});
+
 const toDomain = (doc: AppointmentDocument): Appointment => {
   const obj = doc.toObject() as AppointmentMongo & {
     _id: Types.ObjectId;
   };
 
-  return {
+  return buildAppointmentDomain({
     id: obj._id.toString(),
     companion: obj.companion,
     lead: obj.lead ?? undefined,
@@ -847,14 +887,14 @@ const toDomain = (doc: AppointmentDocument): Appointment => {
     timeSlot: obj.timeSlot,
     durationMinutes: obj.durationMinutes,
     endTime: obj.endTime,
-    status: normalizeAppointmentStatus(obj.status as LegacyAppointmentStatus),
+    status: obj.status as LegacyAppointmentStatus,
     isEmergency: obj.isEmergency ?? undefined,
     concern: obj.concern ?? undefined,
-    createdAt: obj.createdAt,
-    updatedAt: obj.updatedAt,
+    createdAt: obj.createdAt ?? obj.startTime,
+    updatedAt: obj.updatedAt ?? obj.startTime,
     attachments: obj.attachments,
     formIds: obj.formIds ?? [],
-  };
+  });
 };
 
 const toDomainFromPrisma = (row: {
@@ -877,31 +917,32 @@ const toDomainFromPrisma = (row: {
   updatedAt: Date;
   attachments: Prisma.JsonValue | null;
   formIds: string[];
-}): Appointment => ({
-  id: row.id,
-  companion: row.companion as unknown as Appointment["companion"],
-  lead: (row.lead ?? undefined) as Appointment["lead"] | undefined,
-  supportStaff: (row.supportStaff ?? []) as Appointment["supportStaff"],
-  room: (row.room ?? undefined) as Appointment["room"] | undefined,
-  appointmentType: (row.appointmentType ?? undefined) as
-    | Appointment["appointmentType"]
-    | undefined,
-  organisationId: row.organisationId,
-  appointmentDate: row.appointmentDate,
-  startTime: row.startTime,
-  timeSlot: row.timeSlot,
-  durationMinutes: row.durationMinutes,
-  endTime: row.endTime,
-  status: normalizeAppointmentStatus(row.status as LegacyAppointmentStatus),
-  isEmergency: row.isEmergency ?? undefined,
-  concern: row.concern ?? undefined,
-  createdAt: row.createdAt,
-  updatedAt: row.updatedAt,
-  attachments: (row.attachments ?? undefined) as
-    | Appointment["attachments"]
-    | undefined,
-  formIds: row.formIds ?? [],
-});
+}): Appointment =>
+  buildAppointmentDomain({
+    id: row.id,
+    companion: row.companion as unknown as Appointment["companion"],
+    lead: (row.lead ?? undefined) as Appointment["lead"] | undefined,
+    supportStaff: (row.supportStaff ?? []) as Appointment["supportStaff"],
+    room: (row.room ?? undefined) as Appointment["room"] | undefined,
+    appointmentType: (row.appointmentType ?? undefined) as
+      | Appointment["appointmentType"]
+      | undefined,
+    organisationId: row.organisationId,
+    appointmentDate: row.appointmentDate,
+    startTime: row.startTime,
+    timeSlot: row.timeSlot,
+    durationMinutes: row.durationMinutes,
+    endTime: row.endTime,
+    status: row.status as LegacyAppointmentStatus,
+    isEmergency: row.isEmergency ?? undefined,
+    concern: row.concern ?? undefined,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    attachments: (row.attachments ?? undefined) as
+      | Appointment["attachments"]
+      | undefined,
+    formIds: row.formIds ?? [],
+  });
 
 const toDomainLean = (
   doc: AppointmentDocument | (AppointmentMongo & { _id?: Types.ObjectId }),
@@ -913,7 +954,7 @@ const toDomainLean = (
 
   const id = obj._id ? obj._id.toString() : undefined;
 
-  return {
+  return buildAppointmentDomain({
     id,
     companion: obj.companion,
     lead: obj.lead ?? undefined,
@@ -926,14 +967,74 @@ const toDomainLean = (
     timeSlot: obj.timeSlot,
     durationMinutes: obj.durationMinutes,
     endTime: obj.endTime,
-    status: normalizeAppointmentStatus(obj.status as LegacyAppointmentStatus),
+    status: obj.status as LegacyAppointmentStatus,
     isEmergency: obj.isEmergency ?? undefined,
     concern: obj.concern ?? undefined,
-    createdAt: obj.createdAt,
-    updatedAt: obj.updatedAt,
+    createdAt: obj.createdAt ?? obj.startTime,
+    updatedAt: obj.updatedAt ?? obj.startTime,
     attachments: obj.attachments,
     formIds: obj.formIds ?? [],
-  };
+  });
+};
+
+const buildAppointmentFromInput = (
+  input: AppointmentRequestInput,
+  status: AppointmentStatus,
+  overrides?: Partial<Pick<Appointment, "lead" | "supportStaff" | "room">>,
+): Appointment => ({
+  id: undefined,
+  organisationId: input.organisationId,
+  companion: input.companion,
+  appointmentType: input.appointmentType,
+  appointmentDate: input.startTime,
+  startTime: input.startTime,
+  endTime: input.endTime,
+  timeSlot: dayjs(input.startTime).format("HH:mm"),
+  durationMinutes: input.durationMinutes,
+  status,
+  concern: input.concern,
+  isEmergency: input.isEmergency,
+  lead: overrides?.lead,
+  supportStaff: overrides?.supportStaff ?? [],
+  room: overrides?.room ?? undefined,
+  attachments: input.attachments,
+  formIds: input.formIds ?? [],
+  createdAt: new Date(),
+  updatedAt: new Date(),
+});
+
+const mapAppointmentsFromPrisma = async (
+  rows: Array<{ id: string }>,
+): Promise<AppointmentResponseDTO[]> => {
+  const paymentStatusMap = await buildPaymentStatusMapForAppointments(
+    rows.map((row) => row.id),
+  );
+
+  return rows.map((row) => {
+    const domain = attachPaymentStatus(
+      toDomainFromPrisma(
+        row as unknown as Parameters<typeof toDomainFromPrisma>[0],
+      ),
+      paymentStatusMap.get(row.id) ?? "UNPAID",
+    );
+    return toAppointmentResponseDTO(domain);
+  });
+};
+
+const mapAppointmentsFromDocs = async (
+  docs: AppointmentMongo[],
+): Promise<AppointmentResponseDTO[]> => {
+  const paymentStatusMap = await buildPaymentStatusMapForDocs(docs);
+  return docs.map((doc) => {
+    const appointmentId =
+      (doc as AppointmentMongo & { _id?: Types.ObjectId })._id?.toString() ??
+      "";
+    const domain = attachPaymentStatus(
+      toDomainLean(doc),
+      paymentStatusMap.get(appointmentId) ?? "UNPAID",
+    );
+    return toAppointmentResponseDTO(domain);
+  });
 };
 
 const attachPaymentStatus = (
@@ -1154,27 +1255,7 @@ export const AppointmentService = {
         input.formIds?.push(consentForm.id!);
       }
 
-      const appointment: Appointment = {
-        id: undefined,
-        organisationId: input.organisationId,
-        companion: input.companion,
-        appointmentType: input.appointmentType,
-        appointmentDate: input.startTime,
-        startTime: input.startTime,
-        endTime: input.endTime,
-        timeSlot: dayjs(input.startTime).format("HH:mm"),
-        durationMinutes: input.durationMinutes,
-        status: "REQUESTED",
-        concern: input.concern,
-        isEmergency: input.isEmergency,
-        lead: undefined,
-        supportStaff: [],
-        room: undefined,
-        attachments: input.attachments,
-        formIds: input.formIds ?? [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+      const appointment = buildAppointmentFromInput(input, "REQUESTED");
 
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
       let created;
@@ -1267,28 +1348,7 @@ export const AppointmentService = {
       input.formIds?.push(consentForm.id!);
     }
 
-    const appointment: Appointment = {
-      id: undefined,
-      organisationId: input.organisationId,
-      companion: input.companion,
-      appointmentType: input.appointmentType,
-      appointmentDate: input.startTime,
-      startTime: input.startTime,
-      endTime: input.endTime,
-      timeSlot: dayjs(input.startTime).format("HH:mm"),
-      durationMinutes: input.durationMinutes,
-      status: "REQUESTED",
-      concern: input.concern,
-      isEmergency: input.isEmergency,
-      lead: undefined,
-      supportStaff: [],
-      room: undefined,
-      attachments: input.attachments,
-      formIds: input.formIds ?? [],
-
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+    const appointment = buildAppointmentFromInput(input, "REQUESTED");
 
     const persistable = toPersistable(appointment);
     let savedAppointment: AppointmentDocument;
@@ -1402,27 +1462,11 @@ export const AppointmentService = {
         discountPercent: service.maxDiscount ?? undefined,
       };
 
-      const appointment: Appointment = {
-        id: undefined,
-        organisationId: input.organisationId,
-        companion: input.companion,
-        appointmentType: input.appointmentType,
-        appointmentDate: input.startTime,
-        startTime: input.startTime,
-        endTime: input.endTime,
-        timeSlot: dayjs(input.startTime).format("HH:mm"),
-        durationMinutes: input.durationMinutes,
-        status: "UPCOMING",
-        concern: input.concern,
-        isEmergency: input.isEmergency ?? false,
+      const appointment = buildAppointmentFromInput(input, "UPCOMING", {
         lead: input.lead,
         supportStaff: input.supportStaff ?? [],
         room: input.room ?? undefined,
-        attachments: input.attachments,
-        formIds: input.formIds ?? [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+      });
 
       try {
         const appointmentRow = await prisma.$transaction(async (tx) => {
@@ -1618,31 +1662,11 @@ export const AppointmentService = {
       discountPercent: service.maxDiscount ?? undefined,
     };
 
-    const appointment: Appointment = {
-      id: undefined,
-
-      organisationId: input.organisationId,
-      companion: input.companion,
-      appointmentType: input.appointmentType,
-
-      appointmentDate: input.startTime,
-      startTime: input.startTime,
-      endTime: input.endTime,
-      timeSlot: dayjs(input.startTime).format("HH:mm"),
-      durationMinutes: input.durationMinutes,
-
-      status: "UPCOMING",
-      concern: input.concern,
-      isEmergency: input.isEmergency ?? false,
-
+    const appointment = buildAppointmentFromInput(input, "UPCOMING", {
       lead: input.lead,
       supportStaff: input.supportStaff ?? [],
       room: input.room ?? undefined,
-      attachments: input.attachments,
-      formIds: input.formIds ?? [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+    });
 
     const persistable = toPersistable(appointment);
     const session = await mongoose.startSession();
@@ -1817,18 +1841,8 @@ export const AppointmentService = {
         );
       }
 
-      const normalizedStatus = normalizeAppointmentStatus(
+      assertRequestedAppointment(
         appointment.status as LegacyAppointmentStatus,
-      );
-      if (normalizedStatus !== "REQUESTED") {
-        throw new AppointmentServiceError(
-          "Requested appointment not found or already processed",
-          404,
-        );
-      }
-      assertAppointmentStatusTransition(
-        appointment.status as LegacyAppointmentStatus,
-        "UPCOMING",
         "approveRequestedFromPms",
       );
 
@@ -1931,18 +1945,8 @@ export const AppointmentService = {
       );
     }
 
-    const normalizedStatus = normalizeAppointmentStatus(
+    assertRequestedAppointment(
       appointment.status as LegacyAppointmentStatus,
-    );
-    if (normalizedStatus !== "REQUESTED") {
-      throw new AppointmentServiceError(
-        "Requested appointment not found or already processed",
-        404,
-      );
-    }
-    assertAppointmentStatusTransition(
-      appointment.status as LegacyAppointmentStatus,
-      "UPCOMING",
       "approveRequestedFromPms",
     );
 
@@ -3421,17 +3425,7 @@ export const AppointmentService = {
         orderBy: { startTime: "desc" },
       });
 
-      const paymentStatusMap = await buildPaymentStatusMapForAppointments(
-        rows.map((row) => row.id),
-      );
-
-      return rows.map((row) => {
-        const domain = attachPaymentStatus(
-          toDomainFromPrisma(row),
-          paymentStatusMap.get(row.id) ?? "UNPAID",
-        );
-        return toAppointmentResponseDTO(domain);
-      });
+      return mapAppointmentsFromPrisma(rows);
     }
 
     const docs: AppointmentMongo[] = await AppointmentModel.find({
@@ -3441,18 +3435,7 @@ export const AppointmentService = {
       .sort({ startTime: -1 })
       .lean<AppointmentMongo[]>();
 
-    const paymentStatusMap = await buildPaymentStatusMapForDocs(docs);
-
-    return docs.map((doc) => {
-      const appointmentId =
-        (doc as AppointmentMongo & { _id?: Types.ObjectId })._id?.toString() ??
-        "";
-      const domain = attachPaymentStatus(
-        toDomainLean(doc),
-        paymentStatusMap.get(appointmentId) ?? "UNPAID",
-      );
-      return toAppointmentResponseDTO(domain);
-    });
+    return mapAppointmentsFromDocs(docs);
   },
 
   async getById(appointmentId: string): Promise<AppointmentResponseDTO> {
@@ -3494,17 +3477,7 @@ export const AppointmentService = {
         orderBy: { startTime: "desc" },
       });
 
-      const paymentStatusMap = await buildPaymentStatusMapForAppointments(
-        rows.map((row) => row.id),
-      );
-
-      return rows.map((row) => {
-        const domain = attachPaymentStatus(
-          toDomainFromPrisma(row),
-          paymentStatusMap.get(row.id) ?? "UNPAID",
-        );
-        return toAppointmentResponseDTO(domain);
-      });
+      return mapAppointmentsFromPrisma(rows);
     }
 
     const docs: AppointmentMongo[] = await AppointmentModel.find({
@@ -3513,18 +3486,7 @@ export const AppointmentService = {
       .sort({ startTime: -1 })
       .lean<AppointmentMongo[]>();
 
-    const paymentStatusMap = await buildPaymentStatusMapForDocs(docs);
-
-    return docs.map((doc) => {
-      const appointmentId =
-        (doc as AppointmentMongo & { _id?: Types.ObjectId })._id?.toString() ??
-        "";
-      const domain = attachPaymentStatus(
-        toDomainLean(doc),
-        paymentStatusMap.get(appointmentId) ?? "UNPAID",
-      );
-      return toAppointmentResponseDTO(domain);
-    });
+    return mapAppointmentsFromDocs(docs);
   },
 
   async getAppointmentsForOrganisation(
@@ -3556,17 +3518,7 @@ export const AppointmentService = {
         orderBy: { startTime: "desc" },
       });
 
-      const paymentStatusMap = await buildPaymentStatusMapForAppointments(
-        rows.map((row) => row.id),
-      );
-
-      return rows.map((row) => {
-        const domain = attachPaymentStatus(
-          toDomainFromPrisma(row),
-          paymentStatusMap.get(row.id) ?? "UNPAID",
-        );
-        return toAppointmentResponseDTO(domain);
-      });
+      return mapAppointmentsFromPrisma(rows);
     }
 
     const query: FilterQuery<AppointmentMongo> = { organisationId };
@@ -3586,18 +3538,7 @@ export const AppointmentService = {
       .sort({ startTime: -1 })
       .lean<AppointmentMongo[]>();
 
-    const paymentStatusMap = await buildPaymentStatusMapForDocs(docs);
-
-    return docs.map((doc) => {
-      const appointmentId =
-        (doc as AppointmentMongo & { _id?: Types.ObjectId })._id?.toString() ??
-        "";
-      const domain = attachPaymentStatus(
-        toDomainLean(doc),
-        paymentStatusMap.get(appointmentId) ?? "UNPAID",
-      );
-      return toAppointmentResponseDTO(domain);
-    });
+    return mapAppointmentsFromDocs(docs);
   },
 
   async getAppointmentsForLead(
@@ -3618,17 +3559,7 @@ export const AppointmentService = {
         orderBy: { startTime: "desc" },
       });
 
-      const paymentStatusMap = await buildPaymentStatusMapForAppointments(
-        rows.map((row) => row.id),
-      );
-
-      return rows.map((row) => {
-        const domain = attachPaymentStatus(
-          toDomainFromPrisma(row),
-          paymentStatusMap.get(row.id) ?? "UNPAID",
-        );
-        return toAppointmentResponseDTO(domain);
-      });
+      return mapAppointmentsFromPrisma(rows);
     }
 
     const query: FilterQuery<AppointmentMongo> = { "lead.id": leadId };
@@ -3638,18 +3569,7 @@ export const AppointmentService = {
       .sort({ startTime: -1 })
       .lean<AppointmentMongo[]>();
 
-    const paymentStatusMap = await buildPaymentStatusMapForDocs(docs);
-
-    return docs.map((doc) => {
-      const appointmentId =
-        (doc as AppointmentMongo & { _id?: Types.ObjectId })._id?.toString() ??
-        "";
-      const domain = attachPaymentStatus(
-        toDomainLean(doc),
-        paymentStatusMap.get(appointmentId) ?? "UNPAID",
-      );
-      return toAppointmentResponseDTO(domain);
-    });
+    return mapAppointmentsFromDocs(docs);
   },
 
   async getAppointmentsForSupportStaff(
@@ -3673,17 +3593,7 @@ export const AppointmentService = {
         orderBy: { startTime: "desc" },
       });
 
-      const paymentStatusMap = await buildPaymentStatusMapForAppointments(
-        rows.map((row) => row.id),
-      );
-
-      return rows.map((row) => {
-        const domain = attachPaymentStatus(
-          toDomainFromPrisma(row),
-          paymentStatusMap.get(row.id) ?? "UNPAID",
-        );
-        return toAppointmentResponseDTO(domain);
-      });
+      return mapAppointmentsFromPrisma(rows);
     }
 
     const query: FilterQuery<AppointmentMongo> = { "supportStaff.id": staffId };
@@ -3693,18 +3603,7 @@ export const AppointmentService = {
       .sort({ startTime: -1 })
       .lean<AppointmentMongo[]>();
 
-    const paymentStatusMap = await buildPaymentStatusMapForDocs(docs);
-
-    return docs.map((doc) => {
-      const appointmentId =
-        (doc as AppointmentMongo & { _id?: Types.ObjectId })._id?.toString() ??
-        "";
-      const domain = attachPaymentStatus(
-        toDomainLean(doc),
-        paymentStatusMap.get(appointmentId) ?? "UNPAID",
-      );
-      return toAppointmentResponseDTO(domain);
-    });
+    return mapAppointmentsFromDocs(docs);
   },
 
   async getAppointmentsByDateRange(

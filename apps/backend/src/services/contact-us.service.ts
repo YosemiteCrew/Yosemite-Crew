@@ -54,6 +54,28 @@ export type ListContactRequestFilter = {
   organisationId?: string;
 };
 
+const ensureDsarDetails = (input: {
+  type: ContactType;
+  dsarDetails?: DsraDetails;
+}) => {
+  if (input.type === "DSAR") {
+    if (!input.dsarDetails?.requesterType) {
+      throw new ContactServiceError(
+        "DSAR requests must include dsarDetails.requesterType",
+        400,
+      );
+    }
+    if (!input.dsarDetails.declarationAccepted) {
+      throw new ContactServiceError("DSAR declaration must be accepted", 400);
+    }
+    input.dsarDetails.declarationAcceptedAt =
+      input.dsarDetails.declarationAcceptedAt ?? new Date();
+  }
+};
+
+const toPrismaJson = <T>(value: T | undefined) =>
+  value ? (value as unknown as Prisma.InputJsonValue) : undefined;
+
 export const ContactService = {
   async createRequest(input: CreateContactRequestInput) {
     // Basic validations
@@ -61,27 +83,11 @@ export const ContactService = {
       throw new ContactServiceError("subject and message are required", 400);
     }
 
-    if (input.type === "DSAR") {
-      if (!input.dsarDetails?.requesterType) {
-        throw new ContactServiceError(
-          "DSAR requests must include dsarDetails.requesterType",
-          400,
-        );
-      }
-      if (!input.dsarDetails.declarationAccepted) {
-        throw new ContactServiceError("DSAR declaration must be accepted", 400);
-      }
-      input.dsarDetails.declarationAcceptedAt =
-        input.dsarDetails.declarationAcceptedAt ?? new Date();
-    }
+    ensureDsarDetails(input);
 
     if (isReadFromPostgres()) {
-      const dsarDetails = input.dsarDetails
-        ? (input.dsarDetails as unknown as Prisma.InputJsonValue)
-        : undefined;
-      const attachments = input.attachments
-        ? (input.attachments as unknown as Prisma.InputJsonValue)
-        : undefined;
+      const dsarDetails = toPrismaJson(input.dsarDetails);
+      const attachments = toPrismaJson(input.attachments);
 
       return prisma.contactRequest.create({
         data: {
@@ -110,12 +116,8 @@ export const ContactService = {
 
     if (shouldDualWrite) {
       try {
-        const dsarDetails = input.dsarDetails
-          ? (input.dsarDetails as unknown as Prisma.InputJsonValue)
-          : undefined;
-        const attachments = input.attachments
-          ? (input.attachments as unknown as Prisma.InputJsonValue)
-          : undefined;
+        const dsarDetails = toPrismaJson(input.dsarDetails);
+        const attachments = toPrismaJson(input.attachments);
 
         await prisma.contactRequest.create({
           data: {
@@ -159,27 +161,11 @@ export const ContactService = {
       throw new ContactServiceError("email is required", 400);
     }
 
-    if (input.type === "DSAR") {
-      if (!input.dsarDetails?.requesterType) {
-        throw new ContactServiceError(
-          "DSAR requests must include dsarDetails.requesterType",
-          400,
-        );
-      }
-      if (!input.dsarDetails.declarationAccepted) {
-        throw new ContactServiceError("DSAR declaration must be accepted", 400);
-      }
-      input.dsarDetails.declarationAcceptedAt =
-        input.dsarDetails.declarationAcceptedAt ?? new Date();
-    }
+    ensureDsarDetails(input);
 
     if (isReadFromPostgres()) {
-      const dsarDetails = input.dsarDetails
-        ? (input.dsarDetails as unknown as Prisma.InputJsonValue)
-        : undefined;
-      const attachments = input.attachments
-        ? (input.attachments as unknown as Prisma.InputJsonValue)
-        : undefined;
+      const dsarDetails = toPrismaJson(input.dsarDetails);
+      const attachments = toPrismaJson(input.attachments);
 
       return prisma.contactRequest.create({
         data: {

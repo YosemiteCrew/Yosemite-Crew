@@ -16,10 +16,12 @@ import { NotificationService } from "./notification.service";
 import { AuditTrailService } from "./audit-trail.service";
 import { sendEmailTemplate } from "src/utils/email";
 import logger from "src/utils/logger";
-import { OrgBilling } from "src/models/organization.billing";
+import type { AuditEventType } from "src/models/audit-trail";
 import { prisma } from "src/config/prisma";
 import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 import { isReadFromPostgres } from "src/config/read-switch";
+import { getOrgBillingCurrency } from "src/utils/billing";
+import { ensureObjectId as ensureObjectIdStrict } from "src/utils/mongo";
 import { resolvePaymentCollectionMethod } from "src/utils/payment";
 import {
   InvoiceStatus as PrismaInvoiceStatus,
@@ -41,34 +43,10 @@ export class InvoiceServiceError extends Error {
 const SUPPORT_EMAIL_ADDRESS =
   process.env.SUPPORT_EMAIL_ADDRESS ?? "support@yosemitecrew.com";
 
-const ensureObjectId = (val: unknown, field: string): Types.ObjectId => {
-  if (val instanceof Types.ObjectId) return val;
-
-  if (typeof val === "string" && Types.ObjectId.isValid(val)) {
-    return new Types.ObjectId(val);
-  }
-
-  throw new InvoiceServiceError(`Invalid ${field}`, 400);
-};
-
-const getOrgBillingCurrency = async (
-  organisationId?: string | Types.ObjectId,
-) => {
-  if (!organisationId) return "usd";
-  if (isReadFromPostgres()) {
-    const orgId =
-      typeof organisationId === "string"
-        ? organisationId
-        : organisationId.toString();
-    const billing = await prisma.organizationBilling.findUnique({
-      where: { orgId },
-      select: { currency: true },
-    });
-    return billing?.currency ?? "usd";
-  }
-  const billing = await OrgBilling.findOne({ orgId: organisationId });
-  return billing?.currency ?? "usd";
-};
+const ensureObjectId = (val: unknown, field: string): Types.ObjectId =>
+  ensureObjectIdStrict(val, field, (message) => {
+    return new InvoiceServiceError(message, 400);
+  });
 
 const resolveAuditTargetsForInvoice = async (invoice: InvoiceDocument) => {
   if (invoice.organisationId && invoice.companionId) {
@@ -279,6 +257,172 @@ const coerceMetadataRecord = (
     return {};
   }
   return { ...(value as Record<string, unknown>) };
+};
+
+type RefundResult = Awaited<
+  ReturnType<typeof StripeService.refundPaymentIntent>
+>;
+
+const buildCancellationMetadata = (
+  metadata: Prisma.JsonValue | null | undefined,
+  reason: string,
+) => ({
+  ...coerceMetadataRecord(metadata),
+  cancellationReason: reason,
+});
+
+const buildRefundMetadata = (
+  metadata: Prisma.JsonValue | null | undefined,
+  reason: string,
+  refund: RefundResult,
+) => ({
+  ...coerceMetadataRecord(metadata),
+  cancellationReason: reason,
+  refundId: refund.refundId,
+  amount: refund.amountRefunded,
+  refundDate: new Date().toISOString(),
+});
+
+const buildMongoCancellationMetadata = (
+  metadata: InvoiceMongo["metadata"] | undefined,
+  reason: string,
+) => ({
+  ...(metadata ?? {}),
+  cancellationReason: reason,
+});
+
+const buildMongoRefundMetadata = (
+  metadata: InvoiceMongo["metadata"] | undefined,
+  reason: string,
+  refund: RefundResult,
+) => ({
+  ...(metadata ?? {}),
+  cancellationReason: reason,
+  refundId: refund.refundId,
+  amount: refund.amountRefunded,
+  refundDate: new Date().toISOString(),
+});
+
+const recordInvoiceAuditEvent = async (
+  targets: {
+    organisationId?: string | null;
+    companionId?: string | null;
+  },
+  payload: {
+    eventType: AuditEventType;
+    entityId: string;
+    metadata: Record<string, unknown>;
+  },
+) => {
+  if (!targets.organisationId || !targets.companionId) {
+    return;
+  }
+
+  await AuditTrailService.recordSafely({
+    organisationId: targets.organisationId,
+    companionId: targets.companionId,
+    eventType: payload.eventType,
+    actorType: "SYSTEM",
+    entityType: "INVOICE",
+    entityId: payload.entityId,
+    metadata: payload.metadata,
+  });
+};
+
+const recordInvoiceAuditForRow = async (
+  row: {
+    organisationId: string | null;
+    companionId: string | null;
+    appointmentId: string | null;
+  },
+  eventType: AuditEventType,
+  entityId: string,
+  metadata: Record<string, unknown>,
+) => {
+  const targets = await resolveAuditTargetsForInvoiceRow(row);
+  await recordInvoiceAuditEvent(targets, { eventType, entityId, metadata });
+};
+
+const recordInvoiceAuditForDoc = async (
+  doc: InvoiceDocument,
+  eventType: AuditEventType,
+  entityId: string,
+  metadata: Record<string, unknown>,
+) => {
+  const targets = await resolveAuditTargetsForInvoice(doc);
+  await recordInvoiceAuditEvent(targets, { eventType, entityId, metadata });
+};
+
+const cancelUnpaidInvoiceRow = async (
+  invoice: PrismaInvoice,
+  reason: string,
+) => {
+  const metadata = buildCancellationMetadata(invoice.metadata, reason);
+  return prisma.invoice.update({
+    where: { id: invoice.id },
+    data: {
+      status: "CANCELLED",
+      metadata: metadata as unknown as Prisma.InputJsonValue,
+    },
+  });
+};
+
+const refundPaidInvoiceRow = async (invoice: PrismaInvoice, reason: string) => {
+  if (!invoice.stripePaymentIntentId) {
+    throw new InvoiceServiceError(
+      "Cannot refund: missing Stripe paymentIntentId",
+      500,
+    );
+  }
+
+  const refund = await StripeService.refundPaymentIntent(
+    invoice.stripePaymentIntentId,
+  );
+
+  const metadata = buildRefundMetadata(invoice.metadata, reason, refund);
+  const updated = await prisma.invoice.update({
+    where: { id: invoice.id },
+    data: {
+      status: "REFUNDED",
+      metadata: metadata as unknown as Prisma.InputJsonValue,
+    },
+  });
+
+  return { updated, refund };
+};
+
+const cancelUnpaidInvoiceDoc = async (
+  invoice: InvoiceDocument,
+  reason: string,
+) => {
+  invoice.status = "CANCELLED";
+  invoice.metadata = buildMongoCancellationMetadata(invoice.metadata, reason);
+  await invoice.save();
+  await syncInvoiceToPostgres(invoice);
+  return invoice;
+};
+
+const refundPaidInvoiceDoc = async (
+  invoice: InvoiceDocument,
+  reason: string,
+) => {
+  if (!invoice.stripePaymentIntentId) {
+    throw new InvoiceServiceError(
+      "Cannot refund: missing Stripe paymentIntentId",
+      500,
+    );
+  }
+
+  const refund = await StripeService.refundPaymentIntent(
+    invoice.stripePaymentIntentId,
+  );
+
+  invoice.status = "REFUNDED";
+  invoice.metadata = buildMongoRefundMetadata(invoice.metadata, reason, refund);
+  await invoice.save();
+  await syncInvoiceToPostgres(invoice);
+
+  return { updated: invoice, refund };
 };
 
 const coerceAppointmentCompanionId = (appointment: {
@@ -965,22 +1109,11 @@ export const InvoiceService = {
         data: { status: "FAILED" },
       });
 
-      const targets = await resolveAuditTargetsForInvoiceRow(doc);
-      if (targets.organisationId && targets.companionId) {
-        await AuditTrailService.recordSafely({
-          organisationId: targets.organisationId,
-          companionId: targets.companionId,
-          eventType: "INVOICE_FAILED",
-          actorType: "SYSTEM",
-          entityType: "INVOICE",
-          entityId: doc.id,
-          metadata: {
-            status: doc.status,
-            totalAmount: doc.totalAmount,
-            currency: doc.currency,
-          },
-        });
-      }
+      await recordInvoiceAuditForRow(doc, "INVOICE_FAILED", doc.id, {
+        status: doc.status,
+        totalAmount: doc.totalAmount,
+        currency: doc.currency,
+      });
 
       return doc;
     }
@@ -997,22 +1130,11 @@ export const InvoiceService = {
 
     await syncInvoiceToPostgres(doc);
 
-    const targets = await resolveAuditTargetsForInvoice(doc);
-    if (targets.organisationId && targets.companionId) {
-      await AuditTrailService.recordSafely({
-        organisationId: targets.organisationId,
-        companionId: targets.companionId,
-        eventType: "INVOICE_FAILED",
-        actorType: "SYSTEM",
-        entityType: "INVOICE",
-        entityId: doc._id.toString(),
-        metadata: {
-          status: doc.status,
-          totalAmount: doc.totalAmount,
-          currency: doc.currency,
-        },
-      });
-    }
+    await recordInvoiceAuditForDoc(doc, "INVOICE_FAILED", doc._id.toString(), {
+      status: doc.status,
+      totalAmount: doc.totalAmount,
+      currency: doc.currency,
+    });
 
     return doc;
   },
@@ -1024,22 +1146,11 @@ export const InvoiceService = {
         data: { status: "REFUNDED" },
       });
 
-      const targets = await resolveAuditTargetsForInvoiceRow(doc);
-      if (targets.organisationId && targets.companionId) {
-        await AuditTrailService.recordSafely({
-          organisationId: targets.organisationId,
-          companionId: targets.companionId,
-          eventType: "INVOICE_REFUNDED",
-          actorType: "SYSTEM",
-          entityType: "INVOICE",
-          entityId: doc.id,
-          metadata: {
-            status: doc.status,
-            totalAmount: doc.totalAmount,
-            currency: doc.currency,
-          },
-        });
-      }
+      await recordInvoiceAuditForRow(doc, "INVOICE_REFUNDED", doc.id, {
+        status: doc.status,
+        totalAmount: doc.totalAmount,
+        currency: doc.currency,
+      });
 
       return toDomainFromPrisma(doc);
     }
@@ -1054,22 +1165,16 @@ export const InvoiceService = {
 
     if (!doc) throw new InvoiceServiceError("Invoice not found.", 404);
 
-    const targets = await resolveAuditTargetsForInvoice(doc);
-    if (targets.organisationId && targets.companionId) {
-      await AuditTrailService.recordSafely({
-        organisationId: targets.organisationId,
-        companionId: targets.companionId,
-        eventType: "INVOICE_REFUNDED",
-        actorType: "SYSTEM",
-        entityType: "INVOICE",
-        entityId: doc._id.toString(),
-        metadata: {
-          status: doc.status,
-          totalAmount: doc.totalAmount,
-          currency: doc.currency,
-        },
-      });
-    }
+    await recordInvoiceAuditForDoc(
+      doc,
+      "INVOICE_REFUNDED",
+      doc._id.toString(),
+      {
+        status: doc.status,
+        totalAmount: doc.totalAmount,
+        currency: doc.currency,
+      },
+    );
 
     return toDomain(doc);
   },
@@ -1422,82 +1527,32 @@ export const InvoiceService = {
         invoice.status === "AWAITING_PAYMENT" ||
         invoice.status === "PENDING"
       ) {
-        const metadata = {
-          ...coerceMetadataRecord(invoice.metadata),
-          cancellationReason: reason,
-        };
-        const updated = await prisma.invoice.update({
-          where: { id: invoice.id },
-          data: {
-            status: "CANCELLED",
-            metadata: metadata as unknown as Prisma.InputJsonValue,
+        const updated = await cancelUnpaidInvoiceRow(invoice, reason);
+        await recordInvoiceAuditForRow(
+          updated,
+          "INVOICE_CANCELLED",
+          updated.id,
+          {
+            status: updated.status,
+            reason,
           },
-        });
-
-        const targets = await resolveAuditTargetsForInvoiceRow(updated);
-        if (targets.organisationId && targets.companionId) {
-          await AuditTrailService.recordSafely({
-            organisationId: targets.organisationId,
-            companionId: targets.companionId,
-            eventType: "INVOICE_CANCELLED",
-            actorType: "SYSTEM",
-            entityType: "INVOICE",
-            entityId: updated.id,
-            metadata: {
-              status: updated.status,
-              reason,
-            },
-          });
-        }
+        );
         return { action: "CANCELLED_UNPAID" };
       }
 
       if (invoice.status === "PAID") {
-        if (!invoice.stripePaymentIntentId) {
-          throw new InvoiceServiceError(
-            "Cannot refund: missing Stripe paymentIntentId",
-            500,
-          );
-        }
-
-        const refund = await StripeService.refundPaymentIntent(
-          invoice.stripePaymentIntentId,
-        );
-
-        const metadata = {
-          ...coerceMetadataRecord(invoice.metadata),
-          cancellationReason: reason,
-          refundId: refund.refundId,
-          amount: refund.amountRefunded,
-          refundDate: new Date().toISOString(),
-        };
-
-        const updated = await prisma.invoice.update({
-          where: { id: invoice.id },
-          data: {
-            status: "REFUNDED",
-            metadata: metadata as unknown as Prisma.InputJsonValue,
+        const { updated, refund } = await refundPaidInvoiceRow(invoice, reason);
+        await recordInvoiceAuditForRow(
+          updated,
+          "INVOICE_REFUNDED",
+          updated.id,
+          {
+            status: updated.status,
+            reason,
+            refundId: refund.refundId,
+            amount: refund.amountRefunded,
           },
-        });
-
-        const targets = await resolveAuditTargetsForInvoiceRow(updated);
-        if (targets.organisationId && targets.companionId) {
-          await AuditTrailService.recordSafely({
-            organisationId: targets.organisationId,
-            companionId: targets.companionId,
-            eventType: "INVOICE_REFUNDED",
-            actorType: "SYSTEM",
-            entityType: "INVOICE",
-            entityId: updated.id,
-            metadata: {
-              status: updated.status,
-              reason,
-              refundId: refund.refundId,
-              amount: refund.amountRefunded,
-            },
-          });
-        }
-
+        );
         return { action: "REFUNDED", refundId: refund.refundId };
       }
 
@@ -1519,29 +1574,16 @@ export const InvoiceService = {
 
     // If invoice not yet paid, simply cancel it
     if (invoice.status === "AWAITING_PAYMENT" || invoice.status === "PENDING") {
-      invoice.status = "CANCELLED";
-      invoice.metadata = {
-        ...invoice.metadata,
-        cancellationReason: reason,
-      };
-      await invoice.save();
-      await syncInvoiceToPostgres(invoice);
-
-      const targets = await resolveAuditTargetsForInvoice(invoice);
-      if (targets.organisationId && targets.companionId) {
-        await AuditTrailService.recordSafely({
-          organisationId: targets.organisationId,
-          companionId: targets.companionId,
-          eventType: "INVOICE_CANCELLED",
-          actorType: "SYSTEM",
-          entityType: "INVOICE",
-          entityId: invoice._id.toString(),
-          metadata: {
-            status: invoice.status,
-            reason,
-          },
-        });
-      }
+      const updated = await cancelUnpaidInvoiceDoc(invoice, reason);
+      await recordInvoiceAuditForDoc(
+        updated,
+        "INVOICE_CANCELLED",
+        updated._id.toString(),
+        {
+          status: updated.status,
+          reason,
+        },
+      );
       return { action: "CANCELLED_UNPAID" };
     }
 
@@ -1549,48 +1591,18 @@ export const InvoiceService = {
     // PAID invoice → refund required
     // -----------------------------
     if (invoice.status === "PAID") {
-      if (!invoice.stripePaymentIntentId) {
-        throw new InvoiceServiceError(
-          "Cannot refund: missing Stripe paymentIntentId",
-          500,
-        );
-      }
-
-      const refund = await StripeService.refundPaymentIntent(
-        invoice.stripePaymentIntentId,
+      const { updated, refund } = await refundPaidInvoiceDoc(invoice, reason);
+      await recordInvoiceAuditForDoc(
+        updated,
+        "INVOICE_REFUNDED",
+        updated._id.toString(),
+        {
+          status: updated.status,
+          reason,
+          refundId: refund.refundId,
+          amount: refund.amountRefunded,
+        },
       );
-
-      // Update invoice
-      invoice.status = "REFUNDED";
-      invoice.metadata = {
-        ...invoice.metadata,
-        cancellationReason: reason,
-        refundId: refund.refundId,
-        amount: refund.amountRefunded,
-        refundDate: new Date().toISOString(),
-      };
-
-      await invoice.save();
-      await syncInvoiceToPostgres(invoice);
-
-      const targets = await resolveAuditTargetsForInvoice(invoice);
-      if (targets.organisationId && targets.companionId) {
-        await AuditTrailService.recordSafely({
-          organisationId: targets.organisationId,
-          companionId: targets.companionId,
-          eventType: "INVOICE_REFUNDED",
-          actorType: "SYSTEM",
-          entityType: "INVOICE",
-          entityId: invoice._id.toString(),
-          metadata: {
-            status: invoice.status,
-            reason,
-            refundId: refund.refundId,
-            amount: refund.amountRefunded,
-          },
-        });
-      }
-
       return { action: "REFUNDED", refundId: refund.refundId };
     }
 
@@ -1615,83 +1627,32 @@ export const InvoiceService = {
         invoice.status === "AWAITING_PAYMENT" ||
         invoice.status === "PENDING"
       ) {
-        const metadata = {
-          ...coerceMetadataRecord(invoice.metadata),
-          cancellationReason: reason,
-        };
-        const updated = await prisma.invoice.update({
-          where: { id: invoice.id },
-          data: {
-            status: "CANCELLED",
-            metadata: metadata as unknown as Prisma.InputJsonValue,
+        const updated = await cancelUnpaidInvoiceRow(invoice, reason);
+        await recordInvoiceAuditForRow(
+          updated,
+          "INVOICE_CANCELLED",
+          updated.id,
+          {
+            status: updated.status,
+            reason,
           },
-        });
-
-        const targets = await resolveAuditTargetsForInvoiceRow(updated);
-        if (targets.organisationId && targets.companionId) {
-          await AuditTrailService.recordSafely({
-            organisationId: targets.organisationId,
-            companionId: targets.companionId,
-            eventType: "INVOICE_CANCELLED",
-            actorType: "SYSTEM",
-            entityType: "INVOICE",
-            entityId: updated.id,
-            metadata: {
-              status: updated.status,
-              reason,
-            },
-          });
-        }
-
+        );
         return { action: "CANCELLED_UNPAID", status: updated.status };
       }
 
       if (invoice.status === "PAID") {
-        if (!invoice.stripePaymentIntentId) {
-          throw new InvoiceServiceError(
-            "Cannot refund: missing Stripe paymentIntentId",
-            500,
-          );
-        }
-
-        const refund = await StripeService.refundPaymentIntent(
-          invoice.stripePaymentIntentId,
-        );
-
-        const metadata = {
-          ...coerceMetadataRecord(invoice.metadata),
-          cancellationReason: reason,
-          refundId: refund.refundId,
-          amount: refund.amountRefunded,
-          refundDate: new Date().toISOString(),
-        };
-
-        const updated = await prisma.invoice.update({
-          where: { id: invoice.id },
-          data: {
-            status: "REFUNDED",
-            metadata: metadata as unknown as Prisma.InputJsonValue,
+        const { updated, refund } = await refundPaidInvoiceRow(invoice, reason);
+        await recordInvoiceAuditForRow(
+          updated,
+          "INVOICE_REFUNDED",
+          updated.id,
+          {
+            status: updated.status,
+            refundId: refund.refundId,
+            amount: refund.amountRefunded,
+            currency: updated.currency,
           },
-        });
-
-        const targets = await resolveAuditTargetsForInvoiceRow(updated);
-        if (targets.organisationId && targets.companionId) {
-          await AuditTrailService.recordSafely({
-            organisationId: targets.organisationId,
-            companionId: targets.companionId,
-            eventType: "INVOICE_REFUNDED",
-            actorType: "SYSTEM",
-            entityType: "INVOICE",
-            entityId: updated.id,
-            metadata: {
-              status: updated.status,
-              refundId: refund.refundId,
-              amount: refund.amountRefunded,
-              currency: updated.currency,
-            },
-          });
-        }
-
+        );
         return { action: "REFUNDED", status: updated.status };
       }
 
@@ -1710,75 +1671,32 @@ export const InvoiceService = {
     }
 
     if (invoice.status === "AWAITING_PAYMENT" || invoice.status === "PENDING") {
-      invoice.status = "CANCELLED";
-      invoice.metadata = {
-        ...invoice.metadata,
-        cancellationReason: reason,
-      };
-      await invoice.save();
-      await syncInvoiceToPostgres(invoice);
-
-      const targets = await resolveAuditTargetsForInvoice(invoice);
-      if (targets.organisationId && targets.companionId) {
-        await AuditTrailService.recordSafely({
-          organisationId: targets.organisationId,
-          companionId: targets.companionId,
-          eventType: "INVOICE_CANCELLED",
-          actorType: "SYSTEM",
-          entityType: "INVOICE",
-          entityId: invoice._id.toString(),
-          metadata: {
-            status: invoice.status,
-            reason,
-          },
-        });
-      }
-
+      const updated = await cancelUnpaidInvoiceDoc(invoice, reason);
+      await recordInvoiceAuditForDoc(
+        updated,
+        "INVOICE_CANCELLED",
+        updated._id.toString(),
+        {
+          status: updated.status,
+          reason,
+        },
+      );
       return { action: "CANCELLED_UNPAID", status: invoice.status };
     }
 
     if (invoice.status === "PAID") {
-      if (!invoice.stripePaymentIntentId) {
-        throw new InvoiceServiceError(
-          "Cannot refund: missing Stripe paymentIntentId",
-          500,
-        );
-      }
-
-      const refund = await StripeService.refundPaymentIntent(
-        invoice.stripePaymentIntentId,
+      const { updated, refund } = await refundPaidInvoiceDoc(invoice, reason);
+      await recordInvoiceAuditForDoc(
+        updated,
+        "INVOICE_REFUNDED",
+        updated._id.toString(),
+        {
+          status: updated.status,
+          refundId: refund.refundId,
+          amount: refund.amountRefunded,
+          currency: updated.currency,
+        },
       );
-
-      invoice.status = "REFUNDED";
-      invoice.metadata = {
-        ...invoice.metadata,
-        cancellationReason: reason,
-        refundId: refund.refundId,
-        amount: refund.amountRefunded,
-        refundDate: new Date().toISOString(),
-      };
-
-      await invoice.save();
-      await syncInvoiceToPostgres(invoice);
-
-      const targets = await resolveAuditTargetsForInvoice(invoice);
-      if (targets.organisationId && targets.companionId) {
-        await AuditTrailService.recordSafely({
-          organisationId: targets.organisationId,
-          companionId: targets.companionId,
-          eventType: "INVOICE_REFUNDED",
-          actorType: "SYSTEM",
-          entityType: "INVOICE",
-          entityId: invoice._id.toString(),
-          metadata: {
-            status: invoice.status,
-            refundId: refund.refundId,
-            amount: refund.amountRefunded,
-            currency: invoice.currency,
-          },
-        });
-      }
-
       return { action: "REFUNDED", status: invoice.status };
     }
 

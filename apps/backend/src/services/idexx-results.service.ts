@@ -52,10 +52,55 @@ const coerceString = (value: unknown): string | null => {
 const coerceStringOrEmpty = (value: unknown): string =>
   coerceString(value) ?? "";
 
+const buildLabResultSyncData = (obj: LabResultMongo) => ({
+  organisationId: obj.organisationId ?? null,
+  orderId: obj.orderId ?? null,
+  requisitionId: obj.requisitionId ?? null,
+  accessionId: obj.accessionId ?? null,
+  diagnosticSetId: obj.diagnosticSetId ?? null,
+  status: obj.status ?? null,
+  statusDetail: obj.statusDetail ?? null,
+  modality: obj.modality ?? null,
+  patientId: obj.patientId ?? null,
+  patientName: obj.patientName ?? null,
+  clientId: obj.clientId ?? null,
+  clientFirstName: obj.clientFirstName ?? null,
+  clientLastName: obj.clientLastName ?? null,
+  updatedDate: obj.updatedDate ?? null,
+  updatedAuditDate: obj.updatedAuditDate ?? null,
+  specimenCollectionDate: obj.specimenCollectionDate ?? null,
+  rawPayload: toJsonInput(obj.rawPayload),
+});
+
+const buildIdexxLabResultBase = (params: {
+  organisationId: string | null;
+  orderId: string | null;
+  result: IdexxResult;
+  patient: Record<string, unknown>;
+}) => ({
+  organisationId: params.organisationId,
+  orderId: params.orderId,
+  requisitionId: coerceString(params.result.requisitionId),
+  accessionId: coerceString(params.result.accessionId),
+  diagnosticSetId: coerceString(params.result.diagnosticSetId),
+  status: coerceString(params.result.status),
+  statusDetail: coerceString(params.result.statusDetail),
+  modality: coerceString(params.result.modality),
+  patientId: coerceString(params.patient.patientId),
+  patientName: coerceString(params.patient.name),
+  clientId: coerceString(params.patient.clientId),
+  clientFirstName: coerceString(params.patient.clientFirstName),
+  clientLastName: coerceString(params.patient.clientLastName),
+  updatedDate: coerceString(params.result.updatedDate),
+  updatedAuditDate: coerceString(params.result.updatedAuditDate),
+  specimenCollectionDate: coerceString(params.result.specimenCollectionDate),
+});
+
 const syncLabResultToPostgres = async (doc: LabResultDocument) => {
   if (!shouldDualWrite) return;
   try {
     const obj = doc.toObject<LabResultMongo>();
+    const data = buildLabResultSyncData(obj);
     await prisma.labResult.upsert({
       where: {
         provider_resultId: {
@@ -63,46 +108,8 @@ const syncLabResultToPostgres = async (doc: LabResultDocument) => {
           resultId: obj.resultId,
         },
       },
-      create: {
-        provider: obj.provider,
-        resultId: obj.resultId,
-        organisationId: obj.organisationId ?? null,
-        orderId: obj.orderId ?? null,
-        requisitionId: obj.requisitionId ?? null,
-        accessionId: obj.accessionId ?? null,
-        diagnosticSetId: obj.diagnosticSetId ?? null,
-        status: obj.status ?? null,
-        statusDetail: obj.statusDetail ?? null,
-        modality: obj.modality ?? null,
-        patientId: obj.patientId ?? null,
-        patientName: obj.patientName ?? null,
-        clientId: obj.clientId ?? null,
-        clientFirstName: obj.clientFirstName ?? null,
-        clientLastName: obj.clientLastName ?? null,
-        updatedDate: obj.updatedDate ?? null,
-        updatedAuditDate: obj.updatedAuditDate ?? null,
-        specimenCollectionDate: obj.specimenCollectionDate ?? null,
-        rawPayload: toJsonInput(obj.rawPayload),
-      },
-      update: {
-        organisationId: obj.organisationId ?? null,
-        orderId: obj.orderId ?? null,
-        requisitionId: obj.requisitionId ?? null,
-        accessionId: obj.accessionId ?? null,
-        diagnosticSetId: obj.diagnosticSetId ?? null,
-        status: obj.status ?? null,
-        statusDetail: obj.statusDetail ?? null,
-        modality: obj.modality ?? null,
-        patientId: obj.patientId ?? null,
-        patientName: obj.patientName ?? null,
-        clientId: obj.clientId ?? null,
-        clientFirstName: obj.clientFirstName ?? null,
-        clientLastName: obj.clientLastName ?? null,
-        updatedDate: obj.updatedDate ?? null,
-        updatedAuditDate: obj.updatedAuditDate ?? null,
-        specimenCollectionDate: obj.specimenCollectionDate ?? null,
-        rawPayload: toJsonInput(obj.rawPayload),
-      },
+      create: { provider: obj.provider, resultId: obj.resultId, ...data },
+      update: data,
     });
   } catch (err) {
     handleDualWriteError("LabResult", err);
@@ -366,6 +373,12 @@ export const IdexxResultsService = {
 
         const patient: Record<string, unknown> = result.patient ?? {};
         const resultId = coerceStringOrEmpty(result.resultId);
+        const basePayload = buildIdexxLabResultBase({
+          organisationId,
+          orderId,
+          result,
+          patient,
+        });
 
         if (isReadFromPostgres()) {
           await prisma.labResult.upsert({
@@ -376,47 +389,13 @@ export const IdexxResultsService = {
               },
             },
             create: {
-              organisationId,
               provider: "IDEXX",
               resultId,
-              orderId,
-              requisitionId: coerceString(result.requisitionId),
-              accessionId: coerceString(result.accessionId),
-              diagnosticSetId: coerceString(result.diagnosticSetId),
-              status: coerceString(result.status),
-              statusDetail: coerceString(result.statusDetail),
-              modality: coerceString(result.modality),
-              patientId: coerceString(patient.patientId),
-              patientName: coerceString(patient.name),
-              clientId: coerceString(patient.clientId),
-              clientFirstName: coerceString(patient.clientFirstName),
-              clientLastName: coerceString(patient.clientLastName),
-              updatedDate: coerceString(result.updatedDate),
-              updatedAuditDate: coerceString(result.updatedAuditDate),
-              specimenCollectionDate: coerceString(
-                result.specimenCollectionDate,
-              ),
+              ...basePayload,
               rawPayload: toJsonInput(result),
             },
             update: {
-              organisationId,
-              orderId,
-              requisitionId: coerceString(result.requisitionId),
-              accessionId: coerceString(result.accessionId),
-              diagnosticSetId: coerceString(result.diagnosticSetId),
-              status: coerceString(result.status),
-              statusDetail: coerceString(result.statusDetail),
-              modality: coerceString(result.modality),
-              patientId: coerceString(patient.patientId),
-              patientName: coerceString(patient.name),
-              clientId: coerceString(patient.clientId),
-              clientFirstName: coerceString(patient.clientFirstName),
-              clientLastName: coerceString(patient.clientLastName),
-              updatedDate: coerceString(result.updatedDate),
-              updatedAuditDate: coerceString(result.updatedAuditDate),
-              specimenCollectionDate: coerceString(
-                result.specimenCollectionDate,
-              ),
+              ...basePayload,
               rawPayload: toJsonInput(result),
             },
           });
@@ -425,26 +404,9 @@ export const IdexxResultsService = {
             { provider: "IDEXX", resultId },
             {
               $set: {
-                organisationId,
                 provider: "IDEXX",
                 resultId,
-                orderId,
-                requisitionId: coerceString(result.requisitionId),
-                accessionId: coerceString(result.accessionId),
-                diagnosticSetId: coerceString(result.diagnosticSetId),
-                status: coerceString(result.status),
-                statusDetail: coerceString(result.statusDetail),
-                modality: coerceString(result.modality),
-                patientId: coerceString(patient.patientId),
-                patientName: coerceString(patient.name),
-                clientId: coerceString(patient.clientId),
-                clientFirstName: coerceString(patient.clientFirstName),
-                clientLastName: coerceString(patient.clientLastName),
-                updatedDate: coerceString(result.updatedDate),
-                updatedAuditDate: coerceString(result.updatedAuditDate),
-                specimenCollectionDate: coerceString(
-                  result.specimenCollectionDate,
-                ),
+                ...basePayload,
                 rawPayload: result,
               },
             },

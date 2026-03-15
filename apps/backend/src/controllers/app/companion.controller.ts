@@ -59,6 +59,31 @@ const extractFHIRPayload = (req: Request): CompanionRequestDTO => {
   return payload;
 };
 
+const requireParam = (
+  res: Response,
+  value: string | undefined,
+  message: string,
+): value is string => {
+  if (!value) {
+    res.status(400).json({ message });
+    return false;
+  }
+  return true;
+};
+
+const handleCompanionError = (
+  res: Response,
+  error: unknown,
+  logMessage: string,
+  responseMessage: string,
+) => {
+  if (error instanceof CompanionServiceError) {
+    return res.status(error.statusCode).json({ message: error.message });
+  }
+  logger.error(logMessage, error);
+  return res.status(500).json({ message: responseMessage });
+};
+
 export const CompanionController = {
   createCompanionMobile: async (req: Request, res: Response) => {
     try {
@@ -77,11 +102,12 @@ export const CompanionController = {
 
       return res.status(201).json(response);
     } catch (error) {
-      if (error instanceof CompanionServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-      logger.error("Failed to create companion (mobile)", error);
-      return res.status(500).json({ message: "Unable to create companion." });
+      return handleCompanionError(
+        res,
+        error,
+        "Failed to create companion (mobile)",
+        "Unable to create companion.",
+      );
     }
   },
 
@@ -138,11 +164,12 @@ export const CompanionController = {
 
       return res.status(201).json(response);
     } catch (error) {
-      if (error instanceof CompanionServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-      logger.error("Failed to create companion (PMS)", error);
-      return res.status(500).json({ message: "Unable to create companion." });
+      return handleCompanionError(
+        res,
+        error,
+        "Failed to create companion (PMS)",
+        "Unable to create companion.",
+      );
     }
   },
 
@@ -150,8 +177,8 @@ export const CompanionController = {
     try {
       const { id } = req.params;
 
-      if (!id) {
-        return res.status(400).json({ message: "Companion ID is required." });
+      if (!requireParam(res, id, "Companion ID is required.")) {
+        return;
       }
 
       const result = await CompanionService.getById(id);
@@ -161,11 +188,12 @@ export const CompanionController = {
 
       return res.status(200).json(result.response);
     } catch (error) {
-      if (error instanceof CompanionServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-      logger.error("Failed to fetch companion", error);
-      return res.status(500).json({ message: "Unable to fetch companion." });
+      return handleCompanionError(
+        res,
+        error,
+        "Failed to fetch companion",
+        "Unable to fetch companion.",
+      );
     }
   },
 
@@ -173,8 +201,8 @@ export const CompanionController = {
     try {
       const { id } = req.params;
 
-      if (!id) {
-        return res.status(400).json({ message: "Companion ID is required." });
+      if (!requireParam(res, id, "Companion ID is required.")) {
+        return;
       }
 
       const payload = extractFHIRPayload(req);
@@ -186,11 +214,12 @@ export const CompanionController = {
 
       return res.status(200).json(result.response);
     } catch (error) {
-      if (error instanceof CompanionServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-      logger.error("Failed to update companion", error);
-      return res.status(500).json({ message: "Unable to update companion." });
+      return handleCompanionError(
+        res,
+        error,
+        "Failed to update companion",
+        "Unable to update companion.",
+      );
     }
   },
 
@@ -198,8 +227,8 @@ export const CompanionController = {
     try {
       const { id } = req.params;
       const authUserId = resolveMobileUserId(req);
-      if (!id) {
-        return res.status(400).json({ message: "Companion ID is required." });
+      if (!requireParam(res, id, "Companion ID is required.")) {
+        return;
       }
 
       await CompanionService.delete(id, {
@@ -207,11 +236,12 @@ export const CompanionController = {
       });
       return res.status(204).send();
     } catch (error) {
-      if (error instanceof CompanionServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-      logger.error("Failed to delete companion", error);
-      return res.status(500).json({ message: "Unable to delete companion." });
+      return handleCompanionError(
+        res,
+        error,
+        "Failed to delete companion",
+        "Unable to delete companion.",
+      );
     }
   },
 
@@ -229,12 +259,12 @@ export const CompanionController = {
 
       return res.status(200).json(result.responses);
     } catch (error) {
-      if (error instanceof CompanionServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-
-      logger.error("Failed to search companion by name", error);
-      return res.status(500).json({ message: "Unable to search companions." });
+      return handleCompanionError(
+        res,
+        error,
+        "Failed to search companion by name",
+        "Unable to search companions.",
+      );
     }
   },
 
@@ -268,19 +298,20 @@ export const CompanionController = {
     try {
       const { parentId } = req.params;
 
-      if (!parentId) {
-        return res.status(400).json({ message: "Companion ID is required." });
+      if (!requireParam(res, parentId, "Companion ID is required.")) {
+        return;
       }
 
       const result = await CompanionService.listByParent(parentId);
 
       return res.status(200).json(result.responses);
     } catch (error) {
-      if (error instanceof CompanionServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-      logger.error("Failed to search companion by Parent ID", error);
-      return res.status(500).json({ message: "Unable to search companions." });
+      return handleCompanionError(
+        res,
+        error,
+        "Failed to search companion by Parent ID",
+        "Unable to search companions.",
+      );
     }
   },
 
@@ -304,11 +335,12 @@ export const CompanionController = {
 
       return res.status(200).json(result.responses);
     } catch (error) {
-      if (error instanceof CompanionServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-      logger.error("Failed to search companion by Parent ID", error);
-      return res.status(500).json({ message: "Unable to search companions." });
+      return handleCompanionError(
+        res,
+        error,
+        "Failed to search companion by Parent ID",
+        "Unable to search companions.",
+      );
     }
   },
 };

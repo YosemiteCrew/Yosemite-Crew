@@ -15,6 +15,7 @@ import { OrgUsageCounters } from "src/models/organisation.usage.counter";
 import UserOrganizationModel from "src/models/user-organization";
 import { prisma } from "src/config/prisma";
 import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import { getOrgBillingCurrency } from "src/utils/billing";
 import {
   Prisma,
   AccessState,
@@ -162,20 +163,6 @@ function toStripeAmount(amount: number): number {
   return Math.round(amount * 100);
 }
 
-async function getOrgBillingCurrency(orgId: string) {
-  if (isReadFromPostgres()) {
-    const billing = await prisma.organizationBilling.findUnique({
-      where: { orgId },
-      select: { currency: true },
-    });
-    return billing?.currency ?? "usd";
-  }
-  const billing = (await OrgBilling.findOne({
-    orgId,
-  })) as unknown as OrgBillingDoc | null;
-  return billing?.currency ?? "usd";
-}
-
 // --- Billing helpers ---
 async function ensureBillingDocs(
   orgId: string,
@@ -228,88 +215,53 @@ const syncOrgBillingToPostgres = async (doc: OrgBillingDoc | null) => {
   const orgId = toIdString(doc.orgId);
   if (!orgId) return;
   const id = toIdString(doc._id) ?? orgId;
+  const payload = {
+    connectAccountId: doc.connectAccountId ?? undefined,
+    canAcceptPayments: doc.canAcceptPayments ?? false,
+    connectChargesEnabled: doc.connectChargesEnabled ?? false,
+    connectPayoutsEnabled: doc.connectPayoutsEnabled ?? false,
+    connectDisabledReason: doc.connectDisabledReason ?? undefined,
+    connectRequirements: (doc.connectRequirements ??
+      undefined) as Prisma.InputJsonValue,
+    stripeCustomerId: doc.stripeCustomerId ?? undefined,
+    stripeSubscriptionId: doc.stripeSubscriptionId ?? undefined,
+    stripeSubscriptionItemId: doc.stripeSubscriptionItemId ?? undefined,
+    stripePriceId: doc.stripePriceId ?? undefined,
+    stripeProductId: doc.stripeProductId ?? undefined,
+    stripeLivemode: doc.stripeLivemode ?? false,
+    plan: doc.plan ?? "free",
+    billingInterval: toBillingInterval(doc.billingInterval),
+    currency: doc.currency ?? "usd",
+    seatQuantity: doc.seatQuantity ?? 0,
+    seatQuantityUpdatedAt: doc.seatQuantityUpdatedAt ?? undefined,
+    subscriptionStatus: toSubscriptionStatus(doc.subscriptionStatus) ?? "none",
+    cancelAtPeriodEnd: doc.cancelAtPeriodEnd ?? false,
+    canceledAt: doc.canceledAt ?? undefined,
+    currentPeriodStart: doc.currentPeriodStart ?? undefined,
+    currentPeriodEnd: doc.currentPeriodEnd ?? undefined,
+    nextInvoiceAt: doc.nextInvoiceAt ?? undefined,
+    lastInvoiceId: doc.lastInvoiceId ?? undefined,
+    lastPaymentStatus: doc.lastPaymentStatus ?? undefined,
+    lastPaymentAt: doc.lastPaymentAt ?? undefined,
+    joinedAt: doc.joinedAt ?? undefined,
+    upgradedAt: doc.upgradedAt ?? undefined,
+    downgradedAt: doc.downgradedAt ?? undefined,
+    accessState: toAccessState(doc.accessState) ?? "free",
+    gracePeriodEndsAt: doc.gracePeriodEndsAt ?? undefined,
+    version: doc.version ?? 0,
+    lastStripeEventId: doc.lastStripeEventId ?? undefined,
+    updatedAt: doc.updatedAt ?? undefined,
+  };
   try {
     await prisma.organizationBilling.upsert({
       where: { orgId },
       create: {
         id,
         orgId,
-        connectAccountId: doc.connectAccountId ?? undefined,
-        canAcceptPayments: doc.canAcceptPayments ?? false,
-        connectChargesEnabled: doc.connectChargesEnabled ?? false,
-        connectPayoutsEnabled: doc.connectPayoutsEnabled ?? false,
-        connectDisabledReason: doc.connectDisabledReason ?? undefined,
-        connectRequirements: (doc.connectRequirements ??
-          undefined) as Prisma.InputJsonValue,
-        stripeCustomerId: doc.stripeCustomerId ?? undefined,
-        stripeSubscriptionId: doc.stripeSubscriptionId ?? undefined,
-        stripeSubscriptionItemId: doc.stripeSubscriptionItemId ?? undefined,
-        stripePriceId: doc.stripePriceId ?? undefined,
-        stripeProductId: doc.stripeProductId ?? undefined,
-        stripeLivemode: doc.stripeLivemode ?? false,
-        plan: doc.plan ?? "free",
-        billingInterval: toBillingInterval(doc.billingInterval),
-        currency: doc.currency ?? "usd",
-        seatQuantity: doc.seatQuantity ?? 0,
-        seatQuantityUpdatedAt: doc.seatQuantityUpdatedAt ?? undefined,
-        subscriptionStatus:
-          toSubscriptionStatus(doc.subscriptionStatus) ?? "none",
-        cancelAtPeriodEnd: doc.cancelAtPeriodEnd ?? false,
-        canceledAt: doc.canceledAt ?? undefined,
-        currentPeriodStart: doc.currentPeriodStart ?? undefined,
-        currentPeriodEnd: doc.currentPeriodEnd ?? undefined,
-        nextInvoiceAt: doc.nextInvoiceAt ?? undefined,
-        lastInvoiceId: doc.lastInvoiceId ?? undefined,
-        lastPaymentStatus: doc.lastPaymentStatus ?? undefined,
-        lastPaymentAt: doc.lastPaymentAt ?? undefined,
-        joinedAt: doc.joinedAt ?? undefined,
-        upgradedAt: doc.upgradedAt ?? undefined,
-        downgradedAt: doc.downgradedAt ?? undefined,
-        accessState: toAccessState(doc.accessState) ?? "free",
-        gracePeriodEndsAt: doc.gracePeriodEndsAt ?? undefined,
-        version: doc.version ?? 0,
-        lastStripeEventId: doc.lastStripeEventId ?? undefined,
+        ...payload,
         createdAt: doc.createdAt ?? undefined,
-        updatedAt: doc.updatedAt ?? undefined,
       },
-      update: {
-        connectAccountId: doc.connectAccountId ?? undefined,
-        canAcceptPayments: doc.canAcceptPayments ?? false,
-        connectChargesEnabled: doc.connectChargesEnabled ?? false,
-        connectPayoutsEnabled: doc.connectPayoutsEnabled ?? false,
-        connectDisabledReason: doc.connectDisabledReason ?? undefined,
-        connectRequirements: (doc.connectRequirements ??
-          undefined) as Prisma.InputJsonValue,
-        stripeCustomerId: doc.stripeCustomerId ?? undefined,
-        stripeSubscriptionId: doc.stripeSubscriptionId ?? undefined,
-        stripeSubscriptionItemId: doc.stripeSubscriptionItemId ?? undefined,
-        stripePriceId: doc.stripePriceId ?? undefined,
-        stripeProductId: doc.stripeProductId ?? undefined,
-        stripeLivemode: doc.stripeLivemode ?? false,
-        plan: doc.plan ?? "free",
-        billingInterval: toBillingInterval(doc.billingInterval),
-        currency: doc.currency ?? "usd",
-        seatQuantity: doc.seatQuantity ?? 0,
-        seatQuantityUpdatedAt: doc.seatQuantityUpdatedAt ?? undefined,
-        subscriptionStatus:
-          toSubscriptionStatus(doc.subscriptionStatus) ?? "none",
-        cancelAtPeriodEnd: doc.cancelAtPeriodEnd ?? false,
-        canceledAt: doc.canceledAt ?? undefined,
-        currentPeriodStart: doc.currentPeriodStart ?? undefined,
-        currentPeriodEnd: doc.currentPeriodEnd ?? undefined,
-        nextInvoiceAt: doc.nextInvoiceAt ?? undefined,
-        lastInvoiceId: doc.lastInvoiceId ?? undefined,
-        lastPaymentStatus: doc.lastPaymentStatus ?? undefined,
-        lastPaymentAt: doc.lastPaymentAt ?? undefined,
-        joinedAt: doc.joinedAt ?? undefined,
-        upgradedAt: doc.upgradedAt ?? undefined,
-        downgradedAt: doc.downgradedAt ?? undefined,
-        accessState: toAccessState(doc.accessState) ?? "free",
-        gracePeriodEndsAt: doc.gracePeriodEndsAt ?? undefined,
-        version: doc.version ?? 0,
-        lastStripeEventId: doc.lastStripeEventId ?? undefined,
-        updatedAt: doc.updatedAt ?? undefined,
-      },
+      update: payload,
     });
   } catch (err) {
     handleDualWriteError("OrganizationBilling", err);
@@ -321,34 +273,27 @@ const syncOrgUsageToPostgres = async (doc: OrgUsageCountersDoc | null) => {
   const orgId = toIdString(doc.orgId);
   if (!orgId) return;
   const id = toIdString(doc._id) ?? orgId;
+  const payload = {
+    appointmentsUsed: doc.appointmentsUsed ?? 0,
+    toolsUsed: doc.toolsUsed ?? 0,
+    usersActiveCount: doc.usersActiveCount ?? 0,
+    usersBillableCount: doc.usersBillableCount ?? 0,
+    freeAppointmentsLimit: doc.freeAppointmentsLimit ?? 120,
+    freeToolsLimit: doc.freeToolsLimit ?? 200,
+    freeUsersLimit: doc.freeUsersLimit ?? 10,
+    freeLimitReachedAt: doc.freeLimitReachedAt ?? undefined,
+    updatedAt: doc.updatedAt ?? undefined,
+  };
   try {
     await prisma.organizationUsageCounter.upsert({
       where: { orgId },
       create: {
         id,
         orgId,
-        appointmentsUsed: doc.appointmentsUsed ?? 0,
-        toolsUsed: doc.toolsUsed ?? 0,
-        usersActiveCount: doc.usersActiveCount ?? 0,
-        usersBillableCount: doc.usersBillableCount ?? 0,
-        freeAppointmentsLimit: doc.freeAppointmentsLimit ?? 120,
-        freeToolsLimit: doc.freeToolsLimit ?? 200,
-        freeUsersLimit: doc.freeUsersLimit ?? 10,
-        freeLimitReachedAt: doc.freeLimitReachedAt ?? undefined,
+        ...payload,
         createdAt: doc.createdAt ?? undefined,
-        updatedAt: doc.updatedAt ?? undefined,
       },
-      update: {
-        appointmentsUsed: doc.appointmentsUsed ?? 0,
-        toolsUsed: doc.toolsUsed ?? 0,
-        usersActiveCount: doc.usersActiveCount ?? 0,
-        usersBillableCount: doc.usersBillableCount ?? 0,
-        freeAppointmentsLimit: doc.freeAppointmentsLimit ?? 120,
-        freeToolsLimit: doc.freeToolsLimit ?? 200,
-        freeUsersLimit: doc.freeUsersLimit ?? 10,
-        freeLimitReachedAt: doc.freeLimitReachedAt ?? undefined,
-        updatedAt: doc.updatedAt ?? undefined,
-      },
+      update: payload,
     });
   } catch (err) {
     handleDualWriteError("OrganizationUsageCounter", err);
