@@ -3,6 +3,7 @@ import {
   InvoiceService,
   InvoiceServiceError,
 } from "../../src/services/invoice.service";
+import type { InvoiceDocument } from "../../src/models/invoice";
 import InvoiceModel from "../../src/models/invoice";
 import AppointmentModel from "../../src/models/appointment";
 import { StripeService } from "../../src/services/stripe.service";
@@ -13,6 +14,7 @@ import { AuditTrailService } from "../../src/services/audit-trail.service";
 import { sendEmailTemplate } from "../../src/utils/email";
 import { OrgBilling } from "../../src/models/organization.billing";
 import logger from "../../src/utils/logger";
+import { prisma } from "src/config/prisma";
 
 // --- Global Mocks Setup (TDZ Safe) ---
 jest.mock("../../src/models/invoice", () => {
@@ -91,6 +93,23 @@ jest.mock("../../src/utils/logger", () => ({
   __esModule: true,
   default: {
     error: jest.fn(),
+  },
+}));
+
+jest.mock("src/config/prisma", () => ({
+  prisma: {
+    appointment: { findUnique: jest.fn() },
+    invoice: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
+      upsert: jest.fn(),
+    },
+    organizationBilling: { findUnique: jest.fn() },
+    organization: { findUnique: jest.fn() },
+    parent: { findUnique: jest.fn() },
   },
 }));
 
@@ -229,6 +248,582 @@ describe("InvoiceService", () => {
     });
   });
 
+  describe("createDraftForAppointment (postgres)", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("should create invoice and notify parent", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
+        id: validId,
+        organisationId: "org_1",
+        companion: { id: "comp_1" },
+      });
+      (prisma.organizationBilling.findUnique as jest.Mock).mockResolvedValue({
+        currency: "usd",
+      });
+      (prisma.invoice.create as jest.Mock).mockResolvedValue({
+        id: "inv_1",
+        organisationId: "org_1",
+        companionId: "comp_1",
+        status: "AWAITING_PAYMENT",
+        totalAmount: 120,
+        currency: "usd",
+      });
+
+      const result = await InvoiceService.createDraftForAppointment({
+        appointmentId: validId,
+        parentId: "parent_1",
+        organisationId: "org_1",
+        companionId: "comp_1",
+        items: [{ description: "Consult", quantity: 1, unitPrice: 120 }],
+        paymentCollectionMethod: "PAYMENT_LINK",
+      });
+
+      expect(prisma.invoice.create).toHaveBeenCalled();
+      expect(NotificationService.sendToUser).toHaveBeenCalledWith(
+        "parent_1",
+        expect.anything(),
+      );
+      expect((result as any).id).toBe("inv_1");
+    });
+
+    it("should throw 404 if appointment not found", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        InvoiceService.createDraftForAppointment({
+          appointmentId: validId,
+          parentId: validId,
+          organisationId: validId,
+          companionId: validId,
+          items: [],
+          paymentCollectionMethod: "PAYMENT_LINK",
+        }),
+      ).rejects.toThrow(new InvoiceServiceError("Appointment not found", 404));
+    });
+
+    it("should allow missing companion data and omit companionId", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
+        id: validId,
+        organisationId: "org_1",
+        companion: "invalid",
+      });
+      (prisma.organizationBilling.findUnique as jest.Mock).mockResolvedValue({
+        currency: "usd",
+      });
+      (prisma.invoice.create as jest.Mock).mockResolvedValue({
+        id: "inv_2",
+        organisationId: "org_1",
+        companionId: null,
+        status: "AWAITING_PAYMENT",
+        totalAmount: 120,
+        currency: "usd",
+      });
+
+      await InvoiceService.createDraftForAppointment({
+        appointmentId: validId,
+        parentId: "parent_1",
+        organisationId: "org_1",
+        companionId: "comp_1",
+        items: [{ description: "Consult", quantity: 1, unitPrice: 120 }],
+        paymentCollectionMethod: "PAYMENT_LINK",
+      });
+
+      expect(prisma.invoice.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            companionId: undefined,
+          }),
+        }),
+      );
+    });
+  });
+
+  describe("createExtraInvoiceForAppointment (postgres)", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("should create extra invoice and notify parent", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
+        id: "appt_1",
+        organisationId: "org_1",
+        companion: { id: "comp_1", parent: { id: "parent_1" } },
+      });
+      (prisma.organizationBilling.findUnique as jest.Mock).mockResolvedValue({
+        currency: "usd",
+      });
+      (prisma.invoice.create as jest.Mock).mockResolvedValue({
+        id: "inv_extra",
+        appointmentId: "appt_1",
+        organisationId: "org_1",
+        companionId: "comp_1",
+        parentId: "parent_1",
+        status: "AWAITING_PAYMENT",
+        totalAmount: 25,
+        currency: "usd",
+      });
+
+      const result = await InvoiceService.createExtraInvoiceForAppointment({
+        appointmentId: "appt_1",
+        items: [
+          {
+            name: "Add-on",
+            description: "Add-on",
+            quantity: 1,
+            unitPrice: 25,
+            total: 25,
+          },
+        ],
+      });
+
+      expect(prisma.invoice.create).toHaveBeenCalled();
+      expect(NotificationService.sendToUser).toHaveBeenCalledWith(
+        "parent_1",
+        expect.anything(),
+      );
+      expect((result as any).id).toBe("inv_extra");
+    });
+
+    it("should skip parent notification when parentId is missing", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
+        id: "appt_2",
+        organisationId: "org_1",
+        companion: { id: "comp_1", parent: "invalid" },
+      });
+      (prisma.organizationBilling.findUnique as jest.Mock).mockResolvedValue({
+        currency: "usd",
+      });
+      (prisma.invoice.create as jest.Mock).mockResolvedValue({
+        id: "inv_extra_2",
+        appointmentId: "appt_2",
+        organisationId: "org_1",
+        companionId: "comp_1",
+        parentId: null,
+        status: "AWAITING_PAYMENT",
+        totalAmount: 25,
+        currency: "usd",
+        items: [],
+        subtotal: 25,
+        taxPercent: 0,
+        taxTotal: 0,
+        discountTotal: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        paymentCollectionMethod: "PAYMENT_LINK",
+        stripePaymentIntentId: null,
+        stripePaymentLinkId: null,
+        stripeInvoiceId: null,
+        stripeCustomerId: null,
+        stripeChargeId: null,
+        stripeReceiptUrl: null,
+        stripeCheckoutSessionId: null,
+        stripeCheckoutUrl: null,
+        metadata: {},
+      });
+
+      await InvoiceService.createExtraInvoiceForAppointment({
+        appointmentId: "appt_2",
+        items: [
+          {
+            name: "Add-on",
+            description: "Add-on",
+            quantity: 1,
+            unitPrice: 25,
+            total: 25,
+          },
+        ],
+      });
+
+      expect(NotificationService.sendToUser).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Postgres Branches", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("attachStripeDetails should update via prisma", async () => {
+      (prisma.invoice.update as jest.Mock).mockResolvedValue({
+        id: "inv_1",
+        organisationId: "org_1",
+        companionId: "comp_1",
+        status: "AWAITING_PAYMENT",
+        totalAmount: 10,
+        currency: "usd",
+      });
+
+      const res = await InvoiceService.attachStripeDetails("inv_1", {
+        stripePaymentIntentId: "pi_1",
+      });
+      expect(prisma.invoice.update).toHaveBeenCalled();
+      expect(res.id).toBe("inv_1");
+    });
+
+    it("markInvoicePaid should return null when already PAID", async () => {
+      (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "inv_1",
+        status: "PAID",
+      });
+
+      const res = await InvoiceService.markInvoicePaid({ invoiceId: "inv_1" });
+      expect(res).toBeNull();
+    });
+
+    it("markInvoicePaid should update and audit", async () => {
+      (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "inv_2",
+        status: "AWAITING_PAYMENT",
+        organisationId: "org_1",
+        companionId: "comp_1",
+        totalAmount: 50,
+        currency: "usd",
+      });
+      (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+        id: "inv_2",
+        status: "PAID",
+        organisationId: "org_1",
+        companionId: "comp_1",
+        totalAmount: 50,
+        currency: "usd",
+      });
+
+      const res = await InvoiceService.markInvoicePaid({ invoiceId: "inv_2" });
+      expect(res).toBeTruthy();
+      expect(AuditTrailService.recordSafely).toHaveBeenCalled();
+    });
+
+    it("markInvoicePaid should resolve audit targets via appointment lookup", async () => {
+      (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "inv_appt",
+        status: "AWAITING_PAYMENT",
+      });
+      (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+        id: "inv_appt",
+        status: "PAID",
+        appointmentId: "appt_1",
+        organisationId: null,
+        companionId: null,
+        totalAmount: 20,
+        currency: "usd",
+      });
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValueOnce({
+        organisationId: "org_1",
+        companion: { id: "comp_1" },
+      });
+
+      await InvoiceService.markInvoicePaid({ invoiceId: "inv_appt" });
+      expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organisationId: "org_1",
+          companionId: "comp_1",
+        }),
+      );
+    });
+
+    it("markInvoicePaid skips audit when appointment lacks companion id", async () => {
+      (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "inv_no_comp",
+        status: "AWAITING_PAYMENT",
+      });
+      (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+        id: "inv_no_comp",
+        status: "PAID",
+        appointmentId: "appt_2",
+        organisationId: null,
+        companionId: null,
+        totalAmount: 20,
+        currency: "usd",
+      });
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValueOnce({
+        organisationId: "org_1",
+        companion: "invalid",
+      });
+
+      await InvoiceService.markInvoicePaid({ invoiceId: "inv_no_comp" });
+      expect(AuditTrailService.recordSafely).not.toHaveBeenCalled();
+    });
+
+    it("markInvoicePaidManually should throw on wrong method", async () => {
+      (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "inv_3",
+        paymentCollectionMethod: "PAYMENT_LINK",
+        status: "AWAITING_PAYMENT",
+      });
+
+      await expect(
+        InvoiceService.markInvoicePaidManually("inv_3"),
+      ).rejects.toThrow(
+        new InvoiceServiceError(
+          "Invoice is not marked for in-clinic payment.",
+          409,
+        ),
+      );
+    });
+
+    it("updatePaymentCollectionMethod returns same method if unchanged", async () => {
+      (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "inv_4",
+        status: "AWAITING_PAYMENT",
+        paymentCollectionMethod: "PAYMENT_LINK",
+      });
+
+      const res = await InvoiceService.updatePaymentCollectionMethod(
+        "inv_4",
+        "PAYMENT_LINK",
+      );
+      expect(res).toBeDefined();
+      expect(prisma.invoice.update).not.toHaveBeenCalled();
+    });
+
+    it("updatePaymentCollectionMethod throws on invalid method", async () => {
+      await expect(
+        InvoiceService.updatePaymentCollectionMethod("inv_bad", "invalid"),
+      ).rejects.toThrow(
+        new InvoiceServiceError("Invalid payment collection method.", 400),
+      );
+    });
+
+    it("updatePaymentCollectionMethod normalizes metadata and items", async () => {
+      (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "inv_4b",
+        status: "AWAITING_PAYMENT",
+        paymentCollectionMethod: "PAYMENT_LINK",
+        items: [
+          {
+            id: "item_1",
+            name: "Test",
+            quantity: 1,
+            unitPrice: 10,
+            total: 10,
+            description: null,
+          },
+        ],
+        metadata: { ok: "yes", count: 2, flag: true, bad: { nested: 1 } },
+        parentId: null,
+        companionId: null,
+        organisationId: null,
+        appointmentId: null,
+        subtotal: 10,
+        totalAmount: 10,
+        taxPercent: 0,
+        taxTotal: 0,
+        discountTotal: 0,
+        currency: "usd",
+        stripePaymentIntentId: null,
+        stripePaymentLinkId: null,
+        stripeInvoiceId: null,
+        stripeCustomerId: null,
+        stripeChargeId: null,
+        stripeReceiptUrl: null,
+        stripeCheckoutSessionId: null,
+        stripeCheckoutUrl: null,
+        paidAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const res = await InvoiceService.updatePaymentCollectionMethod(
+        "inv_4b",
+        "PAYMENT_LINK",
+      );
+
+      expect(res).toBeDefined();
+    });
+
+    it("markFailed should update and audit", async () => {
+      (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+        id: "inv_5",
+        status: "FAILED",
+        organisationId: "org_1",
+        companionId: "comp_1",
+        totalAmount: 5,
+        currency: "usd",
+      });
+
+      await InvoiceService.markFailed("inv_5");
+      expect(AuditTrailService.recordSafely).toHaveBeenCalled();
+    });
+
+    it("markRefunded should update and audit", async () => {
+      (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+        id: "inv_6",
+        status: "REFUNDED",
+        organisationId: "org_1",
+        companionId: "comp_1",
+        totalAmount: 5,
+        currency: "usd",
+      });
+
+      const res = await InvoiceService.markRefunded("inv_6");
+      expect(res.id).toBe("inv_6");
+      expect(AuditTrailService.recordSafely).toHaveBeenCalled();
+    });
+
+    it("updateStatus should update and audit", async () => {
+      (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+        id: "inv_7",
+        status: "PENDING",
+        organisationId: "org_1",
+        companionId: "comp_1",
+      });
+
+      await InvoiceService.updateStatus("inv_7", "PENDING");
+      expect(AuditTrailService.recordSafely).toHaveBeenCalled();
+    });
+
+    it("addItemsToInvoice should update totals and clear checkout for payment link", async () => {
+      (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "inv_8",
+        status: "AWAITING_PAYMENT",
+        items: [],
+        taxPercent: 0,
+        paymentCollectionMethod: "PAYMENT_LINK",
+        stripeCheckoutSessionId: "sess_1",
+        stripeCheckoutUrl: "url",
+        organisationId: "org_1",
+        companionId: "comp_1",
+        totalAmount: 10,
+        currency: "usd",
+      });
+      (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+        id: "inv_8",
+        status: "AWAITING_PAYMENT",
+        items: [],
+        taxPercent: 0,
+        totalAmount: 10,
+        currency: "usd",
+        organisationId: "org_1",
+        companionId: "comp_1",
+      });
+
+      await InvoiceService.addItemsToInvoice("inv_8", [
+        { name: "Item", description: "Desc", quantity: 1, unitPrice: 10 },
+      ] as any);
+      expect(prisma.invoice.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            stripeCheckoutSessionId: null,
+            stripeCheckoutUrl: null,
+          }),
+        }),
+      );
+    });
+
+    it("handleAppointmentCancellation should refund paid invoice", async () => {
+      (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: "inv_9",
+        status: "PAID",
+        stripePaymentIntentId: "pi_9",
+        organisationId: "org_1",
+        companionId: "comp_1",
+        currency: "usd",
+        totalAmount: 20,
+      });
+      (StripeService.refundPaymentIntent as jest.Mock).mockResolvedValue({
+        refundId: "r_1",
+        amountRefunded: 20,
+      });
+      (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+        id: "inv_9",
+        status: "REFUNDED",
+        organisationId: "org_1",
+        companionId: "comp_1",
+        currency: "usd",
+        totalAmount: 20,
+      });
+
+      const res = await InvoiceService.handleAppointmentCancellation(
+        "appt_1",
+        "reason",
+      );
+      expect(res).toEqual({ action: "REFUNDED", refundId: "r_1" });
+    });
+
+    it("handleInvoiceCancellation should cancel unpaid invoice", async () => {
+      (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "inv_10",
+        status: "AWAITING_PAYMENT",
+        organisationId: "org_1",
+        companionId: "comp_1",
+        metadata: {},
+      });
+      (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+        id: "inv_10",
+        status: "CANCELLED",
+        organisationId: "org_1",
+        companionId: "comp_1",
+        metadata: {},
+      });
+
+      const res = await InvoiceService.handleInvoiceCancellation(
+        "inv_10",
+        "reason",
+      );
+      expect(res).toEqual({ action: "CANCELLED_UNPAID", status: "CANCELLED" });
+    });
+
+    it("getByPaymentIntentId should return dto when found", async () => {
+      (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: "inv_11",
+        status: "AWAITING_PAYMENT",
+        totalAmount: 10,
+        currency: "usd",
+      });
+
+      const res = await InvoiceService.getByPaymentIntentId("pi_11");
+      expect(res?.id).toBe("inv_11");
+    });
+
+    it("createCheckoutSessionAndEmailParent should send email (postgres)", async () => {
+      (
+        StripeService.createCheckoutSessionForInvoice as jest.Mock
+      ).mockResolvedValue({
+        url: "http://checkout",
+      });
+      (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "inv_12",
+        parentId: "parent_1",
+        organisationId: "org_1",
+        totalAmount: 55.5,
+        currency: "usd",
+      });
+      (prisma.parent.findUnique as jest.Mock).mockResolvedValueOnce({
+        email: "test@test.com",
+        firstName: "John",
+        lastName: "Doe",
+      });
+      (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+        name: "Org",
+      });
+
+      const res =
+        await InvoiceService.createCheckoutSessionAndEmailParent("inv_12");
+      expect(sendEmailTemplate).toHaveBeenCalled();
+      expect(res.emailSent).toBe(true);
+    });
+  });
+
   describe("createExtraInvoiceForAppointment", () => {
     it("should throw 404 if appointment not found", async () => {
       (AppointmentModel.findById as jest.Mock).mockResolvedValue(null);
@@ -344,12 +939,10 @@ describe("InvoiceService", () => {
       );
 
       (AppointmentModel.findById as jest.Mock).mockReturnValue({
-        lean: jest
-          .fn()
-          .mockResolvedValue({
-            organisationId: "org_app",
-            companion: { id: "comp_app" },
-          }),
+        lean: jest.fn().mockResolvedValue({
+          organisationId: "org_app",
+          companion: { id: "comp_app" },
+        }),
       });
 
       await InvoiceService.markInvoicePaid({ invoiceId: validId });
@@ -359,6 +952,20 @@ describe("InvoiceService", () => {
           companionId: "comp_app",
         }),
       );
+    });
+
+    it("should skip audit when targets are missing", async () => {
+      const mockInvoice = createMockDoc({
+        organisationId: null,
+        companionId: null,
+        appointmentId: null,
+      });
+      (InvoiceModel.findOneAndUpdate as jest.Mock).mockResolvedValue(
+        mockInvoice,
+      );
+
+      await InvoiceService.markInvoicePaid({ invoiceId: validId });
+      expect(AuditTrailService.recordSafely).not.toHaveBeenCalled();
     });
   });
 
@@ -700,27 +1307,23 @@ describe("InvoiceService", () => {
         StripeService.createCheckoutSessionForInvoice as jest.Mock
       ).mockResolvedValue({ url: "http://checkout.com" });
       (InvoiceModel.findById as jest.Mock).mockReturnValue({
-        lean: jest
-          .fn()
-          .mockResolvedValue({
-            _id: validId,
-            parentId: validId,
-            organisationId: validId,
-            totalAmount: 50.55,
-            currency: "usd",
-          }),
+        lean: jest.fn().mockResolvedValue({
+          _id: validId,
+          parentId: validId,
+          organisationId: validId,
+          totalAmount: 50.55,
+          currency: "usd",
+        }),
       });
 
       // Added the .select() to the chain for ParentModel
       const parentChain = {
         select: jest.fn().mockReturnThis(),
-        lean: jest
-          .fn()
-          .mockResolvedValue({
-            email: "test@test.com",
-            firstName: "John",
-            lastName: "Doe",
-          }),
+        lean: jest.fn().mockResolvedValue({
+          email: "test@test.com",
+          firstName: "John",
+          lastName: "Doe",
+        }),
       };
       (ParentModel.findById as jest.Mock).mockReturnValue(parentChain);
 
@@ -775,6 +1378,85 @@ describe("InvoiceService", () => {
 
       expect(logger.error).toHaveBeenCalled();
       expect(res.emailSent).toBe(false); // Successfully handled the crash internally
+    });
+  });
+
+  describe("dual write", () => {
+    const originalDualWrite = process.env.DUAL_WRITE_ENABLED;
+
+    afterEach(() => {
+      process.env.DUAL_WRITE_ENABLED = originalDualWrite;
+    });
+
+    it("syncs invoice to postgres when enabled", async () => {
+      process.env.DUAL_WRITE_ENABLED = "true";
+      jest.resetModules();
+      jest.doMock("src/utils/dual-write", () => ({
+        ...jest.requireActual("src/utils/dual-write"),
+        shouldDualWrite: true,
+      }));
+
+      let InvoiceServiceIsolated!: typeof InvoiceService;
+      let InvoiceModelIsolated!: typeof InvoiceModel;
+      let prismaIsolated!: typeof prisma;
+
+      jest.isolateModules(() => {
+        InvoiceServiceIsolated =
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          require("../../src/services/invoice.service").InvoiceService;
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        InvoiceModelIsolated = require("../../src/models/invoice").default;
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        prismaIsolated = require("src/config/prisma").prisma;
+      });
+
+      (
+        InvoiceModelIsolated.findOneAndUpdate as jest.Mock
+      ).mockResolvedValueOnce({
+        _id: new Types.ObjectId(),
+        organisationId: new Types.ObjectId(),
+        companionId: new Types.ObjectId(),
+        appointmentId: new Types.ObjectId(),
+        items: [
+          { id: "i1", name: "Item", quantity: 1, unitPrice: 10, total: 10 },
+        ],
+        subtotal: 10,
+        totalAmount: 10,
+        taxPercent: 0,
+        taxTotal: 0,
+        discountTotal: 0,
+        currency: "usd",
+        status: "PAID",
+        paymentCollectionMethod: "PAYMENT_LINK",
+        toObject: () => ({
+          _id: { toString: () => "inv_1" },
+          parentId: { toString: () => "parent_1" },
+          companionId: { toString: () => "comp_1" },
+          organisationId: { toString: () => "org_1" },
+          appointmentId: { toString: () => "appt_1" },
+          items: [
+            { id: "i1", name: "Item", quantity: 1, unitPrice: 10, total: 10 },
+          ],
+          subtotal: 10,
+          totalAmount: 10,
+          taxPercent: 0,
+          taxTotal: 0,
+          discountTotal: 0,
+          currency: "usd",
+          status: "PAID",
+          paymentCollectionMethod: "PAYMENT_LINK",
+          createdAt: new Date("2024-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2024-01-02T00:00:00.000Z"),
+        }),
+      } as unknown as InvoiceDocument);
+
+      await InvoiceServiceIsolated.markInvoicePaid({ invoiceId: "inv_1" });
+
+      expect(prismaIsolated.invoice.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "inv_1" },
+        }),
+      );
     });
   });
 });

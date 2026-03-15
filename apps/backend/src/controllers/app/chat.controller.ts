@@ -2,22 +2,11 @@
 import { Request, Response } from "express";
 import { ChatService, ChatServiceError } from "src/services/chat.service";
 import ChatSessionModel from "src/models/chatSession";
-import { AuthenticatedRequest } from "src/middlewares/auth";
 import logger from "src/utils/logger";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { prisma } from "src/config/prisma";
 import { isReadFromPostgres } from "src/config/read-switch";
-
-const resolveUserIdFromRequest = (req: Request): string | undefined => {
-  const authReq = req as AuthenticatedRequest;
-  const headerUserId = req.headers["x-user-id"];
-
-  if (typeof headerUserId === "string" && headerUserId.trim()) {
-    return headerUserId;
-  }
-
-  return authReq.userId;
-};
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 const getObjectBody = (req: Request): Record<string, unknown> =>
   typeof req.body === "object" && req.body

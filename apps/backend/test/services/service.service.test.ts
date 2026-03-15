@@ -10,6 +10,8 @@ import { AvailabilityService } from "../../src/services/availability.service";
 import helpers from "../../src/utils/helper";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc.js";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError } from "src/utils/dual-write";
 
 dayjs.extend(utc);
 
@@ -59,6 +61,30 @@ jest.mock("../../src/utils/helper", () => ({
   },
 }));
 
+jest.mock("src/config/prisma", () => ({
+  prisma: {
+    service: {
+      upsert: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    organization: {
+      findMany: jest.fn(),
+    },
+    speciality: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+    },
+  },
+}));
+
+jest.mock("src/utils/dual-write", () => ({
+  shouldDualWrite: true,
+  isDualWriteStrict: false,
+  handleDualWriteError: jest.fn(),
+}));
+
 // Query Chain Factory to handle Mongoose methods
 const createQueryChain = (resolvedValue: any) => {
   const p = Promise.resolve(resolvedValue);
@@ -100,6 +126,7 @@ describe("ServiceService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.READ_FROM_POSTGRES = "false";
   });
 
   describe("ServiceServiceError & ensureObjectId", () => {
@@ -179,6 +206,28 @@ describe("ServiceService", () => {
         }),
       );
     });
+
+    it("handles dual-write errors", async () => {
+      const mockDoc = createMockDoc();
+      (ServiceModel.create as jest.Mock).mockResolvedValue(mockDoc);
+      (prisma.service.upsert as jest.Mock).mockRejectedValue(
+        new Error("sync fail"),
+      );
+
+      await ServiceService.create({
+        organisationId: validIdStr,
+        name: "New Service",
+        durationMinutes: 60,
+        cost: 200,
+        serviceType: "STANDARD",
+        isActive: true,
+      } as any);
+
+      expect(handleDualWriteError).toHaveBeenCalledWith(
+        "Service",
+        expect.any(Error),
+      );
+    });
   });
 
   describe("getById", () => {
@@ -194,6 +243,28 @@ describe("ServiceService", () => {
       const res = await ServiceService.getById(validIdStr);
       expect(res).toBeDefined();
     });
+
+    it("uses postgres when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.service.findFirst as jest.Mock).mockResolvedValue({
+        id: "pg-1",
+        organisationId: "org-1",
+        name: "Service",
+        description: null,
+        durationMinutes: 30,
+        cost: 10,
+        maxDiscount: null,
+        specialityId: null,
+        serviceType: "STANDARD",
+        observationToolId: null,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const res = await ServiceService.getById("pg-1");
+      expect(res).toMatchObject({ id: "pg-1" });
+    });
   });
 
   describe("listByOrganisation & listBySpeciality", () => {
@@ -207,6 +278,60 @@ describe("ServiceService", () => {
       (ServiceModel.find as jest.Mock).mockResolvedValue([createMockDoc()]);
       const res = await ServiceService.listBySpeciality(validIdStr);
       expect(res).toHaveLength(1);
+    });
+
+    it("listByOrganisation uses prisma in postgres mode", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.service.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: "pg-1",
+          organisationId: "org-1",
+          name: "Service",
+          description: null,
+          durationMinutes: 30,
+          cost: 10,
+          maxDiscount: null,
+          specialityId: null,
+          serviceType: "STANDARD",
+          observationToolId: null,
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ]);
+
+      const res = await ServiceService.listByOrganisation("org-1");
+      expect(res).toHaveLength(1);
+      expect(prisma.service.findMany).toHaveBeenCalledWith({
+        where: { organisationId: "org-1", isActive: true },
+      });
+    });
+
+    it("listBySpeciality uses prisma in postgres mode", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.service.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: "pg-1",
+          organisationId: "org-1",
+          name: "Service",
+          description: null,
+          durationMinutes: 30,
+          cost: 10,
+          maxDiscount: null,
+          specialityId: "spec-1",
+          serviceType: "STANDARD",
+          observationToolId: null,
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ]);
+
+      const res = await ServiceService.listBySpeciality("spec-1");
+      expect(res).toHaveLength(1);
+      expect(prisma.service.findMany).toHaveBeenCalledWith({
+        where: { specialityId: "spec-1", isActive: true },
+      });
     });
   });
 
@@ -242,6 +367,12 @@ describe("ServiceService", () => {
       expect(mockDoc.isActive).toBe(false);
       expect(mockDoc.save).toHaveBeenCalled();
     });
+
+    it("throws if invalid id", async () => {
+      await expect(ServiceService.update("bad-id", {} as any)).rejects.toThrow(
+        "Invalid serviceId",
+      );
+    });
   });
 
   describe("delete & deleteAllBySpecialityId", () => {
@@ -271,6 +402,38 @@ describe("ServiceService", () => {
       });
       expect(execMock).toHaveBeenCalled();
     });
+
+    it("handles dual-write delete errors", async () => {
+      const mockDoc = createMockDoc();
+      (ServiceModel.findById as jest.Mock).mockResolvedValue(mockDoc);
+      (prisma.service.deleteMany as jest.Mock).mockRejectedValue(
+        new Error("delete fail"),
+      );
+
+      const res = await ServiceService.delete(validIdStr);
+      expect(res).toBe(true);
+      expect(handleDualWriteError).toHaveBeenCalledWith(
+        "Service delete",
+        expect.any(Error),
+      );
+    });
+
+    it("handles dual-write deleteAllBySpecialityId errors", async () => {
+      const execMock = jest.fn().mockResolvedValue(true);
+      (ServiceModel.deleteMany as jest.Mock).mockReturnValue({
+        exec: execMock,
+      });
+      (prisma.service.deleteMany as jest.Mock).mockRejectedValue(
+        new Error("delete fail"),
+      );
+
+      await ServiceService.deleteAllBySpecialityId(validIdStr);
+
+      expect(handleDualWriteError).toHaveBeenCalledWith(
+        "Service deleteAllBySpecialityId",
+        expect.any(Error),
+      );
+    });
   });
 
   describe("search", () => {
@@ -296,6 +459,38 @@ describe("ServiceService", () => {
       expect(ServiceModel.find).toHaveBeenCalledWith({
         isActive: true,
         organisationId: expect.any(Types.ObjectId),
+      });
+    });
+
+    it("uses prisma search in postgres mode", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.service.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: "pg-1",
+          organisationId: "org-1",
+          name: "Service",
+          description: null,
+          durationMinutes: 30,
+          cost: 10,
+          maxDiscount: null,
+          specialityId: null,
+          serviceType: "STANDARD",
+          observationToolId: null,
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ]);
+
+      const res = await ServiceService.search("vet", "org-1");
+      expect(res).toHaveLength(1);
+      expect(prisma.service.findMany).toHaveBeenCalledWith({
+        where: {
+          isActive: true,
+          organisationId: "org-1",
+          name: { contains: "vet", mode: "insensitive" },
+        },
+        take: 50,
       });
     });
   });
@@ -332,6 +527,27 @@ describe("ServiceService", () => {
       const res = await ServiceService.listOrganisationsProvidingService("vet");
       expect(res).toHaveLength(1);
       expect(res[0].name).toBe("Org");
+    });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.service.findMany as jest.Mock).mockResolvedValue([
+        { organisationId: "org-1" },
+      ]);
+      (prisma.organization.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: "org-1",
+          name: "Org",
+          imageUrl: null,
+          phoneNo: null,
+          type: "CLINIC",
+          address: null,
+        },
+      ]);
+
+      const res = await ServiceService.listOrganisationsProvidingService("vet");
+      expect(res).toHaveLength(1);
+      expect(res[0].id).toBe("org-1");
     });
   });
 
@@ -457,6 +673,37 @@ describe("ServiceService", () => {
       expect(res.windows).toHaveLength(1);
       expect(res.windows[0].startTime).toBe("09:00");
     });
+
+    it("uses postgres path and returns empty when no vets", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.service.findFirst as jest.Mock).mockResolvedValue({
+        id: "pg-1",
+        organisationId: "org-1",
+        name: "Service",
+        description: null,
+        durationMinutes: 30,
+        cost: 10,
+        maxDiscount: null,
+        specialityId: "spec-1",
+        serviceType: "STANDARD",
+        observationToolId: null,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (prisma.speciality.findFirst as jest.Mock).mockResolvedValue({
+        id: "spec-1",
+        memberUserIds: [],
+      });
+
+      const res = await ServiceService.getBookableSlotsService(
+        "pg-1",
+        "org-1",
+        new Date(),
+      );
+
+      expect(res.windows).toEqual([]);
+    });
   });
 
   describe("listOrganisationsProvidingServiceNearby", () => {
@@ -537,6 +784,43 @@ describe("ServiceService", () => {
       expect(res[0].specialities[0].name).toBe("General");
       expect(res[0].specialities[0].services).toHaveLength(1);
       expect(res[0].specialities[0].services[0].name).toBe("Checkup");
+    });
+
+    it("uses prisma nearby search when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.service.findMany as jest.Mock)
+        .mockResolvedValueOnce([{ organisationId: "org-1" }])
+        .mockResolvedValueOnce([
+          {
+            id: "srv-1",
+            name: "Checkup",
+            cost: 50,
+            specialityId: "spec-1",
+            organisationId: "org-1",
+          },
+        ]);
+      (prisma.organization.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: "org-1",
+          name: "Org",
+          imageUrl: null,
+          phoneNo: null,
+          type: "CLINIC",
+          address: { latitude: 40, longitude: -74 },
+        },
+      ]);
+      (prisma.speciality.findMany as jest.Mock).mockResolvedValue([
+        { id: "spec-1", name: "General", organisationId: "org-1" },
+      ]);
+
+      const res = await ServiceService.listOrganisationsProvidingServiceNearby(
+        "Checkup",
+        40,
+        -74,
+      );
+
+      expect(res).toHaveLength(1);
+      expect(res[0].specialities[0].services).toHaveLength(1);
     });
   });
 });

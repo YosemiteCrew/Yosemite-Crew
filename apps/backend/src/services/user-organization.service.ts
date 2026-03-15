@@ -3,7 +3,9 @@ import UserOrganizationModel, {
   type UserOrganizationDocument,
   type UserOrganizationMongo,
 } from "../models/user-organization";
-import OrganizationModel from "../models/organization";
+import OrganizationModel, {
+  type OrganizationMongo,
+} from "../models/organization";
 import {
   fromUserOrganizationRequestDTO,
   toUserOrganizationResponseDTO,
@@ -663,15 +665,50 @@ const mapOrganizationFromPrisma = (org: {
     postalCode: string | null;
     latitude: number | null;
     longitude: number | null;
+    location: unknown;
   } | null;
+  taxId: string;
+  dunsNumber: string | null;
+  petNamePreference: string | null;
+  website: string | null;
+  documensoTeamId: string | null;
+  documensoApiKey: string | null;
+  isVerified: boolean;
+  isActive: boolean;
+  typeCoding: unknown;
+  healthAndSafetyCertNo: string | null;
+  animalWelfareComplianceCertNo: string | null;
+  fireAndEmergencyCertNo: string | null;
+  stripeAccountId: string | null;
+  averageRating: number | null;
+  ratingCount: number | null;
+  createdAt: Date;
+  updatedAt: Date;
 }) => ({
   _id: org.id,
   fhirId: org.fhirId ?? undefined,
   name: org.name,
+  taxId: org.taxId ?? undefined,
+  DUNSNumber: org.dunsNumber ?? undefined,
   imageURL: org.imageUrl ?? undefined,
   phoneNo: org.phoneNo ?? undefined,
   type: org.type,
+  petNamePreference: org.petNamePreference ?? undefined,
+  website: org.website ?? undefined,
+  documensoTeamId: org.documensoTeamId ?? undefined,
+  documensoApiKey: org.documensoApiKey ?? undefined,
   googlePlacesId: org.googlePlacesId ?? undefined,
+  stripeAccountId: org.stripeAccountId ?? undefined,
+  isVerified: org.isVerified ?? undefined,
+  isActive: org.isActive ?? undefined,
+  typeCoding: org.typeCoding ?? undefined,
+  healthAndSafetyCertNo: org.healthAndSafetyCertNo ?? undefined,
+  animalWelfareComplianceCertNo: org.animalWelfareComplianceCertNo ?? undefined,
+  fireAndEmergencyCertNo: org.fireAndEmergencyCertNo ?? undefined,
+  averageRating: org.averageRating ?? undefined,
+  ratingCount: org.ratingCount ?? undefined,
+  createdAt: org.createdAt ?? undefined,
+  updatedAt: org.updatedAt ?? undefined,
   address: org.address
     ? {
         addressLine: org.address.addressLine ?? undefined,
@@ -681,6 +718,12 @@ const mapOrganizationFromPrisma = (org: {
         postalCode: org.address.postalCode ?? undefined,
         latitude: org.address.latitude ?? undefined,
         longitude: org.address.longitude ?? undefined,
+        location: (org.address.location ??
+          undefined) as OrganizationMongo["address"] extends {
+          location?: infer L;
+        }
+          ? L
+          : undefined,
       }
     : undefined,
 });
@@ -1195,12 +1238,13 @@ export const UserOrganizationService = {
 
   async listByUserId(id: string) {
     const userId = requireSafeString(id, "User Id");
+    const practitionerReferences = [userId, `Practitioner/${userId}`];
 
     if (isReadFromPostgres()) {
       const mappings = await prisma.userOrganization.findMany({
         where: {
           practitionerReference: {
-            in: [userId, `Practitioner/${userId}`],
+            in: practitionerReferences,
           },
         },
       });
@@ -1230,13 +1274,14 @@ export const UserOrganizationService = {
           effectivePermissions.includes("billing:edit:any") ||
           effectivePermissions.includes("billing:edit:limited");
 
+        const orgIdForBilling = organization?.id ?? organizationId;
         const [orgBilling, orgUsage] = canViewBilling
           ? await Promise.all([
               prisma.organizationBilling.findFirst({
-                where: { orgId: organizationId },
+                where: { orgId: orgIdForBilling },
               }),
               prisma.organizationUsageCounter.findFirst({
-                where: { orgId: organizationId },
+                where: { orgId: orgIdForBilling },
               }),
             ])
           : [null, null];
@@ -1255,7 +1300,7 @@ export const UserOrganizationService = {
     }
 
     const mappings = await UserOrganizationModel.find({
-      practitionerReference: userId,
+      practitionerReference: { $in: practitionerReferences },
     });
 
     if (!mappings.length) {

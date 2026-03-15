@@ -12,6 +12,7 @@ import { UserOrganizationService } from "../../src/services/user-organization.se
 import * as uploadMiddleware from "../../src/middlewares/upload";
 import * as TypesPkg from "@yosemite-crew/types";
 import logger from "../../src/utils/logger";
+import { prisma } from "src/config/prisma";
 
 // --- MOCKS ---
 jest.mock("mongoose", () => {
@@ -86,6 +87,21 @@ jest.mock("src/utils/dual-write", () => ({
   shouldDualWrite: false,
   isDualWriteStrict: false,
   handleDualWriteError: jest.fn(),
+}));
+
+jest.mock("src/config/prisma", () => ({
+  prisma: {
+    organization: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+    },
+    speciality: {
+      findMany: jest.fn(),
+    },
+    service: {
+      findMany: jest.fn(),
+    },
+  },
 }));
 
 // --- TEST UTILS ---
@@ -533,6 +549,70 @@ describe("OrganizationService", () => {
     });
   });
 
+  describe("getById (postgres)", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("should return null if identifier is empty", async () => {
+      const res = await OrganizationService.getById("   ");
+      expect(res).toBeNull();
+      expect(prisma.organization.findFirst).not.toHaveBeenCalled();
+    });
+
+    it("should return organisation when found", async () => {
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: "org_1",
+        fhirId: null,
+        name: "Org One",
+        taxId: "123",
+        dunsNumber: null,
+        imageUrl: null,
+        phoneNo: "123",
+        type: "HOSPITAL",
+        petNamePreference: null,
+        website: null,
+        documensoTeamId: null,
+        documensoApiKey: null,
+        isVerified: true,
+        isActive: true,
+        typeCoding: null,
+        healthAndSafetyCertNo: null,
+        animalWelfareComplianceCertNo: null,
+        fireAndEmergencyCertNo: null,
+        googlePlacesId: null,
+        stripeAccountId: null,
+        averageRating: null,
+        ratingCount: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        address: {
+          addressLine: "Line 1",
+          country: "US",
+          city: "City",
+          state: "CA",
+          postalCode: "90001",
+          latitude: 10,
+          longitude: 20,
+          location: null,
+        },
+      });
+
+      const res = await OrganizationService.getById("org-1");
+      expect(res).toBeDefined();
+      expect(prisma.organization.findFirst).toHaveBeenCalledWith({
+        where: { OR: [{ id: "org-1" }, { fhirId: "org-1" }] },
+        include: { address: true },
+      });
+    });
+  });
+
   describe("listAll", () => {
     it("should map and return all organizations", async () => {
       (OrganizationModel.find as jest.Mock).mockResolvedValueOnce([
@@ -541,6 +621,56 @@ describe("OrganizationService", () => {
       ]);
       const res = await OrganizationService.listAll();
       expect(res.length).toBe(2);
+    });
+  });
+
+  describe("listAll (postgres)", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("should map and return all organizations", async () => {
+      (prisma.organization.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          id: "org_1",
+          fhirId: null,
+          name: "Org One",
+          taxId: "123",
+          dunsNumber: null,
+          imageUrl: null,
+          phoneNo: "123",
+          type: "HOSPITAL",
+          petNamePreference: null,
+          website: null,
+          documensoTeamId: null,
+          documensoApiKey: null,
+          isVerified: true,
+          isActive: true,
+          typeCoding: null,
+          healthAndSafetyCertNo: null,
+          animalWelfareComplianceCertNo: null,
+          fireAndEmergencyCertNo: null,
+          googlePlacesId: null,
+          stripeAccountId: null,
+          averageRating: null,
+          ratingCount: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          address: null,
+        },
+      ]);
+
+      const res = await OrganizationService.listAll();
+      expect(res.length).toBe(1);
+      expect(prisma.organization.findMany).toHaveBeenCalledWith({
+        include: { address: true },
+      });
     });
   });
 
@@ -686,6 +816,154 @@ describe("OrganizationService", () => {
     });
   });
 
+  describe("resolveOrganisation (postgres)", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.organization.findFirst as jest.Mock).mockReset();
+      (prisma.organization.findMany as jest.Mock).mockReset();
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("should resolve by placeId", async () => {
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: "org_1",
+        fhirId: null,
+        name: "Org One",
+        taxId: "123",
+        dunsNumber: null,
+        imageUrl: null,
+        phoneNo: "123",
+        type: "HOSPITAL",
+        petNamePreference: null,
+        website: null,
+        documensoTeamId: null,
+        documensoApiKey: null,
+        isVerified: true,
+        isActive: true,
+        typeCoding: null,
+        healthAndSafetyCertNo: null,
+        animalWelfareComplianceCertNo: null,
+        fireAndEmergencyCertNo: null,
+        googlePlacesId: "place_1",
+        stripeAccountId: null,
+        averageRating: null,
+        ratingCount: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        address: null,
+      });
+
+      const res = await OrganizationService.resolveOrganisation({
+        placeId: "place_1",
+      });
+      expect(res.isPmsOrganisation).toBe(true);
+      expect(prisma.organization.findFirst).toHaveBeenCalledWith({
+        where: { googlePlacesId: "place_1" },
+        include: { address: true },
+      });
+    });
+
+    it("should resolve by lat/lng", async () => {
+      (prisma.organization.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          id: "org_1",
+          fhirId: null,
+          name: "Org One",
+          taxId: "123",
+          dunsNumber: null,
+          imageUrl: null,
+          phoneNo: "123",
+          type: "HOSPITAL",
+          petNamePreference: null,
+          website: null,
+          documensoTeamId: null,
+          documensoApiKey: null,
+          isVerified: true,
+          isActive: true,
+          typeCoding: null,
+          healthAndSafetyCertNo: null,
+          animalWelfareComplianceCertNo: null,
+          fireAndEmergencyCertNo: null,
+          googlePlacesId: null,
+          stripeAccountId: null,
+          averageRating: null,
+          ratingCount: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          address: {
+            addressLine: "Line 1",
+            country: "US",
+            city: "City",
+            state: "CA",
+            postalCode: "90001",
+            latitude: 10,
+            longitude: 20,
+            location: null,
+          },
+        },
+      ]);
+
+      const res = await OrganizationService.resolveOrganisation({
+        lat: 10,
+        lng: 20,
+      });
+      expect(res.isPmsOrganisation).toBe(true);
+    });
+
+    it("should resolve by name", async () => {
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: "org_1",
+        fhirId: null,
+        name: "Org One",
+        taxId: "123",
+        dunsNumber: null,
+        imageUrl: null,
+        phoneNo: "123",
+        type: "HOSPITAL",
+        petNamePreference: null,
+        website: null,
+        documensoTeamId: null,
+        documensoApiKey: null,
+        isVerified: true,
+        isActive: true,
+        typeCoding: null,
+        healthAndSafetyCertNo: null,
+        animalWelfareComplianceCertNo: null,
+        fireAndEmergencyCertNo: null,
+        googlePlacesId: null,
+        stripeAccountId: null,
+        averageRating: null,
+        ratingCount: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        address: null,
+      });
+
+      const res = await OrganizationService.resolveOrganisation({
+        name: "Org",
+      });
+      expect(res.isPmsOrganisation).toBe(true);
+      expect(prisma.organization.findFirst).toHaveBeenCalledWith({
+        where: { name: { contains: "Org", mode: "insensitive" } },
+        include: { address: true },
+      });
+    });
+
+    it("should return false if no match found", async () => {
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      const res = await OrganizationService.resolveOrganisation({
+        name: "Unknown",
+      });
+      expect(res.isPmsOrganisation).toBe(false);
+    });
+  });
+
   describe("listNearbyForAppointmentsPaginated", () => {
     it("should throw if lat or lng is missing", async () => {
       await expect(
@@ -750,6 +1028,127 @@ describe("OrganizationService", () => {
       const res = await OrganizationService.listNearbyForAppointmentsPaginated(
         10,
         20,
+      );
+
+      expect(logger.warn).toHaveBeenCalledWith(
+        "No nearby organisations found, returning all organisations",
+      );
+      expect(res.data.length).toBe(1);
+      expect(res.data[0].distanceInMeters).toBeNull();
+    });
+  });
+
+  describe("listNearbyForAppointmentsPaginated (postgres)", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("should return paginated data with specialities and services", async () => {
+      (prisma.organization.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          id: "org_1",
+          fhirId: null,
+          name: "Org One",
+          taxId: "123",
+          dunsNumber: null,
+          imageUrl: null,
+          phoneNo: "123",
+          type: "HOSPITAL",
+          petNamePreference: null,
+          website: null,
+          documensoTeamId: null,
+          documensoApiKey: null,
+          isVerified: true,
+          isActive: true,
+          typeCoding: null,
+          healthAndSafetyCertNo: null,
+          animalWelfareComplianceCertNo: null,
+          fireAndEmergencyCertNo: null,
+          googlePlacesId: null,
+          stripeAccountId: null,
+          averageRating: 4.5,
+          ratingCount: 10,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          address: {
+            addressLine: "Line 1",
+            country: "US",
+            city: "City",
+            state: "CA",
+            postalCode: "90001",
+            latitude: 10,
+            longitude: 20,
+            location: null,
+          },
+        },
+      ]);
+      (prisma.speciality.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: "spec_1", name: "Cardio" },
+      ]);
+      (prisma.service.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: "srv_1", name: "ECG", specialityId: "spec_1" },
+      ]);
+
+      const res = await OrganizationService.listNearbyForAppointmentsPaginated(
+        10,
+        20,
+        50000,
+        1,
+        10,
+      );
+
+      expect(res.data.length).toBe(1);
+      expect(res.data[0].specialitiesWithServices[0].services.length).toBe(1);
+      expect(res.meta.total).toBe(1);
+    });
+
+    it("should fallback to all organizations if no nearby are found", async () => {
+      (prisma.organization.findMany as jest.Mock)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          {
+            id: "org_2",
+            fhirId: null,
+            name: "Fallback Org",
+            taxId: "123",
+            dunsNumber: null,
+            imageUrl: null,
+            phoneNo: "123",
+            type: "HOSPITAL",
+            petNamePreference: null,
+            website: null,
+            documensoTeamId: null,
+            documensoApiKey: null,
+            isVerified: true,
+            isActive: true,
+            typeCoding: null,
+            healthAndSafetyCertNo: null,
+            animalWelfareComplianceCertNo: null,
+            fireAndEmergencyCertNo: null,
+            googlePlacesId: null,
+            stripeAccountId: null,
+            averageRating: null,
+            ratingCount: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            address: null,
+          },
+        ]);
+      (prisma.speciality.findMany as jest.Mock).mockResolvedValueOnce([]);
+      (prisma.service.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+      const res = await OrganizationService.listNearbyForAppointmentsPaginated(
+        10,
+        20,
+        50000,
+        1,
+        10,
       );
 
       expect(logger.warn).toHaveBeenCalledWith(

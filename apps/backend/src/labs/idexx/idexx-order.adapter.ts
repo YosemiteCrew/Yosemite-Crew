@@ -76,6 +76,38 @@ const resolveGenderCode = (gender: string, isNeutered?: boolean) => {
   return "UNKNOWN";
 };
 
+const requireIdexxClient = async (organisationId: string) => {
+  const account = await IntegrationService.requireAccount(
+    organisationId,
+    "IDEXX",
+  );
+
+  const credentials = account.credentials as {
+    username?: string;
+    password?: string;
+    labAccountId?: string;
+  };
+
+  if (!credentials?.username || !credentials.password) {
+    throw new LabOrderServiceError("IDEXX credentials missing.", 400);
+  }
+
+  const pimsId = process.env.IDEXX_PIMS_ID;
+  const pimsVersion = process.env.IDEXX_PIMS_VERSION;
+
+  if (!pimsId || !pimsVersion) {
+    throw new LabOrderServiceError("IDEXX PIMS config missing.", 500);
+  }
+
+  return new IdexxClient({
+    username: credentials.username,
+    password: credentials.password,
+    labAccountId: credentials.labAccountId,
+    pimsId,
+    pimsVersion,
+  });
+};
+
 const validateTestCodes = async (tests: string[]) => {
   if (!tests.length) {
     throw new LabOrderServiceError("tests are required.", 400);
@@ -102,16 +134,10 @@ const validateTestCodes = async (tests: string[]) => {
   }
 };
 
-const buildOrderPayload = async (input: {
+const loadCompanionAndParent = async (input: {
   companionId: IdLike;
   parentId: IdLike;
-  tests: string[];
-  modality?: "IN_HOUSE" | "REFERENCE_LAB";
-  ivls?: Array<{ serialNumber: string }>;
-  veterinarian?: string | null;
-  technician?: string | null;
-  notes?: string | null;
-  specimenCollectionDate?: string | null;
+  parentLastNameError: string;
 }) => {
   const companion = isReadFromPostgres()
     ? await prisma.companion.findFirst({
@@ -133,10 +159,7 @@ const buildOrderPayload = async (input: {
   }
 
   if (!parent.lastName) {
-    throw new LabOrderServiceError(
-      "Parent last name is required for IDEXX orders.",
-      400,
-    );
+    throw new LabOrderServiceError(input.parentLastNameError, 400);
   }
 
   if (!companion.speciesCode || !companion.breedCode) {
@@ -146,49 +169,107 @@ const buildOrderPayload = async (input: {
     );
   }
 
-  await validateTestCodes(input.tests);
+  return { companion, parent };
+};
 
-  const speciesCode = await lookupIdexxMapping(companion.speciesCode);
-  const breedCode = await lookupIdexxMapping(companion.breedCode);
+const buildPatientPayload = async (input: {
+  companion: {
+    name?: string;
+    gender?: string | null;
+    isNeutered?: boolean | null;
+    speciesCode?: string | null;
+    breedCode?: string | null;
+    microchipNumber?: string | null;
+    dateOfBirth?: Date | null;
+  } & { id?: string; _id?: { toString(): string } };
+  parent: {
+    firstName?: string | null;
+    lastName?: string | null;
+    email?: string | null;
+    phoneNumber?: string | null;
+    address?: {
+      addressLine?: string | null;
+      city?: string | null;
+      state?: string | null;
+      postalCode?: string | null;
+      country?: string | null;
+    } | null;
+  } & { id?: string; _id?: { toString(): string } };
+}) => {
+  const speciesCode = await lookupIdexxMapping(
+    input.companion.speciesCode as string,
+  );
+  const breedCode = await lookupIdexxMapping(
+    input.companion.breedCode as string,
+  );
   const genderCode = resolveGenderCode(
-    companion.gender,
-    companion.isNeutered ?? undefined,
+    input.companion.gender as string,
+    input.companion.isNeutered ?? undefined,
   );
 
-  if (input.modality === "IN_HOUSE") {
-    if (!input.ivls || input.ivls.length === 0) {
-      throw new LabOrderServiceError(
-        "ivls is required for IN_HOUSE orders.",
-        400,
-      );
-    }
-  }
-
-  const patient = {
-    patientId: resolveDocId(companion),
-    name: companion.name,
-    microchip: companion.microchipNumber ?? undefined,
+  return {
+    patientId: resolveDocId(input.companion),
+    name: input.companion.name,
+    microchip: input.companion.microchipNumber ?? undefined,
     speciesCode,
     breedCode,
     genderCode,
-    birthdate: companion.dateOfBirth
-      ? companion.dateOfBirth.toISOString().split("T")[0]
+    birthdate: input.companion.dateOfBirth
+      ? input.companion.dateOfBirth.toISOString().split("T")[0]
       : undefined,
     client: {
-      id: resolveDocId(parent),
-      firstName: parent.firstName,
-      lastName: parent.lastName,
+      id: resolveDocId(input.parent),
+      firstName: input.parent.firstName,
+      lastName: input.parent.lastName,
       address: {
-        street1: parent.address?.addressLine ?? undefined,
-        city: parent.address?.city ?? undefined,
-        stateProvince: parent.address?.state ?? undefined,
-        postalCode: parent.address?.postalCode ?? undefined,
-        country: parent.address?.country ?? undefined,
-        email: parent.email ?? undefined,
-        phone: parent.phoneNumber ?? undefined,
+        street1: input.parent.address?.addressLine ?? undefined,
+        city: input.parent.address?.city ?? undefined,
+        stateProvince: input.parent.address?.state ?? undefined,
+        postalCode: input.parent.address?.postalCode ?? undefined,
+        country: input.parent.address?.country ?? undefined,
+        email: input.parent.email ?? undefined,
+        phone: input.parent.phoneNumber ?? undefined,
       },
     },
   };
+};
+
+const buildOrderResult = (
+  response: Record<string, unknown>,
+  requestPayload: Record<string, unknown>,
+  idexxOrderId?: string | null,
+): LabOrderCreateResult => {
+  const statusInfo = normalizeLabStatus(response.status);
+
+  return {
+    requestPayload,
+    responsePayload: response,
+    idexxOrderId: idexxOrderId ?? coerceString(response.idexxOrderId),
+    uiUrl: (response.uiURL as string) ?? null,
+    pdfUrl: (response.pdfURL as string) ?? null,
+    status: statusInfo.status ?? undefined,
+    externalStatus: statusInfo.externalStatus,
+  };
+};
+
+const buildOrderPayload = async (input: {
+  companionId: IdLike;
+  parentId: IdLike;
+  tests: string[];
+  modality?: "IN_HOUSE" | "REFERENCE_LAB";
+  ivls?: Array<{ serialNumber: string }>;
+  veterinarian?: string | null;
+  technician?: string | null;
+  notes?: string | null;
+  specimenCollectionDate?: string | null;
+}) => {
+  const { companion, parent } = await loadCompanionAndParent({
+    companionId: input.companionId,
+    parentId: input.parentId,
+    parentLastNameError: "Parent last name is required for IDEXX orders.",
+  });
+
+  await validateTestCodes(input.tests);
 
   if (input.modality === "IN_HOUSE") {
     if (!input.ivls || input.ivls.length === 0) {
@@ -198,6 +279,8 @@ const buildOrderPayload = async (input: {
       );
     }
   }
+
+  const patient = await buildPatientPayload({ companion, parent });
 
   return {
     editable: false,
@@ -217,72 +300,16 @@ const buildCensusPayload = async (input: {
   veterinarian?: string | null;
   ivls?: Array<{ serialNumber: string }>;
 }) => {
-  const companion = isReadFromPostgres()
-    ? await prisma.companion.findFirst({
-        where: { id: toIdString(input.companionId) },
-      })
-    : await CompanionModel.findById(input.companionId).lean();
-  if (!companion) {
-    throw new LabOrderServiceError("Companion not found.", 404);
-  }
+  const { companion, parent } = await loadCompanionAndParent({
+    companionId: input.companionId,
+    parentId: input.parentId,
+    parentLastNameError: "Parent last name is required for IDEXX census.",
+  });
 
-  const parent = isReadFromPostgres()
-    ? await prisma.parent.findFirst({
-        where: { id: toIdString(input.parentId) },
-        include: { address: true },
-      })
-    : await ParentModel.findById(input.parentId).lean();
-  if (!parent) {
-    throw new LabOrderServiceError("Parent not found.", 404);
-  }
-
-  if (!parent.lastName) {
-    throw new LabOrderServiceError(
-      "Parent last name is required for IDEXX census.",
-      400,
-    );
-  }
-
-  if (!companion.speciesCode || !companion.breedCode) {
-    throw new LabOrderServiceError(
-      "Companion speciesCode and breedCode are required.",
-      400,
-    );
-  }
-
-  const speciesCode = await lookupIdexxMapping(companion.speciesCode);
-  const breedCode = await lookupIdexxMapping(companion.breedCode);
-  const genderCode = resolveGenderCode(
-    companion.gender,
-    companion.isNeutered ?? undefined,
-  );
+  const patient = await buildPatientPayload({ companion, parent });
 
   return {
-    patient: {
-      patientId: resolveDocId(companion),
-      name: companion.name,
-      microchip: companion.microchipNumber ?? undefined,
-      speciesCode,
-      breedCode,
-      genderCode,
-      birthdate: companion.dateOfBirth
-        ? companion.dateOfBirth.toISOString().split("T")[0]
-        : undefined,
-      client: {
-        id: resolveDocId(parent),
-        firstName: parent.firstName,
-        lastName: parent.lastName,
-        address: {
-          street1: parent.address?.addressLine ?? undefined,
-          city: parent.address?.city ?? undefined,
-          stateProvince: parent.address?.state ?? undefined,
-          postalCode: parent.address?.postalCode ?? undefined,
-          country: parent.address?.country ?? undefined,
-          email: parent.email ?? undefined,
-          phone: parent.phoneNumber ?? undefined,
-        },
-      },
-    },
+    patient,
     veterinarian: input.veterinarian ?? undefined,
     ivls: input.ivls ?? undefined,
   };
@@ -336,35 +363,7 @@ export class IdexxOrderAdapter implements LabOrderAdapter {
       specimenCollectionDate: input.specimenCollectionDate,
     });
 
-    const account = await IntegrationService.requireAccount(
-      input.organisationId,
-      "IDEXX",
-    );
-
-    const credentials = account.credentials as {
-      username?: string;
-      password?: string;
-      labAccountId?: string;
-    };
-
-    if (!credentials?.username || !credentials.password) {
-      throw new LabOrderServiceError("IDEXX credentials missing.", 400);
-    }
-
-    const pimsId = process.env.IDEXX_PIMS_ID;
-    const pimsVersion = process.env.IDEXX_PIMS_VERSION;
-
-    if (!pimsId || !pimsVersion) {
-      throw new LabOrderServiceError("IDEXX PIMS config missing.", 500);
-    }
-
-    const client = new IdexxClient({
-      username: credentials.username,
-      password: credentials.password,
-      labAccountId: credentials.labAccountId,
-      pimsId,
-      pimsVersion,
-    });
+    const client = await requireIdexxClient(input.organisationId);
 
     if (input.modality === "IN_HOUSE") {
       const censusPayload = await buildCensusPayload({
@@ -398,66 +397,18 @@ export class IdexxOrderAdapter implements LabOrderAdapter {
 
     const response = await client.createOrder(payload);
     const resp = response as Record<string, unknown>;
-    const statusInfo = normalizeLabStatus(resp.status);
-
-    return {
-      requestPayload: payload as Record<string, unknown>,
-      responsePayload: resp,
-      idexxOrderId: coerceString(resp.idexxOrderId),
-      uiUrl: (resp.uiURL as string) ?? null,
-      pdfUrl: (resp.pdfURL as string) ?? null,
-      status: statusInfo.status ?? undefined,
-      externalStatus: statusInfo.externalStatus,
-    };
+    return buildOrderResult(resp, payload as Record<string, unknown>);
   }
 
   async getOrder(
     idexxOrderId: string,
     input: LabOrderCreateInput,
   ): Promise<LabOrderCreateResult> {
-    const account = await IntegrationService.requireAccount(
-      input.organisationId,
-      "IDEXX",
-    );
-
-    const credentials = account.credentials as {
-      username?: string;
-      password?: string;
-      labAccountId?: string;
-    };
-
-    if (!credentials?.username || !credentials.password) {
-      throw new LabOrderServiceError("IDEXX credentials missing.", 400);
-    }
-
-    const pimsId = process.env.IDEXX_PIMS_ID;
-    const pimsVersion = process.env.IDEXX_PIMS_VERSION;
-
-    if (!pimsId || !pimsVersion) {
-      throw new LabOrderServiceError("IDEXX PIMS config missing.", 500);
-    }
-
-    const client = new IdexxClient({
-      username: credentials.username,
-      password: credentials.password,
-      labAccountId: credentials.labAccountId,
-      pimsId,
-      pimsVersion,
-    });
+    const client = await requireIdexxClient(input.organisationId);
 
     const response = await client.getOrder(idexxOrderId);
     const resp = response as Record<string, unknown>;
-    const statusInfo = normalizeLabStatus(resp.status);
-
-    return {
-      requestPayload: {},
-      responsePayload: resp,
-      idexxOrderId: idexxOrderId,
-      uiUrl: (resp.uiURL as string) ?? null,
-      pdfUrl: (resp.pdfURL as string) ?? null,
-      status: statusInfo.status ?? undefined,
-      externalStatus: statusInfo.externalStatus,
-    };
+    return buildOrderResult(resp, {}, idexxOrderId);
   }
 
   async updateOrder(
@@ -492,84 +443,22 @@ export class IdexxOrderAdapter implements LabOrderAdapter {
       specimenCollectionDate: input.specimenCollectionDate,
     });
 
-    const account = await IntegrationService.requireAccount(
-      input.organisationId,
-      "IDEXX",
-    );
-
-    const credentials = account.credentials as {
-      username?: string;
-      password?: string;
-      labAccountId?: string;
-    };
-
-    if (!credentials?.username || !credentials.password) {
-      throw new LabOrderServiceError("IDEXX credentials missing.", 400);
-    }
-
-    const pimsId = process.env.IDEXX_PIMS_ID;
-    const pimsVersion = process.env.IDEXX_PIMS_VERSION;
-
-    if (!pimsId || !pimsVersion) {
-      throw new LabOrderServiceError("IDEXX PIMS config missing.", 500);
-    }
-
-    const client = new IdexxClient({
-      username: credentials.username,
-      password: credentials.password,
-      labAccountId: credentials.labAccountId,
-      pimsId,
-      pimsVersion,
-    });
+    const client = await requireIdexxClient(input.organisationId);
 
     const response = await client.updateOrder(idexxOrderId, payload);
     const resp = response as Record<string, unknown>;
-    const statusInfo = normalizeLabStatus(resp.status);
-
-    return {
-      requestPayload: payload as Record<string, unknown>,
-      responsePayload: resp,
+    return buildOrderResult(
+      resp,
+      payload as Record<string, unknown>,
       idexxOrderId,
-      uiUrl: (resp.uiURL as string) ?? null,
-      pdfUrl: (resp.pdfURL as string) ?? null,
-      status: statusInfo.status ?? undefined,
-      externalStatus: statusInfo.externalStatus,
-    };
+    );
   }
 
   async cancelOrder(
     idexxOrderId: string,
     input: LabOrderCreateInput,
   ): Promise<LabOrderCreateResult> {
-    const account = await IntegrationService.requireAccount(
-      input.organisationId,
-      "IDEXX",
-    );
-
-    const credentials = account.credentials as {
-      username?: string;
-      password?: string;
-      labAccountId?: string;
-    };
-
-    if (!credentials?.username || !credentials.password) {
-      throw new LabOrderServiceError("IDEXX credentials missing.", 400);
-    }
-
-    const pimsId = process.env.IDEXX_PIMS_ID;
-    const pimsVersion = process.env.IDEXX_PIMS_VERSION;
-
-    if (!pimsId || !pimsVersion) {
-      throw new LabOrderServiceError("IDEXX PIMS config missing.", 500);
-    }
-
-    const client = new IdexxClient({
-      username: credentials.username,
-      password: credentials.password,
-      labAccountId: credentials.labAccountId,
-      pimsId,
-      pimsVersion,
-    });
+    const client = await requireIdexxClient(input.organisationId);
 
     const response = await client.cancelOrder(idexxOrderId);
     const resp = response as Record<string, unknown>;

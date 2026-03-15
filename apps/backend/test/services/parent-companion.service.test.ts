@@ -4,6 +4,7 @@ import {
   ParentCompanionServiceError,
 } from "../../src/services/parent-companion.service";
 import ParentCompanionModel from "../../src/models/parent-companion";
+import { prisma } from "src/config/prisma";
 
 // 1. Mock the Mongoose Model and Utilities
 jest.mock("../../src/models/parent-companion", () => {
@@ -22,6 +23,19 @@ jest.mock("../../src/models/parent-companion", () => {
     toCompanionParentLink: jest.fn((doc) => ({ ...doc, mapped: true })),
   };
 });
+
+jest.mock("src/config/prisma", () => ({
+  prisma: {
+    parentCompanion: {
+      findMany: jest.fn(),
+      count: jest.fn(),
+      findFirst: jest.fn(),
+    },
+    parent: {
+      findMany: jest.fn(),
+    },
+  },
+}));
 
 // 2. Helper to mock Mongoose queries (fixes SonarQube S7739)
 // Instead of creating a fake object with a .then(), we augment a real Promise.
@@ -48,7 +62,7 @@ interface MockParentCompanionDoc {
 }
 
 const makeMockDoc = (
-  overrides: Partial<MockParentCompanionDoc> = {}
+  overrides: Partial<MockParentCompanionDoc> = {},
 ): MockParentCompanionDoc => ({
   _id: new Types.ObjectId(),
   parentId: new Types.ObjectId(),
@@ -63,6 +77,96 @@ const makeMockDoc = (
 describe("ParentCompanionService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe("Postgres branches", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.parentCompanion.findMany as jest.Mock).mockReset();
+      (prisma.parentCompanion.count as jest.Mock).mockReset();
+      (prisma.parentCompanion.findFirst as jest.Mock).mockReset();
+      (prisma.parent.findMany as jest.Mock).mockReset();
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("getLinksForCompanion returns mapped links", async () => {
+      (prisma.parentCompanion.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          id: "link-1",
+          parentId: "parent-1",
+          companionId: "comp-1",
+          role: "PRIMARY",
+          status: "ACTIVE",
+          permissions: {},
+          acceptedAt: null,
+        },
+      ]);
+      (prisma.parent.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: "parent-1", firstName: "Jane", lastName: "Doe" },
+      ]);
+
+      const res = await ParentCompanionService.getLinksForCompanion(
+        new Types.ObjectId(),
+      );
+      expect(res).toHaveLength(1);
+      expect(prisma.parent.findMany).toHaveBeenCalled();
+    });
+
+    it("getLinksForParent returns mapped links", async () => {
+      (prisma.parentCompanion.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          id: "link-1",
+          parentId: "parent-1",
+          companionId: "comp-1",
+          role: "CO_PARENT",
+          status: "ACTIVE",
+          permissions: {},
+          acceptedAt: null,
+        },
+      ]);
+
+      const res = await ParentCompanionService.getLinksForParent(
+        new Types.ObjectId(),
+      );
+      expect(res).toHaveLength(1);
+    });
+
+    it("getActiveCompanionIdsForParent returns ids", async () => {
+      (prisma.parentCompanion.findMany as jest.Mock).mockResolvedValueOnce([
+        { companionId: new Types.ObjectId().toHexString() },
+      ]);
+
+      const res = await ParentCompanionService.getActiveCompanionIdsForParent(
+        new Types.ObjectId(),
+      );
+      expect(res).toHaveLength(1);
+      expect(res[0]).toBeInstanceOf(Types.ObjectId);
+    });
+
+    it("hasAnyLinks returns true when count > 0", async () => {
+      (prisma.parentCompanion.count as jest.Mock).mockResolvedValueOnce(2);
+      const res = await ParentCompanionService.hasAnyLinks(
+        new Types.ObjectId(),
+      );
+      expect(res).toBe(true);
+    });
+
+    it("ensurePrimaryOwnership throws when missing", async () => {
+      (prisma.parentCompanion.findFirst as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
+      await expect(
+        ParentCompanionService.ensurePrimaryOwnership(
+          new Types.ObjectId(),
+          new Types.ObjectId(),
+        ),
+      ).rejects.toThrow("You are not authorized to modify this companion.");
+    });
   });
 
   describe("ParentCompanionServiceError", () => {
@@ -83,7 +187,7 @@ describe("ParentCompanionService", () => {
         ParentCompanionService.linkParent({
           parentId: null as any,
           companionId,
-        })
+        }),
       ).rejects.toThrow(ParentCompanionServiceError);
     });
 
@@ -92,7 +196,7 @@ describe("ParentCompanionService", () => {
         ParentCompanionService.linkParent({
           parentId,
           companionId: null as any,
-        })
+        }),
       ).rejects.toThrow(ParentCompanionServiceError);
     });
 
@@ -157,7 +261,7 @@ describe("ParentCompanionService", () => {
           parentId,
           companionId,
           role: "PRIMARY",
-        })
+        }),
       ).rejects.toMatchObject({
         statusCode: 409,
         message: /already has an active primary/,
@@ -173,35 +277,35 @@ describe("ParentCompanionService", () => {
           parentId,
           companionId,
           role: "CO_PARENT",
-        })
+        }),
       ).rejects.toMatchObject({ statusCode: 409, message: /already linked/ });
     });
 
     it("rethrows generic errors (and tests isDuplicateKey checks)", async () => {
       (ParentCompanionModel.create as jest.Mock).mockRejectedValue(null);
       await expect(
-        ParentCompanionService.linkParent({ parentId, companionId })
+        ParentCompanionService.linkParent({ parentId, companionId }),
       ).rejects.toBeNull();
 
       (ParentCompanionModel.create as jest.Mock).mockRejectedValue(
-        "string err"
+        "string err",
       );
       await expect(
-        ParentCompanionService.linkParent({ parentId, companionId })
+        ParentCompanionService.linkParent({ parentId, companionId }),
       ).rejects.toBe("string err");
 
       (ParentCompanionModel.create as jest.Mock).mockRejectedValue({
         status: 500,
       });
       await expect(
-        ParentCompanionService.linkParent({ parentId, companionId })
+        ParentCompanionService.linkParent({ parentId, companionId }),
       ).rejects.toEqual({ status: 500 });
 
       (ParentCompanionModel.create as jest.Mock).mockRejectedValue({
         code: 400,
       });
       await expect(
-        ParentCompanionService.linkParent({ parentId, companionId })
+        ParentCompanionService.linkParent({ parentId, companionId }),
       ).rejects.toEqual({ code: 400 });
     });
   });
@@ -210,12 +314,12 @@ describe("ParentCompanionService", () => {
     it("updates link to ACTIVE", async () => {
       const mockDoc = makeMockDoc();
       (ParentCompanionModel.findOneAndUpdate as jest.Mock).mockReturnValue(
-        createMockQuery(mockDoc)
+        createMockQuery(mockDoc),
       );
 
       const result = await ParentCompanionService.activateLink(
         new Types.ObjectId(),
-        new Types.ObjectId()
+        new Types.ObjectId(),
       );
       expect(result).toBe(mockDoc);
     });
@@ -224,20 +328,20 @@ describe("ParentCompanionService", () => {
   describe("revokeLink", () => {
     it("throws 404 if link not found", async () => {
       (ParentCompanionModel.findByIdAndUpdate as jest.Mock).mockResolvedValue(
-        null
+        null,
       );
       await expect(
-        ParentCompanionService.revokeLink(new Types.ObjectId())
+        ParentCompanionService.revokeLink(new Types.ObjectId()),
       ).rejects.toThrow(ParentCompanionServiceError);
     });
 
     it("revokes link successfully", async () => {
       const mockDoc = makeMockDoc();
       (ParentCompanionModel.findByIdAndUpdate as jest.Mock).mockResolvedValue(
-        mockDoc
+        mockDoc,
       );
       const result = await ParentCompanionService.revokeLink(
-        new Types.ObjectId()
+        new Types.ObjectId(),
       );
       expect(result).toBe(mockDoc);
     });
@@ -259,8 +363,8 @@ describe("ParentCompanionService", () => {
           requestingParentId,
           targetParentId,
           companionId,
-          {}
-        )
+          {},
+        ),
       ).rejects.toThrow(/Link not found/);
     });
 
@@ -275,8 +379,8 @@ describe("ParentCompanionService", () => {
           requestingParentId,
           targetParentId,
           companionId,
-          { assignAsPrimaryParent: false }
-        )
+          { assignAsPrimaryParent: false },
+        ),
       ).rejects.toThrow(/Cannot remove primary/);
     });
 
@@ -290,7 +394,7 @@ describe("ParentCompanionService", () => {
         requestingParentId,
         targetParentId,
         companionId,
-        { tasks: true }
+        { tasks: true },
       );
 
       expect(targetDoc.permissions.tasks).toBe(true);
@@ -308,7 +412,7 @@ describe("ParentCompanionService", () => {
         requestingParentId,
         targetParentId,
         companionId,
-        { tasks: true, assignAsPrimaryParent: true }
+        { tasks: true, assignAsPrimaryParent: true },
       );
 
       expect(targetDoc.permissions.assignAsPrimaryParent).toBe(true);
@@ -326,7 +430,7 @@ describe("ParentCompanionService", () => {
         requestingParentId,
         targetParentId,
         companionId,
-        { assignAsPrimaryParent: true }
+        { assignAsPrimaryParent: true },
       );
 
       expect(targetDoc.role).toBe("PRIMARY");
@@ -349,8 +453,8 @@ describe("ParentCompanionService", () => {
         ParentCompanionService.promoteToPrimary(
           requestingParentId,
           companionId,
-          targetParentId
-        )
+          targetParentId,
+        ),
       ).rejects.toThrow(/Co-parent link not found/);
     });
 
@@ -369,7 +473,7 @@ describe("ParentCompanionService", () => {
       await ParentCompanionService.promoteToPrimary(
         requestingParentId,
         companionId,
-        targetParentId
+        targetParentId,
       );
 
       expect(existingPrimary.role).toBe("CO_PARENT");
@@ -392,8 +496,8 @@ describe("ParentCompanionService", () => {
         ParentCompanionService.promoteToPrimary(
           requestingParentId,
           companionId,
-          targetParentId
-        )
+          targetParentId,
+        ),
       ).rejects.toMatchObject({ statusCode: 409 });
     });
 
@@ -410,8 +514,8 @@ describe("ParentCompanionService", () => {
         ParentCompanionService.promoteToPrimary(
           requestingParentId,
           companionId,
-          targetParentId
-        )
+          targetParentId,
+        ),
       ).rejects.toThrow("DB Crash");
     });
   });
@@ -424,10 +528,10 @@ describe("ParentCompanionService", () => {
 
     it("soft deletes and throws 404 if not found", async () => {
       (ParentCompanionModel.findOne as jest.Mock).mockReturnValueOnce(
-        createMockQuery(primaryLink)
+        createMockQuery(primaryLink),
       );
       (ParentCompanionModel.findOneAndUpdate as jest.Mock).mockReturnValue(
-        createMockQuery(null)
+        createMockQuery(null),
       );
 
       await expect(
@@ -435,31 +539,31 @@ describe("ParentCompanionService", () => {
           reqParentId,
           coParentId,
           compId,
-          true
-        )
+          true,
+        ),
       ).rejects.toThrow(/Co-parent link not found/);
     });
 
     it("soft deletes successfully", async () => {
       (ParentCompanionModel.findOne as jest.Mock).mockReturnValueOnce(
-        createMockQuery(primaryLink)
+        createMockQuery(primaryLink),
       );
       (ParentCompanionModel.findOneAndUpdate as jest.Mock).mockReturnValue(
-        createMockQuery(makeMockDoc())
+        createMockQuery(makeMockDoc()),
       );
 
       await ParentCompanionService.removeCoParent(
         reqParentId,
         coParentId,
         compId,
-        true
+        true,
       );
       expect(ParentCompanionModel.findOneAndUpdate).toHaveBeenCalled();
     });
 
     it("hard deletes and throws 404 if none deleted", async () => {
       (ParentCompanionModel.findOne as jest.Mock).mockReturnValueOnce(
-        createMockQuery(primaryLink)
+        createMockQuery(primaryLink),
       );
       (ParentCompanionModel.deleteOne as jest.Mock).mockResolvedValue({
         deletedCount: 0,
@@ -470,14 +574,14 @@ describe("ParentCompanionService", () => {
           reqParentId,
           coParentId,
           compId,
-          false
-        )
+          false,
+        ),
       ).rejects.toThrow(/Co-parent link not found/);
     });
 
     it("hard deletes successfully", async () => {
       (ParentCompanionModel.findOne as jest.Mock).mockReturnValueOnce(
-        createMockQuery(primaryLink)
+        createMockQuery(primaryLink),
       );
       (ParentCompanionModel.deleteOne as jest.Mock).mockResolvedValue({
         deletedCount: 1,
@@ -487,7 +591,7 @@ describe("ParentCompanionService", () => {
         reqParentId,
         coParentId,
         compId,
-        false
+        false,
       );
       expect(ParentCompanionModel.deleteOne).toHaveBeenCalled();
     });
@@ -496,20 +600,20 @@ describe("ParentCompanionService", () => {
   describe("Retrieve and Delete Helpers", () => {
     it("getLinksForCompanion maps results", async () => {
       (ParentCompanionModel.find as jest.Mock).mockReturnValue(
-        createMockQuery([makeMockDoc()])
+        createMockQuery([makeMockDoc()]),
       );
       const res = await ParentCompanionService.getLinksForCompanion(
-        new Types.ObjectId()
+        new Types.ObjectId(),
       );
       expect(res[0]).toHaveProperty("mapped", true);
     });
 
     it("getLinksForParent maps results", async () => {
       (ParentCompanionModel.find as jest.Mock).mockReturnValue(
-        createMockQuery([makeMockDoc()])
+        createMockQuery([makeMockDoc()]),
       );
       const res = await ParentCompanionService.getLinksForParent(
-        new Types.ObjectId()
+        new Types.ObjectId(),
       );
       expect(res[0]).toHaveProperty("mapped", true);
     });
@@ -517,10 +621,10 @@ describe("ParentCompanionService", () => {
     it("getActiveCompanionIdsForParent maps ids", async () => {
       const cId = new Types.ObjectId();
       (ParentCompanionModel.find as jest.Mock).mockReturnValue(
-        createMockQuery([{ companionId: cId }])
+        createMockQuery([{ companionId: cId }]),
       );
       const res = await ParentCompanionService.getActiveCompanionIdsForParent(
-        new Types.ObjectId()
+        new Types.ObjectId(),
       );
       expect(res[0]).toBe(cId);
     });
@@ -528,7 +632,7 @@ describe("ParentCompanionService", () => {
     it("hasAnyLinks returns true if count > 0", async () => {
       (ParentCompanionModel.countDocuments as jest.Mock).mockResolvedValue(1);
       const res = await ParentCompanionService.hasAnyLinks(
-        new Types.ObjectId()
+        new Types.ObjectId(),
       );
       expect(res).toBe(true);
     });
@@ -536,7 +640,7 @@ describe("ParentCompanionService", () => {
     it("hasAnyLinks returns false if count is 0", async () => {
       (ParentCompanionModel.countDocuments as jest.Mock).mockResolvedValue(0);
       const res = await ParentCompanionService.hasAnyLinks(
-        new Types.ObjectId()
+        new Types.ObjectId(),
       );
       expect(res).toBe(false);
     });
@@ -546,13 +650,13 @@ describe("ParentCompanionService", () => {
         deletedCount: 5,
       });
       let res = await ParentCompanionService.deleteLinksForCompanion(
-        new Types.ObjectId()
+        new Types.ObjectId(),
       );
       expect(res).toBe(5);
 
       (ParentCompanionModel.deleteMany as jest.Mock).mockResolvedValue({});
       res = await ParentCompanionService.deleteLinksForCompanion(
-        new Types.ObjectId()
+        new Types.ObjectId(),
       );
       expect(res).toBe(0);
     });
@@ -562,13 +666,13 @@ describe("ParentCompanionService", () => {
         deletedCount: 2,
       });
       let res = await ParentCompanionService.deleteLinksForParent(
-        new Types.ObjectId()
+        new Types.ObjectId(),
       );
       expect(res).toBe(2);
 
       (ParentCompanionModel.deleteMany as jest.Mock).mockResolvedValue({});
       res = await ParentCompanionService.deleteLinksForParent(
-        new Types.ObjectId()
+        new Types.ObjectId(),
       );
       expect(res).toBe(0);
     });
@@ -577,25 +681,25 @@ describe("ParentCompanionService", () => {
   describe("ensurePrimaryOwnership", () => {
     it("resolves if user is primary owner", async () => {
       (ParentCompanionModel.findOne as jest.Mock).mockReturnValue(
-        createMockQuery(makeMockDoc())
+        createMockQuery(makeMockDoc()),
       );
       await expect(
         ParentCompanionService.ensurePrimaryOwnership(
           new Types.ObjectId(),
-          new Types.ObjectId()
-        )
+          new Types.ObjectId(),
+        ),
       ).resolves.toBeUndefined();
     });
 
     it("throws 403 if user is not primary owner", async () => {
       (ParentCompanionModel.findOne as jest.Mock).mockReturnValue(
-        createMockQuery(null)
+        createMockQuery(null),
       );
       await expect(
         ParentCompanionService.ensurePrimaryOwnership(
           new Types.ObjectId(),
-          new Types.ObjectId()
-        )
+          new Types.ObjectId(),
+        ),
       ).rejects.toThrow(/not authorized/);
     });
   });

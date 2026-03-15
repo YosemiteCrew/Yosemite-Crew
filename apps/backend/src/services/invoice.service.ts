@@ -20,6 +20,7 @@ import { OrgBilling } from "src/models/organization.billing";
 import { prisma } from "src/config/prisma";
 import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 import { isReadFromPostgres } from "src/config/read-switch";
+import { resolvePaymentCollectionMethod } from "src/utils/payment";
 import {
   InvoiceStatus as PrismaInvoiceStatus,
   PaymentCollectionMethod,
@@ -67,21 +68,6 @@ const getOrgBillingCurrency = async (
   }
   const billing = await OrgBilling.findOne({ orgId: organisationId });
   return billing?.currency ?? "usd";
-};
-
-const resolvePaymentCollectionMethod = (
-  value: string,
-): PaymentCollectionMethod => {
-  const normalized = value.trim().toUpperCase();
-  const allowed: PaymentCollectionMethod[] = [
-    "PAYMENT_INTENT",
-    "PAYMENT_LINK",
-    "PAYMENT_AT_CLINIC",
-  ];
-  if (!allowed.includes(normalized as PaymentCollectionMethod)) {
-    throw new InvoiceServiceError("Invalid payment collection method.", 400);
-  }
-  return normalized as PaymentCollectionMethod;
 };
 
 const resolveAuditTargetsForInvoice = async (invoice: InvoiceDocument) => {
@@ -925,7 +911,8 @@ export const InvoiceService = {
   ) {
     const resolvedPaymentCollectionMethod = resolvePaymentCollectionMethod(
       paymentCollectionMethod,
-    );
+      (message) => new InvoiceServiceError(message, 400),
+    ) as PaymentCollectionMethod;
 
     if (isReadFromPostgres()) {
       const doc = await prisma.invoice.findUnique({ where: { id: invoiceId } });

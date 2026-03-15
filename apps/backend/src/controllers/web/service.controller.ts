@@ -10,12 +10,12 @@ type BookableSlotsPayload = {
   organisationId: string;
   date: string;
 };
-import { AuthenticatedRequest } from "src/middlewares/auth";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { ParentModel } from "src/models/parent";
 import helpers from "src/utils/helper";
 import { prisma } from "src/config/prisma";
 import { isReadFromPostgres } from "src/config/read-switch";
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 const handleError = (error: unknown, res: Response, defaultMessage: string) => {
   if (error instanceof ServiceServiceError) {
@@ -23,15 +23,6 @@ const handleError = (error: unknown, res: Response, defaultMessage: string) => {
   }
   logger.error(defaultMessage, error);
   return res.status(500).json({ message: defaultMessage });
-};
-
-const resolveUserIdFromRequest = (req: Request): string | undefined => {
-  const authRequest = req as AuthenticatedRequest;
-  const headerUserId = req.headers["x-user-id"];
-  if (headerUserId && typeof headerUserId === "string") {
-    return headerUserId;
-  }
-  return authRequest.userId;
 };
 
 export const ServiceController = {

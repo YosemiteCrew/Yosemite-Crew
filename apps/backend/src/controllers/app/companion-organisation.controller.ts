@@ -5,7 +5,6 @@ import {
   CompanionOrganisationService,
   CompanionOrganisationServiceError,
 } from "../../services/companion-organisation.service";
-import { AuthenticatedRequest } from "../../middlewares/auth";
 import { ParentService } from "src/services/parent.service";
 import OrganizationModel, {
   type OrganizationMongo,
@@ -13,6 +12,7 @@ import OrganizationModel, {
 import { prisma } from "src/config/prisma";
 import { isReadFromPostgres } from "src/config/read-switch";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 type OrganisationType = OrganizationMongo["type"];
 
@@ -106,14 +106,6 @@ const parseInviteResolutionPayload = (
   }
 
   return { token, organisationId };
-};
-
-const resolveUserIdFromRequest = (req: Request): string | undefined => {
-  const authReq = req as AuthenticatedRequest;
-  const headerUserId = req.headers?.["x-user-id"];
-  if (typeof headerUserId === "string") return headerUserId;
-  if (authReq.userId) return authReq.userId;
-  return authReq.userId;
 };
 
 const resolveParentId = (parent: {

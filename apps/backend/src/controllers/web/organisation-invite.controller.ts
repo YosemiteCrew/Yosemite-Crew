@@ -7,6 +7,7 @@ import {
   type CreateInvitePayload,
 } from "../../services/organisation-invite.service";
 import type { AuthenticatedRequest } from "../../middlewares/auth";
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 type CreateInviteBody = Omit<
   CreateInvitePayload,
@@ -17,22 +18,6 @@ type CreateInviteBody = Omit<
   inviteeName?: string;
   role?: string;
   employmentType?: CreateInvitePayload["employmentType"];
-};
-
-const resolveUserIdFromRequest = (req: Request): string | undefined => {
-  const headerUserId = req.headers["x-user-id"];
-
-  if (typeof headerUserId === "string" && headerUserId.trim()) {
-    return headerUserId;
-  }
-
-  const authRequest = req as AuthenticatedRequest;
-  if (typeof authRequest.userId === "string" && authRequest.userId.trim()) {
-    return authRequest.userId;
-  }
-
-  const authUserId = authRequest.userId;
-  return typeof authUserId === "string" ? authUserId : undefined;
 };
 
 const resolveUserEmailFromRequest = (req: Request): string | undefined => {

@@ -537,6 +537,40 @@ const sendInviteEmail = async (params: {
   });
 };
 
+const assertInviteIsActionable = async (
+  invite: { status: string; expiresAt: Date; inviteeEmail: string },
+  safeEmail: string,
+  onExpire: () => Promise<unknown> | void,
+) => {
+  if (invite.status === "ACCEPTED") {
+    throw new OrganisationInviteServiceError(
+      "Invitation already accepted.",
+      409,
+    );
+  }
+
+  if (invite.status === "CANCELLED") {
+    throw new OrganisationInviteServiceError(
+      "Invitation has been cancelled.",
+      410,
+    );
+  }
+
+  if (invite.status === "EXPIRED" || invite.expiresAt <= new Date()) {
+    if (invite.status !== "EXPIRED") {
+      await Promise.resolve(onExpire());
+    }
+    throw new OrganisationInviteServiceError("Invitation has expired.", 410);
+  }
+
+  if (invite.inviteeEmail !== safeEmail) {
+    throw new OrganisationInviteServiceError(
+      "Invite email does not match authenticated user.",
+      403,
+    );
+  }
+};
+
 export const OrganisationInviteService = {
   async createInvite(
     payload: CreateInvitePayload,
@@ -757,40 +791,12 @@ export const OrganisationInviteService = {
       if (!invite) {
         throw new OrganisationInviteServiceError("Invitation not found.", 404);
       }
-
-      if (invite.status === "ACCEPTED") {
-        throw new OrganisationInviteServiceError(
-          "Invitation already accepted.",
-          409,
-        );
-      }
-
-      if (invite.status === "CANCELLED") {
-        throw new OrganisationInviteServiceError(
-          "Invitation has been cancelled.",
-          410,
-        );
-      }
-
-      if (invite.status === "EXPIRED" || invite.expiresAt <= new Date()) {
-        if (invite.status !== "EXPIRED") {
-          await prisma.organisationInvite.update({
-            where: { id: invite.id },
-            data: { status: "EXPIRED" },
-          });
-        }
-        throw new OrganisationInviteServiceError(
-          "Invitation has expired.",
-          410,
-        );
-      }
-
-      if (invite.inviteeEmail !== safeEmail) {
-        throw new OrganisationInviteServiceError(
-          "Invite email does not match authenticated user.",
-          403,
-        );
-      }
+      await assertInviteIsActionable(invite, safeEmail, () =>
+        prisma.organisationInvite.update({
+          where: { id: invite.id },
+          data: { status: "EXPIRED" },
+        }),
+      );
 
       await findOrganisationOrThrow(invite.organisationId);
       const departments = await Promise.all(
@@ -854,36 +860,11 @@ export const OrganisationInviteService = {
     if (!invite) {
       throw new OrganisationInviteServiceError("Invitation not found.", 404);
     }
-
-    if (invite.status === "ACCEPTED") {
-      throw new OrganisationInviteServiceError(
-        "Invitation already accepted.",
-        409,
-      );
-    }
-
-    if (invite.status === "CANCELLED") {
-      throw new OrganisationInviteServiceError(
-        "Invitation has been cancelled.",
-        410,
-      );
-    }
-
-    if (invite.status === "EXPIRED" || invite.expiresAt <= new Date()) {
-      if (invite.status !== "EXPIRED") {
-        invite.status = "EXPIRED";
-        await invite.save();
-        await syncOrganisationInviteToPostgres(invite);
-      }
-      throw new OrganisationInviteServiceError("Invitation has expired.", 410);
-    }
-
-    if (invite.inviteeEmail !== safeEmail) {
-      throw new OrganisationInviteServiceError(
-        "Invite email does not match authenticated user.",
-        403,
-      );
-    }
+    await assertInviteIsActionable(invite, safeEmail, async () => {
+      invite.status = "EXPIRED";
+      await invite.save();
+      await syncOrganisationInviteToPostgres(invite);
+    });
 
     await findOrganisationOrThrow(invite.organisationId);
     const departments = await Promise.all(
@@ -952,40 +933,12 @@ export const OrganisationInviteService = {
       if (!invite) {
         throw new OrganisationInviteServiceError("Invitation not found.", 404);
       }
-
-      if (invite.status === "ACCEPTED") {
-        throw new OrganisationInviteServiceError(
-          "Invitation already accepted.",
-          409,
-        );
-      }
-
-      if (invite.status === "CANCELLED") {
-        throw new OrganisationInviteServiceError(
-          "Invitation has been cancelled.",
-          410,
-        );
-      }
-
-      if (invite.status === "EXPIRED" || invite.expiresAt <= new Date()) {
-        if (invite.status !== "EXPIRED") {
-          await prisma.organisationInvite.update({
-            where: { id: invite.id },
-            data: { status: "EXPIRED" },
-          });
-        }
-        throw new OrganisationInviteServiceError(
-          "Invitation has expired.",
-          410,
-        );
-      }
-
-      if (invite.inviteeEmail !== safeEmail) {
-        throw new OrganisationInviteServiceError(
-          "Invite email does not match authenticated user.",
-          403,
-        );
-      }
+      await assertInviteIsActionable(invite, safeEmail, () =>
+        prisma.organisationInvite.update({
+          where: { id: invite.id },
+          data: { status: "EXPIRED" },
+        }),
+      );
 
       const updatedInvite = await prisma.organisationInvite.update({
         where: { id: invite.id },
@@ -1013,38 +966,11 @@ export const OrganisationInviteService = {
     if (!invite) {
       throw new OrganisationInviteServiceError("Invitation not found.", 404);
     }
-
-    // Check that the invite is still rejectable
-    if (invite.status === "ACCEPTED") {
-      throw new OrganisationInviteServiceError(
-        "Invitation already accepted.",
-        409,
-      );
-    }
-
-    if (invite.status === "CANCELLED") {
-      throw new OrganisationInviteServiceError(
-        "Invitation has been cancelled.",
-        410,
-      );
-    }
-
-    if (invite.status === "EXPIRED" || invite.expiresAt <= new Date()) {
-      if (invite.status !== "EXPIRED") {
-        invite.status = "EXPIRED";
-        await invite.save();
-        await syncOrganisationInviteToPostgres(invite);
-      }
-      throw new OrganisationInviteServiceError("Invitation has expired.", 410);
-    }
-
-    // Email must match
-    if (invite.inviteeEmail !== safeEmail) {
-      throw new OrganisationInviteServiceError(
-        "Invite email does not match authenticated user.",
-        403,
-      );
-    }
+    await assertInviteIsActionable(invite, safeEmail, async () => {
+      invite.status = "EXPIRED";
+      await invite.save();
+      await syncOrganisationInviteToPostgres(invite);
+    });
 
     // Mark as rejected
     invite.status = "REJECTED" as InviteStatus;

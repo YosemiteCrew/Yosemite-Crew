@@ -18,6 +18,17 @@ jest.mock("../../src/integrations/merck/merck.client", () => ({
   })),
 }));
 
+const normalizeBase = (value?: string) => {
+  const trimmed = String(value ?? "").replace(/\/+$/, "");
+  if (trimmed.endsWith("/custom/infobutton/search")) {
+    return trimmed.replace(
+      "/custom/infobutton/search",
+      "/infobutton/searchjson",
+    );
+  }
+  return trimmed;
+};
+
 describe("MerckService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -147,6 +158,107 @@ describe("MerckService", () => {
     ).rejects.toThrow("q is required.");
   });
 
+  it("rejects invalid audience values", async () => {
+    (IntegrationService.ensureMerckAccount as jest.Mock).mockResolvedValue({
+      status: "enabled",
+    });
+
+    await expect(
+      MerckService.search({
+        organisationId: "org-1",
+        query: "test",
+        audience: "ALIEN" as any,
+        requestId: "req-4b",
+      }),
+    ).rejects.toThrow("audience must be one of: PROV, PAT.");
+  });
+
+  it("rejects non-string language values", async () => {
+    (IntegrationService.ensureMerckAccount as jest.Mock).mockResolvedValue({
+      status: "enabled",
+    });
+
+    await expect(
+      MerckService.search({
+        organisationId: "org-1",
+        query: "test",
+        language: 123 as any,
+        requestId: "req-4c",
+      }),
+    ).rejects.toThrow("language must be a string.");
+  });
+
+  it("filters entries with invalid primary URLs", async () => {
+    (IntegrationService.ensureMerckAccount as jest.Mock).mockResolvedValue({
+      status: "enabled",
+    });
+
+    const payload = {
+      feed: {
+        id: "feed-invalid",
+        entry: {
+          id: "entry-bad",
+          title: { "#text": "Bad" },
+          summary: { "#text": "<div>No links</div>" },
+          link: { "@href": "not-a-url" },
+        },
+      },
+    };
+
+    mockSearch.mockResolvedValueOnce({
+      data: JSON.stringify(payload),
+      contentType: "application/json",
+      status: 200,
+      finalUrl: null,
+    });
+
+    const result = await MerckService.search({
+      organisationId: "org-1",
+      query: "test",
+      requestId: "req-4d",
+    });
+
+    expect(result.meta.totalResults).toBe(0);
+  });
+
+  it("extracts summary text and dedupes sublinks", async () => {
+    (IntegrationService.ensureMerckAccount as jest.Mock).mockResolvedValue({
+      status: "enabled",
+    });
+
+    const payload = {
+      feed: {
+        id: "feed-links",
+        entry: {
+          id: "entry-links",
+          title: { "#text": "Topic" },
+          summary: {
+            "#text":
+              '<div>Some <b>text</b> <a href="not-a-url">Bad</a> <a href="https://www.merckvetmanual.com/topic#sub">Sub</a></div>',
+          },
+          link: { "@href": "https://www.merckvetmanual.com/topic" },
+        },
+      },
+    };
+
+    mockSearch.mockResolvedValueOnce({
+      data: JSON.stringify(payload),
+      contentType: "application/json",
+      status: 200,
+      finalUrl: null,
+    });
+
+    const result = await MerckService.search({
+      organisationId: "org-1",
+      query: "test",
+      requestId: "req-4e",
+    });
+
+    expect(result.entries[0]?.summaryText).toContain("Some text");
+    expect(result.entries[0]?.subLinks[0]?.label).toBe("Full Summary");
+    expect(result.entries[0]?.subLinks.length).toBe(2);
+  });
+
   it("initializes Merck client with env config", async () => {
     (IntegrationService.ensureMerckAccount as jest.Mock).mockResolvedValue({
       status: "enabled",
@@ -168,7 +280,7 @@ describe("MerckService", () => {
 
     expect(MerckHealthlinkClient).toHaveBeenCalledWith(
       expect.objectContaining({
-        baseUrl: process.env.MERCK_HEALTHLINK_BASE_URL_US_CA,
+        baseUrl: normalizeBase(process.env.MERCK_HEALTHLINK_BASE_URL_US_CA),
         username: process.env.MERCK_HEALTHLINK_USERNAME,
         password: process.env.MERCK_HEALTHLINK_PASSWORD,
       }),
@@ -196,7 +308,33 @@ describe("MerckService", () => {
 
     expect(MerckHealthlinkClient).toHaveBeenCalledWith(
       expect.objectContaining({
-        baseUrl: process.env.MERCK_HEALTHLINK_BASE_URL_US_CA,
+        baseUrl: normalizeBase(process.env.MERCK_HEALTHLINK_BASE_URL_US_CA),
+      }),
+    );
+  });
+
+  it("routes to US/Canada base URL when timezone is Canada", async () => {
+    (IntegrationService.ensureMerckAccount as jest.Mock).mockResolvedValue({
+      status: "enabled",
+    });
+
+    mockSearch.mockResolvedValueOnce({
+      data: JSON.stringify({ feed: { id: "feed-canada", entry: [] } }),
+      contentType: "application/json",
+      status: 200,
+      finalUrl: null,
+    });
+
+    await MerckService.search({
+      organisationId: "org-1",
+      query: "test",
+      timezone: "Canada/Pacific",
+      requestId: "req-6b",
+    });
+
+    expect(MerckHealthlinkClient).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseUrl: normalizeBase(process.env.MERCK_HEALTHLINK_BASE_URL_US_CA),
       }),
     );
   });
@@ -222,8 +360,61 @@ describe("MerckService", () => {
 
     expect(MerckHealthlinkClient).toHaveBeenCalledWith(
       expect.objectContaining({
-        baseUrl: process.env.MERCK_HEALTHLINK_BASE_URL_GLOBAL,
+        baseUrl: normalizeBase(process.env.MERCK_HEALTHLINK_BASE_URL_GLOBAL),
       }),
+    );
+  });
+
+  it("throws when Merck credentials are missing", async () => {
+    (IntegrationService.ensureMerckAccount as jest.Mock).mockResolvedValue({
+      status: "enabled",
+    });
+
+    process.env.MERCK_HEALTHLINK_USERNAME = "";
+
+    await expect(
+      MerckService.search({
+        organisationId: "org-1",
+        query: "test",
+        requestId: "req-7b",
+      }),
+    ).rejects.toThrow("Merck Healthlink credentials are not configured.");
+  });
+
+  it("throws when timeout is invalid", async () => {
+    (IntegrationService.ensureMerckAccount as jest.Mock).mockResolvedValue({
+      status: "enabled",
+    });
+
+    process.env.MERCK_HEALTHLINK_TIMEOUT_MS = "bad";
+
+    await expect(
+      MerckService.search({
+        organisationId: "org-1",
+        query: "test",
+        requestId: "req-7c",
+      }),
+    ).rejects.toThrow("Invalid Merck timeout configuration.");
+  });
+
+  it("throws when base URL domain is invalid", async () => {
+    (IntegrationService.ensureMerckAccount as jest.Mock).mockResolvedValue({
+      status: "enabled",
+    });
+
+    process.env.MERCK_HEALTHLINK_BASE_URL = "https://example.com/infobutton";
+    process.env.MERCK_HEALTHLINK_BASE_URL_GLOBAL =
+      "https://example.com/infobutton";
+
+    await expect(
+      MerckService.search({
+        organisationId: "org-1",
+        query: "test",
+        timezone: "Invalid/Timezone",
+        requestId: "req-7d",
+      }),
+    ).rejects.toThrow(
+      "Merck Healthlink base URL must use the veterinary manuals domain.",
     );
   });
 });

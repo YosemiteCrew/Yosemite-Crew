@@ -8,7 +8,6 @@ import AppointmentModel, {
 import {
   Appointment,
   AppointmentPaymentStatus,
-  PaymentCollectionMethod,
   AppointmentRequestDTO,
   AppointmentResponseDTO,
   fromAppointmentRequestDTO,
@@ -38,6 +37,7 @@ import { AuditTrailService } from "./audit-trail.service";
 import { FormModel } from "src/models/form";
 import InvoiceModel from "src/models/invoice";
 import { isReadFromPostgres } from "src/config/read-switch";
+import { resolvePaymentCollectionMethod } from "src/utils/payment";
 
 export class AppointmentServiceError extends Error {
   constructor(
@@ -91,25 +91,6 @@ const assertAppointmentStatusTransition = (
       409,
     );
   }
-};
-
-const resolvePaymentCollectionMethod = (
-  value?: string,
-): PaymentCollectionMethod | undefined => {
-  if (!value) return undefined;
-  const normalized = value.trim().toUpperCase();
-  const allowed: PaymentCollectionMethod[] = [
-    "PAYMENT_INTENT",
-    "PAYMENT_LINK",
-    "PAYMENT_AT_CLINIC",
-  ];
-  if (!allowed.includes(normalized as PaymentCollectionMethod)) {
-    throw new AppointmentServiceError(
-      "Invalid payment collection method.",
-      400,
-    );
-  }
-  return normalized as PaymentCollectionMethod;
 };
 
 const resolvePaymentStatusByAppointmentIds = async (
@@ -1369,7 +1350,9 @@ export const AppointmentService = {
     validateAppointmentFromPmsInput(input);
 
     const resolvedPaymentCollectionMethod =
-      resolvePaymentCollectionMethod(paymentCollectionMethod) ?? "PAYMENT_LINK";
+      resolvePaymentCollectionMethod(paymentCollectionMethod, (message) => {
+        return new AppointmentServiceError(message, 400);
+      }) ?? "PAYMENT_LINK";
 
     if (
       resolvedPaymentCollectionMethod === "PAYMENT_AT_CLINIC" &&

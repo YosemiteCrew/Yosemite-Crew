@@ -9,6 +9,7 @@ import {
   InventoryItemModel,
   StockMovementModel,
 } from "../../src/models/inventory";
+import { prisma } from "src/config/prisma";
 
 // --- Mocks ---
 jest.mock("../../src/models/appointment");
@@ -20,6 +21,28 @@ jest.mock("../../src/models/inventory", () => ({
   },
   StockMovementModel: {
     aggregate: jest.fn(),
+  },
+}));
+
+jest.mock("src/config/prisma", () => ({
+  prisma: {
+    appointment: {
+      count: jest.fn(),
+      findMany: jest.fn(),
+    },
+    task: {
+      count: jest.fn(),
+    },
+    invoice: {
+      aggregate: jest.fn(),
+      findMany: jest.fn(),
+    },
+    inventoryItem: {
+      findMany: jest.fn(),
+    },
+    inventoryStockMovement: {
+      findMany: jest.fn(),
+    },
   },
 }));
 
@@ -118,6 +141,41 @@ describe("DashboardService", () => {
     });
   });
 
+  describe("getSummary (postgres)", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.appointment.count as jest.Mock).mockReset();
+      (prisma.task.count as jest.Mock).mockReset();
+      (prisma.invoice.aggregate as jest.Mock).mockReset();
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("should return summary data from prisma", async () => {
+      (prisma.appointment.count as jest.Mock).mockResolvedValueOnce(3);
+      (prisma.task.count as jest.Mock).mockResolvedValueOnce(7);
+      (prisma.invoice.aggregate as jest.Mock).mockResolvedValueOnce({
+        _sum: { totalAmount: 250 },
+      });
+
+      const result = await DashboardService.getSummary({
+        organisationId: mockOrgId,
+        range: "today",
+      });
+
+      expect(result).toEqual({
+        revenue: 250,
+        appointments: 3,
+        tasks: 7,
+        staffOnDuty: 0,
+      });
+    });
+  });
+
   // --- 2. getAppointmentsTrend ---
   describe("getAppointmentsTrend", () => {
     it("should throw if organisationId is missing", async () => {
@@ -154,6 +212,34 @@ describe("DashboardService", () => {
     });
   });
 
+  describe("getAppointmentsTrend (postgres)", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.appointment.findMany as jest.Mock).mockReset();
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("should aggregate appointment statuses", async () => {
+      (prisma.appointment.findMany as jest.Mock).mockResolvedValueOnce([
+        { startTime: new Date("2023-01-05"), status: "COMPLETED" },
+        { startTime: new Date("2023-01-06"), status: "CANCELLED" },
+        { startTime: new Date("2023-02-01"), status: "COMPLETED" },
+      ]);
+
+      const result = await DashboardService.getAppointmentsTrend({
+        organisationId: mockOrgId,
+      });
+
+      expect(result).toHaveLength(2);
+      expect(result[0].completed + result[0].cancelled).toBe(2);
+    });
+  });
+
   // --- 3. getRevenueTrend ---
   describe("getRevenueTrend", () => {
     it("should throw if organisationId is missing", async () => {
@@ -171,6 +257,32 @@ describe("DashboardService", () => {
       });
       expect(result[0].revenue).toBe(5000);
       expect(result[0].label).toBe("Jan");
+    });
+  });
+
+  describe("getRevenueTrend (postgres)", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.invoice.findMany as jest.Mock).mockReset();
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("should aggregate paid invoices", async () => {
+      (prisma.invoice.findMany as jest.Mock).mockResolvedValueOnce([
+        { paidAt: new Date("2023-01-10"), totalAmount: 100 },
+        { paidAt: new Date("2023-01-15"), totalAmount: 50 },
+      ]);
+
+      const result = await DashboardService.getRevenueTrend({
+        organisationId: mockOrgId,
+      });
+
+      expect(result[0].revenue).toBe(150);
     });
   });
 
@@ -199,6 +311,34 @@ describe("DashboardService", () => {
     });
   });
 
+  describe("getAppointmentLeaders (postgres)", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.appointment.findMany as jest.Mock).mockReset();
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("should compute leaders from lead ids", async () => {
+      (prisma.appointment.findMany as jest.Mock).mockResolvedValueOnce([
+        { lead: { id: "staff-1" } },
+        { lead: { id: "staff-1" } },
+        { lead: { id: "staff-2" } },
+      ]);
+
+      const result = await DashboardService.getAppointmentLeaders({
+        organisationId: mockOrgId,
+      });
+
+      expect(result[0].staffId).toBe("staff-1");
+      expect(result[0].completedAppointments).toBe(2);
+    });
+  });
+
   // --- 5. getRevenueLeaders ---
   describe("getRevenueLeaders", () => {
     it("should throw if organisationId is missing", async () => {
@@ -221,6 +361,38 @@ describe("DashboardService", () => {
       expect(result[0].serviceKey).toBe("SOP-A");
       expect(result[1].label).toBe("Unknown");
       expect(result[1].revenue).toBe(500);
+    });
+  });
+
+  describe("getRevenueLeaders (postgres)", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.invoice.findMany as jest.Mock).mockReset();
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("should aggregate item totals", async () => {
+      (prisma.invoice.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          items: [
+            { name: "A", total: 100 },
+            { name: "B", total: 50 },
+          ],
+        },
+        { items: [{ name: "A", total: 25 }] },
+      ]);
+
+      const result = await DashboardService.getRevenueLeaders({
+        organisationId: mockOrgId,
+      });
+
+      const leader = result.find((entry) => entry.label === "A");
+      expect(leader?.revenue).toBe(125);
     });
   });
 
@@ -301,6 +473,39 @@ describe("DashboardService", () => {
     });
   });
 
+  describe("getInventoryTurnover (postgres)", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.inventoryItem.findMany as jest.Mock).mockReset();
+      (prisma.inventoryStockMovement.findMany as jest.Mock).mockReset();
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("should compute turnover and trend", async () => {
+      (prisma.inventoryItem.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: "item-1", onHand: 10, name: "Item A" },
+      ]);
+      (
+        prisma.inventoryStockMovement.findMany as jest.Mock
+      ).mockResolvedValueOnce([
+        { itemId: "item-1", change: -20, createdAt: new Date("2023-01-05") },
+      ]);
+
+      const result = await DashboardService.getInventoryTurnover({
+        organisationId: mockOrgId,
+        year: 2023,
+      });
+
+      expect(result.turnsPerYear).toBe(2);
+      expect(result.trend.length).toBe(1);
+    });
+  });
+
   // --- 7. getProductTurnover ---
   describe("getProductTurnover", () => {
     it("should throw if organisationId is missing", async () => {
@@ -351,6 +556,40 @@ describe("DashboardService", () => {
       expect(result[0].name).toBe("Unknown");
       // onHand defaults to 0 -> avg defaults to 1. Turnover = 10 / 1 = 10.
       expect(result[0].turnover).toBe(10);
+    });
+  });
+
+  describe("getProductTurnover (postgres)", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.inventoryItem.findMany as jest.Mock).mockReset();
+      (prisma.inventoryStockMovement.findMany as jest.Mock).mockReset();
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("should compute product turnover from movements", async () => {
+      (prisma.inventoryItem.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: "item-1", name: "Item A", onHand: 5 },
+      ]);
+      (
+        prisma.inventoryStockMovement.findMany as jest.Mock
+      ).mockResolvedValueOnce([{ itemId: "item-1", change: -25 }]);
+
+      const result = await DashboardService.getProductTurnover({
+        organisationId: mockOrgId,
+        year: 2023,
+      });
+
+      expect(result[0]).toEqual({
+        itemId: "item-1",
+        name: "Item A",
+        turnover: 5,
+      });
     });
   });
 });

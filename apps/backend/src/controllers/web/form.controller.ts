@@ -1,18 +1,9 @@
 import { Request, Response } from "express";
 import { FormService, FormServiceError } from "src/services/form.service";
-import { AuthenticatedRequest } from "src/middlewares/auth";
 import { FormRequestDTO, FormSubmissionRequestDTO } from "@yosemite-crew/types";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import logger from "src/utils/logger";
-
-const resolveUserIdFromRequest = (req: Request): string | undefined => {
-  const authRequest = req as AuthenticatedRequest;
-  const headerUserId = req.headers["x-user-id"];
-  if (headerUserId && typeof headerUserId === "string") {
-    return headerUserId;
-  }
-  return authRequest.userId;
-};
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 export const FormController = {
   createForm: async (req: Request, res: Response) => {

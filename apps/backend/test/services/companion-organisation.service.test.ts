@@ -8,6 +8,7 @@ import ParentCompanionModel from "../../src/models/parent-companion";
 import CompanionModel from "../../src/models/companion";
 import { ParentModel } from "../../src/models/parent";
 import { AuditTrailService } from "../../src/services/audit-trail.service";
+import { prisma } from "src/config/prisma";
 
 // --- Global Mocks Setup (TDZ Safe) ---
 jest.mock("node:crypto", () => ({
@@ -20,11 +21,16 @@ jest.mock("../../src/utils/sanitize", () => ({
 
 jest.mock("../../src/services/companion.service", () => ({
   toFHIR: jest.fn((c) => ({ id: c._id.toString(), resourceType: "Patient" })),
+  toFHIRFromPrisma: jest.fn((c) => ({ id: c.id, resourceType: "Patient" })),
 }));
 
 jest.mock("../../src/services/parent.service", () => ({
   toFHIR: jest.fn((p) => ({
     id: p._id.toString(),
+    resourceType: "RelatedPerson",
+  })),
+  toFHIRFromPrisma: jest.fn((p) => ({
+    id: p.id,
     resourceType: "RelatedPerson",
   })),
 }));
@@ -66,6 +72,27 @@ jest.mock("../../src/models/parent", () => ({
   },
 }));
 
+jest.mock("src/config/prisma", () => ({
+  prisma: {
+    companionOrganisation: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+    },
+    parentCompanion: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+    },
+    companion: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+    },
+    parent: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+    },
+  },
+}));
+
 // Mock Query Chain for Mongoose methods like .populate().exec()
 const createQueryChain = (resolvedValue: any) => {
   const p = Promise.resolve(resolvedValue);
@@ -100,6 +127,115 @@ describe("CompanionOrganisationService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe("Postgres branches", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.companionOrganisation.findFirst as jest.Mock).mockReset();
+      (prisma.companionOrganisation.findMany as jest.Mock).mockReset();
+      (prisma.parentCompanion.findFirst as jest.Mock).mockReset();
+      (prisma.parentCompanion.findMany as jest.Mock).mockReset();
+      (prisma.companion.findUnique as jest.Mock).mockReset();
+      (prisma.companion.findMany as jest.Mock).mockReset();
+      (prisma.parent.findUnique as jest.Mock).mockReset();
+      (prisma.parent.findMany as jest.Mock).mockReset();
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("validateInvite returns invite when valid", async () => {
+      (
+        prisma.companionOrganisation.findFirst as jest.Mock
+      ).mockResolvedValueOnce({
+        id: validIdStr,
+        inviteToken: "token",
+        status: "PENDING",
+      });
+
+      const res = await CompanionOrganisationService.validateInvite("token");
+      expect(res).toEqual(expect.objectContaining({ _id: validIdStr }));
+    });
+
+    it("getLinksForCompanion returns mapped links", async () => {
+      (
+        prisma.companionOrganisation.findMany as jest.Mock
+      ).mockResolvedValueOnce([{ id: "link-1", companionId: validIdStr }]);
+
+      const res =
+        await CompanionOrganisationService.getLinksForCompanion(validIdStr);
+      expect(res).toHaveLength(1);
+      expect(res[0]._id).toBe("link-1");
+    });
+
+    it("getLinksForCompanionByOrganisationTye returns metadata", async () => {
+      (
+        prisma.companionOrganisation.findMany as jest.Mock
+      ).mockResolvedValueOnce([
+        {
+          id: "link-1",
+          companionId: validIdStr,
+          organisationType: "HOSPITAL",
+          status: "ACTIVE",
+        },
+      ]);
+      (prisma.parentCompanion.findFirst as jest.Mock).mockResolvedValueOnce({
+        parentId: "parent-1",
+      });
+      (prisma.companion.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: validIdStr,
+        name: "Buddy",
+      });
+      (prisma.parent.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "parent-1",
+        firstName: "Jane",
+        lastName: "Doe",
+        email: "jane@example.com",
+        phoneNumber: "123",
+      });
+
+      const res =
+        await CompanionOrganisationService.getLinksForCompanionByOrganisationTye(
+          validIdStr,
+          "HOSPITAL",
+        );
+
+      expect(res.links).toHaveLength(1);
+      expect(res.parentName).toBe("Jane Doe");
+      expect(res.companionName).toBe("Buddy");
+    });
+
+    it("getLinksForOrganisation returns mapped results", async () => {
+      (
+        prisma.companionOrganisation.findMany as jest.Mock
+      ).mockResolvedValueOnce([
+        {
+          id: "link-1",
+          companionId: "comp-1",
+          organisationId: "org-1",
+          organisationType: "HOSPITAL",
+          status: "ACTIVE",
+        },
+      ]);
+      (prisma.companion.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: "comp-1", name: "Buddy" },
+      ]);
+      (prisma.parentCompanion.findMany as jest.Mock).mockResolvedValueOnce([
+        { companionId: "comp-1", parentId: "parent-1" },
+      ]);
+      (prisma.parent.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: "parent-1", firstName: "Jane", lastName: "Doe" },
+      ]);
+
+      const res =
+        await CompanionOrganisationService.getLinksForOrganisation(validIdStr);
+      expect(res).toHaveLength(1);
+      expect(res[0]?.organisationType).toBe("HOSPITAL");
+    });
   });
 
   describe("CompanionOrganisationServiceError & ensureObjectId", () => {

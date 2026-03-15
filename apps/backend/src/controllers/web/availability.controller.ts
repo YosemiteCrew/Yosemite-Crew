@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
 import { AvailabilityService } from "src/services/availability.service";
-import { AuthenticatedRequest } from "../../middlewares/auth";
 import logger from "src/utils/logger";
 import { AvailabilitySlotMongo, DayOfWeek } from "src/models/base-availability";
 import { WeeklyOverrideDay } from "src/models/weekly-availablity-override";
 import type { OccupancyMongo } from "src/models/occupancy";
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 type NormalizedOccupancy = {
   startTime: Date;
@@ -18,15 +18,6 @@ const safeDate = (value?: string | number | Date): Date | undefined => {
   const parsed =
     value instanceof Date ? new Date(value.getTime()) : new Date(value);
   return Number.isNaN(parsed.getTime()) ? undefined : parsed;
-};
-
-const resolveUserIdFromRequest = (req: Request): string | undefined => {
-  const authRequest = req as AuthenticatedRequest;
-  const headerUserId = req.headers["x-user-id"];
-  if (headerUserId && typeof headerUserId === "string") {
-    return headerUserId;
-  }
-  return authRequest.userId;
 };
 
 const handleControllerError = (

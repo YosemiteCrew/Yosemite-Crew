@@ -1,6 +1,6 @@
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc.js";
-import { Types } from "mongoose";
+import mongoose, { Types } from "mongoose";
 import BaseAvailabilityModel, {
   DayOfWeek,
   AvailabilitySlotMongo,
@@ -220,6 +220,9 @@ const syncOccupancyToPostgres = async (doc: {
   }
 };
 
+const isMongoAvailable = () =>
+  mongoose.connection.readyState === mongoose.ConnectionStates.connected;
+
 // Generate Bookablble slots
 export function generateBookableWindows(
   date: string,
@@ -270,11 +273,7 @@ export const AvailabilityService = {
       "organisationId",
     );
     const safeUserId = ensureNonEmptyString(userId, "userId");
-
-    await BaseAvailabilityModel.deleteMany({
-      userId: safeUserId,
-      organisationId: safeOrganisationId,
-    });
+    const usePostgresWrite = isReadFromPostgres() && !isMongoAvailable();
 
     const rows = availabilities.map((a) => ({
       organisationId: safeOrganisationId,
@@ -282,6 +281,37 @@ export const AvailabilityService = {
       dayOfWeek: a.dayOfWeek,
       slots: a.slots,
     }));
+
+    if (usePostgresWrite) {
+      await prisma.baseAvailability.deleteMany({
+        where: { userId: safeUserId, organisationId: safeOrganisationId },
+      });
+      if (rows.length) {
+        await prisma.baseAvailability.createMany({
+          data: rows.map((row) => ({
+            userId: row.userId,
+            organisationId: row.organisationId,
+            dayOfWeek: row.dayOfWeek as never,
+            slots: row.slots as unknown as Prisma.InputJsonValue,
+          })),
+        });
+      }
+
+      const created = await prisma.baseAvailability.findMany({
+        where: { userId: safeUserId, organisationId: safeOrganisationId },
+        orderBy: { dayOfWeek: "asc" },
+      });
+
+      return created.map((row) => ({
+        dayOfWeek: row.dayOfWeek as DayOfWeek,
+        slots: row.slots as unknown as AvailabilitySlotMongo[],
+      }));
+    }
+
+    await BaseAvailabilityModel.deleteMany({
+      userId: safeUserId,
+      organisationId: safeOrganisationId,
+    });
 
     const docs = await BaseAvailabilityModel.insertMany(rows);
     await syncBaseAvailabilityToPostgres(safeOrganisationId, safeUserId, rows);
@@ -318,6 +348,14 @@ export const AvailabilityService = {
       "organisationId",
     );
     const safeUserId = ensureNonEmptyString(userId, "userId");
+    const usePostgresWrite = isReadFromPostgres() && !isMongoAvailable();
+
+    if (usePostgresWrite) {
+      await prisma.baseAvailability.deleteMany({
+        where: { organisationId: safeOrganisationId, userId: safeUserId },
+      });
+      return;
+    }
 
     await BaseAvailabilityModel.deleteMany({
       organisationId: safeOrganisationId,

@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import BaseAvailabilityModel, {
   type BaseAvailabilityDocument,
   type BaseAvailabilityMongo,
@@ -272,6 +273,9 @@ const ensureOrganisationIds = (availability: BaseAvailabilityMongo[]) => {
   }
 };
 
+const isMongoAvailable = () =>
+  mongoose.connection.readyState === mongoose.ConnectionStates.connected;
+
 const syncBaseAvailabilityToPostgres = async (
   userId: string,
   availability: BaseAvailabilityMongo[],
@@ -398,8 +402,9 @@ export const BaseAvailabilityService = {
     payload: CreateBaseAvailabilityPayload,
   ): Promise<UserAvailability[]> {
     const { userId, availability } = sanitizeCreatePayload(payload);
+    const usePostgresWrite = isReadFromPostgres() && !isMongoAvailable();
 
-    if (isReadFromPostgres()) {
+    if (usePostgresWrite) {
       ensureOrganisationIds(availability);
       const existing = await prisma.baseAvailability.findFirst({
         where: { userId },
@@ -457,8 +462,9 @@ export const BaseAvailabilityService = {
       userId,
       payload,
     );
+    const usePostgresWrite = isReadFromPostgres() && !isMongoAvailable();
 
-    if (isReadFromPostgres()) {
+    if (usePostgresWrite) {
       ensureOrganisationIds(availability);
       await prisma.baseAvailability.deleteMany({
         where: { userId: identifier },

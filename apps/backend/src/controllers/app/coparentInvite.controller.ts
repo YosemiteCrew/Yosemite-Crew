@@ -1,5 +1,4 @@
 import { Request, Response } from "express";
-import { AuthenticatedRequest } from "src/middlewares/auth";
 import { ParentService } from "src/services/parent.service";
 import {
   CoParentInviteService,
@@ -7,6 +6,7 @@ import {
 } from "src/services/coparentInvite.service";
 import logger from "src/utils/logger";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 type SendInviteBody = {
   email?: string;
@@ -19,14 +19,6 @@ type TokenBody = {
 };
 
 // Resolve UserID
-const resolveUserIdFromRequest = (req: Request): string | undefined => {
-  const authRequest = req as AuthenticatedRequest;
-  const headerUserId = req.headers["x-user-id"];
-  if (typeof headerUserId === "string") {
-    return headerUserId;
-  }
-  return Array.isArray(headerUserId) ? headerUserId[0] : authRequest.userId;
-};
 
 const resolveParentId = (parent: {
   id?: string;
