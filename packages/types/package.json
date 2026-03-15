@@ -19,7 +19,7 @@
     "@yosemite-crew/fhirtypes": "workspace:^",
     "express": "4.21.2",
     "mongoose": "8.12.2",
-    "multer": "2.0.2",
+    "multer": "2.1.1",
     "typescript": "5.0.4"
   }
 }
