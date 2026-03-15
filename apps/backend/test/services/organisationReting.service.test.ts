@@ -3,6 +3,7 @@ import { OrganisationRatingModel } from "src/models/organisationRating";
 import OrganizationModel from "src/models/organization";
 import { prisma } from "src/config/prisma";
 import { handleDualWriteError } from "src/utils/dual-write";
+import { Types } from "mongoose";
 
 jest.mock("src/models/organisationRating", () => ({
   __esModule: true,
@@ -71,7 +72,10 @@ describe("OrganizationRatingService", () => {
       );
 
       expect(mockedRatingModel.findOneAndUpdate).toHaveBeenCalledWith(
-        { organizationId: orgId, userId: userId },
+        {
+          organizationId: new Types.ObjectId(orgId),
+          userId: new Types.ObjectId(userId),
+        },
         { rating: 5, review: "great" },
         { upsert: true, new: true, sanitizeFilter: true },
       );
@@ -144,10 +148,13 @@ describe("OrganizationRatingService", () => {
 
       await OrganizationRatingService.recalculateAverageRating(orgId);
 
-      expect(mockedOrgModel.findByIdAndUpdate).toHaveBeenCalledWith(orgId, {
-        averageRating: "4.3",
-        ratingCount: 3,
-      });
+      expect(mockedOrgModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        new Types.ObjectId(orgId),
+        {
+          averageRating: "4.3",
+          ratingCount: 3,
+        },
+      );
     });
 
     it("resets organisation stats when no ratings found", async () => {
@@ -156,7 +163,7 @@ describe("OrganizationRatingService", () => {
       await OrganizationRatingService.recalculateAverageRating(otherOrgId);
 
       expect(mockedOrgModel.findByIdAndUpdate).toHaveBeenCalledWith(
-        otherOrgId,
+        new Types.ObjectId(otherOrgId),
         {
           averageRating: 0,
           ratingCount: 0,

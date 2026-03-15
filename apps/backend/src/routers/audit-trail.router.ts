@@ -13,7 +13,7 @@ router.get(
   AuditTrailController.listForCompanion,
 );
 router.post(
-  "/companion/:companionId",
+  "/companion",
   authorizeCognito,
   withOrgPermissions(),
   requirePermission("audit:view:any"),
@@ -28,7 +28,7 @@ router.get(
   AuditTrailController.listForAppointment,
 );
 router.post(
-  "/appointment/:appointmentId",
+  "/appointment",
   authorizeCognito,
   withOrgPermissions(),
   requirePermission("audit:view:any"),

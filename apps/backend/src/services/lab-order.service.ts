@@ -126,7 +126,9 @@ const resolvePrimaryParentId = async (companionId: IdLike) => {
         companionId: safeCompanionId,
         role: "PRIMARY",
         status: "ACTIVE",
-      }).lean();
+      })
+        .setOptions({ sanitizeFilter: true })
+        .lean();
 
   if (!parentLink?.parentId) {
     throw new LabOrderServiceError(
