@@ -48,8 +48,15 @@ const resolveGenderCode = (gender: string, isNeutered?: boolean) => {
 
 type IdLike = Types.ObjectId | string;
 
-const toIdString = (value: IdLike) =>
-  typeof value === "string" ? value : value.toString();
+const ensureObjectIdLike = (value: IdLike, field: string): Types.ObjectId => {
+  if (value instanceof Types.ObjectId) {
+    return value;
+  }
+  if (!Types.ObjectId.isValid(value)) {
+    throw new LabOrderServiceError(`Invalid ${field}.`, 400);
+  }
+  return new Types.ObjectId(value);
+};
 
 const resolveDocId = (doc: { id?: string; _id?: { toString(): string } }) => {
   if ("id" in doc && typeof doc.id === "string") return doc.id;
@@ -63,21 +70,23 @@ const buildCensusPayload = async (input: {
   veterinarian?: string | null;
   ivls?: Array<{ serialNumber: string }>;
 }) => {
+  const safeCompanionId = ensureObjectIdLike(input.companionId, "companionId");
+  const safeParentId = ensureObjectIdLike(input.parentId, "parentId");
   const companion = isReadFromPostgres()
     ? await prisma.companion.findUnique({
-        where: { id: toIdString(input.companionId) },
+        where: { id: safeCompanionId.toString() },
       })
-    : await CompanionModel.findById(input.companionId).lean();
+    : await CompanionModel.findById(safeCompanionId).lean();
   if (!companion) {
     throw new LabOrderServiceError("Companion not found.", 404);
   }
 
   const parent = isReadFromPostgres()
     ? await prisma.parent.findUnique({
-        where: { id: toIdString(input.parentId) },
+        where: { id: safeParentId.toString() },
         include: { address: true },
       })
-    : await ParentModel.findById(input.parentId).lean();
+    : await ParentModel.findById(safeParentId).lean();
   if (!parent) {
     throw new LabOrderServiceError("Parent not found.", 404);
   }
@@ -275,18 +284,22 @@ export const LabCensusService = {
       throw new LabOrderServiceError("Unsupported lab provider.", 400);
     }
 
-    const companionId = isReadFromPostgres()
-      ? input.companionId
-      : new Types.ObjectId(input.companionId);
-    const parentId = input.parentId
-      ? isReadFromPostgres()
-        ? input.parentId
-        : new Types.ObjectId(input.parentId)
-      : null;
-
-    if (!parentId) {
+    if (!input.parentId) {
       throw new LabOrderServiceError("parentId is required for census.", 400);
     }
+
+    const safeCompanionId = ensureObjectIdLike(
+      input.companionId,
+      "companionId",
+    );
+    const safeParentId = ensureObjectIdLike(input.parentId, "parentId");
+
+    const companionId = isReadFromPostgres()
+      ? safeCompanionId.toString()
+      : safeCompanionId;
+    const parentId = isReadFromPostgres()
+      ? safeParentId.toString()
+      : safeParentId;
 
     const normalizedIvls = input.ivls?.map((item) =>
       typeof item === "string" ? { serialNumber: item } : item,

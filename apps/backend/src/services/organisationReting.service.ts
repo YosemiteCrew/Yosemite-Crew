@@ -53,7 +53,7 @@ export const OrganizationRatingService = {
     const ratingDoc = await OrganisationRatingModel.findOneAndUpdate(
       { organizationId: safeOrganizationId, userId: safeUserId },
       { rating, review },
-      { upsert: true, new: true },
+      { upsert: true, new: true, sanitizeFilter: true },
     );
 
     if (ratingDoc && shouldDualWrite) {

@@ -52,7 +52,7 @@ describe("DeviceTokenService", () => {
       expect(mockedDeviceTokenModel.updateOne).toHaveBeenCalledWith(
         { deviceToken: "token-123" },
         { userId: "user-1", platform: "android" },
-        { upsert: true },
+        { upsert: true, sanitizeFilter: true },
       );
     });
 

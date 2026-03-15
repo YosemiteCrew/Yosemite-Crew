@@ -104,8 +104,7 @@ const optionalString = (value: unknown, field: string): string | undefined => {
 };
 
 const OFFSET_TIMEZONE_REGEX = /^(?:UTC)?[+-](?:0?\d|1\d|2[0-3]):[0-5]\d$/;
-const COMBINED_TIMEZONE_REGEX =
-  /^UTC[+-](?:0?\d|1\d|2[0-3]):[0-5]\d\s*-\s*(.+)$/;
+const COMBINED_TIMEZONE_PREFIX_REGEX = /^UTC[+-](?:0?\d|1\d|2[0-3]):[0-5]\d/;
 
 const isValidIanaTimezone = (value: string): boolean => {
   try {
@@ -130,12 +129,15 @@ const isValidTimezone = (value: string): boolean => {
 
 const normalizeTimezoneInput = (value: string): string => {
   const trimmed = value.trim();
-  const combinedMatch = COMBINED_TIMEZONE_REGEX.exec(trimmed);
+  const combinedMatch = COMBINED_TIMEZONE_PREFIX_REGEX.exec(trimmed);
 
   if (combinedMatch) {
-    const iana = combinedMatch[1].trim();
-    if (isValidIanaTimezone(iana)) {
-      return iana;
+    const remainder = trimmed.slice(combinedMatch[0].length).trimStart();
+    if (remainder.startsWith("-")) {
+      const iana = remainder.slice(1).trim();
+      if (iana && isValidIanaTimezone(iana)) {
+        return iana;
+      }
     }
   }
 

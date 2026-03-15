@@ -23,14 +23,33 @@ export const LabResultService = {
     limit?: number;
   }) {
     const filter: Record<string, unknown> = {};
+    const safeOrganisationId =
+      typeof params.organisationId === "string" && params.organisationId.trim()
+        ? params.organisationId
+        : undefined;
+    const safeProvider =
+      typeof params.provider === "string" && params.provider.trim()
+        ? params.provider
+        : undefined;
+    const safeOrderId =
+      typeof params.orderId === "string" && params.orderId.trim()
+        ? params.orderId
+        : undefined;
+    const safeLimit =
+      typeof params.limit === "number" && Number.isFinite(params.limit)
+        ? Math.floor(params.limit)
+        : undefined;
 
     if (isReadFromPostgres()) {
       const where: Record<string, unknown> = {};
-      if (params.organisationId) where.organisationId = params.organisationId;
-      if (params.provider) where.provider = params.provider;
-      if (params.orderId) where.orderId = params.orderId;
+      if (safeOrganisationId) where.organisationId = safeOrganisationId;
+      if (safeProvider) where.provider = safeProvider;
+      if (safeOrderId) where.orderId = safeOrderId;
 
       if (params.companionId) {
+        if (!Types.ObjectId.isValid(params.companionId)) {
+          throw new LabResultServiceError("Invalid companionId", 400);
+        }
         const orders = await prisma.labOrder.findMany({
           where: { companionId: params.companionId },
           select: { idexxOrderId: true },
@@ -44,13 +63,13 @@ export const LabResultService = {
       return prisma.labResult.findMany({
         where,
         orderBy: { updatedAt: "desc" },
-        take: params.limit && params.limit > 0 ? params.limit : undefined,
+        take: safeLimit && safeLimit > 0 ? safeLimit : undefined,
       });
     }
 
-    if (params.organisationId) filter.organisationId = params.organisationId;
-    if (params.provider) filter.provider = params.provider;
-    if (params.orderId) filter.orderId = params.orderId;
+    if (safeOrganisationId) filter.organisationId = safeOrganisationId;
+    if (safeProvider) filter.provider = safeProvider;
+    if (safeOrderId) filter.orderId = safeOrderId;
 
     if (params.companionId) {
       if (!Types.ObjectId.isValid(params.companionId)) {
@@ -59,26 +78,44 @@ export const LabResultService = {
       const orders = await LabOrderModel.find(
         { companionId: params.companionId },
         { idexxOrderId: 1 },
-      ).lean();
+      )
+        .setOptions({ sanitizeFilter: true })
+        .lean();
       const orderIds = orders
         .map((o) => o.idexxOrderId)
         .filter(Boolean) as string[];
       filter.orderId = { $in: orderIds };
     }
 
-    const query = LabResultModel.find(filter).sort({ updatedAt: -1 });
+    const query = LabResultModel.find(filter)
+      .sort({ updatedAt: -1 })
+      .setOptions({ sanitizeFilter: true });
 
-    if (params.limit && params.limit > 0) {
-      query.limit(params.limit);
+    if (safeLimit && safeLimit > 0) {
+      query.limit(safeLimit);
     }
 
     return query.lean();
   },
 
   async getByResultId(provider: string, resultId: string) {
-    if (isReadFromPostgres()) {
-      return prisma.labResult.findFirst({ where: { provider, resultId } });
+    const safeProvider =
+      typeof provider === "string" && provider.trim() ? provider : null;
+    const safeResultId =
+      typeof resultId === "string" && resultId.trim() ? resultId : null;
+    if (!safeProvider || !safeResultId) {
+      throw new LabResultServiceError("Invalid provider or resultId", 400);
     }
-    return LabResultModel.findOne({ provider, resultId }).lean();
+    if (isReadFromPostgres()) {
+      return prisma.labResult.findFirst({
+        where: { provider: safeProvider, resultId: safeResultId },
+      });
+    }
+    return LabResultModel.findOne({
+      provider: safeProvider,
+      resultId: safeResultId,
+    })
+      .setOptions({ sanitizeFilter: true })
+      .lean();
   },
 };

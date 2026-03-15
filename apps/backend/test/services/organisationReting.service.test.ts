@@ -73,7 +73,7 @@ describe("OrganizationRatingService", () => {
       expect(mockedRatingModel.findOneAndUpdate).toHaveBeenCalledWith(
         { organizationId: orgId, userId: userId },
         { rating: 5, review: "great" },
-        { upsert: true, new: true },
+        { upsert: true, new: true, sanitizeFilter: true },
       );
       expect(recalcSpy).toHaveBeenCalledWith(orgId);
       expect(result).toEqual({ success: true });

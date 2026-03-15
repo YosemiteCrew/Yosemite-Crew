@@ -21,6 +21,17 @@ export const MerckController = {
           requestId,
         });
       }
+      const safeOrganisationId =
+        typeof organisationId === "string" && organisationId.trim()
+          ? organisationId
+          : null;
+      if (!safeOrganisationId) {
+        return res.status(400).json({
+          message: "organisationId is required.",
+          code: "MERCK_SEARCH_FAILED",
+          requestId,
+        });
+      }
 
       const query = req.query as Record<string, string | undefined>;
       const {
@@ -37,18 +48,22 @@ export const MerckController = {
         timezone,
       } = query;
 
-      const userId = orgReq.userId;
+      const userId =
+        typeof orgReq.userId === "string" && orgReq.userId.trim()
+          ? orgReq.userId
+          : null;
       let resolvedTimezone = timezone;
       if (!resolvedTimezone && userId) {
         const profile = isReadFromPostgres()
           ? await prisma.userProfile.findFirst({
-              where: { userId, organizationId: organisationId },
+              where: { userId, organizationId: safeOrganisationId },
               select: { personalDetails: true },
             })
           : await UserProfileModel.findOne({
               userId,
-              organizationId: organisationId,
+              organizationId: safeOrganisationId,
             })
+              .setOptions({ sanitizeFilter: true })
               .select({ "personalDetails.timezone": 1 })
               .lean();
         const personalDetails = profile?.personalDetails as
@@ -59,7 +74,7 @@ export const MerckController = {
       }
 
       const result = await MerckService.search({
-        organisationId,
+        organisationId: safeOrganisationId,
         query: q ?? "",
         audience: audience as "PROV" | "PAT" | undefined,
         language: language as "en" | "es" | undefined,

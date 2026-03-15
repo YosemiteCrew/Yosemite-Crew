@@ -13,8 +13,22 @@ router.get(
   requirePermission("labs:view:any"),
   (req, res) => LabOrderController.listOrders(req, res),
 );
+router.post(
+  "/pms/organisation/:organisationId/:provider/orders",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("labs:view:any"),
+  (req, res) => LabOrderController.listOrders(req, res),
+);
 
 router.get(
+  "/pms/organisation/:organisationId/:provider/tests",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("labs:view:any"),
+  (req, res) => LabOrderController.listProviderTests(req, res),
+);
+router.post(
   "/pms/organisation/:organisationId/:provider/tests",
   authorizeCognito,
   withOrgPermissions(),
@@ -64,6 +78,13 @@ router.delete(
 
 router.get(
   "/pms/organisation/:organisationId/:provider/census/patient/:patientId",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("labs:view:any"),
+  (req, res) => LabCensusController.getCensusPatient(req, res),
+);
+router.post(
+  "/pms/organisation/:organisationId/:provider/census/patient",
   authorizeCognito,
   withOrgPermissions(),
   requirePermission("labs:view:any"),

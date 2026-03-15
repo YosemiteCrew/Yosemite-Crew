@@ -10,11 +10,12 @@ export const DeviceTokenService = {
     platform: "ios" | "android",
   ) {
     if (!deviceToken) return;
+    if (!userId) return;
 
     await DeviceTokenModel.updateOne(
       { deviceToken },
       { userId, platform },
-      { upsert: true },
+      { upsert: true, sanitizeFilter: true },
     );
 
     if (shouldDualWrite) {

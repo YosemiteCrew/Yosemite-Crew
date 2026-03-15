@@ -171,8 +171,19 @@ export const LabCensusController = {
   async getCensusPatient(req: Request, res: Response) {
     const base = requireOrganisationAndProvider(req, res);
     if (!base) return;
-    const patientId = requireParam(req, res, "patientId");
-    if (!patientId) return;
+    const payload = req.body as { patientId?: string } | undefined;
+    const patientId =
+      payload && typeof payload.patientId === "string"
+        ? payload.patientId.trim()
+        : "";
+    if (!patientId) {
+      if (req.method === "GET") {
+        return res.status(405).json({
+          message: "Use POST with patientId in request body.",
+        });
+      }
+      return res.status(400).json({ message: "patientId is required." });
+    }
 
     try {
       const data = await LabCensusService.getCensusPatient(
