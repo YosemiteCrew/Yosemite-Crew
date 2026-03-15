@@ -13,6 +13,7 @@ import ParentCompanionModel from "src/models/parent-companion";
 import CodeEntryModel from "src/models/code-entry";
 import { InvoiceService } from "src/services/invoice.service";
 import type { InvoiceItem } from "@yosemite-crew/types";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 export class LabOrderServiceError extends Error {
   constructor(
@@ -30,18 +31,102 @@ const ensureNonEmpty = (value: string | undefined, field: string) => {
   }
 };
 
+const ensureNonEmptyString = (value: unknown, field: string): string => {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new LabOrderServiceError(`${field} is required.`, 400);
+  }
+  return value;
+};
+
+const ensureOptionalString = (
+  value: unknown,
+  field: string,
+): string | undefined => {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (typeof value !== "string" || !value.trim()) {
+    throw new LabOrderServiceError(`Invalid ${field}.`, 400);
+  }
+  return value;
+};
+
+const ensureOptionalObjectIdString = (
+  value: unknown,
+  field: string,
+): string | undefined => {
+  const asString = ensureOptionalString(value, field);
+  if (!asString) return undefined;
+  if (!Types.ObjectId.isValid(asString)) {
+    throw new LabOrderServiceError(`Invalid ${field}.`, 400);
+  }
+  return asString;
+};
+
+const LAB_ORDER_STATUS_VALUES = new Set<LabOrderStatus>([
+  "CREATED",
+  "SUBMITTED",
+  "AT_THE_LAB",
+  "PARTIAL",
+  "RUNNING",
+  "COMPLETE",
+  "CANCELLED",
+  "ERROR",
+]);
+
+const ensureOptionalStatus = (value: unknown): LabOrderStatus | undefined => {
+  const asString = ensureOptionalString(value, "status");
+  if (!asString) return undefined;
+  if (!LAB_ORDER_STATUS_VALUES.has(asString as LabOrderStatus)) {
+    throw new LabOrderServiceError("Invalid status.", 400);
+  }
+  return asString as LabOrderStatus;
+};
+
 const ensureTestsProvided = (tests: string[] | undefined | null) => {
   if (!tests || tests.length === 0) {
     throw new LabOrderServiceError("tests are required.", 400);
   }
 };
 
-const resolvePrimaryParentId = async (companionId: Types.ObjectId) => {
-  const parentLink = await ParentCompanionModel.findOne({
-    companionId,
-    role: "PRIMARY",
-    status: "ACTIVE",
-  }).lean();
+const toJsonInput = (
+  value: Record<string, unknown> | unknown[] | null | undefined,
+) => {
+  if (value === null) return Prisma.JsonNull;
+  if (value === undefined) return undefined;
+  return value as Prisma.InputJsonValue;
+};
+
+type IdLike = Types.ObjectId | string;
+
+const toIdString = (value: IdLike) =>
+  typeof value === "string" ? value : value.toString();
+
+const ensureObjectIdLike = (value: IdLike, field: string): Types.ObjectId => {
+  if (value instanceof Types.ObjectId) {
+    return value;
+  }
+  if (!Types.ObjectId.isValid(value)) {
+    throw new LabOrderServiceError(`Invalid ${field}.`, 400);
+  }
+  return new Types.ObjectId(value);
+};
+
+const resolvePrimaryParentId = async (companionId: IdLike) => {
+  const safeCompanionId = ensureObjectIdLike(companionId, "companionId");
+  const parentLink = isReadFromPostgres()
+    ? await prisma.parentCompanion.findFirst({
+        where: {
+          companionId: safeCompanionId.toString(),
+          role: "PRIMARY",
+          status: "ACTIVE",
+        },
+      })
+    : await ParentCompanionModel.findOne({
+        companionId: safeCompanionId,
+        role: "PRIMARY",
+        status: "ACTIVE",
+      }).lean();
 
   if (!parentLink?.parentId) {
     throw new LabOrderServiceError(
@@ -56,14 +141,6 @@ const resolvePrimaryParentId = async (companionId: Types.ObjectId) => {
 const syncLabOrderToPostgres = async (doc: LabOrderDocument) => {
   if (!shouldDualWrite) return;
   try {
-    const toJsonInput = (
-      value: Record<string, unknown> | null | undefined,
-    ) => {
-      if (value === null) return Prisma.JsonNull;
-      if (value === undefined) return undefined;
-      return value as Prisma.InputJsonValue;
-    };
-
     await prisma.labOrder.upsert({
       where: { id: doc._id.toString() },
       create: {
@@ -84,8 +161,7 @@ const syncLabOrderToPostgres = async (doc: LabOrderDocument) => {
         technician: doc.technician ?? null,
         notes: doc.notes ?? null,
         specimenCollectionDate: doc.specimenCollectionDate ?? null,
-        ivls:
-          doc.ivls === null ? Prisma.JsonNull : (doc.ivls ?? undefined),
+        ivls: doc.ivls === null ? Prisma.JsonNull : (doc.ivls ?? undefined),
         requestPayload: toJsonInput(doc.requestPayload),
         responsePayload: toJsonInput(doc.responsePayload),
         error: doc.error ?? null,
@@ -106,8 +182,7 @@ const syncLabOrderToPostgres = async (doc: LabOrderDocument) => {
         technician: doc.technician ?? null,
         notes: doc.notes ?? null,
         specimenCollectionDate: doc.specimenCollectionDate ?? null,
-        ivls:
-          doc.ivls === null ? Prisma.JsonNull : (doc.ivls ?? undefined),
+        ivls: doc.ivls === null ? Prisma.JsonNull : (doc.ivls ?? undefined),
         requestPayload: toJsonInput(doc.requestPayload),
         responsePayload: toJsonInput(doc.responsePayload),
         error: doc.error ?? null,
@@ -136,19 +211,30 @@ const buildInvoiceItemsFromTests = async (
 ): Promise<InvoiceItem[]> => {
   if (!testCodes.length) return [];
 
-  const entries = await CodeEntryModel.find({
-    system: "IDEXX",
-    type: "TEST",
-    code: { $in: testCodes },
-    active: true,
-  }).lean();
+  const entries = isReadFromPostgres()
+    ? await prisma.codeEntry.findMany({
+        where: {
+          system: "IDEXX",
+          type: "TEST",
+          code: { in: testCodes },
+          active: true,
+        },
+      })
+    : await CodeEntryModel.find({
+        system: "IDEXX",
+        type: "TEST",
+        code: { $in: testCodes },
+        active: true,
+      }).lean();
 
   const entryByCode = new Map(entries.map((entry) => [entry.code, entry]));
 
-    return testCodes.map((code) => {
+  return testCodes.map((code) => {
     const entry = entryByCode.get(code);
     const display = entry?.display ?? `IDEXX Test ${code}`;
-    const listPrice = toNumber((entry?.meta as Record<string, unknown>)?.listPrice);
+    const listPrice = toNumber(
+      (entry?.meta as Record<string, unknown>)?.listPrice,
+    );
     if (listPrice === null) {
       throw new LabOrderServiceError(
         `Missing list price for IDEXX test ${code}.`,
@@ -227,11 +313,18 @@ export const LabOrderService = {
     }
 
     if (params.query) {
-      filter.$or = [
-        { code: new RegExp(params.query, "i") },
-        { display: new RegExp(params.query, "i") },
-        { synonyms: new RegExp(params.query, "i") },
-      ];
+      if (typeof params.query !== "string") {
+        throw new LabOrderServiceError("Invalid query.", 400);
+      }
+      const trimmedQuery = params.query.trim();
+      if (trimmedQuery) {
+        const escaped = trimmedQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        filter.$or = [
+          { code: new RegExp(escaped, "i") },
+          { display: new RegExp(escaped, "i") },
+          { synonyms: new RegExp(escaped, "i") },
+        ];
+      }
     }
 
     const limit =
@@ -242,15 +335,87 @@ export const LabOrderService = {
       typeof params.page === "number" && params.page > 0 ? params.page : 1;
     const skip = (page - 1) * limit;
 
-    const [total, items] = await Promise.all([
-      CodeEntryModel.countDocuments(filter),
-      CodeEntryModel.find(filter)
-        .sort({ display: 1 })
-        .skip(skip)
-        .limit(limit)
-        .select({ system: 1, code: 1, display: 1, type: 1, meta: 1 })
-        .lean(),
-    ]);
+    const [total, items] = isReadFromPostgres()
+      ? await Promise.all([
+          prisma.codeEntry.count({
+            where: {
+              system: "IDEXX",
+              type: "TEST",
+              active: true,
+              ...(params.codes && params.codes.length > 0
+                ? { code: { in: params.codes } }
+                : {}),
+              ...(params.query && params.query.trim()
+                ? {
+                    OR: [
+                      {
+                        code: {
+                          contains: params.query.trim(),
+                          mode: "insensitive",
+                        },
+                      },
+                      {
+                        display: {
+                          contains: params.query.trim(),
+                          mode: "insensitive",
+                        },
+                      },
+                    ],
+                  }
+                : {}),
+            },
+          }),
+          prisma.codeEntry.findMany({
+            where: {
+              system: "IDEXX",
+              type: "TEST",
+              active: true,
+              ...(params.codes && params.codes.length > 0
+                ? { code: { in: params.codes } }
+                : {}),
+              ...(params.query && params.query.trim()
+                ? {
+                    OR: [
+                      {
+                        code: {
+                          contains: params.query.trim(),
+                          mode: "insensitive",
+                        },
+                      },
+                      {
+                        display: {
+                          contains: params.query.trim(),
+                          mode: "insensitive",
+                        },
+                      },
+                    ],
+                  }
+                : {}),
+            },
+            orderBy: { display: "asc" },
+            skip,
+            take: limit,
+            select: {
+              system: true,
+              code: true,
+              display: true,
+              type: true,
+              meta: true,
+            },
+          }),
+        ])
+      : await Promise.all([
+          CodeEntryModel.countDocuments(filter).setOptions({
+            sanitizeFilter: true,
+          }),
+          CodeEntryModel.find(filter)
+            .sort({ display: 1 })
+            .skip(skip)
+            .limit(limit)
+            .setOptions({ sanitizeFilter: true })
+            .select({ system: 1, code: 1, display: 1, type: 1, meta: 1 })
+            .lean(),
+        ]);
 
     return { total, page, limit, tests: items };
   },
@@ -265,18 +430,117 @@ export const LabOrderService = {
     }
 
     const adapter = getLabOrderAdapter(provider);
+    if (isReadFromPostgres()) {
+      const parentId =
+        input.parentId ?? (await resolvePrimaryParentId(input.companionId));
+      const appointmentId = input.appointmentId ?? null;
+
+      const labOrder = await prisma.labOrder.create({
+        data: {
+          organisationId: input.organisationId,
+          provider,
+          companionId: input.companionId,
+          parentId: toIdString(parentId),
+          appointmentId,
+          createdByUserId: input.createdByUserId ?? null,
+          status: "CREATED",
+          modality: input.modality ?? "REFERENCE_LAB",
+          tests: toJsonInput(input.tests),
+          veterinarian: input.veterinarian ?? null,
+          technician: input.technician ?? null,
+          notes: input.notes ?? null,
+          specimenCollectionDate: input.specimenCollectionDate ?? null,
+          ivls: toJsonInput(input.ivls),
+          requestPayload: undefined,
+          responsePayload: undefined,
+          invoiceId: null,
+          billedAt: null,
+          billingError: null,
+        },
+      });
+
+      try {
+        const result = await adapter.createOrder({
+          ...input,
+          parentId: toIdString(parentId),
+        });
+
+        const updated = await prisma.labOrder.update({
+          where: { id: labOrder.id },
+          data: {
+            idexxOrderId: result.idexxOrderId ?? null,
+            uiUrl: result.uiUrl ?? null,
+            pdfUrl: result.pdfUrl ?? null,
+            status: (result.status as LabOrderStatus) ?? labOrder.status,
+            externalStatus: result.externalStatus ?? null,
+            requestPayload: toJsonInput(result.requestPayload),
+            responsePayload: toJsonInput(result.responsePayload),
+            modality: input.modality ?? labOrder.modality,
+            ivls: toJsonInput(input.ivls),
+          },
+        });
+
+        if (
+          updated.status === "SUBMITTED" &&
+          !updated.billedAt &&
+          updated.appointmentId
+        ) {
+          try {
+            const items = await buildInvoiceItemsFromTests(
+              (updated.tests as string[]) ?? [],
+            );
+            const invoice = await InvoiceService.addChargesToAppointment(
+              updated.appointmentId,
+              items,
+            );
+            await prisma.labOrder.update({
+              where: { id: updated.id },
+              data: {
+                invoiceId: invoice.id,
+                billedAt: new Date(),
+                billingError: null,
+              },
+            });
+          } catch (billingError) {
+            const message =
+              billingError instanceof Error
+                ? billingError.message
+                : "Lab order billing failed.";
+            await prisma.labOrder.update({
+              where: { id: updated.id },
+              data: { billingError: message },
+            });
+          }
+        }
+
+        return updated;
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Order creation failed.";
+        await prisma.labOrder.update({
+          where: { id: labOrder.id },
+          data: { status: "ERROR", error: message },
+        });
+
+        logger.error("Lab order creation failed", error);
+        throw new LabOrderServiceError("Lab order creation failed.", 502);
+      }
+    }
+
     const companionId = new Types.ObjectId(input.companionId);
-    const resolvedParentId =
-      input.parentId ? new Types.ObjectId(input.parentId) : null;
-    const parentId = resolvedParentId ?? (await resolvePrimaryParentId(companionId));
+    const resolvedParentId = input.parentId
+      ? new Types.ObjectId(input.parentId)
+      : null;
+    const parentId =
+      resolvedParentId ?? (await resolvePrimaryParentId(companionId));
     const appointmentId =
       input.appointmentId && Types.ObjectId.isValid(input.appointmentId)
         ? new Types.ObjectId(input.appointmentId)
         : input.appointmentId
-        ? (() => {
-            throw new LabOrderServiceError("Invalid appointmentId.", 400);
-          })()
-        : null;
+          ? (() => {
+              throw new LabOrderServiceError("Invalid appointmentId.", 400);
+            })()
+          : null;
 
     const labOrderDoc = await LabOrderModel.create({
       organisationId: input.organisationId,
@@ -341,35 +605,88 @@ export const LabOrderService = {
     if (!provider) {
       throw new LabOrderServiceError("Unsupported lab provider.", 400);
     }
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
+    const safeIdexxOrderId = ensureNonEmptyString(idexxOrderId, "idexxOrderId");
 
     const adapter = getLabOrderAdapter(provider);
 
+    if (isReadFromPostgres()) {
+      const existing = await prisma.labOrder.findFirst({
+        where: {
+          organisationId: safeOrganisationId,
+          provider,
+          idexxOrderId: safeIdexxOrderId,
+        },
+      });
+
+      if (!existing) {
+        throw new LabOrderServiceError("Lab order not found.", 404);
+      }
+
+      const tests = Array.isArray(existing.tests)
+        ? (existing.tests as string[])
+        : [];
+      const ivls = Array.isArray(existing.ivls)
+        ? (existing.ivls as Array<{ serialNumber: string }>)
+        : undefined;
+
+      const result = await adapter.getOrder(idexxOrderId, {
+        organisationId: safeOrganisationId,
+        companionId: existing.companionId,
+        parentId: existing.parentId,
+        tests,
+        modality: existing.modality ?? undefined,
+        ivls,
+      });
+
+      const updated = await prisma.labOrder.update({
+        where: { id: existing.id },
+        data: {
+          status: (result.status as LabOrderStatus) ?? existing.status,
+          externalStatus:
+            result.externalStatus ?? existing.externalStatus ?? null,
+          uiUrl: result.uiUrl ?? existing.uiUrl ?? null,
+          pdfUrl: result.pdfUrl ?? existing.pdfUrl ?? null,
+          responsePayload: toJsonInput(result.responsePayload),
+        },
+      });
+      return updated;
+    }
+
     const existing = await LabOrderModel.findOne({
-      organisationId,
+      organisationId: safeOrganisationId,
       provider,
-      idexxOrderId,
-    });
+      idexxOrderId: safeIdexxOrderId,
+    }).setOptions({ sanitizeFilter: true });
 
     if (!existing) {
       throw new LabOrderServiceError("Lab order not found.", 404);
     }
 
+    const tests = Array.isArray(existing.tests) ? existing.tests : [];
+    const ivls = Array.isArray(existing.ivls) ? existing.ivls : undefined;
+
     const result = await adapter.getOrder(idexxOrderId, {
-      organisationId,
+      organisationId: safeOrganisationId,
       companionId: existing.companionId.toString(),
       parentId: existing.parentId.toString(),
-      tests: existing.tests,
+      tests,
       modality: existing.modality ?? undefined,
-      ivls: existing.ivls ?? undefined,
+      ivls,
     });
 
     if (result.status) {
       existing.status = result.status as LabOrderStatus;
     }
-    existing.externalStatus = result.externalStatus ?? existing.externalStatus ?? null;
+    existing.externalStatus =
+      result.externalStatus ?? existing.externalStatus ?? null;
     existing.uiUrl = result.uiUrl ?? existing.uiUrl ?? null;
     existing.pdfUrl = result.pdfUrl ?? existing.pdfUrl ?? null;
-    existing.responsePayload = result.responsePayload ?? existing.responsePayload ?? null;
+    existing.responsePayload =
+      result.responsePayload ?? existing.responsePayload ?? null;
     await existing.save();
     await syncLabOrderToPostgres(existing);
     await maybeBillSubmittedOrder(existing);
@@ -387,12 +704,17 @@ export const LabOrderService = {
     if (!provider) {
       throw new LabOrderServiceError("Unsupported lab provider.", 400);
     }
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
+    const safeIdexxOrderId = ensureNonEmptyString(idexxOrderId, "idexxOrderId");
 
     const existing = await LabOrderModel.findOne({
-      organisationId,
+      organisationId: safeOrganisationId,
       provider,
-      idexxOrderId,
-    });
+      idexxOrderId: safeIdexxOrderId,
+    }).setOptions({ sanitizeFilter: true });
 
     if (!existing) {
       throw new LabOrderServiceError("Lab order not found.", 404);
@@ -410,7 +732,7 @@ export const LabOrderService = {
 
     const adapter = getLabOrderAdapter(provider);
     const result = await adapter.updateOrder(idexxOrderId, {
-      organisationId,
+      organisationId: safeOrganisationId,
       companionId: existing.companionId.toString(),
       parentId: existing.parentId.toString(),
       tests: input.tests ?? existing.tests,
@@ -426,11 +748,14 @@ export const LabOrderService = {
     if (result.status) {
       existing.status = result.status as LabOrderStatus;
     }
-    existing.externalStatus = result.externalStatus ?? existing.externalStatus ?? null;
+    existing.externalStatus =
+      result.externalStatus ?? existing.externalStatus ?? null;
     existing.uiUrl = result.uiUrl ?? existing.uiUrl ?? null;
     existing.pdfUrl = result.pdfUrl ?? existing.pdfUrl ?? null;
-    existing.requestPayload = result.requestPayload ?? existing.requestPayload ?? null;
-    existing.responsePayload = result.responsePayload ?? existing.responsePayload ?? null;
+    existing.requestPayload =
+      result.requestPayload ?? existing.requestPayload ?? null;
+    existing.responsePayload =
+      result.responsePayload ?? existing.responsePayload ?? null;
     existing.tests = input.tests ?? existing.tests;
     existing.modality = input.modality ?? existing.modality ?? null;
     existing.ivls = input.ivls ?? existing.ivls ?? null;
@@ -454,12 +779,17 @@ export const LabOrderService = {
     if (!provider) {
       throw new LabOrderServiceError("Unsupported lab provider.", 400);
     }
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
+    const safeIdexxOrderId = ensureNonEmptyString(idexxOrderId, "idexxOrderId");
 
     const existing = await LabOrderModel.findOne({
-      organisationId,
+      organisationId: safeOrganisationId,
       provider,
-      idexxOrderId,
-    });
+      idexxOrderId: safeIdexxOrderId,
+    }).setOptions({ sanitizeFilter: true });
 
     if (!existing) {
       throw new LabOrderServiceError("Lab order not found.", 404);
@@ -467,7 +797,7 @@ export const LabOrderService = {
 
     const adapter = getLabOrderAdapter(provider);
     const result = await adapter.cancelOrder(idexxOrderId, {
-      organisationId,
+      organisationId: safeOrganisationId,
       companionId: existing.companionId.toString(),
       parentId: existing.parentId.toString(),
       tests: existing.tests,
@@ -476,8 +806,10 @@ export const LabOrderService = {
     });
 
     existing.status = (result.status as LabOrderStatus) ?? "CANCELLED";
-    existing.externalStatus = result.externalStatus ?? existing.externalStatus ?? null;
-    existing.responsePayload = result.responsePayload ?? existing.responsePayload ?? null;
+    existing.externalStatus =
+      result.externalStatus ?? existing.externalStatus ?? null;
+    existing.responsePayload =
+      result.responsePayload ?? existing.responsePayload ?? null;
     await existing.save();
     await syncLabOrderToPostgres(existing);
     if (existing.invoiceId) {
@@ -502,30 +834,80 @@ export const LabOrderService = {
     status?: LabOrderStatus;
     limit?: number;
   }) {
-    const { organisationId, appointmentId, companionId, provider, status, limit } =
-      params;
+    const {
+      organisationId,
+      appointmentId,
+      companionId,
+      provider,
+      status,
+      limit,
+    } = params;
 
-    if (!organisationId) {
-      throw new LabOrderServiceError("organisationId is required.", 400);
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
+    const safeAppointmentId = ensureOptionalObjectIdString(
+      appointmentId,
+      "appointmentId",
+    );
+    const safeCompanionId = ensureOptionalObjectIdString(
+      companionId,
+      "companionId",
+    );
+    const safeProvider = ensureOptionalString(provider, "provider");
+    const safeStatus = ensureOptionalStatus(status);
+    const safeLimit =
+      typeof limit === "number" && Number.isFinite(limit) && limit > 0
+        ? Math.floor(limit)
+        : undefined;
+
+    const filter: Record<string, unknown> = {
+      organisationId: safeOrganisationId,
+    };
+    if (safeAppointmentId) {
+      filter.appointmentId = new Types.ObjectId(safeAppointmentId);
     }
-
-    const filter: Record<string, unknown> = { organisationId };
-    if (appointmentId) filter.appointmentId = appointmentId;
-    if (companionId) filter.companionId = companionId;
-    if (provider) {
-      const normalized = normalizeLabProvider(provider);
+    if (safeCompanionId) {
+      filter.companionId = new Types.ObjectId(safeCompanionId);
+    }
+    if (safeProvider) {
+      const normalized = normalizeLabProvider(safeProvider);
       if (!normalized) {
         throw new LabOrderServiceError("Unsupported lab provider.", 400);
       }
       filter.provider = normalized;
     }
-    if (status) filter.status = status;
+    if (safeStatus) filter.status = safeStatus;
+
+    if (isReadFromPostgres()) {
+      const where: Prisma.LabOrderWhereInput = {
+        organisationId: safeOrganisationId,
+      };
+      if (safeAppointmentId) where.appointmentId = safeAppointmentId;
+      if (safeCompanionId) where.companionId = safeCompanionId;
+      if (safeProvider) {
+        const normalized = normalizeLabProvider(safeProvider);
+        if (!normalized) {
+          throw new LabOrderServiceError("Unsupported lab provider.", 400);
+        }
+        where.provider = normalized;
+      }
+      if (safeStatus) where.status = safeStatus;
+
+      return prisma.labOrder.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: safeLimit,
+      });
+    }
 
     const cursor = LabOrderModel.find(filter)
       .sort({ createdAt: -1 })
+      .setOptions({ sanitizeFilter: true })
       .lean();
 
-    if (limit && limit > 0) cursor.limit(limit);
+    if (safeLimit) cursor.limit(safeLimit);
 
     return cursor.exec();
   },

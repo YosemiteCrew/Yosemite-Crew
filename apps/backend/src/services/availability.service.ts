@@ -1,6 +1,6 @@
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc.js";
-import { Types } from "mongoose";
+import mongoose, { Types } from "mongoose";
 import BaseAvailabilityModel, {
   DayOfWeek,
   AvailabilitySlotMongo,
@@ -12,6 +12,7 @@ import { OccupancyModel, type OccupancyDocument } from "src/models/occupancy";
 import { prisma } from "src/config/prisma";
 import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 import { Prisma, OccupancySourceType } from "@prisma/client";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 dayjs.extend(utc);
 
@@ -219,6 +220,9 @@ const syncOccupancyToPostgres = async (doc: {
   }
 };
 
+const isMongoAvailable = () =>
+  mongoose.connection.readyState === mongoose.ConnectionStates.connected;
+
 // Generate Bookablble slots
 export function generateBookableWindows(
   date: string,
@@ -269,11 +273,7 @@ export const AvailabilityService = {
       "organisationId",
     );
     const safeUserId = ensureNonEmptyString(userId, "userId");
-
-    await BaseAvailabilityModel.deleteMany({
-      userId: safeUserId,
-      organisationId: safeOrganisationId,
-    });
+    const usePostgresWrite = isReadFromPostgres() && !isMongoAvailable();
 
     const rows = availabilities.map((a) => ({
       organisationId: safeOrganisationId,
@@ -281,6 +281,37 @@ export const AvailabilityService = {
       dayOfWeek: a.dayOfWeek,
       slots: a.slots,
     }));
+
+    if (usePostgresWrite) {
+      await prisma.baseAvailability.deleteMany({
+        where: { userId: safeUserId, organisationId: safeOrganisationId },
+      });
+      if (rows.length) {
+        await prisma.baseAvailability.createMany({
+          data: rows.map((row) => ({
+            userId: row.userId,
+            organisationId: row.organisationId,
+            dayOfWeek: row.dayOfWeek as never,
+            slots: row.slots as unknown as Prisma.InputJsonValue,
+          })),
+        });
+      }
+
+      const created = await prisma.baseAvailability.findMany({
+        where: { userId: safeUserId, organisationId: safeOrganisationId },
+        orderBy: { dayOfWeek: "asc" },
+      });
+
+      return created.map((row) => ({
+        dayOfWeek: row.dayOfWeek as DayOfWeek,
+        slots: row.slots as unknown as AvailabilitySlotMongo[],
+      }));
+    }
+
+    await BaseAvailabilityModel.deleteMany({
+      userId: safeUserId,
+      organisationId: safeOrganisationId,
+    });
 
     const docs = await BaseAvailabilityModel.insertMany(rows);
     await syncBaseAvailabilityToPostgres(safeOrganisationId, safeUserId, rows);
@@ -294,6 +325,17 @@ export const AvailabilityService = {
     );
     const safeUserId = ensureNonEmptyString(userId, "userId");
 
+    if (isReadFromPostgres()) {
+      const rows = await prisma.baseAvailability.findMany({
+        where: { organisationId: safeOrganisationId, userId: safeUserId },
+        orderBy: { dayOfWeek: "asc" },
+      });
+      return rows.map((row) => ({
+        dayOfWeek: row.dayOfWeek as DayOfWeek,
+        slots: row.slots as unknown as AvailabilitySlotMongo[],
+      }));
+    }
+
     return BaseAvailabilityModel.find({
       organisationId: safeOrganisationId,
       userId: safeUserId,
@@ -306,6 +348,14 @@ export const AvailabilityService = {
       "organisationId",
     );
     const safeUserId = ensureNonEmptyString(userId, "userId");
+    const usePostgresWrite = isReadFromPostgres() && !isMongoAvailable();
+
+    if (usePostgresWrite) {
+      await prisma.baseAvailability.deleteMany({
+        where: { organisationId: safeOrganisationId, userId: safeUserId },
+      });
+      return;
+    }
 
     await BaseAvailabilityModel.deleteMany({
       organisationId: safeOrganisationId,
@@ -391,6 +441,23 @@ export const AvailabilityService = {
     );
     const safeUserId = ensureNonEmptyString(userId, "userId");
     const safeWeekDate = ensureValidDate(weekDate, "weekDate");
+
+    if (isReadFromPostgres()) {
+      const override = await prisma.weeklyAvailabilityOverride.findFirst({
+        where: {
+          userId: safeUserId,
+          organisationId: safeOrganisationId,
+          weekStartDate: normalizeWeekStart(safeWeekDate),
+        },
+      });
+      if (!override) return null;
+      return {
+        overrides: override.overrides as unknown as Array<{
+          dayOfWeek: DayOfWeek;
+          slots: AvailabilitySlotMongo[];
+        }>,
+      };
+    }
 
     return WeeklyAvailabilityOverrideModel.findOne({
       userId: safeUserId,
@@ -532,6 +599,17 @@ export const AvailabilityService = {
     const safeFrom = ensureValidDate(from, "from");
     const safeTo = ensureValidDate(to, "to");
 
+    if (isReadFromPostgres()) {
+      return prisma.occupancy.findMany({
+        where: {
+          userId: safeUserId,
+          organisationId: safeOrganisationId,
+          startTime: { lt: safeTo },
+          endTime: { gt: safeFrom },
+        },
+      });
+    }
+
     return OccupancyModel.find({
       userId: safeUserId,
       organisationId: safeOrganisationId,
@@ -597,11 +675,20 @@ export const AvailabilityService = {
     // Load occupancies for the week
     const weekEnd = dayjs(weekStart).add(7, "day").endOf("day").toDate();
 
-    const occupancies = await OccupancyModel.find({
-      userId: safeUserId,
-      organisationId: safeOrganisationId,
-      $or: [{ startTime: { $lte: weekEnd }, endTime: { $gte: weekStart } }],
-    }).lean();
+    const occupancies = isReadFromPostgres()
+      ? await prisma.occupancy.findMany({
+          where: {
+            userId: safeUserId,
+            organisationId: safeOrganisationId,
+            startTime: { lte: weekEnd },
+            endTime: { gte: weekStart },
+          },
+        })
+      : await OccupancyModel.find({
+          userId: safeUserId,
+          organisationId: safeOrganisationId,
+          $or: [{ startTime: { $lte: weekEnd }, endTime: { $gte: weekStart } }],
+        }).lean();
 
     // Now remove overlapping slots
     for (const occ of occupancies) {
@@ -677,12 +764,22 @@ export const AvailabilityService = {
       today,
     );
 
-    const occupied = await OccupancyModel.exists({
-      organisationId: safeOrganisationId,
-      userId: safeUserId,
-      startTime: { $lte: nowUtc.toDate() },
-      endTime: { $gte: nowUtc.toDate() },
-    });
+    const occupied = isReadFromPostgres()
+      ? await prisma.occupancy.findFirst({
+          where: {
+            organisationId: safeOrganisationId,
+            userId: safeUserId,
+            startTime: { lte: nowUtc.toDate() },
+            endTime: { gte: nowUtc.toDate() },
+          },
+          select: { id: true },
+        })
+      : await OccupancyModel.exists({
+          organisationId: safeOrganisationId,
+          userId: safeUserId,
+          startTime: { $lte: nowUtc.toDate() },
+          endTime: { $gte: nowUtc.toDate() },
+        });
 
     if (occupied) return "Consulting";
 

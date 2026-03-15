@@ -10,10 +10,12 @@ type BookableSlotsPayload = {
   organisationId: string;
   date: string;
 };
-import { AuthenticatedRequest } from "src/middlewares/auth";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { ParentModel } from "src/models/parent";
 import helpers from "src/utils/helper";
+import { prisma } from "src/config/prisma";
+import { isReadFromPostgres } from "src/config/read-switch";
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 const handleError = (error: unknown, res: Response, defaultMessage: string) => {
   if (error instanceof ServiceServiceError) {
@@ -21,15 +23,6 @@ const handleError = (error: unknown, res: Response, defaultMessage: string) => {
   }
   logger.error(defaultMessage, error);
   return res.status(500).json({ message: defaultMessage });
-};
-
-const resolveUserIdFromRequest = (req: Request): string | undefined => {
-  const authRequest = req as AuthenticatedRequest;
-  const headerUserId = req.headers["x-user-id"];
-  if (headerUserId && typeof headerUserId === "string") {
-    return headerUserId;
-  }
-  return authRequest.userId;
 };
 
 export const ServiceController = {
@@ -138,16 +131,39 @@ export const ServiceController = {
         const authUser =
           await AuthUserMobileService.getByProviderUserId(authUserId);
 
-        const parent = await ParentModel.findById(authUser?.parentId);
+        let parentAddress:
+          | {
+              city?: string | null;
+              postalCode?: string | null;
+            }
+          | null
+          | undefined;
 
-        if (!parent?.address?.city || !parent?.address?.postalCode) {
+        if (isReadFromPostgres()) {
+          const parentId =
+            typeof authUser?.parentId === "string"
+              ? authUser.parentId
+              : authUser?.parentId?.toString();
+          const parent = parentId
+            ? await prisma.parent.findFirst({
+                where: { id: parentId },
+                include: { address: true },
+              })
+            : null;
+          parentAddress = parent?.address ?? null;
+        } else {
+          const parent = await ParentModel.findById(authUser?.parentId);
+          parentAddress = parent?.address;
+        }
+
+        if (!parentAddress?.city || !parentAddress?.postalCode) {
           return res.status(400).json({
             message:
               "Location not provided and user has no saved city/pincode.",
           });
         }
 
-        const query = `${parent.address.city} ${parent.address.postalCode}`;
+        const query = `${parentAddress.city} ${parentAddress.postalCode}`;
 
         // 2a. Geocode city + pincode → lat/lng
         const geo = (await helpers.getGeoLocation(query)) as {

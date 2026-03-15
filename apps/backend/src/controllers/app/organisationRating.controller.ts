@@ -1,17 +1,8 @@
 import { Request, Response } from "express";
-import { AuthenticatedRequest } from "src/middlewares/auth";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { OrganizationRatingService } from "src/services/organisationReting.service";
 import logger from "src/utils/logger";
-
-const resolveUserIdFromRequest = (req: Request): string | undefined => {
-  const authRequest = req as AuthenticatedRequest;
-  const headerUserId = req.headers["x-user-id"];
-  if (typeof headerUserId === "string") {
-    return headerUserId;
-  }
-  return authRequest.userId;
-};
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 type RatingRequestBody = {
   rating: number;

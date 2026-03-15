@@ -5,18 +5,8 @@ import {
   ParentServiceError,
 } from "../../services/parent.service";
 import type { ParentRequestDTO } from "@yosemite-crew/types";
-import { AuthenticatedRequest } from "src/middlewares/auth";
 import { generatePresignedUrl } from "src/middlewares/upload";
-
-// Resolve UserID
-const resolveUserIdFromRequest = (req: Request): string | undefined => {
-  const authRequest = req as AuthenticatedRequest;
-  const headerUserId = req.headers?.["x-user-id"];
-  if (typeof headerUserId === "string") {
-    return headerUserId;
-  }
-  return authRequest.userId;
-};
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 // Payload checker
 type ParentRequestBody = ParentRequestDTO | { payload?: unknown } | undefined;
@@ -50,16 +40,45 @@ const extractFHIRPayload = (req: Request): ParentRequestDTO => {
   return payload;
 };
 
+const requireAuthUserId = (req: Request, res: Response): string | null => {
+  const authUserId = resolveUserIdFromRequest(req);
+  if (!authUserId) {
+    res.status(401).json({ message: "Authentication required" });
+    return null;
+  }
+  return authUserId;
+};
+
+const requireParentId = (req: Request, res: Response): string | null => {
+  const { id } = req.params;
+  if (!id) {
+    res.status(400).json({ message: "Parent ID is required." });
+    return null;
+  }
+  return id;
+};
+
+const handleParentError = (
+  error: unknown,
+  res: Response,
+  logMessage: string,
+  responseMessage: string,
+) => {
+  if (error instanceof ParentServiceError) {
+    return res.status(error.statusCode).json({ message: error.message });
+  }
+  logger.error(logMessage, error);
+  return res.status(500).json({ message: responseMessage });
+};
+
 export const ParentController = {
   /* ========================================================================
    *  MOBILE CONTROLLERS  (requires req.auth.userId)
    * ======================================================================*/
   createParentMobile: async (req: Request, res: Response) => {
     try {
-      const authUserId = resolveUserIdFromRequest(req);
-      if (!authUserId) {
-        return res.status(401).json({ message: "Authentication required" });
-      }
+      const authUserId = requireAuthUserId(req, res);
+      if (!authUserId) return;
 
       const payload = extractFHIRPayload(req);
       const result = await ParentService.create(payload, {
@@ -69,25 +88,22 @@ export const ParentController = {
 
       return res.status(201).json(result.response);
     } catch (error) {
-      if (error instanceof ParentServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-      logger.error("Failed to create parent (mobile)", error);
-      return res.status(500).json({ message: "Unable to create parent." });
+      return handleParentError(
+        error,
+        res,
+        "Failed to create parent (mobile)",
+        "Unable to create parent.",
+      );
     }
   },
 
   getParentMobile: async (req: Request, res: Response) => {
     try {
-      const authUserId = resolveUserIdFromRequest(req);
-      if (!authUserId) {
-        return res.status(401).json({ message: "Authentication required" });
-      }
+      const authUserId = requireAuthUserId(req, res);
+      if (!authUserId) return;
 
-      const { id } = req.params;
-      if (!id) {
-        return res.status(400).json({ message: "Parent ID is required." });
-      }
+      const id = requireParentId(req, res);
+      if (!id) return;
 
       const result = await ParentService.get(id, {
         source: "mobile",
@@ -100,25 +116,22 @@ export const ParentController = {
 
       return res.status(200).json(result.response);
     } catch (error) {
-      if (error instanceof ParentServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-      logger.error("Failed to fetch parent (mobile)", error);
-      return res.status(500).json({ message: "Unable to fetch parent." });
+      return handleParentError(
+        error,
+        res,
+        "Failed to fetch parent (mobile)",
+        "Unable to fetch parent.",
+      );
     }
   },
 
   updateParentMobile: async (req: Request, res: Response) => {
     try {
-      const authUserId = resolveUserIdFromRequest(req);
-      if (!authUserId) {
-        return res.status(401).json({ message: "Authentication required" });
-      }
+      const authUserId = requireAuthUserId(req, res);
+      if (!authUserId) return;
 
-      const { id } = req.params;
-      if (!id) {
-        return res.status(400).json({ message: "Parent ID is required." });
-      }
+      const id = requireParentId(req, res);
+      if (!id) return;
 
       const payload = extractFHIRPayload(req);
 
@@ -133,25 +146,22 @@ export const ParentController = {
 
       return res.status(200).json(result.response);
     } catch (error) {
-      if (error instanceof ParentServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-      logger.error("Failed to update parent (mobile)", error);
-      return res.status(500).json({ message: "Unable to update parent." });
+      return handleParentError(
+        error,
+        res,
+        "Failed to update parent (mobile)",
+        "Unable to update parent.",
+      );
     }
   },
 
   deleteParentMobile: async (req: Request, res: Response) => {
     try {
-      const authUserId = resolveUserIdFromRequest(req);
-      if (!authUserId) {
-        return res.status(401).json({ message: "Authentication required" });
-      }
+      const authUserId = requireAuthUserId(req, res);
+      if (!authUserId) return;
 
-      const { id } = req.params;
-      if (!id) {
-        return res.status(400).json({ message: "Parent ID is required." });
-      }
+      const id = requireParentId(req, res);
+      if (!id) return;
 
       const deleted = await ParentService.delete(id, {
         source: "mobile",
@@ -164,11 +174,12 @@ export const ParentController = {
 
       return res.status(204).send();
     } catch (error) {
-      if (error instanceof ParentServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-      logger.error("Failed to delete parent (mobile)", error);
-      return res.status(500).json({ message: "Unable to delete parent." });
+      return handleParentError(
+        error,
+        res,
+        "Failed to delete parent (mobile)",
+        "Unable to delete parent.",
+      );
     }
   },
 
@@ -183,20 +194,19 @@ export const ParentController = {
 
       return res.status(201).json(result.response);
     } catch (error) {
-      if (error instanceof ParentServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-      logger.error("Failed to create parent (PMS)", error);
-      return res.status(500).json({ message: "Unable to create parent." });
+      return handleParentError(
+        error,
+        res,
+        "Failed to create parent (PMS)",
+        "Unable to create parent.",
+      );
     }
   },
 
   getParentPMS: async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
-      if (!id) {
-        return res.status(400).json({ message: "Parent ID is required." });
-      }
+      const id = requireParentId(req, res);
+      if (!id) return;
 
       const result = await ParentService.get(id, {
         source: "pms",
@@ -208,20 +218,19 @@ export const ParentController = {
 
       return res.status(200).json(result.response);
     } catch (error) {
-      if (error instanceof ParentServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-      logger.error("Failed to fetch parent (PMS)", error);
-      return res.status(500).json({ message: "Unable to fetch parent." });
+      return handleParentError(
+        error,
+        res,
+        "Failed to fetch parent (PMS)",
+        "Unable to fetch parent.",
+      );
     }
   },
 
   updateParentPMS: async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
-      if (!id) {
-        return res.status(400).json({ message: "Parent ID is required." });
-      }
+      const id = requireParentId(req, res);
+      if (!id) return;
 
       const payload = extractFHIRPayload(req);
 
@@ -235,20 +244,19 @@ export const ParentController = {
 
       return res.status(200).json(result.response);
     } catch (error) {
-      if (error instanceof ParentServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-      logger.error("Failed to update parent (PMS)", error);
-      return res.status(500).json({ message: "Unable to update parent." });
+      return handleParentError(
+        error,
+        res,
+        "Failed to update parent (PMS)",
+        "Unable to update parent.",
+      );
     }
   },
 
   deleteParentPMS: async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
-      if (!id) {
-        return res.status(400).json({ message: "Parent ID is required." });
-      }
+      const id = requireParentId(req, res);
+      if (!id) return;
 
       const deleted = await ParentService.delete(id, {
         source: "pms",
@@ -260,11 +268,12 @@ export const ParentController = {
 
       return res.status(204).send();
     } catch (error) {
-      if (error instanceof ParentServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-      logger.error("Failed to delete parent (PMS)", error);
-      return res.status(500).json({ message: "Unable to delete parent." });
+      return handleParentError(
+        error,
+        res,
+        "Failed to delete parent (PMS)",
+        "Unable to delete parent.",
+      );
     }
   },
 
@@ -282,12 +291,12 @@ export const ParentController = {
 
       return res.status(200).json(result.responses);
     } catch (error) {
-      if (error instanceof ParentServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-
-      logger.error("Failed to search companion by name", error);
-      return res.status(500).json({ message: "Unable to search companions." });
+      return handleParentError(
+        error,
+        res,
+        "Failed to search companion by name",
+        "Unable to search companions.",
+      );
     }
   },
 

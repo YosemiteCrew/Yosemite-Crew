@@ -5,6 +5,8 @@ import logger from "src/utils/logger";
 import { MerckService, MerckServiceError } from "src/services/merck.service";
 import { mapAxiosError } from "src/utils/external-error";
 import UserProfileModel from "src/models/user-profile";
+import { prisma } from "src/config/prisma";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 export const MerckController = {
   async searchManuals(req: Request, res: Response) {
@@ -13,6 +15,17 @@ export const MerckController = {
       const orgReq = req as OrgRequest;
       const organisationId = orgReq.organisationId ?? req.params.organisationId;
       if (!organisationId) {
+        return res.status(400).json({
+          message: "organisationId is required.",
+          code: "MERCK_SEARCH_FAILED",
+          requestId,
+        });
+      }
+      const safeOrganisationId =
+        typeof organisationId === "string" && organisationId.trim()
+          ? organisationId
+          : null;
+      if (!safeOrganisationId) {
         return res.status(400).json({
           message: "organisationId is required.",
           code: "MERCK_SEARCH_FAILED",
@@ -35,20 +48,33 @@ export const MerckController = {
         timezone,
       } = query;
 
-      const userId = orgReq.userId;
+      const userId =
+        typeof orgReq.userId === "string" && orgReq.userId.trim()
+          ? orgReq.userId
+          : null;
       let resolvedTimezone = timezone;
       if (!resolvedTimezone && userId) {
-        const profile = await UserProfileModel.findOne({
-          userId,
-          organizationId: organisationId,
-        })
-          .select({ "personalDetails.timezone": 1 })
-          .lean();
-        resolvedTimezone = profile?.personalDetails?.timezone;
+        const profile = isReadFromPostgres()
+          ? await prisma.userProfile.findFirst({
+              where: { userId, organizationId: safeOrganisationId },
+              select: { personalDetails: true },
+            })
+          : await UserProfileModel.findOne({
+              userId,
+              organizationId: safeOrganisationId,
+            })
+              .setOptions({ sanitizeFilter: true })
+              .select({ "personalDetails.timezone": 1 })
+              .lean();
+        const personalDetails = profile?.personalDetails as
+          | { timezone?: string }
+          | null
+          | undefined;
+        resolvedTimezone = personalDetails?.timezone;
       }
 
       const result = await MerckService.search({
-        organisationId,
+        organisationId: safeOrganisationId,
         query: q ?? "",
         audience: audience as "PROV" | "PAT" | undefined,
         language: language as "en" | "es" | undefined,

@@ -12,7 +12,12 @@ import type {
 } from "@yosemite-crew/types";
 import { prisma } from "src/config/prisma";
 import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
-import { Prisma, ParentCompanionRole as PrismaParentCompanionRole, ParentCompanionStatus as PrismaParentCompanionStatus } from "@prisma/client";
+import {
+  Prisma,
+  ParentCompanionRole as PrismaParentCompanionRole,
+  ParentCompanionStatus as PrismaParentCompanionStatus,
+} from "@prisma/client";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 export class ParentCompanionServiceError extends Error {
   constructor(
@@ -87,9 +92,7 @@ const toPrismaParentCompanionData = (doc: ParentCompanionDocument) => {
   };
 };
 
-const syncParentCompanionToPostgres = async (
-  doc: ParentCompanionDocument,
-) => {
+const syncParentCompanionToPostgres = async (doc: ParentCompanionDocument) => {
   if (!shouldDualWrite) return;
   try {
     const data = toPrismaParentCompanionData(doc);
@@ -102,6 +105,45 @@ const syncParentCompanionToPostgres = async (
     handleDualWriteError("ParentCompanion", err);
   }
 };
+
+const toCompanionParentLinkFromPrisma = (
+  doc: {
+    id: string;
+    parentId: string;
+    role: PrismaParentCompanionRole;
+    status: PrismaParentCompanionStatus;
+    permissions: Prisma.JsonValue;
+    invitedByParentId: string | null;
+    acceptedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+  },
+  parent?: {
+    firstName: string;
+    lastName: string | null;
+    email: string;
+    phoneNumber: string | null;
+    profileImageUrl: string | null;
+  },
+): CompanionParentLink => ({
+  parentId: doc.parentId,
+  role: doc.role as ParentCompanionRole,
+  status: doc.status as ParentCompanionStatus,
+  permissions: doc.permissions as unknown as ParentCompanionPermissions,
+  invitedByParentId: doc.invitedByParentId ?? undefined,
+  acceptedAt: doc.acceptedAt?.toISOString(),
+  createdAt: doc.createdAt?.toISOString(),
+  updatedAt: doc.updatedAt?.toISOString(),
+  parent: parent
+    ? {
+        firstName: parent.firstName,
+        lastName: parent.lastName ?? "",
+        email: parent.email,
+        phoneNumber: parent.phoneNumber ?? "",
+        profileImageUrl: parent.profileImageUrl ?? "",
+      }
+    : undefined,
+});
 
 // Types
 
@@ -420,6 +462,27 @@ export const ParentCompanionService = {
   async getLinksForCompanion(
     companionId: Types.ObjectId,
   ): Promise<CompanionParentLink[]> {
+    if (isReadFromPostgres()) {
+      const links = await prisma.parentCompanion.findMany({
+        where: { companionId: companionId.toString() },
+      });
+      const parentIds = Array.from(new Set(links.map((l) => l.parentId)));
+      const parents = await prisma.parent.findMany({
+        where: { id: { in: parentIds } },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phoneNumber: true,
+          profileImageUrl: true,
+        },
+      });
+      const parentMap = new Map(parents.map((p) => [p.id, p]));
+      return links.map((link) =>
+        toCompanionParentLinkFromPrisma(link, parentMap.get(link.parentId)),
+      );
+    }
     const documents = await ParentCompanionModel.find({ companionId }, null, {
       sanitizeFilter: true,
     }).populate(
@@ -436,6 +499,12 @@ export const ParentCompanionService = {
   async getLinksForParent(
     parentId: Types.ObjectId,
   ): Promise<CompanionParentLink[]> {
+    if (isReadFromPostgres()) {
+      const links = await prisma.parentCompanion.findMany({
+        where: { parentId: parentId.toString() },
+      });
+      return links.map((link) => toCompanionParentLinkFromPrisma(link));
+    }
     const documents = await ParentCompanionModel.find({ parentId }, null, {
       lean: false,
       sanitizeFilter: true,
@@ -451,6 +520,16 @@ export const ParentCompanionService = {
   async getActiveCompanionIdsForParent(
     parentId: Types.ObjectId,
   ): Promise<Types.ObjectId[]> {
+    if (isReadFromPostgres()) {
+      const links = await prisma.parentCompanion.findMany({
+        where: {
+          parentId: parentId.toString(),
+          status: { in: ["ACTIVE", "PENDING"] },
+        },
+        select: { companionId: true },
+      });
+      return links.map((link) => new Types.ObjectId(link.companionId));
+    }
     const documents = await ParentCompanionModel.find(
       { parentId, status: { $in: ["ACTIVE", "PENDING"] } },
       { companionId: 1 },
@@ -464,6 +543,12 @@ export const ParentCompanionService = {
    * Useful before deleting a parent record.
    */
   async hasAnyLinks(parentId: Types.ObjectId): Promise<boolean> {
+    if (isReadFromPostgres()) {
+      const count = await prisma.parentCompanion.count({
+        where: { parentId: parentId.toString() },
+      });
+      return count > 0;
+    }
     const count = await ParentCompanionModel.countDocuments({ parentId });
     return count > 0;
   },
@@ -515,6 +600,24 @@ export const ParentCompanionService = {
     parentId: Types.ObjectId,
     companionId: Types.ObjectId,
   ): Promise<void> {
+    if (isReadFromPostgres()) {
+      const link = await prisma.parentCompanion.findFirst({
+        where: {
+          parentId: parentId.toString(),
+          companionId: companionId.toString(),
+          role: "PRIMARY",
+          status: "ACTIVE",
+        },
+        select: { id: true },
+      });
+      if (!link) {
+        throw new ParentCompanionServiceError(
+          "You are not authorized to modify this companion.",
+          403,
+        );
+      }
+      return;
+    }
     const link = await ParentCompanionModel.findOne(
       { parentId, companionId, role: "PRIMARY", status: "ACTIVE" },
       null,

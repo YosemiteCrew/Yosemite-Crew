@@ -3,6 +3,8 @@ import * as errors from "@documenso/sdk-typescript/models/errors/index.js";
 import axios from "axios";
 import { Types } from "mongoose";
 import OrganizationModel from "src/models/organization";
+import { prisma } from "src/config/prisma";
+import { isReadFromPostgres } from "src/config/read-switch";
 import logger from "src/utils/logger";
 
 // Replace with your self-hosted instance's URL, e.g., https://your-documenso-domain.com
@@ -224,6 +226,17 @@ export class DocumensoService {
   }
 
   static async resolveOrganisationApiKey(organisationId: string) {
+    if (isReadFromPostgres()) {
+      const organisation = await prisma.organization.findFirst({
+        where: {
+          OR: [{ id: organisationId }, { fhirId: organisationId }],
+        },
+        select: { documensoApiKey: true },
+      });
+
+      return organisation?.documensoApiKey ?? null;
+    }
+
     const query = buildOrganizationLookupQuery(organisationId);
 
     if (!query) {

@@ -1,15 +1,18 @@
 import { Request, Response } from "express";
 import logger from "../../utils/logger";
+import { Types } from "mongoose";
 import {
   CompanionOrganisationService,
   CompanionOrganisationServiceError,
 } from "../../services/companion-organisation.service";
-import { AuthenticatedRequest } from "../../middlewares/auth";
 import { ParentService } from "src/services/parent.service";
 import OrganizationModel, {
   type OrganizationMongo,
 } from "src/models/organization";
+import { prisma } from "src/config/prisma";
+import { isReadFromPostgres } from "src/config/read-switch";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 type OrganisationType = OrganizationMongo["type"];
 
@@ -105,12 +108,13 @@ const parseInviteResolutionPayload = (
   return { token, organisationId };
 };
 
-const resolveUserIdFromRequest = (req: Request): string | undefined => {
-  const authReq = req as AuthenticatedRequest;
-  const headerUserId = req.headers?.["x-user-id"];
-  if (typeof headerUserId === "string") return headerUserId;
-  if (authReq.userId) return authReq.userId;
-  return authReq.userId;
+const resolveParentId = (parent: {
+  id?: string;
+  _id?: { toString(): string };
+}): string => {
+  if ("id" in parent && typeof parent.id === "string") return parent.id;
+  if ("_id" in parent && parent._id) return parent._id.toString();
+  throw new Error("Parent id missing");
 };
 
 export const CompanionOrganisationController = {
@@ -163,7 +167,9 @@ export const CompanionOrganisationController = {
           .json({ message: "CompanionId and OrganisationId is required." });
       }
 
-      const organisation = await OrganizationModel.findById(organisationId);
+      const organisation = isReadFromPostgres()
+        ? await prisma.organization.findFirst({ where: { id: organisationId } })
+        : await OrganizationModel.findById(organisationId);
       if (!organisation || !isOrganisationType(organisation.type)) {
         return res
           .status(404)
@@ -206,7 +212,7 @@ export const CompanionOrganisationController = {
       const { linkId } = req.params;
 
       const updatedLink = await CompanionOrganisationService.parentApproveLink(
-        requestingParent._id,
+        new Types.ObjectId(resolveParentId(requestingParent)),
         linkId,
       );
 
@@ -240,7 +246,7 @@ export const CompanionOrganisationController = {
       }
 
       await CompanionOrganisationService.sendInvite({
-        parentId: parent._id,
+        parentId: resolveParentId(parent),
         ...invitePayload,
       });
 
@@ -275,7 +281,7 @@ export const CompanionOrganisationController = {
       const { linkId } = req.params;
 
       const updatedLink = await CompanionOrganisationService.parentRejectLink(
-        requestingParent._id,
+        new Types.ObjectId(resolveParentId(requestingParent)),
         linkId,
       );
 

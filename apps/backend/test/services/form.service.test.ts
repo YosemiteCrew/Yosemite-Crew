@@ -12,6 +12,11 @@ import OrganizationModel from "../../src/models/organization";
 import UserModel from "../../src/models/user";
 import { DocumensoService } from "../../src/services/documenso.service";
 import { AuditTrailService } from "../../src/services/audit-trail.service";
+import { prisma } from "src/config/prisma";
+import {
+  buildPdfViewModel,
+  renderPdf,
+} from "../../src/services/formPDF.service";
 
 // --- MOCK SETUP ---
 jest.mock("../../src/models/form", () => ({
@@ -80,6 +85,42 @@ jest.mock("../../src/services/formPDF.service", () => ({
   renderPdf: jest.fn(),
 }));
 
+jest.mock("src/config/prisma", () => ({
+  prisma: {
+    form: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      findMany: jest.fn(),
+      upsert: jest.fn(),
+    },
+    formField: {
+      deleteMany: jest.fn(),
+      createMany: jest.fn(),
+    },
+    formVersion: {
+      findFirst: jest.fn(),
+      create: jest.fn(),
+    },
+    formSubmission: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+    },
+    appointment: {
+      updateMany: jest.fn(),
+      findUnique: jest.fn(),
+    },
+    organization: {
+      findUnique: jest.fn(),
+    },
+    user: {
+      findMany: jest.fn(),
+    },
+  },
+}));
+
 jest.mock("@yosemite-crew/types", () => ({
   fromFormRequestDTO: jest.fn((x) => x),
   toFormResponseDTO: jest.fn((x) => x),
@@ -110,6 +151,7 @@ describe("FormService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.restoreAllMocks();
+    process.env.READ_FROM_POSTGRES = "false";
   });
 
   describe("FormServiceError & Helpers", () => {
@@ -198,6 +240,49 @@ describe("FormService", () => {
       expect(anyRes.createdBy).toBe("John Doe");
       expect(anyRes.updatedBy).toBe("u2");
     });
+
+    it("creates form using prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      const req: any = {
+        name: "Form A",
+        category: "Cat",
+        visibilityType: "Internal",
+        schema: [{ id: "f1", type: "text", label: "L" }],
+      };
+
+      (prisma.form.create as jest.Mock).mockResolvedValue({
+        id: validId,
+        orgId: validId,
+        businessType: null,
+        name: "Form A",
+        category: "Cat",
+        description: null,
+        visibilityType: "Internal",
+        serviceId: [],
+        speciesFilter: [],
+        requiredSigner: null,
+        status: "draft",
+        schema: req.schema,
+        createdBy: "u1",
+        updatedBy: "u1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (prisma.formField.deleteMany as jest.Mock).mockResolvedValue({
+        count: 0,
+      });
+      (prisma.formField.createMany as jest.Mock).mockResolvedValue({
+        count: 1,
+      });
+      (prisma.user.findMany as jest.Mock).mockResolvedValue([
+        { userId: "u1", firstName: "John", lastName: "Doe" },
+      ]);
+
+      const res = await FormService.create(validId, req, "u1");
+      const anyRes = res as any;
+      expect(prisma.form.create).toHaveBeenCalled();
+      expect(anyRes.createdBy).toBe("John Doe");
+    });
   });
 
   describe("getFormForAdmin", () => {
@@ -224,6 +309,36 @@ describe("FormService", () => {
       );
       const anyRes = res as any;
       expect(anyRes.createdBy).toBe("u1");
+    });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      const orgId = new Types.ObjectId().toString();
+      const formId = new Types.ObjectId().toString();
+      (prisma.form.findFirst as jest.Mock).mockResolvedValue({
+        id: formId,
+        orgId,
+        businessType: null,
+        name: "Form",
+        category: "Cat",
+        description: null,
+        visibilityType: "Internal",
+        serviceId: [],
+        speciesFilter: [],
+        requiredSigner: null,
+        status: "draft",
+        schema: [],
+        createdBy: "u1",
+        updatedBy: "u1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (prisma.user.findMany as jest.Mock).mockResolvedValue([
+        { userId: "u1", firstName: "John", lastName: "Doe" },
+      ]);
+
+      const res = await FormService.getFormForAdmin(orgId, formId);
+      expect((res as any).createdBy).toBe("John Doe");
     });
   });
 
@@ -261,6 +376,28 @@ describe("FormService", () => {
       const anyRes = res as any;
       expect(anyRes.orgId).toBe(""); // Client stripping
       expect(anyRes.visibilityType).toBe("External");
+    });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      const formId = new Types.ObjectId().toString();
+      (prisma.formVersion.findFirst as jest.Mock).mockResolvedValue({
+        formId,
+        version: 1,
+        schemaSnapshot: [],
+      });
+      (prisma.form.findUnique as jest.Mock).mockResolvedValue({
+        id: formId,
+        businessType: null,
+        requiredSigner: null,
+        status: "published",
+        visibilityType: "External",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const res = await FormService.getFormForUser(formId);
+      expect((res as any).status).toBe("published");
     });
   });
 
@@ -301,6 +438,63 @@ describe("FormService", () => {
       expect(existing.save).toHaveBeenCalled();
       expect(existing.status).toBe("draft");
     });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.form.findUnique as jest.Mock).mockResolvedValue({
+        id: validId,
+        orgId: "o",
+        name: "Old",
+        category: "Cat",
+        description: null,
+        visibilityType: "Internal",
+        serviceId: [],
+        speciesFilter: [],
+        businessType: null,
+        requiredSigner: null,
+        status: "draft",
+        schema: [],
+        createdBy: "u1",
+        updatedBy: "u1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (prisma.form.update as jest.Mock).mockResolvedValue({
+        id: validId,
+        orgId: "o",
+        name: "New",
+        category: "Cat",
+        description: null,
+        visibilityType: "Internal",
+        serviceId: [],
+        speciesFilter: [],
+        businessType: null,
+        requiredSigner: null,
+        status: "draft",
+        schema: [],
+        createdBy: "u1",
+        updatedBy: "u1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (prisma.formField.deleteMany as jest.Mock).mockResolvedValue({
+        count: 0,
+      });
+      (prisma.formField.createMany as jest.Mock).mockResolvedValue({
+        count: 0,
+      });
+      (prisma.user.findMany as jest.Mock).mockResolvedValue([
+        { userId: "u1", firstName: "John", lastName: "Doe" },
+      ]);
+
+      const res = await FormService.update(
+        validId,
+        { name: "New", schema: [] } as any,
+        "u1",
+        "o",
+      );
+      expect((res as any).createdBy).toBe("John Doe");
+    });
   });
 
   describe("publish, unpublish, archive", () => {
@@ -339,6 +533,46 @@ describe("FormService", () => {
       (FormModel.findById as jest.Mock).mockResolvedValueOnce(form);
       await FormService.archive(validId, "u");
       expect(form.status).toBe("archived");
+    });
+
+    it("publish uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.form.findUnique as jest.Mock).mockResolvedValue({
+        id: validId,
+        schema: [],
+      });
+      (prisma.formVersion.findFirst as jest.Mock).mockResolvedValue({
+        version: 1,
+      });
+      (prisma.formVersion.create as jest.Mock).mockResolvedValue({});
+      (prisma.form.update as jest.Mock).mockResolvedValue({});
+
+      const res = await FormService.publish(validId, "u");
+      expect(res.version).toBe(2);
+    });
+
+    it("unpublish uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.form.findUnique as jest.Mock).mockResolvedValue({ id: validId });
+      (prisma.form.update as jest.Mock).mockResolvedValue({
+        id: validId,
+        status: "draft",
+      });
+
+      const res = await FormService.unpublish(validId, "u");
+      expect((res as any).status).toBe("draft");
+    });
+
+    it("archive uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.form.findUnique as jest.Mock).mockResolvedValue({ id: validId });
+      (prisma.form.update as jest.Mock).mockResolvedValue({
+        id: validId,
+        status: "archived",
+      });
+
+      const res = await FormService.archive(validId, "u");
+      expect((res as any).status).toBe("archived");
     });
   });
 
@@ -400,6 +634,34 @@ describe("FormService", () => {
         expect.objectContaining({ actorType: "SYSTEM" }),
       );
     });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.formSubmission.create as jest.Mock).mockResolvedValue({
+        id: "sub-1",
+      });
+      (prisma.appointment.updateMany as jest.Mock).mockResolvedValue({
+        count: 1,
+      });
+      (prisma.form.findUnique as jest.Mock).mockResolvedValue({
+        id: validId,
+        orgId: "org-1",
+        name: "Form",
+      });
+
+      await FormService.submitFHIR(
+        {
+          formId: validId,
+          appointmentId: validId,
+          companionId: validId,
+          parentId: validId,
+        } as any,
+        [],
+      );
+
+      expect(prisma.formSubmission.create).toHaveBeenCalled();
+      expect(AuditTrailService.recordSafely).toHaveBeenCalled();
+    });
   });
 
   describe("getSubmission & listSubmissions & autoSend", () => {
@@ -443,12 +705,48 @@ describe("FormService", () => {
       await FormService.getSubmission(validId);
     });
 
+    it("getSubmission uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      const submittedAt = new Date();
+      (prisma.formSubmission.findUnique as jest.Mock).mockResolvedValue({
+        id: "sub-1",
+        formId: validId,
+        formVersion: 1,
+        submittedAt,
+        answers: { a: 1 },
+      });
+      (prisma.formVersion.findFirst as jest.Mock).mockResolvedValue({
+        schemaSnapshot: [],
+      });
+
+      const res = await FormService.getSubmission(validId);
+      expect(res).toEqual(
+        expect.objectContaining({
+          _id: "sub-1",
+          formId: validId,
+          formVersion: 1,
+          answers: { a: 1 },
+          submittedAt,
+        }),
+      );
+    });
+
     it("listSubmissions: works", async () => {
       (FormSubmissionModel.find as jest.Mock).mockReturnValueOnce(
         createChainable([]),
       );
       await FormService.listSubmissions(validId);
       expect(FormSubmissionModel.find).toHaveBeenCalled();
+    });
+
+    it("listSubmissions uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.formSubmission.findMany as jest.Mock).mockResolvedValue([
+        { id: "sub-1" },
+      ]);
+
+      const res = await FormService.listSubmissions(validId);
+      expect(res).toEqual([{ id: "sub-1" }]);
     });
 
     it("getAutoSendForms: builds correct filter with serviceId", async () => {
@@ -468,12 +766,50 @@ describe("FormService", () => {
       });
     });
 
+    it("getAutoSendForms uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.form.findMany as jest.Mock).mockResolvedValue([{ id: "f1" }]);
+
+      const res = await FormService.getAutoSendForms(validId, "s1");
+      expect(res).toEqual([{ id: "f1" }]);
+    });
+
     it("listFormsForOrganisation: works", async () => {
       (FormModel.find as jest.Mock).mockReturnValueOnce(
         createChainable([{ createdBy: "u" }]),
       );
       (UserModel.find as jest.Mock).mockReturnValueOnce(createChainable([]));
       await FormService.listFormsForOrganisation(validId);
+    });
+
+    it("listFormsForOrganisation uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.form.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: validId,
+          orgId: validId,
+          businessType: null,
+          name: "Form",
+          category: "Cat",
+          description: null,
+          visibilityType: "Internal",
+          serviceId: [],
+          speciesFilter: [],
+          requiredSigner: null,
+          status: "draft",
+          schema: [],
+          createdBy: "u1",
+          updatedBy: "u1",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ]);
+      (prisma.user.findMany as jest.Mock).mockResolvedValue([
+        { userId: "u1", firstName: "John", lastName: "Doe" },
+      ]);
+
+      const res = await FormService.listFormsForOrganisation(validId);
+      expect(res).toHaveLength(1);
     });
 
     it("listFormsForOrganisation: handles empty forms gracefully", async () => {
@@ -573,6 +909,19 @@ describe("FormService", () => {
       const anyNotes = res.soapNotes as any;
       expect(anyNotes.Objective).toHaveLength(2); // Does not slice
     });
+
+    it("uses prisma when READ_FROM_POSTGRES is true (non-hospital)", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
+        organisationId: "org-x",
+      });
+      (prisma.organization.findUnique as jest.Mock).mockResolvedValue({
+        type: "GROOMER",
+      });
+
+      const res = await FormService.getSOAPNotesByAppointment(validId);
+      expect(res.soapNotes).toEqual({});
+    });
   });
 
   describe("getConsentFormForParent", () => {
@@ -634,6 +983,30 @@ describe("FormService", () => {
         }),
       );
     });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.form.findFirst as jest.Mock).mockResolvedValue({
+        id: validId,
+        orgId: validId,
+        businessType: null,
+        name: "Consent",
+        category: "Consent",
+        description: null,
+        visibilityType: "External",
+        serviceId: [],
+        speciesFilter: [],
+        status: "published",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (prisma.formVersion.findFirst as jest.Mock).mockResolvedValue({
+        schemaSnapshot: [],
+      });
+
+      const res = await FormService.getConsentFormForParent(validId);
+      expect((res as any).category).toBe("Consent");
+    });
   });
 
   describe("generatePDFForSubmission", () => {
@@ -681,6 +1054,25 @@ describe("FormService", () => {
       (FormVersionModel.findOne as jest.Mock).mockReturnValueOnce(
         createChainable({}),
       );
+    });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.formSubmission.findUnique as jest.Mock).mockResolvedValue({
+        id: "sub-1",
+        formId: validId,
+        formVersion: 1,
+        submittedAt: new Date(),
+        answers: {},
+      });
+      (prisma.formVersion.findFirst as jest.Mock).mockResolvedValue({
+        schemaSnapshot: [],
+      });
+      (buildPdfViewModel as jest.Mock).mockReturnValue({} as any);
+      (renderPdf as jest.Mock).mockResolvedValue(Buffer.from("pdf"));
+
+      const res = await FormService.generatePDFForSubmission(validId);
+      expect(res).toBeInstanceOf(Buffer);
     });
   });
 

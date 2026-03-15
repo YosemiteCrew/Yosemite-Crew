@@ -11,6 +11,7 @@ import { CognitoService } from "./cognito.service";
 import { OrganizationService } from "./organization.service";
 import { prisma } from "src/config/prisma";
 import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 export class UserServiceError extends Error {
   constructor(
@@ -123,6 +124,20 @@ const toUserDomain = (document: UserDocument): UserDomain => {
   };
 };
 
+const toUserDomainFromPrisma = (user: {
+  userId: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  isActive: boolean;
+}): UserDomain => ({
+  id: user.userId,
+  firstName: user.firstName ?? "",
+  lastName: user.lastName ?? "",
+  email: user.email,
+  isActive: user.isActive,
+});
+
 const syncUserToPostgres = async (doc: UserDocument) => {
   if (!shouldDualWrite) return;
   try {
@@ -203,6 +218,14 @@ export const UserService = {
   async getById(id: unknown): Promise<UserDomain | null> {
     const userId = requireSafeIdentifier(id, "User id");
 
+    if (isReadFromPostgres()) {
+      const user = await prisma.user.findFirst({
+        where: { userId },
+      });
+
+      return user ? toUserDomainFromPrisma(user) : null;
+    }
+
     const document = await UserModel.findOne({ userId }, null, {
       sanitizeFilter: true,
     });
@@ -279,7 +302,9 @@ export const UserService = {
       }
 
       try {
-        await prisma.weeklyAvailabilityOverride.deleteMany({ where: { userId } });
+        await prisma.weeklyAvailabilityOverride.deleteMany({
+          where: { userId },
+        });
       } catch (err) {
         handleDualWriteError("WeeklyAvailabilityOverride delete", err);
       }

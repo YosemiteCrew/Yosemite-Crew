@@ -10,7 +10,9 @@ const prisma = new PrismaClient();
 
 const BATCH_SIZE = Number(process.env.BATCH_SIZE ?? 500);
 const DRY_RUN = process.env.DRY_RUN === "true";
-const ONLY = process.env.ONLY?.split(",").map((s) => s.trim()).filter(Boolean);
+const ONLY = process.env.ONLY?.split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
 const RESET = process.env.RESET === "true";
 
 const modelMappings: Array<{ mongoose: string; prisma: string }> = [
@@ -39,8 +41,14 @@ const modelMappings: Array<{ mongoose: string; prisma: string }> = [
   { mongoose: "InventoryVendor", prisma: "InventoryVendor" },
   { mongoose: "Invoice", prisma: "Invoice" },
   { mongoose: "Notification", prisma: "Notification" },
-  { mongoose: "ObservationToolDefinition", prisma: "ObservationToolDefinition" },
-  { mongoose: "ObservationToolSubmission", prisma: "ObservationToolSubmission" },
+  {
+    mongoose: "ObservationToolDefinition",
+    prisma: "ObservationToolDefinition",
+  },
+  {
+    mongoose: "ObservationToolSubmission",
+    prisma: "ObservationToolSubmission",
+  },
   { mongoose: "Occupancy", prisma: "Occupancy" },
   { mongoose: "OrganizationDocument", prisma: "OrganizationDocument" },
   { mongoose: "OrganisationInvite", prisma: "OrganisationInvite" },
@@ -61,7 +69,10 @@ const modelMappings: Array<{ mongoose: string; prisma: string }> = [
   { mongoose: "User", prisma: "User" },
   { mongoose: "UserOrganization", prisma: "UserOrganization" },
   { mongoose: "UserProfile", prisma: "UserProfile" },
-  { mongoose: "WeeklyAvailabilityOverride", prisma: "WeeklyAvailabilityOverride" },
+  {
+    mongoose: "WeeklyAvailabilityOverride",
+    prisma: "WeeklyAvailabilityOverride",
+  },
   { mongoose: "Organization", prisma: "Organization" },
 ];
 
@@ -222,6 +233,17 @@ const migrateModel = async (
   let orgAddressBatch: Record<string, unknown>[] = [];
   let userProfileAddressBatch: Record<string, unknown>[] = [];
   let processed = 0;
+  let skipped = 0;
+
+  let existingFormIds: Set<string> | null = null;
+  if (
+    prismaName === "FormField" ||
+    prismaName === "FormVersion" ||
+    prismaName === "FormSubmission"
+  ) {
+    const forms = await prisma.form.findMany({ select: { id: true } });
+    existingFormIds = new Set(forms.map((form) => form.id));
+  }
 
   const cursor = model.find().sort({ _id: 1 }).cursor();
   for await (const doc of cursor) {
@@ -239,11 +261,29 @@ const migrateModel = async (
       data[field] = toIdString(value);
     }
 
+    if (
+      prismaName === "FormField" ||
+      prismaName === "FormVersion" ||
+      prismaName === "FormSubmission"
+    ) {
+      const formId = data.formId;
+      if (typeof formId !== "string" || !existingFormIds?.has(formId)) {
+        skipped += 1;
+        continue;
+      }
+    }
+
     batch.push(data);
 
-    if (prismaName === "Document" && Array.isArray(obj.attachments) && data.id) {
+    if (
+      prismaName === "Document" &&
+      Array.isArray(obj.attachments) &&
+      data.id
+    ) {
       const documentId = data.id as string;
-      for (const attachment of obj.attachments as Array<Record<string, unknown>>) {
+      for (const attachment of obj.attachments as Array<
+        Record<string, unknown>
+      >) {
         attachmentBatch.push({
           documentId,
           key: attachment.key,
@@ -280,7 +320,9 @@ const migrateModel = async (
     }
 
     if (prismaName === "UserProfile" && data.id) {
-      const personal = obj.personalDetails as Record<string, unknown> | undefined;
+      const personal = obj.personalDetails as
+        | Record<string, unknown>
+        | undefined;
       const addr = extractAddress(personal?.address);
       if (addr) {
         const addrData = toIdString(addr);
@@ -314,7 +356,10 @@ const migrateModel = async (
             skipDuplicates: true,
           });
         }
-        if (prismaName === "UserProfile" && userProfileAddressBatch.length > 0) {
+        if (
+          prismaName === "UserProfile" &&
+          userProfileAddressBatch.length > 0
+        ) {
           await (prisma as any).userProfileAddress.createMany({
             data: userProfileAddressBatch,
             skipDuplicates: true,
@@ -362,10 +407,16 @@ const migrateModel = async (
     processed += batch.length;
   }
 
+  if (skipped > 0) {
+    console.log(
+      `\nSkipped ${skipped} ${mongooseName} rows due to missing Form.`,
+    );
+  }
   console.log(`\nDone. ${mongooseName}: ${processed}`);
 };
 
 const main = async () => {
+  process.env.MONO;
   const mongoUri = "mongodb://localhost:27017/yosemitecrew";
   if (!mongoUri) {
     throw new Error("MONGODB_URI is not set");
@@ -379,7 +430,9 @@ const main = async () => {
   const { modelFields, modelHasId } = parseSchema(schemaText);
 
   const jobs = ONLY?.length
-    ? modelMappings.filter((m) => ONLY.includes(m.mongoose) || ONLY.includes(m.prisma))
+    ? modelMappings.filter(
+        (m) => ONLY.includes(m.mongoose) || ONLY.includes(m.prisma),
+      )
     : modelMappings;
 
   if (RESET && !DRY_RUN) {
@@ -395,7 +448,7 @@ const main = async () => {
       ),
     );
 
-    const statements = tableNames.map((table) => `TRUNCATE \"${table}\" CASCADE`);
+    const statements = tableNames.map((table) => `TRUNCATE "${table}" CASCADE`);
     console.log(`\nResetting tables (${tableNames.length})...`);
     for (const stmt of statements) {
       await prisma.$executeRawUnsafe(stmt);

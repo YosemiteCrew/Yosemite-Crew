@@ -1,8 +1,14 @@
 // src/middlewares/rbac.ts
 import { NextFunction, Response, Request } from "express";
-import { Permission, ROLE_PERMISSIONS, RoleCode } from "../models/role-permission";
+import {
+  Permission,
+  ROLE_PERMISSIONS,
+  RoleCode,
+} from "../models/role-permission";
 import { AuthenticatedRequest } from "./auth";
 import UserOrganizationModel from "src/models/user-organization";
+import { prisma } from "src/config/prisma";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 export interface OrgRequest extends AuthenticatedRequest {
   userPermissions?: Permission[];
@@ -38,13 +44,23 @@ export function withOrgPermissions() {
 
     try {
       // Matching both raw ID and FHIR-style reference
-      const mapping = await UserOrganizationModel.findOne({
-        practitionerReference: userId,
-        $or: [
-          { organizationReference: orgId },
-          { organizationReference: `Organization/${orgId}` },
-        ],
-      });
+      const mapping = isReadFromPostgres()
+        ? await prisma.userOrganization.findFirst({
+            where: {
+              practitionerReference: userId,
+              OR: [
+                { organizationReference: orgId },
+                { organizationReference: `Organization/${orgId}` },
+              ],
+            },
+          })
+        : await UserOrganizationModel.findOne({
+            practitionerReference: userId,
+            $or: [
+              { organizationReference: orgId },
+              { organizationReference: `Organization/${orgId}` },
+            ],
+          });
 
       if (!mapping) {
         return res.status(403).json({
@@ -53,7 +69,6 @@ export function withOrgPermissions() {
       }
 
       const effectivePermissions = normalizePermissions(
-        // field from your updated UserOrganizationSchema
         (mapping as any).effectivePermissions,
       );
 
@@ -65,6 +80,12 @@ export function withOrgPermissions() {
 
       if (samePermissions(effectivePermissions, computed)) {
         typedReq.userPermissions = effectivePermissions;
+      } else if (isReadFromPostgres()) {
+        await prisma.userOrganization.updateMany({
+          where: { id: (mapping as any).id },
+          data: { effectivePermissions: computed },
+        });
+        typedReq.userPermissions = computed;
       } else {
         const updated = await UserOrganizationModel.findByIdAndUpdate(
           (mapping as any)._id,

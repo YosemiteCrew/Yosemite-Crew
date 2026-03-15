@@ -10,6 +10,7 @@ import {
 } from "../../src/services/base-availability.service";
 import UserOrganizationModel from "src/models/user-organization";
 import { getURLForKey } from "src/middlewares/upload";
+import { prisma } from "src/config/prisma";
 
 // --- Global Mocks Setup ---
 jest.mock("src/middlewares/upload", () => ({
@@ -51,6 +52,20 @@ jest.mock("../../src/services/base-availability.service", () => {
     },
   };
 });
+
+jest.mock("src/config/prisma", () => ({
+  prisma: {
+    userProfile: {
+      findFirst: jest.fn(),
+    },
+    baseAvailability: {
+      findMany: jest.fn(),
+    },
+    userOrganization: {
+      findFirst: jest.fn(),
+    },
+  },
+}));
 
 describe("UserProfileService", () => {
   const mockSave = jest.fn();
@@ -129,6 +144,17 @@ describe("UserProfileService", () => {
           }),
         ).rejects.toThrow(
           new UserProfileServiceError("Invalid user id format.", 400),
+        );
+      });
+
+      it("should throw if organization id format is invalid", async () => {
+        await expect(
+          UserProfileService.create({
+            userId: "u1",
+            organizationId: "bad org",
+          }),
+        ).rejects.toThrow(
+          new UserProfileServiceError("Invalid organization id format.", 400),
         );
       });
     });
@@ -275,6 +301,72 @@ describe("UserProfileService", () => {
             personalDetails: expect.objectContaining({ dateOfBirth: d }),
           }),
         );
+      });
+    });
+
+    describe("optionalTimezone", () => {
+      it("should throw for invalid timezone value", async () => {
+        await expect(
+          UserProfileService.create({
+            userId: "u1",
+            organizationId: "o1",
+            personalDetails: { timezone: "Bad/Zone" },
+          }),
+        ).rejects.toThrow(
+          new UserProfileServiceError(
+            "Timezone must be a valid IANA timezone or UTC offset.",
+            400,
+          ),
+        );
+      });
+
+      it("should normalize combined timezone input to IANA name", async () => {
+        (UserProfileModel.findOne as jest.Mock).mockResolvedValue(null);
+        (UserProfileModel.create as jest.Mock).mockResolvedValue(
+          createMockDoc({
+            personalDetails: {
+              timezone: "Asia/Kolkata",
+              profilePictureUrl: "key",
+            },
+          }),
+        );
+        (BaseAvailabilityService.getByUserId as jest.Mock).mockResolvedValue(
+          [],
+        );
+
+        const res = await UserProfileService.create({
+          userId: "u1",
+          organizationId: "o1",
+          personalDetails: {
+            timezone: "UTC+05:30 - Asia/Kolkata",
+            profilePictureUrl: "key",
+          },
+        });
+
+        expect(res.personalDetails?.timezone).toBe("Asia/Kolkata");
+      });
+
+      it("should accept UTC offsets", async () => {
+        (UserProfileModel.findOne as jest.Mock).mockResolvedValue(null);
+        (UserProfileModel.create as jest.Mock).mockResolvedValue(
+          createMockDoc({
+            personalDetails: {
+              timezone: "UTC+05:30",
+              profilePictureUrl: "key",
+            },
+          }),
+        );
+        (BaseAvailabilityService.getByUserId as jest.Mock).mockResolvedValue(
+          [],
+        );
+
+        const res = await UserProfileService.create({
+          userId: "u1",
+          organizationId: "o1",
+          personalDetails: { timezone: "UTC+05:30", profilePictureUrl: "key" },
+        });
+
+        expect(res.personalDetails?.timezone).toBe("UTC+05:30");
       });
     });
 
@@ -632,6 +724,67 @@ describe("UserProfileService", () => {
       await expect(UserProfileService.getByUserId("u1", "o1")).rejects.toThrow(
         new UserProfileServiceError("err", 404),
       );
+    });
+  });
+
+  describe("getByUserId (postgres)", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.userProfile.findFirst as jest.Mock).mockReset();
+      (prisma.baseAvailability.findMany as jest.Mock).mockReset();
+      (prisma.userOrganization.findFirst as jest.Mock).mockReset();
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("should return null if profile not found", async () => {
+      (prisma.userProfile.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      const res = await UserProfileService.getByUserId("u1", "o1");
+      expect(res).toBeNull();
+    });
+
+    it("should return profile, mapping, and availability", async () => {
+      (prisma.userProfile.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: "profile_1",
+        userId: "u1",
+        organizationId: "o1",
+        personalDetails: null,
+        professionalDetails: null,
+        status: "DRAFT",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        address: null,
+      });
+      (prisma.baseAvailability.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          id: "avail_1",
+          userId: "u1",
+          dayOfWeek: "MONDAY",
+          slots: [{ startTime: "09:00", endTime: "10:00", isAvailable: true }],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ]);
+      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: "map_1",
+        roleCode: "OWNER",
+      });
+
+      const res = await UserProfileService.getByUserId("u1", "o1");
+      expect(res?.mapping).toEqual({
+        id: "map_1",
+        roleCode: "OWNER",
+        _id: "map_1",
+      });
+      expect(res?.baseAvailability.length).toBe(1);
+      expect(
+        res?.profile.personalDetails?.pmsPreferences?.defaultOpenScreen,
+      ).toBe("DASHBOARD");
     });
   });
 

@@ -11,6 +11,7 @@ import CodeMappingModel, {
 import { prisma } from "src/config/prisma";
 import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 import { Prisma } from "@prisma/client";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 export class CodeServiceError extends Error {
   constructor(
@@ -25,9 +26,7 @@ export class CodeServiceError extends Error {
 const syncCodeEntryToPostgres = async (doc: CodeEntryDocument) => {
   if (!shouldDualWrite) return;
   try {
-    const toJsonInput = (
-      value: Record<string, unknown> | null | undefined,
-    ) => {
+    const toJsonInput = (value: Record<string, unknown> | null | undefined) => {
       if (value === null) return Prisma.JsonNull;
       if (value === undefined) return undefined;
       return value as Prisma.InputJsonValue;
@@ -47,9 +46,7 @@ const syncCodeEntryToPostgres = async (doc: CodeEntryDocument) => {
         type: doc.type,
         active: doc.active,
         synonyms:
-          doc.synonyms === null
-            ? Prisma.JsonNull
-            : (doc.synonyms ?? undefined),
+          doc.synonyms === null ? Prisma.JsonNull : (doc.synonyms ?? undefined),
         meta: toJsonInput(doc.meta),
       },
       update: {
@@ -57,9 +54,7 @@ const syncCodeEntryToPostgres = async (doc: CodeEntryDocument) => {
         type: doc.type,
         active: doc.active,
         synonyms:
-          doc.synonyms === null
-            ? Prisma.JsonNull
-            : (doc.synonyms ?? undefined),
+          doc.synonyms === null ? Prisma.JsonNull : (doc.synonyms ?? undefined),
         meta: toJsonInput(doc.meta),
       },
     });
@@ -159,23 +154,64 @@ export const CodeService = {
   }) {
     const { system, type, active, query, limit } = params;
     const filter: Record<string, unknown> = {};
+    const safeSystem =
+      typeof system === "string" && system.trim() ? system : undefined;
+    const safeType = typeof type === "string" && type.trim() ? type : undefined;
+    const safeLimit =
+      typeof limit === "number" && Number.isFinite(limit)
+        ? Math.floor(limit)
+        : undefined;
 
-    if (system) filter.system = system;
-    if (type) filter.type = type;
+    if (safeSystem) filter.system = safeSystem;
+    if (safeType) filter.type = safeType;
     if (typeof active === "boolean") filter.active = active;
 
     if (query) {
-      filter.$or = [
-        { code: new RegExp(query, "i") },
-        { display: new RegExp(query, "i") },
-        { synonyms: new RegExp(query, "i") },
-      ];
+      if (typeof query !== "string") {
+        throw new CodeServiceError("Invalid query", 400);
+      }
+      const trimmedQuery = query.trim();
+      if (trimmedQuery) {
+        const escaped = trimmedQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        filter.$or = [
+          { code: new RegExp(escaped, "i") },
+          { display: new RegExp(escaped, "i") },
+          { synonyms: new RegExp(escaped, "i") },
+        ];
+      }
     }
 
-    const cursor = CodeEntryModel.find(filter).sort({ display: 1 });
+    if (isReadFromPostgres()) {
+      const where: Prisma.CodeEntryWhereInput = {};
+      if (safeSystem) where.system = safeSystem;
+      if (safeType) where.type = safeType;
+      if (typeof active === "boolean") where.active = active;
+      if (query) {
+        if (typeof query !== "string") {
+          throw new CodeServiceError("Invalid query", 400);
+        }
+        const trimmedQuery = query.trim();
+        if (trimmedQuery) {
+          where.OR = [
+            { code: { contains: trimmedQuery, mode: "insensitive" } },
+            { display: { contains: trimmedQuery, mode: "insensitive" } },
+          ];
+        }
+      }
 
-    if (limit && limit > 0) {
-      cursor.limit(limit);
+      return prisma.codeEntry.findMany({
+        where,
+        orderBy: { display: "asc" },
+        take: safeLimit && safeLimit > 0 ? safeLimit : undefined,
+      });
+    }
+
+    const cursor = CodeEntryModel.find(filter)
+      .sort({ display: 1 })
+      .setOptions({ sanitizeFilter: true });
+
+    if (safeLimit && safeLimit > 0) {
+      cursor.limit(safeLimit);
     }
 
     return cursor.lean();
@@ -191,13 +227,46 @@ export const CodeService = {
     const { sourceSystem, sourceCode, targetSystem, targetCode, active } =
       params;
     const filter: Record<string, unknown> = {};
+    const safeSourceSystem =
+      typeof sourceSystem === "string" && sourceSystem.trim()
+        ? sourceSystem
+        : undefined;
+    const safeSourceCode =
+      typeof sourceCode === "string" && sourceCode.trim()
+        ? sourceCode
+        : undefined;
+    const safeTargetSystem =
+      typeof targetSystem === "string" && targetSystem.trim()
+        ? targetSystem
+        : undefined;
+    const safeTargetCode =
+      typeof targetCode === "string" && targetCode.trim()
+        ? targetCode
+        : undefined;
 
-    if (sourceSystem) filter.sourceSystem = sourceSystem;
-    if (sourceCode) filter.sourceCode = sourceCode;
-    if (targetSystem) filter.targetSystem = targetSystem;
-    if (targetCode) filter.targetCode = targetCode;
+    if (safeSourceSystem) filter.sourceSystem = safeSourceSystem;
+    if (safeSourceCode) filter.sourceCode = safeSourceCode;
+    if (safeTargetSystem) filter.targetSystem = safeTargetSystem;
+    if (safeTargetCode) filter.targetCode = safeTargetCode;
     if (typeof active === "boolean") filter.active = active;
 
-    return CodeMappingModel.find(filter).sort({ createdAt: -1 }).lean();
+    if (isReadFromPostgres()) {
+      const where: Prisma.CodeMappingWhereInput = {};
+      if (safeSourceSystem) where.sourceSystem = safeSourceSystem;
+      if (safeSourceCode) where.sourceCode = safeSourceCode;
+      if (safeTargetSystem) where.targetSystem = safeTargetSystem;
+      if (safeTargetCode) where.targetCode = safeTargetCode;
+      if (typeof active === "boolean") where.active = active;
+
+      return prisma.codeMapping.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+      });
+    }
+
+    return CodeMappingModel.find(filter)
+      .sort({ createdAt: -1 })
+      .setOptions({ sanitizeFilter: true })
+      .lean();
   },
 };

@@ -10,6 +10,8 @@ import { Types } from "mongoose";
 import { generatePresignedUrl } from "src/middlewares/upload";
 import { CompanionOrganisationService } from "src/services/companion-organisation.service";
 import OrganizationModel from "src/models/organization";
+import { prisma } from "src/config/prisma";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 type CompanionRequestBody =
   | CompanionRequestDTO
@@ -103,7 +105,7 @@ export const CompanionController = {
 
       // Establish link between PMS and Companion
       if (orgId) {
-        if (!Types.ObjectId.isValid(orgId)) {
+        if (!isReadFromPostgres() && !Types.ObjectId.isValid(orgId)) {
           return res.status(400).json({
             message: "Valid organisationId is required to create companion.",
           });
@@ -117,7 +119,9 @@ export const CompanionController = {
           });
         }
 
-        const organisation = await OrganizationModel.findById(orgId);
+        const organisation = isReadFromPostgres()
+          ? await prisma.organization.findFirst({ where: { id: orgId } })
+          : await OrganizationModel.findById(orgId);
         if (!organisation) {
           return res
             .status(404)

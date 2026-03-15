@@ -3,6 +3,8 @@ import {
   TaskTemplateService,
   TaskTemplateServiceError,
 } from "../../src/services/taskTemplate.service";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError } from "src/utils/dual-write";
 
 type MockedTaskTemplateModel = {
   create: jest.Mock;
@@ -19,6 +21,24 @@ jest.mock("../../src/models/taskTemplate", () => ({
   },
 }));
 
+jest.mock("src/config/prisma", () => ({
+  prisma: {
+    taskTemplate: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      upsert: jest.fn(),
+    },
+  },
+}));
+
+jest.mock("src/utils/dual-write", () => ({
+  shouldDualWrite: true,
+  isDualWriteStrict: false,
+  handleDualWriteError: jest.fn(),
+}));
+
 const mockedModel = TaskTemplateModel as unknown as MockedTaskTemplateModel;
 
 describe("TaskTemplateService", () => {
@@ -27,6 +47,7 @@ describe("TaskTemplateService", () => {
   const otherTemplateId = "507f1f77bcf86cd799439033";
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.READ_FROM_POSTGRES = "false";
   });
 
   describe("create", () => {
@@ -52,6 +73,65 @@ describe("TaskTemplateService", () => {
         }),
       );
       expect(result).toBe(doc);
+    });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.taskTemplate.create as jest.Mock).mockResolvedValue({
+        id: "pg-1",
+      });
+
+      const result = await TaskTemplateService.create({
+        organisationId,
+        category: "Care",
+        name: "Template",
+        kind: "CUSTOM",
+        defaultRole: "EMPLOYEE_TASK",
+        createdBy: "creator-1",
+      });
+
+      expect(prisma.taskTemplate.create).toHaveBeenCalled();
+      expect(result).toEqual({ id: "pg-1" });
+    });
+
+    it("handles dual-write errors", async () => {
+      mockedModel.create.mockResolvedValueOnce({
+        _id: { toString: () => "mongo-1" },
+        organisationId,
+        category: "Care",
+        name: "Template",
+        kind: "CUSTOM",
+        defaultRole: "EMPLOYEE_TASK",
+        createdBy: "creator-1",
+        toObject: jest.fn().mockReturnValue({
+          _id: { toString: () => "mongo-1" },
+          source: "ORG_TEMPLATE",
+          organisationId,
+          category: "Care",
+          name: "Template",
+          kind: "CUSTOM",
+          defaultRole: "EMPLOYEE_TASK",
+          createdBy: "creator-1",
+          isActive: true,
+        }),
+      });
+      (prisma.taskTemplate.upsert as jest.Mock).mockRejectedValue(
+        new Error("sync fail"),
+      );
+
+      await TaskTemplateService.create({
+        organisationId,
+        category: "Care",
+        name: "Template",
+        kind: "CUSTOM",
+        defaultRole: "EMPLOYEE_TASK",
+        createdBy: "creator-1",
+      });
+
+      expect(handleDualWriteError).toHaveBeenCalledWith(
+        "TaskTemplate",
+        expect.any(Error),
+      );
     });
   });
 
@@ -107,6 +187,41 @@ describe("TaskTemplateService", () => {
       expect(doc.isActive).toBe(false);
       expect(save).toHaveBeenCalled();
     });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.taskTemplate.findFirst as jest.Mock).mockResolvedValue({
+        id: "pg-1",
+        category: "Old",
+        name: "Old",
+        description: null,
+        kind: "CUSTOM",
+        defaultRole: "EMPLOYEE_TASK",
+        defaultMedication: null,
+        defaultObservationToolId: null,
+        defaultRecurrence: null,
+        defaultReminderOffsetMinutes: null,
+        isActive: true,
+      });
+      (prisma.taskTemplate.update as jest.Mock).mockResolvedValue({
+        id: "pg-1",
+        name: "New",
+      });
+
+      const result = await TaskTemplateService.update("pg-1", {
+        name: "New",
+        defaultRole: "PARENT",
+      });
+
+      expect(prisma.taskTemplate.update).toHaveBeenCalled();
+      expect(result).toEqual({ id: "pg-1", name: "New" });
+    });
+
+    it("throws for invalid id", async () => {
+      await expect(
+        TaskTemplateService.update("bad-id", { name: "New" }),
+      ).rejects.toThrow("Invalid id");
+    });
   });
 
   describe("archive", () => {
@@ -121,6 +236,20 @@ describe("TaskTemplateService", () => {
 
       expect(doc.isActive).toBe(false);
       expect(save).toHaveBeenCalled();
+    });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.taskTemplate.findFirst as jest.Mock).mockResolvedValue({
+        id: "pg-1",
+      });
+
+      await TaskTemplateService.archive("pg-1");
+
+      expect(prisma.taskTemplate.update).toHaveBeenCalledWith({
+        where: { id: "pg-1" },
+        data: { isActive: false },
+      });
     });
   });
 
@@ -143,6 +272,30 @@ describe("TaskTemplateService", () => {
       expect(sort).toHaveBeenCalledWith({ category: 1, name: 1 });
       expect(result).toEqual([{ _id: "tmpl-3" }]);
     });
+
+    it("throws for invalid kind", async () => {
+      await expect(
+        TaskTemplateService.listForOrganisation(organisationId, "BAD" as any),
+      ).rejects.toThrow("Invalid kind");
+    });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.taskTemplate.findMany as jest.Mock).mockResolvedValue([
+        { id: "pg-1" },
+      ]);
+
+      const result = await TaskTemplateService.listForOrganisation(
+        organisationId,
+        "CUSTOM",
+      );
+
+      expect(prisma.taskTemplate.findMany).toHaveBeenCalledWith({
+        where: { organisationId, isActive: true, kind: "CUSTOM" },
+        orderBy: [{ category: "asc" }, { name: "asc" }],
+      });
+      expect(result).toEqual([{ id: "pg-1" }]);
+    });
   });
 
   describe("getById", () => {
@@ -154,6 +307,16 @@ describe("TaskTemplateService", () => {
       await expect(
         TaskTemplateService.getById(otherTemplateId),
       ).rejects.toBeInstanceOf(TaskTemplateServiceError);
+    });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.taskTemplate.findFirst as jest.Mock).mockResolvedValue({
+        id: "pg-1",
+      });
+
+      const result = await TaskTemplateService.getById("pg-1");
+      expect(result).toEqual({ id: "pg-1" });
     });
   });
 });

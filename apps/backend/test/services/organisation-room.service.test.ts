@@ -1,12 +1,20 @@
 import { Types } from "mongoose";
-import {
-  OrganisationRoomService,
-  OrganisationRoomServiceError,
-} from "../../src/services/organisation-room.service";
+import { OrganisationRoomService } from "../../src/services/organisation-room.service";
 import OrganisationRoomModel from "../../src/models/organisation-room";
+import { prisma } from "src/config/prisma";
 
 // --- Mocks ---
 jest.mock("../../src/models/organisation-room");
+
+jest.mock("src/config/prisma", () => ({
+  prisma: {
+    organisationRoom: {
+      findMany: jest.fn(),
+      upsert: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+  },
+}));
 
 // Mock Types helpers
 jest.mock("@yosemite-crew/types", () => ({
@@ -236,6 +244,43 @@ describe("OrganisationRoomService", () => {
     });
   });
 
+  describe("getAllByOrganizationId (postgres)", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.organisationRoom.findMany as jest.Mock).mockReset();
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("should return list of rooms from prisma", async () => {
+      (prisma.organisationRoom.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          id: new Types.ObjectId().toHexString(),
+          fhirId: null,
+          organisationId: mockOrgId.toHexString(),
+          name: "Room 1",
+          type: "CONSULTATION",
+          assignedStaffs: [],
+          assignedSpecialiteis: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ]);
+
+      const res = await OrganisationRoomService.getAllByOrganizationId(
+        mockOrgId.toHexString(),
+      );
+      expect(res).toHaveLength(1);
+      expect(prisma.organisationRoom.findMany).toHaveBeenCalledWith({
+        where: { organisationId: mockOrgId.toHexString() },
+      });
+    });
+  });
+
   describe("deleteAllByOrganizationId", () => {
     it("should delete all rooms", async () => {
       (OrganisationRoomModel.deleteMany as jest.Mock).mockReturnValue(
@@ -284,6 +329,133 @@ describe("OrganisationRoomService", () => {
       await expect(
         OrganisationRoomService.delete("invalid id with spaces"),
       ).rejects.toThrow("Invalid room identifier format");
+    });
+  });
+
+  describe("dual write", () => {
+    const originalDualWrite = process.env.DUAL_WRITE_ENABLED;
+
+    afterEach(() => {
+      process.env.DUAL_WRITE_ENABLED = originalDualWrite;
+    });
+
+    it("syncs to postgres on create when enabled", async () => {
+      process.env.DUAL_WRITE_ENABLED = "true";
+      jest.resetModules();
+      jest.doMock("src/utils/dual-write", () => ({
+        ...jest.requireActual("src/utils/dual-write"),
+        shouldDualWrite: true,
+      }));
+
+      let OrganisationRoomServiceIsolated!: typeof OrganisationRoomService;
+      let OrganisationRoomModelIsolated!: typeof OrganisationRoomModel;
+      let prismaIsolated!: typeof prisma;
+
+      jest.isolateModules(() => {
+        OrganisationRoomServiceIsolated =
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          require("../../src/services/organisation-room.service").OrganisationRoomService;
+        OrganisationRoomModelIsolated =
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          require("../../src/models/organisation-room").default;
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        prismaIsolated = require("src/config/prisma").prisma;
+      });
+
+      const doc = mockDoc({
+        _id: mockRoomId,
+        organisationId: mockOrgId.toHexString(),
+        name: "Room",
+        type: "CONSULTATION",
+      });
+      (
+        OrganisationRoomModelIsolated.findOneAndUpdate as jest.Mock
+      ).mockReturnValue(mockChain(null));
+      (OrganisationRoomModelIsolated.create as jest.Mock).mockResolvedValue(
+        doc,
+      );
+
+      await OrganisationRoomServiceIsolated.create({
+        ...validPayload,
+        id: undefined,
+      });
+
+      expect(prismaIsolated.organisationRoom.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: mockRoomId.toHexString() } }),
+      );
+    });
+
+    it("deletes from postgres on delete when enabled", async () => {
+      process.env.DUAL_WRITE_ENABLED = "true";
+      jest.resetModules();
+      jest.doMock("src/utils/dual-write", () => ({
+        ...jest.requireActual("src/utils/dual-write"),
+        shouldDualWrite: true,
+      }));
+
+      let OrganisationRoomServiceIsolated!: typeof OrganisationRoomService;
+      let OrganisationRoomModelIsolated!: typeof OrganisationRoomModel;
+      let prismaIsolated!: typeof prisma;
+
+      jest.isolateModules(() => {
+        OrganisationRoomServiceIsolated =
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          require("../../src/services/organisation-room.service").OrganisationRoomService;
+        OrganisationRoomModelIsolated =
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          require("../../src/models/organisation-room").default;
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        prismaIsolated = require("src/config/prisma").prisma;
+      });
+
+      const doc = mockDoc({ ...validPayload, _id: mockRoomId });
+      (
+        OrganisationRoomModelIsolated.findOneAndDelete as jest.Mock
+      ).mockReturnValue(mockChain(doc));
+
+      await OrganisationRoomServiceIsolated.delete(mockRoomId.toHexString());
+
+      expect(prismaIsolated.organisationRoom.deleteMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: mockRoomId.toHexString() } }),
+      );
+    });
+
+    it("deletes all by org in postgres when enabled", async () => {
+      process.env.DUAL_WRITE_ENABLED = "true";
+      jest.resetModules();
+      jest.doMock("src/utils/dual-write", () => ({
+        ...jest.requireActual("src/utils/dual-write"),
+        shouldDualWrite: true,
+      }));
+
+      let OrganisationRoomServiceIsolated!: typeof OrganisationRoomService;
+      let OrganisationRoomModelIsolated!: typeof OrganisationRoomModel;
+      let prismaIsolated!: typeof prisma;
+
+      jest.isolateModules(() => {
+        OrganisationRoomServiceIsolated =
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          require("../../src/services/organisation-room.service").OrganisationRoomService;
+        OrganisationRoomModelIsolated =
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          require("../../src/models/organisation-room").default;
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        prismaIsolated = require("src/config/prisma").prisma;
+      });
+
+      (OrganisationRoomModelIsolated.deleteMany as jest.Mock).mockReturnValue(
+        mockChain({ acknowledged: true }),
+      );
+
+      await OrganisationRoomServiceIsolated.deleteAllByOrganizationId(
+        mockOrgId.toHexString(),
+      );
+
+      expect(prismaIsolated.organisationRoom.deleteMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { organisationId: mockOrgId.toHexString() },
+        }),
+      );
     });
   });
 });

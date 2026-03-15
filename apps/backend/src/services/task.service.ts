@@ -15,6 +15,7 @@ import { sendEmailTemplate } from "../utils/email";
 import logger from "../utils/logger";
 import { prisma } from "src/config/prisma";
 import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import { isReadFromPostgres } from "src/config/read-switch";
 import {
   Prisma,
   TaskAudience as PrismaTaskAudience,
@@ -126,15 +127,18 @@ const toPrismaTaskData = (doc: TaskDocument) => {
     name: obj.name,
     description: obj.description ?? undefined,
     additionalNotes: obj.additionalNotes ?? undefined,
-    medication: (obj.medication ?? undefined) as unknown as Prisma.InputJsonValue,
+    medication: (obj.medication ??
+      undefined) as unknown as Prisma.InputJsonValue,
     observationToolId: obj.observationToolId ?? undefined,
     dueAt: obj.dueAt,
     timezone: obj.timezone ?? undefined,
-    recurrence: (obj.recurrence ?? undefined) as unknown as Prisma.InputJsonValue,
+    recurrence: (obj.recurrence ??
+      undefined) as unknown as Prisma.InputJsonValue,
     reminder: (obj.reminder ?? undefined) as unknown as Prisma.InputJsonValue,
     syncWithCalendar: obj.syncWithCalendar ?? undefined,
     calendarEventId: obj.calendarEventId ?? undefined,
-    attachments: (obj.attachments ?? undefined) as unknown as Prisma.InputJsonValue,
+    attachments: (obj.attachments ??
+      undefined) as unknown as Prisma.InputJsonValue,
     status: obj.status as PrismaTaskStatus,
     completedAt: obj.completedAt ?? undefined,
     completedBy: obj.completedBy ?? undefined,
@@ -157,9 +161,7 @@ const syncTaskToPostgres = async (doc: TaskDocument) => {
   }
 };
 
-const syncTaskCompletionToPostgres = async (
-  doc: TaskCompletionDocument,
-) => {
+const syncTaskCompletionToPostgres = async (doc: TaskCompletionDocument) => {
   if (!shouldDualWrite) return;
   try {
     await prisma.taskCompletion.upsert({
@@ -186,7 +188,10 @@ const syncTaskCompletionToPostgres = async (
 };
 
 const ensureObjectId = (value: unknown, field: string): string => {
-  if (typeof value !== "string" || !Types.ObjectId.isValid(value)) {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new TaskServiceError(`Invalid ${field}`, 400);
+  }
+  if (!isReadFromPostgres() && !Types.ObjectId.isValid(value)) {
     throw new TaskServiceError(`Invalid ${field}`, 400);
   }
   return value;
@@ -713,6 +718,49 @@ export const TaskService = {
       observationToolId: input.observationToolId,
     });
 
+    if (isReadFromPostgres()) {
+      const reminder = input.reminder
+        ? {
+            enabled: input.reminder.enabled,
+            offsetMinutes: input.reminder.offsetMinutes,
+            scheduledNotificationId: undefined,
+          }
+        : undefined;
+
+      const doc = await prisma.task.create({
+        data: {
+          organisationId: input.organisationId ?? undefined,
+          appointmentId: input.appointmentId ?? undefined,
+          companionId: input.companionId ?? undefined,
+          createdBy: input.createdBy,
+          assignedBy: input.assignedBy ?? input.createdBy,
+          assignedTo: input.assignedTo,
+          audience: input.audience as PrismaTaskAudience,
+          source: "CUSTOM",
+          category: input.category,
+          name: input.name,
+          description: input.description ?? undefined,
+          additionalNotes: input.additionalNotes ?? undefined,
+          medication: (sanitizeMedication(input.medication) ??
+            undefined) as unknown as Prisma.InputJsonValue,
+          observationToolId: input.observationToolId ?? undefined,
+          dueAt: input.dueAt,
+          timezone: input.timezone ?? undefined,
+          recurrence: (buildRecurrence(input.recurrence) ??
+            undefined) as unknown as Prisma.InputJsonValue,
+          reminder: (reminder ?? undefined) as unknown as Prisma.InputJsonValue,
+          syncWithCalendar: input.syncWithCalendar ?? false,
+          calendarEventId: undefined,
+          attachments: (input.attachments ??
+            []) as unknown as Prisma.InputJsonValue,
+          status: "PENDING",
+        },
+      });
+
+      void sendTaskAssignmentEmail(doc as unknown as TaskDocument);
+      return doc as unknown as TaskDocument;
+    }
+
     const doc = await TaskModel.create({
       organisationId: input.organisationId,
       appointmentId: input.appointmentId,
@@ -788,6 +836,75 @@ export const TaskService = {
     actorId: string,
     completion?: CompleteTaskInput,
   ): Promise<{ task: TaskDocument; completion?: TaskCompletionDocument }> {
+    if (isReadFromPostgres()) {
+      const task = await prisma.task.findFirst({
+        where: { id: taskId },
+      });
+      if (!task) throw new TaskServiceError("Task not found", 404);
+
+      if (task.assignedTo !== actorId && task.createdBy !== actorId) {
+        throw new TaskServiceError("Not allowed to update this task", 403);
+      }
+
+      if (task.status === "CANCELLED" || task.status === "COMPLETED") {
+        throw new TaskServiceError("Task already finished", 400);
+      }
+
+      let nextStatus: PrismaTaskStatus = task.status;
+      let completedAt: Date | null = task.completedAt ?? null;
+      let completedBy: string | null = task.completedBy ?? null;
+
+      if (newStatus === "IN_PROGRESS" && task.status === "PENDING") {
+        nextStatus = "IN_PROGRESS";
+      } else if (newStatus === "COMPLETED") {
+        nextStatus = "COMPLETED";
+        completedAt = new Date();
+        completedBy = actorId;
+      } else if (newStatus === "CANCELLED") {
+        nextStatus = "CANCELLED";
+      } else if (newStatus === "PENDING") {
+        nextStatus = "PENDING";
+      } else {
+        nextStatus = newStatus as PrismaTaskStatus;
+      }
+
+      let completionDoc: TaskCompletionDocument | undefined;
+
+      if (newStatus === "COMPLETED" && completion?.answers) {
+        if (!task.companionId) {
+          throw new TaskServiceError(
+            "Companion is required for completion.",
+            400,
+          );
+        }
+        const created = await prisma.taskCompletion.create({
+          data: {
+            taskId: task.id,
+            companionId: task.companionId,
+            filledBy: completion.filledBy ?? actorId,
+            answers: completion.answers as unknown as Prisma.InputJsonValue,
+            score: completion.score ?? undefined,
+            summary: completion.summary ?? undefined,
+          },
+        });
+        completionDoc = created as unknown as TaskCompletionDocument;
+      }
+
+      const updated = await prisma.task.update({
+        where: { id: task.id },
+        data: {
+          status: nextStatus,
+          completedAt,
+          completedBy,
+        },
+      });
+
+      return {
+        task: updated as unknown as TaskDocument,
+        completion: completionDoc,
+      };
+    }
+
     const task = await TaskModel.findById(taskId).exec();
     if (!task) throw new TaskServiceError("Task not found", 404);
 
@@ -833,6 +950,12 @@ export const TaskService = {
   },
 
   async getById(taskId: string): Promise<TaskDocument | null> {
+    if (isReadFromPostgres()) {
+      const task = await prisma.task.findFirst({
+        where: { id: taskId },
+      });
+      return (task ?? null) as unknown as TaskDocument | null;
+    }
     return TaskModel.findById(taskId).exec();
   },
 
@@ -846,6 +969,35 @@ export const TaskService = {
     const parentId = asNonEmptyString(params.parentId);
     if (!parentId) {
       throw new TaskServiceError("Invalid parentId");
+    }
+
+    if (isReadFromPostgres()) {
+      const where: Prisma.TaskWhereInput = {
+        audience: "PARENT_TASK",
+        OR: [{ assignedTo: parentId }, { createdBy: parentId }],
+      };
+
+      const companionId = asNonEmptyString(params.companionId);
+      if (companionId) where.companionId = companionId;
+
+      const status = sanitizeStatusList(params.status);
+      if (status) where.status = { in: status as PrismaTaskStatus[] };
+
+      const fromDueAt = isValidDate(params.fromDueAt)
+        ? params.fromDueAt
+        : undefined;
+      const toDueAt = isValidDate(params.toDueAt) ? params.toDueAt : undefined;
+      if (fromDueAt || toDueAt) {
+        where.dueAt = {};
+        if (fromDueAt) where.dueAt.gte = fromDueAt;
+        if (toDueAt) where.dueAt.lte = toDueAt;
+      }
+
+      const tasks = await prisma.task.findMany({
+        where,
+        orderBy: { dueAt: "asc" },
+      });
+      return tasks as unknown as TaskDocument[];
     }
 
     const filter: Record<string, unknown> = {
@@ -884,6 +1036,38 @@ export const TaskService = {
     const organisationId = asNonEmptyString(params.organisationId);
     if (!organisationId) {
       throw new TaskServiceError("Invalid organisationId");
+    }
+
+    if (isReadFromPostgres()) {
+      const where: Prisma.TaskWhereInput = {
+        audience: "EMPLOYEE_TASK",
+        organisationId,
+      };
+
+      const userId = asNonEmptyString(params.userId);
+      if (userId) where.assignedTo = userId;
+
+      const companionId = asNonEmptyString(params.companionId);
+      if (companionId) where.companionId = companionId;
+
+      const status = sanitizeStatusList(params.status);
+      if (status) where.status = { in: status as PrismaTaskStatus[] };
+
+      const fromDueAt = isValidDate(params.fromDueAt)
+        ? params.fromDueAt
+        : undefined;
+      const toDueAt = isValidDate(params.toDueAt) ? params.toDueAt : undefined;
+      if (fromDueAt || toDueAt) {
+        where.dueAt = {};
+        if (fromDueAt) where.dueAt.gte = fromDueAt;
+        if (toDueAt) where.dueAt.lte = toDueAt;
+      }
+
+      const tasks = await prisma.task.findMany({
+        where,
+        orderBy: { dueAt: "asc" },
+      });
+      return tasks as unknown as TaskDocument[];
     }
 
     const filter: Record<string, unknown> = {
@@ -926,6 +1110,34 @@ export const TaskService = {
       throw new TaskServiceError("Invalid companionId");
     }
 
+    if (isReadFromPostgres()) {
+      const where: Prisma.TaskWhereInput = {
+        companionId,
+      };
+
+      const audience = sanitizeAudience(params.audience);
+      if (audience) where.audience = audience;
+
+      const status = sanitizeStatusList(params.status);
+      if (status) where.status = { in: status as PrismaTaskStatus[] };
+
+      const fromDueAt = isValidDate(params.fromDueAt)
+        ? params.fromDueAt
+        : undefined;
+      const toDueAt = isValidDate(params.toDueAt) ? params.toDueAt : undefined;
+      if (fromDueAt || toDueAt) {
+        where.dueAt = {};
+        if (fromDueAt) where.dueAt.gte = fromDueAt;
+        if (toDueAt) where.dueAt.lte = toDueAt;
+      }
+
+      const tasks = await prisma.task.findMany({
+        where,
+        orderBy: { dueAt: "asc" },
+      });
+      return tasks as unknown as TaskDocument[];
+    }
+
     const filter: Record<string, unknown> = {
       companionId,
     };
@@ -955,6 +1167,22 @@ export const TaskService = {
     appointmentId: string;
     enforceSingleTaskPerAppointment?: boolean;
   }): Promise<TaskDocument> {
+    if (isReadFromPostgres()) {
+      const task = await prisma.task.findFirst({
+        where: { id: input.taskId },
+      });
+      if (!task) {
+        throw new TaskServiceError("Task not found", 404);
+      }
+
+      const updated = await prisma.task.update({
+        where: { id: input.taskId },
+        data: { appointmentId: input.appointmentId },
+      });
+
+      return updated as unknown as TaskDocument;
+    }
+
     const task = await TaskModel.findById(input.taskId).exec();
     if (!task) {
       throw new TaskServiceError("Task not found", 404);

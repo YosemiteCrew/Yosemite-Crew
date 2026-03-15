@@ -6,12 +6,28 @@ import AuditTrailModel from "../../src/models/audit-trail";
 import { ParentModel } from "../../src/models/parent";
 import UserModel from "../../src/models/user";
 import logger from "../../src/utils/logger";
+import { prisma } from "src/config/prisma";
 
 // --- Mocks ---
 jest.mock("../../src/models/audit-trail");
 jest.mock("../../src/models/parent");
 jest.mock("../../src/models/user");
 jest.mock("../../src/utils/logger");
+
+jest.mock("src/config/prisma", () => ({
+  prisma: {
+    auditTrail: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+    },
+    parent: {
+      findFirst: jest.fn(),
+    },
+    user: {
+      findFirst: jest.fn(),
+    },
+  },
+}));
 
 // --- Helper: Mongoose Chain Mock ---
 const mockChain = (result: any = null) => {
@@ -192,6 +208,94 @@ describe("AuditTrailService", () => {
     });
   });
 
+  describe("record (postgres)", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.auditTrail.create as jest.Mock).mockReset();
+      (prisma.parent.findFirst as jest.Mock).mockReset();
+      (prisma.user.findFirst as jest.Mock).mockReset();
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("should create audit record in postgres", async () => {
+      (prisma.auditTrail.create as jest.Mock).mockResolvedValueOnce({
+        id: "audit_1",
+        ...validRecordInput,
+      });
+
+      const res = await AuditTrailService.record(validRecordInput);
+      expect(res).toBeDefined();
+      expect(prisma.auditTrail.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          organisationId: "org-1",
+          companionId: "comp-1",
+          eventType: "APPOINTMENT_BOOKED",
+        }),
+      });
+    });
+
+    it("should resolve actor name for PARENT via prisma", async () => {
+      (prisma.parent.findFirst as jest.Mock).mockResolvedValueOnce({
+        firstName: "Jane",
+        lastName: "Doe",
+      });
+      (prisma.auditTrail.create as jest.Mock).mockResolvedValueOnce({
+        id: "audit_1",
+        ...validRecordInput,
+      });
+
+      await AuditTrailService.record({
+        ...validRecordInput,
+        actorName: undefined,
+        actorType: "PARENT",
+        actorId: "parent-1",
+      });
+
+      expect(prisma.parent.findFirst).toHaveBeenCalledWith({
+        where: { id: "parent-1" },
+        select: { firstName: true, lastName: true },
+      });
+      expect(prisma.auditTrail.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ actorName: "Jane Doe" }),
+        }),
+      );
+    });
+
+    it("should resolve actor name for PMS_USER via prisma", async () => {
+      (prisma.user.findFirst as jest.Mock).mockResolvedValueOnce({
+        firstName: "Admin",
+        lastName: "User",
+      });
+      (prisma.auditTrail.create as jest.Mock).mockResolvedValueOnce({
+        id: "audit_1",
+        ...validRecordInput,
+      });
+
+      await AuditTrailService.record({
+        ...validRecordInput,
+        actorName: undefined,
+        actorType: "PMS_USER",
+        actorId: "user-1",
+      });
+
+      expect(prisma.user.findFirst).toHaveBeenCalledWith({
+        where: { userId: "user-1" },
+        select: { firstName: true, lastName: true },
+      });
+      expect(prisma.auditTrail.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ actorName: "Admin User" }),
+        }),
+      );
+    });
+  });
+
   describe("recordSafely", () => {
     it("should succeed silently", async () => {
       await AuditTrailService.recordSafely(validRecordInput);
@@ -266,6 +370,56 @@ describe("AuditTrailService", () => {
     });
   });
 
+  describe("listForOrganisation (postgres)", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.auditTrail.findMany as jest.Mock).mockReset();
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("should map filters and return cursor", async () => {
+      const occurredAt = new Date();
+      (prisma.auditTrail.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: "a1", occurredAt },
+      ]);
+
+      const res = await AuditTrailService.listForOrganisation({
+        organisationId: "org-1",
+        companionId: "comp-1",
+        eventTypes: ["APPOINTMENT_BOOKED"] as any,
+        entityTypes: ["APPOINTMENT"] as any,
+        limit: 10,
+        before: occurredAt,
+      });
+
+      expect(prisma.auditTrail.findMany).toHaveBeenCalledWith({
+        where: {
+          organisationId: "org-1",
+          companionId: "comp-1",
+          eventType: { in: { $in: ["APPOINTMENT_BOOKED"] } },
+          entityType: { in: { $in: ["APPOINTMENT"] } },
+          occurredAt: { lt: occurredAt },
+        },
+        orderBy: { occurredAt: "desc" },
+        take: 10,
+      });
+      expect(res.nextCursor).toBe(occurredAt.toISOString());
+    });
+
+    it("should return null cursor when empty", async () => {
+      (prisma.auditTrail.findMany as jest.Mock).mockResolvedValueOnce([]);
+      const res = await AuditTrailService.listForOrganisation({
+        organisationId: "org-1",
+      });
+      expect(res.nextCursor).toBeNull();
+    });
+  });
+
   describe("listForAppointment", () => {
     it("should build correct appointment query filters", async () => {
       const date = new Date();
@@ -305,6 +459,49 @@ describe("AuditTrailService", () => {
         appointmentId: "a1",
       });
       expect(res.nextCursor).toBeNull();
+    });
+  });
+
+  describe("listForAppointment (postgres)", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.auditTrail.findMany as jest.Mock).mockReset();
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("should build prisma query and return cursor", async () => {
+      const occurredAt = new Date();
+      (prisma.auditTrail.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: "a1", occurredAt },
+      ]);
+
+      const res = await AuditTrailService.listForAppointment({
+        organisationId: "org-1",
+        appointmentId: "appt-1",
+        before: occurredAt,
+        limit: 5,
+      });
+
+      expect(prisma.auditTrail.findMany).toHaveBeenCalledWith({
+        where: {
+          organisationId: "org-1",
+          OR: [
+            { entityType: "APPOINTMENT", entityId: "appt-1" },
+            {
+              metadata: { path: ["appointmentId"], equals: "appt-1" },
+            },
+          ],
+          occurredAt: { lt: occurredAt },
+        },
+        orderBy: { occurredAt: "desc" },
+        take: 5,
+      });
+      expect(res.nextCursor).toBe(occurredAt.toISOString());
     });
   });
 

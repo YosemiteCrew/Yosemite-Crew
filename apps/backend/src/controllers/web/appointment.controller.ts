@@ -1,11 +1,11 @@
 import { Request, Response } from "express";
 import { AppointmentService } from "src/services/appointment.service";
 import { AppointmentRequestDTO } from "@yosemite-crew/types";
-import { AuthenticatedRequest } from "src/middlewares/auth";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import logger from "src/utils/logger";
 import { AppointmentStatus } from "src/models/appointment";
 import { generatePresignedUrl } from "src/middlewares/upload";
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 type RescheduleRequestBody = {
   startTime: string | Date;
@@ -18,15 +18,6 @@ type CancelBody = { reason?: string };
 
 type UploadUrlBody = { companionId?: string; mimeType?: string };
 type AttachFormsBody = { formIds?: string[] };
-
-const resolveUserIdFromRequest = (req: Request): string | undefined => {
-  const authRequest = req as AuthenticatedRequest;
-  const headerUserId = req.headers["x-user-id"];
-  if (headerUserId && typeof headerUserId === "string") {
-    return headerUserId;
-  }
-  return authRequest.userId;
-};
 
 type ErrorWithStatus = Error & { statusCode?: number };
 
@@ -128,6 +119,13 @@ export const AppointmentController = {
     try {
       const dto = req.body;
       const { createPayment, paymentCollectionMethod } = req.query;
+      const bodyWithMethod = dto as unknown as {
+        paymentCollectionMethod?: unknown;
+      };
+      const paymentCollectionMethodFromBody =
+        typeof bodyWithMethod.paymentCollectionMethod === "string"
+          ? bodyWithMethod.paymentCollectionMethod
+          : undefined;
 
       const shouldCreatePayment =
         createPayment === "true" || createPayment === "1";
@@ -137,7 +135,7 @@ export const AppointmentController = {
         shouldCreatePayment,
         typeof paymentCollectionMethod === "string"
           ? paymentCollectionMethod
-          : undefined,
+          : paymentCollectionMethodFromBody,
       );
 
       return res

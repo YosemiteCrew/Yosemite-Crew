@@ -4,19 +4,20 @@ import {
   ParentCompanionService,
   ParentCompanionServiceError,
 } from "../../services/parent-companion.service";
-import { AuthenticatedRequest } from "../../middlewares/auth";
 import { Types } from "mongoose";
 import { ParentService } from "src/services/parent.service";
 import type { ParentCompanionPermissions } from "@yosemite-crew/types";
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 // Resolve UserID
-const resolveUserIdFromRequest = (req: Request): string | undefined => {
-  const authRequest = req as AuthenticatedRequest;
-  const headerUserId = req.headers["x-user-id"];
-  if (typeof headerUserId === "string") {
-    return headerUserId;
-  }
-  return authRequest.userId;
+
+const resolveParentId = (parent: {
+  id?: string;
+  _id?: { toString(): string };
+}): string => {
+  if ("id" in parent && typeof parent.id === "string") return parent.id;
+  if ("_id" in parent && parent._id) return parent._id.toString();
+  throw new Error("Parent id missing");
 };
 
 export const ParentCompanionController = {
@@ -83,7 +84,7 @@ export const ParentCompanionController = {
       }
 
       const updated = await ParentCompanionService.updatePermissions(
-        new Types.ObjectId(requestingParent._id.toString()),
+        new Types.ObjectId(resolveParentId(requestingParent)),
         new Types.ObjectId(targetParentId),
         new Types.ObjectId(companionId),
         updates,
@@ -123,7 +124,7 @@ export const ParentCompanionController = {
       }
 
       const updated = await ParentCompanionService.promoteToPrimary(
-        requestingParent._id,
+        new Types.ObjectId(resolveParentId(requestingParent)),
         new Types.ObjectId(companionId),
         new Types.ObjectId(targetParentId),
       );
@@ -162,7 +163,7 @@ export const ParentCompanionController = {
       }
 
       await ParentCompanionService.removeCoParent(
-        requestingParent._id,
+        new Types.ObjectId(resolveParentId(requestingParent)),
         new Types.ObjectId(coParentId),
         new Types.ObjectId(companionId),
         false,

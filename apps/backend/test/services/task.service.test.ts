@@ -1,12 +1,12 @@
-import { TaskService, TaskServiceError } from "../../src/services/task.service";
+import { TaskService } from "../../src/services/task.service";
 import TaskModel from "../../src/models/task";
 import TaskLibraryDefinitionModel from "../../src/models/taskLibraryDefinition";
 import TaskTemplateModel from "../../src/models/taskTemplate";
-import CompanionModel from "../../src/models/companion";
 import UserModel from "../../src/models/user";
 import TaskCompletionModel from "../../src/models/taskCompletion";
 import { sendEmailTemplate } from "../../src/utils/email";
 import logger from "../../src/utils/logger";
+import { prisma } from "src/config/prisma";
 
 // --- Mocks ---
 jest.mock("../../src/models/task");
@@ -17,6 +17,20 @@ jest.mock("../../src/models/user");
 jest.mock("../../src/models/taskCompletion");
 jest.mock("../../src/utils/email");
 jest.mock("../../src/utils/logger");
+
+jest.mock("src/config/prisma", () => ({
+  prisma: {
+    task: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+    },
+    taskCompletion: {
+      create: jest.fn(),
+    },
+  },
+}));
 
 // Helpers for Mongoose Chains
 const mockChain = (result: any) => ({
@@ -41,6 +55,142 @@ describe("TaskService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe("Postgres branches", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.task.create as jest.Mock).mockReset();
+      (prisma.task.findFirst as jest.Mock).mockReset();
+      (prisma.task.findMany as jest.Mock).mockReset();
+      (prisma.task.update as jest.Mock).mockReset();
+      (prisma.taskCompletion.create as jest.Mock).mockReset();
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("createCustom creates task via prisma", async () => {
+      (prisma.task.create as jest.Mock).mockResolvedValueOnce({
+        id: "task-1",
+        createdBy: "u1",
+        assignedTo: "u2",
+      });
+
+      const result = await TaskService.createCustom({
+        category: "Cat",
+        name: "Task",
+        createdBy: "u1",
+        assignedTo: "u2",
+        dueAt: mockDate,
+        audience: "EMPLOYEE_TASK",
+      });
+
+      expect(prisma.task.create).toHaveBeenCalled();
+      expect(result).toEqual(
+        expect.objectContaining({ id: "task-1", createdBy: "u1" }),
+      );
+    });
+
+    it("changeStatus updates task and creates completion", async () => {
+      (prisma.task.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: "task-1",
+        assignedTo: "u1",
+        createdBy: "u2",
+        status: "PENDING",
+        companionId: "comp-1",
+        completedAt: null,
+        completedBy: null,
+      });
+      (prisma.taskCompletion.create as jest.Mock).mockResolvedValueOnce({
+        id: "comp-1",
+      });
+      (prisma.task.update as jest.Mock).mockResolvedValueOnce({
+        id: "task-1",
+        status: "COMPLETED",
+      });
+
+      const res = await TaskService.changeStatus("task-1", "COMPLETED", "u1", {
+        answers: [{ questionId: "q1", answer: "a1" }],
+      } as any);
+
+      expect(prisma.taskCompletion.create).toHaveBeenCalled();
+      expect(res.task.status).toBe("COMPLETED");
+    });
+
+    it("getById returns task via prisma", async () => {
+      (prisma.task.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: "task-1",
+      });
+      const res = await TaskService.getById("task-1");
+      expect(res).toEqual(expect.objectContaining({ id: "task-1" }));
+    });
+
+    it("listForParent returns tasks", async () => {
+      (prisma.task.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: "task-1" },
+      ]);
+      const res = await TaskService.listForParent({ parentId: "p1" });
+      expect(res).toHaveLength(1);
+      expect(prisma.task.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            audience: "PARENT_TASK",
+            OR: [{ assignedTo: "p1" }, { createdBy: "p1" }],
+          }),
+        }),
+      );
+    });
+
+    it("listForEmployee returns tasks", async () => {
+      (prisma.task.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: "task-1" },
+      ]);
+      const res = await TaskService.listForEmployee({
+        organisationId: "org-1",
+      });
+      expect(res).toHaveLength(1);
+      expect(prisma.task.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            organisationId: "org-1",
+            audience: "EMPLOYEE_TASK",
+          }),
+        }),
+      );
+    });
+
+    it("listForCompanion returns tasks", async () => {
+      (prisma.task.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: "task-1" },
+      ]);
+      const res = await TaskService.listForCompanion({ companionId: "c1" });
+      expect(res).toHaveLength(1);
+      expect(prisma.task.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ companionId: "c1" }),
+        }),
+      );
+    });
+
+    it("linkToAppointment updates task", async () => {
+      (prisma.task.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: "task-1",
+      });
+      (prisma.task.update as jest.Mock).mockResolvedValueOnce({
+        id: "task-1",
+        appointmentId: "appt-1",
+      });
+
+      const res = await TaskService.linkToAppointment({
+        taskId: "task-1",
+        appointmentId: "appt-1",
+      });
+      expect(res.appointmentId).toBe("appt-1");
+    });
   });
 
   // --- Helper Tests (Indirectly tested via public methods, but explicit checks ensure coverage) ---

@@ -1,8 +1,5 @@
 import { Types } from "mongoose";
-import {
-  SpecialityService,
-  SpecialityServiceError,
-} from "../../src/services/speciality.service";
+import { SpecialityService } from "../../src/services/speciality.service";
 import SpecialityModel from "../../src/models/speciality";
 import OrganisationRoomModel from "../../src/models/organisation-room";
 import UserModel from "../../src/models/user";
@@ -10,6 +7,7 @@ import OrganizationModel from "../../src/models/organization";
 import { ServiceService } from "../../src/services/service.service";
 import * as EmailUtils from "../../src/utils/email";
 import logger from "../../src/utils/logger";
+import { prisma } from "src/config/prisma";
 
 // --- Mocks ---
 jest.mock("../../src/models/speciality");
@@ -19,6 +17,21 @@ jest.mock("../../src/models/organization");
 jest.mock("../../src/services/service.service");
 jest.mock("../../src/utils/email");
 jest.mock("../../src/utils/logger");
+
+jest.mock("src/config/prisma", () => ({
+  prisma: {
+    speciality: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+    },
+    organization: {
+      findFirst: jest.fn(),
+    },
+    user: {
+      findFirst: jest.fn(),
+    },
+  },
+}));
 
 // Mock Types helper
 jest.mock("@yosemite-crew/types", () => ({
@@ -45,6 +58,23 @@ const mockChain = (result: any = null) => {
 const mockDoc = (data: any) => ({
   ...data,
   toObject: jest.fn(() => data),
+});
+
+const createPrismaSpeciality = (overrides: any = {}) => ({
+  id: new Types.ObjectId().toHexString(),
+  fhirId: null,
+  organisationId: new Types.ObjectId().toHexString(),
+  departmentMasterId: null,
+  name: "Cardiology",
+  description: null,
+  headUserId: null,
+  headName: null,
+  headProfilePicUrl: null,
+  services: [],
+  memberUserIds: [],
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  ...overrides,
 });
 
 describe("SpecialityService", () => {
@@ -79,6 +109,65 @@ describe("SpecialityService", () => {
     (UserModel.findOne as jest.Mock).mockReturnValue(
       mockChain({ email: "doc@test.com", firstName: "Dr." }),
     );
+  });
+
+  describe("Postgres branches", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.speciality.findFirst as jest.Mock).mockReset();
+      (prisma.speciality.findMany as jest.Mock).mockReset();
+      (prisma.organization.findFirst as jest.Mock).mockReset();
+      (prisma.user.findFirst as jest.Mock).mockReset();
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("getById returns mapped speciality", async () => {
+      (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce(
+        createPrismaSpeciality({ id: mockSpecId.toHexString() }),
+      );
+
+      const res = await SpecialityService.getById(mockSpecId.toHexString());
+      expect(res).not.toBeNull();
+      expect(prisma.speciality.findFirst).toHaveBeenCalled();
+    });
+
+    it("getAllByOrganizationId returns mapped entries", async () => {
+      (prisma.speciality.findMany as jest.Mock).mockResolvedValueOnce([
+        createPrismaSpeciality({ id: mockSpecId.toHexString() }),
+      ]);
+      (ServiceService.listBySpeciality as jest.Mock).mockResolvedValueOnce([
+        "Service A",
+      ]);
+
+      const res = await SpecialityService.getAllByOrganizationId(
+        mockOrgId.toHexString(),
+      );
+      expect(res).toHaveLength(1);
+      expect(res[0].services).toEqual(["Service A"]);
+    });
+
+    it("createOne sends email using prisma user/org data", async () => {
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce({
+        name: "Test Org",
+      });
+      (prisma.user.findFirst as jest.Mock).mockResolvedValueOnce({
+        email: "doc@test.com",
+        firstName: "Dr.",
+        lastName: "Who",
+      });
+
+      await SpecialityService.createOne(validPayload);
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(EmailUtils.sendEmailTemplate).toHaveBeenCalledWith(
+        expect.objectContaining({ templateId: "specialityHeadAssigned" }),
+      );
+    });
   });
 
   describe("Validation & Internals", () => {

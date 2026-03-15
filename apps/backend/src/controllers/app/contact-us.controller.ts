@@ -106,7 +106,8 @@ export const ContactController = {
       };
 
       const doc = await ContactService.createRequest(payload);
-      res.status(201).json({ id: doc._id.toString() });
+      const id = "_id" in doc ? doc._id.toString() : doc.id;
+      res.status(201).json({ id });
     } catch (err) {
       if (err instanceof ContactServiceError) {
         return res.status(err.statusCode).json({ message: err.message });
@@ -147,7 +148,8 @@ export const ContactController = {
       };
 
       const doc = await ContactService.createWebRequest(payload);
-      res.status(201).json({ id: doc._id.toString() });
+      const id = "_id" in doc ? doc._id.toString() : doc.id;
+      res.status(201).json({ id });
     } catch (err) {
       if (err instanceof ContactServiceError) {
         return res.status(err.statusCode).json({ message: err.message });
@@ -184,9 +186,7 @@ export const ContactController = {
       });
     } catch (err) {
       console.error("Error generating contact-us upload URL", err);
-      return res
-        .status(500)
-        .json({ message: "Unable to generate upload URL" });
+      return res.status(500).json({ message: "Unable to generate upload URL" });
     }
   },
 

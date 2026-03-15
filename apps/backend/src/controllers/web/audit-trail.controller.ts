@@ -7,31 +7,41 @@ import {
 import logger from "src/utils/logger";
 import { OrgRequest } from "src/middlewares/rbac";
 
-const parseListQuery = (req: Request) => {
-  const limitRaw = req.query.limit;
-  const beforeRaw = req.query.before;
-  const eventTypesRaw = req.query.eventTypes;
-  const entityTypesRaw = req.query.entityTypes;
+const parseListQuery = (payload: Record<string, unknown> | undefined) => {
+  const limitRaw = payload?.limit;
+  const beforeRaw = payload?.before;
+  const eventTypesRaw = payload?.eventTypes;
+  const entityTypesRaw = payload?.entityTypes;
 
   const limit =
-    typeof limitRaw === "string" ? Number.parseInt(limitRaw, 10) : undefined;
+    typeof limitRaw === "number"
+      ? Math.floor(limitRaw)
+      : typeof limitRaw === "string"
+        ? Number.parseInt(limitRaw, 10)
+        : undefined;
 
   const before =
     typeof beforeRaw === "string" && beforeRaw.trim().length > 0
       ? new Date(beforeRaw)
-      : undefined;
+      : beforeRaw instanceof Date
+        ? beforeRaw
+        : undefined;
   const safeBefore =
     before && !Number.isNaN(before.getTime()) ? before : undefined;
 
   const eventTypes =
     typeof eventTypesRaw === "string" && eventTypesRaw.trim().length > 0
       ? (eventTypesRaw.split(",") as AuditEventType[])
-      : undefined;
+      : Array.isArray(eventTypesRaw)
+        ? (eventTypesRaw as AuditEventType[])
+        : undefined;
 
   const entityTypes =
     typeof entityTypesRaw === "string" && entityTypesRaw.trim().length > 0
       ? (entityTypesRaw.split(",") as AuditEntityType[])
-      : undefined;
+      : Array.isArray(entityTypesRaw)
+        ? (entityTypesRaw as AuditEntityType[])
+        : undefined;
 
   return { limit, before: safeBefore, eventTypes, entityTypes };
 };
@@ -54,7 +64,9 @@ export const AuditTrailController = {
         return res.status(400).json({ message: "companionId is required" });
       }
 
-      const { limit, before, eventTypes, entityTypes } = parseListQuery(req);
+      const { limit, before, eventTypes, entityTypes } = parseListQuery(
+        req.body as Record<string, unknown> | undefined,
+      );
 
       const results = await AuditTrailService.listForOrganisation({
         organisationId,
@@ -92,7 +104,9 @@ export const AuditTrailController = {
         return res.status(400).json({ message: "appointmentId is required" });
       }
 
-      const { limit, before } = parseListQuery(req);
+      const { limit, before } = parseListQuery(
+        req.body as Record<string, unknown> | undefined,
+      );
 
       const results = await AuditTrailService.listForAppointment({
         organisationId,

@@ -21,7 +21,15 @@ export const LabOrderController = {
         return res.status(400).json({ message: "provider is required." });
       }
 
-      const { appointmentId, companionId, status, limit } = req.query as Record<string, string>;
+      const body = req.body as
+        | {
+            appointmentId?: string;
+            companionId?: string;
+            status?: string;
+            limit?: number;
+          }
+        | undefined;
+      const { appointmentId, companionId, status, limit } = body ?? {};
 
       const orders = await LabOrderService.listOrders({
         organisationId,
@@ -29,7 +37,12 @@ export const LabOrderController = {
         companionId,
         provider,
         status: status as LabOrderStatus | undefined,
-        limit: limit ? Number(limit) : undefined,
+        limit:
+          typeof limit === "number"
+            ? limit
+            : typeof limit === "string"
+              ? Number(limit)
+              : undefined,
       });
 
       return res.status(200).json({ orders });
@@ -55,16 +68,25 @@ export const LabOrderController = {
         return res.status(400).json({ message: "provider is required." });
       }
 
-      const query =
-        typeof req.query.query === "string" ? req.query.query : undefined;
-      const limit =
-        typeof req.query.limit === "string" ? Number(req.query.limit) : undefined;
-      const page =
-        typeof req.query.page === "string" ? Number(req.query.page) : undefined;
-      const codesParam =
-        typeof req.query.codes === "string" ? req.query.codes : undefined;
+      const body = req.body as
+        | {
+            query?: string;
+            limit?: number;
+            page?: number;
+            codes?: string[];
+          }
+        | undefined;
+      const query = typeof body?.query === "string" ? body.query : undefined;
+      const limit = typeof body?.limit === "number" ? body.limit : undefined;
+      const page = typeof body?.page === "number" ? body.page : undefined;
+      const codesParam = Array.isArray(body?.codes)
+        ? body?.codes.join(",")
+        : undefined;
       const codes = codesParam
-        ? codesParam.split(",").map((c) => c.trim()).filter(Boolean)
+        ? codesParam
+            .split(",")
+            .map((c) => c.trim())
+            .filter(Boolean)
         : undefined;
 
       const tests = await LabOrderService.listProviderTests(provider, {
@@ -131,9 +153,7 @@ export const LabOrderController = {
         return res.status(error.statusCode).json({ message: error.message });
       }
       logger.error("Failed to create IDEXX order", error);
-      return res
-        .status(500)
-        .json({ message: "Failed to create IDEXX order." });
+      return res.status(500).json({ message: "Failed to create IDEXX order." });
     }
   },
 

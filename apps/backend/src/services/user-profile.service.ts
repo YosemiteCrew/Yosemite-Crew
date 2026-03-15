@@ -19,6 +19,7 @@ import { getURLForKey } from "src/middlewares/upload";
 import { prisma } from "src/config/prisma";
 import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 import { Prisma, UserProfileStatus } from "@prisma/client";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 export class UserProfileServiceError extends Error {
   constructor(
@@ -103,8 +104,7 @@ const optionalString = (value: unknown, field: string): string | undefined => {
 };
 
 const OFFSET_TIMEZONE_REGEX = /^(?:UTC)?[+-](?:0?\d|1\d|2[0-3]):[0-5]\d$/;
-const COMBINED_TIMEZONE_REGEX =
-  /^UTC[+-](?:0?\d|1\d|2[0-3]):[0-5]\d\s*-\s*(.+)$/;
+const COMBINED_TIMEZONE_PREFIX_REGEX = /^UTC[+-](?:0?\d|1\d|2[0-3]):[0-5]\d/;
 
 const isValidIanaTimezone = (value: string): boolean => {
   try {
@@ -129,12 +129,15 @@ const isValidTimezone = (value: string): boolean => {
 
 const normalizeTimezoneInput = (value: string): string => {
   const trimmed = value.trim();
-  const combinedMatch = COMBINED_TIMEZONE_REGEX.exec(trimmed);
+  const combinedMatch = COMBINED_TIMEZONE_PREFIX_REGEX.exec(trimmed);
 
   if (combinedMatch) {
-    const iana = combinedMatch[1].trim();
-    if (isValidIanaTimezone(iana)) {
-      return iana;
+    const remainder = trimmed.slice(combinedMatch[0].length).trimStart();
+    if (remainder.startsWith("-")) {
+      const iana = remainder.slice(1).trim();
+      if (iana && isValidIanaTimezone(iana)) {
+        return iana;
+      }
     }
   }
 
@@ -705,6 +708,107 @@ const buildDomainProfile = (
   return pruneUndefined(profile);
 };
 
+type PrismaUserProfileWithAddress = Prisma.UserProfileGetPayload<{
+  include: { address: true };
+}>;
+
+const buildPersonalDetailsFromPrisma = (
+  profile: PrismaUserProfileWithAddress,
+): UserProfilePersonalDetailsMongo | undefined => {
+  const rawPersonalDetails = profile.personalDetails as
+    | UserProfilePersonalDetailsMongo
+    | undefined;
+
+  if (!rawPersonalDetails && !profile.address) {
+    return undefined;
+  }
+
+  if (!rawPersonalDetails && profile.address) {
+    return {
+      address: pruneUndefined({
+        addressLine: profile.address.addressLine ?? undefined,
+        country: profile.address.country ?? undefined,
+        city: profile.address.city ?? undefined,
+        state: profile.address.state ?? undefined,
+        postalCode: profile.address.postalCode ?? undefined,
+        latitude: profile.address.latitude ?? undefined,
+        longitude: profile.address.longitude ?? undefined,
+      }),
+    };
+  }
+
+  return {
+    ...rawPersonalDetails,
+    address: profile.address
+      ? pruneUndefined({
+          addressLine: profile.address.addressLine ?? undefined,
+          country: profile.address.country ?? undefined,
+          city: profile.address.city ?? undefined,
+          state: profile.address.state ?? undefined,
+          postalCode: profile.address.postalCode ?? undefined,
+          latitude: profile.address.latitude ?? undefined,
+          longitude: profile.address.longitude ?? undefined,
+        })
+      : rawPersonalDetails?.address
+        ? pruneUndefined(rawPersonalDetails.address)
+        : undefined,
+  };
+};
+
+const buildDomainProfileFromPrisma = (
+  profile: PrismaUserProfileWithAddress,
+  options?: { statusOverride?: UserProfileMongo["status"] },
+): UserProfileType => {
+  const rawProfessionalDetails = profile.professionalDetails as
+    | UserProfileProfessionalDetailsMongo
+    | undefined;
+
+  const personalDetails = buildPersonalDetailsFromPrisma(profile);
+
+  const professionalDetails = rawProfessionalDetails
+    ? pruneUndefined({
+        ...rawProfessionalDetails,
+        documents: rawProfessionalDetails.documents
+          ? rawProfessionalDetails.documents.map((documentItem) =>
+              pruneUndefined(documentItem),
+            )
+          : undefined,
+      })
+    : undefined;
+
+  const profileDomain: UserProfileType = {
+    _id: profile.id,
+    userId: profile.userId,
+    organizationId: profile.organizationId,
+    personalDetails: personalDetails
+      ? pruneUndefined(personalDetails)
+      : undefined,
+    professionalDetails,
+    status: options?.statusOverride ?? profile.status ?? "DRAFT",
+    createdAt: profile.createdAt,
+    updatedAt: profile.updatedAt,
+  };
+
+  return pruneUndefined(profileDomain);
+};
+
+const buildDomainAvailabilityFromPrisma = (entry: {
+  id: string;
+  userId: string;
+  dayOfWeek: string;
+  slots: unknown;
+  createdAt: Date;
+  updatedAt: Date;
+}): UserAvailability =>
+  pruneUndefined({
+    _id: entry.id,
+    userId: entry.userId,
+    dayOfWeek: entry.dayOfWeek as UserAvailability["dayOfWeek"],
+    slots: entry.slots as UserAvailability["slots"],
+    createdAt: entry.createdAt,
+    updatedAt: entry.updatedAt,
+  });
+
 const applyPmsPreferenceDefaults = (
   profile: UserProfileType,
   roleCode?: string,
@@ -894,6 +998,68 @@ export const UserProfileService = {
   async getByUserId(userId: unknown, organizationId: unknown) {
     const identifier = requireUserId(userId);
     const organizationIdentifier = requireOrganizationId(organizationId);
+
+    if (isReadFromPostgres()) {
+      const profile = await prisma.userProfile.findFirst({
+        where: { userId: identifier, organizationId: organizationIdentifier },
+        include: { address: true },
+      });
+
+      if (!profile) {
+        return null;
+      }
+
+      const [availabilityRows, mapping] = await Promise.all([
+        prisma.baseAvailability.findMany({
+          where: { userId: identifier },
+          orderBy: { dayOfWeek: "asc" },
+        }),
+        prisma.userOrganization.findFirst({
+          where: {
+            practitionerReference: {
+              in: [identifier, `Practitioner/${identifier}`],
+            },
+            organizationReference: {
+              in: [
+                organizationIdentifier,
+                `Organization/${organizationIdentifier}`,
+              ],
+            },
+          },
+        }),
+      ]);
+
+      const availability = availabilityRows.map((entry) =>
+        buildDomainAvailabilityFromPrisma(entry),
+      );
+
+      const personalDetailsForStatus = buildPersonalDetailsFromPrisma(profile);
+
+      const profileForStatus: UserProfileMongo = {
+        userId: profile.userId,
+        organizationId: profile.organizationId,
+        personalDetails: personalDetailsForStatus,
+        professionalDetails: (profile.professionalDetails ?? undefined) as
+          | UserProfileProfessionalDetailsMongo
+          | undefined,
+        status: (profile.status ?? "DRAFT") as UserProfileMongo["status"],
+      };
+
+      const status = determineProfileStatus(profileForStatus, availability);
+
+      const profileDomain = applyPmsPreferenceDefaults(
+        buildDomainProfileFromPrisma(profile, { statusOverride: status }),
+        mapping?.roleCode,
+      );
+
+      const mappingPayload = mapping ? { ...mapping, _id: mapping.id } : null;
+
+      return {
+        profile: profileDomain,
+        mapping: mappingPayload,
+        baseAvailability: availability,
+      };
+    }
 
     const document = await UserProfileModel.findOne(
       { userId: identifier, organizationId: organizationIdentifier },

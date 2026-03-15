@@ -6,21 +6,14 @@ import {
   OrganizationServiceError,
   type OrganizationFHIRPayload,
 } from "../../services/organization.service";
-import { AuthenticatedRequest } from "../../middlewares/auth";
 import { generatePresignedUrl } from "src/middlewares/upload";
 import { stringify } from "node:querystring";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { ParentModel } from "src/models/parent";
 import helpers from "src/utils/helper";
-
-const resolveUserIdFromRequest = (req: Request): string | undefined => {
-  const authRequest = req as AuthenticatedRequest;
-  const headerUserId = req.headers["x-user-id"];
-  if (headerUserId && typeof headerUserId === "string") {
-    return headerUserId;
-  }
-  return authRequest.userId;
-};
+import { prisma } from "src/config/prisma";
+import { isReadFromPostgres } from "src/config/read-switch";
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 const isOrganizationPayload = (
   payload: unknown,
@@ -30,6 +23,29 @@ const isOrganizationPayload = (
     typeof payload === "object" &&
     (payload as { resourceType?: string }).resourceType === "Organization",
   );
+
+const requireBusinessId = (req: Request, res: Response): string | null => {
+  const { id } = req.params;
+  if (!id) {
+    res.status(400).json({ message: "Business ID is required." });
+    return null;
+  }
+  return id;
+};
+
+const handleOrganizationError = (
+  error: unknown,
+  res: Response,
+  logMessage: string,
+  responseMessage: string,
+) => {
+  if (error instanceof OrganizationServiceError) {
+    res.status(error.statusCode).json({ message: error.message });
+    return;
+  }
+  logger.error(logMessage, error);
+  res.status(500).json({ message: responseMessage });
+};
 
 export const OrganizationController = {
   onboardBusiness: async (req: Request, res: Response) => {
@@ -53,23 +69,19 @@ export const OrganizationController = {
 
       res.status(created ? 201 : 200).json(response);
     } catch (error) {
-      if (error instanceof OrganizationServiceError) {
-        res.status(error.statusCode).json({ message: error.message });
-        return;
-      }
-      logger.error("Failed to onboard business", error);
-      res.status(500).json({ message: "Unable to onboard business." });
+      handleOrganizationError(
+        error,
+        res,
+        "Failed to onboard business",
+        "Unable to onboard business.",
+      );
     }
   },
 
   getBusinessById: async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
-
-      if (!id) {
-        res.status(400).json({ message: "Business ID is required." });
-        return;
-      }
+      const id = requireBusinessId(req, res);
+      if (!id) return;
 
       const resource = await OrganizationService.getById(id);
 
@@ -80,12 +92,12 @@ export const OrganizationController = {
 
       res.status(200).json(resource);
     } catch (error) {
-      if (error instanceof OrganizationServiceError) {
-        res.status(error.statusCode).json({ message: error.message });
-        return;
-      }
-      logger.error("Failed to retrieve business", error);
-      res.status(500).json({ message: "Unable to retrieve business." });
+      handleOrganizationError(
+        error,
+        res,
+        "Failed to retrieve business",
+        "Unable to retrieve business.",
+      );
     }
   },
 
@@ -101,12 +113,8 @@ export const OrganizationController = {
 
   deleteBusinessById: async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
-
-      if (!id) {
-        res.status(400).json({ message: "Business ID is required." });
-        return;
-      }
+      const id = requireBusinessId(req, res);
+      if (!id) return;
 
       const deleted = await OrganizationService.deleteById(id);
 
@@ -117,24 +125,21 @@ export const OrganizationController = {
 
       res.status(200).json({ message: "Business deleted successfully." });
     } catch (error) {
-      if (error instanceof OrganizationServiceError) {
-        res.status(error.statusCode).json({ message: error.message });
-        return;
-      }
-      logger.error("Failed to delete business", error);
-      res.status(500).json({ message: "Unable to delete business." });
+      handleOrganizationError(
+        error,
+        res,
+        "Failed to delete business",
+        "Unable to delete business.",
+      );
     }
   },
 
   updateBusinessById: async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
+      const id = requireBusinessId(req, res);
+      if (!id) return;
       const rawPayload: unknown = req.body;
 
-      if (!id) {
-        res.status(400).json({ message: "Business ID is required." });
-        return;
-      }
       if (!isOrganizationPayload(rawPayload)) {
         res.status(400).json({
           message: "Invalid payload. Expected FHIR Organization resource.",
@@ -152,12 +157,12 @@ export const OrganizationController = {
 
       res.status(200).json(resource);
     } catch (error) {
-      if (error instanceof OrganizationServiceError) {
-        res.status(error.statusCode).json({ message: error.message });
-        return;
-      }
-      logger.error("Failed to update business", error);
-      res.status(500).json({ message: "Unable to update business." });
+      handleOrganizationError(
+        error,
+        res,
+        "Failed to update business",
+        "Unable to update business.",
+      );
     }
   },
 
@@ -199,12 +204,12 @@ export const OrganizationController = {
       const result = await OrganizationService.resolveOrganisation(body);
       return res.status(200).json(result);
     } catch (error) {
-      if (error instanceof OrganizationServiceError) {
-        res.status(error.statusCode).json({ message: error.message });
-        return;
-      }
-      logger.error("Failed to search business", error);
-      res.status(500).json({ message: "Unable to search business." });
+      handleOrganizationError(
+        error,
+        res,
+        "Failed to search business",
+        "Unable to search business.",
+      );
     }
   },
 
@@ -238,15 +243,38 @@ export const OrganizationController = {
           authUserId!,
         );
 
-        const parent = await ParentModel.findById(authUser?.parentId);
+        let parentAddress:
+          | {
+              city?: string | null;
+              postalCode?: string | null;
+            }
+          | null
+          | undefined;
 
-        if (!parent?.address?.city || !parent?.address?.postalCode) {
+        if (isReadFromPostgres()) {
+          const parentId =
+            typeof authUser?.parentId === "string"
+              ? authUser.parentId
+              : authUser?.parentId?.toString();
+          const parent = parentId
+            ? await prisma.parent.findFirst({
+                where: { id: parentId },
+                include: { address: true },
+              })
+            : null;
+          parentAddress = parent?.address ?? null;
+        } else {
+          const parent = await ParentModel.findById(authUser?.parentId);
+          parentAddress = parent?.address;
+        }
+
+        if (!parentAddress?.city || !parentAddress?.postalCode) {
           return res.status(400).json({
             message: "Location missing and user has no saved city/pincode.",
           });
         }
 
-        const query = `${parent.address.city} ${parent.address.postalCode}`;
+        const query = `${parentAddress.city} ${parentAddress.postalCode}`;
 
         // Geocode city+pincode → lat/lng
         const geo = (await helpers.getGeoLocation(query)) as {

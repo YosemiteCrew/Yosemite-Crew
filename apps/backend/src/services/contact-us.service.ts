@@ -9,7 +9,8 @@ import ContactRequestModel, {
 } from "../models/contect-us";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../config/prisma";
-import logger from "../utils/logger";
+import { isReadFromPostgres } from "src/config/read-switch";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 
 export class ContactServiceError extends Error {
   constructor(
@@ -74,12 +75,40 @@ export const ContactService = {
         input.dsarDetails.declarationAcceptedAt ?? new Date();
     }
 
+    if (isReadFromPostgres()) {
+      const dsarDetails = input.dsarDetails
+        ? (input.dsarDetails as unknown as Prisma.InputJsonValue)
+        : undefined;
+      const attachments = input.attachments
+        ? (input.attachments as unknown as Prisma.InputJsonValue)
+        : undefined;
+
+      return prisma.contactRequest.create({
+        data: {
+          type: input.type,
+          source: input.source,
+          subject: input.subject,
+          message: input.message,
+          userId: input.userId ?? undefined,
+          email: input.email ?? undefined,
+          organisationId: input.organisationId ?? undefined,
+          companionId: input.companionId ?? undefined,
+          parentId: input.parentId ?? undefined,
+          dsarDetails,
+          complaintContext: undefined,
+          attachments,
+          status: "OPEN",
+          internalNotes: undefined,
+        },
+      });
+    }
+
     const doc = await ContactRequestModel.create({
       ...input,
       status: "OPEN",
     });
 
-    if (process.env.DUAL_WRITE_ENABLED === "true") {
+    if (shouldDualWrite) {
       try {
         const dsarDetails = input.dsarDetails
           ? (input.dsarDetails as unknown as Prisma.InputJsonValue)
@@ -110,10 +139,7 @@ export const ContactService = {
           },
         });
       } catch (err) {
-        logger.error(`ContactRequest dual-write failed: ${String(err)}`);
-        if (process.env.DUAL_WRITE_STRICT === "true") {
-          throw err;
-        }
+        handleDualWriteError("ContactRequest", err);
       }
     }
     return doc;
@@ -147,6 +173,28 @@ export const ContactService = {
         input.dsarDetails.declarationAcceptedAt ?? new Date();
     }
 
+    if (isReadFromPostgres()) {
+      const dsarDetails = input.dsarDetails
+        ? (input.dsarDetails as unknown as Prisma.InputJsonValue)
+        : undefined;
+      const attachments = input.attachments
+        ? (input.attachments as unknown as Prisma.InputJsonValue)
+        : undefined;
+
+      return prisma.contactRequest.create({
+        data: {
+          type: input.type,
+          source: input.source,
+          subject: input.type,
+          message: input.message.trim(),
+          email: input.email.trim(),
+          dsarDetails,
+          attachments,
+          status: "OPEN",
+        },
+      });
+    }
+
     const doc = await ContactRequestModel.create({
       ...input,
       subject: input.type,
@@ -165,31 +213,50 @@ export const ContactService = {
     if (filter.type) query.type = filter.type;
     if (filter.organisationId) query.organisationId = filter.organisationId;
 
+    if (isReadFromPostgres()) {
+      return prisma.contactRequest.findMany({
+        where: {
+          status: filter.status ?? undefined,
+          type: filter.type ?? undefined,
+          organisationId: filter.organisationId ?? undefined,
+        },
+        orderBy: { createdAt: "desc" },
+        take: 100,
+      });
+    }
+
     return ContactRequestModel.find(query).sort({ createdAt: -1 }).limit(100);
   },
 
   async getById(id: string) {
+    if (isReadFromPostgres()) {
+      return prisma.contactRequest.findUnique({ where: { id } });
+    }
     return ContactRequestModel.findById(id);
   },
 
   async updateStatus(id: string, status: ContactStatus) {
+    if (isReadFromPostgres()) {
+      return prisma.contactRequest.update({
+        where: { id },
+        data: { status },
+      });
+    }
+
     const updated = await ContactRequestModel.findByIdAndUpdate(
       id,
       { status },
       { new: true },
     );
 
-    if (updated && process.env.DUAL_WRITE_ENABLED === "true") {
+    if (updated && shouldDualWrite) {
       try {
         await prisma.contactRequest.updateMany({
           where: { id },
           data: { status },
         });
       } catch (err) {
-        logger.error(`ContactRequest dual-write status failed: ${String(err)}`);
-        if (process.env.DUAL_WRITE_STRICT === "true") {
-          throw err;
-        }
+        handleDualWriteError("ContactRequest", err);
       }
     }
 
