@@ -320,7 +320,7 @@ export const LabOrderService = {
       }
       const trimmedQuery = params.query.trim();
       if (trimmedQuery) {
-        const escaped = trimmedQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const escaped = trimmedQuery.replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&");
         filter.$or = [
           { code: new RegExp(escaped, "i") },
           { display: new RegExp(escaped, "i") },
@@ -728,7 +728,7 @@ export const LabOrderService = {
         400,
       );
     }
-    if (input.tests && input.tests.length === 0) {
+    if (input.tests?.length === 0) {
       throw new LabOrderServiceError("tests are required.", 400);
     }
 

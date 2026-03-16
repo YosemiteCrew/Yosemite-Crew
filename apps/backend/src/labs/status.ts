@@ -24,8 +24,8 @@ export const normalizeLabStatus = (
 
   const normalized = raw
     .toUpperCase()
-    .replace(/\s+/g, "_")
-    .replace(/-+/g, "_");
+    .replaceAll(/\s+/g, "_")
+    .replaceAll(/-+/g, "_");
 
   const known: LabOrderStatus[] = [
     "CREATED",
