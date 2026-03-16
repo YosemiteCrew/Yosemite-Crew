@@ -21,12 +21,15 @@ This file defines how AI agents and automation should contribute to this reposit
 
 1. Make the smallest safe change for the request.
 2. Keep code, tests, and docs in sync.
-3. Run relevant checks before handing off:
-   - `pnpm run lint`
-   - `pnpm run type-check`
-   - `pnpm run test`
-   - Targeted workspace checks are allowed via `--filter`.
-4. Never commit secrets, tokens, private keys, or `.env` values.
+3. **Commit frequently** — after every logical batch of changes (per file or feature), run checks and commit immediately. Do NOT batch all changes and commit at the end. Context compaction will lose uncommitted work.
+4. Run relevant checks before each commit:
+   - `pnpm --filter frontend run lint`
+   - `npx tsc --noemit` (from `apps/frontend/`)
+   - Targeted tests only: `pnpm --filter frontend run test -- --testPathPattern="<relevant-file>"`
+   - **Never run the full test suite** (`pnpm run test` without `--testPathPattern`) — it takes 100+ seconds and is forbidden.
+5. Never commit secrets, tokens, private keys, or `.env` values.
+6. Never add co-author lines or signatures to commit messages.
+7. Let all pre-commit hooks pass naturally — never use `--no-verify`.
 
 ## Code Quality Rules
 
