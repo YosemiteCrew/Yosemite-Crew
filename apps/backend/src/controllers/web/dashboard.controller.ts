@@ -3,9 +3,40 @@ import { Request, Response } from "express";
 import {
   DashboardService,
   DashboardServiceError,
+  DashboardBucket,
   SummaryRange,
 } from "src/services/dashboard.service";
 import logger from "src/utils/logger";
+
+const asSummaryRange = (
+  value: unknown,
+  fallback: SummaryRange,
+): SummaryRange => {
+  if (typeof value !== "string") return fallback;
+  const allowed: SummaryRange[] = [
+    "today",
+    "yesterday",
+    "last_7_days",
+    "last_30_days",
+    "this_week",
+    "this_month",
+    "last_week",
+    "last_month",
+    "last_6_months",
+    "last_1_year",
+  ];
+  return allowed.includes(value as SummaryRange)
+    ? (value as SummaryRange)
+    : fallback;
+};
+
+const asBucket = (
+  value: unknown,
+  fallback: DashboardBucket,
+): DashboardBucket => {
+  if (value === "day" || value === "month") return value;
+  return fallback;
+};
 
 export const DashboardController = {
   // ─────────────────────────────────────────────
@@ -14,7 +45,7 @@ export const DashboardController = {
   summary: async (req: Request, res: Response) => {
     try {
       const { organisationId } = req.params;
-      const range = (req.query.range as SummaryRange) ?? "last_week";
+      const range = asSummaryRange(req.query.range, "last_month");
 
       const data = await DashboardService.getSummary({
         organisationId,
@@ -37,11 +68,13 @@ export const DashboardController = {
   appointmentsTrend: async (req: Request, res: Response) => {
     try {
       const { organisationId } = req.params;
-      const range = (req.query.range as SummaryRange) ?? "last_30_days";
+      const range = asSummaryRange(req.query.range, "last_month");
+      const bucket = asBucket(req.query.bucket, "month");
 
       const data = await DashboardService.getAppointmentsTrend({
         organisationId,
         range,
+        bucket,
       });
 
       res.json(data);
@@ -60,11 +93,13 @@ export const DashboardController = {
   revenueTrend: async (req: Request, res: Response) => {
     try {
       const { organisationId } = req.params;
-      const range = (req.query.range as SummaryRange) ?? "last_30_days";
+      const range = asSummaryRange(req.query.range, "last_month");
+      const bucket = asBucket(req.query.bucket, "month");
 
       const data = await DashboardService.getRevenueTrend({
         organisationId,
         range,
+        bucket,
       });
 
       res.json(data);
@@ -84,7 +119,7 @@ export const DashboardController = {
     try {
       const { organisationId } = req.params;
 
-      const range = (req.query.range as SummaryRange) ?? "last_week";
+      const range = asSummaryRange(req.query.range, "last_month");
       const limit = req.query.limit ? Number(req.query.limit) : 5;
 
       const data = await DashboardService.getAppointmentLeaders({
@@ -110,7 +145,7 @@ export const DashboardController = {
     try {
       const { organisationId } = req.params;
 
-      const range = (req.query.range as SummaryRange) ?? "last_week";
+      const range = asSummaryRange(req.query.range, "last_month");
       const limit = req.query.limit ? Number(req.query.limit) : 5;
 
       const data = await DashboardService.getRevenueLeaders({
