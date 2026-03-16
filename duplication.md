@@ -1,5 +1,5 @@
 Duplicated Lines (%)
-3.1%
+2.5%
 
 Duplicated Lines (%)
 Duplicated Lines
@@ -9,19 +9,15 @@ src/app/lib/specialities.ts
 54
 
 src/app/features/appointments/components/Calendar/common/Slot.tsx
-48.9%
-442
+39.0%
+307
 
 src/app/features/appointments/components/Calendar/common/DayCalendar.tsx
-44.1%
-423
-
-src/app/ui/cards/VideosCard/VideosCard.tsx
-42.2%
-57
+36.1%
+304
 
 src/app/features/appointments/components/Calendar/Task/UserCalendar.tsx
-25.1%
+25.2%
 79
 
 src/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/AppointmentMerckSearch.tsx
@@ -29,16 +25,8 @@ src/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Appoin
 118
 
 src/app/features/appointments/components/Calendar/common/UserCalendar.tsx
-22.9%
+23.0%
 70
-
-src/app/features/guides/pages/Guides.tsx
-20.9%
-58
-
-src/app/features/tasks/components/TaskBoard.tsx
-19.2%
-138
 
 src/app/features/forms/types/forms.ts
 19.1%
@@ -48,10 +36,6 @@ src/app/features/appointments/components/Calendar/AppointmentCalendar.tsx
 18.2%
 171
 
-src/app/features/appointments/components/AppointmentBoard.tsx
-17.7%
-137
-
 src/app/features/appointments/components/Calendar/Task/WeekCalendar.tsx
 17.7%
 59
@@ -59,10 +43,6 @@ src/app/features/appointments/components/Calendar/Task/WeekCalendar.tsx
 src/app/features/appointments/components/Calendar/Task/DayCalendar.tsx
 16.9%
 44
-
-src/app/features/appointments/components/Calendar/Task/TaskSlot.tsx
-15.6%
-96
 
 src/app/features/appointments/components/Calendar/common/WeekCalendar.tsx
 15.4%
@@ -111,6 +91,14 @@ src/app/stores/appointmentStore.ts
 src/app/features/inventory/components/AddInventory/FormSection.tsx
 8.5%
 26
+
+src/app/features/tasks/components/TaskBoard.tsx
+8.1%
+49
+
+src/app/features/appointments/components/AppointmentBoard.tsx
+7.4%
+49
 
 src/app/features/companions/components/AddCompanion/Sections/Companion.tsx
 7.0%

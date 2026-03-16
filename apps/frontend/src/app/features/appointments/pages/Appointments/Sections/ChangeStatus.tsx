@@ -26,8 +26,8 @@ const ChangeStatus = ({
   activeAppointment,
   preferredStatus = null,
 }: ChangeStatusProps) => {
-  const currentStatus = (normalizeAppointmentStatus(activeAppointment.status) ??
-    'REQUESTED') as AppointmentStatus;
+  const currentStatus: AppointmentStatus =
+    normalizeAppointmentStatus(activeAppointment.status) ?? 'REQUESTED';
 
   const availableStatusOptions = React.useMemo(() => {
     const allowed = new Set<AppointmentStatus>([

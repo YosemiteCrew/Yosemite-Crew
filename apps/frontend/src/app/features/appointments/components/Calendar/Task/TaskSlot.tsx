@@ -1,8 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { usePopoverManager } from '@/app/hooks/usePopoverManager';
 import { IoEyeOutline } from 'react-icons/io5';
 import { getStatusStyle } from '@/app/ui/tables/Tasks';
 import { Task } from '@/app/features/tasks/types/task';
 import { autoScrollCalendarHorizontally } from '@/app/features/appointments/components/Calendar/helpers';
+import { calcNearestAvailableMinute } from '@/app/features/appointments/components/Calendar/calendarDrop';
 import { formatDateInPreferredTimeZone, getDatePartsInPreferredTimeZone } from '@/app/lib/timezone';
 import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
 import { createPortal } from 'react-dom';
@@ -82,11 +84,15 @@ const TaskSlot = ({
 }: TaskSlotProps) => {
   const isZoomOutMode = zoomMode === 'out';
   const [dropPreviewMinute, setDropPreviewMinute] = useState<number | null>(null);
-  const [activePopoverKey, setActivePopoverKey] = useState<string | null>(null);
-  const [activeRect, setActiveRect] = useState<DOMRect | null>(null);
-  const [activeCursor, setActiveCursor] = useState<{ x: number; y: number } | null>(null);
-  const popoverDialogRef = useRef<HTMLDialogElement | null>(null);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const {
+    activePopoverKey,
+    setActivePopoverKey,
+    popoverDialogRef,
+    clearCloseTimer,
+    schedulePopoverClose,
+    openPopover,
+    getPopoverStyle,
+  } = usePopoverManager();
   const resolvedDayIndex = dayIndex ?? index ?? 0;
   const hourStartMinute = hour * 60;
   const hourEndMinute = hourStartMinute + 60;
@@ -103,116 +109,18 @@ const TaskSlot = ({
   );
 
   useEffect(() => {
-    if (!activePopoverKey) return;
-    const closePopover = () => setActivePopoverKey(null);
-    globalThis.addEventListener('scroll', closePopover, true);
-    globalThis.addEventListener('resize', closePopover);
-    return () => {
-      globalThis.removeEventListener('scroll', closePopover, true);
-      globalThis.removeEventListener('resize', closePopover);
-    };
-  }, [activePopoverKey]);
-
-  useEffect(() => {
     if (!draggedTaskId) return;
     setActivePopoverKey(null);
-  }, [draggedTaskId]);
+  }, [draggedTaskId, setActivePopoverKey]);
 
-  const clearCloseTimer = useCallback(() => {
-    if (closeTimerRef.current) {
-      clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = null;
-    }
-  }, []);
-
-  const schedulePopoverClose = useCallback(() => {
-    clearCloseTimer();
-    closeTimerRef.current = setTimeout(() => {
-      setActivePopoverKey(null);
-    }, 120);
-  }, [clearCloseTimer]);
-
-  useEffect(() => {
-    const dialogEl = popoverDialogRef.current;
-    if (!dialogEl || !activePopoverKey) return;
-
-    const onMouseEnter = () => clearCloseTimer();
-    const onMouseLeave = () => schedulePopoverClose();
-    const onFocusIn = () => clearCloseTimer();
-    const onFocusOut = (event: FocusEvent) => {
-      const nextFocused = event.relatedTarget as Node | null;
-      if (!nextFocused || !dialogEl.contains(nextFocused)) {
-        schedulePopoverClose();
-      }
-    };
-    const onTouchStart = () => clearCloseTimer();
-    const onTouchEnd = () => schedulePopoverClose();
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setActivePopoverKey(null);
-      }
-    };
-
-    dialogEl.addEventListener('mouseenter', onMouseEnter);
-    dialogEl.addEventListener('mouseleave', onMouseLeave);
-    dialogEl.addEventListener('focusin', onFocusIn);
-    dialogEl.addEventListener('focusout', onFocusOut);
-    dialogEl.addEventListener('touchstart', onTouchStart, { passive: true });
-    dialogEl.addEventListener('touchend', onTouchEnd, { passive: true });
-    dialogEl.addEventListener('keydown', onKeyDown);
-
-    return () => {
-      dialogEl.removeEventListener('mouseenter', onMouseEnter);
-      dialogEl.removeEventListener('mouseleave', onMouseLeave);
-      dialogEl.removeEventListener('focusin', onFocusIn);
-      dialogEl.removeEventListener('focusout', onFocusOut);
-      dialogEl.removeEventListener('touchstart', onTouchStart);
-      dialogEl.removeEventListener('touchend', onTouchEnd);
-      dialogEl.removeEventListener('keydown', onKeyDown);
-    };
-  }, [activePopoverKey, clearCloseTimer, schedulePopoverClose]);
-
-  const getPopoverStyle = () => {
-    if (!activeRect) return { top: 0, left: 0 };
-    const popoverWidth = 304;
-    const popoverHeight = 248;
-    const margin = 8;
-    const viewportWidth = globalThis.innerWidth;
-    const viewportHeight = globalThis.innerHeight;
-    const anchorX = activeCursor?.x ?? activeRect.left + activeRect.width / 2;
-    const anchorY = activeCursor?.y ?? activeRect.top;
-    const availableRight = viewportWidth - anchorX - margin;
-    const availableLeft = anchorX - margin;
-    const shouldPlaceRight = availableRight >= popoverWidth || availableRight >= availableLeft;
-    const preferredLeft = shouldPlaceRight ? anchorX + margin : anchorX - popoverWidth - margin;
-    const left = Math.max(margin, Math.min(preferredLeft, viewportWidth - popoverWidth - margin));
-    const placeAbove = anchorY + popoverHeight + margin > viewportHeight;
-    const top = placeAbove
-      ? Math.max(margin, anchorY - popoverHeight - margin)
-      : Math.max(margin, anchorY);
-    return {
-      top,
-      left,
-      width: popoverWidth,
-    };
-  };
-
-  const openPopover = (
+  const handleOpenPopover = (
     key: string,
     target: HTMLButtonElement,
     clientX?: number,
     clientY?: number
-  ) => {
-    if (draggedTaskId) return;
-    clearCloseTimer();
-    setActiveRect(target.getBoundingClientRect());
-    if (typeof clientX === 'number' && typeof clientY === 'number') {
-      setActiveCursor({ x: clientX, y: clientY });
-    } else {
-      setActiveCursor(null);
-    }
-    setActivePopoverKey(key);
-  };
+  ): void => openPopover(key, target, draggedTaskId, clientX, clientY);
+
+  const popoverStyle = getPopoverStyle(304, 248);
 
   const availabilitySegments = useMemo(() => {
     const duration = Math.max(5, draggedTaskDurationMinutes);
@@ -276,20 +184,8 @@ const TaskSlot = ({
     return Math.max(0, Math.min(24 * 60 - 5, Math.round(rawMinute / 5) * 5));
   };
 
-  const getNearestAvailableMinute = (minute: number) => {
-    const DROP_TOLERANCE_MINUTES = 12;
-    const snapped = Math.round(minute / 5) * 5;
-    let bestMatch: { minute: number; distance: number } | null = null;
-    for (const interval of dropAvailabilityIntervals) {
-      const candidateMinute = Math.max(interval.startMinute, Math.min(interval.endMinute, snapped));
-      const distance = Math.abs(minute - candidateMinute);
-      if (!bestMatch || distance < bestMatch.distance) {
-        bestMatch = { minute: candidateMinute, distance };
-      }
-    }
-    if (!bestMatch || bestMatch.distance > DROP_TOLERANCE_MINUTES) return null;
-    return bestMatch.minute;
-  };
+  const getNearestAvailableMinute = (minute: number) =>
+    calcNearestAvailableMinute(minute, dropAvailabilityIntervals);
 
   const createTaskAtMinute = (clientY: number, container: HTMLDivElement) => {
     if (!onCreateTaskAt || draggedTaskId) return;
@@ -437,13 +333,13 @@ const TaskSlot = ({
                 onClick={() => handleViewTask(task)}
                 draggable={!!canDragTask?.(task)}
                 onMouseEnter={(event) =>
-                  openPopover(taskKey, event.currentTarget, event.clientX, event.clientY)
+                  handleOpenPopover(taskKey, event.currentTarget, event.clientX, event.clientY)
                 }
                 onMouseMove={(event) =>
-                  openPopover(taskKey, event.currentTarget, event.clientX, event.clientY)
+                  handleOpenPopover(taskKey, event.currentTarget, event.clientX, event.clientY)
                 }
                 onMouseLeave={schedulePopoverClose}
-                onFocus={(event) => openPopover(taskKey, event.currentTarget)}
+                onFocus={(event) => handleOpenPopover(taskKey, event.currentTarget)}
                 onBlur={schedulePopoverClose}
                 onDragStart={() => onTaskDragStart?.(task)}
                 onDragEnd={() => {
@@ -496,7 +392,7 @@ const TaskSlot = ({
               ref={popoverDialogRef}
               open
               className="fixed z-[1000] m-0 box-border w-[304px] max-w-[calc(100vw-16px)] rounded-2xl border border-card-border bg-white p-3 shadow-[0_8px_24px_0_rgba(0,0,0,0.16)] outline-none"
-              style={getPopoverStyle()}
+              style={popoverStyle}
               onMouseEnter={clearCloseTimer}
               onMouseLeave={schedulePopoverClose}
               onFocus={clearCloseTimer}

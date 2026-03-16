@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { usePopoverManager } from '@/app/hooks/usePopoverManager';
 import { getStatusStyle } from '@/app/config/statusConfig';
 import Image from 'next/image';
 import { Appointment, Invoice } from '@yosemite-crew/types';
@@ -13,6 +14,7 @@ import {
 } from '@/app/lib/appointments';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
 import { autoScrollCalendarHorizontally } from '@/app/features/appointments/components/Calendar/helpers';
+import { calcNearestAvailableMinute } from '@/app/features/appointments/components/Calendar/calendarDrop';
 import {
   IoEyeOutline,
   IoCalendarOutline,
@@ -89,96 +91,27 @@ const Slot: React.FC<SlotProps> = ({
 }) => {
   const orgsById = useOrgStore((s) => s.orgsById);
   const isZoomOutMode = zoomMode === 'out';
-  const [activePopoverKey, setActivePopoverKey] = useState<string | null>(null);
-  const [activeRect, setActiveRect] = useState<DOMRect | null>(null);
-  const [activeCursor, setActiveCursor] = useState<{ x: number; y: number } | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [dropPreviewMinute, setDropPreviewMinute] = useState<number | null>(null);
-  const popoverDialogRef = useRef<HTMLDialogElement | null>(null);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const {
+    activePopoverKey,
+    setActivePopoverKey,
+    activeRect,
+    popoverDialogRef,
+    schedulePopoverClose,
+    openPopover,
+    getPopoverStyle,
+  } = usePopoverManager();
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
   useEffect(() => {
-    if (!activePopoverKey) return;
-    const closePopover = () => setActivePopoverKey(null);
-    globalThis.addEventListener('scroll', closePopover, true);
-    globalThis.addEventListener('resize', closePopover);
-    return () => {
-      globalThis.removeEventListener('scroll', closePopover, true);
-      globalThis.removeEventListener('resize', closePopover);
-    };
-  }, [activePopoverKey]);
-
-  useEffect(() => {
     if (!draggedAppointmentId) return;
     setActivePopoverKey(null);
     setDropPreviewMinute(null);
-  }, [draggedAppointmentId]);
-
-  const clearCloseTimer = useCallback(() => {
-    if (closeTimerRef.current) {
-      clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = null;
-    }
-  }, []);
-
-  const schedulePopoverClose = useCallback(() => {
-    clearCloseTimer();
-    closeTimerRef.current = setTimeout(() => {
-      setActivePopoverKey(null);
-    }, 120);
-  }, [clearCloseTimer]);
-
-  useEffect(() => {
-    const dialogEl = popoverDialogRef.current;
-    if (!dialogEl || !activePopoverKey) return;
-
-    const onMouseEnter = () => clearCloseTimer();
-    const onMouseLeave = () => schedulePopoverClose();
-    const onFocusIn = () => clearCloseTimer();
-    const onFocusOut = (event: FocusEvent) => {
-      const nextFocused = event.relatedTarget as Node | null;
-      if (!nextFocused || !dialogEl.contains(nextFocused)) {
-        schedulePopoverClose();
-      }
-    };
-    const onTouchStart = () => clearCloseTimer();
-    const onTouchEnd = () => schedulePopoverClose();
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setActivePopoverKey(null);
-      }
-    };
-
-    dialogEl.addEventListener('mouseenter', onMouseEnter);
-    dialogEl.addEventListener('mouseleave', onMouseLeave);
-    dialogEl.addEventListener('focusin', onFocusIn);
-    dialogEl.addEventListener('focusout', onFocusOut);
-    dialogEl.addEventListener('touchstart', onTouchStart, { passive: true });
-    dialogEl.addEventListener('touchend', onTouchEnd, { passive: true });
-    dialogEl.addEventListener('keydown', onKeyDown);
-
-    return () => {
-      dialogEl.removeEventListener('mouseenter', onMouseEnter);
-      dialogEl.removeEventListener('mouseleave', onMouseLeave);
-      dialogEl.removeEventListener('focusin', onFocusIn);
-      dialogEl.removeEventListener('focusout', onFocusOut);
-      dialogEl.removeEventListener('touchstart', onTouchStart);
-      dialogEl.removeEventListener('touchend', onTouchEnd);
-      dialogEl.removeEventListener('keydown', onKeyDown);
-    };
-  }, [activePopoverKey, clearCloseTimer, schedulePopoverClose]);
-
-  useEffect(() => {
-    return () => {
-      if (closeTimerRef.current) {
-        clearCloseTimer();
-      }
-    };
-  }, [clearCloseTimer]);
+  }, [draggedAppointmentId, setActivePopoverKey]);
 
   const sortedSlotEvents = useMemo(
     () => [...slotEvents].sort((a, b) => a.startTime.getTime() - b.startTime.getTime()),
@@ -218,47 +151,14 @@ const Slot: React.FC<SlotProps> = ({
       .join(' ');
   };
 
-  const getPopoverStyle = () => {
-    if (!activeRect) return { top: 0, left: 0 };
-    const popoverWidth = 360;
-    const popoverHeight = 340;
-    const margin = 8;
-    const viewportWidth = globalThis.innerWidth;
-    const viewportHeight = globalThis.innerHeight;
-    const anchorX = activeCursor?.x ?? activeRect.left + activeRect.width / 2;
-    const anchorY = activeCursor?.y ?? activeRect.top;
-    const availableRight = viewportWidth - anchorX - margin;
-    const availableLeft = anchorX - margin;
-    const shouldPlaceRight = availableRight >= popoverWidth || availableRight >= availableLeft;
-    const preferredLeft = shouldPlaceRight ? anchorX + margin : anchorX - popoverWidth - margin;
-    const left = Math.max(margin, Math.min(preferredLeft, viewportWidth - popoverWidth - margin));
-    const placeAbove = anchorY + popoverHeight + margin > viewportHeight;
-    const top = placeAbove
-      ? Math.max(margin, anchorY - popoverHeight - margin)
-      : Math.max(margin, anchorY);
-    return {
-      top,
-      left,
-      width: popoverWidth,
-    };
-  };
-
-  const openPopover = (
+  const handleOpenPopover = (
     key: string,
     target: HTMLButtonElement,
     clientX?: number,
     clientY?: number
-  ) => {
-    if (draggedAppointmentId) return;
-    clearCloseTimer();
-    setActiveRect(target.getBoundingClientRect());
-    if (typeof clientX === 'number' && typeof clientY === 'number') {
-      setActiveCursor({ x: clientX, y: clientY });
-    } else {
-      setActiveCursor(null);
-    }
-    setActivePopoverKey(key);
-  };
+  ): void => openPopover(key, target, draggedAppointmentId, clientX, clientY);
+
+  const popoverStyle = getPopoverStyle(360, 340);
 
   const setCustomDragGhost = (
     event: React.DragEvent<HTMLButtonElement>,
@@ -291,20 +191,8 @@ const Slot: React.FC<SlotProps> = ({
     return dropHour * 60 + minuteWithinHour;
   };
 
-  const getNearestAvailableMinute = (minute: number) => {
-    const DROP_TOLERANCE_MINUTES = 12;
-    const snapped = Math.round(minute / 5) * 5;
-    let bestMatch: { minute: number; distance: number } | null = null;
-    for (const interval of dropAvailabilityIntervals) {
-      const candidateMinute = Math.max(interval.startMinute, Math.min(interval.endMinute, snapped));
-      const distance = Math.abs(minute - candidateMinute);
-      if (!bestMatch || distance < bestMatch.distance) {
-        bestMatch = { minute: candidateMinute, distance };
-      }
-    }
-    if (!bestMatch || bestMatch.distance > DROP_TOLERANCE_MINUTES) return null;
-    return bestMatch.minute;
-  };
+  const getNearestAvailableMinute = (minute: number) =>
+    calcNearestAvailableMinute(minute, dropAvailabilityIntervals);
 
   const hourStart = dropHour * 60;
   const hourEnd = hourStart + 60;
@@ -528,7 +416,12 @@ const Slot: React.FC<SlotProps> = ({
                       }`}
                       onClick={() => handleViewAppointment(ev)}
                       onMouseEnter={(event) =>
-                        openPopover(itemKey, event.currentTarget, event.clientX, event.clientY)
+                        handleOpenPopover(
+                          itemKey,
+                          event.currentTarget,
+                          event.clientX,
+                          event.clientY
+                        )
                       }
                       onMouseLeave={schedulePopoverClose}
                       draggable={draggable}
@@ -603,7 +496,12 @@ const Slot: React.FC<SlotProps> = ({
                       } ${compact ? 'py-1 flex flex-col justify-center text-center' : 'py-1.5 flex items-center gap-2'}`}
                       onClick={() => handleViewAppointment(ev)}
                       onMouseEnter={(event) =>
-                        openPopover(itemKey, event.currentTarget, event.clientX, event.clientY)
+                        handleOpenPopover(
+                          itemKey,
+                          event.currentTarget,
+                          event.clientX,
+                          event.clientY
+                        )
                       }
                       onMouseLeave={schedulePopoverClose}
                       draggable={draggable}
@@ -672,7 +570,7 @@ const Slot: React.FC<SlotProps> = ({
             ref={popoverDialogRef}
             open
             className="fixed z-[1000] w-[380px] rounded-2xl border border-card-border bg-white p-3 shadow-[0_18px_45px_rgba(0,0,0,0.14)]"
-            style={getPopoverStyle()}
+            style={popoverStyle}
             aria-label="Appointment quick actions"
           >
             <div className="flex items-start justify-between gap-3">

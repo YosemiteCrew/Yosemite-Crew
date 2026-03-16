@@ -22,7 +22,7 @@ const ChangeTaskStatus = ({
   activeTask,
   preferredStatus = null,
 }: ChangeTaskStatusProps) => {
-  const currentStatus = (normalizeTaskStatus(activeTask.status) ?? activeTask.status) as TaskStatus;
+  const currentStatus: TaskStatus = normalizeTaskStatus(activeTask.status) ?? activeTask.status;
 
   const availableStatusOptions = React.useMemo(() => {
     const allowed = new Set<TaskStatus>([

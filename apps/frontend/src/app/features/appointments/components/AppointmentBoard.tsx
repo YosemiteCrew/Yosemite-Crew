@@ -1,4 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useBoardDragScroll } from '@/app/hooks/useBoardDragScroll';
+import { buildDragPreview } from '@/app/lib/buildDragPreview';
+import BoardScopeToggle from '@/app/ui/primitives/BoardScopeToggle/BoardScopeToggle';
 import { Appointment } from '@yosemite-crew/types';
 import { getStatusStyle } from '@/app/config/statusConfig';
 import {
@@ -53,56 +56,6 @@ type BoardStatus =
   | 'COMPLETED'
   | 'CANCELLED'
   | 'NO_SHOW';
-
-const BoardScopeToggle = ({
-  showMineOnly,
-  disabled,
-  onChange,
-}: {
-  showMineOnly: boolean;
-  disabled?: boolean;
-  onChange: (nextShowMineOnly: boolean) => void;
-}) => {
-  const isAllAppointments = !showMineOnly;
-  const sliderClass = isAllAppointments
-    ? 'translate-x-0 bg-[#247AED] border-[#247AED]'
-    : 'translate-x-full bg-[#D28F9A] border-[#D28F9A]';
-  const allTextClass = isAllAppointments ? 'text-neutral-0' : 'text-text-secondary';
-  const mineTextClass = isAllAppointments ? 'text-text-secondary' : 'text-neutral-0';
-
-  return (
-    <div
-      className={`relative inline-flex items-center h-9 w-[320px] max-w-full rounded-[999px]! border border-card-border bg-white overflow-hidden ${
-        disabled ? 'opacity-70' : ''
-      }`}
-    >
-      <div
-        aria-hidden
-        className={`absolute top-0 bottom-0 left-0 w-1/2 rounded-[999px]! border-0 transition-all duration-300 ease-in-out ${sliderClass}`}
-      />
-      <button
-        type="button"
-        onClick={() => onChange(false)}
-        disabled={disabled}
-        className={`relative z-10 w-1/2 h-full text-body-4 transition-colors duration-200 ${
-          disabled ? 'cursor-not-allowed' : 'cursor-pointer'
-        } ${allTextClass}`}
-      >
-        All appointments
-      </button>
-      <button
-        type="button"
-        onClick={() => onChange(true)}
-        disabled={disabled}
-        className={`relative z-10 w-1/2 h-full text-body-4 transition-colors duration-200 ${
-          disabled ? 'cursor-not-allowed' : 'cursor-pointer'
-        } ${mineTextClass}`}
-      >
-        My appointments
-      </button>
-    </div>
-  );
-};
 
 const BOARD_COLUMNS: Array<{ key: BoardStatus; label: string }> = [
   { key: 'REQUESTED', label: 'Requested' },
@@ -192,26 +145,6 @@ const AppointmentBoard = ({
   const invoices = useInvoicesForPrimaryOrg();
   const invoicesByAppointmentId = useMemo(() => createInvoiceByAppointmentId(invoices), [invoices]);
 
-  const buildDragPreview = (source: HTMLElement): HTMLElement => {
-    const preview = source.cloneNode(true) as HTMLElement;
-    preview.style.position = 'fixed';
-    preview.style.top = '-10000px';
-    preview.style.left = '-10000px';
-    preview.style.width = `${source.offsetWidth}px`;
-    preview.style.maxWidth = `${source.offsetWidth}px`;
-    preview.style.pointerEvents = 'none';
-    preview.style.borderRadius = '16px';
-    preview.style.overflow = 'hidden';
-    preview.style.boxShadow = 'none';
-    preview.style.background = '#fff';
-    preview.style.transform = 'scale(0.94)';
-    preview.style.transformOrigin = 'top left';
-    preview.style.opacity = '1';
-    preview.style.zIndex = '99999';
-    document.body.appendChild(preview);
-    return preview;
-  };
-
   const normalizeId = (value?: string | null) =>
     String(value ?? '')
       .trim()
@@ -294,52 +227,7 @@ const AppointmentBoard = ({
     setChangeRoomPopup?.(true);
   };
 
-  const getEdgeScrollDelta = (clientPosition: number, start: number, end: number) => {
-    const EDGE_PX = 56;
-    const SPEED_PX = 24;
-    if (clientPosition - start < EDGE_PX) return -SPEED_PX;
-    if (end - clientPosition < EDGE_PX) return SPEED_PX;
-    return 0;
-  };
-
-  const canScrollVertically = (el: HTMLElement, delta: number) => {
-    if (delta < 0) return el.scrollTop > 0;
-    if (delta > 0) return el.scrollTop + el.clientHeight < el.scrollHeight - 1;
-    return false;
-  };
-
-  const canScrollHorizontally = (el: HTMLElement, delta: number) => {
-    if (delta < 0) return el.scrollLeft > 0;
-    if (delta > 0) return el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
-    return false;
-  };
-
-  const autoScrollBoardOnDrag = useCallback(
-    (event: React.DragEvent<HTMLElement>, innerScrollable?: HTMLElement | null) => {
-      const innerRect = innerScrollable?.getBoundingClientRect();
-      const deltaInnerY = innerRect
-        ? getEdgeScrollDelta(event.clientY, innerRect.top, innerRect.bottom)
-        : 0;
-      if (
-        innerScrollable &&
-        deltaInnerY !== 0 &&
-        canScrollVertically(innerScrollable, deltaInnerY)
-      ) {
-        innerScrollable.scrollBy({ top: deltaInnerY });
-        return;
-      }
-
-      const boardRoot =
-        event.currentTarget.closest<HTMLElement>('[data-board-scroll-root="true"]') ??
-        event.currentTarget;
-      const boardRect = boardRoot.getBoundingClientRect();
-      const deltaBoardX = getEdgeScrollDelta(event.clientX, boardRect.left, boardRect.right);
-      if (deltaBoardX !== 0 && canScrollHorizontally(boardRoot, deltaBoardX)) {
-        boardRoot.scrollBy({ left: deltaBoardX });
-      }
-    },
-    []
-  );
+  const { autoScrollBoardOnDrag } = useBoardDragScroll();
 
   const moveToStatus = useCallback(
     async (appointmentId: string, nextStatus: BoardStatus) => {
@@ -373,7 +261,10 @@ const AppointmentBoard = ({
     setDraggedAppointmentId(appointmentId ?? null);
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('text/plain', appointmentId ?? '');
-    const preview = buildDragPreview(event.currentTarget);
+    const preview = buildDragPreview(event.currentTarget, {
+      scale: 0.94,
+      transformOrigin: 'top left',
+    });
     event.dataTransfer.setDragImage(preview, 24, 24);
     requestAnimationFrame(() => {
       preview.remove();
@@ -498,7 +389,12 @@ const AppointmentBoard = ({
                 placeholder="Select Date"
               />
             </GlassTooltip>
-            <BoardScopeToggle showMineOnly={showMineOnly} onChange={setShowMineOnly} />
+            <BoardScopeToggle
+              showMineOnly={showMineOnly}
+              onChange={setShowMineOnly}
+              allLabel="All appointments"
+              mineLabel="My appointments"
+            />
           </div>
         </div>
       </div>
