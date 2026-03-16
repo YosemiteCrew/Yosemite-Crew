@@ -1,5 +1,6 @@
 import { Appointment, Invoice } from '@yosemite-crew/types';
 import { normalizeAppointmentId } from '@/app/lib/invoice';
+import { type LegacyAppointmentStatus } from '@/app/lib/appointments';
 
 export type AppointmentPaymentState = 'PAID' | 'UNPAID' | 'PAID_CASH' | 'PAYMENT_AT_CLINIC';
 
@@ -145,7 +146,9 @@ export const getAppointmentPaymentDisplay = (
   const invoice = appointmentId ? invoicesByAppointmentId[appointmentId] : undefined;
 
   if (!invoice) {
-    return PAYMENT_DISPLAY.PAID;
+    return (appointment.status as LegacyAppointmentStatus) === 'NO_PAYMENT'
+      ? PAYMENT_DISPLAY.UNPAID
+      : PAYMENT_DISPLAY.PAID;
   }
 
   if (!isInvoicePaid(invoice)) {
