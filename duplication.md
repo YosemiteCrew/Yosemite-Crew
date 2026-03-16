@@ -1,6 +1,5 @@
 Duplicated Lines (%)
 3.4%
-See history
 
 Duplicated Lines (%)
 Duplicated Lines
@@ -22,7 +21,7 @@ src/app/features/appointments/components/Calendar/common/Slot.tsx
 442
 
 src/app/features/appointments/components/Calendar/common/DayCalendar.tsx
-44.2%
+44.1%
 423
 
 src/app/ui/cards/VideosCard/VideosCard.tsx

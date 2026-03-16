@@ -12,6 +12,9 @@ export const MEDIA_SOURCES = {
     merckLogoFileName: 'merckLogo.png',
     merckLogoS3Key: 'integrations/merckLogo.png',
     merckLogoUrl: ycCdn('integrations/merckLogo.png'),
+    radAnalyzerLogoFileName: 'radanalyzer.jpg',
+    radAnalyzerLogoS3Key: 'integrations/radanalyzer.jpg',
+    radAnalyzerLogoUrl: ycCdn('integrations/radanalyzer.jpg'),
   },
   logo: ycCdn('Logo.png'),
   avatars: {

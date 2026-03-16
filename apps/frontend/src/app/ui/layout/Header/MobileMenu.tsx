@@ -1,5 +1,5 @@
-import React from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 type MobileMenuProps = {
   isOpen: boolean;
@@ -21,8 +21,8 @@ const MobileMenu = ({ isOpen, children }: MobileMenuProps) => (
           opacity: 0,
           transition: { duration: 0.3, ease: [0.42, 0, 0.58, 1] },
         }}
-        style={{ top: "80px" }}
-        className="px-3 sm:px-12! py-6 bg-white z-999 fixed left-0 w-screen overflow-auto flex flex-col gap-3"
+        style={{ top: '80px' }}
+        className="px-3 sm:px-12! py-6 bg-white z-999 fixed left-0 w-screen overflow-auto flex flex-col gap-3 lg:hidden"
       >
         {children}
       </motion.div>

@@ -43,6 +43,22 @@ const GuestHeader = () => {
     }
   }, [status]);
 
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    const closeMenuOnDesktop = () => {
+      if (globalThis.window.innerWidth >= 1024) {
+        setMenuOpen(false);
+      }
+    };
+
+    closeMenuOnDesktop();
+    globalThis.window.addEventListener('resize', closeMenuOnDesktop);
+    return () => globalThis.window.removeEventListener('resize', closeMenuOnDesktop);
+  }, []);
+
   const handleClick = (href: string) => {
     setMenuOpen(false);
     setTimeout(() => {
@@ -113,7 +129,10 @@ const GuestHeader = () => {
   };
 
   return (
-    <div className="flex items-center justify-between px-3! sm:px-12! lg:px-20! gap-10 w-full h-20">
+    <div
+      className="flex items-center justify-between px-3! sm:px-12! lg:px-20! gap-10 w-full h-20"
+      data-terminology-lock="true"
+    >
       <Link href="/" className="logo">
         <Image src={logoUrl} alt="Logo" width={90} height={83} priority />
       </Link>

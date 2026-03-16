@@ -143,7 +143,7 @@ const Tasks = ({
       render: (item: Task) => (
         <div className="action-btn-col">
           <div className="action-btn-grid">
-            <GlassTooltip content="View task" side="bottom">
+            <GlassTooltip content="View task" side="bottom" className="table-action-tooltip">
               <button
                 onClick={() => handleViewTask(item)}
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
@@ -153,7 +153,7 @@ const Tasks = ({
               </button>
             </GlassTooltip>
             {canEditTasks && canShowTaskStatusChangeAction(item.status) && (
-              <GlassTooltip content="Change status" side="bottom">
+              <GlassTooltip content="Change status" side="bottom" className="table-action-tooltip">
                 <button
                   onClick={() => handleChangeStatusTask(item)}
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
@@ -164,7 +164,7 @@ const Tasks = ({
               </GlassTooltip>
             )}
             {canEditTasks && canRescheduleTask(item.status) && (
-              <GlassTooltip content="Reschedule" side="bottom">
+              <GlassTooltip content="Reschedule" side="bottom" className="table-action-tooltip">
                 <button
                   onClick={() => handleRescheduleTask(item)}
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"

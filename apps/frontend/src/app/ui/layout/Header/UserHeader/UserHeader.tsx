@@ -70,6 +70,26 @@ const UserHeader = () => {
     clear();
   }, [pathname, clear]);
 
+  useEffect(() => {
+    setMenuOpen(false);
+    setSelectOrg(false);
+    setSelectProfile(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    const closeMenuOnDesktop = () => {
+      if (globalThis.window.innerWidth >= 1024) {
+        setMenuOpen(false);
+        setSelectOrg(false);
+        setSelectProfile(false);
+      }
+    };
+
+    closeMenuOnDesktop();
+    globalThis.window.addEventListener('resize', closeMenuOnDesktop);
+    return () => globalThis.window.removeEventListener('resize', closeMenuOnDesktop);
+  }, []);
+
   const handleLogout = async () => {
     try {
       await signOut();

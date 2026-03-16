@@ -92,6 +92,10 @@
   width: 184px;
   gap: 8px;
 }
+.table-action-tooltip {
+  opacity: 1 !important;
+  flex: 0 0 auto;
+}
 .action-btn {
   display: flex;
   justify-content: center;

@@ -52,6 +52,20 @@ const renderFeatureName = (name: string) => {
     );
   }
 
+  if (name === 'RAD Analyzer integration') {
+    return (
+      <div className="pricingFeatureWithBrand">
+        <Image
+          src={MEDIA_SOURCES.futureAssets.radAnalyzerLogoUrl}
+          alt="RAD Analyzer"
+          width={96}
+          height={36}
+          className="pricingFeatureBrandLogo"
+        />
+      </div>
+    );
+  }
+
   return name;
 };
 
@@ -284,10 +298,7 @@ const PricingPage = () => {
                       {table.rows.map((row) => (
                         <tr key={row.name}>
                           {(() => {
-                            const isBrandedIntegrationRow =
-                              row.name === 'IDEXX integration' ||
-                              row.name === 'Merck Manuals integration';
-                            const cellPaddingClass = isBrandedIntegrationRow ? 'py-1' : 'py-3';
+                            const cellPaddingClass = 'py-3';
                             return (
                               <>
                                 <td

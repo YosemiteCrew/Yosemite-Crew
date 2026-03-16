@@ -109,8 +109,8 @@ export const TableData = [
     head: 'Integrations & labs',
     rows: [
       yesYes('IDEXX integration'),
-      row('RadAnalyzer integration', 'Coming soon', 'Coming soon'),
       yesYes('Merck Manuals integration'),
+      row('RAD Analyzer integration', 'Coming soon', 'Coming soon'),
     ],
   },
   {
