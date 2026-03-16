@@ -308,6 +308,37 @@ export const TaskController = {
     }
   },
 
+  // PMS — Change Status
+  changeStatusPMS: async (
+    req: Request<{ taskId: string }, unknown, ChangeStatusRequestBody>,
+    res: Response,
+  ) => {
+    try {
+      const actorId = resolveUserId(req);
+      if (!actorId) {
+        return res.status(403).json({ message: "Account not found" });
+      }
+
+      const taskId = req.params.taskId;
+      const status = parseStatusValue(req.body.status);
+      const completion = req.body.completion;
+
+      if (!status) {
+        return res.status(400).json({ message: "Invalid task status" });
+      }
+
+      const result = await TaskService.changeStatus(
+        taskId,
+        status,
+        actorId,
+        completion,
+      );
+      res.json(result);
+    } catch (error) {
+      handleError(error, res);
+    }
+  },
+
   // Mobile — List Parent Tasks
   listParentTasks: async (
     req: Request<

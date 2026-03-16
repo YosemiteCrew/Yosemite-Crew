@@ -22,6 +22,7 @@ export interface ParentMongo {
   phoneNumber?: string;
 
   currency?: string;
+  timezone?: string;
   profileImageUrl?: string;
   isProfileComplete?: boolean;
 
@@ -53,6 +54,7 @@ const ParentSchema = new Schema<ParentMongo>(
     phoneNumber: { type: String },
 
     currency: { type: String },
+    timezone: { type: String },
     profileImageUrl: { type: String },
     isProfileComplete: { type: Boolean, default: false },
 

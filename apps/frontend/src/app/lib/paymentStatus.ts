@@ -145,7 +145,7 @@ export const getAppointmentPaymentDisplay = (
   const invoice = appointmentId ? invoicesByAppointmentId[appointmentId] : undefined;
 
   if (!invoice) {
-    return appointment.status === 'NO_PAYMENT' ? PAYMENT_DISPLAY.UNPAID : PAYMENT_DISPLAY.PAID;
+    return PAYMENT_DISPLAY.PAID;
   }
 
   if (!isInvoicePaid(invoice)) {

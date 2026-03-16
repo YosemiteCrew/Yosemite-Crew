@@ -68,9 +68,7 @@ const BOARD_COLUMNS: Array<{ key: BoardStatus; label: string }> = [
 ];
 
 const normalizeStatus = (status?: string): BoardStatus | null => {
-  const normalized = normalizeAppointmentStatus(status);
-  if (!normalized) return null;
-  return normalized === 'NO_PAYMENT' ? 'REQUESTED' : normalized;
+  return normalizeAppointmentStatus(status);
 };
 
 const getBoardOrgType = (

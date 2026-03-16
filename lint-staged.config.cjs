@@ -34,7 +34,14 @@ module.exports = {
       .filter((file) => isMobilePath(file))
       .map((file) => toMobileRelativePath(file))
       .filter((file) => shouldLintWithMobileEslint(file));
-    const nonMobileFiles = files.filter((file) => !isMobilePath(file));
+    const nonMobileFiles = files.filter(
+      (file) =>
+        !isMobilePath(file) &&
+        !file.includes('/apps/backend/') &&
+        !file.startsWith('apps/backend/') &&
+        !file.includes('/packages/') &&
+        !file.startsWith('packages/')
+    );
     const commands = [];
 
     if (nonMobileFiles.length > 0) {

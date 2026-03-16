@@ -34,8 +34,8 @@ const ChangeStatus = ({
       currentStatus,
       ...getAllowedAppointmentStatusTransitions(currentStatus),
     ]);
-    return AppointmentStatusOptions.filter(
-      (option) => option.value !== 'NO_PAYMENT' && allowed.has(option.value as AppointmentStatus)
+    return AppointmentStatusOptions.filter((option) =>
+      allowed.has(option.value as AppointmentStatus)
     ) as Array<{ value: AppointmentStatus; label: string }>;
   }, [currentStatus]);
 

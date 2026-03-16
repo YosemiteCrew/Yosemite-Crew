@@ -23,6 +23,7 @@ jest.mock('@/app/lib/appointments', () => ({
   isRequestedLikeStatus: jest.fn(
     (status: string) => status === 'REQUESTED' || status === 'NO_PAYMENT'
   ),
+  normalizeAppointmentStatus: (status: string) => (status === 'NO_PAYMENT' ? 'REQUESTED' : status),
 }));
 
 jest.mock('@/app/lib/forms', () => ({
@@ -80,10 +81,10 @@ describe('Appointments table', () => {
     jest.clearAllMocks();
   });
 
-  it('handles accept/cancel actions for requested-like appointments', async () => {
+  it('handles accept/cancel actions for requested appointments', async () => {
     const appointment: any = {
       id: 'a1',
-      status: 'NO_PAYMENT',
+      status: 'REQUESTED',
       companion: {
         name: 'Buddy',
         species: 'dog',

@@ -10,6 +10,10 @@ type AddChargesBody = {
   items?: unknown;
 };
 
+type UpdatePaymentCollectionMethodBody = {
+  paymentCollectionMethod?: unknown;
+};
+
 const isInvoiceItem = (item: unknown): item is InvoiceItem => {
   if (!item || typeof item !== "object") return false;
   const candidate = item as Partial<InvoiceItem>;
@@ -74,7 +78,11 @@ export const InvoiceController = {
       return res.status(500).json({ message: "Internal server error" });
     }
   },
-  async createCheckoutSessionForInvoice(this: void, req: Request, res: Response) {
+  async createCheckoutSessionForInvoice(
+    this: void,
+    req: Request,
+    res: Response,
+  ) {
     try {
       const invoiceId = req.params.invoiceId;
       if (!invoiceId) {
@@ -142,6 +150,75 @@ export const InvoiceController = {
     } catch (err) {
       logger.error("Error fetching appointment invoices", err);
       return res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  async markInvoicePaidManually(this: void, req: Request, res: Response) {
+    try {
+      const invoiceId = req.params.invoiceId;
+      if (!invoiceId) {
+        return res.status(400).json({ message: "Invoice Id is required" });
+      }
+
+      const invoice = await InvoiceService.markInvoicePaidManually(invoiceId);
+      if (!invoice) {
+        return res.status(409).json({ message: "Invoice already paid." });
+      }
+
+      return res.status(200).json(invoice);
+    } catch (err) {
+      logger.error("Error marking invoice paid", err);
+
+      const statusCode =
+        err instanceof InvoiceServiceError ? err.statusCode : 500;
+      const message =
+        err instanceof InvoiceServiceError
+          ? err.message
+          : "Internal server error";
+
+      return res.status(statusCode).json({ message });
+    }
+  },
+
+  async updatePaymentCollectionMethod(
+    this: void,
+    req: Request<
+      { invoiceId: string },
+      unknown,
+      UpdatePaymentCollectionMethodBody
+    >,
+    res: Response,
+  ) {
+    try {
+      const invoiceId = req.params.invoiceId;
+      if (!invoiceId) {
+        return res.status(400).json({ message: "Invoice Id is required" });
+      }
+
+      const { paymentCollectionMethod } = req.body;
+      if (typeof paymentCollectionMethod !== "string") {
+        return res
+          .status(400)
+          .json({ message: "paymentCollectionMethod is required" });
+      }
+
+      const invoice = await InvoiceService.updatePaymentCollectionMethod(
+        invoiceId,
+        paymentCollectionMethod,
+      );
+
+      return res.status(200).json(invoice);
+    } catch (err) {
+      logger.error("Error updating payment collection method", err);
+
+      const statusCode =
+        err instanceof InvoiceServiceError ? err.statusCode : 500;
+      const message =
+        err instanceof InvoiceServiceError
+          ? err.message
+          : "Internal server error";
+
+      return res.status(statusCode).json({ message });
     }
   },
 };

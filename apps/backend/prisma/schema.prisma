@@ -1,0 +1,1667 @@
+// Prisma schema for the backend service.
+// Start with core relational models; extend for RAG/pgvector later.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ContactType {
+  GENERAL_ENQUIRY
+  FEATURE_REQUEST
+  DSAR
+  COMPLAINT
+}
+
+enum ContactSource {
+  MOBILE_APP
+  PMS_WEB
+  MARKETING_SITE
+}
+
+enum ContactStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum CompanionType {
+  dog
+  cat
+  horse
+  other
+}
+
+enum Gender {
+  male
+  female
+  unknown
+}
+
+enum SourceType {
+  shop
+  breeder
+  foster_shelter
+  friends_family
+  unknown
+}
+
+enum RecordStatus {
+  active
+  archived
+  inactive
+}
+
+enum OrganisationType {
+  HOSPITAL
+  BREEDER
+  BOARDER
+  GROOMER
+}
+
+enum CompanionOrganisationRole {
+  ORGANISATION
+}
+
+enum CompanionOrganisationStatus {
+  ACTIVE
+  PENDING
+  REVOKED
+  INVITED
+}
+
+enum ParentCompanionRole {
+  PRIMARY
+  CO_PARENT
+}
+
+enum ParentCompanionStatus {
+  ACTIVE
+  PENDING
+  REVOKED
+}
+
+enum AppointmentStatus {
+  REQUESTED
+  UPCOMING
+  CHECKED_IN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum ChatSessionStatus {
+  PENDING
+  ACTIVE
+  CLOSED
+}
+
+enum ChatSessionType {
+  APPOINTMENT
+  ORG_DIRECT
+  ORG_GROUP
+}
+
+enum ParentCreatedFrom {
+  pms
+  mobile
+  invited
+}
+
+enum OrganizationType {
+  HOSPITAL
+  BREEDER
+  BOARDER
+  GROOMER
+}
+
+enum PetNamePreference {
+  COMPANION
+  ANIMAL
+  PATIENT
+}
+
+enum UserProfileStatus {
+  DRAFT
+  COMPLETED
+}
+
+enum UserProfileGender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum UserProfileEmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+}
+
+enum UserProfileDocumentType {
+  LICENSE
+  CERTIFICATE
+  CV
+  OTHER
+}
+
+enum CodeSystem {
+  YOSEMITECODE
+  IDEXX
+  SNOMED
+  VENOM
+}
+
+enum CodeType {
+  SPECIES
+  BREED
+  GENDER
+  TEST
+  OTHER
+}
+
+enum LabOrderStatus {
+  CREATED
+  SUBMITTED
+  AT_THE_LAB
+  PARTIAL
+  RUNNING
+  COMPLETE
+  CANCELLED
+  ERROR
+}
+
+enum LabOrderModality {
+  IN_HOUSE
+  REFERENCE_LAB
+}
+
+enum IntegrationProvider {
+  IDEXX
+  MERCK_MANUALS
+}
+
+enum IntegrationStatus {
+  enabled
+  disabled
+  error
+  pending
+}
+
+enum IntegrationCredentialsStatus {
+  missing
+  invalid
+  valid
+  pending
+}
+
+model ContactRequest {
+  id               String        @id @default(uuid())
+  type             ContactType
+  source           ContactSource
+  subject          String
+  message          String
+  userId           String?
+  email            String?
+  organisationId   String?
+  companionId      String?
+  parentId         String?
+  dsarDetails      Json?
+  complaintContext Json?
+  attachments      Json?
+  status           ContactStatus @default(OPEN)
+  internalNotes    String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([type])
+  @@index([status])
+  @@index([userId])
+  @@index([organisationId])
+  @@index([companionId])
+  @@index([parentId])
+}
+
+model IntegrationAccount {
+  id             String              @id @default(uuid())
+  organisationId String
+  provider       IntegrationProvider
+  status         IntegrationStatus   @default(disabled)
+  enabledAt      DateTime?
+  disabledAt     DateTime?
+  lastSyncAt     DateTime?
+  lastError      String?
+  credentialsStatus IntegrationCredentialsStatus @default(missing)
+  lastValidatedAt   DateTime?
+  credentials    Json?
+  config         Json?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@unique([organisationId, provider])
+  @@index([organisationId])
+}
+
+model CodeEntry {
+  id        String     @id @default(uuid())
+  system    CodeSystem
+  code      String
+  display   String
+  type      CodeType
+  active    Boolean    @default(true)
+  synonyms  Json?
+  meta      Json?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@unique([system, code])
+  @@index([system, type, active])
+}
+
+model CodeMapping {
+  id            String     @id @default(uuid())
+  sourceSystem  CodeSystem
+  sourceCode    String
+  targetSystem  CodeSystem
+  targetCode    String
+  targetDisplay String?
+  targetVersion String?
+  active        Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@unique([sourceSystem, sourceCode, targetSystem, targetCode])
+  @@index([sourceSystem, sourceCode])
+  @@index([targetSystem, targetCode])
+}
+
+model CodeSyncState {
+  id           String     @id @default(uuid())
+  system       CodeSystem
+  kind         String
+  version      String
+  lastSyncedAt DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([system, kind])
+  @@index([system, kind])
+}
+
+model LabOrder {
+  id                     String           @id @default(uuid())
+  organisationId         String
+  provider               String
+  companionId            String
+  parentId               String
+  appointmentId          String?
+  createdByUserId        String?
+  status                 LabOrderStatus   @default(CREATED)
+  modality               LabOrderModality @default(REFERENCE_LAB)
+  idexxOrderId           String?
+  uiUrl                  String?
+  pdfUrl                 String?
+  tests                  Json?
+  veterinarian           String?
+  technician             String?
+  notes                  String?
+  specimenCollectionDate String?
+  ivls                   Json?
+  requestPayload         Json?
+  responsePayload        Json?
+  error                  String?
+  externalStatus         String?
+  invoiceId              String?
+  billedAt               DateTime?
+  billingError           String?
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+
+  @@index([organisationId])
+  @@index([provider])
+  @@index([idexxOrderId])
+  @@index([invoiceId])
+}
+
+model LabResult {
+  id                    String   @id @default(uuid())
+  organisationId        String?
+  provider              String
+  resultId              String
+  orderId               String?
+  requisitionId         String?
+  accessionId           String?
+  diagnosticSetId       String?
+  status                String?
+  statusDetail          String?
+  modality              String?
+  patientId             String?
+  patientName           String?
+  clientId              String?
+  clientFirstName       String?
+  clientLastName        String?
+  updatedDate           String?
+  updatedAuditDate      String?
+  specimenCollectionDate String?
+  rawPayload            Json?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([provider, resultId])
+  @@index([provider, orderId])
+  @@index([organisationId])
+}
+
+model LabResultSyncState {
+  id           String   @id @default(uuid())
+  provider     String   @unique
+  lastBatchId  String?
+  lastTimestamp String?
+  lastPolledAt DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Companion {
+  id               String        @id @default(uuid())
+  name             String
+  type             CompanionType
+  breed            String
+  speciesCode      String?
+  breedCode        String?
+  dateOfBirth      DateTime
+  gender           Gender
+  photoUrl         String?
+  currentWeight    Float?
+  colour           String?
+  allergy          String?
+  bloodGroup       String?
+  isNeutered       Boolean?
+  ageWhenNeutered  String?
+  microchipNumber  String?
+  passportNumber   String?
+  isInsured        Boolean       @default(false)
+  insurance        Json?
+  countryOfOrigin  String?
+  source           SourceType?
+  status           RecordStatus?
+  physicalAttribute Json?
+  breedingInfo     Json?
+  medicalRecords   Json?
+  isProfileComplete Boolean      @default(false)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  documents         Document[]
+  organisations     CompanionOrganisation[]
+  parentLinks       ParentCompanion[]
+
+  @@index([type])
+  @@index([status])
+}
+
+model Document {
+  id                 String               @id @default(uuid())
+  companionId        String
+  appointmentId      String?
+  category           String
+  subcategory        String?
+  visitType          String?
+  title              String
+  issuingBusinessName String?
+  issueDate          DateTime?
+  uploadedByParentId String?
+  uploadedByPmsUserId String?
+  pmsVisible         Boolean              @default(false)
+  syncedFromPms      Boolean              @default(false)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  companion          Companion            @relation(fields: [companionId], references: [id])
+  attachments        DocumentAttachment[]
+
+  @@index([companionId])
+  @@index([companionId, category])
+  @@index([companionId, pmsVisible])
+  @@index([appointmentId])
+}
+
+model DocumentAttachment {
+  id         String   @id @default(uuid())
+  documentId String
+  key        String
+  mimeType   String
+  size       Int?
+
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+}
+
+model CompanionOrganisation {
+  id                    String                     @id @default(uuid())
+  companionId           String
+  organisationId        String?
+  linkedByParentId      String?
+  linkedByPmsUserId     String?
+  organisationType      OrganisationType
+  role                  CompanionOrganisationRole  @default(ORGANISATION)
+  status                CompanionOrganisationStatus @default(ACTIVE)
+  invitedViaEmail       String?
+  organisationName      String?
+  organisationPlacesId  String?
+  inviteToken           String?
+  acceptedAt            DateTime?
+  rejectedAt            DateTime?
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+
+  companion             Companion                  @relation(fields: [companionId], references: [id])
+
+  @@index([companionId])
+  @@index([organisationId])
+  @@unique([companionId, organisationId, organisationType], map: "companion_org_unique_active")
+}
+
+model ParentCompanion {
+  id                String               @id @default(uuid())
+  parentId          String
+  companionId       String
+  role              ParentCompanionRole
+  status            ParentCompanionStatus @default(ACTIVE)
+  permissions       Json
+  invitedByParentId String?
+  acceptedAt        DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  companion         Companion            @relation(fields: [companionId], references: [id])
+
+  @@unique([parentId, companionId])
+  @@index([parentId])
+  @@index([companionId])
+}
+
+model Appointment {
+  id                String            @id @default(uuid())
+  companion         Json
+  lead              Json?
+  supportStaff      Json?
+  room              Json?
+  appointmentType   Json?
+  organisationId    String
+  appointmentDate   DateTime
+  startTime         DateTime
+  endTime           DateTime
+  timeSlot          String
+  durationMinutes   Int
+  status            AppointmentStatus @default(REQUESTED)
+  isEmergency       Boolean           @default(false)
+  concern           String?
+  attachments       Json?
+  formIds           String[]
+  expiresAt         DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([organisationId, appointmentDate])
+  @@index([organisationId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model ChatSession {
+  id              String            @id @default(uuid())
+  type            ChatSessionType
+  appointmentId   String?
+  channelId       String
+  organisationId  String
+  companionId     String?
+  parentId        String?
+  vetId           String?
+  supportStaffIds String[]
+  createdBy       String?
+  title           String?
+  isPrivate       Boolean           @default(true)
+  members         String[]
+  participants    Json?
+  status          ChatSessionStatus @default(PENDING)
+  allowedFrom     DateTime?
+  allowedUntil    DateTime?
+  closedAt        DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([type])
+  @@index([appointmentId])
+  @@index([organisationId])
+  @@index([status])
+  @@index([organisationId, status])
+  @@index([parentId])
+  @@index([vetId])
+}
+
+model Parent {
+  id               String            @id @default(uuid())
+  firstName        String
+  lastName         String?
+  birthDate        DateTime?
+  email            String
+  phoneNumber      String?
+  currency         String?
+  timezone         String?
+  profileImageUrl  String?
+  isProfileComplete Boolean          @default(false)
+  linkedUserId     String?
+  createdFrom      ParentCreatedFrom
+  address          ParentAddress?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([email])
+}
+
+model ParentAddress {
+  id           String   @id @default(uuid())
+  parentId     String   @unique
+  addressLine  String?
+  country      String?
+  city         String?
+  state        String?
+  postalCode   String?
+  latitude     Float?
+  longitude    Float?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  parent       Parent   @relation(fields: [parentId], references: [id], onDelete: Cascade)
+}
+
+model Organization {
+  id                          String           @id @default(uuid())
+  fhirId                      String?
+  name                        String
+  taxId                       String
+  dunsNumber                  String?
+  imageUrl                    String?
+  type                        OrganizationType
+  petNamePreference           PetNamePreference? @default(COMPANION)
+  phoneNo                     String
+  website                     String?
+  documensoTeamId             String?
+  documensoApiKey             String?
+  address                     OrganizationAddress?
+  isVerified                  Boolean          @default(false)
+  isActive                    Boolean          @default(true)
+  typeCoding                  Json?
+  healthAndSafetyCertNo       String?
+  animalWelfareComplianceCertNo String?
+  fireAndEmergencyCertNo      String?
+  googlePlacesId              String?
+  stripeAccountId             String?
+  averageRating               Float            @default(0)
+  ratingCount                 Int              @default(0)
+  createdAt                   DateTime         @default(now())
+  updatedAt                   DateTime         @updatedAt
+
+  @@index([googlePlacesId, name])
+}
+
+model OrganizationAddress {
+  id           String       @id @default(uuid())
+  organizationId String     @unique
+  addressLine  String?
+  country      String?
+  city         String?
+  state        String?
+  postalCode   String?
+  latitude     Float?
+  longitude    Float?
+  location     Json?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  email     String   @unique
+  isActive  Boolean  @default(true)
+  firstName String?
+  lastName  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UserProfile {
+  id                  String            @id @default(uuid())
+  userId              String
+  organizationId      String
+  personalDetails     Json?
+  professionalDetails Json?
+  status              UserProfileStatus @default(DRAFT)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  address             UserProfileAddress?
+
+  @@unique([userId, organizationId])
+  @@index([userId])
+  @@index([organizationId])
+}
+
+model UserProfileAddress {
+  id            String      @id @default(uuid())
+  userProfileId String      @unique
+  addressLine   String?
+  country       String?
+  city          String?
+  state         String?
+  postalCode    String?
+  latitude      Float?
+  longitude     Float?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  userProfile   UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+}
+
+model UserOrganization {
+  id                      String   @id @default(uuid())
+  fhirId                  String?
+  practitionerReference   String
+  organizationReference   String
+  roleCode                String
+  roleDisplay             String?
+  active                  Boolean  @default(true)
+  extraPermissions        String[]
+  revokedPermissions      String[]
+  effectivePermissions    String[]
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@unique([practitionerReference, organizationReference, roleCode], map: "unique_user_org_role")
+}
+
+enum AuthProvider {
+  cognito
+  firebase
+}
+
+enum BillingPlan {
+  free
+  business
+}
+
+enum BillingInterval {
+  month
+  year
+}
+
+enum SubscriptionStatus {
+  none
+  trialing
+  active
+  past_due
+  unpaid
+  canceled
+  incomplete
+  incomplete_expired
+  paused
+}
+
+enum AccessState {
+  free
+  active
+  past_due
+  suspended
+}
+
+enum OrgDocumentCategory {
+  TERMS_AND_CONDITIONS
+  PRIVACY_POLICY
+  CANCELLATION_POLICY
+  FIRE_SAFETY
+  GENERAL
+}
+
+enum OrgDocumentVisibility {
+  INTERNAL
+  PUBLIC
+}
+
+enum RoomType {
+  CONSULTATION
+  WAITING_AREA
+  SURGERY
+  ICU
+}
+
+enum OrganisationInviteEmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACTOR
+}
+
+enum OrganisationInviteStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  CANCELLED
+}
+
+model AuthUserMobile {
+  id             String       @id @default(uuid())
+  authProvider   AuthProvider
+  providerUserId String
+  email          String
+  parentId       String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([providerUserId])
+  @@index([email])
+  @@map("AuthUser")
+}
+
+model OrganizationBilling {
+  id                       String             @id @default(uuid())
+  orgId                    String             @unique
+  connectAccountId         String?
+  canAcceptPayments        Boolean            @default(false)
+  connectChargesEnabled    Boolean            @default(false)
+  connectPayoutsEnabled    Boolean            @default(false)
+  connectDisabledReason    String?
+  connectRequirements      Json?
+  stripeCustomerId         String?
+  stripeSubscriptionId     String?
+  stripeSubscriptionItemId String?
+  stripePriceId            String?
+  stripeProductId          String?
+  stripeLivemode           Boolean            @default(false)
+  plan                     BillingPlan        @default(free)
+  billingInterval          BillingInterval?
+  currency                 String             @default("usd")
+  seatQuantity             Int                @default(0)
+  seatQuantityUpdatedAt    DateTime?
+  subscriptionStatus       SubscriptionStatus @default(none)
+  cancelAtPeriodEnd        Boolean            @default(false)
+  canceledAt               DateTime?
+  currentPeriodStart       DateTime?
+  currentPeriodEnd         DateTime?
+  nextInvoiceAt            DateTime?
+  lastInvoiceId            String?
+  lastPaymentStatus        String?
+  lastPaymentAt            DateTime?
+  joinedAt                 DateTime           @default(now())
+  upgradedAt               DateTime?
+  downgradedAt             DateTime?
+  accessState              AccessState        @default(free)
+  gracePeriodEndsAt        DateTime?
+  version                  Int                @default(0)
+  lastStripeEventId        String?
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
+
+  @@index([connectAccountId])
+  @@index([canAcceptPayments])
+  @@index([stripeCustomerId])
+  @@index([stripeSubscriptionId])
+  @@index([plan])
+  @@index([subscriptionStatus])
+  @@index([accessState])
+  @@index([orgId, plan])
+  @@map("OrgBilling")
+}
+
+model OrganizationDocument {
+  id              String                @id @default(uuid())
+  organisationId  String
+  title           String
+  description     String?               @default("")
+  category        OrgDocumentCategory
+  fileUrl         String?
+  fileName        String?
+  fileType        String?
+  fileSize        Int?
+  visibility      OrgDocumentVisibility @default(INTERNAL)
+  version         Int                   @default(1)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@index([organisationId])
+}
+
+model OrganisationRoom {
+  id                   String   @id @default(uuid())
+  fhirId               String?
+  organisationId       String
+  name                 String
+  type                 RoomType
+  assignedSpecialiteis String[]
+  assignedStaffs       String[]
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([fhirId])
+  @@index([organisationId])
+}
+
+model OrganisationInvite {
+  id               String                      @id @default(uuid())
+  organisationId   String
+  invitedByUserId  String
+  departmentIds    String[]
+  inviteeEmail     String
+  inviteeName      String?
+  role             String
+  employmentType   OrganisationInviteEmploymentType?
+  token            String                      @unique
+  status           OrganisationInviteStatus    @default(PENDING)
+  expiresAt        DateTime
+  acceptedAt       DateTime?
+  createdAt        DateTime                    @default(now())
+  updatedAt        DateTime                    @updatedAt
+
+  @@index([organisationId])
+  @@index([token])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model OrganisationRating {
+  id              String   @id @default(uuid())
+  organizationId  String
+  userId          String
+  rating          Int
+  review          String?  @default("")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([organizationId, userId])
+}
+
+model OrganizationUsageCounter {
+  id                   String   @id @default(uuid())
+  orgId                String   @unique
+  appointmentsUsed     Int      @default(0)
+  toolsUsed            Int      @default(0)
+  usersActiveCount     Int      @default(0)
+  usersBillableCount   Int      @default(0)
+  freeAppointmentsLimit Int     @default(120)
+  freeToolsLimit       Int      @default(200)
+  freeUsersLimit       Int      @default(10)
+  freeLimitReachedAt   DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([freeLimitReachedAt])
+  @@map("OrgUsageCounters")
+}
+
+enum DevicePlatform {
+  ios
+  android
+}
+
+enum NotificationType {
+  CHAT_MESSAGE
+  APPOINTMENTS
+  REMINDERS
+  PROMOTIONS
+  PAYMENTS
+}
+
+enum InvoiceStatus {
+  PENDING
+  AWAITING_PAYMENT
+  PAID
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentCollectionMethod {
+  PAYMENT_INTENT
+  PAYMENT_LINK
+  PAYMENT_AT_CLINIC
+}
+
+enum FormVisibilityType {
+  Internal
+  External
+  Internal_External
+}
+
+enum FormRequiredSigner {
+  CLIENT
+  VET
+}
+
+enum FormStatus {
+  draft
+  published
+  archived
+}
+
+enum ServiceType {
+  CONSULTATION
+  OBSERVATION_TOOL
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum RecurrenceType {
+  ONCE
+  DAILY
+  WEEKLY
+  CUSTOM
+}
+
+enum TaskAudience {
+  EMPLOYEE_TASK
+  PARENT_TASK
+}
+
+enum TaskSource {
+  YC_LIBRARY
+  ORG_TEMPLATE
+  CUSTOM
+}
+
+enum TaskKind {
+  MEDICATION
+  OBSERVATION_TOOL
+  HYGIENE
+  DIET
+  CUSTOM
+}
+
+enum TaskTemplateRole {
+  EMPLOYEE
+  PARENT
+}
+
+enum TaskLibrarySpecies {
+  dog
+  cat
+  horse
+}
+
+enum ReminderJobStatus {
+  SCHEDULED
+  SENT
+  CANCELLED
+}
+
+enum AuditActorType {
+  PMS_USER
+  PARENT
+  SYSTEM
+}
+
+enum AuditEntityType {
+  COMPANION_ORGANISATION
+  APPOINTMENT
+  INVOICE
+  DOCUMENT
+  FORM
+}
+
+enum AuditEventType {
+  COMPANION_ORG_LINK_CREATED
+  COMPANION_ORG_LINK_REQUESTED
+  COMPANION_ORG_LINK_APPROVED
+  COMPANION_ORG_LINK_REJECTED
+  COMPANION_ORG_LINK_REVOKED
+  COMPANION_ORG_INVITE_ACCEPTED
+  COMPANION_ORG_INVITE_REJECTED
+  COMPANION_ORG_LINK_AUTO
+  APPOINTMENT_REQUESTED
+  APPOINTMENT_CREATED
+  APPOINTMENT_APPROVED
+  APPOINTMENT_CANCELLED
+  APPOINTMENT_RESCHEDULED
+  APPOINTMENT_CHECKED_IN
+  INVOICE_CREATED
+  INVOICE_UPDATED
+  INVOICE_PAID
+  INVOICE_FAILED
+  INVOICE_REFUNDED
+  INVOICE_CANCELLED
+  DOCUMENT_ADDED
+  DOCUMENT_UPDATED
+  DOCUMENT_DELETED
+  FORM_ATTACHED
+  FORM_SUBMITTED
+}
+
+enum WithdrawalStatus {
+  RECEIVED
+  IN_REVIEW
+  COMPLETED
+  REJECTED
+}
+
+enum InventoryBusinessType {
+  HOSPITAL
+  GROOMING
+  BREEDING
+  BOARDING
+  GENERAL
+}
+
+enum InventoryItemStatus {
+  ACTIVE
+  HIDDEN
+  DELETED
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+enum ObservationFieldType {
+  TEXT
+  NUMBER
+  CHOICE
+  BOOLEAN
+  PHOTO
+  VIDEO
+}
+
+enum OccupancySourceType {
+  APPOINTMENT
+  BLOCKED
+  SURGERY
+}
+
+enum AdverseEventStatus {
+  DRAFT
+  SUBMITTED
+  REVIEWING
+  FORWARDED
+  CLOSED
+}
+
+model CoParentInvite {
+  id               String   @id @default(uuid())
+  email            String
+  inviteeName      String?
+  companionId      String
+  invitedByParentId String
+  inviteToken      String   @unique
+  expiresAt        DateTime
+  acceptedAt       DateTime?
+  diclinedAt       DateTime?
+  consumed         Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([email])
+}
+model ExternalExpense {
+  id            String   @id @default(uuid())
+  companionId   String
+  parentId      String
+  category      String
+  subcategory   String?
+  visitType     String?
+  expenseName   String
+  businessName  String?
+  date          DateTime
+  amount        Float
+  currency      String   @default("USD")
+  attachments   Json?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([companionId])
+  @@index([parentId])
+}
+
+model Form {
+  id             String             @id @default(uuid())
+  orgId          String
+  businessType   OrganizationType?
+  name           String
+  category       String
+  description    String?
+  visibilityType FormVisibilityType
+  serviceId      String[]
+  speciesFilter  String[]
+  requiredSigner FormRequiredSigner?
+  status         FormStatus         @default(draft)
+  schema         Json
+  createdBy      String
+  updatedBy      String
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  fields         FormField[]
+  versions       FormVersion[]
+  submissions    FormSubmission[]
+
+  @@index([orgId, status])
+  @@index([orgId, category])
+  @@index([orgId, businessType, category, status])
+  @@index([serviceId])
+  @@index([status])
+}
+
+model FormField {
+  id          String   @id @default(uuid())
+  formId      String
+  fieldId     String
+  type        String
+  label       String
+  placeholder String?
+  required    Boolean?
+  order       Int?
+  group       String?
+  options     Json?
+  meta        Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  form        Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@index([formId])
+  @@index([type])
+}
+
+model FormVersion {
+  id             String   @id @default(uuid())
+  formId         String
+  version        Int
+  schemaSnapshot Json
+  fieldsSnapshot Json
+  publishedAt    DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  form           Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@unique([formId, version])
+  @@index([formId])
+}
+
+model FormSubmission {
+  id            String   @id @default(uuid())
+  formId        String
+  formVersion   Int
+  appointmentId String?
+  companionId   String?
+  parentId      String?
+  submittedBy   String?
+  answers       Json
+  submittedAt   DateTime @default(now())
+  signing       Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  form          Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@index([formId])
+  @@index([formId, formVersion])
+  @@index([appointmentId])
+  @@index([companionId])
+  @@index([parentId])
+  @@index([submittedAt])
+}
+
+model Service {
+  id                String      @id @default(uuid())
+  organisationId    String
+  name              String
+  description       String?
+  durationMinutes   Int
+  cost              Float
+  maxDiscount       Float?
+  specialityId      String?
+  serviceType       ServiceType @default(CONSULTATION)
+  observationToolId String?
+  isActive          Boolean     @default(true)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@index([organisationId])
+  @@index([organisationId, specialityId])
+}
+
+model Task {
+  id                String       @id @default(uuid())
+  organisationId    String?
+  appointmentId     String?
+  companionId       String?
+  createdBy         String
+  assignedBy        String?
+  assignedTo        String
+  audience          TaskAudience
+  source            TaskSource
+  libraryTaskId     String?
+  templateId        String?
+  category          String
+  name              String
+  description       String?
+  additionalNotes   String?
+  medication        Json?
+  observationToolId String?
+  dueAt             DateTime
+  timezone          String?
+  recurrence        Json?
+  reminder          Json?
+  syncWithCalendar  Boolean?
+  calendarEventId   String?
+  attachments       Json?
+  status            TaskStatus   @default(PENDING)
+  completedAt       DateTime?
+  completedBy       String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@index([assignedTo, dueAt])
+  @@index([companionId, dueAt])
+  @@index([organisationId, dueAt])
+  @@index([dueAt])
+}
+
+model TaskCompletion {
+  id          String   @id @default(uuid())
+  taskId      String
+  companionId String
+  filledBy    String
+  answers     Json
+  score       Float?
+  summary     String?
+  createdAt   DateTime @default(now())
+
+  @@index([taskId])
+  @@index([companionId])
+}
+
+model TaskTemplate {
+  id                          String          @id @default(uuid())
+  source                      TaskSource      @default(ORG_TEMPLATE)
+  organisationId              String
+  libraryTaskId               String?
+  category                    String
+  name                        String
+  description                 String?
+  kind                        TaskKind
+  defaultRole                 TaskTemplateRole
+  defaultMedication           Json?
+  defaultObservationToolId    String?
+  defaultRecurrence           Json?
+  defaultReminderOffsetMinutes Int?
+  isActive                    Boolean         @default(true)
+  createdBy                   String
+  createdAt                   DateTime        @default(now())
+  updatedAt                   DateTime        @updatedAt
+
+  @@index([organisationId])
+}
+
+model TaskLibraryDefinition {
+  id                 String             @id @default(uuid())
+  source             TaskSource         @default(YC_LIBRARY)
+  kind               TaskKind
+  category           String
+  name               String
+  defaultDescription String?
+  schema             Json
+  applicableSpecies  TaskLibrarySpecies[]
+  isActive           Boolean            @default(true)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  @@index([kind])
+  @@index([category])
+}
+
+model ReminderJob {
+  id           String            @id @default(uuid())
+  taskId       String
+  userId       String
+  scheduledFor DateTime
+  timezone     String?
+  status       ReminderJobStatus @default(SCHEDULED)
+  jobKey       String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([taskId])
+  @@index([userId])
+}
+
+model AuditTrail {
+  id             String         @id @default(uuid())
+  organisationId String
+  companionId    String
+  eventType      AuditEventType
+  actorType      AuditActorType?
+  actorId        String?
+  actorName      String?
+  entityType     AuditEntityType?
+  entityId       String?
+  metadata       Json?
+  occurredAt     DateTime       @default(now())
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([organisationId])
+  @@index([companionId])
+  @@index([eventType])
+  @@index([occurredAt])
+  @@index([organisationId, companionId, occurredAt])
+  @@index([organisationId, occurredAt])
+}
+
+model AccountWithdrawal {
+  id                String           @id @default(uuid())
+  userId            String?
+  fullName          String
+  email             String
+  address           String?
+  signatureText     String?
+  message           String?
+  checkboxConfirmed Boolean
+  status            WithdrawalStatus @default(RECEIVED)
+  processedAt       DateTime?
+  processedByUserId String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@index([email])
+  @@index([status])
+}
+
+model InventoryItem {
+  id             String               @id @default(uuid())
+  organisationId String
+  businessType   InventoryBusinessType
+  name           String
+  sku            String?
+  category       String
+  subCategory    String?
+  description    String?
+  imageUrl       String?
+  attributes     Json                @default("{}")
+  onHand         Int                 @default(0)
+  allocated      Int                 @default(0)
+  reorderLevel   Int?
+  unitCost       Float?
+  sellingPrice   Float?
+  currency       String?
+  vendorId       String?
+  status         InventoryItemStatus @default(ACTIVE)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([organisationId, name])
+  @@index([category, subCategory])
+  @@index([businessType])
+  @@index([status])
+}
+
+model InventoryBatch {
+  id                   String   @id @default(uuid())
+  itemId               String
+  organisationId       String
+  batchNumber          String?
+  lotNumber            String?
+  regulatoryTrackingId String?
+  manufactureDate      DateTime?
+  expiryDate           DateTime?
+  minShelfLifeAlertDate DateTime?
+  quantity             Int      @default(0)
+  allocated            Int      @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([itemId])
+  @@index([organisationId])
+  @@index([expiryDate])
+  @@index([minShelfLifeAlertDate])
+}
+
+model InventoryVendor {
+  id                String   @id @default(uuid())
+  organisationId    String
+  name              String
+  brand             String?
+  vendorType        String?
+  licenseNumber     String?
+  paymentTerms      String?
+  deliveryFrequency String?
+  leadTimeDays      Int?
+  contactInfo       Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([organisationId, name])
+}
+
+model InventoryMetaField {
+  id           String   @id @default(uuid())
+  businessType String
+  fieldKey     String
+  label        String
+  values       String[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([businessType, fieldKey])
+}
+
+model InventoryStockMovement {
+  id          String   @id @default(uuid())
+  itemId      String?
+  batchId     String?
+  change      Int?
+  reason      String?
+  referenceId String?
+  userId      String?
+  createdAt   DateTime @default(now())
+
+  @@index([itemId])
+  @@index([batchId])
+}
+
+model BaseAvailability {
+  id             String    @id @default(uuid())
+  userId         String
+  organisationId String
+  dayOfWeek      DayOfWeek
+  slots          Json
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([userId, organisationId, dayOfWeek])
+  @@index([userId])
+}
+
+model WeeklyAvailabilityOverride {
+  id             String   @id @default(uuid())
+  userId         String
+  organisationId String
+  weekStartDate  DateTime
+  overrides      Json
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([userId, organisationId, weekStartDate])
+}
+
+model ObservationToolDefinition {
+  id           String   @id @default(uuid())
+  name         String
+  description  String?
+  category     String
+  fields       Json
+  scoringRules Json?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model ObservationToolSubmission {
+  id                      String   @id @default(uuid())
+  toolId                  String
+  taskId                  String?
+  companionId             String
+  filledBy                String
+  answers                 Json
+  score                   Float?
+  summary                 String?
+  evaluationAppointmentId String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@index([toolId])
+  @@index([taskId])
+  @@index([companionId])
+}
+
+model Occupancy {
+  id             String             @id @default(uuid())
+  userId         String
+  organisationId String
+  startTime      DateTime
+  endTime        DateTime
+  sourceType     OccupancySourceType @default(APPOINTMENT)
+  referenceId    String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([userId, startTime, endTime])
+  @@index([userId, organisationId, startTime])
+}
+
+model RegulatoryAuthority {
+  id            String   @id @default(uuid())
+  country       String?
+  iso2          String?
+  iso3          String?
+  authorityName String?
+  phone         String?
+  email         String?
+  website       String?
+  notes         String?
+  sourceUrl     String?
+}
+
+model AdverseEventReport {
+  id             String             @id @default(uuid())
+  organisationId String?
+  appointmentId  String?
+  reporter       Json
+  companion      Json
+  product        Json
+  destinations   Json
+  consent        Json
+  status         AdverseEventStatus @default(SUBMITTED)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([organisationId])
+  @@index([status])
+}
+
+model Speciality {
+  id                 String   @id @default(uuid())
+  fhirId             String?
+  organisationId     String
+  departmentMasterId String?
+  name               String
+  description        String?
+  headUserId         String?
+  headName           String?
+  headProfilePicUrl  String?
+  services           String[]
+  memberUserIds      String[]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([organisationId])
+}
+model DeviceToken {
+  id          String         @id @default(uuid())
+  userId      String
+  deviceToken String         @unique
+  platform    DevicePlatform
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([userId])
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  title     String
+  body      String
+  type      NotificationType
+  enabled   Boolean          @default(true)
+  isSeen    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([userId])
+}
+
+model Invoice {
+  id                       String                   @id @default(uuid())
+  parentId                 String?
+  companionId              String?
+  organisationId           String?
+  appointmentId            String?
+  items                    Json
+  subtotal                 Float
+  discountTotal            Float                    @default(0)
+  taxTotal                 Float                    @default(0)
+  taxPercent               Float                    @default(0)
+  totalAmount              Float
+  currency                 String
+  paymentCollectionMethod  PaymentCollectionMethod  @default(PAYMENT_INTENT)
+  stripePaymentIntentId    String?
+  stripePaymentLinkId      String?
+  stripeInvoiceId          String?
+  stripeCustomerId         String?
+  stripeChargeId           String?
+  stripeReceiptUrl         String?
+  stripeCheckoutSessionId  String?
+  stripeCheckoutUrl        String?
+  status                   InvoiceStatus            @default(PENDING)
+  metadata                 Json?
+  paidAt                   DateTime?
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
+
+  @@index([parentId])
+  @@index([organisationId])
+  @@index([appointmentId])
+  @@index([stripePaymentIntentId])
+  @@index([status])
+  @@index([stripeCheckoutSessionId])
+  @@index([paymentCollectionMethod])
+}

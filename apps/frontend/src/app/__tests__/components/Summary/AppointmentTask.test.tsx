@@ -48,13 +48,15 @@ jest.mock('@/app/features/appointments/pages/Appointments/Sections/ChangeRoom', 
   <div data-testid="change-room" />
 ));
 
+jest.mock('@/app/features/appointments/pages/Appointments/Sections/ChangeStatus', () => () => null);
+
 jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
   PermissionGate: ({ children }: any) => <div>{children}</div>,
 }));
 
 describe('AppointmentTask summary', () => {
   const appointments = [
-    { id: 'a1', status: 'no_payment' },
+    { id: 'a1', status: 'NO_PAYMENT' },
     { id: 'a2', status: 'completed' },
   ];
   const tasks = [
@@ -74,7 +76,6 @@ describe('AppointmentTask summary', () => {
 
     expect(screen.getByText('Schedule')).toBeInTheDocument();
     expect(screen.getByText('(2)')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
 
     const props = appointmentsSpy.mock.calls[0][0];
     expect(props.filteredList).toEqual(appointments);

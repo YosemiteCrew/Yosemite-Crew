@@ -9,6 +9,9 @@ import { UserOrganizationService } from "./user-organization.service";
 import { User } from "@yosemite-crew/types";
 import { CognitoService } from "./cognito.service";
 import { OrganizationService } from "./organization.service";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 export class UserServiceError extends Error {
   constructor(
@@ -62,10 +65,7 @@ const extractOrganizationIdentifier = (reference: unknown): string => {
   const lastSegment = segments.at(-1);
 
   if (!lastSegment || lastSegment.toLowerCase() === "organization") {
-    throw new UserServiceError(
-      "Invalid organization reference format.",
-      400,
-    );
+    throw new UserServiceError("Invalid organization reference format.", 400);
   }
 
   return lastSegment;
@@ -124,6 +124,54 @@ const toUserDomain = (document: UserDocument): UserDomain => {
   };
 };
 
+const toUserDomainFromPrisma = (user: {
+  userId: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  isActive: boolean;
+}): UserDomain => ({
+  id: user.userId,
+  firstName: user.firstName ?? "",
+  lastName: user.lastName ?? "",
+  email: user.email,
+  isActive: user.isActive,
+});
+
+const syncUserToPostgres = async (doc: UserDocument) => {
+  if (!shouldDualWrite) return;
+  try {
+    const obj = doc.toObject() as UserMongo & {
+      _id: { toString(): string };
+      createdAt?: Date;
+      updatedAt?: Date;
+    };
+    await prisma.user.upsert({
+      where: { id: obj._id.toString() },
+      create: {
+        id: obj._id.toString(),
+        userId: obj.userId,
+        email: obj.email,
+        isActive: obj.isActive ?? true,
+        firstName: obj.firstName ?? undefined,
+        lastName: obj.lastName ?? undefined,
+        createdAt: obj.createdAt ?? undefined,
+        updatedAt: obj.updatedAt ?? undefined,
+      },
+      update: {
+        userId: obj.userId,
+        email: obj.email,
+        isActive: obj.isActive ?? true,
+        firstName: obj.firstName ?? undefined,
+        lastName: obj.lastName ?? undefined,
+        updatedAt: obj.updatedAt ?? undefined,
+      },
+    });
+  } catch (err) {
+    handleDualWriteError("User", err);
+  }
+};
+
 export const UserService = {
   async create(payload: User): Promise<UserDomain> {
     const attributes = sanitizeUserAttributes(payload);
@@ -162,11 +210,21 @@ export const UserService = {
       isActive: attributes.isActive,
     });
 
+    await syncUserToPostgres(document);
+
     return toUserDomain(document);
   },
 
   async getById(id: unknown): Promise<UserDomain | null> {
     const userId = requireSafeIdentifier(id, "User id");
+
+    if (isReadFromPostgres()) {
+      const user = await prisma.user.findFirst({
+        where: { userId },
+      });
+
+      return user ? toUserDomainFromPrisma(user) : null;
+    }
 
     const document = await UserModel.findOne({ userId }, null, {
       sanitizeFilter: true,
@@ -230,11 +288,43 @@ export const UserService = {
       }),
     ]);
 
+    if (shouldDualWrite) {
+      try {
+        await prisma.userProfile.deleteMany({ where: { userId } });
+      } catch (err) {
+        handleDualWriteError("UserProfile delete", err);
+      }
+
+      try {
+        await prisma.baseAvailability.deleteMany({ where: { userId } });
+      } catch (err) {
+        handleDualWriteError("BaseAvailability delete", err);
+      }
+
+      try {
+        await prisma.weeklyAvailabilityOverride.deleteMany({
+          where: { userId },
+        });
+      } catch (err) {
+        handleDualWriteError("WeeklyAvailabilityOverride delete", err);
+      }
+
+      try {
+        await prisma.occupancy.deleteMany({ where: { userId } });
+      } catch (err) {
+        handleDualWriteError("Occupancy delete", err);
+      }
+    }
+
     const updated = await UserModel.findOneAndUpdate(
       { userId },
       { $set: { isActive: false } },
       { sanitizeFilter: true },
     );
+
+    if (updated) {
+      await syncUserToPostgres(updated);
+    }
 
     for (const organizationId of ownerOrganizationIds) {
       await OrganizationService.deleteById(organizationId);
@@ -244,9 +334,9 @@ export const UserService = {
   },
 
   async updateName(payload: {
-    userId : string,
-    firstName : string,
-    lastName : string
+    userId: string;
+    firstName: string;
+    lastName: string;
   }): Promise<UserDomain> {
     const userId = requireSafeIdentifier(payload.userId, "User id");
     const firstName = requireString(payload.firstName, "First name");
@@ -275,6 +365,8 @@ export const UserService = {
     user.lastName = lastName;
 
     await user.save();
+
+    await syncUserToPostgres(user);
 
     return toUserDomain(user);
   },

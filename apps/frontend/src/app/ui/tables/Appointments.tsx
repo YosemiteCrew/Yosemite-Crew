@@ -119,7 +119,7 @@ const Appointments = ({
 
   const handleCancelAppointment = async (appointment: Appointment) => {
     try {
-      if (appointment.status === 'REQUESTED' || appointment.status === 'NO_PAYMENT') {
+      if (appointment.status === 'REQUESTED') {
         await rejectAppointment(appointment);
         return;
       }
@@ -228,8 +228,7 @@ const Appointments = ({
       key: 'status',
       width: '15%',
       render: (item: Appointment) => {
-        const displayStatus =
-          item.status === 'NO_PAYMENT' || item.status === 'REQUESTED' ? 'REQUESTED' : item.status;
+        const displayStatus = item.status === 'REQUESTED' ? 'REQUESTED' : item.status;
         const payment = getAppointmentPaymentDisplay(item, invoicesByAppointmentId);
 
         return (

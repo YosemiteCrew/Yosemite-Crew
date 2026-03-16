@@ -37,10 +37,13 @@ jest.mock('@/app/features/appointments/components/Calendar/helpers', () => ({
 }));
 
 const userLabelsSpy = jest.fn();
-jest.mock('@/app/features/appointments/components/Calendar/Task/UserLabels', () => (props: any) => {
-  userLabelsSpy(props);
-  return <div data-testid="user-labels" />;
-});
+jest.mock(
+  '@/app/features/appointments/components/Calendar/common/UserLabels',
+  () => (props: any) => {
+    userLabelsSpy(props);
+    return <div data-testid="user-labels" />;
+  }
+);
 
 const taskSlotSpy = jest.fn();
 jest.mock('@/app/features/appointments/components/Calendar/Task/TaskSlot', () => (props: any) => {

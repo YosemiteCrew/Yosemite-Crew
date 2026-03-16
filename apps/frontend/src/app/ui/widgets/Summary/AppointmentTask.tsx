@@ -19,6 +19,7 @@ import ChangeStatus from '@/app/features/appointments/pages/Appointments/Section
 import { AppointmentViewIntent } from '@/app/features/appointments';
 import ChangeRoom from '@/app/features/appointments/pages/Appointments/Sections/ChangeRoom';
 import { AppointmentStatusFiltersUI } from '@/app/features/appointments/types/appointments';
+import { normalizeAppointmentStatus, type LegacyAppointmentStatus } from '@/app/lib/appointments';
 
 const AppointmentTask = () => {
   const appointments = useAppointmentsForPrimaryOrg();
@@ -93,8 +94,8 @@ const AppointmentTask = () => {
 
     const wanted = activeSubLabel.toLowerCase();
     return appointments.filter((item) => {
-      const status = item.status?.toLowerCase();
-      return status === wanted || (wanted === 'requested' && status === 'no_payment');
+      const s = normalizeAppointmentStatus(item.status as LegacyAppointmentStatus)?.toLowerCase();
+      return s === wanted;
     });
   }, [appointments, activeTable, activeSubLabel]);
 

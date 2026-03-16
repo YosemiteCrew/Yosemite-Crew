@@ -1,8 +1,14 @@
 // src/middlewares/rbac.ts
 import { NextFunction, Response, Request } from "express";
-import { Permission } from "../models/role-permission";
+import {
+  Permission,
+  ROLE_PERMISSIONS,
+  RoleCode,
+} from "../models/role-permission";
 import { AuthenticatedRequest } from "./auth";
 import UserOrganizationModel from "src/models/user-organization";
+import { prisma } from "src/config/prisma";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 export interface OrgRequest extends AuthenticatedRequest {
   userPermissions?: Permission[];
@@ -38,13 +44,23 @@ export function withOrgPermissions() {
 
     try {
       // Matching both raw ID and FHIR-style reference
-      const mapping = await UserOrganizationModel.findOne({
-        practitionerReference: userId,
-        $or: [
-          { organizationReference: orgId },
-          { organizationReference: `Organization/${orgId}` },
-        ],
-      });
+      const mapping = isReadFromPostgres()
+        ? await prisma.userOrganization.findFirst({
+            where: {
+              practitionerReference: userId,
+              OR: [
+                { organizationReference: orgId },
+                { organizationReference: `Organization/${orgId}` },
+              ],
+            },
+          })
+        : await UserOrganizationModel.findOne({
+            practitionerReference: userId,
+            $or: [
+              { organizationReference: orgId },
+              { organizationReference: `Organization/${orgId}` },
+            ],
+          });
 
       if (!mapping) {
         return res.status(403).json({
@@ -53,11 +69,34 @@ export function withOrgPermissions() {
       }
 
       const effectivePermissions = normalizePermissions(
-        // field from your updated UserOrganizationSchema
         (mapping as any).effectivePermissions,
       );
 
-      typedReq.userPermissions = effectivePermissions;
+      const computed = computeEffectivePermissions(
+        (mapping as any).roleCode as RoleCode,
+        (mapping as any).extraPermissions,
+        (mapping as any).revokedPermissions,
+      );
+
+      if (samePermissions(effectivePermissions, computed)) {
+        typedReq.userPermissions = effectivePermissions;
+      } else if (isReadFromPostgres()) {
+        await prisma.userOrganization.updateMany({
+          where: { id: (mapping as any).id },
+          data: { effectivePermissions: computed },
+        });
+        typedReq.userPermissions = computed;
+      } else {
+        const updated = await UserOrganizationModel.findByIdAndUpdate(
+          (mapping as any)._id,
+          { $set: { effectivePermissions: computed } },
+          { new: true },
+        );
+        typedReq.userPermissions = normalizePermissions(
+          (updated as any)?.effectivePermissions ?? computed,
+        );
+      }
+
       typedReq.organisationId = orgId;
 
       return next();
@@ -107,4 +146,29 @@ function normalizePermissions(value: unknown): Permission[] {
     }
   }
   return [...set];
+}
+
+function computeEffectivePermissions(
+  role: RoleCode | undefined,
+  extra?: string[],
+  revoked?: string[],
+): Permission[] {
+  if (!role) return normalizePermissions(extra);
+  const base = ROLE_PERMISSIONS[role] ?? [];
+  const extras = normalizePermissions(extra);
+  const removed = new Set(normalizePermissions(revoked));
+  const combined = new Set<Permission>([...base, ...extras]);
+  for (const permission of removed) {
+    combined.delete(permission);
+  }
+  return [...combined];
+}
+
+function samePermissions(a: Permission[], b: Permission[]) {
+  if (a.length !== b.length) return false;
+  const setA = new Set(a);
+  for (const permission of b) {
+    if (!setA.has(permission)) return false;
+  }
+  return true;
 }

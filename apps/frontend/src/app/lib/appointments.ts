@@ -1,13 +1,14 @@
 import { AppointmentStatus } from '@/app/features/appointments/types/appointments';
 
-type AppointmentStatusLike = string | null | undefined;
+export type LegacyAppointmentStatus = AppointmentStatus | 'NO_PAYMENT';
+
+type AppointmentStatusLike = LegacyAppointmentStatus | string | null | undefined;
 
 export const isRequestedLikeStatus = (status?: AppointmentStatusLike) => {
   return status === 'REQUESTED' || status === 'NO_PAYMENT';
 };
 
 const STATUS_LABELS: Record<AppointmentStatus, string> = {
-  NO_PAYMENT: 'No payment',
   REQUESTED: 'Requested',
   UPCOMING: 'Upcoming',
   CHECKED_IN: 'Checked in',
@@ -18,7 +19,6 @@ const STATUS_LABELS: Record<AppointmentStatus, string> = {
 };
 
 const ALLOWED_STATUS_TRANSITIONS: Record<AppointmentStatus, AppointmentStatus[]> = {
-  NO_PAYMENT: ['UPCOMING', 'CANCELLED'],
   REQUESTED: ['UPCOMING', 'CANCELLED'],
   UPCOMING: ['CHECKED_IN', 'CANCELLED', 'NO_SHOW'],
   CHECKED_IN: ['IN_PROGRESS'],
@@ -32,7 +32,7 @@ export const normalizeAppointmentStatus = (
   status?: AppointmentStatusLike
 ): AppointmentStatus | null => {
   if (!status) return null;
-  if (status === 'NO_PAYMENT') return 'NO_PAYMENT';
+  if (status === 'NO_PAYMENT') return 'REQUESTED';
   if (
     status === 'REQUESTED' ||
     status === 'UPCOMING' ||
@@ -82,7 +82,7 @@ export const getInvalidAppointmentStatusTransitionMessage = (
   if (!from) return `Cannot change status to ${toLabel} from the current state.`;
   if (from === nextStatus) return '';
 
-  if (nextStatus === 'REQUESTED' || nextStatus === 'NO_PAYMENT') {
+  if (nextStatus === 'REQUESTED') {
     return 'Appointments cannot be moved back to Requested.';
   }
 

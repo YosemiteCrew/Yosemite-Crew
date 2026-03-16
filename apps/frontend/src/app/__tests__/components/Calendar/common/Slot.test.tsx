@@ -22,6 +22,7 @@ jest.mock('@/app/lib/appointments', () => ({
   isRequestedLikeStatus: jest.fn(
     (status: string) => status === 'REQUESTED' || status === 'NO_PAYMENT'
   ),
+  normalizeAppointmentStatus: (status: string) => (status === 'NO_PAYMENT' ? 'REQUESTED' : status),
 }));
 
 jest.mock('@/app/lib/urls', () => ({

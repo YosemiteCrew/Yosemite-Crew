@@ -10,6 +10,14 @@ import ChatSessionModel, {
 import AppointmentModel, { AppointmentDocument } from "../models/appointment";
 import { UserProfileService } from "./user-profile.service";
 import { UserService } from "./user.service";
+import {
+  Prisma,
+  ChatSessionStatus,
+  ChatSessionType as PrismaChatSessionType,
+} from "@prisma/client";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 const STREAM_KEY = process.env.STREAM_API_KEY!;
 const STREAM_SECRET = process.env.STREAM_API_SECRET!;
@@ -73,9 +81,110 @@ const getChatWindowFromAppointment = (appointment: AppointmentDocument) => {
   };
 };
 
+const toPrismaChatSessionData = (doc: ChatSessionDocument) => {
+  const obj = doc.toObject() as {
+    _id: { toString(): string };
+    type: ChatSessionType;
+    appointmentId?: string;
+    channelId: string;
+    organisationId: string;
+    companionId?: string;
+    parentId?: string;
+    vetId?: string | null;
+    supportStaffIds?: string[];
+    createdBy?: string;
+    title?: string;
+    isPrivate?: boolean;
+    members: string[];
+    participants?: unknown[];
+    status: string;
+    allowedFrom?: Date;
+    allowedUntil?: Date;
+    closedAt?: Date | null;
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+
+  return {
+    id: obj._id.toString(),
+    type: obj.type as PrismaChatSessionType,
+    appointmentId: obj.appointmentId ?? undefined,
+    channelId: obj.channelId,
+    organisationId: obj.organisationId,
+    companionId: obj.companionId ?? undefined,
+    parentId: obj.parentId ?? undefined,
+    vetId: obj.vetId ?? undefined,
+    supportStaffIds: obj.supportStaffIds ?? [],
+    createdBy: obj.createdBy ?? undefined,
+    title: obj.title ?? undefined,
+    isPrivate: obj.isPrivate ?? true,
+    members: obj.members ?? [],
+    participants: (obj.participants ??
+      undefined) as unknown as Prisma.InputJsonValue,
+    status: obj.status as ChatSessionStatus,
+    allowedFrom: obj.allowedFrom ?? undefined,
+    allowedUntil: obj.allowedUntil ?? undefined,
+    closedAt: obj.closedAt ?? undefined,
+    createdAt: obj.createdAt ?? undefined,
+    updatedAt: obj.updatedAt ?? undefined,
+  };
+};
+
+const syncChatSessionToPostgres = async (doc: ChatSessionDocument) => {
+  if (!shouldDualWrite) return;
+  try {
+    const data = toPrismaChatSessionData(doc);
+    await prisma.chatSession.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+  } catch (err) {
+    handleDualWriteError("ChatSession", err);
+  }
+};
+
 const canUseChatNow = (
   session: ChatSessionDocument,
   appointment: AppointmentDocument,
+) => {
+  const now = new Date();
+
+  if (session.status === "CLOSED") {
+    return { allowed: false, reason: "Chat is closed." };
+  }
+
+  if (!CHAT_ALLOWED_APPOINTMENT_STATUSES.has(appointment.status)) {
+    return {
+      allowed: false,
+      reason: "Chat not available for this appointment status.",
+    };
+  }
+
+  if (session.allowedFrom && now < session.allowedFrom) {
+    return {
+      allowed: false,
+      reason: "Chat will be available closer to appointment time.",
+    };
+  }
+
+  if (session.allowedUntil && now > session.allowedUntil) {
+    return {
+      allowed: false,
+      reason: "Chat window has ended.",
+    };
+  }
+
+  return { allowed: true };
+};
+
+const canUseChatNowPrisma = (
+  session: {
+    status: string;
+    allowedFrom: Date | null;
+    allowedUntil: Date | null;
+  },
+  appointment: { status: string; startTime: Date },
 ) => {
   const now = new Date();
 
@@ -117,6 +226,19 @@ const assertUserCanAccess = (session: ChatSessionDocument, userId: string) => {
   }
 };
 
+const assertUserCanAccessPrisma = (
+  session: { status: string; members: string[] },
+  userId: string,
+) => {
+  if (session.status === "CLOSED") {
+    throw new ChatServiceError("Chat is closed", 403);
+  }
+
+  if (!session.members.includes(userId)) {
+    throw new ChatServiceError("User is not a member of this chat", 403);
+  }
+};
+
 const assertGroupAdmin = (session: ChatSessionDocument, userId: string) => {
   if (session.type !== "ORG_GROUP") {
     throw new ChatServiceError("Not a group chat", 400);
@@ -131,6 +253,22 @@ const assertGroupAdmin = (session: ChatSessionDocument, userId: string) => {
   }
 };
 
+const assertGroupAdminPrisma = (
+  session: { type: string; createdBy: string | null; status: string },
+  userId: string,
+) => {
+  if (session.type !== "ORG_GROUP") {
+    throw new ChatServiceError("Not a group chat", 400);
+  }
+
+  if (session.createdBy !== userId) {
+    throw new ChatServiceError("Only group owner can perform this action", 403);
+  }
+
+  if (session.status === "CLOSED") {
+    throw new ChatServiceError("Chat is closed", 400);
+  }
+};
 export const ChatService = {
   /* ------------------------------ AUTH ----------------------------------- */
 
@@ -156,6 +294,97 @@ export const ChatService = {
   async ensureAppointmentChat(
     appointmentId: string,
   ): Promise<ChatSessionDocument> {
+    if (isReadFromPostgres()) {
+      const appointment = await prisma.appointment.findFirst({
+        where: { id: appointmentId },
+      });
+      if (!appointment) {
+        throw new ChatServiceError("Appointment not found", 404);
+      }
+
+      const existing = await prisma.chatSession.findFirst({
+        where: { appointmentId },
+      });
+      if (existing) {
+        return existing as unknown as ChatSessionDocument;
+      }
+
+      const companion = appointment.companion as {
+        id: string;
+        parent?: { id: string; name?: string };
+      };
+      const parentId = companion?.parent?.id;
+      if (!parentId) {
+        throw new ChatServiceError("Parent not found in appointment", 404);
+      }
+
+      await streamServer.upsertUser({
+        id: parentId,
+        name: companion?.parent?.name || "Pet Owner",
+        role: "user",
+      });
+
+      const lead = appointment.lead as { id?: string; name?: string } | null;
+      const vetId = lead?.id ?? null;
+      if (vetId) {
+        await streamServer.upsertUser({
+          id: vetId,
+          name: lead?.name || "Vet",
+          role: "user",
+        });
+      }
+
+      const orgId = appointment.organisationId;
+      const companionId = companion?.id ?? undefined;
+
+      const members = [parentId];
+      if (vetId) members.push(vetId);
+
+      await streamServer.upsertUser({
+        id: SYSTEM_USER_ID,
+        name: "Yosemite System",
+        role: "admin",
+      });
+
+      const channelId = `appointment-${appointmentId}`;
+
+      const { allowedFrom, allowedUntil } = getChatWindowFromAppointment({
+        startTime: appointment.startTime,
+      } as AppointmentDocument);
+
+      const channelData: YosemiteChannelData = {
+        name: `Appointment Chat`,
+        appointmentId,
+        organisationId: orgId,
+        companionId,
+        parentId,
+        vetId,
+        status: "active",
+        members,
+      };
+
+      await streamServer.channel("messaging", channelId, channelData).create();
+
+      const session = await prisma.chatSession.create({
+        data: {
+          type: "APPOINTMENT",
+          appointmentId,
+          channelId,
+          organisationId: orgId,
+          companionId: companionId ?? undefined,
+          parentId,
+          vetId: vetId ?? undefined,
+          members,
+          status: "ACTIVE",
+          allowedFrom,
+          allowedUntil,
+          isPrivate: true,
+        },
+      });
+
+      return session as unknown as ChatSessionDocument;
+    }
+
     const appointment = await AppointmentModel.findById(appointmentId);
     if (!appointment) throw new ChatServiceError("Appointment not found", 404);
 
@@ -216,6 +445,7 @@ export const ChatService = {
       getChatWindowFromAppointment(appointment);
 
     session = await ChatSessionModel.create({
+      type: "APPOINTMENT",
       appointmentId,
       channelId,
       organisationId: orgId,
@@ -227,6 +457,8 @@ export const ChatService = {
       allowedUntil,
       status: "ACTIVE",
     });
+
+    await syncChatSessionToPostgres(session);
 
     return session;
   },
@@ -242,9 +474,7 @@ export const ChatService = {
       throw new ChatServiceError("Cannot chat with yourself");
     }
 
-    const members = [userA, userB].sort(
-      (a, b) => a.localeCompare(b),
-    );
+    const members = [userA, userB].sort((a, b) => a.localeCompare(b));
 
     const existing = await ChatSessionModel.findOne({
       type: "ORG_DIRECT",
@@ -282,7 +512,7 @@ export const ChatService = {
       })
       .create();
 
-    return ChatSessionModel.create({
+    const session = await ChatSessionModel.create({
       type: "ORG_DIRECT",
       organisationId,
       channelId,
@@ -291,6 +521,8 @@ export const ChatService = {
       isPrivate: true,
       status: "ACTIVE",
     });
+    await syncChatSessionToPostgres(session);
+    return session;
   },
 
   /* ----------------------------- ORG GROUP CHAT --------------------------- */
@@ -342,7 +574,7 @@ export const ChatService = {
 
     await streamServer.channel("team", channelId, channelData).create();
 
-    return ChatSessionModel.create({
+    const session = await ChatSessionModel.create({
       type: "ORG_GROUP",
       organisationId,
       channelId,
@@ -352,11 +584,46 @@ export const ChatService = {
       isPrivate,
       status: "ACTIVE",
     });
+    await syncChatSessionToPostgres(session);
+    return session;
   },
 
   /* ------------------------------- OPEN CHAT ------------------------------ */
 
   async openChatBySessionId(sessionId: string, userId: string) {
+    if (isReadFromPostgres()) {
+      const session = await prisma.chatSession.findFirst({
+        where: { id: sessionId },
+      });
+      if (!session) {
+        throw new ChatServiceError("Chat session not found", 404);
+      }
+
+      assertUserCanAccessPrisma(session, userId);
+
+      if (session.type === "APPOINTMENT") {
+        const appointment = await prisma.appointment.findFirst({
+          where: { id: session.appointmentId ?? undefined },
+        });
+        if (!appointment) {
+          throw new ChatServiceError("Appointment not found", 404);
+        }
+
+        const { allowed, reason } = canUseChatNowPrisma(session, appointment);
+        if (!allowed) {
+          throw new ChatServiceError(reason ?? "Chat not available", 403);
+        }
+      }
+
+      const { token, expiresAt } = this.generateToken(userId);
+
+      return {
+        channelId: session.channelId,
+        token,
+        expiresAt,
+      };
+    }
+
     const session = await ChatSessionModel.findById(sessionId);
     if (!session) {
       throw new ChatServiceError("Chat session not found", 404);
@@ -390,6 +657,36 @@ export const ChatService = {
   /* ------------------------------- CLOSE CHAT ----------------------------- */
 
   async closeSession(sessionId: string) {
+    if (isReadFromPostgres()) {
+      const session = await prisma.chatSession.findFirst({
+        where: { id: sessionId },
+      });
+      if (!session) return;
+
+      const channel = streamServer.channel(
+        getStreamChannelType(session.type as ChatSessionType),
+        session.channelId,
+      );
+
+      try {
+        await channel.sendMessage({
+          user_id: SYSTEM_USER_ID,
+          text: "This chat has been closed.",
+        });
+
+        await channel.updatePartial({ set: { frozen: true } });
+      } catch {
+        // swallow errors, DB is source of truth
+      }
+
+      await prisma.chatSession.update({
+        where: { id: sessionId },
+        data: { status: "CLOSED", closedAt: new Date() },
+      });
+
+      return;
+    }
+
     const session = await ChatSessionModel.findById(sessionId);
     if (!session) return;
 
@@ -412,6 +709,7 @@ export const ChatService = {
     session.status = "CLOSED";
     session.closedAt = new Date();
     await session.save();
+    await syncChatSessionToPostgres(session);
   },
 
   async addMembersToGroup(
@@ -419,6 +717,53 @@ export const ChatService = {
     actorUserId: string,
     memberIds: string[],
   ) {
+    if (isReadFromPostgres()) {
+      const session = await prisma.chatSession.findFirst({
+        where: { id: sessionId },
+      });
+      if (!session) {
+        throw new ChatServiceError("Chat session not found", 404);
+      }
+
+      assertGroupAdminPrisma(session, actorUserId);
+
+      const newMembers = memberIds.filter(
+        (id) => !session.members.includes(id),
+      );
+
+      if (newMembers.length === 0)
+        return session as unknown as ChatSessionDocument;
+
+      // Upsert users in Stream
+      for (const userId of newMembers) {
+        const userProfile = await UserProfileService.getByUserId(
+          userId,
+          session.organisationId,
+        );
+        const user = await UserService.getById(userId);
+
+        await streamServer.upsertUser({
+          name: user?.firstName + " " + user?.lastName || "User",
+          id: userId,
+          image:
+            userProfile?.profile.personalDetails?.profilePictureUrl ||
+            undefined,
+          role: "user",
+        });
+      }
+
+      const updatedMembers = [...session.members, ...newMembers];
+      const updated = await prisma.chatSession.update({
+        where: { id: sessionId },
+        data: { members: updatedMembers },
+      });
+
+      const channel = streamServer.channel("team", session.channelId);
+      await channel.addMembers(newMembers);
+
+      return updated as unknown as ChatSessionDocument;
+    }
+
     const session = await ChatSessionModel.findById(sessionId);
     if (!session) {
       throw new ChatServiceError("Chat session not found", 404);
@@ -449,6 +794,7 @@ export const ChatService = {
 
     session.members.push(...newMembers);
     await session.save();
+    await syncChatSessionToPostgres(session);
 
     const channel = streamServer.channel("team", session.channelId);
     await channel.addMembers(newMembers);
@@ -461,6 +807,40 @@ export const ChatService = {
     actorUserId: string,
     memberIds: string[],
   ) {
+    if (isReadFromPostgres()) {
+      const session = await prisma.chatSession.findFirst({
+        where: { id: sessionId },
+      });
+      if (!session) {
+        throw new ChatServiceError("Chat session not found", 404);
+      }
+
+      assertGroupAdminPrisma(session, actorUserId);
+
+      // prevent removing owner
+      if (memberIds.includes(session.createdBy ?? "")) {
+        throw new ChatServiceError("Cannot remove group owner", 400);
+      }
+
+      const nextMembers = session.members.filter(
+        (id) => !memberIds.includes(id),
+      );
+
+      if (nextMembers.length < 2) {
+        throw new ChatServiceError("Group must have at least 2 members", 400);
+      }
+
+      const updated = await prisma.chatSession.update({
+        where: { id: sessionId },
+        data: { members: nextMembers },
+      });
+
+      const channel = streamServer.channel("team", session.channelId);
+      await channel.removeMembers(memberIds);
+
+      return updated as unknown as ChatSessionDocument;
+    }
+
     const session = await ChatSessionModel.findById(sessionId);
     if (!session) {
       throw new ChatServiceError("Chat session not found", 404);
@@ -480,6 +860,7 @@ export const ChatService = {
     }
 
     await session.save();
+    await syncChatSessionToPostgres(session);
 
     const channel = streamServer.channel("team", session.channelId);
     await channel.removeMembers(memberIds);
@@ -495,6 +876,38 @@ export const ChatService = {
       isPrivate?: boolean;
     },
   ) {
+    if (isReadFromPostgres()) {
+      const session = await prisma.chatSession.findFirst({
+        where: { id: sessionId },
+      });
+      if (!session) {
+        throw new ChatServiceError("Chat session not found", 404);
+      }
+
+      assertGroupAdminPrisma(session, actorUserId);
+
+      const updated = await prisma.chatSession.update({
+        where: { id: sessionId },
+        data: {
+          title: updates.title ?? session.title ?? undefined,
+          isPrivate:
+            updates.isPrivate !== undefined
+              ? updates.isPrivate
+              : session.isPrivate,
+        },
+      });
+
+      const channel = streamServer.channel("team", session.channelId);
+
+      const data: YosemiteChannelResponse = {
+        name: updates.title,
+        isPrivate: updates.isPrivate,
+      };
+
+      await channel.updatePartial({ set: data });
+      return updated as unknown as ChatSessionDocument;
+    }
+
     const session = await ChatSessionModel.findById(sessionId);
     if (!session) {
       throw new ChatServiceError("Chat session not found", 404);
@@ -511,6 +924,7 @@ export const ChatService = {
     }
 
     await session.save();
+    await syncChatSessionToPostgres(session);
 
     const channel = streamServer.channel("team", session.channelId);
 
@@ -524,6 +938,26 @@ export const ChatService = {
   },
 
   async deleteGroup(sessionId: string, actorUserId: string) {
+    if (isReadFromPostgres()) {
+      const session = await prisma.chatSession.findFirst({
+        where: { id: sessionId },
+      });
+      if (!session) return;
+
+      assertGroupAdminPrisma(session, actorUserId);
+
+      const channel = streamServer.channel("team", session.channelId);
+
+      try {
+        await channel.delete();
+      } catch {
+        // Stream failure should not block DB cleanup
+      }
+
+      await prisma.chatSession.deleteMany({ where: { id: sessionId } });
+      return;
+    }
+
     const session = await ChatSessionModel.findById(sessionId);
     if (!session) return;
 
@@ -538,5 +972,13 @@ export const ChatService = {
     }
 
     await ChatSessionModel.deleteOne({ _id: sessionId });
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.chatSession.deleteMany({ where: { id: sessionId } });
+      } catch (err) {
+        handleDualWriteError("ChatSession delete", err);
+      }
+    }
   },
 };

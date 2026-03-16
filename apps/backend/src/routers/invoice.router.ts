@@ -58,6 +58,20 @@ router.post(
   InvoiceController.createCheckoutSessionForInvoice,
 );
 
+// Mark invoice paid manually (in-clinic)
+router.post(
+  "/:invoiceId/mark-paid",
+  authorizeCognito,
+  InvoiceController.markInvoicePaidManually,
+);
+
+// Update payment collection method
+router.patch(
+  "/:invoiceId/payment-collection-method",
+  authorizeCognito,
+  InvoiceController.updatePaymentCollectionMethod,
+);
+
 // Get invoice by ID
 router.get("/:invoiceId", authorizeCognito, InvoiceController.getInvoiceById);
 

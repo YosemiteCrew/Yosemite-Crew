@@ -151,7 +151,7 @@ router.post(
   authorizeCognito,
   withOrgPermissions(),
   requirePermission(["tasks:edit:any", "tasks:edit:own"]),
-  TaskController.changeStatus,
+  TaskController.changeStatusPMS,
 );
 
 export default router;

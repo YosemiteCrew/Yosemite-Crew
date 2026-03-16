@@ -252,16 +252,10 @@ export const changeAppointmentStatus = async (
   if (nextStatus === 'CHECKED_IN') {
     return checkInAppointment(appointment);
   }
-  if (
-    (currentStatus === 'REQUESTED' || currentStatus === 'NO_PAYMENT') &&
-    nextStatus === 'UPCOMING'
-  ) {
+  if (currentStatus === 'REQUESTED' && nextStatus === 'UPCOMING') {
     return acceptAppointment(appointment);
   }
-  if (
-    (currentStatus === 'REQUESTED' || currentStatus === 'NO_PAYMENT') &&
-    nextStatus === 'CANCELLED'
-  ) {
+  if (currentStatus === 'REQUESTED' && nextStatus === 'CANCELLED') {
     return rejectAppointment(appointment);
   }
 

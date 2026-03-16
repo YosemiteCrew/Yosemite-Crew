@@ -75,13 +75,7 @@ const CompanionsTable = ({
   const getUpcomingAppointmentForCompanion = (companionId?: string) => {
     if (!companionId) return null;
     const now = Date.now();
-    const upcomingStatuses = new Set([
-      'NO_PAYMENT',
-      'REQUESTED',
-      'UPCOMING',
-      'CHECKED_IN',
-      'IN_PROGRESS',
-    ]);
+    const upcomingStatuses = new Set(['REQUESTED', 'UPCOMING', 'CHECKED_IN', 'IN_PROGRESS']);
 
     const related = appointments
       .filter(

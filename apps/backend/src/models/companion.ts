@@ -4,6 +4,8 @@ export interface CompanionMongo {
   name: string;
   type: string;
   breed: string;
+  speciesCode?: string;
+  breedCode?: string;
   dateOfBirth: Date;
   gender: string;
   photoUrl?: string;
@@ -126,6 +128,8 @@ const CompanionSchema = new Schema<CompanionMongo>(
     name: { type: String, required: true },
     type: { type: String, required: true },
     breed: { type: String, required: true },
+    speciesCode: String,
+    breedCode: String,
     dateOfBirth: { type: Date, required: true },
     gender: { type: String, required: true },
     photoUrl: String,

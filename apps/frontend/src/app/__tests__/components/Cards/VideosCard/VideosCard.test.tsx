@@ -31,7 +31,7 @@ describe('VideosCard', () => {
   it('closes when the close icon is clicked', () => {
     render(<VideosCard />);
 
-    fireEvent.click(screen.getByText('close'));
+    fireEvent.click(screen.getAllByText('close')[0]);
     expect(
       screen.queryByText('Make the most of your wait — Start exploring instead.')
     ).not.toBeInTheDocument();

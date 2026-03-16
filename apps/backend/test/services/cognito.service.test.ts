@@ -1,4 +1,12 @@
-import { expect, jest, describe, it, beforeAll, beforeEach, afterAll } from '@jest/globals';
+import {
+  expect,
+  jest,
+  describe,
+  it,
+  beforeAll,
+  beforeEach,
+  afterAll,
+} from "@jest/globals";
 import logger from "../../src/utils/logger";
 
 // Mock logger globally
@@ -24,7 +32,9 @@ describe("CognitoService", () => {
       CognitoIdentityProviderClient: jest.fn().mockImplementation(() => ({
         send: mockSend,
       })),
-      AdminUpdateUserAttributesCommand: jest.fn().mockImplementation((args) => args),
+      AdminUpdateUserAttributesCommand: jest
+        .fn()
+        .mockImplementation((args) => args),
     }));
 
     // Require service dynamically triggers the top-level client instantiation
@@ -33,14 +43,18 @@ describe("CognitoService", () => {
     CognitoServiceError = serviceModule.CognitoServiceError;
 
     const sdkModule = require("@aws-sdk/client-cognito-identity-provider");
-    AdminUpdateUserAttributesCommand = sdkModule.AdminUpdateUserAttributesCommand;
+    AdminUpdateUserAttributesCommand =
+      sdkModule.AdminUpdateUserAttributesCommand;
   });
 
   beforeEach(() => {
     mockSend.mockClear();
     (logger.error as jest.Mock).mockClear();
-    if (AdminUpdateUserAttributesCommand && AdminUpdateUserAttributesCommand.mockClear) {
-        AdminUpdateUserAttributesCommand.mockClear();
+    if (
+      AdminUpdateUserAttributesCommand &&
+      AdminUpdateUserAttributesCommand.mockClear
+    ) {
+      AdminUpdateUserAttributesCommand.mockClear();
     }
   });
 
@@ -97,7 +111,7 @@ describe("CognitoService", () => {
             { Name: "given_name", Value: "" },
             { Name: "family_name", Value: "" },
           ],
-        })
+        }),
       );
     });
 
@@ -106,16 +120,16 @@ describe("CognitoService", () => {
       mockSend.mockRejectedValue(awsError);
 
       await expect(CognitoService.updateUserName(validParams)).rejects.toThrow(
-        CognitoServiceError
+        CognitoServiceError,
       );
 
       await expect(CognitoService.updateUserName(validParams)).rejects.toThrow(
-        "Failed to update user in Cognito."
+        "Failed to update user in Cognito.",
       );
 
       expect(logger.error).toHaveBeenCalledWith(
         "Erro in updating user name:",
-        awsError
+        awsError,
       );
     });
   });

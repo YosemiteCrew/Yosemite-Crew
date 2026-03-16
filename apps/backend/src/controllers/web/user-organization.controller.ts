@@ -5,16 +5,7 @@ import {
   UserOrganizationServiceError,
   type UserOrganizationFHIRPayload,
 } from "../../services/user-organization.service";
-import { AuthenticatedRequest } from "src/middlewares/auth";
-
-const resolveUserIdFromRequest = (req: Request): string | undefined => {
-  const authRequest = req as AuthenticatedRequest;
-  const headerUserId = req.headers["x-user-id"];
-  if (headerUserId && typeof headerUserId === "string") {
-    return headerUserId;
-  }
-  return authRequest.userId;
-};
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 export const UserOrganizationController = {
   upsertMapping: async (req: Request, res: Response) => {

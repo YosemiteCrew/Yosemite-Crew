@@ -8,7 +8,6 @@ import dayjs from 'dayjs';
 import { SPECIES_SYSTEM_URL } from './companion';
 
 export type AppointmentStatus =
-  | 'NO_PAYMENT'
   | 'REQUESTED'
   | 'UPCOMING'
   | 'CHECKED_IN'
@@ -17,7 +16,7 @@ export type AppointmentStatus =
   | 'CANCELLED'
   | 'NO_SHOW';
 
-export type AppointmentPaymentStatus = 'PAID' | 'UNPAID' | 'PAID_CASH' | 'PAYMENT_AT_CLINIC';
+export type AppointmentPaymentStatus = 'PAID' | 'UNPAID';
 
 export type Appointment = {
   id?: string;
@@ -303,25 +302,12 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
   const speciesExtesnion = FHIRappointment.extension?.find((p) => p.id?.includes('species'));
   const breedExtension = FHIRappointment.extension?.find((p) => p.id?.includes('breed'));
   const emergencyExtension = FHIRappointment.extension?.find((p) => p.url === EXT_EMERGENCY);
-  const paymentStatusExtension = FHIRappointment.extension?.find(
-    (p) => p.url === EXT_APPOINTMENT_PAYMENT_STATUS
-  );
   const leadProfileExtension = leadParticipant?.extension?.find(
     (ext) => ext.url === EXT_LEAD_PROFILE_URL
   );
 
   const pmsStatus = FHIRappointment.status; // fallback if unknown status
-  const paymentStatusRaw = String(paymentStatusExtension?.valueString || '')
-    .trim()
-    .toUpperCase()
-    .replace(/[\s-]+/g, '_');
-  const paymentStatus =
-    paymentStatusRaw === 'PAID' ||
-    paymentStatusRaw === 'UNPAID' ||
-    paymentStatusRaw === 'PAID_CASH' ||
-    paymentStatusRaw === 'PAYMENT_AT_CLINIC'
-      ? (paymentStatusRaw as AppointmentPaymentStatus)
-      : undefined;
+  const normalizedStatus = pmsStatus === 'NO_PAYMENT' ? 'REQUESTED' : pmsStatus;
 
   const attachments =
     FHIRappointment.extension
@@ -339,6 +325,10 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
       ?.filter((ext) => ext.url === EXT_APPOINTMENT_FORM_IDS)
       .map((ext) => ext.valueString!)
       .filter(Boolean) || [];
+
+  const paymentStatus = FHIRappointment.extension?.find(
+    (ext) => ext.url === EXT_APPOINTMENT_PAYMENT_STATUS
+  )?.valueString as AppointmentPaymentStatus | undefined;
 
   // Construct internal Appointment object
   const appointment: Appointment = {
@@ -374,7 +364,7 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
     durationMinutes: FHIRappointment.minutesDuration ?? 0,
     startTime: FHIRappointment.start ? new Date(FHIRappointment.start) : new Date(),
     endTime: FHIRappointment.end ? new Date(FHIRappointment.end) : new Date(),
-    status: pmsStatus as any,
+    status: normalizedStatus as any,
     paymentStatus,
     concern: FHIRappointment.description ?? '',
     createdAt: FHIRappointment.created ? new Date(FHIRappointment.created) : new Date(),
