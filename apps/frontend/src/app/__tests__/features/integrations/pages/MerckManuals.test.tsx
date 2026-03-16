@@ -116,7 +116,14 @@ describe('MerckManuals page', () => {
       isEnabled: true,
     });
     searchMock.mockResolvedValue({ entries: [baseEntry] });
-    isAllowedMerckUrlMock.mockImplementation((url: string) => url.includes('merckvetmanual.com'));
+    isAllowedMerckUrlMock.mockImplementation((url: string) => {
+      try {
+        const host = new URL(url).hostname.toLowerCase();
+        return host === 'merckvetmanual.com' || host.endsWith('.merckvetmanual.com');
+      } catch {
+        return false;
+      }
+    });
     Object.assign(navigator, {
       clipboard: { writeText: jest.fn().mockResolvedValue(undefined) },
     });

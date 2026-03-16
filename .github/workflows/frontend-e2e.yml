@@ -19,6 +19,8 @@ jobs:
     name: Playwright E2E (frontend)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
     env:
       NEXT_TELEMETRY_DISABLED: '1'
 
@@ -39,6 +41,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm run build --filter "@yosemite-crew/types" --filter "@yosemite-crew/fhirtypes"
 
       - name: Cache Playwright browsers
         uses: actions/cache@v4

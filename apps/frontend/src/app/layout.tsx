@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import './globals.css';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -39,7 +40,9 @@ export default function RootLayout({
     <html lang="en">
       <body>
         {children}
-        <RouteLoaderOverlay />
+        <Suspense>
+          <RouteLoaderOverlay />
+        </Suspense>
         <ToastProvider />
       </body>
     </html>
