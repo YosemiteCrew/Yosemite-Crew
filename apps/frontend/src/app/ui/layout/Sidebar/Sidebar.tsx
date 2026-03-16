@@ -112,7 +112,6 @@ const Sidebar = () => {
             alt="Logo"
             width={isCollapsed ? 68 : 90}
             height={isCollapsed ? 64 : 83}
-            style={{ height: 'auto' }}
             priority
           />
         </Link>

@@ -94,6 +94,7 @@ const NewHeroSection = () => {
           width={250}
           height={250}
           style={{ objectFit: 'contain' }}
+          priority
         />
       </motion.div>
     </section>
