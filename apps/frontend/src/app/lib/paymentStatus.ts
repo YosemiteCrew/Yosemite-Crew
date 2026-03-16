@@ -135,7 +135,7 @@ export const getAppointmentPaymentDisplay = (
   )
     .trim()
     .toUpperCase();
-  const normalizedPaymentStatus = explicitPaymentStatus.replace(/[\s-]+/g, '_');
+  const normalizedPaymentStatus = explicitPaymentStatus.replaceAll(/[\s-]+/g, '_');
   if (normalizedPaymentStatus === 'PAID') return PAYMENT_DISPLAY.PAID;
   if (normalizedPaymentStatus === 'UNPAID') return PAYMENT_DISPLAY.UNPAID;
   if (normalizedPaymentStatus === 'PAID_CASH') return PAYMENT_DISPLAY.PAID_CASH;

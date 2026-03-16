@@ -1,6 +1,6 @@
 import { AppointmentStatus } from '@/app/features/appointments/types/appointments';
 
-export const isRequestedLikeStatus = (status?: AppointmentStatus | string | null) => {
+export const isRequestedLikeStatus = (status?: AppointmentStatus | null) => {
   return status === 'REQUESTED' || status === 'NO_PAYMENT';
 };
 
@@ -27,7 +27,7 @@ const ALLOWED_STATUS_TRANSITIONS: Record<AppointmentStatus, AppointmentStatus[]>
 };
 
 export const normalizeAppointmentStatus = (
-  status?: AppointmentStatus | string | null
+  status?: AppointmentStatus | null
 ): AppointmentStatus | null => {
   if (!status) return null;
   if (status === 'NO_PAYMENT') return 'NO_PAYMENT';
@@ -45,14 +45,14 @@ export const normalizeAppointmentStatus = (
   return null;
 };
 
-export const toStatusLabel = (status?: AppointmentStatus | string | null) => {
+export const toStatusLabel = (status?: AppointmentStatus | null) => {
   const normalized = normalizeAppointmentStatus(status);
   if (!normalized) return 'Unknown';
   return STATUS_LABELS[normalized];
 };
 
 export const getAllowedAppointmentStatusTransitions = (
-  currentStatus?: AppointmentStatus | string | null
+  currentStatus?: AppointmentStatus | null
 ): AppointmentStatus[] => {
   const normalized = normalizeAppointmentStatus(currentStatus);
   if (!normalized) return [];
@@ -60,7 +60,7 @@ export const getAllowedAppointmentStatusTransitions = (
 };
 
 export const canTransitionAppointmentStatus = (
-  currentStatus: AppointmentStatus | string | null | undefined,
+  currentStatus: AppointmentStatus | null | undefined,
   nextStatus: AppointmentStatus
 ) => {
   const normalizedCurrent = normalizeAppointmentStatus(currentStatus);
@@ -70,7 +70,7 @@ export const canTransitionAppointmentStatus = (
 };
 
 export const getInvalidAppointmentStatusTransitionMessage = (
-  currentStatus: AppointmentStatus | string | null | undefined,
+  currentStatus: AppointmentStatus | null | undefined,
   nextStatus: AppointmentStatus
 ) => {
   const from = normalizeAppointmentStatus(currentStatus);
@@ -95,19 +95,19 @@ export const getInvalidAppointmentStatusTransitionMessage = (
   return `${fromLabel} appointments cannot be moved to ${toLabel}.`;
 };
 
-export const canShowStatusChangeAction = (status?: AppointmentStatus | string | null) => {
+export const canShowStatusChangeAction = (status?: AppointmentStatus | null) => {
   if (isRequestedLikeStatus(status)) return false;
   return getAllowedAppointmentStatusTransitions(status).length > 0;
 };
 
 export const getPreferredNextAppointmentStatus = (
-  status?: AppointmentStatus | string | null
+  status?: AppointmentStatus | null
 ): AppointmentStatus | null => {
   const allowed = getAllowedAppointmentStatusTransitions(status);
   return allowed[0] ?? null;
 };
 
-export const canAssignAppointmentRoom = (status?: AppointmentStatus | string | null) => {
+export const canAssignAppointmentRoom = (status?: AppointmentStatus | null) => {
   const normalized = normalizeAppointmentStatus(status);
   if (!normalized) return false;
   return ['UPCOMING', 'CHECKED_IN', 'IN_PROGRESS'].includes(normalized);

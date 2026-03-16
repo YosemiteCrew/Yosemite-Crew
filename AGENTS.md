@@ -21,8 +21,8 @@ This file defines how AI agents and automation should contribute to this reposit
 
 1. Make the smallest safe change for the request.
 2. Keep code, tests, and docs in sync.
-3. **Commit frequently** — after every logical batch of changes (per file or feature), run checks and commit immediately. Do NOT batch all changes and commit at the end. Context compaction will lose uncommitted work.
-4. Run relevant checks before each commit:
+3. **NEVER commit code yourself.** The agent must never run `git commit`. Instead, after every logical batch of changes, tell the user: "**COMMIT CHECKPOINT** — suggested message: `<conventional commit message>`". The user commits manually.
+4. Run relevant checks and report results before each commit checkpoint:
    - `pnpm --filter frontend run lint`
    - `npx tsc --noemit` (from `apps/frontend/`)
    - Targeted tests only: `pnpm --filter frontend run test -- --testPathPattern="<relevant-file>"`

@@ -26,7 +26,7 @@ const TERM_FORMS: Record<CompanionTerminologyOption, CompanionTermForms> = {
 const SINGULAR_PATTERN = /\b(pet|animal|companion|patient)\b/gi;
 const PLURAL_PATTERN = /\b(pets|animals|companions|patients)\b/gi;
 
-const hasWindow = () => typeof window !== 'undefined';
+const hasWindow = () => typeof globalThis.window !== 'undefined';
 
 const normalizeOrgId = (orgId?: string | null) => String(orgId ?? '').trim();
 const normalizeOrgType = (orgType?: string | null) =>
@@ -55,7 +55,7 @@ const matchCase = (source: string, target: string) => {
 const parseStoredMap = (): Record<string, CompanionTerminologyOption> => {
   if (!hasWindow()) return {};
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = globalThis.window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw) as Record<string, string>;
     const entries = Object.entries(parsed).filter(([, value]) =>
@@ -70,8 +70,8 @@ const parseStoredMap = (): Record<string, CompanionTerminologyOption> => {
 const writeStoredMap = (value: Record<string, CompanionTerminologyOption>) => {
   if (!hasWindow()) return false;
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
-    window.dispatchEvent(new CustomEvent('yc:companion-terminology-changed'));
+    globalThis.window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+    globalThis.window.dispatchEvent(new CustomEvent('yc:companion-terminology-changed'));
     return true;
   } catch {
     return false;
@@ -93,7 +93,7 @@ export const getCompanionTerminologyForOrg = (
   const normalizedOrgId = normalizeOrgId(orgId);
   if (!normalizedOrgId) {
     if (!hasWindow()) return orgTypeDefault;
-    const pending = window.localStorage.getItem(
+    const pending = globalThis.window.localStorage.getItem(
       TEMP_STORAGE_KEY
     ) as CompanionTerminologyOption | null;
     if (pending && TERM_FORMS[pending]) return pending;
@@ -106,7 +106,7 @@ export const getCompanionTerminologyForOrg = (
 export const setPendingCompanionTerminology = (option: CompanionTerminologyOption) => {
   if (!hasWindow()) return false;
   try {
-    window.localStorage.setItem(TEMP_STORAGE_KEY, option);
+    globalThis.window.localStorage.setItem(TEMP_STORAGE_KEY, option);
     return true;
   } catch {
     return false;
@@ -118,14 +118,14 @@ export const bindPendingCompanionTerminologyToOrg = (orgId?: string | null) => {
   const normalizedOrgId = normalizeOrgId(orgId);
   if (!normalizedOrgId) return false;
   try {
-    const pending = window.localStorage.getItem(
+    const pending = globalThis.window.localStorage.getItem(
       TEMP_STORAGE_KEY
     ) as CompanionTerminologyOption | null;
     if (!pending || !TERM_FORMS[pending]) return false;
     const mapping = parseStoredMap();
     mapping[normalizedOrgId] = pending;
     const saved = writeStoredMap(mapping);
-    window.localStorage.removeItem(TEMP_STORAGE_KEY);
+    globalThis.window.localStorage.removeItem(TEMP_STORAGE_KEY);
     return saved;
   } catch {
     return false;
@@ -149,6 +149,8 @@ export const rewriteCompanionTerminologyText = (
 ) => {
   if (!input) return input;
   const forms = TERM_FORMS[option] ?? TERM_FORMS[DEFAULT_OPTION];
-  const pluralReplaced = input.replace(PLURAL_PATTERN, (match) => matchCase(match, forms.plural));
-  return pluralReplaced.replace(SINGULAR_PATTERN, (match) => matchCase(match, forms.singular));
+  const pluralReplaced = input.replaceAll(PLURAL_PATTERN, (match) =>
+    matchCase(match, forms.plural)
+  );
+  return pluralReplaced.replaceAll(SINGULAR_PATTERN, (match) => matchCase(match, forms.singular));
 };

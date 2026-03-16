@@ -1,19 +1,19 @@
-import { renderHook } from "@testing-library/react";
-import { useLoadProfiles, usePrimaryOrgProfile } from "@/app/hooks/useProfiles";
-import { loadProfiles } from "@/app/features/organization/services/profileService";
-import { useOrgStore } from "@/app/stores/orgStore";
-import { useUserProfileStore } from "@/app/stores/profileStore";
+import { renderHook } from '@testing-library/react';
+import { useLoadProfiles, usePrimaryOrgProfile } from '@/app/hooks/useProfiles';
+import { loadProfiles } from '@/app/features/organization/services/profileService';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { useUserProfileStore } from '@/app/stores/profileStore';
 
 // --- Mocks ---
 
-jest.mock("@/app/features/organization/services/profileService", () => ({
+jest.mock('@/app/features/organization/services/profileService', () => ({
   loadProfiles: jest.fn(),
 }));
 
-jest.mock("@/app/stores/orgStore");
-jest.mock("@/app/stores/profileStore");
+jest.mock('@/app/stores/orgStore');
+jest.mock('@/app/stores/profileStore');
 
-describe("useProfiles Hooks", () => {
+describe('useProfiles Hooks', () => {
   let mockOrgState: any;
   let mockProfileState: any;
 
@@ -27,14 +27,12 @@ describe("useProfiles Hooks", () => {
     };
 
     mockProfileState = {
-      status: "idle",
+      status: 'idle',
       profilesByOrgId: {},
     };
 
     // Setup Store Mocks (Zustand selector pattern)
-    (useOrgStore as unknown as jest.Mock).mockImplementation((selector) =>
-      selector(mockOrgState)
-    );
+    (useOrgStore as unknown as jest.Mock).mockImplementation((selector) => selector(mockOrgState));
     (useUserProfileStore as unknown as jest.Mock).mockImplementation((selector) =>
       selector(mockProfileState)
     );
@@ -42,28 +40,28 @@ describe("useProfiles Hooks", () => {
 
   // --- Section 1: useLoadProfiles Logic ---
 
-  describe("useLoadProfiles", () => {
+  describe('useLoadProfiles', () => {
     it("should trigger loadProfiles when status is 'idle' and orgIds exist", () => {
-      mockOrgState.orgIds = ["org-1"];
-      mockProfileState.status = "idle";
+      mockOrgState.orgIds = ['org-1'];
+      mockProfileState.status = 'idle';
 
       renderHook(() => useLoadProfiles());
 
       expect(loadProfiles).toHaveBeenCalledTimes(1);
     });
 
-    it("should NOT trigger loadProfiles if orgIds list is empty", () => {
+    it('should NOT trigger loadProfiles if orgIds list is empty', () => {
       mockOrgState.orgIds = [];
-      mockProfileState.status = "idle";
+      mockProfileState.status = 'idle';
 
       renderHook(() => useLoadProfiles());
 
       expect(loadProfiles).not.toHaveBeenCalled();
     });
 
-    it("should NOT trigger loadProfiles if orgIds is undefined/null", () => {
+    it('should NOT trigger loadProfiles if orgIds is undefined/null', () => {
       mockOrgState.orgIds = null;
-      mockProfileState.status = "idle";
+      mockProfileState.status = 'idle';
 
       renderHook(() => useLoadProfiles());
 
@@ -71,17 +69,18 @@ describe("useProfiles Hooks", () => {
     });
 
     it("should NOT trigger loadProfiles if status is NOT 'idle' (e.g. 'loading')", () => {
-      mockOrgState.orgIds = ["org-1"];
-      mockProfileState.status = "loading";
+      mockOrgState.orgIds = ['org-1'];
+      mockProfileState.status = 'loading';
 
       renderHook(() => useLoadProfiles());
 
       expect(loadProfiles).not.toHaveBeenCalled();
     });
 
-    it("should NOT trigger loadProfiles if status is 'success'", () => {
-      mockOrgState.orgIds = ["org-1"];
-      mockProfileState.status = "success";
+    it("should NOT trigger loadProfiles if status is 'success' and all orgs have profiles", () => {
+      mockOrgState.orgIds = ['org-1'];
+      mockProfileState.status = 'success';
+      mockProfileState.profilesByOrgId = { 'org-1': { id: 'p1' } };
 
       renderHook(() => useLoadProfiles());
 
@@ -91,45 +90,45 @@ describe("useProfiles Hooks", () => {
 
   // --- Section 2: usePrimaryOrgProfile Logic ---
 
-  describe("usePrimaryOrgProfile", () => {
-    const mockProfile = { id: "p1", name: "User 1" };
+  describe('usePrimaryOrgProfile', () => {
+    const mockProfile = { id: 'p1', name: 'User 1' };
 
-    it("should return null if primaryOrgId is not set", () => {
+    it('should return null if primaryOrgId is not set', () => {
       mockOrgState.primaryOrgId = null;
-      mockProfileState.profilesByOrgId = { "org-1": mockProfile };
+      mockProfileState.profilesByOrgId = { 'org-1': mockProfile };
 
       const { result } = renderHook(() => usePrimaryOrgProfile());
 
       expect(result.current).toBeNull();
     });
 
-    it("should return null if primaryOrgId is set but no profile exists for it", () => {
-      mockOrgState.primaryOrgId = "org-1";
-      mockProfileState.profilesByOrgId = { "org-2": mockProfile }; // Mismatch
+    it('should return null if primaryOrgId is set but no profile exists for it', () => {
+      mockOrgState.primaryOrgId = 'org-1';
+      mockProfileState.profilesByOrgId = { 'org-2': mockProfile }; // Mismatch
 
       const { result } = renderHook(() => usePrimaryOrgProfile());
 
       expect(result.current).toBeNull();
     });
 
-    it("should return the profile if primaryOrgId matches an entry", () => {
-      mockOrgState.primaryOrgId = "org-1";
-      mockProfileState.profilesByOrgId = { "org-1": mockProfile };
+    it('should return the profile if primaryOrgId matches an entry', () => {
+      mockOrgState.primaryOrgId = 'org-1';
+      mockProfileState.profilesByOrgId = { 'org-1': mockProfile };
 
       const { result } = renderHook(() => usePrimaryOrgProfile());
 
       expect(result.current).toEqual(mockProfile);
     });
 
-    it("should return null if profiles map is undefined (edge case)", () => {
-        // Technically strict TS prevents this, but runtime JS might allow it
-        mockOrgState.primaryOrgId = "org-1";
-        // simulate missing map key entirely logic is handled by selector usually, but good to test hook safety
-        mockProfileState.profilesByOrgId = {};
+    it('should return null if profiles map is undefined (edge case)', () => {
+      // Technically strict TS prevents this, but runtime JS might allow it
+      mockOrgState.primaryOrgId = 'org-1';
+      // simulate missing map key entirely logic is handled by selector usually, but good to test hook safety
+      mockProfileState.profilesByOrgId = {};
 
-        const { result } = renderHook(() => usePrimaryOrgProfile());
+      const { result } = renderHook(() => usePrimaryOrgProfile());
 
-        expect(result.current).toBeNull();
-      });
+      expect(result.current).toBeNull();
+    });
   });
 });

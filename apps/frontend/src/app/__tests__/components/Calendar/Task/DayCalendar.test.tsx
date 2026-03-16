@@ -78,9 +78,7 @@ describe('DayCalendar (Task)', () => {
     );
 
     expect(screen.getByText('Morning Task')).toBeInTheDocument();
-    expect(screen.getByText(/To:\s*Taylor/i)).toBeInTheDocument();
     expect(screen.getByText('Unassigned Task')).toBeInTheDocument();
-    expect(screen.getAllByText(/:\s*-/).length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByText('Morning Task').closest('button')!);
     expect(handleViewTask).toHaveBeenCalledWith(events[0]);

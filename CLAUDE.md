@@ -42,12 +42,17 @@ pnpm --filter frontend run test -- --testPathPattern="Availability"
 
 ## Commit Discipline — CRITICAL
 
-**Commit after every logical batch of changes.** Do NOT accumulate all changes and commit at the end. Context window compaction will silently discard all uncommitted work, losing hours of progress.
+**NEVER run `git commit` yourself.** The agent must never commit. Instead:
 
-- After fixing each file or feature group: run checks → commit immediately.
+- After every logical batch of changes (per file or feature), tell the user: "**COMMIT CHECKPOINT** — suggested message: `<conventional commit message>`"
+- The user commits manually.
+- This prevents context compaction from silently discarding uncommitted work.
+
+Additional commit rules:
+
 - Never add `Co-Authored-By` or any signature lines to commit messages.
 - Never skip pre-commit hooks (`--no-verify` is forbidden).
-- All pre-commit hooks must pass before committing — fix failures, do not bypass.
+- All pre-commit hooks must pass before the user commits — if lint/type/test checks fail, fix them first.
 
 ---
 

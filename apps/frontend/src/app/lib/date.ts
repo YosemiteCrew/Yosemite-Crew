@@ -5,7 +5,9 @@ import {
   getDatePartsInPreferredTimeZone,
 } from '@/app/lib/timezone';
 
-const toValidDate = (value?: Date | string | number | null): Date | null => {
+type DateInput = Date | string | number | null;
+
+const toValidDate = (value?: DateInput): Date | null => {
   if (value == null || value === '') return null;
   const date = value instanceof Date ? value : new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
@@ -84,10 +86,7 @@ export function applyUtcTime(base: Date, hhmm: string) {
   return d;
 }
 
-export const getUtcTimeValue = (
-  value?: Date | string | number | null,
-  fallback = '00:00'
-): string => {
+export const getUtcTimeValue = (value?: DateInput, fallback = '00:00'): string => {
   const date = toValidDate(value);
   if (!date) return fallback;
   const hours = String(date.getUTCHours()).padStart(2, '0');
@@ -95,10 +94,7 @@ export const getUtcTimeValue = (
   return `${hours}:${minutes}`;
 };
 
-export const getPreferredTimeValue = (
-  value?: Date | string | number | null,
-  fallback = '00:00'
-): string => {
+export const getPreferredTimeValue = (value?: DateInput, fallback = '00:00'): string => {
   const date = toValidDate(value);
   if (!date) return fallback;
   const parts = getDatePartsInPreferredTimeZone(date);
@@ -107,7 +103,7 @@ export const getPreferredTimeValue = (
   return `${hours}:${minutes}`;
 };
 
-export const formatDisplayDate = (value?: Date | string | number | null, fallback = ''): string => {
+export const formatDisplayDate = (value?: DateInput, fallback = ''): string => {
   const date = toValidDate(value);
   if (!date) return fallback;
   return formatDateInPreferredTimeZone(date, {
@@ -117,10 +113,7 @@ export const formatDisplayDate = (value?: Date | string | number | null, fallbac
   });
 };
 
-export const formatDateTimeLocal = (
-  value?: Date | string | number | null,
-  fallback = 'Not available'
-): string => {
+export const formatDateTimeLocal = (value?: DateInput, fallback = 'Not available'): string => {
   const date = toValidDate(value);
   if (!date) return fallback;
   const formattedDate = formatDisplayDate(date, fallback);
@@ -132,10 +125,7 @@ export const formatDateTimeLocal = (
   return `${formattedDate}, ${formattedTime}`;
 };
 
-export const formatTimeInPreferredTimeZone = (
-  value?: Date | string | number | null,
-  fallback = ''
-): string => {
+export const formatTimeInPreferredTimeZone = (value?: DateInput, fallback = ''): string => {
   const date = toValidDate(value);
   if (!date) return fallback;
   return formatDateInPreferredTimeZone(date, {
@@ -145,7 +135,7 @@ export const formatTimeInPreferredTimeZone = (
   });
 };
 
-export const toUtcCalendarDate = (value?: Date | string | number | null): Date => {
+export const toUtcCalendarDate = (value?: DateInput): Date => {
   const date = toValidDate(value);
   if (!date) return new Date();
   return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
