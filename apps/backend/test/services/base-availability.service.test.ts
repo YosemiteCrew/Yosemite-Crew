@@ -1,8 +1,21 @@
 import { BaseAvailabilityService } from "../../src/services/base-availability.service";
 import BaseAvailabilityModel from "../../src/models/base-availability";
+import { prisma } from "src/config/prisma";
+import mongoose from "mongoose";
 
 // --- Mocks ---
 jest.mock("../../src/models/base-availability");
+
+jest.mock("src/config/prisma", () => ({
+  prisma: {
+    baseAvailability: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      createMany: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+  },
+}));
 
 describe("BaseAvailabilityService", () => {
   const mockUserId = "user_123";
@@ -23,6 +36,104 @@ describe("BaseAvailabilityService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe("Postgres branches", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+    const originalReadyStateDescriptor = Object.getOwnPropertyDescriptor(
+      mongoose.connection,
+      "readyState",
+    );
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+      Object.defineProperty(mongoose.connection, "readyState", {
+        value: 0,
+        configurable: true,
+      });
+      (prisma.baseAvailability.findFirst as jest.Mock).mockReset();
+      (prisma.baseAvailability.findMany as jest.Mock).mockReset();
+      (prisma.baseAvailability.createMany as jest.Mock).mockReset();
+      (prisma.baseAvailability.deleteMany as jest.Mock).mockReset();
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+      if (originalReadyStateDescriptor) {
+        Object.defineProperty(
+          mongoose.connection,
+          "readyState",
+          originalReadyStateDescriptor,
+        );
+      }
+    });
+
+    it("create: should write via prisma when mongo unavailable", async () => {
+      (prisma.baseAvailability.findFirst as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
+      (prisma.baseAvailability.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          id: "row-1",
+          userId: mockUserId,
+          organisationId: "org-1",
+          dayOfWeek: "MONDAY",
+          slots: [validSlot],
+        },
+      ]);
+
+      const res = await BaseAvailabilityService.create({
+        userId: mockUserId,
+        availability: [
+          { ...validAvailability[0], organisationId: "org-1" } as any,
+        ],
+      });
+
+      expect(prisma.baseAvailability.createMany).toHaveBeenCalled();
+      expect(res[0].dayOfWeek).toBe("MONDAY");
+    });
+
+    it("update: should replace via prisma when mongo unavailable", async () => {
+      (prisma.baseAvailability.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          id: "row-1",
+          userId: mockUserId,
+          organisationId: "org-1",
+          dayOfWeek: "TUESDAY",
+          slots: [validSlot],
+        },
+      ]);
+
+      const res = await BaseAvailabilityService.update(mockUserId, {
+        availability: [
+          { ...validAvailability[1], organisationId: "org-1" } as any,
+        ],
+      });
+
+      expect(prisma.baseAvailability.deleteMany).toHaveBeenCalled();
+      expect(prisma.baseAvailability.createMany).toHaveBeenCalled();
+      expect(res[0].dayOfWeek).toBe("TUESDAY");
+    });
+
+    it("getByUserId: should read via prisma when read from postgres", async () => {
+      Object.defineProperty(mongoose.connection, "readyState", {
+        value: mongoose.ConnectionStates.connected,
+        configurable: true,
+      }); // read path uses isReadFromPostgres only
+      (prisma.baseAvailability.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          id: "row-1",
+          userId: mockUserId,
+          organisationId: "org-1",
+          dayOfWeek: "MONDAY",
+          slots: [validSlot],
+        },
+      ]);
+
+      const res = await BaseAvailabilityService.getByUserId(mockUserId);
+      expect(res).toHaveLength(1);
+      expect(res[0].dayOfWeek).toBe("MONDAY");
+    });
   });
 
   describe("Validation Helpers (via Public Methods)", () => {

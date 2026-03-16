@@ -163,8 +163,13 @@ export type { OrganisationInvite, InviteStatus } from "./organisationInvite";
 export type { Service } from "./service"
 export { type ServiceRequestDTO, type ServiceResponseDTO, toServiceResponseDTO, fromServiceRequestDTO } from "./dto/service.dto"
 export { type AppointmentRequestDTO, type AppointmentResponseDTO, toAppointmentResponseDTO, fromAppointmentRequestDTO} from "./dto/appointment.dto"
-export type { Invoice, InvoiceItem, InvoiceStatus } from "./invoice"
-export type { Appointment } from "./appointment"
+export type {
+  Invoice,
+  InvoiceItem,
+  InvoiceStatus,
+  PaymentCollectionMethod,
+} from "./invoice"
+export type { Appointment, AppointmentPaymentStatus } from "./appointment"
 export { toFHIRInvoice, fromFHIRInvoice } from "./invoice"
 export { type InvoiceRequestDTO, type InvoiceResponseDTO, toInvoiceResponseDTO, fromInvoiceRequestDTO} from "./dto/invoice.dto"
 export {

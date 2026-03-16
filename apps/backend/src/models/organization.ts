@@ -33,6 +33,7 @@ export interface OrganizationMongo {
   DUNSNumber?: string;
   imageURL?: string;
   type: "HOSPITAL" | "BREEDER" | "BOARDER" | "GROOMER";
+  petNamePreference?: "COMPANION" | "ANIMAL" | "PATIENT";
   phoneNo: string;
   website?: string;
   documensoTeamId?: string;
@@ -75,6 +76,11 @@ const OrganizationSchema = new Schema<OrganizationMongo>(
       type: String,
       enum: ["HOSPITAL", "BREEDER", "BOARDER", "GROOMER"],
       required: true,
+    },
+    petNamePreference: {
+      type: String,
+      enum: ["COMPANION", "ANIMAL", "PATIENT"],
+      default: "COMPANION",
     },
     phoneNo: { type: String, required: true },
     website: { type: String },

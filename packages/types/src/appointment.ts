@@ -3,7 +3,6 @@ import dayjs from "dayjs";
 import { SPECIES_SYSTEM_URL } from "./companion";
 
 export type AppointmentStatus =
-  | 'NO_PAYMENT'
   | 'REQUESTED'
   | 'UPCOMING'
   | 'CHECKED_IN'
@@ -11,6 +10,8 @@ export type AppointmentStatus =
   | 'COMPLETED'
   | 'CANCELLED'
   | 'NO_SHOW';
+
+export type AppointmentPaymentStatus = 'PAID' | 'UNPAID';
 
 export type Appointment = {
   id?: string;
@@ -52,6 +53,7 @@ export type Appointment = {
   durationMinutes: number;     // Duration in minutes
   endTime: Date;               // Booking end timestamp
   status: AppointmentStatus;
+  paymentStatus?: AppointmentPaymentStatus;
   isEmergency?: boolean; 
   concern?: string;            // Reason for the appointment
   createdAt?: Date;
@@ -69,6 +71,8 @@ const EXT_EMERGENCY = 'https://yosemitecrew.com/fhir/StructureDefinition/appoint
 const EXT_APPOINTMENT_ATTACHMENTS = "https://yosemitecrew.com/fhir/StructureDefinition/appointment-attachments"
 const EXT_LEAD_PROFILE_URL = "https://yosemitecrew.com/fhir/StructureDefinition/lead-profile-url"
 const EXT_APPOINTMENT_FORM_IDS = "https://yosemitecrew.com/fhir/StructureDefinition/appointment-form-id"
+const EXT_APPOINTMENT_PAYMENT_STATUS =
+  "https://yosemitecrew.com/fhir/StructureDefinition/appointment-payment-status"
 
 export function toFHIRAppointment(appointment: Appointment): FHIRAppointment {
   const participants: AppointmentParticipant[] = [];
@@ -203,6 +207,13 @@ export function toFHIRAppointment(appointment: Appointment): FHIRAppointment {
     })
   }
 
+  if (appointment.paymentStatus) {
+    extension.push({
+      url: EXT_APPOINTMENT_PAYMENT_STATUS,
+      valueString: appointment.paymentStatus,
+    });
+  }
+
   const fhirAppointment: FHIRAppointment = {
     resourceType: "Appointment",
     id: appointment.id,
@@ -241,6 +252,8 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
   const leadProfileExtension = leadParticipant?.extension?.find(ext => ext.url === EXT_LEAD_PROFILE_URL)
 
   const pmsStatus = FHIRappointment.status // fallback if unknown status
+  const normalizedStatus =
+    pmsStatus === "NO_PAYMENT" ? "REQUESTED" : pmsStatus;
 
   const attachments =
   FHIRappointment.extension
@@ -258,6 +271,10 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
       ?.filter((ext) => ext.url === EXT_APPOINTMENT_FORM_IDS)
       .map((ext) => ext.valueString!)
       .filter(Boolean) || [];
+
+  const paymentStatus = FHIRappointment.extension?.find(
+    (ext) => ext.url === EXT_APPOINTMENT_PAYMENT_STATUS,
+  )?.valueString as AppointmentPaymentStatus | undefined;
 
   // Construct internal Appointment object
   const appointment: Appointment = {
@@ -294,7 +311,8 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
     durationMinutes: FHIRappointment.minutesDuration ?? 0,
     startTime: FHIRappointment.start ? new Date(FHIRappointment.start) : new Date(),
     endTime: FHIRappointment.end ? new Date(FHIRappointment.end) : new Date(),
-    status: pmsStatus as any,
+    status: normalizedStatus as any,
+    paymentStatus,
     concern: FHIRappointment.description ?? "",
     createdAt: FHIRappointment.created ? new Date(FHIRappointment.created) : new Date(),
     updatedAt: new Date(),

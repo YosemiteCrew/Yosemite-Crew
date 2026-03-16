@@ -4,14 +4,25 @@ import {
 } from "../../src/services/dashboard.service";
 import AppointmentModel from "../../src/models/appointment";
 import TaskModel from "../../src/models/task";
+import InvoiceModel from "../../src/models/invoice";
+import UserOrganizationModel from "../../src/models/user-organization";
+import { AvailabilityService } from "../../src/services/availability.service";
 import {
   InventoryItemModel,
   StockMovementModel,
 } from "../../src/models/inventory";
+import { prisma } from "src/config/prisma";
 
 // --- Mocks ---
 jest.mock("../../src/models/appointment");
 jest.mock("../../src/models/task");
+jest.mock("../../src/models/invoice");
+jest.mock("../../src/models/user-organization", () => ({
+  __esModule: true,
+  default: {
+    find: jest.fn(),
+  },
+}));
 jest.mock("../../src/models/inventory", () => ({
   InventoryItemModel: {
     find: jest.fn(),
@@ -20,12 +31,51 @@ jest.mock("../../src/models/inventory", () => ({
     aggregate: jest.fn(),
   },
 }));
+jest.mock("../../src/services/availability.service", () => ({
+  AvailabilityService: {
+    getCurrentStatus: jest.fn(),
+  },
+}));
+
+jest.mock("src/config/prisma", () => ({
+  prisma: {
+    appointment: {
+      count: jest.fn(),
+      findMany: jest.fn(),
+    },
+    task: {
+      count: jest.fn(),
+    },
+    invoice: {
+      aggregate: jest.fn(),
+      findMany: jest.fn(),
+    },
+    userOrganization: {
+      findMany: jest.fn(),
+    },
+    inventoryItem: {
+      findMany: jest.fn(),
+    },
+    inventoryStockMovement: {
+      findMany: jest.fn(),
+    },
+  },
+}));
 
 describe("DashboardService", () => {
   const mockOrgId = "org-123";
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (UserOrganizationModel.find as jest.Mock).mockReturnValue({
+      select: jest.fn().mockReturnValue({
+        lean: jest.fn().mockResolvedValue([]),
+      }),
+    });
+    (AvailabilityService.getCurrentStatus as jest.Mock).mockResolvedValue(
+      "Off-Duty",
+    );
+    (prisma.userOrganization.findMany as jest.Mock).mockResolvedValue([]);
   });
 
   // --- 1. getSummary ---
@@ -38,8 +88,12 @@ describe("DashboardService", () => {
 
     it("should return summary data correctly", async () => {
       // Mock Appointment Aggregation
-      const mockAgg = [{ _id: null, revenue: 1000, count: 5 }];
+      const mockAgg = [{ _id: null, revenue: 0, count: 5 }];
       (AppointmentModel.aggregate as jest.Mock).mockResolvedValue(mockAgg);
+
+      // Mock Invoice Aggregation
+      const mockRevenueAgg = [{ _id: null, revenue: 1000, count: 1 }];
+      (InvoiceModel.aggregate as jest.Mock).mockResolvedValue(mockRevenueAgg);
 
       // Mock Task Count
       const mockTaskCount = { exec: jest.fn().mockResolvedValue(10) };
@@ -61,6 +115,7 @@ describe("DashboardService", () => {
 
     it("should handle empty aggregation results (defaults to 0)", async () => {
       (AppointmentModel.aggregate as jest.Mock).mockResolvedValue([]);
+      (InvoiceModel.aggregate as jest.Mock).mockResolvedValue([]);
       (TaskModel.countDocuments as jest.Mock).mockReturnValue({
         exec: jest.fn().mockResolvedValue(0),
       });
@@ -84,9 +139,12 @@ describe("DashboardService", () => {
       "last_week",
       "this_month",
       "last_month",
+      "last_6_months",
+      "last_1_year",
     ];
     test.each(ranges)("should resolve date range for %s", async (range) => {
       (AppointmentModel.aggregate as jest.Mock).mockResolvedValue([]);
+      (InvoiceModel.aggregate as jest.Mock).mockResolvedValue([]);
       (TaskModel.countDocuments as jest.Mock).mockReturnValue({
         exec: jest.fn().mockResolvedValue(0),
       });
@@ -97,11 +155,51 @@ describe("DashboardService", () => {
     });
 
     it("should fallback to default range logic for unknown inputs", async () => {
+      (AppointmentModel.aggregate as jest.Mock).mockResolvedValue([]);
+      (InvoiceModel.aggregate as jest.Mock).mockResolvedValue([]);
+      (TaskModel.countDocuments as jest.Mock).mockReturnValue({
+        exec: jest.fn().mockResolvedValue(0),
+      });
       await DashboardService.getSummary({
         organisationId: mockOrgId,
         range: "unknown" as SummaryRange,
       });
       expect(AppointmentModel.aggregate).toHaveBeenCalled();
+    });
+  });
+
+  describe("getSummary (postgres)", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.appointment.count as jest.Mock).mockReset();
+      (prisma.task.count as jest.Mock).mockReset();
+      (prisma.invoice.aggregate as jest.Mock).mockReset();
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("should return summary data from prisma", async () => {
+      (prisma.appointment.count as jest.Mock).mockResolvedValueOnce(3);
+      (prisma.task.count as jest.Mock).mockResolvedValueOnce(7);
+      (prisma.invoice.aggregate as jest.Mock).mockResolvedValueOnce({
+        _sum: { totalAmount: 250 },
+      });
+
+      const result = await DashboardService.getSummary({
+        organisationId: mockOrgId,
+        range: "today",
+      });
+
+      expect(result).toEqual({
+        revenue: 250,
+        appointments: 3,
+        tasks: 7,
+        staffOnDuty: 0,
+      });
     });
   });
 
@@ -114,30 +212,70 @@ describe("DashboardService", () => {
     });
 
     it("should return trend data", async () => {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = today.getMonth() + 1;
+      const day = today.getDate();
       const mockAgg = [
-        { _id: { year: 2023, month: 1 }, completed: 10, cancelled: 2 },
-        { _id: { year: 2023, month: 2 }, completed: 15, cancelled: 0 },
+        { _id: { year, month, day }, completed: 10, cancelled: 2 },
       ];
       (AppointmentModel.aggregate as jest.Mock).mockResolvedValue(mockAgg);
 
       const result = await DashboardService.getAppointmentsTrend({
         organisationId: mockOrgId,
+        range: "today",
+        bucket: "day",
       });
 
-      expect(result).toHaveLength(2);
-      expect(result[0].label).toBe("Jan");
+      expect(result).toHaveLength(1);
       expect(result[0].completed).toBe(10);
     });
 
     it("should handle empty aggregation fields (defaults)", async () => {
-      const mockAgg = [{ _id: { year: 2023, month: 1 } }]; // missing completed/cancelled
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = today.getMonth() + 1;
+      const day = today.getDate();
+      const mockAgg = [{ _id: { year, month, day } }]; // missing completed/cancelled
       (AppointmentModel.aggregate as jest.Mock).mockResolvedValue(mockAgg);
 
       const result = await DashboardService.getAppointmentsTrend({
         organisationId: mockOrgId,
+        range: "today",
+        bucket: "day",
       });
       expect(result[0].completed).toBe(0);
       expect(result[0].cancelled).toBe(0);
+    });
+  });
+
+  describe("getAppointmentsTrend (postgres)", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.appointment.findMany as jest.Mock).mockReset();
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("should aggregate appointment statuses", async () => {
+      const today = new Date();
+      (prisma.appointment.findMany as jest.Mock).mockResolvedValueOnce([
+        { startTime: today, status: "COMPLETED" },
+        { startTime: today, status: "CANCELLED" },
+      ]);
+
+      const result = await DashboardService.getAppointmentsTrend({
+        organisationId: mockOrgId,
+        range: "today",
+        bucket: "day",
+      });
+
+      expect(result).toHaveLength(1);
+      expect(result[0].completed + result[0].cancelled).toBe(2);
     });
   });
 
@@ -150,14 +288,55 @@ describe("DashboardService", () => {
     });
 
     it("should return revenue trend", async () => {
-      const mockAgg = [{ _id: { year: 2023, month: 1 }, revenue: 5000 }];
-      (AppointmentModel.aggregate as jest.Mock).mockResolvedValue(mockAgg);
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = today.getMonth() + 1;
+      const day = today.getDate();
+      const mockAgg = [
+        {
+          _id: { year, month, day },
+          revenue: 5000,
+          paidRevenue: 5000,
+          cancelledRevenue: 0,
+        },
+      ];
+      (InvoiceModel.aggregate as jest.Mock).mockResolvedValue(mockAgg);
 
       const result = await DashboardService.getRevenueTrend({
         organisationId: mockOrgId,
+        range: "today",
+        bucket: "day",
       });
       expect(result[0].revenue).toBe(5000);
-      expect(result[0].label).toBe("Jan");
+    });
+  });
+
+  describe("getRevenueTrend (postgres)", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.invoice.findMany as jest.Mock).mockReset();
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("should aggregate paid invoices", async () => {
+      const today = new Date();
+      (prisma.invoice.findMany as jest.Mock).mockResolvedValueOnce([
+        { paidAt: today, totalAmount: 100, status: "PAID" },
+        { paidAt: today, totalAmount: 50, status: "PAID" },
+      ]);
+
+      const result = await DashboardService.getRevenueTrend({
+        organisationId: mockOrgId,
+        range: "today",
+        bucket: "day",
+      });
+
+      expect(result[0].revenue).toBe(150);
     });
   });
 
@@ -186,6 +365,34 @@ describe("DashboardService", () => {
     });
   });
 
+  describe("getAppointmentLeaders (postgres)", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.appointment.findMany as jest.Mock).mockReset();
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("should compute leaders from lead ids", async () => {
+      (prisma.appointment.findMany as jest.Mock).mockResolvedValueOnce([
+        { lead: { id: "staff-1" } },
+        { lead: { id: "staff-1" } },
+        { lead: { id: "staff-2" } },
+      ]);
+
+      const result = await DashboardService.getAppointmentLeaders({
+        organisationId: mockOrgId,
+      });
+
+      expect(result[0].staffId).toBe("staff-1");
+      expect(result[0].completedAppointments).toBe(2);
+    });
+  });
+
   // --- 5. getRevenueLeaders ---
   describe("getRevenueLeaders", () => {
     it("should throw if organisationId is missing", async () => {
@@ -199,7 +406,7 @@ describe("DashboardService", () => {
         { _id: "SOP-A", revenue: 1000 },
         { _id: null, revenue: 500 },
       ];
-      (AppointmentModel.aggregate as jest.Mock).mockResolvedValue(mockAgg);
+      (InvoiceModel.aggregate as jest.Mock).mockResolvedValue(mockAgg);
 
       const result = await DashboardService.getRevenueLeaders({
         organisationId: mockOrgId,
@@ -208,6 +415,38 @@ describe("DashboardService", () => {
       expect(result[0].serviceKey).toBe("SOP-A");
       expect(result[1].label).toBe("Unknown");
       expect(result[1].revenue).toBe(500);
+    });
+  });
+
+  describe("getRevenueLeaders (postgres)", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.invoice.findMany as jest.Mock).mockReset();
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("should aggregate item totals", async () => {
+      (prisma.invoice.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          items: [
+            { name: "A", total: 100 },
+            { name: "B", total: 50 },
+          ],
+        },
+        { items: [{ name: "A", total: 25 }] },
+      ]);
+
+      const result = await DashboardService.getRevenueLeaders({
+        organisationId: mockOrgId,
+      });
+
+      const leader = result.find((entry) => entry.label === "A");
+      expect(leader?.revenue).toBe(125);
     });
   });
 
@@ -288,6 +527,39 @@ describe("DashboardService", () => {
     });
   });
 
+  describe("getInventoryTurnover (postgres)", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.inventoryItem.findMany as jest.Mock).mockReset();
+      (prisma.inventoryStockMovement.findMany as jest.Mock).mockReset();
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("should compute turnover and trend", async () => {
+      (prisma.inventoryItem.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: "item-1", onHand: 10, name: "Item A" },
+      ]);
+      (
+        prisma.inventoryStockMovement.findMany as jest.Mock
+      ).mockResolvedValueOnce([
+        { itemId: "item-1", change: -20, createdAt: new Date("2023-01-05") },
+      ]);
+
+      const result = await DashboardService.getInventoryTurnover({
+        organisationId: mockOrgId,
+        year: 2023,
+      });
+
+      expect(result.turnsPerYear).toBe(2);
+      expect(result.trend.length).toBe(1);
+    });
+  });
+
   // --- 7. getProductTurnover ---
   describe("getProductTurnover", () => {
     it("should throw if organisationId is missing", async () => {
@@ -338,6 +610,40 @@ describe("DashboardService", () => {
       expect(result[0].name).toBe("Unknown");
       // onHand defaults to 0 -> avg defaults to 1. Turnover = 10 / 1 = 10.
       expect(result[0].turnover).toBe(10);
+    });
+  });
+
+  describe("getProductTurnover (postgres)", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.inventoryItem.findMany as jest.Mock).mockReset();
+      (prisma.inventoryStockMovement.findMany as jest.Mock).mockReset();
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("should compute product turnover from movements", async () => {
+      (prisma.inventoryItem.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: "item-1", name: "Item A", onHand: 5 },
+      ]);
+      (
+        prisma.inventoryStockMovement.findMany as jest.Mock
+      ).mockResolvedValueOnce([{ itemId: "item-1", change: -25 }]);
+
+      const result = await DashboardService.getProductTurnover({
+        organisationId: mockOrgId,
+        year: 2023,
+      });
+
+      expect(result[0]).toEqual({
+        itemId: "item-1",
+        name: "Item A",
+        turnover: 5,
+      });
     });
   });
 });

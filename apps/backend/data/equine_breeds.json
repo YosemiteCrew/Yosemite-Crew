@@ -1,0 +1,3908 @@
+[
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79021,
+    "name": "Abyssinian",
+    "slug": "abyssinian",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79022,
+    "name": "Abyssinian X",
+    "slug": "abyssinian-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79023,
+    "name": "Akhal-Teke",
+    "slug": "akhal-teke",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79024,
+    "name": "Akhal-Teke X",
+    "slug": "akhal-teke-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79025,
+    "name": "Altai",
+    "slug": "altai",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79026,
+    "name": "Altai X",
+    "slug": "altai-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79027,
+    "name": "Alter Real",
+    "slug": "alter-real",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79028,
+    "name": "Alter Real X",
+    "slug": "alter-real-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79029,
+    "name": "American Albino",
+    "slug": "american-albino",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79030,
+    "name": "American Albino X",
+    "slug": "american-albino-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79031,
+    "name": "American Miniature Horse",
+    "slug": "american-miniature-horse",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79032,
+    "name": "American Miniature Horse X",
+    "slug": "american-miniature-horse-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79033,
+    "name": "American Quarter",
+    "slug": "american-quarter",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79034,
+    "name": "American Quarter X",
+    "slug": "american-quarter-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79035,
+    "name": "American Saddlebred",
+    "slug": "american-saddlebred",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79036,
+    "name": "American Saddlebred X",
+    "slug": "american-saddlebred-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79037,
+    "name": "American Standardbred",
+    "slug": "american-standardbred",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79038,
+    "name": "American Standardbred X",
+    "slug": "american-standardbred-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79039,
+    "name": "Andalusian",
+    "slug": "andalusian",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79040,
+    "name": "Andalusian X",
+    "slug": "andalusian-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79041,
+    "name": "Anglo-Arab",
+    "slug": "anglo-arab",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79042,
+    "name": "Anglo-Arab X",
+    "slug": "anglo-arab-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79043,
+    "name": "Anglo-Dutch",
+    "slug": "anglo-dutch",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79044,
+    "name": "Anglo-Dutch X",
+    "slug": "anglo-dutch-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79045,
+    "name": "Angora",
+    "slug": "angora",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79046,
+    "name": "Angora X",
+    "slug": "angora-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79047,
+    "name": "Appaloosa",
+    "slug": "appaloosa",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79048,
+    "name": "Appaloosa X",
+    "slug": "appaloosa-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79049,
+    "name": "Arab",
+    "slug": "arab",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79050,
+    "name": "Arab X",
+    "slug": "arab-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79051,
+    "name": "Ardennes (Ardennais)",
+    "slug": "ardennes-ardennais",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79052,
+    "name": "Ardennes (Ardennais) X",
+    "slug": "ardennes-ardennais-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79053,
+    "name": "Australian Stock",
+    "slug": "australian-stock",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79054,
+    "name": "Australian Stock X",
+    "slug": "australian-stock-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79055,
+    "name": "Baden-Wurttemberger",
+    "slug": "baden-wurttemberger",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79056,
+    "name": "Baden-Wurttemberger X",
+    "slug": "baden-wurttemberger-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79057,
+    "name": "Barb",
+    "slug": "barb",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79058,
+    "name": "Barb X",
+    "slug": "barb-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79059,
+    "name": "Bashkir",
+    "slug": "bashkir",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79060,
+    "name": "Bashkir X",
+    "slug": "bashkir-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79061,
+    "name": "Bavarian Warmblood",
+    "slug": "bavarian-warmblood",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79062,
+    "name": "Bavarian Warmblood X",
+    "slug": "bavarian-warmblood-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79063,
+    "name": "Belgian Draft",
+    "slug": "belgian-draft",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79064,
+    "name": "Belgian Draft X",
+    "slug": "belgian-draft-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79065,
+    "name": "Belgian Warmblood",
+    "slug": "belgian-warmblood",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79066,
+    "name": "Belgian Warmblood X",
+    "slug": "belgian-warmblood-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79067,
+    "name": "Brandenburg",
+    "slug": "brandenburg",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79068,
+    "name": "Brandenburg X",
+    "slug": "brandenburg-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79069,
+    "name": "Breton",
+    "slug": "breton",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79070,
+    "name": "Breton X",
+    "slug": "breton-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79071,
+    "name": "British Miniature Horse",
+    "slug": "british-miniature-horse",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79072,
+    "name": "British Miniature Horse X",
+    "slug": "british-miniature-horse-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79073,
+    "name": "British Riding Pony",
+    "slug": "british-riding-pony",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79074,
+    "name": "British Riding Pony X",
+    "slug": "british-riding-pony-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79075,
+    "name": "British Sports Horse",
+    "slug": "british-sports-horse",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79076,
+    "name": "British Sports Horse X",
+    "slug": "british-sports-horse-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79077,
+    "name": "British Spotted Pony",
+    "slug": "british-spotted-pony",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79078,
+    "name": "British Spotted Pony X",
+    "slug": "british-spotted-pony-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79079,
+    "name": "British Warmblood",
+    "slug": "british-warmblood",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79080,
+    "name": "British Warmblood X",
+    "slug": "british-warmblood-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79081,
+    "name": "Camargue",
+    "slug": "camargue",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79082,
+    "name": "Camargue X",
+    "slug": "camargue-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79083,
+    "name": "Carneddau",
+    "slug": "carneddau",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79084,
+    "name": "Carneddau X",
+    "slug": "carneddau-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79085,
+    "name": "Carriage Horse",
+    "slug": "carriage-horse",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79086,
+    "name": "Caspian",
+    "slug": "caspian",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79087,
+    "name": "Caspian X",
+    "slug": "caspian-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79088,
+    "name": "Cleveland Bay",
+    "slug": "cleveland-bay",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79089,
+    "name": "Cleveland Bay X",
+    "slug": "cleveland-bay-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79090,
+    "name": "Clydesdale",
+    "slug": "clydesdale",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79091,
+    "name": "Clydesdale X",
+    "slug": "clydesdale-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79092,
+    "name": "Cob",
+    "slug": "cob",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79093,
+    "name": "Cob X",
+    "slug": "cob-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79094,
+    "name": "Comtois",
+    "slug": "comtois",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79095,
+    "name": "Comtois X",
+    "slug": "comtois-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79096,
+    "name": "Connemara",
+    "slug": "connemara",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79097,
+    "name": "Connemara X",
+    "slug": "connemara-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79098,
+    "name": "Cremello",
+    "slug": "cremello",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79099,
+    "name": "Cremello X",
+    "slug": "cremello-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79100,
+    "name": "Criollo",
+    "slug": "criollo",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79101,
+    "name": "Criollo X",
+    "slug": "criollo-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79102,
+    "name": "Crossbred",
+    "slug": "crossbred",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79103,
+    "name": "Dales",
+    "slug": "dales",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79104,
+    "name": "Dales X",
+    "slug": "dales-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79105,
+    "name": "Danish Warmblood",
+    "slug": "danish-warmblood",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79106,
+    "name": "Danish Warmblood X",
+    "slug": "danish-warmblood-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79107,
+    "name": "Dartmoor",
+    "slug": "dartmoor",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79108,
+    "name": "Dartmoor X",
+    "slug": "dartmoor-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79109,
+    "name": "Draft",
+    "slug": "draft",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79110,
+    "name": "Draft X",
+    "slug": "draft-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79111,
+    "name": "Dutch Warmblood",
+    "slug": "dutch-warmblood",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79112,
+    "name": "Dutch Warmblood X",
+    "slug": "dutch-warmblood-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79113,
+    "name": "Eriskay",
+    "slug": "eriskay",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79114,
+    "name": "Eriskay X",
+    "slug": "eriskay-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79115,
+    "name": "Exmoor",
+    "slug": "exmoor",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79116,
+    "name": "Exmoor X",
+    "slug": "exmoor-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79117,
+    "name": "Falabella",
+    "slug": "falabella",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79118,
+    "name": "Falabella X",
+    "slug": "falabella-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79119,
+    "name": "Fell",
+    "slug": "fell",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79120,
+    "name": "Fell X",
+    "slug": "fell-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79121,
+    "name": "Finnish",
+    "slug": "finnish",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79122,
+    "name": "Finnish X",
+    "slug": "finnish-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79019,
+    "name": "Fjord (Norwegian)",
+    "slug": "fjord-norwegian",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79020,
+    "name": "Fjord X (Norwegian)",
+    "slug": "fjord-x-norwegian",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79123,
+    "name": "French Thoroughbred",
+    "slug": "french-thoroughbred",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79124,
+    "name": "French Thoroughbred X",
+    "slug": "french-thoroughbred-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79125,
+    "name": "French Trotter",
+    "slug": "french-trotter",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79126,
+    "name": "French Trotter X",
+    "slug": "french-trotter-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79127,
+    "name": "French Warmblood",
+    "slug": "french-warmblood",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79128,
+    "name": "French Warmblood X",
+    "slug": "french-warmblood-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79129,
+    "name": "Friesian",
+    "slug": "friesian",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79130,
+    "name": "Friesian X",
+    "slug": "friesian-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79131,
+    "name": "Gelderlander",
+    "slug": "gelderlander",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79132,
+    "name": "Gelderlander X",
+    "slug": "gelderlander-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79133,
+    "name": "German Riding Pony",
+    "slug": "german-riding-pony",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79134,
+    "name": "German Riding Pony X",
+    "slug": "german-riding-pony-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79135,
+    "name": "German Warmblood",
+    "slug": "german-warmblood",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79136,
+    "name": "German Warmblood X",
+    "slug": "german-warmblood-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79137,
+    "name": "Hackney",
+    "slug": "hackney",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79138,
+    "name": "Hackney X",
+    "slug": "hackney-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79139,
+    "name": "Haflinger",
+    "slug": "haflinger",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79140,
+    "name": "Haflinger X",
+    "slug": "haflinger-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79141,
+    "name": "Hanoverian",
+    "slug": "hanoverian",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79142,
+    "name": "Hanoverian X",
+    "slug": "hanoverian-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79143,
+    "name": "Henson",
+    "slug": "henson",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79144,
+    "name": "Henson X",
+    "slug": "henson-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79145,
+    "name": "Hessian (Hessen)",
+    "slug": "hessian-hessen",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79146,
+    "name": "Hessian (Hessen) X",
+    "slug": "hessian-hessen-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79147,
+    "name": "Highland",
+    "slug": "highland",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79148,
+    "name": "Highland X",
+    "slug": "highland-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79149,
+    "name": "Hispano",
+    "slug": "hispano",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79150,
+    "name": "Hispano X",
+    "slug": "hispano-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79151,
+    "name": "Holstein",
+    "slug": "holstein",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79152,
+    "name": "Holstein X",
+    "slug": "holstein-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79153,
+    "name": "Horse",
+    "slug": "horse",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79154,
+    "name": "Hungarian Warmblood",
+    "slug": "hungarian-warmblood",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79155,
+    "name": "Hungarian Warmblood X",
+    "slug": "hungarian-warmblood-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79156,
+    "name": "Hunter",
+    "slug": "hunter",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79157,
+    "name": "Hunter X",
+    "slug": "hunter-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79158,
+    "name": "Iberian",
+    "slug": "iberian",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79159,
+    "name": "Iberian X",
+    "slug": "iberian-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79160,
+    "name": "Icelandic",
+    "slug": "icelandic",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79161,
+    "name": "Icelandic X",
+    "slug": "icelandic-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79162,
+    "name": "Irish",
+    "slug": "irish",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79164,
+    "name": "Irish Cob (Gypsy vanner)",
+    "slug": "irish-cob-gypsy-vanner",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79165,
+    "name": "Irish Cob (Gypsy vanner) X",
+    "slug": "irish-cob-gypsy-vanner-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79166,
+    "name": "Irish Draft",
+    "slug": "irish-draft",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79167,
+    "name": "Irish Draft X",
+    "slug": "irish-draft-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79168,
+    "name": "Irish Hunter",
+    "slug": "irish-hunter",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79169,
+    "name": "Irish Hunter X",
+    "slug": "irish-hunter-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79170,
+    "name": "Irish Sport Horse",
+    "slug": "irish-sport-horse",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79171,
+    "name": "Irish Sport Horse X",
+    "slug": "irish-sport-horse-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79163,
+    "name": "Irish X",
+    "slug": "irish-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79178,
+    "name": "KWPN",
+    "slug": "kwpn",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79179,
+    "name": "KWPN X",
+    "slug": "kwpn-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79172,
+    "name": "Kerry Bog",
+    "slug": "kerry-bog",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79173,
+    "name": "Kerry Bog X",
+    "slug": "kerry-bog-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79174,
+    "name": "Knabstrup",
+    "slug": "knabstrup",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79175,
+    "name": "Knabstrup X",
+    "slug": "knabstrup-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79176,
+    "name": "Konik",
+    "slug": "konik",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79177,
+    "name": "Konik X",
+    "slug": "konik-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79180,
+    "name": "Lipizzaner",
+    "slug": "lipizzaner",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79181,
+    "name": "Lipizzaner X",
+    "slug": "lipizzaner-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79182,
+    "name": "Lusitano",
+    "slug": "lusitano",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79183,
+    "name": "Lusitano X",
+    "slug": "lusitano-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79184,
+    "name": "Malopolska",
+    "slug": "malopolska",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79185,
+    "name": "Malopolska X",
+    "slug": "malopolska-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79186,
+    "name": "Mecklenburger",
+    "slug": "mecklenburger",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79187,
+    "name": "Mecklenburger X",
+    "slug": "mecklenburger-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79188,
+    "name": "Miniature Horse",
+    "slug": "miniature-horse",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79189,
+    "name": "Miniature Horse X",
+    "slug": "miniature-horse-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79190,
+    "name": "Miniature Pony",
+    "slug": "miniature-pony",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79191,
+    "name": "Miniature Pony X",
+    "slug": "miniature-pony-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79192,
+    "name": "Miniature Shetland",
+    "slug": "miniature-shetland",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79193,
+    "name": "Miniature Shetland X",
+    "slug": "miniature-shetland-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79194,
+    "name": "Miniature Spotted",
+    "slug": "miniature-spotted",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79195,
+    "name": "Miniature Spotted X",
+    "slug": "miniature-spotted-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79196,
+    "name": "Morgan",
+    "slug": "morgan",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79197,
+    "name": "Morgan X",
+    "slug": "morgan-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79198,
+    "name": "Moutain and Moorland",
+    "slug": "moutain-and-moorland",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79199,
+    "name": "Moutain and Moorland X",
+    "slug": "moutain-and-moorland-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79200,
+    "name": "Mustang",
+    "slug": "mustang",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79201,
+    "name": "Mustang X",
+    "slug": "mustang-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79202,
+    "name": "Native",
+    "slug": "native",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79203,
+    "name": "Native X",
+    "slug": "native-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79204,
+    "name": "New Forest",
+    "slug": "new-forest",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79205,
+    "name": "New Forest X",
+    "slug": "new-forest-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79206,
+    "name": "New Zealand Warmblood",
+    "slug": "new-zealand-warmblood",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79207,
+    "name": "New Zealand Warmblood X",
+    "slug": "new-zealand-warmblood-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79208,
+    "name": "Newfoundland",
+    "slug": "newfoundland",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79209,
+    "name": "Newfoundland X",
+    "slug": "newfoundland-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79210,
+    "name": "Nonius",
+    "slug": "nonius",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79211,
+    "name": "Nonius X",
+    "slug": "nonius-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79212,
+    "name": "Norman Cob",
+    "slug": "norman-cob",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79213,
+    "name": "Norman Cob X",
+    "slug": "norman-cob-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79214,
+    "name": "Oldenburg",
+    "slug": "oldenburg",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79215,
+    "name": "Oldenburg X",
+    "slug": "oldenburg-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79216,
+    "name": "Orlov Trotter",
+    "slug": "orlov-trotter",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79217,
+    "name": "Orlov Trotter X",
+    "slug": "orlov-trotter-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79218,
+    "name": "Paint",
+    "slug": "paint",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79219,
+    "name": "Paint X",
+    "slug": "paint-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79220,
+    "name": "Palomino",
+    "slug": "palomino",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79221,
+    "name": "Palomino X",
+    "slug": "palomino-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79222,
+    "name": "Paso Fino",
+    "slug": "paso-fino",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79223,
+    "name": "Paso Fino X",
+    "slug": "paso-fino-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79224,
+    "name": "Percheron",
+    "slug": "percheron",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79225,
+    "name": "Percheron X",
+    "slug": "percheron-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79226,
+    "name": "Pinto",
+    "slug": "pinto",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79227,
+    "name": "Pinto X",
+    "slug": "pinto-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79228,
+    "name": "Polish Warmblood",
+    "slug": "polish-warmblood",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79229,
+    "name": "Polish Warmblood X",
+    "slug": "polish-warmblood-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79230,
+    "name": "Polo pony",
+    "slug": "polo-pony",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79231,
+    "name": "Pony",
+    "slug": "pony",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79232,
+    "name": "Quarter Horse",
+    "slug": "quarter-horse",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79233,
+    "name": "Quarter Horse X",
+    "slug": "quarter-horse-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79234,
+    "name": "Rhenish Warmblood (Rhinelander)",
+    "slug": "rhenish-warmblood-rhinelander",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79235,
+    "name": "Rhenish Warmblood (Rhinelander) X",
+    "slug": "rhenish-warmblood-rhinelander-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79236,
+    "name": "Riding Pony",
+    "slug": "riding-pony",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79237,
+    "name": "Riding Pony X",
+    "slug": "riding-pony-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79238,
+    "name": "Rocky Mountain",
+    "slug": "rocky-mountain",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79239,
+    "name": "Rocky Mountain X",
+    "slug": "rocky-mountain-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79240,
+    "name": "Russian Warmblood",
+    "slug": "russian-warmblood",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79241,
+    "name": "Russian Warmblood X",
+    "slug": "russian-warmblood-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79242,
+    "name": "Saddlebred",
+    "slug": "saddlebred",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79243,
+    "name": "Saddlebred X",
+    "slug": "saddlebred-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79244,
+    "name": "Selle Francais",
+    "slug": "selle-francais",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79245,
+    "name": "Selle Francais X",
+    "slug": "selle-francais-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79246,
+    "name": "Shetland",
+    "slug": "shetland",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79247,
+    "name": "Shetland X",
+    "slug": "shetland-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79248,
+    "name": "Shire",
+    "slug": "shire",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79249,
+    "name": "Shire X",
+    "slug": "shire-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79250,
+    "name": "Show Horse",
+    "slug": "show-horse",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79251,
+    "name": "Show Pony",
+    "slug": "show-pony",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79252,
+    "name": "Spanish (Pura Raza Española)",
+    "slug": "spanish-pura-raza-espanola",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79253,
+    "name": "Spanish (Pura Raza Española) X",
+    "slug": "spanish-pura-raza-espanola-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79254,
+    "name": "Sports Horse",
+    "slug": "sports-horse",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79255,
+    "name": "Spotted Pony",
+    "slug": "spotted-pony",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79256,
+    "name": "Spotted Pony X",
+    "slug": "spotted-pony-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79257,
+    "name": "Standardbred",
+    "slug": "standardbred",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79258,
+    "name": "Standardbred X",
+    "slug": "standardbred-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79259,
+    "name": "Suffolk Punch",
+    "slug": "suffolk-punch",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79260,
+    "name": "Suffolk Punch X",
+    "slug": "suffolk-punch-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79261,
+    "name": "Swedish Warmblood",
+    "slug": "swedish-warmblood",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79262,
+    "name": "Swedish Warmblood X",
+    "slug": "swedish-warmblood-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79263,
+    "name": "Swiss Warmblood",
+    "slug": "swiss-warmblood",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79264,
+    "name": "Swiss Warmblood X",
+    "slug": "swiss-warmblood-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79265,
+    "name": "Tennesse Walking Horse",
+    "slug": "tennesse-walking-horse",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79266,
+    "name": "Tennesse Walking Horse X",
+    "slug": "tennesse-walking-horse-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79267,
+    "name": "Tersk",
+    "slug": "tersk",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79268,
+    "name": "Tersk X",
+    "slug": "tersk-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79269,
+    "name": "Thoroughbred",
+    "slug": "thoroughbred",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79270,
+    "name": "Thoroughbred X",
+    "slug": "thoroughbred-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79271,
+    "name": "Trait du Nord",
+    "slug": "trait-du-nord",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79272,
+    "name": "Trait du Nord X",
+    "slug": "trait-du-nord-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79273,
+    "name": "Trakehner",
+    "slug": "trakehner",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79274,
+    "name": "Trakehner X",
+    "slug": "trakehner-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79275,
+    "name": "Trotter",
+    "slug": "trotter",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79276,
+    "name": "Trotter X",
+    "slug": "trotter-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79018,
+    "name": "Unknown",
+    "slug": "unknown",
+    "active": true,
+    "synonyms": [],
+    "type": "UNSPECIFIED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": true
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79277,
+    "name": "Warmblood",
+    "slug": "warmblood",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79278,
+    "name": "Warmblood X",
+    "slug": "warmblood-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79279,
+    "name": "Welsh",
+    "slug": "welsh",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79281,
+    "name": "Welsh Section A",
+    "slug": "welsh-section-a",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79282,
+    "name": "Welsh Section A X",
+    "slug": "welsh-section-a-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79283,
+    "name": "Welsh Section B",
+    "slug": "welsh-section-b",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79284,
+    "name": "Welsh Section B X",
+    "slug": "welsh-section-b-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79285,
+    "name": "Welsh Section C",
+    "slug": "welsh-section-c",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79286,
+    "name": "Welsh Section C X",
+    "slug": "welsh-section-c-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79287,
+    "name": "Welsh Section D (Welsh Cob)",
+    "slug": "welsh-section-d-welsh-cob",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79288,
+    "name": "Welsh Section D (Welsh Cob) X",
+    "slug": "welsh-section-d-welsh-cob-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79280,
+    "name": "Welsh X",
+    "slug": "welsh-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79289,
+    "name": "Westphalian",
+    "slug": "westphalian",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79290,
+    "name": "Westphalian X",
+    "slug": "westphalian-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79291,
+    "name": "Wielkopolska (WLKP)",
+    "slug": "wielkopolska-wlkp",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79292,
+    "name": "Wielkopolska (WLKP) X",
+    "slug": "wielkopolska-wlkp-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79293,
+    "name": "Zangersheide",
+    "slug": "zangersheide",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79294,
+    "name": "Zangersheide X",
+    "slug": "zangersheide-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79295,
+    "name": "Zweibrucker",
+    "slug": "zweibrucker",
+    "active": true,
+    "synonyms": [],
+    "type": "PUREBRED",
+    "flags": {
+      "isCross": false,
+      "isUnspecified": false
+    }
+  },
+  {
+    "species": "equine",
+    "speciesCode": 15463,
+    "venomId": 79296,
+    "name": "Zweibrucker X",
+    "slug": "zweibrucker-x",
+    "active": true,
+    "synonyms": [],
+    "type": "CROSS",
+    "flags": {
+      "isCross": true,
+      "isUnspecified": false
+    }
+  }
+]

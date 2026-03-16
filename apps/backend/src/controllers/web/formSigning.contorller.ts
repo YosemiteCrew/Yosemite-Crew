@@ -1,16 +1,7 @@
 import { Request, Response } from "express";
-import { AuthenticatedRequest } from "src/middlewares/auth";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { FormSigningService } from "src/services/formSigning.service";
-
-const resolveUserIdFromRequest = (req: Request): string | undefined => {
-  const authRequest = req as AuthenticatedRequest;
-  const headerUserId = req.headers["x-user-id"];
-  if (headerUserId && typeof headerUserId === "string") {
-    return headerUserId;
-  }
-  return authRequest.userId;
-};
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 export const FormSigningController = {
   startSigning: async (req: Request, res: Response) => {

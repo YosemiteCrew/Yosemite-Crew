@@ -6,8 +6,8 @@ import {
   type CreateUserProfilePayload,
   type UpdateUserProfilePayload,
 } from "../../services/user-profile.service";
-import { AuthenticatedRequest } from "src/middlewares/auth";
 import { generatePresignedUrl } from "src/middlewares/upload";
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 function ensurePlainObjectBody(
   body: unknown,
@@ -17,13 +17,18 @@ function ensurePlainObjectBody(
   }
 }
 
-const resolveUserIdFromRequest = (req: Request): string | undefined => {
-  const authRequest = req as AuthenticatedRequest;
-  const headerUserId = req.headers["x-user-id"];
-  if (headerUserId && typeof headerUserId === "string") {
-    return headerUserId;
+const handleUserProfileError = (
+  error: unknown,
+  res: Response,
+  logMessage: string,
+  responseMessage: string,
+) => {
+  if (error instanceof UserProfileServiceError) {
+    return res.status(error.statusCode).json({ message: error.message });
   }
-  return authRequest.userId;
+
+  logger.error(logMessage, error);
+  return res.status(500).json({ message: responseMessage });
 };
 
 export const UserProfileController = {
@@ -42,12 +47,12 @@ export const UserProfileController = {
 
       res.status(201).json(profile);
     } catch (error: unknown) {
-      if (error instanceof UserProfileServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-
-      logger.error("Failed to create user profile", error);
-      res.status(500).json({ message: "Unable to create user profile." });
+      return handleUserProfileError(
+        error,
+        res,
+        "Failed to create user profile",
+        "Unable to create user profile.",
+      );
     }
   },
 
@@ -70,12 +75,12 @@ export const UserProfileController = {
 
       res.status(200).json(profile);
     } catch (error: unknown) {
-      if (error instanceof UserProfileServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-
-      logger.error("Failed to update user profile", error);
-      res.status(500).json({ message: "Unable to update user profile." });
+      return handleUserProfileError(
+        error,
+        res,
+        "Failed to update user profile",
+        "Unable to update user profile.",
+      );
     }
   },
 
@@ -95,12 +100,12 @@ export const UserProfileController = {
 
       res.status(200).json(profile);
     } catch (error: unknown) {
-      if (error instanceof UserProfileServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-
-      logger.error("Failed to retrieve user profile", error);
-      res.status(500).json({ message: "Unable to retrieve user profile." });
+      return handleUserProfileError(
+        error,
+        res,
+        "Failed to retrieve user profile",
+        "Unable to retrieve user profile.",
+      );
     }
   },
 
@@ -120,12 +125,12 @@ export const UserProfileController = {
 
       res.status(200).json(profile);
     } catch (error: unknown) {
-      if (error instanceof UserProfileServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-
-      logger.error("Failed to retrieve user profile", error);
-      res.status(500).json({ message: "Unable to retrieve user profile." });
+      return handleUserProfileError(
+        error,
+        res,
+        "Failed to retrieve user profile",
+        "Unable to retrieve user profile.",
+      );
     }
   },
 

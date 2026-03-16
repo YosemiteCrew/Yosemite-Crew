@@ -11,9 +11,39 @@ const isFHIRSpecialityPayload = (
 ): payload is SpecialityFHIRPayload => {
   return Boolean(
     payload &&
-      typeof payload === "object" &&
-      (payload as { resourceType?: string }).resourceType === "Organization",
+    typeof payload === "object" &&
+    (payload as { resourceType?: string }).resourceType === "Organization",
   );
+};
+
+const requireParam = (
+  res: Response,
+  value: string | undefined,
+  message: string,
+): value is string => {
+  if (!value) {
+    res.status(400).json({ message });
+    return false;
+  }
+  return true;
+};
+
+const handleSpecialityError = (
+  res: Response,
+  error: unknown,
+  logMessage: string,
+  responseMessage: string,
+) => {
+  if (error instanceof SpecialityServiceError) {
+    res.status(error.statusCode).json({ message: error.message });
+    return;
+  }
+  logger.error(logMessage, error);
+  res.status(500).json({ message: responseMessage });
+};
+
+const respondNotFound = (res: Response) => {
+  res.status(404).json({ message: "Speciality not found." });
 };
 
 export const SpecialityController = {
@@ -31,12 +61,12 @@ export const SpecialityController = {
       const { response, created } = await SpecialityService.createOne(payload);
       res.status(created ? 201 : 200).json(response);
     } catch (error) {
-      if (error instanceof SpecialityServiceError) {
-        res.status(error.statusCode).json({ message: error.message });
-        return;
-      }
-      logger.error("Failed to create speciality", error);
-      res.status(500).json({ message: "Unable to create speciality." });
+      handleSpecialityError(
+        res,
+        error,
+        "Failed to create speciality",
+        "Unable to create speciality.",
+      );
     }
   },
 
@@ -58,12 +88,12 @@ export const SpecialityController = {
       const resources = await SpecialityService.createMany(payloads);
       res.status(201).json(resources);
     } catch (error) {
-      if (error instanceof SpecialityServiceError) {
-        res.status(error.statusCode).json({ message: error.message });
-        return;
-      }
-      logger.error("Failed to create specialities", error);
-      res.status(500).json({ message: "Unable to create specialities." });
+      handleSpecialityError(
+        res,
+        error,
+        "Failed to create specialities",
+        "Unable to create specialities.",
+      );
     }
   },
 
@@ -72,8 +102,7 @@ export const SpecialityController = {
       const { id } = req.params;
       const payload = req.body as SpecialityFHIRPayload | undefined;
 
-      if (!id) {
-        res.status(400).json({ message: "Speciality identifier is required." });
+      if (!requireParam(res, id, "Speciality identifier is required.")) {
         return;
       }
 
@@ -87,18 +116,18 @@ export const SpecialityController = {
       const resource = await SpecialityService.update(id, payload);
 
       if (!resource) {
-        res.status(404).json({ message: "Speciality not found." });
+        respondNotFound(res);
         return;
       }
 
       res.status(200).json(resource);
     } catch (error) {
-      if (error instanceof SpecialityServiceError) {
-        res.status(error.statusCode).json({ message: error.message });
-        return;
-      }
-      logger.error("Failed to update speciality", error);
-      res.status(500).json({ message: "Unable to update speciality." });
+      handleSpecialityError(
+        res,
+        error,
+        "Failed to update speciality",
+        "Unable to update speciality.",
+      );
     }
   },
 
@@ -106,26 +135,25 @@ export const SpecialityController = {
     try {
       const { id } = req.params;
 
-      if (!id) {
-        res.status(400).json({ message: "Speciality identifier is required." });
+      if (!requireParam(res, id, "Speciality identifier is required.")) {
         return;
       }
 
       const resource = await SpecialityService.getById(id);
 
       if (!resource) {
-        res.status(404).json({ message: "Speciality not found." });
+        respondNotFound(res);
         return;
       }
 
       res.status(200).json(resource);
     } catch (error) {
-      if (error instanceof SpecialityServiceError) {
-        res.status(error.statusCode).json({ message: error.message });
-        return;
-      }
-      logger.error("Failed to retrieve speciality", error);
-      res.status(500).json({ message: "Unable to retrieve speciality." });
+      handleSpecialityError(
+        res,
+        error,
+        "Failed to retrieve speciality",
+        "Unable to retrieve speciality.",
+      );
     }
   },
 
@@ -133,10 +161,13 @@ export const SpecialityController = {
     try {
       const { organisationId } = req.params;
 
-      if (!organisationId) {
-        res
-          .status(400)
-          .json({ message: "Organization identifier is required." });
+      if (
+        !requireParam(
+          res,
+          organisationId,
+          "Organization identifier is required.",
+        )
+      ) {
         return;
       }
 
@@ -145,12 +176,12 @@ export const SpecialityController = {
 
       res.status(200).json(resources);
     } catch (error) {
-      if (error instanceof SpecialityServiceError) {
-        res.status(error.statusCode).json({ message: error.message });
-        return;
-      }
-      logger.error("Failed to retrieve specialities", error);
-      res.status(500).json({ message: "Unable to retrieve specialities." });
+      handleSpecialityError(
+        res,
+        error,
+        "Failed to retrieve specialities",
+        "Unable to retrieve specialities.",
+      );
     }
   },
 
@@ -173,12 +204,12 @@ export const SpecialityController = {
 
       res.status(200).json(resources);
     } catch (error) {
-      if (error instanceof SpecialityServiceError) {
-        res.status(error.statusCode).json({ message: error.message });
-        return;
-      }
-      logger.error("Failed to delete speciality", error);
-      res.status(500).json({ message: "Unable to delete speciality." });
+      handleSpecialityError(
+        res,
+        error,
+        "Failed to delete speciality",
+        "Unable to delete speciality.",
+      );
     }
   },
 };

@@ -29,7 +29,7 @@ router.get(
 router.get(
   "/appointment-leaders/:organisationId",
   authorizeCognito,
-  withOrgPermissions,
+  withOrgPermissions(),
   requirePermission(["analytics:view:any"]),
   DashboardController.appointmentLeaders,
 );

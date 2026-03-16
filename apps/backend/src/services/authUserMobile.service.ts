@@ -1,8 +1,39 @@
 import { Types } from "mongoose";
-import { AuthUserMobileModel, AuthUserMobile } from "../models/authUserMobile";
+import {
+  AuthUserMobileModel,
+  AuthUserMobile,
+  type AuthUserMobileDocumet,
+} from "../models/authUserMobile";
 import { ParentModel, type ParentDocument } from "../models/parent";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 import logger from "src/utils/logger";
 import { assertSafeString } from "src/utils/sanitize";
+import { isReadFromPostgres } from "src/config/read-switch";
+
+const toPrismaAuthUserMobileData = (doc: AuthUserMobileDocumet) => ({
+  id: doc._id.toString(),
+  authProvider: doc.authProvider,
+  providerUserId: doc.providerUserId,
+  email: doc.email,
+  parentId: doc.parentId ? doc.parentId.toString() : undefined,
+  createdAt: doc.createdAt ?? undefined,
+  updatedAt: doc.updatedAt ?? undefined,
+});
+
+const syncAuthUserMobileToPostgres = async (doc: AuthUserMobileDocumet) => {
+  if (!shouldDualWrite) return;
+  try {
+    const data = toPrismaAuthUserMobileData(doc);
+    await prisma.authUserMobile.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+  } catch (err) {
+    handleDualWriteError("AuthUserMobile", err);
+  }
+};
 
 export const AuthUserMobileService = {
   async createOrGetAuthUser(
@@ -18,11 +49,13 @@ export const AuthUserMobileService = {
     }).exec();
     if (existing) return existing;
 
-    return AuthUserMobileModel.create({
+    const doc: AuthUserMobileDocumet = await AuthUserMobileModel.create({
       authProvider,
       providerUserId,
       email,
     });
+    await syncAuthUserMobileToPostgres(doc);
+    return doc;
   },
 
   async linkParent(
@@ -49,6 +82,26 @@ export const AuthUserMobileService = {
     parent.linkedUserId = user._id;
     await parent.save();
 
+    if (shouldDualWrite) {
+      try {
+        await prisma.authUserMobile.updateMany({
+          where: { id: user._id.toString() },
+          data: { parentId: parent._id.toString() },
+        });
+      } catch (err) {
+        handleDualWriteError("AuthUserMobile linkParent", err);
+      }
+
+      try {
+        await prisma.parent.updateMany({
+          where: { id: parent._id.toString() },
+          data: { linkedUserId: user._id.toString() },
+        });
+      } catch (err) {
+        handleDualWriteError("Parent linkParent", err);
+      }
+    }
+
     return user;
   },
 
@@ -65,6 +118,17 @@ export const AuthUserMobileService = {
       { parentId: parent._id },
     ).exec();
 
+    if (shouldDualWrite) {
+      try {
+        await prisma.authUserMobile.updateMany({
+          where: { providerUserId: authUser.providerUserId },
+          data: { parentId: parent._id.toString() },
+        });
+      } catch (err) {
+        handleDualWriteError("AuthUserMobile autoLinkParentByEmail", err);
+      }
+    }
+
     return parent;
   },
 
@@ -73,6 +137,24 @@ export const AuthUserMobileService = {
   ): Promise<AuthUserMobile | null> {
     providerUserId = assertSafeString(providerUserId, "providerUserId");
 
+    if (isReadFromPostgres()) {
+      const authUser = await prisma.authUserMobile.findFirst({
+        where: { providerUserId },
+      });
+      if (!authUser) return null;
+      return {
+        _id: authUser.id as unknown as Types.ObjectId,
+        authProvider: authUser.authProvider,
+        providerUserId: authUser.providerUserId,
+        email: authUser.email,
+        parentId: authUser.parentId
+          ? (authUser.parentId as unknown as Types.ObjectId)
+          : undefined,
+        createdAt: authUser.createdAt ?? undefined,
+        updatedAt: authUser.updatedAt ?? undefined,
+      } as AuthUserMobile;
+    }
+
     return AuthUserMobileModel.findOne({ providerUserId }).exec();
   },
 
@@ -80,6 +162,20 @@ export const AuthUserMobileService = {
     providerUserId: string,
   ): Promise<Types.ObjectId | null> {
     providerUserId = assertSafeString(providerUserId, "providerUserId");
+
+    if (isReadFromPostgres()) {
+      const authUser = await prisma.authUserMobile.findFirst({
+        where: { providerUserId },
+        select: { id: true },
+      });
+      if (!authUser) {
+        logger.warn(
+          `AuthUserMobile not found for providerUserId: ${providerUserId}`,
+        );
+        return null;
+      }
+      return authUser.id as unknown as Types.ObjectId;
+    }
 
     const doc = await AuthUserMobileModel.findOne(
       { providerUserId },

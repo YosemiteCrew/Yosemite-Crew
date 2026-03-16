@@ -43,7 +43,8 @@ export const AccountWithdrawalController = {
         checkboxConfirmed,
       });
 
-      res.status(201).json({ id: doc._id });
+      const id = "_id" in doc ? doc._id : doc.id;
+      res.status(201).json({ id });
     } catch (err) {
       if (err instanceof AccountWithdrawalServiceError) {
         return res.status(err.statusCode).json({ message: err.message });

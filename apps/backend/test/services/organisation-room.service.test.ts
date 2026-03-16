@@ -1,12 +1,20 @@
 import { Types } from "mongoose";
-import {
-  OrganisationRoomService,
-  OrganisationRoomServiceError,
-} from "../../src/services/organisation-room.service";
+import { OrganisationRoomService } from "../../src/services/organisation-room.service";
 import OrganisationRoomModel from "../../src/models/organisation-room";
+import { prisma } from "src/config/prisma";
 
 // --- Mocks ---
 jest.mock("../../src/models/organisation-room");
+
+jest.mock("src/config/prisma", () => ({
+  prisma: {
+    organisationRoom: {
+      findMany: jest.fn(),
+      upsert: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+  },
+}));
 
 // Mock Types helpers
 jest.mock("@yosemite-crew/types", () => ({
@@ -52,16 +60,18 @@ describe("OrganisationRoomService", () => {
     };
 
     // Default Mongoose Mocks with proper _id structure
-    (OrganisationRoomModel.findOne as jest.Mock).mockReturnValue(mockChain(null));
+    (OrganisationRoomModel.findOne as jest.Mock).mockReturnValue(
+      mockChain(null),
+    );
     (OrganisationRoomModel.find as jest.Mock).mockReturnValue(mockChain([]));
     (OrganisationRoomModel.create as jest.Mock).mockResolvedValue(
-      mockDoc({ ...validPayload, _id: mockRoomId })
+      mockDoc({ ...validPayload, _id: mockRoomId }),
     );
     (OrganisationRoomModel.findOneAndUpdate as jest.Mock).mockReturnValue(
-      mockChain(mockDoc({ ...validPayload, _id: mockRoomId }))
+      mockChain(mockDoc({ ...validPayload, _id: mockRoomId })),
     );
     (OrganisationRoomModel.findOneAndDelete as jest.Mock).mockReturnValue(
-      mockChain(mockDoc({ ...validPayload, _id: mockRoomId }))
+      mockChain(mockDoc({ ...validPayload, _id: mockRoomId })),
     );
   });
 
@@ -69,73 +79,77 @@ describe("OrganisationRoomService", () => {
     it("should throw error if payload resourceType is invalid", async () => {
       const invalid = { ...validPayload, resourceType: "Patient" };
       await expect(OrganisationRoomService.create(invalid)).rejects.toThrow(
-        "Invalid payload. Expected FHIR Location resource."
+        "Invalid payload. Expected FHIR Location resource.",
       );
     });
 
     it("should throw error if Organisation ID is invalid", async () => {
       const invalid = { ...validPayload, organisationId: "invalid$id" };
       await expect(OrganisationRoomService.create(invalid)).rejects.toThrow(
-        "Invalid character in Organisation identifier"
+        "Invalid character in Organisation identifier",
       );
     });
 
     it("should throw error if Room Name is missing or empty", async () => {
       await expect(
-        OrganisationRoomService.create({ ...validPayload, name: null })
+        OrganisationRoomService.create({ ...validPayload, name: null }),
       ).rejects.toThrow("Room name is required");
 
       await expect(
-        OrganisationRoomService.create({ ...validPayload, name: "   " })
+        OrganisationRoomService.create({ ...validPayload, name: "   " }),
       ).rejects.toThrow("Room name cannot be empty");
     });
 
     it("should throw error if Room Type is invalid", async () => {
       const invalid = { ...validPayload, type: "CAFETERIA" }; // Not in allowed Set
       await expect(OrganisationRoomService.create(invalid)).rejects.toThrow(
-        "Room type must be one of: CONSULTATION, WAITING_AREA, SURGERY, ICU"
+        "Room type must be one of: CONSULTATION, WAITING_AREA, SURGERY, ICU",
       );
     });
 
     it("should validate and prune arrays (assignedStaffs)", async () => {
-        // Target: sanitizeIdList logic
-        const payloadWithBadStaff = {
-            ...validPayload,
-            // Provide ID to force update path if logic prefers update, or remove ID to force create
-            // The service checks `identifier` (from payload.id)
-            id: undefined,
-            assignedStaffs: ["staff-1", null, undefined, "", "staff-2"]
-        };
+      // Target: sanitizeIdList logic
+      const payloadWithBadStaff = {
+        ...validPayload,
+        // Provide ID to force update path if logic prefers update, or remove ID to force create
+        // The service checks `identifier` (from payload.id)
+        id: undefined,
+        assignedStaffs: ["staff-1", null, undefined, "", "staff-2"],
+      };
 
-        const createSpy = (OrganisationRoomModel.create as jest.Mock);
+      const createSpy = OrganisationRoomModel.create as jest.Mock;
 
-        await OrganisationRoomService.create(payloadWithBadStaff);
+      await OrganisationRoomService.create(payloadWithBadStaff);
 
-        const persistedData = createSpy.mock.calls[0][0];
-        expect(persistedData.assignedStaffs).toHaveLength(2);
-        expect(persistedData.assignedStaffs).toEqual(["staff-1", "staff-2"]);
+      const persistedData = createSpy.mock.calls[0][0];
+      expect(persistedData.assignedStaffs).toHaveLength(2);
+      expect(persistedData.assignedStaffs).toEqual(["staff-1", "staff-2"]);
     });
 
     it("should handle pruning of nested objects", async () => {
-       // Mock DTO helper to return structure with undefineds
-       jest.requireMock("@yosemite-crew/types").fromOrganisationRoomRequestDTO.mockReturnValueOnce({
-           ...validPayload,
-           id: undefined, // Force create path
-           meta: {
-               version: undefined,
-               tag: "test"
-           }
-       });
+      // Mock DTO helper to return structure with undefineds
+      jest
+        .requireMock("@yosemite-crew/types")
+        .fromOrganisationRoomRequestDTO.mockReturnValueOnce({
+          ...validPayload,
+          id: undefined, // Force create path
+          meta: {
+            version: undefined,
+            tag: "test",
+          },
+        });
 
-       const createSpy = (OrganisationRoomModel.create as jest.Mock);
+      const createSpy = OrganisationRoomModel.create as jest.Mock;
 
-       await OrganisationRoomService.create({ ...validPayload, id: undefined });
+      await OrganisationRoomService.create({ ...validPayload, id: undefined });
 
-       // Verify create was called (pruning didn't crash)
-       expect(createSpy).toHaveBeenCalled();
+      // Verify create was called (pruning didn't crash)
+      expect(createSpy).toHaveBeenCalled();
 
-       // Restore mock behavior
-       jest.requireMock("@yosemite-crew/types").fromOrganisationRoomRequestDTO.mockImplementation((dto: any) => dto);
+      // Restore mock behavior
+      jest
+        .requireMock("@yosemite-crew/types")
+        .fromOrganisationRoomRequestDTO.mockImplementation((dto: any) => dto);
     });
   });
 
@@ -153,7 +167,9 @@ describe("OrganisationRoomService", () => {
     it("should upsert (update) room if ID is provided", async () => {
       // Mock findOneAndUpdate returning a valid doc with _id
       (OrganisationRoomModel.findOneAndUpdate as jest.Mock).mockReturnValue(
-         mockChain(mockDoc({ ...validPayload, _id: mockRoomId, name: "Updated Name" }))
+        mockChain(
+          mockDoc({ ...validPayload, _id: mockRoomId, name: "Updated Name" }),
+        ),
       );
 
       const res = await OrganisationRoomService.create(validPayload);
@@ -161,93 +177,285 @@ describe("OrganisationRoomService", () => {
       expect(OrganisationRoomModel.findOneAndUpdate).toHaveBeenCalledWith(
         { fhirId: mockRoomId.toHexString() },
         expect.anything(),
-        expect.anything()
+        expect.anything(),
       );
       expect(res.created).toBe(false);
       expect(res.response.name).toBe("Updated Name");
     });
 
     it("should fallback to create if upsert returns null", async () => {
-        // First try update -> null
-        (OrganisationRoomModel.findOneAndUpdate as jest.Mock).mockReturnValue(mockChain(null));
-        // Then create -> doc
-        (OrganisationRoomModel.create as jest.Mock).mockResolvedValue(mockDoc({ ...validPayload, _id: mockRoomId }));
+      // First try update -> null
+      (OrganisationRoomModel.findOneAndUpdate as jest.Mock).mockReturnValue(
+        mockChain(null),
+      );
+      // Then create -> doc
+      (OrganisationRoomModel.create as jest.Mock).mockResolvedValue(
+        mockDoc({ ...validPayload, _id: mockRoomId }),
+      );
 
-        const res = await OrganisationRoomService.create(validPayload);
+      const res = await OrganisationRoomService.create(validPayload);
 
-        expect(OrganisationRoomModel.create).toHaveBeenCalled();
-        expect(res.created).toBe(true);
+      expect(OrganisationRoomModel.create).toHaveBeenCalled();
+      expect(res.created).toBe(true);
     });
   });
 
   describe("update", () => {
     it("should update existing room", async () => {
-      const res = await OrganisationRoomService.update(mockRoomId.toHexString(), validPayload);
+      const res = await OrganisationRoomService.update(
+        mockRoomId.toHexString(),
+        validPayload,
+      );
       expect(res).toBeDefined();
       expect(OrganisationRoomModel.findOneAndUpdate).toHaveBeenCalled();
     });
 
     it("should return null if room to update not found", async () => {
-      (OrganisationRoomModel.findOneAndUpdate as jest.Mock).mockReturnValue(mockChain(null));
-      const res = await OrganisationRoomService.update(mockRoomId.toHexString(), validPayload);
+      (OrganisationRoomModel.findOneAndUpdate as jest.Mock).mockReturnValue(
+        mockChain(null),
+      );
+      const res = await OrganisationRoomService.update(
+        mockRoomId.toHexString(),
+        validPayload,
+      );
       expect(res).toBeNull();
     });
 
     it("should throw if update ID format is invalid", async () => {
-        await expect(OrganisationRoomService.update("bad$id", validPayload))
-            .rejects.toThrow("Invalid character in Room identifier");
+      await expect(
+        OrganisationRoomService.update("bad$id", validPayload),
+      ).rejects.toThrow("Invalid character in Room identifier");
     });
   });
 
   describe("getAllByOrganizationId", () => {
     it("should return list of rooms", async () => {
-      (OrganisationRoomModel.find as jest.Mock).mockReturnValue(mockChain([
+      (OrganisationRoomModel.find as jest.Mock).mockReturnValue(
+        mockChain([
           mockDoc({ ...validPayload, _id: new Types.ObjectId() }),
-          mockDoc({ ...validPayload, _id: new Types.ObjectId() })
-      ]));
+          mockDoc({ ...validPayload, _id: new Types.ObjectId() }),
+        ]),
+      );
 
-      const res = await OrganisationRoomService.getAllByOrganizationId(mockOrgId.toHexString());
+      const res = await OrganisationRoomService.getAllByOrganizationId(
+        mockOrgId.toHexString(),
+      );
       expect(res).toHaveLength(2);
+    });
+  });
+
+  describe("getAllByOrganizationId (postgres)", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.organisationRoom.findMany as jest.Mock).mockReset();
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("should return list of rooms from prisma", async () => {
+      (prisma.organisationRoom.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          id: new Types.ObjectId().toHexString(),
+          fhirId: null,
+          organisationId: mockOrgId.toHexString(),
+          name: "Room 1",
+          type: "CONSULTATION",
+          assignedStaffs: [],
+          assignedSpecialiteis: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ]);
+
+      const res = await OrganisationRoomService.getAllByOrganizationId(
+        mockOrgId.toHexString(),
+      );
+      expect(res).toHaveLength(1);
+      expect(prisma.organisationRoom.findMany).toHaveBeenCalledWith({
+        where: { organisationId: mockOrgId.toHexString() },
+      });
     });
   });
 
   describe("deleteAllByOrganizationId", () => {
     it("should delete all rooms", async () => {
       (OrganisationRoomModel.deleteMany as jest.Mock).mockReturnValue(
-          mockChain({ acknowledged: true, deletedCount: 5 })
+        mockChain({ acknowledged: true, deletedCount: 5 }),
       );
 
-      await OrganisationRoomService.deleteAllByOrganizationId(mockOrgId.toHexString());
+      await OrganisationRoomService.deleteAllByOrganizationId(
+        mockOrgId.toHexString(),
+      );
       expect(OrganisationRoomModel.deleteMany).toHaveBeenCalled();
     });
 
     it("should throw 500 if delete result is not acknowledged", async () => {
       (OrganisationRoomModel.deleteMany as jest.Mock).mockReturnValue(
-          mockChain({ acknowledged: false })
+        mockChain({ acknowledged: false }),
       );
 
       await expect(
-        OrganisationRoomService.deleteAllByOrganizationId(mockOrgId.toHexString())
+        OrganisationRoomService.deleteAllByOrganizationId(
+          mockOrgId.toHexString(),
+        ),
       ).rejects.toThrow("Failed to delete organisation rooms");
     });
   });
 
   describe("delete", () => {
     it("should delete room by ID", async () => {
-      const res = await OrganisationRoomService.delete(mockRoomId.toHexString());
+      const res = await OrganisationRoomService.delete(
+        mockRoomId.toHexString(),
+      );
       expect(res).toBeDefined();
       expect(OrganisationRoomModel.findOneAndDelete).toHaveBeenCalled();
     });
 
     it("should return null if room not found", async () => {
-      (OrganisationRoomModel.findOneAndDelete as jest.Mock).mockReturnValue(mockChain(null));
-      const res = await OrganisationRoomService.delete(mockRoomId.toHexString());
+      (OrganisationRoomModel.findOneAndDelete as jest.Mock).mockReturnValue(
+        mockChain(null),
+      );
+      const res = await OrganisationRoomService.delete(
+        mockRoomId.toHexString(),
+      );
       expect(res).toBeNull();
     });
 
     it("should validate ID format before delete", async () => {
-        await expect(OrganisationRoomService.delete("invalid id with spaces"))
-            .rejects.toThrow("Invalid room identifier format");
+      await expect(
+        OrganisationRoomService.delete("invalid id with spaces"),
+      ).rejects.toThrow("Invalid room identifier format");
+    });
+  });
+
+  describe("dual write", () => {
+    const originalDualWrite = process.env.DUAL_WRITE_ENABLED;
+
+    afterEach(() => {
+      process.env.DUAL_WRITE_ENABLED = originalDualWrite;
+    });
+
+    it("syncs to postgres on create when enabled", async () => {
+      process.env.DUAL_WRITE_ENABLED = "true";
+      jest.resetModules();
+      jest.doMock("src/utils/dual-write", () => ({
+        ...jest.requireActual("src/utils/dual-write"),
+        shouldDualWrite: true,
+      }));
+
+      let OrganisationRoomServiceIsolated!: typeof OrganisationRoomService;
+      let OrganisationRoomModelIsolated!: typeof OrganisationRoomModel;
+      let prismaIsolated!: typeof prisma;
+
+      jest.isolateModules(() => {
+        OrganisationRoomServiceIsolated =
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          require("../../src/services/organisation-room.service").OrganisationRoomService;
+        OrganisationRoomModelIsolated =
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          require("../../src/models/organisation-room").default;
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        prismaIsolated = require("src/config/prisma").prisma;
+      });
+
+      const doc = mockDoc({
+        _id: mockRoomId,
+        organisationId: mockOrgId.toHexString(),
+        name: "Room",
+        type: "CONSULTATION",
+      });
+      (
+        OrganisationRoomModelIsolated.findOneAndUpdate as jest.Mock
+      ).mockReturnValue(mockChain(null));
+      (OrganisationRoomModelIsolated.create as jest.Mock).mockResolvedValue(
+        doc,
+      );
+
+      await OrganisationRoomServiceIsolated.create({
+        ...validPayload,
+        id: undefined,
+      });
+
+      expect(prismaIsolated.organisationRoom.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: mockRoomId.toHexString() } }),
+      );
+    });
+
+    it("deletes from postgres on delete when enabled", async () => {
+      process.env.DUAL_WRITE_ENABLED = "true";
+      jest.resetModules();
+      jest.doMock("src/utils/dual-write", () => ({
+        ...jest.requireActual("src/utils/dual-write"),
+        shouldDualWrite: true,
+      }));
+
+      let OrganisationRoomServiceIsolated!: typeof OrganisationRoomService;
+      let OrganisationRoomModelIsolated!: typeof OrganisationRoomModel;
+      let prismaIsolated!: typeof prisma;
+
+      jest.isolateModules(() => {
+        OrganisationRoomServiceIsolated =
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          require("../../src/services/organisation-room.service").OrganisationRoomService;
+        OrganisationRoomModelIsolated =
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          require("../../src/models/organisation-room").default;
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        prismaIsolated = require("src/config/prisma").prisma;
+      });
+
+      const doc = mockDoc({ ...validPayload, _id: mockRoomId });
+      (
+        OrganisationRoomModelIsolated.findOneAndDelete as jest.Mock
+      ).mockReturnValue(mockChain(doc));
+
+      await OrganisationRoomServiceIsolated.delete(mockRoomId.toHexString());
+
+      expect(prismaIsolated.organisationRoom.deleteMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: mockRoomId.toHexString() } }),
+      );
+    });
+
+    it("deletes all by org in postgres when enabled", async () => {
+      process.env.DUAL_WRITE_ENABLED = "true";
+      jest.resetModules();
+      jest.doMock("src/utils/dual-write", () => ({
+        ...jest.requireActual("src/utils/dual-write"),
+        shouldDualWrite: true,
+      }));
+
+      let OrganisationRoomServiceIsolated!: typeof OrganisationRoomService;
+      let OrganisationRoomModelIsolated!: typeof OrganisationRoomModel;
+      let prismaIsolated!: typeof prisma;
+
+      jest.isolateModules(() => {
+        OrganisationRoomServiceIsolated =
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          require("../../src/services/organisation-room.service").OrganisationRoomService;
+        OrganisationRoomModelIsolated =
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          require("../../src/models/organisation-room").default;
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        prismaIsolated = require("src/config/prisma").prisma;
+      });
+
+      (OrganisationRoomModelIsolated.deleteMany as jest.Mock).mockReturnValue(
+        mockChain({ acknowledged: true }),
+      );
+
+      await OrganisationRoomServiceIsolated.deleteAllByOrganizationId(
+        mockOrgId.toHexString(),
+      );
+
+      expect(prismaIsolated.organisationRoom.deleteMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { organisationId: mockOrgId.toHexString() },
+        }),
+      );
     });
   });
 });

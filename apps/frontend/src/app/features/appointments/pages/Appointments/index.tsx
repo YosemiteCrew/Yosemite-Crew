@@ -26,6 +26,7 @@ import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import Fallback from '@/app/ui/overlays/Fallback';
 import { Secondary } from '@/app/ui/primitives/Buttons';
 import { useIntegrationByProviderForPrimaryOrg } from '@/app/hooks/useIntegrations';
+import { normalizeAppointmentStatus, type LegacyAppointmentStatus } from '@/app/lib/appointments';
 
 const Appointments = () => {
   const appointments = useAppointmentsForPrimaryOrg();
@@ -110,13 +111,12 @@ const Appointments = () => {
     const statusWanted = activeStatus.toLowerCase();
 
     return appointments.filter((item) => {
-      const status = item.status?.toLowerCase();
+      const status = normalizeAppointmentStatus(
+        item.status as LegacyAppointmentStatus
+      )?.toLowerCase();
       const filter = item.isEmergency && 'emergencies';
 
-      const matchesStatus =
-        statusWanted === 'all' ||
-        status === statusWanted ||
-        (statusWanted === 'requested' && status === 'no_payment');
+      const matchesStatus = statusWanted === 'all' || status === statusWanted;
       const matchesFilter = filterWanted === 'all' || filter === filterWanted;
       const matchesQuery = !q || item.companion.name?.toLowerCase().includes(q);
 

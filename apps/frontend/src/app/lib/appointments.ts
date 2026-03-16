@@ -1,18 +1,24 @@
-import { AppointmentStatus } from "@/app/features/appointments/types/appointments";
+import { AppointmentStatus } from '@/app/features/appointments/types/appointments';
+
+export type LegacyAppointmentStatus = AppointmentStatus | 'NO_PAYMENT';
+
+export const normalizeAppointmentStatus = (
+  status?: LegacyAppointmentStatus
+): AppointmentStatus | undefined => {
+  if (!status) return undefined;
+  return status === 'NO_PAYMENT' ? 'REQUESTED' : status;
+};
 
 export const allowReschedule = (status: AppointmentStatus) => {
-  if (status === "UPCOMING") {
+  if (status === 'UPCOMING') {
     return true;
   }
   return false;
 };
 
 export const allowCalendarDrag = (status: AppointmentStatus) => {
-  if (
-    status === "NO_PAYMENT" ||
-    status === "REQUESTED" ||
-    status === "UPCOMING"
-  ) {
+  const normalizedStatus = normalizeAppointmentStatus(status) ?? 'REQUESTED';
+  if (normalizedStatus === 'REQUESTED' || normalizedStatus === 'UPCOMING') {
     return true;
   }
   return false;

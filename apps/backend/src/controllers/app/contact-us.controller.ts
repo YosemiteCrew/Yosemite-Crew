@@ -4,7 +4,9 @@ import {
   ContactService,
   ContactServiceError,
   type CreateContactRequestInput,
+  type CreateWebContactRequestInput,
 } from "src/services/contact-us.service";
+import { generatePresignedUrl, getURLForKey } from "src/middlewares/upload";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { type ContactType, type ContactStatus } from "src/models/contect-us";
@@ -42,6 +44,7 @@ const toContactType = (value: unknown): ContactType | undefined =>
     : undefined;
 
 type CreateContactRequestBody = CreateContactRequestInput;
+type CreateWebContactRequestBody = CreateWebContactRequestInput;
 
 type ListContactQuery = {
   status?: ContactStatus;
@@ -103,13 +106,87 @@ export const ContactController = {
       };
 
       const doc = await ContactService.createRequest(payload);
-      res.status(201).json({ id: doc._id.toString() });
+      const id = "_id" in doc ? doc._id.toString() : doc.id;
+      res.status(201).json({ id });
     } catch (err) {
       if (err instanceof ContactServiceError) {
         return res.status(err.statusCode).json({ message: err.message });
       }
       console.error("Error creating contact request", err);
       res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  async createWeb(
+    this: void,
+    req: Request<unknown, unknown, CreateWebContactRequestBody>,
+    res: Response,
+  ) {
+    try {
+      const {
+        type,
+        source,
+        message,
+        fullName,
+        email,
+        phone,
+        organisationId,
+        dsarDetails,
+        attachments,
+      } = req.body;
+
+      const payload = {
+        type,
+        source,
+        message,
+        fullName,
+        email,
+        phone,
+        organisationId,
+        dsarDetails,
+        attachments,
+      };
+
+      const doc = await ContactService.createWebRequest(payload);
+      const id = "_id" in doc ? doc._id.toString() : doc.id;
+      res.status(201).json({ id });
+    } catch (err) {
+      if (err instanceof ContactServiceError) {
+        return res.status(err.statusCode).json({ message: err.message });
+      }
+      console.error("Error creating web contact request", err);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  async getAttachmentUploadUrl(this: void, req: Request, res: Response) {
+    try {
+      const rawBody: unknown = req.body;
+      const mimeType =
+        typeof rawBody === "object" && rawBody !== null && "mimeType" in rawBody
+          ? (rawBody as { mimeType?: unknown }).mimeType
+          : undefined;
+
+      if (typeof mimeType !== "string" || !mimeType) {
+        return res
+          .status(400)
+          .json({ message: "mimeType is required in the request body." });
+      }
+
+      const { url, key } = await generatePresignedUrl(
+        mimeType,
+        "custom",
+        "contact-us",
+      );
+
+      return res.status(200).json({
+        uploadUrl: url,
+        s3Key: key,
+        fileUrl: getURLForKey(key),
+      });
+    } catch (err) {
+      console.error("Error generating contact-us upload URL", err);
+      return res.status(500).json({ message: "Unable to generate upload URL" });
     }
   },
 

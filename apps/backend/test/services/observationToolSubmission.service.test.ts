@@ -1,15 +1,17 @@
 import { jest, describe, it, expect, beforeEach } from "@jest/globals";
 import { Types } from "mongoose";
-import {
-  ObservationToolSubmissionService,
-  ObservationToolSubmissionServiceError,
-} from "../../src/services/observationToolSubmission.service";
+import { ObservationToolSubmissionService } from "../../src/services/observationToolSubmission.service";
 import {
   ObservationToolDefinitionModel,
   ObservationToolSubmissionModel,
 } from "../../src/models/observationToolDefinition";
 import TaskModel from "../../src/models/task";
 import { TaskService } from "../../src/services/task.service";
+import { handleDualWriteError } from "src/utils/dual-write";
+import { prisma } from "src/config/prisma";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const prismaMock = prisma as any;
 
 // ----------------------------------------------------------------------
 // Mocks
@@ -17,6 +19,30 @@ import { TaskService } from "../../src/services/task.service";
 jest.mock("../../src/models/observationToolDefinition");
 jest.mock("../../src/models/task");
 jest.mock("../../src/services/task.service");
+jest.mock("src/config/prisma", () => ({
+  prisma: {
+    observationToolDefinition: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+    },
+    observationToolSubmission: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      upsert: jest.fn(),
+    },
+    task: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+    },
+  },
+}));
+jest.mock("src/utils/dual-write", () => ({
+  shouldDualWrite: true,
+  isDualWriteStrict: false,
+  handleDualWriteError: jest.fn(),
+}));
 
 // Helper to mock Mongoose query chains
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -54,6 +80,7 @@ describe("ObservationToolSubmissionService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.READ_FROM_POSTGRES = "false";
   });
 
   // ======================================================================
@@ -236,6 +263,171 @@ describe("ObservationToolSubmissionService", () => {
       );
     });
 
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prismaMock.observationToolDefinition.findFirst as any).mockResolvedValue(
+        {
+          id: toolId,
+          isActive: true,
+          fields: [],
+        },
+      );
+      (prismaMock.observationToolSubmission.create as any).mockResolvedValue({
+        id: submissionId,
+      });
+
+      const res =
+        await ObservationToolSubmissionService.createSubmission(validBaseInput);
+
+      expect(prisma.observationToolSubmission.create).toHaveBeenCalled();
+      expect(res).toEqual({ id: submissionId });
+    });
+
+    it("validates task constraints in postgres path", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prismaMock.observationToolDefinition.findFirst as any).mockResolvedValue(
+        { id: toolId, isActive: true, fields: [] },
+      );
+
+      (
+        prismaMock.observationToolSubmission.findFirst as any
+      ).mockResolvedValueOnce({ id: submissionId });
+      await expect(
+        ObservationToolSubmissionService.createSubmission({
+          ...validBaseInput,
+          taskId,
+        }),
+      ).rejects.toThrow("Observation already submitted for this task");
+
+      (
+        prismaMock.observationToolSubmission.findFirst as any
+      ).mockResolvedValueOnce(null);
+      (prismaMock.task.findFirst as any).mockResolvedValueOnce(null);
+      await expect(
+        ObservationToolSubmissionService.createSubmission({
+          ...validBaseInput,
+          taskId,
+        }),
+      ).rejects.toThrow("Task not found");
+
+      (prismaMock.task.findFirst as any).mockResolvedValueOnce({
+        id: taskId,
+        assignedTo: "other",
+      });
+      await expect(
+        ObservationToolSubmissionService.createSubmission({
+          ...validBaseInput,
+          taskId,
+        }),
+      ).rejects.toThrow("Not allowed to submit this task");
+
+      (prismaMock.task.findFirst as any).mockResolvedValueOnce({
+        id: taskId,
+        assignedTo: userId,
+        companionId: "other",
+      });
+      await expect(
+        ObservationToolSubmissionService.createSubmission({
+          ...validBaseInput,
+          taskId,
+        }),
+      ).rejects.toThrow("companionId does not match task");
+
+      (prismaMock.task.findFirst as any).mockResolvedValueOnce({
+        id: taskId,
+        assignedTo: userId,
+        companionId,
+        observationToolId: "other-tool",
+      });
+      await expect(
+        ObservationToolSubmissionService.createSubmission({
+          ...validBaseInput,
+          taskId,
+        }),
+      ).rejects.toThrow("toolId does not match task observationToolId");
+    });
+
+    it("creates submission and completes task in postgres path", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prismaMock.observationToolDefinition.findFirst as any).mockResolvedValue(
+        {
+          id: toolId,
+          isActive: true,
+          fields: [
+            { key: "q1", scoring: { points: 2 } },
+            { key: "q2", scoring: { map: { yes: 3 } } },
+          ],
+        },
+      );
+      (prismaMock.observationToolSubmission.findFirst as any).mockResolvedValue(
+        null,
+      );
+      (prismaMock.task.findFirst as any).mockResolvedValue({
+        id: taskId,
+        assignedTo: userId,
+        companionId,
+        observationToolId: toolId,
+      });
+      (prismaMock.observationToolSubmission.create as any).mockResolvedValue({
+        id: submissionId,
+      });
+
+      const res = await ObservationToolSubmissionService.createSubmission({
+        ...validBaseInput,
+        taskId,
+        answers: { q1: "yes", q2: "yes" },
+      });
+
+      expect(res).toEqual({ id: submissionId });
+      expect(TaskService.changeStatus).toHaveBeenCalledWith(
+        taskId,
+        "COMPLETED",
+        userId,
+        expect.objectContaining({ score: 5 }),
+      );
+    });
+
+    it("throws when postgres tool is missing or inactive", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prismaMock.observationToolDefinition.findFirst as any).mockResolvedValue(
+        null,
+      );
+
+      await expect(
+        ObservationToolSubmissionService.createSubmission(validBaseInput),
+      ).rejects.toThrow("Observation tool not found or inactive");
+    });
+
+    it("handles dual-write errors on mongo create", async () => {
+      (ObservationToolDefinitionModel.findById as any).mockReturnValue(
+        mockChain({ isActive: true, fields: [] }),
+      );
+      (ObservationToolSubmissionModel.create as any).mockResolvedValue({
+        _id: submissionId,
+        toolId,
+        companionId,
+        filledBy: userId,
+        answers: { q1: "yes" },
+        toObject: jest.fn().mockReturnValue({
+          _id: { toString: () => submissionId },
+          toolId,
+          companionId,
+          filledBy: userId,
+          answers: { q1: "yes" },
+        }),
+      });
+      (prismaMock.observationToolSubmission.upsert as any).mockRejectedValue(
+        new Error("sync fail"),
+      );
+
+      await ObservationToolSubmissionService.createSubmission(validBaseInput);
+
+      expect(handleDualWriteError).toHaveBeenCalledWith(
+        "ObservationToolSubmission",
+        expect.any(Error),
+      );
+    });
+
     it("should handle undefined score when no scoring fields match", async () => {
       // Tool with scoring definition but answers don't match criteria
       const toolMock = {
@@ -322,6 +514,59 @@ describe("ObservationToolSubmissionService", () => {
         }),
       ).rejects.toThrow("already linked");
     });
+
+    it("throws in postgres path when submission not found", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prismaMock.observationToolSubmission.findFirst as any).mockResolvedValue(
+        null,
+      );
+
+      await expect(
+        ObservationToolSubmissionService.linkToAppointment({
+          submissionId,
+          appointmentId,
+        }),
+      ).rejects.toThrow("Submission not found");
+    });
+
+    it("throws in postgres path when appointment already linked", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prismaMock.observationToolSubmission.findFirst as any)
+        .mockResolvedValueOnce({ id: submissionId })
+        .mockResolvedValueOnce({ id: "other" });
+
+      await expect(
+        ObservationToolSubmissionService.linkToAppointment({
+          submissionId,
+          appointmentId,
+          enforceSingleSubmissionPerAppointment: true,
+        }),
+      ).rejects.toThrow(
+        "An observation submission is already linked to this appointment",
+      );
+    });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prismaMock.observationToolSubmission.findFirst as any)
+        .mockResolvedValueOnce({ id: submissionId })
+        .mockResolvedValueOnce(null);
+      (prismaMock.observationToolSubmission.update as any).mockResolvedValue({
+        id: submissionId,
+        evaluationAppointmentId: appointmentId,
+      });
+
+      const res = await ObservationToolSubmissionService.linkToAppointment({
+        submissionId,
+        appointmentId,
+        enforceSingleSubmissionPerAppointment: true,
+      });
+
+      expect(res).toEqual({
+        id: submissionId,
+        evaluationAppointmentId: appointmentId,
+      });
+    });
   });
 
   // ======================================================================
@@ -378,6 +623,93 @@ describe("ObservationToolSubmissionService", () => {
       expect(ObservationToolSubmissionModel.findOne).toHaveBeenCalledWith({
         taskId,
       });
+    });
+
+    it("listSubmissions throws for invalid dates", async () => {
+      await expect(
+        ObservationToolSubmissionService.listSubmissions({
+          companionId,
+          fromDate: "bad" as any,
+        }),
+      ).rejects.toThrow("Invalid fromDate");
+    });
+
+    it("listSubmissions throws for invalid filters", async () => {
+      await expect(
+        ObservationToolSubmissionService.listSubmissions({
+          companionId: "   ",
+        }),
+      ).rejects.toThrow("Invalid companionId");
+
+      await expect(
+        ObservationToolSubmissionService.listSubmissions({
+          toolId: 123 as any,
+        }),
+      ).rejects.toThrow("Invalid toolId");
+    });
+
+    it("listSubmissions uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prismaMock.observationToolSubmission.findMany as any).mockResolvedValue([
+        { id: submissionId },
+      ]);
+
+      const res = await ObservationToolSubmissionService.listSubmissions({
+        companionId,
+      });
+
+      expect(res).toEqual([{ id: submissionId }]);
+    });
+
+    it("listSubmissions builds date range in prisma path", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      const from = new Date("2024-01-01");
+      const to = new Date("2024-01-02");
+      (prismaMock.observationToolSubmission.findMany as any).mockResolvedValue(
+        [],
+      );
+
+      await ObservationToolSubmissionService.listSubmissions({
+        companionId,
+        toolId,
+        fromDate: from,
+        toDate: to,
+      });
+
+      expect(prisma.observationToolSubmission.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            companionId,
+            toolId,
+            createdAt: { gte: from, lte: to },
+          }),
+        }),
+      );
+    });
+
+    it("listForAppointment uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prismaMock.observationToolSubmission.findMany as any).mockResolvedValue([
+        { id: submissionId },
+      ]);
+
+      const res =
+        await ObservationToolSubmissionService.listForAppointment(
+          appointmentId,
+        );
+      expect(res).toEqual([{ id: submissionId }]);
+    });
+
+    it("getByTaskId uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prismaMock.observationToolSubmission.findFirst as any).mockResolvedValue(
+        {
+          id: submissionId,
+        },
+      );
+
+      const res = await ObservationToolSubmissionService.getByTaskId(taskId);
+      expect(res).toEqual({ id: submissionId });
     });
   });
 
@@ -448,52 +780,158 @@ describe("ObservationToolSubmissionService", () => {
         expect(res.toolName).toBe("Tool");
         expect(res.answersPreview).toEqual({ q1: "ans1", q2: "ans2" });
       });
+
+      it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+        process.env.READ_FROM_POSTGRES = "true";
+        (prismaMock.task.findFirst as any).mockResolvedValue({
+          id: taskId,
+          observationToolId: toolId,
+        });
+        (
+          prismaMock.observationToolDefinition.findFirst as any
+        ).mockResolvedValue({
+          id: toolId,
+          name: "Tool",
+          category: "Cat",
+          isActive: true,
+          fields: [{ key: "q1" }, { key: "q2" }],
+        });
+        (
+          prismaMock.observationToolSubmission.findFirst as any
+        ).mockResolvedValue({
+          id: submissionId,
+          taskId,
+          answers: { q1: "ans1" },
+          createdAt: new Date(),
+          score: 3,
+          summary: "ok",
+        });
+
+        const res =
+          await ObservationToolSubmissionService.getPreviewByTaskId(taskId);
+
+        expect(res.toolName).toBe("Tool");
+        expect(res.answersPreview).toEqual({ q1: "ans1" });
+      });
     });
 
     describe("listTaskPreviewsForAppointment", () => {
       it("should aggregate tasks, tools, and submissions", async () => {
         const tId = newId();
-        // 1. Mock Tasks
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (TaskModel.find as any).mockReturnValue(
-          mockChain([
+        const taskObjectId = { toString: () => tId } as any;
+        const toolObjectId = { toString: () => toolId } as any;
+        const taskChain = {
+          setOptions: jest.fn().mockReturnThis(),
+          select: jest.fn().mockReturnThis(),
+          lean: (jest.fn() as any).mockResolvedValue([
             {
-              _id: new Types.ObjectId(tId),
-              observationToolId: new Types.ObjectId(toolId),
+              _id: taskObjectId,
+              observationToolId: toolObjectId,
               status: "PENDING",
               dueAt: new Date(),
             },
           ]),
-        );
-
-        // 2. Mock Tools lookup
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (ObservationToolDefinitionModel.find as any).mockReturnValue(
-          mockChain([
+        };
+        const toolChain = {
+          select: jest.fn().mockReturnThis(),
+          lean: (jest.fn() as any).mockResolvedValue([
             {
-              _id: new Types.ObjectId(toolId),
+              _id: toolObjectId,
               name: "ToolName",
               category: "Cat",
             },
           ]),
-        );
+        };
+        const submissionChain = {
+          select: jest.fn().mockReturnThis(),
+          lean: (jest.fn() as any).mockResolvedValue([
+            {
+              _id: { toString: () => submissionId },
+              taskId: taskObjectId,
+              score: 10,
+              summary: "ok",
+              evaluationAppointmentId: appointmentId,
+            },
+          ]),
+        };
+        // 1. Mock Tasks
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (TaskModel.find as any).mockReturnValue(taskChain);
+
+        // 2. Mock Tools lookup
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (ObservationToolDefinitionModel.find as any).mockReturnValue(toolChain);
 
         // 3. Mock Submissions lookup
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (ObservationToolSubmissionModel.find as any).mockReturnValue(
-          mockChain([
-            {
-              _id: new Types.ObjectId(submissionId),
-              taskId: tId,
-              score: 10,
-            },
-          ]),
+          submissionChain,
         );
+
+        const res =
+          await ObservationToolSubmissionService.listTaskPreviewsForAppointment(
+            appointmentId,
+          );
+
+        expect(TaskModel.find).toHaveBeenCalled();
+        expect(ObservationToolDefinitionModel.find).toHaveBeenCalled();
+        expect(ObservationToolSubmissionModel.find).toHaveBeenCalled();
+        expect(Array.isArray(res)).toBe(true);
       });
 
       it("should return empty if no tasks found", async () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (TaskModel.find as any).mockReturnValue(mockChain([]));
+        const res =
+          await ObservationToolSubmissionService.listTaskPreviewsForAppointment(
+            appointmentId,
+          );
+        expect(res).toEqual([]);
+      });
+
+      it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+        process.env.READ_FROM_POSTGRES = "true";
+        (prismaMock.task.findMany as any).mockResolvedValue([
+          {
+            id: "task-1",
+            companionId: "comp-1",
+            status: "PENDING",
+            dueAt: new Date(),
+            observationToolId: toolId,
+          },
+        ]);
+        (
+          prismaMock.observationToolDefinition.findMany as any
+        ).mockResolvedValue([
+          { id: toolId, name: "Tool", category: "Cat", isActive: true },
+        ]);
+        (
+          prismaMock.observationToolSubmission.findMany as any
+        ).mockResolvedValue([
+          {
+            id: submissionId,
+            taskId: "task-1",
+            toolId,
+            score: 5,
+            summary: "ok",
+            createdAt: new Date(),
+            evaluationAppointmentId: appointmentId,
+          },
+        ]);
+
+        const res =
+          await ObservationToolSubmissionService.listTaskPreviewsForAppointment(
+            appointmentId,
+          );
+
+        expect(res).toHaveLength(1);
+        expect(res[0].taskId).toBe("task-1");
+      });
+
+      it("returns empty in postgres path when no tasks", async () => {
+        process.env.READ_FROM_POSTGRES = "true";
+        (prismaMock.task.findMany as any).mockResolvedValue([]);
+
         const res =
           await ObservationToolSubmissionService.listTaskPreviewsForAppointment(
             appointmentId,
