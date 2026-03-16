@@ -1,6 +1,8 @@
 import { RootFilterQuery } from "mongoose";
 import ContactRequestModel, {
   ContactAttachment,
+  ContactCategory,
+  ContactPriority,
   ContactRequestMongo,
   ContactSource,
   ContactStatus,
@@ -29,11 +31,15 @@ export type CreateContactRequestInput = {
   message: string;
   userId?: string;
   email?: string;
+  fullName?: string;
+  phone?: string;
   organisationId?: string;
   companionId?: string;
   parentId?: string;
   dsarDetails?: DsraDetails;
   attachments?: ContactAttachment[];
+  priority?: ContactPriority;
+  category?: ContactCategory;
 };
 
 export type CreateWebContactRequestInput = {
@@ -247,5 +253,26 @@ export const ContactService = {
     }
 
     return updated;
+  },
+
+  async updatePriority(id: string, priority: string) {
+    return ContactRequestModel.findByIdAndUpdate(id, { priority }, { new: true });
+  },
+
+  async assignRequest(id: string, assigneeId: string, assigneeName: string) {
+    return ContactRequestModel.findByIdAndUpdate(id, { assigneeId, assigneeName }, { new: true });
+  },
+
+  async getDashboardStats() {
+    const [total, open, inProgress, resolved, closed, byType, byPriority] = await Promise.all([
+      ContactRequestModel.countDocuments(),
+      ContactRequestModel.countDocuments({ status: 'OPEN' }),
+      ContactRequestModel.countDocuments({ status: 'IN_PROGRESS' }),
+      ContactRequestModel.countDocuments({ status: 'RESOLVED' }),
+      ContactRequestModel.countDocuments({ status: 'CLOSED' }),
+      ContactRequestModel.aggregate([{ $group: { _id: '$type', count: { $sum: 1 } } }]),
+      ContactRequestModel.aggregate([{ $group: { _id: '$priority', count: { $sum: 1 } } }]),
+    ]);
+    return { total, open, inProgress, resolved, closed, byType, byPriority };
   },
 };

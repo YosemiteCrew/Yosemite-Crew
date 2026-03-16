@@ -83,12 +83,16 @@ export const ContactController = {
         subject,
         message,
         email,
+        fullName,
+        phone,
         organisationId,
         companionId,
         parentId: bodyParentId,
         dsarDetails,
         attachments,
         userId: bodyUserId,
+        priority,
+        category,
       } = req.body;
 
       const payload = {
@@ -97,12 +101,16 @@ export const ContactController = {
         subject,
         message,
         email,
+        fullName,
+        phone,
         organisationId,
         companionId,
         parentId: parentId ?? bodyParentId,
         userId: userId ?? bodyUserId,
         dsarDetails,
         attachments,
+        priority,
+        category,
       };
 
       const doc = await ContactService.createRequest(payload);
@@ -237,5 +245,32 @@ export const ContactController = {
       console.error("Error updating contact request status", err);
       res.status(500).json({ message: "Internal server error" });
     }
+  },
+
+  async updatePriority(this: void, req: Request, res: Response) {
+    const { id } = req.params;
+    const { priority } = req.body;
+    if (!['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(priority)) {
+      return res.status(400).json({ error: 'Invalid priority' });
+    }
+    const result = await ContactService.updatePriority(id, priority);
+    if (!result) return res.status(404).json({ error: 'Request not found' });
+    return res.json(result);
+  },
+
+  async assignRequest(this: void, req: Request, res: Response) {
+    const { id } = req.params;
+    const { assigneeId, assigneeName } = req.body;
+    if (!assigneeId || !assigneeName) {
+      return res.status(400).json({ error: 'assigneeId and assigneeName are required' });
+    }
+    const result = await ContactService.assignRequest(id, assigneeId, assigneeName);
+    if (!result) return res.status(404).json({ error: 'Request not found' });
+    return res.json(result);
+  },
+
+  async getDashboardStats(this: void, req: Request, res: Response) {
+    const stats = await ContactService.getDashboardStats();
+    return res.json(stats);
   },
 };

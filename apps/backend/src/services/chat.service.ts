@@ -23,11 +23,10 @@ const STREAM_KEY = process.env.STREAM_API_KEY!;
 const STREAM_SECRET = process.env.STREAM_API_SECRET!;
 const SYSTEM_USER_ID = "system-yosemite";
 
-if (!STREAM_KEY || !STREAM_SECRET) {
-  throw new Error("Stream Chat credentials missing in env");
+let streamServer: StreamChat | null = null;
+if (STREAM_KEY && STREAM_SECRET) {
+  streamServer = StreamChat.getInstance(STREAM_KEY, STREAM_SECRET);
 }
-
-const streamServer = StreamChat.getInstance(STREAM_KEY, STREAM_SECRET);
 
 // Appointment chat window
 const PRE_WINDOW_MINUTES = 60 * 24;
