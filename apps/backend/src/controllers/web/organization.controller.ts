@@ -8,12 +8,9 @@ import {
 } from "../../services/organization.service";
 import { generatePresignedUrl } from "src/middlewares/upload";
 import { stringify } from "node:querystring";
-import { AuthUserMobileService } from "src/services/authUserMobile.service";
-import { ParentModel } from "src/models/parent";
 import helpers from "src/utils/helper";
-import { prisma } from "src/config/prisma";
-import { isReadFromPostgres } from "src/config/read-switch";
 import { resolveUserIdFromRequest } from "src/utils/request";
+import { getParentAddressForAuthUser } from "src/utils/location";
 
 const isOrganizationPayload = (
   payload: unknown,
@@ -45,6 +42,17 @@ const handleOrganizationError = (
   }
   logger.error(logMessage, error);
   res.status(500).json({ message: responseMessage });
+};
+
+const respondWithPresignedUpload = async (
+  res: Response,
+  mimeType: string,
+  orgId: Record<string, string>,
+) => {
+  const { url, key } = orgId
+    ? await generatePresignedUrl(mimeType, "org", stringify(orgId))
+    : await generatePresignedUrl(mimeType, "temp");
+  res.status(200).json({ uploadUrl: url, s3Key: key });
 };
 
 export const OrganizationController = {
@@ -181,17 +189,7 @@ export const OrganizationController = {
           .json({ message: "MIME type is required in the request body." });
         return;
       }
-      if (orgId) {
-        const { url, key } = await generatePresignedUrl(
-          mimeType,
-          "org",
-          stringify(orgId),
-        );
-        res.status(200).json({ uploadUrl: url, s3Key: key });
-      } else {
-        const { url, key } = await generatePresignedUrl(mimeType, "temp");
-        res.status(200).json({ uploadUrl: url, s3Key: key });
-      }
+      await respondWithPresignedUpload(res, mimeType, orgId);
     } catch (error) {
       logger.error("Failed to generate logo upload URL", error);
       res.status(500).json({ message: "Unable to generate logo upload URL." });
@@ -239,34 +237,7 @@ export const OrganizationController = {
       // --- 2. Fallback: use user's saved city+pincode ---
       if (!lat || !lng) {
         const authUserId = resolveUserIdFromRequest(req);
-        const authUser = await AuthUserMobileService.getByProviderUserId(
-          authUserId!,
-        );
-
-        let parentAddress:
-          | {
-              city?: string | null;
-              postalCode?: string | null;
-            }
-          | null
-          | undefined;
-
-        if (isReadFromPostgres()) {
-          const parentId =
-            typeof authUser?.parentId === "string"
-              ? authUser.parentId
-              : authUser?.parentId?.toString();
-          const parent = parentId
-            ? await prisma.parent.findFirst({
-                where: { id: parentId },
-                include: { address: true },
-              })
-            : null;
-          parentAddress = parent?.address ?? null;
-        } else {
-          const parent = await ParentModel.findById(authUser?.parentId);
-          parentAddress = parent?.address;
-        }
+        const parentAddress = await getParentAddressForAuthUser(authUserId);
 
         if (!parentAddress?.city || !parentAddress?.postalCode) {
           return res.status(400).json({

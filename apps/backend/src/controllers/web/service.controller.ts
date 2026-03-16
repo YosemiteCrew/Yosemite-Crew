@@ -10,12 +10,9 @@ type BookableSlotsPayload = {
   organisationId: string;
   date: string;
 };
-import { AuthUserMobileService } from "src/services/authUserMobile.service";
-import { ParentModel } from "src/models/parent";
 import helpers from "src/utils/helper";
-import { prisma } from "src/config/prisma";
-import { isReadFromPostgres } from "src/config/read-switch";
 import { resolveUserIdFromRequest } from "src/utils/request";
+import { getParentAddressForAuthUser } from "src/utils/location";
 
 const handleError = (error: unknown, res: Response, defaultMessage: string) => {
   if (error instanceof ServiceServiceError) {
@@ -128,33 +125,7 @@ export const ServiceController = {
             .json("Povide Latitude and Longitude if no authenticated request.");
         }
 
-        const authUser =
-          await AuthUserMobileService.getByProviderUserId(authUserId);
-
-        let parentAddress:
-          | {
-              city?: string | null;
-              postalCode?: string | null;
-            }
-          | null
-          | undefined;
-
-        if (isReadFromPostgres()) {
-          const parentId =
-            typeof authUser?.parentId === "string"
-              ? authUser.parentId
-              : authUser?.parentId?.toString();
-          const parent = parentId
-            ? await prisma.parent.findFirst({
-                where: { id: parentId },
-                include: { address: true },
-              })
-            : null;
-          parentAddress = parent?.address ?? null;
-        } else {
-          const parent = await ParentModel.findById(authUser?.parentId);
-          parentAddress = parent?.address;
-        }
+        const parentAddress = await getParentAddressForAuthUser(authUserId);
 
         if (!parentAddress?.city || !parentAddress?.postalCode) {
           return res.status(400).json({

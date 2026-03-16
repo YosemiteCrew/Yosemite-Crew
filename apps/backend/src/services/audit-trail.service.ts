@@ -83,6 +83,12 @@ const buildDisplayName = (
   return parts.length ? parts.join(" ") : null;
 };
 
+const buildCursorResponse = <T extends { occurredAt: Date }>(entries: T[]) => {
+  const nextCursor =
+    entries.length > 0 ? entries.at(-1)!.occurredAt.toISOString() : null;
+  return { entries, nextCursor };
+};
+
 const resolveActorName = async (params: {
   actorType?: AuditActorType;
   actorId?: string | null;
@@ -250,10 +256,7 @@ export const AuditTrailService = {
         take: limit,
       });
 
-      const nextCursor =
-        entries.length > 0 ? entries.at(-1)!.occurredAt.toISOString() : null;
-
-      return { entries, nextCursor };
+      return buildCursorResponse(entries);
     }
 
     const entries = await AuditTrailModel.find(filters)
@@ -261,10 +264,7 @@ export const AuditTrailService = {
       .limit(limit)
       .lean();
 
-    const nextCursor =
-      entries.length > 0 ? entries.at(-1)!.occurredAt.toISOString() : null;
-
-    return { entries, nextCursor };
+    return buildCursorResponse(entries);
   },
 
   async listForAppointment(params: {
@@ -319,10 +319,7 @@ export const AuditTrailService = {
         take: limit,
       });
 
-      const nextCursor =
-        entries.length > 0 ? entries.at(-1)!.occurredAt.toISOString() : null;
-
-      return { entries, nextCursor };
+      return buildCursorResponse(entries);
     }
 
     const entries = await AuditTrailModel.find(filters)
@@ -330,9 +327,6 @@ export const AuditTrailService = {
       .limit(limit)
       .lean();
 
-    const nextCursor =
-      entries.length > 0 ? entries.at(-1)!.occurredAt.toISOString() : null;
-
-    return { entries, nextCursor };
+    return buildCursorResponse(entries);
   },
 };

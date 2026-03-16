@@ -31,7 +31,7 @@ type IdexxTest = {
 
 const getEnv = (key: string): string | null => {
   const value = process.env[key];
-  return value && value.trim() ? value : null;
+  return value?.trim() ? value : null;
 };
 
 const mapIdexxSpecies = (code: string, name?: string) => {
@@ -48,15 +48,14 @@ const mapIdexxSpecies = (code: string, name?: string) => {
   return null;
 };
 
-const buildSpeciesCode = (species: string) =>
-  `YSPEC:${species.toUpperCase()}`;
+const buildSpeciesCode = (species: string) => `YSPEC:${species.toUpperCase()}`;
 
 const slugify = (value: string) =>
   value
     .trim()
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
+    .replaceAll(/[^a-z0-9]+/g, "_")
+    .replaceAll(/^_+|_+$/g, "");
 
 const buildBreedCode = (species: string, raw: string) =>
   `YBREED:${species.toUpperCase()}:${slugify(raw).toUpperCase()}`;
@@ -173,7 +172,7 @@ const syncTests = async (data: IdexxRefList<IdexxTest>) => {
 
 const shouldSync = async (kind: CodeSyncKind, version: string) => {
   const state = await CodeSyncService.get("IDEXX", kind);
-  return !state || state.version !== version;
+  return state?.version !== version;
 };
 
 const markSynced = async (kind: CodeSyncKind, version: string) => {

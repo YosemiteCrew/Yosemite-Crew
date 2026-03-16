@@ -8,7 +8,6 @@ import {
   InventoryMetaFieldModel,
   StockMovementModel,
 } from "src/models/inventory";
-import { OrgBilling } from "src/models/organization.billing";
 import type {
   InventoryItemDocument,
   InventoryBatchDocument,
@@ -19,6 +18,7 @@ import type {
 } from "src/models/inventory";
 import { prisma } from "src/config/prisma";
 import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import { getOrgBillingCurrency } from "src/utils/billing";
 import {
   InventoryBusinessType,
   InventoryItemStatus,
@@ -123,14 +123,6 @@ const escapeRegex = (value: string) =>
 
 const toObjectId = (value: string) =>
   Types.ObjectId.isValid(value) ? new Types.ObjectId(value) : value;
-
-const getOrgBillingCurrency = async (organisationId: string) => {
-  const orgId = ensureNonEmptyString(organisationId, "organisationId");
-  const billing = isReadFromPostgres()
-    ? await prisma.organizationBilling.findFirst({ where: { orgId } })
-    : await OrgBilling.findOne({ orgId });
-  return billing?.currency ?? "usd";
-};
 
 /**
  * INPUT TYPES

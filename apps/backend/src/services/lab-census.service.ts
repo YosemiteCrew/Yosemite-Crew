@@ -179,41 +179,31 @@ const buildClientForOrg = async (organisationId: string) => {
   });
 };
 
+const requireIdexxProvider = (providerInput: string) => {
+  const provider = normalizeLabProvider(providerInput);
+  if (!provider || provider !== "IDEXX") {
+    throw new LabOrderServiceError("Unsupported lab provider.", 400);
+  }
+  return provider;
+};
+
 export const LabCensusService = {
   async listIvlsDevices(providerInput: string, organisationId: string) {
-    const provider = normalizeLabProvider(providerInput);
-    if (!provider) {
-      throw new LabOrderServiceError("Unsupported lab provider.", 400);
-    }
-    if (provider !== "IDEXX") {
-      throw new LabOrderServiceError("Unsupported lab provider.", 400);
-    }
+    requireIdexxProvider(providerInput);
 
     const client = await buildClientForOrg(organisationId);
     return client.listIvlsDevices();
   },
 
   async listCensus(providerInput: string, organisationId: string) {
-    const provider = normalizeLabProvider(providerInput);
-    if (!provider) {
-      throw new LabOrderServiceError("Unsupported lab provider.", 400);
-    }
-    if (provider !== "IDEXX") {
-      throw new LabOrderServiceError("Unsupported lab provider.", 400);
-    }
+    requireIdexxProvider(providerInput);
 
     const client = await buildClientForOrg(organisationId);
     return client.listCensus();
   },
 
   async deleteCensus(providerInput: string, organisationId: string) {
-    const provider = normalizeLabProvider(providerInput);
-    if (!provider) {
-      throw new LabOrderServiceError("Unsupported lab provider.", 400);
-    }
-    if (provider !== "IDEXX") {
-      throw new LabOrderServiceError("Unsupported lab provider.", 400);
-    }
+    requireIdexxProvider(providerInput);
 
     const client = await buildClientForOrg(organisationId);
     return client.deleteCensus();

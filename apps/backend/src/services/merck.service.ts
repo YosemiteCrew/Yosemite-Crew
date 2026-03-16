@@ -141,7 +141,7 @@ const ensureNonEmptyString = (value: unknown, field: string): string => {
 const optionalString = (value: unknown): string | undefined => {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
-  return trimmed ? trimmed : undefined;
+  return trimmed || undefined;
 };
 
 const optionalEnum = <T extends string>(
@@ -196,12 +196,12 @@ const isUsCanadaTimezone = (value: string): boolean => {
 
 const stripHtml = (value: string): string =>
   String(value ?? "")
-    .replace(/<[^>]*>/g, " ")
-    .replace(/\s+/g, " ")
+    .replaceAll(/<[^>]*>/g, " ")
+    .replaceAll(/\s+/g, " ")
     .trim();
 
 const extractSummaryTextFromHtml = (html: string): string => {
-  const match = String(html ?? "").match(/<p[^>]*>(.*?)<\/p>/i);
+  const match = new RegExp(/<p[^>]*>(.*?)<\/p>/i).exec(String(html ?? ""));
   if (match?.[1]) {
     return stripHtml(match[1]);
   }
@@ -226,7 +226,7 @@ const extractAnchorLinksFromHtml = (html: string) => {
 const canonicalUrlKey = (value: string): string => {
   try {
     const parsed = new URL(value);
-    const pathname = parsed.pathname.replace(/\/+$/g, "") || "/";
+    const pathname = parsed.pathname.replaceAll(/\/+$/g, "") || "/";
     return `${parsed.hostname.toLowerCase()}${pathname}${parsed.hash ?? ""}`;
   } catch {
     return value;
@@ -384,8 +384,8 @@ const normalizeFromFeedObject = (
 };
 
 const extractXmlTagValue = (xml: string, tag: string): string | null => {
-  const regex = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, "i");
-  const match = xml.match(regex);
+  const regex = new RegExp(String.raw`<${tag}[^>]*>([\s\S]*?)</${tag}>`, "i");
+  const match = new RegExp(regex).exec(xml);
   if (!match?.[1]) return null;
   return match[1].trim();
 };
@@ -434,10 +434,12 @@ const normalizeFromXml = (
       const updated = extractXmlTagValue(entryXml, "updated");
       const title = extractXmlTagValue(entryXml, "title");
       const summary = (() => {
-        const match = entryXml.match(/<summary[^>]*>([\s\S]*?)<\/summary>/i);
+        const match = new RegExp(/<summary[^>]*>([\s\S]*?)<\/summary>/i).exec(
+          entryXml,
+        );
         return match?.[1] ?? "";
       })();
-      const linkMatch = entryXml.match(/<link[^>]*href="([^"]+)"/i);
+      const linkMatch = new RegExp(/<link[^>]*href="([^"]+)"/i).exec(entryXml);
       const link = linkMatch?.[1] ?? "";
       const primaryUrl = isAllowedMerckUrl(link)
         ? link
@@ -599,7 +601,7 @@ const buildSearchParams = (input: MerckSearchParams) => {
     if (/^\d+(\.\d+)+$/.test(codeSystem)) {
       params["mainSearchCriteria.v.cs"] = codeSystem;
     } else {
-      const normalized = codeSystem.toUpperCase().replace(/\s+/g, "");
+      const normalized = codeSystem.toUpperCase().replaceAll(/\s+/g, "");
       if (CODE_SYSTEM_NAMES.has(normalized)) {
         params["mainSearchCriteria.v.csn"] = normalized;
       }
@@ -639,8 +641,7 @@ const buildAlternateParams = (params: Record<string, string>) => {
 };
 
 const isHtmlPayload = (contentType: string | null, data: string) => {
-  if (contentType && contentType.toLowerCase().includes("text/html"))
-    return true;
+  if (contentType?.toLowerCase().includes("text/html")) return true;
   const trimmed = data.trim().toLowerCase();
   return trimmed.startsWith("<!doctype html") || trimmed.startsWith("<html");
 };

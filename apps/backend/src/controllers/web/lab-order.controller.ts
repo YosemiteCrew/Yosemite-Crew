@@ -7,19 +7,55 @@ import {
 } from "src/services/lab-order.service";
 import type { LabOrderStatus } from "src/models/lab-order";
 
+const requireOrgAndProvider = (req: Request, res: Response) => {
+  const orgReq = req as OrgRequest;
+  const organisationId = orgReq.organisationId ?? req.params.organisationId;
+  const provider = req.params.provider;
+
+  if (!organisationId) {
+    res.status(400).json({ message: "organisationId is required." });
+    return null;
+  }
+  if (!provider) {
+    res.status(400).json({ message: "provider is required." });
+    return null;
+  }
+
+  return { organisationId, provider, orgReq };
+};
+
+const requireOrderParams = (req: Request, res: Response) => {
+  const base = requireOrgAndProvider(req, res);
+  if (!base) return null;
+
+  const idexxOrderId = req.params.idexxOrderId;
+  if (!idexxOrderId) {
+    res.status(400).json({ message: "idexxOrderId is required." });
+    return null;
+  }
+
+  return { ...base, idexxOrderId };
+};
+
+const handleLabOrderError = (
+  res: Response,
+  error: unknown,
+  logMessage: string,
+  responseMessage: string,
+) => {
+  if (error instanceof LabOrderServiceError) {
+    return res.status(error.statusCode).json({ message: error.message });
+  }
+  logger.error(logMessage, error);
+  return res.status(500).json({ message: responseMessage });
+};
+
 export const LabOrderController = {
   async listOrders(req: Request, res: Response) {
     try {
-      const orgReq = req as OrgRequest;
-      const organisationId = orgReq.organisationId ?? req.params.organisationId;
-      const provider = req.params.provider;
-
-      if (!organisationId) {
-        return res.status(400).json({ message: "organisationId is required." });
-      }
-      if (!provider) {
-        return res.status(400).json({ message: "provider is required." });
-      }
+      const base = requireOrgAndProvider(req, res);
+      if (!base) return;
+      const { organisationId, provider } = base;
 
       const body = req.body as
         | {
@@ -47,26 +83,20 @@ export const LabOrderController = {
 
       return res.status(200).json({ orders });
     } catch (error) {
-      if (error instanceof LabOrderServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-      logger.error("Failed to list lab orders", error);
-      return res.status(500).json({ message: "Failed to list lab orders." });
+      return handleLabOrderError(
+        res,
+        error,
+        "Failed to list lab orders",
+        "Failed to list lab orders.",
+      );
     }
   },
 
   async listProviderTests(req: Request, res: Response) {
     try {
-      const orgReq = req as OrgRequest;
-      const organisationId = orgReq.organisationId ?? req.params.organisationId;
-      const provider = req.params.provider;
-
-      if (!organisationId) {
-        return res.status(400).json({ message: "organisationId is required." });
-      }
-      if (!provider) {
-        return res.status(400).json({ message: "provider is required." });
-      }
+      const base = requireOrgAndProvider(req, res);
+      if (!base) return;
+      const { provider } = base;
 
       const body = req.body as
         | {
@@ -98,28 +128,21 @@ export const LabOrderController = {
 
       return res.status(200).json(tests);
     } catch (error) {
-      if (error instanceof LabOrderServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-      logger.error("Failed to list lab tests", error);
-      return res.status(500).json({ message: "Failed to list lab tests." });
+      return handleLabOrderError(
+        res,
+        error,
+        "Failed to list lab tests",
+        "Failed to list lab tests.",
+      );
     }
   },
 
   async createIdexxOrder(req: Request, res: Response) {
     try {
-      const orgReq = req as OrgRequest;
-      const organisationId = orgReq.organisationId ?? req.params.organisationId;
-      const provider = req.params.provider;
+      const base = requireOrgAndProvider(req, res);
+      if (!base) return;
+      const { organisationId, provider, orgReq } = base;
       const createdByUserId = orgReq.userId;
-
-      if (!organisationId) {
-        return res.status(400).json({ message: "organisationId is required." });
-      }
-
-      if (!provider) {
-        return res.status(400).json({ message: "provider is required." });
-      }
 
       const body = req.body as {
         companionId?: string;
@@ -149,30 +172,20 @@ export const LabOrderController = {
 
       return res.status(201).json(created);
     } catch (error) {
-      if (error instanceof LabOrderServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-      logger.error("Failed to create IDEXX order", error);
-      return res.status(500).json({ message: "Failed to create IDEXX order." });
+      return handleLabOrderError(
+        res,
+        error,
+        "Failed to create IDEXX order",
+        "Failed to create IDEXX order.",
+      );
     }
   },
 
   async getOrder(req: Request, res: Response) {
     try {
-      const orgReq = req as OrgRequest;
-      const organisationId = orgReq.organisationId ?? req.params.organisationId;
-      const provider = req.params.provider;
-      const idexxOrderId = req.params.idexxOrderId;
-
-      if (!organisationId) {
-        return res.status(400).json({ message: "organisationId is required." });
-      }
-      if (!provider) {
-        return res.status(400).json({ message: "provider is required." });
-      }
-      if (!idexxOrderId) {
-        return res.status(400).json({ message: "idexxOrderId is required." });
-      }
+      const params = requireOrderParams(req, res);
+      if (!params) return;
+      const { organisationId, provider, idexxOrderId } = params;
 
       const order = await LabOrderService.getOrder(
         provider,
@@ -182,30 +195,20 @@ export const LabOrderController = {
 
       return res.status(200).json(order);
     } catch (error) {
-      if (error instanceof LabOrderServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-      logger.error("Failed to fetch lab order", error);
-      return res.status(500).json({ message: "Failed to fetch lab order." });
+      return handleLabOrderError(
+        res,
+        error,
+        "Failed to fetch lab order",
+        "Failed to fetch lab order.",
+      );
     }
   },
 
   async updateOrder(req: Request, res: Response) {
     try {
-      const orgReq = req as OrgRequest;
-      const organisationId = orgReq.organisationId ?? req.params.organisationId;
-      const provider = req.params.provider;
-      const idexxOrderId = req.params.idexxOrderId;
-
-      if (!organisationId) {
-        return res.status(400).json({ message: "organisationId is required." });
-      }
-      if (!provider) {
-        return res.status(400).json({ message: "provider is required." });
-      }
-      if (!idexxOrderId) {
-        return res.status(400).json({ message: "idexxOrderId is required." });
-      }
+      const params = requireOrderParams(req, res);
+      if (!params) return;
+      const { organisationId, provider, idexxOrderId } = params;
 
       const body = req.body as {
         tests?: string[];
@@ -234,30 +237,20 @@ export const LabOrderController = {
 
       return res.status(200).json(order);
     } catch (error) {
-      if (error instanceof LabOrderServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-      logger.error("Failed to update lab order", error);
-      return res.status(500).json({ message: "Failed to update lab order." });
+      return handleLabOrderError(
+        res,
+        error,
+        "Failed to update lab order",
+        "Failed to update lab order.",
+      );
     }
   },
 
   async cancelOrder(req: Request, res: Response) {
     try {
-      const orgReq = req as OrgRequest;
-      const organisationId = orgReq.organisationId ?? req.params.organisationId;
-      const provider = req.params.provider;
-      const idexxOrderId = req.params.idexxOrderId;
-
-      if (!organisationId) {
-        return res.status(400).json({ message: "organisationId is required." });
-      }
-      if (!provider) {
-        return res.status(400).json({ message: "provider is required." });
-      }
-      if (!idexxOrderId) {
-        return res.status(400).json({ message: "idexxOrderId is required." });
-      }
+      const params = requireOrderParams(req, res);
+      if (!params) return;
+      const { organisationId, provider, idexxOrderId } = params;
 
       const order = await LabOrderService.cancelOrder(
         provider,
@@ -267,11 +260,12 @@ export const LabOrderController = {
 
       return res.status(200).json(order);
     } catch (error) {
-      if (error instanceof LabOrderServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-      logger.error("Failed to cancel lab order", error);
-      return res.status(500).json({ message: "Failed to cancel lab order." });
+      return handleLabOrderError(
+        res,
+        error,
+        "Failed to cancel lab order",
+        "Failed to cancel lab order.",
+      );
     }
   },
 };

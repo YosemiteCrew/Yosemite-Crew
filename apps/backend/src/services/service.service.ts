@@ -60,7 +60,7 @@ const requireSafeString = (value: string, field: string) => {
   return trimmed;
 };
 
-const mapPrismaToDomain = (service: {
+const buildServiceDomain = (service: {
   id: string;
   organisationId: string;
   name: string;
@@ -90,6 +90,22 @@ const mapPrismaToDomain = (service: {
   updatedAt: service.updatedAt,
 });
 
+const mapPrismaToDomain = (service: {
+  id: string;
+  organisationId: string;
+  name: string;
+  description: string | null;
+  durationMinutes: number;
+  cost: number;
+  maxDiscount: number | null;
+  specialityId: string | null;
+  serviceType: ServiceType;
+  observationToolId: string | null;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}): Service => buildServiceDomain(service);
+
 const toRadians = (value: number) => (value * Math.PI) / 180;
 
 const calculateDistanceMeters = (
@@ -111,10 +127,124 @@ const calculateDistanceMeters = (
   return earthRadiusMeters * c;
 };
 
+const mapOrganisationWithAddress = (org: {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  phoneNo: string;
+  type: string;
+  address: {
+    addressLine: string | null;
+    country: string | null;
+    city: string | null;
+    state: string | null;
+    postalCode: string | null;
+    latitude: number | null;
+    longitude: number | null;
+  } | null;
+}) => ({
+  id: org.id,
+  name: org.name,
+  imageURL: org.imageUrl ?? undefined,
+  phoneNo: org.phoneNo ?? undefined,
+  type: org.type,
+  address: org.address
+    ? {
+        addressLine: org.address.addressLine ?? undefined,
+        country: org.address.country ?? undefined,
+        city: org.address.city ?? undefined,
+        state: org.address.state ?? undefined,
+        postalCode: org.address.postalCode ?? undefined,
+        latitude: org.address.latitude ?? undefined,
+        longitude: org.address.longitude ?? undefined,
+      }
+    : undefined,
+});
+
+const buildBookableWindowsForVets = async (params: {
+  organisationId: string;
+  vetIds: string[];
+  durationMinutes: number;
+  referenceDate: Date;
+}) => {
+  if (params.vetIds.length === 0) {
+    return {
+      date: params.referenceDate,
+      windows: [],
+    };
+  }
+
+  const allSlots: Array<BookableSlotWithVets> = [];
+
+  for (const vetId of params.vetIds) {
+    const result = await AvailabilityService.getBookableSlotsForDate(
+      params.organisationId,
+      vetId,
+      params.durationMinutes,
+      params.referenceDate,
+    );
+
+    if (result?.windows?.length) {
+      for (const slot of result.windows) {
+        allSlots.push({
+          ...slot,
+          vetIds: [vetId],
+        });
+      }
+    }
+  }
+
+  const slotMap = new Map<string, BookableSlotWithVets>();
+
+  for (const slot of allSlots) {
+    const key = `${slot.startTime}-${slot.endTime}`;
+
+    if (slotMap.has(key)) {
+      const existing = slotMap.get(key)!;
+      existing.vetIds.push(...slot.vetIds);
+    } else {
+      slotMap.set(key, slot);
+    }
+  }
+
+  let finalWindows = Array.from(slotMap.values()).map((slot) => ({
+    ...slot,
+    vetIds: Array.from(new Set(slot.vetIds)),
+  }));
+
+  const todayStr = dayjs().utc().format("YYYY-MM-DD");
+  const refStr = dayjs(params.referenceDate).utc().format("YYYY-MM-DD");
+
+  if (refStr === todayStr) {
+    const now = dayjs().utc();
+
+    finalWindows = finalWindows.filter((slot) => {
+      const slotTime = dayjs.utc(
+        `${refStr} ${slot.startTime}`,
+        "YYYY-MM-DD HH:mm",
+        true,
+      );
+      return slotTime.isAfter(now);
+    });
+  }
+
+  finalWindows.sort((a, b) => {
+    const t1 = dayjs(`2000-01-01 ${a.startTime}`);
+    const t2 = dayjs(`2000-01-01 ${b.startTime}`);
+    return t1.valueOf() - t2.valueOf();
+  });
+
+  return {
+    date: refStr,
+    dayOfWeek: dayjs(params.referenceDate).utc().format("dddd").toUpperCase(),
+    windows: finalWindows,
+  };
+};
+
 const mapDocToDomain = (doc: ServiceDocument): Service => {
   const o = doc.toObject() as ServiceMongo & { _id: Types.ObjectId };
 
-  return {
+  return buildServiceDomain({
     id: o._id.toString(),
     organisationId: o.organisationId.toString(),
     name: o.name,
@@ -123,12 +253,12 @@ const mapDocToDomain = (doc: ServiceDocument): Service => {
     cost: o.cost,
     maxDiscount: o.maxDiscount ?? null,
     specialityId: o.specialityId?.toString() ?? null,
-    serviceType: o.serviceType,
+    serviceType: o.serviceType ?? "CONSULTATION",
     observationToolId: o.observationToolId?.toString() ?? null,
     isActive: o.isActive,
-    createdAt: o.createdAt,
-    updatedAt: o.updatedAt,
-  };
+    createdAt: o.createdAt ?? o.updatedAt ?? new Date(),
+    updatedAt: o.updatedAt ?? o.createdAt ?? new Date(),
+  });
 };
 
 const toPrismaServiceData = (doc: ServiceDocument) => {
@@ -397,24 +527,7 @@ export const ServiceService = {
         include: { address: true },
       });
 
-      return organisations.map((org) => ({
-        id: org.id,
-        name: org.name,
-        imageURL: org.imageUrl ?? undefined,
-        phoneNo: org.phoneNo ?? undefined,
-        type: org.type,
-        address: org.address
-          ? {
-              addressLine: org.address.addressLine ?? undefined,
-              country: org.address.country ?? undefined,
-              city: org.address.city ?? undefined,
-              state: org.address.state ?? undefined,
-              postalCode: org.address.postalCode ?? undefined,
-              latitude: org.address.latitude ?? undefined,
-              longitude: org.address.longitude ?? undefined,
-            }
-          : undefined,
-      }));
+      return organisations.map((org) => mapOrganisationWithAddress(org));
     }
 
     const safe = escapeStringRegexp(serviceName.trim());
@@ -469,92 +582,12 @@ export const ServiceService = {
       });
       if (!speciality) throw new Error("Speciality not found");
 
-      const vetIds = speciality.memberUserIds || [];
-
-      if (vetIds.length === 0) {
-        return {
-          date: referenceDate,
-          windows: [],
-        };
-      }
-
-      /**
-       * STEP 1: Collect slots with vetId attached
-       */
-      const allSlots: Array<BookableSlotWithVets> = [];
-
-      for (const vetId of vetIds) {
-        const result = await AvailabilityService.getBookableSlotsForDate(
-          organisationId,
-          vetId,
-          durationMinutes,
-          referenceDate,
-        );
-
-        if (result?.windows?.length) {
-          for (const slot of result.windows) {
-            allSlots.push({
-              ...slot,
-              vetIds: [vetId],
-            });
-          }
-        }
-      }
-
-      /**
-       * STEP 2: Deduplicate slots and merge vetIds
-       */
-      const slotMap = new Map<string, BookableSlotWithVets>();
-
-      for (const slot of allSlots) {
-        const key = `${slot.startTime}-${slot.endTime}`;
-
-        if (slotMap.has(key)) {
-          const existing = slotMap.get(key)!;
-          existing.vetIds.push(...slot.vetIds);
-        } else {
-          slotMap.set(key, slot);
-        }
-      }
-
-      let finalWindows = Array.from(slotMap.values()).map((slot) => ({
-        ...slot,
-        vetIds: Array.from(new Set(slot.vetIds)), // ensure uniqueness
-      }));
-
-      /**
-       * STEP 3: Remove past slots if today
-       */
-      const todayStr = dayjs().utc().format("YYYY-MM-DD");
-      const refStr = dayjs(referenceDate).utc().format("YYYY-MM-DD");
-
-      if (refStr === todayStr) {
-        const now = dayjs().utc();
-
-        finalWindows = finalWindows.filter((slot) => {
-          const slotTime = dayjs.utc(
-            `${refStr} ${slot.startTime}`,
-            "YYYY-MM-DD HH:mm",
-            true,
-          );
-          return slotTime.isAfter(now);
-        });
-      }
-
-      /**
-       * STEP 4: Sort slots by start time
-       */
-      finalWindows.sort((a, b) => {
-        const t1 = dayjs(`2000-01-01 ${a.startTime}`);
-        const t2 = dayjs(`2000-01-01 ${b.startTime}`);
-        return t1.valueOf() - t2.valueOf();
+      return buildBookableWindowsForVets({
+        organisationId,
+        vetIds: speciality.memberUserIds || [],
+        durationMinutes,
+        referenceDate,
       });
-
-      return {
-        date: refStr,
-        dayOfWeek: dayjs(referenceDate).utc().format("dddd").toUpperCase(),
-        windows: finalWindows,
-      };
     }
 
     const id = ensureObjectId(serviceId, "serviceId");
@@ -567,92 +600,12 @@ export const ServiceService = {
     const speciality = await SpecialityModel.findById(specialityId);
     if (!speciality) throw new Error("Speciality not found");
 
-    const vetIds = speciality.memberUserIds || [];
-
-    if (vetIds.length === 0) {
-      return {
-        date: referenceDate,
-        windows: [],
-      };
-    }
-
-    /**
-     * STEP 1: Collect slots with vetId attached
-     */
-    const allSlots: Array<BookableSlotWithVets> = [];
-
-    for (const vetId of vetIds) {
-      const result = await AvailabilityService.getBookableSlotsForDate(
-        organisationId,
-        vetId,
-        durationMinutes,
-        referenceDate,
-      );
-
-      if (result?.windows?.length) {
-        for (const slot of result.windows) {
-          allSlots.push({
-            ...slot,
-            vetIds: [vetId],
-          });
-        }
-      }
-    }
-
-    /**
-     * STEP 2: Deduplicate slots and merge vetIds
-     */
-    const slotMap = new Map<string, BookableSlotWithVets>();
-
-    for (const slot of allSlots) {
-      const key = `${slot.startTime}-${slot.endTime}`;
-
-      if (slotMap.has(key)) {
-        const existing = slotMap.get(key)!;
-        existing.vetIds.push(...slot.vetIds);
-      } else {
-        slotMap.set(key, slot);
-      }
-    }
-
-    let finalWindows = Array.from(slotMap.values()).map((slot) => ({
-      ...slot,
-      vetIds: Array.from(new Set(slot.vetIds)), // ensure uniqueness
-    }));
-
-    /**
-     * STEP 3: Remove past slots if today
-     */
-    const todayStr = dayjs().utc().format("YYYY-MM-DD");
-    const refStr = dayjs(referenceDate).utc().format("YYYY-MM-DD");
-
-    if (refStr === todayStr) {
-      const now = dayjs().utc();
-
-      finalWindows = finalWindows.filter((slot) => {
-        const slotTime = dayjs.utc(
-          `${refStr} ${slot.startTime}`,
-          "YYYY-MM-DD HH:mm",
-          true,
-        );
-        return slotTime.isAfter(now);
-      });
-    }
-
-    /**
-     * STEP 4: Sort slots by start time
-     */
-    finalWindows.sort((a, b) => {
-      const t1 = dayjs(`2000-01-01 ${a.startTime}`);
-      const t2 = dayjs(`2000-01-01 ${b.startTime}`);
-      return t1.valueOf() - t2.valueOf();
+    return buildBookableWindowsForVets({
+      organisationId,
+      vetIds: speciality.memberUserIds || [],
+      durationMinutes,
+      referenceDate,
     });
-
-    return {
-      date: refStr,
-      dayOfWeek: dayjs(referenceDate).utc().format("dddd").toUpperCase(),
-      windows: finalWindows,
-    };
   },
 
   async listOrganisationsProvidingServiceNearby(
@@ -750,22 +703,7 @@ export const ServiceService = {
         });
 
         return {
-          id: org.id,
-          name: org.name,
-          imageURL: org.imageUrl ?? undefined,
-          phoneNo: org.phoneNo ?? undefined,
-          type: org.type,
-          address: org.address
-            ? {
-                addressLine: org.address.addressLine ?? undefined,
-                country: org.address.country ?? undefined,
-                city: org.address.city ?? undefined,
-                state: org.address.state ?? undefined,
-                postalCode: org.address.postalCode ?? undefined,
-                latitude: org.address.latitude ?? undefined,
-                longitude: org.address.longitude ?? undefined,
-              }
-            : undefined,
+          ...mapOrganisationWithAddress(org),
           specialities: specialitiesWithServices,
         };
       });

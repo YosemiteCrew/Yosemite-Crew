@@ -172,7 +172,7 @@ export const CodeService = {
       }
       const trimmedQuery = query.trim();
       if (trimmedQuery) {
-        const escaped = trimmedQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const escaped = trimmedQuery.replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&");
         filter.$or = [
           { code: new RegExp(escaped, "i") },
           { display: new RegExp(escaped, "i") },
