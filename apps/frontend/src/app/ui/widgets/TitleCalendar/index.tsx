@@ -5,13 +5,9 @@ import { MdTaskAlt, MdViewKanban } from 'react-icons/md';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 
 type TitleCalendarProps = {
-  activeCalendar: string;
   title: string;
   description?: string;
-  setActiveCalendar: React.Dispatch<React.SetStateAction<string>>;
   setAddPopup: React.Dispatch<React.SetStateAction<boolean>>;
-  currentDate: Date;
-  setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   count: number;
   activeView: string;
   setActiveView: React.Dispatch<React.SetStateAction<string>>;
@@ -21,13 +17,9 @@ type TitleCalendarProps = {
 };
 
 const TitleCalendar = ({
-  activeCalendar,
   title,
   description,
-  setActiveCalendar,
   setAddPopup,
-  currentDate,
-  setCurrentDate,
   count,
   activeView,
   setActiveView,
@@ -35,10 +27,6 @@ const TitleCalendar = ({
   actionBeforeAdd,
   viewOptions = ['calendar', 'board', 'list'],
 }: TitleCalendarProps) => {
-  void activeCalendar;
-  void setActiveCalendar;
-  void currentDate;
-  void setCurrentDate;
   return (
     <div className="flex justify-between items-center w-full flex-wrap gap-3">
       <div className="flex flex-col gap-1">

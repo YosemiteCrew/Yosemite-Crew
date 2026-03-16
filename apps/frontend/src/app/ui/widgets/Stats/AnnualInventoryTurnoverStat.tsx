@@ -18,7 +18,7 @@ const AnnualInventoryTurnoverStat = () => {
 
   const trend = turnover.trend;
   const start = trend[0];
-  const end = trend[trend.length - 1];
+  const end = trend.at(-1);
 
   return (
     <div className="flex flex-col gap-2">

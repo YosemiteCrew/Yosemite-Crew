@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
@@ -56,6 +56,102 @@ const quickLinks: Array<{ module: SearchModule; title: string; href: string }> =
 const getParentName = (firstName?: string, lastName?: string) =>
   [firstName, lastName].filter(Boolean).join(' ').trim() || 'Unknown';
 
+const getNextResultIndex = (activeIndex: number, resultCount: number, direction: 1 | -1) => {
+  const safeCount = Math.max(resultCount, 1);
+  return (activeIndex + direction + safeCount) % safeCount;
+};
+
+const buildSearchItems = (
+  appointments: ReturnType<typeof useAppointmentsForPrimaryOrg>,
+  tasks: ReturnType<typeof useTasksForPrimaryOrg>,
+  companions: ReturnType<typeof useCompanionsParentsForPrimaryOrg>,
+  forms: Array<Record<string, any>>,
+  inventory: Array<Record<string, any>>,
+  invoices: ReturnType<typeof useInvoicesForPrimaryOrg>
+): SearchItem[] => {
+  const moduleItems: SearchItem[] = [];
+
+  appointments.forEach((appointment) => {
+    const appointmentId = String(appointment.id ?? '').trim();
+    if (!appointmentId) return;
+    moduleItems.push({
+      id: `appointments:${appointmentId}`,
+      module: 'appointments',
+      title: appointment.companion.name || 'Appointment',
+      subtitle: `${appointment.status} • ${appointment.concern || 'No concern'} • ${appointmentId}`,
+      keywords: `${appointment.companion.name} ${appointment.companion.parent?.name || ''} ${appointment.status || ''} ${appointment.concern || ''} ${appointmentId}`,
+      href: `/appointments?appointmentId=${encodeURIComponent(appointmentId)}&open=details`,
+    });
+  });
+
+  tasks.forEach((task) => {
+    const taskId = String(task._id ?? '').trim();
+    if (!taskId) return;
+    moduleItems.push({
+      id: `tasks:${taskId}`,
+      module: 'tasks',
+      title: task.name || 'Task',
+      subtitle: `${task.status || 'UNKNOWN'} • ${task.category || 'General'} • ${taskId}`,
+      keywords: `${task.name || ''} ${task.description || ''} ${task.status || ''} ${task.category || ''} ${taskId}`,
+      href: `/tasks?taskId=${encodeURIComponent(taskId)}`,
+    });
+  });
+
+  companions.forEach((companionParent) => {
+    const companionId = String(companionParent.companion.id ?? '').trim();
+    if (!companionId) return;
+    moduleItems.push({
+      id: `companions:${companionId}`,
+      module: 'companions',
+      title: companionParent.companion.name || 'Companion',
+      subtitle: `${companionParent.companion.type || 'Unknown species'} • Parent: ${getParentName(companionParent.parent.firstName, companionParent.parent.lastName)} • ${companionId}`,
+      keywords: `${companionParent.companion.name || ''} ${getParentName(companionParent.parent.firstName, companionParent.parent.lastName)} ${companionParent.companion.type || ''} ${companionParent.companion.status || ''} ${companionId}`,
+      href: `/companions?companionId=${encodeURIComponent(companionId)}`,
+    });
+  });
+
+  forms.forEach((form) => {
+    const formId = String(form?._id ?? '').trim();
+    if (!formId) return;
+    moduleItems.push({
+      id: `forms:${formId}`,
+      module: 'forms',
+      title: form.name || 'Form',
+      subtitle: `${form.category || 'Custom'} • ${form.status || 'Draft'} • ${formId}`,
+      keywords: `${form.name || ''} ${form.description || ''} ${form.category || ''} ${form.status || ''} ${formId}`,
+      href: `/forms?formId=${encodeURIComponent(formId)}`,
+    });
+  });
+
+  inventory.forEach((item) => {
+    const inventoryId = String(item.id ?? '').trim();
+    if (!inventoryId) return;
+    moduleItems.push({
+      id: `inventory:${inventoryId}`,
+      module: 'inventory',
+      title: item.basicInfo.name || 'Inventory item',
+      subtitle: `${item.basicInfo.category || 'Uncategorized'} • ${item.status || 'ACTIVE'} • ${inventoryId}`,
+      keywords: `${item.basicInfo.name || ''} ${item.basicInfo.description || ''} ${item.basicInfo.category || ''} ${item.status || ''} ${inventoryId}`,
+      href: `/inventory?inventoryId=${encodeURIComponent(inventoryId)}`,
+    });
+  });
+
+  invoices.forEach((invoice) => {
+    const invoiceId = String(invoice.id ?? '').trim();
+    if (!invoiceId) return;
+    moduleItems.push({
+      id: `finance:${invoiceId}`,
+      module: 'finance',
+      title: `Invoice ${invoiceId}`,
+      subtitle: `${invoice.status || 'PENDING'} • Appointment ${invoice.appointmentId || '-'}`,
+      keywords: `${invoiceId} ${invoice.status || ''} ${invoice.appointmentId || ''}`,
+      href: `/finance?invoiceId=${encodeURIComponent(invoiceId)}`,
+    });
+  });
+
+  return moduleItems;
+};
+
 const UniversalSearchPalette = () => {
   const router = useRouter();
   const pathname = usePathname();
@@ -92,89 +188,10 @@ const UniversalSearchPalette = () => {
     return ids.map((id) => inventoryById[id]).filter(Boolean);
   }, [primaryOrgId, inventoryIdsByOrgId, inventoryById]);
 
-  const items = useMemo<SearchItem[]>(() => {
-    const moduleItems: SearchItem[] = [];
-
-    for (const appointment of appointments) {
-      const appointmentId = String(appointment.id ?? '').trim();
-      if (!appointmentId) continue;
-      moduleItems.push({
-        id: `appointments:${appointmentId}`,
-        module: 'appointments',
-        title: appointment.companion.name || 'Appointment',
-        subtitle: `${appointment.status} • ${appointment.concern || 'No concern'} • ${appointmentId}`,
-        keywords: `${appointment.companion.name} ${appointment.companion.parent?.name || ''} ${appointment.status || ''} ${appointment.concern || ''} ${appointmentId}`,
-        href: `/appointments?appointmentId=${encodeURIComponent(appointmentId)}&open=details`,
-      });
-    }
-
-    for (const task of tasks) {
-      const taskId = String(task._id ?? '').trim();
-      if (!taskId) continue;
-      moduleItems.push({
-        id: `tasks:${taskId}`,
-        module: 'tasks',
-        title: task.name || 'Task',
-        subtitle: `${task.status || 'UNKNOWN'} • ${task.category || 'General'} • ${taskId}`,
-        keywords: `${task.name || ''} ${task.description || ''} ${task.status || ''} ${task.category || ''} ${taskId}`,
-        href: `/tasks?taskId=${encodeURIComponent(taskId)}`,
-      });
-    }
-
-    for (const companionParent of companions) {
-      const companionId = String(companionParent.companion.id ?? '').trim();
-      if (!companionId) continue;
-      moduleItems.push({
-        id: `companions:${companionId}`,
-        module: 'companions',
-        title: companionParent.companion.name || 'Companion',
-        subtitle: `${companionParent.companion.type || 'Unknown species'} • Parent: ${getParentName(companionParent.parent.firstName, companionParent.parent.lastName)} • ${companionId}`,
-        keywords: `${companionParent.companion.name || ''} ${getParentName(companionParent.parent.firstName, companionParent.parent.lastName)} ${companionParent.companion.type || ''} ${companionParent.companion.status || ''} ${companionId}`,
-        href: `/companions?companionId=${encodeURIComponent(companionId)}`,
-      });
-    }
-
-    for (const form of forms) {
-      const formId = String(form?._id ?? '').trim();
-      if (!formId) continue;
-      moduleItems.push({
-        id: `forms:${formId}`,
-        module: 'forms',
-        title: form.name || 'Form',
-        subtitle: `${form.category || 'Custom'} • ${form.status || 'Draft'} • ${formId}`,
-        keywords: `${form.name || ''} ${form.description || ''} ${form.category || ''} ${form.status || ''} ${formId}`,
-        href: `/forms?formId=${encodeURIComponent(formId)}`,
-      });
-    }
-
-    for (const item of inventory) {
-      const inventoryId = String(item.id ?? '').trim();
-      if (!inventoryId) continue;
-      moduleItems.push({
-        id: `inventory:${inventoryId}`,
-        module: 'inventory',
-        title: item.basicInfo.name || 'Inventory item',
-        subtitle: `${item.basicInfo.category || 'Uncategorized'} • ${item.status || 'ACTIVE'} • ${inventoryId}`,
-        keywords: `${item.basicInfo.name || ''} ${item.basicInfo.description || ''} ${item.basicInfo.category || ''} ${item.status || ''} ${inventoryId}`,
-        href: `/inventory?inventoryId=${encodeURIComponent(inventoryId)}`,
-      });
-    }
-
-    for (const invoice of invoices) {
-      const invoiceId = String(invoice.id ?? '').trim();
-      if (!invoiceId) continue;
-      moduleItems.push({
-        id: `finance:${invoiceId}`,
-        module: 'finance',
-        title: `Invoice ${invoiceId}`,
-        subtitle: `${invoice.status || 'PENDING'} • Appointment ${invoice.appointmentId || '-'}`,
-        keywords: `${invoiceId} ${invoice.status || ''} ${invoice.appointmentId || ''}`,
-        href: `/finance?invoiceId=${encodeURIComponent(invoiceId)}`,
-      });
-    }
-
-    return moduleItems;
-  }, [appointments, tasks, companions, forms, inventory, invoices]);
+  const items = useMemo<SearchItem[]>(
+    () => buildSearchItems(appointments, tasks, companions, forms, inventory, invoices),
+    [appointments, tasks, companions, forms, inventory, invoices]
+  );
 
   const resultItems = useMemo<SearchItem[]>(() => {
     const q = query.trim().toLowerCase();
@@ -225,6 +242,18 @@ const UniversalSearchPalette = () => {
     return [...scored, ...idexxAction];
   }, [items, query, setHeaderSearchQuery]);
 
+  const selectItem = useCallback(
+    (item?: SearchItem) => {
+      if (!item) return;
+      item.onSelect?.();
+      close();
+      setQuery('');
+      startRouteLoader();
+      router.push(item.href);
+    },
+    [close, router]
+  );
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase();
@@ -246,33 +275,25 @@ const UniversalSearchPalette = () => {
 
       if (event.key === 'ArrowDown') {
         event.preventDefault();
-        setActiveIndex((prev) => (prev + 1) % Math.max(resultItems.length, 1));
+        setActiveIndex((prev) => getNextResultIndex(prev, resultItems.length, 1));
         return;
       }
 
       if (event.key === 'ArrowUp') {
         event.preventDefault();
-        setActiveIndex(
-          (prev) => (prev - 1 + Math.max(resultItems.length, 1)) % Math.max(resultItems.length, 1)
-        );
+        setActiveIndex((prev) => getNextResultIndex(prev, resultItems.length, -1));
         return;
       }
 
-      if (event.key === 'Enter' && resultItems[activeIndex]) {
+      if (event.key === 'Enter') {
         event.preventDefault();
-        const selected = resultItems[activeIndex];
-        selected.onSelect?.();
-        close();
-        setQuery('');
-        startRouteLoader();
-        router.push(selected.href);
-        return;
+        selectItem(resultItems[activeIndex]);
       }
     };
 
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [activeIndex, close, isOpen, open, resultItems, router]);
+  }, [activeIndex, close, isOpen, open, resultItems, selectItem]);
 
   useEffect(() => {
     close();
@@ -308,14 +329,14 @@ const UniversalSearchPalette = () => {
   if (!isOpen || globalThis.document === undefined) return null;
 
   return createPortal(
-    <div
-      className="fixed inset-0 z-[1200] bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.25),_rgba(48,47,46,0.45))] backdrop-blur-[8px] p-2 sm:p-6"
-      onClick={close}
-    >
-      <div
-        className="mx-auto mt-2 sm:mt-8 w-full max-w-2xl overflow-hidden rounded-2xl! border border-white/40 bg-white/68 shadow-[0_24px_70px_rgba(29,28,27,0.24)] backdrop-blur-xl"
-        onClick={(event) => event.stopPropagation()}
-      >
+    <div className="fixed inset-0 z-[1200] bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.25),_rgba(48,47,46,0.45))] backdrop-blur-[8px] p-2 sm:p-6">
+      <button
+        type="button"
+        aria-label="Close universal search"
+        className="absolute inset-0"
+        onClick={close}
+      />
+      <section className="mx-auto mt-2 sm:mt-8 w-full max-w-2xl overflow-hidden rounded-2xl! border border-white/40 bg-white/68 shadow-[0_24px_70px_rgba(29,28,27,0.24)] backdrop-blur-xl">
         <div className="border-b border-white/55 bg-gradient-to-r from-brand-100/60 via-white/65 to-white/55 px-3 py-3 sm:px-4">
           <div className="flex items-center gap-2 rounded-2xl! border border-white/70 bg-white/72 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] backdrop-blur-md">
             <input
@@ -344,13 +365,7 @@ const UniversalSearchPalette = () => {
                     ref={isActive ? activeRowRef : null}
                     type="button"
                     onMouseEnter={() => setActiveIndex(index)}
-                    onClick={() => {
-                      item.onSelect?.();
-                      close();
-                      setQuery('');
-                      startRouteLoader();
-                      router.push(item.href);
-                    }}
+                    onClick={() => selectItem(item)}
                     className={`flex w-full min-h-[64px] items-center rounded-2xl! px-3 py-2.5 text-left transition-all duration-150 ${
                       isActive
                         ? 'border border-brand-500/35 bg-[linear-gradient(135deg,rgba(242,248,255,0.92),rgba(255,255,255,0.88))] shadow-[0_6px_18px_rgba(36,122,237,0.12)]'
@@ -378,7 +393,7 @@ const UniversalSearchPalette = () => {
             </div>
           )}
         </div>
-      </div>
+      </section>
     </div>,
     document.body
   );

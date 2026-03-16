@@ -76,7 +76,7 @@ const COUNTRY_CODE_TO_TIMEZONE: Record<string, string> = {
   TR: 'Europe/Istanbul',
 };
 
-const hasWindow = () => typeof globalThis.window !== 'undefined';
+const hasWindow = () => globalThis.window !== undefined;
 
 const parseManualOverrideMap = (): Record<string, boolean> => {
   if (!hasWindow()) return {};

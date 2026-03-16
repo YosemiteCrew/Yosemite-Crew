@@ -78,6 +78,15 @@ const resolveOrgRedirect = ({
   return null;
 };
 
+const shouldWaitForOrgGuardData = (
+  availabilityStatus: string,
+  specialityStatus: string,
+  profileStatus: string
+) =>
+  isStatusPending(availabilityStatus) ||
+  isStatusPending(specialityStatus) ||
+  isStatusPending(profileStatus);
+
 /**
  * Guard for org-scoped routes.
  *
@@ -152,11 +161,7 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
       setChecked(true);
       return;
     }
-    if (
-      isStatusPending(availabilityStatus) ||
-      isStatusPending(specialityStatus) ||
-      isStatusPending(profileStatus)
-    ) {
+    if (shouldWaitForOrgGuardData(availabilityStatus, specialityStatus, profileStatus)) {
       return;
     }
 
@@ -189,18 +194,15 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
     const shouldEvaluateLanding = pathname === '/dashboard' || pathname === '/appointments';
     const landingAppliedKey = `yc_default_landing_applied:${primaryOrgId}`;
     const isLandingAlreadyApplied =
-      typeof globalThis.window !== 'undefined' &&
-      globalThis.window.sessionStorage.getItem(landingAppliedKey) === '1';
+      globalThis.window?.sessionStorage.getItem(landingAppliedKey) === '1';
 
     if (shouldEvaluateLanding && preferredLanding !== pathname && !isLandingAlreadyApplied) {
-      if (typeof globalThis.window !== 'undefined') {
-        globalThis.window.sessionStorage.setItem(landingAppliedKey, '1');
-      }
+      globalThis.window?.sessionStorage.setItem(landingAppliedKey, '1');
       router.replace(preferredLanding);
       return;
     }
-    if (shouldEvaluateLanding && typeof globalThis.window !== 'undefined') {
-      globalThis.window.sessionStorage.setItem(landingAppliedKey, '1');
+    if (shouldEvaluateLanding) {
+      globalThis.window?.sessionStorage.setItem(landingAppliedKey, '1');
     }
 
     setChecked(true);

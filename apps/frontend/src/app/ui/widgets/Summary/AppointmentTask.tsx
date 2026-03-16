@@ -9,7 +9,7 @@ import { useTasksForPrimaryOrg } from '@/app/hooks/useTask';
 import './Summary.css';
 import { Appointment } from '@yosemite-crew/types';
 import AppoitmentInfo from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo';
-import { Task } from '@/app/features/tasks/types/task';
+import { Task, TaskStatusFilters } from '@/app/features/tasks/types/task';
 import TaskInfo from '@/app/features/tasks/pages/Tasks/Sections/TaskInfo';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { PERMISSIONS } from '@/app/lib/permissions';
@@ -19,7 +19,6 @@ import ChangeStatus from '@/app/features/appointments/pages/Appointments/Section
 import { AppointmentViewIntent } from '@/app/features/appointments';
 import ChangeRoom from '@/app/features/appointments/pages/Appointments/Sections/ChangeRoom';
 import { AppointmentStatusFiltersUI } from '@/app/features/appointments/types/appointments';
-import { TaskStatusFilters } from '@/app/features/tasks/types/task';
 
 const AppointmentTask = () => {
   const appointments = useAppointmentsForPrimaryOrg();
@@ -41,9 +40,7 @@ const AppointmentTask = () => {
     () => (activeTable === 'Appointments' ? AppointmentStatusFiltersUI : TaskStatusFilters),
     [activeTable]
   );
-  const [activeSubLabel, setActiveSubLabel] = useState(
-    activeTable === 'Appointments' ? 'all' : 'all'
-  );
+  const [activeSubLabel, setActiveSubLabel] = useState('all');
 
   useEffect(() => {
     if (!viewPopup) {
@@ -87,38 +84,24 @@ const AppointmentTask = () => {
   }, [tasks]);
 
   useEffect(() => {
-    if (activeTable === 'Appointments') {
-      setActiveSubLabel('all');
-    } else {
-      setActiveSubLabel('all');
-    }
+    setActiveSubLabel('all');
   }, [activeTable]);
 
   const filteredList = useMemo(() => {
-    if (activeTable === 'Appointments') {
-      if (activeSubLabel === 'all') {
-        return appointments;
-      }
-      const wanted = activeSubLabel.toLowerCase();
-      return appointments.filter((item) => {
-        const s = item.status?.toLowerCase();
-        return s === wanted || (wanted === 'requested' && s === 'no_payment');
-      });
-    }
-    return [];
+    if (activeTable !== 'Appointments') return [];
+    if (activeSubLabel === 'all') return appointments;
+
+    const wanted = activeSubLabel.toLowerCase();
+    return appointments.filter((item) => {
+      const status = item.status?.toLowerCase();
+      return status === wanted || (wanted === 'requested' && status === 'no_payment');
+    });
   }, [appointments, activeTable, activeSubLabel]);
 
   const filteredTaskList = useMemo(() => {
-    if (activeTable === 'Tasks') {
-      if (activeSubLabel === 'all') {
-        return tasks;
-      }
-      return tasks.filter((item) => {
-        const matchesStatus = item.status.toLowerCase() === activeSubLabel.toLowerCase();
-        return matchesStatus;
-      });
-    }
-    return [];
+    if (activeTable !== 'Tasks') return [];
+    if (activeSubLabel === 'all') return tasks;
+    return tasks.filter((item) => item.status.toLowerCase() === activeSubLabel.toLowerCase());
   }, [tasks, activeTable, activeSubLabel]);
 
   return (

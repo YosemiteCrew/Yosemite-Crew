@@ -2,7 +2,7 @@ const DEFAULT_APPOINTMENTS_VIEW_STORAGE_KEY = 'yc_default_appointments_view';
 
 export type DefaultAppointmentsView = 'calendar' | 'board' | 'list';
 
-const hasWindow = () => typeof globalThis.window !== 'undefined';
+const hasWindow = () => globalThis.window !== undefined;
 
 const isValidView = (value?: string | null): value is DefaultAppointmentsView =>
   value === 'calendar' || value === 'board' || value === 'list';

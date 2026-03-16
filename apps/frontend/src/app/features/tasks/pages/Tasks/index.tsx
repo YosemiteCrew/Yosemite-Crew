@@ -13,8 +13,7 @@ import TaskCalendar from '@/app/features/appointments/components/Calendar/TaskCa
 import TaskBoard from '@/app/features/tasks/components/TaskBoard';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import { useTasksForPrimaryOrg } from '@/app/hooks/useTask';
-import { Task, TaskFilters, TaskStatusFilters } from '@/app/features/tasks/types/task';
-import { TaskStatus } from '@/app/features/tasks/types/task';
+import { Task, TaskFilters, TaskStatus, TaskStatusFilters } from '@/app/features/tasks/types/task';
 import { useSearchStore } from '@/app/stores/searchStore';
 import Filters from '@/app/ui/filters/Filters';
 import { usePermissions } from '@/app/hooks/usePermissions';
@@ -107,20 +106,71 @@ const Tasks = () => {
     setAddPopup(true);
   }, []);
 
+  let plannerContent: React.ReactNode;
+  if (activeView === 'calendar') {
+    plannerContent = (
+      <TaskCalendar
+        filteredList={filteredList}
+        allTasks={tasks}
+        setActiveTask={setActiveTask}
+        setViewPopup={setViewPopup}
+        setChangeStatusPopup={setChangeStatusPopup}
+        setChangeStatusPreferredStatus={setChangeStatusPreferredStatus}
+        setReschedulePopup={setReschedulePopup}
+        activeCalendar={activeCalendar}
+        setActiveCalendar={setActiveCalendar}
+        currentDate={currentDate}
+        setCurrentDate={setCurrentDate}
+        weekStart={weekStart}
+        setWeekStart={setWeekStart}
+        canEditTasks={canEditTasks}
+        onCreateFromCalendarSlot={handleCreateFromCalendarSlot}
+      />
+    );
+  } else if (activeView === 'board') {
+    plannerContent = (
+      <TaskBoard
+        tasks={filteredList}
+        currentDate={currentDate}
+        setCurrentDate={setCurrentDate}
+        canEditTasks={canEditTasks}
+        setActiveTask={setActiveTask}
+        setViewPopup={setViewPopup}
+        setChangeStatusPopup={setChangeStatusPopup}
+        setChangeStatusPreferredStatus={setChangeStatusPreferredStatus}
+        setReschedulePopup={setReschedulePopup}
+        onAddTask={() => {
+          setAddTaskPrefill(null);
+          setAddPopup(true);
+        }}
+      />
+    );
+  } else {
+    plannerContent = (
+      <div className="h-full min-h-0 overflow-hidden">
+        <TasksTable
+          filteredList={filteredList}
+          setActiveTask={setActiveTask}
+          setViewPopup={setViewPopup}
+          setChangeStatusPopup={setChangeStatusPopup}
+          setChangeStatusPreferredStatus={setChangeStatusPreferredStatus}
+          setReschedulePopup={setReschedulePopup}
+          canEditTasks={canEditTasks}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col relative">
       <div className="flex flex-col gap-6 px-3! pt-3! pb-2! sm:px-12! lg:px-[60px]! sm:py-12!">
         <TitleCalendar
-          activeCalendar={activeCalendar}
           title="Tasks"
           description="Track to-dos with calendar views, assign pet parents and due dates, and open each task to review details and update status."
-          setActiveCalendar={setActiveCalendar}
           setAddPopup={(next) => {
             setAddTaskPrefill(null);
             setAddPopup(next);
           }}
-          currentDate={currentDate}
-          setCurrentDate={setCurrentDate}
           count={tasks.length}
           activeView={activeView}
           setActiveView={setActiveView}
@@ -153,53 +203,7 @@ const Tasks = () => {
                   : 'w-full h-[calc(100vh-200px)] sm:h-[calc(100vh-220px)] min-h-[620px] max-h-[calc(100vh-200px)] sm:max-h-[calc(100vh-220px)]'
               }
             >
-              {activeView === 'calendar' ? (
-                <TaskCalendar
-                  filteredList={filteredList}
-                  allTasks={tasks}
-                  setActiveTask={setActiveTask}
-                  setViewPopup={setViewPopup}
-                  setChangeStatusPopup={setChangeStatusPopup}
-                  setChangeStatusPreferredStatus={setChangeStatusPreferredStatus}
-                  setReschedulePopup={setReschedulePopup}
-                  activeCalendar={activeCalendar}
-                  setActiveCalendar={setActiveCalendar}
-                  currentDate={currentDate}
-                  setCurrentDate={setCurrentDate}
-                  weekStart={weekStart}
-                  setWeekStart={setWeekStart}
-                  canEditTasks={canEditTasks}
-                  onCreateFromCalendarSlot={handleCreateFromCalendarSlot}
-                />
-              ) : activeView === 'board' ? (
-                <TaskBoard
-                  tasks={filteredList}
-                  currentDate={currentDate}
-                  setCurrentDate={setCurrentDate}
-                  canEditTasks={canEditTasks}
-                  setActiveTask={setActiveTask}
-                  setViewPopup={setViewPopup}
-                  setChangeStatusPopup={setChangeStatusPopup}
-                  setChangeStatusPreferredStatus={setChangeStatusPreferredStatus}
-                  setReschedulePopup={setReschedulePopup}
-                  onAddTask={() => {
-                    setAddTaskPrefill(null);
-                    setAddPopup(true);
-                  }}
-                />
-              ) : (
-                <div className="h-full min-h-0 overflow-hidden">
-                  <TasksTable
-                    filteredList={filteredList}
-                    setActiveTask={setActiveTask}
-                    setViewPopup={setViewPopup}
-                    setChangeStatusPopup={setChangeStatusPopup}
-                    setChangeStatusPreferredStatus={setChangeStatusPreferredStatus}
-                    setReschedulePopup={setReschedulePopup}
-                    canEditTasks={canEditTasks}
-                  />
-                </div>
-              )}
+              {plannerContent}
             </div>
           </div>
 

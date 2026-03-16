@@ -99,14 +99,16 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
         const appointment = getAppointmentByIdFromList(appointments, item.appointmentId);
         const companionName = getCompanionName(item.appointmentId);
         const parentName = getParentName(item.appointmentId);
-        const ownerAndCompanion =
-          parentName !== '-' && companionName !== '-'
-            ? `${parentName} / ${companionName}`
-            : parentName !== '-'
-              ? parentName
-              : companionName !== '-'
-                ? companionName
-                : '-';
+        let ownerAndCompanion = '-';
+        if (parentName !== '-' && companionName !== '-') {
+          ownerAndCompanion = `${parentName} / ${companionName}`;
+        } else if (parentName === '-') {
+          if (companionName !== '-') {
+            ownerAndCompanion = companionName;
+          }
+        } else {
+          ownerAndCompanion = parentName;
+        }
         return (
           <div className="appointment-profile truncate">
             <div className="appointment-profile-two">

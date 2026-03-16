@@ -100,8 +100,14 @@ const Appointments = () => {
     const subLabelRaw = String(searchParams.get('subLabel') ?? '').trim();
     if (!appointmentId) return;
 
-    const subLabel =
-      subLabelRaw || (open === 'finance' ? 'summary' : open === 'labs' ? 'idexx-labs' : '');
+    let subLabel = subLabelRaw;
+    if (!subLabel) {
+      if (open === 'finance') {
+        subLabel = 'summary';
+      } else if (open === 'labs') {
+        subLabel = 'idexx-labs';
+      }
+    }
 
     const deepLinkKey = `${appointmentId}:${open || 'details'}:${subLabel}`;
     if (handledDeepLinkRef.current === deepLinkKey) return;
@@ -123,7 +129,7 @@ const Appointments = () => {
 
   useEffect(() => {
     if (activeView === 'list') return;
-    if (typeof globalThis.window === 'undefined') return;
+    if (globalThis.window === undefined) return;
 
     lastScrollYRef.current = globalThis.window.scrollY;
 
@@ -178,8 +184,9 @@ const Appointments = () => {
     });
   }, [appointments, activeStatus, activeFilter, query, activeView]);
 
-  const plannerContent =
-    activeView === 'calendar' ? (
+  let plannerContent: React.ReactNode;
+  if (activeView === 'calendar') {
+    plannerContent = (
       <AppointmentCalendar
         filteredList={filteredList}
         allAppointments={appointments}
@@ -206,7 +213,9 @@ const Appointments = () => {
           setAddPopup(true);
         }}
       />
-    ) : activeView === 'board' ? (
+    );
+  } else if (activeView === 'board') {
+    plannerContent = (
       <AppointmentBoard
         appointments={filteredList}
         currentDate={currentDate}
@@ -224,7 +233,9 @@ const Appointments = () => {
           setAddPopup(true);
         }}
       />
-    ) : (
+    );
+  } else {
+    plannerContent = (
       <div className="h-full min-h-0 overflow-hidden">
         <AppointmentsTable
           filteredList={filteredList}
@@ -239,18 +250,15 @@ const Appointments = () => {
         />
       </div>
     );
+  }
 
   return (
     <div className="flex flex-col relative min-w-0">
       <div className="flex flex-col gap-6 px-3! py-3! sm:px-12! lg:px-[60px]! sm:pt-12! sm:pb-0!">
         <TitleCalendar
-          activeCalendar={activeCalendar}
           title="Appointments"
           description="Schedule and manage appointments across day, week, and team views, then drill into tasks, chat, and billing details for each visit."
-          setActiveCalendar={setActiveCalendar}
           setAddPopup={setAddPopup}
-          currentDate={currentDate}
-          setCurrentDate={setCurrentDate}
           count={appointments.length}
           activeView={activeView}
           setActiveView={setActiveView}

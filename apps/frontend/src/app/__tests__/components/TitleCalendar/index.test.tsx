@@ -23,13 +23,9 @@ describe('TitleCalendar', () => {
 
     render(
       <TitleCalendar
-        activeCalendar="day"
         title="Appointments"
         description="Daily schedule"
-        setActiveCalendar={jest.fn()}
         setAddPopup={setAddPopup}
-        currentDate={new Date('2025-01-06T00:00:00Z')}
-        setCurrentDate={jest.fn()}
         count={3}
         activeView="calendar"
         setActiveView={jest.fn()}
@@ -50,12 +46,8 @@ describe('TitleCalendar', () => {
 
     render(
       <TitleCalendar
-        activeCalendar="day"
         title="Appointments"
-        setActiveCalendar={jest.fn()}
         setAddPopup={jest.fn()}
-        currentDate={new Date('2025-01-06T00:00:00Z')}
-        setCurrentDate={jest.fn()}
         count={3}
         activeView="calendar"
         setActiveView={setActiveView}
@@ -78,12 +70,8 @@ describe('TitleCalendar', () => {
 
     render(
       <TitleCalendar
-        activeCalendar="day"
         title="Tasks"
-        setActiveCalendar={jest.fn()}
         setAddPopup={jest.fn()}
-        currentDate={new Date('2025-01-06T00:00:00Z')}
-        setCurrentDate={jest.fn()}
         count={2}
         activeView="calendar"
         setActiveView={setActiveView}

@@ -1,6 +1,6 @@
 import { AppointmentStatus } from '@/app/features/appointments/types/appointments';
 
-type AppointmentStatusLike = AppointmentStatus | string | null | undefined;
+type AppointmentStatusLike = string | null | undefined;
 
 export const isRequestedLikeStatus = (status?: AppointmentStatusLike) => {
   return status === 'REQUESTED' || status === 'NO_PAYMENT';

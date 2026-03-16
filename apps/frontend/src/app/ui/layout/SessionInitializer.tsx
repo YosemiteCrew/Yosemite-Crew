@@ -14,6 +14,75 @@ import {
   rewriteCompanionTerminologyText,
 } from '@/app/lib/companionTerminology';
 
+const TERMINOLOGY_ATTRIBUTES = ['placeholder', 'title', 'aria-label'] as const;
+
+const createTerminologyRewriter = (primaryOrgId?: string | null) => {
+  const getActiveTerminology = () => {
+    const orgState = useOrgStore.getState();
+    const activeOrgId = orgState.primaryOrgId || primaryOrgId;
+    const activeOrgType = activeOrgId ? orgState.orgsById[activeOrgId]?.type : undefined;
+    return getCompanionTerminologyForOrg(activeOrgId, activeOrgType);
+  };
+
+  const isInsideTerminologyLock = (node: Node | null) => {
+    if (!node) return false;
+    const element = node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
+    return Boolean(element?.closest("[data-terminology-lock='true']"));
+  };
+
+  const rewriteTextNode = (node: Text) => {
+    if (isInsideTerminologyLock(node)) return;
+    const next = rewriteCompanionTerminologyText(node.nodeValue ?? '', getActiveTerminology());
+    if (next !== node.nodeValue) {
+      node.nodeValue = next;
+    }
+  };
+
+  const rewriteElementAttributes = (element: Element) => {
+    if (isInsideTerminologyLock(element)) return;
+    TERMINOLOGY_ATTRIBUTES.forEach((attr) => {
+      const current = element.getAttribute(attr);
+      if (!current) return;
+      const next = rewriteCompanionTerminologyText(current, getActiveTerminology());
+      if (next !== current) {
+        element.setAttribute(attr, next);
+      }
+    });
+  };
+
+  const rewriteNode = (node: Node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      rewriteTextNode(node as Text);
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+    const element = node as Element;
+    if (element.tagName === 'SCRIPT' || element.tagName === 'STYLE') return;
+    if (isInsideTerminologyLock(element)) return;
+    rewriteElementAttributes(element);
+
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    let current = walker.nextNode();
+    while (current) {
+      rewriteTextNode(current as Text);
+      current = walker.nextNode();
+    }
+  };
+
+  const handleMutations = (mutations: MutationRecord[]) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === 'characterData' && mutation.target.nodeType === Node.TEXT_NODE) {
+        rewriteTextNode(mutation.target as Text);
+        return;
+      }
+      mutation.addedNodes.forEach((added) => rewriteNode(added));
+    });
+  };
+
+  return { rewriteNode, handleMutations };
+};
+
 const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
   useLoadOrg();
   useLoadProfiles();
@@ -33,78 +102,18 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
     if (typeof document === 'undefined') return;
     const root = document.body;
     if (!root) return;
-    const getActiveTerminology = () => {
-      const orgState = useOrgStore.getState();
-      const activeOrgId = orgState.primaryOrgId || primaryOrgId;
-      const activeOrgType = activeOrgId ? orgState.orgsById[activeOrgId]?.type : undefined;
-      return getCompanionTerminologyForOrg(activeOrgId, activeOrgType);
-    };
-    const isInsideTerminologyLock = (node: Node | null) => {
-      if (!node) return false;
-      const element = node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
-      if (!element) return false;
-      return Boolean(element.closest("[data-terminology-lock='true']"));
-    };
-
-    const rewriteTextNode = (node: Text) => {
-      if (isInsideTerminologyLock(node)) return;
-      const next = rewriteCompanionTerminologyText(node.nodeValue ?? '', getActiveTerminology());
-      if (next !== node.nodeValue) {
-        node.nodeValue = next;
-      }
-    };
-
-    const rewriteElementAttributes = (element: Element) => {
-      if (isInsideTerminologyLock(element)) return;
-      const attrs = ['placeholder', 'title', 'aria-label'];
-      attrs.forEach((attr) => {
-        const current = element.getAttribute(attr);
-        if (!current) return;
-        const next = rewriteCompanionTerminologyText(current, getActiveTerminology());
-        if (next !== current) {
-          element.setAttribute(attr, next);
-        }
-      });
-    };
-
-    const rewriteNode = (node: Node) => {
-      if (node.nodeType === Node.TEXT_NODE) {
-        rewriteTextNode(node as Text);
-        return;
-      }
-      if (node.nodeType !== Node.ELEMENT_NODE) return;
-
-      const element = node as Element;
-      if (element.tagName === 'SCRIPT' || element.tagName === 'STYLE') return;
-      if (isInsideTerminologyLock(element)) return;
-      rewriteElementAttributes(element);
-
-      const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-      let current = walker.nextNode();
-      while (current) {
-        rewriteTextNode(current as Text);
-        current = walker.nextNode();
-      }
-    };
+    const { rewriteNode, handleMutations } = createTerminologyRewriter(primaryOrgId);
 
     rewriteNode(root);
 
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === 'characterData' && mutation.target.nodeType === Node.TEXT_NODE) {
-          rewriteTextNode(mutation.target as Text);
-          return;
-        }
-        mutation.addedNodes.forEach((added) => rewriteNode(added));
-      });
-    });
+    const observer = new MutationObserver(handleMutations);
 
     observer.observe(root, {
       subtree: true,
       childList: true,
       characterData: true,
       attributes: true,
-      attributeFilter: ['placeholder', 'title', 'aria-label'],
+      attributeFilter: [...TERMINOLOGY_ATTRIBUTES],
     });
 
     const handleTerminologyChange = () => {

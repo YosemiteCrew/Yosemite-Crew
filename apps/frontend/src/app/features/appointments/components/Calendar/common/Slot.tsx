@@ -430,25 +430,24 @@ const Slot: React.FC<SlotProps> = ({
           if (nearest == null) return;
           onAppointmentDropAt(dropDate, nearest, dropPractitionerId);
         }}
-        onClick={(event) => {
-          if (!dropDate || !onCreateAppointmentAt || draggedAppointmentId) return;
-          if ((event.target as HTMLElement).closest('button')) return;
-          const minute = getMinuteFromSlotPointer(
-            event.clientY,
-            event.currentTarget as HTMLDivElement
-          );
-          onCreateAppointmentAt(dropDate, Math.round(minute / 5) * 5, dropPractitionerId);
-        }}
-        onDoubleClick={(event) => {
-          if (!dropDate || !onCreateAppointmentAt || draggedAppointmentId) return;
-          if ((event.target as HTMLElement).closest('button')) return;
-          const minute = getMinuteFromSlotPointer(
-            event.clientY,
-            event.currentTarget as HTMLDivElement
-          );
-          onCreateAppointmentAt(dropDate, Math.round(minute / 5) * 5, dropPractitionerId);
-        }}
       >
+        {dropDate && onCreateAppointmentAt && !draggedAppointmentId ? (
+          <button
+            type="button"
+            aria-label="Create appointment in this calendar slot"
+            className="absolute inset-0 z-[1] rounded-none!"
+            onClick={(event) => {
+              const parent = event.currentTarget.parentElement as HTMLDivElement;
+              const minute = getMinuteFromSlotPointer(event.clientY, parent);
+              onCreateAppointmentAt(dropDate, Math.round(minute / 5) * 5, dropPractitionerId);
+            }}
+            onDoubleClick={(event) => {
+              const parent = event.currentTarget.parentElement as HTMLDivElement;
+              const minute = getMinuteFromSlotPointer(event.clientY, parent);
+              onCreateAppointmentAt(dropDate, Math.round(minute / 5) * 5, dropPractitionerId);
+            }}
+          />
+        ) : null}
         {draggedAppointmentId &&
           availabilitySegments.map((segment, index) => (
             <div

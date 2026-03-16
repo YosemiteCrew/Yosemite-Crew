@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import { Task, TaskStatus } from '@/app/features/tasks/types/task';
 import { getStatusStyle } from '@/app/config/statusConfig';
@@ -130,27 +130,24 @@ const TaskCard = ({
   onDragStart,
   onDragEnd,
 }: TaskCardProps) => (
-  <div
-    key={task._id}
-    role="button"
-    tabIndex={0}
-    className={`w-full min-h-[112px] shrink-0 rounded-2xl! overflow-hidden border border-card-border bg-gradient-to-b from-white to-card-hover px-3 py-2.5 text-left transition-colors flex flex-col items-stretch justify-start ${
+  <article
+    aria-label={`Open task ${task.name || '-'}`}
+    className={`relative w-full min-h-[112px] shrink-0 rounded-2xl! overflow-hidden border border-card-border bg-gradient-to-b from-white to-card-hover px-3 py-2.5 text-left transition-colors flex flex-col items-stretch justify-start ${
       draggedTaskId === (task._id ?? null)
         ? 'opacity-60 shadow-none'
         : 'hover:border-input-border-active! hover:bg-card-hover!'
     }`}
-    onClick={() => onOpen(task)}
-    onKeyDown={(event) => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        onOpen(task);
-      }
-    }}
     draggable={canEditTasks && canShowTaskStatusChangeAction(task.status)}
     onDragStart={(event) => onDragStart(event, task)}
     onDragEnd={onDragEnd}
   >
-    <div className="flex items-start justify-between gap-2">
+    <button
+      type="button"
+      aria-label={`Open task ${task.name || '-'}`}
+      className="absolute inset-0 rounded-2xl!"
+      onClick={() => onOpen(task)}
+    />
+    <div className="relative z-10 flex items-start justify-between gap-2">
       <div className="truncate text-[12px] leading-4 font-semibold text-text-primary">
         {task.name || '-'}
       </div>
@@ -162,7 +159,7 @@ const TaskCard = ({
       </div>
     </div>
 
-    <div className="mt-1.5 grid grid-cols-1 gap-1">
+    <div className="relative z-10 mt-1.5 grid grid-cols-1 gap-1">
       {getTaskQuickDetails(task)
         .slice(0, 2)
         .map((item) => (
@@ -200,7 +197,7 @@ const TaskCard = ({
       ))}
     </div>
 
-    <div className="mt-1.5 rounded-xl border border-card-border bg-white/80 px-2 py-1">
+    <div className="relative z-10 mt-1.5 rounded-xl border border-card-border bg-white/80 px-2 py-1">
       <div className="flex items-center justify-between gap-2">
         <span className="text-[10px] text-text-secondary">Due</span>
         <span className="text-[10px] text-text-primary">
@@ -217,7 +214,7 @@ const TaskCard = ({
         </span>
       </div>
     </div>
-    <div className="mt-1.5 flex items-center gap-1.5 flex-wrap max-w-[168px]">
+    <div className="relative z-10 mt-1.5 flex items-center gap-1.5 flex-wrap max-w-[168px]">
       <GlassTooltip content="View task" side="bottom">
         <button
           type="button"
@@ -264,9 +261,9 @@ const TaskCard = ({
     </div>
 
     {updatingStatusId === task._id && (
-      <div className="mt-1 text-[10px] text-text-secondary">Updating...</div>
+      <div className="relative z-10 mt-1 text-[10px] text-text-secondary">Updating...</div>
     )}
-  </div>
+  </article>
 );
 
 type TaskBoardProps = {
@@ -303,6 +300,9 @@ const TaskBoard = ({
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const [showMineOnly, setShowMineOnly] = useState(false);
+  const boardRootRef = useRef<HTMLDivElement | null>(null);
+  const columnDropRefs = useRef<Partial<Record<BoardStatus, HTMLDivElement | null>>>({});
+  const columnScrollRefs = useRef<Partial<Record<BoardStatus, HTMLDivElement | null>>>({});
 
   const buildDragPreview = (source: HTMLElement): HTMLElement => {
     const preview = source.cloneNode(true) as HTMLElement;
@@ -468,52 +468,122 @@ const TaskBoard = ({
     return false;
   };
 
-  const autoScrollBoardOnDrag = (
-    event: React.DragEvent<HTMLElement>,
-    innerScrollable?: HTMLElement | null
-  ) => {
-    const innerRect = innerScrollable?.getBoundingClientRect();
-    const deltaInnerY = innerRect
-      ? getEdgeScrollDelta(event.clientY, innerRect.top, innerRect.bottom)
-      : 0;
-    if (innerScrollable && deltaInnerY !== 0 && canScrollVertically(innerScrollable, deltaInnerY)) {
-      innerScrollable.scrollBy({ top: deltaInnerY });
-      return;
-    }
+  const autoScrollBoardOnDrag = useCallback(
+    (event: React.DragEvent<HTMLElement>, innerScrollable?: HTMLElement | null) => {
+      const innerRect = innerScrollable?.getBoundingClientRect();
+      const deltaInnerY = innerRect
+        ? getEdgeScrollDelta(event.clientY, innerRect.top, innerRect.bottom)
+        : 0;
+      if (
+        innerScrollable &&
+        deltaInnerY !== 0 &&
+        canScrollVertically(innerScrollable, deltaInnerY)
+      ) {
+        innerScrollable.scrollBy({ top: deltaInnerY });
+        return;
+      }
 
-    const boardRoot =
-      event.currentTarget.closest<HTMLElement>('[data-board-scroll-root="true"]') ??
-      event.currentTarget;
-    const boardRect = boardRoot.getBoundingClientRect();
-    const deltaBoardX = getEdgeScrollDelta(event.clientX, boardRect.left, boardRect.right);
-    if (deltaBoardX !== 0 && canScrollHorizontally(boardRoot, deltaBoardX)) {
-      boardRoot.scrollBy({ left: deltaBoardX });
-    }
-  };
+      const boardRoot =
+        event.currentTarget.closest<HTMLElement>('[data-board-scroll-root="true"]') ??
+        event.currentTarget;
+      const boardRect = boardRoot.getBoundingClientRect();
+      const deltaBoardX = getEdgeScrollDelta(event.clientX, boardRect.left, boardRect.right);
+      if (deltaBoardX !== 0 && canScrollHorizontally(boardRoot, deltaBoardX)) {
+        boardRoot.scrollBy({ left: deltaBoardX });
+      }
+    },
+    []
+  );
 
-  const moveToStatus = async (taskId: string, nextStatus: BoardStatus) => {
-    const task = todayTasks.find((item) => item._id === taskId);
-    if (!task?._id) return;
-    if (task.status === nextStatus) return;
-    if (!canEditTasks) return;
-    if (!canTransitionTaskStatus(task.status, nextStatus)) {
-      notify('warning', {
-        title: 'Status change blocked',
-        text: getInvalidTaskStatusTransitionMessage(task.status, nextStatus),
-      });
-      return;
-    }
+  const moveToStatus = useCallback(
+    async (taskId: string, nextStatus: BoardStatus) => {
+      const task = todayTasks.find((item) => item._id === taskId);
+      if (!task?._id) return;
+      if (task.status === nextStatus) return;
+      if (!canEditTasks) return;
+      if (!canTransitionTaskStatus(task.status, nextStatus)) {
+        notify('warning', {
+          title: 'Status change blocked',
+          text: getInvalidTaskStatusTransitionMessage(task.status, nextStatus),
+        });
+        return;
+      }
 
-    try {
-      setUpdatingStatusId(task._id);
-      await changeTaskStatus({
-        ...task,
-        status: nextStatus,
-      });
-    } finally {
-      setUpdatingStatusId(null);
-    }
-  };
+      try {
+        setUpdatingStatusId(task._id);
+        await changeTaskStatus({
+          ...task,
+          status: nextStatus,
+        });
+      } finally {
+        setUpdatingStatusId(null);
+      }
+    },
+    [canEditTasks, notify, todayTasks]
+  );
+
+  const handleTaskCardDragStart = useCallback((event: React.DragEvent<HTMLElement>, task: Task) => {
+    setDraggedTaskId(task._id ?? null);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', task._id ?? '');
+    const preview = buildDragPreview(event.currentTarget);
+    event.dataTransfer.setDragImage(preview, 24, 24);
+    requestAnimationFrame(() => {
+      preview.remove();
+    });
+  }, []);
+
+  useEffect(() => {
+    const boardRoot = boardRootRef.current;
+    if (!boardRoot) return;
+
+    const handleBoardDragOver = (event: DragEvent) => {
+      if (!draggedTaskId || !canEditTasks) return;
+      autoScrollBoardOnDrag(event as unknown as React.DragEvent<HTMLElement>);
+    };
+
+    boardRoot.addEventListener('dragover', handleBoardDragOver);
+    return () => boardRoot.removeEventListener('dragover', handleBoardDragOver);
+  }, [autoScrollBoardOnDrag, canEditTasks, draggedTaskId]);
+
+  useEffect(() => {
+    const cleanups = BOARD_COLUMNS.flatMap((column) => {
+      const dropElement = columnDropRefs.current[column.key];
+      const scrollElement = columnScrollRefs.current[column.key];
+      if (!dropElement || !scrollElement) return [];
+
+      const handleColumnDragOver = (event: DragEvent) => {
+        if (!draggedTaskId || !canEditTasks) return;
+        event.preventDefault();
+        autoScrollBoardOnDrag(event as unknown as React.DragEvent<HTMLElement>);
+      };
+
+      const handleColumnDrop = (event: DragEvent) => {
+        if (!draggedTaskId || !canEditTasks) return;
+        event.preventDefault();
+        void moveToStatus(draggedTaskId, column.key);
+        setDraggedTaskId(null);
+      };
+
+      const handleScrollDragOver = (event: DragEvent) => {
+        if (!draggedTaskId || !canEditTasks) return;
+        event.preventDefault();
+        autoScrollBoardOnDrag(event as unknown as React.DragEvent<HTMLElement>, scrollElement);
+      };
+
+      dropElement.addEventListener('dragover', handleColumnDragOver);
+      dropElement.addEventListener('drop', handleColumnDrop);
+      scrollElement.addEventListener('dragover', handleScrollDragOver);
+
+      return [
+        () => dropElement.removeEventListener('dragover', handleColumnDragOver),
+        () => dropElement.removeEventListener('drop', handleColumnDrop),
+        () => scrollElement.removeEventListener('dragover', handleScrollDragOver),
+      ];
+    });
+
+    return () => cleanups.forEach((cleanup) => cleanup());
+  }, [autoScrollBoardOnDrag, canEditTasks, draggedTaskId, moveToStatus]);
 
   return (
     <div className="h-full min-h-0 rounded-2xl border border-grey-light bg-white overflow-hidden flex flex-col">
@@ -574,13 +644,10 @@ const TaskBoard = ({
       </div>
 
       <div
+        ref={boardRootRef}
         className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden p-3"
         data-calendar-scroll="true"
         data-board-scroll-root="true"
-        onDragOver={(event) => {
-          if (!draggedTaskId || !canEditTasks) return;
-          autoScrollBoardOnDrag(event);
-        }}
       >
         <div className="h-full min-w-max flex items-stretch gap-3">
           {BOARD_COLUMNS.map((column) => {
@@ -590,18 +657,10 @@ const TaskBoard = ({
             return (
               <div
                 key={column.key}
+                ref={(element) => {
+                  columnDropRefs.current[column.key] = element;
+                }}
                 className="w-[320px] min-w-[320px] max-w-[320px] h-full rounded-2xl border border-card-border bg-white overflow-hidden flex flex-col min-h-0"
-                onDragOver={(event) => {
-                  if (!draggedTaskId || !canEditTasks) return;
-                  event.preventDefault();
-                  autoScrollBoardOnDrag(event);
-                }}
-                onDrop={(event) => {
-                  if (!draggedTaskId || !canEditTasks) return;
-                  event.preventDefault();
-                  void moveToStatus(draggedTaskId, column.key);
-                  setDraggedTaskId(null);
-                }}
               >
                 <div
                   className="rounded-t-2xl border-b border-card-border px-3 py-2"
@@ -615,13 +674,11 @@ const TaskBoard = ({
                   </div>
                 </div>
                 <div
+                  ref={(element) => {
+                    columnScrollRefs.current[column.key] = element;
+                  }}
                   className="flex-1 min-h-0 h-0 flex flex-col gap-2 p-3 pb-4 bg-white overflow-y-auto"
                   data-calendar-scroll="true"
-                  onDragOver={(event) => {
-                    if (!draggedTaskId || !canEditTasks) return;
-                    event.preventDefault();
-                    autoScrollBoardOnDrag(event, event.currentTarget);
-                  }}
                 >
                   {columnTasks.map((task) => (
                     <TaskCard
@@ -637,16 +694,7 @@ const TaskBoard = ({
                       onOpen={openTask}
                       onChangeStatus={openChangeStatus}
                       onReschedule={openReschedule}
-                      onDragStart={(event, t) => {
-                        setDraggedTaskId(t._id ?? null);
-                        event.dataTransfer.effectAllowed = 'move';
-                        event.dataTransfer.setData('text/plain', t._id ?? '');
-                        const preview = buildDragPreview(event.currentTarget);
-                        event.dataTransfer.setDragImage(preview, 24, 24);
-                        requestAnimationFrame(() => {
-                          preview.remove();
-                        });
-                      }}
+                      onDragStart={handleTaskCardDragStart}
                       onDragEnd={() => setDraggedTaskId(null)}
                     />
                   ))}

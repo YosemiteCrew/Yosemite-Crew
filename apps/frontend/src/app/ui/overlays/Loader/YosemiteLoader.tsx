@@ -17,12 +17,12 @@ const YosemiteLoader: React.FC<YosemiteLoaderProps> = ({
   size = 80,
   testId,
 }) => {
-  const variantClass =
-    variant === 'fullscreen'
-      ? 'yosemite-loader--fullscreen'
-      : variant === 'fullscreen-translucent'
-        ? 'yosemite-loader--fullscreen-translucent'
-        : 'yosemite-loader--inline';
+  let variantClass = 'yosemite-loader--inline';
+  if (variant === 'fullscreen') {
+    variantClass = 'yosemite-loader--fullscreen';
+  } else if (variant === 'fullscreen-translucent') {
+    variantClass = 'yosemite-loader--fullscreen-translucent';
+  }
 
   return (
     <output className={`yosemite-loader ${variantClass}`} aria-live="polite" data-testid={testId}>

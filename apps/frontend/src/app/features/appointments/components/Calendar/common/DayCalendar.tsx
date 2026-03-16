@@ -419,6 +419,12 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
     return bestMatch.minute;
   };
 
+  const createAppointmentAtMinute = (clientY: number, container: HTMLDivElement) => {
+    if (!onCreateAppointmentAt || draggedAppointmentId) return;
+    const minute = getMinuteFromTimelinePointer(clientY, container);
+    onCreateAppointmentAt(date, Math.round(minute / 5) * 5);
+  };
+
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between px-2 py-2 border-b border-grey-light">
@@ -513,25 +519,26 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
             if (nearest == null) return;
             onAppointmentDropAt(date, nearest);
           }}
-          onClick={(event) => {
-            if (!onCreateAppointmentAt || draggedAppointmentId) return;
-            if ((event.target as HTMLElement).closest('button')) return;
-            const minute = getMinuteFromTimelinePointer(
-              event.clientY,
-              event.currentTarget as HTMLDivElement
-            );
-            onCreateAppointmentAt(date, Math.round(minute / 5) * 5);
-          }}
-          onDoubleClick={(event) => {
-            if (!onCreateAppointmentAt || draggedAppointmentId) return;
-            if ((event.target as HTMLElement).closest('button')) return;
-            const minute = getMinuteFromTimelinePointer(
-              event.clientY,
-              event.currentTarget as HTMLDivElement
-            );
-            onCreateAppointmentAt(date, Math.round(minute / 5) * 5);
-          }}
         >
+          {onCreateAppointmentAt && !draggedAppointmentId ? (
+            <button
+              type="button"
+              aria-label="Create appointment in this calendar day"
+              className="absolute inset-0 z-[1] rounded-none!"
+              onClick={(event) =>
+                createAppointmentAtMinute(
+                  event.clientY,
+                  event.currentTarget.parentElement as HTMLDivElement
+                )
+              }
+              onDoubleClick={(event) =>
+                createAppointmentAtMinute(
+                  event.clientY,
+                  event.currentTarget.parentElement as HTMLDivElement
+                )
+              }
+            />
+          ) : null}
           <TimeLabels
             windowStart={windowStart}
             windowEnd={windowEnd}

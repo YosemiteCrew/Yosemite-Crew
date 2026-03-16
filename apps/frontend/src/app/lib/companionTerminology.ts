@@ -26,7 +26,7 @@ const TERM_FORMS: Record<CompanionTerminologyOption, CompanionTermForms> = {
 const SINGULAR_PATTERN = /\b(pet|animal|companion|patient)\b/gi;
 const PLURAL_PATTERN = /\b(pets|animals|companions|patients)\b/gi;
 
-const hasWindow = () => typeof globalThis.window !== 'undefined';
+const hasWindow = () => globalThis.window !== undefined;
 
 const normalizeOrgId = (orgId?: string | null) => String(orgId ?? '').trim();
 const normalizeOrgType = (orgType?: string | null) =>
@@ -45,7 +45,7 @@ const matchCase = (source: string, target: string) => {
   if (!source) return target;
   if (source === source.toUpperCase()) return target.toUpperCase();
   const startsUpper =
-    source[0] === source[0].toUpperCase() && source.slice(1) === source.slice(1).toLowerCase();
+    source.startsWith(source[0].toUpperCase()) && source.slice(1) === source.slice(1).toLowerCase();
   if (startsUpper) {
     return target.charAt(0).toUpperCase() + target.slice(1);
   }

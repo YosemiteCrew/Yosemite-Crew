@@ -53,6 +53,13 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
   const [timeSlots, setTimeSlots] = useState<Slot[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [pendingPrefill, setPendingPrefill] = useState<AppointmentDraftPrefill | null>(null);
+  const getNextSelectedSlot = (availableSlots: Slot[], previousSlot: Slot | null) => {
+    if (!previousSlot) return availableSlots[0] ?? null;
+    const matchingSlot = availableSlots.find(
+      (slot) => slot.startTime === previousSlot.startTime && slot.endTime === previousSlot.endTime
+    );
+    return matchingSlot ?? availableSlots[0] ?? null;
+  };
 
   const ServiceFields = useMemo(
     () => [
@@ -116,19 +123,13 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
       return;
     }
     let cancelled = false;
-    (async () => {
+    const loadTimeSlots = async () => {
       try {
         const slots = await getSlotsForServiceAndDateForPrimaryOrg(appointmentTypeId, selectedDate);
         if (cancelled) return;
         const availableSlots = filterOutPastSlotsForSelectedDate(slots, selectedDate);
         setTimeSlots(availableSlots);
-        setSelectedSlot((prev) => {
-          if (!prev) return availableSlots[0] ?? null;
-          const stillExists = availableSlots.find(
-            (slot) => slot.startTime === prev.startTime && slot.endTime === prev.endTime
-          );
-          return stillExists ?? availableSlots[0] ?? null;
-        });
+        setSelectedSlot((prev) => getNextSelectedSlot(availableSlots, prev));
       } catch (err) {
         console.log(err);
         if (!cancelled) {
@@ -136,7 +137,8 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
           setSelectedSlot(null);
         }
       }
-    })();
+    };
+    loadTimeSlots().catch(() => undefined);
     return () => {
       cancelled = true;
     };

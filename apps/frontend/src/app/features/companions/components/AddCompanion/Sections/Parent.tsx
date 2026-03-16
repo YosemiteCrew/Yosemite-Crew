@@ -128,7 +128,7 @@ const Parent = forwardRef<ParentSectionRef, ParentProps>(
     };
 
     const handlePhoneChange = (value: string) => {
-      const sanitized = value.replace(/[^\d+\-()\s]/g, '').slice(0, 20);
+      const sanitized = value.replaceAll(/[^\d+\-()\s]/g, '').slice(0, 20);
       setFormData({ ...formData, phoneNumber: sanitized });
     };
 

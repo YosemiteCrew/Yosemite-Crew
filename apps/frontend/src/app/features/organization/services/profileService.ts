@@ -15,7 +15,7 @@ const syncProfileTimezoneToLocalDevice = async (
   orgId: string,
   profile: UserProfile
 ): Promise<UserProfile> => {
-  if (typeof globalThis.window === 'undefined') return profile;
+  if (globalThis.window === undefined) return profile;
   const syncMode = getTimezoneSyncModeForOrg(orgId);
   if (syncMode === 'custom') {
     const profileTimeZone = parseTimezoneFromProfileValue(profile.personalDetails?.timezone);

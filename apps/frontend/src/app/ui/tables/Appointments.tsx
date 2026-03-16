@@ -100,9 +100,7 @@ const Appointments = ({
 
   const handleChangeStatusAppointment = (appointment: Appointment) => {
     setActiveAppointment?.(appointment);
-    setChangeStatusPreferredStatus?.(
-      getPreferredNextAppointmentStatus(appointment.status as AppointmentStatus | string)
-    );
+    setChangeStatusPreferredStatus?.(getPreferredNextAppointmentStatus(appointment.status));
     setChangeStatusPopup?.(true);
   };
 

@@ -2,7 +2,7 @@ const DEFAULT_OPEN_SCREEN_STORAGE_KEY = 'yc_default_open_screen';
 
 export type DefaultOpenScreenRoute = '/dashboard' | '/appointments';
 
-const hasWindow = () => typeof window !== 'undefined';
+const hasWindow = () => globalThis.window !== undefined;
 
 const normalizeRole = (role?: string | null) =>
   String(role ?? '')
@@ -22,7 +22,7 @@ const isValidRoute = (value?: string | null): value is DefaultOpenScreenRoute =>
 export const getSavedDefaultOpenScreenRoute = (): DefaultOpenScreenRoute | null => {
   if (!hasWindow()) return null;
   try {
-    const saved = window.localStorage.getItem(DEFAULT_OPEN_SCREEN_STORAGE_KEY);
+    const saved = globalThis.window.localStorage.getItem(DEFAULT_OPEN_SCREEN_STORAGE_KEY);
     return isValidRoute(saved) ? saved : null;
   } catch {
     return null;
@@ -33,13 +33,13 @@ export const setSavedDefaultOpenScreenRoute = (route: DefaultOpenScreenRoute | n
   if (!hasWindow()) return false;
   try {
     if (route == null) {
-      window.localStorage.removeItem(DEFAULT_OPEN_SCREEN_STORAGE_KEY);
+      globalThis.window.localStorage.removeItem(DEFAULT_OPEN_SCREEN_STORAGE_KEY);
     } else if (isValidRoute(route)) {
-      window.localStorage.setItem(DEFAULT_OPEN_SCREEN_STORAGE_KEY, route);
+      globalThis.window.localStorage.setItem(DEFAULT_OPEN_SCREEN_STORAGE_KEY, route);
     } else {
       return false;
     }
-    window.dispatchEvent(
+    globalThis.window.dispatchEvent(
       new CustomEvent('yc:default-open-screen-changed', {
         detail: { route },
       })

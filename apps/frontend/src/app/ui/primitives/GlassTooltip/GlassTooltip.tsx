@@ -38,24 +38,25 @@ const GlassTooltip = ({ content, children, side = 'top', className = '' }: Glass
 
     let top = 0;
     let left = 0;
-    let transform = 'translate(-50%, -100%)';
+    const transformBySide: Record<TooltipSide, string> = {
+      top: 'translate(-50%, -100%)',
+      right: 'translate(0, -50%)',
+      bottom: 'translate(-50%, 0)',
+      left: 'translate(-100%, -50%)',
+    };
 
     if (side === 'right') {
       top = rect.top + rect.height / 2;
       left = rect.right + gap;
-      transform = 'translate(0, -50%)';
     } else if (side === 'left') {
       top = rect.top + rect.height / 2;
       left = rect.left - gap;
-      transform = 'translate(-100%, -50%)';
     } else if (side === 'bottom') {
       top = rect.bottom + gap;
       left = rect.left + rect.width / 2;
-      transform = 'translate(-50%, 0)';
     } else {
       top = rect.top - gap;
       left = rect.left + rect.width / 2;
-      transform = 'translate(-50%, -100%)';
     }
 
     const maxLeft = globalThis.window.innerWidth - bubbleRect.width - viewportPadding;
@@ -66,7 +67,7 @@ const GlassTooltip = ({ content, children, side = 'top', className = '' }: Glass
     const minTop = viewportPadding;
     top = Math.max(minTop, Math.min(top, maxTop));
 
-    setPosition({ top, left, transform });
+    setPosition({ top, left, transform: transformBySide[side] });
   }, [side]);
 
   useEffect(() => {
@@ -82,18 +83,31 @@ const GlassTooltip = ({ content, children, side = 'top', className = '' }: Glass
     };
   }, [open, updatePosition]);
 
+  useEffect(() => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+
+    const openTooltip = () => setOpen(true);
+    const closeTooltip = (event?: FocusEvent) => {
+      if (event && trigger.contains(event.relatedTarget as Node | null)) return;
+      setOpen(false);
+    };
+
+    trigger.addEventListener('mouseenter', openTooltip);
+    trigger.addEventListener('mouseleave', closeTooltip);
+    trigger.addEventListener('focusin', openTooltip);
+    trigger.addEventListener('focusout', closeTooltip);
+
+    return () => {
+      trigger.removeEventListener('mouseenter', openTooltip);
+      trigger.removeEventListener('mouseleave', closeTooltip);
+      trigger.removeEventListener('focusin', openTooltip);
+      trigger.removeEventListener('focusout', closeTooltip);
+    };
+  }, []);
+
   return (
-    <div
-      ref={triggerRef}
-      className={`glass-tooltip relative inline-flex ${className}`}
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-      onFocusCapture={() => setOpen(true)}
-      onBlurCapture={(event) => {
-        if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
-        setOpen(false);
-      }}
-    >
+    <span ref={triggerRef} className={`glass-tooltip relative inline-flex ${className}`}>
       {children}
       {mounted && open
         ? createPortal(
@@ -112,7 +126,7 @@ const GlassTooltip = ({ content, children, side = 'top', className = '' }: Glass
             document.body
           )
         : null}
-    </div>
+    </span>
   );
 };
 
