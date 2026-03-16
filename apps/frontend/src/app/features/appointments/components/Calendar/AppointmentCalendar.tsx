@@ -682,9 +682,7 @@ const AppointmentCalendar = ({
       return;
     }
     setActiveAppointment?.(appointment);
-    setChangeStatusPreferredStatus?.(
-      getPreferredNextAppointmentStatus(appointment.status as AppointmentStatus)
-    );
+    setChangeStatusPreferredStatus?.(getPreferredNextAppointmentStatus(appointment.status));
     setChangeStatusPopup?.(true);
   };
 

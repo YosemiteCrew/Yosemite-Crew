@@ -209,9 +209,7 @@ const AppointmentBoard = ({
 
   const openChangeStatus = (appointment: Appointment) => {
     setActiveAppointment?.(appointment);
-    setChangeStatusPreferredStatus?.(
-      getPreferredNextAppointmentStatus(appointment.status as AppointmentStatus)
-    );
+    setChangeStatusPreferredStatus?.(getPreferredNextAppointmentStatus(appointment.status));
     setChangeStatusPopup?.(true);
   };
 

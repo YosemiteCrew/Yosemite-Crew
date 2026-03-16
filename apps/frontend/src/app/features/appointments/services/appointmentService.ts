@@ -243,7 +243,7 @@ export const changeAppointmentStatus = async (
   appointment: Appointment,
   nextStatus: AppointmentStatus
 ) => {
-  const currentStatus = appointment.status as AppointmentStatus;
+  const currentStatus = appointment.status;
   if (currentStatus === nextStatus) return appointment;
   if (!canTransitionAppointmentStatus(currentStatus, nextStatus)) {
     throw new Error(getInvalidAppointmentStatusTransitionMessage(currentStatus, nextStatus));

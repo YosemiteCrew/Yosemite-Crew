@@ -150,7 +150,7 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
     room: '',
     specialityId: '',
     serviceId: '',
-    status: '',
+    status: '' as AppointmentStatus | '',
     leadId: '',
     supportIds: [] as string[],
   });
@@ -417,9 +417,7 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
   };
 
   const canEditAppointments = canEditByStatus;
-  const canRescheduleByStatus = allowReschedule(
-    (activeAppointment.status as AppointmentStatus) ?? 'REQUESTED'
-  );
+  const canRescheduleByStatus = allowReschedule(activeAppointment.status ?? 'REQUESTED');
   const canAssignRoomByStatus = canAssignAppointmentRoom(activeAppointment.status);
   const canChangeStatusByStatus = canShowStatusChangeAction(activeAppointment.status);
 
@@ -502,8 +500,8 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
     };
 
     await updateAppointment(updatedAppointment);
-    const nextStatus = appointmentValues.status as AppointmentStatus;
-    const currentStatus = activeAppointment.status as AppointmentStatus;
+    const nextStatus = appointmentValues.status;
+    const currentStatus = activeAppointment.status;
     if (nextStatus && nextStatus !== currentStatus) {
       if (!canChangeStatusByStatus) {
         notify('warning', {
@@ -612,7 +610,10 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
                 <LabelDropdown
                   placeholder="Status"
                   onSelect={(option) =>
-                    setAppointmentValues((prev) => ({ ...prev, status: option.value }))
+                    setAppointmentValues((prev) => ({
+                      ...prev,
+                      status: option.value as AppointmentStatus,
+                    }))
                   }
                   defaultOption={appointmentValues.status}
                   options={allowedStatusOptions}
