@@ -376,12 +376,6 @@ export type PreferredTimeZoneDateParts = {
   minute: number;
 };
 
-const getLocalDateKey = (value: Date): string => {
-  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(
-    value.getDate()
-  ).padStart(2, '0')}`;
-};
-
 export const getDatePartsInPreferredTimeZone = (value: Date): PreferredTimeZoneDateParts => {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: getPreferredTimeZone(),
@@ -414,7 +408,7 @@ export const getDateKeyInPreferredTimeZone = (value: Date): string => {
 };
 
 export const isOnPreferredTimeZoneCalendarDay = (value: Date, calendarDay: Date): boolean => {
-  return getDateKeyInPreferredTimeZone(value) === getLocalDateKey(calendarDay);
+  return getDateKeyInPreferredTimeZone(value) === getDateKeyInPreferredTimeZone(calendarDay);
 };
 
 export const getMinutesSinceStartOfDayInPreferredTimeZone = (value: Date): number => {
@@ -464,13 +458,11 @@ const getOffsetMinutesForTimeZoneAtInstant = (timeZone: string, instant: Date): 
 };
 
 export const buildDateInPreferredTimeZone = (calendarDay: Date, minuteOfDay: number): Date => {
-  const year = calendarDay.getFullYear();
-  const month = calendarDay.getMonth();
-  const day = calendarDay.getDate();
+  const { year, month, day } = getDatePartsInPreferredTimeZone(calendarDay);
   const clampedMinute = Math.max(0, Math.min(24 * 60 - 1, Math.round(minuteOfDay)));
   const hour = Math.floor(clampedMinute / 60);
   const minute = clampedMinute % 60;
-  const naiveUtcMs = Date.UTC(year, month, day, hour, minute, 0, 0);
+  const naiveUtcMs = Date.UTC(year, month - 1, day, hour, minute, 0, 0);
   const timeZone = getPreferredTimeZone();
 
   let instant = new Date(naiveUtcMs);
