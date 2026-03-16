@@ -1,6 +1,7 @@
 import { getData } from '@/app/services/axios';
 
 export type DashboardRange = 'last_week' | 'last_month' | 'last_6_months' | 'last_1_year';
+export type DashboardBucket = 'day' | 'month';
 
 export type DashboardSummaryResponse = {
   revenue: number;
@@ -13,6 +14,7 @@ export type DashboardAppointmentTrendItem = {
   label: string;
   year: number;
   month: number;
+  day?: number | null;
   completed: number;
   cancelled: number;
 };
@@ -21,7 +23,10 @@ export type DashboardRevenueTrendItem = {
   label: string;
   year: number;
   month: number;
+  day?: number | null;
   revenue: number;
+  paidRevenue?: number | null;
+  cancelledRevenue?: number | null;
 };
 
 export type DashboardAppointmentLeaderItem = {
@@ -70,18 +75,26 @@ export const fetchDashboardSummary = async (organisationId: string, range: Dashb
   return res.data;
 };
 
-export const fetchDashboardAppointmentTrend = async (organisationId: string, months: number) => {
+export const fetchDashboardAppointmentTrend = async (
+  organisationId: string,
+  range: DashboardRange,
+  bucket: DashboardBucket
+) => {
   const res = await getData<DashboardAppointmentTrendItem[]>(
     `/v1/dashboard/appointments/${organisationId}/trend`,
-    stripEmpty({ months })
+    stripEmpty({ range, bucket })
   );
   return Array.isArray(res.data) ? res.data : [];
 };
 
-export const fetchDashboardRevenueTrend = async (organisationId: string, months: number) => {
+export const fetchDashboardRevenueTrend = async (
+  organisationId: string,
+  range: DashboardRange,
+  bucket: DashboardBucket
+) => {
   const res = await getData<DashboardRevenueTrendItem[]>(
     `/v1/dashboard/revenue/${organisationId}/trend`,
-    stripEmpty({ months })
+    stripEmpty({ range, bucket })
   );
   return Array.isArray(res.data) ? res.data : [];
 };

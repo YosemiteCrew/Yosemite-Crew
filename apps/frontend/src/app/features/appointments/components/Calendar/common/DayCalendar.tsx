@@ -425,6 +425,26 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
     onCreateAppointmentAt(date, Math.round(minute / 5) * 5);
   };
 
+  const createAppointmentAtOffset = (offsetY: number, container: HTMLDivElement) => {
+    if (!onCreateAppointmentAt || draggedAppointmentId) return;
+    const rect = container.getBoundingClientRect();
+    createAppointmentAtMinute(rect.top + offsetY, container);
+  };
+
+  const shouldIgnoreTimelineCreate = (target: EventTarget | null) =>
+    target instanceof HTMLElement && !!target.closest('button, a, input, textarea, select');
+
+  const handleTimelineCreate = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (shouldIgnoreTimelineCreate(event.target)) return;
+    createAppointmentAtMinute(event.clientY, event.currentTarget);
+  };
+
+  const handleTimelineKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    createAppointmentAtOffset(event.currentTarget.clientHeight / 2, event.currentTarget);
+  };
+
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between px-2 py-2 border-b border-grey-light">
@@ -485,11 +505,25 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
       >
         <div
           role="application"
-          tabIndex={-1}
+          tabIndex={onCreateAppointmentAt && !draggedAppointmentId ? 0 : -1}
+          aria-label={
+            onCreateAppointmentAt && !draggedAppointmentId
+              ? 'Create appointment in this calendar day'
+              : undefined
+          }
           className="grid grid-cols-[52px_1fr]"
           style={{
             height: totalHeightPx,
           }}
+          onClick={
+            onCreateAppointmentAt && !draggedAppointmentId ? handleTimelineCreate : undefined
+          }
+          onDoubleClick={
+            onCreateAppointmentAt && !draggedAppointmentId ? handleTimelineCreate : undefined
+          }
+          onKeyDown={
+            onCreateAppointmentAt && !draggedAppointmentId ? handleTimelineKeyDown : undefined
+          }
           onDragOver={(event) => {
             if (!draggedAppointmentId) return;
             event.preventDefault();
@@ -520,25 +554,6 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
             onAppointmentDropAt(date, nearest);
           }}
         >
-          {onCreateAppointmentAt && !draggedAppointmentId ? (
-            <button
-              type="button"
-              aria-label="Create appointment in this calendar day"
-              className="absolute inset-0 z-[1] rounded-none!"
-              onClick={(event) =>
-                createAppointmentAtMinute(
-                  event.clientY,
-                  event.currentTarget.parentElement as HTMLDivElement
-                )
-              }
-              onDoubleClick={(event) =>
-                createAppointmentAtMinute(
-                  event.clientY,
-                  event.currentTarget.parentElement as HTMLDivElement
-                )
-              }
-            />
-          ) : null}
           <TimeLabels
             windowStart={windowStart}
             windowEnd={windowEnd}

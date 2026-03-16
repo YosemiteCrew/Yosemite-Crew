@@ -1,5 +1,6 @@
-Total Duplicated Lines (%)
+Duplicated Lines (%)
 3.4%
+See history
 
 Duplicated Lines (%)
 Duplicated Lines
@@ -17,11 +18,11 @@ src/app/lib/specialities.ts
 54
 
 src/app/features/appointments/components/Calendar/common/Slot.tsx
-48.8%
+48.9%
 442
 
 src/app/features/appointments/components/Calendar/common/DayCalendar.tsx
-45.1%
+44.2%
 423
 
 src/app/ui/cards/VideosCard/VideosCard.tsx
@@ -45,7 +46,7 @@ src/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Tasks/
 24
 
 src/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/AppointmentMerckSearch.tsx
-25.4%
+24.4%
 118
 
 src/app/features/appointments/components/Calendar/Task/WeekCalendar.tsx
@@ -56,25 +57,25 @@ src/app/features/guides/pages/Guides.tsx
 20.9%
 58
 
+src/app/features/tasks/components/TaskBoard.tsx
+19.2%
+138
+
 src/app/features/forms/types/forms.ts
 19.1%
 192
 
 src/app/features/appointments/components/Calendar/AppointmentCalendar.tsx
-18.9%
-176
+18.2%
+171
 
 src/app/features/tasks/pages/Tasks/Sections/ChangeStatus.tsx
 17.9%
 24
 
-src/app/features/integrations/pages/MerckManuals/index.tsx
+src/app/features/appointments/components/AppointmentBoard.tsx
 17.7%
-118
-
-src/app/features/tasks/components/TaskBoard.tsx
-17.6%
-118
+137
 
 src/app/features/appointments/components/Calendar/Task/DayCalendar.tsx
 16.9%
@@ -84,12 +85,8 @@ src/app/features/appointments/pages/Appointments/Sections/ChangeStatus.tsx
 16.8%
 24
 
-src/app/features/appointments/components/AppointmentBoard.tsx
-16.7%
-117
-
 src/app/features/appointments/components/Calendar/Task/TaskSlot.tsx
-15.8%
+15.6%
 96
 
 src/app/features/appointments/components/Calendar/common/WeekCalendar.tsx
@@ -104,13 +101,13 @@ src/app/features/auth/pages/SignUp/SignUp.tsx
 14.4%
 55
 
+src/app/features/integrations/pages/MerckManuals/index.tsx
+13.8%
+118
+
 src/app/features/chat/services/chatService.ts
 13.6%
 42
-
-src/app/features/appointments/components/Calendar/TaskCalendar.tsx
-12.8%
-75
 
 src/app/features/appointments/pages/Appointments/Sections/Reschedule.tsx
 11.9%
@@ -167,6 +164,10 @@ src/app/features/appointments/pages/Appointments/Sections/AddAppointment/index.t
 src/app/features/forms/pages/Forms/Sections/AddForm/Build.tsx
 3.9%
 48
+
+src/app/features/appointments/components/Calendar/TaskCalendar.tsx
+3.9%
+32
 
 src/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Info/AppointmentInfo.tsx
 3.6%

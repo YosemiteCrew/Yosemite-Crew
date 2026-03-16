@@ -36,16 +36,30 @@ describe('dashboardService', () => {
   it('fetches appointment and revenue trends', async () => {
     mockedGetData
       .mockResolvedValueOnce({ data: [{ label: 'Jan', completed: 5, cancelled: 1 }] })
-      .mockResolvedValueOnce({ data: [{ label: 'Jan', revenue: 500 }] });
+      .mockResolvedValueOnce({ data: [{ label: 'Jan', revenue: 500 }] })
+      .mockResolvedValueOnce({ data: [{ label: 'Feb', completed: 8, cancelled: 2 }] })
+      .mockResolvedValueOnce({ data: [{ label: 'Feb', revenue: 650 }] });
 
-    const appointmentTrend = await fetchDashboardAppointmentTrend('org-1', 6);
-    const revenueTrend = await fetchDashboardRevenueTrend('org-1', 6);
+    const appointmentTrend = await fetchDashboardAppointmentTrend('org-1', 'last_week', 'day');
+    const revenueTrend = await fetchDashboardRevenueTrend('org-1', 'last_month', 'day');
+    await fetchDashboardAppointmentTrend('org-1', 'last_6_months', 'month');
+    await fetchDashboardRevenueTrend('org-1', 'last_1_year', 'month');
 
     expect(mockedGetData).toHaveBeenNthCalledWith(1, '/v1/dashboard/appointments/org-1/trend', {
-      months: 6,
+      range: 'last_week',
+      bucket: 'day',
     });
     expect(mockedGetData).toHaveBeenNthCalledWith(2, '/v1/dashboard/revenue/org-1/trend', {
-      months: 6,
+      range: 'last_month',
+      bucket: 'day',
+    });
+    expect(mockedGetData).toHaveBeenNthCalledWith(3, '/v1/dashboard/appointments/org-1/trend', {
+      range: 'last_6_months',
+      bucket: 'month',
+    });
+    expect(mockedGetData).toHaveBeenNthCalledWith(4, '/v1/dashboard/revenue/org-1/trend', {
+      range: 'last_1_year',
+      bucket: 'month',
     });
     expect(appointmentTrend).toEqual([{ label: 'Jan', completed: 5, cancelled: 1 }]);
     expect(revenueTrend).toEqual([{ label: 'Jan', revenue: 500 }]);

@@ -146,17 +146,15 @@ const CACHE_TTL_MS = 90 * 1000;
 const analyticsCache = new Map<string, { data: DashboardAnalyticsData; fetchedAt: number }>();
 const inflightRequests = new Map<string, Promise<DashboardAnalyticsData>>();
 
-const getMonthsForDuration = (duration: DashboardDuration): number => {
+const getBucketForDuration = (duration: DashboardDuration): 'day' | 'month' => {
   switch (duration) {
     case 'last_1_year':
-      return 12;
     case 'last_6_months':
-      return 6;
+      return 'month';
     case 'last_month':
-      return 1;
     case 'last_week':
     default:
-      return 1;
+      return 'day';
   }
 };
 
@@ -169,7 +167,7 @@ const fetchDashboardAnalyticsData = async (
   organisationId: string,
   duration: DashboardDuration
 ): Promise<DashboardAnalyticsData> => {
-  const months = getMonthsForDuration(duration);
+  const bucket = getBucketForDuration(duration);
   const currentYear = new Date().getFullYear();
 
   const [
@@ -182,8 +180,8 @@ const fetchDashboardAnalyticsData = async (
     inventoryProductsRes,
   ] = await Promise.allSettled([
     fetchDashboardSummary(organisationId, duration),
-    fetchDashboardAppointmentTrend(organisationId, months),
-    fetchDashboardRevenueTrend(organisationId, months),
+    fetchDashboardAppointmentTrend(organisationId, duration, bucket),
+    fetchDashboardRevenueTrend(organisationId, duration, bucket),
     fetchDashboardAppointmentLeaders(organisationId, duration, 5),
     fetchDashboardRevenueLeaders(organisationId, duration, 5),
     fetchDashboardInventoryTurnover(organisationId, currentYear, 8),
