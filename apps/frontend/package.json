@@ -10,7 +10,7 @@
     "type-check": "tsc --noEmit",
     "test": "jest",
     "e2e": "playwright test",
-    "e2e:ci": "E2E_WEB_SERVER_COMMAND='pnpm build && pnpm start -- --port 3001 --hostname 127.0.0.1' playwright test",
+    "e2e:ci": "E2E_WEB_SERVER_COMMAND='pnpm build && next start -p 3001 -H 127.0.0.1' playwright test",
     "e2e:headed": "playwright test --headed",
     "e2e:ui": "playwright test --ui"
   },
