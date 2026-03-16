@@ -60,6 +60,7 @@ jest.mock("../../src/models/organization.billing", () => ({
 jest.mock("src/config/prisma", () => ({
   prisma: {
     organizationBilling: {
+      findUnique: jest.fn(),
       findFirst: jest.fn(),
     },
     inventoryItem: {
@@ -228,7 +229,7 @@ describe("Inventory Service Suite", () => {
 
     it("creates an item using prisma when READ_FROM_POSTGRES is true", async () => {
       process.env.READ_FROM_POSTGRES = "true";
-      (prisma.organizationBilling.findFirst as jest.Mock).mockResolvedValue({
+      (prisma.organizationBilling.findUnique as jest.Mock).mockResolvedValue({
         currency: "eur",
       });
       (prisma.inventoryItem.create as jest.Mock).mockResolvedValue({
@@ -384,7 +385,7 @@ describe("Inventory Service Suite", () => {
         id: "item-1",
         organisationId: "org1",
       });
-      (prisma.organizationBilling.findFirst as jest.Mock).mockResolvedValue({
+      (prisma.organizationBilling.findUnique as jest.Mock).mockResolvedValue({
         currency: "usd",
       });
       (prisma.inventoryItem.update as jest.Mock).mockResolvedValue({
