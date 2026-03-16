@@ -22,8 +22,10 @@ import {
   AppointmentStatus,
   AppointmentStatusFiltersUI,
 } from '@/app/features/appointments/types/appointments';
-import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
-import { AppointmentDraftPrefill } from '@/app/features/appointments/types/calendar';
+import {
+  AppointmentViewIntent,
+  AppointmentDraftPrefill,
+} from '@/app/features/appointments/types/calendar';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
@@ -121,15 +123,15 @@ const Appointments = () => {
 
   useEffect(() => {
     if (activeView === 'list') return;
-    if (typeof window === 'undefined') return;
+    if (typeof globalThis.window === 'undefined') return;
 
-    lastScrollYRef.current = window.scrollY;
+    lastScrollYRef.current = globalThis.window.scrollY;
 
     const onScroll = () => {
       const section = plannerSectionRef.current;
       if (!section) return;
 
-      const currentY = window.scrollY;
+      const currentY = globalThis.window.scrollY;
       const isScrollingDown = currentY > lastScrollYRef.current;
       lastScrollYRef.current = currentY;
 
@@ -138,7 +140,7 @@ const Appointments = () => {
         isScrollingDown &&
         rect.top <= 140 &&
         rect.top >= -220 &&
-        rect.bottom > window.innerHeight * 0.55;
+        rect.bottom > globalThis.window.innerHeight * 0.55;
 
       if (shouldLockToSection && !plannerAutoLockRef.current) {
         plannerAutoLockRef.current = true;
@@ -151,8 +153,8 @@ const Appointments = () => {
       }
     };
 
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    globalThis.window.addEventListener('scroll', onScroll, { passive: true });
+    return () => globalThis.window.removeEventListener('scroll', onScroll);
   }, [activeView]);
 
   const filteredList = useMemo(() => {
@@ -175,6 +177,68 @@ const Appointments = () => {
       return matchesStatus && matchesFilter && matchesQuery;
     });
   }, [appointments, activeStatus, activeFilter, query, activeView]);
+
+  const plannerContent =
+    activeView === 'calendar' ? (
+      <AppointmentCalendar
+        filteredList={filteredList}
+        allAppointments={appointments}
+        setActiveAppointment={setActiveAppointment}
+        setViewPopup={setViewPopup}
+        setViewIntent={setViewIntent}
+        setChangeStatusPopup={setChangeStatusPopup}
+        setChangeStatusPreferredStatus={setChangeStatusPreferredStatus}
+        setChangeRoomPopup={setChangeRoomPopup}
+        activeCalendar={activeCalendar}
+        setActiveCalendar={setActiveCalendar}
+        currentDate={currentDate}
+        setCurrentDate={setCurrentDate}
+        weekStart={weekStart}
+        setWeekStart={setWeekStart}
+        setReschedulePopup={setReschedulePopup}
+        canEditAppointments={canEditAppointments}
+        onCreateFromCalendarSlot={(prefill) => {
+          setAddAppointmentPrefill(prefill);
+          setAddPopup(true);
+        }}
+        onAddAppointment={() => {
+          setAddAppointmentPrefill(null);
+          setAddPopup(true);
+        }}
+      />
+    ) : activeView === 'board' ? (
+      <AppointmentBoard
+        appointments={filteredList}
+        currentDate={currentDate}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments={canEditAppointments}
+        setActiveAppointment={setActiveAppointment}
+        setViewPopup={setViewPopup}
+        setViewIntent={setViewIntent}
+        setChangeStatusPopup={setChangeStatusPopup}
+        setChangeStatusPreferredStatus={setChangeStatusPreferredStatus}
+        setReschedulePopup={setReschedulePopup}
+        setChangeRoomPopup={setChangeRoomPopup}
+        onAddAppointment={() => {
+          setAddAppointmentPrefill(null);
+          setAddPopup(true);
+        }}
+      />
+    ) : (
+      <div className="h-full min-h-0 overflow-hidden">
+        <AppointmentsTable
+          filteredList={filteredList}
+          setActiveAppointment={setActiveAppointment}
+          setViewPopup={setViewPopup}
+          setViewIntent={setViewIntent}
+          setReschedulePopup={setReschedulePopup}
+          setChangeStatusPopup={setChangeStatusPopup}
+          setChangeStatusPreferredStatus={setChangeStatusPreferredStatus}
+          setChangeRoomPopup={setChangeRoomPopup}
+          canEditAppointments={canEditAppointments}
+        />
+      </div>
+    );
 
   return (
     <div className="flex flex-col relative min-w-0">
@@ -219,66 +283,7 @@ const Appointments = () => {
                   : 'w-full h-[calc(100vh-248px)] min-h-[588px] max-h-[calc(100vh-248px)] lg:sticky lg:top-2 lg:mb-3 lg:h-[calc(100dvh-105px)] lg:min-h-[calc(100dvh-105px)] lg:max-h-[calc(100dvh-105px)]'
               }
             >
-              {activeView === 'calendar' ? (
-                <AppointmentCalendar
-                  filteredList={filteredList}
-                  allAppointments={appointments}
-                  setActiveAppointment={setActiveAppointment}
-                  setViewPopup={setViewPopup}
-                  setViewIntent={setViewIntent}
-                  setChangeStatusPopup={setChangeStatusPopup}
-                  setChangeStatusPreferredStatus={setChangeStatusPreferredStatus}
-                  setChangeRoomPopup={setChangeRoomPopup}
-                  activeCalendar={activeCalendar}
-                  setActiveCalendar={setActiveCalendar}
-                  currentDate={currentDate}
-                  setCurrentDate={setCurrentDate}
-                  weekStart={weekStart}
-                  setWeekStart={setWeekStart}
-                  setReschedulePopup={setReschedulePopup}
-                  canEditAppointments={canEditAppointments}
-                  onCreateFromCalendarSlot={(prefill) => {
-                    setAddAppointmentPrefill(prefill);
-                    setAddPopup(true);
-                  }}
-                  onAddAppointment={() => {
-                    setAddAppointmentPrefill(null);
-                    setAddPopup(true);
-                  }}
-                />
-              ) : activeView === 'board' ? (
-                <AppointmentBoard
-                  appointments={filteredList}
-                  currentDate={currentDate}
-                  setCurrentDate={setCurrentDate}
-                  canEditAppointments={canEditAppointments}
-                  setActiveAppointment={setActiveAppointment}
-                  setViewPopup={setViewPopup}
-                  setViewIntent={setViewIntent}
-                  setChangeStatusPopup={setChangeStatusPopup}
-                  setChangeStatusPreferredStatus={setChangeStatusPreferredStatus}
-                  setReschedulePopup={setReschedulePopup}
-                  setChangeRoomPopup={setChangeRoomPopup}
-                  onAddAppointment={() => {
-                    setAddAppointmentPrefill(null);
-                    setAddPopup(true);
-                  }}
-                />
-              ) : (
-                <div className="h-full min-h-0 overflow-hidden">
-                  <AppointmentsTable
-                    filteredList={filteredList}
-                    setActiveAppointment={setActiveAppointment}
-                    setViewPopup={setViewPopup}
-                    setViewIntent={setViewIntent}
-                    setReschedulePopup={setReschedulePopup}
-                    setChangeStatusPopup={setChangeStatusPopup}
-                    setChangeStatusPreferredStatus={setChangeStatusPreferredStatus}
-                    setChangeRoomPopup={setChangeRoomPopup}
-                    canEditAppointments={canEditAppointments}
-                  />
-                </div>
-              )}
+              {plannerContent}
             </div>
           </div>
 

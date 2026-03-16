@@ -189,17 +189,18 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
     const shouldEvaluateLanding = pathname === '/dashboard' || pathname === '/appointments';
     const landingAppliedKey = `yc_default_landing_applied:${primaryOrgId}`;
     const isLandingAlreadyApplied =
-      typeof window !== 'undefined' && window.sessionStorage.getItem(landingAppliedKey) === '1';
+      typeof globalThis.window !== 'undefined' &&
+      globalThis.window.sessionStorage.getItem(landingAppliedKey) === '1';
 
     if (shouldEvaluateLanding && preferredLanding !== pathname && !isLandingAlreadyApplied) {
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(landingAppliedKey, '1');
+      if (typeof globalThis.window !== 'undefined') {
+        globalThis.window.sessionStorage.setItem(landingAppliedKey, '1');
       }
       router.replace(preferredLanding);
       return;
     }
-    if (shouldEvaluateLanding && typeof window !== 'undefined') {
-      window.sessionStorage.setItem(landingAppliedKey, '1');
+    if (shouldEvaluateLanding && typeof globalThis.window !== 'undefined') {
+      globalThis.window.sessionStorage.setItem(landingAppliedKey, '1');
     }
 
     setChecked(true);

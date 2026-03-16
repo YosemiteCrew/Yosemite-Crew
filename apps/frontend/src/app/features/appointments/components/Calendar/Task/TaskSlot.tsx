@@ -408,37 +408,8 @@ const TaskSlot = ({
                 height: markerHeight,
               }}
             >
-              <button
-                type="button"
-                className={`h-full w-full text-left ${
-                  isZoomOutMode
-                    ? 'rounded-full! overflow-hidden px-0 py-0 border border-transparent'
-                    : `rounded-2xl! overflow-hidden ${isCompact ? 'px-1.5 py-1' : 'px-2 py-1.5'} flex flex-col justify-between`
-                }`}
-                style={{
-                  ...getStatusStyle(task.status),
-                  borderColor: isZoomOutMode ? 'rgba(0,0,0,0.08)' : undefined,
-                  borderRadius: isZoomOutMode ? 9999 : 16,
-                }}
-                title={markerTitle}
-                onClick={() => handleViewTask(task)}
-                draggable={!!canDragTask?.(task)}
-                onMouseEnter={(event) =>
-                  openPopover(taskKey, event.currentTarget, event.clientX, event.clientY)
-                }
-                onMouseMove={(event) =>
-                  openPopover(taskKey, event.currentTarget, event.clientX, event.clientY)
-                }
-                onMouseLeave={schedulePopoverClose}
-                onFocus={(event) => openPopover(taskKey, event.currentTarget)}
-                onBlur={schedulePopoverClose}
-                onDragStart={() => onTaskDragStart?.(task)}
-                onDragEnd={() => {
-                  setDropPreviewMinute(null);
-                  onTaskDragEnd?.();
-                }}
-              >
-                {!isZoomOutMode ? (
+              {(() => {
+                const taskButtonContent = isZoomOutMode ? null : (
                   <>
                     <div
                       className={`text-caption-1 text-white truncate ${isCompact ? 'text-center' : ''}`}
@@ -451,8 +422,42 @@ const TaskSlot = ({
                       Due: {dueTimeLabel}
                     </div>
                   </>
-                ) : null}
-              </button>
+                );
+                return (
+                  <button
+                    type="button"
+                    className={`h-full w-full text-left ${
+                      isZoomOutMode
+                        ? 'rounded-full! overflow-hidden px-0 py-0 border border-transparent'
+                        : `rounded-2xl! overflow-hidden ${isCompact ? 'px-1.5 py-1' : 'px-2 py-1.5'} flex flex-col justify-between`
+                    }`}
+                    style={{
+                      ...getStatusStyle(task.status),
+                      borderColor: isZoomOutMode ? 'rgba(0,0,0,0.08)' : undefined,
+                      borderRadius: isZoomOutMode ? 9999 : 16,
+                    }}
+                    title={markerTitle}
+                    onClick={() => handleViewTask(task)}
+                    draggable={!!canDragTask?.(task)}
+                    onMouseEnter={(event) =>
+                      openPopover(taskKey, event.currentTarget, event.clientX, event.clientY)
+                    }
+                    onMouseMove={(event) =>
+                      openPopover(taskKey, event.currentTarget, event.clientX, event.clientY)
+                    }
+                    onMouseLeave={schedulePopoverClose}
+                    onFocus={(event) => openPopover(taskKey, event.currentTarget)}
+                    onBlur={schedulePopoverClose}
+                    onDragStart={() => onTaskDragStart?.(task)}
+                    onDragEnd={() => {
+                      setDropPreviewMinute(null);
+                      onTaskDragEnd?.();
+                    }}
+                  >
+                    {taskButtonContent}
+                  </button>
+                );
+              })()}
 
               <div
                 className={`absolute flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 ${

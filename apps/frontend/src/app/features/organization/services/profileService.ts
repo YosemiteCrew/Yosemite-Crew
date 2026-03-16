@@ -15,7 +15,7 @@ const syncProfileTimezoneToLocalDevice = async (
   orgId: string,
   profile: UserProfile
 ): Promise<UserProfile> => {
-  if (typeof window === 'undefined') return profile;
+  if (typeof globalThis.window === 'undefined') return profile;
   const syncMode = getTimezoneSyncModeForOrg(orgId);
   if (syncMode === 'custom') {
     const profileTimeZone = parseTimezoneFromProfileValue(profile.personalDetails?.timezone);
@@ -194,7 +194,7 @@ export const patchUserProfile = async (orgId: string, payload: PatchUserProfileP
         (existingData as { profile?: UserProfile }).profile ?? (existingData as UserProfile);
     }
     const nextProfile: UserProfile = {
-      ...(existing ?? {}),
+      ...(existing ?? undefined),
       organizationId: existing?.organizationId ?? orgId,
       personalDetails: {
         ...existing?.personalDetails,

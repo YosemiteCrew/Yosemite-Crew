@@ -72,7 +72,10 @@ const AddAppointment = ({
   const [activeStep, setActiveStep] = useState<number | null>(1);
   const [maxUnlockedStep, setMaxUnlockedStep] = useState(1);
   const [concernFocused, setConcernFocused] = useState(false);
-  const [, setConcernBlurred] = useState(false);
+  const concernBlurredRef = useRef(false);
+  const setConcernBlurred = (v: boolean) => {
+    concernBlurredRef.current = v;
+  };
   const [showAddCompanionModal, setShowAddCompanionModal] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 

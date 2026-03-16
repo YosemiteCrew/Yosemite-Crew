@@ -140,7 +140,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
       ),
     [visibleHourRange.endHour, visibleHourRange.startHour]
   );
-  const lastVisibleHour = visibleHours[visibleHours.length - 1] ?? visibleHourRange.endHour;
+  const lastVisibleHour = visibleHours.at(-1) ?? visibleHourRange.endHour;
 
   const nowPosition = useMemo(() => {
     if (!isOnPreferredTimeZoneCalendarDay(now, date)) return null;

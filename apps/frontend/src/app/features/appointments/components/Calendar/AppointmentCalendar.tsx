@@ -4,8 +4,10 @@ import Header from '@/app/features/appointments/components/Calendar/common/Heade
 import WeekCalendar from '@/app/features/appointments/components/Calendar/common/WeekCalendar';
 import { Appointment } from '@yosemite-crew/types';
 import UserCalendar from '@/app/features/appointments/components/Calendar/common/UserCalendar';
-import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
-import { AppointmentDraftPrefill } from '@/app/features/appointments/types/calendar';
+import {
+  AppointmentViewIntent,
+  AppointmentDraftPrefill,
+} from '@/app/features/appointments/types/calendar';
 import {
   allowCalendarDrag,
   canAssignAppointmentRoom,
@@ -147,7 +149,7 @@ const AppointmentCalendar = ({
   const getDayOfWeekKey = (date: Date) =>
     formatDateInPreferredTimeZone(date, { weekday: 'long' }).toUpperCase();
   const isAppointmentDraggable = (appointment: Appointment) =>
-    !!appointment.id && canEditAppointments && allowCalendarDrag(appointment.status as any);
+    !!appointment.id && canEditAppointments && allowCalendarDrag(appointment.status);
 
   const hasConflict = (
     moved: Appointment,
@@ -649,7 +651,7 @@ const AppointmentCalendar = ({
   };
 
   const handleRescheduleAppointment = (appointment: Appointment) => {
-    if (!allowCalendarDrag(appointment.status as any)) {
+    if (!allowCalendarDrag(appointment.status)) {
       notify('warning', {
         title: 'Reschedule blocked',
         text: 'Only requested and upcoming appointments can be rescheduled.',
@@ -670,7 +672,7 @@ const AppointmentCalendar = ({
     }
     setActiveAppointment?.(appointment);
     setChangeStatusPreferredStatus?.(
-      getPreferredNextAppointmentStatus(appointment.status as AppointmentStatus | string)
+      getPreferredNextAppointmentStatus(appointment.status as AppointmentStatus)
     );
     setChangeStatusPopup?.(true);
   };

@@ -23,7 +23,10 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
 
   useEffect(() => {
-    void useAuthStore.getState().checkSession();
+    useAuthStore
+      .getState()
+      .checkSession()
+      .catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -107,11 +110,14 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
     const handleTerminologyChange = () => {
       rewriteNode(root);
     };
-    window.addEventListener('yc:companion-terminology-changed', handleTerminologyChange);
+    globalThis.window.addEventListener('yc:companion-terminology-changed', handleTerminologyChange);
 
     return () => {
       observer.disconnect();
-      window.removeEventListener('yc:companion-terminology-changed', handleTerminologyChange);
+      globalThis.window.removeEventListener(
+        'yc:companion-terminology-changed',
+        handleTerminologyChange
+      );
     };
   }, [primaryOrgId]);
 

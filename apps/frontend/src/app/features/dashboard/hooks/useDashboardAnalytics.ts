@@ -279,9 +279,9 @@ const fetchDashboardAnalyticsData = async (
         clampNumber(summary?.staffOnDuty) === 0,
       appointmentsChart: appointmentsChart.length === 0,
       revenueChart: revenueChart.length === 0,
-      appointmentLeaders:
-        appointmentLeaderChart.length === 0 ||
-        appointmentLeaderChart.every((leader) => leader.Completed === 0 && leader.Cancelled === 0),
+      appointmentLeaders: appointmentLeaderChart.every(
+        (leader) => leader.Completed === 0 && leader.Cancelled === 0
+      ),
       revenueLeaders: topRevenueLeaders.length === 0,
       annualInventoryTurnover: !inventoryTurnover || inventoryTrend.length === 0,
       individualProductTurnover: inventoryProducts.length === 0,

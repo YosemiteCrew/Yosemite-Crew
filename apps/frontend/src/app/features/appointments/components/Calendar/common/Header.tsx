@@ -29,6 +29,7 @@ const Header = ({
   onAddButtonClick,
 }: Headerprops) => {
   const isZoomIn = zoomMode !== 'out';
+  const isZoomOut = !isZoomIn;
   const showCalendarTypeSelector = !!activeCalendar && !!setActiveCalendar;
   return (
     <div className="relative z-[140] overflow-visible flex w-full items-center justify-between gap-3 px-3 py-2 border-b border-grey-light">
@@ -89,7 +90,7 @@ const Header = ({
               onClick={() => setZoomMode('out')}
               title="Zoom out timeline"
               className={`h-9 w-9 rounded-full! cursor-pointer inline-flex items-center justify-center transition-colors ${
-                !isZoomIn
+                isZoomOut
                   ? 'bg-white text-text-primary border border-card-border'
                   : 'text-text-secondary hover:bg-card-hover border border-transparent'
               }`}

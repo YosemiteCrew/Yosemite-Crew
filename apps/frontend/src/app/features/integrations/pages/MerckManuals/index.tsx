@@ -37,19 +37,58 @@ type MerckManualsPageProps = {
 
 const RECENT_SEARCHES_LIMIT = 8;
 
-const stripHtml = (value: string) =>
-  value
-    .replaceAll(/<[^>]*>/g, ' ')
-    .replaceAll(/\s+/g, ' ')
-    .trim();
+const collapseWhitespace = (value: string) => {
+  let result = '';
+  let previousWasWhitespace = true;
+
+  for (const char of value) {
+    const isWhitespace =
+      char === ' ' || char === '\n' || char === '\r' || char === '\t' || char === '\f';
+    if (isWhitespace) {
+      if (!previousWasWhitespace) {
+        result += ' ';
+      }
+      previousWasWhitespace = true;
+      continue;
+    }
+    result += char;
+    previousWasWhitespace = false;
+  }
+
+  return result.trim();
+};
+
+const stripHtml = (value: string) => {
+  const input = String(value ?? '');
+  let result = '';
+  let insideTag = false;
+
+  for (const char of input) {
+    if (char === '<') {
+      insideTag = true;
+      result += ' ';
+      continue;
+    }
+    if (char === '>') {
+      insideTag = false;
+      result += ' ';
+      continue;
+    }
+    if (!insideTag) {
+      result += char;
+    }
+  }
+
+  return collapseWhitespace(result);
+};
 
 const getRecentSearchesKey = (orgId: string, audience: MerckAudience) =>
   `yc:merck:recent:${orgId}:${audience}`;
 
 const getRecentSearches = (orgId: string, audience: MerckAudience): string[] => {
-  if (typeof window === 'undefined') return [];
+  if (typeof globalThis.window === 'undefined') return [];
   try {
-    const raw = window.localStorage.getItem(getRecentSearchesKey(orgId, audience));
+    const raw = globalThis.window.localStorage.getItem(getRecentSearchesKey(orgId, audience));
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed.filter((value) => typeof value === 'string') : [];
@@ -58,15 +97,18 @@ const getRecentSearches = (orgId: string, audience: MerckAudience): string[] => 
   }
 };
 
-const setRecentSearches = (orgId: string, audience: MerckAudience, value: string) => {
-  if (typeof window === 'undefined') return;
+const saveRecentSearch = (orgId: string, audience: MerckAudience, value: string) => {
+  if (typeof globalThis.window === 'undefined') return;
   const query = value.trim();
   if (!query) return;
   const prev = getRecentSearches(orgId, audience).filter(
     (item) => item.toLowerCase() !== query.toLowerCase()
   );
   const next = [query, ...prev].slice(0, RECENT_SEARCHES_LIMIT);
-  window.localStorage.setItem(getRecentSearchesKey(orgId, audience), JSON.stringify(next));
+  globalThis.window.localStorage.setItem(
+    getRecentSearchesKey(orgId, audience),
+    JSON.stringify(next)
+  );
 };
 
 const safeDate = (value?: string | null) => {
@@ -191,8 +233,8 @@ const EntryCard = ({
           <button
             type="button"
             onClick={() => {
-              if (typeof window === 'undefined') return;
-              window.open(entry.primaryUrl, '_blank', 'noopener,noreferrer');
+              if (typeof globalThis.window === 'undefined') return;
+              globalThis.window.open(entry.primaryUrl, '_blank', 'noopener,noreferrer');
             }}
             aria-label="Open in new tab"
             title="Open in new tab"
@@ -236,7 +278,7 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
-  const [recentSearches, setRecentSearchesState] = useState<string[]>([]);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
   const [readerOpen, setReaderOpen] = useState(false);
   const [readerTitle, setReaderTitle] = useState('Merck Manual');
@@ -248,7 +290,7 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
 
   useEffect(() => {
     if (!primaryOrgId) return;
-    setRecentSearchesState(getRecentSearches(primaryOrgId, audience));
+    setRecentSearches(getRecentSearches(primaryOrgId, audience));
   }, [primaryOrgId, audience]);
 
   useEffect(() => {
@@ -294,8 +336,8 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
             entry.subLinks.every((link) => isAllowedMerckUrl(link.url))
         );
         setEntries(filtered);
-        setRecentSearches(primaryOrgId, audience, resolvedQuery);
-        setRecentSearchesState(getRecentSearches(primaryOrgId, audience));
+        saveRecentSearch(primaryOrgId, audience, resolvedQuery);
+        setRecentSearches(getRecentSearches(primaryOrgId, audience));
       } catch (e: any) {
         if (reqId !== requestIdRef.current) return;
         setEntries([]);
@@ -346,6 +388,17 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
     : 'min-h-0 flex-1 overflow-y-auto pr-1 max-h-[calc(100vh-320px)] lg:max-h-[calc(100vh-280px)]';
 
   const disabled = !isEnabled;
+
+  const resultsContent =
+    entries.length === 0 ? (
+      loading ? (
+        <div className="text-body-4 text-text-secondary">Searching manuals...</div>
+      ) : null
+    ) : (
+      entries.map((entry) => (
+        <EntryCard key={entry.id} entry={entry} onOpenInFrame={onOpenInFrame} onCopy={onCopyUrl} />
+      ))
+    );
 
   return (
     <div className={containerClassName}>
@@ -531,22 +584,7 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
             ) : null}
 
             <div className={resultsContainerClassName}>
-              <div className="flex flex-col gap-3">
-                {entries.length === 0 ? (
-                  loading ? (
-                    <div className="text-body-4 text-text-secondary">Searching manuals...</div>
-                  ) : null
-                ) : (
-                  entries.map((entry) => (
-                    <EntryCard
-                      key={entry.id}
-                      entry={entry}
-                      onOpenInFrame={onOpenInFrame}
-                      onCopy={onCopyUrl}
-                    />
-                  ))
-                )}
-              </div>
+              <div className="flex flex-col gap-3">{resultsContent}</div>
             </div>
           </div>
         </div>

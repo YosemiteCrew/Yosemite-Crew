@@ -1,5 +1,8 @@
 # Sonar Issue Tracker
 
+Status in this tracker is based on source review plus targeted validation in the repo working tree on 2026-03-16.
+A fresh SonarQube scan is still required to fully clear issues and refresh duplication percentages.
+
 Last updated: 2026-03-16
 
 | File                            | Line | Issue                                                        | Severity  | Status   |
@@ -179,8 +182,39 @@ Last updated: 2026-03-16
 
 ## Security Hotspots
 
-| File                   | Issue                                                          | Status                                                     |
-| ---------------------- | -------------------------------------------------------------- | ---------------------------------------------------------- |
-| MerckManuals/index.tsx | ReDoS-vulnerable regex `/<[^>]*>/g` and `/\s+/g`               | 🔍 To Review (low real risk — input is app-generated HTML) |
-| merckService.ts        | ReDoS-vulnerable regex `/<[^>]*>/g` and `/\s+/g` and `/\/+$/g` | 🔍 To Review                                               |
-| RouteLoaderOverlay.tsx | `javascript:` URL check (form of eval)                         | 🔍 To Review (safe — it's a guard, not eval)               |
+| File                   | Issue                                                          | Status                                                         |
+| ---------------------- | -------------------------------------------------------------- | -------------------------------------------------------------- |
+| MerckManuals/index.tsx | ReDoS-vulnerable regex `/<[^>]*>/g` and `/\s+/g`               | ✅ Fixed in code; replaced regex stripping with linear parsing |
+| merckService.ts        | ReDoS-vulnerable regex `/<[^>]*>/g` and `/\s+/g` and `/\/+$/g` | ✅ Fixed in code; removed regex-based HTML/path cleanup        |
+| RouteLoaderOverlay.tsx | `javascript:` URL check (form of eval)                         | ✅ Fixed in code; route loader now filters on parsed protocol  |
+
+## Duplication Hotspots
+
+`duplication.md` is a file-level snapshot, not an issue-by-issue feed, so these entries should be treated as rerun-needed status rather than conclusively fixed/open Sonar tickets.
+
+| File                              | Duplicated Lines (%) | Duplicated Lines | Status                      |
+| --------------------------------- | -------------------- | ---------------- | --------------------------- |
+| UserLabels.tsx (task)             | 86.1%                | 31               | Open                        |
+| UserLabels.tsx (common)           | 86.1%                | 31               | Open                        |
+| specialities.ts                   | 57.4%                | 54               | Open                        |
+| Slot.tsx (common calendar)        | 48.8%                | 442              | Open                        |
+| DayCalendar.tsx (common calendar) | 45.1%                | 423              | Open                        |
+| VideosCard.tsx                    | 42.2%                | 57               | Open                        |
+| UserCalendar.tsx (task)           | 37.5%                | 128              | Open                        |
+| UserCalendar.tsx (common)         | 31.7%                | 106              | In progress in working tree |
+| ParentTask.tsx                    | 27.3%                | 24               | Open                        |
+| Task.tsx                          | 27.3%                | 24               | Open                        |
+| TaskCalendar.tsx                  | 26.2%                | 157              | In progress in working tree |
+| AppointmentMerckSearch.tsx        | 25.2%                | 118              | In progress in working tree |
+| WeekCalendar.tsx (task)           | 22.4%                | 76               | Open                        |
+| Guides.tsx                        | 20.9%                | 58               | Open                        |
+| forms.ts                          | 19.1%                | 192              | Open                        |
+| AppointmentCalendar.tsx           | 19.0%                | 176              | In progress in working tree |
+| MerckManuals/index.tsx            | 18.8%                | 118              | In progress in working tree |
+| TaskBoard.tsx                     | 18.5%                | 117              | In progress in working tree |
+| ChangeStatus.tsx (tasks)          | 17.9%                | 24               | Open                        |
+| DayCalendar.tsx (task)            | 16.9%                | 44               | Open                        |
+| ChangeStatus.tsx (appointments)   | 16.8%                | 24               | Open                        |
+| AppointmentBoard.tsx              | 16.5%                | 116              | In progress in working tree |
+| TaskSlot.tsx                      | 15.9%                | 96               | In progress in working tree |
+| WeekCalendar.tsx (common)         | 15.1%                | 66               | In progress in working tree |

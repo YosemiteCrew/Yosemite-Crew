@@ -57,6 +57,50 @@ const WEEKDAY_ORDER = [
   'SATURDAY',
 ];
 
+function buildAvailabilityOutput(
+  baseAvailability: Array<{
+    dayOfWeek?: string;
+    slots?: Array<{ isAvailable?: boolean; startTime?: string; endTime?: string }>;
+  }>,
+  taskBlockDuration: number,
+  toLocalClock: (utcTime: string) => { dayOffset: number; minutes: number },
+  shiftKey: (dayKey: string, offset: number) => string
+): Record<string, DropAvailabilityInterval[]> {
+  const output: Record<string, DropAvailabilityInterval[]> = {};
+  for (const dayEntry of baseAvailability) {
+    const sourceDayKey = String(dayEntry?.dayOfWeek ?? '').toUpperCase();
+    if (!sourceDayKey) continue;
+    const slots = Array.isArray(dayEntry?.slots) ? dayEntry.slots : [];
+    for (const slot of slots) {
+      if (slot?.isAvailable === false) continue;
+      const startClock = toLocalClock(slot?.startTime || '');
+      const endClock = toLocalClock(slot?.endTime || '');
+      const startAbsoluteMinute = startClock.dayOffset * 1440 + startClock.minutes;
+      let endAbsoluteMinute = endClock.dayOffset * 1440 + endClock.minutes;
+      if (endAbsoluteMinute <= startAbsoluteMinute) {
+        endAbsoluteMinute += 1440;
+      }
+      const latestStartAbsoluteMinute = endAbsoluteMinute - taskBlockDuration;
+      if (latestStartAbsoluteMinute < startAbsoluteMinute) continue;
+      const firstDayOffset = Math.floor(startAbsoluteMinute / 1440);
+      const lastDayOffset = Math.floor(latestStartAbsoluteMinute / 1440);
+      for (let offset = firstDayOffset; offset <= lastDayOffset; offset++) {
+        const dayStartMinute = offset * 1440;
+        const localStart = Math.max(startAbsoluteMinute, dayStartMinute);
+        const localEnd = Math.min(latestStartAbsoluteMinute, dayStartMinute + 1435);
+        if (localEnd < localStart) continue;
+        const dayKey = shiftKey(sourceDayKey, offset);
+        if (!output[dayKey]) output[dayKey] = [];
+        output[dayKey].push({
+          startMinute: localStart - dayStartMinute,
+          endMinute: localEnd - dayStartMinute,
+        });
+      }
+    }
+  }
+  return output;
+}
+
 const TaskCalendar = ({
   filteredList,
   allTasks,
@@ -105,9 +149,8 @@ const TaskCalendar = ({
   const clampMinutes = (minutes: number) =>
     Math.max(0, Math.min(24 * 60 - 5, Math.round(minutes / 5) * 5));
 
-  const toLocalClockFromUtcTime = (utcTime: string) => {
-    return utcClockTimeToPreferredTimeZoneClock(utcTime);
-  };
+  const toLocalClockFromUtcTime = (utcTime: string) =>
+    utcClockTimeToPreferredTimeZoneClock(utcTime);
 
   const getDayKey = (date: Date) =>
     formatDateInPreferredTimeZone(date, { weekday: 'long' }).toUpperCase();
@@ -222,47 +265,15 @@ const TaskCalendar = ({
               }>;
             }>;
           };
-          const output: Record<string, DropAvailabilityInterval[]> = {};
           const baseAvailability = Array.isArray(profile?.baseAvailability)
             ? profile.baseAvailability
             : [];
-          for (const dayEntry of baseAvailability) {
-            const sourceDayKey = String(dayEntry?.dayOfWeek ?? '').toUpperCase();
-            if (!sourceDayKey) continue;
-            const slots = Array.isArray(dayEntry?.slots) ? dayEntry.slots : [];
-            const appendInterval = (dayKey: string, interval: DropAvailabilityInterval) => {
-              if (!output[dayKey]) output[dayKey] = [];
-              output[dayKey].push(interval);
-            };
-
-            for (const slot of slots) {
-              if (slot?.isAvailable === false) continue;
-              const startClock = toLocalClockFromUtcTime(slot?.startTime || '');
-              const endClock = toLocalClockFromUtcTime(slot?.endTime || '');
-              const startAbsoluteMinute = startClock.dayOffset * 1440 + startClock.minutes;
-              let endAbsoluteMinute = endClock.dayOffset * 1440 + endClock.minutes;
-              if (endAbsoluteMinute <= startAbsoluteMinute) {
-                endAbsoluteMinute += 1440;
-              }
-              const latestStartAbsoluteMinute = endAbsoluteMinute - TASK_BLOCK_DURATION_MINUTES;
-              if (latestStartAbsoluteMinute < startAbsoluteMinute) continue;
-
-              const firstDayOffset = Math.floor(startAbsoluteMinute / 1440);
-              const lastDayOffset = Math.floor(latestStartAbsoluteMinute / 1440);
-
-              for (let offset = firstDayOffset; offset <= lastDayOffset; offset++) {
-                const dayStartMinute = offset * 1440;
-                const localStart = Math.max(startAbsoluteMinute, dayStartMinute);
-                const localEnd = Math.min(latestStartAbsoluteMinute, dayStartMinute + 1435);
-                if (localEnd < localStart) continue;
-                appendInterval(shiftDayKey(sourceDayKey, offset), {
-                  startMinute: localStart - dayStartMinute,
-                  endMinute: localEnd - dayStartMinute,
-                });
-              }
-            }
-          }
-          availabilityCacheRef.current[cacheKey] = output;
+          availabilityCacheRef.current[cacheKey] = buildAvailabilityOutput(
+            baseAvailability,
+            TASK_BLOCK_DURATION_MINUTES,
+            toLocalClockFromUtcTime,
+            shiftDayKey
+          );
           setAvailabilityVersion((version) => version + 1);
         } catch {
           availabilityCacheRef.current[cacheKey] = {};
@@ -423,6 +434,35 @@ const TaskCalendar = ({
     setViewPopup?.(true);
   };
 
+  const handleTaskDragStart = useCallback(
+    (task: Task) => {
+      if (!canDragTask(task)) return;
+      setDragError(null);
+      setDraggedTaskId(task._id);
+      setDraggedTaskLabel(task.name || 'Task');
+      if (shouldEnforceAvailability(task, task.assignedTo)) {
+        ensureAssigneeAvailability(task.assignedTo).catch(() => undefined);
+      }
+    },
+    [canDragTask, ensureAssigneeAvailability, shouldEnforceAvailability]
+  );
+
+  const handleTaskDragEnd = useCallback(() => {
+    setDraggedTaskId(null);
+    setDraggedTaskLabel(null);
+  }, []);
+
+  const handleDragHoverTarget = useCallback(
+    (_dropDate: Date, assigneeId?: string) => {
+      const task = allTaskItems.find((item) => item._id === draggedTaskId);
+      if (!task) return;
+      if (shouldEnforceAvailability(task, assigneeId || task.assignedTo)) {
+        ensureAssigneeAvailability(assigneeId || task.assignedTo).catch(() => undefined);
+      }
+    },
+    [allTaskItems, draggedTaskId, ensureAssigneeAvailability, shouldEnforceAvailability]
+  );
+
   const handleCreateTaskAt = useCallback(
     (date: Date, minuteOfDay: number, targetAssigneeId?: string) => {
       if (!canEditTasks || !onCreateFromCalendarSlot) return;
@@ -472,32 +512,14 @@ const TaskCalendar = ({
           draggedTaskId={draggedTaskId}
           draggedTaskLabel={draggedTaskLabel}
           canDragTask={canDragTask}
-          onTaskDragStart={(task) => {
-            if (!canDragTask(task)) return;
-            setDragError(null);
-            setDraggedTaskId(task._id);
-            setDraggedTaskLabel(task.name || 'Task');
-            if (shouldEnforceAvailability(task, task.assignedTo)) {
-              ensureAssigneeAvailability(task.assignedTo).catch(() => undefined);
-            }
-          }}
-          onTaskDragEnd={() => {
-            setDraggedTaskId(null);
-            setDraggedTaskLabel(null);
-          }}
+          onTaskDragStart={handleTaskDragStart}
+          onTaskDragEnd={handleTaskDragEnd}
           onTaskDropAt={(dropDate, minute) => {
             moveTask(dropDate, minute).catch(() => undefined);
-            setDraggedTaskId(null);
-            setDraggedTaskLabel(null);
+            handleTaskDragEnd();
           }}
           onCreateTaskAt={handleCreateTaskAt}
-          onDragHoverTarget={(dropDate, assigneeId) => {
-            const task = allTaskItems.find((item) => item._id === draggedTaskId);
-            if (!task) return;
-            if (shouldEnforceAvailability(task, assigneeId || task.assignedTo)) {
-              ensureAssigneeAvailability(assigneeId || task.assignedTo).catch(() => undefined);
-            }
-          }}
+          onDragHoverTarget={handleDragHoverTarget}
           getDropAvailabilityIntervals={getDropAvailabilityIntervals}
           resolveDisplayName={resolveDisplayName}
           slotStepMinutes={15}
@@ -517,32 +539,14 @@ const TaskCalendar = ({
           draggedTaskId={draggedTaskId}
           draggedTaskLabel={draggedTaskLabel}
           canDragTask={canDragTask}
-          onTaskDragStart={(task) => {
-            if (!canDragTask(task)) return;
-            setDragError(null);
-            setDraggedTaskId(task._id);
-            setDraggedTaskLabel(task.name || 'Task');
-            if (shouldEnforceAvailability(task, task.assignedTo)) {
-              ensureAssigneeAvailability(task.assignedTo).catch(() => undefined);
-            }
-          }}
-          onTaskDragEnd={() => {
-            setDraggedTaskId(null);
-            setDraggedTaskLabel(null);
-          }}
+          onTaskDragStart={handleTaskDragStart}
+          onTaskDragEnd={handleTaskDragEnd}
           onTaskDropAt={(dropDate, minute) => {
             moveTask(dropDate, minute).catch(() => undefined);
-            setDraggedTaskId(null);
-            setDraggedTaskLabel(null);
+            handleTaskDragEnd();
           }}
           onCreateTaskAt={handleCreateTaskAt}
-          onDragHoverTarget={(dropDate, assigneeId) => {
-            const task = allTaskItems.find((item) => item._id === draggedTaskId);
-            if (!task) return;
-            if (shouldEnforceAvailability(task, assigneeId || task.assignedTo)) {
-              ensureAssigneeAvailability(assigneeId || task.assignedTo).catch(() => undefined);
-            }
-          }}
+          onDragHoverTarget={handleDragHoverTarget}
           getDropAvailabilityIntervals={getDropAvailabilityIntervals}
           resolveDisplayName={resolveDisplayName}
           slotStepMinutes={15}
@@ -561,32 +565,14 @@ const TaskCalendar = ({
           draggedTaskId={draggedTaskId}
           draggedTaskLabel={draggedTaskLabel}
           canDragTask={canDragTask}
-          onTaskDragStart={(task) => {
-            if (!canDragTask(task)) return;
-            setDragError(null);
-            setDraggedTaskId(task._id);
-            setDraggedTaskLabel(task.name || 'Task');
-            if (shouldEnforceAvailability(task, task.assignedTo)) {
-              ensureAssigneeAvailability(task.assignedTo).catch(() => undefined);
-            }
-          }}
-          onTaskDragEnd={() => {
-            setDraggedTaskId(null);
-            setDraggedTaskLabel(null);
-          }}
+          onTaskDragStart={handleTaskDragStart}
+          onTaskDragEnd={handleTaskDragEnd}
           onTaskDropAt={(dropDate, minute, assigneeId) => {
             moveTask(dropDate, minute, assigneeId).catch(() => undefined);
-            setDraggedTaskId(null);
-            setDraggedTaskLabel(null);
+            handleTaskDragEnd();
           }}
           onCreateTaskAt={handleCreateTaskAt}
-          onDragHoverTarget={(dropDate, assigneeId) => {
-            const task = allTaskItems.find((item) => item._id === draggedTaskId);
-            if (!task) return;
-            if (shouldEnforceAvailability(task, assigneeId || task.assignedTo)) {
-              ensureAssigneeAvailability(assigneeId || task.assignedTo).catch(() => undefined);
-            }
-          }}
+          onDragHoverTarget={handleDragHoverTarget}
           getDropAvailabilityIntervals={getDropAvailabilityIntervals}
           resolveDisplayName={resolveDisplayName}
           slotStepMinutes={15}

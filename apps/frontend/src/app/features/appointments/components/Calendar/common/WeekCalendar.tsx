@@ -153,7 +153,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
       ),
     [visibleHourRange.endHour, visibleHourRange.startHour]
   );
-  const lastVisibleHour = visibleHours[visibleHours.length - 1] ?? visibleHourRange.endHour;
+  const lastVisibleHour = visibleHours.at(-1) ?? visibleHourRange.endHour;
 
   const handlePrevWeek = () => {
     setWeekStart((prev) => {

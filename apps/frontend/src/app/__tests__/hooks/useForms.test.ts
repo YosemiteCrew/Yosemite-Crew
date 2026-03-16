@@ -27,6 +27,8 @@ describe('useForms Hooks', () => {
   let mockFormState: {
     formIds: string[];
     formsById: Record<string, FormsProps>;
+    loading: boolean;
+    lastFetchedByOrgId: Record<string, string | null>;
   };
 
   beforeEach(() => {

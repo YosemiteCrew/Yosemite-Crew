@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   daysOfWeek,
   DEFAULT_INTERVAL,
@@ -6,20 +6,16 @@ import {
   TimeOption,
   Interval,
   SetAvailability,
-  ApiOverrides,
   buildTimeIndex,
   generateTimeOptions,
 } from '@/app/features/appointments/components/Availability/utils';
 import TimeSlot from '@/app/features/appointments/components/Availability/TimeSlot';
 import { FaCirclePlus, FaCircleMinus } from 'react-icons/fa6';
 import Dublicate from '@/app/features/appointments/components/Availability/Dublicate';
-import { useMemo } from 'react';
 
 type AvailabilityProps = {
   availability: AvailabilityState;
   setAvailability: SetAvailability;
-  overides?: ApiOverrides[];
-  setOverides?: React.Dispatch<React.SetStateAction<ApiOverrides[]>>;
   twoColumnLayout?: boolean;
   readOnly?: boolean;
 };
@@ -120,23 +116,23 @@ const Availability: React.FC<AvailabilityProps> = ({
                   field="end"
                   disabled={readOnly}
                 />
-                {readOnly ? null : i === 0 ? (
+                {!readOnly && (
                   <div className="border-none outline-none bg-white flex items-center justify-center shrink-0">
-                    <FaCirclePlus
-                      color="#302f2e"
-                      size={20}
-                      onClick={() => addInterval(day)}
-                      className="cursor-pointer"
-                    />
-                  </div>
-                ) : (
-                  <div className="border-none outline-none bg-white flex items-center justify-center shrink-0">
-                    <FaCircleMinus
-                      color="#302f2e"
-                      size={20}
-                      onClick={() => deleteInterval(day, i)}
-                      className="cursor-pointer"
-                    />
+                    {i === 0 ? (
+                      <FaCirclePlus
+                        color="#302f2e"
+                        size={20}
+                        onClick={() => addInterval(day)}
+                        className="cursor-pointer"
+                      />
+                    ) : (
+                      <FaCircleMinus
+                        color="#302f2e"
+                        size={20}
+                        onClick={() => deleteInterval(day, i)}
+                        className="cursor-pointer"
+                      />
+                    )}
                   </div>
                 )}
               </div>

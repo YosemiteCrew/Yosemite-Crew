@@ -4,7 +4,6 @@ import Availability from '@/app/features/appointments/components/Availability/Av
 import { usePrimaryOrgWithMembership } from '@/app/hooks/useOrgSelectors';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import {
-  ApiOverrides,
   AvailabilityState,
   convertAvailability,
   daysOfWeek,
@@ -173,8 +172,6 @@ const OrgSection = () => {
       return acc;
     }, {} as AvailabilityState)
   );
-  const [overides, setOverides] = useState<ApiOverrides[]>([]);
-
   const orgInfoData = useMemo(
     () => ({
       name: org?.name ?? '',
@@ -353,8 +350,6 @@ const OrgSection = () => {
           <Availability
             availability={availability}
             setAvailability={setAvailability}
-            overides={overides}
-            setOverides={setOverides}
             twoColumnLayout
           />
           <div className="w-full flex justify-end!">

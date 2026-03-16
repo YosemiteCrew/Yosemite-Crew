@@ -66,7 +66,7 @@ const Sidebar = () => {
 
   useEffect(() => {
     try {
-      setIsCollapsed(window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1');
+      setIsCollapsed(globalThis.window?.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1');
     } catch {
       setIsCollapsed(false);
     }
@@ -87,7 +87,7 @@ const Sidebar = () => {
     setIsCollapsed((prev) => {
       const next = !prev;
       try {
-        window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, next ? '1' : '0');
+        globalThis.window?.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, next ? '1' : '0');
       } catch {
         // ignore persistence errors
       }

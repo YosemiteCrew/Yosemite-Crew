@@ -126,14 +126,7 @@ const InvoicePaymentActions = ({
       {generatedLink ? <Secondary text="Copy link" href="#" onClick={handleCopy} /> : null}
       {showOfflineCollect ? (
         <>
-          {!isCashAtClinicSelected ? (
-            <Secondary
-              text={settingCashCollectionMethod ? 'Preparing...' : 'Pay in cash'}
-              href="#"
-              onClick={handleStartCashCollection}
-              isDisabled={!invoiceId || markingOfflinePaid || settingCashCollectionMethod}
-            />
-          ) : (
+          {isCashAtClinicSelected ? (
             <div className="rounded-2xl border border-[#F4D596] bg-[#FFF8E8] px-4 py-4 flex flex-col gap-3">
               <div className="text-body-4-emphasis text-text-primary">
                 Confirm cash payment before marking this invoice as paid.
@@ -151,6 +144,13 @@ const InvoicePaymentActions = ({
                 />
               </div>
             </div>
+          ) : (
+            <Secondary
+              text={settingCashCollectionMethod ? 'Preparing...' : 'Pay in cash'}
+              href="#"
+              onClick={handleStartCashCollection}
+              isDisabled={!invoiceId || markingOfflinePaid || settingCashCollectionMethod}
+            />
           )}
         </>
       ) : null}

@@ -59,16 +59,59 @@ const withMediaMode = (entry: MerckEntry, media: string): MerckEntry => ({
   })),
 });
 
+const collapseWhitespace = (value: string): string => {
+  let result = '';
+  let previousWasWhitespace = true;
+
+  for (const char of value) {
+    const isWhitespace =
+      char === ' ' || char === '\n' || char === '\r' || char === '\t' || char === '\f';
+    if (isWhitespace) {
+      if (!previousWasWhitespace) {
+        result += ' ';
+      }
+      previousWasWhitespace = true;
+      continue;
+    }
+    result += char;
+    previousWasWhitespace = false;
+  }
+
+  return result.trim();
+};
+
 const stripHtml = (value: string): string =>
-  String(value ?? '')
-    .replaceAll(/<[^>]*>/g, ' ')
-    .replaceAll(/\s+/g, ' ')
-    .trim();
+  (() => {
+    const input = String(value ?? '');
+    let result = '';
+    let insideTag = false;
+
+    for (const char of input) {
+      if (char === '<') {
+        insideTag = true;
+        result += ' ';
+        continue;
+      }
+      if (char === '>') {
+        insideTag = false;
+        result += ' ';
+        continue;
+      }
+      if (!insideTag) {
+        result += char;
+      }
+    }
+
+    return collapseWhitespace(result);
+  })();
 
 const extractSummaryTextFromHtml = (html: string): string => {
-  const firstParagraphMatch = String(html ?? '').match(/<p[^>]*>(.*?)<\/p>/i);
-  if (firstParagraphMatch?.[1]) {
-    return stripHtml(firstParagraphMatch[1]);
+  if (typeof DOMParser !== 'undefined') {
+    const parsed = new DOMParser().parseFromString(String(html ?? ''), 'text/html');
+    const firstParagraph = parsed.querySelector('p');
+    if (firstParagraph?.textContent) {
+      return collapseWhitespace(firstParagraph.textContent);
+    }
   }
   return stripHtml(html);
 };
@@ -115,8 +158,12 @@ const extractAnchorLinksFromHtml = (html: string) => {
 const canonicalUrlKey = (value: string): string => {
   try {
     const parsed = new URL(value);
-    const pathname = parsed.pathname.replaceAll(/\/+$/g, '') || '/';
-    return `${parsed.protocol}//${parsed.hostname.toLowerCase()}${pathname}?${parsed.searchParams.toString()}#${parsed.hash.replace(/^#/, '')}`;
+    let pathname = parsed.pathname;
+    while (pathname.length > 1 && pathname.endsWith('/')) {
+      pathname = pathname.slice(0, -1);
+    }
+    const hash = parsed.hash.startsWith('#') ? parsed.hash.slice(1) : parsed.hash;
+    return `${parsed.protocol}//${parsed.hostname.toLowerCase()}${pathname || '/'}?${parsed.searchParams.toString()}#${hash}`;
   } catch {
     return value.trim();
   }

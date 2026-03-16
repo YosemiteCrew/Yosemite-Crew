@@ -21,12 +21,12 @@ import {
   createInvoiceByAppointmentId,
   getAppointmentPaymentDisplay,
 } from '@/app/lib/paymentStatus';
-import { IoAdd } from 'react-icons/io5';
+import { IoAdd, IoCardOutline, IoDocumentTextOutline, IoEyeOutline } from 'react-icons/io5';
 import Image from 'next/image';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { FaCheckCircle } from 'react-icons/fa';
-import { IoIosCloseCircle } from 'react-icons/io';
+import { IoIosCalendar, IoIosCloseCircle } from 'react-icons/io';
 import {
   allowCalendarDrag,
   canAssignAppointmentRoom,
@@ -40,8 +40,6 @@ import {
   isRequestedLikeStatus,
   normalizeAppointmentStatus,
 } from '@/app/lib/appointments';
-import { IoIosCalendar } from 'react-icons/io';
-import { IoCardOutline, IoDocumentTextOutline, IoEyeOutline } from 'react-icons/io5';
 import { MdMeetingRoom, MdOutlineAutorenew, MdScience } from 'react-icons/md';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useNotify } from '@/app/hooks/useNotify';
@@ -250,7 +248,7 @@ const AppointmentBoard = ({
   const openChangeStatus = (appointment: Appointment) => {
     setActiveAppointment?.(appointment);
     setChangeStatusPreferredStatus?.(
-      getPreferredNextAppointmentStatus(appointment.status as AppointmentStatus | string)
+      getPreferredNextAppointmentStatus(appointment.status as AppointmentStatus)
     );
     setChangeStatusPopup?.(true);
   };
@@ -298,8 +296,9 @@ const AppointmentBoard = ({
       return;
     }
 
-    const boardRoot = (event.currentTarget.closest('[data-board-scroll-root="true"]') ||
-      event.currentTarget) as HTMLElement;
+    const boardRoot =
+      event.currentTarget.closest<HTMLElement>('[data-board-scroll-root="true"]') ??
+      event.currentTarget;
     const boardRect = boardRoot.getBoundingClientRect();
     const deltaBoardX = getEdgeScrollDelta(event.clientX, boardRect.left, boardRect.right);
     if (deltaBoardX !== 0 && canScrollHorizontally(boardRoot, deltaBoardX)) {
@@ -413,8 +412,9 @@ const AppointmentBoard = ({
                   onDrop={(event) => {
                     if (!draggedAppointmentId || !canEditAppointments) return;
                     event.preventDefault();
-                    void moveToStatus(draggedAppointmentId, column.key);
-                    setDraggedAppointmentId(null);
+                    moveToStatus(draggedAppointmentId, column.key).then(() => {
+                      setDraggedAppointmentId(null);
+                    });
                   }}
                 >
                   <div
@@ -450,10 +450,9 @@ const AppointmentBoard = ({
                         }`}
                         onClick={() => openAppointment(appointment)}
                         onKeyDown={(event) => {
-                          if (event.key === 'Enter' || event.key === ' ') {
-                            event.preventDefault();
-                            openAppointment(appointment);
-                          }
+                          if (event.key !== 'Enter' && event.key !== ' ') return;
+                          event.preventDefault();
+                          openAppointment(appointment);
                         }}
                         draggable={
                           canEditAppointments &&
@@ -588,22 +587,21 @@ const AppointmentBoard = ({
                                   </button>
                                 </GlassTooltip>
                               )}
-                            {canEditAppointments &&
-                              allowCalendarDrag(appointment.status as any) && (
-                                <GlassTooltip content="Reschedule" side="bottom">
-                                  <button
-                                    type="button"
-                                    className="h-8 w-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
-                                    onClick={(event) => {
-                                      event.preventDefault();
-                                      event.stopPropagation();
-                                      openReschedule(appointment);
-                                    }}
-                                  >
-                                    <IoIosCalendar size={15} color="#302F2E" />
-                                  </button>
-                                </GlassTooltip>
-                              )}
+                            {canEditAppointments && allowCalendarDrag(appointment.status) && (
+                              <GlassTooltip content="Reschedule" side="bottom">
+                                <button
+                                  type="button"
+                                  className="h-8 w-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+                                  onClick={(event) => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    openReschedule(appointment);
+                                  }}
+                                >
+                                  <IoIosCalendar size={15} color="#302F2E" />
+                                </button>
+                              </GlassTooltip>
+                            )}
                             {canEditAppointments &&
                               canAssignAppointmentRoom(appointment.status) && (
                                 <GlassTooltip content="Assign room" side="bottom">

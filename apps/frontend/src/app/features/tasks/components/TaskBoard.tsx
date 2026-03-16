@@ -12,8 +12,7 @@ import Next from '@/app/ui/primitives/Icons/Next';
 import Datepicker from '@/app/ui/inputs/Datepicker';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { useAuthStore } from '@/app/stores/authStore';
-import { IoAdd } from 'react-icons/io5';
-import { IoEyeOutline } from 'react-icons/io5';
+import { IoAdd, IoEyeOutline } from 'react-icons/io5';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { useMemberMap } from '@/app/hooks/useMemberMap';
 import { MdOutlineAutorenew } from 'react-icons/md';
@@ -91,6 +90,184 @@ type MemberIdentity = {
   name: string;
   imageUrl?: string;
 };
+
+type TaskCardProps = {
+  task: Task;
+  columnLabel: string;
+  columnStyle: { backgroundColor: string; color: string };
+  draggedTaskId: string | null;
+  canEditTasks: boolean;
+  updatingStatusId: string | null;
+  assignedBy: MemberIdentity;
+  assignedTo: MemberIdentity;
+  onOpen: (task: Task) => void;
+  onChangeStatus: (task: Task) => void;
+  onReschedule: (task: Task) => void;
+  onDragStart: (event: React.DragEvent<HTMLElement>, task: Task) => void;
+  onDragEnd: () => void;
+};
+
+const getInitialsStatic = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('') || '--';
+
+const TaskCard = ({
+  task,
+  columnLabel,
+  columnStyle,
+  draggedTaskId,
+  canEditTasks,
+  updatingStatusId,
+  assignedBy,
+  assignedTo,
+  onOpen,
+  onChangeStatus,
+  onReschedule,
+  onDragStart,
+  onDragEnd,
+}: TaskCardProps) => (
+  <div
+    key={task._id}
+    role="button"
+    tabIndex={0}
+    className={`w-full min-h-[112px] shrink-0 rounded-2xl! overflow-hidden border border-card-border bg-gradient-to-b from-white to-card-hover px-3 py-2.5 text-left transition-colors flex flex-col items-stretch justify-start ${
+      draggedTaskId === (task._id ?? null)
+        ? 'opacity-60 shadow-none'
+        : 'hover:border-input-border-active! hover:bg-card-hover!'
+    }`}
+    onClick={() => onOpen(task)}
+    onKeyDown={(event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        onOpen(task);
+      }
+    }}
+    draggable={canEditTasks && canShowTaskStatusChangeAction(task.status)}
+    onDragStart={(event) => onDragStart(event, task)}
+    onDragEnd={onDragEnd}
+  >
+    <div className="flex items-start justify-between gap-2">
+      <div className="truncate text-[12px] leading-4 font-semibold text-text-primary">
+        {task.name || '-'}
+      </div>
+      <div
+        className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium"
+        style={{ backgroundColor: columnStyle.backgroundColor, color: columnStyle.color }}
+      >
+        {columnLabel}
+      </div>
+    </div>
+
+    <div className="mt-1.5 grid grid-cols-1 gap-1">
+      {getTaskQuickDetails(task)
+        .slice(0, 2)
+        .map((item) => (
+          <div
+            key={item.label}
+            className="flex items-start gap-1.5 text-[10px] leading-4 text-text-secondary"
+          >
+            <span className="shrink-0 font-medium text-text-primary">{item.label}:</span>
+            <span className="line-clamp-1 min-w-0">{item.value}</span>
+          </div>
+        ))}
+      {[
+        { label: 'From', value: assignedBy },
+        { label: 'To', value: assignedTo },
+      ].map((item) => (
+        <div key={item.label} className="flex items-center gap-1.5">
+          {item.value.imageUrl ? (
+            <Image
+              src={item.value.imageUrl}
+              alt={item.value.name}
+              width={18}
+              height={18}
+              className="h-[18px] w-[18px] rounded-full border border-card-border object-cover"
+            />
+          ) : (
+            <div className="h-[18px] w-[18px] rounded-full border border-card-border bg-white text-[8px] font-semibold text-text-secondary flex items-center justify-center">
+              {getInitialsStatic(item.value.name)}
+            </div>
+          )}
+          <div className="min-w-0 flex items-center gap-1.5">
+            <span className="text-[10px] text-text-secondary">{item.label}</span>
+            <span className="truncate text-[10px] text-text-primary">{item.value.name}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <div className="mt-1.5 rounded-xl border border-card-border bg-white/80 px-2 py-1">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] text-text-secondary">Due</span>
+        <span className="text-[10px] text-text-primary">
+          {formatDateInPreferredTimeZone(new Date(task.dueAt), {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          })}
+          {' \u2022 '}
+          {formatDateInPreferredTimeZone(new Date(task.dueAt), {
+            hour: 'numeric',
+            minute: '2-digit',
+          })}
+        </span>
+      </div>
+    </div>
+    <div className="mt-1.5 flex items-center gap-1.5 flex-wrap max-w-[168px]">
+      <GlassTooltip content="View task" side="bottom">
+        <button
+          type="button"
+          className="h-7 w-7 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onOpen(task);
+          }}
+        >
+          <IoEyeOutline size={14} color="#302F2E" />
+        </button>
+      </GlassTooltip>
+      {canEditTasks && canShowTaskStatusChangeAction(task.status) && (
+        <GlassTooltip content="Change status" side="bottom">
+          <button
+            type="button"
+            className="h-7 w-7 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onChangeStatus(task);
+            }}
+          >
+            <MdOutlineAutorenew size={13} color="#302F2E" />
+          </button>
+        </GlassTooltip>
+      )}
+      {canEditTasks && canRescheduleTask(task.status) && (
+        <GlassTooltip content="Reschedule" side="bottom">
+          <button
+            type="button"
+            className="h-7 w-7 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onReschedule(task);
+            }}
+          >
+            <IoIosCalendar size={13} color="#302F2E" />
+          </button>
+        </GlassTooltip>
+      )}
+    </div>
+
+    {updatingStatusId === task._id && (
+      <div className="mt-1 text-[10px] text-text-secondary">Updating...</div>
+    )}
+  </div>
+);
 
 type TaskBoardProps = {
   tasks: Task[];
@@ -230,14 +407,6 @@ const TaskBoard = ({
     };
   };
 
-  const getInitials = (name: string) =>
-    name
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part.charAt(0).toUpperCase())
-      .join('') || '--';
-
   const todayTasks = useMemo(
     () =>
       tasks
@@ -312,8 +481,9 @@ const TaskBoard = ({
       return;
     }
 
-    const boardRoot = (event.currentTarget.closest('[data-board-scroll-root="true"]') ||
-      event.currentTarget) as HTMLElement;
+    const boardRoot =
+      event.currentTarget.closest<HTMLElement>('[data-board-scroll-root="true"]') ??
+      event.currentTarget;
     const boardRect = boardRoot.getBoundingClientRect();
     const deltaBoardX = getEdgeScrollDelta(event.clientX, boardRect.left, boardRect.right);
     if (deltaBoardX !== 0 && canScrollHorizontally(boardRoot, deltaBoardX)) {
@@ -453,167 +623,33 @@ const TaskBoard = ({
                     autoScrollBoardOnDrag(event, event.currentTarget);
                   }}
                 >
-                  {columnTasks.map((task) => {
-                    const assignedBy = resolveMemberIdentity(task.assignedBy);
-                    const assignedTo = resolveMemberIdentity(task.assignedTo);
-                    return (
-                      <div
-                        key={task._id}
-                        role="button"
-                        tabIndex={0}
-                        className={`w-full min-h-[112px] shrink-0 rounded-2xl! overflow-hidden border border-card-border bg-gradient-to-b from-white to-card-hover px-3 py-2.5 text-left transition-colors flex flex-col items-stretch justify-start ${
-                          draggedTaskId === (task._id ?? null)
-                            ? 'opacity-60 shadow-none'
-                            : 'hover:border-input-border-active! hover:bg-card-hover!'
-                        }`}
-                        onClick={() => openTask(task)}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter' || event.key === ' ') {
-                            event.preventDefault();
-                            openTask(task);
-                          }
-                        }}
-                        draggable={canEditTasks && canShowTaskStatusChangeAction(task.status)}
-                        onDragStart={(event) => {
-                          setDraggedTaskId(task._id ?? null);
-                          event.dataTransfer.effectAllowed = 'move';
-                          event.dataTransfer.setData('text/plain', task._id ?? '');
-                          const preview = buildDragPreview(event.currentTarget);
-                          event.dataTransfer.setDragImage(preview, 24, 24);
-                          requestAnimationFrame(() => {
-                            preview.remove();
-                          });
-                        }}
-                        onDragEnd={() => setDraggedTaskId(null)}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="truncate text-[12px] leading-4 font-semibold text-text-primary">
-                            {task.name || '-'}
-                          </div>
-                          <div
-                            className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium"
-                            style={{
-                              backgroundColor: style.backgroundColor,
-                              color: style.color,
-                            }}
-                          >
-                            {column.label}
-                          </div>
-                        </div>
-
-                        <div className="mt-1.5 grid grid-cols-1 gap-1">
-                          {getTaskQuickDetails(task)
-                            .slice(0, 2)
-                            .map((item) => (
-                              <div
-                                key={item.label}
-                                className="flex items-start gap-1.5 text-[10px] leading-4 text-text-secondary"
-                              >
-                                <span className="shrink-0 font-medium text-text-primary">
-                                  {item.label}:
-                                </span>
-                                <span className="line-clamp-1 min-w-0">{item.value}</span>
-                              </div>
-                            ))}
-                          {[
-                            { label: 'From', value: assignedBy },
-                            { label: 'To', value: assignedTo },
-                          ].map((item) => (
-                            <div key={item.label} className="flex items-center gap-1.5">
-                              {item.value.imageUrl ? (
-                                <Image
-                                  src={item.value.imageUrl}
-                                  alt={item.value.name}
-                                  width={18}
-                                  height={18}
-                                  className="h-[18px] w-[18px] rounded-full border border-card-border object-cover"
-                                />
-                              ) : (
-                                <div className="h-[18px] w-[18px] rounded-full border border-card-border bg-white text-[8px] font-semibold text-text-secondary flex items-center justify-center">
-                                  {getInitials(item.value.name)}
-                                </div>
-                              )}
-                              <div className="min-w-0 flex items-center gap-1.5">
-                                <span className="text-[10px] text-text-secondary">
-                                  {item.label}
-                                </span>
-                                <span className="truncate text-[10px] text-text-primary">
-                                  {item.value.name}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-
-                        <div className="mt-1.5 rounded-xl border border-card-border bg-white/80 px-2 py-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-[10px] text-text-secondary">Due</span>
-                            <span className="text-[10px] text-text-primary">
-                              {formatDateInPreferredTimeZone(new Date(task.dueAt), {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric',
-                              })}
-                              {' \u2022 '}
-                              {formatDateInPreferredTimeZone(new Date(task.dueAt), {
-                                hour: 'numeric',
-                                minute: '2-digit',
-                              })}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="mt-1.5 flex items-center gap-1.5 flex-wrap max-w-[168px]">
-                          <GlassTooltip content="View task" side="bottom">
-                            <button
-                              type="button"
-                              className="h-7 w-7 rounded-full! border border-black-text! bg-white flex items-center justify-center"
-                              onClick={(event) => {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                openTask(task);
-                              }}
-                            >
-                              <IoEyeOutline size={14} color="#302F2E" />
-                            </button>
-                          </GlassTooltip>
-                          {canEditTasks && canShowTaskStatusChangeAction(task.status) && (
-                            <GlassTooltip content="Change status" side="bottom">
-                              <button
-                                type="button"
-                                className="h-7 w-7 rounded-full! border border-black-text! bg-white flex items-center justify-center"
-                                onClick={(event) => {
-                                  event.preventDefault();
-                                  event.stopPropagation();
-                                  openChangeStatus(task);
-                                }}
-                              >
-                                <MdOutlineAutorenew size={13} color="#302F2E" />
-                              </button>
-                            </GlassTooltip>
-                          )}
-                          {canEditTasks && canRescheduleTask(task.status) && (
-                            <GlassTooltip content="Reschedule" side="bottom">
-                              <button
-                                type="button"
-                                className="h-7 w-7 rounded-full! border border-black-text! bg-white flex items-center justify-center"
-                                onClick={(event) => {
-                                  event.preventDefault();
-                                  event.stopPropagation();
-                                  openReschedule(task);
-                                }}
-                              >
-                                <IoIosCalendar size={13} color="#302F2E" />
-                              </button>
-                            </GlassTooltip>
-                          )}
-                        </div>
-
-                        {updatingStatusId === task._id && (
-                          <div className="mt-1 text-[10px] text-text-secondary">Updating...</div>
-                        )}
-                      </div>
-                    );
-                  })}
+                  {columnTasks.map((task) => (
+                    <TaskCard
+                      key={task._id}
+                      task={task}
+                      columnLabel={column.label}
+                      columnStyle={style}
+                      draggedTaskId={draggedTaskId}
+                      canEditTasks={canEditTasks}
+                      updatingStatusId={updatingStatusId}
+                      assignedBy={resolveMemberIdentity(task.assignedBy)}
+                      assignedTo={resolveMemberIdentity(task.assignedTo)}
+                      onOpen={openTask}
+                      onChangeStatus={openChangeStatus}
+                      onReschedule={openReschedule}
+                      onDragStart={(event, t) => {
+                        setDraggedTaskId(t._id ?? null);
+                        event.dataTransfer.effectAllowed = 'move';
+                        event.dataTransfer.setData('text/plain', t._id ?? '');
+                        const preview = buildDragPreview(event.currentTarget);
+                        event.dataTransfer.setDragImage(preview, 24, 24);
+                        requestAnimationFrame(() => {
+                          preview.remove();
+                        });
+                      }}
+                      onDragEnd={() => setDraggedTaskId(null)}
+                    />
+                  ))}
                   {!hasTasks && (
                     <div className="rounded-2xl border border-dashed border-card-border bg-white px-3 py-4 text-center text-caption-1 text-text-secondary">
                       No tasks

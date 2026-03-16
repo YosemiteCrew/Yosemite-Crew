@@ -6,6 +6,8 @@ import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import { startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
 import { useRouteLoaderStore } from '@/app/stores/routeLoaderStore';
 
+const ROUTE_LOADER_ALLOWED_PROTOCOLS = new Set(['http:', 'https:']);
+
 const RouteLoaderOverlay = () => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -26,25 +28,19 @@ const RouteLoaderOverlay = () => {
       if (anchor.hasAttribute('download')) return;
 
       const rawHref = anchor.getAttribute('href') ?? '';
-      if (
-        rawHref.startsWith('#') ||
-        rawHref.startsWith('mailto:') ||
-        rawHref.startsWith('tel:') ||
-        rawHref.startsWith('javascript:')
-      ) {
-        return;
-      }
+      if (rawHref.startsWith('#')) return;
 
       let nextUrl: URL;
       try {
-        nextUrl = new URL(anchor.href, window.location.href);
+        nextUrl = new URL(anchor.href, globalThis.window.location.href);
       } catch {
         return;
       }
 
-      if (nextUrl.origin !== window.location.origin) return;
+      if (!ROUTE_LOADER_ALLOWED_PROTOCOLS.has(nextUrl.protocol)) return;
+      if (nextUrl.origin !== globalThis.window.location.origin) return;
 
-      const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      const current = `${globalThis.window.location.pathname}${globalThis.window.location.search}${globalThis.window.location.hash}`;
       const next = `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`;
       if (current === next) return;
 
@@ -67,12 +63,12 @@ const RouteLoaderOverlay = () => {
 
   useEffect(() => {
     if (!isLoading) return;
-    const timeout = window.setTimeout(() => {
+    const timeout = globalThis.window.setTimeout(() => {
       stopRouteLoader();
     }, 15000);
 
     return () => {
-      window.clearTimeout(timeout);
+      globalThis.window.clearTimeout(timeout);
     };
   }, [isLoading]);
 

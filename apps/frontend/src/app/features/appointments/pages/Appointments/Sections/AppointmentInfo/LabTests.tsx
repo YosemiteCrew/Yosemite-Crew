@@ -62,6 +62,11 @@ const normalizeOrders = (orders: LabOrder[]): LabOrder[] =>
     return bDate - aDate;
   });
 
+const resolveLatestOrder = (prev: LabOrder | null, normalizedOrders: LabOrder[]): LabOrder => {
+  if (!prev) return normalizedOrders[0];
+  return normalizedOrders.find((order) => order._id === prev._id) ?? normalizedOrders[0];
+};
+
 const mergeUniqueTests = (current: IdexxTest[], incoming: IdexxTest[]): IdexxTest[] => {
   const seen = new Set(current.map((item) => item.code || item._id));
   const next = [...current];
@@ -660,12 +665,7 @@ const useLabTests = (activeAppointment: Appointment | null) => {
           const normalizedOrders = normalizeOrders(refreshedOrders);
           if (normalizedOrders.length > 0) {
             setAppointmentOrders(normalizedOrders);
-            setLatestOrder((prev) => {
-              if (!prev) return normalizedOrders[0];
-              return (
-                normalizedOrders.find((order) => order._id === prev._id) ?? normalizedOrders[0]
-              );
-            });
+            setLatestOrder((prev) => resolveLatestOrder(prev, normalizedOrders));
             newestKnownOrderId = String(normalizedOrders[0].idexxOrderId ?? '').trim();
           }
         }

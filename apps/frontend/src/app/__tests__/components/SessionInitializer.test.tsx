@@ -24,7 +24,7 @@ const mockGetState = (useAuthStore as any).getState as jest.Mock;
 describe('SessionInitializer', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockGetState.mockReturnValue({ checkSession: jest.fn() });
+    mockGetState.mockReturnValue({ checkSession: jest.fn().mockResolvedValue(null) });
   });
 
   it('hides private children while checking session', () => {

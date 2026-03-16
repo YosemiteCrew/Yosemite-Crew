@@ -89,6 +89,55 @@ type AppointmentInfoProps = {
   activeAppointment: Appointment;
 };
 
+const validateAppointmentForm = ({
+  appointmentValues,
+  selectedSlot,
+  slotLeadOptions,
+  normalizeId,
+}: {
+  appointmentValues: {
+    specialityId: string;
+    serviceId: string;
+    leadId: string;
+  };
+  selectedSlot: Slot | null;
+  slotLeadOptions: { label: string; value: string }[];
+  normalizeId: (value?: string | null) => string | undefined;
+}): {
+  specialityId?: string;
+  serviceId?: string;
+  slot?: string;
+  leadId?: string;
+} => {
+  const formErrors: {
+    specialityId?: string;
+    serviceId?: string;
+    slot?: string;
+    leadId?: string;
+  } = {};
+  if (!appointmentValues.specialityId) formErrors.specialityId = 'Please select a speciality';
+  if (!appointmentValues.serviceId) formErrors.serviceId = 'Please select a service';
+  if (!selectedSlot) formErrors.slot = 'Please select a slot';
+  if (selectedSlot && slotLeadOptions.length === 0) {
+    formErrors.slot = 'No lead is available for this slot. Please choose another slot.';
+    formErrors.leadId = 'No lead is available for this slot.';
+  }
+  if (selectedSlot && slotLeadOptions.length > 1 && !appointmentValues.leadId) {
+    formErrors.leadId = 'Multiple leads are available. Please choose a lead.';
+  }
+  if (
+    selectedSlot &&
+    appointmentValues.leadId &&
+    slotLeadOptions.length > 0 &&
+    !slotLeadOptions.some(
+      (option) => normalizeId(option.value) === normalizeId(appointmentValues.leadId)
+    )
+  ) {
+    formErrors.leadId = 'Selected lead is not available for this slot.';
+  }
+  return formErrors;
+};
+
 const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
   const { notify } = useNotify();
   const rooms = useRoomsForPrimaryOrg();
@@ -375,28 +424,13 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
   const canChangeStatusByStatus = canShowStatusChangeAction(activeAppointment.status);
 
   const handleAppointmentSave = async () => {
-    const formErrors: typeof errors = {};
     const slotLeadOptions = getLeadOptionsForSlot(selectedSlot);
-    if (!appointmentValues.specialityId) formErrors.specialityId = 'Please select a speciality';
-    if (!appointmentValues.serviceId) formErrors.serviceId = 'Please select a service';
-    if (!selectedSlot) formErrors.slot = 'Please select a slot';
-    if (selectedSlot && slotLeadOptions.length === 0) {
-      formErrors.slot = 'No lead is available for this slot. Please choose another slot.';
-      formErrors.leadId = 'No lead is available for this slot.';
-    }
-    if (selectedSlot && slotLeadOptions.length > 1 && !appointmentValues.leadId) {
-      formErrors.leadId = 'Multiple leads are available. Please choose a lead.';
-    }
-    if (
-      selectedSlot &&
-      appointmentValues.leadId &&
-      slotLeadOptions.length > 0 &&
-      !slotLeadOptions.some(
-        (option) => normalizeId(option.value) === normalizeId(appointmentValues.leadId)
-      )
-    ) {
-      formErrors.leadId = 'Selected lead is not available for this slot.';
-    }
+    const formErrors = validateAppointmentForm({
+      appointmentValues,
+      selectedSlot,
+      slotLeadOptions,
+      normalizeId,
+    });
     setErrors(formErrors);
     if (Object.keys(formErrors).length > 0) return;
 
@@ -555,11 +589,11 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
                   setAppointmentValues((prev) => ({ ...prev, supportIds: ids }))
                 }
               />
-              {!canRescheduleByStatus ? (
+              {canRescheduleByStatus ? null : (
                 <p className="text-caption-1 text-text-secondary">
                   This appointment can no longer be rescheduled from edit mode.
                 </p>
-              ) : null}
+              )}
               {canAssignRoomByStatus ? (
                 <LabelDropdown
                   placeholder="Room"

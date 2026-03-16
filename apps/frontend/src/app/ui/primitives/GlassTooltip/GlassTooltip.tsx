@@ -58,11 +58,11 @@ const GlassTooltip = ({ content, children, side = 'top', className = '' }: Glass
       transform = 'translate(-50%, -100%)';
     }
 
-    const maxLeft = window.innerWidth - bubbleRect.width - viewportPadding;
+    const maxLeft = globalThis.window.innerWidth - bubbleRect.width - viewportPadding;
     const minLeft = viewportPadding;
     left = Math.max(minLeft, Math.min(left, maxLeft));
 
-    const maxTop = window.innerHeight - bubbleRect.height - viewportPadding;
+    const maxTop = globalThis.window.innerHeight - bubbleRect.height - viewportPadding;
     const minTop = viewportPadding;
     top = Math.max(minTop, Math.min(top, maxTop));
 
@@ -74,11 +74,11 @@ const GlassTooltip = ({ content, children, side = 'top', className = '' }: Glass
     updatePosition();
 
     const onReposition = () => updatePosition();
-    window.addEventListener('resize', onReposition);
-    window.addEventListener('scroll', onReposition, true);
+    globalThis.window.addEventListener('resize', onReposition);
+    globalThis.window.addEventListener('scroll', onReposition, true);
     return () => {
-      window.removeEventListener('resize', onReposition);
-      window.removeEventListener('scroll', onReposition, true);
+      globalThis.window.removeEventListener('resize', onReposition);
+      globalThis.window.removeEventListener('scroll', onReposition, true);
     };
   }, [open, updatePosition]);
 

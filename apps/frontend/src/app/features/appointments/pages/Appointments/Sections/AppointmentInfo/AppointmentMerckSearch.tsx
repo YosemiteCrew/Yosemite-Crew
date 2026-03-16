@@ -102,9 +102,9 @@ const CompactFilterPill = ({
 );
 
 const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchProps) => {
-  void activeAppointment;
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const { isEnabled } = useResolvedMerckIntegrationForPrimaryOrg();
+  const hasActiveAppointment = activeAppointment !== null;
 
   const [audience, setAudience] = useState<MerckAudience>('PROV');
   const [query, setQuery] = useState('');
@@ -186,6 +186,65 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
     }
   };
 
+  const entriesContent =
+    entries.length === 0 ? (
+      loading ? (
+        <div className="text-body-4 text-text-secondary">Searching manuals...</div>
+      ) : null
+    ) : (
+      entries.map((entry) => (
+        <div
+          key={entry.id}
+          className="w-full min-w-0 rounded-2xl border border-card-border p-4 flex flex-col gap-3 overflow-x-hidden"
+        >
+          <div className="flex items-start justify-between gap-2 min-w-0">
+            <div className="text-body-2 text-text-primary break-words min-w-0">{entry.title}</div>
+          </div>
+          <div className="text-body-4 text-text-secondary line-clamp-3 break-words">
+            {entry.summaryText || 'No summary available.'}
+          </div>
+
+          <div className="flex gap-2 flex-wrap items-center">
+            <Primary href="#" text="Open" onClick={() => openReader(entry, entry.primaryUrl)} />
+            <button
+              type="button"
+              onClick={() => window.open(entry.primaryUrl, '_blank', 'noopener,noreferrer')}
+              aria-label="Open in new tab"
+              title="Open in new tab"
+              className="h-12 w-12 rounded-2xl! border border-card-border flex items-center justify-center text-text-primary hover:bg-card-hover transition-colors cursor-pointer"
+            >
+              <IoOpenOutline size={18} />
+            </button>
+            <button
+              type="button"
+              onClick={() => void copyUrl(entry.primaryUrl)}
+              aria-label="Copy manual URL"
+              title="Copy URL"
+              className="h-12 w-12 rounded-2xl! border border-card-border flex items-center justify-center text-text-primary hover:bg-card-hover transition-colors cursor-pointer"
+            >
+              <IoCopyOutline size={18} />
+            </button>
+          </div>
+
+          {entry.subLinks.length > 0 ? (
+            <div className="flex gap-2 flex-wrap min-w-0">
+              {entry.subLinks.map((subLink) => (
+                <button
+                  key={`${entry.id}-${subLink.label}`}
+                  type="button"
+                  className="max-w-full px-3 py-1 rounded-2xl! border border-card-border text-body-4 text-text-secondary hover:bg-card-hover cursor-pointer break-words"
+                  style={getMerckSubtopicPillStyle(subLink.label)}
+                  onClick={() => openReader(entry, subLink.url)}
+                >
+                  {subLink.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ))
+    );
+
   if (!isEnabled) {
     return (
       <div className="w-full rounded-2xl border border-card-border p-4">
@@ -198,7 +257,10 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
 
   return (
     <>
-      <div className="w-full self-start min-w-0 overflow-hidden rounded-2xl border border-card-border p-4 flex h-full min-h-0 flex-col gap-4">
+      <div
+        className="w-full self-start min-w-0 overflow-hidden rounded-2xl border border-card-border p-4 flex h-full min-h-0 flex-col gap-4"
+        data-has-appointment={hasActiveAppointment}
+      >
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <Image
             src={MEDIA_SOURCES.futureAssets.merckLogoUrl}
@@ -341,73 +403,7 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
           {error ? <div className="text-body-4 text-text-error">{error}</div> : null}
 
           <div className="min-h-0 flex-1 overflow-y-auto pr-1 max-h-[min(60vh,560px)]">
-            <div className="flex flex-col gap-3">
-              {entries.length === 0 ? (
-                loading ? (
-                  <div className="text-body-4 text-text-secondary">Searching manuals...</div>
-                ) : null
-              ) : (
-                entries.map((entry) => (
-                  <div
-                    key={entry.id}
-                    className="w-full min-w-0 rounded-2xl border border-card-border p-4 flex flex-col gap-3 overflow-x-hidden"
-                  >
-                    <div className="flex items-start justify-between gap-2 min-w-0">
-                      <div className="text-body-2 text-text-primary break-words min-w-0">
-                        {entry.title}
-                      </div>
-                    </div>
-                    <div className="text-body-4 text-text-secondary line-clamp-3 break-words">
-                      {entry.summaryText || 'No summary available.'}
-                    </div>
-
-                    <div className="flex gap-2 flex-wrap items-center">
-                      <Primary
-                        href="#"
-                        text="Open"
-                        onClick={() => openReader(entry, entry.primaryUrl)}
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          window.open(entry.primaryUrl, '_blank', 'noopener,noreferrer')
-                        }
-                        aria-label="Open in new tab"
-                        title="Open in new tab"
-                        className="h-12 w-12 rounded-2xl! border border-card-border flex items-center justify-center text-text-primary hover:bg-card-hover transition-colors cursor-pointer"
-                      >
-                        <IoOpenOutline size={18} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void copyUrl(entry.primaryUrl)}
-                        aria-label="Copy manual URL"
-                        title="Copy URL"
-                        className="h-12 w-12 rounded-2xl! border border-card-border flex items-center justify-center text-text-primary hover:bg-card-hover transition-colors cursor-pointer"
-                      >
-                        <IoCopyOutline size={18} />
-                      </button>
-                    </div>
-
-                    {entry.subLinks.length > 0 ? (
-                      <div className="flex gap-2 flex-wrap min-w-0">
-                        {entry.subLinks.map((subLink) => (
-                          <button
-                            key={`${entry.id}-${subLink.label}`}
-                            type="button"
-                            className="max-w-full px-3 py-1 rounded-2xl! border border-card-border text-body-4 text-text-secondary hover:bg-card-hover cursor-pointer break-words"
-                            style={getMerckSubtopicPillStyle(subLink.label)}
-                            onClick={() => openReader(entry, subLink.url)}
-                          >
-                            {subLink.label}
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                ))
-              )}
-            </div>
+            <div className="flex flex-col gap-3">{entriesContent}</div>
           </div>
         </div>
         <div className="pt-1 flex flex-col gap-1">

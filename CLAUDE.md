@@ -42,6 +42,8 @@ pnpm --filter frontend run test -- --testPathPattern="Availability"
 
 ## Commit Discipline — CRITICAL
 
+Before making changes in a resumed or compacted session, run `git status --short` and preserve any existing uncommitted work unless the user explicitly asks you to discard it.
+
 **NEVER run `git commit` yourself.** The agent must never commit. Instead:
 
 - After every logical batch of changes (per file or feature), tell the user: "**COMMIT CHECKPOINT** — suggested message: `<conventional commit message>`"

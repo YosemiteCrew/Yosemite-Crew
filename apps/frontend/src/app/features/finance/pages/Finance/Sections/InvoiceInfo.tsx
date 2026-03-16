@@ -108,17 +108,18 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
             />
           </div>
           <div className="flex flex-col gap-3 mt-2">
-            {showDownload ? (
+            {showDownload && (
               <Secondary
                 text="Download"
                 href=""
                 onClick={() => handleDownload(activeInvoice?.stripeReceiptUrl)}
               />
-            ) : showGenerateLink ? (
+            )}
+            {!showDownload && showGenerateLink && (
               <div className="text-caption-1 text-text-secondary">
                 Payment link actions are available from the appointment finance flow.
               </div>
-            ) : null}
+            )}
           </div>
         </div>
       </div>
