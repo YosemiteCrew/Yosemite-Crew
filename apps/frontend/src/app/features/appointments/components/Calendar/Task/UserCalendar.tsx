@@ -11,7 +11,7 @@ import {
 import { HOURS_IN_DAY } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import TaskSlot from '@/app/features/appointments/components/Calendar/Task/TaskSlot';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
-import UserLabels from '@/app/features/appointments/components/Calendar/Task/UserLabels';
+import UserLabels from '@/app/features/appointments/components/Calendar/common/UserLabels';
 import { Task } from '@/app/features/tasks/types/task';
 import Back from '@/app/ui/primitives/Icons/Back';
 import Next from '@/app/ui/primitives/Icons/Next';
@@ -29,6 +29,8 @@ import {
   isOnPreferredTimeZoneCalendarDay,
 } from '@/app/lib/timezone';
 import { useCalendarNow } from '@/app/features/appointments/components/Calendar/useCalendarNow';
+import NowIndicator from '@/app/features/appointments/components/Calendar/common/NowIndicator';
+import SlotGridLines from '@/app/features/appointments/components/Calendar/common/SlotGridLines';
 
 const HOUR_ROW_GAP_PX = 0;
 
@@ -284,19 +286,12 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                             draggedTaskDurationMinutes={draggedTaskDurationMinutes}
                             resolveDisplayName={resolveDisplayName}
                           />
-                          <div className="pointer-events-none absolute inset-0 z-10">
-                            <div className="absolute inset-x-0 top-0 border-t border-[#C3CEDC]" />
-                            {slotOffsetMinutes.map((minute) => (
-                              <div
-                                key={`${user._id}-${hour}-slot-${minute}`}
-                                className="absolute inset-x-0 border-t border-[#E9EDF3]"
-                                style={{ top: `${(minute / 60) * 100}%` }}
-                              />
-                            ))}
-                            {hour === lastVisibleHour && (
-                              <div className="absolute inset-x-0 top-full border-t border-[#C3CEDC]" />
-                            )}
-                          </div>
+                          <SlotGridLines
+                            userId={user._id}
+                            hour={hour}
+                            lastVisibleHour={lastVisibleHour}
+                            slotOffsetMinutes={slotOffsetMinutes}
+                          />
                         </div>
                       );
                     })}
@@ -305,30 +300,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                 </div>
               ))}
               <div style={{ height: zoomMode === 'out' ? 30 : 40 }} />
-              {nowPosition && (
-                <div className="pointer-events-none absolute inset-0">
-                  <div className="grid h-full grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
-                    <div />
-                    <div className="relative">
-                      <div
-                        className="absolute left-0 right-2 z-20"
-                        style={{
-                          top: nowPosition.topPx,
-                        }}
-                      >
-                        {nowTimeLabel && (
-                          <div className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold text-red-500 whitespace-nowrap">
-                            {nowTimeLabel}
-                          </div>
-                        )}
-                        <div className="absolute -left-[12px] w-3 h-3 rounded-full bg-red-500 translate-y-[-50%]" />
-                        <div className="border-t-2 border-t-red-500 translate-y-[-50%]" />
-                      </div>
-                    </div>
-                    <div />
-                  </div>
-                </div>
-              )}
+              {nowPosition && <NowIndicator topPx={nowPosition.topPx} timeLabel={nowTimeLabel} />}
             </div>
           </div>
         </div>

@@ -30,6 +30,7 @@ import {
   isOnPreferredTimeZoneCalendarDay,
 } from '@/app/lib/timezone';
 import { useCalendarNow } from '@/app/features/appointments/components/Calendar/useCalendarNow';
+import SlotGridLines from '@/app/features/appointments/components/Calendar/common/SlotGridLines';
 
 const HOUR_ROW_GAP_PX = 0;
 
@@ -276,19 +277,12 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                             draggedTaskDurationMinutes={draggedTaskDurationMinutes}
                             resolveDisplayName={resolveDisplayName}
                           />
-                          <div className="pointer-events-none absolute inset-0 z-10">
-                            <div className="absolute inset-x-0 top-0 border-t border-[#C3CEDC]" />
-                            {slotOffsetMinutes.map((minute) => (
-                              <div
-                                key={`${day.getTime()}-${hour}-slot-${minute}`}
-                                className="absolute inset-x-0 border-t border-[#E9EDF3]"
-                                style={{ top: `${(minute / 60) * 100}%` }}
-                              />
-                            ))}
-                            {hour === lastVisibleHour && (
-                              <div className="absolute inset-x-0 top-full border-t border-[#C3CEDC]" />
-                            )}
-                          </div>
+                          <SlotGridLines
+                            userId={String(day.getTime())}
+                            hour={hour}
+                            lastVisibleHour={lastVisibleHour}
+                            slotOffsetMinutes={slotOffsetMinutes}
+                          />
                         </div>
                       );
                     })}

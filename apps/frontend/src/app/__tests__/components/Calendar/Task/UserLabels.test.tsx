@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import UserLabels from '@/app/features/appointments/components/Calendar/Task/UserLabels';
+import UserLabels from '@/app/features/appointments/components/Calendar/common/UserLabels';
 
 const team = [{ name: 'Avery' }, { name: 'Blake' }] as any;
 
