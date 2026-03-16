@@ -41,11 +41,15 @@ const SubLabels = ({
         const pillClassName = hasEmbeddedRedirect
           ? `transition-all duration-200 h-9 flex items-center rounded-2xl! border focus-within:ring-2 focus-within:ring-blue-text ${activeClass} ${disabledClass}`
           : '';
-        const buttonClassName = isLogoOnlyIdexx
-          ? `transition-all duration-200 flex items-center focus-visible:outline-none ${disabledClass}`
-          : hasEmbeddedRedirect
-            ? 'h-full pl-3 pr-2 flex items-center focus-visible:outline-none rounded-l-2xl!'
-            : `transition-all duration-200 text-body-4 h-9 px-3 flex items-center rounded-2xl! border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-text ${activeClass} ${disabledClass}`;
+        let buttonClassName: string;
+        if (isLogoOnlyIdexx) {
+          buttonClassName = `transition-all duration-200 flex items-center focus-visible:outline-none ${disabledClass}`;
+        } else if (hasEmbeddedRedirect) {
+          buttonClassName =
+            'h-full pl-3 pr-2 flex items-center focus-visible:outline-none rounded-l-2xl!';
+        } else {
+          buttonClassName = `transition-all duration-200 text-body-4 h-9 px-3 flex items-center rounded-2xl! border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-text ${activeClass} ${disabledClass}`;
+        }
         return (
           <div
             key={label.key}

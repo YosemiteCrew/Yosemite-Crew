@@ -96,6 +96,38 @@ const ReadOnlyEditField = ({ label, value }: { label: string; value?: string | n
   </div>
 );
 
+type FormErrors = {
+  specialityId?: string;
+  serviceId?: string;
+  slot?: string;
+  leadId?: string;
+};
+
+const validateSlotLeadErrors = (
+  selectedSlot: Slot | null,
+  slotLeadOptions: { label: string; value: string }[],
+  leadId: string,
+  normalizeId: (value?: string | null) => string | undefined
+): Pick<FormErrors, 'slot' | 'leadId'> => {
+  if (!selectedSlot) return { slot: 'Please select a slot' };
+  if (slotLeadOptions.length === 0) {
+    return {
+      slot: 'No lead is available for this slot. Please choose another slot.',
+      leadId: 'No lead is available for this slot.',
+    };
+  }
+  if (slotLeadOptions.length > 1 && !leadId) {
+    return { leadId: 'Multiple leads are available. Please choose a lead.' };
+  }
+  if (
+    leadId &&
+    !slotLeadOptions.some((option) => normalizeId(option.value) === normalizeId(leadId))
+  ) {
+    return { leadId: 'Selected lead is not available for this slot.' };
+  }
+  return {};
+};
+
 const validateAppointmentForm = ({
   appointmentValues,
   selectedSlot,
@@ -112,41 +144,126 @@ const validateAppointmentForm = ({
   slotLeadOptions: { label: string; value: string }[];
   normalizeId: (value?: string | null) => string | undefined;
   requireScheduleSelection: boolean;
-}): {
-  specialityId?: string;
-  serviceId?: string;
-  slot?: string;
-  leadId?: string;
-} => {
-  const formErrors: {
-    specialityId?: string;
-    serviceId?: string;
-    slot?: string;
-    leadId?: string;
-  } = {};
-  if (requireScheduleSelection) {
-    if (!appointmentValues.specialityId) formErrors.specialityId = 'Please select a speciality';
-    if (!appointmentValues.serviceId) formErrors.serviceId = 'Please select a service';
-    if (!selectedSlot) formErrors.slot = 'Please select a slot';
-    if (selectedSlot && slotLeadOptions.length === 0) {
-      formErrors.slot = 'No lead is available for this slot. Please choose another slot.';
-      formErrors.leadId = 'No lead is available for this slot.';
-    }
-    if (selectedSlot && slotLeadOptions.length > 1 && !appointmentValues.leadId) {
-      formErrors.leadId = 'Multiple leads are available. Please choose a lead.';
-    }
-    if (
-      selectedSlot &&
-      appointmentValues.leadId &&
-      slotLeadOptions.length > 0 &&
-      !slotLeadOptions.some(
-        (option) => normalizeId(option.value) === normalizeId(appointmentValues.leadId)
-      )
-    ) {
-      formErrors.leadId = 'Selected lead is not available for this slot.';
-    }
-  }
-  return formErrors;
+}): FormErrors => {
+  const formErrors: FormErrors = {};
+  if (!requireScheduleSelection) return formErrors;
+  if (!appointmentValues.specialityId) formErrors.specialityId = 'Please select a speciality';
+  if (!appointmentValues.serviceId) formErrors.serviceId = 'Please select a service';
+  const slotLeadErrors = validateSlotLeadErrors(
+    selectedSlot,
+    slotLeadOptions,
+    appointmentValues.leadId,
+    normalizeId
+  );
+  return { ...formErrors, ...slotLeadErrors };
+};
+
+type AppointmentSaveContext = {
+  activeAppointment: Appointment;
+  appointmentValues: {
+    concern: string;
+    room: string;
+    specialityId: string;
+    serviceId: string;
+    status: AppointmentStatus | '';
+    leadId: string;
+    supportIds: string[];
+  };
+  selectedDate: Date;
+  selectedSlot: Slot | null;
+  canRescheduleByStatus: boolean;
+  rooms: { id: string; name: string }[];
+  specialities: { _id?: string; name: string }[];
+  services: { id: string; name: string }[];
+  teams: { practionerId?: string; _id?: string; name?: string; [key: string]: unknown }[];
+};
+
+const computeNextTimes = (
+  canReschedule: boolean,
+  selectedDate: Date,
+  selectedSlot: Slot | null,
+  activeAppointment: Appointment
+) => ({
+  nextStartTime: canReschedule
+    ? buildUtcDateFromDateAndTime(selectedDate, selectedSlot!.startTime)
+    : activeAppointment.startTime,
+  nextEndTime: canReschedule
+    ? buildUtcDateFromDateAndTime(selectedDate, selectedSlot!.endTime)
+    : activeAppointment.endTime,
+});
+
+const buildUpdatedAppointment = (ctx: AppointmentSaveContext): Appointment => {
+  const {
+    activeAppointment,
+    appointmentValues,
+    selectedDate,
+    selectedSlot,
+    canRescheduleByStatus,
+    rooms,
+    specialities,
+    services,
+    teams,
+  } = ctx;
+  const { nextStartTime, nextEndTime } = computeNextTimes(
+    canRescheduleByStatus,
+    selectedDate,
+    selectedSlot,
+    activeAppointment
+  );
+  const foundRoom = rooms.find((r) => r.id === appointmentValues.room);
+  const room = foundRoom ? { id: foundRoom.id, name: foundRoom.name } : undefined;
+  const speciality = specialities.find(
+    (item) => (item._id || item.name) === appointmentValues.specialityId
+  );
+  const service = services.find((item) => item.id === appointmentValues.serviceId);
+  const leadMember = teams.find((member) => {
+    const id = member.practionerId || member._id;
+    return id === appointmentValues.leadId;
+  });
+  const supportStaff = teams
+    .filter((member) => {
+      const id = member.practionerId || member._id;
+      return id ? appointmentValues.supportIds.includes(id) : false;
+    })
+    .map((member) => ({
+      id: member.practionerId || member._id || '',
+      name: member.name || member.practionerId || member._id || '',
+    }));
+  return {
+    ...activeAppointment,
+    concern: appointmentValues.concern,
+    room,
+    status: activeAppointment.status,
+    appointmentType: {
+      id: canRescheduleByStatus
+        ? appointmentValues.serviceId
+        : activeAppointment.appointmentType?.id || '',
+      name: (canRescheduleByStatus ? service?.name : activeAppointment.appointmentType?.name) || '',
+      speciality: {
+        id: canRescheduleByStatus
+          ? appointmentValues.specialityId
+          : activeAppointment.appointmentType?.speciality?.id || '',
+        name:
+          (canRescheduleByStatus
+            ? speciality?.name
+            : activeAppointment.appointmentType?.speciality?.name) || '',
+      },
+    },
+    lead:
+      canRescheduleByStatus && leadMember
+        ? {
+            id: leadMember.practionerId || leadMember._id || '',
+            name: leadMember.name || leadMember.practionerId || leadMember._id || '',
+          }
+        : activeAppointment.lead,
+    supportStaff: canRescheduleByStatus ? supportStaff : activeAppointment.supportStaff,
+    startTime: nextStartTime,
+    endTime: nextEndTime,
+    appointmentDate: nextStartTime,
+    durationMinutes: canRescheduleByStatus
+      ? getDurationMinutes(selectedSlot!.startTime, selectedSlot!.endTime)
+      : activeAppointment.durationMinutes,
+  };
 };
 
 const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
@@ -434,6 +551,52 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
     setTimeSlots([]);
   };
 
+  const checkScheduleAndRoomBlocked = (
+    nextStartTime: Date | string,
+    nextEndTime: Date | string
+  ): boolean => {
+    const hasScheduleChanged =
+      new Date(activeAppointment.startTime).getTime() !== new Date(nextStartTime).getTime() ||
+      new Date(activeAppointment.endTime).getTime() !== new Date(nextEndTime).getTime();
+    if (hasScheduleChanged && !canRescheduleByStatus) {
+      notify('warning', {
+        title: 'Reschedule blocked',
+        text: 'Checked-in, in-progress, completed, cancelled, and no-show appointments cannot be rescheduled.',
+      });
+      return true;
+    }
+    const hasRoomChanged = appointmentValues.room !== (activeAppointment.room?.id ?? '');
+    if (hasRoomChanged && !canAssignRoomByStatus) {
+      notify('warning', {
+        title: 'Room update blocked',
+        text: 'Room can only be changed for upcoming, checked-in, or in-progress appointments.',
+      });
+      return true;
+    }
+    return false;
+  };
+
+  const applyStatusChange = async (nextStatus: AppointmentStatus | ''): Promise<boolean> => {
+    const currentStatus = activeAppointment.status;
+    if (!nextStatus || nextStatus === currentStatus) return true;
+    if (!canChangeStatusByStatus) {
+      notify('warning', {
+        title: 'Status update blocked',
+        text: 'No status changes are available for this appointment.',
+      });
+      return false;
+    }
+    if (!canTransitionAppointmentStatus(currentStatus, nextStatus)) {
+      notify('warning', {
+        title: 'Status update blocked',
+        text: getInvalidAppointmentStatusTransitionMessage(currentStatus, nextStatus),
+      });
+      return false;
+    }
+    await changeAppointmentStatus(activeAppointment, nextStatus);
+    return true;
+  };
+
   const handleAppointmentSave = async () => {
     const slotLeadOptions = getLeadOptionsForSlot(selectedSlot);
     const formErrors = validateAppointmentForm({
@@ -446,108 +609,29 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
     setErrors(formErrors);
     if (Object.keys(formErrors).length > 0) return;
 
-    const nextStartTime = canRescheduleByStatus
-      ? buildUtcDateFromDateAndTime(selectedDate, selectedSlot!.startTime)
-      : activeAppointment.startTime;
-    const nextEndTime = canRescheduleByStatus
-      ? buildUtcDateFromDateAndTime(selectedDate, selectedSlot!.endTime)
-      : activeAppointment.endTime;
-    const hasScheduleChanged =
-      new Date(activeAppointment.startTime).getTime() !== nextStartTime.getTime() ||
-      new Date(activeAppointment.endTime).getTime() !== nextEndTime.getTime();
-    if (hasScheduleChanged && !canRescheduleByStatus) {
-      notify('warning', {
-        title: 'Reschedule blocked',
-        text: 'Checked-in, in-progress, completed, cancelled, and no-show appointments cannot be rescheduled.',
-      });
-      return;
-    }
-    const hasRoomChanged = appointmentValues.room !== (activeAppointment.room?.id ?? '');
-    if (hasRoomChanged && !canAssignRoomByStatus) {
-      notify('warning', {
-        title: 'Room update blocked',
-        text: 'Room can only be changed for upcoming, checked-in, or in-progress appointments.',
-      });
-      return;
-    }
-
-    const foundRoom = rooms.find((r) => r.id === appointmentValues.room);
-    const room = foundRoom ? { id: foundRoom.id, name: foundRoom.name } : undefined;
-    const speciality = specialities.find(
-      (item) => (item._id || item.name) === appointmentValues.specialityId
+    const { nextStartTime, nextEndTime } = computeNextTimes(
+      canRescheduleByStatus,
+      selectedDate,
+      selectedSlot,
+      activeAppointment
     );
-    const service = services.find((item) => item.id === appointmentValues.serviceId);
-    const leadMember = teams.find((member) => {
-      const id = member.practionerId || member._id;
-      return id === appointmentValues.leadId;
-    });
-    const supportStaff = teams
-      .filter((member) => {
-        const id = member.practionerId || member._id;
-        return id ? appointmentValues.supportIds.includes(id) : false;
-      })
-      .map((member) => ({
-        id: member.practionerId || member._id,
-        name: member.name || member.practionerId || member._id,
-      }));
+    if (checkScheduleAndRoomBlocked(nextStartTime, nextEndTime)) return;
 
-    const updatedAppointment: Appointment = {
-      ...activeAppointment,
-      concern: appointmentValues.concern,
-      room,
-      status: activeAppointment.status,
-      appointmentType: {
-        id: canRescheduleByStatus
-          ? appointmentValues.serviceId
-          : activeAppointment.appointmentType?.id || '',
-        name:
-          (canRescheduleByStatus ? service?.name : activeAppointment.appointmentType?.name) || '',
-        speciality: {
-          id: canRescheduleByStatus
-            ? appointmentValues.specialityId
-            : activeAppointment.appointmentType?.speciality?.id || '',
-          name:
-            (canRescheduleByStatus
-              ? speciality?.name
-              : activeAppointment.appointmentType?.speciality?.name) || '',
-        },
-      },
-      lead:
-        canRescheduleByStatus && leadMember
-          ? {
-              id: leadMember.practionerId || leadMember._id,
-              name: leadMember.name || leadMember.practionerId || leadMember._id,
-            }
-          : activeAppointment.lead,
-      supportStaff: canRescheduleByStatus ? supportStaff : activeAppointment.supportStaff,
-      startTime: nextStartTime,
-      endTime: nextEndTime,
-      appointmentDate: nextStartTime,
-      durationMinutes: canRescheduleByStatus
-        ? getDurationMinutes(selectedSlot!.startTime, selectedSlot!.endTime)
-        : activeAppointment.durationMinutes,
-    };
+    const updatedAppointment = buildUpdatedAppointment({
+      activeAppointment,
+      appointmentValues,
+      selectedDate,
+      selectedSlot,
+      canRescheduleByStatus,
+      rooms,
+      specialities,
+      services,
+      teams,
+    });
 
     await updateAppointment(updatedAppointment);
-    const nextStatus = appointmentValues.status;
-    const currentStatus = activeAppointment.status;
-    if (nextStatus && nextStatus !== currentStatus) {
-      if (!canChangeStatusByStatus) {
-        notify('warning', {
-          title: 'Status update blocked',
-          text: 'No status changes are available for this appointment.',
-        });
-        return;
-      }
-      if (!canTransitionAppointmentStatus(currentStatus, nextStatus)) {
-        notify('warning', {
-          title: 'Status update blocked',
-          text: getInvalidAppointmentStatusTransitionMessage(currentStatus, nextStatus),
-        });
-        return;
-      }
-      await changeAppointmentStatus(activeAppointment, nextStatus);
-    }
+    const succeeded = await applyStatusChange(appointmentValues.status);
+    if (!succeeded) return;
     setIsEditingAppointment(false);
     setErrors({});
   };

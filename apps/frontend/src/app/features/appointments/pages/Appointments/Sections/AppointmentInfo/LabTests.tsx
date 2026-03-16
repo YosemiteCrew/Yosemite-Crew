@@ -1033,6 +1033,226 @@ const useLabTests = (activeAppointment: Appointment | null) => {
 
 type UseLabTestsReturn = ReturnType<typeof useLabTests>;
 
+const getCensusStatusLabel = (selectedIvls: string, companionInCensus: boolean): string => {
+  if (selectedIvls) return companionInCensus ? 'Already added to census' : 'Not added to census';
+  return companionInCensus ? 'Added' : 'Not added';
+};
+
+const getCensusDescription = (selectedIvls: string, companionInCensus: boolean): string => {
+  if (selectedIvls) {
+    return companionInCensus
+      ? 'Companion already exists in IDEXX census. IDEXX only allows one census entry per patient.'
+      : 'Add this companion to IDEXX census before running in-house diagnostics.';
+  }
+  return companionInCensus
+    ? 'Companion is present in IDEXX census for this appointment companion.'
+    : 'Add this companion to IDEXX census before running in-house diagnostics.';
+};
+
+const getIvlsConfirmationLabel = (
+  selectedIvls: string,
+  inHouseCensusConfirmed: boolean
+): string => {
+  if (!selectedIvls) return 'Select an IVLS device to check confirmation state';
+  return inHouseCensusConfirmed ? 'Confirmed for selected device' : 'Pending for selected device';
+};
+
+const getAppointmentStateLabel = (
+  selectedIvls: string,
+  companionInCensus: boolean,
+  selectedDeviceInCensus: boolean,
+  inHouseCensusConfirmed: boolean
+): string => {
+  if (!selectedIvls) return 'Select an IVLS device';
+  if (!companionInCensus) return 'Not yet added to census';
+  if (!selectedDeviceInCensus) return 'Already in census under another device';
+  return inHouseCensusConfirmed
+    ? 'Ready on selected IVLS device'
+    : 'Added to selected device census, awaiting IVLS confirmation';
+};
+
+const InhouseCensusStatus = ({ s }: { s: UseLabTestsReturn }) => {
+  const censusStatusLabel = getCensusStatusLabel(s.selectedIvls, s.companionInCensus);
+  const censusDescription = getCensusDescription(s.selectedIvls, s.companionInCensus);
+  const ivlsConfirmationLabel = getIvlsConfirmationLabel(s.selectedIvls, s.inHouseCensusConfirmed);
+  const appointmentStateLabel = getAppointmentStateLabel(
+    s.selectedIvls,
+    s.companionInCensus,
+    s.selectedDeviceInCensus,
+    s.inHouseCensusConfirmed
+  );
+  const censusEntry =
+    s.censusEntries.find((entry) => entry.patient?.patientId === s.companionId) ?? null;
+
+  return (
+    <div
+      className={`rounded-2xl border p-3 ${s.companionInCensus ? 'border-green-200 bg-green-50' : 'border-card-border'}`}
+    >
+      <div className="text-body-4 text-text-primary">
+        Companion census status: {censusStatusLabel}
+      </div>
+      <div className="text-caption-1 text-text-secondary mt-1">{censusDescription}</div>
+      {s.companionInCensus && (
+        <div className="text-caption-1 text-text-secondary mt-1">
+          IVLS confirmation: {ivlsConfirmationLabel}
+        </div>
+      )}
+      {s.companionInCensus && (
+        <div className="text-caption-1 text-text-secondary mt-1">
+          Census device ID: {formatCensusIvlsDevices(censusEntry)}
+        </div>
+      )}
+      <div className="text-caption-1 text-text-secondary mt-1">
+        Current appointment state: {appointmentStateLabel}
+      </div>
+      {s.needsSelectedDeviceCensusAdd && (
+        <div className="mt-3">
+          <Primary
+            href="#"
+            text={s.updatingCensus ? 'Adding to census...' : 'Add to census'}
+            onClick={s.handleAddToCensus}
+            isDisabled={s.updatingCensus || !s.companionId || !s.selectedIvls}
+          />
+        </div>
+      )}
+    </div>
+  );
+};
+
+const ReferenceLabForm = ({ s }: { s: UseLabTestsReturn }) => (
+  <>
+    <div className="text-caption-1 text-text-secondary">
+      IDEXX test reference data does not explicitly flag tests as in-house vs device-specific in
+      this contract. Use reference lab for external IDEXX ordering.
+    </div>
+    <SearchDropdown
+      placeholder="Search IDEXX tests"
+      options={s.tests.map((test) => ({
+        value: test.code,
+        label: `${test.display} (${test.code})`,
+        meta: test,
+      }))}
+      onSelect={s.addTest}
+      query={s.selectedTestLabel || s.query}
+      setQuery={(value: string) => {
+        s.setSelectedTestLabel(value);
+        s.setQuery(value);
+      }}
+      minChars={0}
+      onReachEnd={s.loadMoreTests}
+      hasMore={s.testsHasMore}
+      isLoadingMore={s.testsLoadingMore}
+      optionClassName="w-full text-start rounded-2xl! border border-card-border bg-white px-3 py-2 mb-2 last:mb-0 hover:bg-white transition-colors"
+      renderOption={(option) => {
+        const test = option.meta as IdexxTest | undefined;
+        if (!test) return option.label;
+        return (
+          <div className="flex flex-col gap-1">
+            <div className="flex items-start justify-between gap-2">
+              <div className="text-body-4 text-text-primary pr-2">{test.display}</div>
+              <div className="text-label-xsmall px-2 py-1 rounded bg-blue-50 text-blue-700 whitespace-nowrap">
+                {formatTestPrice(test)}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-x-3 gap-y-1 text-caption-1 text-text-secondary">
+              <span>Code: {test.code}</span>
+            </div>
+            <div className="flex flex-wrap gap-x-3 gap-y-1 text-caption-1 text-text-secondary">
+              <span>Turnaround time: {getTestTurnaround(test)}</span>
+              <span>Specimen: {getTestSpecimen(test)}</span>
+            </div>
+          </div>
+        );
+      }}
+    />
+
+    <div className="flex flex-wrap gap-2">
+      {s.selectedTests.length === 0 ? (
+        <div className="text-body-4 text-text-secondary">No tests selected yet.</div>
+      ) : (
+        s.selectedTests.map((test) => (
+          <button
+            key={test.code}
+            type="button"
+            onClick={() => s.removeTest(test.code)}
+            className="rounded-xl! border border-card-border bg-white px-3 py-2 text-left min-w-[220px] max-w-[280px] transition-colors hover:bg-white"
+            title="Remove test from selection"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="text-body-4 text-text-primary truncate">{test.display}</div>
+              <div className="text-label-xsmall px-2 py-1 rounded bg-blue-50 text-blue-700 whitespace-nowrap">
+                {formatTestPrice(test)}
+              </div>
+            </div>
+            <div className="mt-0.5 text-caption-1 text-text-secondary truncate">
+              {test.code} • Turnaround time: {getTestTurnaround(test)}
+            </div>
+          </button>
+        ))
+      )}
+    </div>
+
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <LabelDropdown
+        placeholder="Veterinarian"
+        options={s.practitionerOptions}
+        defaultOption={s.veterinarian}
+        onSelect={(option) => s.setVeterinarian(option.value)}
+      />
+      <LabelDropdown
+        placeholder="Technician"
+        options={s.practitionerOptions}
+        defaultOption={s.technician}
+        onSelect={(option) => s.setTechnician(option.value)}
+      />
+    </div>
+
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <FormInput
+        intype="date"
+        inname="lab-specimen-date"
+        inlabel="Specimen collection date"
+        value={s.specimenCollectionDate}
+        onChange={(e) => s.setSpecimenCollectionDate(e.target.value)}
+      />
+      <FormInput
+        intype="text"
+        inname="lab-notes"
+        inlabel="Notes"
+        value={s.notes}
+        onChange={(e) => s.setNotes(e.target.value)}
+      />
+    </div>
+
+    <Primary
+      href="#"
+      text={s.creatingOrder ? 'Creating order...' : 'Create IDEXX order'}
+      onClick={s.handleCreateOrder}
+      isDisabled={s.creatingOrder || s.loading || s.selectedTests.length === 0 || !s.companionId}
+    />
+  </>
+);
+
+const InhouseLabForm = ({ s }: { s: UseLabTestsReturn }) => (
+  <>
+    <div className="text-body-4 text-text-secondary">
+      In-house IDEXX workflow requires selecting an IVLS device, then adding the companion to census
+      here. Complete ordering on the IDEXX machine after census is confirmed.
+    </div>
+    <LabelDropdown
+      placeholder="Select IVLS device"
+      options={s.devices.map((device) => ({
+        label: `${device.displayName || 'IVLS'} (${device.deviceSerialNumber})`,
+        value: device.deviceSerialNumber,
+      }))}
+      defaultOption={s.selectedIvls}
+      onSelect={(option) => s.setSelectedIvls(option.value)}
+    />
+    <InhouseCensusStatus s={s} />
+    <Secondary href="#" text="Refresh census" onClick={() => void s.refreshCensus()} />
+  </>
+);
+
 const LabOrderForm = ({ s }: { s: UseLabTestsReturn }) => (
   <Accordion title="Create lab order" defaultOpen showEditIcon={false} isEditing>
     <div className="flex flex-col gap-3 py-2">
@@ -1042,202 +1262,7 @@ const LabOrderForm = ({ s }: { s: UseLabTestsReturn }) => (
         defaultOption={s.modality}
         onSelect={(option) => s.setModality(option.value as 'REFERENCE_LAB' | 'INHOUSE')}
       />
-      {s.modality === 'REFERENCE_LAB' ? (
-        <>
-          <div className="text-caption-1 text-text-secondary">
-            IDEXX test reference data does not explicitly flag tests as in-house vs device-specific
-            in this contract. Use reference lab for external IDEXX ordering.
-          </div>
-          <SearchDropdown
-            placeholder="Search IDEXX tests"
-            options={s.tests.map((test) => ({
-              value: test.code,
-              label: `${test.display} (${test.code})`,
-              meta: test,
-            }))}
-            onSelect={s.addTest}
-            query={s.selectedTestLabel || s.query}
-            setQuery={(value: string) => {
-              s.setSelectedTestLabel(value);
-              s.setQuery(value);
-            }}
-            minChars={0}
-            onReachEnd={s.loadMoreTests}
-            hasMore={s.testsHasMore}
-            isLoadingMore={s.testsLoadingMore}
-            optionClassName="w-full text-start rounded-2xl! border border-card-border bg-white px-3 py-2 mb-2 last:mb-0 hover:bg-white transition-colors"
-            renderOption={(option) => {
-              const test = option.meta as IdexxTest | undefined;
-              if (!test) return option.label;
-              return (
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="text-body-4 text-text-primary pr-2">{test.display}</div>
-                    <div className="text-label-xsmall px-2 py-1 rounded bg-blue-50 text-blue-700 whitespace-nowrap">
-                      {formatTestPrice(test)}
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-caption-1 text-text-secondary">
-                    <span>Code: {test.code}</span>
-                  </div>
-                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-caption-1 text-text-secondary">
-                    <span>Turnaround time: {getTestTurnaround(test)}</span>
-                    <span>Specimen: {getTestSpecimen(test)}</span>
-                  </div>
-                </div>
-              );
-            }}
-          />
-
-          <div className="flex flex-wrap gap-2">
-            {s.selectedTests.length === 0 ? (
-              <div className="text-body-4 text-text-secondary">No tests selected yet.</div>
-            ) : (
-              s.selectedTests.map((test) => (
-                <button
-                  key={test.code}
-                  type="button"
-                  onClick={() => s.removeTest(test.code)}
-                  className="rounded-xl! border border-card-border bg-white px-3 py-2 text-left min-w-[220px] max-w-[280px] transition-colors hover:bg-white"
-                  title="Remove test from selection"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="text-body-4 text-text-primary truncate">{test.display}</div>
-                    <div className="text-label-xsmall px-2 py-1 rounded bg-blue-50 text-blue-700 whitespace-nowrap">
-                      {formatTestPrice(test)}
-                    </div>
-                  </div>
-                  <div className="mt-0.5 text-caption-1 text-text-secondary truncate">
-                    {test.code} • Turnaround time: {getTestTurnaround(test)}
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <LabelDropdown
-              placeholder="Veterinarian"
-              options={s.practitionerOptions}
-              defaultOption={s.veterinarian}
-              onSelect={(option) => s.setVeterinarian(option.value)}
-            />
-            <LabelDropdown
-              placeholder="Technician"
-              options={s.practitionerOptions}
-              defaultOption={s.technician}
-              onSelect={(option) => s.setTechnician(option.value)}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <FormInput
-              intype="date"
-              inname="lab-specimen-date"
-              inlabel="Specimen collection date"
-              value={s.specimenCollectionDate}
-              onChange={(e) => s.setSpecimenCollectionDate(e.target.value)}
-            />
-            <FormInput
-              intype="text"
-              inname="lab-notes"
-              inlabel="Notes"
-              value={s.notes}
-              onChange={(e) => s.setNotes(e.target.value)}
-            />
-          </div>
-
-          <Primary
-            href="#"
-            text={s.creatingOrder ? 'Creating order...' : 'Create IDEXX order'}
-            onClick={s.handleCreateOrder}
-            isDisabled={
-              s.creatingOrder || s.loading || s.selectedTests.length === 0 || !s.companionId
-            }
-          />
-        </>
-      ) : (
-        <>
-          <div className="text-body-4 text-text-secondary">
-            In-house IDEXX workflow requires selecting an IVLS device, then adding the companion to
-            census here. Complete ordering on the IDEXX machine after census is confirmed.
-          </div>
-          <LabelDropdown
-            placeholder="Select IVLS device"
-            options={s.devices.map((device) => ({
-              label: `${device.displayName || 'IVLS'} (${device.deviceSerialNumber})`,
-              value: device.deviceSerialNumber,
-            }))}
-            defaultOption={s.selectedIvls}
-            onSelect={(option) => s.setSelectedIvls(option.value)}
-          />
-          <div
-            className={`rounded-2xl border p-3 ${s.companionInCensus ? 'border-green-200 bg-green-50' : 'border-card-border'}`}
-          >
-            <div className="text-body-4 text-text-primary">
-              Companion census status:{' '}
-              {s.selectedIvls
-                ? s.companionInCensus
-                  ? 'Already added to census'
-                  : 'Not added to census'
-                : s.companionInCensus
-                  ? 'Added'
-                  : 'Not added'}
-            </div>
-            <div className="text-caption-1 text-text-secondary mt-1">
-              {s.selectedIvls
-                ? s.companionInCensus
-                  ? 'Companion already exists in IDEXX census. IDEXX only allows one census entry per patient.'
-                  : 'Add this companion to IDEXX census before running in-house diagnostics.'
-                : s.companionInCensus
-                  ? 'Companion is present in IDEXX census for this appointment companion.'
-                  : 'Add this companion to IDEXX census before running in-house diagnostics.'}
-            </div>
-            {s.companionInCensus ? (
-              <div className="text-caption-1 text-text-secondary mt-1">
-                IVLS confirmation:{' '}
-                {s.selectedIvls
-                  ? s.inHouseCensusConfirmed
-                    ? 'Confirmed for selected device'
-                    : 'Pending for selected device'
-                  : 'Select an IVLS device to check confirmation state'}
-              </div>
-            ) : null}
-            {s.companionInCensus ? (
-              <div className="text-caption-1 text-text-secondary mt-1">
-                Census device ID:{' '}
-                {formatCensusIvlsDevices(
-                  s.censusEntries.find((entry) => entry.patient?.patientId === s.companionId) ??
-                    null
-                )}
-              </div>
-            ) : null}
-            <div className="text-caption-1 text-text-secondary mt-1">
-              Current appointment state:{' '}
-              {s.selectedIvls
-                ? s.companionInCensus
-                  ? s.selectedDeviceInCensus
-                    ? s.inHouseCensusConfirmed
-                      ? 'Ready on selected IVLS device'
-                      : 'Added to selected device census, awaiting IVLS confirmation'
-                    : 'Already in census under another device'
-                  : 'Not yet added to census'
-                : 'Select an IVLS device'}
-            </div>
-            {s.needsSelectedDeviceCensusAdd ? (
-              <div className="mt-3">
-                <Primary
-                  href="#"
-                  text={s.updatingCensus ? 'Adding to census...' : 'Add to census'}
-                  onClick={s.handleAddToCensus}
-                  isDisabled={s.updatingCensus || !s.companionId || !s.selectedIvls}
-                />
-              </div>
-            ) : null}
-          </div>
-          <Secondary href="#" text="Refresh census" onClick={() => void s.refreshCensus()} />
-        </>
-      )}
+      {s.modality === 'REFERENCE_LAB' ? <ReferenceLabForm s={s} /> : <InhouseLabForm s={s} />}
     </div>
   </Accordion>
 );

@@ -452,7 +452,17 @@ const AppointmentBoard = ({
                         draggable={isCardDraggable}
                         onDragStart={(event) => handleAppointmentDragStart(event, appointment.id)}
                         onDragEnd={() => setDraggedAppointmentId(null)}
-                        onClick={!isCardDraggable ? () => openAppointment(appointment) : undefined}
+                        onClick={isCardDraggable ? undefined : () => openAppointment(appointment)}
+                        onKeyDown={
+                          isCardDraggable
+                            ? undefined
+                            : (e) => {
+                                if (e.key === 'Enter' || e.key === ' ')
+                                  openAppointment(appointment);
+                              }
+                        }
+                        role={isCardDraggable ? undefined : 'button'}
+                        tabIndex={isCardDraggable ? undefined : 0}
                       >
                         <div className="relative z-10 flex items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
