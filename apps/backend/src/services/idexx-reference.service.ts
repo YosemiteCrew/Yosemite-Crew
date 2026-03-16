@@ -50,12 +50,34 @@ const mapIdexxSpecies = (code: string, name?: string) => {
 
 const buildSpeciesCode = (species: string) => `YSPEC:${species.toUpperCase()}`;
 
-const slugify = (value: string) =>
-  value
-    .trim()
-    .toLowerCase()
-    .replaceAll(/[^a-z0-9]+/g, "_")
-    .replaceAll(/^_+|_+$/g, "");
+const slugify = (value: string) => {
+  const input = value.trim().toLowerCase();
+  let output = "";
+  let wroteSeparator = false;
+
+  for (let index = 0; index < input.length; index += 1) {
+    const char = input[index];
+    const isLetter = char >= "a" && char <= "z";
+    const isDigit = char >= "0" && char <= "9";
+
+    if (isLetter || isDigit) {
+      output += char;
+      wroteSeparator = false;
+      continue;
+    }
+
+    if (!wroteSeparator && output.length > 0) {
+      output += "_";
+      wroteSeparator = true;
+    }
+  }
+
+  if (output.endsWith("_")) {
+    output = output.slice(0, -1);
+  }
+
+  return output;
+};
 
 const buildBreedCode = (species: string, raw: string) =>
   `YBREED:${species.toUpperCase()}:${slugify(raw).toUpperCase()}`;

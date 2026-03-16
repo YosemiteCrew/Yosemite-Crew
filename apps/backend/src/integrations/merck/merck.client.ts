@@ -11,7 +11,10 @@ export class MerckHealthlinkClient {
   private readonly http: AxiosInstance;
 
   constructor(config: MerckHealthlinkClientConfig) {
-    const baseUrl = config.baseUrl.replace(/\?+$/, "");
+    let baseUrl = config.baseUrl;
+    while (baseUrl.endsWith("?")) {
+      baseUrl = baseUrl.slice(0, -1);
+    }
     this.http = axios.create({
       baseURL: baseUrl,
       timeout: config.timeoutMs,

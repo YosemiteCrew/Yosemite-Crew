@@ -194,18 +194,64 @@ const isUsCanadaTimezone = (value: string): boolean => {
   return US_CANADA_TIMEZONES.has(value);
 };
 
-const stripHtml = (value: string): string =>
-  String(value ?? "")
-    .replaceAll(/<[^>]*>/g, " ")
-    .replaceAll(/\s+/g, " ")
-    .trim();
+const stripHtml = (value: string): string => {
+  const input = String(value ?? "");
+  let output = "";
+  let inTag = false;
+  let wroteSpace = false;
+
+  for (let index = 0; index < input.length; index += 1) {
+    const char = input[index];
+
+    if (inTag) {
+      if (char === ">") {
+        inTag = false;
+        if (!wroteSpace && output.length > 0) {
+          output += " ";
+          wroteSpace = true;
+        }
+      }
+      continue;
+    }
+
+    if (char === "<") {
+      inTag = true;
+      if (!wroteSpace && output.length > 0) {
+        output += " ";
+        wroteSpace = true;
+      }
+      continue;
+    }
+
+    if (char === " " || char === "\n" || char === "\t" || char === "\r") {
+      if (!wroteSpace && output.length > 0) {
+        output += " ";
+        wroteSpace = true;
+      }
+      continue;
+    }
+
+    output += char;
+    wroteSpace = false;
+  }
+
+  return output.trim();
+};
 
 const extractSummaryTextFromHtml = (html: string): string => {
-  const match = new RegExp(/<p[^>]*>(.*?)<\/p>/i).exec(String(html ?? ""));
-  if (match?.[1]) {
-    return stripHtml(match[1]);
+  const input = String(html ?? "");
+  const lower = input.toLowerCase();
+  const openIndex = lower.indexOf("<p");
+  if (openIndex !== -1) {
+    const tagEnd = lower.indexOf(">", openIndex + 2);
+    if (tagEnd !== -1) {
+      const closeIndex = lower.indexOf("</p>", tagEnd + 1);
+      if (closeIndex !== -1) {
+        return stripHtml(input.slice(tagEnd + 1, closeIndex));
+      }
+    }
   }
-  return stripHtml(html);
+  return stripHtml(input);
 };
 
 const extractAnchorLinksFromHtml = (html: string) => {
@@ -226,7 +272,13 @@ const extractAnchorLinksFromHtml = (html: string) => {
 const canonicalUrlKey = (value: string): string => {
   try {
     const parsed = new URL(value);
-    const pathname = parsed.pathname.replaceAll(/\/+$/g, "") || "/";
+    let pathname = parsed.pathname;
+    while (pathname.endsWith("/") && pathname.length > 1) {
+      pathname = pathname.slice(0, -1);
+    }
+    if (!pathname) {
+      pathname = "/";
+    }
     return `${parsed.hostname.toLowerCase()}${pathname}${parsed.hash ?? ""}`;
   } catch {
     return value;
@@ -392,13 +444,54 @@ const extractXmlTagValue = (xml: string, tag: string): string | null => {
 
 const parseXmlAttributes = (tag: string): Record<string, string> => {
   const attrs: Record<string, string> = {};
-  const regex = /([a-zA-Z_:.-]+)="([^"]*)"/g;
-  let match: RegExpExecArray | null;
-  do {
-    match = regex.exec(tag);
-    if (!match) continue;
-    attrs[match[1]] = match[2];
-  } while (match);
+  const input = String(tag ?? "");
+  const isNameChar = (char: string) =>
+    (char >= "a" && char <= "z") ||
+    (char >= "A" && char <= "Z") ||
+    (char >= "0" && char <= "9") ||
+    char === "_" ||
+    char === ":" ||
+    char === "." ||
+    char === "-";
+
+  let index = 0;
+  while (index < input.length) {
+    while (index < input.length && !isNameChar(input[index])) {
+      index += 1;
+    }
+    if (index >= input.length) break;
+
+    const nameStart = index;
+    while (index < input.length && isNameChar(input[index])) {
+      index += 1;
+    }
+    const name = input.slice(nameStart, index);
+
+    while (index < input.length && input[index] === " ") {
+      index += 1;
+    }
+    if (input[index] !== "=") continue;
+    index += 1;
+
+    while (index < input.length && input[index] === " ") {
+      index += 1;
+    }
+    if (input[index] !== '"') continue;
+    index += 1;
+
+    const valueStart = index;
+    while (index < input.length && input[index] !== '"') {
+      index += 1;
+    }
+    const value = input.slice(valueStart, index);
+    if (name) {
+      attrs[name] = value;
+    }
+
+    if (input[index] === '"') {
+      index += 1;
+    }
+  }
   return attrs;
 };
 
@@ -534,7 +627,10 @@ const selectMerckBaseUrl = (timezone?: string) => {
     "";
 
   const normalizeBase = (value: string) => {
-    const trimmed = value.replace(/\/+$/, "");
+    let trimmed = value;
+    while (trimmed.endsWith("/") && trimmed.length > 1) {
+      trimmed = trimmed.slice(0, -1);
+    }
     if (trimmed.endsWith("/custom/infobutton/search")) {
       return trimmed.replace(
         "/custom/infobutton/search",
@@ -621,7 +717,10 @@ const buildSearchParams = (input: MerckSearchParams) => {
 };
 
 const buildAlternateBaseUrl = (baseUrl: string) => {
-  const trimmed = baseUrl.replace(/\/+$/, "");
+  let trimmed = baseUrl;
+  while (trimmed.endsWith("/") && trimmed.length > 1) {
+    trimmed = trimmed.slice(0, -1);
+  }
   if (trimmed.endsWith("/infobutton/searchjson")) {
     return trimmed.replace(
       "/infobutton/searchjson",
