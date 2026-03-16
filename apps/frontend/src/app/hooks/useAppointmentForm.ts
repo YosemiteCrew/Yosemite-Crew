@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Appointment } from '@yosemite-crew/types';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { useSpecialitiesForPrimaryOrg } from '@/app/hooks/useSpecialities';
@@ -48,6 +48,7 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
 
   const [formData, setFormData] = useState<Appointment>(EMPTY_APPOINTMENT);
   const [formDataErrors, setFormDataErrors] = useState<AppointmentFormErrors>({});
+  const currentLeadIdRef = useRef<string>('');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [timeSlots, setTimeSlots] = useState<Slot[]>([]);
@@ -102,6 +103,8 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
     },
     [teams, timeSlots]
   );
+  const getLeadOptionsRef = useRef(getLeadOptionsForSlot);
+  getLeadOptionsRef.current = getLeadOptionsForSlot;
 
   const filterOutPastSlotsForSelectedDate = useCallback((slots: Slot[], day: Date) => {
     if (!isOnPreferredTimeZoneCalendarDay(new Date(), day)) return slots;
@@ -168,9 +171,13 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
   );
 
   useEffect(() => {
+    currentLeadIdRef.current = formData.lead?.id || '';
+  }, [formData.lead?.id]);
+
+  useEffect(() => {
     if (!selectedSlot) return;
-    const options = getLeadOptionsForSlot(selectedSlot);
-    const currentLeadId = formData.lead?.id || '';
+    const options = getLeadOptionsRef.current(selectedSlot);
+    const currentLeadId = currentLeadIdRef.current;
     if (options.length === 0) {
       setSelectedSlot(null);
       setFormData((prev) => ({ ...prev, lead: undefined }));
@@ -206,7 +213,7 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
       return;
     }
     setFormDataErrors((prev) => ({ ...prev, slot: undefined, leadId: undefined }));
-  }, [formData.lead?.id, getLeadOptionsForSlot, selectedSlot]);
+  }, [selectedSlot]);
 
   useEffect(() => {
     if (!pendingPrefill) return;
