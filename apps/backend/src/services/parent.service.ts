@@ -31,9 +31,45 @@ export class ParentServiceError extends Error {
   }
 }
 
-const OFFSET_TIMEZONE_REGEX = /^(?:UTC)?[+-](?:0?\d|1\d|2[0-3]):[0-5]\d$/;
-const COMBINED_TIMEZONE_REGEX =
-  /^UTC[+-](?:0?\d|1\d|2[0-3]):[0-5]\d\s*-\s*(.+)$/;
+const isValidOffsetTimezone = (value: string): boolean => {
+  const trimmed = value.trim();
+  const withPrefix = trimmed.startsWith("UTC") ? trimmed.slice(3) : trimmed;
+  if (!withPrefix) return false;
+
+  const sign = withPrefix[0];
+  if (sign !== "+" && sign !== "-") return false;
+
+  const timePart = withPrefix.slice(1);
+  const colonIndex = timePart.indexOf(":");
+  if (colonIndex === -1) return false;
+
+  const hoursText = timePart.slice(0, colonIndex);
+  const minutesText = timePart.slice(colonIndex + 1);
+  if (!hoursText || !minutesText) return false;
+  if (hoursText.length > 2 || minutesText.length !== 2) return false;
+
+  const hours = Number(hoursText);
+  const minutes = Number(minutesText);
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return false;
+  if (hours < 0 || hours > 23) return false;
+  if (minutes < 0 || minutes > 59) return false;
+
+  return true;
+};
+
+const parseCombinedTimezone = (value: string): string | null => {
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("UTC")) return null;
+
+  const sepIndex = trimmed.indexOf("-");
+  if (sepIndex === -1) return null;
+
+  const offsetPart = trimmed.slice(0, sepIndex).trimEnd();
+  if (!isValidOffsetTimezone(offsetPart)) return null;
+
+  const remainder = trimmed.slice(sepIndex + 1).trim();
+  return remainder || null;
+};
 
 const isValidIanaTimezone = (value: string): boolean => {
   try {
@@ -49,7 +85,7 @@ const isValidTimezone = (value: string): boolean => {
     return true;
   }
 
-  if (OFFSET_TIMEZONE_REGEX.test(value)) {
+  if (isValidOffsetTimezone(value)) {
     return true;
   }
 
@@ -59,10 +95,10 @@ const isValidTimezone = (value: string): boolean => {
 const validateTimezone = (value: string, field: string): string => {
   const trimmed = value.trim();
 
-  const combinedMatch = COMBINED_TIMEZONE_REGEX.exec(trimmed);
-  const normalized = combinedMatch
-    ? isValidIanaTimezone(combinedMatch[1].trim())
-      ? combinedMatch[1].trim()
+  const combinedCandidate = parseCombinedTimezone(trimmed);
+  const normalized = combinedCandidate
+    ? isValidIanaTimezone(combinedCandidate)
+      ? combinedCandidate
       : trimmed
     : trimmed;
 

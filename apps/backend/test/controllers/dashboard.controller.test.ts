@@ -92,7 +92,7 @@ describe("DashboardController", () => {
   // ----------------------------------------------------------------------
 
   describe("summary", () => {
-    it("should success with default range (last_week)", async () => {
+    it("should success with default range (last_month)", async () => {
       req.query = {}; // No range provided
       mockedDashboardService.getSummary.mockResolvedValue({
         totalAppointments: 10,
@@ -102,7 +102,7 @@ describe("DashboardController", () => {
 
       expect(mockedDashboardService.getSummary).toHaveBeenCalledWith({
         organisationId: "org1",
-        range: "last_week",
+        range: "last_month",
       });
       expect(jsonMock).toHaveBeenCalledWith({ totalAppointments: 10 });
     });
@@ -137,7 +137,7 @@ describe("DashboardController", () => {
   });
 
   describe("appointmentsTrend", () => {
-    it("should success with default range (last_30_days)", async () => {
+    it("should success with default range (last_month)", async () => {
       req.query = {};
       mockedDashboardService.getAppointmentsTrend.mockResolvedValue([] as any);
 
@@ -145,7 +145,8 @@ describe("DashboardController", () => {
 
       expect(mockedDashboardService.getAppointmentsTrend).toHaveBeenCalledWith({
         organisationId: "org1",
-        range: "last_30_days",
+        range: "last_month",
+        bucket: "month",
       });
       expect(jsonMock).toHaveBeenCalledWith([]);
     });
@@ -159,6 +160,7 @@ describe("DashboardController", () => {
       expect(mockedDashboardService.getAppointmentsTrend).toHaveBeenCalledWith({
         organisationId: "org1",
         range: "last_week",
+        bucket: "month",
       });
       expect(jsonMock).toHaveBeenCalledWith([]);
     });
@@ -177,7 +179,7 @@ describe("DashboardController", () => {
   });
 
   describe("revenueTrend", () => {
-    it("should success with default range (last_30_days)", async () => {
+    it("should success with default range (last_month)", async () => {
       req.query = {};
       mockedDashboardService.getRevenueTrend.mockResolvedValue([] as any);
 
@@ -185,7 +187,8 @@ describe("DashboardController", () => {
 
       expect(mockedDashboardService.getRevenueTrend).toHaveBeenCalledWith({
         organisationId: "org1",
-        range: "last_30_days",
+        range: "last_month",
+        bucket: "month",
       });
       expect(jsonMock).toHaveBeenCalledWith([]);
     });
@@ -199,6 +202,7 @@ describe("DashboardController", () => {
       expect(mockedDashboardService.getRevenueTrend).toHaveBeenCalledWith({
         organisationId: "org1",
         range: "this_month",
+        bucket: "month",
       });
       expect(jsonMock).toHaveBeenCalledWith([]);
     });
@@ -226,7 +230,7 @@ describe("DashboardController", () => {
       expect(mockedDashboardService.getAppointmentLeaders).toHaveBeenCalledWith(
         {
           organisationId: "org1",
-          range: "last_week",
+          range: "last_month",
           limit: 5,
         },
       );
@@ -271,21 +275,21 @@ describe("DashboardController", () => {
 
       expect(mockedDashboardService.getRevenueLeaders).toHaveBeenCalledWith({
         organisationId: "org1",
-        range: "last_week",
+        range: "last_month",
         limit: 5,
       });
       expect(jsonMock).toHaveBeenCalledWith([]);
     });
 
     it("should success with explicit params", async () => {
-      req.query = { range: "last_year", limit: "3" };
+      req.query = { range: "last_1_year", limit: "3" };
       mockedDashboardService.getRevenueLeaders.mockResolvedValue([] as any);
 
       await DashboardController.revenueLeaders(req as any, res as Response);
 
       expect(mockedDashboardService.getRevenueLeaders).toHaveBeenCalledWith({
         organisationId: "org1",
-        range: "last_year",
+        range: "last_1_year",
         limit: 3,
       });
       expect(jsonMock).toHaveBeenCalledWith([]);

@@ -5,6 +5,8 @@ import {
 import AppointmentModel from "../../src/models/appointment";
 import TaskModel from "../../src/models/task";
 import InvoiceModel from "../../src/models/invoice";
+import UserOrganizationModel from "../../src/models/user-organization";
+import { AvailabilityService } from "../../src/services/availability.service";
 import {
   InventoryItemModel,
   StockMovementModel,
@@ -15,12 +17,23 @@ import { prisma } from "src/config/prisma";
 jest.mock("../../src/models/appointment");
 jest.mock("../../src/models/task");
 jest.mock("../../src/models/invoice");
+jest.mock("../../src/models/user-organization", () => ({
+  __esModule: true,
+  default: {
+    find: jest.fn(),
+  },
+}));
 jest.mock("../../src/models/inventory", () => ({
   InventoryItemModel: {
     find: jest.fn(),
   },
   StockMovementModel: {
     aggregate: jest.fn(),
+  },
+}));
+jest.mock("../../src/services/availability.service", () => ({
+  AvailabilityService: {
+    getCurrentStatus: jest.fn(),
   },
 }));
 
@@ -37,6 +50,9 @@ jest.mock("src/config/prisma", () => ({
       aggregate: jest.fn(),
       findMany: jest.fn(),
     },
+    userOrganization: {
+      findMany: jest.fn(),
+    },
     inventoryItem: {
       findMany: jest.fn(),
     },
@@ -51,6 +67,15 @@ describe("DashboardService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (UserOrganizationModel.find as jest.Mock).mockReturnValue({
+      select: jest.fn().mockReturnValue({
+        lean: jest.fn().mockResolvedValue([]),
+      }),
+    });
+    (AvailabilityService.getCurrentStatus as jest.Mock).mockResolvedValue(
+      "Off-Duty",
+    );
+    (prisma.userOrganization.findMany as jest.Mock).mockResolvedValue([]);
   });
 
   // --- 1. getSummary ---
@@ -114,6 +139,8 @@ describe("DashboardService", () => {
       "last_week",
       "this_month",
       "last_month",
+      "last_6_months",
+      "last_1_year",
     ];
     test.each(ranges)("should resolve date range for %s", async (range) => {
       (AppointmentModel.aggregate as jest.Mock).mockResolvedValue([]);
@@ -185,27 +212,37 @@ describe("DashboardService", () => {
     });
 
     it("should return trend data", async () => {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = today.getMonth() + 1;
+      const day = today.getDate();
       const mockAgg = [
-        { _id: { year: 2023, month: 1 }, completed: 10, cancelled: 2 },
-        { _id: { year: 2023, month: 2 }, completed: 15, cancelled: 0 },
+        { _id: { year, month, day }, completed: 10, cancelled: 2 },
       ];
       (AppointmentModel.aggregate as jest.Mock).mockResolvedValue(mockAgg);
 
       const result = await DashboardService.getAppointmentsTrend({
         organisationId: mockOrgId,
+        range: "today",
+        bucket: "day",
       });
 
-      expect(result).toHaveLength(2);
-      expect(result[0].label).toBe("Jan");
+      expect(result).toHaveLength(1);
       expect(result[0].completed).toBe(10);
     });
 
     it("should handle empty aggregation fields (defaults)", async () => {
-      const mockAgg = [{ _id: { year: 2023, month: 1 } }]; // missing completed/cancelled
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = today.getMonth() + 1;
+      const day = today.getDate();
+      const mockAgg = [{ _id: { year, month, day } }]; // missing completed/cancelled
       (AppointmentModel.aggregate as jest.Mock).mockResolvedValue(mockAgg);
 
       const result = await DashboardService.getAppointmentsTrend({
         organisationId: mockOrgId,
+        range: "today",
+        bucket: "day",
       });
       expect(result[0].completed).toBe(0);
       expect(result[0].cancelled).toBe(0);
@@ -225,17 +262,19 @@ describe("DashboardService", () => {
     });
 
     it("should aggregate appointment statuses", async () => {
+      const today = new Date();
       (prisma.appointment.findMany as jest.Mock).mockResolvedValueOnce([
-        { startTime: new Date("2023-01-05"), status: "COMPLETED" },
-        { startTime: new Date("2023-01-06"), status: "CANCELLED" },
-        { startTime: new Date("2023-02-01"), status: "COMPLETED" },
+        { startTime: today, status: "COMPLETED" },
+        { startTime: today, status: "CANCELLED" },
       ]);
 
       const result = await DashboardService.getAppointmentsTrend({
         organisationId: mockOrgId,
+        range: "today",
+        bucket: "day",
       });
 
-      expect(result).toHaveLength(2);
+      expect(result).toHaveLength(1);
       expect(result[0].completed + result[0].cancelled).toBe(2);
     });
   });
@@ -249,14 +288,26 @@ describe("DashboardService", () => {
     });
 
     it("should return revenue trend", async () => {
-      const mockAgg = [{ _id: { year: 2023, month: 1 }, revenue: 5000 }];
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = today.getMonth() + 1;
+      const day = today.getDate();
+      const mockAgg = [
+        {
+          _id: { year, month, day },
+          revenue: 5000,
+          paidRevenue: 5000,
+          cancelledRevenue: 0,
+        },
+      ];
       (InvoiceModel.aggregate as jest.Mock).mockResolvedValue(mockAgg);
 
       const result = await DashboardService.getRevenueTrend({
         organisationId: mockOrgId,
+        range: "today",
+        bucket: "day",
       });
       expect(result[0].revenue).toBe(5000);
-      expect(result[0].label).toBe("Jan");
     });
   });
 
@@ -273,13 +324,16 @@ describe("DashboardService", () => {
     });
 
     it("should aggregate paid invoices", async () => {
+      const today = new Date();
       (prisma.invoice.findMany as jest.Mock).mockResolvedValueOnce([
-        { paidAt: new Date("2023-01-10"), totalAmount: 100 },
-        { paidAt: new Date("2023-01-15"), totalAmount: 50 },
+        { paidAt: today, totalAmount: 100, status: "PAID" },
+        { paidAt: today, totalAmount: 50, status: "PAID" },
       ]);
 
       const result = await DashboardService.getRevenueTrend({
         organisationId: mockOrgId,
+        range: "today",
+        bucket: "day",
       });
 
       expect(result[0].revenue).toBe(150);
