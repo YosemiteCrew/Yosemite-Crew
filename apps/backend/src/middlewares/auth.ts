@@ -157,12 +157,16 @@ const verifyTokenMobile = (token: string): Promise<JwtPayload> => {
 
 // Firebase Config
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(
-      process.env.GOOGLE_APPLICATION_CREDENTIALS!,
-    ),
-  });
+if (!admin.apps.length && process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+  try {
+    admin.initializeApp({
+      credential: admin.credential.cert(
+        process.env.GOOGLE_APPLICATION_CREDENTIALS,
+      ),
+    });
+  } catch (err) {
+    logger.warn("Firebase initialization failed — Firebase auth will be unavailable", err);
+  }
 }
 
 const verifyFirebaseToken = async (token: string): Promise<JwtPayload> => {

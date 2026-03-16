@@ -94,6 +94,16 @@ const DsraSchema = new Schema<DsraDetails>(
   { _id: false },
 );
 
+export type ContactPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+
+export type ContactCategory =
+  | 'GENERAL_ENQUIRY'
+  | 'TECHNICAL'
+  | 'BILLING'
+  | 'FEATURE_REQUEST'
+  | 'DSAR'
+  | 'COMPLAINT';
+
 export interface ContactRequestMongo {
   type: ContactType;
   source: ContactSource;
@@ -106,6 +116,8 @@ export interface ContactRequestMongo {
   // who is talking, optional depending on whether user is logged in
   userId?: string;
   email?: string;
+  fullName?: string;
+  phone?: string;
 
   // domain context
   organisationId?: string;
@@ -124,6 +136,10 @@ export interface ContactRequestMongo {
   attachments?: ContactAttachment[];
 
   status: ContactStatus;
+  priority: ContactPriority;
+  assigneeId?: string;
+  assigneeName?: string;
+  category: ContactCategory;
   internalNotes?: string;
 
   createdAt?: Date;
@@ -165,11 +181,33 @@ const ContactRequestSchema = new Schema<ContactRequestMongo>(
 
     attachments: { type: [AttachmentSchema], default: [] },
 
+    fullName: { type: String },
+    phone: { type: String },
+
     status: {
       type: String,
       enum: ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"],
       default: "OPEN",
       index: true,
+    },
+    priority: {
+      type: String,
+      enum: ["LOW", "MEDIUM", "HIGH", "CRITICAL"],
+      default: "MEDIUM",
+    },
+    assigneeId: { type: String, default: null },
+    assigneeName: { type: String, default: null },
+    category: {
+      type: String,
+      enum: [
+        "GENERAL_ENQUIRY",
+        "TECHNICAL",
+        "BILLING",
+        "FEATURE_REQUEST",
+        "DSAR",
+        "COMPLAINT",
+      ],
+      default: "GENERAL_ENQUIRY",
     },
     internalNotes: String,
   },
