@@ -18,7 +18,7 @@ import {
   getSlotsForServiceAndDateForPrimaryOrg,
   updateAppointment,
 } from '@/app/features/appointments/services/appointmentService';
-import { Slot } from '@/app/features/appointments/types/appointments';
+import { AppointmentStatus, Slot } from '@/app/features/appointments/types/appointments';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { getWeekDays } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import {
@@ -33,7 +33,6 @@ import { useOrgStore } from '@/app/stores/orgStore';
 import { useAvailabilityStore } from '@/app/stores/availabilityStore';
 import { useLoadAvailabilities } from '@/app/hooks/useAvailabiities';
 import { useNotify } from '@/app/hooks/useNotify';
-import { AppointmentStatus } from '@/app/features/appointments/types/appointments';
 type AppointmentCalendarProps = {
   filteredList: Appointment[];
   allAppointments: Appointment[];
@@ -66,6 +65,31 @@ type DragContext = {
   durationMinutes: number;
 };
 
+const getErrorMessageFromCandidate = (
+  candidate: { response?: { data?: unknown } } | { data?: unknown } | { message?: string },
+  fallback: string
+) => {
+  const getTrimmedMessage = (value: unknown) =>
+    typeof value === 'string' && value.trim() ? value.trim() : null;
+  const getResponseMessage = (value: unknown) => {
+    if (typeof value === 'string') return getTrimmedMessage(value);
+    if (!value || typeof value !== 'object') return null;
+    const data = value as Record<string, unknown>;
+    return (
+      getTrimmedMessage(data.message) ||
+      getTrimmedMessage(data.error) ||
+      getTrimmedMessage(data.details)
+    );
+  };
+
+  const responseData = candidate && 'response' in candidate ? candidate.response?.data : undefined;
+  return (
+    getResponseMessage(responseData) ||
+    ('message' in candidate ? getTrimmedMessage(candidate.message) : null) ||
+    fallback
+  );
+};
+
 const AppointmentCalendar = ({
   filteredList,
   allAppointments,
@@ -88,28 +112,10 @@ const AppointmentCalendar = ({
 }: AppointmentCalendarProps) => {
   const { notify } = useNotify();
   const getErrorMessage = useCallback((error: unknown, fallback: string) => {
-    const candidate = error as
-      | { response?: { data?: unknown } }
-      | { data?: unknown }
-      | { message?: string };
-
-    const responseData =
-      candidate && 'response' in candidate ? candidate.response?.data : undefined;
-    if (typeof responseData === 'string' && responseData.trim()) return responseData.trim();
-    if (responseData && typeof responseData === 'object') {
-      const data = responseData as Record<string, unknown>;
-      const nestedMessage =
-        (typeof data.message === 'string' && data.message) ||
-        (typeof data.error === 'string' && data.error) ||
-        (typeof data.details === 'string' && data.details);
-      if (nestedMessage && nestedMessage.trim()) return nestedMessage.trim();
-    }
-
-    if (candidate && typeof candidate === 'object' && 'message' in candidate) {
-      const message = candidate.message;
-      if (typeof message === 'string' && message.trim()) return message.trim();
-    }
-    return fallback;
+    return getErrorMessageFromCandidate(
+      error as { response?: { data?: unknown } } | { data?: unknown } | { message?: string },
+      fallback
+    );
   }, []);
 
   const [draggedAppointmentId, setDraggedAppointmentId] = useState<string | null>(null);
@@ -390,7 +396,12 @@ const AppointmentCalendar = ({
       const scoped = normalizedTarget
         ? employeeAvailabilities.filter((item) => targetIds?.has(normalizeId(item.userId)))
         : employeeAvailabilities;
-      const source = normalizedTarget ? scoped : scoped.length ? scoped : orgLevelAvailabilities;
+      let source = scoped;
+      if (normalizedTarget) {
+        source = scoped;
+      } else if (scoped.length === 0) {
+        source = orgLevelAvailabilities;
+      }
       if (source.length) {
         return source
           .flatMap((item) =>

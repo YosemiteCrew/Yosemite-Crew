@@ -57,49 +57,404 @@ const WEEKDAY_ORDER = [
   'SATURDAY',
 ];
 
+const normalizeCalendarId = (value?: string) =>
+  String(value ?? '')
+    .trim()
+    .split('/')
+    .pop()
+    ?.toLowerCase() ?? '';
+
+const clampCalendarMinutes = (minutes: number) =>
+  Math.max(0, Math.min(24 * 60 - 5, Math.round(minutes / 5) * 5));
+
+const getCalendarDayKey = (date: Date) =>
+  formatDateInPreferredTimeZone(date, { weekday: 'long' }).toUpperCase();
+
+const shouldAllowTaskAvailabilityBypass = (
+  authUserId: string,
+  task: Task,
+  normalizeId: (value?: string) => string,
+  resolveAssigneeId: (candidateId?: string) => string,
+  targetAssigneeId?: string
+) => {
+  const normalizedCurrentUser = normalizeId(authUserId);
+  const isAssignedByCurrentUser =
+    !!normalizedCurrentUser && normalizeId(task.assignedBy) === normalizedCurrentUser;
+  if (isAssignedByCurrentUser) return false;
+  const currentAssignee = resolveAssigneeId(task.assignedTo);
+  const nextAssignee = resolveAssigneeId(targetAssigneeId || task.assignedTo);
+  return normalizeId(nextAssignee) !== normalizeId(currentAssignee) || true;
+};
+
+type AvailabilitySlot = {
+  isAvailable?: boolean;
+  startTime?: string;
+  endTime?: string;
+};
+
+type AvailabilityDayEntry = {
+  dayOfWeek?: string;
+  slots?: AvailabilitySlot[];
+};
+
+type LocalClock = {
+  dayOffset: number;
+  minutes: number;
+};
+
+type AbsoluteMinuteRange = {
+  start: number;
+  end: number;
+};
+
+const getSourceDayKey = (dayEntry: AvailabilityDayEntry) =>
+  String(dayEntry?.dayOfWeek ?? '').toUpperCase();
+
+const getAvailabilitySlots = (dayEntry: AvailabilityDayEntry) =>
+  Array.isArray(dayEntry?.slots) ? dayEntry.slots : [];
+
+const getAbsoluteMinuteRange = (
+  slot: AvailabilitySlot,
+  toLocalClock: (utcTime: string) => LocalClock
+): AbsoluteMinuteRange => {
+  const startClock = toLocalClock(slot?.startTime || '');
+  const endClock = toLocalClock(slot?.endTime || '');
+  const start = startClock.dayOffset * 1440 + startClock.minutes;
+  let end = endClock.dayOffset * 1440 + endClock.minutes;
+  if (end <= start) end += 1440;
+  return { start, end };
+};
+
+const getDayOffsetBounds = (range: AbsoluteMinuteRange, taskBlockDuration: number) => {
+  const latestStart = range.end - taskBlockDuration;
+  if (latestStart < range.start) return null;
+  return {
+    latestStart,
+    firstDayOffset: Math.floor(range.start / 1440),
+    lastDayOffset: Math.floor(latestStart / 1440),
+  };
+};
+
+const appendAvailabilityInterval = (
+  output: Record<string, DropAvailabilityInterval[]>,
+  sourceDayKey: string,
+  offset: number,
+  rangeStart: number,
+  latestStart: number,
+  shiftKey: (dayKey: string, offset: number) => string
+) => {
+  const dayStartMinute = offset * 1440;
+  const localStart = Math.max(rangeStart, dayStartMinute);
+  const localEnd = Math.min(latestStart, dayStartMinute + 1435);
+  if (localEnd < localStart) return;
+  const dayKey = shiftKey(sourceDayKey, offset);
+  if (!output[dayKey]) output[dayKey] = [];
+  output[dayKey].push({
+    startMinute: localStart - dayStartMinute,
+    endMinute: localEnd - dayStartMinute,
+  });
+};
+
 function buildAvailabilityOutput(
-  baseAvailability: Array<{
-    dayOfWeek?: string;
-    slots?: Array<{ isAvailable?: boolean; startTime?: string; endTime?: string }>;
-  }>,
+  baseAvailability: AvailabilityDayEntry[],
   taskBlockDuration: number,
-  toLocalClock: (utcTime: string) => { dayOffset: number; minutes: number },
+  toLocalClock: (utcTime: string) => LocalClock,
   shiftKey: (dayKey: string, offset: number) => string
 ): Record<string, DropAvailabilityInterval[]> {
   const output: Record<string, DropAvailabilityInterval[]> = {};
   for (const dayEntry of baseAvailability) {
-    const sourceDayKey = String(dayEntry?.dayOfWeek ?? '').toUpperCase();
+    const sourceDayKey = getSourceDayKey(dayEntry);
     if (!sourceDayKey) continue;
-    const slots = Array.isArray(dayEntry?.slots) ? dayEntry.slots : [];
-    for (const slot of slots) {
+    for (const slot of getAvailabilitySlots(dayEntry)) {
       if (slot?.isAvailable === false) continue;
-      const startClock = toLocalClock(slot?.startTime || '');
-      const endClock = toLocalClock(slot?.endTime || '');
-      const startAbsoluteMinute = startClock.dayOffset * 1440 + startClock.minutes;
-      let endAbsoluteMinute = endClock.dayOffset * 1440 + endClock.minutes;
-      if (endAbsoluteMinute <= startAbsoluteMinute) {
-        endAbsoluteMinute += 1440;
-      }
-      const latestStartAbsoluteMinute = endAbsoluteMinute - taskBlockDuration;
-      if (latestStartAbsoluteMinute < startAbsoluteMinute) continue;
-      const firstDayOffset = Math.floor(startAbsoluteMinute / 1440);
-      const lastDayOffset = Math.floor(latestStartAbsoluteMinute / 1440);
-      for (let offset = firstDayOffset; offset <= lastDayOffset; offset++) {
-        const dayStartMinute = offset * 1440;
-        const localStart = Math.max(startAbsoluteMinute, dayStartMinute);
-        const localEnd = Math.min(latestStartAbsoluteMinute, dayStartMinute + 1435);
-        if (localEnd < localStart) continue;
-        const dayKey = shiftKey(sourceDayKey, offset);
-        if (!output[dayKey]) output[dayKey] = [];
-        output[dayKey].push({
-          startMinute: localStart - dayStartMinute,
-          endMinute: localEnd - dayStartMinute,
-        });
+      const range = getAbsoluteMinuteRange(slot, toLocalClock);
+      const bounds = getDayOffsetBounds(range, taskBlockDuration);
+      if (!bounds) continue;
+      for (let offset = bounds.firstDayOffset; offset <= bounds.lastDayOffset; offset++) {
+        appendAvailabilityInterval(
+          output,
+          sourceDayKey,
+          offset,
+          range.start,
+          bounds.latestStart,
+          shiftKey
+        );
       }
     }
   }
   return output;
 }
+
+type MoveTaskToCalendarSlotParams = {
+  allTaskItems: Task[];
+  draggedTaskId: string | null;
+  canEditTask: (task: Task) => boolean;
+  setDragError: React.Dispatch<React.SetStateAction<string | null>>;
+  resolveAssigneeId: (candidateId?: string) => string;
+  shouldEnforceAvailability: (task: Task, targetAssigneeId?: string) => boolean;
+  isMinuteAvailableForAssignee: (
+    date: Date,
+    minute: number,
+    assigneeId?: string
+  ) => Promise<boolean>;
+};
+
+const moveTaskToCalendarSlot = async (
+  date: Date,
+  minuteOfDay: number,
+  targetAssigneeId: string | undefined,
+  params: MoveTaskToCalendarSlotParams
+) => {
+  if (!params.draggedTaskId) return;
+  const task = params.allTaskItems.find((item) => item._id === params.draggedTaskId);
+  if (!task?._id) return;
+  if (!params.canEditTask(task)) {
+    params.setDragError('Only pending or in-progress tasks can be moved.');
+    return;
+  }
+  const snappedMinute = clampCalendarMinutes(minuteOfDay);
+  const canReassign = task.audience === 'EMPLOYEE_TASK';
+  const nextAssignee = params.resolveAssigneeId(
+    (canReassign ? targetAssigneeId : undefined) || task.assignedTo
+  );
+  if (!nextAssignee) {
+    params.setDragError('Task assignee is required.');
+    return;
+  }
+  if (params.shouldEnforceAvailability(task, nextAssignee)) {
+    const isAvailable = await params.isMinuteAvailableForAssignee(
+      date,
+      snappedMinute,
+      nextAssignee
+    );
+    if (!isAvailable) {
+      params.setDragError('Target assignee is unavailable at the selected time.');
+      return;
+    }
+  }
+
+  const nextDueAt = buildDateInPreferredTimeZone(date, snappedMinute);
+
+  try {
+    params.setDragError(null);
+    await updateTask({
+      ...task,
+      assignedTo: nextAssignee,
+      dueAt: nextDueAt,
+      timezone: task.timezone || getPreferredTimeZone(),
+    });
+  } catch {
+    params.setDragError('Unable to update task. Please try again.');
+  }
+};
+
+const handleTaskStatusChangeAction = (
+  task: Task,
+  notify: ReturnType<typeof useNotify>['notify'],
+  setActiveTask?: (inventory: Task) => void,
+  setChangeStatusPreferredStatus?: React.Dispatch<React.SetStateAction<TaskStatus | null>>,
+  setChangeStatusPopup?: (open: boolean) => void
+) => {
+  if (!canShowTaskStatusChangeAction(task.status)) {
+    notify('warning', {
+      title: 'Status change blocked',
+      text: 'No status changes are available for this task.',
+    });
+    return;
+  }
+  setActiveTask?.(task);
+  setChangeStatusPreferredStatus?.(getPreferredNextTaskStatus(task.status));
+  setChangeStatusPopup?.(true);
+};
+
+const handleTaskRescheduleAction = (
+  task: Task,
+  notify: ReturnType<typeof useNotify>['notify'],
+  setActiveTask?: (inventory: Task) => void,
+  setReschedulePopup?: (open: boolean) => void
+) => {
+  if (!canRescheduleTask(task.status)) {
+    notify('warning', {
+      title: 'Reschedule blocked',
+      text: 'Completed and cancelled tasks cannot be rescheduled.',
+    });
+    return;
+  }
+  setActiveTask?.(task);
+  setReschedulePopup?.(true);
+};
+
+const registerCalendarDragAutoScroll = (
+  event: DragEvent,
+  edgeThreshold: number,
+  scrollAmount: number
+) => {
+  const x = event.clientX;
+  const y = event.clientY;
+  const viewportWidth = globalThis.innerWidth;
+  const viewportHeight = globalThis.innerHeight;
+
+  if (x >= 0 && x < edgeThreshold) {
+    globalThis.scrollBy({ left: -scrollAmount });
+  } else if (x > viewportWidth - edgeThreshold) {
+    globalThis.scrollBy({ left: scrollAmount });
+  }
+  if (y >= 0 && y < edgeThreshold) {
+    globalThis.scrollBy({ top: -scrollAmount });
+  } else if (y > viewportHeight - edgeThreshold) {
+    globalThis.scrollBy({ top: scrollAmount });
+  }
+
+  const hoveredElement = document.elementFromPoint(x, y) as HTMLElement | null;
+  const scrollContainer = hoveredElement?.closest?.(
+    "[data-calendar-scroll='true']"
+  ) as HTMLElement | null;
+  if (!scrollContainer) return;
+  const rect = scrollContainer.getBoundingClientRect();
+  let deltaX = 0;
+  let deltaY = 0;
+  if (x - rect.left < edgeThreshold) deltaX = -scrollAmount;
+  else if (rect.right - x < edgeThreshold) deltaX = scrollAmount;
+  if (y - rect.top < edgeThreshold) deltaY = -scrollAmount;
+  else if (rect.bottom - y < edgeThreshold) deltaY = scrollAmount;
+  if (deltaX !== 0 || deltaY !== 0) {
+    scrollContainer.scrollBy({ left: deltaX, top: deltaY });
+  }
+};
+
+type TaskCalendarBodyProps = {
+  activeCalendar: string;
+  dayEvents: Task[];
+  filteredList: Task[];
+  currentDate: Date;
+  zoomMode: CalendarZoomMode;
+  handleViewTask: (appointment: Task) => void;
+  handleChangeStatusTask: (task: Task) => void;
+  handleRescheduleTask: (task: Task) => void;
+  setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
+  canEditTasks: boolean;
+  draggedTaskId: string | null;
+  draggedTaskLabel: string | null;
+  canDragTask: (task: Task) => boolean;
+  handleTaskDragStart: (task: Task) => void;
+  handleTaskDragEnd: () => void;
+  moveTask: (date: Date, minuteOfDay: number, targetAssigneeId?: string) => Promise<void>;
+  onCreateTaskAt: (date: Date, minuteOfDay: number, targetAssigneeId?: string) => void;
+  onDragHoverTarget: (dropDate: Date, assigneeId?: string) => void;
+  getDropAvailabilityIntervals: (date: Date, assigneeId?: string) => DropAvailabilityInterval[];
+  resolveDisplayName: (memberId?: string) => string;
+  weekStart: Date;
+  setWeekStart: React.Dispatch<React.SetStateAction<Date>>;
+};
+
+const TaskCalendarBody = ({
+  activeCalendar,
+  dayEvents,
+  filteredList,
+  currentDate,
+  zoomMode,
+  handleViewTask,
+  handleChangeStatusTask,
+  handleRescheduleTask,
+  setCurrentDate,
+  canEditTasks,
+  draggedTaskId,
+  draggedTaskLabel,
+  canDragTask,
+  handleTaskDragStart,
+  handleTaskDragEnd,
+  moveTask,
+  onCreateTaskAt,
+  onDragHoverTarget,
+  getDropAvailabilityIntervals,
+  resolveDisplayName,
+  weekStart,
+  setWeekStart,
+}: TaskCalendarBodyProps) => {
+  const handleDrop = (dropDate: Date, minute: number, assigneeId?: string) => {
+    moveTask(dropDate, minute, assigneeId).catch(() => undefined);
+    handleTaskDragEnd();
+  };
+
+  if (activeCalendar === 'day') {
+    return (
+      <DayCalendar
+        events={dayEvents}
+        date={currentDate}
+        zoomMode={zoomMode}
+        handleViewTask={handleViewTask}
+        handleChangeStatusTask={handleChangeStatusTask}
+        handleRescheduleTask={handleRescheduleTask}
+        setCurrentDate={setCurrentDate}
+        canEditTasks={canEditTasks}
+        draggedTaskId={draggedTaskId}
+        draggedTaskLabel={draggedTaskLabel}
+        canDragTask={canDragTask}
+        onTaskDragStart={handleTaskDragStart}
+        onTaskDragEnd={handleTaskDragEnd}
+        onTaskDropAt={(dropDate, minute) => handleDrop(dropDate, minute)}
+        onCreateTaskAt={onCreateTaskAt}
+        onDragHoverTarget={onDragHoverTarget}
+        getDropAvailabilityIntervals={getDropAvailabilityIntervals}
+        resolveDisplayName={resolveDisplayName}
+        slotStepMinutes={15}
+      />
+    );
+  }
+
+  if (activeCalendar === 'week') {
+    return (
+      <WeekCalendar
+        events={filteredList}
+        zoomMode={zoomMode}
+        handleViewTask={handleViewTask}
+        handleChangeStatusTask={handleChangeStatusTask}
+        handleRescheduleTask={handleRescheduleTask}
+        weekStart={weekStart}
+        setWeekStart={setWeekStart}
+        setCurrentDate={setCurrentDate}
+        canEditTasks={canEditTasks}
+        draggedTaskId={draggedTaskId}
+        draggedTaskLabel={draggedTaskLabel}
+        canDragTask={canDragTask}
+        onTaskDragStart={handleTaskDragStart}
+        onTaskDragEnd={handleTaskDragEnd}
+        onTaskDropAt={(dropDate, minute) => handleDrop(dropDate, minute)}
+        onCreateTaskAt={onCreateTaskAt}
+        onDragHoverTarget={onDragHoverTarget}
+        getDropAvailabilityIntervals={getDropAvailabilityIntervals}
+        resolveDisplayName={resolveDisplayName}
+        slotStepMinutes={15}
+      />
+    );
+  }
+
+  if (activeCalendar !== 'team') return null;
+
+  return (
+    <UserCalendar
+      events={dayEvents}
+      date={currentDate}
+      zoomMode={zoomMode}
+      handleViewTask={handleViewTask}
+      handleChangeStatusTask={handleChangeStatusTask}
+      handleRescheduleTask={handleRescheduleTask}
+      setCurrentDate={setCurrentDate}
+      canEditTasks={canEditTasks}
+      draggedTaskId={draggedTaskId}
+      draggedTaskLabel={draggedTaskLabel}
+      canDragTask={canDragTask}
+      onTaskDragStart={handleTaskDragStart}
+      onTaskDragEnd={handleTaskDragEnd}
+      onTaskDropAt={handleDrop}
+      onCreateTaskAt={onCreateTaskAt}
+      onDragHoverTarget={onDragHoverTarget}
+      getDropAvailabilityIntervals={getDropAvailabilityIntervals}
+      resolveDisplayName={resolveDisplayName}
+      slotStepMinutes={15}
+    />
+  );
+};
 
 const TaskCalendar = ({
   filteredList,
@@ -135,25 +490,12 @@ const TaskCalendar = ({
   );
   const availabilityPendingRef = useRef<Partial<Record<string, Promise<void>>>>({});
   const TASK_BLOCK_DURATION_MINUTES = 30;
-
-  const normalizeId = useCallback(
-    (value?: string) =>
-      String(value ?? '')
-        .trim()
-        .split('/')
-        .pop()
-        ?.toLowerCase() ?? '',
-    []
-  );
-
-  const clampMinutes = (minutes: number) =>
-    Math.max(0, Math.min(24 * 60 - 5, Math.round(minutes / 5) * 5));
+  const normalizeId = useCallback((value?: string) => normalizeCalendarId(value), []);
 
   const toLocalClockFromUtcTime = (utcTime: string) =>
     utcClockTimeToPreferredTimeZoneClock(utcTime);
 
-  const getDayKey = (date: Date) =>
-    formatDateInPreferredTimeZone(date, { weekday: 'long' }).toUpperCase();
+  const getDayKey = (date: Date) => getCalendarDayKey(date);
 
   const shiftDayKey = useCallback((dayKey: string, offset: number): string => {
     const index = WEEKDAY_ORDER.indexOf(String(dayKey || '').toUpperCase());
@@ -230,15 +572,13 @@ const TaskCalendar = ({
 
   const shouldEnforceAvailability = useCallback(
     (task: Task, targetAssigneeId?: string) => {
-      const normalizedCurrentUser = normalizeId(authUserId);
-      const isAssignedByCurrentUser =
-        !!normalizedCurrentUser && normalizeId(task.assignedBy) === normalizedCurrentUser;
-      if (isAssignedByCurrentUser) return false;
-      const currentAssignee = resolveAssigneeId(task.assignedTo);
-      const nextAssignee = resolveAssigneeId(targetAssigneeId || task.assignedTo);
-      const isReassigning = normalizeId(nextAssignee) !== normalizeId(currentAssignee);
-      if (isReassigning) return true;
-      return true;
+      return shouldAllowTaskAvailabilityBypass(
+        authUserId,
+        task,
+        normalizeId,
+        resolveAssigneeId,
+        targetAssigneeId
+      );
     },
     [authUserId, normalizeId, resolveAssigneeId]
   );
@@ -322,108 +662,50 @@ const TaskCalendar = ({
     [ensureAssigneeAvailability, getDropAvailabilityIntervals, resolveAssigneeId]
   );
 
-  const moveTask = async (date: Date, minuteOfDay: number, targetAssigneeId?: string) => {
-    if (!draggedTaskId) return;
-    const task = allTaskItems.find((item) => item._id === draggedTaskId);
-    if (!task?._id) return;
-    if (!canEditTask(task)) {
-      setDragError('Only pending or in-progress tasks can be moved.');
-      return;
-    }
-    const snappedMinute = clampMinutes(minuteOfDay);
-    const canReassign = task.audience === 'EMPLOYEE_TASK';
-    const nextAssignee = resolveAssigneeId(
-      (canReassign ? targetAssigneeId : undefined) || task.assignedTo
-    );
-    if (!nextAssignee) {
-      setDragError('Task assignee is required.');
-      return;
-    }
-    if (shouldEnforceAvailability(task, nextAssignee)) {
-      const isAvailable = await isMinuteAvailableForAssignee(date, snappedMinute, nextAssignee);
-      if (!isAvailable) {
-        setDragError('Target assignee is unavailable at the selected time.');
-        return;
-      }
-    }
+  const moveTask = useCallback(
+    (date: Date, minuteOfDay: number, targetAssigneeId?: string) =>
+      moveTaskToCalendarSlot(date, minuteOfDay, targetAssigneeId, {
+        allTaskItems,
+        draggedTaskId,
+        canEditTask,
+        setDragError,
+        resolveAssigneeId,
+        shouldEnforceAvailability,
+        isMinuteAvailableForAssignee,
+      }),
+    [
+      allTaskItems,
+      canEditTask,
+      draggedTaskId,
+      isMinuteAvailableForAssignee,
+      resolveAssigneeId,
+      shouldEnforceAvailability,
+    ]
+  );
 
-    const nextDueAt = buildDateInPreferredTimeZone(date, snappedMinute);
+  const handleChangeStatusTask = useCallback(
+    (task: Task) =>
+      handleTaskStatusChangeAction(
+        task,
+        notify,
+        setActiveTask,
+        setChangeStatusPreferredStatus,
+        setChangeStatusPopup
+      ),
+    [notify, setActiveTask, setChangeStatusPopup, setChangeStatusPreferredStatus]
+  );
 
-    try {
-      setDragError(null);
-      await updateTask({
-        ...task,
-        assignedTo: nextAssignee,
-        dueAt: nextDueAt,
-        timezone: task.timezone || getPreferredTimeZone(),
-      });
-    } catch {
-      setDragError('Unable to update task. Please try again.');
-    }
-  };
-
-  const handleChangeStatusTask = (task: Task) => {
-    if (!canShowTaskStatusChangeAction(task.status)) {
-      notify('warning', {
-        title: 'Status change blocked',
-        text: 'No status changes are available for this task.',
-      });
-      return;
-    }
-    setActiveTask?.(task);
-    setChangeStatusPreferredStatus?.(getPreferredNextTaskStatus(task.status));
-    setChangeStatusPopup?.(true);
-  };
-
-  const handleRescheduleTask = (task: Task) => {
-    if (!canRescheduleTask(task.status)) {
-      notify('warning', {
-        title: 'Reschedule blocked',
-        text: 'Completed and cancelled tasks cannot be rescheduled.',
-      });
-      return;
-    }
-    setActiveTask?.(task);
-    setReschedulePopup?.(true);
-  };
+  const handleRescheduleTask = useCallback(
+    (task: Task) => handleTaskRescheduleAction(task, notify, setActiveTask, setReschedulePopup),
+    [notify, setActiveTask, setReschedulePopup]
+  );
 
   useEffect(() => {
     if (!draggedTaskId) return;
     const edgeThreshold = 72;
     const scrollAmount = 28;
-    const handleDragOver = (event: DragEvent) => {
-      const x = event.clientX;
-      const y = event.clientY;
-      const viewportWidth = globalThis.innerWidth;
-      const viewportHeight = globalThis.innerHeight;
-
-      if (x >= 0 && x < edgeThreshold) {
-        globalThis.scrollBy({ left: -scrollAmount });
-      } else if (x > viewportWidth - edgeThreshold) {
-        globalThis.scrollBy({ left: scrollAmount });
-      }
-      if (y >= 0 && y < edgeThreshold) {
-        globalThis.scrollBy({ top: -scrollAmount });
-      } else if (y > viewportHeight - edgeThreshold) {
-        globalThis.scrollBy({ top: scrollAmount });
-      }
-
-      const hoveredElement = document.elementFromPoint(x, y) as HTMLElement | null;
-      const scrollContainer = hoveredElement?.closest?.(
-        "[data-calendar-scroll='true']"
-      ) as HTMLElement | null;
-      if (!scrollContainer) return;
-      const rect = scrollContainer.getBoundingClientRect();
-      let deltaX = 0;
-      let deltaY = 0;
-      if (x - rect.left < edgeThreshold) deltaX = -scrollAmount;
-      else if (rect.right - x < edgeThreshold) deltaX = scrollAmount;
-      if (y - rect.top < edgeThreshold) deltaY = -scrollAmount;
-      else if (rect.bottom - y < edgeThreshold) deltaY = scrollAmount;
-      if (deltaX !== 0 || deltaY !== 0) {
-        scrollContainer.scrollBy({ left: deltaX, top: deltaY });
-      }
-    };
+    const handleDragOver = (event: DragEvent) =>
+      registerCalendarDragAutoScroll(event, edgeThreshold, scrollAmount);
 
     globalThis.addEventListener('dragover', handleDragOver);
     return () => globalThis.removeEventListener('dragover', handleDragOver);
@@ -466,7 +748,7 @@ const TaskCalendar = ({
   const handleCreateTaskAt = useCallback(
     (date: Date, minuteOfDay: number, targetAssigneeId?: string) => {
       if (!canEditTasks || !onCreateFromCalendarSlot) return;
-      const dueAt = buildDateInPreferredTimeZone(date, clampMinutes(minuteOfDay));
+      const dueAt = buildDateInPreferredTimeZone(date, clampCalendarMinutes(minuteOfDay));
       const assignedTo = targetAssigneeId ? resolveAssigneeId(targetAssigneeId) : undefined;
       onCreateFromCalendarSlot({
         dueAt,
@@ -499,85 +781,30 @@ const TaskCalendar = ({
           {dragError}
         </div>
       ) : null}
-      {activeCalendar === 'day' && (
-        <DayCalendar
-          events={dayEvents}
-          date={currentDate}
-          zoomMode={zoomMode}
-          handleViewTask={handleViewTask}
-          handleChangeStatusTask={handleChangeStatusTask}
-          handleRescheduleTask={handleRescheduleTask}
-          setCurrentDate={setCurrentDate}
-          canEditTasks={canEditTasks}
-          draggedTaskId={draggedTaskId}
-          draggedTaskLabel={draggedTaskLabel}
-          canDragTask={canDragTask}
-          onTaskDragStart={handleTaskDragStart}
-          onTaskDragEnd={handleTaskDragEnd}
-          onTaskDropAt={(dropDate, minute) => {
-            moveTask(dropDate, minute).catch(() => undefined);
-            handleTaskDragEnd();
-          }}
-          onCreateTaskAt={handleCreateTaskAt}
-          onDragHoverTarget={handleDragHoverTarget}
-          getDropAvailabilityIntervals={getDropAvailabilityIntervals}
-          resolveDisplayName={resolveDisplayName}
-          slotStepMinutes={15}
-        />
-      )}
-      {activeCalendar === 'week' && (
-        <WeekCalendar
-          events={filteredList}
-          zoomMode={zoomMode}
-          handleViewTask={handleViewTask}
-          handleChangeStatusTask={handleChangeStatusTask}
-          handleRescheduleTask={handleRescheduleTask}
-          weekStart={weekStart}
-          setWeekStart={setWeekStart}
-          setCurrentDate={setCurrentDate}
-          canEditTasks={canEditTasks}
-          draggedTaskId={draggedTaskId}
-          draggedTaskLabel={draggedTaskLabel}
-          canDragTask={canDragTask}
-          onTaskDragStart={handleTaskDragStart}
-          onTaskDragEnd={handleTaskDragEnd}
-          onTaskDropAt={(dropDate, minute) => {
-            moveTask(dropDate, minute).catch(() => undefined);
-            handleTaskDragEnd();
-          }}
-          onCreateTaskAt={handleCreateTaskAt}
-          onDragHoverTarget={handleDragHoverTarget}
-          getDropAvailabilityIntervals={getDropAvailabilityIntervals}
-          resolveDisplayName={resolveDisplayName}
-          slotStepMinutes={15}
-        />
-      )}
-      {activeCalendar === 'team' && (
-        <UserCalendar
-          events={dayEvents}
-          date={currentDate}
-          zoomMode={zoomMode}
-          handleViewTask={handleViewTask}
-          handleChangeStatusTask={handleChangeStatusTask}
-          handleRescheduleTask={handleRescheduleTask}
-          setCurrentDate={setCurrentDate}
-          canEditTasks={canEditTasks}
-          draggedTaskId={draggedTaskId}
-          draggedTaskLabel={draggedTaskLabel}
-          canDragTask={canDragTask}
-          onTaskDragStart={handleTaskDragStart}
-          onTaskDragEnd={handleTaskDragEnd}
-          onTaskDropAt={(dropDate, minute, assigneeId) => {
-            moveTask(dropDate, minute, assigneeId).catch(() => undefined);
-            handleTaskDragEnd();
-          }}
-          onCreateTaskAt={handleCreateTaskAt}
-          onDragHoverTarget={handleDragHoverTarget}
-          getDropAvailabilityIntervals={getDropAvailabilityIntervals}
-          resolveDisplayName={resolveDisplayName}
-          slotStepMinutes={15}
-        />
-      )}
+      <TaskCalendarBody
+        activeCalendar={activeCalendar}
+        dayEvents={dayEvents}
+        filteredList={filteredList}
+        currentDate={currentDate}
+        zoomMode={zoomMode}
+        handleViewTask={handleViewTask}
+        handleChangeStatusTask={handleChangeStatusTask}
+        handleRescheduleTask={handleRescheduleTask}
+        setCurrentDate={setCurrentDate}
+        canEditTasks={canEditTasks}
+        draggedTaskId={draggedTaskId}
+        draggedTaskLabel={draggedTaskLabel}
+        canDragTask={canDragTask}
+        handleTaskDragStart={handleTaskDragStart}
+        handleTaskDragEnd={handleTaskDragEnd}
+        moveTask={moveTask}
+        onCreateTaskAt={handleCreateTaskAt}
+        onDragHoverTarget={handleDragHoverTarget}
+        getDropAvailabilityIntervals={getDropAvailabilityIntervals}
+        resolveDisplayName={resolveDisplayName}
+        weekStart={weekStart}
+        setWeekStart={setWeekStart}
+      />
     </div>
   );
 };

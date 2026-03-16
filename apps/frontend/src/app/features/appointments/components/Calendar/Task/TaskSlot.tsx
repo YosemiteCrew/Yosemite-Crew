@@ -291,6 +291,12 @@ const TaskSlot = ({
     return bestMatch.minute;
   };
 
+  const createTaskAtMinute = (clientY: number, container: HTMLDivElement) => {
+    if (!onCreateTaskAt || draggedTaskId) return;
+    const minute = getMinuteFromPointer(clientY, container);
+    onCreateTaskAt(dropDate, Math.round(minute / 5) * 5, dropAssigneeId);
+  };
+
   return (
     <>
       <div
@@ -324,19 +330,26 @@ const TaskSlot = ({
           if (nearest == null) return;
           onTaskDropAt(dropDate, nearest, dropAssigneeId);
         }}
-        onClick={(event) => {
-          if (!onCreateTaskAt || draggedTaskId) return;
-          if ((event.target as HTMLElement).closest('button')) return;
-          const minute = getMinuteFromPointer(event.clientY, event.currentTarget as HTMLDivElement);
-          onCreateTaskAt(dropDate, Math.round(minute / 5) * 5, dropAssigneeId);
-        }}
-        onDoubleClick={(event) => {
-          if (!onCreateTaskAt || draggedTaskId) return;
-          if ((event.target as HTMLElement).closest('button')) return;
-          const minute = getMinuteFromPointer(event.clientY, event.currentTarget as HTMLDivElement);
-          onCreateTaskAt(dropDate, Math.round(minute / 5) * 5, dropAssigneeId);
-        }}
       >
+        {onCreateTaskAt && !draggedTaskId ? (
+          <button
+            type="button"
+            aria-label="Create task in this calendar slot"
+            className="absolute inset-0 z-[1] rounded-none!"
+            onClick={(event) => {
+              createTaskAtMinute(
+                event.clientY,
+                event.currentTarget.parentElement as HTMLDivElement
+              );
+            }}
+            onDoubleClick={(event) => {
+              createTaskAtMinute(
+                event.clientY,
+                event.currentTarget.parentElement as HTMLDivElement
+              );
+            }}
+          />
+        ) : null}
         {showGridLines && (
           <div className="pointer-events-none absolute inset-0 z-[5]">
             <div className="absolute inset-x-0 top-0 border-t border-[#C3CEDC]" />
@@ -390,6 +403,10 @@ const TaskSlot = ({
             ? Math.max(8, Math.min(12, (TASK_BLOCK_DURATION_MINUTES / 60) * height))
             : Math.max(44, (TASK_BLOCK_DURATION_MINUTES / 60) * height - 2);
           const isCompact = !isZoomOutMode && laneCount > 1;
+          const compactPaddingClass = isCompact ? 'px-1.5 py-1' : 'px-2 py-1.5';
+          const markerClassName = isZoomOutMode
+            ? 'h-full w-full text-left rounded-full! overflow-hidden px-0 py-0 border border-transparent'
+            : `h-full w-full text-left rounded-2xl! overflow-hidden ${compactPaddingClass} flex flex-col justify-between`;
           const taskKey = task._id || `${task.name}-${String(task.dueAt)}-${eventIndex}`;
           const dueTimeLabel = formatDateInPreferredTimeZone(new Date(task.dueAt), {
             hour: 'numeric',
@@ -408,8 +425,33 @@ const TaskSlot = ({
                 height: markerHeight,
               }}
             >
-              {(() => {
-                const taskButtonContent = isZoomOutMode ? null : (
+              <button
+                type="button"
+                className={markerClassName}
+                style={{
+                  ...getStatusStyle(task.status),
+                  borderColor: isZoomOutMode ? 'rgba(0,0,0,0.08)' : undefined,
+                  borderRadius: isZoomOutMode ? 9999 : 16,
+                }}
+                title={markerTitle}
+                onClick={() => handleViewTask(task)}
+                draggable={!!canDragTask?.(task)}
+                onMouseEnter={(event) =>
+                  openPopover(taskKey, event.currentTarget, event.clientX, event.clientY)
+                }
+                onMouseMove={(event) =>
+                  openPopover(taskKey, event.currentTarget, event.clientX, event.clientY)
+                }
+                onMouseLeave={schedulePopoverClose}
+                onFocus={(event) => openPopover(taskKey, event.currentTarget)}
+                onBlur={schedulePopoverClose}
+                onDragStart={() => onTaskDragStart?.(task)}
+                onDragEnd={() => {
+                  setDropPreviewMinute(null);
+                  onTaskDragEnd?.();
+                }}
+              >
+                {isZoomOutMode ? null : (
                   <>
                     <div
                       className={`text-caption-1 text-white truncate ${isCompact ? 'text-center' : ''}`}
@@ -422,42 +464,8 @@ const TaskSlot = ({
                       Due: {dueTimeLabel}
                     </div>
                   </>
-                );
-                return (
-                  <button
-                    type="button"
-                    className={`h-full w-full text-left ${
-                      isZoomOutMode
-                        ? 'rounded-full! overflow-hidden px-0 py-0 border border-transparent'
-                        : `rounded-2xl! overflow-hidden ${isCompact ? 'px-1.5 py-1' : 'px-2 py-1.5'} flex flex-col justify-between`
-                    }`}
-                    style={{
-                      ...getStatusStyle(task.status),
-                      borderColor: isZoomOutMode ? 'rgba(0,0,0,0.08)' : undefined,
-                      borderRadius: isZoomOutMode ? 9999 : 16,
-                    }}
-                    title={markerTitle}
-                    onClick={() => handleViewTask(task)}
-                    draggable={!!canDragTask?.(task)}
-                    onMouseEnter={(event) =>
-                      openPopover(taskKey, event.currentTarget, event.clientX, event.clientY)
-                    }
-                    onMouseMove={(event) =>
-                      openPopover(taskKey, event.currentTarget, event.clientX, event.clientY)
-                    }
-                    onMouseLeave={schedulePopoverClose}
-                    onFocus={(event) => openPopover(taskKey, event.currentTarget)}
-                    onBlur={schedulePopoverClose}
-                    onDragStart={() => onTaskDragStart?.(task)}
-                    onDragEnd={() => {
-                      setDropPreviewMinute(null);
-                      onTaskDragEnd?.();
-                    }}
-                  >
-                    {taskButtonContent}
-                  </button>
-                );
-              })()}
+                )}
+              </button>
 
               <div
                 className={`absolute flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 ${

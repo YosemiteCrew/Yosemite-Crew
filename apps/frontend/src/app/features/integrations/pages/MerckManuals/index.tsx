@@ -86,7 +86,7 @@ const getRecentSearchesKey = (orgId: string, audience: MerckAudience) =>
   `yc:merck:recent:${orgId}:${audience}`;
 
 const getRecentSearches = (orgId: string, audience: MerckAudience): string[] => {
-  if (typeof globalThis.window === 'undefined') return [];
+  if (globalThis.window === undefined) return [];
   try {
     const raw = globalThis.window.localStorage.getItem(getRecentSearchesKey(orgId, audience));
     if (!raw) return [];
@@ -98,7 +98,7 @@ const getRecentSearches = (orgId: string, audience: MerckAudience): string[] => 
 };
 
 const saveRecentSearch = (orgId: string, audience: MerckAudience, value: string) => {
-  if (typeof globalThis.window === 'undefined') return;
+  if (globalThis.window === undefined) return;
   const query = value.trim();
   if (!query) return;
   const prev = getRecentSearches(orgId, audience).filter(
@@ -114,6 +114,80 @@ const saveRecentSearch = (orgId: string, audience: MerckAudience, value: string)
 const safeDate = (value?: string | null) => {
   return formatDateTimeLocal(value, 'N/A');
 };
+
+const getResultsContent = (
+  entries: MerckEntry[],
+  loading: boolean,
+  onOpenInFrame: (entry: MerckEntry, url: string) => void,
+  onCopyUrl: (url: string) => void
+) => {
+  if (entries.length === 0) {
+    return loading ? (
+      <div className="text-body-4 text-text-secondary">Searching manuals...</div>
+    ) : null;
+  }
+
+  return entries.map((entry) => (
+    <EntryCard key={entry.id} entry={entry} onOpenInFrame={onOpenInFrame} onCopy={onCopyUrl} />
+  ));
+};
+
+const getDisabledState = (isEnabled?: boolean) => isEnabled === false;
+
+const getMerckSearchPayload = ({
+  organisationId,
+  query,
+  audience,
+  language,
+  media,
+  code,
+  displayName,
+  subTopicDisplay,
+}: {
+  organisationId: string;
+  query: string;
+  audience: MerckAudience;
+  language: MerckLanguage;
+  media: MerckMediaMode;
+  code: string;
+  displayName: string;
+  subTopicDisplay: string;
+}) => ({
+  organisationId,
+  query,
+  audience,
+  language,
+  media,
+  code: code.trim() || undefined,
+  displayName: displayName.trim() || undefined,
+  subTopicDisplay: subTopicDisplay.trim() || undefined,
+});
+
+const getSafeMerckResults = (entries: MerckEntry[]) =>
+  entries.filter(
+    (entry) =>
+      isAllowedMerckUrl(entry.primaryUrl) &&
+      entry.subLinks.every((link) => isAllowedMerckUrl(link.url))
+  );
+
+const getMerckErrorMessage = (error: unknown) => {
+  const candidate = error as { response?: { data?: { message?: string } }; message?: string };
+  return (
+    candidate?.response?.data?.message ||
+    candidate?.message ||
+    'Unable to search manuals right now.'
+  );
+};
+
+const getMerckContainerClassName = (embedded: boolean) =>
+  embedded
+    ? 'w-full p-4 md:p-6 bg-white min-h-screen'
+    : 'flex flex-col gap-6 px-3! py-3! sm:px-12! lg:px-[60px]! sm:py-12!';
+
+const getMerckResultsContainerClassName = (embedded: boolean) =>
+  embedded
+    ? 'min-h-0 flex-1 overflow-y-auto pr-1'
+    : 'min-h-0 flex-1 overflow-y-auto pr-1 max-h-[calc(100vh-320px)] lg:max-h-[calc(100vh-280px)]';
 
 const AudienceToggle = ({
   value,
@@ -233,7 +307,7 @@ const EntryCard = ({
           <button
             type="button"
             onClick={() => {
-              if (typeof globalThis.window === 'undefined') return;
+              if (globalThis.window === undefined) return;
               globalThis.window.open(entry.primaryUrl, '_blank', 'noopener,noreferrer');
             }}
             aria-label="Open in new tab"
@@ -257,6 +331,327 @@ const EntryCard = ({
         </div>
       </div>
     </div>
+  );
+};
+
+type ExecuteMerckSearchParams = {
+  organisationId: string;
+  query: string;
+  audience: MerckAudience;
+  language: MerckLanguage;
+  media: MerckMediaMode;
+  code: string;
+  displayName: string;
+  subTopicDisplay: string;
+  requestIdRef: { current: number };
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>;
+  setError: React.Dispatch<React.SetStateAction<string | null>>;
+  setEntries: React.Dispatch<React.SetStateAction<MerckEntry[]>>;
+  setRecentSearches: React.Dispatch<React.SetStateAction<string[]>>;
+};
+
+const executeMerckSearch = async ({
+  organisationId,
+  query,
+  audience,
+  language,
+  media,
+  code,
+  displayName,
+  subTopicDisplay,
+  requestIdRef,
+  setLoading,
+  setError,
+  setEntries,
+  setRecentSearches,
+}: ExecuteMerckSearchParams) => {
+  const resolvedQuery = query.trim();
+  if (!resolvedQuery) return;
+
+  requestIdRef.current += 1;
+  const reqId = requestIdRef.current;
+  setLoading(true);
+  setError(null);
+
+  try {
+    const gateway = getMerckGateway();
+    const response = await gateway.search(
+      getMerckSearchPayload({
+        organisationId,
+        query: resolvedQuery,
+        audience,
+        language,
+        media,
+        code,
+        displayName,
+        subTopicDisplay,
+      })
+    );
+
+    if (reqId !== requestIdRef.current) return;
+
+    setEntries(getSafeMerckResults(response.entries));
+    saveRecentSearch(organisationId, audience, resolvedQuery);
+    setRecentSearches(getRecentSearches(organisationId, audience));
+  } catch (e: unknown) {
+    if (reqId !== requestIdRef.current) return;
+    setEntries([]);
+    setError(getMerckErrorMessage(e));
+  } finally {
+    if (reqId === requestIdRef.current) {
+      setLoading(false);
+    }
+  }
+};
+
+const MerckDisabledState = ({ embedded }: { embedded: boolean }) => (
+  <div className="rounded-2xl border border-card-border p-4 flex flex-col gap-3">
+    <div className="text-body-2 text-text-primary">
+      Merck Manuals is disabled for this organization.
+    </div>
+    {embedded ? null : <Secondary href="/integrations" text="Manage Integrations" />}
+  </div>
+);
+
+const MerckSearchPanel = ({
+  query,
+  setQuery,
+  loading,
+  performSearch,
+  advancedOpen,
+  setAdvancedOpen,
+  code,
+  setCode,
+  displayName,
+  setDisplayName,
+  subTopicDisplay,
+  setSubTopicDisplay,
+  language,
+  setLanguage,
+  media,
+  setMedia,
+  recentSearches,
+}: {
+  query: string;
+  setQuery: React.Dispatch<React.SetStateAction<string>>;
+  loading: boolean;
+  performSearch: (nextQuery?: string) => Promise<void>;
+  advancedOpen: boolean;
+  setAdvancedOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  code: string;
+  setCode: React.Dispatch<React.SetStateAction<string>>;
+  displayName: string;
+  setDisplayName: React.Dispatch<React.SetStateAction<string>>;
+  subTopicDisplay: string;
+  setSubTopicDisplay: React.Dispatch<React.SetStateAction<string>>;
+  language: MerckLanguage;
+  setLanguage: React.Dispatch<React.SetStateAction<MerckLanguage>>;
+  media: MerckMediaMode;
+  setMedia: React.Dispatch<React.SetStateAction<MerckMediaMode>>;
+  recentSearches: string[];
+}) => (
+  <div className="rounded-2xl border border-card-border p-4 flex flex-col gap-3">
+    <form
+      className="flex items-center gap-2 flex-nowrap"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void performSearch();
+      }}
+    >
+      <div className="flex-1 min-w-0">
+        <FormInput
+          intype="text"
+          inname="merck-search"
+          inlabel="Search manuals"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="min-h-12! h-12! px-4"
+        />
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <Primary
+          href="#"
+          text={loading ? 'Searching...' : 'Search'}
+          onClick={() => void performSearch()}
+          isDisabled={loading || !query.trim()}
+        />
+        <button
+          type="button"
+          onClick={() => setAdvancedOpen((prev) => !prev)}
+          aria-label={advancedOpen ? 'Hide filters' : 'Show filters'}
+          title={advancedOpen ? 'Hide filters' : 'Show filters'}
+          className={`h-12 w-12 rounded-2xl! border border-card-border flex items-center justify-center transition-colors cursor-pointer ${
+            advancedOpen
+              ? 'bg-card-hover text-text-primary'
+              : 'text-text-secondary hover:bg-card-hover'
+          }`}
+        >
+          <IoOptionsOutline size={18} />
+        </button>
+      </div>
+    </form>
+
+    {advancedOpen ? (
+      <div className="rounded-2xl border border-card-border bg-white p-3 flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <div className="text-body-4 text-text-secondary">Refine Results</div>
+          <button
+            type="button"
+            onClick={() => setAdvancedOpen(false)}
+            className="h-7 w-7 rounded-xl! border border-card-border flex items-center justify-center text-text-secondary hover:bg-card-hover transition-colors cursor-pointer"
+            aria-label="Close refine results"
+            title="Close refine results"
+          >
+            <IoCloseOutline size={14} />
+          </button>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 mb-2">
+          <FormInput
+            intype="text"
+            inname="merck-code"
+            inlabel="Clinical code"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            className="min-h-10! h-10! px-4"
+          />
+          <FormInput
+            intype="text"
+            inname="merck-display-name"
+            inlabel="Condition name hint"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            className="min-h-10! h-10! px-4"
+          />
+          <FormInput
+            intype="text"
+            inname="merck-subtopic"
+            inlabel="Topic section"
+            value={subTopicDisplay}
+            onChange={(e) => setSubTopicDisplay(e.target.value)}
+            className="min-h-10! h-10! px-4"
+          />
+        </div>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="text-caption-1 text-text-secondary">Language</div>
+            <div className="flex gap-1.5 flex-wrap">
+              <CompactFilterPill
+                active={language === 'en'}
+                label="EN"
+                onClick={() => setLanguage('en')}
+              />
+              <CompactFilterPill
+                active={language === 'es'}
+                label="ES"
+                onClick={() => setLanguage('es')}
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="text-caption-1 text-text-secondary">Reading mode</div>
+            <div className="flex gap-1.5 flex-wrap">
+              <CompactFilterPill
+                active={media === 'hybrid'}
+                label="Balanced"
+                onClick={() => setMedia('hybrid')}
+              />
+              <CompactFilterPill
+                active={media === 'print'}
+                label="Print-friendly"
+                onClick={() => setMedia('print')}
+              />
+              <CompactFilterPill
+                active={media === 'full'}
+                label="Full layout"
+                onClick={() => setMedia('full')}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    ) : null}
+
+    {recentSearches.length > 0 ? (
+      <div className="flex flex-col gap-2">
+        <div className="text-body-4 text-text-secondary">Frequent searches</div>
+        <div className="flex gap-2 flex-wrap">
+          {recentSearches.map((searchTerm) => (
+            <button
+              key={searchTerm}
+              type="button"
+              className="px-3 py-1 rounded-2xl! border border-card-border text-body-4 text-text-secondary hover:bg-card-hover cursor-pointer"
+              onClick={() => {
+                setQuery(searchTerm);
+                void performSearch(searchTerm);
+              }}
+            >
+              {searchTerm}
+            </button>
+          ))}
+        </div>
+      </div>
+    ) : null}
+  </div>
+);
+
+const MerckReaderPortal = ({
+  readerOpen,
+  readerUrl,
+  readerTitle,
+  readerLoading,
+  setReaderOpen,
+  setReaderLoading,
+}: {
+  readerOpen: boolean;
+  readerUrl: string | null;
+  readerTitle: string;
+  readerLoading: boolean;
+  setReaderOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  setReaderLoading: React.Dispatch<React.SetStateAction<boolean>>;
+}) => {
+  if (!readerOpen || !readerUrl || typeof document === 'undefined') return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[5000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full h-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-2 border-b border-black/10">
+          <div className="text-body-2 text-text-primary truncate pr-2">{readerTitle}</div>
+          <button
+            type="button"
+            onClick={() => setReaderOpen(false)}
+            className="p-2 hover:bg-black/5 rounded-full transition-colors cursor-pointer"
+            aria-label="Close Merck reader"
+          >
+            <Close iconOnly />
+          </button>
+        </div>
+        <div className="relative flex-1">
+          {readerLoading ? (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white">
+              <YosemiteLoader label="Loading Manual" size={120} testId="merck-reader-loader" />
+            </div>
+          ) : null}
+          <iframe
+            src={readerUrl}
+            title={readerTitle}
+            className="flex-1 w-full h-full border-0"
+            loading="lazy"
+            onLoad={() => setReaderLoading(false)}
+          />
+        </div>
+        <div className="p-3 border-t border-black/10 flex justify-end">
+          <Link
+            href={readerUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="text-body-4 text-text-brand underline underline-offset-2"
+          >
+            Open in new tab
+          </Link>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 };
 
@@ -307,46 +702,21 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
   const performSearch = useCallback(
     async (nextQuery?: string) => {
       if (!primaryOrgId) return;
-      const resolvedQuery = (nextQuery ?? query).trim();
-      if (!resolvedQuery) return;
-
-      requestIdRef.current += 1;
-      const reqId = requestIdRef.current;
-      setLoading(true);
-      setError(null);
-
-      try {
-        const gateway = getMerckGateway();
-        const response = await gateway.search({
-          organisationId: primaryOrgId,
-          query: resolvedQuery,
-          audience,
-          language,
-          media,
-          code: code.trim() || undefined,
-          displayName: displayName.trim() || undefined,
-          subTopicDisplay: subTopicDisplay.trim() || undefined,
-        });
-
-        if (reqId !== requestIdRef.current) return;
-
-        const filtered = response.entries.filter(
-          (entry) =>
-            isAllowedMerckUrl(entry.primaryUrl) &&
-            entry.subLinks.every((link) => isAllowedMerckUrl(link.url))
-        );
-        setEntries(filtered);
-        saveRecentSearch(primaryOrgId, audience, resolvedQuery);
-        setRecentSearches(getRecentSearches(primaryOrgId, audience));
-      } catch (e: any) {
-        if (reqId !== requestIdRef.current) return;
-        setEntries([]);
-        setError(e?.response?.data?.message || e?.message || 'Unable to search manuals right now.');
-      } finally {
-        if (reqId === requestIdRef.current) {
-          setLoading(false);
-        }
-      }
+      await executeMerckSearch({
+        organisationId: primaryOrgId,
+        query: nextQuery ?? query,
+        audience,
+        language,
+        media,
+        code,
+        displayName,
+        subTopicDisplay,
+        requestIdRef,
+        setLoading,
+        setError,
+        setEntries,
+        setRecentSearches,
+      });
     },
     [audience, code, displayName, language, media, primaryOrgId, query, subTopicDisplay]
   );
@@ -356,7 +726,7 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
   }, [performSearch]);
 
   useEffect(() => {
-    if (!routeQuery || !isEnabled) return;
+    if (!routeQuery || getDisabledState(isEnabled)) return;
     void performSearchRef.current?.(routeQuery);
   }, [routeQuery, isEnabled]);
 
@@ -380,25 +750,11 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
     setReaderOpen(true);
   };
 
-  const containerClassName = embedded
-    ? 'w-full p-4 md:p-6 bg-white min-h-screen'
-    : 'flex flex-col gap-6 px-3! py-3! sm:px-12! lg:px-[60px]! sm:py-12!';
-  const resultsContainerClassName = embedded
-    ? 'min-h-0 flex-1 overflow-y-auto pr-1'
-    : 'min-h-0 flex-1 overflow-y-auto pr-1 max-h-[calc(100vh-320px)] lg:max-h-[calc(100vh-280px)]';
+  const containerClassName = getMerckContainerClassName(embedded);
+  const resultsContainerClassName = getMerckResultsContainerClassName(embedded);
 
-  const disabled = !isEnabled;
-
-  const resultsContent =
-    entries.length === 0 ? (
-      loading ? (
-        <div className="text-body-4 text-text-secondary">Searching manuals...</div>
-      ) : null
-    ) : (
-      entries.map((entry) => (
-        <EntryCard key={entry.id} entry={entry} onOpenInFrame={onOpenInFrame} onCopy={onCopyUrl} />
-      ))
-    );
+  const disabled = getDisabledState(isEnabled);
+  const resultsContent = getResultsContent(entries, loading, onOpenInFrame, onCopyUrl);
 
   return (
     <div className={containerClassName}>
@@ -426,156 +782,28 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
       </div>
 
       {disabled ? (
-        <div className="rounded-2xl border border-card-border p-4 flex flex-col gap-3">
-          <div className="text-body-2 text-text-primary">
-            Merck Manuals is disabled for this organization.
-          </div>
-          {!embedded ? <Secondary href="/integrations" text="Manage Integrations" /> : null}
-        </div>
+        <MerckDisabledState embedded={embedded} />
       ) : (
         <div className="flex min-h-0 flex-col gap-4">
-          <div className="rounded-2xl border border-card-border p-4 flex flex-col gap-3">
-            <form
-              className="flex items-center gap-2 flex-nowrap"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void performSearch();
-              }}
-            >
-              <div className="flex-1 min-w-0">
-                <FormInput
-                  intype="text"
-                  inname="merck-search"
-                  inlabel="Search manuals"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  className="min-h-12! h-12! px-4"
-                />
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Primary
-                  href="#"
-                  text={loading ? 'Searching...' : 'Search'}
-                  onClick={() => void performSearch()}
-                  isDisabled={loading || !query.trim()}
-                />
-                <button
-                  type="button"
-                  onClick={() => setAdvancedOpen((prev) => !prev)}
-                  aria-label={advancedOpen ? 'Hide filters' : 'Show filters'}
-                  title={advancedOpen ? 'Hide filters' : 'Show filters'}
-                  className={`h-12 w-12 rounded-2xl! border border-card-border flex items-center justify-center transition-colors cursor-pointer ${
-                    advancedOpen
-                      ? 'bg-card-hover text-text-primary'
-                      : 'text-text-secondary hover:bg-card-hover'
-                  }`}
-                >
-                  <IoOptionsOutline size={18} />
-                </button>
-              </div>
-            </form>
-
-            {advancedOpen ? (
-              <div className="rounded-2xl border border-card-border bg-white p-3 flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <div className="text-body-4 text-text-secondary">Refine Results</div>
-                  <button
-                    type="button"
-                    onClick={() => setAdvancedOpen(false)}
-                    className="h-7 w-7 rounded-xl! border border-card-border flex items-center justify-center text-text-secondary hover:bg-card-hover transition-colors cursor-pointer"
-                    aria-label="Close refine results"
-                    title="Close refine results"
-                  >
-                    <IoCloseOutline size={14} />
-                  </button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 mb-2">
-                  <FormInput
-                    intype="text"
-                    inname="merck-code"
-                    inlabel="Clinical code"
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                    className="min-h-10! h-10! px-4"
-                  />
-                  <FormInput
-                    intype="text"
-                    inname="merck-display-name"
-                    inlabel="Condition name hint"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    className="min-h-10! h-10! px-4"
-                  />
-                  <FormInput
-                    intype="text"
-                    inname="merck-subtopic"
-                    inlabel="Topic section"
-                    value={subTopicDisplay}
-                    onChange={(e) => setSubTopicDisplay(e.target.value)}
-                    className="min-h-10! h-10! px-4"
-                  />
-                </div>
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <div className="text-caption-1 text-text-secondary">Language</div>
-                    <div className="flex gap-1.5 flex-wrap">
-                      <CompactFilterPill
-                        active={language === 'en'}
-                        label="EN"
-                        onClick={() => setLanguage('en')}
-                      />
-                      <CompactFilterPill
-                        active={language === 'es'}
-                        label="ES"
-                        onClick={() => setLanguage('es')}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <div className="text-caption-1 text-text-secondary">Reading mode</div>
-                    <div className="flex gap-1.5 flex-wrap">
-                      <CompactFilterPill
-                        active={media === 'hybrid'}
-                        label="Balanced"
-                        onClick={() => setMedia('hybrid')}
-                      />
-                      <CompactFilterPill
-                        active={media === 'print'}
-                        label="Print-friendly"
-                        onClick={() => setMedia('print')}
-                      />
-                      <CompactFilterPill
-                        active={media === 'full'}
-                        label="Full layout"
-                        onClick={() => setMedia('full')}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            {recentSearches.length > 0 ? (
-              <div className="flex flex-col gap-2">
-                <div className="text-body-4 text-text-secondary">Frequent searches</div>
-                <div className="flex gap-2 flex-wrap">
-                  {recentSearches.map((searchTerm) => (
-                    <button
-                      key={searchTerm}
-                      type="button"
-                      className="px-3 py-1 rounded-2xl! border border-card-border text-body-4 text-text-secondary hover:bg-card-hover cursor-pointer"
-                      onClick={() => {
-                        setQuery(searchTerm);
-                        void performSearch(searchTerm);
-                      }}
-                    >
-                      {searchTerm}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-          </div>
+          <MerckSearchPanel
+            query={query}
+            setQuery={setQuery}
+            loading={loading}
+            performSearch={performSearch}
+            advancedOpen={advancedOpen}
+            setAdvancedOpen={setAdvancedOpen}
+            code={code}
+            setCode={setCode}
+            displayName={displayName}
+            setDisplayName={setDisplayName}
+            subTopicDisplay={subTopicDisplay}
+            setSubTopicDisplay={setSubTopicDisplay}
+            language={language}
+            setLanguage={setLanguage}
+            media={media}
+            setMedia={setMedia}
+            recentSearches={recentSearches}
+          />
 
           <div className="min-h-0 flex flex-col gap-3">
             {error ? <div className="text-body-4 text-text-error">{error}</div> : null}
@@ -590,54 +818,14 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
         </div>
       )}
 
-      {readerOpen && readerUrl && typeof document !== 'undefined'
-        ? createPortal(
-            <div className="fixed inset-0 z-[5000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-              <div className="relative bg-white rounded-2xl shadow-2xl w-full h-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-2 border-b border-black/10">
-                  <div className="text-body-2 text-text-primary truncate pr-2">{readerTitle}</div>
-                  <button
-                    type="button"
-                    onClick={() => setReaderOpen(false)}
-                    className="p-2 hover:bg-black/5 rounded-full transition-colors cursor-pointer"
-                    aria-label="Close Merck reader"
-                  >
-                    <Close iconOnly />
-                  </button>
-                </div>
-                <div className="relative flex-1">
-                  {readerLoading ? (
-                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-white">
-                      <YosemiteLoader
-                        label="Loading Manual"
-                        size={120}
-                        testId="merck-reader-loader"
-                      />
-                    </div>
-                  ) : null}
-                  <iframe
-                    src={readerUrl}
-                    title={readerTitle}
-                    className="flex-1 w-full h-full border-0"
-                    loading="lazy"
-                    onLoad={() => setReaderLoading(false)}
-                  />
-                </div>
-                <div className="p-3 border-t border-black/10 flex justify-end">
-                  <Link
-                    href={readerUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-body-4 text-text-brand underline underline-offset-2"
-                  >
-                    Open in new tab
-                  </Link>
-                </div>
-              </div>
-            </div>,
-            document.body
-          )
-        : null}
+      <MerckReaderPortal
+        readerOpen={readerOpen}
+        readerUrl={readerUrl}
+        readerTitle={readerTitle}
+        readerLoading={readerLoading}
+        setReaderOpen={setReaderOpen}
+        setReaderLoading={setReaderLoading}
+      />
 
       <div className="pt-1 flex flex-col gap-1">
         <div className="text-caption-1 text-text-secondary">{MERCK_COPYRIGHT_NOTICE}</div>
