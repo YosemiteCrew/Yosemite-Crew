@@ -89,11 +89,19 @@ type AppointmentInfoProps = {
   activeAppointment: Appointment;
 };
 
+const ReadOnlyEditField = ({ label, value }: { label: string; value?: string | null }) => (
+  <div className="py-2.5! flex items-center gap-2 justify-between border border-card-border rounded-2xl px-4 bg-card-hover/40">
+    <div className="text-body-4-emphasis text-text-tertiary">{label}</div>
+    <div className="text-body-4 text-text-primary text-right">{value || '-'}</div>
+  </div>
+);
+
 const validateAppointmentForm = ({
   appointmentValues,
   selectedSlot,
   slotLeadOptions,
   normalizeId,
+  requireScheduleSelection,
 }: {
   appointmentValues: {
     specialityId: string;
@@ -103,6 +111,7 @@ const validateAppointmentForm = ({
   selectedSlot: Slot | null;
   slotLeadOptions: { label: string; value: string }[];
   normalizeId: (value?: string | null) => string | undefined;
+  requireScheduleSelection: boolean;
 }): {
   specialityId?: string;
   serviceId?: string;
@@ -115,25 +124,27 @@ const validateAppointmentForm = ({
     slot?: string;
     leadId?: string;
   } = {};
-  if (!appointmentValues.specialityId) formErrors.specialityId = 'Please select a speciality';
-  if (!appointmentValues.serviceId) formErrors.serviceId = 'Please select a service';
-  if (!selectedSlot) formErrors.slot = 'Please select a slot';
-  if (selectedSlot && slotLeadOptions.length === 0) {
-    formErrors.slot = 'No lead is available for this slot. Please choose another slot.';
-    formErrors.leadId = 'No lead is available for this slot.';
-  }
-  if (selectedSlot && slotLeadOptions.length > 1 && !appointmentValues.leadId) {
-    formErrors.leadId = 'Multiple leads are available. Please choose a lead.';
-  }
-  if (
-    selectedSlot &&
-    appointmentValues.leadId &&
-    slotLeadOptions.length > 0 &&
-    !slotLeadOptions.some(
-      (option) => normalizeId(option.value) === normalizeId(appointmentValues.leadId)
-    )
-  ) {
-    formErrors.leadId = 'Selected lead is not available for this slot.';
+  if (requireScheduleSelection) {
+    if (!appointmentValues.specialityId) formErrors.specialityId = 'Please select a speciality';
+    if (!appointmentValues.serviceId) formErrors.serviceId = 'Please select a service';
+    if (!selectedSlot) formErrors.slot = 'Please select a slot';
+    if (selectedSlot && slotLeadOptions.length === 0) {
+      formErrors.slot = 'No lead is available for this slot. Please choose another slot.';
+      formErrors.leadId = 'No lead is available for this slot.';
+    }
+    if (selectedSlot && slotLeadOptions.length > 1 && !appointmentValues.leadId) {
+      formErrors.leadId = 'Multiple leads are available. Please choose a lead.';
+    }
+    if (
+      selectedSlot &&
+      appointmentValues.leadId &&
+      slotLeadOptions.length > 0 &&
+      !slotLeadOptions.some(
+        (option) => normalizeId(option.value) === normalizeId(appointmentValues.leadId)
+      )
+    ) {
+      formErrors.leadId = 'Selected lead is not available for this slot.';
+    }
   }
   return formErrors;
 };
@@ -259,6 +270,18 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
     );
   }, [activeAppointment.status]);
 
+  const canEditByStatus = useMemo(() => {
+    const status = activeAppointment.status as AppointmentStatus | undefined;
+    if (!status) return false;
+
+    return !['COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(status);
+  }, [activeAppointment.status]);
+
+  const canEditAppointments = canEditByStatus;
+  const canRescheduleByStatus = allowReschedule(activeAppointment.status ?? 'REQUESTED');
+  const canAssignRoomByStatus = canAssignAppointmentRoom(activeAppointment.status);
+  const canChangeStatusByStatus = canShowStatusChangeAction(activeAppointment.status);
+
   useEffect(() => {
     const currentId = activeAppointment.id;
     const previousId = lastAppointmentIdRef.current;
@@ -283,7 +306,7 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
   }, [activeAppointment]);
 
   useEffect(() => {
-    if (!isEditingAppointment) return;
+    if (!isEditingAppointment || !canRescheduleByStatus) return;
     if (!appointmentValues.serviceId || !selectedDate) {
       setTimeSlots([]);
       setSelectedSlot(null);
@@ -322,6 +345,7 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
     };
   }, [
     isEditingAppointment,
+    canRescheduleByStatus,
     appointmentValues.serviceId,
     selectedDate,
     activeAppointment.startTime,
@@ -329,7 +353,7 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
   ]);
 
   useEffect(() => {
-    if (!isEditingAppointment || !selectedSlot) return;
+    if (!isEditingAppointment || !canRescheduleByStatus || !selectedSlot) return;
     const options = getLeadOptionsForSlot(selectedSlot);
     const currentLeadId = appointmentValues.leadId;
 
@@ -368,6 +392,7 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
     setErrors((prev) => ({ ...prev, slot: undefined, leadId: undefined }));
   }, [
     isEditingAppointment,
+    canRescheduleByStatus,
     selectedSlot,
     getLeadOptionsForSlot,
     appointmentValues.leadId,
@@ -392,13 +417,6 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
     [activeAppointment]
   );
 
-  const canEditByStatus = useMemo(() => {
-    const status = activeAppointment.status as AppointmentStatus | undefined;
-    if (!status) return false;
-
-    return !['CANCELLED', 'NO_SHOW'].includes(status);
-  }, [activeAppointment.status]);
-
   const handleAppointmentEditCancel = () => {
     setIsEditingAppointment(false);
     setErrors({});
@@ -416,11 +434,6 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
     setTimeSlots([]);
   };
 
-  const canEditAppointments = canEditByStatus;
-  const canRescheduleByStatus = allowReschedule(activeAppointment.status ?? 'REQUESTED');
-  const canAssignRoomByStatus = canAssignAppointmentRoom(activeAppointment.status);
-  const canChangeStatusByStatus = canShowStatusChangeAction(activeAppointment.status);
-
   const handleAppointmentSave = async () => {
     const slotLeadOptions = getLeadOptionsForSlot(selectedSlot);
     const formErrors = validateAppointmentForm({
@@ -428,12 +441,17 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
       selectedSlot,
       slotLeadOptions,
       normalizeId,
+      requireScheduleSelection: canRescheduleByStatus,
     });
     setErrors(formErrors);
     if (Object.keys(formErrors).length > 0) return;
 
-    const nextStartTime = buildUtcDateFromDateAndTime(selectedDate, selectedSlot!.startTime);
-    const nextEndTime = buildUtcDateFromDateAndTime(selectedDate, selectedSlot!.endTime);
+    const nextStartTime = canRescheduleByStatus
+      ? buildUtcDateFromDateAndTime(selectedDate, selectedSlot!.startTime)
+      : activeAppointment.startTime;
+    const nextEndTime = canRescheduleByStatus
+      ? buildUtcDateFromDateAndTime(selectedDate, selectedSlot!.endTime)
+      : activeAppointment.endTime;
     const hasScheduleChanged =
       new Date(activeAppointment.startTime).getTime() !== nextStartTime.getTime() ||
       new Date(activeAppointment.endTime).getTime() !== nextEndTime.getTime();
@@ -479,24 +497,35 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
       room,
       status: activeAppointment.status,
       appointmentType: {
-        id: appointmentValues.serviceId,
-        name: service?.name || activeAppointment.appointmentType?.name || '',
+        id: canRescheduleByStatus
+          ? appointmentValues.serviceId
+          : activeAppointment.appointmentType?.id || '',
+        name:
+          (canRescheduleByStatus ? service?.name : activeAppointment.appointmentType?.name) || '',
         speciality: {
-          id: appointmentValues.specialityId,
-          name: speciality?.name || activeAppointment.appointmentType?.speciality?.name || '',
+          id: canRescheduleByStatus
+            ? appointmentValues.specialityId
+            : activeAppointment.appointmentType?.speciality?.id || '',
+          name:
+            (canRescheduleByStatus
+              ? speciality?.name
+              : activeAppointment.appointmentType?.speciality?.name) || '',
         },
       },
-      lead: leadMember
-        ? {
-            id: leadMember.practionerId || leadMember._id,
-            name: leadMember.name || leadMember.practionerId || leadMember._id,
-          }
-        : activeAppointment.lead,
-      supportStaff,
+      lead:
+        canRescheduleByStatus && leadMember
+          ? {
+              id: leadMember.practionerId || leadMember._id,
+              name: leadMember.name || leadMember.practionerId || leadMember._id,
+            }
+          : activeAppointment.lead,
+      supportStaff: canRescheduleByStatus ? supportStaff : activeAppointment.supportStaff,
       startTime: nextStartTime,
       endTime: nextEndTime,
       appointmentDate: nextStartTime,
-      durationMinutes: getDurationMinutes(selectedSlot!.startTime, selectedSlot!.endTime),
+      durationMinutes: canRescheduleByStatus
+        ? getDurationMinutes(selectedSlot!.startTime, selectedSlot!.endTime)
+        : activeAppointment.durationMinutes,
     };
 
     await updateAppointment(updatedAppointment);
@@ -535,28 +564,43 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
         >
           {isEditingAppointment ? (
             <div className="flex flex-col gap-3 mt-2">
-              <LabelDropdown
-                placeholder="Speciality"
-                onSelect={(option) =>
-                  setAppointmentValues((prev) => ({
-                    ...prev,
-                    specialityId: option.value,
-                    serviceId: '',
-                  }))
-                }
-                defaultOption={appointmentValues.specialityId}
-                error={errors.specialityId}
-                options={SpecialitiesOptions}
-              />
-              <LabelDropdown
-                placeholder="Service"
-                onSelect={(option) =>
-                  setAppointmentValues((prev) => ({ ...prev, serviceId: option.value }))
-                }
-                defaultOption={appointmentValues.serviceId}
-                error={errors.serviceId}
-                options={ServicesOptions}
-              />
+              {canRescheduleByStatus ? (
+                <>
+                  <LabelDropdown
+                    placeholder="Speciality"
+                    onSelect={(option) =>
+                      setAppointmentValues((prev) => ({
+                        ...prev,
+                        specialityId: option.value,
+                        serviceId: '',
+                      }))
+                    }
+                    defaultOption={appointmentValues.specialityId}
+                    error={errors.specialityId}
+                    options={SpecialitiesOptions}
+                  />
+                  <LabelDropdown
+                    placeholder="Service"
+                    onSelect={(option) =>
+                      setAppointmentValues((prev) => ({ ...prev, serviceId: option.value }))
+                    }
+                    defaultOption={appointmentValues.serviceId}
+                    error={errors.serviceId}
+                    options={ServicesOptions}
+                  />
+                </>
+              ) : (
+                <>
+                  <ReadOnlyEditField
+                    label="Speciality"
+                    value={activeAppointment.appointmentType?.speciality?.name}
+                  />
+                  <ReadOnlyEditField
+                    label="Service"
+                    value={activeAppointment.appointmentType?.name}
+                  />
+                </>
+              )}
               <FormDesc
                 intype="text"
                 inname="Describe concern"
@@ -567,30 +611,47 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
                 }
                 className="min-h-[120px]!"
               />
-              <DateTimePickerSection
-                selectedDate={selectedDate}
-                setSelectedDate={setSelectedDate}
-                selectedSlot={selectedSlot}
-                setSelectedSlot={setSelectedSlot}
-                timeSlots={timeSlots}
-                slotError={errors.slot}
-                leadId={appointmentValues.leadId}
-                leadError={errors.leadId}
-                leadOptions={LeadOptions}
-                onLeadSelect={(option) => {
-                  setAppointmentValues((prev) => ({ ...prev, leadId: option.value }));
-                  setErrors((prev) => ({ ...prev, leadId: undefined }));
-                }}
-                supportStaffIds={appointmentValues.supportIds}
-                teamOptions={TeamOptions}
-                onSupportStaffChange={(ids) =>
-                  setAppointmentValues((prev) => ({ ...prev, supportIds: ids }))
-                }
-              />
-              {canRescheduleByStatus ? null : (
-                <p className="text-caption-1 text-text-secondary">
-                  This appointment can no longer be rescheduled from edit mode.
-                </p>
+              {canRescheduleByStatus ? (
+                <DateTimePickerSection
+                  selectedDate={selectedDate}
+                  setSelectedDate={setSelectedDate}
+                  selectedSlot={selectedSlot}
+                  setSelectedSlot={setSelectedSlot}
+                  timeSlots={timeSlots}
+                  slotError={errors.slot}
+                  leadId={appointmentValues.leadId}
+                  leadError={errors.leadId}
+                  leadOptions={LeadOptions}
+                  onLeadSelect={(option) => {
+                    setAppointmentValues((prev) => ({ ...prev, leadId: option.value }));
+                    setErrors((prev) => ({ ...prev, leadId: undefined }));
+                  }}
+                  supportStaffIds={appointmentValues.supportIds}
+                  teamOptions={TeamOptions}
+                  onSupportStaffChange={(ids) =>
+                    setAppointmentValues((prev) => ({ ...prev, supportIds: ids }))
+                  }
+                />
+              ) : (
+                <>
+                  <ReadOnlyEditField
+                    label="Date"
+                    value={
+                      formatDisplayDate(String(activeAppointment.appointmentDate ?? '')) || '-'
+                    }
+                  />
+                  <ReadOnlyEditField
+                    label="Time"
+                    value={formatTimeLabel(activeAppointment.startTime) || '-'}
+                  />
+                  <ReadOnlyEditField label="Lead" value={activeAppointment.lead?.name} />
+                  <ReadOnlyEditField
+                    label="Staff"
+                    value={
+                      activeAppointment.supportStaff?.map((staff) => staff.name).join(', ') || '-'
+                    }
+                  />
+                </>
               )}
               {canAssignRoomByStatus ? (
                 <LabelDropdown
@@ -602,9 +663,7 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
                   options={RoomOptions}
                 />
               ) : (
-                <p className="text-caption-1 text-text-secondary">
-                  Room assignment is not available for this status.
-                </p>
+                <ReadOnlyEditField label="Room" value={activeAppointment.room?.name} />
               )}
               {canChangeStatusByStatus ? (
                 <LabelDropdown
@@ -619,9 +678,7 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
                   options={allowedStatusOptions}
                 />
               ) : (
-                <p className="text-caption-1 text-text-secondary">
-                  Status changes are not available for this appointment.
-                </p>
+                <ReadOnlyEditField label="Status" value={activeAppointment.status} />
               )}
             </div>
           ) : (

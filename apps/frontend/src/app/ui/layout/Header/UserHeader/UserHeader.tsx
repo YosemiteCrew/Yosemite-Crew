@@ -186,6 +186,7 @@ const UserHeader = () => {
     pathname.startsWith('/dashboard') ||
     pathname.startsWith('/guides') ||
     (pathname.startsWith('/integrations') && !pathname.startsWith('/integrations/idexx-workspace'));
+  const authenticatedLogoHref = isDev ? '/developers/home' : '/dashboard';
 
   return (
     <div className="flex items-center justify-between px-3 sm:px-12! lg:px-[36px]! w-full h-20 gap-0">
@@ -271,7 +272,7 @@ const UserHeader = () => {
       </MobileMenu>
 
       <div className="flex lg:hidden">
-        <Link href="/" className="logo">
+        <Link href={authenticatedLogoHref} className="logo">
           <Image src={MEDIA_SOURCES.logo} alt="Logo" width={90} height={83} priority />
         </Link>
       </div>

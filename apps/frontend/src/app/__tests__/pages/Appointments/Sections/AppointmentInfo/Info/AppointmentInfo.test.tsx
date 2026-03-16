@@ -39,9 +39,11 @@ jest.mock('@/app/features/appointments/services/appointmentService', () => ({
 
 jest.mock('@/app/ui/primitives/Accordion/Accordion', () => (props: any) => (
   <div>
-    <button data-testid={`edit-${props.title}`} onClick={props.onEditClick}>
-      edit
-    </button>
+    {props.showEditIcon ? (
+      <button data-testid={`edit-${props.title}`} onClick={props.onEditClick}>
+        edit
+      </button>
+    ) : null}
     <div>{props.children}</div>
   </div>
 ));
@@ -129,5 +131,28 @@ describe('AppointmentInfo section', () => {
     expect(screen.getByText('Staff')).toBeInTheDocument();
     expect(screen.getByText('Sam')).toBeInTheDocument();
     expect(updateAppointmentMock).not.toHaveBeenCalled();
+  });
+
+  it('does not allow edit mode for completed appointments', async () => {
+    render(<AppointmentInfo activeAppointment={{ ...activeAppointment, status: 'COMPLETED' }} />);
+
+    expect(screen.queryByTestId('edit-Appointments details')).not.toBeInTheDocument();
+    expect(getSlotsMock).not.toHaveBeenCalled();
+  });
+
+  it('shows read-only schedule fields for checked-in appointments while keeping allowed edits', async () => {
+    render(<AppointmentInfo activeAppointment={{ ...activeAppointment, status: 'CHECKED_IN' }} />);
+
+    fireEvent.click(screen.getByTestId('edit-Appointments details'));
+
+    expect(getSlotsMock).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('date-time-picker')).not.toBeInTheDocument();
+    expect(screen.getByText('Speciality')).toBeInTheDocument();
+    expect(screen.getByText('Service')).toBeInTheDocument();
+    expect(screen.getByText('Date')).toBeInTheDocument();
+    expect(screen.getByText('Time')).toBeInTheDocument();
+    expect(screen.getByText('Room')).toBeInTheDocument();
+    expect(screen.getByText('Status')).toBeInTheDocument();
+    expect(screen.getByTestId('concern')).toBeInTheDocument();
   });
 });

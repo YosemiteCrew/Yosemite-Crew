@@ -238,6 +238,69 @@ const AddAppointment = ({
     await handleCreate(true);
   };
 
+  const goToDetailsStep = useCallback(() => {
+    if (!formData.companion.id) {
+      setFormDataErrors((prev) => ({ ...prev, companionId: 'Please select a companion' }));
+      setActiveStep(1);
+      scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    setFormDataErrors((prev) => ({ ...prev, companionId: undefined }));
+    setMaxUnlockedStep((prev) => Math.max(prev, 2));
+    setActiveStep(2);
+    globalThis.setTimeout(() => {
+      scrollToStep(step2Ref);
+    }, 80);
+  }, [formData.companion.id, scrollToStep, setFormDataErrors]);
+
+  const goToDateTimeStep = useCallback(() => {
+    const errors = validateForm(false);
+    const nextErrors = {
+      specialityId: errors.specialityId,
+      serviceId: errors.serviceId,
+      concern: errors.concern,
+    };
+    setFormDataErrors((prev) => ({
+      ...prev,
+      specialityId: nextErrors.specialityId,
+      serviceId: nextErrors.serviceId,
+      concern: nextErrors.concern,
+    }));
+    if (nextErrors.specialityId || nextErrors.serviceId || nextErrors.concern) {
+      setActiveStep(2);
+      scrollToStep(step2Ref);
+      return;
+    }
+    setMaxUnlockedStep((prev) => Math.max(prev, 3));
+    setActiveStep(3);
+    globalThis.setTimeout(() => {
+      scrollToStep(step3Ref);
+    }, 80);
+  }, [scrollToStep, setFormDataErrors, validateForm]);
+
+  const goToBillingStep = useCallback(() => {
+    const errors = validateForm(false);
+    const nextErrors = {
+      slot: errors.slot,
+      leadId: errors.leadId,
+    };
+    setFormDataErrors((prev) => ({
+      ...prev,
+      slot: nextErrors.slot,
+      leadId: nextErrors.leadId,
+    }));
+    if (nextErrors.slot || nextErrors.leadId) {
+      setActiveStep(3);
+      scrollToStep(step3Ref);
+      return;
+    }
+    setMaxUnlockedStep((prev) => Math.max(prev, 4));
+    setActiveStep(4);
+    globalThis.setTimeout(() => {
+      scrollToStep(step4Ref);
+    }, 80);
+  }, [scrollToStep, setFormDataErrors, validateForm]);
+
   const handleQuickAddCompanionVisibility = (value: React.SetStateAction<boolean>) => {
     const nextOpen = typeof value === 'function' ? value(showAddCompanionModal) : value;
     setShowAddCompanionModal(nextOpen);
@@ -314,6 +377,14 @@ const AddAppointment = ({
                           showEditIcon={false}
                         />
                       )}
+                      <div className="flex justify-center pt-3 pb-1">
+                        <Primary
+                          href="#"
+                          text="Next"
+                          onClick={goToDetailsStep}
+                          classname="py-[12px] px-8 flex items-center justify-center rounded-2xl! transition-all duration-300 ease-in-out hover:scale-105 text-body-3-emphasis text-center font-satoshi bg-text-primary text-neutral-0! w-auto min-w-[170px]"
+                        />
+                      </div>
                     </>
                   ) : (
                     <div className="flex gap-2 flex-col items-center pb-2">
@@ -379,6 +450,7 @@ const AddAppointment = ({
                         }
                       }
                     }}
+                    onNext={goToDateTimeStep}
                   />
                 </div>
               ) : null}
@@ -407,6 +479,14 @@ const AddAppointment = ({
                       teamOptions={TeamOptions}
                       onSupportStaffChange={handleSupportStaffChange}
                     />
+                    <div className="flex justify-center pt-3 pb-1">
+                      <Primary
+                        href="#"
+                        text="Next"
+                        onClick={goToBillingStep}
+                        classname="py-[12px] px-8 flex items-center justify-center rounded-2xl! transition-all duration-300 ease-in-out hover:scale-105 text-body-3-emphasis text-center font-satoshi bg-text-primary text-neutral-0! w-auto min-w-[170px]"
+                      />
+                    </div>
                   </Accordion>
                 </div>
               ) : null}

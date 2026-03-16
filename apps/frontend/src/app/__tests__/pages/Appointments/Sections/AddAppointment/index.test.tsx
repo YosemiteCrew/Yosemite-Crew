@@ -138,11 +138,16 @@ jest.mock('@/app/ui/inputs/Slotpicker', () => ({
   __esModule: true,
   default: ({ setSelectedSlot, timeSlots }: any) => (
     <div data-testid="slot-picker">
-      {timeSlots.map((slot: any, i: number) => (
-        <button key={i + 'slot'} data-testid={`slot-${i}`} onClick={() => setSelectedSlot(slot)}>
-          {slot.startTime}
-        </button>
-      ))}
+      <button
+        data-testid="slot-0"
+        onClick={() =>
+          setSelectedSlot(
+            timeSlots?.[0] ?? { startTime: '10:00', endTime: '10:30', vetIds: ['lead-1'] }
+          )
+        }
+      >
+        {timeSlots?.[0]?.startTime ?? '10:00'}
+      </button>
     </div>
   ),
 }));
@@ -190,6 +195,17 @@ describe('AddAppointment Component', () => {
     expect(screen.getByTestId('modal')).toBeInTheDocument();
     expect(screen.getByText('Add appointment')).toBeInTheDocument();
     expect(screen.getByTestId('accordion-Companion details')).toBeInTheDocument();
+    expect(screen.getByText('Next')).toBeInTheDocument();
+  });
+
+  it('shows companion validation when step 1 next is clicked without a companion', async () => {
+    render(<AddAppointment {...defaultProps} />);
+
+    fireEvent.click(screen.getByText('Next'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('err-companion')).toBeInTheDocument();
+    });
   });
 
   it('reveals details step and fetches slots after companion + speciality + service selection', async () => {
@@ -206,6 +222,35 @@ describe('AddAppointment Component', () => {
 
     await waitFor(() => {
       expect(appointmentService.getSlotsForServiceAndDateForPrimaryOrg).toHaveBeenCalled();
+    });
+  });
+
+  it('advances through accordions with next buttons', async () => {
+    render(<AddAppointment {...defaultProps} />);
+
+    fireEvent.click(screen.getByTestId('search-companion'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('select-Speciality')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getAllByText('Next')[0]);
+
+    fireEvent.click(screen.getByTestId('select-Speciality'));
+    fireEvent.click(screen.getByTestId('select-Service'));
+    fireEvent.change(screen.getByTestId('concern-input'), { target: { value: 'Limping' } });
+    fireEvent.click(screen.getAllByText('Next')[1]);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('slot-0')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId('slot-0'));
+    fireEvent.click(screen.getByTestId('select-Lead'));
+    fireEvent.click(screen.getAllByText('Next')[2]);
+
+    await waitFor(() => {
+      expect(screen.getByText('Book appointment')).toBeInTheDocument();
     });
   });
 

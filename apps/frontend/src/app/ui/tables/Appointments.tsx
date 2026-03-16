@@ -213,15 +213,23 @@ const Appointments = ({
       label: 'Support',
       key: 'support',
       width: '10%',
-      render: (item: Appointment) => (
-        <div className="appointment-profile-two">
-          {item.supportStaff?.map((sup, i) => (
-            <div key={'sup' + i} className="appointment-profile-sub">
-              {sup.name}
-            </div>
-          ))}
-        </div>
-      ),
+      render: (item: Appointment) => {
+        const supportStaff = item.supportStaff ?? [];
+
+        return (
+          <div className="appointment-profile-two">
+            {supportStaff.length > 0 ? (
+              supportStaff.map((sup, i) => (
+                <div key={'sup' + i} className="appointment-profile-sub">
+                  {sup.name}
+                </div>
+              ))
+            ) : (
+              <div className="appointment-profile-sub">-</div>
+            )}
+          </div>
+        );
+      },
     },
     {
       label: 'Status',

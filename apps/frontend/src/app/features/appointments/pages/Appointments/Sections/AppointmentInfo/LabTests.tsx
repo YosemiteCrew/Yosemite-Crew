@@ -113,6 +113,19 @@ const getTestTurnaround = (test: IdexxTest) =>
 const getTestSpecimen = (test: IdexxTest) =>
   String(test.meta?.specimen ?? '').trim() || 'Specimen not listed';
 
+const formatCensusIvlsDevices = (entry: CensusEntry | null) => {
+  const devices = entry?.ivls ?? [];
+  if (devices.length === 0) return '-';
+  return devices
+    .map((device) => {
+      const serial = String(device.serialNumber ?? '').trim();
+      const displayName = String(device.displayName ?? '').trim();
+      if (displayName && serial) return `${displayName} (${serial})`;
+      return displayName || serial || '-';
+    })
+    .join(', ');
+};
+
 const parseFloatSafe = (value?: string): number | null => {
   if (!value) return null;
   const normalized = String(value).replaceAll(',', '.');
@@ -840,7 +853,6 @@ const useLabTests = (activeAppointment: Appointment | null) => {
         technician: technician || undefined,
         notes: notes || undefined,
         specimenCollectionDate: specimenCollectionDate || undefined,
-        ivls: modality === 'INHOUSE' && selectedIvls ? [selectedIvls] : undefined,
       };
       const created = await createIdexxLabOrder({ organisationId: primaryOrgId, payload });
       setLatestOrder(created);
@@ -866,7 +878,6 @@ const useLabTests = (activeAppointment: Appointment | null) => {
     technician,
     notes,
     specimenCollectionDate,
-    selectedIvls,
     upsertAppointmentOrder,
     openOrderIframe,
     refreshAppointmentOrders,
@@ -927,12 +938,24 @@ const useLabTests = (activeAppointment: Appointment | null) => {
     [censusEntries, companionId]
   );
 
+  const selectedDeviceInCensus = useMemo(() => {
+    if (!companionCensusEntry || !selectedIvls) return false;
+    return (companionCensusEntry.ivls ?? []).some(
+      (device) => String(device.serialNumber ?? '').trim() === selectedIvls
+    );
+  }, [companionCensusEntry, selectedIvls]);
+
   const inHouseCensusConfirmed = useMemo(() => {
     if (!companionCensusEntry) return false;
     const confirmedBy = companionCensusEntry.confirmedBy ?? [];
     if (selectedIvls) return confirmedBy.includes(selectedIvls);
     return Boolean(companionCensusEntry.confirmed || confirmedBy.length > 0);
   }, [companionCensusEntry, selectedIvls]);
+
+  const needsSelectedDeviceCensusAdd = useMemo(() => {
+    if (!selectedIvls) return false;
+    return !companionInCensus;
+  }, [companionInCensus, selectedIvls]);
 
   return {
     // state
@@ -980,7 +1003,9 @@ const useLabTests = (activeAppointment: Appointment | null) => {
     canOpenFollowUpInCurrentOrder,
     resultProgressByOrderId,
     companionInCensus,
+    selectedDeviceInCensus,
     inHouseCensusConfirmed,
+    needsSelectedDeviceCensusAdd,
     modalityOptions,
     practitionerOptions,
     companionId,
@@ -1011,194 +1036,208 @@ type UseLabTestsReturn = ReturnType<typeof useLabTests>;
 const LabOrderForm = ({ s }: { s: UseLabTestsReturn }) => (
   <Accordion title="Create lab order" defaultOpen showEditIcon={false} isEditing>
     <div className="flex flex-col gap-3 py-2">
-      <SearchDropdown
-        placeholder="Search IDEXX tests"
-        options={s.tests.map((test) => ({
-          value: test.code,
-          label: `${test.display} (${test.code})`,
-          meta: test,
-        }))}
-        onSelect={s.addTest}
-        query={s.selectedTestLabel || s.query}
-        setQuery={(value: string) => {
-          s.setSelectedTestLabel(value);
-          s.setQuery(value);
-        }}
-        minChars={0}
-        onReachEnd={s.loadMoreTests}
-        hasMore={s.testsHasMore}
-        isLoadingMore={s.testsLoadingMore}
-        optionClassName="w-full text-start rounded-2xl! border border-card-border bg-white px-3 py-2 mb-2 last:mb-0 hover:bg-white transition-colors"
-        renderOption={(option) => {
-          const test = option.meta as IdexxTest | undefined;
-          if (!test) return option.label;
-          return (
-            <div className="flex flex-col gap-1">
-              <div className="flex items-start justify-between gap-2">
-                <div className="text-body-4 text-text-primary pr-2">{test.display}</div>
-                <div className="text-label-xsmall px-2 py-1 rounded bg-blue-50 text-blue-700 whitespace-nowrap">
-                  {formatTestPrice(test)}
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-x-3 gap-y-1 text-caption-1 text-text-secondary">
-                <span>Code: {test.code}</span>
-              </div>
-              <div className="flex flex-wrap gap-x-3 gap-y-1 text-caption-1 text-text-secondary">
-                <span>Turnaround time: {getTestTurnaround(test)}</span>
-                <span>Specimen: {getTestSpecimen(test)}</span>
-              </div>
-            </div>
-          );
-        }}
-      />
-
-      <div className="flex flex-wrap gap-2">
-        {s.selectedTests.length === 0 ? (
-          <div className="text-body-4 text-text-secondary">No tests selected yet.</div>
-        ) : (
-          s.selectedTests.map((test) => (
-            <button
-              key={test.code}
-              type="button"
-              onClick={() => s.removeTest(test.code)}
-              className="rounded-xl! border border-card-border bg-white px-3 py-2 text-left min-w-[220px] max-w-[280px] transition-colors hover:bg-white"
-              title="Remove test from selection"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="text-body-4 text-text-primary truncate">{test.display}</div>
-                <div className="text-label-xsmall px-2 py-1 rounded bg-blue-50 text-blue-700 whitespace-nowrap">
-                  {formatTestPrice(test)}
-                </div>
-              </div>
-              <div className="mt-0.5 text-caption-1 text-text-secondary truncate">
-                {test.code} • Turnaround time: {getTestTurnaround(test)}
-              </div>
-            </button>
-          ))
-        )}
-      </div>
-
       <LabelDropdown
         placeholder="Modality"
         options={s.modalityOptions}
         defaultOption={s.modality}
         onSelect={(option) => s.setModality(option.value as 'REFERENCE_LAB' | 'INHOUSE')}
       />
-      <div className="text-caption-1 text-text-secondary">
-        IDEXX test reference data does not explicitly flag tests as in-house vs device-specific in
-        this contract. Ordering modality and IVLS selection determine in-house/device workflow.
-      </div>
+      {s.modality === 'REFERENCE_LAB' ? (
+        <>
+          <div className="text-caption-1 text-text-secondary">
+            IDEXX test reference data does not explicitly flag tests as in-house vs device-specific
+            in this contract. Use reference lab for external IDEXX ordering.
+          </div>
+          <SearchDropdown
+            placeholder="Search IDEXX tests"
+            options={s.tests.map((test) => ({
+              value: test.code,
+              label: `${test.display} (${test.code})`,
+              meta: test,
+            }))}
+            onSelect={s.addTest}
+            query={s.selectedTestLabel || s.query}
+            setQuery={(value: string) => {
+              s.setSelectedTestLabel(value);
+              s.setQuery(value);
+            }}
+            minChars={0}
+            onReachEnd={s.loadMoreTests}
+            hasMore={s.testsHasMore}
+            isLoadingMore={s.testsLoadingMore}
+            optionClassName="w-full text-start rounded-2xl! border border-card-border bg-white px-3 py-2 mb-2 last:mb-0 hover:bg-white transition-colors"
+            renderOption={(option) => {
+              const test = option.meta as IdexxTest | undefined;
+              if (!test) return option.label;
+              return (
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="text-body-4 text-text-primary pr-2">{test.display}</div>
+                    <div className="text-label-xsmall px-2 py-1 rounded bg-blue-50 text-blue-700 whitespace-nowrap">
+                      {formatTestPrice(test)}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-caption-1 text-text-secondary">
+                    <span>Code: {test.code}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-caption-1 text-text-secondary">
+                    <span>Turnaround time: {getTestTurnaround(test)}</span>
+                    <span>Specimen: {getTestSpecimen(test)}</span>
+                  </div>
+                </div>
+              );
+            }}
+          />
 
-      {s.modality === 'INHOUSE' ? (
-        <LabelDropdown
-          placeholder="Select IVLS device"
-          options={s.devices.map((device) => ({
-            label: `${device.displayName || 'IVLS'} (${device.deviceSerialNumber})`,
-            value: device.deviceSerialNumber,
-          }))}
-          defaultOption={s.selectedIvls}
-          onSelect={(option) => s.setSelectedIvls(option.value)}
-          error={s.selectedIvls ? undefined : 'IVLS device is required for in-house orders.'}
-        />
-      ) : null}
+          <div className="flex flex-wrap gap-2">
+            {s.selectedTests.length === 0 ? (
+              <div className="text-body-4 text-text-secondary">No tests selected yet.</div>
+            ) : (
+              s.selectedTests.map((test) => (
+                <button
+                  key={test.code}
+                  type="button"
+                  onClick={() => s.removeTest(test.code)}
+                  className="rounded-xl! border border-card-border bg-white px-3 py-2 text-left min-w-[220px] max-w-[280px] transition-colors hover:bg-white"
+                  title="Remove test from selection"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="text-body-4 text-text-primary truncate">{test.display}</div>
+                    <div className="text-label-xsmall px-2 py-1 rounded bg-blue-50 text-blue-700 whitespace-nowrap">
+                      {formatTestPrice(test)}
+                    </div>
+                  </div>
+                  <div className="mt-0.5 text-caption-1 text-text-secondary truncate">
+                    {test.code} • Turnaround time: {getTestTurnaround(test)}
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <LabelDropdown
-          placeholder="Veterinarian"
-          options={s.practitionerOptions}
-          defaultOption={s.veterinarian}
-          onSelect={(option) => s.setVeterinarian(option.value)}
-        />
-        <LabelDropdown
-          placeholder="Technician"
-          options={s.practitionerOptions}
-          defaultOption={s.technician}
-          onSelect={(option) => s.setTechnician(option.value)}
-        />
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <FormInput
-          intype="date"
-          inname="lab-specimen-date"
-          inlabel="Specimen collection date"
-          value={s.specimenCollectionDate}
-          onChange={(e) => s.setSpecimenCollectionDate(e.target.value)}
-        />
-        <FormInput
-          intype="text"
-          inname="lab-notes"
-          inlabel="Notes"
-          value={s.notes}
-          onChange={(e) => s.setNotes(e.target.value)}
-        />
-      </div>
-
-      <Primary
-        href="#"
-        text={s.creatingOrder ? 'Creating order...' : 'Create IDEXX order'}
-        onClick={s.handleCreateOrder}
-        isDisabled={
-          s.creatingOrder ||
-          s.loading ||
-          s.selectedTests.length === 0 ||
-          !s.companionId ||
-          (s.modality === 'INHOUSE' && !s.companionInCensus) ||
-          (s.modality === 'INHOUSE' && !s.inHouseCensusConfirmed) ||
-          (s.modality === 'INHOUSE' && !s.selectedIvls)
-        }
-      />
-      {s.modality === 'INHOUSE' && !s.companionInCensus ? (
-        <div className="text-caption-1 text-text-error">
-          Add this companion to IDEXX census before creating an in-house order.
-        </div>
-      ) : null}
-      {s.modality === 'INHOUSE' && s.companionInCensus && !s.inHouseCensusConfirmed ? (
-        <div className="text-caption-1 text-text-error">
-          Census sync is pending for the selected IVLS device. Refresh census after IVLS confirms
-          the patient.
-        </div>
-      ) : null}
-    </div>
-  </Accordion>
-);
-
-const LabCensusSection = ({ s }: { s: UseLabTestsReturn }) => (
-  <Accordion title="In-house census" defaultOpen showEditIcon={false} isEditing>
-    <div className="flex flex-col gap-3 py-2">
-      <div className="text-body-4 text-text-secondary">
-        Required for in-house ordering when sending tests to IVLS devices.
-      </div>
-      <div
-        className={`rounded-2xl border p-3 ${s.companionInCensus ? 'border-green-200 bg-green-50' : 'border-card-border'}`}
-      >
-        <div className="text-body-4 text-text-primary">
-          Companion census status: {s.companionInCensus ? 'Added' : 'Not added'}
-        </div>
-        {s.companionInCensus ? (
-          <>
-            <div className="text-caption-1 text-text-secondary mt-1">
-              Companion is present in IDEXX census.
-            </div>
-            <div className="text-caption-1 text-text-secondary mt-1">
-              IVLS confirmation:{' '}
-              {s.inHouseCensusConfirmed
-                ? 'Confirmed for selected/current device'
-                : 'Pending device confirmation'}
-            </div>
-          </>
-        ) : (
-          <div className="mt-3">
-            <Primary
-              href="#"
-              text={s.updatingCensus ? 'Adding to census...' : 'Add to census'}
-              onClick={s.handleAddToCensus}
-              isDisabled={s.updatingCensus || !s.companionId || !s.selectedIvls}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <LabelDropdown
+              placeholder="Veterinarian"
+              options={s.practitionerOptions}
+              defaultOption={s.veterinarian}
+              onSelect={(option) => s.setVeterinarian(option.value)}
+            />
+            <LabelDropdown
+              placeholder="Technician"
+              options={s.practitionerOptions}
+              defaultOption={s.technician}
+              onSelect={(option) => s.setTechnician(option.value)}
             />
           </div>
-        )}
-      </div>
-      <Secondary href="#" text="Refresh census" onClick={() => void s.refreshCensus()} />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <FormInput
+              intype="date"
+              inname="lab-specimen-date"
+              inlabel="Specimen collection date"
+              value={s.specimenCollectionDate}
+              onChange={(e) => s.setSpecimenCollectionDate(e.target.value)}
+            />
+            <FormInput
+              intype="text"
+              inname="lab-notes"
+              inlabel="Notes"
+              value={s.notes}
+              onChange={(e) => s.setNotes(e.target.value)}
+            />
+          </div>
+
+          <Primary
+            href="#"
+            text={s.creatingOrder ? 'Creating order...' : 'Create IDEXX order'}
+            onClick={s.handleCreateOrder}
+            isDisabled={
+              s.creatingOrder || s.loading || s.selectedTests.length === 0 || !s.companionId
+            }
+          />
+        </>
+      ) : (
+        <>
+          <div className="text-body-4 text-text-secondary">
+            In-house IDEXX workflow requires selecting an IVLS device, then adding the companion to
+            census here. Complete ordering on the IDEXX machine after census is confirmed.
+          </div>
+          <LabelDropdown
+            placeholder="Select IVLS device"
+            options={s.devices.map((device) => ({
+              label: `${device.displayName || 'IVLS'} (${device.deviceSerialNumber})`,
+              value: device.deviceSerialNumber,
+            }))}
+            defaultOption={s.selectedIvls}
+            onSelect={(option) => s.setSelectedIvls(option.value)}
+          />
+          <div
+            className={`rounded-2xl border p-3 ${s.companionInCensus ? 'border-green-200 bg-green-50' : 'border-card-border'}`}
+          >
+            <div className="text-body-4 text-text-primary">
+              Companion census status:{' '}
+              {s.selectedIvls
+                ? s.companionInCensus
+                  ? 'Already added to census'
+                  : 'Not added to census'
+                : s.companionInCensus
+                  ? 'Added'
+                  : 'Not added'}
+            </div>
+            <div className="text-caption-1 text-text-secondary mt-1">
+              {s.selectedIvls
+                ? s.companionInCensus
+                  ? 'Companion already exists in IDEXX census. IDEXX only allows one census entry per patient.'
+                  : 'Add this companion to IDEXX census before running in-house diagnostics.'
+                : s.companionInCensus
+                  ? 'Companion is present in IDEXX census for this appointment companion.'
+                  : 'Add this companion to IDEXX census before running in-house diagnostics.'}
+            </div>
+            {s.companionInCensus ? (
+              <div className="text-caption-1 text-text-secondary mt-1">
+                IVLS confirmation:{' '}
+                {s.selectedIvls
+                  ? s.inHouseCensusConfirmed
+                    ? 'Confirmed for selected device'
+                    : 'Pending for selected device'
+                  : 'Select an IVLS device to check confirmation state'}
+              </div>
+            ) : null}
+            {s.companionInCensus ? (
+              <div className="text-caption-1 text-text-secondary mt-1">
+                Census device ID:{' '}
+                {formatCensusIvlsDevices(
+                  s.censusEntries.find((entry) => entry.patient?.patientId === s.companionId) ??
+                    null
+                )}
+              </div>
+            ) : null}
+            <div className="text-caption-1 text-text-secondary mt-1">
+              Current appointment state:{' '}
+              {s.selectedIvls
+                ? s.companionInCensus
+                  ? s.selectedDeviceInCensus
+                    ? s.inHouseCensusConfirmed
+                      ? 'Ready on selected IVLS device'
+                      : 'Added to selected device census, awaiting IVLS confirmation'
+                    : 'Already in census under another device'
+                  : 'Not yet added to census'
+                : 'Select an IVLS device'}
+            </div>
+            {s.needsSelectedDeviceCensusAdd ? (
+              <div className="mt-3">
+                <Primary
+                  href="#"
+                  text={s.updatingCensus ? 'Adding to census...' : 'Add to census'}
+                  onClick={s.handleAddToCensus}
+                  isDisabled={s.updatingCensus || !s.companionId || !s.selectedIvls}
+                />
+              </div>
+            ) : null}
+          </div>
+          <Secondary href="#" text="Refresh census" onClick={() => void s.refreshCensus()} />
+        </>
+      )}
     </div>
   </Accordion>
 );
@@ -1446,7 +1485,6 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
       <div className="flex flex-col gap-4 w-full">
         {s.error ? <div className="text-body-4 text-text-error">{s.error}</div> : null}
         <LabOrderForm s={s} />
-        <LabCensusSection s={s} />
         <LabOrderStatus s={s} orderButtonText={orderButtonText} />
         <LabResultsList s={s} />
       </div>

@@ -65,7 +65,7 @@ describe('UserHeader Component', () => {
     render(<UserHeader />);
 
     // Logo check
-    expect(screen.getByTestId('next-link')).toHaveAttribute('href', '/');
+    expect(screen.getByTestId('next-link')).toHaveAttribute('href', '/dashboard');
 
     // Notification Icon
     expect(screen.getByTestId('notification-icon')).toBeInTheDocument();
@@ -114,6 +114,14 @@ describe('UserHeader Component', () => {
 
     // Ensure standard app routes are NOT visible (e.g. "Finance")
     expect(screen.queryByText('Finance')).not.toBeInTheDocument();
+  });
+
+  it('uses the developer home link for the authenticated logo on developer routes', () => {
+    (usePathname as jest.Mock).mockReturnValue('/developers/home');
+
+    render(<UserHeader />);
+
+    expect(screen.getByTestId('next-link')).toHaveAttribute('href', '/developers/home');
   });
 
   // --- 3. Sign Out Logic ---

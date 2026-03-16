@@ -54,6 +54,19 @@ const formatTitleCase = (value?: string | null, fallback = 'Unknown') => {
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 };
 
+const formatCensusIvlsDevices = (entry: CensusEntry) => {
+  const devices = entry.ivls ?? [];
+  if (devices.length === 0) return '-';
+  return devices
+    .map((device) => {
+      const serial = String(device.serialNumber ?? '').trim();
+      const displayName = String(device.displayName ?? '').trim();
+      if (displayName && serial) return `${displayName} (${serial})`;
+      return displayName || serial || '-';
+    })
+    .join(', ');
+};
+
 const getResultStatusStyle = (status?: string | null): React.CSSProperties => {
   const key = String(status ?? '').toLowerCase();
   if (key.includes('complete') || key.includes('final'))
@@ -595,6 +608,8 @@ const CensusEntriesList = ({ entries }: { entries: CensusEntry[] }) => {
           <div className="mt-2 grid grid-cols-2 gap-2 text-caption-1">
             <div className="text-text-secondary">Confirmed</div>
             <div className="text-right text-text-primary">{entry.confirmed ? 'Yes' : 'No'}</div>
+            <div className="text-text-secondary">IVLS Device ID</div>
+            <div className="text-right text-text-primary">{formatCensusIvlsDevices(entry)}</div>
             <div className="text-text-secondary">Veterinarian</div>
             <div className="text-right text-text-primary">{entry.veterinarian ?? '-'}</div>
           </div>

@@ -2,6 +2,7 @@ import React from 'react';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import FormDesc from '@/app/ui/inputs/FormDesc/FormDesc';
+import { Primary } from '@/app/ui/primitives/Buttons';
 
 type Option = { label: string; value: string };
 
@@ -22,6 +23,7 @@ type AppointmentDetailsSectionProps = {
   defaultOpen?: boolean;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  onNext?: () => void;
 };
 
 const AppointmentDetailsSection = ({
@@ -41,6 +43,7 @@ const AppointmentDetailsSection = ({
   defaultOpen,
   open,
   onOpenChange,
+  onNext,
 }: AppointmentDetailsSectionProps) => (
   <Accordion
     title="Appointment details"
@@ -76,6 +79,16 @@ const AppointmentDetailsSection = ({
         onBlur={() => onConcernBlur?.()}
         className="min-h-[120px]!"
       />
+      {onNext ? (
+        <div className="flex justify-center pt-3 pb-1">
+          <Primary
+            href="#"
+            text="Next"
+            onClick={onNext}
+            classname="py-[12px] px-8 flex items-center justify-center rounded-2xl! transition-all duration-300 ease-in-out hover:scale-105 text-body-3-emphasis text-center font-satoshi bg-text-primary text-neutral-0! w-auto min-w-[170px]"
+          />
+        </div>
+      ) : null}
     </div>
   </Accordion>
 );

@@ -57,6 +57,7 @@ import { useSigningOverlayStore } from '@/app/stores/signingOverlayStore';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
+import { normalizeAppointmentStatus } from '@/app/lib/appointments';
 
 const ALLOWED_CATEGORIES_BY_ORG: Record<string, string[]> = {
   HOSPITAL: ['Prescription', 'Consent form', 'Custom'],
@@ -618,6 +619,8 @@ const hospitalLabels = [
             className="object-contain"
           />
         ),
+        redirectHref: '/integrations/merck-manuals',
+        redirectLabel: 'Open Merck Manuals',
       },
     ],
   },
@@ -669,7 +672,8 @@ const AppoitmentInfo = ({
   onReschedule,
 }: AppoitmentInfoProps) => {
   const { can } = usePermissions();
-  const canEdit = can(PERMISSIONS.PRESCRIPTION_EDIT_OWN);
+  const appointmentStatus = normalizeAppointmentStatus(activeAppointment?.status);
+  const canEdit = can(PERMISSIONS.PRESCRIPTION_EDIT_OWN) && appointmentStatus !== 'COMPLETED';
   const services = useServicesForPrimaryOrgSpecialities();
   const [activeLabel, setActiveLabel] = useState<LabelKey>(hospitalLabels[0].key as LabelKey);
   const [activeSubLabel, setActiveSubLabel] = useState<string>(hospitalLabels[0].labels[0].key);

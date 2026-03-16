@@ -17,7 +17,6 @@ import {
   MerckAudience,
   MerckEntry,
   MerckLanguage,
-  MerckMediaMode,
 } from '@/app/features/integrations/services/types';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import {
@@ -191,11 +190,7 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
 
   const [audience, setAudience] = useState<MerckAudience>('PROV');
   const [query, setQuery] = useState('');
-  const [code, setCode] = useState('');
-  const [displayName, setDisplayName] = useState('');
-  const [subTopicDisplay, setSubTopicDisplay] = useState('');
   const [language, setLanguage] = useState<MerckLanguage>('en');
-  const [media, setMedia] = useState<MerckMediaMode>('hybrid');
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [entries, setEntries] = useState<MerckEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -223,10 +218,7 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
         query: query.trim(),
         audience,
         language,
-        media,
-        code: code.trim() || undefined,
-        displayName: displayName.trim() || undefined,
-        subTopicDisplay: subTopicDisplay.trim() || undefined,
+        media: 'hybrid',
       });
       if (reqId !== requestRef.current) return;
       setEntries(getSafeMerckEntries(response.entries));
@@ -350,69 +342,19 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
                 <IoCloseOutline size={14} />
               </button>
             </div>
-            <div className="grid grid-cols-1 gap-2 mb-2">
-              <FormInput
-                intype="text"
-                inname="appointment-merck-display-name"
-                inlabel="Condition name hint"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className="min-h-10! h-10! px-4"
-              />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
-              <FormInput
-                intype="text"
-                inname="appointment-merck-code"
-                inlabel="Clinical code"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                className="min-h-10! h-10! px-4"
-              />
-              <FormInput
-                intype="text"
-                inname="appointment-merck-subtopic"
-                inlabel="Topic section"
-                value={subTopicDisplay}
-                onChange={(e) => setSubTopicDisplay(e.target.value)}
-                className="min-h-10! h-10! px-4"
-              />
-            </div>
-            <div className="flex flex-col md:flex-row md:items-start gap-3 md:gap-5">
-              <div className="flex w-fit flex-col gap-1">
-                <div className="text-caption-1 text-text-secondary">Language</div>
-                <div className="inline-flex w-fit gap-1.5 flex-wrap">
-                  <CompactFilterPill
-                    active={language === 'en'}
-                    label="EN"
-                    onClick={() => setLanguage('en')}
-                  />
-                  <CompactFilterPill
-                    active={language === 'es'}
-                    label="ES"
-                    onClick={() => setLanguage('es')}
-                  />
-                </div>
-              </div>
-              <div className="flex min-w-0 flex-1 flex-col gap-1">
-                <div className="text-caption-1 text-text-secondary">Reading mode</div>
-                <div className="flex gap-1.5 flex-wrap">
-                  <CompactFilterPill
-                    active={media === 'hybrid'}
-                    label="Balanced"
-                    onClick={() => setMedia('hybrid')}
-                  />
-                  <CompactFilterPill
-                    active={media === 'print'}
-                    label="Print-friendly"
-                    onClick={() => setMedia('print')}
-                  />
-                  <CompactFilterPill
-                    active={media === 'full'}
-                    label="Full layout"
-                    onClick={() => setMedia('full')}
-                  />
-                </div>
+            <div className="flex w-fit flex-col gap-1">
+              <div className="text-caption-1 text-text-secondary">Language</div>
+              <div className="inline-flex w-fit gap-1.5 flex-wrap">
+                <CompactFilterPill
+                  active={language === 'en'}
+                  label="EN"
+                  onClick={() => setLanguage('en')}
+                />
+                <CompactFilterPill
+                  active={language === 'es'}
+                  label="ES"
+                  onClick={() => setLanguage('es')}
+                />
               </div>
             </div>
           </div>

@@ -22,7 +22,6 @@ import {
   MerckAudience,
   MerckEntry,
   MerckLanguage,
-  MerckMediaMode,
 } from '@/app/features/integrations/services/types';
 import {
   MERCK_COPYRIGHT_NOTICE,
@@ -139,28 +138,17 @@ const getMerckSearchPayload = ({
   query,
   audience,
   language,
-  media,
-  code,
-  displayName,
-  subTopicDisplay,
 }: {
   organisationId: string;
   query: string;
   audience: MerckAudience;
   language: MerckLanguage;
-  media: MerckMediaMode;
-  code: string;
-  displayName: string;
-  subTopicDisplay: string;
 }) => ({
   organisationId,
   query,
   audience,
   language,
-  media,
-  code: code.trim() || undefined,
-  displayName: displayName.trim() || undefined,
-  subTopicDisplay: subTopicDisplay.trim() || undefined,
+  media: 'hybrid' as const,
 });
 
 const getSafeMerckResults = (entries: MerckEntry[]) =>
@@ -339,10 +327,6 @@ type ExecuteMerckSearchParams = {
   query: string;
   audience: MerckAudience;
   language: MerckLanguage;
-  media: MerckMediaMode;
-  code: string;
-  displayName: string;
-  subTopicDisplay: string;
   requestIdRef: { current: number };
   setLoading: React.Dispatch<React.SetStateAction<boolean>>;
   setError: React.Dispatch<React.SetStateAction<string | null>>;
@@ -355,10 +339,6 @@ const executeMerckSearch = async ({
   query,
   audience,
   language,
-  media,
-  code,
-  displayName,
-  subTopicDisplay,
   requestIdRef,
   setLoading,
   setError,
@@ -381,10 +361,6 @@ const executeMerckSearch = async ({
         query: resolvedQuery,
         audience,
         language,
-        media,
-        code,
-        displayName,
-        subTopicDisplay,
       })
     );
 
@@ -420,16 +396,8 @@ const MerckSearchPanel = ({
   performSearch,
   advancedOpen,
   setAdvancedOpen,
-  code,
-  setCode,
-  displayName,
-  setDisplayName,
-  subTopicDisplay,
-  setSubTopicDisplay,
   language,
   setLanguage,
-  media,
-  setMedia,
   recentSearches,
 }: {
   query: string;
@@ -438,16 +406,8 @@ const MerckSearchPanel = ({
   performSearch: (nextQuery?: string) => Promise<void>;
   advancedOpen: boolean;
   setAdvancedOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  code: string;
-  setCode: React.Dispatch<React.SetStateAction<string>>;
-  displayName: string;
-  setDisplayName: React.Dispatch<React.SetStateAction<string>>;
-  subTopicDisplay: string;
-  setSubTopicDisplay: React.Dispatch<React.SetStateAction<string>>;
   language: MerckLanguage;
   setLanguage: React.Dispatch<React.SetStateAction<MerckLanguage>>;
-  media: MerckMediaMode;
-  setMedia: React.Dispatch<React.SetStateAction<MerckMediaMode>>;
   recentSearches: string[];
 }) => (
   <div className="rounded-2xl border border-card-border p-4 flex flex-col gap-3">
@@ -505,67 +465,19 @@ const MerckSearchPanel = ({
             <IoCloseOutline size={14} />
           </button>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 mb-2">
-          <FormInput
-            intype="text"
-            inname="merck-code"
-            inlabel="Clinical code"
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            className="min-h-10! h-10! px-4"
-          />
-          <FormInput
-            intype="text"
-            inname="merck-display-name"
-            inlabel="Condition name hint"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            className="min-h-10! h-10! px-4"
-          />
-          <FormInput
-            intype="text"
-            inname="merck-subtopic"
-            inlabel="Topic section"
-            value={subTopicDisplay}
-            onChange={(e) => setSubTopicDisplay(e.target.value)}
-            className="min-h-10! h-10! px-4"
-          />
-        </div>
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="text-caption-1 text-text-secondary">Language</div>
-            <div className="flex gap-1.5 flex-wrap">
-              <CompactFilterPill
-                active={language === 'en'}
-                label="EN"
-                onClick={() => setLanguage('en')}
-              />
-              <CompactFilterPill
-                active={language === 'es'}
-                label="ES"
-                onClick={() => setLanguage('es')}
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="text-caption-1 text-text-secondary">Reading mode</div>
-            <div className="flex gap-1.5 flex-wrap">
-              <CompactFilterPill
-                active={media === 'hybrid'}
-                label="Balanced"
-                onClick={() => setMedia('hybrid')}
-              />
-              <CompactFilterPill
-                active={media === 'print'}
-                label="Print-friendly"
-                onClick={() => setMedia('print')}
-              />
-              <CompactFilterPill
-                active={media === 'full'}
-                label="Full layout"
-                onClick={() => setMedia('full')}
-              />
-            </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="text-caption-1 text-text-secondary">Language</div>
+          <div className="flex gap-1.5 flex-wrap">
+            <CompactFilterPill
+              active={language === 'en'}
+              label="EN"
+              onClick={() => setLanguage('en')}
+            />
+            <CompactFilterPill
+              active={language === 'es'}
+              label="ES"
+              onClick={() => setLanguage('es')}
+            />
           </div>
         </div>
       </div>
@@ -663,11 +575,7 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
 
   const [audience, setAudience] = useState<MerckAudience>('PROV');
   const [language, setLanguage] = useState<MerckLanguage>('en');
-  const [media, setMedia] = useState<MerckMediaMode>('hybrid');
   const [query, setQuery] = useState('');
-  const [code, setCode] = useState('');
-  const [displayName, setDisplayName] = useState('');
-  const [subTopicDisplay, setSubTopicDisplay] = useState('');
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [entries, setEntries] = useState<MerckEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -707,10 +615,6 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
         query: nextQuery ?? query,
         audience,
         language,
-        media,
-        code,
-        displayName,
-        subTopicDisplay,
         requestIdRef,
         setLoading,
         setError,
@@ -718,7 +622,7 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
         setRecentSearches,
       });
     },
-    [audience, code, displayName, language, media, primaryOrgId, query, subTopicDisplay]
+    [audience, language, primaryOrgId, query]
   );
 
   useEffect(() => {
@@ -792,16 +696,8 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
             performSearch={performSearch}
             advancedOpen={advancedOpen}
             setAdvancedOpen={setAdvancedOpen}
-            code={code}
-            setCode={setCode}
-            displayName={displayName}
-            setDisplayName={setDisplayName}
-            subTopicDisplay={subTopicDisplay}
-            setSubTopicDisplay={setSubTopicDisplay}
             language={language}
             setLanguage={setLanguage}
-            media={media}
-            setMedia={setMedia}
             recentSearches={recentSearches}
           />
 

@@ -138,4 +138,27 @@ describe('Appointments table', () => {
     render(<Appointments filteredList={[]} canEditAppointments={false} />);
     expect(screen.getByText('No data available')).toBeInTheDocument();
   });
+
+  it('shows a dash when support staff is empty in table view', () => {
+    const appointment: any = {
+      id: 'a3',
+      status: 'UPCOMING',
+      concern: 'Checkup',
+      appointmentType: { name: 'Exam' },
+      room: { name: 'Room 1' },
+      appointmentDate: '2025-01-06T09:00:00.000Z',
+      startTime: '2025-01-06T09:00:00.000Z',
+      lead: { name: 'Dr. Lee' },
+      supportStaff: [],
+      companion: {
+        name: 'Buddy',
+        species: 'dog',
+        parent: { name: 'Jamie' },
+      },
+    };
+
+    render(<Appointments filteredList={[appointment]} canEditAppointments />);
+
+    expect(screen.getByText('-')).toBeInTheDocument();
+  });
 });

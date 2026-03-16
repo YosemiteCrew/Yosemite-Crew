@@ -96,6 +96,7 @@ const Sidebar = () => {
   };
 
   const isInitialLoading = orgStatus !== 'loaded';
+  const authenticatedLogoHref = isDevPortal ? '/developers/home' : '/dashboard';
 
   // Developer portal doesn't need org data to load
   if (isInitialLoading && !isDevPortal) return <div className="sidebar"></div>;
@@ -106,7 +107,10 @@ const Sidebar = () => {
   return (
     <div className={`sidebar ${isCollapsed ? 'sidebar-collapsed' : ''}`}>
       <div className={`sidebar-top ${isCollapsed ? 'sidebar-top-collapsed' : ''}`}>
-        <Link href="/" className={`logo ${isCollapsed ? 'logo-collapsed' : ''}`}>
+        <Link
+          href={authenticatedLogoHref}
+          className={`logo ${isCollapsed ? 'logo-collapsed' : ''}`}
+        >
           <Image
             src={MEDIA_SOURCES.logo}
             alt="Logo"
