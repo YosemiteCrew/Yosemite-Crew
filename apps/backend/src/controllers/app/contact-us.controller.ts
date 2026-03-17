@@ -91,7 +91,6 @@ export const ContactController = {
         dsarDetails,
         attachments,
         userId: bodyUserId,
-        priority,
         category,
       } = req.body;
 
@@ -109,7 +108,6 @@ export const ContactController = {
         userId: userId ?? bodyUserId,
         dsarDetails,
         attachments,
-        priority,
         category,
       };
 
@@ -248,29 +246,44 @@ export const ContactController = {
   },
 
   async updatePriority(this: void, req: Request, res: Response) {
-    const { id } = req.params;
-    const { priority } = req.body;
-    if (!['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(priority)) {
-      return res.status(400).json({ error: 'Invalid priority' });
+    try {
+      const { id } = req.params;
+      const { priority } = req.body;
+      if (!['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(priority)) {
+        return res.status(400).json({ message: 'Invalid priority value' });
+      }
+      const result = await ContactService.updatePriority(id, priority);
+      if (!result) return res.status(404).json({ message: 'Not found' });
+      return res.json(result);
+    } catch (err) {
+      console.error("Error updating contact request priority", err);
+      res.status(500).json({ message: "Internal server error" });
     }
-    const result = await ContactService.updatePriority(id, priority);
-    if (!result) return res.status(404).json({ error: 'Request not found' });
-    return res.json(result);
   },
 
   async assignRequest(this: void, req: Request, res: Response) {
-    const { id } = req.params;
-    const { assigneeId, assigneeName } = req.body;
-    if (!assigneeId || !assigneeName) {
-      return res.status(400).json({ error: 'assigneeId and assigneeName are required' });
+    try {
+      const { id } = req.params;
+      const { assigneeId, assigneeName } = req.body;
+      if (!assigneeId || !assigneeName) {
+        return res.status(400).json({ message: 'assigneeId and assigneeName are required' });
+      }
+      const result = await ContactService.assignRequest(id, assigneeId, assigneeName);
+      if (!result) return res.status(404).json({ message: 'Not found' });
+      return res.json(result);
+    } catch (err) {
+      console.error("Error assigning contact request", err);
+      res.status(500).json({ message: "Internal server error" });
     }
-    const result = await ContactService.assignRequest(id, assigneeId, assigneeName);
-    if (!result) return res.status(404).json({ error: 'Request not found' });
-    return res.json(result);
   },
 
   async getDashboardStats(this: void, req: Request, res: Response) {
-    const stats = await ContactService.getDashboardStats();
-    return res.json(stats);
+    try {
+      const stats = await ContactService.getDashboardStats();
+      return res.json(stats);
+    } catch (err) {
+      console.error("Error fetching dashboard stats", err);
+      res.status(500).json({ message: "Internal server error" });
+    }
   },
 };

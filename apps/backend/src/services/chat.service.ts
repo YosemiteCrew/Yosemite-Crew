@@ -28,6 +28,13 @@ if (STREAM_KEY && STREAM_SECRET) {
   streamServer = StreamChat.getInstance(STREAM_KEY, STREAM_SECRET);
 }
 
+function getStreamServer(): StreamChat {
+  if (!streamServer) {
+    throw new Error("Stream Chat is not configured. Set STREAM_API_KEY and STREAM_API_SECRET.");
+  }
+  return streamServer;
+}
+
 // Appointment chat window
 const PRE_WINDOW_MINUTES = 60 * 24;
 const POST_WINDOW_MINUTES = 120;
@@ -275,13 +282,13 @@ export const ChatService = {
     if (!userId) throw new ChatServiceError("userId is required");
 
     return {
-      token: streamServer.createToken(userId),
+      token: getStreamServer().createToken(userId),
       expiresAt: Date.now() + 24 * 60 * 60 * 1000,
     };
   },
 
   async initSystemUserOnce() {
-    await streamServer.upsertUser({
+    await getStreamServer().upsertUser({
       id: SYSTEM_USER_ID,
       name: "Yosemite System",
       role: "admin",
@@ -393,7 +400,7 @@ export const ChatService = {
 
     const parentId = appointment.companion.parent.id;
     //Upsert parent user in Stream
-    await streamServer.upsertUser({
+    await getStreamServer().upsertUser({
       id: parentId,
       name: appointment.companion.parent.name || "Pet Owner",
       role: "user",
@@ -401,7 +408,7 @@ export const ChatService = {
 
     const vetId = appointment.lead?.id ?? null;
     // Upsert vet user in Stream if assigned
-    await streamServer.upsertUser({
+    await getStreamServer().upsertUser({
       id: vetId!,
       name: appointment.lead?.name || "Vet",
       role: "user",
@@ -413,7 +420,7 @@ export const ChatService = {
     const members = [parentId];
     if (vetId) members.push(vetId);
 
-    await streamServer.upsertUser({
+    await getStreamServer().upsertUser({
       id: SYSTEM_USER_ID,
       name: "Yosemite System",
       role: "admin",
@@ -433,7 +440,7 @@ export const ChatService = {
     };
 
     // IMPORTANT: include created_by_id (or created_by)
-    const channel = streamServer.channel("messaging", channelId, {
+    const channel = getStreamServer().channel("messaging", channelId, {
       ...data,
       created_by_id: parentId,
     });
@@ -491,7 +498,7 @@ export const ChatService = {
       );
       const user = await UserService.getById(userId);
 
-      await streamServer.upsertUser({
+      await getStreamServer().upsertUser({
         name: user?.firstName + " " + user?.lastName || "User",
         id: userId,
         image:
@@ -553,7 +560,7 @@ export const ChatService = {
       );
       const user = await UserService.getById(userId);
 
-      await streamServer.upsertUser({
+      await getStreamServer().upsertUser({
         name: user?.firstName + " " + user?.lastName || "User",
         id: userId,
         image:
@@ -571,7 +578,7 @@ export const ChatService = {
       created_by_id: createdBy,
     };
 
-    await streamServer.channel("team", channelId, channelData).create();
+    await getStreamServer().channel("team", channelId, channelData).create();
 
     const session = await ChatSessionModel.create({
       type: "ORG_GROUP",
@@ -689,7 +696,7 @@ export const ChatService = {
     const session = await ChatSessionModel.findById(sessionId);
     if (!session) return;
 
-    const channel = streamServer.channel(
+    const channel = getStreamServer().channel(
       getStreamChannelType(session.type),
       session.channelId,
     );
@@ -782,7 +789,7 @@ export const ChatService = {
       );
       const user = await UserService.getById(userId);
 
-      await streamServer.upsertUser({
+      await getStreamServer().upsertUser({
         name: user?.firstName + " " + user?.lastName || "User",
         id: userId,
         image:
@@ -795,7 +802,7 @@ export const ChatService = {
     await session.save();
     await syncChatSessionToPostgres(session);
 
-    const channel = streamServer.channel("team", session.channelId);
+    const channel = getStreamServer().channel("team", session.channelId);
     await channel.addMembers(newMembers);
 
     return session;
@@ -861,7 +868,7 @@ export const ChatService = {
     await session.save();
     await syncChatSessionToPostgres(session);
 
-    const channel = streamServer.channel("team", session.channelId);
+    const channel = getStreamServer().channel("team", session.channelId);
     await channel.removeMembers(memberIds);
 
     return session;
@@ -925,7 +932,7 @@ export const ChatService = {
     await session.save();
     await syncChatSessionToPostgres(session);
 
-    const channel = streamServer.channel("team", session.channelId);
+    const channel = getStreamServer().channel("team", session.channelId);
 
     const data: YosemiteChannelResponse = {
       name: updates.title,
@@ -962,7 +969,7 @@ export const ChatService = {
 
     assertGroupAdmin(session, actorUserId);
 
-    const channel = streamServer.channel("team", session.channelId);
+    const channel = getStreamServer().channel("team", session.channelId);
 
     try {
       await channel.delete();
