@@ -103,6 +103,8 @@ export const ContactService = {
           message: input.message,
           userId: input.userId ?? undefined,
           email: input.email ?? undefined,
+          fullName: input.fullName ?? undefined,
+          phone: input.phone ?? undefined,
           organisationId: input.organisationId ?? undefined,
           companionId: input.companionId ?? undefined,
           parentId: input.parentId ?? undefined,
@@ -110,6 +112,8 @@ export const ContactService = {
           complaintContext: undefined,
           attachments,
           status: "OPEN",
+          priority: input.priority ?? undefined,
+          category: input.category ?? undefined,
           internalNotes: undefined,
         },
       });
@@ -134,6 +138,8 @@ export const ContactService = {
             message: input.message,
             userId: input.userId,
             email: input.email,
+            fullName: input.fullName,
+            phone: input.phone,
             organisationId: input.organisationId,
             companionId: input.companionId,
             parentId: input.parentId,
@@ -141,6 +147,8 @@ export const ContactService = {
             complaintContext: undefined,
             attachments,
             status: "OPEN",
+            priority: input.priority,
+            category: input.category,
             internalNotes: undefined,
             createdAt: doc.createdAt ?? undefined,
             updatedAt: doc.updatedAt ?? undefined,
@@ -179,7 +187,10 @@ export const ContactService = {
           source: input.source,
           subject: input.type,
           message: input.message.trim(),
+          fullName: input.fullName.trim(),
           email: input.email.trim(),
+          phone: input.phone?.trim(),
+          organisationId: input.organisationId ?? undefined,
           dsarDetails,
           attachments,
           status: "OPEN",
@@ -196,6 +207,35 @@ export const ContactService = {
       phone: input.phone?.trim(),
       status: "OPEN",
     });
+
+    if (shouldDualWrite) {
+      try {
+        const dsarDetails = toPrismaJson(input.dsarDetails);
+        const attachments = toPrismaJson(input.attachments);
+
+        await prisma.contactRequest.create({
+          data: {
+            id: doc._id.toString(),
+            type: input.type,
+            source: input.source,
+            subject: input.type,
+            message: input.message.trim(),
+            fullName: input.fullName.trim(),
+            email: input.email.trim(),
+            phone: input.phone?.trim(),
+            organisationId: input.organisationId,
+            dsarDetails,
+            attachments,
+            status: "OPEN",
+            createdAt: doc.createdAt ?? undefined,
+            updatedAt: doc.updatedAt ?? undefined,
+          },
+        });
+      } catch (err) {
+        handleDualWriteError("ContactRequest", err);
+      }
+    }
+
     return doc;
   },
 
@@ -256,23 +296,109 @@ export const ContactService = {
   },
 
   async updatePriority(id: string, priority: ContactPriority) {
-    return ContactRequestModel.findByIdAndUpdate(id, { priority }, { new: true, runValidators: true });
+    if (isReadFromPostgres()) {
+      return prisma.contactRequest.update({
+        where: { id },
+        data: { priority },
+      });
+    }
+
+    const updated = await ContactRequestModel.findByIdAndUpdate(
+      id,
+      { priority },
+      { new: true, runValidators: true },
+    );
+
+    if (updated && shouldDualWrite) {
+      try {
+        await prisma.contactRequest.updateMany({
+          where: { id },
+          data: { priority },
+        });
+      } catch (err) {
+        handleDualWriteError("ContactRequest", err);
+      }
+    }
+
+    return updated;
   },
 
   async assignRequest(id: string, assigneeId: string, assigneeName: string) {
-    return ContactRequestModel.findByIdAndUpdate(id, { assigneeId, assigneeName }, { new: true, runValidators: true });
+    if (isReadFromPostgres()) {
+      return prisma.contactRequest.update({
+        where: { id },
+        data: { assigneeId, assigneeName },
+      });
+    }
+
+    const updated = await ContactRequestModel.findByIdAndUpdate(
+      id,
+      { assigneeId, assigneeName },
+      { new: true, runValidators: true },
+    );
+
+    if (updated && shouldDualWrite) {
+      try {
+        await prisma.contactRequest.updateMany({
+          where: { id },
+          data: { assigneeId, assigneeName },
+        });
+      } catch (err) {
+        handleDualWriteError("ContactRequest", err);
+      }
+    }
+
+    return updated;
   },
 
   async getDashboardStats() {
-    const [total, open, inProgress, resolved, closed, byType, byPriority] = await Promise.all([
-      ContactRequestModel.countDocuments(),
-      ContactRequestModel.countDocuments({ status: 'OPEN' }),
-      ContactRequestModel.countDocuments({ status: 'IN_PROGRESS' }),
-      ContactRequestModel.countDocuments({ status: 'RESOLVED' }),
-      ContactRequestModel.countDocuments({ status: 'CLOSED' }),
-      ContactRequestModel.aggregate([{ $group: { _id: '$type', count: { $sum: 1 } } }]),
-      ContactRequestModel.aggregate([{ $group: { _id: '$priority', count: { $sum: 1 } } }]),
-    ]);
+    if (isReadFromPostgres()) {
+      const [total, open, inProgress, resolved, closed] = await Promise.all([
+        prisma.contactRequest.count(),
+        prisma.contactRequest.count({ where: { status: "OPEN" } }),
+        prisma.contactRequest.count({ where: { status: "IN_PROGRESS" } }),
+        prisma.contactRequest.count({ where: { status: "RESOLVED" } }),
+        prisma.contactRequest.count({ where: { status: "CLOSED" } }),
+      ]);
+
+      const byType = await prisma.contactRequest.groupBy({
+        by: ["type"],
+        _count: true,
+      });
+
+      const byPriority = await prisma.contactRequest.groupBy({
+        by: ["priority"],
+        _count: true,
+      });
+
+      return {
+        total,
+        open,
+        inProgress,
+        resolved,
+        closed,
+        byType: byType.map((t) => ({ _id: t.type, count: t._count })),
+        byPriority: byPriority.map((p) => ({
+          _id: p.priority,
+          count: p._count,
+        })),
+      };
+    }
+
+    const [total, open, inProgress, resolved, closed, byType, byPriority] =
+      await Promise.all([
+        ContactRequestModel.countDocuments(),
+        ContactRequestModel.countDocuments({ status: "OPEN" }),
+        ContactRequestModel.countDocuments({ status: "IN_PROGRESS" }),
+        ContactRequestModel.countDocuments({ status: "RESOLVED" }),
+        ContactRequestModel.countDocuments({ status: "CLOSED" }),
+        ContactRequestModel.aggregate([
+          { $group: { _id: "$type", count: { $sum: 1 } } },
+        ]),
+        ContactRequestModel.aggregate([
+          { $group: { _id: "$priority", count: { $sum: 1 } } },
+        ]),
+      ]);
     return { total, open, inProgress, resolved, closed, byType, byPriority };
   },
 };
