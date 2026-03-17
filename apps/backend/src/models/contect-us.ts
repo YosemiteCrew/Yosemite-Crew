@@ -104,15 +104,15 @@ const DsraSchema = new Schema<DsraDetails>(
   { _id: false },
 );
 
-export type ContactPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export type ContactPriority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
 export type ContactCategory =
-  | 'GENERAL_ENQUIRY'
-  | 'TECHNICAL'
-  | 'BILLING'
-  | 'FEATURE_REQUEST'
-  | 'DSAR'
-  | 'COMPLAINT';
+  | "GENERAL_ENQUIRY"
+  | "TECHNICAL"
+  | "BILLING"
+  | "FEATURE_REQUEST"
+  | "DSAR"
+  | "COMPLAINT";
 
 export interface ContactRequestMongo {
   type: ContactType;
@@ -126,8 +126,6 @@ export interface ContactRequestMongo {
   // who is talking, optional depending on whether user is logged in
   userId?: string;
   email?: string;
-  fullName?: string;
-  phone?: string;
 
   // domain context
   organisationId?: string;
@@ -190,9 +188,6 @@ const ContactRequestSchema = new Schema<ContactRequestMongo>(
     },
 
     attachments: { type: [AttachmentSchema], default: [] },
-
-    fullName: { type: String },
-    phone: { type: String },
 
     status: {
       type: String,

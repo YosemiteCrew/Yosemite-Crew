@@ -4,17 +4,14 @@ import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
 
 const router = Router();
 
-// In local dev (in-memory DB), skip auth for admin routes
-const adminAuth: RequestHandler =
-  process.env.USE_INMEMORY_DB === "true" && process.env.NODE_ENV === "development"
-    ? (_req, _res, next) => next()
-    : authorizeCognito;
+// In local dev (in-memory DB + development), skip auth for admin routes
+const skipAuth: RequestHandler = (_req, _res, next) => next();
+const isLocalDev =
+  process.env.USE_INMEMORY_DB === "true" &&
+  process.env.NODE_ENV === "development";
 
-// Authenticated endpoint for mobile users
-const publicAuth: RequestHandler =
-  process.env.USE_INMEMORY_DB === "true"
-    ? (_req, _res, next) => next()
-    : authorizeCognitoMobile;
+const adminAuth = isLocalDev ? skipAuth : authorizeCognito;
+const publicAuth = isLocalDev ? skipAuth : authorizeCognitoMobile;
 
 // Mobile/web endpoint (authenticated via mobile auth)
 router.post("/contact", publicAuth, ContactController.create);
@@ -38,10 +35,6 @@ router.patch(
   adminAuth,
   ContactController.assignRequest,
 );
-router.get(
-  "/dashboard/stats",
-  adminAuth,
-  ContactController.getDashboardStats,
-);
+router.get("/dashboard/stats", adminAuth, ContactController.getDashboardStats);
 
 export default router;
