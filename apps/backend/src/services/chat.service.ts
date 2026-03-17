@@ -324,7 +324,7 @@ export const ChatService = {
         throw new ChatServiceError("Parent not found in appointment", 404);
       }
 
-      await streamServer.upsertUser({
+      await getStreamServer().upsertUser({
         id: parentId,
         name: companion?.parent?.name || "Pet Owner",
         role: "user",
@@ -333,7 +333,7 @@ export const ChatService = {
       const lead = appointment.lead as { id?: string; name?: string } | null;
       const vetId = lead?.id ?? null;
       if (vetId) {
-        await streamServer.upsertUser({
+        await getStreamServer().upsertUser({
           id: vetId,
           name: lead?.name || "Vet",
           role: "user",
@@ -346,7 +346,7 @@ export const ChatService = {
       const members = [parentId];
       if (vetId) members.push(vetId);
 
-      await streamServer.upsertUser({
+      await getStreamServer().upsertUser({
         id: SYSTEM_USER_ID,
         name: "Yosemite System",
         role: "admin",
@@ -369,7 +369,7 @@ export const ChatService = {
         members,
       };
 
-      await streamServer.channel("messaging", channelId, channelData).create();
+      await getStreamServer().channel("messaging", channelId, channelData).create();
 
       const session = await prisma.chatSession.create({
         data: {
@@ -511,7 +511,7 @@ export const ChatService = {
 
     const channelId = `od_${hash}`;
 
-    await streamServer
+    await getStreamServer()
       .channel("team", channelId, {
         members,
         created_by_id: userA,
@@ -669,7 +669,7 @@ export const ChatService = {
       });
       if (!session) return;
 
-      const channel = streamServer.channel(
+      const channel = getStreamServer().channel(
         getStreamChannelType(session.type as ChatSessionType),
         session.channelId,
       );
@@ -748,7 +748,7 @@ export const ChatService = {
         );
         const user = await UserService.getById(userId);
 
-        await streamServer.upsertUser({
+        await getStreamServer().upsertUser({
           name: user?.firstName + " " + user?.lastName || "User",
           id: userId,
           image:
@@ -764,7 +764,7 @@ export const ChatService = {
         data: { members: updatedMembers },
       });
 
-      const channel = streamServer.channel("team", session.channelId);
+      const channel = getStreamServer().channel("team", session.channelId);
       await channel.addMembers(newMembers);
 
       return updated as unknown as ChatSessionDocument;
@@ -841,7 +841,7 @@ export const ChatService = {
         data: { members: nextMembers },
       });
 
-      const channel = streamServer.channel("team", session.channelId);
+      const channel = getStreamServer().channel("team", session.channelId);
       await channel.removeMembers(memberIds);
 
       return updated as unknown as ChatSessionDocument;
@@ -903,7 +903,7 @@ export const ChatService = {
         },
       });
 
-      const channel = streamServer.channel("team", session.channelId);
+      const channel = getStreamServer().channel("team", session.channelId);
 
       const data: YosemiteChannelResponse = {
         name: updates.title,
@@ -952,7 +952,7 @@ export const ChatService = {
 
       assertGroupAdminPrisma(session, actorUserId);
 
-      const channel = streamServer.channel("team", session.channelId);
+      const channel = getStreamServer().channel("team", session.channelId);
 
       try {
         await channel.delete();
