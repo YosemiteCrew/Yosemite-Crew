@@ -23,7 +23,7 @@ describe('AppointmentLeadersStat', () => {
 
     expect(screen.getByTestId('card-header')).toHaveTextContent('Appointment leaders');
     expect(screen.getByTestId('chart')).toHaveAttribute('data-hide', 'false');
-    expect(screen.getByTestId('chart')).not.toHaveAttribute('data-layout');
+    expect(screen.getByTestId('chart')).toHaveAttribute('data-layout', 'vertical');
     expect(CardHeader).toHaveBeenCalled();
     expect(DynamicChartCard).toHaveBeenCalled();
   });

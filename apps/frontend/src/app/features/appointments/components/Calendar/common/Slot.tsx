@@ -13,7 +13,10 @@ import {
   isRequestedLikeStatus,
 } from '@/app/lib/appointments';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
-import { autoScrollCalendarHorizontally } from '@/app/features/appointments/components/Calendar/helpers';
+import {
+  autoScrollCalendarHorizontally,
+  autoScrollCalendarVertically,
+} from '@/app/features/appointments/components/Calendar/helpers';
 import { calcNearestAvailableMinute } from '@/app/features/appointments/components/Calendar/calendarDrop';
 import {
   IoEyeOutline,
@@ -290,6 +293,7 @@ const Slot: React.FC<SlotProps> = ({
           if (!draggedAppointmentId) return;
           event.preventDefault();
           autoScrollCalendarHorizontally(event.clientX, event.currentTarget as HTMLDivElement);
+          autoScrollCalendarVertically(event.clientY, event.currentTarget as HTMLDivElement);
           if (dropDate) {
             onDragHoverTarget?.(dropDate, dropPractitionerId);
           }

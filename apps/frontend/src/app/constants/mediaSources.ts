@@ -46,12 +46,11 @@ export const MEDIA_SOURCES = {
     tab4: ycCdn('Images/buildlaunch4.png'),
   },
   team: {
+    ankit: ycCdn('aboutus-page/ankit.png'),
     harshit: ycCdn('aboutus-page/harshit.png'),
     anna: ycCdn('aboutus-page/anna.png'),
-    ankit: ycCdn('aboutus-page/ankit.png'),
     harshvardhan: ycCdn('aboutus-page/harshvardhan.png'),
-    surbhi: ycCdn('aboutus-page/surbhi.png'),
-    suryansh: ycCdn('aboutus-page/suryansh.png'),
+    sneha: ycCdn('aboutus-page/sneha.png'),
   },
   aboutUs: {
     storyImage: ycCdn('aboutus-page/aboutnew.png'),

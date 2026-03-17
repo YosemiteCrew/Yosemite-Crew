@@ -198,6 +198,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
 
   useEffect(() => {
     if (!scrollRef.current) return;
+    if (draggedAppointmentId) return;
 
     const rangeStart = new Date(days[0]);
     rangeStart.setHours(0, 0, 0, 0);
@@ -214,7 +215,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
       : ((focusMinutes - visibleHourRange.startHour * 60) / 60) * height + HOUR_ROW_TOP_OFFSET_PX;
 
     scrollContainerToTarget(scrollRef.current, topPx);
-  }, [days, height, nowPosition, timedEvents, visibleHourRange.startHour]);
+  }, [days, draggedAppointmentId, height, nowPosition, timedEvents, visibleHourRange.startHour]);
 
   const hasAnyAllDay = allDayByDay.some((list) => list.length > 0);
   const slotOffsetMinutes = useMemo(() => {

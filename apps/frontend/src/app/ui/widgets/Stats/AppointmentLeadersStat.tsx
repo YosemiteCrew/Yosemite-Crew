@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import CardHeader from '@/app/ui/cards/CardHeader/CardHeader';
 import DynamicChartCard from '@/app/ui/widgets/DynamicChart/DynamicChartCard';
 import {
@@ -6,11 +6,32 @@ import {
   mapDashboardDurationOption,
   useDashboardAnalytics,
 } from '@/app/features/dashboard/hooks/useDashboardAnalytics';
+import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 
 const AppointmentLeadersStat = () => {
   const [selectedDuration, setSelectedDuration] = useState<DashboardDurationOption>('Last week');
   const analytics = useDashboardAnalytics(mapDashboardDurationOption(selectedDuration));
   const durationOptions = analytics.durationOptions.appointmentLeaders;
+  const team = useTeamForPrimaryOrg();
+
+  const nameByPractionerId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const member of team) {
+      if (member.practionerId) {
+        map.set(member.practionerId, member.name ?? member.practionerId);
+      }
+    }
+    return map;
+  }, [team]);
+
+  const leadersWithNames = useMemo(
+    () =>
+      analytics.appointmentLeaders.map((leader) => ({
+        ...leader,
+        month: nameByPractionerId.get(leader.staffId) ?? leader.staffId,
+      })),
+    [analytics.appointmentLeaders, nameByPractionerId]
+  );
 
   useEffect(() => {
     if (!durationOptions.includes(selectedDuration)) {
@@ -27,13 +48,12 @@ const AppointmentLeadersStat = () => {
         onSelect={(next) => setSelectedDuration(next as DashboardDurationOption)}
       />
       <DynamicChartCard
-        data={analytics.appointmentLeaders}
+        data={leadersWithNames}
         keys={[{ name: 'Completed', color: '#111' }]}
         hideKeys={false}
-        yAxisWidth={32}
+        layout="vertical"
         barSize={14}
-        xAxisLabel="Leaders"
-        yAxisLabel="Appointments"
+        xAxisLabel="Appointments"
       />
     </div>
   );

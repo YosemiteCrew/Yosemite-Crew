@@ -3,7 +3,10 @@ import { usePopoverManager } from '@/app/hooks/usePopoverManager';
 import { IoEyeOutline } from 'react-icons/io5';
 import { getStatusStyle } from '@/app/ui/tables/Tasks';
 import { Task } from '@/app/features/tasks/types/task';
-import { autoScrollCalendarHorizontally } from '@/app/features/appointments/components/Calendar/helpers';
+import {
+  autoScrollCalendarHorizontally,
+  autoScrollCalendarVertically,
+} from '@/app/features/appointments/components/Calendar/helpers';
 import { calcNearestAvailableMinute } from '@/app/features/appointments/components/Calendar/calendarDrop';
 import { formatDateInPreferredTimeZone, getDatePartsInPreferredTimeZone } from '@/app/lib/timezone';
 import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
@@ -206,6 +209,7 @@ const TaskSlot = ({
           if (!draggedTaskId) return;
           event.preventDefault();
           autoScrollCalendarHorizontally(event.clientX, event.currentTarget as HTMLDivElement);
+          autoScrollCalendarVertically(event.clientY, event.currentTarget as HTMLDivElement);
           onDragHoverTarget?.(dropDate, dropAssigneeId);
           const minute = getMinuteFromPointer(event.clientY, event.currentTarget as HTMLDivElement);
           setDropPreviewMinute(getNearestAvailableMinute(minute));

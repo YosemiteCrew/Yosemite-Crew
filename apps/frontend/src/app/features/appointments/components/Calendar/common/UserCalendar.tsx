@@ -176,6 +176,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
 
   useEffect(() => {
     if (!scrollRef.current) return;
+    if (draggedAppointmentId) return;
     const rangeStart = startOfDayDate(date);
     const rangeEnd = nextDay(date);
     const focusStart = getFirstRelevantTimedEventStart(events, rangeStart, rangeEnd);
@@ -186,7 +187,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
       ? Math.max(0, nowPosition.topPx)
       : ((focusMinutes - visibleHourRange.startHour * 60) / 60) * height + HOUR_ROW_TOP_OFFSET_PX;
     scrollContainerToTarget(scrollRef.current, topPx);
-  }, [date, events, height, nowPosition, visibleHourRange.startHour]);
+  }, [date, draggedAppointmentId, events, height, nowPosition, visibleHourRange.startHour]);
 
   return (
     <div className="h-full flex flex-col">
