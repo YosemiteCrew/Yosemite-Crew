@@ -14,7 +14,7 @@ jobs:
       - name: Generate repo stats report
         uses: jgehrcke/github-repo-stats@v1.4.2
         with:
-          ghtoken: ${{ secrets.GITHUB_TOKEN }}
+          ghtoken: ${{ secrets.GHRS_GITHUB_API_TOKEN }}
           repository: YosemiteCrew/Yosemite-Crew
           databranch: github-repo-stats
           ghpagesprefix: https://yosemitecrew.github.io/Yosemite-Crew
