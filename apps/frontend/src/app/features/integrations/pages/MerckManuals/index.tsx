@@ -674,8 +674,8 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
             />
           </div>
           <p className="text-body-3 text-text-secondary max-w-3xl">
-            Search veterinary reference content and open results inside Yosemite using secure reader
-            links.
+            Search veterinary reference content and open results inside Yosemite Crew using secure
+            reader links.
           </p>
         </div>
         <AudienceToggle

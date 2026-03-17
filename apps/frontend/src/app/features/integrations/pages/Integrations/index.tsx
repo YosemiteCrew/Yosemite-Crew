@@ -732,7 +732,7 @@ const IdexxIntegrationCard = ({
           </div>
           <div className="text-body-4 text-text-secondary line-clamp-4">
             IDEXX diagnostics integration for lab ordering, in-house device workflows, and clinical
-            result visibility in Yosemite.
+            result visibility in Yosemite Crew.
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2 w-full items-center">
@@ -859,7 +859,7 @@ const RadIntegrationCard = ({
             </span>
           </div>
           <div className="text-body-4 text-text-secondary line-clamp-4">
-            Imaging and analyzer connectivity for diagnostic workflows in Yosemite.
+            Imaging and analyzer connectivity for diagnostic workflows in Yosemite Crew.
           </div>
         </div>
         <div className="flex flex-col gap-2">

@@ -1267,7 +1267,7 @@ const IdexxWorkspacePage = () => {
             <div>
               <div className="text-heading-3 text-text-primary">Result details</div>
               <div className="text-body-4 text-text-secondary">
-                Detailed diagnostic payload in Yosemite theme.
+                Detailed diagnostic payload in Yosemite Crew theme.
               </div>
             </div>
             <Close onClick={() => s.setShowResultModal(false)} />

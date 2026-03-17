@@ -76,7 +76,7 @@ const Guides = () => {
           </div>
           <p className="text-body-3 text-text-secondary max-w-3xl mb-0!">
             Learn how to set up your animal health practice, streamline workflows, and get the most
-            from Yosemite.
+            from Yosemite Crew.
           </p>
         </div>
       </div>
