@@ -255,12 +255,12 @@ export const ContactService = {
     return updated;
   },
 
-  async updatePriority(id: string, priority: string) {
-    return ContactRequestModel.findByIdAndUpdate(id, { priority }, { new: true });
+  async updatePriority(id: string, priority: ContactPriority) {
+    return ContactRequestModel.findByIdAndUpdate(id, { priority }, { new: true, runValidators: true });
   },
 
   async assignRequest(id: string, assigneeId: string, assigneeName: string) {
-    return ContactRequestModel.findByIdAndUpdate(id, { assigneeId, assigneeName }, { new: true });
+    return ContactRequestModel.findByIdAndUpdate(id, { assigneeId, assigneeName }, { new: true, runValidators: true });
   },
 
   async getDashboardStats() {

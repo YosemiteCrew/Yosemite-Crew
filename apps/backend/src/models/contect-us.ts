@@ -137,8 +137,8 @@ export interface ContactRequestMongo {
 
   status: ContactStatus;
   priority: ContactPriority;
-  assigneeId?: string;
-  assigneeName?: string;
+  assigneeId?: string | null;
+  assigneeName?: string | null;
   category: ContactCategory;
   internalNotes?: string;
 
