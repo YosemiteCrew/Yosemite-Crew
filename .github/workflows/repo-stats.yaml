@@ -12,7 +12,7 @@ jobs:
       contents: write
     steps:
       - name: Generate repo stats report
-        uses: jgehrcke/github-repo-stats@v1
+        uses: github-repo-stats@v1.4.2
         with:
           ghtoken: ${{ secrets.GITHUB_TOKEN }}
           repository: YosemiteCrew/Yosemite-Crew
