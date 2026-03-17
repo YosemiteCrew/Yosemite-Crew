@@ -30,6 +30,13 @@ enum ContactStatus {
   CLOSED
 }
 
+enum ContactPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
 enum CompanionType {
   dog
   cat
@@ -215,7 +222,13 @@ model ContactRequest {
   dsarDetails      Json?
   complaintContext Json?
   attachments      Json?
+  fullName         String?
+  phone            String?
   status           ContactStatus @default(OPEN)
+  priority         ContactPriority @default(MEDIUM)
+  assigneeId       String?
+  assigneeName     String?
+  category         String?
   internalNotes    String?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
