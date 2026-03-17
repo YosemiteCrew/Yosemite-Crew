@@ -9,7 +9,32 @@ import {
 import { generatePresignedUrl, getURLForKey } from "src/middlewares/upload";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
-import { type ContactType, type ContactStatus } from "src/models/contect-us";
+import {
+  type ContactType,
+  type ContactStatus,
+  type ContactPriority,
+} from "src/models/contect-us";
+
+const CONTACT_PRIORITIES = new Set<ContactPriority>([
+  "LOW",
+  "MEDIUM",
+  "HIGH",
+  "CRITICAL",
+]);
+
+const toContactPriority = (value: unknown): ContactPriority | undefined =>
+  typeof value === "string" && CONTACT_PRIORITIES.has(value as ContactPriority)
+    ? (value as ContactPriority)
+    : undefined;
+
+type UpdateContactPriorityBody = {
+  priority: ContactPriority;
+};
+
+type AssignContactBody = {
+  assigneeId: string;
+  assigneeName: string;
+};
 
 const resolveMobileUserId = (req: Request): string | undefined => {
   const authReq = req as AuthenticatedRequest;
@@ -245,15 +270,21 @@ export const ContactController = {
     }
   },
 
-  async updatePriority(this: void, req: Request, res: Response) {
+  async updatePriority(
+    this: void,
+    req: Request<{ id: string }, unknown, UpdateContactPriorityBody>,
+    res: Response,
+  ) {
     try {
-      const { id } = req.params;
-      const { priority } = req.body;
-      if (!['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(priority)) {
-        return res.status(400).json({ message: 'Invalid priority value' });
+      const priority = toContactPriority(req.body.priority);
+      if (!priority) {
+        return res.status(400).json({ message: "Invalid priority value" });
       }
-      const result = await ContactService.updatePriority(id, priority);
-      if (!result) return res.status(404).json({ message: 'Not found' });
+      const result = await ContactService.updatePriority(
+        req.params.id,
+        priority,
+      );
+      if (!result) return res.status(404).json({ message: "Not found" });
       return res.json(result);
     } catch (err) {
       console.error("Error updating contact request priority", err);
@@ -261,15 +292,29 @@ export const ContactController = {
     }
   },
 
-  async assignRequest(this: void, req: Request, res: Response) {
+  async assignRequest(
+    this: void,
+    req: Request<{ id: string }, unknown, AssignContactBody>,
+    res: Response,
+  ) {
     try {
-      const { id } = req.params;
       const { assigneeId, assigneeName } = req.body;
-      if (!assigneeId || !assigneeName) {
-        return res.status(400).json({ message: 'assigneeId and assigneeName are required' });
+      if (
+        typeof assigneeId !== "string" ||
+        typeof assigneeName !== "string" ||
+        !assigneeId ||
+        !assigneeName
+      ) {
+        return res
+          .status(400)
+          .json({ message: "assigneeId and assigneeName are required" });
       }
-      const result = await ContactService.assignRequest(id, assigneeId, assigneeName);
-      if (!result) return res.status(404).json({ message: 'Not found' });
+      const result = await ContactService.assignRequest(
+        req.params.id,
+        assigneeId,
+        assigneeName,
+      );
+      if (!result) return res.status(404).json({ message: "Not found" });
       return res.json(result);
     } catch (err) {
       console.error("Error assigning contact request", err);
