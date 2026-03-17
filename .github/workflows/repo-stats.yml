@@ -70,14 +70,14 @@ jobs:
           text = "\n".join(parser.chunks)
 
           def extract_cumulative(label: str) -> int | None:
-            match = re.search(rf"{label}\\s*Cumulative:\\s*([0-9,]+)", text, re.IGNORECASE)
+            match = re.search(rf"{label}\s*Cumulative:\s*([0-9,]+)", text, re.IGNORECASE)
             if not match:
               return None
             return int(match.group(1).replace(",", ""))
 
           def extract_top(section_label: str, next_label: str) -> list[str]:
             match = re.search(
-              rf"{section_label}:\\s*(.*?)\\s*{next_label}:",
+              rf"{section_label}:\s*(.*?)\s*{next_label}:",
               text,
               re.IGNORECASE | re.DOTALL,
             )
@@ -86,7 +86,7 @@ jobs:
             block = match.group(1)
             items: list[str] = []
             for part in block.split(","):
-              item = re.sub(r"^\\d+\\s*:\\s*", "", part.strip())
+              item = re.sub(r"^\d+\s*:\s*", "", part.strip())
               item = item.strip("` ")
               if item:
                 items.append(item)
@@ -95,7 +95,7 @@ jobs:
           def extract_top_until(section_label: str, stop_labels: list[str]) -> list[str]:
             stop_group = "|".join(map(re.escape, stop_labels))
             match = re.search(
-              rf"{section_label}:\\s*(.*?)(?:\\s*(?:{stop_group}))",
+              rf"{section_label}:\s*(.*?)(?:\s*(?:{stop_group}))",
               text,
               re.IGNORECASE | re.DOTALL,
             )
@@ -104,14 +104,14 @@ jobs:
             block = match.group(1)
             items: list[str] = []
             for part in block.split(","):
-              item = re.sub(r"^\\d+\\s*:\\s*", "", part.strip())
+              item = re.sub(r"^\d+\s*:\s*", "", part.strip())
               item = item.strip("` ")
               if item:
                 items.append(item)
             return items
 
           generated_at = None
-          generated_match = re.search(r"Generated .* at ([0-9:\\- ]+UTC)", text)
+          generated_match = re.search(r"Generated .* at ([0-9:\- ]+UTC)", text)
           if generated_match:
             generated_at = generated_match.group(1).strip()
 
