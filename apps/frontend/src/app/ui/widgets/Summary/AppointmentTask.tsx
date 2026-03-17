@@ -9,15 +9,16 @@ import { useTasksForPrimaryOrg } from '@/app/hooks/useTask';
 import './Summary.css';
 import { Appointment } from '@yosemite-crew/types';
 import AppoitmentInfo from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo';
-import { Task } from '@/app/features/tasks/types/task';
+import { Task, TaskStatusFilters } from '@/app/features/tasks/types/task';
 import TaskInfo from '@/app/features/tasks/pages/Tasks/Sections/TaskInfo';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import Reschedule from '@/app/features/appointments/pages/Appointments/Sections/Reschedule';
 import { usePermissions } from '@/app/hooks/usePermissions';
-import { AppointmentLabels, TaskLabels } from '@/app/config/statusConfig';
 import ChangeStatus from '@/app/features/appointments/pages/Appointments/Sections/ChangeStatus';
 import { AppointmentViewIntent } from '@/app/features/appointments';
+import ChangeRoom from '@/app/features/appointments/pages/Appointments/Sections/ChangeRoom';
+import { AppointmentStatusFiltersUI } from '@/app/features/appointments/types/appointments';
 import { normalizeAppointmentStatus, type LegacyAppointmentStatus } from '@/app/lib/appointments';
 
 const AppointmentTask = () => {
@@ -30,23 +31,36 @@ const AppointmentTask = () => {
   const [viewTaskPopup, setViewTaskPopup] = useState(false);
   const [reschedulePopup, setReschedulePopup] = useState(false);
   const [changeStatusPopup, setChangeStatusPopup] = useState(false);
+  const [changeRoomPopup, setChangeRoomPopup] = useState(false);
   const [viewIntent, setViewIntent] = useState<AppointmentViewIntent | null>(null);
   const [activeAppointment, setActiveAppointment] = useState<Appointment | null>(
     appointments[0] ?? null
   );
   const [activeTask, setActiveTask] = useState<Task | null>(tasks[0] ?? null);
-  const activeLabels = useMemo(() => {
-    return activeTable === 'Appointments' ? AppointmentLabels : TaskLabels;
-  }, [activeTable]);
-  const [activeSubLabel, setActiveSubLabel] = useState(
-    activeTable === 'Appointments' ? AppointmentLabels[0].key : TaskLabels[0].key
+  const activeLabels = useMemo(
+    () => (activeTable === 'Appointments' ? AppointmentStatusFiltersUI : TaskStatusFilters),
+    [activeTable]
   );
+  const [activeSubLabel, setActiveSubLabel] = useState('all');
 
   useEffect(() => {
     if (!viewPopup) {
       setViewIntent(null);
     }
   }, [viewPopup]);
+
+  useEffect(() => {
+    if (activeTable === 'Appointments') {
+      setViewTaskPopup(false);
+      return;
+    }
+
+    setViewPopup(false);
+    setReschedulePopup(false);
+    setChangeStatusPopup(false);
+    setChangeRoomPopup(false);
+    setViewIntent(null);
+  }, [activeTable]);
 
   useEffect(() => {
     setActiveAppointment((prev) => {
@@ -71,32 +85,24 @@ const AppointmentTask = () => {
   }, [tasks]);
 
   useEffect(() => {
-    if (activeTable === 'Appointments') {
-      setActiveSubLabel(AppointmentLabels[0].key);
-    } else {
-      setActiveSubLabel(TaskLabels[0].key);
-    }
+    setActiveSubLabel('all');
   }, [activeTable]);
 
   const filteredList = useMemo(() => {
-    if (activeTable === 'Appointments') {
-      const wanted = activeSubLabel.toLowerCase();
-      return appointments.filter((item) => {
-        const s = normalizeAppointmentStatus(item.status as LegacyAppointmentStatus)?.toLowerCase();
-        return s === wanted;
-      });
-    }
-    return [];
+    if (activeTable !== 'Appointments') return [];
+    if (activeSubLabel === 'all') return appointments;
+
+    const wanted = activeSubLabel.toLowerCase();
+    return appointments.filter((item) => {
+      const s = normalizeAppointmentStatus(item.status as LegacyAppointmentStatus)?.toLowerCase();
+      return s === wanted;
+    });
   }, [appointments, activeTable, activeSubLabel]);
 
   const filteredTaskList = useMemo(() => {
-    if (activeTable === 'Tasks') {
-      return tasks.filter((item) => {
-        const matchesStatus = item.status.toLowerCase() === activeSubLabel.toLowerCase();
-        return matchesStatus;
-      });
-    }
-    return [];
+    if (activeTable !== 'Tasks') return [];
+    if (activeSubLabel === 'all') return tasks;
+    return tasks.filter((item) => item.status.toLowerCase() === activeSubLabel.toLowerCase());
   }, [tasks, activeTable, activeSubLabel]);
 
   return (
@@ -151,6 +157,7 @@ const AppointmentTask = () => {
             setReschedulePopup={setReschedulePopup}
             canEditAppointments={canEditAppointments}
             setChangeStatusPopup={setChangeStatusPopup}
+            setChangeRoomPopup={setChangeRoomPopup}
             setViewIntent={setViewIntent}
             small
           />
@@ -191,6 +198,13 @@ const AppointmentTask = () => {
           <ChangeStatus
             showModal={changeStatusPopup}
             setShowModal={setChangeStatusPopup}
+            activeAppointment={activeAppointment}
+          />
+        )}
+        {canEditAppointments && activeAppointment && (
+          <ChangeRoom
+            showModal={changeRoomPopup}
+            setShowModal={setChangeRoomPopup}
             activeAppointment={activeAppointment}
           />
         )}

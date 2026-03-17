@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios from 'axios';
 import {
   loadCompanionsForPrimaryOrg,
   createCompanion,
@@ -6,40 +6,43 @@ import {
   linkCompanion,
   searchParent,
   getCompanionForParent,
-} from "@/app/features/companions/services/companionService";
-import { useCompanionStore } from "@/app/stores/companionStore";
-import { useOrgStore } from "@/app/stores/orgStore";
-import { useParentStore } from "@/app/stores/parentStore";
-import * as axiosService from "@/app/services/axios";
-import * as converters from "@yosemite-crew/types";
+  updateCompanion,
+  updateParent,
+} from '@/app/features/companions/services/companionService';
+import { useCompanionStore } from '@/app/stores/companionStore';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { useParentStore } from '@/app/stores/parentStore';
+import * as axiosService from '@/app/services/axios';
+import * as converters from '@yosemite-crew/types';
 
 // --- Mocks ---
 
 // Mock Zustand Stores
-jest.mock("@/app/stores/companionStore", () => ({
+jest.mock('@/app/stores/companionStore', () => ({
   useCompanionStore: {
     getState: jest.fn(),
   },
 }));
-jest.mock("@/app/stores/orgStore", () => ({
+jest.mock('@/app/stores/orgStore', () => ({
   useOrgStore: {
     getState: jest.fn(),
   },
 }));
-jest.mock("@/app/stores/parentStore", () => ({
+jest.mock('@/app/stores/parentStore', () => ({
   useParentStore: {
     getState: jest.fn(),
   },
 }));
 
 // Mock Axios Service Wrapper
-jest.mock("@/app/services/axios", () => ({
+jest.mock('@/app/services/axios', () => ({
   getData: jest.fn(),
   postData: jest.fn(),
+  putData: jest.fn(),
 }));
 
 // Mock DTO Converters to return predictable data
-jest.mock("@yosemite-crew/types", () => ({
+jest.mock('@yosemite-crew/types', () => ({
   fromCompanionRequestDTO: jest.fn(),
   fromParentRequestDTO: jest.fn(),
   toCompanionResponseDTO: jest.fn(),
@@ -47,9 +50,9 @@ jest.mock("@yosemite-crew/types", () => ({
 }));
 
 // Mock Axios static methods
-jest.mock("axios");
+jest.mock('axios');
 
-describe("companionService", () => {
+describe('companionService', () => {
   // Store Mocks
   const mockStartLoading = jest.fn();
   const mockSetError = jest.fn();
@@ -68,18 +71,26 @@ describe("companionService", () => {
       setCompanionsForOrg: mockSetCompanionsForOrg,
       upsertCompanion: mockUpsertCompanion,
       endLoading: jest.fn(),
+      status: 'idle',
+      lastFetchedAt: null,
     });
     (useParentStore.getState as jest.Mock).mockReturnValue({
       addBulkParents: mockAddBulkParents,
       upsertParent: mockUpsertParent,
     });
     (useOrgStore.getState as jest.Mock).mockReturnValue({
-      primaryOrgId: "org-1",
+      primaryOrgId: 'org-1',
     });
 
     // Setup Converter Mocks
-    (converters.fromCompanionRequestDTO as jest.Mock).mockImplementation((x) => ({ ...x, id: x.id || "comp-1" }));
-    (converters.fromParentRequestDTO as jest.Mock).mockImplementation((x) => ({ ...x, id: x.id || "parent-1" }));
+    (converters.fromCompanionRequestDTO as jest.Mock).mockImplementation((x) => ({
+      ...x,
+      id: x.id || 'comp-1',
+    }));
+    (converters.fromParentRequestDTO as jest.Mock).mockImplementation((x) => ({
+      ...x,
+      id: x.id || 'parent-1',
+    }));
 
     // Default mock implementation for toCompanionResponseDTO/toParentResponseDTO
     // Simply pass the object through, as the test environment needs minimal transformation
@@ -94,14 +105,14 @@ describe("companionService", () => {
   // 1. loadCompanionsForPrimaryOrg
   // ===========================================================================
 
-  describe("loadCompanionsForPrimaryOrg", () => {
-    it("fetches data and updates stores successfully", async () => {
+  describe('loadCompanionsForPrimaryOrg', () => {
+    it('fetches data and updates stores successfully', async () => {
       const mockData = {
         data: [
           {
             // The service is expected to transform this structure
-            companion: { id: "c1", name: "Doggo" },
-            parent: { id: "p1", name: "Owner" },
+            companion: { id: 'c1', name: 'Doggo' },
+            parent: { id: 'p1', name: 'Owner' },
           },
         ],
       };
@@ -109,17 +120,24 @@ describe("companionService", () => {
       // Ensure converter for companion is mocked to return the expected final structure
       (converters.toCompanionResponseDTO as jest.Mock).mockImplementation((x) => ({
         ...x,
-        organisationId: "org-1", // Add expected mapped fields
-        parentId: "p1"
+        organisationId: 'org-1', // Add expected mapped fields
+        parentId: 'p1',
       }));
 
-
       await loadCompanionsForPrimaryOrg();
+      expect(mockStartLoading).toHaveBeenCalled();
+      expect(mockSetCompanionsForOrg).toHaveBeenCalledWith(
+        'org-1',
+        expect.arrayContaining([expect.objectContaining({ id: 'c1', parentId: 'p1' })])
+      );
+      expect(mockAddBulkParents).toHaveBeenCalledWith(
+        expect.arrayContaining([expect.objectContaining({ id: 'p1' })])
+      );
     });
 
-    it("returns early if no primaryOrgId is set", async () => {
+    it('returns early if no primaryOrgId is set', async () => {
       (useOrgStore.getState as jest.Mock).mockReturnValue({ primaryOrgId: null });
-      const consoleSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
       await loadCompanionsForPrimaryOrg();
 
@@ -129,7 +147,7 @@ describe("companionService", () => {
       consoleSpy.mockRestore();
     });
 
-    it("suppresses loading if opts.silent is true", async () => {
+    it('suppresses loading if opts.silent is true', async () => {
       (axiosService.getData as jest.Mock).mockResolvedValue({ data: [] });
       await loadCompanionsForPrimaryOrg({ silent: true });
       expect(mockStartLoading).not.toHaveBeenCalled();
@@ -137,78 +155,125 @@ describe("companionService", () => {
 
     // --- Error Handling (Adjusted to expect resolution on caught errors) ---
 
-    it("handles 403 error", async () => {
+    it('handles 403 error', async () => {
       const error = {
         response: { status: 403 },
-        message: "Forbidden",
+        message: 'Forbidden',
       };
       (axiosService.getData as jest.Mock).mockRejectedValue(error);
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      // Service resolves (doesn't throw) but calls setError
-      await expect(loadCompanionsForPrimaryOrg()).resolves.toBeUndefined();
+      await expect(loadCompanionsForPrimaryOrg()).rejects.toEqual(error);
+      expect(mockSetError).toHaveBeenCalledWith("You don't have permission to fetch companions.");
+      consoleSpy.mockRestore();
     });
 
-    it("handles 404 error", async () => {
+    it('handles 404 error', async () => {
       const error = {
         response: { status: 404 },
       };
       (axiosService.getData as jest.Mock).mockRejectedValue(error);
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      // Service resolves (doesn't throw) but calls setError
-      await expect(loadCompanionsForPrimaryOrg()).resolves.toBeUndefined();
+      await expect(loadCompanionsForPrimaryOrg()).rejects.toEqual(error);
+      expect(mockSetError).toHaveBeenCalledWith(
+        'Companion service not found. Please contact support.'
+      );
+      consoleSpy.mockRestore();
     });
 
-    it("handles generic Axios error with message from response", async () => {
+    it('handles generic Axios error with message from response', async () => {
       const error = {
-        response: { status: 500, data: { message: "Server Error" } },
+        response: { status: 500, data: { message: 'Server Error' } },
       };
       (axiosService.getData as jest.Mock).mockRejectedValue(error);
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      // Service resolves (doesn't throw) but calls setError
-      await expect(loadCompanionsForPrimaryOrg()).resolves.toBeUndefined();
+      await expect(loadCompanionsForPrimaryOrg()).rejects.toEqual(error);
+      expect(mockSetError).toHaveBeenCalledWith('Server Error');
+      consoleSpy.mockRestore();
     });
 
-    it("handles generic Axios error fallback message", async () => {
-      const error = { message: "Network Error" }; // No response object
+    it('handles generic Axios error fallback message', async () => {
+      const error = { message: 'Network Error' }; // No response object
       (axiosService.getData as jest.Mock).mockRejectedValue(error);
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      // Service resolves (doesn't throw) but calls setError
-      await expect(loadCompanionsForPrimaryOrg()).resolves.toBeUndefined();
+      await expect(loadCompanionsForPrimaryOrg()).rejects.toEqual(error);
+      expect(mockSetError).toHaveBeenCalledWith('Network Error');
+      consoleSpy.mockRestore();
     });
 
-    it("handles generic Axios error default fallback", async () => {
-        const error = {}; // Empty object
-        (axiosService.getData as jest.Mock).mockRejectedValue(error);
-        const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    it('handles generic Axios error default fallback', async () => {
+      const error = {}; // Empty object
+      (axiosService.getData as jest.Mock).mockRejectedValue(error);
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-        // Service resolves (doesn't throw) but calls setError
-        await expect(loadCompanionsForPrimaryOrg()).resolves.toBeUndefined();
-      });
+      await expect(loadCompanionsForPrimaryOrg()).rejects.toEqual(error);
+      expect(mockSetError).toHaveBeenCalledWith('Failed to load companions');
+      consoleSpy.mockRestore();
+    });
 
-    it("handles non-Axios error", async () => {
-      const error = new Error("Code Error");
+    it('handles non-Axios error', async () => {
+      const error = new Error('Code Error');
       (axios.isAxiosError as unknown as jest.Mock).mockReturnValue(false);
       (axiosService.getData as jest.Mock).mockRejectedValue(error);
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      // Service resolves (doesn't throw) but calls setError
-      await expect(loadCompanionsForPrimaryOrg()).resolves.toBeUndefined();
+      await expect(loadCompanionsForPrimaryOrg()).rejects.toEqual(error);
+      expect(mockSetError).toHaveBeenCalledWith('Unexpected error while fetching companions');
+      consoleSpy.mockRestore();
     });
 
-    it("does not set error if silent mode is enabled", async () => {
-      const error = new Error("Fail");
+    it('does not set error if silent mode is enabled', async () => {
+      const error = new Error('Fail');
       (axiosService.getData as jest.Mock).mockRejectedValue(error);
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      // Service resolves, no error set
-      await expect(loadCompanionsForPrimaryOrg({ silent: true })).resolves.toBeUndefined();
+      await expect(loadCompanionsForPrimaryOrg({ silent: true })).rejects.toEqual(error);
 
       expect(mockSetError).not.toHaveBeenCalled();
       consoleSpy.mockRestore();
+    });
+
+    it('does not fetch when status is already loading', async () => {
+      (useCompanionStore.getState as jest.Mock).mockReturnValue({
+        startLoading: mockStartLoading,
+        setError: mockSetError,
+        setCompanionsForOrg: mockSetCompanionsForOrg,
+        upsertCompanion: mockUpsertCompanion,
+        status: 'loading',
+        lastFetchedAt: null,
+      });
+      await loadCompanionsForPrimaryOrg();
+      expect(axiosService.getData).not.toHaveBeenCalled();
+    });
+
+    it('does not fetch when status is loaded and not forced', async () => {
+      (useCompanionStore.getState as jest.Mock).mockReturnValue({
+        startLoading: mockStartLoading,
+        setError: mockSetError,
+        setCompanionsForOrg: mockSetCompanionsForOrg,
+        upsertCompanion: mockUpsertCompanion,
+        status: 'loaded',
+        lastFetchedAt: '2026-01-01T00:00:00Z',
+      });
+      await loadCompanionsForPrimaryOrg();
+      expect(axiosService.getData).not.toHaveBeenCalled();
+    });
+
+    it('fetches when force option is enabled', async () => {
+      (useCompanionStore.getState as jest.Mock).mockReturnValue({
+        startLoading: mockStartLoading,
+        setError: mockSetError,
+        setCompanionsForOrg: mockSetCompanionsForOrg,
+        upsertCompanion: mockUpsertCompanion,
+        status: 'loaded',
+        lastFetchedAt: '2026-01-01T00:00:00Z',
+      });
+      (axiosService.getData as jest.Mock).mockResolvedValue({ data: [] });
+      await loadCompanionsForPrimaryOrg({ force: true });
+      expect(axiosService.getData).toHaveBeenCalled();
     });
   });
 
@@ -216,31 +281,37 @@ describe("companionService", () => {
   // 2. createCompanion
   // ===========================================================================
 
-  describe("createCompanion", () => {
-    const payload = { id: "c1", parentId: "p1" } as any;
-    const parentPayload = { id: "p1" } as any;
+  describe('createCompanion', () => {
+    const payload = { id: 'c1', parentId: 'p1' } as any;
+    const parentPayload = { id: 'p1' } as any;
 
-    it("creates companion successfully", async () => {
-      const mockResponse = { data: { id: "c1", name: "New Companion" } };
+    it('creates companion successfully', async () => {
+      const mockResponse = { data: { id: 'c1', name: 'New Companion' } };
       (axiosService.postData as jest.Mock).mockResolvedValue(mockResponse);
-      (converters.fromCompanionRequestDTO as jest.Mock).mockReturnValue({ ...payload, parentId: "p1" });
-      (converters.toCompanionResponseDTO as jest.Mock).mockReturnValue({ id: "c1", organisationId: "org-1" });
+      (converters.fromCompanionRequestDTO as jest.Mock).mockReturnValue({
+        ...payload,
+        parentId: 'p1',
+      });
+      (converters.toCompanionResponseDTO as jest.Mock).mockReturnValue({
+        id: 'c1',
+        organisationId: 'org-1',
+      });
 
       await createCompanion(payload, parentPayload);
 
       expect(axiosService.postData).toHaveBeenCalledWith(
-        "/fhir/v1/companion/org/org-1",
-        expect.objectContaining({ parentId: "p1" })
+        '/fhir/v1/companion/org/org-1',
+        expect.objectContaining({ parentId: 'p1' })
       );
       expect(mockUpsertParent).toHaveBeenCalledWith(parentPayload);
       expect(mockUpsertCompanion).toHaveBeenCalledWith(
-        expect.objectContaining({ id: "c1", organisationId: "org-1" })
+        expect.objectContaining({ id: 'c1', organisationId: 'org-1' })
       );
     });
 
-    it("returns early if no primaryOrgId", async () => {
+    it('returns early if no primaryOrgId', async () => {
       (useOrgStore.getState as jest.Mock).mockReturnValue({ primaryOrgId: null });
-      const consoleSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
       await createCompanion(payload, parentPayload);
 
@@ -248,12 +319,12 @@ describe("companionService", () => {
       consoleSpy.mockRestore();
     });
 
-    it("throws error on failure", async () => {
-      const error = new Error("Create Failed");
+    it('throws error on failure', async () => {
+      const error = new Error('Create Failed');
       (axiosService.postData as jest.Mock).mockRejectedValue(error);
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      await expect(createCompanion(payload, parentPayload)).rejects.toThrow("Create Failed");
+      await expect(createCompanion(payload, parentPayload)).rejects.toThrow('Create Failed');
       consoleSpy.mockRestore();
     });
   });
@@ -262,42 +333,46 @@ describe("companionService", () => {
   // 3. createParent
   // ===========================================================================
 
-  describe("createParent", () => {
-    const payload = { id: "p1" } as any;
+  describe('createParent', () => {
+    const payload = { id: 'p1' } as any;
 
-    it("creates parent successfully", async () => {
-      const mockResponse = { data: { id: "p1-server", name: "Parent" } };
+    it('creates parent successfully', async () => {
+      const mockResponse = { data: { id: 'p1-server', name: 'Parent' } };
       (axiosService.postData as jest.Mock).mockResolvedValue(mockResponse);
-      (converters.fromParentRequestDTO as jest.Mock).mockReturnValue({ id: "p1-server", name: "Parent" });
-      (converters.toParentResponseDTO as jest.Mock).mockReturnValue({ id: "p1-server", name: "Parent" });
+      (converters.fromParentRequestDTO as jest.Mock).mockReturnValue({
+        id: 'p1-server',
+        name: 'Parent',
+      });
+      (converters.toParentResponseDTO as jest.Mock).mockReturnValue({
+        id: 'p1-server',
+        name: 'Parent',
+      });
 
       const result = await createParent(payload);
 
       expect(axiosService.postData).toHaveBeenCalledWith(
-        "/fhir/v1/parent/pms/parents",
+        '/fhir/v1/parent/pms/parents',
         expect.anything()
       );
-      expect(mockUpsertParent).toHaveBeenCalledWith(
-        expect.objectContaining({ id: "p1-server" })
-      );
-      expect(result).toBe("p1-server");
+      expect(mockUpsertParent).toHaveBeenCalledWith(expect.objectContaining({ id: 'p1-server' }));
+      expect(result).toBe('p1-server');
     });
 
-    it("returns early if no primaryOrgId", async () => {
+    it('returns early if no primaryOrgId', async () => {
       (useOrgStore.getState as jest.Mock).mockReturnValue({ primaryOrgId: null });
-      const consoleSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
       await createParent(payload);
       expect(axiosService.postData).not.toHaveBeenCalled();
       consoleSpy.mockRestore();
     });
 
-    it("throws error on failure", async () => {
-      const error = new Error("Fail");
+    it('throws error on failure', async () => {
+      const error = new Error('Fail');
       (axiosService.postData as jest.Mock).mockRejectedValue(error);
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      await expect(createParent(payload)).rejects.toThrow("Fail");
+      await expect(createParent(payload)).rejects.toThrow('Fail');
       consoleSpy.mockRestore();
     });
   });
@@ -306,40 +381,43 @@ describe("companionService", () => {
   // 4. linkCompanion
   // ===========================================================================
 
-  describe("linkCompanion", () => {
-    const payload = { id: "c1" } as any;
-    const parentPayload = { id: "p1" } as any;
+  describe('linkCompanion', () => {
+    const payload = { id: 'c1' } as any;
+    const parentPayload = { id: 'p1' } as any;
 
-    it("links successfully", async () => {
+    it('links successfully', async () => {
       (axiosService.postData as jest.Mock).mockResolvedValue({});
-      (converters.toCompanionResponseDTO as jest.Mock).mockReturnValue({ id: "c1", organisationId: "org-1" });
+      (converters.toCompanionResponseDTO as jest.Mock).mockReturnValue({
+        id: 'c1',
+        organisationId: 'org-1',
+      });
 
       await linkCompanion(payload, parentPayload);
 
       expect(axiosService.postData).toHaveBeenCalledWith(
-        "/v1/companion-organisation/pms/org-1/c1/link"
+        '/v1/companion-organisation/pms/org-1/c1/link'
       );
       expect(mockUpsertCompanion).toHaveBeenCalledWith(
-        expect.objectContaining({ id: "c1", organisationId: "org-1" })
+        expect.objectContaining({ id: 'c1', organisationId: 'org-1' })
       );
       expect(mockUpsertParent).toHaveBeenCalledWith(parentPayload);
     });
 
-    it("returns early if no primaryOrgId", async () => {
+    it('returns early if no primaryOrgId', async () => {
       (useOrgStore.getState as jest.Mock).mockReturnValue({ primaryOrgId: null });
-      const consoleSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
       await linkCompanion(payload, parentPayload);
       expect(axiosService.postData).not.toHaveBeenCalled();
       consoleSpy.mockRestore();
     });
 
-    it("throws error on failure", async () => {
-      const error = new Error("Link Failed");
+    it('throws error on failure', async () => {
+      const error = new Error('Link Failed');
       (axiosService.postData as jest.Mock).mockRejectedValue(error);
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      await expect(linkCompanion(payload, parentPayload)).rejects.toThrow("Link Failed");
+      await expect(linkCompanion(payload, parentPayload)).rejects.toThrow('Link Failed');
       consoleSpy.mockRestore();
     });
   });
@@ -348,51 +426,51 @@ describe("companionService", () => {
   // 5. searchParent
   // ===========================================================================
 
-  describe("searchParent", () => {
-    it("searches and returns mapped results", async () => {
-      const mockResponse = { data: [{ id: "p1" }, { id: "p2" }] };
+  describe('searchParent', () => {
+    it('searches and returns mapped results', async () => {
+      const mockResponse = { data: [{ id: 'p1' }, { id: 'p2' }] };
       (axiosService.getData as jest.Mock).mockResolvedValue(mockResponse);
 
-      const res = await searchParent("John");
+      const res = await searchParent('John');
 
       expect(axiosService.getData).toHaveBeenCalledWith(
-        "/fhir/v1/parent/pms/search?name=John",
+        '/fhir/v1/parent/pms/search?name=John',
         expect.anything()
       );
       expect(res).toHaveLength(2);
-      expect(res[0].id).toBe("p1"); // via mocked converter
+      expect(res[0].id).toBe('p1'); // via mocked converter
     });
 
-    it("returns empty array if name is empty", async () => {
-      const res = await searchParent("");
+    it('returns empty array if name is empty', async () => {
+      const res = await searchParent('');
       expect(res).toEqual([]);
       expect(axiosService.getData).not.toHaveBeenCalled();
     });
 
-    it("returns empty array on abort (CanceledError)", async () => {
-      const err: any = new Error("Canceled");
-      err.name = "CanceledError";
+    it('returns empty array on abort (CanceledError)', async () => {
+      const err: any = new Error('Canceled');
+      err.name = 'CanceledError';
       (axiosService.getData as jest.Mock).mockRejectedValue(err);
 
-      const res = await searchParent("John");
+      const res = await searchParent('John');
       expect(res).toEqual([]);
     });
 
-    it("returns empty array on abort (ERR_CANCELED code)", async () => {
-        const err: any = new Error("Canceled");
-        err.code = "ERR_CANCELED";
-        (axiosService.getData as jest.Mock).mockRejectedValue(err);
+    it('returns empty array on abort (ERR_CANCELED code)', async () => {
+      const err: any = new Error('Canceled');
+      err.code = 'ERR_CANCELED';
+      (axiosService.getData as jest.Mock).mockRejectedValue(err);
 
-        const res = await searchParent("John");
-        expect(res).toEqual([]);
-      });
+      const res = await searchParent('John');
+      expect(res).toEqual([]);
+    });
 
-    it("throws on other errors", async () => {
-      const error = new Error("Network Error");
+    it('throws on other errors', async () => {
+      const error = new Error('Network Error');
       (axiosService.getData as jest.Mock).mockRejectedValue(error);
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      await expect(searchParent("John")).rejects.toThrow("Network Error");
+      await expect(searchParent('John')).rejects.toThrow('Network Error');
       consoleSpy.mockRestore();
     });
   });
@@ -401,56 +479,123 @@ describe("companionService", () => {
   // 6. getCompanionForParent
   // ===========================================================================
 
-  describe("getCompanionForParent", () => {
-    it("fetches and maps companions", async () => {
-      const mockResponse = { data: [{ id: "c1" }, { id: "c2" }] };
+  describe('getCompanionForParent', () => {
+    it('fetches and maps companions', async () => {
+      const mockResponse = { data: [{ id: 'c1' }, { id: 'c2' }] };
 
       // FIX: Use mockImplementationOnce to provide the expected structured data
       // where the service logic should have injected parentId and orgId.
       (converters.toCompanionResponseDTO as jest.Mock).mockImplementationOnce((x) => ({
-          id: x.id,
-          parentId: "p1",
-          organisationId: "org-1"
+        id: x.id,
+        parentId: 'p1',
+        organisationId: 'org-1',
       }));
       (converters.toCompanionResponseDTO as jest.Mock).mockImplementationOnce((x) => ({
-          id: x.id,
-          parentId: "p1",
-          organisationId: "org-1"
+        id: x.id,
+        parentId: 'p1',
+        organisationId: 'org-1',
       }));
 
       (axiosService.getData as jest.Mock).mockResolvedValue(mockResponse);
 
-      const res = await getCompanionForParent("p1");
+      const res = await getCompanionForParent('p1');
 
-      expect(axiosService.getData).toHaveBeenCalledWith(
-        "/fhir/v1/companion/pms/p1/org-1/list"
-      );
+      expect(axiosService.getData).toHaveBeenCalledWith('/fhir/v1/companion/pms/p1/org-1/list');
       expect(res).toHaveLength(2);
     });
 
-    it("returns empty array if no primaryOrgId", async () => {
+    it('returns empty array if no primaryOrgId', async () => {
       (useOrgStore.getState as jest.Mock).mockReturnValue({ primaryOrgId: null });
-      const consoleSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
-      const res = await getCompanionForParent("p1");
+      const res = await getCompanionForParent('p1');
       expect(res).toEqual([]);
       expect(axiosService.getData).not.toHaveBeenCalled();
       consoleSpy.mockRestore();
     });
 
-    it("returns empty array if no parentId", async () => {
-      const res = await getCompanionForParent("");
+    it('returns empty array if no parentId', async () => {
+      const res = await getCompanionForParent('');
       expect(res).toEqual([]);
       expect(axiosService.getData).not.toHaveBeenCalled();
     });
 
-    it("throws error on failure", async () => {
-      const error = new Error("Fetch Failed");
+    it('throws error on failure', async () => {
+      const error = new Error('Fetch Failed');
       (axiosService.getData as jest.Mock).mockRejectedValue(error);
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      await expect(getCompanionForParent("p1")).rejects.toThrow("Fetch Failed");
+      await expect(getCompanionForParent('p1')).rejects.toThrow('Fetch Failed');
       consoleSpy.mockRestore();
+    });
+  });
+
+  // ===========================================================================
+  // 7. updateCompanion / updateParent
+  // ===========================================================================
+  describe('updateCompanion', () => {
+    const payload = { id: 'c1', parentId: 'p1', name: 'Buddy' } as any;
+
+    it('updates companion and upserts transformed value', async () => {
+      (axiosService.putData as jest.Mock).mockResolvedValue({ data: { payload: { id: 'c1' } } });
+      (converters.fromCompanionRequestDTO as jest.Mock).mockReturnValue({
+        id: 'c1',
+        name: 'Buddy',
+      });
+
+      await updateCompanion(payload);
+
+      expect(axiosService.putData).toHaveBeenCalledWith('/fhir/v1/companion/org/c1', {
+        payload: expect.anything(),
+      });
+      expect(mockUpsertCompanion).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'c1', parentId: 'p1', organisationId: 'org-1' })
+      );
+    });
+
+    it('returns early with missing org id', async () => {
+      (useOrgStore.getState as jest.Mock).mockReturnValue({ primaryOrgId: null });
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      await updateCompanion(payload);
+      expect(axiosService.putData).not.toHaveBeenCalled();
+      warnSpy.mockRestore();
+    });
+
+    it('throws when required ids are missing', async () => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      await expect(updateCompanion({ id: '', parentId: '' } as any)).rejects.toThrow(
+        'Companion or Parent ID missing'
+      );
+      errorSpy.mockRestore();
+    });
+  });
+
+  describe('updateParent', () => {
+    const payload = { id: 'p1', name: 'Jane' } as any;
+
+    it('updates parent and upserts transformed value', async () => {
+      (axiosService.putData as jest.Mock).mockResolvedValue({ data: { id: 'p1', name: 'Jane' } });
+      (converters.fromParentRequestDTO as jest.Mock).mockReturnValue({ id: 'p1', name: 'Jane' });
+      await updateParent(payload);
+      expect(axiosService.putData).toHaveBeenCalledWith(
+        '/fhir/v1/parent/pms/parents/p1',
+        expect.anything()
+      );
+      expect(mockUpsertParent).toHaveBeenCalledWith(expect.objectContaining({ id: 'p1' }));
+    });
+
+    it('returns early with missing org id', async () => {
+      (useOrgStore.getState as jest.Mock).mockReturnValue({ primaryOrgId: null });
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      await updateParent(payload);
+      expect(axiosService.putData).not.toHaveBeenCalled();
+      warnSpy.mockRestore();
+    });
+
+    it('throws when parent id is missing', async () => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      await expect(updateParent({ id: '' } as any)).rejects.toThrow('Parent ID missing');
+      errorSpy.mockRestore();
     });
   });
 });

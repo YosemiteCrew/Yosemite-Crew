@@ -8,6 +8,8 @@ import AppointmentStat from '@/app/ui/widgets/Stats/AppointmentStat';
 import RevenueStat from '@/app/ui/widgets/Stats/RevenueStat';
 import AppointmentLeadersStat from '@/app/ui/widgets/Stats/AppointmentLeadersStat';
 import RevenueLeadersStat from '@/app/ui/widgets/Stats/RevenueLeadersStat';
+import AnnualInventoryTurnoverStat from '@/app/ui/widgets/Stats/AnnualInventoryTurnoverStat';
+import IndividualProductTurnoverStat from '@/app/ui/widgets/Stats/IndividualProductTurnoverStat';
 import AppointmentTask from '@/app/ui/widgets/Summary/AppointmentTask';
 import Availability from '@/app/ui/widgets/Summary/Availability';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
@@ -30,6 +32,10 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-3 mb-2 md:mb-4">
           <AppointmentLeadersStat />
           <RevenueLeadersStat />
+        </div>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-3 mb-2 md:mb-4">
+          <AnnualInventoryTurnoverStat />
+          <IndividualProductTurnoverStat />
         </div>
       </PermissionGate>
       <AppointmentTask />

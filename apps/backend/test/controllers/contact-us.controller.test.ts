@@ -4,7 +4,10 @@ import {
   ContactServiceError,
 } from "../../src/services/contact-us.service";
 import { AuthUserMobileService } from "../../src/services/authUserMobile.service";
-import { generatePresignedUrl, getURLForKey } from "../../src/middlewares/upload";
+import {
+  generatePresignedUrl,
+  getURLForKey,
+} from "../../src/middlewares/upload";
 
 jest.mock("../../src/services/contact-us.service", () => {
   const actual = jest.requireActual("../../src/services/contact-us.service");

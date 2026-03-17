@@ -7,7 +7,10 @@ const router = Router();
 // Mobile/web public endpoint (user may or may not be logged in)
 router.post("/contact", authorizeCognitoMobile, ContactController.create);
 router.post("/contact-web", ContactController.createWeb);
-router.post("/attachments/presigned-url", ContactController.getAttachmentUploadUrl);
+router.post(
+  "/attachments/presigned-url",
+  ContactController.getAttachmentUploadUrl,
+);
 
 // Internal admin / support tools
 // router.use(requireAdminAuth);

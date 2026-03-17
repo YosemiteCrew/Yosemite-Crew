@@ -2,6 +2,11 @@ import { LaidOutEvent } from '@/app/features/appointments/types/calendar';
 import { Task } from '@/app/features/tasks/types/task';
 import { Team } from '@/app/features/organization/types/team';
 import { Appointment } from '@yosemite-crew/types';
+import {
+  getMinutesSinceStartOfDayInPreferredTimeZone,
+  getPreciseMinutesSinceStartOfDayInPreferredTimeZone,
+  isOnPreferredTimeZoneCalendarDay,
+} from '@/app/lib/timezone';
 
 export function isSameDay(a?: Date | null, b?: Date | null) {
   if (!a || !b) return false;
@@ -76,8 +81,8 @@ export function getDayWindow(events: Appointment[]) {
   let minStart = DAY_END;
   let maxEnd = 0;
   for (const ev of events) {
-    const s = minutesSinceStartOfDay(ev.startTime);
-    const eRaw = minutesSinceStartOfDay(ev.endTime);
+    const s = getMinutesSinceStartOfDayInPreferredTimeZone(ev.startTime);
+    const eRaw = getMinutesSinceStartOfDayInPreferredTimeZone(ev.endTime);
     // clamp “midnight end” to 24:00 instead of 0
     const e = eRaw === 0 ? DAY_END : eRaw;
     minStart = Math.min(minStart, s);
@@ -103,8 +108,8 @@ export function computeVerticalPositionPx(
   windowEnd: number
 ) {
   const DAY_END = 24 * 60;
-  let start = minutesSinceStartOfDay(event.startTime);
-  let end = minutesSinceStartOfDay(event.endTime);
+  let start = getMinutesSinceStartOfDayInPreferredTimeZone(event.startTime);
+  let end = getMinutesSinceStartOfDayInPreferredTimeZone(event.endTime);
   // treat 12:00 AM as 24:00 for same-day clamping
   if (end === 0) end = DAY_END;
   // clamp event to the window
@@ -173,19 +178,39 @@ export function getTotalWindowHeightPx(windowStart: number, windowEnd: number) {
   return ((windowEnd - windowStart) / MINUTES_PER_STEP) * PIXELS_PER_STEP;
 }
 
-export function getNowTopPxForWindow(date: Date, windowStart: number, windowEnd: number) {
-  const now = new Date();
-
+export function getNowTopPxForWindow(
+  date: Date,
+  windowStart: number,
+  windowEnd: number,
+  now: Date = new Date()
+) {
   // Only show the red line on the same day
-  if (!isSameDay(now, date)) return null;
+  if (!isOnPreferredTimeZoneCalendarDay(now, date)) return null;
 
-  const mins = minutesSinceStartOfDay(now);
+  const mins = getPreciseMinutesSinceStartOfDayInPreferredTimeZone(now);
 
-  // Your rule: if now is outside the window, clamp to END
-  const clamped = mins >= windowStart && mins <= windowEnd ? mins : windowEnd;
-  const steps = (clamped - windowStart) / MINUTES_PER_STEP;
+  if (mins < windowStart || mins > windowEnd) return null;
+  const steps = (mins - windowStart) / MINUTES_PER_STEP;
 
   return steps * PIXELS_PER_STEP;
+}
+
+export function getNowTopPxForHourRange(
+  date: Date,
+  startHour: number,
+  endHour: number,
+  hourHeightPx: number,
+  now: Date = new Date(),
+  topOffsetPx = 0
+) {
+  if (!isOnPreferredTimeZoneCalendarDay(now, date)) return null;
+
+  const mins = getPreciseMinutesSinceStartOfDayInPreferredTimeZone(now);
+  const rangeStartMinutes = startHour * 60;
+  const rangeEndMinutes = (endHour + 1) * 60;
+  if (mins < rangeStartMinutes || mins > rangeEndMinutes) return null;
+
+  return ((mins - rangeStartMinutes) / 60) * hourHeightPx + topOffsetPx;
 }
 
 export function isAllDayForDate(ev: Appointment, day: Date): boolean {
@@ -223,9 +248,10 @@ export function getFirstRelevantTimedEventStart(
 }
 
 export function scrollContainerToTarget(container: HTMLElement, targetTopPx: number) {
-  const centeredTop = targetTopPx - container.clientHeight / 2;
+  // Keep the focus point in the upper area (about top 32%) instead of center.
+  const anchorTop = targetTopPx - container.clientHeight * 0.15;
   const maxTop = Math.max(0, container.scrollHeight - container.clientHeight);
-  container.scrollTop = Math.max(0, Math.min(centeredTop, maxTop));
+  container.scrollTop = Math.max(0, Math.min(anchorTop, maxTop));
 }
 
 export function autoScrollCalendarHorizontally(

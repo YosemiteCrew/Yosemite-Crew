@@ -24,6 +24,7 @@ jest.mock('@/app/hooks/useCompanion', () => ({
 jest.mock('@/app/lib/date', () => ({
   applyUtcTime: jest.fn((date: Date) => date),
   getUtcTimeValue: jest.fn(() => '00:00'),
+  getPreferredTimeValue: jest.fn(() => '00:00'),
   generateTimeSlots: jest.fn(() => [{ label: '05:30', value: '05:30' }]),
 }));
 

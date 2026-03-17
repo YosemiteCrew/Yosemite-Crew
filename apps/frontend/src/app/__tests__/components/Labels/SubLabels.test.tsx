@@ -1,43 +1,37 @@
-import React from "react";
-import { fireEvent, render, screen, within } from "@testing-library/react";
-import "@testing-library/jest-dom";
-import SubLabels from "@/app/ui/widgets/Labels/SubLabels";
+import React from 'react';
+import { render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import SubLabels from '@/app/ui/widgets/Labels/SubLabels';
 
-describe("SubLabels", () => {
-  const labels = [
-    { key: "core", name: "Core" },
-    { key: "history", name: "History" },
-  ];
+jest.mock('next/link', () => ({
+  __esModule: true,
+  default: ({ children, href, ...rest }: any) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  ),
+}));
 
-  it("renders status indicators", () => {
+describe('SubLabels', () => {
+  it('renders a redirect pill for labels with redirect metadata', () => {
     render(
       <SubLabels
-        labels={labels}
-        activeLabel="core"
+        labels={[
+          {
+            key: 'merck-manuals',
+            name: <span>Merck Manuals</span>,
+            redirectHref: '/integrations/merck-manuals',
+            redirectLabel: 'Open Merck Manuals',
+          },
+        ]}
+        activeLabel="merck-manuals"
         setActiveLabel={jest.fn()}
-        statuses={{ core: "valid", history: "error" }}
       />
     );
 
-    const coreButton = screen.getByText("Core").closest("button");
-    const historyButton = screen.getByText("History").closest("button");
-
-    expect(within(coreButton!).getByText("•")).toBeInTheDocument();
-    expect(within(historyButton!).getByText("•")).toBeInTheDocument();
-  });
-
-  it("prevents clicking when disabled", () => {
-    const setActiveLabel = jest.fn();
-    render(
-      <SubLabels
-        labels={labels}
-        activeLabel="core"
-        setActiveLabel={setActiveLabel}
-        disableClicking
-      />
+    expect(screen.getByRole('link', { name: 'Open Merck Manuals' })).toHaveAttribute(
+      'href',
+      '/integrations/merck-manuals'
     );
-
-    fireEvent.click(screen.getByText("History"));
-    expect(setActiveLabel).not.toHaveBeenCalled();
   });
 });

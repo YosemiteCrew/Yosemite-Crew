@@ -10,6 +10,7 @@ const getIdexxCensusMock = jest.fn();
 const listIdexxResultsMock = jest.fn();
 const listIdexxOrdersMock = jest.fn();
 const createIdexxLabOrderMock = jest.fn();
+const addPatientToIdexxCensusMock = jest.fn();
 
 jest.mock('next/link', () => ({
   __esModule: true,
@@ -87,7 +88,7 @@ jest.mock('@/app/features/integrations/services/idexxService', () => ({
   getApiErrorMessage: (_error: unknown, fallback: string) => fallback,
   getIdexxResultPdfBlob: jest.fn(),
   getIdexxOrderById: jest.fn(),
-  addPatientToIdexxCensus: jest.fn(),
+  addPatientToIdexxCensus: (...args: any[]) => addPatientToIdexxCensusMock(...args),
   listIdexxIvlsDevices: (...args: any[]) => listIdexxIvlsDevicesMock(...args),
   listIdexxTests: (...args: any[]) => listIdexxTestsMock(...args),
   listIdexxOrders: (...args: any[]) => listIdexxOrdersMock(...args),
@@ -113,7 +114,12 @@ describe('LabTests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     useIntegrationByProviderForPrimaryOrgMock.mockReturnValue({ status: 'enabled' });
-    listIdexxIvlsDevicesMock.mockResolvedValue({ ivlsDeviceList: [] });
+    listIdexxIvlsDevicesMock.mockResolvedValue({
+      ivlsDeviceList: [
+        { deviceSerialNumber: 'ivls-1', displayName: 'Catalyst One' },
+        { deviceSerialNumber: 'ivls-2', displayName: 'ProCyte One' },
+      ],
+    });
     listIdexxTestsMock.mockResolvedValue({
       tests: [{ _id: 't1', code: '9126', display: 'Chem Panel', type: 'TEST' }],
     });
@@ -170,6 +176,138 @@ describe('LabTests', () => {
     });
 
     expect(screen.getByText('Order 100329789')).toBeInTheDocument();
+  });
+
+  it('uses in-house flow for census only after selecting an IVLS device', async () => {
+    render(<LabTests activeAppointment={appointment} />);
+
+    await waitFor(() => {
+      expect(listIdexxTestsMock).toHaveBeenCalled();
+    });
+
+    fireEvent.change(screen.getByTestId('Modality'), { target: { value: 'INHOUSE' } });
+
+    expect(screen.queryByRole('button', { name: 'Create IDEXX order' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Select Search IDEXX tests' })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText('In-house census')).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/Current appointment state: Select an IVLS device/)
+    ).toBeInTheDocument();
+
+    fireEvent.change(screen.getByTestId('Select IVLS device'), { target: { value: 'ivls-1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add to census' }));
+
+    await waitFor(() => {
+      expect(addPatientToIdexxCensusMock).toHaveBeenCalledWith({
+        organisationId: 'org-1',
+        payload: expect.objectContaining({
+          companionId: 'patient-1',
+          parentId: 'parent-1',
+          ivls: ['ivls-1'],
+        }),
+      });
+    });
+  });
+
+  it('shows selected device state when companion is already in census for in-house flow', async () => {
+    getIdexxCensusMock.mockResolvedValue([
+      {
+        id: 1,
+        patient: { patientId: 'patient-1', name: 'Buddy' },
+        ivls: [{ serialNumber: 'ivls-1', displayName: 'Catalyst One' }],
+        confirmedBy: ['ivls-1'],
+      },
+    ]);
+
+    render(<LabTests activeAppointment={appointment} />);
+
+    await waitFor(() => {
+      expect(getIdexxCensusMock).toHaveBeenCalled();
+    });
+
+    fireEvent.change(screen.getByTestId('Modality'), { target: { value: 'INHOUSE' } });
+    fireEvent.change(screen.getByTestId('Select IVLS device'), { target: { value: 'ivls-1' } });
+
+    expect(
+      screen.getByText('Companion census status: Already added to census')
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/IVLS confirmation: Confirmed for selected device/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Census device ID: Catalyst One \(ivls-1\)/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Current appointment state: Ready on selected IVLS device/)
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add to census' })).not.toBeInTheDocument();
+  });
+
+  it('does not allow re-adding the companion when already present in census on another device', async () => {
+    getIdexxCensusMock.mockResolvedValue([
+      {
+        id: 1,
+        patient: { patientId: 'patient-1', name: 'Buddy' },
+        ivls: [{ serialNumber: 'ivls-1', displayName: 'Catalyst One' }],
+        confirmedBy: ['ivls-1'],
+      },
+    ]);
+
+    render(<LabTests activeAppointment={appointment} />);
+
+    await waitFor(() => {
+      expect(getIdexxCensusMock).toHaveBeenCalled();
+    });
+
+    fireEvent.change(screen.getByTestId('Modality'), { target: { value: 'INHOUSE' } });
+    fireEvent.change(screen.getByTestId('Select IVLS device'), { target: { value: 'ivls-2' } });
+
+    expect(
+      screen.getByText('Companion census status: Already added to census')
+    ).toBeInTheDocument();
+    expect(screen.getByText(/IVLS confirmation: Pending for selected device/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Current appointment state: Already in census under another device/)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Companion already exists in IDEXX census. IDEXX only allows one census entry per patient./
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add to census' })).not.toBeInTheDocument();
+    expect(addPatientToIdexxCensusMock).not.toHaveBeenCalled();
+  });
+
+  it('shows selected device as added but pending when census has the device without confirmation', async () => {
+    getIdexxCensusMock.mockResolvedValue([
+      {
+        id: 1,
+        patient: { patientId: 'patient-1', name: 'Buddy' },
+        ivls: [{ serialNumber: 'ivls-2', displayName: 'ProCyte One' }],
+        confirmedBy: [],
+        confirmed: false,
+      },
+    ]);
+
+    render(<LabTests activeAppointment={appointment} />);
+
+    await waitFor(() => {
+      expect(getIdexxCensusMock).toHaveBeenCalled();
+    });
+
+    fireEvent.change(screen.getByTestId('Modality'), { target: { value: 'INHOUSE' } });
+    fireEvent.change(screen.getByTestId('Select IVLS device'), { target: { value: 'ivls-2' } });
+
+    expect(
+      screen.getByText('Companion census status: Already added to census')
+    ).toBeInTheDocument();
+    expect(screen.getByText(/IVLS confirmation: Pending for selected device/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Current appointment state: Added to selected device census, awaiting IVLS confirmation/
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add to census' })).not.toBeInTheDocument();
   });
 
   it('renders result cards and PDF action when results are available', async () => {

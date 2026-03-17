@@ -54,6 +54,10 @@ jest.mock('@/app/lib/forms', () => ({
   formatTimeLabel: () => '10:00 AM',
 }));
 
+jest.mock('@/app/lib/invoicePaymentMethod', () => ({
+  getInvoicePaymentMethodLabel: () => 'Cash at Clinic',
+}));
+
 describe('InvoiceTable', () => {
   const invoice: Invoice = {
     id: 'inv-1',
@@ -102,6 +106,7 @@ describe('InvoiceTable', () => {
     fireEvent.click(screen.getByTitle('Open appointment finance'));
 
     expect(screen.getByText('Sam / Buddy')).toBeInTheDocument();
+    expect(screen.getByText('Cash at Clinic')).toBeInTheDocument();
     expect(pushMock).toHaveBeenCalledWith(
       '/appointments?appointmentId=appt-1&open=finance&subLabel=summary'
     );

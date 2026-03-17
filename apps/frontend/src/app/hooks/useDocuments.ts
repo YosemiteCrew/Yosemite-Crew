@@ -1,25 +1,27 @@
-import { useEffect, useMemo } from "react";
-import { useOrgStore } from "@/app/stores/orgStore";
-import { loadDocumentsForOrgPrimaryOrg } from "@/app/features/documents/services/documentService";
-import { OrganizationDocument } from "@/app/features/documents/types/document";
-import { useOrganizationDocumentStore } from "@/app/stores/documentStore";
+import { useEffect, useMemo } from 'react';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { loadDocumentsForOrgPrimaryOrg } from '@/app/features/documents/services/documentService';
+import { OrganizationDocument } from '@/app/features/documents/types/document';
+import { useOrganizationDocumentStore } from '@/app/stores/documentStore';
 
 export const useLoadDocumentsForPrimaryOrg = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
+  const documentIdsByOrgId = useOrganizationDocumentStore((s) => s.documentIdsByOrgId);
+  const status = useOrganizationDocumentStore((s) => s.status);
 
   useEffect(() => {
     if (!primaryOrgId) return;
+    if (status === 'loading') return;
+    if (Object.hasOwn(documentIdsByOrgId, primaryOrgId)) return;
     void loadDocumentsForOrgPrimaryOrg();
-  }, [primaryOrgId]);
+  }, [primaryOrgId, documentIdsByOrgId, status]);
 };
 
 export const useDocumentsForPrimaryOrg = (): OrganizationDocument[] => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const documentsById = useOrganizationDocumentStore((s) => s.documentsById);
 
-  const documentIdsByOrgId = useOrganizationDocumentStore(
-    (s) => s.documentIdsByOrgId
-  );
+  const documentIdsByOrgId = useOrganizationDocumentStore((s) => s.documentIdsByOrgId);
 
   return useMemo(() => {
     if (!primaryOrgId) return [];

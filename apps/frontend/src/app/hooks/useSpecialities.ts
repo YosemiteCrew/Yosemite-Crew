@@ -1,27 +1,29 @@
-import { useEffect, useMemo } from "react";
-import { useOrgStore } from "@/app/stores/orgStore";
-import { useSpecialityStore } from "@/app/stores/specialityStore";
-import { loadSpecialitiesForOrg } from "@/app/features/organization/services/specialityService";
-import { useServiceStore } from "@/app/stores/serviceStore";
-import { Service, Speciality } from "@yosemite-crew/types";
-import { SpecialityWeb } from "@/app/features/organization/types/speciality";
+import { useEffect, useMemo } from 'react';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { useSpecialityStore } from '@/app/stores/specialityStore';
+import { loadSpecialitiesForOrg } from '@/app/features/organization/services/specialityService';
+import { useServiceStore } from '@/app/stores/serviceStore';
+import { Service, Speciality } from '@yosemite-crew/types';
+import { SpecialityWeb } from '@/app/features/organization/types/speciality';
 
 export const useLoadSpecialitiesForPrimaryOrg = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
+  const specialityIdsByOrgId = useSpecialityStore((s) => s.specialityIdsByOrgId);
+  const specialityStatus = useSpecialityStore((s) => s.status);
 
   useEffect(() => {
     if (!primaryOrgId) return;
-    void loadSpecialitiesForOrg({ force: true });
-  }, [primaryOrgId]);
+    if (specialityStatus === 'loading') return;
+    if (Object.hasOwn(specialityIdsByOrgId, primaryOrgId)) return;
+    void loadSpecialitiesForOrg();
+  }, [primaryOrgId, specialityIdsByOrgId, specialityStatus]);
 };
 
 export const useSpecialitiesForPrimaryOrg = (): Speciality[] => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const specialitiesById = useSpecialityStore((s) => s.specialitiesById);
 
-  const specialityIdsByOrgId = useSpecialityStore(
-    (s) => s.specialityIdsByOrgId
-  );
+  const specialityIdsByOrgId = useSpecialityStore((s) => s.specialityIdsByOrgId);
 
   return useMemo(() => {
     if (!primaryOrgId) return [];
@@ -32,14 +34,10 @@ export const useSpecialitiesForPrimaryOrg = (): Speciality[] => {
 
 export const useServicesForPrimaryOrgSpecialities = (): Service[] => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
-  const specialityIdsByOrgId = useSpecialityStore(
-    (s) => s.specialityIdsByOrgId
-  );
+  const specialityIdsByOrgId = useSpecialityStore((s) => s.specialityIdsByOrgId);
   const servicesById = useServiceStore((s) => s.servicesById);
 
-  const serviceIdsBySpecialityId = useServiceStore(
-    (s) => s.serviceIdsBySpecialityId
-  );
+  const serviceIdsBySpecialityId = useServiceStore((s) => s.serviceIdsBySpecialityId);
 
   return useMemo(() => {
     if (!primaryOrgId) return [];
@@ -53,21 +51,14 @@ export const useServicesForPrimaryOrgSpecialities = (): Service[] => {
       }
     }
     return result;
-  }, [
-    primaryOrgId,
-    specialityIdsByOrgId,
-    servicesById,
-    serviceIdsBySpecialityId,
-  ]);
+  }, [primaryOrgId, specialityIdsByOrgId, servicesById, serviceIdsBySpecialityId]);
 };
 
 export const useSpecialitiesWithServiceNamesForPrimaryOrg = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const specialitiesById = useSpecialityStore((s) => s.specialitiesById);
 
-  const specialityIdsByOrgId = useSpecialityStore(
-    (s) => s.specialityIdsByOrgId
-  );
+  const specialityIdsByOrgId = useSpecialityStore((s) => s.specialityIdsByOrgId);
   const servicesById = useServiceStore((s) => s.servicesById);
 
   return useMemo(() => {

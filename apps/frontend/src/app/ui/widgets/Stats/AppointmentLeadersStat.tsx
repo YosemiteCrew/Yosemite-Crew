@@ -28,10 +28,7 @@ const AppointmentLeadersStat = () => {
       />
       <DynamicChartCard
         data={analytics.appointmentLeaders}
-        keys={[
-          { name: 'Completed', color: '#111' },
-          { name: 'Cancelled', color: '#ccc' },
-        ]}
+        keys={[{ name: 'Completed', color: '#111' }]}
         hideKeys={false}
         yAxisWidth={32}
         barSize={14}

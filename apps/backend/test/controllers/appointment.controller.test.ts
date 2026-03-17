@@ -23,7 +23,7 @@ const mockRequest = (overrides: Partial<Request | any> = {}): Request =>
     query: {},
     headers: {},
     ...overrides,
-  } as unknown as Request);
+  }) as unknown as Request;
 
 const mockResponse = (): Response => {
   const res: any = {};
@@ -44,20 +44,28 @@ describe("AppointmentController", () => {
   describe("Internal Helper Coverage: resolveUserIdFromRequest & parseError", () => {
     it("resolves user id from headers if present", async () => {
       req = mockRequest({ headers: { "x-user-id": "header-user" } });
-      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValue(null);
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue(null);
 
       await AppointmentController.rescheduleFromMobile(req as any, res as any);
 
-      expect(AuthUserMobileService.getByProviderUserId).toHaveBeenCalledWith("header-user");
+      expect(AuthUserMobileService.getByProviderUserId).toHaveBeenCalledWith(
+        "header-user",
+      );
     });
 
     it("resolves user id from auth context if header missing", async () => {
       req = mockRequest({ userId: "auth-user" }); // Simulating AuthenticatedRequest
-      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValue(null);
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue(null);
 
       await AppointmentController.rescheduleFromMobile(req as any, res as any);
 
-      expect(AuthUserMobileService.getByProviderUserId).toHaveBeenCalledWith("auth-user");
+      expect(AuthUserMobileService.getByProviderUserId).toHaveBeenCalledWith(
+        "auth-user",
+      );
     });
 
     it("parseError extracts custom status code and message", async () => {
@@ -66,34 +74,56 @@ describe("AppointmentController", () => {
       const customError = new Error("Custom error message") as any;
       customError.statusCode = 403;
 
-      (AppointmentService.createRequestedFromMobile as jest.Mock).mockRejectedValue(customError);
+      (
+        AppointmentService.createRequestedFromMobile as jest.Mock
+      ).mockRejectedValue(customError);
 
-      await AppointmentController.createRequestedFromMobile(req as any, res as any);
+      await AppointmentController.createRequestedFromMobile(
+        req as any,
+        res as any,
+      );
 
       expect(res.status).toHaveBeenCalledWith(403);
-      expect(res.json).toHaveBeenCalledWith({ message: "Custom error message" });
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Custom error message",
+      });
     });
 
     it("parseError falls back to 500 and fallback message for non-Error objects", async () => {
       req = mockRequest();
-      (AppointmentService.createRequestedFromMobile as jest.Mock).mockRejectedValue("Plain string error");
+      (
+        AppointmentService.createRequestedFromMobile as jest.Mock
+      ).mockRejectedValue("Plain string error");
 
-      await AppointmentController.createRequestedFromMobile(req as any, res as any);
+      await AppointmentController.createRequestedFromMobile(
+        req as any,
+        res as any,
+      );
 
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ message: "Failed to create appointment" });
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Failed to create appointment",
+      });
     });
   });
 
   describe("createRequestedFromMobile", () => {
     it("returns 201 and data on success", async () => {
       req = mockRequest({ body: { some: "data" } });
-      (AppointmentService.createRequestedFromMobile as jest.Mock).mockResolvedValue("created-data");
+      (
+        AppointmentService.createRequestedFromMobile as jest.Mock
+      ).mockResolvedValue("created-data");
 
-      await AppointmentController.createRequestedFromMobile(req as any, res as any);
+      await AppointmentController.createRequestedFromMobile(
+        req as any,
+        res as any,
+      );
 
       expect(res.status).toHaveBeenCalledWith(201);
-      expect(res.json).toHaveBeenCalledWith({ message: "Appointment created", data: "created-data" });
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Appointment created",
+        data: "created-data",
+      });
     });
   });
 
@@ -113,13 +143,17 @@ describe("AppointmentController", () => {
     });
 
     it("returns 400 if parent info missing", async () => {
-      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValue({}); // No parentId
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({}); // No parentId
       await AppointmentController.rescheduleFromMobile(req as any, res as any);
       expect(res.status).toHaveBeenCalledWith(400);
     });
 
     it("returns 400 if missing start or end time", async () => {
-      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValue({ parentId: "parent-123" });
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({ parentId: "parent-123" });
       req.body = { startTime: "2026-01-01" }; // missing end time
 
       await AppointmentController.rescheduleFromMobile(req as any, res as any);
@@ -127,15 +161,24 @@ describe("AppointmentController", () => {
     });
 
     it("returns 200 on successful reschedule", async () => {
-      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValue({ parentId: "parent-123" });
-      (AppointmentService.rescheduleFromParent as jest.Mock).mockResolvedValue("reschedule-data");
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({ parentId: "parent-123" });
+      (AppointmentService.rescheduleFromParent as jest.Mock).mockResolvedValue(
+        "reschedule-data",
+      );
 
       await AppointmentController.rescheduleFromMobile(req as any, res as any);
 
       expect(AppointmentService.rescheduleFromParent).toHaveBeenCalledWith(
         "app-123",
         "parent-123",
-        { startTime: "2026-01-01", endTime: "2026-01-02", concern: undefined, isEmergency: undefined }
+        {
+          startTime: "2026-01-01",
+          endTime: "2026-01-02",
+          concern: undefined,
+          isEmergency: undefined,
+        },
       );
       expect(res.status).toHaveBeenCalledWith(200);
     });
@@ -144,7 +187,9 @@ describe("AppointmentController", () => {
   describe("createFromPms", () => {
     it("handles createPayment=true string", async () => {
       req = mockRequest({ query: { createPayment: "true" } });
-      (AppointmentService.createAppointmentFromPms as jest.Mock).mockResolvedValue("data");
+      (
+        AppointmentService.createAppointmentFromPms as jest.Mock
+      ).mockResolvedValue("data");
 
       await AppointmentController.createFromPms(req as any, res as any);
 
@@ -178,7 +223,9 @@ describe("AppointmentController", () => {
 
     it("handles errors", async () => {
       req = mockRequest();
-      (AppointmentService.createAppointmentFromPms as jest.Mock).mockRejectedValue(new Error("PMS Error"));
+      (
+        AppointmentService.createAppointmentFromPms as jest.Mock
+      ).mockRejectedValue(new Error("PMS Error"));
       await AppointmentController.createFromPms(req as any, res as any);
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({ message: "PMS Error" });
@@ -187,18 +234,28 @@ describe("AppointmentController", () => {
 
   describe("acceptRequested", () => {
     it("returns 200 on success", async () => {
-      req = mockRequest({ params: { appointmentId: "app-123" }, body: { fhir: true } });
-      (AppointmentService.approveRequestedFromPms as jest.Mock).mockResolvedValue("accepted");
+      req = mockRequest({
+        params: { appointmentId: "app-123" },
+        body: { fhir: true },
+      });
+      (
+        AppointmentService.approveRequestedFromPms as jest.Mock
+      ).mockResolvedValue("accepted");
 
       await AppointmentController.acceptRequested(req as any, res as any);
 
-      expect(AppointmentService.approveRequestedFromPms).toHaveBeenCalledWith("app-123", { fhir: true });
+      expect(AppointmentService.approveRequestedFromPms).toHaveBeenCalledWith(
+        "app-123",
+        { fhir: true },
+      );
       expect(res.status).toHaveBeenCalledWith(200);
     });
 
     it("handles errors", async () => {
       req = mockRequest({ params: { appointmentId: "123" } });
-      (AppointmentService.approveRequestedFromPms as jest.Mock).mockRejectedValue(new Error("Fail"));
+      (
+        AppointmentService.approveRequestedFromPms as jest.Mock
+      ).mockRejectedValue(new Error("Fail"));
       await AppointmentController.acceptRequested(req as any, res as any);
       expect(res.status).toHaveBeenCalledWith(500);
     });
@@ -207,7 +264,9 @@ describe("AppointmentController", () => {
   describe("rejectRequested", () => {
     it("returns 200 on success", async () => {
       req = mockRequest({ params: { appointmentId: "app-123" } });
-      (AppointmentService.rejectRequestedAppointment as jest.Mock).mockResolvedValue("rejected");
+      (
+        AppointmentService.rejectRequestedAppointment as jest.Mock
+      ).mockResolvedValue("rejected");
 
       await AppointmentController.rejectRequested(req as any, res as any);
       expect(res.status).toHaveBeenCalledWith(200);
@@ -215,7 +274,9 @@ describe("AppointmentController", () => {
 
     it("handles errors", async () => {
       req = mockRequest({ params: { appointmentId: "123" } });
-      (AppointmentService.rejectRequestedAppointment as jest.Mock).mockRejectedValue(new Error("Fail"));
+      (
+        AppointmentService.rejectRequestedAppointment as jest.Mock
+      ).mockRejectedValue(new Error("Fail"));
       await AppointmentController.rejectRequested(req as any, res as any);
       expect(res.status).toHaveBeenCalledWith(500);
     });
@@ -236,22 +297,32 @@ describe("AppointmentController", () => {
     });
 
     it("returns 400 if parent info missing", async () => {
-      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValue({});
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({});
       await AppointmentController.checkInAppointment(req as any, res as any);
       expect(res.status).toHaveBeenCalledWith(400);
     });
 
     it("returns 200 on success", async () => {
-      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValue({ parentId: "parent-123" });
-      (AppointmentService.checkInAppointmentParent as jest.Mock).mockResolvedValue("checked-in");
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({ parentId: "parent-123" });
+      (
+        AppointmentService.checkInAppointmentParent as jest.Mock
+      ).mockResolvedValue("checked-in");
 
       await AppointmentController.checkInAppointment(req as any, res as any);
       expect(res.status).toHaveBeenCalledWith(200);
     });
 
     it("handles errors", async () => {
-      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValue({ parentId: "parent-123" });
-      (AppointmentService.checkInAppointmentParent as jest.Mock).mockRejectedValue(new Error("Fail"));
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({ parentId: "parent-123" });
+      (
+        AppointmentService.checkInAppointmentParent as jest.Mock
+      ).mockRejectedValue(new Error("Fail"));
 
       await AppointmentController.checkInAppointment(req as any, res as any);
       expect(res.status).toHaveBeenCalledWith(500);
@@ -260,8 +331,13 @@ describe("AppointmentController", () => {
 
   describe("updateFromPms", () => {
     it("returns 200 on success", async () => {
-      req = mockRequest({ params: { appointmentId: "123" }, body: { fhir: true } });
-      (AppointmentService.updateAppointmentPMS as jest.Mock).mockResolvedValue("updated");
+      req = mockRequest({
+        params: { appointmentId: "123" },
+        body: { fhir: true },
+      });
+      (AppointmentService.updateAppointmentPMS as jest.Mock).mockResolvedValue(
+        "updated",
+      );
 
       await AppointmentController.updateFromPms(req as any, res as any);
       expect(res.status).toHaveBeenCalledWith(200);
@@ -269,7 +345,9 @@ describe("AppointmentController", () => {
 
     it("handles errors", async () => {
       req = mockRequest({ params: { appointmentId: "123" } });
-      (AppointmentService.updateAppointmentPMS as jest.Mock).mockRejectedValue(new Error("Fail"));
+      (AppointmentService.updateAppointmentPMS as jest.Mock).mockRejectedValue(
+        new Error("Fail"),
+      );
 
       await AppointmentController.updateFromPms(req as any, res as any);
       expect(res.status).toHaveBeenCalledWith(500);
@@ -292,23 +370,35 @@ describe("AppointmentController", () => {
     });
 
     it("returns 400 if parent info missing", async () => {
-      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValue({});
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({});
       await AppointmentController.cancelFromMobile(req as any, res as any);
       expect(res.status).toHaveBeenCalledWith(400);
     });
 
     it("returns 200 on success", async () => {
-      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValue({ parentId: "parent-123" });
-      (AppointmentService.cancelAppointmentFromParent as jest.Mock).mockResolvedValue("canceled");
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({ parentId: "parent-123" });
+      (
+        AppointmentService.cancelAppointmentFromParent as jest.Mock
+      ).mockResolvedValue("canceled");
 
       await AppointmentController.cancelFromMobile(req as any, res as any);
-      expect(AppointmentService.cancelAppointmentFromParent).toHaveBeenCalledWith("app-123", "parent-123", "Sick");
+      expect(
+        AppointmentService.cancelAppointmentFromParent,
+      ).toHaveBeenCalledWith("app-123", "parent-123", "Sick");
       expect(res.status).toHaveBeenCalledWith(200);
     });
 
     it("handles errors", async () => {
-      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValue({ parentId: "parent-123" });
-      (AppointmentService.cancelAppointmentFromParent as jest.Mock).mockRejectedValue(new Error("Fail"));
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({ parentId: "parent-123" });
+      (
+        AppointmentService.cancelAppointmentFromParent as jest.Mock
+      ).mockRejectedValue(new Error("Fail"));
 
       await AppointmentController.cancelFromMobile(req as any, res as any);
       expect(res.status).toHaveBeenCalledWith(500);
@@ -318,7 +408,9 @@ describe("AppointmentController", () => {
   describe("cancelFromPMS", () => {
     it("returns 200 on success", async () => {
       req = mockRequest({ params: { appointmentId: "123" } });
-      (AppointmentService.cancelAppointment as jest.Mock).mockResolvedValue("canceled");
+      (AppointmentService.cancelAppointment as jest.Mock).mockResolvedValue(
+        "canceled",
+      );
 
       await AppointmentController.cancelFromPMS(req as any, res as any);
       expect(res.status).toHaveBeenCalledWith(200);
@@ -326,7 +418,9 @@ describe("AppointmentController", () => {
 
     it("handles errors", async () => {
       req = mockRequest({ params: { appointmentId: "123" } });
-      (AppointmentService.cancelAppointment as jest.Mock).mockRejectedValue(new Error("Fail"));
+      (AppointmentService.cancelAppointment as jest.Mock).mockRejectedValue(
+        new Error("Fail"),
+      );
 
       await AppointmentController.cancelFromPMS(req as any, res as any);
       expect(res.status).toHaveBeenCalledWith(500);
@@ -344,7 +438,9 @@ describe("AppointmentController", () => {
 
     it("handles errors", async () => {
       req = mockRequest({ params: { appointmentId: "123" } });
-      (AppointmentService.getById as jest.Mock).mockRejectedValue(new Error("Fail"));
+      (AppointmentService.getById as jest.Mock).mockRejectedValue(
+        new Error("Fail"),
+      );
 
       await AppointmentController.getById(req as any, res as any);
       expect(res.status).toHaveBeenCalledWith(500);
@@ -354,7 +450,9 @@ describe("AppointmentController", () => {
   describe("listByCompanion", () => {
     it("returns 200 on success", async () => {
       req = mockRequest({ params: { companionId: "123" } });
-      (AppointmentService.getAppointmentsForCompanion as jest.Mock).mockResolvedValue(["data"]);
+      (
+        AppointmentService.getAppointmentsForCompanion as jest.Mock
+      ).mockResolvedValue(["data"]);
 
       await AppointmentController.listByCompanion(req as any, res as any);
       expect(res.status).toHaveBeenCalledWith(200);
@@ -362,7 +460,9 @@ describe("AppointmentController", () => {
 
     it("handles errors", async () => {
       req = mockRequest({ params: { companionId: "123" } });
-      (AppointmentService.getAppointmentsForCompanion as jest.Mock).mockRejectedValue(new Error("Fail"));
+      (
+        AppointmentService.getAppointmentsForCompanion as jest.Mock
+      ).mockRejectedValue(new Error("Fail"));
 
       await AppointmentController.listByCompanion(req as any, res as any);
       expect(res.status).toHaveBeenCalledWith(500);
@@ -372,7 +472,9 @@ describe("AppointmentController", () => {
   describe("listByParent", () => {
     it("returns 200 on success", async () => {
       req = mockRequest({ params: { parentId: "123" } });
-      (AppointmentService.getAppointmentsForParent as jest.Mock).mockResolvedValue(["data"]);
+      (
+        AppointmentService.getAppointmentsForParent as jest.Mock
+      ).mockResolvedValue(["data"]);
 
       await AppointmentController.listByParent(req as any, res as any);
       expect(res.status).toHaveBeenCalledWith(200);
@@ -380,7 +482,9 @@ describe("AppointmentController", () => {
 
     it("handles errors", async () => {
       req = mockRequest({ params: { parentId: "123" } });
-      (AppointmentService.getAppointmentsForParent as jest.Mock).mockRejectedValue(new Error("Fail"));
+      (
+        AppointmentService.getAppointmentsForParent as jest.Mock
+      ).mockRejectedValue(new Error("Fail"));
 
       await AppointmentController.listByParent(req as any, res as any);
       expect(res.status).toHaveBeenCalledWith(500);
@@ -391,13 +495,21 @@ describe("AppointmentController", () => {
     it("maps array status and string dates correctly", async () => {
       req = mockRequest({
         params: { organisationId: "org-1" },
-        query: { status: ["PENDING", "ACTIVE"], startDate: "2026-01-01", endDate: "2026-01-02" },
+        query: {
+          status: ["PENDING", "ACTIVE"],
+          startDate: "2026-01-01",
+          endDate: "2026-01-02",
+        },
       });
-      (AppointmentService.getAppointmentsForOrganisation as jest.Mock).mockResolvedValue(["data"]);
+      (
+        AppointmentService.getAppointmentsForOrganisation as jest.Mock
+      ).mockResolvedValue(["data"]);
 
       await AppointmentController.listByOrganisation(req as any, res as any);
 
-      expect(AppointmentService.getAppointmentsForOrganisation).toHaveBeenCalledWith("org-1", {
+      expect(
+        AppointmentService.getAppointmentsForOrganisation,
+      ).toHaveBeenCalledWith("org-1", {
         status: ["PENDING", "ACTIVE"],
         startDate: expect.any(Date),
         endDate: expect.any(Date),
@@ -410,11 +522,15 @@ describe("AppointmentController", () => {
         params: { organisationId: "org-1" },
         query: { status: "PENDING,ACTIVE" },
       });
-      (AppointmentService.getAppointmentsForOrganisation as jest.Mock).mockResolvedValue(["data"]);
+      (
+        AppointmentService.getAppointmentsForOrganisation as jest.Mock
+      ).mockResolvedValue(["data"]);
 
       await AppointmentController.listByOrganisation(req as any, res as any);
 
-      expect(AppointmentService.getAppointmentsForOrganisation).toHaveBeenCalledWith("org-1", {
+      expect(
+        AppointmentService.getAppointmentsForOrganisation,
+      ).toHaveBeenCalledWith("org-1", {
         status: ["PENDING", "ACTIVE"],
         startDate: undefined,
         endDate: undefined,
@@ -423,11 +539,15 @@ describe("AppointmentController", () => {
 
     it("handles missing query params correctly", async () => {
       req = mockRequest({ params: { organisationId: "org-1" }, query: {} });
-      (AppointmentService.getAppointmentsForOrganisation as jest.Mock).mockResolvedValue(["data"]);
+      (
+        AppointmentService.getAppointmentsForOrganisation as jest.Mock
+      ).mockResolvedValue(["data"]);
 
       await AppointmentController.listByOrganisation(req as any, res as any);
 
-      expect(AppointmentService.getAppointmentsForOrganisation).toHaveBeenCalledWith("org-1", {
+      expect(
+        AppointmentService.getAppointmentsForOrganisation,
+      ).toHaveBeenCalledWith("org-1", {
         status: undefined,
         startDate: undefined,
         endDate: undefined,
@@ -436,7 +556,9 @@ describe("AppointmentController", () => {
 
     it("handles errors", async () => {
       req = mockRequest({ params: { organisationId: "org-1" }, query: {} });
-      (AppointmentService.getAppointmentsForOrganisation as jest.Mock).mockRejectedValue(new Error("Fail"));
+      (
+        AppointmentService.getAppointmentsForOrganisation as jest.Mock
+      ).mockRejectedValue(new Error("Fail"));
 
       await AppointmentController.listByOrganisation(req as any, res as any);
       expect(res.status).toHaveBeenCalledWith(500);
@@ -446,7 +568,9 @@ describe("AppointmentController", () => {
   describe("listByLead", () => {
     it("returns 200 on success", async () => {
       req = mockRequest({ params: { leadId: "123" } });
-      (AppointmentService.getAppointmentsForLead as jest.Mock).mockResolvedValue(["data"]);
+      (
+        AppointmentService.getAppointmentsForLead as jest.Mock
+      ).mockResolvedValue(["data"]);
 
       await AppointmentController.listByLead(req as any, res as any);
       expect(res.status).toHaveBeenCalledWith(200);
@@ -454,7 +578,9 @@ describe("AppointmentController", () => {
 
     it("handles errors", async () => {
       req = mockRequest({ params: { leadId: "123" } });
-      (AppointmentService.getAppointmentsForLead as jest.Mock).mockRejectedValue(new Error("Fail"));
+      (
+        AppointmentService.getAppointmentsForLead as jest.Mock
+      ).mockRejectedValue(new Error("Fail"));
 
       await AppointmentController.listByLead(req as any, res as any);
       expect(res.status).toHaveBeenCalledWith(500);
@@ -475,25 +601,43 @@ describe("AppointmentController", () => {
     });
 
     it("returns 200 and url/key on success", async () => {
-      req = mockRequest({ body: { companionId: "comp-1", mimeType: "image/png" } });
-      (generatePresignedUrl as jest.Mock).mockResolvedValue({ url: "mock-url", key: "mock-key" });
+      req = mockRequest({
+        body: { companionId: "comp-1", mimeType: "image/png" },
+      });
+      (generatePresignedUrl as jest.Mock).mockResolvedValue({
+        url: "mock-url",
+        key: "mock-key",
+      });
 
       await AppointmentController.getDocumentUplaodURL(req as any, res as any);
 
-      expect(generatePresignedUrl).toHaveBeenCalledWith("image/png", "companion", "comp-1");
+      expect(generatePresignedUrl).toHaveBeenCalledWith(
+        "image/png",
+        "companion",
+        "comp-1",
+      );
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith({ url: "mock-url", key: "mock-key" });
+      expect(res.json).toHaveBeenCalledWith({
+        url: "mock-url",
+        key: "mock-key",
+      });
     });
 
     it("returns 500 on error", async () => {
-      req = mockRequest({ body: { companionId: "comp-1", mimeType: "image/png" } });
-      (generatePresignedUrl as jest.Mock).mockRejectedValue(new Error("S3 Fail"));
+      req = mockRequest({
+        body: { companionId: "comp-1", mimeType: "image/png" },
+      });
+      (generatePresignedUrl as jest.Mock).mockRejectedValue(
+        new Error("S3 Fail"),
+      );
 
       await AppointmentController.getDocumentUplaodURL(req as any, res as any);
 
       expect(logger.error).toHaveBeenCalled();
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ message: "Failed to generate upload URL." });
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Failed to generate upload URL.",
+      });
     });
   });
 });

@@ -31,10 +31,7 @@ const RevenueStat = () => {
       />
       <DynamicChartCard
         data={analytics.charts.revenue}
-        keys={[
-          { name: 'Completed', color: '#111' },
-          { name: 'Cancelled', color: '#ccc' },
-        ]}
+        keys={[{ name: 'Revenue', color: '#111' }]}
         yTickFormatter={(value) => formatMoney(value, currency)}
         yAxisWidth={48}
         barSize={16}

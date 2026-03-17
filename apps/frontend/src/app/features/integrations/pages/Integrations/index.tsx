@@ -86,6 +86,19 @@ const getIdexxCardButtonLabel = (saving: boolean, idexxEnabled: boolean): string
   return idexxEnabled ? 'Disable' : 'Enable';
 };
 
+const getIntegrationEmptyState = (
+  integrationStatus: string,
+  activeFilter: (typeof integrationFilters)[number]['key'],
+  idexxEnabled: boolean,
+  merckEnabled: boolean
+) => {
+  const isReady = integrationStatus !== 'loading';
+  return {
+    showNoConnected: isReady && activeFilter === 'connected' && !idexxEnabled && !merckEnabled,
+    showNoAvailable: isReady && activeFilter === 'available' && idexxEnabled && merckEnabled,
+  };
+};
+
 const formatOptionalDate = (value: string | null | undefined, fallback: string): string => {
   if (!value) return fallback;
   return formatDateTimeLocal(value);
@@ -649,19 +662,244 @@ const IdexxSettingsModal = ({
   );
 };
 
+type IntegrationsPageState = ReturnType<typeof useIntegrationsPage>;
+
+const IntegrationFilterTabs = ({
+  activeFilter,
+  setActiveFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+  setActiveFilter: IntegrationsPageState['setActiveFilter'];
+}) => (
+  <div className="flex items-center gap-2 flex-wrap">
+    {integrationFilters.map((tab) => {
+      const isActive = activeFilter === tab.key;
+      return (
+        <button
+          key={tab.key}
+          type="button"
+          onClick={() => setActiveFilter(tab.key)}
+          className="min-w-20 text-body-4 px-3 py-[6px] rounded-2xl! border border-card-border! transition-all duration-300 hover:bg-card-hover hover:border-card-hover! text-text-tertiary"
+          style={isActive ? { backgroundColor: tab.bg, color: tab.text } : undefined}
+        >
+          {tab.label}
+        </button>
+      );
+    })}
+  </div>
+);
+
+const IdexxIntegrationCard = ({
+  s,
+  buttonLabel,
+}: {
+  s: IntegrationsPageState;
+  buttonLabel: string;
+}) => {
+  if (!s.showIdexxCard) return null;
+
+  return (
+    <div className="rounded-2xl border border-card-border p-4 w-full md:flex-1 md:min-w-[320px] xl:max-w-[430px] flex items-stretch gap-4 min-h-[245px]">
+      <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
+        <div className="h-[72px] w-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center">
+          <Image
+            src={MEDIA_SOURCES.futureAssets.idexxLogoUrl}
+            alt="IDEXX"
+            width={56}
+            height={56}
+            className="object-contain max-h-[56px] max-w-[56px] h-auto w-auto"
+          />
+        </div>
+        {s.idexxEnabled ? (
+          <button
+            type="button"
+            onClick={s.handleEnableDisable}
+            aria-label="Disable IDEXX quick action"
+            title="Disable IDEXX quick action"
+            className="h-10 w-10 rounded-2xl! border border-red-200 flex items-center justify-center hover:bg-red-50 transition-colors cursor-pointer"
+          >
+            <IoTrashOutline className="text-red-600" size={16} />
+          </button>
+        ) : (
+          <div className="h-10 w-10" />
+        )}
+      </div>
+      <div className="flex-1 min-w-0 flex flex-col justify-between">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="text-heading-3 text-text-primary pt-1">IDEXX</div>
+            <StatusPill status={s.idexxIntegration?.status} />
+          </div>
+          <div className="text-body-4 text-text-secondary line-clamp-4">
+            IDEXX diagnostics integration for lab ordering, in-house device workflows, and clinical
+            result visibility in Yosemite.
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2 w-full items-center">
+          <Secondary
+            href="#"
+            text="Settings"
+            onClick={() => s.setShowSettings(true)}
+            className="w-full px-4"
+          />
+          {s.idexxEnabled ? (
+            <Primary href="/appointments/idexx-workspace" text="View" className="w-full px-4" />
+          ) : (
+            <Primary
+              href="#"
+              text={buttonLabel}
+              onClick={s.handleEnableDisable}
+              isDisabled={s.saving}
+              className="w-full px-4"
+            />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const MerckIntegrationCard = ({
+  s,
+  buttonLabel,
+}: {
+  s: IntegrationsPageState;
+  buttonLabel: string;
+}) => {
+  if (!s.showMerckCard) return null;
+
+  return (
+    <div className="rounded-2xl border border-card-border p-4 w-full md:flex-1 md:min-w-[320px] xl:max-w-[430px] flex items-stretch gap-4 min-h-[245px]">
+      <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
+        <div className="h-[72px] w-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center">
+          <Image
+            src={MEDIA_SOURCES.futureAssets.merckLogoUrl}
+            alt="Merck Manuals"
+            width={56}
+            height={56}
+            className="object-contain max-h-[56px] max-w-[56px] h-auto w-auto"
+          />
+        </div>
+        {s.merckEnabled ? (
+          <button
+            type="button"
+            onClick={s.handleMerckEnableDisable}
+            aria-label="Disable Merck Manuals"
+            title="Disable Merck Manuals"
+            className="h-10 w-10 rounded-2xl! border border-red-200 flex items-center justify-center hover:bg-red-50 transition-colors cursor-pointer"
+          >
+            <IoTrashOutline className="text-red-600" size={16} />
+          </button>
+        ) : (
+          <div className="h-10 w-10" />
+        )}
+      </div>
+      <div className="flex-1 min-w-0 flex flex-col justify-between">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="text-heading-3 text-text-primary pt-1">Merck Manuals</div>
+            <StatusPill status={s.merckIntegration?.status} />
+          </div>
+          <div className="text-body-4 text-text-secondary line-clamp-4">
+            Veterinary manuals search and reader experience with professional and consumer content
+            modes.
+          </div>
+        </div>
+        <div className="flex flex-col gap-2">
+          <div className="flex w-full items-center justify-end">
+            {s.merckEnabled ? (
+              <Primary
+                href="/integrations/merck-manuals"
+                text="View"
+                className="w-full max-w-[160px] px-4"
+              />
+            ) : (
+              <Primary
+                href="#"
+                text={buttonLabel}
+                onClick={s.handleMerckEnableDisable}
+                isDisabled={s.merckSaving}
+                className="w-full max-w-[160px] px-4"
+              />
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const RadIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (activeFilter === 'connected') return null;
+
+  return (
+    <div className="rounded-2xl border border-card-border p-4 w-full md:flex-1 md:min-w-[320px] xl:max-w-[430px] flex items-stretch gap-4 min-h-[245px]">
+      <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
+        <div className="h-[72px] w-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center overflow-hidden">
+          <Image
+            src={MEDIA_SOURCES.futureAssets.radAnalyzerLogoUrl}
+            alt="RAD Analyzer"
+            width={56}
+            height={56}
+            className="object-contain max-h-[56px] max-w-[56px] h-auto w-auto"
+          />
+        </div>
+        <div className="h-10 w-10" />
+      </div>
+      <div className="flex-1 min-w-0 flex flex-col justify-between">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="text-heading-3 text-text-primary pt-1">RAD Analyzer</div>
+            <span className="text-label-xsmall px-2 py-1 rounded bg-amber-50 text-amber-700">
+              Coming soon
+            </span>
+          </div>
+          <div className="text-body-4 text-text-secondary line-clamp-4">
+            Imaging and analyzer connectivity for diagnostic workflows in Yosemite.
+          </div>
+        </div>
+        <div className="flex flex-col gap-2">
+          <div className="flex w-full items-center justify-end">
+            <Primary href="#" text="Coming soon" isDisabled className="w-full max-w-[160px] px-4" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const IntegrationCards = ({
+  s,
+  idexxCardButtonLabel,
+  merckCardButtonLabel,
+}: {
+  s: IntegrationsPageState;
+  idexxCardButtonLabel: string;
+  merckCardButtonLabel: string;
+}) => {
+  if (!s.showIdexxCard && !s.showMerckCard && s.activeFilter === 'connected') return null;
+
+  return (
+    <div className="flex flex-wrap gap-4 items-stretch">
+      <IdexxIntegrationCard s={s} buttonLabel={idexxCardButtonLabel} />
+      <MerckIntegrationCard s={s} buttonLabel={merckCardButtonLabel} />
+      <RadIntegrationCard activeFilter={s.activeFilter} />
+    </div>
+  );
+};
+
 const IntegrationsPage = () => {
   const s = useIntegrationsPage();
-
-  const showNoConnected =
-    s.integrationStatus !== 'loading' &&
-    s.activeFilter === 'connected' &&
-    !s.idexxEnabled &&
-    !s.merckEnabled;
-  const showNoAvailable =
-    s.integrationStatus !== 'loading' &&
-    s.activeFilter === 'available' &&
-    s.idexxEnabled &&
-    s.merckEnabled;
+  const { showNoConnected, showNoAvailable } = getIntegrationEmptyState(
+    s.integrationStatus,
+    s.activeFilter,
+    s.idexxEnabled,
+    s.merckEnabled
+  );
   const idexxCardButtonLabel = getIdexxCardButtonLabel(s.saving, s.idexxEnabled);
   const merckCardButtonLabel = getIdexxCardButtonLabel(s.merckSaving, s.merckEnabled);
 
@@ -682,150 +920,13 @@ const IntegrationsPage = () => {
 
       {s.error ? <div className="text-body-4 text-text-error">{s.error}</div> : null}
 
-      <div className="flex items-center gap-2 flex-wrap">
-        {integrationFilters.map((tab) => {
-          const isActive = s.activeFilter === tab.key;
-          return (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => s.setActiveFilter(tab.key)}
-              className="min-w-20 text-body-4 px-3 py-[6px] rounded-2xl! border border-card-border! transition-all duration-300 hover:bg-card-hover hover:border-card-hover! text-text-tertiary"
-              style={isActive ? { backgroundColor: tab.bg, color: tab.text } : undefined}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
+      <IntegrationFilterTabs activeFilter={s.activeFilter} setActiveFilter={s.setActiveFilter} />
 
-      {s.showIdexxCard || s.showMerckCard ? (
-        <div className="flex flex-wrap gap-4 items-stretch">
-          {s.showIdexxCard ? (
-            <div className="rounded-2xl border border-card-border p-4 w-full md:flex-1 md:min-w-[320px] xl:max-w-[430px] flex items-stretch gap-4 min-h-[245px]">
-              <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
-                <div className="h-[72px] w-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center">
-                  <Image
-                    src={MEDIA_SOURCES.futureAssets.idexxLogoUrl}
-                    alt="IDEXX"
-                    width={56}
-                    height={56}
-                    className="object-contain max-h-[56px] max-w-[56px] h-auto w-auto"
-                  />
-                </div>
-                {s.idexxEnabled ? (
-                  <button
-                    type="button"
-                    onClick={s.handleEnableDisable}
-                    aria-label="Disable IDEXX quick action"
-                    title="Disable IDEXX quick action"
-                    className="h-10 w-10 rounded-2xl! border border-red-200 flex items-center justify-center hover:bg-red-50 transition-colors cursor-pointer"
-                  >
-                    <IoTrashOutline className="text-red-600" size={16} />
-                  </button>
-                ) : (
-                  <div className="h-10 w-10" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0 flex flex-col justify-between">
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="text-heading-3 text-text-primary pt-1">IDEXX</div>
-                    <StatusPill status={s.idexxIntegration?.status} />
-                  </div>
-                  <div className="text-body-4 text-text-secondary line-clamp-4">
-                    IDEXX diagnostics integration for lab ordering, in-house device workflows, and
-                    clinical result visibility in Yosemite.
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2 w-full items-center">
-                  <Secondary
-                    href="#"
-                    text="Settings"
-                    onClick={() => s.setShowSettings(true)}
-                    className="w-full px-4"
-                  />
-                  {s.idexxEnabled ? (
-                    <Primary
-                      href="/appointments/idexx-workspace"
-                      text="View"
-                      className="w-full px-4"
-                    />
-                  ) : (
-                    <Primary
-                      href="#"
-                      text={idexxCardButtonLabel}
-                      onClick={s.handleEnableDisable}
-                      isDisabled={s.saving}
-                      className="w-full px-4"
-                    />
-                  )}
-                </div>
-              </div>
-            </div>
-          ) : null}
-
-          {s.showMerckCard ? (
-            <div className="rounded-2xl border border-card-border p-4 w-full md:flex-1 md:min-w-[320px] xl:max-w-[430px] flex items-stretch gap-4 min-h-[245px]">
-              <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
-                <div className="h-[72px] w-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center">
-                  <Image
-                    src={MEDIA_SOURCES.futureAssets.merckLogoUrl}
-                    alt="Merck Manuals"
-                    width={56}
-                    height={56}
-                    className="object-contain max-h-[56px] max-w-[56px] h-auto w-auto"
-                  />
-                </div>
-                {s.merckEnabled ? (
-                  <button
-                    type="button"
-                    onClick={s.handleMerckEnableDisable}
-                    aria-label="Disable Merck Manuals"
-                    title="Disable Merck Manuals"
-                    className="h-10 w-10 rounded-2xl! border border-red-200 flex items-center justify-center hover:bg-red-50 transition-colors cursor-pointer"
-                  >
-                    <IoTrashOutline className="text-red-600" size={16} />
-                  </button>
-                ) : (
-                  <div className="h-10 w-10" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0 flex flex-col justify-between">
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="text-heading-3 text-text-primary pt-1">Merck Manuals</div>
-                    <StatusPill status={s.merckIntegration?.status} />
-                  </div>
-                  <div className="text-body-4 text-text-secondary line-clamp-4">
-                    Veterinary manuals search and reader experience with professional and consumer
-                    content modes.
-                  </div>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <div className="flex w-full items-center justify-end">
-                    {s.merckEnabled ? (
-                      <Primary
-                        href="/integrations/merck-manuals"
-                        text="View"
-                        className="w-full max-w-[160px] px-4"
-                      />
-                    ) : (
-                      <Primary
-                        href="#"
-                        text={merckCardButtonLabel}
-                        onClick={s.handleMerckEnableDisable}
-                        isDisabled={s.merckSaving}
-                        className="w-full max-w-[160px] px-4"
-                      />
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+      <IntegrationCards
+        s={s}
+        idexxCardButtonLabel={idexxCardButtonLabel}
+        merckCardButtonLabel={merckCardButtonLabel}
+      />
 
       {showNoConnected ? (
         <div className="text-body-4 text-text-secondary">No connected integrations yet.</div>

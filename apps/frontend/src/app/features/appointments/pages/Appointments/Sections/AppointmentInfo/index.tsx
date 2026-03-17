@@ -57,6 +57,7 @@ import { useSigningOverlayStore } from '@/app/stores/signingOverlayStore';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
+import { normalizeAppointmentStatus } from '@/app/lib/appointments';
 
 const ALLOWED_CATEGORIES_BY_ORG: Record<string, string[]> = {
   HOSPITAL: ['Prescription', 'Consent form', 'Custom'],
@@ -123,6 +124,7 @@ type CustomFormsSectionProps = {
   canEdit: boolean;
   activeAppointment: Appointment | null;
   templates: { value: string; label: string; schema: FormField[]; form: any }[];
+  accordionTitle?: string;
   onSubmission?: (entry: AppointmentFormEntry) => void;
   onSubmissionUpdate?: (
     submissionId: string,
@@ -142,6 +144,7 @@ const CustomFormsSection: React.FC<CustomFormsSectionProps> = ({
   canEdit,
   activeAppointment,
   templates,
+  accordionTitle,
   onSubmission,
   onSubmissionUpdate,
   onFormLinked,
@@ -156,6 +159,7 @@ const CustomFormsSection: React.FC<CustomFormsSectionProps> = ({
     onSubmissionUpdate={onSubmissionUpdate}
     onFormLinked={onFormLinked}
     templates={templates}
+    accordionTitle={accordionTitle}
   />
 );
 
@@ -167,6 +171,7 @@ const CustomFormsView = ({
   activeAppointment,
   onSubmission,
   templates,
+  accordionTitle,
   onSubmissionUpdate,
   onFormLinked,
 }: {
@@ -177,6 +182,7 @@ const CustomFormsView = ({
   activeAppointment: Appointment | null;
   onSubmission?: (entry: AppointmentFormEntry) => void;
   templates: { value: string; label: string; schema: FormField[]; form: any }[];
+  accordionTitle?: string;
   onSubmissionUpdate?: (
     submissionId: string,
     updates: Partial<FormSubmission> & { signatureRequired?: boolean }
@@ -219,12 +225,17 @@ const CustomFormsView = ({
   };
 
   return (
-    <Accordion title="Templates" defaultOpen={true} showEditIcon={false} isEditing>
+    <Accordion
+      title={accordionTitle || 'Templates'}
+      defaultOpen={true}
+      showEditIcon={false}
+      isEditing
+    >
       <div className="flex flex-col gap-4 w-full">
         {canEdit ? (
           <div className="flex flex-col gap-3">
             <SearchDropdown
-              placeholder="Search form templates"
+              placeholder="Search templates"
               options={templates.map((t) => ({ value: t.value, label: t.label }))}
               onSelect={(id: string) => {
                 const match = templates.find((t) => t.value === id);
@@ -511,7 +522,7 @@ const CustomFormsView = ({
         })}
         {forms.length === 0 ? (
           <Accordion
-            title="Previous form submissions"
+            title="Previous Submissions"
             defaultOpen={false}
             showEditIcon={false}
             isEditing
@@ -608,6 +619,8 @@ const hospitalLabels = [
             className="object-contain"
           />
         ),
+        redirectHref: '/integrations/merck-manuals',
+        redirectLabel: 'Open Merck Manuals',
       },
     ],
   },
@@ -643,6 +656,8 @@ const hospitalLabels = [
             className="object-contain"
           />
         ),
+        redirectHref: '/appointments/idexx-workspace',
+        redirectLabel: 'Open IDEXX Hub',
       },
     ],
   },
@@ -657,11 +672,13 @@ const AppoitmentInfo = ({
   onReschedule,
 }: AppoitmentInfoProps) => {
   const { can } = usePermissions();
-  const canEdit = can(PERMISSIONS.PRESCRIPTION_EDIT_OWN);
+  const appointmentStatus = normalizeAppointmentStatus(activeAppointment?.status);
+  const canEdit = can(PERMISSIONS.PRESCRIPTION_EDIT_OWN) && appointmentStatus !== 'COMPLETED';
   const services = useServicesForPrimaryOrgSpecialities();
   const [activeLabel, setActiveLabel] = useState<LabelKey>(hospitalLabels[0].key as LabelKey);
   const [activeSubLabel, setActiveSubLabel] = useState<string>(hospitalLabels[0].labels[0].key);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const lastOpenedAppointmentIdRef = useRef<string | null>(null);
 
   const [customForms, setCustomForms] = useState<AppointmentFormEntry[]>([]);
   const [customFormsLoading, setCustomFormsLoading] = useState(false);
@@ -725,7 +742,17 @@ const AppoitmentInfo = ({
   }, [allForms, orgType]);
 
   const labels = useMemo(() => {
-    const base = getLabelsForOrgType(orgType, hospitalLabels);
+    const base = getLabelsForOrgType(orgType, hospitalLabels).map((label: any) => {
+      if (orgType === 'HOSPITAL' && label.key === 'prescription') {
+        return {
+          ...label,
+          labels: (label.labels ?? []).map((subLabel: any) =>
+            subLabel.key === 'forms' ? { ...subLabel, name: 'Medical Notes' } : subLabel
+          ),
+        };
+      }
+      return label;
+    });
     if (merckEnabled) return base;
     return base.map((label: any) => {
       if (label.key !== 'prescription') return label;
@@ -737,6 +764,8 @@ const AppoitmentInfo = ({
       };
     });
   }, [orgType, merckEnabled]);
+  const formsAccordionTitle =
+    orgType === 'HOSPITAL' && activeLabel === 'prescription' ? 'Medical Notes' : 'Templates';
 
   useEffect(() => {
     if (!showModal || !initialViewIntent) return;
@@ -754,6 +783,24 @@ const AppoitmentInfo = ({
         : (targetLabel.labels[0]?.key ?? '')
     );
   }, [showModal, initialViewIntent, labels]);
+
+  useEffect(() => {
+    if (!showModal) return;
+    const currentAppointmentId = activeAppointment?.id ?? null;
+    const lastAppointmentId = lastOpenedAppointmentIdRef.current;
+    const isDifferentAppointment =
+      !!currentAppointmentId && !!lastAppointmentId && currentAppointmentId !== lastAppointmentId;
+
+    if (isDifferentAppointment && !initialViewIntent) {
+      const defaultLabel = labels[0];
+      setActiveLabel(defaultLabel.key as LabelKey);
+      setActiveSubLabel(defaultLabel.labels[0]?.key ?? '');
+    }
+
+    if (currentAppointmentId) {
+      lastOpenedAppointmentIdRef.current = currentAppointmentId;
+    }
+  }, [showModal, activeAppointment?.id, initialViewIntent, labels]);
 
   const COMPONENT_MAP: Record<string, Record<string, React.FC<any>>> = {
     info: {
@@ -1035,6 +1082,7 @@ const AppoitmentInfo = ({
               loading={customFormsLoading}
               error={customFormsError}
               templates={templatesForOrg}
+              accordionTitle={formsAccordionTitle}
               onSubmission={upsertCustomForm}
               onFormLinked={upsertCustomForm}
               onSubmissionUpdate={updateCustomFormSubmission}

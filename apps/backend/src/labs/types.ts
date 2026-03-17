@@ -51,7 +51,10 @@ export type LabOrderCreateResult = {
 
 export interface LabOrderAdapter {
   createOrder(input: LabOrderCreateInput): Promise<LabOrderCreateResult>;
-  getOrder(idexxOrderId: string, input: LabOrderCreateInput): Promise<LabOrderCreateResult>;
+  getOrder(
+    idexxOrderId: string,
+    input: LabOrderCreateInput,
+  ): Promise<LabOrderCreateResult>;
   updateOrder(
     idexxOrderId: string,
     input: LabOrderCreateInput,

@@ -269,4 +269,27 @@ describe('IDEXX Hub page', () => {
       ).toBe(true);
     });
   });
+
+  it('shows IVLS device IDs in the census list', async () => {
+    getIdexxCensusMock.mockResolvedValue([
+      {
+        id: 465,
+        patient: {
+          patientId: 'patient-1',
+          name: 'Doggy',
+        },
+        veterinarian: 'Harshit Wandhare',
+        ivls: [{ serialNumber: 'PTH999900000827', displayName: null }],
+        confirmedBy: [],
+        confirmed: false,
+      },
+    ]);
+
+    render(<ProtectedIdexxWorkspace />);
+
+    await waitFor(() => {
+      expect(screen.getByText('IVLS Device ID')).toBeInTheDocument();
+      expect(screen.getByText('PTH999900000827')).toBeInTheDocument();
+    });
+  });
 });

@@ -90,7 +90,9 @@ export class IdexxResultsClient {
     );
     return {
       data: response.data,
-      headers: this.normalizeHeaders(response.headers as Record<string, unknown>),
+      headers: this.normalizeHeaders(
+        response.headers as Record<string, unknown>,
+      ),
     };
   }
 
@@ -103,7 +105,9 @@ export class IdexxResultsClient {
     );
     return {
       data: response.data,
-      headers: this.normalizeHeaders(response.headers as Record<string, unknown>),
+      headers: this.normalizeHeaders(
+        response.headers as Record<string, unknown>,
+      ),
     };
   }
 

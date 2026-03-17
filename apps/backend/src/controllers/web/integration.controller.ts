@@ -26,9 +26,7 @@ export const IntegrationController = {
         return res.status(error.statusCode).json({ message: error.message });
       }
       logger.error("Failed to list integrations", error);
-      return res
-        .status(500)
-        .json({ message: "Failed to list integrations." });
+      return res.status(500).json({ message: "Failed to list integrations." });
     }
   },
 
@@ -55,9 +53,7 @@ export const IntegrationController = {
         return res.status(error.statusCode).json({ message: error.message });
       }
       logger.error("Failed to fetch integration", error);
-      return res
-        .status(500)
-        .json({ message: "Failed to fetch integration." });
+      return res.status(500).json({ message: "Failed to fetch integration." });
     }
   },
 
@@ -109,9 +105,7 @@ export const IntegrationController = {
         return res.status(error.statusCode).json({ message: error.message });
       }
       logger.error("Failed to enable integration", error);
-      return res
-        .status(500)
-        .json({ message: "Failed to enable integration." });
+      return res.status(500).json({ message: "Failed to enable integration." });
     }
   },
 

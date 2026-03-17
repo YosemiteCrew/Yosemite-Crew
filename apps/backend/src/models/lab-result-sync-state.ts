@@ -19,7 +19,8 @@ const LabResultSyncStateSchema = new Schema<LabResultSyncStateMongo>(
   { timestamps: true, collection: "lab_result_sync_states" },
 );
 
-export type LabResultSyncStateDocument = HydratedDocument<LabResultSyncStateMongo>;
+export type LabResultSyncStateDocument =
+  HydratedDocument<LabResultSyncStateMongo>;
 
 export default model<LabResultSyncStateMongo>(
   "LabResultSyncState",

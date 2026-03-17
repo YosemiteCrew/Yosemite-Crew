@@ -44,6 +44,12 @@ jest.mock('@/app/features/appointments/pages/Appointments/Sections/Reschedule', 
   <div data-testid="reschedule" />
 ));
 
+jest.mock('@/app/features/appointments/pages/Appointments/Sections/ChangeRoom', () => () => (
+  <div data-testid="change-room" />
+));
+
+jest.mock('@/app/features/appointments/pages/Appointments/Sections/ChangeStatus', () => () => null);
+
 jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
   PermissionGate: ({ children }: any) => <div>{children}</div>,
 }));
@@ -72,7 +78,7 @@ describe('AppointmentTask summary', () => {
     expect(screen.getByText('(2)')).toBeInTheDocument();
 
     const props = appointmentsSpy.mock.calls[0][0];
-    expect(props.filteredList).toEqual([appointments[0]]);
+    expect(props.filteredList).toEqual(appointments);
     expect(screen.getByTestId('reschedule')).toBeInTheDocument();
   });
 
@@ -84,6 +90,15 @@ describe('AppointmentTask summary', () => {
     expect(screen.getByTestId('tasks-table')).toBeInTheDocument();
 
     const latestProps = tasksSpy.mock.calls.at(-1)[0];
-    expect(latestProps.filteredList).toEqual([tasks[0]]);
+    expect(latestProps.filteredList).toEqual(tasks);
+  });
+
+  it('filters appointments when a specific status is selected', () => {
+    render(<AppointmentTask />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Requested' }));
+
+    const latestProps = appointmentsSpy.mock.calls.at(-1)[0];
+    expect(latestProps.filteredList).toEqual([appointments[0]]);
   });
 });

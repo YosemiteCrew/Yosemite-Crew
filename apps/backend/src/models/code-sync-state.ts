@@ -26,7 +26,4 @@ CodeSyncStateSchema.index({ system: 1, kind: 1 }, { unique: true });
 
 export type CodeSyncStateDocument = HydratedDocument<CodeSyncStateMongo>;
 
-export default model<CodeSyncStateMongo>(
-  "CodeSyncState",
-  CodeSyncStateSchema,
-);
+export default model<CodeSyncStateMongo>("CodeSyncState", CodeSyncStateSchema);

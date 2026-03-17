@@ -1,15 +1,16 @@
-"use client";
-import React, { useState, useRef, useEffect } from "react";
-import { Button, Modal } from "react-bootstrap";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+'use client';
+import React, { useState, useRef, useEffect } from 'react';
+import { Button, Modal } from 'react-bootstrap';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
-import { Icon } from "@iconify/react/dist/iconify.js";
-import { useAuthStore } from "@/app/stores/authStore";
-import { postData } from "@/app/services/axios";
-import { useSignOut } from "@/app/hooks/useAuth";
+import { Icon } from '@iconify/react/dist/iconify.js';
+import { useAuthStore } from '@/app/stores/authStore';
+import { postData } from '@/app/services/axios';
+import { useSignOut } from '@/app/hooks/useAuth';
+import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
 
-import "./OtpModal.css";
+import './OtpModal.css';
 
 const OtpModal = ({
   email,
@@ -17,13 +18,13 @@ const OtpModal = ({
   showErrorTost,
   showVerifyModal,
   setShowVerifyModal,
-  redirectPath = "/organizations",
+  redirectPath,
   isDeveloper = false,
 }: any) => {
   const { signOut } = useSignOut();
-  const { confirmSignUp, resendCode, signIn } = useAuthStore();
+  const { confirmSignUp, resendCode, signIn, role } = useAuthStore();
   const router = useRouter();
-  const [code, setCode] = useState(new Array(6).fill(""));
+  const [code, setCode] = useState(new Array(6).fill(''));
   const [activeInput, setActiveInput] = useState(0);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [invalidOtp, setInvalidOtp] = useState(false);
@@ -35,11 +36,8 @@ const OtpModal = ({
   const [timer, setTimer] = useState(150); // 2.30 minutes in seconds
   const [timerActive, setTimerActive] = useState(false);
 
-  const handleCodeChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    idx: number
-  ) => {
-    const val = e.target.value.replaceAll(/\D/g, "");
+  const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>, idx: number) => {
+    const val = e.target.value.replaceAll(/\D/g, '');
     if (!val) return;
     const newCode = [...code];
     newCode[idx] = val[0];
@@ -50,23 +48,20 @@ const OtpModal = ({
     }
   };
 
-  const handleCodeKeyDown = (
-    e: React.KeyboardEvent<HTMLInputElement>,
-    idx: number
-  ) => {
-    if (e.key === "Backspace") {
+  const handleCodeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, idx: number) => {
+    if (e.key === 'Backspace') {
       if (code[idx]) {
         const newCode = [...code];
-        newCode[idx] = "";
+        newCode[idx] = '';
         setCode(newCode);
       } else if (idx > 0) {
         otpRefs.current[idx - 1]?.focus();
         setActiveInput(idx - 1);
       }
-    } else if (e.key === "ArrowLeft" && idx > 0) {
+    } else if (e.key === 'ArrowLeft' && idx > 0) {
       otpRefs.current[idx - 1]?.focus();
       setActiveInput(idx - 1);
-    } else if (e.key === "ArrowRight" && idx < 5) {
+    } else if (e.key === 'ArrowRight' && idx < 5) {
       otpRefs.current[idx + 1]?.focus();
       setActiveInput(idx + 1);
     }
@@ -74,7 +69,7 @@ const OtpModal = ({
 
   const afterAuthSuccess = async () => {
     try {
-      await postData("/fhir/v1/user");
+      await postData('/fhir/v1/user');
     } catch (error) {
       await signOut();
       throw error;
@@ -82,56 +77,45 @@ const OtpModal = ({
   };
 
   const handleVerify = async (): Promise<void> => {
-    if (code.includes("")) {
+    if (code.includes('')) {
       showErrorTost({
-        message: "Please enter the full OTP",
-        errortext: "Error",
+        message: 'Please enter the full OTP',
+        errortext: 'Error',
         iconElement: (
-          <Icon
-            icon="solar:danger-triangle-bold"
-            width="20"
-            height="20"
-            color="#EA3729"
-          />
+          <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />
         ),
-        className: "errofoundbg",
+        className: 'errofoundbg',
       });
       return;
     }
 
     try {
-      const result = await confirmSignUp(email, code.join(""));
+      const result = await confirmSignUp(email, code.join(''));
       if (result) {
-        setCode(new Array(6).fill(""));
+        setCode(new Array(6).fill(''));
         setShowVerifyModal(false);
         try {
           await signIn(email, password);
           await afterAuthSuccess();
           // Set devAuth flag BEFORE redirect so DevRouteGuard can read it
-          globalThis.window?.sessionStorage?.setItem(
-            "devAuth",
-            isDeveloper ? "true" : "false",
-          );
-          router.push(redirectPath);
+          globalThis.window?.sessionStorage?.setItem('devAuth', isDeveloper ? 'true' : 'false');
+          const signedInRole =
+            typeof useAuthStore.getState === 'function' ? useAuthStore.getState().role : role;
+          router.push(redirectPath ?? resolveDefaultOpenScreenRoute(signedInRole));
         } catch (error) {
           console.log(error);
           showErrorTost({
             message: `Sign in failed`,
-            errortext: "Error",
+            errortext: 'Error',
             iconElement: (
-              <Icon
-                icon="solar:danger-triangle-bold"
-                width="20"
-                height="20"
-                color="#EA3729"
-              />
+              <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />
             ),
-            className: "errofoundbg",
+            className: 'errofoundbg',
           });
         }
       }
     } catch (error: any) {
-      globalThis.window?.scrollTo({ top: 0, behavior: "smooth" });
+      globalThis.window?.scrollTo({ top: 0, behavior: 'smooth' });
       console.log(error);
       setInvalidOtp(true);
     }
@@ -141,39 +125,29 @@ const OtpModal = ({
     try {
       const result = await resendCode(email);
       if (result) {
-        globalThis.window?.scrollTo({ top: 0, behavior: "smooth" });
+        globalThis.window?.scrollTo({ top: 0, behavior: 'smooth' });
         showErrorTost({
-          message: "A new verification code has been sent to your email.",
-          errortext: "Code Resent",
+          message: 'A new verification code has been sent to your email.',
+          errortext: 'Code Resent',
           iconElement: (
-            <Icon
-              icon="solar:danger-triangle-bold"
-              width="20"
-              height="20"
-              color="#00C853"
-            />
+            <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#00C853" />
           ),
-          className: "CongratsBg",
+          className: 'CongratsBg',
         });
-        setCode(new Array(6).fill("")); // Clear OTP fields on resend
+        setCode(new Array(6).fill('')); // Clear OTP fields on resend
         setActiveInput(0); // Focus first input
         setTimer(150);
         setTimerActive(true);
       }
     } catch (error: any) {
-      globalThis.window?.scrollTo({ top: 0, behavior: "smooth" });
+      globalThis.window?.scrollTo({ top: 0, behavior: 'smooth' });
       showErrorTost({
-        message: error.message || "Error resending code.",
-        errortext: "Error",
+        message: error.message || 'Error resending code.',
+        errortext: 'Error',
         iconElement: (
-          <Icon
-            icon="solar:danger-triangle-bold"
-            width="20"
-            height="20"
-            color="#EA3729"
-          />
+          <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />
         ),
-        className: "errofoundbg",
+        className: 'errofoundbg',
       });
     }
   };
@@ -211,15 +185,13 @@ const OtpModal = ({
       <Modal.Body>
         <div className="VerifyModalTopInner">
           <div className="VerifyTexted">
-            <div className="text-display-2 text-text-primary">
-              Verify Email Address
-            </div>
+            <div className="text-display-2 text-text-primary">Verify Email Address</div>
             <div className="text-body-3-emphasis text-text-primary">
               A Verification code has been sent to <br /> <span>{email}</span>
             </div>
             <p>
-              Please check your inbox and enter the verification code below to
-              verify your email address. The Code will expire soon.
+              Please check your inbox and enter the verification code below to verify your email
+              address. The Code will expire soon.
             </p>
           </div>
           <div className="verifyInputDiv">
@@ -239,26 +211,22 @@ const OtpModal = ({
             </div>
             {invalidOtp ? (
               <p>
-                <Icon icon="solar:danger-circle-bold" width="18" height="18" />{" "}
-                Invalid OTP
+                <Icon icon="solar:danger-circle-bold" width="18" height="18" /> Invalid OTP
               </p>
             ) : (
-              ""
-            )}{" "}
+              ''
+            )}{' '}
           </div>
         </div>
         <div className="VerifyModalBottomInner">
           <div className="VerifyBtnDiv">
-            <Button
-              onClick={handleVerify}
-              disabled={timer === 0 || code.includes("")}
-            >
+            <Button onClick={handleVerify} disabled={timer === 0 || code.includes('')}>
               Verify Code
             </Button>
             <span>
               {timer > 0
-                ? `${String(Math.floor(timer / 60)).padStart(2, "0")}:${String(timer % 60).padStart(2, "0")} sec`
-                : "Code expired"}
+                ? `${String(Math.floor(timer / 60)).padStart(2, '0')}:${String(timer % 60).padStart(2, '0')} sec`
+                : 'Code expired'}
             </span>
           </div>
           <div className="VerifyResent">

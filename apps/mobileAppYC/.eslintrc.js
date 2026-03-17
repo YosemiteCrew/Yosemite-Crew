@@ -11,6 +11,19 @@ module.exports = {
     'coverage/',
     'index.js',
     'react-native.config.js',
-    'jest.setup-before-env.js'
+    'jest.setup-before-env.js',
+  ],
+  overrides: [
+    {
+      files: ['e2e/**/*.e2e.js'],
+      env: {
+        jest: true,
+      },
+      globals: {
+        device: 'readonly',
+        element: 'readonly',
+        by: 'readonly',
+      },
+    },
   ],
 };

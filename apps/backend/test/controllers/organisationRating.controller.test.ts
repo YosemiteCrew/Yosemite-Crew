@@ -55,7 +55,9 @@ describe("OrganisationRatingController", () => {
 
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({ message: "Rating is required." });
-      expect(AuthUserMobileService.getByProviderUserId).toHaveBeenCalledWith("auth-123");
+      expect(AuthUserMobileService.getByProviderUserId).toHaveBeenCalledWith(
+        "auth-123",
+      );
     });
 
     it("should return 400 if parentId is not found for the user", async () => {
@@ -67,7 +69,9 @@ describe("OrganisationRatingController", () => {
       const res = mockResponse();
 
       // Mock user found but no parentId
-      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValue({
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({
         _id: "user-obj-id",
         parentId: null,
       });
@@ -75,7 +79,9 @@ describe("OrganisationRatingController", () => {
       await OrganisationRatingController.rateOrganisation(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ message: "Parent not found for user." });
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Parent not found for user.",
+      });
     });
 
     it("should successfully submit rating when using x-user-id header", async () => {
@@ -86,10 +92,14 @@ describe("OrganisationRatingController", () => {
       });
       const res = mockResponse();
 
-      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValue({
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({
         parentId: "parent-123",
       });
-      (OrganizationRatingService.rateOrganisation as jest.Mock).mockResolvedValue(undefined);
+      (
+        OrganizationRatingService.rateOrganisation as jest.Mock
+      ).mockResolvedValue(undefined);
 
       await OrganisationRatingController.rateOrganisation(req, res);
 
@@ -97,10 +107,12 @@ describe("OrganisationRatingController", () => {
         "org-123",
         "parent-123",
         4,
-        "Great service"
+        "Great service",
       );
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith({ message: "Rating submitted successfully." });
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Rating submitted successfully.",
+      });
     });
 
     it("should resolve user from req.userId fallback when header is missing or an array", async () => {
@@ -112,18 +124,22 @@ describe("OrganisationRatingController", () => {
       });
       const res = mockResponse();
 
-      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValue({
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({
         parentId: "parent-123",
       });
 
       await OrganisationRatingController.rateOrganisation(req, res);
 
-      expect(AuthUserMobileService.getByProviderUserId).toHaveBeenCalledWith("fallback-auth-123");
+      expect(AuthUserMobileService.getByProviderUserId).toHaveBeenCalledWith(
+        "fallback-auth-123",
+      );
       expect(OrganizationRatingService.rateOrganisation).toHaveBeenCalledWith(
         "org-123",
         "parent-123",
         5,
-        undefined
+        undefined,
       );
       expect(res.status).toHaveBeenCalledWith(200);
     });
@@ -137,11 +153,16 @@ describe("OrganisationRatingController", () => {
       const res = mockResponse();
 
       const testError = new Error("DB crash");
-      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockRejectedValue(testError);
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockRejectedValue(testError);
 
       await OrganisationRatingController.rateOrganisation(req, res);
 
-      expect(logger.error).toHaveBeenCalledWith("Error while rating an organisation: ", testError);
+      expect(logger.error).toHaveBeenCalledWith(
+        "Error while rating an organisation: ",
+        testError,
+      );
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({ message: "Unable to rate." });
     });
@@ -155,12 +176,16 @@ describe("OrganisationRatingController", () => {
       });
       const res = mockResponse();
 
-      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValue(null);
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue(null);
 
       await OrganisationRatingController.isUserRatedOrganisation(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ message: "Parent not found for user." });
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Parent not found for user.",
+      });
     });
 
     it("should return 200 with hasRated true if user has rated", async () => {
@@ -170,17 +195,20 @@ describe("OrganisationRatingController", () => {
       });
       const res = mockResponse();
 
-      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValue({
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({
         parentId: "parent-123",
       });
-      (OrganizationRatingService.isUserRatedOrganisation as jest.Mock).mockResolvedValue(true);
+      (
+        OrganizationRatingService.isUserRatedOrganisation as jest.Mock
+      ).mockResolvedValue(true);
 
       await OrganisationRatingController.isUserRatedOrganisation(req, res);
 
-      expect(OrganizationRatingService.isUserRatedOrganisation).toHaveBeenCalledWith(
-        "org-123",
-        "parent-123"
-      );
+      expect(
+        OrganizationRatingService.isUserRatedOrganisation,
+      ).toHaveBeenCalledWith("org-123", "parent-123");
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({ hasRated: true });
     });
@@ -192,10 +220,14 @@ describe("OrganisationRatingController", () => {
       });
       const res = mockResponse();
 
-      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValue({
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({
         parentId: "parent-123",
       });
-      (OrganizationRatingService.isUserRatedOrganisation as jest.Mock).mockResolvedValue(false);
+      (
+        OrganizationRatingService.isUserRatedOrganisation as jest.Mock
+      ).mockResolvedValue(false);
 
       await OrganisationRatingController.isUserRatedOrganisation(req, res);
 
@@ -211,19 +243,25 @@ describe("OrganisationRatingController", () => {
       const res = mockResponse();
 
       const testError = new Error("Network error");
-      (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValue({
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({
         parentId: "parent-123",
       });
-      (OrganizationRatingService.isUserRatedOrganisation as jest.Mock).mockRejectedValue(testError);
+      (
+        OrganizationRatingService.isUserRatedOrganisation as jest.Mock
+      ).mockRejectedValue(testError);
 
       await OrganisationRatingController.isUserRatedOrganisation(req, res);
 
       expect(logger.error).toHaveBeenCalledWith(
         "Error while checking if user has rated an organisation: ",
-        testError
+        testError,
       );
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ message: "Unable to check rating status." });
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Unable to check rating status.",
+      });
     });
   });
 });

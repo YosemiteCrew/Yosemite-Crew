@@ -72,7 +72,10 @@ export class IdexxClient {
     return response.data;
   }
 
-  async updateOrder<T = unknown>(idexxOrderId: string, payload: unknown): Promise<T> {
+  async updateOrder<T = unknown>(
+    idexxOrderId: string,
+    payload: unknown,
+  ): Promise<T> {
     const response = await this.http.put<T>(
       `/api/v1/order/${idexxOrderId}`,
       payload,

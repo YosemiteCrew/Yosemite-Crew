@@ -88,42 +88,42 @@ const bodyXsLineHeight = Math.round(bodyXsSize * 1.5); // 18
 const h1: TextStyle = createTextStyle(
   h1Size,
   Math.round(h1Size * 1.2),
-  fonts.CLASH_DISPLAY_BOLD,
+  fonts.SATOSHI_BOLD,
   fontWeights.bold,
   -0.4,
 );
 const h2: TextStyle = createTextStyle(
   h2Size,
   Math.round(h2Size * 1.25),
-  fonts.CLASH_DISPLAY_SEMIBOLD,
+  fonts.SATOSHI_MEDIUM,
   fontWeights.semibold,
   -0.32,
 );
 const h3: TextStyle = createTextStyle(
   h3Size,
   Math.round(h3Size * 1.25),
-  fonts.CLASH_GRO_MEDIUM,
+  fonts.SATOSHI_MEDIUM,
   fontWeights.medium,
   -0.28,
 );
 const h4: TextStyle = createTextStyle(
   h4Size,
   Math.round(h4Size * 1.3),
-  fonts.CLASH_GRO_MEDIUM,
+  fonts.SATOSHI_MEDIUM,
   fontWeights.medium,
   -0.2,
 );
 const h5: TextStyle = createTextStyle(
   h5Size,
   Math.round(h5Size * 1.33),
-  fonts.CLASH_GRO_MEDIUM,
+  fonts.SATOSHI_MEDIUM,
   fontWeights.medium,
   -0.18,
 );
 const h6: TextStyle = createTextStyle(
   h6Size,
   Math.round(h6Size * 1.38),
-  fonts.CLASH_GRO_MEDIUM,
+  fonts.SATOSHI_MEDIUM,
   fontWeights.medium,
   -0.14,
 );
@@ -228,7 +228,10 @@ export const typography = {
     lineHeight: Math.round(fontSizes.lg * 1.4),
   },
   bodySmall,
-  bodySmallTight: {...bodySmall, lineHeight: Math.round(bodySmall.fontSize! * 1.3)},
+  bodySmallTight: {
+    ...bodySmall,
+    lineHeight: Math.round(bodySmall.fontSize! * 1.3),
+  },
   bodyExtraSmall: bodyXs,
   body12: bodyXs,
   body13: {
@@ -249,7 +252,11 @@ export const typography = {
   labelSmall: bodySmallMedium,
   labelSmallBold: bodySmallBold,
   labelSmBold: bodySmallBold,
-  labelXs: {...bodyXs, fontFamily: fonts.SATOSHI_MEDIUM, fontWeight: fontWeights.medium},
+  labelXs: {
+    ...bodyXs,
+    fontFamily: fonts.SATOSHI_MEDIUM,
+    fontWeight: fontWeights.medium,
+  },
   labelXxsBold: bodyXsBold,
 
   // Captions

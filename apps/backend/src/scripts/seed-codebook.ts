@@ -23,8 +23,7 @@ const SPECIES_DISPLAY: Record<string, string> = {
   equine: "Equine",
 };
 
-const buildSpeciesCode = (species: string) =>
-  `YSPEC:${species.toUpperCase()}`;
+const buildSpeciesCode = (species: string) => `YSPEC:${species.toUpperCase()}`;
 
 const buildBreedCode = (species: string, slug: string) =>
   `YBREED:${species.toUpperCase()}:${slug.toUpperCase()}`;

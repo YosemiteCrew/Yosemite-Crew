@@ -1,29 +1,30 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Appointment } from "@yosemite-crew/types";
-import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
-import { useSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
-import { useServiceStore } from "@/app/stores/serviceStore";
-import { Slot } from "@/app/features/appointments/types/appointments";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Appointment } from '@yosemite-crew/types';
+import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
+import { useSpecialitiesForPrimaryOrg } from '@/app/hooks/useSpecialities';
+import { useServiceStore } from '@/app/stores/serviceStore';
+import { Slot } from '@/app/features/appointments/types/appointments';
 import {
   createAppointment,
   getSlotsForServiceAndDateForPrimaryOrg,
-} from "@/app/features/appointments/services/appointmentService";
+} from '@/app/features/appointments/services/appointmentService';
+import { buildUtcDateFromDateAndTime, getDurationMinutes } from '@/app/lib/date';
 import {
-  buildUtcDateFromDateAndTime,
-  getDurationMinutes,
-} from "@/app/lib/date";
-import { useSubscriptionCounterUpdate } from "@/app/hooks/useStripeOnboarding";
-import {
-  useCanMoreForPrimaryOrg,
-  useCurrencyForPrimaryOrg,
-} from "@/app/hooks/useBilling";
-import { loadInvoicesForOrgPrimaryOrg } from "@/app/features/billing/services/invoiceService";
-import { EMPTY_APPOINTMENT } from "@/app/features/appointments/pages/Appointments/Sections/AddAppointment";
+  buildDateInPreferredTimeZone,
+  isOnPreferredTimeZoneCalendarDay,
+  utcClockTimeToPreferredTimeZoneClock,
+} from '@/app/lib/timezone';
+import { useSubscriptionCounterUpdate } from '@/app/hooks/useStripeOnboarding';
+import { useCanMoreForPrimaryOrg, useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
+import { loadInvoicesForOrgPrimaryOrg } from '@/app/features/billing/services/invoiceService';
+import { EMPTY_APPOINTMENT } from '@/app/features/appointments/pages/Appointments/Sections/AddAppointment';
+import { AppointmentDraftPrefill } from '@/app/features/appointments/types/calendar';
 
 export type AppointmentFormErrors = {
   companionId?: string;
   specialityId?: string;
   serviceId?: string;
+  concern?: string;
   leadId?: string;
   duration?: string;
   slot?: string;
@@ -32,112 +33,239 @@ export type AppointmentFormErrors = {
 
 export type UseAppointmentFormOptions = {
   onSuccess?: () => void;
+  initialPrefill?: AppointmentDraftPrefill | null;
 };
 
 export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
-  const { onSuccess } = options;
+  const { onSuccess, initialPrefill } = options;
 
   const teams = useTeamForPrimaryOrg();
   const currency = useCurrencyForPrimaryOrg();
   const specialities = useSpecialitiesForPrimaryOrg();
-  const { canMore, reason } = useCanMoreForPrimaryOrg("appointments");
-  const getServicesBySpecialityId =
-    useServiceStore.getState().getServicesBySpecialityId;
+  const { canMore, reason } = useCanMoreForPrimaryOrg('appointments');
+  const getServicesBySpecialityId = useServiceStore.getState().getServicesBySpecialityId;
   const { refetch: refetchData } = useSubscriptionCounterUpdate();
 
   const [formData, setFormData] = useState<Appointment>(EMPTY_APPOINTMENT);
-  const [formDataErrors, setFormDataErrors] = useState<AppointmentFormErrors>(
-    {}
-  );
+  const [formDataErrors, setFormDataErrors] = useState<AppointmentFormErrors>({});
+  const currentLeadIdRef = useRef<string>('');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [timeSlots, setTimeSlots] = useState<Slot[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [pendingPrefill, setPendingPrefill] = useState<AppointmentDraftPrefill | null>(null);
+  const getNextSelectedSlot = (availableSlots: Slot[], previousSlot: Slot | null) => {
+    if (!previousSlot) return availableSlots[0] ?? null;
+    const matchingSlot = availableSlots.find(
+      (slot) => slot.startTime === previousSlot.startTime && slot.endTime === previousSlot.endTime
+    );
+    return matchingSlot ?? availableSlots[0] ?? null;
+  };
 
   const ServiceFields = useMemo(
     () => [
-      { label: "Name", key: "name", type: "text" },
-      { label: "Description", key: "description", type: "text" },
-      { label: "Duration (mins)", key: "duration", type: "text" },
-      { label: `Cost (${currency})`, key: "cost", type: "text" },
-      { label: "Max discount", key: "maxDiscount", type: "text" },
+      { label: 'Name', key: 'name', type: 'text' },
+      { label: 'Description', key: 'description', type: 'text' },
+      { label: 'Duration (mins)', key: 'duration', type: 'text' },
+      { label: `Cost (${currency})`, key: 'cost', type: 'text' },
+      { label: 'Max discount', key: 'maxDiscount', type: 'text' },
     ],
     [currency]
   );
 
   const CompanionFields = useMemo(
     () => [
-      { label: "Name", key: "name", type: "text" },
-      { label: "Parent name", key: "parentName", type: "text" },
-      { label: "Breed", key: "breed", type: "text" },
-      { label: "Species", key: "species", type: "text" },
+      { label: 'Name', key: 'name', type: 'text' },
+      { label: 'Parent name', key: 'parentName', type: 'text' },
+      { label: 'Breed', key: 'breed', type: 'text' },
+      { label: 'Species', key: 'species', type: 'text' },
     ],
     []
   );
+
+  const getLeadOptionsForSlot = useCallback(
+    (slot: Slot | null) => {
+      if (!teams?.length || !slot) return [];
+      const foundSlot = timeSlots.find(
+        (s) => s.startTime === slot.startTime && s.endTime === slot.endTime
+      );
+      if (!foundSlot?.vetIds?.length) return [];
+      const vetIdSet = new Set(foundSlot.vetIds);
+      return teams
+        .filter((team) => {
+          const teamId = team.practionerId || team._id;
+          return teamId ? vetIdSet.has(teamId) : false;
+        })
+        .map((team) => ({
+          label: team.name || team.practionerId || team._id,
+          value: team.practionerId || team._id,
+        }));
+    },
+    [teams, timeSlots]
+  );
+  const getLeadOptionsRef = useRef(getLeadOptionsForSlot);
+  getLeadOptionsRef.current = getLeadOptionsForSlot;
+
+  const filterOutPastSlotsForSelectedDate = useCallback((slots: Slot[], day: Date) => {
+    if (!isOnPreferredTimeZoneCalendarDay(new Date(), day)) return slots;
+    const nowMs = Date.now();
+    return slots.filter((slot) => {
+      const startClock = utcClockTimeToPreferredTimeZoneClock(slot.startTime);
+      const slotDay = new Date(day);
+      slotDay.setDate(slotDay.getDate() + startClock.dayOffset);
+      const slotStart = buildDateInPreferredTimeZone(slotDay, startClock.minutes);
+      return slotStart.getTime() >= nowMs;
+    });
+  }, []);
 
   useEffect(() => {
     const appointmentTypeId = formData.appointmentType?.id;
     if (!appointmentTypeId || !selectedDate) {
       setTimeSlots([]);
+      setSelectedSlot(null);
       return;
     }
     let cancelled = false;
-    (async () => {
+    const loadTimeSlots = async () => {
       try {
-        const slots = await getSlotsForServiceAndDateForPrimaryOrg(
-          appointmentTypeId,
-          selectedDate
-        );
+        const slots = await getSlotsForServiceAndDateForPrimaryOrg(appointmentTypeId, selectedDate);
         if (cancelled) return;
-        setTimeSlots(slots);
-        setSelectedSlot(slots.length > 0 ? slots[0] : null);
+        const availableSlots = filterOutPastSlotsForSelectedDate(slots, selectedDate);
+        setTimeSlots(availableSlots);
+        setSelectedSlot((prev) => getNextSelectedSlot(availableSlots, prev));
       } catch (err) {
         console.log(err);
         if (!cancelled) {
           setTimeSlots([]);
+          setSelectedSlot(null);
         }
       }
-    })();
+    };
+    loadTimeSlots().catch(() => undefined);
     return () => {
       cancelled = true;
     };
-  }, [formData.appointmentType?.id, selectedDate]);
+  }, [filterOutPastSlotsForSelectedDate, formData.appointmentType?.id, selectedDate]);
+
+  useEffect(() => {
+    if (!initialPrefill) return;
+    setPendingPrefill(initialPrefill);
+    setSelectedDate(initialPrefill.date);
+    setSelectedSlot(null);
+  }, [initialPrefill]);
 
   useEffect(() => {
     if (!selectedSlot || !selectedDate) return;
     setFormData((prev) => ({
       ...prev,
-      startTime: buildUtcDateFromDateAndTime(
-        selectedDate,
-        selectedSlot.startTime
-      ),
+      startTime: buildUtcDateFromDateAndTime(selectedDate, selectedSlot.startTime),
       endTime: buildUtcDateFromDateAndTime(selectedDate, selectedSlot.endTime),
-      appointmentDate: buildUtcDateFromDateAndTime(
-        selectedDate,
-        selectedSlot.startTime
-      ),
-      durationMinutes: getDurationMinutes(
-        selectedSlot.startTime,
-        selectedSlot.endTime
-      ),
+      appointmentDate: buildUtcDateFromDateAndTime(selectedDate, selectedSlot.startTime),
+      durationMinutes: getDurationMinutes(selectedSlot.startTime, selectedSlot.endTime),
     }));
   }, [selectedSlot, selectedDate]);
 
-  const LeadOptions = useMemo(() => {
-    if (!teams?.length || !selectedSlot) return [];
-    const slot = timeSlots.find((s) => s.startTime === selectedSlot.startTime);
-    if (!slot?.vetIds?.length) return [];
-    const vetIdSet = new Set(slot.vetIds);
-    return teams
-      .filter((team) => {
-        const teamId = team.practionerId || team._id;
-        return teamId ? vetIdSet.has(teamId) : false;
-      })
-      .map((team) => ({
-        label: team.name || team.practionerId || team._id,
-        value: team.practionerId || team._id,
+  const LeadOptions = useMemo(
+    () => getLeadOptionsForSlot(selectedSlot),
+    [getLeadOptionsForSlot, selectedSlot]
+  );
+
+  useEffect(() => {
+    currentLeadIdRef.current = formData.lead?.id || '';
+  }, [formData.lead?.id]);
+
+  useEffect(() => {
+    if (!selectedSlot) return;
+    const options = getLeadOptionsRef.current(selectedSlot);
+    const currentLeadId = currentLeadIdRef.current;
+    if (options.length === 0) {
+      setSelectedSlot(null);
+      setFormData((prev) => ({ ...prev, lead: undefined }));
+      setFormDataErrors((prev) => ({
+        ...prev,
+        slot: 'No lead is available for this slot. Please choose another slot.',
+        leadId: 'No lead is available for this slot.',
       }));
-  }, [teams, timeSlots, selectedSlot]);
+      return;
+    }
+    if (options.length === 1) {
+      const onlyLead = options[0];
+      if (currentLeadId !== onlyLead.value) {
+        setFormData((prev) => ({
+          ...prev,
+          lead: {
+            id: onlyLead.value,
+            name: onlyLead.label,
+          },
+        }));
+      }
+      setFormDataErrors((prev) => ({ ...prev, slot: undefined, leadId: undefined }));
+      return;
+    }
+    const hasValidLead = options.some((option) => option.value === currentLeadId);
+    if (!hasValidLead) {
+      setFormData((prev) => ({ ...prev, lead: undefined }));
+      setFormDataErrors((prev) => ({
+        ...prev,
+        slot: undefined,
+        leadId: 'Multiple leads are available. Please choose a lead.',
+      }));
+      return;
+    }
+    setFormDataErrors((prev) => ({ ...prev, slot: undefined, leadId: undefined }));
+  }, [selectedSlot]);
+
+  useEffect(() => {
+    if (!pendingPrefill) return;
+    if (!formData.appointmentType?.id) return;
+    if (!selectedDate || !timeSlots.length) return;
+
+    const minute = Math.max(0, Math.min(1435, Math.round(pendingPrefill.minuteOfDay / 5) * 5));
+    const matchingSlot =
+      timeSlots.find((slot) => {
+        const startClock = utcClockTimeToPreferredTimeZoneClock(slot.startTime);
+        return startClock.dayOffset === 0 && Math.abs(startClock.minutes - minute) <= 5;
+      }) ?? null;
+
+    if (!matchingSlot) {
+      setFormDataErrors((prev) => ({
+        ...prev,
+        slot: 'Saved calendar slot is no longer available for this service. Please pick another slot.',
+      }));
+      setPendingPrefill(null);
+      return;
+    }
+
+    const leadOptionsForSlot = getLeadOptionsForSlot(matchingSlot);
+    setSelectedSlot(matchingSlot);
+
+    if (pendingPrefill.leadId) {
+      const selectedLead = leadOptionsForSlot.find(
+        (option) => option.value === pendingPrefill.leadId
+      );
+      if (selectedLead) {
+        setFormData((prev) => ({
+          ...prev,
+          lead: { id: selectedLead.value, name: selectedLead.label },
+        }));
+        setFormDataErrors((prev) => ({ ...prev, slot: undefined, leadId: undefined }));
+      } else {
+        setFormData((prev) => ({ ...prev, lead: undefined }));
+        setFormDataErrors((prev) => ({
+          ...prev,
+          leadId: 'Saved lead is unavailable for this slot. Please choose another lead.',
+        }));
+      }
+    }
+
+    setPendingPrefill(null);
+  }, [
+    formData.appointmentType?.id,
+    getLeadOptionsForSlot,
+    pendingPrefill,
+    selectedDate,
+    timeSlots,
+  ]);
 
   const TeamOptions = useMemo(
     () =>
@@ -177,11 +305,11 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
   const ServiceInfoData = useMemo(() => {
     const serviceId = formData.appointmentType?.id;
     const emptyServiceInfo = {
-      name: "",
-      description: "",
-      cost: "",
-      maxDiscount: "",
-      duration: "",
+      name: '',
+      description: '',
+      cost: '',
+      maxDiscount: '',
+      duration: '',
     };
     if (!serviceId) {
       return emptyServiceInfo;
@@ -189,11 +317,11 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
     const service = services.find((s) => s.id === serviceId);
     if (service) {
       return {
-        name: service.name ?? "",
-        description: service.description ?? "",
-        cost: service.cost ?? "",
-        maxDiscount: service.maxDiscount ?? "",
-        duration: service.durationMinutes ?? "",
+        name: service.name ?? '',
+        description: service.description ?? '',
+        cost: service.cost ?? '',
+        maxDiscount: service.maxDiscount ?? '',
+        duration: service.durationMinutes ?? '',
       };
     }
     return emptyServiceInfo;
@@ -201,7 +329,10 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
 
   const resetForm = useCallback(() => {
     setFormData(EMPTY_APPOINTMENT);
+    setSelectedDate(new Date());
+    setTimeSlots([]);
     setSelectedSlot(null);
+    setPendingPrefill(null);
     setFormDataErrors({});
   }, []);
 
@@ -210,23 +341,34 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
       const errors: AppointmentFormErrors = {};
       if (!canMore) {
         errors.booking =
-          reason === "limit_reached"
+          reason === 'limit_reached'
             ? "You've reached your free appointment limit. Please upgrade to book more."
             : "We couldn't verify your booking limit right now. Please try again.";
       }
       if (requireCompanion && !formData.companion.id)
-        errors.companionId = "Please select a companion";
+        errors.companionId = 'Please select a companion';
       if (!formData.appointmentType?.speciality.id)
-        errors.specialityId = "Please select a speciality";
-      if (!formData.appointmentType?.id)
-        errors.serviceId = "Please select a service";
-      if (!formData.lead?.id) errors.leadId = "Please select a lead";
-      if (!formData.durationMinutes)
-        errors.duration = "Please select a duration";
-      if (!selectedSlot) errors.slot = "Please select a slot";
+        errors.specialityId = 'Please select a speciality';
+      if (!formData.appointmentType?.id) errors.serviceId = 'Please select a service';
+      if (!formData.concern?.trim()) errors.concern = 'Please describe the concern';
+      if (!formData.durationMinutes) errors.duration = 'Please select a duration';
+      const slotLeadOptions = getLeadOptionsForSlot(selectedSlot);
+      if (!selectedSlot) {
+        errors.slot = 'Please select a slot';
+      } else if (slotLeadOptions.length === 0) {
+        errors.slot = 'No lead is available for this slot. Please choose another slot.';
+        errors.leadId = 'No lead is available for this slot.';
+      } else if (slotLeadOptions.length > 1 && !formData.lead?.id) {
+        errors.leadId = 'Multiple leads are available. Please choose a lead.';
+      } else if (
+        formData.lead?.id &&
+        !slotLeadOptions.some((option) => option.value === formData.lead?.id)
+      ) {
+        errors.leadId = 'Selected lead is not available for this slot.';
+      }
       return errors;
     },
-    [canMore, reason, formData, selectedSlot]
+    [canMore, reason, formData, getLeadOptionsForSlot, selectedSlot]
   );
 
   const handleCreate = useCallback(
@@ -254,65 +396,57 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
     [validateForm, formData, refetchData, resetForm, onSuccess]
   );
 
-  const handleSpecialitySelect = useCallback(
-    (option: { label: string; value: string }) => {
-      setFormData((prev) => ({
-        ...prev,
-        appointmentType: {
-          id: "",
-          name: "",
-          speciality: {
-            id: option.value,
-            name: option.label,
-          },
-        },
-      }));
-    },
-    []
-  );
-
-  const handleServiceSelect = useCallback(
-    (option: { label: string; value: string }) => {
-      setFormData((prev) => ({
-        ...prev,
-        appointmentType: {
+  const handleSpecialitySelect = useCallback((option: { label: string; value: string }) => {
+    setFormData((prev) => ({
+      ...prev,
+      appointmentType: {
+        id: '',
+        name: '',
+        speciality: {
           id: option.value,
           name: option.label,
-          speciality: prev.appointmentType?.speciality ?? {
-            id: "",
-            name: "",
-          },
         },
-      }));
-    },
-    []
-  );
+      },
+    }));
+    setFormDataErrors((prev) => ({ ...prev, specialityId: undefined, serviceId: undefined }));
+  }, []);
 
-  const handleLeadSelect = useCallback(
-    (option: { label: string; value: string }) => {
-      setFormData((prev) => ({
-        ...prev,
-        lead: {
-          name: option.label,
-          id: option.value,
+  const handleServiceSelect = useCallback((option: { label: string; value: string }) => {
+    setFormData((prev) => ({
+      ...prev,
+      appointmentType: {
+        id: option.value,
+        name: option.label,
+        speciality: prev.appointmentType?.speciality ?? {
+          id: '',
+          name: '',
         },
-      }));
-    },
-    []
-  );
+      },
+    }));
+    setFormDataErrors((prev) => ({ ...prev, serviceId: undefined, slot: undefined }));
+  }, []);
+
+  const handleLeadSelect = useCallback((option: { label: string; value: string }) => {
+    setFormData((prev) => ({
+      ...prev,
+      lead: {
+        name: option.label,
+        id: option.value,
+      },
+    }));
+    setFormDataErrors((prev) => ({ ...prev, leadId: undefined }));
+  }, []);
 
   const handleSupportStaffChange = useCallback(
     (ids: string[]) => {
       const map = new Map(
-        TeamOptions.map((o) =>
-          typeof o === "string" ? [o, o] : [o.value, o.label]
-        )
+        TeamOptions.map((o) => (typeof o === 'string' ? [o, o] : [o.value, o.label]))
       );
       setFormData((prev) => ({
         ...prev,
         supportStaff: ids.map((id) => ({
           id,
-          name: map.get(id) || "",
+          name: map.get(id) || '',
         })),
       }));
     },

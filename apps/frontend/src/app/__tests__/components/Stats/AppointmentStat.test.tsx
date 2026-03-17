@@ -5,6 +5,22 @@ import AppointmentStat from '@/app/ui/widgets/Stats/AppointmentStat';
 import CardHeader from '@/app/ui/cards/CardHeader/CardHeader';
 import DynamicChartCard from '@/app/ui/widgets/DynamicChart/DynamicChartCard';
 
+jest.mock('@/app/features/dashboard/hooks/useDashboardAnalytics', () => ({
+  mapDashboardDurationOption: (value: string) => value,
+  useDashboardAnalytics: () => ({
+    charts: {
+      appointments: Array.from({ length: 7 }, (_, index) => ({
+        month: `M${index + 1}`,
+        Completed: index + 1,
+        Cancelled: 0,
+      })),
+    },
+    durationOptions: {
+      appointments: ['Last week'],
+    },
+  }),
+}));
+
 jest.mock('@/app/ui/cards/CardHeader/CardHeader', () => ({
   __esModule: true,
   default: jest.fn(({ title }: any) => <div data-testid="card-header">{title}</div>),

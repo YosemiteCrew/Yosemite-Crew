@@ -6,7 +6,7 @@ export const normalizeAppointmentId = (appointmentId: string | undefined): strin
 
   // Accept values like "Appointment/123", full URLs, and plain IDs.
   const withoutQuery = raw.split(/[?#]/)[0];
-  const tail = withoutQuery.split('/').filter(Boolean).pop();
+  const tail = withoutQuery.split('/').findLast(Boolean);
   return tail?.trim() || undefined;
 };
 

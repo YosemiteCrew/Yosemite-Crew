@@ -1,9 +1,13 @@
 import { Schema, model, type HydratedDocument } from "mongoose";
 
-
 export type LabResultStatus = "INPROCESS" | "COMPLETE" | "CANCELLED";
 export type LabResultStatusDetail = "ATLAB" | "PARTIAL" | null;
-export type LabResultModality = "REFLAB" | "INHOUSE" | "DIGITAL" | "OTHER" | null;
+export type LabResultModality =
+  | "REFLAB"
+  | "INHOUSE"
+  | "DIGITAL"
+  | "OTHER"
+  | null;
 
 export interface LabResultMongo {
   organisationId?: string | null;

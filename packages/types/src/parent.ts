@@ -1,145 +1,147 @@
-import type { Extension, RelatedPerson } from "@yosemite-crew/fhirtypes"
-import { Address, toFHIRAddress } from "./address.model";
-import { fromAddressRequestDTO } from "./dto/address.dto";
+import type { Extension, RelatedPerson } from '@yosemite-crew/fhirtypes';
+import { Address, toFHIRAddress } from './address.model';
+import { fromAddressRequestDTO } from './dto/address.dto';
 
 export interface Parent {
-    id?: string;
-    firstName: string;
-    lastName?: string;
-    birthDate?: Date;
-    email: string;
-    phoneNumber?: string;
-    address: Address;
-    currency?: string;
-    timezone?: string;
-    linkedUserId?: string | null;
-    createdFrom: "pms" | "mobile" | "invited";
-    profileImageUrl?: string;
-    isProfileComplete?: boolean;
-    createdAt?: Date;
-    updatedAt?: Date;
+  id?: string;
+  firstName: string;
+  lastName?: string;
+  birthDate?: Date;
+  email: string;
+  phoneNumber?: string;
+  address: Address;
+  currency?: string;
+  timezone?: string;
+  linkedUserId?: string | null;
+  createdFrom: 'pms' | 'mobile' | 'invited';
+  profileImageUrl?: string;
+  isProfileComplete?: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export const PARENT_PROFILE_COMPLETION_EXTENSION_URL =
-    "https://yosemitecrew.com/fhir/StructureDefinition/parent-profile-completed";
+  'https://yosemitecrew.com/fhir/StructureDefinition/parent-profile-completed';
 export const PARENT_TIMEZONE_EXTENSION_URL =
-    "https://yosemitecrew.com/fhir/StructureDefinition/parent-timezone";
+  'https://yosemitecrew.com/fhir/StructureDefinition/parent-timezone';
 
 export function toFHIRRelatedPerson(parent: Parent): RelatedPerson {
-    const id = parent.id ? String(parent.id) : undefined
+  const id = parent.id ? String(parent.id) : undefined;
 
-    const nameText = [parent.firstName, parent.lastName].filter(Boolean).join(" ").trim();
-    const name = nameText
-        ? [
-              {
-                  use: "official" as const,
-                  text: nameText,
-                  given: parent.firstName ? [parent.firstName] : undefined,
-                  family: parent.lastName || undefined,
-              },
-          ]
-        : undefined;
+  const nameText = [parent.firstName, parent.lastName].filter(Boolean).join(' ').trim();
+  const name = nameText
+    ? [
+        {
+          use: 'official' as const,
+          text: nameText,
+          given: parent.firstName ? [parent.firstName] : undefined,
+          family: parent.lastName || undefined,
+        },
+      ]
+    : undefined;
 
-    const telecom = parent.phoneNumber
-        ? [
-              {
-                  system: "phone" as const,
-                  value: parent.phoneNumber,
-              },
-              {
-                system: "email" as const,
-                value: parent.email
-              }
-          ]
-        : undefined;
+  const telecom = parent.phoneNumber
+    ? [
+        {
+          system: 'phone' as const,
+          value: parent.phoneNumber,
+        },
+        {
+          system: 'email' as const,
+          value: parent.email,
+        },
+      ]
+    : undefined;
 
-    const fhirAddress = parent.address ? toFHIRAddress(parent.address) : undefined;
-    const address = fhirAddress && Object.values(fhirAddress).some(Boolean) ? [fhirAddress] : undefined;
+  const fhirAddress = parent.address ? toFHIRAddress(parent.address) : undefined;
+  const address =
+    fhirAddress && Object.values(fhirAddress).some(Boolean) ? [fhirAddress] : undefined;
 
-    const photo = parent.profileImageUrl
-        ? [
-              {
-                  url: parent.profileImageUrl,
-              },
-          ]
-        : undefined;
+  const photo = parent.profileImageUrl
+    ? [
+        {
+          url: parent.profileImageUrl,
+        },
+      ]
+    : undefined;
 
-    const extensions: Extension[] = [];
+  const extensions: Extension[] = [];
 
-    if (typeof parent.isProfileComplete === "boolean") {
-        extensions.push({
-            url: PARENT_PROFILE_COMPLETION_EXTENSION_URL,
-            valueBoolean: parent.isProfileComplete,
-        });
-    }
-    if (parent.timezone) {
-        extensions.push({
-            url: PARENT_TIMEZONE_EXTENSION_URL,
-            valueString: parent.timezone,
-        });
-    }
+  if (typeof parent.isProfileComplete === 'boolean') {
+    extensions.push({
+      url: PARENT_PROFILE_COMPLETION_EXTENSION_URL,
+      valueBoolean: parent.isProfileComplete,
+    });
+  }
+  if (parent.timezone) {
+    extensions.push({
+      url: PARENT_TIMEZONE_EXTENSION_URL,
+      valueString: parent.timezone,
+    });
+  }
 
-    const birthDate = parent.birthDate
-        ? parent.birthDate.toISOString().split("T")[0]
-        : undefined;
+  const birthDate = parent.birthDate ? parent.birthDate.toISOString().split('T')[0] : undefined;
 
-    return {
-        resourceType: "RelatedPerson",
-        id,
-        name,
-        telecom,
-        address,
-        photo,
-        birthDate,
-        extension: extensions.length ? extensions : undefined,
-    };
+  return {
+    resourceType: 'RelatedPerson',
+    id,
+    name,
+    telecom,
+    address,
+    photo,
+    birthDate,
+    extension: extensions.length ? extensions : undefined,
+  };
 }
 
 export function fromFHIRRelatedPerson(resource: RelatedPerson): Parent {
-    const rp = resource
+  const rp = resource;
 
-    const officialName = rp.name?.find(n => n.use === "official") ?? rp.name?.[0]
-    const firstName = officialName?.given?.[0] || ""
-    const lastName = officialName?.family
+  const officialName = rp.name?.find((n) => n.use === 'official') ?? rp.name?.[0];
+  const firstName = officialName?.given?.[0] || '';
+  const lastName = officialName?.family;
 
-    let email: string = ""
-    let phoneNumber: string | undefined = undefined
+  let email: string = '';
+  let phoneNumber: string | undefined = undefined;
 
-    rp.telecom?.forEach(t => {
-        if (t.system === "email" && t.value) email = t.value
-        if (t.system === "phone" && t.value) phoneNumber = t.value
-    })
+  rp.telecom?.forEach((t) => {
+    if (t.system === 'email' && t.value) email = t.value;
+    if (t.system === 'phone' && t.value) phoneNumber = t.value;
+  });
 
-    const address = rp.address?.[0] ? fromAddressRequestDTO(rp.address[0]) : {}
+  const address = rp.address?.[0] ? fromAddressRequestDTO(rp.address[0]) : {};
 
-    const profileImageUrl = rp.photo?.[0]?.url
+  const profileImageUrl = rp.photo?.[0]?.url;
 
-    let isProfileComplete: boolean | undefined = undefined
-    let timezone: string | undefined = undefined
+  let isProfileComplete: boolean | undefined = undefined;
+  let timezone: string | undefined = undefined;
 
-    rp.extension?.forEach(ext => {
-        if (ext.url === PARENT_PROFILE_COMPLETION_EXTENSION_URL && typeof ext.valueBoolean === "boolean") {
-            isProfileComplete = ext.valueBoolean
-        }
-        if (ext.url === PARENT_TIMEZONE_EXTENSION_URL && typeof ext.valueString === "string") {
-            timezone = ext.valueString
-        }
-    })
-
-    const birthDate = rp.birthDate ? new Date(rp.birthDate) : undefined
-
-    const parent: Parent = {
-        id: rp.id,
-        firstName,
-        lastName,
-        email,
-        phoneNumber,
-        birthDate,
-        address,
-        profileImageUrl,
-        timezone,
-        createdFrom: "pms"
+  rp.extension?.forEach((ext) => {
+    if (
+      ext.url === PARENT_PROFILE_COMPLETION_EXTENSION_URL &&
+      typeof ext.valueBoolean === 'boolean'
+    ) {
+      isProfileComplete = ext.valueBoolean;
     }
+    if (ext.url === PARENT_TIMEZONE_EXTENSION_URL && typeof ext.valueString === 'string') {
+      timezone = ext.valueString;
+    }
+  });
 
-    return parent
+  const birthDate = rp.birthDate ? new Date(rp.birthDate) : undefined;
+
+  const parent: Parent = {
+    id: rp.id,
+    firstName,
+    lastName,
+    email,
+    phoneNumber,
+    birthDate,
+    address,
+    profileImageUrl,
+    timezone,
+    createdFrom: 'pms',
+  };
+
+  return parent;
 }

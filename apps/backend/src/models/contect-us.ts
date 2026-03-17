@@ -12,7 +12,17 @@ export type ContactStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
 
 export type DsraRequesterType = "SELF" | "PARENT_GUARDIAN" | "AUTHORIZED_AGENT";
 
-export type DsraLawBasis = "GDPR" | "CCPA" | "UK_GDPR" | "LGPD" | "PIPEDA" | "POPIA" | "PDPA" | "PIPL" | "PA_1988_AU" |"OTHER";
+export type DsraLawBasis =
+  | "GDPR"
+  | "CCPA"
+  | "UK_GDPR"
+  | "LGPD"
+  | "PIPEDA"
+  | "POPIA"
+  | "PDPA"
+  | "PIPL"
+  | "PA_1988_AU"
+  | "OTHER";
 
 export type DsraRight =
   | "KNOW_INFORMATION_COLLECTED"

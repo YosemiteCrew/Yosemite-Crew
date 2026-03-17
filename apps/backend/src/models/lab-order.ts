@@ -1,6 +1,5 @@
 import { Schema, model, type HydratedDocument, Types } from "mongoose";
 
-
 export type LabOrderStatus =
   | "CREATED"
   | "SUBMITTED"

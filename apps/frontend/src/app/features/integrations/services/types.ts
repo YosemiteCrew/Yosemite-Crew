@@ -7,7 +7,7 @@ export type OrgIntegration = {
   organisationId: string;
   provider: IntegrationProvider;
   status: IntegrationStatus;
-  source?: 'backend' | 'synthetic';
+  source?: 'backend';
   credentialsStatus?: 'valid' | 'invalid' | 'missing';
   lastValidatedAt?: string | null;
   enabledAt?: string | null;

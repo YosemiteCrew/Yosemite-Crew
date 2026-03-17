@@ -4,7 +4,6 @@ import Availability from '@/app/features/appointments/components/Availability/Av
 import { usePrimaryOrgWithMembership } from '@/app/hooks/useOrgSelectors';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import {
-  ApiOverrides,
   AvailabilityState,
   convertAvailability,
   daysOfWeek,
@@ -173,8 +172,6 @@ const OrgSection = () => {
       return acc;
     }, {} as AvailabilityState)
   );
-  const [overides, setOverides] = useState<ApiOverrides[]>([]);
-
   const orgInfoData = useMemo(
     () => ({
       name: org?.name ?? '',
@@ -345,6 +342,21 @@ const OrgSection = () => {
         org={orgInfoData}
         onSave={updateOrgFields}
       />
+      <div className="border border-card-border rounded-2xl">
+        <div className="px-6! py-3! border-b border-b-card-border flex items-center justify-between">
+          <div className="text-body-3 text-text-primary">Availability</div>
+        </div>
+        <div className="flex flex-col px-6! py-6! gap-6">
+          <Availability
+            availability={availability}
+            setAvailability={setAvailability}
+            twoColumnLayout
+          />
+          <div className="w-full flex justify-end!">
+            <Primary href="#" text="Save" onClick={handleClick} />
+          </div>
+        </div>
+      </div>
       <ProfileCard
         title="Address"
         fields={AddressFields}
@@ -357,22 +369,6 @@ const OrgSection = () => {
         org={professionalData}
         onSave={updateProfessionalFields}
       />
-      <div className="border border-card-border rounded-2xl">
-        <div className="px-6! py-3! border-b border-b-card-border flex items-center justify-between">
-          <div className="text-body-3 text-text-primary">Availability</div>
-        </div>
-        <div className="flex flex-col px-6! py-6! gap-6">
-          <Availability
-            availability={availability}
-            setAvailability={setAvailability}
-            overides={overides}
-            setOverides={setOverides}
-          />
-          <div className="w-full flex justify-end!">
-            <Primary href="#" text="Save" onClick={handleClick} />
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

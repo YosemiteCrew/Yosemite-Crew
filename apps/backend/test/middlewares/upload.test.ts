@@ -27,7 +27,9 @@ jest.mock("aws-sdk", () => {
       upload: (params: any) => ({ promise: () => mockS3Upload(params) }),
       getSignedUrlPromise: (...args: any[]) => mockGetSignedUrlPromise(...args),
       copyObject: (params: any) => ({ promise: () => mockCopyObject(params) }),
-      deleteObject: (params: any) => ({ promise: () => mockDeleteObject(params) }),
+      deleteObject: (params: any) => ({
+        promise: () => mockDeleteObject(params),
+      }),
       getBucketLifecycleConfiguration: (params: any) => ({
         promise: () => mockGetBucketLifecycleConfiguration(params),
       }),
@@ -65,12 +67,16 @@ describe("Upload Middleware", () => {
   describe("Environment Variables Validation", () => {
     it("throws if AWS_S3_BUCKET_NAME is missing", async () => {
       delete process.env.AWS_S3_BUCKET_NAME;
-      await expect(deleteFromS3("key")).rejects.toThrow("AWS_S3_BUCKET_NAME is not defined");
+      await expect(deleteFromS3("key")).rejects.toThrow(
+        "AWS_S3_BUCKET_NAME is not defined",
+      );
     });
 
     it("throws if AWS_CLOUD_FRONT_BASE_URL is missing", async () => {
       delete process.env.AWS_CLOUD_FRONT_BASE_URL;
-      await expect(generatePresignedDownloadUrl("key")).rejects.toThrow("AWS_CLOUD_FRONT_BASE_URL is not defined");
+      await expect(generatePresignedDownloadUrl("key")).rejects.toThrow(
+        "AWS_CLOUD_FRONT_BASE_URL is not defined",
+      );
     });
   });
 
@@ -80,12 +86,24 @@ describe("Upload Middleware", () => {
       expect(mimeTypeToExtension("image/jpg")).toBe(".jpg");
       expect(mimeTypeToExtension("image/png")).toBe(".png");
       expect(mimeTypeToExtension("application/pdf")).toBe(".pdf");
-      expect(mimeTypeToExtension("application/vnd.openxmlformats-officedocument.wordprocessingml.document")).toBe(".docx");
+      expect(
+        mimeTypeToExtension(
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ),
+      ).toBe(".docx");
       expect(mimeTypeToExtension("application/msword")).toBe(".doc");
       expect(mimeTypeToExtension("application/vnd.ms-excel")).toBe(".xls");
-      expect(mimeTypeToExtension("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")).toBe(".xlsx");
+      expect(
+        mimeTypeToExtension(
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ),
+      ).toBe(".xlsx");
       expect(mimeTypeToExtension("application/vnd.ms-powerpoint")).toBe(".ppt");
-      expect(mimeTypeToExtension("application/vnd.openxmlformats-officedocument.presentationml.presentation")).toBe(".pptx");
+      expect(
+        mimeTypeToExtension(
+          "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        ),
+      ).toBe(".pptx");
     });
 
     it("returns empty string for unknown mime types", () => {
@@ -95,59 +113,94 @@ describe("Upload Middleware", () => {
 
   describe("buildS3Key", () => {
     it("builds correct paths for all folder types", () => {
-      expect(buildS3Key("temp", "123", "image/png")).toBe("temp/uploads/mock-uuid.png");
-      expect(buildS3Key("user", "123", "image/jpeg")).toBe("users/123/mock-uuid.jpg");
-      expect(buildS3Key("org", "123", "application/pdf")).toBe("orgs/123/mock-uuid.pdf");
-      expect(buildS3Key("parent", "123", undefined)).toBe("parent/123/mock-uuid"); // No mimeType
+      expect(buildS3Key("temp", "123", "image/png")).toBe(
+        "temp/uploads/mock-uuid.png",
+      );
+      expect(buildS3Key("user", "123", "image/jpeg")).toBe(
+        "users/123/mock-uuid.jpg",
+      );
+      expect(buildS3Key("org", "123", "application/pdf")).toBe(
+        "orgs/123/mock-uuid.pdf",
+      );
+      expect(buildS3Key("parent", "123", undefined)).toBe(
+        "parent/123/mock-uuid",
+      ); // No mimeType
       expect(buildS3Key("companion", "123")).toBe("companion/123/mock-uuid");
       expect(buildS3Key("custom", "folder")).toBe("folder/mock-uuid");
     });
 
     it("throws on invalid type", () => {
-      expect(() => buildS3Key("invalid" as any, "123")).toThrow("Invalid upload type");
+      expect(() => buildS3Key("invalid" as any, "123")).toThrow(
+        "Invalid upload type",
+      );
     });
   });
 
   describe("uploadToS3", () => {
     it("uploads and returns location and key", async () => {
-      mockS3Upload.mockResolvedValueOnce({ Location: "s3://loc", Key: "file.png" });
-      const res = await uploadToS3("file.png", Buffer.from("test"), "image/png");
+      mockS3Upload.mockResolvedValueOnce({
+        Location: "s3://loc",
+        Key: "file.png",
+      });
+      const res = await uploadToS3(
+        "file.png",
+        Buffer.from("test"),
+        "image/png",
+      );
       expect(res).toEqual({ location: "s3://loc", key: "file.png" });
     });
 
     it("throws and parses generic Error object correctly", async () => {
       mockS3Upload.mockRejectedValueOnce(new Error("Upload Timeout"));
-      await expect(uploadToS3("file.png", "", "image/png")).rejects.toThrow("S3 upload failed: Upload Timeout");
+      await expect(uploadToS3("file.png", "", "image/png")).rejects.toThrow(
+        "S3 upload failed: Upload Timeout",
+      );
     });
 
     it("throws and parses string error correctly (getErrorMessage fallback)", async () => {
       mockS3Upload.mockRejectedValueOnce("String error");
-      await expect(uploadToS3("file.png", "", "image/png")).rejects.toThrow("S3 upload failed: Unknown error");
+      await expect(uploadToS3("file.png", "", "image/png")).rejects.toThrow(
+        "S3 upload failed: Unknown error",
+      );
     });
   });
 
   describe("uploadBufferAsFile", () => {
     it("throws if mime type is unsupported", async () => {
       await expect(
-        uploadBufferAsFile(Buffer.from(""), { folderName: "test", mimeType: "text/html" })
+        uploadBufferAsFile(Buffer.from(""), {
+          folderName: "test",
+          mimeType: "text/html",
+        }),
       ).rejects.toThrow("Unsupported file type.");
     });
 
     it("uploads buffer and defaults to 'file' if originalName missing", async () => {
       mockS3Upload.mockResolvedValueOnce({ Location: "s3://loc", Key: "key" });
-      const res = await uploadBufferAsFile(Buffer.from(""), { folderName: "test", mimeType: "image/png" });
+      const res = await uploadBufferAsFile(Buffer.from(""), {
+        folderName: "test",
+        mimeType: "image/png",
+      });
       expect(res.originalname).toBe("file.png");
     });
 
     it("appends extension if originalName lacks it", async () => {
       mockS3Upload.mockResolvedValueOnce({ Location: "s3://loc", Key: "key" });
-      const res = await uploadBufferAsFile(Buffer.from(""), { folderName: "test", mimeType: "image/png", originalName: "my_pic" });
+      const res = await uploadBufferAsFile(Buffer.from(""), {
+        folderName: "test",
+        mimeType: "image/png",
+        originalName: "my_pic",
+      });
       expect(res.originalname).toBe("my_pic.png");
     });
 
     it("does not duplicate extension if originalName has it", async () => {
       mockS3Upload.mockResolvedValueOnce({ Location: "s3://loc", Key: "key" });
-      const res = await uploadBufferAsFile(Buffer.from(""), { folderName: "test", mimeType: "application/pdf", originalName: "doc.pdf" });
+      const res = await uploadBufferAsFile(Buffer.from(""), {
+        folderName: "test",
+        mimeType: "application/pdf",
+        originalName: "doc.pdf",
+      });
       expect(res.originalname).toBe("doc.pdf");
     });
   });
@@ -162,7 +215,9 @@ describe("Upload Middleware", () => {
 
     it("handles errors", async () => {
       mockGetSignedUrlPromise.mockRejectedValueOnce(new Error("Sign Error"));
-      await expect(generatePresignedUrl("image/jpeg", "user", "user-1")).rejects.toThrow("Failed to generate presigned URL: Sign Error");
+      await expect(
+        generatePresignedUrl("image/jpeg", "user", "user-1"),
+      ).rejects.toThrow("Failed to generate presigned URL: Sign Error");
     });
   });
 
@@ -178,7 +233,9 @@ describe("Upload Middleware", () => {
 
     it("handles errors", async () => {
       mockCopyObject.mockRejectedValueOnce(new Error("Move failed"));
-      await expect(moveFile("a", "b")).rejects.toThrow("Failed to move file: Move failed");
+      await expect(moveFile("a", "b")).rejects.toThrow(
+        "Failed to move file: Move failed",
+      );
     });
   });
 
@@ -197,16 +254,26 @@ describe("Upload Middleware", () => {
 
   describe("handleFileUpload", () => {
     it("throws if no file provided", async () => {
-      await expect(handleFileUpload(null as any, "folder")).rejects.toThrow("No file uploaded.");
+      await expect(handleFileUpload(null as any, "folder")).rejects.toThrow(
+        "No file uploaded.",
+      );
     });
 
     it("throws if unsupported type", async () => {
-      await expect(handleFileUpload({ name: "test", mimetype: "video/mp4", data: Buffer.from("") }, "folder")).rejects.toThrow("Unsupported file type.");
+      await expect(
+        handleFileUpload(
+          { name: "test", mimetype: "video/mp4", data: Buffer.from("") },
+          "folder",
+        ),
+      ).rejects.toThrow("Unsupported file type.");
     });
 
     it("uploads and parses empty/missing filename safely", async () => {
       mockS3Upload.mockResolvedValueOnce({ Location: "loc", Key: "key" });
-      const res = await handleFileUpload({ name: "", mimetype: "image/png", data: Buffer.from("") }, "folder");
+      const res = await handleFileUpload(
+        { name: "", mimetype: "image/png", data: Buffer.from("") },
+        "folder",
+      );
       expect(res.originalname).toBe(""); // Passed original empty name back
       expect(mockS3Upload).toHaveBeenCalled();
     });
@@ -217,7 +284,7 @@ describe("Upload Middleware", () => {
       mockS3Upload.mockResolvedValue({ Location: "loc", Key: "key" });
       const files = [
         { name: "a.jpg", mimetype: "image/jpeg", data: Buffer.from("") },
-        { name: "b.png", mimetype: "image/png", data: Buffer.from("") }
+        { name: "b.png", mimetype: "image/png", data: Buffer.from("") },
       ];
       const res = await handleMultipleFileUpload(files);
       expect(res).toHaveLength(2);
@@ -234,7 +301,7 @@ describe("Upload Middleware", () => {
   describe("setupLifecyclePolicy", () => {
     it("returns early if rule already exists", async () => {
       mockGetBucketLifecycleConfiguration.mockResolvedValueOnce({
-        Rules: [{ ID: "AutoDeleteTempUploads" }]
+        Rules: [{ ID: "AutoDeleteTempUploads" }],
       });
       await setupLifecyclePolicy(5);
       expect(mockPutBucketLifecycleConfiguration).not.toHaveBeenCalled();
@@ -242,7 +309,7 @@ describe("Upload Middleware", () => {
 
     it("appends rule if other rules exist", async () => {
       mockGetBucketLifecycleConfiguration.mockResolvedValueOnce({
-        Rules: [{ ID: "OtherRule" }]
+        Rules: [{ ID: "OtherRule" }],
       });
       mockPutBucketLifecycleConfiguration.mockResolvedValueOnce({});
 
@@ -253,10 +320,13 @@ describe("Upload Middleware", () => {
           LifecycleConfiguration: {
             Rules: [
               { ID: "OtherRule" },
-              expect.objectContaining({ ID: "AutoDeleteTempUploads", Expiration: { Days: 3 } })
-            ]
-          }
-        })
+              expect.objectContaining({
+                ID: "AutoDeleteTempUploads",
+                Expiration: { Days: 3 },
+              }),
+            ],
+          },
+        }),
       );
     });
 
@@ -268,16 +338,18 @@ describe("Upload Middleware", () => {
     });
 
     it("creates new config if none exists (NoSuchLifecycleConfiguration)", async () => {
-      mockGetBucketLifecycleConfiguration.mockRejectedValueOnce({ code: "NoSuchLifecycleConfiguration" });
+      mockGetBucketLifecycleConfiguration.mockRejectedValueOnce({
+        code: "NoSuchLifecycleConfiguration",
+      });
       mockPutBucketLifecycleConfiguration.mockResolvedValueOnce({});
 
       await setupLifecyclePolicy(3);
       expect(mockPutBucketLifecycleConfiguration).toHaveBeenCalledWith(
         expect.objectContaining({
           LifecycleConfiguration: {
-            Rules: [expect.objectContaining({ ID: "AutoDeleteTempUploads" })]
-          }
-        })
+            Rules: [expect.objectContaining({ ID: "AutoDeleteTempUploads" })],
+          },
+        }),
       );
     });
 

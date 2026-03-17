@@ -6,15 +6,23 @@ import Appointments from '@/app/ui/tables/Appointments';
 
 const acceptAppointmentMock = jest.fn();
 const cancelAppointmentMock = jest.fn();
+const rejectAppointmentMock = jest.fn();
 
 jest.mock('@/app/features/appointments/services/appointmentService', () => ({
   acceptAppointment: (...args: any[]) => acceptAppointmentMock(...args),
   cancelAppointment: (...args: any[]) => cancelAppointmentMock(...args),
+  rejectAppointment: (...args: any[]) => rejectAppointmentMock(...args),
 }));
 
 jest.mock('@/app/lib/appointments', () => ({
   allowReschedule: jest.fn(() => true),
   allowCalendarDrag: jest.fn(() => true),
+  canAssignAppointmentRoom: jest.fn(() => true),
+  canShowStatusChangeAction: jest.fn(() => true),
+  getClinicalNotesLabel: jest.fn(() => 'Prescription'),
+  isRequestedLikeStatus: jest.fn(
+    (status: string) => status === 'REQUESTED' || status === 'NO_PAYMENT'
+  ),
   normalizeAppointmentStatus: (status: string) => (status === 'NO_PAYMENT' ? 'REQUESTED' : status),
 }));
 
@@ -63,6 +71,7 @@ jest.mock('react-icons/io5', () => ({
 }));
 
 jest.mock('react-icons/md', () => ({
+  MdMeetingRoom: () => <span>room-icon</span>,
   MdOutlineAutorenew: () => <span>change-status-icon</span>,
   MdScience: () => <span>labs-icon</span>,
 }));
@@ -89,7 +98,8 @@ describe('Appointments table', () => {
     fireEvent.click(screen.getByText('cancel-icon').closest('button')!);
 
     expect(acceptAppointmentMock).toHaveBeenCalledWith(appointment);
-    expect(cancelAppointmentMock).toHaveBeenCalledWith(appointment);
+    expect(rejectAppointmentMock).toHaveBeenCalledWith(appointment);
+    expect(cancelAppointmentMock).not.toHaveBeenCalled();
   });
 
   it('handles view/reschedule actions', () => {
@@ -127,5 +137,28 @@ describe('Appointments table', () => {
   it('shows empty state for mobile list', () => {
     render(<Appointments filteredList={[]} canEditAppointments={false} />);
     expect(screen.getByText('No data available')).toBeInTheDocument();
+  });
+
+  it('shows a dash when support staff is empty in table view', () => {
+    const appointment: any = {
+      id: 'a3',
+      status: 'UPCOMING',
+      concern: 'Checkup',
+      appointmentType: { name: 'Exam' },
+      room: { name: 'Room 1' },
+      appointmentDate: '2025-01-06T09:00:00.000Z',
+      startTime: '2025-01-06T09:00:00.000Z',
+      lead: { name: 'Dr. Lee' },
+      supportStaff: [],
+      companion: {
+        name: 'Buddy',
+        species: 'dog',
+        parent: { name: 'Jamie' },
+      },
+    };
+
+    render(<Appointments filteredList={[appointment]} canEditAppointments />);
+
+    expect(screen.getByText('-')).toBeInTheDocument();
   });
 });

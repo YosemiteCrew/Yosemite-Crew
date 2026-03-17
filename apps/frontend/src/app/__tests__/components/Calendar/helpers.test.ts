@@ -12,108 +12,120 @@ import {
   layoutDayEvents,
   getTotalWindowHeightPx,
   getNowTopPxForWindow,
+  getNowTopPxForHourRange,
   isAllDayForDate,
   eventsForDay,
   PIXELS_PER_STEP,
   MINUTES_PER_STEP,
-} from "@/app/features/appointments/components/Calendar/helpers";
-import { Appointment } from "@yosemite-crew/types";
-import { Task } from "@/app/features/tasks/types/task";
+} from '@/app/features/appointments/components/Calendar/helpers';
+import { Appointment } from '@yosemite-crew/types';
+import { Task } from '@/app/features/tasks/types/task';
 
-describe("Calendar Helpers", () => {
+jest.mock('@/app/lib/timezone', () => ({
+  getMinutesSinceStartOfDayInPreferredTimeZone: (date: Date) =>
+    date.getHours() * 60 + date.getMinutes(),
+  getPreciseMinutesSinceStartOfDayInPreferredTimeZone: (date: Date) =>
+    date.getHours() * 60 + date.getMinutes() + date.getSeconds() / 60,
+  isOnPreferredTimeZoneCalendarDay: (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate(),
+}));
+
+describe('Calendar Helpers', () => {
   // --- Date Comparison Helpers ---
-  describe("isSameDay", () => {
-    it("returns true for the same date", () => {
+  describe('isSameDay', () => {
+    it('returns true for the same date', () => {
       const d1 = new Date(2023, 0, 1, 10, 0);
       const d2 = new Date(2023, 0, 1, 15, 30);
       expect(isSameDay(d1, d2)).toBe(true);
     });
 
-    it("returns false for different dates", () => {
+    it('returns false for different dates', () => {
       const d1 = new Date(2023, 0, 1);
       const d2 = new Date(2023, 0, 2);
       expect(isSameDay(d1, d2)).toBe(false);
     });
 
-    it("returns false if either date is missing", () => {
+    it('returns false if either date is missing', () => {
       expect(isSameDay(new Date(), null)).toBe(false);
       expect(isSameDay(undefined, new Date())).toBe(false);
       expect(isSameDay(null, null)).toBe(false);
     });
   });
 
-  describe("isSameMonth", () => {
-    it("returns true for the same month and year", () => {
+  describe('isSameMonth', () => {
+    it('returns true for the same month and year', () => {
       const d1 = new Date(2023, 0, 15);
       const d2 = new Date(2023, 0, 20);
       expect(isSameMonth(d1, d2)).toBe(true);
     });
 
-    it("returns false for different months", () => {
+    it('returns false for different months', () => {
       const d1 = new Date(2023, 0, 1);
       const d2 = new Date(2023, 1, 1);
       expect(isSameMonth(d1, d2)).toBe(false);
     });
 
-    it("returns false for different years", () => {
+    it('returns false for different years', () => {
       const d1 = new Date(2023, 0, 1);
       const d2 = new Date(2024, 0, 1);
       expect(isSameMonth(d1, d2)).toBe(false);
     });
 
-    it("returns false if inputs are missing", () => {
+    it('returns false if inputs are missing', () => {
       expect(isSameMonth(null, new Date())).toBe(false);
     });
   });
 
   // --- Formatting Helpers ---
-  describe("Formatting", () => {
+  describe('Formatting', () => {
     // Note: These tests depend on the 'en-US' locale being available in the test environment.
-    it("getMonthYear formats correctly", () => {
+    it('getMonthYear formats correctly', () => {
       const date = new Date(2023, 0, 1); // Jan 1, 2023
-      expect(getMonthYear(date)).toBe("January 2023");
+      expect(getMonthYear(date)).toBe('January 2023');
     });
 
-    it("getDayWithDate formats correctly", () => {
+    it('getDayWithDate formats correctly', () => {
       const date = new Date(2023, 0, 1); // Sunday, Jan 1
       expect(getDayWithDate(date)).toMatch(/Sunday 01/);
     });
   });
 
   // --- Math/Time Calculation Helpers ---
-  describe("Math & Time", () => {
-    it("minutesSinceStartOfDay calculates correctly", () => {
+  describe('Math & Time', () => {
+    it('minutesSinceStartOfDay calculates correctly', () => {
       const d = new Date(2023, 0, 1, 1, 30); // 01:30
       // 1 * 60 + 30 = 90
       expect(minutesSinceStartOfDay(d)).toBe(90);
     });
 
-    it("snapToStep rounds to nearest step", () => {
+    it('snapToStep rounds to nearest step', () => {
       expect(snapToStep(12, 5)).toBe(10);
       expect(snapToStep(13, 5)).toBe(15);
     });
 
-    it("snapDown floors to nearest step", () => {
+    it('snapDown floors to nearest step', () => {
       expect(snapDown(14, 5)).toBe(10);
     });
 
-    it("snapUp ceils to nearest step", () => {
+    it('snapUp ceils to nearest step', () => {
       expect(snapUp(11, 5)).toBe(15);
     });
   });
 
   // --- Window Calculation ---
-  describe("getDayWindow", () => {
-    it("returns full day if no events", () => {
+  describe('getDayWindow', () => {
+    it('returns full day if no events', () => {
       const res = getDayWindow([]);
       expect(res).toEqual({ windowStart: 0, windowEnd: 24 * 60 });
     });
 
-    it("calculates padded window for normal events", () => {
+    it('calculates padded window for normal events', () => {
       const events = [
         {
           startTime: new Date(2023, 0, 1, 10, 0), // 600 min
-          endTime: new Date(2023, 0, 1, 11, 0),   // 660 min
+          endTime: new Date(2023, 0, 1, 11, 0), // 660 min
         },
       ] as Appointment[];
 
@@ -123,7 +135,7 @@ describe("Calendar Helpers", () => {
       expect(res).toEqual({ windowStart: 570, windowEnd: 690 });
     });
 
-    it("handles midnight ending (clamping to DAY_END)", () => {
+    it('handles midnight ending (clamping to DAY_END)', () => {
       const events = [
         {
           startTime: new Date(2023, 0, 1, 23, 0),
@@ -143,7 +155,7 @@ describe("Calendar Helpers", () => {
       expect(res.windowEnd).toBe(1440);
     });
 
-    it("ensures non-zero window if calculation collapses (safety check)", () => {
+    it('ensures non-zero window if calculation collapses (safety check)', () => {
       // Create a scenario where start > end to force collapse
       // Start 10:00 (600), End 09:00 (540).
       // minStart = 600, maxEnd = 540.
@@ -163,14 +175,14 @@ describe("Calendar Helpers", () => {
   });
 
   // --- Vertical Position ---
-  describe("computeVerticalPositionPx", () => {
+  describe('computeVerticalPositionPx', () => {
     const windowStart = 600; // 10:00 AM
-    const windowEnd = 720;   // 12:00 PM
+    const windowEnd = 720; // 12:00 PM
 
-    it("calculates position for event inside window", () => {
+    it('calculates position for event inside window', () => {
       const event = {
         startTime: new Date(2023, 0, 1, 10, 30), // 630
-        endTime: new Date(2023, 0, 1, 11, 30),   // 690
+        endTime: new Date(2023, 0, 1, 11, 30), // 690
       } as Appointment;
 
       const res = computeVerticalPositionPx(event, windowStart, windowEnd);
@@ -180,10 +192,10 @@ describe("Calendar Helpers", () => {
       expect(res.heightPx).toBe(12 * PIXELS_PER_STEP);
     });
 
-    it("clamps event extending beyond window boundaries", () => {
+    it('clamps event extending beyond window boundaries', () => {
       const event = {
-        startTime: new Date(2023, 0, 1, 9, 0),  // 540 (before window)
-        endTime: new Date(2023, 0, 1, 13, 0),   // 780 (after window)
+        startTime: new Date(2023, 0, 1, 9, 0), // 540 (before window)
+        endTime: new Date(2023, 0, 1, 13, 0), // 780 (after window)
       } as Appointment;
 
       const res = computeVerticalPositionPx(event, windowStart, windowEnd);
@@ -194,7 +206,7 @@ describe("Calendar Helpers", () => {
       expect(res.heightPx).toBe(expectedHeight);
     });
 
-    it("enforces minimum height for collapsed events", () => {
+    it('enforces minimum height for collapsed events', () => {
       const event = {
         startTime: new Date(2023, 0, 1, 10, 0),
         endTime: new Date(2023, 0, 1, 10, 0), // Same time
@@ -207,12 +219,12 @@ describe("Calendar Helpers", () => {
   });
 
   // --- Layout Engine ---
-  describe("layoutDayEvents", () => {
-    it("returns empty array for no events", () => {
+  describe('layoutDayEvents', () => {
+    it('returns empty array for no events', () => {
       expect(layoutDayEvents([], 0, 1440)).toEqual([]);
     });
 
-    it("layouts non-overlapping events", () => {
+    it('layouts non-overlapping events', () => {
       const events = [
         { startTime: new Date(2023, 0, 1, 10, 0), endTime: new Date(2023, 0, 1, 11, 0) },
         { startTime: new Date(2023, 0, 1, 11, 0), endTime: new Date(2023, 0, 1, 12, 0) },
@@ -227,7 +239,7 @@ describe("Calendar Helpers", () => {
       expect(res[0].columnsCount).toBe(1);
     });
 
-    it("layouts overlapping events in clusters", () => {
+    it('layouts overlapping events in clusters', () => {
       const events = [
         { startTime: new Date(2023, 0, 1, 10, 0), endTime: new Date(2023, 0, 1, 11, 0) }, // A
         { startTime: new Date(2023, 0, 1, 10, 30), endTime: new Date(2023, 0, 1, 11, 30) }, // B (overlaps A)
@@ -250,16 +262,14 @@ describe("Calendar Helpers", () => {
 
   // --- Miscellaneous Helpers ---
 
-  describe("getTotalWindowHeightPx", () => {
-    it("calculates height based on steps", () => {
+  describe('getTotalWindowHeightPx', () => {
+    it('calculates height based on steps', () => {
       // 120 mins = 24 steps.
-      expect(getTotalWindowHeightPx(0, 120)).toBe(
-        (120 / MINUTES_PER_STEP) * PIXELS_PER_STEP,
-      );
+      expect(getTotalWindowHeightPx(0, 120)).toBe((120 / MINUTES_PER_STEP) * PIXELS_PER_STEP);
     });
   });
 
-  describe("getNowTopPxForWindow", () => {
+  describe('getNowTopPxForWindow', () => {
     beforeAll(() => {
       jest.useFakeTimers();
     });
@@ -268,13 +278,13 @@ describe("Calendar Helpers", () => {
       jest.useRealTimers();
     });
 
-    it("returns null if not same day", () => {
+    it('returns null if not same day', () => {
       jest.setSystemTime(new Date(2023, 0, 2, 12, 0));
       const targetDate = new Date(2023, 0, 1);
       expect(getNowTopPxForWindow(targetDate, 0, 1440)).toBeNull();
     });
 
-    it("returns position if same day and inside window", () => {
+    it('returns position if same day and inside window', () => {
       // 10:05 AM
       jest.setSystemTime(new Date(2023, 0, 1, 10, 5));
       const targetDate = new Date(2023, 0, 1);
@@ -285,22 +295,46 @@ describe("Calendar Helpers", () => {
       expect(getNowTopPxForWindow(targetDate, 600, 660)).toBe(PIXELS_PER_STEP);
     });
 
-    it("clamps position to windowEnd if time is outside window", () => {
+    it('returns null if current time is outside the visible window', () => {
       // 12:00 PM (720 min)
       jest.setSystemTime(new Date(2023, 0, 1, 12, 0));
       const targetDate = new Date(2023, 0, 1);
 
-      // Window 9:00 (540) to 10:00 (600)
-      // Current time 720 is > 600. Should return windowEnd logic.
-      // Clamped to 600. (600 - 540) / 5 = 12 steps.
-      expect(getNowTopPxForWindow(targetDate, 540, 600)).toBe(
-        (60 / MINUTES_PER_STEP) * PIXELS_PER_STEP,
-      );
+      // Window 9:00 (540) to 10:00 (600); now is outside.
+      expect(getNowTopPxForWindow(targetDate, 540, 600)).toBeNull();
     });
   });
 
-  describe("isAllDayForDate", () => {
-    it("returns true for event covering the full day", () => {
+  describe('getNowTopPxForHourRange', () => {
+    beforeAll(() => {
+      jest.useFakeTimers();
+    });
+
+    afterAll(() => {
+      jest.useRealTimers();
+    });
+
+    it('returns a top position when now is in the visible hour range', () => {
+      jest.setSystemTime(new Date(2023, 0, 1, 10, 30));
+      const targetDate = new Date(2023, 0, 1);
+      expect(getNowTopPxForHourRange(targetDate, 9, 11, 60, undefined, 8)).toBe(98);
+    });
+
+    it('uses precise seconds without snapping to slot boundaries', () => {
+      jest.setSystemTime(new Date(2023, 0, 1, 10, 35, 30));
+      const targetDate = new Date(2023, 0, 1);
+      expect(getNowTopPxForHourRange(targetDate, 9, 11, 60, undefined, 8)).toBeCloseTo(103.5, 3);
+    });
+
+    it('returns null when now is outside the visible hour range', () => {
+      jest.setSystemTime(new Date(2023, 0, 1, 8, 15));
+      const targetDate = new Date(2023, 0, 1);
+      expect(getNowTopPxForHourRange(targetDate, 9, 11, 60, undefined, 8)).toBeNull();
+    });
+  });
+
+  describe('isAllDayForDate', () => {
+    it('returns true for event covering the full day', () => {
       const day = new Date(2023, 0, 1);
       const ev = {
         startTime: new Date(2023, 0, 1, 0, 0, 0),
@@ -309,7 +343,7 @@ describe("Calendar Helpers", () => {
       expect(isAllDayForDate(ev, day)).toBe(true);
     });
 
-    it("returns false for partial day event", () => {
+    it('returns false for partial day event', () => {
       const day = new Date(2023, 0, 1);
       const ev = {
         startTime: new Date(2023, 0, 1, 10, 0),
@@ -319,8 +353,8 @@ describe("Calendar Helpers", () => {
     });
   });
 
-  describe("eventsForDay", () => {
-    it("filters tasks matching the day", () => {
+  describe('eventsForDay', () => {
+    it('filters tasks matching the day', () => {
       const day = new Date(2023, 0, 1);
       const tasks = [
         { dueAt: new Date(2023, 0, 1, 10, 0) }, // Match

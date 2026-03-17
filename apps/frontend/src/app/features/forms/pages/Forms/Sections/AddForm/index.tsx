@@ -211,8 +211,8 @@ const AddForm = ({
 
         <div
           ref={scrollRef}
-          className={`flex overflow-y-auto scrollbar-hidden ${
-            activeLabel === 'merck-manuals' ? '' : 'flex-1'
+          className={`flex flex-1 min-h-0 scrollbar-hidden ${
+            activeLabel === 'merck-manuals' ? 'overflow-hidden' : 'overflow-y-auto'
           }`}
         >
           {activeLabel === 'form-details' && (

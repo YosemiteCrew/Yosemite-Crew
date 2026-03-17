@@ -1,32 +1,34 @@
-import type { Metadata } from "next";
-import "./globals.css";
+import type { Metadata } from 'next';
+import { Suspense } from 'react';
+import './globals.css';
 
-import "bootstrap/dist/css/bootstrap.min.css";
+import 'bootstrap/dist/css/bootstrap.min.css';
 
-import "slick-carousel/slick/slick.css";
-import "slick-carousel/slick/slick-theme.css";
-import ToastProvider from "@/app/ui/layout/ToastProvider";
+import 'slick-carousel/slick/slick.css';
+import 'slick-carousel/slick/slick-theme.css';
+import ToastProvider from '@/app/ui/layout/ToastProvider';
+import RouteLoaderOverlay from '@/app/ui/layout/RouteLoaderOverlay';
 
 export const metadata: Metadata = {
-  title: "Yosemite Crew",
-  description: "Get Yosemite Crew PMS for your pet business",
+  title: 'Yosemite Crew',
+  description: 'Get Yosemite Crew PMS for your pet business',
   icons: [
-    { rel: "icon", url: "/favicon.ico", type: "image/x-icon" },
+    { rel: 'icon', url: '/favicon.ico', type: 'image/x-icon' },
     {
-      rel: "icon",
-      url: "/favicon-32x32.png",
-      sizes: "32x32",
-      type: "image/png",
+      rel: 'icon',
+      url: '/favicon-32x32.png',
+      sizes: '32x32',
+      type: 'image/png',
     },
     {
-      rel: "icon",
-      url: "/favicon-16x16.png",
-      sizes: "16x16",
-      type: "image/png",
+      rel: 'icon',
+      url: '/favicon-16x16.png',
+      sizes: '16x16',
+      type: 'image/png',
     },
-    { rel: "apple-touch-icon", url: "/apple-touch-icon.png", sizes: "180x180" },
+    { rel: 'apple-touch-icon', url: '/apple-touch-icon.png', sizes: '180x180' },
   ],
-  manifest: "/site.webmanifest",
+  manifest: '/site.webmanifest',
 };
 
 export default function RootLayout({
@@ -38,6 +40,9 @@ export default function RootLayout({
     <html lang="en">
       <body>
         {children}
+        <Suspense>
+          <RouteLoaderOverlay />
+        </Suspense>
         <ToastProvider />
       </body>
     </html>

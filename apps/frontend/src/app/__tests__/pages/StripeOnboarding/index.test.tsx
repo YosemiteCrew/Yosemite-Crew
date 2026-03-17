@@ -1,8 +1,8 @@
-import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
-import "@testing-library/jest-dom";
+import React from 'react';
+import { render, screen, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom';
 
-import ProtectedStripeOnboarding from "@/app/features/onboarding/pages/StripeOnboarding";
+import ProtectedStripeOnboarding from '@/app/features/onboarding/pages/StripeOnboarding';
 
 const pushMock = jest.fn();
 const useStripeOnboardingMock = jest.fn();
@@ -12,32 +12,32 @@ const createAccountMock = jest.fn();
 const onboardAccountMock = jest.fn();
 const loadConnectMock = jest.fn();
 
-jest.mock("next/navigation", () => ({
+jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: pushMock }),
-  useSearchParams: () => ({ get: () => "org-1" }),
+  useSearchParams: () => ({ get: () => 'org-1' }),
 }));
 
-jest.mock("@/app/hooks/useStripeOnboarding", () => ({
+jest.mock('@/app/hooks/useStripeOnboarding', () => ({
   useStripeOnboarding: (...args: any[]) => useStripeOnboardingMock(...args),
   useSubscriptionCounterUpdate: () => ({
     refetch: useSubscriptionCounterUpdateMock,
   }),
 }));
 
-jest.mock("@/app/hooks/useBilling", () => ({
+jest.mock('@/app/hooks/useBilling', () => ({
   useSubscriptionByOrgId: () => useSubscriptionMock(),
 }));
 
-jest.mock("@/app/features/billing/services/stripeService", () => ({
+jest.mock('@/app/features/billing/services/stripeService', () => ({
   createConnectedAccount: (...args: any[]) => createAccountMock(...args),
   onBoardConnectedAccount: (...args: any[]) => onboardAccountMock(...args),
 }));
 
-jest.mock("@stripe/connect-js", () => ({
+jest.mock('@stripe/connect-js/pure', () => ({
   loadConnectAndInitialize: (...args: any[]) => loadConnectMock(...args),
 }));
 
-jest.mock("@stripe/react-connect-js", () => ({
+jest.mock('@stripe/react-connect-js', () => ({
   ConnectComponentsProvider: ({ children }: any) => (
     <div data-testid="connect-provider">{children}</div>
   ),
@@ -46,52 +46,52 @@ jest.mock("@stripe/react-connect-js", () => ({
   ConnectTaxSettings: () => <div data-testid="connect-tax-settings" />,
 }));
 
-jest.mock("@/app/ui/layout/guards/ProtectedRoute", () => ({
+jest.mock('@/app/ui/layout/guards/ProtectedRoute', () => ({
   __esModule: true,
   default: ({ children }: any) => <div>{children}</div>,
 }));
 
-jest.mock("@/app/ui/layout/guards/OrgGuard", () => ({
+jest.mock('@/app/ui/layout/guards/OrgGuard', () => ({
   __esModule: true,
   default: ({ children }: any) => <div>{children}</div>,
 }));
 
-describe("Stripe onboarding page", () => {
+describe('Stripe onboarding page', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    process.env.NEXT_PUBLIC_SANDBOX_PUBLISH = "pk_test";
+    process.env.NEXT_PUBLIC_SANDBOX_PUBLISH = 'pk_test';
     useSubscriptionCounterUpdateMock.mockResolvedValue(undefined);
   });
 
-  it("returns null when onboarding is disabled", () => {
+  it('returns null when onboarding is disabled', () => {
     useStripeOnboardingMock.mockReturnValue({ onboard: false });
     useSubscriptionMock.mockReturnValue(null);
 
     render(<ProtectedStripeOnboarding />);
-    expect(screen.queryByText("Stripe Onboarding")).not.toBeInTheDocument();
+    expect(screen.queryByText('Stripe Onboarding')).not.toBeInTheDocument();
   });
 
-  it("redirects when subscription already connected", async () => {
+  it('redirects when subscription already connected', async () => {
     useStripeOnboardingMock.mockReturnValue({ onboard: true });
     useSubscriptionMock.mockReturnValue({
       connectChargesEnabled: true,
-      connectAccountId: "acct_1",
+      connectAccountId: 'acct_1',
     });
 
     render(<ProtectedStripeOnboarding />);
 
     await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith("/dashboard");
+      expect(pushMock).toHaveBeenCalledWith('/dashboard');
     });
   });
 
-  it("renders connect onboarding when instance is created", async () => {
+  it('renders connect onboarding when instance is created', async () => {
     useStripeOnboardingMock.mockReturnValue({ onboard: true });
     useSubscriptionMock.mockReturnValue({
       connectChargesEnabled: false,
-      connectAccountId: "acct_1",
+      connectAccountId: 'acct_1',
     });
-    onboardAccountMock.mockResolvedValue("secret");
+    onboardAccountMock.mockResolvedValue('secret');
     loadConnectMock.mockReturnValue({});
 
     render(<ProtectedStripeOnboarding />);
@@ -100,7 +100,7 @@ describe("Stripe onboarding page", () => {
       expect(loadConnectMock).toHaveBeenCalled();
     });
 
-    expect(screen.getByTestId("connect-provider")).toBeInTheDocument();
-    expect(screen.getByTestId("connect-onboarding")).toBeInTheDocument();
+    expect(screen.getByTestId('connect-provider')).toBeInTheDocument();
+    expect(screen.getByTestId('connect-onboarding')).toBeInTheDocument();
   });
 });

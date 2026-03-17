@@ -43,7 +43,9 @@ export const mapAxiosError = (
 
   return {
     status,
-    message: detailMessage ? `${fallbackMessage}: ${detailMessage}` : fallbackMessage,
+    message: detailMessage
+      ? `${fallbackMessage}: ${detailMessage}`
+      : fallbackMessage,
     details,
   };
 };

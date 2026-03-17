@@ -15,6 +15,13 @@ jest.mock('@/app/ui/tables/Appointments', () => ({
 
 jest.mock('@/app/lib/appointments', () => ({
   allowReschedule: jest.fn(() => true),
+  canAssignAppointmentRoom: jest.fn(() => true),
+  canShowStatusChangeAction: jest.fn(() => true),
+  getClinicalNotesIntent: jest.fn(() => ({ label: 'prescription', subLabel: 'subjective' })),
+  getClinicalNotesLabel: jest.fn(() => 'Prescription'),
+  isRequestedLikeStatus: jest.fn(
+    (status: string) => status === 'REQUESTED' || status === 'NO_PAYMENT'
+  ),
   normalizeAppointmentStatus: (status: string) => (status === 'NO_PAYMENT' ? 'REQUESTED' : status),
 }));
 
@@ -31,6 +38,7 @@ jest.mock('react-icons/io5', () => ({
 }));
 
 jest.mock('react-icons/md', () => ({
+  MdMeetingRoom: () => <span>room</span>,
   MdOutlineAutorenew: () => <span>change-status</span>,
 }));
 
