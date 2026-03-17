@@ -144,10 +144,10 @@ export interface ContactRequestMongo {
   attachments?: ContactAttachment[];
 
   status: ContactStatus;
-  priority: ContactPriority;
+  priority?: ContactPriority;
   assigneeId?: string | null;
   assigneeName?: string | null;
-  category: ContactCategory;
+  category?: ContactCategory;
   internalNotes?: string;
 
   createdAt?: Date;

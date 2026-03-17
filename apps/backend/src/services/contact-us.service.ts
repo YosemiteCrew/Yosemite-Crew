@@ -297,10 +297,12 @@ export const ContactService = {
 
   async updatePriority(id: string, priority: ContactPriority) {
     if (isReadFromPostgres()) {
-      return prisma.contactRequest.update({
+      const { count } = await prisma.contactRequest.updateMany({
         where: { id },
         data: { priority },
       });
+      if (count === 0) return null;
+      return prisma.contactRequest.findUnique({ where: { id } });
     }
 
     const updated = await ContactRequestModel.findByIdAndUpdate(
@@ -325,10 +327,12 @@ export const ContactService = {
 
   async assignRequest(id: string, assigneeId: string, assigneeName: string) {
     if (isReadFromPostgres()) {
-      return prisma.contactRequest.update({
+      const { count } = await prisma.contactRequest.updateMany({
         where: { id },
         data: { assigneeId, assigneeName },
       });
+      if (count === 0) return null;
+      return prisma.contactRequest.findUnique({ where: { id } });
     }
 
     const updated = await ContactRequestModel.findByIdAndUpdate(
@@ -363,12 +367,12 @@ export const ContactService = {
 
       const byType = await prisma.contactRequest.groupBy({
         by: ["type"],
-        _count: true,
+        _count: { _all: true },
       });
 
       const byPriority = await prisma.contactRequest.groupBy({
         by: ["priority"],
-        _count: true,
+        _count: { _all: true },
       });
 
       return {
@@ -377,10 +381,10 @@ export const ContactService = {
         inProgress,
         resolved,
         closed,
-        byType: byType.map((t) => ({ _id: t.type, count: t._count })),
+        byType: byType.map((t) => ({ _id: t.type, count: t._count._all })),
         byPriority: byPriority.map((p) => ({
           _id: p.priority,
-          count: p._count,
+          count: p._count._all,
         })),
       };
     }

@@ -13,6 +13,7 @@ import {
   type ContactType,
   type ContactStatus,
   type ContactPriority,
+  type ContactCategory,
 } from "src/models/contect-us";
 
 const CONTACT_PRIORITIES = new Set<ContactPriority>([
@@ -53,6 +54,15 @@ const CONTACT_STATUSES = new Set<ContactStatus>([
 
 const CONTACT_TYPES = new Set<ContactType>([
   "GENERAL_ENQUIRY",
+  "FEATURE_REQUEST",
+  "DSAR",
+  "COMPLAINT",
+]);
+
+const CONTACT_CATEGORIES = new Set<ContactCategory>([
+  "GENERAL_ENQUIRY",
+  "TECHNICAL",
+  "BILLING",
   "FEATURE_REQUEST",
   "DSAR",
   "COMPLAINT",
@@ -118,6 +128,10 @@ export const ContactController = {
         userId: bodyUserId,
         category,
       } = req.body;
+
+      if (category && !CONTACT_CATEGORIES.has(category as ContactCategory)) {
+        return res.status(400).json({ message: "Invalid category value" });
+      }
 
       const payload = {
         type,
