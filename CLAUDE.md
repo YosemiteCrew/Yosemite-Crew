@@ -110,7 +110,7 @@ These are the exact classes of issues that have been repeatedly introduced and f
 
 ### React — General
 
-- Never define props that are not actually used by the component.
+- Never define props that are not actually used by the component. When removing an unused prop from a type, also remove it from every call site and from test `defaultProps` / mock objects.
 - Icon components from `react-icons` render as `<svg>`. Never mock them as `<button>` in tests — use `<span>` to avoid DOM nesting violations.
 - Never nest `<button>` inside `<button>` — invalid HTML and breaks tests.
 - Never put `onClick`/`onKeyDown` on a `<dialog>` element — Sonar treats it as non-interactive. Move stop-propagation handlers to an inner wrapper `<div>` if needed.
@@ -134,6 +134,7 @@ These are the exact classes of issues that have been repeatedly introduced and f
 - When a React component's render function is too complex, extract sub-sections as standalone named components (not inline anonymous components) placed before the parent in the same file. Pass the needed state down as props.
 - Nesting limit: **4 levels deep**. Extract inner callbacks, map bodies, or conditional branches into named module-level functions.
 - Nested ternaries in JSX: extract to a named `const` before the `return`.
+- Nested ternaries inside prop values (e.g. `value={a ? b ? 'X' : 'Y' : ...}`): extract to a **named module-level helper function** placed before the component — not an inline const inside render.
 
 ### Constants — Arrays vs Sets
 
@@ -182,6 +183,8 @@ These are the exact classes of issues that have been repeatedly introduced and f
 - Always use `--testPathPattern` or `--testNamePattern` to run targeted tests.
 - Tests must pass `jest.spyOn(console, 'error')` checks — DOM nesting warnings are treated as errors in this repo's jest setup.
 - Use `await act(async () => { ... })` when testing components with async state updates.
+- When a hook calls `useXxxStore.getState()` directly (outside React), the jest mock must expose `getState` too — a plain `jest.fn()` will not have it. For auto-mocks assign it in `beforeEach`; for factory mocks use `Object.assign(jest.fn(), { getState: jest.fn() })`. See `frontend-testing` skill for full patterns.
+- When a text node sits directly next to a sibling JSX element inside the same container, wrap the text in a JSX expression (`{"Label"}`) to avoid the Sonar "ambiguous spacing before next element" error.
 
 ---
 

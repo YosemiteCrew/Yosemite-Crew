@@ -7,14 +7,13 @@ import Sidebar from '@/app/ui/layout/Sidebar/Sidebar';
 import UniversalSearchPalette from '@/app/ui/layout/UniversalSearch/UniversalSearchPalette';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useLoadOrg } from '@/app/hooks/useLoadOrg';
-import { useLoadProfiles } from '@/app/hooks/useProfiles';
+import { useLoadProfiles, usePrimaryOrgProfile } from '@/app/hooks/useProfiles';
 import { useLoadAvailabilities } from '@/app/hooks/useAvailabiities';
 import {
   getCompanionTerminologyForOrg,
   rewriteCompanionTerminologyText,
   setCompanionTerminologyForOrg,
 } from '@/app/lib/companionTerminology';
-import { usePrimaryOrgProfile } from '@/app/hooks/useProfiles';
 import { isValidAnimalTerminology } from '@/app/features/settings/utils/pmsPreferences';
 
 const TERMINOLOGY_ATTRIBUTES = ['placeholder', 'title', 'aria-label'] as const;

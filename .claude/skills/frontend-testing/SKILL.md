@@ -70,6 +70,42 @@ beforeEach(() => {
 });
 ```
 
+**Mocking stores that use `.getState()` outside React**
+
+When a hook calls `useXxxStore.getState()` directly (e.g. to read `status` without subscribing), `jest.mock` alone produces a plain function with no `getState` method and the test will throw `TypeError: useXxxStore.getState is not a function`.
+
+Two patterns depending on how the store is mocked:
+
+1. **`jest.mock('@/app/stores/xxxStore')` (auto-mock)** — attach `getState` in `beforeEach`:
+
+```ts
+const mockGetState = jest.fn();
+
+beforeEach(() => {
+  (useXxxStore as unknown as jest.Mock).mockImplementation((selector) => selector(mockState));
+  mockGetState.mockReturnValue(mockState);
+  (useXxxStore as unknown as jest.Mock & { getState: jest.Mock }).getState = mockGetState;
+});
+```
+
+2. **`jest.mock('...', () => ({ useXxxStore: jest.fn() }))` (explicit factory)** — include `getState` in the factory and wire it in `beforeEach`:
+
+```ts
+jest.mock('@/app/stores/xxxStore', () => ({
+  useXxxStore: Object.assign(jest.fn(), { getState: jest.fn() }),
+}));
+
+const mockGetState = jest.fn();
+
+beforeEach(() => {
+  (useXxxStore as unknown as jest.Mock).mockImplementation((selector) => selector(mockState));
+  mockGetState.mockReturnValue(mockState);
+  (useXxxStore as unknown as jest.Mock & { getState: jest.Mock }).getState = mockGetState;
+});
+```
+
+Always update `mockGetState.mockReturnValue(mockState)` whenever `mockState` changes mid-test so that `getState()` stays in sync with the selector mock.
+
 ### API Mocking
 
 Use `jest.spyOn` on axios or mock at the module level. Never make real HTTP calls in tests.

@@ -54,10 +54,30 @@ const setBlurred = (v: boolean) => {
 
 ### React — General
 
-- Never define props not used by the component.
+- Never define props not used by the component. When you remove an unused prop from a type, also remove it from every call site and from test `defaultProps` / mock objects — otherwise TypeScript will error on excess properties.
 - Never mock react-icons as `<button>` in tests — use `<span>`.
 - Never nest `<button>` inside `<button>`.
 - No `onClick`/`onKeyDown` on `<dialog>` — move to inner `<div>`.
+
+### JSX — Ambiguous Text/Element Spacing
+
+Sonar flags a raw text node immediately followed by a sibling element inside the same parent as "ambiguous spacing before next element". Fix by wrapping the text node in a JSX expression:
+
+```tsx
+// Bad — raw text node adjacent to <span>
+<span>
+  Finance
+  <span className="text-text-tertiary">{` (${count})`}</span>
+</span>
+
+// Good — text wrapped in expression, no ambiguity
+<span>
+  {"Finance"}
+  <span className="text-text-tertiary">{` (${count})`}</span>
+</span>
+```
+
+This applies anywhere a bare string literal sits next to a JSX child element inside the same container.
 
 ### Accessibility / Semantic HTML
 
@@ -80,7 +100,21 @@ Prefer native elements over ARIA roles:
 - Cognitive complexity limit: **15**.
 - Extract sub-sections as named components (not inline anonymous) when limit is exceeded.
 - Nesting limit: **4 levels deep** — extract inner callbacks.
-- Nested ternaries: extract to named `const` before `return`.
+- Nested ternaries in JSX: extract to a named `const` before `return`.
+- Nested ternaries in prop values (e.g. `value={a ? b ? 'X' : 'Y' : b ? 'Z' : 'W'}`): extract to a **named module-level helper function** placed before the component, not an inline `const`. This keeps the component body clean and the logic reusable.
+
+```ts
+// Bad — nested ternary inline in prop
+value={gender === 'female' ? isNeutered ? 'Spayed' : 'Not spayed' : isNeutered ? 'Neutered' : 'Not neutered'}
+
+// Good — module-level helper
+const getNeuteredStatusLabel = (gender: string | undefined, isNeutered: boolean | undefined): string => {
+  if (gender === 'female') return isNeutered ? 'Spayed' : 'Not spayed';
+  return isNeutered ? 'Neutered' : 'Not neutered';
+};
+// then in JSX:
+value={getNeuteredStatusLabel(companion.gender, companion.isneutered)}
+```
 
 ### Constants
 

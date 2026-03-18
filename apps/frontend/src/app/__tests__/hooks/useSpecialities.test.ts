@@ -19,6 +19,8 @@ jest.mock('@/app/features/organization/services/specialityService', () => ({
   loadSpecialitiesForOrg: jest.fn(),
 }));
 
+const mockSpecialityGetState = jest.fn();
+
 describe('useSpecialities Hooks', () => {
   let mockOrgState: any;
   let mockSpecialityState: any;
@@ -48,6 +50,9 @@ describe('useSpecialities Hooks', () => {
     (useServiceStore as unknown as jest.Mock).mockImplementation((selector) =>
       selector(mockServiceState)
     );
+    mockSpecialityGetState.mockReturnValue(mockSpecialityState);
+    (useSpecialityStore as unknown as jest.Mock & { getState: jest.Mock }).getState =
+      mockSpecialityGetState;
   });
 
   // --- Section 1: useLoadSpecialitiesForPrimaryOrg ---

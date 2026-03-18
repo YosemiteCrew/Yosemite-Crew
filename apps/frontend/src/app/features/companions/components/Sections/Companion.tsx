@@ -255,6 +255,16 @@ const buildCompanionPayload = (
     : undefined,
 });
 
+const getNeuteredStatusLabel = (
+  gender: string | undefined,
+  isNeutered: boolean | undefined
+): string => {
+  if (gender === 'female') {
+    return isNeutered ? 'Spayed' : 'Not spayed';
+  }
+  return isNeutered ? 'Neutered' : 'Not neutered';
+};
+
 const CompanionRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
   <div className="py-2.5! flex items-center gap-2 justify-between border-t border-card-border">
     <div className="text-body-4-emphasis text-text-tertiary">{label}</div>
@@ -279,15 +289,7 @@ const CompanionReadOnlySection = ({
     <CompanionRow label="Gender" value={companion.companion.gender || '-'} />
     <CompanionRow
       label="Neutered status"
-      value={
-        companion.companion.gender === 'female'
-          ? companion.companion.isneutered
-            ? 'Spayed'
-            : 'Not spayed'
-          : companion.companion.isneutered
-            ? 'Neutered'
-            : 'Not neutered'
-      }
+      value={getNeuteredStatusLabel(companion.companion.gender, companion.companion.isneutered)}
     />
     {companion.companion.isneutered ? (
       <CompanionRow

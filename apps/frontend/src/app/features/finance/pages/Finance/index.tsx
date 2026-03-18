@@ -88,7 +88,7 @@ const Finance = () => {
         <div className="flex flex-col gap-1">
           <div className="text-text-primary text-heading-1 flex items-center gap-2">
             <span>
-              Finance
+              {'Finance'}
               <span className="text-text-tertiary">{` (${invoices.length})`}</span>
             </span>
             <GlassTooltip

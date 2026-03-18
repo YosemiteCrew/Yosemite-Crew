@@ -18,7 +18,6 @@ type Column<T> = {
 
 type FormsTableProps = {
   filteredList: FormsProps[];
-  activeForm: FormsProps | null;
   setActiveForm: (companion: FormsProps) => void;
   setViewPopup: (open: boolean) => void;
   loading?: boolean;

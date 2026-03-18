@@ -136,7 +136,7 @@ const Forms = () => {
         <div className="flex flex-col gap-1">
           <div className="text-text-primary text-heading-1 flex items-center gap-2">
             <span>
-              Templates
+              {'Templates'}
               <span className="text-text-tertiary">{` (${list.length})`}</span>
             </span>
             <GlassTooltip
@@ -165,7 +165,6 @@ const Forms = () => {
           />
           <FormsTable
             filteredList={filteredList}
-            activeForm={activeForm}
             setActiveForm={handleSelectForm}
             setViewPopup={setViewPopup}
             loading={loading}

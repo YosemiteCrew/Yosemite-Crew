@@ -92,7 +92,7 @@ const Companions = () => {
         <div className="flex flex-col gap-1">
           <div className="text-text-primary text-heading-1 flex items-center gap-2">
             <span>
-              Companions
+              {'Companions'}
               <span className="text-text-tertiary">{` (${companions.length})`}</span>
             </span>
             <GlassTooltip

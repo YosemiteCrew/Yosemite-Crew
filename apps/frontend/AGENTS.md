@@ -59,6 +59,8 @@ Full rule set in `.claude/skills/frontend-sonar/SKILL.md`. Summary of the most c
 - No `<div role="...">` where a native HTML element exists.
 - Non-interactive elements with `onClick` need `role`, `tabIndex={0}`, `onKeyDown`.
 - Cognitive complexity ≤ 15. Nesting ≤ 4 levels. No nested ternaries in JSX.
+- Nested ternaries inside prop values → extract to a **named module-level helper function**, not an inline const.
+- Raw text node adjacent to a sibling JSX element → wrap the text in a JSX expression: `{"Label"}` not bare `Label` (fixes "ambiguous spacing before next element span").
 - Arrays only used for `.includes()` → convert to `Set` and use `.has()`.
 - Use `globalThis.window` not bare `window`.
 
@@ -77,6 +79,7 @@ pnpm --filter frontend run test -- --testPathPattern="ComponentName"
 - `await act(async () => { ... })` for async state updates.
 - Reset Zustand stores in `beforeEach`.
 - DOM nesting warnings are test failures in this repo.
+- When a hook calls `useXxxStore.getState()` directly, the store mock must expose `getState` too. Use `Object.assign(jest.fn(), { getState: jest.fn() })` in factory mocks, or attach `(useXxxStore as any).getState = mockGetState` in `beforeEach` for auto-mocks. See `frontend-testing` skill for full patterns.
 
 ---
 
