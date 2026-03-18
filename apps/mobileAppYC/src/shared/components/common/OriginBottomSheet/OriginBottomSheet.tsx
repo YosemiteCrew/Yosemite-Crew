@@ -1,5 +1,8 @@
 import React, {forwardRef, useImperativeHandle, useRef} from 'react';
-import {GenericSelectBottomSheet, type SelectItem} from '../GenericSelectBottomSheet/GenericSelectBottomSheet';
+import {
+  GenericSelectBottomSheet,
+  type SelectItem,
+} from '../GenericSelectBottomSheet/GenericSelectBottomSheet';
 import type {CompanionOrigin} from '@/features/companion/types';
 
 export interface OriginBottomSheetRef {
@@ -21,6 +24,7 @@ export const OriginBottomSheet = forwardRef<
     {id: 'breeder', label: 'Breeder'},
     {id: 'foster-shelter', label: 'Foster/ Shelter'},
     {id: 'friends-family', label: 'Friends or family'},
+    {id: 'stray', label: 'Stray'},
     {id: 'unknown', label: 'Unknown'},
   ];
 
