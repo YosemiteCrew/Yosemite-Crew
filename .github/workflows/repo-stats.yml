@@ -43,6 +43,7 @@ jobs:
           import os
           import re
           import sys
+          import csv
           from html.parser import HTMLParser
           from pathlib import Path
 
@@ -75,7 +76,20 @@ jobs:
               return None
             return int(match.group(1).replace(",", ""))
 
-          def extract_top(section_label: str, next_label: str) -> list[str]:
+          def parse_ranked_list(block: str) -> list[dict]:
+            items: list[dict] = []
+            for part in block.split(","):
+              raw = part.strip().strip("` ")
+              if not raw:
+                continue
+              match = re.match(r"^\s*(\d+)\s*:\s*(.+?)\s*$", raw)
+              if match:
+                items.append({"rank": int(match.group(1)), "value": match.group(2)})
+              else:
+                items.append({"rank": None, "value": raw})
+            return items
+
+          def extract_top(section_label: str, next_label: str) -> list[dict]:
             match = re.search(
               rf"{section_label}:\s*(.*?)\s*{next_label}:",
               text,
@@ -84,15 +98,9 @@ jobs:
             if not match:
               return []
             block = match.group(1)
-            items: list[str] = []
-            for part in block.split(","):
-              item = re.sub(r"^\d+\s*:\s*", "", part.strip())
-              item = item.strip("` ")
-              if item:
-                items.append(item)
-            return items
+            return parse_ranked_list(block)
 
-          def extract_top_until(section_label: str, stop_labels: list[str]) -> list[str]:
+          def extract_top_until(section_label: str, stop_labels: list[str]) -> list[dict]:
             stop_group = "|".join(map(re.escape, stop_labels))
             match = re.search(
               rf"{section_label}:\s*(.*?)(?:\s*(?:{stop_group}))",
@@ -102,23 +110,63 @@ jobs:
             if not match:
               return []
             block = match.group(1)
-            items: list[str] = []
-            for part in block.split(","):
-              item = re.sub(r"^\d+\s*:\s*", "", part.strip())
-              item = item.strip("` ")
-              if item:
-                items.append(item)
-            return items
+            return parse_ranked_list(block)
 
           generated_at = None
           generated_match = re.search(r"Generated .* at ([0-9:\- ]+UTC)", text)
           if generated_match:
             generated_at = generated_match.group(1).strip()
 
+          generated_for = None
+          generated_with = None
+          generated_full_match = re.search(
+            r"Generated for ([^\n]+?) with ([^\n]+?) at ([0-9:\- ]+UTC)",
+            text,
+          )
+          if generated_full_match:
+            generated_for = generated_full_match.group(1).strip()
+            generated_with = generated_full_match.group(2).strip()
+            generated_at = generated_full_match.group(3).strip()
+
+          top_referrers_ranked = extract_top("Top 15 referrers", "Top 15 paths")
+          top_paths_ranked = extract_top_until(
+            "Top 15 paths",
+            ["Generated", "Report file contents"],
+          )
+
+          def load_csv(path: Path) -> dict:
+            with path.open(newline="", encoding="utf-8") as handle:
+              reader = csv.DictReader(handle)
+              rows = [row for row in reader]
+              return {
+                "headers": reader.fieldnames or [],
+                "rows": rows,
+              }
+
+          def load_json(path: Path):
+            try:
+              return json.loads(path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+              return None
+
+          raw_csv: dict = {}
+          for csv_path in sorted(Path(".").glob("*-raw.csv")):
+            raw_csv[csv_path.stem] = load_csv(csv_path)
+
+          snapshots: dict = {}
+          snapshots_dir = Path("newsnapshots")
+          if snapshots_dir.exists():
+            for json_path in sorted(snapshots_dir.glob("*.json")):
+              payload = load_json(json_path)
+              if payload is not None:
+                snapshots[json_path.name] = payload
+
           summary = {
             "owner": owner,
             "repo": repo,
             "generated_at_utc": generated_at,
+            "generated_for": generated_for,
+            "generated_with": generated_with,
             "views": {
               "unique": extract_cumulative("Unique visitors"),
               "total": extract_cumulative("Total views"),
@@ -127,8 +175,16 @@ jobs:
               "unique": extract_cumulative("Unique cloners"),
               "total": extract_cumulative("Total clones"),
             },
-            "top_referrers": extract_top("Top 15 referrers", "Top 15 paths"),
-            "top_paths": extract_top_until("Top 15 paths", ["Generated", "Report file contents"]),
+            "top_referrers": [item["value"] for item in top_referrers_ranked],
+            "top_paths": [item["value"] for item in top_paths_ranked],
+            "top_referrers_ranked": top_referrers_ranked,
+            "top_paths_ranked": top_paths_ranked,
+            "raw_csv": raw_csv,
+            "snapshots": snapshots,
+            "data_files": {
+              "raw_csv": sorted(raw_csv.keys()),
+              "snapshots": sorted(snapshots.keys()),
+            },
             "report_url": f"https://{owner.lower()}.github.io/{repo}/{owner}/{repo}/latest-report/report.html",
           }
 

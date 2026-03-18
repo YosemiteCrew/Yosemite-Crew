@@ -93,6 +93,29 @@ export const AvailabilityController = {
     }
   },
 
+  async getOrganisationBaseAvailability(
+    req: Request<{ orgId: string }>,
+    res: Response,
+  ) {
+    try {
+      const orgId = req.params.orgId;
+
+      if (!orgId) {
+        return res.status(400).json({ message: "Missing orgId" });
+      }
+
+      const data =
+        await AvailabilityService.getOrganisationBaseAvailability(orgId);
+      return res.status(200).json({ data });
+    } catch (err: unknown) {
+      return handleControllerError(
+        "getOrganisationBaseAvailability error",
+        err,
+        res,
+      );
+    }
+  },
+
   async deleteBaseAvailability(req: Request<{ orgId: string }>, res: Response) {
     try {
       const orgId = req.params.orgId;
