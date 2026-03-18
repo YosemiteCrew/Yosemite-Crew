@@ -59,6 +59,7 @@ jest.mock('@/app/features/tasks/services/taskService', () => ({
 jest.mock('@/app/lib/date', () => ({
   applyUtcTime: (d: Date) => d,
   getUtcTimeValue: () => '00:00',
+  getPreferredTimeValue: () => '00:00',
   generateTimeSlots: () => ['09:00'],
 }));
 

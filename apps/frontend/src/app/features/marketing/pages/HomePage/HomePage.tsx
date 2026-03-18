@@ -10,6 +10,7 @@ import FocusCard from '@/app/features/marketing/pages/HomePage/FocusCard/FocusCa
 import data from './data';
 import { useAuthStore } from '@/app/stores/authStore';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
 
 import './HomePage.css';
 
@@ -19,7 +20,7 @@ const HomePage = () => {
 
   const getCtaHref = () => {
     if (user) {
-      return role === 'developer' ? '/developers/home' : '/organizations';
+      return role === 'developer' ? '/developers/home' : resolveDefaultOpenScreenRoute(role);
     }
     return '/signup';
   };

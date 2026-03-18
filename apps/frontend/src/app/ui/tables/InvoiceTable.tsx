@@ -16,6 +16,7 @@ import {
   getCompanionNameFromAppointments,
   getParentNameFromAppointments,
 } from '@/app/lib/invoice';
+import { getInvoicePaymentMethodLabel } from '@/app/lib/invoicePaymentMethod';
 
 type Column<T> = {
   label: string;
@@ -98,14 +99,16 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
         const appointment = getAppointmentByIdFromList(appointments, item.appointmentId);
         const companionName = getCompanionName(item.appointmentId);
         const parentName = getParentName(item.appointmentId);
-        const ownerAndCompanion =
-          parentName !== '-' && companionName !== '-'
-            ? `${parentName} / ${companionName}`
-            : parentName !== '-'
-              ? parentName
-              : companionName !== '-'
-                ? companionName
-                : '-';
+        let ownerAndCompanion = '-';
+        if (parentName !== '-' && companionName !== '-') {
+          ownerAndCompanion = `${parentName} / ${companionName}`;
+        } else if (parentName === '-') {
+          if (companionName !== '-') {
+            ownerAndCompanion = companionName;
+          }
+        } else {
+          ownerAndCompanion = parentName;
+        }
         return (
           <div className="appointment-profile truncate">
             <div className="appointment-profile-two">
@@ -198,11 +201,19 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
     {
       label: 'Status',
       key: 'status',
-      width: '15%',
+      width: '10%',
       render: (item: Invoice) => (
         <div className="appointment-status" style={getStatusStyle(item?.status)}>
           {toTitle(item?.status)}
         </div>
+      ),
+    },
+    {
+      label: 'Payment',
+      key: 'payment',
+      width: '10%',
+      render: (item: Invoice) => (
+        <div className="appointment-profile-title">{getInvoicePaymentMethodLabel(item)}</div>
       ),
     },
     {

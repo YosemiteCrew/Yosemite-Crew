@@ -1,29 +1,28 @@
-"use client";
-import React, { useMemo, useState } from "react";
-import { FaCirclePlay } from "react-icons/fa6";
+'use client';
+import React, { useMemo, useState } from 'react';
+import { FaCirclePlay } from 'react-icons/fa6';
 
-import ProtectedRoute from "@/app/ui/layout/guards/ProtectedRoute";
-import OrgGuard from "@/app/ui/layout/guards/OrgGuard";
-import CenterModal from "@/app/ui/overlays/Modal/CenterModal";
-import Close from "@/app/ui/primitives/Icons/Close";
-import Search from "@/app/ui/inputs/Search";
-import { Primary } from "@/app/ui/primitives/Buttons";
-import { guidesData } from "@/app/features/guides/data/guidesData";
-import { GuideVideo } from "@/app/features/guides/types/guides";
+import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
+import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
+import VideoPlayerModal from '@/app/ui/overlays/Modal/VideoPlayerModal';
+import Search from '@/app/ui/inputs/Search';
+import { Primary } from '@/app/ui/primitives/Buttons';
+import { guidesData } from '@/app/features/guides/data/guidesData';
+import { GuideVideo } from '@/app/features/guides/types/guides';
 
 const categoryPalette = [
-  { bg: "#247AED", text: "#EAF3FF" },
-  { bg: "#F1D4B0", text: "#302f2e" },
-  { bg: "#A8A181", text: "#F7F7F7" },
-  { bg: "#BF9FAA", text: "#F7F7F7" },
-  { bg: "#D28F9A", text: "#F7F7F7" },
-  { bg: "#5C614B", text: "#F7F7F7" },
-  { bg: "#D9A488", text: "#F7F7F7" },
+  { bg: '#247AED', text: '#EAF3FF' },
+  { bg: '#F1D4B0', text: '#302f2e' },
+  { bg: '#A8A181', text: '#F7F7F7' },
+  { bg: '#BF9FAA', text: '#F7F7F7' },
+  { bg: '#D28F9A', text: '#F7F7F7' },
+  { bg: '#5C614B', text: '#F7F7F7' },
+  { bg: '#D9A488', text: '#F7F7F7' },
 ];
 
 const Guides = () => {
-  const [search, setSearch] = useState("");
-  const [activeCategory, setActiveCategory] = useState("All");
+  const [search, setSearch] = useState('');
+  const [activeCategory, setActiveCategory] = useState('All');
   const [showModal, setShowModal] = useState(false);
   const [activeVideo, setActiveVideo] = useState<GuideVideo | null>(null);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
@@ -31,7 +30,7 @@ const Guides = () => {
   const categories = useMemo(() => {
     const items = new Set<string>();
     guidesData.forEach((guide) => items.add(guide.category));
-    return ["All", ...Array.from(items)];
+    return ['All', ...Array.from(items)];
   }, []);
 
   const categoryStyles = useMemo(() => {
@@ -50,17 +49,12 @@ const Guides = () => {
   const filteredGuides = useMemo(() => {
     const query = search.trim().toLowerCase();
     return guidesData.filter((guide) => {
-      if (activeCategory !== "All" && guide.category !== activeCategory) {
+      if (activeCategory !== 'All' && guide.category !== activeCategory) {
         return false;
       }
       if (!query) return true;
-      const haystack = [
-        guide.title,
-        guide.description,
-        guide.category,
-        guide.tags.join(" "),
-      ]
-        .join(" ")
+      const haystack = [guide.title, guide.description, guide.category, guide.tags.join(' ')]
+        .join(' ')
         .toLowerCase();
       return haystack.includes(query);
     });
@@ -77,11 +71,12 @@ const Guides = () => {
       <div className="flex flex-wrap items-center justify-between gap-3 mt-2">
         <div className="flex flex-col gap-1">
           <div className="text-text-primary text-heading-1">
-            Guides & Tutorials{" "}
+            Guides & Tutorials{' '}
             <span className="text-text-tertiary">{`(${guidesData.length})`}</span>
           </div>
           <p className="text-body-3 text-text-secondary max-w-3xl mb-0!">
-            Learn how to set up your animal health practice, streamline workflows, and get the most from Yosemite.
+            Learn how to set up your animal health practice, streamline workflows, and get the most
+            from Yosemite.
           </p>
         </div>
       </div>
@@ -113,12 +108,8 @@ const Guides = () => {
                   {featuredGuide.category}
                 </div>
               </div>
-              <div className="text-heading-2 text-text-primary">
-                {featuredGuide.title}
-              </div>
-              <div className="text-body-3 text-text-secondary">
-                {featuredGuide.description}
-              </div>
+              <div className="text-heading-2 text-text-primary">{featuredGuide.title}</div>
+              <div className="text-body-3 text-text-secondary">{featuredGuide.description}</div>
               <Primary
                 text="Watch now"
                 href="#"
@@ -163,9 +154,7 @@ const Guides = () => {
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div className="text-body-2 text-text-primary">All guides</div>
-          <div className="text-body-4 text-text-tertiary">
-            {filteredGuides.length} results
-          </div>
+          <div className="text-body-4 text-text-tertiary">{filteredGuides.length} results</div>
         </div>
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
@@ -196,70 +185,20 @@ const Guides = () => {
                   </div>
                 </div>
                 <div className="text-body-2 text-text-primary">{video.title}</div>
-                <div className="text-body-4 text-text-secondary">
-                  {video.description}
-                </div>
+                <div className="text-body-4 text-text-secondary">{video.description}</div>
               </div>
             </button>
           ))}
         </div>
       </div>
 
-      {showModal && (
-        <CenterModal
-          showModal={showModal}
-          setShowModal={setShowModal}
-          onClose={() => {
-            setShowModal(false);
-            setIsVideoLoaded(false);
-          }}
-          containerClassName="sm:w-[720px] md:w-[860px] lg:w-[980px] max-w-[95vw]"
-        >
-          <div className="relative flex items-center justify-center">
-            <div className="text-body-2 text-text-primary text-center">
-              {activeVideo?.title ?? "Video"}
-            </div>
-            <div className="absolute right-0">
-              <Close
-                onClick={() => {
-                  setShowModal(false);
-                  setIsVideoLoaded(false);
-                }}
-              />
-            </div>
-          </div>
-          <div className="relative rounded-2xl border border-card-border overflow-hidden">
-            {activeVideo ? (
-              <video
-                key={activeVideo.videoUrl}
-                className="w-full h-auto"
-                controls
-                preload="metadata"
-                poster={activeVideo.thumbnailUrl}
-                onLoadedData={() => setIsVideoLoaded(true)}
-              >
-                <source src={activeVideo.videoUrl} type="video/mp4" />
-                <track
-                  kind="captions"
-                  src="data:text/vtt,WEBVTT"
-                  srcLang="en"
-                  label="English"
-                  default
-                />
-              </video>
-            ) : (
-              <div className="w-full aspect-video bg-black/80" />
-            )}
-            {activeVideo && !isVideoLoaded && (
-              <div
-                className="absolute inset-0 bg-no-repeat bg-cover bg-center"
-                style={{ backgroundImage: `url(${activeVideo.thumbnailUrl})` }}
-                aria-hidden="true"
-              />
-            )}
-          </div>
-        </CenterModal>
-      )}
+      <VideoPlayerModal
+        showModal={showModal}
+        setShowModal={setShowModal}
+        activeVideo={activeVideo}
+        isVideoLoaded={isVideoLoaded}
+        setIsVideoLoaded={setIsVideoLoaded}
+      />
     </div>
   );
 };

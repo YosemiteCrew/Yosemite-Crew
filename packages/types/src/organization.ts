@@ -1,294 +1,331 @@
-import type { Organization as FHIROrganization } from "@yosemite-crew/fhirtypes"
-import type { Address } from './address.model'
-import { toFHIRAddress, fromFHIRAddress } from './address.model'
+import type { Organization as FHIROrganization } from '@yosemite-crew/fhirtypes';
+import type { Address } from './address.model';
+import { toFHIRAddress, fromFHIRAddress } from './address.model';
 
-type StringableId = { toString(): string }
+type StringableId = { toString(): string };
 
 export interface Organisation {
-    _id?: string | StringableId
-    name: string
-    DUNSNumber?: string
-    imageURL?: string
-    type: 'HOSPITAL' | 'BREEDER' | 'BOARDER' | 'GROOMER'
-    phoneNo: string
-    website?: string
-    address?: Address
-    isVerified?: boolean
-    isActive?: boolean
-    taxId: string
-    healthAndSafetyCertNo?: string
-    animalWelfareComplianceCertNo?: string
-    fireAndEmergencyCertNo?: string
-    googlePlacesId?: string
-    stripeAccountId?: string;
+  _id?: string | StringableId;
+  name: string;
+  DUNSNumber?: string;
+  imageURL?: string;
+  type: 'HOSPITAL' | 'BREEDER' | 'BOARDER' | 'GROOMER';
+  petNamePreference?: 'COMPANION' | 'ANIMAL' | 'PATIENT';
+  phoneNo: string;
+  website?: string;
+  address?: Address;
+  isVerified?: boolean;
+  isActive?: boolean;
+  taxId: string;
+  healthAndSafetyCertNo?: string;
+  animalWelfareComplianceCertNo?: string;
+  fireAndEmergencyCertNo?: string;
+  googlePlacesId?: string;
+  stripeAccountId?: string;
 }
 
-export type Organization = Organisation
+export type Organization = Organisation;
 export type ToFHIROrganizationOptions = {
-    typeCoding?: {
-        system: string
-        code: string
-        display?: string
-    }
-}
+  typeCoding?: {
+    system: string;
+    code: string;
+    display?: string;
+  };
+};
 
-const TAX_IDENTIFIER_SYSTEM = 'http://example.org/fhir/NamingSystem/organisation-tax-id'
-const DUNS_IDENTIFIER_SYSTEM = 'http://terminology.hl7.org/NamingSystem/DUNSNumber'
-const IMAGE_EXTENSION_URL = 'https://yosemitecrew.com/fhir/StructureDefinition/organisation-image'
-const IS_VERIFIED_EXTENSION_URL = 'https://yosemitecrew.com/fhir/StructureDefinition/isVerified'
-const TAX_ID_EXTENSION_URL = 'https://yosemitecrew.com/fhir/StructureDefinition/taxId'
+const TAX_IDENTIFIER_SYSTEM = 'http://example.org/fhir/NamingSystem/organisation-tax-id';
+const DUNS_IDENTIFIER_SYSTEM = 'http://terminology.hl7.org/NamingSystem/DUNSNumber';
+const IMAGE_EXTENSION_URL = 'https://yosemitecrew.com/fhir/StructureDefinition/organisation-image';
+const IS_VERIFIED_EXTENSION_URL = 'https://yosemitecrew.com/fhir/StructureDefinition/isVerified';
+const TAX_ID_EXTENSION_URL = 'https://yosemitecrew.com/fhir/StructureDefinition/taxId';
 const HEALTH_SAFETY_CERT_EXTENSION_URL =
-    'https://yosemitecrew.com/fhir/StructureDefinition/healthAndSafetyCertificationNumber'
+  'https://yosemitecrew.com/fhir/StructureDefinition/healthAndSafetyCertificationNumber';
 const ANIMAL_WELFARE_CERT_EXTENSION_URL =
-    'https://yosemitecrew.com/fhir/StructureDefinition/animalWelfareComplianceCertificationNumber'
+  'https://yosemitecrew.com/fhir/StructureDefinition/animalWelfareComplianceCertificationNumber';
 const FIRE_EMERGENCY_CERT_EXTENSION_URL =
-    'https://yosemitecrew.com/fhir/StructureDefinition/fireAndEmergencyCertificationNumber'
-const TYPE_SYSTEM = 'http://example.org/fhir/CodeSystem/organisation-type'
-const GOOGLE_PLACE_ID_EXTENSION_URL = 'https://yosemitecrew.com/fhir/StructureDefinition/google-place-id'
+  'https://yosemitecrew.com/fhir/StructureDefinition/fireAndEmergencyCertificationNumber';
+const TYPE_SYSTEM = 'http://example.org/fhir/CodeSystem/organisation-type';
+const GOOGLE_PLACE_ID_EXTENSION_URL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/google-place-id';
 const STRIPE_ACCOUNT_ID_EXTENSION_URL =
-    'https://yosemitecrew.com/fhir/StructureDefinition/stripe-account-id'
+  'https://yosemitecrew.com/fhir/StructureDefinition/stripe-account-id';
+const PET_NAME_PREFERENCE_EXTENSION_URL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/pet-name-preference';
 
-const ORGANISATION_TYPE_CODING_MAP: Record<Organisation['type'], { code: string; display: string }> = {
-    HOSPITAL: { code: 'hospital', display: 'Hospital' },
-    BREEDER: { code: 'breeder', display: 'Breeder' },
-    BOARDER: { code: 'boarder', display: 'Boarder' },
-    GROOMER: { code: 'groomer', display: 'Groomer' },
-}
+const ORGANISATION_TYPE_CODING_MAP: Record<
+  Organisation['type'],
+  { code: string; display: string }
+> = {
+  HOSPITAL: { code: 'hospital', display: 'Hospital' },
+  BREEDER: { code: 'breeder', display: 'Breeder' },
+  BOARDER: { code: 'boarder', display: 'Boarder' },
+  GROOMER: { code: 'groomer', display: 'Groomer' },
+};
 
 const REVERSE_TYPE_CODING_MAP = Object.entries(ORGANISATION_TYPE_CODING_MAP).reduce<
-    Record<string, Organisation['type']>
+  Record<string, Organisation['type']>
 >((acc, [type, coding]) => {
-    acc[coding.code] = type as Organisation['type']
-    return acc
-}, {})
+  acc[coding.code] = type as Organisation['type'];
+  return acc;
+}, {});
 
 const toStringId = (id?: string | StringableId): string | undefined => {
-    if (!id) {
-        return undefined
-    }
+  if (!id) {
+    return undefined;
+  }
 
-    if (typeof id === 'string') {
-        return id
-    }
+  if (typeof id === 'string') {
+    return id;
+  }
 
-    try {
-        const value = id.toString()
-        return value || undefined
-    } catch {
-        return undefined
-    }
-}
+  try {
+    const value = id.toString();
+    return value || undefined;
+  } catch {
+    return undefined;
+  }
+};
 
-const buildIdentifiers = (organisation: Organisation): NonNullable<FHIROrganization['identifier']> | undefined => {
-    const identifiers: NonNullable<FHIROrganization['identifier']> = []
+const buildIdentifiers = (
+  organisation: Organisation
+): NonNullable<FHIROrganization['identifier']> | undefined => {
+  const identifiers: NonNullable<FHIROrganization['identifier']> = [];
 
-    if (organisation.taxId) {
-        identifiers.push({
-            system: TAX_IDENTIFIER_SYSTEM,
-            value: organisation.taxId,
-            use: 'official',
-        })
-    }
+  if (organisation.taxId) {
+    identifiers.push({
+      system: TAX_IDENTIFIER_SYSTEM,
+      value: organisation.taxId,
+      use: 'official',
+    });
+  }
 
-    if (organisation.DUNSNumber) {
-        identifiers.push({
-            system: DUNS_IDENTIFIER_SYSTEM,
-            value: organisation.DUNSNumber,
-        })
-    }
+  if (organisation.DUNSNumber) {
+    identifiers.push({
+      system: DUNS_IDENTIFIER_SYSTEM,
+      value: organisation.DUNSNumber,
+    });
+  }
 
-    return identifiers.length ? identifiers : undefined
-}
+  return identifiers.length ? identifiers : undefined;
+};
 
-const buildTelecom = (organisation: Organisation): NonNullable<FHIROrganization['telecom']> | undefined => {
-    const telecom: NonNullable<FHIROrganization['telecom']> = []
+const buildTelecom = (
+  organisation: Organisation
+): NonNullable<FHIROrganization['telecom']> | undefined => {
+  const telecom: NonNullable<FHIROrganization['telecom']> = [];
 
-    if (organisation.phoneNo) {
-        telecom.push({
-            system: 'phone',
-            value: organisation.phoneNo,
-        })
-    }
+  if (organisation.phoneNo) {
+    telecom.push({
+      system: 'phone',
+      value: organisation.phoneNo,
+    });
+  }
 
-    if (organisation.website) {
-        telecom.push({
-            system: 'url',
-            value: organisation.website,
-        })
-    }
+  if (organisation.website) {
+    telecom.push({
+      system: 'url',
+      value: organisation.website,
+    });
+  }
 
-    return telecom.length ? telecom : undefined
-}
+  return telecom.length ? telecom : undefined;
+};
 
 const buildExtensions = (organisation: Organisation): FHIROrganization['extension'] => {
-    const extensions: NonNullable<FHIROrganization['extension']> = []
+  const extensions: NonNullable<FHIROrganization['extension']> = [];
 
-    if (organisation.taxId) {
-        extensions.push({
-            url: TAX_ID_EXTENSION_URL,
-            valueString: organisation.taxId,
-        })
-    }
-
-    const isVerifiedValue = organisation.isVerified ?? false
+  if (organisation.taxId) {
     extensions.push({
-        url: IS_VERIFIED_EXTENSION_URL,
-        valueBoolean: isVerifiedValue,
-    })
+      url: TAX_ID_EXTENSION_URL,
+      valueString: organisation.taxId,
+    });
+  }
 
-    if (organisation.imageURL) {
-        extensions.push({
-            url: IMAGE_EXTENSION_URL,
-            valueUrl: organisation.imageURL,
-        })
-    }
+  const isVerifiedValue = organisation.isVerified ?? false;
+  extensions.push({
+    url: IS_VERIFIED_EXTENSION_URL,
+    valueBoolean: isVerifiedValue,
+  });
 
-    if (organisation.healthAndSafetyCertNo) {
-        extensions.push({
-            url: HEALTH_SAFETY_CERT_EXTENSION_URL,
-            valueString: organisation.healthAndSafetyCertNo,
-        })
-    }
+  if (organisation.imageURL) {
+    extensions.push({
+      url: IMAGE_EXTENSION_URL,
+      valueUrl: organisation.imageURL,
+    });
+  }
 
-    if (organisation.animalWelfareComplianceCertNo) {
-        extensions.push({
-            url: ANIMAL_WELFARE_CERT_EXTENSION_URL,
-            valueString: organisation.animalWelfareComplianceCertNo,
-        })
-    }
+  if (organisation.healthAndSafetyCertNo) {
+    extensions.push({
+      url: HEALTH_SAFETY_CERT_EXTENSION_URL,
+      valueString: organisation.healthAndSafetyCertNo,
+    });
+  }
 
-    if (organisation.fireAndEmergencyCertNo) {
-        extensions.push({
-            url: FIRE_EMERGENCY_CERT_EXTENSION_URL,
-            valueString: organisation.fireAndEmergencyCertNo,
-        })
-    }
+  if (organisation.animalWelfareComplianceCertNo) {
+    extensions.push({
+      url: ANIMAL_WELFARE_CERT_EXTENSION_URL,
+      valueString: organisation.animalWelfareComplianceCertNo,
+    });
+  }
 
-    if (organisation.googlePlacesId) {
-        extensions.push({
-            url: GOOGLE_PLACE_ID_EXTENSION_URL,
-            valueString: organisation.googlePlacesId
-        })
-    }
+  if (organisation.fireAndEmergencyCertNo) {
+    extensions.push({
+      url: FIRE_EMERGENCY_CERT_EXTENSION_URL,
+      valueString: organisation.fireAndEmergencyCertNo,
+    });
+  }
 
-    if (organisation.stripeAccountId) {
-        extensions.push({
-            url: STRIPE_ACCOUNT_ID_EXTENSION_URL,
-            valueString: organisation.stripeAccountId,
-        })
-    }
+  if (organisation.googlePlacesId) {
+    extensions.push({
+      url: GOOGLE_PLACE_ID_EXTENSION_URL,
+      valueString: organisation.googlePlacesId,
+    });
+  }
 
-    return extensions.length ? extensions : undefined
-}
+  if (organisation.stripeAccountId) {
+    extensions.push({
+      url: STRIPE_ACCOUNT_ID_EXTENSION_URL,
+      valueString: organisation.stripeAccountId,
+    });
+  }
+
+  if (organisation.petNamePreference) {
+    extensions.push({
+      url: PET_NAME_PREFERENCE_EXTENSION_URL,
+      valueString: organisation.petNamePreference,
+    });
+  }
+
+  return extensions.length ? extensions : undefined;
+};
 
 const buildType = (
-    organisation: Organisation,
-    options?: ToFHIROrganizationOptions
+  organisation: Organisation,
+  options?: ToFHIROrganizationOptions
 ): FHIROrganization['type'] => {
-    const override = options?.typeCoding
+  const override = options?.typeCoding;
 
-    if (override) {
-        return [
+  if (override) {
+    return [
+      {
+        coding: [
+          {
+            system: override.system,
+            code: override.code,
+            display: override.display,
+          },
+        ],
+        text: override.display,
+      },
+    ];
+  }
+
+  const coding = ORGANISATION_TYPE_CODING_MAP[organisation.type];
+
+  return coding
+    ? [
+        {
+          coding: [
             {
-                coding: [
-                    {
-                        system: override.system,
-                        code: override.code,
-                        display: override.display,
-                    },
-                ],
-                text: override.display,
+              system: TYPE_SYSTEM,
+              code: coding.code,
+              display: coding.display,
             },
-        ]
-    }
-
-    const coding = ORGANISATION_TYPE_CODING_MAP[organisation.type]
-
-    return coding
-        ? [
-              {
-                  coding: [
-                      {
-                          system: TYPE_SYSTEM,
-                          code: coding.code,
-                          display: coding.display,
-                      },
-                  ],
-                  text: coding.display,
-              },
-          ]
-        : undefined
-}
+          ],
+          text: coding.display,
+        },
+      ]
+    : undefined;
+};
 
 export const toFHIROrganisation = (
-    organisation: Organisation,
-    options: ToFHIROrganizationOptions = {}
+  organisation: Organisation,
+  options: ToFHIROrganizationOptions = {}
 ): FHIROrganization => ({
-    resourceType: 'Organization',
-    id: toStringId(organisation._id),
-    active: organisation.isActive ?? false,
-    name: organisation.name,
-    identifier: buildIdentifiers(organisation),
-    telecom: buildTelecom(organisation),
-    type: buildType(organisation, options),
-    address: organisation.address ? [toFHIRAddress(organisation.address)] : undefined,
-    extension: buildExtensions(organisation),
-})
+  resourceType: 'Organization',
+  id: toStringId(organisation._id),
+  active: organisation.isActive ?? false,
+  name: organisation.name,
+  identifier: buildIdentifiers(organisation),
+  telecom: buildTelecom(organisation),
+  type: buildType(organisation, options),
+  address: organisation.address ? [toFHIRAddress(organisation.address)] : undefined,
+  extension: buildExtensions(organisation),
+});
 
 const findIdentifierValue = (
-    identifiers: FHIROrganization['identifier'],
-    system: string
-): string | undefined => identifiers?.find((identifier) => identifier.system === system)?.value
+  identifiers: FHIROrganization['identifier'],
+  system: string
+): string | undefined => identifiers?.find((identifier) => identifier.system === system)?.value;
 
 const extractIsVerified = (extensions: FHIROrganization['extension']): boolean =>
-    extensions?.find((extension) => extension.url === IS_VERIFIED_EXTENSION_URL)?.valueBoolean ?? false
+  extensions?.find((extension) => extension.url === IS_VERIFIED_EXTENSION_URL)?.valueBoolean ??
+  false;
 
 const extractImageUrl = (extensions: FHIROrganization['extension']): string | undefined =>
-    extensions?.find((extension) => extension.url === IMAGE_EXTENSION_URL)?.valueUrl
+  extensions?.find((extension) => extension.url === IMAGE_EXTENSION_URL)?.valueUrl;
 
-const extractStringExtension = (extensions: FHIROrganization['extension'], url: string): string | undefined =>
-    extensions?.find((extension) => extension.url === url)?.valueString
+const extractStringExtension = (
+  extensions: FHIROrganization['extension'],
+  url: string
+): string | undefined => extensions?.find((extension) => extension.url === url)?.valueString;
+
+const extractPetNamePreference = (
+  extensions: FHIROrganization['extension']
+): Organisation['petNamePreference'] | undefined => {
+  const value = extractStringExtension(extensions, PET_NAME_PREFERENCE_EXTENSION_URL);
+
+  if (value === 'COMPANION' || value === 'ANIMAL' || value === 'PATIENT') {
+    return value;
+  }
+
+  return undefined;
+};
 
 const extractType = (resource: FHIROrganization): Organisation['type'] => {
-    const coding = resource.type?.[0]?.coding?.[0]
+  const coding = resource.type?.[0]?.coding?.[0];
 
-    if (coding?.code) {
-        const type = REVERSE_TYPE_CODING_MAP[coding.code]
-        if (type) {
-            return type
-        }
+  if (coding?.code) {
+    const type = REVERSE_TYPE_CODING_MAP[coding.code];
+    if (type) {
+      return type;
     }
+  }
 
-    return 'HOSPITAL'
-}
+  return 'HOSPITAL';
+};
 
 const getTelecomValue = (
-    telecom: FHIROrganization['telecom'],
-    system: 'phone' | 'url'
-): string | undefined => telecom?.find((item) => item.system === system)?.value
+  telecom: FHIROrganization['telecom'],
+  system: 'phone' | 'url'
+): string | undefined => telecom?.find((item) => item.system === system)?.value;
 
 export const fromFHIROrganisation = (resource: FHIROrganization): Organisation => {
-    const extensions = resource.extension
+  const extensions = resource.extension;
 
-    return {
-        _id: resource.id,
-        name: resource.name ?? '',
-        taxId: findIdentifierValue(resource.identifier, TAX_IDENTIFIER_SYSTEM) ?? '',
-        DUNSNumber: findIdentifierValue(resource.identifier, DUNS_IDENTIFIER_SYSTEM),
-        imageURL: extractImageUrl(extensions),
-        type: extractType(resource),
-        phoneNo: getTelecomValue(resource.telecom, 'phone') ?? '',
-        website: getTelecomValue(resource.telecom, 'url'),
-        address: resource.address?.[0] ? fromFHIRAddress(resource.address?.[0]) : undefined,
-        isVerified: extractIsVerified(extensions),
-        isActive: resource.active ?? false,
-        healthAndSafetyCertNo: extractStringExtension(extensions, HEALTH_SAFETY_CERT_EXTENSION_URL),
-        animalWelfareComplianceCertNo: extractStringExtension(extensions, ANIMAL_WELFARE_CERT_EXTENSION_URL),
-        fireAndEmergencyCertNo: extractStringExtension(extensions, FIRE_EMERGENCY_CERT_EXTENSION_URL),
-        googlePlacesId: extractStringExtension(extensions, GOOGLE_PLACE_ID_EXTENSION_URL),
-        stripeAccountId: extractStringExtension(extensions, STRIPE_ACCOUNT_ID_EXTENSION_URL),
-    }
-}
+  return {
+    _id: resource.id,
+    name: resource.name ?? '',
+    taxId: findIdentifierValue(resource.identifier, TAX_IDENTIFIER_SYSTEM) ?? '',
+    DUNSNumber: findIdentifierValue(resource.identifier, DUNS_IDENTIFIER_SYSTEM),
+    imageURL: extractImageUrl(extensions),
+    type: extractType(resource),
+    phoneNo: getTelecomValue(resource.telecom, 'phone') ?? '',
+    website: getTelecomValue(resource.telecom, 'url'),
+    address: resource.address?.[0] ? fromFHIRAddress(resource.address?.[0]) : undefined,
+    isVerified: extractIsVerified(extensions),
+    isActive: resource.active ?? false,
+    healthAndSafetyCertNo: extractStringExtension(extensions, HEALTH_SAFETY_CERT_EXTENSION_URL),
+    animalWelfareComplianceCertNo: extractStringExtension(
+      extensions,
+      ANIMAL_WELFARE_CERT_EXTENSION_URL
+    ),
+    fireAndEmergencyCertNo: extractStringExtension(extensions, FIRE_EMERGENCY_CERT_EXTENSION_URL),
+    googlePlacesId: extractStringExtension(extensions, GOOGLE_PLACE_ID_EXTENSION_URL),
+    stripeAccountId: extractStringExtension(extensions, STRIPE_ACCOUNT_ID_EXTENSION_URL),
+    petNamePreference: extractPetNamePreference(extensions),
+  };
+};
 
-export const toFHIROrganization = toFHIROrganisation
-export const fromFHIROrganization = fromFHIROrganisation
+export const toFHIROrganization = toFHIROrganisation;
+export const fromFHIROrganization = fromFHIROrganisation;

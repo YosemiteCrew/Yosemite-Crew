@@ -10,9 +10,9 @@ import {
   generatePresignedDownloadUrl,
   generatePresignedUrl,
 } from "src/middlewares/upload";
-import { AuthenticatedRequest } from "src/middlewares/auth";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { OrgRequest } from "src/middlewares/rbac";
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 type UploadUrlBody = { companionId?: string; mimeType?: string };
 
@@ -42,13 +42,6 @@ type ListPmsQuery = ListDocumentsQuery & {
 };
 
 type SignedDownloadUrlBody = { key?: string };
-
-const resolveUserIdFromRequest = (req: Request): string | undefined => {
-  const authReq = req as AuthenticatedRequest;
-  const headerUserId = req.headers?.["x-user-id"];
-  if (typeof headerUserId === "string") return headerUserId;
-  return authReq.userId;
-};
 
 const getFirstQueryValue = (value: unknown): string | undefined => {
   if (typeof value === "string") return value;
@@ -164,9 +157,7 @@ export const DocumentController = {
       }
 
       if (!organisationId) {
-        return res
-          .status(400)
-          .json({ message: "organisationId is required." });
+        return res.status(400).json({ message: "organisationId is required." });
       }
 
       const body = req.body;

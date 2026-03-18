@@ -3,7 +3,7 @@
   align-items: center;
   justify-content: center;
   gap: 12px;
-  font-family: var(--font-satoshi, "Inter", system-ui, -apple-system, sans-serif);
+  font-family: var(--font-satoshi, 'Inter', system-ui, -apple-system, sans-serif);
   color: var(--color-text-primary, #1f2937);
 }
 
@@ -25,6 +25,20 @@
   position: fixed;
   inset: 0;
   background: #ffffff;
+  z-index: 9999;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.yosemite-loader--fullscreen-translucent {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.56);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   z-index: 9999;
   width: 100%;
   height: 100%;

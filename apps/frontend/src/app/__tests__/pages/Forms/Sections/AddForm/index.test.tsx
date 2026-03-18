@@ -79,7 +79,7 @@ jest.mock('@/app/hooks/useMerckIntegration', () => ({
     integration: {
       provider: 'MERCK_MANUALS',
       status: isMerckEnabled ? 'enabled' : 'disabled',
-      source: 'synthetic',
+      source: 'backend',
     },
     isEnabled: isMerckEnabled,
     isLoading: false,

@@ -13,8 +13,8 @@ import {
   TaskLibrary,
   TaskTemplate,
 } from '@/app/features/tasks/types/task';
-import { applyUtcTime, generateTimeSlots, getUtcTimeValue } from '@/app/lib/date';
-import { getPreferredTimeZone } from '@/app/lib/timezone';
+import { getPreferredTimeValue } from '@/app/lib/date';
+import { buildDateInPreferredTimeZone, getPreferredTimeZone } from '@/app/lib/timezone';
 import {
   applyTemplateToForm,
   buildTaskTemplate,
@@ -39,30 +39,39 @@ export const useTaskForm = (options: UseTaskFormOptions = {}) => {
     ...emptyTask,
     ...initialTask,
   });
-  const [due, setDue] = useState<Date | null>(new Date());
-  const [dueTimeUtc, setDueTimeUtc] = useState(getUtcTimeValue(initialTask?.dueAt, '00:00'));
+  const [due, setDue] = useState<Date | null>(
+    initialTask?.dueAt ? new Date(initialTask.dueAt) : new Date()
+  );
+  const [dueTimeValue, setDueTimeValue] = useState(
+    getPreferredTimeValue(initialTask?.dueAt, '00:00')
+  );
   const [formDataErrors, setFormDataErrors] = useState<TaskFormErrors>({});
   const [orgTemplates, setOrgTemplates] = useState<TaskTemplate[]>([]);
   const [libraryTemplates, setLibraryTemplates] = useState<TaskLibrary[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const timeSlots = useMemo(() => generateTimeSlots(15), []);
-
   const resetForm = useCallback(() => {
     setFormData({ ...emptyTask, ...initialTask });
+    setDue(initialTask?.dueAt ? new Date(initialTask.dueAt) : new Date());
+    setDueTimeValue(getPreferredTimeValue(initialTask?.dueAt, '00:00'));
     setFormDataErrors({});
     setError(null);
   }, [emptyTask, initialTask]);
 
   useEffect(() => {
     if (!due) return;
+    const [hourValue, minuteValue] = String(dueTimeValue || '00:00')
+      .split(':')
+      .map((value) => Number.parseInt(value, 10));
+    const hour = Number.isFinite(hourValue) ? hourValue : 0;
+    const minute = Number.isFinite(minuteValue) ? minuteValue : 0;
     setFormData((prev) => ({
       ...prev,
-      dueAt: dueTimeUtc ? applyUtcTime(due, dueTimeUtc) : due,
+      dueAt: buildDateInPreferredTimeZone(due, hour * 60 + minute),
       timezone: prev.timezone || getPreferredTimeZone(),
     }));
-  }, [due, dueTimeUtc]);
+  }, [due, dueTimeValue]);
 
   useEffect(() => {
     if (!loadOnMount) return;
@@ -154,13 +163,12 @@ export const useTaskForm = (options: UseTaskFormOptions = {}) => {
     setFormData,
     due,
     setDue,
-    dueTimeUtc,
-    setDueTimeUtc,
+    dueTimeValue,
+    setDueTimeValue,
     formDataErrors,
     setFormDataErrors,
     error,
     isLoading,
-    timeSlots,
     templateOptions,
     selectTemplate,
     handleCreate,

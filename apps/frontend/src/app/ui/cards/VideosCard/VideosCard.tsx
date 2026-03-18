@@ -1,32 +1,34 @@
-"use client";
-import React, { useState } from "react";
-import { FaCirclePlay } from "react-icons/fa6";
+'use client';
+import React, { useState } from 'react';
+import { FaCirclePlay } from 'react-icons/fa6';
 
-import Close from "@/app/ui/primitives/Icons/Close";
-import CenterModal from "@/app/ui/overlays/Modal/CenterModal";
-import { Primary } from "@/app/ui/primitives/Buttons";
-import { guidesData } from "@/app/features/guides/data/guidesData";
+import Close from '@/app/ui/primitives/Icons/Close';
+import { Primary } from '@/app/ui/primitives/Buttons';
+import VideoPlayerModal from '@/app/ui/overlays/Modal/VideoPlayerModal';
+import { guidesData } from '@/app/features/guides/data/guidesData';
 
 const previewVideos = guidesData.slice(0, 3);
-const STORAGE_KEY = "yc_dashboard_videos_hidden";
+const STORAGE_KEY = 'yc_dashboard_videos_hidden';
 
 const VideosCard = () => {
   const [open, setOpen] = useState(() => {
     if (globalThis.window === undefined) return true;
-    return globalThis.localStorage.getItem(STORAGE_KEY) !== "true";
+    return globalThis.localStorage.getItem(STORAGE_KEY) !== 'true';
   });
   const [showModal, setShowModal] = useState(false);
+  const [isVideoLoaded, setIsVideoLoaded] = useState(false);
   const [activeVideo, setActiveVideo] = useState<(typeof previewVideos)[number] | null>(null);
 
   const handleOpenVideo = (video: (typeof previewVideos)[number]) => {
     setActiveVideo(video);
+    setIsVideoLoaded(false);
     setShowModal(true);
   };
 
   const handleClose = () => {
     setOpen(false);
     if (globalThis.window !== undefined) {
-      globalThis.localStorage.setItem(STORAGE_KEY, "true");
+      globalThis.localStorage.setItem(STORAGE_KEY, 'true');
     }
   };
 
@@ -65,50 +67,17 @@ const VideosCard = () => {
                   <FaCirclePlay size={50} color="#fff" />
                 </div>
               </div>
-              <div className="px-3 py-[20px] text-body-2 text-text-primary">
-                {video.title}
-              </div>
+              <div className="px-3 py-[20px] text-body-2 text-text-primary">{video.title}</div>
             </button>
           ))}
         </div>
-        {showModal && (
-          <CenterModal
-            showModal={showModal}
-            setShowModal={setShowModal}
-            onClose={() => setShowModal(false)}
-            containerClassName="sm:w-[720px] md:w-[860px] lg:w-[980px] max-w-[95vw]"
-          >
-            <div className="relative flex items-center justify-center">
-              <div className="text-body-2 text-text-primary text-center">
-                {activeVideo?.title ?? "Video"}
-              </div>
-              <div className="absolute right-0">
-                <Close onClick={() => setShowModal(false)} />
-              </div>
-            </div>
-            <div className="rounded-2xl border border-card-border overflow-hidden">
-              {activeVideo ? (
-                <video
-                  key={activeVideo.videoUrl}
-                  className="w-full h-auto"
-                  controls
-                  preload="metadata"
-                >
-                  <source src={activeVideo.videoUrl} type="video/mp4" />
-                  <track
-                    kind="captions"
-                    src="data:text/vtt,WEBVTT"
-                    srcLang="en"
-                    label="English"
-                    default
-                  />
-                </video>
-              ) : (
-                <div className="w-full aspect-video bg-black/80" />
-              )}
-            </div>
-          </CenterModal>
-        )}
+        <VideoPlayerModal
+          showModal={showModal}
+          setShowModal={setShowModal}
+          activeVideo={activeVideo}
+          isVideoLoaded={isVideoLoaded}
+          setIsVideoLoaded={setIsVideoLoaded}
+        />
       </div>
     )
   );

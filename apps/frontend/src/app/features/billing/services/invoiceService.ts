@@ -1,71 +1,66 @@
-import {
-  fromInvoiceRequestDTO,
-  InvoiceItem,
-  InvoiceResponseDTO,
-} from "@yosemite-crew/types";
-import { useInvoiceStore } from "@/app/stores/invoiceStore";
-import { useOrgStore } from "@/app/stores/orgStore";
-import { getData, postData } from "@/app/services/axios";
+import { fromInvoiceRequestDTO, InvoiceItem, InvoiceResponseDTO } from '@yosemite-crew/types';
+import { useInvoiceStore } from '@/app/stores/invoiceStore';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { getData, patchData, postData } from '@/app/services/axios';
+
+export type InvoicePaymentCollectionMethod = 'PAYMENT_AT_CLINIC';
 
 export const loadInvoicesForOrgPrimaryOrg = async (opts?: {
   silent?: boolean;
   force?: boolean;
 }): Promise<void> => {
-  const { startLoading, status, setInvoicesForOrg } =
-    useInvoiceStore.getState();
+  const { startLoading, status, setInvoicesForOrg } = useInvoiceStore.getState();
   const primaryOrgId = useOrgStore.getState().primaryOrgId;
   if (!primaryOrgId) {
-    console.warn("No primary organization selected. Cannot load specialities.");
+    console.warn('No primary organization selected. Cannot load specialities.');
     return;
   }
   if (!shouldFetchInvoices(status, opts)) return;
   if (!opts?.silent) startLoading();
   try {
     const res = await getData<InvoiceResponseDTO[]>(
-      "/fhir/v1/invoice/organisation/" + primaryOrgId + "/list",
+      '/fhir/v1/invoice/organisation/' + primaryOrgId + '/list'
     );
-    const invoices = res.data.map((fhirInvoice) =>
-      fromInvoiceRequestDTO(fhirInvoice),
-    );
+    const invoices = res.data.map((fhirInvoice) => fromInvoiceRequestDTO(fhirInvoice));
     setInvoicesForOrg(primaryOrgId, invoices);
   } catch (err) {
-    console.error("Failed to load specialities:", err);
+    console.error('Failed to load specialities:', err);
     throw err;
   }
 };
 
 const shouldFetchInvoices = (
-  status: ReturnType<typeof useInvoiceStore.getState>["status"],
-  opts?: { force?: boolean },
+  status: ReturnType<typeof useInvoiceStore.getState>['status'],
+  opts?: { force?: boolean }
 ) => {
   if (opts?.force) return true;
-  return status === "idle" || status === "error";
+  return status === 'idle' || status === 'error';
 };
 
 export const addLineItemsToAppointments = async (
   lineItems: InvoiceItem[],
   appointmentId: string,
-  currency: string,
+  currency: string
 ): Promise<void> => {
   const primaryOrgId = useOrgStore.getState().primaryOrgId;
   if (!primaryOrgId) {
-    console.warn("No primary organization selected. Cannot add.");
+    console.warn('No primary organization selected. Cannot add.');
     return;
   }
   try {
     if (!appointmentId || lineItems.length <= 0 || !currency) {
-      throw new Error("Line items or Appointment ID or Currency missing");
+      throw new Error('Line items or Appointment ID or Currency missing');
     }
     const body = {
       items: lineItems,
       currency: currency.toLowerCase(),
     };
     await postData<InvoiceResponseDTO[]>(
-      "/fhir/v1/invoice/appointment/" + appointmentId + "/charges",
-      body,
+      '/fhir/v1/invoice/appointment/' + appointmentId + '/charges',
+      body
     );
   } catch (err) {
-    console.error("Failed to load specialities:", err);
+    console.error('Failed to load specialities:', err);
     throw err;
   }
 };
@@ -73,20 +68,59 @@ export const addLineItemsToAppointments = async (
 export const getPaymentLink = async (invoiceId: string): Promise<void> => {
   const primaryOrgId = useOrgStore.getState().primaryOrgId;
   if (!primaryOrgId) {
-    console.warn("No primary organization selected. Cannot get.");
+    console.warn('No primary organization selected. Cannot get.');
     return;
   }
   try {
     if (!invoiceId) {
-      throw new Error("Invoice ID missing");
+      throw new Error('Invoice ID missing');
     }
     const res = await postData<{ checkout: any }>(
-      "/fhir/v1/invoice/" + invoiceId + "/checkout-session",
+      '/fhir/v1/invoice/' + invoiceId + '/checkout-session'
     );
     const url = res.data.checkout.url;
     return url;
   } catch (err) {
-    console.error("Failed to load specialities:", err);
+    console.error('Failed to load specialities:', err);
+    throw err;
+  }
+};
+
+export const markInvoicePaid = async (invoiceId: string) => {
+  const primaryOrgId = useOrgStore.getState().primaryOrgId;
+  if (!primaryOrgId) {
+    console.warn('No primary organization selected. Cannot mark paid.');
+    return;
+  }
+  try {
+    if (!invoiceId) {
+      throw new Error('Invoice ID missing');
+    }
+    return await postData(`/fhir/v1/invoice/${invoiceId}/mark-paid`, {});
+  } catch (err) {
+    console.error('Failed to mark invoice paid:', err);
+    throw err;
+  }
+};
+
+export const updateInvoicePaymentCollectionMethod = async (
+  invoiceId: string,
+  paymentCollectionMethod: InvoicePaymentCollectionMethod
+) => {
+  const primaryOrgId = useOrgStore.getState().primaryOrgId;
+  if (!primaryOrgId) {
+    console.warn('No primary organization selected. Cannot update payment collection method.');
+    return;
+  }
+  try {
+    if (!invoiceId) {
+      throw new Error('Invoice ID missing');
+    }
+    return await patchData(`/fhir/v1/invoice/${invoiceId}/payment-collection-method`, {
+      paymentCollectionMethod,
+    });
+  } catch (err) {
+    console.error('Failed to update invoice payment collection method:', err);
     throw err;
   }
 };

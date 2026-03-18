@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   daysOfWeek,
   DEFAULT_INTERVAL,
@@ -6,23 +6,26 @@ import {
   TimeOption,
   Interval,
   SetAvailability,
-  ApiOverrides,
   buildTimeIndex,
   generateTimeOptions,
 } from '@/app/features/appointments/components/Availability/utils';
 import TimeSlot from '@/app/features/appointments/components/Availability/TimeSlot';
 import { FaCirclePlus, FaCircleMinus } from 'react-icons/fa6';
 import Dublicate from '@/app/features/appointments/components/Availability/Dublicate';
-import { useMemo } from 'react';
 
 type AvailabilityProps = {
   availability: AvailabilityState;
   setAvailability: SetAvailability;
-  overides?: ApiOverrides[];
-  setOverides?: React.Dispatch<React.SetStateAction<ApiOverrides[]>>;
+  twoColumnLayout?: boolean;
+  readOnly?: boolean;
 };
 
-const Availability: React.FC<AvailabilityProps> = ({ availability, setAvailability }) => {
+const Availability: React.FC<AvailabilityProps> = ({
+  availability,
+  setAvailability,
+  twoColumnLayout = false,
+  readOnly = false,
+}) => {
   const timeOptions = useMemo(() => generateTimeOptions(), []);
   const timeIndex = useMemo(() => buildTimeIndex(timeOptions), [timeOptions]);
 
@@ -63,72 +66,88 @@ const Availability: React.FC<AvailabilityProps> = ({ availability, setAvailabili
     return timeOptions.filter((_, idx) => idx > startIdx);
   };
 
-  return (
-    <div className="flex flex-col gap-2! sm:gap-4! w-full">
-      {daysOfWeek.map((day: string) => (
-        <div key={day} className="flex items-start w-full gap-3 sm:gap-6 flex-wrap">
-          <div className="flex items-center gap-2 w-[130px]">
-            <input
-              type="checkbox"
-              checked={availability[day].enabled}
-              onChange={() => toggleDay(day)}
-              className="w-[18px]! h-[18px]!"
-            />
-            <span className="text-body-4 text-text-primary">{day}</span>
-          </div>
+  const renderDayCard = (day: string) => (
+    <div
+      key={day}
+      className="mb-3 break-inside-avoid rounded-2xl border border-card-border bg-white p-3"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <input
+            type="checkbox"
+            checked={availability[day].enabled}
+            onChange={() => {
+              if (readOnly) return;
+              toggleDay(day);
+            }}
+            disabled={readOnly}
+            className="w-[18px]! h-[18px]!"
+          />
+          <span className="text-body-4 text-text-primary truncate">{day}</span>
+        </div>
+        {availability[day].enabled && !readOnly && (
+          <Dublicate setAvailability={setAvailability} day={day} />
+        )}
+      </div>
 
-          {availability[day].enabled && (
-            <div className="flex flex-col gap-1 sm:gap-3">
-              {availability[day].intervals.map((interval: Interval, i: number) => {
-                const endOptions = getEndOptions(interval.start);
-                return (
-                  <div key={i + interval.start} className="flex items-center gap-1 sm:gap-3">
-                    <TimeSlot
-                      interval={interval}
-                      timeOptions={timeOptions}
-                      timeIndex={timeIndex}
-                      setAvailability={setAvailability}
-                      day={day}
-                      intervalIndex={i}
-                      field="start"
-                    />
-                    <TimeSlot
-                      interval={interval}
-                      timeOptions={endOptions}
-                      timeIndex={timeIndex}
-                      setAvailability={setAvailability}
-                      day={day}
-                      intervalIndex={i}
-                      field="end"
-                    />
+      {availability[day].enabled && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {availability[day].intervals.map((interval: Interval, i: number) => {
+            const endOptions = getEndOptions(interval.start);
+            return (
+              <div key={i + interval.start} className="inline-flex items-center gap-2">
+                <TimeSlot
+                  interval={interval}
+                  timeOptions={timeOptions}
+                  timeIndex={timeIndex}
+                  setAvailability={setAvailability}
+                  day={day}
+                  intervalIndex={i}
+                  field="start"
+                  disabled={readOnly}
+                />
+                <TimeSlot
+                  interval={interval}
+                  timeOptions={endOptions}
+                  timeIndex={timeIndex}
+                  setAvailability={setAvailability}
+                  day={day}
+                  intervalIndex={i}
+                  field="end"
+                  disabled={readOnly}
+                />
+                {!readOnly && (
+                  <div className="border-none outline-none bg-white flex items-center justify-center shrink-0">
                     {i === 0 ? (
-                      <div className="border-none outline-none bg-white flex items-center justify-center">
-                        <FaCirclePlus
-                          color="#302f2e"
-                          size={20}
-                          onClick={() => addInterval(day)}
-                          className="cursor-pointer"
-                        />
-                      </div>
+                      <FaCirclePlus
+                        color="#302f2e"
+                        size={20}
+                        onClick={() => addInterval(day)}
+                        className="cursor-pointer"
+                      />
                     ) : (
-                      <div className="border-none outline-none bg-white flex items-center justify-center">
-                        <FaCircleMinus
-                          color="#302f2e"
-                          size={20}
-                          onClick={() => deleteInterval(day, i)}
-                          className="cursor-pointer"
-                        />
-                      </div>
+                      <FaCircleMinus
+                        color="#302f2e"
+                        size={20}
+                        onClick={() => deleteInterval(day, i)}
+                        className="cursor-pointer"
+                      />
                     )}
                   </div>
-                );
-              })}
-            </div>
-          )}
-
-          {availability[day].enabled && <Dublicate setAvailability={setAvailability} day={day} />}
+                )}
+              </div>
+            );
+          })}
         </div>
-      ))}
+      )}
+    </div>
+  );
+
+  return (
+    <div
+      className={twoColumnLayout ? 'w-full columns-1 md:columns-2 [column-gap:0.75rem]' : 'w-full'}
+    >
+      {daysOfWeek.map(renderDayCard)}
     </div>
   );
 };

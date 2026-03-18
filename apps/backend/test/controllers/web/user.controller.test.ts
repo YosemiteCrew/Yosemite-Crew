@@ -4,7 +4,10 @@ process.env.AWS_REGION = "us-east-1";
 import { Request, Response } from "express";
 import { UserController } from "../../../src/controllers/web/user.controller";
 // 2. Import UserService (for type) but we will use the mock implementation
-import { UserService, UserServiceError } from "../../../src/services/user.service";
+import {
+  UserService,
+  UserServiceError,
+} from "../../../src/services/user.service";
 import logger from "../../../src/utils/logger";
 
 // --- Mocks ---
@@ -32,12 +35,11 @@ type MockResponse = Partial<Response> & {
 };
 
 // Generic mock request factory
-const createMockReq = (data: Partial<any> = {}): any =>
-  ({
-    params: {},
-    body: {},
-    ...data,
-  });
+const createMockReq = (data: Partial<any> = {}): any => ({
+  params: {},
+  body: {},
+  ...data,
+});
 
 const createMockRes = (): MockResponse => {
   const res: any = {};
@@ -93,7 +95,7 @@ describe("UserController", () => {
     it("should return specific status code if UserServiceError is thrown", async () => {
       // Now using the real class which the controller also uses
       (UserService.create as jest.Mock).mockRejectedValue(
-        new UserServiceError("Conflict", 409)
+        new UserServiceError("Conflict", 409),
       );
 
       const req = createMockReq(validAuthReq);
@@ -143,7 +145,7 @@ describe("UserController", () => {
 
     it("should handle UserServiceError", async () => {
       (UserService.getById as jest.Mock).mockRejectedValue(
-        new UserServiceError("Bad Request", 400)
+        new UserServiceError("Bad Request", 400),
       );
 
       const req = createMockReq({ params: { id: "123" } });
@@ -162,7 +164,7 @@ describe("UserController", () => {
 
       expect(logger.error).toHaveBeenCalledWith(
         "Failed to retrieve user",
-        error
+        error,
       );
       expect(mockRes.status).toHaveBeenCalledWith(500);
     });
@@ -205,7 +207,7 @@ describe("UserController", () => {
 
     it("should handle UserServiceError", async () => {
       (UserService.deleteById as jest.Mock).mockRejectedValue(
-        new UserServiceError("Forbidden", 403)
+        new UserServiceError("Forbidden", 403),
       );
 
       const req = createMockReq({ params: { id: "123" } });
@@ -274,7 +276,7 @@ describe("UserController", () => {
 
     it("should handle UserServiceError", async () => {
       (UserService.updateName as jest.Mock).mockRejectedValue(
-        new UserServiceError("Validation Error", 422)
+        new UserServiceError("Validation Error", 422),
       );
 
       const req = createMockReq({
@@ -298,7 +300,7 @@ describe("UserController", () => {
 
       expect(logger.error).toHaveBeenCalledWith(
         "Failed to update user name",
-        error
+        error,
       );
       expect(mockRes.status).toHaveBeenCalledWith(500);
     });

@@ -13,9 +13,12 @@ import {
 import { Appointment } from '@yosemite-crew/types';
 import { DEFAULT_TIMEZONE } from '@/app/lib/timezone';
 
-// Mock isSameDay helper to ensure unit isolation
-jest.mock('@/app/features/appointments/components/Calendar/helpers', () => ({
-  isSameDay: (a: Date, b: Date) =>
+jest.mock('@/app/lib/timezone', () => ({
+  DEFAULT_TIMEZONE: 'UTC',
+  getHourInPreferredTimeZone: (date: Date) => date.getHours(),
+  formatDateInPreferredTimeZone: (date: Date, options?: Intl.DateTimeFormatOptions) =>
+    new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', ...options }).format(date),
+  isOnPreferredTimeZoneCalendarDay: (a: Date, b: Date) =>
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate(),

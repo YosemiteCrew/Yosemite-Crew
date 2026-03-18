@@ -59,7 +59,7 @@ describe("Logger Utility", () => {
         require("../../src/utils/logger");
 
         expect(localWinston.createLogger).toHaveBeenCalledWith(
-          expect.objectContaining({ level: "info" })
+          expect.objectContaining({ level: "info" }),
         );
       });
     });
@@ -71,7 +71,7 @@ describe("Logger Utility", () => {
         require("../../src/utils/logger");
 
         expect(localWinston.createLogger).toHaveBeenCalledWith(
-          expect.objectContaining({ level: "debug" })
+          expect.objectContaining({ level: "debug" }),
         );
 
         expect(localWinston.addColors).toHaveBeenCalledWith({
@@ -92,7 +92,7 @@ describe("Logger Utility", () => {
         require("../../src/utils/logger");
 
         expect(localWinston.createLogger).toHaveBeenCalledWith(
-          expect.objectContaining({ level: "debug" })
+          expect.objectContaining({ level: "debug" }),
         );
       });
     });
@@ -127,21 +127,38 @@ describe("Logger Utility", () => {
 
     it("should fallback to ISO string if timestamp is empty", () => {
       const res = formatCb({ level: "warn", message: "Hello", timestamp: "" });
-      expect(res).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z \[warn\]: Hello$/);
+      expect(res).toMatch(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z \[warn\]: Hello$/,
+      );
     });
 
     it("should fallback to ISO string if timestamp is completely undefined", () => {
       const res = formatCb({ level: "error", message: "Hello" });
-      expect(res).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z \[error\]: Hello$/);
+      expect(res).toMatch(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z \[error\]: Hello$/,
+      );
     });
 
     it("should append serialized meta if extra keys are provided", () => {
-      const res = formatCb({ level: "debug", message: "Hello", timestamp: "T", key1: "value1", key2: 2 });
-      expect(res).toBe('T [debug]: Hello {\n  "key1": "value1",\n  "key2": 2\n}');
+      const res = formatCb({
+        level: "debug",
+        message: "Hello",
+        timestamp: "T",
+        key1: "value1",
+        key2: 2,
+      });
+      expect(res).toBe(
+        'T [debug]: Hello {\n  "key1": "value1",\n  "key2": 2\n}',
+      );
     });
 
     it("should prefer stack property over serialized message if stack is provided", () => {
-      const res = formatCb({ level: "error", message: "Hello", timestamp: "T", stack: "Stack Trace..." });
+      const res = formatCb({
+        level: "error",
+        message: "Hello",
+        timestamp: "T",
+        stack: "Stack Trace...",
+      });
       expect(res).toBe("T [error]: Stack Trace...");
     });
 
@@ -160,7 +177,11 @@ describe("Logger Utility", () => {
     });
 
     it("should JSON stringify message objects", () => {
-      const res = formatCb({ level: "info", message: { a: 1, b: "two" }, timestamp: "T" });
+      const res = formatCb({
+        level: "info",
+        message: { a: 1, b: "two" },
+        timestamp: "T",
+      });
       expect(res).toBe('T [info]: {"a":1,"b":"two"}');
     });
 
@@ -171,7 +192,12 @@ describe("Logger Utility", () => {
     });
 
     it("should use string message even if stack is an empty string", () => {
-      const res = formatCb({ level: "error", message: "Fallback Message", timestamp: "T", stack: "" });
+      const res = formatCb({
+        level: "error",
+        message: "Fallback Message",
+        timestamp: "T",
+        stack: "",
+      });
       expect(res).toBe("T [error]: Fallback Message");
     });
   });

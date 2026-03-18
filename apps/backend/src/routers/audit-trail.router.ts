@@ -12,9 +12,23 @@ router.get(
   requirePermission("audit:view:any"),
   AuditTrailController.listForCompanion,
 );
+router.post(
+  "/companion",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("audit:view:any"),
+  AuditTrailController.listForCompanion,
+);
 
 router.get(
   "/appointment/:appointmentId",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("audit:view:any"),
+  AuditTrailController.listForAppointment,
+);
+router.post(
+  "/appointment",
   authorizeCognito,
   withOrgPermissions(),
   requirePermission("audit:view:any"),

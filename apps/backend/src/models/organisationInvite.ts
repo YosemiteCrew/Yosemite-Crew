@@ -27,8 +27,7 @@ export interface CreateOrganisationInviteInput {
   employmentType?: OrganisationInvite["employmentType"];
 }
 
-export interface OrganisationInviteModel
-  extends Model<OrganisationInviteMongo> {
+export interface OrganisationInviteModel extends Model<OrganisationInviteMongo> {
   createOrReplaceInvite(
     input: CreateOrganisationInviteInput,
   ): Promise<OrganisationInviteDocument>;

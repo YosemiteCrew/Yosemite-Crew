@@ -11,6 +11,10 @@ import {
   type OrganisationRoomResponseDTO,
   type OrganisationRoom as OrganisationRoomDomain,
 } from "@yosemite-crew/types";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import { RoomType } from "@prisma/client";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 export type OrganisationRoomFHIRPayload = OrganisationRoomRequestDTO;
 
@@ -234,6 +238,24 @@ const buildFHIRResponse = (
 ): OrganisationRoomResponseDTO =>
   toOrganisationRoomResponseDTO(buildDomainRoom(document));
 
+const buildFHIRResponseFromPrisma = (room: {
+  id: string;
+  fhirId: string | null;
+  organisationId: string;
+  name: string;
+  type: RoomType;
+  assignedSpecialiteis: string[];
+  assignedStaffs: string[];
+}): OrganisationRoomResponseDTO =>
+  toOrganisationRoomResponseDTO({
+    id: room.fhirId ?? room.id,
+    name: room.name,
+    organisationId: room.organisationId,
+    type: room.type,
+    assignedSpecialiteis: room.assignedSpecialiteis ?? [],
+    assignedStaffs: room.assignedStaffs ?? [],
+  });
+
 const createPersistableFromFHIR = (payload: OrganisationRoomFHIRPayload) => {
   if (payload?.resourceType !== "Location") {
     throw new OrganisationRoomServiceError(
@@ -269,6 +291,42 @@ const resolveIdQuery = (id: unknown): { _id?: string; fhirId?: string } => {
   );
 };
 
+const toPrismaOrganisationRoomData = (doc: OrganisationRoomDocument) => {
+  const obj = doc.toObject() as OrganisationRoomMongo & {
+    _id: Types.ObjectId;
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+
+  return {
+    id: obj._id.toString(),
+    fhirId: obj.fhirId ?? undefined,
+    organisationId: obj.organisationId,
+    name: obj.name,
+    type: obj.type as RoomType,
+    assignedSpecialiteis: obj.assignedSpecialiteis ?? [],
+    assignedStaffs: obj.assignedStaffs ?? [],
+    createdAt: obj.createdAt ?? undefined,
+    updatedAt: obj.updatedAt ?? undefined,
+  };
+};
+
+const syncOrganisationRoomToPostgres = async (
+  doc: OrganisationRoomDocument,
+) => {
+  if (!shouldDualWrite) return;
+  try {
+    const data = toPrismaOrganisationRoomData(doc);
+    await prisma.organisationRoom.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+  } catch (err) {
+    handleDualWriteError("OrganisationRoom", err);
+  }
+};
+
 export const OrganisationRoomService = {
   async create(payload: OrganisationRoomFHIRPayload) {
     const { persistable, attributes } = createPersistableFromFHIR(payload);
@@ -292,6 +350,8 @@ export const OrganisationRoomService = {
       created = true;
     }
 
+    await syncOrganisationRoomToPostgres(document);
+
     const response = buildFHIRResponse(document);
     return { response, created };
   },
@@ -310,11 +370,20 @@ export const OrganisationRoomService = {
       return null;
     }
 
+    await syncOrganisationRoomToPostgres(document);
+
     return buildFHIRResponse(document);
   },
 
   async getAllByOrganizationId(organisationId: string) {
     const orgId = requireOrganizationId(organisationId);
+
+    if (isReadFromPostgres()) {
+      const rooms = await prisma.organisationRoom.findMany({
+        where: { organisationId: orgId },
+      });
+      return rooms.map((room) => buildFHIRResponseFromPrisma(room));
+    }
 
     const documents = await OrganisationRoomModel.find({
       organisationId: orgId,
@@ -335,6 +404,16 @@ export const OrganisationRoomService = {
         500,
       );
     }
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.organisationRoom.deleteMany({
+          where: { organisationId: orgId },
+        });
+      } catch (err) {
+        handleDualWriteError("OrganisationRoom deleteAllByOrganizationId", err);
+      }
+    }
   },
 
   async delete(id: string) {
@@ -346,6 +425,16 @@ export const OrganisationRoomService = {
 
     if (!document) {
       return null;
+    }
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.organisationRoom.deleteMany({
+          where: { id: document._id.toString() },
+        });
+      } catch (err) {
+        handleDualWriteError("OrganisationRoom delete", err);
+      }
     }
 
     return buildFHIRResponse(document);

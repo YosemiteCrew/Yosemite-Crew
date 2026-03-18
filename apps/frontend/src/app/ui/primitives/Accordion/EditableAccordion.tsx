@@ -208,6 +208,17 @@ const FieldComponents: Record<
       className="min-h-12!"
     />
   ),
+  timeInput: ({ field, value, onChange, error }) => (
+    <FormInput
+      intype="time"
+      inname={field.key}
+      value={value || ''}
+      inlabel={field.label}
+      error={error}
+      onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
+      className="min-h-12!"
+    />
+  ),
 };
 
 const normalizeOptions = (options?: Array<string | { label: string; value: string }>) =>
@@ -344,6 +355,19 @@ const FieldValueComponents: Record<
       </div>
     );
   },
+  timeInput: ({ field, formValues }) => {
+    const value = formValues[field.key];
+    return (
+      <div
+        className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}
+      >
+        <div className="text-body-4-emphasis text-text-tertiary">{field.label}</div>
+        <div className="text-body-4 text-text-primary text-right">
+          {value ? formatTimeLabel(value) : '-'}
+        </div>
+      </div>
+    );
+  },
 };
 
 const RenderValue = (field: any, formValues: FormValues) => {
@@ -405,6 +429,7 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
   onRegisterActions,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formValues, setFormValues] = useState<FormValues>(() => buildInitialValues(fields, data));
   const [formValuesErrors, setFormValuesErrors] = useState<Record<string, string | undefined>>({});
@@ -432,10 +457,11 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
   }, [fields, formValues]);
 
   const handleCancel = useCallback(() => {
+    if (isSaving) return;
     setFormValues(buildInitialValues(fields, data));
     setFormValuesErrors({});
     setIsEditing(false);
-  }, [fields, data]);
+  }, [data, fields, isSaving]);
 
   useEffect(() => {
     if (readOnly && isEditing) {
@@ -445,8 +471,10 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
   }, [readOnly, isEditing, onEditingChange]);
 
   const handleSave = useCallback(async () => {
+    if (isSaving) return;
     if (!validate()) return;
 
+    setIsSaving(true);
     try {
       await onSave?.(formValues);
       setIsEditing(false);
@@ -454,8 +482,10 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
     } catch (e) {
       console.error('Failed to save accordion data:', e);
       setError('Failed to save changes. Please try again.');
+    } finally {
+      setIsSaving(false);
     }
-  }, [formValues, onSave, validate]);
+  }, [formValues, isSaving, onSave, validate]);
 
   useEffect(() => {
     onEditingChange?.(isEditing);
@@ -528,8 +558,13 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
                 : 'grid grid-cols-2 gap-3 w-full'
             }
           >
-            <Secondary href="#" onClick={handleCancel} text="Cancel" />
-            <Primary href="#" text="Save" onClick={handleSave} />
+            <Secondary href="#" onClick={handleCancel} text="Cancel" isDisabled={isSaving} />
+            <Primary
+              href="#"
+              text={isSaving ? 'Saving...' : 'Save'}
+              onClick={handleSave}
+              isDisabled={isSaving}
+            />
           </div>
         </div>
       )}

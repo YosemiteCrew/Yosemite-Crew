@@ -16,6 +16,7 @@ interface TimeSlotProps {
   day: string;
   intervalIndex: number;
   field: Field;
+  disabled?: boolean;
 }
 
 const TimeSlot: React.FC<TimeSlotProps> = ({
@@ -26,6 +27,7 @@ const TimeSlot: React.FC<TimeSlotProps> = ({
   day,
   intervalIndex,
   field,
+  disabled = false,
 }) => {
   const [open, setOpen] = useState<boolean>(false);
   const availabilityContainerRef = useRef<HTMLDivElement>(null);
@@ -67,13 +69,17 @@ const TimeSlot: React.FC<TimeSlotProps> = ({
     <div className="relative w-[100px] sm:w-[110px]" ref={availabilityContainerRef}>
       <button
         className="bg-white rounded-2xl! border border-text-primary justify-center w-full outline-none py-[11px]"
-        onClick={() => setOpen((e: boolean) => !e)}
+        onClick={() => {
+          if (disabled) return;
+          setOpen((e: boolean) => !e);
+        }}
+        disabled={disabled}
       >
         <span className="text-body-4 text-text-primary ">
           {getTimeLabelFromValue(interval[field]) || 'Select'}
         </span>
       </button>
-      {open && (
+      {open && !disabled && (
         <div className="max-h-[200px] z-10 w-[110px] overflow-y-scroll scrollbar-hidden flex flex-col bg-white rounded-2xl border border-card-border absolute left-0 top-[110%] py-2 px-2">
           {timeOptions.map((opt: TimeOption) => (
             <button

@@ -1,5 +1,5 @@
-import React from "react";
-import { IoIosWarning } from "react-icons/io";
+import React from 'react';
+import { IoIosWarning } from 'react-icons/io';
 
 type FormDescProps = {
   intype: string;
@@ -8,18 +8,19 @@ type FormDescProps = {
   inlabel: string;
   readonly?: boolean;
   onChange?: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
-  onBlur?: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  onBlur?: (e: React.FocusEvent<HTMLTextAreaElement>) => void;
+  onFocus?: (e: React.FocusEvent<HTMLTextAreaElement>) => void;
   error?: string;
   className?: string;
 };
 
 const FormDesc = ({
-  intype,
   inname,
   inlabel,
   value,
   onChange,
   onBlur,
+  onFocus,
   readonly,
   error,
   className,
@@ -30,8 +31,10 @@ const FormDesc = ({
         <textarea
           name={inname}
           id={inname}
-          value={value ?? ""}
+          value={value ?? ''}
           onChange={onChange}
+          onBlur={onBlur}
+          onFocus={onFocus}
           autoComplete="off"
           readOnly={readonly}
           required
@@ -40,9 +43,9 @@ const FormDesc = ({
             peer w-full min-h-12 rounded-2xl bg-transparent px-6 py-2.5
             text-body-4 text-text-primary
             outline-none border
-            ${error ? "border-input-border-error!" : "border-input-border-default!"}
+            ${error ? 'border-input-border-error!' : 'border-input-border-default!'}
             focus:border-input-border-active!
-            ${className ?? ""}
+            ${className ?? ''}
           `}
         />
         <label

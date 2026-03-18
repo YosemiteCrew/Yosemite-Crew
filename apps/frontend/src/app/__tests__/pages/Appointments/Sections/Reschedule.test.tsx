@@ -1,21 +1,36 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import Reschedule from '@/app/features/appointments/pages/Appointments/Sections/Reschedule';
-import { Appointment } from '@yosemite-crew/types';
+import '@testing-library/jest-dom';
 
+import Reschedule from '@/app/features/appointments/pages/Appointments/Sections/Reschedule';
+
+const useTeamForPrimaryOrgMock = jest.fn();
 const getSlotsMock = jest.fn();
 const updateAppointmentMock = jest.fn();
+const allowRescheduleMock = jest.fn();
+const notifyMock = jest.fn();
+
+jest.mock('@/app/hooks/useTeam', () => ({
+  useTeamForPrimaryOrg: () => useTeamForPrimaryOrgMock(),
+}));
 
 jest.mock('@/app/features/appointments/services/appointmentService', () => ({
   getSlotsForServiceAndDateForPrimaryOrg: (...args: any[]) => getSlotsMock(...args),
   updateAppointment: (...args: any[]) => updateAppointmentMock(...args),
 }));
 
-jest.mock('@/app/hooks/useTeam', () => ({
-  useTeamForPrimaryOrg: () => [
-    { _id: 'vet-1', name: 'Dr. Lee' },
-    { _id: 'vet-2', name: 'Dr. Ray' },
-  ],
+jest.mock('@/app/lib/date', () => ({
+  buildUtcDateFromDateAndTime: (date: Date) => date,
+  getDurationMinutes: () => 30,
+  toUtcCalendarDate: (date: Date) => date,
+}));
+
+jest.mock('@/app/lib/appointments', () => ({
+  allowReschedule: (...args: any[]) => allowRescheduleMock(...args),
+}));
+
+jest.mock('@/app/hooks/useNotify', () => ({
+  useNotify: () => ({ notify: notifyMock }),
 }));
 
 jest.mock('@/app/ui/overlays/Modal/CenterModal', () => ({
@@ -24,19 +39,42 @@ jest.mock('@/app/ui/overlays/Modal/CenterModal', () => ({
     showModal ? <div data-testid="modal">{children}</div> : null,
 }));
 
-jest.mock('@/app/ui/inputs/Slotpicker', () => ({
+jest.mock('@/app/ui/overlays/Modal/ModalHeader', () => ({
   __esModule: true,
-  default: () => <div data-testid="slotpicker" />,
+  default: ({ onClose, title }: any) => (
+    <div>
+      <span>{title}</span>
+      <button type="button" onClick={onClose}>
+        close
+      </button>
+    </div>
+  ),
 }));
 
-jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
+jest.mock('@/app/features/appointments/components/DateTimePickerSection', () => ({
   __esModule: true,
-  default: ({ value, inlabel }: any) => <div data-testid={`input-${inlabel}`}>{value}</div>,
-}));
-
-jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
-  __esModule: true,
-  default: ({ placeholder }: any) => <div data-testid={`dropdown-${placeholder}`} />,
+  default: ({
+    timeSlots,
+    setSelectedSlot,
+    leadOptions,
+    onLeadSelect,
+    leadError,
+    slotError,
+  }: any) => (
+    <div>
+      <div>{slotError}</div>
+      <div>{leadError}</div>
+      <button type="button" onClick={() => timeSlots[0] && setSelectedSlot(timeSlots[0])}>
+        Pick slot
+      </button>
+      <button
+        type="button"
+        onClick={() => onLeadSelect(leadOptions[0] || { label: 'Dr. A', value: 'lead-1' })}
+      >
+        Pick lead
+      </button>
+    </div>
+  ),
 }));
 
 jest.mock('@/app/ui/primitives/Buttons', () => ({
@@ -47,85 +85,71 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
   ),
 }));
 
-jest.mock('@/app/ui/primitives/Icons/Close', () => ({
-  __esModule: true,
-  default: ({ onClick }: any) => (
-    <button type="button" onClick={onClick}>
-      Close
-    </button>
-  ),
-}));
-
-describe('Reschedule', () => {
+describe('Reschedule section', () => {
   const setShowModal = jest.fn();
-
-  const activeAppointment = {
-    id: 'appt-1',
-    appointmentDate: new Date(2025, 0, 2, 9),
+  const activeAppointment: any = {
+    id: 'a-1',
+    status: 'REQUESTED',
+    appointmentDate: new Date('2026-01-01T10:00:00Z'),
     appointmentType: { id: 'service-1' },
-    lead: { id: 'vet-1', name: 'Dr. Lee' },
+    lead: { id: 'lead-1', name: 'Dr. A' },
     durationMinutes: 30,
-    startTime: new Date(2025, 0, 2, 9),
-    endTime: new Date(2025, 0, 2, 9, 30),
-  } as Appointment;
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.spyOn(console, 'error').mockImplementation(() => {});
-    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    useTeamForPrimaryOrgMock.mockReturnValue([
+      { _id: 'lead-1', practionerId: 'lead-1', name: 'Dr. A' },
+      { _id: 'lead-2', practionerId: 'lead-2', name: 'Dr. B' },
+    ]);
+    getSlotsMock.mockResolvedValue([{ startTime: '10:00', endTime: '10:30', vetIds: ['lead-1'] }]);
+    allowRescheduleMock.mockReturnValue(true);
+    updateAppointmentMock.mockResolvedValue({});
   });
 
-  afterEach(() => {
-    (console.error as jest.Mock).mockRestore?.();
-    (console.warn as jest.Mock).mockRestore?.();
-  });
-
-  it('loads slots and sends reschedule request', async () => {
-    getSlotsMock.mockResolvedValue([{ startTime: '09:00', endTime: '09:30', vetIds: ['vet-1'] }]);
-    updateAppointmentMock.mockResolvedValue(undefined);
-
+  it('blocks modal immediately for non-reschedulable status', async () => {
+    allowRescheduleMock.mockReturnValue(false);
     render(
       <Reschedule
-        showModal={true}
+        showModal
         setShowModal={setShowModal}
-        activeAppointment={activeAppointment}
+        activeAppointment={{
+          ...activeAppointment,
+          status: 'COMPLETED',
+          appointmentType: undefined,
+        }}
       />
     );
 
-    await waitFor(() => {
-      expect(getSlotsMock).toHaveBeenCalledWith('service-1', expect.any(Date));
-    });
-    const selectedDateArg = getSlotsMock.mock.calls[0][1] as Date;
-    expect(selectedDateArg.getFullYear()).toBe(2025);
-    expect(selectedDateArg.getMonth()).toBe(0);
-    expect(selectedDateArg.getDate()).toBe(2);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('input-Time').textContent).not.toBe('');
-    });
-
-    fireEvent.click(screen.getByText('Send request'));
-
-    await waitFor(() => {
-      expect(updateAppointmentMock).toHaveBeenCalledWith(
-        expect.objectContaining({ status: 'REQUESTED' })
-      );
-    });
+    await waitFor(() =>
+      expect(notifyMock).toHaveBeenCalledWith(
+        'warning',
+        expect.objectContaining({ title: 'Reschedule blocked' })
+      )
+    );
     expect(setShowModal).toHaveBeenCalledWith(false);
   });
 
-  it('closes when close button clicked', () => {
+  it('loads slots and submits update when valid', async () => {
     render(
-      <Reschedule
-        showModal={true}
-        setShowModal={setShowModal}
-        activeAppointment={activeAppointment}
-      />
+      <Reschedule showModal setShowModal={setShowModal} activeAppointment={activeAppointment} />
     );
 
-    const closeButtons = screen.getAllByText('Close');
-    fireEvent.click(closeButtons.at(-1)!);
+    await waitFor(() => expect(getSlotsMock).toHaveBeenCalledWith('service-1', expect.any(Date)));
+    fireEvent.click(screen.getByText('Pick slot'));
+    fireEvent.click(screen.getByText('Pick lead'));
+    fireEvent.click(screen.getByText('Send request'));
 
+    await waitFor(() => expect(updateAppointmentMock).toHaveBeenCalled());
+    expect(setShowModal).toHaveBeenCalledWith(false);
+  });
+
+  it('resets state on modal header close', async () => {
+    render(
+      <Reschedule showModal setShowModal={setShowModal} activeAppointment={activeAppointment} />
+    );
+    await waitFor(() => expect(getSlotsMock).toHaveBeenCalled());
+    fireEvent.click(screen.getByText('close'));
     expect(setShowModal).toHaveBeenCalledWith(false);
   });
 });

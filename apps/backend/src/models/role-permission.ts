@@ -50,13 +50,19 @@ export type Permission =
   // Documents
   | "document:view:any"
   | "document:edit:any"
+  // Labs
+  | "labs:view:any"
+  | "labs:edit:any"
   // Org-level
   | "subscription:view:any"
   | "subscription:edit:any"
   | "org:onboarding"
   | "org:view"
   | "org:edit"
-  | "org:delete";
+  | "org:delete"
+  // Integrations
+  | "integrations:view:any"
+  | "integrations:edit:any";
 
 export type RoleCode =
   | "OWNER"
@@ -121,6 +127,9 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     "org:view",
     "org:edit",
 
+    "integrations:view:any",
+    "integrations:edit:any",
+
     "specialities:view:any",
     "specialities:edit:any",
 
@@ -129,6 +138,9 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     "document:view:any",
     "document:edit:any",
+
+    "labs:view:any",
+    "labs:edit:any",
   ],
 
   ADMIN: [
@@ -177,6 +189,9 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     "org:view",
     "org:edit",
 
+    "integrations:view:any",
+    "integrations:edit:any",
+
     "specialities:view:any",
     "specialities:edit:any",
 
@@ -185,6 +200,9 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     "document:view:any",
     "document:edit:any",
+
+    "labs:view:any",
+    "labs:edit:any",
   ],
 
   SUPERVISOR: [
@@ -283,6 +301,9 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     "room:edit:any",
 
     "document:view:any",
+
+    "labs:view:any",
+    "labs:edit:any",
   ],
 
   TECHNICIAN: [
@@ -325,6 +346,9 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     "room:edit:any",
 
     "document:view:any",
+
+    "labs:view:any",
+    "labs:edit:any",
   ],
 
   ASSISTANT: [

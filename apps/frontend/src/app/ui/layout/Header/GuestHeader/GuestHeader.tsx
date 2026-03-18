@@ -8,6 +8,8 @@ import { Primary } from '@/app/ui/primitives/Buttons';
 import HamburgerMenuButton from '@/app/ui/layout/Header/HamburgerMenuButton';
 import MobileMenu from '@/app/ui/layout/Header/MobileMenu';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import { startRouteLoader } from '@/app/lib/routeLoader';
+import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
 
 interface NavItem {
   label: string;
@@ -41,9 +43,26 @@ const GuestHeader = () => {
     }
   }, [status]);
 
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    const closeMenuOnDesktop = () => {
+      if (globalThis.window.innerWidth >= 1024) {
+        setMenuOpen(false);
+      }
+    };
+
+    closeMenuOnDesktop();
+    globalThis.window.addEventListener('resize', closeMenuOnDesktop);
+    return () => globalThis.window.removeEventListener('resize', closeMenuOnDesktop);
+  }, []);
+
   const handleClick = (href: string) => {
     setMenuOpen(false);
     setTimeout(() => {
+      startRouteLoader();
       router.push(href);
     }, 400);
   };
@@ -51,13 +70,15 @@ const GuestHeader = () => {
   const isSignInPage = pathname === '/signin';
   const isSignUpPage = pathname === '/signup';
   const hideButtons = pathname === '/organizations' || pathname === '/forgot-password';
+  const defaultAppRoute =
+    role === 'developer' ? '/developers/home' : resolveDefaultOpenScreenRoute(role);
 
   const getMobileAuthButton = () => {
     if (user) {
       return (
         <Primary
           href="#"
-          onClick={() => handleClick('/organizations')}
+          onClick={() => handleClick(defaultAppRoute)}
           text="Go to app"
           classname="mt-3"
         />
@@ -82,10 +103,7 @@ const GuestHeader = () => {
     if (user) {
       return (
         <div className="hidden lg:flex">
-          <Primary
-            href={role === 'developer' ? '/developers/home' : '/organizations'}
-            text="Go to app"
-          />
+          <Primary href={defaultAppRoute} text="Go to app" />
         </div>
       );
     }
@@ -111,7 +129,10 @@ const GuestHeader = () => {
   };
 
   return (
-    <div className="flex items-center justify-between px-3! sm:px-12! lg:px-20! gap-10 w-full h-20">
+    <div
+      className="flex items-center justify-between px-3! sm:px-12! lg:px-20! gap-10 w-full h-20"
+      data-terminology-lock="true"
+    >
       <Link href="/" className="logo">
         <Image src={logoUrl} alt="Logo" width={90} height={83} priority />
       </Link>

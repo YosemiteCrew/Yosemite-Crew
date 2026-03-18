@@ -3,61 +3,105 @@ import {
   AppointmentResponseDTO,
   fromAppointmentRequestDTO,
   toAppointmentResponseDTO,
-} from "@yosemite-crew/types";
+} from '@yosemite-crew/types';
 
-import { useOrgStore } from "@/app/stores/orgStore";
-import { useAppointmentStore } from "@/app/stores/appointmentStore";
-import { getData, patchData, postData } from "@/app/services/axios";
+import { useOrgStore } from '@/app/stores/orgStore';
+import { useAppointmentStore } from '@/app/stores/appointmentStore';
+import { getData, patchData, postData } from '@/app/services/axios';
 import {
   AvailabilityResponse,
+  AppointmentStatus,
   InventoryConsumeRequest,
   Slot,
-} from "@/app/features/appointments/types/appointments";
-import { formatDateLocal } from "@/app/lib/date";
-import { fetchInventoryItems } from "@/app/features/inventory/services/inventoryService";
+} from '@/app/features/appointments/types/appointments';
+import { formatDateLocal } from '@/app/lib/date';
+import { fetchInventoryItems } from '@/app/features/inventory/services/inventoryService';
+import {
+  canTransitionAppointmentStatus,
+  getInvalidAppointmentStatusTransitionMessage,
+} from '@/app/lib/appointments';
+
+type AppointmentPaymentStatus = 'PAID' | 'UNPAID' | 'PAID_CASH' | 'PAYMENT_AT_CLINIC';
+
+const getOrgIdForAppointment = (appointment: Appointment) => {
+  const { primaryOrgId } = useOrgStore.getState();
+  return primaryOrgId ?? appointment.organisationId;
+};
+
+const extractAppointmentDTO = (response: any): AppointmentResponseDTO | null => {
+  const candidates = [
+    response?.data?.data,
+    response?.data?.data?.appointment,
+    response?.data?.appointment,
+    response?.data,
+  ];
+  for (const candidate of candidates) {
+    if (!candidate || Array.isArray(candidate)) continue;
+    if (candidate?.resourceType === 'Appointment') {
+      return candidate as AppointmentResponseDTO;
+    }
+    if (candidate?.id) {
+      return candidate as AppointmentResponseDTO;
+    }
+  }
+
+  return null;
+};
+
+const upsertFromResponse = (
+  response: any,
+  fallbackAppointment?: Appointment
+): Appointment | undefined => {
+  const { upsertAppointment } = useAppointmentStore.getState();
+  const dto = extractAppointmentDTO(response);
+  if (dto) {
+    const appointment = fromAppointmentRequestDTO(dto);
+    upsertAppointment(appointment);
+    return appointment;
+  }
+  if (fallbackAppointment) {
+    upsertAppointment(fallbackAppointment);
+    return fallbackAppointment;
+  }
+  return undefined;
+};
 
 export const loadAppointmentsForPrimaryOrg = async (opts?: {
   silent?: boolean;
   force?: boolean;
 }): Promise<void> => {
-  const { startLoading, status, setAppointmentsForOrg } =
-    useAppointmentStore.getState();
+  const { startLoading, status, setAppointmentsForOrg } = useAppointmentStore.getState();
   const primaryOrgId = useOrgStore.getState().primaryOrgId;
   if (!primaryOrgId) {
-    console.warn("No primary organization selected. Cannot load appointments.");
+    console.warn('No primary organization selected. Cannot load appointments.');
     return;
   }
   if (!shouldFetchAppointments(status, opts)) return;
   if (!opts?.silent) startLoading();
   try {
     const res = await getData<{ data: AppointmentResponseDTO[] }>(
-      "/fhir/v1/appointment/pms/organisation/" + primaryOrgId,
+      '/fhir/v1/appointment/pms/organisation/' + primaryOrgId
     );
-    const appointments = res.data?.data.map((dto) =>
-      fromAppointmentRequestDTO(dto),
-    );
+    const appointments = res.data?.data.map((dto) => fromAppointmentRequestDTO(dto));
     setAppointmentsForOrg(primaryOrgId, appointments);
   } catch (err) {
-    console.error("Failed to load appointments:", err);
+    console.error('Failed to load appointments:', err);
     throw err;
   }
 };
 
 const shouldFetchAppointments = (
-  status: ReturnType<typeof useAppointmentStore.getState>["status"],
-  opts?: { force?: boolean },
+  status: ReturnType<typeof useAppointmentStore.getState>['status'],
+  opts?: { force?: boolean }
 ) => {
   if (opts?.force) return true;
-  return status === "idle" || status === "error";
+  return status === 'idle' || status === 'error';
 };
 
 export const createAppointment = async (appointment: Appointment) => {
-  const { upsertAppointment } = useAppointmentStore.getState();
   const { primaryOrgId } = useOrgStore.getState();
   if (!primaryOrgId) {
-    console.warn(
-      "No primary organization selected. Cannot create appointment.",
-    );
+    console.warn('No primary organization selected. Cannot create appointment.');
     return;
   }
   try {
@@ -68,28 +112,23 @@ export const createAppointment = async (appointment: Appointment) => {
     const fhirAppointment = toAppointmentResponseDTO(payload);
     const res = await postData<{
       data: { appointment: AppointmentResponseDTO };
-    }>("/fhir/v1/appointment/pms?createPayment=true", fhirAppointment);
-    const data = res.data.data.appointment;
-    const normalAppointment = fromAppointmentRequestDTO(data);
-    upsertAppointment(normalAppointment);
+    }>('/fhir/v1/appointment/pms?createPayment=true', fhirAppointment);
+    upsertFromResponse(res);
   } catch (err) {
-    console.error("Failed to create appointment:", err);
+    console.error('Failed to create appointment:', err);
     throw err;
   }
 };
 
 export const updateAppointment = async (payload: Appointment) => {
-  const { upsertAppointment } = useAppointmentStore.getState();
   const { primaryOrgId } = useOrgStore.getState();
   const organisationIdForRequest = primaryOrgId ?? payload.organisationId;
   if (!organisationIdForRequest) {
-    console.warn(
-      "No primary organization selected. Cannot update appointment.",
-    );
+    console.warn('No primary organization selected. Cannot update appointment.');
     return;
   }
   if (!payload.id) {
-    console.warn("updateAppointment: missing appointment.id", payload);
+    console.warn('updateAppointment: missing appointment.id', payload);
     return;
   }
   try {
@@ -99,18 +138,10 @@ export const updateAppointment = async (payload: Appointment) => {
     });
     const res = await patchData<{
       data: AppointmentResponseDTO;
-    }>(
-      "/fhir/v1/appointment/pms/" +
-        organisationIdForRequest +
-        "/" +
-        payload.id,
-      fhirAppointment,
-    );
-    const data = res.data.data;
-    const normalAppointment = fromAppointmentRequestDTO(data);
-    upsertAppointment(normalAppointment);
+    }>('/fhir/v1/appointment/pms/' + organisationIdForRequest + '/' + payload.id, fhirAppointment);
+    return upsertFromResponse(res);
   } catch (err) {
-    console.error("Failed to update appointment:", err);
+    console.error('Failed to update appointment:', err);
     throw err;
   }
 };
@@ -121,11 +152,11 @@ export const useAppointmentById = (id?: string) => {
 
 export const getSlotsForServiceAndDateForPrimaryOrg = async (
   serviceId: string,
-  date: Date,
+  date: Date
 ): Promise<Slot[]> => {
   const { primaryOrgId } = useOrgStore.getState();
   if (!primaryOrgId) {
-    console.warn("No primary organization selected. Cannot load companions.");
+    console.warn('No primary organization selected. Cannot load companions.');
     return [];
   }
   try {
@@ -137,14 +168,11 @@ export const getSlotsForServiceAndDateForPrimaryOrg = async (
       organisationId: primaryOrgId,
       date: formatDateLocal(date),
     };
-    const res = await postData<AvailabilityResponse>(
-      "/fhir/v1/service/bookable-slots",
-      payload,
-    );
+    const res = await postData<AvailabilityResponse>('/fhir/v1/service/bookable-slots', payload);
     const data = res.data;
     return toSlotsArray(data);
   } catch (err) {
-    console.error("Failed to create service:", err);
+    console.error('Failed to create service:', err);
     throw err;
   }
 };
@@ -158,11 +186,9 @@ export const toSlotsArray = (res: AvailabilityResponse): Slot[] =>
 
 const performAppointmentAction = async (
   appointment: Appointment,
-  action: "accept" | "cancel" | "checkin" | "reject",
+  action: 'accept' | 'cancel' | 'checkin' | 'reject'
 ) => {
-  const { upsertAppointment } = useAppointmentStore.getState();
-  const { primaryOrgId } = useOrgStore.getState();
-  const organisationIdForRequest = primaryOrgId ?? appointment.organisationId;
+  const organisationIdForRequest = getOrgIdForAppointment(appointment);
   if (!appointment.id) {
     return;
   }
@@ -176,11 +202,18 @@ const performAppointmentAction = async (
       data: { appointment: AppointmentResponseDTO };
     }>(
       `/fhir/v1/appointment/pms/${organisationIdForRequest}/${appointment.id}/${action}`,
-      fhirAppointment,
+      fhirAppointment
     );
-    const data = res.data.data.appointment;
-    const normalAppointment = fromAppointmentRequestDTO(data);
-    upsertAppointment(normalAppointment);
+    const nextStatusByAction: Partial<Record<typeof action, AppointmentStatus>> = {
+      accept: 'UPCOMING',
+      cancel: 'CANCELLED',
+      checkin: 'CHECKED_IN',
+      reject: 'CANCELLED',
+    };
+    return upsertFromResponse(res, {
+      ...appointment,
+      status: nextStatusByAction[action] ?? appointment.status,
+    });
   } catch (err) {
     console.error(`Failed to ${action} appointment:`, err);
     throw err;
@@ -188,48 +221,86 @@ const performAppointmentAction = async (
 };
 
 export const acceptAppointment = (appointment: Appointment) =>
-  performAppointmentAction(appointment, "accept");
+  performAppointmentAction(appointment, 'accept');
 
 export const cancelAppointment = (appointment: Appointment) =>
-  performAppointmentAction(appointment, "cancel");
+  performAppointmentAction(appointment, 'cancel');
 
 export const checkInAppointment = (appointment: Appointment) =>
-  performAppointmentAction(appointment, "checkin");
+  performAppointmentAction(appointment, 'checkin');
 
 export const rejectAppointment = (appointment: Appointment) =>
-  performAppointmentAction(appointment, "reject");
+  performAppointmentAction(appointment, 'reject');
+
+const performStatusUpdate = async (appointment: Appointment, nextStatus: AppointmentStatus) => {
+  return updateAppointment({
+    ...appointment,
+    status: nextStatus,
+  });
+};
+
+export const changeAppointmentStatus = async (
+  appointment: Appointment,
+  nextStatus: AppointmentStatus
+) => {
+  const currentStatus = appointment.status;
+  if (currentStatus === nextStatus) return appointment;
+  if (!canTransitionAppointmentStatus(currentStatus, nextStatus)) {
+    throw new Error(getInvalidAppointmentStatusTransitionMessage(currentStatus, nextStatus));
+  }
+
+  if (nextStatus === 'CHECKED_IN') {
+    return checkInAppointment(appointment);
+  }
+  if (currentStatus === 'REQUESTED' && nextStatus === 'UPCOMING') {
+    return acceptAppointment(appointment);
+  }
+  if (currentStatus === 'REQUESTED' && nextStatus === 'CANCELLED') {
+    return rejectAppointment(appointment);
+  }
+
+  return performStatusUpdate(appointment, nextStatus);
+};
+
+export const updateAppointmentPaymentStatus = async (
+  appointment: Appointment,
+  paymentStatus: AppointmentPaymentStatus
+) => {
+  return updateAppointment({
+    ...appointment,
+    paymentStatus,
+  } as Appointment);
+};
 
 export const consumeInventory = async (inventory: InventoryConsumeRequest) => {
   const { primaryOrgId } = useOrgStore.getState();
   if (!primaryOrgId) {
-    console.warn("No primary organization selected. Cannot consume inventory.");
+    console.warn('No primary organization selected. Cannot consume inventory.');
     return [];
   }
   try {
-    await postData("/v1/inventory/stock/consume", inventory);
+    await postData('/v1/inventory/stock/consume', inventory);
     await fetchInventoryItems(primaryOrgId);
   } catch (err) {
-    console.error("Failed to consume Inventory:", err);
+    console.error('Failed to consume Inventory:', err);
     throw err;
   }
 };
 
-export const consumeBulkInventory = async (
-  inventory: InventoryConsumeRequest[],
-) => {
+export const consumeBulkInventory = async (inventory: InventoryConsumeRequest[]) => {
   const { primaryOrgId } = useOrgStore.getState();
   if (!primaryOrgId) {
-    console.warn("No primary organization selected. Cannot consume inventory.");
+    console.warn('No primary organization selected. Cannot consume inventory.');
     return [];
   }
   try {
     const body = {
       items: inventory,
     };
-    await postData("/v1/inventory/stock/consume/bulk", body);
+    await postData('/v1/inventory/stock/consume/bulk', body);
     await fetchInventoryItems(primaryOrgId);
   } catch (err) {
-    console.error("Failed to consume Inventory:", err);
+    console.error('Failed to consume Inventory:', err);
     throw err;
   }
 };

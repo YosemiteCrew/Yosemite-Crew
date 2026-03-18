@@ -53,8 +53,8 @@ describe('AppointmentCalendar', () => {
   const weekStart = new Date('2025-01-06T00:00:00Z');
 
   const appointments: any[] = [
-    { id: 'a1', startTime: new Date('2025-01-06T09:00:00Z') },
-    { id: 'a2', startTime: new Date('2025-01-07T09:00:00Z') },
+    { id: 'a1', status: 'REQUESTED', startTime: new Date('2025-01-06T09:00:00Z') },
+    { id: 'a2', status: 'REQUESTED', startTime: new Date('2025-01-07T09:00:00Z') },
   ];
 
   beforeEach(() => {
@@ -88,6 +88,7 @@ describe('AppointmentCalendar', () => {
     expect(setViewPopup).toHaveBeenCalledWith(true);
 
     props.handleRescheduleAppointment(appointments[0]);
+    expect(setActiveAppointment).toHaveBeenCalledWith(appointments[0]);
     expect(setReschedulePopup).toHaveBeenCalledWith(true);
   });
 

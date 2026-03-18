@@ -35,6 +35,11 @@ import observationToolRouter from "./observationTool.routes";
 import dashboardRouter from "./dashboard.router";
 import mobileConfigRouter from "./mobile.config.router";
 import auditTrailRouter from "./audit-trail.router";
+import integrationRouter from "./integration.router";
+import knowledgeRouter from "./knowledge.router";
+import codeRouter from "./code.router";
+import labOrderRouter from "./lab-order.router";
+import labResultRouter from "./lab-result.router";
 
 export function registerRoutes(app: Express) {
   app.use(`/fhir/v1/organization`, organizationRounter);
@@ -73,4 +78,9 @@ export function registerRoutes(app: Express) {
   app.use(`/v1/dashboard`, dashboardRouter);
   app.use(`/v1/mobile-config`, mobileConfigRouter);
   app.use(`/v1/audit-trail`, auditTrailRouter);
+  app.use(`/v1/integration`, integrationRouter);
+  app.use(`/v1/knowledge`, knowledgeRouter);
+  app.use(`/v1/codes`, codeRouter);
+  app.use(`/v1/labs`, labOrderRouter);
+  app.use(`/v1/labs`, labResultRouter);
 }

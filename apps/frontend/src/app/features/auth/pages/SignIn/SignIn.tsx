@@ -12,6 +12,7 @@ import OtpModal from '@/app/ui/overlays/OtpModal/OtpModal';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import { useRouter } from 'next/navigation';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
 
 import '../AuthPages.css';
 
@@ -23,11 +24,11 @@ type SignInProps = {
 };
 
 const SignIn = ({
-  redirectPath = '/organizations',
+  redirectPath,
   signupHref = '/signup',
   isDeveloper = false,
 }: Readonly<SignInProps>) => {
-  const { signIn, resendCode } = useAuthStore();
+  const { signIn, resendCode, role } = useAuthStore();
   const router = useRouter();
   const { showErrorTost, ErrorTostPopup } = useErrorTost();
   const [email, setEmail] = useState('');
@@ -73,7 +74,9 @@ const SignIn = ({
       await signIn(email, password);
       // Set devAuth flag BEFORE redirect so DevRouteGuard can read it
       globalThis.window?.sessionStorage?.setItem('devAuth', isDeveloper ? 'true' : 'false');
-      router.push(redirectPath);
+      const signedInRole =
+        typeof useAuthStore.getState === 'function' ? useAuthStore.getState().role : role;
+      router.push(redirectPath ?? resolveDefaultOpenScreenRoute(signedInRole));
     } catch (error: any) {
       if (error?.code === 'UserNotConfirmedException') {
         await handleCodeResendonError();

@@ -11,8 +11,7 @@ type AppointmentJobData = {
 export const AppointmentWorker = new Worker(
   "appointments",
   async (job: Job<AppointmentJobData>) => {
-
-    if(job.name === AppointmentJobs.MARK_NO_SHOW){
+    if (job.name === AppointmentJobs.MARK_NO_SHOW) {
       logger.info("🔔 Running Appointment No-Show Marker Job");
 
       const { graceMinutes } = job.data;

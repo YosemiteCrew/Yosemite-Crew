@@ -3,12 +3,12 @@
  * https://jestjs.io/docs/configuration
  */
 
-import type { Config } from "jest";
-import nextJest from "next/jest";
+import type { Config } from 'jest';
+import nextJest from 'next/jest';
 
 const createJestConfig = nextJest({
   // Provide the path to your Next.js app to load next.config.js and .env files in your test environment
-  dir: "./",
+  dir: './',
 });
 
 const config: Config = {
@@ -32,18 +32,18 @@ const config: Config = {
 
   // An array of glob patterns indicating a set of files for which coverage information should be collected
   collectCoverageFrom: [
-    "<rootDir>/src/**/*.{ts,tsx}",
-    "!<rootDir>/src/**/*.d.ts",
-    "!<rootDir>/src/**/*.test.ts",
-    "!<rootDir>/src/**/*.test.tsx",
-    "!<rootDir>/src/**/*.spec.ts",
-    "!<rootDir>/src/**/*.spec.tsx",
-    "!<rootDir>/src/**/tests/**",
-    "!<rootDir>/src/**/__tests__/**",
+    '<rootDir>/src/**/*.{ts,tsx}',
+    '!<rootDir>/src/**/*.d.ts',
+    '!<rootDir>/src/**/*.test.ts',
+    '!<rootDir>/src/**/*.test.tsx',
+    '!<rootDir>/src/**/*.spec.ts',
+    '!<rootDir>/src/**/*.spec.tsx',
+    '!<rootDir>/src/**/tests/**',
+    '!<rootDir>/src/**/__tests__/**',
   ],
 
   // The directory where Jest should output its coverage files
-  coverageDirectory: "coverage",
+  coverageDirectory: 'coverage',
 
   // An array of regexp pattern strings used to skip coverage collection
   // coveragePathIgnorePatterns: [
@@ -51,10 +51,10 @@ const config: Config = {
   // ],
 
   // Indicates which provider should be used to instrument code for coverage
-  coverageProvider: "v8",
+  coverageProvider: 'v8',
 
   // A list of reporter names that Jest uses when writing coverage reports
-  coverageReporters: ["text-summary", "lcov"],
+  coverageReporters: ['text-summary', 'lcov'],
 
   // An object that configures minimum threshold enforcement for coverage results
   // coverageThreshold: undefined,
@@ -107,11 +107,11 @@ const config: Config = {
   // A map from regular expressions to module names or to arrays of module names that allow to stub out resources with a single module
   moduleNameMapper: {
     // Handle Next.js aliases
-    "^@/(.*)$": "<rootDir>/src/$1",
+    '^@/(.*)$': '<rootDir>/src/$1',
     // Handle local monorepo packages
-    "^@yosemite-crew/fhir$": "<rootDir>/../../packages/fhir/src",
-    "^@yosemite-crew/types$": "<rootDir>/../../packages/types/src",
-    "^next/navigation$": "<rootDir>/src/app/jest.mocks/nextNavigation.ts",
+    '^@yosemite-crew/fhir$': '<rootDir>/../../packages/fhir/src',
+    '^@yosemite-crew/types$': '<rootDir>/../../packages/types/src',
+    '^next/navigation$': '<rootDir>/src/app/jest.mocks/nextNavigation.ts',
   },
 
   // An array of regexp pattern strings, matched against all module paths before considered 'visible' to the module loader
@@ -159,8 +159,7 @@ const config: Config = {
   // setupFiles: [],
 
   // A list of paths to modules that run some code to configure or set up the testing framework before each test
-  setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
-
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
 
   // The number of seconds after which a test is considered as slow and reported as such in the results.
   slowTestThreshold: 5,
@@ -172,7 +171,7 @@ const config: Config = {
   // snapshotSerializers: [],
 
   // The test environment that will be used for testing
-  testEnvironment: "jsdom",
+  testEnvironment: 'jsdom',
 
   // Options that will be passed to the testEnvironment
   // testEnvironmentOptions: {},
@@ -187,9 +186,7 @@ const config: Config = {
   // ],
 
   // An array of regexp pattern strings that are matched against all test paths, matched tests are skipped
-  // testPathIgnorePatterns: [
-  //   "/node_modules/"
-  // ],
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/e2e/'],
 
   // The regexp pattern or array of patterns that Jest uses to detect test files
   // testRegex: [],

@@ -8,7 +8,11 @@
     "lint": "eslint .",
     "start": "react-native start",
     "type-check": "tsc --noEmit",
-    "test": "jest"
+    "test": "jest",
+    "e2e:build:ios": "detox build -c ios.sim.debug",
+    "e2e:ios": "detox test -c ios.sim.debug",
+    "e2e:build:android": "detox build -c android.emu.debug",
+    "e2e:android": "detox test -c android.emu.debug"
   },
   "dependencies": {
     "@aws-amplify/react-native": "^1.1.10",
@@ -116,6 +120,7 @@
     "@types/react-native-vector-icons": "^6.4.18",
     "@types/react-test-renderer": "^19.1.0",
     "@types/redux-mock-store": "^1.5.0",
+    "detox": "^20.23.1",
     "aws-cdk-lib": "2.204.0",
     "babel-plugin-module-resolver": "^5.0.0",
     "constructs": "^10.4.2",

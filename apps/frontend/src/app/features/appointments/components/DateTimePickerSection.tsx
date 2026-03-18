@@ -1,11 +1,11 @@
-import React from "react";
-import Slotpicker from "@/app/ui/inputs/Slotpicker";
-import FormInput from "@/app/ui/inputs/FormInput/FormInput";
-import LabelDropdown from "@/app/ui/inputs/Dropdown/LabelDropdown";
-import MultiSelectDropdown from "@/app/ui/inputs/MultiSelectDropdown";
-import { getFormattedDate } from "@/app/features/appointments/components/Calendar/weekHelpers";
-import { formatUtcTimeToLocalLabel } from "@/app/features/appointments/components/Availability/utils";
-import { Slot } from "@/app/features/appointments/types/appointments";
+import React from 'react';
+import Slotpicker from '@/app/ui/inputs/Slotpicker';
+import FormInput from '@/app/ui/inputs/FormInput/FormInput';
+import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
+import MultiSelectDropdown from '@/app/ui/inputs/MultiSelectDropdown';
+import { getFormattedDate } from '@/app/features/appointments/components/Calendar/weekHelpers';
+import { formatUtcTimeToLocalLabel } from '@/app/features/appointments/components/Availability/utils';
+import { Slot } from '@/app/features/appointments/types/appointments';
 
 type Option = { label: string; value: string };
 
@@ -63,15 +63,15 @@ const DateTimePickerSection = ({
         <FormInput
           intype="text"
           inname="time"
-          value={
-            selectedSlot?.startTime
-              ? formatUtcTimeToLocalLabel(selectedSlot.startTime)
-              : ""
-          }
+          value={selectedSlot?.startTime ? formatUtcTimeToLocalLabel(selectedSlot.startTime) : ''}
+          readonly
+          tabIndex={-1}
+          onFocus={(event) => event.currentTarget.blur()}
+          onClick={(event) => event.preventDefault()}
           error={slotError}
           onChange={() => {}}
           inlabel="Time"
-          className="min-h-12!"
+          className="min-h-12! cursor-default"
         />
       </div>
       <LabelDropdown

@@ -17,6 +17,7 @@ import {
   StockMovementModel,
 } from "../../src/models/inventory";
 import { OrgBilling } from "../../src/models/organization.billing";
+import { prisma } from "src/config/prisma";
 
 jest.mock("../../src/models/inventory", () => ({
   InventoryItemModel: {
@@ -56,6 +57,49 @@ jest.mock("../../src/models/organization.billing", () => ({
   },
 }));
 
+jest.mock("src/config/prisma", () => ({
+  prisma: {
+    organizationBilling: {
+      findUnique: jest.fn(),
+      findFirst: jest.fn(),
+    },
+    inventoryItem: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    inventoryBatch: {
+      create: jest.fn(),
+      createMany: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      deleteMany: jest.fn(),
+      aggregate: jest.fn(),
+    },
+    inventoryStockMovement: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+    },
+    inventoryVendor: {
+      create: jest.fn(),
+      update: jest.fn(),
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    inventoryMetaField: {
+      create: jest.fn(),
+      update: jest.fn(),
+      findMany: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+  },
+}));
+
 const validId = new Types.ObjectId().toString();
 
 const createChainable = (resolvedValue: any) => ({
@@ -75,6 +119,7 @@ const createMockDoc = (data: any) => ({
 describe("Inventory Service Suite", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.READ_FROM_POSTGRES = "false";
 
     (InventoryItemModel.findByIdAndUpdate as jest.Mock).mockReturnValue(
       createChainable(true),
@@ -181,6 +226,75 @@ describe("Inventory Service Suite", () => {
       expect(mockDoc.save).toHaveBeenCalled();
       expect(res.batches).toHaveLength(3);
     });
+
+    it("creates an item using prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.organizationBilling.findUnique as jest.Mock).mockResolvedValue({
+        currency: "eur",
+      });
+      (prisma.inventoryItem.create as jest.Mock).mockResolvedValue({
+        id: "item-1",
+        organisationId: "org1",
+        businessType: "HOSPITAL",
+        name: "Item",
+        category: "Cat",
+        status: "ACTIVE",
+        onHand: 0,
+        allocated: 0,
+      });
+      (prisma.inventoryBatch.createMany as jest.Mock).mockResolvedValue({
+        count: 1,
+      });
+      (prisma.inventoryBatch.findMany as jest.Mock)
+        .mockResolvedValueOnce([
+          {
+            id: "batch-1",
+            itemId: "item-1",
+            organisationId: "org1",
+            quantity: 3,
+            allocated: 1,
+            expiryDate: new Date("2026-01-01"),
+          },
+        ])
+        .mockResolvedValueOnce([
+          {
+            id: "batch-1",
+            itemId: "item-1",
+            organisationId: "org1",
+            quantity: 3,
+            allocated: 1,
+            expiryDate: new Date("2026-01-01"),
+          },
+        ]);
+      (prisma.inventoryItem.update as jest.Mock).mockResolvedValue({
+        id: "item-1",
+        organisationId: "org1",
+        businessType: "HOSPITAL",
+        name: "Item",
+        category: "Cat",
+        status: "ACTIVE",
+        onHand: 3,
+        allocated: 1,
+      });
+
+      const res = await InventoryService.createItem({
+        organisationId: "org1",
+        name: "Item",
+        category: "Cat",
+        businessType: "HOSPITAL",
+        batches: [{ quantity: 3, allocated: 1 }] as any,
+      });
+
+      expect(prisma.inventoryItem.create).toHaveBeenCalled();
+      expect(prisma.inventoryBatch.createMany).toHaveBeenCalled();
+      expect(prisma.inventoryItem.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { onHand: 3, allocated: 1 } }),
+      );
+      expect(res.item).toEqual(
+        expect.objectContaining({ organisationId: "org1", _id: "item-1" }),
+      );
+      expect(res.batches).toHaveLength(1);
+    });
   });
 
   describe("InventoryService.updateItem", () => {
@@ -264,6 +378,39 @@ describe("Inventory Service Suite", () => {
 
       expect(mockDoc.save).toHaveBeenCalled();
     });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.inventoryItem.findFirst as jest.Mock).mockResolvedValue({
+        id: "item-1",
+        organisationId: "org1",
+      });
+      (prisma.organizationBilling.findUnique as jest.Mock).mockResolvedValue({
+        currency: "usd",
+      });
+      (prisma.inventoryItem.update as jest.Mock).mockResolvedValue({
+        id: "item-1",
+        organisationId: "org1",
+        name: "Updated",
+        category: "Cat",
+        status: "ACTIVE",
+      });
+      (prisma.inventoryBatch.findMany as jest.Mock).mockResolvedValue([]);
+
+      const res = await InventoryService.updateItem("item-1", {
+        name: "Updated",
+        category: "Cat",
+        currency: "cad",
+        status: "ACTIVE",
+      });
+
+      expect(prisma.inventoryItem.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "item-1" },
+        }),
+      );
+      expect(res.item).toEqual(expect.objectContaining({ name: "Updated" }));
+    });
   });
 
   describe("InventoryService status toggles (hide/archive/active)", () => {
@@ -304,6 +451,16 @@ describe("Inventory Service Suite", () => {
       await expect(InventoryService.activeItem(validId)).rejects.toThrow(
         "Inventory item not found",
       );
+    });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.inventoryItem.update as jest.Mock).mockResolvedValue({
+        id: "item-1",
+        status: "HIDDEN",
+      });
+      const hidden = await InventoryService.hideItem("item-1");
+      expect(hidden.status).toBe("HIDDEN");
     });
   });
 
@@ -443,6 +600,35 @@ describe("Inventory Service Suite", () => {
       });
       expect(res2).toHaveLength(1);
     });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.inventoryItem.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: "item-1",
+          organisationId: "org",
+          name: "Item A",
+          category: "Cat",
+          status: "ACTIVE",
+          onHand: 5,
+          reorderLevel: 2,
+        },
+      ]);
+      (prisma.inventoryBatch.findMany as jest.Mock).mockResolvedValue([]);
+
+      const res = await InventoryService.listItems({
+        organisationId: "org",
+        search: "Item",
+        status: ["ACTIVE"],
+      });
+
+      expect(prisma.inventoryItem.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ organisationId: "org" }),
+        }),
+      );
+      expect(res).toHaveLength(1);
+    });
   });
 
   describe("InventoryService.getItemWithBatches", () => {
@@ -466,6 +652,21 @@ describe("Inventory Service Suite", () => {
       );
       const res = await InventoryService.getItemWithBatches(validId, "org");
       expect(res.item).toEqual({ id: 1 });
+      expect(res.batches).toHaveLength(1);
+    });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.inventoryItem.findFirst as jest.Mock).mockResolvedValue({
+        id: "item-1",
+        organisationId: "org",
+      });
+      (prisma.inventoryBatch.findMany as jest.Mock).mockResolvedValue([
+        { id: "batch-1", itemId: "item-1", organisationId: "org" },
+      ]);
+
+      const res = await InventoryService.getItemWithBatches("item-1", "org");
+      expect(res.item).toEqual(expect.objectContaining({ _id: "item-1" }));
       expect(res.batches).toHaveLength(1);
     });
   });
@@ -563,6 +764,45 @@ describe("Inventory Service Suite", () => {
       expect(mockBatch.deleteOne).toHaveBeenCalled();
       expect(InventoryItemModel.findByIdAndUpdate).toHaveBeenCalled();
     });
+
+    it("uses prisma for batch operations when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.inventoryItem.findFirst as jest.Mock).mockResolvedValue({
+        id: "item-1",
+        organisationId: "org",
+      });
+      (prisma.inventoryBatch.create as jest.Mock).mockResolvedValue({
+        id: "batch-1",
+        itemId: "item-1",
+        organisationId: "org",
+        quantity: 2,
+      });
+      (prisma.inventoryBatch.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.inventoryItem.update as jest.Mock).mockResolvedValue({
+        id: "item-1",
+        onHand: 0,
+        allocated: 0,
+      });
+
+      await InventoryService.addBatch("item-1", { quantity: 2 });
+      expect(prisma.inventoryBatch.create).toHaveBeenCalled();
+      expect(prisma.inventoryItem.update).toHaveBeenCalled();
+
+      (prisma.inventoryBatch.findFirst as jest.Mock).mockResolvedValue({
+        id: "batch-1",
+        itemId: "item-1",
+      });
+      (prisma.inventoryBatch.update as jest.Mock).mockResolvedValue({
+        id: "batch-1",
+        itemId: "item-1",
+      });
+      await InventoryService.updateBatch("batch-1", { quantity: 5 });
+      expect(prisma.inventoryBatch.update).toHaveBeenCalled();
+
+      await InventoryService.deleteBatch("batch-1");
+      expect(prisma.inventoryBatch.deleteMany).toHaveBeenCalled();
+      expect(prisma.inventoryItem.updateMany).toHaveBeenCalled();
+    });
   });
 
   describe("InventoryService.consumeStock & bulkConsumeStock", () => {
@@ -656,13 +896,42 @@ describe("Inventory Service Suite", () => {
     });
 
     it("bulkConsumeStock: succeeds", async () => {
-      jest
+      const spy = jest
         .spyOn(InventoryService, "consumeStock")
         .mockResolvedValue({ id: 1 } as any);
       const res = await InventoryService.bulkConsumeStock({
         items: [{ itemId: validId, quantity: 1, reason: "OTHER" }],
       });
       expect(res).toEqual([{ id: 1 }]);
+      spy.mockRestore();
+    });
+
+    it("consumeStock uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.inventoryItem.findFirst as jest.Mock).mockResolvedValue({
+        id: "item-1",
+        onHand: 5,
+        allocated: 0,
+      });
+      (prisma.inventoryBatch.findMany as jest.Mock).mockResolvedValue([
+        { id: "b1", itemId: "item-1", quantity: 3 },
+        { id: "b2", itemId: "item-1", quantity: 2 },
+      ]);
+      (prisma.inventoryBatch.update as jest.Mock).mockResolvedValue({});
+      (prisma.inventoryItem.update as jest.Mock).mockResolvedValue({
+        id: "item-1",
+        onHand: 0,
+        allocated: 0,
+      });
+
+      const res = await InventoryService.consumeStock({
+        itemId: "item-1",
+        quantity: 5,
+        reason: "OTHER",
+      });
+
+      expect(prisma.inventoryBatch.update).toHaveBeenCalled();
+      expect(res).toEqual(expect.objectContaining({ _id: "item-1" }));
     });
   });
 
@@ -730,6 +999,26 @@ describe("Inventory Service Suite", () => {
       expect(res[2].status).toBe("MODERATE");
       expect(res[3].status).toBe("LOW");
       expect(res[4].turnsPerYear).toBe(0); // 0/0 edge case handled
+    });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.inventoryItem.findMany as jest.Mock).mockResolvedValue([
+        { id: "item-1", name: "I1", category: "Cat", onHand: 10 },
+      ]);
+      (prisma.inventoryStockMovement.findMany as jest.Mock).mockResolvedValue([
+        { itemId: "item-1", change: 20 },
+      ]);
+      (prisma.inventoryBatch.aggregate as jest.Mock).mockResolvedValue({
+        _sum: { quantity: 5 },
+      });
+
+      const res = await InventoryService.getInventoryTurnoverByItem({
+        organisationId: "org",
+      });
+
+      expect(res).toHaveLength(1);
+      expect(res[0].itemId).toBe("item-1");
     });
   });
 
@@ -820,6 +1109,32 @@ describe("Inventory Service Suite", () => {
         }),
       ).rejects.toThrow("Insufficient stock for adjustment");
     });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.inventoryItem.findFirst as jest.Mock).mockResolvedValue({
+        id: "item-1",
+        organisationId: "org",
+        onHand: 1,
+      });
+      (prisma.inventoryBatch.create as jest.Mock).mockResolvedValue({});
+      (prisma.inventoryStockMovement.create as jest.Mock).mockResolvedValue({});
+      (prisma.inventoryBatch.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.inventoryItem.update as jest.Mock).mockResolvedValue({
+        id: "item-1",
+        onHand: 2,
+        allocated: 0,
+      });
+
+      const res = await InventoryAdjustmentService.adjustStock({
+        itemId: "item-1",
+        newOnHand: 2,
+        reason: "MANUAL",
+      });
+
+      expect(prisma.inventoryBatch.create).toHaveBeenCalled();
+      expect(res).toEqual(expect.objectContaining({ _id: "item-1" }));
+    });
   });
 
   describe("InventoryAllocationService", () => {
@@ -882,6 +1197,41 @@ describe("Inventory Service Suite", () => {
       expect(mockItem.allocated).toBe(0);
       expect(StockMovementModel.create).toHaveBeenCalled();
     });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.inventoryItem.findFirst as jest.Mock).mockResolvedValue({
+        id: "item-1",
+        onHand: 5,
+        allocated: 1,
+      });
+      (prisma.inventoryItem.update as jest.Mock).mockResolvedValue({
+        id: "item-1",
+        onHand: 5,
+        allocated: 3,
+      });
+      (prisma.inventoryStockMovement.create as jest.Mock).mockResolvedValue({});
+
+      const res = await InventoryAllocationService.allocateStock({
+        itemId: "item-1",
+        quantity: 2,
+        referenceId: "ref",
+      });
+
+      expect(res).toEqual(expect.objectContaining({ _id: "item-1" }));
+
+      (prisma.inventoryItem.update as jest.Mock).mockResolvedValue({
+        id: "item-1",
+        onHand: 5,
+        allocated: 0,
+      });
+      await InventoryAllocationService.releaseAllocatedStock({
+        itemId: "item-1",
+        quantity: 5,
+        referenceId: "ref",
+      });
+      expect(prisma.inventoryItem.update).toHaveBeenCalled();
+    });
   });
 
   describe("InventoryVendorService", () => {
@@ -922,6 +1272,37 @@ describe("Inventory Service Suite", () => {
     it("deleteVendor", async () => {
       await InventoryVendorService.deleteVendor(validId);
       expect(InventoryVendorModel.findByIdAndDelete).toHaveBeenCalled();
+    });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.inventoryVendor.create as jest.Mock).mockResolvedValue({
+        id: "vendor-1",
+      });
+      (prisma.inventoryVendor.update as jest.Mock).mockResolvedValue({
+        id: "vendor-1",
+        name: "B",
+      });
+      (prisma.inventoryVendor.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.inventoryVendor.findFirst as jest.Mock).mockResolvedValue({
+        id: "vendor-1",
+      });
+      (prisma.inventoryVendor.deleteMany as jest.Mock).mockResolvedValue({
+        count: 1,
+      });
+
+      await InventoryVendorService.createVendor({
+        organisationId: "org",
+        name: "V",
+      });
+      await InventoryVendorService.updateVendor("vendor-1", { name: "B" });
+      await InventoryVendorService.listVendors("org");
+      await InventoryVendorService.getVendor("vendor-1");
+      await InventoryVendorService.deleteVendor("vendor-1");
+
+      expect(prisma.inventoryVendor.create).toHaveBeenCalled();
+      expect(prisma.inventoryVendor.update).toHaveBeenCalled();
+      expect(prisma.inventoryVendor.deleteMany).toHaveBeenCalled();
     });
   });
 
@@ -967,6 +1348,34 @@ describe("Inventory Service Suite", () => {
       await InventoryMetaFieldService.listFields("HOSPITAL");
       expect(InventoryMetaFieldModel.find).toHaveBeenCalled();
     });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.inventoryMetaField.create as jest.Mock).mockResolvedValue({
+        id: "field-1",
+      });
+      (prisma.inventoryMetaField.update as jest.Mock).mockResolvedValue({
+        id: "field-1",
+        label: "B",
+      });
+      (prisma.inventoryMetaField.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.inventoryMetaField.deleteMany as jest.Mock).mockResolvedValue({
+        count: 1,
+      });
+
+      await InventoryMetaFieldService.createField({
+        businessType: "HOSPITAL",
+        fieldKey: "k",
+        label: "l",
+        values: [],
+      });
+      await InventoryMetaFieldService.updateField("field-1", { label: "B" });
+      await InventoryMetaFieldService.listFields("HOSPITAL");
+      await InventoryMetaFieldService.deleteField("field-1");
+
+      expect(prisma.inventoryMetaField.create).toHaveBeenCalled();
+      expect(prisma.inventoryMetaField.deleteMany).toHaveBeenCalled();
+    });
   });
 
   describe("InventoryAlertService", () => {
@@ -999,6 +1408,21 @@ describe("Inventory Service Suite", () => {
 
       await InventoryAlertService.getExpiringItems("org", -5);
       expect(InventoryBatchModel.find).toHaveBeenCalledTimes(3);
+    });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.inventoryItem.findMany as jest.Mock).mockResolvedValue([
+        { id: "i1", onHand: 1, reorderLevel: 2 },
+        { id: "i2", onHand: 5, reorderLevel: 1 },
+      ]);
+      (prisma.inventoryBatch.findMany as jest.Mock).mockResolvedValue([]);
+
+      const low = await InventoryAlertService.getLowStockItems("org");
+      expect(low).toHaveLength(1);
+
+      await InventoryAlertService.getExpiringItems("org", 3);
+      expect(prisma.inventoryBatch.findMany).toHaveBeenCalled();
     });
   });
 });

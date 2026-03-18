@@ -33,7 +33,10 @@ router.get(
 );
 
 // Checkout session status (public for success/cancel pages)
-router.get("/checkout-session/:sessionId", StripeController.retrieveCheckoutSession);
+router.get(
+  "/checkout-session/:sessionId",
+  StripeController.retrieveCheckoutSession,
+);
 
 router.get(
   "/invoice/:invoiceId/payment-intent",

@@ -231,7 +231,6 @@ const Companion = ({
     if (!formData.name) errors.name = 'Name is required';
     if (!formData.type) errors.species = 'Species is required';
     if (!formData.breed) errors.breed = 'Breed is required';
-    if (!formData.dateOfBirth) errors.dateOfBirth = 'Date of birth is required';
     if (formData.isneutered && !formData.ageWhenNeutered) {
       errors.ageWhenNeutered = 'Age when neutered is required';
     }
@@ -365,7 +364,7 @@ const Companion = ({
               type="input"
               className="min-h-12!"
               containerClassName="w-full"
-              placeholder="Date of birth"
+              placeholder="Date of birth (Optional)"
               error={formDataErrors.dateOfBirth}
             />
             <SelectLabel

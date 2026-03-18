@@ -1,8 +1,5 @@
 import { Request, Response } from "express";
-import {
-  AuditEntityType,
-  AuditEventType,
-} from "src/models/audit-trail";
+import { AuditEntityType, AuditEventType } from "src/models/audit-trail";
 import {
   AuditTrailService,
   AuditTrailServiceError,
@@ -10,31 +7,41 @@ import {
 import logger from "src/utils/logger";
 import { OrgRequest } from "src/middlewares/rbac";
 
-const parseListQuery = (req: Request) => {
-  const limitRaw = req.query.limit;
-  const beforeRaw = req.query.before;
-  const eventTypesRaw = req.query.eventTypes;
-  const entityTypesRaw = req.query.entityTypes;
+const parseListQuery = (payload: Record<string, unknown> | undefined) => {
+  const limitRaw = payload?.limit;
+  const beforeRaw = payload?.before;
+  const eventTypesRaw = payload?.eventTypes;
+  const entityTypesRaw = payload?.entityTypes;
 
   const limit =
-    typeof limitRaw === "string" ? Number.parseInt(limitRaw, 10) : undefined;
+    typeof limitRaw === "number"
+      ? Math.floor(limitRaw)
+      : typeof limitRaw === "string"
+        ? Number.parseInt(limitRaw, 10)
+        : undefined;
 
   const before =
     typeof beforeRaw === "string" && beforeRaw.trim().length > 0
       ? new Date(beforeRaw)
-      : undefined;
+      : beforeRaw instanceof Date
+        ? beforeRaw
+        : undefined;
   const safeBefore =
     before && !Number.isNaN(before.getTime()) ? before : undefined;
 
   const eventTypes =
     typeof eventTypesRaw === "string" && eventTypesRaw.trim().length > 0
       ? (eventTypesRaw.split(",") as AuditEventType[])
-      : undefined;
+      : Array.isArray(eventTypesRaw)
+        ? (eventTypesRaw as AuditEventType[])
+        : undefined;
 
   const entityTypes =
     typeof entityTypesRaw === "string" && entityTypesRaw.trim().length > 0
       ? (entityTypesRaw.split(",") as AuditEntityType[])
-      : undefined;
+      : Array.isArray(entityTypesRaw)
+        ? (entityTypesRaw as AuditEntityType[])
+        : undefined;
 
   return { limit, before: safeBefore, eventTypes, entityTypes };
 };
@@ -45,21 +52,28 @@ export const AuditTrailController = {
     res: Response,
   ) => {
     try {
+      if (req.method === "GET") {
+        return res.status(405).json({
+          message: "Use POST with companionId in request body.",
+        });
+      }
       const orgReq = req as OrgRequest;
       const organisationId = orgReq.organisationId;
-      const { companionId } = req.params;
+      const body = req.body as { companionId?: string } | undefined;
+      const companionId =
+        typeof body?.companionId === "string" ? body.companionId.trim() : "";
 
       if (!organisationId) {
-        return res
-          .status(400)
-          .json({ message: "organisationId is required" });
+        return res.status(400).json({ message: "organisationId is required" });
       }
 
       if (!companionId) {
         return res.status(400).json({ message: "companionId is required" });
       }
 
-      const { limit, before, eventTypes, entityTypes } = parseListQuery(req);
+      const { limit, before, eventTypes, entityTypes } = parseListQuery(
+        req.body as Record<string, unknown> | undefined,
+      );
 
       const results = await AuditTrailService.listForOrganisation({
         organisationId,
@@ -85,23 +99,30 @@ export const AuditTrailController = {
     res: Response,
   ) => {
     try {
+      if (req.method === "GET") {
+        return res.status(405).json({
+          message: "Use POST with appointmentId in request body.",
+        });
+      }
       const orgReq = req as OrgRequest;
       const organisationId = orgReq.organisationId;
-      const { appointmentId } = req.params;
+      const body = req.body as { appointmentId?: string } | undefined;
+      const appointmentId =
+        typeof body?.appointmentId === "string"
+          ? body.appointmentId.trim()
+          : "";
 
       if (!organisationId) {
-        return res
-          .status(400)
-          .json({ message: "organisationId is required" });
+        return res.status(400).json({ message: "organisationId is required" });
       }
 
       if (!appointmentId) {
-        return res
-          .status(400)
-          .json({ message: "appointmentId is required" });
+        return res.status(400).json({ message: "appointmentId is required" });
       }
 
-      const { limit, before } = parseListQuery(req);
+      const { limit, before } = parseListQuery(
+        req.body as Record<string, unknown> | undefined,
+      );
 
       const results = await AuditTrailService.listForAppointment({
         organisationId,

@@ -1,15 +1,15 @@
-import axios, { AxiosInstance, AxiosResponse, AxiosRequestConfig } from "axios";
-import { useAuthStore } from "@/app/stores/authStore";
-import { useOrgStore } from "@/app/stores/orgStore";
-import { hardSignOut } from "@/app/hooks/useAuth";
-import { logger } from "@/app/lib/logger";
+import axios, { AxiosInstance, AxiosResponse, AxiosRequestConfig } from 'axios';
+import { useAuthStore } from '@/app/stores/authStore';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { hardSignOut } from '@/app/hooks/useAuth';
+import { logger } from '@/app/lib/logger';
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
 const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,
   headers: {
-    "Content-Type": "application/json",
+    'Content-Type': 'application/json',
   },
 });
 
@@ -17,26 +17,27 @@ const api: AxiosInstance = axios.create({
 api.interceptors.request.use(
   async (config) => {
     try {
-      const session = useAuthStore.getState().session;
+      const session = await useAuthStore.getState().getValidSession();
       const primaryOrgId = useOrgStore.getState().primaryOrgId;
       if (config.headers) {
         if (session) {
           const token = session.getIdToken().getJwtToken();
           config.headers.Authorization = `Bearer ${token}`;
+        } else {
+          delete config.headers.Authorization;
         }
         if (primaryOrgId) {
-          config.headers["x-org-id"] = primaryOrgId;
+          config.headers['x-org-id'] = primaryOrgId;
         } else {
-          delete config.headers["x-org-id"];
+          delete config.headers['x-org-id'];
         }
       }
     } catch (error) {
-      logger.warn("No valid Cognito session available from AuthStore", error);
+      logger.warn('No valid Cognito session available from AuthStore', error);
     }
     return config;
   },
-  (error) =>
-    Promise.reject(error instanceof Error ? error : new Error(String(error))),
+  (error) => Promise.reject(error instanceof Error ? error : new Error(String(error)))
 );
 
 api.interceptors.response.use(
@@ -59,43 +60,38 @@ api.interceptors.response.use(
     originalRequest._retry = true;
 
     try {
-      // Try to refresh Cognito session
-      await useAuthStore.getState().refreshSession();
-
-      const session = useAuthStore.getState().session;
+      const session = await useAuthStore.getState().getValidSession({ forceRefresh: true });
       if (!session) {
         await hardSignOut();
         throw error;
       }
 
-      const newToken = session.getIdToken().getJwtToken();
-
       // Update auth header and retry the original request
       originalRequest.headers = {
         ...originalRequest.headers,
-        Authorization: `Bearer ${newToken}`,
+        Authorization: `Bearer ${session.getIdToken().getJwtToken()}`,
       };
 
       return api(originalRequest);
     } catch (refreshError) {
-      logger.error("Session refresh failed after 401:", refreshError);
+      logger.error('Session refresh failed after 401:', refreshError);
       await hardSignOut();
       throw error;
     }
-  },
+  }
 );
 
 // GET Request
 export const getData = async <T>(
   endpoint: string,
-  params: Record<string, unknown> = {},
+  params: Record<string, unknown> = {}
 ): Promise<AxiosResponse<T>> => {
   try {
     return await api.get<T>(endpoint, {
       params,
     });
   } catch (error: unknown) {
-    logger.error("API getData error:", error);
+    logger.error('API getData error:', error);
     throw error;
   }
 };
@@ -104,14 +100,14 @@ export const getData = async <T>(
 export const postData = async <T, D = unknown>(
   endpoint: string,
   data?: D,
-  config?: AxiosRequestConfig,
+  config?: AxiosRequestConfig
 ): Promise<AxiosResponse<T>> => {
   try {
     return await api.post<T>(endpoint, data, {
       ...config,
     });
   } catch (error: unknown) {
-    logger.error("API postData error:", error);
+    logger.error('API postData error:', error);
     throw error;
   }
 };
@@ -119,12 +115,12 @@ export const postData = async <T, D = unknown>(
 // PUT Request
 export const putData = async <T, D = unknown>(
   endpoint: string,
-  data?: D,
+  data?: D
 ): Promise<AxiosResponse<T>> => {
   try {
     return await api.put<T>(endpoint, data);
   } catch (error: unknown) {
-    logger.error("API putData error:", error);
+    logger.error('API putData error:', error);
     throw error;
   }
 };
@@ -132,14 +128,14 @@ export const putData = async <T, D = unknown>(
 // DELETE Request
 export const deleteData = async <T>(
   endpoint: string,
-  params: Record<string, unknown> = {},
+  params: Record<string, unknown> = {}
 ): Promise<AxiosResponse<T>> => {
   try {
     return await api.delete<T>(endpoint, {
       params,
     });
   } catch (error: unknown) {
-    logger.error("API deleteData error:", error);
+    logger.error('API deleteData error:', error);
     throw error;
   }
 };
@@ -147,14 +143,14 @@ export const deleteData = async <T>(
 export const patchData = async <T, D = unknown>(
   endpoint: string,
   data?: D,
-  config?: AxiosRequestConfig,
+  config?: AxiosRequestConfig
 ): Promise<AxiosResponse<T>> => {
   try {
     return await api.patch<T>(endpoint, data, {
       ...config,
     });
   } catch (error: unknown) {
-    logger.error("API patchData error:", error);
+    logger.error('API patchData error:', error);
     throw error;
   }
 };

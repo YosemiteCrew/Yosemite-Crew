@@ -34,7 +34,7 @@ export const CognitoService = {
         }),
       );
     } catch (error) {
-      logger.error("Erro in updating user name:", error)
+      logger.error("Erro in updating user name:", error);
       throw new CognitoServiceError("Failed to update user in Cognito.");
     }
   },

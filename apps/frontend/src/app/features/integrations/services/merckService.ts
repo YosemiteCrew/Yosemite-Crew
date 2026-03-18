@@ -10,72 +10,6 @@ import {
 } from '@/app/features/integrations/services/types';
 
 const MERCK_PROVIDER: IntegrationProvider = 'MERCK_MANUALS';
-const MERCK_STATUS_STORAGE_KEY = 'yc:merck:statusByOrg';
-
-const DEFAULT_MERCK_STATUS: IntegrationStatus = 'enabled';
-
-const MOCK_RAW_FEED_BY_AUDIENCE: Record<MerckAudience, unknown> = {
-  PROV: {
-    feed: {
-      id: 'tag: msdmanuals,2026-03-03/1772567449000',
-      updated: '2026-03-03T07:50:49Z',
-      category: [
-        { '@term': 'PROV', '@scheme': 'informationRecipient' },
-        { '@term': 'k58.9', '@scheme': 'mainSearchCriteria.v.c' },
-      ],
-      entry: [
-        {
-          id: '9039CD49-CC4B-4BFE-A09D-C76C54718EF9',
-          title: { '#text': 'Irritable Bowel Syndrome (IBS)' },
-          summary: {
-            '#text':
-              '<div><p>Irritable bowel syndrome is characterized by recurrent abdominal discomfort or pain with relation to defecation and bowel habit changes.</p><div><a href="https://www.msdmanuals.com/professional/gastrointestinal-disorders/irritable-bowel-syndrome-ibs/irritable-bowel-syndrome-ibs?media=print&content=summary#v896587">Etiology</a><span>-</span><a href="https://www.msdmanuals.com/professional/gastrointestinal-disorders/irritable-bowel-syndrome-ibs/irritable-bowel-syndrome-ibs?media=print&content=summary#v896604">Symptoms and Signs</a><span>-</span><a href="https://www.msdmanuals.com/professional/gastrointestinal-disorders/irritable-bowel-syndrome-ibs/irritable-bowel-syndrome-ibs?media=print&content=summary#v896608">Diagnosis</a><span>-</span><a href="https://www.msdmanuals.com/professional/gastrointestinal-disorders/irritable-bowel-syndrome-ibs/irritable-bowel-syndrome-ibs?media=print&content=summary#v896639">Treatment</a></div></div>',
-          },
-          updated: '2026-03-03T07:50:49Z',
-          link: {
-            '@href':
-              'https://www.msdmanuals.com/professional/gastrointestinal-disorders/irritable-bowel-syndrome-ibs/irritable-bowel-syndrome-ibs?media=print&content=summary',
-          },
-        },
-        {
-          id: '1CC95B8E-61D0-4426-83F4-C0AF841A8492',
-          title: { '#text': 'Tick-Borne Diseases in Dogs' },
-          summary: {
-            '#text':
-              '<div><p>Tick-borne diseases in dogs can present with fever, lethargy, and thrombocytopenia.</p><div><a href="https://www.msdvetmanual.com/professional/dog-owners/infectious-diseases-of-dogs/tick-borne-diseases-in-dogs?media=print#clinical-findings">Symptoms and Signs</a><span>-</span><a href="https://www.msdvetmanual.com/professional/dog-owners/infectious-diseases-of-dogs/tick-borne-diseases-in-dogs?media=print#treatment">Treatment</a></div></div>',
-          },
-          updated: '2026-01-23T08:20:00Z',
-          link: {
-            '@href':
-              'https://www.msdvetmanual.com/professional/dog-owners/infectious-diseases-of-dogs/tick-borne-diseases-in-dogs?media=print',
-          },
-        },
-      ],
-    },
-  },
-  PAT: {
-    feed: {
-      id: 'tag: msdvetmanual,2026-03-03/1772569000000',
-      updated: '2026-03-03T08:10:00Z',
-      category: [{ '@term': 'PAT', '@scheme': 'informationRecipient' }],
-      entry: [
-        {
-          id: '7E8EAFBA-BB4C-4CE3-B69A-3F6D17FB18A3',
-          title: { '#text': 'Digestive Upset in Dogs' },
-          summary: {
-            '#text':
-              '<div><p>Some dogs have short episodes of digestive upset. Persistent signs should be evaluated by a veterinarian.</p><div><a href="https://www.msdvetmanual.com/dog-owners/digestive-disorders-of-dogs/digestive-upset-in-dogs?media=print#warning-signs">When to call your veterinarian</a></div></div>',
-          },
-          updated: '2026-02-12T06:03:31Z',
-          link: {
-            '@href':
-              'https://www.msdvetmanual.com/dog-owners/digestive-disorders-of-dogs/digestive-upset-in-dogs?media=print',
-          },
-        },
-      ],
-    },
-  },
-};
 
 const normalizeIntegrationStatus = (value?: string | null): IntegrationStatus => {
   const key = String(value ?? '')
@@ -84,77 +18,21 @@ const normalizeIntegrationStatus = (value?: string | null): IntegrationStatus =>
   if (key === 'enabled' || key === 'disabled' || key === 'error' || key === 'pending') {
     return key;
   }
-  return DEFAULT_MERCK_STATUS;
+  return 'disabled';
 };
-
-const getMerckStatusMap = (): Record<string, IntegrationStatus> => {
-  if (typeof window === 'undefined') return {};
-  try {
-    const raw = window.localStorage.getItem(MERCK_STATUS_STORAGE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as Record<string, string>;
-    return Object.entries(parsed).reduce<Record<string, IntegrationStatus>>(
-      (acc, [orgId, status]) => {
-        acc[orgId] = normalizeIntegrationStatus(status);
-        return acc;
-      },
-      {}
-    );
-  } catch {
-    return {};
-  }
-};
-
-const setMerckStatusMap = (next: Record<string, IntegrationStatus>) => {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem(MERCK_STATUS_STORAGE_KEY, JSON.stringify(next));
-};
-
-const resolveMerckMode = (): 'mock' | 'live' => {
-  const raw = String(process.env.NEXT_PUBLIC_MERCK_MODE ?? '')
-    .trim()
-    .toLowerCase();
-  return raw === 'live' ? 'live' : 'mock';
-};
-
-export const isMerckMockMode = () => resolveMerckMode() === 'mock';
-
-export const getMerckMockStatusForOrg = (organisationId: string): IntegrationStatus => {
-  const map = getMerckStatusMap();
-  return map[organisationId] ?? DEFAULT_MERCK_STATUS;
-};
-
-export const setMerckMockStatusForOrg = (organisationId: string, status: IntegrationStatus) => {
-  const map = getMerckStatusMap();
-  map[organisationId] = status;
-  setMerckStatusMap(map);
-};
-
-export const createSyntheticMerckIntegration = (organisationId: string): OrgIntegration => ({
-  _id: `synthetic-merck-${organisationId}`,
-  organisationId,
-  provider: MERCK_PROVIDER,
-  status: getMerckMockStatusForOrg(organisationId),
-  source: 'synthetic',
-});
 
 export const resolveMerckIntegration = (
   organisationId: string,
   integrations: OrgIntegration[]
-): OrgIntegration => {
-  const existing =
-    integrations.find((integration) => integration.provider === MERCK_PROVIDER) ??
-    createSyntheticMerckIntegration(organisationId);
-
-  const status = isMerckMockMode()
-    ? getMerckMockStatusForOrg(organisationId)
-    : normalizeIntegrationStatus(existing.status);
+): OrgIntegration | null => {
+  const existing = integrations.find((integration) => integration.provider === MERCK_PROVIDER);
+  if (!existing) return null;
 
   return {
     ...existing,
     organisationId,
     provider: MERCK_PROVIDER,
-    status,
+    status: normalizeIntegrationStatus(existing.status),
     source: existing.source ?? 'backend',
   };
 };
@@ -181,16 +59,59 @@ const withMediaMode = (entry: MerckEntry, media: string): MerckEntry => ({
   })),
 });
 
+const collapseWhitespace = (value: string): string => {
+  let result = '';
+  let previousWasWhitespace = true;
+
+  for (const char of value) {
+    const isWhitespace =
+      char === ' ' || char === '\n' || char === '\r' || char === '\t' || char === '\f';
+    if (isWhitespace) {
+      if (!previousWasWhitespace) {
+        result += ' ';
+      }
+      previousWasWhitespace = true;
+      continue;
+    }
+    result += char;
+    previousWasWhitespace = false;
+  }
+
+  return result.trim();
+};
+
 const stripHtml = (value: string): string =>
-  String(value ?? '')
-    .replaceAll(/<[^>]*>/g, ' ')
-    .replaceAll(/\s+/g, ' ')
-    .trim();
+  (() => {
+    const input = String(value ?? '');
+    let result = '';
+    let insideTag = false;
+
+    for (const char of input) {
+      if (char === '<') {
+        insideTag = true;
+        result += ' ';
+        continue;
+      }
+      if (char === '>') {
+        insideTag = false;
+        result += ' ';
+        continue;
+      }
+      if (!insideTag) {
+        result += char;
+      }
+    }
+
+    return collapseWhitespace(result);
+  })();
 
 const extractSummaryTextFromHtml = (html: string): string => {
-  const firstParagraphMatch = String(html ?? '').match(/<p[^>]*>(.*?)<\/p>/i);
-  if (firstParagraphMatch?.[1]) {
-    return stripHtml(firstParagraphMatch[1]);
+  if (typeof DOMParser !== 'undefined') {
+    const parsed = new DOMParser().parseFromString(String(html ?? ''), 'text/html');
+    const firstParagraph = parsed.querySelector('p');
+    if (firstParagraph?.textContent) {
+      return collapseWhitespace(firstParagraph.textContent);
+    }
   }
   return stripHtml(html);
 };
@@ -237,8 +158,12 @@ const extractAnchorLinksFromHtml = (html: string) => {
 const canonicalUrlKey = (value: string): string => {
   try {
     const parsed = new URL(value);
-    const pathname = parsed.pathname.replaceAll(/\/+$/g, '') || '/';
-    return `${parsed.protocol}//${parsed.hostname.toLowerCase()}${pathname}?${parsed.searchParams.toString()}#${parsed.hash.replace(/^#/, '')}`;
+    let pathname = parsed.pathname;
+    while (pathname.length > 1 && pathname.endsWith('/')) {
+      pathname = pathname.slice(0, -1);
+    }
+    const hash = parsed.hash.startsWith('#') ? parsed.hash.slice(1) : parsed.hash;
+    return `${parsed.protocol}//${parsed.hostname.toLowerCase()}${pathname || '/'}?${parsed.searchParams.toString()}#${hash}`;
   } catch {
     return value.trim();
   }
@@ -387,52 +312,10 @@ export interface MerckGateway {
   search: (params: MerckSearchRequest) => Promise<MerckSearchResponse>;
   enable: (organisationId: string) => Promise<OrgIntegration>;
   disable: (organisationId: string) => Promise<OrgIntegration>;
-  getStatus: (organisationId: string, integrations: OrgIntegration[]) => Promise<OrgIntegration>;
-}
-
-class MockMerckGateway implements MerckGateway {
-  async search(params: MerckSearchRequest): Promise<MerckSearchResponse> {
-    const query = params.query.trim().toLowerCase();
-    const normalized = normalizeMerckSearchPayload(MOCK_RAW_FEED_BY_AUDIENCE[params.audience], {
-      audience: params.audience,
-      language: params.language ?? 'en',
-      media: params.media ?? 'hybrid',
-    });
-    const entries = normalized.entries.filter((entry) => {
-      if (!query) return true;
-      return (
-        entry.title.toLowerCase().includes(query) ||
-        entry.summaryText.toLowerCase().includes(query) ||
-        entry.subLinks.some((link) => link.label.toLowerCase().includes(query))
-      );
-    });
-
-    return {
-      meta: {
-        requestId: normalized.meta.requestId || `mock-${Date.now()}`,
-        source: 'mock-merck-gateway',
-        updatedAt: normalized.meta.updatedAt ?? new Date().toISOString(),
-        audience: params.audience,
-        language: params.language ?? 'en',
-        totalResults: entries.length,
-      },
-      entries,
-    };
-  }
-
-  async enable(organisationId: string): Promise<OrgIntegration> {
-    setMerckMockStatusForOrg(organisationId, 'enabled');
-    return createSyntheticMerckIntegration(organisationId);
-  }
-
-  async disable(organisationId: string): Promise<OrgIntegration> {
-    setMerckMockStatusForOrg(organisationId, 'disabled');
-    return createSyntheticMerckIntegration(organisationId);
-  }
-
-  async getStatus(organisationId: string, integrations: OrgIntegration[]): Promise<OrgIntegration> {
-    return resolveMerckIntegration(organisationId, integrations);
-  }
+  getStatus: (
+    organisationId: string,
+    integrations: OrgIntegration[]
+  ) => Promise<OrgIntegration | null>;
 }
 
 class ApiMerckGateway implements MerckGateway {
@@ -483,12 +366,14 @@ class ApiMerckGateway implements MerckGateway {
     return res.data;
   }
 
-  async getStatus(organisationId: string, integrations: OrgIntegration[]): Promise<OrgIntegration> {
+  async getStatus(
+    organisationId: string,
+    integrations: OrgIntegration[]
+  ): Promise<OrgIntegration | null> {
     return resolveMerckIntegration(organisationId, integrations);
   }
 }
 
-const mockGateway = new MockMerckGateway();
 const apiGateway = new ApiMerckGateway();
 
-export const getMerckGateway = (): MerckGateway => (isMerckMockMode() ? mockGateway : apiGateway);
+export const getMerckGateway = (): MerckGateway => apiGateway;

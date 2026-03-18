@@ -2,16 +2,9 @@ import { Request, Response } from "express";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import logger from "src/utils/logger";
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 // Resolve UserID
-const resolveUserIdFromRequest = (req: Request): string | undefined => {
-  const authRequest = req as AuthenticatedRequest;
-  const headerUserId = req.headers["x-user-id"];
-  if (headerUserId && typeof headerUserId === "string") {
-    return headerUserId;
-  }
-  return authRequest.userId;
-};
 
 export const AuthUserMobileController = {
   async signup(req: Request, res: Response) {

@@ -1,19 +1,26 @@
-import React, { useState } from "react";
-import classNames from "classnames";
-import { useRouter } from "next/navigation";
+import React, { useEffect, useState } from 'react';
+import classNames from 'classnames';
+import { useRouter } from 'next/navigation';
 
-import FormInput from "@/app/ui/inputs/FormInput/FormInput";
-import GoogleSearchDropDown from "@/app/ui/inputs/GoogleSearchDropDown/GoogleSearchDropDown";
-import { Primary, Secondary } from "@/app/ui/primitives/Buttons";
-import LogoUploader from "@/app/ui/widgets/UploadImage/LogoUploader";
-import { BusinessTypes } from "@/app/features/organization/types/org";
-import { getCountryCode, validatePhone } from "@/app/lib/validators";
-import { createOrg } from "@/app/features/organization/services/orgService";
-import { Organisation } from "@yosemite-crew/types";
+import FormInput from '@/app/ui/inputs/FormInput/FormInput';
+import GoogleSearchDropDown from '@/app/ui/inputs/GoogleSearchDropDown/GoogleSearchDropDown';
+import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import LogoUploader from '@/app/ui/widgets/UploadImage/LogoUploader';
+import { BusinessTypes } from '@/app/features/organization/types/org';
+import { getCountryCode, validatePhone } from '@/app/lib/validators';
+import { createOrg } from '@/app/features/organization/services/orgService';
+import { Organisation } from '@yosemite-crew/types';
 
-import "./Step.css";
-import LabelDropdown from "@/app/ui/inputs/Dropdown/LabelDropdown";
-import { CountriesOptions } from "@/app/features/companions/components/AddCompanion/type";
+import './Step.css';
+import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
+import { CountriesOptions } from '@/app/features/companions/components/AddCompanion/type';
+import {
+  CompanionTerminologyOption,
+  bindPendingCompanionTerminologyToOrg,
+  getCompanionTerminologyOptions,
+  getCompanionTerminologyForOrg,
+  setPendingCompanionTerminology,
+} from '@/app/lib/companionTerminology';
 
 type OrgStepProps = {
   nextStep: () => void;
@@ -29,6 +36,13 @@ const OrgStep = ({ nextStep, formData, setFormData }: OrgStepProps) => {
     number?: string;
     taxId?: string;
   }>({});
+  const [companionTerminology, setCompanionTerminology] = useState<CompanionTerminologyOption>(
+    getCompanionTerminologyForOrg(undefined, formData.type)
+  );
+
+  useEffect(() => {
+    setCompanionTerminology(getCompanionTerminologyForOrg(undefined, formData.type));
+  }, [formData.type]);
 
   const handleNext = async () => {
     const errors: {
@@ -37,30 +51,32 @@ const OrgStep = ({ nextStep, formData, setFormData }: OrgStepProps) => {
       number?: string;
       taxId?: string;
     } = {};
-    if (!formData.name) errors.name = "Name is required";
-    if (!formData.address?.country) errors.country = "Country is required";
-    if (!formData.phoneNo) errors.number = "Number is required";
-    if (!formData.taxId) errors.taxId = "TaxID is required";
+    if (!formData.name) errors.name = 'Name is required';
+    if (!formData.address?.country) errors.country = 'Country is required';
+    if (!formData.phoneNo) errors.number = 'Number is required';
+    if (!formData.taxId) errors.taxId = 'TaxID is required';
     const selectedCountry = getCountryCode(formData.address?.country);
     if (selectedCountry) {
       const countryCode = selectedCountry.dial_code;
       const fullMobile = countryCode + formData.phoneNo;
       if (!validatePhone(fullMobile)) {
-        errors.number = "Valid number is required";
+        errors.number = 'Valid number is required';
       }
     } else {
-      errors.number = "Valid number is required";
+      errors.number = 'Valid number is required';
     }
     setFormDataErrors(errors);
     if (Object.keys(errors).length > 0) {
       return;
     }
     try {
+      setPendingCompanionTerminology(companionTerminology);
       const orgId = await createOrg(formData);
+      bindPendingCompanionTerminologyToOrg(orgId);
       router.replace(`/create-org?orgId=${orgId}`);
       nextStep();
     } catch (error: any) {
-      console.error("Error creating organization:", error);
+      console.error('Error creating organization:', error);
     }
   };
 
@@ -81,7 +97,7 @@ const OrgStep = ({ nextStep, formData, setFormData }: OrgStepProps) => {
             {BusinessTypes.map((type) => (
               <button
                 key={type}
-                className={classNames("step-type-option", {
+                className={classNames('step-type-option', {
                   activetype: formData.type === type,
                 })}
                 onClick={() => setFormData({ ...formData, type: type })}
@@ -91,8 +107,8 @@ const OrgStep = ({ nextStep, formData, setFormData }: OrgStepProps) => {
             ))}
           </div>
           <div className="step-type-desc">
-            <span className="step-type-desc-span">Note: </span>This is also
-            tailored for small vet practices and clinics
+            <span className="step-type-desc-span">Note: </span>This is also tailored for small vet
+            practices and clinics
           </div>
         </div>
 
@@ -103,20 +119,16 @@ const OrgStep = ({ nextStep, formData, setFormData }: OrgStepProps) => {
               inname="name"
               value={formData.name}
               inlabel="Organisation name"
-              onChange={(e: any) =>
-                setFormData({ ...formData, name: e.target.value })
-              }
+              onChange={(e: any) => setFormData({ ...formData, name: e.target.value })}
               error={formDataErrors.name}
               setFormData={setFormData}
             />
             <FormInput
               intype="text"
               inname="website"
-              value={formData.website || ""}
+              value={formData.website || ''}
               inlabel="Website"
-              onChange={(e) =>
-                setFormData({ ...formData, website: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, website: e.target.value })}
             />
           </div>
           <div className="step-two-input">
@@ -135,33 +147,37 @@ const OrgStep = ({ nextStep, formData, setFormData }: OrgStepProps) => {
             <FormInput
               intype="tel"
               inname="number"
-              value={formData.phoneNo || ""}
+              value={formData.phoneNo || ''}
               inlabel="Phone number"
-              onChange={(e) =>
-                setFormData({ ...formData, phoneNo: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, phoneNo: e.target.value })}
               error={formDataErrors.number}
             />
           </div>
 
           <div className="step-two-input">
+            <div data-terminology-lock="true">
+              <LabelDropdown
+                placeholder="What would you like to call pets?"
+                onSelect={(option) =>
+                  setCompanionTerminology(option.value as CompanionTerminologyOption)
+                }
+                defaultOption={companionTerminology}
+                options={getCompanionTerminologyOptions()}
+              />
+            </div>
             <FormInput
               intype="text"
               inname="duns"
-              value={formData.DUNSNumber || ""}
+              value={formData.DUNSNumber || ''}
               inlabel="DUNS number (optional)"
-              onChange={(e) =>
-                setFormData({ ...formData, DUNSNumber: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, DUNSNumber: e.target.value })}
             />
             <FormInput
               intype="text"
               inname="tax id"
-              value={formData.taxId || ""}
+              value={formData.taxId || ''}
               inlabel="Tax ID"
-              onChange={(e) =>
-                setFormData({ ...formData, taxId: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, taxId: e.target.value })}
               error={formDataErrors.taxId}
             />
           </div>

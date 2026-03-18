@@ -1,19 +1,14 @@
-import React, { useMemo } from "react";
-import {
-  getInvoiceItemNames,
-  getStatusStyle,
-} from "@/app/ui/tables/InvoiceTable";
-import { Invoice } from "@yosemite-crew/types";
-import { formatDateLabel } from "@/app/lib/forms";
-import { Secondary } from "@/app/ui/primitives/Buttons";
-import { toTitle } from "@/app/lib/validators";
-import { useAppointmentsForPrimaryOrg } from "@/app/hooks/useAppointments";
-import { useCurrencyForPrimaryOrg } from "@/app/hooks/useBilling";
-import { formatMoney } from "@/app/lib/money";
-import {
-  getCompanionNameFromAppointments,
-  getParentNameFromAppointments,
-} from "@/app/lib/invoice";
+import React, { useMemo } from 'react';
+import { getInvoiceItemNames, getStatusStyle } from '@/app/ui/tables/InvoiceTable';
+import { Invoice } from '@yosemite-crew/types';
+import { formatDateLabel } from '@/app/lib/forms';
+import { Secondary } from '@/app/ui/primitives/Buttons';
+import { toTitle } from '@/app/lib/validators';
+import { useAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
+import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
+import { formatMoney } from '@/app/lib/money';
+import { getCompanionNameFromAppointments, getParentNameFromAppointments } from '@/app/lib/invoice';
+import { getInvoicePaymentMethodLabel } from '@/app/lib/invoicePaymentMethod';
 
 type InvoiceCardProps = {
   invoice: Invoice;
@@ -37,27 +32,19 @@ const InvoiceCard = ({ invoice, handleViewInvoice }: InvoiceCardProps) => {
   return (
     <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-hover bg-white px-3 py-3 flex flex-col justify-between gap-2 cursor-pointer">
       <div className="flex gap-1">
-        <div className="text-body-3-emphasis text-text-primary">
-          {companionName}
-        </div>
+        <div className="text-body-3-emphasis text-text-primary">{companionName}</div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Parent:</div>
-        <div className="text-caption-1 text-text-primary">
-          {parentName}
-        </div>
+        <div className="text-caption-1 text-text-primary">{parentName}</div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Service:</div>
-        <div className="text-caption-1 text-text-primary">
-          {getInvoiceItemNames(invoice.items)}
-        </div>
+        <div className="text-caption-1 text-text-primary">{getInvoiceItemNames(invoice.items)}</div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Date:</div>
-        <div className="text-caption-1 text-text-primary">
-          {formatDateLabel(invoice.createdAt)}
-        </div>
+        <div className="text-caption-1 text-text-primary">{formatDateLabel(invoice.createdAt)}</div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Sub-total:</div>
@@ -88,6 +75,12 @@ const InvoiceCard = ({ invoice, handleViewInvoice }: InvoiceCardProps) => {
         className="w-full rounded-2xl h-12 flex items-center justify-center text-body-4"
       >
         {toTitle(invoice?.status)}
+      </div>
+      <div className="flex gap-1">
+        <div className="text-caption-1 text-text-extra">Payment:</div>
+        <div className="text-caption-1 text-text-primary">
+          {getInvoicePaymentMethodLabel(invoice)}
+        </div>
       </div>
       <div className="flex gap-3 w-full">
         <Secondary

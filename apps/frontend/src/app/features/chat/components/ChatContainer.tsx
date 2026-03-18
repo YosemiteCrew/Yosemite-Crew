@@ -204,7 +204,6 @@ interface GroupModalProps {
   title: string;
   placeholder: string;
   members: string[];
-  backendId?: string;
   ownerId?: string;
   currentUserId?: string;
   search: string;
@@ -2028,7 +2027,6 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
             title={groupModalTitle}
             placeholder={groupModalPlaceholder}
             members={groupModalMembers}
-            backendId={groupModalBackendId}
             ownerId={groupModalOwnerRef.current}
             currentUserId={client.userID}
             search={groupModalSearch}

@@ -23,6 +23,7 @@ jest.mock('@/app/features/appointments/components/Calendar/helpers', () => ({
   MINUTES_PER_STEP: 60,
   PIXELS_PER_STEP: 60,
   getFirstRelevantTimedEventStart: jest.fn(() => null),
+  getNowTopPxForHourRange: jest.fn((_: Date, __: number, ___: number, height: number) => height),
   getTopPxForMinutes: jest.fn((minutes: number, hourHeight: number, gap: number, offset = 0) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;

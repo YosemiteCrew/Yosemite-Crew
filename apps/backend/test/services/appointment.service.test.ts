@@ -20,6 +20,7 @@ import { OrgUsageCounters } from "src/models/organisation.usage.counter";
 import { sendEmailTemplate } from "src/utils/email";
 import { AuditTrailService } from "../../src/services/audit-trail.service";
 import { FormModel } from "src/models/form";
+import { prisma } from "src/config/prisma";
 
 // --- Global Mocks Setup ---
 
@@ -94,6 +95,12 @@ jest.mock("src/utils/logger", () => ({
   },
 }));
 
+jest.mock("src/utils/dual-write", () => ({
+  shouldDualWrite: false,
+  isDualWriteStrict: false,
+  handleDualWriteError: jest.fn(),
+}));
+
 // Mongoose Models Mocking
 jest.mock("../../src/models/appointment", () => ({
   __esModule: true,
@@ -117,6 +124,15 @@ jest.mock("src/models/occupancy", () => ({
     findOne: jest.fn(),
     create: jest.fn(),
     deleteMany: jest.fn(),
+  },
+}));
+jest.mock("src/models/invoice", () => ({
+  __esModule: true,
+  default: {
+    aggregate: jest.fn().mockResolvedValue([]),
+    findById: jest.fn(),
+    find: jest.fn(),
+    updateOne: jest.fn(),
   },
 }));
 jest.mock("src/models/organization", () => ({
@@ -150,6 +166,39 @@ jest.mock("src/models/organisation.usage.counter", () => ({
 jest.mock("src/models/form", () => ({
   __esModule: true,
   FormModel: { find: jest.fn() },
+}));
+
+jest.mock("src/config/prisma", () => ({
+  prisma: {
+    $transaction: jest.fn(),
+    service: { findFirst: jest.fn() },
+    appointment: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
+    },
+    invoice: { findMany: jest.fn() },
+    form: { findFirst: jest.fn(), findMany: jest.fn() },
+    formVersion: { findFirst: jest.fn() },
+    occupancy: {
+      findFirst: jest.fn(),
+      create: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    organization: { findUnique: jest.fn(), findMany: jest.fn() },
+    user: { findMany: jest.fn() },
+    parent: { findUnique: jest.fn() },
+    userProfile: { findFirst: jest.fn() },
+    organizationUsageCounter: {
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
+      upsert: jest.fn(),
+    },
+    organizationBilling: { findUnique: jest.fn() },
+  },
 }));
 
 // Transaction Mocks
@@ -202,12 +251,39 @@ const createMockDoc = (overrides = {}) => {
   };
 };
 
+const createPrismaAppointment = (overrides: Partial<any> = {}) => ({
+  id: "appt_1",
+  companion: { id: "comp_1", parent: { id: "parent_1" }, name: "Pet" },
+  lead: { id: "vet_1", name: "Vet" },
+  supportStaff: [],
+  room: null,
+  appointmentType: { id: "service_1", name: "Checkup" },
+  organisationId: "org_1",
+  appointmentDate: new Date("2026-01-01T10:00:00Z"),
+  startTime: new Date("2026-01-01T10:00:00Z"),
+  endTime: new Date("2026-01-01T11:00:00Z"),
+  timeSlot: "10:00",
+  durationMinutes: 60,
+  status: "REQUESTED",
+  isEmergency: false,
+  concern: null,
+  createdAt: new Date("2026-01-01T09:00:00Z"),
+  updatedAt: new Date("2026-01-01T09:00:00Z"),
+  attachments: null,
+  formIds: [],
+  ...overrides,
+});
+
 describe("AppointmentService", () => {
   const validId = new Types.ObjectId().toHexString();
   const validObjId = new Types.ObjectId();
 
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.READ_FROM_POSTGRES = "false";
+    (prisma.$transaction as jest.Mock).mockImplementation(
+      async (cb: (tx: typeof prisma) => Promise<unknown>) => cb(prisma),
+    );
   });
 
   describe("AppointmentServiceError & ensureObjectId", () => {
@@ -426,6 +502,41 @@ describe("AppointmentService", () => {
       );
     });
 
+    it("should throw 400 when required fields are missing", async () => {
+      await expect(
+        AppointmentService.createAppointmentFromPms(
+          { ...basePmsDto, organisationId: undefined } as any,
+          false,
+        ),
+      ).rejects.toThrow(
+        new AppointmentServiceError("organisationId is required.", 400),
+      );
+
+      await expect(
+        AppointmentService.createAppointmentFromPms(
+          { ...basePmsDto, companion: undefined } as any,
+          false,
+        ),
+      ).rejects.toThrow(
+        new AppointmentServiceError(
+          "Companion and parent information is required.",
+          400,
+        ),
+      );
+
+      await expect(
+        AppointmentService.createAppointmentFromPms(
+          { ...basePmsDto, startTime: undefined } as any,
+          false,
+        ),
+      ).rejects.toThrow(
+        new AppointmentServiceError(
+          "startTime, endTime and durationMinutes are required.",
+          400,
+        ),
+      );
+    });
+
     it("should throw 404 if service not found", async () => {
       (ServiceModel.findOne as jest.Mock).mockReturnValue(
         createQueryChain(null),
@@ -471,6 +582,72 @@ describe("AppointmentService", () => {
       expect(mockSession.abortTransaction).toHaveBeenCalled();
     });
 
+    it("should throw 400 for invalid payment collection method", async () => {
+      await expect(
+        AppointmentService.createAppointmentFromPms(
+          basePmsDto as any,
+          false,
+          "invalid",
+        ),
+      ).rejects.toThrow(
+        new AppointmentServiceError("Invalid payment collection method.", 400),
+      );
+    });
+
+    it("should throw when in-clinic payment requested with online payment", async () => {
+      await expect(
+        AppointmentService.createAppointmentFromPms(
+          basePmsDto as any,
+          true,
+          "PAYMENT_AT_CLINIC",
+        ),
+      ).rejects.toThrow(
+        new AppointmentServiceError(
+          "Cannot create online payment for in-clinic collection.",
+          400,
+        ),
+      );
+    });
+
+    it("should accept valid payment collection methods (case-insensitive)", async () => {
+      (ServiceModel.findOne as jest.Mock).mockReturnValue(
+        createQueryChain({
+          cost: 100,
+          serviceType: "STANDARD",
+        }),
+      );
+      (OrgUsageCounters.findOneAndUpdate as jest.Mock).mockResolvedValue({
+        _id: validId,
+      });
+      (OrgBilling.findOne as jest.Mock).mockReturnValue(
+        createQueryChain({ plan: "pro" }),
+      );
+      (FormService.getConsentFormForParent as jest.Mock).mockResolvedValue(
+        null,
+      );
+      (OccupancyModel.findOne as jest.Mock).mockReturnValue(
+        createQueryChain(null),
+      );
+
+      const mockAppt = createMockDoc({
+        companion: basePmsDto.companion,
+        lead: basePmsDto.lead,
+        appointmentType: basePmsDto.appointmentType,
+      });
+      (AppointmentModel.create as jest.Mock).mockResolvedValue([mockAppt]);
+      (InvoiceService.createDraftForAppointment as jest.Mock).mockResolvedValue(
+        { _id: validObjId, totalAmount: 100, currency: "usd" },
+      );
+
+      const res = await AppointmentService.createAppointmentFromPms(
+        basePmsDto as any,
+        false,
+        "payment_link",
+      );
+
+      expect(res).toBeDefined();
+    });
+
     it("should create successfully, handle email branches, and return data", async () => {
       (ServiceModel.findOne as jest.Mock).mockReturnValue(
         createQueryChain({
@@ -500,7 +677,7 @@ describe("AppointmentService", () => {
       });
       (AppointmentModel.create as jest.Mock).mockResolvedValue([mockAppt]);
       (InvoiceService.createDraftForAppointment as jest.Mock).mockResolvedValue(
-        [{ _id: validObjId, totalAmount: 100, currency: "usd" }],
+        { _id: validObjId, totalAmount: 100, currency: "usd" },
       );
 
       (
@@ -532,6 +709,512 @@ describe("AppointmentService", () => {
       expect(TaskService.createCustom).toHaveBeenCalled(); // Observation tool
       expect(sendEmailTemplate).toHaveBeenCalled(); // Checkout email & Assignment emails
       expect((res as any).appointment.id).toBeDefined();
+    });
+
+    it("should continue when organisation lookup does not support select()", async () => {
+      (ServiceModel.findOne as jest.Mock).mockReturnValue(
+        createQueryChain({
+          cost: 100,
+          serviceType: "STANDARD",
+        }),
+      );
+      (OrgUsageCounters.findOneAndUpdate as jest.Mock).mockResolvedValue({
+        _id: validId,
+      });
+      (OrgBilling.findOne as jest.Mock).mockReturnValue(
+        createQueryChain({ plan: "pro" }),
+      );
+      (FormService.getConsentFormForParent as jest.Mock).mockResolvedValue(
+        null,
+      );
+      (OccupancyModel.findOne as jest.Mock).mockReturnValue(
+        createQueryChain(null),
+      );
+
+      const mockAppt = createMockDoc({
+        companion: basePmsDto.companion,
+        lead: basePmsDto.lead,
+        appointmentType: basePmsDto.appointmentType,
+      });
+      (AppointmentModel.create as jest.Mock).mockResolvedValue([mockAppt]);
+      (InvoiceService.createDraftForAppointment as jest.Mock).mockResolvedValue(
+        { _id: validObjId, totalAmount: 100, currency: "usd" },
+      );
+      (OrganizationModel.findById as jest.Mock).mockReturnValue({}); // no select()
+
+      const res = await AppointmentService.createAppointmentFromPms(
+        basePmsDto as any,
+        false,
+      );
+
+      expect(res).toBeDefined();
+    });
+  });
+
+  describe("cancelAppointment (postgres)", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("throws on invalid status transition", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
+        id: "appt_1",
+        status: "COMPLETED",
+        organisationId: "org_1",
+      });
+      (
+        InvoiceService.handleAppointmentCancellation as jest.Mock
+      ).mockResolvedValue({ action: "NO_ACTION" });
+
+      await expect(
+        AppointmentService.cancelAppointment("appt_1", "reason"),
+      ).rejects.toThrow(
+        new AppointmentServiceError(
+          "Appointment cannot transition from COMPLETED to CANCELLED in cancelAppointment.",
+          409,
+        ),
+      );
+    });
+  });
+
+  describe("payment status mapping", () => {
+    it("returns PAID when all invoices are paid (mongo)", async () => {
+      (AppointmentModel.findById as jest.Mock).mockResolvedValue(
+        createMockDoc({ _id: validObjId }),
+      );
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const aggregate = require("src/models/invoice").default
+        .aggregate as jest.Mock;
+      aggregate.mockResolvedValueOnce([
+        { _id: validObjId.toString(), hasPaid: 1, hasUnpaid: 0 },
+      ]);
+
+      const res = await AppointmentService.getById(validObjId.toString());
+      expect((res as any).paymentStatus).toBe("PAID");
+    });
+
+    it("returns UNPAID when unpaid invoices exist (postgres)", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue(
+        createPrismaAppointment({ id: "appt_2", status: "REQUESTED" }),
+      );
+      (prisma.invoice.findMany as jest.Mock).mockResolvedValueOnce([
+        { appointmentId: "appt_2", status: "PAID" },
+        { appointmentId: "appt_2", status: "PENDING" },
+      ]);
+
+      const res = await AppointmentService.getById("appt_2");
+      expect((res as any).paymentStatus).toBe("UNPAID");
+    });
+
+    it("returns empty list without invoice lookup when no rows (postgres)", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.appointment.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+      const res = await AppointmentService.getAppointmentsForParent("parent_1");
+      expect(res).toEqual([]);
+      expect(prisma.invoice.findMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("createRequestedFromMobile (postgres)", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("should create requested appointment and return payment intent", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { prisma } = require("src/config/prisma");
+      const startTime = new Date();
+      const endTime = new Date(startTime.getTime() + 30 * 60 * 1000);
+
+      prisma.service.findFirst.mockResolvedValue({
+        id: "service_1",
+        organisationId: "org_1",
+        isActive: true,
+        serviceType: "OBSERVATION_TOOL",
+        observationToolId: "tool_1",
+      });
+      prisma.organizationBilling.findUnique.mockResolvedValue({ plan: "free" });
+      prisma.organizationUsageCounter.findUnique.mockResolvedValue({
+        orgId: "org_1",
+        appointmentsUsed: 0,
+        freeAppointmentsLimit: 5,
+        toolsUsed: 0,
+        freeToolsLimit: 5,
+      });
+      prisma.organizationUsageCounter.update.mockResolvedValue({
+        orgId: "org_1",
+        appointmentsUsed: 1,
+        freeAppointmentsLimit: 5,
+        toolsUsed: 1,
+        freeToolsLimit: 5,
+        freeLimitReachedAt: null,
+        usersActiveCount: 0,
+        usersBillableCount: 0,
+        freeUsersLimit: 10,
+        updatedAt: new Date(),
+      });
+      prisma.organizationUsageCounter.updateMany.mockResolvedValue({
+        count: 1,
+      });
+      prisma.form.findFirst.mockResolvedValue({ id: "form_1" });
+      prisma.formVersion.findFirst.mockResolvedValue({ id: "fv_1" });
+      prisma.appointment.create.mockResolvedValue({
+        id: "appt_1",
+        companion: { id: "comp_1", parent: { id: "parent_1" }, name: "Pet" },
+        lead: null,
+        supportStaff: [],
+        room: null,
+        appointmentType: { id: "service_1", name: "Checkup" },
+        organisationId: "org_1",
+        appointmentDate: startTime,
+        startTime,
+        endTime,
+        timeSlot: "10:00",
+        durationMinutes: 30,
+        status: "REQUESTED",
+        isEmergency: false,
+        concern: null,
+        createdAt: startTime,
+        updatedAt: startTime,
+        attachments: null,
+        formIds: ["form_1"],
+      });
+      prisma.invoice.findMany.mockResolvedValue([
+        { appointmentId: "appt_1", status: "PAID" },
+      ]);
+
+      (
+        StripeService.createPaymentIntentForAppointment as jest.Mock
+      ).mockResolvedValue({ id: "pi_1" });
+
+      const dto = {
+        organisationId: "org_1",
+        companion: { id: "comp_1", parent: { id: "parent_1" }, name: "Pet" },
+        appointmentType: { id: "service_1", name: "Checkup" },
+        startTime,
+        endTime,
+        durationMinutes: 30,
+        concern: "check",
+        isEmergency: false,
+        formIds: [],
+      } as any;
+
+      const result = await AppointmentService.createRequestedFromMobile(dto);
+
+      expect(prisma.appointment.create).toHaveBeenCalled();
+      expect(prisma.organizationUsageCounter.update).toHaveBeenCalled();
+      expect(result.paymentIntent).toEqual({ id: "pi_1" });
+    });
+
+    it("should proceed when consent form lookup returns null", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { prisma } = require("src/config/prisma");
+      const startTime = new Date();
+      const endTime = new Date(startTime.getTime() + 30 * 60 * 1000);
+
+      prisma.service.findFirst.mockResolvedValue({
+        id: "service_1",
+        organisationId: "org_1",
+        isActive: true,
+        serviceType: "STANDARD",
+      });
+      prisma.organizationBilling.findUnique.mockResolvedValue({ plan: "free" });
+      prisma.organizationUsageCounter.findUnique.mockResolvedValue({
+        orgId: "org_1",
+        appointmentsUsed: 0,
+        freeAppointmentsLimit: 5,
+        toolsUsed: 0,
+        freeToolsLimit: 5,
+      });
+      prisma.organizationUsageCounter.update.mockResolvedValue({
+        orgId: "org_1",
+        appointmentsUsed: 1,
+        freeAppointmentsLimit: 5,
+        toolsUsed: 0,
+        freeToolsLimit: 5,
+        freeLimitReachedAt: null,
+        usersActiveCount: 0,
+        usersBillableCount: 0,
+        freeUsersLimit: 10,
+        updatedAt: new Date(),
+      });
+      prisma.organizationUsageCounter.updateMany.mockResolvedValue({
+        count: 0,
+      });
+      prisma.form.findFirst.mockResolvedValue(null);
+      prisma.formVersion.findFirst.mockResolvedValue(null);
+      prisma.appointment.create.mockResolvedValue(
+        createPrismaAppointment({
+          id: "appt_1",
+          organisationId: "org_1",
+          startTime,
+          endTime,
+          appointmentDate: startTime,
+        }),
+      );
+      prisma.invoice.findMany.mockResolvedValue([]);
+
+      (
+        StripeService.createPaymentIntentForAppointment as jest.Mock
+      ).mockResolvedValue({ id: "pi_2" });
+
+      const dto = {
+        organisationId: "org_1",
+        companion: { id: "comp_1", parent: { id: "parent_1" }, name: "Pet" },
+        appointmentType: { id: "service_1", name: "Checkup" },
+        startTime,
+        endTime,
+        durationMinutes: 30,
+        concern: "check",
+        isEmergency: false,
+        formIds: [],
+      } as any;
+
+      const result = await AppointmentService.createRequestedFromMobile(dto);
+
+      expect((result.appointment as any).formIds).toEqual([]);
+    });
+
+    it("should ignore form when version is missing", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { prisma } = require("src/config/prisma");
+      const startTime = new Date();
+      const endTime = new Date(startTime.getTime() + 30 * 60 * 1000);
+
+      prisma.service.findFirst.mockResolvedValue({
+        id: "service_1",
+        organisationId: "org_1",
+        isActive: true,
+        serviceType: "STANDARD",
+      });
+      prisma.organizationBilling.findUnique.mockResolvedValue({ plan: "free" });
+      prisma.organizationUsageCounter.findUnique.mockResolvedValue({
+        orgId: "org_1",
+        appointmentsUsed: 0,
+        freeAppointmentsLimit: 5,
+        toolsUsed: 0,
+        freeToolsLimit: 5,
+      });
+      prisma.organizationUsageCounter.update.mockResolvedValue({
+        orgId: "org_1",
+        appointmentsUsed: 1,
+        freeAppointmentsLimit: 5,
+        toolsUsed: 0,
+        freeToolsLimit: 5,
+        freeLimitReachedAt: null,
+        usersActiveCount: 0,
+        usersBillableCount: 0,
+        freeUsersLimit: 10,
+        updatedAt: new Date(),
+      });
+      prisma.organizationUsageCounter.updateMany.mockResolvedValue({
+        count: 0,
+      });
+      prisma.form.findFirst.mockResolvedValue({ id: "form_1" });
+      prisma.formVersion.findFirst.mockResolvedValue(null);
+      prisma.appointment.create.mockResolvedValue(
+        createPrismaAppointment({
+          id: "appt_1",
+          organisationId: "org_1",
+          startTime,
+          endTime,
+          appointmentDate: startTime,
+        }),
+      );
+      prisma.invoice.findMany.mockResolvedValue([]);
+
+      (
+        StripeService.createPaymentIntentForAppointment as jest.Mock
+      ).mockResolvedValue({ id: "pi_3" });
+
+      const dto = {
+        organisationId: "org_1",
+        companion: { id: "comp_1", parent: { id: "parent_1" }, name: "Pet" },
+        appointmentType: { id: "service_1", name: "Checkup" },
+        startTime,
+        endTime,
+        durationMinutes: 30,
+        concern: "check",
+        isEmergency: false,
+        formIds: [],
+      } as any;
+
+      const result = await AppointmentService.createRequestedFromMobile(dto);
+      expect((result.appointment as any).formIds).toEqual([]);
+    });
+
+    it("should throw if service not found", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { prisma } = require("src/config/prisma");
+      prisma.service.findFirst.mockResolvedValue(null);
+
+      await expect(
+        AppointmentService.createRequestedFromMobile({
+          organisationId: "org_1",
+          companion: { id: "comp_1", parent: { id: "parent_1" } },
+          appointmentType: { id: "service_1" },
+          startTime: new Date(),
+          endTime: new Date(),
+          durationMinutes: 30,
+        } as any),
+      ).rejects.toThrow(
+        new AppointmentServiceError("Invalid service selected", 404),
+      );
+    });
+  });
+
+  describe("createRequestedFromMobile (mongo)", () => {
+    it("should throw when free plan observation tool limit reached", async () => {
+      const startTime = new Date();
+      const endTime = new Date(startTime.getTime() + 30 * 60 * 1000);
+
+      (ServiceModel.findOne as jest.Mock).mockResolvedValueOnce({
+        serviceType: "OBSERVATION_TOOL",
+        observationToolId: { _id: validId },
+      });
+      (OrgBilling.findOne as jest.Mock).mockReturnValue(
+        createQueryChain({ plan: "free" }),
+      );
+      (OrgUsageCounters.findOneAndUpdate as jest.Mock)
+        .mockResolvedValueOnce({ _id: validId }) // ensureOrgUsageCounters
+        .mockResolvedValueOnce(null); // reserveAppointmentUsage (limit reached)
+      (OrgUsageCounters.findOne as jest.Mock).mockResolvedValueOnce({
+        toolsUsed: 5,
+        freeToolsLimit: 5,
+        appointmentsUsed: 0,
+        freeAppointmentsLimit: 10,
+      });
+
+      await expect(
+        AppointmentService.createRequestedFromMobile({
+          organisationId: validId,
+          companion: { id: validId, parent: { id: validId } },
+          appointmentType: { id: validId, name: "Obs" },
+          startTime,
+          endTime,
+          durationMinutes: 30,
+        } as any),
+      ).rejects.toThrow(
+        new AppointmentServiceError(
+          "Free plan observation tool appointment limit reached.",
+          403,
+        ),
+      );
+
+      expect(FormService.getConsentFormForParent).not.toHaveBeenCalled();
+    });
+
+    it("should create observation tool task when observationToolId is object", async () => {
+      const startTime = new Date();
+      const endTime = new Date(startTime.getTime() + 30 * 60 * 1000);
+      const toolId = new Types.ObjectId();
+
+      (ServiceModel.findOne as jest.Mock).mockResolvedValueOnce({
+        serviceType: "OBSERVATION_TOOL",
+        observationToolId: { _id: toolId },
+      });
+      (OrgBilling.findOne as jest.Mock).mockReturnValue(
+        createQueryChain({ plan: "pro" }),
+      );
+      (OrgUsageCounters.findOneAndUpdate as jest.Mock).mockResolvedValueOnce({
+        _id: validId,
+        appointmentsUsed: 1,
+      });
+      (FormService.getConsentFormForParent as jest.Mock).mockResolvedValue(
+        null,
+      );
+
+      const mockCreated = createMockDoc({ status: "REQUESTED" });
+      (AppointmentModel.create as jest.Mock).mockResolvedValue(mockCreated);
+      (
+        StripeService.createPaymentIntentForAppointment as jest.Mock
+      ).mockResolvedValue("pi_123");
+
+      await AppointmentService.createRequestedFromMobile({
+        organisationId: validId,
+        companion: { id: validId, parent: { id: validId }, name: "Pet" },
+        appointmentType: { id: validId, name: "Obs" },
+        startTime,
+        endTime,
+        durationMinutes: 30,
+      } as any);
+
+      expect(TaskService.createCustom).toHaveBeenCalledWith(
+        expect.objectContaining({
+          observationToolId: toolId.toString(),
+        }),
+      );
+    });
+  });
+
+  describe("getAppointmentsForOrganisation (postgres)", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+    });
+
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    });
+
+    it("should throw when organisationId missing", async () => {
+      await expect(
+        AppointmentService.getAppointmentsForOrganisation("" as any),
+      ).rejects.toThrow(
+        new AppointmentServiceError("organisationId is required", 400),
+      );
+    });
+
+    it("should map payment status for rows", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { prisma } = require("src/config/prisma");
+      const startTime = new Date();
+      const row = {
+        id: "appt_1",
+        companion: { id: "comp_1", parent: { id: "parent_1" }, name: "Pet" },
+        lead: null,
+        supportStaff: [],
+        room: null,
+        appointmentType: { id: "service_1", name: "Checkup" },
+        organisationId: "org_1",
+        appointmentDate: startTime,
+        startTime,
+        endTime: new Date(startTime.getTime() + 30 * 60 * 1000),
+        timeSlot: "10:00",
+        durationMinutes: 30,
+        status: "REQUESTED",
+        isEmergency: false,
+        concern: null,
+        createdAt: startTime,
+        updatedAt: startTime,
+        attachments: null,
+        formIds: [],
+      };
+
+      prisma.appointment.findMany.mockResolvedValueOnce([row]);
+      prisma.invoice.findMany.mockResolvedValueOnce([
+        { appointmentId: "appt_1", status: "PAID" },
+      ]);
+
+      const results =
+        await AppointmentService.getAppointmentsForOrganisation("org_1");
+
+      expect((results[0] as any)?.paymentStatus).toBe("PAID");
     });
   });
 
@@ -566,7 +1249,7 @@ describe("AppointmentService", () => {
           },
         ],
       };
-      (AppointmentModel.findOne as jest.Mock).mockResolvedValue(null);
+      (AppointmentModel.findById as jest.Mock).mockResolvedValue(null);
       await expect(
         AppointmentService.approveRequestedFromPms(validId, fhir as any),
       ).rejects.toThrow(
@@ -597,7 +1280,7 @@ describe("AppointmentService", () => {
       };
 
       const mockAppt: any = createMockDoc({ status: "REQUESTED" });
-      (AppointmentModel.findOne as jest.Mock).mockResolvedValue(mockAppt);
+      (AppointmentModel.findById as jest.Mock).mockResolvedValue(mockAppt);
       (OccupancyModel.findOne as jest.Mock).mockReturnValue(
         createQueryChain(null),
       );
@@ -633,7 +1316,7 @@ describe("AppointmentService", () => {
         ],
       };
       const mockAppt = createMockDoc({ status: "REQUESTED" });
-      (AppointmentModel.findOne as jest.Mock).mockResolvedValue(mockAppt);
+      (AppointmentModel.findById as jest.Mock).mockResolvedValue(mockAppt);
       (OccupancyModel.findOne as jest.Mock).mockReturnValue(
         createQueryChain({ _id: "overlap" }),
       ); // Triggers 409
@@ -815,7 +1498,7 @@ describe("AppointmentService", () => {
     });
 
     it("should throw 404 if not found", async () => {
-      (AppointmentModel.findOne as jest.Mock).mockResolvedValue(null);
+      (AppointmentModel.findById as jest.Mock).mockResolvedValue(null);
       await expect(
         AppointmentService.updateAppointmentPMS(validId, {
           lead: { id: "l1" },
@@ -833,7 +1516,7 @@ describe("AppointmentService", () => {
         endTime: oldTime,
       });
 
-      (AppointmentModel.findOne as jest.Mock).mockResolvedValue(mockDoc);
+      (AppointmentModel.findById as jest.Mock).mockResolvedValue(mockDoc);
       (OccupancyModel.findOne as jest.Mock).mockReturnValue(
         createQueryChain(null),
       );
@@ -1073,6 +1756,378 @@ describe("AppointmentService", () => {
           endDate: new Date(),
         }),
       ).toHaveLength(1);
+    });
+  });
+
+  describe("Fetch and List Guards", () => {
+    it("throws on missing identifiers", async () => {
+      await expect(
+        AppointmentService.getAppointmentsForCompanionByOrganisation("", "org"),
+      ).rejects.toThrow(
+        new AppointmentServiceError("companionId is required", 400),
+      );
+      await expect(
+        AppointmentService.getAppointmentsForCompanionByOrganisation(
+          "comp",
+          "",
+        ),
+      ).rejects.toThrow(
+        new AppointmentServiceError("organisationId is required", 400),
+      );
+      await expect(
+        AppointmentService.getAppointmentsForLead(""),
+      ).rejects.toThrow(new AppointmentServiceError("leadId is required", 400));
+      await expect(
+        AppointmentService.getAppointmentsForSupportStaff(""),
+      ).rejects.toThrow(
+        new AppointmentServiceError("staffId is required", 400),
+      );
+      await expect(
+        AppointmentService.getAppointmentsForParent(""),
+      ).rejects.toThrow(
+        new AppointmentServiceError("parentId is required", 400),
+      );
+    });
+  });
+
+  describe("Postgres branches", () => {
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+    });
+
+    it("approveRequestedFromPms uses prisma path", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue(
+        createPrismaAppointment({ status: "REQUESTED" }),
+      );
+      (prisma.occupancy.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.occupancy.create as jest.Mock).mockResolvedValue({});
+      (prisma.userProfile.findFirst as jest.Mock).mockResolvedValue({
+        personalDetails: { profilePictureUrl: "pic" },
+      });
+      (prisma.appointment.update as jest.Mock).mockResolvedValue(
+        createPrismaAppointment({ status: "UPCOMING" }),
+      );
+      (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.organization.findUnique as jest.Mock).mockResolvedValue({
+        name: "Org",
+      });
+      (prisma.user.findMany as jest.Mock).mockResolvedValue([]);
+
+      const res = await AppointmentService.approveRequestedFromPms("appt_1", {
+        participant: [
+          {
+            type: [{ coding: [{ code: "PPRF" }] }],
+            actor: { reference: "Practitioner/vet_1", display: "Vet" },
+          },
+        ],
+      } as any);
+
+      expect(prisma.appointment.update).toHaveBeenCalled();
+      expect(res).toBeDefined();
+    });
+
+    it("checkInAppointment uses prisma path", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue(
+        createPrismaAppointment({ status: "UPCOMING" }),
+      );
+      (prisma.appointment.update as jest.Mock).mockResolvedValue(
+        createPrismaAppointment({ status: "CHECKED_IN" }),
+      );
+      (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
+
+      const res = await AppointmentService.checkInAppointment("appt_1");
+      expect(res.status).toBe("CHECKED_IN");
+      expect(prisma.appointment.update).toHaveBeenCalled();
+    });
+
+    it("checkInAppointment throws when appointment missing or invalid status", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValueOnce(null);
+      await expect(
+        AppointmentService.checkInAppointment("appt_1"),
+      ).rejects.toThrow(
+        new AppointmentServiceError("Appointment not found", 404),
+      );
+
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValueOnce(
+        createPrismaAppointment({ status: "COMPLETED" }),
+      );
+      await expect(
+        AppointmentService.checkInAppointment("appt_1"),
+      ).rejects.toThrow(
+        new AppointmentServiceError(
+          "Only upcoming appointments can be checked in",
+          400,
+        ),
+      );
+    });
+
+    it("cancelAppointment uses prisma path", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue(
+        createPrismaAppointment({ status: "UPCOMING" }),
+      );
+      (prisma.appointment.update as jest.Mock).mockResolvedValue(
+        createPrismaAppointment({ status: "CANCELLED" }),
+      );
+      (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
+      (
+        InvoiceService.handleAppointmentCancellation as jest.Mock
+      ).mockResolvedValue(true);
+
+      await AppointmentService.cancelAppointment("appt_1", "reason");
+
+      expect(prisma.appointment.update).toHaveBeenCalled();
+      expect(prisma.occupancy.deleteMany).toHaveBeenCalled();
+    });
+
+    it("cancelAppointmentFromParent uses prisma path", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue(
+        createPrismaAppointment({
+          status: "UPCOMING",
+          lead: { id: "vet_1", name: "Vet" },
+        }),
+      );
+      (prisma.appointment.update as jest.Mock).mockResolvedValue(
+        createPrismaAppointment({ status: "CANCELLED" }),
+      );
+      (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
+      (
+        InvoiceService.handleAppointmentCancellation as jest.Mock
+      ).mockResolvedValue(true);
+
+      await AppointmentService.cancelAppointmentFromParent(
+        "appt_1",
+        "parent_1",
+        "reason",
+      );
+
+      expect(prisma.appointment.update).toHaveBeenCalled();
+      expect(prisma.occupancy.deleteMany).toHaveBeenCalled();
+    });
+
+    it("rejectRequestedAppointment uses prisma path", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue(
+        createPrismaAppointment({ status: "REQUESTED" }),
+      );
+      (prisma.appointment.update as jest.Mock).mockResolvedValue(
+        createPrismaAppointment({ status: "CANCELLED" }),
+      );
+      (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
+      (
+        InvoiceService.handleAppointmentCancellation as jest.Mock
+      ).mockResolvedValue(true);
+
+      await AppointmentService.rejectRequestedAppointment("appt_1");
+
+      expect(prisma.appointment.update).toHaveBeenCalled();
+    });
+
+    it("updateAppointmentPMS uses prisma path", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue(
+        createPrismaAppointment({ status: "UPCOMING" }),
+      );
+      (prisma.occupancy.deleteMany as jest.Mock).mockResolvedValue({
+        count: 1,
+      });
+      (prisma.occupancy.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.occupancy.create as jest.Mock).mockResolvedValue({});
+      (prisma.appointment.update as jest.Mock).mockResolvedValue(
+        createPrismaAppointment({ status: "UPCOMING" }),
+      );
+      (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
+
+      await AppointmentService.updateAppointmentPMS("appt_1", {
+        lead: { id: "vet_1", name: "Vet" },
+        startTime: new Date("2026-02-01T10:00:00Z"),
+        endTime: new Date("2026-02-01T11:00:00Z"),
+      } as any);
+
+      expect(prisma.occupancy.create).toHaveBeenCalled();
+    });
+
+    it("attachFormsToAppointment uses prisma path", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue(
+        createPrismaAppointment({ formIds: [] }),
+      );
+      (prisma.form.findMany as jest.Mock).mockResolvedValue([{ id: "form_1" }]);
+      (prisma.appointment.update as jest.Mock).mockResolvedValue(
+        createPrismaAppointment({ formIds: ["form_1"] }),
+      );
+      (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
+
+      await AppointmentService.attachFormsToAppointment("appt_1", ["form_1"]);
+
+      expect(prisma.appointment.update).toHaveBeenCalled();
+      expect(AuditTrailService.recordSafely).toHaveBeenCalled();
+    });
+
+    it("checkInAppointmentParent uses prisma path", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue(
+        createPrismaAppointment({ status: "UPCOMING" }),
+      );
+      (prisma.appointment.update as jest.Mock).mockResolvedValue(
+        createPrismaAppointment({ status: "CHECKED_IN" }),
+      );
+      (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
+
+      await AppointmentService.checkInAppointmentParent("appt_1", "parent_1");
+
+      expect(prisma.appointment.update).toHaveBeenCalled();
+    });
+
+    it("rescheduleFromParent uses prisma path", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue(
+        createPrismaAppointment({ status: "UPCOMING" }),
+      );
+      (prisma.appointment.update as jest.Mock).mockResolvedValue(
+        createPrismaAppointment({ status: "REQUESTED" }),
+      );
+      (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
+
+      await AppointmentService.rescheduleFromParent("appt_1", "parent_1", {
+        startTime: new Date("2026-02-01T10:00:00Z"),
+        endTime: new Date("2026-02-01T11:00:00Z"),
+      });
+
+      expect(prisma.occupancy.deleteMany).toHaveBeenCalled();
+      expect(prisma.appointment.update).toHaveBeenCalled();
+    });
+
+    it("rescheduleFromParent throws for missing appointment, parent mismatch, or invalid status", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValueOnce(null);
+      await expect(
+        AppointmentService.rescheduleFromParent("appt_1", "parent_1", {
+          startTime: new Date("2026-02-01T10:00:00Z"),
+          endTime: new Date("2026-02-01T11:00:00Z"),
+        }),
+      ).rejects.toThrow(
+        new AppointmentServiceError("Appointment not found", 404),
+      );
+
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValueOnce(
+        createPrismaAppointment({
+          status: "UPCOMING",
+          companion: { id: "comp_1", parent: { id: "other" }, name: "Pet" },
+        }),
+      );
+      await expect(
+        AppointmentService.rescheduleFromParent("appt_1", "parent_1", {
+          startTime: new Date("2026-02-01T10:00:00Z"),
+          endTime: new Date("2026-02-01T11:00:00Z"),
+        }),
+      ).rejects.toThrow(
+        new AppointmentServiceError(
+          "You are not allowed to modify this appointment.",
+          403,
+        ),
+      );
+
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValueOnce(
+        createPrismaAppointment({ status: "COMPLETED" }),
+      );
+      await expect(
+        AppointmentService.rescheduleFromParent("appt_1", "parent_1", {
+          startTime: new Date("2026-02-01T10:00:00Z"),
+          endTime: new Date("2026-02-01T11:00:00Z"),
+        }),
+      ).rejects.toThrow(
+        new AppointmentServiceError(
+          "Completed or cancelled appointments cannot be rescheduled.",
+          400,
+        ),
+      );
+    });
+
+    it("getAppointmentsForCompanion uses prisma path", async () => {
+      (prisma.appointment.findMany as jest.Mock).mockResolvedValue([
+        createPrismaAppointment({ id: "appt_1" }),
+      ]);
+      (prisma.organization.findMany as jest.Mock).mockResolvedValue([
+        { id: "org_1", name: "Org", address: null, imageUrl: null },
+      ]);
+      (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
+
+      const res =
+        await AppointmentService.getAppointmentsForCompanion("comp_1");
+      expect(res[0]?.organisation?.name).toBe("Org");
+    });
+
+    it("getAppointmentsForCompanionByOrganisation uses prisma path", async () => {
+      (prisma.appointment.findMany as jest.Mock).mockResolvedValue([
+        createPrismaAppointment({ id: "appt_1" }),
+      ]);
+      (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
+
+      const res =
+        await AppointmentService.getAppointmentsForCompanionByOrganisation(
+          "comp_1",
+          "org_1",
+        );
+      expect(res).toHaveLength(1);
+    });
+
+    it("getById throws when appointment missing (postgres)", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue(null);
+      await expect(AppointmentService.getById("appt_missing")).rejects.toThrow(
+        new AppointmentServiceError("Appointment not found", 404),
+      );
+    });
+
+    it("getAppointmentsForLead/supportStaff/ByDateRange use prisma path", async () => {
+      (prisma.appointment.findMany as jest.Mock).mockResolvedValue([
+        createPrismaAppointment({ id: "appt_1" }),
+      ]);
+      (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
+
+      const leadRes = await AppointmentService.getAppointmentsForLead("vet_1");
+      expect(leadRes).toHaveLength(1);
+
+      const staffRes =
+        await AppointmentService.getAppointmentsForSupportStaff("staff_1");
+      expect(staffRes).toHaveLength(1);
+
+      const dateRes = await AppointmentService.getAppointmentsByDateRange(
+        "org_1",
+        new Date("2026-02-01T10:00:00Z"),
+        new Date("2026-02-01T11:00:00Z"),
+        ["UPCOMING"],
+      );
+      expect(dateRes).toHaveLength(1);
+    });
+
+    it("searchAppointments uses prisma path", async () => {
+      (prisma.appointment.findMany as jest.Mock).mockResolvedValue([
+        createPrismaAppointment({ id: "appt_1" }),
+      ]);
+      (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
+
+      const res = await AppointmentService.searchAppointments({
+        organisationId: "org_1",
+        status: ["UPCOMING"],
+        companionId: "comp_1",
+        parentId: "parent_1",
+        leadId: "vet_1",
+        staffId: "staff_1",
+      });
+
+      expect(res).toHaveLength(1);
+      expect(prisma.appointment.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ AND: expect.any(Array) }),
+        }),
+      );
+    });
+
+    it("markNoShowAppointments uses prisma path", async () => {
+      (prisma.appointment.updateMany as jest.Mock).mockResolvedValue({
+        count: 2,
+      });
+
+      const res = await AppointmentService.markNoShowAppointments({
+        graceMinutes: 5,
+      });
+
+      expect(prisma.appointment.updateMany).toHaveBeenCalled();
+      expect(res.matched).toBe(2);
     });
   });
 
