@@ -94,6 +94,7 @@ type DayCalendarProps = {
   ) => Array<{ startMinute: number; endMinute: number }>;
   draggedAppointmentDurationMinutes?: number;
   slotStepMinutes?: number;
+  availabilityLoaded?: boolean;
 };
 
 export const DayCalendar: React.FC<DayCalendarProps> = ({
@@ -118,6 +119,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
   getVisibleAvailabilityIntervals,
   draggedAppointmentDurationMinutes,
   slotStepMinutes = 15,
+  availabilityLoaded = false,
 }) => {
   const orgsById = useOrgStore((s) => s.orgsById);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -306,7 +308,10 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
 
   const unavailableSegments = useMemo(() => {
     const visible = getVisibleAvailabilityIntervals?.(date) ?? [];
-    if (!visible.length) return [];
+    if (!visible.length) {
+      if (!availabilityLoaded) return [];
+      return [{ startMinute: windowStart, endMinute: windowEnd }];
+    }
     const segments: { startMinute: number; endMinute: number }[] = [];
     const sorted = [...visible].sort((a, b) => a.startMinute - b.startMinute);
     if (sorted[0].startMinute > windowStart) {
@@ -322,7 +327,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
       segments.push({ startMinute: last.endMinute, endMinute: windowEnd });
     }
     return segments;
-  }, [date, getVisibleAvailabilityIntervals, windowStart, windowEnd]);
+  }, [availabilityLoaded, date, getVisibleAvailabilityIntervals, windowStart, windowEnd]);
 
   const getNearestAvailableMinute = (minute: number) =>
     calcNearestAvailableMinute(minute, availabilityIntervals);

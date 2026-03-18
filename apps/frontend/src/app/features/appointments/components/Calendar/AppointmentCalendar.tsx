@@ -18,6 +18,7 @@ import {
   getSlotsForServiceAndDateForPrimaryOrg,
   updateAppointment,
 } from '@/app/features/appointments/services/appointmentService';
+import { loadTeamAvailability } from '@/app/features/organization/services/availabilityService';
 import { AppointmentStatus, Slot } from '@/app/features/appointments/types/appointments';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { getWeekDays } from '@/app/features/appointments/components/Calendar/weekHelpers';
@@ -127,11 +128,24 @@ const AppointmentCalendar = ({
   const slotsCacheRef = useRef<Partial<Record<string, Slot[]>>>({});
   const dragAvailabilityCacheRef = useRef<Partial<Record<string, number[]>>>({});
   const dragAvailabilityPendingRef = useRef<Partial<Record<string, Promise<void>>>>({});
+  const teamAvailabilityFetchedRef = useRef<string | null>(null);
   const teams = useTeamForPrimaryOrg();
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const availabilityIdsByOrgId = useAvailabilityStore((s) => s.availabilityIdsByOrgId);
   const availabilitiesById = useAvailabilityStore((s) => s.availabilitiesById);
+  const availabilityStatus = useAvailabilityStore((s) => s.status);
+  const availabilityLoaded = availabilityStatus === 'loaded';
   useLoadAvailabilities();
+
+  useEffect(() => {
+    if (activeCalendar === 'team' && primaryOrgId) {
+      const fetchKey = primaryOrgId;
+      if (teamAvailabilityFetchedRef.current === fetchKey) return;
+      teamAvailabilityFetchedRef.current = fetchKey;
+      void loadTeamAvailability(primaryOrgId);
+    }
+  }, [activeCalendar, primaryOrgId]);
+
   const authUserId = useAuthStore(
     (s) => s.attributes?.sub || s.attributes?.email || s.attributes?.['cognito:username'] || ''
   );
@@ -806,6 +820,7 @@ const AppointmentCalendar = ({
           }}
           getDropAvailabilityIntervals={getDropAvailabilityIntervals}
           getVisibleAvailabilityIntervals={getCurrentUserViewAvailabilityIntervals}
+          availabilityLoaded={availabilityLoaded}
           draggedAppointmentDurationMinutes={dragContext?.durationMinutes}
           onAppointmentDropAt={(dropDate, minute) => {
             moveAppointment(dropDate, minute).catch(() => undefined);
@@ -863,6 +878,7 @@ const AppointmentCalendar = ({
           }}
           getDropAvailabilityIntervals={getDropAvailabilityIntervals}
           getVisibleAvailabilityIntervals={getCurrentUserViewAvailabilityIntervals}
+          availabilityLoaded={availabilityLoaded}
           draggedAppointmentDurationMinutes={dragContext?.durationMinutes}
           onAppointmentDropAt={(dropDate, minute) => {
             moveAppointment(dropDate, minute).catch(() => undefined);
@@ -920,6 +936,7 @@ const AppointmentCalendar = ({
           }}
           getDropAvailabilityIntervals={getDropAvailabilityIntervals}
           getVisibleAvailabilityIntervals={getViewAvailabilityIntervals}
+          availabilityLoaded={availabilityLoaded}
           draggedAppointmentDurationMinutes={dragContext?.durationMinutes}
           onAppointmentDropAt={(dropDate, minute, targetLeadId) => {
             moveAppointment(dropDate, minute, targetLeadId).catch(() => undefined);

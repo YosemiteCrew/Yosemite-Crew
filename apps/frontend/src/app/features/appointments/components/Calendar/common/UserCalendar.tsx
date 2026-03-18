@@ -66,6 +66,7 @@ type UserCalendarProps = {
   draggedAppointmentDurationMinutes?: number;
   forceFullDayInZoomIn?: boolean;
   slotStepMinutes?: number;
+  availabilityLoaded?: boolean;
 };
 
 const UserCalendar: React.FC<UserCalendarProps> = ({
@@ -91,6 +92,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   draggedAppointmentDurationMinutes,
   forceFullDayInZoomIn = false,
   slotStepMinutes = 15,
+  availabilityLoaded = false,
 }) => {
   const HOUR_ROW_TOP_OFFSET_PX = 8;
   const team = useTeamForPrimaryOrg();
@@ -170,7 +172,12 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
       team.map((user) => {
         const visible =
           getVisibleAvailabilityIntervals?.(date, user.practionerId || user._id) ?? [];
-        if (!visible.length) return [];
+        if (!visible.length) {
+          if (!availabilityLoaded) return [];
+          const rangeStart = visibleHourRange.startHour * 60;
+          const rangeEnd = (visibleHourRange.endHour + 1) * 60;
+          return [{ startMinute: rangeStart, endMinute: rangeEnd }];
+        }
         const sorted = [...visible].sort((a, b) => a.startMinute - b.startMinute);
         const segments: { startMinute: number; endMinute: number }[] = [];
         const rangeStart = visibleHourRange.startHour * 60;
@@ -192,7 +199,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
         }
         return segments;
       }),
-    [date, getVisibleAvailabilityIntervals, team, visibleHourRange]
+    [availabilityLoaded, date, getVisibleAvailabilityIntervals, team, visibleHourRange]
   );
 
   const slotOffsetMinutes = useMemo(() => {

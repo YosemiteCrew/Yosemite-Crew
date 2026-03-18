@@ -65,6 +65,7 @@ type WeekCalendarProps = {
   ) => Array<{ startMinute: number; endMinute: number }>;
   draggedAppointmentDurationMinutes?: number;
   slotStepMinutes?: number;
+  availabilityLoaded?: boolean;
 };
 
 const WeekCalendar: React.FC<WeekCalendarProps> = ({
@@ -90,6 +91,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   getVisibleAvailabilityIntervals,
   draggedAppointmentDurationMinutes,
   slotStepMinutes = 15,
+  availabilityLoaded = false,
 }) => {
   const days = useMemo<Date[]>(() => getWeekDays(weekStart), [weekStart]);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -222,7 +224,12 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     () =>
       days.map((day) => {
         const visible = getVisibleAvailabilityIntervals?.(day) ?? [];
-        if (!visible.length) return [];
+        if (!visible.length) {
+          if (!availabilityLoaded) return [];
+          const rangeStart = visibleHourRange.startHour * 60;
+          const rangeEnd = (visibleHourRange.endHour + 1) * 60;
+          return [{ startMinute: rangeStart, endMinute: rangeEnd }];
+        }
         const sorted = [...visible].sort((a, b) => a.startMinute - b.startMinute);
         const segments: { startMinute: number; endMinute: number }[] = [];
         const rangeStart = visibleHourRange.startHour * 60;
@@ -244,7 +251,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
         }
         return segments;
       }),
-    [days, getVisibleAvailabilityIntervals, visibleHourRange]
+    [availabilityLoaded, days, getVisibleAvailabilityIntervals, visibleHourRange]
   );
 
   const hasAnyAllDay = allDayByDay.some((list) => list.length > 0);
