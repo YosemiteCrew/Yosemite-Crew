@@ -8,7 +8,13 @@ export interface InsuranceDetails {
 
 export type CompanionType = 'dog' | 'cat' | 'horse' | 'other';
 export type Gender = 'male' | 'female' | 'unknown';
-export type SourceType = 'shop' | 'breeder' | 'foster_shelter' | 'friends_family' | 'unknown';
+export type SourceType =
+  | 'shop'
+  | 'breeder'
+  | 'foster_shelter'
+  | 'friends_family'
+  | 'stray'
+  | 'unknown';
 export type RecordStatus = 'active' | 'archived' | 'inactive';
 
 export interface physicalAttribute {
@@ -148,6 +154,7 @@ const SOURCE_VALUES = new Set<SourceType>([
   'breeder',
   'foster_shelter',
   'friends_family',
+  'stray',
   'unknown',
 ]);
 

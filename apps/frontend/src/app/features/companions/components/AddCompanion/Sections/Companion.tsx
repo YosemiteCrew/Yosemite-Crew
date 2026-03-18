@@ -8,7 +8,7 @@ import {
   EMPTY_STORED_PARENT,
   GenderOptions,
   InsuredOptions,
-  NeuteredOptions,
+  getNeuteredOptions,
   OriginOptions,
 } from '@/app/features/companions/components/AddCompanion/type';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
@@ -115,7 +115,6 @@ const Companion = ({
     species?: string;
     breed?: string;
     dateOfBirth?: string;
-    ageWhenNeutered?: string;
     insuranceNumber?: string;
     insuranceCompany?: string;
   }>({});
@@ -228,14 +227,11 @@ const Companion = ({
       insuranceNumber?: string;
       insuranceCompany?: string;
       dateOfBirth?: string;
-      ageWhenNeutered?: string;
     } = {};
     if (!formData.name) errors.name = 'Name is required';
     if (!formData.type) errors.species = 'Species is required';
     if (!formData.breed) errors.breed = 'Breed is required';
-    if (formData.isneutered && !formData.ageWhenNeutered) {
-      errors.ageWhenNeutered = 'Age when neutered is required';
-    }
+
     if (formData.isInsured) {
       if (!formData.insurance?.companyName) errors.insuranceCompany = 'Company name is required';
       if (!formData.insurance?.policyNumber) errors.insuranceNumber = 'Policy number is required';
@@ -377,7 +373,7 @@ const Companion = ({
             />
             <SelectLabel
               title="Neutered status"
-              options={NeuteredOptions}
+              options={getNeuteredOptions(formData.gender)}
               activeOption={formData.isneutered ? 'true' : 'false'}
               setOption={(value: string) =>
                 setFormData({
@@ -392,14 +388,13 @@ const Companion = ({
                 intype="number"
                 inname="ageWhenNeutered"
                 value={formData.ageWhenNeutered || ''}
-                inlabel="Age when neutered"
+                inlabel={`Age when ${formData.gender === 'female' ? 'spayed' : 'neutered'} (optional)`}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
                     ageWhenNeutered: e.target.value.replaceAll('-', ''),
                   })
                 }
-                error={formDataErrors.ageWhenNeutered}
                 className="min-h-12!"
               />
             )}

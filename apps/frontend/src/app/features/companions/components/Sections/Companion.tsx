@@ -11,7 +11,7 @@ import {
   CountriesOptions,
   GenderOptions,
   InsuredOptions,
-  NeuteredOptions,
+  getNeuteredOptions,
   OriginOptions,
 } from '@/app/features/companions/components/AddCompanion/type';
 import { CompanionType } from '@yosemite-crew/types';
@@ -42,7 +42,6 @@ type CompanionFormErrors = {
   type?: string;
   breed?: string;
   dateOfBirth?: string;
-  ageWhenNeutered?: string;
   insuranceCompany?: string;
   insuranceNumber?: string;
 };
@@ -126,9 +125,6 @@ const validateCompanionForm = (
   if (!formData.type) errors.type = 'Species is required';
   if (!formData.breed) errors.breed = 'Breed is required';
   if (!currentDate) errors.dateOfBirth = 'Date of birth is required';
-  if (formData.isneutered && !String(formData.ageWhenNeutered ?? '').trim()) {
-    errors.ageWhenNeutered = 'Age when neutered is required';
-  }
   if (!isInsured) {
     return errors;
   }
@@ -283,11 +279,19 @@ const CompanionReadOnlySection = ({
     <CompanionRow label="Gender" value={companion.companion.gender || '-'} />
     <CompanionRow
       label="Neutered status"
-      value={companion.companion.isneutered ? 'Neutered' : 'Not neutered'}
+      value={
+        companion.companion.gender === 'female'
+          ? companion.companion.isneutered
+            ? 'Spayed'
+            : 'Not spayed'
+          : companion.companion.isneutered
+            ? 'Neutered'
+            : 'Not neutered'
+      }
     />
     {companion.companion.isneutered ? (
       <CompanionRow
-        label="Age when neutered"
+        label={`Age when ${companion.companion.gender === 'female' ? 'spayed' : 'neutered'}`}
         value={String(companion.companion.ageWhenNeutered || '-')}
       />
     ) : null}
@@ -406,7 +410,7 @@ const CompanionEditSection = ({
 
     <SelectLabel
       title="Neutered status"
-      options={NeuteredOptions}
+      options={getNeuteredOptions(formData.gender)}
       activeOption={formData.isneutered ? 'true' : 'false'}
       setOption={(value: string) =>
         setFormData((prev) => ({
@@ -422,14 +426,13 @@ const CompanionEditSection = ({
         intype="number"
         inname="ageWhenNeutered"
         value={formData.ageWhenNeutered || ''}
-        inlabel="Age when neutered"
+        inlabel={`Age when ${formData.gender === 'female' ? 'spayed' : 'neutered'} (optional)`}
         onChange={(e) =>
           setFormData((prev) => ({
             ...prev,
             ageWhenNeutered: e.target.value.replaceAll('-', ''),
           }))
         }
-        error={formErrors.ageWhenNeutered}
         className="min-h-12!"
       />
     ) : null}
