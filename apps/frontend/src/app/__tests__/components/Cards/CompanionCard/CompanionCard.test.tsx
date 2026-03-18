@@ -35,6 +35,11 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
   ),
 }));
 
+jest.mock('@/app/ui/primitives/GlassTooltip/GlassTooltip', () => ({
+  __esModule: true,
+  default: ({ content, children }: any) => <span aria-label={content}>{children}</span>,
+}));
+
 describe('CompanionCard', () => {
   const handleViewCompanion = jest.fn();
   const handleBookAppointment = jest.fn();
@@ -98,10 +103,10 @@ describe('CompanionCard', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('View'));
-    fireEvent.click(screen.getByText('Status'));
-    fireEvent.click(screen.getByText('Schedule'));
-    fireEvent.click(screen.getByText('Task'));
+    fireEvent.click(screen.getByLabelText('View').querySelector('button')!);
+    fireEvent.click(screen.getByLabelText('Change status').querySelector('button')!);
+    fireEvent.click(screen.getByLabelText('Schedule').querySelector('button')!);
+    fireEvent.click(screen.getByLabelText('Task').querySelector('button')!);
 
     expect(handleViewCompanion).toHaveBeenCalledWith(companion);
     expect(handleChangeStatus).toHaveBeenCalledWith(companion);
@@ -123,9 +128,9 @@ describe('CompanionCard', () => {
       />
     );
 
-    expect(screen.getByText('View')).toBeInTheDocument();
-    expect(screen.queryByText('Status')).not.toBeInTheDocument();
-    expect(screen.queryByText('Schedule')).not.toBeInTheDocument();
-    expect(screen.queryByText('Task')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('View')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Change status')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Schedule')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Task')).not.toBeInTheDocument();
   });
 });
