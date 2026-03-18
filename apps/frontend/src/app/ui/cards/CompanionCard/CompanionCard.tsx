@@ -1,11 +1,14 @@
 import Image from 'next/image';
 import React from 'react';
+import { FaCalendar, FaTasks } from 'react-icons/fa';
+import { IoEye } from 'react-icons/io5';
+import { MdOutlineAutorenew } from 'react-icons/md';
 import { getStatusStyle } from '@/app/ui/tables/CompanionsTable';
 import { CompanionParent } from '@/app/features/companions/pages/Companions/types';
 import { getAgeInYears } from '@/app/lib/date';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { toTitleCase } from '@/app/lib/validators';
-import { Secondary } from '@/app/ui/primitives/Buttons';
+import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 
 type CompanionCardProps = {
   companion: CompanionParent;
@@ -73,36 +76,44 @@ const CompanionCard = ({
       >
         {toTitleCase(companion.companion.status || 'inactive')}
       </div>
-      <div className="flex gap-2 w-full">
-        <Secondary
-          href="#"
-          onClick={() => handleViewCompanion(companion)}
-          text="View"
-          className="w-full"
-        />
+      <div className="flex gap-2 justify-center">
+        <GlassTooltip content="View" side="top">
+          <button
+            onClick={() => handleViewCompanion(companion)}
+            className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+          >
+            <IoEye size={20} color="#302F2E" />
+          </button>
+        </GlassTooltip>
         {canEditCompanions && (
-          <Secondary
-            href="#"
-            onClick={() => handleChangeStatus(companion)}
-            text="Status"
-            className="w-full"
-          />
+          <GlassTooltip content="Change status" side="top">
+            <button
+              onClick={() => handleChangeStatus(companion)}
+              className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+            >
+              <MdOutlineAutorenew size={18} color="#302F2E" />
+            </button>
+          </GlassTooltip>
         )}
         {canEditAppointments && (
-          <Secondary
-            href="#"
-            onClick={() => handleBookAppointment(companion)}
-            text="Schedule"
-            className="w-full"
-          />
+          <GlassTooltip content="Schedule" side="top">
+            <button
+              onClick={() => handleBookAppointment(companion)}
+              className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+            >
+              <FaCalendar size={14} color="#302F2E" />
+            </button>
+          </GlassTooltip>
         )}
         {canEditTasks && (
-          <Secondary
-            href="#"
-            onClick={() => handleAddTask(companion)}
-            text="Task"
-            className="w-full"
-          />
+          <GlassTooltip content="Task" side="top">
+            <button
+              onClick={() => handleAddTask(companion)}
+              className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+            >
+              <FaTasks size={14} color="#302F2E" />
+            </button>
+          </GlassTooltip>
         )}
       </div>
     </div>

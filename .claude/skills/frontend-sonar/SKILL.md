@@ -8,6 +8,25 @@ TRIGGER: any mention of "sonar", "code quality", "lint issues", or when writing 
 
 ---
 
+## Mandatory Checks — Run After Every Frontend Change
+
+Run all three in order before declaring any task done. Never skip.
+
+```bash
+# 1. Type check — from apps/frontend/
+npx tsc --noemit
+
+# 2. Lint — from repo root
+pnpm --filter frontend run lint
+
+# 3. Targeted test — only files you modified, NEVER the full suite
+pnpm --filter frontend run test -- --testPathPattern="<ModifiedComponentName>"
+```
+
+**Full suite (`pnpm run test` with no filter) is forbidden — it hangs the machine.**
+
+---
+
 ## Issue Tracker
 
 Resolved/open issues log: `docs/guide/sonar-tracker.md`

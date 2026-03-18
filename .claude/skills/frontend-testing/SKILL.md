@@ -8,19 +8,27 @@ TRIGGER: any task involving test files in apps/frontend, or when asked to write/
 
 ---
 
-## Run Tests — Always Targeted
+## Mandatory Checks — Run in This Order After Every Change
+
+Run all three every time you touch `apps/frontend`. Never skip any step.
 
 ```bash
-# NEVER run the full suite (takes 100+ seconds)
-pnpm --filter frontend run test -- --testPathPattern="ComponentName"
+# 1. Type check — run from apps/frontend/
+npx tsc --noemit
+
+# 2. Lint — run from repo root
+pnpm --filter frontend run lint
+
+# 3. Targeted test — only the files you modified, NEVER the full suite
+pnpm --filter frontend run test -- --testPathPattern="<ModifiedComponentName>"
 
 # Examples
+pnpm --filter frontend run test -- --testPathPattern="CompanionCard"
 pnpm --filter frontend run test -- --testPathPattern="Availability"
-pnpm --filter frontend run test -- --testPathPattern="TaskBoard"
 pnpm --filter frontend run test -- --testPathPattern="__tests__/features/billing"
 ```
 
-Full suite is **forbidden** per repo rules.
+**Full suite is forbidden.** It takes 100+ seconds and hangs the machine. Always derive the `--testPathPattern` from the filenames you actually changed.
 
 ---
 
