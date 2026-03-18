@@ -4,7 +4,7 @@
   width: 100%;
   height: calc(100vh - 80px);
   background: linear-gradient(180deg, #f8fbff 0%, #fdfefe 60%, #ffffff 100%);
-  padding: 20px;
+  padding: 12px;
   box-sizing: border-box;
   display: flex;
 }
@@ -176,6 +176,18 @@
   width: 100%;
 }
 
+@media (min-width: 768px) {
+  .chat-page {
+    padding: 20px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .chat-page {
+    padding: 20px;
+  }
+}
+
 @media (max-width: 960px) {
   .chat-shell {
     min-height: auto;
@@ -193,7 +205,6 @@
 
 @media (max-width: 640px) {
   .chat-page {
-    padding: 12px;
     min-height: calc(100vh - 60px);
     max-width: 100vw;
     overflow-x: hidden;

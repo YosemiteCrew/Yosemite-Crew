@@ -17,6 +17,7 @@ import { useCalendarNavigation, getDateDisplay } from '@/app/hooks/useCalendarNa
 import {
   CalendarZoomMode,
   formatHourLabel,
+  formatMinuteLabel,
   getHourRowHeightPx,
 } from '@/app/features/appointments/components/Calendar/calendarLayout';
 import {
@@ -98,6 +99,12 @@ const DayCalendar = ({
     }
     return offsets;
   }, [slotStepMinutes]);
+  const showSlotTimeLabels = useMemo(() => {
+    if (!slotOffsetMinutes.length) return false;
+    const firstStep = slotOffsetMinutes[0];
+    const pixelsPerSlot = (firstStep / 60) * height;
+    return pixelsPerSlot >= 14;
+  }, [height, slotOffsetMinutes]);
 
   const nowPosition = useMemo(() => {
     const topPx = getNowTopPxForHourRange(
@@ -193,6 +200,16 @@ const DayCalendar = ({
                   >
                     {formatHourLabel(hour)}
                   </span>
+                  {showSlotTimeLabels &&
+                    slotOffsetMinutes.map((minute) => (
+                      <span
+                        key={`slot-time-${hour}-${minute}`}
+                        className="absolute right-1 -translate-y-1/2 text-[10px] leading-none text-text-tertiary text-right whitespace-nowrap"
+                        style={{ top: `${(minute / 60) * 100}%` }}
+                      >
+                        {formatMinuteLabel(hour * 60 + minute)}
+                      </span>
+                    ))}
                 </div>
                 <div className="relative" style={{ height: `${height}px` }}>
                   <TaskSlot

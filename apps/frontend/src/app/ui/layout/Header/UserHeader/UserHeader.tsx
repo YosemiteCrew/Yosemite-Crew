@@ -22,8 +22,10 @@ import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
 import { startRouteLoader } from '@/app/lib/routeLoader';
 import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
+import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 
 const UserHeader = () => {
+  const terminologyText = useCompanionTerminologyText();
   const { signOut } = useSignOut();
   const pathname = usePathname();
   const router = useRouter();
@@ -172,7 +174,7 @@ const UserHeader = () => {
     if (pathname.startsWith('/integrations/idexx-workspace')) return 'Search result / order';
     if (pathname.startsWith('/integrations')) return 'Search integrations';
     if (pathname.startsWith('/forms')) return 'Search forms';
-    if (pathname.startsWith('/companions')) return 'Search companions';
+    if (pathname.startsWith('/companions')) return terminologyText('Search companions');
     if (pathname.startsWith('/tasks')) return 'Search tasks';
     if (pathname.startsWith('/finance')) return 'Search invoices';
     return 'Search';

@@ -12,7 +12,10 @@ import { useLoadAvailabilities } from '@/app/hooks/useAvailabiities';
 import {
   getCompanionTerminologyForOrg,
   rewriteCompanionTerminologyText,
+  setCompanionTerminologyForOrg,
 } from '@/app/lib/companionTerminology';
+import { usePrimaryOrgProfile } from '@/app/hooks/useProfiles';
+import { isValidAnimalTerminology } from '@/app/features/settings/utils/pmsPreferences';
 
 const TERMINOLOGY_ATTRIBUTES = ['placeholder', 'title', 'aria-label'] as const;
 
@@ -90,6 +93,7 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
 
   const status = useAuthStore((s) => s.status);
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
+  const primaryOrgProfile = usePrimaryOrgProfile();
 
   useEffect(() => {
     useAuthStore
@@ -97,6 +101,14 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
       .checkSession()
       .catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    if (!primaryOrgId) return;
+    const profileTerminology =
+      primaryOrgProfile?.personalDetails?.pmsPreferences?.animalTerminology;
+    if (!isValidAnimalTerminology(profileTerminology)) return;
+    setCompanionTerminologyForOrg(primaryOrgId, profileTerminology);
+  }, [primaryOrgId, primaryOrgProfile?.personalDetails?.pmsPreferences?.animalTerminology]);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;

@@ -20,6 +20,7 @@ import Next from '@/app/ui/primitives/Icons/Next';
 import {
   CalendarZoomMode,
   formatHourLabel,
+  formatMinuteLabel,
   getCalendarColumnGridStyle,
   getHourRowHeightPx,
 } from '@/app/features/appointments/components/Calendar/calendarLayout';
@@ -117,6 +118,12 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     return offsets;
   }, [slotStepMinutes]);
   const lastVisibleHour = HOURS_IN_DAY - 1;
+  const showSlotTimeLabels = useMemo(() => {
+    if (!slotOffsetMinutes.length) return false;
+    const firstStep = slotOffsetMinutes[0];
+    const pixelsPerSlot = (firstStep / 60) * height;
+    return pixelsPerSlot >= 14;
+  }, [height, slotOffsetMinutes]);
   const nowPosition = useMemo(() => {
     const todayIndex = days.findIndex((day) => isOnPreferredTimeZoneCalendarDay(now, day));
     if (todayIndex === -1) return null;
@@ -244,6 +251,16 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                     >
                       {formatHourLabel(hour)}
                     </span>
+                    {showSlotTimeLabels &&
+                      slotOffsetMinutes.map((minute) => (
+                        <span
+                          key={`slot-time-${hour}-${minute}`}
+                          className="absolute right-1 -translate-y-1/2 text-[10px] leading-none text-text-tertiary text-right whitespace-nowrap"
+                          style={{ top: `${(minute / 60) * 100}%` }}
+                        >
+                          {formatMinuteLabel(hour * 60 + minute)}
+                        </span>
+                      ))}
                   </div>
                   <div className="grid min-w-max" style={dayColumnsStyle}>
                     {days.map((day, dayIndex) => {

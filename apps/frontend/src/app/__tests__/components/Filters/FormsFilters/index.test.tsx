@@ -1,18 +1,19 @@
-import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
-import FormsFilters from "@/app/ui/filters/FormsFilters";
-import { FormsProps } from "@/app/features/forms/types/forms";
+import React from 'react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import FormsFilters from '@/app/ui/filters/FormsFilters';
+import { FormsProps } from '@/app/features/forms/types/forms';
 
 // --- Mocks ---
 
 // Mock the constants from the types file
-jest.mock("@/app/features/forms/types/forms", () => ({
-  FormsStatusFilters: ["All", "Active", "Archived"],
-  FormsCategoryOptions: ["Registration", "Feedback", "Survey"],
+jest.mock('@/app/features/forms/types/forms', () => ({
+  FormsStatusFilters: ['All', 'Active', 'Archived'],
+  FormsCategoryOptions: ['Registration', 'Feedback', 'Survey'],
+  getFormCategoryDisplayLabel: (category: string) => category,
 }));
 
 // Mock Search Component
-jest.mock("@/app/ui/inputs/Search", () => ({
+jest.mock('@/app/ui/inputs/Search', () => ({
   __esModule: true,
   default: ({ value, setSearch }: any) => (
     <input
@@ -25,18 +26,14 @@ jest.mock("@/app/ui/inputs/Search", () => ({
 }));
 
 // Mock LabelDropdown Component
-jest.mock("@/app/ui/inputs/Dropdown/LabelDropdown", () => ({
+jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
   __esModule: true,
   default: ({ defaultOption, onSelect, options }: any) => (
     <div data-testid="mock-dropdown">
       <div data-testid="dropdown-current-value">{defaultOption}</div>
       <div className="dropdown-options">
         {options.map((opt: any) => (
-          <button
-            key={opt.value}
-            data-testid={`option-${opt.value}`}
-            onClick={() => onSelect(opt)}
-          >
+          <button key={opt.value} data-testid={`option-${opt.value}`} onClick={() => onSelect(opt)}>
             {opt.label}
           </button>
         ))}
@@ -49,32 +46,32 @@ jest.mock("@/app/ui/inputs/Dropdown/LabelDropdown", () => ({
 
 const mockFormsList: FormsProps[] = [
   {
-    id: "1",
-    name: "Patient Registration",
-    status: "Active",
-    category: "Registration",
+    id: '1',
+    name: 'Patient Registration',
+    status: 'Active',
+    category: 'Registration',
   },
   {
-    id: "2",
-    name: "Customer Feedback",
-    status: "Active",
-    category: "Feedback",
+    id: '2',
+    name: 'Customer Feedback',
+    status: 'Active',
+    category: 'Feedback',
   },
   {
-    id: "3",
-    name: "Old Survey",
-    status: "Archived",
-    category: "Survey",
+    id: '3',
+    name: 'Old Survey',
+    status: 'Archived',
+    category: 'Survey',
   },
   {
-    id: "4",
-    name: "Staff Registration",
-    status: "Archived",
-    category: "Registration",
+    id: '4',
+    name: 'Staff Registration',
+    status: 'Archived',
+    category: 'Registration',
   },
 ] as any;
 
-describe("FormsFilters Component", () => {
+describe('FormsFilters Component', () => {
   const mockSetFilteredList = jest.fn();
 
   beforeEach(() => {
@@ -83,123 +80,82 @@ describe("FormsFilters Component", () => {
 
   // --- 1. Initial Render & Defaults ---
 
-  it("renders filter UI elements correctly", () => {
-    render(
-      <FormsFilters
-        list={mockFormsList}
-        setFilteredList={mockSetFilteredList}
-      />
-    );
+  it('renders filter UI elements correctly', () => {
+    render(<FormsFilters list={mockFormsList} setFilteredList={mockSetFilteredList} />);
 
     // FIX: "All" appears in status filter AND dropdown option.
     // We expect multiple instances.
-    const allButtons = screen.getAllByText("All");
+    const allButtons = screen.getAllByText('All');
     expect(allButtons.length).toBeGreaterThanOrEqual(2);
 
-    expect(screen.getByText("Active")).toBeInTheDocument();
-    expect(screen.getByText("Archived")).toBeInTheDocument();
+    expect(screen.getByText('Active')).toBeInTheDocument();
+    expect(screen.getByText('Archived')).toBeInTheDocument();
 
-    expect(screen.getByTestId("mock-dropdown")).toBeInTheDocument();
+    expect(screen.getByTestId('mock-dropdown')).toBeInTheDocument();
   });
 
   it("initializes with 'All' filters and returns the full list", () => {
-    render(
-      <FormsFilters
-        list={mockFormsList}
-        setFilteredList={mockSetFilteredList}
-      />
-    );
+    render(<FormsFilters list={mockFormsList} setFilteredList={mockSetFilteredList} />);
 
     expect(mockSetFilteredList).toHaveBeenCalledWith(mockFormsList);
   });
 
   // --- 2. Filtering Logic (Individual) ---
 
-  it("filters by Status (Active)", () => {
-    render(
-      <FormsFilters
-        list={mockFormsList}
-        setFilteredList={mockSetFilteredList}
-      />
-    );
+  it('filters by Status (Active)', () => {
+    render(<FormsFilters list={mockFormsList} setFilteredList={mockSetFilteredList} />);
 
-    const activeBtn = screen.getByRole("button", { name: "Active" });
+    const activeBtn = screen.getByRole('button', { name: 'Active' });
     fireEvent.click(activeBtn);
 
-    expect(mockSetFilteredList).toHaveBeenLastCalledWith([
-      mockFormsList[0],
-      mockFormsList[1],
-    ]);
+    expect(mockSetFilteredList).toHaveBeenLastCalledWith([mockFormsList[0], mockFormsList[1]]);
   });
 
-  it("filters by Category (Registration)", () => {
-    render(
-      <FormsFilters
-        list={mockFormsList}
-        setFilteredList={mockSetFilteredList}
-      />
-    );
+  it('filters by Category (Registration)', () => {
+    render(<FormsFilters list={mockFormsList} setFilteredList={mockSetFilteredList} />);
 
-    const optionBtn = screen.getByTestId("option-Registration");
+    const optionBtn = screen.getByTestId('option-Registration');
     fireEvent.click(optionBtn);
 
-    expect(mockSetFilteredList).toHaveBeenLastCalledWith([
-      mockFormsList[0],
-      mockFormsList[3],
-    ]);
+    expect(mockSetFilteredList).toHaveBeenLastCalledWith([mockFormsList[0], mockFormsList[3]]);
   });
 
   // --- 3. Combined Filtering ---
 
-  it("filters by Status + Category + Search combined", () => {
-    render(
-      <FormsFilters
-        list={mockFormsList}
-        setFilteredList={mockSetFilteredList}
-      />
-    );
+  it('filters by Status + Category + Search combined', () => {
+    render(<FormsFilters list={mockFormsList} setFilteredList={mockSetFilteredList} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Archived" }));
-    fireEvent.click(screen.getByTestId("option-Registration"));
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }));
+    fireEvent.click(screen.getByTestId('option-Registration'));
 
     expect(mockSetFilteredList).toHaveBeenLastCalledWith([mockFormsList[3]]);
   });
 
   // --- 4. Styling & UX ---
 
-  it("applies active styles to the selected status button", () => {
-    render(
-      <FormsFilters
-        list={mockFormsList}
-        setFilteredList={mockSetFilteredList}
-      />
-    );
+  it('applies active styles to the selected status button', () => {
+    render(<FormsFilters list={mockFormsList} setFilteredList={mockSetFilteredList} />);
 
     // FIX: Get the Status Filter "All" button specifically.
     // It's the first button with text "All" (DOM order: status filters -> dropdown -> options)
     // Or we can filter by checking the class name which contains style logic
     // The status filter button is the one rendered first in the DOM structure
 
-    const activeBtn = screen.getByRole("button", { name: "Active" });
+    const activeBtn = screen.getByRole('button', { name: 'Active' });
 
     // Click 'Active'
     fireEvent.click(activeBtn);
   });
 
-  it("updates the dropdown value visually when changed", () => {
-    render(
-      <FormsFilters
-        list={mockFormsList}
-        setFilteredList={mockSetFilteredList}
-      />
-    );
+  it('updates the dropdown value visually when changed', () => {
+    render(<FormsFilters list={mockFormsList} setFilteredList={mockSetFilteredList} />);
 
-    const currentValueDisplay = screen.getByTestId("dropdown-current-value");
+    const currentValueDisplay = screen.getByTestId('dropdown-current-value');
 
-    expect(currentValueDisplay).toHaveTextContent("All");
+    expect(currentValueDisplay).toHaveTextContent('All');
 
-    fireEvent.click(screen.getByTestId("option-Feedback"));
+    fireEvent.click(screen.getByTestId('option-Feedback'));
 
-    expect(currentValueDisplay).toHaveTextContent("Feedback");
+    expect(currentValueDisplay).toHaveTextContent('Feedback');
   });
 });

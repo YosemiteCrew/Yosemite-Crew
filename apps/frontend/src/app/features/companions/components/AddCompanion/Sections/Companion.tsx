@@ -25,6 +25,7 @@ import SearchDropdown from '@/app/ui/inputs/SearchDropdown';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import { CompanionType } from '@yosemite-crew/types';
 import { useNotify } from '@/app/hooks/useNotify';
+import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 import {
   fetchBreedCodeEntries,
   fetchSpeciesCodeEntries,
@@ -108,6 +109,7 @@ const Companion = ({
   setParentFormData,
   setShowModal,
 }: CompanionProps) => {
+  const terminologyText = useCompanionTerminologyText();
   const [formDataErrors, setFormDataErrors] = useState<{
     name?: string;
     species?: string;
@@ -302,7 +304,7 @@ const Companion = ({
     <div className="flex flex-col justify-between flex-1 gap-6 w-full">
       <div className="flex flex-col gap-6">
         <SearchDropdown
-          placeholder="Search companion"
+          placeholder={terminologyText('Search companion')}
           options={options}
           onSelect={handleSelect}
           query={query}

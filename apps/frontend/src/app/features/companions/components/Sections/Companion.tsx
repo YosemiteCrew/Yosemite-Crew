@@ -15,6 +15,7 @@ import {
   OriginOptions,
 } from '@/app/features/companions/components/AddCompanion/type';
 import { CompanionType } from '@yosemite-crew/types';
+import type { RecordStatus } from '@yosemite-crew/types';
 import {
   fetchBreedCodeEntries,
   fetchSpeciesCodeEntries,
@@ -96,6 +97,12 @@ const BLOOD_GROUP_OPTIONS_BY_SPECIES: Record<CompanionType, OptionProp[]> = {
   })),
   other: [{ value: 'Unknown', label: 'Unknown' }],
 };
+
+const COMPANION_STATUS_OPTIONS: OptionProp[] = [
+  { value: 'active', label: 'Active' },
+  { value: 'inactive', label: 'Inactive' },
+  { value: 'archived', label: 'Archived' },
+];
 
 const toNonNegativeNumber = (value: string | number | undefined) => {
   const parsed = typeof value === 'number' ? value : Number.parseFloat((value ?? '').toString());
@@ -270,6 +277,7 @@ const CompanionReadOnlySection = ({
 }) => (
   <div className="pt-2">
     <CompanionRow label="Species" value={speciesLabel} />
+    <CompanionRow label="Status" value={companion.companion.status || 'inactive'} />
     <CompanionRow label="Breed" value={companion.companion.breed} />
     <CompanionRow label="Date of birth" value={formatDateLabel(companion.companion.dateOfBirth)} />
     <CompanionRow label="Gender" value={companion.companion.gender || '-'} />
@@ -332,6 +340,15 @@ const CompanionEditSection = ({
   handleSave,
 }: CompanionEditSectionProps) => (
   <div className="flex flex-col gap-3 pt-2">
+    <LabelDropdown
+      placeholder="Companion status"
+      onSelect={(option) =>
+        setFormData((prev) => ({ ...prev, status: option.value as RecordStatus }))
+      }
+      defaultOption={formData.status || 'inactive'}
+      options={COMPANION_STATUS_OPTIONS}
+    />
+
     <div className="grid grid-cols-2 gap-3">
       <LabelDropdown
         placeholder="Species"

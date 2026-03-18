@@ -15,6 +15,8 @@ import { PERMISSIONS } from '@/app/lib/permissions';
 import Fallback from '@/app/ui/overlays/Fallback';
 import { useSubscriptionForPrimaryOrg } from '@/app/hooks/useBilling';
 import { Primary } from '@/app/ui/primitives/Buttons';
+import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
+import { IoInformationCircleOutline } from 'react-icons/io5';
 
 const Finance = () => {
   const invoices = useInvoicesForPrimaryOrg();
@@ -63,7 +65,7 @@ const Finance = () => {
   }, [invoices, activeStatus, query]);
 
   return (
-    <div className="flex flex-col gap-6 px-3! py-3! sm:px-12! lg:px-[60px]! sm:py-12!">
+    <div className="flex flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
       <PermissionGate allOf={[PERMISSIONS.ORG_EDIT]}>
         {subscription && !subscription.canAcceptPayments && (
           <div className="px-6 py-3 border border-card-border rounded-2xl w-full flex items-center justify-between gap-3 flex-col sm:flex-row">
@@ -84,14 +86,24 @@ const Finance = () => {
       </PermissionGate>
       <div className="flex justify-between items-center w-full flex-wrap gap-2">
         <div className="flex flex-col gap-1">
-          <div className="text-text-primary text-heading-1">
-            Finance{''}
-            <span className="text-text-tertiary">{' (' + invoices.length + ')'}</span>
+          <div className="text-text-primary text-heading-1 flex items-center gap-2">
+            <span>
+              Finance
+              <span className="text-text-tertiary">{` (${invoices.length})`}</span>
+            </span>
+            <GlassTooltip
+              content="Review invoices, monitor payment status, and open each record to see billed services, balances, and payment history."
+              side="bottom"
+            >
+              <button
+                type="button"
+                aria-label="Finance info"
+                className="relative top-[3px] inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none text-text-secondary hover:text-text-primary transition-colors"
+              >
+                <IoInformationCircleOutline size={20} />
+              </button>
+            </GlassTooltip>
           </div>
-          <p className="text-body-3 text-text-secondary max-w-3xl">
-            Review invoices, monitor payment status, and open each record to see billed services,
-            balances, and payment history.
-          </p>
         </div>
       </div>
 

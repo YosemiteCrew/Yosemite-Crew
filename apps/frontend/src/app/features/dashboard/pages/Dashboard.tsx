@@ -19,7 +19,7 @@ import { PERMISSIONS } from '@/app/lib/permissions';
 
 const Dashboard = () => {
   return (
-    <div className="flex flex-col gap-6 px-3! py-3! sm:px-12! lg:px-[60px]! sm:py-12!">
+    <div className="flex flex-col gap-6 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
       <DashboardProfile />
       <DashboardSteps />
       <VideosCard />

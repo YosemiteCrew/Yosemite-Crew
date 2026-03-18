@@ -1,8 +1,8 @@
-import React from "react";
-import { FormField } from "@/app/features/forms/types/forms";
+import React from 'react';
+import { FormField } from '@/app/features/forms/types/forms';
 
 const BooleanRenderer: React.FC<{
-  field: FormField & { type: "boolean" };
+  field: FormField & { type: 'boolean' };
   value: boolean;
   onChange: (v: boolean) => void;
   readOnly?: boolean;
@@ -16,10 +16,7 @@ const BooleanRenderer: React.FC<{
       disabled={readOnly}
       className="w-5 h-5 accent-blue-text"
     />
-    <label
-      htmlFor={field.id}
-      className="font-grotesk text-black-text text-[16px] font-medium"
-    >
+    <label htmlFor={field.id} className="font-satoshi text-black-text text-[16px] font-medium">
       {field.label}
     </label>
   </div>

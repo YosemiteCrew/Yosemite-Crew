@@ -19,6 +19,7 @@ import { useCalendarNavigation } from '@/app/hooks/useCalendarNavigation';
 import {
   CalendarZoomMode,
   formatHourLabel,
+  formatMinuteLabel,
   getCalendarColumnGridStyle,
   getHourRowHeightPx,
 } from '@/app/features/appointments/components/Calendar/calendarLayout';
@@ -119,6 +120,12 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
     return offsets;
   }, [slotStepMinutes]);
   const lastVisibleHour = HOURS_IN_DAY - 1;
+  const showSlotTimeLabels = useMemo(() => {
+    if (!slotOffsetMinutes.length) return false;
+    const firstStep = slotOffsetMinutes[0];
+    const pixelsPerSlot = (firstStep / 60) * height;
+    return pixelsPerSlot >= 14;
+  }, [height, slotOffsetMinutes]);
   const teamColumns = useMemo(
     () =>
       team.map((user) => ({
@@ -248,6 +255,16 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                     style={{ height: `${height}px` }}
                   >
                     <span className="absolute top-0 -translate-y-1/2">{formatHourLabel(hour)}</span>
+                    {showSlotTimeLabels &&
+                      slotOffsetMinutes.map((minute) => (
+                        <span
+                          key={`slot-time-${hour}-${minute}`}
+                          className="absolute right-1 -translate-y-1/2 text-[10px] leading-none text-text-tertiary text-right whitespace-nowrap"
+                          style={{ top: `${(minute / 60) * 100}%` }}
+                        >
+                          {formatMinuteLabel(hour * 60 + minute)}
+                        </span>
+                      ))}
                   </div>
                   <div className="grid min-w-max" style={teamColumnsStyle}>
                     {teamColumns.map((column, index) => {

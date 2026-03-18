@@ -174,18 +174,24 @@ const Sidebar = () => {
         })}
       </div>
       <div className="sidebar-footer">
-        <button
-          type="button"
-          onClick={handleToggleCollapse}
-          className="sidebar-collapse-btn"
-          aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        <GlassTooltip
+          content={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          side={isCollapsed ? 'right' : 'top'}
+          className="sidebar-route-tooltip"
         >
-          {isCollapsed ? (
-            <MdOutlineKeyboardDoubleArrowRight size={21} />
-          ) : (
-            <MdOutlineKeyboardDoubleArrowLeft size={21} />
-          )}
-        </button>
+          <button
+            type="button"
+            onClick={handleToggleCollapse}
+            className="sidebar-collapse-btn"
+            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {isCollapsed ? (
+              <MdOutlineKeyboardDoubleArrowRight size={21} />
+            ) : (
+              <MdOutlineKeyboardDoubleArrowLeft size={21} />
+            )}
+          </button>
+        </GlassTooltip>
       </div>
     </div>
   );

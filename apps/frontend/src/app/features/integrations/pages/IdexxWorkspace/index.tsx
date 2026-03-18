@@ -36,7 +36,8 @@ import PdfPreviewOverlay from '@/app/ui/overlays/PdfPreviewOverlay';
 import Close from '@/app/ui/primitives/Icons/Close';
 import LabResultValue from '@/app/ui/widgets/LabResultValue';
 import { formatDateTimeLocal } from '@/app/lib/date';
-import { IoOpenOutline } from 'react-icons/io5';
+import { IoInformationCircleOutline, IoOpenOutline } from 'react-icons/io5';
+import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 
 const PAGE_SIZE_OPTIONS = [5, 10, 25, 50];
 const MODALITY_FILTERS = [
@@ -1074,10 +1075,18 @@ const IdexxWorkspacePage = () => {
 
   if (!s.integrationEnabled && !s.loading) {
     return (
-      <div className="flex flex-col gap-4 px-3! py-3! sm:px-12! lg:px-[60px]! sm:py-12!">
-        <div className="text-heading-1 text-text-primary">IDEXX Hub</div>
-        <div className="text-body-3 text-text-secondary">
-          IDEXX integration is currently disabled.
+      <div className="flex flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
+        <div className="text-heading-1 text-text-primary flex items-center gap-2">
+          <span>IDEXX Hub</span>
+          <GlassTooltip content="IDEXX integration is currently disabled." side="bottom">
+            <button
+              type="button"
+              aria-label="IDEXX Hub info"
+              className="relative top-[3px] inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none text-text-secondary hover:text-text-primary transition-colors"
+            >
+              <IoInformationCircleOutline size={20} />
+            </button>
+          </GlassTooltip>
         </div>
         <Link
           href="/integrations"
@@ -1090,7 +1099,7 @@ const IdexxWorkspacePage = () => {
   }
 
   return (
-    <div className="flex flex-col gap-6 px-3! py-3! sm:px-12! lg:px-[60px]! sm:py-12!">
+    <div className="flex flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
       <PdfPreviewOverlay
         open={s.showPdfPreview}
         pdfUrl={s.pdfPreviewUrl}
@@ -1106,11 +1115,21 @@ const IdexxWorkspacePage = () => {
 
       <div className="flex justify-between items-start gap-3 flex-wrap">
         <div className="flex flex-col gap-1">
-          <div className="text-heading-1 text-text-primary">IDEXX Hub</div>
-          <p className="text-body-3 text-text-secondary max-w-3xl">
-            Manage diagnostic operations with result monitoring, census visibility, and order
-            lookup.
-          </p>
+          <div className="text-heading-1 text-text-primary flex items-center gap-2">
+            <span>IDEXX Hub</span>
+            <GlassTooltip
+              content="Manage diagnostic operations with result monitoring, census visibility, and order lookup."
+              side="bottom"
+            >
+              <button
+                type="button"
+                aria-label="IDEXX Hub info"
+                className="relative top-[3px] inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none text-text-secondary hover:text-text-primary transition-colors"
+              >
+                <IoInformationCircleOutline size={20} />
+              </button>
+            </GlassTooltip>
+          </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
           <Secondary
