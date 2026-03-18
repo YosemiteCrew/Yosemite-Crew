@@ -85,13 +85,13 @@ export const loadAvailability = async (opts?: { silent?: boolean }) => {
 };
 
 export const loadTeamAvailability = async (orgId: string) => {
-  const { mergeAvailabilities } = useAvailabilityStore.getState();
+  const { setAvailabilitiesForOrg } = useAvailabilityStore.getState();
   try {
     const res = await getData<GetAvailabilityResponse>(
       '/fhir/v1/availability/' + orgId + '/base/all'
     );
     const availability = res.data?.data ?? [];
-    mergeAvailabilities(availability);
+    setAvailabilitiesForOrg(orgId, availability);
   } catch (err: unknown) {
     console.error('Failed to load team availability:', err);
     throw err;
