@@ -2,6 +2,22 @@
 
 This file is auto-loaded by Claude Code on every session. All rules here are **mandatory**.
 
+## Skills Index
+
+Modular skills in `.claude/skills/` provide deep, app-specific guidance. Load the relevant one before starting any task:
+
+| Skill                             | When to use                                                  |
+| --------------------------------- | ------------------------------------------------------------ |
+| `.claude/skills/frontend-design`  | UI work, new components, styling in apps/frontend            |
+| `.claude/skills/frontend-sonar`   | SonarQube fixes or writing Sonar-clean code in apps/frontend |
+| `.claude/skills/frontend-testing` | Writing/fixing/running tests in apps/frontend                |
+| `.claude/skills/backend-patterns` | Any work in apps/backend                                     |
+| `.claude/skills/mobile-patterns`  | Any work in apps/mobileAppYC                                 |
+| `.claude/skills/monorepo-ops`     | Cross-app work, dependency changes, turbo, pnpm              |
+| `.claude/skills/code-review`      | Reviewing code or auditing a PR                              |
+
+Per-app `AGENTS.md` files (for Codex compatibility): `apps/frontend/AGENTS.md`, `apps/backend/AGENTS.md`, `apps/mobileAppYC/AGENTS.md`.
+
 ---
 
 ## Monorepo Layout
@@ -21,9 +37,9 @@ Tooling: `pnpm` workspaces + `turbo`. Always use `--filter` to scope commands to
 
 ---
 
-## Mandatory Checks Before Finishing Any Task
+## Mandatory Checks Before Finishing A Frontend Task
 
-Run these in order. **Never skip any of them.**
+Run these in order when your changes touch `apps/frontend`. **Never skip any of them for frontend work.**
 
 ```bash
 # 1. Type check (run from apps/frontend/)
@@ -39,6 +55,8 @@ pnpm --filter frontend run test -- --testPathPattern="Availability"
 ```
 
 **Full test suite runs are forbidden.** They take 100+ seconds. Always target the test file(s) related to what you changed.
+
+For backend/mobile/shared-package only changes, run the workspace-appropriate checks instead of frontend checks.
 
 ## Commit Discipline — CRITICAL
 

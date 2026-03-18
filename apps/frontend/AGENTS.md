@@ -1,0 +1,89 @@
+# Frontend — Agent Rules
+
+Inherits all root `AGENTS.md` rules. This file adds frontend-specific rules.
+
+**Stack:** Next.js 15, React 19, TypeScript, Tailwind CSS 4, Zustand, Jest + RTL.
+
+---
+
+## Design System — Reuse First
+
+Before writing any new UI, check `src/app/ui/` for existing components:
+
+```
+src/app/ui/
+  Button.tsx          variants: primary | secondary | danger
+  Card.tsx            variants: default | bordered | subtle
+  Badge.tsx           status chips
+  Input.tsx           base input
+  Stack.tsx           flex layout helper
+  Text.tsx            typography
+  inputs/             Datepicker, Dropdowns, Search, FileInput
+  cards/              Appointment, Inventory, Forms
+  tables/             DataTable variants
+  overlays/           Modal, Toast, Loader
+  layout/             Header, Sidebar
+  primitives/         low-level Buttons, Icons
+  filters/            form/inventory filters
+```
+
+Import from barrel: `import { Button, Card } from '@/app/ui'`
+
+Design-token source of truth: `src/app/globals.css` (`@theme`). `src/app/ui/tokens.md` is reference material only. Never hardcode colors — use `--color-*` CSS tokens.
+
+---
+
+## Styling Rules
+
+- Tailwind CSS 4 only for new code. No new Bootstrap classes.
+- Use `clsx` for conditional classes.
+- Font: **Satoshi** (already loaded). Never default to Inter or system fonts for new UI.
+- No arbitrary Tailwind values (e.g. `w-[347px]`) without a clear reason.
+
+---
+
+## State Management
+
+Zustand stores in `src/app/stores/`. One store per domain. Do not introduce new state libraries.
+
+Available stores: appointment, auth, availability, companion, document, forms, integration, inventory, invoice, org, parent, profile, room, search, service, subscription, task, team, universalSearch.
+
+---
+
+## SonarQube — Non-Negotiable Rules
+
+Full rule set in `.claude/skills/frontend-sonar/SKILL.md`. Summary of the most commonly violated:
+
+- `useState` must be destructured: `const [value, setValue] = useState(...)`.
+- No `const [, setter]` — use `useRef` when the value is never read.
+- No `<div role="...">` where a native HTML element exists.
+- Non-interactive elements with `onClick` need `role`, `tabIndex={0}`, `onKeyDown`.
+- Cognitive complexity ≤ 15. Nesting ≤ 4 levels. No nested ternaries in JSX.
+- Arrays only used for `.includes()` → convert to `Set` and use `.has()`.
+- Use `globalThis.window` not bare `window`.
+
+After any change: `npx tsc --noemit` + `pnpm --filter frontend run lint`.
+
+---
+
+## Testing
+
+```bash
+# Targeted only — never the full suite
+pnpm --filter frontend run test -- --testPathPattern="ComponentName"
+```
+
+- Mock react-icons as `<span>`, not `<button>`.
+- `await act(async () => { ... })` for async state updates.
+- Reset Zustand stores in `beforeEach`.
+- DOM nesting warnings are test failures in this repo.
+
+---
+
+## What NOT to Do
+
+- Do not nest `<button>` inside `<button>`.
+- Do not add new `eslint-disable` comments.
+- Do not import the same module twice in one file.
+- Do not add new shadcn, Radix, or Material-UI imports — not in this stack.
+- Do not use the `void` operator on promises.

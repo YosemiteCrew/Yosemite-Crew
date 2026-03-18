@@ -1,0 +1,113 @@
+# Frontend Testing — Yosemite Crew
+
+## Description
+
+Use this skill when writing or fixing tests in apps/frontend. Covers Jest + React Testing Library conventions, targeting rules, and common pitfalls in this codebase.
+
+TRIGGER: any task involving test files in apps/frontend, or when asked to write/fix/run frontend tests.
+
+---
+
+## Run Tests — Always Targeted
+
+```bash
+# NEVER run the full suite (takes 100+ seconds)
+pnpm --filter frontend run test -- --testPathPattern="ComponentName"
+
+# Examples
+pnpm --filter frontend run test -- --testPathPattern="Availability"
+pnpm --filter frontend run test -- --testPathPattern="TaskBoard"
+pnpm --filter frontend run test -- --testPathPattern="__tests__/features/billing"
+```
+
+Full suite is **forbidden** per repo rules.
+
+---
+
+## Stack
+
+- **Jest 29** + **React Testing Library** (@testing-library/react, @testing-library/user-event)
+- **Playwright** for E2E (separate from unit/integration tests)
+- Test files: `src/app/__tests__/`
+- Jest config: `apps/frontend/jest.config.ts`
+- Mocks: `src/app/jest.mocks/`
+
+---
+
+## Rules
+
+### DOM Nesting
+
+`jest.spyOn(console, 'error')` checks are active — DOM nesting warnings are treated as test failures.
+
+- Never render `<button>` inside `<button>`.
+- Mock react-icons as `<span>` not `<button>`:
+
+```tsx
+// jest.mocks or inline
+jest.mock('react-icons/fa', () => ({
+  FaUser: () => <span data-testid="icon-user" />,
+  FaPlus: () => <span data-testid="icon-plus" />,
+}));
+```
+
+### Async State
+
+```tsx
+// Always wrap async state updates
+await act(async () => {
+  userEvent.click(button);
+});
+```
+
+### Zustand Stores
+
+Reset store state between tests to avoid leakage:
+
+```ts
+beforeEach(() => {
+  useAuthStore.setState({ user: null, isAuthenticated: false });
+});
+```
+
+### API Mocking
+
+Use `jest.spyOn` on axios or mock at the module level. Never make real HTTP calls in tests.
+
+```ts
+import axios from 'axios';
+jest.spyOn(axios, 'get').mockResolvedValue({ data: mockData });
+```
+
+### Query Priority (Testing Library)
+
+In order of preference:
+
+1. `getByRole` — semantic, accessible
+2. `getByLabelText` — forms
+3. `getByText` — when role isn't meaningful
+4. `getByTestId` — last resort, only when no other selector works
+
+---
+
+## File Structure
+
+```
+src/app/__tests__/
+  features/           ← feature-level tests
+  components/         ← component unit tests
+  hooks/              ← custom hook tests
+  utils/              ← utility function tests
+```
+
+Test file naming: `ComponentName.test.tsx` mirrors the source file name.
+
+---
+
+## Gotchas
+
+- Never use `screen.getByDisplayValue` for controlled inputs — use `getByRole('textbox')` + check value.
+- `userEvent` needs `await` in v14+ — always `await userEvent.click(el)`.
+- If a test imports from `@/app/ui`, make sure the mock is at module level, not inside `describe`.
+- Playwright tests live in `playwright/` and run separately — don't confuse them with Jest tests.
+- If `--testPathPattern` matches multiple files unintentionally, be more specific with the path.
