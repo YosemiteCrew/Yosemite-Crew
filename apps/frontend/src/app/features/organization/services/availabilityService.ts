@@ -94,6 +94,7 @@ export const loadTeamAvailability = async (orgId: string) => {
     mergeAvailabilities(availability);
   } catch (err: unknown) {
     console.error('Failed to load team availability:', err);
+    throw err;
   }
 };
 

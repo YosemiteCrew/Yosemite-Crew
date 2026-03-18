@@ -12,7 +12,6 @@ type ChangeCompanionStatusProps = {
 
 const CompanionStatusOptions: Array<{ value: RecordStatus; label: string }> = [
   { value: 'active', label: 'Active' },
-  { value: 'inactive', label: 'Inactive' },
   { value: 'archived', label: 'Archived' },
 ];
 
@@ -26,7 +25,7 @@ const ChangeCompanionStatus = ({
   setShowModal,
   activeCompanion,
 }: ChangeCompanionStatusProps) => {
-  const currentStatus: RecordStatus = activeCompanion.companion.status ?? 'inactive';
+  const currentStatus: RecordStatus = activeCompanion.companion.status ?? 'active';
 
   return (
     <ChangeStatusModal<RecordStatus>

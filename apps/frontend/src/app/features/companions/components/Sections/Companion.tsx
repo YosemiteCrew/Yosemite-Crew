@@ -99,7 +99,6 @@ const BLOOD_GROUP_OPTIONS_BY_SPECIES: Record<CompanionType, OptionProp[]> = {
 
 const COMPANION_STATUS_OPTIONS: OptionProp[] = [
   { value: 'active', label: 'Active' },
-  { value: 'inactive', label: 'Inactive' },
   { value: 'archived', label: 'Archived' },
 ];
 
@@ -351,7 +350,7 @@ const CompanionEditSection = ({
       onSelect={(option) =>
         setFormData((prev) => ({ ...prev, status: option.value as RecordStatus }))
       }
-      defaultOption={formData.status || 'inactive'}
+      defaultOption={formData.status || 'active'}
       options={COMPANION_STATUS_OPTIONS}
     />
 

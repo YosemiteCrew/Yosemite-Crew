@@ -142,7 +142,9 @@ const AppointmentCalendar = ({
       const fetchKey = primaryOrgId;
       if (teamAvailabilityFetchedRef.current === fetchKey) return;
       teamAvailabilityFetchedRef.current = fetchKey;
-      void loadTeamAvailability(primaryOrgId);
+      loadTeamAvailability(primaryOrgId).catch(() => {
+        teamAvailabilityFetchedRef.current = null;
+      });
     }
   }, [activeCalendar, primaryOrgId]);
 
