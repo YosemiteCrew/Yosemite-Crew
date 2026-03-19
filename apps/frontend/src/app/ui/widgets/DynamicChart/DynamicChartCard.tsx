@@ -26,6 +26,16 @@ type ChartProps = {
   yAxisLabel?: string;
 };
 
+type TiltedTickProps = { x: number; y: number; payload: { value: string } };
+
+const TiltedYTick = ({ x, y, payload }: TiltedTickProps) => (
+  <g transform={`translate(${x},${y})`}>
+    <text x={0} y={0} dx={-4} textAnchor="end" fontSize={11} fill="#666" transform="rotate(-30)">
+      {payload.value}
+    </text>
+  </g>
+);
+
 const DynamicChartCard: React.FC<ChartProps> = ({
   data,
   type = 'bar',
@@ -38,105 +48,12 @@ const DynamicChartCard: React.FC<ChartProps> = ({
   xAxisLabel,
   yAxisLabel,
 }) => {
+  const isVerticalLayout = layout === 'vertical';
   const chartMargin = {
     top: 0,
-    right: 0,
-    left: yAxisLabel ? 28 : 0,
+    right: isVerticalLayout ? 8 : 0,
+    left: yAxisLabel ? 20 : 0,
     bottom: xAxisLabel ? 26 : 0,
-  };
-
-  const renderChart = () => {
-    if (type === 'line') {
-      return (
-        <LineChart data={data} margin={chartMargin}>
-          <XAxis
-            dataKey="month"
-            label={
-              xAxisLabel
-                ? {
-                    value: xAxisLabel,
-                    position: 'insideBottom',
-                    offset: -2,
-                    dy: 16,
-                  }
-                : undefined
-            }
-          />
-          <YAxis
-            tickFormatter={yTickFormatter}
-            label={
-              yAxisLabel
-                ? {
-                    value: yAxisLabel,
-                    angle: -90,
-                    position: 'insideLeft',
-                    offset: 4,
-                    dx: -16,
-                  }
-                : undefined
-            }
-          />
-          <Tooltip />
-          {keys.map((key) => (
-            <Line
-              key={key.name}
-              type="monotone"
-              dataKey={key.name}
-              stroke={key.color}
-              strokeWidth={2}
-              dot={false}
-            />
-          ))}
-        </LineChart>
-      );
-    }
-
-    return (
-      <BarChart
-        data={data}
-        layout={layout}
-        style={{
-          height: '100%',
-          maxHeight: '100%',
-          width: '100%',
-          maxWidth: '100%',
-        }}
-        margin={chartMargin}
-      >
-        <CartesianGrid strokeDasharray="4 4" vertical={false} />
-        <XAxis
-          dataKey="month"
-          label={
-            xAxisLabel
-              ? {
-                  value: xAxisLabel,
-                  position: 'insideBottom',
-                  offset: -2,
-                  dy: 16,
-                }
-              : undefined
-          }
-        />
-        <YAxis
-          tickFormatter={yTickFormatter}
-          width={yAxisWidth}
-          label={
-            yAxisLabel
-              ? {
-                  value: yAxisLabel,
-                  angle: -90,
-                  position: 'insideLeft',
-                  offset: 4,
-                  dx: -16,
-                }
-              : undefined
-          }
-        />
-        {keys.map((key) => (
-          <Bar key={key.name} dataKey={key.name} fill={key.color} stackId="a" barSize={barSize} />
-        ))}
-      </BarChart>
-    );
   };
 
   return (
@@ -160,7 +77,79 @@ const DynamicChartCard: React.FC<ChartProps> = ({
         </div>
       )}
       <ResponsiveContainer width="100%" height={300}>
-        {renderChart()}
+        {type === 'line' ? (
+          <LineChart data={data} margin={chartMargin}>
+            <XAxis
+              dataKey="month"
+              label={
+                xAxisLabel
+                  ? { value: xAxisLabel, position: 'insideBottom', offset: -2, dy: 16 }
+                  : undefined
+              }
+            />
+            <YAxis
+              tickFormatter={yTickFormatter}
+              label={
+                yAxisLabel
+                  ? { value: yAxisLabel, angle: -90, position: 'insideLeft', offset: 4, dx: -16 }
+                  : undefined
+              }
+            />
+            <Tooltip />
+            {keys.map((key) => (
+              <Line
+                key={key.name}
+                type="monotone"
+                dataKey={key.name}
+                stroke={key.color}
+                strokeWidth={2}
+                dot={false}
+              />
+            ))}
+          </LineChart>
+        ) : (
+          <BarChart
+            data={data}
+            layout={layout}
+            style={{ height: '100%', maxHeight: '100%', width: '100%', maxWidth: '100%' }}
+            margin={chartMargin}
+          >
+            <CartesianGrid strokeDasharray="4 4" vertical={false} />
+            <XAxis
+              dataKey={isVerticalLayout ? undefined : 'month'}
+              type={isVerticalLayout ? 'number' : 'category'}
+              tick={{ fontSize: 11 }}
+              interval={0}
+              label={
+                xAxisLabel
+                  ? { value: xAxisLabel, position: 'insideBottom', offset: -2, dy: 16 }
+                  : undefined
+              }
+            />
+            <YAxis
+              dataKey={isVerticalLayout ? 'month' : undefined}
+              type={isVerticalLayout ? 'category' : 'number'}
+              tickFormatter={isVerticalLayout ? undefined : yTickFormatter}
+              width={isVerticalLayout ? 100 : yAxisWidth}
+              tick={isVerticalLayout ? TiltedYTick : { fontSize: 11 }}
+              label={
+                !isVerticalLayout && yAxisLabel
+                  ? { value: yAxisLabel, angle: -90, position: 'insideLeft', offset: 0, dx: -12 }
+                  : undefined
+              }
+            />
+            <Tooltip />
+            {keys.map((key) => (
+              <Bar
+                key={key.name}
+                dataKey={key.name}
+                fill={key.color}
+                stackId="a"
+                barSize={barSize}
+              />
+            ))}
+          </BarChart>
+        )}
       </ResponsiveContainer>
     </div>
   );

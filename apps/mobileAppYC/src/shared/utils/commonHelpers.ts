@@ -66,15 +66,21 @@ export const formatDateDisplay = (date?: string | Date | null): string => {
 /**
  * Display neutered status as human-readable text
  */
-export const displayNeutered = (v?: 'neutered' | 'not-neutered' | null): string => {
+export const displayNeutered = (
+  v?: 'neutered' | 'not-neutered' | null,
+  gender?: string | null,
+): string => {
   if (v == null) return '';
-  return v === 'neutered' ? 'Neutered' : 'Not neutered';
+  const term = gender === 'female' ? 'Spayed' : 'Neutered';
+  return v === 'neutered' ? term : `Not ${term.toLowerCase()}`;
 };
 
 /**
  * Display insured status as human-readable text
  */
-export const displayInsured = (v?: 'insured' | 'not-insured' | null): string => {
+export const displayInsured = (
+  v?: 'insured' | 'not-insured' | null,
+): string => {
   if (v == null) return '';
   return v === 'insured' ? 'Insured' : 'Not insured';
 };
@@ -82,7 +88,16 @@ export const displayInsured = (v?: 'insured' | 'not-insured' | null): string => 
 /**
  * Display companion origin as human-readable text
  */
-export const displayOrigin = (v?: 'shop' | 'breeder' | 'foster-shelter' | 'friends-family' | 'unknown' | null): string => {
+export const displayOrigin = (
+  v?:
+    | 'shop'
+    | 'breeder'
+    | 'foster-shelter'
+    | 'friends-family'
+    | 'stray'
+    | 'unknown'
+    | null,
+): string => {
   switch (v) {
     case 'shop':
       return 'Shop';
@@ -92,6 +107,8 @@ export const displayOrigin = (v?: 'shop' | 'breeder' | 'foster-shelter' | 'frien
       return 'Foster/ Shelter';
     case 'friends-family':
       return 'Friends or family';
+    case 'stray':
+      return 'Stray';
     case 'unknown':
       return 'Unknown';
     default:

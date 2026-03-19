@@ -121,10 +121,13 @@ const GENDER_OPTIONS = [
   {value: 'female', label: 'Female'},
 ];
 
-const NEUTERED_OPTIONS = [
-  {value: 'neutered', label: 'Neutered'},
-  {value: 'not-neutered', label: 'Not neutered'},
-];
+const getNeuteredOptions = (gender?: string | null) => {
+  const term = gender === 'female' ? 'Spayed' : 'Neutered';
+  return [
+    {value: 'neutered', label: term},
+    {value: 'not-neutered', label: `Not ${term.toLowerCase()}`},
+  ];
+};
 
 const INSURED_OPTIONS = [
   {value: 'insured', label: 'Insured'},
@@ -136,6 +139,7 @@ const ORIGIN_OPTIONS = [
   {value: 'breeder', label: 'Breeder'},
   {value: 'foster-shelter', label: 'Foster/ Shelter'},
   {value: 'friends-family', label: 'Friends or family'},
+  {value: 'stray', label: 'Stray'},
   {value: 'unknown', label: 'Unknown'},
 ];
 
@@ -165,7 +169,9 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
   const [breedOptions, setBreedOptions] = useState<Breed[]>([]);
 
   // Track which bottom sheet is currently open
-  const [openBottomSheet, setOpenBottomSheet] = useState<'breed' | 'bloodGroup' | 'country' | null>(null);
+  const [openBottomSheet, setOpenBottomSheet] = useState<
+    'breed' | 'bloodGroup' | 'country' | null
+  >(null);
 
   const {
     control,
@@ -222,60 +228,61 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
       label,
       placeholder,
       keyboardType,
-    maxLength,
-    multiline,
-    rules,
-    suffix,
-    dynamicSuffix,
-  }: {
-    label: string;
-    placeholder?: string;
-    keyboardType?: KeyboardTypeOptions;
-    maxLength?: number;
-    multiline?: boolean;
-    rules?: ControllerProps<FormData, Field>['rules'];
-    suffix?: string;
-    dynamicSuffix?: (value: string) => string;
-  },
-) => (
-  <Controller<FormData, Field>
-    control={control}
-    name={field}
-    rules={rules}
-    render={({field: {onChange, value}}) => {
-      let textValue = '';
-      if (typeof value === 'string' || typeof value === 'number') {
-        textValue = String(value ?? '');
-      }
+      maxLength,
+      multiline,
+      rules,
+      suffix,
+      dynamicSuffix,
+    }: {
+      label: string;
+      placeholder?: string;
+      keyboardType?: KeyboardTypeOptions;
+      maxLength?: number;
+      multiline?: boolean;
+      rules?: ControllerProps<FormData, Field>['rules'];
+      suffix?: string;
+      dynamicSuffix?: (value: string) => string;
+    },
+  ) => (
+    <Controller<FormData, Field>
+      control={control}
+      name={field}
+      rules={rules}
+      render={({field: {onChange, value}}) => {
+        let textValue = '';
+        if (typeof value === 'string' || typeof value === 'number') {
+          textValue = String(value ?? '');
+        }
 
-      const displaySuffix = dynamicSuffix ? dynamicSuffix(textValue) : suffix;
+        const displaySuffix = dynamicSuffix ? dynamicSuffix(textValue) : suffix;
 
-      return (
-        <Input
-          label={label}
-          value={textValue}
-          onChangeText={(text) => {
-            onChange(text);
-            setHasUnsavedChanges(true);
-          }}
-          placeholder={placeholder}
-          keyboardType={keyboardType}
-          maxLength={maxLength}
-          multiline={multiline}
-          error={getFieldError(field)}
-          containerStyle={styles.inputContainer}
-          icon={
-            displaySuffix && textValue ? (
-              <Text style={styles.suffixText}>{displaySuffix}</Text>
-            ) : undefined
-          }
-        />
-      );
-    }}
-  />
-);
+        return (
+          <Input
+            label={label}
+            value={textValue}
+            onChangeText={text => {
+              onChange(text);
+              setHasUnsavedChanges(true);
+            }}
+            placeholder={placeholder}
+            keyboardType={keyboardType}
+            maxLength={maxLength}
+            multiline={multiline}
+            error={getFieldError(field)}
+            containerStyle={styles.inputContainer}
+            icon={
+              displaySuffix && textValue ? (
+                <Text style={styles.suffixText}>{displaySuffix}</Text>
+              ) : undefined
+            }
+          />
+        );
+      }}
+    />
+  );
 
   const category = watch('category');
+  const gender = watch('gender');
   const neuteredStatus = watch('neuteredStatus');
   const insuredStatus = watch('insuredStatus');
   const breed = watch('breed');
@@ -292,12 +299,15 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
         if (!tokens?.accessToken) {
           return;
         }
-        const speciesEntries = await fetchSpeciesCodeEntries(tokens.accessToken);
+        const speciesEntries = await fetchSpeciesCodeEntries(
+          tokens.accessToken,
+        );
         if (!mounted) {
           return;
         }
 
-        const byCategory: Partial<Record<CompanionCategory, SpeciesCodeEntry>> = {};
+        const byCategory: Partial<Record<CompanionCategory, SpeciesCodeEntry>> =
+          {};
         for (const entry of speciesEntries) {
           const normalized = entry.display?.toLowerCase().trim();
           if (normalized === 'canine') {
@@ -355,7 +365,8 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
             speciesName: CATEGORY_TO_SPECIES_LABEL[category],
             breedId: index + 1,
             breedName: entry.display,
-            speciesCode: entry.meta?.speciesCode ?? speciesByCategory[category]?.code,
+            speciesCode:
+              entry.meta?.speciesCode ?? speciesByCategory[category]?.code,
             breedCode: entry.code,
           }),
         );
@@ -371,37 +382,38 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
     };
   }, [category, setValue, speciesByCategory]);
 
-
-
   // Handle Android back button
   useEffect(() => {
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      // If date picker is open, close it first
-      if (showDatePicker) {
-        setShowDatePicker(false);
-        return true; // Prevent default back action
-      }
-
-      // If any bottom sheet is open, close it first
-      if (openBottomSheet) {
-        switch (openBottomSheet) {
-          case 'breed':
-            breedSheetRef.current?.close();
-            break;
-          case 'bloodGroup':
-            bloodGroupSheetRef.current?.close();
-            break;
-          case 'country':
-            countrySheetRef.current?.close();
-            break;
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        // If date picker is open, close it first
+        if (showDatePicker) {
+          setShowDatePicker(false);
+          return true; // Prevent default back action
         }
-        setOpenBottomSheet(null);
-        return true; // Prevent default back action
-      }
 
-      // Otherwise allow normal back navigation
-      return false;
-    });
+        // If any bottom sheet is open, close it first
+        if (openBottomSheet) {
+          switch (openBottomSheet) {
+            case 'breed':
+              breedSheetRef.current?.close();
+              break;
+            case 'bloodGroup':
+              bloodGroupSheetRef.current?.close();
+              break;
+            case 'country':
+              countrySheetRef.current?.close();
+              break;
+          }
+          setOpenBottomSheet(null);
+          return true; // Prevent default back action
+        }
+
+        // Otherwise allow normal back navigation
+        return false;
+      },
+    );
 
     return () => backHandler.remove();
   }, [showDatePicker, openBottomSheet]);
@@ -432,10 +444,18 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
   const handleBreedSave = useCallback(
     (selectedBreed: Breed | null) => {
       setValue('breed', selectedBreed, {shouldValidate: true});
-      setValue('breedCode', selectedBreed?.breedCode ?? null, {shouldValidate: false});
-      setValue('speciesCode', selectedBreed?.speciesCode ?? speciesByCategory[category ?? 'dog']?.code ?? null, {
+      setValue('breedCode', selectedBreed?.breedCode ?? null, {
         shouldValidate: false,
       });
+      setValue(
+        'speciesCode',
+        selectedBreed?.speciesCode ??
+          speciesByCategory[category ?? 'dog']?.code ??
+          null,
+        {
+          shouldValidate: false,
+        },
+      );
       setOpenBottomSheet(null);
       setHasUnsavedChanges(true);
     },
@@ -463,7 +483,9 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
 
   const handleCountrySave = useCallback(
     (country: any) => {
-      setValue('countryOfOrigin', country?.name || null, {shouldValidate: true});
+      setValue('countryOfOrigin', country?.name || null, {
+        shouldValidate: true,
+      });
       setOpenBottomSheet(null);
       setHasUnsavedChanges(true);
     },
@@ -509,7 +531,14 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
   };
 
   const handleStep2Next = async () => {
-    const fieldsToValidate = ['name', 'breed', 'gender', 'dateOfBirth', 'neuteredStatus', 'ageWhenNeutered'] as const;
+    const fieldsToValidate = [
+      'name',
+      'breed',
+      'gender',
+      'dateOfBirth',
+      'neuteredStatus',
+      'ageWhenNeutered',
+    ] as const;
     const isValid = await trigger(fieldsToValidate);
 
     if (!breed) {
@@ -536,16 +565,13 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
       return;
     }
 
-    if (watch('neuteredStatus') === 'neutered' && !watch('ageWhenNeutered')?.trim()) {
-      setError('ageWhenNeutered', {
-        type: 'manual',
-        message: 'Age when neutered is required',
-      });
-      return;
-    }
-
     if (isValid) {
-      clearErrors(['breed', 'dateOfBirth', 'neuteredStatus', 'ageWhenNeutered']);
+      clearErrors([
+        'breed',
+        'dateOfBirth',
+        'neuteredStatus',
+        'ageWhenNeutered',
+      ]);
       setCurrentStep(3);
     }
   };
@@ -555,7 +581,9 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
     console.log('Form Data:', JSON.stringify(data, null, 2));
 
     if (!user?.parentId) {
-      setSubmissionError('Parent profile not found. Please complete your profile.');
+      setSubmissionError(
+        'Parent profile not found. Please complete your profile.',
+      );
       console.error('Parent profile missing for companion creation');
       return;
     }
@@ -581,7 +609,9 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
     setSubmissionError('');
 
     // Convert weight to kg (standard storage unit) if user entered in lbs
-    let weightInKg = data.currentWeight ? Number.parseFloat(data.currentWeight) : null;
+    let weightInKg = data.currentWeight
+      ? Number.parseFloat(data.currentWeight)
+      : null;
     if (weightInKg && weightUnit === 'lbs') {
       weightInKg = convertWeight(weightInKg, 'lbs', 'kg');
     }
@@ -671,9 +701,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
               activeOpacity={0.8}>
               <Image
                 source={imageSources[cat.value]}
-                style={[
-                  styles.categoryIcon
-                ]}
+                style={[styles.categoryIcon]}
               />
               <Text
                 style={[
@@ -800,14 +828,18 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
         })}
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.fieldLabel}>Neutered status</Text>
+          <Text style={styles.fieldLabel}>
+            {gender === 'female' ? 'Spayed status' : 'Neutered status'}
+          </Text>
           <Controller
             control={control}
             name="neuteredStatus"
-            rules={{required: 'Neutered status is required'}}
+            rules={{
+              required: `${gender === 'female' ? 'Spayed' : 'Neutered'} status is required`,
+            }}
             render={() => (
               <TileSelector
-                options={NEUTERED_OPTIONS}
+                options={getNeuteredOptions(gender)}
                 selectedValue={neuteredStatus}
                 onSelect={value => {
                   setValue('neuteredStatus', value as NeuteredStatus, {
@@ -827,13 +859,12 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
 
         {neuteredStatus === 'neutered' &&
           renderTextField('ageWhenNeutered', {
-            label: 'Age when neutered',
+            label: `Age when ${gender === 'female' ? 'spayed' : 'neutered'} (optional)`,
             placeholder: 'e.g., 1 Year',
             maxLength: 20,
             rules: {
-              required: neuteredStatus === 'neutered' ? 'Age when neutered is required' : false,
-              validate: (value) => {
-                if (neuteredStatus === 'neutered' && value) {
+              validate: value => {
+                if (value) {
                   const numValue = Number.parseFloat(value);
                   if (Number.isNaN(numValue)) {
                     return 'Please enter a valid number';
@@ -845,7 +876,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
                 return true;
               },
             },
-            dynamicSuffix: (value) => {
+            dynamicSuffix: value => {
               const numValue = Number.parseFloat(value);
               if (Number.isNaN(numValue)) return '';
               return numValue === 1 ? 'Year' : 'Years';
@@ -1017,85 +1048,94 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
   return (
     <>
       <SafeArea style={styles.container} edges={[]}>
-      <View
-        style={styles.topSection}
-        onLayout={event => {
-          const height = event.nativeEvent.layout.height;
-          if (height !== topGlassHeight) {
-            setTopGlassHeight(height);
-          }
-        }}>
-        <View style={styles.topGlassShadowWrapper}>
-          <LiquidGlassCard
-            glassEffect="clear"
-            interactive={false}
-            shadow="none"
-            style={[styles.topGlassCard, {paddingTop: insets.top}]}
-            fallbackStyle={styles.topGlassFallback}>
-            <Header
-              title={currentStep === 1 ? 'Choose your companion' : 'Add companion'}
-              showBackButton
-              onBack={handleGoBack}
-              glass={false}
-            />
-          </LiquidGlassCard>
-        </View>
-      </View>
-
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardAvoidingView}>
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={[
-            styles.scrollContent,
-            topGlassHeight
-              ? {paddingTop: topGlassHeight + theme.spacing['3']}
-              : null,
-            {paddingBottom: theme.spacing['24'] + Math.max(insets.bottom, theme.spacing['3'])},
-          ]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled">
-          {currentStep === 1 && renderStep1()}
-          {currentStep === 2 && renderStep2()}
-          {currentStep === 3 && renderStep3()}
-        </ScrollView>
-
-        {submissionError ? (
-          <Text style={styles.submissionError}>{submissionError}</Text>
-        ) : null}
-
         <View
-          style={[
-            styles.buttonContainer,
-            {paddingBottom: theme.spacing['4'] + Math.max(insets.bottom, theme.spacing['3'])},
-          ]}>
-          <LiquidGlassButton
-            title={primaryButtonLabel}
-            onPress={handlePrimaryButtonPress}
-            style={styles.button}
-            textStyle={styles.buttonText}
-            tintColor={theme.colors.secondary}
-            shadowIntensity="medium"
-            forceBorder
-            borderColor={theme.colors.borderMuted}
-            height={theme.spacing['14']}
-            borderRadius={theme.borderRadius.lg}
-            loading={isPrimaryButtonLoading}
-            disabled={isPrimaryButtonLoading}
-          />
+          style={styles.topSection}
+          onLayout={event => {
+            const height = event.nativeEvent.layout.height;
+            if (height !== topGlassHeight) {
+              setTopGlassHeight(height);
+            }
+          }}>
+          <View style={styles.topGlassShadowWrapper}>
+            <LiquidGlassCard
+              glassEffect="clear"
+              interactive={false}
+              shadow="none"
+              style={[styles.topGlassCard, {paddingTop: insets.top}]}
+              fallbackStyle={styles.topGlassFallback}>
+              <Header
+                title={
+                  currentStep === 1 ? 'Choose your companion' : 'Add companion'
+                }
+                showBackButton
+                onBack={handleGoBack}
+                glass={false}
+              />
+            </LiquidGlassCard>
+          </View>
         </View>
 
-        <SimpleDatePicker
-          value={dateOfBirth}
-          onDateChange={handleDateChange}
-          show={showDatePicker}
-          onDismiss={handleDatePickerDismiss}
-          maximumDate={getMaximumDate()}
-          mode="date"
-        />
-      </KeyboardAvoidingView>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardAvoidingView}>
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={[
+              styles.scrollContent,
+              topGlassHeight
+                ? {paddingTop: topGlassHeight + theme.spacing['3']}
+                : null,
+              {
+                paddingBottom:
+                  theme.spacing['24'] +
+                  Math.max(insets.bottom, theme.spacing['3']),
+              },
+            ]}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled">
+            {currentStep === 1 && renderStep1()}
+            {currentStep === 2 && renderStep2()}
+            {currentStep === 3 && renderStep3()}
+          </ScrollView>
 
+          {submissionError ? (
+            <Text style={styles.submissionError}>{submissionError}</Text>
+          ) : null}
+
+          <View
+            style={[
+              styles.buttonContainer,
+              {
+                paddingBottom:
+                  theme.spacing['4'] +
+                  Math.max(insets.bottom, theme.spacing['3']),
+              },
+            ]}>
+            <LiquidGlassButton
+              title={primaryButtonLabel}
+              onPress={handlePrimaryButtonPress}
+              style={styles.button}
+              textStyle={styles.buttonText}
+              tintColor={theme.colors.secondary}
+              shadowIntensity="medium"
+              forceBorder
+              borderColor={theme.colors.borderMuted}
+              height={theme.spacing['14']}
+              borderRadius={theme.borderRadius.lg}
+              loading={isPrimaryButtonLoading}
+              disabled={isPrimaryButtonLoading}
+            />
+          </View>
+
+          <SimpleDatePicker
+            value={dateOfBirth}
+            onDateChange={handleDateChange}
+            show={showDatePicker}
+            onDismiss={handleDatePickerDismiss}
+            maximumDate={getMaximumDate()}
+            mode="date"
+          />
+        </KeyboardAvoidingView>
       </SafeArea>
 
       <BreedBottomSheet
@@ -1141,7 +1181,7 @@ const createStyles = (theme: any) =>
       color: theme.colors.textSecondary,
       textAlign: 'center',
       marginBottom: theme.spacing['30'],
-           marginTop: theme.spacing['6'],
+      marginTop: theme.spacing['6'],
       lineHeight: 22,
     },
     categoryGrid: {
@@ -1159,9 +1199,8 @@ const createStyles = (theme: any) =>
     categoryIcon: {
       width: 110,
       height: 110,
-      objectFit:"contain",
+      objectFit: 'contain',
       padding: theme.spacing['4'],
-
     },
     categoryLabel: {
       ...theme.typography.titleLarge,

@@ -54,9 +54,11 @@ describe('InvoicePaymentActions', () => {
       )
     );
 
-    expect(
-      screen.getByText('Confirm cash payment before marking this invoice as paid.')
-    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        screen.getByText('Confirm cash payment before marking this invoice as paid.')
+      ).toBeInTheDocument()
+    );
     expect(screen.getByText('Collect cash')).toBeInTheDocument();
     expect(notifyMock).toHaveBeenCalledWith('warning', {
       title: 'Confirm cash collection',
@@ -87,6 +89,7 @@ describe('InvoicePaymentActions', () => {
       )
     );
 
+    await waitFor(() => expect(screen.getByText('Collect cash')).toBeInTheDocument());
     fireEvent.click(screen.getByText('Collect cash'));
 
     await waitFor(() => expect(markInvoicePaidMock).toHaveBeenCalledWith('inv-1'));

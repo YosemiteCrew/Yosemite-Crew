@@ -23,8 +23,7 @@ export const loadIntegrationsForPrimaryOrg = async (opts?: {
 
   if (!primaryOrgId) return;
   const hasOrgData = Object.hasOwn(integrationIdsByOrgId, primaryOrgId);
-  const shouldFetch =
-    opts?.force || status === 'idle' || status === 'error' || !lastFetchedAt || !hasOrgData;
+  const shouldFetch = opts?.force || status === 'idle' || !lastFetchedAt || !hasOrgData;
   if (!shouldFetch) return;
 
   if (!opts?.silent) startLoading();
@@ -41,13 +40,12 @@ export const loadIntegrationsForPrimaryOrg = async (opts?: {
 export const useLoadIntegrationsForPrimaryOrg = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const integrationIdsByOrgId = useIntegrationStore((s) => s.integrationIdsByOrgId);
-  const status = useIntegrationStore((s) => s.status);
   useEffect(() => {
     if (!primaryOrgId) return;
-    if (status === 'loading') return;
+    if (useIntegrationStore.getState().status === 'loading') return;
     if (Object.hasOwn(integrationIdsByOrgId, primaryOrgId)) return;
     void loadIntegrationsForPrimaryOrg();
-  }, [primaryOrgId, integrationIdsByOrgId, status]);
+  }, [primaryOrgId, integrationIdsByOrgId]);
 };
 
 export const useIntegrationsForPrimaryOrg = (): OrgIntegration[] => {

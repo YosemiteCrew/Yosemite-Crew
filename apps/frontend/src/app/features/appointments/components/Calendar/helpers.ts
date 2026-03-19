@@ -259,7 +259,7 @@ export function autoScrollCalendarHorizontally(
   startNode: HTMLElement | null,
   options?: { edgeThresholdPx?: number; stepPx?: number }
 ) {
-  const edgeThresholdPx = options?.edgeThresholdPx ?? 72;
+  const edgeThresholdPx = options?.edgeThresholdPx ?? 100;
   const stepPx = options?.stepPx ?? 28;
 
   let node: HTMLElement | null = startNode;
@@ -275,6 +275,35 @@ export function autoScrollCalendarHorizontally(
       }
       if (clientX >= rect.right - edgeThresholdPx) {
         node.scrollLeft = Math.min(maxScrollLeft, node.scrollLeft + stepPx);
+        return;
+      }
+      return;
+    }
+    node = node.parentElement;
+  }
+}
+
+export function autoScrollCalendarVertically(
+  clientY: number,
+  startNode: HTMLElement | null,
+  options?: { edgeThresholdPx?: number; stepPx?: number }
+) {
+  const edgeThresholdPx = options?.edgeThresholdPx ?? 100;
+  const stepPx = options?.stepPx ?? 28;
+
+  let node: HTMLElement | null = startNode;
+  while (node) {
+    const isCalendarScroller = node.dataset.calendarScroll === 'true';
+    const canScrollY = node.scrollHeight > node.clientHeight + 1;
+    if (isCalendarScroller && canScrollY) {
+      const rect = node.getBoundingClientRect();
+      const maxScrollTop = Math.max(0, node.scrollHeight - node.clientHeight);
+      if (clientY <= rect.top + edgeThresholdPx) {
+        node.scrollTop = Math.max(0, node.scrollTop - stepPx);
+        return;
+      }
+      if (clientY >= rect.bottom - edgeThresholdPx) {
+        node.scrollTop = Math.min(maxScrollTop, node.scrollTop + stepPx);
         return;
       }
       return;

@@ -32,7 +32,8 @@ const parentCompanionsEndpoint = (parentId: string) =>
 const COMPANION_INSURANCE_EXTENSION_URL =
   'https://yosemitecrew.com/fhir/StructureDefinition/companion-insurance';
 const LEGACY_EXTENSION_PREFIX = 'http://example.org/fhir/StructureDefinition/';
-const CURRENT_EXTENSION_PREFIX = 'https://yosemitecrew.com/fhir/StructureDefinition/';
+const CURRENT_EXTENSION_PREFIX =
+  'https://yosemitecrew.com/fhir/StructureDefinition/';
 
 const logCompanionApiEvent = (
   phase: 'request' | 'response' | 'error',
@@ -56,10 +57,16 @@ const normalizeLegacyExtensionUrls = (
   }
 
   const normalizedExtensions = resource.extension.map(extension => {
-    if (typeof extension.url === 'string' && extension.url.startsWith(LEGACY_EXTENSION_PREFIX)) {
+    if (
+      typeof extension.url === 'string' &&
+      extension.url.startsWith(LEGACY_EXTENSION_PREFIX)
+    ) {
       return {
         ...extension,
-        url: extension.url.replace(LEGACY_EXTENSION_PREFIX, CURRENT_EXTENSION_PREFIX),
+        url: extension.url.replace(
+          LEGACY_EXTENSION_PREFIX,
+          CURRENT_EXTENSION_PREFIX,
+        ),
       };
     }
     return extension;
@@ -85,7 +92,10 @@ const normalizeOutgoingExtensionUrls = (
     ) {
       return {
         ...extension,
-        url: extension.url.replace(CURRENT_EXTENSION_PREFIX, LEGACY_EXTENSION_PREFIX),
+        url: extension.url.replace(
+          CURRENT_EXTENSION_PREFIX,
+          LEGACY_EXTENSION_PREFIX,
+        ),
       };
     }
     return extension;
@@ -137,14 +147,17 @@ const extractInsuranceDetails = (
   );
 
   const nestedExtensions =
-    Array.isArray(insuranceExtension?.extension) && insuranceExtension?.extension?.length
+    Array.isArray(insuranceExtension?.extension) &&
+    insuranceExtension?.extension?.length
       ? insuranceExtension?.extension
       : [];
 
   const companyName =
-    nestedExtensions?.find(ext => ext.url === 'companyName')?.valueString ?? null;
+    nestedExtensions?.find(ext => ext.url === 'companyName')?.valueString ??
+    null;
   const policyNumber =
-    nestedExtensions?.find(ext => ext.url === 'policyNumber')?.valueString ?? null;
+    nestedExtensions?.find(ext => ext.url === 'policyNumber')?.valueString ??
+    null;
 
   return {
     companyName,
@@ -157,6 +170,7 @@ const SOURCE_BY_ORIGIN: Record<CompanionOrigin, SourceType> = {
   breeder: 'breeder',
   'foster-shelter': 'foster_shelter',
   'friends-family': 'friends_family',
+  stray: 'stray',
   unknown: 'unknown',
 };
 
@@ -165,6 +179,7 @@ const ORIGIN_BY_SOURCE: Record<SourceType, CompanionOrigin> = {
   breeder: 'breeder',
   foster_shelter: 'foster-shelter',
   friends_family: 'friends-family',
+  stray: 'stray',
   unknown: 'unknown',
 };
 
@@ -214,14 +229,18 @@ const extractCompanionResource = (payload: unknown): CompanionResponseDTO => {
   return payload as CompanionResponseDTO;
 };
 
-const ensureCategory = (category: CompanionCategory | null | undefined): CompanionCategory => {
+const ensureCategory = (
+  category: CompanionCategory | null | undefined,
+): CompanionCategory => {
   if (!category) {
     throw new Error('Companion category is required.');
   }
   return category;
 };
 
-const ensureGender = (gender: CompanionGender | null | undefined): CompanionGender => {
+const ensureGender = (
+  gender: CompanionGender | null | undefined,
+): CompanionGender => {
   if (!gender) {
     throw new Error('Companion gender is required.');
   }
@@ -240,7 +259,9 @@ const ensureDateOfBirth = (value: string | Date | null | undefined): Date => {
   return date;
 };
 
-const ensureOrigin = (origin: CompanionOrigin | null | undefined): CompanionOrigin => {
+const ensureOrigin = (
+  origin: CompanionOrigin | null | undefined,
+): CompanionOrigin => {
   if (!origin) {
     throw new Error('Companion origin is required.');
   }
@@ -258,14 +279,17 @@ const mapCategoryToType = (category: CompanionCategory): CompanionType => {
   }
 };
 
-const mapTypeToCategory = (type: CompanionType | undefined): CompanionCategory => {
+const mapTypeToCategory = (
+  type: CompanionType | undefined,
+): CompanionCategory => {
   if (type === 'cat' || type === 'dog' || type === 'horse') {
     return type;
   }
   return 'dog';
 };
 
-const mapOriginToSource = (origin: CompanionOrigin): SourceType => SOURCE_BY_ORIGIN[origin];
+const mapOriginToSource = (origin: CompanionOrigin): SourceType =>
+  SOURCE_BY_ORIGIN[origin];
 
 const mapSourceToOrigin = (source: SourceType | undefined): CompanionOrigin => {
   if (!source) {
@@ -283,18 +307,24 @@ const mapNeuteredStatusToBoolean = (
   return status === 'neutered';
 };
 
-const mapBooleanToNeuteredStatus = (value: boolean | undefined): NeuteredStatus => {
+const mapBooleanToNeuteredStatus = (
+  value: boolean | undefined,
+): NeuteredStatus => {
   if (value === true) {
     return 'neutered';
   }
   return 'not-neutered';
 };
 
-const mapInsuredStatusToBoolean = (status: InsuredStatus | null | undefined): boolean => {
+const mapInsuredStatusToBoolean = (
+  status: InsuredStatus | null | undefined,
+): boolean => {
   return status === 'insured';
 };
 
-const mapBooleanToInsuredStatus = (value: boolean | undefined): InsuredStatus => {
+const mapBooleanToInsuredStatus = (
+  value: boolean | undefined,
+): InsuredStatus => {
   return value ? 'insured' : 'not-insured';
 };
 
@@ -369,8 +399,8 @@ const extractCompanionInput = (input: CompanionInput) => {
     countryOfOrigin: countryOfOrigin ?? undefined,
     origin: ensureOrigin(origin),
     profileImage: profileImage ?? undefined,
-    speciesCode: speciesCode ?? (breed?.speciesCode ?? undefined),
-    breedCode: breedCode ?? (breed?.breedCode ?? undefined),
+    speciesCode: speciesCode ?? breed?.speciesCode ?? undefined,
+    breedCode: breedCode ?? breed?.breedCode ?? undefined,
     createdAt: isAppCompanion(input) ? new Date(input.createdAt) : undefined,
     updatedAt: isAppCompanion(input) ? new Date(input.updatedAt) : undefined,
   };
@@ -404,7 +434,9 @@ const buildBackendCompanion = (input: CompanionInput): BackendCompanion => {
     updatedAt,
   } = extractCompanionInput(input);
 
-  const hasInsuranceDetails = Boolean(insuranceCompany || insurancePolicyNumber);
+  const hasInsuranceDetails = Boolean(
+    insuranceCompany || insurancePolicyNumber,
+  );
 
   return {
     id,
@@ -447,32 +479,31 @@ const mapResponseToAppCompanion = (
 ): Companion => {
   const normalizedResponse = normalizeLegacyExtensionUrls(response);
   const attributes = fromCompanionRequestDTO(normalizedResponse);
-  const {companyName, policyNumber} = extractInsuranceDetails(normalizedResponse);
+  const {companyName, policyNumber} =
+    extractInsuranceDetails(normalizedResponse);
 
   const category = mapTypeToCategory(attributes.type);
-  const dateOfBirth = attributes.dateOfBirth?.toISOString() ?? new Date().toISOString();
-  const updatedAt = attributes.updatedAt?.toISOString() ?? new Date().toISOString();
+  const dateOfBirth =
+    attributes.dateOfBirth?.toISOString() ?? new Date().toISOString();
+  const updatedAt =
+    attributes.updatedAt?.toISOString() ?? new Date().toISOString();
 
   const mergedBreed =
     attributes.breed && category
       ? normalizeBreed({
           breedName: attributes.breed,
           category,
-          speciesCode: attributes.speciesCode ?? persisted?.speciesCode ?? undefined,
+          speciesCode:
+            attributes.speciesCode ?? persisted?.speciesCode ?? undefined,
           breedCode: attributes.breedCode ?? persisted?.breedCode ?? undefined,
         })
       : null;
 
   const attrId =
-    (attributes as any)._id ??
-    (attributes as any).identifier?.[0]?.value;
+    (attributes as any)._id ?? (attributes as any).identifier?.[0]?.value;
 
   const resolvedId =
-    attrId ??
-    (response as any).id ??
-    persisted?.id ??
-    attributes.name ??
-    '';
+    attrId ?? (response as any).id ?? persisted?.id ?? attributes.name ?? '';
 
   return {
     id: resolvedId,
@@ -486,24 +517,31 @@ const mapResponseToAppCompanion = (
     gender:
       attributes.gender === 'male' || attributes.gender === 'female'
         ? attributes.gender
-        : persisted?.gender ?? 'male',
+        : (persisted?.gender ?? 'male'),
     currentWeight:
       typeof attributes.currentWeight === 'number'
         ? attributes.currentWeight
-        : persisted?.currentWeight ?? null,
+        : (persisted?.currentWeight ?? null),
     color: attributes.colour ?? persisted?.color ?? null,
     allergies: attributes.allergy ?? persisted?.allergies ?? null,
     neuteredStatus: mapBooleanToNeuteredStatus(attributes.isneutered),
-    ageWhenNeutered: attributes.ageWhenNeutered ?? persisted?.ageWhenNeutered ?? null,
+    ageWhenNeutered:
+      attributes.ageWhenNeutered ?? persisted?.ageWhenNeutered ?? null,
     bloodGroup: attributes.bloodGroup ?? persisted?.bloodGroup ?? null,
-    microchipNumber: attributes.microchipNumber ?? persisted?.microchipNumber ?? null,
-    passportNumber: attributes.passportNumber ?? persisted?.passportNumber ?? null,
+    microchipNumber:
+      attributes.microchipNumber ?? persisted?.microchipNumber ?? null,
+    passportNumber:
+      attributes.passportNumber ?? persisted?.passportNumber ?? null,
     insuredStatus: mapBooleanToInsuredStatus(attributes.isInsured),
     insuranceCompany: companyName ?? persisted?.insuranceCompany ?? null,
-    insurancePolicyNumber: policyNumber ?? persisted?.insurancePolicyNumber ?? null,
-    countryOfOrigin: attributes.countryOfOrigin ?? persisted?.countryOfOrigin ?? null,
+    insurancePolicyNumber:
+      policyNumber ?? persisted?.insurancePolicyNumber ?? null,
+    countryOfOrigin:
+      attributes.countryOfOrigin ?? persisted?.countryOfOrigin ?? null,
     origin: mapSourceToOrigin(attributes.source),
-    profileImage: normalizeImageUri(attributes.photoUrl ?? persisted?.profileImage ?? null),
+    profileImage: normalizeImageUri(
+      attributes.photoUrl ?? persisted?.profileImage ?? null,
+    ),
     createdAt: persisted?.createdAt ?? updatedAt,
     updatedAt,
   };
@@ -513,17 +551,21 @@ const postCompanion = async (
   parentId: string,
   payload: CompanionRequestDTO,
   accessToken: string,
-): Promise<AxiosResponse<CompanionResponseDTO | {payload?: CompanionResponseDTO}>> => {
+): Promise<
+  AxiosResponse<CompanionResponseDTO | {payload?: CompanionResponseDTO}>
+> => {
   logCompanionApiEvent('request', {
     method: 'POST',
     endpoint: COMPANION_ENDPOINT,
-      payload: {
-        payload,
-        parentId,
-      },
-    });
+    payload: {
+      payload,
+      parentId,
+    },
+  });
   try {
-    const response = await apiClient.post<CompanionResponseDTO | {payload?: CompanionResponseDTO}>(
+    const response = await apiClient.post<
+      CompanionResponseDTO | {payload?: CompanionResponseDTO}
+    >(
       COMPANION_ENDPOINT,
       {
         payload,
@@ -555,7 +597,9 @@ const putCompanion = async (
   id: string,
   payload: CompanionRequestDTO,
   accessToken: string,
-): Promise<AxiosResponse<CompanionResponseDTO | {payload?: CompanionResponseDTO}>> => {
+): Promise<
+  AxiosResponse<CompanionResponseDTO | {payload?: CompanionResponseDTO}>
+> => {
   const endpoint = `${COMPANION_ENDPOINT}/${id}`;
   logCompanionApiEvent('request', {
     method: 'PUT',
@@ -563,7 +607,9 @@ const putCompanion = async (
     payload,
   });
   try {
-    const response = await apiClient.put<CompanionResponseDTO | {payload?: CompanionResponseDTO}>(
+    const response = await apiClient.put<
+      CompanionResponseDTO | {payload?: CompanionResponseDTO}
+    >(
       endpoint,
       {payload},
       {
@@ -631,12 +677,11 @@ const listCompanionsByParent = async (
   });
 
   try {
-    const response = await apiClient.get<CompanionResponseDTO[] | Record<string, unknown>>(
-      endpoint,
-      {
-        headers: withAuthHeaders(accessToken),
-      },
-    );
+    const response = await apiClient.get<
+      CompanionResponseDTO[] | Record<string, unknown>
+    >(endpoint, {
+      headers: withAuthHeaders(accessToken),
+    });
     logCompanionApiEvent('response', {
       method: 'GET',
       endpoint,
@@ -729,8 +774,15 @@ export const companionApi = {
     const fhirPayload = normalizeOutgoingExtensionUrls(
       toFHIRCompanion(backendCompanion),
     );
-    const {data} = await postCompanion(params.parentId, fhirPayload, params.accessToken);
-    return mapResponseToAppCompanion(extractCompanionResource(data), params.parentId);
+    const {data} = await postCompanion(
+      params.parentId,
+      fhirPayload,
+      params.accessToken,
+    );
+    return mapResponseToAppCompanion(
+      extractCompanionResource(data),
+      params.parentId,
+    );
   },
 
   async update(params: CompanionUpdateParams): Promise<Companion> {
@@ -768,9 +820,14 @@ export const companionApi = {
   },
 
   async listByParent(params: CompanionListParams): Promise<Companion[]> {
-    const {data} = await listCompanionsByParent(params.parentId, params.accessToken);
+    const {data} = await listCompanionsByParent(
+      params.parentId,
+      params.accessToken,
+    );
     const collection = extractCompanionCollection(data);
-    return collection.map(entry => mapResponseToAppCompanion(entry, params.parentId));
+    return collection.map(entry =>
+      mapResponseToAppCompanion(entry, params.parentId),
+    );
   },
 
   async remove(params: CompanionDeleteParams): Promise<void> {

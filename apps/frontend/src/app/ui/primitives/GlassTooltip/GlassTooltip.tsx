@@ -59,13 +59,23 @@ const GlassTooltip = ({ content, children, side = 'top', className = '' }: Glass
       left = rect.left + rect.width / 2;
     }
 
-    const maxLeft = globalThis.window.innerWidth - bubbleRect.width - viewportPadding;
-    const minLeft = viewportPadding;
-    left = Math.max(minLeft, Math.min(left, maxLeft));
+    if (side === 'top' || side === 'bottom') {
+      const minLeft = viewportPadding + bubbleRect.width / 2;
+      const maxLeft = globalThis.window.innerWidth - viewportPadding - bubbleRect.width / 2;
+      left = Math.max(minLeft, Math.min(left, maxLeft));
 
-    const maxTop = globalThis.window.innerHeight - bubbleRect.height - viewportPadding;
-    const minTop = viewportPadding;
-    top = Math.max(minTop, Math.min(top, maxTop));
+      const maxTop = globalThis.window.innerHeight - bubbleRect.height - viewportPadding;
+      const minTop = viewportPadding;
+      top = Math.max(minTop, Math.min(top, maxTop));
+    } else {
+      const maxLeft = globalThis.window.innerWidth - bubbleRect.width - viewportPadding;
+      const minLeft = viewportPadding;
+      left = Math.max(minLeft, Math.min(left, maxLeft));
+
+      const minTop = viewportPadding + bubbleRect.height / 2;
+      const maxTop = globalThis.window.innerHeight - viewportPadding - bubbleRect.height / 2;
+      top = Math.max(minTop, Math.min(top, maxTop));
+    }
 
     setPosition({ top, left, transform: transformBySide[side] });
   }, [side]);

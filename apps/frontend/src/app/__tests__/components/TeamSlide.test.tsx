@@ -19,7 +19,7 @@ describe('TeamSlide Component', () => {
   it('should render all team member images with correct alt text', () => {
     render(<TeamSlide />);
 
-    const teamMembers = ['Surbhi', 'Ankit', 'Harshvardhan', 'Anna', 'Suryansh'];
+    const teamMembers = ['Ankit', 'Anna', 'Harshit', 'Harshvardhan', 'Sneha'];
 
     for (const name of teamMembers) {
       const image = screen.getByAltText(name);
@@ -30,8 +30,8 @@ describe('TeamSlide Component', () => {
   it('should have the correct image sources', () => {
     render(<TeamSlide />);
 
-    const surbhiImage = screen.getByAltText('Surbhi');
-    expect(surbhiImage).toHaveAttribute('src', MEDIA_SOURCES.team.surbhi);
+    const snehaImage = screen.getByAltText('Sneha');
+    expect(snehaImage).toHaveAttribute('src', MEDIA_SOURCES.team.sneha);
 
     const ankitImage = screen.getByAltText('Ankit');
     expect(ankitImage).toHaveAttribute('src', MEDIA_SOURCES.team.ankit);

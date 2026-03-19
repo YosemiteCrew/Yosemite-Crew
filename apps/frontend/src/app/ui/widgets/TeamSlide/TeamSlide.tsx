@@ -8,9 +8,9 @@ import './TeamSlide.css';
 const TeamSlide = () => {
   const teamImages = [
     {
-      src: MEDIA_SOURCES.team.harshit,
-      alt: 'Harshit',
-      linkedin: 'https://www.linkedin.com/in/harshit-wandhare-a088201aa/',
+      src: MEDIA_SOURCES.team.ankit,
+      alt: 'Ankit',
+      linkedin: 'https://www.linkedin.com/in/aupyay/',
     },
     {
       src: MEDIA_SOURCES.team.anna,
@@ -18,9 +18,9 @@ const TeamSlide = () => {
       linkedin: 'https://www.linkedin.com/in/annaupadhyay/',
     },
     {
-      src: MEDIA_SOURCES.team.ankit,
-      alt: 'Ankit',
-      linkedin: 'https://www.linkedin.com/in/aupyay/',
+      src: MEDIA_SOURCES.team.harshit,
+      alt: 'Harshit',
+      linkedin: 'https://www.linkedin.com/in/harshit-wandhare-a088201aa/',
     },
     {
       src: MEDIA_SOURCES.team.harshvardhan,
@@ -28,15 +28,9 @@ const TeamSlide = () => {
       linkedin: 'https://www.linkedin.com/in/harshvardhan-parmar/',
     },
     {
-      src: MEDIA_SOURCES.team.surbhi,
-      alt: 'Surbhi',
-      linkedin: 'https://www.linkedin.com/in/surbhi-sharma-238340259/',
-    },
-
-    {
-      src: MEDIA_SOURCES.team.suryansh,
-      alt: 'Suryansh',
-      linkedin: 'https://www.linkedin.com/in/suryansh-sharma-776563226/',
+      src: MEDIA_SOURCES.team.sneha,
+      alt: 'Sneha',
+      linkedin: 'https://www.linkedin.com/in/snehadevc/',
     },
   ];
 

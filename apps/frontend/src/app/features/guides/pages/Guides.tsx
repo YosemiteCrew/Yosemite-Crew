@@ -67,7 +67,7 @@ const Guides = () => {
   };
 
   return (
-    <div className="flex flex-col gap-8 px-4! py-6! md:px-12! md:py-10! lg:px-10! lg:pb-20! lg:pr-20!">
+    <div className="flex flex-col gap-8 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
       <div className="flex flex-wrap items-center justify-between gap-3 mt-2">
         <div className="flex flex-col gap-1">
           <div className="text-text-primary text-heading-1">
@@ -76,7 +76,7 @@ const Guides = () => {
           </div>
           <p className="text-body-3 text-text-secondary max-w-3xl mb-0!">
             Learn how to set up your animal health practice, streamline workflows, and get the most
-            from Yosemite.
+            from Yosemite Crew.
           </p>
         </div>
       </div>

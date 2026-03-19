@@ -22,6 +22,7 @@ import { useCalendarNavigation } from '@/app/hooks/useCalendarNavigation';
 import {
   CalendarZoomMode,
   formatHourLabel,
+  formatMinuteLabel,
   getCalendarColumnGridStyle,
   getHourRowHeightPx,
 } from '@/app/features/appointments/components/Calendar/calendarLayout';
@@ -65,6 +66,7 @@ type UserCalendarProps = {
   draggedAppointmentDurationMinutes?: number;
   forceFullDayInZoomIn?: boolean;
   slotStepMinutes?: number;
+  availabilityLoaded?: boolean;
 };
 
 const UserCalendar: React.FC<UserCalendarProps> = ({
@@ -90,6 +92,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   draggedAppointmentDurationMinutes,
   forceFullDayInZoomIn = false,
   slotStepMinutes = 15,
+  availabilityLoaded = false,
 }) => {
   const HOUR_ROW_TOP_OFFSET_PX = 8;
   const team = useTeamForPrimaryOrg();
@@ -164,6 +167,41 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
       minute: '2-digit',
     });
   }, [now, nowPosition]);
+  const unavailableByMember = useMemo(
+    () =>
+      team.map((user) => {
+        const visible =
+          getVisibleAvailabilityIntervals?.(date, user.practionerId || user._id) ?? [];
+        if (!visible.length) {
+          if (!availabilityLoaded) return [];
+          const rangeStart = visibleHourRange.startHour * 60;
+          const rangeEnd = (visibleHourRange.endHour + 1) * 60;
+          return [{ startMinute: rangeStart, endMinute: rangeEnd }];
+        }
+        const sorted = [...visible].sort((a, b) => a.startMinute - b.startMinute);
+        const segments: { startMinute: number; endMinute: number }[] = [];
+        const rangeStart = visibleHourRange.startHour * 60;
+        const rangeEnd = (visibleHourRange.endHour + 1) * 60;
+        if (sorted[0].startMinute > rangeStart) {
+          segments.push({ startMinute: rangeStart, endMinute: sorted[0].startMinute });
+        }
+        for (let i = 0; i < sorted.length - 1; i++) {
+          if (sorted[i].endMinute < sorted[i + 1].startMinute) {
+            segments.push({
+              startMinute: sorted[i].endMinute,
+              endMinute: sorted[i + 1].startMinute,
+            });
+          }
+        }
+        const last = sorted.at(-1)!;
+        if (last.endMinute < rangeEnd) {
+          segments.push({ startMinute: last.endMinute, endMinute: rangeEnd });
+        }
+        return segments;
+      }),
+    [availabilityLoaded, date, getVisibleAvailabilityIntervals, team, visibleHourRange]
+  );
+
   const slotOffsetMinutes = useMemo(() => {
     const step = Math.max(5, Math.round(slotStepMinutes || 15));
     if (step >= 60) return [];
@@ -173,9 +211,16 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
     }
     return offsets;
   }, [slotStepMinutes]);
+  const showSlotTimeLabels = useMemo(() => {
+    if (!slotOffsetMinutes.length) return false;
+    const firstStep = slotOffsetMinutes[0];
+    const pixelsPerSlot = (firstStep / 60) * height;
+    return pixelsPerSlot >= 14;
+  }, [height, slotOffsetMinutes]);
 
   useEffect(() => {
     if (!scrollRef.current) return;
+    if (draggedAppointmentId) return;
     const rangeStart = startOfDayDate(date);
     const rangeEnd = nextDay(date);
     const focusStart = getFirstRelevantTimedEventStart(events, rangeStart, rangeEnd);
@@ -186,7 +231,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
       ? Math.max(0, nowPosition.topPx)
       : ((focusMinutes - visibleHourRange.startHour * 60) / 60) * height + HOUR_ROW_TOP_OFFSET_PX;
     scrollContainerToTarget(scrollRef.current, topPx);
-  }, [date, events, height, nowPosition, visibleHourRange.startHour]);
+  }, [date, draggedAppointmentId, events, height, nowPosition, visibleHourRange.startHour]);
 
   return (
     <div className="h-full flex flex-col">
@@ -234,6 +279,16 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                     style={{ height: height + 'px' }}
                   >
                     <span className="absolute top-0 -translate-y-1/2">{formatHourLabel(hour)}</span>
+                    {showSlotTimeLabels &&
+                      slotOffsetMinutes.map((minute) => (
+                        <span
+                          key={`slot-time-${hour}-${minute}`}
+                          className="absolute right-1 -translate-y-1/2 text-[10px] leading-none text-text-tertiary text-right whitespace-nowrap"
+                          style={{ top: `${(minute / 60) * 100}%` }}
+                        >
+                          {formatMinuteLabel(hour * 60 + minute)}
+                        </span>
+                      ))}
                   </div>
                   <div className="grid min-w-max" style={teamColumnsStyle}>
                     {team?.map((user, index) => {
@@ -242,12 +297,33 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                         date,
                         hour
                       );
+                      const hourStart = hour * 60;
+                      const hourEnd = hourStart + 60;
                       return (
                         <div
                           key={`${user._id}-${hour}`}
                           className="relative"
                           style={{ height: `${height}px` }}
                         >
+                          {unavailableByMember[index]
+                            .filter((seg) => seg.endMinute > hourStart && seg.startMinute < hourEnd)
+                            .map((seg) => {
+                              const clampedStart = Math.max(seg.startMinute, hourStart);
+                              const clampedEnd = Math.min(seg.endMinute, hourEnd);
+                              const topPct = ((clampedStart - hourStart) / 60) * 100;
+                              const heightPct = ((clampedEnd - clampedStart) / 60) * 100;
+                              return (
+                                <div
+                                  key={`unavail-${user._id}-${hour}-${seg.startMinute}`}
+                                  className="pointer-events-none absolute left-0 right-0 z-1"
+                                  style={{
+                                    top: `${topPct}%`,
+                                    height: `${heightPct}%`,
+                                    backgroundColor: 'rgba(0,0,0,0.045)',
+                                  }}
+                                />
+                              );
+                            })}
                           <Slot
                             slotEvents={slotEvents}
                             height={height}

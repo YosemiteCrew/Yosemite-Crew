@@ -1,53 +1,52 @@
-import EditableAccordion from "@/app/ui/primitives/Accordion/EditableAccordion";
-import Accordion from "@/app/ui/primitives/Accordion/Accordion";
-import Modal from "@/app/ui/overlays/Modal";
-import { Primary, Secondary } from "@/app/ui/primitives/Buttons";
+import EditableAccordion from '@/app/ui/primitives/Accordion/EditableAccordion';
+import Accordion from '@/app/ui/primitives/Accordion/Accordion';
+import Modal from '@/app/ui/overlays/Modal';
+import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import {
   FormsCategoryOptions,
   FormField,
   FormsProps,
   RequiredSignerOptions,
   FormsUsageOptions,
-} from "@/app/features/forms/types/forms";
-import React from "react";
-import {
-  archiveForm,
-  publishForm,
-  unpublishForm,
-} from "@/app/features/forms/services/formService";
-import FormRenderer from "@/app/features/forms/pages/Forms/Sections/AddForm/components/FormRenderer";
-import Close from "@/app/ui/primitives/Icons/Close";
-import { useErrorTost } from "@/app/ui/overlays/Toast/Toast";
-import { Icon } from "@iconify/react";
+  getFormCategoryDisplayLabel,
+} from '@/app/features/forms/types/forms';
+import React from 'react';
+import { archiveForm, publishForm, unpublishForm } from '@/app/features/forms/services/formService';
+import FormRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/FormRenderer';
+import Close from '@/app/ui/primitives/Icons/Close';
+import { useErrorTost } from '@/app/ui/overlays/Toast/Toast';
+import { Icon } from '@iconify/react';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { Organisation } from '@yosemite-crew/types';
 
 const buildPreviewValues = (fields: FormField[]): Record<string, any> => {
   const acc: Record<string, any> = {};
   const walk = (items: FormField[]) => {
     items.forEach((field) => {
-      if (field.type === "group") {
+      if (field.type === 'group') {
         walk(field.fields ?? []);
         return;
       }
       // Check for defaultValue first (for readonly fields from inventory)
       const defaultValue = (field as any).defaultValue;
 
-      if (field.type === "checkbox") {
+      if (field.type === 'checkbox') {
         acc[field.id] = defaultValue ?? [];
         return;
       }
-      if (field.type === "boolean") {
+      if (field.type === 'boolean') {
         acc[field.id] = defaultValue ?? false;
         return;
       }
-      if (field.type === "date") {
-        acc[field.id] = defaultValue ?? "";
+      if (field.type === 'date') {
+        acc[field.id] = defaultValue ?? '';
         return;
       }
-      if (field.type === "number") {
-        acc[field.id] = defaultValue ?? field.placeholder ?? "";
+      if (field.type === 'number') {
+        acc[field.id] = defaultValue ?? field.placeholder ?? '';
         return;
       }
-      acc[field.id] = defaultValue ?? field.placeholder ?? "";
+      acc[field.id] = defaultValue ?? field.placeholder ?? '';
     });
   };
   walk(fields);
@@ -63,40 +62,29 @@ type FormInfoProps = {
   canEdit?: boolean;
 };
 
-const DetailsFields = [
-  { label: "Form name", key: "name", type: "text" },
-  { label: "Description", key: "description", type: "text" },
-  {
-    label: "Category",
-    key: "category",
-    type: "dropdown",
-    options: FormsCategoryOptions,
-  },
-  {
-    label: "Signed by",
-    key: "requiredSigner",
-    type: "dropdown",
-    options: RequiredSignerOptions,
-  },
+const baseDetailsFields = [
+  { label: 'Form name', key: 'name', type: 'text' },
+  { label: 'Description', key: 'description', type: 'text' },
+  { label: 'Signed by', key: 'requiredSigner', type: 'dropdown', options: RequiredSignerOptions },
 ];
 
 const UsageFields = [
   {
-    label: "Visibility type",
-    key: "usage",
-    type: "dropdown",
+    label: 'Visibility type',
+    key: 'usage',
+    type: 'dropdown',
     options: FormsUsageOptions,
   },
   {
-    label: "Service",
-    key: "services",
-    type: "multiSelect",
+    label: 'Service',
+    key: 'services',
+    type: 'multiSelect',
   },
   {
-    label: "Species",
-    key: "species",
-    type: "multiSelect",
-    options: ["Dog", "Cat", "Horse"],
+    label: 'Species',
+    key: 'species',
+    type: 'multiSelect',
+    options: ['Dog', 'Cat', 'Horse'],
   },
 ];
 
@@ -108,25 +96,44 @@ const FormInfo = ({
   serviceOptions,
   canEdit = true,
 }: FormInfoProps) => {
+  const orgType = useOrgStore((s) =>
+    s.primaryOrgId ? s.orgsById[s.primaryOrgId]?.type : undefined
+  );
+  const orgTypeOverride = process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE as
+    | Organisation['type']
+    | undefined;
+  const effectiveOrgType = orgTypeOverride || orgType;
   const { showErrorTost, ErrorTostPopup } = useErrorTost();
   const [publishLoading, setPublishLoading] = React.useState(false);
   const [unpublishLoading, setUnpublishLoading] = React.useState(false);
   const [archiveLoading, setArchiveLoading] = React.useState(false);
   const actionLoading = publishLoading || unpublishLoading || archiveLoading;
+  const detailsFields = React.useMemo(
+    () => [
+      baseDetailsFields[0],
+      baseDetailsFields[1],
+      {
+        label: 'Category',
+        key: 'category',
+        type: 'dropdown',
+        options: FormsCategoryOptions.map((category) => ({
+          label: getFormCategoryDisplayLabel(category, effectiveOrgType),
+          value: category,
+        })),
+      },
+      baseDetailsFields[2],
+    ],
+    [effectiveOrgType]
+  );
 
   const showActionError = (message: string) =>
     showErrorTost({
       message,
-      errortext: "Error",
+      errortext: 'Error',
       iconElement: (
-        <Icon
-          icon="solar:danger-triangle-bold"
-          width="20"
-          height="20"
-          color="#EA3729"
-        />
+        <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />
       ),
-      className: "errofoundbg",
+      className: 'errofoundbg',
     });
 
   const handlePublish = async () => {
@@ -136,10 +143,8 @@ const FormInfo = ({
       await publishForm(activeForm._id);
       setShowModal(false);
     } catch (err: any) {
-      console.error("Failed to publish form", err);
-      showActionError(
-        err?.response?.data?.message || err?.message || "Unable to publish form"
-      );
+      console.error('Failed to publish form', err);
+      showActionError(err?.response?.data?.message || err?.message || 'Unable to publish form');
     } finally {
       setPublishLoading(false);
     }
@@ -152,12 +157,8 @@ const FormInfo = ({
       await unpublishForm(activeForm._id);
       setShowModal(false);
     } catch (err: any) {
-      console.error("Failed to unpublish form", err);
-      showActionError(
-        err?.response?.data?.message ||
-          err?.message ||
-          "Unable to unpublish form"
-      );
+      console.error('Failed to unpublish form', err);
+      showActionError(err?.response?.data?.message || err?.message || 'Unable to unpublish form');
     } finally {
       setUnpublishLoading(false);
     }
@@ -170,10 +171,8 @@ const FormInfo = ({
       await archiveForm(activeForm._id);
       setShowModal(false);
     } catch (err: any) {
-      console.error("Failed to archive form", err);
-      showActionError(
-        err?.response?.data?.message || err?.message || "Unable to archive form"
-      );
+      console.error('Failed to archive form', err);
+      showActionError(err?.response?.data?.message || err?.message || 'Unable to archive form');
     } finally {
       setArchiveLoading(false);
     }
@@ -181,38 +180,38 @@ const FormInfo = ({
 
   const renderActions = () => {
     switch (activeForm.status) {
-      case "Published":
+      case 'Published':
         return (
           <div className="grid grid-cols-2 gap-3">
             <Secondary
               href="#"
-              text={unpublishLoading ? "Unpublishing..." : "Unpublish"}
+              text={unpublishLoading ? 'Unpublishing...' : 'Unpublish'}
               onClick={handleUnpublish}
               className="h-12! text-[16px]!"
               isDisabled={unpublishLoading || publishLoading || archiveLoading}
             />
             <Secondary
               href="#"
-              text={archiveLoading ? "Archiving..." : "Archive"}
+              text={archiveLoading ? 'Archiving...' : 'Archive'}
               onClick={handleArchive}
               className="h-12! text-[16px]!"
               isDisabled={publishLoading || unpublishLoading || archiveLoading}
             />
           </div>
         );
-      case "Archived":
+      case 'Archived':
         return (
           <div className="grid grid-cols-2 gap-3">
             <Secondary
               href="#"
-              text={unpublishLoading ? "Moving..." : "Move to draft"}
+              text={unpublishLoading ? 'Moving...' : 'Move to draft'}
               onClick={handleUnpublish}
               className="h-12! text-[16px]!"
               isDisabled={publishLoading || unpublishLoading || archiveLoading}
             />
             <Primary
               href="#"
-              text={publishLoading ? "Publishing..." : "Publish"}
+              text={publishLoading ? 'Publishing...' : 'Publish'}
               onClick={handlePublish}
               classname="h-12! text-[16px]!"
               isDisabled={publishLoading || unpublishLoading || archiveLoading}
@@ -224,14 +223,14 @@ const FormInfo = ({
           <div className="grid grid-cols-2 gap-3">
             <Primary
               href="#"
-              text={publishLoading ? "Publishing..." : "Publish"}
+              text={publishLoading ? 'Publishing...' : 'Publish'}
               onClick={handlePublish}
               classname="h-12! text-[16px]!"
               isDisabled={publishLoading || unpublishLoading || archiveLoading}
             />
             <Secondary
               href="#"
-              text={archiveLoading ? "Archiving..." : "Archive"}
+              text={archiveLoading ? 'Archiving...' : 'Archive'}
               onClick={handleArchive}
               className="h-12! text-[16px]!"
               isDisabled={publishLoading || unpublishLoading || archiveLoading}
@@ -254,7 +253,7 @@ const FormInfo = ({
           </div>
           <div className="flex justify-center items-center gap-2">
             <div className="text-body-1 text-text-primary">
-              {canEdit ? "Edit form" : "View form"}
+              {canEdit ? 'Edit form' : 'View form'}
             </div>
           </div>
           <Close onClick={() => setShowModal(false)} />
@@ -265,7 +264,7 @@ const FormInfo = ({
             <EditableAccordion
               key={`details-${activeForm._id || activeForm.name}`}
               title="Form details"
-              fields={DetailsFields}
+              fields={detailsFields}
               data={activeForm}
               defaultOpen={true}
               showEditIcon={false}
@@ -285,12 +284,7 @@ const FormInfo = ({
               readOnly
             />
             {(activeForm.schema?.length ?? 0) > 0 && (
-              <Accordion
-                title="Form preview"
-                defaultOpen
-                showEditIcon={false}
-                isEditing={true}
-              >
+              <Accordion title="Form preview" defaultOpen showEditIcon={false} isEditing={true}>
                 <FormRenderer
                   fields={activeForm.schema ?? []}
                   values={buildPreviewValues(activeForm.schema ?? [])}

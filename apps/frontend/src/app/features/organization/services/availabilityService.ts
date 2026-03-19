@@ -3,15 +3,15 @@ import {
   ApiDayAvailability,
   ApiOverrides,
   GetAvailabilityResponse,
-} from "@/app/features/appointments/components/Availability/utils";
-import { useAvailabilityStore } from "@/app/stores/availabilityStore";
-import { useOrgStore } from "@/app/stores/orgStore";
-import { Team } from "@/app/features/organization/types/team";
-import { deleteData, getData, postData } from "@/app/services/axios";
+} from '@/app/features/appointments/components/Availability/utils';
+import { useAvailabilityStore } from '@/app/stores/availabilityStore';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { Team } from '@/app/features/organization/types/team';
+import { deleteData, getData, postData } from '@/app/services/axios';
 
 export const upsertAvailability = async (
   formData: ApiAvailability,
-  orgIdFromQuery: string | null,
+  orgIdFromQuery: string | null
 ) => {
   const { primaryOrgId } = useOrgStore.getState();
   const { setAvailabilitiesForOrg } = useAvailabilityStore.getState();
@@ -19,13 +19,13 @@ export const upsertAvailability = async (
     const id = orgIdFromQuery || primaryOrgId;
     if (!id) return;
     const res = await postData<GetAvailabilityResponse>(
-      "/fhir/v1/availability/" + id + "/base",
-      formData,
+      '/fhir/v1/availability/' + id + '/base',
+      formData
     );
     const availability = res.data?.data ?? [];
     setAvailabilitiesForOrg(id, availability);
   } catch (err: unknown) {
-    console.error("Failed to load orgs:", err);
+    console.error('Failed to load orgs:', err);
     throw err;
   }
 };
@@ -33,20 +33,20 @@ export const upsertAvailability = async (
 export const upsertTeamAvailability = async (
   team: Team,
   formData: ApiAvailability,
-  orgIdFromQuery: string | null,
+  orgIdFromQuery: string | null
 ) => {
   const { primaryOrgId } = useOrgStore.getState();
   try {
     const id = orgIdFromQuery || primaryOrgId;
     if (!id) return;
     const res = await postData<GetAvailabilityResponse>(
-      "/fhir/v1/availability/" + id + "/" + team.practionerId + "/base",
-      formData,
+      '/fhir/v1/availability/' + id + '/' + team.practionerId + '/base',
+      formData
     );
     const availability = res.data?.data ?? [];
     return availability;
   } catch (err: unknown) {
-    console.error("Failed to load orgs:", err);
+    console.error('Failed to load orgs:', err);
     throw err;
   }
 };
@@ -66,7 +66,7 @@ export const loadAvailability = async (opts?: { silent?: boolean }) => {
       orgIds.map(async (orgId) => {
         try {
           const res = await getData<GetAvailabilityResponse>(
-            "/fhir/v1/availability/" + orgId + "/base",
+            '/fhir/v1/availability/' + orgId + '/base'
           );
           const availability = res.data?.data ?? [];
           for (const a of availability) {
@@ -75,11 +75,25 @@ export const loadAvailability = async (opts?: { silent?: boolean }) => {
         } catch (err) {
           console.error(`Failed to fetch profile for orgId: ${orgId}`, err);
         }
-      }),
+      })
     );
     setAvailabilities(temp);
   } catch (err: unknown) {
-    console.error("Failed to load orgs:", err);
+    console.error('Failed to load orgs:', err);
+    throw err;
+  }
+};
+
+export const loadTeamAvailability = async (orgId: string) => {
+  const { setAvailabilitiesForOrg } = useAvailabilityStore.getState();
+  try {
+    const res = await getData<GetAvailabilityResponse>(
+      '/fhir/v1/availability/' + orgId + '/base/all'
+    );
+    const availability = res.data?.data ?? [];
+    setAvailabilitiesForOrg(orgId, availability);
+  } catch (err: unknown) {
+    console.error('Failed to load team availability:', err);
     throw err;
   }
 };
@@ -89,21 +103,16 @@ export const getOveridesForPrimaryDate = async (date: Date) => {
   const { upsertOverideStore } = useAvailabilityStore.getState();
   try {
     if (!primaryOrgId) {
-      throw new Error(
-        "No primary organization selected. Cannot load overides.",
-      );
+      throw new Error('No primary organization selected. Cannot load overides.');
     }
-    const normalDate = date.toISOString().split("T")[0];
+    const normalDate = date.toISOString().split('T')[0];
     const res = await getData<{ data: ApiOverrides }>(
-      "/fhir/v1/availability/" +
-        primaryOrgId +
-        "/weekly?weekStartDate=" +
-        normalDate,
+      '/fhir/v1/availability/' + primaryOrgId + '/weekly?weekStartDate=' + normalDate
     );
     const override = res.data?.data ?? [];
     upsertOverideStore(override);
   } catch (err: unknown) {
-    console.error("Failed to load overides:", err);
+    console.error('Failed to load overides:', err);
     throw err;
   }
 };
@@ -113,17 +122,12 @@ export const createOveride = async (override: ApiOverrides) => {
   const { upsertOverideStore } = useAvailabilityStore.getState();
   try {
     if (!primaryOrgId) {
-      throw new Error(
-        "No primary organization selected. Cannot create overides.",
-      );
+      throw new Error('No primary organization selected. Cannot create overides.');
     }
-    await postData(
-      "/fhir/v1/availability/" + primaryOrgId + "/weekly",
-      override,
-    );
+    await postData('/fhir/v1/availability/' + primaryOrgId + '/weekly', override);
     upsertOverideStore(override);
   } catch (err: unknown) {
-    console.error("Failed to load overides:", err);
+    console.error('Failed to load overides:', err);
     throw err;
   }
 };
@@ -132,17 +136,17 @@ export const deleteOveride = async (override: ApiOverrides) => {
   const { removeOverride } = useAvailabilityStore.getState();
   try {
     if (!override._id || !override.dayOfWeek || !override.organisationId) {
-      throw new Error("Cannot delete overides.");
+      throw new Error('Cannot delete overides.');
     }
     await deleteData(
-      "/fhir/v1/availability/" +
+      '/fhir/v1/availability/' +
         override.organisationId +
-        "/weekly?weekStartDate=" +
-        override.dayOfWeek,
+        '/weekly?weekStartDate=' +
+        override.dayOfWeek
     );
     removeOverride(override._id);
   } catch (err: unknown) {
-    console.error("Failed to load overides:", err);
+    console.error('Failed to load overides:', err);
     throw err;
   }
 };

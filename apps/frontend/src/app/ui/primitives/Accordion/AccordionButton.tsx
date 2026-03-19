@@ -93,28 +93,23 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
     <div
       className={`flex flex-col gap-3 rounded-2xl border border-card-border px-6 ${paddingYClass}`}
     >
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <button
           type="button"
-          className="flex flex-1 items-center gap-2 text-left"
+          className="flex shrink-0 items-center gap-2 text-left"
           onClick={() => setOpen(!open)}
           aria-label={title}
         >
           <IoIosArrowDown
             size={22}
             color="#302f2e"
-            className={`text-black-text transition-transform ${open ? 'rotate-0' : '-rotate-90'}`}
+            className={`text-black-text transition-transform shrink-0 ${open ? 'rotate-0' : '-rotate-90'}`}
           />
           <div className="text-heading-3 text-text-primary">{title}</div>
         </button>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap ml-auto">
           {error && (
-            <div
-              className={`
-                      flex items-center gap-1 px-4
-                      text-caption-2 text-text-error
-                    `}
-            >
+            <div className="flex items-center gap-1 px-4 text-caption-2 text-text-error">
               <IoIosWarning className="text-text-error" size={14} />
               <span>{error}</span>
             </div>
@@ -123,7 +118,7 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
             <Secondary href="#" onClick={() => buttonClick(true)} text={buttonTitle} />
           )}
           {canEditSubscription && finance && (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               {hasCustomerId && (
                 <Secondary
                   href="#"

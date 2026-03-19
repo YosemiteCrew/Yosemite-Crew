@@ -1,9 +1,9 @@
-import Dropdown from "@/app/ui/inputs/Dropdown/Dropdown";
-import { FormField } from "@/app/features/forms/types/forms";
-import React, { useMemo } from "react";
+import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
+import { FormField } from '@/app/features/forms/types/forms';
+import React, { useMemo } from 'react';
 
 const DropdownRenderer: React.FC<{
-  field: FormField & { type: "dropdown" | "radio" | "checkbox" };
+  field: FormField & { type: 'dropdown' | 'radio' | 'checkbox' };
   value: any;
   onChange: (v: any) => void;
   readOnly?: boolean;
@@ -12,17 +12,14 @@ const DropdownRenderer: React.FC<{
   const defaultValue = (field as any).defaultValue;
   const displayValue = value ?? defaultValue;
 
-  const options = useMemo(
-    () => field.options ?? [],
-    [field.options]
-  );
+  const options = useMemo(() => field.options ?? [], [field.options]);
   const hasValidOptions = options?.length > 0;
 
   if (!hasValidOptions) {
     return null;
   }
 
-  if (field.type === "checkbox") {
+  if (field.type === 'checkbox') {
     let selected: string[] = [];
     if (Array.isArray(displayValue)) {
       selected = displayValue;
@@ -40,9 +37,7 @@ const DropdownRenderer: React.FC<{
 
     return (
       <div className="flex flex-col gap-2">
-        <div className="font-grotesk text-black-text text-[16px] font-medium">
-          {field.label}
-        </div>
+        <div className="font-satoshi text-black-text text-[16px] font-medium">{field.label}</div>
         <div className="flex flex-col gap-2">
           {options.map((opt) => (
             <label
@@ -64,13 +59,11 @@ const DropdownRenderer: React.FC<{
     );
   }
 
-  if (field.type === "radio") {
-    const selected = typeof displayValue === "string" ? displayValue : "";
+  if (field.type === 'radio') {
+    const selected = typeof displayValue === 'string' ? displayValue : '';
     return (
       <div className="flex flex-col gap-2">
-        <div className="font-grotesk text-black-text text-[16px] font-medium">
-          {field.label}
-        </div>
+        <div className="font-satoshi text-black-text text-[16px] font-medium">{field.label}</div>
         <div className="flex flex-col gap-2">
           {options.map((opt) => (
             <label
@@ -96,7 +89,7 @@ const DropdownRenderer: React.FC<{
   return (
     <div className="flex flex-col gap-3">
       <Dropdown
-        placeholder={field.label || ""}
+        placeholder={field.label || ''}
         value={displayValue}
         onChange={(e) => !isReadOnly && onChange(e)}
         className="min-h-12!"

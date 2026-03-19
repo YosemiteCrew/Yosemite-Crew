@@ -3,7 +3,7 @@
   align-items: center;
   justify-content: center;
   gap: 12px;
-  font-family: var(--font-satoshi, 'Inter', system-ui, -apple-system, sans-serif);
+  font-family: var(--font-satoshi);
   color: var(--color-text-primary, #1f2937);
 }
 

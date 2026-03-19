@@ -245,7 +245,7 @@ const Appointments = ({
               {toTitle(displayStatus)}
             </div>
             <div
-              className="mt-1 text-[11px] leading-4 font-medium text-center"
+              className="mt-1 text-[11px] leading-4 font-medium text-center font-satoshi"
               style={{ color: payment.textColor }}
             >
               {payment.label}

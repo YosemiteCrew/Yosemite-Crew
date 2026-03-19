@@ -105,8 +105,8 @@ export const FormRenderer: React.FC<FormRendererProps> = ({
 
   const getGroupTitleClass = (level: number): string =>
     level <= 1
-      ? 'font-grotesk text-black-text text-[18px] font-medium'
-      : 'font-grotesk text-black-text text-[16px] font-medium';
+      ? 'font-satoshi text-black-text text-[18px] font-medium'
+      : 'font-satoshi text-black-text text-[16px] font-medium';
 
   const labelForField = (field: FormField): string => {
     const label = (field.label ?? '').trim();

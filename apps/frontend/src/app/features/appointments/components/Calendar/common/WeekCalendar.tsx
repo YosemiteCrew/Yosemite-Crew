@@ -22,6 +22,7 @@ import Next from '@/app/ui/primitives/Icons/Next';
 import {
   CalendarZoomMode,
   formatHourLabel,
+  formatMinuteLabel,
   getCalendarColumnGridStyle,
   getHourRowHeightPx,
 } from '@/app/features/appointments/components/Calendar/calendarLayout';
@@ -64,6 +65,7 @@ type WeekCalendarProps = {
   ) => Array<{ startMinute: number; endMinute: number }>;
   draggedAppointmentDurationMinutes?: number;
   slotStepMinutes?: number;
+  availabilityLoaded?: boolean;
 };
 
 const WeekCalendar: React.FC<WeekCalendarProps> = ({
@@ -89,6 +91,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   getVisibleAvailabilityIntervals,
   draggedAppointmentDurationMinutes,
   slotStepMinutes = 15,
+  availabilityLoaded = false,
 }) => {
   const days = useMemo<Date[]>(() => getWeekDays(weekStart), [weekStart]);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -198,6 +201,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
 
   useEffect(() => {
     if (!scrollRef.current) return;
+    if (draggedAppointmentId) return;
 
     const rangeStart = new Date(days[0]);
     rangeStart.setHours(0, 0, 0, 0);
@@ -214,7 +218,41 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
       : ((focusMinutes - visibleHourRange.startHour * 60) / 60) * height + HOUR_ROW_TOP_OFFSET_PX;
 
     scrollContainerToTarget(scrollRef.current, topPx);
-  }, [days, height, nowPosition, timedEvents, visibleHourRange.startHour]);
+  }, [days, draggedAppointmentId, height, nowPosition, timedEvents, visibleHourRange.startHour]);
+
+  const unavailableByDay = useMemo(
+    () =>
+      days.map((day) => {
+        const visible = getVisibleAvailabilityIntervals?.(day) ?? [];
+        if (!visible.length) {
+          if (!availabilityLoaded) return [];
+          const rangeStart = visibleHourRange.startHour * 60;
+          const rangeEnd = (visibleHourRange.endHour + 1) * 60;
+          return [{ startMinute: rangeStart, endMinute: rangeEnd }];
+        }
+        const sorted = [...visible].sort((a, b) => a.startMinute - b.startMinute);
+        const segments: { startMinute: number; endMinute: number }[] = [];
+        const rangeStart = visibleHourRange.startHour * 60;
+        const rangeEnd = (visibleHourRange.endHour + 1) * 60;
+        if (sorted[0].startMinute > rangeStart) {
+          segments.push({ startMinute: rangeStart, endMinute: sorted[0].startMinute });
+        }
+        for (let i = 0; i < sorted.length - 1; i++) {
+          if (sorted[i].endMinute < sorted[i + 1].startMinute) {
+            segments.push({
+              startMinute: sorted[i].endMinute,
+              endMinute: sorted[i + 1].startMinute,
+            });
+          }
+        }
+        const last = sorted.at(-1)!;
+        if (last.endMinute < rangeEnd) {
+          segments.push({ startMinute: last.endMinute, endMinute: rangeEnd });
+        }
+        return segments;
+      }),
+    [availabilityLoaded, days, getVisibleAvailabilityIntervals, visibleHourRange]
+  );
 
   const hasAnyAllDay = allDayByDay.some((list) => list.length > 0);
   const slotOffsetMinutes = useMemo(() => {
@@ -226,6 +264,12 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     }
     return offsets;
   }, [slotStepMinutes]);
+  const showSlotTimeLabels = useMemo(() => {
+    if (!slotOffsetMinutes.length) return false;
+    const firstStep = slotOffsetMinutes[0];
+    const pixelsPerSlot = (firstStep / 60) * height;
+    return pixelsPerSlot >= 14;
+  }, [height, slotOffsetMinutes]);
 
   return (
     <div className="h-full flex flex-col">
@@ -337,16 +381,47 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                     >
                       {formatHourLabel(hour)}
                     </span>
+                    {showSlotTimeLabels &&
+                      slotOffsetMinutes.map((minute) => (
+                        <span
+                          key={`slot-time-${hour}-${minute}`}
+                          className="absolute right-1 -translate-y-1/2 text-[10px] leading-none text-text-tertiary text-right whitespace-nowrap"
+                          style={{ top: `${(minute / 60) * 100}%` }}
+                        >
+                          {formatMinuteLabel(hour * 60 + minute)}
+                        </span>
+                      ))}
                   </div>
                   <div className="grid min-w-max" style={dayColumnsStyle}>
                     {days.map((day, dayIndex) => {
                       const slotEvents = eventsForDayHour(timedEvents, day, hour);
+                      const hourStart = hour * 60;
+                      const hourEnd = hourStart + 60;
                       return (
                         <div
                           key={`${day.toISOString()}-${hour}`}
                           className="relative"
                           style={{ height: `${height}px` }}
                         >
+                          {unavailableByDay[dayIndex]
+                            .filter((seg) => seg.endMinute > hourStart && seg.startMinute < hourEnd)
+                            .map((seg) => {
+                              const clampedStart = Math.max(seg.startMinute, hourStart);
+                              const clampedEnd = Math.min(seg.endMinute, hourEnd);
+                              const topPct = ((clampedStart - hourStart) / 60) * 100;
+                              const heightPct = ((clampedEnd - clampedStart) / 60) * 100;
+                              return (
+                                <div
+                                  key={`unavail-${dayIndex}-${hour}-${seg.startMinute}`}
+                                  className="pointer-events-none absolute left-0 right-0 z-1"
+                                  style={{
+                                    top: `${topPct}%`,
+                                    height: `${heightPct}%`,
+                                    backgroundColor: 'rgba(0,0,0,0.045)',
+                                  }}
+                                />
+                              );
+                            })}
                           <Slot
                             slotEvents={slotEvents}
                             height={height}
