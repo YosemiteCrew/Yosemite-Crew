@@ -1,0 +1,149 @@
+.OverviewPageWrapper {
+  width: 100%;
+  background-color: var(--whitebg);
+  font-family: var(--satoshi-font);
+  color: var(--black-text);
+  padding-bottom: 60px;
+}
+
+.OverviewHeroSec {
+  position: relative;
+  background: linear-gradient(135deg, var(--color-brand-300) 0%, var(--color-brand-100) 100%);
+  padding: 60px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid var(--lightgrey);
+}
+
+.OverviewHeroContainer {
+  max-width: 1280px;
+  width: 100%;
+  padding: 0 24px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.OverviewHeroTitle {
+  font-family: var(--grotesk-font);
+  font-size: 2.75rem;
+  font-weight: 500;
+  line-height: 1.1;
+  color: var(--color-text-primary);
+  margin: 0 0 16px 0;
+  letter-spacing: -0.02em;
+}
+
+.OverviewHeroSubtitle {
+  font-family: var(--satoshi-font);
+  font-size: 1.1rem;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--color-text-primary);
+  opacity: 0.9;
+  margin: 0 auto;
+  max-width: 800px;
+}
+
+.OverviewContentContainer {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 60px 24px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 60px;
+}
+
+.OverviewSectionTitle {
+  font-family: var(--grotesk-font);
+  font-weight: 500;
+  font-size: 1.75rem;
+  line-height: 1.2;
+  color: var(--black-text);
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.QuickStatsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 24px;
+  margin-bottom: 20px;
+}
+
+.QuickStatCard {
+  background: var(--whitebg);
+  border: 1px solid var(--lightgrey);
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0px 0px 8px 0px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.QuickStatLabel {
+  font-family: var(--satoshi-font);
+  font-size: 1rem;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.QuickStatValue {
+  font-family: var(--grotesk-font);
+  font-size: 2rem;
+  font-weight: 500;
+  color: var(--color-brand-950);
+}
+
+.ChartGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+}
+
+@media screen and (min-width: 1024px) {
+  .ChartGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .ChartGrid > .PremiumCard:nth-child(3) {
+    grid-column: 1 / -1;
+    width: calc(50% - 12px);
+    margin: 0 auto;
+  }
+}
+
+.PremiumCard {
+  background: var(--whitebg);
+  border: 1px solid var(--lightgrey);
+  border-radius: 20px;
+  padding: 32px;
+  box-shadow: 0px 0px 8px 0px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+}
+
+.CardTitle {
+  font-family: var(--grotesk-font);
+  font-size: 1.25rem;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--color-text-primary);
+  margin: 0 0 20px 0;
+}
+
+.ChartWrapper {
+  min-height: 320px;
+  width: 100%;
+  position: relative;
+}
+
+@media screen and (max-width: 1024px) {
+  .OverviewHeroTitle {
+    font-size: 2.25rem;
+  }
+}
