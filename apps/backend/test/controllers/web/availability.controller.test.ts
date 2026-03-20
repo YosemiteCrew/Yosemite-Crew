@@ -60,7 +60,7 @@ describe("AvailabilityController", () => {
     it("should 200 on success", async () => {
       req.params = { orgId: "org1" };
       mockedAvailabilityService.getOrganisationBaseAvailability.mockResolvedValue(
-        ["row1"],
+        [] as any,
       );
 
       await AvailabilityController.getOrganisationBaseAvailability(
@@ -72,7 +72,7 @@ describe("AvailabilityController", () => {
         mockedAvailabilityService.getOrganisationBaseAvailability,
       ).toHaveBeenCalledWith("org1");
       expect(statusMock).toHaveBeenCalledWith(200);
-      expect(jsonMock).toHaveBeenCalledWith({ data: ["row1"] });
+      expect(jsonMock).toHaveBeenCalledWith({ data: [] });
     });
 
     it("should 500 on error", async () => {

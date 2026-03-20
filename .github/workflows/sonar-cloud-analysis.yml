@@ -23,6 +23,8 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
       backend: ${{ steps.filter.outputs.backend }}
       mobile: ${{ steps.filter.outputs.mobile }}
+      has_changes: ${{ steps.matrix.outputs.has_changes }}
+      matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -39,6 +41,60 @@ jobs:
               - 'pnpm-lock.yaml'
               - 'package.json'
               - 'turbo.json'
+      - name: Build matrix
+        id: matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          apps=()
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            apps+=(frontend backend mobile)
+          else
+            [[ "${{ steps.filter.outputs.frontend }}" == "true" ]] && apps+=(frontend)
+            [[ "${{ steps.filter.outputs.backend }}" == "true" ]] && apps+=(backend)
+            [[ "${{ steps.filter.outputs.mobile }}" == "true" ]] && apps+=(mobile)
+          fi
+
+          if [[ ${#apps[@]} -eq 0 ]]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          json='{"include":['
+          first=1
+          for app in "${apps[@]}"; do
+            case "$app" in
+              frontend)
+                dir="apps/frontend"
+                token="SONAR_TOKEN_FRONTEND"
+                ;;
+              backend)
+                dir="apps/backend"
+                token="SONAR_TOKEN_API"
+                ;;
+              mobile)
+                dir="apps/mobileAppYC"
+                token="SONAR_TOKEN_MOBILE"
+                ;;
+              *)
+                echo "Unknown app: $app" >&2
+                exit 1
+                ;;
+            esac
+
+            if [[ $first -eq 0 ]]; then
+              json+=','
+            else
+              first=0
+            fi
+            json+="{\"app\":\"$app\",\"dir\":\"$dir\",\"sonar_token\":\"$token\"}"
+          done
+          json+=']}'
+
+          echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          echo "matrix=$json" >> "$GITHUB_OUTPUT"
             backend:
               - 'apps/backend/**'
               - 'packages/types/**'
@@ -59,9 +115,7 @@ jobs:
       github.repository_owner == 'YosemiteCrew' &&
       (
         github.event_name == 'schedule' ||
-        (matrix.app == 'frontend' && needs.changes.outputs.frontend == 'true') ||
-        (matrix.app == 'backend' && needs.changes.outputs.backend == 'true') ||
-        (matrix.app == 'mobile' && needs.changes.outputs.mobile == 'true')
+        needs.changes.outputs.has_changes == 'true'
       )
     name: SonarQube Analysis - ${{ matrix.app }}
     runs-on: ubuntu-latest
@@ -69,17 +123,7 @@ jobs:
 
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - app: frontend
-            dir: apps/frontend
-            sonar_token: SONAR_TOKEN_FRONTEND
-          - app: backend
-            dir: apps/backend
-            sonar_token: SONAR_TOKEN_API
-          - app: mobile
-            dir: apps/mobileAppYC
-            sonar_token: SONAR_TOKEN_MOBILE
+      matrix: ${{ fromJSON(needs.changes.outputs.matrix) }}
 
     steps:
       - uses: actions/checkout@v4
