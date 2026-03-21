@@ -10,8 +10,9 @@ export type ChartDataPoint = {
   Stars: number;
 };
 
+// FIXED: Changed from github.com/blob/... to raw.githubusercontent.com/...
 const SUMMARY_URL =
-  'https://github.com/YosemiteCrew/Yosemite-Crew/blob/github-repo-stats/YosemiteCrew/Yosemite-Crew/latest-report/summary.json';
+  'https://raw.githubusercontent.com/YosemiteCrew/Yosemite-Crew/github-repo-stats/YosemiteCrew/Yosemite-Crew/latest-report/summary.json';
 
 const extractChartData = (json: any, chartKey: string) => {
   if (!json?.charts?.[chartKey]?.datasets) return [];
