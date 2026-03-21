@@ -1,5 +1,5 @@
 % Statistics for YosemiteCrew/Yosemite-Crew
-% Generated for [YosemiteCrew/Yosemite-Crew](https://github.com/YosemiteCrew/Yosemite-Crew) with [jgehrcke/github-repo-stats](https://github.com/jgehrcke/github-repo-stats) at 2026-03-21 12:13 UTC.
+% Generated for [YosemiteCrew/Yosemite-Crew](https://github.com/YosemiteCrew/Yosemite-Crew) with [jgehrcke/github-repo-stats](https://github.com/jgehrcke/github-repo-stats) at 2026-03-21 13:55 UTC.
 
 
 ## Views
@@ -79,7 +79,7 @@ respond slowly to change (narrow peaks are smoothed out).
 
 <div id="chart_referrers_top_n_alltime" class="full-width-chart"></div>
 
-Top 15 referrers: 01: `github.com`, 02: `yosemitecrew.com`, 03: `Google`, 04: `linkedin.com`, 05: `com.linkedin.android`, 06: `dev.yosemitecrew.com`, 07: `Bing`, 08: `meetco.daily.co`, 09: `t.co`, 10: `kagi.com`
+Top 15 referrers: 01: `github.com`, 02: `yosemitecrew.com`, 03: `Google`, 04: `linkedin.com`, 05: `com.linkedin.android`, 06: `dev.yosemitecrew.com`, 07: `Bing`, 08: `meetco.daily.co`, 09: `kagi.com`, 10: `t.co`
 
 
 
