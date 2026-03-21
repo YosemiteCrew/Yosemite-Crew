@@ -70,7 +70,13 @@ const AuditTrailSchema = new Schema<AuditTrailMongo>(
 
     entityType: {
       type: String,
-      enum: ["COMPANION_ORGANISATION", "APPOINTMENT", "INVOICE", "DOCUMENT", "FORM"],
+      enum: [
+        "COMPANION_ORGANISATION",
+        "APPOINTMENT",
+        "INVOICE",
+        "DOCUMENT",
+        "FORM",
+      ],
       default: null,
     },
     entityId: { type: String, default: null },

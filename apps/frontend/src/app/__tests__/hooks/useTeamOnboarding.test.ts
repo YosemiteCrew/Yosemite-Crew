@@ -1,37 +1,38 @@
-import { renderHook } from "@testing-library/react";
-import { useTeamOnboarding } from "@/app/hooks/useTeamOnboarding";
-import { useOrgStore } from "@/app/stores/orgStore";
-import { useUserProfileStore } from "@/app/stores/profileStore";
-import { useAvailabilityStore } from "@/app/stores/availabilityStore";
-import { computeTeamOnboardingStep } from "@/app/lib/teamOnboarding";
+import { renderHook } from '@testing-library/react';
+import { useTeamOnboarding } from '@/app/hooks/useTeamOnboarding';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { useUserProfileStore } from '@/app/stores/profileStore';
+import { useAvailabilityStore } from '@/app/stores/availabilityStore';
+import { computeTeamOnboardingStep } from '@/app/lib/teamOnboarding';
 
 // --- Mocks ---
 
-jest.mock("@/app/stores/orgStore", () => ({
+jest.mock('@/app/stores/orgStore', () => ({
   useOrgStore: jest.fn(),
 }));
 
-jest.mock("@/app/stores/profileStore", () => ({
+jest.mock('@/app/stores/profileStore', () => ({
   useUserProfileStore: jest.fn(),
 }));
 
-jest.mock("@/app/stores/availabilityStore", () => ({
+jest.mock('@/app/stores/availabilityStore', () => ({
   useAvailabilityStore: jest.fn(),
 }));
 
-jest.mock("@/app/lib/teamOnboarding", () => ({
+jest.mock('@/app/lib/teamOnboarding', () => ({
   computeTeamOnboardingStep: jest.fn(),
 }));
 
-describe("useTeamOnboarding Hook", () => {
-  const mockOrgId = "org-123";
-  const mockProfile = { id: "user-1", name: "John Doe" };
-  const mockMembership = { roleCode: "staff" };
-  const mockAvailabilities = [{ day: "Monday", slots: [] }];
+describe('useTeamOnboarding Hook', () => {
+  const mockOrgId = 'org-123';
+  const mockProfile = { id: 'user-1', name: 'John Doe' };
+  const mockMembership = { roleCode: 'staff' };
+  const mockAvailabilities = [{ day: 'Monday', slots: [] }];
 
   const setupMocks = (
     overrides: {
       orgStatus?: string;
+      profileStatus?: string;
       availabilityStatus?: string;
       profilesByOrgId?: Record<string, any>;
       membershipsByOrgId?: Record<string, any>;
@@ -43,7 +44,7 @@ describe("useTeamOnboarding Hook", () => {
     // 1. Mock Org Store
     (useOrgStore as unknown as jest.Mock).mockImplementation((selector) => {
       const state = {
-        status: overrides.orgStatus || "loaded",
+        status: overrides.orgStatus || 'loaded',
         membershipsByOrgId: overrides.membershipsByOrgId || {
           [mockOrgId]: mockMembership,
         },
@@ -54,6 +55,7 @@ describe("useTeamOnboarding Hook", () => {
     // 2. Mock Profile Store
     (useUserProfileStore as unknown as jest.Mock).mockImplementation((selector) => {
       const state = {
+        status: overrides.profileStatus || 'loaded',
         profilesByOrgId: overrides.profilesByOrgId || {
           [mockOrgId]: mockProfile,
         },
@@ -62,25 +64,21 @@ describe("useTeamOnboarding Hook", () => {
     });
 
     // 3. Mock Availability Store
-    (useAvailabilityStore as unknown as jest.Mock).mockImplementation(
-      (selector) => {
-        const state = {
-          status: overrides.availabilityStatus || "loaded",
-          availabilitiesById: overrides.availabilitiesById || {
-            "avail-1": mockAvailabilities[0],
-          },
-          availabilityIdsByOrgId: overrides.availabilityIdsByOrgId || {
-            [mockOrgId]: ["avail-1"],
-          },
-        };
-        return selector(state);
-      }
-    );
+    (useAvailabilityStore as unknown as jest.Mock).mockImplementation((selector) => {
+      const state = {
+        status: overrides.availabilityStatus || 'loaded',
+        availabilitiesById: overrides.availabilitiesById || {
+          'avail-1': mockAvailabilities[0],
+        },
+        availabilityIdsByOrgId: overrides.availabilityIdsByOrgId || {
+          [mockOrgId]: ['avail-1'],
+        },
+      };
+      return selector(state);
+    });
 
     // 4. Mock Utility Function
-    (computeTeamOnboardingStep as jest.Mock).mockReturnValue(
-      overrides.computedStep ?? 1
-    );
+    (computeTeamOnboardingStep as jest.Mock).mockReturnValue(overrides.computedStep ?? 1);
   };
 
   beforeEach(() => {
@@ -89,17 +87,18 @@ describe("useTeamOnboarding Hook", () => {
 
   // --- 1. Basic & Loading States ---
 
-  it("returns defaults and redirects if no orgId is provided", () => {
+  it('returns defaults and redirects if no orgId is provided', () => {
     setupMocks();
     const { result } = renderHook(() => useTeamOnboarding(null));
 
     expect(result.current.shouldRedirectToOrganizations).toBe(true);
     expect(result.current.step).toBe(0);
     expect(result.current.profile).toBeNull();
+    expect(result.current.isReady).toBe(true);
   });
 
-  it("returns loading state if Org Store is loading", () => {
-    setupMocks({ orgStatus: "loading" });
+  it('returns loading state if Org Store is loading', () => {
+    setupMocks({ orgStatus: 'loading' });
     const { result } = renderHook(() => useTeamOnboarding(mockOrgId));
 
     expect(result.current.step).toBe(0);
@@ -107,26 +106,37 @@ describe("useTeamOnboarding Hook", () => {
     expect(result.current.shouldRedirectToOrganizations).toBe(false);
     // Profile is null during loading return block
     expect(result.current.profile).toBeNull();
+    expect(result.current.isReady).toBe(false);
   });
 
-  it("returns loading state if Availability Store is idle", () => {
-    setupMocks({ availabilityStatus: "idle" });
+  it('returns loading state if Availability Store is idle', () => {
+    setupMocks({ availabilityStatus: 'idle' });
     const { result } = renderHook(() => useTeamOnboarding(mockOrgId));
 
     expect(result.current.step).toBe(0);
+    expect(result.current.isReady).toBe(false);
+  });
+
+  it('returns loading state if Profile Store is idle', () => {
+    setupMocks({ profileStatus: 'idle' });
+    const { result } = renderHook(() => useTeamOnboarding(mockOrgId));
+
+    expect(result.current.step).toBe(0);
+    expect(result.current.isReady).toBe(false);
   });
 
   // --- 2. Logic: Missing Data & Redirects ---
 
-  it("redirects if membership is missing", () => {
+  it('redirects if membership is missing', () => {
     setupMocks({ membershipsByOrgId: {} }); // No membership for mockOrgId
     const { result } = renderHook(() => useTeamOnboarding(mockOrgId));
 
     expect(result.current.shouldRedirectToOrganizations).toBe(true);
     expect(result.current.profile).toBeNull();
+    expect(result.current.isReady).toBe(true);
   });
 
-  it("halts but does NOT redirect if profile is missing (waiting for fetch)", () => {
+  it('halts but does NOT redirect if profile is missing (waiting for fetch)', () => {
     setupMocks({ profilesByOrgId: {} }); // No profile
     const { result } = renderHook(() => useTeamOnboarding(mockOrgId));
 
@@ -135,6 +145,7 @@ describe("useTeamOnboarding Hook", () => {
     expect(result.current.shouldRedirectToOrganizations).toBe(false);
     expect(result.current.profile).toBeNull();
     expect(result.current.step).toBe(0);
+    expect(result.current.isReady).toBe(true);
   });
 
   // --- 3. Logic: Role Based (Owner) ---
@@ -142,7 +153,7 @@ describe("useTeamOnboarding Hook", () => {
   it("skips onboarding (step 3) if user is 'owner'", () => {
     setupMocks({
       membershipsByOrgId: {
-        [mockOrgId]: { roleCode: "owner" },
+        [mockOrgId]: { roleCode: 'owner' },
       },
     });
 
@@ -152,12 +163,13 @@ describe("useTeamOnboarding Hook", () => {
     expect(result.current.shouldRedirectToOrganizations).toBe(false);
     // Profile is returned as null in the owner shortcut block in the source code
     expect(result.current.profile).toBeNull();
+    expect(result.current.isReady).toBe(true);
   });
 
   it("handles 'Owner' case-insensitively via roleDisplay", () => {
     setupMocks({
       membershipsByOrgId: {
-        [mockOrgId]: { roleDisplay: "OWNER" },
+        [mockOrgId]: { roleDisplay: 'OWNER' },
       },
     });
 
@@ -168,7 +180,7 @@ describe("useTeamOnboarding Hook", () => {
 
   // --- 4. Logic: Standard Flow (Staff) ---
 
-  it("computes step and returns data for standard staff user", () => {
+  it('computes step and returns data for standard staff user', () => {
     setupMocks({ computedStep: 2 });
     const { result } = renderHook(() => useTeamOnboarding(mockOrgId));
 
@@ -176,15 +188,13 @@ describe("useTeamOnboarding Hook", () => {
     expect(result.current.profile).toEqual(mockProfile);
     expect(result.current.slots).toEqual([mockAvailabilities[0]]);
     expect(result.current.shouldRedirectToOrganizations).toBe(false);
+    expect(result.current.isReady).toBe(true);
 
     // Verify utility called with correct args
-    expect(computeTeamOnboardingStep).toHaveBeenCalledWith(
-      mockProfile,
-      [mockAvailabilities[0]]
-    );
+    expect(computeTeamOnboardingStep).toHaveBeenCalledWith(mockProfile, [mockAvailabilities[0]]);
   });
 
-  it("handles missing availability slots gracefully", () => {
+  it('handles missing availability slots gracefully', () => {
     setupMocks({
       availabilityIdsByOrgId: {}, // No IDs mapped
     });
@@ -195,9 +205,9 @@ describe("useTeamOnboarding Hook", () => {
     expect(computeTeamOnboardingStep).toHaveBeenCalledWith(mockProfile, []);
   });
 
-  it("filters out null availabilities if ID lookup fails", () => {
+  it('filters out null availabilities if ID lookup fails', () => {
     setupMocks({
-      availabilityIdsByOrgId: { [mockOrgId]: ["missing-id"] },
+      availabilityIdsByOrgId: { [mockOrgId]: ['missing-id'] },
       availabilitiesById: {}, // Empty record
     });
 

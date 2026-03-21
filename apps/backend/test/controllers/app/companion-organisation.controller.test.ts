@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import { CompanionOrganisationController } from "../../../src/controllers/app/companion-organisation.controller";
 import { CompanionOrganisationService } from "../../../src/services/companion-organisation.service";
 import { ParentService } from "../../../src/services/parent.service";
+import { AuthUserMobileService } from "../../../src/services/authUserMobile.service";
 import OrganizationModel from "../../../src/models/organization";
 import logger from "../../../src/utils/logger";
 
@@ -34,6 +35,7 @@ jest.mock("../../../src/services/companion-organisation.service", () => {
 });
 
 jest.mock("../../../src/services/parent.service");
+jest.mock("../../../src/services/authUserMobile.service");
 jest.mock("../../../src/models/organization");
 jest.mock("../../../src/utils/logger");
 
@@ -47,8 +49,10 @@ const { CompanionOrganisationServiceError } = jest.requireActual(
 // ----------------------------------------------------------------------
 const mockedCompanionService = jest.mocked(CompanionOrganisationService);
 const mockedParentService = jest.mocked(ParentService);
+const mockedAuthUserMobileService = jest.mocked(AuthUserMobileService);
 const mockedOrgModel = jest.mocked(OrganizationModel);
 const mockedLogger = jest.mocked(logger);
+const validObjectId = "507f1f77bcf86cd799439011";
 
 describe("CompanionOrganisationController", () => {
   let req: Partial<Request>;
@@ -102,31 +106,30 @@ describe("CompanionOrganisationController", () => {
   describe("User ID Resolution (Coverage for helper)", () => {
     it("should resolve user id from header x-user-id", async () => {
       req.headers = { "x-user-id": "header-user" };
-      // mocking findByLinkedUserId to return null to stop execution early, just testing the auth extraction
-      mockedParentService.findByLinkedUserId.mockResolvedValue(null);
+      mockedAuthUserMobileService.getByProviderUserId.mockResolvedValue(null);
 
       await CompanionOrganisationController.linkByParent(
         req as Request,
         res as Response,
       );
 
-      expect(mockedParentService.findByLinkedUserId).toHaveBeenCalledWith(
-        "header-user",
-      );
+      expect(
+        mockedAuthUserMobileService.getByProviderUserId,
+      ).toHaveBeenCalledWith("header-user");
     });
 
     it("should resolve user id from req.userId", async () => {
       (req as any).userId = "req-user";
-      mockedParentService.findByLinkedUserId.mockResolvedValue(null);
+      mockedAuthUserMobileService.getByProviderUserId.mockResolvedValue(null);
 
       await CompanionOrganisationController.linkByParent(
         req as Request,
         res as Response,
       );
 
-      expect(mockedParentService.findByLinkedUserId).toHaveBeenCalledWith(
-        "req-user",
-      );
+      expect(
+        mockedAuthUserMobileService.getByProviderUserId,
+      ).toHaveBeenCalledWith("req-user");
     });
   });
 
@@ -145,7 +148,7 @@ describe("CompanionOrganisationController", () => {
 
     it("should return 401 if parent not found", async () => {
       (req as any).userId = "user123";
-      mockedParentService.findByLinkedUserId.mockResolvedValue(null);
+      mockedAuthUserMobileService.getByProviderUserId.mockResolvedValue(null);
       await CompanionOrganisationController.linkByParent(
         req as Request,
         res as Response,
@@ -155,8 +158,8 @@ describe("CompanionOrganisationController", () => {
 
     it("should return 400 if body is null/non-object", async () => {
       (req as any).userId = "user1";
-      mockedParentService.findByLinkedUserId.mockResolvedValue({
-        _id: "p1",
+      mockedAuthUserMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "p1",
       } as any);
       req.body = null;
       await CompanionOrganisationController.linkByParent(
@@ -168,8 +171,8 @@ describe("CompanionOrganisationController", () => {
 
     it("should return 400 if payload is invalid (missing fields/invalid type)", async () => {
       (req as any).userId = "user1";
-      mockedParentService.findByLinkedUserId.mockResolvedValue({
-        _id: "p1",
+      mockedAuthUserMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "p1",
       } as any);
 
       // Missing organisationId
@@ -195,8 +198,8 @@ describe("CompanionOrganisationController", () => {
 
     it("should success (201)", async () => {
       (req as any).userId = "user1";
-      mockedParentService.findByLinkedUserId.mockResolvedValue({
-        _id: "p1",
+      mockedAuthUserMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "p1",
       } as any);
       req.body = {
         companionId: "c1",
@@ -224,8 +227,8 @@ describe("CompanionOrganisationController", () => {
 
     it("should handle Service Error (409)", async () => {
       (req as any).userId = "user1";
-      mockedParentService.findByLinkedUserId.mockResolvedValue({
-        _id: "p1",
+      mockedAuthUserMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "p1",
       } as any);
       req.body = {
         companionId: "c1",
@@ -245,8 +248,8 @@ describe("CompanionOrganisationController", () => {
 
     it("should handle Generic Error", async () => {
       (req as any).userId = "user1";
-      mockedParentService.findByLinkedUserId.mockResolvedValue({
-        _id: "p1",
+      mockedAuthUserMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "p1",
       } as any);
       req.body = {
         companionId: "c1",
@@ -374,7 +377,7 @@ describe("CompanionOrganisationController", () => {
     it("should success (200)", async () => {
       (req as any).userId = "u1";
       mockedParentService.findByLinkedUserId.mockResolvedValue({
-        _id: "p1",
+        _id: validObjectId,
       } as any);
       req.params = { linkId: "l1" };
       mockedCompanionService.parentApproveLink.mockResolvedValue({} as any);
@@ -389,7 +392,7 @@ describe("CompanionOrganisationController", () => {
     it("should handle service error", async () => {
       (req as any).userId = "u1";
       mockedParentService.findByLinkedUserId.mockResolvedValue({
-        _id: "p1",
+        _id: validObjectId,
       } as any);
       req.params = { linkId: "l1" };
 
@@ -405,7 +408,7 @@ describe("CompanionOrganisationController", () => {
     it("should handle generic error", async () => {
       (req as any).userId = "u1";
       mockedParentService.findByLinkedUserId.mockResolvedValue({
-        _id: "p1",
+        _id: validObjectId,
       } as any);
       mockGenericError("parentApproveLink");
 
@@ -439,7 +442,7 @@ describe("CompanionOrganisationController", () => {
     it("should success (200)", async () => {
       (req as any).userId = "u1";
       mockedParentService.findByLinkedUserId.mockResolvedValue({
-        _id: "p1",
+        _id: validObjectId,
       } as any);
       req.params = { linkId: "l1" };
       mockedCompanionService.parentRejectLink.mockResolvedValue({} as any);
@@ -454,7 +457,7 @@ describe("CompanionOrganisationController", () => {
     it("should handle service error", async () => {
       (req as any).userId = "u1";
       mockedParentService.findByLinkedUserId.mockResolvedValue({
-        _id: "p1",
+        _id: validObjectId,
       } as any);
       req.params = { linkId: "l1" };
 
@@ -470,7 +473,7 @@ describe("CompanionOrganisationController", () => {
     it("should handle generic error", async () => {
       (req as any).userId = "u1";
       mockedParentService.findByLinkedUserId.mockResolvedValue({
-        _id: "p1",
+        _id: validObjectId,
       } as any);
       mockGenericError("parentRejectLink");
 
@@ -504,7 +507,7 @@ describe("CompanionOrganisationController", () => {
     it("should 400 if payload invalid (structure)", async () => {
       (req as any).userId = "u1";
       mockedParentService.findByLinkedUserId.mockResolvedValue({
-        _id: "p1",
+        _id: validObjectId,
       } as any);
       req.body = "not-an-object";
       await CompanionOrganisationController.sendInvite(
@@ -517,7 +520,7 @@ describe("CompanionOrganisationController", () => {
     it("should 400 if payload missing keys (companionId)", async () => {
       (req as any).userId = "u1";
       mockedParentService.findByLinkedUserId.mockResolvedValue({
-        _id: "p1",
+        _id: validObjectId,
       } as any);
       req.body = { organisationType: "HOSPITAL" };
       await CompanionOrganisationController.sendInvite(

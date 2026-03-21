@@ -3,11 +3,39 @@ import { ExpenseService } from "../../src/services/expense.service";
 import ExternalExpenseModel from "../../src/models/expense";
 import InvoiceModel from "../../src/models/invoice";
 import OrganizationModel from "../../src/models/organization";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError } from "src/utils/dual-write";
 
 // --- Mocks ---
 jest.mock("../../src/models/expense");
 jest.mock("../../src/models/invoice");
 jest.mock("../../src/models/organization");
+jest.mock("src/config/prisma", () => ({
+  prisma: {
+    externalExpense: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      deleteMany: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
+      aggregate: jest.fn(),
+    },
+    invoice: {
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      aggregate: jest.fn(),
+    },
+    organization: {
+      findFirst: jest.fn(),
+    },
+  },
+}));
+jest.mock("src/utils/dual-write", () => ({
+  shouldDualWrite: true,
+  isDualWriteStrict: false,
+  handleDualWriteError: jest.fn(),
+}));
 
 describe("ExpenseService", () => {
   const validObjectId = new Types.ObjectId().toString();
@@ -39,6 +67,7 @@ describe("ExpenseService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.READ_FROM_POSTGRES = "false";
   });
 
   // 1. createExpense
@@ -109,6 +138,42 @@ describe("ExpenseService", () => {
         expect.objectContaining({
           currency: "USD",
         }),
+      );
+    });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.externalExpense.create as jest.Mock).mockResolvedValue({
+        id: "pg-1",
+      });
+
+      const result = await ExpenseService.createExpense({
+        ...input,
+        currency: undefined,
+      });
+
+      expect(prisma.externalExpense.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            currency: "USD",
+          }),
+        }),
+      );
+      expect(result).toEqual({ id: "pg-1" });
+    });
+
+    it("handles dual-write errors", async () => {
+      const mockDoc = createMockDoc(input);
+      (ExternalExpenseModel.create as jest.Mock).mockResolvedValue(mockDoc);
+      (prisma.externalExpense.create as jest.Mock).mockRejectedValue(
+        new Error("sync fail"),
+      );
+
+      await ExpenseService.createExpense(input);
+
+      expect(handleDualWriteError).toHaveBeenCalledWith(
+        "ExternalExpense",
+        expect.any(Error),
       );
     });
   });
@@ -204,6 +269,47 @@ describe("ExpenseService", () => {
       const result: any[] =
         await ExpenseService.getExpensesByCompanion(validCompanionId);
       expect(result[0].businessName).toBe("Unknown Organization");
+    });
+
+    it("returns combined list from postgres", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      const date1 = new Date("2023-01-01");
+      const date2 = new Date("2023-01-03");
+      (prisma.externalExpense.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: "ext1",
+          date: date1,
+          amount: 25,
+          expenseName: "External",
+          notes: "Note",
+          category: "Food",
+          subcategory: null,
+          currency: "USD",
+          businessName: null,
+        },
+      ]);
+      (prisma.invoice.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: "inv1",
+          createdAt: date2,
+          totalAmount: 100,
+          appointmentId: "appt1",
+          items: [{ name: "Service" }],
+          status: "PAID",
+          currency: "USD",
+          organisationId: "org1",
+        },
+      ]);
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValue({
+        name: "Clinic",
+      });
+
+      const result =
+        await ExpenseService.getExpensesByCompanion(validCompanionId);
+
+      expect(result[0].source).toBe("IN_APP");
+      expect(result[0].businessName).toBe("Clinic");
+      expect(result[1].source).toBe("EXTERNAL");
     });
   });
 
@@ -319,6 +425,49 @@ describe("ExpenseService", () => {
         ExpenseService.getExpenseById(validObjectId),
       ).rejects.toThrow("Expense not found");
     });
+
+    it("returns external expense from postgres when found", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.externalExpense.findFirst as jest.Mock).mockResolvedValue({
+        id: "ext-1",
+      });
+
+      const result = await ExpenseService.getExpenseById("ext-1");
+      expect(result).toEqual({ id: "ext-1" });
+    });
+
+    it("returns mapped invoice from postgres", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.externalExpense.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.invoice.findFirst as jest.Mock).mockResolvedValue({
+        id: "inv-1",
+        createdAt: new Date("2023-01-01"),
+        totalAmount: 20,
+        status: "DRAFT",
+        items: [{ name: "Item" }],
+        currency: "USD",
+        organisationId: "org1",
+        appointmentId: "appt1",
+      });
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValue({
+        name: "Clinic",
+      });
+
+      const result: any = await ExpenseService.getExpenseById("inv-1");
+      expect(result.source).toBe("IN_APP");
+      expect(result.status).toBeUndefined();
+      expect(result.businessName).toBe("Clinic");
+    });
+
+    it("throws 404 in postgres when not found", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.externalExpense.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.invoice.findFirst as jest.Mock).mockResolvedValue(null);
+
+      await expect(ExpenseService.getExpenseById("missing")).rejects.toThrow(
+        "Expense not found",
+      );
+    });
   });
 
   // 4. deleteExpense
@@ -345,6 +494,46 @@ describe("ExpenseService", () => {
         exec: jest.fn().mockResolvedValue({ deletedCount: 0 }),
       });
       await expect(ExpenseService.deleteExpense(validObjectId)).rejects.toThrow(
+        "Expense not found",
+      );
+    });
+
+    it("handles dual-write delete errors", async () => {
+      (ExternalExpenseModel.deleteOne as jest.Mock).mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ deletedCount: 1 }),
+      });
+      (prisma.externalExpense.deleteMany as jest.Mock).mockRejectedValue(
+        new Error("delete fail"),
+      );
+
+      await ExpenseService.deleteExpense(validObjectId);
+
+      expect(handleDualWriteError).toHaveBeenCalledWith(
+        "ExternalExpense delete",
+        expect.any(Error),
+      );
+    });
+
+    it("uses prisma deleteMany when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.externalExpense.deleteMany as jest.Mock).mockResolvedValue({
+        count: 1,
+      });
+
+      await ExpenseService.deleteExpense("pg-1");
+
+      expect(prisma.externalExpense.deleteMany).toHaveBeenCalledWith({
+        where: { id: "pg-1" },
+      });
+    });
+
+    it("throws 404 on postgres delete when not found", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.externalExpense.deleteMany as jest.Mock).mockResolvedValue({
+        count: 0,
+      });
+
+      await expect(ExpenseService.deleteExpense("pg-1")).rejects.toThrow(
         "Expense not found",
       );
     });
@@ -378,6 +567,49 @@ describe("ExpenseService", () => {
         ExpenseService.updateExpense(validObjectId, {}),
       ).rejects.toThrow("Expense not found");
     });
+
+    it("handles dual-write update errors", async () => {
+      const mockDoc = {
+        _id: new Types.ObjectId(validObjectId),
+        companionId: new Types.ObjectId(validCompanionId),
+        parentId: new Types.ObjectId(validObjectId),
+        category: "Food",
+        expenseName: "Updated",
+        amount: 10,
+        date: new Date(),
+        currency: "USD",
+      };
+      (ExternalExpenseModel.findByIdAndUpdate as jest.Mock).mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockDoc),
+      });
+      (prisma.externalExpense.updateMany as jest.Mock).mockRejectedValue(
+        new Error("update fail"),
+      );
+
+      await ExpenseService.updateExpense(validObjectId, {
+        expenseName: "Updated",
+      });
+
+      expect(handleDualWriteError).toHaveBeenCalledWith(
+        "ExternalExpense update",
+        expect.any(Error),
+      );
+    });
+
+    it("uses prisma update when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.externalExpense.update as jest.Mock).mockResolvedValue({
+        id: "pg-1",
+        expenseName: "Updated",
+      });
+
+      const result = await ExpenseService.updateExpense("pg-1", {
+        expenseName: "Updated",
+      });
+
+      expect(prisma.externalExpense.update).toHaveBeenCalled();
+      expect(result).toEqual({ id: "pg-1", expenseName: "Updated" });
+    });
   });
 
   // 6. getTotalExpenseForCompanion
@@ -407,6 +639,26 @@ describe("ExpenseService", () => {
         await ExpenseService.getTotalExpenseForCompanion(validCompanionId);
 
       expect(res.totalExpense).toBe(0);
+    });
+
+    it("aggregates totals from postgres", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.invoice.aggregate as jest.Mock).mockResolvedValue({
+        _sum: { totalAmount: 120 },
+      });
+      (prisma.externalExpense.aggregate as jest.Mock).mockResolvedValue({
+        _sum: { amount: 30 },
+      });
+
+      const res =
+        await ExpenseService.getTotalExpenseForCompanion(validCompanionId);
+
+      expect(res).toEqual({
+        companionId: validCompanionId,
+        invoiceTotal: 120,
+        externalTotal: 30,
+        totalExpense: 150,
+      });
     });
   });
 });

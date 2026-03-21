@@ -1,17 +1,20 @@
-import { useEffect, useMemo } from "react";
-import { loadCompanionsForPrimaryOrg } from "@/app/features/companions/services/companionService";
-import { useCompanionStore } from "@/app/stores/companionStore";
-import { useOrgStore } from "@/app/stores/orgStore";
-import { CompanionParent, StoredCompanion } from "@/app/features/companions/pages/Companions/types";
-import { useParentStore } from "@/app/stores/parentStore";
+import { useEffect, useMemo } from 'react';
+import { loadCompanionsForPrimaryOrg } from '@/app/features/companions/services/companionService';
+import { useCompanionStore } from '@/app/stores/companionStore';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { CompanionParent, StoredCompanion } from '@/app/features/companions/pages/Companions/types';
+import { useParentStore } from '@/app/stores/parentStore';
 
 export const useLoadCompanionsForPrimaryOrg = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
+  const companionsIdsByOrgId = useCompanionStore((s) => s.companionsIdsByOrgId);
 
   useEffect(() => {
     if (!primaryOrgId) return;
+    if (useCompanionStore.getState().status === 'loading') return;
+    if (Object.hasOwn(companionsIdsByOrgId, primaryOrgId)) return;
     void loadCompanionsForPrimaryOrg();
-  }, [primaryOrgId]);
+  }, [primaryOrgId, companionsIdsByOrgId]);
 };
 
 export const useCompanionsForPrimaryOrg = (): StoredCompanion[] => {

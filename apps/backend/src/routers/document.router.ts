@@ -86,7 +86,7 @@ router.post(
 );
 
 // List documents for companion (PMS)
-router.post(
+router.get(
   "/pms/:companionId",
   authorizeCognito,
   withOrgPermissions(),

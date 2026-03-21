@@ -1,20 +1,26 @@
-import { Primary } from "@/app/ui/primitives/Buttons";
-import FormInput from "@/app/ui/inputs/FormInput/FormInput";
-import { FormField, FormFieldType, FormsProps, buildMedicationFields } from "@/app/features/forms/types/forms";
-import MultiSelectDropdown from "@/app/ui/inputs/MultiSelectDropdown";
-import Dropdown from "@/app/ui/inputs/Dropdown/Dropdown";
-import React, { useEffect, useRef, useState, useCallback } from "react";
-import { IoIosAddCircleOutline, IoIosWarning } from "react-icons/io";
-import TextBuilder from "@/app/features/forms/pages/Forms/Sections/AddForm/components/Text/TextBuilder";
-import InputBuilder from "@/app/features/forms/pages/Forms/Sections/AddForm/components/Input/InputBuilder";
-import DropdownBuilder from "@/app/features/forms/pages/Forms/Sections/AddForm/components/Dropdown/DropdownBuilder";
-import SignatureBuilder from "@/app/features/forms/pages/Forms/Sections/AddForm/components/Signature/SignatureBuilder";
-import BuilderWrapper from "@/app/features/forms/pages/Forms/Sections/AddForm/components/BuildWrapper";
-import BooleanBuilder from "@/app/features/forms/pages/Forms/Sections/AddForm/components/Boolean/BooleanBuilder";
-import DateBuilder from "@/app/features/forms/pages/Forms/Sections/AddForm/components/Date/DateBuilder";
-import { useOrgStore } from "@/app/stores/orgStore";
-import { fetchInventoryItems } from "@/app/features/inventory/services/inventoryService";
-import { InventoryApiItem } from "@/app/features/inventory/pages/Inventory/types";
+import { Primary } from '@/app/ui/primitives/Buttons';
+import FormInput from '@/app/ui/inputs/FormInput/FormInput';
+import {
+  FormField,
+  FormFieldType,
+  FormsProps,
+  buildMedicationFields,
+} from '@/app/features/forms/types/forms';
+import MultiSelectDropdown from '@/app/ui/inputs/MultiSelectDropdown';
+import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { IoIosAddCircleOutline, IoIosWarning } from 'react-icons/io';
+import TextBuilder from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Text/TextBuilder';
+import InputBuilder from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Input/InputBuilder';
+import DropdownBuilder from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Dropdown/DropdownBuilder';
+import SignatureBuilder from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Signature/SignatureBuilder';
+import BuilderWrapper from '@/app/features/forms/pages/Forms/Sections/AddForm/components/BuildWrapper';
+import BooleanBuilder from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Boolean/BooleanBuilder';
+import DateBuilder from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Date/DateBuilder';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { fetchInventoryItems } from '@/app/features/inventory/services/inventoryService';
+import { InventoryApiItem } from '@/app/features/inventory/pages/Inventory/types';
+import { ensureSingleSignatureAtEnd, hasSignatureField } from '@/app/lib/forms';
 
 type BuildProps = {
   formData: FormsProps;
@@ -24,7 +30,7 @@ type BuildProps = {
   registerValidator?: (fn: () => boolean) => void;
 };
 
-type OptionKey = FormFieldType | "medication" | "service-group";
+type OptionKey = FormFieldType | 'medication' | 'service-group';
 
 type OptionProp = {
   name: string;
@@ -33,52 +39,52 @@ type OptionProp = {
 
 const addOptions: OptionProp[] = [
   {
-    name: "Long Text",
-    key: "textarea",
+    name: 'Long Text',
+    key: 'textarea',
   },
   {
-    name: "Short Text",
-    key: "input",
+    name: 'Short Text',
+    key: 'input',
   },
   {
-    name: "Number",
-    key: "number",
+    name: 'Number',
+    key: 'number',
   },
   {
-    name: "Select List",
-    key: "dropdown",
+    name: 'Select List',
+    key: 'dropdown',
   },
   {
-    name: "Single Choice",
-    key: "radio",
+    name: 'Single Choice',
+    key: 'radio',
   },
   {
-    name: "Multiple Choice",
-    key: "checkbox",
+    name: 'Multiple Choice',
+    key: 'checkbox',
   },
   {
-    name: "Yes / No",
-    key: "boolean",
+    name: 'Yes / No',
+    key: 'boolean',
   },
   {
-    name: "Date",
-    key: "date",
+    name: 'Date',
+    key: 'date',
   },
   {
-    name: "Signature",
-    key: "signature",
+    name: 'Signature',
+    key: 'signature',
   },
   {
-    name: "Field Group",
-    key: "group",
+    name: 'Field Group',
+    key: 'group',
   },
   {
-    name: "Medications",
-    key: "medication",
+    name: 'Medications',
+    key: 'medication',
   },
   {
-    name: "Services",
-    key: "service-group",
+    name: 'Services',
+    key: 'service-group',
   },
 ];
 
@@ -102,66 +108,69 @@ const builderComponentMap: Record<FormFieldType, React.ComponentType<BuilderComp
 };
 
 const defaultDropdownOptions = [
-  { label: "Option 1", value: "option_1" },
-  { label: "Option 2", value: "option_2" },
+  { label: 'Option 1', value: 'option_1' },
+  { label: 'Option 2', value: 'option_2' },
 ];
 
 const defaultRadioOptions = [
-  { label: "Option A", value: "option_a" },
-  { label: "Option B", value: "option_b" },
+  { label: 'Option A', value: 'option_a' },
+  { label: 'Option B', value: 'option_b' },
 ];
 
 const buildMedicationTemplateGroup = (id: string): FormField => {
   const templateId = `${id}_template`;
   return {
     id: templateId,
-    type: "group",
-    label: "Medication template",
-    meta: { template: true, medicineName: "Medication template" } as any,
-    fields: buildMedicationFields(templateId, "-"),
+    type: 'group',
+    label: 'Medication template',
+    meta: { template: true, medicineName: 'Medication template' } as any,
+    fields: buildMedicationFields(templateId, '-'),
   };
 };
 
-const fieldFactory: Record<OptionKey, (id: string, serviceOptions?: { label: string; value: string }[]) => FormField> = {
+const fieldFactory: Record<
+  OptionKey,
+  (id: string, serviceOptions?: { label: string; value: string }[]) => FormField
+> = {
   medication: (id) => ({
     id,
-    type: "group",
-    label: "Medication",
+    type: 'group',
+    label: 'Medication',
     meta: { medicationGroup: true } as any,
     fields: [buildMedicationTemplateGroup(id)],
   }),
-  textarea: (id) => ({ id, type: "textarea", label: "Text area", placeholder: "" }),
-  input: (id) => ({ id, type: "input", label: "Input", placeholder: "" }),
-  number: (id) => ({ id, type: "number", label: "Number", placeholder: "" }),
+  textarea: (id) => ({ id, type: 'textarea', label: 'Text area', placeholder: '' }),
+  input: (id) => ({ id, type: 'input', label: 'Input', placeholder: '' }),
+  number: (id) => ({ id, type: 'number', label: 'Number', placeholder: '' }),
   dropdown: (id) => ({
     id,
-    type: "dropdown",
-    label: "Dropdown",
+    type: 'dropdown',
+    label: 'Dropdown',
     options: defaultDropdownOptions.map((option) => ({ ...option })),
     multiple: false,
   }),
   radio: (id) => ({
     id,
-    type: "radio",
-    label: "Radio",
+    type: 'radio',
+    label: 'Radio',
     options: defaultRadioOptions.map((option) => ({ ...option })),
     multiple: false,
   }),
   checkbox: (id) => ({
     id,
-    type: "checkbox",
-    label: "Checkbox",
+    type: 'checkbox',
+    label: 'Checkbox',
     options: defaultDropdownOptions.map((option) => ({ ...option })),
     multiple: true,
   }),
-  boolean: (id) => ({ id, type: "boolean", label: "Yes / No" }),
-  date: (id) => ({ id, type: "date", label: "Date" }),
-  signature: (id) => ({ id, type: "signature", label: "Signature" }),
-  group: (id) => ({ id, type: "group", label: "Group", fields: [] }),
-  "service-group": (id, serviceOptions = []) => ({
+  boolean: (id) => ({ id, type: 'boolean', label: 'Yes / No' }),
+  date: (id) => ({ id, type: 'date', label: 'Date' }),
+  signature: (id) => ({ id, type: 'signature', label: 'Signature' }),
+  group: (id) => ({ id, type: 'group', label: 'Group', fields: [] }),
+  'service-group': (id) => ({
     id,
-    type: "group",
-    label: "Services",
+    type: 'group',
+    label: 'Services',
     meta: { serviceGroup: true } as any,
     fields: [],
   }),
@@ -170,13 +179,14 @@ const fieldFactory: Record<OptionKey, (id: string, serviceOptions?: { label: str
 const AddFieldDropdown: React.FC<{
   onSelect: (key: OptionKey) => void;
   buttonClassName?: string;
-}> = ({ onSelect, buttonClassName }) => {
+  options?: OptionProp[];
+}> = ({ onSelect, buttonClassName, options = addOptions }) => {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   useOutsideClick(dropdownRef, () => setOpen(false));
 
   return (
-    <div className={`relative ${buttonClassName ?? ""}`} ref={dropdownRef}>
+    <div className={`relative ${buttonClassName ?? ''}`} ref={dropdownRef}>
       <IoIosAddCircleOutline
         size={28}
         color="#302f2e"
@@ -185,14 +195,14 @@ const AddFieldDropdown: React.FC<{
       />
       {open && (
         <div className="absolute top-[120%] z-10 right-0 rounded-2xl border border-grey-noti bg-white shadow-md! flex flex-col items-center w-[160px]">
-          {addOptions.map((option, i) => (
+          {options.map((option, i) => (
             <button
               key={option.key}
               onClick={() => {
                 onSelect(option.key);
                 setOpen(false);
               }}
-              className={`${i === 0 ? "border-t-0!" : "border-t! border-t-grey-light!"} font-grotesk font-medium text-[16px] text-black-text text-left px-3 py-2 w-full`}
+              className={`${i === 0 ? 'border-t-0!' : 'border-t! border-t-grey-light!'} font-satoshi font-medium text-[16px] text-black-text text-left px-3 py-2 w-full`}
             >
               {option.name}
             </button>
@@ -203,29 +213,27 @@ const AddFieldDropdown: React.FC<{
   );
 };
 
-const isTreatmentPlanGroup = (
-  field: FormField
-): field is FormField & { type: "group" } =>
-  field.id === "treatment_plan" && field.type === "group";
+const isTreatmentPlanGroup = (field: FormField): field is FormField & { type: 'group' } =>
+  field.id === 'treatment_plan' && field.type === 'group';
 
-const isMedicationGroup = (field: FormField): field is FormField & { type: "group" } =>
-  field.type === "group" && Boolean(field.meta?.medicationGroup);
+const isMedicationGroup = (field: FormField): field is FormField & { type: 'group' } =>
+  field.type === 'group' && Boolean(field.meta?.medicationGroup);
 
-const isServiceGroup = (field: FormField): field is FormField & { type: "group" } =>
-  field.type === "group" && Boolean(field.meta?.serviceGroup);
+const isServiceGroup = (field: FormField): field is FormField & { type: 'group' } =>
+  field.type === 'group' && Boolean(field.meta?.serviceGroup);
 
 const getServiceCheckbox = (
-  field: FormField & { type: "group"; fields?: FormField[] }
-): (FormField & { type: "checkbox"; options?: { label: string; value: string }[] }) | undefined =>
+  field: FormField & { type: 'group'; fields?: FormField[] }
+): (FormField & { type: 'checkbox'; options?: { label: string; value: string }[] }) | undefined =>
   (field.fields ?? []).find(
-    (f): f is FormField & { type: "checkbox"; options?: { label: string; value: string }[] } =>
-      f.type === "checkbox"
+    (f): f is FormField & { type: 'checkbox'; options?: { label: string; value: string }[] } =>
+      f.type === 'checkbox'
   );
 
 const ensureServiceCheckbox = (
-  field: FormField & { type: "group" },
+  field: FormField & { type: 'group' },
   serviceOptions: { label: string; value: string }[]
-): { group: FormField & { type: "group" }; selected: string[] } => {
+): { group: FormField & { type: 'group' }; selected: string[] } => {
   const existingCheckbox = getServiceCheckbox(field);
   const selected = existingCheckbox?.options?.map((opt) => opt.value) ?? [];
 
@@ -235,8 +243,8 @@ const ensureServiceCheckbox = (
 
   const checkbox: FormField = {
     id: existingCheckbox?.id || `${field.id}_services`,
-    type: "checkbox",
-    label: "", // Empty label to avoid duplicate "Services" text
+    type: 'checkbox',
+    label: '', // Empty label to avoid duplicate "Services" text
     options: selected.map((val) => {
       const match = serviceOptions.find((o) => o.value === val);
       return match ?? { label: val, value: val };
@@ -259,62 +267,19 @@ const ensureServiceCheckbox = (
   };
 };
 
-const buildLabeledMedication = (
-  fields: FormField[] | undefined,
-  baseMedication: FormField
-) => {
+const buildLabeledMedication = (fields: FormField[] | undefined, baseMedication: FormField) => {
   const medCount = (fields ?? []).filter(isMedicationGroup).length;
   return { ...baseMedication, label: `Medication ${medCount + 1}` };
 };
 
-const addFieldToTreatmentPlan = (
-  schema: FormField[],
-  fieldToAdd: FormField
-): FormField[] =>
-  schema.map((field) =>
-    isTreatmentPlanGroup(field)
-      ? { ...field, fields: [...(field.fields ?? []), fieldToAdd] }
-      : field
-  );
-const updateServiceGroupOptions = (
-  field: FormField & { type: "group" },
-  serviceOptions: { label: string; value: string }[]
-): FormField => {
-  const checkbox = getServiceCheckbox(field);
-  if (!checkbox) return field;
-  const selectedValues = (checkbox.options ?? []).map((opt) => opt.value);
-
-  const mappedOptions = serviceOptions.map((opt) => ({ ...opt }));
-  const missingSelected = selectedValues.filter(
-    (val: string) => !mappedOptions.some((opt) => opt.value === val)
-  );
-  const mergedOptions = [
-    ...mappedOptions,
-    ...missingSelected.map((val: string) => ({ label: val, value: val })),
-  ];
-
-  const updatedCheckbox = { ...checkbox, options: mergedOptions };
-  return {
-    ...field,
-    fields: (field.fields ?? []).map((f) =>
-      f.id === checkbox.id ? updatedCheckbox : f
-    ),
-  };
-};
-const addMedicationToTreatmentPlan = (
-  schema: FormField[],
-  medicationField: FormField
-) =>
+const addMedicationToTreatmentPlan = (schema: FormField[], medicationField: FormField) =>
   schema.map((field) => {
     if (!isTreatmentPlanGroup(field)) return field;
     const labeledMed = buildLabeledMedication(field.fields, medicationField);
     return { ...field, fields: [...(field.fields ?? []), labeledMed] };
   });
 
-const useOutsideClick = (
-  ref: React.RefObject<HTMLElement | null>,
-  onClose: () => void
-) => {
+const useOutsideClick = (ref: React.RefObject<HTMLElement | null>, onClose: () => void) => {
   const handleClickOutside = useCallback(
     (event: MouseEvent) => {
       if (ref.current && !ref.current.contains(event.target as Node)) {
@@ -325,9 +290,9 @@ const useOutsideClick = (
   );
 
   useEffect(() => {
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [handleClickOutside]);
 };
@@ -386,7 +351,7 @@ export const FieldBuilder: React.FC<{
 };
 
 type GroupBuilderProps = {
-  field: FormField & { type: "group"; fields?: FormField[] };
+  field: FormField & { type: 'group'; fields?: FormField[] };
   onChange: (f: FormField) => void;
   createField: (t: OptionKey) => FormField;
   serviceOptions: { label: string; value: string }[];
@@ -398,7 +363,7 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
   createField,
   serviceOptions,
 }) => {
-  const groupField: FormField & { type: "group"; fields?: FormField[] } = {
+  const groupField: FormField & { type: 'group'; fields?: FormField[] } = {
     ...field,
     fields: field.fields ?? [],
   };
@@ -414,15 +379,11 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
           const match = serviceOptions.find((o) => o.value === val);
           return match ?? { label: val, value: val };
         }),
-        meta: checkbox?.meta
-          ? { ...checkbox.meta, serviceIds: values }
-          : { serviceIds: values },
+        meta: checkbox?.meta ? { ...checkbox.meta, serviceIds: values } : { serviceIds: values },
       };
       onChange({
         ...group,
-        meta: group.meta
-          ? { ...group.meta, serviceIds: values }
-          : { serviceIds: values },
+        meta: group.meta ? { ...group.meta, serviceIds: values } : { serviceIds: values },
         fields: (group.fields ?? []).map((f) =>
           f.id === checkbox?.id ? (nextCheckbox as FormField) : f
         ),
@@ -432,14 +393,14 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
     return (
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <div className="font-grotesk text-black-text text-[18px] font-medium">
-            {group.label || "Services"}
+          <div className="font-satoshi text-black-text text-[18px] font-medium">
+            {group.label || 'Services'}
           </div>
         </div>
         <FormInput
           intype="text"
           inname={`group-${group.id}-label`}
-          value={group.label || ""}
+          value={group.label || ''}
           inlabel="Group name"
           onChange={(e) => onChange({ ...group, label: e.target.value })}
           className="min-h-12!"
@@ -457,9 +418,7 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
   const updateNestedField = (id: string, updatedField: FormField) => {
     onChange({
       ...groupField,
-      fields: (groupField.fields ?? []).map((f) =>
-        f.id === id ? updatedField : f
-      ),
+      fields: (groupField.fields ?? []).map((f) => (f.id === id ? updatedField : f)),
     });
   };
 
@@ -480,8 +439,8 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <div className="font-grotesk text-black-text text-[18px] font-medium">
-          {groupField.label || "Group"}
+        <div className="font-satoshi text-black-text text-[18px] font-medium">
+          {groupField.label || 'Group'}
         </div>
         <AddFieldDropdown onSelect={addNestedField} />
       </div>
@@ -489,14 +448,14 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
       <FormInput
         intype="text"
         inname={`group-${groupField.id}-label`}
-        value={groupField.label || ""}
+        value={groupField.label || ''}
         inlabel="Group name"
         onChange={(e) => onChange({ ...groupField, label: e.target.value })}
         className="min-h-12!"
       />
 
       {(groupField.fields ?? []).map((nested) => {
-        if (nested.type === "group") {
+        if (nested.type === 'group') {
           // Check if this is a medication group
           if (isMedicationGroup(nested)) {
             return (
@@ -504,6 +463,7 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
                 key={nested.id}
                 field={nested}
                 onDelete={() => removeNestedField(nested.id)}
+                compact
               >
                 <MedicationGroupBuilder
                   field={nested}
@@ -520,6 +480,7 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
               key={nested.id}
               field={nested}
               onDelete={() => removeNestedField(nested.id)}
+              compact
             >
               <GroupBuilder
                 field={nested}
@@ -584,18 +545,17 @@ const renderNestedField = (
   removeMedicine: (id: string) => void,
   createField: (t: OptionKey) => FormField
 ) => {
-  if (nested.type === "group") {
+  if (nested.type === 'group') {
     const groupField = nested as FormField & { fields?: FormField[] };
     return (
       <BuilderWrapper
         key={nested.id}
         field={nested}
         onDelete={() => removeMedicine(nested.id)}
+        compact
       >
-        <div className="flex flex-col gap-3 border border-grey-light rounded-2xl p-3">
-          <div className="font-grotesk text-black-text text-[16px] font-medium">
-            {nested.label}
-          </div>
+        <div className="flex flex-col gap-3">
+          <div className="font-satoshi text-black-text text-[16px] font-medium">{nested.label}</div>
           {(groupField.fields ?? []).map((medField) =>
             renderMedicineField(medField, groupField, updateNestedField, createField)
           )}
@@ -616,7 +576,7 @@ const renderNestedField = (
 };
 
 type MedicationGroupBuilderProps = {
-  field: FormField & { type: "group"; fields?: FormField[] };
+  field: FormField & { type: 'group'; fields?: FormField[] };
   onChange: (f: FormField) => void;
   createField: (t: OptionKey) => FormField;
 };
@@ -634,9 +594,9 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({
   useEffect(() => {
     if (!primaryOrgId) return;
     setLoadingMedicines(true);
-    fetchInventoryItems(primaryOrgId, { category: "Medicine" })
+    fetchInventoryItems(primaryOrgId, { category: 'Medicine' })
       .then((items) => setMedicines(items))
-      .catch((err) => console.error("Failed to load medicines:", err))
+      .catch((err) => console.error('Failed to load medicines:', err))
       .finally(() => setLoadingMedicines(false));
   }, [primaryOrgId]);
 
@@ -659,55 +619,55 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({
     const medicationFields: FormField[] = [
       {
         id: `${fieldPrefix}_name`,
-        type: "input",
-        label: "Name",
+        type: 'input',
+        label: 'Name',
         placeholder: medicine.name,
         defaultValue: medicine.name,
         meta: { readonly: true, inventoryItemId },
       },
       {
         id: `${fieldPrefix}_dosage`,
-        type: "input",
-        label: "Dosage",
-        placeholder: medicine.attributes?.strength || "Enter dosage",
-        defaultValue: medicine.attributes?.strength || "",
+        type: 'input',
+        label: 'Dosage',
+        placeholder: medicine.attributes?.strength || 'Enter dosage',
+        defaultValue: medicine.attributes?.strength || '',
         meta: { readonly: true, inventoryItemId },
       },
       {
         id: `${fieldPrefix}_route`,
-        type: "input",
-        label: "Route / Administration",
-        placeholder: medicine.attributes?.administration || "N/A",
-        defaultValue: medicine.attributes?.administration || "",
+        type: 'input',
+        label: 'Route / Administration',
+        placeholder: medicine.attributes?.administration || 'N/A',
+        defaultValue: medicine.attributes?.administration || '',
         meta: { readonly: true, inventoryItemId },
       },
       {
         id: `${fieldPrefix}_frequency`,
-        type: "input",
-        label: "Frequency",
-        placeholder: "Enter frequency",
+        type: 'input',
+        label: 'Frequency',
+        placeholder: 'Enter frequency',
         meta: { inventoryItemId },
       },
       {
         id: `${fieldPrefix}_duration`,
-        type: "input",
-        label: "Duration",
-        placeholder: "Enter duration",
+        type: 'input',
+        label: 'Duration',
+        placeholder: 'Enter duration',
         meta: { inventoryItemId },
       },
       {
         id: `${fieldPrefix}_price`,
-        type: "number",
-        label: "Price",
-        placeholder: medicine.sellingPrice === null ? "" : String(medicine.sellingPrice),
-        defaultValue: medicine.sellingPrice === null ? "" : String(medicine.sellingPrice),
+        type: 'number',
+        label: 'Price',
+        placeholder: medicine.sellingPrice === null ? '' : String(medicine.sellingPrice),
+        defaultValue: medicine.sellingPrice === null ? '' : String(medicine.sellingPrice),
         meta: { readonly: true, inventoryItemId },
       },
       {
         id: `${fieldPrefix}_remark`,
-        type: "textarea",
-        label: "Remark",
-        placeholder: "Add remark",
+        type: 'textarea',
+        label: 'Remark',
+        placeholder: 'Add remark',
         meta: { inventoryItemId },
       },
     ];
@@ -715,7 +675,7 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({
     // Create a group for this specific medicine
     const newMedicineGroup: FormField = {
       id: `${fieldPrefix}_group`,
-      type: "group",
+      type: 'group',
       label: medicine.name,
       fields: medicationFields,
       meta: {
@@ -749,24 +709,22 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({
   const updateNestedField = (id: string, updatedField: FormField) => {
     onChange({
       ...field,
-      fields: (field.fields ?? []).map((f) =>
-        f.id === id ? updatedField : f
-      ),
+      fields: (field.fields ?? []).map((f) => (f.id === id ? updatedField : f)),
     });
   };
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <div className="font-grotesk text-black-text text-[18px] font-medium">
-          {field.label || "Medication"}
+        <div className="font-satoshi text-black-text text-[18px] font-medium">
+          {field.label || 'Medication'}
         </div>
       </div>
 
       <FormInput
         intype="text"
         inname={`group-${field.id}-label`}
-        value={field.label || ""}
+        value={field.label || ''}
         inlabel="Group name"
         onChange={(e) => onChange({ ...field, label: e.target.value })}
         className="min-h-12!"
@@ -783,7 +741,9 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({
         disabled={loadingMedicines}
       />
 
-      {(field.fields ?? []).map((nested) => renderNestedField(nested, updateNestedField, removeMedicine, createField))}
+      {(field.fields ?? []).map((nested) =>
+        renderNestedField(nested, updateNestedField, removeMedicine, createField)
+      )}
     </div>
   );
 };
@@ -795,7 +755,7 @@ const Build = ({
   serviceOptions,
   registerValidator,
 }: BuildProps) => {
-  const [buildError, setBuildError] = useState<string>("");
+  const [buildError, setBuildError] = useState<string>('');
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const builderRef = React.useRef<HTMLDivElement | null>(null);
   const scrollVelocityRef = React.useRef<number>(0);
@@ -805,19 +765,39 @@ const Build = ({
     return fieldFactory[key](id, serviceOptions);
   };
 
+  const canUseSignature = formData.requiredSigner !== undefined && formData.requiredSigner !== '';
+  const addOptionsForContext = React.useMemo(
+    () => addOptions.filter((opt) => opt.key !== 'signature' || canUseSignature),
+    [canUseSignature]
+  );
+
   const updateFieldInForm = (
     prev: FormsProps,
     fieldId: string,
     updatedField: FormField
   ): FormsProps => ({
     ...prev,
-    schema: (prev.schema || []).map((field) =>
-      field.id === fieldId ? updatedField : field
-    ),
+    schema: (prev.schema || []).map((field) => (field.id === fieldId ? updatedField : field)),
   });
 
   const handleFieldChange = (fieldId: string, updatedField: FormField) => {
     setFormData((prev) => updateFieldInForm(prev, fieldId, updatedField));
+  };
+
+  const canDeleteField = (fieldId: string): boolean => {
+    const field = (formData.schema ?? []).find((f) => f.id === fieldId);
+    const signerRequired = formData.requiredSigner !== undefined && formData.requiredSigner !== '';
+    if (signerRequired && field?.type === 'signature') {
+      setBuildError("Cannot remove signature while 'Signed by' is selected.");
+      return false;
+    }
+    return true;
+  };
+
+  const handleDeleteField = (fieldId: string) => {
+    if (!canDeleteField(fieldId)) return;
+    setBuildError('');
+    setFormData((prev) => removeFieldById(prev, fieldId));
   };
 
   const removeFieldById = (form: FormsProps, id: string): FormsProps => ({
@@ -827,37 +807,50 @@ const Build = ({
 
   const addMedicationGroup = () => {
     setFormData((prev) => {
-      const medField = createField("medication");
+      const medField = createField('medication');
       const updatedSchema = addMedicationToTreatmentPlan(prev.schema ?? [], medField);
       return { ...prev, schema: updatedSchema };
     });
   };
 
   const addField = (key: OptionKey) => {
-    const hasTreatmentPlan =
-      formData.schema?.some(
-        (f) => f.id === "treatment_plan" && f.type === "group"
-      ) ?? false;
+    if (key === 'signature') {
+      if (!canUseSignature) {
+        setBuildError("Select 'Signed by' in Form details before adding a signature field.");
+        return;
+      }
+      if (hasSignatureField(formData.schema ?? [])) {
+        setBuildError('Only one signature field is allowed per form.');
+        return;
+      }
+    }
 
-    if (key === "medication" && hasTreatmentPlan) {
+    const hasTreatmentPlan =
+      formData.schema?.some((f) => f.id === 'treatment_plan' && f.type === 'group') ?? false;
+
+    if (key === 'medication' && hasTreatmentPlan) {
       addMedicationGroup();
       return;
     }
 
     let newField = createField(key);
-    if (key === "service-group" && newField.type === "group") {
+    if (key === 'service-group' && newField.type === 'group') {
       newField = ensureServiceCheckbox(newField, serviceOptions).group;
     }
     setFormData((prev) => ({
       ...prev,
-      schema: [...(prev.schema ?? []), newField],
+      schema:
+        key === 'signature' && prev.category === 'Prescription'
+          ? ensureSingleSignatureAtEnd([...(prev.schema ?? []), newField])
+          : [...(prev.schema ?? []), newField],
     }));
+    setBuildError('');
   };
 
-  const moveField = (index: number, direction: "up" | "down") => {
+  const moveField = (index: number, direction: 'up' | 'down') => {
     setFormData((prev) => {
       const schema = [...(prev.schema ?? [])];
-      const newIndex = direction === "up" ? index - 1 : index + 1;
+      const newIndex = direction === 'up' ? index - 1 : index + 1;
 
       if (newIndex < 0 || newIndex >= schema.length) return prev;
 
@@ -885,28 +878,22 @@ const Build = ({
 
   const handleDragStart = (index: number) => (e: React.DragEvent<HTMLDivElement>) => {
     setDragIndex(index);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", index.toString());
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', index.toString());
   };
 
   const getScrollableContainer = () => {
-    if (
-      builderRef.current &&
-      builderRef.current.scrollHeight > builderRef.current.clientHeight
-    ) {
+    if (builderRef.current && builderRef.current.scrollHeight > builderRef.current.clientHeight) {
       return builderRef.current;
     }
     return document.scrollingElement as HTMLElement | null;
   };
 
-  const updateScrollVelocity = (
-    scrollable: HTMLElement,
-    clientY: number,
-  ) => {
+  const updateScrollVelocity = (scrollable: HTMLElement, clientY: number) => {
     const rect =
       scrollable === builderRef.current
         ? scrollable.getBoundingClientRect()
-        : { top: 0, bottom: window.innerHeight, height: window.innerHeight };
+        : { top: 0, bottom: globalThis.innerHeight, height: globalThis.innerHeight };
     const softZone = Math.min(300, (rect.bottom - rect.top) / 2);
     const turboZone = softZone / 3;
     const distanceToTop = Math.max(0, clientY - rect.top);
@@ -945,16 +932,15 @@ const Build = ({
     scrollAnimRef.current = requestAnimationFrame(step);
   };
 
-  const handleDragOver =
-    (_index: number) => (e: React.DragEvent<HTMLDivElement>) => {
-      if (dragIndex === null) return;
-      e.preventDefault();
-      e.dataTransfer.dropEffect = "move";
-      const scrollable = getScrollableContainer();
-      if (!scrollable) return;
-      updateScrollVelocity(scrollable, e.clientY);
-      startAutoScroll(scrollable);
-    };
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    if (dragIndex === null) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const scrollable = getScrollableContainer();
+    if (!scrollable) return;
+    updateScrollVelocity(scrollable, e.clientY);
+    startAutoScroll(scrollable);
+  };
 
   const handleDrop = (index: number) => (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -986,19 +972,17 @@ const Build = ({
     setFormData((prev) => ({
       ...prev,
       schema: (prev.schema ?? []).map((field) =>
-        isServiceGroup(field)
-          ? ensureServiceCheckbox(field, serviceOptions).group
-          : field
+        isServiceGroup(field) ? ensureServiceCheckbox(field, serviceOptions).group : field
       ),
     }));
   }, [serviceOptions, setFormData]);
 
   const validate = React.useCallback(() => {
     if (!formData.schema || formData.schema.length === 0) {
-      setBuildError("Add at least one field to continue.");
+      setBuildError('Add at least one field to continue.');
       return false;
     }
-    setBuildError("");
+    setBuildError('');
     return true;
   }, [formData.schema]);
 
@@ -1010,10 +994,12 @@ const Build = ({
     <div className="flex flex-col gap-6 w-full flex-1 justify-between" ref={builderRef}>
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
-          <div className="font-grotesk text-black-text text-[23px] font-medium">
-            Build form
-          </div>
-          <AddFieldDropdown onSelect={addField} buttonClassName="w-fit" />
+          <div className="font-satoshi text-black-text text-[23px] font-medium">Build form</div>
+          <AddFieldDropdown
+            onSelect={addField}
+            buttonClassName="w-fit"
+            options={addOptionsForContext}
+          />
         </div>
 
         {formData.schema?.map((field, index) => {
@@ -1021,7 +1007,7 @@ const Build = ({
           const canMoveUp = index > 0;
           const canMoveDown = index < (formData.schema?.length ?? 0) - 1;
 
-          if (field.type === "group") {
+          if (field.type === 'group') {
             // Handle medication groups separately
             if (isMedicationGroup(field)) {
               const isDragging = dragIndex === index;
@@ -1029,25 +1015,21 @@ const Build = ({
                 <BuilderWrapper
                   key={fieldId}
                   field={field}
-                  onDelete={() =>
-                    setFormData((prev) => removeFieldById(prev, fieldId))
-                  }
-                  onMoveUp={() => moveField(index, "up")}
-                  onMoveDown={() => moveField(index, "down")}
+                  onDelete={() => handleDeleteField(fieldId)}
+                  onMoveUp={() => moveField(index, 'up')}
+                  onMoveDown={() => moveField(index, 'down')}
                   canMoveUp={canMoveUp}
                   canMoveDown={canMoveDown}
                   draggable
                   onDragStart={handleDragStart(index)}
-                  onDragOver={handleDragOver(index)}
+                  onDragOver={handleDragOver}
                   onDrop={handleDrop(index)}
                   onDragEnd={handleDragEnd}
                   isDragging={isDragging}
                 >
                   <MedicationGroupBuilder
                     field={field}
-                    onChange={(updatedField) =>
-                      handleFieldChange(fieldId, updatedField)
-                    }
+                    onChange={(updatedField) => handleFieldChange(fieldId, updatedField)}
                     createField={createField}
                   />
                 </BuilderWrapper>
@@ -1062,25 +1044,21 @@ const Build = ({
                 <BuilderWrapper
                   key={ensured.id}
                   field={ensured}
-                  onDelete={() =>
-                    setFormData((prev) => removeFieldById(prev, fieldId))
-                  }
-                  onMoveUp={() => moveField(index, "up")}
-                  onMoveDown={() => moveField(index, "down")}
+                  onDelete={() => handleDeleteField(fieldId)}
+                  onMoveUp={() => moveField(index, 'up')}
+                  onMoveDown={() => moveField(index, 'down')}
                   canMoveUp={canMoveUp}
                   canMoveDown={canMoveDown}
                   draggable
                   onDragStart={handleDragStart(index)}
-                  onDragOver={handleDragOver(index)}
+                  onDragOver={handleDragOver}
                   onDrop={handleDrop(index)}
                   onDragEnd={handleDragEnd}
                   isDragging={isDragging}
                 >
                   <GroupBuilder
                     field={ensured}
-                    onChange={(updatedField) =>
-                      handleFieldChange(fieldId, updatedField)
-                    }
+                    onChange={(updatedField) => handleFieldChange(fieldId, updatedField)}
                     createField={createField}
                     serviceOptions={serviceOptions}
                   />
@@ -1093,25 +1071,21 @@ const Build = ({
               <BuilderWrapper
                 key={fieldId}
                 field={field}
-                onDelete={() =>
-                  setFormData((prev) => removeFieldById(prev, fieldId))
-                }
-                onMoveUp={() => moveField(index, "up")}
-                onMoveDown={() => moveField(index, "down")}
+                onDelete={() => handleDeleteField(fieldId)}
+                onMoveUp={() => moveField(index, 'up')}
+                onMoveDown={() => moveField(index, 'down')}
                 canMoveUp={canMoveUp}
                 canMoveDown={canMoveDown}
                 draggable
                 onDragStart={handleDragStart(index)}
-                onDragOver={handleDragOver(index)}
+                onDragOver={handleDragOver}
                 onDrop={handleDrop(index)}
                 onDragEnd={handleDragEnd}
                 isDragging={dragIndex === index}
               >
                 <GroupBuilder
                   field={field}
-                  onChange={(updatedField) =>
-                    handleFieldChange(fieldId, updatedField)
-                  }
+                  onChange={(updatedField) => handleFieldChange(fieldId, updatedField)}
                   createField={createField}
                   serviceOptions={serviceOptions}
                 />
@@ -1122,20 +1096,16 @@ const Build = ({
             <FieldBuilder
               key={fieldId}
               field={field}
-              onChange={(updatedField) =>
-                handleFieldChange(fieldId, updatedField)
-              }
-              onDelete={() =>
-                setFormData((prev) => removeFieldById(prev, fieldId))
-              }
-              onMoveUp={() => moveField(index, "up")}
-              onMoveDown={() => moveField(index, "down")}
+              onChange={(updatedField) => handleFieldChange(fieldId, updatedField)}
+              onDelete={() => handleDeleteField(fieldId)}
+              onMoveUp={() => moveField(index, 'up')}
+              onMoveDown={() => moveField(index, 'down')}
               canMoveUp={canMoveUp}
               canMoveDown={canMoveDown}
               createField={createField}
               draggable
               onDragStart={handleDragStart(index)}
-              onDragOver={handleDragOver(index)}
+              onDragOver={handleDragOver}
               onDrop={handleDrop(index)}
               onDragEnd={handleDragEnd}
               isDragging={dragIndex === index}
@@ -1155,20 +1125,14 @@ const Build = ({
             <AddFieldDropdown
               onSelect={addField}
               buttonClassName="w-fit"
+              options={addOptionsForContext}
             />
-            <span className="text-sm font-satoshi font-medium text-grey-noti">
-              Add Field
-            </span>
+            <span className="text-sm font-satoshi font-medium text-grey-noti">Add Field</span>
           </div>
         </div>
       </div>
       <div className="px-3 pb-3 flex justify-center">
-        <Primary
-          href="#"
-          text="Next"
-          onClick={onNext}
-          classname="w-fit"
-        />
+        <Primary href="#" text="Next" onClick={onNext} classname="w-fit" />
       </div>
     </div>
   );

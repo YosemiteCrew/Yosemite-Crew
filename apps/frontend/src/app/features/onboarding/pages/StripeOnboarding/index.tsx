@@ -1,36 +1,29 @@
-"use client";
-import OrgGuard from "@/app/ui/layout/guards/OrgGuard";
-import ProtectedRoute from "@/app/ui/layout/guards/ProtectedRoute";
-import {
-  useStripeOnboarding,
-  useSubscriptionCounterUpdate,
-} from "@/app/hooks/useStripeOnboarding";
+'use client';
+import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
+import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
+import { useStripeOnboarding, useSubscriptionCounterUpdate } from '@/app/hooks/useStripeOnboarding';
 import {
   createConnectedAccount,
   onBoardConnectedAccount,
-} from "@/app/features/billing/services/stripeService";
-import { useRouter, useSearchParams } from "next/navigation";
-import React, { useCallback, useEffect, useState } from "react";
-import {
-  loadConnectAndInitialize,
-  StripeConnectInstance,
-} from "@stripe/connect-js";
+} from '@/app/features/billing/services/stripeService';
+import { useRouter, useSearchParams } from 'next/navigation';
+import React, { useCallback, useEffect, useState } from 'react';
+import { loadConnectAndInitialize, StripeConnectInstance } from '@stripe/connect-js/pure';
 import {
   ConnectAccountOnboarding,
   ConnectComponentsProvider,
   ConnectTaxRegistrations,
   ConnectTaxSettings,
-} from "@stripe/react-connect-js";
-import { useSubscriptionByOrgId } from "@/app/hooks/useBilling";
+} from '@stripe/react-connect-js';
+import { useSubscriptionByOrgId } from '@/app/hooks/useBilling';
 
 const StripeOnboarding = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const orgIdFromQuery = searchParams.get("orgId");
-  const [accountId, setAccountId] = useState("");
+  const orgIdFromQuery = searchParams.get('orgId');
+  const [accountId, setAccountId] = useState('');
   const PUBLISHABE_KEY = process.env.NEXT_PUBLIC_SANDBOX_PUBLISH;
-  const [connectInstance, setConnectInstance] =
-    useState<StripeConnectInstance>();
+  const [connectInstance, setConnectInstance] = useState<StripeConnectInstance>();
 
   const { onboard } = useStripeOnboarding(orgIdFromQuery);
   const subscription = useSubscriptionByOrgId(orgIdFromQuery);
@@ -38,7 +31,7 @@ const StripeOnboarding = () => {
 
   const handleExit = useCallback(async () => {
     await refetchData();
-    router.push("/dashboard");
+    router.push('/dashboard');
   }, [refetchData, router]);
 
   const createAccountIfNeeded = useCallback(async () => {
@@ -46,7 +39,7 @@ const StripeOnboarding = () => {
     try {
       const account_id = await createConnectedAccount(orgIdFromQuery);
       if (!account_id) {
-        router.push("/dashboard");
+        router.push('/dashboard');
         return;
       }
       setAccountId(account_id);
@@ -57,19 +50,19 @@ const StripeOnboarding = () => {
 
   useEffect(() => {
     if (!onboard) {
-      router.push("/dashboard");
+      router.push('/dashboard');
       return;
     }
     if (!orgIdFromQuery) {
-      router.push("/dashboard");
+      router.push('/dashboard');
       return;
     }
     if (!subscription) {
-      router.push("/dashboard");
+      router.push('/dashboard');
       return;
     }
     if (subscription.connectChargesEnabled) {
-      router.push("/dashboard");
+      router.push('/dashboard');
       return;
     }
     if (subscription.connectAccountId) {
@@ -80,8 +73,7 @@ const StripeOnboarding = () => {
   }, [onboard, orgIdFromQuery, subscription, createAccountIfNeeded, router]);
 
   useEffect(() => {
-    if (!orgIdFromQuery || !accountId || !PUBLISHABE_KEY || !subscription)
-      return;
+    if (!orgIdFromQuery || !accountId || !PUBLISHABE_KEY || !subscription) return;
     const fetchClientSecret = async () => {
       const secret = await onBoardConnectedAccount(orgIdFromQuery);
       return secret;
@@ -91,8 +83,8 @@ const StripeOnboarding = () => {
         publishableKey: PUBLISHABE_KEY,
         fetchClientSecret,
         appearance: {
-          overlays: "drawer",
-          variables: { colorPrimary: "#635BFF" },
+          overlays: 'drawer',
+          variables: { colorPrimary: '#635BFF' },
         },
       });
       setConnectInstance(instance);
@@ -101,38 +93,34 @@ const StripeOnboarding = () => {
     }
   }, [orgIdFromQuery, accountId, PUBLISHABE_KEY, subscription]);
 
-  const handleStepChange = useCallback(async ({ step }: { step: string }) => {
-    if (step === "stripe_user_authentication") {
-      await refetchData();
-    }
-  }, [refetchData]);
+  const handleStepChange = useCallback(
+    async ({ step }: { step: string }) => {
+      if (step === 'stripe_user_authentication') {
+        await refetchData();
+      }
+    },
+    [refetchData]
+  );
 
   if (!onboard) {
     return null;
   }
 
   return (
-    <div className="flex flex-col gap-6 px-3! py-3! sm:px-12! lg:px-[60px]! sm:py-12!">
+    <div className="flex flex-col gap-6 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
       <div className="flex justify-between items-center w-full">
         <div className="text-text-primary text-heading-1">Stripe Onboarding</div>
       </div>
       {connectInstance && (
         <ConnectComponentsProvider connectInstance={connectInstance}>
           <div className="flex flex-col gap-5">
-            <ConnectAccountOnboarding
-              onExit={handleExit}
-              onStepChange={handleStepChange}
-            />
+            <ConnectAccountOnboarding onExit={handleExit} onStepChange={handleStepChange} />
             <div>
-              <div className="text-text-primary text-heading-1">
-                Tax Business Details
-              </div>
+              <div className="text-text-primary text-heading-1">Tax Business Details</div>
               <ConnectTaxSettings />
             </div>
-            <div style={{ marginTop: "12px" }}>
-              <div className="text-text-primary text-heading-1">
-                Tax Registrations
-              </div>
+            <div style={{ marginTop: '12px' }}>
+              <div className="text-text-primary text-heading-1">Tax Registrations</div>
               <ConnectTaxRegistrations />
             </div>
           </div>

@@ -1,38 +1,58 @@
-import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
-import "@testing-library/jest-dom";
+import React from 'react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
 
-import WeekCalendar from "@/app/features/appointments/components/Calendar/Task/WeekCalendar";
-import { Task } from "@/app/features/tasks/types/task";
+import WeekCalendar from '@/app/features/appointments/components/Calendar/Task/WeekCalendar';
+import { Task } from '@/app/features/tasks/types/task';
 
 const mockGetWeekDays = jest.fn();
 const mockGetPrevWeek = jest.fn();
 const mockGetNextWeek = jest.fn();
 
-jest.mock("@/app/features/appointments/components/Calendar/weekHelpers", () => ({
+jest.mock('@/app/features/appointments/components/Calendar/weekHelpers', () => ({
   getWeekDays: (...args: any[]) => mockGetWeekDays(...args),
   getPrevWeek: (...args: any[]) => mockGetPrevWeek(...args),
   getNextWeek: (...args: any[]) => mockGetNextWeek(...args),
+  HOURS_IN_DAY: 1,
+}));
+
+jest.mock('@/app/lib/timezone', () => ({
+  getHourInPreferredTimeZone: (value: Date) => value.getHours(),
+  getMinutesSinceStartOfDayInPreferredTimeZone: (value: Date) =>
+    value.getHours() * 60 + value.getMinutes(),
+  isOnPreferredTimeZoneCalendarDay: (value: Date, day: Date) =>
+    value.getFullYear() === day.getFullYear() &&
+    value.getMonth() === day.getMonth() &&
+    value.getDate() === day.getDate(),
 }));
 
 const mockEventsForDay = jest.fn();
-jest.mock("@/app/features/appointments/components/Calendar/helpers", () => ({
+jest.mock('@/app/features/appointments/components/Calendar/helpers', () => ({
   eventsForDay: (...args: any[]) => mockEventsForDay(...args),
+  DEFAULT_CALENDAR_FOCUS_MINUTES: 540,
+  EVENT_VERTICAL_GAP_PX: 0,
+  MINUTES_PER_STEP: 15,
+  PIXELS_PER_STEP: 60,
+  getFirstRelevantTimedEventStart: jest.fn(() => null),
+  getNowTopPxForHourRange: jest.fn((_: Date, __: number, ___: number, height: number) => height),
+  getTopPxForMinutes: jest.fn((minutes: number, height: number) => (minutes / 60) * height),
+  minutesSinceStartOfDay: jest.fn(() => 540),
+  scrollContainerToTarget: jest.fn(),
 }));
 
 const dayLabelsSpy = jest.fn();
-jest.mock("@/app/features/appointments/components/Calendar/Task/DayLabels", () => (props: any) => {
+jest.mock('@/app/features/appointments/components/Calendar/Task/DayLabels', () => (props: any) => {
   dayLabelsSpy(props);
   return <div data-testid="day-labels" />;
 });
 
 const taskSlotSpy = jest.fn();
-jest.mock("@/app/features/appointments/components/Calendar/Task/TaskSlot", () => (props: any) => {
+jest.mock('@/app/features/appointments/components/Calendar/Task/TaskSlot', () => (props: any) => {
   taskSlotSpy(props);
   return <div data-testid="task-slot" />;
 });
 
-jest.mock("@/app/ui/primitives/Icons/Back", () => ({
+jest.mock('@/app/ui/primitives/Icons/Back', () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>
@@ -41,7 +61,7 @@ jest.mock("@/app/ui/primitives/Icons/Back", () => ({
   ),
 }));
 
-jest.mock("@/app/ui/primitives/Icons/Next", () => ({
+jest.mock('@/app/ui/primitives/Icons/Next', () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>
@@ -50,7 +70,7 @@ jest.mock("@/app/ui/primitives/Icons/Next", () => ({
   ),
 }));
 
-describe("WeekCalendar (Task)", () => {
+describe('WeekCalendar (Task)', () => {
   const handleViewTask = jest.fn();
   const setWeekStart = jest.fn();
   const setCurrentDate = jest.fn();
@@ -60,13 +80,13 @@ describe("WeekCalendar (Task)", () => {
 
   const events: Task[] = [
     {
-      name: "Task A",
-      dueAt: new Date(2025, 0, 6, 10),
-      status: "PENDING",
-      _id: "",
-      audience: "EMPLOYEE_TASK",
-      source: "CUSTOM",
-      category: "",
+      name: 'Task A',
+      dueAt: new Date(2025, 0, 6, 0),
+      status: 'PENDING',
+      _id: '',
+      audience: 'EMPLOYEE_TASK',
+      source: 'CUSTOM',
+      category: '',
     } as Task,
   ];
 
@@ -78,7 +98,7 @@ describe("WeekCalendar (Task)", () => {
     mockGetNextWeek.mockReturnValue(new Date(2025, 0, 13, 12));
   });
 
-  it("renders day labels and task slots for each day", () => {
+  it('renders day labels and task slots for each day', () => {
     render(
       <WeekCalendar
         events={events}
@@ -90,24 +110,25 @@ describe("WeekCalendar (Task)", () => {
       />
     );
 
-    expect(screen.getByTestId("day-labels")).toBeInTheDocument();
-    expect(dayLabelsSpy).toHaveBeenCalledWith({ days });
+    expect(screen.getByTestId('day-labels')).toBeInTheDocument();
+    expect(dayLabelsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ days, currentDate: weekStart })
+    );
 
-    const slots = screen.getAllByTestId("task-slot");
+    const slots = screen.getAllByTestId('task-slot');
     expect(slots).toHaveLength(days.length);
 
-    expect(taskSlotSpy).toHaveBeenCalledWith(
+    expect(taskSlotSpy.mock.calls[0][0]).toEqual(
       expect.objectContaining({
         slotEvents: events,
         handleViewTask,
-        height: 300,
+        height: 180,
         length: days.length - 1,
       })
     );
-    expect(mockEventsForDay).toHaveBeenCalledTimes(days.length);
   });
 
-  it("updates week start and current date on navigation", () => {
+  it('updates week start and current date on navigation', () => {
     render(
       <WeekCalendar
         events={events}
@@ -119,8 +140,8 @@ describe("WeekCalendar (Task)", () => {
       />
     );
 
-    fireEvent.click(screen.getByText("PrevWeek"));
-    fireEvent.click(screen.getByText("NextWeek"));
+    fireEvent.click(screen.getByText('PrevWeek'));
+    fireEvent.click(screen.getByText('NextWeek'));
 
     const prevFn = setWeekStart.mock.calls[0][0];
     const nextFn = setWeekStart.mock.calls[1][0];

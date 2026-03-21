@@ -1,14 +1,21 @@
-import React from "react";
-import GenericTable from "@/app/ui/tables/GenericTable/GenericTable";
-import { IoEye } from "react-icons/io5";
-import TaskCard from "@/app/ui/cards/TaskCard";
-import { getFormattedDate } from "@/app/features/appointments/components/Calendar/weekHelpers";
-import { Task } from "@/app/features/tasks/types/task";
+import React from 'react';
+import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
+import { IoEyeOutline } from 'react-icons/io5';
+import { MdOutlineAutorenew } from 'react-icons/md';
+import { IoIosCalendar } from 'react-icons/io';
+import TaskCard from '@/app/ui/cards/TaskCard';
+import { getFormattedDate } from '@/app/features/appointments/components/Calendar/weekHelpers';
+import { Task, TaskStatus } from '@/app/features/tasks/types/task';
+import {
+  canRescheduleTask,
+  canShowTaskStatusChangeAction,
+  getPreferredNextTaskStatus,
+} from '@/app/lib/tasks';
+import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 
-import "./DataTable.css";
-import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
-import { Team } from "@/app/features/organization/types/team";
-import { toTitleCase } from "@/app/lib/validators";
+import './DataTable.css';
+import { toTitleCase } from '@/app/lib/validators';
+import { useMemberMap } from '@/app/hooks/useMemberMap';
 
 type Column<T> = {
   label: string;
@@ -21,19 +28,23 @@ type TaskTableProps = {
   filteredList: Task[];
   setActiveTask?: (inventory: Task) => void;
   setViewPopup?: (open: boolean) => void;
+  setChangeStatusPopup?: (open: boolean) => void;
+  setChangeStatusPreferredStatus?: React.Dispatch<React.SetStateAction<TaskStatus | null>>;
+  setReschedulePopup?: (open: boolean) => void;
+  canEditTasks?: boolean;
   small?: boolean;
 };
 
 export const getStatusStyle = (status: string) => {
   switch (status?.toLowerCase()) {
-    case "pending":
-      return { color: "#fff", backgroundColor: "#747283" };
-    case "in_progress":
-      return { color: "#fff", backgroundColor: "#BF9FAA" };
-    case "completed":
-      return { color: "#fff", backgroundColor: "#D28F9A" };
+    case 'pending':
+      return { color: '#fff', backgroundColor: '#747283' };
+    case 'in_progress':
+      return { color: '#fff', backgroundColor: '#BF9FAA' };
+    case 'completed':
+      return { color: '#fff', backgroundColor: '#D28F9A' };
     default:
-      return { color: "#fff", backgroundColor: "#D9A488" };
+      return { color: '#fff', backgroundColor: '#D9A488' };
   }
 };
 
@@ -41,85 +52,84 @@ const Tasks = ({
   filteredList,
   setActiveTask,
   setViewPopup,
+  setChangeStatusPopup,
+  setChangeStatusPreferredStatus,
+  setReschedulePopup,
+  canEditTasks = true,
   small = false,
 }: TaskTableProps) => {
-  const teams = useTeamForPrimaryOrg();
-
-  const memberMap = React.useMemo(() => {
-    const map = new Map<string, string>();
-    teams?.forEach((member: Team) => {
-      map.set(member.practionerId, member.name || "-");
-    });
-    return map;
-  }, [teams]);
-
-  const getMemberNameById = (id?: string) =>
-    id ? (memberMap.get(id) ?? "-") : "-";
+  const { resolveMemberName } = useMemberMap();
+  const getMemberNameById = (id?: string) => {
+    if (!id) return '-';
+    const resolved = resolveMemberName(id);
+    return resolved === '-' ? id : resolved;
+  };
 
   const handleViewTask = (task: Task) => {
     setActiveTask?.(task);
     setViewPopup?.(true);
   };
 
+  const handleChangeStatusTask = (task: Task) => {
+    setActiveTask?.(task);
+    setChangeStatusPreferredStatus?.(getPreferredNextTaskStatus(task.status));
+    setChangeStatusPopup?.(true);
+  };
+
+  const handleRescheduleTask = (task: Task) => {
+    setActiveTask?.(task);
+    setReschedulePopup?.(true);
+  };
+
   const columns: Column<Task>[] = [
     {
-      label: "Task",
-      key: "task",
-      width: "15%",
-      render: (item: Task) => (
-        <div className="appointment-profile-title">{item.name}</div>
-      ),
+      label: 'Task',
+      key: 'task',
+      width: '15%',
+      render: (item: Task) => <div className="appointment-profile-title">{item.name}</div>,
     },
     {
-      label: "Description",
-      key: "description",
-      width: "20%",
-      render: (item: Task) => (
-        <div className="appointment-profile-title">{item.description}</div>
-      ),
+      label: 'Description',
+      key: 'description',
+      width: '20%',
+      render: (item: Task) => <div className="appointment-profile-title">{item.description}</div>,
     },
     {
-      label: "Category",
-      key: "category",
-      width: "10%",
+      label: 'Category',
+      key: 'category',
+      width: '10%',
       render: (item: Task) => (
         <div className="appointment-profile-title">{toTitleCase(item.category)}</div>
       ),
     },
     {
-      label: "From",
-      key: "from",
-      width: "10%",
+      label: 'From',
+      key: 'from',
+      width: '10%',
       render: (item: Task) => (
-        <div className="appointment-profile-title">
-          {getMemberNameById(item.assignedBy)}
-        </div>
+        <div className="appointment-profile-title">{getMemberNameById(item.assignedBy)}</div>
       ),
     },
     {
-      label: "To",
-      key: "to",
-      width: "10%",
+      label: 'To',
+      key: 'to',
+      width: '10%',
       render: (item: Task) => (
-        <div className="appointment-profile-title">
-          {getMemberNameById(item.assignedTo)}
-        </div>
+        <div className="appointment-profile-title">{getMemberNameById(item.assignedTo)}</div>
       ),
     },
     {
-      label: "Due date",
-      key: "due",
-      width: "10%",
+      label: 'Due date',
+      key: 'due',
+      width: '10%',
       render: (item: Task) => (
-        <div className="appointment-profile-title">
-          {getFormattedDate(item.dueAt)}
-        </div>
+        <div className="appointment-profile-title">{getFormattedDate(item.dueAt)}</div>
       ),
     },
     {
-      label: "Status",
-      key: "status",
-      width: "15%",
+      label: 'Status',
+      key: 'status',
+      width: '15%',
       render: (item: Task) => (
         <div className="appointment-status" style={getStatusStyle(item.status)}>
           {toTitleCase(item.status)}
@@ -127,25 +137,52 @@ const Tasks = ({
       ),
     },
     {
-      label: "Actions",
-      key: "actions",
-      width: "10%",
+      label: 'Actions',
+      key: 'actions',
+      width: '10%',
       render: (item: Task) => (
         <div className="action-btn-col">
-          <button
-            onClick={() => handleViewTask(item)}
-            className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-          >
-            <IoEye size={20} color="#302F2E" />
-          </button>
+          <div className="action-btn-grid">
+            <GlassTooltip content="View task" side="bottom" className="table-action-tooltip">
+              <button
+                onClick={() => handleViewTask(item)}
+                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                title="View task"
+              >
+                <IoEyeOutline size={18} color="#302F2E" />
+              </button>
+            </GlassTooltip>
+            {canEditTasks && canShowTaskStatusChangeAction(item.status) && (
+              <GlassTooltip content="Change status" side="bottom" className="table-action-tooltip">
+                <button
+                  onClick={() => handleChangeStatusTask(item)}
+                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                  title="Change status"
+                >
+                  <MdOutlineAutorenew size={18} color="#302F2E" />
+                </button>
+              </GlassTooltip>
+            )}
+            {canEditTasks && canRescheduleTask(item.status) && (
+              <GlassTooltip content="Reschedule" side="bottom" className="table-action-tooltip">
+                <button
+                  onClick={() => handleRescheduleTask(item)}
+                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                  title="Reschedule"
+                >
+                  <IoIosCalendar size={18} color="#302F2E" />
+                </button>
+              </GlassTooltip>
+            )}
+          </div>
         </div>
       ),
     },
   ];
 
   return (
-    <div className="table-wrapper">
-      <div className="table-list">
+    <div className="table-wrapper h-full min-h-0 overflow-hidden" style={{ gap: 8 }}>
+      <div className="table-list h-full min-h-0 overflow-y-auto pr-1 pb-1">
         <GenericTable
           data={filteredList}
           columns={columns}
@@ -154,7 +191,7 @@ const Tasks = ({
           pageSize={small ? 5 : 10}
         />
       </div>
-      <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
+      <div className="xl:hidden h-full min-h-0 overflow-y-auto pr-1 pb-2 flex gap-4 sm:gap-6 flex-wrap content-start">
         {(() => {
           if (filteredList.length === 0) {
             return (
@@ -166,12 +203,13 @@ const Tasks = ({
           return filteredList.map((item: Task, i) => (
             <TaskCard
               key={item.name + i}
-              item={{
-                ...item,
-                assignedTo: getMemberNameById(item.assignedTo),
-                assignedBy: getMemberNameById(item.assignedBy),
-              }}
+              item={item}
+              assignedByLabel={getMemberNameById(item.assignedBy)}
+              assignedToLabel={getMemberNameById(item.assignedTo)}
               handleViewTask={handleViewTask}
+              handleChangeStatusTask={handleChangeStatusTask}
+              handleRescheduleTask={handleRescheduleTask}
+              canEditTasks={canEditTasks}
             />
           ));
         })()}

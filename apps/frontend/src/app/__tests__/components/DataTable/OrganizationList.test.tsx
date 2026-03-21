@@ -1,31 +1,33 @@
-import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
-import "@testing-library/jest-dom";
-import OrganizationList, {
-  getStatusStyle,
-} from "@/app/ui/tables/OrganizationList";
-import { useOrgStore } from "@/app/stores/orgStore";
-import { useRouter } from "next/navigation";
-import { OrgWithMembership } from "@/app/features/organization/types/org";
+import React from 'react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import OrganizationList, { getStatusStyle } from '@/app/ui/tables/OrganizationList';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { useRouter } from 'next/navigation';
+import { OrgWithMembership } from '@/app/features/organization/types/org';
 
 // --- Mocks ---
 
 // Mock Router
-jest.mock("next/navigation", () => ({
+jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
 }));
 
 // Mock Store
-jest.mock("@/app/stores/orgStore", () => ({
+jest.mock('@/app/stores/orgStore', () => ({
   useOrgStore: jest.fn(),
 }));
 
+jest.mock('@/app/lib/defaultOpenScreen', () => ({
+  resolveDefaultOpenScreenRoute: jest.fn(() => '/appointments'),
+}));
+
 // Mock GenericTable to test render props in columns
-jest.mock("@/app/ui/tables/GenericTable/GenericTable", () => {
+jest.mock('@/app/ui/tables/GenericTable/GenericTable', () => {
   return ({ data, columns }: any) => (
     <div data-testid="generic-table">
       {data.map((item: any, i: number) => (
-        <div key={i+"org-key"} data-testid={`row-${i}`}>
+        <div key={i + 'org-key'} data-testid={`row-${i}`}>
           {columns.map((col: any) => (
             <div key={col.key} data-testid={`cell-${col.key}`}>
               {col.render ? col.render(item) : item[col.key]}
@@ -38,7 +40,7 @@ jest.mock("@/app/ui/tables/GenericTable/GenericTable", () => {
 });
 
 // Fixed: Use absolute path alias to resolve OrgCard mock correctly
-jest.mock("@/app/ui/cards/OrgCard/OrgCard", () => {
+jest.mock('@/app/ui/cards/OrgCard/OrgCard', () => {
   return ({ org, handleOrgClick }: any) => (
     <div data-testid={`org-card-${org.org.name}`}>
       <button onClick={() => handleOrgClick(org)}>Select Card</button>
@@ -50,29 +52,29 @@ jest.mock("@/app/ui/cards/OrgCard/OrgCard", () => {
 
 const mockVerifiedOrg: OrgWithMembership = {
   org: {
-    _id: "org-1",
-    name: "Verified Corp",
-    type: "Medical",
+    _id: 'org-1',
+    name: 'Verified Corp',
+    type: 'Medical',
     isVerified: true,
   },
   membership: {
-    roleDisplay: "Owner",
+    roleDisplay: 'Owner',
   },
 } as unknown as OrgWithMembership;
 
 const mockUnverifiedOrg: OrgWithMembership = {
   org: {
     // Missing _id to test fallback logic: `org.org._id?.toString() || org.org.name`
-    name: "Pending Inc",
-    type: "Clinic",
+    name: 'Pending Inc',
+    type: 'Clinic',
     isVerified: false,
   },
   membership: {
-    roleDisplay: "Staff",
+    roleDisplay: 'Staff',
   },
 } as unknown as OrgWithMembership;
 
-describe("OrganizationList Component", () => {
+describe('OrganizationList Component', () => {
   const mockSetPrimaryOrg = jest.fn();
   const mockPush = jest.fn();
 
@@ -86,89 +88,89 @@ describe("OrganizationList Component", () => {
 
   // --- 1. Helper Function Tests ---
 
-  describe("getStatusStyle", () => {
+  describe('getStatusStyle', () => {
     it("returns correct style for 'Active'", () => {
-      const style = getStatusStyle("Active");
-      expect(style).toEqual({ color: "#54B492", backgroundColor: "#E6F4EF" });
+      const style = getStatusStyle('Active');
+      expect(style).toEqual({ color: '#54B492', backgroundColor: '#E6F4EF' });
     });
 
     it("returns correct style for 'active' (case insensitive)", () => {
-      const style = getStatusStyle("active");
-      expect(style).toEqual({ color: "#54B492", backgroundColor: "#E6F4EF" });
+      const style = getStatusStyle('active');
+      expect(style).toEqual({ color: '#54B492', backgroundColor: '#E6F4EF' });
     });
 
     it("returns correct style for 'Pending'", () => {
-      const style = getStatusStyle("Pending");
-      expect(style).toEqual({ color: "#F68523", backgroundColor: "#FEF3E9" });
+      const style = getStatusStyle('Pending');
+      expect(style).toEqual({ color: '#F68523', backgroundColor: '#FEF3E9' });
     });
 
-    it("returns default style for unknown status", () => {
-      const style = getStatusStyle("Unknown");
-      expect(style).toEqual({ color: "#fff", backgroundColor: "#247AED" });
+    it('returns default style for unknown status', () => {
+      const style = getStatusStyle('Unknown');
+      expect(style).toEqual({ color: '#fff', backgroundColor: '#247AED' });
     });
   });
 
   // --- 2. Rendering Tests ---
 
-  it("renders the table rows with correct data", () => {
+  it('renders the table rows with correct data', () => {
     render(<OrganizationList orgs={[mockVerifiedOrg, mockUnverifiedOrg]} />);
 
     // Row 1 (Verified)
-    expect(screen.getByText("Verified Corp")).toBeInTheDocument();
-    expect(screen.getByText("Medical")).toBeInTheDocument();
-    expect(screen.getByText("Owner")).toBeInTheDocument();
+    expect(screen.getByText('Verified Corp')).toBeInTheDocument();
+    expect(screen.getByText('Medical')).toBeInTheDocument();
+    expect(screen.getByText('Owner')).toBeInTheDocument();
 
     // Status Logic for Verified: isVerified ? "Active" : "Pending"
-    expect(screen.getByText("Active")).toBeInTheDocument();
-    const activeBadge = screen.getByText("Active").closest("div");
-    expect(activeBadge).toHaveStyle("background-color: #E6F4EF");
+    expect(screen.getByText('Active')).toBeInTheDocument();
+    const activeBadge = screen.getByText('Active').closest('div');
+    expect(activeBadge).toHaveStyle('background-color: #E6F4EF');
 
     // Row 2 (Unverified)
-    expect(screen.getByText("Pending Inc")).toBeInTheDocument();
-    expect(screen.getByText("Clinic")).toBeInTheDocument();
-    expect(screen.getByText("Staff")).toBeInTheDocument();
+    expect(screen.getByText('Pending Inc')).toBeInTheDocument();
+    expect(screen.getByText('Clinic')).toBeInTheDocument();
+    expect(screen.getByText('Staff')).toBeInTheDocument();
 
     // Status Logic for Unverified
-    expect(screen.getByText("Pending")).toBeInTheDocument();
-    const pendingBadge = screen.getByText("Pending").closest("div");
-    expect(pendingBadge).toHaveStyle("background-color: #FEF3E9");
+    expect(screen.getByText('Pending')).toBeInTheDocument();
+    const pendingBadge = screen.getByText('Pending').closest('div');
+    expect(pendingBadge).toHaveStyle('background-color: #FEF3E9');
   });
 
-  it("renders mobile cards", () => {
+  it('renders mobile cards', () => {
     render(<OrganizationList orgs={[mockVerifiedOrg]} />);
-    expect(screen.getByTestId("org-card-Verified Corp")).toBeInTheDocument();
+    expect(screen.getByTestId('org-card-Verified Corp')).toBeInTheDocument();
   });
 
   // --- 3. Interaction Tests ---
 
-  it("navigates to dashboard when clicking a verified org (Table)", () => {
+  it('navigates to resolved default route when clicking a verified org (Table)', () => {
     render(<OrganizationList orgs={[mockVerifiedOrg]} />);
 
-    const nameButton = screen.getByText("Verified Corp");
+    const nameButton = screen.getByText('Verified Corp');
     fireEvent.click(nameButton);
 
-    expect(mockSetPrimaryOrg).toHaveBeenCalledWith("org-1");
-    expect(mockPush).toHaveBeenCalledWith("/dashboard");
+    expect(mockSetPrimaryOrg).toHaveBeenCalledWith('org-1');
+    expect(mockPush).toHaveBeenCalledWith('/appointments');
   });
 
-  it("navigates to create-org when clicking an unverified org (Table)", () => {
+  it('navigates to create-org when clicking an unverified org (Table)', () => {
     render(<OrganizationList orgs={[mockUnverifiedOrg]} />);
 
-    const nameButton = screen.getByText("Pending Inc");
+    const nameButton = screen.getByText('Pending Inc');
     fireEvent.click(nameButton);
 
     // Should use fallback 'name' as ID since _id is missing
-    expect(mockSetPrimaryOrg).toHaveBeenCalledWith("Pending Inc");
-    expect(mockPush).toHaveBeenCalledWith("/create-org?orgId=Pending Inc");
+    expect(mockSetPrimaryOrg).toHaveBeenCalledWith('Pending Inc');
+    expect(mockPush).toHaveBeenCalledWith('/create-org?orgId=Pending Inc');
   });
 
-  it("navigates correctly when clicking a mobile card", () => {
+  it('navigates correctly when clicking a mobile card', () => {
     render(<OrganizationList orgs={[mockVerifiedOrg]} />);
 
-    const cardButton = screen.getByText("Select Card");
+    const cardButton = screen.getByText('Select Card');
     fireEvent.click(cardButton);
 
-    expect(mockSetPrimaryOrg).toHaveBeenCalledWith("org-1");
-    expect(mockPush).toHaveBeenCalledWith("/dashboard");
+    expect(mockSetPrimaryOrg).toHaveBeenCalledWith('org-1');
+    expect(mockPush).toHaveBeenCalledWith('/appointments');
   });
 });

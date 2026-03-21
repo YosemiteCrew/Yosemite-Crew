@@ -1,12 +1,19 @@
 import { randomUUID } from "node:crypto";
 import { Types } from "mongoose";
 
-import { CoParentInviteModel } from "../models/coparentInvite";
+import {
+  CoParentInviteModel,
+  type CoParentInviteDocument,
+} from "../models/coparentInvite";
 import { ParentModel } from "src/models/parent";
 import CompanionModel from "../models/companion";
 import { ParentCompanionService } from "./parent-companion.service";
 import { ParentService } from "./parent.service";
 import ParentCompanionModel from "src/models/parent-companion";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import { isReadFromPostgres } from "src/config/read-switch";
+import { Prisma } from "@prisma/client";
 
 export class CoParentInviteServiceError extends Error {
   constructor(
@@ -18,7 +25,33 @@ export class CoParentInviteServiceError extends Error {
   }
 }
 
+type CoParentInviteDocumentWithTimestamps = CoParentInviteDocument & {
+  createdAt?: Date;
+  updatedAt?: Date;
+};
+
 const INVITE_EXPIRY_HOURS = 24;
+const CO_PARENT_PERMISSIONS = {
+  assignAsPrimaryParent: false,
+  emergencyBasedPermissions: false,
+  appointments: false,
+  companionProfile: false,
+  documents: false,
+  expenses: false,
+  tasks: false,
+  chatWithVet: false,
+};
+
+const resolveParentMongoId = (parent: {
+  _id?: Types.ObjectId;
+  id?: string;
+}): Types.ObjectId => {
+  if (parent._id) return parent._id;
+  if (parent.id && Types.ObjectId.isValid(parent.id)) {
+    return new Types.ObjectId(parent.id);
+  }
+  throw new CoParentInviteServiceError("Parent identifier is invalid.", 400);
+};
 
 export const CoParentInviteService = {
   async sendInvite({
@@ -36,11 +69,11 @@ export const CoParentInviteService = {
       throw new CoParentInviteServiceError("Email is required.", 400);
     }
 
-    if (!Types.ObjectId.isValid(companionId)) {
+    if (!isReadFromPostgres() && !Types.ObjectId.isValid(companionId)) {
       throw new CoParentInviteServiceError("Invalid companionId.", 400);
     }
 
-    if (!Types.ObjectId.isValid(invitedByParentId)) {
+    if (!isReadFromPostgres() && !Types.ObjectId.isValid(invitedByParentId)) {
       throw new CoParentInviteServiceError("Invalid invitedByParentId.", 400);
     }
 
@@ -49,14 +82,60 @@ export const CoParentInviteService = {
       Date.now() + INVITE_EXPIRY_HOURS * 60 * 60 * 1000,
     );
 
-    await CoParentInviteModel.create({
+    if (isReadFromPostgres()) {
+      await prisma.coParentInvite.create({
+        data: {
+          email: email.toLowerCase(),
+          inviteeName: inviteeName ?? undefined,
+          companionId,
+          invitedByParentId,
+          inviteToken,
+          expiresAt,
+          acceptedAt: undefined,
+          diclinedAt: undefined,
+          consumed: false,
+        },
+      });
+
+      return {
+        inviteToken,
+        expiresAt,
+        email: email.toLowerCase(),
+        inviteeName: inviteeName?.trim() || null,
+      };
+    }
+
+    const doc = (await CoParentInviteModel.create({
       email: email.toLowerCase(),
       companionId: new Types.ObjectId(companionId),
       invitedByParentId: new Types.ObjectId(invitedByParentId),
       inviteToken,
       expiresAt,
       inviteeName,
-    });
+    })) as CoParentInviteDocumentWithTimestamps;
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.coParentInvite.create({
+          data: {
+            id: doc._id.toString(),
+            email: email.toLowerCase(),
+            inviteeName: inviteeName ?? undefined,
+            companionId,
+            invitedByParentId,
+            inviteToken,
+            expiresAt,
+            acceptedAt: undefined,
+            diclinedAt: undefined,
+            consumed: false,
+            createdAt: doc.createdAt ?? undefined,
+            updatedAt: doc.updatedAt ?? undefined,
+          },
+        });
+      } catch (err) {
+        handleDualWriteError("CoParentInvite", err);
+      }
+    }
 
     return {
       inviteToken,
@@ -69,6 +148,65 @@ export const CoParentInviteService = {
   async validateInvite(token: string) {
     if (!token || typeof token !== "string") {
       throw new CoParentInviteServiceError("Invite token is required.", 400);
+    }
+
+    if (isReadFromPostgres()) {
+      const invite = await prisma.coParentInvite.findUnique({
+        where: { inviteToken: token },
+      });
+
+      if (!invite) {
+        throw new CoParentInviteServiceError("Invalid invite token.", 404);
+      }
+
+      if (invite.consumed) {
+        throw new CoParentInviteServiceError(
+          "This invite has already been used.",
+          410,
+        );
+      }
+
+      if (invite.expiresAt < new Date()) {
+        throw new CoParentInviteServiceError("This invite has expired.", 410);
+      }
+
+      const inviter = await prisma.parent.findUnique({
+        where: { id: invite.invitedByParentId },
+      });
+      if (!inviter) {
+        throw new CoParentInviteServiceError("Inviter parent not found.", 404);
+      }
+
+      const companion = await prisma.companion.findUnique({
+        where: { id: invite.companionId },
+      });
+      if (!companion) {
+        throw new CoParentInviteServiceError("Companion not found.", 404);
+      }
+
+      const inviterFullName = [inviter.firstName, inviter.lastName]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+
+      return {
+        email: invite.email,
+        inviteeName: invite.inviteeName || null,
+        expiresAt: invite.expiresAt,
+        id: invite.id,
+        invitedBy: {
+          id: inviter.id,
+          firstName: inviter.firstName,
+          lastName: inviter.lastName || null,
+          fullName: inviterFullName,
+          profileImageUrl: inviter.profileImageUrl || null,
+        },
+        companion: {
+          id: companion.id,
+          name: companion.name,
+          photoUrl: companion.photoUrl || null,
+        },
+      };
     }
 
     // 1. Find invite
@@ -140,6 +278,73 @@ export const CoParentInviteService = {
       throw new CoParentInviteServiceError("Authenticated user required.", 401);
     }
 
+    if (isReadFromPostgres()) {
+      const invite = await this.validateInvite(token);
+
+      const parentDoc = await ParentService.findByLinkedUserId(authUserId);
+      if (!parentDoc) {
+        throw new CoParentInviteServiceError(
+          "Parent profile not found for this user. Please complete parent setup before accepting invite.",
+          404,
+        );
+      }
+
+      const parentId =
+        "id" in parentDoc && typeof parentDoc.id === "string"
+          ? parentDoc.id
+          : undefined;
+      if (!parentId) {
+        throw new CoParentInviteServiceError(
+          "Parent identifier is invalid.",
+          400,
+        );
+      }
+
+      const existingLink = await prisma.parentCompanion.findFirst({
+        where: {
+          parentId,
+          companionId: invite.companion.id,
+          status: { in: ["ACTIVE", "PENDING"] },
+        },
+        select: { id: true },
+      });
+
+      if (existingLink) {
+        throw new CoParentInviteServiceError(
+          "You are already linked to this companion.",
+          409,
+        );
+      }
+
+      await prisma.parentCompanion.create({
+        data: {
+          parentId,
+          companionId: invite.companion.id,
+          role: "CO_PARENT",
+          status: "ACTIVE",
+          permissions:
+            CO_PARENT_PERMISSIONS as unknown as Prisma.InputJsonValue,
+          invitedByParentId: invite.invitedBy.id,
+          acceptedAt: new Date(),
+        },
+      });
+
+      await prisma.coParentInvite.update({
+        where: { id: invite.id },
+        data: {
+          consumed: true,
+          acceptedAt: new Date(),
+        },
+      });
+
+      return {
+        message: "Invite accepted successfully.",
+        parentId,
+        companionId: invite.companion.id,
+        invitedByParentId: invite.invitedBy.id,
+      };
+    }
+
     // 1. Validate invite & fetch necessary records
     const invite = await this.validateInvite(token); // this returns inviter + companion + all info
 
@@ -160,8 +365,10 @@ export const CoParentInviteService = {
     }
 
     // 3. Ensure we do not create duplicate link
+    const parentMongoId = resolveParentMongoId(parentDoc);
+
     const existingLink = await ParentCompanionModel.findOne({
-      parentId: parentDoc._id,
+      parentId: parentMongoId,
       companionId: invite.companion.id,
       status: { $in: ["ACTIVE", "PENDING"] },
     });
@@ -175,7 +382,7 @@ export const CoParentInviteService = {
 
     // 4. Create CO_PARENT link (as ACTIVE)
     await ParentCompanionService.linkParent({
-      parentId: parentDoc._id,
+      parentId: parentMongoId,
       companionId: new Types.ObjectId(invite.companion.id),
       role: "CO_PARENT",
       status: "ACTIVE",
@@ -188,9 +395,28 @@ export const CoParentInviteService = {
     inviteDoc.acceptedAt = new Date();
     await inviteDoc.save();
 
+    if (shouldDualWrite) {
+      try {
+        await prisma.coParentInvite.updateMany({
+          where: { id: inviteDoc._id.toString() },
+          data: {
+            consumed: true,
+            acceptedAt: inviteDoc.acceptedAt ?? undefined,
+          },
+        });
+      } catch (err) {
+        handleDualWriteError("CoParentInvite accept", err);
+      }
+    }
+
+    const parentId =
+      "id" in parentDoc && typeof parentDoc.id === "string"
+        ? parentDoc.id
+        : resolveParentMongoId(parentDoc).toString();
+
     return {
       message: "Invite accepted successfully.",
-      parentId: parentDoc._id.toString(),
+      parentId,
       companionId: invite.companion.id,
       invitedByParentId: invite.invitedBy.id,
     };
@@ -199,6 +425,42 @@ export const CoParentInviteService = {
   async declineInvite(token: string) {
     if (!token || typeof token !== "string") {
       throw new CoParentInviteServiceError("Invite token is required.", 400);
+    }
+
+    if (isReadFromPostgres()) {
+      const invite = await prisma.coParentInvite.findUnique({
+        where: { inviteToken: token },
+      });
+
+      if (!invite) {
+        throw new CoParentInviteServiceError("Invalid invite token.", 404);
+      }
+
+      if (invite.consumed) {
+        throw new CoParentInviteServiceError(
+          "This invite has already been used.",
+          410,
+        );
+      }
+
+      if (invite.expiresAt < new Date()) {
+        throw new CoParentInviteServiceError("This invite has expired.", 410);
+      }
+
+      const updated = await prisma.coParentInvite.update({
+        where: { id: invite.id },
+        data: {
+          consumed: true,
+          diclinedAt: new Date(),
+        },
+      });
+
+      return {
+        message: "Invite declined successfully.",
+        email: updated.email,
+        companionId: updated.companionId,
+        invitedByParentId: updated.invitedByParentId,
+      };
     }
 
     // Load invite
@@ -227,6 +489,20 @@ export const CoParentInviteService = {
     invite.diclinedAt = new Date();
     await invite.save();
 
+    if (shouldDualWrite) {
+      try {
+        await prisma.coParentInvite.updateMany({
+          where: { id: invite._id.toString() },
+          data: {
+            consumed: true,
+            diclinedAt: invite.diclinedAt ?? undefined,
+          },
+        });
+      } catch (err) {
+        handleDualWriteError("CoParentInvite decline", err);
+      }
+    }
+
     return {
       message: "Invite declined successfully.",
       email: invite.email,
@@ -241,6 +517,63 @@ export const CoParentInviteService = {
     }
 
     const now = new Date();
+
+    if (isReadFromPostgres()) {
+      const inviteDocs = await prisma.coParentInvite.findMany({
+        where: {
+          email: email.toLowerCase(),
+          consumed: false,
+          expiresAt: { gt: now },
+        },
+        orderBy: { expiresAt: "asc" },
+      });
+
+      if (!inviteDocs.length) {
+        return { pendingInvites: [] };
+      }
+
+      const results = [];
+
+      for (const invite of inviteDocs) {
+        const inviter = await prisma.parent.findUnique({
+          where: { id: invite.invitedByParentId },
+        });
+        if (!inviter) continue;
+
+        const companion = await prisma.companion.findUnique({
+          where: { id: invite.companionId },
+        });
+        if (!companion) continue;
+
+        const inviterFullName = [inviter.firstName, inviter.lastName]
+          .filter(Boolean)
+          .join(" ")
+          .trim();
+
+        results.push({
+          token: invite.inviteToken,
+          email: invite.email,
+          inviteeName: invite.inviteeName || null,
+          expiresAt: invite.expiresAt,
+          invitedBy: {
+            id: inviter.id,
+            firstName: inviter.firstName,
+            lastName: inviter.lastName || null,
+            fullName: inviterFullName,
+            profileImageUrl: inviter.profileImageUrl || null,
+          },
+          companion: {
+            id: companion.id,
+            name: companion.name,
+            photoUrl: companion.photoUrl || null,
+          },
+        });
+      }
+
+      return {
+        pendingInvites: results,
+      };
+    }
 
     // Fetch all pending + non-expired invites
     const inviteDocs = await CoParentInviteModel.find({

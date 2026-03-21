@@ -14,8 +14,8 @@ export const appRoutes: RouteItem[] = [
   { name: "Finance", href: "/finance", verify: true },
   { name: "Companions", href: "/companions", verify: true },
   { name: "Inventory", href: "/inventory", verify: true },
-  { name: "Forms", href: "/forms", verify: true },
-  { name: "Doc Signing", href: "/doc-signing", verify: true },
+  { name: "Integrations", href: "/integrations", verify: true },
+  { name: "Templates", href: "/forms", verify: true },
 ];
 
 export const devRoutes: RouteItem[] = [

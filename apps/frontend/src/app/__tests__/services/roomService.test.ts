@@ -61,7 +61,7 @@ describe("Room Service", () => {
 
       await loadRoomsForOrgPrimaryOrg();
 
-      expect(consoleSpy).toHaveBeenCalledWith("No primary organization selected. Cannot load specialities.");
+      expect(consoleSpy).toHaveBeenCalledWith("No primary organization selected. Cannot load rooms.");
       expect(mockedGetData).not.toHaveBeenCalled();
       consoleSpy.mockRestore();
     });
@@ -123,7 +123,7 @@ describe("Room Service", () => {
       const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
 
       await expect(loadRoomsForOrgPrimaryOrg()).rejects.toThrow("Fetch Error");
-      expect(consoleSpy).toHaveBeenCalledWith("Failed to load specialities:", error);
+      expect(consoleSpy).toHaveBeenCalledWith("Failed to load rooms:", error);
       consoleSpy.mockRestore();
     });
   });
@@ -138,7 +138,7 @@ describe("Room Service", () => {
 
       await createRoom(mockRoomInput);
 
-      expect(consoleSpy).toHaveBeenCalledWith("No primary organization selected. Cannot load companions.");
+      expect(consoleSpy).toHaveBeenCalledWith("No primary organization selected. Cannot create room.");
       expect(mockedPostData).not.toHaveBeenCalled();
       consoleSpy.mockRestore();
     });
@@ -171,7 +171,7 @@ describe("Room Service", () => {
       const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
 
       await expect(createRoom(mockRoomInput)).rejects.toThrow("Create Error");
-      expect(consoleSpy).toHaveBeenCalledWith("Failed to create service:", error);
+      expect(consoleSpy).toHaveBeenCalledWith("Failed to create room:", error);
       consoleSpy.mockRestore();
     });
   });
@@ -186,7 +186,7 @@ describe("Room Service", () => {
 
       await updateRoom(mockUpdateInput);
 
-      expect(consoleSpy).toHaveBeenCalledWith("No primary organization selected. Cannot load companions.");
+      expect(consoleSpy).toHaveBeenCalledWith("No primary organization selected. Cannot update room.");
       expect(mockedPutData).not.toHaveBeenCalled();
       consoleSpy.mockRestore();
     });
@@ -215,7 +215,7 @@ describe("Room Service", () => {
       const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
 
       await expect(updateRoom(mockUpdateInput)).rejects.toThrow("Update Error");
-      expect(consoleSpy).toHaveBeenCalledWith("Failed to create service:", error);
+      expect(consoleSpy).toHaveBeenCalledWith("Failed to update room:", error);
       consoleSpy.mockRestore();
     });
   });

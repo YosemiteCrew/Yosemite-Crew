@@ -7,8 +7,29 @@ import React, { useMemo } from "react";
 import { RoomsTypes } from "@/app/features/organization/pages/Organization/types";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
 import { useSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
-import { deleteRoom, updateRoom } from "@/app/features/organization/services/roomService";
+import {
+  deleteRoom,
+  updateRoom,
+} from "@/app/features/organization/services/roomService";
 import Close from "@/app/ui/primitives/Icons/Close";
+import { useNotify } from "@/app/hooks/useNotify";
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (typeof error === "object" && error !== null) {
+    const maybeError = error as {
+      message?: string;
+      response?: {
+        data?: {
+          message?: string;
+        };
+      };
+    };
+
+    return maybeError.response?.data?.message ?? maybeError.message ?? fallback;
+  }
+
+  return fallback;
+};
 
 type RoomInfoProps = {
   showModal: boolean;
@@ -47,6 +68,7 @@ const RoomInfo = ({
   activeRoom,
   canEditRoom,
 }: RoomInfoProps) => {
+  const { notify } = useNotify();
   const teams = useTeamForPrimaryOrg();
   const specialities = useSpecialitiesForPrimaryOrg();
 
@@ -56,7 +78,7 @@ const RoomInfo = ({
         label: team.name || team.practionerId,
         value: team.practionerId,
       })),
-    [teams]
+    [teams],
   );
 
   const SpecialitiesOptions = useMemo(
@@ -65,12 +87,12 @@ const RoomInfo = ({
         label: speciality.name,
         value: speciality._id || speciality.name,
       })),
-    [specialities]
+    [specialities],
   );
 
   const fields = useMemo(
     () => getFields({ TeamOptions, SpecialitiesOptions }),
-    [TeamOptions, SpecialitiesOptions]
+    [TeamOptions, SpecialitiesOptions],
   );
 
   const roomInfoData = useMemo(
@@ -80,23 +102,53 @@ const RoomInfo = ({
       assignedSpecialiteis: activeRoom?.assignedSpecialiteis ?? "",
       assignedStaffs: activeRoom?.assignedStaffs ?? "",
     }),
-    [activeRoom]
+    [activeRoom],
   );
 
   const handleUpdate = async (values: any) => {
     try {
       const formData: OrganisationRoom = {
         id: activeRoom.id,
-        organisationId: activeRoom.id,
+        organisationId: activeRoom.organisationId,
         name: values.name,
         type: values.type,
         assignedSpecialiteis: values.assignedSpecialiteis,
         assignedStaffs: values.assignedStaffs,
       };
       await updateRoom(formData);
+      notify("success", {
+        title: "Room updated",
+        text: "Room details have been updated successfully.",
+      });
       setShowModal(false);
     } catch (error) {
-      console.log(error);
+      notify("error", {
+        title: "Unable to update room",
+        text: getErrorMessage(
+          error,
+          "Failed to update room. Please try again.",
+        ),
+      });
+      throw error;
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      await deleteRoom(activeRoom);
+      notify("success", {
+        title: "Room deleted",
+        text: "Room has been deleted successfully.",
+      });
+      setShowModal(false);
+    } catch (error) {
+      notify("error", {
+        title: "Unable to delete room",
+        text: getErrorMessage(
+          error,
+          "Failed to delete room. Please try again.",
+        ),
+      });
     }
   };
 
@@ -121,7 +173,7 @@ const RoomInfo = ({
           showEditIcon={canEditRoom}
           onSave={handleUpdate}
           showDeleteIcon={canEditRoom}
-          onDelete={() => deleteRoom(activeRoom)}
+          onDelete={handleDelete}
         />
       </div>
     </Modal>

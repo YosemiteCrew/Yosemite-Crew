@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { GrNext, GrPrevious } from "react-icons/gr";
+import React, { useEffect, useMemo, useState } from 'react';
+import { GrNext, GrPrevious } from 'react-icons/gr';
 import {
   getDateNumberPadded,
   getNextWeek,
@@ -7,24 +7,24 @@ import {
   getShortWeekday,
   getStartOfWeek,
   getWeekDays,
-} from "@/app/features/appointments/components/Calendar/weekHelpers";
-import { isSameDay } from "@/app/features/appointments/components/Calendar/helpers";
-import { Slot } from "@/app/features/appointments/types/appointments";
-import { formatUtcTimeToLocalLabel } from "@/app/features/appointments/components/Availability/utils";
+} from '@/app/features/appointments/components/Calendar/weekHelpers';
+import { isSameDay } from '@/app/features/appointments/components/Calendar/helpers';
+import { Slot } from '@/app/features/appointments/types/appointments';
+import { formatUtcTimeToLocalLabel } from '@/app/features/appointments/components/Availability/utils';
 
 const monthNames = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
 type SlotpickerProps = {
@@ -62,7 +62,6 @@ const Slotpicker = ({
   };
 
   const handleNextMonth = () => {
-    console.log("first");
     const newDate = new Date(viewYear, viewMonth + 1, 7);
     setWeekStart(getStartOfWeek(newDate));
   };
@@ -111,23 +110,11 @@ const Slotpicker = ({
           onClick={handlePrevMonth}
           className="cursor-pointer"
         />
-        <div className="text-body-3 text-text-primary">
-          {monthNames[viewMonth]}
-        </div>
-        <GrNext
-          size={16}
-          color="#302f2e"
-          onClick={handleNextMonth}
-          className="cursor-pointer"
-        />
+        <div className="text-body-3 text-text-primary">{monthNames[viewMonth]}</div>
+        <GrNext size={16} color="#302f2e" onClick={handleNextMonth} className="cursor-pointer" />
       </div>
       <div className="flex items-center justify-between gap-1 sm:gap-2 mb-1">
-        <GrPrevious
-          size={16}
-          color="#302f2e"
-          onClick={handlePrevWeek}
-          className="cursor-pointer"
-        />
+        <GrPrevious size={16} color="#302f2e" onClick={handlePrevWeek} className="cursor-pointer" />
         <div className="grid grid-cols-7 gap-x-1 sm:gap-x-2">
           {days.map((day) => {
             const isCurrent = isSameDay(selectedDate, day);
@@ -135,20 +122,19 @@ const Slotpicker = ({
               <button
                 key={day.toISOString()}
                 onClick={() => handleClickdate(day)}
-                className={`${isCurrent ? "text-[#247AED] bg-[#E9F2FD] border-[#247AED]!" : "border-[#747473]! bg-white"} flex flex-col gap-1 items-center justify-center px-3 py-2 border rounded-xl!`}
+                className={`${isCurrent ? 'text-[#247AED] bg-[#E9F2FD] border-[#247AED]!' : 'border-[#747473]! bg-white'} flex flex-col gap-1 items-center justify-center px-3 py-2 border rounded-xl!`}
               >
-                <div className="text-sm sm:text-md font-satoshi text-text-primary">{getShortWeekday(day)}</div>
-                <div className="text-sm sm:text-md font-satoshi text-text-primary">{getDateNumberPadded(day)}</div>
+                <div className="text-sm sm:text-md font-satoshi text-text-primary">
+                  {getShortWeekday(day)}
+                </div>
+                <div className="text-sm sm:text-md font-satoshi text-text-primary">
+                  {getDateNumberPadded(day)}
+                </div>
               </button>
             );
           })}
         </div>
-        <GrNext
-          size={16}
-          color="#302f2e"
-          onClick={handleNextWeek}
-          className="cursor-pointer"
-        />
+        <GrNext size={16} color="#302f2e" onClick={handleNextWeek} className="cursor-pointer" />
       </div>
       <div className="flex flex-wrap gap-1 px-2 sm:px-3 mb-2 max-h-[200px] overflow-y-auto scrollbar-hidden">
         {timeSlots?.length > 0 &&
@@ -158,15 +144,17 @@ const Slotpicker = ({
               <button
                 key={slot.startTime + i}
                 onClick={() => setSelectedSlot(slot)}
-                className={`${selected ? "text-[#247AED] bg-[#E9F2FD] border-[#247AED]!" : "border-[#747473]! bg-white"} px-[14px] py-2 flex items-center justify-center border rounded-xl! font-satoshi text-[12px]!`}
+                className={`${selected ? 'text-[#247AED] bg-[#E9F2FD] border-[#247AED]!' : 'border-[#747473]! bg-white'} px-[14px] py-2 flex items-center justify-center border rounded-xl! font-satoshi text-[12px]!`}
               >
                 {formatUtcTimeToLocalLabel(slot.startTime)}
               </button>
             );
           })}
-          {timeSlots.length === 0 && (
-            <div className="text-center w-full text-caption-1 text-text-primary py-3">No slot available</div>
-          )}
+        {timeSlots.length === 0 && (
+          <div className="text-center w-full text-caption-1 text-text-primary py-3">
+            No slot available
+          </div>
+        )}
       </div>
     </div>
   );

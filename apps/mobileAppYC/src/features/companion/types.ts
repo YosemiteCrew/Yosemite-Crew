@@ -8,19 +8,29 @@ export type NeuteredStatus = 'neutered' | 'not-neutered';
 
 export type InsuredStatus = 'insured' | 'not-insured';
 
-export type CompanionOrigin = 'shop' | 'breeder' | 'foster-shelter' | 'friends-family' | 'unknown';
+export type CompanionOrigin =
+  | 'shop'
+  | 'breeder'
+  | 'foster-shelter'
+  | 'friends-family'
+  | 'stray'
+  | 'unknown';
 
 export interface Breed {
   speciesId: number;
   speciesName: string;
   breedId: number;
   breedName: string;
+  speciesCode?: string;
+  breedCode?: string;
 }
 
 export interface CompanionProfileData {
   category: CompanionCategory;
+  speciesCode: string | null;
   name: string;
   breed: Breed | null;
+  breedCode: string | null;
   dateOfBirth: string | null;
   gender: CompanionGender;
   currentWeight: number | null;

@@ -1,114 +1,205 @@
-"use client";
-import React, { useCallback, useState } from "react";
-import { Button } from "react-bootstrap";
-import { toFhirSupportTicket } from "@yosemite-crew/fhir";
-import { CreateSupportTicket, TicketCategory } from "@yosemite-crew/types";
-import Link from "next/link";
-import { isEmail } from "validator";
+'use client';
+import React, { useState } from 'react';
+import { Button } from 'react-bootstrap';
+import { TicketCategory } from '@yosemite-crew/types';
+import Link from 'next/link';
+import { isEmail } from 'validator';
+import axios from 'axios';
 
-import Footer from "@/app/ui/widgets/Footer/Footer";
-import FormInput from "@/app/ui/inputs/FormInput/FormInput";
-import DynamicSelect from "@/app/ui/widgets/DynamicSelect/DynamicSelect";
-import { postData } from "@/app/services/axios";
-import Image from "next/image";
+import Footer from '@/app/ui/widgets/Footer/Footer';
+import FormInput from '@/app/ui/inputs/FormInput/FormInput';
+import DynamicSelect from '@/app/ui/widgets/DynamicSelect/DynamicSelect';
+import Image from 'next/image';
+import { postData } from '@/app/services/axios';
+import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 
-import "./ContactusPage.css";
+import './ContactusPage.css';
+
+const CONTACT_TYPE_MAP: Record<TicketCategory, string> = {
+  'General Enquiry': 'GENERAL_ENQUIRY',
+  'Feature Request': 'FEATURE_REQUEST',
+  'Data Service Access Request': 'DSAR',
+  Complaint: 'COMPLAINT',
+  Technical: 'GENERAL_ENQUIRY',
+  Billing: 'GENERAL_ENQUIRY',
+};
+
+type DsraRequesterType = 'SELF' | 'PARENT_GUARDIAN' | 'AUTHORIZED_AGENT';
+type DsraLawBasis =
+  | 'GDPR'
+  | 'CCPA'
+  | 'UK_GDPR'
+  | 'LGPD'
+  | 'PIPEDA'
+  | 'POPIA'
+  | 'PDPA'
+  | 'PIPL'
+  | 'PA_1988_AU'
+  | 'OTHER';
+type DsraRight =
+  | 'KNOW_INFORMATION_COLLECTED'
+  | 'ACCESS_PERSONAL_INFORMATION'
+  | 'DELETE_DATA'
+  | 'RECTIFY_INACCURATE_INFORMATION'
+  | 'RESTRICT_PROCESSING'
+  | 'PORTABILITY_COPY'
+  | 'OPT_OUT_SELLING_SHARING'
+  | 'LIMIT_SENSITIVE_PROCESSING'
+  | 'OTHER';
+type FormErrors = { [key: string]: string };
+type ContactPayload = {
+  type: string;
+  message: string;
+  fullName: string;
+  email: string;
+  source: 'PMS_WEB';
+  phone?: string;
+  dsarDetails?: {
+    requesterType: DsraRequesterType;
+    lawBasis: DsraLawBasis;
+    rightsRequested: DsraRight[];
+    declarationAccepted: boolean;
+    otherLawText?: string;
+    otherRightText?: string;
+  };
+};
 
 const ContactusPage = () => {
-  const [email, setEmail] = useState("");
-  const [fullName, setFullName] = useState<string>("");
-  const [phone, setPhone] = useState<string>("");
-  const [message, setMessage] = useState("");
+  const [email, setEmail] = useState('');
+  const [fullName, setFullName] = useState<string>('');
+  const [phone, setPhone] = useState<string>('');
+  const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState<boolean>(false);
   // Query Type
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const [selectedQueryType, setSelectedQueryType] =
-    useState<TicketCategory>("General Enquiry");
+  const [selectedQueryType, setSelectedQueryType] = useState<TicketCategory>('General Enquiry');
   const queryTypes: TicketCategory[] = [
-    "General Enquiry",
-    "Feature Request",
-    "Data Service Access Request",
-    "Complaint",
+    'General Enquiry',
+    'Feature Request',
+    'Data Service Access Request',
+    'Complaint',
   ];
   // Subrequest options for Data Service Access Request
-  const [subselectedRequest, setSubselectedRequest] = useState("");
-  const subrequestOptions = [
-    "The person, or the parent / guardian of the person, whose name appears above",
-    "An agent authorized by the consumer to make this request on their behalf",
+  const [subselectedRequest, setSubselectedRequest] = useState<DsraRequesterType | ''>('');
+  const subrequestOptions: { label: string; value: DsraRequesterType }[] = [
+    {
+      value: 'SELF',
+      label: 'The person whose name appears above',
+    },
+    {
+      value: 'PARENT_GUARDIAN',
+      label: 'The parent / guardian of the person whose name appears above',
+    },
+    {
+      value: 'AUTHORIZED_AGENT',
+      label: 'An agent authorized by the consumer to make this request on their behalf',
+    },
   ];
 
   // Data Service Access Request options
-  const [selectedRequest, setSelectedRequest] = useState("");
-  const requestOptions = [
-    "Know what information is being collected from you",
-    "Have your information deleted",
-    "Opt-out of having your data sold to third-parties",
-    "Opt-in to the sale of your personal data to third-parties",
-    "Access your personal information",
-    "Fix inaccurate information",
-    "Receive a copy of your personal information",
-    "Opt-out of having your data shared for cross-context behavioral advertising",
-    "Limit the use and disclosure of your sensitive personal information",
-    "Others (please specify in the comment box below)",
+  const [selectedRequest, setSelectedRequest] = useState<string>('');
+  const requestOptions: { label: string; value: DsraRight }[] = [
+    {
+      label: 'Know what information is being collected from you',
+      value: 'KNOW_INFORMATION_COLLECTED',
+    },
+    {
+      label: 'Have your information deleted',
+      value: 'DELETE_DATA',
+    },
+    {
+      label: 'Opt-out of having your data sold to third-parties',
+      value: 'OPT_OUT_SELLING_SHARING',
+    },
+    {
+      label: 'Opt-in to the sale of your personal data to third-parties',
+      value: 'OTHER',
+    },
+    {
+      label: 'Access your personal information',
+      value: 'ACCESS_PERSONAL_INFORMATION',
+    },
+    {
+      label: 'Fix inaccurate information',
+      value: 'RECTIFY_INACCURATE_INFORMATION',
+    },
+    {
+      label: 'Receive a copy of your personal information',
+      value: 'PORTABILITY_COPY',
+    },
+    {
+      label: 'Opt-out of having your data shared for cross-context behavioral advertising',
+      value: 'OPT_OUT_SELLING_SHARING',
+    },
+    {
+      label: 'Limit the use and disclosure of your sensitive personal information',
+      value: 'LIMIT_SENSITIVE_PROCESSING',
+    },
+    {
+      label: 'Others (please specify in the comment box below)',
+      value: 'OTHER',
+    },
   ];
 
   // Areas
-  const [area, setArea] = useState<string>("");
+  const [area, setArea] = useState<string>('');
   type Option = {
     value: string;
     label: string;
   };
   const areaOptions: Option[] = [
     {
-      value: "EU GDPR (General Data Protection Regulation)",
-      label: "EU GDPR (General Data Protection Regulation)",
+      value: 'GDPR',
+      label: 'EU GDPR (General Data Protection Regulation)',
     },
     {
-      value: "UK GDPR / Data Protection Act 2018",
-      label: "UK GDPR / Data Protection Act 2018",
+      value: 'UK_GDPR',
+      label: 'UK GDPR / Data Protection Act 2018',
     },
     {
-      value: "CCPA / CPRA (California Consumer Privacy Act)",
-      label: "CCPA / CPRA (California Consumer Privacy Act)",
+      value: 'CCPA',
+      label: 'CCPA / CPRA (California Consumer Privacy Act)',
     },
     {
-      value: "LGPD (Brazilian General Data Protection Law)",
-      label: "LGPD (Brazilian General Data Protection Law)",
+      value: 'LGPD',
+      label: 'LGPD (Brazilian General Data Protection Law)',
     },
     {
-      value:
-        "PIPEDA (Personal Information Protection and Electronic Documents Act, Canada)",
-      label:
-        "PIPEDA (Personal Information Protection and Electronic Documents Act, Canada)",
+      value: 'PIPEDA',
+      label: 'PIPEDA (Personal Information Protection and Electronic Documents Act, Canada)',
     },
     {
-      value: "POPIA (Protection of Personal Information Act, South Africa)",
-      label: "POPIA (Protection of Personal Information Act, South Africa)",
+      value: 'POPIA',
+      label: 'POPIA (Protection of Personal Information Act, South Africa)',
     },
     {
-      value: "PDPA (Personal Data Protection Act, Singapore)",
-      label: "PDPA (Personal Data Protection Act, Singapore)",
+      value: 'PDPA',
+      label: 'PDPA (Personal Data Protection Act, Singapore)',
     },
     {
-      value: "PIPL (Personal Information Protection Law, China)",
-      label: "PIPL (Personal Information Protection Law, China)",
+      value: 'PIPL',
+      label: 'PIPL (Personal Information Protection Law, China)',
     },
     {
-      value: "Privacy Act 1988 (Australia)",
-      label: "Privacy Act 1988 (Australia)",
+      value: 'PA_1988_AU',
+      label: 'Privacy Act 1988 (Australia)',
+    },
+    {
+      value: 'OTHER',
+      label: 'Other',
     },
   ];
 
   // Confirm checklist (multiple selections)
   const [confirmSelections, setConfirmSelections] = useState<string[]>([]);
   // Complaint specific fields
-  const [complaintLink, setComplaintLink] = useState<string>("");
+  const [complaintLink, setComplaintLink] = useState<string>('');
   const [complaintImage, setComplaintImage] = useState<File | null>(null);
   console.log(complaintImage);
   const confirmOptions = [
-    "Under penalty of perjury, I declare all the above information to be true and accurate.",
-    "I understand that the deletion or restriction of my personal data is irreversible and may result in the termination of services with Yosemite Crew.",
-    "I understand that I will be required to validate my request my email, and I may be contacted in order to complete the request.",
+    'Under penalty of perjury, I declare all the above information to be true and accurate.',
+    'I understand that the deletion or restriction of my personal data is irreversible and may result in the termination of services with Yosemite Crew.',
+    'I understand that I will be required to validate my request my email, and I may be contacted in order to complete the request.',
   ];
   const isComplaintValid =
     fullName &&
@@ -128,56 +219,98 @@ const ContactusPage = () => {
 
   const toggleConfirmOption = (option: string) => {
     setConfirmSelections((prev) =>
-      prev.includes(option)
-        ? prev.filter((o) => o !== option)
-        : [...prev, option]
+      prev.includes(option) ? prev.filter((o) => o !== option) : [...prev, option]
     );
   };
   const isValidEmail = (email: string): boolean => {
     return isEmail(email);
   };
 
-  const handleContectSubmit = useCallback(async () => {
-    const newErrors: { [key: string]: string } = {};
-    if (!fullName.trim()) {
-      newErrors.fullName = "Full name is required";
-    }
-    if (!message.trim()) {
-      newErrors.message = "Message is required";
-    }
+  const getDsarLawBasis = (selectedArea: string): DsraLawBasis =>
+    (areaOptions.find((option) => option.value === selectedArea)?.value as DsraLawBasis) || 'OTHER';
+
+  const validateContactForm = (): FormErrors => {
+    const newErrors: FormErrors = {};
+    if (!fullName.trim()) newErrors.fullName = 'Full name is required';
+    if (!message.trim()) newErrors.message = 'Message is required';
     if (!email.trim()) {
-      newErrors.email = "Email is required";
+      newErrors.email = 'Email is required';
     } else if (!isValidEmail(email)) {
-      newErrors.email = "Invalid email address";
+      newErrors.email = 'Invalid email address';
     }
+    return newErrors;
+  };
+
+  const buildDsarDetails = (): ContactPayload['dsarDetails'] => {
+    const lawBasis = getDsarLawBasis(area);
+    const selectedAreaOption = areaOptions.find((option) => option.value === area);
+    const selectedRightOption = requestOptions.find((option) => option.label === selectedRequest);
+
+    return {
+      requesterType: subselectedRequest as DsraRequesterType,
+      lawBasis,
+      rightsRequested: selectedRightOption ? [selectedRightOption.value] : [],
+      declarationAccepted: confirmSelections.length === confirmOptions.length,
+      ...(lawBasis === 'OTHER' && selectedAreaOption?.label
+        ? { otherLawText: selectedAreaOption.label }
+        : {}),
+      ...(selectedRightOption?.value === 'OTHER' && selectedRightOption.label
+        ? { otherRightText: selectedRightOption.label }
+        : {}),
+    };
+  };
+
+  const buildPayload = (): ContactPayload => {
+    const payload: ContactPayload = {
+      type: CONTACT_TYPE_MAP[selectedQueryType],
+      message: message.trim(),
+      fullName: fullName.trim(),
+      email: email.trim(),
+      source: 'PMS_WEB',
+    };
+
+    if (phone.trim()) payload.phone = phone.trim();
+    if (selectedQueryType === 'Data Service Access Request') {
+      payload.dsarDetails = buildDsarDetails();
+    }
+
+    return payload;
+  };
+
+  const resetForm = () => {
+    setFullName('');
+    setPhone('');
+    setEmail('');
+    setMessage('');
+    setArea('');
+    setSelectedRequest('');
+    setSubselectedRequest('');
+    setConfirmSelections([]);
+    setComplaintLink('');
+    setComplaintImage(null);
+    setSelectedQueryType('General Enquiry');
+    setErrors({});
+  };
+
+  const handleContectSubmit = async () => {
+    const newErrors = validateContactForm();
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) return;
 
-    const obj: CreateSupportTicket = {
-      fullName,
-      message,
-      emailAddress: email,
-      category: selectedQueryType,
-      platform: "Web Form",
-      userType: "Guest",
-      userStatus: "Pending",
-      createdBy: "Professional",
-    };
-    const fhirData = toFhirSupportTicket(obj);
     setSubmitting(true);
     try {
-      await postData("/fhir/v1/support/request-support", fhirData);
+      const payload = buildPayload();
+      await postData('/v1/contact-us/contact-web', payload);
+      resetForm();
     } catch (error) {
-      console.log(error);
+      const errorMessage = axios.isAxiosError(error)
+        ? error.response?.data?.message || error.message
+        : 'Failed to submit contact request';
+      setErrors((prev) => ({ ...prev, submit: errorMessage }));
     } finally {
       setSubmitting(false);
     }
-  }, [
-    email,
-    fullName,
-    message,
-    selectedQueryType,
-  ]);
+  };
 
   return (
     <>
@@ -187,13 +320,13 @@ const ContactusPage = () => {
             <div className="LeftContactUs">
               <div className="conttexted">
                 <div className="text-body-4-emphasis text-text-brand">Contact us</div>
-                <div className="text-display-2 text-text-primary">Need help? We&rsquo;re all ears!</div>
+                <div className="text-display-2 text-text-primary">
+                  Need help? We&rsquo;re all ears!
+                </div>
               </div>
               <Image
                 alt="Contact Image"
-                src={
-                  "https://d2il6osz49gpup.cloudfront.net/contactus-page/Contact.png"
-                }
+                src={MEDIA_SOURCES.contactUs.heroImage}
                 height={586}
                 width={600}
               />
@@ -201,7 +334,9 @@ const ContactusPage = () => {
 
             <div className="RightContactUs">
               <div className="QueryText">
-                <div className="text-display-2 text-text-primary text-center">Submit your query</div>
+                <div className="text-display-2 text-text-primary text-center">
+                  Submit your query
+                </div>
               </div>
 
               {/* Contact Form */}
@@ -248,20 +383,22 @@ const ContactusPage = () => {
               </div>
 
               {/* One clear block per query type */}
-              {selectedQueryType === "Data Service Access Request" && (
+              {selectedQueryType === 'Data Service Access Request' && (
                 <div className="DataServiceAccessFields">
                   <div className="SetSubmitted">
-                    <div className="text-body-4-emphasis text-text-primary">You are submitting this request as</div>
+                    <div className="text-body-4-emphasis text-text-primary">
+                      You are submitting this request as
+                    </div>
                     {subrequestOptions.map((option) => (
-                      <label key={option}>
+                      <label key={option.value}>
                         <input
                           type="radio"
                           name="dsarSubmitAs"
-                          value={option}
-                          checked={subselectedRequest === option}
-                          onChange={() => setSubselectedRequest(option)}
+                          value={option.value}
+                          checked={subselectedRequest === option.value}
+                          onChange={() => setSubselectedRequest(option.value)}
                         />
-                        {option}
+                        {option.label}
                       </label>
                     ))}
                   </div>
@@ -280,25 +417,26 @@ const ContactusPage = () => {
                   </div>
 
                   <div className="SetSubmitted">
-                    <div className="text-body-4-emphasis text-text-primary">You are submitting this request to</div>
+                    <div className="text-body-4-emphasis text-text-primary">
+                      You are submitting this request to
+                    </div>
                     {requestOptions.map((option) => (
-                      <label key={option}>
+                      <label key={option.label}>
                         <input
                           type="radio"
                           name="dsarRequestTo"
-                          value={option}
-                          checked={selectedRequest === option}
-                          onChange={() => setSelectedRequest(option)}
+                          value={option.value}
+                          checked={selectedRequest === option.label}
+                          onChange={() => setSelectedRequest(option.label)}
                         />
-                        {option}
+                        {option.label}
                       </label>
                     ))}
                   </div>
 
                   <div className="QueryDetailsFields">
                     <label htmlFor="dsar-message">
-                      Please leave details regarding your action request or
-                      question
+                      Please leave details regarding your action request or question
                     </label>
                     <textarea
                       rows={3}
@@ -310,12 +448,12 @@ const ContactusPage = () => {
                     {errors?.message && (
                       <div
                         style={{
-                          color: "var(--color-danger-600)",
-                          fontSize: "14px",
-                          marginTop: "4px",
+                          color: 'var(--color-danger-600)',
+                          fontSize: '14px',
+                          marginTop: '4px',
                         }}
                       >
-                        {errors?.message ?? ""}
+                        {errors?.message ?? ''}
                       </div>
                     )}
                   </div>
@@ -342,28 +480,30 @@ const ContactusPage = () => {
                     disabled={submitting || !isDSARValid}
                     style={{
                       opacity: isDSARValid ? 1 : 0.5,
-                      pointerEvents: isDSARValid ? "auto" : "none",
+                      pointerEvents: isDSARValid ? 'auto' : 'none',
                     }}
                   >
-                    {submitting ? "submitting..." : "Send message"}
+                    {submitting ? 'submitting...' : 'Send message'}
                   </Button>
                 </div>
               )}
 
-              {selectedQueryType === "Complaint" && (
+              {selectedQueryType === 'Complaint' && (
                 <div className="DataServiceAccessFields">
-                  <div className="SetSubmitted" style={{ gap: "16px" }}>
-                    <div className="text-body-4-emphasis text-text-primary">You are submitting this complaint as</div>
+                  <div className="SetSubmitted" style={{ gap: '16px' }}>
+                    <div className="text-body-4-emphasis text-text-primary">
+                      You are submitting this complaint as
+                    </div>
                     {subrequestOptions.map((option) => (
-                      <label key={option}>
+                      <label key={option.value}>
                         <input
                           type="radio"
                           name="complaintSubmitAs"
-                          value={option}
-                          checked={subselectedRequest === option}
-                          onChange={() => setSubselectedRequest(option)}
+                          value={option.value}
+                          checked={subselectedRequest === option.value}
+                          onChange={() => setSubselectedRequest(option.value)}
                         />
-                        {option}
+                        {option.label}
                       </label>
                     ))}
                   </div>
@@ -382,18 +522,20 @@ const ContactusPage = () => {
                     {errors?.message && (
                       <div
                         style={{
-                          color: "var(--color-danger-600)",
-                          fontSize: "14px",
-                          marginTop: "4px",
+                          color: 'var(--color-danger-600)',
+                          fontSize: '14px',
+                          marginTop: '4px',
                         }}
                       >
-                        {errors?.message ?? ""}
+                        {errors?.message ?? ''}
                       </div>
                     )}
                   </div>
 
                   <div className="SetSubmitted">
-                    <div className="text-body-4-emphasis text-text-primary">Please add link regarding your complaint (optional)</div>
+                    <div className="text-body-4-emphasis text-text-primary">
+                      Please add link regarding your complaint (optional)
+                    </div>
                     <FormInput
                       intype="text"
                       inname="complaintLink"
@@ -404,22 +546,20 @@ const ContactusPage = () => {
                   </div>
 
                   <div className="SetSubmitted">
-                    <div className="text-body-4-emphasis text-text-primary">Please add image regarding your complaint (optional)</div>
+                    <div className="text-body-4-emphasis text-text-primary">
+                      Please add image regarding your complaint (optional)
+                    </div>
                     <div className="UploadBox">
                       <input
                         id="complaintImage"
                         type="file"
                         accept="image/*"
                         aria-label="Upload Image"
-                        onChange={(e) =>
-                          setComplaintImage(e.target.files?.[0] || null)
-                        }
+                        onChange={(e) => setComplaintImage(e.target.files?.[0] || null)}
                       />
                       <label htmlFor="complaintImage" className="UploadInner">
                         <Image
-                          src={
-                            "https://d2il6osz49gpup.cloudfront.net/contactus-page/upload.png"
-                          }
+                          src={MEDIA_SOURCES.contactUs.uploadIcon}
                           alt="Upload Icon"
                           height={40}
                           width={40}
@@ -450,16 +590,16 @@ const ContactusPage = () => {
                     disabled={submitting || !isComplaintValid}
                     style={{
                       opacity: isComplaintValid ? 1 : 0.5,
-                      pointerEvents: isComplaintValid ? "auto" : "none",
+                      pointerEvents: isComplaintValid ? 'auto' : 'none',
                     }}
                   >
-                    {submitting ? "submitting..." : "Send message"}
+                    {submitting ? 'submitting...' : 'Send message'}
                   </Button>
                 </div>
               )}
 
-              {(selectedQueryType === "General Enquiry" ||
-                selectedQueryType === "Feature Request") && (
+              {(selectedQueryType === 'General Enquiry' ||
+                selectedQueryType === 'Feature Request') && (
                 <>
                   <div className="QueryDetailsFields">
                     <label htmlFor="general-message">
@@ -475,12 +615,12 @@ const ContactusPage = () => {
                     {errors?.message && (
                       <div
                         style={{
-                          color: "var(--color-danger-600)",
-                          fontSize: "14px",
-                          marginTop: "4px",
+                          color: 'var(--color-danger-600)',
+                          fontSize: '14px',
+                          marginTop: '4px',
                         }}
                       >
-                        {errors?.message ?? ""}
+                        {errors?.message ?? ''}
                       </div>
                     )}
                   </div>
@@ -490,10 +630,10 @@ const ContactusPage = () => {
                     disabled={submitting || !isGeneralValid}
                     style={{
                       opacity: isGeneralValid ? 1 : 0.5,
-                      pointerEvents: isGeneralValid ? "auto" : "none",
+                      pointerEvents: isGeneralValid ? 'auto' : 'none',
                     }}
                   >
-                    {submitting ? "submitting..." : "Send message"}
+                    {submitting ? 'submitting...' : 'Send message'}
                   </Button>
                 </>
               )}
@@ -515,10 +655,15 @@ const ContactusPage = () => {
                   <div className="text-body-3-emphasis text-text-primary">Email Address</div>
                 </div>
                 <div className="detailTexed">
-                  <Link href="mailto:support@yosemitecrew.com" className="text-body-3-emphasis text-text-brand">
+                  <Link
+                    href="mailto:support@yosemitecrew.com"
+                    className="text-body-3-emphasis text-text-brand"
+                  >
                     support@yosemitecrew.com
                   </Link>
-                  <div className="text-body-3 text-text-primary">Assistance hours: Monday - Friday 9 am to 5 pm EST</div>
+                  <div className="text-body-3 text-text-primary">
+                    Assistance hours: Monday - Friday 9 am to 5 pm EST
+                  </div>
                 </div>
               </div>
 
@@ -527,8 +672,15 @@ const ContactusPage = () => {
                   <div className="text-body-3-emphasis text-text-primary">Phone</div>
                 </div>
                 <div className="detailTexed">
-                  <Link href="tel:+49 152 277 63275" className="text-body-3-emphasis text-text-brand">+49 152 277 63275</Link>
-                  <div className="text-body-3 text-text-primary">Assistance hours: Monday - Friday 9 am to 5 pm EST</div>
+                  <Link
+                    href="tel:+49 152 277 63275"
+                    className="text-body-3-emphasis text-text-brand"
+                  >
+                    +49 152 277 63275
+                  </Link>
+                  <div className="text-body-3 text-text-primary">
+                    Assistance hours: Monday - Friday 9 am to 5 pm EST
+                  </div>
                 </div>
               </div>
             </div>

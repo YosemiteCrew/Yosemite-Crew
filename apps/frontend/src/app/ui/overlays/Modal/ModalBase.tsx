@@ -1,10 +1,12 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 type ModalBaseProps = {
   children: React.ReactNode;
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
   onClose?: () => void;
+  canClose?: () => boolean;
   overlayClassName: string;
   containerClassName: string;
   ignoreOutsideClick?: (target: HTMLElement | null) => boolean;
@@ -15,6 +17,7 @@ const ModalBase = ({
   showModal,
   setShowModal,
   onClose,
+  canClose,
   overlayClassName,
   containerClassName,
   ignoreOutsideClick,
@@ -22,6 +25,7 @@ const ModalBase = ({
   const popupRef = useRef<HTMLDivElement | null>(null);
 
   const closeModal = () => {
+    if (canClose && !canClose()) return;
     setShowModal(false);
     onClose?.();
   };
@@ -32,15 +36,18 @@ const ModalBase = ({
       const target = e.target as HTMLElement | null;
       if (ignoreOutsideClick?.(target)) return;
       if (popupRef.current && !popupRef.current.contains(e.target as Node)) {
+        if (canClose && !canClose()) return;
         setShowModal(false);
         onClose?.();
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showModal, onClose, setShowModal, ignoreOutsideClick]);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showModal, onClose, setShowModal, ignoreOutsideClick, canClose]);
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <>
       <button
         type="button"
@@ -52,7 +59,8 @@ const ModalBase = ({
       <div ref={popupRef} className={containerClassName}>
         {children}
       </div>
-    </>
+    </>,
+    document.body
   );
 };
 

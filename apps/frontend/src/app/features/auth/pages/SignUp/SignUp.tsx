@@ -1,20 +1,21 @@
-"use client";
-import React, { useState } from "react";
-import { Form } from "react-bootstrap";
-import Link from "next/link";
-import { GoCheckCircleFill } from "react-icons/go";
-import { Icon } from "@iconify/react/dist/iconify.js";
+'use client';
+import React, { useState } from 'react';
+import { Form } from 'react-bootstrap';
+import Link from 'next/link';
+import { GoCheckCircleFill } from 'react-icons/go';
+import { Icon } from '@iconify/react/dist/iconify.js';
 
-import { useErrorTost } from "@/app/ui/overlays/Toast/Toast";
-import { useAuthStore } from "@/app/stores/authStore";
-import OtpModal from "@/app/ui/overlays/OtpModal/OtpModal";
+import { useErrorTost } from '@/app/ui/overlays/Toast/Toast';
+import { useAuthStore } from '@/app/stores/authStore';
+import OtpModal from '@/app/ui/overlays/OtpModal/OtpModal';
 
-import FormInputPass from "@/app/ui/inputs/FormInputPass/FormInputPass";
-import FormInput from "@/app/ui/inputs/FormInput/FormInput";
-import { Primary } from "@/app/ui/primitives/Buttons";
-import { IoIosWarning } from "react-icons/io";
+import FormInputPass from '@/app/ui/inputs/FormInputPass/FormInputPass';
+import FormInput from '@/app/ui/inputs/FormInput/FormInput';
+import { Primary } from '@/app/ui/primitives/Buttons';
+import { IoIosWarning } from 'react-icons/io';
+import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 
-import "../AuthPages.css";
+import '../AuthPages.css';
 
 type SignUpProps = {
   postAuthRedirect?: string;
@@ -24,19 +25,18 @@ type SignUpProps = {
 };
 
 const SignUp = ({
-  postAuthRedirect = "/create-org",
-  signinHref = "/signin",
-  allowNext = true,
+  postAuthRedirect = '/create-org',
+  signinHref = '/signin',
   isDeveloper = false,
 }: Readonly<SignUpProps>) => {
   const { showErrorTost, ErrorTostPopup } = useErrorTost();
   const { signUp } = useAuthStore();
 
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [agree, setAgree] = useState(false);
   const [subscribe, setSubscribe] = useState(false);
 
@@ -56,31 +56,28 @@ const SignUp = ({
     password: string,
     confirmPassword: string
   ): { pError?: string; confirmPError?: string } => {
-    const strongPasswordRegex =
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$/;
+    const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$/;
 
     if (!password) {
       return {
-        pError: "Password is required",
-        ...(confirmPassword
-          ? {}
-          : { confirmPError: "Confirm Password is required" }),
+        pError: 'Password is required',
+        ...(confirmPassword ? {} : { confirmPError: 'Confirm Password is required' }),
       };
     }
 
     if (!strongPasswordRegex.test(password)) {
       return {
         pError:
-          "Password must be at least 8 characters long, include uppercase, lowercase, number, and special character",
+          'Password must be at least 8 characters long, include uppercase, lowercase, number, and special character',
       };
     }
 
     if (!confirmPassword) {
-      return { confirmPError: "Confirm Password is required" };
+      return { confirmPError: 'Confirm Password is required' };
     }
 
     if (password !== confirmPassword) {
-      return { confirmPError: "Passwords do not match" };
+      return { confirmPError: 'Passwords do not match' };
     }
 
     return {};
@@ -105,47 +102,41 @@ const SignUp = ({
       agree?: string;
     } = {};
 
-    if (!firstName) errors.firstName = "First name is required";
-    if (!lastName) errors.lastName = "Last name is required";
-    if (!email) errors.email = "Email is required";
+    if (!firstName) errors.firstName = 'First name is required';
+    if (!lastName) errors.lastName = 'Last name is required';
+    if (!email) errors.email = 'Email is required';
 
     Object.assign(errors, passwordErrors(password, confirmPassword));
 
     if (!subscribe) {
-      errors.subscribe =
-        "Please check the Newsletter and Promotional emails box";
+      errors.subscribe = 'Please check the Newsletter and Promotional emails box';
     }
 
     if (!agree) {
-      errors.agree = "Please check the Terms and Conditions box";
+      errors.agree = 'Please check the Terms and Conditions box';
     }
 
     return errors;
   };
 
   const handleSignupSuccess = () => {
-    globalThis.window?.scrollTo({ top: 0, behavior: "smooth" });
-    globalThis.window?.sessionStorage?.setItem(
-      "devAuth",
-      isDeveloper ? "true" : "false",
-    );
+    globalThis.window?.scrollTo({ top: 0, behavior: 'smooth' });
+    globalThis.window?.sessionStorage?.setItem('devAuth', isDeveloper ? 'true' : 'false');
     setShowVerifyModal(true);
   };
 
   const handleSignupError = (error: any) => {
-    if (typeof globalThis !== "undefined") {
-      globalThis.window?.scrollTo({ top: 0, behavior: "smooth" });
+    if (typeof globalThis !== 'undefined') {
+      globalThis.window?.scrollTo({ top: 0, behavior: 'smooth' });
     }
-    const status = error.code === "UsernameExistsException" ? 409 : undefined;
-    const message = error.message || "Something went wrong.";
+    const status = error.code === 'UsernameExistsException' ? 409 : undefined;
+    const message = error.message || 'Something went wrong.';
 
     showErrorTost({
       message,
-      errortext: status === 409 ? "Already Registered" : "Signup Error",
-      iconElement: (
-        <Icon icon="mdi:error" width="20" height="20" color="#EA3729" />
-      ),
-      className: status === 409 ? "errofoundbg" : "oppsbg",
+      errortext: status === 409 ? 'Already Registered' : 'Signup Error',
+      iconElement: <Icon icon="mdi:error" width="20" height="20" color="#EA3729" />,
+      className: status === 409 ? 'errofoundbg' : 'oppsbg',
     });
     setShowVerifyModal(false);
   };
@@ -170,7 +161,7 @@ const SignUp = ({
 
     try {
       const args: Parameters<typeof signUp> = isDeveloper
-        ? [email, password, firstName, lastName, "developer"]
+        ? [email, password, firstName, lastName, 'developer']
         : [email, password, firstName, lastName];
 
       const result = await signUp(...args);
@@ -187,83 +178,71 @@ const SignUp = ({
     <section
       className={`
         relative flex w-full flex-1 min-h-screen items-center justify-center
-        bg-[url('https://d2il6osz49gpup.cloudfront.net/Images/SignUpBg.png')]
         bg-cover bg-center bg-no-repeat
       `}
+      style={{ backgroundImage: `url(${MEDIA_SOURCES.auth.background})` }}
     >
       <div className="flex gap-10 xl:gap-20 w-full md:max-w-[900px] mx-3 py-3 sm:mx-12 sm:my-12 md:flex-row flex-col items-center md:items-start">
         <div className="flex align-center justify-center flex-col gap-8 w-[90%] sm:w-[70%] md:w-1/2 md:mt-16">
           <div className="flex w-full items-center justify-center">
             <div className="text-display-2 text-text-primary text-center max-w-[350px] auth-title">
               {isDeveloper
-                ? "Build, test, and ship apps on Yosemite Crew"
-                : "Built for everyone, from day one"}
+                ? 'Build, test, and ship apps on Yosemite Crew'
+                : 'Built for everyone, from day one'}
             </div>
           </div>
 
           <div className="flex flex-col gap-6">
             <div className="flex gap-2">
               <div className="w-[20px]">
-                <GoCheckCircleFill
-                  color="#247aed"
-                  size={20}
-                  className="mt-[3px]"
-                />
+                <GoCheckCircleFill color="#247aed" size={20} className="mt-[3px]" />
               </div>
               <div className="flex flex-col gap-1">
                 <div className="text-body-3-emphasis text-text-primary auth-feature-title">
                   {isDeveloper
-                    ? "API-first, self-host or managed"
-                    : "Enjoy smooth online solutions with us!"}
+                    ? 'API-first, self-host or managed'
+                    : 'Enjoy smooth online solutions with us!'}
                 </div>
                 <p className="text-caption-1 text-text-primary auth-feature-desc">
                   {isDeveloper
-                    ? "Open source core with APIs built for integrations. Run it yourself or use our managed stack."
-                    : "Our services are built on a strong foundation for great performance and flexibility."}
+                    ? 'Open source core with APIs built for integrations. Run it yourself or use our managed stack.'
+                    : 'Our services are built on a strong foundation for great performance and flexibility.'}
                 </p>
               </div>
             </div>
 
             <div className="flex gap-2">
               <div className="w-[20px]">
-                <GoCheckCircleFill
-                  color="#247aed"
-                  size={20}
-                  className="mt-[3px]"
-                />
+                <GoCheckCircleFill color="#247aed" size={20} className="mt-[3px]" />
               </div>
               <div className="flex flex-col gap-1">
                 <div className="text-body-3-emphasis text-text-primary auth-feature-title">
                   {isDeveloper
-                    ? "Local dev + production ready"
-                    : "Start free and upgrade as needed."}
+                    ? 'Local dev + production ready'
+                    : 'Start free and upgrade as needed.'}
                 </div>
                 <p className="text-caption-1 text-text-primary auth-feature-desc">
                   {isDeveloper
-                    ? "Develop locally against the same APIs you deploy. No lock-in between self-hosted and hosted."
-                    : "Enjoy generous free usage. Upgrade only when you need."}
+                    ? 'Develop locally against the same APIs you deploy. No lock-in between self-hosted and hosted.'
+                    : 'Enjoy generous free usage. Upgrade only when you need.'}
                 </p>
               </div>
             </div>
 
             <div className="flex gap-2">
               <div className="w-[20px]">
-                <GoCheckCircleFill
-                  color="#247aed"
-                  size={20}
-                  className="mt-[3px]"
-                />
+                <GoCheckCircleFill color="#247aed" size={20} className="mt-[3px]" />
               </div>
               <div className="flex flex-col gap-1">
                 <div className="text-body-3-emphasis text-text-primary auth-feature-title">
                   {isDeveloper
-                    ? "Secure by default"
-                    : "Our servers are EU-based and GDPR compliant."}
+                    ? 'Secure by default'
+                    : 'Our servers are EU-based and GDPR compliant.'}
                 </div>
                 <p className="text-caption-1 text-text-primary auth-feature-desc">
                   {isDeveloper
-                    ? "Encrypted storage, audit-friendly logs, and least-privilege access for integrations whether self-hosted or managed."
-                    : "All data is securely stored in the EU, fully GDPR compliant."}
+                    ? 'Encrypted storage, audit-friendly logs, and least-privilege access for integrations whether self-hosted or managed.'
+                    : 'All data is securely stored in the EU, fully GDPR compliant.'}
                 </p>
               </div>
             </div>
@@ -271,14 +250,10 @@ const SignUp = ({
         </div>
 
         <div className="w-full sm:w-[70%] md:w-1/2 bg-white p-[20px] border border-card-border rounded-3xl elevation-1">
-          <Form
-            onSubmit={handleSignUp}
-            method="post"
-            className="flex flex-col gap-6"
-          >
+          <Form onSubmit={handleSignUp} method="post" className="flex flex-col gap-6">
             <div className="flex flex-col gap-6">
               <div className="text-display-2 text-text-primary text-center auth-title">
-                {isDeveloper ? "Sign up for developer access" : "Sign up"}
+                {isDeveloper ? 'Sign up for developer access' : 'Sign up'}
               </div>
 
               <div className="flex flex-col gap-3">
@@ -330,11 +305,11 @@ const SignUp = ({
                 type="checkbox"
                 label={
                   <>
-                    I agree to Yosemite Crew’s{" "}
+                    I agree to Yosemite Crew’s{' '}
                     <Link className="policylink" href="/terms-and-conditions">
                       terms and conditions
-                    </Link>{" "}
-                    and{" "}
+                    </Link>{' '}
+                    and{' '}
                     <Link className="policylink" href="/privacy-policy">
                       privacy policy
                     </Link>
@@ -376,15 +351,10 @@ const SignUp = ({
             </div>
 
             <div className="flex flex-col items-center gap-3">
-              <Primary
-                text="Sign up"
-                onClick={handleSignUp}
-                href="#"
-                style={{ width: "100%" }}
-              />
+              <Primary text="Sign up" onClick={handleSignUp} href="#" style={{ width: '100%' }} />
               <div className="text-body-4 text-text-primary auth-inline-text">
-                {" "}
-                Already have an account?{" "}
+                {' '}
+                Already have an account?{' '}
                 <Link href={signinHref} className="text-text-brand">
                   Sign In
                 </Link>

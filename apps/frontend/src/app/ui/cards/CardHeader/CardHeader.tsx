@@ -1,29 +1,41 @@
-"use client";
-import React, { useEffect, useRef, useState } from "react";
-import { FaAngleDown } from "react-icons/fa";
+'use client';
+import React, { useEffect, useRef, useState } from 'react';
+import { FaAngleDown } from 'react-icons/fa';
 
-const CardHeader = ({ title, options }: any) => {
-  const [selected, setSelected] = useState<string>(options[0]);
+type CardHeaderProps = {
+  title: string;
+  options: readonly string[];
+  selected?: string;
+  onSelect?: (option: string) => void;
+};
+
+const CardHeader = ({ title, options, selected, onSelect }: CardHeaderProps) => {
+  const [internalSelected, setInternalSelected] = useState<string>(options[0] ?? '');
   const [open, setOpen] = useState<boolean>(false);
   const filterRef = useRef<HTMLDivElement>(null);
+  const selectedValue = selected ?? internalSelected;
 
   const handleSelect = (option: string) => {
-    setSelected(option);
+    setInternalSelected(option);
+    onSelect?.(option);
     setOpen(false);
   };
 
   useEffect(() => {
+    if (!selected && options.length > 0 && !options.includes(internalSelected)) {
+      setInternalSelected(options[0]);
+    }
+  }, [selected, options, internalSelected]);
+
+  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        filterRef.current &&
-        !filterRef.current.contains(event.target as Node)
-      ) {
+      if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
         setOpen(false);
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
 
@@ -35,7 +47,7 @@ const CardHeader = ({ title, options }: any) => {
           onClick={() => setOpen((e) => !e)}
           className="outline-none w-[140px] flex items-center justify-end gap-2 border-0 bg-white"
         >
-          <span className="text-body-4 text-text-primary">{selected}</span>
+          <span className="text-body-4 text-text-primary">{selectedValue}</span>
           <FaAngleDown color="#302F2E" size={14} className="mt-0.5" />
         </button>
         {open && (

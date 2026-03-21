@@ -1,7 +1,7 @@
-import React from "react";
-import { FormField } from "@/app/features/forms/types/forms";
-import { MdDeleteForever, MdDragIndicator } from "react-icons/md";
-import { IoMdArrowUp, IoMdArrowDown } from "react-icons/io";
+import React from 'react';
+import { FormField } from '@/app/features/forms/types/forms';
+import { MdDeleteForever, MdDragIndicator } from 'react-icons/md';
+import { IoMdArrowUp, IoMdArrowDown } from 'react-icons/io';
 
 const BuilderWrapper: React.FC<{
   field: FormField;
@@ -16,6 +16,7 @@ const BuilderWrapper: React.FC<{
   onDrop?: (e: React.DragEvent<HTMLDivElement>) => void;
   onDragEnd?: (e: React.DragEvent<HTMLDivElement>) => void;
   isDragging?: boolean;
+  compact?: boolean;
   children: React.ReactNode;
 }> = ({
   field,
@@ -30,6 +31,7 @@ const BuilderWrapper: React.FC<{
   onDrop,
   onDragEnd,
   isDragging,
+  compact = false,
   children,
 }) => {
   const wrapperRef = React.useRef<HTMLDivElement | null>(null);
@@ -49,13 +51,13 @@ const BuilderWrapper: React.FC<{
       const rect = wrapperRef.current.getBoundingClientRect();
       const clone = wrapperRef.current.cloneNode(true) as HTMLDivElement;
       clone.style.width = `${rect.width}px`;
-      clone.style.position = "absolute";
-      clone.style.top = "-9999px";
-      clone.style.left = "-9999px";
-      clone.style.borderRadius = "16px";
-      clone.style.overflow = "hidden";
-      clone.style.background = "#fff";
-      clone.style.boxShadow = "0 10px 30px rgba(0,0,0,0.08)";
+      clone.style.position = 'absolute';
+      clone.style.top = '-9999px';
+      clone.style.left = '-9999px';
+      clone.style.borderRadius = '16px';
+      clone.style.overflow = 'hidden';
+      clone.style.background = '#fff';
+      clone.style.boxShadow = '0 10px 30px rgba(0,0,0,0.08)';
       document.body.appendChild(clone);
       dragPreviewRef.current = clone;
       const offsetX = e.clientX - rect.left;
@@ -88,8 +90,8 @@ const BuilderWrapper: React.FC<{
     <section
       ref={wrapperRef}
       aria-label={`${title} field`}
-      className={`border border-grey-light rounded-2xl px-3 py-3 flex flex-col gap-3 bg-white ${
-        isDragging ? "rounded-2xl" : ""
+      className={`${compact ? 'border border-card-border rounded-xl px-3 py-2 gap-2 bg-white' : 'border border-grey-light rounded-2xl px-3 py-3 gap-3 bg-white'} flex flex-col ${
+        isDragging ? 'rounded-2xl' : ''
       }`}
       {...dragProps}
     >
@@ -98,10 +100,12 @@ const BuilderWrapper: React.FC<{
           <MdDragIndicator
             size={20}
             color="#999999"
-            className={`cursor-grab ${draggable ? "opacity-100" : "opacity-50"}`}
+            className={`cursor-grab ${draggable ? 'opacity-100' : 'opacity-50'}`}
             data-drag-handle
           />
-          <div className="font-grotesk text-black-text text-[18px] font-medium">
+          <div
+            className={`font-satoshi text-black-text ${compact ? 'text-[16px]' : 'text-[18px]'} font-medium`}
+          >
             {title}
           </div>
         </div>
@@ -110,7 +114,7 @@ const BuilderWrapper: React.FC<{
             <button
               onClick={onMoveUp}
               disabled={!canMoveUp}
-              className={`${canMoveUp ? "cursor-pointer hover:bg-gray-100" : "opacity-30 cursor-not-allowed"} rounded p-1`}
+              className={`${canMoveUp ? 'cursor-pointer hover:bg-gray-100' : 'opacity-30 cursor-not-allowed'} rounded p-1`}
               title="Move up"
             >
               <IoMdArrowUp size={20} color="#302f2e" />
@@ -120,7 +124,7 @@ const BuilderWrapper: React.FC<{
             <button
               onClick={onMoveDown}
               disabled={!canMoveDown}
-              className={`${canMoveDown ? "cursor-pointer hover:bg-gray-100" : "opacity-30 cursor-not-allowed"} rounded p-1`}
+              className={`${canMoveDown ? 'cursor-pointer hover:bg-gray-100' : 'opacity-30 cursor-not-allowed'} rounded p-1`}
               title="Move down"
             >
               <IoMdArrowDown size={20} color="#302f2e" />

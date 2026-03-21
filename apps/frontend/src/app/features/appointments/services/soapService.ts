@@ -2,7 +2,7 @@ import {
   FormSubmission,
   toFormSubmissionResponseDTO,
 } from "@yosemite-crew/types";
-import { getData, postData } from "@/app/services/axios";
+import { postData } from "@/app/services/axios";
 import { GetSOAPResponse } from "@/app/features/appointments/types/soap";
 import { logger } from "@/app/lib/logger";
 
@@ -30,8 +30,9 @@ export const fetchSubmissions = async (
     if (!appointmentId) {
       throw new Error("Appointment Id is required");
     }
-    const res = await getData<GetSOAPResponse>(
-      "fhir/v1/form/appointments/" + appointmentId + "/soap-notes"
+    const res = await postData<GetSOAPResponse>(
+      "fhir/v1/form/appointments/" + appointmentId + "/soap-notes",
+      {}
     );
     const data = res.data;
     return data;

@@ -18,6 +18,8 @@ export interface UserProfilePersonalDetailsMongo {
   address?: UserProfileAddressMongo;
   phoneNumber?: string;
   profilePictureUrl?: string;
+  timezone?: string;
+  pmsPreferences?: UserProfilePmsPreferencesMongo;
 }
 
 export interface UserProfileDocumentMongo {
@@ -35,6 +37,12 @@ export interface UserProfileProfessionalDetailsMongo {
   biography?: string;
   linkedin?: string;
   documents?: UserProfileDocumentMongo[];
+}
+
+export interface UserProfilePmsPreferencesMongo {
+  defaultOpenScreen?: "APPOINTMENTS" | "DASHBOARD";
+  appointmentView?: "CALENDAR" | "STATUS_BOARD" | "TABLE";
+  animalTerminology?: "ANIMAL" | "COMPANION" | "PET" | "PATIENT";
 }
 
 export type UserProfileMongo = Omit<
@@ -70,6 +78,24 @@ const PersonalDetailsSchema = new Schema<UserProfilePersonalDetailsMongo>(
     address: { type: AddressSchema },
     phoneNumber: { type: String, trim: true },
     profilePictureUrl: { type: String, trim: true },
+    timezone: { type: String, trim: true },
+    pmsPreferences: {
+      defaultOpenScreen: {
+        type: String,
+        enum: ["APPOINTMENTS", "DASHBOARD"],
+        trim: true,
+      },
+      appointmentView: {
+        type: String,
+        enum: ["CALENDAR", "STATUS_BOARD", "TABLE"],
+        trim: true,
+      },
+      animalTerminology: {
+        type: String,
+        enum: ["ANIMAL", "COMPANION", "PET", "PATIENT"],
+        trim: true,
+      },
+    },
   },
   { _id: false },
 );

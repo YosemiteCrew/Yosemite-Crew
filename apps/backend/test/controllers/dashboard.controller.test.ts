@@ -92,7 +92,7 @@ describe("DashboardController", () => {
   // ----------------------------------------------------------------------
 
   describe("summary", () => {
-    it("should success with default range (last_week)", async () => {
+    it("should success with default range (last_month)", async () => {
       req.query = {}; // No range provided
       mockedDashboardService.getSummary.mockResolvedValue({
         totalAppointments: 10,
@@ -102,7 +102,7 @@ describe("DashboardController", () => {
 
       expect(mockedDashboardService.getSummary).toHaveBeenCalledWith({
         organisationId: "org1",
-        range: "last_week",
+        range: "last_month",
       });
       expect(jsonMock).toHaveBeenCalledWith({ totalAppointments: 10 });
     });
@@ -137,7 +137,7 @@ describe("DashboardController", () => {
   });
 
   describe("appointmentsTrend", () => {
-    it("should success with default months (6)", async () => {
+    it("should success with default range (last_month)", async () => {
       req.query = {};
       mockedDashboardService.getAppointmentsTrend.mockResolvedValue([] as any);
 
@@ -145,20 +145,22 @@ describe("DashboardController", () => {
 
       expect(mockedDashboardService.getAppointmentsTrend).toHaveBeenCalledWith({
         organisationId: "org1",
-        months: 6,
+        range: "last_month",
+        bucket: "month",
       });
       expect(jsonMock).toHaveBeenCalledWith([]);
     });
 
-    it("should success with explicit months", async () => {
-      req.query = { months: "12" };
+    it("should success with explicit range", async () => {
+      req.query = { range: "last_week" };
       mockedDashboardService.getAppointmentsTrend.mockResolvedValue([] as any);
 
       await DashboardController.appointmentsTrend(req as any, res as Response);
 
       expect(mockedDashboardService.getAppointmentsTrend).toHaveBeenCalledWith({
         organisationId: "org1",
-        months: 12,
+        range: "last_week",
+        bucket: "month",
       });
       expect(jsonMock).toHaveBeenCalledWith([]);
     });
@@ -177,7 +179,7 @@ describe("DashboardController", () => {
   });
 
   describe("revenueTrend", () => {
-    it("should success with default months (6)", async () => {
+    it("should success with default range (last_month)", async () => {
       req.query = {};
       mockedDashboardService.getRevenueTrend.mockResolvedValue([] as any);
 
@@ -185,20 +187,22 @@ describe("DashboardController", () => {
 
       expect(mockedDashboardService.getRevenueTrend).toHaveBeenCalledWith({
         organisationId: "org1",
-        months: 6,
+        range: "last_month",
+        bucket: "month",
       });
       expect(jsonMock).toHaveBeenCalledWith([]);
     });
 
-    it("should success with explicit months", async () => {
-      req.query = { months: "3" };
+    it("should success with explicit range", async () => {
+      req.query = { range: "this_month" };
       mockedDashboardService.getRevenueTrend.mockResolvedValue([] as any);
 
       await DashboardController.revenueTrend(req as any, res as Response);
 
       expect(mockedDashboardService.getRevenueTrend).toHaveBeenCalledWith({
         organisationId: "org1",
-        months: 3,
+        range: "this_month",
+        bucket: "month",
       });
       expect(jsonMock).toHaveBeenCalledWith([]);
     });
@@ -226,7 +230,7 @@ describe("DashboardController", () => {
       expect(mockedDashboardService.getAppointmentLeaders).toHaveBeenCalledWith(
         {
           organisationId: "org1",
-          range: "last_week",
+          range: "last_month",
           limit: 5,
         },
       );
@@ -271,21 +275,21 @@ describe("DashboardController", () => {
 
       expect(mockedDashboardService.getRevenueLeaders).toHaveBeenCalledWith({
         organisationId: "org1",
-        range: "last_week",
+        range: "last_month",
         limit: 5,
       });
       expect(jsonMock).toHaveBeenCalledWith([]);
     });
 
     it("should success with explicit params", async () => {
-      req.query = { range: "last_year", limit: "3" };
+      req.query = { range: "last_1_year", limit: "3" };
       mockedDashboardService.getRevenueLeaders.mockResolvedValue([] as any);
 
       await DashboardController.revenueLeaders(req as any, res as Response);
 
       expect(mockedDashboardService.getRevenueLeaders).toHaveBeenCalledWith({
         organisationId: "org1",
-        range: "last_year",
+        range: "last_1_year",
         limit: 3,
       });
       expect(jsonMock).toHaveBeenCalledWith([]);
@@ -317,12 +321,13 @@ describe("DashboardController", () => {
         organisationId: "org1",
         year: undefined,
         targetTurnsPerYear: undefined,
+        range: undefined,
       });
       expect(jsonMock).toHaveBeenCalledWith({ turnoverRate: 5 });
     });
 
     it("should success with optional params", async () => {
-      req.query = { year: "2023", targetTurns: "12" };
+      req.query = { year: "2023", targetTurns: "12", range: "last_month" };
       mockedDashboardService.getInventoryTurnover.mockResolvedValue({
         turnoverRate: 10,
       } as any);
@@ -333,6 +338,7 @@ describe("DashboardController", () => {
         organisationId: "org1",
         year: 2023,
         targetTurnsPerYear: 12,
+        range: "last_month",
       });
       expect(jsonMock).toHaveBeenCalledWith({ turnoverRate: 10 });
     });
@@ -361,12 +367,13 @@ describe("DashboardController", () => {
         organisationId: "org1",
         year: undefined,
         limit: 10,
+        range: undefined,
       });
       expect(jsonMock).toHaveBeenCalledWith([]);
     });
 
     it("should success with explicit params", async () => {
-      req.query = { year: "2022", limit: "20" };
+      req.query = { year: "2022", limit: "20", range: "last_7_days" };
       mockedDashboardService.getProductTurnover.mockResolvedValue([] as any);
 
       await DashboardController.productTurnover(req as any, res as Response);
@@ -375,6 +382,7 @@ describe("DashboardController", () => {
         organisationId: "org1",
         year: 2022,
         limit: 20,
+        range: "last_7_days",
       });
       expect(jsonMock).toHaveBeenCalledWith([]);
     });

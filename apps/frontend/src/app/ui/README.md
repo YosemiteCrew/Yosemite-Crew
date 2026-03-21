@@ -3,10 +3,12 @@
 Reusable UI primitives and shared components live here.
 
 Examples:
+
 - Button, Input, Card, Badge
 - Typography and layout helpers (Text, Stack)
 
 Available now:
+
 - Button (wrapper over Primary/Secondary/Delete)
 - Text (typography variants via utility classes)
 - Stack (flex layout helper)
@@ -23,4 +25,4 @@ Available now:
 
 Prefer importing from `src/app/ui` for shared UI.
 
-Token reference: `src/app/ui/tokens.md`.
+Token source of truth: `src/app/globals.css` (`@theme`). Token reference: `src/app/ui/tokens.md`.

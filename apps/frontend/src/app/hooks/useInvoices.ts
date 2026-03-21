@@ -1,16 +1,20 @@
-import { useEffect, useMemo } from "react";
-import { useOrgStore } from "@/app/stores/orgStore";
-import { loadInvoicesForOrgPrimaryOrg } from "@/app/features/billing/services/invoiceService";
-import { Invoice } from "@yosemite-crew/types";
-import { useInvoiceStore } from "@/app/stores/invoiceStore";
+import { useEffect, useMemo } from 'react';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { loadInvoicesForOrgPrimaryOrg } from '@/app/features/billing/services/invoiceService';
+import { Invoice } from '@yosemite-crew/types';
+import { useInvoiceStore } from '@/app/stores/invoiceStore';
+import { appointmentIdsMatch } from '@/app/lib/invoice';
 
 export const useLoadInvoicesForPrimaryOrg = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
+  const invoiceIdsByOrgId = useInvoiceStore((s) => s.invoiceIdsByOrgId);
 
   useEffect(() => {
     if (!primaryOrgId) return;
-    void loadInvoicesForOrgPrimaryOrg({ force: true });
-  }, [primaryOrgId]);
+    if (useInvoiceStore.getState().status === 'loading') return;
+    if (Object.hasOwn(invoiceIdsByOrgId, primaryOrgId)) return;
+    void loadInvoicesForOrgPrimaryOrg();
+  }, [primaryOrgId, invoiceIdsByOrgId]);
 };
 
 export const useInvoicesForPrimaryOrg = (): Invoice[] => {
@@ -27,7 +31,7 @@ export const useInvoicesForPrimaryOrg = (): Invoice[] => {
 };
 
 export const useInvoicesForPrimaryOrgAppointment = (
-  appointmentId: string | undefined,
+  appointmentId: string | undefined
 ): Invoice[] => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const invoicesById = useInvoiceStore((s) => s.invoicesById);
@@ -41,13 +45,13 @@ export const useInvoicesForPrimaryOrgAppointment = (
       .map((id) => invoicesById[id])
       .filter(
         (invoice): invoice is Invoice =>
-          Boolean(invoice) && invoice.appointmentId === appointmentId,
+          Boolean(invoice) && appointmentIdsMatch(invoice.appointmentId, appointmentId)
       );
   }, [primaryOrgId, invoicesById, invoiceIdsByOrgId, appointmentId]);
 };
 
 export const usePaidInvoiceForPrimaryOrgAppointment = (
-  appointmentId: string | undefined,
+  appointmentId: string | undefined
 ): Invoice | undefined => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const invoicesById = useInvoiceStore((s) => s.invoicesById);
@@ -63,8 +67,8 @@ export const usePaidInvoiceForPrimaryOrgAppointment = (
       .find(
         (invoice): invoice is Invoice =>
           Boolean(invoice) &&
-          invoice.appointmentId === appointmentId &&
-          invoice.status === "PAID",
+          appointmentIdsMatch(invoice.appointmentId, appointmentId) &&
+          invoice.status === 'PAID'
       );
   }, [primaryOrgId, invoicesById, invoiceIdsByOrgId, appointmentId]);
 };

@@ -1,12 +1,7 @@
-import Accordion from "@/app/ui/primitives/Accordion/Accordion";
-import { Primary, Secondary } from "@/app/ui/primitives/Buttons";
-import Fallback from "@/app/ui/overlays/Fallback";
-import TaskFormFields from "@/app/features/tasks/components/TaskFormFields";
-import { PermissionGate } from "@/app/ui/layout/guards/PermissionGate";
-import { useTaskForm } from "@/app/hooks/useTaskForm";
-import { PERMISSIONS } from "@/app/lib/permissions";
-import { Appointment } from "@yosemite-crew/types";
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo } from 'react';
+import { Appointment } from '@yosemite-crew/types';
+import { useTaskForm } from '@/app/hooks/useTaskForm';
+import TaskFormBody from '@/app/features/tasks/components/TaskFormBody';
 
 type ParentTaskProps = {
   activeAppointment: Appointment;
@@ -21,77 +16,14 @@ const ParentTask = ({ activeAppointment }: ParentTaskProps) => {
     [activeAppointment.companion.id, activeAppointment.companion.parent.id]
   );
 
-  const {
-    formData,
-    setFormData,
-    due,
-    setDue,
-    dueTimeUtc,
-    setDueTimeUtc,
-    formDataErrors,
-    error,
-    timeSlots,
-    templateOptions,
-    selectTemplate,
-    handleCreate,
-    handleCreateTemplate,
-    resetForm,
-  } = useTaskForm({
-    isCompanionTask: true,
-    initialTask,
-  });
+  const taskForm = useTaskForm({ isCompanionTask: true, initialTask });
+  const { resetForm } = taskForm;
 
   useEffect(() => {
     resetForm();
   }, [activeAppointment, resetForm]);
 
-  return (
-    <PermissionGate
-      allOf={[PERMISSIONS.TASKS_EDIT_ANY]}
-      fallback={<Fallback />}
-    >
-      <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
-        <Accordion
-          title="Task"
-          defaultOpen
-          showEditIcon={false}
-          isEditing={true}
-        >
-          <TaskFormFields
-            formData={formData}
-            setFormData={setFormData}
-            formDataErrors={formDataErrors}
-            templateOptions={templateOptions}
-            timeSlots={timeSlots}
-            due={due}
-            setDue={setDue}
-            dueTimeUtc={dueTimeUtc}
-            setDueTimeUtc={setDueTimeUtc}
-            onSelectTemplate={selectTemplate}
-          />
-        </Accordion>
-        <div className="flex justify-end items-end gap-3 w-full flex-col">
-          {error && (
-            <div className="text-red-600 text-sm text-center">{error}</div>
-          )}
-          <div className="flex gap-3 w-full">
-            <Secondary
-              href="#"
-              text="Save as template"
-              className="w-full hidden"
-              onClick={handleCreateTemplate}
-            />
-            <Primary
-              href="#"
-              text="Save"
-              classname="w-full"
-              onClick={handleCreate}
-            />
-          </div>
-        </div>
-      </div>
-    </PermissionGate>
-  );
+  return <TaskFormBody {...taskForm} />;
 };
 
 export default ParentTask;

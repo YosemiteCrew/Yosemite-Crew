@@ -148,3 +148,7 @@ apps/mobileAppYC/devamplify_outputs.json
 
 
 apps/backend/serviceAccount.json
+
+# Prisma migration files
+apps/backend/prisma/migrations
+.claude/settings.local.json

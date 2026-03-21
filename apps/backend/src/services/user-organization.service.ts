@@ -3,7 +3,9 @@ import UserOrganizationModel, {
   type UserOrganizationDocument,
   type UserOrganizationMongo,
 } from "../models/user-organization";
-import OrganizationModel from "../models/organization";
+import OrganizationModel, {
+  type OrganizationMongo,
+} from "../models/organization";
 import {
   fromUserOrganizationRequestDTO,
   toUserOrganizationResponseDTO,
@@ -23,6 +25,10 @@ import { StripeService } from "./stripe.service";
 import { sendFreePlanLimitReachedEmail } from "src/utils/org-usage-notifications";
 import { sendEmailTemplate } from "src/utils/email";
 import logger from "src/utils/logger";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import { isReadFromPostgres } from "src/config/read-switch";
+import type { UserOrganization as PrismaUserOrganization } from "@prisma/client";
 
 export type UserOrganizationFHIRPayload = UserOrganizationRequestDTO;
 
@@ -55,6 +61,45 @@ const buildDisplayName = (
   if (!user) return undefined;
   const parts = [user.firstName, user.lastName].filter(Boolean);
   return parts.length ? parts.join(" ") : undefined;
+};
+
+const toPrismaUserOrganizationData = (doc: UserOrganizationDocument) => {
+  const obj = doc.toObject() as UserOrganizationMongo & {
+    _id: { toString(): string };
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+
+  return {
+    id: obj._id.toString(),
+    fhirId: obj.fhirId ?? undefined,
+    practitionerReference: obj.practitionerReference,
+    organizationReference: obj.organizationReference,
+    roleCode: obj.roleCode,
+    roleDisplay: obj.roleDisplay ?? undefined,
+    active: obj.active ?? true,
+    extraPermissions: obj.extraPermissions ?? [],
+    revokedPermissions: obj.revokedPermissions ?? [],
+    effectivePermissions: obj.effectivePermissions ?? [],
+    createdAt: obj.createdAt ?? undefined,
+    updatedAt: obj.updatedAt ?? undefined,
+  };
+};
+
+const syncUserOrganizationToPostgres = async (
+  doc: UserOrganizationDocument,
+) => {
+  if (!shouldDualWrite) return;
+  try {
+    const data = toPrismaUserOrganizationData(doc);
+    await prisma.userOrganization.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+  } catch (err) {
+    handleDualWriteError("UserOrganization", err);
+  }
 };
 
 const resolveOrganisationName = async (reference: string) => {
@@ -309,12 +354,50 @@ const extractOrganizationIdentifier = (reference: string): string => {
   return lastSegment;
 };
 
-const ensureOrgUsageCounters = async (orgId: Types.ObjectId) =>
-  OrgUsageCounters.findOneAndUpdate(
+const ensureOrgUsageCounters = async (orgId: Types.ObjectId) => {
+  const doc = await OrgUsageCounters.findOneAndUpdate(
     { orgId },
     { $setOnInsert: { orgId } },
     { new: true, upsert: true, setDefaultsOnInsert: true },
   );
+
+  if (doc && shouldDualWrite) {
+    try {
+      await prisma.organizationUsageCounter.upsert({
+        where: { orgId: orgId.toString() },
+        create: {
+          id: doc._id.toString(),
+          orgId: orgId.toString(),
+          appointmentsUsed: doc.appointmentsUsed ?? 0,
+          toolsUsed: doc.toolsUsed ?? 0,
+          usersActiveCount: doc.usersActiveCount ?? 0,
+          usersBillableCount: doc.usersBillableCount ?? 0,
+          freeAppointmentsLimit: doc.freeAppointmentsLimit ?? 120,
+          freeToolsLimit: doc.freeToolsLimit ?? 200,
+          freeUsersLimit: doc.freeUsersLimit ?? 10,
+          freeLimitReachedAt: doc.freeLimitReachedAt ?? undefined,
+          createdAt: doc.createdAt ?? undefined,
+          updatedAt: doc.updatedAt ?? undefined,
+        },
+        update: {
+          appointmentsUsed: doc.appointmentsUsed ?? 0,
+          toolsUsed: doc.toolsUsed ?? 0,
+          usersActiveCount: doc.usersActiveCount ?? 0,
+          usersBillableCount: doc.usersBillableCount ?? 0,
+          freeAppointmentsLimit: doc.freeAppointmentsLimit ?? 120,
+          freeToolsLimit: doc.freeToolsLimit ?? 200,
+          freeUsersLimit: doc.freeUsersLimit ?? 10,
+          freeLimitReachedAt: doc.freeLimitReachedAt ?? undefined,
+          updatedAt: doc.updatedAt ?? undefined,
+        },
+      });
+    } catch (err) {
+      handleDualWriteError("OrganizationUsageCounter ensure", err);
+    }
+  }
+
+  return doc;
+};
 
 const isFreePlan = async (orgId: Types.ObjectId) => {
   const billing = await OrgBilling.findOne({ orgId }).select("plan").lean();
@@ -338,6 +421,18 @@ const markFreeLimitReachedAt = async (
     { _id: usage._id, freeLimitReachedAt: null },
     { $set: { freeLimitReachedAt: new Date() } },
   );
+
+  if (shouldDualWrite && updated.modifiedCount > 0) {
+    try {
+      await prisma.organizationUsageCounter.updateMany({
+        where: { orgId: usage.orgId.toString() },
+        data: { freeLimitReachedAt: new Date() },
+      });
+    } catch (err) {
+      handleDualWriteError("OrganizationUsageCounter freeLimitReachedAt", err);
+    }
+  }
+
   return updated.modifiedCount > 0;
 };
 
@@ -380,6 +475,17 @@ const reserveMemberSlot = async (orgId: Types.ObjectId) => {
     if (didReachLimit) {
       void sendFreePlanLimitReachedEmail({ orgId, usage: updated });
     }
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.organizationUsageCounter.updateMany({
+          where: { orgId: orgId.toString() },
+          data: { usersActiveCount: updated.usersActiveCount ?? 0 },
+        });
+      } catch (err) {
+        handleDualWriteError("OrganizationUsageCounter reserve", err);
+      }
+    }
     return true;
   }
 
@@ -388,6 +494,17 @@ const reserveMemberSlot = async (orgId: Types.ObjectId) => {
     { $inc: { usersActiveCount: 1 } },
     { new: true },
   );
+
+  if (shouldDualWrite) {
+    try {
+      await prisma.organizationUsageCounter.updateMany({
+        where: { orgId: orgId.toString() },
+        data: { usersActiveCount: { increment: 1 } },
+      });
+    } catch (err) {
+      handleDualWriteError("OrganizationUsageCounter reserve", err);
+    }
+  }
   return true;
 };
 
@@ -396,6 +513,17 @@ const releaseMemberSlot = async (orgId: Types.ObjectId) => {
     { orgId },
     { $inc: { usersActiveCount: -1 } },
   );
+
+  if (shouldDualWrite) {
+    try {
+      await prisma.organizationUsageCounter.updateMany({
+        where: { orgId: orgId.toString() },
+        data: { usersActiveCount: { decrement: 1 } },
+      });
+    } catch (err) {
+      handleDualWriteError("OrganizationUsageCounter release", err);
+    }
+  }
 };
 
 const buildOrganizationLookupQuery = (reference: string) => {
@@ -487,6 +615,118 @@ const buildUserOrganizationDomain = (
     ),
   };
 };
+
+type PrismaUserOrganizationLite = Pick<
+  PrismaUserOrganization,
+  | "id"
+  | "fhirId"
+  | "practitionerReference"
+  | "organizationReference"
+  | "roleCode"
+  | "roleDisplay"
+  | "active"
+  | "extraPermissions"
+  | "revokedPermissions"
+  | "effectivePermissions"
+>;
+
+const buildUserOrganizationDomainFromPrisma = (
+  mapping: PrismaUserOrganizationLite,
+): UserOrganization => ({
+  _id: mapping.id,
+  fhirId: mapping.fhirId ?? undefined,
+  practitionerReference: mapping.practitionerReference,
+  organizationReference: mapping.organizationReference,
+  roleCode: mapping.roleCode,
+  roleDisplay: mapping.roleDisplay ?? undefined,
+  active: mapping.active ?? true,
+  extraPermissions: mapping.extraPermissions ?? [],
+  revokedPermissions: mapping.revokedPermissions ?? [],
+  effectivePermissions: computeEffectivePermissions(
+    mapping.roleCode as RoleCode,
+    mapping.extraPermissions ?? [],
+    mapping.revokedPermissions ?? [],
+  ),
+});
+
+const mapOrganizationFromPrisma = (org: {
+  id: string;
+  fhirId: string | null;
+  name: string;
+  imageUrl: string | null;
+  phoneNo: string;
+  type: string;
+  googlePlacesId: string | null;
+  address: {
+    addressLine: string | null;
+    country: string | null;
+    city: string | null;
+    state: string | null;
+    postalCode: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    location: unknown;
+  } | null;
+  taxId: string;
+  dunsNumber: string | null;
+  petNamePreference: string | null;
+  website: string | null;
+  documensoTeamId: string | null;
+  documensoApiKey: string | null;
+  isVerified: boolean;
+  isActive: boolean;
+  typeCoding: unknown;
+  healthAndSafetyCertNo: string | null;
+  animalWelfareComplianceCertNo: string | null;
+  fireAndEmergencyCertNo: string | null;
+  stripeAccountId: string | null;
+  averageRating: number | null;
+  ratingCount: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+}) => ({
+  _id: org.id,
+  fhirId: org.fhirId ?? undefined,
+  name: org.name,
+  taxId: org.taxId ?? undefined,
+  DUNSNumber: org.dunsNumber ?? undefined,
+  imageURL: org.imageUrl ?? undefined,
+  phoneNo: org.phoneNo ?? undefined,
+  type: org.type,
+  petNamePreference: org.petNamePreference ?? undefined,
+  website: org.website ?? undefined,
+  documensoTeamId: org.documensoTeamId ?? undefined,
+  documensoApiKey: org.documensoApiKey ?? undefined,
+  googlePlacesId: org.googlePlacesId ?? undefined,
+  stripeAccountId: org.stripeAccountId ?? undefined,
+  isVerified: org.isVerified ?? undefined,
+  isActive: org.isActive ?? undefined,
+  typeCoding: org.typeCoding ?? undefined,
+  healthAndSafetyCertNo: org.healthAndSafetyCertNo ?? undefined,
+  animalWelfareComplianceCertNo: org.animalWelfareComplianceCertNo ?? undefined,
+  fireAndEmergencyCertNo: org.fireAndEmergencyCertNo ?? undefined,
+  averageRating: org.averageRating ?? undefined,
+  ratingCount: org.ratingCount ?? undefined,
+  createdAt: org.createdAt ?? undefined,
+  updatedAt: org.updatedAt ?? undefined,
+  address: org.address
+    ? {
+        addressLine: org.address.addressLine ?? undefined,
+        country: org.address.country ?? undefined,
+        city: org.address.city ?? undefined,
+        state: org.address.state ?? undefined,
+        postalCode: org.address.postalCode ?? undefined,
+        latitude: org.address.latitude ?? undefined,
+        longitude: org.address.longitude ?? undefined,
+        location: (org.address.location ??
+          undefined) as OrganizationMongo["address"] extends {
+          location?: infer L;
+        }
+          ? L
+          : undefined,
+      }
+    : undefined,
+});
 
 const createPersistableFromFHIR = (payload: UserOrganizationFHIRPayload) => {
   if (payload?.resourceType !== "PractitionerRole") {
@@ -703,6 +943,8 @@ export const UserOrganizationService = {
       await syncSeatsIfBusiness(orgObjectId);
     }
 
+    await syncUserOrganizationToPostgres(document);
+
     return {
       response: toUserOrganizationResponseDTO(
         buildUserOrganizationDomain(document),
@@ -736,6 +978,8 @@ export const UserOrganizationService = {
       await syncSeatsIfBusiness(orgObjectId);
     }
 
+    await syncUserOrganizationToPostgres(document);
+
     return toUserOrganizationResponseDTO(buildUserOrganizationDomain(document));
   },
 
@@ -744,6 +988,46 @@ export const UserOrganizationService = {
   ): Promise<
     UserOrganizationResponseDTO | UserOrganizationResponseDTO[] | null
   > {
+    if (isReadFromPostgres()) {
+      const idQuery = resolveIdQuery(id);
+      if (idQuery) {
+        const mapping = await prisma.userOrganization.findFirst({
+          where: idQuery._id ? { id: idQuery._id } : { fhirId: idQuery.fhirId },
+        });
+
+        if (mapping) {
+          return toUserOrganizationResponseDTO(
+            buildUserOrganizationDomainFromPrisma(mapping),
+          );
+        }
+      }
+
+      const referenceQueries = buildReferenceLookups(id);
+      if (referenceQueries.length) {
+        const mappings = await prisma.userOrganization.findMany({
+          where: { OR: referenceQueries },
+        });
+
+        if (!mappings.length) {
+          return null;
+        }
+
+        if (mappings.length === 1) {
+          return toUserOrganizationResponseDTO(
+            buildUserOrganizationDomainFromPrisma(mappings[0]),
+          );
+        }
+
+        return mappings.map((mapping) =>
+          toUserOrganizationResponseDTO(
+            buildUserOrganizationDomainFromPrisma(mapping),
+          ),
+        );
+      }
+
+      return null;
+    }
+
     let document: UserOrganizationDocument | null = null;
     const idQuery = resolveIdQuery(id);
 
@@ -790,6 +1074,15 @@ export const UserOrganizationService = {
   },
 
   async listAll() {
+    if (isReadFromPostgres()) {
+      const mappings = await prisma.userOrganization.findMany();
+      return mappings.map((mapping) =>
+        toUserOrganizationResponseDTO(
+          buildUserOrganizationDomainFromPrisma(mapping),
+        ),
+      );
+    }
+
     const documents = await UserOrganizationModel.find();
     const mappings = documents.map((document) =>
       buildUserOrganizationDomain(document),
@@ -812,6 +1105,16 @@ export const UserOrganizationService = {
       await syncSeatsIfBusiness(orgObjectId);
     }
 
+    if (doc && shouldDualWrite) {
+      try {
+        await prisma.userOrganization.deleteMany({
+          where: { id: doc._id.toString() },
+        });
+      } catch (err) {
+        handleDualWriteError("UserOrganization delete", err);
+      }
+    }
+
     return Boolean(doc);
   },
 
@@ -828,7 +1131,7 @@ export const UserOrganizationService = {
     const priorRoleCode = existing.roleCode;
     const priorRoleDisplay = existing.roleDisplay;
     const priorPermissions = [...(existing.effectivePermissions ?? [])].sort(
-      (a, b) => a.localeCompare(b)
+      (a, b) => a.localeCompare(b),
     );
 
     const wasActive = existing.active;
@@ -859,7 +1162,7 @@ export const UserOrganizationService = {
     }
 
     const nextPermissions = [...(document.effectivePermissions ?? [])].sort(
-      (a, b) => a.localeCompare(b)
+      (a, b) => a.localeCompare(b),
     );
     const permissionsChanged =
       priorRoleCode !== document.roleCode ||
@@ -874,6 +1177,8 @@ export const UserOrganizationService = {
         roleDisplay: document.roleDisplay,
       });
     }
+
+    await syncUserOrganizationToPostgres(document);
 
     return toUserOrganizationResponseDTO(buildUserOrganizationDomain(document));
   },
@@ -909,6 +1214,8 @@ export const UserOrganizationService = {
         500,
       );
     }
+
+    await syncUserOrganizationToPostgres(document);
   },
 
   async deleteAllByOrganizationId(organisationId: string) {
@@ -917,12 +1224,83 @@ export const UserOrganizationService = {
     await UserOrganizationModel.deleteMany({
       organizationReference: orgId,
     }).exec();
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.userOrganization.deleteMany({
+          where: { organizationReference: orgId },
+        });
+      } catch (err) {
+        handleDualWriteError("UserOrganization deleteAllByOrganizationId", err);
+      }
+    }
   },
 
   async listByUserId(id: string) {
     const userId = requireSafeString(id, "User Id");
+    const practitionerReferences = [userId, `Practitioner/${userId}`];
+
+    if (isReadFromPostgres()) {
+      const mappings = await prisma.userOrganization.findMany({
+        where: {
+          practitionerReference: {
+            in: practitionerReferences,
+          },
+        },
+      });
+
+      if (!mappings.length) {
+        return [];
+      }
+
+      const results = [];
+
+      for (const mapping of mappings) {
+        const organizationId = extractOrganizationIdentifier(
+          mapping.organizationReference,
+        );
+
+        const organization = await prisma.organization.findFirst({
+          where: {
+            OR: [{ id: organizationId }, { fhirId: organizationId }],
+          },
+          include: { address: true },
+        });
+
+        const mappingDomain = buildUserOrganizationDomainFromPrisma(mapping);
+        const effectivePermissions = mappingDomain.effectivePermissions ?? [];
+        const canViewBilling =
+          effectivePermissions.includes("billing:view:any") ||
+          effectivePermissions.includes("billing:edit:any") ||
+          effectivePermissions.includes("billing:edit:limited");
+
+        const orgIdForBilling = organization?.id ?? organizationId;
+        const [orgBilling, orgUsage] = canViewBilling
+          ? await Promise.all([
+              prisma.organizationBilling.findFirst({
+                where: { orgId: orgIdForBilling },
+              }),
+              prisma.organizationUsageCounter.findFirst({
+                where: { orgId: orgIdForBilling },
+              }),
+            ])
+          : [null, null];
+
+        results.push({
+          mapping: toUserOrganizationResponseDTO(mappingDomain),
+          organization: organization
+            ? mapOrganizationFromPrisma(organization)
+            : null,
+          orgBilling: orgBilling ? { ...orgBilling, _id: orgBilling.id } : null,
+          orgUsage: orgUsage ? { ...orgUsage, _id: orgUsage.id } : null,
+        });
+      }
+
+      return results;
+    }
+
     const mappings = await UserOrganizationModel.find({
-      practitionerReference: userId,
+      practitionerReference: { $in: practitionerReferences },
     });
 
     if (!mappings.length) {
@@ -975,6 +1353,99 @@ export const UserOrganizationService = {
 
   async listByOrganisationId(id: string) {
     const organisationId = requireSafeString(id, "User Id");
+
+    if (isReadFromPostgres()) {
+      const mappings = await prisma.userOrganization.findMany({
+        where: {
+          organizationReference: {
+            in: [organisationId, `Organization/${organisationId}`],
+          },
+        },
+        select: {
+          id: true,
+          fhirId: true,
+          practitionerReference: true,
+          organizationReference: true,
+          roleCode: true,
+          roleDisplay: true,
+          active: true,
+          extraPermissions: true,
+          revokedPermissions: true,
+          effectivePermissions: true,
+        },
+      });
+
+      if (!mappings.length) {
+        return [];
+      }
+
+      const results = [];
+      for (const mapping of mappings) {
+        const userRef = mapping.practitionerReference;
+        const userId =
+          extractReferenceId(userRef) ?? mapping.practitionerReference;
+
+        const [user, userProfile, speciality, currentStatus, weeklyHours] =
+          await Promise.all([
+            prisma.user.findFirst({ where: { userId } }),
+            prisma.userProfile.findFirst({ where: { userId } }),
+            prisma.speciality.findMany({
+              where: {
+                organisationId,
+                OR: [
+                  { memberUserIds: { has: userRef } },
+                  { headUserId: userRef },
+                ],
+              },
+            }),
+            AvailabilityService.getCurrentStatus(organisationId, userId),
+            AvailabilityService.getWeeklyWorkingHours(
+              organisationId,
+              userId,
+              new Date(),
+            ),
+          ]);
+
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+
+        const endOfDay = new Date();
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const count = await prisma.occupancy.count({
+          where: {
+            organisationId,
+            sourceType: "APPOINTMENT",
+            startTime: { gte: startOfDay, lte: endOfDay },
+          },
+        });
+
+        let name = "";
+        if (user?.firstName) name += user.firstName;
+        if (user?.lastName) name += ` ${user.lastName}`;
+
+        const personalDetails = userProfile?.personalDetails as
+          | { profilePictureUrl?: string }
+          | undefined;
+
+        const result = {
+          userOrganisation: toUserOrganizationResponseDTO(
+            buildUserOrganizationDomainFromPrisma(mapping),
+          ),
+          name,
+          profileUrl: personalDetails?.profilePictureUrl,
+          speciality,
+          currentStatus,
+          weeklyHours,
+          count,
+        };
+
+        results.push(result);
+      }
+
+      return results;
+    }
+
     const mappings = await UserOrganizationModel.find(
       {
         organizationReference: organisationId,
@@ -1001,7 +1472,10 @@ export const UserOrganizationService = {
 
       const speciality = await SpecialityModel.find({
         organisationId,
-        memberUserIds: userRef, // matches any element in the array
+        $or: [
+          { memberUserIds: userRef }, // matches any element in the array
+          { headUserId: userRef },
+        ],
       });
 
       const currentStatus = await AvailabilityService.getCurrentStatus(
@@ -1043,5 +1517,41 @@ export const UserOrganizationService = {
     }
 
     return results;
+  },
+
+  async recomputeAllEffectivePermissions() {
+    const cursor = UserOrganizationModel.find({})
+      .select({
+        roleCode: 1,
+        extraPermissions: 1,
+        revokedPermissions: 1,
+        effectivePermissions: 1,
+      })
+      .cursor();
+
+    let scannedCount = 0;
+    let updatedCount = 0;
+
+    for await (const doc of cursor) {
+      scannedCount += 1;
+      const computed = computeEffectivePermissions(
+        doc.roleCode as RoleCode,
+        doc.extraPermissions,
+        doc.revokedPermissions,
+      );
+      const current = doc.effectivePermissions ?? [];
+      const same =
+        current.length === computed.length &&
+        computed.every((perm) => current.includes(perm));
+      if (!same) {
+        await UserOrganizationModel.updateOne(
+          { _id: doc._id },
+          { $set: { effectivePermissions: computed } },
+        );
+        updatedCount += 1;
+      }
+    }
+
+    return { scannedCount, updatedCount };
   },
 };

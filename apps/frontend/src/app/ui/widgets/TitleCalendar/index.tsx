@@ -1,92 +1,110 @@
-import React from "react";
-import { Primary } from "@/app/ui/primitives/Buttons";
-import Datepicker from "@/app/ui/inputs/Datepicker";
-import Dropdown from "@/app/ui/inputs/Dropdown";
-import { IoIosCalendar } from "react-icons/io";
-import { MdTaskAlt } from "react-icons/md";
+import React from 'react';
+import { Primary } from '@/app/ui/primitives/Buttons';
+import { IoIosCalendar } from 'react-icons/io';
+import { MdTaskAlt, MdViewKanban } from 'react-icons/md';
+import { IoInformationCircleOutline } from 'react-icons/io5';
+import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 
 type TitleCalendarProps = {
-  activeCalendar: string;
   title: string;
   description?: string;
-  setActiveCalendar: React.Dispatch<React.SetStateAction<string>>;
   setAddPopup: React.Dispatch<React.SetStateAction<boolean>>;
-  currentDate: Date;
-  setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   count: number;
   activeView: string;
   setActiveView: React.Dispatch<React.SetStateAction<string>>;
   showAdd: boolean;
+  actionBeforeAdd?: React.ReactNode;
+  viewOptions?: Array<'calendar' | 'board' | 'list'>;
 };
 
 const TitleCalendar = ({
-  activeCalendar,
   title,
   description,
-  setActiveCalendar,
   setAddPopup,
-  currentDate,
-  setCurrentDate,
   count,
   activeView,
   setActiveView,
   showAdd,
+  actionBeforeAdd,
+  viewOptions = ['calendar', 'board', 'list'],
 }: TitleCalendarProps) => {
   return (
     <div className="flex justify-between items-center w-full flex-wrap gap-3">
       <div className="flex flex-col gap-1">
-        <div className="text-text-primary text-heading-1">
-          {title}
-          <span className="text-text-tertiary">{" (" + count + ")"}</span>
+        <div className="text-text-primary text-heading-1 flex items-center gap-2">
+          <span>
+            {title}
+            <span className="text-text-tertiary">{` (${count})`}</span>
+          </span>
+          {description ? (
+            <GlassTooltip content={description} side="bottom">
+              <button
+                type="button"
+                aria-label={`${title} info`}
+                className="relative top-[3px] inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none text-text-secondary hover:text-text-primary transition-colors"
+              >
+                <IoInformationCircleOutline size={20} />
+              </button>
+            </GlassTooltip>
+          ) : null}
         </div>
-        {description ? (
-          <p className="text-body-3 text-text-secondary max-w-lg">
-            {description}
-          </p>
-        ) : null}
       </div>
       <div className="flex gap-2 items-center flex-wrap">
+        {actionBeforeAdd}
         {showAdd && (
-          <Primary href="#" text="Add" onClick={() => setAddPopup(true)} />
+          <Primary
+            href="#"
+            text="Add"
+            onClick={() => setAddPopup(true)}
+            className="h-12 px-7 py-0"
+          />
         )}
-        {activeView === "calendar" && (
-          <>
-            <Datepicker
-              currentDate={currentDate}
-              setCurrentDate={setCurrentDate}
-              placeholder="Select Date"
-            />
-            <Dropdown
-              options={[
-                { key: "day", label: "Day" },
-                { key: "week", label: "Week" },
-                { key: "team", label: "Team" },
-              ]}
-              placeholder="View"
-              defaultOption={activeCalendar}
-              onSelect={(option) => setActiveCalendar(option.key)}
-            />
-          </>
-        )}
-        <div className="flex rounded-2xl">
-          <button
-            onClick={() => setActiveView("calendar")}
-            className={`${activeView === "calendar" ? "border-text-brand! bg-blue-light! border-r" : "border-card-border! hover:bg-card-hover!"} border px-6 py-[11px] rounded-l-2xl! transition-all duration-300 bg-white flex items-center justify-center`}
-          >
-            <IoIosCalendar
-              size={24}
-              className={`${activeView === "calendar" ? "text-text-brand" : "text-text-primary"}`}
-            />
-          </button>
-          <button
-            onClick={() => setActiveView("list")}
-            className={`${activeView === "list" ? "border-text-brand! bg-blue-light! border-l" : "border-card-border! hover:bg-card-hover!"} border-y border-r px-6 py-[11px] rounded-r-2xl! hover:bg-card-hover! transition-all duration-300 bg-white flex items-center justify-center`}
-          >
-            <MdTaskAlt
-              size={24}
-              className={`${activeView === "list" ? "text-text-brand" : "text-text-primary"}`}
-            />
-          </button>
+        <div className="flex h-12 rounded-2xl border border-card-border overflow-hidden bg-white">
+          {viewOptions.includes('calendar') && (
+            <GlassTooltip content="Calendar view" side="bottom">
+              <button
+                onClick={() => setActiveView('calendar')}
+                className={`${activeView === 'calendar' ? 'bg-blue-light!' : 'hover:bg-card-hover!'} h-full px-5 transition-all duration-300 flex items-center justify-center ${
+                  viewOptions.some((option) => option !== 'calendar')
+                    ? 'border-r border-card-border'
+                    : ''
+                }`}
+              >
+                <IoIosCalendar
+                  size={24}
+                  className={`${activeView === 'calendar' ? 'text-text-brand' : 'text-text-primary'}`}
+                />
+              </button>
+            </GlassTooltip>
+          )}
+          {viewOptions.includes('board') && (
+            <GlassTooltip content="Status board view" side="bottom">
+              <button
+                onClick={() => setActiveView('board')}
+                className={`${activeView === 'board' ? 'bg-blue-light!' : 'hover:bg-card-hover!'} h-full px-5 transition-all duration-300 flex items-center justify-center ${
+                  viewOptions.includes('list') ? 'border-r border-card-border' : ''
+                }`}
+              >
+                <MdViewKanban
+                  size={22}
+                  className={`${activeView === 'board' ? 'text-text-brand' : 'text-text-primary'}`}
+                />
+              </button>
+            </GlassTooltip>
+          )}
+          {viewOptions.includes('list') && (
+            <GlassTooltip content="Table view" side="bottom">
+              <button
+                onClick={() => setActiveView('list')}
+                className={`${activeView === 'list' ? 'bg-blue-light!' : 'hover:bg-card-hover!'} h-full px-5 transition-all duration-300 bg-white flex items-center justify-center`}
+              >
+                <MdTaskAlt
+                  size={24}
+                  className={`${activeView === 'list' ? 'text-text-brand' : 'text-text-primary'}`}
+                />
+              </button>
+            </GlassTooltip>
+          )}
         </div>
       </div>
     </div>

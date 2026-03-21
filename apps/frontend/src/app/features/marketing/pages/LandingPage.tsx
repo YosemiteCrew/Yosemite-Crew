@@ -1,19 +1,21 @@
-"use client";
-import React, { useState } from "react";
-import { Carousel } from "react-bootstrap";
-import Image from "next/image";
-import { Icon } from "@iconify/react";
-import { motion } from "framer-motion";
+'use client';
+import React, { useState } from 'react';
+import { Carousel } from 'react-bootstrap';
+import Image from 'next/image';
+import { Icon } from '@iconify/react';
+import { motion } from 'framer-motion';
 
-import Footer from "@/app/ui/widgets/Footer/Footer";
-import LandingCard from "@/app/features/marketing/components/LandingPage/LandingCard";
-import { Primary } from "@/app/ui/primitives/Buttons";
-import { InfoCards, SlidesData } from "@/app/features/marketing/pages/data";
-import { TextFade } from "@/app/ui/widgets/Animations/TextFade";
-import StarRipple from "@/app/features/marketing/components/LandingPage/StarRipple";
-import { useAuthStore } from "@/app/stores/authStore";
+import Footer from '@/app/ui/widgets/Footer/Footer';
+import LandingCard from '@/app/features/marketing/components/LandingPage/LandingCard';
+import { Primary } from '@/app/ui/primitives/Buttons';
+import { InfoCards, SlidesData } from '@/app/features/marketing/pages/data';
+import { TextFade } from '@/app/ui/widgets/Animations/TextFade';
+import StarRipple from '@/app/features/marketing/components/LandingPage/StarRipple';
+import { useAuthStore } from '@/app/stores/authStore';
+import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
 
-import "./LandingPage.css";
+import './LandingPage.css';
 
 // Feature flag to toggle between old and new hero section
 const USE_NEW_HERO = true;
@@ -23,9 +25,9 @@ const NewHeroSection = () => {
 
   const getCtaHref = () => {
     if (user) {
-      return role === "developer" ? "/developers/home" : "/organizations";
+      return role === 'developer' ? '/developers/home' : resolveDefaultOpenScreenRoute(role);
     }
-    return "/signup";
+    return '/signup';
   };
 
   return (
@@ -36,7 +38,7 @@ const NewHeroSection = () => {
           className="text-display-1 text-text-primary text-center"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
+          transition={{ duration: 0.8, ease: 'easeOut' }}
         >
           Open source operating system for animal health
         </motion.div>
@@ -44,20 +46,19 @@ const NewHeroSection = () => {
           className="text-body-2 text-text-primary text-center max-w-[640px]"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
+          transition={{ duration: 0.8, delay: 0.2, ease: 'easeOut' }}
         >
-          Designed for pet businesses, pet parents, and developers to
-          collaborate in improving animal care. Streamline workflows while
-          enhancing health outcomes, in one unified system.
+          Designed for pet businesses, pet parents, and developers to collaborate in improving
+          animal care. Streamline workflows while enhancing health outcomes, in one unified system.
         </motion.div>
         <motion.div
           className="new-hero-cta"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.4, ease: "easeOut" }}
+          transition={{ duration: 0.8, delay: 0.4, ease: 'easeOut' }}
         >
           <Primary
-            text={user ? "Go to app" : "Get started free"}
+            text={user ? 'Go to app' : 'Get started free'}
             href={getCtaHref()}
             size="large"
           />
@@ -69,14 +70,14 @@ const NewHeroSection = () => {
         className="hero-dog-image"
         initial={{ opacity: 0, x: 50 }}
         animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
+        transition={{ duration: 0.8, delay: 0.3, ease: 'easeOut' }}
       >
         <Image
-          src="https://d2il6osz49gpup.cloudfront.net/MainLanding/landingDog.png"
+          src={MEDIA_SOURCES.landing.dog}
           alt="Dog"
           width={200}
           height={200}
-          style={{ objectFit: "contain" }}
+          style={{ objectFit: 'contain' }}
         />
       </motion.div>
 
@@ -85,14 +86,15 @@ const NewHeroSection = () => {
         className="hero-horse-image"
         initial={{ opacity: 0, x: -50 }}
         animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.8, delay: 0.5, ease: "easeOut" }}
+        transition={{ duration: 0.8, delay: 0.5, ease: 'easeOut' }}
       >
         <Image
-          src="https://d2il6osz49gpup.cloudfront.net/MainLanding/landingHorse.png"
+          src={MEDIA_SOURCES.landing.horse}
           alt="Horse"
           width={250}
           height={250}
-          style={{ objectFit: "contain" }}
+          style={{ objectFit: 'contain' }}
+          priority
         />
       </motion.div>
     </section>
@@ -115,9 +117,9 @@ const OldHeroSection = ({
               Open source operating system for animal health
             </div>
             <div className="text-body-2 text-text-primary">
-              Designed for pet businesses, pet parents, and developers to
-              collaborate in improving animal care. Streamline workflows while
-              enhancing health outcomes, in one unified system.
+              Designed for pet businesses, pet parents, and developers to collaborate in improving
+              animal care. Streamline workflows while enhancing health outcomes, in one unified
+              system.
             </div>
           </TextFade>
           <TextFade direction="up" className="LeftHeroButtons">
@@ -133,36 +135,21 @@ const OldHeroSection = ({
             indicators={true}
             nextIcon={
               <span className="custom-arrow">
-                <Icon
-                  icon="solar:round-alt-arrow-right-outline"
-                  width="48"
-                  height="48"
-                />
+                <Icon icon="solar:round-alt-arrow-right-outline" width="48" height="48" />
               </span>
             }
             prevIcon={
               <span className="custom-arrow">
-                <Icon
-                  icon="solar:round-alt-arrow-left-outline"
-                  width="48"
-                  height="48"
-                />
+                <Icon icon="solar:round-alt-arrow-left-outline" width="48" height="48" />
               </span>
             }
           >
             {SlidesData.map((slide) => (
               <Carousel.Item key={slide.id}>
                 <div className="LandingCarouselDiv">
-                  <Image
-                    src={slide.image}
-                    alt={slide.alt}
-                    width={887}
-                    height={565}
-                  />
+                  <Image src={slide.image} alt={slide.alt} width={887} height={565} />
                   <div className="carousel-text">
-                    <div className="text-heading-1 text-text-primary">
-                      {slide.text}
-                    </div>
+                    <div className="text-heading-1 text-text-primary">{slide.text}</div>
                   </div>
                 </div>
               </Carousel.Item>

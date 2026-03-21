@@ -1,12 +1,10 @@
-import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
-import "@testing-library/jest-dom";
+import React from 'react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
 
-import TitleCalendar from "@/app/ui/widgets/TitleCalendar";
+import TitleCalendar from '@/app/ui/widgets/TitleCalendar';
 
-const dropdownProps: any[] = [];
-
-jest.mock("@/app/ui/primitives/Buttons", () => ({
+jest.mock('@/app/ui/primitives/Buttons', () => ({
   Primary: ({ text, onClick }: any) => (
     <button type="button" onClick={onClick}>
       {text}
@@ -14,33 +12,20 @@ jest.mock("@/app/ui/primitives/Buttons", () => ({
   ),
 }));
 
-jest.mock("@/app/ui/inputs/Datepicker", () => ({
+jest.mock('@/app/ui/inputs/Datepicker', () => ({
   __esModule: true,
   default: () => <div data-testid="datepicker" />,
 }));
 
-jest.mock("@/app/ui/inputs/Dropdown", () => (props: any) => {
-  dropdownProps.push(props);
-  return <div data-testid="view-dropdown" />;
-});
-
-describe("TitleCalendar", () => {
-  beforeEach(() => {
-    dropdownProps.length = 0;
-  });
-
-  it("renders title, count, and add button", () => {
+describe('TitleCalendar', () => {
+  it('renders title, count, and add button', () => {
     const setAddPopup = jest.fn();
 
     render(
       <TitleCalendar
-        activeCalendar="day"
         title="Appointments"
         description="Daily schedule"
-        setActiveCalendar={jest.fn()}
         setAddPopup={setAddPopup}
-        currentDate={new Date("2025-01-06T00:00:00Z")}
-        setCurrentDate={jest.fn()}
         count={3}
         activeView="calendar"
         setActiveView={jest.fn()}
@@ -48,26 +33,21 @@ describe("TitleCalendar", () => {
       />
     );
 
-    expect(screen.getByText("Appointments")).toBeInTheDocument();
-    expect(screen.getByText("(3)")).toBeInTheDocument();
-    expect(screen.getByText("Daily schedule")).toBeInTheDocument();
+    expect(screen.getByText('Appointments')).toBeInTheDocument();
+    expect(screen.getByText('(3)')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Appointments info' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText("Add"));
+    fireEvent.click(screen.getByText('Add'));
     expect(setAddPopup).toHaveBeenCalledWith(true);
   });
 
-  it("toggles active view and selects calendar", () => {
+  it('toggles active view', () => {
     const setActiveView = jest.fn();
-    const setActiveCalendar = jest.fn();
 
     render(
       <TitleCalendar
-        activeCalendar="day"
         title="Appointments"
-        setActiveCalendar={setActiveCalendar}
         setAddPopup={jest.fn()}
-        currentDate={new Date("2025-01-06T00:00:00Z")}
-        setCurrentDate={jest.fn()}
         count={3}
         activeView="calendar"
         setActiveView={setActiveView}
@@ -75,15 +55,38 @@ describe("TitleCalendar", () => {
       />
     );
 
-    const viewButtons = screen.getAllByRole("button");
+    const viewButtons = screen.getAllByRole('button');
+    fireEvent.click(viewButtons[0]);
+    fireEvent.click(viewButtons[1]);
+    fireEvent.click(viewButtons[2]);
+
+    expect(setActiveView).toHaveBeenCalledWith('calendar');
+    expect(setActiveView).toHaveBeenCalledWith('board');
+    expect(setActiveView).toHaveBeenCalledWith('list');
+  });
+
+  it('renders only configured view options', () => {
+    const setActiveView = jest.fn();
+
+    render(
+      <TitleCalendar
+        title="Tasks"
+        setAddPopup={jest.fn()}
+        count={2}
+        activeView="calendar"
+        setActiveView={setActiveView}
+        showAdd={false}
+        viewOptions={['calendar', 'list']}
+      />
+    );
+
+    const viewButtons = screen.getAllByRole('button');
+    expect(viewButtons).toHaveLength(2);
     fireEvent.click(viewButtons[0]);
     fireEvent.click(viewButtons[1]);
 
-    expect(setActiveView).toHaveBeenCalledWith("calendar");
-    expect(setActiveView).toHaveBeenCalledWith("list");
-
-    const latestDropdown = dropdownProps.at(-1)!;
-    latestDropdown.onSelect({ key: "week" });
-    expect(setActiveCalendar).toHaveBeenCalledWith("week");
+    expect(setActiveView).toHaveBeenCalledWith('calendar');
+    expect(setActiveView).toHaveBeenCalledWith('list');
+    expect(setActiveView).not.toHaveBeenCalledWith('board');
   });
 });

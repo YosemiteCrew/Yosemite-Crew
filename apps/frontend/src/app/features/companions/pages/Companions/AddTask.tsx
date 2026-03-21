@@ -1,10 +1,10 @@
-import { Primary, Secondary } from "@/app/ui/primitives/Buttons";
-import TaskFormFields from "@/app/features/tasks/components/TaskFormFields";
-import Modal from "@/app/ui/overlays/Modal";
-import ModalHeader from "@/app/ui/overlays/Modal/ModalHeader";
-import { useTaskForm } from "@/app/hooks/useTaskForm";
-import React, { useEffect } from "react";
-import { CompanionParent } from "@/app/features/companions/pages/Companions/types";
+import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import TaskFormFields from '@/app/features/tasks/components/TaskFormFields';
+import Modal from '@/app/ui/overlays/Modal';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
+import { useTaskForm } from '@/app/hooks/useTaskForm';
+import React, { useEffect } from 'react';
+import { CompanionParent } from '@/app/features/companions/pages/Companions/types';
 
 type AddTaskProps = {
   showModal: boolean;
@@ -18,11 +18,11 @@ const AddTask = ({ showModal, setShowModal, activeCompanion }: AddTaskProps) => 
     setFormData,
     due,
     setDue,
-    dueTimeUtc,
-    setDueTimeUtc,
+    dueTimeValue,
+    setDueTimeValue,
     formDataErrors,
     error,
-    timeSlots,
+    isLoading,
     templateOptions,
     selectTemplate,
     handleCreate,
@@ -59,11 +59,10 @@ const AddTask = ({ showModal, setShowModal, activeCompanion }: AddTaskProps) => 
             setFormData={setFormData}
             formDataErrors={formDataErrors}
             templateOptions={templateOptions}
-            timeSlots={timeSlots}
             due={due}
             setDue={setDue}
-            dueTimeUtc={dueTimeUtc}
-            setDueTimeUtc={setDueTimeUtc}
+            dueTimeValue={dueTimeValue}
+            setDueTimeValue={setDueTimeValue}
             onSelectTemplate={selectTemplate}
           />
         </div>
@@ -78,9 +77,10 @@ const AddTask = ({ showModal, setShowModal, activeCompanion }: AddTaskProps) => 
             />
             <Primary
               href="#"
-              text="Save"
+              text={isLoading ? 'Saving...' : 'Save'}
               classname="w-full"
               onClick={handleCreate}
+              isDisabled={isLoading}
             />
           </div>
         </div>

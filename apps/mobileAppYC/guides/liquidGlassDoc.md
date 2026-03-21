@@ -23,9 +23,7 @@ https://github.com/user-attachments/assets/44c18136-8760-49f2-ae16-62557c3ae2e1
 ### Installation
 
 ```bash
-npm install @callstack/liquid-glass
-# or
-yarn add @callstack/liquid-glass
+pnpm --filter mobileAppYC add @callstack/liquid-glass
 ```
 
 > [!WARNING]
@@ -33,8 +31,6 @@ yarn add @callstack/liquid-glass
 
 > [!WARNING]
 > This library is not supported in [Expo Go](https://expo.dev/go).
-
-
 
 ### Usage
 
@@ -49,12 +45,11 @@ function MyComponent() {
   return (
     <LiquidGlassView
       style={[
-        { width: 200, height: 100, borderRadius: 16 },
-        !isLiquidGlassSupported && { backgroundColor: 'rgba(255,255,255,0.5)' },
+        {width: 200, height: 100, borderRadius: 16},
+        !isLiquidGlassSupported && {backgroundColor: 'rgba(255,255,255,0.5)'},
       ]}
       interactive
-      effect="clear"
-    >
+      effect="clear">
       <Text>Hello World</Text>
     </LiquidGlassView>
   );
@@ -64,8 +59,8 @@ function MyComponent() {
 function MergingGlassElements() {
   return (
     <LiquidGlassContainerView spacing={20}>
-      <LiquidGlassView style={{ width: 100, height: 100, borderRadius: 16 }} />
-      <LiquidGlassView style={{ width: 100, height: 100, borderRadius: 16 }} />
+      <LiquidGlassView style={{width: 100, height: 100, borderRadius: 16}} />
+      <LiquidGlassView style={{width: 100, height: 100, borderRadius: 16}} />
     </LiquidGlassContainerView>
   );
 }
@@ -79,13 +74,13 @@ To achieve automatic text color adaptation based on the background behind the gl
 https://github.com/user-attachments/assets/199bce70-dab4-43bc-9de1-605f561760e5
 
 ```tsx
-import { PlatformColor } from 'react-native';
-import { LiquidGlassView } from '@callstack/liquid-glass';
+import {PlatformColor} from 'react-native';
+import {LiquidGlassView} from '@callstack/liquid-glass';
 
 function MyComponent() {
   return (
-    <LiquidGlassView style={{ padding: 20, borderRadius: 16 }}>
-      <Text style={{ color: PlatformColor('labelColor') }}>Hello World</Text>
+    <LiquidGlassView style={{padding: 20, borderRadius: 16}}>
+      <Text style={{color: PlatformColor('labelColor')}}>Hello World</Text>
     </LiquidGlassView>
   );
 }
@@ -101,7 +96,7 @@ function MyComponent() {
 A boolean constant that indicates whether the current device supports the liquid glass effect.
 
 ```tsx
-import { isLiquidGlassSupported } from '@callstack/liquid-glass';
+import {isLiquidGlassSupported} from '@callstack/liquid-glass';
 
 if (isLiquidGlassSupported) {
   // Device supports liquid glass effect
@@ -112,12 +107,12 @@ if (isLiquidGlassSupported) {
 
 ### LiquidGlassView - Props
 
-| Prop          | Type                            | Default     | Description                                                                                                                         |
-| ------------- | ------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `interactive` | `boolean`                       | `false`     | Enables touch interaction effects when pressing the view                                                                            |
+| Prop          | Type                             | Default     | Description                                                                                                                                                                                                                                                              |
+| ------------- | -------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `interactive` | `boolean`                        | `false`     | Enables touch interaction effects when pressing the view                                                                                                                                                                                                                 |
 | `effect`      | `'clear' \| 'regular' \| 'none'` | `'regular'` | Visual effect mode:<br/>• `clear` - More transparent glass effect<br/>• `regular` - Standard glass blur effect<br/>• `none` - No glass effect (transparent view)<br/>**Note:** Changing this property animates the materialization/dematerialization of the glass effect |
-| `tintColor`   | `ColorValue`                    | `undefined` | Overlay color tint applied to the glass effect. Accepts any React Native color format (hex, rgba, named colors)                     |
-| `colorScheme` | `'light' \| 'dark' \| 'system'` | `'system'`  | Color scheme adaptation:<br/>• `light` - Light appearance<br/>• `dark` - Dark appearance<br/>• `system` - Follows system appearance |
+| `tintColor`   | `ColorValue`                     | `undefined` | Overlay color tint applied to the glass effect. Accepts any React Native color format (hex, rgba, named colors)                                                                                                                                                          |
+| `colorScheme` | `'light' \| 'dark' \| 'system'`  | `'system'`  | Color scheme adaptation:<br/>• `light` - Light appearance<br/>• `dark` - Dark appearance<br/>• `system` - Follows system appearance                                                                                                                                      |
 
 ### LiquidGlassContainerView - Props
 

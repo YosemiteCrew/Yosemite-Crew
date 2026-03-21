@@ -3,43 +3,43 @@ import {
   InvoiceLineItem,
   Currency,
   Extension,
-} from "@yosemite-crew/fhirtypes";
-import dayjs from "dayjs";
+} from '@yosemite-crew/fhirtypes';
+import dayjs from 'dayjs';
 
 export type InvoiceStatus =
-  | "PENDING"          
-  | "AWAITING_PAYMENT" 
-  | "PAID"             
-  | "FAILED"           
-  | "CANCELLED"        
-  | "REFUNDED";
+  | 'PENDING'
+  | 'AWAITING_PAYMENT'
+  | 'PAID'
+  | 'FAILED'
+  | 'CANCELLED'
+  | 'REFUNDED';
 
-export type PaymentCollectionMethod = "PAYMENT_INTENT" | "PAYMENT_LINK";
+export type PaymentCollectionMethod = 'PAYMENT_INTENT' | 'PAYMENT_LINK' | 'PAYMENT_AT_CLINIC';
 
 export type InvoiceItem = {
-  id?: string;                
-  name: string;               
+  id?: string;
+  name: string;
   description?: string | null;
-  quantity: number;           
-  unitPrice: number;          
-  discountPercent?: number;   
-  total: number;              
+  quantity: number;
+  unitPrice: number;
+  discountPercent?: number;
+  total: number;
 };
 
 export type Invoice = {
-  id?: string;                 
-  parentId?: string;           
-  companionId?: string;       
+  id?: string;
+  parentId?: string;
+  companionId?: string;
   organisationId?: string;
   appointmentId?: string;
   items: InvoiceItem[];
   subtotal: number;
   taxPercent?: number;
-  totalAmount: number;       
+  totalAmount: number;
 
   paymentCollectionMethod: PaymentCollectionMethod;
 
-  currency: Currency;            
+  currency: Currency;
 
   discountTotal?: number;
   taxTotal?: number;
@@ -47,8 +47,8 @@ export type Invoice = {
   stripeChargeId?: string;
   stripeReceiptUrl?: string;
   stripePaymentIntentId?: string;
-  stripePaymentLinkId?: string; 
-  stripeInvoiceId?: string;      
+  stripePaymentLinkId?: string;
+  stripeInvoiceId?: string;
   stripeCustomerId?: string;
   stripeCheckoutSessionId?: string;
   stripeCheckoutUrl?: string;
@@ -56,57 +56,63 @@ export type Invoice = {
   status: InvoiceStatus;
 
   metadata?: Record<string, string | number | boolean>;
-  paidAt?: Date
+  paidAt?: Date;
   createdAt: Date;
   updatedAt: Date;
-}
+};
 
-const EXT_STRIPE_INVOICE_ID = "https://yosemitecrew.com/fhir/StructureDefinition/stripe-invoice-id";
-const EXT_STRIPE_PI_ID = "https://yosemitecrew.com/fhir/StructureDefinition/stripe-payment-intent-id";
-const EXT_STRIPE_PL_ID = "https://yosemitecrew.com/fhir/StructureDefinition/stripe-payment-link-id";
-const EXT_STRIPE_CUSTOMER_ID = "https://yosemitecrew.com/fhir/StructureDefinition/stripe-customer-id";
-const EXT_STRIPE_CHARGE_ID = "https://yosemitecrew.com/fhir/StructureDefinition/stripe-charge-id";
-const EXT_STRIPE_RECEIPT_URL = "https://yosemitecrew.com/fhir/StructureDefinition/stripe-receipt-url";
+const EXT_STRIPE_INVOICE_ID = 'https://yosemitecrew.com/fhir/StructureDefinition/stripe-invoice-id';
+const EXT_STRIPE_PI_ID =
+  'https://yosemitecrew.com/fhir/StructureDefinition/stripe-payment-intent-id';
+const EXT_STRIPE_PL_ID = 'https://yosemitecrew.com/fhir/StructureDefinition/stripe-payment-link-id';
+const EXT_STRIPE_CUSTOMER_ID =
+  'https://yosemitecrew.com/fhir/StructureDefinition/stripe-customer-id';
+const EXT_STRIPE_CHARGE_ID = 'https://yosemitecrew.com/fhir/StructureDefinition/stripe-charge-id';
+const EXT_STRIPE_RECEIPT_URL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/stripe-receipt-url';
 const EXT_STRIPE_CHECKOUT_SESSION_ID =
-  "https://yosemitecrew.com/fhir/StructureDefinition/stripe-checkout-session-id";
-const EXT_STRIPE_CHECKOUT_URL = "https://yosemitecrew.com/fhir/StructureDefinition/stripe-checkout-url";
+  'https://yosemitecrew.com/fhir/StructureDefinition/stripe-checkout-session-id';
+const EXT_STRIPE_CHECKOUT_URL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/stripe-checkout-url';
 const EXT_PAYMENT_COLLECTION_METHOD =
-  "https://yosemitecrew.com/fhir/StructureDefinition/payment-collection-method";
-const EXT_PAID_AT = "https://yosemitecrew.com/fhir/StructureDefinition/paid-at";
-const EXT_PMS_STATUS = "https://yosemitecrew.com/fhir/StructureDefinition/pms-invoice-status";
-const EXT_INVOICE_METADATA = "https://yosemitecrew.com/fhir/StructureDefinition/invoice-metadata";
-const EXT_APPOINTMENT_ID = "https://yosemitecrew.com/fhir/StructureDefinition/appointment-id";
-const LINE_ITEM_SYSTEM = "https://yosemitecrew.com/fhir/CodeSystem/invoice-line-item";
+  'https://yosemitecrew.com/fhir/StructureDefinition/payment-collection-method';
+const EXT_PAID_AT = 'https://yosemitecrew.com/fhir/StructureDefinition/paid-at';
+const EXT_PMS_STATUS = 'https://yosemitecrew.com/fhir/StructureDefinition/pms-invoice-status';
+const EXT_INVOICE_METADATA = 'https://yosemitecrew.com/fhir/StructureDefinition/invoice-metadata';
+const EXT_APPOINTMENT_ID = 'https://yosemitecrew.com/fhir/StructureDefinition/appointment-id';
+const LINE_ITEM_SYSTEM = 'https://yosemitecrew.com/fhir/CodeSystem/invoice-line-item';
 
-const statusMap: Record<InvoiceStatus, FHIRInvoice["status"]> = {
-  PENDING: "draft",
-  AWAITING_PAYMENT: "issued",
-  PAID: "balanced",
-  FAILED: "entered-in-error",
-  CANCELLED: "cancelled",
-  REFUNDED: "balanced",
+const statusMap: Record<InvoiceStatus, FHIRInvoice['status']> = {
+  PENDING: 'draft',
+  AWAITING_PAYMENT: 'issued',
+  PAID: 'balanced',
+  FAILED: 'entered-in-error',
+  CANCELLED: 'cancelled',
+  REFUNDED: 'balanced',
 };
 
-const statusMapReverse: Record<FHIRInvoice["status"], InvoiceStatus> = {
-  draft: "PENDING",
-  issued: "AWAITING_PAYMENT",
-  balanced: "PAID",
-  cancelled: "CANCELLED",
-  "entered-in-error": "FAILED",
+const statusMapReverse: Record<FHIRInvoice['status'], InvoiceStatus> = {
+  draft: 'PENDING',
+  issued: 'AWAITING_PAYMENT',
+  balanced: 'PAID',
+  cancelled: 'CANCELLED',
+  'entered-in-error': 'FAILED',
 };
 
-const buildMetadataExtension = (metadata?: Record<string, string | number | boolean>): Extension | undefined => {
+const buildMetadataExtension = (
+  metadata?: Record<string, string | number | boolean>
+): Extension | undefined => {
   if (!metadata) return undefined;
 
   const nested: Extension[] = [];
 
   for (const [key, value] of Object.entries(metadata)) {
     const entry: Extension = { url: key };
-    if (typeof value === "string") {
+    if (typeof value === 'string') {
       entry.valueString = value;
-    } else if (typeof value === "number") {
+    } else if (typeof value === 'number') {
       entry.valueDecimal = value;
-    } else if (typeof value === "boolean") {
+    } else if (typeof value === 'boolean') {
       entry.valueBoolean = value;
     } else {
       continue;
@@ -122,7 +128,9 @@ const buildMetadataExtension = (metadata?: Record<string, string | number | bool
   };
 };
 
-const parseMetadataExtension = (extension?: Extension[]): Record<string, string | number | boolean> | undefined => {
+const parseMetadataExtension = (
+  extension?: Extension[]
+): Record<string, string | number | boolean> | undefined => {
   const metadataExt = extension?.find((ext) => ext.url === EXT_INVOICE_METADATA);
   if (!metadataExt?.extension?.length) return undefined;
 
@@ -142,11 +150,11 @@ const parseMetadataExtension = (extension?: Extension[]): Record<string, string 
 
 const buildLineItemPriceComponents = (
   item: InvoiceItem,
-  currency: Currency,
-): InvoiceLineItem["priceComponent"] => {
-  const components: InvoiceLineItem["priceComponent"] = [
+  currency: Currency
+): InvoiceLineItem['priceComponent'] => {
+  const components: InvoiceLineItem['priceComponent'] = [
     {
-      type: "base",
+      type: 'base',
       factor: item.quantity,
       amount: {
         value: item.unitPrice,
@@ -158,7 +166,7 @@ const buildLineItemPriceComponents = (
   if (item.discountPercent != null) {
     const discountAmount = item.unitPrice * item.quantity * (item.discountPercent / 100);
     components.push({
-      type: "discount",
+      type: 'discount',
       factor: item.discountPercent / 100,
       amount: {
         value: discountAmount,
@@ -168,8 +176,8 @@ const buildLineItemPriceComponents = (
   }
 
   components.push({
-    type: "informational",
-    code: { text: "line-total" },
+    type: 'informational',
+    code: { text: 'line-total' },
     amount: {
       value: item.total,
       currency,
@@ -179,10 +187,10 @@ const buildLineItemPriceComponents = (
   return components;
 };
 
-const buildTotalPriceComponents = (invoice: Invoice): FHIRInvoice["totalPriceComponent"] => {
-  const components: FHIRInvoice["totalPriceComponent"] = [
+const buildTotalPriceComponents = (invoice: Invoice): FHIRInvoice['totalPriceComponent'] => {
+  const components: FHIRInvoice['totalPriceComponent'] = [
     {
-      type: "base",
+      type: 'base',
       amount: {
         value: invoice.subtotal,
         currency: invoice.currency,
@@ -192,7 +200,7 @@ const buildTotalPriceComponents = (invoice: Invoice): FHIRInvoice["totalPriceCom
 
   if (invoice.discountTotal != null) {
     components.push({
-      type: "discount",
+      type: 'discount',
       amount: {
         value: invoice.discountTotal,
         currency: invoice.currency,
@@ -208,7 +216,7 @@ const buildTotalPriceComponents = (invoice: Invoice): FHIRInvoice["totalPriceCom
         : taxableAmount * ((invoice.taxPercent ?? 0) / 100);
 
     components.push({
-      type: "tax",
+      type: 'tax',
       factor: invoice.taxPercent != null ? invoice.taxPercent / 100 : undefined,
       amount: {
         value: taxAmount,
@@ -218,8 +226,8 @@ const buildTotalPriceComponents = (invoice: Invoice): FHIRInvoice["totalPriceCom
   }
 
   components.push({
-    type: "informational",
-    code: { text: "grand-total" },
+    type: 'informational',
+    code: { text: 'grand-total' },
     amount: {
       value: invoice.totalAmount,
       currency: invoice.currency,
@@ -331,9 +339,9 @@ export function toFHIRInvoice(invoice: Invoice): FHIRInvoice {
   });
 
   const fhirInvoice: FHIRInvoice = {
-    resourceType: "Invoice",
+    resourceType: 'Invoice',
     id: invoice.id,
-    status: statusMap[invoice.status] ?? "draft",
+    status: statusMap[invoice.status] ?? 'draft',
     subject: invoice.companionId
       ? {
           reference: `Patient/${invoice.companionId}`,
@@ -372,13 +380,16 @@ const parseLineItems = (lineItems?: InvoiceLineItem[]): InvoiceItem[] => {
   if (!lineItems?.length) return [];
 
   return lineItems.map((lineItem) => {
-    const baseComponent = lineItem.priceComponent?.find((pc) => pc.type === "base");
-    const discountComponent = lineItem.priceComponent?.find((pc) => pc.type === "discount");
-    const informationalComponent = lineItem.priceComponent?.find((pc) => pc.type === "informational");
+    const baseComponent = lineItem.priceComponent?.find((pc) => pc.type === 'base');
+    const discountComponent = lineItem.priceComponent?.find((pc) => pc.type === 'discount');
+    const informationalComponent = lineItem.priceComponent?.find(
+      (pc) => pc.type === 'informational'
+    );
 
     const quantity = baseComponent?.factor ?? 1;
     const unitPrice = baseComponent?.amount?.value ?? 0;
-    const discountPercent = discountComponent?.factor != null ? discountComponent.factor * 100 : undefined;
+    const discountPercent =
+      discountComponent?.factor != null ? discountComponent.factor * 100 : undefined;
     const discountAmount = discountComponent?.amount?.value ?? 0;
 
     const computedTotal = unitPrice * quantity - discountAmount;
@@ -388,7 +399,7 @@ const parseLineItems = (lineItems?: InvoiceLineItem[]): InvoiceItem[] => {
 
     return {
       id: coding?.code,
-      name: coding?.display ?? coding?.code ?? lineItem.chargeItemCodeableConcept?.text ?? "",
+      name: coding?.display ?? coding?.code ?? lineItem.chargeItemCodeableConcept?.text ?? '',
       description: lineItem.chargeItemCodeableConcept?.text,
       quantity,
       unitPrice,
@@ -400,7 +411,7 @@ const parseLineItems = (lineItems?: InvoiceLineItem[]): InvoiceItem[] => {
 
 const parseTotalValues = (
   fhirInvoice: FHIRInvoice,
-  lineItems: InvoiceItem[],
+  lineItems: InvoiceItem[]
 ): {
   subtotal: number;
   discountTotal?: number;
@@ -409,21 +420,21 @@ const parseTotalValues = (
   taxPercent?: number;
   currency: Currency;
 } => {
-  const baseComponent = fhirInvoice.totalPriceComponent?.find((pc) => pc.type === "base");
-  const discountComponent = fhirInvoice.totalPriceComponent?.find((pc) => pc.type === "discount");
-  const taxComponent = fhirInvoice.totalPriceComponent?.find((pc) => pc.type === "tax");
-  const informationalComponent = fhirInvoice.totalPriceComponent?.find((pc) => pc.type === "informational");
-  const lineItemBase = fhirInvoice.lineItem?.[0]?.priceComponent?.find((pc) => pc.type === "base");
+  const baseComponent = fhirInvoice.totalPriceComponent?.find((pc) => pc.type === 'base');
+  const discountComponent = fhirInvoice.totalPriceComponent?.find((pc) => pc.type === 'discount');
+  const taxComponent = fhirInvoice.totalPriceComponent?.find((pc) => pc.type === 'tax');
+  const informationalComponent = fhirInvoice.totalPriceComponent?.find(
+    (pc) => pc.type === 'informational'
+  );
+  const lineItemBase = fhirInvoice.lineItem?.[0]?.priceComponent?.find((pc) => pc.type === 'base');
 
-  const currency = (
-    fhirInvoice.totalGross?.currency ||
+  const currency = (fhirInvoice.totalGross?.currency ||
     fhirInvoice.totalNet?.currency ||
     baseComponent?.amount?.currency ||
     taxComponent?.amount?.currency ||
     discountComponent?.amount?.currency ||
     lineItemBase?.amount?.currency ||
-    "USD"
-  ) as Currency;
+    'USD') as Currency;
 
   const subtotalFromBase = baseComponent?.amount?.value;
   const subtotalFromLineItemBase = lineItems.length
@@ -438,7 +449,9 @@ const parseTotalValues = (
     subtotalFromBase ??
     subtotalFromLineItemBase ??
     subtotalFromNetAndDiscount ??
-    (fhirInvoice.totalNet?.value != null ? fhirInvoice.totalNet.value + (discountComponent?.amount?.value ?? 0) : undefined) ??
+    (fhirInvoice.totalNet?.value != null
+      ? fhirInvoice.totalNet.value + (discountComponent?.amount?.value ?? 0)
+      : undefined) ??
     (lineItems.length ? lineItems.reduce((acc, item) => acc + item.total, 0) : 0);
 
   let discountTotal = discountComponent?.amount?.value;
@@ -448,11 +461,15 @@ const parseTotalValues = (
   }
 
   const netAfterDiscount =
-    fhirInvoice.totalNet?.value != null ? fhirInvoice.totalNet.value : subtotal - (discountTotal ?? 0);
+    fhirInvoice.totalNet?.value != null
+      ? fhirInvoice.totalNet.value
+      : subtotal - (discountTotal ?? 0);
 
   let taxTotal =
     taxComponent?.amount?.value ??
-    (taxComponent?.factor != null && netAfterDiscount != null ? netAfterDiscount * taxComponent.factor : undefined);
+    (taxComponent?.factor != null && netAfterDiscount != null
+      ? netAfterDiscount * taxComponent.factor
+      : undefined);
 
   let totalAmount =
     fhirInvoice.totalGross?.value ??
@@ -479,24 +496,30 @@ const parseTotalValues = (
 
 export function fromFHIRInvoice(fhirInvoice: FHIRInvoice): Invoice {
   const statusExtension = fhirInvoice.extension?.find((ext) => ext.url === EXT_PMS_STATUS);
-  const pmsStatus = (statusExtension?.valueString as InvoiceStatus | undefined) ?? statusMapReverse[fhirInvoice.status] ?? "PENDING";
+  const pmsStatus =
+    (statusExtension?.valueString as InvoiceStatus | undefined) ??
+    statusMapReverse[fhirInvoice.status] ??
+    'PENDING';
 
   const lineItems = parseLineItems(fhirInvoice.lineItem);
-  const { subtotal, discountTotal, taxTotal, totalAmount, taxPercent, currency } = parseTotalValues(fhirInvoice, lineItems);
+  const { subtotal, discountTotal, taxTotal, totalAmount, taxPercent, currency } = parseTotalValues(
+    fhirInvoice,
+    lineItems
+  );
 
   const metadata = parseMetadataExtension(fhirInvoice.extension);
 
-  const getIdFromReference = (reference?: string) => reference?.split("/")[1];
+  const getIdFromReference = (reference?: string) => reference?.split('/')[1];
 
   return {
-    id: fhirInvoice.id ?? "",
-    parentId: getIdFromReference(fhirInvoice.recipient?.reference) ?? "",
+    id: fhirInvoice.id ?? '',
+    parentId: getIdFromReference(fhirInvoice.recipient?.reference) ?? '',
     companionId: getIdFromReference(fhirInvoice.subject?.reference),
-    organisationId: getIdFromReference(fhirInvoice.issuer?.reference) ?? "",
+    organisationId: getIdFromReference(fhirInvoice.issuer?.reference) ?? '',
     appointmentId:
       fhirInvoice.extension?.find((ext) => ext.url === EXT_APPOINTMENT_ID)?.valueString ??
       getIdFromReference(fhirInvoice.account?.reference) ??
-      "",
+      '',
     items: lineItems,
     subtotal,
     discountTotal,
@@ -504,25 +527,35 @@ export function fromFHIRInvoice(fhirInvoice: FHIRInvoice): Invoice {
     taxTotal,
     totalAmount,
     currency,
-    stripePaymentIntentId: fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_PI_ID)?.valueString,
-    stripePaymentLinkId: fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_PL_ID)?.valueString,
-    stripeInvoiceId: fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_INVOICE_ID)?.valueString,
-    stripeCustomerId: fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_CUSTOMER_ID)?.valueString,
-    stripeChargeId: fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_CHARGE_ID)?.valueString,
+    stripePaymentIntentId: fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_PI_ID)
+      ?.valueString,
+    stripePaymentLinkId: fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_PL_ID)
+      ?.valueString,
+    stripeInvoiceId: fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_INVOICE_ID)
+      ?.valueString,
+    stripeCustomerId: fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_CUSTOMER_ID)
+      ?.valueString,
+    stripeChargeId: fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_CHARGE_ID)
+      ?.valueString,
     stripeReceiptUrl:
       fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_RECEIPT_URL)?.valueUri ??
       fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_RECEIPT_URL)?.valueString,
-    stripeCheckoutSessionId: fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_CHECKOUT_SESSION_ID)?.valueString,
+    stripeCheckoutSessionId: fhirInvoice.extension?.find(
+      (ext) => ext.url === EXT_STRIPE_CHECKOUT_SESSION_ID
+    )?.valueString,
     stripeCheckoutUrl:
       fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_CHECKOUT_URL)?.valueUri ??
       fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_CHECKOUT_URL)?.valueUrl ??
       fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_CHECKOUT_URL)?.valueString,
-    paymentCollectionMethod: (fhirInvoice.extension?.find((ext) => ext.url === EXT_PAYMENT_COLLECTION_METHOD)
-      ?.valueString as PaymentCollectionMethod | undefined) ?? "PAYMENT_INTENT",
+    paymentCollectionMethod:
+      (fhirInvoice.extension?.find((ext) => ext.url === EXT_PAYMENT_COLLECTION_METHOD)
+        ?.valueString as PaymentCollectionMethod | undefined) ?? 'PAYMENT_INTENT',
     status: pmsStatus,
     metadata,
     paidAt: fhirInvoice.extension?.find((ext) => ext.url === EXT_PAID_AT)?.valueDateTime
-      ? new Date(fhirInvoice.extension?.find((ext) => ext.url === EXT_PAID_AT)?.valueDateTime as string)
+      ? new Date(
+          fhirInvoice.extension?.find((ext) => ext.url === EXT_PAID_AT)?.valueDateTime as string
+        )
       : undefined,
     createdAt: fhirInvoice.date ? new Date(fhirInvoice.date) : new Date(),
     updatedAt: fhirInvoice.meta?.lastUpdated ? new Date(fhirInvoice.meta.lastUpdated) : new Date(),

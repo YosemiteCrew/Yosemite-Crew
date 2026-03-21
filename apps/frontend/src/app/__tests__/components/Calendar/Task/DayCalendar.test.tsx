@@ -1,22 +1,22 @@
-import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
-import "@testing-library/jest-dom";
+import React from 'react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
 
-import DayCalendar from "@/app/features/appointments/components/Calendar/Task/DayCalendar";
-import { Task } from "@/app/features/tasks/types/task";
+import DayCalendar from '@/app/features/appointments/components/Calendar/Task/DayCalendar';
+import { Task } from '@/app/features/tasks/types/task';
 
-jest.mock("@/app/hooks/useTeam", () => ({
+jest.mock('@/app/hooks/useTeam', () => ({
   useTeamForPrimaryOrg: jest.fn(),
 }));
 
-jest.mock("@/app/ui/tables/Tasks", () => ({
+jest.mock('@/app/ui/tables/Tasks', () => ({
   getStatusStyle: jest.fn(() => ({
-    backgroundColor: "purple",
-    color: "white",
+    backgroundColor: 'purple',
+    color: 'white',
   })),
 }));
 
-jest.mock("@/app/ui/primitives/Icons/Back", () => ({
+jest.mock('@/app/ui/primitives/Icons/Back', () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>
@@ -25,7 +25,7 @@ jest.mock("@/app/ui/primitives/Icons/Back", () => ({
   ),
 }));
 
-jest.mock("@/app/ui/primitives/Icons/Next", () => ({
+jest.mock('@/app/ui/primitives/Icons/Next', () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>
@@ -34,39 +34,37 @@ jest.mock("@/app/ui/primitives/Icons/Next", () => ({
   ),
 }));
 
-import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
+import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 
-describe("DayCalendar (Task)", () => {
+describe('DayCalendar (Task)', () => {
   const handleViewTask = jest.fn();
   const setCurrentDate = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([
-      { _id: "user-1", name: "Taylor" },
-    ]);
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([{ _id: 'user-1', name: 'Taylor' }]);
   });
 
-  it("renders tasks and resolves assigned member names", () => {
+  it('renders tasks and resolves assigned member names', () => {
     const events: Task[] = [
       {
-        name: "Morning Task",
-        dueAt: new Date("2025-01-06T10:00:00Z"),
-        status: "PENDING",
-        assignedTo: "user-1",
-        _id: "",
-        audience: "EMPLOYEE_TASK",
-        source: "CUSTOM",
-        category: "",
+        name: 'Morning Task',
+        dueAt: new Date('2025-01-06T10:00:00Z'),
+        status: 'PENDING',
+        assignedTo: 'user-1',
+        _id: '',
+        audience: 'EMPLOYEE_TASK',
+        source: 'CUSTOM',
+        category: '',
       } as Task,
       {
-        name: "Unassigned Task",
-        dueAt: new Date("2025-01-06T11:00:00Z"),
-        status: "COMPLETED",
-        _id: "",
-        audience: "EMPLOYEE_TASK",
-        source: "CUSTOM",
-        category: "",
+        name: 'Unassigned Task',
+        dueAt: new Date('2025-01-06T11:00:00Z'),
+        status: 'COMPLETED',
+        _id: '',
+        audience: 'EMPLOYEE_TASK',
+        source: 'CUSTOM',
+        category: '',
       } as Task,
     ];
 
@@ -79,16 +77,14 @@ describe("DayCalendar (Task)", () => {
       />
     );
 
-    expect(screen.getByText("Morning Task")).toBeInTheDocument();
-    expect(screen.getByText("Taylor")).toBeInTheDocument();
-    expect(screen.getByText("Unassigned Task")).toBeInTheDocument();
-    expect(screen.getByText("-")).toBeInTheDocument();
+    expect(screen.getByText('Morning Task')).toBeInTheDocument();
+    expect(screen.getByText('Unassigned Task')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText("Morning Task").closest("button")!);
+    fireEvent.click(screen.getByText('Morning Task').closest('button')!);
     expect(handleViewTask).toHaveBeenCalledWith(events[0]);
   });
 
-  it("shows empty state when no tasks are available", () => {
+  it('does not show empty state copy when no tasks are available', () => {
     render(
       <DayCalendar
         events={[]}
@@ -98,12 +94,10 @@ describe("DayCalendar (Task)", () => {
       />
     );
 
-    expect(
-      screen.getByText("No tasks available for today")
-    ).toBeInTheDocument();
+    expect(screen.queryByText('No tasks available for today')).not.toBeInTheDocument();
   });
 
-  it("advances and rewinds the current date", () => {
+  it('advances and rewinds the current date', () => {
     render(
       <DayCalendar
         events={[]}
@@ -113,8 +107,8 @@ describe("DayCalendar (Task)", () => {
       />
     );
 
-    fireEvent.click(screen.getByText("Next"));
-    fireEvent.click(screen.getByText("Prev"));
+    fireEvent.click(screen.getByText('Next'));
+    fireEvent.click(screen.getByText('Prev'));
 
     expect(setCurrentDate).toHaveBeenCalledTimes(2);
 

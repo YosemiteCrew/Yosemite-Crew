@@ -1,14 +1,99 @@
 .sidebar {
+  position: relative;
+  z-index: 50;
   width: 180px;
+  min-width: 180px;
+  max-width: 180px;
+  flex: 0 0 180px;
   padding: 0px 20px;
   flex-direction: column;
   gap: 16px;
   display: flex;
   height: 100%;
-  overflow: auto;
+  overflow: visible;
 
   border-right: 1px solid var(--color-card-border);
   background: var(--color-surface-card);
+  transition:
+    width 0.24s ease,
+    min-width 0.24s ease,
+    max-width 0.24s ease,
+    flex-basis 0.24s ease,
+    padding 0.24s ease;
+}
+
+.sidebar-collapsed {
+  width: 84px;
+  min-width: 84px;
+  max-width: 84px;
+  flex: 0 0 84px;
+  padding: 0 10px;
+}
+
+.sidebar-top {
+  height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.sidebar-top-collapsed {
+  justify-content: center;
+  height: 104px;
+}
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-collapsed {
+  transform: translateY(2px);
+}
+
+.sidebar-collapse-btn {
+  height: 34px;
+  width: 34px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-card-border);
+  color: var(--color-text-secondary);
+  background: var(--color-surface-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sidebar-collapse-btn:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-brand-300);
+  background: var(--color-brand-100);
+}
+
+.sidebar-routes {
+  display: flex;
+  gap: 12px;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: visible;
+  padding-bottom: 8px;
+}
+.sidebar-footer {
+  margin-top: auto;
+  padding: 6px 0 20px;
+  display: flex;
+  justify-content: center;
+}
+.sidebar-route-tooltip {
+  display: flex !important;
+  width: 100%;
+  justify-content: center;
+  align-items: center;
 }
 .route {
   font-family: var(--font-satoshi);
@@ -25,10 +110,35 @@
   letter-spacing: -0.32px;
   transition: 0.3s;
 }
+
+.sidebar-collapsed .route {
+  width: 100%;
+  padding: 9px;
+  justify-content: center;
+  align-items: center;
+}
+
+.route-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.route-icon-svg {
+  display: block;
+  color: currentColor;
+}
+
 .route-active {
   color: var(--color-brand-950);
   background-color: var(--color-brand-100) !important;
   border: 1px solid var(--color-brand-950);
+}
+.route-disabled {
+  color: #a09f9f !important;
+  cursor: not-allowed;
 }
 .route-label {
   flex: 1;
@@ -36,6 +146,12 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.route-collapsed-icon-wrap {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
 }
 .route:hover {
   background-color: var(--color-card-hover);

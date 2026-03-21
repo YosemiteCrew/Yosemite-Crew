@@ -1,12 +1,12 @@
-import { EmploymentTypesProps } from "@/app/features/organization/types/team";
+import { EmploymentTypesProps } from '@/app/features/organization/types/team';
 
-export type Status = "DRAFT" | "COMPLETED";
+export type Status = 'DRAFT' | 'COMPLETED';
 
-export type Gender = "MALE" | "FEMALE" | "OTHER";
+export type Gender = 'MALE' | 'FEMALE' | 'OTHER';
 
-export const GenderOptions: Gender[] = ["MALE", "FEMALE", "OTHER"];
+export const GenderOptions: Gender[] = ['MALE', 'FEMALE', 'OTHER'];
 
-export type DocumentType = "LICENSE" | "CERTIFICATE" | "OTHERS";
+export type DocumentType = 'LICENSE' | 'CERTIFICATE' | 'OTHERS';
 
 export type Address = {
   addressLine?: string;
@@ -32,6 +32,18 @@ export type PersonalDetails = {
   address?: Address;
   phoneNumber?: string;
   profilePictureUrl?: string;
+  timezone?: string;
+  pmsPreferences?: PmsPreferences;
+};
+
+export type DefaultOpenScreenPreference = 'APPOINTMENTS' | 'DASHBOARD';
+export type AppointmentViewPreference = 'CALENDAR' | 'STATUS_BOARD' | 'TABLE';
+export type AnimalTerminologyPreference = 'ANIMAL' | 'COMPANION' | 'PET' | 'PATIENT';
+
+export type PmsPreferences = {
+  defaultOpenScreen?: DefaultOpenScreenPreference;
+  appointmentView?: AppointmentViewPreference;
+  animalTerminology?: AnimalTerminologyPreference;
 };
 
 export type ProfessionalDetails = {

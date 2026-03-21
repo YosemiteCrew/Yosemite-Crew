@@ -1,21 +1,26 @@
-import Accordion from "@/app/ui/primitives/Accordion/Accordion";
-import { Primary } from "@/app/ui/primitives/Buttons";
-import LabelDropdown from "@/app/ui/inputs/Dropdown/LabelDropdown";
-import FormInput from "@/app/ui/inputs/FormInput/FormInput";
-import MultiSelectDropdown from "@/app/ui/inputs/MultiSelectDropdown";
+import Accordion from '@/app/ui/primitives/Accordion/Accordion';
+import { Primary } from '@/app/ui/primitives/Buttons';
+import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
+import FormInput from '@/app/ui/inputs/FormInput/FormInput';
+import MultiSelectDropdown from '@/app/ui/inputs/MultiSelectDropdown';
 import {
   FormsCategory,
   FormsCategoryOptions,
   FormsProps,
   RequiredSignerOptions,
-  requiredSignerLabel,
   FormsUsage,
   FormsUsageOptions,
-} from "@/app/features/forms/types/forms";
-import { getCategoryTemplate } from "@/app/lib/forms";
-import React, { useMemo, useState } from "react";
-import { Organisation } from "@yosemite-crew/types";
-import { useOrgStore } from "@/app/stores/orgStore";
+  getFormCategoryDisplayLabel,
+} from '@/app/features/forms/types/forms';
+import {
+  getCategoryTemplate,
+  ensureSingleSignatureAtEnd,
+  hasSignatureField,
+  removeSignatureFields,
+} from '@/app/lib/forms';
+import React, { useMemo, useState } from 'react';
+import { Organisation } from '@yosemite-crew/types';
+import { useOrgStore } from '@/app/stores/orgStore';
 
 type DetailsProps = {
   formData: FormsProps;
@@ -41,46 +46,53 @@ const Details = ({
     requiredSigner?: string;
   }>({});
   const orgType = useOrgStore((s) =>
-    s.primaryOrgId ? s.orgsById[s.primaryOrgId]?.type : undefined,
+    s.primaryOrgId ? s.orgsById[s.primaryOrgId]?.type : undefined
   );
-  const orgTypeOverride = process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE as Organisation["type"] | undefined;
+  const orgTypeOverride = process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE as
+    | Organisation['type']
+    | undefined;
   const effectiveOrgType = orgTypeOverride || orgType;
   const categoryOptions = useMemo(() => {
-    const base = new Set(["Consent form", "Discharge", "Custom"]);
-    if (effectiveOrgType === "HOSPITAL") {
-      return FormsCategoryOptions.filter(
-        (c) => base.has(c) || c.startsWith("SOAP")
-      );
+    const base = new Set(['Consent form', 'Prescription', 'Custom']);
+    if (effectiveOrgType === 'HOSPITAL') {
+      return FormsCategoryOptions.filter((c) => base.has(c));
     }
-    if (effectiveOrgType === "BOARDER") {
-      return FormsCategoryOptions.filter(
-        (c) => base.has(c) || c.startsWith("Boarder")
-      );
+    if (effectiveOrgType === 'BOARDER') {
+      return FormsCategoryOptions.filter((c) => base.has(c) || c.startsWith('Boarder'));
     }
-    if (effectiveOrgType === "BREEDER") {
-      return FormsCategoryOptions.filter(
-        (c) => base.has(c) || c.startsWith("Breeder")
-      );
+    if (effectiveOrgType === 'BREEDER') {
+      return FormsCategoryOptions.filter((c) => base.has(c) || c.startsWith('Breeder'));
     }
-    if (effectiveOrgType === "GROOMER") {
-      return FormsCategoryOptions.filter(
-        (c) => base.has(c) || c.startsWith("Groomer")
-      );
+    if (effectiveOrgType === 'GROOMER') {
+      return FormsCategoryOptions.filter((c) => base.has(c) || c.startsWith('Groomer'));
     }
     return FormsCategoryOptions;
   }, [effectiveOrgType]);
 
   const handleCategoryChange = (category: FormsCategory) => {
-    const shouldApplyTemplate =
-      !formData._id || (formData.schema?.length ?? 0) === 0;
+    const shouldApplyTemplate = !formData._id || (formData.schema?.length ?? 0) === 0;
     if (formDataErrors.category) {
       setFormDataErrors((prev) => ({ ...prev, category: undefined }));
     }
+    const template =
+      category && shouldApplyTemplate ? getCategoryTemplate(category) : formData.schema;
+    let normalizedTemplate = template;
+    if (category === 'Prescription') {
+      normalizedTemplate = formData.requiredSigner
+        ? ensureSingleSignatureAtEnd(template ?? [])
+        : removeSignatureFields(template ?? []);
+    }
+
     setFormData((prev) => ({
       ...prev,
+      name:
+        effectiveOrgType === 'HOSPITAL' &&
+        category === 'Prescription' &&
+        (!String(prev.name ?? '').trim() || prev.name === 'Prescription')
+          ? 'Prescription SOAP'
+          : prev.name,
       category,
-      schema:
-        category && shouldApplyTemplate ? getCategoryTemplate(category) : prev.schema,
+      schema: normalizedTemplate,
     }));
   };
 
@@ -94,23 +106,23 @@ const Details = ({
       requiredSigner?: string;
     } = {};
     if (!formData.name.trim()) {
-      errors.name = "Form name is required";
+      errors.name = 'Form name is required';
     }
     if (!formData.category) {
-      errors.category = "Category is required";
+      errors.category = 'Category is required';
     }
     if (formData.requiredSigner === undefined) {
-      errors.requiredSigner = "Signed by is required";
+      errors.requiredSigner = 'Signed by is required';
     }
     if (!formData.description?.trim()) {
-      errors.description = "Description is required";
+      errors.description = 'Description is required';
     }
     if (!formData.species || formData.species.length === 0) {
-      errors.species = "Select at least one species";
+      errors.species = 'Select at least one species';
     }
     // Service is required for all categories except "Custom"
-    if (formData.category !== "Custom" && (!formData.services || formData.services.length === 0)) {
-      errors.services = "Service is required for this form category";
+    if (formData.category !== 'Custom' && (!formData.services || formData.services.length === 0)) {
+      errors.services = 'Service is required for this form category';
     }
     setFormDataErrors(errors);
     return Object.keys(errors).length === 0;
@@ -128,12 +140,7 @@ const Details = ({
   return (
     <div className="flex flex-col gap-6 w-full flex-1 justify-between">
       <div className="flex flex-col gap-6">
-        <Accordion
-          title="Form details"
-          defaultOpen
-          showEditIcon={false}
-          isEditing={true}
-        >
+        <Accordion title="Form details" defaultOpen showEditIcon={false} isEditing={true}>
           <div className="flex flex-col gap-3">
             <FormInput
               intype="text"
@@ -155,7 +162,7 @@ const Details = ({
             <FormInput
               intype="text"
               inname="description"
-              value={formData.description || ""}
+              value={formData.description || ''}
               inlabel="Description"
               onChange={(e) => {
                 if (formDataErrors.description) {
@@ -171,50 +178,56 @@ const Details = ({
             />
             <LabelDropdown
               placeholder="Category"
-              defaultOption={formData.category || ""}
+              defaultOption={formData.category || ''}
               onSelect={(option) => handleCategoryChange(option.value as FormsCategory)}
-              options={categoryOptions.map((cat) => ({ label: cat, value: cat }))}
+              options={categoryOptions.map((cat) => ({
+                label: getFormCategoryDisplayLabel(cat, effectiveOrgType),
+                value: cat,
+              }))}
               error={formDataErrors.category}
             />
             <LabelDropdown
               placeholder="Signed by"
-              defaultOption={requiredSignerLabel(formData.requiredSigner)}
-              onSelect={(option) =>
-                {
-                  if (formDataErrors.requiredSigner) {
-                    setFormDataErrors((prev) => ({
-                      ...prev,
-                      requiredSigner: undefined,
-                    }));
-                  }
-                  setFormData((prev) => ({
+              defaultOption={formData.requiredSigner}
+              onSelect={(option) => {
+                if (formDataErrors.requiredSigner) {
+                  setFormDataErrors((prev) => ({
                     ...prev,
-                    requiredSigner: option.value as FormsProps["requiredSigner"],
+                    requiredSigner: undefined,
                   }));
                 }
-              }
+                const nextSigner = option.value as FormsProps['requiredSigner'];
+                setFormData((prev) => {
+                  const next: FormsProps = {
+                    ...prev,
+                    requiredSigner: nextSigner,
+                  };
+                  if (!nextSigner) {
+                    next.schema = removeSignatureFields(next.schema ?? []);
+                  } else if (
+                    next.category === 'Prescription' &&
+                    !hasSignatureField(next.schema ?? [])
+                  ) {
+                    next.schema = ensureSingleSignatureAtEnd(next.schema ?? []);
+                  }
+                  return next;
+                });
+              }}
               options={RequiredSignerOptions}
               error={formDataErrors.requiredSigner}
             />
           </div>
         </Accordion>
-        <Accordion
-          title="Usage and visibility"
-          defaultOpen
-          showEditIcon={false}
-          isEditing={true}
-        >
+        <Accordion title="Usage and visibility" defaultOpen showEditIcon={false} isEditing={true}>
           <div className="flex flex-col gap-3">
             <LabelDropdown
               placeholder="Visibility type"
               defaultOption={formData.usage}
-              onSelect={(option) =>
-                setFormData({ ...formData, usage: option.value as FormsUsage })
-              }
+              onSelect={(option) => setFormData({ ...formData, usage: option.value as FormsUsage })}
               options={FormsUsageOptions.map((opt) => ({ label: opt, value: opt }))}
             />
             <MultiSelectDropdown
-              placeholder={formData.category === "Custom" ? "Service (Optional)" : "Service"}
+              placeholder={formData.category === 'Custom' ? 'Service (Optional)' : 'Service'}
               value={formData.services || []}
               error={formDataErrors.services}
               onChange={(e) => {
@@ -231,18 +244,13 @@ const Details = ({
                 setFormData({ ...formData, species: e });
                 setFormDataErrors((prev) => ({ ...prev, species: undefined }));
               }}
-              options={["Dog", "Cat", "Horse"]}
+              options={['Dog', 'Cat', 'Horse']}
             />
           </div>
         </Accordion>
       </div>
       <div className="px-3 pb-3 flex justify-center">
-        <Primary
-          href="#"
-          text="Next"
-          onClick={handleNext}
-          classname="w-fit"
-        />
+        <Primary href="#" text="Next" onClick={handleNext} classname="w-fit" />
       </div>
     </div>
   );

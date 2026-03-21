@@ -1,16 +1,19 @@
-import { useEffect, useMemo } from "react";
-import { useOrgStore } from "@/app/stores/orgStore";
-import { loadTeam } from "@/app/features/organization/services/teamService";
-import { Team } from "@/app/features/organization/types/team";
-import { useTeamStore } from "@/app/stores/teamStore";
+import { useEffect, useMemo } from 'react';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { loadTeam } from '@/app/features/organization/services/teamService';
+import { Team } from '@/app/features/organization/types/team';
+import { useTeamStore } from '@/app/stores/teamStore';
 
 export const useLoadTeam = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
+  const teamIdsByOrgId = useTeamStore((s) => s.teamIdsByOrgId);
 
   useEffect(() => {
     if (!primaryOrgId) return;
-    void loadTeam({ force: true });
-  }, [primaryOrgId]);
+    if (useTeamStore.getState().status === 'loading') return;
+    if (Object.hasOwn(teamIdsByOrgId, primaryOrgId)) return;
+    void loadTeam();
+  }, [primaryOrgId, teamIdsByOrgId]);
 };
 
 export const useTeamForPrimaryOrg = (): Team[] => {

@@ -10,6 +10,14 @@ import type {
   ParentCompanionRole,
   ParentCompanionStatus,
 } from "@yosemite-crew/types";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import {
+  Prisma,
+  ParentCompanionRole as PrismaParentCompanionRole,
+  ParentCompanionStatus as PrismaParentCompanionStatus,
+} from "@prisma/client";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 export class ParentCompanionServiceError extends Error {
   constructor(
@@ -63,6 +71,80 @@ const isDuplicateKeyError = (error: unknown): boolean =>
   "code" in error &&
   (error as { code?: number }).code === 11000;
 
+const toPrismaParentCompanionData = (doc: ParentCompanionDocument) => {
+  const obj = doc.toObject({ virtuals: false }) as ParentCompanionMongo & {
+    _id: Types.ObjectId;
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+
+  return {
+    id: obj._id.toString(),
+    parentId: obj.parentId.toString(),
+    companionId: obj.companionId.toString(),
+    role: obj.role as PrismaParentCompanionRole,
+    status: obj.status as PrismaParentCompanionStatus,
+    permissions: obj.permissions as unknown as Prisma.InputJsonValue,
+    invitedByParentId: obj.invitedByParentId?.toString() ?? undefined,
+    acceptedAt: obj.acceptedAt ?? undefined,
+    createdAt: obj.createdAt ?? undefined,
+    updatedAt: obj.updatedAt ?? undefined,
+  };
+};
+
+const syncParentCompanionToPostgres = async (doc: ParentCompanionDocument) => {
+  if (!shouldDualWrite) return;
+  try {
+    const data = toPrismaParentCompanionData(doc);
+    await prisma.parentCompanion.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+  } catch (err) {
+    handleDualWriteError("ParentCompanion", err);
+  }
+};
+
+const toCompanionParentLinkFromPrisma = (
+  doc: {
+    id: string;
+    parentId: string;
+    role: PrismaParentCompanionRole;
+    status: PrismaParentCompanionStatus;
+    permissions: Prisma.JsonValue;
+    invitedByParentId: string | null;
+    acceptedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+  },
+  parent?: {
+    firstName: string;
+    lastName: string | null;
+    email: string;
+    phoneNumber: string | null;
+    profileImageUrl: string | null;
+  },
+): CompanionParentLink => ({
+  parentId: doc.parentId,
+  role: doc.role as ParentCompanionRole,
+  status: doc.status as ParentCompanionStatus,
+  permissions: doc.permissions as unknown as ParentCompanionPermissions,
+  invitedByParentId: doc.invitedByParentId ?? undefined,
+  acceptedAt: doc.acceptedAt?.toISOString(),
+  createdAt: doc.createdAt?.toISOString(),
+  updatedAt: doc.updatedAt?.toISOString(),
+  parent: parent
+    ? {
+        firstName: parent.firstName,
+        lastName: parent.lastName ?? "",
+        email: parent.email,
+        phoneNumber: parent.phoneNumber ?? "",
+        profileImageUrl: parent.profileImageUrl ?? "",
+      }
+    : undefined,
+});
+
 // Types
 
 interface LinkParentInput {
@@ -96,6 +178,7 @@ const promoteDocumentToPrimary = async (
       assignAsPrimaryParent: false,
     };
     await existingPrimary.save();
+    await syncParentCompanionToPostgres(existingPrimary);
   }
 
   // Promote this link to PRIMARY
@@ -116,6 +199,8 @@ const promoteDocumentToPrimary = async (
     }
     throw error;
   }
+
+  await syncParentCompanionToPostgres(document);
 
   return document;
 };
@@ -160,6 +245,7 @@ export const ParentCompanionService = {
 
     try {
       const [document] = await ParentCompanionModel.create([payload]);
+      await syncParentCompanionToPostgres(document);
       return document;
     } catch (error) {
       if (isDuplicateKeyError(error)) {
@@ -188,6 +274,10 @@ export const ParentCompanionService = {
       { new: true, sanitizeFilter: true },
     );
 
+    if (document) {
+      await syncParentCompanionToPostgres(document);
+    }
+
     return document;
   },
 
@@ -205,6 +295,8 @@ export const ParentCompanionService = {
     if (!document) {
       throw new ParentCompanionServiceError("Link not found.", 404);
     }
+
+    await syncParentCompanionToPostgres(document);
 
     return document;
   },
@@ -272,6 +364,7 @@ export const ParentCompanionService = {
 
     document.permissions = mergedPermissions;
     await document.save();
+    await syncParentCompanionToPostgres(document);
 
     return toCompanionParentLink(document);
   },
@@ -335,6 +428,7 @@ export const ParentCompanionService = {
       if (!doc) {
         throw new ParentCompanionServiceError("Co-parent link not found.", 404);
       }
+      await syncParentCompanionToPostgres(doc);
       return;
     }
 
@@ -347,6 +441,19 @@ export const ParentCompanionService = {
     if (!result.deletedCount) {
       throw new ParentCompanionServiceError("Co-parent link not found.", 404);
     }
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.parentCompanion.deleteMany({
+          where: {
+            parentId: coParentId.toString(),
+            companionId: companionId.toString(),
+          },
+        });
+      } catch (err) {
+        handleDualWriteError("ParentCompanion removeCoParent", err);
+      }
+    }
   },
 
   /**
@@ -355,6 +462,27 @@ export const ParentCompanionService = {
   async getLinksForCompanion(
     companionId: Types.ObjectId,
   ): Promise<CompanionParentLink[]> {
+    if (isReadFromPostgres()) {
+      const links = await prisma.parentCompanion.findMany({
+        where: { companionId: companionId.toString() },
+      });
+      const parentIds = Array.from(new Set(links.map((l) => l.parentId)));
+      const parents = await prisma.parent.findMany({
+        where: { id: { in: parentIds } },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phoneNumber: true,
+          profileImageUrl: true,
+        },
+      });
+      const parentMap = new Map(parents.map((p) => [p.id, p]));
+      return links.map((link) =>
+        toCompanionParentLinkFromPrisma(link, parentMap.get(link.parentId)),
+      );
+    }
     const documents = await ParentCompanionModel.find({ companionId }, null, {
       sanitizeFilter: true,
     }).populate(
@@ -371,6 +499,12 @@ export const ParentCompanionService = {
   async getLinksForParent(
     parentId: Types.ObjectId,
   ): Promise<CompanionParentLink[]> {
+    if (isReadFromPostgres()) {
+      const links = await prisma.parentCompanion.findMany({
+        where: { parentId: parentId.toString() },
+      });
+      return links.map((link) => toCompanionParentLinkFromPrisma(link));
+    }
     const documents = await ParentCompanionModel.find({ parentId }, null, {
       lean: false,
       sanitizeFilter: true,
@@ -386,6 +520,16 @@ export const ParentCompanionService = {
   async getActiveCompanionIdsForParent(
     parentId: Types.ObjectId,
   ): Promise<Types.ObjectId[]> {
+    if (isReadFromPostgres()) {
+      const links = await prisma.parentCompanion.findMany({
+        where: {
+          parentId: parentId.toString(),
+          status: { in: ["ACTIVE", "PENDING"] },
+        },
+        select: { companionId: true },
+      });
+      return links.map((link) => new Types.ObjectId(link.companionId));
+    }
     const documents = await ParentCompanionModel.find(
       { parentId, status: { $in: ["ACTIVE", "PENDING"] } },
       { companionId: 1 },
@@ -399,6 +543,12 @@ export const ParentCompanionService = {
    * Useful before deleting a parent record.
    */
   async hasAnyLinks(parentId: Types.ObjectId): Promise<boolean> {
+    if (isReadFromPostgres()) {
+      const count = await prisma.parentCompanion.count({
+        where: { parentId: parentId.toString() },
+      });
+      return count > 0;
+    }
     const count = await ParentCompanionModel.countDocuments({ parentId });
     return count > 0;
   },
@@ -409,6 +559,16 @@ export const ParentCompanionService = {
    */
   async deleteLinksForCompanion(companionId: Types.ObjectId): Promise<number> {
     const result = await ParentCompanionModel.deleteMany({ companionId });
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.parentCompanion.deleteMany({
+          where: { companionId: companionId.toString() },
+        });
+      } catch (err) {
+        handleDualWriteError("ParentCompanion deleteLinksForCompanion", err);
+      }
+    }
     return result.deletedCount ?? 0;
   },
 
@@ -418,6 +578,16 @@ export const ParentCompanionService = {
    */
   async deleteLinksForParent(parentId: Types.ObjectId): Promise<number> {
     const result = await ParentCompanionModel.deleteMany({ parentId });
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.parentCompanion.deleteMany({
+          where: { parentId: parentId.toString() },
+        });
+      } catch (err) {
+        handleDualWriteError("ParentCompanion deleteLinksForParent", err);
+      }
+    }
     return result.deletedCount ?? 0;
   },
 
@@ -430,6 +600,24 @@ export const ParentCompanionService = {
     parentId: Types.ObjectId,
     companionId: Types.ObjectId,
   ): Promise<void> {
+    if (isReadFromPostgres()) {
+      const link = await prisma.parentCompanion.findFirst({
+        where: {
+          parentId: parentId.toString(),
+          companionId: companionId.toString(),
+          role: "PRIMARY",
+          status: "ACTIVE",
+        },
+        select: { id: true },
+      });
+      if (!link) {
+        throw new ParentCompanionServiceError(
+          "You are not authorized to modify this companion.",
+          403,
+        );
+      }
+      return;
+    }
     const link = await ParentCompanionModel.findOne(
       { parentId, companionId, role: "PRIMARY", status: "ACTIVE" },
       null,

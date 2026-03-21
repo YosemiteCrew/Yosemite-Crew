@@ -1,25 +1,28 @@
-import EditableAccordion from "@/app/ui/primitives/Accordion/EditableAccordion";
-import { Secondary } from "@/app/ui/primitives/Buttons";
-import Close from "@/app/ui/primitives/Icons/Close";
-import Modal from "@/app/ui/overlays/Modal";
-import { useAppointmentsForPrimaryOrg } from "@/app/hooks/useAppointments";
-import { useCurrencyForPrimaryOrg } from "@/app/hooks/useBilling";
-import { formatDateLabel } from "@/app/lib/forms";
-import { formatMoney } from "@/app/lib/money";
-import { Invoice } from "@yosemite-crew/types";
-import React, { useMemo } from "react";
+import EditableAccordion from '@/app/ui/primitives/Accordion/EditableAccordion';
+import { Secondary } from '@/app/ui/primitives/Buttons';
+import Close from '@/app/ui/primitives/Icons/Close';
+import Modal from '@/app/ui/overlays/Modal';
+import { useAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
+import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
+import { formatDateLabel } from '@/app/lib/forms';
+import { formatMoney } from '@/app/lib/money';
+import { getAppointmentByIdFromList } from '@/app/lib/invoice';
+import { getInvoicePaymentMethodLabel } from '@/app/lib/invoicePaymentMethod';
+import { Invoice } from '@yosemite-crew/types';
+import React, { useMemo } from 'react';
 
 const CompanionFields = [
-  { label: "Pet", key: "pet", type: "text" },
-  { label: "Parent", key: "parent", type: "text" },
-  { label: "Service", key: "service", type: "text" },
+  { label: 'Pet', key: 'pet', type: 'text' },
+  { label: 'Parent', key: 'parent', type: 'text' },
+  { label: 'Service', key: 'service', type: 'text' },
 ];
 const InvoiceFields = [
-  { label: "Sub-total", key: "subTotal", type: "text" },
-  { label: "Discount", key: "discount", type: "text" },
-  { label: "Tax", key: "tax", type: "text" },
-  { label: "Total", key: "total", type: "text" },
-  { label: "Date", key: "date", type: "text" },
+  { label: 'Sub-total', key: 'subTotal', type: 'text' },
+  { label: 'Discount', key: 'discount', type: 'text' },
+  { label: 'Tax', key: 'tax', type: 'text' },
+  { label: 'Total', key: 'total', type: 'text' },
+  { label: 'Date', key: 'date', type: 'text' },
+  { label: 'Payment', key: 'paymentMethod', type: 'text' },
 ];
 
 type InvoiceInfoProps = {
@@ -28,35 +31,27 @@ type InvoiceInfoProps = {
   activeInvoice: Invoice | null;
 };
 
-const InvoiceInfo = ({
-  showModal,
-  setShowModal,
-  activeInvoice,
-}: InvoiceInfoProps) => {
+const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProps) => {
   const appointments = useAppointmentsForPrimaryOrg();
   const currency = useCurrencyForPrimaryOrg();
 
-  const handleGenerate = () => {};
-
   const handleDownload = (link: string | undefined) => {
-    window.open(link, "_blank");
+    globalThis.open(link, '_blank');
   };
 
   const appointmentInfoData = useMemo(() => {
-    const appointment = appointments.filter(
-      (a) => a.id === activeInvoice?.appointmentId,
-    );
-    if (appointment.length > 0) {
+    const appointment = getAppointmentByIdFromList(appointments, activeInvoice?.appointmentId);
+    if (appointment) {
       return {
-        pet: appointment[0].companion.name,
-        parent: appointment[0].companion.parent.name,
-        service: appointment[0].appointmentType?.name,
+        pet: appointment.companion.name,
+        parent: appointment.companion.parent.name,
+        service: appointment.appointmentType?.name,
       };
     }
     return {
-      pet: "-",
-      parent: "-",
-      service: "-",
+      pet: '-',
+      parent: '-',
+      service: '-',
     };
   }, [activeInvoice, appointments]);
 
@@ -67,9 +62,19 @@ const InvoiceInfo = ({
       tax: formatMoney(activeInvoice?.taxTotal ?? 0, currency),
       total: formatMoney(activeInvoice?.totalAmount ?? 0, currency),
       date: formatDateLabel(activeInvoice?.createdAt),
+      paymentMethod: getInvoicePaymentMethodLabel(activeInvoice),
     }),
-    [activeInvoice, currency],
+    [activeInvoice, currency]
   );
+
+  const paymentCollectionMethod = String(
+    (activeInvoice as any)?.paymentCollectionMethod ?? ''
+  ).toUpperCase();
+  const showDownload = Boolean(activeInvoice?.stripeReceiptUrl);
+  const showGenerateLink =
+    !showDownload &&
+    paymentCollectionMethod !== 'PAYMENT_AT_CLINIC' &&
+    activeInvoice?.status !== 'PAID';
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
@@ -86,16 +91,16 @@ const InvoiceInfo = ({
         <div className="flex overflow-y-auto flex-1 justify-between flex-col gap-6 w-full scrollbar-hidden">
           <div className="flex flex-col gap-6 w-full">
             <EditableAccordion
-              key={"Appointments-key"}
-              title={"Appointments details"}
+              key={'Appointments-key'}
+              title={'Appointments details'}
               fields={CompanionFields}
               data={appointmentInfoData}
               defaultOpen={true}
               showEditIcon={false}
             />
             <EditableAccordion
-              key={"Payments-key"}
-              title={"Payment details"}
+              key={'Payments-key'}
+              title={'Payment details'}
               fields={InvoiceFields}
               data={paymentInfoData}
               defaultOpen={true}
@@ -103,18 +108,17 @@ const InvoiceInfo = ({
             />
           </div>
           <div className="flex flex-col gap-3 mt-2">
-            {activeInvoice?.stripeReceiptUrl ? (
+            {showDownload && (
               <Secondary
                 text="Download"
                 href=""
-                onClick={() => handleDownload(activeInvoice.stripeReceiptUrl)}
+                onClick={() => handleDownload(activeInvoice?.stripeReceiptUrl)}
               />
-            ) : (
-              <Secondary
-                text="Generate link"
-                href="#"
-                onClick={handleGenerate}
-              />
+            )}
+            {!showDownload && showGenerateLink && (
+              <div className="text-caption-1 text-text-secondary">
+                Payment link actions are available from the appointment finance flow.
+              </div>
             )}
           </div>
         </div>

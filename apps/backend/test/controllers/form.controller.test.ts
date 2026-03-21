@@ -1,21 +1,23 @@
-import { jest, describe, it, expect, beforeEach } from "@jest/globals";
-import { Request, Response } from "express";
-// IMPORTS: Up 2 levels if file is directly in test/controllers/
 import { FormController } from "../../src/controllers/web/form.controller";
-import { FormService } from "../../src/services/form.service";
+import { FormService, FormServiceError } from "../../src/services/form.service";
 import { AuthUserMobileService } from "../../src/services/authUserMobile.service";
 import logger from "../../src/utils/logger";
 
-// ----------------------------------------------------------------------
-// 1. Mock Setup
-// ----------------------------------------------------------------------
+// --- Global Mocks Setup (TDZ Safe) ---
 jest.mock("../../src/services/form.service", () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const actual = jest.requireActual(
-    "../../src/services/form.service",
-  ) as unknown as any;
+  class MockFormServiceError extends Error {
+    constructor(
+      message: string,
+      public statusCode: number,
+    ) {
+      super(message);
+      this.name = "FormServiceError";
+    }
+  }
+
   return {
-    ...actual,
+    __esModule: true,
+    FormServiceError: MockFormServiceError,
     FormService: {
       create: jest.fn(),
       getFormForAdmin: jest.fn(),
@@ -36,606 +38,710 @@ jest.mock("../../src/services/form.service", () => {
   };
 });
 
-jest.mock("../../src/services/authUserMobile.service");
-jest.mock("../../src/utils/logger");
+jest.mock("../../src/services/authUserMobile.service", () => ({
+  __esModule: true,
+  AuthUserMobileService: {
+    getByProviderUserId: jest.fn(),
+  },
+}));
 
-// Retrieve the REAL Error class
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const { FormServiceError } = jest.requireActual(
-  "../../src/services/form.service",
-) as unknown as any;
-
-// ----------------------------------------------------------------------
-// 2. Typed Mocks
-// ----------------------------------------------------------------------
-const mockedFormService = jest.mocked(FormService);
-const mockedAuthMobileService = jest.mocked(AuthUserMobileService);
-const mockedLogger = jest.mocked(logger);
+jest.mock("../../src/utils/logger", () => ({
+  __esModule: true,
+  default: {
+    error: jest.fn(),
+  },
+}));
 
 describe("FormController", () => {
-  let req: Partial<Request>;
-  let res: Partial<Response>;
-  let jsonMock: jest.Mock;
-  let statusMock: jest.Mock;
-  let sendMock: jest.Mock;
-  let setHeaderMock: jest.Mock;
+  let req: any;
+  let res: any;
 
   beforeEach(() => {
-    jsonMock = jest.fn();
-    sendMock = jest.fn();
-    setHeaderMock = jest.fn();
-    statusMock = jest.fn().mockReturnValue({ json: jsonMock, send: sendMock });
+    jest.clearAllMocks();
 
     req = {
-      headers: {},
       params: {},
-      body: {},
       query: {},
+      body: {},
+      headers: {},
+      userId: "auth_user_123", // By default authenticated via middleware
     };
 
     res = {
-      status: statusMock,
-      json: jsonMock,
-      send: sendMock,
-      setHeader: setHeaderMock,
-    } as unknown as Response;
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+      send: jest.fn(),
+      setHeader: jest.fn(),
+    };
 
-    jest.clearAllMocks();
+    // Suppress console.error in tests to keep output clean for routes using it instead of logger
+    jest.spyOn(console, "error").mockImplementation(() => {});
   });
 
-  // ----------------------------------------------------------------------
-  // 3. Error Helpers (FIXED: Cast to ANY)
-  // ----------------------------------------------------------------------
-  const mockServiceError = (
-    method: keyof typeof FormService,
-    status = 400,
-    msg = "Service Error",
-  ) => {
-    const error = new FormServiceError(msg, status);
-    // FIX: Cast to 'any' to completely bypass strict TS 'never' checks
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (mockedFormService[method] as any).mockRejectedValue(error);
-  };
+  afterAll(() => {
+    jest.restoreAllMocks();
+  });
 
-  const mockGenericError = (method: keyof typeof FormService) => {
-    // FIX: Cast to 'any'
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (mockedFormService[method] as any).mockRejectedValue(new Error("Boom"));
-  };
+  describe("Internal Helper (resolveUserIdFromRequest)", () => {
+    it("should use x-user-id header if available", async () => {
+      req.headers["x-user-id"] = "header_user_id";
+      req.params.orgId = "org1";
+      req.body = { title: "Test Form" };
 
-  // ----------------------------------------------------------------------
-  // 4. Tests
-  // ----------------------------------------------------------------------
+      await FormController.createForm(req, res);
+
+      expect(FormService.create).toHaveBeenCalledWith(
+        "org1",
+        req.body,
+        "header_user_id",
+      );
+    });
+
+    it("should fall back to authReq.userId if header is missing", async () => {
+      req.params.orgId = "org1";
+      req.body = { title: "Test Form" };
+
+      await FormController.createForm(req, res);
+
+      expect(FormService.create).toHaveBeenCalledWith(
+        "org1",
+        req.body,
+        "auth_user_123",
+      );
+    });
+
+    it("should return undefined if neither is present (triggers 401)", async () => {
+      req.headers = {};
+      req.userId = undefined;
+      req.params.orgId = "org1";
+
+      await FormController.createForm(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Unauthorized: User ID missing",
+      });
+    });
+  });
 
   describe("createForm", () => {
-    it("should 401 if user not authenticated", async () => {
-      await FormController.createForm(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(401);
-    });
-
-    it("should success (201)", async () => {
-      (req as any).userId = "u1";
-      req.params = { orgId: "o1" };
+    it("should return 201 and the created form", async () => {
+      req.params.orgId = "org1";
       req.body = { title: "New Form" };
-      mockedFormService.create.mockResolvedValue({ id: "f1" } as any);
+      (FormService.create as jest.Mock).mockResolvedValue({ id: "form1" });
 
-      await FormController.createForm(req as any, res as Response);
+      await FormController.createForm(req, res);
 
-      expect(mockedFormService.create).toHaveBeenCalledWith(
-        "o1",
+      expect(FormService.create).toHaveBeenCalledWith(
+        "org1",
         req.body,
-        "u1",
+        "auth_user_123",
       );
-      expect(statusMock).toHaveBeenCalledWith(201);
-      expect(jsonMock).toHaveBeenCalledWith({ id: "f1" });
+      expect(res.status).toHaveBeenCalledWith(201);
+      expect(res.json).toHaveBeenCalledWith({ id: "form1" });
     });
 
-    it("should handle service error", async () => {
-      (req as any).userId = "u1";
-      mockServiceError("create", 400);
-      await FormController.createForm(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(400);
+    it("should handle FormServiceError", async () => {
+      req.params.orgId = "org1";
+      (FormService.create as jest.Mock).mockRejectedValue(
+        new FormServiceError("Bad Request", 400),
+      );
+
+      await FormController.createForm(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ message: "Bad Request" });
     });
 
-    it("should handle generic error", async () => {
-      (req as any).userId = "u1";
-      mockGenericError("create");
-      await FormController.createForm(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(500);
+    it("should handle generic errors", async () => {
+      req.params.orgId = "org1";
+      (FormService.create as jest.Mock).mockRejectedValue(
+        new Error("Unknown DB Error"),
+      );
+
+      await FormController.createForm(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Internal Server Error",
+      });
+      expect(logger.error).toHaveBeenCalled();
     });
   });
 
   describe("getFormForAdmin", () => {
-    it("should success (200)", async () => {
-      req.params = { orgId: "o1", formId: "f1" };
-      mockedFormService.getFormForAdmin.mockResolvedValue({} as any);
+    it("should return 200 and the form", async () => {
+      req.params = { orgId: "org1", formId: "f1" };
+      (FormService.getFormForAdmin as jest.Mock).mockResolvedValue({
+        id: "f1",
+      });
 
-      await FormController.getFormForAdmin(req as any, res as Response);
-      expect(mockedFormService.getFormForAdmin).toHaveBeenCalledWith(
-        "o1",
-        "f1",
+      await FormController.getFormForAdmin(req, res);
+
+      expect(FormService.getFormForAdmin).toHaveBeenCalledWith("org1", "f1");
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({ id: "f1" });
+    });
+
+    it("should handle FormServiceError and generic errors", async () => {
+      req.params = { orgId: "org1", formId: "f1" };
+
+      (FormService.getFormForAdmin as jest.Mock).mockRejectedValue(
+        new FormServiceError("Not Found", 404),
       );
-      expect(statusMock).toHaveBeenCalledWith(200);
-    });
+      await FormController.getFormForAdmin(req, res);
+      expect(res.status).toHaveBeenCalledWith(404);
 
-    it("should handle service error", async () => {
-      mockServiceError("getFormForAdmin", 404);
-      await FormController.getFormForAdmin(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(404);
-    });
-
-    it("should handle generic error", async () => {
-      mockGenericError("getFormForAdmin");
-      await FormController.getFormForAdmin(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(500);
+      (FormService.getFormForAdmin as jest.Mock).mockRejectedValue(
+        new Error("Test error"),
+      );
+      await FormController.getFormForAdmin(req, res);
+      expect(res.status).toHaveBeenCalledWith(500);
     });
   });
 
   describe("getFormListForOrganisation", () => {
-    it("should success (200)", async () => {
-      req.params = { orgId: "o1" };
-      mockedFormService.listFormsForOrganisation.mockResolvedValue([] as any);
+    it("should return 200 and the form list", async () => {
+      req.params.orgId = "org1";
+      (FormService.listFormsForOrganisation as jest.Mock).mockResolvedValue([
+        { id: "f1" },
+      ]);
 
-      await FormController.getFormListForOrganisation(
-        req as any,
-        res as Response,
-      );
-      expect(mockedFormService.listFormsForOrganisation).toHaveBeenCalledWith(
-        "o1",
-      );
-      expect(statusMock).toHaveBeenCalledWith(200);
+      await FormController.getFormListForOrganisation(req, res);
+
+      expect(FormService.listFormsForOrganisation).toHaveBeenCalledWith("org1");
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith([{ id: "f1" }]);
     });
 
-    it("should handle service error", async () => {
-      mockServiceError("listFormsForOrganisation", 400);
-      await FormController.getFormListForOrganisation(
-        req as any,
-        res as Response,
-      );
-      expect(statusMock).toHaveBeenCalledWith(400);
-    });
+    it("should handle FormServiceError and generic errors", async () => {
+      req.params.orgId = "org1";
 
-    it("should handle generic error", async () => {
-      mockGenericError("listFormsForOrganisation");
-      await FormController.getFormListForOrganisation(
-        req as any,
-        res as Response,
+      (FormService.listFormsForOrganisation as jest.Mock).mockRejectedValue(
+        new FormServiceError("Bad Request", 400),
       );
-      expect(statusMock).toHaveBeenCalledWith(500);
+      await FormController.getFormListForOrganisation(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+
+      (FormService.listFormsForOrganisation as jest.Mock).mockRejectedValue(
+        new Error("Test error"),
+      );
+      await FormController.getFormListForOrganisation(req, res);
+      expect(res.status).toHaveBeenCalledWith(500);
     });
   });
 
   describe("getFormForClient", () => {
-    it("should success (200)", async () => {
-      req.params = { formId: "f1" };
-      mockedFormService.getFormForUser.mockResolvedValue({} as any);
+    it("should return 200 and the form", async () => {
+      req.params.formId = "f1";
+      (FormService.getFormForUser as jest.Mock).mockResolvedValue({ id: "f1" });
 
-      await FormController.getFormForClient(req as any, res as Response);
-      expect(mockedFormService.getFormForUser).toHaveBeenCalledWith("f1");
-      expect(statusMock).toHaveBeenCalledWith(200);
+      await FormController.getFormForClient(req, res);
+
+      expect(FormService.getFormForUser).toHaveBeenCalledWith("f1");
+      expect(res.status).toHaveBeenCalledWith(200);
     });
 
-    it("should handle service error", async () => {
-      mockServiceError("getFormForUser", 404);
-      await FormController.getFormForClient(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(404);
-    });
+    it("should handle FormServiceError and generic errors", async () => {
+      req.params.formId = "f1";
 
-    it("should handle generic error", async () => {
-      mockGenericError("getFormForUser");
-      await FormController.getFormForClient(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(500);
+      (FormService.getFormForUser as jest.Mock).mockRejectedValue(
+        new FormServiceError("Not Found", 404),
+      );
+      await FormController.getFormForClient(req, res);
+      expect(res.status).toHaveBeenCalledWith(404);
+
+      (FormService.getFormForUser as jest.Mock).mockRejectedValue(
+        new Error("Test error"),
+      );
+      await FormController.getFormForClient(req, res);
+      expect(res.status).toHaveBeenCalledWith(500);
     });
   });
 
   describe("updateForm", () => {
-    it("should 401 if not auth", async () => {
-      await FormController.updateForm(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(401);
+    it("should return 401 if user ID is missing", async () => {
+      req.userId = null;
+      await FormController.updateForm(req, res);
+      expect(res.status).toHaveBeenCalledWith(401);
     });
 
-    it("should success (200)", async () => {
-      (req as any).userId = "u1";
-      req.params = { formId: "f1", orgId: "o1" };
+    it("should return 200 and update the form", async () => {
+      req.params = { formId: "f1", orgId: "org1" };
       req.body = { title: "Updated" };
-      mockedFormService.update.mockResolvedValue({} as any);
+      (FormService.update as jest.Mock).mockResolvedValue({
+        id: "f1",
+        title: "Updated",
+      });
 
-      await FormController.updateForm(req as any, res as Response);
-      expect(mockedFormService.update).toHaveBeenCalledWith(
+      await FormController.updateForm(req, res);
+
+      expect(FormService.update).toHaveBeenCalledWith(
         "f1",
         req.body,
-        "u1",
-        "o1",
+        "auth_user_123",
+        "org1",
       );
-      expect(statusMock).toHaveBeenCalledWith(200);
+      expect(res.status).toHaveBeenCalledWith(200);
     });
 
-    it("should handle service error", async () => {
-      (req as any).userId = "u1";
-      mockServiceError("update", 400);
-      await FormController.updateForm(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(400);
-    });
+    it("should handle FormServiceError and generic errors", async () => {
+      req.params = { formId: "f1", orgId: "org1" };
 
-    it("should handle generic error", async () => {
-      (req as any).userId = "u1";
-      mockGenericError("update");
-      await FormController.updateForm(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(500);
+      (FormService.update as jest.Mock).mockRejectedValue(
+        new FormServiceError("Denied", 403),
+      );
+      await FormController.updateForm(req, res);
+      expect(res.status).toHaveBeenCalledWith(403);
+
+      (FormService.update as jest.Mock).mockRejectedValue(
+        new Error("Test error"),
+      );
+      await FormController.updateForm(req, res);
+      expect(res.status).toHaveBeenCalledWith(500);
     });
   });
 
   describe("publishForm", () => {
-    it("should 401 if not auth", async () => {
-      await FormController.publishForm(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(401);
+    it("should return 401 if user ID is missing", async () => {
+      req.userId = null;
+      await FormController.publishForm(req, res);
+      expect(res.status).toHaveBeenCalledWith(401);
     });
 
-    it("should success (200)", async () => {
-      (req as any).userId = "u1";
-      req.params = { formId: "f1" };
-      mockedFormService.publish.mockResolvedValue({} as any);
+    it("should return 200 and publish the form", async () => {
+      req.params.formId = "f1";
+      (FormService.publish as jest.Mock).mockResolvedValue({
+        id: "f1",
+        status: "PUBLISHED",
+      });
 
-      await FormController.publishForm(req as any, res as Response);
-      expect(mockedFormService.publish).toHaveBeenCalledWith("f1", "u1");
-      expect(statusMock).toHaveBeenCalledWith(200);
+      await FormController.publishForm(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(200);
     });
 
-    it("should handle service error", async () => {
-      (req as any).userId = "u1";
-      mockServiceError("publish", 400);
-      await FormController.publishForm(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(400);
-    });
+    it("should handle errors", async () => {
+      req.params.formId = "f1";
 
-    it("should handle generic error", async () => {
-      (req as any).userId = "u1";
-      mockGenericError("publish");
-      await FormController.publishForm(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(500);
+      (FormService.publish as jest.Mock).mockRejectedValue(
+        new FormServiceError("Error", 400),
+      );
+      await FormController.publishForm(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+
+      (FormService.publish as jest.Mock).mockRejectedValue(
+        new Error("Test error"),
+      );
+      await FormController.publishForm(req, res);
+      expect(res.status).toHaveBeenCalledWith(500);
     });
   });
 
   describe("unpublishForm", () => {
-    it("should 401 if not auth", async () => {
-      await FormController.unpublishForm(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(401);
+    it("should return 401 if user ID is missing", async () => {
+      req.userId = null;
+      await FormController.unpublishForm(req, res);
+      expect(res.status).toHaveBeenCalledWith(401);
     });
 
-    it("should success (200)", async () => {
-      (req as any).userId = "u1";
-      req.params = { formId: "f1" };
-      mockedFormService.unpublish.mockResolvedValue({} as any);
+    it("should return 200 and unpublish the form", async () => {
+      req.params.formId = "f1";
+      (FormService.unpublish as jest.Mock).mockResolvedValue({
+        id: "f1",
+        status: "DRAFT",
+      });
 
-      await FormController.unpublishForm(req as any, res as Response);
-      expect(mockedFormService.unpublish).toHaveBeenCalledWith("f1", "u1");
-      expect(statusMock).toHaveBeenCalledWith(200);
+      await FormController.unpublishForm(req, res);
+
+      expect(FormService.unpublish).toHaveBeenCalledWith("f1", "auth_user_123");
+      expect(res.status).toHaveBeenCalledWith(200);
     });
 
-    it("should handle service error", async () => {
-      (req as any).userId = "u1";
-      mockServiceError("unpublish", 400);
-      await FormController.unpublishForm(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(400);
-    });
+    it("should handle errors", async () => {
+      req.params.formId = "f1";
 
-    it("should handle generic error", async () => {
-      (req as any).userId = "u1";
-      mockGenericError("unpublish");
-      await FormController.unpublishForm(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(500);
+      (FormService.unpublish as jest.Mock).mockRejectedValue(
+        new FormServiceError("Error", 400),
+      );
+      await FormController.unpublishForm(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+
+      (FormService.unpublish as jest.Mock).mockRejectedValue(
+        new Error("Test error"),
+      );
+      await FormController.unpublishForm(req, res);
+      expect(res.status).toHaveBeenCalledWith(500);
     });
   });
 
   describe("archiveForm", () => {
-    it("should 401 if not auth", async () => {
-      await FormController.archiveForm(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(401);
+    it("should return 401 if user ID is missing", async () => {
+      req.userId = null;
+      await FormController.archiveForm(req, res);
+      expect(res.status).toHaveBeenCalledWith(401);
     });
 
-    it("should success (200)", async () => {
-      (req as any).userId = "u1";
-      req.params = { formId: "f1" };
-      mockedFormService.archive.mockResolvedValue({} as any);
+    it("should return 200 and archive the form", async () => {
+      req.params.formId = "f1";
+      (FormService.archive as jest.Mock).mockResolvedValue({
+        id: "f1",
+        status: "ARCHIVED",
+      });
 
-      await FormController.archiveForm(req as any, res as Response);
-      expect(mockedFormService.archive).toHaveBeenCalledWith("f1", "u1");
-      expect(statusMock).toHaveBeenCalledWith(200);
+      await FormController.archiveForm(req, res);
+
+      expect(FormService.archive).toHaveBeenCalledWith("f1", "auth_user_123");
+      expect(res.status).toHaveBeenCalledWith(200);
     });
 
-    it("should handle service error", async () => {
-      (req as any).userId = "u1";
-      mockServiceError("archive", 400);
-      await FormController.archiveForm(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(400);
-    });
+    it("should handle errors", async () => {
+      req.params.formId = "f1";
 
-    it("should handle generic error", async () => {
-      (req as any).userId = "u1";
-      mockGenericError("archive");
-      await FormController.archiveForm(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(500);
+      (FormService.archive as jest.Mock).mockRejectedValue(
+        new FormServiceError("Error", 404),
+      );
+      await FormController.archiveForm(req, res);
+      expect(res.status).toHaveBeenCalledWith(404);
+
+      (FormService.archive as jest.Mock).mockRejectedValue(
+        new Error("Test error"),
+      );
+      await FormController.archiveForm(req, res);
+      expect(res.status).toHaveBeenCalledWith(500);
     });
   });
 
   describe("submitForm", () => {
-    it("should 401 if not auth in DB", async () => {
-      (req as any).userId = "u1";
-      mockedAuthMobileService.getByProviderUserId.mockResolvedValue(null);
+    it("should return 401 if AuthUser is not found in database", async () => {
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue(null);
 
-      await FormController.submitForm(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(401);
+      await FormController.submitForm(req, res);
+
+      expect(AuthUserMobileService.getByProviderUserId).toHaveBeenCalledWith(
+        "auth_user_123",
+      );
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Unauthorized: User not found",
+      });
     });
 
-    it("should success (201)", async () => {
-      req.headers = { "x-user-id": "u1" };
-      mockedAuthMobileService.getByProviderUserId.mockResolvedValue({} as any);
-      req.body = { questionnaireId: "q1" };
-      mockedFormService.submitFHIR.mockResolvedValue({ id: "s1" } as any);
+    it("should return 201 on successful submission", async () => {
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({ id: "u1" });
+      req.body = { answers: {} };
+      (FormService.submitFHIR as jest.Mock).mockResolvedValue({ id: "sub1" });
 
-      await FormController.submitForm(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(201);
+      await FormController.submitForm(req, res);
+
+      expect(FormService.submitFHIR).toHaveBeenCalledWith(req.body);
+      expect(res.status).toHaveBeenCalledWith(201);
+      expect(res.json).toHaveBeenCalledWith({ id: "sub1" });
     });
 
-    it("should handle service error", async () => {
-      (req as any).userId = "u1";
-      mockedAuthMobileService.getByProviderUserId.mockResolvedValue({} as any);
-      mockServiceError("submitFHIR", 400);
+    it("should handle FormServiceError and generic errors", async () => {
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({ id: "u1" });
 
-      await FormController.submitForm(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(400);
-    });
+      (FormService.submitFHIR as jest.Mock).mockRejectedValue(
+        new FormServiceError("Error", 400),
+      );
+      await FormController.submitForm(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
 
-    it("should handle generic error", async () => {
-      (req as any).userId = "u1";
-      mockedAuthMobileService.getByProviderUserId.mockResolvedValue({} as any);
-      mockGenericError("submitFHIR");
-
-      await FormController.submitForm(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(500);
+      (FormService.submitFHIR as jest.Mock).mockRejectedValue(
+        new Error("Test error"),
+      );
+      await FormController.submitForm(req, res);
+      expect(res.status).toHaveBeenCalledWith(500);
     });
   });
 
   describe("submitFormFromPMS", () => {
-    it("should success (201)", async () => {
-      req.body = { questionnaireId: "q1" };
-      mockedFormService.submitFHIR.mockResolvedValue({ id: "s1" } as any);
+    it("should return 201 on successful submission", async () => {
+      req.body = { answers: {} };
+      (FormService.submitFHIR as jest.Mock).mockResolvedValue({ id: "sub1" });
 
-      await FormController.submitFormFromPMS(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(201);
+      await FormController.submitFormFromPMS(req, res);
+
+      expect(FormService.submitFHIR).toHaveBeenCalledWith(req.body);
+      expect(res.status).toHaveBeenCalledWith(201);
+      expect(res.json).toHaveBeenCalledWith({ id: "sub1" });
     });
 
-    it("should handle service error", async () => {
-      mockServiceError("submitFHIR", 400);
-      await FormController.submitFormFromPMS(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(400);
-    });
+    it("should handle FormServiceError and generic errors", async () => {
+      (FormService.submitFHIR as jest.Mock).mockRejectedValue(
+        new FormServiceError("Error", 400),
+      );
+      await FormController.submitFormFromPMS(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
 
-    it("should handle generic error", async () => {
-      mockGenericError("submitFHIR");
-      await FormController.submitFormFromPMS(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(500);
+      (FormService.submitFHIR as jest.Mock).mockRejectedValue(
+        new Error("Test error"),
+      );
+      await FormController.submitFormFromPMS(req, res);
+      expect(res.status).toHaveBeenCalledWith(500);
     });
   });
 
   describe("getFormSubmissions", () => {
-    it("should success (200)", async () => {
-      req.params = { formId: "f1" };
-      mockedFormService.getSubmission.mockResolvedValue({} as any);
+    it("should return 200 and the submission", async () => {
+      req.params.formId = "sub1"; // Note: Parameter is named formId but used as submissionId in code
+      (FormService.getSubmission as jest.Mock).mockResolvedValue({
+        id: "sub1",
+      });
 
-      await FormController.getFormSubmissions(req as any, res as Response);
-      expect(mockedFormService.getSubmission).toHaveBeenCalledWith("f1");
-      expect(statusMock).toHaveBeenCalledWith(200);
+      await FormController.getFormSubmissions(req, res);
+
+      expect(FormService.getSubmission).toHaveBeenCalledWith("sub1");
+      expect(res.status).toHaveBeenCalledWith(200);
     });
 
-    it("should handle service error", async () => {
-      mockServiceError("getSubmission", 404);
-      await FormController.getFormSubmissions(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(404);
-    });
+    it("should handle errors", async () => {
+      (FormService.getSubmission as jest.Mock).mockRejectedValue(
+        new FormServiceError("Not Found", 404),
+      );
+      await FormController.getFormSubmissions(req, res);
+      expect(res.status).toHaveBeenCalledWith(404);
 
-    it("should handle generic error", async () => {
-      mockGenericError("getSubmission");
-      await FormController.getFormSubmissions(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(500);
+      (FormService.getSubmission as jest.Mock).mockRejectedValue(
+        new Error("Test error"),
+      );
+      await FormController.getFormSubmissions(req, res);
+      expect(res.status).toHaveBeenCalledWith(500);
     });
   });
 
   describe("listFormSubmissions", () => {
-    it("should success (200)", async () => {
-      req.params = { formId: "f1" };
-      mockedFormService.listSubmissions.mockResolvedValue([] as any);
+    it("should return 200 and the submissions list", async () => {
+      req.params.formId = "f1";
+      (FormService.listSubmissions as jest.Mock).mockResolvedValue([
+        { id: "sub1" },
+      ]);
 
-      await FormController.listFormSubmissions(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(200);
+      await FormController.listFormSubmissions(req, res);
+
+      expect(FormService.listSubmissions).toHaveBeenCalledWith("f1");
+      expect(res.status).toHaveBeenCalledWith(200);
     });
 
-    it("should handle service error", async () => {
-      mockServiceError("listSubmissions", 400);
-      await FormController.listFormSubmissions(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(400);
-    });
+    it("should handle errors", async () => {
+      (FormService.listSubmissions as jest.Mock).mockRejectedValue(
+        new FormServiceError("Bad Request", 400),
+      );
+      await FormController.listFormSubmissions(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
 
-    it("should handle generic error", async () => {
-      mockGenericError("listSubmissions");
-      await FormController.listFormSubmissions(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(500);
+      (FormService.listSubmissions as jest.Mock).mockRejectedValue(
+        new Error("Test error"),
+      );
+      await FormController.listFormSubmissions(req, res);
+      expect(res.status).toHaveBeenCalledWith(500);
     });
   });
 
   describe("getSOAPNotesByAppointment", () => {
-    it("should success (200) with latestOnly true", async () => {
-      req.params = { appointmentId: "a1" };
+    it("should correctly parse latestOnly boolean and string values", async () => {
+      req.params.appointmentId = "a1";
+
+      // Test string "true"
       req.body = { latestOnly: "true" };
-      mockedFormService.getSOAPNotesByAppointment.mockResolvedValue([] as any);
+      (FormService.getSOAPNotesByAppointment as jest.Mock).mockResolvedValue(
+        [],
+      );
+      await FormController.getSOAPNotesByAppointment(req, res);
+      expect(FormService.getSOAPNotesByAppointment).toHaveBeenCalledWith("a1", {
+        latestOnly: true,
+      });
 
-      await FormController.getSOAPNotesByAppointment(
-        req as any,
-        res as Response,
-      );
-      expect(mockedFormService.getSOAPNotesByAppointment).toHaveBeenCalledWith(
-        "a1",
-        { latestOnly: true },
-      );
-      expect(statusMock).toHaveBeenCalledWith(200);
+      // Test boolean true
+      req.body = { latestOnly: true };
+      await FormController.getSOAPNotesByAppointment(req, res);
+      expect(FormService.getSOAPNotesByAppointment).toHaveBeenCalledWith("a1", {
+        latestOnly: true,
+      });
+
+      // Test falsy / missing
+      req.body = {};
+      await FormController.getSOAPNotesByAppointment(req, res);
+      expect(FormService.getSOAPNotesByAppointment).toHaveBeenCalledWith("a1", {
+        latestOnly: false,
+      });
+
+      expect(res.status).toHaveBeenCalledWith(200);
     });
 
-    it("should success (200) with latestOnly false", async () => {
-      req.params = { appointmentId: "a1" };
-      req.body = { latestOnly: "false" };
-      mockedFormService.getSOAPNotesByAppointment.mockResolvedValue([] as any);
+    it("should handle FormServiceError and generic errors", async () => {
+      req.params.appointmentId = "a1";
 
-      await FormController.getSOAPNotesByAppointment(
-        req as any,
-        res as Response,
+      (FormService.getSOAPNotesByAppointment as jest.Mock).mockRejectedValue(
+        new FormServiceError("Not found", 404),
       );
-      expect(mockedFormService.getSOAPNotesByAppointment).toHaveBeenCalledWith(
-        "a1",
-        { latestOnly: false },
-      );
-      expect(statusMock).toHaveBeenCalledWith(200);
-    });
+      await FormController.getSOAPNotesByAppointment(req, res);
+      expect(res.status).toHaveBeenCalledWith(404);
 
-    it("should handle service error", async () => {
-      mockServiceError("getSOAPNotesByAppointment", 400);
-      await FormController.getSOAPNotesByAppointment(
-        req as any,
-        res as Response,
+      (FormService.getSOAPNotesByAppointment as jest.Mock).mockRejectedValue(
+        new Error("Test error"),
       );
-      expect(statusMock).toHaveBeenCalledWith(400);
-    });
-
-    it("should handle generic error", async () => {
-      mockGenericError("getSOAPNotesByAppointment");
-      await FormController.getSOAPNotesByAppointment(
-        req as any,
-        res as Response,
-      );
-      expect(statusMock).toHaveBeenCalledWith(500);
+      await FormController.getSOAPNotesByAppointment(req, res);
+      expect(res.status).toHaveBeenCalledWith(500);
     });
   });
 
   describe("getConsentFormForParent", () => {
-    it("should success (200) with all params", async () => {
-      req.params = { organizationId: "o1", serivceId: "s1" };
-      req.query = { species: "dog" };
-      mockedFormService.getConsentFormForParent.mockResolvedValue([] as any);
+    it("should parse string species and call service correctly", async () => {
+      req.params = { organizationId: "org1", serivceId: "s1" }; // Typo in params matches controller
+      req.query = { species: "DOG" };
+      (FormService.getConsentFormForParent as jest.Mock).mockResolvedValue({
+        id: "form1",
+      });
 
-      await FormController.getConsentFormForParent(req as any, res as Response);
-      expect(mockedFormService.getConsentFormForParent).toHaveBeenCalledWith(
-        "o1",
-        { serviceId: "s1", species: "dog" },
+      await FormController.getConsentFormForParent(req, res);
+
+      expect(FormService.getConsentFormForParent).toHaveBeenCalledWith("org1", {
+        serviceId: "s1",
+        species: "DOG",
+      });
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it("should pass undefined for species if not string", async () => {
+      req.params = { organizationId: "org1", serivceId: "s1" };
+      req.query = { species: ["Array"] };
+
+      await FormController.getConsentFormForParent(req, res);
+      expect(FormService.getConsentFormForParent).toHaveBeenCalledWith("org1", {
+        serviceId: "s1",
+        species: undefined,
+      });
+    });
+
+    it("should handle FormServiceError and generic errors", async () => {
+      req.params = { organizationId: "org1", serivceId: "s1" };
+
+      (FormService.getConsentFormForParent as jest.Mock).mockRejectedValue(
+        new FormServiceError("Not found", 404),
       );
-      expect(statusMock).toHaveBeenCalledWith(200);
-    });
+      await FormController.getConsentFormForParent(req, res);
+      expect(res.status).toHaveBeenCalledWith(404);
 
-    it("should success (200) with undefined species", async () => {
-      req.params = { organizationId: "o1", serivceId: "s1" };
-      req.query = {};
-      mockedFormService.getConsentFormForParent.mockResolvedValue([] as any);
-
-      await FormController.getConsentFormForParent(req as any, res as Response);
-      expect(mockedFormService.getConsentFormForParent).toHaveBeenCalledWith(
-        "o1",
-        { serviceId: "s1", species: undefined },
+      (FormService.getConsentFormForParent as jest.Mock).mockRejectedValue(
+        new Error("Test error"),
       );
-      expect(statusMock).toHaveBeenCalledWith(200);
-    });
-
-    it("should handle service error", async () => {
-      mockServiceError("getConsentFormForParent", 400);
-      await FormController.getConsentFormForParent(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(400);
-    });
-
-    it("should handle generic error", async () => {
-      mockGenericError("getConsentFormForParent");
-      await FormController.getConsentFormForParent(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(500);
+      await FormController.getConsentFormForParent(req, res);
+      expect(res.status).toHaveBeenCalledWith(500);
     });
   });
 
   describe("getFormsForAppointment", () => {
-    it("should 400 if appointmentId missing", async () => {
-      req.params = {};
-      await FormController.getFormsForAppointment(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(400);
+    it("should return 400 if appointmentId is missing", async () => {
+      await FormController.getFormsForAppointment(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "appointmentId is required",
+      });
     });
 
-    it("should success (200) with full params", async () => {
-      req.params = { appointmentId: "a1" };
-      req.body = { serviceId: "s1", species: "cat" };
-      mockedFormService.getFormsForAppointment.mockResolvedValue([] as any);
+    it("should parse body values and call service", async () => {
+      req.params.appointmentId = "a1";
+      req.body = { serviceId: "s1", species: "CAT", isPMS: "true" };
+      (FormService.getFormsForAppointment as jest.Mock).mockResolvedValue([]);
 
-      await FormController.getFormsForAppointment(req as any, res as Response);
-      expect(mockedFormService.getFormsForAppointment).toHaveBeenCalledWith({
+      await FormController.getFormsForAppointment(req, res);
+
+      expect(FormService.getFormsForAppointment).toHaveBeenCalledWith({
         appointmentId: "a1",
         serviceId: "s1",
-        species: "cat",
+        species: "CAT",
+        isPMS: true,
       });
-      expect(statusMock).toHaveBeenCalledWith(200);
+      expect(res.status).toHaveBeenCalledWith(200);
     });
 
-    it("should success (200) with minimal params", async () => {
-      req.params = { appointmentId: "a1" };
-      req.body = {};
-      mockedFormService.getFormsForAppointment.mockResolvedValue([] as any);
+    it("should handle non-string / missing properties safely", async () => {
+      req.params.appointmentId = "a1";
+      req.body = { serviceId: 123, isPMS: false }; // Non-strings
 
-      await FormController.getFormsForAppointment(req as any, res as Response);
-      expect(mockedFormService.getFormsForAppointment).toHaveBeenCalledWith({
+      await FormController.getFormsForAppointment(req, res);
+
+      expect(FormService.getFormsForAppointment).toHaveBeenCalledWith({
         appointmentId: "a1",
         serviceId: undefined,
         species: undefined,
+        isPMS: undefined,
       });
-      expect(statusMock).toHaveBeenCalledWith(200);
     });
 
-    it("should handle service error", async () => {
-      req.params = { appointmentId: "a1" };
-      mockServiceError("getFormsForAppointment", 400);
-      await FormController.getFormsForAppointment(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(400);
-    });
+    it("should handle FormServiceError and generic errors", async () => {
+      req.params.appointmentId = "a1";
 
-    it("should handle generic error", async () => {
-      req.params = { appointmentId: "a1" };
-      mockGenericError("getFormsForAppointment");
-      await FormController.getFormsForAppointment(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(500);
+      (FormService.getFormsForAppointment as jest.Mock).mockRejectedValue(
+        new FormServiceError("Not found", 404),
+      );
+      await FormController.getFormsForAppointment(req, res);
+      expect(res.status).toHaveBeenCalledWith(404);
+
+      (FormService.getFormsForAppointment as jest.Mock).mockRejectedValue(
+        new Error("Test error"),
+      );
+      await FormController.getFormsForAppointment(req, res);
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(console.error).toHaveBeenCalled();
     });
   });
 
   describe("getFormSubmissionPDF", () => {
-    it("should success (200)", async () => {
-      req.params = { submissionId: "s1" };
-      const buffer = Buffer.from("pdf");
-      mockedFormService.generatePDFForSubmission.mockResolvedValue(buffer);
+    it("should return 400 if submissionId is missing or not a string", async () => {
+      req.params.submissionId = undefined;
+      await FormController.getFormSubmissionPDF(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
 
-      await FormController.getFormSubmissionPDF(req as any, res as Response);
+      req.params.submissionId = { id: 123 };
+      await FormController.getFormSubmissionPDF(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
 
+    it("should set headers and send PDF buffer on success", async () => {
+      req.params.submissionId = "sub1";
+      const mockBuffer = Buffer.from("pdf-data");
+      (FormService.generatePDFForSubmission as jest.Mock).mockResolvedValue(
+        mockBuffer,
+      );
+
+      await FormController.getFormSubmissionPDF(req, res);
+
+      expect(FormService.generatePDFForSubmission).toHaveBeenCalledWith("sub1");
       expect(res.setHeader).toHaveBeenCalledWith(
         "Content-Type",
         "application/pdf",
       );
       expect(res.setHeader).toHaveBeenCalledWith(
         "Content-Disposition",
-        expect.stringContaining("s1.pdf"),
+        'attachment; filename="form_submission_sub1.pdf"',
       );
-      expect(res.send).toHaveBeenCalledWith(buffer);
+      expect(res.send).toHaveBeenCalledWith(mockBuffer);
     });
 
-    it("should handle service error", async () => {
-      req.params = { submissionId: "s1" };
-      mockServiceError("generatePDFForSubmission", 404);
-      await FormController.getFormSubmissionPDF(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(404);
-    });
+    it("should handle FormServiceError and generic errors", async () => {
+      req.params.submissionId = "sub1";
 
-    it("should handle generic error", async () => {
-      req.params = { submissionId: "s1" };
-      mockGenericError("generatePDFForSubmission");
-      await FormController.getFormSubmissionPDF(req as any, res as Response);
-      expect(statusMock).toHaveBeenCalledWith(500);
+      (FormService.generatePDFForSubmission as jest.Mock).mockRejectedValue(
+        new FormServiceError("Not found", 404),
+      );
+      await FormController.getFormSubmissionPDF(req, res);
+      expect(res.status).toHaveBeenCalledWith(404);
+
+      (FormService.generatePDFForSubmission as jest.Mock).mockRejectedValue(
+        new Error("Test error"),
+      );
+      await FormController.getFormSubmissionPDF(req, res);
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(logger.error).toHaveBeenCalled();
     });
   });
 });

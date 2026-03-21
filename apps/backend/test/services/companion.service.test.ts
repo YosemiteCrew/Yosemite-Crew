@@ -1,8 +1,5 @@
 import { Types } from "mongoose";
-import {
-  CompanionService,
-  CompanionServiceError,
-} from "../../src/services/companion.service";
+import { CompanionService } from "../../src/services/companion.service";
 import CompanionModel from "../../src/models/companion";
 import CompanionOrganisationModel from "../../src/models/companion-organisation";
 import { ParentService } from "../../src/services/parent.service";
@@ -12,12 +9,32 @@ import {
 } from "../../src/services/parent-companion.service";
 import * as UploadMiddleware from "../../src/middlewares/upload";
 import { fromCompanionRequestDTO } from "@yosemite-crew/types";
+import { prisma } from "src/config/prisma";
 
 // --- Mocks ---
 jest.mock("../../src/models/companion");
 jest.mock("../../src/models/companion-organisation");
 jest.mock("../../src/services/parent.service");
 jest.mock("../../src/middlewares/upload");
+jest.mock("src/config/prisma", () => ({
+  prisma: {
+    parentCompanion: {
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    companion: {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      deleteMany: jest.fn(),
+      upsert: jest.fn(),
+    },
+    companionOrganisation: {
+      findMany: jest.fn(),
+    },
+  },
+}));
 
 // Partial Mock for ParentCompanionService to keep the Error class real
 jest.mock("../../src/services/parent-companion.service", () => {
@@ -78,6 +95,7 @@ describe("CompanionService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.READ_FROM_POSTGRES = "false";
   });
 
   describe("create", () => {
@@ -222,6 +240,48 @@ describe("CompanionService", () => {
       expect(result.responses).toHaveLength(1);
       expect(result.responses[0].name).toBe("Buddy");
     });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.parentCompanion.findMany as jest.Mock).mockResolvedValue([
+        { companionId: validCompanionId },
+      ]);
+      (prisma.companion.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: validCompanionId,
+          name: "Buddy",
+          type: "DOG",
+          breed: "Labrador",
+          dateOfBirth: new Date(),
+          gender: "MALE",
+          photoUrl: null,
+          currentWeight: null,
+          colour: null,
+          allergy: null,
+          bloodGroup: null,
+          isNeutered: null,
+          ageWhenNeutered: null,
+          microchipNumber: null,
+          passportNumber: null,
+          isInsured: false,
+          insurance: null,
+          countryOfOrigin: null,
+          source: null,
+          status: null,
+          physicalAttribute: null,
+          breedingInfo: null,
+          medicalRecords: null,
+          isProfileComplete: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ]);
+
+      const result = await CompanionService.listByParent(validParentId);
+
+      expect(result.responses).toHaveLength(1);
+      expect(result.responses[0].name).toBe("Buddy");
+    });
   });
 
   describe("listByParentNotInOrganisation", () => {
@@ -292,6 +352,55 @@ describe("CompanionService", () => {
       );
       expect(res.responses).toEqual([]);
     });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.parentCompanion.findMany as jest.Mock).mockResolvedValue([
+        { companionId: "c1" },
+        { companionId: "c2" },
+      ]);
+      (prisma.companionOrganisation.findMany as jest.Mock).mockResolvedValue([
+        { companionId: "c1" },
+      ]);
+      (prisma.companion.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: "c2",
+          name: "Unlinked",
+          type: "DOG",
+          breed: "Labrador",
+          dateOfBirth: new Date(),
+          gender: "MALE",
+          photoUrl: null,
+          currentWeight: null,
+          colour: null,
+          allergy: null,
+          bloodGroup: null,
+          isNeutered: null,
+          ageWhenNeutered: null,
+          microchipNumber: null,
+          passportNumber: null,
+          isInsured: false,
+          insurance: null,
+          countryOfOrigin: null,
+          source: null,
+          status: null,
+          physicalAttribute: null,
+          breedingInfo: null,
+          medicalRecords: null,
+          isProfileComplete: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ]);
+
+      const res = await CompanionService.listByParentNotInOrganisation(
+        "parent-any",
+        "org-any",
+      );
+
+      expect(res.responses).toHaveLength(1);
+      expect(res.responses[0].name).toBe("Unlinked");
+    });
   });
 
   describe("getById", () => {
@@ -309,6 +418,41 @@ describe("CompanionService", () => {
       const res = await CompanionService.getById(validObjectId);
       expect(res?.response.name).toBe("Buddy");
     });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.companion.findUnique as jest.Mock).mockResolvedValue({
+        id: validCompanionId,
+        name: "Buddy",
+        type: "DOG",
+        breed: "Labrador",
+        dateOfBirth: new Date(),
+        gender: "MALE",
+        photoUrl: null,
+        currentWeight: null,
+        colour: null,
+        allergy: null,
+        bloodGroup: null,
+        isNeutered: null,
+        ageWhenNeutered: null,
+        microchipNumber: null,
+        passportNumber: null,
+        isInsured: false,
+        insurance: null,
+        countryOfOrigin: null,
+        source: null,
+        status: null,
+        physicalAttribute: null,
+        breedingInfo: null,
+        medicalRecords: null,
+        isProfileComplete: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const res = await CompanionService.getById(validCompanionId);
+      expect(res?.response.name).toBe("Buddy");
+    });
   });
 
   describe("getByName", () => {
@@ -322,6 +466,111 @@ describe("CompanionService", () => {
       (CompanionModel.find as jest.Mock).mockResolvedValue([createMockDoc()]);
       const res = await CompanionService.getByName("Buddy");
       expect(res.responses).toHaveLength(1);
+    });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.companion.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: validCompanionId,
+          name: "Buddy",
+          type: "DOG",
+          breed: "Labrador",
+          dateOfBirth: new Date(),
+          gender: "MALE",
+          photoUrl: null,
+          currentWeight: null,
+          colour: null,
+          allergy: null,
+          bloodGroup: null,
+          isNeutered: null,
+          ageWhenNeutered: null,
+          microchipNumber: null,
+          passportNumber: null,
+          isInsured: false,
+          insurance: null,
+          countryOfOrigin: null,
+          source: null,
+          status: null,
+          physicalAttribute: null,
+          breedingInfo: null,
+          medicalRecords: null,
+          isProfileComplete: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ]);
+
+      const res = await CompanionService.getByName("Buddy");
+      expect(res.responses).toHaveLength(1);
+      expect(prisma.companion.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { name: { contains: "Buddy", mode: "insensitive" } },
+        }),
+      );
+    });
+  });
+
+  describe("dual write", () => {
+    const originalDualWrite = process.env.DUAL_WRITE_ENABLED;
+
+    afterEach(() => {
+      process.env.DUAL_WRITE_ENABLED = originalDualWrite;
+    });
+
+    it("syncs companion to postgres on getById when enabled", async () => {
+      process.env.DUAL_WRITE_ENABLED = "true";
+      jest.resetModules();
+
+      let CompanionServiceIsolated!: typeof CompanionService;
+      let CompanionModelIsolated!: typeof CompanionModel;
+      let prismaIsolated!: typeof prisma;
+
+      jest.isolateModules(() => {
+        CompanionServiceIsolated =
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          require("../../src/services/companion.service").CompanionService;
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        CompanionModelIsolated = require("../../src/models/companion").default;
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        prismaIsolated = require("src/config/prisma").prisma;
+      });
+
+      const doc = createMockDoc({
+        breed: undefined,
+        speciesCode: "SPC",
+        breedCode: "BRD",
+        gender: "FEMALE",
+        isNeutered: true,
+        isInsured: undefined,
+        insurance: { provider: "ABC" },
+        source: "BREEDER",
+        status: "ACTIVE",
+        physicalAttribute: { coat: "short" },
+        breedingInfo: { litter: 1 },
+        medicalRecords: [{ note: "record" }],
+        isProfileComplete: true,
+      });
+
+      (CompanionModelIsolated.findById as jest.Mock).mockResolvedValue(doc);
+
+      await CompanionServiceIsolated.getById(validCompanionId);
+
+      expect(prismaIsolated.companion.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: doc._id.toString() },
+          create: expect.objectContaining({
+            breed: "",
+            speciesCode: "SPC",
+            breedCode: "BRD",
+            isNeutered: true,
+            isInsured: false,
+            source: "BREEDER",
+            status: "ACTIVE",
+            isProfileComplete: true,
+          }),
+        }),
+      );
     });
   });
 
@@ -359,6 +608,48 @@ describe("CompanionService", () => {
       });
       (CompanionModel.findByIdAndUpdate as jest.Mock).mockResolvedValue(null);
       expect(await CompanionService.update(validObjectId, payload)).toBeNull();
+    });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (fromCompanionRequestDTO as jest.Mock).mockReturnValue({
+        ...mockPersistableBase,
+        name: "Updated",
+      });
+      (prisma.companion.update as jest.Mock).mockResolvedValue({
+        id: validCompanionId,
+        name: "Updated",
+        type: "DOG",
+        breed: "Labrador",
+        dateOfBirth: new Date(),
+        gender: "MALE",
+        photoUrl: null,
+        currentWeight: null,
+        colour: null,
+        allergy: null,
+        bloodGroup: null,
+        isNeutered: null,
+        ageWhenNeutered: null,
+        microchipNumber: null,
+        passportNumber: null,
+        isInsured: false,
+        insurance: null,
+        countryOfOrigin: null,
+        source: null,
+        status: null,
+        physicalAttribute: null,
+        breedingInfo: null,
+        medicalRecords: null,
+        isProfileComplete: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const res = await CompanionService.update(validCompanionId, payload);
+      expect(res?.response.name).toBe("Updated");
+      expect(prisma.companion.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: validCompanionId } }),
+      );
     });
   });
 
@@ -443,6 +734,43 @@ describe("CompanionService", () => {
       await expect(
         CompanionService.delete(validObjectId, context),
       ).rejects.toThrow("DB Error");
+    });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({
+        id: validParentId,
+      });
+      (prisma.parentCompanion.findFirst as jest.Mock).mockResolvedValue({
+        id: "link-1",
+      });
+      (prisma.parentCompanion.deleteMany as jest.Mock).mockResolvedValue({
+        count: 1,
+      });
+      (prisma.companion.deleteMany as jest.Mock).mockResolvedValue({
+        count: 1,
+      });
+
+      await CompanionService.delete(validCompanionId, context);
+
+      expect(prisma.parentCompanion.deleteMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { companionId: validCompanionId } }),
+      );
+      expect(prisma.companion.deleteMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: validCompanionId } }),
+      );
+    });
+
+    it("throws in postgres path when no active primary link", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({
+        id: validParentId,
+      });
+      (prisma.parentCompanion.findFirst as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        CompanionService.delete(validCompanionId, context),
+      ).rejects.toThrow("You are not authorized to modify this companion.");
     });
   });
 

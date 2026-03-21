@@ -10,19 +10,79 @@ slug: /apps/backend
 
 ## Prerequisites
 
+Build and run the backend from the repo root:
+
+```bash
+pnpm run build --filter backend
+pnpm run dev --filter backend
+```
+
 ## Database
 
-## Dev server
+### MongoDB
+
+The backend uses MongoDB via Mongoose. Connection setup lives in `apps/backend/src/config/db.ts` and is initialized in `apps/backend/src/main.ts` via `connectDB()`. Behavior is environment-driven:
+
+- `USE_INMEMORY_DB=true` starts an in-memory MongoDB instance (useful for tests/dev).
+- `LOCAL_DEVELOPMENT=true` connects to `mongodb://localhost:27017/yosemitecrew`.
+- Otherwise it uses `MONGODB_URI`.
+
+### Redis + BullMQ Workers
+
+Background jobs run on BullMQ and use Redis for queue storage. Redis connection is configured in `apps/backend/src/queues/bull.config.ts` and queues/workers are initialized in `apps/backend/src/main.ts` via `initQueues()`.
+
+Redis connection settings:
+
+- `REDIS_HOST` (default `127.0.0.1`)
+- `REDIS_PORT` (default `6379`)
+- `REDIS_PASSWORD` (optional)
+
+Queues:
+
+- `appointments` (`apps/backend/src/queues/appointment.queue.ts`)
+- `task-recurrence` (`apps/backend/src/queues/task.queues.ts`)
+- `task-reminder` (`apps/backend/src/queues/task.queues.ts`)
+
+Workers:
+
+- `apps/backend/src/workers/appointment.worker.ts`
+- `apps/backend/src/workers/taskRecurrence.worker.ts`
+- `apps/backend/src/workers/taskReminder.worker.ts`
 
 ## Running tests
 
+- Run tests
+
+```bash
+pnpm run test --filter backend
+```
+
+- Run tests with coverage report
+
+```bash
+pnpm run test --filter backend --coverage
+```
+
 ## Production build
 
-## Docker
+Build backend from the repo root:
+
+```bash
+pnpm run build --filter backend
+```
 
 ## Animal Health Custom FHIR
 
 We model animal health workflows using FHIR resources plus custom code systems and extensions. The canonical TypeScript types and mapping logic live in `packages/types/src`, and the API-facing DTOs live in `packages/types/src/dto`. The backend should rely on these types and helpers rather than duplicating FHIR shapes.
+
+### Why Custom FHIR For Animal Health
+
+FHIR is built primarily for human healthcare, and several animal health concepts don’t map cleanly to the base spec. We created a custom FHIR layer to:
+
+- Represent companion specific data such as species, breed, neuter status, microchip/passport IDs, and breeding info.
+- Capture clinic specific workflows (appointments, room assignments, forms, invoices) with consistent extensions.
+- Maintain interoperability by staying close to standard FHIR resources (`Patient`, `Appointment`, `Organization`, etc.) while extending where needed.
+- Keep the API contract stable across web, mobile, and integrations by centralizing all mappings in the types package.
 
 ### How It Is Built
 

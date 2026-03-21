@@ -1,33 +1,81 @@
-"use client";
-import React, { useState } from "react";
-import Link from "next/link";
-import { IoIosCheckmark, IoIosCloseCircleOutline } from "react-icons/io";
+'use client';
+import React, { useState } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { IoIosCheckmark, IoIosCloseCircleOutline } from 'react-icons/io';
 
-import FormInput from "@/app/ui/inputs/FormInput/FormInput";
-import Faq from "@/app/ui/widgets/Faq/Faq";
-import Footer from "@/app/ui/widgets/Footer/Footer";
-import { PricingPlans, TableData } from "@/app/features/marketing/pages/PricingPage/data";
-import { Primary } from "@/app/ui/primitives/Buttons";
+import FormInput from '@/app/ui/inputs/FormInput/FormInput';
+import Faq from '@/app/ui/widgets/Faq/Faq';
+import Footer from '@/app/ui/widgets/Footer/Footer';
+import { PricingPlans, TableData } from '@/app/features/marketing/pages/PricingPage/data';
+import { Primary } from '@/app/ui/primitives/Buttons';
+import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 
-import "./PricingPage.css";
+import './PricingPage.css';
 
 const renderCell = (text: string) => {
-  if (text === "yes") {
+  if (text === 'yes') {
     return <IoIosCheckmark size={20} color="#595958" />;
-  } else if (text === "no") {
-    return "-";
+  } else if (text === 'no') {
+    return '-';
   } else {
     return text;
   }
 };
 
+const renderFeatureName = (name: string) => {
+  if (name === 'IDEXX integration') {
+    return (
+      <div className="pricingFeatureWithBrand">
+        <Image
+          src={MEDIA_SOURCES.futureAssets.idexxLogoUrl}
+          alt="IDEXX"
+          width={96}
+          height={36}
+          className="pricingFeatureBrandLogo"
+        />
+      </div>
+    );
+  }
+
+  if (name === 'Merck Manuals integration') {
+    return (
+      <div className="pricingFeatureWithBrand">
+        <Image
+          src={MEDIA_SOURCES.futureAssets.merckLogoUrl}
+          alt="Merck Manuals"
+          width={96}
+          height={36}
+          className="pricingFeatureBrandLogo my-4"
+        />
+      </div>
+    );
+  }
+
+  if (name === 'RAD Analyzer integration') {
+    return (
+      <div className="pricingFeatureWithBrand">
+        <Image
+          src={MEDIA_SOURCES.futureAssets.radAnalyzerLogoUrl}
+          alt="RAD Analyzer"
+          width={96}
+          height={36}
+          className="pricingFeatureBrandLogo"
+        />
+      </div>
+    );
+  }
+
+  return name;
+};
+
 const PricingPage = () => {
-  const [activeCycle, setActiveCycle] = useState("yearly");
+  const [activeCycle, setActiveCycle] = useState('yearly');
   const [notify, setNotify] = useState(false);
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
+    firstName: '',
+    lastName: '',
+    email: '',
   });
   const [formDataErrors, setFormDataErrors] = useState<{
     firstName?: string;
@@ -41,18 +89,18 @@ const PricingPage = () => {
       lastName?: string;
       email?: string;
     } = {};
-    if (!formData.firstName) errors.firstName = "First name is required";
-    if (!formData.lastName) errors.lastName = "Last name is required";
-    if (!formData.email) errors.email = "Email is required";
+    if (!formData.firstName) errors.firstName = 'First name is required';
+    if (!formData.lastName) errors.lastName = 'Last name is required';
+    if (!formData.email) errors.email = 'Email is required';
     setFormDataErrors(errors);
     if (Object.keys(errors).length > 0) {
       return;
     }
     setNotify(false);
     setFormData({
-      firstName: "",
-      lastName: "",
-      email: "",
+      firstName: '',
+      lastName: '',
+      email: '',
     });
     setFormDataErrors({});
   };
@@ -64,10 +112,11 @@ const PricingPage = () => {
           <div className="PricingPage-header">
             <div className="PriceBackdiv">
               <div className="PricinhHeadquote">
-                <div className="text-display-1 text-text-primary">Transparent pricing, no hidden fees</div>
+                <div className="text-display-1 text-text-primary">
+                  Transparent pricing, no hidden fees
+                </div>
                 <div className="text-body-3 text-text-primary">
-                  Choose a plan that fits your pet-care practice. Upgrade
-                  anytime as you grow.
+                  Choose a plan that fits your pet-care practice. Upgrade anytime as you grow.
                 </div>
               </div>
             </div>
@@ -75,14 +124,14 @@ const PricingPage = () => {
               <div className="w-full flex items-center justify-between gap-3 flex-col sm:flex-row">
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={() => setActiveCycle("monthly")}
-                    className={`${activeCycle === "monthly" ? "border-blue-text! bg-blue-light text-blue-text shadow-[0_0_8px_0_rgba(0,0,0,0.16)]" : "border-black-text!"} hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] px-3 h-9 flex items-center justify-center border! rounded-2xl! cursor-pointer font-satoshi! text-[15px]! font-medium text-black-text`}
+                    onClick={() => setActiveCycle('monthly')}
+                    className={`${activeCycle === 'monthly' ? 'border-blue-text! bg-blue-light text-blue-text shadow-[0_0_8px_0_rgba(0,0,0,0.16)]' : 'border-black-text!'} hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] px-3 h-9 flex items-center justify-center border! rounded-2xl! cursor-pointer font-satoshi! text-[15px]! font-medium text-black-text`}
                   >
                     Pay monthly
                   </button>
                   <button
-                    onClick={() => setActiveCycle("yearly")}
-                    className={`${activeCycle === "yearly" ? "border-blue-text! bg-blue-light text-blue-text shadow-[0_0_8px_0_rgba(0,0,0,0.16)]" : "border-black-text!"} hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] px-3 h-9 flex items-center justify-center border! rounded-2xl! cursor-pointer font-satoshi! text-[15px]! font-medium text-black-text`}
+                    onClick={() => setActiveCycle('yearly')}
+                    className={`${activeCycle === 'yearly' ? 'border-blue-text! bg-blue-light text-blue-text shadow-[0_0_8px_0_rgba(0,0,0,0.16)]' : 'border-black-text!'} hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] px-3 h-9 flex items-center justify-center border! rounded-2xl! cursor-pointer font-satoshi! text-[15px]! font-medium text-black-text`}
                   >
                     Pay yearly
                   </button>
@@ -104,7 +153,7 @@ const PricingPage = () => {
                   >
                     <div className="flex items-center gap-2 font-medium h-[23px] lg:h-[38px]">
                       <div
-                        className={`font-satoshi text-[0.875rem] lg:text-[1.125rem] ${plan.active ? "text-black-text" : "text-grey-border"}`}
+                        className={`font-satoshi text-[0.875rem] lg:text-[1.125rem] ${plan.active ? 'text-black-text' : 'text-grey-border'}`}
                       >
                         {plan.title}
                       </div>
@@ -116,11 +165,9 @@ const PricingPage = () => {
                     </div>
                     <div className="flex gap-2 items-end">
                       <div
-                        className={`font-satoshi text-[28px] lg:text-[40px] font-medium ${plan.active ? "text-black-text" : "text-grey-border"}`}
+                        className={`font-satoshi text-[28px] lg:text-[40px] font-medium ${plan.active ? 'text-black-text' : 'text-grey-border'}`}
                       >
-                        {activeCycle === "monthly"
-                          ? plan.amount
-                          : plan.amountYearly}
+                        {activeCycle === 'monthly' ? plan.amount : plan.amountYearly}
                       </div>
                       {plan.amountLabel && (
                         <div className="mb-1.5! lg:mb-3! font-satoshi text-[13px] font-semibold text-black-text">
@@ -129,7 +176,7 @@ const PricingPage = () => {
                       )}
                     </div>
                     <div
-                      className={`font-satoshi text-[13px] lg:text-[15px] font-normal ${plan.active ? "text-black-text" : "text-grey-border"}`}
+                      className={`font-satoshi text-[13px] lg:text-[15px] font-normal ${plan.active ? 'text-black-text' : 'text-grey-border'}`}
                     >
                       {plan.description}
                     </div>
@@ -142,14 +189,14 @@ const PricingPage = () => {
                     </Link>
                     <div>
                       <div
-                        className={`font-satoshi text-[13px] lg:text-[15px] font-semibold ${plan.active ? "text-black-text" : "text-grey-border"}`}
+                        className={`font-satoshi text-[13px] lg:text-[15px] font-semibold ${plan.active ? 'text-black-text' : 'text-grey-border'}`}
                       >
                         Includes:
                       </div>
                       {plan.includes.map((detail: string) => (
                         <div
                           key={detail}
-                          className={`flex font-satoshi text-[13px] lg:text-[15px] gap-2 font-normal ${plan.active ? "text-black-text" : "text-grey-border"}`}
+                          className={`flex font-satoshi text-[13px] lg:text-[15px] gap-2 font-normal ${plan.active ? 'text-black-text' : 'text-grey-border'}`}
                         >
                           &bull; <span>{detail}</span>
                         </div>
@@ -175,8 +222,8 @@ const PricingPage = () => {
                 </button>
               </div>
               <div className="font-satoshi text-black-text font-semibold text-[18px]">
-                Email notifications are available for Enterprise Plan users.
-                Please provide your details to receive updates.
+                Email notifications are available for Enterprise Plan users. Please provide your
+                details to receive updates.
               </div>
               <div className="grid grid-cols-2 gap-3 sm:gap-6">
                 <FormInput
@@ -184,9 +231,7 @@ const PricingPage = () => {
                   inname="First name"
                   value={formData.firstName}
                   inlabel="First name"
-                  onChange={(e) =>
-                    setFormData({ ...formData, firstName: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                   error={formDataErrors.firstName}
                 />
                 <FormInput
@@ -194,9 +239,7 @@ const PricingPage = () => {
                   inname="Last name"
                   value={formData.lastName}
                   inlabel="Last name"
-                  onChange={(e) =>
-                    setFormData({ ...formData, lastName: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                   error={formDataErrors.lastName}
                 />
               </div>
@@ -205,9 +248,7 @@ const PricingPage = () => {
                 inname="Email"
                 value={formData.email}
                 inlabel="Enter email"
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 error={formDataErrors.email}
               />
               <Primary href="#" onClick={handleSend} text="Send" />
@@ -221,18 +262,13 @@ const PricingPage = () => {
             <div className="flex gap-3">
               <div className="w-[calc(33%-10px)]"></div>
               {PricingPlans.slice(0, 2).map((plan: any) => (
-                <div
-                  key={plan.description}
-                  className="w-[calc(33%-10px)] flex flex-col gap-2"
-                >
+                <div key={plan.description} className="w-[calc(33%-10px)] flex flex-col gap-2">
                   <div className="flex justify-between items-center flex-wrap">
                     <div className="font-satoshi text-[0.875rem] md:text-[1.125rem] font-medium text-black-text">
-                      {plan.title.split(" ")[0]}
+                      {plan.title.split(' ')[0]}
                     </div>
                     <div className="font-satoshi text-[0.875rem] md:text-[1.125rem] font-medium text-black-text">
-                      {activeCycle === "monthly"
-                        ? plan.amount
-                        : plan.amountYearly}
+                      {activeCycle === 'monthly' ? plan.amount : plan.amountYearly}
                     </div>
                   </div>
                   <Link
@@ -246,10 +282,7 @@ const PricingPage = () => {
             </div>
             <div className="w-full flex flex-col gap-10">
               {TableData.map((table) => (
-                <div
-                  key={table.head}
-                  className="border! border-grey-light! rounded-2xl! pt-5!"
-                >
+                <div key={table.head} className="border! border-grey-light! rounded-2xl! pt-5!">
                   <table className="w-full">
                     <thead className="w-full">
                       <tr>
@@ -264,15 +297,28 @@ const PricingPage = () => {
                     <tbody className="w-full">
                       {table.rows.map((row) => (
                         <tr key={row.name}>
-                          <td className="w-1/3 py-3 pl-4! md:pl-6! border-t! border-grey-light! font-satoshi font-semibold text-[15px] text-grey-noti">
-                            {row.name}
-                          </td>
-                          <td className="w-1/3 py-3 pl-4! md:pl-6! border-t! border-grey-light! font-satoshi font-semibold text-[15px] text-grey-noti">
-                            {renderCell(row.free)}
-                          </td>
-                          <td className="w-1/3 py-3 pl-4! md:pl-6! border-t! border-grey-light! font-satoshi font-semibold text-[15px] text-grey-noti">
-                            {renderCell(row.business)}
-                          </td>
+                          {(() => {
+                            const cellPaddingClass = 'py-3';
+                            return (
+                              <>
+                                <td
+                                  className={`w-1/3 ${cellPaddingClass} pl-4! md:pl-6! border-t! border-grey-light! font-satoshi font-semibold text-[15px] text-grey-noti`}
+                                >
+                                  {renderFeatureName(row.name)}
+                                </td>
+                                <td
+                                  className={`w-1/3 ${cellPaddingClass} pl-4! md:pl-6! border-t! border-grey-light! font-satoshi font-semibold text-[15px] text-grey-noti`}
+                                >
+                                  {renderCell(row.free)}
+                                </td>
+                                <td
+                                  className={`w-1/3 ${cellPaddingClass} pl-4! md:pl-6! border-t! border-grey-light! font-satoshi font-semibold text-[15px] text-grey-noti`}
+                                >
+                                  {renderCell(row.business)}
+                                </td>
+                              </>
+                            );
+                          })()}
                         </tr>
                       ))}
                     </tbody>
@@ -299,10 +345,7 @@ const NeedHealp = () => {
       <div className="Needhelpitem">
         <div className="helpText">
           <h3>Need Help? We&rsquo;re All Ears!</h3>
-          <p>
-            Got questions or need assistance? Just reach out! Our team is here
-            to help.
-          </p>
+          <p>Got questions or need assistance? Just reach out! Our team is here to help.</p>
         </div>
         <div className="helpbtn">
           <Link href="/contact">Contact support</Link>

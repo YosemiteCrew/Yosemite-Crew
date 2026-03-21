@@ -1,472 +1,752 @@
 import { Types } from "mongoose";
-import { CompanionOrganisationService } from "../../src/services/companion-organisation.service";
+import {
+  CompanionOrganisationService,
+  CompanionOrganisationServiceError,
+} from "../../src/services/companion-organisation.service";
 import CompanionOrganisationModel from "../../src/models/companion-organisation";
 import ParentCompanionModel from "../../src/models/parent-companion";
 import CompanionModel from "../../src/models/companion";
 import { ParentModel } from "../../src/models/parent";
-import { toFHIR as toFHIRCompanion } from "../../src/services/companion.service";
-import { toFHIR as toFHIRParent } from "../../src/services/parent.service";
 import { AuditTrailService } from "../../src/services/audit-trail.service";
+import { prisma } from "src/config/prisma";
 
-// --- Mocks ---
-jest.mock("../../src/models/companion-organisation");
-jest.mock("../../src/models/parent-companion");
-jest.mock("../../src/models/companion");
-jest.mock("../../src/models/parent");
-jest.mock("../../src/services/companion.service");
-jest.mock("../../src/services/parent.service");
-jest.mock("../../src/services/audit-trail.service");
+// --- Global Mocks Setup (TDZ Safe) ---
+jest.mock("node:crypto", () => ({
+  randomUUID: jest.fn(() => "mock-uuid-1234"),
+}));
+
+jest.mock("../../src/utils/sanitize", () => ({
+  assertSafeString: jest.fn((val) => val), // Identity mock
+}));
+
+jest.mock("../../src/services/companion.service", () => ({
+  toFHIR: jest.fn((c) => ({ id: c._id.toString(), resourceType: "Patient" })),
+  toFHIRFromPrisma: jest.fn((c) => ({ id: c.id, resourceType: "Patient" })),
+}));
+
+jest.mock("../../src/services/parent.service", () => ({
+  toFHIR: jest.fn((p) => ({
+    id: p._id.toString(),
+    resourceType: "RelatedPerson",
+  })),
+  toFHIRFromPrisma: jest.fn((p) => ({
+    id: p.id,
+    resourceType: "RelatedPerson",
+  })),
+}));
+
+jest.mock("../../src/services/audit-trail.service", () => ({
+  AuditTrailService: {
+    recordSafely: jest.fn(),
+  },
+}));
+
+jest.mock("../../src/models/companion-organisation", () => ({
+  __esModule: true,
+  default: {
+    findOne: jest.fn(),
+    create: jest.fn(),
+    findByIdAndDelete: jest.fn(),
+    find: jest.fn(),
+  },
+}));
+
+jest.mock("../../src/models/parent-companion", () => ({
+  __esModule: true,
+  default: {
+    findOne: jest.fn(),
+  },
+}));
+
+jest.mock("../../src/models/companion", () => ({
+  __esModule: true,
+  default: {
+    findById: jest.fn(),
+  },
+}));
+
+jest.mock("../../src/models/parent", () => ({
+  __esModule: true,
+  ParentModel: {
+    findById: jest.fn(),
+  },
+}));
+
+jest.mock("src/config/prisma", () => ({
+  prisma: {
+    companionOrganisation: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+    },
+    parentCompanion: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+    },
+    companion: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+    },
+    parent: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+    },
+  },
+}));
+
+// Mock Query Chain for Mongoose methods like .populate().exec()
+const createQueryChain = (resolvedValue: any) => {
+  const p = Promise.resolve(resolvedValue);
+  (p as any).populate = jest.fn().mockReturnValue(p);
+  (p as any).exec = jest.fn().mockResolvedValue(resolvedValue);
+  return p;
+};
+
+// Helper for generating Mongoose-like documents
+const createMockDoc = (overrides = {}) => {
+  const baseId = new Types.ObjectId();
+  const data = {
+    _id: baseId,
+    companionId: new Types.ObjectId(),
+    organisationId: new Types.ObjectId(),
+    status: "PENDING",
+    organisationType: "HOSPITAL",
+    inviteToken: "some-token" as string | null,
+    acceptedAt: null as Date | null,
+    rejectedAt: null as Date | null,
+    ...overrides,
+  };
+  return {
+    ...data,
+    save: jest.fn().mockResolvedValue(true),
+  };
+};
 
 describe("CompanionOrganisationService", () => {
-  const validObjectId = new Types.ObjectId().toString();
-  const validParentId = new Types.ObjectId();
-  const validCompanionId = new Types.ObjectId();
-  const validOrgId = new Types.ObjectId();
-
-  // Helper to mock mongoose document with save()
-  const createMockDoc = (data: any) => ({
-    ...data,
-    companionId: data.companionId ?? validCompanionId,
-    organisationId: data.organisationId ?? validOrgId,
-    organisationType: data.organisationType ?? "HOSPITAL",
-    save: jest.fn().mockResolvedValue(true),
-    _id: new Types.ObjectId(),
-  });
+  const validIdStr = new Types.ObjectId().toHexString();
+  const validObjId = new Types.ObjectId();
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (AuditTrailService.recordSafely as jest.Mock).mockResolvedValue(undefined);
   });
 
-  describe("Validation (ensureObjectId)", () => {
-    it("should throw if ID is invalid string", async () => {
-      await expect(
-        CompanionOrganisationService.linkByParent({
-          parentId: "invalid",
-          companionId: validCompanionId,
-          organisationId: validOrgId,
-          organisationType: "HOSPITAL",
-        }),
-      ).rejects.toThrow("Invalid parentId");
+  describe("Postgres branches", () => {
+    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+
+    beforeEach(() => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.companionOrganisation.findFirst as jest.Mock).mockReset();
+      (prisma.companionOrganisation.findMany as jest.Mock).mockReset();
+      (prisma.parentCompanion.findFirst as jest.Mock).mockReset();
+      (prisma.parentCompanion.findMany as jest.Mock).mockReset();
+      (prisma.companion.findUnique as jest.Mock).mockReset();
+      (prisma.companion.findMany as jest.Mock).mockReset();
+      (prisma.parent.findUnique as jest.Mock).mockReset();
+      (prisma.parent.findMany as jest.Mock).mockReset();
     });
 
-    it("should throw if ID contains injection chars ($)", async () => {
-      await expect(
-        CompanionOrganisationService.linkByParent({
-          parentId: "$invalid",
-          companionId: validCompanionId,
-          organisationId: validOrgId,
-          organisationType: "HOSPITAL",
-        }),
-      ).rejects.toThrow("Invalid parentId");
+    afterEach(() => {
+      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
     });
 
-    it("should throw if ID is not a string or ObjectId", async () => {
+    it("validateInvite returns invite when valid", async () => {
+      (
+        prisma.companionOrganisation.findFirst as jest.Mock
+      ).mockResolvedValueOnce({
+        id: validIdStr,
+        inviteToken: "token",
+        status: "PENDING",
+      });
+
+      const res = await CompanionOrganisationService.validateInvite("token");
+      expect(res).toEqual(expect.objectContaining({ _id: validIdStr }));
+    });
+
+    it("getLinksForCompanion returns mapped links", async () => {
+      (
+        prisma.companionOrganisation.findMany as jest.Mock
+      ).mockResolvedValueOnce([{ id: "link-1", companionId: validIdStr }]);
+
+      const res =
+        await CompanionOrganisationService.getLinksForCompanion(validIdStr);
+      expect(res).toHaveLength(1);
+      expect(res[0]._id).toBe("link-1");
+    });
+
+    it("getLinksForCompanionByOrganisationTye returns metadata", async () => {
+      (
+        prisma.companionOrganisation.findMany as jest.Mock
+      ).mockResolvedValueOnce([
+        {
+          id: "link-1",
+          companionId: validIdStr,
+          organisationType: "HOSPITAL",
+          status: "ACTIVE",
+        },
+      ]);
+      (prisma.parentCompanion.findFirst as jest.Mock).mockResolvedValueOnce({
+        parentId: "parent-1",
+      });
+      (prisma.companion.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: validIdStr,
+        name: "Buddy",
+      });
+      (prisma.parent.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "parent-1",
+        firstName: "Jane",
+        lastName: "Doe",
+        email: "jane@example.com",
+        phoneNumber: "123",
+      });
+
+      const res =
+        await CompanionOrganisationService.getLinksForCompanionByOrganisationTye(
+          validIdStr,
+          "HOSPITAL",
+        );
+
+      expect(res.links).toHaveLength(1);
+      expect(res.parentName).toBe("Jane Doe");
+      expect(res.companionName).toBe("Buddy");
+    });
+
+    it("getLinksForOrganisation returns mapped results", async () => {
+      (
+        prisma.companionOrganisation.findMany as jest.Mock
+      ).mockResolvedValueOnce([
+        {
+          id: "link-1",
+          companionId: "comp-1",
+          organisationId: "org-1",
+          organisationType: "HOSPITAL",
+          status: "ACTIVE",
+        },
+      ]);
+      (prisma.companion.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: "comp-1", name: "Buddy" },
+      ]);
+      (prisma.parentCompanion.findMany as jest.Mock).mockResolvedValueOnce([
+        { companionId: "comp-1", parentId: "parent-1" },
+      ]);
+      (prisma.parent.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: "parent-1", firstName: "Jane", lastName: "Doe" },
+      ]);
+
+      const res =
+        await CompanionOrganisationService.getLinksForOrganisation(validIdStr);
+      expect(res).toHaveLength(1);
+      expect(res[0]?.organisationType).toBe("HOSPITAL");
+    });
+  });
+
+  describe("CompanionOrganisationServiceError & ensureObjectId", () => {
+    it("should set error properties correctly", () => {
+      const err = new CompanionOrganisationServiceError("Test message", 403);
+      expect(err.message).toBe("Test message");
+      expect(err.statusCode).toBe(403);
+      expect(err.name).toBe("CompanionOrganisationServiceError");
+    });
+
+    // We can implicitly test `ensureObjectId` by passing bad params to `linkByParent`
+    it("should throw if id is not a string (e.g. number)", async () => {
       await expect(
         CompanionOrganisationService.linkByParent({
-          // @ts-expect-error Intentional invalid type for test coverage.
-          parentId: 123,
+          parentId: 123 as any,
+          companionId: validIdStr,
+          organisationId: validIdStr,
+          organisationType: "HOSPITAL",
         }),
-      ).rejects.toThrow("Invalid parentId");
+      ).rejects.toThrow(
+        new CompanionOrganisationServiceError("Invalid parentId", 400),
+      );
+    });
+
+    it("should throw if string contains injection characters ($ or .)", async () => {
+      await expect(
+        CompanionOrganisationService.linkByParent({
+          parentId: "invalid$id",
+          companionId: validIdStr,
+          organisationId: validIdStr,
+          organisationType: "HOSPITAL",
+        }),
+      ).rejects.toThrow(
+        new CompanionOrganisationServiceError("Invalid parentId", 400),
+      );
+
+      await expect(
+        CompanionOrganisationService.linkByParent({
+          parentId: "invalid.id",
+          companionId: validIdStr,
+          organisationId: validIdStr,
+          organisationType: "HOSPITAL",
+        }),
+      ).rejects.toThrow(
+        new CompanionOrganisationServiceError("Invalid parentId", 400),
+      );
+    });
+
+    it("should throw if string length is not exactly 24 hex characters", async () => {
+      await expect(
+        CompanionOrganisationService.linkByParent({
+          parentId: "abc123",
+          companionId: validIdStr,
+          organisationId: validIdStr,
+          organisationType: "HOSPITAL",
+        }),
+      ).rejects.toThrow(
+        new CompanionOrganisationServiceError("Invalid parentId", 400),
+      );
+    });
+
+    it("should accept a valid Types.ObjectId instance directly", async () => {
+      (CompanionOrganisationModel.findOne as jest.Mock).mockResolvedValue(true); // Return existing immediately
+      await CompanionOrganisationService.linkByParent({
+        parentId: validObjId,
+        companionId: validObjId,
+        organisationId: validObjId,
+        organisationType: "HOSPITAL",
+      });
+      expect(CompanionOrganisationModel.findOne).toHaveBeenCalled();
     });
   });
 
   describe("linkByParent", () => {
-    it("should return existing active link if found", async () => {
-      const existing = { _id: "1", status: "ACTIVE" };
+    it("should return early if an active/pending link already exists", async () => {
+      const mockExisting = { _id: validObjId, status: "ACTIVE" };
       (CompanionOrganisationModel.findOne as jest.Mock).mockResolvedValue(
-        existing,
+        mockExisting,
       );
 
-      const result = await CompanionOrganisationService.linkByParent({
-        parentId: validParentId,
-        companionId: validCompanionId,
-        organisationId: validOrgId,
+      const res = await CompanionOrganisationService.linkByParent({
+        parentId: validIdStr,
+        companionId: validIdStr,
+        organisationId: validIdStr,
         organisationType: "HOSPITAL",
       });
-
-      expect(result).toEqual(existing);
+      expect(res).toEqual(mockExisting);
       expect(CompanionOrganisationModel.create).not.toHaveBeenCalled();
     });
 
-    it("should create new link if not found", async () => {
+    it("should create link and record audit safely", async () => {
       (CompanionOrganisationModel.findOne as jest.Mock).mockResolvedValue(null);
-      (CompanionOrganisationModel.create as jest.Mock).mockResolvedValue({
-        _id: "new",
-        status: "ACTIVE",
+      const mockCreated = createMockDoc({ status: "ACTIVE" });
+      (CompanionOrganisationModel.create as jest.Mock).mockResolvedValue(
+        mockCreated,
+      );
+
+      const res = await CompanionOrganisationService.linkByParent({
+        parentId: validIdStr,
+        companionId: validIdStr,
+        organisationId: validIdStr,
         organisationType: "HOSPITAL",
       });
 
-      const result = await CompanionOrganisationService.linkByParent({
-        parentId: validParentId,
-        companionId: validCompanionId,
-        organisationId: validOrgId,
-        organisationType: "HOSPITAL",
-      });
-
-      expect(CompanionOrganisationModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          status: "ACTIVE",
-          role: "ORGANISATION",
-        }),
+      expect(CompanionOrganisationModel.create).toHaveBeenCalled();
+      expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+        expect.objectContaining({ eventType: "COMPANION_ORG_LINK_CREATED" }),
       );
-      expect(result).toEqual(
-        expect.objectContaining({ _id: "new", status: "ACTIVE" }),
-      );
+      expect(res._id).toBeDefined();
     });
   });
 
-  describe("linkByPmsUser", () => {
-    it("should return existing link", async () => {
+  describe("linkByPmsUser & linkOnCompanionCreatedByPms", () => {
+    it("should return early if existing link found", async () => {
       (CompanionOrganisationModel.findOne as jest.Mock).mockResolvedValue({
-        _id: "1",
+        _id: validObjId,
       });
       const res = await CompanionOrganisationService.linkByPmsUser({
-        pmsUserId: "pms1",
-        companionId: validCompanionId,
-        organisationId: validOrgId,
+        pmsUserId: "u1",
+        companionId: validIdStr,
+        organisationId: validIdStr,
         organisationType: "HOSPITAL",
       });
-      expect(res._id).toBe("1");
+      expect(res._id).toBeDefined();
     });
 
-    it("should create pending link if new", async () => {
+    it("should create link and record audit", async () => {
       (CompanionOrganisationModel.findOne as jest.Mock).mockResolvedValue(null);
-      (CompanionOrganisationModel.create as jest.Mock).mockResolvedValue({
-        _id: "new",
-        status: "PENDING",
-        organisationType: "HOSPITAL",
-      });
+      (CompanionOrganisationModel.create as jest.Mock).mockResolvedValue(
+        createMockDoc({ status: "PENDING" }),
+      );
 
       const res = await CompanionOrganisationService.linkByPmsUser({
-        pmsUserId: "pms1",
-        companionId: validCompanionId,
-        organisationId: validOrgId,
+        pmsUserId: "u1",
+        companionId: validIdStr,
+        organisationId: validIdStr,
         organisationType: "HOSPITAL",
       });
 
+      expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+        expect.objectContaining({ eventType: "COMPANION_ORG_LINK_REQUESTED" }),
+      );
       expect(res.status).toBe("PENDING");
+    });
+
+    it("linkOnCompanionCreatedByPms maps directly to linkByPmsUser", async () => {
+      (CompanionOrganisationModel.findOne as jest.Mock).mockResolvedValue({
+        _id: validObjId,
+      });
+      const res =
+        await CompanionOrganisationService.linkOnCompanionCreatedByPms({
+          pmsUserId: "u1",
+          companionId: validIdStr,
+          organisationId: validIdStr,
+          organisationType: "HOSPITAL",
+        });
+      expect(res._id).toBeDefined();
+    });
+  });
+
+  describe("linkOnAppointmentBooked", () => {
+    it("should return early if existing link found", async () => {
+      (CompanionOrganisationModel.findOne as jest.Mock).mockResolvedValue({
+        _id: validObjId,
+      });
+      const res = await CompanionOrganisationService.linkOnAppointmentBooked({
+        companionId: validIdStr,
+        organisationId: validIdStr,
+        organisationType: "HOSPITAL",
+      });
+      expect(res._id).toBeDefined();
+    });
+
+    it("should create link and record audit", async () => {
+      (CompanionOrganisationModel.findOne as jest.Mock).mockResolvedValue(null);
+      (CompanionOrganisationModel.create as jest.Mock).mockResolvedValue(
+        createMockDoc({ status: "ACTIVE" }),
+      );
+
+      const res = await CompanionOrganisationService.linkOnAppointmentBooked({
+        companionId: validIdStr,
+        organisationId: validIdStr,
+        organisationType: "HOSPITAL",
+      });
+
+      expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+        expect.objectContaining({ eventType: "COMPANION_ORG_LINK_AUTO" }),
+      );
+      expect(res.status).toBe("ACTIVE");
     });
   });
 
   describe("sendInvite", () => {
-    it("should throw if neither email nor name provided", async () => {
+    it("should throw 400 if both email and name are missing", async () => {
       await expect(
         CompanionOrganisationService.sendInvite({
-          parentId: validParentId,
-          companionId: validCompanionId,
+          parentId: validIdStr,
+          companionId: validIdStr,
           organisationType: "HOSPITAL",
         }),
-      ).rejects.toThrow("Email required or Name");
+      ).rejects.toThrow(
+        new CompanionOrganisationServiceError("Email required or Name", 400),
+      );
     });
 
-    it("should create invite", async () => {
-      (CompanionOrganisationModel.create as jest.Mock).mockResolvedValue({
-        inviteToken: "uuid",
-      });
+    it("should successfully generate UUID and create PENDING invite", async () => {
+      (CompanionOrganisationModel.create as jest.Mock).mockResolvedValue(
+        createMockDoc(),
+      );
 
       const res = await CompanionOrganisationService.sendInvite({
-        parentId: validParentId,
-        companionId: validCompanionId,
+        parentId: validIdStr,
+        companionId: validIdStr,
         organisationType: "HOSPITAL",
-        email: "test@example.com",
+        email: "test@test.com",
       });
-
-      expect(res.inviteToken).toBeDefined();
+      expect(CompanionOrganisationModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          inviteToken: "mock-uuid-1234",
+          status: "PENDING",
+        }),
+      );
+      expect(res).toBeDefined();
     });
   });
 
   describe("validateInvite", () => {
-    it("should throw if token missing", async () => {
+    it("should throw 400 if token is missing", async () => {
       await expect(
         CompanionOrganisationService.validateInvite(""),
-      ).rejects.toThrow("Invite token missing");
+      ).rejects.toThrow(
+        new CompanionOrganisationServiceError("Invite token missing", 400),
+      );
     });
 
-    it("should return invite if valid", async () => {
-      (CompanionOrganisationModel.findOne as jest.Mock).mockResolvedValue({
-        _id: "1",
-      });
-      const res = await CompanionOrganisationService.validateInvite("token");
-      expect(res).toBeDefined();
-    });
-
-    it("should throw 404 if invalid", async () => {
+    it("should throw 404 if invite is not found or not pending", async () => {
       (CompanionOrganisationModel.findOne as jest.Mock).mockResolvedValue(null);
       await expect(
-        CompanionOrganisationService.validateInvite("token"),
-      ).rejects.toThrow("Invalid or expired invite");
+        CompanionOrganisationService.validateInvite("tkn"),
+      ).rejects.toThrow(
+        new CompanionOrganisationServiceError("Invalid or expired invite", 404),
+      );
+    });
+
+    it("should return the invite if valid", async () => {
+      (CompanionOrganisationModel.findOne as jest.Mock).mockResolvedValue({
+        _id: validObjId,
+      });
+      const res = await CompanionOrganisationService.validateInvite("tkn");
+      expect(res._id).toBeDefined();
     });
   });
 
-  describe("acceptInvite", () => {
-    it("should activate invite", async () => {
-      const invite = createMockDoc({ status: "PENDING" });
-      (CompanionOrganisationModel.findOne as jest.Mock).mockResolvedValue(
-        invite,
-      );
-
-      await CompanionOrganisationService.acceptInvite({
-        token: "t",
-        organisationId: validOrgId,
-      });
-
-      expect(invite.status).toBe("ACTIVE");
-      expect(invite.save).toHaveBeenCalled();
-    });
-
-    it("should throw 404 if invite not found", async () => {
+  describe("acceptInvite & rejectInvite", () => {
+    it("acceptInvite: should throw 404 if invite invalid", async () => {
       (CompanionOrganisationModel.findOne as jest.Mock).mockResolvedValue(null);
       await expect(
         CompanionOrganisationService.acceptInvite({
-          token: "t",
-          organisationId: validOrgId,
+          token: "tkn",
+          organisationId: validIdStr,
         }),
-      ).rejects.toThrow("Invalid invite token");
+      ).rejects.toThrow(
+        new CompanionOrganisationServiceError("Invalid invite token", 404),
+      );
     });
-  });
 
-  describe("rejectInvite", () => {
-    it("should revoke invite", async () => {
-      const invite = createMockDoc({ status: "PENDING" });
+    it("acceptInvite: should update, save, and audit on success", async () => {
+      const mockDoc: any = createMockDoc({
+        status: "PENDING",
+        inviteToken: "tkn",
+      });
       (CompanionOrganisationModel.findOne as jest.Mock).mockResolvedValue(
-        invite,
+        mockDoc,
       );
 
-      await CompanionOrganisationService.rejectInvite({
-        token: "t",
-        organisationId: validOrgId,
+      const res = await CompanionOrganisationService.acceptInvite({
+        token: "tkn",
+        organisationId: validIdStr,
       });
-
-      expect(invite.status).toBe("REVOKED");
-      expect(invite.save).toHaveBeenCalled();
-    });
-
-    it("should throw 404 if invite not found", async () => {
-      (CompanionOrganisationModel.findOne as jest.Mock).mockResolvedValue(null);
-      await expect(
-        CompanionOrganisationService.rejectInvite({
-          token: "t",
-          organisationId: validOrgId,
-        }),
-      ).rejects.toThrow("Invalid invite token");
-    });
-  });
-
-  describe("Helpers (linkOn...)", () => {
-    it("linkOnCompanionCreatedByPms should call linkByPmsUser", async () => {
-      const spy = jest
-        .spyOn(CompanionOrganisationService, "linkByPmsUser")
-        .mockResolvedValue({} as any);
-      await CompanionOrganisationService.linkOnCompanionCreatedByPms({
-        companionId: validCompanionId,
-        organisationId: validOrgId,
-        pmsUserId: "u1",
-        organisationType: "HOSPITAL",
-      });
-      expect(spy).toHaveBeenCalled();
-    });
-
-    it("linkOnAppointmentBooked should create active link if not exists", async () => {
-      (CompanionOrganisationModel.findOne as jest.Mock).mockResolvedValue(null);
-      (CompanionOrganisationModel.create as jest.Mock).mockResolvedValue({
-        _id: "new",
-        status: "ACTIVE",
-        organisationType: "HOSPITAL",
-      });
-
-      const res = await CompanionOrganisationService.linkOnAppointmentBooked({
-        companionId: validCompanionId,
-        organisationId: validOrgId,
-        organisationType: "HOSPITAL",
-      });
+      expect(mockDoc.status).toBe("ACTIVE");
+      expect(mockDoc.inviteToken).toBeNull();
+      expect(mockDoc.save).toHaveBeenCalled();
+      expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+        expect.objectContaining({ eventType: "COMPANION_ORG_INVITE_ACCEPTED" }),
+      );
       expect(res.status).toBe("ACTIVE");
     });
 
-    it("linkOnAppointmentBooked should return existing", async () => {
-      (CompanionOrganisationModel.findOne as jest.Mock).mockResolvedValue({
-        _id: "exist",
+    it("rejectInvite: should throw 404 if invite invalid", async () => {
+      (CompanionOrganisationModel.findOne as jest.Mock).mockResolvedValue(null);
+      await expect(
+        CompanionOrganisationService.rejectInvite({
+          token: "tkn",
+          organisationId: validIdStr,
+        }),
+      ).rejects.toThrow(
+        new CompanionOrganisationServiceError("Invalid invite token", 404),
+      );
+    });
+
+    it("rejectInvite: should update, save, and audit on success", async () => {
+      const mockDoc: any = createMockDoc({
+        status: "PENDING",
+        inviteToken: "tkn",
       });
-      const res = await CompanionOrganisationService.linkOnAppointmentBooked({
-        companionId: validCompanionId,
-        organisationId: validOrgId,
-        organisationType: "HOSPITAL",
+      (CompanionOrganisationModel.findOne as jest.Mock).mockResolvedValue(
+        mockDoc,
+      );
+
+      await CompanionOrganisationService.rejectInvite({
+        token: "tkn",
+        organisationId: validIdStr,
       });
-      expect(res._id).toBe("exist");
+      expect(mockDoc.status).toBe("REVOKED");
+      expect(mockDoc.inviteToken).toBeNull();
+      expect(mockDoc.save).toHaveBeenCalled();
+      expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+        expect.objectContaining({ eventType: "COMPANION_ORG_INVITE_REJECTED" }),
+      );
     });
   });
 
   describe("revokeLink", () => {
-    it("should throw if not found", async () => {
+    it("should throw 404 if link not found", async () => {
       (
-        CompanionOrganisationModel.findByIdAndUpdate as jest.Mock
+        CompanionOrganisationModel.findByIdAndDelete as jest.Mock
       ).mockResolvedValue(null);
-      // NOTE: If the service uses findById + save instead of findByIdAndUpdate,
-      // mocking findByIdAndUpdate here ensures it returns undefined/null effectively
-      // or simply doesn't get called, triggering the "not found" condition in the service.
       await expect(
-        CompanionOrganisationService.revokeLink(validObjectId),
-      ).rejects.toThrow("Link not found");
+        CompanionOrganisationService.revokeLink(validIdStr),
+      ).rejects.toThrow(
+        new CompanionOrganisationServiceError("Link not found", 404),
+      );
+    });
+
+    it("should securely audit and handle missing organisationId fallback", async () => {
+      // Testing fallback `organisationId?.toString() ?? ""`
+      const mockDoc = createMockDoc({ organisationId: null });
+      (
+        CompanionOrganisationModel.findByIdAndDelete as jest.Mock
+      ).mockResolvedValue(mockDoc);
+
+      const res = await CompanionOrganisationService.revokeLink(validIdStr);
+      expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organisationId: "", // Proves fallback worked without throwing undefined error
+          eventType: "COMPANION_ORG_LINK_REVOKED",
+        }),
+      );
+      expect(res._id).toBeDefined();
     });
   });
 
-  describe("Parent Approval (parentApproveLink / parentRejectLink)", () => {
-    it("parentApproveLink: should activate pending link", async () => {
-      const link = createMockDoc({ status: "PENDING" });
-      (CompanionOrganisationModel.findOne as jest.Mock).mockResolvedValue(link);
+  describe("parentApproveLink & parentRejectLink", () => {
+    it("parentApproveLink: should throw 404 if link not found", async () => {
+      (CompanionOrganisationModel.findOne as jest.Mock).mockResolvedValue(null);
+      // Fixed: passed validIdStr instead of "tkn" which fails hex length validation internally
+      await expect(
+        CompanionOrganisationService.parentApproveLink(validObjId, validIdStr),
+      ).rejects.toThrow(
+        new CompanionOrganisationServiceError("Pending link not found.", 404),
+      );
+    });
+
+    it("parentApproveLink: should update, save, and audit", async () => {
+      const mockDoc: any = createMockDoc();
+      (CompanionOrganisationModel.findOne as jest.Mock).mockResolvedValue(
+        mockDoc,
+      );
 
       await CompanionOrganisationService.parentApproveLink(
-        validParentId,
-        validObjectId,
+        validObjId,
+        validIdStr,
       );
-      expect(link.status).toBe("ACTIVE");
-      expect(link.linkedByParentId).toBe(validParentId);
-      expect(link.save).toHaveBeenCalled();
+      expect(mockDoc.status).toBe("ACTIVE");
+      expect(mockDoc.save).toHaveBeenCalled();
+      expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+        expect.objectContaining({ eventType: "COMPANION_ORG_LINK_APPROVED" }),
+      );
     });
 
-    it("parentApproveLink: should throw if not found", async () => {
+    it("parentRejectLink: should throw 404 if link not found", async () => {
       (CompanionOrganisationModel.findOne as jest.Mock).mockResolvedValue(null);
       await expect(
-        CompanionOrganisationService.parentApproveLink(
-          validParentId,
-          validObjectId,
-        ),
-      ).rejects.toThrow("Pending link not found.");
+        CompanionOrganisationService.parentRejectLink(validObjId, validIdStr),
+      ).rejects.toThrow(
+        new CompanionOrganisationServiceError("Pending link not found.", 404),
+      );
     });
 
-    it("parentRejectLink: should revoke pending link", async () => {
-      const link = createMockDoc({ status: "PENDING" });
-      (CompanionOrganisationModel.findOne as jest.Mock).mockResolvedValue(link);
+    it("parentRejectLink: should update, save, and audit", async () => {
+      const mockDoc: any = createMockDoc();
+      (CompanionOrganisationModel.findOne as jest.Mock).mockResolvedValue(
+        mockDoc,
+      );
 
       await CompanionOrganisationService.parentRejectLink(
-        validParentId,
-        validObjectId,
+        validObjId,
+        validIdStr,
       );
-      expect(link.status).toBe("REVOKED");
-    });
-
-    it("parentRejectLink: should throw if not found", async () => {
-      (CompanionOrganisationModel.findOne as jest.Mock).mockResolvedValue(null);
-      await expect(
-        CompanionOrganisationService.parentRejectLink(
-          validParentId,
-          validObjectId,
-        ),
-      ).rejects.toThrow("Pending link not found.");
+      expect(mockDoc.status).toBe("REVOKED");
+      expect(mockDoc.save).toHaveBeenCalled();
+      expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+        expect.objectContaining({ eventType: "COMPANION_ORG_LINK_REJECTED" }),
+      );
     });
   });
 
-  describe("Getters", () => {
-    it("getLinksForCompanion: should find links", async () => {
-      (CompanionOrganisationModel.find as jest.Mock).mockResolvedValue([]);
-      await CompanionOrganisationService.getLinksForCompanion(validCompanionId);
-      expect(CompanionOrganisationModel.find).toHaveBeenCalled();
+  describe("Fetching and Mapping Methods", () => {
+    it("getLinksForCompanion should return raw array", async () => {
+      (CompanionOrganisationModel.find as jest.Mock).mockResolvedValue([
+        createMockDoc(),
+      ]);
+      const res =
+        await CompanionOrganisationService.getLinksForCompanion(validIdStr);
+      expect(res).toHaveLength(1);
     });
 
-    it("getLinksForCompanionByOrganisationTye: should return enriched data", async () => {
-      // Mock Find with populate
-      const mockPopulate = jest.fn().mockReturnValue([]);
-      (CompanionOrganisationModel.find as jest.Mock).mockReturnValue({
-        populate: mockPopulate,
-      });
-
-      // Mock ParentCompanion, Companion, Parent lookups
-      const mockExec = jest.fn().mockResolvedValue({ parentId: validParentId });
-      (ParentCompanionModel.findOne as jest.Mock).mockReturnValue({
-        exec: mockExec,
-      });
+    it("getLinksForCompanionByOrganisationTye should assemble populated response", async () => {
+      (CompanionOrganisationModel.find as jest.Mock).mockReturnValue(
+        createQueryChain([{ status: "ACTIVE" }]),
+      );
+      (ParentCompanionModel.findOne as jest.Mock).mockReturnValue(
+        createQueryChain({ parentId: validIdStr }),
+      );
       (CompanionModel.findById as jest.Mock).mockResolvedValue({
-        name: "Buddy",
+        name: "Fido",
       });
       (ParentModel.findById as jest.Mock).mockResolvedValue({
         firstName: "John",
         lastName: "Doe",
+        email: "a@a.com",
+        phoneNumber: "123",
       });
 
-      // FIX: Pass validCompanionId.toString() to satisfy assertSafeString
       const res =
         await CompanionOrganisationService.getLinksForCompanionByOrganisationTye(
-          validCompanionId.toString(),
+          validIdStr,
           "HOSPITAL",
         );
-
+      expect(res.links).toHaveLength(1);
       expect(res.parentName).toBe("John Doe");
-      expect(res.companionName).toBe("Buddy");
-      expect(res.links).toEqual([]);
+      expect(res.email).toBe("a@a.com");
+      expect(res.companionName).toBe("Fido");
+      expect(res.phoneNumber).toBe("123");
     });
 
-    it("getLinksForOrganisation: should return mapped data", async () => {
-      // 1. Mock finding links
-      const mockLink = {
-        _id: "link1",
-        companionId: validCompanionId,
-        organisationId: validOrgId,
-        organisationType: "HOSPITAL",
-        status: "ACTIVE",
-      };
-      (CompanionOrganisationModel.find as jest.Mock).mockResolvedValue([
-        mockLink,
-      ]);
-
-      // 2. Mock Companion lookup
-      (CompanionModel.findById as jest.Mock).mockResolvedValue({
-        _id: validCompanionId,
-        name: "Dog",
+    describe("getLinksForOrganisation", () => {
+      it("should return empty if no links exist", async () => {
+        (CompanionOrganisationModel.find as jest.Mock).mockResolvedValue([]);
+        expect(
+          await CompanionOrganisationService.getLinksForOrganisation(
+            validIdStr,
+          ),
+        ).toEqual([]);
       });
 
-      // 3. Mock Parent Link lookup
-      (ParentCompanionModel.findOne as jest.Mock).mockResolvedValue({
-        parentId: validParentId,
+      it("should filter out links if the companion is orphaned (missing from CompanionModel)", async () => {
+        const link = createMockDoc();
+        (CompanionOrganisationModel.find as jest.Mock).mockResolvedValue([
+          link,
+        ]);
+        (CompanionModel.findById as jest.Mock).mockResolvedValue(null); // Triggers filter(Boolean)
+
+        const res =
+          await CompanionOrganisationService.getLinksForOrganisation(
+            validIdStr,
+          );
+        expect(res).toHaveLength(0); // Nulls removed
       });
 
-      // 4. Mock Parent lookup
-      (ParentModel.findById as jest.Mock).mockResolvedValue({
-        _id: validParentId,
-        name: "Parent",
+      it("should map companion and handle missing parent link gracefully", async () => {
+        const link = createMockDoc();
+        (CompanionOrganisationModel.find as jest.Mock).mockResolvedValue([
+          link,
+        ]);
+        (CompanionModel.findById as jest.Mock).mockResolvedValue({
+          _id: validObjId,
+        });
+        (ParentCompanionModel.findOne as jest.Mock).mockResolvedValue(null); // No parent
+
+        const res =
+          await CompanionOrganisationService.getLinksForOrganisation(
+            validIdStr,
+          );
+        expect(res).toHaveLength(1);
+        expect(res[0]?.parent).toBeNull();
+        expect(res[0]?.companion?.resourceType).toBe("Patient");
       });
 
-      // 5. Mock Transformers
-      (toFHIRCompanion as jest.Mock).mockReturnValue({ id: "c1" });
-      (toFHIRParent as jest.Mock).mockReturnValue({ id: "p1" });
+      it("should map both companion and parent successfully", async () => {
+        const link = createMockDoc();
+        (CompanionOrganisationModel.find as jest.Mock).mockResolvedValue([
+          link,
+        ]);
+        (CompanionModel.findById as jest.Mock).mockResolvedValue({
+          _id: validObjId,
+        });
+        (ParentCompanionModel.findOne as jest.Mock).mockResolvedValue({
+          parentId: validObjId,
+        });
+        (ParentModel.findById as jest.Mock).mockResolvedValue({
+          _id: validObjId,
+        });
 
-      const res =
-        await CompanionOrganisationService.getLinksForOrganisation(validOrgId);
-
-      expect(res).toHaveLength(1);
-      expect(res[0]!.companion.id).toBe("c1");
-      expect(res[0]!.parent?.id).toBe("p1");
-    });
-
-    it("getLinksForOrganisation: should filter out orphaned links (no companion)", async () => {
-      const mockLink = { companionId: validCompanionId };
-      (CompanionOrganisationModel.find as jest.Mock).mockResolvedValue([
-        mockLink,
-      ]);
-      (CompanionModel.findById as jest.Mock).mockResolvedValue(null); // Companion deleted
-
-      const res =
-        await CompanionOrganisationService.getLinksForOrganisation(validOrgId);
-      expect(res).toHaveLength(0); // Filtered out
-    });
-
-    it("getLinksForOrganisation: should handle companion with no parent (null parent)", async () => {
-      const mockLink = {
-        _id: "link1",
-        companionId: validCompanionId,
-        status: "ACTIVE",
-      };
-      (CompanionOrganisationModel.find as jest.Mock).mockResolvedValue([
-        mockLink,
-      ]);
-      (CompanionModel.findById as jest.Mock).mockResolvedValue({
-        _id: validCompanionId,
+        const res =
+          await CompanionOrganisationService.getLinksForOrganisation(
+            validIdStr,
+          );
+        expect(res).toHaveLength(1);
+        expect(res[0]?.parent?.resourceType).toBe("RelatedPerson");
       });
-      (ParentCompanionModel.findOne as jest.Mock).mockResolvedValue(null); // No parent link
-
-      const res =
-        await CompanionOrganisationService.getLinksForOrganisation(validOrgId);
-      expect(res).toHaveLength(1);
-      expect(res[0]!.parent).toBeNull();
     });
   });
 });

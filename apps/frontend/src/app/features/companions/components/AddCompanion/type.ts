@@ -1,8 +1,5 @@
-import dogbreeds from "@/app/lib/data/dogBreeds";
-import catbreeds from "@/app/lib/data/catBreeds";
-import horsebreeds from "@/app/lib/data/horseBreeds";
-import { StoredCompanion, StoredParent } from "@/app/features/companions/pages/Companions/types";
-import countries from "@/app/lib/data/countryList";
+import { StoredCompanion, StoredParent } from '@/app/features/companions/pages/Companions/types';
+import countries from '@/app/lib/data/countryList';
 
 export type Option = {
   value: string;
@@ -10,52 +7,44 @@ export type Option = {
 };
 
 export const GenderOptions: Option[] = [
-  { label: "Male", value: "male" },
-  { label: "Female", value: "female" },
-  { label: "Unknown", value: "unknown" },
+  { label: 'Male', value: 'male' },
+  { label: 'Female', value: 'female' },
+  { label: 'Unknown', value: 'unknown' },
 ];
 
-export const NeuteredOptions: Option[] = [
-  { label: "Neutered", value: "true" },
-  { label: "Not neutered", value: "false" },
-];
+export const getNeuteredOptions = (gender?: string): Option[] => {
+  const term = gender === 'female' ? 'Spayed' : 'Neutered';
+  return [
+    { label: term, value: 'true' },
+    { label: `Not ${term.toLowerCase()}`, value: 'false' },
+  ];
+};
+
+export const NeuteredOptions: Option[] = getNeuteredOptions();
 
 export const InsuredOptions: Option[] = [
-  { label: "Insured", value: "true" },
-  { label: "Not insured", value: "false" },
+  { label: 'Insured', value: 'true' },
+  { label: 'Not insured', value: 'false' },
 ];
 
 export const OriginOptions: Option[] = [
-  { label: "Shop", value: "shop" },
-  { label: "Breeder", value: "breeder" },
-  { label: "Foster/ Shelter", value: "foster_shelter" },
-  { label: "Friends or family", value: "friends_family" },
-  { label: "Unknown", value: "unknown" },
+  { label: 'Shop', value: 'shop' },
+  { label: 'Breeder', value: 'breeder' },
+  { label: 'Foster/ Shelter', value: 'foster_shelter' },
+  { label: 'Friends or family', value: 'friends_family' },
+  { label: 'Stray', value: 'stray' },
+  { label: 'Unknown', value: 'unknown' },
 ];
 export const SpeciesOptions: Option[] = [
-  { value: "dog", label: "Dog" },
-  { value: "cat", label: "Cat" },
-  { value: "horse", label: "Horse" },
+  { value: 'dog', label: 'Dog' },
+  { value: 'cat', label: 'Cat' },
+  { value: 'horse', label: 'Horse' },
 ];
 export type Breed = {
   speciesId: number;
   speciesName: string;
   breedId: number;
   breedName: string;
-};
-export const BreedMap: Record<string, Option[]> = {
-  dog: dogbreeds.map((breed) => ({
-    value: breed.breedId + "",
-    label: breed.breedName,
-  })),
-  cat: catbreeds.map((breed) => ({
-    value: breed.breedId + "",
-    label: breed.breedName,
-  })),
-  horse: horsebreeds.map((breed) => ({
-    value: breed.breedId + "",
-    label: breed.breedName,
-  })),
 };
 
 export const CountriesOptions: Option[] = countries.map((country) => ({
@@ -64,42 +53,44 @@ export const CountriesOptions: Option[] = countries.map((country) => ({
 }));
 
 export const EMPTY_STORED_PARENT: StoredParent = {
-  id: "",
-  firstName: "",
-  lastName: "",
-  email: "",
+  id: '',
+  firstName: '',
+  lastName: '',
+  email: '',
   birthDate: undefined,
-  phoneNumber: "",
+  phoneNumber: '',
   address: {
-    addressLine: "",
-    country: "",
-    city: "",
-    state: "",
-    postalCode: "",
+    addressLine: '',
+    country: '',
+    city: '',
+    state: '',
+    postalCode: '',
     latitude: undefined,
     longitude: undefined,
   },
-  createdFrom: "pms",
+  createdFrom: 'pms',
 };
 
 export const EMPTY_STORED_COMPANION: StoredCompanion = {
-  id: "",
-  organisationId: "",
-  parentId: "",
-  name: "",
-  type: "dog",
-  breed: "",
+  id: '',
+  organisationId: '',
+  parentId: '',
+  name: '',
+  type: 'dog',
+  speciesCode: '',
+  breed: '',
+  breedCode: '',
   dateOfBirth: new Date(),
-  gender: "unknown",
+  gender: 'unknown',
   currentWeight: undefined,
-  colour: "",
-  allergy: "",
-  bloodGroup: "",
+  colour: '',
+  allergy: '',
+  bloodGroup: '',
   isneutered: false,
-  microchipNumber: "",
-  passportNumber: "",
+  microchipNumber: '',
+  passportNumber: '',
   isInsured: false,
   insurance: undefined,
-  countryOfOrigin: "",
-  source: "unknown",
+  countryOfOrigin: '',
+  source: 'unknown',
 };

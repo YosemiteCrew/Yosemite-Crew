@@ -1,17 +1,17 @@
-import React from "react";
-import Datepicker from "@/app/ui/inputs/Datepicker";
-import LabelDropdown from "@/app/ui/inputs/Dropdown/LabelDropdown";
-import FormDesc from "@/app/ui/inputs/FormDesc/FormDesc";
-import FormInput from "@/app/ui/inputs/FormInput/FormInput";
-import SelectLabel from "@/app/ui/inputs/SelectLabel";
-import { Option } from "@/app/features/companions/types/companion";
-import { Task, TaskKindOptions, TaskRecurrenceOptions } from "@/app/features/tasks/types/task";
-import { TaskFormErrors } from "@/app/lib/taskForm";
+import React from 'react';
+import Datepicker from '@/app/ui/inputs/Datepicker';
+import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
+import FormDesc from '@/app/ui/inputs/FormDesc/FormDesc';
+import FormInput from '@/app/ui/inputs/FormInput/FormInput';
+import SelectLabel from '@/app/ui/inputs/SelectLabel';
+import { Option } from '@/app/features/companions/types/companion';
+import { Task, TaskKindOptions, TaskRecurrenceOptions } from '@/app/features/tasks/types/task';
+import { TaskFormErrors } from '@/app/lib/taskForm';
 
 const TaskSourceOptions = [
-  { value: "YC_LIBRARY", label: "YC Library" },
-  { value: "ORG_TEMPLATE", label: "Org Template" },
-  { value: "CUSTOM", label: "Custom" },
+  { value: 'YC_LIBRARY', label: 'YC Library' },
+  { value: 'ORG_TEMPLATE', label: 'Org Template' },
+  { value: 'CUSTOM', label: 'Custom' },
 ];
 
 type TaskFormFieldsProps = {
@@ -19,11 +19,10 @@ type TaskFormFieldsProps = {
   setFormData: React.Dispatch<React.SetStateAction<Task>>;
   formDataErrors: TaskFormErrors;
   templateOptions: Option[];
-  timeSlots: Option[];
   due: Date | null;
   setDue: React.Dispatch<React.SetStateAction<Date | null>>;
-  dueTimeUtc: string;
-  setDueTimeUtc: React.Dispatch<React.SetStateAction<string>>;
+  dueTimeValue: string;
+  setDueTimeValue: React.Dispatch<React.SetStateAction<string>>;
   onSelectTemplate: (templateId: string) => void;
   showAudienceSelect?: boolean;
   audienceOptions?: Option[];
@@ -38,11 +37,10 @@ const TaskFormFields = ({
   setFormData,
   formDataErrors,
   templateOptions,
-  timeSlots,
   due,
   setDue,
-  dueTimeUtc,
-  setDueTimeUtc,
+  dueTimeValue,
+  setDueTimeValue,
   onSelectTemplate,
   showAudienceSelect = false,
   audienceOptions = [],
@@ -77,17 +75,17 @@ const TaskFormFields = ({
           source: option.value as any,
           templateId: undefined,
           libraryTaskId: undefined,
-          name: "",
-          description: "",
-          category: "CUSTOM",
+          name: '',
+          description: '',
+          category: 'CUSTOM',
         });
       }}
       defaultOption={formData.source}
       options={TaskSourceOptions}
     />
-    {formData.source === "YC_LIBRARY" && (
+    {formData.source === 'YC_LIBRARY' && (
       <LabelDropdown
-        placeholder={"Template"}
+        placeholder={'Template'}
         onSelect={(option) => {
           setFormData({
             ...formData,
@@ -100,9 +98,9 @@ const TaskFormFields = ({
         error={formDataErrors.libraryTaskId}
       />
     )}
-    {formData.source === "ORG_TEMPLATE" && (
+    {formData.source === 'ORG_TEMPLATE' && (
       <LabelDropdown
-        placeholder={"Template"}
+        placeholder={'Template'}
         onSelect={(option) => {
           setFormData({
             ...formData,
@@ -116,7 +114,7 @@ const TaskFormFields = ({
       />
     )}
     <LabelDropdown
-      placeholder={"Category"}
+      placeholder={'Category'}
       onSelect={(option) =>
         setFormData({
           ...formData,
@@ -138,11 +136,9 @@ const TaskFormFields = ({
     <FormDesc
       intype="text"
       inname="description"
-      value={formData.description || ""}
+      value={formData.description || ''}
       inlabel="Description (optional)"
-      onChange={(e) =>
-        setFormData({ ...formData, description: e.target.value })
-      }
+      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
       className="min-h-[120px]!"
     />
     <Datepicker
@@ -150,23 +146,29 @@ const TaskFormFields = ({
       setCurrentDate={setDue}
       placeholder="Due date"
       type="input"
+      error={formDataErrors.dueAt}
     />
-    <LabelDropdown
-      placeholder="Due time"
-      onSelect={(option) => {
-        setDueTimeUtc(option.value);
-      }}
-      defaultOption={dueTimeUtc}
-      options={timeSlots}
+    <FormInput
+      intype="time"
+      inname="dueTime"
+      value={dueTimeValue}
+      inlabel="Due time"
+      onChange={(e) => setDueTimeValue(e.target.value)}
+      error={formDataErrors.dueAt}
     />
     <FormInput
       intype="number"
       inname="reminder"
-      value={String(formData.reminder?.offsetMinutes) || ""}
+      value={
+        typeof formData.reminder?.offsetMinutes === 'number'
+          ? String(formData.reminder.offsetMinutes)
+          : ''
+      }
       inlabel="Reminder (in minutes)"
+      error={formDataErrors.reminder}
       onChange={(e) => {
         const raw = e.target.value;
-        if (raw === "") {
+        if (raw === '') {
           setFormData({
             ...formData,
             reminder: undefined,
@@ -187,7 +189,7 @@ const TaskFormFields = ({
     <SelectLabel
       title="Reoccurrence"
       options={TaskRecurrenceOptions}
-      activeOption={formData.recurrence?.type || "ONCE"}
+      activeOption={formData.recurrence?.type || 'ONCE'}
       setOption={(value) =>
         setFormData({
           ...formData,

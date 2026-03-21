@@ -1,42 +1,37 @@
-"use client";
-import React from "react";
-import Image from "next/image";
+'use client';
+import React from 'react';
+import Image from 'next/image';
+import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 
-import "./TeamSlide.css";
+import './TeamSlide.css';
 
 const TeamSlide = () => {
   const teamImages = [
     {
-      src: "https://d2il6osz49gpup.cloudfront.net/aboutus-page/harshit.png",
-      alt: "Harshit",
-      linkedin: "https://www.linkedin.com/in/harshit-wandhare-a088201aa/",
+      src: MEDIA_SOURCES.team.ankit,
+      alt: 'Ankit',
+      linkedin: 'https://www.linkedin.com/in/aupyay/',
     },
     {
-      src: "https://d2il6osz49gpup.cloudfront.net/aboutus-page/anna.png",
-      alt: "Anna",
-      linkedin: "https://www.linkedin.com/in/annaupadhyay/",
+      src: MEDIA_SOURCES.team.anna,
+      alt: 'Anna',
+      linkedin: 'https://www.linkedin.com/in/annaupadhyay/',
     },
     {
-      src: "https://d2il6osz49gpup.cloudfront.net/aboutus-page/ankit.png",
-      alt: "Ankit",
-      linkedin: "https://www.linkedin.com/in/aupyay/",
+      src: MEDIA_SOURCES.team.harshit,
+      alt: 'Harshit',
+      linkedin: 'https://www.linkedin.com/in/harshit-wandhare-a088201aa/',
     },
     {
-      src: "https://d2il6osz49gpup.cloudfront.net/aboutus-page/harshvardhan.png",
-      alt: "Harshvardhan",
-      linkedin: "https://www.linkedin.com/in/harshvardhan-parmar/",
+      src: MEDIA_SOURCES.team.harshvardhan,
+      alt: 'Harshvardhan',
+      linkedin: 'https://www.linkedin.com/in/harshvardhan-parmar/',
     },
     {
-      src: "https://d2il6osz49gpup.cloudfront.net/aboutus-page/surbhi.png",
-      alt: "Surbhi",
-      linkedin: "https://www.linkedin.com/in/surbhi-sharma-238340259/",
+      src: MEDIA_SOURCES.team.sneha,
+      alt: 'Sneha',
+      linkedin: 'https://www.linkedin.com/in/snehadevc/',
     },
-
-    {
-      src: "https://d2il6osz49gpup.cloudfront.net/aboutus-page/suryansh.png",
-      alt: "Suryansh",
-      linkedin: "https://www.linkedin.com/in/suryansh-sharma-776563226/",
-    }
   ];
 
   return (

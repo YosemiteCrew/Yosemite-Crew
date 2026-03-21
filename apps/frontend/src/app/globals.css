@@ -1,83 +1,56 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 /* Fonts */
-@font-face {
-  font-family: "ClashGrotesk";
-  src:
-    url("/fonts/ClashGrotesk/clashgrotesk-regular-webfont.woff2")
-      format("woff2"),
-    url("/fonts/ClashGrotesk/clashgrotesk-regular-webfont.woff") format("woff");
-  font-weight: 400;
-  font-style: normal;
-}
 
 @font-face {
-  font-family: "ClashGrotesk";
+  font-family: 'Satoshi';
   src:
-    url("/fonts/ClashGrotesk/clashgrotesk-medium-webfont.woff2") format("woff2"),
-    url("/fonts/ClashGrotesk/clashgrotesk-medium-webfont.woff") format("woff");
-  font-weight: 500;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: "ClashGrotesk";
-  src:
-    url("/fonts/ClashGrotesk/clashgrotesk-bold-webfont.woff2") format("woff2"),
-    url("/fonts/ClashGrotesk/clashgrotesk-bold-webfont.woff") format("woff");
-  font-weight: 700;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: "Satoshi";
-  src:
-    url("/fonts/satoshi-font/Satoshi-Light.woff2") format("woff2"),
-    url("/fonts/satoshi-font/Satoshi-Light.woff") format("woff"),
-    url("/fonts/satoshi-font/Satoshi-Light.ttf") format("truetype");
+    url('/fonts/satoshi-font/Satoshi-Light.woff2') format('woff2'),
+    url('/fonts/satoshi-font/Satoshi-Light.woff') format('woff'),
+    url('/fonts/satoshi-font/Satoshi-Light.ttf') format('truetype');
   font-weight: 300;
   font-display: swap;
   font-style: normal;
 }
 
 @font-face {
-  font-family: "Satoshi";
+  font-family: 'Satoshi';
   src:
-    url("/fonts/satoshi-font/Satoshi-Regular.woff2") format("woff2"),
-    url("/fonts/satoshi-font/Satoshi-Regular.woff") format("woff"),
-    url("/fonts/satoshi-font/Satoshi-Regular.ttf") format("truetype");
+    url('/fonts/satoshi-font/Satoshi-Regular.woff2') format('woff2'),
+    url('/fonts/satoshi-font/Satoshi-Regular.woff') format('woff'),
+    url('/fonts/satoshi-font/Satoshi-Regular.ttf') format('truetype');
   font-weight: 400;
   font-display: swap;
   font-style: normal;
 }
 
 @font-face {
-  font-family: "Satoshi";
+  font-family: 'Satoshi';
   src:
-    url("/fonts/satoshi-font/Satoshi-Medium.woff2") format("woff2"),
-    url("/fonts/satoshi-font/Satoshi-Medium.woff") format("woff"),
-    url("/fonts/satoshi-font/Satoshi-Medium.ttf") format("truetype");
+    url('/fonts/satoshi-font/Satoshi-Medium.woff2') format('woff2'),
+    url('/fonts/satoshi-font/Satoshi-Medium.woff') format('woff'),
+    url('/fonts/satoshi-font/Satoshi-Medium.ttf') format('truetype');
   font-weight: 500;
   font-display: swap;
   font-style: normal;
 }
 
 @font-face {
-  font-family: "Satoshi";
+  font-family: 'Satoshi';
   src:
-    url("/fonts/satoshi-font/Satoshi-Bold.woff2") format("woff2"),
-    url("/fonts/satoshi-font/Satoshi-Bold.woff") format("woff"),
-    url("/fonts/satoshi-font/Satoshi-Bold.ttf") format("truetype");
+    url('/fonts/satoshi-font/Satoshi-Bold.woff2') format('woff2'),
+    url('/fonts/satoshi-font/Satoshi-Bold.woff') format('woff'),
+    url('/fonts/satoshi-font/Satoshi-Bold.ttf') format('truetype');
   font-weight: 700;
   font-display: swap;
   font-style: normal;
 }
 
 @font-face {
-  font-family: "Satoshi";
+  font-family: 'Satoshi';
   src:
-    url("/fonts/satoshi-font/Satoshi-Black.woff2") format("woff2"),
-    url("/fonts/satoshi-font/Satoshi-Black.woff") format("woff"),
-    url("/fonts/satoshi-font/Satoshi-Black.ttf") format("truetype");
+    url('/fonts/satoshi-font/Satoshi-Black.woff2') format('woff2'),
+    url('/fonts/satoshi-font/Satoshi-Black.woff') format('woff'),
+    url('/fonts/satoshi-font/Satoshi-Black.ttf') format('truetype');
   font-weight: 900;
   font-display: swap;
   font-style: normal;
@@ -92,6 +65,32 @@
     &::-webkit-scrollbar {
       display: none;
     }
+  }
+
+  .scrollbar-custom {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-neutral-200) transparent;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar-thumb {
+    background: var(--color-neutral-200);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar-thumb:hover {
+    background: var(--color-neutral-500);
+    background-clip: padding-box;
   }
 }
 @theme {
@@ -164,7 +163,7 @@
   --color-border-card-selected: var(--color-neutral-200);
   --color-state-hover: var(--color-neutral-950);
   --color-state-selected: var(--color-neutral-950);
-  
+
   --color-input-text-placeholder: var(--color-neutral-700);
   --color-input-text-placeholder-active: var(--color-brand-950);
   --color-input-border-default: var(--color-neutral-100);
@@ -194,8 +193,8 @@
   --color-error: #ee5f54;
   --color-delete: #ea3729;
   --color-pending-text: #f68523;
-  --font-satoshi: "Satoshi", sans-serif;
-  --font-grotesk: "ClashGrotesk", sans-serif;
+  --font-satoshi: 'Satoshi', sans-serif;
+  --font-grotesk: 'Satoshi', sans-serif;
 }
 :root {
   --black-text: var(--color-black-text);
@@ -222,6 +221,26 @@
   --pendingtext: var(--color-pending-text);
   --grotesk-font: var(--font-grotesk);
   --satoshi-font: var(--font-satoshi);
+  --img-bg-rightfaq: url('https://d2il6osz49gpup.cloudfront.net/Images/rightfaq.png');
+  --img-bg-downfaq: url('https://d2il6osz49gpup.cloudfront.net/Images/downfaq.png');
+  --img-bg-ftafter: url('https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png');
+  --img-bg-contact-info: url('https://d2il6osz49gpup.cloudfront.net/Images/ContactInfoBG.png');
+  --img-bg-dev-cose-after: url('https://d2il6osz49gpup.cloudfront.net/Images/devcoseafter.png');
+  --img-bg-dev-lines: url('https://d2il6osz49gpup.cloudfront.net/Images/devlins.png');
+  --img-bg-fits-1: url('https://d2il6osz49gpup.cloudfront.net/Images/fits1.png');
+  --img-bg-fits-2: url('https://d2il6osz49gpup.cloudfront.net/Images/fits2.png');
+  --img-bg-fits-3: url('https://d2il6osz49gpup.cloudfront.net/Images/fits3.png');
+  --img-bg-left-build: url('https://d2il6osz49gpup.cloudfront.net/Images/leftbuild.png');
+  --img-bg-right-build: url('https://d2il6osz49gpup.cloudfront.net/Images/rightbuild.png');
+  --img-bg-dog-help: url('https://d2il6osz49gpup.cloudfront.net/Images/doghelp.png');
+  --img-bg-cat-trust: url('https://d2il6osz49gpup.cloudfront.net/Images/catTrust.png');
+  --img-bg-paws-1-after: url('https://d2il6osz49gpup.cloudfront.net/Images/Paws1after.png');
+  --img-bg-paws-2-after: url('https://d2il6osz49gpup.cloudfront.net/Images/Paws2after.png');
+  --img-bg-paws-3-after: url('https://d2il6osz49gpup.cloudfront.net/Images/Paws3after.png');
+  --img-bg-glimps: url('https://d2il6osz49gpup.cloudfront.net/Images/glimpsbg.png');
+  --img-bg-lines: url('https://d2il6osz49gpup.cloudfront.net/Images/LINES.png');
+  --img-bg-trust-after: url('https://d2il6osz49gpup.cloudfront.net/Images/TrustAfter.png');
+  --img-bg-about: url('https://d2il6osz49gpup.cloudfront.net/Images/aboutbg.png');
 }
 
 html,
@@ -241,7 +260,7 @@ p {
   font-family: var(--satoshi-font);
 }
 
-input[type="checkbox"] {
+input[type='checkbox'] {
   width: 20px;
   height: 20px;
   -moz-appearance: none;
@@ -253,13 +272,13 @@ input[type="checkbox"] {
   cursor: pointer;
   position: relative;
   font-weight: 500;
-  font-family: var(--grotesk-font);
+  font-family: var(--satoshi-font);
 }
-input[type="checkbox"]:checked {
+input[type='checkbox']:checked {
   background-color: var(--blue-text);
 }
-input[type="checkbox"]:checked::after {
-  content: "";
+input[type='checkbox']:checked::after {
+  content: '';
   position: absolute;
   left: 50%;
   top: 45%;
@@ -269,7 +288,7 @@ input[type="checkbox"]:checked::after {
   border-width: 0 3px 3px 0;
   transform: translate(-50%, -50%) rotate(45deg);
 }
-input[type="radio"] {
+input[type='radio'] {
   width: 18px;
   height: 18px;
   cursor: pointer;
@@ -283,7 +302,7 @@ input::-webkit-inner-spin-button {
 }
 
 /* Firefox */
-input[type="number"] {
+input[type='number'] {
   -moz-appearance: textfield;
   appearance: textfield;
 }

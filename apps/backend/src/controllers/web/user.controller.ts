@@ -120,9 +120,7 @@ export const UserController = {
       res.status(200).json(updatedUser);
     } catch (error: unknown) {
       if (error instanceof UserServiceError) {
-        return res
-          .status(error.statusCode)
-          .json({ message: error.message });
+        return res.status(error.statusCode).json({ message: error.message });
       }
 
       logger.error("Failed to update user name", error);

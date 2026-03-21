@@ -1,11 +1,11 @@
 import { Request, Response } from "express";
 import { AppointmentService } from "src/services/appointment.service";
 import { AppointmentRequestDTO } from "@yosemite-crew/types";
-import { AuthenticatedRequest } from "src/middlewares/auth";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import logger from "src/utils/logger";
 import { AppointmentStatus } from "src/models/appointment";
 import { generatePresignedUrl } from "src/middlewares/upload";
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 type RescheduleRequestBody = {
   startTime: string | Date;
@@ -18,15 +18,6 @@ type CancelBody = { reason?: string };
 
 type UploadUrlBody = { companionId?: string; mimeType?: string };
 type AttachFormsBody = { formIds?: string[] };
-
-const resolveUserIdFromRequest = (req: Request): string | undefined => {
-  const authRequest = req as AuthenticatedRequest;
-  const headerUserId = req.headers["x-user-id"];
-  if (headerUserId && typeof headerUserId === "string") {
-    return headerUserId;
-  }
-  return authRequest.userId;
-};
 
 type ErrorWithStatus = Error & { statusCode?: number };
 
@@ -127,7 +118,14 @@ export const AppointmentController = {
   ) => {
     try {
       const dto = req.body;
-      const { createPayment } = req.query;
+      const { createPayment, paymentCollectionMethod } = req.query;
+      const bodyWithMethod = dto as unknown as {
+        paymentCollectionMethod?: unknown;
+      };
+      const paymentCollectionMethodFromBody =
+        typeof bodyWithMethod.paymentCollectionMethod === "string"
+          ? bodyWithMethod.paymentCollectionMethod
+          : undefined;
 
       const shouldCreatePayment =
         createPayment === "true" || createPayment === "1";
@@ -135,6 +133,9 @@ export const AppointmentController = {
       const result = await AppointmentService.createAppointmentFromPms(
         dto,
         shouldCreatePayment,
+        typeof paymentCollectionMethod === "string"
+          ? paymentCollectionMethod
+          : paymentCollectionMethodFromBody,
       );
 
       return res
@@ -311,15 +312,10 @@ export const AppointmentController = {
         formIds,
       );
 
-      return res
-        .status(200)
-        .json({ message: "Forms attached", data: result });
+      return res.status(200).json({ message: "Forms attached", data: result });
     } catch (err: unknown) {
       logger.error("Appointment form attach error: ", err);
-      const { status, message } = parseError(
-        err,
-        "Failed to attach forms",
-      );
+      const { status, message } = parseError(err, "Failed to attach forms");
       return res.status(status).json({ message });
     }
   },

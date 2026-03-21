@@ -1,16 +1,19 @@
-import { useEffect, useMemo } from "react";
-import { useOrgStore } from "@/app/stores/orgStore";
-import { loadRoomsForOrgPrimaryOrg } from "@/app/features/organization/services/roomService";
-import { OrganisationRoom } from "@yosemite-crew/types";
-import { useOrganisationRoomStore } from "@/app/stores/roomStore";
+import { useEffect, useMemo } from 'react';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { loadRoomsForOrgPrimaryOrg } from '@/app/features/organization/services/roomService';
+import { OrganisationRoom } from '@yosemite-crew/types';
+import { useOrganisationRoomStore } from '@/app/stores/roomStore';
 
 export const useLoadRoomsForPrimaryOrg = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
+  const roomIdsByOrgId = useOrganisationRoomStore((s) => s.roomIdsByOrgId);
 
   useEffect(() => {
     if (!primaryOrgId) return;
-    void loadRoomsForOrgPrimaryOrg({ force: true });
-  }, [primaryOrgId]);
+    if (useOrganisationRoomStore.getState().status === 'loading') return;
+    if (Object.hasOwn(roomIdsByOrgId, primaryOrgId)) return;
+    void loadRoomsForOrgPrimaryOrg();
+  }, [primaryOrgId, roomIdsByOrgId]);
 };
 
 export const useRoomsForPrimaryOrg = (): OrganisationRoom[] => {

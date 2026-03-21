@@ -1,29 +1,30 @@
-import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
-import "@testing-library/jest-dom";
+import React from 'react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
 
-import TimeSlot from "@/app/features/appointments/components/Availability/TimeSlot";
+import TimeSlot from '@/app/features/appointments/components/Availability/TimeSlot';
 
-const interval = { start: "", end: "" };
+const interval = { start: '', end: '' };
 const timeOptions = [
-  { value: "09:00", label: "09:00 AM" },
-  { value: "10:00", label: "10:00 AM" },
+  { value: '09:00', label: '09:00 AM' },
+  { value: '10:00', label: '10:00 AM' },
 ];
 
-describe("TimeSlot", () => {
-  test("opens dropdown and updates interval via setAvailability", () => {
+describe('TimeSlot', () => {
+  test('opens dropdown and updates interval via setAvailability', () => {
     const setAvailability = jest.fn((updater) => {
       const prev: any = {
-        Monday: { enabled: true, intervals: [{ start: "", end: "" }] },
+        Monday: { enabled: true, intervals: [{ start: '', end: '' }] },
       };
       const next = updater(prev);
-      expect(next.Monday.intervals[0].start).toBe("09:00");
+      expect(next.Monday.intervals[0].start).toBe('09:00');
     });
 
     render(
       <TimeSlot
         interval={interval}
         timeOptions={timeOptions}
+        timeIndex={new Map(timeOptions.map((opt, index) => [opt.value, index]))}
         setAvailability={setAvailability as any}
         day="Monday"
         intervalIndex={0}
@@ -31,8 +32,8 @@ describe("TimeSlot", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Select" }));
-    fireEvent.click(screen.getByRole("button", { name: "09:00 AM" }));
+    fireEvent.click(screen.getByRole('button', { name: 'Select' }));
+    fireEvent.click(screen.getByRole('button', { name: '09:00 AM' }));
 
     expect(setAvailability).toHaveBeenCalled();
   });

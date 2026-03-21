@@ -32,7 +32,9 @@ jest.mock('redux-persist', () => {
   const real = jest.requireActual('redux-persist');
   return {
     ...real,
-    persistReducer: jest.fn().mockImplementation((config, reducers) => reducers),
+    persistReducer: jest
+      .fn()
+      .mockImplementation((config, reducers) => reducers),
     persistStore: jest.fn().mockImplementation(() => ({
       subscribe: jest.fn(),
       dispatch: jest.fn(),
@@ -264,13 +266,16 @@ const createBottomSheetMock = (
   });
 };
 
-jest.mock('@/shared/components/common/BreedBottomSheet/BreedBottomSheet', () => ({
-  BreedBottomSheet: createBottomSheetMock(
-    'mock-BreedBottomSheet',
-    'breed-sheet',
-    'BreedBottomSheet',
-  ),
-}));
+jest.mock(
+  '@/shared/components/common/BreedBottomSheet/BreedBottomSheet',
+  () => ({
+    BreedBottomSheet: createBottomSheetMock(
+      'mock-BreedBottomSheet',
+      'breed-sheet',
+      'BreedBottomSheet',
+    ),
+  }),
+);
 jest.mock(
   '@/shared/components/common/BloodGroupBottomSheet/BloodGroupBottomSheet',
   () => ({
@@ -281,20 +286,26 @@ jest.mock(
     ),
   }),
 );
-jest.mock('@/shared/components/common/CountryBottomSheet/CountryBottomSheet', () => ({
-  CountryBottomSheet: createBottomSheetMock(
-    'mock-CountryBottomSheet',
-    'country-sheet',
-    'CountryBottomSheet',
-  ),
-}));
-jest.mock('@/shared/components/common/GenderBottomSheet/GenderBottomSheet', () => ({
-  GenderBottomSheet: createBottomSheetMock(
-    'mock-GenderBottomSheet',
-    'gender-sheet',
-    'GenderBottomSheet',
-  ),
-}));
+jest.mock(
+  '@/shared/components/common/CountryBottomSheet/CountryBottomSheet',
+  () => ({
+    CountryBottomSheet: createBottomSheetMock(
+      'mock-CountryBottomSheet',
+      'country-sheet',
+      'CountryBottomSheet',
+    ),
+  }),
+);
+jest.mock(
+  '@/shared/components/common/GenderBottomSheet/GenderBottomSheet',
+  () => ({
+    GenderBottomSheet: createBottomSheetMock(
+      'mock-GenderBottomSheet',
+      'gender-sheet',
+      'GenderBottomSheet',
+    ),
+  }),
+);
 jest.mock(
   '@/shared/components/common/NeuteredStatusBottomSheet/NeuteredStatusBottomSheet',
   () => ({
@@ -315,37 +326,43 @@ jest.mock(
     ),
   }),
 );
-jest.mock('@/shared/components/common/OriginBottomSheet/OriginBottomSheet', () => ({
-  OriginBottomSheet: createBottomSheetMock(
-    'mock-OriginBottomSheet',
-    'origin-sheet',
-    'OriginBottomSheet',
-  ),
-}));
+jest.mock(
+  '@/shared/components/common/OriginBottomSheet/OriginBottomSheet',
+  () => ({
+    OriginBottomSheet: createBottomSheetMock(
+      'mock-OriginBottomSheet',
+      'origin-sheet',
+      'OriginBottomSheet',
+    ),
+  }),
+);
 // --- End Bottom Sheet Mocks ---
 
 // --- Date Picker Mock --- (Remains the same)
-jest.mock('@/shared/components/common/SimpleDatePicker/SimpleDatePicker', () => {
-  const {View} = jest.requireActual('react-native');
-  return {
-    SimpleDatePicker: jest.fn(
-      ({show, onDateChange, onDismiss, value, mode, maximumDate}) =>
-        show ? (
-          <View
-            testID="dob-picker"
-            value={value}
-            onDateChange={onDateChange}
-            onDismiss={onDismiss}
-            mode={mode}
-            maximumDate={maximumDate}
-          />
-        ) : null,
-    ),
-  formatDateForDisplay: jest.fn(date =>
-    date ? `Formatted: ${date.toISOString().split('T')[0]}` : '',
-  ),
-  };
-});
+jest.mock(
+  '@/shared/components/common/SimpleDatePicker/SimpleDatePicker',
+  () => {
+    const {View} = jest.requireActual('react-native');
+    return {
+      SimpleDatePicker: jest.fn(
+        ({show, onDateChange, onDismiss, value, mode, maximumDate}) =>
+          show ? (
+            <View
+              testID="dob-picker"
+              value={value}
+              onDateChange={onDateChange}
+              onDismiss={onDismiss}
+              mode={mode}
+              maximumDate={maximumDate}
+            />
+          ) : null,
+      ),
+      formatDateForDisplay: jest.fn(date =>
+        date ? `Formatted: ${date.toISOString().split('T')[0]}` : '',
+      ),
+    };
+  },
+);
 
 // --- Utility Mocks --- (Remain the same)
 jest.mock('@/shared/utils/formScreenStyles', () => ({
@@ -406,10 +423,16 @@ jest.mock(
   ],
   {virtual: true},
 );
-jest.mock('@/features/companion/data/horseBreeds.json', () => [], {virtual: true});
-jest.mock('@/shared/utils/countryList.json', () => [{name: 'USA'}, {name: 'Canada'}], {
+jest.mock('@/features/companion/data/horseBreeds.json', () => [], {
   virtual: true,
 });
+jest.mock(
+  '@/shared/utils/countryList.json',
+  () => [{name: 'USA'}, {name: 'Canada'}],
+  {
+    virtual: true,
+  },
+);
 
 // --- Mock Redux Store Interaction --- (Remain the same)
 const mockDispatch = jest.fn();
@@ -711,7 +734,7 @@ describe('CompanionOverviewScreen', () => {
     let handled = false;
     await act(async () => {
       handled = mockCapturedBackPressCallback
-        ? mockCapturedBackPressCallback() ?? false
+        ? (mockCapturedBackPressCallback() ?? false)
         : false;
     });
     expect(handled).toBe(true);
@@ -730,7 +753,7 @@ describe('CompanionOverviewScreen', () => {
     let handled = false;
     await act(async () => {
       handled = mockCapturedBackPressCallback
-        ? mockCapturedBackPressCallback() ?? false
+        ? (mockCapturedBackPressCallback() ?? false)
         : false;
     });
     expect(handled).toBe(true);
@@ -744,7 +767,7 @@ describe('CompanionOverviewScreen', () => {
     let handled = false;
     await act(async () => {
       handled = mockCapturedBackPressCallback
-        ? mockCapturedBackPressCallback() ?? false
+        ? (mockCapturedBackPressCallback() ?? false)
         : false;
     });
     expect(handled).toBe(false);
@@ -761,15 +784,18 @@ describe('CompanionOverviewScreen', () => {
       ageWhenNeutered: '6',
     } as Companion);
     expect(
-      screen.getByTestId('inline-edit-Age-when-neutered'),
+      screen.getByTestId('inline-edit-Age-when-neutered-(optional)'),
     ).toBeOnTheScreen();
-    expect(screen.getByTestId('inline-edit-Age-when-neutered')).toHaveProp(
-      'value',
-      '6 Years',
-    );
+    expect(
+      screen.getByTestId('inline-edit-Age-when-neutered-(optional)'),
+    ).toHaveProp('value', '6 Years');
     fireEvent.press(screen.getByTestId('row-button-Neutered-status'));
     const neuteredSheet = screen.getByTestId('neutered-sheet');
-    fireEvent(neuteredSheet, 'onSave', 'not-neutered' as Companion['neuteredStatus']);
+    fireEvent(
+      neuteredSheet,
+      'onSave',
+      'not-neutered' as Companion['neuteredStatus'],
+    );
     await waitFor(() =>
       expect(
         require('@/features/companion').updateCompanionProfile,
@@ -787,7 +813,9 @@ describe('CompanionOverviewScreen', () => {
       neuteredStatus: 'not-neutered' as Companion['neuteredStatus'],
       ageWhenNeutered: null,
     }); // Reflect state change
-    expect(screen.queryByTestId('inline-edit-Age-when-neutered')).toBeNull();
+    expect(
+      screen.queryByTestId('inline-edit-Age-when-neutered-(optional)'),
+    ).toBeNull();
     expect(
       within(screen.getByTestId('row-button-Neutered-status')).getByTestId(
         'value',

@@ -2,6 +2,7 @@ import React from "react";
 import ProfileCard from "@/app/features/organization/pages/Organization/Sections/ProfileCard";
 import { useAuthStore } from "@/app/stores/authStore";
 import { updateUser } from "@/app/features/users/services/userService";
+import { useNotify } from "@/app/hooks/useNotify";
 
 const BasicFields = [
   {
@@ -29,6 +30,7 @@ const BasicFields = [
 
 const Personal = () => {
   const attributes = useAuthStore((s) => s.attributes);
+  const { notify } = useNotify();
 
   if (!attributes) return null;
 
@@ -37,8 +39,16 @@ const Personal = () => {
       const firstName = values.given_name;
       const lastName = values.family_name;
       await updateUser(firstName, lastName);
+      notify("success", {
+        title: "Personal details updated",
+        text: "Personal details have been updated successfully.",
+      });
     } catch (error) {
       console.log(error);
+      notify("error", {
+        title: "Unable to update personal details",
+        text: "Failed to update personal details. Please try again.",
+      });
     }
   };
 
