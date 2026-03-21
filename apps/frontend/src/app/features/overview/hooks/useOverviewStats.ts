@@ -1,26 +1,18 @@
 'use client';
 import { useState, useEffect } from 'react';
 
-export type RepoStatsSummary = {
-  owner: string;
-  repo: string;
-  generated_at_utc: string | null;
-  views: { unique: number; total: number };
-  clones: { unique: number; total: number };
-};
-
 export type ChartDataPoint = {
   month: string;
-  'Self Hosters'?: number;
-  Builders?: number;
-  Stars?: number;
+  'Self Hosters (Unique)': number;
+  'Self Hosters (Cumulative)': number;
+  'Builders (Unique)': number;
+  'Builders (Cumulative)': number;
+  Stars: number;
 };
 
-// Locked to the real URL provided by Harshvardhan
 const SUMMARY_URL =
   'https://raw.githubusercontent.com/harshvardhan-yc/Yosemite-Crew/github-repo-stats/YosemiteCrew/Yosemite-Crew/latest-report/summary.json';
 
-// Helper function to extract data from the dynamic hash keys in the JSON (e.g., data-355991c...)
 const extractChartData = (json: any, chartKey: string) => {
   if (!json?.charts?.[chartKey]?.datasets) return [];
   const datasets = json.charts[chartKey].datasets;
@@ -28,11 +20,18 @@ const extractChartData = (json: any, chartKey: string) => {
   return datasets[dataKey] || [];
 };
 
+const getCumulative = (data: any[], targetTimeMs: number, valKey: string) => {
+  const sorted = [...data].sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+  let lastVal = 0;
+  for (const d of sorted) {
+    if (new Date(d.time).getTime() <= targetTimeMs) lastVal = d[valKey];
+    else break;
+  }
+  return lastVal;
+};
+
 export const useOverviewStats = () => {
-  const [data, setData] = useState<RepoStatsSummary | null>(null);
-  const [clonesChart, setClonesChart] = useState<ChartDataPoint[]>([]);
-  const [forksChart, setForksChart] = useState<ChartDataPoint[]>([]);
-  const [starsChart, setStarsChart] = useState<ChartDataPoint[]>([]);
+  const [combinedChart, setCombinedChart] = useState<ChartDataPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -44,57 +43,67 @@ export const useOverviewStats = () => {
 
         const json = await res.json();
 
-        // 1. Extract the arrays from the complex JSON structure
-        const viewsData = extractChartData(json, '#views_total');
         const clonesData = extractChartData(json, '#clones_total');
+        const clonesUniqueData = extractChartData(json, '#clones_unique');
         const forksData = extractChartData(json, '#forks');
         const starsData = extractChartData(json, '#stargazers');
 
-        // 2. Calculate the exact totals (fixes the 'null' output in the JSON)
-        const processedData: RepoStatsSummary = {
-          owner: json.owner,
-          repo: json.repo,
-          generated_at_utc: json.generated_at_utc,
-          views: {
-            total:
-              json.views?.total ||
-              viewsData.reduce((acc: number, curr: any) => acc + (curr.views_total || 0), 0),
-            unique:
-              json.views?.unique ||
-              viewsData.reduce((acc: number, curr: any) => acc + (curr.views_unique || 0), 0),
-          },
-          clones: {
-            total:
-              json.clones?.total ||
-              clonesData.reduce((acc: number, curr: any) => acc + (curr.clones_total || 0), 0),
-            unique:
-              json.clones?.unique ||
-              clonesData.reduce((acc: number, curr: any) => acc + (curr.clones_unique || 0), 0),
-          },
-        };
-        setData(processedData);
-
-        // 3. Format Charts (Sliced to last 30 events for a clean UI timeline)
-        setStarsChart(
-          starsData.slice(-30).map((d: any) => ({
-            month: new Date(d.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-            Stars: d.stars_cumulative,
-          }))
+        const allDates = [...clonesData, ...forksData, ...starsData].map((d) =>
+          new Date(d.time).getTime()
         );
+        if (allDates.length === 0) return;
 
-        setForksChart(
-          forksData.slice(-30).map((d: any) => ({
-            month: new Date(d.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-            Builders: d.forks_cumulative,
-          }))
-        );
+        const maxDate = new Date(Math.max(...allDates));
+        maxDate.setUTCHours(23, 59, 59, 999);
 
-        setClonesChart(
-          clonesData.map((d: any) => ({
-            month: new Date(d.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-            'Self Hosters': d.clones_total,
-          }))
-        );
+        const generatedChart: ChartDataPoint[] = [];
+
+        let runningClones = 0;
+
+        // Grab the forks from 15 days ago so we can calculate the very first "daily unique" diff
+        const dayMinus15 = new Date(maxDate);
+        dayMinus15.setUTCDate(maxDate.getUTCDate() - 15);
+        let lastForks = getCumulative(forksData, dayMinus15.getTime(), 'forks_cumulative');
+
+        // Loop chronologically from 14 days ago up to today
+        for (let i = 14; i >= 0; i--) {
+          const targetDate = new Date(maxDate);
+          targetDate.setUTCDate(maxDate.getUTCDate() - i);
+
+          const dateString = targetDate.toISOString().split('T')[0];
+          const monthLabel = targetDate.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            timeZone: 'UTC',
+          });
+
+          // Clones Data
+          const cloneEntry = clonesData.find((d: any) => d.time.startsWith(dateString));
+          const cloneUniqueEntry = clonesUniqueData.find((d: any) => d.time.startsWith(dateString));
+          const clonesTotal = cloneEntry ? cloneEntry.clones_total : 0;
+          const clonesUnique = cloneUniqueEntry ? cloneUniqueEntry.clones_unique : 0;
+          runningClones += clonesTotal;
+
+          // Forks Data (Reverse engineering daily unique from cumulative)
+          const targetTimeMs = targetDate.getTime();
+          const forksCum = getCumulative(forksData, targetTimeMs, 'forks_cumulative');
+          const forksUnique = Math.max(0, forksCum - lastForks);
+          lastForks = forksCum;
+
+          // Stars
+          const starsCum = getCumulative(starsData, targetTimeMs, 'stars_cumulative');
+
+          generatedChart.push({
+            month: monthLabel,
+            'Self Hosters (Unique)': clonesUnique,
+            'Self Hosters (Cumulative)': runningClones,
+            'Builders (Unique)': forksUnique,
+            'Builders (Cumulative)': forksCum,
+            Stars: starsCum,
+          });
+        }
+
+        setCombinedChart(generatedChart);
       } catch (error) {
         console.error('Failed to fetch live JSON', error);
       } finally {
@@ -105,5 +114,5 @@ export const useOverviewStats = () => {
     fetchRepoStats();
   }, []);
 
-  return { data, clonesChart, forksChart, starsChart, isLoading };
+  return { combinedChart, isLoading };
 };
