@@ -11,7 +11,7 @@ export type ChartDataPoint = {
 };
 
 const SUMMARY_URL =
-  'https://raw.githubusercontent.com/harshvardhan-yc/Yosemite-Crew/github-repo-stats/YosemiteCrew/Yosemite-Crew/latest-report/summary.json';
+  'https://github.com/YosemiteCrew/Yosemite-Crew/blob/github-repo-stats/YosemiteCrew/Yosemite-Crew/latest-report/summary.json';
 
 const extractChartData = (json: any, chartKey: string) => {
   if (!json?.charts?.[chartKey]?.datasets) return [];
