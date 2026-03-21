@@ -41,6 +41,20 @@ jobs:
               - 'pnpm-lock.yaml'
               - 'package.json'
               - 'turbo.json'
+            backend:
+              - 'apps/backend/**'
+              - 'packages/types/**'
+              - 'packages/fhirtypes/**'
+              - 'pnpm-lock.yaml'
+              - 'package.json'
+              - 'turbo.json'
+            mobile:
+              - 'apps/mobileAppYC/**'
+              - 'packages/types/**'
+              - 'packages/fhirtypes/**'
+              - 'pnpm-lock.yaml'
+              - 'package.json'
+              - 'turbo.json'
       - name: Build matrix
         id: matrix
         shell: bash
@@ -95,20 +109,6 @@ jobs:
 
           echo "has_changes=true" >> "$GITHUB_OUTPUT"
           echo "matrix=$json" >> "$GITHUB_OUTPUT"
-            backend:
-              - 'apps/backend/**'
-              - 'packages/types/**'
-              - 'packages/fhirtypes/**'
-              - 'pnpm-lock.yaml'
-              - 'package.json'
-              - 'turbo.json'
-            mobile:
-              - 'apps/mobileAppYC/**'
-              - 'packages/types/**'
-              - 'packages/fhirtypes/**'
-              - 'pnpm-lock.yaml'
-              - 'package.json'
-              - 'turbo.json'
 
   sonarqube:
     if: >
