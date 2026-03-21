@@ -30,7 +30,7 @@ const footerLinks = [
         label: 'GitHub',
         href: 'https://github.com/YosemiteCrew/Yosemite-Crew',
       },
-      { label: 'Overview', href: '/overview' },
+      { label: 'Insights', href: '/overview' },
     ],
   },
   {
