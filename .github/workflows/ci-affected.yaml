@@ -139,7 +139,7 @@ jobs:
         run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_ENV
 
       - name: Restore pnpm store cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ env.STORE_PATH }}
           key: pnpm-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('**/pnpm-lock.yaml') }}
