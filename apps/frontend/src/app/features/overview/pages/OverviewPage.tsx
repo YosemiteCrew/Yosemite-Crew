@@ -3,11 +3,12 @@ import React from 'react';
 import './Overview.css';
 import OverviewHero from '../components/OverviewHero';
 import CommunityStats from '../components/CommunityStats';
+import WhyWeDoThis from '../components/WhyWeDoThis';
 import { useOverviewStats } from '../hooks/useOverviewStats';
 import Footer from '@/app/ui/widgets/Footer/Footer';
 
 const OverviewPage = () => {
-  const { data, clonesChart, forksChart, starsChart, isLoading } = useOverviewStats();
+  const { combinedChart, isLoading } = useOverviewStats();
 
   return (
     <>
@@ -15,13 +16,10 @@ const OverviewPage = () => {
         <OverviewHero />
 
         <div className="OverviewContentContainer">
-          <CommunityStats
-            data={data}
-            clonesChart={clonesChart}
-            forksChart={forksChart}
-            starsChart={starsChart}
-            isLoading={isLoading}
-          />
+          <CommunityStats combinedChart={combinedChart} isLoading={isLoading} />
+
+          {/* Added the new component here */}
+          <WhyWeDoThis />
         </div>
       </div>
       <Footer />
