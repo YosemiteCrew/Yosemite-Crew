@@ -70,7 +70,7 @@ jobs:
       #   uses: actions/setup-example@v1
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v5
         with:
           run_install: false
       - uses: actions/setup-node@v4
