@@ -342,6 +342,34 @@ export const AvailabilityService = {
     });
   },
 
+  async getOrganisationBaseAvailability(organisationId: string) {
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
+
+    if (isReadFromPostgres()) {
+      const rows = await prisma.baseAvailability.findMany({
+        where: { organisationId: safeOrganisationId },
+        orderBy: [{ userId: "asc" }, { dayOfWeek: "asc" }],
+      });
+
+      return rows.map((row) => ({
+        _id: row.id,
+        userId: row.userId,
+        organisationId: row.organisationId,
+        dayOfWeek: row.dayOfWeek as DayOfWeek,
+        slots: row.slots as unknown as AvailabilitySlotMongo[],
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+      }));
+    }
+
+    return BaseAvailabilityModel.find({
+      organisationId: safeOrganisationId,
+    }).sort({ userId: 1, dayOfWeek: 1 });
+  },
+
   async deleteBaseAvailability(organisationId: string, userId: string) {
     const safeOrganisationId = ensureNonEmptyString(
       organisationId,
