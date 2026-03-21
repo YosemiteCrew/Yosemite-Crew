@@ -1,32 +1,33 @@
-/* eslint-disable @next/next/no-img-element */
-import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
-import "@testing-library/jest-dom";
+import React from 'react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
 
-import CompanionCard from "@/app/ui/cards/CompanionCard/CompanionCard";
+import CompanionCard from '@/app/ui/cards/CompanionCard/CompanionCard';
 
-jest.mock("next/image", () => ({
+jest.mock('next/image', () => ({
   __esModule: true,
-  default: (props: any) => <img alt={props.alt || ""} {...props} />,
+  default: ({ alt, src, ...props }: any) => (
+    <span role="img" aria-label={alt} data-src={src} {...props} />
+  ),
 }));
 
-jest.mock("@/app/ui/tables/CompanionsTable", () => ({
-  getStatusStyle: jest.fn(() => ({ backgroundColor: "pink", color: "white" })),
+jest.mock('@/app/ui/tables/CompanionsTable', () => ({
+  getStatusStyle: jest.fn(() => ({ backgroundColor: 'pink', color: 'white' })),
 }));
 
-jest.mock("@/app/lib/date", () => ({
-  getAgeInYears: jest.fn(() => "2y"),
+jest.mock('@/app/lib/date', () => ({
+  getAgeInYears: jest.fn(() => '2y'),
 }));
 
-jest.mock("@/app/lib/urls", () => ({
-  getSafeImageUrl: jest.fn(() => "image"),
+jest.mock('@/app/lib/urls', () => ({
+  getSafeImageUrl: jest.fn(() => 'image'),
 }));
 
-jest.mock("@/app/lib/validators", () => ({
+jest.mock('@/app/lib/validators', () => ({
   toTitleCase: (value: string) => value.toUpperCase(),
 }));
 
-jest.mock("@/app/ui/primitives/Buttons", () => ({
+jest.mock('@/app/ui/primitives/Buttons', () => ({
   Secondary: ({ text, onClick }: any) => (
     <button type="button" onClick={onClick}>
       {text}
@@ -34,87 +35,102 @@ jest.mock("@/app/ui/primitives/Buttons", () => ({
   ),
 }));
 
-describe("CompanionCard", () => {
+jest.mock('@/app/ui/primitives/GlassTooltip/GlassTooltip', () => ({
+  __esModule: true,
+  default: ({ content, children }: any) => <span aria-label={content}>{children}</span>,
+}));
+
+describe('CompanionCard', () => {
   const handleViewCompanion = jest.fn();
   const handleBookAppointment = jest.fn();
   const handleAddTask = jest.fn();
+  const handleChangeStatus = jest.fn();
 
   const companion: any = {
     companion: {
-      name: "Buddy",
-      breed: "Labrador",
-      type: "Dog",
-      gender: "Male",
-      dateOfBirth: "2023-01-01",
-      allergy: "None",
-      status: "active",
-      photoUrl: "photo",
+      name: 'Buddy',
+      breed: 'Labrador',
+      type: 'Dog',
+      gender: 'Male',
+      dateOfBirth: '2023-01-01',
+      allergy: 'None',
+      status: 'active',
+      photoUrl: 'photo',
     },
-    parent: { firstName: "Sam" },
+    parent: { firstName: 'Sam' },
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it("renders companion details and status", () => {
+  it('renders companion details and status', () => {
     render(
       <CompanionCard
         companion={companion}
         handleViewCompanion={handleViewCompanion}
         handleBookAppointment={handleBookAppointment}
         handleAddTask={handleAddTask}
+        handleChangeStatus={handleChangeStatus}
         canEditAppointments
         canEditTasks
+        canEditCompanions
       />
     );
 
-    expect(screen.getByText("Buddy")).toBeInTheDocument();
-    expect(screen.getByText("Labrador / Dog")).toBeInTheDocument();
-    expect(screen.getByText("Parent / Co-parent:")).toBeInTheDocument();
-    expect(screen.getByText("Sam")).toBeInTheDocument();
-    expect(screen.getByText("Gender / Age:")).toBeInTheDocument();
-    expect(screen.getByText("Male - 2y")).toBeInTheDocument();
-    expect(screen.getByText("Allergies:")).toBeInTheDocument();
-    expect(screen.getByText("None")).toBeInTheDocument();
-    expect(screen.getByText("ACTIVE")).toBeInTheDocument();
+    expect(screen.getByText('Buddy')).toBeInTheDocument();
+    expect(screen.getByText('Labrador / Dog')).toBeInTheDocument();
+    expect(screen.getByText('Parent / Co-parent:')).toBeInTheDocument();
+    expect(screen.getByText('Sam')).toBeInTheDocument();
+    expect(screen.getByText('Gender / Age:')).toBeInTheDocument();
+    expect(screen.getByText('Male - 2y')).toBeInTheDocument();
+    expect(screen.getByText('Allergies:')).toBeInTheDocument();
+    expect(screen.getByText('None')).toBeInTheDocument();
+    expect(screen.getByText('ACTIVE')).toBeInTheDocument();
   });
 
-  it("calls action handlers", () => {
+  it('calls action handlers', () => {
     render(
       <CompanionCard
         companion={companion}
         handleViewCompanion={handleViewCompanion}
         handleBookAppointment={handleBookAppointment}
         handleAddTask={handleAddTask}
+        handleChangeStatus={handleChangeStatus}
         canEditAppointments
         canEditTasks
+        canEditCompanions
       />
     );
 
-    fireEvent.click(screen.getByText("View"));
-    fireEvent.click(screen.getByText("Schedule"));
-    fireEvent.click(screen.getByText("Task"));
+    fireEvent.click(screen.getByLabelText('View').querySelector('button')!);
+    fireEvent.click(screen.getByLabelText('Change status').querySelector('button')!);
+    fireEvent.click(screen.getByLabelText('Schedule').querySelector('button')!);
+    fireEvent.click(screen.getByLabelText('Task').querySelector('button')!);
 
     expect(handleViewCompanion).toHaveBeenCalledWith(companion);
+    expect(handleChangeStatus).toHaveBeenCalledWith(companion);
     expect(handleBookAppointment).toHaveBeenCalledWith(companion);
     expect(handleAddTask).toHaveBeenCalledWith(companion);
   });
 
-  it("hides optional actions based on permissions", () => {
+  it('hides optional actions based on permissions', () => {
     render(
       <CompanionCard
         companion={companion}
         handleViewCompanion={handleViewCompanion}
         handleBookAppointment={handleBookAppointment}
         handleAddTask={handleAddTask}
+        handleChangeStatus={handleChangeStatus}
         canEditAppointments={false}
         canEditTasks={false}
+        canEditCompanions={false}
       />
     );
 
-    expect(screen.getByText("View")).toBeInTheDocument();
-    expect(screen.queryByText("Schedule")).not.toBeInTheDocument();
-    expect(screen.queryByText("Task")).not.toBeInTheDocument();
+    expect(screen.getByLabelText('View')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Change status')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Schedule')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Task')).not.toBeInTheDocument();
   });
 });

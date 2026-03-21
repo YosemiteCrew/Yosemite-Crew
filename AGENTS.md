@@ -1,6 +1,19 @@
 # Yosemite Crew Agent Guide
 
-This file defines how AI agents and automation should contribute to this repository.
+This file is auto-loaded by OpenAI Codex, Claude Code, and compatible AI agents.
+It is the **root** of a skills/rules hierarchy — each app has its own `AGENTS.md` with deeper, app-specific rules. Always read the relevant per-app file before working in that workspace.
+
+## Skills Hierarchy
+
+| File                         | Scope                                                |
+| ---------------------------- | ---------------------------------------------------- |
+| `AGENTS.md` (this file)      | Monorepo-wide rules — apply everywhere               |
+| `apps/frontend/AGENTS.md`    | Frontend-only: design system, Sonar, testing         |
+| `apps/backend/AGENTS.md`     | Backend-only: Express patterns, validation, services |
+| `apps/mobileAppYC/AGENTS.md` | Mobile-only: React Native, Redux, navigation         |
+| `packages/AGENTS.md`         | Shared packages: types, fhirtypes                    |
+
+For **Claude Code** users: modular skills are also in `.claude/skills/` — they are the same rules, structured for the Claude skills system.
 
 ## Scope
 
@@ -10,12 +23,15 @@ This file defines how AI agents and automation should contribute to this reposit
 ## Repository Context
 
 - Monorepo tooling: `pnpm` workspaces + `turbo`.
+- Package manager: `pnpm@8.15.6` — never use `npm` or `yarn`.
 - Primary workspaces:
   - `apps/frontend`
+  - `apps/backend`
   - `apps/mobileAppYC`
   - `apps/dev-docs`
   - `packages/types`
   - `packages/fhirtypes`
+  - `packages/fhir`
 
 ## Required Workflow
 

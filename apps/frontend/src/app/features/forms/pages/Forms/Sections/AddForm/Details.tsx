@@ -10,6 +10,7 @@ import {
   RequiredSignerOptions,
   FormsUsage,
   FormsUsageOptions,
+  getFormCategoryDisplayLabel,
 } from '@/app/features/forms/types/forms';
 import {
   getCategoryTemplate,
@@ -84,6 +85,12 @@ const Details = ({
 
     setFormData((prev) => ({
       ...prev,
+      name:
+        effectiveOrgType === 'HOSPITAL' &&
+        category === 'Prescription' &&
+        (!String(prev.name ?? '').trim() || prev.name === 'Prescription')
+          ? 'Prescription SOAP'
+          : prev.name,
       category,
       schema: normalizedTemplate,
     }));
@@ -173,7 +180,10 @@ const Details = ({
               placeholder="Category"
               defaultOption={formData.category || ''}
               onSelect={(option) => handleCategoryChange(option.value as FormsCategory)}
-              options={categoryOptions.map((cat) => ({ label: cat, value: cat }))}
+              options={categoryOptions.map((cat) => ({
+                label: getFormCategoryDisplayLabel(cat, effectiveOrgType),
+                value: cat,
+              }))}
               error={formDataErrors.category}
             />
             <LabelDropdown

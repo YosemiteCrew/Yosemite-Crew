@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 
-const EDGE_PX = 56;
+const EDGE_PX = 100;
 const SPEED_PX = 24;
 
 const getEdgeScrollDelta = (clientPosition: number, start: number, end: number): number => {

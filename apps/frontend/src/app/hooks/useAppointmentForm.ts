@@ -19,6 +19,7 @@ import { useCanMoreForPrimaryOrg, useCurrencyForPrimaryOrg } from '@/app/hooks/u
 import { loadInvoicesForOrgPrimaryOrg } from '@/app/features/billing/services/invoiceService';
 import { EMPTY_APPOINTMENT } from '@/app/features/appointments/pages/Appointments/Sections/AddAppointment';
 import { AppointmentDraftPrefill } from '@/app/features/appointments/types/calendar';
+import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 
 export type AppointmentFormErrors = {
   companionId?: string;
@@ -38,6 +39,7 @@ export type UseAppointmentFormOptions = {
 
 export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
   const { onSuccess, initialPrefill } = options;
+  const terminologyText = useCompanionTerminologyText();
 
   const teams = useTeamForPrimaryOrg();
   const currency = useCurrencyForPrimaryOrg();
@@ -346,7 +348,7 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
             : "We couldn't verify your booking limit right now. Please try again.";
       }
       if (requireCompanion && !formData.companion.id)
-        errors.companionId = 'Please select a companion';
+        errors.companionId = terminologyText('Please select a companion');
       if (!formData.appointmentType?.speciality.id)
         errors.specialityId = 'Please select a speciality';
       if (!formData.appointmentType?.id) errors.serviceId = 'Please select a service';
@@ -368,7 +370,7 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
       }
       return errors;
     },
-    [canMore, reason, formData, getLeadOptionsForSlot, selectedSlot]
+    [canMore, reason, formData, getLeadOptionsForSlot, selectedSlot, terminologyText]
   );
 
   const handleCreate = useCallback(

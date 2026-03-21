@@ -11,89 +11,95 @@ slug: /policies/contributing
 We would love for you to contribute to `Yosemite-Crew` and help make it even better than it is
 today! As a contributor, here are the guidelines we would like you to follow:
 
- - [Code of Conduct](#coc)
- - [Issues and Bugs](#issue)
- - [Feature Requests](#feature)
- - [Submission Guidelines](#submit)
- - [Coding Rules](#rules)
- - [Commit Message Guidelines](#commit)
+- [Code of Conduct](#coc)
+- [Issues and Bugs](#issue)
+- [Feature Requests](#feature)
+- [Submission Guidelines](#submit)
+- [Coding Rules](#rules)
+- [Commit Message Guidelines](#commit)
 
 ## Code of Conduct {#coc}
+
 Please read and follow our [Code of Conduct][coc].
 
 ## Found a Bug? {#issue}
+
 If you find a bug in the source code, you can help us by
 [submitting an issue][submit-issue] to our [GitHub Repository][github]. Even better, you can
 [submit a Pull Request][submit-pr] with a fix.
 
 ## Missing a Feature? {#feature}
-You can *request* a new feature by [submitting an issue](#submit-issue) to our GitHub
-Repository. If you would like to *implement* a new feature, please submit an issue with
+
+You can _request_ a new feature by [submitting an issue](#submit-issue) to our GitHub
+Repository. If you would like to _implement_ a new feature, please submit an issue with
 a proposal for your work first, to be sure that we can use it.
 Please consider what kind of change it is:
 
-* For a **Major Feature**, first open an issue and outline your proposal so that it can be
-discussed. This will also allow us to better coordinate our efforts, prevent duplication of work,
-and help you to craft the change so that it is successfully accepted into the project.
-* **Small Features** can be crafted and directly [submitted as a Pull Request](#submit-pr).
+- For a **Major Feature**, first open an issue and outline your proposal so that it can be
+  discussed. This will also allow us to better coordinate our efforts, prevent duplication of work,
+  and help you to craft the change so that it is successfully accepted into the project.
+- **Small Features** can be crafted and directly [submitted as a Pull Request](#submit-pr).
 
 ### Submit an Issue {#submit-issue}
+
 Open a new issue in the [GitHub tracker][submit-issue] with a clear description, reproduction steps, and expected behaviour.
 
 ## Submission Guidelines {#submit}
 
 ### Submitting a Pull Request (PR) {#submit-pr}
+
 Before you submit your Pull Request (PR) consider the following guidelines:
 
-* Search [GitHub](https://github.com/YosemiteCrew/Yosemite-Crew/pulls) for an open or closed PR
+- Search [GitHub](https://github.com/YosemiteCrew/Yosemite-Crew/pulls) for an open or closed PR
   that relates to your submission. You don't want to duplicate effort.
-* Create a fork from Yosemite-Crew repository as it is described in [GitHub docs](https://docs.github.com/en/get-started/quickstart/fork-a-repo#forking-a-repository)
-* Clone your forked repository to your local machine using `git clone`. Clone dev branch if want to use the bleeding edge version.
+- Create a fork from Yosemite-Crew repository as it is described in [GitHub docs](https://docs.github.com/en/get-started/quickstart/fork-a-repo#forking-a-repository)
+- Clone your forked repository to your local machine using `git clone`. Clone dev branch if want to use the bleeding edge version.
 
-     ```shell
-     git clone https://github.com/yourusername/Yosemite-Crew.git
-     git clone -b dev https://github.com/yourusername/Yosemite-Crew.git
-     
-     cd Yosemite-Crew
-     ```
+  ```shell
+  git clone https://github.com/yourusername/Yosemite-Crew.git
+  git clone -b dev https://github.com/yourusername/Yosemite-Crew.git
 
-* Create a new branch for your changes instead of using the main branch.
+  cd Yosemite-Crew
+  ```
 
-     ```shell
-     git checkout -b your-branch-name
-     ```
+- Create a new branch for your changes instead of using the main branch.
 
-* Install the project dependencies.
+  ```shell
+  git checkout -b your-branch-name
+  ```
 
-     ```shell
-     pnpm install
-     ```
-     
-* Follow our [Coding Rules](#rules).
-* Make your changes.
-* Run `pnpm run lint` to ensure that lints passes for all projects or run `pnpm run lint --filter {appName}` to ensure all lints pass for the given project.
-* Run `pnpm run test` to ensure that tests passes for all projects or run `pnpm run test --filter {appName}` to ensure all tests pass for the given project.
-* Run `pnpm run build` to build all projects or run `pnpm run build --filter {appName}` to build a single project.
-* Commit your changes using a descriptive commit message that follows our
+- Install the project dependencies.
+
+  ```shell
+  pnpm install
+  ```
+
+- Follow our [Coding Rules](#rules).
+- Make your changes.
+- Run `pnpm run lint` to ensure that lints passes for all projects or run `pnpm run lint --filter {appName}` to ensure all lints pass for the given project.
+- Run `pnpm run test` to ensure that tests passes for all projects or run `pnpm run test --filter {appName}` to ensure all tests pass for the given project.
+- Run `pnpm run build` to build all projects or run `pnpm run build --filter {appName}` to build a single project.
+- Commit your changes using a descriptive commit message that follows our
   [commit message conventions](#commit). Adherence to these conventions
   is necessary because release notes are automatically generated from these messages.
 
-     ```shell
-     git commit -a
-     ```
+  ```shell
+  git commit -a
+  ```
+
   Note: the optional commit `-a` command-line option will automatically "add" and "rm" edited files.
 
-* Push your branch to GitHub:
+- Push your branch to GitHub:
 
-    ```shell
-    git push origin your-branch-name
-    ```
+  ```shell
+  git push origin your-branch-name
+  ```
 
-* In GitHub, send a pull request to `dev` branch.
-* If we suggest changes then:
-  * Make the required updates.
-  * Re-run above testing and linting commands to ensure lints and tests are still passing.
-  * Push to your GitHub repository (this will update your Pull Request):
+- In GitHub, send a pull request to `dev` branch.
+- If we suggest changes then:
+  - Make the required updates.
+  - Re-run above testing and linting commands to ensure lints and tests are still passing.
+  - Push to your GitHub repository (this will update your Pull Request):
 
 That's it! Thank you for your contribution!
 
@@ -102,45 +108,47 @@ That's it! Thank you for your contribution!
 After your pull request is merged, you can safely delete your branch and pull the changes
 from the dev (upstream) repository:
 
-* Delete the remote branch on GitHub either through the GitHub web UI or your local shell as follows:
+- Delete the remote branch on GitHub either through the GitHub web UI or your local shell as follows:
 
-    ```shell
-    git push origin --delete your-branch-name
-    ```
+  ```shell
+  git push origin --delete your-branch-name
+  ```
 
-* Check out the dev branch:
+- Check out the dev branch:
 
-    ```shell
-    git checkout dev -f
-    ```
+  ```shell
+  git checkout dev -f
+  ```
 
-* Delete the local branch:
+- Delete the local branch:
 
-    ```shell
-    git branch -D your-branch-name
-    ```
+  ```shell
+  git branch -D your-branch-name
+  ```
 
-* Update your dev with the latest upstream version:
+- Update your dev with the latest upstream version:
 
-    ```shell
-    git pull --ff upstream dev
-    ```
+  ```shell
+  git pull --ff upstream dev
+  ```
 
 ## Coding Rules {#rules}
+
 To ensure consistency throughout the source code, keep these rules in mind as you are working:
 
-* All features or bug fixes **must be tested** by one or more specs (unit-tests).
-* All public API methods **must be documented**. (Details TBC).
-* We follow [Google's JavaScript Style Guide][js-style-guide].
+- All features or bug fixes **must be tested** by one or more specs (unit-tests).
+- All public API methods **must be documented**. (Details TBC).
+- We follow [Google's JavaScript Style Guide][js-style-guide].
 
 ## Commit Message Guidelines {#commit}
 
-We have very precise rules over how our git commit messages can be formatted.  This leads to **more
-readable messages** that are easy to follow when looking through the **project history**.  But also,
+We have very precise rules over how our git commit messages can be formatted. This leads to **more
+readable messages** that are easy to follow when looking through the **project history**. But also,
 we use the git commit messages to **generate the yosemite-crew change log**.
 
 ### Commit Message Format
-Each commit message consists of a **header**, a **body** and a **footer**.  The header has a special
+
+Each commit message consists of a **header**, a **body** and a **footer**. The header has a special
 format that includes a **type**, a **scope** and a **subject**:
 
 ```
@@ -163,6 +171,7 @@ Samples: (even more [samples](https://github.com/YosemiteCrew/Yosemite-Crew/comm
 ```
 docs(changelog): update change log to beta.5
 ```
+
 ```
 fix(release): need to depend on latest rxjs and zone.js
 
@@ -170,41 +179,47 @@ The version in our package.json gets copied to the one we publish, and users nee
 ```
 
 ### Revert
+
 If the commit reverts a previous commit, it should begin with `revert: `, followed by the header of the reverted commit. In the body, it should say: `This reverts commit <hash>.`, where the hash is the SHA of the commit being reverted.
 
 ### Type
+
 Must be one of the following:
 
-* **chore**: Changes to the build process or auxiliary tools and libraries such as documentation generation
-* **ci**: Changes to our CI configuration files and scripts (example scopes: Travis, SauceLabs)
-* **docs**: Documentation only changes
-* **feat**: A new feature
-* **fix**: A bug fix
-* **perf**: A code change that improves performance
-* **refactor**: A code change that neither fixes a bug nor adds a feature
-* **style**: Changes that do not affect the meaning of the code (white-space, formatting, missing semi-colons, etc)
-* **test**: Adding missing tests or correcting existing tests
+- **chore**: Changes to the build process or auxiliary tools and libraries such as documentation generation
+- **ci**: Changes to our CI configuration files and scripts (example scopes: Travis, SauceLabs)
+- **docs**: Documentation only changes
+- **feat**: A new feature
+- **fix**: A bug fix
+- **perf**: A code change that improves performance
+- **refactor**: A code change that neither fixes a bug nor adds a feature
+- **style**: Changes that do not affect the meaning of the code (white-space, formatting, missing semi-colons, etc)
+- **test**: Adding missing tests or correcting existing tests
 
 ### Scope
-The scope should be the name of the project or npm package affected (as perceived by person reading changelog generated from commit messages.
+
+The scope should be the name of the project or workspace package affected (as perceived by person reading changelog generated from commit messages.
 
 The following is the list of supported scopes:
 
-* **website**
-* **api**
+- **website**
+- **api**
 
 ### Subject
+
 The subject contains succinct description of the change:
 
-* use the imperative, present tense: "change" not "changed" nor "changes"
-* don't capitalize the first letter
-* no dot (.) at the end
+- use the imperative, present tense: "change" not "changed" nor "changes"
+- don't capitalize the first letter
+- no dot (.) at the end
 
 ### Body
+
 Just as in the **subject**, use the imperative, present tense: "change" not "changed" nor "changes".
 The body should include the motivation for the change and contrast this with previous behaviour.
 
 ### Footer
+
 The footer should contain any information about **Breaking Changes** and is also the place to
 reference GitHub issues that this commit **Closes**.
 

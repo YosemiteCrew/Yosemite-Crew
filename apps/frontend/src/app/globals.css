@@ -1,31 +1,5 @@
 @import 'tailwindcss';
 /* Fonts */
-@font-face {
-  font-family: 'ClashGrotesk';
-  src:
-    url('/fonts/ClashGrotesk/clashgrotesk-regular-webfont.woff2') format('woff2'),
-    url('/fonts/ClashGrotesk/clashgrotesk-regular-webfont.woff') format('woff');
-  font-weight: 400;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: 'ClashGrotesk';
-  src:
-    url('/fonts/ClashGrotesk/clashgrotesk-medium-webfont.woff2') format('woff2'),
-    url('/fonts/ClashGrotesk/clashgrotesk-medium-webfont.woff') format('woff');
-  font-weight: 500;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: 'ClashGrotesk';
-  src:
-    url('/fonts/ClashGrotesk/clashgrotesk-bold-webfont.woff2') format('woff2'),
-    url('/fonts/ClashGrotesk/clashgrotesk-bold-webfont.woff') format('woff');
-  font-weight: 700;
-  font-style: normal;
-}
 
 @font-face {
   font-family: 'Satoshi';
@@ -220,7 +194,7 @@
   --color-delete: #ea3729;
   --color-pending-text: #f68523;
   --font-satoshi: 'Satoshi', sans-serif;
-  --font-grotesk: 'ClashGrotesk', sans-serif;
+  --font-grotesk: 'Satoshi', sans-serif;
 }
 :root {
   --black-text: var(--color-black-text);
@@ -298,7 +272,7 @@ input[type='checkbox'] {
   cursor: pointer;
   position: relative;
   font-weight: 500;
-  font-family: var(--grotesk-font);
+  font-family: var(--satoshi-font);
 }
 input[type='checkbox']:checked {
   background-color: var(--blue-text);

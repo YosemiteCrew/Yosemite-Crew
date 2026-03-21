@@ -25,3 +25,12 @@ export const formatHourLabel = (hour24: number): string => {
   const meridiem = normalized < 12 ? 'AM' : 'PM';
   return `${hour12}:00 ${meridiem}`;
 };
+
+export const formatMinuteLabel = (minuteOfDay: number): string => {
+  const normalizedMinutes = ((minuteOfDay % (24 * 60)) + 24 * 60) % (24 * 60);
+  const hour24 = Math.floor(normalizedMinutes / 60);
+  const minute = normalizedMinutes % 60;
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  const meridiem = hour24 < 12 ? 'AM' : 'PM';
+  return `${hour12}:${String(minute).padStart(2, '0')} ${meridiem}`;
+};

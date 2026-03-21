@@ -91,7 +91,7 @@
 .file-name {
   font-size: 15px;
   color: #222;
-  font-family: var(--satoshi-font, Arial, sans-serif);
+  font-family: var(--satoshi-font);
   min-width: 140px;
   max-width: 140px;
   overflow: hidden;

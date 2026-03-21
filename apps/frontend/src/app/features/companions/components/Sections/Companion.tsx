@@ -11,10 +11,11 @@ import {
   CountriesOptions,
   GenderOptions,
   InsuredOptions,
-  NeuteredOptions,
+  getNeuteredOptions,
   OriginOptions,
 } from '@/app/features/companions/components/AddCompanion/type';
 import { CompanionType } from '@yosemite-crew/types';
+import type { RecordStatus } from '@yosemite-crew/types';
 import {
   fetchBreedCodeEntries,
   fetchSpeciesCodeEntries,
@@ -41,7 +42,6 @@ type CompanionFormErrors = {
   type?: string;
   breed?: string;
   dateOfBirth?: string;
-  ageWhenNeutered?: string;
   insuranceCompany?: string;
   insuranceNumber?: string;
 };
@@ -97,6 +97,11 @@ const BLOOD_GROUP_OPTIONS_BY_SPECIES: Record<CompanionType, OptionProp[]> = {
   other: [{ value: 'Unknown', label: 'Unknown' }],
 };
 
+const COMPANION_STATUS_OPTIONS: OptionProp[] = [
+  { value: 'active', label: 'Active' },
+  { value: 'archived', label: 'Archived' },
+];
+
 const toNonNegativeNumber = (value: string | number | undefined) => {
   const parsed = typeof value === 'number' ? value : Number.parseFloat((value ?? '').toString());
   if (Number.isNaN(parsed)) {
@@ -119,9 +124,6 @@ const validateCompanionForm = (
   if (!formData.type) errors.type = 'Species is required';
   if (!formData.breed) errors.breed = 'Breed is required';
   if (!currentDate) errors.dateOfBirth = 'Date of birth is required';
-  if (formData.isneutered && !String(formData.ageWhenNeutered ?? '').trim()) {
-    errors.ageWhenNeutered = 'Age when neutered is required';
-  }
   if (!isInsured) {
     return errors;
   }
@@ -252,6 +254,16 @@ const buildCompanionPayload = (
     : undefined,
 });
 
+const getNeuteredStatusLabel = (
+  gender: string | undefined,
+  isNeutered: boolean | undefined
+): string => {
+  if (gender === 'female') {
+    return isNeutered ? 'Spayed' : 'Not spayed';
+  }
+  return isNeutered ? 'Neutered' : 'Not neutered';
+};
+
 const CompanionRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
   <div className="py-2.5! flex items-center gap-2 justify-between border-t border-card-border">
     <div className="text-body-4-emphasis text-text-tertiary">{label}</div>
@@ -270,16 +282,17 @@ const CompanionReadOnlySection = ({
 }) => (
   <div className="pt-2">
     <CompanionRow label="Species" value={speciesLabel} />
+    <CompanionRow label="Status" value={companion.companion.status || 'inactive'} />
     <CompanionRow label="Breed" value={companion.companion.breed} />
     <CompanionRow label="Date of birth" value={formatDateLabel(companion.companion.dateOfBirth)} />
     <CompanionRow label="Gender" value={companion.companion.gender || '-'} />
     <CompanionRow
       label="Neutered status"
-      value={companion.companion.isneutered ? 'Neutered' : 'Not neutered'}
+      value={getNeuteredStatusLabel(companion.companion.gender, companion.companion.isneutered)}
     />
     {companion.companion.isneutered ? (
       <CompanionRow
-        label="Age when neutered"
+        label={`Age when ${companion.companion.gender === 'female' ? 'spayed' : 'neutered'}`}
         value={String(companion.companion.ageWhenNeutered || '-')}
       />
     ) : null}
@@ -332,6 +345,15 @@ const CompanionEditSection = ({
   handleSave,
 }: CompanionEditSectionProps) => (
   <div className="flex flex-col gap-3 pt-2">
+    <LabelDropdown
+      placeholder="Companion status"
+      onSelect={(option) =>
+        setFormData((prev) => ({ ...prev, status: option.value as RecordStatus }))
+      }
+      defaultOption={formData.status || 'active'}
+      options={COMPANION_STATUS_OPTIONS}
+    />
+
     <div className="grid grid-cols-2 gap-3">
       <LabelDropdown
         placeholder="Species"
@@ -389,7 +411,7 @@ const CompanionEditSection = ({
 
     <SelectLabel
       title="Neutered status"
-      options={NeuteredOptions}
+      options={getNeuteredOptions(formData.gender)}
       activeOption={formData.isneutered ? 'true' : 'false'}
       setOption={(value: string) =>
         setFormData((prev) => ({
@@ -405,14 +427,13 @@ const CompanionEditSection = ({
         intype="number"
         inname="ageWhenNeutered"
         value={formData.ageWhenNeutered || ''}
-        inlabel="Age when neutered"
+        inlabel={`Age when ${formData.gender === 'female' ? 'spayed' : 'neutered'} (optional)`}
         onChange={(e) =>
           setFormData((prev) => ({
             ...prev,
             ageWhenNeutered: e.target.value.replaceAll('-', ''),
           }))
         }
-        error={formErrors.ageWhenNeutered}
         className="min-h-12!"
       />
     ) : null}

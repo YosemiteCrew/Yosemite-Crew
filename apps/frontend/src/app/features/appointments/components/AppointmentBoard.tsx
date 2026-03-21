@@ -88,7 +88,7 @@ const AppointmentPaymentBadge = ({
   const payment = getAppointmentPaymentDisplay(appointment, invoicesByAppointmentId);
   return (
     <div
-      className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium"
+      className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium font-satoshi"
       style={{
         backgroundColor: payment.badgeBackgroundColor,
         color: payment.badgeTextColor,

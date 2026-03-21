@@ -12,6 +12,8 @@ jest.mock('@/app/features/organization/services/roomService', () => ({
   loadRoomsForOrgPrimaryOrg: jest.fn(),
 }));
 
+const mockRoomGetState = jest.fn();
+
 describe('useRooms Hooks', () => {
   let mockOrgState: any;
   let mockRoomState: any;
@@ -31,6 +33,9 @@ describe('useRooms Hooks', () => {
     (useOrganisationRoomStore as unknown as jest.Mock).mockImplementation((selector) =>
       selector(mockRoomState)
     );
+    mockRoomGetState.mockReturnValue(mockRoomState);
+    (useOrganisationRoomStore as unknown as jest.Mock & { getState: jest.Mock }).getState =
+      mockRoomGetState;
   });
 
   // --- Section 1: useLoadRoomsForPrimaryOrg ---

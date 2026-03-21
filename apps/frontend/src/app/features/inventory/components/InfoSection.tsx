@@ -1,35 +1,30 @@
-import React from "react";
-import EditableAccordion from "@/app/ui/primitives/Accordion/EditableAccordion";
+import React from 'react';
+import EditableAccordion from '@/app/ui/primitives/Accordion/EditableAccordion';
 
-import { InventoryItem } from "@/app/features/inventory/pages/Inventory/types";
-import { BusinessType } from "@/app/features/organization/types/org";
+import { InventoryItem } from '@/app/features/inventory/pages/Inventory/types';
+import { BusinessType } from '@/app/features/organization/types/org';
 import {
   InventoryFormConfig,
   InventorySectionKey,
   ConfigItem,
   FieldDef,
-} from "@/app/features/inventory/components/AddInventory/InventoryConfig";
+} from '@/app/features/inventory/components/AddInventory/InventoryConfig';
 
 type InfoSectionProps = {
   businessType: BusinessType;
   sectionKey: InventorySectionKey;
   sectionTitle: string;
   inventory: InventoryItem;
-  onSaveSection?: (
-    section: InventorySectionKey,
-    values: Record<string, any>
-  ) => Promise<void>;
+  onSaveSection?: (section: InventorySectionKey, values: Record<string, any>) => Promise<void>;
   disableEditing?: boolean;
   onEditingChange?: (editing: boolean) => void;
   onRegisterActions?: (
-    actions:
-      | {
-          save: () => Promise<void>;
-          cancel: () => void;
-          startEditing: () => void;
-          isEditing: () => boolean;
-        }
-      | null
+    actions: {
+      save: () => Promise<void>;
+      cancel: () => void;
+      startEditing: () => void;
+      isEditing: () => boolean;
+    } | null
   ) => void;
   stockLocationOptions?: string[];
 };
@@ -37,7 +32,7 @@ type InfoSectionProps = {
 type EditableField = {
   label: string;
   key: string;
-  type: "text" | "select" | "date";
+  type: 'text' | 'select' | 'date';
   options?: string[];
 };
 
@@ -67,17 +62,17 @@ const InfoSection: React.FC<InfoSectionProps> = ({
 
   const toEditableField = (field: FieldDef<any>): EditableField => {
     const label = field.label || field.placeholder || field.name;
-    let type: EditableField["type"];
-    if (field.component === "dropdown") {
-      type = "select";
-    } else if (field.component === "date") {
-      type = "date";
+    let type: EditableField['type'];
+    if (field.component === 'dropdown') {
+      type = 'select';
+    } else if (field.component === 'date') {
+      type = 'date';
     } else {
-      type = "text";
+      type = 'text';
     }
     const resolvedOptions =
-      sectionKey === "stock" &&
-      field.name === "stockLocation" &&
+      sectionKey === 'stock' &&
+      field.name === 'stockLocation' &&
       stockLocationOptions &&
       stockLocationOptions.length > 0
         ? stockLocationOptions
@@ -87,14 +82,14 @@ const InfoSection: React.FC<InfoSectionProps> = ({
       label,
       key: field.name,
       type,
-      options: field.component === "dropdown" ? resolvedOptions : undefined,
+      options: field.component === 'dropdown' ? resolvedOptions : undefined,
     };
   };
 
   const flattenConfigToFields = (cfg: ConfigItem<any>[]): EditableField[] => {
     const result: EditableField[] = [];
     for (const item of cfg) {
-      if (item.kind === "row") {
+      if (item.kind === 'row') {
         for (const f of item.fields) {
           result.push(toEditableField(f));
         }
@@ -109,9 +104,7 @@ const InfoSection: React.FC<InfoSectionProps> = ({
 
   return (
     <div className="flex flex-col gap-6 w-full">
-      <div className="font-grotesk text-black-text text-[23px] font-medium">
-        {sectionTitle}
-      </div>
+      <div className="font-satoshi text-black-text text-[23px] font-medium">{sectionTitle}</div>
 
       <EditableAccordion
         title={sectionTitle}

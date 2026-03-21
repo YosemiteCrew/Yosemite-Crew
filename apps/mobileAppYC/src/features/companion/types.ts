@@ -8,7 +8,13 @@ export type NeuteredStatus = 'neutered' | 'not-neutered';
 
 export type InsuredStatus = 'insured' | 'not-insured';
 
-export type CompanionOrigin = 'shop' | 'breeder' | 'foster-shelter' | 'friends-family' | 'unknown';
+export type CompanionOrigin =
+  | 'shop'
+  | 'breeder'
+  | 'foster-shelter'
+  | 'friends-family'
+  | 'stray'
+  | 'unknown';
 
 export interface Breed {
   speciesId: number;

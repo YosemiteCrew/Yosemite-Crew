@@ -4,6 +4,7 @@ import {
   FormsProps,
   FormsStatus,
   FormsStatusFilters,
+  getFormCategoryDisplayLabel,
 } from '@/app/features/forms/types/forms';
 import React, { useEffect, useMemo, useState } from 'react';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
@@ -33,7 +34,7 @@ const FormsFilters = ({ list, setFilteredList, searchQuery = '' }: FormsFiltersP
     const base = new Set(['Consent form', 'Discharge', 'Prescription', 'Custom']);
     const allowed = (() => {
       if (effectiveOrgType === 'HOSPITAL') {
-        return FormsCategoryOptions.filter((c) => base.has(c) || c.startsWith('SOAP'));
+        return FormsCategoryOptions.filter((c) => base.has(c));
       }
       if (effectiveOrgType === 'BOARDER') {
         return FormsCategoryOptions.filter((c) => base.has(c) || c.startsWith('Boarder'));
@@ -47,7 +48,10 @@ const FormsFilters = ({ list, setFilteredList, searchQuery = '' }: FormsFiltersP
       return FormsCategoryOptions;
     })();
 
-    return ['All', ...allowed].map((cat) => ({ label: cat, value: cat }));
+    return ['All', ...allowed].map((cat) => ({
+      label: cat === 'All' ? cat : getFormCategoryDisplayLabel(cat, effectiveOrgType),
+      value: cat,
+    }));
   }, [effectiveOrgType]);
 
   useEffect(() => {

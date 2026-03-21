@@ -35,6 +35,7 @@ type RevenueChartPoint = {
 
 type LeaderPoint = {
   month: string;
+  staffId: string;
   Completed: number;
   Cancelled: number;
 };
@@ -228,7 +229,8 @@ const fetchDashboardAnalyticsData = async (
   }));
 
   const appointmentLeaderChart: LeaderPoint[] = appointmentLeaders.map((item) => ({
-    month: item.name,
+    month: item.staffId,
+    staffId: item.staffId,
     Completed: clampNumber(item.completedAppointments),
     Cancelled: 0,
   }));

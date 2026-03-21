@@ -31,7 +31,8 @@ import { IvlsDevice } from '@/app/features/integrations/services/types';
 import { getMerckGateway } from '@/app/features/integrations/services/merckService';
 import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
 import Close from '@/app/ui/primitives/Icons/Close';
-import { IoRefreshOutline, IoTrashOutline } from 'react-icons/io5';
+import { IoInformationCircleOutline, IoRefreshOutline, IoTrashOutline } from 'react-icons/io5';
+import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 
 const statusClasses: Record<string, string> = {
   enabled: 'bg-green-50 text-green-800',
@@ -732,7 +733,7 @@ const IdexxIntegrationCard = ({
           </div>
           <div className="text-body-4 text-text-secondary line-clamp-4">
             IDEXX diagnostics integration for lab ordering, in-house device workflows, and clinical
-            result visibility in Yosemite.
+            result visibility in Yosemite Crew.
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2 w-full items-center">
@@ -859,7 +860,7 @@ const RadIntegrationCard = ({
             </span>
           </div>
           <div className="text-body-4 text-text-secondary line-clamp-4">
-            Imaging and analyzer connectivity for diagnostic workflows in Yosemite.
+            Imaging and analyzer connectivity for diagnostic workflows in Yosemite Crew.
           </div>
         </div>
         <div className="flex flex-col gap-2">
@@ -904,14 +905,26 @@ const IntegrationsPage = () => {
   const merckCardButtonLabel = getIdexxCardButtonLabel(s.merckSaving, s.merckEnabled);
 
   return (
-    <div className="flex flex-col gap-6 px-3! py-3! sm:px-12! lg:px-[60px]! sm:py-12!">
+    <div className="flex flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
       <div className="flex justify-between items-start gap-3 flex-wrap">
         <div className="flex flex-col gap-1">
-          <div className="text-text-primary text-heading-1">Integrations</div>
-          <p className="text-body-3 text-text-secondary max-w-3xl">
-            Connect and manage external tools for {s.primaryOrg?.name ?? 'your organization'},
-            including diagnostics, clinical knowledge, communication, and operational workflows.
-          </p>
+          <div className="text-text-primary text-heading-1 flex items-center gap-2">
+            <span>Integrations</span>
+            <GlassTooltip
+              content={`Connect and manage external tools for ${
+                s.primaryOrg?.name ?? 'your organization'
+              }, including diagnostics, clinical knowledge, communication, and operational workflows.`}
+              side="bottom"
+            >
+              <button
+                type="button"
+                aria-label="Integrations info"
+                className="relative top-[3px] inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none text-text-secondary hover:text-text-primary transition-colors"
+              >
+                <IoInformationCircleOutline size={20} />
+              </button>
+            </GlassTooltip>
+          </div>
         </div>
         <div className="text-body-4 text-text-secondary rounded-2xl border border-card-border px-4 py-2">
           Active integrations: <span className="text-text-primary">{s.linkedCount}</span>

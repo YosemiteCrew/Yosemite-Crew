@@ -6,7 +6,10 @@ import { useAuthStore } from '@/app/stores/authStore';
 jest.mock('@/app/ui/layout/Header/Header', () => () => <div data-testid="header" />);
 jest.mock('@/app/ui/layout/Sidebar/Sidebar', () => () => <div data-testid="sidebar" />);
 jest.mock('@/app/hooks/useLoadOrg', () => ({ useLoadOrg: jest.fn() }));
-jest.mock('@/app/hooks/useProfiles', () => ({ useLoadProfiles: jest.fn() }));
+jest.mock('@/app/hooks/useProfiles', () => ({
+  useLoadProfiles: jest.fn(),
+  usePrimaryOrgProfile: jest.fn().mockReturnValue(null),
+}));
 jest.mock('@/app/hooks/useAvailabiities', () => ({ useLoadAvailabilities: jest.fn() }));
 jest.mock('@/app/stores/orgStore', () => ({
   useOrgStore: jest.fn((selector: any) => selector({ primaryOrgId: null })),

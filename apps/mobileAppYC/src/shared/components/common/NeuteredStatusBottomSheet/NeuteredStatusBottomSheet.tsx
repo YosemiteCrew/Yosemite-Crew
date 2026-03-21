@@ -1,5 +1,8 @@
 import React, {forwardRef, useImperativeHandle, useRef} from 'react';
-import {GenericSelectBottomSheet, type SelectItem} from '../GenericSelectBottomSheet/GenericSelectBottomSheet';
+import {
+  GenericSelectBottomSheet,
+  type SelectItem,
+} from '../GenericSelectBottomSheet/GenericSelectBottomSheet';
 import type {NeuteredStatus} from '@/features/companion/types';
 
 export interface NeuteredStatusBottomSheetRef {
@@ -7,15 +10,20 @@ export interface NeuteredStatusBottomSheetRef {
   close: () => void;
 }
 
-export const NeuteredStatusBottomSheet = forwardRef<NeuteredStatusBottomSheetRef, {
-  selected: NeuteredStatus | null;
-  onSave: (v: NeuteredStatus) => void;
-}>(({selected, onSave}, ref) => {
+export const NeuteredStatusBottomSheet = forwardRef<
+  NeuteredStatusBottomSheetRef,
+  {
+    selected: NeuteredStatus | null;
+    onSave: (v: NeuteredStatus) => void;
+    gender?: string | null;
+  }
+>(({selected, onSave, gender}, ref) => {
   const bottomSheetRef = useRef<any>(null);
+  const term = gender === 'female' ? 'Spayed' : 'Neutered';
 
   const neuteredItems: SelectItem[] = [
-    {id: 'neutered', label: 'Neutered'},
-    {id: 'not-neutered', label: 'Not neutered'},
+    {id: 'neutered', label: term},
+    {id: 'not-neutered', label: `Not ${term.toLowerCase()}`},
   ];
 
   const selectedItem = selected
@@ -40,14 +48,14 @@ export const NeuteredStatusBottomSheet = forwardRef<NeuteredStatusBottomSheetRef
   return (
     <GenericSelectBottomSheet
       ref={bottomSheetRef}
-      title="Neutered Status"
+      title={`${term} Status`}
       items={neuteredItems}
       selectedItem={selectedItem}
       onSave={handleSave}
       hasSearch={false}
       emptyMessage="No options available"
       mode="select"
-  snapPoints={['30%', '35%']}
+      snapPoints={['30%', '35%']}
       maxListHeight={300}
     />
   );

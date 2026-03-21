@@ -22,8 +22,10 @@ jest.mock('@/app/stores/orgStore', () => ({
 }));
 
 jest.mock('@/app/stores/appointmentStore', () => ({
-  useAppointmentStore: jest.fn(),
+  useAppointmentStore: Object.assign(jest.fn(), { getState: jest.fn() }),
 }));
+
+const mockAppointmentGetState = jest.fn();
 
 describe('useAppointments Hooks', () => {
   // Mutable state for mocks
@@ -48,6 +50,9 @@ describe('useAppointments Hooks', () => {
     (useAppointmentStore as unknown as jest.Mock).mockImplementation((selector) =>
       selector(mockAppointmentState)
     );
+    mockAppointmentGetState.mockReturnValue(mockAppointmentState);
+    (useAppointmentStore as unknown as jest.Mock & { getState: jest.Mock }).getState =
+      mockAppointmentGetState;
   });
 
   // --- Section 1: useLoadAppointmentsForPrimaryOrg ---
