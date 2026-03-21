@@ -43,7 +43,7 @@
     "stream-chat": "^9.25.0",
     "stream-chat-react": "^13.11.0",
     "validator": "^13.15.22",
-    "zustand": "^5.0.6"
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
