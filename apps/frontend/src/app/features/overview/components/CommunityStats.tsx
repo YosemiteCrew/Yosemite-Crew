@@ -1,25 +1,18 @@
 'use client';
-import React from 'react';
-import { FaGithub } from 'react-icons/fa';
+import React, { useState } from 'react';
 import DynamicChartCard from '@/app/ui/widgets/DynamicChart/DynamicChartCard';
-import { RepoStatsSummary, ChartDataPoint } from '../hooks/useOverviewStats';
+import { ChartDataPoint } from '../hooks/useOverviewStats';
 
 type CommunityStatsProps = {
-  data: RepoStatsSummary | null;
-  clonesChart: ChartDataPoint[];
-  forksChart: ChartDataPoint[];
-  starsChart: ChartDataPoint[];
+  combinedChart: ChartDataPoint[];
   isLoading: boolean;
 };
 
-const CommunityStats = ({
-  data,
-  clonesChart,
-  forksChart,
-  starsChart,
-  isLoading,
-}: CommunityStatsProps) => {
-  if (isLoading || !data) {
+const CommunityStats = ({ combinedChart, isLoading }: CommunityStatsProps) => {
+  // Default view is 'Unique' as requested
+  const [trafficView, setTrafficView] = useState<'Unique' | 'Cumulative'>('Unique');
+
+  if (isLoading) {
     return (
       <div
         className="text-center p-10 text-text-secondary"
@@ -30,85 +23,57 @@ const CommunityStats = ({
     );
   }
 
+  // Map the raw data into simple keys for the chart based on the active toggle
+  const trafficData = combinedChart.map((d) => ({
+    month: d.month,
+    'Self Hosters':
+      trafficView === 'Unique' ? d['Self Hosters (Unique)'] : d['Self Hosters (Cumulative)'],
+    Builders: trafficView === 'Unique' ? d['Builders (Unique)'] : d['Builders (Cumulative)'],
+  }));
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-      {/* SECTION HEADER */}
-      <div className="OverviewSectionTitle">
-        <span style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <FaGithub /> GitHub Community
-        </span>
-        {data.generated_at_utc && (
-          <span
-            style={{
-              fontFamily: 'var(--satoshi-font)',
-              fontSize: '0.875rem',
-              fontWeight: 400,
-              color: 'var(--color-text-tertiary)',
-              border: '1px solid var(--color-card-border)',
-              padding: '4px 12px',
-              borderRadius: '100px',
-              background: 'var(--whitebg)',
-            }}
-          >
-            Updated: {data.generated_at_utc.replace(' UTC', '')}
-          </span>
-        )}
-      </div>
-
-      {/* QUICK STATS ROW */}
-      <div className="QuickStatsGrid">
-        <div className="QuickStatCard">
-          <span className="QuickStatLabel">Total Views</span>
-          <span className="QuickStatValue">{data.views?.total || 0}</span>
-        </div>
-        <div className="QuickStatCard">
-          <span className="QuickStatLabel">Unique Visitors</span>
-          <span className="QuickStatValue">{data.views?.unique || 0}</span>
-        </div>
-        <div className="QuickStatCard">
-          <span className="QuickStatLabel">Total Clones</span>
-          <span className="QuickStatValue">{data.clones?.total || 0}</span>
-        </div>
-        <div className="QuickStatCard">
-          <span className="QuickStatLabel">Unique Cloners</span>
-          <span className="QuickStatValue">{data.clones?.unique || 0}</span>
-        </div>
-      </div>
-
-      {/* 3 CHARTS ROW */}
+      {/* 2 CHARTS ROW */}
       <div className="ChartGrid">
-        {/* CHART 1: Clones -> Self Hosters */}
-        <div className="PremiumCard">
-          <h3 className="CardTitle">Self Hosters</h3>
+        {/* CHART 1: Traffic (Self Hosters & Builders) */}
+        <div className="PremiumCard LeftAlignLegend" style={{ position: 'relative' }}>
+          {/* CUSTOM TOGGLE PILLS */}
+          <div className="DataToggle">
+            <button
+              className={`TogglePill ${trafficView === 'Unique' ? 'Active' : ''}`}
+              onClick={() => setTrafficView('Unique')}
+            >
+              Unique
+            </button>
+            <button
+              className={`TogglePill ${trafficView === 'Cumulative' ? 'Active' : ''}`}
+              onClick={() => setTrafficView('Cumulative')}
+            >
+              Cumulative
+            </button>
+          </div>
+
+          <h3 className="CardTitle">15-Day Repository Traffic</h3>
+
           <div className="ChartWrapper">
             <DynamicChartCard
-              data={clonesChart}
+              data={trafficData}
               type="line"
-              keys={[{ name: 'Self Hosters', color: '#247AED' }]}
+              keys={[
+                { name: 'Self Hosters', color: '#247AED' },
+                { name: 'Builders', color: '#10B981' },
+              ]}
               yAxisWidth={40}
             />
           </div>
         </div>
 
-        {/* CHART 2: Forks -> Builders */}
-        <div className="PremiumCard">
-          <h3 className="CardTitle">Builders</h3>
-          <div className="ChartWrapper">
-            <DynamicChartCard
-              data={forksChart}
-              type="line"
-              keys={[{ name: 'Builders', color: '#8A2BE2' }]}
-              yAxisWidth={40}
-            />
-          </div>
-        </div>
-
-        {/* CHART 3: Stargazers */}
+        {/* CHART 2: Stargazers */}
         <div className="PremiumCard">
           <h3 className="CardTitle">Stargazers</h3>
           <div className="ChartWrapper">
             <DynamicChartCard
-              data={starsChart}
+              data={combinedChart}
               type="line"
               keys={[{ name: 'Stars', color: '#F68523' }]}
               yAxisWidth={45}
