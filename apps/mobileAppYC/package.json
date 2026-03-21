@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@aws-amplify/react-native": "^1.1.10",
-    "@aws-amplify/ui-react-native": "^2.6.2",
+    "@aws-amplify/ui-react-native": "^2.7.2",
     "@bottom-tabs/react-navigation": "^1.1.0",
     "@callstack/liquid-glass": "^0.7.0",
     "@d11/react-native-fast-image": "^8.13.0",
