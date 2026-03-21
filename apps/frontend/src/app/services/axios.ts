@@ -45,6 +45,11 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    // Rate-limited — never retry, just propagate immediately
+    if (error.response?.status === 429) {
+      throw error;
+    }
+
     // If there's no response or it's not 401, just reject
     if (error.response?.status !== 401) {
       throw error;

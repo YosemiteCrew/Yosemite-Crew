@@ -77,7 +77,7 @@ const TrustCenter = () => {
           certIcon = (
             <span
               style={{
-                fontFamily: 'var(--grotesk-font)',
+                fontFamily: 'var(--satoshi-font)',
                 fontWeight: '700',
                 fontSize: '1.75rem',
                 color: 'var(--color-text-primary)',
@@ -117,7 +117,7 @@ const TrustCenter = () => {
             <div style={{ flex: 1, paddingLeft: '20px' }}>
               <h3
                 style={{
-                  fontFamily: 'var(--grotesk-font)',
+                  fontFamily: 'var(--satoshi-font)',
                   fontWeight: '500',
                   margin: '0 0 6px 0',
                   fontSize: '1.25rem',
@@ -174,7 +174,7 @@ const TrustCenter = () => {
           <div>
             <h3
               style={{
-                fontFamily: 'var(--grotesk-font)',
+                fontFamily: 'var(--satoshi-font)',
                 fontWeight: '500',
                 fontSize: '1.125rem',
                 margin: 0,
@@ -432,7 +432,7 @@ const TrustCenter = () => {
                       <div>
                         <div
                           style={{
-                            fontFamily: 'var(--grotesk-font)',
+                            fontFamily: 'var(--satoshi-font)',
                             fontWeight: '500',
                             fontSize: '0.95rem',
                           }}

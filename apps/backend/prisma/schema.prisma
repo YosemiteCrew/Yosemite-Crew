@@ -48,6 +48,7 @@ enum SourceType {
   breeder
   foster_shelter
   friends_family
+  stray
   unknown
 }
 

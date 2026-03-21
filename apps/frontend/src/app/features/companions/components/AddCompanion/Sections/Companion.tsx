@@ -8,7 +8,7 @@ import {
   EMPTY_STORED_PARENT,
   GenderOptions,
   InsuredOptions,
-  NeuteredOptions,
+  getNeuteredOptions,
   OriginOptions,
 } from '@/app/features/companions/components/AddCompanion/type';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
@@ -25,6 +25,7 @@ import SearchDropdown from '@/app/ui/inputs/SearchDropdown';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import { CompanionType } from '@yosemite-crew/types';
 import { useNotify } from '@/app/hooks/useNotify';
+import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 import {
   fetchBreedCodeEntries,
   fetchSpeciesCodeEntries,
@@ -108,12 +109,12 @@ const Companion = ({
   setParentFormData,
   setShowModal,
 }: CompanionProps) => {
+  const terminologyText = useCompanionTerminologyText();
   const [formDataErrors, setFormDataErrors] = useState<{
     name?: string;
     species?: string;
     breed?: string;
     dateOfBirth?: string;
-    ageWhenNeutered?: string;
     insuranceNumber?: string;
     insuranceCompany?: string;
   }>({});
@@ -226,14 +227,11 @@ const Companion = ({
       insuranceNumber?: string;
       insuranceCompany?: string;
       dateOfBirth?: string;
-      ageWhenNeutered?: string;
     } = {};
     if (!formData.name) errors.name = 'Name is required';
     if (!formData.type) errors.species = 'Species is required';
     if (!formData.breed) errors.breed = 'Breed is required';
-    if (formData.isneutered && !formData.ageWhenNeutered) {
-      errors.ageWhenNeutered = 'Age when neutered is required';
-    }
+
     if (formData.isInsured) {
       if (!formData.insurance?.companyName) errors.insuranceCompany = 'Company name is required';
       if (!formData.insurance?.policyNumber) errors.insuranceNumber = 'Policy number is required';
@@ -302,7 +300,7 @@ const Companion = ({
     <div className="flex flex-col justify-between flex-1 gap-6 w-full">
       <div className="flex flex-col gap-6">
         <SearchDropdown
-          placeholder="Search companion"
+          placeholder={terminologyText('Search companion')}
           options={options}
           onSelect={handleSelect}
           query={query}
@@ -375,7 +373,7 @@ const Companion = ({
             />
             <SelectLabel
               title="Neutered status"
-              options={NeuteredOptions}
+              options={getNeuteredOptions(formData.gender)}
               activeOption={formData.isneutered ? 'true' : 'false'}
               setOption={(value: string) =>
                 setFormData({
@@ -390,14 +388,13 @@ const Companion = ({
                 intype="number"
                 inname="ageWhenNeutered"
                 value={formData.ageWhenNeutered || ''}
-                inlabel="Age when neutered"
+                inlabel={`Age when ${formData.gender === 'female' ? 'spayed' : 'neutered'} (optional)`}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
                     ageWhenNeutered: e.target.value.replaceAll('-', ''),
                   })
                 }
-                error={formDataErrors.ageWhenNeutered}
                 className="min-h-12!"
               />
             )}

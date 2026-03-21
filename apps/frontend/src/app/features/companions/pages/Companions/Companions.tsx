@@ -16,16 +16,19 @@ import {
 } from '@/app/features/companions/pages/Companions/types';
 import BookAppointment from '@/app/features/companions/pages/Companions/BookAppointment';
 import AddTask from '@/app/features/companions/pages/Companions/AddTask';
+import ChangeCompanionStatus from '@/app/features/companions/pages/Companions/ChangeStatus';
 import { useSearchStore } from '@/app/stores/searchStore';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import Fallback from '@/app/ui/overlays/Fallback';
 import { usePermissions } from '@/app/hooks/usePermissions';
+import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
+import { IoInformationCircleOutline } from 'react-icons/io5';
 
 const Companions = () => {
   const companions = useCompanionsParentsForPrimaryOrg();
   const { can } = usePermissions();
-  const canEditCompanions = can(PERMISSIONS.COMMUNICATION_EDIT_ANY);
+  const canEditCompanions = can(PERMISSIONS.COMPANIONS_EDIT_ANY);
   const canEditAppointments = can(PERMISSIONS.APPOINTMENTS_EDIT_ANY);
   const canEditTasks = can(PERMISSIONS.TASKS_EDIT_ANY);
   const query = useSearchStore((s) => s.query);
@@ -40,6 +43,7 @@ const Companions = () => {
   );
   const [bookAppointment, setBookAppointment] = useState(false);
   const [addTask, setAddTask] = useState(false);
+  const [changeStatusPopup, setChangeStatusPopup] = useState(false);
 
   useEffect(() => {
     setActiveCompanion((prev) => {
@@ -83,17 +87,27 @@ const Companions = () => {
   }, [companions, activeStatus, activeFilter, query]);
 
   return (
-    <div className="flex flex-col gap-6 px-3! py-3! sm:px-12! lg:px-[60px]! sm:py-12!">
+    <div className="flex flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
       <div className="flex justify-between items-center w-full flex-wrap gap-2">
         <div className="flex flex-col gap-1">
-          <div className="text-text-primary text-heading-1">
-            Companions{''}
-            <span className="text-text-tertiary">{' (' + companions.length + ')'}</span>
+          <div className="text-text-primary text-heading-1 flex items-center gap-2">
+            <span>
+              {'Companions'}
+              <span className="text-text-tertiary">{` (${companions.length})`}</span>
+            </span>
+            <GlassTooltip
+              content="View companion and parent details, access their documents, and jump into related tasks or appointments without leaving the profile."
+              side="bottom"
+            >
+              <button
+                type="button"
+                aria-label="Companions info"
+                className="relative top-[3px] inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none text-text-secondary hover:text-text-primary transition-colors"
+              >
+                <IoInformationCircleOutline size={20} />
+              </button>
+            </GlassTooltip>
           </div>
-          <p className="text-body-3 text-text-secondary max-w-3xl">
-            View companion and parent details, access their documents, and jump into related tasks
-            or appointments without leaving the profile.
-          </p>
         </div>
         {canEditCompanions && (
           <Primary href="#" onClick={() => setAddPopup((e) => !e)} text="Add" />
@@ -115,8 +129,10 @@ const Companions = () => {
             setViewCompanion={setViewCompanion}
             setBookAppointment={setBookAppointment}
             setAddTask={setAddTask}
+            setChangeStatusPopup={setChangeStatusPopup}
             canEditAppointments={canEditAppointments}
             canEditTasks={canEditTasks}
+            canEditCompanions={canEditCompanions}
           />
         </div>
 
@@ -125,6 +141,13 @@ const Companions = () => {
           <CompanionInfo
             showModal={viewCompanion}
             setShowModal={setViewCompanion}
+            activeCompanion={activeCompanion}
+          />
+        )}
+        {activeCompanion && canEditCompanions && (
+          <ChangeCompanionStatus
+            showModal={changeStatusPopup}
+            setShowModal={setChangeStatusPopup}
             activeCompanion={activeCompanion}
           />
         )}

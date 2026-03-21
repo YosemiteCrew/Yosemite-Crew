@@ -1,24 +1,16 @@
-import React, { useState } from "react";
-import Accordion from "@/app/ui/primitives/Accordion/Accordion";
-import Dropdown from "@/app/ui/inputs/Dropdown/Dropdown";
-import FormDesc from "@/app/ui/inputs/FormDesc/FormDesc";
-import { Primary } from "@/app/ui/primitives/Buttons";
-import MultiSelectDropdown from "@/app/ui/inputs/MultiSelectDropdown";
+import React, { useState } from 'react';
+import Accordion from '@/app/ui/primitives/Accordion/Accordion';
+import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
+import FormDesc from '@/app/ui/inputs/FormDesc/FormDesc';
+import { Primary } from '@/app/ui/primitives/Buttons';
+import MultiSelectDropdown from '@/app/ui/inputs/MultiSelectDropdown';
 
-export const SpecialityOptions: string[] = [
-  "Internal medicine",
-  "Surgery",
-  "Dermatology",
-];
-export const LeadOptions: string[] = [
-  "Dr. Emily brown",
-  "Dr. Drake ramoray",
-  "Dr. Philip philips",
-];
+export const SpecialityOptions: string[] = ['Internal medicine', 'Surgery', 'Dermatology'];
+export const LeadOptions: string[] = ['Dr. Emily brown', 'Dr. Drake ramoray', 'Dr. Philip philips'];
 export const SupportOptions: string[] = [
-  "Dr. Emily brown",
-  "Dr. Drake ramoray",
-  "Dr. Philip philips",
+  'Dr. Emily brown',
+  'Dr. Drake ramoray',
+  'Dr. Philip philips',
 ];
 
 type FormDataType = {
@@ -31,10 +23,10 @@ type FormDataType = {
 
 const AddAppointment = () => {
   const [formData, setFormData] = useState<FormDataType>({
-    speciality: "",
-    service: "",
-    concern: "",
-    lead: "",
+    speciality: '',
+    service: '',
+    concern: '',
+    lead: '',
     support: [],
   });
   const [formDataErrors] = useState<{
@@ -45,15 +37,8 @@ const AddAppointment = () => {
 
   return (
     <div className="flex flex-col gap-6 w-full">
-      <div className="font-grotesk text-black-text text-[23px] font-medium">
-        Add appointment
-      </div>
-      <Accordion
-        title="Appointment details"
-        defaultOpen
-        showEditIcon={false}
-        isEditing={true}
-      >
+      <div className="font-satoshi text-black-text text-[23px] font-medium">Add appointment</div>
+      <Accordion title="Appointment details" defaultOpen showEditIcon={false} isEditing={true}>
         <div className="flex flex-col gap-3">
           <Dropdown
             placeholder="Speciality"
@@ -78,18 +63,12 @@ const AddAppointment = () => {
             inname="Describe concern"
             value={formData.concern}
             inlabel="Describe concern"
-            onChange={(e) =>
-              setFormData({ ...formData, concern: e.target.value })
-            }
+            onChange={(e) => setFormData({ ...formData, concern: e.target.value })}
             className="min-h-[120px]!"
           />
         </div>
       </Accordion>
-      <Accordion
-        title="Select date & time"
-        showEditIcon={false}
-        isEditing={true}
-      >
+      <Accordion title="Select date & time" showEditIcon={false} isEditing={true}>
         <div className="flex flex-col gap-3"></div>
       </Accordion>
       <Accordion title="Staff details" showEditIcon={false} isEditing={true}>
@@ -112,11 +91,7 @@ const AddAppointment = () => {
           />
         </div>
       </Accordion>
-      <Accordion
-        title="Billable services"
-        showEditIcon={false}
-        isEditing={true}
-      >
+      <Accordion title="Billable services" showEditIcon={false} isEditing={true}>
         <div className="flex flex-col gap-3"></div>
       </Accordion>
       <Primary href="#" text="Book appointment" />

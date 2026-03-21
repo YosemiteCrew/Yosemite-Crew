@@ -1,0 +1,151 @@
+name: repo-stats
+
+on:
+  schedule:
+    - cron: '0 23 * * *'
+  workflow_dispatch:
+
+jobs:
+  stats:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Generate repo stats report
+        uses: jgehrcke/github-repo-stats@v1.4.2
+        with:
+          ghtoken: ${{ secrets.GHRS_GITHUB_API_TOKEN }}
+          repository: YosemiteCrew/Yosemite-Crew
+          databranch: github-repo-stats
+          ghpagesprefix: https://yosemitecrew.github.io/Yosemite-Crew
+
+  summary:
+    runs-on: ubuntu-latest
+    needs: stats
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout stats branch
+        uses: actions/checkout@v4
+        with:
+          ref: github-repo-stats
+          fetch-depth: 0
+
+      - name: Build summary json
+        env:
+          OWNER: YosemiteCrew
+          REPO: Yosemite-Crew
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          import re
+          import sys
+          from html.parser import HTMLParser
+          from pathlib import Path
+
+          owner = os.environ["OWNER"]
+          repo = os.environ["REPO"]
+          report_dir = Path(owner) / repo / "latest-report"
+          report_html = report_dir / "report.html"
+
+          if not report_html.exists():
+            print(f"Report file not found: {report_html}")
+            sys.exit(1)
+
+          class TextExtractor(HTMLParser):
+            def __init__(self) -> None:
+              super().__init__()
+              self.chunks: list[str] = []
+
+            def handle_data(self, data: str) -> None:
+              text = data.strip()
+              if text:
+                self.chunks.append(text)
+
+          parser = TextExtractor()
+          parser.feed(report_html.read_text(encoding="utf-8"))
+          text = "\n".join(parser.chunks)
+
+          def extract_cumulative(label: str) -> int | None:
+            match = re.search(rf"{label}\s*Cumulative:\s*([0-9,]+)", text, re.IGNORECASE)
+            if not match:
+              return None
+            return int(match.group(1).replace(",", ""))
+
+          def extract_top(section_label: str, next_label: str) -> list[str]:
+            match = re.search(
+              rf"{section_label}:\s*(.*?)\s*{next_label}:",
+              text,
+              re.IGNORECASE | re.DOTALL,
+            )
+            if not match:
+              return []
+            block = match.group(1)
+            items: list[str] = []
+            for part in block.split(","):
+              item = re.sub(r"^\d+\s*:\s*", "", part.strip())
+              item = item.strip("` ")
+              if item:
+                items.append(item)
+            return items
+
+          def extract_top_until(section_label: str, stop_labels: list[str]) -> list[str]:
+            stop_group = "|".join(map(re.escape, stop_labels))
+            match = re.search(
+              rf"{section_label}:\s*(.*?)(?:\s*(?:{stop_group}))",
+              text,
+              re.IGNORECASE | re.DOTALL,
+            )
+            if not match:
+              return []
+            block = match.group(1)
+            items: list[str] = []
+            for part in block.split(","):
+              item = re.sub(r"^\d+\s*:\s*", "", part.strip())
+              item = item.strip("` ")
+              if item:
+                items.append(item)
+            return items
+
+          generated_at = None
+          generated_match = re.search(r"Generated .* at ([0-9:\- ]+UTC)", text)
+          if generated_match:
+            generated_at = generated_match.group(1).strip()
+
+          summary = {
+            "owner": owner,
+            "repo": repo,
+            "generated_at_utc": generated_at,
+            "views": {
+              "unique": extract_cumulative("Unique visitors"),
+              "total": extract_cumulative("Total views"),
+            },
+            "clones": {
+              "unique": extract_cumulative("Unique cloners"),
+              "total": extract_cumulative("Total clones"),
+            },
+            "top_referrers": extract_top("Top 15 referrers", "Top 15 paths"),
+            "top_paths": extract_top_until("Top 15 paths", ["Generated", "Report file contents"]),
+            "report_url": f"https://{owner.lower()}.github.io/{repo}/{owner}/{repo}/latest-report/report.html",
+          }
+
+          report_dir.mkdir(parents=True, exist_ok=True)
+          summary_path = report_dir / "summary.json"
+          summary_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+          print(f"Wrote {summary_path}")
+          PY
+
+      - name: Commit summary json
+        run: |
+          if git status --porcelain | grep -q .; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add YosemiteCrew/Yosemite-Crew/latest-report/summary.json
+            git commit -m "chore(repo-stats): update summary json"
+            git push origin github-repo-stats
+          else
+            echo "No summary changes to commit."
+          fi

@@ -19,12 +19,14 @@ This guide is for backend engineers implementing Stream Chat token generation, c
 ## Architecture
 
 ### Current Flow (Development)
+
 ```
 Mobile App → Uses Mock Services (devToken) → Stream Cloud
 Web App    → Uses Mock Services (devToken) → Stream Cloud
 ```
 
 ### Required Flow (Production)
+
 ```
 Mobile App → Request Token → Backend API → Stream Cloud
 Web App    → Request Token → Backend API → Stream Cloud
@@ -51,26 +53,30 @@ Backend    → Uses API Secret to Create Channels & Tokens
 **Purpose**: Create secure authentication tokens for users to connect to Stream Chat
 
 **Endpoint**:
+
 ```
 POST /api/chat/token
 ```
 
 **Request**:
+
 ```typescript
 {
-  userId: string;  // User ID from your auth system
+  userId: string; // User ID from your auth system
 }
 ```
 
 **Response**:
+
 ```typescript
 {
   token: string;
-  expiresAt: number;  // Unix timestamp
+  expiresAt: number; // Unix timestamp
 }
 ```
 
 **Implementation** (Express.js):
+
 ```javascript
 const StreamChat = require('stream-chat').StreamChat;
 
@@ -79,7 +85,7 @@ app.post('/api/chat/token', async (req, res) => {
     const { userId } = req.body;
 
     // Verify user is authenticated
-    const user = req.user;  // From auth middleware
+    const user = req.user; // From auth middleware
     if (!user || user.id !== userId) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
@@ -105,13 +111,10 @@ app.post('/api/chat/token', async (req, res) => {
 ```
 
 **Frontend Usage**:
+
 ```typescript
 // Mobile App - in streamChatService.ts
-export const connectStreamUser = async (
-  userId: string,
-  userName: string,
-  userImage?: string,
-) => {
+export const connectStreamUser = async (userId: string, userName: string, userImage?: string) => {
   const client = getChatClient();
 
   if (client.userID === userId) {
@@ -133,7 +136,7 @@ export const connectStreamUser = async (
         name: userName,
         image: userImage,
       },
-      token  // Use backend-generated token
+      token // Use backend-generated token
     );
 
     return client;
@@ -151,11 +154,13 @@ export const connectStreamUser = async (
 **Purpose**: Create a chat channel for an appointment or retrieve existing one
 
 **Endpoint**:
+
 ```
 POST /api/chat/channels
 ```
 
 **Request**:
+
 ```typescript
 {
   appointmentId: string;
@@ -167,6 +172,7 @@ POST /api/chat/channels
 ```
 
 **Response**:
+
 ```typescript
 {
   channelId: string;
@@ -176,16 +182,11 @@ POST /api/chat/channels
 ```
 
 **Implementation**:
+
 ```javascript
 app.post('/api/chat/channels', async (req, res) => {
   try {
-    const {
-      appointmentId,
-      petOwnerId,
-      vetId,
-      appointmentTime,
-      activationMinutes = 5,
-    } = req.body;
+    const { appointmentId, petOwnerId, vetId, appointmentTime, activationMinutes = 5 } = req.body;
 
     // Verify appointment exists and user has access
     const appointment = await Appointment.findById(appointmentId);
@@ -240,12 +241,13 @@ app.post('/api/chat/channels', async (req, res) => {
 ```
 
 **Frontend Usage**:
+
 ```typescript
 // Mobile App - in streamChatService.ts
 export const getAppointmentChannel = async (
   appointmentId: string,
   vetId: string,
-  appointmentData?: any,
+  appointmentData?: any
 ) => {
   const client = getChatClient();
 
@@ -288,11 +290,13 @@ export const getAppointmentChannel = async (
 **Purpose**: Manually close a chat channel (called by PMS when appointment ends)
 
 **Endpoint**:
+
 ```
 POST /api/chat/channels/:channelId/end
 ```
 
 **Response**:
+
 ```typescript
 {
   success: boolean;
@@ -300,6 +304,7 @@ POST /api/chat/channels/:channelId/end
 ```
 
 **Implementation**:
+
 ```javascript
 app.post('/api/chat/channels/:channelId/end', async (req, res) => {
   try {
@@ -334,14 +339,11 @@ app.post('/api/chat/channels/:channelId/end', async (req, res) => {
     // Update channel status
     await channel.update({
       status: 'ended',
-      frozen: true,  // Optional: prevent new messages
+      frozen: true, // Optional: prevent new messages
     });
 
     // Update database
-    await Appointment.updateOne(
-      { _id: appointment._id },
-      { chatStatus: 'ended' }
-    );
+    await Appointment.updateOne({ _id: appointment._id }, { chatStatus: 'ended' });
 
     res.json({ success: true });
   } catch (error) {
@@ -358,11 +360,13 @@ app.post('/api/chat/channels/:channelId/end', async (req, res) => {
 **Purpose**: Fetch all active chat channels for a user (used by web PMS to show chat list)
 
 **Endpoint**:
+
 ```
 GET /api/chat/channels
 ```
 
 **Query Parameters**:
+
 ```typescript
 {
   role?: 'pet-owner' | 'vet';  // Optional filter
@@ -370,6 +374,7 @@ GET /api/chat/channels
 ```
 
 **Response**:
+
 ```typescript
 {
   channels: Array<{
@@ -385,6 +390,7 @@ GET /api/chat/channels
 ```
 
 **Implementation**:
+
 ```javascript
 app.get('/api/chat/channels', async (req, res) => {
   try {
@@ -437,17 +443,20 @@ app.get('/api/chat/channels', async (req, res) => {
 **Purpose**: Receive real-time events from Stream (new messages, channel updates, etc.)
 
 **Setup in Stream Dashboard**:
+
 1. Go to Stream Dashboard → Your App
 2. Click "Webhooks" or "Integrations"
 3. Add webhook URL: `https://yourbackend.com/api/webhooks/stream`
 4. Select events: `message.new`, `channel.deleted`, `user.updated`
 
 **Endpoint**:
+
 ```
 POST /api/webhooks/stream
 ```
 
 **Implementation**:
+
 ```javascript
 const crypto = require('crypto');
 
@@ -509,9 +518,7 @@ async function handleNewMessage(event) {
   if (appointment) {
     // Send notification to recipient (vet or pet owner)
     const recipientId =
-      message.user.id === appointment.petOwnerId
-        ? appointment.vetId
-        : appointment.petOwnerId;
+      message.user.id === appointment.petOwnerId ? appointment.vetId : appointment.petOwnerId;
 
     // Use your notification service (Firebase, Twilio, etc.)
     // await sendPushNotification(recipientId, {
@@ -584,21 +591,25 @@ Update your Appointment model to include chat references:
 ### Mobile App (React Native)
 
 **Files**:
+
 - `apps/mobileAppYC/src/features/chat/services/streamChatService.ts` - Stream client
 - `apps/mobileAppYC/src/features/chat/screens/ChatChannelScreen.tsx` - Chat UI
 - `apps/mobileAppYC/src/shared/services/mockStreamBackend.ts` - Mock service (replace with API calls)
 
 **Key Functions to Update**:
+
 1. `connectStreamUser()` - Get token from `/api/chat/token`
 2. `getAppointmentChannel()` - Create channel via `/api/chat/channels`
 
 ### Web App (Next.js)
 
 **Files**:
+
 - `apps/frontend/src/app/services/streamChatService.ts` - Stream client
 - `apps/frontend/src/app/components/chat/ChatContainer.tsx` - Chat UI
 
 **Key Functions to Update**:
+
 1. `connectStreamUser()` - Get token from `/api/chat/token`
 2. Add chat channel listing (uses `/api/chat/channels` GET endpoint)
 
@@ -607,8 +618,9 @@ Update your Appointment model to include chat references:
 ## Integration Steps
 
 1. **Install Stream SDK on Backend**:
+
    ```bash
-   npm install stream-chat
+   pnpm --filter backend add stream-chat
    ```
 
 2. **Implement All 5 Endpoints** (use examples above)
@@ -646,6 +658,7 @@ Update your Appointment model to include chat references:
 ## Testing
 
 ### Test Token Generation
+
 ```bash
 curl -X POST http://localhost:3000/api/chat/token \
   -H "Content-Type: application/json" \
@@ -654,6 +667,7 @@ curl -X POST http://localhost:3000/api/chat/token \
 ```
 
 ### Test Channel Creation
+
 ```bash
 curl -X POST http://localhost:3000/api/chat/channels \
   -H "Content-Type: application/json" \
@@ -667,6 +681,7 @@ curl -X POST http://localhost:3000/api/chat/channels \
 ```
 
 ### Test Get Channels
+
 ```bash
 curl -X GET http://localhost:3000/api/chat/channels \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"

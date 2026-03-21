@@ -3,6 +3,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import { Primary } from '@/app/ui/primitives/Buttons';
+import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
+import { IoInformationCircleOutline } from 'react-icons/io5';
 import { FormsProps } from '@/app/features/forms/types/forms';
 import FormsFilters from '@/app/ui/filters/FormsFilters';
 import FormsTable from '@/app/ui/tables/FormsTable';
@@ -129,16 +131,27 @@ const Forms = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6 px-4! py-6! md:px-12! md:py-10! lg:px-10! lg:pb-20! lg:pr-20!">
+    <div className="flex flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
       <div className="flex justify-between items-center w-full flex-wrap gap-2">
         <div className="flex flex-col gap-1">
-          <div className="text-text-primary text-heading-1">
-            Templates{''}
-            <span className="text-text-tertiary">{' (' + list.length + ')'}</span>
+          <div className="text-text-primary text-heading-1 flex items-center gap-2">
+            <span>
+              {'Templates'}
+              <span className="text-text-tertiary">{` (${list.length})`}</span>
+            </span>
+            <GlassTooltip
+              content="Build and reuse templates, link them to services, and use custom available templates."
+              side="bottom"
+            >
+              <button
+                type="button"
+                aria-label="Templates info"
+                className="relative top-[3px] inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none text-text-secondary hover:text-text-primary transition-colors"
+              >
+                <IoInformationCircleOutline size={20} />
+              </button>
+            </GlassTooltip>
           </div>
-          <p className="text-body-3 text-text-secondary max-w-3xl">
-            Build and reuse templates, link them to services, and use custom available templates.
-          </p>
         </div>
         {canEditForms && <Primary href="#" text="Add" onClick={openAddForm} />}
       </div>
@@ -152,7 +165,6 @@ const Forms = () => {
           />
           <FormsTable
             filteredList={filteredList}
-            activeForm={activeForm}
             setActiveForm={handleSelectForm}
             setViewPopup={setViewPopup}
             loading={loading}

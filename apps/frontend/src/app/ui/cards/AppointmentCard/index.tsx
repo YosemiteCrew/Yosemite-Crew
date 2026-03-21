@@ -49,7 +49,7 @@ const AppointmentCard = ({
   return (
     <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-white px-3 py-3 flex flex-col justify-between gap-2 cursor-pointer">
       <AppointmentCardContent appointment={appointment} />
-      <div className="flex gap-3 w-full">
+      <div className="flex gap-3 w-full justify-center">
         {isRequestedLikeStatus(appointment.status) ? (
           <>
             <GlassTooltip content="Accept request" side="bottom">
@@ -72,7 +72,7 @@ const AppointmentCard = ({
             </GlassTooltip>
           </>
         ) : (
-          <div className="flex gap-2 w-full flex-wrap max-w-[184px]">
+          <div className="flex gap-2 w-full flex-wrap justify-center">
             <GlassTooltip content="View appointment" side="bottom">
               <button
                 onClick={() => handleViewAppointment(appointment)}

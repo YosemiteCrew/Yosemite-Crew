@@ -10,6 +10,8 @@ jest.mock('@/app/stores/orgStore');
 jest.mock('@/app/stores/invoiceStore');
 jest.mock('@/app/features/billing/services/invoiceService');
 
+const mockInvoiceGetState = jest.fn();
+
 describe('useInvoices Hooks', () => {
   let mockOrgState: any;
   let mockInvoiceState: any;
@@ -29,6 +31,9 @@ describe('useInvoices Hooks', () => {
     (useInvoiceStore as unknown as jest.Mock).mockImplementation((selector) =>
       selector(mockInvoiceState)
     );
+    mockInvoiceGetState.mockReturnValue(mockInvoiceState);
+    (useInvoiceStore as unknown as jest.Mock & { getState: jest.Mock }).getState =
+      mockInvoiceGetState;
   });
 
   describe('useLoadInvoicesForPrimaryOrg', () => {

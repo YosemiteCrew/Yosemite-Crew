@@ -12,6 +12,8 @@ jest.mock('@/app/features/organization/services/teamService', () => ({
   loadTeam: jest.fn(),
 }));
 
+const mockTeamGetState = jest.fn();
+
 describe('useTeam Hooks', () => {
   let mockOrgState: any;
   let mockTeamState: any;
@@ -31,6 +33,8 @@ describe('useTeam Hooks', () => {
     (useTeamStore as unknown as jest.Mock).mockImplementation((selector) =>
       selector(mockTeamState)
     );
+    mockTeamGetState.mockReturnValue(mockTeamState);
+    (useTeamStore as unknown as jest.Mock & { getState: jest.Mock }).getState = mockTeamGetState;
   });
 
   // --- Section 1: useLoadTeam ---

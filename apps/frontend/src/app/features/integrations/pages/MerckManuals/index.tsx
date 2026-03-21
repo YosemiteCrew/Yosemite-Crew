@@ -170,7 +170,7 @@ const getMerckErrorMessage = (error: unknown) => {
 const getMerckContainerClassName = (embedded: boolean) =>
   embedded
     ? 'w-full p-4 md:p-6 bg-white min-h-screen'
-    : 'flex flex-col gap-6 px-3! py-3! sm:px-12! lg:px-[60px]! sm:py-12!';
+    : 'flex flex-col gap-6 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!';
 
 const getMerckResultsContainerClassName = (embedded: boolean) =>
   embedded
@@ -674,8 +674,8 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
             />
           </div>
           <p className="text-body-3 text-text-secondary max-w-3xl">
-            Search veterinary reference content and open results inside Yosemite using secure reader
-            links.
+            Search veterinary reference content and open results inside Yosemite Crew using secure
+            reader links.
           </p>
         </div>
         <AudienceToggle

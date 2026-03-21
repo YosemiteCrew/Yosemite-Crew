@@ -2,6 +2,7 @@
 import React from 'react';
 import { FaCalendar, FaTasks } from 'react-icons/fa';
 import { IoEye, IoOpenOutline } from 'react-icons/io5';
+import { MdOutlineAutorenew } from 'react-icons/md';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
@@ -15,6 +16,7 @@ import { getAgeInYears } from '@/app/lib/date';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { toTitleCase } from '@/app/lib/validators';
 import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
+import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 
 import './DataTable.css';
 
@@ -31,8 +33,10 @@ type CompanionsTableProps = {
   setViewCompanion: (open: boolean) => void;
   setBookAppointment: (open: boolean) => void;
   setAddTask: (open: boolean) => void;
+  setChangeStatusPopup: (open: boolean) => void;
   canEditAppointments: boolean;
   canEditTasks: boolean;
+  canEditCompanions: boolean;
 };
 
 export const getStatusStyle = (status: string) => {
@@ -66,8 +70,10 @@ const CompanionsTable = ({
   setViewCompanion,
   setBookAppointment,
   setAddTask,
+  setChangeStatusPopup,
   canEditAppointments,
   canEditTasks,
+  canEditCompanions,
 }: CompanionsTableProps) => {
   const router = useRouter();
   const appointments = useAppointmentsForPrimaryOrg();
@@ -119,6 +125,11 @@ const CompanionsTable = ({
   const handleAddTask = (companion: CompanionParent) => {
     setActiveCompanion(companion);
     setAddTask(true);
+  };
+
+  const handleChangeStatus = (companion: CompanionParent) => {
+    setActiveCompanion(companion);
+    setChangeStatusPopup(true);
   };
 
   const columns: Column<CompanionParent>[] = [
@@ -262,6 +273,17 @@ const CompanionsTable = ({
           >
             <IoEye size={20} color="#302F2E" />
           </button>
+          {canEditCompanions && (
+            <GlassTooltip content="Change status" side="bottom" className="table-action-tooltip">
+              <button
+                onClick={() => handleChangeStatus(item)}
+                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                title="Change status"
+              >
+                <MdOutlineAutorenew size={18} color="#302F2E" />
+              </button>
+            </GlassTooltip>
+          )}
           {canEditAppointments && (
             <button
               onClick={() => handleBookAppointment(item)}
@@ -310,8 +332,10 @@ const CompanionsTable = ({
               handleViewCompanion={handleViewCompanion}
               handleBookAppointment={handleBookAppointment}
               handleAddTask={handleAddTask}
+              handleChangeStatus={handleChangeStatus}
               canEditAppointments={canEditAppointments}
               canEditTasks={canEditTasks}
+              canEditCompanions={canEditCompanions}
             />
           ));
         })()}

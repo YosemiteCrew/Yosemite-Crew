@@ -1,11 +1,13 @@
-import { FormsProps } from "@/app/features/forms/types/forms";
-import React, { useMemo } from "react";
-import { IoEye } from "react-icons/io5";
-import GenericTable from "@/app/ui/tables/GenericTable/GenericTable";
-import FormCard from "@/app/ui/cards/FormCard";
-import { useTeamStore } from "@/app/stores/teamStore";
+import { FormsProps, getFormCategoryDisplayLabel } from '@/app/features/forms/types/forms';
+import React, { useMemo } from 'react';
+import { IoEye } from 'react-icons/io5';
+import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
+import FormCard from '@/app/ui/cards/FormCard';
+import { useTeamStore } from '@/app/stores/teamStore';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { Organisation } from '@yosemite-crew/types';
 
-import "./DataTable.css";
+import './DataTable.css';
 
 type Column<T> = {
   label: string;
@@ -16,34 +18,39 @@ type Column<T> = {
 
 type FormsTableProps = {
   filteredList: FormsProps[];
-  activeForm: FormsProps | null;
   setActiveForm: (companion: FormsProps) => void;
   setViewPopup: (open: boolean) => void;
   loading?: boolean;
 };
 
 export const getStatusStyle = (status: string) => {
-  if (!status) return { color: "#302F2E", backgroundColor: "#F3F3F3" };
+  if (!status) return { color: '#302F2E', backgroundColor: '#F3F3F3' };
   switch (status.toLowerCase()) {
-    case "published":
-      return { color: "#F7F7F7", backgroundColor: "#747283" };
-    case "draft":
-      return { color: "#F7F7F7", backgroundColor: "#BF9FAA" };
-    case "archived":
-      return { color: "#F7F7F7", backgroundColor: "#D9A488" };
+    case 'published':
+      return { color: '#F7F7F7', backgroundColor: '#747283' };
+    case 'draft':
+      return { color: '#F7F7F7', backgroundColor: '#BF9FAA' };
+    case 'archived':
+      return { color: '#F7F7F7', backgroundColor: '#D9A488' };
     default:
-      return { color: "#F7F7F7", backgroundColor: "#D28F9A" };
+      return { color: '#F7F7F7', backgroundColor: '#D28F9A' };
   }
 };
 
 const FormsTable = ({
   filteredList,
-  activeForm,
   setActiveForm,
   setViewPopup,
   loading = false,
 }: FormsTableProps) => {
   const { teamsById } = useTeamStore();
+  const orgType = useOrgStore((s) =>
+    s.primaryOrgId ? s.orgsById[s.primaryOrgId]?.type : undefined
+  );
+  const orgTypeOverride = process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE as
+    | Organisation['type']
+    | undefined;
+  const effectiveOrgType = orgTypeOverride || orgType;
 
   // Create a lookup map from practitioner ID to team member name
   const userIdToName = useMemo(() => {
@@ -67,62 +74,57 @@ const FormsTable = ({
 
   const columns: Column<FormsProps>[] = [
     {
-      label: "Form name",
-      key: "name",
-      width: "20%",
+      label: 'Form name',
+      key: 'name',
+      width: '20%',
+      render: (item: FormsProps) => <div className="appointment-profile-title">{item.name}</div>,
+    },
+    {
+      label: 'Category',
+      key: 'category',
+      width: '10%',
       render: (item: FormsProps) => (
-        <div className="appointment-profile-title">{item.name}</div>
+        <div className="appointment-profile-title">
+          {getFormCategoryDisplayLabel(item.category, effectiveOrgType)}
+        </div>
       ),
     },
     {
-      label: "Category",
-      key: "category",
-      width: "10%",
-      render: (item: FormsProps) => (
-        <div className="appointment-profile-title">{item.category}</div>
-      ),
+      label: 'Usage',
+      key: 'usage',
+      width: '15%',
+      render: (item: FormsProps) => <div className="appointment-profile-title">{item.usage}</div>,
     },
     {
-      label: "Usage",
-      key: "usage",
-      width: "15%",
-      render: (item: FormsProps) => (
-        <div className="appointment-profile-title">{item.usage}</div>
-      ),
-    },
-    {
-      label: "Updated by",
-      key: "updatedBy",
-      width: "15%",
+      label: 'Updated by',
+      key: 'updatedBy',
+      width: '15%',
       render: (item: FormsProps) => (
         <div className="appointment-profile-title">{getUserName(item.updatedBy)}</div>
       ),
     },
     {
-      label: "Last updated",
-      key: "lastUpdated",
-      width: "15%",
+      label: 'Last updated',
+      key: 'lastUpdated',
+      width: '15%',
       render: (item: FormsProps) => (
         <div className="appointment-profile-title">{item.lastUpdated}</div>
       ),
     },
     {
-      label: "Status",
-      key: "status",
-      width: "15%",
+      label: 'Status',
+      key: 'status',
+      width: '15%',
       render: (item: FormsProps) => (
-        <div
-          className="appointment-status"
-          style={getStatusStyle(item.status || "")}
-        >
+        <div className="appointment-status" style={getStatusStyle(item.status || '')}>
           {item.status}
         </div>
       ),
     },
     {
-      label: "Actions",
-      key: "actions",
-      width: "10%",
+      label: 'Actions',
+      key: 'actions',
+      width: '10%',
       render: (item: FormsProps) => (
         <div className="action-btn-col">
           <button
@@ -144,7 +146,13 @@ const FormsTable = ({
             Loading forms...
           </div>
         ) : (
-          <GenericTable data={filteredList} columns={columns} bordered={false} pagination pageSize={10} />
+          <GenericTable
+            data={filteredList}
+            columns={columns}
+            bordered={false}
+            pagination
+            pageSize={10}
+          />
         )}
       </div>
       <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
@@ -169,6 +177,7 @@ const FormsTable = ({
               form={form}
               handleViewForm={handleViewForm}
               getUserName={getUserName}
+              orgType={effectiveOrgType}
             />
           ));
         })()}

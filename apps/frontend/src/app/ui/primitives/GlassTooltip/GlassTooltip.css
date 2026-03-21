@@ -8,7 +8,10 @@
   position: fixed;
   z-index: 1000;
   pointer-events: none;
-  white-space: nowrap;
+  max-width: min(320px, calc(100vw - 16px));
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   background: rgba(26, 26, 28, 0.72);

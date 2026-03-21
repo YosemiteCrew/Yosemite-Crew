@@ -44,6 +44,7 @@ const Appointments = () => {
   const plannerSectionRef = useRef<HTMLDivElement | null>(null);
   const plannerAutoLockRef = useRef(false);
   const lastScrollYRef = useRef(0);
+  const plannerLockTopOffset = 16;
   const [activeFilter, setActiveFilter] = useState('all');
   const [activeStatus, setActiveStatus] = useState('all');
   const [addPopup, setAddPopup] = useState(false);
@@ -145,13 +146,16 @@ const Appointments = () => {
       const rect = section.getBoundingClientRect();
       const shouldLockToSection =
         isScrollingDown &&
-        rect.top <= 140 &&
-        rect.top >= -220 &&
+        rect.top <= 130 &&
+        rect.top >= -180 &&
         rect.bottom > globalThis.window.innerHeight * 0.55;
 
       if (shouldLockToSection && !plannerAutoLockRef.current) {
         plannerAutoLockRef.current = true;
-        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        globalThis.window.scrollTo({
+          top: globalThis.window.scrollY + rect.top - plannerLockTopOffset,
+          behavior: 'smooth',
+        });
         return;
       }
 
@@ -162,7 +166,7 @@ const Appointments = () => {
 
     globalThis.window.addEventListener('scroll', onScroll, { passive: true });
     return () => globalThis.window.removeEventListener('scroll', onScroll);
-  }, [activeView]);
+  }, [activeView, plannerLockTopOffset]);
 
   const filteredList = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -254,7 +258,7 @@ const Appointments = () => {
 
   return (
     <div className="flex flex-col relative min-w-0">
-      <div className="flex flex-col gap-6 px-3! py-3! sm:px-12! lg:px-[60px]! sm:pt-12! sm:pb-0!">
+      <div className="flex flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-3!">
         <TitleCalendar
           title="Appointments"
           description="Schedule and manage appointments across day, week, and team views, then drill into tasks, chat, and billing details for each visit."
@@ -269,7 +273,7 @@ const Appointments = () => {
           <div
             className={
               activeView === 'list'
-                ? 'w-full flex flex-col gap-3 h-[calc(100vh-248px)] min-h-[588px] max-h-[calc(100vh-248px)] lg:sticky lg:top-2 lg:mb-3 lg:h-[calc(100dvh-105px)] lg:min-h-[calc(100dvh-105px)] lg:max-h-[calc(100dvh-105px)]'
+                ? 'w-full flex flex-col gap-3 h-[calc(100vh-248px)] min-h-[588px] max-h-[calc(100vh-248px)] lg:sticky lg:top-4 lg:mb-0 lg:h-[calc(100dvh-105px)] lg:min-h-[calc(100dvh-105px)] lg:max-h-[calc(100dvh-105px)]'
                 : 'w-full flex flex-col gap-3'
             }
           >
@@ -288,7 +292,7 @@ const Appointments = () => {
               className={
                 activeView === 'list'
                   ? 'w-full flex-1 min-h-0 overflow-hidden'
-                  : 'w-full h-[calc(100vh-248px)] min-h-[588px] max-h-[calc(100vh-248px)] lg:sticky lg:top-2 lg:mb-3 lg:h-[calc(100dvh-105px)] lg:min-h-[calc(100dvh-105px)] lg:max-h-[calc(100dvh-105px)]'
+                  : 'w-full h-[calc(100vh-248px)] min-h-[588px] max-h-[calc(100vh-248px)] lg:sticky lg:top-4 lg:mb-0 lg:h-[calc(100dvh-105px)] lg:min-h-[calc(100dvh-105px)] lg:max-h-[calc(100dvh-105px)]'
               }
             >
               {plannerContent}

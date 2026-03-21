@@ -1,30 +1,29 @@
-import { renderHook } from "@testing-library/react";
-import {
-  useLoadDocumentsForPrimaryOrg,
-  useDocumentsForPrimaryOrg,
-} from "@/app/hooks/useDocuments";
-import { loadDocumentsForOrgPrimaryOrg } from "@/app/features/documents/services/documentService";
-import { useOrgStore } from "@/app/stores/orgStore";
-import { useOrganizationDocumentStore } from "@/app/stores/documentStore";
-import { OrganizationDocument } from "@/app/features/documents/types/document";
+import { renderHook } from '@testing-library/react';
+import { useLoadDocumentsForPrimaryOrg, useDocumentsForPrimaryOrg } from '@/app/hooks/useDocuments';
+import { loadDocumentsForOrgPrimaryOrg } from '@/app/features/documents/services/documentService';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { useOrganizationDocumentStore } from '@/app/stores/documentStore';
+import { OrganizationDocument } from '@/app/features/documents/types/document';
 
 // --- Mocks ---
 
 // 1. Mock Service
-jest.mock("@/app/features/documents/services/documentService", () => ({
+jest.mock('@/app/features/documents/services/documentService', () => ({
   loadDocumentsForOrgPrimaryOrg: jest.fn(),
 }));
 
 // 2. Mock Stores
-jest.mock("@/app/stores/orgStore", () => ({
+jest.mock('@/app/stores/orgStore', () => ({
   useOrgStore: jest.fn(),
 }));
 
-jest.mock("@/app/stores/documentStore", () => ({
-  useOrganizationDocumentStore: jest.fn(),
+jest.mock('@/app/stores/documentStore', () => ({
+  useOrganizationDocumentStore: Object.assign(jest.fn(), { getState: jest.fn() }),
 }));
 
-describe("useDocuments Hooks", () => {
+const mockDocGetState = jest.fn();
+
+describe('useDocuments Hooks', () => {
   // Mutable mock state
   let mockOrgState: { primaryOrgId: string | null };
   let mockDocState: {
@@ -43,17 +42,18 @@ describe("useDocuments Hooks", () => {
     };
 
     // Setup Store Mock Implementations to use mutable state
-    (useOrgStore as unknown as jest.Mock).mockImplementation((selector) =>
-      selector(mockOrgState)
+    (useOrgStore as unknown as jest.Mock).mockImplementation((selector) => selector(mockOrgState));
+    (useOrganizationDocumentStore as unknown as jest.Mock).mockImplementation((selector) =>
+      selector(mockDocState)
     );
-    (useOrganizationDocumentStore as unknown as jest.Mock).mockImplementation(
-      (selector) => selector(mockDocState)
-    );
+    mockDocGetState.mockReturnValue(mockDocState);
+    (useOrganizationDocumentStore as unknown as jest.Mock & { getState: jest.Mock }).getState =
+      mockDocGetState;
   });
 
   // --- Section 1: useLoadDocumentsForPrimaryOrg ---
-  describe("useLoadDocumentsForPrimaryOrg", () => {
-    it("does nothing when primaryOrgId is missing", () => {
+  describe('useLoadDocumentsForPrimaryOrg', () => {
+    it('does nothing when primaryOrgId is missing', () => {
       mockOrgState.primaryOrgId = null;
 
       renderHook(() => useLoadDocumentsForPrimaryOrg());
@@ -61,8 +61,8 @@ describe("useDocuments Hooks", () => {
       expect(loadDocumentsForOrgPrimaryOrg).not.toHaveBeenCalled();
     });
 
-    it("calls service when primaryOrgId is present", () => {
-      mockOrgState.primaryOrgId = "org-1";
+    it('calls service when primaryOrgId is present', () => {
+      mockOrgState.primaryOrgId = 'org-1';
 
       renderHook(() => useLoadDocumentsForPrimaryOrg());
 
@@ -70,14 +70,14 @@ describe("useDocuments Hooks", () => {
       expect(loadDocumentsForOrgPrimaryOrg).toHaveBeenCalledWith();
     });
 
-    it("re-calls service when primaryOrgId changes", () => {
-      mockOrgState.primaryOrgId = "org-1";
+    it('re-calls service when primaryOrgId changes', () => {
+      mockOrgState.primaryOrgId = 'org-1';
       const { rerender } = renderHook(() => useLoadDocumentsForPrimaryOrg());
 
       expect(loadDocumentsForOrgPrimaryOrg).toHaveBeenCalledTimes(1);
 
       // Change Org ID
-      mockOrgState.primaryOrgId = "org-2";
+      mockOrgState.primaryOrgId = 'org-2';
       rerender();
 
       expect(loadDocumentsForOrgPrimaryOrg).toHaveBeenCalledTimes(2);
@@ -85,39 +85,39 @@ describe("useDocuments Hooks", () => {
   });
 
   // --- Section 2: useDocumentsForPrimaryOrg ---
-  describe("useDocumentsForPrimaryOrg", () => {
+  describe('useDocumentsForPrimaryOrg', () => {
     // Helper to cast partial objects to OrganizationDocument for testing
-    const mockDoc1 = { id: "doc-1", title: "Policy A" } as unknown as OrganizationDocument;
-    const mockDoc2 = { id: "doc-2", title: "Policy B" } as unknown as OrganizationDocument;
+    const mockDoc1 = { id: 'doc-1', title: 'Policy A' } as unknown as OrganizationDocument;
+    const mockDoc2 = { id: 'doc-2', title: 'Policy B' } as unknown as OrganizationDocument;
 
-    it("returns an empty array if primaryOrgId is missing", () => {
+    it('returns an empty array if primaryOrgId is missing', () => {
       mockOrgState.primaryOrgId = null;
       // Setup data that should be ignored
-      mockDocState.documentIdsByOrgId["org-1"] = ["doc-1"];
-      mockDocState.documentsById["doc-1"] = mockDoc1;
+      mockDocState.documentIdsByOrgId['org-1'] = ['doc-1'];
+      mockDocState.documentsById['doc-1'] = mockDoc1;
 
       const { result } = renderHook(() => useDocumentsForPrimaryOrg());
 
       expect(result.current).toEqual([]);
     });
 
-    it("returns an empty array if org exists but has no documents indexed", () => {
-      mockOrgState.primaryOrgId = "org-empty";
+    it('returns an empty array if org exists but has no documents indexed', () => {
+      mockOrgState.primaryOrgId = 'org-empty';
       // Explicitly set undefined to test the `?? []` fallback
-      delete mockDocState.documentIdsByOrgId["org-empty"];
+      delete mockDocState.documentIdsByOrgId['org-empty'];
 
       const { result } = renderHook(() => useDocumentsForPrimaryOrg());
 
       expect(result.current).toEqual([]);
     });
 
-    it("returns correctly mapped documents for the primary org", () => {
-      mockOrgState.primaryOrgId = "org-1";
-      mockDocState.documentIdsByOrgId["org-1"] = ["doc-1", "doc-2"];
+    it('returns correctly mapped documents for the primary org', () => {
+      mockOrgState.primaryOrgId = 'org-1';
+      mockDocState.documentIdsByOrgId['org-1'] = ['doc-1', 'doc-2'];
       mockDocState.documentsById = {
-        "doc-1": mockDoc1,
-        "doc-2": mockDoc2,
-        "doc-3": { id: "doc-3" } as any, // Other org
+        'doc-1': mockDoc1,
+        'doc-2': mockDoc2,
+        'doc-3': { id: 'doc-3' } as any, // Other org
       };
 
       const { result } = renderHook(() => useDocumentsForPrimaryOrg());
@@ -126,13 +126,13 @@ describe("useDocuments Hooks", () => {
       expect(result.current).toEqual([mockDoc1, mockDoc2]);
     });
 
-    it("filters out null/undefined documents (data integrity check)", () => {
-      mockOrgState.primaryOrgId = "org-1";
+    it('filters out null/undefined documents (data integrity check)', () => {
+      mockOrgState.primaryOrgId = 'org-1';
       // Index says we have 'doc-1' and 'doc-missing'
-      mockDocState.documentIdsByOrgId["org-1"] = ["doc-1", "doc-missing"];
+      mockDocState.documentIdsByOrgId['org-1'] = ['doc-1', 'doc-missing'];
       // Map only has 'doc-1'
       mockDocState.documentsById = {
-        "doc-1": mockDoc1,
+        'doc-1': mockDoc1,
       };
 
       const { result } = renderHook(() => useDocumentsForPrimaryOrg());

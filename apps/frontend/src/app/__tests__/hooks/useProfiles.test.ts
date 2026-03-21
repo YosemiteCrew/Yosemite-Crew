@@ -13,6 +13,8 @@ jest.mock('@/app/features/organization/services/profileService', () => ({
 jest.mock('@/app/stores/orgStore');
 jest.mock('@/app/stores/profileStore');
 
+const mockProfileGetState = jest.fn();
+
 describe('useProfiles Hooks', () => {
   let mockOrgState: any;
   let mockProfileState: any;
@@ -36,6 +38,9 @@ describe('useProfiles Hooks', () => {
     (useUserProfileStore as unknown as jest.Mock).mockImplementation((selector) =>
       selector(mockProfileState)
     );
+    mockProfileGetState.mockReturnValue(mockProfileState);
+    (useUserProfileStore as unknown as jest.Mock & { getState: jest.Mock }).getState =
+      mockProfileGetState;
   });
 
   // --- Section 1: useLoadProfiles Logic ---

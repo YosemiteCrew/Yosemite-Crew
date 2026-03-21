@@ -71,6 +71,10 @@ jest.mock('react-icons/io5', () => ({
   IoOpenOutline: () => <span>open-icon</span>,
 }));
 
+jest.mock('react-icons/md', () => ({
+  MdOutlineAutorenew: () => <span>status-icon</span>,
+}));
+
 describe('CompanionsTable', () => {
   const companion: any = {
     companion: {
@@ -105,6 +109,7 @@ describe('CompanionsTable', () => {
     const setViewCompanion = jest.fn();
     const setBookAppointment = jest.fn();
     const setAddTask = jest.fn();
+    const setChangeStatusPopup = jest.fn();
 
     render(
       <CompanionsTable
@@ -113,18 +118,22 @@ describe('CompanionsTable', () => {
         setViewCompanion={setViewCompanion}
         setBookAppointment={setBookAppointment}
         setAddTask={setAddTask}
+        setChangeStatusPopup={setChangeStatusPopup}
         canEditAppointments
         canEditTasks
+        canEditCompanions
       />
     );
 
     fireEvent.click(screen.getByText('view-icon').closest('button')!);
     fireEvent.click(screen.getByTitle('Open appointment'));
+    fireEvent.click(screen.getByText('status-icon').closest('button')!);
     fireEvent.click(screen.getByText('calendar-icon').closest('button')!);
     fireEvent.click(screen.getByText('task-icon').closest('button')!);
 
     expect(setActiveCompanion).toHaveBeenCalledWith(companion);
     expect(setViewCompanion).toHaveBeenCalledWith(true);
+    expect(setChangeStatusPopup).toHaveBeenCalledWith(true);
     expect(setBookAppointment).toHaveBeenCalledWith(true);
     expect(setAddTask).toHaveBeenCalledWith(true);
     expect(pushMock).toHaveBeenCalledWith('/appointments?appointmentId=appt-1');
@@ -138,8 +147,10 @@ describe('CompanionsTable', () => {
         setViewCompanion={jest.fn()}
         setBookAppointment={jest.fn()}
         setAddTask={jest.fn()}
+        setChangeStatusPopup={jest.fn()}
         canEditAppointments={false}
         canEditTasks={false}
+        canEditCompanions={false}
       />
     );
 

@@ -1,10 +1,10 @@
-import { create } from "zustand";
+import { create } from 'zustand';
 import {
   ApiDayAvailability,
   ApiOverrides,
-} from "@/app/features/appointments/components/Availability/utils";
+} from '@/app/features/appointments/components/Availability/utils';
 
-type AvailabilityStatus = "idle" | "loading" | "loaded" | "error";
+type AvailabilityStatus = 'idle' | 'loading' | 'loaded' | 'error';
 
 type AvailabilityState = {
   availabilitiesById: Record<string, ApiDayAvailability>;
@@ -27,6 +27,7 @@ type AvailabilityState = {
   setOverridesForOrg: (orgId: string, items: ApiOverrides[]) => void;
   upsertOverideStore: (item: ApiOverrides) => void;
   removeOverride: (id: string) => void;
+  mergeAvailabilities: (items: ApiDayAvailability[]) => void;
   clearAvailabilities: () => void;
   startLoading: () => void;
   endLoading: () => void;
@@ -38,7 +39,7 @@ export const useAvailabilityStore = create<AvailabilityState>()((set, get) => ({
   availabilityIdsByOrgId: {},
   overridesById: {},
   overrideIdsByOrgId: {},
-  status: "idle",
+  status: 'idle',
   error: null,
   lastFetchedAt: null,
 
@@ -58,7 +59,7 @@ export const useAvailabilityStore = create<AvailabilityState>()((set, get) => ({
       return {
         availabilitiesById,
         availabilityIdsByOrgId,
-        status: "loaded",
+        status: 'loaded',
         lastFetchedAt: new Date().toISOString(),
         error: null,
       };
@@ -84,7 +85,7 @@ export const useAvailabilityStore = create<AvailabilityState>()((set, get) => ({
       return {
         availabilitiesById,
         availabilityIdsByOrgId,
-        status: "loaded",
+        status: 'loaded',
         error: null,
         lastFetchedAt: new Date().toISOString(),
       };
@@ -108,7 +109,7 @@ export const useAvailabilityStore = create<AvailabilityState>()((set, get) => ({
       return {
         availabilitiesById,
         availabilityIdsByOrgId,
-        status: "loaded",
+        status: 'loaded',
         error: null,
       };
     }),
@@ -126,14 +127,14 @@ export const useAvailabilityStore = create<AvailabilityState>()((set, get) => ({
       const removed = state.availabilitiesById[id];
       if (!removed) return state;
       const orgId = removed.organisationId;
-      const { [id]: _, ...restAvailabilitiesById } = state.availabilitiesById;
+      const availabilitiesById = { ...state.availabilitiesById };
+      delete availabilitiesById[id];
       const availabilityIdsByOrgId = {
         ...state.availabilityIdsByOrgId,
-        [orgId]:
-          state.availabilityIdsByOrgId[orgId]?.filter((x) => x !== id) ?? [],
+        [orgId]: state.availabilityIdsByOrgId[orgId]?.filter((x) => x !== id) ?? [],
       };
       return {
-        availabilitiesById: restAvailabilitiesById,
+        availabilitiesById,
         availabilityIdsByOrgId,
       };
     }),
@@ -142,26 +143,46 @@ export const useAvailabilityStore = create<AvailabilityState>()((set, get) => ({
     set((state) => {
       const ids = state.availabilityIdsByOrgId[orgId] ?? [];
       if (!ids.length) {
-        const { [orgId]: _, ...restIds } = state.availabilityIdsByOrgId;
-        return { availabilityIdsByOrgId: restIds };
+        const availabilityIdsByOrgId = { ...state.availabilityIdsByOrgId };
+        delete availabilityIdsByOrgId[orgId];
+        return { availabilityIdsByOrgId };
       }
       const availabilitiesById = { ...state.availabilitiesById };
       for (const id of ids) delete availabilitiesById[id];
-      const { [orgId]: _, ...restIds } = state.availabilityIdsByOrgId;
+      const restIds = { ...state.availabilityIdsByOrgId };
+      delete restIds[orgId];
       return {
         availabilitiesById,
         availabilityIdsByOrgId: restIds,
-        status: "loaded",
+        status: 'loaded',
         error: null,
         lastFetchedAt: new Date().toISOString(),
       };
+    }),
+
+  mergeAvailabilities: (items) =>
+    set((state) => {
+      const availabilitiesById = { ...state.availabilitiesById };
+      const availabilityIdsByOrgId = { ...state.availabilityIdsByOrgId };
+      for (const a of items) {
+        const id = a._id;
+        const orgId = a.organisationId;
+        availabilitiesById[id] = { ...a, _id: id };
+        if (!availabilityIdsByOrgId[orgId]) {
+          availabilityIdsByOrgId[orgId] = [];
+        }
+        if (!availabilityIdsByOrgId[orgId].includes(id)) {
+          availabilityIdsByOrgId[orgId].push(id);
+        }
+      }
+      return { availabilitiesById, availabilityIdsByOrgId };
     }),
 
   clearAvailabilities: () =>
     set(() => ({
       availabilitiesById: {},
       availabilityIdsByOrgId: {},
-      status: "idle",
+      status: 'idle',
       error: null,
       lastFetchedAt: null,
     })),
@@ -181,7 +202,7 @@ export const useAvailabilityStore = create<AvailabilityState>()((set, get) => ({
         ...state,
         overridesById,
         overrideIdsByOrgId,
-        status: "loaded",
+        status: 'loaded',
         error: null,
       };
     }),
@@ -204,7 +225,7 @@ export const useAvailabilityStore = create<AvailabilityState>()((set, get) => ({
           ...state.overrideIdsByOrgId,
           [orgId]: newIds,
         },
-        status: "loaded",
+        status: 'loaded',
         error: null,
       };
     }),
@@ -227,7 +248,7 @@ export const useAvailabilityStore = create<AvailabilityState>()((set, get) => ({
       return {
         overridesById,
         overrideIdsByOrgId,
-        status: "loaded",
+        status: 'loaded',
         error: null,
       };
     }),
@@ -237,33 +258,34 @@ export const useAvailabilityStore = create<AvailabilityState>()((set, get) => ({
       const removed = state.overridesById[id];
       if (!removed) return state;
       const orgId = removed.organisationId;
-      const { [id]: _, ...restAvailabilitiesById } = state.overridesById;
+      const overridesById = { ...state.overridesById };
+      delete overridesById[id];
       const overrideIdsByOrgId = {
         ...state.overrideIdsByOrgId,
         [orgId]: state.overrideIdsByOrgId[orgId]?.filter((x) => x !== id) ?? [],
       };
       return {
-        overridesById: restAvailabilitiesById,
+        overridesById,
         overrideIdsByOrgId,
       };
     }),
 
   startLoading: () =>
     set(() => ({
-      status: "loading",
+      status: 'loading',
       error: null,
     })),
 
   endLoading: () =>
     set(() => ({
-      status: "loaded",
+      status: 'loaded',
       error: null,
       lastFetchedAt: new Date().toISOString(),
     })),
 
   setError: (message: string) =>
     set(() => ({
-      status: "error",
+      status: 'error',
       error: message,
     })),
 }));

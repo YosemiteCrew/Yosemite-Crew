@@ -128,7 +128,9 @@ describe('IDEXX Hub page', () => {
     render(<ProtectedIdexxWorkspace />);
 
     await waitFor(() => {
-      expect(screen.getByText('IDEXX integration is currently disabled.')).toBeInTheDocument();
+      expect(screen.getByText('IDEXX Hub')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'IDEXX Hub info' })).toBeInTheDocument();
+      expect(screen.getByText('Open Integrations')).toBeInTheDocument();
     });
   });
 

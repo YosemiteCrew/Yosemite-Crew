@@ -747,7 +747,7 @@ const AppoitmentInfo = ({
         return {
           ...label,
           labels: (label.labels ?? []).map((subLabel: any) =>
-            subLabel.key === 'forms' ? { ...subLabel, name: 'Medical Notes' } : subLabel
+            subLabel.key === 'forms' ? { ...subLabel, name: 'Medical Notes / SOAP' } : subLabel
           ),
         };
       }
@@ -765,7 +765,7 @@ const AppoitmentInfo = ({
     });
   }, [orgType, merckEnabled]);
   const formsAccordionTitle =
-    orgType === 'HOSPITAL' && activeLabel === 'prescription' ? 'Medical Notes' : 'Templates';
+    orgType === 'HOSPITAL' && activeLabel === 'prescription' ? 'Medical Notes / SOAP' : 'Templates';
 
   useEffect(() => {
     if (!showModal || !initialViewIntent) return;

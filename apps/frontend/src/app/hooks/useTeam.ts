@@ -7,14 +7,13 @@ import { useTeamStore } from '@/app/stores/teamStore';
 export const useLoadTeam = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const teamIdsByOrgId = useTeamStore((s) => s.teamIdsByOrgId);
-  const status = useTeamStore((s) => s.status);
 
   useEffect(() => {
     if (!primaryOrgId) return;
-    if (status === 'loading') return;
+    if (useTeamStore.getState().status === 'loading') return;
     if (Object.hasOwn(teamIdsByOrgId, primaryOrgId)) return;
     void loadTeam();
-  }, [primaryOrgId, status, teamIdsByOrgId]);
+  }, [primaryOrgId, teamIdsByOrgId]);
 };
 
 export const useTeamForPrimaryOrg = (): Team[] => {

@@ -28,6 +28,10 @@ const Tasks = () => {
   const query = useSearchStore((s) => s.query);
   const searchParams = useSearchParams();
   const handledDeepLinkRef = useRef<string | null>(null);
+  const plannerSectionRef = useRef<HTMLDivElement | null>(null);
+  const plannerAutoLockRef = useRef(false);
+  const lastScrollYRef = useRef(0);
+  const plannerLockTopOffset = 16;
   const [activeFilter, setActiveFilter] = useState('all');
   const [activeStatus, setActiveStatus] = useState('all');
   const [addPopup, setAddPopup] = useState(false);
@@ -73,6 +77,45 @@ const Tasks = () => {
     setViewPopup(true);
     handledDeepLinkRef.current = taskId;
   }, [tasks, searchParams]);
+
+  useEffect(() => {
+    if (activeView === 'list') return;
+    if (globalThis.window === undefined) return;
+
+    lastScrollYRef.current = globalThis.window.scrollY;
+
+    const onScroll = () => {
+      const section = plannerSectionRef.current;
+      if (!section) return;
+
+      const currentY = globalThis.window.scrollY;
+      const isScrollingDown = currentY > lastScrollYRef.current;
+      lastScrollYRef.current = currentY;
+
+      const rect = section.getBoundingClientRect();
+      const shouldLockToSection =
+        isScrollingDown &&
+        rect.top <= 130 &&
+        rect.top >= -180 &&
+        rect.bottom > globalThis.window.innerHeight * 0.55;
+
+      if (shouldLockToSection && !plannerAutoLockRef.current) {
+        plannerAutoLockRef.current = true;
+        globalThis.window.scrollTo({
+          top: globalThis.window.scrollY + rect.top - plannerLockTopOffset,
+          behavior: 'smooth',
+        });
+        return;
+      }
+
+      if (rect.top > 220) {
+        plannerAutoLockRef.current = false;
+      }
+    };
+
+    globalThis.window.addEventListener('scroll', onScroll, { passive: true });
+    return () => globalThis.window.removeEventListener('scroll', onScroll);
+  }, [activeView, plannerLockTopOffset]);
 
   const filteredList = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -163,7 +206,7 @@ const Tasks = () => {
 
   return (
     <div className="flex flex-col relative">
-      <div className="flex flex-col gap-6 px-3! pt-3! pb-2! sm:px-12! lg:px-[60px]! sm:py-12!">
+      <div className="flex flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-3!">
         <TitleCalendar
           title="Tasks"
           description="Track to-dos with calendar views, assign pet parents and due dates, and open each task to review details and update status."
@@ -182,7 +225,7 @@ const Tasks = () => {
           <div
             className={
               activeView === 'list'
-                ? 'w-full flex flex-col gap-3 h-[calc(100vh-200px)] sm:h-[calc(100vh-220px)] min-h-[620px] max-h-[calc(100vh-200px)] sm:max-h-[calc(100vh-220px)]'
+                ? 'w-full flex flex-col gap-3 h-[calc(100vh-200px)] sm:h-[calc(100vh-220px)] min-h-[620px] max-h-[calc(100vh-200px)] sm:max-h-[calc(100vh-220px)] lg:sticky lg:top-4 lg:mb-0 lg:h-[calc(100dvh-105px)] lg:min-h-[calc(100dvh-105px)] lg:max-h-[calc(100dvh-105px)]'
                 : 'w-full flex flex-col gap-3'
             }
           >
@@ -197,10 +240,11 @@ const Tasks = () => {
               />
             )}
             <div
+              ref={plannerSectionRef}
               className={
                 activeView === 'list'
                   ? 'w-full flex-1 min-h-0 overflow-hidden'
-                  : 'w-full h-[calc(100vh-200px)] sm:h-[calc(100vh-220px)] min-h-[620px] max-h-[calc(100vh-200px)] sm:max-h-[calc(100vh-220px)]'
+                  : 'w-full h-[calc(100vh-200px)] sm:h-[calc(100vh-220px)] min-h-[620px] max-h-[calc(100vh-200px)] sm:max-h-[calc(100vh-220px)] lg:sticky lg:top-4 lg:mb-0 lg:h-[calc(100dvh-105px)] lg:min-h-[calc(100dvh-105px)] lg:max-h-[calc(100dvh-105px)]'
               }
             >
               {plannerContent}

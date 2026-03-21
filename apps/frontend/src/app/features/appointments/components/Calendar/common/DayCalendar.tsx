@@ -94,6 +94,7 @@ type DayCalendarProps = {
   ) => Array<{ startMinute: number; endMinute: number }>;
   draggedAppointmentDurationMinutes?: number;
   slotStepMinutes?: number;
+  availabilityLoaded?: boolean;
 };
 
 export const DayCalendar: React.FC<DayCalendarProps> = ({
@@ -118,6 +119,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
   getVisibleAvailabilityIntervals,
   draggedAppointmentDurationMinutes,
   slotStepMinutes = 15,
+  availabilityLoaded = false,
 }) => {
   const orgsById = useOrgStore((s) => s.orgsById);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -304,6 +306,29 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
 
   const availabilityIntervals = getDropAvailabilityIntervals?.(date) ?? [];
 
+  const unavailableSegments = useMemo(() => {
+    const visible = getVisibleAvailabilityIntervals?.(date) ?? [];
+    if (!visible.length) {
+      if (!availabilityLoaded) return [];
+      return [{ startMinute: windowStart, endMinute: windowEnd }];
+    }
+    const segments: { startMinute: number; endMinute: number }[] = [];
+    const sorted = [...visible].sort((a, b) => a.startMinute - b.startMinute);
+    if (sorted[0].startMinute > windowStart) {
+      segments.push({ startMinute: windowStart, endMinute: sorted[0].startMinute });
+    }
+    for (let i = 0; i < sorted.length - 1; i++) {
+      if (sorted[i].endMinute < sorted[i + 1].startMinute) {
+        segments.push({ startMinute: sorted[i].endMinute, endMinute: sorted[i + 1].startMinute });
+      }
+    }
+    const last = sorted.at(-1)!;
+    if (last.endMinute < windowEnd) {
+      segments.push({ startMinute: last.endMinute, endMinute: windowEnd });
+    }
+    return segments;
+  }, [availabilityLoaded, date, getVisibleAvailabilityIntervals, windowStart, windowEnd]);
+
   const getNearestAvailableMinute = (minute: number) =>
     calcNearestAvailableMinute(minute, availabilityIntervals);
 
@@ -446,6 +471,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
             windowStart={windowStart}
             windowEnd={windowEnd}
             pixelsPerStep={pixelsPerStep}
+            slotStepMinutes={slotStepMinutes}
           />
           <div className="relative h-full">
             <HorizontalLines
@@ -456,6 +482,18 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
               pixelsPerStep={pixelsPerStep}
               slotStepMinutes={slotStepMinutes}
             />
+            {unavailableSegments.map((seg) => {
+              const top = ((seg.startMinute - windowStart) / MINUTES_PER_STEP) * pixelsPerStep;
+              const segHeight =
+                ((seg.endMinute - seg.startMinute) / MINUTES_PER_STEP) * pixelsPerStep;
+              return (
+                <div
+                  key={`unavailable-${seg.startMinute}-${seg.endMinute}`}
+                  className="pointer-events-none absolute left-0 right-0 z-[1]"
+                  style={{ top, height: segHeight, backgroundColor: 'rgba(0,0,0,0.045)' }}
+                />
+              );
+            })}
             {draggedAppointmentId &&
               availabilityIntervals.map((interval, index) => {
                 const effectiveDuration = Math.max(5, draggedAppointmentDurationMinutes ?? 5);

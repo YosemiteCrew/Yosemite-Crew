@@ -17,6 +17,7 @@ import BookingErrorMessage from '@/app/features/appointments/components/BookingE
 import AddCompanion from '@/app/features/companions/components/AddCompanion';
 import { loadCompanionsForPrimaryOrg } from '@/app/features/companions/services/companionService';
 import { AppointmentDraftPrefill } from '@/app/features/appointments/types/calendar';
+import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 
 type AddAppointmentProps = {
   showModal: boolean;
@@ -62,6 +63,7 @@ const AddAppointment = ({
   prefill,
   onPrefillConsumed,
 }: AddAppointmentProps) => {
+  const terminologyText = useCompanionTerminologyText();
   const companions = useCompanionsParentsForPrimaryOrg();
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const step2Ref = useRef<HTMLDivElement | null>(null);
@@ -240,7 +242,10 @@ const AddAppointment = ({
 
   const goToDetailsStep = useCallback(() => {
     if (!formData.companion.id) {
-      setFormDataErrors((prev) => ({ ...prev, companionId: 'Please select a companion' }));
+      setFormDataErrors((prev) => ({
+        ...prev,
+        companionId: terminologyText('Please select a companion'),
+      }));
       setActiveStep(1);
       scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
       return;
@@ -251,7 +256,7 @@ const AddAppointment = ({
     globalThis.setTimeout(() => {
       scrollToStep(step2Ref);
     }, 80);
-  }, [formData.companion.id, scrollToStep, setFormDataErrors]);
+  }, [formData.companion.id, scrollToStep, setFormDataErrors, terminologyText]);
 
   const goToDateTimeStep = useCallback(() => {
     const errors = validateForm(false);
@@ -342,7 +347,7 @@ const AddAppointment = ({
           >
             <div className="flex flex-col gap-6 w-full">
               <Accordion
-                title="Companion details"
+                title={terminologyText('Companion details')}
                 defaultOpen={true}
                 open={activeStep === 1}
                 onOpenChange={(open) => setActiveStep(open ? 1 : null)}
@@ -353,7 +358,7 @@ const AddAppointment = ({
                   {CompanionOptions.length > 0 ? (
                     <>
                       <SearchDropdown
-                        placeholder="Search companion"
+                        placeholder={terminologyText('Search companion')}
                         options={CompanionOptions}
                         onSelect={handleCompanionSelect}
                         query={query}
@@ -366,7 +371,7 @@ const AddAppointment = ({
                         className="w-fit text-body-4-emphasis text-text-brand"
                         onClick={() => setShowAddCompanionModal(true)}
                       >
-                        + Add new companion
+                        + {terminologyText('Add new companion')}
                       </button>
                       {formData.companion.name && (
                         <EditableAccordion
@@ -389,10 +394,10 @@ const AddAppointment = ({
                   ) : (
                     <div className="flex gap-2 flex-col items-center pb-2">
                       <div className="text-body-4 text-text-primary">
-                        You need companions to start booking appointments
+                        {terminologyText('You need companions to start booking appointments')}
                       </div>
                       <Secondary
-                        text="Add companion"
+                        text={terminologyText('Add companion')}
                         href="#"
                         onClick={() => setShowAddCompanionModal(true)}
                         className="w-auto min-w-[160px]"

@@ -236,7 +236,7 @@ const FormSection: React.FC<FormSectionProps> = ({
   return (
     <div className="flex flex-col gap-6 w-full flex-1 justify-between">
       <div className="flex flex-col gap-6">
-        <div className="font-grotesk text-black-text text-[23px] font-medium">{sectionTitle}</div>
+        <div className="font-satoshi text-black-text text-[23px] font-medium">{sectionTitle}</div>
 
         <Accordion title={sectionTitle} defaultOpen showEditIcon={false} isEditing={true}>
           {sectionKey === 'batch' ? (
