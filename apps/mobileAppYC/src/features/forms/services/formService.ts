@@ -1,5 +1,8 @@
 import apiClient, {withAuthHeaders} from '@/shared/services/apiClient';
-import type {Questionnaire, QuestionnaireResponse} from '@yosemite-crew/fhirtypes';
+import type {
+  Questionnaire,
+  QuestionnaireResponse,
+} from '@yosemite-crew/fhirtypes';
 import {
   type Form,
   type FormField,
@@ -21,83 +24,52 @@ export interface AppointmentFormsApiResponse {
   items: AppointmentFormsApiItem[];
 }
 
-export interface SoapNoteEntry {
-  submissionId: string;
-  formId: string;
-  formVersion: number;
-  submittedBy?: string;
-  submittedAt: string | Date;
-  answers: Record<string, unknown>;
-}
-
-export interface SoapNotesResponse {
-  appointmentId: string;
-  soapNotes: {
-    Subjective?: SoapNoteEntry[];
-    Objective?: SoapNoteEntry[];
-    Assessment?: SoapNoteEntry[];
-    Plan?: SoapNoteEntry[];
-    Discharge?: SoapNoteEntry[];
-  };
-}
-
-const toForm = (questionnaire: Questionnaire): Form => fromFormRequestDTO(questionnaire);
+const toForm = (questionnaire: Questionnaire): Form =>
+  fromFormRequestDTO(questionnaire);
 
 export const formApi = {
   async fetchFormsForAppointment({
     appointmentId,
-    accessToken,
-  }: {
-    appointmentId: string;
-    accessToken: string;
-  }): Promise<AppointmentFormsApiResponse> {
-    const {data} = await apiClient.get<AppointmentFormsApiResponse>(
-      `/fhir/v1/form/mobile/appointments/${appointmentId}/forms`,
-      {
-        headers: withAuthHeaders(accessToken),
-      },
-    );
-    return data;
-  },
-
-  async fetchSoapNotes({
-    appointmentId,
-    accessToken,
-    latestOnly = true,
-  }: {
-    appointmentId: string;
-    accessToken: string;
-    latestOnly?: boolean;
-  }): Promise<SoapNotesResponse> {
-    const {data} = await apiClient.get<SoapNotesResponse>(
-      `/fhir/v1/form/mobile/appointments/${appointmentId}/soap-notes`,
-      {
-        params: {latestOnly},
-        headers: withAuthHeaders(accessToken),
-      },
-    );
-    return data;
-  },
-
-  async fetchConsentFormForService({
-    organisationId,
     serviceId,
     species,
     accessToken,
   }: {
-    organisationId: string;
-    serviceId: string;
+    appointmentId: string;
+    serviceId?: string | null;
     species?: string | null;
     accessToken: string;
-  }): Promise<Form> {
-    const {data} = await apiClient.get<Questionnaire>(
-      `/fhir/v1/form/mobile/forms/${organisationId}/${serviceId}/consent-form`,
-      {
-        params: species ? {species} : undefined,
-        headers: withAuthHeaders(accessToken),
-      },
-    );
-    return toForm(data);
+  }): Promise<AppointmentFormsApiResponse> {
+    const payload: Record<string, unknown> = {isPMS: false};
+    if (serviceId) {
+      payload.serviceId = serviceId;
+    }
+    if (species) {
+      payload.species = species;
+    }
+
+    try {
+      const {data} = await apiClient.post<AppointmentFormsApiResponse>(
+        `/fhir/v1/form/mobile/appointments/${appointmentId}/forms`,
+        payload,
+        {
+          headers: withAuthHeaders(accessToken),
+        },
+      );
+      return data;
+    } catch (mobileError: any) {
+      if (mobileError?.response?.status !== 404) {
+        throw mobileError;
+      }
+
+      const {data} = await apiClient.post<AppointmentFormsApiResponse>(
+        `/fhir/v1/form/appointments/${appointmentId}/forms`,
+        payload,
+        {
+          headers: withAuthHeaders(accessToken),
+        },
+      );
+      return data;
+    }
   },
 
   async fetchFormById({
@@ -107,9 +79,12 @@ export const formApi = {
     formId: string;
     accessToken?: string;
   }): Promise<Form> {
-    const {data} = await apiClient.get<Questionnaire>(`/fhir/v1/form/public/${formId}`, {
-      headers: accessToken ? withAuthHeaders(accessToken) : undefined,
-    });
+    const {data} = await apiClient.get<Questionnaire>(
+      `/fhir/v1/form/public/${formId}`,
+      {
+        headers: accessToken ? withAuthHeaders(accessToken) : undefined,
+      },
+    );
     return toForm(data);
   },
 
@@ -152,11 +127,17 @@ export const formApi = {
     accessToken: string;
     userId?: string | null;
   }): Promise<{documentId?: string | number; signingUrl?: string | null}> {
-    const {data} = await apiClient.post<{documentId?: string | number; signingUrl?: string | null}>(
+    const {data} = await apiClient.post<{
+      documentId?: string | number;
+      signingUrl?: string | null;
+    }>(
       `/fhir/v1/form/mobile/form-submissions/${submissionId}/sign`,
       {},
       {
-        headers: withAuthHeaders(accessToken, userId ? {'x-user-id': userId} : undefined),
+        headers: withAuthHeaders(
+          accessToken,
+          userId ? {'x-user-id': userId} : undefined,
+        ),
       },
     );
     return data;
@@ -170,9 +151,20 @@ export const mapAppointmentFormItem = (
   const submission = item.questionnaireResponse
     ? fromFormSubmissionRequestDTO(item.questionnaireResponse, form.schema)
     : null;
+  const normalizedStatus = String(item.status ?? '').toUpperCase();
+  const normalizedSubmission =
+    submission && normalizedStatus === 'COMPLETED' && submission.signing
+      ? {
+          ...submission,
+          signing: {
+            ...submission.signing,
+            status: 'SIGNED' as const,
+          },
+        }
+      : submission;
   return {
     form,
-    submission,
-    formVersion: submission?.formVersion,
+    submission: normalizedSubmission,
+    formVersion: normalizedSubmission?.formVersion,
   };
 };

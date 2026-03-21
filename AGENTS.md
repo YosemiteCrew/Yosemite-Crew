@@ -37,16 +37,18 @@ For **Claude Code** users: modular skills are also in `.claude/skills/` — they
 
 1. Make the smallest safe change for the request.
 2. Keep code, tests, and docs in sync.
-3. When resuming interrupted work, inspect `git status` first and preserve all existing uncommitted changes unless the user explicitly asks otherwise.
-4. **NEVER commit code yourself.** The agent must never run `git commit`. Instead, after every logical batch of changes, tell the user: "**COMMIT CHECKPOINT** — suggested message: `<conventional commit message>`". The user commits manually.
-5. Run relevant checks and report results before each commit checkpoint:
+3. For any behavior or contract change, update/add targeted tests in the same batch. Do not leave failing tests caused by your code changes.
+4. Before every checkpoint/handoff, run and report lint + typecheck + targeted tests for each touched app/workspace.
+5. When resuming interrupted work, inspect `git status` first and preserve all existing uncommitted changes unless the user explicitly asks otherwise.
+6. **NEVER commit code yourself.** The agent must never run `git commit`. Instead, after every logical batch of changes, tell the user: "**COMMIT CHECKPOINT** — suggested message: `<conventional commit message>`". The user commits manually.
+7. Run relevant checks and report results before each commit checkpoint:
    - `pnpm --filter frontend run lint`
    - `npx tsc --noemit` (from `apps/frontend/`)
    - Targeted tests only: `pnpm --filter frontend run test -- --testPathPattern="<relevant-file>"`
    - **Never run the full test suite** (`pnpm run test` without `--testPathPattern`) — it takes 100+ seconds and is forbidden.
-6. Never commit secrets, tokens, private keys, or `.env` values.
-7. Never add co-author lines or signatures to commit messages.
-8. Let all pre-commit hooks pass naturally — never use `--no-verify`.
+8. Never commit secrets, tokens, private keys, or `.env` values.
+9. Never add co-author lines or signatures to commit messages.
+10. Let all pre-commit hooks pass naturally — never use `--no-verify`.
 
 ## Code Quality Rules
 

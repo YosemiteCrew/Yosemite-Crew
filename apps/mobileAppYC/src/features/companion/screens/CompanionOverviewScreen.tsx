@@ -96,12 +96,20 @@ import {
 } from '@/features/companion';
 import {usePreferences} from '@/features/preferences/PreferencesContext';
 import {convertWeight} from '@/shared/utils/measurementSystem';
+import {fetchBreedCodeEntries} from '@/features/companion/services/codeEntriesService';
+import {getFreshStoredTokens} from '@/features/auth/sessionManager';
 
 // Props
 export type CompanionOverviewScreenProps = NativeStackScreenProps<
   HomeStackParamList,
   'EditCompanionOverview'
 >;
+
+const CATEGORY_TO_SPECIES_QUERY: Record<string, string> = {
+  dog: 'canine',
+  cat: 'feline',
+  horse: 'equine',
+};
 
 export const CompanionOverviewScreen: React.FC<
   CompanionOverviewScreenProps
@@ -151,6 +159,7 @@ export const CompanionOverviewScreen: React.FC<
 
   // Local UI state
   const [showDobPicker, setShowDobPicker] = useState(false);
+  const [breedOptions, setBreedOptions] = useState<Breed[]>([]);
 
   // Bottom sheet refs
   const breedSheetRef = useRef<BreedBottomSheetRef>(null);
@@ -303,6 +312,60 @@ export const CompanionOverviewScreen: React.FC<
     if (Number.isNaN(numValue)) return age;
     return `${age} ${numValue === 1 ? 'Year' : 'Years'}`;
   }, [safeCompanion]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadBreeds = async () => {
+      if (!safeCompanion?.category) {
+        if (mounted) {
+          setBreedOptions([]);
+        }
+        return;
+      }
+
+      const speciesQuery = CATEGORY_TO_SPECIES_QUERY[safeCompanion.category];
+      if (!speciesQuery) {
+        if (mounted) {
+          setBreedOptions([]);
+        }
+        return;
+      }
+
+      try {
+        const tokens = await getFreshStoredTokens();
+        if (!tokens?.accessToken) {
+          return;
+        }
+
+        const entries = await fetchBreedCodeEntries(
+          speciesQuery,
+          tokens.accessToken,
+        );
+        if (!mounted) return;
+
+        const mapped = entries.map(entry => ({
+          speciesId: 0,
+          speciesName: speciesQuery,
+          breedId: -1,
+          breedName: entry.display ?? entry.code,
+          speciesCode: entry.meta?.speciesCode,
+          breedCode: entry.code,
+        }));
+        setBreedOptions(mapped);
+      } catch {
+        if (mounted) {
+          setBreedOptions([]);
+        }
+      }
+    };
+
+    loadBreeds();
+
+    return () => {
+      mounted = false;
+    };
+  }, [safeCompanion?.category]);
 
   if (safeCompanion == null) {
     return (
@@ -605,15 +668,14 @@ export const CompanionOverviewScreen: React.FC<
       {/* ====== Bottom Sheets ====== */}
       <BreedBottomSheet
         ref={breedSheetRef}
-        // You likely have a util to supply list by category; here we use current category's breed list from Add screen util
-        breeds={
-          (safeCompanion.category &&
-            getBreedListByCategorySafe(safeCompanion.category)) ||
-          []
-        }
+        breeds={breedOptions}
         selectedBreed={safeCompanion.breed ?? null}
         onSave={(b: Breed | null) => {
-          applyPatch({breed: b});
+          applyPatch({
+            breed: b,
+            speciesCode: b?.speciesCode ?? safeCompanion.speciesCode ?? null,
+            breedCode: b?.breedCode ?? null,
+          });
           setOpenBottomSheet(null);
         }}
       />
@@ -691,27 +753,6 @@ import {createGlassCardStyles} from '@/shared/utils/screenStyles';
 
 // Helper functions moved to @/shared/utils/commonHelpers:
 // - capitalize, displayNeutered, displayInsured, displayOrigin
-
-// Use same util as AddCompanionScreen if exported; otherwise fallback safe helper here.
-function getBreedListByCategorySafe(category: any): Breed[] {
-  try {
-    const CAT_BREEDS = require('@/features/companion/data/catBreeds.json');
-    const DOG_BREEDS = require('@/features/companion/data/dogBreeds.json');
-    const HORSE_BREEDS = require('@/features/companion/data/horseBreeds.json');
-    switch (category) {
-      case 'cat':
-        return CAT_BREEDS;
-      case 'dog':
-        return DOG_BREEDS;
-      case 'horse':
-        return HORSE_BREEDS;
-      default:
-        return [];
-    }
-  } catch {
-    return [];
-  }
-}
 
 function getSelectedCountryObject(countryName?: string | null) {
   const COUNTRIES = require('@/shared/utils/countryList.json');

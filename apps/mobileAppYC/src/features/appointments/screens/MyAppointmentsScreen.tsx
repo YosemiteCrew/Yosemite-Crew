@@ -1,11 +1,5 @@
 import React, {useEffect} from 'react';
-import {
-  SectionList,
-  View,
-  Text,
-  StyleSheet,
-  Image,
-} from 'react-native';
+import {SectionList, View, Text, StyleSheet, Image} from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
@@ -13,21 +7,28 @@ import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/Li
 import {AppointmentCard} from '@/shared/components/common/AppointmentCard/AppointmentCard';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
-import {FilterPills, type FilterOption} from '@/shared/components/common/FilterPills';
+import {
+  FilterPills,
+  type FilterOption,
+} from '@/shared/components/common/FilterPills';
 import {Images} from '@/assets/images';
 import {useTheme} from '@/hooks';
 import type {RootState, AppDispatch} from '@/app/store';
-import {
-  fetchAppointmentsForCompanion,
-} from '@/features/appointments/appointmentsSlice';
+import {fetchAppointmentsForCompanion} from '@/features/appointments/appointmentsSlice';
 import {setSelectedCompanion} from '@/features/companion';
-import {createSelectUpcomingAppointments, createSelectPastAppointments} from '@/features/appointments/selectors';
+import {
+  createSelectUpcomingAppointments,
+  createSelectPastAppointments,
+} from '@/features/appointments/selectors';
 import type {Appointment} from '@/features/appointments/types';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
 import {openMapsToAddress, openMapsToPlaceId} from '@/shared/utils/openMaps';
-import {formatDateLocale, formatTimeLocale} from '@/features/appointments/utils/timeFormatting';
+import {
+  formatDateLocale,
+  formatTimeLocale,
+} from '@/features/appointments/utils/timeFormatting';
 import {useAutoSelectCompanion} from '@/shared/hooks/useAutoSelectCompanion';
 import {useBusinessPhotoFallback} from '@/features/appointments/hooks/useBusinessPhotoFallback';
 import {transformAppointmentCardData} from '@/features/appointments/utils/appointmentCardData';
@@ -39,10 +40,19 @@ import {baseTileContainer, sharedTileStyles} from '@/shared/styles/tileStyles';
 import {useCheckInHandler} from '@/features/appointments/hooks/useCheckInHandler';
 import {useAppointmentDataMaps} from '@/features/appointments/hooks/useAppointmentDataMaps';
 import {useFetchPhotoFallbacks} from '@/features/appointments/hooks/useFetchPhotoFallbacks';
-import {useFetchOrgRatingIfNeeded, type OrgRatingState} from '@/features/appointments/hooks/useOrganisationRating';
+import {
+  useFetchOrgRatingIfNeeded,
+  type OrgRatingState,
+} from '@/features/appointments/hooks/useOrganisationRating';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
-type BusinessFilter = 'all' | 'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder';
+type BusinessFilter =
+  | 'all'
+  | 'hospital'
+  | 'groomer'
+  | 'breeder'
+  | 'pet_center'
+  | 'boarder';
 
 export const MyAppointmentsScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -51,18 +61,32 @@ export const MyAppointmentsScreen: React.FC = () => {
   const styles = React.useMemo(() => createStyles(theme), [theme]);
 
   const companions = useSelector((s: RootState) => s.companion.companions);
-  const selectedCompanionId = useSelector((s: RootState) => s.companion.selectedCompanionId);
+  const selectedCompanionId = useSelector(
+    (s: RootState) => s.companion.selectedCompanionId,
+  );
   const {canUseAppointments, canUseChat} = usePermissions(selectedCompanionId);
 
-  const upcomingSelector = React.useMemo(() => createSelectUpcomingAppointments(), []);
+  const upcomingSelector = React.useMemo(
+    () => createSelectUpcomingAppointments(),
+    [],
+  );
   const pastSelector = React.useMemo(() => createSelectPastAppointments(), []);
-  const upcoming = useSelector((state: RootState) => upcomingSelector(state, selectedCompanionId ?? null));
-  const past = useSelector((state: RootState) => pastSelector(state, selectedCompanionId ?? null));
+  const upcoming = useSelector((state: RootState) =>
+    upcomingSelector(state, selectedCompanionId ?? null),
+  );
+  const past = useSelector((state: RootState) =>
+    pastSelector(state, selectedCompanionId ?? null),
+  );
   const {businessMap, employeeMap, serviceMap} = useAppointmentDataMaps();
   const [filter, setFilter] = React.useState<BusinessFilter>('all');
-  const {businessFallbacks, requestBusinessPhoto, handleAvatarError} = useBusinessPhotoFallback();
-  const [checkingIn, setCheckingIn] = React.useState<Record<string, boolean>>({});
-  const [orgRatings, setOrgRatings] = React.useState<Record<string, OrgRatingState>>({});
+  const {businessFallbacks, requestBusinessPhoto, handleAvatarError} =
+    useBusinessPhotoFallback();
+  const [checkingIn, setCheckingIn] = React.useState<Record<string, boolean>>(
+    {},
+  );
+  const [orgRatings, setOrgRatings] = React.useState<
+    Record<string, OrgRatingState>
+  >({});
   const {handleCheckIn: handleCheckInUtil} = useCheckInHandler();
   const lastFetchedCompanionIdRef = React.useRef<string | null>(null);
   useAutoSelectCompanion(companions, selectedCompanionId);
@@ -110,8 +134,12 @@ export const MyAppointmentsScreen: React.FC = () => {
       return biz?.category === filter;
     });
     return filtered.sort((a, b) => {
-      const aTime = new Date(`${a.date}T${a.time ?? '00:00'}Z`).getTime();
-      const bTime = new Date(`${b.date}T${b.time ?? '00:00'}Z`).getTime();
+      const aTime = new Date(
+        a.start ?? `${a.date}T${a.time ?? '00:00'}:00`,
+      ).getTime();
+      const bTime = new Date(
+        b.start ?? `${b.date}T${b.time ?? '00:00'}:00`,
+      ).getTime();
       return aTime - bTime;
     });
   }, [upcoming, filter, businessMap]);
@@ -144,7 +172,11 @@ export const MyAppointmentsScreen: React.FC = () => {
   }, [canUseAppointments, selectedCompanionId]);
 
   // Fetch business photo fallbacks when primary photos are missing or dummy
-  useFetchPhotoFallbacks(appointmentsForFallback, businessMap, requestBusinessPhoto);
+  useFetchPhotoFallbacks(
+    appointmentsForFallback,
+    businessMap,
+    requestBusinessPhoto,
+  );
 
   type AppointmentItem = (typeof filteredUpcoming)[number];
   type EmployeeRecord = ReturnType<typeof employeeMap.get>;
@@ -197,12 +229,12 @@ export const MyAppointmentsScreen: React.FC = () => {
       petName?: string;
     }) => {
       const openChat = () => {
-        // Backend sends appointment.date and appointment.time in UTC
-        // Convert to ISO format with Z suffix for proper UTC handling
-        const normalized = appointment.time.length === 5
-          ? `${appointment.time}:00`
-          : appointment.time;
-        const appointmentDateTime = `${appointment.date}T${normalized}Z`;
+        const normalized =
+          appointment.time.length === 5
+            ? `${appointment.time}:00`
+            : appointment.time;
+        const appointmentDateTime =
+          appointment.start ?? `${appointment.date}T${normalized}Z`;
 
         navigation.navigate('ChatChannel', {
           appointmentId: appointment.id,
@@ -258,8 +290,8 @@ export const MyAppointmentsScreen: React.FC = () => {
       key={`${title}-empty`}
       glassEffect="clear"
       interactive
-      shadow='none'
-      colorScheme='light'
+      shadow="none"
+      colorScheme="light"
       style={styles.infoTile}
       fallbackStyle={styles.tileFallback}>
       <Text style={styles.tileTitle}>{title}</Text>
@@ -277,13 +309,23 @@ export const MyAppointmentsScreen: React.FC = () => {
     [filteredUpcoming, filteredPast],
   );
 
-  const renderSectionHeader = ({section}: {section: {key: string; title: string; data: typeof filteredUpcoming}}) => (
+  const renderSectionHeader = ({
+    section,
+  }: {
+    section: {key: string; title: string; data: typeof filteredUpcoming};
+  }) => (
     <View style={styles.sectionHeaderWrapper}>
       <Text style={styles.sectionTitle}>{section.title}</Text>
       {section.data.length === 0 &&
         (section.key === 'upcoming'
-          ? renderEmptyCard('No upcoming appointments', 'Book a new appointment to see it here.')
-          : renderEmptyCard('No past appointments', 'Completed appointments will appear here.'))}
+          ? renderEmptyCard(
+              'No upcoming appointments',
+              'Book a new appointment to see it here.',
+            )
+          : renderEmptyCard(
+              'No past appointments',
+              'Completed appointments will appear here.',
+            ))}
     </View>
   );
 
@@ -363,7 +405,13 @@ export const MyAppointmentsScreen: React.FC = () => {
 
     const requestedBadge = isRequested ? (
       <View style={[styles.pastStatusBadge, styles.pastStatusBadgeRequested]}>
-        <Text style={[styles.pastStatusBadgeText, styles.pastStatusBadgeTextRequested]}>Requested</Text>
+        <Text
+          style={[
+            styles.pastStatusBadgeText,
+            styles.pastStatusBadgeTextRequested,
+          ]}>
+          Requested
+        </Text>
       </View>
     ) : null;
 
@@ -384,11 +432,17 @@ export const MyAppointmentsScreen: React.FC = () => {
           dateTime={dateTimeLabel}
           avatar={avatarSource || Images.cat}
           fallbackAvatar={fallbackPhoto ?? undefined}
-          onAvatarError={() => handleAvatarError(googlePlacesId, item.businessId)}
+          onAvatarError={() =>
+            handleAvatarError(googlePlacesId, item.businessId)
+          }
           note={assignmentNote}
           showActions={statusAllowsActions}
-          onViewDetails={() => navigation.navigate('ViewAppointment', {appointmentId: item.id})}
-          onPress={() => navigation.navigate('ViewAppointment', {appointmentId: item.id})}
+          onViewDetails={() =>
+            navigation.navigate('ViewAppointment', {appointmentId: item.id})
+          }
+          onPress={() =>
+            navigation.navigate('ViewAppointment', {appointmentId: item.id})
+          }
           onGetDirections={() => {
             if (googlePlacesId) {
               openMapsToPlaceId(googlePlacesId, businessAddress);
@@ -419,14 +473,22 @@ export const MyAppointmentsScreen: React.FC = () => {
     );
   };
 
-  const renderItem = ({item, section}: {item: (typeof filteredUpcoming)[number]; section: {key: string}}) => {
+  const renderItem = ({
+    item,
+    section,
+  }: {
+    item: (typeof filteredUpcoming)[number];
+    section: {key: string};
+  }) => {
     if (!item || !canUseAppointments) {
       return null;
     }
     const emp = employeeMap.get(item.employeeId ?? '');
     const formattedDate = formatDateLocale(item.date);
     const timeLabel = formatTimeLocale(item.date, item.time);
-    const dateTimeLabel = timeLabel ? `${formattedDate} - ${timeLabel}` : formattedDate;
+    const dateTimeLabel = timeLabel
+      ? `${formattedDate} - ${timeLabel}`
+      : formattedDate;
     const isCheckingIn = Boolean(checkingIn[item.id]);
 
     const cardData = transformAppointmentCardData(
@@ -460,52 +522,51 @@ export const MyAppointmentsScreen: React.FC = () => {
       checkInDisabled,
     } = cardData;
 
-    return section.key === 'upcoming'
-      ? renderUpcomingCard({
-          item,
-          cardTitle,
-          cardSubtitle,
-          businessName,
-          dateTimeLabel,
-          avatarSource,
-          fallbackPhoto,
-          googlePlacesId,
-          assignmentNote,
-          businessAddress,
-          petName,
-          emp,
-          needsPayment,
-          isRequested,
-          statusAllowsActions,
-          isCheckedIn,
-          isInProgress,
-          checkInLabel,
-          checkInDisabled,
-          isCheckingIn,
-        })
-      : (
-          <PastAppointmentCard
-            item={item}
-            cardTitle={cardTitle}
-            cardSubtitle={cardSubtitle}
-            businessName={businessName}
-            dateTimeLabel={dateTimeLabel}
-            avatarSource={avatarSource}
-            fallbackPhoto={fallbackPhoto}
-            googlePlacesId={googlePlacesId}
-            onAvatarError={handleAvatarError}
-            navigation={navigation}
-            styles={styles}
-            orgRating={orgRatings[item.businessId]}
-            formatStatus={formatStatus}
-            secondaryColor={theme.colors.secondary}
-            theme={theme}
-          />
-        );
+    return section.key === 'upcoming' ? (
+      renderUpcomingCard({
+        item,
+        cardTitle,
+        cardSubtitle,
+        businessName,
+        dateTimeLabel,
+        avatarSource,
+        fallbackPhoto,
+        googlePlacesId,
+        assignmentNote,
+        businessAddress,
+        petName,
+        emp,
+        needsPayment,
+        isRequested,
+        statusAllowsActions,
+        isCheckedIn,
+        isInProgress,
+        checkInLabel,
+        checkInDisabled,
+        isCheckingIn,
+      })
+    ) : (
+      <PastAppointmentCard
+        item={item}
+        cardTitle={cardTitle}
+        cardSubtitle={cardSubtitle}
+        businessName={businessName}
+        dateTimeLabel={dateTimeLabel}
+        avatarSource={avatarSource}
+        fallbackPhoto={fallbackPhoto}
+        googlePlacesId={googlePlacesId}
+        onAvatarError={handleAvatarError}
+        navigation={navigation}
+        styles={styles}
+        orgRating={orgRatings[item.businessId]}
+        formatStatus={formatStatus}
+        secondaryColor={theme.colors.secondary}
+        theme={theme}
+      />
+    );
   };
 
   const keyExtractor = (item: (typeof filteredUpcoming)[number]) => item.id;
-
 
   const handleEndReached = () => {
     // Placeholder for future pagination when backend is available
@@ -603,7 +664,9 @@ const PastAppointmentCard: React.FC<PastAppointmentCardProps> = ({
 
   if (item.status === 'COMPLETED') {
     if (!orgRating || orgRating.loading) {
-      ratingContent = <Text style={styles.ratingLoadingText}>Checking review status...</Text>;
+      ratingContent = (
+        <Text style={styles.ratingLoadingText}>Checking review status...</Text>
+      );
     } else if (orgRating.isRated) {
       ratingContent = (
         <View style={styles.ratingRow}>
@@ -618,7 +681,9 @@ const PastAppointmentCard: React.FC<PastAppointmentCardProps> = ({
       ratingContent = (
         <LiquidGlassButton
           title="Review"
-          onPress={() => navigation.navigate('Review', {appointmentId: item.id})}
+          onPress={() =>
+            navigation.navigate('Review', {appointmentId: item.id})
+          }
           height={theme.spacing['12']}
           borderRadius={theme.borderRadius.md}
           tintColor={secondaryColor}
@@ -640,8 +705,12 @@ const PastAppointmentCard: React.FC<PastAppointmentCardProps> = ({
         fallbackAvatar={fallbackPhoto ?? undefined}
         onAvatarError={() => onAvatarError(googlePlacesId, item.businessId)}
         showActions={false}
-        onViewDetails={() => navigation.navigate('ViewAppointment', {appointmentId: item.id})}
-        onPress={() => navigation.navigate('ViewAppointment', {appointmentId: item.id})}
+        onViewDetails={() =>
+          navigation.navigate('ViewAppointment', {appointmentId: item.id})
+        }
+        onPress={() =>
+          navigation.navigate('ViewAppointment', {appointmentId: item.id})
+        }
         footer={
           <View style={styles.pastFooter}>
             <View style={styles.pastStatusWrapper}>
@@ -649,15 +718,20 @@ const PastAppointmentCard: React.FC<PastAppointmentCardProps> = ({
                 style={[
                   styles.pastStatusBadge,
                   item.status === 'CANCELLED' && styles.pastStatusBadgeCanceled,
-                  item.status === 'REQUESTED' && styles.pastStatusBadgeRequested,
-                  item.status === 'PAYMENT_FAILED' && styles.pastStatusBadgeFailed,
+                  item.status === 'REQUESTED' &&
+                    styles.pastStatusBadgeRequested,
+                  item.status === 'PAYMENT_FAILED' &&
+                    styles.pastStatusBadgeFailed,
                 ]}>
                 <Text
                   style={[
                     styles.pastStatusBadgeText,
-                    item.status === 'CANCELLED' && styles.pastStatusBadgeTextCanceled,
-                    item.status === 'REQUESTED' && styles.pastStatusBadgeTextRequested,
-                    item.status === 'PAYMENT_FAILED' && styles.pastStatusBadgeTextFailed,
+                    item.status === 'CANCELLED' &&
+                      styles.pastStatusBadgeTextCanceled,
+                    item.status === 'REQUESTED' &&
+                      styles.pastStatusBadgeTextRequested,
+                    item.status === 'PAYMENT_FAILED' &&
+                      styles.pastStatusBadgeTextFailed,
                   ]}>
                   {formatStatus(item.status)}
                 </Text>
@@ -683,8 +757,15 @@ const createStyles = (theme: any) =>
     companionSelector: {
       marginTop: theme.spacing['4'],
     },
-    sectionHeaderWrapper: {marginTop: theme.spacing['4'], marginBottom: theme.spacing['2'], gap: theme.spacing['2']},
-    sectionTitle: {...theme.typography.sectionHeading, color: theme.colors.secondary},
+    sectionHeaderWrapper: {
+      marginTop: theme.spacing['4'],
+      marginBottom: theme.spacing['2'],
+      gap: theme.spacing['2'],
+    },
+    sectionTitle: {
+      ...theme.typography.sectionHeading,
+      color: theme.colors.secondary,
+    },
     pillContainer: {marginBottom: theme.spacing['3'], marginTop: 6},
     list: {gap: theme.spacing['4']},
     cardWrapper: {marginBottom: theme.spacing['4']},
@@ -700,7 +781,10 @@ const createStyles = (theme: any) =>
       color: theme.colors.secondary,
     },
     reviewButtonCard: {marginTop: theme.spacing['1']},
-    reviewButtonText: {...theme.typography.paragraphBold, color: theme.colors.white},
+    reviewButtonText: {
+      ...theme.typography.paragraphBold,
+      color: theme.colors.white,
+    },
     upcomingFooter: {
       gap: theme.spacing['2'],
     },

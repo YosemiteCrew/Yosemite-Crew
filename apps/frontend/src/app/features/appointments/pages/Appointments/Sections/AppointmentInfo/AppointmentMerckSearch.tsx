@@ -22,6 +22,7 @@ import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import {
   MERCK_COPYRIGHT_NOTICE,
   getMerckSubtopicPillStyle,
+  sanitizeMerckHtml,
 } from '@/app/features/integrations/constants/merck';
 
 type AppointmentMerckSearchProps = {
@@ -62,11 +63,17 @@ const getAppointmentEntriesContent = (
       className="w-full min-w-0 rounded-2xl border border-card-border p-4 flex flex-col gap-3 overflow-x-hidden"
     >
       <div className="flex items-start justify-between gap-2 min-w-0">
-        <div className="text-body-2 text-text-primary break-words min-w-0">{entry.title}</div>
+        <div
+          className="text-body-2 text-text-primary wrap-break-word min-w-0"
+          dangerouslySetInnerHTML={{ __html: sanitizeMerckHtml(entry.title) }}
+        />
       </div>
-      <div className="text-body-4 text-text-secondary line-clamp-3 break-words">
-        {entry.summaryText || 'No summary available.'}
-      </div>
+      <div
+        className="text-body-4 text-text-secondary line-clamp-3 wrap-break-word"
+        dangerouslySetInnerHTML={{
+          __html: sanitizeMerckHtml(entry.summaryText || 'No summary available.'),
+        }}
+      />
 
       <div className="flex gap-2 flex-wrap items-center">
         <Primary href="#" text="Open" onClick={() => onOpenReader(entry, entry.primaryUrl)} />
@@ -98,7 +105,7 @@ const getAppointmentEntriesContent = (
             <button
               key={`${entry.id}-${subLink.label}`}
               type="button"
-              className="max-w-full px-3 py-1 rounded-2xl! border border-card-border text-body-4 text-text-secondary hover:bg-card-hover cursor-pointer break-words"
+              className="max-w-full px-3 py-1 rounded-2xl! border border-card-border text-body-4 text-text-secondary hover:bg-card-hover cursor-pointer wrap-break-word"
               style={getMerckSubtopicPillStyle(subLink.label)}
               onClick={() => onOpenReader(entry, subLink.url)}
             >
@@ -129,7 +136,7 @@ const CompactAudienceToggle = ({
 
   return (
     <div
-      className={`relative inline-flex items-center h-9 w-full max-w-[220px] rounded-[999px]! border border-card-border bg-white overflow-hidden ${
+      className={`relative inline-flex items-center h-9 w-full max-w-55 rounded-[999px]! border border-card-border bg-white overflow-hidden ${
         disabled ? 'opacity-70' : ''
       }`}
     >
@@ -202,9 +209,19 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
   const [readerTitle, setReaderTitle] = useState('Merck Manual');
   const [readerLoading, setReaderLoading] = useState(false);
   const requestRef = useRef(0);
+  const resultCacheRef = useRef<Map<string, MerckEntry[]>>(new Map());
 
-  const performSearch = async () => {
+  const performSearch = async (audienceOverride?: MerckAudience) => {
     if (!primaryOrgId || !query.trim()) return;
+    const resolvedAudience = audienceOverride ?? audience;
+    const cacheKey = `${query.trim()}::${resolvedAudience}::${language}`;
+
+    const cached = resultCacheRef.current.get(cacheKey);
+    if (cached) {
+      setEntries(cached);
+      return;
+    }
+
     requestRef.current += 1;
     const reqId = requestRef.current;
 
@@ -216,12 +233,14 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
       const response = await gateway.search({
         organisationId: primaryOrgId,
         query: query.trim(),
-        audience,
+        audience: resolvedAudience,
         language,
         media: 'hybrid',
       });
       if (reqId !== requestRef.current) return;
-      setEntries(getSafeMerckEntries(response.entries));
+      const safe = getSafeMerckEntries(response.entries);
+      resultCacheRef.current.set(cacheKey, safe);
+      setEntries(safe);
     } catch (e: unknown) {
       if (reqId !== requestRef.current) return;
       setEntries([]);
@@ -231,6 +250,13 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
         setLoading(false);
       }
     }
+  };
+
+  const performFreshSearch = async () => {
+    if (!primaryOrgId || !query.trim()) return;
+    const cacheKey = `${query.trim()}::${audience}::${language}`;
+    resultCacheRef.current.delete(cacheKey);
+    await performSearch();
   };
 
   const openReader = (entry: MerckEntry, url: string) => {
@@ -269,7 +295,7 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
   return (
     <>
       <div
-        className="w-full self-start min-w-0 overflow-hidden rounded-2xl border border-card-border p-4 flex h-full min-h-0 flex-col gap-4"
+        className="w-full min-w-0 overflow-y-auto rounded-2xl border border-card-border p-4 flex flex-1 h-full min-h-0 flex-col gap-4 scrollbar-hidden"
         data-has-appointment={hasActiveAppointment}
       >
         <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -280,7 +306,16 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
             height={28}
             className="object-contain"
           />
-          <CompactAudienceToggle value={audience} onChange={setAudience} disabled={loading} />
+          <CompactAudienceToggle
+            value={audience}
+            disabled={loading}
+            onChange={(next) => {
+              setAudience(next);
+              if (query.trim()) {
+                void performSearch(next);
+              }
+            }}
+          />
         </div>
         <div className="text-body-4 text-text-secondary">
           Search Merck Manuals for this appointment. Result pages open directly in an embedded
@@ -291,7 +326,7 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
           className="flex items-center gap-2 flex-nowrap"
           onSubmit={(e) => {
             e.preventDefault();
-            void performSearch();
+            void performFreshSearch();
           }}
         >
           <div className="flex-1 min-w-0">
@@ -308,7 +343,7 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
             <Primary
               href="#"
               text={loading ? 'Searching...' : 'Search'}
-              onClick={() => void performSearch()}
+              onClick={() => void performFreshSearch()}
               isDisabled={loading || !query.trim()}
             />
             <button
@@ -363,20 +398,29 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
         <div className="min-h-0 flex flex-1 flex-col gap-3">
           {error ? <div className="text-body-4 text-text-error">{error}</div> : null}
 
-          <div className="min-h-0 flex-1 overflow-y-auto pr-1 max-h-[min(60vh,560px)]">
-            <div className="flex flex-col gap-3">{entriesContent}</div>
+          <div className="min-h-0 flex-1 pr-1 [scrollbar-gutter:stable]">
+            <div className="flex flex-col gap-3">
+              {entriesContent}
+              {entries.length > 0 ? (
+                <div className="pt-2 pb-1.5">
+                  <div className="text-caption-1 text-text-secondary">{MERCK_COPYRIGHT_NOTICE}</div>
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
-        <div className="pt-1 flex flex-col gap-1">
-          <div className="text-caption-1 text-text-secondary">{MERCK_COPYRIGHT_NOTICE}</div>
-        </div>
+        {entries.length === 0 ? (
+          <div className="pt-1 pb-1.5 mt-auto">
+            <div className="text-caption-1 text-text-secondary">{MERCK_COPYRIGHT_NOTICE}</div>
+          </div>
+        ) : null}
       </div>
 
       {readerOpen && readerUrl && typeof document !== 'undefined'
         ? createPortal(
             <div
               data-signing-overlay="true"
-              className="fixed inset-0 z-[5000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+              className="fixed inset-0 z-5000 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
             >
               <div className="relative bg-white rounded-2xl shadow-2xl w-full h-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-2 border-b border-black/10">

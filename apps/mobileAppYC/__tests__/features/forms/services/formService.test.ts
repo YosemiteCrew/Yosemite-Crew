@@ -1,11 +1,14 @@
-import { formApi, mapAppointmentFormItem } from '../../../../src/features/forms/services/formService';
+import {
+  formApi,
+  mapAppointmentFormItem,
+} from '../../../../src/features/forms/services/formService';
 import apiClient from '../../../../src/shared/services/apiClient';
 import {
   fromFormRequestDTO,
   fromFormSubmissionRequestDTO,
   toFormSubmissionResponseDTO,
 } from '@yosemite-crew/types';
-import { normalizeSubmissionFromApi } from '../../../../src/features/forms/utils';
+import {normalizeSubmissionFromApi} from '../../../../src/features/forms/utils';
 
 // --- Mocks ---
 
@@ -17,7 +20,7 @@ jest.mock('../../../../src/shared/services/apiClient', () => ({
     post: jest.fn(),
   },
   withAuthHeaders: jest.fn((token, extra) => {
-    const headers: any = { Authorization: `Bearer ${token}` };
+    const headers: any = {Authorization: `Bearer ${token}`};
     if (extra) Object.assign(headers, extra);
     return headers;
   }),
@@ -34,7 +37,7 @@ const mockApiClient = apiClient as jest.Mocked<typeof apiClient>;
 
 describe('formService', () => {
   const mockToken = 'access-token';
-  const mockAuthHeaders = { Authorization: `Bearer ${mockToken}` };
+  const mockAuthHeaders = {Authorization: `Bearer ${mockToken}`};
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -44,148 +47,96 @@ describe('formService', () => {
   // 1. fetchFormsForAppointment
   // =========================================================================
   describe('fetchFormsForAppointment', () => {
-    it('fetches forms and returns API response', async () => {
-      const mockResponse = { appointmentId: 'appt-1', items: [] };
-      mockApiClient.get.mockResolvedValue({ data: mockResponse });
+    it('fetches forms via mobile endpoint and returns API response', async () => {
+      const mockResponse = {appointmentId: 'appt-1', items: []};
+      mockApiClient.post.mockResolvedValue({data: mockResponse});
 
       const result = await formApi.fetchFormsForAppointment({
         appointmentId: 'appt-1',
         accessToken: mockToken,
       });
 
-      expect(mockApiClient.get).toHaveBeenCalledWith(
+      expect(mockApiClient.post).toHaveBeenCalledWith(
         '/fhir/v1/form/mobile/appointments/appt-1/forms',
-        { headers: mockAuthHeaders }
+        {isPMS: false},
+        {headers: mockAuthHeaders},
       );
       expect(result).toEqual(mockResponse);
     });
-  });
+    it('falls back to non-mobile endpoint when mobile endpoint returns 404', async () => {
+      const payload = {isPMS: false, serviceId: 'svc-1', species: 'Dog'};
+      const mockResponse = {appointmentId: 'appt-1', items: []};
+      mockApiClient.post
+        .mockRejectedValueOnce({response: {status: 404}})
+        .mockResolvedValueOnce({data: mockResponse});
 
-  // =========================================================================
-  // 2. fetchSoapNotes
-  // =========================================================================
-  describe('fetchSoapNotes', () => {
-    it('fetches SOAP notes with default params', async () => {
-      const mockResponse = { appointmentId: 'appt-1', soapNotes: {} };
-      mockApiClient.get.mockResolvedValue({ data: mockResponse });
-
-      const result = await formApi.fetchSoapNotes({
+      const result = await formApi.fetchFormsForAppointment({
         appointmentId: 'appt-1',
-        accessToken: mockToken,
-      });
-
-      expect(mockApiClient.get).toHaveBeenCalledWith(
-        '/fhir/v1/form/mobile/appointments/appt-1/soap-notes',
-        {
-          params: { latestOnly: true },
-          headers: mockAuthHeaders,
-        }
-      );
-      expect(result).toEqual(mockResponse);
-    });
-
-    it('fetches SOAP notes with latestOnly=false', async () => {
-      mockApiClient.get.mockResolvedValue({ data: {} });
-
-      await formApi.fetchSoapNotes({
-        appointmentId: 'appt-1',
-        accessToken: mockToken,
-        latestOnly: false,
-      });
-
-      expect(mockApiClient.get).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({ params: { latestOnly: false } })
-      );
-    });
-  });
-
-  // =========================================================================
-  // 3. fetchConsentFormForService
-  // =========================================================================
-  describe('fetchConsentFormForService', () => {
-    it('fetches consent form and transforms result', async () => {
-      const mockQuestionnaire = { resourceType: 'Questionnaire' };
-      const mockForm = { id: 'consent-1' };
-
-      mockApiClient.get.mockResolvedValue({ data: mockQuestionnaire });
-      (fromFormRequestDTO as jest.Mock).mockReturnValue(mockForm);
-
-      const result = await formApi.fetchConsentFormForService({
-        organisationId: 'org-1',
-        serviceId: 'svc-1',
-        accessToken: mockToken,
-      });
-
-      expect(mockApiClient.get).toHaveBeenCalledWith(
-        '/fhir/v1/form/mobile/forms/org-1/svc-1/consent-form',
-        expect.objectContaining({ headers: mockAuthHeaders })
-      );
-      expect(fromFormRequestDTO).toHaveBeenCalledWith(mockQuestionnaire);
-      expect(result).toEqual(mockForm);
-    });
-
-    it('includes species param if provided', async () => {
-      mockApiClient.get.mockResolvedValue({ data: {} });
-      (fromFormRequestDTO as jest.Mock).mockReturnValue({});
-
-      await formApi.fetchConsentFormForService({
-        organisationId: 'org-1',
         serviceId: 'svc-1',
         species: 'Dog',
         accessToken: mockToken,
       });
 
-      expect(mockApiClient.get).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({ params: { species: 'Dog' } })
+      expect(mockApiClient.post).toHaveBeenNthCalledWith(
+        1,
+        '/fhir/v1/form/mobile/appointments/appt-1/forms',
+        payload,
+        {headers: mockAuthHeaders},
       );
+      expect(mockApiClient.post).toHaveBeenNthCalledWith(
+        2,
+        '/fhir/v1/form/appointments/appt-1/forms',
+        payload,
+        {headers: mockAuthHeaders},
+      );
+      expect(result).toEqual(mockResponse);
     });
   });
 
   // =========================================================================
-  // 4. fetchFormById
+  // 2. fetchFormById
   // =========================================================================
   describe('fetchFormById', () => {
     it('fetches public form without auth if no token provided', async () => {
-      mockApiClient.get.mockResolvedValue({ data: {} });
-      (fromFormRequestDTO as jest.Mock).mockReturnValue({ id: 'form-1' });
+      mockApiClient.get.mockResolvedValue({data: {}});
+      (fromFormRequestDTO as jest.Mock).mockReturnValue({id: 'form-1'});
 
-      const result = await formApi.fetchFormById({ formId: 'form-1' });
+      const result = await formApi.fetchFormById({formId: 'form-1'});
 
       expect(mockApiClient.get).toHaveBeenCalledWith(
         '/fhir/v1/form/public/form-1',
-        { headers: undefined }
+        {headers: undefined},
       );
-      expect(result).toEqual({ id: 'form-1' });
+      expect(result).toEqual({id: 'form-1'});
     });
 
     it('fetches form with auth headers if token provided', async () => {
-      mockApiClient.get.mockResolvedValue({ data: {} });
+      mockApiClient.get.mockResolvedValue({data: {}});
 
-      await formApi.fetchFormById({ formId: 'form-1', accessToken: mockToken });
+      await formApi.fetchFormById({formId: 'form-1', accessToken: mockToken});
 
-      expect(mockApiClient.get).toHaveBeenCalledWith(
-        expect.any(String),
-        { headers: mockAuthHeaders }
-      );
+      expect(mockApiClient.get).toHaveBeenCalledWith(expect.any(String), {
+        headers: mockAuthHeaders,
+      });
     });
   });
 
   // =========================================================================
-  // 5. submitForm
+  // 3. submitForm
   // =========================================================================
   describe('submitForm', () => {
     it('transforms payload, posts to API, and normalizes response', async () => {
-      const mockSubmission: any = { formId: 'f1', answers: {} };
+      const mockSubmission: any = {formId: 'f1', answers: {}};
       const mockSchema: any = [];
-      const mockPayload = { resourceType: 'QuestionnaireResponse' };
-      const mockApiResponse = { id: 'response-1' };
-      const mockFinalResult = { _id: 'sub-1' };
+      const mockPayload = {resourceType: 'QuestionnaireResponse'};
+      const mockApiResponse = {id: 'response-1'};
+      const mockFinalResult = {_id: 'sub-1'};
 
       (toFormSubmissionResponseDTO as jest.Mock).mockReturnValue(mockPayload);
-      mockApiClient.post.mockResolvedValue({ data: mockApiResponse });
-      (normalizeSubmissionFromApi as jest.Mock).mockReturnValue(mockFinalResult);
+      mockApiClient.post.mockResolvedValue({data: mockApiResponse});
+      (normalizeSubmissionFromApi as jest.Mock).mockReturnValue(
+        mockFinalResult,
+      );
 
       const result = await formApi.submitForm({
         formId: 'f1',
@@ -194,18 +145,21 @@ describe('formService', () => {
         accessToken: mockToken,
       });
 
-      expect(toFormSubmissionResponseDTO).toHaveBeenCalledWith(mockSubmission, mockSchema);
+      expect(toFormSubmissionResponseDTO).toHaveBeenCalledWith(
+        mockSubmission,
+        mockSchema,
+      );
 
       expect(mockApiClient.post).toHaveBeenCalledWith(
         '/fhir/v1/form/mobile/forms/f1/submit',
         mockPayload,
-        { headers: mockAuthHeaders }
+        {headers: mockAuthHeaders},
       );
 
       expect(normalizeSubmissionFromApi).toHaveBeenCalledWith(
         mockApiResponse,
         mockSchema,
-        expect.objectContaining({ formId: 'f1' })
+        expect.objectContaining({formId: 'f1'}),
       );
 
       expect(result).toEqual(mockFinalResult);
@@ -213,12 +167,12 @@ describe('formService', () => {
   });
 
   // =========================================================================
-  // 6. startSigning
+  // 4. startSigning
   // =========================================================================
   describe('startSigning', () => {
     it('posts to signing endpoint and returns signing URL', async () => {
-      const mockData = { signingUrl: 'http://sign.com', documentId: 123 };
-      mockApiClient.post.mockResolvedValue({ data: mockData });
+      const mockData = {signingUrl: 'http://sign.com', documentId: 123};
+      mockApiClient.post.mockResolvedValue({data: mockData});
 
       const result = await formApi.startSigning({
         submissionId: 'sub-1',
@@ -228,13 +182,13 @@ describe('formService', () => {
       expect(mockApiClient.post).toHaveBeenCalledWith(
         '/fhir/v1/form/mobile/form-submissions/sub-1/sign',
         {},
-        { headers: mockAuthHeaders }
+        {headers: mockAuthHeaders},
       );
       expect(result).toEqual(mockData);
     });
 
     it('includes user-id header if provided', async () => {
-      mockApiClient.post.mockResolvedValue({ data: {} });
+      mockApiClient.post.mockResolvedValue({data: {}});
 
       await formApi.startSigning({
         submissionId: 'sub-1',
@@ -250,24 +204,24 @@ describe('formService', () => {
             ...mockAuthHeaders,
             'x-user-id': 'user-123',
           },
-        }
+        },
       );
     });
   });
 
   // =========================================================================
-  // 7. mapAppointmentFormItem
+  // 5. mapAppointmentFormItem
   // =========================================================================
   describe('mapAppointmentFormItem', () => {
-    const mockQuestionnaire: any = { resourceType: 'Questionnaire' };
-    const mockForm: any = { id: 'f1', schema: [] };
+    const mockQuestionnaire: any = {resourceType: 'Questionnaire'};
+    const mockForm: any = {id: 'f1', schema: []};
 
     beforeEach(() => {
       (fromFormRequestDTO as jest.Mock).mockReturnValue(mockForm);
     });
 
     it('maps item with only questionnaire (no response)', () => {
-      const item: any = { questionnaire: mockQuestionnaire };
+      const item: any = {questionnaire: mockQuestionnaire};
 
       const result = mapAppointmentFormItem(item);
 
@@ -278,19 +232,46 @@ describe('formService', () => {
     });
 
     it('maps item with questionnaire response', () => {
-      const mockQR: any = { resourceType: 'QuestionnaireResponse' };
-      const mockSubmission: any = { formVersion: 2 };
-      (fromFormSubmissionRequestDTO as jest.Mock).mockReturnValue(mockSubmission);
+      const mockQR: any = {resourceType: 'QuestionnaireResponse'};
+      const mockSubmission: any = {formVersion: 2};
+      (fromFormSubmissionRequestDTO as jest.Mock).mockReturnValue(
+        mockSubmission,
+      );
 
       const item: any = {
         questionnaire: mockQuestionnaire,
-        questionnaireResponse: mockQR
+        questionnaireResponse: mockQR,
       };
 
       const result = mapAppointmentFormItem(item);
 
-      expect(fromFormSubmissionRequestDTO).toHaveBeenCalledWith(mockQR, mockForm.schema);
+      expect(fromFormSubmissionRequestDTO).toHaveBeenCalledWith(
+        mockQR,
+        mockForm.schema,
+      );
       expect(result.submission).toEqual(mockSubmission);
+      expect(result.formVersion).toBe(2);
+    });
+
+    it('normalizes signing to SIGNED when API item status is completed', () => {
+      const mockQR: any = {resourceType: 'QuestionnaireResponse'};
+      const mockSubmission: any = {
+        formVersion: 2,
+        signing: {status: 'IN_PROGRESS'},
+      };
+      (fromFormSubmissionRequestDTO as jest.Mock).mockReturnValue(
+        mockSubmission,
+      );
+
+      const item: any = {
+        questionnaire: mockQuestionnaire,
+        questionnaireResponse: mockQR,
+        status: 'completed',
+      };
+
+      const result = mapAppointmentFormItem(item);
+
+      expect(result.submission?.signing?.status).toBe('SIGNED');
       expect(result.formVersion).toBe(2);
     });
   });

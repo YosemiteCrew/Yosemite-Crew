@@ -78,6 +78,9 @@ const {control, handleSubmit} = useForm({
 pnpm --filter mobileAppYC run test -- --testPathPattern="path/to/File.test.tsx"
 ```
 
+- Any code change that alters behavior must include matching test updates in the same batch.
+- If your change breaks existing targeted tests, fix or update those tests before handoff.
+- Before handoff/checkpoint, run and report: mobile lint + mobile `tsc --noemit` + targeted mobile tests for touched areas.
 - Detox for E2E — runs separately from unit tests.
 - Guard Reactotron with `__DEV__`.
 

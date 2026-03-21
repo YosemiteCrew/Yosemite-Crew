@@ -28,6 +28,7 @@ import { AppointmentViewIntent } from '@/app/features/appointments/types/calenda
 import { AppointmentStatus } from '@/app/features/appointments/types/appointments';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useInvoicesForPrimaryOrg } from '@/app/hooks/useInvoices';
+import { useLoadTeam, useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import {
   createInvoiceByAppointmentId,
   getAppointmentPaymentDisplay,
@@ -36,6 +37,13 @@ import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 
 import './DataTable.css';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
+
+const normalizeLeadId = (value?: string | null): string => {
+  const trimmed = String(value ?? '').trim();
+  if (!trimmed) return '';
+  const lowered = trimmed.toLowerCase();
+  return lowered === 'undefined' || lowered === 'null' ? '' : trimmed;
+};
 
 type Column<T> = {
   label: string;
@@ -69,12 +77,24 @@ const Appointments = ({
   canEditAppointments,
   small = false,
 }: AppointmentTableProps) => {
+  useLoadTeam();
+  const teams = useTeamForPrimaryOrg();
   const orgsById = useOrgStore((s) => s.orgsById);
   const invoices = useInvoicesForPrimaryOrg();
   const invoicesByAppointmentId = React.useMemo(
     () => createInvoiceByAppointmentId(invoices),
     [invoices]
   );
+  const leadNameByPractitionerId = React.useMemo(() => {
+    const map = new Map<string, string>();
+    teams.forEach((team) => {
+      const practitionerId = normalizeLeadId(team.practionerId);
+      if (!practitionerId) return;
+      const displayName = team.name?.trim() || practitionerId;
+      map.set(practitionerId, displayName);
+    });
+    return map;
+  }, [teams]);
 
   const getSoapViewIntent = (appointment: Appointment): AppointmentViewIntent => {
     const orgType =
@@ -203,11 +223,18 @@ const Appointments = ({
       label: 'Lead',
       key: 'lead',
       width: '10%',
-      render: (item: Appointment) => (
-        <div className="appointment-profile-two">
-          <div className="appointment-profile-title">{item.lead?.name || '-'}</div>
-        </div>
-      ),
+      render: (item: Appointment) => {
+        const leadId = normalizeLeadId(item.lead?.id);
+        const leadName =
+          item.lead?.name?.trim() ||
+          (leadId ? leadNameByPractitionerId.get(leadId) : undefined) ||
+          '-';
+        return (
+          <div className="appointment-profile-two">
+            <div className="appointment-profile-title">{leadName}</div>
+          </div>
+        );
+      },
     },
     {
       label: 'Support',
