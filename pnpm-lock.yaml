@@ -426,7 +426,7 @@ importers:
         specifier: ^6.9.1
         version: 6.9.1
       '@testing-library/react':
-        specifier: ^16.3.0
+        specifier: ^16.3.2
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3)(@types/react@19.2.11)(react-dom@19.2.4)(react@19.2.4)
       '@types/jest':
         specifier: ^29.5.14
@@ -9137,7 +9137,7 @@ packages:
     dependencies:
       '@docusaurus/types': 3.9.2(react-dom@18.3.1)(react@18.3.1)
       '@types/history': 4.7.11
-      '@types/react': 19.2.11
+      '@types/react': 19.2.14
       '@types/react-router-config': 5.0.11
       '@types/react-router-dom': 5.3.3
       react: 18.3.1
@@ -16977,7 +16977,7 @@ packages:
     resolution: {integrity: sha512-WmSAg7WgqW7m4x8Mt4N6ZyKz0BubSj/2tVUMsAHp+Yd2AMwcSbeFq9WympT19p5heCFmF97R9eD5uUR/t4HEqw==}
     dependencies:
       '@types/history': 4.7.11
-      '@types/react': 19.2.11
+      '@types/react': 19.2.14
       '@types/react-router': 5.1.20
     dev: false
 
@@ -25164,7 +25164,7 @@ packages:
       pretty-format: 29.7.0
       slash: 3.0.0
       strip-json-comments: 3.1.1
-      ts-node: 10.9.2(@types/node@22.19.8)(typescript@5.0.4)
+      ts-node: 10.9.2(@types/node@20.19.31)(typescript@5.9.3)
     transitivePeerDependencies:
       - babel-plugin-macros
       - supports-color
