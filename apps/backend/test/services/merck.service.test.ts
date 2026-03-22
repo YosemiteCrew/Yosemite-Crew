@@ -84,7 +84,12 @@ describe("MerckService", () => {
 
     expect(result.meta.totalResults).toBe(1);
     expect(result.entries[0]?.primaryUrl).toContain("msdvetmanual.com");
+    expect(result.entries[0]?.primaryUrl).toContain("utm_source=yosemitecrew");
+    expect(result.entries[0]?.primaryUrl).toContain("utm_medium=Partner");
     expect(result.entries[0]?.subLinks.length).toBeGreaterThan(0);
+    expect(result.entries[0]?.subLinks[0]?.url).toContain(
+      "utm_source=yosemitecrew",
+    );
   });
 
   it("normalizes Atom XML payload", async () => {
@@ -128,6 +133,8 @@ describe("MerckService", () => {
     expect(result.meta.totalResults).toBe(1);
     expect(result.meta.audience).toBe("PAT");
     expect(result.entries[0]?.primaryUrl).toContain("msdvetmanual.com");
+    expect(result.entries[0]?.primaryUrl).toContain("utm_source=yosemitecrew");
+    expect(result.entries[0]?.primaryUrl).toContain("utm_medium=Partner");
   });
 
   it("rejects search when integration is disabled", async () => {
@@ -257,6 +264,10 @@ describe("MerckService", () => {
     expect(result.entries[0]?.summaryText).toContain("Some text");
     expect(result.entries[0]?.subLinks[0]?.label).toBe("Full Summary");
     expect(result.entries[0]?.subLinks.length).toBe(2);
+    expect(result.entries[0]?.subLinks[0]?.url).toContain(
+      "utm_source=yosemitecrew",
+    );
+    expect(result.entries[0]?.subLinks[0]?.url).toContain("utm_medium=Partner");
   });
 
   it("initializes Merck client with env config", async () => {

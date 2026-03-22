@@ -22,13 +22,16 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
 import {AppointmentFormScreen} from '@/features/forms/screens/AppointmentFormScreen';
 import {FormSigningScreen} from '@/features/forms/screens/FormSigningScreen';
+import {MerckManualSearchScreen} from '@/features/merck/screens/MerckManualSearchScreen';
 
 const Stack = createNativeStackNavigator<AppointmentStackParamList>();
 
 // A small router deciding whether to show empty or list
 const MyAppointmentsEntry: React.FC = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<AppointmentStackParamList>>();
-  const route = useRoute<RouteProp<AppointmentStackParamList, 'MyAppointments'>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<AppointmentStackParamList>>();
+  const route =
+    useRoute<RouteProp<AppointmentStackParamList, 'MyAppointments'>>();
   const selectedCompanionId = useSelector(
     (state: RootState) => state.companion.selectedCompanionId,
   );
@@ -55,8 +58,14 @@ export const AppointmentStackNavigator: React.FC = () => {
   return (
     <Stack.Navigator screenOptions={{headerShown: false}}>
       <Stack.Screen name="MyAppointments" component={MyAppointmentsEntry} />
-      <Stack.Screen name="MyAppointmentsEmpty" component={MyAppointmentsEmptyScreen} />
-      <Stack.Screen name="BrowseBusinesses" component={BrowseBusinessesScreen} />
+      <Stack.Screen
+        name="MyAppointmentsEmpty"
+        component={MyAppointmentsEmptyScreen}
+      />
+      <Stack.Screen
+        name="BrowseBusinesses"
+        component={BrowseBusinessesScreen}
+      />
       <Stack.Screen name="BusinessDetails" component={BusinessDetailsScreen} />
       <Stack.Screen name="BookingForm" component={BookingFormScreen} />
       <Stack.Screen name="ViewAppointment" component={ViewAppointmentScreen} />
@@ -66,11 +75,18 @@ export const AppointmentStackNavigator: React.FC = () => {
       <Stack.Screen name="ChatChannel" component={ChatChannelScreen} />
       <Stack.Screen name="EditAppointment" component={EditAppointmentScreen} />
       <Stack.Screen name="BusinessesList" component={BusinessesListScreen} />
-      <Stack.Screen name="TermsAndConditions" component={TermsAndConditionsScreen} />
+      <Stack.Screen
+        name="TermsAndConditions"
+        component={TermsAndConditionsScreen}
+      />
       <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
-      <Stack.Screen name="OrganisationDocument" component={OrganisationDocumentScreen} />
+      <Stack.Screen
+        name="OrganisationDocument"
+        component={OrganisationDocumentScreen}
+      />
       <Stack.Screen name="AppointmentForm" component={AppointmentFormScreen} />
       <Stack.Screen name="FormSigning" component={FormSigningScreen} />
+      <Stack.Screen name="MerckManuals" component={MerckManualSearchScreen} />
     </Stack.Navigator>
   );
 };

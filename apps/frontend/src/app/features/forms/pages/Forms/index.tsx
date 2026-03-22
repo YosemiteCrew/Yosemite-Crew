@@ -15,6 +15,7 @@ import { loadForms } from '@/app/features/forms/services/formService';
 import { useSearchStore } from '@/app/stores/searchStore';
 import {
   useLoadSpecialitiesForPrimaryOrg,
+  useSpecialitiesForPrimaryOrg,
   useServicesForPrimaryOrgSpecialities,
 } from '@/app/hooks/useSpecialities';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
@@ -37,6 +38,7 @@ const Forms = () => {
   const [draftForm, setDraftForm] = useState<FormsProps | null>(null);
   useLoadSpecialitiesForPrimaryOrg();
   const services = useServicesForPrimaryOrgSpecialities();
+  const specialities = useSpecialitiesForPrimaryOrg();
   const fetchedRef = useRef(false);
 
   const list = useMemo<FormsProps[]>(
@@ -57,14 +59,35 @@ const Forms = () => {
     setFilteredList(list);
   }, [list]);
 
-  const serviceOptions = useMemo(
-    () =>
-      services.map((s) => ({
-        label: s.name,
-        value: s.id || (s as any)._id || s.name,
-      })),
-    [services]
-  );
+  const serviceOptions = useMemo(() => {
+    const specialityNameById = new Map(
+      specialities.map((speciality) => [String((speciality as any)._id ?? ''), speciality.name])
+    );
+    const serviceNameFrequency = new Map<string, number>();
+
+    for (const service of services) {
+      const serviceName = String(service.name ?? '')
+        .trim()
+        .toLowerCase();
+      if (!serviceName) continue;
+      serviceNameFrequency.set(serviceName, (serviceNameFrequency.get(serviceName) ?? 0) + 1);
+    }
+
+    return services.map((service) => {
+      const serviceName = String(service.name ?? '').trim();
+      const duplicateServiceName =
+        serviceNameFrequency.get(serviceName.toLowerCase()) !== undefined &&
+        serviceNameFrequency.get(serviceName.toLowerCase())! > 1;
+      const specialityLabel =
+        specialityNameById.get(String(service.specialityId ?? '')) ?? 'Unknown Speciality';
+
+      return {
+        label:
+          duplicateServiceName && serviceName ? `${specialityLabel} / ${serviceName}` : serviceName,
+        value: service.id || (service as any)._id || service.name,
+      };
+    });
+  }, [services, specialities]);
 
   useEffect(() => {
     if (fetchedRef.current) return;

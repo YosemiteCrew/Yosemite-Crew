@@ -843,7 +843,7 @@ const RadIntegrationCard = ({
         <div className="h-[72px] w-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center overflow-hidden">
           <Image
             src={MEDIA_SOURCES.futureAssets.radAnalyzerLogoUrl}
-            alt="RAD Analyzer"
+            alt="RadAnalyzer"
             width={56}
             height={56}
             className="object-contain max-h-[56px] max-w-[56px] h-auto w-auto"
@@ -854,7 +854,7 @@ const RadIntegrationCard = ({
       <div className="flex-1 min-w-0 flex flex-col justify-between">
         <div className="flex flex-col gap-3">
           <div className="flex items-start justify-between gap-3">
-            <div className="text-heading-3 text-text-primary pt-1">RAD Analyzer</div>
+            <div className="text-heading-3 text-text-primary pt-1">RadAnalyzer</div>
             <span className="text-label-xsmall px-2 py-1 rounded bg-amber-50 text-amber-700">
               Coming soon
             </span>

@@ -76,19 +76,59 @@ const toStatus = (status?: string): AppointmentStatus => {
   }
 };
 
+const normalizeIdPart = (value: string | null | undefined): string | null => {
+  const trimmed = String(value ?? '').trim();
+  if (!trimmed) return null;
+  const lower = trimmed.toLowerCase();
+  if (lower === 'undefined' || lower === 'null') return null;
+  return trimmed;
+};
+
+const normalizeUrlField = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (trimmed.toLowerCase() === 'null' || trimmed.toLowerCase() === 'undefined')
+    return null;
+  return trimmed;
+};
+
+const resolveLeadAvatarUrl = (
+  avatarUrl: unknown,
+  displayName?: string | null,
+): string | null => {
+  const normalized = normalizeUrlField(avatarUrl);
+  if (!normalized) return null;
+  if (
+    normalized.includes('ui-avatars.com/api/?name=') &&
+    normalized.endsWith('=')
+  ) {
+    const encodedName = encodeURIComponent(displayName?.trim() ?? '');
+    if (encodedName) {
+      return `${normalized}${encodedName}`;
+    }
+  }
+  return normalized;
+};
+
 const parseParticipant = (participants: any[], prefix: string) => {
   const match = participants?.find((p: any) =>
     (p?.actor?.reference ?? '').toString().startsWith(prefix),
   );
   const reference: string = match?.actor?.reference ?? '';
   const display: string | undefined = match?.actor?.display;
-  const id = reference.includes('/') ? reference.split('/')[1] : reference;
-  const avatar =
+  const rawId = reference.includes('/') ? reference.split('/')[1] : reference;
+  const id = normalizeIdPart(rawId);
+  const avatar = resolveLeadAvatarUrl(
     match?.extension?.find?.(
       (ext: any) =>
-        ext?.url === 'https://yosemitecrew.com/fhir/StructureDefinition/lead-profile-url',
-    )?.valueString ?? null;
-  return {id: id || null, display: display ?? null, avatar};
+        ext?.url ===
+        'https://yosemitecrew.com/fhir/StructureDefinition/lead-profile-url',
+    )?.valueString,
+    display,
+  );
+  const normalizedDisplay = display?.trim() ? display.trim() : null;
+  return {id, display: normalizedDisplay, avatar};
 };
 
 const extractExtensionValue = (
@@ -136,7 +176,8 @@ const parseAttachments = (extensions: any[] | undefined) => {
   keys.forEach(url => {
     attachmentGroups[url].forEach((ext: any, index: number) => {
       grouped[index] = grouped[index] ?? {};
-      grouped[index][url] = ext?.valueString ?? ext?.valueUrl ?? ext?.value ?? '';
+      grouped[index][url] =
+        ext?.valueString ?? ext?.valueUrl ?? ext?.value ?? '';
     });
   });
 
@@ -151,7 +192,9 @@ const parseAttachments = (extensions: any[] | undefined) => {
     .filter(att => att.name || att.key);
 };
 
-const parseDateParts = (start?: string | null): {date: string; time: string; endTime: string} => {
+const parseDateParts = (
+  start?: string | null,
+): {date: string; time: string; endTime: string} => {
   if (!start) {
     return {date: '', time: '', endTime: ''};
   }
@@ -160,7 +203,9 @@ const parseDateParts = (start?: string | null): {date: string; time: string; end
     return {date: '', time: '', endTime: ''};
   }
   const date = formatDateToISODate(d);
-  const time = d.toISOString().slice(11, 16);
+  const hours = `${d.getHours()}`.padStart(2, '0');
+  const minutes = `${d.getMinutes()}`.padStart(2, '0');
+  const time = `${hours}:${minutes}`;
   return {date, time, endTime: ''};
 };
 
@@ -215,10 +260,43 @@ const extractArrayFromResponse = (data: any): any[] => {
 
 const parseParticipantDetails = (participants: any[]) => {
   const patient = parseParticipant(participants, 'Patient/');
-  const practitionerEntry = participants?.find?.((p: any) =>
-    (p?.actor?.reference ?? '').toString().startsWith('Practitioner/'),
-  );
-  const practitioner = parseParticipant(participants, 'Practitioner/');
+  const leadPractitionerEntry = participants?.find?.((p: any) => {
+    if (!(p?.actor?.reference ?? '').toString().startsWith('Practitioner/'))
+      return false;
+    return Array.isArray(p?.type)
+      ? p.type.some((t: any) =>
+          Array.isArray(t?.coding)
+            ? t.coding.some(
+                (code: any) =>
+                  (code?.code ?? '').toString().toUpperCase() === 'PPRF',
+              )
+            : false,
+        )
+      : false;
+  });
+  const practitionerEntryCandidate =
+    leadPractitionerEntry ??
+    participants?.find?.((p: any) =>
+      (p?.actor?.reference ?? '').toString().startsWith('Practitioner/'),
+    );
+  const practitionerCandidate = practitionerEntryCandidate
+    ? parseParticipant([practitionerEntryCandidate], 'Practitioner/')
+    : parseParticipant(participants, 'Practitioner/');
+  const practitionerEntry =
+    practitionerCandidate.id || practitionerCandidate.display
+      ? practitionerEntryCandidate
+      : participants?.find?.((p: any) => {
+          if (
+            !(p?.actor?.reference ?? '').toString().startsWith('Practitioner/')
+          )
+            return false;
+          const resolved = parseParticipant([p], 'Practitioner/');
+          return Boolean(resolved.id || resolved.display);
+        });
+  const practitioner =
+    practitionerEntry && practitionerEntry !== practitionerEntryCandidate
+      ? parseParticipant([practitionerEntry], 'Practitioner/')
+      : practitionerCandidate;
   const practitionerRole =
     practitionerEntry?.type?.[0]?.coding?.[0]?.display ??
     practitionerEntry?.type?.[0]?.text ??
@@ -228,10 +306,18 @@ const parseParticipantDetails = (participants: any[]) => {
 };
 
 const extractServiceDetails = (resource: any) => {
-  const serviceType = Array.isArray(resource?.serviceType) ? resource.serviceType[0] : null;
-  const serviceCoding = Array.isArray(serviceType?.coding) ? serviceType?.coding[0] : null;
-  const speciality = Array.isArray(resource?.speciality) ? resource.speciality[0] : null;
-  const specialityCoding = Array.isArray(speciality?.coding) ? speciality?.coding[0] : null;
+  const serviceType = Array.isArray(resource?.serviceType)
+    ? resource.serviceType[0]
+    : null;
+  const serviceCoding = Array.isArray(serviceType?.coding)
+    ? serviceType?.coding[0]
+    : null;
+  const speciality = Array.isArray(resource?.speciality)
+    ? resource.speciality[0]
+    : null;
+  const specialityCoding = Array.isArray(speciality?.coding)
+    ? speciality?.coding[0]
+    : null;
   return {serviceType, serviceCoding, speciality, specialityCoding};
 };
 
@@ -245,11 +331,13 @@ const extractExtensionDetails = (extensions: any[] | undefined) => {
   const speciesExt = extractExtensionValue(
     extensions,
     (ext: any) =>
-      ext?.id === 'species' || ext?.url === 'https://hl7.org/fhir/animal-species',
+      ext?.id === 'species' ||
+      ext?.url === 'https://hl7.org/fhir/animal-species',
   );
   const breedExt = extractExtensionValue(
     extensions,
-    (ext: any) => ext?.id === 'breed' || ext?.url === 'https://hl7.org/fhir/animal-breed',
+    (ext: any) =>
+      ext?.id === 'breed' || ext?.url === 'https://hl7.org/fhir/animal-breed',
   );
   const uploadedFiles = parseAttachments(extensions);
   return {emergencyExt, speciesExt, breedExt, uploadedFiles};
@@ -258,7 +346,9 @@ const extractExtensionDetails = (extensions: any[] | undefined) => {
 const resolveOrganisationAddress = (org: any, locationAddressObj: any) => {
   const locationAddress = buildAddressString(locationAddressObj ?? {});
   const orgAddress = buildAddressString(org?.address);
-  const organisationAddress = locationAddress?.trim?.().length ? locationAddress : orgAddress;
+  const organisationAddress = locationAddress?.trim?.().length
+    ? locationAddress
+    : orgAddress;
   const addressObj =
     (Array.isArray(org?.address) ? org.address.at(0) : org?.address) ??
     locationAddressObj ??
@@ -267,11 +357,21 @@ const resolveOrganisationAddress = (org: any, locationAddressObj: any) => {
 };
 
 const extractEndTime = (end?: string | null) =>
-  end ? new Date(end).toISOString().slice(11, 16) : null;
+  end
+    ? (() => {
+        const d = new Date(end);
+        if (Number.isNaN(d.getTime())) return null;
+        const hh = `${d.getHours()}`.padStart(2, '0');
+        const mm = `${d.getMinutes()}`.padStart(2, '0');
+        return `${hh}:${mm}`;
+      })()
+    : null;
 
 const resolveBusinessCoordinates = (addressObj: any) => ({
-  businessLat: addressObj?.latitude ?? addressObj?.location?.coordinates?.[1] ?? null,
-  businessLng: addressObj?.longitude ?? addressObj?.location?.coordinates?.[0] ?? null,
+  businessLat:
+    addressObj?.latitude ?? addressObj?.location?.coordinates?.[1] ?? null,
+  businessLng:
+    addressObj?.longitude ?? addressObj?.location?.coordinates?.[0] ?? null,
 });
 
 const resolveAuditTimestamps = (resource: any) => {
@@ -291,14 +391,33 @@ const resolveAuditTimestamps = (resource: any) => {
 const mapAppointmentResource = (incoming: any): Appointment => {
   const resource = incoming?.appointment ?? incoming;
   const org = incoming?.organisation ?? incoming?.organization;
-  const participants = Array.isArray(resource?.participant) ? resource.participant : [];
-  const {patient, practitioner, practitionerRole, organisation} = parseParticipantDetails(participants);
-  const {serviceType, serviceCoding, speciality, specialityCoding} = extractServiceDetails(resource);
+  const participants = Array.isArray(resource?.participant)
+    ? resource.participant
+    : [];
+  const {patient, practitioner, practitionerRole, organisation} =
+    parseParticipantDetails(participants);
+  const {serviceType, serviceCoding, speciality, specialityCoding} =
+    extractServiceDetails(resource);
 
   const {date, time} = parseDateParts(resource?.start);
   const endTime = extractEndTime(resource?.end);
-  const {emergencyExt, speciesExt, breedExt, uploadedFiles} = extractExtensionDetails(resource?.extension);
-  const {organisationAddress, addressObj} = resolveOrganisationAddress(org, resource?.location?.address);
+  const {emergencyExt, speciesExt, breedExt, uploadedFiles} =
+    extractExtensionDetails(resource?.extension);
+  const paymentStatusExt = extractExtensionValue(
+    resource?.extension,
+    (ext: any) =>
+      ext?.url ===
+      'https://yosemitecrew.com/fhir/StructureDefinition/appointment-payment-status',
+  );
+  const paymentStatusValue = paymentStatusExt?.valueString;
+  const normalizedPaymentStatus =
+    paymentStatusValue === null || paymentStatusValue === undefined
+      ? null
+      : String(paymentStatusValue).toUpperCase();
+  const {organisationAddress, addressObj} = resolveOrganisationAddress(
+    org,
+    resource?.location?.address,
+  );
   const {businessLat, businessLng} = resolveBusinessCoordinates(addressObj);
   const {createdAt, updatedAt} = resolveAuditTimestamps(resource);
 
@@ -319,13 +438,18 @@ const mapAppointmentResource = (incoming: any): Appointment => {
     endTime,
     start: resource?.start ?? null,
     end: resource?.end ?? null,
-    type: specialityCoding?.display ?? speciality?.text ?? serviceType?.text ?? 'General',
+    type:
+      specialityCoding?.display ??
+      speciality?.text ??
+      serviceType?.text ??
+      'General',
     concern: resource?.description ?? '',
     emergency: emergencyExt?.valueBoolean ?? false,
     species: speciesExt?.valueString ?? null,
     breed: breedExt?.valueString ?? null,
     uploadedFiles,
     status: toStatus(resource?.status),
+    paymentStatus: normalizedPaymentStatus,
     invoiceId: resource?.invoiceId ?? null,
     organisationName: organisation.display ?? org?.name ?? null,
     organisationAddress,
@@ -368,7 +492,10 @@ const mapInvoiceFromApi = (
 
   const subtotal =
     raw.subtotal ??
-    normalizedItems.reduce((sum: number, item) => sum + (item.lineTotal ?? 0), 0) ??
+    normalizedItems.reduce(
+      (sum: number, item) => sum + (item.lineTotal ?? 0),
+      0,
+    ) ??
     0;
   const total = raw.totalAmount ?? raw.total ?? subtotal;
 
@@ -376,7 +503,8 @@ const mapInvoiceFromApi = (
   const paymentIntentIdFromExt =
     extensions.find(
       (ext: any) =>
-        ext?.url === 'https://yosemitecrew.com/fhir/StructureDefinition/stripe-payment-intent-id',
+        ext?.url ===
+        'https://yosemitecrew.com/fhir/StructureDefinition/stripe-payment-intent-id',
     )?.valueString ??
     raw.stripePaymentIntentId ??
     raw.paymentIntentId ??
@@ -385,7 +513,8 @@ const mapInvoiceFromApi = (
   let paymentIntent: PaymentIntentInfo | null = null;
   if (raw.paymentIntent) {
     paymentIntent = {
-      paymentIntentId: raw.paymentIntent.paymentIntentId ?? raw.paymentIntent.id,
+      paymentIntentId:
+        raw.paymentIntent.paymentIntentId ?? raw.paymentIntent.id,
       clientSecret: raw.paymentIntent.clientSecret,
       amount: raw.paymentIntent.amount,
       currency: raw.paymentIntent.currency ?? raw.currency ?? 'USD',
@@ -406,54 +535,106 @@ const mapInvoiceFromApi = (
   }
 
   const invoiceCreatedAt: string | undefined =
-    raw.invoiceDate ?? raw.createdAt ?? raw.paymentIntent?.createdAt ?? raw.date;
+    raw.invoiceDate ??
+    raw.createdAt ??
+    raw.paymentIntent?.createdAt ??
+    raw.date;
   const dueTill = invoiceCreatedAt
-    ? new Date(new Date(invoiceCreatedAt).getTime() + 24 * 60 * 60 * 1000).toISOString()
+    ? new Date(
+        new Date(invoiceCreatedAt).getTime() + 24 * 60 * 60 * 1000,
+      ).toISOString()
     : raw.dueDate;
 
   const receiptUrl =
     extensions.find(
       (ext: any) =>
-        ext?.url === 'https://yosemitecrew.com/fhir/StructureDefinition/stripe-receipt-url',
-    )?.valueUri ?? raw.invoiceUrl ?? raw.downloadUrl ?? null;
-  const appointmentFromExt =
+        ext?.url ===
+        'https://yosemitecrew.com/fhir/StructureDefinition/stripe-receipt-url',
+    )?.valueUri ??
+    raw.invoiceUrl ??
+    raw.downloadUrl ??
+    null;
+  const paymentCollectionMethod =
     extensions.find(
       (ext: any) =>
-        ext?.url === 'https://yosemitecrew.com/fhir/StructureDefinition/appointment-id',
-    )?.valueString;
+        ext?.url ===
+        'https://yosemitecrew.com/fhir/StructureDefinition/payment-collection-method',
+    )?.valueString ??
+    raw.paymentCollectionMethod ??
+    raw.payment_collection_method ??
+    null;
+  const paidAt =
+    extensions.find(
+      (ext: any) =>
+        ext?.url ===
+        'https://yosemitecrew.com/fhir/StructureDefinition/paid-at',
+    )?.valueDateTime ??
+    raw.paidAt ??
+    null;
+  const parseMetadataFromExtension = (
+    metadataExtension: any,
+  ): Record<string, string | number | boolean> | undefined => {
+    const nested = Array.isArray(metadataExtension?.extension)
+      ? metadataExtension.extension
+      : [];
+    if (nested.length === 0) {
+      return undefined;
+    }
+    const metadata: Record<string, string | number | boolean> = {};
+    nested.forEach((ext: any) => {
+      if (ext?.valueString != null) {
+        metadata[ext.url] = String(ext.valueString);
+      } else if (typeof ext?.valueDecimal === 'number') {
+        metadata[ext.url] = ext.valueDecimal;
+      } else if (typeof ext?.valueBoolean === 'boolean') {
+        metadata[ext.url] = ext.valueBoolean;
+      }
+    });
+    return Object.keys(metadata).length > 0 ? metadata : undefined;
+  };
+  const appointmentFromExt = extensions.find(
+    (ext: any) =>
+      ext?.url ===
+      'https://yosemitecrew.com/fhir/StructureDefinition/appointment-id',
+  )?.valueString;
   const appointmentFromAccount =
     typeof raw?.account?.reference === 'string' &&
     raw.account.reference.includes('Appointment/')
       ? raw.account.reference.split('/').pop()
       : null;
-  const statusFromExt =
-    extensions.find(
-      (ext: any) =>
-        ext?.url === 'https://yosemitecrew.com/fhir/StructureDefinition/pms-invoice-status',
-    )?.valueString;
+  const statusFromExt = extensions.find(
+    (ext: any) =>
+      ext?.url ===
+      'https://yosemitecrew.com/fhir/StructureDefinition/pms-invoice-status',
+  )?.valueString;
   const refundMetadata = extensions.find(
     (ext: any) =>
-      ext?.url === 'https://yosemitecrew.com/fhir/StructureDefinition/invoice-metadata',
+      ext?.url ===
+      'https://yosemitecrew.com/fhir/StructureDefinition/invoice-metadata',
   );
+  const metadata = parseMetadataFromExtension(refundMetadata);
   const refundId =
-    refundMetadata?.extension?.find?.((ext: any) => ext?.url === 'refundId')?.valueString ??
-    null;
+    refundMetadata?.extension?.find?.((ext: any) => ext?.url === 'refundId')
+      ?.valueString ?? null;
   const refundAmount =
-    refundMetadata?.extension?.find?.((ext: any) => ext?.url === 'amount')?.valueDecimal ??
-    null;
+    refundMetadata?.extension?.find?.((ext: any) => ext?.url === 'amount')
+      ?.valueDecimal ?? null;
   const refundDate =
-    refundMetadata?.extension?.find?.((ext: any) => ext?.url === 'refundDate')?.valueString ??
-    null;
+    refundMetadata?.extension?.find?.((ext: any) => ext?.url === 'refundDate')
+      ?.valueString ?? null;
   const refundReason =
-    refundMetadata?.extension?.find?.((ext: any) => ext?.url === 'cancellationReason')?.valueString ??
-    null;
+    refundMetadata?.extension?.find?.(
+      (ext: any) => ext?.url === 'cancellationReason',
+    )?.valueString ?? null;
   const totalPriceComponents = Array.isArray(raw.totalPriceComponent)
     ? raw.totalPriceComponent
     : [];
-  const subtotalFromTotals = totalPriceComponents.find((pc: any) => pc?.type === 'base')?.amount
-    ?.value;
+  const subtotalFromTotals = totalPriceComponents.find(
+    (pc: any) => pc?.type === 'base',
+  )?.amount?.value;
   const grandTotalFromTotals = totalPriceComponents.find(
-    (pc: any) => pc?.code?.text === 'grand-total' || pc?.type === 'informational',
+    (pc: any) =>
+      pc?.code?.text === 'grand-total' || pc?.type === 'informational',
   )?.amount?.value;
   const normalizedPriceComponents = totalPriceComponents.map((pc: any) => ({
     type: pc?.type ?? pc?.Type ?? pc?.name,
@@ -464,7 +645,8 @@ const mapInvoiceFromApi = (
 
   const invoice: Invoice = {
     id: raw.id ?? raw._id ?? raw.invoiceId ?? `invoice-${Date.now()}`,
-    appointmentId: appointmentFromExt ?? appointmentFromAccount ?? raw.appointmentId ?? '',
+    appointmentId:
+      appointmentFromExt ?? appointmentFromAccount ?? raw.appointmentId ?? '',
     items: normalizedItems,
     subtotal: subtotalFromTotals ?? subtotal,
     discountPercent: raw.discountPercent ?? null,
@@ -481,6 +663,48 @@ const mapInvoiceFromApi = (
     stripePaymentIntentId: raw.stripePaymentIntentId ?? null,
     stripeInvoiceId: raw.stripeInvoiceId ?? null,
     stripePaymentLinkId: raw.stripePaymentLinkId ?? null,
+    stripeChargeId:
+      extensions.find(
+        (ext: any) =>
+          ext?.url ===
+          'https://yosemitecrew.com/fhir/StructureDefinition/stripe-charge-id',
+      )?.valueString ??
+      raw.stripeChargeId ??
+      null,
+    stripeReceiptUrl:
+      extensions.find(
+        (ext: any) =>
+          ext?.url ===
+          'https://yosemitecrew.com/fhir/StructureDefinition/stripe-receipt-url',
+      )?.valueUri ??
+      extensions.find(
+        (ext: any) =>
+          ext?.url ===
+          'https://yosemitecrew.com/fhir/StructureDefinition/stripe-receipt-url',
+      )?.valueString ??
+      raw.stripeReceiptUrl ??
+      receiptUrl,
+    stripeCheckoutSessionId:
+      extensions.find(
+        (ext: any) =>
+          ext?.url ===
+          'https://yosemitecrew.com/fhir/StructureDefinition/stripe-checkout-session-id',
+      )?.valueString ??
+      raw.stripeCheckoutSessionId ??
+      null,
+    stripeCheckoutUrl:
+      extensions.find(
+        (ext: any) =>
+          ext?.url ===
+          'https://yosemitecrew.com/fhir/StructureDefinition/stripe-checkout-url',
+      )?.valueUri ??
+      extensions.find(
+        (ext: any) =>
+          ext?.url ===
+          'https://yosemitecrew.com/fhir/StructureDefinition/stripe-checkout-url',
+      )?.valueString ??
+      raw.stripeCheckoutUrl ??
+      null,
     paymentIntent,
     downloadUrl: receiptUrl,
     refundId,
@@ -489,6 +713,9 @@ const mapInvoiceFromApi = (
     refundStatus: statusFromExt ?? raw.status,
     refundReason,
     refundReceiptUrl: receiptUrl,
+    paymentCollectionMethod,
+    metadata,
+    paidAt,
   };
 
   return {invoice, paymentIntent};
@@ -508,7 +735,9 @@ const mapBusinessFromApi = (
       org?.organisationType ??
       org?.typeCode,
   );
-  const addressObj = Array.isArray(org?.address) ? org.address.at(0) : org?.address;
+  const addressObj = Array.isArray(org?.address)
+    ? org.address.at(0)
+    : org?.address;
   const distanceMi = distanceMeters ? distanceMeters / 1609.344 : undefined;
   const photo =
     org?.imageURL ??
@@ -517,11 +746,13 @@ const mapBusinessFromApi = (
     org?.photo ??
     org?.extension?.find?.(
       (ext: any) =>
-        ext?.url === 'https://example.org/fhir/StructureDefinition/organisation-image',
+        ext?.url ===
+        'https://example.org/fhir/StructureDefinition/organisation-image',
     )?.valueUrl ??
     org?.extension?.find?.(
       (ext: any) =>
-        ext?.url === 'https://example.org/fhir/StructureDefinition/organisation-image',
+        ext?.url ===
+        'https://example.org/fhir/StructureDefinition/organisation-image',
     )?.valueUrl;
 
   const specialities =
@@ -539,7 +770,8 @@ const mapBusinessFromApi = (
     if (Array.isArray(spec?.services)) {
       spec.services.forEach((svc: any) => {
         services.push({
-          id: svc?._id ?? svc?.id ?? `${id}-${specId}-${svc?.name ?? 'service'}`,
+          id:
+            svc?._id ?? svc?.id ?? `${id}-${specId}-${svc?.name ?? 'service'}`,
           businessId: id,
           specialty: specName ?? '',
           specialityId: specId ?? null,
@@ -569,9 +801,14 @@ const mapBusinessFromApi = (
     openHours: org?.openHours,
     photo,
     specialties: specialities
-      .map((spec: any) => spec?.name ?? spec?.text ?? spec?.coding?.[0]?.display)
+      .map(
+        (spec: any) => spec?.name ?? spec?.text ?? spec?.coding?.[0]?.display,
+      )
       .filter(Boolean),
-    website: org?.telecom?.find?.((t: any) => t?.system === 'url')?.value ?? org?.website ?? undefined,
+    website:
+      org?.telecom?.find?.((t: any) => t?.system === 'url')?.value ??
+      org?.website ??
+      undefined,
     description: org?.description ?? undefined,
     phone:
       org?.phoneNo ??
@@ -580,7 +817,8 @@ const mapBusinessFromApi = (
     email: org?.email,
     lat: addressObj?.latitude ?? addressObj?.location?.coordinates?.[1],
     lng: addressObj?.longitude ?? addressObj?.location?.coordinates?.[0],
-    googlePlacesId: org?.googlePlacesId ?? org?.placeId ?? org?.googlePlaceId ?? null,
+    googlePlacesId:
+      org?.googlePlacesId ?? org?.placeId ?? org?.googlePlaceId ?? null,
   };
 
   return {business, services};
@@ -594,8 +832,12 @@ export const appointmentApi = {
     companionId: string;
     accessToken: string;
   }): Promise<Appointment[]> {
-    const url = buildUrl(`/fhir/v1/appointment/mobile/companion/${encodeURIComponent(companionId)}`);
-    const {data} = await apiClient.get(url, {headers: withAuthHeaders(accessToken)});
+    const url = buildUrl(
+      `/fhir/v1/appointment/mobile/companion/${encodeURIComponent(companionId)}`,
+    );
+    const {data} = await apiClient.get(url, {
+      headers: withAuthHeaders(accessToken),
+    });
     const collection = Array.isArray(data?.data) ? data.data : [];
     return collection.map(mapAppointmentResource);
   },
@@ -607,8 +849,12 @@ export const appointmentApi = {
     appointmentId: string;
     accessToken: string;
   }): Promise<Appointment> {
-    const url = buildUrl(`/fhir/v1/appointment/mobile/${encodeURIComponent(appointmentId)}`);
-    const {data} = await apiClient.get(url, {headers: withAuthHeaders(accessToken)});
+    const url = buildUrl(
+      `/fhir/v1/appointment/mobile/${encodeURIComponent(appointmentId)}`,
+    );
+    const {data} = await apiClient.get(url, {
+      headers: withAuthHeaders(accessToken),
+    });
     const resource = data?.data ?? data;
     return mapAppointmentResource(resource);
   },
@@ -644,7 +890,9 @@ export const appointmentApi = {
     const url = buildUrl(
       `/fhir/v1/organization/getNearby?lat=${lat}&lng=${lng}&page=${page}`,
     );
-    const config = accessToken ? {headers: withAuthHeaders(accessToken)} : undefined;
+    const config = accessToken
+      ? {headers: withAuthHeaders(accessToken)}
+      : undefined;
     const {data} = await apiClient.get(url, config);
     const items = Array.isArray(data?.data) ? data.data : [];
     const mapped: Array<{business: VetBusiness; services: VetService[]}> =
@@ -672,7 +920,9 @@ export const appointmentApi = {
         serviceName,
       )}&lat=${lat}&lng=${lng}`,
     );
-    const config = accessToken ? {headers: withAuthHeaders(accessToken)} : undefined;
+    const config = accessToken
+      ? {headers: withAuthHeaders(accessToken)}
+      : undefined;
     const {data} = await apiClient.get(url, config);
     const items = extractArrayFromResponse(data);
     const mapped: Array<{business: VetBusiness; services: VetService[]}> =
@@ -695,8 +945,14 @@ export const appointmentApi = {
     accessToken?: string;
   }): Promise<{date: string; windows: SlotWindow[]}> {
     const url = buildUrl('/fhir/v1/service/bookable-slots');
-    const config = accessToken ? {headers: withAuthHeaders(accessToken)} : undefined;
-    const {data} = await apiClient.post(url, {serviceId, organisationId, date}, config);
+    const config = accessToken
+      ? {headers: withAuthHeaders(accessToken)}
+      : undefined;
+    const {data} = await apiClient.post(
+      url,
+      {serviceId, organisationId, date},
+      config,
+    );
     const payload = data?.data ?? data ?? {};
     return {
       date: payload?.date ?? date,
@@ -710,8 +966,14 @@ export const appointmentApi = {
   }: {
     payload: any;
     accessToken: string;
-  }): Promise<{appointment: Appointment; invoice: Invoice | null; paymentIntent: PaymentIntentInfo | null}> {
-    const url = buildUrl('/fhir/v1/appointment/mobile/', {usePms: true});
+  }): Promise<{
+    appointment: Appointment;
+    invoice: Invoice | null;
+    paymentIntent: PaymentIntentInfo | null;
+  }> {
+    const url = buildUrl('/fhir/v1/appointment/mobile/?createPayment=true', {
+      usePms: true,
+    });
     const {data} = await apiClient.post(url, payload, {
       headers: withAuthHeaders(accessToken),
     });
@@ -722,7 +984,8 @@ export const appointmentApi = {
       paymentIntent ??
       (resp?.paymentIntent
         ? {
-            paymentIntentId: resp.paymentIntent.paymentIntentId ?? resp.paymentIntent.id,
+            paymentIntentId:
+              resp.paymentIntent.paymentIntentId ?? resp.paymentIntent.id,
             clientSecret: resp.paymentIntent.clientSecret,
             amount: resp.paymentIntent.amount,
             currency: resp.paymentIntent.currency ?? invoice?.currency ?? 'USD',
@@ -772,7 +1035,10 @@ export const appointmentApi = {
   }: {
     appointmentId: string;
     accessToken: string;
-  }): Promise<{invoice: Invoice | null; paymentIntent?: PaymentIntentInfo | null}> {
+  }): Promise<{
+    invoice: Invoice | null;
+    paymentIntent?: PaymentIntentInfo | null;
+  }> {
     const url = buildUrl(
       `/fhir/v1/invoice/mobile/appointment/${encodeURIComponent(appointmentId)}`,
       {usePms: true},
@@ -792,18 +1058,20 @@ export const appointmentApi = {
     const stripeReceipt =
       raw?.extension?.find?.(
         (ext: any) =>
-          ext?.url === 'https://yosemitecrew.com/fhir/StructureDefinition/stripe-receipt-url',
+          ext?.url ===
+          'https://yosemitecrew.com/fhir/StructureDefinition/stripe-receipt-url',
       )?.valueUri ?? null;
     const appointmentExt =
       raw?.extension?.find?.(
         (ext: any) =>
-          ext?.url === 'https://yosemitecrew.com/fhir/StructureDefinition/appointment-id',
+          ext?.url ===
+          'https://yosemitecrew.com/fhir/StructureDefinition/appointment-id',
       )?.valueString ?? appointmentId;
-    const statusExt =
-      raw?.extension?.find?.(
-        (ext: any) =>
-          ext?.url === 'https://yosemitecrew.com/fhir/StructureDefinition/pms-invoice-status',
-      )?.valueString;
+    const statusExt = raw?.extension?.find?.(
+      (ext: any) =>
+        ext?.url ===
+        'https://yosemitecrew.com/fhir/StructureDefinition/pms-invoice-status',
+    )?.valueString;
 
     return {
       invoice: base.invoice
@@ -827,11 +1095,16 @@ export const appointmentApi = {
     appointmentId: string;
     accessToken: string;
   }): Promise<PaymentIntentInfo> {
-    const url = buildUrl(`/v1/stripe/payment-intent/${encodeURIComponent(appointmentId)}`);
-    const {data} = await apiClient.post(url, undefined, {headers: withAuthHeaders(accessToken)});
+    const url = buildUrl(
+      `/v1/stripe/payment-intent/${encodeURIComponent(appointmentId)}`,
+    );
+    const {data} = await apiClient.post(url, undefined, {
+      headers: withAuthHeaders(accessToken),
+    });
     const payload = data?.data ?? data ?? {};
     return {
-      paymentIntentId: payload.paymentIntentId ?? payload.id ?? `pi-${appointmentId}`,
+      paymentIntentId:
+        payload.paymentIntentId ?? payload.id ?? `pi-${appointmentId}`,
       clientSecret: payload.clientSecret,
       amount: payload.amount,
       currency: payload.currency ?? 'USD',
@@ -868,7 +1141,9 @@ export const appointmentApi = {
     review: string;
     accessToken: string;
   }) {
-    const url = buildUrl(`/v1/organisation-rating/${encodeURIComponent(organisationId)}`);
+    const url = buildUrl(
+      `/v1/organisation-rating/${encodeURIComponent(organisationId)}`,
+    );
     const {data} = await apiClient.post(
       url,
       {rating, review},
@@ -883,9 +1158,17 @@ export const appointmentApi = {
   }: {
     organisationId: string;
     accessToken: string;
-  }): Promise<{isRated: boolean; rating?: number | null; review?: string | null}> {
-    const url = buildUrl(`/v1/organisation-rating/${encodeURIComponent(organisationId)}/is-rated`);
-    const {data} = await apiClient.get(url, {headers: withAuthHeaders(accessToken)});
+  }): Promise<{
+    isRated: boolean;
+    rating?: number | null;
+    review?: string | null;
+  }> {
+    const url = buildUrl(
+      `/v1/organisation-rating/${encodeURIComponent(organisationId)}/is-rated`,
+    );
+    const {data} = await apiClient.get(url, {
+      headers: withAuthHeaders(accessToken),
+    });
     const payload = data?.data ?? data ?? {};
     const base = payload?.hasRated ?? payload ?? {};
     return {

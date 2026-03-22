@@ -1,6 +1,11 @@
 import React from 'react';
 import {mockTheme} from '../setup/mockTheme';
-import {render, fireEvent, screen, waitFor} from '@testing-library/react-native';
+import {
+  render,
+  fireEvent,
+  screen,
+  waitFor,
+} from '@testing-library/react-native';
 import {useSelector, useDispatch} from 'react-redux';
 import {useRoute} from '@react-navigation/native';
 
@@ -214,12 +219,12 @@ describe('PaymentInvoiceScreen', () => {
     jest.clearAllMocks();
     mockDispatch.mockReturnValue({
       unwrap: jest.fn().mockResolvedValue({}),
-      then: jest.fn((resolve) => {
+      then: jest.fn(resolve => {
         resolve({});
-        return {catch: jest.fn(() => ({finally: jest.fn((fn) => fn())}))};
+        return {catch: jest.fn(() => ({finally: jest.fn(fn => fn())}))};
       }),
-      catch: jest.fn(() => ({finally: jest.fn((fn) => fn())})),
-      finally: jest.fn((fn) => fn()),
+      catch: jest.fn(() => ({finally: jest.fn(fn => fn())})),
+      finally: jest.fn(fn => fn()),
     });
     // Fix TS Error: Cast generic mock to jest.Mock
     (useDispatch as unknown as jest.Mock).mockReturnValue(mockDispatch);
@@ -237,6 +242,27 @@ describe('PaymentInvoiceScreen', () => {
     render(<PaymentInvoiceScreen />);
     expect(screen.getByText('Invoice details')).toBeTruthy();
     expect(screen.getByText('INV-001')).toBeTruthy();
+  });
+
+  it('shows "Paid - Cash" status for PMS cash-collected invoices', () => {
+    const state = createSafeState({
+      appointments: {
+        invoices: {
+          'apt-1': {
+            ...mockInvoiceData,
+            status: 'PAID',
+            paymentCollectionMethod: 'PAYMENT_AT_CLINIC',
+            metadata: {paymentMethod: 'cash'},
+            paidAt: '2026-03-19T10:00:00.000Z',
+          },
+        },
+      },
+    });
+    (useSelector as unknown as jest.Mock).mockImplementation(fn => fn(state));
+    render(<PaymentInvoiceScreen />);
+
+    expect(screen.getByText('Payment status')).toBeTruthy();
+    expect(screen.getByText('Paid - Cash')).toBeTruthy();
   });
 
   // --- Branch Coverage: Date Formatting ---
@@ -467,7 +493,9 @@ describe('PaymentInvoiceScreen', () => {
   it('does NOT render discount or tax rows if they are 0', () => {
     const state = createSafeState({
       appointments: {
-        invoices: {'apt-1': {...mockInvoiceData, discountPercent: 0, taxPercent: 0}},
+        invoices: {
+          'apt-1': {...mockInvoiceData, discountPercent: 0, taxPercent: 0},
+        },
       },
     });
     (useSelector as unknown as jest.Mock).mockImplementation(fn => fn(state));
@@ -480,7 +508,9 @@ describe('PaymentInvoiceScreen', () => {
   it('renders discount and tax rows if they exist (> 0)', () => {
     const state = createSafeState({
       appointments: {
-        invoices: {'apt-1': {...mockInvoiceData, discountPercent: 25, taxPercent: 15}},
+        invoices: {
+          'apt-1': {...mockInvoiceData, discountPercent: 25, taxPercent: 15},
+        },
       },
     });
     (useSelector as unknown as jest.Mock).mockImplementation(fn => fn(state));

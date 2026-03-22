@@ -13,6 +13,9 @@ export const Images = {
   copyIcon: require('./icons/copyIcon.png'),
   offlineImage: require('./icons/offlineImage.png'),
   yosemiteLogo: require('./icons/yosemiteLogo.png'),
+  merckLogo: {
+    uri: 'https://d2il6osz49gpup.cloudfront.net/integrations/merckLogo.png',
+  },
   backIcon: require('./icons/back.png'),
   emailIcon: require('./icons/emailIcon.png'),
   facebookIcon: require('./icons/facebookIcon.png'),
@@ -40,8 +43,8 @@ export const Images = {
   editIconSlide: require('./icons/editIconSlide.png'),
   viewIconSlide: require('./icons/viewIconSlide.png'),
   closeIcon: require('./icons/crossIcon.png'),
-downloadInvoice: require('./icons/downloadInvoice.png'),
- phone: require('./icons/phone.png'),
+  downloadInvoice: require('./icons/downloadInvoice.png'),
+  phone: require('./icons/phone.png'),
   // Account
   logoutIcon: require('./account/logoutIcon.png'),
   blackEdit: require('./account/blackEdit.png'),
@@ -135,20 +138,18 @@ downloadInvoice: require('./icons/downloadInvoice.png'),
     },
   },
 
-
   // Appointments
   emptyAppointments: require('./appointment/emptyAppointment.png'),
   locationIcon: require('./icons/locationIcon.png'),
-  starIcon: require('./icons/starIcon.png'), 
-  distanceIcon: require('./icons/distanceIcon.png'), 
-  arrowDown: require('./icons/dropdown.png'), 
-  websiteIcon: require('./icons/websiteIcon.png'), 
-    specialityIcon: require('./appointment/specialityIcon.png'), 
+  starIcon: require('./icons/starIcon.png'),
+  distanceIcon: require('./icons/distanceIcon.png'),
+  arrowDown: require('./icons/dropdown.png'),
+  websiteIcon: require('./icons/websiteIcon.png'),
+  specialityIcon: require('./appointment/specialityIcon.png'),
 
   successPayment: require('./appointment/successPayment.png'),
 
-
-//Observational Tools
+  //Observational Tools
   otFelineHero: require('./addCompanion/cat.png'),
   otCanineHero: require('./addCompanion/dog.png'),
   otEquineHero: require('./addCompanion/equine.png'),
@@ -187,30 +188,27 @@ downloadInvoice: require('./icons/downloadInvoice.png'),
   equineNostrilModerate: require('./observationalTools/equine-nostril-moderate.png'),
   equineNostrilObvious: require('./observationalTools/equine-nostril-obvious.png'),
 
-
   //co-parent
   coparentEmpty: require('./coParent/emptyParent.png'),
-   heroImage: require('./coParent/heroImage.png'),
-   bgCoParent: require('./coParent/bgCoParent.png'),
-  
+  heroImage: require('./coParent/heroImage.png'),
+  bgCoParent: require('./coParent/bgCoParent.png'),
 
-   //emergency
-adverse1: require('./emergency/adverse1.png'),
-adverse2: require('./emergency/adverse2.png'),
-adverse3: require('./emergency/adverse3.png'),
-catEmergency: require('./emergency/catEmergency.png'),
-medicalCap: require('./emergency/medicalCap.png'),
-pill: require('./emergency/pill.png'),
+  //emergency
+  adverse1: require('./emergency/adverse1.png'),
+  adverse2: require('./emergency/adverse2.png'),
+  adverse3: require('./emergency/adverse3.png'),
+  catEmergency: require('./emergency/catEmergency.png'),
+  medicalCap: require('./emergency/medicalCap.png'),
+  pill: require('./emergency/pill.png'),
 
+  //notification
+  bellIcon: require('./icons/notificationIcon.png'),
+  chatIcon: require('./icons/chatIcon.png'),
+  alertIcon: require('./icons/alertIcon.png'),
+  calendarIconNotification: require('./icons/calendar.png'),
+  syringeIcon: require('./icons/syringeIcon.png'),
 
-//notification
-bellIcon: require('./icons/notificationIcon.png'),
-chatIcon: require('./icons/chatIcon.png'),
-alertIcon: require('./icons/alertIcon.png'),
-calendarIconNotification: require('./icons/calendar.png'),
-syringeIcon: require('./icons/syringeIcon.png'),
-
-emptyNotifications: require('./notification/emptyNotifications.png'),
+  emptyNotifications: require('./notification/emptyNotifications.png'),
   // Support & Help
   contactHero: require('./support/contactHero.png'),
 

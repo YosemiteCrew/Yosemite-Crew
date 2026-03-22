@@ -52,12 +52,12 @@ const renderFeatureName = (name: string) => {
     );
   }
 
-  if (name === 'RAD Analyzer integration') {
+  if (name === 'RadAnalyzer integration') {
     return (
       <div className="pricingFeatureWithBrand">
         <Image
           src={MEDIA_SOURCES.futureAssets.radAnalyzerLogoUrl}
-          alt="RAD Analyzer"
+          alt="RadAnalyzer"
           width={96}
           height={36}
           className="pricingFeatureBrandLogo"

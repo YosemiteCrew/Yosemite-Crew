@@ -42,9 +42,15 @@ export const deriveFormStatus = (
     return 'not_started';
   }
 
-  const signingStatus = submission.signing?.status;
+  const signing = submission.signing;
+  const signingStatus = signing?.status;
+  const hasSignedArtifact = Boolean(signing?.signedAt || signing?.pdf?.url);
   if (signingRequired) {
-    if (signingStatus === 'SIGNED') {
+    if (
+      signingStatus === 'SIGNED' ||
+      String(signingStatus ?? '').toUpperCase() === 'COMPLETED' ||
+      hasSignedArtifact
+    ) {
       return 'signed';
     }
     if (signingStatus === 'IN_PROGRESS' || signingStatus === 'NOT_STARTED') {
@@ -96,14 +102,19 @@ const sanitizeAnswerValue = (value: any): any => {
   return value;
 };
 
-const sanitizeAnswers = (answers: Record<string, any> | undefined | null): Record<string, any> => {
+const sanitizeAnswers = (
+  answers: Record<string, any> | undefined | null,
+): Record<string, any> => {
   if (!answers || typeof answers !== 'object') {
     return {};
   }
-  return Object.entries(answers).reduce<Record<string, any>>((acc, [key, val]) => {
-    acc[key] = sanitizeAnswerValue(val);
-    return acc;
-  }, {});
+  return Object.entries(answers).reduce<Record<string, any>>(
+    (acc, [key, val]) => {
+      acc[key] = sanitizeAnswerValue(val);
+      return acc;
+    },
+    {},
+  );
 };
 
 export const normalizeSubmissionFromApi = (
@@ -129,14 +140,18 @@ export const normalizeSubmissionFromApi = (
     parentId: raw?.parentId ?? fallback?.parentId,
     submittedBy: raw?.submittedBy ?? fallback?.submittedBy,
     answers: sanitizeAnswers(raw?.answers ?? fallback?.answers ?? {}),
-    submittedAt: coerceDate(raw?.submittedAt ?? fallback?.submittedAt).toISOString() as any,
+    submittedAt: coerceDate(
+      raw?.submittedAt ?? fallback?.submittedAt,
+    ).toISOString() as any,
     signing: raw?.signing ?? fallback?.signing,
   };
 
   if (submission.signing?.signedAt) {
     submission.signing = {
       ...submission.signing,
-      signedAt: coerceDate(submission.signing.signedAt as any).toISOString() as any,
+      signedAt: coerceDate(
+        submission.signing.signedAt as any,
+      ).toISOString() as any,
     };
   }
 
@@ -146,7 +161,8 @@ export const normalizeSubmissionFromApi = (
 export const resolveFormVersion = (
   form: Form,
   submission?: FormSubmission | null,
-): number | undefined => submission?.formVersion ?? (form as any)?.formVersion ?? 1;
+): number | undefined =>
+  submission?.formVersion ?? (form as any)?.formVersion ?? 1;
 
 export const normalizeFormForState = (form: Form): Form => {
   const createdAtDate = safeDate(form.createdAt);

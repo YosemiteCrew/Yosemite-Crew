@@ -8,6 +8,7 @@ jest.mock("../../src/services/availability.service", () => ({
   AvailabilityService: {
     setAllBaseAvailability: jest.fn(),
     getBaseAvailability: jest.fn(),
+    getOrganisationBaseAvailability: jest.fn(),
     deleteBaseAvailability: jest.fn(),
     addWeeklyAvailabilityOverride: jest.fn(),
     getWeeklyAvailabilityOverride: jest.fn(),
@@ -85,6 +86,46 @@ describe("AvailabilityController", () => {
   });
 
   describe("Base Availability", () => {
+    describe("getOrganisationBaseAvailability", () => {
+      it("should return 400 if orgId is missing", async () => {
+        await AvailabilityController.getOrganisationBaseAvailability(req, res);
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith({ message: "Missing orgId" });
+      });
+
+      it("should return 200 with data on success", async () => {
+        req.params.orgId = "org1";
+        (
+          AvailabilityService.getOrganisationBaseAvailability as jest.Mock
+        ).mockResolvedValue(["row1"]);
+
+        await AvailabilityController.getOrganisationBaseAvailability(req, res);
+
+        expect(
+          AvailabilityService.getOrganisationBaseAvailability,
+        ).toHaveBeenCalledWith("org1");
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith({ data: ["row1"] });
+      });
+
+      it("should handle errors", async () => {
+        req.params.orgId = "org1";
+        const err = new Error("DB Error");
+        (
+          AvailabilityService.getOrganisationBaseAvailability as jest.Mock
+        ).mockRejectedValue(err);
+
+        await AvailabilityController.getOrganisationBaseAvailability(req, res);
+
+        expect(logger.error).toHaveBeenCalledWith(
+          "getOrganisationBaseAvailability error",
+          err,
+        );
+        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.json).toHaveBeenCalledWith({ message: "DB Error" });
+      });
+    });
+
     describe("setAllBaseAvailability", () => {
       it("should return 400 if orgId is missing", async () => {
         req.body = { availabilities: [] };

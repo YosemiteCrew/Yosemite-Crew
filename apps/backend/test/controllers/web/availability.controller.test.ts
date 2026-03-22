@@ -46,6 +46,55 @@ describe("AvailabilityController", () => {
      BASE AVAILABILITY TESTS
   ===============================*/
 
+  describe("getOrganisationBaseAvailability", () => {
+    it("should 400 if orgId missing", async () => {
+      req.params = {};
+      await AvailabilityController.getOrganisationBaseAvailability(
+        req as any,
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({ message: "Missing orgId" });
+    });
+
+    it("should 200 on success", async () => {
+      req.params = { orgId: "org1" };
+      mockedAvailabilityService.getOrganisationBaseAvailability.mockResolvedValue(
+        [] as any,
+      );
+
+      await AvailabilityController.getOrganisationBaseAvailability(
+        req as any,
+        res as Response,
+      );
+
+      expect(
+        mockedAvailabilityService.getOrganisationBaseAvailability,
+      ).toHaveBeenCalledWith("org1");
+      expect(statusMock).toHaveBeenCalledWith(200);
+      expect(jsonMock).toHaveBeenCalledWith({ data: [] });
+    });
+
+    it("should 500 on error", async () => {
+      req.params = { orgId: "org1" };
+      mockGenericError("getOrganisationBaseAvailability");
+
+      await AvailabilityController.getOrganisationBaseAvailability(
+        req as any,
+        res as Response,
+      );
+
+      expect(mockedLogger.error).toHaveBeenCalledWith(
+        "getOrganisationBaseAvailability error",
+        expect.any(Error),
+      );
+      expect(statusMock).toHaveBeenCalledWith(500);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Boom",
+      });
+    });
+  });
+
   describe("setAllBaseAvailability", () => {
     it("should 400 if params missing", async () => {
       req.params = {}; // missing orgId

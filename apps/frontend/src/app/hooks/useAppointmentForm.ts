@@ -107,6 +107,15 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
   );
   const getLeadOptionsRef = useRef(getLeadOptionsForSlot);
   getLeadOptionsRef.current = getLeadOptionsForSlot;
+  const getLeadProfileUrl = useCallback(
+    (leadId: string) => {
+      const matchedTeam = teams.find((team) => (team.practionerId || team._id) === leadId);
+      return typeof matchedTeam?.image === 'string' ? matchedTeam.image : undefined;
+    },
+    [teams]
+  );
+  const getLeadProfileUrlRef = useRef(getLeadProfileUrl);
+  getLeadProfileUrlRef.current = getLeadProfileUrl;
 
   const filterOutPastSlotsForSelectedDate = useCallback((slots: Slot[], day: Date) => {
     if (!isOnPreferredTimeZoneCalendarDay(new Date(), day)) return slots;
@@ -198,6 +207,7 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
           lead: {
             id: onlyLead.value,
             name: onlyLead.label,
+            profileUrl: getLeadProfileUrlRef.current(onlyLead.value),
           },
         }));
       }
@@ -248,7 +258,11 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
       if (selectedLead) {
         setFormData((prev) => ({
           ...prev,
-          lead: { id: selectedLead.value, name: selectedLead.label },
+          lead: {
+            id: selectedLead.value,
+            name: selectedLead.label,
+            profileUrl: getLeadProfileUrl(selectedLead.value),
+          },
         }));
         setFormDataErrors((prev) => ({ ...prev, slot: undefined, leadId: undefined }));
       } else {
@@ -263,6 +277,7 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
     setPendingPrefill(null);
   }, [
     formData.appointmentType?.id,
+    getLeadProfileUrl,
     getLeadOptionsForSlot,
     pendingPrefill,
     selectedDate,
@@ -428,16 +443,20 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
     setFormDataErrors((prev) => ({ ...prev, serviceId: undefined, slot: undefined }));
   }, []);
 
-  const handleLeadSelect = useCallback((option: { label: string; value: string }) => {
-    setFormData((prev) => ({
-      ...prev,
-      lead: {
-        name: option.label,
-        id: option.value,
-      },
-    }));
-    setFormDataErrors((prev) => ({ ...prev, leadId: undefined }));
-  }, []);
+  const handleLeadSelect = useCallback(
+    (option: { label: string; value: string }) => {
+      setFormData((prev) => ({
+        ...prev,
+        lead: {
+          name: option.label,
+          id: option.value,
+          profileUrl: getLeadProfileUrl(option.value),
+        },
+      }));
+      setFormDataErrors((prev) => ({ ...prev, leadId: undefined }));
+    },
+    [getLeadProfileUrl]
+  );
 
   const handleSupportStaffChange = useCallback(
     (ids: string[]) => {

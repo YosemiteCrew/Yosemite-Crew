@@ -68,6 +68,10 @@ const CODE_SYSTEM_NAMES = new Set([
   "SNOMED-CT",
 ]);
 const ALLOWED_DOMAINS = ["merckvetmanual.com", "msdvetmanual.com"];
+const MERCK_UTM_PARAMS = {
+  utm_source: "yosemitecrew",
+  utm_medium: "Partner",
+} as const;
 const US_CANADA_TIMEZONES = new Set([
   "America/Anchorage",
   "America/Chicago",
@@ -344,6 +348,11 @@ const applyMediaMode = (url: string, media: MerckMedia): string => {
     } else {
       parsed.searchParams.set("media", media);
     }
+    Object.entries(MERCK_UTM_PARAMS).forEach(([key, value]) => {
+      if (!parsed.searchParams.has(key)) {
+        parsed.searchParams.set(key, value);
+      }
+    });
     return parsed.toString();
   } catch {
     return url;
