@@ -99,6 +99,21 @@ describe('Form Utils', () => {
         expect(deriveFormStatus(submission, true)).toBe('signing');
       });
 
+      it('returns "signed" if status is COMPLETED', () => {
+        const submission: any = {signing: {status: 'COMPLETED'}};
+        expect(deriveFormStatus(submission, true)).toBe('signed');
+      });
+
+      it('returns "signed" when signed PDF url is available', () => {
+        const submission: any = {
+          signing: {
+            status: 'IN_PROGRESS',
+            pdf: {url: 'https://example.com/signed.pdf'},
+          },
+        };
+        expect(deriveFormStatus(submission, true)).toBe('signed');
+      });
+
       it('returns "submitted" for any other status (e.g. pending server processing)', () => {
         const submission: any = {signing: {status: 'UNKNOWN'}};
         expect(deriveFormStatus(submission, true)).toBe('submitted');
@@ -160,7 +175,11 @@ describe('Form Utils', () => {
           appointmentId: 'appt-1',
         };
 
-        const result = normalizeSubmissionFromApi(raw, undefined, fallback as any);
+        const result = normalizeSubmissionFromApi(
+          raw,
+          undefined,
+          fallback as any,
+        );
 
         expect(result._id).toBe('123');
         expect(result.formId).toBe('form-1');
@@ -266,7 +285,11 @@ describe('Form Utils', () => {
           const fallback = {
             signing: {status: 'IN_PROGRESS'},
           };
-          const result = normalizeSubmissionFromApi({}, undefined, fallback as any);
+          const result = normalizeSubmissionFromApi(
+            {},
+            undefined,
+            fallback as any,
+          );
           expect(result.signing?.status).toBe('IN_PROGRESS');
         });
       });

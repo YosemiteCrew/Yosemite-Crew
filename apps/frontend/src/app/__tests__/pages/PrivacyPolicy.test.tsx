@@ -1,9 +1,9 @@
-import React from "react";
-import { render, screen } from "@testing-library/react";
-import PrivacyPolicy from "@/app/features/legal/pages/PrivacyPolicy";
+import React from 'react';
+import { render, screen } from '@testing-library/react';
+import PrivacyPolicy from '@/app/features/legal/pages/PrivacyPolicy';
 
 jest.mock(
-  "@/app/ui/widgets/Footer/Footer",
+  '@/app/ui/widgets/Footer/Footer',
   () =>
     function MockFooter() {
       return <footer>Footer Mock</footer>;
@@ -11,34 +11,36 @@ jest.mock(
 );
 
 jest.mock(
-  "@/app/ui/widgets/Faq/Faq",
+  '@/app/ui/widgets/Faq/Faq',
   () =>
     function MockFaq() {
       return <div>FAQ Mock</div>;
     }
 );
 
-jest.mock("@/app/features/marketing/pages/HomePage/HomePage", () => ({
-  FillBtn: ({ text, href }: { text: string; href?: string }) => (
-    <a href={href || "#"}>{text}</a>
-  ),
+jest.mock('@/app/features/marketing/pages/HomePage/HomePage', () => ({
+  FillBtn: ({ text, href }: { text: string; href?: string }) => <a href={href || '#'}>{text}</a>,
 }));
 
-jest.mock("@iconify/react/dist/iconify.js", () => ({
+jest.mock('@iconify/react/dist/iconify.js', () => ({
   Icon: (props: any) => <span {...props} />,
 }));
 
-describe("<PrivacyPolicy /> – legal content sections", () => {
+describe('<PrivacyPolicy /> – legal content sections', () => {
   beforeEach(() => render(<PrivacyPolicy />));
 
-  it("renders main privacy heading", () => {
-    expect(
-      screen.getByRole("heading", { name: /Privacy Policy/i, level: 2 })
-    ).toBeInTheDocument();
+  it('renders main privacy heading', () => {
+    expect(screen.getByRole('heading', { name: /Privacy Policy/i, level: 2 })).toBeInTheDocument();
   });
 
-  it("shows controller identity", () => {
+  it('shows controller identity', () => {
     expect(screen.getByText(/DuneXploration UG/i)).toBeInTheDocument();
     expect(screen.getByText(/haftungsbeschränkt/i)).toBeInTheDocument();
+  });
+
+  it('shows trademark notice and Supabase recipient details', () => {
+    expect(screen.getByText(/third-party companies/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Supabase, Inc\./i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/privacy@supabase\.com/i).length).toBeGreaterThan(0);
   });
 });

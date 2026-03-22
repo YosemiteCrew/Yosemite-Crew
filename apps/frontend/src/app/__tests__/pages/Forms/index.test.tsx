@@ -5,6 +5,7 @@ import { useFormsStore } from '@/app/stores/formsStore';
 import { loadForms } from '@/app/features/forms/services/formService';
 import {
   useLoadSpecialitiesForPrimaryOrg,
+  useSpecialitiesForPrimaryOrg,
   useServicesForPrimaryOrgSpecialities,
 } from '@/app/hooks/useSpecialities';
 
@@ -96,10 +97,11 @@ jest.mock('@/app/ui/tables/FormsTable', () => ({
 // We expose their callbacks via buttons to test parent state changes
 jest.mock('@/app/features/forms/pages/Forms/Sections/AddForm', () => ({
   __esModule: true,
-  default: ({ showModal, onClose, onDraftChange, initialForm }: any) =>
+  default: ({ showModal, onClose, onDraftChange, initialForm, serviceOptions }: any) =>
     showModal ? (
       <div data-testid="add-form-modal">
         <span data-testid="edit-mode">{initialForm ? 'Editing' : 'Adding'}</span>
+        <div data-testid="service-options">{JSON.stringify(serviceOptions)}</div>
         <button data-testid="close-add-form" onClick={onClose}>
           Close
         </button>
@@ -132,8 +134,13 @@ const mockForms = {
 const mockFormIds = ['form-1', 'form-2'];
 
 const mockServices = [
-  { id: 'srv-1', name: 'Service A' },
-  { _id: 'srv-2', name: 'Service B' }, // Test _id fallback
+  { id: 'srv-1', name: 'General Consult', specialityId: 'spec-1' },
+  { _id: 'srv-2', name: 'General Consult', specialityId: 'spec-2' }, // Test _id fallback
+  { id: 'srv-3', name: 'Vaccination', specialityId: 'spec-1' },
+];
+const mockSpecialities = [
+  { _id: 'spec-1', name: 'General Practice' },
+  { _id: 'spec-2', name: 'Emergency Care' },
 ];
 
 describe('Forms Page', () => {
@@ -145,6 +152,7 @@ describe('Forms Page', () => {
     // Default Hook Returns
     (useLoadSpecialitiesForPrimaryOrg as jest.Mock).mockReturnValue({});
     (useServicesForPrimaryOrgSpecialities as jest.Mock).mockReturnValue(mockServices);
+    (useSpecialitiesForPrimaryOrg as jest.Mock).mockReturnValue(mockSpecialities);
     (useFormsStore as unknown as jest.Mock).mockReturnValue({
       formsById: mockForms,
       formIds: mockFormIds,
@@ -337,10 +345,16 @@ describe('Forms Page', () => {
     expect(mockSetActiveForm).not.toHaveBeenCalled();
   });
 
-  it('memoizes service options correctly using id or _id', () => {
-    // This tests the logic: s.id || s._id || s.name
-    // We rely on the fact that if this renders without crashing, the memo logic worked.
+  it('formats duplicate service labels as Speciality / Service name', () => {
     render(<ProtectedForms />);
-    // Implicit pass if rendering succeeds using mockServices defined above
+    fireEvent.click(screen.getByTestId('btn-add'));
+
+    const serviceOptions = JSON.parse(screen.getByTestId('service-options').textContent ?? '[]');
+
+    expect(serviceOptions).toEqual([
+      { label: 'General Practice / General Consult', value: 'srv-1' },
+      { label: 'Emergency Care / General Consult', value: 'srv-2' },
+      { label: 'Vaccination', value: 'srv-3' },
+    ]);
   });
 });

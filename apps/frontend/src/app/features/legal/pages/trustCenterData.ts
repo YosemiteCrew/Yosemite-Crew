@@ -158,10 +158,10 @@ export const trustCenterData = {
       logo: MEDIA_SOURCES.subProcessorLogos.aws,
     },
     {
-      name: 'MongoDB',
+      name: 'Supabase, Inc.',
       service: 'Database Hosting',
-      location: 'Ireland (EU)',
-      logo: MEDIA_SOURCES.subProcessorLogos.mongo,
+      location: 'Singapore',
+      logo: MEDIA_SOURCES.subProcessorLogos.supabase,
     },
     {
       name: 'Google Cloud',

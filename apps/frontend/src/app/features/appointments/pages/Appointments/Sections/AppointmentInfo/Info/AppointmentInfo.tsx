@@ -103,6 +103,13 @@ type FormErrors = {
   leadId?: string;
 };
 
+const toIsoTimePart = (value?: Date | string | null): string => {
+  if (!value) return '';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return parsed.toISOString().substring(11, 16);
+};
+
 const validateSlotLeadErrors = (
   selectedSlot: Slot | null,
   slotLeadOptions: { label: string; value: string }[],
@@ -254,6 +261,10 @@ const buildUpdatedAppointment = (ctx: AppointmentSaveContext): Appointment => {
         ? {
             id: leadMember.practionerId || leadMember._id || '',
             name: leadMember.name || leadMember.practionerId || leadMember._id || '',
+            profileUrl:
+              (typeof (leadMember as { image?: unknown }).image === 'string'
+                ? ((leadMember as { image: string }).image ?? '')
+                : '') || activeAppointment.lead?.profileUrl,
           }
         : activeAppointment.lead,
     supportStaff: canRescheduleByStatus ? supportStaff : activeAppointment.supportStaff,
@@ -310,7 +321,7 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
       const vetIdSet = new Set(
         foundSlot.vetIds.map((id) => normalizeId(id)).filter(Boolean) as string[]
       );
-      return teams
+      const options = teams
         .filter((team) => {
           const normalizedTeamIds = [
             normalizeId(team.practionerId),
@@ -325,8 +336,39 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
           label: team.name || team.practionerId || team._id,
           value: team.practionerId || team._id,
         }));
+
+      const currentSlotStart = toIsoTimePart(activeAppointment.startTime);
+      const currentSlotEnd = toIsoTimePart(activeAppointment.endTime);
+      const isCurrentAppointmentSlot =
+        slot.startTime === currentSlotStart && slot.endTime === currentSlotEnd;
+      const activeLeadId = activeAppointment.lead?.id;
+      const hasAssignedLeadInOptions = options.some(
+        (option) => normalizeId(option.value) === normalizeId(activeLeadId)
+      );
+
+      if (
+        isCurrentAppointmentSlot &&
+        activeLeadId &&
+        !hasAssignedLeadInOptions &&
+        activeAppointment.lead?.name
+      ) {
+        options.push({
+          label: activeAppointment.lead.name,
+          value: activeLeadId,
+        });
+      }
+
+      return options;
     },
-    [teams, timeSlots, normalizeId]
+    [
+      teams,
+      timeSlots,
+      normalizeId,
+      activeAppointment.startTime,
+      activeAppointment.endTime,
+      activeAppointment.lead?.id,
+      activeAppointment.lead?.name,
+    ]
   );
 
   const RoomOptions = useMemo(
@@ -438,12 +480,8 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
         );
         if (cancelled) return;
         setTimeSlots(slots);
-        const currentStart = activeAppointment.startTime
-          ? new Date(activeAppointment.startTime).toISOString().substring(11, 16)
-          : '';
-        const currentEnd = activeAppointment.endTime
-          ? new Date(activeAppointment.endTime).toISOString().substring(11, 16)
-          : '';
+        const currentStart = toIsoTimePart(activeAppointment.startTime);
+        const currentEnd = toIsoTimePart(activeAppointment.endTime);
         const matchingSlot =
           slots.find((slot) => slot.startTime === currentStart && slot.endTime === currentEnd) ??
           slots[0] ??

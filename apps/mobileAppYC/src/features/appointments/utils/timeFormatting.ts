@@ -13,10 +13,13 @@ export const normalizeTimeString = (timeStr?: string | null): string => {
 /**
  * Format time in locale format (e.g., "2:30 PM")
  */
-export const formatTimeLocale = (dateStr: string, timeStr?: string | null): string => {
+export const formatTimeLocale = (
+  dateStr: string,
+  timeStr?: string | null,
+): string => {
   if (!timeStr) return '';
   const normalized = normalizeTimeString(timeStr);
-  const asDate = new Date(`${dateStr}T${normalized}Z`);
+  const asDate = new Date(`${dateStr}T${normalized}`);
   if (Number.isNaN(asDate.getTime())) {
     return timeStr;
   }
@@ -47,7 +50,7 @@ export const formatTimeRange = (
  * Format date to locale format (e.g., "Dec 25, 2024")
  */
 export const formatDateLocale = (iso: string): string => {
-  return new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-US', {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -57,9 +60,12 @@ export const formatDateLocale = (iso: string): string => {
 /**
  * Format both date and time together (e.g., "Dec 25, 2024 • 2:30 PM")
  */
-export const formatDateTime = (dateStr: string, timeStr?: string | null): string => {
+export const formatDateTime = (
+  dateStr: string,
+  timeStr?: string | null,
+): string => {
   const normalized = normalizeTimeString(timeStr);
-  const date = new Date(`${dateStr}T${normalized}Z`);
+  const date = new Date(`${dateStr}T${normalized}`);
   if (Number.isNaN(date.getTime())) {
     return timeStr ? `${dateStr} • ${timeStr}` : dateStr;
   }

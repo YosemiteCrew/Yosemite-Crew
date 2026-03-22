@@ -35,11 +35,11 @@ const InvoicePaymentActions = ({
   const normalizedPaymentCollectionMethod = String(paymentCollectionMethod ?? '').toUpperCase();
   const isCashAtClinicSelected =
     showCashConfirmation || normalizedPaymentCollectionMethod === 'PAYMENT_AT_CLINIC';
-  const showOfflineCollect =
-    !stripeReceiptUrl &&
-    normalizedInvoiceStatus !== 'PAID' &&
-    paymentState !== 'PAID' &&
-    paymentState !== 'PAID_CASH';
+  const isInvoiceSettled =
+    normalizedInvoiceStatus === 'PAID' ||
+    normalizedInvoiceStatus === 'REFUNDED' ||
+    normalizedInvoiceStatus === 'CANCELLED';
+  const showOfflineCollect = !stripeReceiptUrl && !isInvoiceSettled && paymentState !== 'PAID_CASH';
   const showPaymentLinkActions = !isCashAtClinicSelected && showOfflineCollect;
 
   const handleGenerate = async () => {

@@ -1,6 +1,11 @@
 import React, {useCallback, useMemo, useState} from 'react';
 import {View, ActivityIndicator, Text, StyleSheet, Linking} from 'react-native';
-import {useNavigation, useRoute, useFocusEffect, useIsFocused} from '@react-navigation/native';
+import {
+  useNavigation,
+  useRoute,
+  useFocusEffect,
+  useIsFocused,
+} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
 import {useDispatch, useSelector} from 'react-redux';
@@ -9,7 +14,10 @@ import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHea
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import type {AppointmentStackParamList} from '@/navigation/types';
 import type {RootState, AppDispatch} from '@/app/store';
-import {fetchAppointmentForms, selectFormsForAppointment} from '@/features/forms';
+import {
+  fetchAppointmentForms,
+  selectFormsForAppointment,
+} from '@/features/forms';
 import {useTheme} from '@/hooks';
 import type {Appointment} from '@/features/appointments/types';
 
@@ -31,7 +39,9 @@ export const FormSigningScreen: React.FC = () => {
   const appointment: Appointment | undefined = useSelector((state: RootState) =>
     state.appointments.items.find(a => a.id === appointmentId),
   );
-  const forms = useSelector((state: RootState) => selectFormsForAppointment(state, appointmentId));
+  const forms = useSelector((state: RootState) =>
+    selectFormsForAppointment(state, appointmentId),
+  );
   const currentEntry = React.useMemo(
     () => forms.find(entry => entry.submission?._id === submissionId),
     [forms, submissionId],
@@ -67,7 +77,10 @@ export const FormSigningScreen: React.FC = () => {
   }, [appointment, appointmentId, dispatch, isFocused]);
 
   React.useEffect(() => {
-    if (currentEntry?.status === 'signed') {
+    if (
+      currentEntry?.status === 'signed' ||
+      currentEntry?.status === 'completed'
+    ) {
       navigation.goBack();
     }
   }, [currentEntry?.status, navigation]);
@@ -112,7 +125,8 @@ export const FormSigningScreen: React.FC = () => {
       return (
         <View style={styles.centered}>
           <Text style={styles.message}>
-            Signing link is not available yet. Please try again from the appointment.
+            Signing link is not available yet. Please try again from the
+            appointment.
           </Text>
         </View>
       );
@@ -123,7 +137,8 @@ export const FormSigningScreen: React.FC = () => {
         <View style={styles.centered}>
           <ActivityIndicator />
           <Text style={styles.message}>
-            We opened the signing link in your browser. Complete signing, then return here to refresh the status.
+            We opened the signing link in your browser. Complete signing, then
+            return here to refresh the status.
           </Text>
         </View>
       );
@@ -131,9 +146,12 @@ export const FormSigningScreen: React.FC = () => {
 
     return (
       <View style={styles.centered}>
-        {refreshing ? <ActivityIndicator style={styles.refreshSpinner} /> : null}
+        {refreshing ? (
+          <ActivityIndicator style={styles.refreshSpinner} />
+        ) : null}
         <Text style={styles.message}>
-          Complete signing in your browser. When you come back, tap Refresh status to update this screen.
+          Complete signing in your browser. When you come back, tap Refresh
+          status to update this screen.
         </Text>
         <View style={styles.buttonGroup}>
           <LiquidGlassButton

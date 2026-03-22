@@ -62,7 +62,7 @@ jest.mock('@/features/tasks', () => ({
   selectHasHydratedCompanion: jest.fn(() => () => true),
   selectNextUpcomingTask: jest.fn(() => () => null),
   selectAllTasks: jest.fn(() => []),
-  markTaskStatus: jest.fn((payload) => ({type: 'tasks/markStatus', payload})),
+  markTaskStatus: jest.fn(payload => ({type: 'tasks/markStatus', payload})),
 }));
 
 jest.mock('@/context/GlobalLoaderContext', () => {
@@ -87,6 +87,7 @@ jest.mock('@/assets/images', () => ({
     healthIcon: {uri: 'health'},
     hygeineIcon: {uri: 'hygiene'},
     dietryIcon: {uri: 'diet'},
+    merckLogo: {uri: 'merck-logo'},
     paw: {uri: 'paw'},
     plusIcon: {uri: 'plus'},
     emergencyIcon: {uri: 'emergency'},
@@ -348,16 +349,25 @@ jest.mock('@/features/linkedBusinesses/hooks/usePlacesBusinessSearch', () => ({
 }));
 
 // Mock BusinessSearchDropdown component
-jest.mock('@/features/linkedBusinesses/components/BusinessSearchDropdown', () => {
-  const {View: RNView} = require('react-native');
-  return {
-    BusinessSearchDropdown: () => <RNView testID="business-search-dropdown" />,
-  };
-});
+jest.mock(
+  '@/features/linkedBusinesses/components/BusinessSearchDropdown',
+  () => {
+    const {View: RNView} = require('react-native');
+    return {
+      BusinessSearchDropdown: () => (
+        <RNView testID="business-search-dropdown" />
+      ),
+    };
+  },
+);
 
 // Mock TaskCard component
 jest.mock('@/features/tasks/components', () => {
-  const {View: RNView, Text: RNText, TouchableOpacity: RNTouchableOpacity} = require('react-native');
+  const {
+    View: RNView,
+    Text: RNText,
+    TouchableOpacity: RNTouchableOpacity,
+  } = require('react-native');
   return {
     TaskCard: (props: any) => (
       <RNView testID="task-card">
@@ -368,7 +378,9 @@ jest.mock('@/features/tasks/components', () => {
         <RNTouchableOpacity onPress={props.onPressEdit} testID="task-edit">
           <RNText>Edit</RNText>
         </RNTouchableOpacity>
-        <RNTouchableOpacity onPress={props.onPressComplete} testID="task-complete">
+        <RNTouchableOpacity
+          onPress={props.onPressComplete}
+          testID="task-complete">
           <RNText>Complete</RNText>
         </RNTouchableOpacity>
       </RNView>
@@ -398,20 +410,28 @@ jest.mock('@/shared/hooks/useLiquidGlassHeaderLayout', () => ({
 }));
 
 // Mock LiquidGlassHeader component
-jest.mock('@/shared/components/common/LiquidGlassHeader/LiquidGlassHeader', () => {
-  const {View: RNView} = require('react-native');
-  return {
-    LiquidGlassHeader: ({children}: any) => <RNView testID="liquid-glass-header">{children}</RNView>,
-  };
-});
+jest.mock(
+  '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeader',
+  () => {
+    const {View: RNView} = require('react-native');
+    return {
+      LiquidGlassHeader: ({children}: any) => (
+        <RNView testID="liquid-glass-header">{children}</RNView>
+      ),
+    };
+  },
+);
 
 // Mock mapSelectionToVetBusiness utility
-jest.mock('@/features/linkedBusinesses/utils/mapSelectionToVetBusiness', () => ({
-  mapSelectionToVetBusiness: jest.fn(() => ({
-    id: 'test-business-id',
-    name: 'Test Business',
-  })),
-}));
+jest.mock(
+  '@/features/linkedBusinesses/utils/mapSelectionToVetBusiness',
+  () => ({
+    mapSelectionToVetBusiness: jest.fn(() => ({
+      id: 'test-business-id',
+      name: 'Test Business',
+    })),
+  }),
+);
 
 // Mock upsertBusiness action
 jest.mock('@/features/appointments/businessesSlice', () => ({
@@ -554,7 +574,9 @@ describe('HomeScreen', () => {
         </Provider>,
       );
       expect(getByText('Add your first companion')).toBeTruthy();
-      expect(getAllByText('No companions yet').length).toBeGreaterThanOrEqual(2); // Appointments + Expenses sections
+      expect(getAllByText('No companions yet').length).toBeGreaterThanOrEqual(
+        2,
+      ); // Appointments + Expenses sections
     });
   });
 
@@ -728,7 +750,9 @@ describe('HomeScreen', () => {
           accessLoading: false,
         },
         appointments: {
-          upcoming: [{id: 'a1', companionId: 'c1', date: '2025-01-01', time: '10:00'}],
+          upcoming: [
+            {id: 'a1', companionId: 'c1', date: '2025-01-01', time: '10:00'},
+          ],
           loading: false,
           hydratedCompanions: {c1: true},
         },
@@ -792,6 +816,44 @@ describe('HomeScreen', () => {
       expect(mockNavigate).toHaveBeenCalledWith('Tasks', {
         screen: 'TasksList',
         params: {category: 'health'},
+      });
+    });
+
+    it('navigates to merck manuals from quick actions when linked hospital is available', () => {
+      const store = createStore({
+        linkedBusinesses: {
+          loading: false,
+          linkedBusinesses: [
+            {
+              id: 'link-1',
+              companionId: 'c1',
+              businessId: 'org-1',
+              businessName: 'Care Vet',
+              category: 'hospital',
+              state: 'active',
+              inviteStatus: 'accepted',
+              createdAt: '2026-01-01T00:00:00.000Z',
+              updatedAt: '2026-01-01T00:00:00.000Z',
+            },
+          ],
+        },
+      });
+      mockGetParent.mockReturnValue({navigate: mockNavigate});
+
+      const {getByText} = renderAndWait(
+        <Provider store={store}>
+          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
+        </Provider>,
+      );
+
+      fireEvent.press(getByText('Merck Manuals'));
+
+      expect(mockNavigate).toHaveBeenCalledWith('Appointments', {
+        screen: 'MerckManuals',
+        params: {
+          organisationId: 'org-1',
+          context: 'home',
+        },
       });
     });
 

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, {useEffect} from 'react';
 import {
   View,
   Text,
@@ -41,9 +41,7 @@ import {
   selectExpensesLoading,
   selectHasHydratedCompanion as selectExpensesHydrated,
 } from '@/features/expenses';
-import {
-  fetchAppointmentsForCompanion,
-} from '@/features/appointments/appointmentsSlice';
+import {fetchAppointmentsForCompanion} from '@/features/appointments/appointmentsSlice';
 import {createSelectUpcomingAppointments} from '@/features/appointments/selectors';
 import {useEmergency} from '@/features/home/context/EmergencyContext';
 import {openMapsToAddress, openMapsToPlaceId} from '@/shared/utils/openMaps';
@@ -52,7 +50,10 @@ import {
   type CoParentPermissions,
   type ParentCompanionAccess,
 } from '@/features/coParent';
-import {initializeMockData, fetchLinkedBusinesses} from '@/features/linkedBusinesses';
+import {
+  initializeMockData,
+  fetchLinkedBusinesses,
+} from '@/features/linkedBusinesses';
 import {formatDateTime} from '@/features/appointments/utils/timeFormatting';
 import {useAutoSelectCompanion} from '@/shared/hooks/useAutoSelectCompanion';
 import {useBusinessPhotoFallback} from '@/features/appointments/hooks/useBusinessPhotoFallback';
@@ -63,8 +64,14 @@ import {useCheckInHandler} from '@/features/appointments/hooks/useCheckInHandler
 import {useAppointmentDataMaps} from '@/features/appointments/hooks/useAppointmentDataMaps';
 import {useFetchPhotoFallbacks} from '@/features/appointments/hooks/useFetchPhotoFallbacks';
 import {baseTileContainer, sharedTileStyles} from '@/shared/styles/tileStyles';
-import {useFetchOrgRatingIfNeeded, type OrgRatingState} from '@/features/appointments/hooks/useOrganisationRating';
-import {usePlacesBusinessSearch, type ResolvedBusinessSelection} from '@/features/linkedBusinesses/hooks/usePlacesBusinessSearch';
+import {
+  useFetchOrgRatingIfNeeded,
+  type OrgRatingState,
+} from '@/features/appointments/hooks/useOrganisationRating';
+import {
+  usePlacesBusinessSearch,
+  type ResolvedBusinessSelection,
+} from '@/features/linkedBusinesses/hooks/usePlacesBusinessSearch';
 import {mapSelectionToVetBusiness} from '@/features/linkedBusinesses/utils/mapSelectionToVetBusiness';
 import {fetchNotificationsForCompanion} from '@/features/notifications/thunks';
 import {
@@ -90,14 +97,23 @@ const EMPTY_ACCESS_MAP: Record<string, ParentCompanionAccess> = {};
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Home'>;
 
+type HomeQuickActionId = TaskCategory | 'merck_manuals';
+
 const QUICK_ACTIONS: Array<{
-  id: TaskCategory;
+  id: HomeQuickActionId;
   label: string;
   icon: ImageSourcePropType;
+  iconIsBrand?: boolean;
 }> = [
   {id: 'health', label: 'Manage health', icon: Images.healthIcon},
   {id: 'hygiene', label: 'Hygiene maintenance', icon: Images.hygeineIcon},
   {id: 'dietary', label: 'Dietary plans', icon: Images.dietryIcon},
+  {
+    id: 'merck_manuals',
+    label: 'Merck Manuals',
+    icon: Images.merckLogo,
+    iconIsBrand: true,
+  },
 ];
 
 export const deriveHomeGreetingName = (rawFirstName?: string | null) => {
@@ -119,7 +135,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
   const companions = useSelector(selectCompanions);
   const selectedCompanionIdRedux = useSelector(selectSelectedCompanionId);
-  const companionLoading = useSelector((state: RootState) => state.companion?.loading);
+  const companionLoading = useSelector(
+    (state: RootState) => state.companion?.loading,
+  );
   const expenseSummarySelector = React.useMemo(
     () => selectExpenseSummaryByCompanion(selectedCompanionIdRedux ?? null),
     [selectedCompanionIdRedux],
@@ -127,27 +145,37 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const expenseSummary = useSelector(expenseSummarySelector);
   const expensesLoading = useSelector(selectExpensesLoading);
   const accessMap = useSelector(
-    (state: RootState) => state.coParent?.accessByCompanionId ?? EMPTY_ACCESS_MAP,
+    (state: RootState) =>
+      state.coParent?.accessByCompanionId ?? EMPTY_ACCESS_MAP,
   );
-  const defaultAccess = useSelector((state: RootState) => state.coParent?.defaultAccess ?? null);
-  const globalRole = useSelector((state: RootState) => state.coParent?.lastFetchedRole);
+  const defaultAccess = useSelector(
+    (state: RootState) => state.coParent?.defaultAccess ?? null,
+  );
+  const globalRole = useSelector(
+    (state: RootState) => state.coParent?.lastFetchedRole,
+  );
   const globalPermissions = useSelector(
     (state: RootState) => state.coParent?.lastFetchedPermissions,
   );
   const currentAccessEntry = selectedCompanionIdRedux
-    ? accessMap[selectedCompanionIdRedux] ?? null
+    ? (accessMap[selectedCompanionIdRedux] ?? null)
     : null;
   const hasCompanions = companions.length > 0;
   const unreadNotifications = useSelector(selectUnreadCount);
   const notificationsLoading = useSelector(selectNotificationsLoading);
   const userCurrencyCode = authUser?.currency ?? 'USD';
   const {businessMap, employeeMap, serviceMap} = useAppointmentDataMaps();
-  const upcomingAppointmentsSelector = React.useMemo(() => createSelectUpcomingAppointments(), []);
+  const upcomingAppointmentsSelector = React.useMemo(
+    () => createSelectUpcomingAppointments(),
+    [],
+  );
   const upcomingAppointments = useSelector((state: RootState) =>
     upcomingAppointmentsSelector(state, selectedCompanionIdRedux ?? null),
   );
   const hasUnreadNotifications = unreadNotifications > 0;
-  const [orgRatings, setOrgRatings] = React.useState<Record<string, OrgRatingState>>({});
+  const [orgRatings, setOrgRatings] = React.useState<
+    Record<string, OrgRatingState>
+  >({});
   const hasNotificationsHydrated = useSelector(
     selectNotificationsHydrated('default-companion'),
   );
@@ -156,6 +184,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   );
   const linkedBusinessesLoading = useSelector(
     (state: RootState) => state.linkedBusinesses?.loading,
+  );
+  const linkedBusinesses = useSelector(
+    (state: RootState) => state.linkedBusinesses?.linkedBusinesses ?? [],
   );
   const accessLoading = useSelector(
     (state: RootState) => state.coParent?.accessLoading,
@@ -180,6 +211,22 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       (companions[0] as any)?.identifier?.[0]?.value;
     return selectedCompanionIdRedux ?? fallback ?? null;
   }, [companions, selectedCompanionIdRedux]);
+  const merckOrganisationId = React.useMemo(() => {
+    if (!targetCompanionId) {
+      return null;
+    }
+
+    const linkedHospital = linkedBusinesses.find(linkedBusiness => {
+      const isSameCompanion = linkedBusiness.companionId === targetCompanionId;
+      const isHospital = linkedBusiness.category === 'hospital';
+      const isActive =
+        linkedBusiness.state === 'active' ||
+        linkedBusiness.inviteStatus === 'accepted';
+      return isSameCompanion && isHospital && isActive;
+    });
+
+    return linkedHospital?.businessId ?? null;
+  }, [linkedBusinesses, targetCompanionId]);
 
   const hasExpenseHydrated = useSelector(
     selectExpensesHydrated(targetCompanionId),
@@ -227,13 +274,19 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     expenseSummary,
     markInitialRequest,
   ]);
-  const [checkingIn, setCheckingIn] = React.useState<Record<string, boolean>>({});
-  const {businessFallbacks, handleAvatarError, requestBusinessPhoto} = useBusinessPhotoFallback();
+  const [checkingIn, setCheckingIn] = React.useState<Record<string, boolean>>(
+    {},
+  );
+  const {businessFallbacks, handleAvatarError, requestBusinessPhoto} =
+    useBusinessPhotoFallback();
   const {handleCheckIn: handleCheckInUtil} = useCheckInHandler();
   useAutoSelectCompanion(companions, selectedCompanionIdRedux);
   const [headerAvatarError, setHeaderAvatarError] = React.useState(false);
   const headerAvatarUri = React.useMemo(
-    () => normalizeImageUri(authUser?.profilePicture ?? authUser?.profileToken ?? null),
+    () =>
+      normalizeImageUri(
+        authUser?.profilePicture ?? authUser?.profileToken ?? null,
+      ),
     [authUser?.profilePicture, authUser?.profileToken],
   );
   const getAccessEntry = React.useCallback(
@@ -248,8 +301,14 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const canAccessFeature = React.useCallback(
     (permission: keyof CoParentPermissions, companionId?: string | null) => {
       const entry = getAccessEntry(companionId);
-      const role = (entry?.role ?? defaultAccess?.role ?? globalRole ?? '').toUpperCase();
-      const permissions = entry?.permissions ?? defaultAccess?.permissions ?? globalPermissions;
+      const role = (
+        entry?.role ??
+        defaultAccess?.role ??
+        globalRole ??
+        ''
+      ).toUpperCase();
+      const permissions =
+        entry?.permissions ?? defaultAccess?.permissions ?? globalPermissions;
       const isPrimary = role.includes('PRIMARY');
       if (isPrimary) {
         return true;
@@ -277,7 +336,11 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   }, []);
 
   const guardFeature = React.useCallback(
-    (permission: keyof CoParentPermissions, label: string, companionId?: string | null) => {
+    (
+      permission: keyof CoParentPermissions,
+      label: string,
+      companionId?: string | null,
+    ) => {
       if (!hasCompanions) {
         return true;
       }
@@ -334,7 +397,11 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
   const handleNonPmsSelection = React.useCallback(
     async (selection: ResolvedBusinessSelection) => {
-      if (!ensureCompanionForSearch() || !selectedCompanion || !targetCompanionId) {
+      if (
+        !ensureCompanionForSearch() ||
+        !selectedCompanion ||
+        !targetCompanionId
+      ) {
         return;
       }
 
@@ -359,7 +426,12 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         },
       });
     },
-    [ensureCompanionForSearch, navigation, selectedCompanion, targetCompanionId],
+    [
+      ensureCompanionForSearch,
+      navigation,
+      selectedCompanion,
+      targetCompanionId,
+    ],
   );
 
   const {
@@ -383,7 +455,13 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       if (targetCompanionId && !hasTasksHydrated) {
         dispatch(fetchTasksForCompanion({companionId: targetCompanionId}));
       }
-    }, [clearResults, dispatch, hasTasksHydrated, setSearchQuery, targetCompanionId]),
+    }, [
+      clearResults,
+      dispatch,
+      hasTasksHydrated,
+      setSearchQuery,
+      targetCompanionId,
+    ]),
   );
 
   React.useEffect(() => {
@@ -416,7 +494,8 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
     const state = fetchParentAccessStateRef.current;
     const parentIdChanged = state.lastParentId !== authUser.parentId;
-    const companionCountChanged = state.lastCompanionCount !== companions.length;
+    const companionCountChanged =
+      state.lastCompanionCount !== companions.length;
 
     // Dispatch if parent changed (logout/login as different user) OR companions loaded for first time
     if (parentIdChanged || (companionCountChanged && companions.length > 0)) {
@@ -458,14 +537,22 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     }
     markInitialRequest('appointments');
     dispatch(fetchAppointmentsForCompanion({companionId: targetId}));
-  }, [dispatch, markInitialRequest, selectedCompanionIdRedux, targetCompanionId]);
+  }, [
+    dispatch,
+    markInitialRequest,
+    selectedCompanionIdRedux,
+    targetCompanionId,
+  ]);
 
   // Fetch linked hospitals for emergency feature
   React.useEffect(() => {
     if (selectedCompanionIdRedux) {
       markInitialRequest('linkedBusinesses');
       dispatch(
-        fetchLinkedBusinesses({companionId: selectedCompanionIdRedux, category: 'hospital'}),
+        fetchLinkedBusinesses({
+          companionId: selectedCompanionIdRedux,
+          category: 'hospital',
+        }),
       );
     }
   }, [dispatch, markInitialRequest, selectedCompanionIdRedux]);
@@ -474,7 +561,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   React.useEffect(() => {
     if (user && !hasNotificationsHydrated) {
       markInitialRequest('notifications');
-      dispatch(fetchNotificationsForCompanion({companionId: 'default-companion'}));
+      dispatch(
+        fetchNotificationsForCompanion({companionId: 'default-companion'}),
+      );
     }
   }, [dispatch, hasNotificationsHydrated, markInitialRequest, user]);
 
@@ -483,7 +572,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     React.useCallback(() => {
       if (user) {
         markInitialRequest('notifications');
-        dispatch(fetchNotificationsForCompanion({companionId: 'default-companion'}));
+        dispatch(
+          fetchNotificationsForCompanion({companionId: 'default-companion'}),
+        );
       }
     }, [dispatch, markInitialRequest, user]),
   );
@@ -498,9 +589,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     ) {
       previousCurrencyRef.current = userCurrencyCode;
       markInitialRequest('expenses');
-      dispatch(
-        fetchExpenseSummary({companionId: selectedCompanionIdRedux}),
-      );
+      dispatch(fetchExpenseSummary({companionId: selectedCompanionIdRedux}));
     }
   }, [
     dispatch,
@@ -529,11 +618,19 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const areRequiredRequestsStarted = React.useMemo(() => {
     if (!initialLoadStarted) return false;
     if (user?.parentId && !initialRequests.companions) return false;
-    if (user && !hasNotificationsHydrated && !initialRequests.notifications) return false;
-    if (authUser?.parentId && companions.length > 0 && !initialRequests.access) return false;
+    if (user && !hasNotificationsHydrated && !initialRequests.notifications)
+      return false;
+    if (authUser?.parentId && companions.length > 0 && !initialRequests.access)
+      return false;
     if (targetCompanionId && !initialRequests.appointments) return false;
-    if (selectedCompanionIdRedux && !hasExpenseHydrated && !initialRequests.expenses) return false;
-    if (selectedCompanionIdRedux && !initialRequests.linkedBusinesses) return false;
+    if (
+      selectedCompanionIdRedux &&
+      !hasExpenseHydrated &&
+      !initialRequests.expenses
+    )
+      return false;
+    if (selectedCompanionIdRedux && !initialRequests.linkedBusinesses)
+      return false;
     return true;
   }, [
     initialLoadStarted,
@@ -550,10 +647,20 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const areRequestsComplete = React.useMemo(() => {
     if (initialRequests.companions && companionLoading) return false;
     if (initialRequests.access && accessLoading) return false;
-    if (initialRequests.notifications && (notificationsLoading || !hasNotificationsHydrated)) return false;
-    if (initialRequests.appointments && (appointmentsLoading || !hasAppointmentsHydrated)) return false;
-    if (initialRequests.expenses && (expensesLoading || !hasExpenseHydrated)) return false;
-    if (initialRequests.linkedBusinesses && linkedBusinessesLoading) return false;
+    if (
+      initialRequests.notifications &&
+      (notificationsLoading || !hasNotificationsHydrated)
+    )
+      return false;
+    if (
+      initialRequests.appointments &&
+      (appointmentsLoading || !hasAppointmentsHydrated)
+    )
+      return false;
+    if (initialRequests.expenses && (expensesLoading || !hasExpenseHydrated))
+      return false;
+    if (initialRequests.linkedBusinesses && linkedBusinessesLoading)
+      return false;
     return true;
   }, [
     initialRequests,
@@ -573,7 +680,12 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     if (!areRequestsComplete) return false;
     if (companions.length > 0 && !targetCompanionId) return false;
     return true;
-  }, [areRequiredRequestsStarted, areRequestsComplete, companions.length, targetCompanionId]);
+  }, [
+    areRequiredRequestsStarted,
+    areRequestsComplete,
+    companions.length,
+    targetCompanionId,
+  ]);
 
   React.useEffect(() => {
     if (initialLoadComplete) {
@@ -617,23 +729,26 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     onPress?: () => void,
   ) => {
     const content = (
-        <View style={styles.tileShadowWrapper}>
-          <LiquidGlassCard
-            key={key}
-            glassEffect="clear"
-            interactive
-            style={styles.infoTile}
-            fallbackStyle={styles.tileFallback}>
-            <Text style={styles.tileTitle}>{title}</Text>
-            <Text style={styles.tileSubtitle}>{subtitle}</Text>
-          </LiquidGlassCard>
-        </View>
+      <View style={styles.tileShadowWrapper}>
+        <LiquidGlassCard
+          key={key}
+          glassEffect="clear"
+          interactive
+          style={styles.infoTile}
+          fallbackStyle={styles.tileFallback}>
+          <Text style={styles.tileTitle}>{title}</Text>
+          <Text style={styles.tileSubtitle}>{subtitle}</Text>
+        </LiquidGlassCard>
+      </View>
     );
     if (!onPress) {
       return content;
     }
     return (
-      <TouchableOpacity activeOpacity={0.85} onPress={onPress} testID={`${key}-empty-tile`}>
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={onPress}
+        testID={`${key}-empty-tile`}>
         {content}
       </TouchableOpacity>
     );
@@ -662,16 +777,39 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   );
 
   const handleQuickActionPress = React.useCallback(
-    (category: TaskCategory) => {
+    (actionId: HomeQuickActionId) => {
+      if (actionId === 'merck_manuals') {
+        if (!guardFeature('appointments', 'appointments')) {
+          return;
+        }
+        if (!merckOrganisationId) {
+          Alert.alert(
+            'Merck Manuals unavailable',
+            'Link a hospital for this companion to use Merck Manuals search.',
+          );
+          return;
+        }
+        navigation
+          .getParent<NavigationProp<TabParamList>>()
+          ?.navigate('Appointments', {
+            screen: 'MerckManuals',
+            params: {
+              organisationId: merckOrganisationId,
+              context: 'home',
+            },
+          });
+        return;
+      }
+
       if (!guardFeature('tasks', 'tasks')) {
         return;
       }
       navigation.getParent<NavigationProp<TabParamList>>()?.navigate('Tasks', {
         screen: 'TasksList',
-        params: {category},
+        params: {category: actionId},
       });
     },
-    [guardFeature, navigation],
+    [guardFeature, merckOrganisationId, navigation],
   );
 
   const handleEditTask = React.useCallback(
@@ -716,7 +854,11 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   );
 
   // Fetch business photo fallbacks when primary photos are missing or dummy
-  useFetchPhotoFallbacks(upcomingAppointments, businessMap, requestBusinessPhoto);
+  useFetchPhotoFallbacks(
+    upcomingAppointments,
+    businessMap,
+    requestBusinessPhoto,
+  );
 
   const fetchOrgRatingIfNeeded = useFetchOrgRatingIfNeeded({
     orgRatings,
@@ -752,7 +894,10 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   }, [upcomingAppointments]);
 
   useEffect(() => {
-    if (nextUpcomingAppointment?.businessId && nextUpcomingAppointment.status === 'COMPLETED') {
+    if (
+      nextUpcomingAppointment?.businessId &&
+      nextUpcomingAppointment.status === 'COMPLETED'
+    ) {
       fetchOrgRatingIfNeeded(nextUpcomingAppointment.businessId);
     }
   }, [fetchOrgRatingIfNeeded, nextUpcomingAppointment]);
@@ -762,10 +907,12 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       if (!guardFeature('appointments', 'appointments')) {
         return;
       }
-      navigation.getParent<NavigationProp<TabParamList>>()?.navigate('Appointments', {
-        screen: 'ViewAppointment',
-        params: {appointmentId},
-      });
+      navigation
+        .getParent<NavigationProp<TabParamList>>()
+        ?.navigate('Appointments', {
+          screen: 'ViewAppointment',
+          params: {appointmentId},
+        });
     },
     [guardFeature, navigation],
   );
@@ -775,7 +922,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       if (!guardFeature('chatWithVet', 'chat with vet')) {
         return;
       }
-      const appointment = upcomingAppointments.find(a => a.id === appointmentId);
+      const appointment = upcomingAppointments.find(
+        a => a.id === appointmentId,
+      );
 
       if (!appointment) {
         Alert.alert(
@@ -786,32 +935,41 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         return;
       }
 
-      const emp = appointment.employeeId ? employeeMap.get(appointment.employeeId) : undefined;
-      const service = appointment.serviceId ? serviceMap.get(appointment.serviceId) : undefined;
+      const emp = appointment.employeeId
+        ? employeeMap.get(appointment.employeeId)
+        : undefined;
+      const service = appointment.serviceId
+        ? serviceMap.get(appointment.serviceId)
+        : undefined;
       const doctorName =
         emp?.name ??
         appointment.employeeName ??
         service?.name ??
         appointment.serviceName ??
         'Assigned vet';
-      const petName = companions.find(c => c.id === appointment.companionId)?.name;
+      const petName = companions.find(
+        c => c.id === appointment.companionId,
+      )?.name;
       const vetId = emp?.id ?? appointment.employeeId ?? 'unknown-vet';
 
       const openChat = () => {
         const timeComponent = appointment.time ?? '00:00';
-        const normalizedTime = timeComponent.length === 5 ? `${timeComponent}:00` : timeComponent;
+        const normalizedTime =
+          timeComponent.length === 5 ? `${timeComponent}:00` : timeComponent;
         const appointmentDateTime = `${appointment.date}T${normalizedTime}`;
 
-        navigation.getParent<NavigationProp<TabParamList>>()?.navigate('Appointments', {
-          screen: 'ChatChannel',
-          params: {
-            appointmentId: appointment.id,
-            vetId,
-            appointmentTime: appointmentDateTime,
-            doctorName,
-            petName,
-          },
-        });
+        navigation
+          .getParent<NavigationProp<TabParamList>>()
+          ?.navigate('Appointments', {
+            screen: 'ChatChannel',
+            params: {
+              appointmentId: appointment.id,
+              vetId,
+              appointmentTime: appointmentDateTime,
+              doctorName,
+              petName,
+            },
+          });
       };
 
       handleChatActivation({
@@ -823,7 +981,14 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         onOpenChat: openChat,
       });
     },
-    [companions, employeeMap, guardFeature, navigation, serviceMap, upcomingAppointments],
+    [
+      companions,
+      employeeMap,
+      guardFeature,
+      navigation,
+      serviceMap,
+      upcomingAppointments,
+    ],
   );
 
   const handleCheckInAppointment = React.useCallback(
@@ -878,8 +1043,14 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     const fallbackPhoto = cardData.fallbackPhoto;
     const googlePlacesId = cardData.googlePlacesId;
     const assignmentNote = cardData.assignmentNote;
-    const {needsPayment, isRequested, statusAllowsActions, isInProgress, checkInLabel, checkInDisabled} =
-      cardData;
+    const {
+      needsPayment,
+      isRequested,
+      statusAllowsActions,
+      isInProgress,
+      checkInLabel,
+      checkInDisabled,
+    } = cardData;
     const isCheckInDisabled = checkInDisabled || checkingIn[appointment.id];
     const footer = needsPayment ? (
       <View style={styles.upcomingFooter}>
@@ -890,7 +1061,10 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
               .getParent<NavigationProp<TabParamList>>()
               ?.navigate('Appointments', {
                 screen: 'PaymentInvoice',
-                params: {appointmentId: appointment.id, companionId: appointment.companionId},
+                params: {
+                  appointmentId: appointment.id,
+                  companionId: appointment.companionId,
+                },
               })
           }
           height={48}
@@ -920,7 +1094,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         note={assignmentNote}
         avatar={avatarSource}
         fallbackAvatar={fallbackPhoto ?? undefined}
-        onAvatarError={() => handleAvatarError(googlePlacesId, appointment.businessId)}
+        onAvatarError={() =>
+          handleAvatarError(googlePlacesId, appointment.businessId)
+        }
         showActions={statusAllowsActions}
         onPress={() => handleViewAppointment(appointment.id)}
         onViewDetails={() => handleViewAppointment(appointment.id)}
@@ -937,7 +1113,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
             handleCheckInAppointment(appointment.id);
           }
         }}
-        checkInLabel={checkInLabel ?? (isInProgress ? 'In progress' : undefined)}
+        checkInLabel={
+          checkInLabel ?? (isInProgress ? 'In progress' : undefined)
+        }
         checkInDisabled={isCheckInDisabled}
         testIDs={{
           container: 'appointment-card-container',
@@ -985,7 +1163,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       );
     }
 
-    const companion = companions.find(c => c.id === nextUpcomingTask.companionId);
+    const companion = companions.find(
+      c => c.id === nextUpcomingTask.companionId,
+    );
     const selfId = authUser?.parentId ?? authUser?.id;
     const assignedToData =
       nextUpcomingTask.assignedTo === selfId
@@ -999,7 +1179,8 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       nextUpcomingTask.details &&
       'taskType' in nextUpcomingTask.details &&
       nextUpcomingTask.details.taskType === 'take-observational-tool';
-    const isPending = String(nextUpcomingTask.status).toUpperCase() === 'PENDING';
+    const isPending =
+      String(nextUpcomingTask.status).toUpperCase() === 'PENDING';
 
     return (
       <TaskCard
@@ -1015,9 +1196,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         status={nextUpcomingTask.status}
         onPressView={() => handleViewTask(nextUpcomingTask.id)}
         onPressEdit={() => handleEditTask(nextUpcomingTask.id)}
-        onPressComplete={() =>
-          handleCompleteTask(nextUpcomingTask.id)
-        }
+        onPressComplete={() => handleCompleteTask(nextUpcomingTask.id)}
         onPressTakeObservationalTool={
           isObservationalToolTask
             ? () => handleViewTask(nextUpcomingTask.id)
@@ -1157,7 +1336,10 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
                 onPress={handleEmergencyPress}
                 size={actionIconSize}
                 style={styles.actionIcon}>
-                <Image source={Images.emergencyIcon} style={styles.actionImage} />
+                <Image
+                  source={Images.emergencyIcon}
+                  style={styles.actionImage}
+                />
               </LiquidGlassIconButton>
             </View>
             <View style={styles.actionIconShadowWrapper}>
@@ -1205,7 +1387,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
           {paddingBottom: bottomScrollPadding},
         ]}
         showsVerticalScrollIndicator={false}>
-
         {companions.length === 0 ? (
           <View style={[styles.heroShadowWrapper, styles.heroTouchable]}>
             <LiquidGlassCard
@@ -1253,7 +1434,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
               <View style={styles.viewMoreShadowWrapper}>
                 <LiquidGlassButton
                   onPress={() => {
-                    if (!guardFeature('companionProfile', 'companion profile')) {
+                    if (
+                      !guardFeature('companionProfile', 'companion profile')
+                    ) {
                       return;
                     }
                     // Pass the selected companion's ID to the ProfileOverview screen
@@ -1300,10 +1483,20 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
                     style={styles.quickAction}
                     activeOpacity={0.88}
                     onPress={() => handleQuickActionPress(action.id)}>
-                    <View style={styles.quickActionIconWrapper}>
+                    <View
+                      style={[
+                        styles.quickActionIconWrapper,
+                        action.iconIsBrand
+                          ? styles.quickActionBrandIconWrapper
+                          : null,
+                      ]}>
                       <Image
                         source={action.icon}
-                        style={styles.quickActionIcon}
+                        style={
+                          action.iconIsBrand
+                            ? styles.quickActionBrandIcon
+                            : styles.quickActionIcon
+                        }
                       />
                     </View>
                     <Text style={styles.quickActionLabel}>{action.label}</Text>
@@ -1495,11 +1688,12 @@ const createStyles = (theme: any) =>
     },
     quickActionsRow: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
       gap: theme.spacing['3'],
     },
     quickAction: {
-      flex: 1,
+      width: '30%',
       alignItems: 'center',
       gap: theme.spacing['3'],
     },
@@ -1512,6 +1706,11 @@ const createStyles = (theme: any) =>
       alignItems: 'center',
       ...theme.shadows.sm,
       shadowColor: theme.colors.black,
+    },
+    quickActionBrandIconWrapper: {
+      backgroundColor: theme.colors.cardBackground,
+      borderWidth: 1,
+      borderColor: theme.colors.borderMuted,
     },
     sectionHeader: {
       flexDirection: 'row',
@@ -1544,6 +1743,11 @@ const createStyles = (theme: any) =>
       resizeMode: 'contain',
       tintColor: theme.colors.white,
     },
+    quickActionBrandIcon: {
+      width: theme.spacing['9'],
+      height: theme.spacing['5'],
+      resizeMode: 'contain',
+    },
     quickActionLabel: {
       ...theme.typography.labelXxsBold,
       color: theme.colors.secondary,
@@ -1556,7 +1760,10 @@ const createStyles = (theme: any) =>
       ...theme.shadows.sm,
       shadowColor: theme.colors.neutralShadow,
     },
-    reviewButtonText: {...theme.typography.paragraphBold, color: theme.colors.white},
+    reviewButtonText: {
+      ...theme.typography.paragraphBold,
+      color: theme.colors.white,
+    },
     upcomingFooter: {
       gap: theme.spacing['2'],
     },
