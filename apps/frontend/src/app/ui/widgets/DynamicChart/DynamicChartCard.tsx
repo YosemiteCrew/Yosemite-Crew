@@ -11,7 +11,7 @@ import {
   Tooltip,
   CartesianGrid,
 } from 'recharts';
-import { LayoutType } from 'recharts/types/util/types';
+import type { LayoutType } from 'recharts/types/util/types';
 
 type ChartProps = {
   data: any[];
@@ -58,6 +58,8 @@ const getYAxisLabel = (
 
 type LineChartContentProps = {
   data: any[];
+  width?: number;
+  height?: number;
   chartMargin: { top: number; right: number; left: number; bottom: number };
   keys: ChartKey[];
   yTickFormatter?: (value: number) => string;
@@ -67,13 +69,15 @@ type LineChartContentProps = {
 
 const LineChartContent = ({
   data,
+  width,
+  height,
   chartMargin,
   keys,
   yTickFormatter,
   xAxisLabel,
   yAxisLabel,
 }: LineChartContentProps) => (
-  <LineChart data={data} margin={chartMargin}>
+  <LineChart data={data} margin={chartMargin} width={width} height={height}>
     <XAxis dataKey="month" label={getXAxisLabel(xAxisLabel)} />
     <YAxis
       tickFormatter={yTickFormatter}
@@ -99,6 +103,8 @@ const LineChartContent = ({
 
 type BarChartContentProps = {
   data: any[];
+  width?: number;
+  height?: number;
   layout?: LayoutType;
   isVerticalLayout: boolean;
   chartMargin: { top: number; right: number; left: number; bottom: number };
@@ -112,6 +118,8 @@ type BarChartContentProps = {
 
 const BarChartContent = ({
   data,
+  width,
+  height,
   layout,
   isVerticalLayout,
   chartMargin,
@@ -127,6 +135,8 @@ const BarChartContent = ({
     layout={layout}
     style={{ height: '100%', maxHeight: '100%', width: '100%', maxWidth: '100%' }}
     margin={chartMargin}
+    width={width}
+    height={height}
   >
     <CartesianGrid strokeDasharray="4 4" vertical={false} />
     <XAxis
