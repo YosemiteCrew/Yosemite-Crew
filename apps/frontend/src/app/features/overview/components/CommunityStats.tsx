@@ -22,11 +22,13 @@ const CommunityStats = ({ combinedChart, isLoading }: CommunityStatsProps) => {
     );
   }
 
-  const trafficData = combinedChart.map((d) => ({
+  // FIXED: We now map both the Traffic Data AND the Stars Data so the keys match perfectly
+  const chartData = combinedChart.map((d) => ({
     month: d.month,
     'Self Hosters':
       trafficView === 'Unique' ? d['Self Hosters (Unique)'] : d['Self Hosters (Cumulative)'],
     Builders: trafficView === 'Unique' ? d['Builders (Unique)'] : d['Builders (Cumulative)'],
+    'Github Stars': d.Stars, // Map the raw "Stars" data to the new "Github Stars" label
   }));
 
   return (
@@ -80,7 +82,7 @@ const CommunityStats = ({ combinedChart, isLoading }: CommunityStatsProps) => {
 
           <div className="ChartWrapper" style={{ width: '100%', minHeight: '350px' }}>
             <DynamicChartCard
-              data={trafficData}
+              data={chartData} // Use the new mapped data
               type="line"
               keys={[
                 { name: 'Self Hosters', color: '#247AED' },
@@ -94,7 +96,7 @@ const CommunityStats = ({ combinedChart, isLoading }: CommunityStatsProps) => {
         <div className="PremiumCard ForceLeftLegend" style={{ position: 'relative' }}>
           <div className="ChartWrapper" style={{ width: '100%', minHeight: '350px' }}>
             <DynamicChartCard
-              data={combinedChart}
+              data={chartData} // Use the same mapped data here
               type="line"
               keys={[{ name: 'Github Stars', color: '#F68523' }]}
               yAxisWidth={45}
