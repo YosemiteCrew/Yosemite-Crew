@@ -20,7 +20,7 @@
     "@commitlint/config-conventional": "^19.8.1",
     "@secretlint/secretlint-rule-no-dotenv": "^11.3.0",
     "@secretlint/secretlint-rule-preset-recommend": "^11.3.0",
-    "eslint": "^9.33.0",
+    "eslint": "^10.1.0",
     "husky": "^9.1.7",
     "lint-staged": "^15.5.2",
     "prettier": "^3.2.5",
