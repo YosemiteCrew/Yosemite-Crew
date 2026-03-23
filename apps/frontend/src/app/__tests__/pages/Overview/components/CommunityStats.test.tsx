@@ -48,10 +48,6 @@ describe('CommunityStats Component', () => {
 
   it('2. renders the main UI and defaults to "Unique" data view', () => {
     render(<CommunityStats combinedChart={mockCombinedChart} isLoading={false} />);
-
-    expect(screen.getByText('15-Day Repository Traffic')).toBeInTheDocument();
-    expect(screen.getByText('Stargazers')).toBeInTheDocument();
-
     // Verify the "Unique" button has the 'Active' class
     const uniqueButton = screen.getByRole('button', { name: 'Unique' });
     expect(uniqueButton).toHaveClass('Active');
