@@ -2,114 +2,136 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import CommunityStats from '../../../../features/overview/components/CommunityStats';
-import DynamicChartCard from '@/app/ui/widgets/DynamicChart/DynamicChartCard';
 
-// Mock the DynamicChartCard to prevent Recharts/Canvas rendering errors in JSDOM
-// and to easily intercept and verify the props being passed to it.
-jest.mock('@/app/ui/widgets/DynamicChart/DynamicChartCard', () => ({
-  __esModule: true,
-  default: jest.fn(() => <div data-testid="mock-dynamic-chart" />),
-}));
+// ==========================================
+// 1. MOCK SETUP
+// ==========================================
+
+// We mock the DynamicChartCard to easily inspect the transformed data it receives
+jest.mock('@/app/ui/widgets/DynamicChart/DynamicChartCard', () => {
+  return function MockDynamicChartCard({ data, keys }: any) {
+    return (
+      <div data-testid="mock-dynamic-chart">
+        <div data-testid="chart-data">{JSON.stringify(data)}</div>
+        <div data-testid="chart-keys">{JSON.stringify(keys)}</div>
+      </div>
+    );
+  };
+});
+
+// ==========================================
+// 2. MOCK DATA
+// ==========================================
+
+const mockCombinedChartData = [
+  {
+    month: 'Mar 8',
+    'Self Hosters (Unique)': 10,
+    'Self Hosters (Cumulative)': 100,
+    'Builders (Unique)': 5,
+    'Builders (Cumulative)': 50,
+    Stars: 42,
+  },
+  {
+    month: 'Mar 9',
+    'Self Hosters (Unique)': 15,
+    'Self Hosters (Cumulative)': 115,
+    'Builders (Unique)': 8,
+    'Builders (Cumulative)': 58,
+    Stars: 45,
+  },
+];
+
+// ==========================================
+// 3. TEST SUITE
+// ==========================================
 
 describe('CommunityStats Component', () => {
-  // Mock data representing the structure from useOverviewStats hook
-  const mockCombinedChart = [
-    {
-      month: 'Mar 15',
-      'Self Hosters (Unique)': 10,
-      'Self Hosters (Cumulative)': 100,
-      'Builders (Unique)': 5,
-      'Builders (Cumulative)': 50,
-      Stars: 200,
-    },
-    {
-      month: 'Mar 16',
-      'Self Hosters (Unique)': 15,
-      'Self Hosters (Cumulative)': 115,
-      'Builders (Unique)': 2,
-      'Builders (Cumulative)': 52,
-      Stars: 205,
-    },
-  ];
-
   beforeEach(() => {
-    // Clear mock calls between tests to ensure a clean slate
     jest.clearAllMocks();
   });
 
-  it('1. renders the loading state when isLoading is true', () => {
+  it('1. renders the loading state correctly', () => {
     render(<CommunityStats combinedChart={[]} isLoading={true} />);
 
     expect(screen.getByText('Loading Repository Data...')).toBeInTheDocument();
 
     // Ensure charts are NOT rendered
-    expect(screen.queryByText('15-Day Repository Traffic')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('mock-dynamic-chart')).not.toBeInTheDocument();
   });
 
-  it('2. renders the main UI and defaults to "Unique" data view', () => {
-    render(<CommunityStats combinedChart={mockCombinedChart} isLoading={false} />);
-    // Verify the "Unique" button has the 'Active' class
-    const uniqueButton = screen.getByRole('button', { name: 'Unique' });
-    expect(uniqueButton).toHaveClass('Active');
+  it('2. renders default "Unique" data correctly', () => {
+    render(<CommunityStats combinedChart={mockCombinedChartData} isLoading={false} />);
 
-    // Extract the props passed to the FIRST instance of DynamicChartCard (Traffic chart)
-    const trafficChartProps = (DynamicChartCard as jest.Mock).mock.calls[0][0];
+    // Assert Toggle Buttons
+    const uniqueBtn = screen.getByText('Unique');
+    const cumulativeBtn = screen.getByText('Cumulative');
 
-    // Assert that the data was mapped specifically using the (Unique) values
-    expect(trafficChartProps.data).toEqual([
-      { month: 'Mar 15', 'Self Hosters': 10, Builders: 5 },
-      { month: 'Mar 16', 'Self Hosters': 15, Builders: 2 },
-    ]);
+    expect(uniqueBtn).toHaveClass('Active');
+    expect(cumulativeBtn).not.toHaveClass('Active');
+
+    // Assert Charts Rendered (1 for Traffic, 1 for Stars)
+    const charts = screen.getAllByTestId('mock-dynamic-chart');
+    expect(charts).toHaveLength(2);
+
+    // Extract transformed data passed to the charts
+    const chartDataJson = screen.getAllByTestId('chart-data')[0].textContent;
+    const chartData = JSON.parse(chartDataJson as unknown as string);
+
+    // Verify mapping logic for 'Unique'
+    expect(chartData[0]['Self Hosters']).toBe(10); // Should be 'Self Hosters (Unique)'
+    expect(chartData[0]['Builders']).toBe(5); // Should be 'Builders (Unique)'
+
+    // Verify Stars mapped to 'Github Stars'
+    expect(chartData[0]['Github Stars']).toBe(42);
+    expect(chartData[1]['Github Stars']).toBe(45);
   });
 
-  it('3. updates the chart data mapping when the "Cumulative" toggle is clicked', () => {
-    render(<CommunityStats combinedChart={mockCombinedChart} isLoading={false} />);
+  it('3. updates data correctly when "Cumulative" is clicked', () => {
+    render(<CommunityStats combinedChart={mockCombinedChartData} isLoading={false} />);
 
-    const cumulativeButton = screen.getByRole('button', { name: 'Cumulative' });
-    const uniqueButton = screen.getByRole('button', { name: 'Unique' });
+    const uniqueBtn = screen.getByText('Unique');
+    const cumulativeBtn = screen.getByText('Cumulative');
 
-    // Click the Cumulative toggle
-    fireEvent.click(cumulativeButton);
+    // Click Cumulative
+    fireEvent.click(cumulativeBtn);
 
-    // Verify classes updated
-    expect(cumulativeButton).toHaveClass('Active');
-    expect(uniqueButton).not.toHaveClass('Active');
+    // Verify Active Class swapped
+    expect(cumulativeBtn).toHaveClass('Active');
+    expect(uniqueBtn).not.toHaveClass('Active');
 
-    // The component re-renders. DynamicChartCard will be called again.
-    // We grab the most recent call's props for the Traffic chart (index 2 because 0,1 were from the initial render)
-    const updatedTrafficChartProps = (DynamicChartCard as jest.Mock).mock.calls[2][0];
+    // Extract transformed data passed to the charts after click
+    const chartDataJson = screen.getAllByTestId('chart-data')[0].textContent;
+    const chartData = JSON.parse(chartDataJson as unknown as string);
 
-    // Assert that the data is now mapped using the (Cumulative) values
-    expect(updatedTrafficChartProps.data).toEqual([
-      { month: 'Mar 15', 'Self Hosters': 100, Builders: 50 },
-      { month: 'Mar 16', 'Self Hosters': 115, Builders: 52 },
-    ]);
+    // Verify mapping logic swapped to 'Cumulative'
+    expect(chartData[0]['Self Hosters']).toBe(100); // Should be 'Self Hosters (Cumulative)'
+    expect(chartData[0]['Builders']).toBe(50); // Should be 'Builders (Cumulative)'
+
+    // Github Stars should remain unaffected
+    expect(chartData[0]['Github Stars']).toBe(42);
   });
 
-  it('4. updates data mapping back to "Unique" when toggled back', () => {
-    render(<CommunityStats combinedChart={mockCombinedChart} isLoading={false} />);
+  it('4. updates data correctly when clicking back to "Unique"', () => {
+    render(<CommunityStats combinedChart={mockCombinedChartData} isLoading={false} />);
 
-    const cumulativeButton = screen.getByRole('button', { name: 'Cumulative' });
-    const uniqueButton = screen.getByRole('button', { name: 'Unique' });
+    const uniqueBtn = screen.getByText('Unique');
+    const cumulativeBtn = screen.getByText('Cumulative');
 
-    // Click Cumulative first
-    fireEvent.click(cumulativeButton);
+    // Toggle to Cumulative, then back to Unique
+    fireEvent.click(cumulativeBtn);
+    fireEvent.click(uniqueBtn);
 
-    // Clear mocks to easily grab the next render's props
-    jest.clearAllMocks();
+    // Verify Active Class swapped back
+    expect(uniqueBtn).toHaveClass('Active');
+    expect(cumulativeBtn).not.toHaveClass('Active');
 
-    // Click back to Unique
-    fireEvent.click(uniqueButton);
+    // Extract transformed data passed to the charts after clicking back
+    const chartDataJson = screen.getAllByTestId('chart-data')[0].textContent;
+    const chartData = JSON.parse(chartDataJson as unknown as string);
 
-    // Verify classes reverted
-    expect(uniqueButton).toHaveClass('Active');
-
-    const revertedTrafficChartProps = (DynamicChartCard as jest.Mock).mock.calls[0][0];
-
-    // Assert data mapped back to Unique
-    expect(revertedTrafficChartProps.data).toEqual([
-      { month: 'Mar 15', 'Self Hosters': 10, Builders: 5 },
-      { month: 'Mar 16', 'Self Hosters': 15, Builders: 2 },
-    ]);
+    // Verify mapping logic swapped back to 'Unique'
+    expect(chartData[0]['Self Hosters']).toBe(10);
+    expect(chartData[0]['Builders']).toBe(5);
   });
 });
