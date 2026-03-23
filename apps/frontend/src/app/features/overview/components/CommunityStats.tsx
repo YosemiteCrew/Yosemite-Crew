@@ -9,7 +9,6 @@ type CommunityStatsProps = {
 };
 
 const CommunityStats = ({ combinedChart, isLoading }: CommunityStatsProps) => {
-  // Default view is 'Unique' as requested
   const [trafficView, setTrafficView] = useState<'Unique' | 'Cumulative'>('Unique');
 
   if (isLoading) {
@@ -23,7 +22,6 @@ const CommunityStats = ({ combinedChart, isLoading }: CommunityStatsProps) => {
     );
   }
 
-  // Map the raw data into simple keys for the chart based on the active toggle
   const trafficData = combinedChart.map((d) => ({
     month: d.month,
     'Self Hosters':
@@ -33,12 +31,39 @@ const CommunityStats = ({ combinedChart, isLoading }: CommunityStatsProps) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+      <style>{`
+        /* Force Recharts legends perfectly flush to the left */
+        .ForceLeftLegend .recharts-legend-wrapper {
+          left: 0 !important;
+          right: auto !important;
+          width: 100% !important;
+        }
+        .ForceLeftLegend .recharts-default-legend {
+          text-align: left !important;
+          display: flex !important;
+          justify-content: flex-start !important;
+          padding-left: 0px !important;
+          margin-top: 0px !important;
+        }
+        /* Give the chart a tiny bit of breathing room from the legend */
+        .ForceLeftLegend .recharts-wrapper {
+          margin-top: 10px;
+        }
+      `}</style>
+
       {/* 2 CHARTS ROW */}
       <div className="ChartGrid">
-        {/* CHART 1: Traffic (Self Hosters & Builders) */}
-        <div className="PremiumCard LeftAlignLegend" style={{ position: 'relative' }}>
-          {/* CUSTOM TOGGLE PILLS */}
-          <div className="DataToggle">
+        <div className="PremiumCard ForceLeftLegend" style={{ position: 'relative' }}>
+          <div
+            className="DataToggle"
+            style={{
+              position: 'absolute',
+              top: '12px',
+              right: '8px',
+              zIndex: 10,
+              margin: 0,
+            }}
+          >
             <button
               className={`TogglePill ${trafficView === 'Unique' ? 'Active' : ''}`}
               onClick={() => setTrafficView('Unique')}
@@ -53,9 +78,7 @@ const CommunityStats = ({ combinedChart, isLoading }: CommunityStatsProps) => {
             </button>
           </div>
 
-          <h3 className="CardTitle">15-Day Repository Traffic</h3>
-
-          <div className="ChartWrapper">
+          <div className="ChartWrapper" style={{ width: '100%', minHeight: '350px' }}>
             <DynamicChartCard
               data={trafficData}
               type="line"
@@ -68,14 +91,12 @@ const CommunityStats = ({ combinedChart, isLoading }: CommunityStatsProps) => {
           </div>
         </div>
 
-        {/* CHART 2: Stargazers */}
-        <div className="PremiumCard">
-          <h3 className="CardTitle">Stargazers</h3>
-          <div className="ChartWrapper">
+        <div className="PremiumCard ForceLeftLegend" style={{ position: 'relative' }}>
+          <div className="ChartWrapper" style={{ width: '100%', minHeight: '350px' }}>
             <DynamicChartCard
               data={combinedChart}
               type="line"
-              keys={[{ name: 'Stars', color: '#F68523' }]}
+              keys={[{ name: 'Github Stars', color: '#F68523' }]}
               yAxisWidth={45}
             />
           </div>
