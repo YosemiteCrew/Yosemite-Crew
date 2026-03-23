@@ -1,77 +1,104 @@
 .OverviewPageWrapper {
   width: 100%;
-  background-color: var(--whitebg);
+  /* The Magic Fade: Soft blue fading into white */
+  background: linear-gradient(
+    to bottom,
+    #ebf4ff 0%,
+    #ebf4ff 400px,
+    var(--whitebg) 800px,
+    var(--whitebg) 100%
+  );
   font-family: var(--satoshi-font);
-  color: var(--black-text);
-  padding-bottom: 60px;
-}
-
-.OverviewHeroSec {
-  position: relative;
-  background: linear-gradient(135deg, var(--color-brand-300) 0%, var(--color-brand-100) 100%);
-  padding: 60px 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  border-bottom: 1px solid var(--lightgrey);
 }
 
-.OverviewHeroContainer {
-  max-width: 1280px;
+.OverviewHeroSection {
   width: 100%;
-  padding: 0 24px;
-  margin: 0 auto;
+  background-color: transparent;
+  display: flex;
+  justify-content: center;
+  padding: 80px 24px 0px;
+}
+
+.OverviewBottomSection {
+  width: 100%;
+  background-color: transparent;
+  display: flex;
+  justify-content: center;
+  padding: 60px 24px 100px;
+}
+
+.OverviewMainContent {
+  max-width: 1200px; /* Kept the wider layout */
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
 }
 
-.OverviewHeroTitle {
+.OverviewMainTitle {
   font-family: var(--grotesk-font);
-  font-size: 2.75rem;
+  font-size: 3rem;
   font-weight: 500;
-  line-height: 1.1;
   color: var(--color-text-primary);
-  margin: 0 0 20px 0;
+  margin: 0 0 24px 0;
   letter-spacing: -0.02em;
 }
 
-.OverviewHeroSubtitle {
-  font-family: var(--satoshi-font);
-  font-size: 1.1rem;
-  font-weight: 400;
+.OverviewLeadText {
+  font-size: 1.05rem;
   line-height: 1.6;
-  color: var(--color-text-primary);
-  opacity: 0.9;
-  margin: 0 auto;
-  max-width: 820px;
-  text-align: center;
+  color: var(--color-text-secondary);
+  max-width: 800px;
+  margin: 0 0 60px 0;
 }
 
-.OverviewHeroSubtitle p {
-  margin: 0;
-}
-
-.OverviewContentContainer {
-  max-width: 1280px;
+.OverviewImageWrapper {
+  width: 100%;
+  max-width: 900px;
   margin: 0 auto;
-  padding: 60px 24px 10px;
   display: flex;
-  flex-direction: column;
-  gap: 60px; /* Increased gap to separate charts from the new section */
 }
 
-.OverviewSectionTitle {
+.OverviewImage {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: contain;
+}
+
+.OverviewSecondaryText {
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  max-width: 800px;
+  margin: 0 0 40px 0;
+}
+
+.OverviewCtaWrapper {
+  margin: 0 0 80px 0;
+}
+
+.OverviewGraphsTitle {
   font-family: var(--grotesk-font);
+  font-size: 2.25rem;
   font-weight: 500;
-  font-size: 1.75rem;
-  line-height: 1.2;
-  color: var(--black-text);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  color: var(--color-text-primary);
+  margin: 0 0 40px 0;
+  letter-spacing: -0.01em;
 }
 
-/* 2 CHART GRID CSS */
+.OverviewGraphsWrapper {
+  width: 100%;
+  max-width: 1200px;
+}
+
+/* =========================================
+   CHART GRID & STYLING
+========================================= */
 .ChartGrid {
   display: grid;
   grid-template-columns: 1fr;
@@ -88,41 +115,42 @@
   background: var(--whitebg);
   border: 1px solid var(--lightgrey);
   border-radius: 20px;
-  padding: 32px;
   box-shadow: 0px 0px 8px 0px rgba(0, 0, 0, 0.04);
   display: flex;
   flex-direction: column;
+  position: relative; /* REQUIRED for the toggle pills to anchor correctly */
 }
 
-.CardTitle {
-  font-family: var(--grotesk-font);
-  font-size: 1.25rem;
-  font-weight: 500;
-  line-height: 1.2;
-  color: var(--color-text-primary);
-  margin: 0 0 20px 0;
+/* Recharts Overrides: Left Aligns the Legend cleanly */
+.PremiumCard .recharts-legend-wrapper {
+  left: 0 !important;
+  right: auto !important;
+  width: 100% !important;
+}
+.PremiumCard .recharts-default-legend {
+  text-align: left !important;
+  display: flex !important;
+  justify-content: flex-start !important;
+  padding-left: 0px !important;
+  margin-top: 0px !important;
 }
 
-.ChartWrapper {
-  min-height: 320px;
-  width: 100%;
-  position: relative;
-}
-
-/* TOGGLE PILLS */
+/* =========================================
+   TOGGLE PILLS (Using your exact provided code)
+========================================= */
 .DataToggle {
   position: absolute;
-  top: 24px;
-  right: 24px;
+  top: 40px;
+  right: 32px;
   display: flex;
   background: var(--color-neutral-100);
   border-radius: 100px;
-  padding: 4px;
+  padding: 2px;
   z-index: 10;
 }
 
 .TogglePill {
-  padding: 6px 16px;
+  padding: 4px 14px;
   border-radius: 100px;
   border: none;
   background: transparent;
@@ -137,90 +165,15 @@
 .TogglePill.Active {
   background: var(--whitebg);
   color: var(--black-text);
-  box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.LeftAlignLegend .recharts-default-legend {
-  display: flex !important;
-  justify-content: flex-start !important;
-  padding-left: 45px !important;
-}
-
-/* =========================================
-   WHY WE DO THIS SECTION
-========================================= */
-.WhyWeDoThisSec {
-  margin-top: 20px;
-  margin-bottom: 40px;
-}
-
-.WhyWeDoThisGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 60px;
-  align-items: center;
-}
-
-.WhyWeDoThisContent {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.WhyWeDoThisTitle {
-  font-family: var(--grotesk-font);
-  font-size: 2.25rem;
-  font-weight: 500;
-  color: var(--color-text-primary);
-  margin: 0;
-  line-height: 1.1;
-}
-
-.WhyWeDoThisText {
-  font-family: var(--satoshi-font);
-  font-size: 1.05rem;
-  line-height: 1.6;
-  color: var(--color-text-primary);
-  opacity: 0.85;
-}
-
-.WhyWeDoThisText p {
-  margin: 0 0 20px 0;
-}
-
-.WhyWeDoThisText p:last-child {
-  margin: 0;
-}
-
-.WhyWeDoThisImageWrapper {
-  width: 100%;
-  border-radius: 24px;
-  overflow: hidden;
-  box-shadow: 0px 4px 24px rgba(0, 0, 0, 0.06);
-}
-
-.WhyWeDoThisImage {
-  width: 100%;
-  height: auto;
-  display: block;
-  object-fit: cover;
-}
-
-@media screen and (max-width: 1024px) {
-  .OverviewHeroTitle {
-    font-size: 2.25rem;
-  }
-  .WhyWeDoThisGrid {
-    gap: 40px;
-  }
+  box-shadow: 0px 1px 4px rgba(0, 0, 0, 0.05);
 }
 
 @media screen and (max-width: 768px) {
-  .WhyWeDoThisGrid {
-    grid-template-columns: 1fr;
+  .OverviewMainTitle {
+    font-size: 2.25rem;
   }
-  .WhyWeDoThisTitle {
-    font-size: 2rem;
+  .OverviewGraphsTitle {
+    font-size: 1.75rem;
   }
   .DataToggle {
     top: auto;
