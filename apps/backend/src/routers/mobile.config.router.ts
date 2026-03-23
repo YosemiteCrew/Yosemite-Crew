@@ -1,29 +1,28 @@
 import { Router } from "express";
-
-interface MobileConfig {
-  env: "dev" | "staging" | "prod";
-  apiBaseUrl: string;
-  enablePayments: boolean;
-  stripePublishableKey?: string;
-  sentryDsn?: string;
-}
-
-const resolveMobileConfig = (): MobileConfig => {
-  return {
-    env: process.env.NODE_ENV as "dev" | "staging" | "prod",
-
-    apiBaseUrl: process.env.MOBILE_API_BASE_URL!,
-    enablePayments: process.env.ENABLE_PAYMENTS === "true",
-
-    stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
-  };
-};
+import logger from "../utils/logger";
+import {
+  resolveMobileConfig,
+  summarizeAppUpdateConfig,
+} from "../utils/mobile-config";
 
 const router = Router();
 
 router.get("", (_req, res) => {
-  const config = resolveMobileConfig();
-  res.status(200).json(config);
+  try {
+    const config = resolveMobileConfig();
+
+    res.set("Cache-Control", "public, max-age=60, stale-while-revalidate=30");
+    res.status(200).json(config);
+
+    logger.info("mobile-config served", {
+      env: config.env,
+      hasAppUpdate: Boolean(config.appUpdate),
+      appUpdate: summarizeAppUpdateConfig(config.appUpdate),
+    });
+  } catch (error) {
+    logger.error("mobile-config failed", { error });
+    res.status(500).json({ message: "Unable to load mobile config" });
+  }
 });
 
 export default router;

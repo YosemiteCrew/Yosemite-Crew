@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { IoIosWarning } from 'react-icons/io';
-import Image from 'next/image';
-import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import { IoEye, IoEyeOff } from 'react-icons/io5';
 
 type FormInputPassProps = {
   intype: string;
@@ -9,6 +8,7 @@ type FormInputPassProps = {
   value: string;
   inlabel: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  autoComplete?: string;
 };
 
 const FormInputPass = ({
@@ -17,6 +17,7 @@ const FormInputPass = ({
   inlabel,
   value,
   onChange,
+  autoComplete,
   error,
 }: FormInputPassProps & { error?: string }) => {
   const [showPassword, setShowPassword] = useState(false);
@@ -33,10 +34,10 @@ const FormInputPass = ({
           name={inname}
           id={inname}
           value={value ?? ''}
-          autoComplete="new-password"
+          autoComplete={autoComplete}
           onChange={onChange}
           required
-          placeholder={''}
+          placeholder=" "
           className={`
             peer w-full min-h-12 rounded-2xl bg-transparent px-6 py-2.5
             text-body-4 text-text-primary
@@ -64,15 +65,15 @@ const FormInputPass = ({
         >
           {inlabel}
         </label>
-        <Image
-          aria-hidden
-          src={MEDIA_SOURCES.auth.passwordEye}
-          alt="eyes"
-          width={24}
-          height={24}
+        <button
+          type="button"
           onClick={togglePasswordVisibility}
-          className="absolute right-4 top-1/2 -translate-y-1/2 cursor-pointer"
-        />
+          className="absolute right-4 top-1/2 -translate-y-1/2 cursor-pointer text-text-secondary hover:text-text-primary transition-colors"
+          aria-label={showPassword ? 'Hide password' : 'Show password'}
+          title={showPassword ? 'Hide password' : 'Show password'}
+        >
+          {showPassword ? <IoEyeOff size={22} /> : <IoEye size={22} />}
+        </button>
       </div>
 
       {/* Show error as bottom red text only for input validation */}

@@ -7,8 +7,7 @@ type MerckAudience = "PROV" | "PAT";
 type MerckLanguage = "en" | "es";
 type MerckMedia = "hybrid" | "print" | "full";
 
-export type MerckSearchParams = {
-  organisationId: string;
+type MerckSearchBaseParams = {
   query: string;
   audience?: MerckAudience;
   language?: MerckLanguage;
@@ -22,6 +21,12 @@ export type MerckSearchParams = {
   subTopicDisplay?: string;
   requestId: string;
 };
+
+export type MerckSearchParams = MerckSearchBaseParams & {
+  organisationId: string;
+};
+
+export type MerckConsumerSearchParams = MerckSearchBaseParams;
 
 export type MerckSearchResponse = {
   meta: {
@@ -675,7 +680,7 @@ const selectMerckBaseUrl = (timezone?: string) => {
   return { baseUrl: selected, host: new URL(selected).hostname, reason };
 };
 
-const buildSearchParams = (input: MerckSearchParams) => {
+const buildSearchParams = (input: MerckSearchBaseParams) => {
   const audience =
     input.audience ?? (ALLOWED_AUDIENCES.includes("PROV") ? "PROV" : "PAT");
   const language = input.language ?? "en";
@@ -780,28 +785,24 @@ const parsePayload = (
   return normalizeFromXml(raw, params, requestId);
 };
 
-export const MerckService = {
-  async search(input: MerckSearchParams): Promise<MerckSearchResponse> {
-    const organisationId = ensureNonEmptyString(
-      input.organisationId,
+const executeSearch = async (
+  input: MerckSearchBaseParams,
+  options: { organisationId?: string; enforceIntegration: boolean },
+): Promise<MerckSearchResponse> => {
+  const query = ensureNonEmptyString(input.query, "q");
+  const organisationId = options.organisationId;
+
+  const audience = optionalEnum(input.audience, ALLOWED_AUDIENCES, "audience");
+  const language = optionalEnum(input.language, ALLOWED_LANGUAGES, "language");
+  const media = optionalEnum(input.media, ALLOWED_MEDIA, "media");
+
+  if (options.enforceIntegration) {
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
       "organisationId",
     );
-    const query = ensureNonEmptyString(input.query, "q");
-
-    const audience = optionalEnum(
-      input.audience,
-      ALLOWED_AUDIENCES,
-      "audience",
-    );
-    const language = optionalEnum(
-      input.language,
-      ALLOWED_LANGUAGES,
-      "language",
-    );
-    const media = optionalEnum(input.media, ALLOWED_MEDIA, "media");
-
     const merck = (await IntegrationService.ensureMerckAccount(
-      organisationId,
+      safeOrganisationId,
     )) as { status?: string };
     if (merck.status === "disabled") {
       throw new MerckServiceError(
@@ -809,128 +810,144 @@ export const MerckService = {
         403,
       );
     }
+  }
 
-    const {
-      params,
-      audience: resolvedAudience,
-      language: resolvedLanguage,
-      media: resolvedMedia,
-    } = buildSearchParams({
-      ...input,
-      query,
-      audience: audience ?? "PROV",
-      language: language ?? "en",
-      media: media ?? "hybrid",
+  const {
+    params,
+    audience: resolvedAudience,
+    language: resolvedLanguage,
+    media: resolvedMedia,
+  } = buildSearchParams({
+    ...input,
+    query,
+    audience: audience ?? "PROV",
+    language: language ?? "en",
+    media: media ?? "hybrid",
+  });
+
+  const routing = selectMerckBaseUrl(input.timezone);
+  const client = getMerckClient(routing.baseUrl);
+  const start = Date.now();
+  try {
+    const upstream = await client.search(params, {
+      Accept:
+        "application/json, application/atom+xml, text/xml;q=0.9, */*;q=0.1",
     });
 
-    const routing = selectMerckBaseUrl(input.timezone);
-    const client = getMerckClient(routing.baseUrl);
-    const start = Date.now();
-    try {
-      const upstream = await client.search(params, {
+    let responsePayload = upstream.data;
+    if (isHtmlPayload(upstream.contentType, upstream.data)) {
+      const altBaseUrl = buildAlternateBaseUrl(routing.baseUrl);
+      const altParams = buildAlternateParams(params);
+      const altClient = getMerckClient(altBaseUrl);
+      const altUpstream = await altClient.search(altParams, {
         Accept:
           "application/json, application/atom+xml, text/xml;q=0.9, */*;q=0.1",
       });
+      if (isHtmlPayload(altUpstream.contentType, altUpstream.data)) {
+        throw new MerckServiceError(
+          "Merck upstream returned HTML instead of Atom/JSON.",
+          502,
+        );
+      }
+      responsePayload = altUpstream.data;
+    }
 
-      let responsePayload = upstream.data;
-      if (isHtmlPayload(upstream.contentType, upstream.data)) {
-        const altBaseUrl = buildAlternateBaseUrl(routing.baseUrl);
-        const altParams = buildAlternateParams(params);
-        const altClient = getMerckClient(altBaseUrl);
-        const altUpstream = await altClient.search(altParams, {
+    const response = parsePayload(
+      responsePayload,
+      {
+        audience: resolvedAudience,
+        language: resolvedLanguage,
+        media: resolvedMedia,
+      },
+      input.requestId,
+    );
+    logger.info("Merck search completed", {
+      organisationId: organisationId ?? null,
+      upstreamHost: routing.host,
+      upstreamBaseUrl: routing.baseUrl,
+      routingReason: routing.reason,
+      timezone: input.timezone ?? null,
+      audience: resolvedAudience,
+      language: resolvedLanguage,
+      media: resolvedMedia,
+      durationMs: Date.now() - start,
+      requestId: input.requestId,
+    });
+    return response;
+  } catch (error) {
+    if (shouldRetry(error)) {
+      try {
+        const upstream = await client.search(params, {
           Accept:
             "application/json, application/atom+xml, text/xml;q=0.9, */*;q=0.1",
         });
-        if (isHtmlPayload(altUpstream.contentType, altUpstream.data)) {
+        if (isHtmlPayload(upstream.contentType, upstream.data)) {
           throw new MerckServiceError(
             "Merck upstream returned HTML instead of Atom/JSON.",
             502,
           );
         }
-        responsePayload = altUpstream.data;
-      }
-
-      const response = parsePayload(
-        responsePayload,
-        {
-          audience: resolvedAudience,
-          language: resolvedLanguage,
-          media: resolvedMedia,
-        },
-        input.requestId,
-      );
-      logger.info("Merck search completed", {
-        organisationId,
-        upstreamHost: routing.host,
-        upstreamBaseUrl: routing.baseUrl,
-        routingReason: routing.reason,
-        timezone: input.timezone ?? null,
-        audience: resolvedAudience,
-        language: resolvedLanguage,
-        media: resolvedMedia,
-        durationMs: Date.now() - start,
-        requestId: input.requestId,
-      });
-      return response;
-    } catch (error) {
-      if (shouldRetry(error)) {
-        try {
-          const upstream = await client.search(params, {
-            Accept:
-              "application/json, application/atom+xml, text/xml;q=0.9, */*;q=0.1",
-          });
-          if (isHtmlPayload(upstream.contentType, upstream.data)) {
-            throw new MerckServiceError(
-              "Merck upstream returned HTML instead of Atom/JSON.",
-              502,
-            );
-          }
-          const response = parsePayload(
-            upstream.data,
-            {
-              audience: resolvedAudience,
-              language: resolvedLanguage,
-              media: resolvedMedia,
-            },
-            input.requestId,
-          );
-          logger.info("Merck search completed after retry", {
-            organisationId,
-            upstreamHost: routing.host,
-            upstreamBaseUrl: routing.baseUrl,
-            routingReason: routing.reason,
-            timezone: input.timezone ?? null,
+        const response = parsePayload(
+          upstream.data,
+          {
             audience: resolvedAudience,
             language: resolvedLanguage,
             media: resolvedMedia,
-            durationMs: Date.now() - start,
-            requestId: input.requestId,
-          });
-          return response;
-        } catch (retryError) {
-          logger.error("Merck search retry failed", {
-            organisationId,
-            requestId: input.requestId,
-            upstreamHost: routing.host,
-            upstreamBaseUrl: routing.baseUrl,
-            routingReason: routing.reason,
-            timezone: input.timezone ?? null,
-            error: retryError,
-          });
-          throw retryError;
-        }
+          },
+          input.requestId,
+        );
+        logger.info("Merck search completed after retry", {
+          organisationId: organisationId ?? null,
+          upstreamHost: routing.host,
+          upstreamBaseUrl: routing.baseUrl,
+          routingReason: routing.reason,
+          timezone: input.timezone ?? null,
+          audience: resolvedAudience,
+          language: resolvedLanguage,
+          media: resolvedMedia,
+          durationMs: Date.now() - start,
+          requestId: input.requestId,
+        });
+        return response;
+      } catch (retryError) {
+        logger.error("Merck search retry failed", {
+          organisationId: organisationId ?? null,
+          requestId: input.requestId,
+          upstreamHost: routing.host,
+          upstreamBaseUrl: routing.baseUrl,
+          routingReason: routing.reason,
+          timezone: input.timezone ?? null,
+          error: retryError,
+        });
+        throw retryError;
       }
-
-      logger.error("Merck search failed", {
-        organisationId,
-        requestId: input.requestId,
-        upstreamHost: routing.host,
-        upstreamBaseUrl: routing.baseUrl,
-        routingReason: routing.reason,
-        timezone: input.timezone ?? null,
-        error,
-      });
-      throw error;
     }
+
+    logger.error("Merck search failed", {
+      organisationId: organisationId ?? null,
+      requestId: input.requestId,
+      upstreamHost: routing.host,
+      upstreamBaseUrl: routing.baseUrl,
+      routingReason: routing.reason,
+      timezone: input.timezone ?? null,
+      error,
+    });
+    throw error;
+  }
+};
+
+export const MerckService = {
+  async search(input: MerckSearchParams): Promise<MerckSearchResponse> {
+    return executeSearch(input, {
+      organisationId: input.organisationId,
+      enforceIntegration: true,
+    });
+  },
+  async searchConsumer(
+    input: MerckConsumerSearchParams,
+  ): Promise<MerckSearchResponse> {
+    return executeSearch(input, {
+      enforceIntegration: false,
+    });
   },
 };

@@ -90,6 +90,7 @@ jest.mock('@/app/constants/mediaSources', () => ({
 jest.mock('@/app/features/integrations/constants/merck', () => ({
   MERCK_COPYRIGHT_NOTICE: 'copyright',
   getMerckSubtopicPillStyle: () => ({}),
+  sanitizeMerckHtml: (s: string) => s,
 }));
 
 jest.mock('@/app/lib/date', () => ({

@@ -64,8 +64,11 @@ jest.mock('@/app/ui/inputs/FormDesc/FormDesc', () => (props: any) => (
   <textarea data-testid="concern" value={props.value} onChange={(e) => props.onChange(e)} />
 ));
 
-jest.mock('@/app/features/appointments/components/DateTimePickerSection', () => () => (
-  <div data-testid="date-time-picker" />
+jest.mock('@/app/features/appointments/components/DateTimePickerSection', () => (props: any) => (
+  <div data-testid="date-time-picker">
+    <div data-testid="date-time-lead-id">{props.leadId ?? ''}</div>
+    <div data-testid="date-time-lead-options">{JSON.stringify(props.leadOptions ?? [])}</div>
+  </div>
 ));
 
 jest.mock('@/app/ui/primitives/Buttons', () => ({
@@ -103,7 +106,12 @@ describe('AppointmentInfo section', () => {
     jest.clearAllMocks();
     useRoomsMock.mockReturnValue([{ id: 'room-1', name: 'Room A' }]);
     useTeamMock.mockReturnValue([
-      { _id: 'team-1', name: 'Alex', practionerId: 'team-1' },
+      {
+        _id: 'team-1',
+        name: 'Alex',
+        practionerId: 'team-1',
+        image: 'https://example.com/alex.jpg',
+      },
       { _id: 'team-2', name: 'Sam', practionerId: 'team-2' },
     ]);
     useSpecialitiesMock.mockReturnValue([{ _id: 'spec-1', name: 'General' }]);
@@ -154,5 +162,50 @@ describe('AppointmentInfo section', () => {
     expect(screen.getByText('Room')).toBeInTheDocument();
     expect(screen.getByText('Status')).toBeInTheDocument();
     expect(screen.getByTestId('concern')).toBeInTheDocument();
+  });
+
+  it('keeps the assigned lead available when editing the appointment current slot', async () => {
+    getSlotsMock.mockResolvedValue([{ startTime: '10:00', endTime: '10:30', vetIds: ['team-2'] }]);
+    render(<AppointmentInfo activeAppointment={activeAppointment} />);
+
+    fireEvent.click(screen.getByTestId('edit-Appointments details'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('date-time-lead-id')).toHaveTextContent('team-1');
+    });
+
+    const leadOptions = JSON.parse(
+      screen.getByTestId('date-time-lead-options').textContent ?? '[]'
+    );
+    expect(leadOptions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ value: 'team-1', label: 'Alex' }),
+        expect.objectContaining({ value: 'team-2', label: 'Sam' }),
+      ])
+    );
+  });
+
+  it('sends lead profileUrl when saving edited appointment', async () => {
+    render(<AppointmentInfo activeAppointment={activeAppointment} />);
+    fireEvent.click(screen.getByTestId('edit-Appointments details'));
+
+    await waitFor(() => {
+      expect(getSlotsMock).toHaveBeenCalled();
+    });
+
+    fireEvent.click(screen.getByTestId('save-appointment'));
+
+    await waitFor(() => {
+      expect(updateAppointmentMock).toHaveBeenCalled();
+    });
+
+    const updatedPayload = updateAppointmentMock.mock.calls.at(-1)?.[0];
+    expect(updatedPayload?.lead).toEqual(
+      expect.objectContaining({
+        id: 'team-1',
+        name: 'Alex',
+        profileUrl: 'https://example.com/alex.jpg',
+      })
+    );
   });
 });

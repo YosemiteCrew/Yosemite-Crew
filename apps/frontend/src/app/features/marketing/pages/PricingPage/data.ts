@@ -110,7 +110,7 @@ export const TableData = [
     rows: [
       yesYes('IDEXX integration'),
       yesYes('Merck Manuals integration'),
-      row('RAD Analyzer integration', 'Coming soon', 'Coming soon'),
+      row('RadAnalyzer integration', 'Coming soon', 'Coming soon'),
     ],
   },
   {

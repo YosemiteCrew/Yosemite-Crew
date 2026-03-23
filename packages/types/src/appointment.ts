@@ -84,6 +84,9 @@ const EXT_APPOINTMENT_PAYMENT_STATUS =
 
 export function toFHIRAppointment(appointment: Appointment): FHIRAppointment {
   const participants: AppointmentParticipant[] = [];
+  const normalizedLeadId = appointment.lead?.id?.trim();
+  const hasValidLeadId =
+    Boolean(normalizedLeadId) && normalizedLeadId !== 'undefined' && normalizedLeadId !== 'null';
 
   // Companion participant
   participants.push(
@@ -101,7 +104,15 @@ export function toFHIRAppointment(appointment: Appointment): FHIRAppointment {
     },
     {
       actor: {
-        reference: `Practitioner/${appointment.lead?.id}`,
+        reference: `Organization/${appointment.organisationId}`,
+      },
+    }
+  );
+
+  if (hasValidLeadId) {
+    participants.push({
+      actor: {
+        reference: `Practitioner/${normalizedLeadId}`,
         display: appointment.lead?.name,
       },
       status: appointment.status,
@@ -119,13 +130,8 @@ export function toFHIRAppointment(appointment: Appointment): FHIRAppointment {
       extension: appointment.lead?.profileUrl
         ? [{ url: EXT_LEAD_PROFILE_URL, valueString: appointment.lead.profileUrl }]
         : undefined,
-    },
-    {
-      actor: {
-        reference: `Organization/${appointment.organisationId}`,
-      },
-    }
-  );
+    });
+  }
 
   // Support staff participants
   if (appointment.supportStaff && appointment.supportStaff.length > 0) {
@@ -282,8 +288,13 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
   const parentParticipant = FHIRappointment.participant.find((p) =>
     p.actor?.reference?.startsWith('RelatedPerson/')
   );
-  const leadParticipant = FHIRappointment.participant.find((p) =>
-    p.type?.some((t) => t.coding?.some((c) => c.code === 'PPRF'))
+  const leadParticipant = FHIRappointment.participant.find(
+    (p) =>
+      p.type?.some((t) => t.coding?.some((c) => c.code === 'PPRF')) &&
+      p.actor?.reference?.startsWith('Practitioner/') &&
+      !['undefined', 'null', ''].includes(
+        (p.actor?.reference?.split('/')[1] ?? '').trim().toLowerCase()
+      )
   );
   const supportStaffParticipants = FHIRappointment.participant.filter((p) =>
     p.type?.some((t) => t.coding?.some((c) => c.code === 'SPRF'))
@@ -331,6 +342,12 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
   )?.valueString as AppointmentPaymentStatus | undefined;
 
   // Construct internal Appointment object
+  const leadId = leadParticipant?.actor?.reference?.split('/')[1] ?? '';
+  const hasLead =
+    leadId.trim().length > 0 &&
+    leadId.trim().toLowerCase() !== 'undefined' &&
+    leadId.trim().toLowerCase() !== 'null';
+
   const appointment: Appointment = {
     id: FHIRappointment.id ?? '',
     organisationId: orgParticipant?.actor?.reference?.split('/')[1] ?? 'unknown-org',
@@ -344,11 +361,13 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
         name: parentParticipant?.actor?.display ?? '',
       },
     },
-    lead: {
-      id: leadParticipant?.actor?.reference?.split('/')[1] ?? '',
-      name: leadParticipant?.actor?.display ?? '',
-      profileUrl: leadProfileExtension?.valueString,
-    },
+    lead: hasLead
+      ? {
+          id: leadId,
+          name: leadParticipant?.actor?.display ?? '',
+          profileUrl: leadProfileExtension?.valueString,
+        }
+      : undefined,
     supportStaff: supportStaffParticipants.map((s) => ({
       id: s.actor?.reference?.split('/')[1] ?? '',
       name: s.actor?.display ?? '',

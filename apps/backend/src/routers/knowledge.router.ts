@@ -1,8 +1,9 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
-import { authorizeCognito } from "src/middlewares/auth";
+import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
 import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 import { MerckController } from "src/controllers/web/merck.controller";
+import { MerckMobileController } from "src/controllers/app/merck.controller";
 
 const router = Router();
 
@@ -28,6 +29,13 @@ router.get(
   requirePermission("integrations:view:any"),
   merckSearchLimiter,
   (req, res) => MerckController.searchManuals(req, res),
+);
+
+router.get(
+  "/mobile/merck/manuals/search",
+  authorizeCognitoMobile,
+  merckSearchLimiter,
+  (req, res) => MerckMobileController.searchManuals(req, res),
 );
 
 export default router;

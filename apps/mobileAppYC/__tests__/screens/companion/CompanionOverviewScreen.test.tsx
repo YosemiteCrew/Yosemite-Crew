@@ -434,6 +434,13 @@ jest.mock(
   },
 );
 
+jest.mock('@/features/companion/services/codeEntriesService', () => ({
+  fetchBreedCodeEntries: jest.fn(),
+}));
+jest.mock('@/features/auth/sessionManager', () => ({
+  getFreshStoredTokens: jest.fn(),
+}));
+
 // --- Mock Redux Store Interaction --- (Remain the same)
 const mockDispatch = jest.fn();
 jest.mock('react-redux', () => ({
@@ -573,6 +580,14 @@ describe('CompanionOverviewScreen', () => {
       if (s === 'unknown') return 'Unknown';
       return '';
     });
+    (
+      require('@/features/auth/sessionManager')
+        .getFreshStoredTokens as jest.Mock
+    ).mockResolvedValue({accessToken: 'mock-token'});
+    (
+      require('@/features/companion/services/codeEntriesService')
+        .fetchBreedCodeEntries as jest.Mock
+    ).mockResolvedValue([]);
   });
 
   // --- Tests ---
@@ -1058,29 +1073,44 @@ describe('CompanionOverviewScreen', () => {
     );
   });
 
-  it('loads correct breed list for a cat companion', () => {
+  it('loads correct breed list for a cat companion', async () => {
+    (
+      require('@/features/companion/services/codeEntriesService')
+        .fetchBreedCodeEntries as jest.Mock
+    ).mockResolvedValue([
+      {
+        display: 'Siamese',
+        code: 'siamese',
+        meta: {speciesCode: 'feline'},
+      },
+    ]);
     const mockCatCompanion = {
       ...mockCompanion,
       category: 'cat' as const,
     } as Companion;
     renderWithState(mockCatCompanion);
-    // FIX TS(2352): Use the correct expected Breed structure from the JSON mock
-    expect(screen.getByTestId('breed-sheet')).toHaveProp('breeds', [
-      {
-        breedId: 1,
-        breedName: 'Siamese',
-        speciesId: 2,
-        speciesName: 'Cat',
-      },
-    ]);
+    await waitFor(() => {
+      expect(screen.getByTestId('breed-sheet')).toHaveProp('breeds', [
+        {
+          speciesId: 0,
+          speciesName: 'feline',
+          breedId: -1,
+          breedName: 'Siamese',
+          speciesCode: 'feline',
+          breedCode: 'siamese',
+        },
+      ]);
+    });
   });
 
-  it('loads empty breed list for a horse companion', () => {
+  it('loads empty breed list for a horse companion', async () => {
     const mockHorseCompanion = {
       ...mockCompanion,
       category: 'horse' as const,
     } as Companion;
     renderWithState(mockHorseCompanion);
-    expect(screen.getByTestId('breed-sheet')).toHaveProp('breeds', []);
+    await waitFor(() => {
+      expect(screen.getByTestId('breed-sheet')).toHaveProp('breeds', []);
+    });
   });
 });

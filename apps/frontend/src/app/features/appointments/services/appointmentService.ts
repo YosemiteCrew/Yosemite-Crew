@@ -7,6 +7,8 @@ import {
 
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useAppointmentStore } from '@/app/stores/appointmentStore';
+import { useAuthStore } from '@/app/stores/authStore';
+import { useTeamStore } from '@/app/stores/teamStore';
 import { getData, patchData, postData } from '@/app/services/axios';
 import {
   AvailabilityResponse,
@@ -22,6 +24,13 @@ import {
 } from '@/app/lib/appointments';
 
 type AppointmentPaymentStatus = 'PAID' | 'UNPAID' | 'PAID_CASH' | 'PAYMENT_AT_CLINIC';
+
+const normalizeLeadId = (value?: string | null) => {
+  const trimmed = String(value ?? '').trim();
+  if (!trimmed) return '';
+  const lowered = trimmed.toLowerCase();
+  return lowered === 'undefined' || lowered === 'null' ? '' : trimmed;
+};
 
 const getOrgIdForAppointment = (appointment: Appointment) => {
   const { primaryOrgId } = useOrgStore.getState();
@@ -197,7 +206,47 @@ const performAppointmentAction = async (
     return;
   }
   try {
-    const fhirAppointment = toAppointmentResponseDTO(appointment);
+    let appointmentPayload = appointment;
+    const shouldAutofillLead = action === 'accept' && normalizeLeadId(appointment.lead?.id) === '';
+    if (shouldAutofillLead) {
+      const authUserId = useAuthStore.getState().user?.getUsername?.();
+      const authAttributes = useAuthStore.getState().attributes;
+      const teams = useTeamStore.getState().getTeamsByOrgId(organisationIdForRequest);
+      const currentMember = teams.find((member) => {
+        const memberPractitionerId = normalizeLeadId(member.practionerId);
+        const normalizedAuthUserId = normalizeLeadId(authUserId);
+        if (normalizedAuthUserId === '') {
+          return false;
+        }
+        return (
+          memberPractitionerId === normalizedAuthUserId ||
+          normalizeLeadId(member._id) === normalizedAuthUserId
+        );
+      });
+      const fallbackLeadId = normalizeLeadId(currentMember?.practionerId);
+      const fallbackLeadName =
+        currentMember?.name ||
+        [authAttributes?.given_name, authAttributes?.family_name]
+          .filter(Boolean)
+          .join(' ')
+          .trim() ||
+        undefined;
+      if (!fallbackLeadId) {
+        throw new Error(
+          'Cannot accept appointment without a valid lead. Assign/select a lead first.'
+        );
+      }
+      appointmentPayload = {
+        ...appointment,
+        lead: {
+          id: fallbackLeadId,
+          name: fallbackLeadName ?? 'Assigned vet',
+          profileUrl: appointment.lead?.profileUrl,
+        },
+      };
+    }
+
+    const fhirAppointment = toAppointmentResponseDTO(appointmentPayload);
     const res = await patchData<{
       data: { appointment: AppointmentResponseDTO };
     }>(
@@ -211,8 +260,8 @@ const performAppointmentAction = async (
       reject: 'CANCELLED',
     };
     return upsertFromResponse(res, {
-      ...appointment,
-      status: nextStatusByAction[action] ?? appointment.status,
+      ...appointmentPayload,
+      status: nextStatusByAction[action] ?? appointmentPayload.status,
     });
   } catch (err) {
     console.error(`Failed to ${action} appointment:`, err);

@@ -117,4 +117,17 @@ describe('InvoicePaymentActions', () => {
     expect(screen.queryByText('Generate & Mail link')).not.toBeInTheDocument();
     expect(screen.queryByText('Pay in cash')).not.toBeInTheDocument();
   });
+
+  it('keeps link and cash actions enabled when invoice is pending even if appointment payment is marked paid', () => {
+    render(
+      <InvoicePaymentActions
+        invoiceId="inv-1"
+        invoiceStatus="AWAITING_PAYMENT"
+        activeAppointment={{ paymentStatus: 'PAID' } as any}
+      />
+    );
+
+    expect(screen.getByText('Pay in cash')).toBeInTheDocument();
+    expect(screen.getByText('Generate & Mail link')).toBeInTheDocument();
+  });
 });

@@ -197,6 +197,15 @@ describe('FormSigningScreen', () => {
       expect(mockGoBack).toHaveBeenCalled();
     });
 
+    it('navigates back automatically if form status becomes completed', () => {
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        {submission: {_id: mockSubmissionId}, status: 'completed'},
+      ]);
+
+      renderScreen();
+      expect(mockGoBack).toHaveBeenCalled();
+    });
+
     it('does not fetch if not focused', () => {
       (useIsFocused as jest.Mock).mockReturnValue(false);
       renderScreen();

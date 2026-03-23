@@ -26,6 +26,7 @@ import {
 import {
   MERCK_COPYRIGHT_NOTICE,
   getMerckSubtopicPillStyle,
+  sanitizeMerckHtml,
 } from '@/app/features/integrations/constants/merck';
 import { formatDateTimeLocal } from '@/app/lib/date';
 import { IoCloseOutline, IoCopyOutline, IoOpenOutline, IoOptionsOutline } from 'react-icons/io5';
@@ -263,7 +264,10 @@ const EntryCard = ({
     <div className="rounded-2xl border border-card-border p-4 flex flex-col gap-3">
       <div className="flex flex-col lg:flex-row gap-3 lg:gap-4 lg:justify-between">
         <div className="w-full min-w-0 lg:w-[48%] xl:w-[52%] flex flex-col gap-2">
-          <div className="text-body-2 text-text-primary">{entry.title}</div>
+          <div
+            className="text-body-2 text-text-primary"
+            dangerouslySetInnerHTML={{ __html: sanitizeMerckHtml(entry.title) }}
+          />
           <div className="text-body-4 text-text-secondary line-clamp-3">
             {summary || 'No summary available.'}
           </div>
@@ -328,6 +332,8 @@ type ExecuteMerckSearchParams = {
   audience: MerckAudience;
   language: MerckLanguage;
   requestIdRef: { current: number };
+  resultCacheRef: { current: Map<string, MerckEntry[]> };
+  fresh?: boolean;
   setLoading: React.Dispatch<React.SetStateAction<boolean>>;
   setError: React.Dispatch<React.SetStateAction<string | null>>;
   setEntries: React.Dispatch<React.SetStateAction<MerckEntry[]>>;
@@ -340,6 +346,8 @@ const executeMerckSearch = async ({
   audience,
   language,
   requestIdRef,
+  resultCacheRef,
+  fresh = false,
   setLoading,
   setError,
   setEntries,
@@ -347,6 +355,16 @@ const executeMerckSearch = async ({
 }: ExecuteMerckSearchParams) => {
   const resolvedQuery = query.trim();
   if (!resolvedQuery) return;
+
+  const cacheKey = `${resolvedQuery}::${audience}::${language}`;
+  if (fresh) {
+    resultCacheRef.current.delete(cacheKey);
+  }
+  const cached = resultCacheRef.current.get(cacheKey);
+  if (cached) {
+    setEntries(cached);
+    return;
+  }
 
   requestIdRef.current += 1;
   const reqId = requestIdRef.current;
@@ -366,7 +384,9 @@ const executeMerckSearch = async ({
 
     if (reqId !== requestIdRef.current) return;
 
-    setEntries(getSafeMerckResults(response.entries));
+    const safe = getSafeMerckResults(response.entries);
+    resultCacheRef.current.set(cacheKey, safe);
+    setEntries(safe);
     saveRecentSearch(organisationId, audience, resolvedQuery);
     setRecentSearches(getRecentSearches(organisationId, audience));
   } catch (e: unknown) {
@@ -403,7 +423,7 @@ const MerckSearchPanel = ({
   query: string;
   setQuery: React.Dispatch<React.SetStateAction<string>>;
   loading: boolean;
-  performSearch: (nextQuery?: string) => Promise<void>;
+  performSearch: (nextQuery?: string, fresh?: boolean) => Promise<void>;
   advancedOpen: boolean;
   setAdvancedOpen: React.Dispatch<React.SetStateAction<boolean>>;
   language: MerckLanguage;
@@ -415,7 +435,7 @@ const MerckSearchPanel = ({
       className="flex items-center gap-2 flex-nowrap"
       onSubmit={(e) => {
         e.preventDefault();
-        void performSearch();
+        void performSearch(undefined, true);
       }}
     >
       <div className="flex-1 min-w-0">
@@ -432,7 +452,7 @@ const MerckSearchPanel = ({
         <Primary
           href="#"
           text={loading ? 'Searching...' : 'Search'}
-          onClick={() => void performSearch()}
+          onClick={() => void performSearch(undefined, true)}
           isDisabled={loading || !query.trim()}
         />
         <button
@@ -524,7 +544,7 @@ const MerckReaderPortal = ({
   if (!readerOpen || !readerUrl || typeof document === 'undefined') return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[5000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-5000 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="relative bg-white rounded-2xl shadow-2xl w-full h-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-4 py-2 border-b border-black/10">
           <div className="text-body-2 text-text-primary truncate pr-2">{readerTitle}</div>
@@ -589,7 +609,10 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
   const [readerLoading, setReaderLoading] = useState(false);
 
   const requestIdRef = useRef(0);
-  const performSearchRef = useRef<((nextQuery?: string) => Promise<void>) | null>(null);
+  const resultCacheRef = useRef<Map<string, MerckEntry[]>>(new Map());
+  const performSearchRef = useRef<((nextQuery?: string, fresh?: boolean) => Promise<void>) | null>(
+    null
+  );
 
   useEffect(() => {
     if (!primaryOrgId) return;
@@ -608,7 +631,7 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
   }, [copied]);
 
   const performSearch = useCallback(
-    async (nextQuery?: string) => {
+    async (nextQuery?: string, fresh?: boolean) => {
       if (!primaryOrgId) return;
       await executeMerckSearch({
         organisationId: primaryOrgId,
@@ -616,6 +639,8 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
         audience,
         language,
         requestIdRef,
+        resultCacheRef,
+        fresh,
         setLoading,
         setError,
         setEntries,
@@ -681,7 +706,24 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
         <AudienceToggle
           value={audience}
           disabled={disabled}
-          onChange={(next) => setAudience(next)}
+          onChange={(next) => {
+            setAudience(next);
+            if (primaryOrgId && query.trim()) {
+              void executeMerckSearch({
+                organisationId: primaryOrgId,
+                query: query.trim(),
+                audience: next,
+                language,
+                requestIdRef,
+                resultCacheRef,
+                // fresh: false (default) — serve from cache if available
+                setLoading,
+                setError,
+                setEntries,
+                setRecentSearches,
+              });
+            }
+          }}
         />
       </div>
 
@@ -708,7 +750,16 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
             ) : null}
 
             <div className={resultsContainerClassName}>
-              <div className="flex flex-col gap-3">{resultsContent}</div>
+              <div className="flex flex-col gap-3">
+                {resultsContent}
+                {entries.length > 0 ? (
+                  <div className="pt-2 pb-1.5">
+                    <div className="text-caption-1 text-text-secondary">
+                      {MERCK_COPYRIGHT_NOTICE}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
         </div>
@@ -723,9 +774,11 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
         setReaderLoading={setReaderLoading}
       />
 
-      <div className="pt-1 flex flex-col gap-1">
-        <div className="text-caption-1 text-text-secondary">{MERCK_COPYRIGHT_NOTICE}</div>
-      </div>
+      {entries.length === 0 ? (
+        <div className="pt-1 pb-1.5 mt-auto">
+          <div className="text-caption-1 text-text-secondary">{MERCK_COPYRIGHT_NOTICE}</div>
+        </div>
+      ) : null}
     </div>
   );
 };

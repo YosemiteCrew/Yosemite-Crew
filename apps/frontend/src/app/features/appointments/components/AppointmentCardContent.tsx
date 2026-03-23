@@ -7,9 +7,17 @@ import { getStatusStyle } from '@/app/config/statusConfig';
 import { toTitle } from '@/app/lib/validators';
 import AppointmentDetailField from '@/app/features/appointments/components/AppointmentDetailField';
 import { normalizeAppointmentStatus, type LegacyAppointmentStatus } from '@/app/lib/appointments';
+import { useLoadTeam, useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 
 type AppointmentCardContentProps = {
   appointment: Appointment;
+};
+
+const normalizeLeadId = (value?: string | null): string => {
+  const trimmed = String(value ?? '').trim();
+  if (!trimmed) return '';
+  const lowered = trimmed.toLowerCase();
+  return lowered === 'undefined' || lowered === 'null' ? '' : trimmed;
 };
 
 export const AppointmentCompanionHeader = ({ appointment }: AppointmentCardContentProps) => (
@@ -29,26 +37,38 @@ export const AppointmentCompanionHeader = ({ appointment }: AppointmentCardConte
   </div>
 );
 
-export const AppointmentDetails = ({ appointment }: AppointmentCardContentProps) => (
-  <>
-    <AppointmentDetailField
-      label="Breed / Species"
-      value={`${appointment.companion?.breed || '-'} / ${appointment.companion?.species}`}
-    />
-    <AppointmentDetailField
-      label="Date / Time"
-      value={`${formatDateLabel(appointment.appointmentDate)} / ${formatTimeLabel(appointment.startTime)}`}
-    />
-    <AppointmentDetailField label="Reason" value={appointment.concern} />
-    <AppointmentDetailField label="Service" value={appointment.appointmentType?.name} />
-    <AppointmentDetailField label="Room" value={appointment.room?.name} />
-    <AppointmentDetailField label="Lead" value={appointment.lead?.name} />
-    <AppointmentDetailField
-      label="Staff"
-      value={appointment.supportStaff?.map((sup) => sup.name).join(', ')}
-    />
-  </>
-);
+export const AppointmentDetails = ({ appointment }: AppointmentCardContentProps) => {
+  useLoadTeam();
+  const teams = useTeamForPrimaryOrg();
+  const leadId = normalizeLeadId(appointment.lead?.id);
+  const fallbackLeadName = React.useMemo(() => {
+    if (!leadId) return undefined;
+    const matched = teams.find((team) => normalizeLeadId(team.practionerId) === leadId);
+    return matched?.name?.trim() || undefined;
+  }, [leadId, teams]);
+  const leadName = appointment.lead?.name?.trim() || fallbackLeadName;
+
+  return (
+    <>
+      <AppointmentDetailField
+        label="Breed / Species"
+        value={`${appointment.companion?.breed || '-'} / ${appointment.companion?.species}`}
+      />
+      <AppointmentDetailField
+        label="Date / Time"
+        value={`${formatDateLabel(appointment.appointmentDate)} / ${formatTimeLabel(appointment.startTime)}`}
+      />
+      <AppointmentDetailField label="Reason" value={appointment.concern} />
+      <AppointmentDetailField label="Service" value={appointment.appointmentType?.name} />
+      <AppointmentDetailField label="Room" value={appointment.room?.name} />
+      <AppointmentDetailField label="Lead" value={leadName} />
+      <AppointmentDetailField
+        label="Staff"
+        value={appointment.supportStaff?.map((sup) => sup.name).join(', ')}
+      />
+    </>
+  );
+};
 
 export const AppointmentStatusBadge = ({ appointment }: AppointmentCardContentProps) => {
   const displayStatus =

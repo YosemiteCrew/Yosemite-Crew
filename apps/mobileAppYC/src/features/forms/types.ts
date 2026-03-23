@@ -1,6 +1,6 @@
 import type {Form, FormSubmission} from '@yosemite-crew/types';
 
-export type FormSource = 'appointment' | 'service' | 'soap';
+export type FormSource = 'appointment' | 'service';
 
 export type AppointmentFormStatus =
   | 'not_started'
@@ -17,7 +17,6 @@ export interface AppointmentFormEntry {
   signingRequired: boolean;
   signingUrl?: string | null;
   source: FormSource;
-  soapSection?: string;
 }
 
 export interface AppointmentFormsState {

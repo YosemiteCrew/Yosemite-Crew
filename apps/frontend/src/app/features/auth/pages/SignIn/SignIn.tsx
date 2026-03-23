@@ -132,6 +132,7 @@ const SignIn = ({
                 inname="password"
                 value={password}
                 inlabel="Password"
+                autoComplete="current-password"
                 onChange={(e) => setPassword(e.target.value)}
                 error={inputErrors.pError}
               />

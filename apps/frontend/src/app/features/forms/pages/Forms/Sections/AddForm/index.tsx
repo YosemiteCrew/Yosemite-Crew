@@ -209,12 +209,7 @@ const AddForm = ({
 
         <Labels labels={labelOptions} activeLabel={activeLabel} setActiveLabel={handleLabelClick} />
 
-        <div
-          ref={scrollRef}
-          className={`flex flex-1 min-h-0 scrollbar-hidden ${
-            activeLabel === 'merck-manuals' ? 'overflow-hidden' : 'overflow-y-auto'
-          }`}
-        >
+        <div ref={scrollRef} className="flex flex-1 min-h-0 scrollbar-hidden overflow-y-auto">
           {activeLabel === 'form-details' && (
             <Details
               formData={formData}

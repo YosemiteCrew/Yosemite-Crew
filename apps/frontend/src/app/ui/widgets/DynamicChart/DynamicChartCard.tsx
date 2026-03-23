@@ -11,7 +11,7 @@ import {
   Tooltip,
   CartesianGrid,
 } from 'recharts';
-import { LayoutType } from 'recharts/types/util/types';
+import type { LayoutType } from 'recharts/types/util/types';
 
 type ChartProps = {
   data: any[];
@@ -27,6 +27,15 @@ type ChartProps = {
 };
 
 type TiltedTickProps = { x: number; y: number; payload: { value: string } };
+type ChartKey = { name: string; color: string };
+type AxisLabelConfig = {
+  value: string;
+  position: 'insideBottom' | 'insideLeft';
+  offset: number;
+  dy?: number;
+  dx?: number;
+  angle?: number;
+};
 
 const TiltedYTick = ({ x, y, payload }: TiltedTickProps) => (
   <g transform={`translate(${x},${y})`}>
@@ -34,6 +43,141 @@ const TiltedYTick = ({ x, y, payload }: TiltedTickProps) => (
       {payload.value}
     </text>
   </g>
+);
+
+const getXAxisLabel = (xAxisLabel?: string): AxisLabelConfig | undefined =>
+  xAxisLabel ? { value: xAxisLabel, position: 'insideBottom', offset: -2, dy: 16 } : undefined;
+
+const getYAxisLabel = (
+  yAxisLabel?: string,
+  isVerticalLayout = false
+): AxisLabelConfig | undefined => {
+  if (!yAxisLabel || isVerticalLayout) return undefined;
+  return { value: yAxisLabel, angle: -90, position: 'insideLeft', offset: 0, dx: -12 };
+};
+
+type LineChartContentProps = {
+  data: any[];
+  width?: number;
+  height?: number;
+  chartMargin: { top: number; right: number; left: number; bottom: number };
+  keys: ChartKey[];
+  yTickFormatter?: (value: number) => string;
+  xAxisLabel?: string;
+  yAxisLabel?: string;
+};
+
+const LineChartContent = ({
+  data,
+  width,
+  height,
+  chartMargin,
+  keys,
+  yTickFormatter,
+  xAxisLabel,
+  yAxisLabel,
+}: LineChartContentProps) => (
+  <LineChart data={data} margin={chartMargin} width={width} height={height}>
+    <XAxis dataKey="month" label={getXAxisLabel(xAxisLabel)} />
+    <YAxis
+      tickFormatter={yTickFormatter}
+      label={
+        yAxisLabel
+          ? { value: yAxisLabel, angle: -90, position: 'insideLeft', offset: 4, dx: -16 }
+          : undefined
+      }
+    />
+    <Tooltip />
+    {keys.map((key) => (
+      <Line
+        key={key.name}
+        type="monotone"
+        dataKey={key.name}
+        stroke={key.color}
+        strokeWidth={2}
+        dot={false}
+      />
+    ))}
+  </LineChart>
+);
+
+type BarChartContentProps = {
+  data: any[];
+  width?: number;
+  height?: number;
+  layout?: LayoutType;
+  isVerticalLayout: boolean;
+  chartMargin: { top: number; right: number; left: number; bottom: number };
+  keys: ChartKey[];
+  yTickFormatter?: (value: number) => string;
+  yAxisWidth?: number;
+  xAxisLabel?: string;
+  yAxisLabel?: string;
+  barSize?: number;
+};
+
+const BarChartContent = ({
+  data,
+  width,
+  height,
+  layout,
+  isVerticalLayout,
+  chartMargin,
+  keys,
+  yTickFormatter,
+  yAxisWidth,
+  xAxisLabel,
+  yAxisLabel,
+  barSize,
+}: BarChartContentProps) => (
+  <BarChart
+    data={data}
+    layout={layout}
+    style={{ height: '100%', maxHeight: '100%', width: '100%', maxWidth: '100%' }}
+    margin={chartMargin}
+    width={width}
+    height={height}
+  >
+    <CartesianGrid strokeDasharray="4 4" vertical={false} />
+    <XAxis
+      dataKey={isVerticalLayout ? undefined : 'month'}
+      type={isVerticalLayout ? 'number' : 'category'}
+      tick={{ fontSize: 11 }}
+      interval={0}
+      label={getXAxisLabel(xAxisLabel)}
+    />
+    <YAxis
+      dataKey={isVerticalLayout ? 'month' : undefined}
+      type={isVerticalLayout ? 'category' : 'number'}
+      tickFormatter={isVerticalLayout ? undefined : yTickFormatter}
+      width={isVerticalLayout ? 100 : yAxisWidth}
+      tick={isVerticalLayout ? TiltedYTick : { fontSize: 11 }}
+      label={getYAxisLabel(yAxisLabel, isVerticalLayout)}
+    />
+    <Tooltip />
+    {keys.map((key) => (
+      <Bar key={key.name} dataKey={key.name} fill={key.color} stackId="a" barSize={barSize} />
+    ))}
+  </BarChart>
+);
+
+const ChartLegend = ({ keys }: { keys: ChartKey[] }) => (
+  <div className="flex items-center justify-center w-full gap-6">
+    {keys.map((key) => (
+      <span key={key.name} className="flex items-center gap-1.5">
+        <span
+          style={{
+            width: '16px',
+            height: '16px',
+            backgroundColor: key.color,
+            borderRadius: '50%',
+            display: 'inline-block',
+          }}
+        />
+        <span className="text-capton-1 text-text-primary">{key.name}</span>
+      </span>
+    ))}
+  </div>
 );
 
 const DynamicChartCard: React.FC<ChartProps> = ({
@@ -58,97 +202,30 @@ const DynamicChartCard: React.FC<ChartProps> = ({
 
   return (
     <div className="bg-white border border-card-border p-3 flex flex-col gap-2 rounded-2xl">
-      {!hideKeys && (
-        <div className="flex items-center justify-center w-full gap-6">
-          {keys.map((key) => (
-            <span key={key.name} className="flex items-center gap-1.5">
-              <span
-                style={{
-                  width: '16px',
-                  height: '16px',
-                  backgroundColor: key.color,
-                  borderRadius: '50%',
-                  display: 'inline-block',
-                }}
-              />
-              <span className="text-capton-1 text-text-primary">{key.name}</span>
-            </span>
-          ))}
-        </div>
-      )}
+      {!hideKeys && <ChartLegend keys={keys} />}
       <ResponsiveContainer width="100%" height={300}>
         {type === 'line' ? (
-          <LineChart data={data} margin={chartMargin}>
-            <XAxis
-              dataKey="month"
-              label={
-                xAxisLabel
-                  ? { value: xAxisLabel, position: 'insideBottom', offset: -2, dy: 16 }
-                  : undefined
-              }
-            />
-            <YAxis
-              tickFormatter={yTickFormatter}
-              label={
-                yAxisLabel
-                  ? { value: yAxisLabel, angle: -90, position: 'insideLeft', offset: 4, dx: -16 }
-                  : undefined
-              }
-            />
-            <Tooltip />
-            {keys.map((key) => (
-              <Line
-                key={key.name}
-                type="monotone"
-                dataKey={key.name}
-                stroke={key.color}
-                strokeWidth={2}
-                dot={false}
-              />
-            ))}
-          </LineChart>
+          <LineChartContent
+            data={data}
+            chartMargin={chartMargin}
+            keys={keys}
+            yTickFormatter={yTickFormatter}
+            xAxisLabel={xAxisLabel}
+            yAxisLabel={yAxisLabel}
+          />
         ) : (
-          <BarChart
+          <BarChartContent
             data={data}
             layout={layout}
-            style={{ height: '100%', maxHeight: '100%', width: '100%', maxWidth: '100%' }}
-            margin={chartMargin}
-          >
-            <CartesianGrid strokeDasharray="4 4" vertical={false} />
-            <XAxis
-              dataKey={isVerticalLayout ? undefined : 'month'}
-              type={isVerticalLayout ? 'number' : 'category'}
-              tick={{ fontSize: 11 }}
-              interval={0}
-              label={
-                xAxisLabel
-                  ? { value: xAxisLabel, position: 'insideBottom', offset: -2, dy: 16 }
-                  : undefined
-              }
-            />
-            <YAxis
-              dataKey={isVerticalLayout ? 'month' : undefined}
-              type={isVerticalLayout ? 'category' : 'number'}
-              tickFormatter={isVerticalLayout ? undefined : yTickFormatter}
-              width={isVerticalLayout ? 100 : yAxisWidth}
-              tick={isVerticalLayout ? TiltedYTick : { fontSize: 11 }}
-              label={
-                !isVerticalLayout && yAxisLabel
-                  ? { value: yAxisLabel, angle: -90, position: 'insideLeft', offset: 0, dx: -12 }
-                  : undefined
-              }
-            />
-            <Tooltip />
-            {keys.map((key) => (
-              <Bar
-                key={key.name}
-                dataKey={key.name}
-                fill={key.color}
-                stackId="a"
-                barSize={barSize}
-              />
-            ))}
-          </BarChart>
+            isVerticalLayout={isVerticalLayout}
+            chartMargin={chartMargin}
+            keys={keys}
+            yTickFormatter={yTickFormatter}
+            yAxisWidth={yAxisWidth}
+            xAxisLabel={xAxisLabel}
+            yAxisLabel={yAxisLabel}
+            barSize={barSize}
+          />
         )}
       </ResponsiveContainer>
     </div>

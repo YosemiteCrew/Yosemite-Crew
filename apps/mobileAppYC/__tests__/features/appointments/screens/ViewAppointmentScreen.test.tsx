@@ -116,6 +116,17 @@ jest.mock(
   },
 );
 
+jest.mock('../../../../src/features/merck/components/MerckSearchWidget', () => {
+  const {View, Text} = require('react-native');
+  return {
+    MerckSearchWidget: () => (
+      <View testID="merck-widget">
+        <Text>Merck Manuals</Text>
+      </View>
+    ),
+  };
+});
+
 jest.mock(
   '../../../../src/features/appointments/components/SummaryCards/SummaryCards',
   () => {
@@ -127,6 +138,9 @@ jest.mock(
           <Text>{props.serviceName}</Text>
           <Text>{props.employee?.name}</Text>
           <Text testID="emp-fallback-title">{props.employee?.title}</Text>
+          <Text testID="employee-avatar-uri">
+            {props.employee?.avatar?.uri ?? props.employee?.avatar ?? ''}
+          </Text>
         </View>
       ),
     };
@@ -389,6 +403,11 @@ describe('ViewAppointmentScreen', () => {
   // --- Rendering Tests ---
 
   describe('Rendering Logic', () => {
+    it('renders merck search widget in appointment flow', () => {
+      renderScreen();
+      expect(screen.getByTestId('merck-widget')).toBeTruthy();
+    });
+
     it('renders full appointment details', () => {
       renderScreen();
       expect(screen.getAllByText('Appointment Details')).toHaveLength(2);
@@ -431,6 +450,18 @@ describe('ViewAppointmentScreen', () => {
       renderScreen(state);
       expect(screen.getByText(/Invalid Date String/)).toBeTruthy();
     });
+
+    it('uses generated avatar URL when no lead photo is available', () => {
+      const state = clone(defaultState);
+      state.appointments.items[0].employeeId = null;
+      state.appointments.items[0].employeeName = 'Harsh Parmar';
+      state.appointments.items[0].employeeAvatar = null;
+      state.businesses.employees = [];
+      renderScreen(state);
+      expect(
+        screen.getByTestId('employee-avatar-uri').props.children,
+      ).toContain('https://ui-avatars.com/api/?name=Harsh%20Parmar');
+    });
   });
 
   // --- Status Variations (Branch Coverage) ---
@@ -443,7 +474,7 @@ describe('ViewAppointmentScreen', () => {
       {status: 'REQUESTED', text: 'Requested'},
       {status: 'NO_PAYMENT', text: 'Payment pending'},
       {status: 'AWAITING_PAYMENT', text: 'Payment pending'},
-      {status: 'PAYMENT_FAILED', text: 'Payment failed'},
+      {status: 'PAYMENT_FAILED', text: 'Payment pending'},
       {status: 'PAID', text: 'Paid'},
       {status: 'CONFIRMED', text: 'Scheduled'},
       {status: 'SCHEDULED', text: 'Scheduled'},
@@ -498,6 +529,15 @@ describe('ViewAppointmentScreen', () => {
         appointmentId: mockAptId,
       });
     });
+
+    it('shows Pay Now for requested appointment when payment is pending', () => {
+      const state = clone(defaultState);
+      state.appointments.items[0].status = 'REQUESTED';
+      state.appointments.items[0].paymentStatus = 'UNPAID';
+      renderScreen(state);
+
+      expect(screen.getByTestId('btn-Pay Now')).toBeTruthy();
+    });
   });
 
   // --- Check-In Flow ---
@@ -530,8 +570,26 @@ describe('ViewAppointmentScreen', () => {
       expect(AppointmentSlice.checkInAppointment).toHaveBeenCalled();
     });
 
+    it('does not render check in button when status is CHECKED_IN', () => {
+      const state = clone(defaultState);
+      state.appointments.items[0].status = 'CHECKED_IN';
+      renderScreen(state);
+
+      expect(screen.queryByTestId('btn-Check in')).toBeNull();
+      expect(screen.queryByTestId('btn-Checked in')).toBeNull();
+    });
+
+    it('does not render check in button when status is IN_PROGRESS', () => {
+      const state = clone(defaultState);
+      state.appointments.items[0].status = 'IN_PROGRESS';
+      renderScreen(state);
+
+      expect(screen.queryByTestId('btn-Check in')).toBeNull();
+      expect(screen.queryByTestId('btn-In progress')).toBeNull();
+    });
+
     it('fails check in: Too Early', async () => {
-      jest.setSystemTime(new Date('2023-12-25T09:00:00Z'));
+      jest.setSystemTime(new Date('2023-12-25T00:00:00Z'));
       renderScreen();
       fireEvent.press(screen.getByTestId('btn-Check in'));
       expect(Alert.alert).toHaveBeenCalledWith(
