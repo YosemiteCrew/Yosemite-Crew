@@ -52,6 +52,15 @@ For **Claude Code** users: modular skills are also in `.claude/skills/` — they
 11. Before suggesting any commit message, validate scope against `commitlint.config.cjs`.
     - Allowed scopes: `backend`, `frontend`, `mobile`, `dev-docs`, `types`, `fhirtypes`, `repo`, `ci`, `docs`.
     - For cross-workspace changes, default to `repo`.
+12. Issue + PR drafting is on-demand only (only when explicitly requested by the user). For this flow:
+    - Determine change range from last PR base as `git merge-base HEAD upstream/dev` to `HEAD`.
+    - Analyze commits and changed files in that range.
+    - Draft content from actual diff/file changes, not from commit title alone.
+    - Group changed files by domain/workstream (for example: companion history, invoices, app updates, Merck, localization, config, docs) and ensure every materially changed domain is represented in Issue + PR text.
+    - If `apps/mobileAppYC/src/features/merck/` or `apps/backend/src/integrations/merck/` changed, Merck integration must be explicitly called out in both Issue and PR sections.
+    - Use `.github/ISSUE_TEMPLATE/feature_request.md` and `.github/PULL_REQUEST_TEMPLATE.md` as canonical templates; keep section headers/order unchanged.
+    - Generate/update a single latest draft file at `.tmp/agent-output/latest-issue-pr.md`.
+    - Keep `.tmp/agent-output/` gitignored and ephemeral (safe to delete anytime).
 
 ## Code Quality Rules
 

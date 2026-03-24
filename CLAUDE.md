@@ -77,6 +77,18 @@ Additional commit rules:
 - Allowed scopes are exactly: `backend`, `frontend`, `mobile`, `dev-docs`, `types`, `fhirtypes`, `repo`, `ci`, `docs`.
 - If changes span multiple workspaces, use `repo`.
 
+Issue + PR draft workflow (only on explicit user request):
+
+- Compute base SHA using `git merge-base HEAD upstream/dev`.
+- Analyze commits and changed files from `<base>..HEAD`.
+- Build draft content from actual file diffs; never infer scope from commit title alone.
+- Group changed files by domain/workstream and ensure all material domains are reflected in Issue and PR body.
+- If Merck paths changed (`apps/mobileAppYC/src/features/merck/` or backend Merck integration paths), explicitly include Merck integration updates.
+- Use `.github/ISSUE_TEMPLATE/feature_request.md` and `.github/PULL_REQUEST_TEMPLATE.md` as the exact template source.
+- Generate or overwrite a single latest file: `.tmp/agent-output/latest-issue-pr.md`.
+- Do not auto-generate this file unless asked.
+- Treat `.tmp/agent-output/` as temporary local output (gitignored, deletable anytime).
+
 ---
 
 ## Code Quality — SonarQube Rules (Enforce on Every Change)
