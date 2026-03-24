@@ -508,6 +508,9 @@ importers:
       '@invertase/react-native-apple-authentication':
         specifier: ^2.4.1
         version: 2.5.1
+      '@microsoft/react-native-clarity':
+        specifier: ^4.5.3
+        version: 4.5.3(react-native-svg@15.15.2)(react-native@0.81.4)(react@19.1.0)
       '@notifee/react-native':
         specifier: ^9.1.8
         version: 9.1.8(react-native@0.81.4)
@@ -12699,6 +12702,22 @@ packages:
       '@types/mdx': 2.0.13
       '@types/react': 19.2.14
       react: 18.3.1
+    dev: false
+
+  /@microsoft/react-native-clarity@4.5.3(react-native-svg@15.15.2)(react-native@0.81.4)(react@19.1.0):
+    resolution: {integrity: sha512-+BxwtdKMY0f/VqWEAkXunYquJjGSJxikGEFfl+TfcC5NHNtuAs5Qh7akA3i6xDX0PIdAqdJ0qGPJe2Pjv3Mqsg==}
+    engines: {node: '>= 16.0.0'}
+    peerDependencies:
+      react: '*'
+      react-native: '*'
+      react-native-svg: '>=14.0.0'
+    peerDependenciesMeta:
+      react-native-svg:
+        optional: true
+    dependencies:
+      react: 19.1.0
+      react-native: 0.81.4(@babel/core@7.29.0)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.2.11)(react@19.1.0)
+      react-native-svg: 15.15.2(react-native@0.81.4)(react@19.1.0)
     dev: false
 
   /@modelcontextprotocol/sdk@1.26.0(zod@3.25.76):

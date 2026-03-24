@@ -28,12 +28,16 @@ const mockedClient = apiClient as unknown as {
   delete: jest.Mock;
   request: jest.Mock;
 };
-const mockedHeaders = withAuthHeaders as jest.MockedFunction<typeof withAuthHeaders>;
+const mockedHeaders = withAuthHeaders as jest.MockedFunction<
+  typeof withAuthHeaders
+>;
 
 const COMPLETION_EXTENSION =
-  'http://example.org/fhir/StructureDefinition/parent-profile-completed';
+  'https://yosemitecrew.com/fhir/StructureDefinition/parent-profile-completed';
 
-const createRelatedPerson = (overrides: Partial<RelatedPerson> = {}): RelatedPerson => ({
+const createRelatedPerson = (
+  overrides: Partial<RelatedPerson> = {},
+): RelatedPerson => ({
   resourceType: 'RelatedPerson',
   id: 'parent-123',
   name: [
@@ -92,7 +96,11 @@ describe('profileService', () => {
   describe('fetchProfileStatus', () => {
     it('returns mock response when token or identifier missing', async () => {
       await expect(
-        fetchProfileStatus({accessToken: '', userId: undefined, parentId: undefined}),
+        fetchProfileStatus({
+          accessToken: '',
+          userId: undefined,
+          parentId: undefined,
+        }),
       ).resolves.toEqual({
         exists: false,
         isComplete: false,
@@ -110,9 +118,12 @@ describe('profileService', () => {
         userId: 'parent-123',
       });
 
-      expect(mockedClient.get).toHaveBeenCalledWith('/fhir/v1/parent/parent-123', {
-        headers: expect.any(Object),
-      });
+      expect(mockedClient.get).toHaveBeenCalledWith(
+        '/fhir/v1/parent/parent-123',
+        {
+          headers: expect.any(Object),
+        },
+      );
       expect(mockedHeaders).toHaveBeenCalledWith('token');
       expect(result).toEqual({
         exists: true,
@@ -224,14 +235,19 @@ describe('profileService', () => {
         }),
         headers: expect.any(Object),
       });
-      expect(summary).toEqual(expect.objectContaining({id: 'parent-123', isComplete: true}));
+      expect(summary).toEqual(
+        expect.objectContaining({id: 'parent-123', isComplete: true}),
+      );
     });
 
     it('updates a parent profile via PUT', async () => {
       const resource = createRelatedPerson({extension: []});
       mockedClient.request.mockResolvedValueOnce({status: 200, data: resource});
 
-      await updateParentProfile({...basePayload, parentId: 'parent-123'}, 'token');
+      await updateParentProfile(
+        {...basePayload, parentId: 'parent-123'},
+        'token',
+      );
 
       expect(mockedClient.request).toHaveBeenCalledWith({
         method: 'put',
@@ -259,9 +275,12 @@ describe('profileService', () => {
       mockedClient.delete.mockResolvedValueOnce({status: 204});
 
       await deleteParentProfile('parent-123', 'token');
-      expect(mockedClient.delete).toHaveBeenCalledWith('/fhir/v1/parent/parent-123', {
-        headers: expect.any(Object),
-      });
+      expect(mockedClient.delete).toHaveBeenCalledWith(
+        '/fhir/v1/parent/parent-123',
+        {
+          headers: expect.any(Object),
+        },
+      );
     });
 
     it('throws with server message when axios error occurs', async () => {

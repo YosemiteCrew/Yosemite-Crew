@@ -55,6 +55,7 @@ describe('Configuration Variables', () => {
       expect(config.STRIPE_CONFIG.urlScheme).toBe('yosemitecrew');
       expect(config.AUTH_FEATURE_FLAGS.enableReviewLogin).toBe(true);
       expect(config.DEMO_LOGIN_CONFIG.email).toBe('');
+      expect(config.CLARITY_CONFIG.projectId).toBe('');
     });
 
     it('exports storage keys correctly', () => {
@@ -99,6 +100,7 @@ describe('Configuration Variables', () => {
       STRIPE_CONFIG: {publishableKey: 'pk_test_override'},
       AUTH_FEATURE_FLAGS: {enableReviewLogin: false},
       DEMO_LOGIN_CONFIG: {email: 'test@example.com'},
+      CLARITY_CONFIG: {projectId: 'clarity-local-project-id'},
     };
 
     beforeEach(() => {
@@ -119,6 +121,7 @@ describe('Configuration Variables', () => {
       expect(config.STRIPE_CONFIG.publishableKey).toBe('pk_test_override');
       expect(config.AUTH_FEATURE_FLAGS.enableReviewLogin).toBe(false);
       expect(config.DEMO_LOGIN_CONFIG.email).toBe('test@example.com');
+      expect(config.CLARITY_CONFIG.projectId).toBe('clarity-local-project-id');
 
       // Check that non-overridden defaults persist (e.g. timeoutMs inside API_CONFIG)
       expect(config.API_CONFIG.timeoutMs).toBe(15000);

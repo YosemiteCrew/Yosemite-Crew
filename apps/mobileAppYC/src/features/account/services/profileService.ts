@@ -5,6 +5,7 @@ import type {
   Extension,
   RelatedPerson,
 } from '@yosemite-crew/fhirtypes';
+import {toFHIRRelatedPerson} from '@yosemite-crew/types';
 import {isAxiosError} from 'axios';
 
 export interface ProfileStatusRequest {
@@ -73,20 +74,6 @@ const PARENT_RESOURCE = '/fhir/v1/parent';
 const PROFILE_COMPLETION_EXTENSION_URL =
   'http://example.org/fhir/StructureDefinition/parent-profile-completed';
 
-const hasAddressContent = (address?: FhirAddress | null): boolean => {
-  if (!address) {
-    return false;
-  }
-
-  return Boolean(
-    address.line?.[0] ??
-      address.city ??
-      address.state ??
-      address.postalCode ??
-      address.country,
-  );
-};
-
 const normalizeAddressFromResource = (
   address?: FhirAddress | null,
 ): AddressDTOAttributes | undefined => {
@@ -106,7 +93,8 @@ const normalizeAddressFromResource = (
 const extractTelecomValue = (
   telecom: ContactPoint[] | undefined,
   targetSystem: ContactPoint['system'],
-): string | undefined => telecom?.find(item => item.system === targetSystem)?.value;
+): string | undefined =>
+  telecom?.find(item => item.system === targetSystem)?.value;
 
 const calculateAgeFromDate = (dateOfBirth?: string): number | undefined => {
   if (!dateOfBirth) {
@@ -174,7 +162,9 @@ const mapSummaryFromResource = (
     age: calculateAgeFromDate(resource.birthDate),
   };
 
-  const extensionCompletion = deriveCompletionFromExtensions(resource.extension);
+  const extensionCompletion = deriveCompletionFromExtensions(
+    resource.extension,
+  );
   const fallbackCompletion = computeDefaultCompletion(summary);
   summary.isComplete =
     typeof extensionCompletion === 'boolean'
@@ -187,107 +177,32 @@ const mapSummaryFromResource = (
   };
 };
 
-const buildNamePayload = (
-  firstName?: string,
-  lastName?: string,
-): RelatedPerson['name'] => {
-  if (!firstName && !lastName) {
-    return undefined;
-  }
-
-  const text = [firstName, lastName].filter(Boolean).join(' ').trim();
-
-  return [
-    {
-      use: 'official',
-      text: text || undefined,
-      given: firstName ? [firstName] : undefined,
-      family: lastName || undefined,
-    },
-  ];
-};
-
-const buildTelecomPayload = ({
-  phoneNumber,
-  email,
-}: {
-  phoneNumber?: string;
-  email?: string;
-}): RelatedPerson['telecom'] => {
-  const telecom: ContactPoint[] = [];
-
-  if (phoneNumber?.trim()) {
-    telecom.push({
-      system: 'phone',
-      value: phoneNumber.trim(),
-    });
-  }
-
-  if (email?.trim()) {
-    telecom.push({
-      system: 'email',
-      value: email.trim(),
-    });
-  }
-
-  return telecom.length ? telecom : undefined;
-};
-
-const buildAddressPayload = (
-  address: ParentProfileUpsertPayload['address'],
-): RelatedPerson['address'] => {
-  if (!address) {
-    return undefined;
-  }
-
-  const trimmed = {
-    line: address.addressLine ? [address.addressLine.trim()] : undefined,
-    city: address.city?.trim(),
-    state: address.stateProvince?.trim(),
-    postalCode: address.postalCode?.trim(),
-    country: address.country?.trim(),
-  };
-
-  return hasAddressContent(trimmed) ? [trimmed] : undefined;
-};
-
-const buildPhotoPayload = (
+const buildParentRequestBody = (
   payload: ParentProfileUpsertPayload,
-): RelatedPerson['photo'] => {
-  const url = payload.profileImageKey ?? payload.existingPhotoUrl ?? undefined;
-  if (!url) {
-    return undefined;
-  }
-
-  return [
-    {
-      url,
-    },
-  ];
-};
-
-const buildParentRequestBody = (payload: ParentProfileUpsertPayload): RelatedPerson => {
-  const extensions: Extension[] = [];
-  if (typeof payload.isProfileComplete === 'boolean') {
-    extensions.push({
-      url: PROFILE_COMPLETION_EXTENSION_URL,
-      valueBoolean: payload.isProfileComplete,
-    });
-  }
-
-  return {
-    resourceType: 'RelatedPerson',
+): RelatedPerson => {
+  return toFHIRRelatedPerson({
     id: payload.parentId ?? undefined,
-    name: buildNamePayload(payload.firstName, payload.lastName),
-    telecom: buildTelecomPayload({
-      phoneNumber: payload.phoneNumber,
-      email: payload.email,
-    }),
-    address: buildAddressPayload(payload.address),
-    photo: buildPhotoPayload(payload),
-    birthDate: payload.dateOfBirth ?? undefined,
-    extension: extensions.length ? extensions : undefined,
-  };
+    firstName: payload.firstName,
+    lastName: payload.lastName,
+    birthDate: payload.dateOfBirth ? new Date(payload.dateOfBirth) : undefined,
+    email: payload.email,
+    phoneNumber: payload.phoneNumber,
+    address: payload.address
+      ? {
+          addressLine: payload.address.addressLine,
+          city: payload.address.city,
+          state: payload.address.stateProvince,
+          postalCode: payload.address.postalCode,
+          country: payload.address.country,
+          latitude: payload.address.latitude,
+          longitude: payload.address.longitude,
+        }
+      : {},
+    createdFrom: 'mobile',
+    profileImageUrl:
+      payload.profileImageKey ?? payload.existingPhotoUrl ?? undefined,
+    isProfileComplete: payload.isProfileComplete,
+  });
 };
 export const fetchProfileStatus = async ({
   accessToken,
@@ -347,7 +262,10 @@ export const fetchProfileStatus = async ({
         };
       }
 
-      console.warn('[ProfileService] Failed to fetch parent profile', error.message);
+      console.warn(
+        '[ProfileService] Failed to fetch parent profile',
+        error.message,
+      );
       return {
         exists: false,
         isComplete: false,
@@ -356,7 +274,10 @@ export const fetchProfileStatus = async ({
       };
     }
 
-    console.warn('[ProfileService] Unexpected error while fetching profile', error);
+    console.warn(
+      '[ProfileService] Unexpected error while fetching profile',
+      error,
+    );
     return {
       exists: false,
       isComplete: false,

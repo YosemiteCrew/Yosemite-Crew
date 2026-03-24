@@ -3,6 +3,15 @@ import apiClient, {withAuthHeaders} from '@/shared/services/apiClient';
 import {API_CONFIG} from '@/config/variables';
 import {formatDateToISODate} from '@/shared/utils/dateHelpers';
 import {buildCdnUrlFromKey} from '@/shared/utils/cdnHelpers';
+import {
+  fromFHIRAppointment,
+  fromFHIRInvoice,
+  type Appointment as SharedFHIRAppointmentModel,
+} from '@yosemite-crew/types';
+import type {
+  Appointment as FHIRAppointment,
+  Invoice as FHIRInvoice,
+} from '@yosemite-crew/fhirtypes';
 import type {
   Appointment,
   AppointmentStatus,
@@ -62,6 +71,7 @@ const toStatus = (status?: string): AppointmentStatus => {
     case 'IN_PROGRESS':
     case 'CONFIRMED':
     case 'COMPLETED':
+    case 'NO_SHOW':
     case 'RESCHEDULED':
     case 'SCHEDULED':
     case 'PAYMENT_FAILED':
@@ -258,6 +268,26 @@ const extractArrayFromResponse = (data: any): any[] => {
   return [];
 };
 
+const unwrapAppointmentPayload = (payload: any): any => {
+  if (!payload || typeof payload !== 'object') {
+    return payload;
+  }
+
+  if (payload.resourceType === 'Appointment' || payload.id || payload._id) {
+    return payload;
+  }
+
+  if (payload.appointment) {
+    return unwrapAppointmentPayload(payload.appointment);
+  }
+
+  if (payload.data) {
+    return unwrapAppointmentPayload(payload.data);
+  }
+
+  return payload;
+};
+
 const parseParticipantDetails = (participants: any[]) => {
   const patient = parseParticipant(participants, 'Patient/');
   const leadPractitionerEntry = participants?.find?.((p: any) => {
@@ -391,6 +421,12 @@ const resolveAuditTimestamps = (resource: any) => {
 const mapAppointmentResource = (incoming: any): Appointment => {
   const resource = incoming?.appointment ?? incoming;
   const org = incoming?.organisation ?? incoming?.organization;
+  let converted: SharedFHIRAppointmentModel | null = null;
+  try {
+    converted = fromFHIRAppointment(resource as FHIRAppointment);
+  } catch {
+    converted = null;
+  }
   const participants = Array.isArray(resource?.participant)
     ? resource.participant
     : [];
@@ -423,15 +459,22 @@ const mapAppointmentResource = (incoming: any): Appointment => {
 
   return {
     id: resource?.id ?? resource?._id ?? '',
-    companionId: patient.id ?? '',
+    companionId: converted?.companion?.id ?? patient.id ?? '',
     businessId: organisation.id ?? '',
-    serviceId: serviceCoding?.code ?? null,
-    serviceName: serviceCoding?.display ?? serviceType?.text ?? null,
+    serviceId: converted?.appointmentType?.id ?? serviceCoding?.code ?? null,
+    serviceName:
+      converted?.appointmentType?.name ??
+      serviceCoding?.display ??
+      serviceType?.text ??
+      null,
     serviceCode: serviceCoding?.code ?? null,
-    specialityId: specialityCoding?.code ?? null,
-    employeeId: practitioner.id,
-    employeeName: practitioner.display,
-    employeeAvatar: practitioner.avatar,
+    specialityId:
+      converted?.appointmentType?.speciality?.id ??
+      specialityCoding?.code ??
+      null,
+    employeeId: converted?.lead?.id ?? practitioner.id,
+    employeeName: converted?.lead?.name ?? practitioner.display,
+    employeeAvatar: practitioner.avatar ?? converted?.lead?.profileUrl ?? null,
     employeeTitle: practitionerRole,
     date,
     time,
@@ -443,11 +486,20 @@ const mapAppointmentResource = (incoming: any): Appointment => {
       speciality?.text ??
       serviceType?.text ??
       'General',
-    concern: resource?.description ?? '',
-    emergency: emergencyExt?.valueBoolean ?? false,
-    species: speciesExt?.valueString ?? null,
-    breed: breedExt?.valueString ?? null,
-    uploadedFiles,
+    concern: resource?.description ?? converted?.concern ?? '',
+    emergency: converted?.isEmergency ?? emergencyExt?.valueBoolean ?? false,
+    species: converted?.companion?.species ?? speciesExt?.valueString ?? null,
+    breed: converted?.companion?.breed ?? breedExt?.valueString ?? null,
+    uploadedFiles:
+      uploadedFiles.length > 0
+        ? uploadedFiles
+        : (converted?.attachments ?? []).map((att, index) => ({
+            id: att.key || `attachment-${index}`,
+            name: att.name || `Attachment ${index + 1}`,
+            key: att.key,
+            url: buildCdnUrlFromKey(att.key) || null,
+            type: att.contentType ?? null,
+          })),
     status: toStatus(resource?.status),
     paymentStatus: normalizedPaymentStatus,
     invoiceId: resource?.invoiceId ?? null,
@@ -469,14 +521,37 @@ const mapInvoiceFromApi = (
     return {invoice: null, paymentIntent: null};
   }
 
+  let convertedInvoice: ReturnType<typeof fromFHIRInvoice> | null = null;
+  try {
+    convertedInvoice = fromFHIRInvoice(raw as FHIRInvoice);
+  } catch {
+    convertedInvoice = null;
+  }
+  const invoiceFromConverter =
+    convertedInvoice &&
+    (raw?.resourceType === 'Invoice' ||
+      Array.isArray(raw?.lineItem) ||
+      raw?.totalGross ||
+      raw?.totalNet ||
+      Array.isArray(raw?.totalPriceComponent))
+      ? convertedInvoice
+      : null;
+
   const items = Array.isArray(raw.items) ? raw.items : [];
+  const convertedItems = invoiceFromConverter?.items ?? [];
   const normalizedItems: Array<{
     description: string;
     rate: number;
     qty: number;
     lineTotal: number;
-  }> =
-    items.length > 0
+  }> = convertedItems.length
+    ? convertedItems.map(item => ({
+        description: item.description ?? item.name ?? 'Line item',
+        rate: item.unitPrice ?? 0,
+        qty: item.quantity ?? 1,
+        lineTotal: item.total ?? (item.unitPrice ?? 0) * (item.quantity ?? 1),
+      }))
+    : items.length > 0
       ? items.map((item: any) => {
           const qty = item.quantity ?? item.qty ?? 1;
           const rate = item.unitPrice ?? item.rate ?? item.total ?? 0;
@@ -491,13 +566,18 @@ const mapInvoiceFromApi = (
       : [];
 
   const subtotal =
+    invoiceFromConverter?.subtotal ??
     raw.subtotal ??
     normalizedItems.reduce(
       (sum: number, item) => sum + (item.lineTotal ?? 0),
       0,
     ) ??
     0;
-  const total = raw.totalAmount ?? raw.total ?? subtotal;
+  const total =
+    invoiceFromConverter?.totalAmount ??
+    raw.totalAmount ??
+    raw.total ??
+    subtotal;
 
   const extensions = Array.isArray(raw.extension) ? raw.extension : [];
   const paymentIntentIdFromExt =
@@ -506,6 +586,7 @@ const mapInvoiceFromApi = (
         ext?.url ===
         'https://yosemitecrew.com/fhir/StructureDefinition/stripe-payment-intent-id',
     )?.valueString ??
+    invoiceFromConverter?.stripePaymentIntentId ??
     raw.stripePaymentIntentId ??
     raw.paymentIntentId ??
     null;
@@ -536,6 +617,7 @@ const mapInvoiceFromApi = (
 
   const invoiceCreatedAt: string | undefined =
     raw.invoiceDate ??
+    invoiceFromConverter?.createdAt?.toISOString?.() ??
     raw.createdAt ??
     raw.paymentIntent?.createdAt ??
     raw.date;
@@ -560,6 +642,7 @@ const mapInvoiceFromApi = (
         ext?.url ===
         'https://yosemitecrew.com/fhir/StructureDefinition/payment-collection-method',
     )?.valueString ??
+    invoiceFromConverter?.paymentCollectionMethod ??
     raw.paymentCollectionMethod ??
     raw.payment_collection_method ??
     null;
@@ -569,6 +652,7 @@ const mapInvoiceFromApi = (
         ext?.url ===
         'https://yosemitecrew.com/fhir/StructureDefinition/paid-at',
     )?.valueDateTime ??
+    invoiceFromConverter?.paidAt?.toISOString?.() ??
     raw.paidAt ??
     null;
   const parseMetadataFromExtension = (
@@ -644,31 +728,52 @@ const mapInvoiceFromApi = (
   }));
 
   const invoice: Invoice = {
-    id: raw.id ?? raw._id ?? raw.invoiceId ?? `invoice-${Date.now()}`,
+    id:
+      invoiceFromConverter?.id ??
+      raw.id ??
+      raw._id ??
+      raw.invoiceId ??
+      `invoice-${Date.now()}`,
     appointmentId:
-      appointmentFromExt ?? appointmentFromAccount ?? raw.appointmentId ?? '',
+      invoiceFromConverter?.appointmentId ??
+      appointmentFromExt ??
+      appointmentFromAccount ??
+      raw.appointmentId ??
+      '',
     items: normalizedItems,
     subtotal: subtotalFromTotals ?? subtotal,
     discountPercent: raw.discountPercent ?? null,
     taxPercent: raw.taxPercent ?? null,
     total: grandTotalFromTotals ?? total,
     totalPriceComponent: normalizedPriceComponents,
-    currency: raw.currency ?? paymentIntent?.currency ?? 'USD',
+    currency:
+      invoiceFromConverter?.currency ??
+      raw.currency ??
+      paymentIntent?.currency ??
+      'USD',
     dueDate: dueTill,
     invoiceNumber: raw.invoiceNumber ?? raw.invoiceNo ?? raw.number,
     invoiceDate: invoiceCreatedAt,
     billedToName: raw.billedToName,
     billedToEmail: raw.billedToEmail,
-    status: statusFromExt ?? raw.status,
-    stripePaymentIntentId: raw.stripePaymentIntentId ?? null,
-    stripeInvoiceId: raw.stripeInvoiceId ?? null,
-    stripePaymentLinkId: raw.stripePaymentLinkId ?? null,
+    status: statusFromExt ?? invoiceFromConverter?.status ?? raw.status,
+    stripePaymentIntentId:
+      invoiceFromConverter?.stripePaymentIntentId ??
+      raw.stripePaymentIntentId ??
+      null,
+    stripeInvoiceId:
+      invoiceFromConverter?.stripeInvoiceId ?? raw.stripeInvoiceId ?? null,
+    stripePaymentLinkId:
+      invoiceFromConverter?.stripePaymentLinkId ??
+      raw.stripePaymentLinkId ??
+      null,
     stripeChargeId:
       extensions.find(
         (ext: any) =>
           ext?.url ===
           'https://yosemitecrew.com/fhir/StructureDefinition/stripe-charge-id',
       )?.valueString ??
+      invoiceFromConverter?.stripeChargeId ??
       raw.stripeChargeId ??
       null,
     stripeReceiptUrl:
@@ -682,6 +787,7 @@ const mapInvoiceFromApi = (
           ext?.url ===
           'https://yosemitecrew.com/fhir/StructureDefinition/stripe-receipt-url',
       )?.valueString ??
+      invoiceFromConverter?.stripeReceiptUrl ??
       raw.stripeReceiptUrl ??
       receiptUrl,
     stripeCheckoutSessionId:
@@ -690,6 +796,7 @@ const mapInvoiceFromApi = (
           ext?.url ===
           'https://yosemitecrew.com/fhir/StructureDefinition/stripe-checkout-session-id',
       )?.valueString ??
+      invoiceFromConverter?.stripeCheckoutSessionId ??
       raw.stripeCheckoutSessionId ??
       null,
     stripeCheckoutUrl:
@@ -703,6 +810,7 @@ const mapInvoiceFromApi = (
           ext?.url ===
           'https://yosemitecrew.com/fhir/StructureDefinition/stripe-checkout-url',
       )?.valueString ??
+      invoiceFromConverter?.stripeCheckoutUrl ??
       raw.stripeCheckoutUrl ??
       null,
     paymentIntent,
@@ -714,7 +822,7 @@ const mapInvoiceFromApi = (
     refundReason,
     refundReceiptUrl: receiptUrl,
     paymentCollectionMethod,
-    metadata,
+    metadata: metadata ?? invoiceFromConverter?.metadata,
     paidAt,
   };
 
@@ -855,7 +963,7 @@ export const appointmentApi = {
     const {data} = await apiClient.get(url, {
       headers: withAuthHeaders(accessToken),
     });
-    const resource = data?.data ?? data;
+    const resource = unwrapAppointmentPayload(data?.data ?? data);
     return mapAppointmentResource(resource);
   },
 
@@ -872,7 +980,7 @@ export const appointmentApi = {
     const {data} = await apiClient.patch(url, undefined, {
       headers: withAuthHeaders(accessToken),
     });
-    const resource = data?.data ?? data;
+    const resource = unwrapAppointmentPayload(data?.data ?? data);
     return mapAppointmentResource(resource);
   },
 
@@ -1025,7 +1133,7 @@ export const appointmentApi = {
       },
       {headers: withAuthHeaders(accessToken)},
     );
-    const resource = data?.data ?? data;
+    const resource = unwrapAppointmentPayload(data?.data ?? data);
     return mapAppointmentResource(resource);
   },
 
@@ -1126,7 +1234,7 @@ export const appointmentApi = {
     const {data} = await apiClient.patch(url, undefined, {
       headers: withAuthHeaders(accessToken),
     });
-    const resource = data?.data ?? data;
+    const resource = unwrapAppointmentPayload(data?.data ?? data);
     return mapAppointmentResource(resource);
   },
 

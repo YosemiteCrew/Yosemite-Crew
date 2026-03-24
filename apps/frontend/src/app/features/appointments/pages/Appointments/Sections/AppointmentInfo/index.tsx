@@ -766,6 +766,27 @@ const AppoitmentInfo = ({
   }, [orgType, merckEnabled]);
   const formsAccordionTitle =
     orgType === 'HOSPITAL' && activeLabel === 'prescription' ? 'Medical Notes / SOAP' : 'Templates';
+  const handleHistoryOpenAppointmentView = useCallback(
+    (intent: AppointmentViewIntent) => {
+      const targetLabel = labels.find((label) => label.key === intent.label);
+      if (!targetLabel) return;
+      setActiveLabel(targetLabel.key as LabelKey);
+
+      const preferredSubLabel = intent.subLabel;
+      if (!preferredSubLabel) {
+        setActiveSubLabel(targetLabel.labels[0]?.key ?? '');
+        return;
+      }
+
+      const hasPreferredSubLabel = targetLabel.labels.some(
+        (label: { key: string }) => label.key === preferredSubLabel
+      );
+      setActiveSubLabel(
+        hasPreferredSubLabel ? preferredSubLabel : (targetLabel.labels[0]?.key ?? '')
+      );
+    },
+    [labels]
+  );
 
   useEffect(() => {
     if (!showModal || !initialViewIntent) return;
@@ -1086,6 +1107,7 @@ const AppoitmentInfo = ({
               onSubmission={upsertCustomForm}
               onFormLinked={upsertCustomForm}
               onSubmissionUpdate={updateCustomFormSubmission}
+              onOpenAppointmentView={handleHistoryOpenAppointmentView}
             />
           ) : null}
         </div>

@@ -13,6 +13,14 @@ jest.mock('@stripe/stripe-react-native', () => ({
   }),
 }));
 
+jest.mock('@microsoft/react-native-clarity', () => ({
+  initialize: jest.fn(),
+  setCurrentScreenName: jest.fn().mockResolvedValue(true),
+  LogLevel: {
+    None: 'None',
+  },
+}));
+
 jest.mock('@/shared/services/firebaseNotifications', () => ({
   initializeNotifications: jest.fn().mockResolvedValue(undefined),
   areNotificationsInitialized: jest.fn(() => true),
@@ -28,12 +36,15 @@ jest.mock('@react-navigation/native', () => {
   const actual = jest.requireActual('@react-navigation/native');
   return {
     ...actual,
-    NavigationContainer: ({children}: {children: React.ReactNode}) => <>{children}</>,
+    NavigationContainer: ({children}: {children: React.ReactNode}) => (
+      <>{children}</>
+    ),
     useNavigationContainerRef: jest.fn(() => ({
       current: null,
       isReady: () => true,
       navigate: jest.fn(),
       resetRoot: jest.fn(),
+      getCurrentRoute: jest.fn(() => ({name: 'Home'})),
     })),
     useDocumentTitle: jest.fn(),
   };

@@ -309,36 +309,62 @@ const toFriendlyInvoiceStatus = (status?: string | null) => {
   return spaced.replaceAll(/\b\w/g, char => char.toUpperCase());
 };
 
+const normalizeStatusToken = (value?: string | null): string =>
+  String(value ?? '')
+    .trim()
+    .toUpperCase()
+    .replaceAll(/[\s-]+/g, '_');
+
+const isInvoiceCashCollected = (invoice: Invoice | null): boolean => {
+  if (!invoice) {
+    return false;
+  }
+  const normalizedStatus = normalizeStatusToken(invoice.status);
+  if (normalizedStatus === 'PAID_CASH') {
+    return true;
+  }
+  const method = normalizeStatusToken(invoice.paymentCollectionMethod);
+  if (method === 'PAYMENT_AT_CLINIC') {
+    return true;
+  }
+  return Object.entries(invoice.metadata ?? {}).some(([key, value]) => {
+    const keyText = key.toLowerCase();
+    const valueText = String(value ?? '').toLowerCase();
+    const keyIndicatesPayment =
+      keyText.includes('payment') ||
+      keyText.includes('method') ||
+      keyText.includes('mode') ||
+      keyText.includes('tender');
+    return keyIndicatesPayment && valueText.includes('cash');
+  });
+};
+
+const isInvoicePaid = (invoice: Invoice | null): boolean => {
+  if (!invoice) {
+    return false;
+  }
+  const normalizedStatus = normalizeStatusToken(invoice.status);
+  return (
+    normalizedStatus === 'PAID' ||
+    normalizedStatus === 'PAID_CASH' ||
+    Boolean(invoice.paidAt)
+  );
+};
+
 const resolveInvoicePaymentStatusLabel = (invoice: Invoice | null) => {
   if (!invoice) {
     return '—';
   }
-  const normalizedStatus = String(invoice.status ?? '')
-    .toUpperCase()
-    .replaceAll(/[\s-]+/g, '_');
-  const isPaid =
-    normalizedStatus === 'PAID' ||
-    normalizedStatus === 'PAID_CASH' ||
-    Boolean(invoice.paidAt);
+  const normalizedStatus = normalizeStatusToken(invoice.status);
+  const isPaid = isInvoicePaid(invoice);
   if (normalizedStatus === 'PAID_CASH') {
     return 'Paid - Cash';
   }
-  const method = String(invoice.paymentCollectionMethod ?? '').toUpperCase();
+  const method = normalizeStatusToken(invoice.paymentCollectionMethod);
   if (method === 'PAYMENT_AT_CLINIC') {
-    return isPaid ? 'Paid - Cash' : 'Payment at Clinic';
+    return isPaid ? 'Paid - Cash' : 'Payment at Provider';
   }
-  const metadataSuggestsCash = Object.entries(invoice.metadata ?? {}).some(
-    ([key, value]) => {
-      const keyText = key.toLowerCase();
-      const valueText = String(value ?? '').toLowerCase();
-      const keyIndicatesPayment =
-        keyText.includes('payment') ||
-        keyText.includes('method') ||
-        keyText.includes('mode') ||
-        keyText.includes('tender');
-      return keyIndicatesPayment && valueText.includes('cash');
-    },
-  );
+  const metadataSuggestsCash = isInvoiceCashCollected(invoice);
   const hasStripeEvidence = Boolean(
     invoice.stripeChargeId ||
     invoice.stripePaymentIntentId ||
@@ -356,6 +382,25 @@ const resolveInvoicePaymentStatusLabel = (invoice: Invoice | null) => {
   }
   return toFriendlyInvoiceStatus(invoice.status);
 };
+
+const CashCancellationNoticeCard = ({styles}: {styles: any}) => (
+  <View style={styles.cardShadowWrapper}>
+    <LiquidGlassCard
+      glassEffect="clear"
+      padding="4"
+      shadow="base"
+      style={styles.glassCard}
+      fallbackStyle={styles.cardFallback}>
+      <View style={styles.cardContent}>
+        <Text style={styles.metaTitle}>Important</Text>
+        <Text style={styles.termsLine}>
+          This appointment was paid in cash and has been cancelled. If a refund
+          is needed, it must be handled directly by the service provider.
+        </Text>
+      </View>
+    </LiquidGlassCard>
+  </View>
+);
 
 const InvoiceDetailsCard = ({
   invoiceNumberDisplay,
@@ -689,13 +734,14 @@ const TermsCard = ({
           include taxes or approved follow-up care.
         </Text>
         <Text style={styles.termsLine}>
-          Refunds or billing disputes are handled by the clinic in line with
-          applicable consumer laws. Keep your receipt and contact the clinic
-          directly for questions or adjustments.
+          Refunds or billing disputes are handled by the service provider in
+          line with applicable consumer laws. Keep your receipt and contact the
+          service provider directly for questions or adjustments.
         </Text>
         <Text style={styles.termsLine}>
           This invoice is not emergency advice. If your companion needs urgent
-          care, contact the clinic or local emergency services immediately.
+          care, contact the service provider or local emergency services
+          immediately.
         </Text>
       </View>
     </LiquidGlassCard>
@@ -1042,6 +1088,7 @@ const buildInvoiceContent = ({
   paymentDueLabel,
   businessName,
   businessAddress,
+  showCashCancellationNotice,
   shouldShowPay,
   presentingSheet,
   clientSecret,
@@ -1123,6 +1170,9 @@ const buildInvoiceContent = ({
           businessAddress={businessAddress}
           styles={styles}
         />
+        {showCashCancellationNotice ? (
+          <CashCancellationNoticeCard styles={styles} />
+        ) : null}
 
         <PayButton
           shouldShowPay={shouldShowPay}
@@ -1365,6 +1415,25 @@ export const PaymentInvoiceScreen: React.FC = () => {
   const paymentDueLabel = formatDateOnlyDisplay(
     effectiveInvoice?.dueDate ?? apt?.date ?? null,
   );
+  const normalizedAppointmentStatus = normalizeStatusToken(apt?.status);
+  const isCancelledAppointment =
+    normalizedAppointmentStatus === 'CANCELLED' ||
+    normalizedAppointmentStatus === 'NO_SHOW';
+  const isCashPaidAppointment = (() => {
+    const normalizedPaymentStatus = normalizeStatusToken(apt?.paymentStatus);
+    if (
+      normalizedPaymentStatus === 'PAID_CASH' ||
+      normalizedPaymentStatus === 'CASH_PAID'
+    ) {
+      return true;
+    }
+    return (
+      isInvoicePaid(effectiveInvoice) &&
+      isInvoiceCashCollected(effectiveInvoice)
+    );
+  })();
+  const showCashCancellationNotice =
+    isCancelledAppointment && isCashPaidAppointment;
 
   const {handlePayNow, presentingSheet} = usePaymentHandler({
     clientSecret,
@@ -1407,6 +1476,7 @@ export const PaymentInvoiceScreen: React.FC = () => {
         paymentDueLabel,
         businessName,
         businessAddress,
+        showCashCancellationNotice,
         shouldShowPay,
         presentingSheet,
         clientSecret,
@@ -1439,6 +1509,7 @@ export const PaymentInvoiceScreen: React.FC = () => {
       paymentDueLabel,
       businessName,
       businessAddress,
+      showCashCancellationNotice,
       shouldShowPay,
       presentingSheet,
       clientSecret,

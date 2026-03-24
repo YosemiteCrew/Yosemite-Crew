@@ -49,6 +49,9 @@ For **Claude Code** users: modular skills are also in `.claude/skills/` — they
 8. Never commit secrets, tokens, private keys, or `.env` values.
 9. Never add co-author lines or signatures to commit messages.
 10. Let all pre-commit hooks pass naturally — never use `--no-verify`.
+11. Before suggesting any commit message, validate scope against `commitlint.config.cjs`.
+    - Allowed scopes: `backend`, `frontend`, `mobile`, `dev-docs`, `types`, `fhirtypes`, `repo`, `ci`, `docs`.
+    - For cross-workspace changes, default to `repo`.
 
 ## Code Quality Rules
 
@@ -76,3 +79,4 @@ For **Claude Code** users: modular skills are also in `.claude/skills/` — they
 - Conventional commits are required (`commitlint` + PR governance enforce this).
 - PR title must follow `<type>(<scope>): <subject>`.
 - Include what changed, why, impact area, and validation performed.
+- Scope must be one of: `backend`, `frontend`, `mobile`, `dev-docs`, `types`, `fhirtypes`, `repo`, `ci`, `docs`.

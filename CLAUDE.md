@@ -73,6 +73,9 @@ Additional commit rules:
 - Never add `Co-Authored-By` or any signature lines to commit messages.
 - Never skip pre-commit hooks (`--no-verify` is forbidden).
 - All pre-commit hooks must pass before the user commits — if lint/type/test checks fail, fix them first.
+- Before suggesting any commit message, validate the scope against `commitlint.config.cjs`.
+- Allowed scopes are exactly: `backend`, `frontend`, `mobile`, `dev-docs`, `types`, `fhirtypes`, `repo`, `ci`, `docs`.
+- If changes span multiple workspaces, use `repo`.
 
 ---
 
@@ -210,10 +213,11 @@ Conventional commits are enforced by `commitlint`:
 <type>(<scope>): <subject>
 
 Types: feat | fix | chore | refactor | test | docs | style | perf | ci
-Scope: frontend | backend | mobile | types | docs | repo
+Scope: backend | frontend | mobile | dev-docs | types | fhirtypes | repo | ci | docs
 
 Examples:
   feat(frontend): add recurring appointment support
+  feat(mobile): improve invoice linking for appointment details
   fix(frontend): resolve button nesting in Availability component
   fix(frontend): use HTMLElement drag handler type across board cards
   test(frontend): fix Availability icon mock to use span not button

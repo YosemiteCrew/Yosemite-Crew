@@ -503,6 +503,41 @@ describe('appointmentsService', () => {
       );
     });
 
+    it('rescheduleAppointment handles nested message/data appointment payload', async () => {
+      const {appointmentApi} = getModule();
+      const client = getApiClient();
+      client.patch.mockResolvedValue({
+        data: {
+          message: 'Rescheduled successfully',
+          data: {
+            resourceType: 'Appointment',
+            id: 'a1',
+            status: 'UPCOMING',
+            participant: [
+              {actor: {reference: 'Patient/p1', display: 'Doggy'}},
+              {actor: {reference: 'Organization/o1', display: 'Clinic'}},
+            ],
+            start: '2026-03-24T06:45:00.000Z',
+            end: '2026-03-24T07:00:00.000Z',
+          },
+        },
+      });
+
+      const result = await appointmentApi.rescheduleAppointment({
+        appointmentId: 'a1',
+        startTime: '2026-03-24T06:45:00.000Z',
+        endTime: '2026-03-24T07:00:00.000Z',
+        isEmergency: false,
+        concern: '',
+        accessToken: mockToken,
+      });
+
+      expect(result.id).toBe('a1');
+      expect(result.companionId).toBe('p1');
+      expect(result.businessId).toBe('o1');
+      expect(result.date).toBe('2026-03-24');
+    });
+
     it('fetchInvoiceForAppointment handles array response', async () => {
       const {appointmentApi} = getModule();
       const client = getApiClient();
@@ -572,6 +607,49 @@ describe('appointmentsService', () => {
         accessToken: mockToken,
       });
       expect(result.status).toBe('CANCELLED');
+    });
+
+    it('get/checkin/cancel handle nested data payload shapes', async () => {
+      const {appointmentApi} = getModule();
+      const client = getApiClient();
+
+      const nestedResponse = {
+        data: {
+          message: 'ok',
+          data: {
+            resourceType: 'Appointment',
+            id: 'a1',
+            status: 'arrived',
+            participant: [
+              {actor: {reference: 'Patient/p1', display: 'Doggy'}},
+              {actor: {reference: 'Organization/o1', display: 'Clinic'}},
+            ],
+            start: '2026-03-24T06:45:00.000Z',
+            end: '2026-03-24T07:00:00.000Z',
+          },
+        },
+      };
+
+      client.get.mockResolvedValue(nestedResponse);
+      client.patch.mockResolvedValue(nestedResponse);
+
+      const byId = await appointmentApi.getAppointment({
+        appointmentId: 'a1',
+        accessToken: mockToken,
+      });
+      const checkIn = await appointmentApi.checkInAppointment({
+        appointmentId: 'a1',
+        accessToken: mockToken,
+      });
+      const cancel = await appointmentApi.cancelAppointment({
+        appointmentId: 'a1',
+        accessToken: mockToken,
+      });
+
+      expect(byId.id).toBe('a1');
+      expect(checkIn.id).toBe('a1');
+      expect(cancel.id).toBe('a1');
+      expect(checkIn.status).toBe('CHECKED_IN');
     });
 
     it('rateOrganisation calls POST', async () => {

@@ -75,6 +75,10 @@ export interface MobileConfigBehavior {
   override?: Partial<MobileConfig>;
 }
 
+export interface ClarityConfig {
+  projectId: string;
+}
+
 // Default/test configuration (safe for CI/CD)
 const DEFAULT_PASSWORDLESS_AUTH_CONFIG: PasswordlessAuthConfig = {
   profileServiceUrl: '',
@@ -126,6 +130,11 @@ const DEFAULT_MOBILE_CONFIG_BEHAVIOR: MobileConfigBehavior = {
   override: undefined,
 };
 
+const DEFAULT_CLARITY_CONFIG: ClarityConfig = {
+  // Keep empty in source control; provide via variables.local.ts or remote config pipeline.
+  projectId: '',
+};
+
 let passwordlessOverrides: Partial<PasswordlessAuthConfig> | undefined;
 let googlePlacesOverrides: Partial<GooglePlacesConfig> | undefined;
 let apiOverrides: Partial<ApiConfig> | undefined;
@@ -135,18 +144,24 @@ let authFlagsOverrides: Partial<AuthFeatureFlags> | undefined;
 let demoLoginOverrides: Partial<DemoLoginConfig> | undefined;
 let uiFlagsOverrides: Partial<UiFeatureFlags> | undefined;
 let mobileConfigBehaviorOverrides: Partial<MobileConfigBehavior> | undefined;
+let clarityConfigOverrides: Partial<ClarityConfig> | undefined;
 
 const isMissingLocalVariablesModule = (error: unknown): boolean => {
   if (!error || typeof error !== 'object') {
     return false;
   }
 
-  const candidate = error as Partial<NodeJS.ErrnoException> & {message?: string};
+  const candidate = error as Partial<NodeJS.ErrnoException> & {
+    message?: string;
+  };
   if (candidate.code !== 'MODULE_NOT_FOUND') {
     return false;
   }
 
-  return typeof candidate.message === 'string' && candidate.message.includes('variables.local');
+  return (
+    typeof candidate.message === 'string' &&
+    candidate.message.includes('variables.local')
+  );
 };
 
 // Try to load local configuration if it exists (for development)
@@ -180,13 +195,16 @@ try {
   if (localConfig.MOBILE_CONFIG_BEHAVIOR) {
     mobileConfigBehaviorOverrides = localConfig.MOBILE_CONFIG_BEHAVIOR;
   }
+  if (localConfig.CLARITY_CONFIG) {
+    clarityConfigOverrides = localConfig.CLARITY_CONFIG;
+  }
 } catch (error) {
   if (isMissingLocalVariablesModule(error)) {
     // No local config file found, using defaults (this is expected in CI/CD)
     if (process.env.NODE_ENV !== 'test' && process.env.CI !== 'true') {
       console.warn(
         'No variables.local.ts found. Using default configuration. ' +
-        'For local development, copy variables.ts to variables.local.ts and add your credentials.',
+          'For local development, copy variables.ts to variables.local.ts and add your credentials.',
       );
     }
   } else {
@@ -237,6 +255,11 @@ export const UI_FEATURE_FLAGS: UiFeatureFlags = {
 export const MOBILE_CONFIG_BEHAVIOR: MobileConfigBehavior = {
   ...DEFAULT_MOBILE_CONFIG_BEHAVIOR,
   ...mobileConfigBehaviorOverrides,
+};
+
+export const CLARITY_CONFIG: ClarityConfig = {
+  ...DEFAULT_CLARITY_CONFIG,
+  ...clarityConfigOverrides,
 };
 
 export const PENDING_PROFILE_STORAGE_KEY = '@pending_profile_payload';
