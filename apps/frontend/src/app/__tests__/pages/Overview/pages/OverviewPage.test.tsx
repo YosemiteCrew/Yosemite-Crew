@@ -20,7 +20,7 @@ jest.mock('next/image', () => ({
   default: (props: any) => <img {...props} priority={props.priority ? 'true' : 'false'} />,
 }));
 
-// Mock the overview stats hook
+// Mock the overview stats hook to return our split datasets
 jest.mock('../../../../features/overview/hooks/useOverviewStats', () => ({
   useOverviewStats: jest.fn(),
 }));
@@ -49,6 +49,7 @@ jest.mock('@/app/ui/widgets/Footer/Footer', () => ({
   default: () => <footer data-testid="footer-component" />,
 }));
 
+// Mock the CommunityStats component
 jest.mock('../../../../features/overview/components/CommunityStats', () => ({
   __esModule: true,
   default: ({ isLoading }: { isLoading: boolean }) => (
@@ -61,14 +62,16 @@ jest.mock('../../../../features/overview/components/CommunityStats', () => ({
 // ==========================================
 
 describe('OverviewPage Component', () => {
-  const mockCombinedChart = [{ month: 'Jan', Stars: 10 }];
+  const mockTrafficChart = [{ month: 'Mar 8', 'Self Hosters (Unique)': 10 }];
+  const mockStarsChart = [{ month: 'Mar 2026', 'Github Stars': 2000 }];
 
   beforeEach(() => {
     jest.clearAllMocks();
 
     // Default hook implementations
     (useOverviewStats as jest.Mock).mockReturnValue({
-      combinedChart: mockCombinedChart,
+      trafficChart: mockTrafficChart,
+      starsChart: mockStarsChart,
       isLoading: false,
     });
   });

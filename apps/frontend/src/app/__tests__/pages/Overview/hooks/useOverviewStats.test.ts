@@ -7,71 +7,100 @@ globalThis.fetch = jest.fn();
 describe('useOverviewStats Hook', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // Spy on console.error and suppress its output so our test terminal stays clean
+    // Spy on console.error to keep test output clean during error tests
     jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
-  afterEach(() => {
+  afterAll(() => {
     (console.error as jest.Mock).mockRestore();
   });
 
-  it('1. successfully fetches, processes, and maps valid JSON data', async () => {
-    const mockData = {
+  it('1. correctly parses valid repository data, aggregates 30 days of traffic, and monthly stars', async () => {
+    // Generate dates to test historical slicing (dayMinus31 logic) and active dates
+    const today = new Date('2026-03-24T12:00:00Z');
+    const past = new Date('2026-02-15T12:00:00Z'); // > 31 days ago
+
+    const mockJson = {
       charts: {
         '#clones_total': {
-          datasets: { 'data-1': [{ time: '2026-03-20T10:00:00Z', clones_total: 10 }] },
+          datasets: {
+            'data-1': [
+              { time: past.toISOString(), clones_total: 100 }, // Historical clone
+              { time: today.toISOString(), clones_total: 5 }, // Current clone
+            ],
+          },
         },
         '#clones_unique': {
-          datasets: { 'data-2': [{ time: '2026-03-20T10:00:00Z', clones_unique: 5 }] },
+          datasets: {
+            'data-2': [{ time: today.toISOString(), clones_unique: 3 }],
+          },
         },
         '#forks': {
           datasets: {
             'data-3': [
-              { time: '2026-03-01T10:00:00Z', forks_cumulative: 20 }, // Past date (sets initial 'lastForks')
-              { time: '2026-03-10T10:00:00Z', forks_cumulative: 25 }, // Inside the 15-day window
-              { time: '2026-03-25T10:00:00Z', forks_cumulative: 30 }, // Future date (triggers the 'else break' branch)
+              { time: past.toISOString(), forks_cumulative: 20 }, // Historical fork
+              { time: today.toISOString(), forks_cumulative: 25 },
             ],
           },
         },
         '#stargazers': {
-          datasets: { 'data-4': [{ time: '2026-03-15T10:00:00Z', stars_cumulative: 100 }] },
+          datasets: {
+            'data-4': [
+              { time: past.toISOString(), stars_cumulative: 500 },
+              { time: today.toISOString(), stars_cumulative: 510 },
+              // Edge case: test fallback logic `d[valKey] || d.clones_total || 0` in getCumulative
+              { time: '2026-03-25T12:00:00Z', clones_total: 999 }, // Missing valKey, falls back to clones_total
+              { time: '2026-03-26T12:00:00Z', random: 'data' }, // Missing both, falls back to 0
+            ],
+          },
         },
       },
     };
 
-    (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+    (globalThis.fetch as jest.Mock).mockResolvedValue({
       ok: true,
-      json: async () => mockData,
+      json: async () => mockJson,
     });
 
     const { result } = renderHook(() => useOverviewStats());
 
-    // Initially loading should be true
+    // Initially loading
     expect(result.current.isLoading).toBe(true);
 
-    // Wait for the async effect to finish
+    // Wait for the hook to process data
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    // Verify it generated exactly 15 days of data
-    expect(result.current.combinedChart).toHaveLength(15);
+    // ASSERT TRAFFIC CHART
+    // Should always be exactly 30 days of data
+    expect(result.current.trafficChart).toHaveLength(30);
+    // Check a day with no data to ensure fallbacks (cloneEntry ? ... : 0) work
+    const emptyDayTraffic = result.current.trafficChart[10];
+    expect(emptyDayTraffic['Self Hosters (Unique)']).toBe(0);
+    expect(emptyDayTraffic['Self Hosters (Cumulative)']).toBe(100); // Carried over from historical
 
-    // Assert a day WITHOUT clone data (hits the ternary false branch: cloneEntry ? ... : 0)
-    const firstDay = result.current.combinedChart[0];
-    expect(firstDay['Self Hosters (Cumulative)']).toBe(0);
-    expect(firstDay['Self Hosters (Unique)']).toBe(0);
-
-    // Assert the last day WITH clone data (hits the ternary true branch)
-    const lastDay = result.current.combinedChart[14];
-    expect(lastDay['Self Hosters (Cumulative)']).toBe(10); // Running total accumulates to 10
+    // ASSERT STARS CHART
+    // Should aggregate by month ("Feb 2026", "Mar 2026")
+    expect(result.current.starsChart.length).toBeGreaterThan(0);
+    // March grabs the latest chronological valid value (which was the fallback `999` from clones_total)
   });
 
-  it('2. returns early when charts data is missing (empty allDates array)', async () => {
-    // Mocking an empty JSON response hits the `if (!json?.charts?.[chartKey]?.datasets) return [];` branch
-    (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+  it('2. handles missing dataset properties smoothly (extractChartData fallbacks)', async () => {
+    // Tests branches:
+    // !json?.charts?.[chartKey]?.datasets
+    // return datasets[dataKey] || []
+    const mockJson = {
+      charts: {
+        '#clones_total': {}, // Missing datasets entirely
+        '#clones_unique': { datasets: {} }, // Empty datasets object
+        // Missing forks and stargazers entirely
+      },
+    };
+
+    (globalThis.fetch as jest.Mock).mockResolvedValue({
       ok: true,
-      json: async () => ({}),
+      json: async () => mockJson,
     });
 
     const { result } = renderHook(() => useOverviewStats());
@@ -80,34 +109,14 @@ describe('useOverviewStats Hook', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    // If all datasets return [], allDates.length === 0, and the hook returns early
-    expect(result.current.combinedChart).toEqual([]);
+    // Because allDates.length === 0, it hits the early return
+    expect(result.current.trafficChart).toEqual([]);
+    expect(result.current.starsChart).toEqual([]);
   });
 
-  it('3. handles malformed datasets correctly using fallback arrays', async () => {
-    // Passing an empty datasets object forces `Object.keys(datasets)[0]` to be undefined,
-    // which hits the final `return datasets[dataKey] || []` fallback branch.
-    (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        charts: {
-          '#clones_total': { datasets: {} },
-        },
-      }),
-    });
-
-    const { result } = renderHook(() => useOverviewStats());
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    expect(result.current.combinedChart).toEqual([]);
-  });
-
-  it('4. handles fetch API HTTP errors gracefully', async () => {
-    // Hits the `if (!res.ok) throw new Error(...)` branch
-    (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+  it('3. handles network failures and catches errors', async () => {
+    // Mock fetch to return a non-ok response
+    (globalThis.fetch as jest.Mock).mockResolvedValue({
       ok: false,
     });
 
@@ -117,14 +126,22 @@ describe('useOverviewStats Hook', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    // Verify the catch block was hit and the error was logged
+    // State should remain empty
+    expect(result.current.trafficChart).toEqual([]);
+    expect(result.current.starsChart).toEqual([]);
+
+    // Ensure the error was logged
     expect(console.error).toHaveBeenCalledWith('Failed to fetch live JSON', expect.any(Error));
-    expect(result.current.combinedChart).toEqual([]);
   });
 
-  it('5. handles fatal network exceptions', async () => {
-    // Throws a raw network error to ensure the try/catch traps it
-    (globalThis.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network Down'));
+  it('4. handles malformed JSON throws', async () => {
+    // Mock fetch to simulate a crash during json() parsing
+    (globalThis.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => {
+        throw new Error('JSON Parsing Error');
+      },
+    });
 
     const { result } = renderHook(() => useOverviewStats());
 

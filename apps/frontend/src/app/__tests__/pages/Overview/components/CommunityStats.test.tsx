@@ -7,13 +7,14 @@ import CommunityStats from '../../../../features/overview/components/CommunitySt
 // 1. MOCK SETUP
 // ==========================================
 
-// We mock the DynamicChartCard to easily inspect the transformed data it receives
+// Mock the DynamicChartCard to easily inspect the transformed data and props it receives
 jest.mock('@/app/ui/widgets/DynamicChart/DynamicChartCard', () => {
-  return function MockDynamicChartCard({ data, keys }: any) {
+  return function MockDynamicChartCard({ data, keys, yAxisWidth }: any) {
     return (
       <div data-testid="mock-dynamic-chart">
         <div data-testid="chart-data">{JSON.stringify(data)}</div>
         <div data-testid="chart-keys">{JSON.stringify(keys)}</div>
+        <div data-testid="chart-yaxis">{yAxisWidth}</div>
       </div>
     );
   };
@@ -23,22 +24,20 @@ jest.mock('@/app/ui/widgets/DynamicChart/DynamicChartCard', () => {
 // 2. MOCK DATA
 // ==========================================
 
-const mockCombinedChartData = [
+const mockTrafficChart = [
   {
     month: 'Mar 8',
     'Self Hosters (Unique)': 10,
     'Self Hosters (Cumulative)': 100,
     'Builders (Unique)': 5,
     'Builders (Cumulative)': 50,
-    Stars: 42,
   },
+];
+
+const mockStarsChart = [
   {
-    month: 'Mar 9',
-    'Self Hosters (Unique)': 15,
-    'Self Hosters (Cumulative)': 115,
-    'Builders (Unique)': 8,
-    'Builders (Cumulative)': 58,
-    Stars: 45,
+    month: 'Mar 2026',
+    'Github Stars': 2099,
   },
 ];
 
@@ -52,45 +51,53 @@ describe('CommunityStats Component', () => {
   });
 
   it('1. renders the loading state correctly', () => {
-    render(<CommunityStats combinedChart={[]} isLoading={true} />);
+    render(<CommunityStats trafficChart={[]} starsChart={[]} isLoading={true} />);
 
     expect(screen.getByText('Loading Repository Data...')).toBeInTheDocument();
 
-    // Ensure charts are NOT rendered
+    // Ensure chart is NOT rendered
     expect(screen.queryByTestId('mock-dynamic-chart')).not.toBeInTheDocument();
   });
 
-  it('2. renders default "Unique" data correctly', () => {
-    render(<CommunityStats combinedChart={mockCombinedChartData} isLoading={false} />);
+  it('2. renders default "Unique" traffic data correctly', () => {
+    render(
+      <CommunityStats
+        trafficChart={mockTrafficChart}
+        starsChart={mockStarsChart}
+        isLoading={false}
+      />
+    );
 
     // Assert Toggle Buttons
     const uniqueBtn = screen.getByText('Unique');
     const cumulativeBtn = screen.getByText('Cumulative');
+    const starsBtn = screen.getByText('Stars');
 
     expect(uniqueBtn).toHaveClass('Active');
     expect(cumulativeBtn).not.toHaveClass('Active');
+    expect(starsBtn).not.toHaveClass('Active');
 
-    // Assert Charts Rendered (1 for Traffic, 1 for Stars)
-    const charts = screen.getAllByTestId('mock-dynamic-chart');
-    expect(charts).toHaveLength(2);
-
-    // Extract transformed data passed to the charts
-    const chartDataJson = screen.getAllByTestId('chart-data')[0].textContent;
+    // Extract transformed data passed to the chart
+    const chartDataJson = screen.getByTestId('chart-data').textContent;
     const chartData = JSON.parse(chartDataJson as unknown as string);
 
     // Verify mapping logic for 'Unique'
     expect(chartData[0]['Self Hosters']).toBe(10); // Should be 'Self Hosters (Unique)'
     expect(chartData[0]['Builders']).toBe(5); // Should be 'Builders (Unique)'
 
-    // Verify Stars mapped to 'Github Stars'
-    expect(chartData[0]['Github Stars']).toBe(42);
-    expect(chartData[1]['Github Stars']).toBe(45);
+    // Verify yAxisWidth default
+    expect(screen.getByTestId('chart-yaxis').textContent).toBe('40');
   });
 
   it('3. updates data correctly when "Cumulative" is clicked', () => {
-    render(<CommunityStats combinedChart={mockCombinedChartData} isLoading={false} />);
+    render(
+      <CommunityStats
+        trafficChart={mockTrafficChart}
+        starsChart={mockStarsChart}
+        isLoading={false}
+      />
+    );
 
-    const uniqueBtn = screen.getByText('Unique');
     const cumulativeBtn = screen.getByText('Cumulative');
 
     // Click Cumulative
@@ -98,40 +105,64 @@ describe('CommunityStats Component', () => {
 
     // Verify Active Class swapped
     expect(cumulativeBtn).toHaveClass('Active');
-    expect(uniqueBtn).not.toHaveClass('Active');
+    expect(screen.getByText('Unique')).not.toHaveClass('Active');
 
-    // Extract transformed data passed to the charts after click
-    const chartDataJson = screen.getAllByTestId('chart-data')[0].textContent;
+    // Extract transformed data passed to the chart after click
+    const chartDataJson = screen.getByTestId('chart-data').textContent;
     const chartData = JSON.parse(chartDataJson as unknown as string);
 
     // Verify mapping logic swapped to 'Cumulative'
     expect(chartData[0]['Self Hosters']).toBe(100); // Should be 'Self Hosters (Cumulative)'
     expect(chartData[0]['Builders']).toBe(50); // Should be 'Builders (Cumulative)'
-
-    // Github Stars should remain unaffected
-    expect(chartData[0]['Github Stars']).toBe(42);
   });
 
-  it('4. updates data correctly when clicking back to "Unique"', () => {
-    render(<CommunityStats combinedChart={mockCombinedChartData} isLoading={false} />);
+  it('4. updates data correctly when "Stars" is clicked', () => {
+    render(
+      <CommunityStats
+        trafficChart={mockTrafficChart}
+        starsChart={mockStarsChart}
+        isLoading={false}
+      />
+    );
 
-    const uniqueBtn = screen.getByText('Unique');
-    const cumulativeBtn = screen.getByText('Cumulative');
+    const starsBtn = screen.getByText('Stars');
 
-    // Toggle to Cumulative, then back to Unique
-    fireEvent.click(cumulativeBtn);
-    fireEvent.click(uniqueBtn);
+    // Click Stars
+    fireEvent.click(starsBtn);
 
-    // Verify Active Class swapped back
-    expect(uniqueBtn).toHaveClass('Active');
-    expect(cumulativeBtn).not.toHaveClass('Active');
+    // Verify Active Class swapped
+    expect(starsBtn).toHaveClass('Active');
+    expect(screen.getByText('Unique')).not.toHaveClass('Active');
 
-    // Extract transformed data passed to the charts after clicking back
-    const chartDataJson = screen.getAllByTestId('chart-data')[0].textContent;
+    // Extract transformed data passed to the chart after click
+    const chartDataJson = screen.getByTestId('chart-data').textContent;
     const chartData = JSON.parse(chartDataJson as unknown as string);
 
-    // Verify mapping logic swapped back to 'Unique'
-    expect(chartData[0]['Self Hosters']).toBe(10);
-    expect(chartData[0]['Builders']).toBe(5);
+    // Verify data swapped entirely to starsChart
+    expect(chartData[0]['Github Stars']).toBe(2099);
+
+    // Verify yAxisWidth expanded for larger numbers
+    expect(screen.getByTestId('chart-yaxis').textContent).toBe('45');
+  });
+
+  it('5. verifies chart keys always contain all three labels', () => {
+    render(
+      <CommunityStats
+        trafficChart={mockTrafficChart}
+        starsChart={mockStarsChart}
+        isLoading={false}
+      />
+    );
+
+    // Extract keys passed to the chart
+    const chartKeysJson = screen.getByTestId('chart-keys').textContent;
+    const chartKeys = JSON.parse(chartKeysJson as unknown as string);
+
+    // Verify all three labels are permanently passed to the legend
+    expect(chartKeys).toEqual([
+      { name: 'Self Hosters', color: '#247AED' },
+      { name: 'Builders', color: '#10B981' },
+      { name: 'Github Stars', color: '#F68523' },
+    ]);
   });
 });
