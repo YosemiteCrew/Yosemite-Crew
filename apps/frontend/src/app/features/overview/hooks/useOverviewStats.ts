@@ -69,12 +69,13 @@ export const useOverviewStats = () => {
         // ==========================================
         const generatedTraffic: TrafficDataPoint[] = [];
 
-        const dayMinus31 = new Date(maxDate);
-        dayMinus31.setUTCDate(maxDate.getUTCDate() - 31);
-        let lastForks = getCumulative(forksData, dayMinus31.getTime(), 'forks_cumulative');
+        // FIXED: Set baseline to exactly maxDate - 30 to perfectly align with loop starting at 29
+        const dayMinus30 = new Date(maxDate);
+        dayMinus30.setUTCDate(maxDate.getUTCDate() - 30);
+        let lastForks = getCumulative(forksData, dayMinus30.getTime(), 'forks_cumulative');
 
         let runningClones = clonesData
-          .filter((d: any) => new Date(d.time).getTime() <= dayMinus31.getTime())
+          .filter((d: any) => new Date(d.time).getTime() <= dayMinus30.getTime())
           .reduce((sum: number, d: any) => sum + (d.clones_total || 0), 0);
 
         for (let i = 29; i >= 0; i--) {
