@@ -10,10 +10,10 @@ import { useAuthStore } from '@/app/stores/authStore';
 import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
 
 const OverviewPage = () => {
-  const { combinedChart, isLoading } = useOverviewStats();
+  // Extract the split datasets from the updated hook
+  const { trafficChart, starsChart, isLoading } = useOverviewStats();
   const { user, role } = useAuthStore();
 
-  // Dynamic routing based on whether the user is logged in
   const getCtaHref = () => {
     if (user) {
       return role === 'developer' ? '/developers/home' : resolveDefaultOpenScreenRoute(role);
@@ -24,7 +24,6 @@ const OverviewPage = () => {
   return (
     <>
       <div className="OverviewPageWrapper">
-        {/* TOP SECTION: Light Blue Gradient */}
         <div className="OverviewHeroSection">
           <main className="OverviewMainContent">
             <h1 className="OverviewMainTitle">Building in Public</h1>
@@ -48,7 +47,6 @@ const OverviewPage = () => {
           </main>
         </div>
 
-        {/* BOTTOM SECTION: White Background */}
         <div className="OverviewBottomSection">
           <main className="OverviewMainContent">
             <p className="OverviewSecondaryText">
@@ -66,7 +64,12 @@ const OverviewPage = () => {
             <h2 className="OverviewGraphsTitle">When numbers are public, you see what’s working</h2>
 
             <div className="OverviewGraphsWrapper">
-              <CommunityStats combinedChart={combinedChart} isLoading={isLoading} />
+              {/* Pass BOTH datasets down to the component */}
+              <CommunityStats
+                trafficChart={trafficChart}
+                starsChart={starsChart}
+                isLoading={isLoading}
+              />
             </div>
           </main>
         </div>

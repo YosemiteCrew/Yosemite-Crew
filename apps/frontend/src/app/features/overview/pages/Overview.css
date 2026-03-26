@@ -1,6 +1,5 @@
 .OverviewPageWrapper {
   width: 100%;
-  /* The Magic Fade: Soft blue fading into white */
   background: linear-gradient(
     to bottom,
     #ebf4ff 0%,
@@ -31,7 +30,7 @@
 }
 
 .OverviewMainContent {
-  max-width: 1200px; /* Kept the wider layout */
+  max-width: 1200px;
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -101,14 +100,9 @@
 ========================================= */
 .ChartGrid {
   display: grid;
+  /* FORCE 1 COLUMN so the single chart stretches across the screen */
   grid-template-columns: 1fr;
   gap: 24px;
-}
-
-@media screen and (min-width: 1024px) {
-  .ChartGrid {
-    grid-template-columns: 1fr 1fr;
-  }
 }
 
 .PremiumCard {
@@ -118,10 +112,9 @@
   box-shadow: 0px 0px 8px 0px rgba(0, 0, 0, 0.04);
   display: flex;
   flex-direction: column;
-  position: relative; /* REQUIRED for the toggle pills to anchor correctly */
+  position: relative;
 }
 
-/* Recharts Overrides: Left Aligns the Legend cleanly */
 .PremiumCard .recharts-legend-wrapper {
   left: 0 !important;
   right: auto !important;
@@ -136,7 +129,7 @@
 }
 
 /* =========================================
-   TOGGLE PILLS (Using your exact provided code)
+   TOGGLE PILLS
 ========================================= */
 .DataToggle {
   position: absolute;
@@ -145,12 +138,12 @@
   display: flex;
   background: var(--color-neutral-100);
   border-radius: 100px;
-  padding: 2px;
+  padding: 4px;
   z-index: 10;
 }
 
 .TogglePill {
-  padding: 4px 14px;
+  padding: 6px 16px; /* Narrowed slightly to fit 3 pills nicely */
   border-radius: 100px;
   border: none;
   background: transparent;
