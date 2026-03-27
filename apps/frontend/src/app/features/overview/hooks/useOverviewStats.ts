@@ -69,7 +69,6 @@ export const useOverviewStats = () => {
         // ==========================================
         const generatedTraffic: TrafficDataPoint[] = [];
 
-        // FIXED: Set baseline to exactly maxDate - 30 to perfectly align with loop starting at 29
         const dayMinus30 = new Date(maxDate);
         dayMinus30.setUTCDate(maxDate.getUTCDate() - 30);
         let lastForks = getCumulative(forksData, dayMinus30.getTime(), 'forks_cumulative');
@@ -110,31 +109,53 @@ export const useOverviewStats = () => {
         }
 
         // ==========================================
-        // 2. CALCULATE STARS (ALL-TIME MONTHLY)
+        // 2. CALCULATE STARS (ALL-TIME MONTHLY CONTINUOUS)
         // ==========================================
         const sortedStars = [...starsData].sort(
           (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
         );
-        const monthlyStarsMap = new Map<string, number>();
-
-        sortedStars.forEach((d) => {
-          const date = new Date(d.time);
-          const label = date.toLocaleDateString('en-US', {
-            month: 'short',
-            year: 'numeric',
-            timeZone: 'UTC',
-          });
-          const starsCum =
-            getCumulative(sortedStars, date.getTime(), 'stars_cumulative') ||
-            d.stars_cumulative ||
-            0;
-          monthlyStarsMap.set(label, starsCum);
-        });
-
         const generatedStars: StarsDataPoint[] = [];
-        monthlyStarsMap.forEach((val, key) => {
-          generatedStars.push({ month: key, 'Github Stars': val });
-        });
+
+        if (sortedStars.length > 0) {
+          const firstDate = new Date(sortedStars[0].time);
+          const lastDate = new Date(maxDate);
+
+          // Always start exactly on the 1st of the first month
+          let currentMonth = new Date(
+            Date.UTC(firstDate.getUTCFullYear(), firstDate.getUTCMonth(), 1)
+          );
+          let currentYearStr = '';
+
+          while (currentMonth <= lastDate) {
+            const rawMonth = currentMonth.toLocaleDateString('en-US', {
+              month: 'short',
+              timeZone: 'UTC',
+            });
+            const rawYear = currentMonth.toLocaleDateString('en-US', {
+              year: 'numeric',
+              timeZone: 'UTC',
+            });
+
+            // Smart formatting to save space and prevent Recharts from hiding ticks
+            let displayLabel = rawMonth;
+            if (rawYear !== currentYearStr) {
+              displayLabel = `${rawMonth} '${rawYear.slice(-2)}`; // e.g. "Jan '26"
+              currentYearStr = rawYear;
+            }
+
+            // Get the value at the very end of this specific month
+            const nextMonth = new Date(
+              Date.UTC(currentMonth.getUTCFullYear(), currentMonth.getUTCMonth() + 1, 1)
+            );
+            const targetTimeMs = nextMonth.getTime() - 1;
+
+            const starsCum = getCumulative(sortedStars, targetTimeMs, 'stars_cumulative');
+
+            generatedStars.push({ month: displayLabel, 'Github Stars': starsCum });
+
+            currentMonth = nextMonth;
+          }
+        }
 
         setTrafficChart(generatedTraffic);
         setStarsChart(generatedStars);
