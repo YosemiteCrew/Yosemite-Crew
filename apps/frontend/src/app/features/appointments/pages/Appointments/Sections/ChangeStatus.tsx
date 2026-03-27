@@ -27,15 +27,9 @@ const createNextLead = (
   id: string,
   name: string
 ) => {
-  if (!existingLead) {
-    return { id, name };
-  }
-
-  return {
-    ...existingLead,
-    id,
-    name,
-  };
+  const profileUrl = existingLead?.profileUrl;
+  if (profileUrl) return { id, name, profileUrl };
+  return { id, name };
 };
 
 type ChangeStatusProps = {

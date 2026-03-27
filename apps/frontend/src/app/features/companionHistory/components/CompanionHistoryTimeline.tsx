@@ -111,6 +111,144 @@ const getAuditActorDisplay = (entry: AuditTrail): string => {
   return actorTypeLabel;
 };
 
+type AuditTrailSectionProps = {
+  activeFilter: HistoryFilterKey;
+  auditLoading: boolean;
+  auditError: string | null;
+  auditEntries: AuditTrail[];
+};
+
+const AuditTrailSection = ({
+  activeFilter,
+  auditLoading,
+  auditError,
+  auditEntries,
+}: AuditTrailSectionProps) => {
+  if (activeFilter !== 'AUDIT_TRAIL') return null;
+  if (auditLoading) {
+    return (
+      <div className="rounded-2xl border border-card-border bg-white px-4 py-6 text-body-3 text-text-secondary">
+        Loading audit trail...
+      </div>
+    );
+  }
+  if (auditError) {
+    return <HistoryEmptyState isError message={auditError} />;
+  }
+  if (auditEntries.length === 0) {
+    return <HistoryEmptyState message="No audit entries found." />;
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {auditEntries.map((entry, index) => (
+        <div
+          key={entry.id ?? `${entry.eventType}-${entry.occurredAt}-${index}`}
+          className="w-full rounded-2xl border border-card-border bg-white px-3 py-3 md:px-4 md:py-3"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1.5">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <div className="truncate text-body-3-emphasis text-text-primary">
+                  {toTitle(entry.eventType)}
+                </div>
+                {entry.entityType ? (
+                  <span className="rounded-full bg-blue-light px-2 py-0.5 text-label-xsmall text-blue-text">
+                    {toTitle(entry.entityType)}
+                  </span>
+                ) : null}
+              </div>
+              <div className="mt-1 text-caption-1 text-text-secondary">
+                {getAuditActorDisplay(entry)}
+              </div>
+            </div>
+            <div className="shrink-0 text-caption-1 text-text-secondary md:whitespace-nowrap">
+              {formatDateTimeLocal(entry.occurredAt, '—')}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+type HistoryEntriesSectionProps = {
+  shouldRenderDocumentsTab: boolean;
+  activeFilter: HistoryFilterKey;
+  loading: boolean;
+  error: string | null;
+  filteredEntries: HistoryEntry[];
+  displayedEntries: HistoryEntry[];
+  compact: boolean;
+  handleOpenEntry: (entry: HistoryEntry) => void;
+  nextCursor: string | null;
+  loadingMore: boolean;
+  loadHistory: (cursor: string | null, shouldReplace: boolean) => Promise<void>;
+};
+
+const HistoryEntriesSection = ({
+  shouldRenderDocumentsTab,
+  activeFilter,
+  loading,
+  error,
+  filteredEntries,
+  displayedEntries,
+  compact,
+  handleOpenEntry,
+  nextCursor,
+  loadingMore,
+  loadHistory,
+}: HistoryEntriesSectionProps) => {
+  if (shouldRenderDocumentsTab || activeFilter === 'AUDIT_TRAIL') return null;
+  if (loading) {
+    return (
+      <div className="rounded-2xl border border-card-border bg-white px-4 py-6 text-body-3 text-text-secondary">
+        Loading history...
+      </div>
+    );
+  }
+  if (error) {
+    return <HistoryEmptyState isError message={error} />;
+  }
+  if (filteredEntries.length === 0) {
+    return <HistoryEmptyState />;
+  }
+
+  return (
+    <>
+      {displayedEntries.length > 0 ? (
+        <div className="flex flex-col gap-3">
+          {displayedEntries.map((entry) => (
+            <HistoryEntryCard key={entry.id} entry={entry} onOpen={handleOpenEntry} />
+          ))}
+        </div>
+      ) : null}
+
+      {compact && filteredEntries.length > COMPACT_MAX_ENTRIES ? (
+        <div className="rounded-2xl border border-card-border bg-card-hover px-4 py-3 text-caption-1 text-text-secondary">
+          Showing latest {COMPACT_MAX_ENTRIES} records in compact view. Open full history for the
+          complete timeline.
+        </div>
+      ) : null}
+
+      {!compact && nextCursor ? (
+        <button
+          type="button"
+          onClick={() => {
+            loadHistory(nextCursor, false).catch((historyError) => {
+              console.error('Failed to load more history entries:', historyError);
+            });
+          }}
+          disabled={loadingMore}
+          className="w-full rounded-2xl border border-card-border bg-white px-4 py-2 text-caption-1 text-text-primary transition-colors hover:bg-card-hover disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {loadingMore ? 'Loading...' : 'Load more'}
+        </button>
+      ) : null}
+    </>
+  );
+};
+
 const CompanionHistoryTimeline = ({
   companionId,
   activeAppointmentId,
@@ -362,7 +500,7 @@ const CompanionHistoryTimeline = ({
               className="px-4 py-2! text-caption-1"
             />
           ) : null}
-          {!compact ? (
+          {compact ? null : (
             <div className="w-full md:w-auto md:ml-auto">
               <HistoryFilters
                 filters={historyFilters}
@@ -370,7 +508,7 @@ const CompanionHistoryTimeline = ({
                 onChange={setActiveFilter}
               />
             </div>
-          ) : null}
+          )}
         </div>
 
         {compact ? (
@@ -392,119 +530,26 @@ const CompanionHistoryTimeline = ({
             <CompanionDocumentsSection companionId={companionId} />
           ) : null}
 
-          {!shouldRenderDocumentsTab && activeFilter !== 'AUDIT_TRAIL' && loading ? (
-            <div className="rounded-2xl border border-card-border bg-white px-4 py-6 text-body-3 text-text-secondary">
-              Loading history...
-            </div>
-          ) : null}
+          <AuditTrailSection
+            activeFilter={activeFilter}
+            auditLoading={auditLoading}
+            auditError={auditError}
+            auditEntries={auditEntries}
+          />
 
-          {!shouldRenderDocumentsTab && activeFilter !== 'AUDIT_TRAIL' && !loading && error ? (
-            <HistoryEmptyState isError message={error} />
-          ) : null}
-
-          {activeFilter === 'AUDIT_TRAIL' && auditLoading ? (
-            <div className="rounded-2xl border border-card-border bg-white px-4 py-6 text-body-3 text-text-secondary">
-              Loading audit trail...
-            </div>
-          ) : null}
-
-          {activeFilter === 'AUDIT_TRAIL' && !auditLoading && auditError ? (
-            <HistoryEmptyState isError message={auditError} />
-          ) : null}
-
-          {activeFilter === 'AUDIT_TRAIL' &&
-          !auditLoading &&
-          !auditError &&
-          auditEntries.length === 0 ? (
-            <HistoryEmptyState message="No audit entries found." />
-          ) : null}
-
-          {activeFilter === 'AUDIT_TRAIL' &&
-          !auditLoading &&
-          !auditError &&
-          auditEntries.length > 0 ? (
-            <div className="flex flex-col gap-3">
-              {auditEntries.map((entry, index) => (
-                <div
-                  key={entry.id ?? `${entry.eventType}-${entry.occurredAt}-${index}`}
-                  className="w-full rounded-2xl border border-card-border bg-white px-3 py-3 md:px-4 md:py-3"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1.5">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <div className="truncate text-body-3-emphasis text-text-primary">
-                          {toTitle(entry.eventType)}
-                        </div>
-                        {entry.entityType ? (
-                          <span className="rounded-full bg-blue-light px-2 py-0.5 text-label-xsmall text-blue-text">
-                            {toTitle(entry.entityType)}
-                          </span>
-                        ) : null}
-                      </div>
-                      <div className="mt-1 text-caption-1 text-text-secondary">
-                        {getAuditActorDisplay(entry)}
-                      </div>
-                    </div>
-                    <div className="shrink-0 text-caption-1 text-text-secondary md:whitespace-nowrap">
-                      {formatDateTimeLocal(entry.occurredAt, '—')}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : null}
-
-          {!shouldRenderDocumentsTab &&
-          activeFilter !== 'AUDIT_TRAIL' &&
-          !loading &&
-          !error &&
-          filteredEntries.length === 0 ? (
-            <HistoryEmptyState />
-          ) : null}
-
-          {!shouldRenderDocumentsTab &&
-          activeFilter !== 'AUDIT_TRAIL' &&
-          !loading &&
-          !error &&
-          displayedEntries.length > 0 ? (
-            <div className="flex flex-col gap-3">
-              {displayedEntries.map((entry) => (
-                <HistoryEntryCard key={entry.id} entry={entry} onOpen={handleOpenEntry} />
-              ))}
-            </div>
-          ) : null}
-
-          {!shouldRenderDocumentsTab &&
-          activeFilter !== 'AUDIT_TRAIL' &&
-          compact &&
-          !loading &&
-          !error &&
-          filteredEntries.length > COMPACT_MAX_ENTRIES ? (
-            <div className="rounded-2xl border border-card-border bg-card-hover px-4 py-3 text-caption-1 text-text-secondary">
-              Showing latest {COMPACT_MAX_ENTRIES} records in compact view. Open full history for
-              the complete timeline.
-            </div>
-          ) : null}
-
-          {!shouldRenderDocumentsTab &&
-          activeFilter !== 'AUDIT_TRAIL' &&
-          !compact &&
-          !loading &&
-          !error &&
-          nextCursor ? (
-            <button
-              type="button"
-              onClick={() => {
-                loadHistory(nextCursor, false).catch((historyError) => {
-                  console.error('Failed to load more history entries:', historyError);
-                });
-              }}
-              disabled={loadingMore}
-              className="w-full rounded-2xl border border-card-border bg-white px-4 py-2 text-caption-1 text-text-primary transition-colors hover:bg-card-hover disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {loadingMore ? 'Loading...' : 'Load more'}
-            </button>
-          ) : null}
+          <HistoryEntriesSection
+            shouldRenderDocumentsTab={shouldRenderDocumentsTab}
+            activeFilter={activeFilter}
+            loading={loading}
+            error={error}
+            filteredEntries={filteredEntries}
+            displayedEntries={displayedEntries}
+            compact={compact}
+            handleOpenEntry={handleOpenEntry}
+            nextCursor={nextCursor}
+            loadingMore={loadingMore}
+            loadHistory={loadHistory}
+          />
         </div>
       </div>
     </PermissionGate>

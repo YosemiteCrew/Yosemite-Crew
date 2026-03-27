@@ -118,6 +118,19 @@ const toImageSource = (value: unknown): {uri: string} | undefined => {
   return uri ? {uri} : undefined;
 };
 
+const getCancellationNote = (
+  isCancelledOrNoShow: boolean,
+  isCashPaid: boolean,
+): string | null => {
+  if (!isCancelledOrNoShow) {
+    return null;
+  }
+  if (isCashPaid) {
+    return 'This appointment was paid in cash. If a refund is needed after cancellation, please contact the service provider directly because cash refunds are handled by the provider organization.';
+  }
+  return "This appointment was cancelled. Refunds, if applicable, are processed per the provider organization's policy and card network timelines.";
+};
+
 const resolveEmployeeAvatar = (
   employee: any,
   apt: any,
@@ -384,12 +397,11 @@ const useStatusDisplay = (theme: any) => {
           backgroundColor: theme.colors.primaryTint,
         };
       case 'CHECKED_IN':
-        return {
-          text: label,
-          textColor: theme.colors.success,
-          backgroundColor: theme.colors.successSurface,
-        };
       case 'IN_PROGRESS':
+      case 'PAID':
+      case 'CONFIRMED':
+      case 'SCHEDULED':
+      case 'COMPLETED':
         return {
           text: label,
           textColor: theme.colors.success,
@@ -403,35 +415,12 @@ const useStatusDisplay = (theme: any) => {
         };
       case 'NO_PAYMENT':
       case 'AWAITING_PAYMENT':
-        return {
-          text: label,
-          textColor: theme.colors.warning,
-          backgroundColor: theme.colors.warningSurface,
-        };
       case 'PAYMENT_FAILED':
+      case 'RESCHEDULED':
         return {
           text: label,
           textColor: theme.colors.warning,
           backgroundColor: theme.colors.warningSurface,
-        };
-      case 'PAID':
-        return {
-          text: label,
-          textColor: theme.colors.success,
-          backgroundColor: theme.colors.successSurface,
-        };
-      case 'CONFIRMED':
-      case 'SCHEDULED':
-        return {
-          text: label,
-          textColor: theme.colors.success,
-          backgroundColor: theme.colors.successSurface,
-        };
-      case 'COMPLETED':
-        return {
-          text: label,
-          textColor: theme.colors.success,
-          backgroundColor: theme.colors.successSurface,
         };
       case 'CANCELLED':
       case 'NO_SHOW':
@@ -439,12 +428,6 @@ const useStatusDisplay = (theme: any) => {
           text: label,
           textColor: theme.colors.error,
           backgroundColor: theme.colors.errorSurface,
-        };
-      case 'RESCHEDULED':
-        return {
-          text: label,
-          textColor: theme.colors.warning,
-          backgroundColor: theme.colors.warningSurface,
         };
       default:
         return {
@@ -516,12 +499,10 @@ const useAppointmentDisplayData = (params: {
     const isCashPaid =
       normalizedPaymentStatus === 'PAID_CASH' ||
       normalizedPaymentStatus === 'CASH_PAID';
-    const cancellationNote =
-      isCancelledOrNoShow && isCashPaid
-        ? 'This appointment was paid in cash. If a refund is needed after cancellation, please contact the service provider directly because cash refunds are handled by the provider organization.'
-        : isCancelledOrNoShow
-          ? "This appointment was cancelled. Refunds, if applicable, are processed per the provider organization's policy and card network timelines."
-          : null;
+    const cancellationNote = getCancellationNote(
+      isCancelledOrNoShow,
+      isCashPaid,
+    );
     const businessName = business?.name || apt.organisationName || 'Provider';
     const businessAddress = business?.address || apt.organisationAddress || '';
     const resolvedPhoto =

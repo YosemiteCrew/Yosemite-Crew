@@ -91,6 +91,41 @@ const shouldWaitForOrgGuardData = (
   isStatusPending(specialityStatus) ||
   isStatusPending(profileStatus);
 
+const getOrgFallbackRedirect = (pathname: string): string | null => {
+  return pathname === '/organizations' ? null : '/organizations';
+};
+
+const getPermissionsFallbackRedirect = (
+  pathname: string,
+  effectivePermissions: string[]
+): string | null => {
+  if (canAccessPathByPermissions(pathname, effectivePermissions)) return null;
+  const fallbackRoute = resolveFirstAccessibleAppRoute(effectivePermissions);
+  if (fallbackRoute === pathname) return null;
+  return fallbackRoute;
+};
+
+const applyDefaultLandingRedirect = (
+  pathname: string,
+  primaryOrgId: string,
+  preferredLanding: string
+): string | null => {
+  const shouldEvaluateLanding = pathname === '/dashboard' || pathname === '/appointments';
+  if (!shouldEvaluateLanding) return null;
+
+  const landingAppliedKey = `yc_default_landing_applied:${primaryOrgId}`;
+  const isLandingAlreadyApplied =
+    globalThis.window?.sessionStorage.getItem(landingAppliedKey) === '1';
+
+  if (preferredLanding !== pathname && !isLandingAlreadyApplied) {
+    globalThis.window?.sessionStorage.setItem(landingAppliedKey, '1');
+    return preferredLanding;
+  }
+
+  globalThis.window?.sessionStorage.setItem(landingAppliedKey, '1');
+  return null;
+};
+
 /**
  * Guard for org-scoped routes.
  *
@@ -158,8 +193,9 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
       return;
     }
     if (!primaryOrgId) {
-      if (pathname !== '/organizations') {
-        router.replace('/organizations');
+      const orgFallbackRedirect = getOrgFallbackRedirect(pathname);
+      if (orgFallbackRedirect) {
+        router.replace(orgFallbackRedirect);
         return;
       }
       setChecked(true);
@@ -170,8 +206,9 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
     }
 
     if (!primaryOrg || !membership) {
-      if (pathname !== '/organizations') {
-        router.replace('/organizations');
+      const orgFallbackRedirect = getOrgFallbackRedirect(pathname);
+      if (orgFallbackRedirect) {
+        router.replace(orgFallbackRedirect);
       }
       return;
     }
@@ -193,31 +230,22 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
       return;
     }
 
-    const role = membership.roleDisplay ?? membership.roleCode;
     const effectivePermissions = membership.effectivePermissions ?? [];
-    const canAccessCurrentPath = canAccessPathByPermissions(pathname, effectivePermissions);
-
-    if (!canAccessCurrentPath) {
-      const fallbackRoute = resolveFirstAccessibleAppRoute(effectivePermissions);
-      if (fallbackRoute !== pathname) {
-        router.replace(fallbackRoute);
-        return;
-      }
-    }
-
-    const preferredLanding = resolveDefaultOpenScreenRoute(role);
-    const shouldEvaluateLanding = pathname === '/dashboard' || pathname === '/appointments';
-    const landingAppliedKey = `yc_default_landing_applied:${primaryOrgId}`;
-    const isLandingAlreadyApplied =
-      globalThis.window?.sessionStorage.getItem(landingAppliedKey) === '1';
-
-    if (shouldEvaluateLanding && preferredLanding !== pathname && !isLandingAlreadyApplied) {
-      globalThis.window?.sessionStorage.setItem(landingAppliedKey, '1');
-      router.replace(preferredLanding);
+    const permissionsFallbackRedirect = getPermissionsFallbackRedirect(
+      pathname,
+      effectivePermissions
+    );
+    if (permissionsFallbackRedirect) {
+      router.replace(permissionsFallbackRedirect);
       return;
     }
-    if (shouldEvaluateLanding) {
-      globalThis.window?.sessionStorage.setItem(landingAppliedKey, '1');
+
+    const role = membership.roleDisplay ?? membership.roleCode;
+    const preferredLanding = resolveDefaultOpenScreenRoute(role);
+    const landingRedirect = applyDefaultLandingRedirect(pathname, primaryOrgId, preferredLanding);
+    if (landingRedirect) {
+      router.replace(landingRedirect);
+      return;
     }
 
     setChecked(true);

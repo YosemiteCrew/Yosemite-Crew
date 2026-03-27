@@ -149,6 +149,7 @@ const HistoryDocumentUpload = ({ companionId, onUploaded }: HistoryDocumentUploa
           <div className="flex w-full flex-nowrap items-center justify-between gap-3">
             <label
               htmlFor="historyIncludeIssueDate"
+              aria-label="Include issue date"
               className="inline-flex h-12 shrink-0 cursor-pointer items-center rounded-2xl border border-input-border-default px-4"
             >
               <span className="grid h-full place-items-center">
@@ -156,6 +157,7 @@ const HistoryDocumentUpload = ({ companionId, onUploaded }: HistoryDocumentUploa
                   <input
                     id="historyIncludeIssueDate"
                     type="checkbox"
+                    aria-label="Include issue date"
                     className="m-0 h-4 w-4 shrink-0 align-middle accent-text-primary"
                     checked={formData.hasIssueDate ?? false}
                     onChange={(event) =>

@@ -82,6 +82,7 @@ export const daysOfWeek = [
 export const DEFAULT_INTERVAL: Interval = { start: '09:00', end: '17:00' };
 
 const DAY_MINUTES = 24 * 60;
+const DEFAULT_ENABLED_DAYS = new Set(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']);
 
 const toDayIndex = (dayName: string): number => {
   const normalized = String(dayName || '')
@@ -132,7 +133,8 @@ const mergeIntervals = (intervals: Interval[]): Interval[] => {
 
   const merged: Array<{ start: number; end: number }> = [normalized[0]];
   for (let i = 1; i < normalized.length; i++) {
-    const previous = merged[merged.length - 1];
+    const previous = merged.at(-1);
+    if (!previous) continue;
     const current = normalized[i];
     if (current.start <= previous.end) {
       previous.end = Math.max(previous.end, current.end);
@@ -149,7 +151,7 @@ const mergeIntervals = (intervals: Interval[]): Interval[] => {
 
 const utcClockTimeToMinutes = (value: string): number | null => {
   const parsed = parseClockValue(value);
-  return parsed == null ? null : parsed;
+  return parsed ?? null;
 };
 
 const localClockTimeToUtcClock = (
@@ -178,6 +180,59 @@ export type ApiAvailability = {
   }[];
 };
 
+const toUtcSegmentsForLocalInterval = (
+  startLocal: number,
+  endLocalRaw: number
+): Array<{ dayOffset: number; startMinute: number; endMinute: number }> => {
+  const utcStartClock = localClockTimeToUtcClock(formatClockValue(startLocal));
+  const utcEndClock = localClockTimeToUtcClock(formatClockValue(endLocalRaw));
+
+  const utcStartAbsoluteMinute = utcStartClock.dayOffset * DAY_MINUTES + utcStartClock.minutes;
+  let utcEndAbsoluteMinute = utcEndClock.dayOffset * DAY_MINUTES + utcEndClock.minutes;
+  if (utcEndAbsoluteMinute <= utcStartAbsoluteMinute) {
+    utcEndAbsoluteMinute += DAY_MINUTES;
+  }
+
+  return toIntervalSegmentsByDay(utcStartAbsoluteMinute, utcEndAbsoluteMinute);
+};
+
+const addSlotsForDay = (
+  byDay: Map<string, Array<{ startTime: string; endTime: string }>>,
+  dayOfWeek: string,
+  startTime: string,
+  endTime: string
+) => {
+  if (!byDay.has(dayOfWeek)) byDay.set(dayOfWeek, []);
+  byDay.get(dayOfWeek)?.push({ startTime, endTime });
+};
+
+const addLocalSegmentsByDay = (
+  localByDay: Map<string, Interval[]>,
+  utcDayIndex: number,
+  startTime: string,
+  endTime: string
+) => {
+  const startLocalClock = utcClockTimeToPreferredTimeZoneClock(startTime);
+  const endLocalClock = utcClockTimeToPreferredTimeZoneClock(endTime);
+
+  const startLocalAbsoluteMinute =
+    startLocalClock.dayOffset * DAY_MINUTES + startLocalClock.minutes;
+  let endLocalAbsoluteMinute = endLocalClock.dayOffset * DAY_MINUTES + endLocalClock.minutes;
+  if (endLocalAbsoluteMinute <= startLocalAbsoluteMinute) {
+    endLocalAbsoluteMinute += DAY_MINUTES;
+  }
+
+  const localSegments = toIntervalSegmentsByDay(startLocalAbsoluteMinute, endLocalAbsoluteMinute);
+  for (const segment of localSegments) {
+    const localDayName = daysOfWeek[(((utcDayIndex + segment.dayOffset) % 7) + 7) % 7];
+    if (!localByDay.has(localDayName)) localByDay.set(localDayName, []);
+    localByDay.get(localDayName)?.push({
+      start: formatClockValue(segment.startMinute),
+      end: formatClockValue(segment.endMinute),
+    });
+  }
+};
+
 export const convertAvailability = (availability: AvailabilityState): ApiAvailability => {
   const byDay = new Map<string, Array<{ startTime: string; endTime: string }>>();
 
@@ -190,25 +245,15 @@ export const convertAvailability = (availability: AvailabilityState): ApiAvailab
       const startLocal = parseClockValue(interval.start);
       const endLocalRaw = parseClockValue(interval.end);
       if (startLocal == null || endLocalRaw == null) continue;
-      const endLocal = endLocalRaw <= startLocal ? endLocalRaw + DAY_MINUTES : endLocalRaw;
-
-      const utcStartClock = localClockTimeToUtcClock(formatClockValue(startLocal));
-      const utcEndClock = localClockTimeToUtcClock(formatClockValue(endLocalRaw));
-
-      const utcStartAbsoluteMinute = utcStartClock.dayOffset * DAY_MINUTES + utcStartClock.minutes;
-      let utcEndAbsoluteMinute = utcEndClock.dayOffset * DAY_MINUTES + utcEndClock.minutes;
-      if (utcEndAbsoluteMinute <= utcStartAbsoluteMinute) {
-        utcEndAbsoluteMinute += DAY_MINUTES;
-      }
-
-      const utcSegments = toIntervalSegmentsByDay(utcStartAbsoluteMinute, utcEndAbsoluteMinute);
+      const utcSegments = toUtcSegmentsForLocalInterval(startLocal, endLocalRaw);
       for (const segment of utcSegments) {
         const dayOfWeek = toDayNameUpper(localDayIndex + segment.dayOffset);
-        if (!byDay.has(dayOfWeek)) byDay.set(dayOfWeek, []);
-        byDay.get(dayOfWeek)?.push({
-          startTime: formatClockValue(segment.startMinute),
-          endTime: formatClockValue(segment.endMinute),
-        });
+        addSlotsForDay(
+          byDay,
+          dayOfWeek,
+          formatClockValue(segment.startMinute),
+          formatClockValue(segment.endMinute)
+        );
       }
     }
   }
@@ -283,15 +328,8 @@ export const convertFromGetApi = (apiData: ApiDayAvailability[]): AvailabilitySt
   );
   if (!hasAnyAvailableSlot) {
     return daysOfWeek.reduce<AvailabilityState>((acc, day) => {
-      const isWeekday =
-        day === 'Monday' ||
-        day === 'Tuesday' ||
-        day === 'Wednesday' ||
-        day === 'Thursday' ||
-        day === 'Friday';
-
       acc[day] = {
-        enabled: isWeekday,
+        enabled: DEFAULT_ENABLED_DAYS.has(day),
         intervals: [{ ...DEFAULT_INTERVAL }],
       };
       return acc;
@@ -306,34 +344,9 @@ export const convertFromGetApi = (apiData: ApiDayAvailability[]): AvailabilitySt
     const availableSlots = (entry.slots ?? []).filter((slot) => slot.isAvailable);
 
     for (const slot of availableSlots) {
-      const startUtcMinute = utcClockTimeToMinutes(slot.startTime);
-      const endUtcMinuteRaw = utcClockTimeToMinutes(slot.endTime);
-      if (startUtcMinute == null || endUtcMinuteRaw == null) continue;
-
-      const startLocalClock = utcClockTimeToPreferredTimeZoneClock(slot.startTime);
-      const endLocalClock = utcClockTimeToPreferredTimeZoneClock(slot.endTime);
-
-      const startLocalAbsoluteMinute =
-        startLocalClock.dayOffset * DAY_MINUTES + startLocalClock.minutes;
-      let endLocalAbsoluteMinute = endLocalClock.dayOffset * DAY_MINUTES + endLocalClock.minutes;
-
-      if (endLocalAbsoluteMinute <= startLocalAbsoluteMinute) {
-        endLocalAbsoluteMinute += DAY_MINUTES;
-      }
-
-      const localSegments = toIntervalSegmentsByDay(
-        startLocalAbsoluteMinute,
-        endLocalAbsoluteMinute
-      );
-
-      for (const segment of localSegments) {
-        const localDayName = daysOfWeek[(((utcDayIndex + segment.dayOffset) % 7) + 7) % 7];
-        if (!localByDay.has(localDayName)) localByDay.set(localDayName, []);
-        localByDay.get(localDayName)?.push({
-          start: formatClockValue(segment.startMinute),
-          end: formatClockValue(segment.endMinute),
-        });
-      }
+      if (utcClockTimeToMinutes(slot.startTime) == null) continue;
+      if (utcClockTimeToMinutes(slot.endTime) == null) continue;
+      addLocalSegmentsByDay(localByDay, utcDayIndex, slot.startTime, slot.endTime);
     }
   }
 

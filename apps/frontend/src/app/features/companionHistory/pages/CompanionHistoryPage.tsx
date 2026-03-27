@@ -18,7 +18,7 @@ const FALLBACK_BACK_PATH = '/companions';
 const APPOINTMENTS_BACK_PATH = '/appointments';
 
 const resolveSafeBackPath = (candidate: string | null, source: string | null): string => {
-  if (candidate && candidate.startsWith('/')) {
+  if (candidate?.startsWith('/')) {
     return candidate;
   }
   if (source === 'appointments') {
@@ -40,6 +40,7 @@ const CompanionHistoryPage = () => {
     .toLowerCase();
   const backTo = String(searchParams.get('backTo') ?? '').trim();
   const backPath = resolveSafeBackPath(backTo || null, source || null);
+  const hasCompanionId = Boolean(companionId);
 
   const activeCompanion = useMemo(
     () => companions.find((item) => item.companion.id === companionId) ?? null,
@@ -84,13 +85,13 @@ const CompanionHistoryPage = () => {
             ) : null}
           </div>
 
-          {!companionId ? (
+          {hasCompanionId ? null : (
             <div className="rounded-2xl border border-card-border bg-white px-4 py-6 text-body-3 text-text-secondary">
               Companion id is missing. Please open history from Appointments or Companions.
             </div>
-          ) : null}
+          )}
 
-          {companionId ? (
+          {hasCompanionId ? (
             <div className="rounded-2xl border border-card-border bg-white p-4">
               <CompanionHistoryTimeline companionId={companionId} showDocumentUpload />
             </div>

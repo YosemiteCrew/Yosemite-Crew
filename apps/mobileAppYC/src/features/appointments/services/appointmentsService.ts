@@ -539,31 +539,33 @@ const mapInvoiceFromApi = (
 
   const items = Array.isArray(raw.items) ? raw.items : [];
   const convertedItems = invoiceFromConverter?.items ?? [];
-  const normalizedItems: Array<{
+  let normalizedItems: Array<{
     description: string;
     rate: number;
     qty: number;
     lineTotal: number;
-  }> = convertedItems.length
-    ? convertedItems.map(item => ({
+  }> = [];
+
+  if (convertedItems.length > 0) {
+    normalizedItems = convertedItems.map(item => ({
+      description: item.description ?? item.name ?? 'Line item',
+      rate: item.unitPrice ?? 0,
+      qty: item.quantity ?? 1,
+      lineTotal: item.total ?? (item.unitPrice ?? 0) * (item.quantity ?? 1),
+    }));
+  } else if (items.length > 0) {
+    normalizedItems = items.map((item: any) => {
+      const qty = item.quantity ?? item.qty ?? 1;
+      const rate = item.unitPrice ?? item.rate ?? item.total ?? 0;
+      const total = item.total ?? rate * qty;
+      return {
         description: item.description ?? item.name ?? 'Line item',
-        rate: item.unitPrice ?? 0,
-        qty: item.quantity ?? 1,
-        lineTotal: item.total ?? (item.unitPrice ?? 0) * (item.quantity ?? 1),
-      }))
-    : items.length > 0
-      ? items.map((item: any) => {
-          const qty = item.quantity ?? item.qty ?? 1;
-          const rate = item.unitPrice ?? item.rate ?? item.total ?? 0;
-          const total = item.total ?? rate * qty;
-          return {
-            description: item.description ?? item.name ?? 'Line item',
-            rate,
-            qty,
-            lineTotal: total,
-          };
-        })
-      : [];
+        rate,
+        qty,
+        lineTotal: total,
+      };
+    });
+  }
 
   const subtotal =
     invoiceFromConverter?.subtotal ??

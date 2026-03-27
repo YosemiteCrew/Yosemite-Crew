@@ -47,7 +47,7 @@ const normalizeVersion = (version: string): number[] => {
   return version
     .split('.')
     .map(part => {
-      const digits = part.replace(/[^0-9]/g, '');
+      const digits = part.replaceAll(/\D/g, '');
       const parsed = Number(digits);
       return Number.isFinite(parsed) ? parsed : 0;
     })
@@ -114,12 +114,15 @@ export const evaluateAppUpdatePrompt = (
 
   if (!appUpdate) return null;
 
-  const platformPolicy =
-    Platform.OS === 'ios'
-      ? appUpdate.ios
-      : Platform.OS === 'android'
-        ? appUpdate.android
-        : undefined;
+  let platformPolicy:
+    | typeof appUpdate.ios
+    | typeof appUpdate.android
+    | undefined;
+  if (Platform.OS === 'ios') {
+    platformPolicy = appUpdate.ios;
+  } else if (Platform.OS === 'android') {
+    platformPolicy = appUpdate.android;
+  }
 
   const enabled = toBoolean(platformPolicy?.enabled ?? appUpdate.enabled);
   const force = toBoolean(platformPolicy?.force ?? appUpdate.force);
@@ -144,10 +147,10 @@ export const evaluateAppUpdatePrompt = (
   const remindAfterHoursRaw = toNumberOrNull(
     platformPolicy?.remindAfterHours ?? appUpdate.remindAfterHours,
   );
-  const remindAfterHours =
-    remindAfterHoursRaw && remindAfterHoursRaw > 0
-      ? remindAfterHoursRaw
-      : OPTIONAL_PROMPT_DEFAULT_HOURS;
+  let remindAfterHours = OPTIONAL_PROMPT_DEFAULT_HOURS;
+  if (remindAfterHoursRaw && remindAfterHoursRaw > 0) {
+    remindAfterHours = remindAfterHoursRaw;
+  }
 
   const needsMinimumVersionUpgrade =
     !!minimumSupportedVersion &&

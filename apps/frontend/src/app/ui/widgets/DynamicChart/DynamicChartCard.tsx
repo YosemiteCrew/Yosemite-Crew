@@ -77,7 +77,7 @@ const getMonthLabelFromData = (data: any[]): string | undefined => {
     }
   }
 
-  const monthToken = labels[0].match(MONTH_NAME_PATTERN)?.[0];
+  const monthToken = MONTH_NAME_PATTERN.exec(labels[0])?.[0];
   return monthToken ? monthToken[0].toUpperCase() + monthToken.slice(1).toLowerCase() : undefined;
 };
 
@@ -87,7 +87,7 @@ const getDayTickLabel = (value: string): string => {
     return new Intl.DateTimeFormat('en-US', { day: 'numeric' }).format(parsed);
   }
 
-  const dayToken = value.match(DAY_PATTERN)?.[0];
+  const dayToken = DAY_PATTERN.exec(value)?.[0];
   return dayToken ?? value;
 };
 

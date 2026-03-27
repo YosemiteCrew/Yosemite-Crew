@@ -88,9 +88,32 @@ const MERCK_COPYRIGHT_NOTICE =
   'Copyright © 2021 Merck & Co., Inc., known as MSD outside of the US, Kenilworth, New Jersey, USA. All rights reserved.';
 const EMPTY_INITIAL_ENTRIES: MerckEntry[] = [];
 
+const stripHtmlTags = (value: string): string => {
+  let output = '';
+  let insideTag = false;
+
+  for (const char of value) {
+    if (char === '<') {
+      insideTag = true;
+      output += ' ';
+      continue;
+    }
+    if (char === '>') {
+      insideTag = false;
+      output += ' ';
+      continue;
+    }
+    if (!insideTag) {
+      output += char;
+    }
+  }
+
+  return output;
+};
+
 const sanitizeTextForDisplay = (value: string): string => {
-  const withoutTags = String(value ?? '').replace(/<[^>]*>/g, ' ');
-  return withoutTags.replace(/\s+/g, ' ').trim();
+  const withoutTags = stripHtmlTags(String(value ?? ''));
+  return withoutTags.replaceAll(/\s+/g, ' ').trim();
 };
 
 const pickPillColorFromLabel = (label: string): MerckPillColors => {
@@ -120,21 +143,274 @@ const isReaderNavigationAllowed = (url: string): boolean => {
   return isAllowedMerckUrl(value);
 };
 
-export const MerckSearchWidget: React.FC<MerckSearchWidgetProps> = ({
-  organisationId,
-  title = 'Merck Manuals',
-  description = 'Search consumer-focused Merck manuals content.',
-  compact = false,
-  initialQuery = '',
-  initialEntries = EMPTY_INITIAL_ENTRIES,
-  initialLanguage = 'en',
-  initialHasSearched = false,
-  onOpenFullSearch,
-  testID = 'merck-search-widget',
-}) => {
-  const {theme} = useTheme();
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
+type MerckStyles = ReturnType<typeof createStyles>;
 
+type MerckEntryCardProps = {
+  entry: MerckEntry;
+  styles: MerckStyles;
+  theme: any;
+  summaryLines: number;
+  subLinkLimit: number;
+  onOpenInReader: (url: string, title: string) => void;
+};
+
+const MerckEntryCard: React.FC<MerckEntryCardProps> = ({
+  entry,
+  styles,
+  theme,
+  summaryLines,
+  subLinkLimit,
+  onOpenInReader,
+}) => (
+  <View key={entry.id} style={styles.resultCard}>
+    <Text style={styles.resultTitle}>
+      {sanitizeTextForDisplay(entry.title)}
+    </Text>
+    <Text style={styles.resultSummary} numberOfLines={summaryLines}>
+      {sanitizeTextForDisplay(entry.summaryText) || 'No summary available.'}
+    </Text>
+
+    <View style={styles.resultActions}>
+      <LiquidGlassButton
+        title="Open"
+        onPress={() => {
+          onOpenInReader(entry.primaryUrl, entry.title);
+        }}
+        height={48}
+        borderRadius={theme.borderRadius.md}
+        tintColor={theme.colors.secondary}
+        style={styles.openButton}
+        textStyle={styles.openButtonText}
+        shadowIntensity="medium"
+      />
+    </View>
+
+    {entry.subLinks.length ? (
+      <View style={styles.linkPills}>
+        {entry.subLinks.slice(0, subLinkLimit).map(link => {
+          const colors = getMerckSubtopicPillColors(link.label);
+          return (
+            <Pressable
+              key={`${entry.id}-${link.label}`}
+              style={[
+                styles.linkPill,
+                {
+                  backgroundColor: colors.backgroundColor,
+                  borderColor: colors.borderColor,
+                },
+              ]}
+              onPress={() => {
+                onOpenInReader(link.url, entry.title);
+              }}>
+              <Text
+                style={[styles.linkPillText, {color: colors.color}]}
+                numberOfLines={1}>
+                {link.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    ) : null}
+  </View>
+);
+
+type MerckResultsSectionProps = {
+  compact: boolean;
+  visibleEntries: MerckEntry[];
+  hasMoreCompactResults: boolean;
+  hasFullSearch: boolean;
+  styles: MerckStyles;
+  theme: any;
+  onOpenInReader: (url: string, title: string) => void;
+  onOpenFullSearch: () => void;
+};
+
+const MerckResultsSection: React.FC<MerckResultsSectionProps> = ({
+  compact,
+  visibleEntries,
+  hasMoreCompactResults,
+  hasFullSearch,
+  styles,
+  theme,
+  onOpenInReader,
+  onOpenFullSearch,
+}) => {
+  if (compact) {
+    return (
+      <View style={styles.resultsWrap}>
+        {visibleEntries.map(entry => (
+          <MerckEntryCard
+            key={entry.id}
+            entry={entry}
+            styles={styles}
+            theme={theme}
+            summaryLines={2}
+            subLinkLimit={2}
+            onOpenInReader={onOpenInReader}
+          />
+        ))}
+
+        {hasMoreCompactResults && hasFullSearch ? (
+          <Pressable
+            onPress={onOpenFullSearch}
+            style={styles.viewMoreWrap}
+            accessibilityRole="button"
+            accessibilityLabel="View more Merck results">
+            <Text style={styles.viewMoreHintText}>
+              Showing top results only.
+            </Text>
+            <Text style={styles.viewMoreActionText}>
+              View more in full search
+            </Text>
+          </Pressable>
+        ) : null}
+
+        <Text style={styles.copyrightText}>{MERCK_COPYRIGHT_NOTICE}</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.resultsPanel}>
+      <ScrollView
+        style={styles.resultsScroll}
+        contentContainerStyle={styles.resultsScrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        nestedScrollEnabled>
+        {visibleEntries.map(entry => (
+          <MerckEntryCard
+            key={entry.id}
+            entry={entry}
+            styles={styles}
+            theme={theme}
+            summaryLines={4}
+            subLinkLimit={6}
+            onOpenInReader={onOpenInReader}
+          />
+        ))}
+      </ScrollView>
+
+      <Text style={styles.copyrightText}>{MERCK_COPYRIGHT_NOTICE}</Text>
+    </View>
+  );
+};
+
+type MerckReaderModalProps = {
+  visible: boolean;
+  readerLoading: boolean;
+  readerTitle: string;
+  readerUrl: string | null;
+  styles: MerckStyles;
+  closeReader: () => void;
+  handleReaderNavigation: (request: {url?: string}) => boolean;
+  setReaderLoading: React.Dispatch<React.SetStateAction<boolean>>;
+  setError: React.Dispatch<React.SetStateAction<string | null>>;
+};
+
+const MerckReaderModal: React.FC<MerckReaderModalProps> = ({
+  visible,
+  readerLoading,
+  readerTitle,
+  readerUrl,
+  styles,
+  closeReader,
+  handleReaderNavigation,
+  setReaderLoading,
+  setError,
+}) => (
+  <Modal
+    visible={visible}
+    transparent
+    animationType="fade"
+    presentationStyle="overFullScreen"
+    onRequestClose={closeReader}>
+    <View style={styles.readerBackdrop}>
+      <SafeAreaView style={styles.readerSafeArea}>
+        <View style={styles.readerShell}>
+          <View style={styles.readerHeader}>
+            <Text style={styles.readerTitle} numberOfLines={1}>
+              {readerTitle}
+            </Text>
+            <TouchableOpacity
+              style={styles.readerCloseButton}
+              onPress={closeReader}
+              accessibilityRole="button"
+              accessibilityLabel="Close Merck reader">
+              <Image source={Images.closeIcon} style={styles.readerCloseIcon} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.readerBody}>
+            {readerLoading ? (
+              <View style={styles.readerLoaderOverlay}>
+                <Image
+                  source={Images.yosemiteLoader}
+                  style={styles.readerLoaderGif}
+                />
+                <Text style={styles.readerLoaderText}>Loading manual...</Text>
+              </View>
+            ) : null}
+            {readerUrl ? (
+              <WebView
+                testID="merck-reader-webview"
+                source={{uri: readerUrl}}
+                originWhitelist={['https://*']}
+                startInLoadingState={false}
+                javaScriptEnabled
+                javaScriptCanOpenWindowsAutomatically={false}
+                domStorageEnabled
+                thirdPartyCookiesEnabled={false}
+                sharedCookiesEnabled={false}
+                setSupportMultipleWindows={false}
+                geolocationEnabled={false}
+                allowFileAccess={false}
+                allowFileAccessFromFileURLs={false}
+                allowUniversalAccessFromFileURLs={false}
+                mixedContentMode="never"
+                allowsLinkPreview={false}
+                mediaPlaybackRequiresUserAction
+                incognito
+                onShouldStartLoadWithRequest={handleReaderNavigation}
+                onLoadStart={() => setReaderLoading(true)}
+                onLoadEnd={() => setReaderLoading(false)}
+                onError={() => {
+                  setReaderLoading(false);
+                  setError('Unable to open this Merck page right now.');
+                }}
+                onHttpError={() => {
+                  setReaderLoading(false);
+                  setError('Unable to load this Merck page right now.');
+                }}
+              />
+            ) : null}
+          </View>
+        </View>
+      </SafeAreaView>
+    </View>
+  </Modal>
+);
+
+type MerckSearchControllerArgs = {
+  organisationId?: string | null;
+  compact: boolean;
+  initialQuery: string;
+  initialEntries: MerckEntry[];
+  initialLanguage: MerckLanguage;
+  initialHasSearched: boolean;
+  onOpenFullSearch?: MerckSearchWidgetProps['onOpenFullSearch'];
+};
+
+const useMerckSearchController = ({
+  organisationId,
+  compact,
+  initialQuery,
+  initialEntries,
+  initialLanguage,
+  initialHasSearched,
+  onOpenFullSearch,
+}: MerckSearchControllerArgs) => {
   const [query, setQuery] = React.useState(initialQuery);
   const [language, setLanguage] =
     React.useState<MerckLanguage>(initialLanguage);
@@ -257,406 +533,455 @@ export const MerckSearchWidget: React.FC<MerckSearchWidgetProps> = ({
     !compact && !loading && !error && !hasSearched && !query.trim();
   const hasMoreCompactResults =
     compact && entries.length > visibleEntries.length;
+  const handleOpenFullSearchPress = React.useCallback(() => {
+    if (!onOpenFullSearch) {
+      return;
+    }
+    onOpenFullSearch({
+      query: query.trim(),
+      entries,
+      language,
+      hasSearched,
+    });
+  }, [entries, hasSearched, language, onOpenFullSearch, query]);
+
+  return {
+    query,
+    setQuery,
+    language,
+    setLanguage,
+    loading,
+    error,
+    setError,
+    entries,
+    hasSearched,
+    setHasSearched,
+    refineOpen,
+    setRefineOpen,
+    readerOpen,
+    readerLoading,
+    setReaderLoading,
+    readerUrl,
+    readerTitle,
+    executeSearch,
+    closeReader,
+    openInReader,
+    handleReaderNavigation,
+    visibleEntries,
+    showNoResultsState,
+    showIdleState,
+    hasMoreCompactResults,
+    handleOpenFullSearchPress,
+  };
+};
+
+type MerckSearchWidgetViewProps = {
+  title: string;
+  description: string;
+  compact: boolean;
+  testID: string;
+  onOpenFullSearch?: MerckSearchWidgetProps['onOpenFullSearch'];
+  theme: any;
+  styles: MerckStyles;
+  controller: ReturnType<typeof useMerckSearchController>;
+};
+
+type MerckHeaderSectionProps = {
+  title: string;
+  description: string;
+  styles: MerckStyles;
+  theme: any;
+  hasFullSearch: boolean;
+  onOpenFullSearch: () => void;
+};
+
+const MerckHeaderSection: React.FC<MerckHeaderSectionProps> = ({
+  title,
+  description,
+  styles,
+  theme,
+  hasFullSearch,
+  onOpenFullSearch,
+}) => (
+  <View style={styles.headingRow}>
+    <View style={styles.headingTextWrap}>
+      <Image source={Images.merckLogo} style={styles.logo} />
+      <Text style={styles.title}>{title}</Text>
+      <Text style={styles.subtitle}>{description}</Text>
+    </View>
+    {hasFullSearch ? (
+      <LiquidGlassButton
+        title="Open Full Search"
+        onPress={onOpenFullSearch}
+        height={40}
+        borderRadius={theme.borderRadius.md}
+        glassEffect="clear"
+        forceBorder
+        borderColor={theme.colors.secondary}
+        textStyle={styles.secondaryButtonText}
+        shadowIntensity="light"
+      />
+    ) : null}
+  </View>
+);
+
+type MerckSearchControlsProps = {
+  compact: boolean;
+  query: string;
+  loading: boolean;
+  refineOpen: boolean;
+  language: MerckLanguage;
+  styles: MerckStyles;
+  theme: any;
+  onQueryChange: (value: string) => void;
+  onSearch: () => void;
+  onToggleRefine: () => void;
+  onLanguageChange: (nextLanguage: MerckLanguage) => void;
+};
+
+type RefineToggleButtonProps = {
+  refineOpen: boolean;
+  styles: MerckStyles;
+  onToggleRefine: () => void;
+};
+
+const RefineToggleButton: React.FC<RefineToggleButtonProps> = ({
+  refineOpen,
+  styles,
+  onToggleRefine,
+}) => (
+  <Pressable
+    onPress={onToggleRefine}
+    style={[
+      styles.refineIconButton,
+      refineOpen ? styles.refineIconButtonActive : null,
+    ]}
+    accessibilityRole="button"
+    accessibilityLabel={
+      refineOpen ? 'Hide refine results' : 'Show refine results'
+    }>
+    <View style={styles.refineGlyph}>
+      <View
+        style={[
+          styles.refineGlyphLine,
+          styles.refineGlyphLineTop,
+          refineOpen ? styles.refineGlyphLineActive : null,
+        ]}
+      />
+      <View
+        style={[
+          styles.refineGlyphLine,
+          styles.refineGlyphLineMiddle,
+          refineOpen ? styles.refineGlyphLineActive : null,
+        ]}
+      />
+      <View
+        style={[
+          styles.refineGlyphLine,
+          styles.refineGlyphLineBottom,
+          refineOpen ? styles.refineGlyphLineActive : null,
+        ]}
+      />
+    </View>
+  </Pressable>
+);
+
+type LanguageSelectorProps = {
+  language: MerckLanguage;
+  styles: MerckStyles;
+  onLanguageChange: (nextLanguage: MerckLanguage) => void;
+};
+
+const LanguageSelector: React.FC<LanguageSelectorProps> = ({
+  language,
+  styles,
+  onLanguageChange,
+}) => (
+  <View style={styles.languageRow}>
+    <Text style={styles.languageLabel}>Language</Text>
+    <View style={styles.languagePillWrap}>
+      <Pressable
+        onPress={() => onLanguageChange('en')}
+        style={[
+          styles.languagePill,
+          language === 'en' ? styles.languagePillActive : null,
+        ]}>
+        <Text
+          style={[
+            styles.languagePillText,
+            language === 'en' ? styles.languagePillTextActive : null,
+          ]}>
+          EN
+        </Text>
+      </Pressable>
+      <Pressable
+        onPress={() => onLanguageChange('es')}
+        style={[
+          styles.languagePill,
+          language === 'es' ? styles.languagePillActive : null,
+        ]}>
+        <Text
+          style={[
+            styles.languagePillText,
+            language === 'es' ? styles.languagePillTextActive : null,
+          ]}>
+          ES
+        </Text>
+      </Pressable>
+    </View>
+  </View>
+);
+
+const MerckSearchControls: React.FC<MerckSearchControlsProps> = ({
+  compact,
+  query,
+  loading,
+  refineOpen,
+  language,
+  styles,
+  theme,
+  onQueryChange,
+  onSearch,
+  onToggleRefine,
+  onLanguageChange,
+}) => (
+  <View style={styles.searchRow}>
+    <View style={styles.searchInputRow}>
+      <SearchBar
+        mode="input"
+        placeholder="Search Merck manuals"
+        value={query}
+        onChangeText={onQueryChange}
+        onSubmitEditing={onSearch}
+        containerStyle={styles.searchBar}
+        rightElement={loading ? <ActivityIndicator size="small" /> : null}
+      />
+      {compact ? null : (
+        <RefineToggleButton
+          refineOpen={refineOpen}
+          styles={styles}
+          onToggleRefine={onToggleRefine}
+        />
+      )}
+    </View>
+
+    {compact || !refineOpen ? null : (
+      <LanguageSelector
+        language={language}
+        styles={styles}
+        onLanguageChange={onLanguageChange}
+      />
+    )}
+
+    <LiquidGlassButton
+      title={loading ? 'Searching...' : 'Search'}
+      onPress={onSearch}
+      height={48}
+      borderRadius={theme.borderRadius.md}
+      tintColor={theme.colors.secondary}
+      style={styles.searchButton}
+      textStyle={styles.openButtonText}
+      disabled={loading || !query.trim()}
+    />
+  </View>
+);
+
+type MerckStateMessagesProps = {
+  compact: boolean;
+  error: string | null;
+  showIdleState: boolean;
+  showNoResultsState: boolean;
+  styles: MerckStyles;
+};
+
+const MerckStateMessages: React.FC<MerckStateMessagesProps> = ({
+  compact,
+  error,
+  showIdleState,
+  showNoResultsState,
+  styles,
+}) => (
+  <>
+    {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+    {showIdleState ? (
+      <View style={styles.emptyStateCard}>
+        <Image source={Images.merckLogo} style={styles.emptyStateLogo} />
+        <Text style={styles.emptyStateTitle}>Search medical topics</Text>
+        <Text style={styles.emptyStateDescription}>
+          Find consumer-friendly Merck Manuals guidance for symptoms, care, and
+          follow-up.
+        </Text>
+      </View>
+    ) : null}
+
+    {showNoResultsState && !compact ? (
+      <View style={styles.emptyStateCard}>
+        <Text style={styles.emptyStateTitle}>No manuals found</Text>
+        <Text style={styles.emptyStateDescription}>
+          Try a broader keyword, remove specifics, or switch language from
+          refine filters.
+        </Text>
+      </View>
+    ) : null}
+
+    {showNoResultsState && compact ? (
+      <Text style={styles.emptyText}>No manuals found for this search.</Text>
+    ) : null}
+  </>
+);
+
+const MerckSearchWidgetView: React.FC<MerckSearchWidgetViewProps> = ({
+  title,
+  description,
+  compact,
+  testID,
+  onOpenFullSearch,
+  theme,
+  styles,
+  controller,
+}) => {
+  const {
+    query,
+    setQuery,
+    language,
+    setLanguage,
+    loading,
+    error,
+    setError,
+    setHasSearched,
+    refineOpen,
+    setRefineOpen,
+    readerOpen,
+    readerLoading,
+    setReaderLoading,
+    readerUrl,
+    readerTitle,
+    executeSearch,
+    closeReader,
+    openInReader,
+    handleReaderNavigation,
+    visibleEntries,
+    showNoResultsState,
+    showIdleState,
+    hasMoreCompactResults,
+    handleOpenFullSearchPress,
+  } = controller;
+  const hasFullSearch = Boolean(onOpenFullSearch);
+  const handleQueryChange = React.useCallback(
+    (value: string) => {
+      setQuery(value);
+      setHasSearched(false);
+    },
+    [setHasSearched, setQuery],
+  );
+  const handleLanguageChange = React.useCallback(
+    (nextLanguage: MerckLanguage) => {
+      setLanguage(nextLanguage);
+      setHasSearched(false);
+    },
+    [setHasSearched, setLanguage],
+  );
+  const handleToggleRefine = React.useCallback(() => {
+    setRefineOpen(prev => !prev);
+  }, [setRefineOpen]);
 
   return (
     <LiquidGlassCard style={styles.container} fallbackStyle={styles.container}>
       <View testID={testID} style={styles.content}>
-        <View style={styles.headingRow}>
-          <View style={styles.headingTextWrap}>
-            <Image source={Images.merckLogo} style={styles.logo} />
-            <Text style={styles.title}>{title}</Text>
-            <Text style={styles.subtitle}>{description}</Text>
-          </View>
-          {onOpenFullSearch ? (
-            <LiquidGlassButton
-              title="Open Full Search"
-              onPress={() =>
-                onOpenFullSearch({
-                  query: query.trim(),
-                  entries,
-                  language,
-                  hasSearched,
-                })
-              }
-              height={40}
-              borderRadius={theme.borderRadius.md}
-              glassEffect="clear"
-              forceBorder
-              borderColor={theme.colors.secondary}
-              textStyle={styles.secondaryButtonText}
-              shadowIntensity="light"
-            />
-          ) : null}
-        </View>
+        <MerckHeaderSection
+          title={title}
+          description={description}
+          styles={styles}
+          theme={theme}
+          hasFullSearch={hasFullSearch}
+          onOpenFullSearch={handleOpenFullSearchPress}
+        />
 
-        <View style={styles.searchRow}>
-          <View style={styles.searchInputRow}>
-            <SearchBar
-              mode="input"
-              placeholder="Search Merck manuals"
-              value={query}
-              onChangeText={value => {
-                setQuery(value);
-                setHasSearched(false);
-              }}
-              onSubmitEditing={() => {
-                executeSearch();
-              }}
-              containerStyle={styles.searchBar}
-              rightElement={loading ? <ActivityIndicator size="small" /> : null}
-            />
-            {!compact ? (
-              <Pressable
-                onPress={() => setRefineOpen(prev => !prev)}
-                style={[
-                  styles.refineIconButton,
-                  refineOpen ? styles.refineIconButtonActive : null,
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel={
-                  refineOpen ? 'Hide refine results' : 'Show refine results'
-                }>
-                <View style={styles.refineGlyph}>
-                  <View
-                    style={[
-                      styles.refineGlyphLine,
-                      styles.refineGlyphLineTop,
-                      refineOpen ? styles.refineGlyphLineActive : null,
-                    ]}
-                  />
-                  <View
-                    style={[
-                      styles.refineGlyphLine,
-                      styles.refineGlyphLineMiddle,
-                      refineOpen ? styles.refineGlyphLineActive : null,
-                    ]}
-                  />
-                  <View
-                    style={[
-                      styles.refineGlyphLine,
-                      styles.refineGlyphLineBottom,
-                      refineOpen ? styles.refineGlyphLineActive : null,
-                    ]}
-                  />
-                </View>
-              </Pressable>
-            ) : null}
-          </View>
+        <MerckSearchControls
+          compact={compact}
+          query={query}
+          loading={loading}
+          refineOpen={refineOpen}
+          language={language}
+          styles={styles}
+          theme={theme}
+          onQueryChange={handleQueryChange}
+          onSearch={executeSearch}
+          onToggleRefine={handleToggleRefine}
+          onLanguageChange={handleLanguageChange}
+        />
 
-          {!compact && refineOpen ? (
-            <View style={styles.languageRow}>
-              <Text style={styles.languageLabel}>Language</Text>
-              <View style={styles.languagePillWrap}>
-                <Pressable
-                  onPress={() => {
-                    setLanguage('en');
-                    setHasSearched(false);
-                  }}
-                  style={[
-                    styles.languagePill,
-                    language === 'en' ? styles.languagePillActive : null,
-                  ]}>
-                  <Text
-                    style={[
-                      styles.languagePillText,
-                      language === 'en' ? styles.languagePillTextActive : null,
-                    ]}>
-                    EN
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => {
-                    setLanguage('es');
-                    setHasSearched(false);
-                  }}
-                  style={[
-                    styles.languagePill,
-                    language === 'es' ? styles.languagePillActive : null,
-                  ]}>
-                  <Text
-                    style={[
-                      styles.languagePillText,
-                      language === 'es' ? styles.languagePillTextActive : null,
-                    ]}>
-                    ES
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
-          ) : null}
+        <MerckStateMessages
+          compact={compact}
+          error={error}
+          showIdleState={showIdleState}
+          showNoResultsState={showNoResultsState}
+          styles={styles}
+        />
 
-          <LiquidGlassButton
-            title={loading ? 'Searching...' : 'Search'}
-            onPress={() => {
-              executeSearch();
-            }}
-            height={48}
-            borderRadius={theme.borderRadius.md}
-            tintColor={theme.colors.secondary}
-            style={styles.searchButton}
-            textStyle={styles.openButtonText}
-            disabled={loading || !query.trim()}
-          />
-        </View>
-
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-        {showIdleState ? (
-          <View style={styles.emptyStateCard}>
-            <Image source={Images.merckLogo} style={styles.emptyStateLogo} />
-            <Text style={styles.emptyStateTitle}>Search medical topics</Text>
-            <Text style={styles.emptyStateDescription}>
-              Find consumer-friendly Merck Manuals guidance for symptoms, care,
-              and follow-up.
-            </Text>
-          </View>
-        ) : null}
-
-        {showNoResultsState && !compact ? (
-          <View style={styles.emptyStateCard}>
-            <Text style={styles.emptyStateTitle}>No manuals found</Text>
-            <Text style={styles.emptyStateDescription}>
-              Try a broader keyword, remove specifics, or switch language from
-              refine filters.
-            </Text>
-          </View>
-        ) : null}
-
-        {showNoResultsState && compact ? (
-          <Text style={styles.emptyText}>
-            No manuals found for this search.
-          </Text>
-        ) : null}
-
-        {compact ? (
-          <View style={styles.resultsWrap}>
-            {visibleEntries.map(entry => (
-              <View key={entry.id} style={styles.resultCard}>
-                <Text style={styles.resultTitle}>
-                  {sanitizeTextForDisplay(entry.title)}
-                </Text>
-                <Text style={styles.resultSummary} numberOfLines={2}>
-                  {sanitizeTextForDisplay(entry.summaryText) ||
-                    'No summary available.'}
-                </Text>
-
-                <View style={styles.resultActions}>
-                  <LiquidGlassButton
-                    title="Open"
-                    onPress={() => {
-                      openInReader(entry.primaryUrl, entry.title);
-                    }}
-                    height={48}
-                    borderRadius={theme.borderRadius.md}
-                    tintColor={theme.colors.secondary}
-                    style={styles.openButton}
-                    textStyle={styles.openButtonText}
-                    shadowIntensity="medium"
-                  />
-                </View>
-
-                {entry.subLinks.length ? (
-                  <View style={styles.linkPills}>
-                    {entry.subLinks.slice(0, 2).map(link => {
-                      const colors = getMerckSubtopicPillColors(link.label);
-                      return (
-                        <Pressable
-                          key={`${entry.id}-${link.label}`}
-                          style={[
-                            styles.linkPill,
-                            {
-                              backgroundColor: colors.backgroundColor,
-                              borderColor: colors.borderColor,
-                            },
-                          ]}
-                          onPress={() => {
-                            openInReader(link.url, entry.title);
-                          }}>
-                          <Text
-                            style={[styles.linkPillText, {color: colors.color}]}
-                            numberOfLines={1}>
-                            {link.label}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                ) : null}
-              </View>
-            ))}
-
-            {hasMoreCompactResults && onOpenFullSearch ? (
-              <Pressable
-                onPress={() =>
-                  onOpenFullSearch({
-                    query: query.trim(),
-                    entries,
-                    language,
-                    hasSearched,
-                  })
-                }
-                style={styles.viewMoreWrap}
-                accessibilityRole="button"
-                accessibilityLabel="View more Merck results">
-                <Text style={styles.viewMoreHintText}>
-                  Showing top results only.
-                </Text>
-                <Text style={styles.viewMoreActionText}>
-                  View more in full search
-                </Text>
-              </Pressable>
-            ) : null}
-
-            <Text style={styles.copyrightText}>{MERCK_COPYRIGHT_NOTICE}</Text>
-          </View>
-        ) : (
-          <View style={styles.resultsPanel}>
-            <ScrollView
-              style={styles.resultsScroll}
-              contentContainerStyle={styles.resultsScrollContent}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              nestedScrollEnabled>
-              {visibleEntries.map(entry => (
-                <View key={entry.id} style={styles.resultCard}>
-                  <Text style={styles.resultTitle}>
-                    {sanitizeTextForDisplay(entry.title)}
-                  </Text>
-                  <Text style={styles.resultSummary} numberOfLines={4}>
-                    {sanitizeTextForDisplay(entry.summaryText) ||
-                      'No summary available.'}
-                  </Text>
-
-                  <View style={styles.resultActions}>
-                    <LiquidGlassButton
-                      title="Open"
-                      onPress={() => {
-                        openInReader(entry.primaryUrl, entry.title);
-                      }}
-                      height={48}
-                      borderRadius={theme.borderRadius.md}
-                      tintColor={theme.colors.secondary}
-                      style={styles.openButton}
-                      textStyle={styles.openButtonText}
-                      shadowIntensity="medium"
-                    />
-                  </View>
-
-                  {entry.subLinks.length ? (
-                    <View style={styles.linkPills}>
-                      {entry.subLinks.slice(0, 6).map(link => {
-                        const colors = getMerckSubtopicPillColors(link.label);
-                        return (
-                          <Pressable
-                            key={`${entry.id}-${link.label}`}
-                            style={[
-                              styles.linkPill,
-                              {
-                                backgroundColor: colors.backgroundColor,
-                                borderColor: colors.borderColor,
-                              },
-                            ]}
-                            onPress={() => {
-                              openInReader(link.url, entry.title);
-                            }}>
-                            <Text
-                              style={[
-                                styles.linkPillText,
-                                {color: colors.color},
-                              ]}
-                              numberOfLines={1}>
-                              {link.label}
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  ) : null}
-                </View>
-              ))}
-            </ScrollView>
-
-            <Text style={styles.copyrightText}>{MERCK_COPYRIGHT_NOTICE}</Text>
-          </View>
-        )}
+        <MerckResultsSection
+          compact={compact}
+          visibleEntries={visibleEntries}
+          hasMoreCompactResults={hasMoreCompactResults}
+          hasFullSearch={hasFullSearch}
+          styles={styles}
+          theme={theme}
+          onOpenInReader={openInReader}
+          onOpenFullSearch={handleOpenFullSearchPress}
+        />
       </View>
 
-      <Modal
+      <MerckReaderModal
         visible={readerOpen}
-        transparent
-        animationType="fade"
-        presentationStyle="overFullScreen"
-        onRequestClose={closeReader}>
-        <View style={styles.readerBackdrop}>
-          <SafeAreaView style={styles.readerSafeArea}>
-            <View style={styles.readerShell}>
-              <View style={styles.readerHeader}>
-                <Text style={styles.readerTitle} numberOfLines={1}>
-                  {readerTitle}
-                </Text>
-                <TouchableOpacity
-                  style={styles.readerCloseButton}
-                  onPress={closeReader}
-                  accessibilityRole="button"
-                  accessibilityLabel="Close Merck reader">
-                  <Image
-                    source={Images.closeIcon}
-                    style={styles.readerCloseIcon}
-                  />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.readerBody}>
-                {readerLoading ? (
-                  <View style={styles.readerLoaderOverlay}>
-                    <Image
-                      source={Images.yosemiteLoader}
-                      style={styles.readerLoaderGif}
-                    />
-                    <Text style={styles.readerLoaderText}>
-                      Loading manual...
-                    </Text>
-                  </View>
-                ) : null}
-                {readerUrl ? (
-                  <WebView
-                    testID="merck-reader-webview"
-                    source={{uri: readerUrl}}
-                    originWhitelist={['https://*']}
-                    startInLoadingState={false}
-                    javaScriptEnabled
-                    javaScriptCanOpenWindowsAutomatically={false}
-                    domStorageEnabled
-                    thirdPartyCookiesEnabled={false}
-                    sharedCookiesEnabled={false}
-                    setSupportMultipleWindows={false}
-                    geolocationEnabled={false}
-                    allowFileAccess={false}
-                    allowFileAccessFromFileURLs={false}
-                    allowUniversalAccessFromFileURLs={false}
-                    mixedContentMode="never"
-                    allowsLinkPreview={false}
-                    mediaPlaybackRequiresUserAction
-                    incognito
-                    onShouldStartLoadWithRequest={handleReaderNavigation}
-                    onLoadStart={() => setReaderLoading(true)}
-                    onLoadEnd={() => setReaderLoading(false)}
-                    onError={() => {
-                      setReaderLoading(false);
-                      setError('Unable to open this Merck page right now.');
-                    }}
-                    onHttpError={() => {
-                      setReaderLoading(false);
-                      setError('Unable to load this Merck page right now.');
-                    }}
-                  />
-                ) : null}
-              </View>
-            </View>
-          </SafeAreaView>
-        </View>
-      </Modal>
+        readerLoading={readerLoading}
+        readerTitle={readerTitle}
+        readerUrl={readerUrl}
+        styles={styles}
+        closeReader={closeReader}
+        handleReaderNavigation={handleReaderNavigation}
+        setReaderLoading={setReaderLoading}
+        setError={setError}
+      />
     </LiquidGlassCard>
+  );
+};
+
+export const MerckSearchWidget: React.FC<MerckSearchWidgetProps> = ({
+  organisationId,
+  title = 'Merck Manuals',
+  description = 'Search consumer-focused Merck manuals content.',
+  compact = false,
+  initialQuery = '',
+  initialEntries = EMPTY_INITIAL_ENTRIES,
+  initialLanguage = 'en',
+  initialHasSearched = false,
+  onOpenFullSearch,
+  testID = 'merck-search-widget',
+}) => {
+  const {theme} = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const controller = useMerckSearchController({
+    organisationId,
+    compact,
+    initialQuery,
+    initialEntries,
+    initialLanguage,
+    initialHasSearched,
+    onOpenFullSearch,
+  });
+
+  return (
+    <MerckSearchWidgetView
+      title={title}
+      description={description}
+      compact={compact}
+      testID={testID}
+      onOpenFullSearch={onOpenFullSearch}
+      theme={theme}
+      styles={styles}
+      controller={controller}
+    />
   );
 };
 

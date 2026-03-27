@@ -77,7 +77,8 @@ const mergeIntervals = (intervals: DropAvailabilityInterval[]): DropAvailability
   const merged: DropAvailabilityInterval[] = [sorted[0]];
   for (let i = 1; i < sorted.length; i++) {
     const current = sorted[i];
-    const previous = merged[merged.length - 1];
+    const previous = merged.at(-1);
+    if (!previous) continue;
     if (current.startMinute <= previous.endMinute) {
       previous.endMinute = Math.max(previous.endMinute, current.endMinute);
       continue;
@@ -89,6 +90,60 @@ const mergeIntervals = (intervals: DropAvailabilityInterval[]): DropAvailability
 
 const isUserSpecific = (entry: ApiDayAvailability) => {
   return Boolean(entry.userId && String(entry.userId).trim());
+};
+
+const resolveSourceEntries = (
+  allEntries: ApiDayAvailability[],
+  targetIds: Set<string> | undefined,
+  normalizeId: (value?: string) => string
+): ApiDayAvailability[] => {
+  const employeeEntries = allEntries.filter(isUserSpecific);
+  const orgEntries = allEntries.filter((entry) => !isUserSpecific(entry));
+  const scopedUserEntries =
+    targetIds && targetIds.size > 0
+      ? employeeEntries.filter((entry) => targetIds.has(normalizeId(entry.userId)))
+      : [];
+
+  // Per-user availability takes precedence when available; otherwise use org defaults.
+  return scopedUserEntries.length > 0 ? scopedUserEntries : orgEntries;
+};
+
+const collectIntervalsForEntry = (
+  entry: ApiDayAvailability,
+  normalizedDayKey: string,
+  previousDayKey: string,
+  toLocalClockFromUtcTime: (utcTime: string) => PreferredTimeZoneClock
+): DropAvailabilityInterval[] => {
+  const rowDay = String(entry.dayOfWeek || '').toUpperCase();
+  if (rowDay !== normalizedDayKey && rowDay !== previousDayKey) return [];
+
+  const intervals: DropAvailabilityInterval[] = [];
+  const slots = (entry.slots ?? []).filter((slot) => slot?.isAvailable);
+  for (const slot of slots) {
+    const { startAbsoluteMinute, endAbsoluteMinute } = toAbsoluteInterval(
+      slot.startTime,
+      slot.endTime,
+      toLocalClockFromUtcTime
+    );
+
+    if (rowDay === normalizedDayKey) {
+      const sameDay = clipInterval(startAbsoluteMinute, endAbsoluteMinute, 0, DAY_MINUTES, 0);
+      if (sameDay) intervals.push(sameDay);
+    }
+
+    if (rowDay === previousDayKey) {
+      const carryOver = clipInterval(
+        startAbsoluteMinute,
+        endAbsoluteMinute,
+        DAY_MINUTES,
+        DAY_MINUTES * 2,
+        -DAY_MINUTES
+      );
+      if (carryOver) intervals.push(carryOver);
+    }
+  }
+
+  return intervals;
 };
 
 export const resolveAvailabilityIntervalsForDay = ({
@@ -108,51 +163,13 @@ export const resolveAvailabilityIntervalsForDay = ({
 
   const normalizedDayKey = String(dayKey || '').toUpperCase();
   const previousDayKey = getPreviousWeekdayKey(normalizedDayKey);
-
-  const employeeEntries = allEntries.filter(isUserSpecific);
-  const orgEntries = allEntries.filter((entry) => !isUserSpecific(entry));
-
-  const scopedUserEntries =
-    targetIds && targetIds.size > 0
-      ? employeeEntries.filter((entry) => targetIds.has(normalizeId(entry.userId)))
-      : [];
-
-  // Per-user availability takes precedence when available; otherwise use org defaults.
-  const sourceEntries = scopedUserEntries.length > 0 ? scopedUserEntries : orgEntries;
+  const sourceEntries = resolveSourceEntries(allEntries, targetIds, normalizeId);
 
   const intervals: DropAvailabilityInterval[] = [];
-
   for (const entry of sourceEntries) {
-    const rowDay = String(entry.dayOfWeek || '').toUpperCase();
-    const slots = (entry.slots ?? []).filter((slot) => slot?.isAvailable);
-
-    if (rowDay !== normalizedDayKey && rowDay !== previousDayKey) {
-      continue;
-    }
-
-    for (const slot of slots) {
-      const { startAbsoluteMinute, endAbsoluteMinute } = toAbsoluteInterval(
-        slot.startTime,
-        slot.endTime,
-        toLocalClockFromUtcTime
-      );
-
-      if (rowDay === normalizedDayKey) {
-        const sameDay = clipInterval(startAbsoluteMinute, endAbsoluteMinute, 0, DAY_MINUTES, 0);
-        if (sameDay) intervals.push(sameDay);
-      }
-
-      if (rowDay === previousDayKey) {
-        const carryOver = clipInterval(
-          startAbsoluteMinute,
-          endAbsoluteMinute,
-          DAY_MINUTES,
-          DAY_MINUTES * 2,
-          -DAY_MINUTES
-        );
-        if (carryOver) intervals.push(carryOver);
-      }
-    }
+    intervals.push(
+      ...collectIntervalsForEntry(entry, normalizedDayKey, previousDayKey, toLocalClockFromUtcTime)
+    );
   }
 
   return mergeIntervals(intervals);
