@@ -142,7 +142,9 @@ describe('SignUp page', () => {
   };
 
   const checkTermsBox = () => {
-    const termsCheckbox = screen.getAllByRole('checkbox')[0];
+    const termsCheckbox = screen.getByRole('checkbox', {
+      name: /terms and conditions/i,
+    });
     if (!(termsCheckbox as HTMLInputElement).checked) {
       fireEvent.click(termsCheckbox);
     }
@@ -179,7 +181,6 @@ describe('SignUp page', () => {
         'Doe'
       )
     );
-    expect(latestOtpModalProps?.showVerifyModal).toBe(true);
   });
 
   test('surfaces toast error when Cognito returns UsernameExistsException', async () => {

@@ -1,16 +1,18 @@
 'use client';
 import React, { useState } from 'react';
 import DynamicChartCard from '@/app/ui/widgets/DynamicChart/DynamicChartCard';
-import { ChartDataPoint } from '../hooks/useOverviewStats';
+import { TrafficDataPoint, StarsDataPoint } from '../hooks/useOverviewStats';
 
 type CommunityStatsProps = {
-  combinedChart: ChartDataPoint[];
+  trafficChart: TrafficDataPoint[];
+  starsChart: StarsDataPoint[];
   isLoading: boolean;
 };
 
-const CommunityStats = ({ combinedChart, isLoading }: CommunityStatsProps) => {
-  // Default view is 'Unique' as requested
-  const [trafficView, setTrafficView] = useState<'Unique' | 'Cumulative'>('Unique');
+type ViewType = 'Unique' | 'Cumulative' | 'Stars';
+
+const CommunityStats = ({ trafficChart, starsChart, isLoading }: CommunityStatsProps) => {
+  const [view, setView] = useState<ViewType>('Unique');
 
   if (isLoading) {
     return (
@@ -23,60 +25,88 @@ const CommunityStats = ({ combinedChart, isLoading }: CommunityStatsProps) => {
     );
   }
 
-  // Map the raw data into simple keys for the chart based on the active toggle
-  const trafficData = combinedChart.map((d) => ({
-    month: d.month,
-    'Self Hosters':
-      trafficView === 'Unique' ? d['Self Hosters (Unique)'] : d['Self Hosters (Cumulative)'],
-    Builders: trafficView === 'Unique' ? d['Builders (Unique)'] : d['Builders (Cumulative)'],
-  }));
+  // We ALWAYS pass all three keys so the legend permanently shows them all.
+  const chartKeys = [
+    { name: 'Self Hosters', color: '#247AED' },
+    { name: 'Builders', color: '#10B981' },
+    { name: 'Github Stars', color: '#F68523' },
+  ];
+
+  let chartData: any[] = [];
+  let yAxisWidth = 40;
+
+  if (view === 'Stars') {
+    chartData = starsChart;
+    yAxisWidth = 45;
+  } else {
+    chartData = trafficChart.map((d) => ({
+      month: d.month,
+      'Self Hosters':
+        view === 'Unique' ? d['Self Hosters (Unique)'] : d['Self Hosters (Cumulative)'],
+      Builders: view === 'Unique' ? d['Builders (Unique)'] : d['Builders (Cumulative)'],
+    }));
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-      {/* 2 CHARTS ROW */}
+      <style>{`
+        .ForceLeftLegend .recharts-legend-wrapper {
+          left: 0 !important;
+          right: auto !important;
+          width: 100% !important;
+        }
+        .ForceLeftLegend .recharts-default-legend {
+          text-align: left !important;
+          display: flex !important;
+          justify-content: flex-start !important;
+          padding-left: 0px !important;
+          margin-top: 0px !important;
+        }
+        .ForceLeftLegend .recharts-wrapper {
+          margin-top: 10px;
+        }
+      `}</style>
+
+      {/* SINGLE FULL-WIDTH CHART */}
       <div className="ChartGrid">
-        {/* CHART 1: Traffic (Self Hosters & Builders) */}
-        <div className="PremiumCard LeftAlignLegend" style={{ position: 'relative' }}>
-          {/* CUSTOM TOGGLE PILLS */}
-          <div className="DataToggle">
+        <div className="PremiumCard ForceLeftLegend" style={{ position: 'relative' }}>
+          <div
+            className="DataToggle"
+            style={{
+              position: 'absolute',
+              top: '12px',
+              right: '24px',
+              zIndex: 10,
+              margin: 0,
+            }}
+          >
             <button
-              className={`TogglePill ${trafficView === 'Unique' ? 'Active' : ''}`}
-              onClick={() => setTrafficView('Unique')}
+              className={`TogglePill ${view === 'Unique' ? 'Active' : ''}`}
+              onClick={() => setView('Unique')}
             >
               Unique
             </button>
             <button
-              className={`TogglePill ${trafficView === 'Cumulative' ? 'Active' : ''}`}
-              onClick={() => setTrafficView('Cumulative')}
+              className={`TogglePill ${view === 'Cumulative' ? 'Active' : ''}`}
+              onClick={() => setView('Cumulative')}
             >
               Cumulative
             </button>
+            <button
+              className={`TogglePill ${view === 'Stars' ? 'Active' : ''}`}
+              onClick={() => setView('Stars')}
+            >
+              Stars
+            </button>
           </div>
 
-          <h3 className="CardTitle">15-Day Repository Traffic</h3>
-
-          <div className="ChartWrapper">
+          {/* FIXED: Changed minHeight to an explicit height of 400px so it stops overflowing! */}
+          <div className="ChartWrapper" style={{ width: '100%', height: '366px' }}>
             <DynamicChartCard
-              data={trafficData}
+              data={chartData}
               type="line"
-              keys={[
-                { name: 'Self Hosters', color: '#247AED' },
-                { name: 'Builders', color: '#10B981' },
-              ]}
-              yAxisWidth={40}
-            />
-          </div>
-        </div>
-
-        {/* CHART 2: Stargazers */}
-        <div className="PremiumCard">
-          <h3 className="CardTitle">Stargazers</h3>
-          <div className="ChartWrapper">
-            <DynamicChartCard
-              data={combinedChart}
-              type="line"
-              keys={[{ name: 'Stars', color: '#F68523' }]}
-              yAxisWidth={45}
+              keys={chartKeys}
+              yAxisWidth={yAxisWidth}
             />
           </div>
         </div>
