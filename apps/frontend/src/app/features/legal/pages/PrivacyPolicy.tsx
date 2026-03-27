@@ -1016,7 +1016,7 @@ const PrivacyPolicy = () => {
             </div>
 
             <div className="PolicyItems">
-              <h4>Updated: June 2025</h4>
+              <h4>Updated: March 2026</h4>
             </div>
           </div>
 
