@@ -1,5 +1,6 @@
 'use client';
 import React from 'react';
+import Image from 'next/image';
 
 const WhyWeDoThis = () => {
   return (
@@ -29,10 +30,12 @@ const WhyWeDoThis = () => {
           </div>
         </div>
         <div className="WhyWeDoThisImageWrapper">
-          <img
+          <Image
             src="https://d2il6osz49gpup.cloudfront.net/Images/user-overview-image.jpg"
             alt="Veterinarian with a dog"
             className="WhyWeDoThisImage"
+            width={1200}
+            height={800}
           />
         </div>
       </div>

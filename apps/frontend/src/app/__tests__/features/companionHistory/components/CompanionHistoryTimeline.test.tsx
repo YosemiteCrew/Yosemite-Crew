@@ -3,6 +3,8 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import CompanionHistoryTimeline from '@/app/features/companionHistory/components/CompanionHistoryTimeline';
 import { fetchCompanionHistory } from '@/app/features/companionHistory/services/companionHistoryService';
+import { getCompanionAuditTrail } from '@/app/features/audit/services/auditService';
+import { loadCompanionDocument } from '@/app/features/companions/services/companionDocumentService';
 
 jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
   __esModule: true,
@@ -15,24 +17,21 @@ jest.mock('@/app/ui/overlays/Fallback', () => ({
 }));
 
 jest.mock('@/app/stores/orgStore', () => ({
-  useOrgStore: (selector: any) => selector({ primaryOrgId: 'org-1' }),
-}));
-
-jest.mock('@/app/features/companionHistory/components/HistoryDocumentUpload', () => ({
-  __esModule: true,
-  default: ({ onUploaded }: any) => (
-    <button type="button" onClick={onUploaded}>
-      upload-doc
-    </button>
-  ),
+  useOrgStore: (selector: any) =>
+    selector({ primaryOrgId: 'org-1', orgsById: { 'org-1': { type: 'HOSPITAL' } } }),
 }));
 
 jest.mock('@/app/features/companions/services/companionDocumentService', () => ({
+  loadCompanionDocument: jest.fn().mockResolvedValue([]),
   loadDocumentDownloadURL: jest.fn().mockResolvedValue([{ url: 'https://example.com/file.pdf' }]),
 }));
 
 jest.mock('@/app/features/companionHistory/services/companionHistoryService', () => ({
   fetchCompanionHistory: jest.fn(),
+}));
+
+jest.mock('@/app/features/audit/services/auditService', () => ({
+  getCompanionAuditTrail: jest.fn(),
 }));
 
 describe('CompanionHistoryTimeline', () => {
@@ -110,6 +109,8 @@ describe('CompanionHistoryTimeline', () => {
   beforeEach(() => {
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     (fetchCompanionHistory as jest.Mock).mockReset();
+    (getCompanionAuditTrail as jest.Mock).mockReset().mockResolvedValue([]);
+    (loadCompanionDocument as jest.Mock).mockReset().mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -141,6 +142,16 @@ describe('CompanionHistoryTimeline', () => {
       nextCursor: null,
       summary: { totalReturned: 6, countsByType: {} },
     });
+    (loadCompanionDocument as jest.Mock).mockResolvedValue([
+      {
+        id: 'd-1',
+        title: 'Blood panel PDF',
+        category: 'HEALTH',
+        subcategory: 'LAB_TESTS',
+        attachments: [{ key: 'doc-key-1' }],
+        issueDate: '2026-03-17T10:00:00.000Z',
+      },
+    ]);
 
     render(<CompanionHistoryTimeline companionId="c-1" />);
 
@@ -150,7 +161,9 @@ describe('CompanionHistoryTimeline', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: 'Documents' }));
 
-    expect(screen.getByText('Blood panel PDF')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getAllByText('Blood panel PDF').length).toBeGreaterThan(0);
+    });
     expect(screen.queryByText('Recheck visit')).not.toBeInTheDocument();
   });
 
@@ -203,5 +216,70 @@ describe('CompanionHistoryTimeline', () => {
     await waitFor(() => {
       expect(screen.getByText('Unable to load history. Please try again.')).toBeInTheDocument();
     });
+  });
+
+  it('uses clinical label for forms filter', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: baseEntries,
+      nextCursor: null,
+      summary: { totalReturned: 6, countsByType: {} },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'SOAP / Templates' })).toBeInTheDocument();
+    });
+  });
+
+  it('shows upload records only under Documents filter', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: baseEntries,
+      nextCursor: null,
+      summary: { totalReturned: 6, countsByType: {} },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" showDocumentUpload />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Recheck visit')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole('button', { name: 'Upload records' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Documents' }));
+    expect(screen.getByRole('button', { name: 'Upload records' })).toBeInTheDocument();
+    expect(loadCompanionDocument).toHaveBeenCalledWith('c-1');
+  });
+
+  it('renders companion audit trail entries under Audit trail filter', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: baseEntries,
+      nextCursor: null,
+      summary: { totalReturned: 6, countsByType: {} },
+    });
+    (getCompanionAuditTrail as jest.Mock).mockResolvedValue([
+      {
+        id: 'audit-1',
+        eventType: 'INVOICE_PAID',
+        entityType: 'INVOICE',
+        actorType: 'PMS_USER',
+        actorName: 'Dr vet',
+        occurredAt: '2026-03-20T10:00:00.000Z',
+      },
+    ]);
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Recheck visit')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Audit trail' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Invoice paid')).toBeInTheDocument();
+    });
+    expect(getCompanionAuditTrail).toHaveBeenCalledWith('c-1');
   });
 });

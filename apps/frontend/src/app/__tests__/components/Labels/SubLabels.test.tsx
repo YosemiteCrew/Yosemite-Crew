@@ -19,9 +19,9 @@ describe('SubLabels', () => {
         labels={[
           {
             key: 'merck-manuals',
-            name: <span>Merck Manuals</span>,
+            name: <span>MSD Veterinary Manual</span>,
             redirectHref: '/integrations/merck-manuals',
-            redirectLabel: 'Open Merck Manuals',
+            redirectLabel: 'Open MSD Veterinary Manual',
           },
         ]}
         activeLabel="merck-manuals"
@@ -29,9 +29,31 @@ describe('SubLabels', () => {
       />
     );
 
-    expect(screen.getByRole('link', { name: 'Open Merck Manuals' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Open MSD Veterinary Manual' })).toHaveAttribute(
       'href',
       '/integrations/merck-manuals'
     );
+  });
+
+  it('renders IDEXX redirect icon inside the logo pill when it is the only sub-label', () => {
+    render(
+      <SubLabels
+        labels={[
+          {
+            key: 'idexx-labs',
+            name: <span>IDEXX</span>,
+            redirectHref: '/appointments/idexx-workspace',
+            redirectLabel: 'Open IDEXX Hub',
+          },
+        ]}
+        activeLabel="idexx-labs"
+        setActiveLabel={jest.fn()}
+      />
+    );
+
+    const redirectLink = screen.getByRole('link', { name: 'Open IDEXX Hub' });
+    expect(redirectLink).toHaveAttribute('href', '/appointments/idexx-workspace');
+    expect(redirectLink.closest('div')).toHaveClass('rounded-2xl!');
+    expect(redirectLink.closest('div')).toHaveClass('gap-0');
   });
 });

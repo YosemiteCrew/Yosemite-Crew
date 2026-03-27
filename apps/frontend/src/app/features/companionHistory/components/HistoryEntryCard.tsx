@@ -41,11 +41,12 @@ const getTaskDetails = (entry: HistoryEntry): DetailPair[] => {
   const completedAt = getPayloadString(entry.payload, ['completedAt']);
   const medication = getPayloadString(entry.payload, ['medicationSummary', 'medication']);
 
-  const statusDate = completedAt
-    ? formatHistoryDate(completedAt)
-    : dueAt
-      ? formatHistoryDate(dueAt)
-      : '-';
+  let statusDate = '-';
+  if (completedAt) {
+    statusDate = formatHistoryDate(completedAt);
+  } else if (dueAt) {
+    statusDate = formatHistoryDate(dueAt);
+  }
 
   return [
     { label: 'Audience', value: audience || '-' },
@@ -68,19 +69,27 @@ const getFormDetails = (entry: HistoryEntry): DetailPair[] => {
   ];
 };
 
+const getDocumentSourceLabel = (entry: HistoryEntry): string => {
+  const synced = getPayloadBoolean(entry.payload, ['syncedFromPms']);
+  if (synced === null) {
+    return entry.source;
+  }
+  return synced ? 'Synced' : 'Manual';
+};
+
 const getDocumentDetails = (entry: HistoryEntry): DetailPair[] => {
   const category = getPayloadString(entry.payload, ['category']);
   const subcategory = getPayloadString(entry.payload, ['subcategory']);
   const issueDate = getPayloadString(entry.payload, ['issueDate']);
   const issuer = getPayloadString(entry.payload, ['issuingBusinessName']);
-  const synced = getPayloadBoolean(entry.payload, ['syncedFromPms']);
+  const sourceLabel = getDocumentSourceLabel(entry);
 
   return [
     { label: 'Category', value: category || '-' },
     { label: 'Sub-category', value: subcategory || '-' },
     { label: 'Issue date', value: issueDate ? formatHistoryDate(issueDate) : '-' },
     { label: 'Issuer', value: issuer || '-' },
-    { label: 'Source', value: synced === null ? entry.source : synced ? 'Synced' : 'Manual' },
+    { label: 'Source', value: sourceLabel },
   ];
 };
 

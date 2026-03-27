@@ -3,26 +3,38 @@ import { AppointmentViewIntent } from '@/app/features/appointments/types/calenda
 import { useOrgStore } from '@/app/stores/orgStore';
 import Fallback from '@/app/ui/overlays/Fallback';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
+import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
+import { IoInformationCircleOutline } from 'react-icons/io5';
 import { PERMISSIONS } from '@/app/lib/permissions';
+import { toTitle } from '@/app/lib/validators';
+import { formatDateTimeLocal } from '@/app/lib/date';
 import { loadDocumentDownloadURL } from '@/app/features/companions/services/companionDocumentService';
 import HistoryEntryCard from '@/app/features/companionHistory/components/HistoryEntryCard';
 import HistoryFilters from '@/app/features/companionHistory/components/HistoryFilters';
 import HistoryEmptyState from '@/app/features/companionHistory/components/HistoryEmptyState';
-import HistoryDocumentUpload from '@/app/features/companionHistory/components/HistoryDocumentUpload';
 import {
   CompanionHistoryResponse,
   HISTORY_FILTER_TYPE_MAP,
   HistoryEntry,
   HistoryFilterKey,
+  getHistoryFilters,
 } from '@/app/features/companionHistory/types/history';
 import { fetchCompanionHistory } from '@/app/features/companionHistory/services/companionHistoryService';
+import { AuditTrail } from '@/app/features/audit/types/audit';
+import { getCompanionAuditTrail } from '@/app/features/audit/services/auditService';
+import { Secondary } from '@/app/ui/primitives/Buttons';
+import CompanionDocumentsSection from '@/app/features/documents/components/CompanionDocumentsSection';
 
 type CompanionHistoryTimelineProps = {
   companionId: string;
   activeAppointmentId?: string;
   showDocumentUpload?: boolean;
   onOpenAppointmentView?: (intent: AppointmentViewIntent) => void;
+  compact?: boolean;
+  fullPageHref?: string;
 };
+
+const COMPACT_MAX_ENTRIES = 8;
 
 const buildAppointmentsLink = (
   appointmentId: string,
@@ -55,19 +67,75 @@ const appendPage = (
   );
 };
 
+const resolveFallbackUrl = (entry: HistoryEntry): string | null => {
+  const payloadUrl = entry.payload.pdfUrl;
+  if (typeof payloadUrl === 'string' && payloadUrl.trim()) {
+    return payloadUrl;
+  }
+
+  const secondaryUrl = entry.payload.url;
+  if (typeof secondaryUrl === 'string' && secondaryUrl.trim()) {
+    return secondaryUrl;
+  }
+
+  return null;
+};
+
+const getLinkedEntryIntent = (
+  type: HistoryEntry['type']
+): {
+  label: AppointmentViewIntent['label'];
+  subLabel?: string;
+  open?: 'finance' | 'labs';
+} | null => {
+  if (type === 'INVOICE') {
+    return { label: 'finance', subLabel: 'summary', open: 'finance' };
+  }
+  if (type === 'FORM_SUBMISSION') {
+    return { label: 'prescription', subLabel: 'forms' };
+  }
+  if (type === 'APPOINTMENT') {
+    return { label: 'info', subLabel: 'appointment' };
+  }
+  if (type === 'TASK') {
+    return { label: 'tasks', subLabel: 'task' };
+  }
+  return null;
+};
+
+const getAuditActorDisplay = (entry: AuditTrail): string => {
+  const actorTypeLabel = toTitle(entry.actorType ?? 'SYSTEM');
+  if (entry.actorName) {
+    return `${toTitle(entry.actorName)} • ${actorTypeLabel}`;
+  }
+  return actorTypeLabel;
+};
+
 const CompanionHistoryTimeline = ({
   companionId,
   activeAppointmentId,
   showDocumentUpload = false,
   onOpenAppointmentView,
+  compact = false,
+  fullPageHref,
 }: CompanionHistoryTimelineProps) => {
   const organisationId = useOrgStore((state) => state.primaryOrgId);
+  const orgType = useOrgStore((state) => {
+    if (!state.primaryOrgId) return undefined;
+    return state.orgsById?.[state.primaryOrgId]?.type;
+  });
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
+  const [auditEntries, setAuditEntries] = useState<AuditTrail[]>([]);
   const [loading, setLoading] = useState(false);
+  const [auditLoading, setAuditLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [auditError, setAuditError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<HistoryFilterKey>('ALL');
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const historyFilters = useMemo(() => getHistoryFilters(orgType), [orgType]);
+  const shouldRenderDocumentsTab = activeFilter === 'DOCUMENT';
+  const enableInternalResultsScroll = !compact && !fullPageHref;
 
   const resolveAppointmentId = useCallback((entry: HistoryEntry): string | null => {
     if (entry.link.appointmentId) return entry.link.appointmentId;
@@ -119,21 +187,67 @@ const CompanionHistoryTimeline = ({
 
   useEffect(() => {
     setEntries([]);
+    setAuditEntries([]);
     setNextCursor(null);
     setError(null);
+    setAuditError(null);
     setActiveFilter('ALL');
     loadHistory(null, true).catch((historyError) => {
       console.error('Failed to initialize companion history:', historyError);
     });
   }, [companionId, organisationId, loadHistory]);
 
+  useEffect(() => {
+    if (activeFilter !== 'AUDIT_TRAIL') {
+      setAuditError(null);
+      return;
+    }
+    if (!companionId) {
+      setAuditEntries([]);
+      setAuditError(null);
+      return;
+    }
+
+    let cancelled = false;
+    setAuditLoading(true);
+    setAuditError(null);
+
+    getCompanionAuditTrail(companionId)
+      .then((response) => {
+        if (cancelled) return;
+        setAuditEntries(Array.isArray(response) ? response : []);
+      })
+      .catch((auditTrailError) => {
+        if (cancelled) return;
+        console.error('Failed to load companion audit trail:', auditTrailError);
+        setAuditEntries([]);
+        setAuditError('Unable to load audit trail. Please try again.');
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setAuditLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeFilter, companionId]);
+
   const filteredEntries = useMemo(() => {
     if (activeFilter === 'ALL') {
       return entries;
     }
+    if (activeFilter === 'AUDIT_TRAIL' || activeFilter === 'DOCUMENT') {
+      return [];
+    }
     const type = HISTORY_FILTER_TYPE_MAP[activeFilter];
     return entries.filter((entry) => entry.type === type);
   }, [entries, activeFilter]);
+
+  const displayedEntries = useMemo(
+    () => (compact ? filteredEntries.slice(0, COMPACT_MAX_ENTRIES) : filteredEntries),
+    [compact, filteredEntries]
+  );
 
   const openDocument = useCallback(async (entry: HistoryEntry) => {
     const payloadDocumentId = entry.payload.documentId;
@@ -164,14 +278,7 @@ const CompanionHistoryTimeline = ({
         }
       }
 
-      const payloadUrl = entry.payload.pdfUrl;
-      const fallbackUrl = entry.payload.url;
-      const resolvedUrl =
-        typeof payloadUrl === 'string' && payloadUrl.trim()
-          ? payloadUrl
-          : typeof fallbackUrl === 'string' && fallbackUrl.trim()
-            ? fallbackUrl
-            : null;
+      const resolvedUrl = resolveFallbackUrl(entry);
 
       if (resolvedUrl && globalThis.window) {
         globalThis.window.open(resolvedUrl, '_blank', 'noopener,noreferrer');
@@ -182,54 +289,23 @@ const CompanionHistoryTimeline = ({
 
   const openAppointmentLinkedEntry = useCallback(
     (entry: HistoryEntry) => {
+      const intent = getLinkedEntryIntent(entry.type);
+      if (!intent) return;
+
       const appointmentId = resolveAppointmentId(entry);
       if (!appointmentId) return;
 
       const isActiveAppointment = appointmentId === activeAppointmentId;
 
-      if (entry.type === 'INVOICE') {
-        if (isActiveAppointment && onOpenAppointmentView) {
-          onOpenAppointmentView({ label: 'finance', subLabel: 'summary' });
-          return;
-        }
-        if (globalThis.window) {
-          globalThis.window.location.assign(
-            buildAppointmentsLink(appointmentId, 'finance', 'summary')
-          );
-        }
+      if (isActiveAppointment && onOpenAppointmentView) {
+        onOpenAppointmentView({ label: intent.label, subLabel: intent.subLabel });
         return;
       }
 
-      if (entry.type === 'FORM_SUBMISSION') {
-        if (isActiveAppointment && onOpenAppointmentView) {
-          onOpenAppointmentView({ label: 'prescription', subLabel: 'forms' });
-          return;
-        }
-        if (globalThis.window) {
-          globalThis.window.location.assign(buildAppointmentsLink(appointmentId));
-        }
-        return;
-      }
-
-      if (entry.type === 'APPOINTMENT') {
-        if (isActiveAppointment && onOpenAppointmentView) {
-          onOpenAppointmentView({ label: 'info', subLabel: 'appointment' });
-          return;
-        }
-        if (globalThis.window) {
-          globalThis.window.location.assign(buildAppointmentsLink(appointmentId));
-        }
-        return;
-      }
-
-      if (entry.type === 'TASK') {
-        if (isActiveAppointment && onOpenAppointmentView) {
-          onOpenAppointmentView({ label: 'tasks', subLabel: 'task' });
-          return;
-        }
-        if (globalThis.window) {
-          globalThis.window.location.assign(buildAppointmentsLink(appointmentId));
-        }
+      if (globalThis.window) {
+        globalThis.window.location.assign(
+          buildAppointmentsLink(appointmentId, intent.open, intent.subLabel)
+        );
       }
     },
     [resolveAppointmentId, activeAppointmentId, onOpenAppointmentView]
@@ -256,59 +332,180 @@ const CompanionHistoryTimeline = ({
 
   return (
     <PermissionGate allOf={[PERMISSIONS.COMPANIONS_VIEW_ANY]} fallback={<Fallback />}>
-      <div className="flex w-full flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <div className="text-body-2 text-text-primary">History</div>
-          <div className="text-caption-1 text-text-secondary">
-            Unified medical timeline with appointments, tasks, forms, documents, labs, and finance.
+      <div
+        className={
+          enableInternalResultsScroll
+            ? 'flex h-full min-h-0 w-full flex-col gap-4'
+            : 'flex w-full flex-col gap-4'
+        }
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <div className="text-body-2 text-text-primary">History</div>
+            <GlassTooltip
+              content="Unified medical timeline with appointments, tasks, forms, documents, labs, and finance."
+              side="bottom"
+            >
+              <button
+                type="button"
+                aria-label="History info"
+                className="relative top-[2px] inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none text-text-secondary transition-colors hover:text-text-primary"
+              >
+                <IoInformationCircleOutline size={18} />
+              </button>
+            </GlassTooltip>
           </div>
+          {fullPageHref ? (
+            <Secondary
+              href={fullPageHref}
+              text="Open full history"
+              className="px-4 py-2! text-caption-1"
+            />
+          ) : null}
+          {!compact ? (
+            <div className="w-full md:w-auto md:ml-auto">
+              <HistoryFilters
+                filters={historyFilters}
+                activeFilter={activeFilter}
+                onChange={setActiveFilter}
+              />
+            </div>
+          ) : null}
         </div>
 
-        {showDocumentUpload ? (
-          <HistoryDocumentUpload
-            companionId={companionId}
-            onUploaded={() => {
-              loadHistory(null, true).catch((historyError) => {
-                console.error('Failed to refresh history after upload:', historyError);
-              });
-            }}
+        {compact ? (
+          <HistoryFilters
+            filters={historyFilters}
+            activeFilter={activeFilter}
+            onChange={setActiveFilter}
           />
         ) : null}
 
-        <HistoryFilters activeFilter={activeFilter} onChange={setActiveFilter} />
+        <div
+          className={
+            enableInternalResultsScroll
+              ? 'flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1'
+              : 'flex flex-col gap-4'
+          }
+        >
+          {shouldRenderDocumentsTab ? (
+            <CompanionDocumentsSection companionId={companionId} />
+          ) : null}
 
-        {loading ? (
-          <div className="rounded-2xl border border-card-border bg-white px-4 py-6 text-body-3 text-text-secondary">
-            Loading history...
-          </div>
-        ) : null}
+          {!shouldRenderDocumentsTab && activeFilter !== 'AUDIT_TRAIL' && loading ? (
+            <div className="rounded-2xl border border-card-border bg-white px-4 py-6 text-body-3 text-text-secondary">
+              Loading history...
+            </div>
+          ) : null}
 
-        {!loading && error ? <HistoryEmptyState isError message={error} /> : null}
+          {!shouldRenderDocumentsTab && activeFilter !== 'AUDIT_TRAIL' && !loading && error ? (
+            <HistoryEmptyState isError message={error} />
+          ) : null}
 
-        {!loading && !error && filteredEntries.length === 0 ? <HistoryEmptyState /> : null}
+          {activeFilter === 'AUDIT_TRAIL' && auditLoading ? (
+            <div className="rounded-2xl border border-card-border bg-white px-4 py-6 text-body-3 text-text-secondary">
+              Loading audit trail...
+            </div>
+          ) : null}
 
-        {!loading && !error && filteredEntries.length > 0 ? (
-          <div className="flex flex-col gap-3">
-            {filteredEntries.map((entry) => (
-              <HistoryEntryCard key={entry.id} entry={entry} onOpen={handleOpenEntry} />
-            ))}
-          </div>
-        ) : null}
+          {activeFilter === 'AUDIT_TRAIL' && !auditLoading && auditError ? (
+            <HistoryEmptyState isError message={auditError} />
+          ) : null}
 
-        {!loading && !error && nextCursor ? (
-          <button
-            type="button"
-            onClick={() => {
-              loadHistory(nextCursor, false).catch((historyError) => {
-                console.error('Failed to load more history entries:', historyError);
-              });
-            }}
-            disabled={loadingMore}
-            className="w-full rounded-2xl border border-card-border bg-white px-4 py-2 text-caption-1 text-text-primary transition-colors hover:bg-card-hover disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {loadingMore ? 'Loading...' : 'Load more'}
-          </button>
-        ) : null}
+          {activeFilter === 'AUDIT_TRAIL' &&
+          !auditLoading &&
+          !auditError &&
+          auditEntries.length === 0 ? (
+            <HistoryEmptyState message="No audit entries found." />
+          ) : null}
+
+          {activeFilter === 'AUDIT_TRAIL' &&
+          !auditLoading &&
+          !auditError &&
+          auditEntries.length > 0 ? (
+            <div className="flex flex-col gap-3">
+              {auditEntries.map((entry, index) => (
+                <div
+                  key={entry.id ?? `${entry.eventType}-${entry.occurredAt}-${index}`}
+                  className="w-full rounded-2xl border border-card-border bg-white px-3 py-3 md:px-4 md:py-3"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1.5">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <div className="truncate text-body-3-emphasis text-text-primary">
+                          {toTitle(entry.eventType)}
+                        </div>
+                        {entry.entityType ? (
+                          <span className="rounded-full bg-blue-light px-2 py-0.5 text-label-xsmall text-blue-text">
+                            {toTitle(entry.entityType)}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="mt-1 text-caption-1 text-text-secondary">
+                        {getAuditActorDisplay(entry)}
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-caption-1 text-text-secondary md:whitespace-nowrap">
+                      {formatDateTimeLocal(entry.occurredAt, '—')}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {!shouldRenderDocumentsTab &&
+          activeFilter !== 'AUDIT_TRAIL' &&
+          !loading &&
+          !error &&
+          filteredEntries.length === 0 ? (
+            <HistoryEmptyState />
+          ) : null}
+
+          {!shouldRenderDocumentsTab &&
+          activeFilter !== 'AUDIT_TRAIL' &&
+          !loading &&
+          !error &&
+          displayedEntries.length > 0 ? (
+            <div className="flex flex-col gap-3">
+              {displayedEntries.map((entry) => (
+                <HistoryEntryCard key={entry.id} entry={entry} onOpen={handleOpenEntry} />
+              ))}
+            </div>
+          ) : null}
+
+          {!shouldRenderDocumentsTab &&
+          activeFilter !== 'AUDIT_TRAIL' &&
+          compact &&
+          !loading &&
+          !error &&
+          filteredEntries.length > COMPACT_MAX_ENTRIES ? (
+            <div className="rounded-2xl border border-card-border bg-card-hover px-4 py-3 text-caption-1 text-text-secondary">
+              Showing latest {COMPACT_MAX_ENTRIES} records in compact view. Open full history for
+              the complete timeline.
+            </div>
+          ) : null}
+
+          {!shouldRenderDocumentsTab &&
+          activeFilter !== 'AUDIT_TRAIL' &&
+          !compact &&
+          !loading &&
+          !error &&
+          nextCursor ? (
+            <button
+              type="button"
+              onClick={() => {
+                loadHistory(nextCursor, false).catch((historyError) => {
+                  console.error('Failed to load more history entries:', historyError);
+                });
+              }}
+              disabled={loadingMore}
+              className="w-full rounded-2xl border border-card-border bg-white px-4 py-2 text-caption-1 text-text-primary transition-colors hover:bg-card-hover disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loadingMore ? 'Loading...' : 'Load more'}
+            </button>
+          ) : null}
+        </div>
       </div>
     </PermissionGate>
   );

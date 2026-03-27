@@ -39,9 +39,9 @@ describe('WhyWeDoThis Component', () => {
 
     // Verify it exists, has the correct external URL, and the right CSS class
     expect(image).toBeInTheDocument();
-    expect(image).toHaveAttribute(
-      'src',
-      'https://d2il6osz49gpup.cloudfront.net/Images/user-overview-image.jpg'
+    expect(image).toHaveAttribute('src');
+    expect(image.getAttribute('src')).toContain(
+      encodeURIComponent('https://d2il6osz49gpup.cloudfront.net/Images/user-overview-image.jpg')
     );
     expect(image).toHaveClass('WhyWeDoThisImage');
   });

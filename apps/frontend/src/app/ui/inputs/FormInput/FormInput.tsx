@@ -32,7 +32,7 @@ const FormInput = ({
 }: Readonly<FormInputProps>) => {
   const handleInputClick = (e: React.MouseEvent<HTMLInputElement>) => {
     onClick?.(e);
-    if (intype === 'time') {
+    if (intype === 'time' || intype === 'date') {
       const inputEl = e.currentTarget as HTMLInputElement & {
         showPicker?: () => void;
       };

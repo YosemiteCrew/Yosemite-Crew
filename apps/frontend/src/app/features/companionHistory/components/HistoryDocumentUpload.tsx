@@ -15,8 +15,11 @@ import {
   HealthCategoryOptions,
   HygieneCategoryOptions,
   Subcategory,
+  VisitType,
+  VisitTypeOptions,
 } from '@/app/features/documents/types/companionDocuments';
 import { createCompanionDocument } from '@/app/features/companions/services/companionDocumentService';
+import { useOrgStore } from '@/app/stores/orgStore';
 
 type HistoryDocumentUploadProps = {
   companionId: string;
@@ -33,6 +36,18 @@ const HistoryDocumentUpload = ({ companionId, onUploaded }: HistoryDocumentUploa
     sub?: string;
     fileUrl?: string;
   }>({});
+  const primaryOrgName = useOrgStore((state) => {
+    if (!state.primaryOrgId) return '';
+    return state.orgsById?.[state.primaryOrgId]?.name ?? '';
+  });
+
+  React.useEffect(() => {
+    if (!primaryOrgName) return;
+    setFormData((prev) => {
+      if (prev.issuingBusinessName?.trim()) return prev;
+      return { ...prev, issuingBusinessName: primaryOrgName };
+    });
+  }, [primaryOrgName]);
 
   const subcategoryOptions =
     formData.category === 'HEALTH' ? HealthCategoryOptions : HygieneCategoryOptions;
@@ -61,7 +76,10 @@ const HistoryDocumentUpload = ({ companionId, onUploaded }: HistoryDocumentUploa
     try {
       setSaving(true);
       await createCompanionDocument(formData, companionId);
-      setFormData(emptyCompanionRecord);
+      setFormData({
+        ...emptyCompanionRecord,
+        issuingBusinessName: primaryOrgName || undefined,
+      });
       setFile(null);
       setFormDataErrors({});
       onUploaded?.();
@@ -100,6 +118,17 @@ const HistoryDocumentUpload = ({ companionId, onUploaded }: HistoryDocumentUploa
             options={subcategoryOptions}
             error={formDataErrors.sub}
           />
+          <LabelDropdown
+            placeholder="Visit type"
+            onSelect={(option) =>
+              setFormData({
+                ...formData,
+                visitType: option.value as VisitType,
+              })
+            }
+            defaultOption={formData.visitType ?? undefined}
+            options={VisitTypeOptions}
+          />
           <FormInput
             intype="text"
             inname="title"
@@ -108,11 +137,66 @@ const HistoryDocumentUpload = ({ companionId, onUploaded }: HistoryDocumentUploa
             onChange={(event) => setFormData({ ...formData, title: event.target.value })}
             error={formDataErrors.title}
           />
+          <FormInput
+            intype="text"
+            inname="issuingBusinessName"
+            value={formData.issuingBusinessName ?? ''}
+            inlabel="Issuing business name"
+            onChange={(event) =>
+              setFormData({ ...formData, issuingBusinessName: event.target.value })
+            }
+          />
+          <div className="flex w-full flex-nowrap items-center justify-between gap-3">
+            <label
+              htmlFor="historyIncludeIssueDate"
+              className="inline-flex h-12 shrink-0 cursor-pointer items-center rounded-2xl border border-input-border-default px-4"
+            >
+              <span className="grid h-full place-items-center">
+                <span className="inline-flex items-center">
+                  <input
+                    id="historyIncludeIssueDate"
+                    type="checkbox"
+                    className="m-0 h-4 w-4 shrink-0 align-middle accent-text-primary"
+                    checked={formData.hasIssueDate ?? false}
+                    onChange={(event) =>
+                      setFormData({
+                        ...formData,
+                        hasIssueDate: event.target.checked,
+                      })
+                    }
+                  />
+                  <span className="pl-2 text-body-4 text-text-primary">Include issue date</span>
+                </span>
+              </span>
+            </label>
+            {formData.hasIssueDate ? (
+              <div className="w-[210px] shrink-0">
+                <FormInput
+                  intype="date"
+                  inname="issueDate"
+                  value={formData.issueDate ? formData.issueDate.split('T')[0] : ''}
+                  inlabel="Issue date"
+                  onChange={(event) => setFormData({ ...formData, issueDate: event.target.value })}
+                />
+              </div>
+            ) : null}
+          </div>
           <CompanionDoc
             placeholder="Upload document"
             apiUrl="/v1/document/pms/upload-url"
             companionId={companionId}
-            onChange={(key) => setFormData({ ...formData, attachments: [{ key }] })}
+            onChange={(key, mimeType, size) =>
+              setFormData({
+                ...formData,
+                attachments: [
+                  {
+                    key,
+                    mimeType: mimeType || file?.type || 'application/pdf',
+                    size,
+                  },
+                ],
+              })
+            }
             file={file}
             setFile={setFile}
             error={formDataErrors.fileUrl}
@@ -123,12 +207,15 @@ const HistoryDocumentUpload = ({ companionId, onUploaded }: HistoryDocumentUploa
               <span>{formDataErrors.fileUrl}</span>
             </div>
           ) : null}
-          <Primary
-            href="#"
-            text={saving ? 'Saving...' : 'Save'}
-            onClick={handleSave}
-            isDisabled={saving}
-          />
+          <div className="flex justify-center">
+            <Primary
+              href="#"
+              text={saving ? 'Saving...' : 'Save'}
+              onClick={handleSave}
+              isDisabled={saving}
+              className="w-auto min-w-[120px]"
+            />
+          </div>
         </div>
       </Accordion>
     </PermissionGate>

@@ -7,7 +7,18 @@ type HistoryType = {
 };
 
 const History = ({ companion }: HistoryType) => (
-  <CompanionHistoryTimeline companionId={companion.companion.id} showDocumentUpload />
+  <CompanionHistoryTimeline
+    companionId={companion.companion.id}
+    showDocumentUpload
+    compact
+    fullPageHref={`/companions/history?${new URLSearchParams({
+      companionId: companion.companion.id,
+      source: 'companions',
+      backTo: `/companions?${new URLSearchParams({
+        companionId: companion.companion.id,
+      }).toString()}`,
+    }).toString()}`}
+  />
 );
 
 export default History;

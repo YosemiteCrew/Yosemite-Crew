@@ -9,9 +9,15 @@ const APPOINTMENT_ID_EXTENSION_URL =
   'https://yosemitecrew.com/fhir/StructureDefinition/appointment-id';
 
 const normalizeReferenceTail = (value: unknown): string | undefined => {
-  const raw = String(value ?? '').trim();
-  if (!raw) return undefined;
-  const withoutQuery = raw.split(/[?#]/)[0];
+  let raw = '';
+  if (typeof value === 'string') {
+    raw = value;
+  } else if (typeof value === 'number' || typeof value === 'boolean') {
+    raw = String(value);
+  }
+  const normalizedRaw = raw.trim();
+  if (!normalizedRaw) return undefined;
+  const withoutQuery = normalizedRaw.split(/[?#]/)[0];
   const tail = withoutQuery.split('/').findLast(Boolean)?.trim();
   return tail || undefined;
 };

@@ -24,6 +24,7 @@ type ChartProps = {
   hideKeys?: boolean;
   xAxisLabel?: string;
   yAxisLabel?: string;
+  compactMonthAxis?: boolean;
 };
 
 type TiltedTickProps = { x: number; y: number; payload: { value: string } };
@@ -35,6 +36,59 @@ type AxisLabelConfig = {
   dy?: number;
   dx?: number;
   angle?: number;
+};
+
+const MONTH_NAME_PATTERN = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)\b/i;
+const DAY_PATTERN = /\b([12]?\d|3[01])\b/;
+
+const parseAxisValueAsDate = (value: string): Date | null => {
+  const timestamp = Date.parse(value);
+  if (!Number.isNaN(timestamp)) {
+    return new Date(timestamp);
+  }
+
+  const withCurrentYear = Date.parse(`${value} ${new Date().getFullYear()}`);
+  if (!Number.isNaN(withCurrentYear)) {
+    return new Date(withCurrentYear);
+  }
+
+  return null;
+};
+
+const getMonthLabelFromData = (data: any[]): string | undefined => {
+  const labels = data
+    .map((point) => point?.month)
+    .filter(
+      (monthValue): monthValue is string =>
+        typeof monthValue === 'string' && monthValue.trim().length > 0
+    );
+
+  if (labels.length === 0) return undefined;
+
+  const parsedDates = labels.map(parseAxisValueAsDate);
+  if (parsedDates.every((date): date is Date => date instanceof Date)) {
+    const first = parsedDates[0];
+    const allSameMonthAndYear = parsedDates.every(
+      (date) => date.getMonth() === first.getMonth() && date.getFullYear() === first.getFullYear()
+    );
+
+    if (allSameMonthAndYear) {
+      return new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' }).format(first);
+    }
+  }
+
+  const monthToken = labels[0].match(MONTH_NAME_PATTERN)?.[0];
+  return monthToken ? monthToken[0].toUpperCase() + monthToken.slice(1).toLowerCase() : undefined;
+};
+
+const getDayTickLabel = (value: string): string => {
+  const parsed = parseAxisValueAsDate(value);
+  if (parsed) {
+    return new Intl.DateTimeFormat('en-US', { day: 'numeric' }).format(parsed);
+  }
+
+  const dayToken = value.match(DAY_PATTERN)?.[0];
+  return dayToken ?? value;
 };
 
 const TiltedYTick = ({ x, y, payload }: TiltedTickProps) => (
@@ -65,6 +119,7 @@ type LineChartContentProps = {
   yTickFormatter?: (value: number) => string;
   xAxisLabel?: string;
   yAxisLabel?: string;
+  compactMonthAxis?: boolean;
 };
 
 const LineChartContent = ({
@@ -76,9 +131,16 @@ const LineChartContent = ({
   yTickFormatter,
   xAxisLabel,
   yAxisLabel,
+  compactMonthAxis,
 }: LineChartContentProps) => (
   <LineChart data={data} margin={chartMargin} width={width} height={height}>
-    <XAxis dataKey="month" label={getXAxisLabel(xAxisLabel)} />
+    <XAxis
+      dataKey="month"
+      interval={compactMonthAxis ? 'preserveStartEnd' : 0}
+      minTickGap={compactMonthAxis ? 12 : undefined}
+      tickFormatter={compactMonthAxis ? getDayTickLabel : undefined}
+      label={getXAxisLabel(xAxisLabel)}
+    />
     <YAxis
       tickFormatter={yTickFormatter}
       label={
@@ -114,6 +176,7 @@ type BarChartContentProps = {
   xAxisLabel?: string;
   yAxisLabel?: string;
   barSize?: number;
+  compactMonthAxis?: boolean;
 };
 
 const BarChartContent = ({
@@ -129,6 +192,7 @@ const BarChartContent = ({
   xAxisLabel,
   yAxisLabel,
   barSize,
+  compactMonthAxis,
 }: BarChartContentProps) => (
   <BarChart
     data={data}
@@ -143,7 +207,9 @@ const BarChartContent = ({
       dataKey={isVerticalLayout ? undefined : 'month'}
       type={isVerticalLayout ? 'number' : 'category'}
       tick={{ fontSize: 11 }}
-      interval={0}
+      interval={compactMonthAxis && !isVerticalLayout ? 'preserveStartEnd' : 0}
+      minTickGap={compactMonthAxis && !isVerticalLayout ? 12 : undefined}
+      tickFormatter={compactMonthAxis && !isVerticalLayout ? getDayTickLabel : undefined}
       label={getXAxisLabel(xAxisLabel)}
     />
     <YAxis
@@ -191,13 +257,18 @@ const DynamicChartCard: React.FC<ChartProps> = ({
   hideKeys = false,
   xAxisLabel,
   yAxisLabel,
+  compactMonthAxis = false,
 }) => {
   const isVerticalLayout = layout === 'vertical';
+  const effectiveXAxisLabel =
+    compactMonthAxis && !isVerticalLayout
+      ? (getMonthLabelFromData(data) ?? xAxisLabel)
+      : xAxisLabel;
   const chartMargin = {
     top: 0,
     right: isVerticalLayout ? 8 : 0,
     left: yAxisLabel ? 20 : 0,
-    bottom: xAxisLabel ? 26 : 0,
+    bottom: effectiveXAxisLabel ? 26 : 0,
   };
 
   return (
@@ -210,8 +281,9 @@ const DynamicChartCard: React.FC<ChartProps> = ({
             chartMargin={chartMargin}
             keys={keys}
             yTickFormatter={yTickFormatter}
-            xAxisLabel={xAxisLabel}
+            xAxisLabel={effectiveXAxisLabel}
             yAxisLabel={yAxisLabel}
+            compactMonthAxis={compactMonthAxis}
           />
         ) : (
           <BarChartContent
@@ -222,9 +294,10 @@ const DynamicChartCard: React.FC<ChartProps> = ({
             keys={keys}
             yTickFormatter={yTickFormatter}
             yAxisWidth={yAxisWidth}
-            xAxisLabel={xAxisLabel}
+            xAxisLabel={effectiveXAxisLabel}
             yAxisLabel={yAxisLabel}
             barSize={barSize}
+            compactMonthAxis={compactMonthAxis}
           />
         )}
       </ResponsiveContainer>

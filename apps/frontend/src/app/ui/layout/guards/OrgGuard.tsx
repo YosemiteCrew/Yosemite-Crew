@@ -25,6 +25,10 @@ import { useLoadSubscriptionCounterForPrimaryOrg } from '@/app/hooks/useBilling'
 import { useLoadInvoicesForPrimaryOrg } from '@/app/hooks/useInvoices';
 import { useLoadIntegrationsForPrimaryOrg } from '@/app/hooks/useIntegrations';
 import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
+import {
+  canAccessPathByPermissions,
+  resolveFirstAccessibleAppRoute,
+} from '@/app/lib/routePermissions';
 
 type OrgGuardProps = {
   children: React.ReactNode;
@@ -190,6 +194,17 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
     }
 
     const role = membership.roleDisplay ?? membership.roleCode;
+    const effectivePermissions = membership.effectivePermissions ?? [];
+    const canAccessCurrentPath = canAccessPathByPermissions(pathname, effectivePermissions);
+
+    if (!canAccessCurrentPath) {
+      const fallbackRoute = resolveFirstAccessibleAppRoute(effectivePermissions);
+      if (fallbackRoute !== pathname) {
+        router.replace(fallbackRoute);
+        return;
+      }
+    }
+
     const preferredLanding = resolveDefaultOpenScreenRoute(role);
     const shouldEvaluateLanding = pathname === '/dashboard' || pathname === '/appointments';
     const landingAppliedKey = `yc_default_landing_applied:${primaryOrgId}`;

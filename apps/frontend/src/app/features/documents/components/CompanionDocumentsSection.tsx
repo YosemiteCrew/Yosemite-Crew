@@ -15,6 +15,8 @@ import {
   HealthCategoryOptions,
   HygieneCategoryOptions,
   Subcategory,
+  VisitType,
+  VisitTypeOptions,
 } from '@/app/features/documents/types/companionDocuments';
 import {
   createCompanionDocument,
@@ -24,6 +26,7 @@ import {
 import { toTitle } from '@/app/lib/validators';
 import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
 import CompanionDoc from '@/app/ui/widgets/UploadImage/CompanionDoc';
+import { useOrgStore } from '@/app/stores/orgStore';
 
 type CompanionDocumentsSectionProps = {
   companionId: string;
@@ -40,6 +43,19 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
   }>({});
 
   const [records, setRecords] = useState<CompanionRecord[]>([]);
+  const primaryOrgId = useOrgStore((state) => state.primaryOrgId);
+  const primaryOrgName = useOrgStore((state) => {
+    if (!state.primaryOrgId) return '';
+    return state.orgsById?.[state.primaryOrgId]?.name ?? '';
+  });
+
+  useEffect(() => {
+    if (!primaryOrgName) return;
+    setFormData((prev) => {
+      if (prev.issuingBusinessName?.trim()) return prev;
+      return { ...prev, issuingBusinessName: primaryOrgName };
+    });
+  }, [primaryOrgId, primaryOrgName]);
 
   useEffect(() => {
     let cancelled = false;
@@ -73,7 +89,10 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
       await createCompanionDocument(formData, companionId);
       const data = await loadCompanionDocument(companionId);
       setRecords(data ?? []);
-      setFormData(emptyCompanionRecord);
+      setFormData({
+        ...emptyCompanionRecord,
+        issuingBusinessName: primaryOrgName || undefined,
+      });
       setFormDataErrors({});
       setFile(null);
     } catch (error) {
@@ -152,6 +171,17 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
                 options={subcategoryOptions}
                 error={formDataErrors.sub}
               />
+              <LabelDropdown
+                placeholder="Visit type"
+                onSelect={(option) =>
+                  setFormData({
+                    ...formData,
+                    visitType: option.value as VisitType,
+                  })
+                }
+                defaultOption={formData.visitType ?? undefined}
+                options={VisitTypeOptions}
+              />
               <FormInput
                 intype="text"
                 inname="name"
@@ -160,11 +190,71 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 error={formDataErrors.name}
               />
+              <FormInput
+                intype="text"
+                inname="issuingBusinessName"
+                value={formData.issuingBusinessName ?? ''}
+                inlabel="Issuing business name"
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    issuingBusinessName: e.target.value,
+                  })
+                }
+              />
+              <div className="flex w-full flex-nowrap items-center justify-between gap-3">
+                <label
+                  htmlFor="includeIssueDate"
+                  className="inline-flex h-12 shrink-0 cursor-pointer items-center rounded-2xl border border-input-border-default px-4"
+                >
+                  <span className="grid h-full place-items-center">
+                    <span className="inline-flex items-center">
+                      <input
+                        id="includeIssueDate"
+                        type="checkbox"
+                        className="m-0 h-4 w-4 shrink-0 align-middle accent-text-primary"
+                        checked={formData.hasIssueDate ?? false}
+                        onChange={(event) =>
+                          setFormData({
+                            ...formData,
+                            hasIssueDate: event.target.checked,
+                          })
+                        }
+                      />
+                      <span className="pl-2 text-body-4 text-text-primary">Include issue date</span>
+                    </span>
+                  </span>
+                </label>
+                {formData.hasIssueDate ? (
+                  <div className="w-[210px] shrink-0">
+                    <FormInput
+                      intype="date"
+                      inname="issueDate"
+                      value={formData.issueDate ? formData.issueDate.split('T')[0] : ''}
+                      inlabel="Issue date"
+                      onChange={(event) =>
+                        setFormData({ ...formData, issueDate: event.target.value })
+                      }
+                    />
+                  </div>
+                ) : null}
+              </div>
               <CompanionDoc
                 placeholder="Upload document"
                 apiUrl={`/v1/document/pms/upload-url`}
                 companionId={companionId}
-                onChange={(s) => setFormData({ ...formData, attachments: [{ key: s }] })}
+                onChange={(key, mimeType, size) =>
+                  setFormData({
+                    ...formData,
+                    attachments: [
+                      {
+                        key,
+                        mimeType: mimeType || file?.type || 'application/pdf',
+                        size,
+                      },
+                    ],
+                  })
+                }
                 file={file}
                 setFile={setFile}
                 error={formDataErrors.fileUrl}
@@ -180,7 +270,14 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
                   <span>{formDataErrors.fileUrl}</span>
                 </div>
               )}
-              <Primary href="#" text="Save" onClick={handleSave} />
+              <div className="flex justify-center">
+                <Primary
+                  href="#"
+                  text="Save"
+                  onClick={handleSave}
+                  className="w-auto min-w-[120px]"
+                />
+              </div>
             </div>
           </Accordion>
         </PermissionGate>
@@ -207,16 +304,16 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
                     </div>
                     <div className="flex items-center gap-1 flex-wrap justify-end">
                       {doc.pmsVisible ? (
-                        <span className="text-label-xsmall px-2 py-1 rounded bg-blue-50 text-blue-700 whitespace-nowrap">
+                        <span className="text-label-xsmall px-2 py-1 rounded-full bg-blue-50 text-blue-700 whitespace-nowrap">
                           PMS visible
                         </span>
                       ) : null}
                       {doc.syncedFromPms ? (
-                        <span className="text-label-xsmall px-2 py-1 rounded bg-green-50 text-green-800 whitespace-nowrap">
+                        <span className="text-label-xsmall px-2 py-1 rounded-full bg-green-50 text-green-800 whitespace-nowrap">
                           Synced
                         </span>
                       ) : (
-                        <span className="text-label-xsmall px-2 py-1 rounded bg-amber-50 text-amber-700 whitespace-nowrap">
+                        <span className="text-label-xsmall px-2 py-1 rounded-full bg-amber-50 text-amber-700 whitespace-nowrap">
                           Manual
                         </span>
                       )}

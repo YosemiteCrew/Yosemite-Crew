@@ -37,6 +37,7 @@ const RevenueStat = () => {
         barSize={16}
         xAxisLabel="Time"
         yAxisLabel="Revenue"
+        compactMonthAxis={selectedDuration === 'Last month'}
       />
     </div>
   );

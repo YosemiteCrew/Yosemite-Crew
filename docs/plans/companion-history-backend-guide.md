@@ -5,7 +5,8 @@
 Replace the current appointment-only companion history with a production-grade, org-scoped medical history timeline that can be reused in:
 
 1. Appointment modal: `Appointments -> View Appointment -> Info -> History`
-2. Companion modal: `Companions -> View Companion -> Records -> History`
+2. Companion modal: `Companions -> View Companion -> History`
+3. Full screen page: `Companions -> History` (opened from appointments/companions)
 
 The new history must show a unified timeline of:
 
@@ -15,6 +16,7 @@ The new history must show a unified timeline of:
 4. Documents
 5. Labs / IDEXX results
 6. Finance / invoice events
+7. Audit trail (available as a dedicated History filter)
 
 This work must be backward-compatible. Existing appointment, finance, invoice, SOAP, lab, and document flows must keep working unchanged.
 
@@ -29,6 +31,7 @@ This work must be backward-compatible. Existing appointment, finance, invoice, S
    - Companion task list exists via `/v1/task/pms/companion/:companionId`
 3. Documents:
    - Companion document list exists via `/v1/document/pms/:companionId`
+   - Companion document upload exists via `/v1/document/pms/:companionId` + `/v1/document/pms/upload-url`
 4. Labs:
    - Lab results can be filtered by `companionId` via `/v1/labs/pms/organisation/:organisationId/:provider/results`
    - Lab orders can be filtered by `companionId` via `/v1/labs/pms/organisation/:organisationId/:provider/orders`
@@ -78,6 +81,7 @@ Supported `types` values:
 4. `DOCUMENT`
 5. `LAB_RESULT`
 6. `INVOICE`
+7. `AUDIT_TRAIL` (optional future extension; currently fetched via existing audit endpoint)
 
 ### Response shape
 
@@ -473,10 +477,23 @@ Do not break or remove:
 1. Appointment finance tab and invoice APIs
 2. Existing add document flow
 3. Existing companion document GET / POST APIs
+   - Frontend already depends on these APIs directly for `History -> Documents` filter and upload-refresh behavior
 4. Existing appointment SOAP APIs
 5. Existing IDEXX lab tabs and APIs
 
 This new endpoint is additive.
+
+## Frontend-Implemented Behavior (Current)
+
+1. `History -> Documents` currently uses existing companion document APIs as source of truth:
+   - GET: `/v1/document/pms/:companionId`
+   - Upload: `/v1/document/pms/:companionId` (after signed upload URL flow)
+2. Unified history endpoint remains the source for non-document filters (`All`, `Appointments`, `Tasks`, `SOAP/Templates`, `Labs`, `Finance`).
+3. `History -> Audit trail` currently uses existing companion audit endpoint (`/v1/audit-trail/companion`), not companion-history API.
+4. Therefore backend companion-history work should prioritize:
+   - companion-wide form submission aggregation
+   - consistent org-scoped normalization/pagination
+   - optional audit integration only if we decide to consolidate endpoints later
 
 ## Data Quality Rules
 

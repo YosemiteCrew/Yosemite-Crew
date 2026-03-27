@@ -460,6 +460,8 @@ const useStatusDisplay = (theme: any) => {
 const useStatusFlags = (status: string, paymentStatus?: string | null) => {
   return useMemo(() => {
     const isPaymentPending = isAppointmentPaymentPending(status, paymentStatus);
+    const isPaymentFailed = isAppointmentPaymentFailed(status, paymentStatus);
+    const requiresPayment = isPaymentPending || isPaymentFailed;
     const isRequested = status === 'REQUESTED';
     const isCheckedIn = status === 'CHECKED_IN';
     const isInProgress = status === 'IN_PROGRESS';
@@ -472,9 +474,9 @@ const useStatusFlags = (status: string, paymentStatus?: string | null) => {
       isCheckedIn,
       isInProgress,
       isTerminal,
-      showPayNow: isPaymentPending,
-      showInvoice: !isPaymentPending,
-      showCancel: !isTerminal && !isPaymentPending,
+      showPayNow: requiresPayment,
+      showInvoice: !requiresPayment,
+      showCancel: !isTerminal && !requiresPayment,
     };
   }, [paymentStatus, status]);
 };

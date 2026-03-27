@@ -1,5 +1,5 @@
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import Fallback from '@/app/ui/overlays/Fallback';
@@ -11,7 +11,6 @@ import { toTitle } from '@/app/lib/validators';
 import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
 import { formatMoney } from '@/app/lib/money';
 import InvoicePaymentActions from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Finance/InvoicePaymentActions';
-import { useMemo } from 'react';
 
 type DetailsProps = {
   activeAppointment: Appointment;

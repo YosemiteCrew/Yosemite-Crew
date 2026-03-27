@@ -36,6 +36,7 @@ const AppointmentStat = () => {
         barSize={16}
         xAxisLabel="Time"
         yAxisLabel="Appointments"
+        compactMonthAxis={selectedDuration === 'Last month'}
       />
     </div>
   );

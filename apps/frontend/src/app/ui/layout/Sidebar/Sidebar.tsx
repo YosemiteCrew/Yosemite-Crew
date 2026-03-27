@@ -29,6 +29,7 @@ import { useLoadSpecialitiesForPrimaryOrg } from '@/app/hooks/useSpecialities';
 import { appRoutes, devRoutes } from '@/app/config/routes';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
+import { hasAnyRequiredPermission } from '@/app/lib/routePermissions';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 
 import './Sidebar.css';
@@ -62,7 +63,12 @@ const Sidebar = () => {
   const routes = isDevPortal ? devRoutes : appRoutes;
 
   const orgStatus = useOrgStore((s) => s.status);
+  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const primaryOrg = usePrimaryOrg();
+  const membership = useOrgStore((s) =>
+    primaryOrgId ? (s.membershipsByOrgId?.[primaryOrgId] ?? null) : null
+  );
+  const effectivePermissions = membership?.effectivePermissions ?? [];
 
   useEffect(() => {
     try {
@@ -123,12 +129,16 @@ const Sidebar = () => {
       <div className="sidebar-routes">
         {routes.map((route) => {
           const needsVerifiedOrg = route.verify;
+          const hasRoutePermission = hasAnyRequiredPermission(
+            effectivePermissions,
+            route.requiredAnyPermissions
+          );
           // Developer portal routes don't need org verification
           const isDisabled = isDevPortal
             ? false
             : route.name !== 'Sign out' &&
               route.name !== 'Settings' &&
-              (orgMissing || (needsVerifiedOrg && !orgVerified));
+              (orgMissing || (needsVerifiedOrg && !orgVerified) || !hasRoutePermission);
 
           const isActive = pathname === route.href;
           const RouteIcon = routeIcons[route.name] || IoBookOutline;

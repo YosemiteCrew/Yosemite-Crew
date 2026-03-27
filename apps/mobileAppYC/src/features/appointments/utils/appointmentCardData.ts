@@ -6,6 +6,7 @@
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
 import {
   isActionableUpcomingStatus,
+  isAppointmentPaymentFailed,
   isAppointmentPaymentPending,
 } from '@/features/appointments/utils/appointmentStatus';
 
@@ -102,10 +103,12 @@ export const transformAppointmentCardData = (
       'Check-in unlocks when you are within ~200m of the clinic and 5 minutes before start time.';
   }
 
-  const needsPayment = isAppointmentPaymentPending(
-    appointment.status,
-    appointment.paymentStatus,
-  );
+  const needsPayment =
+    isAppointmentPaymentPending(
+      appointment.status,
+      appointment.paymentStatus,
+    ) ||
+    isAppointmentPaymentFailed(appointment.status, appointment.paymentStatus);
   const isRequested = appointment.status === 'REQUESTED';
   const isCheckedIn = appointment.status === 'CHECKED_IN';
   const isInProgress = appointment.status === 'IN_PROGRESS';

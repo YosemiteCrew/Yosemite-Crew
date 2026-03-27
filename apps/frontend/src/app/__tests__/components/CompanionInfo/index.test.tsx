@@ -62,7 +62,7 @@ describe('CompanionInfo', () => {
     expect(screen.getByTestId('modal')).toBeInTheDocument();
     expect(screen.getByText('Buddy')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Records' }));
+    fireEvent.click(screen.getByRole('button', { name: 'History' }));
     expect(screen.getByText('history-section')).toBeInTheDocument();
   });
 });

@@ -13,6 +13,21 @@ const History = ({ activeAppointment, onOpenAppointmentView }: HistoryType) => (
     companionId={activeAppointment.companion.id}
     activeAppointmentId={activeAppointment.id}
     onOpenAppointmentView={onOpenAppointmentView}
+    compact
+    fullPageHref={`/companions/history?${(() => {
+      const appointmentId = String(activeAppointment.id ?? '').trim();
+      const backTo = `/appointments?${new URLSearchParams({
+        appointmentId,
+        open: 'info',
+        subLabel: 'history',
+      }).toString()}`;
+      return new URLSearchParams({
+        companionId: activeAppointment.companion.id,
+        source: 'appointments',
+        appointmentId,
+        backTo,
+      }).toString();
+    })()}`}
   />
 );
 

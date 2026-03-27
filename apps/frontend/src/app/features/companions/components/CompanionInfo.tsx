@@ -3,14 +3,7 @@ import Image from 'next/image';
 import { CompanionParent } from '@/app/features/companions/pages/Companions/types';
 import Labels from '@/app/ui/widgets/Labels/Labels';
 import Modal from '@/app/ui/overlays/Modal';
-import {
-  Companion,
-  Parent,
-  Core,
-  History,
-  AddAppointment,
-  AddTask,
-} from '@/app/features/companions/components/Sections';
+import { Companion, Parent, Core, History } from '@/app/features/companions/components/Sections';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import Close from '@/app/ui/primitives/Icons/Close';
 
@@ -19,8 +12,8 @@ type CompanionInfoProps = {
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
   activeCompanion: CompanionParent | null;
 };
-type LabelKey = (typeof labels)[number]['key'];
-type SubLabelKey = (typeof labels)[number]['labels'][number]['key'];
+type LabelKey = 'info' | 'history';
+type SubLabelKey = 'companion-information' | 'parent-information' | 'history';
 
 const labels = [
   {
@@ -32,38 +25,42 @@ const labels = [
     ],
   },
   {
-    key: 'records',
-    name: 'Records',
-    labels: [{ key: 'history', name: 'History' }],
+    key: 'history',
+    name: 'History',
   },
 ];
 
-const COMPONENT_MAP: Record<LabelKey, Record<SubLabelKey, React.FC<any>>> = {
+const COMPONENT_MAP: Record<string, Record<string, React.FC<any>>> = {
   info: {
     'companion-information': Companion,
     'parent-information': Parent,
     'core-information': Core,
   },
-  records: {
+  history: {
     history: History,
-  },
-  actions: {
-    'add-appointment': AddAppointment,
-    'add-task': AddTask,
   },
 };
 
 const CompanionInfo = ({ showModal, setShowModal, activeCompanion }: CompanionInfoProps) => {
-  const [activeLabel, setActiveLabel] = useState<LabelKey>(labels[0].key);
-  const [activeSubLabel, setActiveSubLabel] = useState<SubLabelKey>(labels[0].labels[0].key);
+  const [activeLabel, setActiveLabel] = useState<LabelKey>(labels[0].key as LabelKey);
+  const [activeSubLabel, setActiveSubLabel] = useState<SubLabelKey>(
+    labels[0].labels?.[0]?.key as SubLabelKey
+  );
   const scrollRef = useRef<HTMLDivElement | null>(null);
-
-  const Content = COMPONENT_MAP[activeLabel]?.[activeSubLabel];
+  const activeLabelConfig = labels.find((label) => label.key === activeLabel);
+  const Content =
+    activeLabelConfig?.labels && activeLabelConfig.labels.length > 0
+      ? COMPONENT_MAP[activeLabel]?.[activeSubLabel]
+      : COMPONENT_MAP[activeLabel]?.[activeLabel];
 
   useEffect(() => {
     const current = labels.find((l) => l.key === activeLabel);
-    if (current && current.labels.length > 0) {
-      setActiveSubLabel(current.labels[0].key);
+    if (current?.labels && current.labels.length > 0) {
+      setActiveSubLabel(current.labels[0].key as SubLabelKey);
+      return;
+    }
+    if (current?.key) {
+      setActiveSubLabel(current.key as SubLabelKey);
     }
   }, [activeLabel]);
 

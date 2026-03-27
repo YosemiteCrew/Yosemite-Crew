@@ -1,10 +1,10 @@
-import React, { useRef } from "react";
-import axios from "axios";
-import { FaCloudUploadAlt, FaFilePdf, FaTrashAlt } from "react-icons/fa";
+import React, { useRef } from 'react';
+import axios from 'axios';
+import { FaCloudUploadAlt, FaFilePdf, FaTrashAlt } from 'react-icons/fa';
 
-import "./UploadImage.css";
+import './UploadImage.css';
 
-const allowedTypes = new Set(["application/pdf"]);
+const allowedTypes = new Set(['application/pdf']);
 
 type SignedUrlResult = {
   uploadUrl: string;
@@ -13,7 +13,7 @@ type SignedUrlResult = {
 
 type PdfDocUploaderProps = {
   placeholder: string;
-  onChange: (url: string) => void;
+  onChange: (url: string, mimeType?: string, size?: number) => void;
   file: File | null;
   setFile: React.Dispatch<React.SetStateAction<File | null>>;
   getSignedUrl: (file: File) => Promise<SignedUrlResult>;
@@ -31,7 +31,7 @@ const PdfDocUploader = ({
 
   const uploadToS3 = async (uploadUrl: string, file: File) => {
     await axios.put(uploadUrl, file, {
-      headers: { "Content-Type": file?.type },
+      headers: { 'Content-Type': file?.type },
       withCredentials: false,
     });
   };
@@ -50,7 +50,7 @@ const PdfDocUploader = ({
     try {
       const signed = await getSignedUrl(picked);
       await uploadToS3(signed.uploadUrl, picked);
-      onChange(signed.s3Key);
+      onChange(signed.s3Key, picked.type, picked.size);
     } catch (err: any) {
       console.log(err);
     }
@@ -85,7 +85,7 @@ const PdfDocUploader = ({
             ref={inputRef}
             type="file"
             accept=".pdf"
-            style={{ display: "none" }}
+            style={{ display: 'none' }}
             onChange={(e) => handleFiles(e.target.files)}
           />
         </div>
