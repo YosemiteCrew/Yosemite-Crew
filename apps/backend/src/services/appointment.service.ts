@@ -1122,7 +1122,7 @@ const toPersistable = (appointment: Appointment): AppointmentMongo => ({
   concern: appointment.concern ?? undefined,
   attachments: appointment.attachments ?? undefined,
   formIds: appointment.formIds ?? [],
-  expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+  expiresAt: undefined,
 });
 
 const toPrismaAppointmentData = (
@@ -1257,7 +1257,6 @@ export const AppointmentService = {
 
       const appointment = buildAppointmentFromInput(input, "REQUESTED");
 
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
       let created;
       try {
         created = await prisma.appointment.create({
@@ -1282,7 +1281,7 @@ export const AppointmentService = {
             attachments: (appointment.attachments ??
               undefined) as unknown as Prisma.InputJsonValue,
             formIds: appointment.formIds ?? [],
-            expiresAt,
+            expiresAt: undefined,
           },
         });
       } catch (error) {
@@ -1508,7 +1507,7 @@ export const AppointmentService = {
               attachments: (appointment.attachments ??
                 undefined) as unknown as Prisma.InputJsonValue,
               formIds: appointment.formIds ?? [],
-              expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+              expiresAt: undefined,
             },
           });
 
