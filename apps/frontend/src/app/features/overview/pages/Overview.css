@@ -96,45 +96,65 @@
 }
 
 /* =========================================
-   CHART GRID & STYLING
+   COMMUNITY STATS COMPONENT (BASE / DESKTOP)
 ========================================= */
-.ChartGrid {
-  display: grid;
-  /* FORCE 1 COLUMN so the single chart stretches across the screen */
-  grid-template-columns: 1fr;
-  gap: 24px;
+.CommunityStatsContainer {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0; /* Prevents Recharts horizontal stretch bug */
 }
 
-.PremiumCard {
-  background: var(--whitebg);
-  border: 1px solid var(--lightgrey);
-  border-radius: 20px;
-  box-shadow: 0px 0px 8px 0px rgba(0, 0, 0, 0.04);
+.ChartGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  width: 100%;
+  min-width: 0; /* Prevents Recharts horizontal stretch bug */
+}
+
+.StatsCardWrapper {
   display: flex;
   flex-direction: column;
   position: relative;
+  width: 100%;
+  min-width: 0; /* Prevents Recharts horizontal stretch bug */
 }
 
-.PremiumCard .recharts-legend-wrapper {
+.ChartWrapper {
+  width: 100%;
+  height: 450px;
+  margin-top: 10px;
+  min-width: 0; /* Prevents Recharts horizontal stretch bug */
+  /* FIXED: Removed overflow: hidden so the X-axis is never cut off! */
+}
+
+/* LEGEND OVERRIDES */
+.ForceLeftLegend .recharts-legend-wrapper {
   left: 0 !important;
   right: auto !important;
   width: 100% !important;
 }
-.PremiumCard .recharts-default-legend {
+
+.ForceLeftLegend .recharts-default-legend {
   text-align: left !important;
   display: flex !important;
   justify-content: flex-start !important;
+  align-items: center;
   padding-left: 0px !important;
   margin-top: 0px !important;
+  flex-wrap: wrap; /* Allows legend to wrap on smaller screens */
 }
 
-/* =========================================
-   TOGGLE PILLS
-========================================= */
+.ForceLeftLegend .recharts-wrapper {
+  margin-top: 10px;
+}
+
+/* TOGGLE PILLS */
 .DataToggle {
   position: absolute;
-  top: 40px;
-  right: 32px;
+  top: 24px;
+  right: 24px;
   display: flex;
   background: var(--color-neutral-100);
   border-radius: 100px;
@@ -143,7 +163,7 @@
 }
 
 .TogglePill {
-  padding: 6px 16px; /* Narrowed slightly to fit 3 pills nicely */
+  padding: 6px 16px;
   border-radius: 100px;
   border: none;
   background: transparent;
@@ -161,17 +181,65 @@
   box-shadow: 0px 1px 4px rgba(0, 0, 0, 0.05);
 }
 
+/* =========================================
+   RESPONSIVE RULES (TABLET)
+========================================= */
+@media screen and (max-width: 1024px) {
+  .ChartWrapper {
+    height: 400px;
+  }
+
+  .DataToggle {
+    top: 16px;
+    right: 16px;
+  }
+}
+
+/* =========================================
+   RESPONSIVE RULES (MOBILE)
+========================================= */
 @media screen and (max-width: 768px) {
+  .OverviewHeroSection {
+    padding: 60px 16px 0px;
+  }
+
+  .OverviewBottomSection {
+    padding: 40px 16px 80px;
+  }
+
   .OverviewMainTitle {
     font-size: 2.25rem;
   }
+
   .OverviewGraphsTitle {
     font-size: 1.75rem;
   }
+
+  .ChartWrapper {
+    /* FIXED: Increased height slightly so the wrapped legend doesn't push the X-axis away */
+    height: 380px;
+    margin-top: 0;
+  }
+
+  /* Make legend text slightly smaller so it fits better */
+  .ForceLeftLegend .recharts-default-legend {
+    font-size: 12px !important;
+  }
+
+  /* Stack the toggle pills above the chart neatly on mobile */
   .DataToggle {
-    top: auto;
-    bottom: 100%;
+    position: relative;
+    top: 0;
     right: 0;
-    margin-bottom: 10px;
+    margin: 0 auto 20px auto;
+    justify-content: center;
+    width: 100%;
+    max-width: 320px;
+  }
+
+  .TogglePill {
+    padding: 6px 12px;
+    font-size: 0.75rem;
+    flex: 1; /* Match button widths */
   }
 }

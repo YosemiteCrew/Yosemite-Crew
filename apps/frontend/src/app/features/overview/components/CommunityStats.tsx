@@ -16,10 +16,7 @@ const CommunityStats = ({ trafficChart, starsChart, isLoading }: CommunityStatsP
 
   if (isLoading) {
     return (
-      <div
-        className="text-center p-10 text-text-secondary"
-        style={{ fontFamily: 'var(--satoshi-font)' }}
-      >
+      <div className="text-center p-10 text-text-secondary font-satoshi">
         Loading Repository Data...
       </div>
     );
@@ -48,7 +45,7 @@ const CommunityStats = ({ trafficChart, starsChart, isLoading }: CommunityStatsP
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+    <div className="CommunityStatsContainer">
       <style>{`
         .ForceLeftLegend .recharts-legend-wrapper {
           left: 0 !important;
@@ -59,27 +56,32 @@ const CommunityStats = ({ trafficChart, starsChart, isLoading }: CommunityStatsP
           text-align: left !important;
           display: flex !important;
           justify-content: flex-start !important;
+          align-items: center;
           padding-left: 0px !important;
           margin-top: 0px !important;
+          flex-wrap: wrap;
         }
         .ForceLeftLegend .recharts-wrapper {
           margin-top: 10px;
+        }
+
+        /* Mobile adjustments specifically for the legend */
+        @media screen and (max-width: 768px) {
+          .ForceLeftLegend .recharts-default-legend {
+             justify-content: center !important;
+             gap: 8px !important;
+             margin-bottom: 8px !important;
+          }
+          .ForceLeftLegend .recharts-legend-item {
+             margin-right: 8px !important;
+          }
         }
       `}</style>
 
       {/* SINGLE FULL-WIDTH CHART */}
       <div className="ChartGrid">
-        <div className="PremiumCard ForceLeftLegend" style={{ position: 'relative' }}>
-          <div
-            className="DataToggle"
-            style={{
-              position: 'absolute',
-              top: '12px',
-              right: '24px',
-              zIndex: 10,
-              margin: 0,
-            }}
-          >
+        <div className="StatsCardWrapper ForceLeftLegend">
+          <div className="DataToggle">
             <button
               className={`TogglePill ${view === 'Unique' ? 'Active' : ''}`}
               onClick={() => setView('Unique')}
@@ -100,8 +102,7 @@ const CommunityStats = ({ trafficChart, starsChart, isLoading }: CommunityStatsP
             </button>
           </div>
 
-          {/* FIXED: Changed minHeight to an explicit height of 400px so it stops overflowing! */}
-          <div className="ChartWrapper" style={{ width: '100%', height: '366px' }}>
+          <div className="ChartWrapper">
             <DynamicChartCard
               data={chartData}
               type="line"
