@@ -711,4 +711,12 @@ export const TERMS_SECTIONS: LegalSection[] = [
       ),
     ],
   },
+  {
+    id: 'updated-march-2026',
+    title: '',
+    blocks: [
+      createIntroParagraph(''),
+      createBoldHeader('Updated : March 2026'),
+    ],
+  },
 ];

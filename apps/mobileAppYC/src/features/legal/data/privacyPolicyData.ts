@@ -624,9 +624,9 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
   ),
 
   {
-    id: 'updated-june-2025',
+    id: 'updated-march-2026',
     title: '',
-    blocks: [p(b('Updated : June 2025'))],
+    blocks: [p(b('Updated : March 2026'))],
   },
 ];
 

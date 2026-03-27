@@ -972,9 +972,9 @@ const TermsAndConditions = () => {
               </li>
             </ul>
           </div>
-          {/* Updated: June 2025 */}
+          {/* Updated: March 2026 */}
           <div className="definitions">
-            <h3 className="definitions__title">Updated: June 2025</h3>
+            <h3 className="definitions__title">Updated: March 2026</h3>
           </div>
           {/* EXHIBIT A */}
           <div className="doc-box">
