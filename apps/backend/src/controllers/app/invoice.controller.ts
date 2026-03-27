@@ -153,6 +153,34 @@ export const InvoiceController = {
     }
   },
 
+  async bootstrapInvoiceForAppointment(
+    this: void,
+    req: Request<{ appointmentId: string }>,
+    res: Response,
+  ) {
+    try {
+      const appointmentId = req.params.appointmentId;
+      if (!appointmentId) {
+        return res.status(400).json({ message: "Appointment Id is required" });
+      }
+
+      const invoice =
+        await InvoiceService.bootstrapForAppointment(appointmentId);
+      return res.status(200).json(invoice);
+    } catch (err) {
+      logger.error("Error bootstrapping appointment invoice", err);
+
+      const statusCode =
+        err instanceof InvoiceServiceError ? err.statusCode : 500;
+      const message =
+        err instanceof InvoiceServiceError
+          ? err.message
+          : "Internal server error";
+
+      return res.status(statusCode).json({ message });
+    }
+  },
+
   async markInvoicePaidManually(this: void, req: Request, res: Response) {
     try {
       const invoiceId = req.params.invoiceId;

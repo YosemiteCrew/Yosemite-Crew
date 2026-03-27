@@ -1305,14 +1305,41 @@ export const AppointmentService = {
 
       await recordFormAttachmentAudit(appointment, created.id);
 
-      const paymentIntent =
-        await StripeService.createPaymentIntentForAppointment(created.id);
+      const invoice = await InvoiceService.getOrCreateDraftForAppointment({
+        appointmentId: created.id,
+        parentId: appointment.companion.parent.id,
+        companionId: appointment.companion.id,
+        organisationId: appointment.organisationId,
+        items: [
+          {
+            description:
+              appointment.appointmentType?.name ??
+              service.name ??
+              "Consultation",
+            quantity: 1,
+            unitPrice: service.cost,
+            discountPercent: service.maxDiscount ?? undefined,
+          },
+        ],
+        notes: appointment.concern ?? undefined,
+        paymentCollectionMethod: "PAYMENT_INTENT",
+      });
+
+      const invoiceId =
+        typeof (invoice as { id?: string }).id === "string"
+          ? (invoice as { id: string }).id
+          : (invoice as { _id?: Types.ObjectId })._id?.toString();
+
+      const paymentIntent = invoiceId
+        ? await StripeService.createPaymentIntentForInvoice(invoiceId)
+        : undefined;
 
       await maybeCreateObservationToolTask(service, appointment, created.id);
 
       return {
         appointment:
           await toAppointmentResponseDTOWithPaymentStatusFromPrisma(created),
+        invoice,
         paymentIntent,
       };
     }
@@ -1379,9 +1406,33 @@ export const AppointmentService = {
       savedAppointment._id.toString(),
     );
 
-    const paymentIntent = await StripeService.createPaymentIntentForAppointment(
-      savedAppointment._id.toString(),
-    );
+    const invoice = await InvoiceService.getOrCreateDraftForAppointment({
+      appointmentId: savedAppointment._id.toString(),
+      parentId: appointment.companion.parent.id,
+      companionId: appointment.companion.id,
+      organisationId: appointment.organisationId,
+      items: [
+        {
+          description:
+            appointment.appointmentType?.name ?? service.name ?? "Consultation",
+          quantity: 1,
+          unitPrice: service.cost,
+          discountPercent: service.maxDiscount ?? undefined,
+        },
+      ],
+      notes: appointment.concern ?? undefined,
+      paymentCollectionMethod: "PAYMENT_INTENT",
+    });
+
+    const invoiceId =
+      (invoice as { _id?: Types.ObjectId; id?: string })._id?.toString() ??
+      (typeof (invoice as { id?: string }).id === "string"
+        ? (invoice as { id: string }).id
+        : undefined);
+
+    const paymentIntent = invoiceId
+      ? await StripeService.createPaymentIntentForInvoice(invoiceId)
+      : undefined;
 
     await maybeCreateObservationToolTask(
       service,
@@ -1392,6 +1443,7 @@ export const AppointmentService = {
     return {
       appointment:
         await toAppointmentResponseDTOWithPaymentStatus(savedAppointment),
+      invoice,
       paymentIntent,
     };
   },
