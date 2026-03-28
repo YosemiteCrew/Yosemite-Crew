@@ -207,11 +207,28 @@ describe("DocumentController", () => {
       (req as any).userId = "pms1";
       (req as any).organisationId = "org1";
       req.params = { companionId: "c1" };
-      req.body = { title: "Doc", category: "Test" };
+      req.body = {
+        title: "Doc",
+        category: "Test",
+        visitType: "CHECKUP",
+        issuingBusinessName: "Clinic One",
+        issueDate: "2024-02-01",
+      };
       mockedDocumentService.create.mockResolvedValue({ id: "d1" } as any);
 
       await DocumentController.createDocumentPms(req as any, res as Response);
       expect(statusMock).toHaveBeenCalledWith(201);
+      expect(mockedDocumentService.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          visitType: "CHECKUP",
+          issuingBusinessName: "Clinic One",
+          issueDate: "2024-02-01",
+        }),
+        expect.objectContaining({
+          pmsUserId: "pms1",
+          organisationId: "org1",
+        }),
+      );
     });
 
     it("should handle service error", async () => {
