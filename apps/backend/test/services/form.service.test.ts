@@ -50,6 +50,7 @@ jest.mock("../../src/models/appointment", () => ({
   default: {
     findById: jest.fn(),
     updateOne: jest.fn(),
+    find: jest.fn(),
   },
 }));
 
@@ -1198,5 +1199,85 @@ describe("FormService", () => {
       const anyQR = res.items[0].questionnaireResponse as any;
       expect(anyQR?.signing?.pdf?.url).toBeUndefined(); // Missing key prevented url fetch
     });
+  });
+});
+
+describe("FormService.listSubmissionsForCompanionInOrganisation", () => {
+  const organisationId = "507f1f77bcf86cd799439011";
+  const companionId = "507f191e810c19729de860ea";
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("filters submissions by appointment org or form org", async () => {
+    const appointmentId = new Types.ObjectId().toHexString();
+    const matchingFormId = new Types.ObjectId();
+    const otherFormId = new Types.ObjectId();
+
+    (FormSubmissionModel.find as jest.Mock).mockReturnValue({
+      sort: jest.fn().mockReturnThis(),
+      lean: jest.fn().mockResolvedValue([
+        {
+          _id: new Types.ObjectId(),
+          formId: matchingFormId,
+          formVersion: 1,
+          appointmentId,
+          companionId,
+          submittedBy: "parent-1",
+          answers: { note: "ok" },
+          submittedAt: new Date("2024-01-02T10:00:00.000Z"),
+        },
+        {
+          _id: new Types.ObjectId(),
+          formId: otherFormId,
+          formVersion: 1,
+          appointmentId: undefined,
+          companionId,
+          submittedBy: "parent-2",
+          answers: { note: "skip" },
+          submittedAt: new Date("2024-01-01T10:00:00.000Z"),
+        },
+      ]),
+    });
+
+    (FormModel.find as jest.Mock).mockReturnValue({
+      select: jest.fn().mockReturnThis(),
+      lean: jest.fn().mockResolvedValue([
+        {
+          _id: matchingFormId,
+          name: "SOAP Plan",
+          category: "SOAP-Plan",
+          orgId: organisationId,
+        },
+        {
+          _id: otherFormId,
+          name: "General",
+          category: "General",
+          orgId: "other-org",
+        },
+      ]),
+    });
+
+    (AppointmentModel.find as jest.Mock).mockReturnValue({
+      select: jest.fn().mockReturnThis(),
+      lean: jest.fn().mockResolvedValue([
+        {
+          _id: new Types.ObjectId(appointmentId),
+          organisationId,
+        },
+      ]),
+    });
+
+    const results = await FormService.listSubmissionsForCompanionInOrganisation(
+      {
+        organisationId,
+        companionId,
+      },
+    );
+
+    expect(results).toHaveLength(1);
+    expect(results[0].formName).toBe("SOAP Plan");
+    expect(results[0].appointmentId).toBe(appointmentId);
   });
 });
