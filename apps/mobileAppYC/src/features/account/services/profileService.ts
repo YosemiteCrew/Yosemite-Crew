@@ -180,7 +180,7 @@ const mapSummaryFromResource = (
 const buildParentRequestBody = (
   payload: ParentProfileUpsertPayload,
 ): RelatedPerson => {
-  return toFHIRRelatedPerson({
+  const body = toFHIRRelatedPerson({
     id: payload.parentId ?? undefined,
     firstName: payload.firstName,
     lastName: payload.lastName,
@@ -203,6 +203,28 @@ const buildParentRequestBody = (
       payload.profileImageKey ?? payload.existingPhotoUrl ?? undefined,
     isProfileComplete: payload.isProfileComplete,
   });
+
+  const email = payload.email?.trim();
+  if (!email) {
+    return body;
+  }
+
+  const telecom = body.telecom ?? [];
+  const hasEmailTelecom = telecom.some(item => item.system === 'email');
+  if (hasEmailTelecom) {
+    return body;
+  }
+
+  return {
+    ...body,
+    telecom: [
+      ...telecom,
+      {
+        system: 'email',
+        value: email,
+      },
+    ],
+  };
 };
 export const fetchProfileStatus = async ({
   accessToken,

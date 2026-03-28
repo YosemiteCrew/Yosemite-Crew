@@ -3,6 +3,7 @@ import {
   evaluateAppUpdatePrompt,
   shouldShowOptionalPrompt,
 } from '@/features/appUpdate/services/appUpdatePolicy';
+import {Platform} from 'react-native';
 
 jest.mock('react-native', () => ({
   Platform: {
@@ -11,6 +12,10 @@ jest.mock('react-native', () => ({
 }));
 
 describe('appUpdatePolicy', () => {
+  beforeEach(() => {
+    (Platform as {OS: string}).OS = 'android';
+  });
+
   it('compares semantic versions correctly', () => {
     expect(compareVersions('1.0.0', '1.0.0')).toBe(0);
     expect(compareVersions('1.0.1', '1.0.0')).toBe(1);
@@ -137,5 +142,26 @@ describe('appUpdatePolicy', () => {
     );
 
     expect(prompt?.storeUrl).toBe('market://details?id=com.yc.bundle');
+  });
+
+  it('downgrades forced update to optional when iOS store URL cannot be resolved', () => {
+    (Platform as {OS: string}).OS = 'ios';
+
+    const prompt = evaluateAppUpdatePrompt(
+      {
+        env: 'production',
+        enablePayments: true,
+        appUpdate: {
+          enabled: true,
+          force: true,
+        },
+      },
+      '1.0.0',
+      1,
+      'com.yc.bundle',
+    );
+
+    expect(prompt?.kind).toBe('optional');
+    expect(prompt?.storeUrl).toBeNull();
   });
 });

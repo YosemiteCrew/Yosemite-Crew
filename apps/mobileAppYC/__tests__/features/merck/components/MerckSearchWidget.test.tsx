@@ -28,7 +28,14 @@ jest.mock('@/features/merck/services/merckService', () => ({
   merckApi: {
     searchManuals: jest.fn(),
   },
-  isAllowedMerckUrl: jest.fn((url: string) => url.includes('msdvetmanual.com')),
+  isAllowedMerckUrl: jest.fn((url: string) => {
+    try {
+      const host = new URL(url).hostname.toLowerCase();
+      return host === 'msdvetmanual.com' || host.endsWith('.msdvetmanual.com');
+    } catch {
+      return false;
+    }
+  }),
 }));
 
 jest.mock('@/shared/components/common/SearchBar/SearchBar', () => ({

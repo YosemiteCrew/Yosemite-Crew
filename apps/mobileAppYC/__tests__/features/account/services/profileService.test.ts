@@ -257,6 +257,36 @@ describe('profileService', () => {
       });
     });
 
+    it('preserves email telecom when phone number is blank', async () => {
+      const resource = createRelatedPerson({extension: []});
+      mockedClient.request.mockResolvedValueOnce({status: 200, data: resource});
+
+      await updateParentProfile(
+        {
+          ...basePayload,
+          parentId: 'parent-123',
+          phoneNumber: '',
+          email: 'email-only@example.com',
+        },
+        'token',
+      );
+
+      expect(mockedClient.request).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: 'put',
+          url: '/fhir/v1/parent/parent-123',
+          data: expect.objectContaining({
+            telecom: expect.arrayContaining([
+              expect.objectContaining({
+                system: 'email',
+                value: 'email-only@example.com',
+              }),
+            ]),
+          }),
+        }),
+      );
+    });
+
     it('throws when updating without identifier', async () => {
       await expect(
         updateParentProfile({...basePayload, parentId: null}, 'token'),

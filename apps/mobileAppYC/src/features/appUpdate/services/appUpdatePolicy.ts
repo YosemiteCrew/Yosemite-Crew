@@ -174,11 +174,15 @@ export const evaluateAppUpdatePrompt = (
     return null;
   }
 
+  const storeUrl = resolveStoreUrl(appUpdate, bundleId);
+  const kind: AppUpdatePrompt['kind'] =
+    mustUpdate && storeUrl ? 'required' : 'optional';
+
   return {
-    kind: mustUpdate ? 'required' : 'optional',
+    kind,
     title: platformPolicy?.title ?? appUpdate.title,
     message: platformPolicy?.message ?? appUpdate.message,
-    storeUrl: resolveStoreUrl(appUpdate, bundleId),
+    storeUrl,
     remindAfterHours,
     currentVersion: appVersion,
     currentBuildNumber: appBuildNumber,
