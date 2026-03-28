@@ -61,6 +61,8 @@ export const useOverviewStats = () => {
         );
         if (allDates.length === 0) return;
 
+        // FIXED: Reverted back to using the latest date provided in the JSON data!
+        // This prevents the line from plummeting to 0 on days where data hasn't synced yet.
         const maxDate = new Date(Math.max(...allDates));
         maxDate.setUTCHours(23, 59, 59, 999);
 
@@ -72,10 +74,6 @@ export const useOverviewStats = () => {
         const dayMinus30 = new Date(maxDate);
         dayMinus30.setUTCDate(maxDate.getUTCDate() - 30);
         let lastForks = getCumulative(forksData, dayMinus30.getTime(), 'forks_cumulative');
-
-        let runningClones = clonesData
-          .filter((d: any) => new Date(d.time).getTime() <= dayMinus30.getTime())
-          .reduce((sum: number, d: any) => sum + (d.clones_total || 0), 0);
 
         for (let i = 29; i >= 0; i--) {
           const targetDate = new Date(maxDate);
@@ -90,9 +88,9 @@ export const useOverviewStats = () => {
 
           const cloneEntry = clonesData.find((d: any) => d.time.startsWith(dateString));
           const cloneUniqueEntry = clonesUniqueData.find((d: any) => d.time.startsWith(dateString));
+
           const clonesTotal = cloneEntry ? cloneEntry.clones_total : 0;
           const clonesUnique = cloneUniqueEntry ? cloneUniqueEntry.clones_unique : 0;
-          runningClones += clonesTotal;
 
           const targetTimeMs = targetDate.getTime();
           const forksCum = getCumulative(forksData, targetTimeMs, 'forks_cumulative');
@@ -102,7 +100,7 @@ export const useOverviewStats = () => {
           generatedTraffic.push({
             month: monthLabel,
             'Self Hosters (Unique)': clonesUnique,
-            'Self Hosters (Cumulative)': runningClones,
+            'Self Hosters (Cumulative)': clonesTotal,
             'Builders (Unique)': forksUnique,
             'Builders (Cumulative)': forksCum,
           });
@@ -120,7 +118,6 @@ export const useOverviewStats = () => {
           const firstDate = new Date(sortedStars[0].time);
           const lastDate = new Date(maxDate);
 
-          // Always start exactly on the 1st of the first month
           let currentMonth = new Date(
             Date.UTC(firstDate.getUTCFullYear(), firstDate.getUTCMonth(), 1)
           );
@@ -136,14 +133,12 @@ export const useOverviewStats = () => {
               timeZone: 'UTC',
             });
 
-            // Smart formatting to save space and prevent Recharts from hiding ticks
             let displayLabel = rawMonth;
             if (rawYear !== currentYearStr) {
-              displayLabel = `${rawMonth} '${rawYear.slice(-2)}`; // e.g. "Jan '26"
+              displayLabel = `${rawMonth} '${rawYear.slice(-2)}`;
               currentYearStr = rawYear;
             }
 
-            // Get the value at the very end of this specific month
             const nextMonth = new Date(
               Date.UTC(currentMonth.getUTCFullYear(), currentMonth.getUTCMonth() + 1, 1)
             );
