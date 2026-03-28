@@ -114,6 +114,7 @@ describe('Appointments table', () => {
     };
     const setActiveAppointment = jest.fn();
     const setViewPopup = jest.fn();
+    const setViewIntent = jest.fn();
     const setReschedulePopup = jest.fn();
 
     render(
@@ -121,16 +122,19 @@ describe('Appointments table', () => {
         filteredList={[appointment]}
         setActiveAppointment={setActiveAppointment}
         setViewPopup={setViewPopup}
+        setViewIntent={setViewIntent}
         setReschedulePopup={setReschedulePopup}
         canEditAppointments
       />
     );
 
+    fireEvent.click(screen.getByTitle('Open appointment history'));
     fireEvent.click(screen.getByText('view-icon').closest('button')!);
     fireEvent.click(screen.getByText('reschedule-icon').closest('button')!);
 
     expect(setActiveAppointment).toHaveBeenCalledWith(appointment);
     expect(setViewPopup).toHaveBeenCalledWith(true);
+    expect(setViewIntent).toHaveBeenCalledWith({ label: 'info', subLabel: 'history' });
     expect(setReschedulePopup).toHaveBeenCalledWith(true);
   });
 

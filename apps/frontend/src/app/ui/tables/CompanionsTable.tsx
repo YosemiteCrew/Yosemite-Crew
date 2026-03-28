@@ -32,6 +32,7 @@ type CompanionsTableProps = {
   filteredList: CompanionParent[];
   setActiveCompanion: (companion: CompanionParent) => void;
   setViewCompanion: (open: boolean) => void;
+  setCompanionInfoInitialLabel?: (label: 'info' | 'history') => void;
   setBookAppointment: (open: boolean) => void;
   setAddTask: (open: boolean) => void;
   setChangeStatusPopup: (open: boolean) => void;
@@ -69,6 +70,7 @@ const CompanionsTable = ({
   filteredList,
   setActiveCompanion,
   setViewCompanion,
+  setCompanionInfoInitialLabel,
   setBookAppointment,
   setAddTask,
   setChangeStatusPopup,
@@ -115,6 +117,7 @@ const CompanionsTable = ({
 
   const handleViewCompanion = (companion: CompanionParent) => {
     setActiveCompanion(companion);
+    setCompanionInfoInitialLabel?.('info');
     setViewCompanion(true);
   };
 
@@ -134,6 +137,12 @@ const CompanionsTable = ({
   };
 
   const handleViewHistory = (companion: CompanionParent) => {
+    setActiveCompanion(companion);
+    setCompanionInfoInitialLabel?.('history');
+    setViewCompanion(true);
+  };
+
+  const handleOpenCompanionHistoryPage = (companion: CompanionParent) => {
     const companionId = String(companion.companion.id ?? '').trim();
     if (!companionId) return;
 
@@ -180,9 +189,14 @@ const CompanionsTable = ({
       render: (item: CompanionParent) => (
         <div className="appointment-profile">
           <div className="appointment-profile-two">
-            <div className="appointment-profile-title">
+            <button
+              type="button"
+              onClick={() => handleOpenCompanionHistoryPage(item)}
+              className="appointment-profile-title cursor-pointer hover:underline underline-offset-2 text-left"
+              title="Open companion history"
+            >
               {formatDisplayValue(item.companion.name)}
-            </div>
+            </button>
             <div className="flex items-center">
               <div className="appointment-profile-sub truncate max-w-[75px] mr-1">
                 {formatDisplayValue(item.companion.breed)}

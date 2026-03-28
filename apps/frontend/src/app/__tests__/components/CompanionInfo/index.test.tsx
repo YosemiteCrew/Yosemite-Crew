@@ -65,4 +65,21 @@ describe('CompanionInfo', () => {
     fireEvent.click(screen.getByRole('button', { name: 'History' }));
     expect(screen.getByText('history-section')).toBeInTheDocument();
   });
+
+  it('opens on history tab when initialLabel is history', () => {
+    const companion: any = {
+      companion: { name: 'Buddy', breed: 'Lab', type: 'dog', photoUrl: '' },
+    };
+
+    render(
+      <CompanionInfo
+        showModal
+        setShowModal={jest.fn()}
+        activeCompanion={companion}
+        initialLabel="history"
+      />
+    );
+
+    expect(screen.getByText('history-section')).toBeInTheDocument();
+  });
 });

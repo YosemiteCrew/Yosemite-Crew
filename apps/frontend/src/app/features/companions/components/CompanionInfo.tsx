@@ -12,6 +12,7 @@ type CompanionInfoProps = {
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
   activeCompanion: CompanionParent | null;
   canEditCompanionStatus?: boolean;
+  initialLabel?: LabelKey;
 };
 type LabelKey = 'info' | 'history';
 type SubLabelKey = 'companion-information' | 'parent-information' | 'history';
@@ -47,6 +48,7 @@ const CompanionInfo = ({
   setShowModal,
   activeCompanion,
   canEditCompanionStatus = false,
+  initialLabel = 'info',
 }: CompanionInfoProps) => {
   const [activeLabel, setActiveLabel] = useState<LabelKey>(labels[0].key as LabelKey);
   const [activeSubLabel, setActiveSubLabel] = useState<SubLabelKey>(
@@ -73,6 +75,11 @@ const CompanionInfo = ({
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
   }, [activeLabel, activeSubLabel]);
+
+  useEffect(() => {
+    if (!showModal) return;
+    setActiveLabel(initialLabel);
+  }, [showModal, initialLabel, activeCompanion?.companion.id]);
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>

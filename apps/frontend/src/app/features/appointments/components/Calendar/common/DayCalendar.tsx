@@ -40,6 +40,7 @@ import {
   IoFlaskOutline,
 } from 'react-icons/io5';
 import { MdMeetingRoom, MdOutlineAutorenew } from 'react-icons/md';
+import { RiHistoryLine } from 'react-icons/ri';
 import { useCalendarNavigation, getDateDisplay } from '@/app/hooks/useCalendarNavigation';
 import { createPortal } from 'react-dom';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
@@ -264,6 +265,10 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
       .split('_')
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
       .join(' ');
+  };
+
+  const openAppointmentHistory = (appointment: Appointment) => {
+    handleViewAppointment(appointment, { label: 'info', subLabel: 'history' });
   };
 
   const handleOpenPopover = (
@@ -669,9 +674,17 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                   alt={''}
                 />
                 <div className="min-w-0">
-                  <div className="text-body-3-emphasis text-text-primary truncate">
+                  <button
+                    type="button"
+                    className="text-body-3-emphasis text-text-primary truncate cursor-pointer hover:underline underline-offset-2 text-left"
+                    onClick={() => {
+                      openAppointmentHistory(activeEvent);
+                      setActivePopoverKey(null);
+                    }}
+                    title="Open appointment history"
+                  >
                     {activeEvent.companion.name || '-'}
-                  </div>
+                  </button>
                   <div className="text-caption-1 text-text-secondary truncate">
                     {activeEvent.companion.breed || '-'} / {activeEvent.companion.species || '-'}
                   </div>
@@ -755,6 +768,32 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
               )}
               {!isRequestedLikeStatus(activeEvent.status) && (
                 <>
+                  <GlassTooltip content="View appointment" side="top">
+                    <button
+                      type="button"
+                      title="View appointment"
+                      className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
+                      onClick={() => {
+                        handleViewAppointment(activeEvent);
+                        setActivePopoverKey(null);
+                      }}
+                    >
+                      <IoEyeOutline size={18} />
+                    </button>
+                  </GlassTooltip>
+                  <GlassTooltip content="History" side="top">
+                    <button
+                      type="button"
+                      title="Appointment history"
+                      className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
+                      onClick={() => {
+                        openAppointmentHistory(activeEvent);
+                        setActivePopoverKey(null);
+                      }}
+                    >
+                      <RiHistoryLine size={17} />
+                    </button>
+                  </GlassTooltip>
                   {canEditAppointments && canShowStatusChangeAction(activeEvent.status) && (
                     <GlassTooltip content="Change status" side="top">
                       <button
@@ -774,19 +813,6 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                       </button>
                     </GlassTooltip>
                   )}
-                  <GlassTooltip content="View appointment" side="top">
-                    <button
-                      type="button"
-                      title="View appointment"
-                      className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
-                      onClick={() => {
-                        handleViewAppointment(activeEvent);
-                        setActivePopoverKey(null);
-                      }}
-                    >
-                      <IoEyeOutline size={18} />
-                    </button>
-                  </GlassTooltip>
                   {canEditAppointments && allowReschedule(activeEvent.status) && (
                     <GlassTooltip content="Reschedule" side="top">
                       <button

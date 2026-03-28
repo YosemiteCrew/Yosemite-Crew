@@ -107,6 +107,7 @@ describe('CompanionsTable', () => {
   it('handles view, history, schedule, and task actions', () => {
     const setActiveCompanion = jest.fn();
     const setViewCompanion = jest.fn();
+    const setCompanionInfoInitialLabel = jest.fn();
     const setBookAppointment = jest.fn();
     const setAddTask = jest.fn();
     const setChangeStatusPopup = jest.fn();
@@ -116,6 +117,7 @@ describe('CompanionsTable', () => {
         filteredList={[companion]}
         setActiveCompanion={setActiveCompanion}
         setViewCompanion={setViewCompanion}
+        setCompanionInfoInitialLabel={setCompanionInfoInitialLabel}
         setBookAppointment={setBookAppointment}
         setAddTask={setAddTask}
         setChangeStatusPopup={setChangeStatusPopup}
@@ -126,6 +128,7 @@ describe('CompanionsTable', () => {
     );
 
     fireEvent.click(screen.getByText('view-icon').closest('button')!);
+    fireEvent.click(screen.getByTitle('Open companion history'));
     fireEvent.click(screen.getByTitle('View history'));
     fireEvent.click(screen.getByTitle('Open appointment'));
     fireEvent.click(screen.getByText('status-icon').closest('button')!);
@@ -134,13 +137,15 @@ describe('CompanionsTable', () => {
 
     expect(setActiveCompanion).toHaveBeenCalledWith(companion);
     expect(setViewCompanion).toHaveBeenCalledWith(true);
+    expect(setCompanionInfoInitialLabel).toHaveBeenCalledWith('info');
+    expect(setCompanionInfoInitialLabel).toHaveBeenCalledWith('history');
     expect(setChangeStatusPopup).toHaveBeenCalledWith(true);
     expect(setBookAppointment).toHaveBeenCalledWith(true);
     expect(setAddTask).toHaveBeenCalledWith(true);
+    expect(pushMock).toHaveBeenCalledWith('/appointments?appointmentId=appt-1');
     expect(pushMock).toHaveBeenCalledWith(
       '/companions/history?companionId=c1&source=companions&backTo=%2Fcompanions%3FcompanionId%3Dc1'
     );
-    expect(pushMock).toHaveBeenCalledWith('/appointments?appointmentId=appt-1');
   });
 
   it('shows empty state for mobile list', () => {

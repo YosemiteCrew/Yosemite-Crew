@@ -38,6 +38,9 @@ const Companions = () => {
   const [activeStatus, setActiveStatus] = useState('all');
   const [addPopup, setAddPopup] = useState(false);
   const [viewCompanion, setViewCompanion] = useState(false);
+  const [companionInfoInitialLabel, setCompanionInfoInitialLabel] = useState<'info' | 'history'>(
+    'info'
+  );
   const [activeCompanion, setActiveCompanion] = useState<CompanionParent | null>(
     companions[0] ?? null
   );
@@ -65,6 +68,7 @@ const Companions = () => {
     if (!target) return;
 
     setActiveCompanion(target);
+    setCompanionInfoInitialLabel('info');
     setViewCompanion(true);
     handledDeepLinkRef.current = companionId;
   }, [companions, searchParams]);
@@ -127,6 +131,7 @@ const Companions = () => {
             filteredList={filteredList}
             setActiveCompanion={setActiveCompanion}
             setViewCompanion={setViewCompanion}
+            setCompanionInfoInitialLabel={setCompanionInfoInitialLabel}
             setBookAppointment={setBookAppointment}
             setAddTask={setAddTask}
             setChangeStatusPopup={setChangeStatusPopup}
@@ -143,6 +148,7 @@ const Companions = () => {
             setShowModal={setViewCompanion}
             activeCompanion={activeCompanion}
             canEditCompanionStatus={canEditCompanions}
+            initialLabel={companionInfoInitialLabel}
           />
         )}
         {activeCompanion && canEditCompanions && (
