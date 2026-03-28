@@ -59,11 +59,32 @@ type FormSubmissionDoc = HydratedDocument<FormSubmissionDocument> & {
   updatedAt?: Date;
 };
 
+type CompanionFormSubmission = {
+  id: string;
+  formId: string;
+  formVersion: number;
+  appointmentId?: string;
+  companionId?: string;
+  submittedBy?: string;
+  submittedAt: Date;
+  answers: Record<string, unknown>;
+  signing?: FormSubmissionDocument["signing"];
+  formName?: string | null;
+  formCategory?: string | null;
+};
+
 const ensureObjectId = (id: string | Types.ObjectId, label: string) => {
   if (id instanceof Types.ObjectId) return id;
   if (!Types.ObjectId.isValid(id))
     throw new FormServiceError(`Invalid ${label}`, 400);
   return new Types.ObjectId(id);
+};
+
+const ensureNonEmptyString = (value: unknown, label: string) => {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new FormServiceError(`Invalid ${label}`, 400);
+  }
+  return value.trim();
 };
 
 type NormalizableObjectId =
@@ -1281,6 +1302,162 @@ export const FormService = {
     return FormSubmissionModel.find({ formId: fid })
       .sort({ submittedAt: -1 })
       .lean();
+  },
+
+  async listSubmissionsForCompanionInOrganisation(params: {
+    organisationId: string;
+    companionId: string;
+  }): Promise<CompanionFormSubmission[]> {
+    const organisationId = ensureNonEmptyString(
+      params.organisationId,
+      "organisationId",
+    );
+    const companionId = ensureNonEmptyString(params.companionId, "companionId");
+
+    if (isReadFromPostgres()) {
+      const submissions = await prisma.formSubmission.findMany({
+        where: { companionId },
+        orderBy: { submittedAt: "desc" },
+      });
+
+      if (!submissions.length) return [];
+
+      const formIds = [
+        ...new Set(submissions.map((submission) => submission.formId)),
+      ];
+      const appointmentIds = [
+        ...new Set(
+          submissions
+            .map((submission) => submission.appointmentId)
+            .filter(Boolean),
+        ),
+      ] as string[];
+
+      const [forms, appointments] = await Promise.all([
+        prisma.form.findMany({
+          where: { id: { in: formIds } },
+          select: { id: true, name: true, category: true, orgId: true },
+        }),
+        appointmentIds.length
+          ? prisma.appointment.findMany({
+              where: { id: { in: appointmentIds } },
+              select: { id: true, organisationId: true },
+            })
+          : Promise.resolve([]),
+      ]);
+
+      const formMap = new Map(forms.map((form) => [form.id, form]));
+      const appointmentOrgMap = new Map(
+        appointments.map((appointment) => [
+          appointment.id,
+          appointment.organisationId,
+        ]),
+      );
+
+      return submissions
+        .filter((submission) => {
+          if (submission.appointmentId) {
+            return (
+              appointmentOrgMap.get(submission.appointmentId) === organisationId
+            );
+          }
+          const form = formMap.get(submission.formId);
+          return form?.orgId === organisationId;
+        })
+        .map((submission) => {
+          const form = formMap.get(submission.formId);
+          return {
+            id: submission.id,
+            formId: submission.formId,
+            formVersion: submission.formVersion,
+            appointmentId: submission.appointmentId ?? undefined,
+            companionId: submission.companionId ?? undefined,
+            submittedBy: submission.submittedBy ?? undefined,
+            submittedAt: submission.submittedAt,
+            answers: (submission.answers ?? {}) as Record<string, unknown>,
+            signing:
+              (submission.signing as unknown as FormSubmissionDocument["signing"]) ??
+              undefined,
+            formName: form?.name ?? null,
+            formCategory: form?.category ?? null,
+          };
+        });
+    }
+
+    const submissions = await FormSubmissionModel.find({ companionId })
+      .sort({ submittedAt: -1 })
+      .lean();
+
+    if (!submissions.length) return [];
+
+    const formIds = [
+      ...new Set(
+        submissions
+          .map((submission) => normalizeObjectId(submission.formId))
+          .filter(Boolean),
+      ),
+    ];
+    const appointmentIds = [
+      ...new Set(
+        submissions
+          .map((submission) => submission.appointmentId)
+          .filter((id): id is string => Boolean(id))
+          .filter((id) => Types.ObjectId.isValid(id)),
+      ),
+    ];
+
+    const [forms, appointments] = await Promise.all([
+      formIds.length
+        ? FormModel.find({ _id: { $in: formIds } })
+            .select({ name: 1, category: 1, orgId: 1 })
+            .lean()
+        : Promise.resolve([]),
+      appointmentIds.length
+        ? AppointmentModel.find({ _id: { $in: appointmentIds } })
+            .select({ organisationId: 1 })
+            .lean()
+        : Promise.resolve([]),
+    ]);
+
+    const formMap = new Map(
+      forms.map((form) => [normalizeObjectId(form._id), form]),
+    );
+    const appointmentOrgMap = new Map(
+      appointments.map((appointment) => [
+        appointment._id.toString(),
+        appointment.organisationId,
+      ]),
+    );
+
+    return submissions
+      .filter((submission) => {
+        const formId = normalizeObjectId(submission.formId);
+        if (!formId) return false;
+        if (submission.appointmentId) {
+          return (
+            appointmentOrgMap.get(submission.appointmentId) === organisationId
+          );
+        }
+        const form = formMap.get(formId);
+        return form?.orgId?.toString() === organisationId;
+      })
+      .map((submission) => {
+        const formId = normalizeObjectId(submission.formId);
+        const form = formId ? formMap.get(formId) : undefined;
+        return {
+          id: submission._id.toString(),
+          formId: formId ?? "",
+          formVersion: submission.formVersion,
+          appointmentId: submission.appointmentId ?? undefined,
+          companionId: submission.companionId ?? undefined,
+          submittedBy: submission.submittedBy ?? undefined,
+          submittedAt: submission.submittedAt,
+          answers: (submission.answers ?? {}) as Record<string, unknown>,
+          signing: submission.signing ?? undefined,
+          formName: form?.name ?? null,
+          formCategory: form?.category ?? null,
+        };
+      });
   },
 
   async getAutoSendForms(orgId: string, serviceId?: string) {

@@ -1609,9 +1609,11 @@ describe("StripeService", () => {
         } as any);
 
         (AppointmentModel.findById as jest.Mock).mockResolvedValueOnce({});
-        (InvoiceModel.findOne as jest.Mock).mockResolvedValueOnce({
-          id: "existing",
-        });
+        (InvoiceModel.findOne as jest.Mock)
+          .mockReturnValueOnce({
+            sort: jest.fn().mockResolvedValueOnce(null),
+          })
+          .mockResolvedValueOnce({ id: "existing", status: "PAID" });
         await StripeService._handleAppointmentBookingPayment({
           metadata: { appointmentId: "app_1" },
         } as any);
@@ -1619,7 +1621,9 @@ describe("StripeService", () => {
         (AppointmentModel.findById as jest.Mock).mockResolvedValueOnce({
           appointmentType: { id: "srv_1" },
         });
-        (InvoiceModel.findOne as jest.Mock).mockResolvedValueOnce(null);
+        (InvoiceModel.findOne as jest.Mock).mockReturnValueOnce({
+          sort: jest.fn().mockResolvedValueOnce(null),
+        });
         mStripe.charges.retrieve.mockResolvedValueOnce({ id: "ch_1" });
         (ServiceModel.findById as jest.Mock).mockResolvedValueOnce(null);
         await StripeService._handleAppointmentBookingPayment({
@@ -1921,7 +1925,9 @@ describe("StripeService", () => {
           organisationId: "org_1",
           companion: { id: "comp_1", parent: { id: "par_1" } },
         });
-        (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce(null);
+        (prisma.invoice.findFirst as jest.Mock)
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(null);
         mStripe.charges.retrieve.mockResolvedValueOnce({
           id: "ch_1",
           receipt_url: "receipt",
@@ -1942,6 +1948,33 @@ describe("StripeService", () => {
 
         expect(prisma.invoice.create).toHaveBeenCalled();
         expect(prisma.appointment.updateMany).toHaveBeenCalled();
+      });
+
+      it("settles open invoice for appointment booking payment", async () => {
+        (prisma.appointment.findUnique as jest.Mock).mockResolvedValueOnce({
+          id: "appt_1",
+          appointmentType: { id: "svc_1" },
+          organisationId: "org_1",
+          companion: { id: "comp_1", parent: { id: "par_1" } },
+        });
+        (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+          id: "inv_open",
+          status: "AWAITING_PAYMENT",
+        });
+        mStripe.charges.retrieve.mockResolvedValueOnce({
+          id: "ch_1",
+          receipt_url: "receipt",
+        });
+
+        await StripeService._handleAppointmentBookingPayment({
+          id: "pi_1",
+          currency: "usd",
+          latest_charge: "ch_1",
+          metadata: { appointmentId: "appt_1" },
+        } as any);
+
+        expect(prisma.invoice.updateMany).toHaveBeenCalled();
+        expect(prisma.invoice.create).not.toHaveBeenCalled();
       });
 
       it("handles invoice payment and failure/refund flows", async () => {

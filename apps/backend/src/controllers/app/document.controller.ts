@@ -169,6 +169,9 @@ export const DocumentController = {
           subcategory: body.subcategory,
           attachments: body.attachments ?? [],
           appointmentId: body.appointmentId ?? null,
+          visitType: body.visitType,
+          issuingBusinessName: body.issuingBusinessName,
+          issueDate: body.issueDate,
         },
         {
           pmsUserId: pmsUserId,

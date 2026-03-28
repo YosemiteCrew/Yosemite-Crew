@@ -1,6 +1,10 @@
 import { Router } from "express";
 import { InvoiceController } from "../controllers/app/invoice.controller";
 import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
+import {
+  requirePermission,
+  withAppointmentOrgPermissions,
+} from "src/middlewares/rbac";
 
 const router = Router();
 
@@ -36,6 +40,14 @@ router.post(
   "/appointment/:appointmentId",
   authorizeCognito,
   InvoiceController.listInvoicesForAppointment,
+);
+
+router.post(
+  "/pms/appointment/:appointmentId/bootstrap",
+  authorizeCognito,
+  withAppointmentOrgPermissions(),
+  requirePermission("billing:edit:any"),
+  InvoiceController.bootstrapInvoiceForAppointment,
 );
 
 // Get invoice by Payment Intent ID

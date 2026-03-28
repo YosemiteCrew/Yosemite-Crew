@@ -6,6 +6,7 @@ import {
 import type { InvoiceDocument } from "../../src/models/invoice";
 import InvoiceModel from "../../src/models/invoice";
 import AppointmentModel from "../../src/models/appointment";
+import ServiceModel from "../../src/models/service";
 import { StripeService } from "../../src/services/stripe.service";
 import OrganizationModel from "../../src/models/organization";
 import { ParentModel } from "../../src/models/parent";
@@ -35,6 +36,13 @@ jest.mock("../../src/models/invoice", () => {
 });
 
 jest.mock("../../src/models/appointment", () => ({
+  __esModule: true,
+  default: {
+    findById: jest.fn(),
+  },
+}));
+
+jest.mock("../../src/models/service", () => ({
   __esModule: true,
   default: {
     findById: jest.fn(),
@@ -107,6 +115,7 @@ jest.mock("src/config/prisma", () => ({
       update: jest.fn(),
       upsert: jest.fn(),
     },
+    service: { findUnique: jest.fn() },
     organizationBilling: { findUnique: jest.fn() },
     organization: { findUnique: jest.fn() },
     parent: { findUnique: jest.fn() },
@@ -1457,6 +1466,117 @@ describe("InvoiceService", () => {
           where: { id: "inv_1" },
         }),
       );
+    });
+  });
+
+  describe("bootstrapForAppointment", () => {
+    it("returns open invoice in postgres", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "appt_1",
+        organisationId: "org_1",
+        companion: { id: "comp_1", parent: { id: "par_1" } },
+        appointmentType: { id: "svc_1", name: "Checkup" },
+        concern: "note",
+      });
+      (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: "inv_open",
+        status: "AWAITING_PAYMENT",
+      });
+
+      const result = await InvoiceService.bootstrapForAppointment("appt_1");
+
+      expect(result).toEqual(
+        expect.objectContaining({ id: "inv_open", status: "AWAITING_PAYMENT" }),
+      );
+      expect(prisma.invoice.create).not.toHaveBeenCalled();
+    });
+
+    it("returns paid invoice in postgres when no open invoice", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
+        id: "appt_1",
+        organisationId: "org_1",
+        companion: { id: "comp_1", parent: { id: "par_1" } },
+        appointmentType: { id: "svc_1", name: "Checkup" },
+        concern: null,
+      });
+      (prisma.invoice.findFirst as jest.Mock)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: "inv_paid", status: "PAID" });
+
+      const result = await InvoiceService.bootstrapForAppointment("appt_1");
+
+      expect(result).toEqual(
+        expect.objectContaining({ id: "inv_paid", status: "PAID" }),
+      );
+      expect(prisma.invoice.create).not.toHaveBeenCalled();
+    });
+
+    it("creates invoice when none exist in postgres", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "appt_1",
+        organisationId: "org_1",
+        companion: { id: "comp_1", parent: { id: "par_1" } },
+        appointmentType: { id: "svc_1", name: "Checkup" },
+        concern: null,
+      });
+      (prisma.invoice.findFirst as jest.Mock)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null);
+      (prisma.service.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "svc_1",
+        name: "Checkup",
+        cost: 50,
+        maxDiscount: null,
+      });
+      (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "org_1",
+      });
+      (
+        prisma.organizationBilling.findUnique as jest.Mock
+      ).mockResolvedValueOnce({
+        currency: "usd",
+      });
+      (prisma.invoice.create as jest.Mock).mockResolvedValueOnce({
+        id: "inv_new",
+        appointmentId: "appt_1",
+        organisationId: "org_1",
+        companionId: "comp_1",
+        status: "AWAITING_PAYMENT",
+        items: [],
+        subtotal: 50,
+        discountTotal: 0,
+        taxTotal: 0,
+        taxPercent: 0,
+        totalAmount: 50,
+        currency: "usd",
+      });
+
+      const result = await InvoiceService.bootstrapForAppointment("appt_1");
+
+      expect(result).toEqual(expect.objectContaining({ id: "inv_new" }));
+      expect(prisma.invoice.create).toHaveBeenCalled();
+    });
+
+    it("returns open invoice in mongo", async () => {
+      process.env.READ_FROM_POSTGRES = "false";
+      (AppointmentModel.findById as jest.Mock).mockResolvedValueOnce({
+        organisationId: "org_1",
+        companion: { id: "comp_1", parent: { id: "par_1" } },
+        appointmentType: { id: "svc_1", name: "Checkup" },
+      });
+      (InvoiceModel.findOne as jest.Mock).mockReturnValueOnce({
+        sort: jest.fn().mockResolvedValueOnce({
+          _id: new Types.ObjectId("64fbc86b9a3c6c5f7fbe1111"),
+          status: "PENDING",
+        }),
+      });
+
+      const result = await InvoiceService.bootstrapForAppointment("appt_1");
+
+      expect(result).toEqual(expect.objectContaining({ status: "PENDING" }));
     });
   });
 });
