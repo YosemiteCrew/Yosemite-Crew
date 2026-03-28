@@ -169,11 +169,5 @@ export const trustCenterData = {
       location: 'Ireland (EU)',
       logo: MEDIA_SOURCES.subProcessorLogos.gcp,
     },
-    {
-      name: 'PostgreSQL',
-      service: 'Relational Database',
-      location: 'Ireland (EU)',
-      logo: MEDIA_SOURCES.subProcessorLogos.postgres,
-    },
   ],
 };
