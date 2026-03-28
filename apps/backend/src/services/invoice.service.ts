@@ -1,6 +1,7 @@
 import mongoose, { Types } from "mongoose";
 import InvoiceModel, { InvoiceDocument, InvoiceMongo } from "../models/invoice";
 import AppointmentModel from "src/models/appointment";
+import ServiceModel from "src/models/service";
 import {
   Invoice,
   InvoiceItem,
@@ -449,6 +450,30 @@ const coerceAppointmentParentId = (appointment: {
   return typeof parent.id === "string" ? parent.id : undefined;
 };
 
+const coerceAppointmentTypeId = (
+  appointmentType: Prisma.JsonValue | null,
+): string | undefined => {
+  if (!appointmentType || typeof appointmentType !== "object") {
+    return undefined;
+  }
+  const appointmentTypeObj = appointmentType as Record<string, unknown>;
+  return typeof appointmentTypeObj.id === "string"
+    ? appointmentTypeObj.id
+    : undefined;
+};
+
+const coerceAppointmentTypeName = (
+  appointmentType: Prisma.JsonValue | null,
+): string | undefined => {
+  if (!appointmentType || typeof appointmentType !== "object") {
+    return undefined;
+  }
+  const appointmentTypeObj = appointmentType as Record<string, unknown>;
+  return typeof appointmentTypeObj.name === "string"
+    ? appointmentTypeObj.name
+    : undefined;
+};
+
 const resolveAuditTargetsForInvoiceRow = async (row: {
   organisationId: string | null;
   companionId: string | null;
@@ -728,6 +753,36 @@ export const InvoiceService = {
     await NotificationService.sendToUser(input.parentId, notificationPayload);
 
     return createdInvoice;
+  },
+
+  async getOrCreateDraftForAppointment(
+    input: {
+      appointmentId: string;
+      parentId: string;
+      organisationId: string;
+      companionId: string;
+      items: {
+        description: string;
+        quantity: number;
+        unitPrice: number;
+        discountPercent?: number;
+      }[];
+      notes?: string;
+      paymentCollectionMethod:
+        | "PAYMENT_INTENT"
+        | "PAYMENT_LINK"
+        | "PAYMENT_AT_CLINIC";
+    },
+    session?: mongoose.ClientSession,
+  ) {
+    const existing = await this.findOpenInvoiceForAppointment(
+      input.appointmentId,
+    );
+    if (existing) {
+      return existing;
+    }
+
+    return this.createDraftForAppointment(input, session);
   },
 
   async createExtraInvoiceForAppointment(input: {
@@ -1242,6 +1297,136 @@ export const InvoiceService = {
     }).sort({ createdAt: -1 });
 
     return docs.map((d) => toInvoiceResponseDTO(toDomain(d)));
+  },
+
+  async bootstrapForAppointment(appointmentId: string) {
+    if (isReadFromPostgres()) {
+      const appointment = await prisma.appointment.findUnique({
+        where: { id: appointmentId },
+        select: {
+          id: true,
+          organisationId: true,
+          companion: true,
+          appointmentType: true,
+          concern: true,
+        },
+      });
+      if (!appointment) {
+        throw new InvoiceServiceError("Appointment not found", 404);
+      }
+
+      const openInvoice = await prisma.invoice.findFirst({
+        where: {
+          appointmentId,
+          status: { in: ["AWAITING_PAYMENT", "PENDING"] },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+      if (openInvoice) {
+        return openInvoice;
+      }
+
+      const latestInvoice = await prisma.invoice.findFirst({
+        where: { appointmentId },
+        orderBy: { createdAt: "desc" },
+      });
+      if (
+        latestInvoice &&
+        ["PAID", "REFUNDED"].includes(latestInvoice.status)
+      ) {
+        return latestInvoice;
+      }
+
+      const serviceId = coerceAppointmentTypeId(appointment.appointmentType);
+      if (!serviceId) {
+        throw new InvoiceServiceError("Service not found", 404);
+      }
+
+      const service = await prisma.service.findUnique({
+        where: { id: serviceId },
+      });
+      if (!service) {
+        throw new InvoiceServiceError("Service not found", 404);
+      }
+
+      const parentId = coerceAppointmentParentId(appointment);
+      const companionId = coerceAppointmentCompanionId(appointment);
+      if (!parentId || !companionId) {
+        throw new InvoiceServiceError(
+          "Appointment missing parent or companion",
+          400,
+        );
+      }
+
+      const description =
+        coerceAppointmentTypeName(appointment.appointmentType) ??
+        service.name ??
+        "Consultation";
+
+      return this.createDraftForAppointment({
+        appointmentId,
+        parentId,
+        companionId,
+        organisationId: appointment.organisationId,
+        items: [
+          {
+            description,
+            quantity: 1,
+            unitPrice: service.cost,
+            discountPercent: service.maxDiscount ?? undefined,
+          },
+        ],
+        notes: appointment.concern ?? undefined,
+        paymentCollectionMethod: "PAYMENT_LINK",
+      });
+    }
+
+    const appointment = await AppointmentModel.findById(appointmentId);
+    if (!appointment) {
+      throw new InvoiceServiceError("Appointment not found", 404);
+    }
+
+    const openInvoice = await this.findOpenInvoiceForAppointment(appointmentId);
+    if (openInvoice) {
+      return openInvoice;
+    }
+
+    const latestInvoice = await InvoiceModel.findOne({ appointmentId }).sort({
+      createdAt: -1,
+    });
+    if (latestInvoice && ["PAID", "REFUNDED"].includes(latestInvoice.status)) {
+      return latestInvoice;
+    }
+
+    const serviceId = appointment.appointmentType?.id;
+    if (!serviceId) {
+      throw new InvoiceServiceError("Service not found", 404);
+    }
+
+    const service = await ServiceModel.findById(serviceId);
+    if (!service) {
+      throw new InvoiceServiceError("Service not found", 404);
+    }
+
+    const description =
+      appointment.appointmentType?.name ?? service.name ?? "Consultation";
+
+    return this.createDraftForAppointment({
+      appointmentId,
+      parentId: appointment.companion.parent.id,
+      companionId: appointment.companion.id,
+      organisationId: appointment.organisationId,
+      items: [
+        {
+          description,
+          quantity: 1,
+          unitPrice: service.cost,
+          discountPercent: service.maxDiscount ?? undefined,
+        },
+      ],
+      notes: appointment.concern ?? undefined,
+      paymentCollectionMethod: "PAYMENT_LINK",
+    });
   },
 
   async getById(id: string) {

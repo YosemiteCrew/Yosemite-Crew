@@ -33,6 +33,7 @@ jest.mock("@yosemite-crew/types", () => ({
 jest.mock("../../src/services/invoice.service", () => ({
   InvoiceService: {
     createDraftForAppointment: jest.fn(),
+    getOrCreateDraftForAppointment: jest.fn(),
     handleAppointmentCancellation: jest.fn(),
   },
 }));
@@ -40,6 +41,7 @@ jest.mock("../../src/services/invoice.service", () => ({
 jest.mock("../../src/services/stripe.service", () => ({
   StripeService: {
     createPaymentIntentForAppointment: jest.fn(),
+    createPaymentIntentForInvoice: jest.fn(),
     createCheckoutSessionForInvoice: jest.fn(),
   },
 }));
@@ -425,7 +427,10 @@ describe("AppointmentService", () => {
       const mockCreated = createMockDoc({ status: "NO_PAYMENT" });
       (AppointmentModel.create as jest.Mock).mockResolvedValue(mockCreated);
       (
-        StripeService.createPaymentIntentForAppointment as jest.Mock
+        InvoiceService.getOrCreateDraftForAppointment as jest.Mock
+      ).mockResolvedValue({ id: "inv_123" });
+      (
+        StripeService.createPaymentIntentForInvoice as jest.Mock
       ).mockResolvedValue("pi_123");
 
       const res = await AppointmentService.createRequestedFromMobile(
@@ -893,12 +898,15 @@ describe("AppointmentService", () => {
         attachments: null,
         formIds: ["form_1"],
       });
+      (
+        InvoiceService.getOrCreateDraftForAppointment as jest.Mock
+      ).mockResolvedValue({ id: "inv_1" });
       prisma.invoice.findMany.mockResolvedValue([
         { appointmentId: "appt_1", status: "PAID" },
       ]);
 
       (
-        StripeService.createPaymentIntentForAppointment as jest.Mock
+        StripeService.createPaymentIntentForInvoice as jest.Mock
       ).mockResolvedValue({ id: "pi_1" });
 
       const dto = {
@@ -966,10 +974,13 @@ describe("AppointmentService", () => {
           appointmentDate: startTime,
         }),
       );
+      (
+        InvoiceService.getOrCreateDraftForAppointment as jest.Mock
+      ).mockResolvedValue({ id: "inv_2" });
       prisma.invoice.findMany.mockResolvedValue([]);
 
       (
-        StripeService.createPaymentIntentForAppointment as jest.Mock
+        StripeService.createPaymentIntentForInvoice as jest.Mock
       ).mockResolvedValue({ id: "pi_2" });
 
       const dto = {
@@ -1035,10 +1046,13 @@ describe("AppointmentService", () => {
           appointmentDate: startTime,
         }),
       );
+      (
+        InvoiceService.getOrCreateDraftForAppointment as jest.Mock
+      ).mockResolvedValue({ id: "inv_3" });
       prisma.invoice.findMany.mockResolvedValue([]);
 
       (
-        StripeService.createPaymentIntentForAppointment as jest.Mock
+        StripeService.createPaymentIntentForInvoice as jest.Mock
       ).mockResolvedValue({ id: "pi_3" });
 
       const dto = {
@@ -1141,7 +1155,10 @@ describe("AppointmentService", () => {
       const mockCreated = createMockDoc({ status: "REQUESTED" });
       (AppointmentModel.create as jest.Mock).mockResolvedValue(mockCreated);
       (
-        StripeService.createPaymentIntentForAppointment as jest.Mock
+        InvoiceService.getOrCreateDraftForAppointment as jest.Mock
+      ).mockResolvedValue({ id: "inv_4" });
+      (
+        StripeService.createPaymentIntentForInvoice as jest.Mock
       ).mockResolvedValue("pi_123");
 
       await AppointmentService.createRequestedFromMobile({
