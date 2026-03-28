@@ -21,6 +21,7 @@ import {
   fetchSpeciesCodeEntries,
 } from '@/app/features/companions/services/codeEntriesService';
 import { formatDisplayDate } from '@/app/lib/date';
+import { toTitleCase } from '@/app/lib/validators';
 
 type OptionProp = {
   label: string;
@@ -113,6 +114,14 @@ const toNonNegativeNumber = (value: string | number | undefined) => {
 const formatDateLabel = (value?: Date | string) => {
   if (!value) return '-';
   return formatDisplayDate(value, '-');
+};
+
+const formatStatusLabel = (status: RecordStatus | undefined) => {
+  const normalizedStatus = String(status ?? 'inactive')
+    .trim()
+    .toLowerCase();
+  if (!normalizedStatus) return 'Inactive';
+  return toTitleCase(normalizedStatus);
 };
 
 const validateCompanionForm = (
@@ -282,7 +291,6 @@ const CompanionReadOnlySection = ({
 }) => (
   <div className="pt-2">
     <CompanionRow label="Species" value={speciesLabel} />
-    <CompanionRow label="Status" value={companion.companion.status || 'inactive'} />
     <CompanionRow label="Breed" value={companion.companion.breed} />
     <CompanionRow label="Date of birth" value={formatDateLabel(companion.companion.dateOfBirth)} />
     <CompanionRow label="Gender" value={companion.companion.gender || '-'} />
@@ -345,15 +353,6 @@ const CompanionEditSection = ({
   handleSave,
 }: CompanionEditSectionProps) => (
   <div className="flex flex-col gap-3 pt-2">
-    <LabelDropdown
-      placeholder="Companion status"
-      onSelect={(option) =>
-        setFormData((prev) => ({ ...prev, status: option.value as RecordStatus }))
-      }
-      defaultOption={formData.status || 'active'}
-      options={COMPANION_STATUS_OPTIONS}
-    />
-
     <div className="grid grid-cols-2 gap-3">
       <LabelDropdown
         placeholder="Species"
@@ -576,10 +575,15 @@ const CompanionEditSection = ({
 
 type CompanionTypeProps = {
   companion: CompanionParent;
+  canEditCompanionStatus?: boolean;
 };
 
-const Companion = ({ companion }: CompanionTypeProps) => {
+const Companion = ({ companion, canEditCompanionStatus = false }: CompanionTypeProps) => {
   const [isEditing, setIsEditing] = useState(false);
+  const [isStatusEditing, setIsStatusEditing] = useState(false);
+  const [statusValue, setStatusValue] = useState<RecordStatus>(
+    (companion.companion.status as RecordStatus | undefined) ?? 'active'
+  );
   const [formData, setFormData] = useState<StoredCompanion>(companion.companion);
   const [currentDate, setCurrentDate] = useState<Date | null>(
     companion.companion.dateOfBirth ? new Date(companion.companion.dateOfBirth) : null
@@ -598,6 +602,8 @@ const Companion = ({ companion }: CompanionTypeProps) => {
 
   useEffect(() => {
     setIsEditing(false);
+    setIsStatusEditing(false);
+    setStatusValue((companion.companion.status as RecordStatus | undefined) ?? 'active');
     setFormData(companion.companion);
     setCurrentDate(
       companion.companion.dateOfBirth ? new Date(companion.companion.dateOfBirth) : null
@@ -701,6 +707,24 @@ const Companion = ({ companion }: CompanionTypeProps) => {
     }
   };
 
+  const handleStatusCancel = () => {
+    setIsStatusEditing(false);
+    setStatusValue((companion.companion.status as RecordStatus | undefined) ?? 'active');
+  };
+
+  const handleStatusSave = async () => {
+    try {
+      await updateCompanion({
+        ...companion.companion,
+        status: statusValue,
+      });
+      setFormData((prev) => ({ ...prev, status: statusValue }));
+      setIsStatusEditing(false);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6 w-full">
       <Accordion
@@ -729,6 +753,32 @@ const Companion = ({ companion }: CompanionTypeProps) => {
             isInsured={isInsured}
             speciesLabel={speciesLabel}
           />
+        )}
+      </Accordion>
+      <Accordion
+        title="Status"
+        defaultOpen={true}
+        showEditIcon={canEditCompanionStatus}
+        isEditing={isStatusEditing}
+        onEditClick={() => setIsStatusEditing(true)}
+      >
+        {isStatusEditing ? (
+          <div className="flex flex-col gap-3 pt-2">
+            <LabelDropdown
+              placeholder="Companion status"
+              onSelect={(option) => setStatusValue(option.value as RecordStatus)}
+              defaultOption={statusValue}
+              options={COMPANION_STATUS_OPTIONS}
+            />
+            <div className="flex justify-end items-center gap-3 w-full flex-row">
+              <Secondary href="#" text="Cancel" onClick={handleStatusCancel} />
+              <Primary href="#" text="Save" onClick={handleStatusSave} />
+            </div>
+          </div>
+        ) : (
+          <div className="pt-2">
+            <CompanionRow label="Current status" value={formatStatusLabel(statusValue)} />
+          </div>
         )}
       </Accordion>
     </div>

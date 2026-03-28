@@ -11,6 +11,7 @@ type CompanionInfoProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
   activeCompanion: CompanionParent | null;
+  canEditCompanionStatus?: boolean;
 };
 type LabelKey = 'info' | 'history';
 type SubLabelKey = 'companion-information' | 'parent-information' | 'history';
@@ -20,7 +21,7 @@ const labels = [
     key: 'info',
     name: 'Info',
     labels: [
-      { key: 'companion-information', name: 'Companion information' },
+      { key: 'companion-information', name: 'Patient information' },
       { key: 'parent-information', name: 'Parent information' },
     ],
   },
@@ -41,7 +42,12 @@ const COMPONENT_MAP: Record<string, Record<string, React.FC<any>>> = {
   },
 };
 
-const CompanionInfo = ({ showModal, setShowModal, activeCompanion }: CompanionInfoProps) => {
+const CompanionInfo = ({
+  showModal,
+  setShowModal,
+  activeCompanion,
+  canEditCompanionStatus = false,
+}: CompanionInfoProps) => {
   const [activeLabel, setActiveLabel] = useState<LabelKey>(labels[0].key as LabelKey);
   const [activeSubLabel, setActiveSubLabel] = useState<SubLabelKey>(
     labels[0].labels?.[0]?.key as SubLabelKey
@@ -102,7 +108,9 @@ const CompanionInfo = ({ showModal, setShowModal, activeCompanion }: CompanionIn
         </div>
 
         <div ref={scrollRef} className="flex overflow-y-auto flex-1 scrollbar-hidden">
-          {Content ? <Content companion={activeCompanion} /> : null}
+          {Content ? (
+            <Content companion={activeCompanion} canEditCompanionStatus={canEditCompanionStatus} />
+          ) : null}
         </div>
       </div>
     </Modal>

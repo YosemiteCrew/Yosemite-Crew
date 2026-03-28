@@ -142,6 +142,7 @@ const Companions = () => {
             showModal={viewCompanion}
             setShowModal={setViewCompanion}
             activeCompanion={activeCompanion}
+            canEditCompanionStatus={canEditCompanions}
           />
         )}
         {activeCompanion && canEditCompanions && (

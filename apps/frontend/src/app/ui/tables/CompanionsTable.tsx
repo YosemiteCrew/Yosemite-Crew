@@ -3,6 +3,7 @@ import React from 'react';
 import { FaCalendar, FaTasks } from 'react-icons/fa';
 import { IoEye, IoOpenOutline } from 'react-icons/io5';
 import { MdOutlineAutorenew } from 'react-icons/md';
+import { RiHistoryLine } from 'react-icons/ri';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
@@ -132,6 +133,20 @@ const CompanionsTable = ({
     setChangeStatusPopup(true);
   };
 
+  const handleViewHistory = (companion: CompanionParent) => {
+    const companionId = String(companion.companion.id ?? '').trim();
+    if (!companionId) return;
+
+    const backTo = `/companions?${new URLSearchParams({ companionId }).toString()}`;
+    const params = new URLSearchParams({
+      companionId,
+      source: 'companions',
+      backTo,
+    });
+
+    router.push(`/companions/history?${params.toString()}`);
+  };
+
   const columns: Column<CompanionParent>[] = [
     {
       label: '',
@@ -227,24 +242,30 @@ const CompanionsTable = ({
         }
 
         return (
-          <button
-            type="button"
-            onClick={() => goToAppointment(upcoming)}
-            className="w-full text-left rounded-xl! border border-card-border px-2 py-1.5 hover:bg-card-hover transition-colors"
-            title="Open appointment"
+          <GlassTooltip
+            content="Open appointment"
+            side="bottom"
+            className="table-action-tooltip w-full"
           >
-            <div className="flex items-center justify-between gap-2">
-              <div className="appointment-profile-two min-w-0">
-                <div className="appointment-profile-title truncate">
-                  {formatDateLabel(upcoming.appointmentDate)}
+            <button
+              type="button"
+              onClick={() => goToAppointment(upcoming)}
+              className="w-full text-left rounded-xl! border border-card-border px-2 py-1.5 hover:bg-card-hover transition-colors"
+              title="Open appointment"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="appointment-profile-two min-w-0">
+                  <div className="appointment-profile-title truncate">
+                    {formatDateLabel(upcoming.appointmentDate)}
+                  </div>
+                  <div className="appointment-profile-sub truncate">
+                    {formatTimeLabel(upcoming.startTime)}
+                  </div>
                 </div>
-                <div className="appointment-profile-sub truncate">
-                  {formatTimeLabel(upcoming.startTime)}
-                </div>
+                <IoOpenOutline size={15} color="#302F2E" />
               </div>
-              <IoOpenOutline size={15} color="#302F2E" />
-            </div>
-          </button>
+            </button>
+          </GlassTooltip>
         );
       },
     },
@@ -267,12 +288,24 @@ const CompanionsTable = ({
       width: '10%',
       render: (item: CompanionParent) => (
         <div className="action-btn-col">
-          <button
-            onClick={() => handleViewCompanion(item)}
-            className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-          >
-            <IoEye size={20} color="#302F2E" />
-          </button>
+          <GlassTooltip content="View companion" side="bottom" className="table-action-tooltip">
+            <button
+              onClick={() => handleViewCompanion(item)}
+              className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+              title="View companion"
+            >
+              <IoEye size={20} color="#302F2E" />
+            </button>
+          </GlassTooltip>
+          <GlassTooltip content="View history" side="bottom" className="table-action-tooltip">
+            <button
+              onClick={() => handleViewHistory(item)}
+              className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+              title="View history"
+            >
+              <RiHistoryLine size={16} color="#302F2E" />
+            </button>
+          </GlassTooltip>
           {canEditCompanions && (
             <GlassTooltip content="Change status" side="bottom" className="table-action-tooltip">
               <button
@@ -285,20 +318,26 @@ const CompanionsTable = ({
             </GlassTooltip>
           )}
           {canEditAppointments && (
-            <button
-              onClick={() => handleBookAppointment(item)}
-              className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-            >
-              <FaCalendar size={14} color="#302F2E" />
-            </button>
+            <GlassTooltip content="Book appointment" side="bottom" className="table-action-tooltip">
+              <button
+                onClick={() => handleBookAppointment(item)}
+                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                title="Book appointment"
+              >
+                <FaCalendar size={14} color="#302F2E" />
+              </button>
+            </GlassTooltip>
           )}
           {canEditTasks && (
-            <button
-              onClick={() => handleAddTask(item)}
-              className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-            >
-              <FaTasks size={14} color="#302F2E" />
-            </button>
+            <GlassTooltip content="Add task" side="bottom" className="table-action-tooltip">
+              <button
+                onClick={() => handleAddTask(item)}
+                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                title="Add task"
+              >
+                <FaTasks size={14} color="#302F2E" />
+              </button>
+            </GlassTooltip>
           )}
         </div>
       ),

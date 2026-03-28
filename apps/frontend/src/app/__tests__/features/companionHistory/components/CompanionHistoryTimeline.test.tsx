@@ -4,7 +4,6 @@ import '@testing-library/jest-dom';
 import CompanionHistoryTimeline from '@/app/features/companionHistory/components/CompanionHistoryTimeline';
 import { fetchCompanionHistory } from '@/app/features/companionHistory/services/companionHistoryService';
 import { getCompanionAuditTrail } from '@/app/features/audit/services/auditService';
-import { loadCompanionDocument } from '@/app/features/companions/services/companionDocumentService';
 
 jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
   __esModule: true,
@@ -22,7 +21,6 @@ jest.mock('@/app/stores/orgStore', () => ({
 }));
 
 jest.mock('@/app/features/companions/services/companionDocumentService', () => ({
-  loadCompanionDocument: jest.fn().mockResolvedValue([]),
   loadDocumentDownloadURL: jest.fn().mockResolvedValue([{ url: 'https://example.com/file.pdf' }]),
 }));
 
@@ -110,7 +108,6 @@ describe('CompanionHistoryTimeline', () => {
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     (fetchCompanionHistory as jest.Mock).mockReset();
     (getCompanionAuditTrail as jest.Mock).mockReset().mockResolvedValue([]);
-    (loadCompanionDocument as jest.Mock).mockReset().mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -137,21 +134,17 @@ describe('CompanionHistoryTimeline', () => {
   });
 
   it('filters by selected quick filter', async () => {
-    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
-      entries: baseEntries,
-      nextCursor: null,
-      summary: { totalReturned: 6, countsByType: {} },
-    });
-    (loadCompanionDocument as jest.Mock).mockResolvedValue([
-      {
-        id: 'd-1',
-        title: 'Blood panel PDF',
-        category: 'HEALTH',
-        subcategory: 'LAB_TESTS',
-        attachments: [{ key: 'doc-key-1' }],
-        issueDate: '2026-03-17T10:00:00.000Z',
-      },
-    ]);
+    (fetchCompanionHistory as jest.Mock)
+      .mockResolvedValueOnce({
+        entries: baseEntries,
+        nextCursor: null,
+        summary: { totalReturned: 6, countsByType: {} },
+      })
+      .mockResolvedValueOnce({
+        entries: baseEntries.filter((entry) => entry.type === 'DOCUMENT'),
+        nextCursor: null,
+        summary: { totalReturned: 1, countsByType: { DOCUMENT: 1 } },
+      });
 
     render(<CompanionHistoryTimeline companionId="c-1" />);
 
@@ -162,9 +155,18 @@ describe('CompanionHistoryTimeline', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Documents' }));
 
     await waitFor(() => {
-      expect(screen.getAllByText('Blood panel PDF').length).toBeGreaterThan(0);
+      expect(screen.getByText('Blood panel PDF')).toBeInTheDocument();
+      expect(screen.queryByText('Recheck visit')).not.toBeInTheDocument();
     });
-    expect(screen.queryByText('Recheck visit')).not.toBeInTheDocument();
+    expect(fetchCompanionHistory).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        companionId: 'c-1',
+        organisationId: 'org-1',
+        limit: 50,
+        cursor: null,
+        types: ['DOCUMENT'],
+      })
+    );
   });
 
   it('appends entries on load more', async () => {
@@ -232,24 +234,34 @@ describe('CompanionHistoryTimeline', () => {
     });
   });
 
-  it('shows upload records only under Documents filter', async () => {
-    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
-      entries: baseEntries,
-      nextCursor: null,
-      summary: { totalReturned: 6, countsByType: {} },
-    });
+  it('requests backend type filters when switching tabs', async () => {
+    (fetchCompanionHistory as jest.Mock)
+      .mockResolvedValueOnce({
+        entries: baseEntries,
+        nextCursor: null,
+        summary: { totalReturned: 6, countsByType: {} },
+      })
+      .mockResolvedValueOnce({
+        entries: baseEntries.filter((entry) => entry.type === 'TASK'),
+        nextCursor: null,
+        summary: { totalReturned: 1, countsByType: { TASK: 1 } },
+      });
 
-    render(<CompanionHistoryTimeline companionId="c-1" showDocumentUpload />);
+    render(<CompanionHistoryTimeline companionId="c-1" />);
 
     await waitFor(() => {
       expect(screen.getByText('Recheck visit')).toBeInTheDocument();
     });
 
-    expect(screen.queryByRole('button', { name: 'Upload records' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Tasks' }));
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Documents' }));
-    expect(screen.getByRole('button', { name: 'Upload records' })).toBeInTheDocument();
-    expect(loadCompanionDocument).toHaveBeenCalledWith('c-1');
+    await waitFor(() => {
+      expect(fetchCompanionHistory).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          types: ['TASK'],
+        })
+      );
+    });
   });
 
   it('renders companion audit trail entries under Audit trail filter', async () => {

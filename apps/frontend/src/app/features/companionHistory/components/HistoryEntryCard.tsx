@@ -1,5 +1,7 @@
 import React, { useMemo } from 'react';
 import { HistoryEntry } from '@/app/features/companionHistory/types/history';
+import { Card } from '@/app/ui';
+import { RiExternalLinkLine } from 'react-icons/ri';
 import {
   formatCurrency,
   formatHistoryDate,
@@ -131,77 +133,105 @@ const getDetails = (entry: HistoryEntry): DetailPair[] => {
   return getInvoiceDetails(entry);
 };
 
+const formatStatusLabel = (status?: string): string => {
+  const normalized = String(status ?? '').trim();
+  if (!normalized) return '';
+  return normalized
+    .toLowerCase()
+    .split('_')
+    .map((token) => token.charAt(0).toUpperCase() + token.slice(1))
+    .join(' ');
+};
+
 const HistoryEntryCard = ({ entry, onOpen }: HistoryEntryCardProps) => {
-  const details = useMemo(
-    () => getDetails(entry).filter((item) => item.value && item.value !== '-'),
-    [entry]
-  );
+  const actionLabel = useMemo(() => getPrimaryActionLabel(entry), [entry]);
+  const statusLabel = useMemo(() => formatStatusLabel(entry.status), [entry.status]);
+  const details = useMemo(() => {
+    return getDetails(entry)
+      .filter((item) => item.value && item.value !== '-')
+      .slice(0, 3);
+  }, [entry]);
+
+  const actorDisplay = useMemo(() => {
+    const actorName = entry.actor?.name?.trim();
+    const actorRole = entry.actor?.role?.trim();
+
+    if (actorName && actorRole) return `${actorName} • ${actorRole}`;
+    if (actorName) return actorName;
+    if (actorRole) return actorRole;
+    return null;
+  }, [entry.actor?.name, entry.actor?.role]);
 
   return (
-    <div className="w-full rounded-2xl border border-card-border bg-white px-4 py-4">
+    <Card variant="default" className="w-full px-3 py-2.5 md:px-3.5 md:py-2.5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
           <span
-            className={`rounded-full px-2 py-1 text-label-xsmall ${getTypeBadgeClassName(entry.type)}`}
+            className={`rounded-full px-2 py-0.5 text-label-xsmall ${getTypeBadgeClassName(entry.type)}`}
           >
             {getHistoryTypeLabel(entry.type)}
           </span>
-          {entry.status ? (
-            <span className="rounded-full bg-card-hover px-2 py-1 text-label-xsmall text-text-secondary">
-              {entry.status}
+          {statusLabel ? (
+            <span className="rounded-full bg-card-hover px-2 py-0.5 text-label-xsmall text-text-secondary">
+              {statusLabel}
             </span>
           ) : null}
         </div>
-        <div className="text-caption-1 text-text-secondary">
+        <div className="text-caption-2 text-text-secondary">
           {formatHistoryDateTime(entry.occurredAt)}
         </div>
       </div>
 
-      <div className="mt-2 flex flex-col gap-1">
-        <div className="text-body-3-emphasis text-text-primary">{entry.title}</div>
+      <div className="mt-1.5 flex flex-col gap-0.5">
+        <button
+          type="button"
+          aria-label={actionLabel}
+          onClick={() => onOpen(entry)}
+          className="group inline-flex w-fit items-center gap-1 text-left"
+        >
+          <span className="text-body-4-emphasis leading-snug text-text-primary transition-colors group-hover:text-text-brand group-hover:underline">
+            {entry.title}
+          </span>
+          <span className="inline-flex items-center justify-center rounded-r-2xl pl-1 pr-0.5 text-text-secondary transition-colors group-hover:text-text-brand">
+            <RiExternalLinkLine size={12} />
+          </span>
+        </button>
         {entry.subtitle ? (
-          <div className="text-caption-1 text-text-secondary">{entry.subtitle}</div>
+          <div className="text-caption-2 text-text-secondary">{entry.subtitle}</div>
         ) : null}
         {entry.summary ? (
-          <div className="text-caption-1 text-text-primary">{entry.summary}</div>
+          <div className="text-caption-2 leading-snug text-text-primary">{entry.summary}</div>
         ) : null}
       </div>
 
-      {entry.actor?.name ? (
-        <div className="mt-2 text-caption-1 text-text-secondary">Actor: {entry.actor.name}</div>
+      {actorDisplay ? (
+        <div className="mt-2 text-caption-2 text-text-secondary">Actor: {actorDisplay}</div>
       ) : null}
 
       {details.length > 0 ? (
-        <div className="mt-3 grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
+        <div className="mt-2 grid grid-cols-1 gap-x-3 gap-y-1 sm:grid-cols-2">
           {details.map((detail) => (
-            <div key={`${entry.id}-${detail.label}`} className="flex items-center gap-1.5">
-              <div className="text-caption-1 text-text-extra">{detail.label}:</div>
-              <div className="text-caption-1 text-text-primary">{detail.value}</div>
+            <div key={`${entry.id}-${detail.label}`} className="flex min-w-0 items-start gap-1.5">
+              <div className="shrink-0 text-caption-2 text-text-extra">{detail.label}:</div>
+              <div className="truncate text-caption-2 text-text-primary">{detail.value}</div>
             </div>
           ))}
         </div>
       ) : null}
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-card-border pt-3">
-        <div className="flex flex-wrap items-center gap-1">
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-1.5 border-t border-card-border pt-2">
+        <div className="flex flex-wrap items-center gap-1.5">
           {(entry.tags ?? []).map((tag) => (
             <span
               key={`${entry.id}-${tag}`}
-              className="rounded-full bg-card-hover px-2 py-1 text-label-xsmall text-text-secondary"
+              className="rounded-full bg-card-hover px-2 py-0.5 text-label-xsmall text-text-secondary"
             >
               {tag}
             </span>
           ))}
         </div>
-        <button
-          type="button"
-          onClick={() => onOpen(entry)}
-          className="rounded-2xl border border-text-primary px-4 py-2 text-caption-1 text-text-primary transition-colors hover:border-text-brand hover:text-text-brand"
-        >
-          {getPrimaryActionLabel(entry)}
-        </button>
       </div>
-    </div>
+    </Card>
   );
 };
 

@@ -16,6 +16,7 @@ import {
   CompanionHistoryResponse,
   HISTORY_FILTER_TYPE_MAP,
   HistoryEntry,
+  HistoryEntryType,
   HistoryFilterKey,
   getHistoryFilters,
 } from '@/app/features/companionHistory/types/history';
@@ -23,7 +24,6 @@ import { fetchCompanionHistory } from '@/app/features/companionHistory/services/
 import { AuditTrail } from '@/app/features/audit/types/audit';
 import { getCompanionAuditTrail } from '@/app/features/audit/services/auditService';
 import { Secondary } from '@/app/ui/primitives/Buttons';
-import CompanionDocumentsSection from '@/app/features/documents/components/CompanionDocumentsSection';
 
 type CompanionHistoryTimelineProps = {
   companionId: string;
@@ -140,11 +140,11 @@ const AuditTrailSection = ({
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2.5">
       {auditEntries.map((entry, index) => (
         <div
           key={entry.id ?? `${entry.eventType}-${entry.occurredAt}-${index}`}
-          className="w-full rounded-2xl border border-card-border bg-white px-3 py-3 md:px-4 md:py-3"
+          className="w-full rounded-2xl border border-card-border bg-white px-3 py-2.5 md:px-4 md:py-3"
         >
           <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1.5">
             <div className="min-w-0 flex-1">
@@ -173,7 +173,6 @@ const AuditTrailSection = ({
 };
 
 type HistoryEntriesSectionProps = {
-  shouldRenderDocumentsTab: boolean;
   activeFilter: HistoryFilterKey;
   loading: boolean;
   error: string | null;
@@ -187,7 +186,6 @@ type HistoryEntriesSectionProps = {
 };
 
 const HistoryEntriesSection = ({
-  shouldRenderDocumentsTab,
   activeFilter,
   loading,
   error,
@@ -199,7 +197,7 @@ const HistoryEntriesSection = ({
   loadingMore,
   loadHistory,
 }: HistoryEntriesSectionProps) => {
-  if (shouldRenderDocumentsTab || activeFilter === 'AUDIT_TRAIL') return null;
+  if (activeFilter === 'AUDIT_TRAIL') return null;
   if (loading) {
     return (
       <div className="rounded-2xl border border-card-border bg-white px-4 py-6 text-body-3 text-text-secondary">
@@ -217,7 +215,7 @@ const HistoryEntriesSection = ({
   return (
     <>
       {displayedEntries.length > 0 ? (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2.5">
           {displayedEntries.map((entry) => (
             <HistoryEntryCard key={entry.id} entry={entry} onOpen={handleOpenEntry} />
           ))}
@@ -272,8 +270,15 @@ const CompanionHistoryTimeline = ({
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const historyFilters = useMemo(() => getHistoryFilters(orgType), [orgType]);
-  const shouldRenderDocumentsTab = activeFilter === 'DOCUMENT';
   const enableInternalResultsScroll = !compact && !fullPageHref;
+  const requestedTypes = useMemo<HistoryEntryType[] | undefined>(() => {
+    if (activeFilter === 'ALL' || activeFilter === 'AUDIT_TRAIL') {
+      return undefined;
+    }
+
+    const type = HISTORY_FILTER_TYPE_MAP[activeFilter as keyof typeof HISTORY_FILTER_TYPE_MAP];
+    return type ? [type] : undefined;
+  }, [activeFilter]);
 
   const resolveAppointmentId = useCallback((entry: HistoryEntry): string | null => {
     if (entry.link.appointmentId) return entry.link.appointmentId;
@@ -305,6 +310,7 @@ const CompanionHistoryTimeline = ({
           companionId,
           limit: 50,
           cursor,
+          types: requestedTypes,
         });
 
         setEntries((prev) => appendPage(prev, response, shouldReplace));
@@ -320,20 +326,26 @@ const CompanionHistoryTimeline = ({
         setLoadingMore(false);
       }
     },
-    [organisationId, companionId]
+    [organisationId, companionId, requestedTypes]
   );
 
   useEffect(() => {
+    setActiveFilter('ALL');
+  }, [companionId, organisationId]);
+
+  useEffect(() => {
+    if (activeFilter === 'AUDIT_TRAIL') {
+      return;
+    }
     setEntries([]);
     setAuditEntries([]);
     setNextCursor(null);
     setError(null);
     setAuditError(null);
-    setActiveFilter('ALL');
     loadHistory(null, true).catch((historyError) => {
       console.error('Failed to initialize companion history:', historyError);
     });
-  }, [companionId, organisationId, loadHistory]);
+  }, [companionId, organisationId, activeFilter, loadHistory]);
 
   useEffect(() => {
     if (activeFilter !== 'AUDIT_TRAIL') {
@@ -375,7 +387,7 @@ const CompanionHistoryTimeline = ({
     if (activeFilter === 'ALL') {
       return entries;
     }
-    if (activeFilter === 'AUDIT_TRAIL' || activeFilter === 'DOCUMENT') {
+    if (activeFilter === 'AUDIT_TRAIL') {
       return [];
     }
     const type = HISTORY_FILTER_TYPE_MAP[activeFilter];
@@ -526,10 +538,6 @@ const CompanionHistoryTimeline = ({
               : 'flex flex-col gap-4'
           }
         >
-          {shouldRenderDocumentsTab ? (
-            <CompanionDocumentsSection companionId={companionId} />
-          ) : null}
-
           <AuditTrailSection
             activeFilter={activeFilter}
             auditLoading={auditLoading}
@@ -538,7 +546,6 @@ const CompanionHistoryTimeline = ({
           />
 
           <HistoryEntriesSection
-            shouldRenderDocumentsTab={shouldRenderDocumentsTab}
             activeFilter={activeFilter}
             loading={loading}
             error={error}

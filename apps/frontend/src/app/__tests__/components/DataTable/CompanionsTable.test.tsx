@@ -104,7 +104,7 @@ describe('CompanionsTable', () => {
     ]);
   });
 
-  it('handles view, schedule, and task actions', () => {
+  it('handles view, history, schedule, and task actions', () => {
     const setActiveCompanion = jest.fn();
     const setViewCompanion = jest.fn();
     const setBookAppointment = jest.fn();
@@ -126,6 +126,7 @@ describe('CompanionsTable', () => {
     );
 
     fireEvent.click(screen.getByText('view-icon').closest('button')!);
+    fireEvent.click(screen.getByTitle('View history'));
     fireEvent.click(screen.getByTitle('Open appointment'));
     fireEvent.click(screen.getByText('status-icon').closest('button')!);
     fireEvent.click(screen.getByText('calendar-icon').closest('button')!);
@@ -136,6 +137,9 @@ describe('CompanionsTable', () => {
     expect(setChangeStatusPopup).toHaveBeenCalledWith(true);
     expect(setBookAppointment).toHaveBeenCalledWith(true);
     expect(setAddTask).toHaveBeenCalledWith(true);
+    expect(pushMock).toHaveBeenCalledWith(
+      '/companions/history?companionId=c1&source=companions&backTo=%2Fcompanions%3FcompanionId%3Dc1'
+    );
     expect(pushMock).toHaveBeenCalledWith('/appointments?appointmentId=appt-1');
   });
 
