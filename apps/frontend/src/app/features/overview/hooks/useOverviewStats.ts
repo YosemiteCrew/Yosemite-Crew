@@ -40,6 +40,8 @@ const getCumulative = (data: any[], targetTimeMs: number, valKey: string) => {
 export const useOverviewStats = () => {
   const [trafficChart, setTrafficChart] = useState<TrafficDataPoint[]>([]);
   const [starsChart, setStarsChart] = useState<StarsDataPoint[]>([]);
+  const [totalStars, setTotalStars] = useState<number>(0);
+  const [totalForks, setTotalForks] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -61,13 +63,28 @@ export const useOverviewStats = () => {
         );
         if (allDates.length === 0) return;
 
-        // FIXED: Reverted back to using the latest date provided in the JSON data!
-        // This prevents the line from plummeting to 0 on days where data hasn't synced yet.
         const maxDate = new Date(Math.max(...allDates));
         maxDate.setUTCHours(23, 59, 59, 999);
 
         // ==========================================
-        // 1. CALCULATE TRAFFIC (LAST 30 DAYS DAILY)
+        // 1. EXTRACT TOTALS FOR TOP WIDGETS
+        // ==========================================
+        const sortedForks = [...forksData].sort(
+          (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
+        );
+        if (sortedForks.length > 0) {
+          setTotalForks(sortedForks[sortedForks.length - 1].forks_cumulative || 0);
+        }
+
+        const sortedStars = [...starsData].sort(
+          (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
+        );
+        if (sortedStars.length > 0) {
+          setTotalStars(sortedStars[sortedStars.length - 1].stars_cumulative || 0);
+        }
+
+        // ==========================================
+        // 2. CALCULATE TRAFFIC (LAST 30 DAYS DAILY)
         // ==========================================
         const generatedTraffic: TrafficDataPoint[] = [];
 
@@ -107,11 +124,8 @@ export const useOverviewStats = () => {
         }
 
         // ==========================================
-        // 2. CALCULATE STARS (ALL-TIME MONTHLY CONTINUOUS)
+        // 3. CALCULATE STARS (ALL-TIME MONTHLY)
         // ==========================================
-        const sortedStars = [...starsData].sort(
-          (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
-        );
         const generatedStars: StarsDataPoint[] = [];
 
         if (sortedStars.length > 0) {
@@ -164,5 +178,5 @@ export const useOverviewStats = () => {
     fetchRepoStats();
   }, []);
 
-  return { trafficChart, starsChart, isLoading };
+  return { trafficChart, starsChart, totalStars, totalForks, isLoading };
 };

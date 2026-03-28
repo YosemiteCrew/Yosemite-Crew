@@ -10,8 +10,7 @@ import { useAuthStore } from '@/app/stores/authStore';
 import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
 
 const OverviewPage = () => {
-  // Extract the split datasets from the updated hook
-  const { trafficChart, starsChart, isLoading } = useOverviewStats();
+  const { trafficChart, starsChart, totalStars, totalForks, isLoading } = useOverviewStats();
   const { user, role } = useAuthStore();
 
   const getCtaHref = () => {
@@ -19,6 +18,13 @@ const OverviewPage = () => {
       return role === 'developer' ? '/developers/home' : resolveDefaultOpenScreenRoute(role);
     }
     return '/signup';
+  };
+
+  const formatStat = (num: number) => {
+    if (num >= 1000) {
+      return (num / 1000).toFixed(1) + 'k';
+    }
+    return num.toString();
   };
 
   return (
@@ -33,6 +39,32 @@ const OverviewPage = () => {
               When numbers are public, you see what’s working and what isn’t. It pushes better
               decisions. We learned this from open source.
             </p>
+
+            <div className="OverviewStatsRow">
+              <div className="StatItem">
+                <span className="StatNumber">
+                  {isLoading ? '-' : formatStat(totalStars)}
+                  <span className="StatPlus">+</span>
+                </span>
+                <span className="StatLabel">GitHub Stars</span>
+              </div>
+
+              <div className="StatItem">
+                <span className="StatNumber">
+                  {isLoading ? '-' : formatStat(totalForks)}
+                  <span className="StatPlus">+</span>
+                </span>
+                <span className="StatLabel">GitHub Forks</span>
+              </div>
+
+              <div className="StatItem">
+                <span className="StatNumber">
+                  {isLoading ? '-' : '15'}
+                  <span className="StatPlus">+</span>
+                </span>
+                <span className="StatLabel">Contributors</span>
+              </div>
+            </div>
 
             <div className="OverviewImageWrapper">
               <Image
@@ -64,7 +96,6 @@ const OverviewPage = () => {
             <h2 className="OverviewGraphsTitle">When numbers are public, you see what’s working</h2>
 
             <div className="OverviewGraphsWrapper">
-              {/* Pass BOTH datasets down to the component */}
               <CommunityStats
                 trafficChart={trafficChart}
                 starsChart={starsChart}

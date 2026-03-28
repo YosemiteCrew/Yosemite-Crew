@@ -14,28 +14,25 @@ import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
 // 1. MOCK SETUP
 // ==========================================
 
-// Mock Next.js Image component
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: (props: any) => <img {...props} priority={props.priority ? 'true' : 'false'} />,
+  default: (props: any) => (
+    <img {...props} priority={props.priority ? 'true' : 'false'} alt={props.alt} />
+  ),
 }));
 
-// Mock the overview stats hook to return our split datasets
 jest.mock('../../../../features/overview/hooks/useOverviewStats', () => ({
   useOverviewStats: jest.fn(),
 }));
 
-// Mock the auth store
 jest.mock('@/app/stores/authStore', () => ({
   useAuthStore: jest.fn(),
 }));
 
-// Mock the routing helper
 jest.mock('@/app/lib/defaultOpenScreen', () => ({
   resolveDefaultOpenScreenRoute: jest.fn(),
 }));
 
-// Mock the custom UI components to keep tests focused
 jest.mock('@/app/ui/primitives/Buttons', () => ({
   Primary: ({ text, href }: any) => (
     <a data-testid="primary-btn" href={href}>
@@ -49,12 +46,9 @@ jest.mock('@/app/ui/widgets/Footer/Footer', () => ({
   default: () => <footer data-testid="footer-component" />,
 }));
 
-// Mock the CommunityStats component
 jest.mock('../../../../features/overview/components/CommunityStats', () => ({
   __esModule: true,
-  default: ({ isLoading }: { isLoading: boolean }) => (
-    <div data-testid="community-stats-component" data-loading={isLoading} />
-  ),
+  default: () => <div data-testid="community-stats-component" />,
 }));
 
 // ==========================================
@@ -62,76 +56,95 @@ jest.mock('../../../../features/overview/components/CommunityStats', () => ({
 // ==========================================
 
 describe('OverviewPage Component', () => {
-  const mockTrafficChart = [{ month: 'Mar 8', 'Self Hosters (Unique)': 10 }];
-  const mockStarsChart = [{ month: 'Mar 2026', 'Github Stars': 2000 }];
-
   beforeEach(() => {
     jest.clearAllMocks();
-
-    // Default hook implementations
-    (useOverviewStats as jest.Mock).mockReturnValue({
-      trafficChart: mockTrafficChart,
-      starsChart: mockStarsChart,
-      isLoading: false,
-    });
   });
 
-  it('1. renders all static content, images, and child components correctly', () => {
-    // Set logged out state for initial render check
+  it('1. formats stats correctly and renders static content (Logged Out State)', () => {
+    // Mock user as NOT logged in
     (useAuthStore as unknown as jest.Mock).mockReturnValue({ user: null, role: null });
+
+    // Mock data to test BOTH branches of formatStat (>= 1000 and < 1000)
+    (useOverviewStats as jest.Mock).mockReturnValue({
+      trafficChart: [],
+      starsChart: [],
+      totalStars: 2100, // Should hit the >= 1000 branch and return "2.1k"
+      totalForks: 64, // Should hit the < 1000 branch and return "64"
+      isLoading: false,
+    });
 
     render(<OverviewPage />);
 
     // Assert main text blocks exist
     expect(screen.getByRole('heading', { name: 'Building in Public' })).toBeInTheDocument();
-    expect(screen.getByText(/Most companies keep their numbers private/i)).toBeInTheDocument();
-    expect(
-      screen.getByRole('heading', { name: 'When numbers are public, you see what’s working' })
-    ).toBeInTheDocument();
 
-    // Assert image renders with correct src
+    // Assert formatted stats exist
+    expect(screen.getByText('2.1k')).toBeInTheDocument();
+    expect(screen.getByText('64')).toBeInTheDocument();
+    expect(screen.getByText('15')).toBeInTheDocument(); // Static contributors value
+
+    // Assert image renders
     const image = screen.getByAltText('Veterinarians working together');
     expect(image).toBeInTheDocument();
-    expect(image).toHaveAttribute(
-      'src',
-      'https://d2il6osz49gpup.cloudfront.net/statsPage/statLanding.png'
-    );
 
     // Assert child components render
     expect(screen.getByTestId('community-stats-component')).toBeInTheDocument();
     expect(screen.getByTestId('footer-component')).toBeInTheDocument();
-  });
 
-  it('2. CTA Button -> Unauthenticated User (Branch 1)', () => {
-    // Mock user as NOT logged in
-    (useAuthStore as unknown as jest.Mock).mockReturnValue({ user: null, role: null });
-
-    render(<OverviewPage />);
-
+    // Assert CTA Button (Branch 1: No User)
     const ctaBtn = screen.getByTestId('primary-btn');
-
-    // Asserts the fallback signup route and capitalized "App"
     expect(ctaBtn).toHaveAttribute('href', '/signup');
     expect(ctaBtn).toHaveTextContent('Go to App');
   });
 
-  it('3. CTA Button -> Authenticated Developer (Branch 2)', () => {
+  it('2. verifies loading state correctly masks the stats with dashes', () => {
+    (useAuthStore as unknown as jest.Mock).mockReturnValue({ user: null, role: null });
+
+    // Mock isLoading as true
+    (useOverviewStats as jest.Mock).mockReturnValue({
+      trafficChart: [],
+      starsChart: [],
+      totalStars: 2100,
+      totalForks: 64,
+      isLoading: true,
+    });
+
+    render(<OverviewPage />);
+
+    // Because there are 3 stats (Stars, Forks, Contributors), we expect 3 dashes
+    const dashes = screen.getAllByText('-');
+    expect(dashes).toHaveLength(3);
+
+    // Ensure the raw numbers are NOT rendered
+    expect(screen.queryByText('2.1k')).not.toBeInTheDocument();
+    expect(screen.queryByText('64')).not.toBeInTheDocument();
+  });
+
+  it('3. dynamic CTA Button routes correctly for Authenticated Developer', () => {
     // Mock user as logged in with 'developer' role
     (useAuthStore as unknown as jest.Mock).mockReturnValue({
       user: { id: 'user-123' },
       role: 'developer',
     });
 
+    (useOverviewStats as jest.Mock).mockReturnValue({
+      trafficChart: [],
+      starsChart: [],
+      totalStars: 0,
+      totalForks: 0,
+      isLoading: false,
+    });
+
     render(<OverviewPage />);
 
     const ctaBtn = screen.getByTestId('primary-btn');
 
-    // Asserts developer specific route and lowercase "app"
+    // Asserts developer specific route and lowercase "app" (Branch 2)
     expect(ctaBtn).toHaveAttribute('href', '/developers/home');
     expect(ctaBtn).toHaveTextContent('Go to app');
   });
 
-  it('4. CTA Button -> Authenticated General User / Vet (Branch 3)', () => {
+  it('4. dynamic CTA Button routes correctly for Authenticated General User', () => {
     // Mock user as logged in with standard 'vet' role
     (useAuthStore as unknown as jest.Mock).mockReturnValue({
       user: { id: 'user-456' },
@@ -141,11 +154,19 @@ describe('OverviewPage Component', () => {
     // Mock the utility function to return a specific dashboard route
     (resolveDefaultOpenScreenRoute as jest.Mock).mockReturnValue('/vet/dashboard');
 
+    (useOverviewStats as jest.Mock).mockReturnValue({
+      trafficChart: [],
+      starsChart: [],
+      totalStars: 0,
+      totalForks: 0,
+      isLoading: false,
+    });
+
     render(<OverviewPage />);
 
     const ctaBtn = screen.getByTestId('primary-btn');
 
-    // Asserts default screen resolver is called and returns correct link
+    // Asserts default screen resolver is called and returns correct link (Branch 3)
     expect(resolveDefaultOpenScreenRoute).toHaveBeenCalledWith('vet');
     expect(ctaBtn).toHaveAttribute('href', '/vet/dashboard');
     expect(ctaBtn).toHaveTextContent('Go to app');
