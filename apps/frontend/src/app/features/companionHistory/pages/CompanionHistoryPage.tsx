@@ -18,7 +18,7 @@ const FALLBACK_BACK_PATH = '/companions';
 const APPOINTMENTS_BACK_PATH = '/appointments';
 
 const resolveSafeBackPath = (candidate: string | null, source: string | null): string => {
-  if (candidate?.startsWith('/')) {
+  if (candidate?.startsWith('/') && !candidate.startsWith('//')) {
     return candidate;
   }
   if (source === 'appointments') {

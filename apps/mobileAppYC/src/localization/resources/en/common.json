@@ -116,5 +116,9 @@
     "laterButton": "Later",
     "missingStoreUrl": "Update link is not configured. Please contact support.",
     "openStoreFailed": "Could not open the app store. Please try again."
+  },
+  "payments": {
+    "cashCancellationNoticeTitle": "Important",
+    "cashCancellationNoticeBody": "This appointment was paid in cash and has been cancelled. If a refund is needed, it must be handled directly by the service provider."
   }
 }

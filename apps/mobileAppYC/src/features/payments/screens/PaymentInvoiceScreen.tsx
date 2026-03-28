@@ -46,6 +46,7 @@ import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHea
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {normalizeImageUri} from '@/shared/utils/imageUri';
 import {AvatarGroup} from '@/shared/components/common/AvatarGroup/AvatarGroup';
+import i18n from '@/localization/i18n';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -383,24 +384,42 @@ const resolveInvoicePaymentStatusLabel = (invoice: Invoice | null) => {
   return toFriendlyInvoiceStatus(invoice.status);
 };
 
-const CashCancellationNoticeCard = ({styles}: {styles: any}) => (
-  <View style={styles.cardShadowWrapper}>
-    <LiquidGlassCard
-      glassEffect="clear"
-      padding="4"
-      shadow="base"
-      style={styles.glassCard}
-      fallbackStyle={styles.cardFallback}>
-      <View style={styles.cardContent}>
-        <Text style={styles.metaTitle}>Important</Text>
-        <Text style={styles.termsLine}>
-          This appointment was paid in cash and has been cancelled. If a refund
-          is needed, it must be handled directly by the service provider.
-        </Text>
-      </View>
-    </LiquidGlassCard>
-  </View>
-);
+const DEFAULT_CASH_CANCELLATION_NOTICE_TITLE = 'Important';
+const DEFAULT_CASH_CANCELLATION_NOTICE_BODY =
+  'This appointment was paid in cash and has been cancelled. If a refund is needed, it must be handled directly by the service provider.';
+
+const getLocalizedText = (key: string, fallback: string) => {
+  const translated = i18n.t(key);
+  return translated === key ? fallback : translated;
+};
+
+const CashCancellationNoticeCard = ({styles}: {styles: any}) => {
+  return (
+    <View style={styles.cardShadowWrapper}>
+      <LiquidGlassCard
+        glassEffect="clear"
+        padding="4"
+        shadow="base"
+        style={styles.glassCard}
+        fallbackStyle={styles.cardFallback}>
+        <View style={styles.cardContent}>
+          <Text style={styles.metaTitle}>
+            {getLocalizedText(
+              'payments.cashCancellationNoticeTitle',
+              DEFAULT_CASH_CANCELLATION_NOTICE_TITLE,
+            )}
+          </Text>
+          <Text style={styles.termsLine}>
+            {getLocalizedText(
+              'payments.cashCancellationNoticeBody',
+              DEFAULT_CASH_CANCELLATION_NOTICE_BODY,
+            )}
+          </Text>
+        </View>
+      </LiquidGlassCard>
+    </View>
+  );
+};
 
 const InvoiceDetailsCard = ({
   invoiceNumberDisplay,

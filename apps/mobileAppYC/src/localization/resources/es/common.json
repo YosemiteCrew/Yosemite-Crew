@@ -116,5 +116,9 @@
     "laterButton": "Más tarde",
     "missingStoreUrl": "El enlace de actualización no está configurado. Contacta al soporte.",
     "openStoreFailed": "No se pudo abrir la tienda de aplicaciones. Inténtalo de nuevo."
+  },
+  "payments": {
+    "cashCancellationNoticeTitle": "Importante",
+    "cashCancellationNoticeBody": "Esta cita fue pagada en efectivo y ha sido cancelada. Si se necesita un reembolso, debe gestionarse directamente con el proveedor del servicio."
   }
 }
