@@ -121,4 +121,32 @@ describe('Finance Summary section', () => {
     expect(screen.getAllByText('USD 1').length).toBeGreaterThan(0);
     expect(screen.getByTestId('pay-actions-none')).toBeInTheDocument();
   });
+
+  it('shows cash refund disclaimer for cancelled cash-paid appointments', () => {
+    useInvoicesMock.mockReturnValue([
+      {
+        id: 'inv-cash',
+        status: 'PAID',
+        paymentCollectionMethod: 'PAYMENT_AT_CLINIC',
+        createdAt: '2026-01-03T00:00:00Z',
+        subtotal: 80,
+        discountTotal: 5,
+        taxTotal: 3,
+        totalAmount: 78,
+      },
+    ]);
+
+    render(
+      <Summary
+        activeAppointment={{ ...activeAppointment, status: 'CANCELLED' }}
+        formData={formData}
+      />
+    );
+
+    expect(
+      screen.getByText(
+        'This appointment was paid in cash and is now cancelled. Any refund, if applicable, should be handled directly by the service provider.'
+      )
+    ).toBeInTheDocument();
+  });
 });

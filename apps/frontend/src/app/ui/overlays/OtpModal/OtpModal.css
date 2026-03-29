@@ -1,4 +1,5 @@
 .VerifyModalSec {
+  position: relative;
   padding: 24px 44px;
   border-radius: 24px;
   width: 100%;
@@ -6,6 +7,23 @@
   background: var(--whitebg);
   box-sizing: border-box;
   margin: 0 auto;
+}
+
+.VerifyModalClose {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+}
+
+.VerifyModalCloseBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
 }
 
 .VerifyModalSec .modal-body {

@@ -5,6 +5,7 @@ import AppointmentInfoModal from '@/app/features/appointments/pages/Appointments
 import { fetchSubmissions } from '@/app/features/appointments/services/soapService';
 
 const appointmentInfoSectionSpy = jest.fn();
+const historySectionSpy = jest.fn();
 
 jest.mock('@/app/ui/overlays/Modal', () => ({
   __esModule: true,
@@ -21,6 +22,9 @@ jest.mock('@/app/ui/widgets/Labels/Labels', () => ({
           {label.name}
         </button>
       ))}
+      <button type="button" onClick={() => setActiveSubLabel('history')}>
+        History
+      </button>
       <button type="button" onClick={() => setActiveSubLabel('forms')}>
         Templates
       </button>
@@ -60,7 +64,10 @@ jest.mock(
   '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Info/History',
   () => ({
     __esModule: true,
-    default: () => <div>history-section</div>,
+    default: (props: any) => {
+      historySectionSpy(props);
+      return <div>history-section</div>;
+    },
   })
 );
 
@@ -183,6 +190,7 @@ describe('AppointmentInfo modal', () => {
 
   beforeEach(() => {
     appointmentInfoSectionSpy.mockClear();
+    historySectionSpy.mockClear();
     (fetchSubmissions as jest.Mock).mockResolvedValue({
       soapNotes: {
         Subjective: [],
@@ -231,6 +239,30 @@ describe('AppointmentInfo modal', () => {
 
     expect(appointmentInfoSectionSpy).toHaveBeenCalledWith(
       expect.objectContaining({ canEdit: false })
+    );
+  });
+
+  it('keeps finance summary tab available', () => {
+    render(
+      <AppointmentInfoModal showModal setShowModal={jest.fn()} activeAppointment={appointment} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Finance' }));
+    expect(screen.getByText('summary-section')).toBeInTheDocument();
+  });
+
+  it('renders history section with in-modal navigation callback', () => {
+    render(
+      <AppointmentInfoModal showModal setShowModal={jest.fn()} activeAppointment={appointment} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'History' }));
+
+    expect(screen.getByText('history-section')).toBeInTheDocument();
+    expect(historySectionSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        onOpenAppointmentView: expect.any(Function),
+      })
     );
   });
 });

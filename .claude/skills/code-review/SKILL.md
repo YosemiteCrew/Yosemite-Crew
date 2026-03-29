@@ -14,7 +14,7 @@ TRIGGER: when asked to review code, check a PR, or audit changes in any part of 
 
 - [ ] No secrets, tokens, or `.env` values in code
 - [ ] TypeScript: no `any`, no unnecessary type assertions
-- [ ] Conventional commit message format
+- [ ] Conventional commit message format (scope must match root policy in `AGENTS.md` and `commitlint.config.cjs`)
 - [ ] No `console.log` in production code (use Winston for backend, remove for frontend/mobile)
 - [ ] No new `eslint-disable` comments — fix the root cause
 - [ ] No new files when editing an existing file would suffice

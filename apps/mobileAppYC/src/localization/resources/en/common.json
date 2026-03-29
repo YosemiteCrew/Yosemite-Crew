@@ -106,5 +106,19 @@
     "passwords_no_match": "Passwords do not match",
     "companion_name_required": "companion name is required",
     "companion_type_required": "companion type is required"
+  },
+  "appUpdate": {
+    "requiredTitle": "Update required",
+    "requiredMessage": "A new version of the app is required to continue. Please update to keep using Yosemite Crew.",
+    "optionalTitle": "Update available",
+    "optionalMessage": "A newer version is available with improvements. Update now for the best experience.",
+    "updateNowButton": "Update now",
+    "laterButton": "Later",
+    "missingStoreUrl": "Update link is not configured. Please contact support.",
+    "openStoreFailed": "Could not open the app store. Please try again."
+  },
+  "payments": {
+    "cashCancellationNoticeTitle": "Important",
+    "cashCancellationNoticeBody": "This appointment was paid in cash and has been cancelled. If a refund is needed, it must be handled directly by the service provider."
   }
 }

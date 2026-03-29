@@ -23,7 +23,7 @@ jest.mock('@/app/ui/primitives/Accordion/Accordion', () => ({
       <div>{title}</div>
       {showEditIcon && !isEditing ? (
         <button type="button" onClick={onEditClick}>
-          edit
+          {`edit-${title}`}
         </button>
       ) : null}
       <div>{children}</div>
@@ -78,7 +78,14 @@ jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
       <button
         type="button"
         data-testid={`dropdown-${placeholder}`}
-        onClick={() => onSelect({ value: options[0]?.value ?? '' })}
+        onClick={() =>
+          onSelect({
+            value:
+              placeholder === 'Companion status'
+                ? (options[1]?.value ?? options[0]?.value ?? '')
+                : (options[0]?.value ?? ''),
+          })
+        }
       >
         {defaultOption || placeholder}
       </button>
@@ -118,6 +125,7 @@ describe('CompanionInfo Companion section', () => {
       organisationId: 'org-1',
       parentId: 'parent-1',
       name: 'Buddy',
+      status: 'active',
       type: 'dog',
       speciesCode: 'SP-DOG',
       breed: 'Labrador',
@@ -158,7 +166,7 @@ describe('CompanionInfo Companion section', () => {
   it('shows edit controls and updates companion via PUT payload', async () => {
     render(<Companion companion={companion} />);
 
-    fireEvent.click(screen.getByText('edit'));
+    fireEvent.click(screen.getByRole('button', { name: 'edit-Companion information' }));
 
     await waitFor(() => {
       expect(fetchSpeciesCodeEntriesMock).toHaveBeenCalled();
@@ -180,5 +188,26 @@ describe('CompanionInfo Companion section', () => {
         })
       );
     });
+  });
+
+  it('shows status accordion and routes edit action through callback', () => {
+    render(<Companion companion={companion} canEditCompanionStatus={true} />);
+
+    expect(screen.getByText('Status')).toBeInTheDocument();
+    expect(screen.getByText('Current status')).toBeInTheDocument();
+    expect(screen.getByText('Active')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'edit-Status' }));
+
+    expect(screen.getByTestId('dropdown-Companion status')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('dropdown-Companion status'));
+    fireEvent.click(screen.getByText('Save'));
+
+    expect(updateCompanionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'comp-1',
+        status: 'archived',
+      })
+    );
   });
 });

@@ -81,8 +81,6 @@ pnpm --filter frontend run test -- --testPathPattern="ComponentName"
 - DOM nesting warnings are test failures in this repo.
 - When a hook calls `useXxxStore.getState()` directly, the store mock must expose `getState` too. Use `Object.assign(jest.fn(), { getState: jest.fn() })` in factory mocks, or attach `(useXxxStore as any).getState = mockGetState` in `beforeEach` for auto-mocks. See `frontend-testing` skill for full patterns.
 
----
-
 ## What NOT to Do
 
 - Do not nest `<button>` inside `<button>`.

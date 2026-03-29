@@ -36,6 +36,8 @@ import {
 import { formatDateTimeLocal } from '@/app/lib/date';
 
 const TESTS_PAGE_SIZE = 25;
+const IDEXX_REGIONAL_AVAILABILITY_DISCLAIMER =
+  'IDEXX integration availability is currently limited to the USA, Canada, and the UK.';
 
 const getOrderResultProgressFromResults = (allResults: LabResult[], orderId: string): string => {
   const statuses = new Set(
@@ -1421,6 +1423,7 @@ const LabResultsList = ({ s }: { s: UseLabTestsReturn }) => (
           </div>
         ))
       )}
+      <div className="text-caption-2 text-text-extra">{IDEXX_REGIONAL_AVAILABILITY_DISCLAIMER}</div>
     </div>
   </Accordion>
 );

@@ -17,7 +17,14 @@ import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
 // Mock Next.js Image component
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: (props: any) => <img {...props} priority={props.priority ? 'true' : 'false'} />,
+  default: (props: any) => (
+    <span
+      data-testid="next-image"
+      data-alt={props.alt}
+      data-src={typeof props.src === 'string' ? props.src : props.src?.src}
+      data-priority={props.priority ? 'true' : 'false'}
+    />
+  ),
 }));
 
 // Mock the overview stats hook to return our split datasets
@@ -90,10 +97,11 @@ describe('OverviewPage Component', () => {
     ).toBeInTheDocument();
 
     // Assert image renders with correct src
-    const image = screen.getByAltText('Veterinarians working together');
+    const image = screen.getByTestId('next-image');
     expect(image).toBeInTheDocument();
+    expect(image).toHaveAttribute('data-alt', 'Veterinarians working together');
     expect(image).toHaveAttribute(
-      'src',
+      'data-src',
       'https://d2il6osz49gpup.cloudfront.net/statsPage/statLanding.png'
     );
 

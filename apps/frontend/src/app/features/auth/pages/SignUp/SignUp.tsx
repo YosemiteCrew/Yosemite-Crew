@@ -38,7 +38,6 @@ const SignUp = ({
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [agree, setAgree] = useState(false);
-  const [subscribe, setSubscribe] = useState(false);
 
   const [showVerifyModal, setShowVerifyModal] = useState(false);
 
@@ -48,7 +47,6 @@ const SignUp = ({
     lastName?: string;
     email?: string;
     pError?: string;
-    subscribe?: string;
     agree?: string;
   }>({});
 
@@ -89,7 +87,6 @@ const SignUp = ({
     email: string,
     password: string,
     confirmPassword: string,
-    subscribe: boolean,
     agree: boolean
   ) => {
     const errors: {
@@ -98,7 +95,6 @@ const SignUp = ({
       email?: string;
       pError?: string;
       confirmPError?: string;
-      subscribe?: string;
       agree?: string;
     } = {};
 
@@ -107,10 +103,6 @@ const SignUp = ({
     if (!email) errors.email = 'Email is required';
 
     Object.assign(errors, passwordErrors(password, confirmPassword));
-
-    if (!subscribe) {
-      errors.subscribe = 'Please check the Newsletter and Promotional emails box';
-    }
 
     if (!agree) {
       errors.agree = 'Please check the Terms and Conditions box';
@@ -149,7 +141,6 @@ const SignUp = ({
       email,
       password,
       confirmPassword,
-      subscribe,
       agree
     );
 
@@ -333,21 +324,8 @@ const SignUp = ({
               <Form.Check
                 type="checkbox"
                 label={<>Sign me up for newsletter and promotional emails</>}
-                onChange={(e) => setSubscribe(e.target.checked)}
                 className="flex! gap-2! items-end! text-caption-1 text-text-primary"
               />
-              {/* Show error for newsletter */}
-              {inputErrors.subscribe && (
-                <div
-                  className={`
-                        flex items-center gap-1 px-4
-                        text-caption-2 text-text-error
-                      `}
-                >
-                  <IoIosWarning className="text-text-error" size={14} />
-                  {inputErrors.subscribe}
-                </div>
-              )}
             </div>
 
             <div className="flex flex-col items-center gap-3">

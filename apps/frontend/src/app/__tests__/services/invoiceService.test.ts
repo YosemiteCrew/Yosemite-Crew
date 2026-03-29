@@ -1,6 +1,7 @@
 import {
   addLineItemsToAppointments,
   getPaymentLink,
+  loadInvoicesForAppointment,
   loadInvoicesForOrgPrimaryOrg,
   markInvoicePaid,
   updateInvoicePaymentCollectionMethod,
@@ -12,6 +13,7 @@ import { getData, patchData, postData } from '@/app/services/axios';
 type InvoiceState = {
   startLoading: jest.Mock;
   setInvoicesForOrg: jest.Mock;
+  upsertInvoice: jest.Mock;
   status: 'idle' | 'loading' | 'loaded' | 'error';
 };
 
@@ -46,6 +48,7 @@ describe('invoiceService', () => {
     invoiceState = {
       startLoading: jest.fn(),
       setInvoicesForOrg: jest.fn(),
+      upsertInvoice: jest.fn(),
       status: 'idle',
     };
     orgState = { primaryOrgId: 'org-1' };
@@ -62,6 +65,30 @@ describe('invoiceService', () => {
 
     expect(invoiceState.startLoading).toHaveBeenCalled();
     expect(invoiceState.setInvoicesForOrg).toHaveBeenCalledWith('org-1', []);
+  });
+
+  it('restores missing appointment id from invoice account reference', async () => {
+    (getData as jest.Mock).mockResolvedValue({
+      data: [
+        {
+          id: 'inv-mobile-1',
+          resourceType: 'Invoice',
+          account: { reference: 'https://api.example.com/fhir/v1/Appointment/appt-mobile-1' },
+        },
+      ],
+    });
+
+    await loadInvoicesForOrgPrimaryOrg();
+
+    expect(invoiceState.setInvoicesForOrg).toHaveBeenCalledWith(
+      'org-1',
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'inv-mobile-1',
+          appointmentId: 'appt-mobile-1',
+        }),
+      ])
+    );
   });
 
   it('skips loading when already loading', async () => {
@@ -113,6 +140,21 @@ describe('invoiceService', () => {
     await loadInvoicesForOrgPrimaryOrg({ silent: true });
     expect(invoiceState.startLoading).not.toHaveBeenCalled();
     expect(invoiceState.setInvoicesForOrg).toHaveBeenCalled();
+  });
+
+  it('loads invoices for appointment and upserts them', async () => {
+    (postData as jest.Mock).mockResolvedValue({
+      data: [
+        { id: 'inv-1', resourceType: 'Invoice', organisationId: 'org-1', appointmentId: 'apt-1' },
+      ],
+    });
+
+    await loadInvoicesForAppointment('apt-1');
+
+    expect(postData).toHaveBeenCalledWith('/fhir/v1/invoice/appointment/apt-1', {});
+    expect(invoiceState.upsertInvoice).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'inv-1', appointmentId: 'apt-1' })
+    );
   });
 
   it('throws when load invoices request fails', async () => {

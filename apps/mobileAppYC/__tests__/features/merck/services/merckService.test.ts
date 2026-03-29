@@ -72,6 +72,42 @@ describe('merckService', () => {
     expect(normalized.meta.audience).toBe('PAT');
   });
 
+  it('sanitizes html from normalized payload entries', () => {
+    const normalized = normalizeMerckSearchPayload(
+      {
+        meta: {
+          requestId: 'req-2',
+          source: 'merck-live-feed',
+          updatedAt: '2026-03-24T05:20:54Z',
+          audience: 'PAT',
+          language: 'en',
+          totalResults: 1,
+        },
+        entries: [
+          {
+            id: 'entry-1',
+            title: '<b>Rhinitis</b> in <i>Dogs</i>',
+            summaryText:
+              '<p>Inflammation <strong>of</strong> nasal passages.</p>',
+            updatedAt: null,
+            audience: 'PAT',
+            primaryUrl: 'https://www.msdvetmanual.com/topic',
+            subLinks: [],
+          },
+        ],
+      },
+      {
+        language: 'en',
+        media: 'hybrid',
+      },
+    );
+
+    expect(normalized.entries[0].title).toBe('Rhinitis in Dogs');
+    expect(normalized.entries[0].summaryText).toBe(
+      'Inflammation of nasal passages.',
+    );
+  });
+
   it('calls backend search endpoint with PAT audience for mobile', async () => {
     mockApiClient.get.mockResolvedValue({
       data: {
@@ -104,9 +140,10 @@ describe('merckService', () => {
     });
 
     expect(mockApiClient.get).toHaveBeenCalledWith(
-      '/v1/knowledge/pms/organisation/org-1/merck/manuals/search',
+      '/v1/knowledge/mobile/merck/manuals/search',
       expect.objectContaining({
         params: {
+          organisationId: 'org-1',
           q: 'fever',
           audience: 'PAT',
           language: 'es',

@@ -286,7 +286,7 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
     return (
       <div className="w-full rounded-2xl border border-card-border p-4">
         <div className="text-body-4 text-text-secondary">
-          Merck Manuals is disabled for this organization.
+          MSD Veterinary Manual is disabled for this organization.
         </div>
       </div>
     );
@@ -301,10 +301,10 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <Image
             src={MEDIA_SOURCES.futureAssets.merckLogoUrl}
-            alt="Merck Manuals"
-            width={74}
+            alt="MSD Veterinary Manual"
+            width={160}
             height={28}
-            className="object-contain"
+            className="object-contain h-12 w-auto"
           />
           <CompactAudienceToggle
             value={audience}
@@ -318,8 +318,8 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
           />
         </div>
         <div className="text-body-4 text-text-secondary">
-          Search Merck Manuals for this appointment. Result pages open directly in an embedded
-          reader.
+          Search MSD Veterinary Manual for this appointment. Result pages open directly in an
+          embedded reader.
         </div>
 
         <form

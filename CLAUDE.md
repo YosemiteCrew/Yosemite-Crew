@@ -73,6 +73,21 @@ Additional commit rules:
 - Never add `Co-Authored-By` or any signature lines to commit messages.
 - Never skip pre-commit hooks (`--no-verify` is forbidden).
 - All pre-commit hooks must pass before the user commits — if lint/type/test checks fail, fix them first.
+- Before suggesting any commit message, validate the scope against `commitlint.config.cjs`.
+- Allowed scopes are exactly: `backend`, `frontend`, `mobile`, `dev-docs`, `types`, `fhirtypes`, `repo`, `ci`, `docs`.
+- If changes span multiple workspaces, use `repo`.
+
+Issue + PR draft workflow (only on explicit user request):
+
+- Compute base SHA using `git merge-base HEAD upstream/dev`.
+- Analyze commits and changed files from `<base>..HEAD`.
+- Build draft content from actual file diffs; never infer scope from commit title alone.
+- Group changed files by domain/workstream and ensure all material domains are reflected in Issue and PR body.
+- If Merck paths changed (`apps/mobileAppYC/src/features/merck/` or backend Merck integration paths), explicitly include Merck integration updates.
+- Use `.github/ISSUE_TEMPLATE/feature_request.md` and `.github/PULL_REQUEST_TEMPLATE.md` as the exact template source.
+- Generate or overwrite a single latest file: `.tmp/agent-output/latest-issue-pr.md`.
+- Do not auto-generate this file unless asked.
+- Treat `.tmp/agent-output/` as temporary local output (gitignored, deletable anytime).
 
 ---
 
@@ -210,10 +225,11 @@ Conventional commits are enforced by `commitlint`:
 <type>(<scope>): <subject>
 
 Types: feat | fix | chore | refactor | test | docs | style | perf | ci
-Scope: frontend | backend | mobile | types | docs | repo
+Scope: backend | frontend | mobile | dev-docs | types | fhirtypes | repo | ci | docs
 
 Examples:
   feat(frontend): add recurring appointment support
+  feat(mobile): improve invoice linking for appointment details
   fix(frontend): resolve button nesting in Availability component
   fix(frontend): use HTMLElement drag handler type across board cards
   test(frontend): fix Availability icon mock to use span not button

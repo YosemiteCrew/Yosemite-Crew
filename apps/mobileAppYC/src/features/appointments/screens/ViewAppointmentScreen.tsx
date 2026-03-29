@@ -81,6 +81,13 @@ import {
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import type {FormField} from '@yosemite-crew/types';
 import {MerckSearchWidget} from '@/features/merck/components/MerckSearchWidget';
+import {
+  getAppointmentStatusLabel,
+  isActionableUpcomingStatus,
+  isAppointmentPaymentFailed,
+  isAppointmentPaymentPending,
+  isTerminalAppointmentStatus,
+} from '@/features/appointments/utils/appointmentStatus';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -109,6 +116,19 @@ const toImageSource = (value: unknown): {uri: string} | undefined => {
   }
   const uri = normalizeAvatarUrl(value);
   return uri ? {uri} : undefined;
+};
+
+const getCancellationNote = (
+  isCancelledOrNoShow: boolean,
+  isCashPaid: boolean,
+): string | null => {
+  if (!isCancelledOrNoShow) {
+    return null;
+  }
+  if (isCashPaid) {
+    return 'This appointment was paid in cash. If a refund is needed after cancellation, please contact the service provider directly because cash refunds are handled by the provider organization.';
+  }
+  return "This appointment was cancelled. Refunds, if applicable, are processed per the provider organization's policy and card network timelines.";
 };
 
 const resolveEmployeeAvatar = (
@@ -212,8 +232,7 @@ const buildEmployeeDisplay = ({
         avatar: resolvedEmployeeAvatar,
       }
     : null;
-  const shouldShowEmployee =
-    !statusFlags.isPaymentPending && statusFlags.isUpcoming;
+  const shouldShowEmployee = statusFlags.isUpcoming;
   return shouldShowEmployee
     ? (employeeWithAvatar ?? employeeFallback ?? null)
     : null;
@@ -343,10 +362,29 @@ const useAppointmentActions = ({
 };
 
 const useStatusDisplay = (theme: any) => {
-  const getStatusDisplay = (statusValue: string, isPaymentPending: boolean) => {
+  const getStatusDisplay = (
+    statusValue: string,
+    paymentStatus?: string | null,
+  ) => {
+    const label = getAppointmentStatusLabel(statusValue, paymentStatus);
+    const isPaymentFailed = isAppointmentPaymentFailed(
+      statusValue,
+      paymentStatus,
+    );
+    const isPaymentPending = isAppointmentPaymentPending(
+      statusValue,
+      paymentStatus,
+    );
+    if (isPaymentFailed) {
+      return {
+        text: label,
+        textColor: theme.colors.error,
+        backgroundColor: theme.colors.errorSurface,
+      };
+    }
     if (isPaymentPending) {
       return {
-        text: 'Payment pending',
+        text: label,
         textColor: theme.colors.warning,
         backgroundColor: theme.colors.warningSurface,
       };
@@ -354,75 +392,46 @@ const useStatusDisplay = (theme: any) => {
     switch (statusValue) {
       case 'UPCOMING':
         return {
-          text: 'Upcoming',
+          text: label,
           textColor: theme.colors.secondary,
           backgroundColor: theme.colors.primaryTint,
         };
       case 'CHECKED_IN':
-        return {
-          text: 'Checked in',
-          textColor: theme.colors.success,
-          backgroundColor: theme.colors.successSurface,
-        };
       case 'IN_PROGRESS':
+      case 'PAID':
+      case 'CONFIRMED':
+      case 'SCHEDULED':
+      case 'COMPLETED':
         return {
-          text: 'In progress',
+          text: label,
           textColor: theme.colors.success,
           backgroundColor: theme.colors.successSurface,
         };
       case 'REQUESTED':
         return {
-          text: 'Requested',
+          text: label,
           textColor: theme.colors.primary,
           backgroundColor: theme.colors.primaryTint,
         };
       case 'NO_PAYMENT':
       case 'AWAITING_PAYMENT':
-        return {
-          text: 'Payment pending',
-          textColor: theme.colors.warning,
-          backgroundColor: theme.colors.warningSurface,
-        };
       case 'PAYMENT_FAILED':
+      case 'RESCHEDULED':
         return {
-          text: 'Payment failed',
+          text: label,
           textColor: theme.colors.warning,
           backgroundColor: theme.colors.warningSurface,
-        };
-      case 'PAID':
-        return {
-          text: 'Paid',
-          textColor: theme.colors.success,
-          backgroundColor: theme.colors.successSurface,
-        };
-      case 'CONFIRMED':
-      case 'SCHEDULED':
-        return {
-          text: 'Scheduled',
-          textColor: theme.colors.success,
-          backgroundColor: theme.colors.successSurface,
-        };
-      case 'COMPLETED':
-        return {
-          text: 'Completed',
-          textColor: theme.colors.success,
-          backgroundColor: theme.colors.successSurface,
         };
       case 'CANCELLED':
+      case 'NO_SHOW':
         return {
-          text: 'Cancelled',
+          text: label,
           textColor: theme.colors.error,
           backgroundColor: theme.colors.errorSurface,
         };
-      case 'RESCHEDULED':
-        return {
-          text: 'Rescheduled',
-          textColor: theme.colors.warning,
-          backgroundColor: theme.colors.warningSurface,
-        };
       default:
         return {
-          text: statusValue,
+          text: label,
           textColor: theme.colors.textSecondary,
           backgroundColor: theme.colors.borderMuted,
         };
@@ -433,18 +442,14 @@ const useStatusDisplay = (theme: any) => {
 
 const useStatusFlags = (status: string, paymentStatus?: string | null) => {
   return useMemo(() => {
-    const normalizedPaymentStatus = String(paymentStatus ?? '').toUpperCase();
-    const isPaymentPending =
-      normalizedPaymentStatus === 'UNPAID' ||
-      normalizedPaymentStatus === 'PAYMENT_PENDING' ||
-      status === 'NO_PAYMENT' ||
-      status === 'AWAITING_PAYMENT' ||
-      status === 'PAYMENT_FAILED';
+    const isPaymentPending = isAppointmentPaymentPending(status, paymentStatus);
+    const isPaymentFailed = isAppointmentPaymentFailed(status, paymentStatus);
+    const requiresPayment = isPaymentPending || isPaymentFailed;
     const isRequested = status === 'REQUESTED';
     const isCheckedIn = status === 'CHECKED_IN';
     const isInProgress = status === 'IN_PROGRESS';
-    const isUpcoming = status === 'UPCOMING' || isCheckedIn || isInProgress;
-    const isTerminal = status === 'COMPLETED' || status === 'CANCELLED';
+    const isUpcoming = isActionableUpcomingStatus(status);
+    const isTerminal = isTerminalAppointmentStatus(status);
     return {
       isPaymentPending,
       isRequested,
@@ -452,9 +457,9 @@ const useStatusFlags = (status: string, paymentStatus?: string | null) => {
       isCheckedIn,
       isInProgress,
       isTerminal,
-      showPayNow: isPaymentPending,
-      showInvoice: !isPaymentPending,
-      showCancel: !isTerminal && !isPaymentPending,
+      showPayNow: requiresPayment,
+      showInvoice: !requiresPayment,
+      showCancel: !isTerminal && !requiresPayment,
     };
   }, [paymentStatus, status]);
 };
@@ -481,11 +486,24 @@ const useAppointmentDisplayData = (params: {
   } = params;
   return useMemo(() => {
     const hasAssignedEmployee = Boolean(employee);
-    const cancellationNote =
-      apt.status === 'CANCELLED'
-        ? "This appointment was cancelled. Refunds, if applicable, are processed per the clinic's policy and card network timelines."
-        : null;
-    const businessName = business?.name || apt.organisationName || 'Clinic';
+    const normalizedStatus = String(apt.status ?? '')
+      .trim()
+      .toUpperCase()
+      .replaceAll(/[\s-]+/g, '_');
+    const normalizedPaymentStatus = String(apt.paymentStatus ?? '')
+      .trim()
+      .toUpperCase()
+      .replaceAll(/[\s-]+/g, '_');
+    const isCancelledOrNoShow =
+      normalizedStatus === 'CANCELLED' || normalizedStatus === 'NO_SHOW';
+    const isCashPaid =
+      normalizedPaymentStatus === 'PAID_CASH' ||
+      normalizedPaymentStatus === 'CASH_PAID';
+    const cancellationNote = getCancellationNote(
+      isCancelledOrNoShow,
+      isCashPaid,
+    );
+    const businessName = business?.name || apt.organisationName || 'Provider';
     const businessAddress = business?.address || apt.organisationAddress || '';
     const resolvedPhoto =
       fallbackPhoto || (isDummyPhoto(businessPhoto) ? null : businessPhoto);
@@ -671,7 +689,7 @@ const useCheckInFlow = ({
       if (!businessCoords.lat || !businessCoords.lng) {
         Alert.alert(
           'Location unavailable',
-          'Clinic location is missing. Please try again later.',
+          'Provider location is missing. Please try again later.',
         );
         return false;
       }
@@ -694,7 +712,7 @@ const useCheckInFlow = ({
       if (distance > checkInRadiusMeters) {
         Alert.alert(
           'Too far to check in',
-          `Move closer to the clinic to check in. You are ~${Math.round(distance)}m away.`,
+          `Move closer to the service location to check in. You are ~${Math.round(distance)}m away.`,
         );
         return false;
       }
@@ -1057,7 +1075,7 @@ export const ViewAppointmentScreen: React.FC = () => {
     showInvoice,
     showCancel,
   } = statusFlags;
-  const statusInfo = getStatusDisplay(status, statusFlags.isPaymentPending);
+  const statusInfo = getStatusDisplay(status, apt?.paymentStatus);
   const displayData = useAppointmentDisplayData({
     apt,
     business,
@@ -1371,7 +1389,12 @@ export const ViewAppointmentScreen: React.FC = () => {
     department,
     statusFlags,
   });
-  const showCheckInButton = status === 'UPCOMING' && !isTerminal;
+  const showCheckInButton =
+    (status === 'UPCOMING' ||
+      status === 'CONFIRMED' ||
+      status === 'SCHEDULED' ||
+      status === 'RESCHEDULED') &&
+    !isTerminal;
   const {dateTimeLabel} = formatAppointmentDateTime(apt);
   const merckOrganisationId = apt.businessId ?? null;
 
@@ -1454,7 +1477,7 @@ export const ViewAppointmentScreen: React.FC = () => {
                     key={doc.id}
                     title={doc.title}
                     businessName={
-                      doc.businessName ?? business?.name ?? 'Clinic'
+                      doc.businessName ?? business?.name ?? 'Provider'
                     }
                     visitType={doc.visitType ?? doc.category ?? ''}
                     issueDate={doc.issueDate ?? doc.createdAt ?? ''}
@@ -1494,11 +1517,14 @@ export const ViewAppointmentScreen: React.FC = () => {
               description="Search consumer Merck manuals while reviewing this appointment."
               onOpenFullSearch={
                 merckOrganisationId
-                  ? initialQuery =>
+                  ? searchState =>
                       navigation.navigate('MerckManuals', {
                         organisationId: merckOrganisationId,
                         context: 'appointment',
-                        initialQuery: initialQuery || undefined,
+                        initialQuery: searchState.query || undefined,
+                        initialEntries: searchState.entries,
+                        initialLanguage: searchState.language,
+                        initialHasSearched: searchState.hasSearched,
                       })
                   : undefined
               }

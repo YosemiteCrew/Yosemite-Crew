@@ -63,7 +63,7 @@ describe('trustCenterData', () => {
   });
 
   it('should contain the correct Subprocessors data', () => {
-    expect(trustCenterData.subProcessors).toHaveLength(4);
+    expect(trustCenterData.subProcessors).toHaveLength(3);
 
     const aws = trustCenterData.subProcessors.find((s) => s.name === 'Amazon Web Services');
     expect(aws?.location).toBe('Luxembourg (EU)');
@@ -75,9 +75,6 @@ describe('trustCenterData', () => {
     expect(supabase?.logo).toContain('companyLogos/supabase.png');
 
     const postgres = trustCenterData.subProcessors.find((s) => s.name === 'PostgreSQL');
-    expect(postgres).toBeDefined();
-    expect(postgres?.service).toBe('Relational Database');
-    expect(postgres?.location).toBe('Ireland (EU)');
-    expect(postgres?.logo).toContain('Postgresql_elephant.svg');
+    expect(postgres).toBeUndefined();
   });
 });

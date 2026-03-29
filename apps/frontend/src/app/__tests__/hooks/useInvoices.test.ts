@@ -1,8 +1,15 @@
-import { renderHook } from '@testing-library/react';
-import { useLoadInvoicesForPrimaryOrg, useInvoicesForPrimaryOrg } from '@/app/hooks/useInvoices';
+import { renderHook, waitFor } from '@testing-library/react';
+import {
+  useLoadInvoicesForPrimaryOrg,
+  useInvoicesForPrimaryOrg,
+  useInvoicesForPrimaryOrgAppointment,
+} from '@/app/hooks/useInvoices';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useInvoiceStore } from '@/app/stores/invoiceStore';
-import { loadInvoicesForOrgPrimaryOrg } from '@/app/features/billing/services/invoiceService';
+import {
+  loadInvoicesForAppointment,
+  loadInvoicesForOrgPrimaryOrg,
+} from '@/app/features/billing/services/invoiceService';
 
 // --- Mocks ---
 
@@ -118,6 +125,34 @@ describe('useInvoices Hooks', () => {
       // Should return only inv-1, filtering out the broken link
       expect(result.current).toHaveLength(1);
       expect(result.current[0]).toEqual({ id: 'inv-1', amount: 100 });
+    });
+  });
+
+  describe('useInvoicesForPrimaryOrgAppointment', () => {
+    it('loads appointment invoices when org cache has no matching invoice', async () => {
+      mockOrgState.primaryOrgId = 'org-1';
+      mockInvoiceState.invoicesById = {};
+      mockInvoiceState.invoiceIdsByOrgId = { 'org-1': [] };
+
+      renderHook(() => useInvoicesForPrimaryOrgAppointment('apt-1'));
+
+      await waitFor(() => {
+        expect(loadInvoicesForAppointment).toHaveBeenCalledWith('apt-1');
+      });
+    });
+
+    it('does not load appointment invoices when matching invoice already exists', async () => {
+      mockOrgState.primaryOrgId = 'org-1';
+      mockInvoiceState.invoicesById = {
+        'inv-1': { id: 'inv-1', appointmentId: 'apt-1', amount: 100 },
+      };
+      mockInvoiceState.invoiceIdsByOrgId = { 'org-1': ['inv-1'] };
+
+      renderHook(() => useInvoicesForPrimaryOrgAppointment('apt-1'));
+
+      await waitFor(() => {
+        expect(loadInvoicesForAppointment).not.toHaveBeenCalled();
+      });
     });
   });
 });

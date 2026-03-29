@@ -25,6 +25,7 @@ import {
   getAppointmentPaymentDisplay,
 } from '@/app/lib/paymentStatus';
 import { IoAdd, IoCardOutline, IoDocumentTextOutline, IoEyeOutline } from 'react-icons/io5';
+import { RiHistoryLine } from 'react-icons/ri';
 import Image from 'next/image';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
@@ -205,6 +206,10 @@ const AppointmentBoard = ({
     setActiveAppointment?.(appointment);
     setViewIntent?.(intent ?? null);
     setViewPopup?.(true);
+  };
+
+  const openAppointmentHistory = (appointment: Appointment) => {
+    openAppointmentWithIntent(appointment, { label: 'info', subLabel: 'history' });
   };
 
   const openChangeStatus = (appointment: Appointment) => {
@@ -467,7 +472,18 @@ const AppointmentBoard = ({
                         <div className="relative z-10 flex items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
                             <div className="text-caption-1 font-semibold text-text-primary">
-                              <div className="break-words">{appointment.companion.name}</div>
+                              <button
+                                type="button"
+                                className="break-words cursor-pointer hover:underline underline-offset-2 text-left"
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  openAppointmentHistory(appointment);
+                                }}
+                                title="Open appointment history"
+                              >
+                                {appointment.companion.name}
+                              </button>
                               <div className="break-words text-[10px] font-normal text-text-secondary">
                                 Owner: {appointment.companion.parent?.name || '-'}
                               </div>
@@ -550,6 +566,20 @@ const AppointmentBoard = ({
                                 }}
                               >
                                 <IoEyeOutline size={16} color="#302F2E" />
+                              </button>
+                            </GlassTooltip>
+                            <GlassTooltip content="History" side="bottom">
+                              <button
+                                type="button"
+                                className="h-8 w-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  openAppointmentHistory(appointment);
+                                }}
+                                title="Appointment history"
+                              >
+                                <RiHistoryLine size={15} color="#302F2E" />
                               </button>
                             </GlassTooltip>
                             {canEditAppointments &&

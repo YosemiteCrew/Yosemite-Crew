@@ -38,12 +38,12 @@ const renderFeatureName = (name: string) => {
     );
   }
 
-  if (name === 'Merck Manuals integration') {
+  if (name === 'MSD Veterinary Manual integration') {
     return (
       <div className="pricingFeatureWithBrand">
         <Image
-          src={MEDIA_SOURCES.futureAssets.merckLogoUrl}
-          alt="Merck Manuals"
+          src={MEDIA_SOURCES.futureAssets.msdLogoUrl}
+          alt="MSD Veterinary Manual"
           width={96}
           height={36}
           className="pricingFeatureBrandLogo my-4"

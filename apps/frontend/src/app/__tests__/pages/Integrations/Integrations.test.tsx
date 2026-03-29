@@ -268,7 +268,9 @@ describe('Integrations settings', () => {
   it('reloads integrations and refreshes Merck status after toggling Merck', async () => {
     render(<ProtectedIntegrations />);
 
-    const merckDisableButton = await screen.findByRole('button', { name: 'Disable Merck Manuals' });
+    const merckDisableButton = await screen.findByRole('button', {
+      name: 'Disable MSD Veterinary Manual',
+    });
     fireEvent.click(merckDisableButton);
 
     await waitFor(() => {

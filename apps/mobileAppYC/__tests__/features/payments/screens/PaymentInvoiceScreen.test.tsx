@@ -265,6 +265,41 @@ describe('PaymentInvoiceScreen', () => {
     expect(screen.getByText('Paid - Cash')).toBeTruthy();
   });
 
+  it('shows cash cancellation notice for cancelled appointments paid in cash', async () => {
+    const state = createSafeState({
+      appointments: {
+        items: [
+          {
+            ...mockStateBase.appointments.items[0],
+            status: 'CANCELLED',
+            paymentStatus: 'PAID_CASH',
+          },
+        ],
+        invoices: {
+          'apt-1': {
+            ...mockInvoiceData,
+            status: 'PAID_CASH',
+            paymentCollectionMethod: 'PAYMENT_AT_CLINIC',
+            paidAt: '2026-03-24T10:00:00.000Z',
+          },
+        },
+      },
+    });
+    (useSelector as unknown as jest.Mock).mockImplementation(fn => fn(state));
+    render(<PaymentInvoiceScreen />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          /This appointment was paid in cash and has been cancelled/,
+        ),
+      ).toBeTruthy();
+      expect(
+        screen.getByText(/must be handled directly by the service provider/),
+      ).toBeTruthy();
+    });
+  });
+
   // --- Branch Coverage: Date Formatting ---
 
   it('handles missing invoice date gracefully', () => {

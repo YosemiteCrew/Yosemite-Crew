@@ -1,10 +1,10 @@
-import React from "react";
-import { postData } from "@/app/services/axios";
-import PdfDocUploader from "@/app/ui/widgets/UploadImage/PdfDocUploader";
+import React from 'react';
+import { postData } from '@/app/services/axios';
+import PdfDocUploader from '@/app/ui/widgets/UploadImage/PdfDocUploader';
 
 type Props = {
   placeholder: string;
-  onChange: (url: string) => void;
+  onChange: (url: string, mimeType?: string, size?: number) => void;
   apiUrl: string;
   file: File | null;
   setFile: React.Dispatch<React.SetStateAction<File | null>>;
@@ -21,9 +21,7 @@ const CompanionDoc = ({
   setFile,
   companionId,
 }: Readonly<Props>) => {
-  const getSignedUrl = async (
-    file: File,
-  ): Promise<{ uploadUrl: string; s3Key: string }> => {
+  const getSignedUrl = async (file: File): Promise<{ uploadUrl: string; s3Key: string }> => {
     const body = {
       mimeType: file.type,
       companionId: companionId,

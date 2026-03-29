@@ -44,6 +44,11 @@ import {
   useFetchOrgRatingIfNeeded,
   type OrgRatingState,
 } from '@/features/appointments/hooks/useOrganisationRating';
+import {
+  getAppointmentStatusLabel,
+  isAppointmentPaymentFailed,
+  isAppointmentPaymentPending,
+} from '@/features/appointments/utils/appointmentStatus';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 type BusinessFilter =
@@ -187,34 +192,11 @@ export const MyAppointmentsScreen: React.FC = () => {
     },
     [businessMap],
   );
-  const formatStatus = (status: string) => {
-    switch (status) {
-      case 'UPCOMING':
-        return 'Upcoming';
-      case 'CHECKED_IN':
-        return 'Checked in';
-      case 'NO_PAYMENT':
-      case 'AWAITING_PAYMENT':
-        return 'Payment pending';
-      case 'PAID':
-        return 'Paid';
-      case 'CONFIRMED':
-      case 'SCHEDULED':
-        return 'Scheduled';
-      case 'IN_PROGRESS':
-        return 'In progress';
-      case 'RESCHEDULED':
-        return 'Rescheduled';
-      case 'COMPLETED':
-        return 'Completed';
-      case 'CANCELLED':
-        return 'Cancelled';
-      case 'PAYMENT_FAILED':
-        return 'Payment failed';
-      default:
-        return status;
-    }
-  };
+  const formatStatus = React.useCallback(
+    (status: string, paymentStatus?: string | null) =>
+      getAppointmentStatusLabel(status, paymentStatus),
+    [],
+  );
 
   const handleChatPress = React.useCallback(
     ({
@@ -638,7 +620,7 @@ type PastAppointmentCardProps = {
   navigation: Nav;
   styles: ReturnType<typeof createStyles>;
   orgRating?: OrgRatingState;
-  formatStatus: (status: string) => string;
+  formatStatus: (status: string, paymentStatus?: string | null) => string;
   secondaryColor: string;
   theme: any;
 };
@@ -660,6 +642,18 @@ const PastAppointmentCard: React.FC<PastAppointmentCardProps> = ({
   secondaryColor,
   theme,
 }) => {
+  const isCancelledLike =
+    item.status === 'CANCELLED' || item.status === 'NO_SHOW';
+  const isFailedPayment = isAppointmentPaymentFailed(
+    item.status,
+    item.paymentStatus,
+  );
+  const isPendingPayment = isAppointmentPaymentPending(
+    item.status,
+    item.paymentStatus,
+  );
+  const isRequestedLike = item.status === 'REQUESTED' || isPendingPayment;
+
   let ratingContent: React.ReactNode = null;
 
   if (item.status === 'COMPLETED') {
@@ -717,23 +711,18 @@ const PastAppointmentCard: React.FC<PastAppointmentCardProps> = ({
               <View
                 style={[
                   styles.pastStatusBadge,
-                  item.status === 'CANCELLED' && styles.pastStatusBadgeCanceled,
-                  item.status === 'REQUESTED' &&
-                    styles.pastStatusBadgeRequested,
-                  item.status === 'PAYMENT_FAILED' &&
-                    styles.pastStatusBadgeFailed,
+                  isCancelledLike && styles.pastStatusBadgeCanceled,
+                  isRequestedLike && styles.pastStatusBadgeRequested,
+                  isFailedPayment && styles.pastStatusBadgeFailed,
                 ]}>
                 <Text
                   style={[
                     styles.pastStatusBadgeText,
-                    item.status === 'CANCELLED' &&
-                      styles.pastStatusBadgeTextCanceled,
-                    item.status === 'REQUESTED' &&
-                      styles.pastStatusBadgeTextRequested,
-                    item.status === 'PAYMENT_FAILED' &&
-                      styles.pastStatusBadgeTextFailed,
+                    isCancelledLike && styles.pastStatusBadgeTextCanceled,
+                    isRequestedLike && styles.pastStatusBadgeTextRequested,
+                    isFailedPayment && styles.pastStatusBadgeTextFailed,
                   ]}>
-                  {formatStatus(item.status)}
+                  {formatStatus(item.status, item.paymentStatus)}
                 </Text>
               </View>
             </View>

@@ -104,8 +104,9 @@ Husky + commitlint are configured. Pre-commit runs lint + type-check. Commit mes
 ```
 <type>(<scope>): <subject>
 Types: feat | fix | chore | refactor | test | docs | style | perf | ci
-Scopes: frontend | backend | mobile | types | docs | repo
 ```
+
+Scope allowlist is defined centrally in root `AGENTS.md` and enforced by `commitlint.config.cjs`.
 
 Never skip hooks with `--no-verify`.
 

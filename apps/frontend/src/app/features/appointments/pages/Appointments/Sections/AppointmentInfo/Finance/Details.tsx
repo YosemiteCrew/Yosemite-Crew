@@ -1,5 +1,5 @@
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import Fallback from '@/app/ui/overlays/Fallback';
@@ -16,14 +16,47 @@ type DetailsProps = {
   activeAppointment: Appointment;
 };
 
+const CASH_COLLECTION_METHOD = 'PAYMENT_AT_CLINIC';
+const SETTLED_INVOICE_STATUSES = new Set(['PAID', 'REFUNDED']);
+
 const Details = ({ activeAppointment }: DetailsProps) => {
   const currency = useCurrencyForPrimaryOrg();
   const invoices = useInvoicesForPrimaryOrgAppointment(activeAppointment.id);
+  const showCashRefundDisclaimer = useMemo(() => {
+    const normalizedAppointmentStatus = String(activeAppointment.status ?? '').toUpperCase();
+    if (normalizedAppointmentStatus !== 'CANCELLED') {
+      return false;
+    }
+
+    const normalizedAppointmentPaymentStatus = String(
+      activeAppointment.paymentStatus ?? ''
+    ).toUpperCase();
+    if (normalizedAppointmentPaymentStatus === 'PAID_CASH') {
+      return true;
+    }
+
+    return invoices.some((invoice) => {
+      const normalizedCollectionMethod = String(
+        (invoice as any)?.paymentCollectionMethod ?? ''
+      ).toUpperCase();
+      const normalizedInvoiceStatus = String(invoice.status ?? '').toUpperCase();
+      return (
+        normalizedCollectionMethod === CASH_COLLECTION_METHOD &&
+        (SETTLED_INVOICE_STATUSES.has(normalizedInvoiceStatus) || Boolean((invoice as any)?.paidAt))
+      );
+    });
+  }, [activeAppointment.status, activeAppointment.paymentStatus, invoices]);
 
   return (
     <PermissionGate allOf={[PERMISSIONS.BILLING_VIEW_ANY]} fallback={<Fallback />}>
       <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
         <div className="flex flex-col gap-6">
+          {showCashRefundDisclaimer ? (
+            <div className="rounded-2xl border border-[#F4D596] bg-[#FFF8E8] px-4 py-3 text-caption-1 text-text-secondary">
+              This appointment was paid in cash and is now cancelled. Any refund, if applicable,
+              should be handled directly by the service provider.
+            </div>
+          ) : null}
           {invoices.map((payment, i) => {
             return (
               <Accordion

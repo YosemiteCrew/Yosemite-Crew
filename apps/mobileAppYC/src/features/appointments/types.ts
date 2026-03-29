@@ -79,6 +79,7 @@ export type AppointmentStatus =
   | 'CONFIRMED'
   | 'COMPLETED'
   | 'CANCELLED'
+  | 'NO_SHOW'
   | 'RESCHEDULED'
   | 'SCHEDULED'
   | 'PAYMENT_FAILED'

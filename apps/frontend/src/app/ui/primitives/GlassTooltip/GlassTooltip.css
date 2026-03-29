@@ -6,7 +6,7 @@
 
 .glass-tooltip-bubble {
   position: fixed;
-  z-index: 1000;
+  z-index: 4000;
   pointer-events: none;
   max-width: min(320px, calc(100vw - 16px));
   white-space: normal;
