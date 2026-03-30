@@ -508,7 +508,7 @@ describe('Build Component', () => {
 
   // --- Section 5: Medication Logic ---
 
-  it.skip('adds medicine from inventory dropdown', async () => {
+  it('adds medicine from inventory dropdown', async () => {
     const medGroup: FormsProps = {
       schema: [
         {

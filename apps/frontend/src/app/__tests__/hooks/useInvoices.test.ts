@@ -3,6 +3,7 @@ import {
   useLoadInvoicesForPrimaryOrg,
   useInvoicesForPrimaryOrg,
   useInvoicesForPrimaryOrgAppointment,
+  usePaidInvoiceForPrimaryOrgAppointment,
 } from '@/app/hooks/useInvoices';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useInvoiceStore } from '@/app/stores/invoiceStore';
@@ -153,6 +154,59 @@ describe('useInvoices Hooks', () => {
       await waitFor(() => {
         expect(loadInvoicesForAppointment).not.toHaveBeenCalled();
       });
+    });
+
+    it('returns empty array when appointmentId is undefined', () => {
+      mockOrgState.primaryOrgId = 'org-1';
+      mockInvoiceState.invoicesById = {};
+      mockInvoiceState.invoiceIdsByOrgId = { 'org-1': [] };
+
+      const { result } = renderHook(() => useInvoicesForPrimaryOrgAppointment(undefined));
+      expect(result.current).toEqual([]);
+    });
+  });
+
+  describe('usePaidInvoiceForPrimaryOrgAppointment', () => {
+    it('returns undefined when no primaryOrgId', () => {
+      mockOrgState.primaryOrgId = null;
+      mockInvoiceState.invoicesById = {};
+      mockInvoiceState.invoiceIdsByOrgId = {};
+
+      const { result } = renderHook(() => usePaidInvoiceForPrimaryOrgAppointment('apt-1'));
+      expect(result.current).toBeUndefined();
+    });
+
+    it('returns undefined when appointmentId is undefined', () => {
+      mockOrgState.primaryOrgId = 'org-1';
+      mockInvoiceState.invoicesById = {};
+      mockInvoiceState.invoiceIdsByOrgId = { 'org-1': [] };
+
+      const { result } = renderHook(() => usePaidInvoiceForPrimaryOrgAppointment(undefined));
+      expect(result.current).toBeUndefined();
+    });
+
+    it('returns undefined when no PAID invoice found for appointment', () => {
+      mockOrgState.primaryOrgId = 'org-1';
+      mockInvoiceState.invoicesById = {
+        'inv-1': { id: 'inv-1', appointmentId: 'apt-1', status: 'PENDING' },
+      };
+      mockInvoiceState.invoiceIdsByOrgId = { 'org-1': ['inv-1'] };
+
+      const { result } = renderHook(() => usePaidInvoiceForPrimaryOrgAppointment('apt-1'));
+      expect(result.current).toBeUndefined();
+    });
+
+    it('returns the PAID invoice for the matching appointment', () => {
+      const paidInvoice = { id: 'inv-2', appointmentId: 'apt-2', status: 'PAID' };
+      mockOrgState.primaryOrgId = 'org-1';
+      mockInvoiceState.invoicesById = {
+        'inv-1': { id: 'inv-1', appointmentId: 'apt-2', status: 'PENDING' },
+        'inv-2': paidInvoice,
+      };
+      mockInvoiceState.invoiceIdsByOrgId = { 'org-1': ['inv-1', 'inv-2'] };
+
+      const { result } = renderHook(() => usePaidInvoiceForPrimaryOrgAppointment('apt-2'));
+      expect(result.current).toEqual(paidInvoice);
     });
   });
 });

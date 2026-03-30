@@ -128,6 +128,33 @@ describe('formSigningService', () => {
 
       await expect(fetchSignedDocumentIfReady('submission-123')).rejects.toEqual(error);
     });
+
+    it('rethrows error when status is not 400 (e.g. 500)', async () => {
+      const error = new Error('Internal error');
+      (error as any).isAxiosError = true;
+      (error as any).response = { status: 500, data: { message: 'Internal server error' } };
+      apiGetMock.mockRejectedValue(error);
+
+      await expect(fetchSignedDocumentIfReady('submission-123')).rejects.toThrow('Internal error');
+    });
+
+    it('rethrows error when response data is not an object', async () => {
+      const error = new Error('Bad response');
+      (error as any).isAxiosError = true;
+      (error as any).response = { status: 400, data: 'plain string' };
+      apiGetMock.mockRejectedValue(error);
+
+      await expect(fetchSignedDocumentIfReady('submission-123')).rejects.toThrow('Bad response');
+    });
+
+    it('rethrows error when response data is null', async () => {
+      const error = new Error('Null data');
+      (error as any).isAxiosError = true;
+      (error as any).response = { status: 400, data: null };
+      apiGetMock.mockRejectedValue(error);
+
+      await expect(fetchSignedDocumentIfReady('submission-123')).rejects.toThrow('Null data');
+    });
   });
 
   describe('downloadSubmissionPdf', () => {

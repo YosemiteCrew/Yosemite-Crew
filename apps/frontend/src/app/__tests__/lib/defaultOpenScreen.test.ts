@@ -75,6 +75,12 @@ describe('setSavedDefaultOpenScreenRoute', () => {
     expect(dispatchSpy).toHaveBeenCalled();
     dispatchSpy.mockRestore();
   });
+
+  it('returns false for an invalid route value', () => {
+    const result = setSavedDefaultOpenScreenRoute('/invalid-route' as any);
+    expect(result).toBe(false);
+    expect(window.localStorage.getItem('yc_default_open_screen')).toBeNull();
+  });
 });
 
 describe('resolveDefaultOpenScreenRoute', () => {

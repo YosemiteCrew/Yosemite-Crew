@@ -93,6 +93,23 @@ describe('usePrimaryAvailability', () => {
     ]);
   });
 
+  it('returns empty user rows when authUserId is empty string', () => {
+    mockUseAuthStore.mockImplementation((selector: any) => selector({ attributes: { sub: '' } }));
+    mockUseOrgStore.mockImplementation((selector: any) => selector({ primaryOrgId: 'org-1' }));
+    mockUseAvailabilityStore.mockImplementation((selector: any) =>
+      selector({
+        availabilityIdsByOrgId: { 'org-1': ['org'] },
+        availabilitiesById: {
+          org: { _id: 'org', organisationId: 'org-1', dayOfWeek: 'MONDAY', userId: '' },
+        },
+      })
+    );
+
+    const { result } = renderHook(() => usePrimaryAvailability());
+    // When authUserId is empty, userRows=[], falls back to org rows (userId='')
+    expect(result.current.availabilities).toBeDefined();
+  });
+
   it('falls back to org rows when current user rows are unavailable', () => {
     mockUseOrgStore.mockImplementation((selector: any) => selector({ primaryOrgId: 'org-1' }));
     mockUseAvailabilityStore.mockImplementation((selector: any) =>

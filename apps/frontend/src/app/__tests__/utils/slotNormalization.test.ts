@@ -53,6 +53,69 @@ describe('slotNormalization', () => {
     expect(new Set(normalized[0].slot.vetIds)).toEqual(new Set(['vet-a', 'vet-b']));
   });
 
+  it('filters out slots where localStartMinute is negative (out of range)', () => {
+    // dayShift: -1 and a slot that does not carry over into the selected day
+    // startAbsoluteMinute = 540 (09:00), dayShift = -1 → localStartMinute = 540 - 1440 = -900 → filtered
+    const toLocalClock = (value: string) => {
+      const map: Record<string, { minutes: number; dayOffset: number }> = {
+        '09:00': { minutes: 540, dayOffset: 0 },
+        '09:15': { minutes: 555, dayOffset: 0 },
+      };
+      return map[value] ?? { minutes: 0, dayOffset: 0 };
+    };
+
+    const previousDaySlots = [{ startTime: '09:00', endTime: '09:15', vetIds: ['vet-a'] }];
+
+    const normalized = normalizeSlotsForSelectedDay(
+      [{ dayShift: -1, slots: previousDaySlots }],
+      toLocalClock
+    );
+
+    expect(normalized).toHaveLength(0);
+  });
+
+  it('filters out slots where localStartMinute >= DAY_MINUTES (1440)', () => {
+    // dayShift: 1, startAbsoluteMinute = 540 → localStartMinute = 540 + 1440 = 1980 → filtered
+    const toLocalClock = (value: string) => {
+      const map: Record<string, { minutes: number; dayOffset: number }> = {
+        '09:00': { minutes: 540, dayOffset: 0 },
+        '09:15': { minutes: 555, dayOffset: 0 },
+      };
+      return map[value] ?? { minutes: 0, dayOffset: 0 };
+    };
+
+    const nextDaySlots = [{ startTime: '09:00', endTime: '09:15', vetIds: ['vet-a'] }];
+
+    const normalized = normalizeSlotsForSelectedDay(
+      [{ dayShift: 1, slots: nextDaySlots }],
+      toLocalClock
+    );
+
+    expect(normalized).toHaveLength(0);
+  });
+
+  it('wraps endAbsoluteMinute when end <= start (cross-midnight slot)', () => {
+    // A slot where end time is on a new day: end comes before start in minutes
+    // startTime = 23:45 → minutes: 1425, endTime = 00:00 → minutes: 0
+    // Without wrapping: end (0) <= start (1425) → endAbsoluteMinute += 1440 → end = 1440
+    const toLocalClock = (value: string) => {
+      const map: Record<string, { minutes: number; dayOffset: number }> = {
+        '23:45': { minutes: 1425, dayOffset: 0 },
+        '00:00': { minutes: 0, dayOffset: 0 },
+        '00:15': { minutes: 15, dayOffset: 0 },
+      };
+      return map[value] ?? { minutes: 0, dayOffset: 0 };
+    };
+
+    const slots = [{ startTime: '23:45', endTime: '00:00', vetIds: ['vet-a'] }];
+
+    const normalized = normalizeSlotsForSelectedDay([{ dayShift: 0, slots }], toLocalClock);
+
+    expect(normalized).toHaveLength(1);
+    // localEndMinute should be 1440 (1425 + 1440 - 1425 = 1440, i.e. 0 + 1440)
+    expect(normalized[0].meta.localEndMinute).toBeGreaterThan(normalized[0].meta.localStartMinute);
+  });
+
   it('resolves start/end datetime and duration for cross-midnight slot metadata', () => {
     const selectedDate = new Date('2026-03-28T00:00:00.000Z');
     const buildDate = (calendarDay: Date, minuteOfDay: number) => {

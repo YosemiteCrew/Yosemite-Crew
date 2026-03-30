@@ -19,6 +19,7 @@ import { getData, patchData, postData } from '@/app/services/axios';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useAppointmentStore } from '@/app/stores/appointmentStore';
 import { formatDateLocal } from '@/app/lib/date';
+import { fetchInventoryItems } from '@/app/features/inventory/services/inventoryService';
 
 import { fromAppointmentRequestDTO, toAppointmentResponseDTO } from '@yosemite-crew/types';
 
@@ -88,6 +89,7 @@ jest.mock('@/app/lib/appointments', () => ({
 }));
 const mockedFromAppointmentDTO = fromAppointmentRequestDTO as jest.Mock;
 const mockedToAppointmentDTO = toAppointmentResponseDTO as jest.Mock;
+const mockedFetchInventoryItems = fetchInventoryItems as jest.Mock;
 
 describe('Appointment Service', () => {
   // Store spies
@@ -279,6 +281,21 @@ describe('Appointment Service', () => {
       expect(mockAppointmentStoreUpsertAppointment).toHaveBeenCalledWith(returnedAppointment);
     });
 
+    it('handles alternate response shape at data.appointment', async () => {
+      const appointment = makeBaseAppointment();
+      const returnedDTO = { id: 'returned-dto-alt' } as any as AppointmentResponseDTO;
+      const returnedAppointment = makeBaseAppointment({ id: 'appt-created-alt' });
+
+      mockedToAppointmentDTO.mockReturnValue({ fhir: true });
+      mockedPostData.mockResolvedValue({ data: { appointment: returnedDTO } });
+      mockedFromAppointmentDTO.mockReturnValue(returnedAppointment);
+
+      await createAppointment(appointment);
+
+      expect(mockedFromAppointmentDTO).toHaveBeenCalledWith(returnedDTO);
+      expect(mockAppointmentStoreUpsertAppointment).toHaveBeenCalledWith(returnedAppointment);
+    });
+
     it('logs error and rethrows on failure', async () => {
       const error = new Error('Create Error');
       mockedToAppointmentDTO.mockReturnValue({ fhir: true });
@@ -337,6 +354,22 @@ describe('Appointment Service', () => {
       );
       expect(mockedFromAppointmentDTO).toHaveBeenCalledWith(returnedDTO);
       expect(mockAppointmentStoreUpsertAppointment).toHaveBeenCalledWith(returnedAppointment);
+    });
+
+    it('falls back to payload organisationId when store primaryOrgId is null', async () => {
+      (useOrgStore.getState as jest.Mock).mockReturnValue({ primaryOrgId: null });
+      const payload = makeBaseAppointment({ id: 'appt-12', organisationId: 'org-fallback' });
+
+      mockedToAppointmentDTO.mockReturnValue({ fhir: 'update' });
+      mockedPatchData.mockResolvedValue({ data: {} });
+
+      const result = await updateAppointment(payload);
+
+      expect(mockedPatchData).toHaveBeenCalledWith(
+        '/fhir/v1/appointment/pms/org-fallback/appt-12',
+        { fhir: 'update' }
+      );
+      expect(result).toBeUndefined();
     });
 
     it('logs error and rethrows on failure', async () => {
@@ -471,6 +504,61 @@ describe('Appointment Service', () => {
         fhirPayload
       );
       expect(mockAppointmentStoreUpsertAppointment).toHaveBeenCalledWith(returnedAppointment);
+    });
+
+    it('autofills lead from current team member when accepting without lead', async () => {
+      const { useAuthStore } = jest.requireMock('@/app/stores/authStore');
+      const { useTeamStore } = jest.requireMock('@/app/stores/teamStore');
+      (useAuthStore.getState as jest.Mock).mockReturnValue({
+        user: { getUsername: jest.fn().mockReturnValue('user-1') },
+        attributes: { given_name: 'Pat', family_name: 'Lee' },
+      });
+      (useTeamStore.getState as jest.Mock).mockReturnValue({
+        getTeamsByOrgId: jest
+          .fn()
+          .mockReturnValue([{ _id: 'team-1', practionerId: 'user-1', name: 'Dr Pat' }]),
+      });
+
+      mockedToAppointmentDTO.mockReturnValue({ fhir: 'accept-auto' });
+      mockedPatchData.mockResolvedValue({ data: {} });
+
+      await acceptAppointment(
+        makeBaseAppointment({ id: 'appt-auto', status: 'REQUESTED', lead: { id: '', name: '' } })
+      );
+
+      expect(mockedToAppointmentDTO).toHaveBeenCalledWith(
+        expect.objectContaining({
+          lead: expect.objectContaining({ id: 'user-1', name: 'Dr Pat' }),
+        })
+      );
+    });
+
+    it('throws before patch when accept cannot resolve a valid lead', async () => {
+      const { useAuthStore } = jest.requireMock('@/app/stores/authStore');
+      const { useTeamStore } = jest.requireMock('@/app/stores/teamStore');
+      (useAuthStore.getState as jest.Mock).mockReturnValue({
+        user: { getUsername: jest.fn().mockReturnValue('') },
+        attributes: {},
+      });
+      (useTeamStore.getState as jest.Mock).mockReturnValue({
+        getTeamsByOrgId: jest.fn().mockReturnValue([]),
+      });
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      await expect(
+        acceptAppointment(
+          makeBaseAppointment({
+            id: 'appt-auto-fail',
+            status: 'REQUESTED',
+            lead: { id: '', name: '' },
+          })
+        )
+      ).rejects.toThrow(
+        'Cannot accept appointment without a valid lead. Assign/select a lead first.'
+      );
+
+      expect(mockedPatchData).not.toHaveBeenCalled();
+      consoleSpy.mockRestore();
     });
 
     it('logs error and rethrows on failure', async () => {
@@ -723,6 +811,7 @@ describe('Appointment Service', () => {
       await consumeInventory(mockInventory);
 
       expect(mockedPostData).toHaveBeenCalledWith('/v1/inventory/stock/consume', mockInventory);
+      expect(mockedFetchInventoryItems).toHaveBeenCalledWith('org-123');
     });
 
     it('logs error and rethrows on failure', async () => {
@@ -759,6 +848,7 @@ describe('Appointment Service', () => {
       expect(mockedPostData).toHaveBeenCalledWith('/v1/inventory/stock/consume/bulk', {
         items: mockInventoryList,
       });
+      expect(mockedFetchInventoryItems).toHaveBeenCalledWith('org-123');
     });
 
     it('logs error and rethrows on failure', async () => {

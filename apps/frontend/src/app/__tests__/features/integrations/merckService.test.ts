@@ -370,6 +370,79 @@ describe('normalizeMerckSearchPayload - additional branches', () => {
   });
 });
 
+describe('normalizeMerckSearchPayload - collapseWhitespace and HTML stripping', () => {
+  const defaultParams = { audience: 'PROV' as any, language: 'en' as any, media: 'hybrid' as any };
+
+  it('strips HTML tags from ATOM feed summary text', () => {
+    const payload = {
+      feed: {
+        entry: [
+          {
+            id: 'e1',
+            title: 'HTML Entry',
+            summary: '<p>  Summary   with   whitespace   </p>',
+            link: 'https://www.merckvetmanual.com/e1',
+          },
+        ],
+      },
+    };
+    const result = normalizeMerckSearchPayload(payload, defaultParams);
+    expect(result.entries[0].summaryText).toBe('Summary with whitespace');
+  });
+
+  it('handles entry summary with multiple whitespace variants (tab, newline)', () => {
+    const payload = {
+      feed: {
+        entry: [
+          {
+            id: 'e1',
+            title: 'Whitespace Entry',
+            summary: 'Line1\n\nLine2\tTabbed',
+            link: 'https://www.merckvetmanual.com/e1',
+          },
+        ],
+      },
+    };
+    const result = normalizeMerckSearchPayload(payload, defaultParams);
+    expect(result.entries[0].summaryText).toBe('Line1 Line2 Tabbed');
+  });
+
+  it('handles isAllowedMerckUrl with malformed URL (returns false)', () => {
+    expect(isAllowedMerckUrl('not-a-valid-url')).toBe(false);
+  });
+
+  it('applies media mode and deletes content param from subLinks', () => {
+    const payload = {
+      entries: [
+        {
+          id: 'e1',
+          title: 'Entry',
+          summaryText: '',
+          audience: 'PROV',
+          primaryUrl: 'https://www.merckvetmanual.com/dogs?content=summary',
+          subLinks: [{ label: 'Link', url: 'https://www.merckvetmanual.com/sub?content=summary' }],
+          updatedAt: null,
+        },
+      ],
+      meta: {
+        requestId: 'r1',
+        source: 'merck-live',
+        updatedAt: null,
+        audience: 'PROV',
+        language: 'en',
+        totalResults: 1,
+      },
+    };
+    const result = normalizeMerckSearchPayload(payload, {
+      ...defaultParams,
+      media: 'mobile' as any,
+    });
+    expect(result.entries[0].primaryUrl).not.toContain('content=summary');
+    expect(result.entries[0].primaryUrl).toContain('media=mobile');
+    expect(result.entries[0].subLinks[0].url).toContain('media=mobile');
+  });
+});
+
 describe('getMerckGateway', () => {
   beforeEach(() => jest.clearAllMocks());
 

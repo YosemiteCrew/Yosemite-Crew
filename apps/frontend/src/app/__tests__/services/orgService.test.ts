@@ -272,6 +272,20 @@ describe('orgService', () => {
     (axios.isAxiosError as unknown as jest.Mock).mockReset();
   });
 
+  it('loadOrgs uses backend message for generic axios error', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const axiosError = Object.assign(new Error('boom'), {
+      response: { status: 500, data: { message: 'Backend exploded' } },
+    });
+    (axios.isAxiosError as unknown as jest.Mock).mockReturnValue(true);
+    (getData as jest.Mock).mockRejectedValue(axiosError);
+
+    await expect(loadOrgs()).rejects.toThrow();
+    expect(orgState.setError).toHaveBeenCalledWith('Backend exploded');
+    consoleSpy.mockRestore();
+    (axios.isAxiosError as unknown as jest.Mock).mockReset();
+  });
+
   it('createOrg sets 403 error on axios 403', async () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     const axiosError = Object.assign(new Error('Forbidden'), {
@@ -304,6 +318,48 @@ describe('orgService', () => {
     (axios.isAxiosError as unknown as jest.Mock).mockReset();
   });
 
+  it('createOrg falls back to username when auth attributes.sub is missing', async () => {
+    (useAuthStore.getState as jest.Mock).mockReturnValue({
+      user: { getUsername: jest.fn(() => 'user-fallback') },
+      attributes: {},
+    });
+    (postData as jest.Mock).mockResolvedValue({ data: { _id: 'org-2', name: 'Org 2' } });
+
+    await createOrg({ name: 'Org 2' } as any);
+
+    expect(orgState.upsertUserOrgMapping).toHaveBeenCalledWith(
+      expect.objectContaining({
+        practitionerReference: 'user-fallback',
+        organizationReference: 'org-2',
+      })
+    );
+  });
+
+  it('createOrg sets generic axios message on non-403/404 response', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const axiosError = Object.assign(new Error('Create failed'), {
+      response: { status: 500, data: { message: 'Create backend failure' } },
+    });
+    (axios.isAxiosError as unknown as jest.Mock).mockReturnValue(true);
+    (postData as jest.Mock).mockRejectedValue(axiosError);
+
+    await expect(createOrg({ name: 'Org' } as any)).rejects.toThrow();
+    expect(orgState.setError).toHaveBeenCalledWith('Create backend failure');
+    consoleSpy.mockRestore();
+    (axios.isAxiosError as unknown as jest.Mock).mockReset();
+  });
+
+  it('createOrg sets unexpected error on non-axios error', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    (axios.isAxiosError as unknown as jest.Mock).mockReturnValue(false);
+    (postData as jest.Mock).mockRejectedValue(new Error('nope'));
+
+    await expect(createOrg({ name: 'Org' } as any)).rejects.toThrow();
+    expect(orgState.setError).toHaveBeenCalledWith('Unexpected error while creating organization');
+    consoleSpy.mockRestore();
+    (axios.isAxiosError as unknown as jest.Mock).mockReset();
+  });
+
   it('updateOrg sets 403 error on axios 403', async () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     const axiosError = Object.assign(new Error('Forbidden'), {
@@ -316,6 +372,117 @@ describe('orgService', () => {
     expect(orgState.setError).toHaveBeenCalledWith(
       "You don't have permission to update organizations."
     );
+    consoleSpy.mockRestore();
+    (axios.isAxiosError as unknown as jest.Mock).mockReset();
+  });
+
+  it('updateOrg sets 404 error on axios 404', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const axiosError = Object.assign(new Error('Not Found'), {
+      response: { status: 404, data: {} },
+    });
+    (axios.isAxiosError as unknown as jest.Mock).mockReturnValue(true);
+    (putData as jest.Mock).mockRejectedValue(axiosError);
+
+    await expect(updateOrg({ _id: 'org-1', name: 'X' } as any)).rejects.toThrow();
+    expect(orgState.setError).toHaveBeenCalledWith(
+      'Organization service not found. Please contact support.'
+    );
+    consoleSpy.mockRestore();
+    (axios.isAxiosError as unknown as jest.Mock).mockReset();
+  });
+
+  it('updateOrg uses backend message for generic axios error', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const axiosError = Object.assign(new Error('Update failed'), {
+      response: { status: 500, data: { message: 'Update backend failure' } },
+    });
+    (axios.isAxiosError as unknown as jest.Mock).mockReturnValue(true);
+    (putData as jest.Mock).mockRejectedValue(axiosError);
+
+    await expect(updateOrg({ _id: 'org-1', name: 'X' } as any)).rejects.toThrow();
+    expect(orgState.setError).toHaveBeenCalledWith('Update backend failure');
+    consoleSpy.mockRestore();
+    (axios.isAxiosError as unknown as jest.Mock).mockReset();
+  });
+
+  it('updateOrg sets unexpected error on non-axios error', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    (axios.isAxiosError as unknown as jest.Mock).mockReturnValue(false);
+    (putData as jest.Mock).mockRejectedValue(new Error('nope'));
+
+    await expect(updateOrg({ _id: 'org-1', name: 'X' } as any)).rejects.toThrow();
+    expect(orgState.setError).toHaveBeenCalledWith('Unexpected error while updating organization');
+    consoleSpy.mockRestore();
+    (axios.isAxiosError as unknown as jest.Mock).mockReset();
+  });
+
+  it('deleteOrg warns and returns when no primary org exists', async () => {
+    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    (useOrgStore.getState as jest.Mock).mockReturnValue({ ...orgState, primaryOrgId: null });
+
+    await deleteOrg();
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'No primary organization selected. Cannot load specialities.'
+    );
+    expect(deleteData).not.toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+
+  it('deleteOrg sets 403 error on axios 403', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const axiosError = Object.assign(new Error('Forbidden'), {
+      response: { status: 403, data: {} },
+    });
+    (axios.isAxiosError as unknown as jest.Mock).mockReturnValue(true);
+    (deleteData as jest.Mock).mockRejectedValue(axiosError);
+
+    await expect(deleteOrg()).rejects.toThrow();
+    expect(orgState.setError).toHaveBeenCalledWith(
+      "You don't have permission to update organizations."
+    );
+    consoleSpy.mockRestore();
+    (axios.isAxiosError as unknown as jest.Mock).mockReset();
+  });
+
+  it('deleteOrg sets 404 error on axios 404', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const axiosError = Object.assign(new Error('Not Found'), {
+      response: { status: 404, data: {} },
+    });
+    (axios.isAxiosError as unknown as jest.Mock).mockReturnValue(true);
+    (deleteData as jest.Mock).mockRejectedValue(axiosError);
+
+    await expect(deleteOrg()).rejects.toThrow();
+    expect(orgState.setError).toHaveBeenCalledWith(
+      'Organization service not found. Please contact support.'
+    );
+    consoleSpy.mockRestore();
+    (axios.isAxiosError as unknown as jest.Mock).mockReset();
+  });
+
+  it('deleteOrg uses backend message for generic axios error', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const axiosError = Object.assign(new Error('Delete failed'), {
+      response: { status: 500, data: { message: 'Delete backend failure' } },
+    });
+    (axios.isAxiosError as unknown as jest.Mock).mockReturnValue(true);
+    (deleteData as jest.Mock).mockRejectedValue(axiosError);
+
+    await expect(deleteOrg()).rejects.toThrow();
+    expect(orgState.setError).toHaveBeenCalledWith('Delete backend failure');
+    consoleSpy.mockRestore();
+    (axios.isAxiosError as unknown as jest.Mock).mockReset();
+  });
+
+  it('deleteOrg sets unexpected error on non-axios error', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    (axios.isAxiosError as unknown as jest.Mock).mockReturnValue(false);
+    (deleteData as jest.Mock).mockRejectedValue(new Error('nope'));
+
+    await expect(deleteOrg()).rejects.toThrow();
+    expect(orgState.setError).toHaveBeenCalledWith('Unexpected error while updating organization');
     consoleSpy.mockRestore();
     (axios.isAxiosError as unknown as jest.Mock).mockReset();
   });

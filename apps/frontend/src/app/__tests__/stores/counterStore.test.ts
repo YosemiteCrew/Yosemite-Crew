@@ -82,6 +82,19 @@ describe('counter store', () => {
     expect(useCounterStore.getState().countersByOrgId).toEqual({});
   });
 
+  it('setCounterForOrg removes an org counter when null is passed and orgId exists', () => {
+    useCounterStore.getState().setCounterForOrg('org-1', baseCounter as any);
+    expect(useCounterStore.getState().countersByOrgId['org-1']).toBeDefined();
+
+    useCounterStore.getState().setCounterForOrg('org-1', null);
+    expect(useCounterStore.getState().countersByOrgId['org-1']).toBeUndefined();
+  });
+
+  it('setCounterForOrg with null for non-existent orgId still completes without error', () => {
+    useCounterStore.getState().setCounterForOrg('missing-org', null);
+    expect(useCounterStore.getState().countersByOrgId['missing-org']).toBeUndefined();
+  });
+
   it('all increase/decrease ops are no-ops for missing org', () => {
     const store = useCounterStore.getState();
     store.increaseUsersActiveCount('missing');

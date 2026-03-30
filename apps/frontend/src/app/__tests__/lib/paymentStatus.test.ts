@@ -222,4 +222,61 @@ describe('paymentStatus', () => {
     );
     expect(display.state).toBe('PAID');
   });
+
+  it('toEpoch handles Date object (ranking via updatedAt as Date)', () => {
+    const olderDate = new Date('2026-01-01T00:00:00Z');
+    const newerDate = new Date('2026-02-01T00:00:00Z');
+    const result = createInvoiceByAppointmentId([
+      { appointmentId: 'appt-1', id: 'old', updatedAt: olderDate, status: 'PAID' } as any,
+      { appointmentId: 'appt-1', id: 'new', updatedAt: newerDate, status: 'PAID' } as any,
+    ]);
+    expect(result['appt-1'].id).toBe('new');
+  });
+
+  it('toEpoch falls back to 0 for non-date/non-string/non-number values (boolean)', () => {
+    // boolean updatedAt → toEpoch returns 0, so first invoice wins (nextRank >= currentRank = 0 >= 0)
+    const result = createInvoiceByAppointmentId([
+      { appointmentId: 'appt-bool', id: 'first', updatedAt: false, status: 'PAID' } as any,
+      { appointmentId: 'appt-bool', id: 'second', updatedAt: false, status: 'PAID' } as any,
+    ]);
+    // Both have rank 0; second (nextRank >= currentRank) replaces first
+    expect(result['appt-bool'].id).toBe('second');
+  });
+
+  it('metadataSuggestsCash with mode keyword in key', () => {
+    const display = getAppointmentPaymentDisplay({ id: 'a1', status: 'REQUESTED' } as any, {
+      a1: {
+        id: 'inv',
+        appointmentId: 'a1',
+        status: 'PAID',
+        metadata: { payment_mode: 'cash' },
+      } as any,
+    });
+    expect(display.state).toBe('PAID_CASH');
+  });
+
+  it('metadataSuggestsCash with method keyword in key', () => {
+    const display = getAppointmentPaymentDisplay({ id: 'a1', status: 'REQUESTED' } as any, {
+      a1: {
+        id: 'inv',
+        appointmentId: 'a1',
+        status: 'PAID',
+        metadata: { payment_method: 'CASH' },
+      } as any,
+    });
+    expect(display.state).toBe('PAID_CASH');
+  });
+
+  it('metadataSuggestsCash returns false when no metadata', () => {
+    const display = getAppointmentPaymentDisplay({ id: 'a1', status: 'REQUESTED' } as any, {
+      a1: {
+        id: 'inv',
+        appointmentId: 'a1',
+        status: 'PAID',
+        metadata: undefined,
+      } as any,
+    });
+    // No metadata → metadataSuggestsCash=false, no stripe evidence, not PAYMENT_LINK → PAID_CASH
+    expect(display.state).toBe('PAID_CASH');
+  });
 });

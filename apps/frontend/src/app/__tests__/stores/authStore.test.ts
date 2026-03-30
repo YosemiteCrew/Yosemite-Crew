@@ -123,6 +123,22 @@ describe('authStore', () => {
         useAuthStore.getState().signUp('test@email.com', 'pass', 'John', 'Doe')
       ).rejects.toThrow('Network Error');
     });
+
+    it('uses default member role when no role is provided', async () => {
+      mockPoolInstance.signUp.mockImplementation((_e: any, _p: any, attrs: any, _v: any, cb: any) =>
+        cb(null, { attrs })
+      );
+
+      const result = await useAuthStore.getState().signUp('test@email.com', 'pass', 'John', 'Doe');
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          attrs: expect.arrayContaining([
+            expect.objectContaining({ Name: 'custom:role', Value: 'member' }),
+          ]),
+        })
+      );
+    });
   });
 
   describe('confirmSignUp', () => {
@@ -257,6 +273,17 @@ describe('authStore', () => {
       mockPoolInstance.getCurrentUser.mockReturnValue(null);
       const res = await useAuthStore.getState().refreshSession();
       expect(res).toBeNull();
+    });
+
+    it('returns null and warns when session is invalid during refresh', async () => {
+      const warnSpy = logger.warn as jest.Mock;
+      const invalidSession = { ...mockSession, isValid: () => false };
+      mockPoolInstance.getCurrentUser.mockReturnValue(mockUserInstance);
+      mockUserInstance.getSession.mockImplementation((cb: any) => cb(null, invalidSession));
+
+      const res = await useAuthStore.getState().refreshSession();
+      expect(res).toBeNull();
+      expect(warnSpy).toHaveBeenCalledWith('refreshSession failed or session invalid:', null);
     });
 
     it('returns null on session error', async () => {
@@ -429,6 +456,19 @@ describe('authStore', () => {
       expect(result).toBe(freshSession);
     });
 
+    it('treats valid session without exp as fresh', async () => {
+      const sessionWithoutExp = {
+        isValid: () => true,
+        getIdToken: () => ({
+          decodePayload: () => ({}),
+        }),
+      };
+      useAuthStore.setState({ session: sessionWithoutExp as any });
+
+      const result = await useAuthStore.getState().getValidSession();
+      expect(result).toBe(sessionWithoutExp);
+    });
+
     it('returns refreshed session if current session is not fresh', async () => {
       // No session set → refresh will be called
       useAuthStore.setState({ session: null });
@@ -487,6 +527,30 @@ describe('authStore', () => {
 
       const result = await useAuthStore.getState().getValidSession();
       expect(result).toBe(problematicSession);
+    });
+  });
+
+  describe('uninitialized user pool', () => {
+    it('throws for signIn when env is missing', async () => {
+      jest.resetModules();
+      delete process.env.NEXT_PUBLIC_COGNITO_USERPOOLID;
+      delete process.env.NEXT_PUBLIC_COGNITO_CLIENTID;
+      const imported = await import('@/app/stores/authStore');
+
+      await expect(
+        imported.useAuthStore.getState().signIn('user@test.com', 'pass')
+      ).rejects.toThrow('UserPool is not initialized');
+    });
+
+    it('throws for forgotPassword when env is missing', async () => {
+      jest.resetModules();
+      delete process.env.NEXT_PUBLIC_COGNITO_USERPOOLID;
+      delete process.env.NEXT_PUBLIC_COGNITO_CLIENTID;
+      const imported = await import('@/app/stores/authStore');
+
+      await expect(
+        imported.useAuthStore.getState().forgotPassword('user@test.com')
+      ).rejects.toThrow('UserPool is not initialized');
     });
   });
 

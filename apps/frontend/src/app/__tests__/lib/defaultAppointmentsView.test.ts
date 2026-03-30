@@ -58,6 +58,12 @@ describe('setSavedDefaultAppointmentsView', () => {
     setSavedDefaultAppointmentsView('list');
     expect(window.localStorage.getItem(STORAGE_KEY)).toBe('list');
   });
+
+  it('returns false for an invalid view type', () => {
+    const result = setSavedDefaultAppointmentsView('week' as any);
+    expect(result).toBe(false);
+    expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull();
+  });
 });
 
 describe('resolveDefaultAppointmentsView', () => {
