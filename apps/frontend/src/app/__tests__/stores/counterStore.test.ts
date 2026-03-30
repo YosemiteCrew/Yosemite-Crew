@@ -70,6 +70,29 @@ describe('counter store', () => {
     expect(useCounterStore.getState().countersByOrgId).toEqual({});
   });
 
+  it('skips counters with null orgId in setCounters', () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    useCounterStore.getState().setCounters([null as any, { orgId: null } as any, baseCounter]);
+    expect(Object.keys(useCounterStore.getState().countersByOrgId)).toEqual(['org-1']);
+    warnSpy.mockRestore();
+  });
+
+  it('setCounterForOrg does nothing for empty orgId', () => {
+    useCounterStore.getState().setCounterForOrg('', baseCounter as any);
+    expect(useCounterStore.getState().countersByOrgId).toEqual({});
+  });
+
+  it('all increase/decrease ops are no-ops for missing org', () => {
+    const store = useCounterStore.getState();
+    store.increaseUsersActiveCount('missing');
+    store.decreaseUsersActiveCount('missing');
+    store.increaseUsersBillableCount('missing');
+    store.decreaseUsersBillableCount('missing');
+    store.increaseAppointmentsUsed('missing');
+    store.decreaseToolsUsed('missing');
+    expect(useCounterStore.getState().countersByOrgId).toEqual({});
+  });
+
   it('upserts and merges counter values', () => {
     useCounterStore.getState().upsertCounter(baseCounter as any);
     useCounterStore.getState().upsertCounter({ orgId: 'org-1', toolsUsed: 9 } as any);

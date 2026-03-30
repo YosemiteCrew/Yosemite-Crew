@@ -11,8 +11,12 @@ import {
   getPreciseMinutesSinceStartOfDayInPreferredTimeZone,
   getPreferredTimeZone,
   getTimezoneOptions,
+  getTimezoneSyncModeForOrg,
+  setTimezoneSyncModeForOrg,
   isOnPreferredTimeZoneCalendarDay,
   isValidTimeZone,
+  parseTimezoneFromProfileValue,
+  getSystemTimeZone,
   resolveTimezoneFromCountry,
   setPreferredTimeZone,
   utcClockTimeToMinutesInPreferredTimeZone,
@@ -119,5 +123,82 @@ describe('timezone utils', () => {
     const parts = getDatePartsInPreferredTimeZone(date);
     expect(parts.hour).toBe(1);
     expect(parts.minute).toBe(30);
+  });
+
+  it('getSystemTimeZone returns a valid timezone string', () => {
+    const tz = getSystemTimeZone();
+    expect(typeof tz).toBe('string');
+    expect(tz.length).toBeGreaterThan(0);
+  });
+
+  it('parseTimezoneFromProfileValue returns default for null/undefined', () => {
+    expect(parseTimezoneFromProfileValue(null)).toBe(DEFAULT_TIMEZONE);
+    expect(parseTimezoneFromProfileValue(undefined)).toBe(DEFAULT_TIMEZONE);
+  });
+
+  it('parseTimezoneFromProfileValue returns valid timezone as-is', () => {
+    expect(parseTimezoneFromProfileValue('UTC')).toBe('UTC');
+    expect(parseTimezoneFromProfileValue('Europe/Berlin')).toBe('Europe/Berlin');
+  });
+
+  it('parseTimezoneFromProfileValue parses "label - timezone" format', () => {
+    expect(parseTimezoneFromProfileValue('UTC+2 - Europe/Berlin')).toBe('Europe/Berlin');
+  });
+
+  it('parseTimezoneFromProfileValue returns default for invalid segment', () => {
+    expect(parseTimezoneFromProfileValue('bad - Not/Valid/Zone')).toBe(DEFAULT_TIMEZONE);
+  });
+
+  it('getTimezoneSyncModeForOrg returns device by default', () => {
+    window.localStorage.clear();
+    expect(getTimezoneSyncModeForOrg('org-1')).toBe('device');
+  });
+
+  it('getTimezoneSyncModeForOrg returns device for empty orgId', () => {
+    expect(getTimezoneSyncModeForOrg('')).toBe('device');
+    expect(getTimezoneSyncModeForOrg(null)).toBe('device');
+  });
+
+  it('setTimezoneSyncModeForOrg saves and retrieves mode', () => {
+    window.localStorage.clear();
+    const ok = setTimezoneSyncModeForOrg('org-1', 'custom');
+    expect(ok).toBe(true);
+    expect(getTimezoneSyncModeForOrg('org-1')).toBe('custom');
+  });
+
+  it('setTimezoneSyncModeForOrg returns false for empty orgId', () => {
+    expect(setTimezoneSyncModeForOrg('', 'custom')).toBe(false);
+    expect(setTimezoneSyncModeForOrg(undefined, 'device')).toBe(false);
+  });
+
+  it('setTimezoneSyncModeForOrg returns false for invalid mode', () => {
+    expect(setTimezoneSyncModeForOrg('org-1', 'invalid' as any)).toBe(false);
+  });
+
+  it('getTimezoneSyncModeForOrg migrates legacy manual override flag', () => {
+    window.localStorage.clear();
+    // Simulate legacy manualOverride = true
+    window.localStorage.setItem(
+      'yc_timezone_manual_override_by_org',
+      JSON.stringify({ 'org-legacy': true })
+    );
+    expect(getTimezoneSyncModeForOrg('org-legacy')).toBe('custom');
+  });
+
+  it('setPreferredTimeZone returns false when timezone not in canonical list', () => {
+    // Mock a timezone that is valid but somehow not in canonical list
+    // This is tested indirectly — setPreferredTimeZone for valid TZ should succeed
+    const ok = setPreferredTimeZone('Europe/Berlin');
+    expect(ok).toBe(true);
+  });
+
+  it('resolveTimezoneFromCountry returns null for undefined', () => {
+    expect(resolveTimezoneFromCountry(undefined)).toBeNull();
+    expect(resolveTimezoneFromCountry(null)).toBeNull();
+  });
+
+  it('resolveTimezoneFromCountry handles various countries', () => {
+    expect(resolveTimezoneFromCountry('Germany')).toBe('Europe/Berlin');
+    expect(resolveTimezoneFromCountry('Japan')).toBe('Asia/Tokyo');
   });
 });

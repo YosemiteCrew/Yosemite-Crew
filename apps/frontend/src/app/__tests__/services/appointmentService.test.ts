@@ -7,6 +7,12 @@ import {
   toSlotsArray,
   acceptAppointment,
   cancelAppointment,
+  checkInAppointment,
+  rejectAppointment,
+  changeAppointmentStatus,
+  updateAppointmentPaymentStatus,
+  consumeInventory,
+  consumeBulkInventory,
 } from '@/app/features/appointments/services/appointmentService';
 
 import { getData, patchData, postData } from '@/app/services/axios';
@@ -41,6 +47,23 @@ jest.mock('@/app/stores/appointmentStore', () => ({
   }),
 }));
 
+jest.mock('@/app/stores/authStore', () => ({
+  useAuthStore: {
+    getState: jest.fn().mockReturnValue({
+      user: { getUsername: jest.fn().mockReturnValue('user-1') },
+      attributes: {},
+    }),
+  },
+}));
+
+jest.mock('@/app/stores/teamStore', () => ({
+  useTeamStore: {
+    getState: jest.fn().mockReturnValue({
+      getTeamsByOrgId: jest.fn().mockReturnValue([]),
+    }),
+  },
+}));
+
 // 3. Mock Utils
 jest.mock('@/app/lib/date', () => ({
   formatDateLocal: jest.fn(),
@@ -51,6 +74,17 @@ const mockedFormatDateLocal = formatDateLocal as jest.Mock;
 jest.mock('@yosemite-crew/types', () => ({
   fromAppointmentRequestDTO: jest.fn(),
   toAppointmentResponseDTO: jest.fn(),
+}));
+
+// 5. Mock inventory service (used by consumeInventory/consumeBulkInventory)
+jest.mock('@/app/features/inventory/services/inventoryService', () => ({
+  fetchInventoryItems: jest.fn().mockResolvedValue([]),
+}));
+
+// 6. Mock appointment status helpers
+jest.mock('@/app/lib/appointments', () => ({
+  canTransitionAppointmentStatus: jest.fn(),
+  getInvalidAppointmentStatusTransitionMessage: jest.fn().mockReturnValue('Invalid transition'),
 }));
 const mockedFromAppointmentDTO = fromAppointmentRequestDTO as jest.Mock;
 const mockedToAppointmentDTO = toAppointmentResponseDTO as jest.Mock;
@@ -78,6 +112,25 @@ describe('Appointment Service', () => {
     });
 
     mockedFormatDateLocal.mockReturnValue('2026-01-06');
+
+    // Default: allow status transitions
+    const { canTransitionAppointmentStatus, getInvalidAppointmentStatusTransitionMessage } =
+      jest.requireMock('@/app/lib/appointments');
+    (canTransitionAppointmentStatus as jest.Mock).mockReturnValue(true);
+    (getInvalidAppointmentStatusTransitionMessage as jest.Mock).mockReturnValue(
+      'Invalid transition'
+    );
+
+    // Re-initialize auth/team store mocks (reset by jest.resetAllMocks)
+    const { useAuthStore } = jest.requireMock('@/app/stores/authStore');
+    (useAuthStore.getState as jest.Mock).mockReturnValue({
+      user: { getUsername: jest.fn().mockReturnValue('user-1') },
+      attributes: {},
+    });
+    const { useTeamStore } = jest.requireMock('@/app/stores/teamStore');
+    (useTeamStore.getState as jest.Mock).mockReturnValue({
+      getTeamsByOrgId: jest.fn().mockReturnValue([]),
+    });
   });
 
   // --- Helpers ---
@@ -477,6 +530,244 @@ describe('Appointment Service', () => {
         'Cancel Error'
       );
       expect(consoleSpy).toHaveBeenCalledWith('Failed to cancel appointment:', error);
+      consoleSpy.mockRestore();
+    });
+  });
+
+  // --- Section 7: checkInAppointment ---
+  describe('checkInAppointment', () => {
+    it('calls performAppointmentAction with checkin action', async () => {
+      const appointment = makeBaseAppointment({ id: 'appt-ci' });
+      const returnedDTO = { id: 'dto-ci' } as any as AppointmentResponseDTO;
+      const returnedAppointment = makeBaseAppointment({ id: 'appt-ci', status: 'CHECKED_IN' });
+
+      mockedToAppointmentDTO.mockReturnValue({ fhir: 'checkin' });
+      mockedPatchData.mockResolvedValue({ data: { data: { appointment: returnedDTO } } });
+      mockedFromAppointmentDTO.mockReturnValue(returnedAppointment);
+
+      await checkInAppointment(appointment);
+
+      expect(mockedPatchData).toHaveBeenCalledWith(
+        '/fhir/v1/appointment/pms/org-123/appt-ci/checkin',
+        expect.any(Object)
+      );
+      expect(mockAppointmentStoreUpsertAppointment).toHaveBeenCalledWith(returnedAppointment);
+    });
+
+    it('returns if appointment.id is missing', async () => {
+      await checkInAppointment(makeBaseAppointment({ id: undefined }));
+      expect(mockedPatchData).not.toHaveBeenCalled();
+    });
+  });
+
+  // --- Section 8: rejectAppointment ---
+  describe('rejectAppointment', () => {
+    it('calls performAppointmentAction with reject action', async () => {
+      const appointment = makeBaseAppointment({ id: 'appt-rej' });
+      const returnedDTO = { id: 'dto-rej' } as any as AppointmentResponseDTO;
+      const returnedAppointment = makeBaseAppointment({ id: 'appt-rej', status: 'CANCELLED' });
+
+      mockedToAppointmentDTO.mockReturnValue({ fhir: 'reject' });
+      mockedPatchData.mockResolvedValue({ data: { data: { appointment: returnedDTO } } });
+      mockedFromAppointmentDTO.mockReturnValue(returnedAppointment);
+
+      await rejectAppointment(appointment);
+
+      expect(mockedPatchData).toHaveBeenCalledWith(
+        '/fhir/v1/appointment/pms/org-123/appt-rej/reject',
+        expect.any(Object)
+      );
+    });
+
+    it('returns if appointment.id is missing', async () => {
+      await rejectAppointment(makeBaseAppointment({ id: undefined }));
+      expect(mockedPatchData).not.toHaveBeenCalled();
+    });
+  });
+
+  // --- Section 9: changeAppointmentStatus ---
+  describe('changeAppointmentStatus', () => {
+    it('returns appointment unchanged when same status', async () => {
+      const appointment = makeBaseAppointment({ id: 'appt-same', status: 'UPCOMING' });
+      const result = await changeAppointmentStatus(appointment, 'UPCOMING');
+      expect(result).toBe(appointment);
+      expect(mockedPatchData).not.toHaveBeenCalled();
+    });
+
+    it('throws if transition is not allowed', async () => {
+      const { canTransitionAppointmentStatus } = jest.requireMock('@/app/lib/appointments');
+      (canTransitionAppointmentStatus as jest.Mock).mockReturnValueOnce(false);
+      const appointment = makeBaseAppointment({ id: 'appt-invalid', status: 'UPCOMING' });
+      await expect(changeAppointmentStatus(appointment, 'CHECKED_IN')).rejects.toThrow(
+        'Invalid transition'
+      );
+    });
+
+    it('calls checkInAppointment when nextStatus is CHECKED_IN', async () => {
+      const appointment = makeBaseAppointment({ id: 'appt-ci2', status: 'UPCOMING' });
+      mockedToAppointmentDTO.mockReturnValue({});
+      mockedPatchData.mockResolvedValue({
+        data: { data: { appointment: { id: 'dto-ci2' } } },
+      });
+      mockedFromAppointmentDTO.mockReturnValue(
+        makeBaseAppointment({ id: 'appt-ci2', status: 'CHECKED_IN' })
+      );
+
+      await changeAppointmentStatus(appointment, 'CHECKED_IN');
+
+      expect(mockedPatchData).toHaveBeenCalledWith(
+        expect.stringContaining('/checkin'),
+        expect.any(Object)
+      );
+    });
+
+    it('calls acceptAppointment when REQUESTED -> UPCOMING', async () => {
+      const appointment = makeBaseAppointment({
+        id: 'appt-req',
+        status: 'REQUESTED',
+        lead: { id: 'vet-1', name: 'Dr. Vet' },
+      });
+      mockedToAppointmentDTO.mockReturnValue({});
+      mockedPatchData.mockResolvedValue({
+        data: { data: { appointment: { id: 'dto-req' } } },
+      });
+      mockedFromAppointmentDTO.mockReturnValue(
+        makeBaseAppointment({ id: 'appt-req', status: 'UPCOMING' })
+      );
+
+      await changeAppointmentStatus(appointment, 'UPCOMING');
+
+      expect(mockedPatchData).toHaveBeenCalledWith(
+        expect.stringContaining('/accept'),
+        expect.any(Object)
+      );
+    });
+
+    it('calls rejectAppointment when REQUESTED -> CANCELLED', async () => {
+      const appointment = makeBaseAppointment({ id: 'appt-reqc', status: 'REQUESTED' });
+      mockedToAppointmentDTO.mockReturnValue({});
+      mockedPatchData.mockResolvedValue({
+        data: { data: { appointment: { id: 'dto-reqc' } } },
+      });
+      mockedFromAppointmentDTO.mockReturnValue(
+        makeBaseAppointment({ id: 'appt-reqc', status: 'CANCELLED' })
+      );
+
+      await changeAppointmentStatus(appointment, 'CANCELLED');
+
+      expect(mockedPatchData).toHaveBeenCalledWith(
+        expect.stringContaining('/reject'),
+        expect.any(Object)
+      );
+    });
+
+    it('calls performStatusUpdate for other valid transitions', async () => {
+      const appointment = makeBaseAppointment({ id: 'appt-upd', status: 'UPCOMING' });
+      mockedToAppointmentDTO.mockReturnValue({});
+      mockedPatchData.mockResolvedValue({
+        data: { data: makeBaseAppointment({ id: 'appt-upd', status: 'CANCELLED' }) },
+      });
+      mockedFromAppointmentDTO.mockReturnValue(
+        makeBaseAppointment({ id: 'appt-upd', status: 'CANCELLED' })
+      );
+
+      await changeAppointmentStatus(appointment, 'CANCELLED');
+
+      expect(mockedPatchData).toHaveBeenCalledWith(
+        expect.stringContaining('/appt-upd'),
+        expect.any(Object)
+      );
+    });
+  });
+
+  // --- Section 10: updateAppointmentPaymentStatus ---
+  describe('updateAppointmentPaymentStatus', () => {
+    it('calls updateAppointment with updated paymentStatus', async () => {
+      const appointment = makeBaseAppointment({ id: 'appt-pay', organisationId: 'org-123' });
+      const returnedAppointment = { ...appointment, paymentStatus: 'PAID' };
+
+      mockedToAppointmentDTO.mockReturnValue({});
+      mockedPatchData.mockResolvedValue({ data: { data: returnedAppointment } });
+      mockedFromAppointmentDTO.mockReturnValue(returnedAppointment as Appointment);
+
+      await updateAppointmentPaymentStatus(appointment, 'PAID');
+
+      expect(mockedPatchData).toHaveBeenCalledWith(
+        '/fhir/v1/appointment/pms/org-123/appt-pay',
+        expect.any(Object)
+      );
+      expect(mockedToAppointmentDTO).toHaveBeenCalledWith(
+        expect.objectContaining({ paymentStatus: 'PAID' })
+      );
+    });
+  });
+
+  // --- Section 11: consumeInventory ---
+  describe('consumeInventory', () => {
+    const mockInventory = { appointmentId: 'appt-1', items: [] } as any;
+
+    it('warns and returns early if no primaryOrgId', async () => {
+      (useOrgStore.getState as jest.Mock).mockReturnValue({ primaryOrgId: null });
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const result = await consumeInventory(mockInventory);
+
+      expect(result).toEqual([]);
+      expect(mockedPostData).not.toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    it('posts to consume endpoint and fetches inventory on success', async () => {
+      mockedPostData.mockResolvedValue({});
+
+      await consumeInventory(mockInventory);
+
+      expect(mockedPostData).toHaveBeenCalledWith('/v1/inventory/stock/consume', mockInventory);
+    });
+
+    it('logs error and rethrows on failure', async () => {
+      const error = new Error('Consume error');
+      mockedPostData.mockRejectedValue(error);
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      await expect(consumeInventory(mockInventory)).rejects.toThrow('Consume error');
+      expect(consoleSpy).toHaveBeenCalledWith('Failed to consume Inventory:', error);
+      consoleSpy.mockRestore();
+    });
+  });
+
+  // --- Section 12: consumeBulkInventory ---
+  describe('consumeBulkInventory', () => {
+    const mockInventoryList = [{ appointmentId: 'appt-1', items: [] }] as any[];
+
+    it('warns and returns early if no primaryOrgId', async () => {
+      (useOrgStore.getState as jest.Mock).mockReturnValue({ primaryOrgId: null });
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const result = await consumeBulkInventory(mockInventoryList);
+
+      expect(result).toEqual([]);
+      expect(mockedPostData).not.toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    it('posts bulk consume body and fetches inventory on success', async () => {
+      mockedPostData.mockResolvedValue({});
+
+      await consumeBulkInventory(mockInventoryList);
+
+      expect(mockedPostData).toHaveBeenCalledWith('/v1/inventory/stock/consume/bulk', {
+        items: mockInventoryList,
+      });
+    });
+
+    it('logs error and rethrows on failure', async () => {
+      const error = new Error('Bulk consume error');
+      mockedPostData.mockRejectedValue(error);
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      await expect(consumeBulkInventory(mockInventoryList)).rejects.toThrow('Bulk consume error');
+      expect(consoleSpy).toHaveBeenCalledWith('Failed to consume Inventory:', error);
       consoleSpy.mockRestore();
     });
   });

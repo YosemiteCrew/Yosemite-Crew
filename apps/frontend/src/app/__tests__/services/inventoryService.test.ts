@@ -6,15 +6,19 @@ import {
   hideInventoryItem,
   unhideInventoryItem,
   fetchInventoryTurnover,
-} from "@/app/features/inventory/services/inventoryService";
-import { getData, postData, patchData } from "@/app/services/axios";
-import axios from "axios";
-import { InventoryRequestPayload, InventoryBatchPayload } from "@/app/features/inventory/pages/Inventory/types";
+  updateInventoryBatch,
+} from '@/app/features/inventory/services/inventoryService';
+import { getData, postData, patchData } from '@/app/services/axios';
+import axios from 'axios';
+import {
+  InventoryRequestPayload,
+  InventoryBatchPayload,
+} from '@/app/features/inventory/pages/Inventory/types';
 
 // --- Mocks ---
 
 // 1. Mock Axios Library (Fixed Hoisting Issue)
-jest.mock("axios", () => {
+jest.mock('axios', () => {
   return {
     create: jest.fn(() => ({
       interceptors: {
@@ -27,221 +31,220 @@ jest.mock("axios", () => {
 });
 
 // 2. Mock Axios Service Helper
-jest.mock("@/app/services/axios");
+jest.mock('@/app/services/axios');
 const mockedGetData = getData as jest.Mock;
 const mockedPostData = postData as jest.Mock;
 const mockedPatchData = patchData as jest.Mock;
 const mockedIsAxiosError = axios.isAxiosError as unknown as jest.Mock;
 
-describe("Inventory Service", () => {
+describe('Inventory Service', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   // --- Section 1: Fetch Inventory Items ---
-  describe("fetchInventoryItems", () => {
-    it("fetches items with stripped params and returns data", async () => {
-      const mockItems = [{ id: "inv-1" }];
+  describe('fetchInventoryItems', () => {
+    it('fetches items with stripped params and returns data', async () => {
+      const mockItems = [{ id: 'inv-1' }];
       mockedGetData.mockResolvedValue({ data: mockItems });
 
-      const params = { search: "test", page: 1, invalid: undefined, empty: "" };
-      const result = await fetchInventoryItems("org-1", params);
+      const params = { search: 'test', page: 1, invalid: undefined, empty: '' };
+      const result = await fetchInventoryItems('org-1', params);
 
-      expect(mockedGetData).toHaveBeenCalledWith(
-        "/v1/inventory/organisation/org-1/items",
-        { search: "test", page: 1 }
-      );
+      expect(mockedGetData).toHaveBeenCalledWith('/v1/inventory/organisation/org-1/items', {
+        search: 'test',
+        page: 1,
+      });
       expect(result).toEqual(mockItems);
     });
 
-    it("returns empty array and warns if response is not an array", async () => {
-      const consoleSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+    it('returns empty array and warns if response is not an array', async () => {
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
       mockedGetData.mockResolvedValue({ data: { items: [] } });
 
-      const result = await fetchInventoryItems("org-1");
+      const result = await fetchInventoryItems('org-1');
 
       expect(result).toEqual([]);
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "Inventory list response is not an array",
-        { items: [] }
-      );
+      expect(consoleSpy).toHaveBeenCalledWith('Inventory list response is not an array', {
+        items: [],
+      });
       consoleSpy.mockRestore();
     });
 
-    it("handles Axios errors", async () => {
-      const error = { response: { data: { message: "API Error" } }, message: "Fail" };
+    it('handles Axios errors', async () => {
+      const error = { response: { data: { message: 'API Error' } }, message: 'Fail' };
       mockedGetData.mockRejectedValue(error);
       mockedIsAxiosError.mockReturnValue(true);
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      await expect(fetchInventoryItems("org-1")).rejects.toEqual(error);
-      expect(consoleSpy).toHaveBeenCalledWith("Failed to load inventory items:", "API Error");
+      await expect(fetchInventoryItems('org-1')).rejects.toEqual(error);
+      expect(consoleSpy).toHaveBeenCalledWith('Failed to load inventory items:', 'API Error');
       consoleSpy.mockRestore();
     });
 
-    it("handles non-Axios errors", async () => {
-      const error = new Error("JS Error");
+    it('handles non-Axios errors', async () => {
+      const error = new Error('JS Error');
       mockedGetData.mockRejectedValue(error);
       mockedIsAxiosError.mockReturnValue(false);
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      await expect(fetchInventoryItems("org-1")).rejects.toEqual(error);
-      expect(consoleSpy).toHaveBeenCalledWith("Failed to load inventory items:", error);
+      await expect(fetchInventoryItems('org-1')).rejects.toEqual(error);
+      expect(consoleSpy).toHaveBeenCalledWith('Failed to load inventory items:', error);
       consoleSpy.mockRestore();
     });
   });
 
   // --- Section 2: Create Inventory Item ---
-  describe("createInventoryItem", () => {
-    const payload = { name: "New Item" } as unknown as InventoryRequestPayload;
+  describe('createInventoryItem', () => {
+    const payload = { name: 'New Item' } as unknown as InventoryRequestPayload;
 
-    it("creates item and returns direct response", async () => {
-      const mockResponse = { id: "inv-1", name: "New Item" };
+    it('creates item and returns direct response', async () => {
+      const mockResponse = { id: 'inv-1', name: 'New Item' };
       mockedPostData.mockResolvedValue({ data: mockResponse });
 
       const result = await createInventoryItem(payload);
 
-      expect(mockedPostData).toHaveBeenCalledWith("/v1/inventory/items", payload);
+      expect(mockedPostData).toHaveBeenCalledWith('/v1/inventory/items', payload);
       expect(result).toEqual(mockResponse);
     });
 
-    it("creates item and normalizes nested response structure", async () => {
+    it('creates item and normalizes nested response structure', async () => {
       const mockResponse = {
-        item: { id: "inv-1", name: "New Item" },
-        batches: [{ id: "batch-1" }],
+        item: { id: 'inv-1', name: 'New Item' },
+        batches: [{ id: 'batch-1' }],
       };
       mockedPostData.mockResolvedValue({ data: mockResponse });
 
       const result = await createInventoryItem(payload);
 
       expect(result).toEqual({
-        id: "inv-1",
-        name: "New Item",
-        batches: [{ id: "batch-1" }],
+        id: 'inv-1',
+        name: 'New Item',
+        batches: [{ id: 'batch-1' }],
       });
     });
 
-    it("handles errors", async () => {
-      const error = new Error("Create Error");
+    it('handles errors', async () => {
+      const error = new Error('Create Error');
       mockedPostData.mockRejectedValue(error);
       mockedIsAxiosError.mockReturnValue(false);
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      await expect(createInventoryItem(payload)).rejects.toThrow("Create Error");
-      expect(consoleSpy).toHaveBeenCalledWith("Failed to create inventory item:", error);
+      await expect(createInventoryItem(payload)).rejects.toThrow('Create Error');
+      expect(consoleSpy).toHaveBeenCalledWith('Failed to create inventory item:', error);
       consoleSpy.mockRestore();
     });
   });
 
   // --- Section 3: Update Inventory Item ---
-  describe("updateInventoryItem", () => {
-    const payload = { name: "Updated" };
+  describe('updateInventoryItem', () => {
+    const payload = { name: 'Updated' };
 
-    it("updates item and returns normalized response", async () => {
-      const mockResponse = { id: "inv-1", name: "Updated" };
+    it('updates item and returns normalized response', async () => {
+      const mockResponse = { id: 'inv-1', name: 'Updated' };
       mockedPatchData.mockResolvedValue({ data: mockResponse });
 
-      const result = await updateInventoryItem("inv-1", payload);
+      const result = await updateInventoryItem('inv-1', payload);
 
-      expect(mockedPatchData).toHaveBeenCalledWith("/v1/inventory/items/inv-1", payload);
+      expect(mockedPatchData).toHaveBeenCalledWith('/v1/inventory/items/inv-1', payload);
       expect(result).toEqual(mockResponse);
     });
 
-    it("handles Axios errors", async () => {
-      const error = { message: "Network Error" };
+    it('handles Axios errors', async () => {
+      const error = { message: 'Network Error' };
       mockedPatchData.mockRejectedValue(error);
       mockedIsAxiosError.mockReturnValue(true);
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      await expect(updateInventoryItem("inv-1", payload)).rejects.toEqual(error);
-      expect(consoleSpy).toHaveBeenCalledWith("Failed to update inventory item:", "Network Error");
+      await expect(updateInventoryItem('inv-1', payload)).rejects.toEqual(error);
+      expect(consoleSpy).toHaveBeenCalledWith('Failed to update inventory item:', 'Network Error');
       consoleSpy.mockRestore();
     });
   });
 
   // --- Section 4: Create Inventory Batch ---
-  describe("createInventoryBatch", () => {
+  describe('createInventoryBatch', () => {
     const payload = { quantity: 10 } as unknown as InventoryBatchPayload;
 
-    it("creates batch and returns data", async () => {
-      const mockResponse = { id: "batch-1" };
+    it('creates batch and returns data', async () => {
+      const mockResponse = { id: 'batch-1' };
       mockedPostData.mockResolvedValue({ data: mockResponse });
 
-      const result = await createInventoryBatch("inv-1", payload);
+      const result = await createInventoryBatch('inv-1', payload);
 
-      expect(mockedPostData).toHaveBeenCalledWith("/v1/inventory/items/inv-1/batches", payload);
+      expect(mockedPostData).toHaveBeenCalledWith('/v1/inventory/items/inv-1/batches', payload);
       expect(result).toEqual(mockResponse);
     });
 
-    it("handles errors", async () => {
-      const error = new Error("Batch Error");
+    it('handles errors', async () => {
+      const error = new Error('Batch Error');
       mockedPostData.mockRejectedValue(error);
       mockedIsAxiosError.mockReturnValue(false);
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      await expect(createInventoryBatch("inv-1", payload)).rejects.toThrow("Batch Error");
-      expect(consoleSpy).toHaveBeenCalledWith("Failed to create inventory batch:", error);
+      await expect(createInventoryBatch('inv-1', payload)).rejects.toThrow('Batch Error');
+      expect(consoleSpy).toHaveBeenCalledWith('Failed to create inventory batch:', error);
       consoleSpy.mockRestore();
     });
   });
 
   // --- Section 5: Status Operations ---
-  describe("Status Operations", () => {
-    it("hides item successfully", async () => {
-      const mockResponse = { id: "inv-1", hidden: true };
+  describe('Status Operations', () => {
+    it('hides item successfully', async () => {
+      const mockResponse = { id: 'inv-1', hidden: true };
       mockedPostData.mockResolvedValue({ data: mockResponse });
 
-      const result = await hideInventoryItem("inv-1");
+      const result = await hideInventoryItem('inv-1');
 
-      expect(mockedPostData).toHaveBeenCalledWith("/v1/inventory/items/inv-1/hide");
+      expect(mockedPostData).toHaveBeenCalledWith('/v1/inventory/items/inv-1/hide');
       expect(result).toEqual(mockResponse);
     });
 
-    it("handles error during hide", async () => {
-      const error = { response: { data: { message: "Cannot hide" } } };
+    it('handles error during hide', async () => {
+      const error = { response: { data: { message: 'Cannot hide' } } };
       mockedPostData.mockRejectedValue(error);
       mockedIsAxiosError.mockReturnValue(true);
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      await expect(hideInventoryItem("inv-1")).rejects.toEqual(error);
-      expect(consoleSpy).toHaveBeenCalledWith("Failed to hide inventory item:", "Cannot hide");
+      await expect(hideInventoryItem('inv-1')).rejects.toEqual(error);
+      expect(consoleSpy).toHaveBeenCalledWith('Failed to hide inventory item:', 'Cannot hide');
       consoleSpy.mockRestore();
     });
 
-    it("unhides item successfully", async () => {
-      const mockResponse = { id: "inv-1", hidden: false };
+    it('unhides item successfully', async () => {
+      const mockResponse = { id: 'inv-1', hidden: false };
       mockedPostData.mockResolvedValue({ data: mockResponse });
 
-      const result = await unhideInventoryItem("inv-1");
+      const result = await unhideInventoryItem('inv-1');
 
-      expect(mockedPostData).toHaveBeenCalledWith("/v1/inventory/items/inv-1/active");
+      expect(mockedPostData).toHaveBeenCalledWith('/v1/inventory/items/inv-1/active');
       expect(result).toEqual(mockResponse);
     });
 
-    it("handles error during unhide", async () => {
-      const error = new Error("Unhide Error");
+    it('handles error during unhide', async () => {
+      const error = new Error('Unhide Error');
       mockedPostData.mockRejectedValue(error);
       mockedIsAxiosError.mockReturnValue(false);
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      await expect(unhideInventoryItem("inv-1")).rejects.toThrow("Unhide Error");
-      expect(consoleSpy).toHaveBeenCalledWith("Failed to unhide inventory item:", error);
+      await expect(unhideInventoryItem('inv-1')).rejects.toThrow('Unhide Error');
+      expect(consoleSpy).toHaveBeenCalledWith('Failed to unhide inventory item:', error);
       consoleSpy.mockRestore();
     });
   });
 
   // --- Section 6: Fetch Inventory Turnover ---
-  describe("fetchInventoryTurnover", () => {
-    it("fetches, maps fields, and returns turnover items", async () => {
+  describe('fetchInventoryTurnover', () => {
+    it('fetches, maps fields, and returns turnover items', async () => {
       const apiResponse = {
         items: [
           {
-            id: "t-1",
+            id: 't-1',
             averageInventory: 10,
             totalPurchases: 50,
           },
           {
-            id: "t-2",
+            id: 't-2',
             avgInventory: 20,
             totalPurchased: 100,
           },
@@ -249,30 +252,122 @@ describe("Inventory Service", () => {
       };
       mockedGetData.mockResolvedValue({ data: apiResponse });
 
-      const result = await fetchInventoryTurnover("org-1");
+      const result = await fetchInventoryTurnover('org-1');
 
-      expect(mockedGetData).toHaveBeenCalledWith("/v1/inventory/organisation/org-1/turnover");
+      expect(mockedGetData).toHaveBeenCalledWith('/v1/inventory/organisation/org-1/turnover');
 
       expect(result[0]).toMatchObject({ averageInventory: 10, totalPurchases: 50 });
       expect(result[1]).toMatchObject({ averageInventory: 20, totalPurchases: 100 });
     });
 
-    it("returns empty array if response items is invalid", async () => {
+    it('returns empty array if response items is invalid', async () => {
       mockedGetData.mockResolvedValue({ data: { items: null } });
-      const result = await fetchInventoryTurnover("org-1");
+      const result = await fetchInventoryTurnover('org-1');
       expect(result).toEqual([]);
     });
 
-    it("handles errors gracefully", async () => {
-      const error = { message: "Failed" };
+    it('handles errors gracefully', async () => {
+      const error = { message: 'Failed' };
       mockedGetData.mockRejectedValue(error);
       mockedIsAxiosError.mockReturnValue(true);
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      const result = await fetchInventoryTurnover("org-1");
+      const result = await fetchInventoryTurnover('org-1');
 
       expect(result).toEqual([]);
-      expect(consoleSpy).toHaveBeenCalledWith("Failed to load inventory turnover:", "Failed");
+      expect(consoleSpy).toHaveBeenCalledWith('Failed to load inventory turnover:', 'Failed');
+      consoleSpy.mockRestore();
+    });
+
+    it('handles non-axios error gracefully', async () => {
+      const error = new Error('Non-axios');
+      mockedGetData.mockRejectedValue(error);
+      mockedIsAxiosError.mockReturnValue(false);
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      const result = await fetchInventoryTurnover('org-1');
+
+      expect(result).toEqual([]);
+      expect(consoleSpy).toHaveBeenCalledWith('Failed to load inventory turnover:', error);
+      consoleSpy.mockRestore();
+    });
+  });
+
+  // --- Section 7: Update Inventory Batch ---
+  describe('updateInventoryBatch', () => {
+    const payload = { quantity: 20 } as unknown as InventoryBatchPayload;
+
+    it('updates batch and returns data', async () => {
+      const mockResponse = { id: 'batch-1', quantity: 20 };
+      mockedPatchData.mockResolvedValue({ data: mockResponse });
+
+      const result = await updateInventoryBatch('batch-1', payload);
+
+      expect(mockedPatchData).toHaveBeenCalledWith('/v1/inventory/batches/batch-1', payload);
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('handles axios error', async () => {
+      const error = { response: { data: { message: 'Batch error' } }, message: 'Batch error' };
+      mockedPatchData.mockRejectedValue(error);
+      mockedIsAxiosError.mockReturnValue(true);
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      await expect(updateInventoryBatch('batch-1', payload)).rejects.toEqual(error);
+      expect(consoleSpy).toHaveBeenCalledWith('Failed to update inventory batch:', 'Batch error');
+      consoleSpy.mockRestore();
+    });
+
+    it('handles non-axios error', async () => {
+      const error = new Error('non-axios batch error');
+      mockedPatchData.mockRejectedValue(error);
+      mockedIsAxiosError.mockReturnValue(false);
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      await expect(updateInventoryBatch('batch-1', payload)).rejects.toThrow(error);
+      expect(consoleSpy).toHaveBeenCalledWith('Failed to update inventory batch:', error);
+      consoleSpy.mockRestore();
+    });
+  });
+
+  // Additional branch coverage for existing functions
+  describe('fetchInventoryItems - additional', () => {
+    it('strips undefined and empty string params', async () => {
+      mockedGetData.mockResolvedValue({ data: [] });
+      await fetchInventoryItems('org-1', { search: 'test', page: undefined as any, category: '' });
+      const callArgs = mockedGetData.mock.calls[0][1];
+      expect(callArgs).not.toHaveProperty('category');
+    });
+  });
+
+  describe('createInventoryItem - no batches in response', () => {
+    it('returns item directly when no batches field', async () => {
+      const payload = { name: 'Item' } as any;
+      mockedPostData.mockResolvedValue({ data: { item: { id: 'x' }, batches: undefined } });
+      const result = await createInventoryItem(payload);
+      expect(result).toMatchObject({ id: 'x' });
+    });
+  });
+
+  describe('updateInventoryItem - additional branches', () => {
+    it('handles nested response structure with item key', async () => {
+      const payload = { name: 'Updated' };
+      mockedPatchData.mockResolvedValue({
+        data: { item: { id: 'inv-1', name: 'Updated' }, batches: [{ id: 'b1' }] },
+      });
+
+      const result = await updateInventoryItem('inv-1', payload);
+      expect(result).toMatchObject({ id: 'inv-1', name: 'Updated', batches: [{ id: 'b1' }] });
+    });
+
+    it('handles non-axios error', async () => {
+      const error = new Error('non-axios update error');
+      mockedPatchData.mockRejectedValue(error);
+      mockedIsAxiosError.mockReturnValue(false);
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      await expect(updateInventoryItem('inv-1', {})).rejects.toThrow(error);
+      expect(consoleSpy).toHaveBeenCalledWith('Failed to update inventory item:', error);
       consoleSpy.mockRestore();
     });
   });
