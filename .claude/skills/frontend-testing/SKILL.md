@@ -8,6 +8,25 @@ TRIGGER: any task involving test files in apps/frontend, or when asked to write/
 
 ---
 
+## New Code = New Tests (Mandatory)
+
+**Every new module, service, hook, store, utility, or component added to `apps/frontend` must ship with tests in the same batch. No exceptions.**
+
+| What you add                                         | What you must also add                                      |
+| ---------------------------------------------------- | ----------------------------------------------------------- |
+| Service function / API call                          | Jest unit: success + all error branches (axios + non-axios) |
+| Zustand store                                        | Jest: every action, selector, guard, and edge case          |
+| Custom hook                                          | `renderHook` covering all return values and state branches  |
+| Utility / lib function                               | Jest unit with full branch coverage                         |
+| UI component                                         | RTL render + at least one user interaction test             |
+| E2E-critical flow (auth, booking, checkout, payment) | Playwright test in `playwright/`                            |
+
+**Coverage bar for any new file you author: Statements ≥ 90%, Branches ≥ 90%, Functions ≥ 90%.**
+
+Do not leave an existing file in a worse coverage state than you found it. If you touch a file, hold or improve its coverage.
+
+---
+
 ## Mandatory Checks — Run in This Order After Every Change
 
 Run all three every time you touch `apps/frontend`. Never skip any step.

@@ -105,6 +105,31 @@ AWS Amplify Auth is the mobile auth provider. Firebase handles push notification
 - Target tests: `pnpm --filter mobileAppYC run test -- --testPathPattern="path/to/file"`
 - Never run the full suite without `--testPathPattern`.
 
+### New code = new tests (mandatory)
+
+**Every new module, screen, service, hook, slice, or utility added to `apps/mobileAppYC` must ship with tests in the same batch. No exceptions.**
+
+| What you add                                | What you must also add                                         |
+| ------------------------------------------- | -------------------------------------------------------------- |
+| Service function / API call                 | Jest unit: success + all error branches                        |
+| Redux slice                                 | Jest: every reducer, action creator, selector, and async thunk |
+| Custom hook                                 | `renderHook` covering all return values and state branches     |
+| Utility function                            | Jest unit with full branch coverage                            |
+| Screen component                            | Jest + Testing Library render + key interaction                |
+| E2E-critical flow (auth, booking, checkout) | Detox test                                                     |
+
+**Coverage bar for any new file you author: Statements ≥ 90%, Branches ≥ 90%, Functions ≥ 90%.**
+
+Never leave an existing file in a worse coverage state than you found it.
+
+### Mandatory pre-commit checks (run in order, never skip)
+
+```bash
+npx tsc --noemit                                    # from apps/mobileAppYC/
+pnpm --filter mobileAppYC run lint
+pnpm --filter mobileAppYC run test -- --testPathPattern="<YourFile>"
+```
+
 ---
 
 ## Gotchas
