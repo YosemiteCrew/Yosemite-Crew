@@ -13,6 +13,7 @@ import { toNumberSafe } from '@/app/lib/validators';
 import { useInvoicesForPrimaryOrgAppointment } from '@/app/hooks/useInvoices';
 import InvoicePaymentActions from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Finance/InvoicePaymentActions';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import { getInvoicePaymentMethodLabel } from '@/app/lib/invoicePaymentMethod';
 
 const AppointmentFields = [
   { label: 'Service', key: 'service', type: 'text' },
@@ -160,6 +161,14 @@ const Summary = ({ activeAppointment, formData }: SummaryProps) => {
                 {formatMoney(totals.total, currency)}
               </div>
             </div>
+            {actionInvoice ? (
+              <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
+                <div className="text-body-4-emphasis text-text-tertiary">Payment method: </div>
+                <div className="text-body-4 text-text-primary text-right">
+                  {getInvoicePaymentMethodLabel(actionInvoice)}
+                </div>
+              </div>
+            ) : null}
             <div className="flex flex-col gap-3 mt-3">
               <InvoicePaymentActions
                 invoiceId={actionInvoice?.id}

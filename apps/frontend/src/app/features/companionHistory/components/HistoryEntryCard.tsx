@@ -13,6 +13,7 @@ import {
   getPrimaryActionLabel,
   getTypeBadgeClassName,
 } from '@/app/features/companionHistory/utils/historyFormatters';
+import { getPaymentCollectionMethodLabel } from '@/app/lib/invoicePaymentMethod';
 
 type HistoryEntryCardProps = {
   entry: HistoryEntry;
@@ -112,14 +113,17 @@ const getLabDetails = (entry: HistoryEntry): DetailPair[] => {
 const getInvoiceDetails = (entry: HistoryEntry): DetailPair[] => {
   const totalAmount = getPayloadNumber(entry.payload, ['totalAmount']);
   const currency = getPayloadString(entry.payload, ['currency']);
-  const collectionMethod = getPayloadString(entry.payload, ['paymentCollectionMethod']);
+  const collectionMethod = getPaymentCollectionMethodLabel(
+    getPayloadString(entry.payload, ['paymentCollectionMethod'])
+  );
   const paidAt = getPayloadString(entry.payload, ['paidAt']);
-  const status = getPayloadString(entry.payload, ['status']) || entry.status || '-';
+  const status =
+    formatStatusLabel(getPayloadString(entry.payload, ['status']) || entry.status) || '-';
 
   return [
     { label: 'Status', value: status },
     { label: 'Amount', value: formatCurrency(totalAmount, currency) || '-' },
-    { label: 'Collection', value: collectionMethod || '-' },
+    { label: 'Payment method', value: collectionMethod || '-' },
     { label: 'Paid date', value: paidAt ? formatHistoryDate(paidAt) : '-' },
   ];
 };

@@ -96,6 +96,7 @@ describe('Finance Summary section', () => {
       {
         id: 'inv-pending',
         status: 'PENDING',
+        paymentCollectionMethod: 'PAYMENT_INTENT',
         createdAt: '2026-01-03T00:00:00Z',
         subtotal: 80,
         discountTotal: 5,
@@ -110,6 +111,7 @@ describe('Finance Summary section', () => {
     expect(screen.getByText('Consultation')).toBeInTheDocument();
     expect(screen.getByText('USD 80')).toBeInTheDocument();
     expect(screen.getByText('USD 78')).toBeInTheDocument();
+    expect(screen.getByText('Online payment')).toBeInTheDocument();
     expect(screen.getByTestId('pay-actions-inv-pending')).toBeInTheDocument();
   });
 

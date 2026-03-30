@@ -55,7 +55,7 @@ jest.mock('@/app/lib/forms', () => ({
 }));
 
 jest.mock('@/app/lib/invoicePaymentMethod', () => ({
-  getInvoicePaymentMethodLabel: () => 'Cash at Clinic',
+  getInvoicePaymentMethodLabel: () => 'Paid in cash',
 }));
 
 describe('InvoiceTable', () => {
@@ -106,7 +106,7 @@ describe('InvoiceTable', () => {
     fireEvent.click(screen.getByTitle('Open appointment finance'));
 
     expect(screen.getByText('Sam / Buddy')).toBeInTheDocument();
-    expect(screen.getByText('Cash at Clinic')).toBeInTheDocument();
+    expect(screen.getByText('Paid in cash')).toBeInTheDocument();
     expect(pushMock).toHaveBeenCalledWith(
       '/appointments?appointmentId=appt-1&open=finance&subLabel=summary'
     );

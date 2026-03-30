@@ -75,6 +75,7 @@ describe('Finance Details section', () => {
         taxTotal: 5,
         totalAmount: 95,
         status: 'PAID',
+        paymentCollectionMethod: 'PAYMENT_AT_CLINIC',
       },
     ]);
 
@@ -86,6 +87,7 @@ describe('Finance Details section', () => {
     expect(screen.getByText('USD 100')).toBeInTheDocument();
     expect(screen.getByText('USD 95')).toBeInTheDocument();
     expect(screen.getByText('Paid')).toBeInTheDocument();
+    expect(screen.getByText('Paid in cash')).toBeInTheDocument();
     expect(screen.getByTestId('invoice-actions-inv-1')).toBeInTheDocument();
   });
 

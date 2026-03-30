@@ -51,6 +51,16 @@ const buildAppointmentsLink = (
   return `/appointments?${params.toString()}`;
 };
 
+const buildTasksLink = (taskId: string) => {
+  const params = new URLSearchParams({ taskId });
+  return `/tasks?${params.toString()}`;
+};
+
+const buildFinanceLink = (invoiceId: string) => {
+  const params = new URLSearchParams({ invoiceId });
+  return `/finance?${params.toString()}`;
+};
+
 const appendPage = (
   previous: HistoryEntry[],
   response: CompanionHistoryResponse,
@@ -78,6 +88,28 @@ const resolveFallbackUrl = (entry: HistoryEntry): string | null => {
     return secondaryUrl;
   }
 
+  return null;
+};
+
+const getLinkedId = (
+  entry: HistoryEntry,
+  payloadKeys: string[],
+  kindMatcher: string
+): string | null => {
+  const linkKind = String(entry.link.kind ?? '')
+    .trim()
+    .toLowerCase();
+  if (linkKind === kindMatcher) {
+    const linkId = String(entry.link.id ?? '').trim();
+    if (linkId) return linkId;
+  }
+
+  for (const key of payloadKeys) {
+    const value = entry.payload[key];
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
   return null;
 };
 
@@ -461,6 +493,50 @@ const CompanionHistoryTimeline = ({
     [resolveAppointmentId, activeAppointmentId, onOpenAppointmentView]
   );
 
+  const openTaskEntry = useCallback(
+    (entry: HistoryEntry) => {
+      const appointmentId = resolveAppointmentId(entry);
+      if (appointmentId === activeAppointmentId && onOpenAppointmentView) {
+        onOpenAppointmentView({ label: 'tasks', subLabel: 'task' });
+        return;
+      }
+
+      const taskId = getLinkedId(entry, ['taskId'], 'task');
+      if (taskId && globalThis.window) {
+        globalThis.window.location.assign(buildTasksLink(taskId));
+        return;
+      }
+
+      if (appointmentId && globalThis.window) {
+        globalThis.window.location.assign(buildAppointmentsLink(appointmentId, undefined, 'task'));
+      }
+    },
+    [resolveAppointmentId, activeAppointmentId, onOpenAppointmentView]
+  );
+
+  const openInvoiceEntry = useCallback(
+    (entry: HistoryEntry) => {
+      const appointmentId = resolveAppointmentId(entry);
+      if (appointmentId === activeAppointmentId && onOpenAppointmentView) {
+        onOpenAppointmentView({ label: 'finance', subLabel: 'summary' });
+        return;
+      }
+
+      const invoiceId = getLinkedId(entry, ['invoiceId'], 'invoice');
+      if (invoiceId && globalThis.window) {
+        globalThis.window.location.assign(buildFinanceLink(invoiceId));
+        return;
+      }
+
+      if (appointmentId && globalThis.window) {
+        globalThis.window.location.assign(
+          buildAppointmentsLink(appointmentId, 'finance', 'summary')
+        );
+      }
+    },
+    [resolveAppointmentId, activeAppointmentId, onOpenAppointmentView]
+  );
+
   const handleOpenEntry = useCallback(
     (entry: HistoryEntry) => {
       if (entry.type === 'DOCUMENT') {
@@ -475,9 +551,19 @@ const CompanionHistoryTimeline = ({
         return;
       }
 
+      if (entry.type === 'TASK') {
+        openTaskEntry(entry);
+        return;
+      }
+
+      if (entry.type === 'INVOICE') {
+        openInvoiceEntry(entry);
+        return;
+      }
+
       openAppointmentLinkedEntry(entry);
     },
-    [openDocument, openLabResult, openAppointmentLinkedEntry]
+    [openDocument, openLabResult, openTaskEntry, openInvoiceEntry, openAppointmentLinkedEntry]
   );
 
   return (
