@@ -21,7 +21,8 @@ jest.mock('@/app/features/tasks/services/taskService', () => ({
   loadTasksForPrimaryOrg: jest.fn(),
 }));
 
-const makeTask = (id: string, assignedTo?: string): Task => ({ id, assignedTo }) as Task;
+const makeTask = (_id: string, assignedTo?: string): Task =>
+  ({ _id, assignedTo }) as unknown as Task;
 
 describe('useLoadTasksForPrimaryOrg', () => {
   it('loads tasks when primaryOrgId is set', () => {
@@ -136,6 +137,6 @@ describe('useTasksAssignedToUser', () => {
 
     const { result } = renderHook(() => useTasksAssignedToUser('user1'));
     expect(result.current).toHaveLength(1);
-    expect(result.current[0].id).toBe('t1');
+    expect(result.current[0]._id).toBe('t1');
   });
 });

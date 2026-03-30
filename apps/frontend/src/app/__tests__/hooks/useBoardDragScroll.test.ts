@@ -12,7 +12,7 @@ const makeScrollable = (
     rect?: { top: number; bottom: number; left: number; right: number };
   } = {}
 ): HTMLElement & { scrollBy: jest.Mock } => {
-  const el = document.createElement('div') as HTMLElement & { scrollBy: jest.Mock };
+  const el = document.createElement('div') as unknown as HTMLElement & { scrollBy: jest.Mock };
   const {
     scrollTop = 0,
     scrollLeft = 0,

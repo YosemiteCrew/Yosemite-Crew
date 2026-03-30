@@ -222,7 +222,7 @@ describe('orgService', () => {
     const axiosError = Object.assign(new Error('Forbidden'), {
       response: { status: 403, data: {} },
     });
-    (axios.isAxiosError as jest.Mock).mockReturnValue(true);
+    (axios.isAxiosError as unknown as jest.Mock).mockReturnValue(true);
     (getData as jest.Mock).mockRejectedValue(axiosError);
 
     await expect(loadOrgs()).rejects.toThrow();
@@ -230,7 +230,7 @@ describe('orgService', () => {
       "You don't have permission to fetch organizations."
     );
     consoleSpy.mockRestore();
-    (axios.isAxiosError as jest.Mock).mockReset();
+    (axios.isAxiosError as unknown as jest.Mock).mockReset();
   });
 
   it('loadOrgs sets 404 error message on axios 404', async () => {
@@ -238,7 +238,7 @@ describe('orgService', () => {
     const axiosError = Object.assign(new Error('Not Found'), {
       response: { status: 404, data: {} },
     });
-    (axios.isAxiosError as jest.Mock).mockReturnValue(true);
+    (axios.isAxiosError as unknown as jest.Mock).mockReturnValue(true);
     (getData as jest.Mock).mockRejectedValue(axiosError);
 
     await expect(loadOrgs()).rejects.toThrow();
@@ -246,30 +246,30 @@ describe('orgService', () => {
       'Organization service not found. Please contact support.'
     );
     consoleSpy.mockRestore();
-    (axios.isAxiosError as jest.Mock).mockReset();
+    (axios.isAxiosError as unknown as jest.Mock).mockReset();
   });
 
   it('loadOrgs sets generic error on non-axios error', async () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    (axios.isAxiosError as jest.Mock).mockReturnValue(false);
+    (axios.isAxiosError as unknown as jest.Mock).mockReturnValue(false);
     (getData as jest.Mock).mockRejectedValue(new Error('unknown'));
 
     await expect(loadOrgs()).rejects.toThrow();
     expect(orgState.setError).toHaveBeenCalledWith('Unexpected error while fetching organization');
     consoleSpy.mockRestore();
-    (axios.isAxiosError as jest.Mock).mockReset();
+    (axios.isAxiosError as unknown as jest.Mock).mockReset();
   });
 
   it('loadOrgs silent mode does not call setError or startLoading on error', async () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    (axios.isAxiosError as jest.Mock).mockReturnValue(false);
+    (axios.isAxiosError as unknown as jest.Mock).mockReturnValue(false);
     (getData as jest.Mock).mockRejectedValue(new Error('unknown'));
 
     await expect(loadOrgs({ silent: true })).rejects.toThrow();
     expect(orgState.setError).not.toHaveBeenCalled();
     expect(orgState.startLoading).not.toHaveBeenCalled();
     consoleSpy.mockRestore();
-    (axios.isAxiosError as jest.Mock).mockReset();
+    (axios.isAxiosError as unknown as jest.Mock).mockReset();
   });
 
   it('createOrg sets 403 error on axios 403', async () => {
@@ -277,7 +277,7 @@ describe('orgService', () => {
     const axiosError = Object.assign(new Error('Forbidden'), {
       response: { status: 403, data: {} },
     });
-    (axios.isAxiosError as jest.Mock).mockReturnValue(true);
+    (axios.isAxiosError as unknown as jest.Mock).mockReturnValue(true);
     (postData as jest.Mock).mockRejectedValue(axiosError);
 
     await expect(createOrg({ name: 'Org' } as any)).rejects.toThrow();
@@ -285,7 +285,7 @@ describe('orgService', () => {
       "You don't have permission to create organizations."
     );
     consoleSpy.mockRestore();
-    (axios.isAxiosError as jest.Mock).mockReset();
+    (axios.isAxiosError as unknown as jest.Mock).mockReset();
   });
 
   it('createOrg sets 404 error on axios 404', async () => {
@@ -293,7 +293,7 @@ describe('orgService', () => {
     const axiosError = Object.assign(new Error('Not Found'), {
       response: { status: 404, data: {} },
     });
-    (axios.isAxiosError as jest.Mock).mockReturnValue(true);
+    (axios.isAxiosError as unknown as jest.Mock).mockReturnValue(true);
     (postData as jest.Mock).mockRejectedValue(axiosError);
 
     await expect(createOrg({ name: 'Org' } as any)).rejects.toThrow();
@@ -301,7 +301,7 @@ describe('orgService', () => {
       'Organization service not found. Please contact support.'
     );
     consoleSpy.mockRestore();
-    (axios.isAxiosError as jest.Mock).mockReset();
+    (axios.isAxiosError as unknown as jest.Mock).mockReset();
   });
 
   it('updateOrg sets 403 error on axios 403', async () => {
@@ -309,7 +309,7 @@ describe('orgService', () => {
     const axiosError = Object.assign(new Error('Forbidden'), {
       response: { status: 403, data: {} },
     });
-    (axios.isAxiosError as jest.Mock).mockReturnValue(true);
+    (axios.isAxiosError as unknown as jest.Mock).mockReturnValue(true);
     (putData as jest.Mock).mockRejectedValue(axiosError);
 
     await expect(updateOrg({ _id: 'org-1', name: 'X' } as any)).rejects.toThrow();
@@ -317,6 +317,6 @@ describe('orgService', () => {
       "You don't have permission to update organizations."
     );
     consoleSpy.mockRestore();
-    (axios.isAxiosError as jest.Mock).mockReset();
+    (axios.isAxiosError as unknown as jest.Mock).mockReset();
   });
 });

@@ -155,3 +155,112 @@ Test file naming: `ComponentName.test.tsx` mirrors the source file name.
 - If a test imports from `@/app/ui`, make sure the mock is at module level, not inside `describe`.
 - Playwright tests live in `playwright/` and run separately — don't confuse them with Jest tests.
 - If `--testPathPattern` matches multiple files unintentionally, be more specific with the path.
+
+---
+
+## Pitfalls Discovered During Coverage Work (2025–2026)
+
+### `require()` is forbidden — use top-level imports instead
+
+ESLint rule `@typescript-eslint/no-require-imports` blocks `require()` inside test bodies. Never do:
+
+```ts
+// ❌ forbidden
+const { fromFormRequestDTO } = require('@yosemite-crew/types');
+```
+
+Instead, import at the top of the file and cast:
+
+```ts
+// ✅ correct
+import { fromFormRequestDTO } from '@yosemite-crew/types';
+// ...
+(fromFormRequestDTO as jest.Mock).mockImplementationOnce(() => {
+  throw new Error('invalid');
+});
+```
+
+### `jest.resetAllMocks()` wipes factory mock return values
+
+If you use `jest.resetAllMocks()` in `beforeEach`, any mock initialized with `.mockReturnValue()` in a `jest.mock()` factory is reset to `undefined`. Re-initialize all mock return values inside `beforeEach` after `resetAllMocks()`:
+
+```ts
+beforeEach(() => {
+  jest.resetAllMocks();
+  // Must re-set these — factory defaults are gone after resetAllMocks
+  (canTransitionAppointmentStatus as jest.Mock).mockReturnValue(true);
+  (useAuthStore.getState as jest.Mock).mockReturnValue({ user: mockUser, attributes: {} });
+});
+```
+
+### `axios.isAxiosError` mock — use `jest.mock("axios", ...)` not `jest.spyOn`
+
+`jest.spyOn` on `axios.isAxiosError` doesn't reliably work because the service imports axios at module load time. Use:
+
+```ts
+jest.mock('axios', () => ({
+  create: jest.fn(() => ({
+    interceptors: { request: { use: jest.fn() }, response: { use: jest.fn() } },
+  })),
+  isAxiosError: jest.fn(),
+}));
+// Then per test:
+(axios.isAxiosError as jest.Mock).mockReturnValue(true);
+// After test:
+(axios.isAxiosError as jest.Mock).mockReset();
+```
+
+### Read-only DOM properties require `Object.defineProperty`
+
+`Object.assign(el, { scrollTop: 0 })` throws because `scrollTop` is a getter-only property on `HTMLElement`. Use:
+
+```ts
+Object.defineProperty(el, 'scrollTop', { value: 0, writable: true, configurable: true });
+```
+
+### Module-level singletons break cross-test isolation with `jest.resetModules()`
+
+Services that maintain module-level singletons (e.g. `connectionPromise`, `chatClient`) can't easily test "connection in progress" state when `jest.resetModules()` resets the module between each test. Drop those test scenarios or use a single `beforeAll` import for that specific describe block.
+
+### `performAppointmentAction` requires a valid `lead.id` for `accept` action
+
+When testing `acceptAppointment` or `changeAppointmentStatus → UPCOMING`, the appointment must have a non-empty `lead.id` or the service throws "Cannot accept appointment without a valid lead." Always include `lead: { id: 'vet-1', name: 'Dr Vet' }` in those test fixtures.
+
+### `canTransitionAppointmentStatus` from `@/app/lib/appointments`
+
+This function is imported by `appointmentService.ts` from `@/app/lib/appointments` (not from a utils sub-path). Mock it as:
+
+```ts
+jest.mock('@/app/lib/appointments', () => ({
+  canTransitionAppointmentStatus: jest.fn(),
+  getInvalidAppointmentStatusTransitionMessage: jest.fn().mockReturnValue('Invalid transition'),
+}));
+```
+
+And re-initialize in `beforeEach` after `resetAllMocks()`:
+
+```ts
+const { canTransitionAppointmentStatus } = jest.requireMock('@/app/lib/appointments');
+(canTransitionAppointmentStatus as jest.Mock).mockReturnValue(true);
+```
+
+### Auth and team stores need re-initialization when using `resetAllMocks()`
+
+`useAuthStore` and `useTeamStore` are imported by `appointmentService`. If your test file uses `jest.resetAllMocks()`, you must re-seed these in `beforeEach`:
+
+```ts
+const { useAuthStore } = jest.requireMock('@/app/stores/authStore');
+(useAuthStore.getState as jest.Mock).mockReturnValue({
+  user: { getUsername: jest.fn().mockReturnValue('user-1') },
+  attributes: {},
+});
+```
+
+### `getValidSession` branch logic in authStore
+
+`isSessionFresh` checks `session.isValid()` first, then reads `payload.exp`. Testing branches:
+
+- Pass a session with `isValid: () => true` and `exp` far in the future → returns cached session
+- Pass `null` session → triggers refresh
+- Pass session where `decodePayload` throws → falls back to `session.isValid()` return value
+- `forceRefresh: true` + null refreshed session → returns `null` without calling `checkSession`

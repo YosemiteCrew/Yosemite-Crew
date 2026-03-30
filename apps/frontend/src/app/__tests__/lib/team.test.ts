@@ -10,10 +10,10 @@ describe('allowDelete', () => {
   });
 
   it('returns true for MEMBER role', () => {
-    expect(allowDelete('MEMBER')).toBe(true);
+    expect(allowDelete('MEMBER' as any)).toBe(true);
   });
 
   it('returns true for VIEWER role', () => {
-    expect(allowDelete('VIEWER')).toBe(true);
+    expect(allowDelete('VIEWER' as any)).toBe(true);
   });
 });

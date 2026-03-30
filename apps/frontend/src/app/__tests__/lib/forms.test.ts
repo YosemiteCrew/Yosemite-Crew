@@ -51,12 +51,12 @@ describe('hasSignatureField', () => {
   });
 
   it('returns false when no signature fields', () => {
-    const fields = [{ id: '1', type: 'text', label: 'Name' }] as FormField[];
+    const fields = [{ id: '1', type: 'text', label: 'Name' }] as unknown as FormField[];
     expect(hasSignatureField(fields)).toBe(false);
   });
 
   it('returns true when a top-level signature field exists', () => {
-    const fields = [{ id: 'sig', type: 'signature', label: 'Signature' }] as FormField[];
+    const fields = [{ id: 'sig', type: 'signature', label: 'Signature' }] as unknown as FormField[];
     expect(hasSignatureField(fields)).toBe(true);
   });
 
@@ -68,7 +68,7 @@ describe('hasSignatureField', () => {
         label: 'Group',
         fields: [{ id: 'sig', type: 'signature', label: 'Sign' }],
       },
-    ] as FormField[];
+    ] as unknown as FormField[];
     expect(hasSignatureField(fields)).toBe(true);
   });
 
@@ -80,7 +80,7 @@ describe('hasSignatureField', () => {
         label: 'Group',
         fields: [{ id: 'txt', type: 'text', label: 'Text' }],
       },
-    ] as FormField[];
+    ] as unknown as FormField[];
     expect(hasSignatureField(fields)).toBe(false);
   });
 });
@@ -94,7 +94,7 @@ describe('removeSignatureFields', () => {
     const fields = [
       { id: '1', type: 'text', label: 'Name' },
       { id: '2', type: 'signature', label: 'Sig' },
-    ] as FormField[];
+    ] as unknown as FormField[];
     const result = removeSignatureFields(fields);
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe('1');
@@ -111,7 +111,7 @@ describe('removeSignatureFields', () => {
           { id: 'sig', type: 'signature', label: 'Sign' },
         ],
       },
-    ] as FormField[];
+    ] as unknown as FormField[];
     const result = removeSignatureFields(fields);
     expect(result).toHaveLength(1);
     expect((result[0] as any).fields).toHaveLength(1);
@@ -122,14 +122,14 @@ describe('removeSignatureFields', () => {
     const fields = [
       { id: '1', type: 'text', label: 'Name' },
       { id: '2', type: 'checkbox', label: 'Agree' },
-    ] as FormField[];
+    ] as unknown as FormField[];
     expect(removeSignatureFields(fields)).toHaveLength(2);
   });
 });
 
 describe('ensureSingleSignatureAtEnd', () => {
   it('appends a signature field to the end', () => {
-    const fields = [{ id: '1', type: 'text', label: 'Name' }] as FormField[];
+    const fields = [{ id: '1', type: 'text', label: 'Name' }] as unknown as FormField[];
     const result = ensureSingleSignatureAtEnd(fields);
     expect(result).toHaveLength(2);
     expect(result[result.length - 1].type).toBe('signature');
@@ -139,7 +139,7 @@ describe('ensureSingleSignatureAtEnd', () => {
     const fields = [
       { id: 'sig1', type: 'signature', label: 'Old Sig' },
       { id: '1', type: 'text', label: 'Name' },
-    ] as FormField[];
+    ] as unknown as FormField[];
     const result = ensureSingleSignatureAtEnd(fields);
     const signatures = result.filter((f) => f.type === 'signature');
     expect(signatures).toHaveLength(1);
@@ -147,7 +147,7 @@ describe('ensureSingleSignatureAtEnd', () => {
   });
 
   it('uses custom label for the signature field', () => {
-    const fields = [{ id: '1', type: 'text', label: 'Name' }] as FormField[];
+    const fields = [{ id: '1', type: 'text', label: 'Name' }] as unknown as FormField[];
     const result = ensureSingleSignatureAtEnd(fields, 'Owner Signature');
     expect(result[result.length - 1].label).toBe('Owner Signature');
   });
