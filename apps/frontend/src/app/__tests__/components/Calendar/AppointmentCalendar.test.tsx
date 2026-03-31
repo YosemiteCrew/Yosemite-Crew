@@ -298,6 +298,43 @@ describe('AppointmentCalendar', () => {
     );
   });
 
+  it('opens reschedule popup for draggable appointments', () => {
+    renderCalendar();
+    const props = dayCalendarSpy.mock.calls[0][0];
+
+    act(() => {
+      props.handleRescheduleAppointment(appointments[0]);
+    });
+
+    expect(setActiveAppointment).toHaveBeenCalledWith(appointments[0]);
+    expect(setReschedulePopup).toHaveBeenCalledWith(true);
+  });
+
+  it('opens status-change popup with preferred next status', () => {
+    renderCalendar();
+    const props = dayCalendarSpy.mock.calls[0][0];
+
+    act(() => {
+      props.handleChangeStatusAppointment(appointments[0]);
+    });
+
+    expect(setActiveAppointment).toHaveBeenCalledWith(appointments[0]);
+    expect(setChangeStatusPreferredStatus).toHaveBeenCalledWith('UPCOMING');
+    expect(setChangeStatusPopup).toHaveBeenCalledWith(true);
+  });
+
+  it('opens room-change popup when status allows room assignment', () => {
+    renderCalendar();
+    const props = dayCalendarSpy.mock.calls[0][0];
+
+    act(() => {
+      props.handleChangeRoomAppointment(appointments[0]);
+    });
+
+    expect(setActiveAppointment).toHaveBeenCalledWith(appointments[0]);
+    expect(setChangeRoomPopup).toHaveBeenCalledWith(true);
+  });
+
   it('moves appointment on valid drop and clears any previous drag error', async () => {
     renderCalendar();
     let props = dayCalendarSpy.mock.calls[0][0];
@@ -390,6 +427,38 @@ describe('AppointmentCalendar', () => {
     });
   });
 
+  it('renders week calendar with current-user filtered appointments in week mode', () => {
+    renderCalendar({ activeCalendar: 'week' });
+
+    expect(weekCalendarSpy).toHaveBeenCalledTimes(1);
+    expect(weekCalendarSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        events: [],
+      })
+    );
+  });
+
+  it('prefetches drag availability on hover after drag start', async () => {
+    renderCalendar();
+    let props = dayCalendarSpy.mock.calls[0][0];
+
+    await act(async () => {
+      props.onAppointmentDragStart(appointments[0]);
+    });
+
+    props = dayCalendarSpy.mock.calls.at(-1)![0];
+    await act(async () => {
+      props.onDragHoverTarget(new Date('2027-01-06T00:00:00Z'));
+    });
+
+    await waitFor(() => {
+      expect(getSlotsForServiceAndDateForPrimaryOrg).toHaveBeenCalledWith(
+        'svc-1',
+        expect.any(Date)
+      );
+    });
+  });
+
   it('creates appointment prefill with resolved team practitioner in team view', () => {
     renderCalendar({ activeCalendar: 'team' });
     const props = userCalendarSpy.mock.calls[0][0];
@@ -414,5 +483,23 @@ describe('AppointmentCalendar', () => {
     });
 
     expect(onCreateFromCalendarSlot).not.toHaveBeenCalled();
+  });
+
+  it('creates appointment prefill with current user practitioner in day view', () => {
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([
+      { _id: 'team-1', practionerId: 'vet-1', userId: 'user-1', name: 'Dr Vet' },
+    ]);
+    renderCalendar({ activeCalendar: 'day' });
+    const props = dayCalendarSpy.mock.calls[0][0];
+
+    act(() => {
+      props.onCreateAppointmentAt(new Date('2027-01-06T00:00:00Z'), 630);
+    });
+
+    expect(onCreateFromCalendarSlot).toHaveBeenCalledWith({
+      date: new Date('2027-01-06T00:00:00Z'),
+      minuteOfDay: 630,
+      leadId: 'vet-1',
+    });
   });
 });
