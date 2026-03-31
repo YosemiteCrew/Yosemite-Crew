@@ -87,7 +87,7 @@ describe('Finance Details section', () => {
     expect(screen.getByText('USD 100')).toBeInTheDocument();
     expect(screen.getByText('USD 95')).toBeInTheDocument();
     expect(screen.getByText('Paid')).toBeInTheDocument();
-    expect(screen.getByText('Paid in cash')).toBeInTheDocument();
+    expect(screen.getByText('In-person payment')).toBeInTheDocument();
     expect(screen.getByTestId('invoice-actions-inv-1')).toBeInTheDocument();
   });
 

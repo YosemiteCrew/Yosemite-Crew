@@ -119,13 +119,13 @@ describe('paymentStatus', () => {
     expect(result['appt-1'].id).toBe('second');
   });
 
-  it('returns PAID_CASH for payment at clinic status', () => {
+  it('preserves unpaid label for payment at clinic status', () => {
     const display = getAppointmentPaymentDisplay(
       { id: 'a1', paymentStatus: 'PAYMENT_AT_CLINIC', status: 'REQUESTED' } as any,
       {}
     );
     expect(display.state).toBe('PAYMENT_AT_CLINIC');
-    expect(display.label).toBe('Paid in cash');
+    expect(display.label).toBe('Unpaid');
   });
 
   it('returns UNPAID for explicit UNPAID status with correct colors', () => {

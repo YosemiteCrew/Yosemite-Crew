@@ -1,5 +1,7 @@
 import { Invoice } from '@yosemite-crew/types';
 
+const IN_PERSON_PAYMENT_LABEL = 'In-person payment';
+
 const toNormalizedMethod = (method: unknown): string =>
   String(typeof method === 'string' || typeof method === 'number' ? method : '')
     .trim()
@@ -19,7 +21,7 @@ export const getPaymentCollectionMethodLabel = (method: unknown): string => {
   if (!normalizedMethod) return '-';
 
   if (normalizedMethod === 'PAYMENT_AT_CLINIC') {
-    return 'Paid in cash';
+    return IN_PERSON_PAYMENT_LABEL;
   }
 
   if (normalizedMethod === 'PAYMENT_LINK' || normalizedMethod === 'PAYMENT_INTENT') {

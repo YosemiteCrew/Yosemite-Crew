@@ -5,8 +5,8 @@ import {
 import { Invoice } from '@yosemite-crew/types';
 
 describe('getPaymentCollectionMethodLabel', () => {
-  it('returns "Paid in cash" for PAYMENT_AT_CLINIC', () => {
-    expect(getPaymentCollectionMethodLabel('PAYMENT_AT_CLINIC')).toBe('Paid in cash');
+  it('returns "In-person payment" for PAYMENT_AT_CLINIC', () => {
+    expect(getPaymentCollectionMethodLabel('PAYMENT_AT_CLINIC')).toBe('In-person payment');
   });
 
   it('returns "Online payment" for PAYMENT_LINK', () => {
@@ -18,7 +18,7 @@ describe('getPaymentCollectionMethodLabel', () => {
   });
 
   it('normalizes lowercase input with spaces', () => {
-    expect(getPaymentCollectionMethodLabel('payment at clinic')).toBe('Paid in cash');
+    expect(getPaymentCollectionMethodLabel('payment at clinic')).toBe('In-person payment');
   });
 
   it('normalizes dash-separated input', () => {
@@ -53,7 +53,7 @@ describe('getInvoicePaymentMethodLabel', () => {
 
   it('uses paymentCollectionMethod if present', () => {
     const invoice = { paymentCollectionMethod: 'PAYMENT_AT_CLINIC' } as any;
-    expect(getInvoicePaymentMethodLabel(invoice)).toBe('Paid in cash');
+    expect(getInvoicePaymentMethodLabel(invoice)).toBe('In-person payment');
   });
 
   it('falls back to "Online payment" when stripeReceiptUrl is present', () => {

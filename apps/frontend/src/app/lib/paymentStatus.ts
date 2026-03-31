@@ -36,7 +36,7 @@ const PAYMENT_DISPLAY: Record<AppointmentPaymentState, PaymentDisplay> = {
   },
   PAYMENT_AT_CLINIC: {
     state: 'PAYMENT_AT_CLINIC',
-    label: 'Paid in cash',
+    label: 'Unpaid',
     textColor: '#F68523',
     badgeBackgroundColor: '#FEF3E9',
     badgeTextColor: '#F68523',
