@@ -381,6 +381,40 @@ describe('AppointmentCalendar', () => {
     expect(await screen.findByText('Server rejected move')).toBeInTheDocument();
   });
 
+  it('shows fallback drag error when drop update rejects with a string', async () => {
+    (updateAppointment as jest.Mock).mockRejectedValue('oops');
+    renderCalendar();
+    let props = dayCalendarSpy.mock.calls[0][0];
+
+    await act(async () => {
+      props.onAppointmentDragStart(appointments[0]);
+    });
+
+    props = dayCalendarSpy.mock.calls.at(-1)![0];
+    await act(async () => {
+      props.onAppointmentDropAt(new Date('2027-01-06T00:00:00Z'), 600);
+    });
+
+    expect(await screen.findByText(/Unable to update appointment/i)).toBeInTheDocument();
+  });
+
+  it('shows fallback drag error when drop update rejects with undefined', async () => {
+    (updateAppointment as jest.Mock).mockRejectedValue(undefined);
+    renderCalendar();
+    let props = dayCalendarSpy.mock.calls[0][0];
+
+    await act(async () => {
+      props.onAppointmentDragStart(appointments[0]);
+    });
+
+    props = dayCalendarSpy.mock.calls.at(-1)![0];
+    await act(async () => {
+      props.onAppointmentDropAt(new Date('2027-01-06T00:00:00Z'), 600);
+    });
+
+    expect(await screen.findByText(/Unable to update appointment/i)).toBeInTheDocument();
+  });
+
   it('blocks drop when another appointment conflicts on lead or room', async () => {
     renderCalendar({
       allAppointments: [

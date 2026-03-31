@@ -34,6 +34,7 @@ import {
   LabResult,
 } from '@/app/features/integrations/services/types';
 import { formatDateTimeLocal } from '@/app/lib/date';
+import { getSafeIdexxIframeUrl } from '@/app/lib/urls';
 
 const TESTS_PAGE_SIZE = 25;
 const IDEXX_REGIONAL_AVAILABILITY_DISCLAIMER =
@@ -175,7 +176,8 @@ const resolveOrderUiUrl = (order: LabOrder | null) => {
   const nested = String(
     (order as unknown as { responsePayload?: { uiURL?: string } })?.responsePayload?.uiURL ?? ''
   ).trim();
-  return String(order.uiUrl ?? '').trim() || nested;
+  const raw = String(order.uiUrl ?? '').trim() || nested;
+  return getSafeIdexxIframeUrl(raw);
 };
 
 const resolveOrderPdfUrl = (order: LabOrder | null) => {
@@ -183,7 +185,8 @@ const resolveOrderPdfUrl = (order: LabOrder | null) => {
   const nested = String(
     (order as unknown as { responsePayload?: { pdfURL?: string } })?.responsePayload?.pdfURL ?? ''
   ).trim();
-  return String(order.pdfUrl ?? '').trim() || nested;
+  const raw = String(order.pdfUrl ?? '').trim() || nested;
+  return getSafeIdexxIframeUrl(raw);
 };
 
 const getNormalizedLifecycleStatus = (order: LabOrder | null) =>
