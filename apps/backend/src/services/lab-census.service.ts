@@ -214,13 +214,7 @@ export const LabCensusService = {
     organisationId: string,
     censusId: string,
   ) {
-    const provider = normalizeLabProvider(providerInput);
-    if (!provider) {
-      throw new LabOrderServiceError("Unsupported lab provider.", 400);
-    }
-    if (provider !== "IDEXX") {
-      throw new LabOrderServiceError("Unsupported lab provider.", 400);
-    }
+    requireIdexxProvider(providerInput);
 
     const client = await buildClientForOrg(organisationId);
     return client.getCensusById(censusId);
@@ -231,13 +225,7 @@ export const LabCensusService = {
     organisationId: string,
     censusId: string,
   ) {
-    const provider = normalizeLabProvider(providerInput);
-    if (!provider) {
-      throw new LabOrderServiceError("Unsupported lab provider.", 400);
-    }
-    if (provider !== "IDEXX") {
-      throw new LabOrderServiceError("Unsupported lab provider.", 400);
-    }
+    requireIdexxProvider(providerInput);
 
     const client = await buildClientForOrg(organisationId);
     return client.deleteCensusById(censusId);
@@ -248,13 +236,7 @@ export const LabCensusService = {
     organisationId: string,
     patientId: string,
   ) {
-    const provider = normalizeLabProvider(providerInput);
-    if (!provider) {
-      throw new LabOrderServiceError("Unsupported lab provider.", 400);
-    }
-    if (provider !== "IDEXX") {
-      throw new LabOrderServiceError("Unsupported lab provider.", 400);
-    }
+    requireIdexxProvider(providerInput);
 
     const client = await buildClientForOrg(organisationId);
     return client.getCensusPatient(patientId);
@@ -270,13 +252,7 @@ export const LabCensusService = {
       ivls?: Array<{ serialNumber: string } | string>;
     },
   ) {
-    const provider = normalizeLabProvider(providerInput);
-    if (!provider) {
-      throw new LabOrderServiceError("Unsupported lab provider.", 400);
-    }
-    if (provider !== "IDEXX") {
-      throw new LabOrderServiceError("Unsupported lab provider.", 400);
-    }
+    requireIdexxProvider(providerInput);
 
     if (!input.parentId) {
       throw new LabOrderServiceError("parentId is required for census.", 400);
@@ -315,13 +291,7 @@ export const LabCensusService = {
     organisationId: string,
     patientId: string,
   ) {
-    const provider = normalizeLabProvider(providerInput);
-    if (!provider) {
-      throw new LabOrderServiceError("Unsupported lab provider.", 400);
-    }
-    if (provider !== "IDEXX") {
-      throw new LabOrderServiceError("Unsupported lab provider.", 400);
-    }
+    requireIdexxProvider(providerInput);
 
     const client = await buildClientForOrg(organisationId);
     return client.deleteCensusPatient(patientId);

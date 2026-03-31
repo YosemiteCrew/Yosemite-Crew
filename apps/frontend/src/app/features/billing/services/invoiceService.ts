@@ -5,6 +5,57 @@ import { getData, patchData, postData } from '@/app/services/axios';
 
 export type InvoicePaymentCollectionMethod = 'PAYMENT_AT_CLINIC';
 
+const APPOINTMENT_ID_EXTENSION_URL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/appointment-id';
+
+const normalizeReferenceTail = (value: unknown): string | undefined => {
+  let raw = '';
+  if (typeof value === 'string') {
+    raw = value;
+  } else if (typeof value === 'number' || typeof value === 'boolean') {
+    raw = String(value);
+  }
+  const normalizedRaw = raw.trim();
+  if (!normalizedRaw) return undefined;
+  const withoutQuery = normalizedRaw.split(/[?#]/)[0];
+  const tail = withoutQuery.split('/').findLast(Boolean)?.trim();
+  return tail || undefined;
+};
+
+const getInvoiceAppointmentIdFallback = (fhirInvoice: InvoiceResponseDTO): string | undefined => {
+  const invoice = fhirInvoice as any;
+  const extensions = Array.isArray(invoice?.extension) ? invoice.extension : [];
+  const appointmentIdFromExtension = extensions.find(
+    (ext: any) => String(ext?.url ?? '') === APPOINTMENT_ID_EXTENSION_URL
+  )?.valueString;
+  const appointmentIdFromAccount = normalizeReferenceTail(invoice?.account?.reference);
+  const appointmentIdFromRawField = normalizeReferenceTail(invoice?.appointmentId);
+
+  return (
+    normalizeReferenceTail(appointmentIdFromExtension) ??
+    appointmentIdFromAccount ??
+    appointmentIdFromRawField
+  );
+};
+
+const normalizeInvoiceForFrontend = (
+  fhirInvoice: InvoiceResponseDTO,
+  fallbackOrganisationId?: string
+) => {
+  const parsedInvoice = fromInvoiceRequestDTO(fhirInvoice);
+  const resolvedAppointmentId =
+    String(parsedInvoice?.appointmentId ?? '').trim() ||
+    getInvoiceAppointmentIdFallback(fhirInvoice);
+  const resolvedOrganisationId =
+    String(parsedInvoice?.organisationId ?? '').trim() || fallbackOrganisationId;
+
+  return {
+    ...parsedInvoice,
+    appointmentId: resolvedAppointmentId || parsedInvoice.appointmentId,
+    organisationId: resolvedOrganisationId || parsedInvoice.organisationId,
+  };
+};
+
 export const loadInvoicesForOrgPrimaryOrg = async (opts?: {
   silent?: boolean;
   force?: boolean;
@@ -21,10 +72,41 @@ export const loadInvoicesForOrgPrimaryOrg = async (opts?: {
     const res = await getData<InvoiceResponseDTO[]>(
       '/fhir/v1/invoice/organisation/' + primaryOrgId + '/list'
     );
-    const invoices = res.data.map((fhirInvoice) => fromInvoiceRequestDTO(fhirInvoice));
+    const invoices = res.data.map((fhirInvoice) =>
+      normalizeInvoiceForFrontend(fhirInvoice, primaryOrgId)
+    );
     setInvoicesForOrg(primaryOrgId, invoices);
   } catch (err) {
     console.error('Failed to load specialities:', err);
+    throw err;
+  }
+};
+
+export const loadInvoicesForAppointment = async (appointmentId: string): Promise<void> => {
+  const { upsertInvoice } = useInvoiceStore.getState();
+  const primaryOrgId = useOrgStore.getState().primaryOrgId;
+  if (!primaryOrgId) {
+    console.warn('No primary organization selected. Cannot load appointment invoices.');
+    return;
+  }
+  if (!appointmentId) {
+    console.warn('No appointment id provided. Cannot load appointment invoices.');
+    return;
+  }
+
+  try {
+    const res = await postData<InvoiceResponseDTO[]>(
+      `/fhir/v1/invoice/appointment/${appointmentId}`,
+      {}
+    );
+    const invoices = (res.data ?? []).map((fhirInvoice) =>
+      normalizeInvoiceForFrontend(fhirInvoice, primaryOrgId)
+    );
+    invoices.forEach((invoice) => {
+      upsertInvoice(invoice);
+    });
+  } catch (err) {
+    console.error('Failed to load appointment invoices:', err);
     throw err;
   }
 };

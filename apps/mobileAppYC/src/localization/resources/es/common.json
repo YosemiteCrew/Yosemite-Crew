@@ -106,5 +106,19 @@
     "passwords_no_match": "Las contraseñas no coinciden",
     "companion_name_required": "El nombre de la mascota es requerido",
     "companion_type_required": "El tipo de mascota es requerido"
+  },
+  "appUpdate": {
+    "requiredTitle": "Actualización requerida",
+    "requiredMessage": "Se requiere una nueva versión de la app para continuar. Actualiza para seguir usando Yosemite Crew.",
+    "optionalTitle": "Actualización disponible",
+    "optionalMessage": "Hay una versión más reciente con mejoras. Actualiza ahora para una mejor experiencia.",
+    "updateNowButton": "Actualizar ahora",
+    "laterButton": "Más tarde",
+    "missingStoreUrl": "El enlace de actualización no está configurado. Contacta al soporte.",
+    "openStoreFailed": "No se pudo abrir la tienda de aplicaciones. Inténtalo de nuevo."
+  },
+  "payments": {
+    "cashCancellationNoticeTitle": "Importante",
+    "cashCancellationNoticeBody": "Esta cita fue pagada en efectivo y ha sido cancelada. Si se necesita un reembolso, debe gestionarse directamente con el proveedor del servicio."
   }
 }

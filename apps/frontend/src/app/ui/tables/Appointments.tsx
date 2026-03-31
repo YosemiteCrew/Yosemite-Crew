@@ -5,6 +5,7 @@ import { FaCheckCircle } from 'react-icons/fa';
 import { IoIosCloseCircle, IoIosCalendar } from 'react-icons/io';
 import { IoEyeOutline, IoCardOutline, IoDocumentTextOutline } from 'react-icons/io5';
 import { MdMeetingRoom, MdOutlineAutorenew, MdScience } from 'react-icons/md';
+import { RiHistoryLine } from 'react-icons/ri';
 import AppointmentCard from '@/app/ui/cards/AppointmentCard';
 import { Appointment } from '@yosemite-crew/types';
 import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
@@ -113,6 +114,10 @@ const Appointments = ({
     setViewPopup?.(true);
   };
 
+  const handleViewAppointmentHistory = (appointment: Appointment) => {
+    handleViewAppointment(appointment, { label: 'info', subLabel: 'history' });
+  };
+
   const handleRescheduleAppointment = (appointment: Appointment) => {
     setActiveAppointment?.(appointment);
     setReschedulePopup?.(true);
@@ -173,7 +178,14 @@ const Appointments = ({
       render: (item: Appointment) => (
         <div className="appointment-profile truncate">
           <div className="appointment-profile-two">
-            <div className="appointment-profile-title">{item?.companion?.name || '-'}</div>
+            <button
+              type="button"
+              onClick={() => handleViewAppointmentHistory(item)}
+              className="appointment-profile-title cursor-pointer hover:underline underline-offset-2 text-left"
+              title="Open appointment history"
+            >
+              {item?.companion?.name || '-'}
+            </button>
             <div className="appointment-profile-sub truncate">
               {item?.companion?.parent?.name || ''}
             </div>
@@ -331,6 +343,15 @@ const Appointments = ({
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                 >
                   <IoEyeOutline size={20} color="#302F2E" />
+                </button>
+              </GlassTooltip>
+              <GlassTooltip content="History" side="bottom" className="table-action-tooltip">
+                <button
+                  onClick={() => handleViewAppointmentHistory(item)}
+                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                  title="Appointment history"
+                >
+                  <RiHistoryLine size={18} color="#302F2E" />
                 </button>
               </GlassTooltip>
               {canEditAppointments && canShowStatusChangeAction(item.status) && (

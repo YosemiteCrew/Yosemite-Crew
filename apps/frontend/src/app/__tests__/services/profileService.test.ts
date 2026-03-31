@@ -357,6 +357,54 @@ describe('Profile Service', () => {
     });
   });
 
+  describe('patchUserProfile with response as direct object', () => {
+    it('handles response data returned as direct profile object (not wrapped)', async () => {
+      const existingProfile = {
+        _id: 'profile-3',
+        organizationId: 'org-3',
+        personalDetails: {},
+      };
+      mockProfileStoreGetProfileById.mockReturnValue(existingProfile);
+      mockedPutData.mockResolvedValue({
+        data: {
+          _id: 'profile-3',
+          organizationId: 'org-3',
+          personalDetails: { timezone: 'UTC' },
+        },
+      });
+
+      await patchUserProfile('org-3', { personalDetails: { timezone: 'UTC' } });
+
+      expect(mockProfileStoreUpdateProfile).toHaveBeenCalledWith(
+        expect.objectContaining({ _id: 'profile-3' })
+      );
+    });
+
+    it('fetches existing profile when getProfileById returns null and fetched from API', async () => {
+      mockProfileStoreGetProfileById.mockReturnValue(null);
+      // API returns profile directly (not wrapped in .profile)
+      mockedGetData.mockResolvedValue({
+        data: {
+          _id: 'profile-4',
+          organizationId: 'org-4',
+          personalDetails: {},
+        },
+      });
+      mockedPutData.mockResolvedValue({
+        data: {
+          _id: 'profile-4',
+          organizationId: 'org-4',
+          personalDetails: { timezone: 'UTC' },
+        },
+      });
+
+      const result = await patchUserProfile('org-4', { personalDetails: { timezone: 'UTC' } });
+      expect(result).toBeDefined();
+      // existing was fetched from API, so updateProfile is called (not addProfile)
+      expect(mockProfileStoreUpdateProfile).toHaveBeenCalled();
+    });
+  });
+
   // --- Section 4: upsertUserProfile ---
   describe('upsertUserProfile', () => {
     // FIX: Cast to 'unknown' first

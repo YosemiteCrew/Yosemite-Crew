@@ -110,7 +110,7 @@ const QUICK_ACTIONS: Array<{
   {id: 'dietary', label: 'Dietary plans', icon: Images.dietryIcon},
   {
     id: 'merck_manuals',
-    label: 'Merck Manuals',
+    label: 'MSD Veterinary Manual',
     icon: Images.merckLogo,
     iconIsBrand: true,
   },
@@ -784,8 +784,8 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         }
         if (!merckOrganisationId) {
           Alert.alert(
-            'Merck Manuals unavailable',
-            'Link a hospital for this companion to use Merck Manuals search.',
+            'MSD Veterinary Manuals unavailable',
+            'Link a hospital for this companion to use MSD Veterinary Manual search.',
           );
           return;
         }

@@ -34,6 +34,10 @@ import { useOrgStore } from '@/app/stores/orgStore';
 import { useAvailabilityStore } from '@/app/stores/availabilityStore';
 import { useLoadAvailabilities } from '@/app/hooks/useAvailabiities';
 import { useNotify } from '@/app/hooks/useNotify';
+import {
+  DropAvailabilityInterval,
+  resolveAvailabilityIntervalsForDay,
+} from '@/app/features/appointments/components/Calendar/availabilityIntervals';
 type AppointmentCalendarProps = {
   filteredList: Appointment[];
   allAppointments: Appointment[];
@@ -55,11 +59,6 @@ type AppointmentCalendarProps = {
   onAddAppointment?: () => void;
 };
 
-type DropAvailabilityInterval = {
-  startMinute: number;
-  endMinute: number;
-};
-
 type DragContext = {
   appointmentId: string;
   serviceId?: string;
@@ -70,12 +69,13 @@ const getErrorMessageFromCandidate = (
   candidate: { response?: { data?: unknown } } | { data?: unknown } | { message?: string },
   fallback: string
 ) => {
+  const asRecord = (value: unknown): Record<string, unknown> | null =>
+    value && typeof value === 'object' ? (value as Record<string, unknown>) : null;
   const getTrimmedMessage = (value: unknown) =>
     typeof value === 'string' && value.trim() ? value.trim() : null;
   const getResponseMessage = (value: unknown) => {
-    if (typeof value === 'string') return getTrimmedMessage(value);
-    if (!value || typeof value !== 'object') return null;
-    const data = value as Record<string, unknown>;
+    const data = asRecord(value);
+    if (!data) return getTrimmedMessage(value);
     return (
       getTrimmedMessage(data.message) ||
       getTrimmedMessage(data.error) ||
@@ -83,12 +83,12 @@ const getErrorMessageFromCandidate = (
     );
   };
 
-  const responseData = candidate && 'response' in candidate ? candidate.response?.data : undefined;
-  return (
-    getResponseMessage(responseData) ||
-    ('message' in candidate ? getTrimmedMessage(candidate.message) : null) ||
-    fallback
-  );
+  const candidateRecord = asRecord(candidate);
+  const responseRecord = asRecord(candidateRecord?.response);
+  const responseData = responseRecord?.data;
+  const candidateMessage = candidateRecord?.message;
+
+  return getResponseMessage(responseData) || getTrimmedMessage(candidateMessage) || fallback;
 };
 
 const AppointmentCalendar = ({
@@ -372,10 +372,8 @@ const AppointmentCalendar = ({
       if (!primaryOrgId) return [];
       const dayKey = getDayOfWeekKey(date);
       const ids = availabilityIdsByOrgId[primaryOrgId] ?? [];
-      const dayAvailabilities = ids
-        .map((id) => availabilitiesById[id])
-        .filter((item) => item?.dayOfWeek === dayKey);
-      if (!dayAvailabilities.length) return [];
+      const orgAvailabilities = ids.map((id) => availabilitiesById[id]).filter(Boolean);
+      if (!orgAvailabilities.length) return [];
 
       const normalizedTarget = normalizeId(targetLeadId);
       const matchedTargetMember = normalizedTarget
@@ -399,61 +397,23 @@ const AppointmentCalendar = ({
               normalizeId((matchedTargetMember as any)?.userOrganisation?.userId),
             ].filter(Boolean)
           )
-        : null;
-      const employeeAvailabilities = dayAvailabilities.filter(
-        (item) => item.userId && String(item.userId).trim()
-      );
-      const orgLevelAvailabilities = dayAvailabilities.filter(
-        (item) => !item.userId || !String(item.userId).trim()
-      );
+        : undefined;
 
-      // If a specific employee is targeted, scope strictly to that employee.
-      // For day/week personal views, caller provides current user practitioner id.
-      const scoped = normalizedTarget
-        ? employeeAvailabilities.filter((item) => targetIds?.has(normalizeId(item.userId)))
-        : employeeAvailabilities;
-      let source = scoped;
-      if (normalizedTarget) {
-        source = scoped;
-      } else if (scoped.length === 0) {
-        source = orgLevelAvailabilities;
-      }
-      if (source.length) {
-        return source
-          .flatMap((item) =>
-            (item.slots ?? [])
-              .filter((slot) => slot?.isAvailable)
-              .map((slot) => {
-                const startClock = utcClockTimeToPreferredTimeZoneClock(slot.startTime);
-                const endClock = utcClockTimeToPreferredTimeZoneClock(slot.endTime);
-                const startMinute = Math.max(
-                  0,
-                  Math.min(24 * 60, startClock.dayOffset * 24 * 60 + startClock.minutes)
-                );
-                let endMinute = endClock.dayOffset * 24 * 60 + endClock.minutes;
-                if (endMinute <= startMinute) endMinute += 24 * 60;
-                endMinute = Math.max(0, Math.min(24 * 60, endMinute));
-                if (endMinute <= startMinute) {
-                  endMinute = startMinute + 5;
-                }
-                return {
-                  startMinute,
-                  endMinute,
-                };
-              })
-          )
-          .filter((interval) => interval.endMinute > interval.startMinute);
-      }
-
-      return [];
+      return resolveAvailabilityIntervalsForDay({
+        allEntries: orgAvailabilities,
+        dayKey,
+        targetIds,
+        normalizeId,
+        toLocalClockFromUtcTime: utcClockTimeToPreferredTimeZoneClock,
+      });
     },
     [availabilityIdsByOrgId, availabilitiesById, normalizeId, primaryOrgId, teams]
   );
 
   const getCurrentUserViewAvailabilityIntervals = useCallback(
     (date: Date): DropAvailabilityInterval[] =>
-      getViewAvailabilityIntervals(date, getCurrentUserPractitionerId()),
-    [getCurrentUserPractitionerId, getViewAvailabilityIntervals]
+      getViewAvailabilityIntervals(date, getCurrentUserPractitionerId() || authUserId),
+    [authUserId, getCurrentUserPractitionerId, getViewAvailabilityIntervals]
   );
 
   const collectValidMinutesForSlot = useCallback(

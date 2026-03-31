@@ -4,6 +4,11 @@
  */
 
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
+import {
+  isActionableUpcomingStatus,
+  isAppointmentPaymentFailed,
+  isAppointmentPaymentPending,
+} from '@/features/appointments/utils/appointmentStatus';
 
 export interface AppointmentCardData {
   cardTitle: string;
@@ -98,21 +103,17 @@ export const transformAppointmentCardData = (
       'Check-in unlocks when you are within ~200m of the clinic and 5 minutes before start time.';
   }
 
-  const normalizedPaymentStatus = String(
-    appointment.paymentStatus ?? '',
-  ).toUpperCase();
   const needsPayment =
-    normalizedPaymentStatus === 'UNPAID' ||
-    normalizedPaymentStatus === 'PAYMENT_PENDING' ||
-    appointment.status === 'NO_PAYMENT' ||
-    appointment.status === 'AWAITING_PAYMENT' ||
-    appointment.status === 'PAYMENT_FAILED';
+    isAppointmentPaymentPending(
+      appointment.status,
+      appointment.paymentStatus,
+    ) ||
+    isAppointmentPaymentFailed(appointment.status, appointment.paymentStatus);
   const isRequested = appointment.status === 'REQUESTED';
   const isCheckedIn = appointment.status === 'CHECKED_IN';
   const isInProgress = appointment.status === 'IN_PROGRESS';
   const statusAllowsActions =
-    (appointment.status === 'UPCOMING' || isCheckedIn || isInProgress) &&
-    !needsPayment;
+    isActionableUpcomingStatus(appointment.status) && !needsPayment;
   let checkInLabel = 'Check in';
   if (isInProgress) {
     checkInLabel = 'In progress';

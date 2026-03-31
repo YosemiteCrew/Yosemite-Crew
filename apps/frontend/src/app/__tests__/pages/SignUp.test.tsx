@@ -141,12 +141,12 @@ describe('SignUp page', () => {
     });
   };
 
-  const checkAllBoxes = () => {
-    const checkboxes = screen.getAllByRole('checkbox');
-    for (const checkbox of checkboxes) {
-      if (!(checkbox as HTMLInputElement).checked) {
-        fireEvent.click(checkbox);
-      }
+  const checkTermsBox = () => {
+    const termsCheckbox = screen.getByRole('checkbox', {
+      name: /terms and conditions/i,
+    });
+    if (!(termsCheckbox as HTMLInputElement).checked) {
+      fireEvent.click(termsCheckbox);
     }
   };
 
@@ -159,13 +159,10 @@ describe('SignUp page', () => {
     expect(screen.getByText('Email is required')).toBeInTheDocument();
     expect(screen.getByText('Password is required')).toBeInTheDocument();
     expect(screen.getByText('Confirm Password is required')).toBeInTheDocument();
-    expect(
-      screen.getByText('Please check the Newsletter and Promotional emails box')
-    ).toBeInTheDocument();
     expect(screen.getByText('Please check the Terms and Conditions box')).toBeInTheDocument();
   });
 
-  test('submits signup data and opens verification modal', async () => {
+  test('submits signup data and opens verification modal without newsletter opt-in', async () => {
     authStoreMock.signUp.mockResolvedValue(true);
     render(<SignUp />);
 
@@ -174,7 +171,7 @@ describe('SignUp page', () => {
     setFieldValue('Enter email', 'jane@example.com');
     setFieldValue('Set up password', 'Secret!23');
     setFieldValue('Confirm password', 'Secret!23');
-    checkAllBoxes();
+    checkTermsBox();
     fireEvent.click(screen.getByRole('button', { name: 'Sign up' }));
     await waitFor(() =>
       expect(authStoreMock.signUp).toHaveBeenCalledWith(
@@ -198,7 +195,7 @@ describe('SignUp page', () => {
     setFieldValue('Enter email', 'jane@example.com');
     setFieldValue('Set up password', 'Secret!23');
     setFieldValue('Confirm password', 'Secret!23');
-    checkAllBoxes();
+    checkTermsBox();
     fireEvent.click(screen.getByRole('button', { name: 'Sign up' }));
     await waitFor(() => expect(showErrorTostMock).toHaveBeenCalled());
     expect(latestOtpModalProps?.showVerifyModal).toBeFalsy();

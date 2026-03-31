@@ -6,8 +6,12 @@ describe('mobile legal data updates', () => {
     const termsText = JSON.stringify(TERMS_SECTIONS);
     const privacyText = JSON.stringify(PRIVACY_POLICY_SECTIONS);
 
-    expect(termsText).toContain('including but not limited to IDEXX, Merck');
-    expect(privacyText).toContain('including but not limited to IDEXX, Merck');
+    expect(termsText).toContain(
+      'including but not limited to IDEXX, MSD Veterinary Manual',
+    );
+    expect(privacyText).toContain(
+      'including but not limited to IDEXX, MSD Veterinary Manual',
+    );
   });
 
   it('uses Supabase details and removes MongoDB references', () => {

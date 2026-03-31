@@ -375,12 +375,19 @@ describe('OtpModal Component', () => {
     expect(mockSetShowVerifyModal).toHaveBeenCalledWith(false);
   });
 
-  it('calls setShowVerifyModal(false) on modal hide', () => {
+  it('closes modal using the close button', () => {
+    render(<OtpModal {...defaultProps} />);
+    const closeButton = screen.getByRole('button', { name: 'Close OTP modal' });
+    fireEvent.click(closeButton);
+    expect(mockSetShowVerifyModal).toHaveBeenCalledWith(false);
+  });
+
+  it('does not close modal on Escape key', () => {
     render(<OtpModal {...defaultProps} />);
     fireEvent.keyDown(screen.getByRole('dialog'), {
       key: 'Escape',
       code: 'Escape',
     });
-    expect(mockSetShowVerifyModal).toHaveBeenCalledWith(false);
+    expect(mockSetShowVerifyModal).not.toHaveBeenCalled();
   });
 });

@@ -1,12 +1,7 @@
-import Accordion from "@/app/ui/primitives/Accordion/Accordion";
-import { Primary, Secondary } from "@/app/ui/primitives/Buttons";
-import {
-  Permission,
-  PERMISSIONS,
-  ROLE_PERMISSIONS,
-  RoleCode,
-} from "@/app/lib/permissions";
-import React, { useEffect } from "react";
+import Accordion from '@/app/ui/primitives/Accordion/Accordion';
+import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import { Permission, PERMISSIONS, ROLE_PERMISSIONS, RoleCode } from '@/app/lib/permissions';
+import React, { useEffect } from 'react';
 
 type PermissionRow = {
   key: string;
@@ -21,168 +16,148 @@ type PermissionRow = {
 
 const PERMISSION_ROWS: PermissionRow[] = [
   {
-    key: "appointments",
-    label: "Appointments",
-    view: [
-      PERMISSIONS.APPOINTMENTS_VIEW_ANY,
-      PERMISSIONS.APPOINTMENTS_VIEW_OWN,
-    ],
-    edit: [
-      PERMISSIONS.APPOINTMENTS_EDIT_ANY,
-      PERMISSIONS.APPOINTMENTS_EDIT_OWN,
-    ],
-    viewEnablePriority: [
-      PERMISSIONS.APPOINTMENTS_VIEW_ANY,
-      PERMISSIONS.APPOINTMENTS_VIEW_OWN,
-    ],
-    editEnablePriority: [
-      PERMISSIONS.APPOINTMENTS_EDIT_ANY,
-      PERMISSIONS.APPOINTMENTS_EDIT_OWN,
-    ],
+    key: 'appointments',
+    label: 'Appointments',
+    view: [PERMISSIONS.APPOINTMENTS_VIEW_ANY, PERMISSIONS.APPOINTMENTS_VIEW_OWN],
+    edit: [PERMISSIONS.APPOINTMENTS_EDIT_ANY, PERMISSIONS.APPOINTMENTS_EDIT_OWN],
+    viewEnablePriority: [PERMISSIONS.APPOINTMENTS_VIEW_ANY, PERMISSIONS.APPOINTMENTS_VIEW_OWN],
+    editEnablePriority: [PERMISSIONS.APPOINTMENTS_EDIT_ANY, PERMISSIONS.APPOINTMENTS_EDIT_OWN],
   },
   {
-    key: "prescriptions",
-    label: "Prescriptions",
-    view: [
-      PERMISSIONS.PRESCRIPTION_VIEW_ANY,
-      PERMISSIONS.PRESCRIPTION_VIEW_OWN,
-    ],
-    edit: [
-      PERMISSIONS.PRESCRIPTION_EDIT_ANY,
-      PERMISSIONS.PRESCRIPTION_EDIT_OWN,
-    ],
-    viewEnablePriority: [
-      PERMISSIONS.PRESCRIPTION_VIEW_ANY,
-      PERMISSIONS.PRESCRIPTION_VIEW_OWN,
-    ],
-    editEnablePriority: [
-      PERMISSIONS.PRESCRIPTION_EDIT_ANY,
-      PERMISSIONS.PRESCRIPTION_EDIT_OWN,
-    ],
+    key: 'prescriptions',
+    label: 'Prescriptions',
+    view: [PERMISSIONS.PRESCRIPTION_VIEW_ANY, PERMISSIONS.PRESCRIPTION_VIEW_OWN],
+    edit: [PERMISSIONS.PRESCRIPTION_EDIT_ANY, PERMISSIONS.PRESCRIPTION_EDIT_OWN],
+    viewEnablePriority: [PERMISSIONS.PRESCRIPTION_VIEW_ANY, PERMISSIONS.PRESCRIPTION_VIEW_OWN],
+    editEnablePriority: [PERMISSIONS.PRESCRIPTION_EDIT_ANY, PERMISSIONS.PRESCRIPTION_EDIT_OWN],
   },
   {
-    key: "companions",
-    label: "Companions",
+    key: 'companions',
+    label: 'Companions',
     view: [PERMISSIONS.COMPANIONS_VIEW_ANY],
     edit: [PERMISSIONS.COMPANIONS_EDIT_ANY],
     viewEnablePriority: [PERMISSIONS.COMPANIONS_VIEW_ANY],
     editEnablePriority: [PERMISSIONS.COMPANIONS_EDIT_ANY],
   },
   {
-    key: "tasks",
-    label: "Tasks",
+    key: 'tasks',
+    label: 'Tasks',
     view: [PERMISSIONS.TASKS_VIEW_ANY, PERMISSIONS.TASKS_VIEW_OWN],
     edit: [PERMISSIONS.TASKS_EDIT_ANY, PERMISSIONS.TASKS_EDIT_OWN],
-    viewEnablePriority: [
-      PERMISSIONS.TASKS_VIEW_ANY,
-      PERMISSIONS.TASKS_VIEW_OWN,
-    ],
-    editEnablePriority: [
-      PERMISSIONS.TASKS_EDIT_ANY,
-      PERMISSIONS.TASKS_EDIT_OWN,
-    ],
+    viewEnablePriority: [PERMISSIONS.TASKS_VIEW_ANY, PERMISSIONS.TASKS_VIEW_OWN],
+    editEnablePriority: [PERMISSIONS.TASKS_EDIT_ANY, PERMISSIONS.TASKS_EDIT_OWN],
   },
   {
-    key: "inventory",
-    label: "Inventory",
+    key: 'inventory',
+    label: 'Inventory',
     view: [PERMISSIONS.INVENTORY_VIEW_ANY],
     edit: [PERMISSIONS.INVENTORY_EDIT_ANY],
     viewEnablePriority: [PERMISSIONS.INVENTORY_VIEW_ANY],
     editEnablePriority: [PERMISSIONS.INVENTORY_EDIT_ANY],
   },
   {
-    key: "forms",
-    label: "Forms",
+    key: 'forms',
+    label: 'Forms',
     view: [PERMISSIONS.FORMS_VIEW_ANY],
     edit: [PERMISSIONS.FORMS_EDIT_ANY],
     viewEnablePriority: [PERMISSIONS.FORMS_VIEW_ANY],
     editEnablePriority: [PERMISSIONS.FORMS_EDIT_ANY],
   },
   {
-    key: "communication",
-    label: "Communication",
+    key: 'communication',
+    label: 'Communication',
     view: [PERMISSIONS.COMMUNICATION_VIEW_ANY],
     edit: [PERMISSIONS.COMMUNICATION_EDIT_ANY],
     viewEnablePriority: [PERMISSIONS.COMMUNICATION_VIEW_ANY],
     editEnablePriority: [PERMISSIONS.COMMUNICATION_EDIT_ANY],
   },
   {
-    key: "teams",
-    label: "Teams",
+    key: 'teams',
+    label: 'Teams',
     view: [PERMISSIONS.TEAMS_VIEW_ANY],
     edit: [PERMISSIONS.TEAMS_EDIT_ANY],
     viewEnablePriority: [PERMISSIONS.TEAMS_VIEW_ANY],
     editEnablePriority: [PERMISSIONS.TEAMS_EDIT_ANY],
   },
   {
-    key: "billing",
-    label: "Billing",
+    key: 'billing',
+    label: 'Billing',
     view: [PERMISSIONS.BILLING_VIEW_ANY],
     edit: [PERMISSIONS.BILLING_EDIT_ANY, PERMISSIONS.BILLING_EDIT_LIMITED],
     viewEnablePriority: [PERMISSIONS.BILLING_VIEW_ANY],
-    editEnablePriority: [
-      PERMISSIONS.BILLING_EDIT_ANY,
-      PERMISSIONS.BILLING_EDIT_LIMITED,
-    ],
-    editLabel: "Edit (Any/Limited)",
+    editEnablePriority: [PERMISSIONS.BILLING_EDIT_ANY, PERMISSIONS.BILLING_EDIT_LIMITED],
+    editLabel: 'Edit (Any/Limited)',
   },
   {
-    key: "subscription",
-    label: "Subscriptions",
+    key: 'subscription',
+    label: 'Subscriptions',
     view: [PERMISSIONS.SUBSCRIPTION_VIEW_ANY],
     edit: [PERMISSIONS.SUBSCRIPTION_EDIT_ANY],
     viewEnablePriority: [PERMISSIONS.SUBSCRIPTION_VIEW_ANY],
     editEnablePriority: [PERMISSIONS.SUBSCRIPTION_EDIT_ANY],
   },
   {
-    key: "analytics",
-    label: "Analytics",
+    key: 'analytics',
+    label: 'Analytics',
     view: [PERMISSIONS.ANALYTICS_VIEW_ANY, PERMISSIONS.ANALYTICS_VIEW_CLINICAL],
     edit: [PERMISSIONS.ANALYTICS_EDIT_ANY],
-    viewEnablePriority: [
-      PERMISSIONS.ANALYTICS_VIEW_ANY,
-      PERMISSIONS.ANALYTICS_VIEW_CLINICAL,
-    ],
+    viewEnablePriority: [PERMISSIONS.ANALYTICS_VIEW_ANY, PERMISSIONS.ANALYTICS_VIEW_CLINICAL],
     editEnablePriority: [PERMISSIONS.ANALYTICS_EDIT_ANY],
-    viewLabel: "View (Any/Clinical)",
+    viewLabel: 'View (Any/Clinical)',
   },
   {
-    key: "audit",
-    label: "Audit Logs",
+    key: 'audit',
+    label: 'Audit Logs',
     view: [PERMISSIONS.AUDIT_VIEW_ANY],
     viewEnablePriority: [PERMISSIONS.AUDIT_VIEW_ANY],
   },
   {
-    key: "org",
-    label: "Organization",
+    key: 'org',
+    label: 'Organization',
     view: [PERMISSIONS.ORG_VIEW],
     edit: [PERMISSIONS.ORG_EDIT],
     viewEnablePriority: [PERMISSIONS.ORG_VIEW],
     editEnablePriority: [PERMISSIONS.ORG_EDIT],
   },
   {
-    key: "specialities",
-    label: "Specialities",
+    key: 'specialities',
+    label: 'Specialities',
     view: [PERMISSIONS.SPECIALITIES_VIEW_ANY],
     edit: [PERMISSIONS.SPECIALITIES_EDIT_ANY],
     viewEnablePriority: [PERMISSIONS.SPECIALITIES_VIEW_ANY],
     editEnablePriority: [PERMISSIONS.SPECIALITIES_EDIT_ANY],
   },
   {
-    key: "rooms",
-    label: "Rooms",
+    key: 'rooms',
+    label: 'Rooms',
     view: [PERMISSIONS.ROOM_VIEW_ANY],
     edit: [PERMISSIONS.ROOM_EDIT_ANY],
     viewEnablePriority: [PERMISSIONS.ROOM_VIEW_ANY],
     editEnablePriority: [PERMISSIONS.ROOM_EDIT_ANY],
   },
   {
-    key: "documents",
-    label: "Documents",
+    key: 'documents',
+    label: 'Documents',
     view: [PERMISSIONS.DOCUMENT_VIEW_ANY],
     edit: [PERMISSIONS.DOCUMENT_EDIT_ANY],
     viewEnablePriority: [PERMISSIONS.DOCUMENT_VIEW_ANY],
     editEnablePriority: [PERMISSIONS.DOCUMENT_EDIT_ANY],
+  },
+  {
+    key: 'labs',
+    label: 'Labs',
+    view: [PERMISSIONS.LABS_VIEW_ANY],
+    edit: [PERMISSIONS.LABS_EDIT_ANY],
+    viewEnablePriority: [PERMISSIONS.LABS_VIEW_ANY],
+    editEnablePriority: [PERMISSIONS.LABS_EDIT_ANY],
+  },
+  {
+    key: 'integrations',
+    label: 'Integrations',
+    view: [PERMISSIONS.INTEGRATIONS_VIEW_ANY],
+    edit: [PERMISSIONS.INTEGRATIONS_EDIT_ANY],
+    viewEnablePriority: [PERMISSIONS.INTEGRATIONS_VIEW_ANY],
+    editEnablePriority: [PERMISSIONS.INTEGRATIONS_EDIT_ANY],
   },
 ];
 
@@ -217,7 +192,7 @@ export function computeEffectivePermissions(args: {
 
 function pickEnablePermission(
   roleDefaults: Permission[],
-  enablePriority?: Permission[],
+  enablePriority?: Permission[]
 ): Permission | null {
   if (!enablePriority?.length) return null;
   const defaultsSet = new Set(roleDefaults);
@@ -256,10 +231,7 @@ type PermissionsEditorProps = {
 };
 
 const PermissionsEditor = ({ value, onSave, role }: PermissionsEditorProps) => {
-  const roleDefaults = React.useMemo(
-    () => ROLE_PERMISSIONS[role] ?? [],
-    [role],
-  );
+  const roleDefaults = React.useMemo(() => ROLE_PERMISSIONS[role] ?? [], [role]);
 
   const [draft, setDraft] = React.useState<Permission[]>(value);
   const [saving, setSaving] = React.useState(false);
@@ -269,25 +241,21 @@ const PermissionsEditor = ({ value, onSave, role }: PermissionsEditorProps) => {
     setDraft(value);
   }, [value, role]);
 
-  const isDirty = React.useMemo(
-    () => !samePermissionSet(draft, value),
-    [draft, value],
-  );
+  const isDirty = React.useMemo(() => !samePermissionSet(draft, value), [draft, value]);
 
   const toggle = React.useCallback(
-    (kind: "view" | "edit", row: PermissionRow, nextChecked: boolean) => {
+    (kind: 'view' | 'edit', row: PermissionRow, nextChecked: boolean) => {
       setDraft((prev) => {
         const viewCandidates = row.view ?? [];
         const editCandidates = row.edit ?? [];
 
         // ✅ Rule: turning VIEW off also turns EDIT off
-        if (!nextChecked && kind === "view") {
+        if (!nextChecked && kind === 'view') {
           return removeAll(prev, uniq([...viewCandidates, ...editCandidates]));
         }
 
-        const candidates = kind === "view" ? viewCandidates : editCandidates;
-        const priority =
-          kind === "view" ? row.viewEnablePriority : row.editEnablePriority;
+        const candidates = kind === 'view' ? viewCandidates : editCandidates;
+        const priority = kind === 'view' ? row.viewEnablePriority : row.editEnablePriority;
 
         if (!candidates.length) return prev;
 
@@ -303,14 +271,10 @@ const PermissionsEditor = ({ value, onSave, role }: PermissionsEditorProps) => {
         let next = uniq([...removeAll(prev, candidates), toAdd]);
 
         // ✅ Rule: turning EDIT on also turns VIEW on
-        if (
-          kind === "edit" &&
-          viewCandidates.length &&
-          !hasAny(next, viewCandidates)
-        ) {
+        if (kind === 'edit' && viewCandidates.length && !hasAny(next, viewCandidates)) {
           const viewToAdd = pickEnablePermission(
             roleDefaults,
-            row.viewEnablePriority ?? viewCandidates,
+            row.viewEnablePriority ?? viewCandidates
           );
           if (viewToAdd) next = uniq([...next, viewToAdd]);
         }
@@ -318,7 +282,7 @@ const PermissionsEditor = ({ value, onSave, role }: PermissionsEditorProps) => {
         return next;
       });
     },
-    [roleDefaults],
+    [roleDefaults]
   );
 
   const resetToRoleDefaults = React.useCallback(() => {
@@ -343,13 +307,8 @@ const PermissionsEditor = ({ value, onSave, role }: PermissionsEditorProps) => {
   }, [draft, onSave, roleDefaults, saving]);
 
   return (
-    <Accordion
-      title="Permissions"
-      defaultOpen={false}
-      showEditIcon={false}
-      isEditing={false}
-    >
-      <div className={""}>
+    <Accordion title="Permissions" defaultOpen={false} showEditIcon={false} isEditing={false}>
+      <div className={''}>
         <div className="flex items-center justify-end pb-3">
           <div className="font-satoshi text-[18px] text-[#2b2b2a] font-medium hidden">
             Permissions
@@ -366,12 +325,8 @@ const PermissionsEditor = ({ value, onSave, role }: PermissionsEditorProps) => {
           <div className="flex w-full items-center py-3 justify-between border-b border-b-grey-light px-2 bg-white">
             <div className="text-body-4 text-[#747473]">Permission</div>
             <div className="flex gap-10 items-center">
-              <div className="text-body-4 text-[#747473] w-[72px] text-center">
-                View
-              </div>
-              <div className="text-body-4 text-[#747473] w-[72px] text-center">
-                Edit
-              </div>
+              <div className="text-body-4 text-[#747473] w-[72px] text-center">View</div>
+              <div className="text-body-4 text-[#747473] w-[72px] text-center">Edit</div>
             </div>
           </div>
           {PERMISSION_ROWS.map((row) => {
@@ -385,9 +340,7 @@ const PermissionsEditor = ({ value, onSave, role }: PermissionsEditorProps) => {
                 className="flex w-full items-center py-3 justify-between border-b border-b-grey-light px-2 bg-white last:border-b-0"
               >
                 <div className="flex flex-col">
-                  <div className="text-body-3 text-text-primary">
-                    {row.label}
-                  </div>
+                  <div className="text-body-3 text-text-primary">{row.label}</div>
                 </div>
                 <div className="flex gap-10 items-center">
                   <div className="w-[72px] flex justify-center">
@@ -398,7 +351,7 @@ const PermissionsEditor = ({ value, onSave, role }: PermissionsEditorProps) => {
                         type="checkbox"
                         name={`${row.key}-view`}
                         checked={viewChecked}
-                        onChange={(e) => toggle("view", row, e.target.checked)}
+                        onChange={(e) => toggle('view', row, e.target.checked)}
                         className="h-2 w-2"
                       />
                     )}
@@ -411,7 +364,7 @@ const PermissionsEditor = ({ value, onSave, role }: PermissionsEditorProps) => {
                         type="checkbox"
                         name={`${row.key}-edit`}
                         checked={editChecked}
-                        onChange={(e) => toggle("edit", row, e.target.checked)}
+                        onChange={(e) => toggle('edit', row, e.target.checked)}
                         className="h-2 w-2"
                       />
                     )}
@@ -435,7 +388,7 @@ const PermissionsEditor = ({ value, onSave, role }: PermissionsEditorProps) => {
               isDisabled={saving}
               href="#"
               classname="w-full"
-              text={saving ? "Saving..." : "Save"}
+              text={saving ? 'Saving...' : 'Save'}
             />
           </div>
         )}

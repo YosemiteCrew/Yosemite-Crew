@@ -13,6 +13,7 @@ import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import { Team } from '@/app/features/organization/types/team';
 import React, { useEffect, useMemo, useState } from 'react';
+import { flushSync } from 'react-dom';
 import PermissionsEditor, {
   computeEffectivePermissions,
 } from '@/app/features/organization/pages/Organization/Sections/Team/PermissionsEditor';
@@ -133,6 +134,7 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
       return acc;
     }, {} as AvailabilityState)
   );
+  const [isSavingAvailability, setIsSavingAvailability] = useState(false);
 
   const [profile, setProfile] = useState<any>(null);
   const lastAvailabilityLogKeyRef = React.useRef<string>('');
@@ -387,7 +389,14 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
   };
 
   const updateAvailability = async () => {
+    if (isSavingAvailability) return;
     try {
+      flushSync(() => {
+        setIsSavingAvailability(true);
+      });
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 0);
+      });
       const converted = convertAvailability(availability);
       if (!hasAtLeastOneAvailability(converted)) {
         console.log('No availability selected');
@@ -404,6 +413,8 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
         title: 'Unable to update availability',
         text: 'Failed to update availability. Please try again.',
       });
+    } finally {
+      setIsSavingAvailability(false);
     }
   };
 
@@ -481,9 +492,12 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
                       <div className="flex justify-end">
                         <Primary
                           href="#"
-                          text="Save availability"
+                          text={
+                            isSavingAvailability ? 'Saving availability...' : 'Save availability'
+                          }
                           onClick={updateAvailability}
                           className="w-auto min-w-[180px]"
+                          isDisabled={isSavingAvailability}
                         />
                       </div>
                     )}

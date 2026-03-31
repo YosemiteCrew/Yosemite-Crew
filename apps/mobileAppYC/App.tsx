@@ -7,6 +7,8 @@
  */
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {StatusBar, LogBox, Linking} from 'react-native';
+import * as Clarity from '@microsoft/react-native-clarity';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {Provider} from 'react-redux';
 import {PersistGate} from 'redux-persist/integration/react';
@@ -23,18 +25,22 @@ import './src/localization';
 import outputs from './amplify_outputs.json';
 import {StripeProvider} from '@stripe/stripe-react-native';
 import {Amplify} from 'aws-amplify';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { AuthProvider, useAuth } from '@/features/auth/context/AuthContext';
+import {GestureHandlerRootView} from 'react-native-gesture-handler';
+import {AuthProvider, useAuth} from '@/features/auth/context/AuthContext';
 import {configureSocialProviders} from '@/features/auth/services/socialAuth';
-import { ErrorBoundary } from '@/shared/components/common/ErrorBoundary';
-import { PreferencesProvider } from '@/features/preferences/PreferencesContext';
-import { GlobalLoaderProvider } from '@/context/GlobalLoaderContext';
-import { BottomFadeOverlay } from '@/shared/components/common';
+import {ErrorBoundary} from '@/shared/components/common/ErrorBoundary';
+import {PreferencesProvider} from '@/features/preferences/PreferencesContext';
+import {GlobalLoaderProvider} from '@/context/GlobalLoaderContext';
+import {BottomFadeOverlay} from '@/shared/components/common';
 import {
   initializeNotifications,
   type NotificationNavigationIntent,
 } from '@/shared/services/firebaseNotifications';
-import {fetchMobileConfig, isProductionMobileEnv, type MobileConfig} from '@/shared/services/mobileConfig';
+import {
+  fetchMobileConfig,
+  isProductionMobileEnv,
+  type MobileConfig,
+} from '@/shared/services/mobileConfig';
 import {
   registerDeviceToken,
   unregisterDeviceToken,
@@ -47,9 +53,19 @@ import {
   MOBILE_CONFIG_BEHAVIOR,
   STRIPE_CONFIG,
   UI_FEATURE_FLAGS,
+  CLARITY_CONFIG,
 } from '@/config/variables';
 import {updateApiClientBaseConfig} from '@/shared/services/apiClient';
 import {observationToolApi} from '@/features/observationalTools/services/observationToolService';
+import AppUpdateBottomSheet, {
+  AppUpdateBottomSheetRef,
+} from '@/features/appUpdate/components/AppUpdateBottomSheet';
+import {
+  AppUpdatePrompt,
+  evaluateAppUpdatePrompt,
+  getCurrentAppIdentity,
+  shouldShowOptionalPrompt,
+} from '@/features/appUpdate/services/appUpdatePolicy';
 
 Amplify.configure(outputs);
 
@@ -57,7 +73,9 @@ LogBox.ignoreLogs([
   'This method is deprecated (as well as all React Native Firebase namespaced API)',
 ]);
 
-const coerceBooleanFlag = (value: boolean | string | null | undefined): boolean => {
+const coerceBooleanFlag = (
+  value: boolean | string | null | undefined,
+): boolean => {
   if (typeof value === 'boolean') {
     return value;
   }
@@ -84,23 +102,38 @@ const shouldDisableReviewLogin = (env?: MobileConfig['env']): boolean => {
   return isProductionMobileEnv(env);
 };
 
+const OPTIONAL_UPDATE_LAST_PROMPTED_AT_KEY =
+  '@app_update_optional_last_prompted_at';
 
-  // const noop = () => {};
-  // console.log = noop;
-  // console.info = noop;
-  // console.debug = noop;
-  // console.trace = noop;
-
+// const noop = () => {};
+// console.log = noop;
+// console.info = noop;
+// console.debug = noop;
+// console.trace = noop;
 
 function App(): React.JSX.Element {
   const [isSplashVisible, setIsSplashVisible] = useState(true);
   const [mobileConfig, setMobileConfig] = useState<MobileConfig | null>(null);
+  const [appUpdatePrompt, setAppUpdatePrompt] =
+    useState<AppUpdatePrompt | null>(null);
   const [isConfigLoading, setIsConfigLoading] = useState(true);
   const navigationRef = useNavigationContainerRef<RootStackParamList>();
   const pendingIntentRef = useRef<NotificationNavigationIntent | null>(null);
+  const currentRouteNameRef = useRef<string | null>(null);
 
   useEffect(() => {
     configureSocialProviders();
+  }, []);
+
+  useEffect(() => {
+    const projectId = CLARITY_CONFIG.projectId.trim();
+    if (!projectId) {
+      console.warn('[Clarity] Missing project id; SDK initialization skipped.');
+      return;
+    }
+    Clarity.initialize(projectId, {
+      logLevel: Clarity.LogLevel.None,
+    });
   }, []);
 
   useEffect(() => {
@@ -140,7 +173,8 @@ function App(): React.JSX.Element {
           }
 
           UI_FEATURE_FLAGS.forceLiquidGlassBorder = coerceBooleanFlag(
-            config.forceLiquidGlassBorder ?? UI_FEATURE_FLAGS.forceLiquidGlassBorder,
+            config.forceLiquidGlassBorder ??
+              UI_FEATURE_FLAGS.forceLiquidGlassBorder,
           );
 
           // console.log('[MobileConfig] Applied config', {
@@ -152,6 +186,30 @@ function App(): React.JSX.Element {
           // });
 
           setMobileConfig(config);
+
+          const {currentVersion, currentBuildNumber, bundleId} =
+            getCurrentAppIdentity();
+          const evaluatedPrompt = evaluateAppUpdatePrompt(
+            config,
+            currentVersion,
+            currentBuildNumber,
+            bundleId,
+          );
+
+          if (evaluatedPrompt?.kind === 'optional') {
+            const lastPromptedAt = await AsyncStorage.getItem(
+              OPTIONAL_UPDATE_LAST_PROMPTED_AT_KEY,
+            );
+            const shouldShow = shouldShowOptionalPrompt(
+              lastPromptedAt,
+              evaluatedPrompt.remindAfterHours,
+            );
+            setAppUpdatePrompt(shouldShow ? evaluatedPrompt : null);
+          } else {
+            setAppUpdatePrompt(evaluatedPrompt);
+          }
+        } else if (mounted) {
+          setAppUpdatePrompt(null);
         }
       } catch (error) {
         if (mounted) {
@@ -202,7 +260,44 @@ function App(): React.JSX.Element {
       navigateFromNotificationIntent(navigationRef, pendingIntentRef.current);
       pendingIntentRef.current = null;
     }
+    const routeName = navigationRef.getCurrentRoute()?.name;
+    if (!routeName || currentRouteNameRef.current === routeName) {
+      return;
+    }
+    currentRouteNameRef.current = routeName;
+    Clarity.setCurrentScreenName(routeName).catch(error =>
+      console.warn('[Clarity] Failed to track screen on ready', error),
+    );
   }, [navigationRef]);
+
+  const handleNavigationStateChange = useCallback(() => {
+    const routeName = navigationRef.getCurrentRoute()?.name;
+    if (!routeName || currentRouteNameRef.current === routeName) {
+      return;
+    }
+    currentRouteNameRef.current = routeName;
+    Clarity.setCurrentScreenName(routeName).catch(error =>
+      console.warn('[Clarity] Failed to track screen change', error),
+    );
+  }, [navigationRef]);
+
+  const handleOptionalUpdateDeferred = useCallback(async () => {
+    try {
+      await AsyncStorage.setItem(
+        OPTIONAL_UPDATE_LAST_PROMPTED_AT_KEY,
+        new Date().toISOString(),
+      );
+    } catch (error) {
+      console.warn(
+        '[AppUpdate] Failed to persist optional update deferral',
+        error,
+      );
+    } finally {
+      setAppUpdatePrompt(currentPrompt =>
+        currentPrompt?.kind === 'optional' ? null : currentPrompt,
+      );
+    }
+  }, []);
 
   if (isSplashVisible) {
     return <CustomSplashScreen onAnimationEnd={handleSplashAnimationEnd} />;
@@ -214,22 +309,31 @@ function App(): React.JSX.Element {
 
   return (
     <Provider store={store}>
-      <PersistGate loading={<CustomSplashScreen onAnimationEnd={() => {}} />} persistor={persistor}>
-        <GestureHandlerRootView style={{ flex: 1 }}>
+      <PersistGate
+        loading={<CustomSplashScreen onAnimationEnd={() => {}} />}
+        persistor={persistor}>
+        <GestureHandlerRootView style={{flex: 1}}>
           <SafeAreaProvider>
             <AuthProvider>
               <PreferencesProvider>
                 <GlobalLoaderProvider>
-                  <NotificationBootstrap onNavigate={handleNotificationNavigation}>
-                    <StripeProvider
-                      publishableKey={resolvedPublishableKey ?? ''}
-                      urlScheme={STRIPE_CONFIG.urlScheme}
-                    >
-                      <NavigationContainer ref={navigationRef} onReady={handleNavigationReady}>
-                        <AppContent />
-                      </NavigationContainer>
-                    </StripeProvider>
-                  </NotificationBootstrap>
+                  <AppUpdateGate
+                    prompt={appUpdatePrompt}
+                    onDeferred={handleOptionalUpdateDeferred}>
+                    <NotificationBootstrap
+                      onNavigate={handleNotificationNavigation}>
+                      <StripeProvider
+                        publishableKey={resolvedPublishableKey ?? ''}
+                        urlScheme={STRIPE_CONFIG.urlScheme}>
+                        <NavigationContainer
+                          ref={navigationRef}
+                          onReady={handleNavigationReady}
+                          onStateChange={handleNavigationStateChange}>
+                          <AppContent />
+                        </NavigationContainer>
+                      </StripeProvider>
+                    </NotificationBootstrap>
+                  </AppUpdateGate>
                 </GlobalLoaderProvider>
               </PreferencesProvider>
             </AuthProvider>
@@ -245,19 +349,54 @@ function AppContent(): React.JSX.Element {
 
   return (
     <>
-        <StatusBar
-          barStyle={isDark ? 'light-content' : 'dark-content'}
-          backgroundColor={theme.colors.background}
-        />
-        <ErrorBoundary>
-          <AppNavigator />
-        </ErrorBoundary>
-        <BottomFadeOverlay height={30} intensity="medium" bottomOffset={0} />
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.colors.background}
+      />
+      <ErrorBoundary>
+        <AppNavigator />
+      </ErrorBoundary>
+      <BottomFadeOverlay height={30} intensity="medium" bottomOffset={0} />
     </>
   );
 }
 
 export default App;
+
+type AppUpdateGateProps = {
+  prompt: AppUpdatePrompt | null;
+  onDeferred: () => void;
+  children: React.ReactNode;
+};
+
+const AppUpdateGate: React.FC<AppUpdateGateProps> = ({
+  prompt,
+  onDeferred,
+  children,
+}) => {
+  const updateSheetRef = useRef<AppUpdateBottomSheetRef>(null);
+
+  useEffect(() => {
+    if (!prompt) return;
+    const handle = requestAnimationFrame(() => {
+      updateSheetRef.current?.open();
+    });
+    return () => cancelAnimationFrame(handle);
+  }, [prompt]);
+
+  return (
+    <>
+      {prompt?.kind === 'required' ? null : children}
+      {prompt ? (
+        <AppUpdateBottomSheet
+          ref={updateSheetRef}
+          prompt={prompt}
+          onDeferred={onDeferred}
+        />
+      ) : null}
+    </>
+  );
+};
 
 type NotificationBootstrapProps = {
   children: React.ReactNode;
@@ -271,7 +410,9 @@ const NotificationBootstrap: React.FC<NotificationBootstrapProps> = ({
   const dispatch = useAppDispatch();
   const {isLoggedIn, user} = useAuth();
   const latestTokenRef = useRef<string | null>(null);
-  const lastRegisteredRef = useRef<{userId: string; token: string} | null>(null);
+  const lastRegisteredRef = useRef<{userId: string; token: string} | null>(
+    null,
+  );
   const authStatusRef = useRef<{isLoggedIn: boolean; userId: string | null}>({
     isLoggedIn,
     userId: user?.parentId ?? user?.id ?? null,
@@ -279,17 +420,14 @@ const NotificationBootstrap: React.FC<NotificationBootstrapProps> = ({
 
   const currentUserId = user?.parentId ?? user?.id ?? null;
 
-  const syncRegisterToken = useCallback(
-    async (token: string) => {
-      const userId = authStatusRef.current.userId;
-      if (!userId) {
-        return;
-      }
-      await registerDeviceToken({userId, token});
-      lastRegisteredRef.current = {userId, token};
-    },
-    [],
-  );
+  const syncRegisterToken = useCallback(async (token: string) => {
+    const userId = authStatusRef.current.userId;
+    if (!userId) {
+      return;
+    }
+    await registerDeviceToken({userId, token});
+    lastRegisteredRef.current = {userId, token};
+  }, []);
 
   const syncUnregisterToken = useCallback(async () => {
     const last = lastRegisteredRef.current;
@@ -394,15 +532,12 @@ function navigateFromNotificationIntent(
   }
 
   if (intent.stackScreen) {
-    navigationRef.navigate(
-      'Main',
-      {
-        screen: 'HomeStack',
-        params: {
-          screen: intent.stackScreen,
-          params: intent.params,
-        },
-      } as never,
-    );
+    navigationRef.navigate('Main', {
+      screen: 'HomeStack',
+      params: {
+        screen: intent.stackScreen,
+        params: intent.params,
+      },
+    } as never);
   }
 }

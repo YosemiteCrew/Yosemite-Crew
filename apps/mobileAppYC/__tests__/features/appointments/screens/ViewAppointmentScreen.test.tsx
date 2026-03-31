@@ -121,7 +121,7 @@ jest.mock('../../../../src/features/merck/components/MerckSearchWidget', () => {
   return {
     MerckSearchWidget: () => (
       <View testID="merck-widget">
-        <Text>Merck Manuals</Text>
+        <Text>MSD Veterinary Manual</Text>
       </View>
     ),
   };
@@ -434,6 +434,19 @@ describe('ViewAppointmentScreen', () => {
       expect(screen.getByText(/This appointment was cancelled/)).toBeTruthy();
     });
 
+    it('renders cash-specific cancellation note for cancelled cash-paid appointments', () => {
+      const state = clone(defaultState);
+      state.appointments.items[0].status = 'CANCELLED';
+      state.appointments.items[0].paymentStatus = 'PAID_CASH';
+      renderScreen(state);
+      expect(
+        screen.getByText(/This appointment was paid in cash/),
+      ).toBeTruthy();
+      expect(
+        screen.getByText(/contact the service provider directly/),
+      ).toBeTruthy();
+    });
+
     it('renders status help text for pending requests', () => {
       const state = clone(defaultState);
       state.appointments.items[0].status = 'REQUESTED';
@@ -474,14 +487,14 @@ describe('ViewAppointmentScreen', () => {
       {status: 'REQUESTED', text: 'Requested'},
       {status: 'NO_PAYMENT', text: 'Payment pending'},
       {status: 'AWAITING_PAYMENT', text: 'Payment pending'},
-      {status: 'PAYMENT_FAILED', text: 'Payment pending'},
+      {status: 'PAYMENT_FAILED', text: 'Payment failed'},
       {status: 'PAID', text: 'Paid'},
       {status: 'CONFIRMED', text: 'Scheduled'},
       {status: 'SCHEDULED', text: 'Scheduled'},
       {status: 'COMPLETED', text: 'Completed'},
       {status: 'CANCELLED', text: 'Cancelled'},
       {status: 'RESCHEDULED', text: 'Rescheduled'},
-      {status: 'UNKNOWN_STATUS', text: 'UNKNOWN_STATUS'},
+      {status: 'UNKNOWN_STATUS', text: 'Unknown'},
     ];
 
     for (const {status, text} of statuses) {
@@ -588,6 +601,16 @@ describe('ViewAppointmentScreen', () => {
       expect(screen.queryByTestId('btn-In progress')).toBeNull();
     });
 
+    it('shows check in and pay now when payment is pending', () => {
+      const state = clone(defaultState);
+      state.appointments.items[0].status = 'UPCOMING';
+      state.appointments.items[0].paymentStatus = 'UNPAID';
+      renderScreen(state);
+
+      expect(screen.getByTestId('btn-Check in')).toBeTruthy();
+      expect(screen.getByTestId('btn-Pay Now')).toBeTruthy();
+    });
+
     it('fails check in: Too Early', async () => {
       jest.setSystemTime(new Date('2023-12-25T00:00:00Z'));
       renderScreen();
@@ -605,7 +628,7 @@ describe('ViewAppointmentScreen', () => {
       fireEvent.press(screen.getByTestId('btn-Check in'));
       expect(Alert.alert).toHaveBeenCalledWith(
         'Location unavailable',
-        expect.stringContaining('Clinic location'),
+        expect.stringContaining('Provider location'),
       );
     });
 
@@ -839,11 +862,12 @@ describe('ViewAppointmentScreen', () => {
       expect(screen.getByTestId('emp-fallback-title')).toHaveTextContent('Vet');
     });
 
-    it('hides employee if payment is pending (privacy/logic)', () => {
+    it('shows employee for upcoming appointments even when payment is pending', () => {
       const state = clone(defaultState);
-      state.appointments.items[0].status = 'AWAITING_PAYMENT';
+      state.appointments.items[0].status = 'UPCOMING';
+      state.appointments.items[0].paymentStatus = 'UNPAID';
       renderScreen(state);
-      expect(screen.queryByText('Dr. Smith')).toBeNull();
+      expect(screen.getByText('Dr. Smith')).toBeTruthy();
     });
   });
 

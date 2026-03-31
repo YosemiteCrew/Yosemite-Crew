@@ -499,8 +499,8 @@ describe('MyAppointmentsScreen', () => {
       // CANCELLED results in 'Cancelled'
       expect(screen.getByText('Cancelled')).toBeTruthy();
 
-      // UNKNOWN results in 'UNKNOWN' (default)
-      expect(screen.getByText('UNKNOWN')).toBeTruthy();
+      // UNKNOWN results in generic unknown label
+      expect(screen.getByText('Unknown')).toBeTruthy();
     });
   });
 

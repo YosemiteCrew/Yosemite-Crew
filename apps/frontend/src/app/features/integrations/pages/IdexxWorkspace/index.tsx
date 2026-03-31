@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { createPortal } from 'react-dom';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
@@ -36,6 +37,8 @@ import PdfPreviewOverlay from '@/app/ui/overlays/PdfPreviewOverlay';
 import Close from '@/app/ui/primitives/Icons/Close';
 import LabResultValue from '@/app/ui/widgets/LabResultValue';
 import { formatDateTimeLocal } from '@/app/lib/date';
+import { getSafeIdexxIframeUrl } from '@/app/lib/urls';
+import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { IoInformationCircleOutline, IoOpenOutline } from 'react-icons/io5';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 
@@ -47,6 +50,8 @@ const MODALITY_FILTERS = [
 ];
 
 type ModalityFilter = 'ALL' | 'REFLAB' | 'INHOUSE';
+const IDEXX_REGIONAL_AVAILABILITY_DISCLAIMER =
+  'IDEXX integration availability is currently limited to the USA, Canada, and the UK.';
 
 const formatTitleCase = (value?: string | null, fallback = 'Unknown') => {
   const raw = String(value ?? '').trim();
@@ -123,7 +128,8 @@ const getOrderUiUrl = (order: LabOrder | null): string => {
   const nestedUrl = String(
     (order as unknown as { responsePayload?: { uiURL?: string } })?.responsePayload?.uiURL ?? ''
   ).trim();
-  return String(order.uiUrl ?? '').trim() || nestedUrl;
+  const raw = String(order.uiUrl ?? '').trim() || nestedUrl;
+  return getSafeIdexxIframeUrl(raw);
 };
 
 const getOrderPdfUrl = (order: LabOrder | null): string => {
@@ -131,7 +137,8 @@ const getOrderPdfUrl = (order: LabOrder | null): string => {
   const nestedUrl = String(
     (order as unknown as { responsePayload?: { pdfURL?: string } })?.responsePayload?.pdfURL ?? ''
   ).trim();
-  return String(order.pdfUrl ?? '').trim() || nestedUrl;
+  const raw = String(order.pdfUrl ?? '').trim() || nestedUrl;
+  return getSafeIdexxIframeUrl(raw);
 };
 
 const buildAppointmentIdByOrderId = (orders: LabOrder[]): Record<string, string> =>
@@ -1072,12 +1079,26 @@ const IdexxWorkspacePage = () => {
   const resultModalOverlayClassName = getResultModalOverlayClassName(s.showResultModal);
   const resultModalContainerClassName = getResultModalContainerClassName(s.showResultModal);
   const startRow = getStartRow(s.page, s.pageSize, s.paginatedResults.length);
+  const idexxHubLabel = (
+    <span className="inline-flex items-center gap-2 py-1 my-1">
+      <span className="inline-flex items-center justify-center rounded-md bg-white px-1.5 py-1">
+        <Image
+          src={MEDIA_SOURCES.futureAssets.idexxLogoUrl}
+          alt="IDEXX"
+          width={94}
+          height={40}
+          className="h-6 w-auto object-contain"
+        />
+      </span>
+      <span>{'Hub'}</span>
+    </span>
+  );
 
   if (!s.integrationEnabled && !s.loading) {
     return (
       <div className="flex flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
         <div className="text-heading-1 text-text-primary flex items-center gap-2">
-          <span>IDEXX Hub</span>
+          {idexxHubLabel}
           <GlassTooltip content="IDEXX integration is currently disabled." side="bottom">
             <button
               type="button"
@@ -1116,9 +1137,9 @@ const IdexxWorkspacePage = () => {
       <div className="flex justify-between items-start gap-3 flex-wrap">
         <div className="flex flex-col gap-1">
           <div className="text-heading-1 text-text-primary flex items-center gap-2">
-            <span>IDEXX Hub</span>
+            {idexxHubLabel}
             <GlassTooltip
-              content="Manage diagnostic operations with result monitoring, census visibility, and order lookup."
+              content="Yosemite Crew integrates with IDEXX Reference Laboratories and their point-of-care diagnostics for a seamless workflow."
               side="bottom"
             >
               <button
@@ -1298,6 +1319,10 @@ const IdexxWorkspacePage = () => {
           />
         </div>
       </ModalBase>
+
+      <div className="text-caption-2 text-text-extra pt-1">
+        {IDEXX_REGIONAL_AVAILABILITY_DISCLAIMER}
+      </div>
     </div>
   );
 };

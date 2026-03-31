@@ -1,5 +1,5 @@
 import React from 'react';
-import {ScrollView, StyleSheet, View} from 'react-native';
+import {StyleSheet, View} from 'react-native';
 import type {NavigationProp, RouteProp} from '@react-navigation/native';
 import {
   useFocusEffect,
@@ -22,7 +22,14 @@ export const MerckManualSearchScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
 
-  const {organisationId, initialQuery, context} = route.params;
+  const {
+    organisationId,
+    initialQuery,
+    initialEntries,
+    initialLanguage,
+    initialHasSearched,
+    context,
+  } = route.params;
 
   const returnToHomeAndResetAppointments = React.useCallback(() => {
     navigation.reset({
@@ -70,7 +77,7 @@ export const MerckManualSearchScreen: React.FC = () => {
     <LiquidGlassHeaderScreen
       header={
         <Header
-          title="Merck Manuals"
+          title="MSD Veterinary Manual"
           showBackButton
           onBack={handleBack}
           glass={false}
@@ -78,20 +85,20 @@ export const MerckManualSearchScreen: React.FC = () => {
       }
       contentPadding={theme.spacing['3']}>
       {contentPaddingStyle => (
-        <ScrollView
-          contentContainerStyle={[styles.container, contentPaddingStyle]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled">
+        <View style={[styles.container, contentPaddingStyle]}>
           <View style={styles.widgetWrap}>
             <MerckSearchWidget
               organisationId={organisationId}
-              title="Consumer Merck Search"
-              description="Mobile supports the consumer experience only."
+              title="Consumer MSD Veterinary Manual Search"
+              description="Trusted companion health guidance, anywhere."
               initialQuery={initialQuery}
+              initialEntries={initialEntries}
+              initialLanguage={initialLanguage}
+              initialHasSearched={initialHasSearched}
               compact={false}
             />
           </View>
-        </ScrollView>
+        </View>
       )}
     </LiquidGlassHeaderScreen>
   );
@@ -100,11 +107,13 @@ export const MerckManualSearchScreen: React.FC = () => {
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      paddingHorizontal: theme.spacing['4'],
-      paddingTop: theme.spacing['4'],
-      paddingBottom: theme.spacing['20'],
+      flex: 1,
+      paddingHorizontal: theme.spacing['3'],
+      paddingTop: theme.spacing['3'],
+      paddingBottom: theme.spacing['3'],
     },
     widgetWrap: {
+      flex: 1,
       borderRadius: theme.borderRadius.lg,
       overflow: 'hidden',
     },

@@ -18,6 +18,49 @@ export interface MobileConfig {
    * Forces a 1px black outline on all liquid glass surfaces (cards/buttons) to aid visibility.
    */
   forceLiquidGlassBorder?: boolean | string;
+  /**
+   * Remote app-update policy controls.
+   */
+  appUpdate?: {
+    enabled?: boolean | string;
+    force?: boolean | string;
+    title?: string;
+    message?: string;
+    minimumSupportedVersion?: string;
+    minimumSupportedBuildNumber?: string | number;
+    latestVersion?: string;
+    latestBuildNumber?: string | number;
+    remindAfterHours?: string | number;
+    iosStoreUrl?: string;
+    androidStoreUrl?: string;
+    storeUrl?: string;
+    appStoreId?: string;
+    ios?: {
+      enabled?: boolean | string;
+      force?: boolean | string;
+      title?: string;
+      message?: string;
+      minimumSupportedVersion?: string;
+      minimumSupportedBuildNumber?: string | number;
+      latestVersion?: string;
+      latestBuildNumber?: string | number;
+      remindAfterHours?: string | number;
+      storeUrl?: string;
+      appStoreId?: string;
+    };
+    android?: {
+      enabled?: boolean | string;
+      force?: boolean | string;
+      title?: string;
+      message?: string;
+      minimumSupportedVersion?: string;
+      minimumSupportedBuildNumber?: string | number;
+      latestVersion?: string;
+      latestBuildNumber?: string | number;
+      remindAfterHours?: string | number;
+      storeUrl?: string;
+    };
+  };
 }
 
 export const isProductionMobileEnv = (env?: MobileEnv | null): boolean => {

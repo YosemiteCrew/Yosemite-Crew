@@ -107,7 +107,6 @@ const getLabelsForOrgType = (orgType: string | undefined, hospitalLabels: any[])
       name: 'Care plan',
       labels: [
         { key: 'forms', name: 'Templates' },
-        { key: 'audit-trail', name: 'Audit trail' },
         { key: 'documents', name: 'Documents' },
       ],
     },
@@ -611,16 +610,19 @@ const hospitalLabels = [
       {
         key: 'merck-manuals',
         name: (
-          <Image
-            src={MEDIA_SOURCES.futureAssets.merckLogoUrl}
-            alt="Merck Manuals"
-            width={82}
-            height={34}
-            className="object-contain"
-          />
+          <div className="flex items-center gap-2">
+            <Image
+              src={MEDIA_SOURCES.futureAssets.msdLogoUrl}
+              alt=""
+              width={30}
+              height={30}
+              className="object-contain"
+            />
+            <span>MSD Veterinary Manual</span>
+          </div>
         ),
         redirectHref: '/integrations/merck-manuals',
-        redirectLabel: 'Open Merck Manuals',
+        redirectLabel: 'Open MSD Veterinary Manual',
       },
     ],
   },
@@ -653,7 +655,7 @@ const hospitalLabels = [
             alt="IDEXX"
             width={94}
             height={40}
-            className="object-contain"
+            className="object-contain h-4 w-auto"
           />
         ),
         redirectHref: '/appointments/idexx-workspace',
@@ -766,6 +768,27 @@ const AppoitmentInfo = ({
   }, [orgType, merckEnabled]);
   const formsAccordionTitle =
     orgType === 'HOSPITAL' && activeLabel === 'prescription' ? 'Medical Notes / SOAP' : 'Templates';
+  const handleHistoryOpenAppointmentView = useCallback(
+    (intent: AppointmentViewIntent) => {
+      const targetLabel = labels.find((label) => label.key === intent.label);
+      if (!targetLabel) return;
+      setActiveLabel(targetLabel.key as LabelKey);
+
+      const preferredSubLabel = intent.subLabel;
+      if (!preferredSubLabel) {
+        setActiveSubLabel(targetLabel.labels[0]?.key ?? '');
+        return;
+      }
+
+      const hasPreferredSubLabel = targetLabel.labels.some(
+        (label: { key: string }) => label.key === preferredSubLabel
+      );
+      setActiveSubLabel(
+        hasPreferredSubLabel ? preferredSubLabel : (targetLabel.labels[0]?.key ?? '')
+      );
+    },
+    [labels]
+  );
 
   useEffect(() => {
     if (!showModal || !initialViewIntent) return;
@@ -822,7 +845,6 @@ const AppoitmentInfo = ({
     care: {
       forms: CustomFormsSection,
       documents: Documents,
-      'audit-trail': Audit,
       'discharge-summary': Discharge,
     },
     tasks: {
@@ -1086,6 +1108,7 @@ const AppoitmentInfo = ({
               onSubmission={upsertCustomForm}
               onFormLinked={upsertCustomForm}
               onSubmissionUpdate={updateCustomFormSubmission}
+              onOpenAppointmentView={handleHistoryOpenAppointmentView}
             />
           ) : null}
         </div>

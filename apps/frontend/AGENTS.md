@@ -75,13 +75,45 @@ After any change: `npx tsc --noemit` + `pnpm --filter frontend run lint`.
 pnpm --filter frontend run test -- --testPathPattern="ComponentName"
 ```
 
+### New code = new tests (mandatory)
+
+Every new file you add must ship tests in the same commit batch. No exceptions.
+
+| New code                                    | Required test                                              |
+| ------------------------------------------- | ---------------------------------------------------------- |
+| Service function                            | Jest unit: success + all error branches (axios, non-axios) |
+| Zustand store                               | Jest: every action, selector, guard, and edge case         |
+| Custom hook                                 | `renderHook` covering all return values and state branches |
+| Utility / lib function                      | Jest unit with full branch coverage                        |
+| UI component                                | RTL render + at least one user interaction test            |
+| E2E-critical flow (auth, booking, checkout) | Playwright test in `playwright/`                           |
+
+**Coverage bar for new files: Statements ≥ 90%, Branches ≥ 90%, Functions ≥ 90%.**
+Never leave an existing file in a worse coverage state than you found it.
+
+### Mandatory pre-commit checks (run in order, never skip)
+
+```bash
+npx tsc --noemit                                    # from apps/frontend/
+pnpm --filter frontend run lint
+pnpm --filter frontend run test -- --testPathPattern="<YourFile>"
+```
+
 - Mock react-icons as `<span>`, not `<button>`.
 - `await act(async () => { ... })` for async state updates.
 - Reset Zustand stores in `beforeEach`.
 - DOM nesting warnings are test failures in this repo.
 - When a hook calls `useXxxStore.getState()` directly, the store mock must expose `getState` too. Use `Object.assign(jest.fn(), { getState: jest.fn() })` in factory mocks, or attach `(useXxxStore as any).getState = mockGetState` in `beforeEach` for auto-mocks. See `frontend-testing` skill for full patterns.
 
----
+### Test TypeScript rules
+
+- **No `require()` in test bodies** — ESLint rule `@typescript-eslint/no-require-imports` blocks it. Always use top-level ES imports and cast: `(fromFormRequestDTO as jest.Mock).mockImplementationOnce(...)`.
+- **`jest.resetAllMocks()` wipes factory mock defaults** — re-initialize all `.mockReturnValue()` calls in `beforeEach` after `resetAllMocks()`.
+- **`axios.isAxiosError` mock** — use `jest.mock("axios", () => ({ isAxiosError: jest.fn() }))`, not `jest.spyOn`. Cast as `(axios.isAxiosError as unknown as jest.Mock)`.
+- **Read-only DOM properties** — use `Object.defineProperty(el, 'scrollTop', { value: 0, writable: true, configurable: true })`, not `Object.assign`.
+- **Type casts that don't overlap** — add `unknown` as intermediary: `as unknown as TargetType` instead of direct `as TargetType`.
+- **`Task` type uses `_id`, not `id`** — always use `_id` when constructing partial task fixtures.
+- **`RoleCode`** only includes `'OWNER'` and `'ADMIN'` — use `'MEMBER' as any` for other role strings in tests.
 
 ## What NOT to Do
 

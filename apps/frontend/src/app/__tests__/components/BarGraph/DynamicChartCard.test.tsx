@@ -4,103 +4,120 @@ import '@testing-library/jest-dom';
 import DynamicChartCard from '@/app/ui/widgets/DynamicChart/DynamicChartCard';
 
 let yAxisProps: any = {};
+let xAxisProps: any = {};
 
 jest.mock('recharts', () => {
-    const Recharts = jest.requireActual('recharts');
-    return {
-        ...Recharts,
-        ResponsiveContainer: ({ children }: { children: React.ReactNode }) => (
-            <div data-testid="responsive-container">{children}</div>
-        ),
-        BarChart: ({ children }: { children: React.ReactNode }) => (
-            <div data-testid="bar-chart">{children}</div>
-        ),
-        LineChart: ({ children }: { children: React.ReactNode }) => (
-            <div data-testid="line-chart">{children}</div>
-        ),
-        XAxis: () => <div data-testid="x-axis" />,
-        YAxis: (props: any) => {
-            yAxisProps = props;
-            return <div data-testid="y-axis" />;
-        },
-        Tooltip: () => <div data-testid="tooltip" />,
-        CartesianGrid: () => <div data-testid="cartesian-grid" />,
-        Bar: ({ name }: { name: string }) => <div data-testid="bar-element">{name}</div>,
-        Line: ({ name }: { name: string }) => <div data-testid="line-element">{name}</div>,
-        Legend: ({ payload }: { payload: { value: string }[] }) => (
-            <div data-testid="legend">
-                {payload.map((entry) => (
-                    <span key={entry.value}>{entry.value}</span>
-                ))}
-            </div>
-        ),
-    };
+  const Recharts = jest.requireActual('recharts');
+  return {
+    ...Recharts,
+    ResponsiveContainer: ({ children }: { children: React.ReactNode }) => (
+      <div data-testid="responsive-container">{children}</div>
+    ),
+    BarChart: ({ children }: { children: React.ReactNode }) => (
+      <div data-testid="bar-chart">{children}</div>
+    ),
+    LineChart: ({ children }: { children: React.ReactNode }) => (
+      <div data-testid="line-chart">{children}</div>
+    ),
+    XAxis: (props: any) => {
+      xAxisProps = props;
+      return <div data-testid="x-axis" />;
+    },
+    YAxis: (props: any) => {
+      yAxisProps = props;
+      return <div data-testid="y-axis" />;
+    },
+    Tooltip: () => <div data-testid="tooltip" />,
+    CartesianGrid: () => <div data-testid="cartesian-grid" />,
+    Bar: ({ name }: { name: string }) => <div data-testid="bar-element">{name}</div>,
+    Line: ({ name }: { name: string }) => <div data-testid="line-element">{name}</div>,
+    Legend: ({ payload }: { payload: { value: string }[] }) => (
+      <div data-testid="legend">
+        {payload.map((entry) => (
+          <span key={entry.value}>{entry.value}</span>
+        ))}
+      </div>
+    ),
+  };
 });
 
 const mockData = [
-    { month: 'Jan', sales: 4000, profit: 2400 },
-    { month: 'Feb', sales: 3000, profit: 1398 },
+  { month: 'Jan', sales: 4000, profit: 2400 },
+  { month: 'Feb', sales: 3000, profit: 1398 },
 ];
 
 const mockKeys = [
-    { name: 'sales', color: 'rgb(54, 162, 235)' },
-    { name: 'profit', color: 'rgb(75, 192, 192)' },
+  { name: 'sales', color: 'rgb(54, 162, 235)' },
+  { name: 'profit', color: 'rgb(75, 192, 192)' },
 ];
 
 const mockTickFormatter = (value: number) => `$${value / 1000}K`;
 
 describe('DynamicChartCard Component', () => {
-    beforeEach(() => {
-        yAxisProps = {};
-    });
+  beforeEach(() => {
+    yAxisProps = {};
+    xAxisProps = {};
+  });
 
-    test('should render a BarChart by default and display the legend', () => {
-        render(<DynamicChartCard data={mockData} keys={mockKeys} />);
+  test('should render a BarChart by default and display the legend', () => {
+    render(<DynamicChartCard data={mockData} keys={mockKeys} />);
 
-        expect(screen.getByTestId('bar-chart')).toBeInTheDocument();
-        expect(screen.queryByTestId('line-chart')).not.toBeInTheDocument();
+    expect(screen.getByTestId('bar-chart')).toBeInTheDocument();
+    expect(screen.queryByTestId('line-chart')).not.toBeInTheDocument();
 
-        const barElements = screen.getAllByTestId('bar-element');
-        expect(barElements).toHaveLength(mockKeys.length);
+    const barElements = screen.getAllByTestId('bar-element');
+    expect(barElements).toHaveLength(mockKeys.length);
 
-        for (const key of mockKeys) {
-            expect(screen.getByText(key.name)).toBeInTheDocument();
-        }
-    });
+    for (const key of mockKeys) {
+      expect(screen.getByText(key.name)).toBeInTheDocument();
+    }
+  });
 
-    test('should render a LineChart when type prop is "line"', () => {
-        render(<DynamicChartCard data={mockData} keys={mockKeys} type="line" />);
+  test('should render a LineChart when type prop is "line"', () => {
+    render(<DynamicChartCard data={mockData} keys={mockKeys} type="line" />);
 
-        expect(screen.getByTestId('line-chart')).toBeInTheDocument();
-        expect(screen.queryByTestId('bar-chart')).not.toBeInTheDocument();
+    expect(screen.getByTestId('line-chart')).toBeInTheDocument();
+    expect(screen.queryByTestId('bar-chart')).not.toBeInTheDocument();
 
-        const lineElements = screen.getAllByTestId('line-element');
-        expect(lineElements).toHaveLength(mockKeys.length);
-    });
+    const lineElements = screen.getAllByTestId('line-element');
+    expect(lineElements).toHaveLength(mockKeys.length);
+  });
 
-    test('should pass the yTickFormatter prop to the YAxis component', () => {
-        render(
-            <DynamicChartCard
-                data={mockData}
-                keys={mockKeys}
-                yTickFormatter={mockTickFormatter}
-            />
-        );
+  test('should pass the yTickFormatter prop to the YAxis component', () => {
+    render(<DynamicChartCard data={mockData} keys={mockKeys} yTickFormatter={mockTickFormatter} />);
 
-        expect(yAxisProps.tickFormatter).toBe(mockTickFormatter);
+    expect(yAxisProps.tickFormatter).toBe(mockTickFormatter);
 
-        expect(yAxisProps.tickFormatter(5000)).toBe('$5K');
-    });
+    expect(yAxisProps.tickFormatter(5000)).toBe('$5K');
+  });
 
-    test('should render without chart elements or legend when keys array is empty', () => {
-        render(<DynamicChartCard data={mockData} keys={[]} />);
+  test('should render without chart elements or legend when keys array is empty', () => {
+    render(<DynamicChartCard data={mockData} keys={[]} />);
 
-        expect(screen.getByTestId('bar-chart')).toBeInTheDocument();
+    expect(screen.getByTestId('bar-chart')).toBeInTheDocument();
 
-        expect(screen.queryByTestId('bar-element')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('bar-element')).not.toBeInTheDocument();
 
-        expect(screen.queryByText('sales')).not.toBeInTheDocument();
-        expect(screen.queryByText('profit')).not.toBeInTheDocument();
-    });
+    expect(screen.queryByText('sales')).not.toBeInTheDocument();
+    expect(screen.queryByText('profit')).not.toBeInTheDocument();
+  });
+
+  test('should compact x-axis labels for month view when compactMonthAxis is enabled', () => {
+    render(
+      <DynamicChartCard
+        data={[
+          { month: '2026-03-01', sales: 10 },
+          { month: '2026-03-02', sales: 12 },
+          { month: '2026-03-03', sales: 14 },
+        ]}
+        keys={[{ name: 'sales', color: 'rgb(54, 162, 235)' }]}
+        compactMonthAxis
+      />
+    );
+
+    expect(xAxisProps.interval).toBe('preserveStartEnd');
+    expect(xAxisProps.minTickGap).toBe(12);
+    expect(xAxisProps.tickFormatter('2026-03-08')).toBe('8');
+    expect(xAxisProps.label?.value).toBe('Mar 2026');
+  });
 });
-

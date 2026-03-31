@@ -10,10 +10,14 @@ import {
 } from '@/app/features/appointments/services/appointmentService';
 import { buildUtcDateFromDateAndTime, getDurationMinutes } from '@/app/lib/date';
 import {
-  buildDateInPreferredTimeZone,
   isOnPreferredTimeZoneCalendarDay,
   utcClockTimeToPreferredTimeZoneClock,
 } from '@/app/lib/timezone';
+import {
+  normalizeSlotsForSelectedDay,
+  NormalizedSlotMeta,
+  resolveSlotDateTimesForSelectedDay,
+} from '@/app/features/appointments/utils/slotNormalization';
 import { useSubscriptionCounterUpdate } from '@/app/hooks/useStripeOnboarding';
 import { useCanMoreForPrimaryOrg, useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
 import { loadInvoicesForOrgPrimaryOrg } from '@/app/features/billing/services/invoiceService';
@@ -54,6 +58,7 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [timeSlots, setTimeSlots] = useState<Slot[]>([]);
+  const slotMetaByRef = useRef<WeakMap<Slot, NormalizedSlotMeta>>(new WeakMap());
   const [isLoading, setIsLoading] = useState(false);
   const [pendingPrefill, setPendingPrefill] = useState<AppointmentDraftPrefill | null>(null);
   const getNextSelectedSlot = (availableSlots: Slot[], previousSlot: Slot | null) => {
@@ -117,31 +122,43 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
   const getLeadProfileUrlRef = useRef(getLeadProfileUrl);
   getLeadProfileUrlRef.current = getLeadProfileUrl;
 
-  const filterOutPastSlotsForSelectedDate = useCallback((slots: Slot[], day: Date) => {
-    if (!isOnPreferredTimeZoneCalendarDay(new Date(), day)) return slots;
-    const nowMs = Date.now();
-    return slots.filter((slot) => {
-      const startClock = utcClockTimeToPreferredTimeZoneClock(slot.startTime);
-      const slotDay = new Date(day);
-      slotDay.setDate(slotDay.getDate() + startClock.dayOffset);
-      const slotStart = buildDateInPreferredTimeZone(slotDay, startClock.minutes);
-      return slotStart.getTime() >= nowMs;
-    });
-  }, []);
-
   useEffect(() => {
     const appointmentTypeId = formData.appointmentType?.id;
     if (!appointmentTypeId || !selectedDate) {
       setTimeSlots([]);
       setSelectedSlot(null);
+      slotMetaByRef.current = new WeakMap();
       return;
     }
     let cancelled = false;
     const loadTimeSlots = async () => {
       try {
-        const slots = await getSlotsForServiceAndDateForPrimaryOrg(appointmentTypeId, selectedDate);
+        const previousDate = new Date(selectedDate);
+        previousDate.setDate(previousDate.getDate() - 1);
+        const nextDate = new Date(selectedDate);
+        nextDate.setDate(nextDate.getDate() + 1);
+        const [previousDateSlots, selectedDateSlots, nextDateSlots] = await Promise.all([
+          getSlotsForServiceAndDateForPrimaryOrg(appointmentTypeId, previousDate),
+          getSlotsForServiceAndDateForPrimaryOrg(appointmentTypeId, selectedDate),
+          getSlotsForServiceAndDateForPrimaryOrg(appointmentTypeId, nextDate),
+        ]);
         if (cancelled) return;
-        const availableSlots = filterOutPastSlotsForSelectedDate(slots, selectedDate);
+        const normalizedEntries = normalizeSlotsForSelectedDay([
+          { dayShift: -1, slots: previousDateSlots },
+          { dayShift: 0, slots: selectedDateSlots },
+          { dayShift: 1, slots: nextDateSlots },
+        ]);
+        const nowMs = Date.now();
+        const shouldFilterPast = isOnPreferredTimeZoneCalendarDay(new Date(), selectedDate);
+        const availableEntries = normalizedEntries.filter((entry) => {
+          if (!shouldFilterPast) return true;
+          const { startTime } = resolveSlotDateTimesForSelectedDay(selectedDate, entry.meta);
+          return startTime.getTime() >= nowMs;
+        });
+        const slotMetaMap = new WeakMap<Slot, NormalizedSlotMeta>();
+        availableEntries.forEach((entry) => slotMetaMap.set(entry.slot, entry.meta));
+        slotMetaByRef.current = slotMetaMap;
+        const availableSlots = availableEntries.map((entry) => entry.slot);
         setTimeSlots(availableSlots);
         setSelectedSlot((prev) => getNextSelectedSlot(availableSlots, prev));
       } catch (err) {
@@ -149,6 +166,7 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
         if (!cancelled) {
           setTimeSlots([]);
           setSelectedSlot(null);
+          slotMetaByRef.current = new WeakMap();
         }
       }
     };
@@ -156,7 +174,7 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
     return () => {
       cancelled = true;
     };
-  }, [filterOutPastSlotsForSelectedDate, formData.appointmentType?.id, selectedDate]);
+  }, [formData.appointmentType?.id, selectedDate]);
 
   useEffect(() => {
     if (!initialPrefill) return;
@@ -167,6 +185,22 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
 
   useEffect(() => {
     if (!selectedSlot || !selectedDate) return;
+    const slotMeta = slotMetaByRef.current.get(selectedSlot);
+    if (slotMeta) {
+      const { startTime, endTime, durationMinutes } = resolveSlotDateTimesForSelectedDay(
+        selectedDate,
+        slotMeta
+      );
+      setFormData((prev) => ({
+        ...prev,
+        startTime,
+        endTime,
+        appointmentDate: startTime,
+        durationMinutes,
+      }));
+      return;
+    }
+
     setFormData((prev) => ({
       ...prev,
       startTime: buildUtcDateFromDateAndTime(selectedDate, selectedSlot.startTime),
@@ -235,8 +269,12 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
     const minute = Math.max(0, Math.min(1435, Math.round(pendingPrefill.minuteOfDay / 5) * 5));
     const matchingSlot =
       timeSlots.find((slot) => {
+        const slotMeta = slotMetaByRef.current.get(slot);
+        if (slotMeta) {
+          return Math.abs(slotMeta.localStartMinute - minute) <= 5;
+        }
         const startClock = utcClockTimeToPreferredTimeZoneClock(slot.startTime);
-        return startClock.dayOffset === 0 && Math.abs(startClock.minutes - minute) <= 5;
+        return Math.abs(startClock.minutes - minute) <= 5;
       }) ?? null;
 
     if (!matchingSlot) {
@@ -349,6 +387,7 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
     setSelectedDate(new Date());
     setTimeSlots([]);
     setSelectedSlot(null);
+    slotMetaByRef.current = new WeakMap();
     setPendingPrefill(null);
     setFormDataErrors({});
   }, []);

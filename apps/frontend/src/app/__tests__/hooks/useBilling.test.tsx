@@ -123,4 +123,109 @@ describe('useBilling hooks', () => {
       'no_counter'
     );
   });
+
+  it('returns unknown_limit when freeLimit is not a number on the counter', () => {
+    useSubscriptionStoreMock.mockImplementation((selector: any) =>
+      selector({
+        subscriptionByOrgId: {
+          'org-1': { orgId: 'org-1', plan: 'free', canAcceptPayments: false },
+        },
+      })
+    );
+    useCounterStoreMock.mockImplementation((selector: any) =>
+      selector({
+        countersByOrgId: {
+          'org-1': {
+            orgId: 'org-1',
+            // freeAppointmentsLimit is not a number
+            freeAppointmentsLimit: undefined,
+            appointmentsUsed: 1,
+          },
+        },
+      })
+    );
+    expect(renderHook(() => useCanMoreForPrimaryOrg('appointments')).result.current.reason).toBe(
+      'unknown_limit'
+    );
+  });
+
+  it('returns unknown_usage when used is not a number on the counter', () => {
+    useSubscriptionStoreMock.mockImplementation((selector: any) =>
+      selector({
+        subscriptionByOrgId: {
+          'org-1': { orgId: 'org-1', plan: 'free', canAcceptPayments: false },
+        },
+      })
+    );
+    useCounterStoreMock.mockImplementation((selector: any) =>
+      selector({
+        countersByOrgId: {
+          'org-1': {
+            orgId: 'org-1',
+            freeAppointmentsLimit: 10,
+            appointmentsUsed: undefined,
+          },
+        },
+      })
+    );
+    expect(renderHook(() => useCanMoreForPrimaryOrg('appointments')).result.current.reason).toBe(
+      'unknown_usage'
+    );
+  });
+
+  it('returns limit_reached when used >= freeLimit', () => {
+    useSubscriptionStoreMock.mockImplementation((selector: any) =>
+      selector({
+        subscriptionByOrgId: {
+          'org-1': { orgId: 'org-1', plan: 'free', canAcceptPayments: false },
+        },
+      })
+    );
+    useCounterStoreMock.mockImplementation((selector: any) =>
+      selector({
+        countersByOrgId: {
+          'org-1': {
+            orgId: 'org-1',
+            freeAppointmentsLimit: 5,
+            appointmentsUsed: 5,
+          },
+        },
+      })
+    );
+    const result = renderHook(() => useCanMoreForPrimaryOrg('appointments')).result.current;
+    expect(result.reason).toBe('limit_reached');
+    expect(result.canMore).toBe(false);
+    expect(result.remainingFree).toBe(0);
+  });
+
+  it('useIsStripeActive returns false when no subscription', () => {
+    useSubscriptionStoreMock.mockImplementation((selector: any) =>
+      selector({ subscriptionByOrgId: {} })
+    );
+    expect(renderHook(() => useIsStripeActive()).result.current).toBe(false);
+  });
+
+  it('useCurrencyForPrimaryOrg falls back to USD when no subscription', () => {
+    useSubscriptionStoreMock.mockImplementation((selector: any) =>
+      selector({ subscriptionByOrgId: {} })
+    );
+    expect(renderHook(() => useCurrencyForPrimaryOrg()).result.current).toBe('USD');
+  });
+
+  it('useCounterForPrimaryOrg returns null when no primaryOrgId', () => {
+    useOrgStoreMock.mockImplementation((selector: any) => selector({ primaryOrgId: null }));
+    expect(renderHook(() => useCounterForPrimaryOrg()).result.current).toBeNull();
+  });
+
+  it('useSubscriptionForPrimaryOrg returns null when no primaryOrgId', () => {
+    useOrgStoreMock.mockImplementation((selector: any) => selector({ primaryOrgId: null }));
+    expect(renderHook(() => useSubscriptionForPrimaryOrg()).result.current).toBeNull();
+  });
+
+  it('does not call checkStatus when no primaryOrgId', async () => {
+    useOrgStoreMock.mockImplementation((selector: any) => selector({ primaryOrgId: null }));
+    renderHook(() => useLoadSubscriptionCounterForPrimaryOrg());
+    await new Promise((r) => setTimeout(r, 0));
+    expect(checkStatusMock).not.toHaveBeenCalled();
+  });
 });
