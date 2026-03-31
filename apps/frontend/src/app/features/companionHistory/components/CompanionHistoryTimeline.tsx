@@ -308,7 +308,7 @@ const CompanionHistoryTimeline = ({
       return undefined;
     }
 
-    const type = HISTORY_FILTER_TYPE_MAP[activeFilter as keyof typeof HISTORY_FILTER_TYPE_MAP];
+    const type = HISTORY_FILTER_TYPE_MAP[activeFilter];
     return type ? [type] : undefined;
   }, [activeFilter]);
 

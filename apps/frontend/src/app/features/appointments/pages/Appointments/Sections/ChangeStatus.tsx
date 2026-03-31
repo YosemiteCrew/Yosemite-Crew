@@ -80,10 +80,9 @@ const ChangeStatus = ({
   }, [activeAppointment.id, activeAppointment.lead?.id, leadOptions, showModal]);
 
   const availableStatusOptions = React.useMemo(() => {
-    const allowed = new Set<AppointmentStatus>([
-      currentStatus,
-      ...getAllowedAppointmentStatusTransitions(currentStatus),
-    ]);
+    const transitions = getAllowedAppointmentStatusTransitions(currentStatus);
+    const allowed = new Set<AppointmentStatus>(transitions);
+    allowed.add(currentStatus);
     return AppointmentStatusOptions.filter((option) =>
       allowed.has(option.value as AppointmentStatus)
     ) as Array<{ value: AppointmentStatus; label: string }>;

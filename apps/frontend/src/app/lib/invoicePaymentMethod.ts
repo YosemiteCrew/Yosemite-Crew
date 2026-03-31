@@ -1,7 +1,7 @@
 import { Invoice } from '@yosemite-crew/types';
 
 const toNormalizedMethod = (method: unknown): string =>
-  String(method ?? '')
+  String(typeof method === 'string' || typeof method === 'number' ? method : '')
     .trim()
     .replaceAll(/[\s-]+/g, '_')
     .toUpperCase();
