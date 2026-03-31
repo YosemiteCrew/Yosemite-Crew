@@ -494,6 +494,45 @@ describe('AppointmentInfo modal', () => {
     expect(prescription.labels.some((label: any) => label.key === 'merck-manuals')).toBe(false);
   });
 
+  it('shows merck manuals label when integration is enabled', () => {
+    (useResolvedMerckIntegrationForPrimaryOrg as jest.Mock).mockReturnValue({ isEnabled: true });
+
+    render(
+      <AppointmentInfoModal showModal setShowModal={setShowModal} activeAppointment={appointment} />
+    );
+
+    const latestLabels = labelsSpy.mock.calls.at(-1)?.[0] ?? [];
+    const prescription = latestLabels.find((label: any) => label.key === 'prescription');
+    expect(prescription.labels.some((label: any) => label.key === 'merck-manuals')).toBe(true);
+  });
+
+  it('uses care-plan labels for non-hospital org types', () => {
+    orgStoreState.orgsById['org-1'].type = 'BOARDER' as any;
+
+    render(
+      <AppointmentInfoModal showModal setShowModal={setShowModal} activeAppointment={appointment} />
+    );
+
+    const latestLabels = labelsSpy.mock.calls.at(-1)?.[0] ?? [];
+    expect(latestLabels.some((label: any) => label.key === 'care')).toBe(true);
+    expect(latestLabels.some((label: any) => label.key === 'prescription')).toBe(false);
+
+    orgStoreState.orgsById['org-1'].type = 'HOSPITAL' as any;
+  });
+
+  it('falls back to first sublabel when initial intent sublabel is invalid', () => {
+    render(
+      <AppointmentInfoModal
+        showModal
+        setShowModal={setShowModal}
+        activeAppointment={appointment}
+        initialViewIntent={{ label: 'finance', subLabel: 'not-real' }}
+      />
+    );
+
+    expect(screen.getByText('summary-section')).toBeInTheDocument();
+  });
+
   it('shows form loading error when appointment form fetch fails', async () => {
     (fetchAppointmentForms as jest.Mock).mockRejectedValue(new Error('forms failed'));
 

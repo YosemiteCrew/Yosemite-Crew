@@ -1,10 +1,12 @@
 import React from 'react';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import Build from '@/app/features/forms/pages/Forms/Sections/AddForm/Build';
 import type { FormField, FormsProps } from '@/app/features/forms/types/forms';
 import { ensureSingleSignatureAtEnd } from '@/app/lib/forms';
+import { fetchInventoryItems } from '@/app/features/inventory/services/inventoryService';
+import { useOrgStore } from '@/app/stores/orgStore';
 
 jest.mock('@/app/ui/primitives/Buttons', () => ({
   Primary: ({ text, onClick }: any) => (
@@ -326,5 +328,63 @@ describe('Build form step', () => {
     const schema = readSchema();
     expect(schema[0].id).toBe('f-2');
     expect(schema[1].id).toBe('f-1');
+  });
+
+  it('updates selected services inside service-group metadata and checkbox options', () => {
+    renderBuild(baseFormData());
+
+    selectAddOption('Services');
+    fireEvent.click(screen.getByText('Checkup'));
+
+    const schema = readSchema();
+    const serviceGroup = schema[0] as FormField & {
+      fields?: FormField[];
+      meta?: Record<string, any>;
+    };
+    expect(serviceGroup.meta?.serviceIds).toEqual(['svc-1']);
+    const checkbox = (serviceGroup.fields || []).find((field) => field.type === 'checkbox') as any;
+    expect(checkbox?.options).toEqual([{ label: 'Checkup', value: 'svc-1' }]);
+  });
+
+  it('loads inventory medicines and adds medicine group fields when selected', async () => {
+    (useOrgStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({ primaryOrgId: 'org-1' })
+    );
+    (fetchInventoryItems as jest.Mock).mockResolvedValue([
+      {
+        _id: 'med-1',
+        name: 'Amoxicillin',
+        sellingPrice: 25,
+        attributes: { strength: '250mg', administration: 'Oral' },
+      },
+    ]);
+
+    const medicationGroup: FormField = {
+      id: 'mg-1',
+      type: 'group',
+      label: 'Medication',
+      meta: { medicationGroup: true } as any,
+      fields: [],
+    } as FormField;
+
+    renderBuild(baseFormData({ schema: [medicationGroup] }));
+
+    await waitFor(() => {
+      expect(fetchInventoryItems).toHaveBeenCalledWith('org-1', { category: 'Medicine' });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: 'Amoxicillin' })).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByTestId('medicine-dropdown'), { target: { value: 'med-1' } });
+
+    await waitFor(() => {
+      const schema = readSchema();
+      const updated = schema[0] as any;
+      expect(updated.fields).toHaveLength(1);
+      expect(updated.fields[0].label).toBe('Amoxicillin');
+      expect(updated.fields[0].fields).toHaveLength(7);
+    });
   });
 });

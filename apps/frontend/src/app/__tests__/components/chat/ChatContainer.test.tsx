@@ -291,6 +291,56 @@ describe('ChatContainer', () => {
     });
   });
 
+  it('reuses an existing direct channel without creating a new session', async () => {
+    const existingDirectChannel = {
+      ...defaultMockChannel,
+      id: 'existing-direct',
+      data: { chatCategory: 'colleagues' },
+      state: {
+        members: {
+          'user-1': { user: { id: 'user-1', name: 'Me' } },
+          'user-2': { user: { id: 'user-2', name: 'User Two' } },
+        },
+      },
+      watch: jest.fn().mockResolvedValue({}),
+    };
+    (chatService.listOrgChatSessions as jest.Mock).mockResolvedValue([]);
+    mockClient.queryChannels.mockResolvedValue([existingDirectChannel]);
+
+    await act(async () => {
+      render(<ChatContainer scope="colleagues" />);
+    });
+    await waitFor(() => expect(chatService.fetchOrgUsers).toHaveBeenCalled());
+
+    const input = screen.getByPlaceholderText('Search teammate to chat');
+    fireEvent.change(input, { target: { value: 'User Two' } });
+    fireEvent.focus(input);
+
+    const userButton = await screen.findByText('User Two');
+    await act(async () => {
+      fireEvent.click(userButton.closest('button')!);
+    });
+
+    await waitFor(() => {
+      expect(existingDirectChannel.watch).toHaveBeenCalled();
+    });
+    expect(chatService.createOrgDirectChat).not.toHaveBeenCalled();
+  });
+
+  it('shows no-results message when teammate search has no matches', async () => {
+    await act(async () => {
+      render(<ChatContainer scope="colleagues" />);
+    });
+    await waitFor(() => expect(chatService.fetchOrgUsers).toHaveBeenCalled());
+
+    const input = screen.getByPlaceholderText('Search teammate to chat');
+    fireEvent.change(input, { target: { value: 'unknown teammate' } });
+    fireEvent.focus(input);
+
+    expect(screen.getByText('No teammates found. Adjust your search.')).toBeInTheDocument();
+    expect(chatService.createOrgDirectChat).not.toHaveBeenCalled();
+  });
+
   it('creates a group via modal', async () => {
     await act(async () => {
       render(<ChatContainer scope="groups" />);
