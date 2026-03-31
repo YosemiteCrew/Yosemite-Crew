@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import Slot from '@/app/features/appointments/components/Calendar/common/Slot';
+import { calcNearestAvailableMinute } from '@/app/features/appointments/components/Calendar/calendarDrop';
 
 jest.mock('next/image', () => ({
   __esModule: true,
@@ -23,6 +24,10 @@ jest.mock('@/app/lib/appointments', () => ({
     (status: string) => status === 'REQUESTED' || status === 'NO_PAYMENT'
   ),
   normalizeAppointmentStatus: (status: string) => (status === 'NO_PAYMENT' ? 'REQUESTED' : status),
+}));
+
+jest.mock('@/app/features/appointments/components/Calendar/calendarDrop', () => ({
+  calcNearestAvailableMinute: jest.fn((minute: number) => minute),
 }));
 
 jest.mock('@/app/lib/urls', () => ({
@@ -59,6 +64,7 @@ describe('Slot (Appointments)', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (calcNearestAvailableMinute as jest.Mock).mockImplementation((minute: number) => minute);
   });
 
   it('shows empty state when no appointments exist', () => {
@@ -114,5 +120,58 @@ describe('Slot (Appointments)', () => {
     expect(handleRescheduleAppointment).toHaveBeenCalledWith(event);
 
     consoleSpy.mockRestore();
+  });
+
+  it('creates appointment when empty slot is clicked', () => {
+    const onCreateAppointmentAt = jest.fn();
+
+    render(
+      <Slot
+        slotEvents={[]}
+        height={120}
+        handleViewAppointment={handleViewAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        dayIndex={0}
+        length={0}
+        canEditAppointments
+        dropDate={new Date('2026-03-16T00:00:00.000Z')}
+        dropHour={9}
+        onCreateAppointmentAt={onCreateAppointmentAt}
+      />
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Create appointment in this calendar slot' })
+    );
+    expect(onCreateAppointmentAt).toHaveBeenCalled();
+  });
+
+  it('drops dragged appointment into nearest available minute', () => {
+    const onAppointmentDropAt = jest.fn();
+    (calcNearestAvailableMinute as jest.Mock).mockReturnValue(575);
+
+    render(
+      <Slot
+        slotEvents={[]}
+        height={120}
+        handleViewAppointment={handleViewAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        dayIndex={0}
+        length={0}
+        canEditAppointments
+        draggedAppointmentId="appt-1"
+        draggedAppointmentLabel="Buddy"
+        onAppointmentDropAt={onAppointmentDropAt}
+        dropDate={new Date('2026-03-16T00:00:00.000Z')}
+        dropHour={9}
+        dropAvailabilityIntervals={[{ startMinute: 540, endMinute: 599 }]}
+      />
+    );
+
+    const slot = screen.getByRole('application');
+    fireEvent.dragOver(slot, { clientX: 10, clientY: 20 });
+    fireEvent.drop(slot, { clientX: 10, clientY: 20 });
+
+    expect(onAppointmentDropAt).toHaveBeenCalledWith(expect.any(Date), 575, undefined);
   });
 });
