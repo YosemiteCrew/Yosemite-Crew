@@ -846,7 +846,7 @@ describe('HomeScreen', () => {
         </Provider>,
       );
 
-      fireEvent.press(getByText('Merck Manuals'));
+      fireEvent.press(getByText('MSD Veterinary Manual'));
 
       expect(mockNavigate).toHaveBeenCalledWith('Appointments', {
         screen: 'MerckManuals',

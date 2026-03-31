@@ -133,11 +133,11 @@ const TermsAndConditions = () => {
               <li>
                 <strong>1.23. Third-Party Trademarks</strong> This repository may reference or
                 include integrations, plugins, names, logos, or trademarks of third-party companies
-                (including but not limited to IDEXX, Merck, and other partners). Such trademarks and
-                logos are the property of their respective owners and are used solely for
-                identification or interoperability purposes. Nothing in this repository grants any
-                right or license to use any third-party trademarks, logos, or branding except as
-                permitted by the respective owners.
+                (including but not limited to IDEXX, MSD Veterinary Manual, and other partners).
+                Such trademarks and logos are the property of their respective owners and are used
+                solely for identification or interoperability purposes. Nothing in this repository
+                grants any right or license to use any third-party trademarks, logos, or branding
+                except as permitted by the respective owners.
               </li>
             </ul>
           </div>

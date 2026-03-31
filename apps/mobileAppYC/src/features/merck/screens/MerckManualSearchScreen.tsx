@@ -77,7 +77,7 @@ export const MerckManualSearchScreen: React.FC = () => {
     <LiquidGlassHeaderScreen
       header={
         <Header
-          title="Merck Manuals"
+          title="MSD Veterinary Manual"
           showBackButton
           onBack={handleBack}
           glass={false}
@@ -89,7 +89,7 @@ export const MerckManualSearchScreen: React.FC = () => {
           <View style={styles.widgetWrap}>
             <MerckSearchWidget
               organisationId={organisationId}
-              title="Consumer Merck Search"
+              title="Consumer MSD Veterinary Manual Search"
               description="Trusted companion health guidance, anywhere."
               initialQuery={initialQuery}
               initialEntries={initialEntries}
