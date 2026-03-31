@@ -241,4 +241,70 @@ describe('invoiceService', () => {
     expect(patchData).not.toHaveBeenCalled();
     warnSpy.mockRestore();
   });
+
+  it('extracts appointmentId from account reference with query string (normalizeReferenceTail)', async () => {
+    (getData as jest.Mock).mockResolvedValue({
+      data: [
+        {
+          id: 'inv-q',
+          resourceType: 'Invoice',
+          account: {
+            reference: 'https://api.example.com/fhir/v1/Appointment/appt-q-1?foo=bar',
+          },
+        },
+      ],
+    });
+
+    await loadInvoicesForOrgPrimaryOrg();
+
+    expect(invoiceState.setInvoicesForOrg).toHaveBeenCalledWith(
+      'org-1',
+      expect.arrayContaining([expect.objectContaining({ appointmentId: 'appt-q-1' })])
+    );
+  });
+
+  it('extracts appointmentId from account reference with hash fragment (normalizeReferenceTail)', async () => {
+    (getData as jest.Mock).mockResolvedValue({
+      data: [
+        {
+          id: 'inv-h',
+          resourceType: 'Invoice',
+          account: {
+            reference: 'https://api.example.com/fhir/v1/Appointment/appt-h-1#section',
+          },
+        },
+      ],
+    });
+
+    await loadInvoicesForOrgPrimaryOrg();
+
+    expect(invoiceState.setInvoicesForOrg).toHaveBeenCalledWith(
+      'org-1',
+      expect.arrayContaining([expect.objectContaining({ appointmentId: 'appt-h-1' })])
+    );
+  });
+
+  it('restores appointmentId from extension URL when present', async () => {
+    (getData as jest.Mock).mockResolvedValue({
+      data: [
+        {
+          id: 'inv-ext',
+          resourceType: 'Invoice',
+          extension: [
+            {
+              url: 'https://yosemitecrew.com/fhir/StructureDefinition/appointment-id',
+              valueString: 'appt-ext-1',
+            },
+          ],
+        },
+      ],
+    });
+
+    await loadInvoicesForOrgPrimaryOrg();
+
+    expect(invoiceState.setInvoicesForOrg).toHaveBeenCalledWith(
+      'org-1',
+      expect.arrayContaining([expect.objectContaining({ appointmentId: 'appt-ext-1' })])
+    );
+  });
 });

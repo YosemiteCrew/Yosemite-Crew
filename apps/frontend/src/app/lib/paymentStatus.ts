@@ -6,7 +6,7 @@ export type AppointmentPaymentState = 'PAID' | 'UNPAID' | 'PAID_CASH' | 'PAYMENT
 
 type PaymentDisplay = {
   state: AppointmentPaymentState;
-  label: 'Paid' | 'Unpaid' | 'Paid - Cash' | 'Payment at Clinic';
+  label: 'Paid' | 'Unpaid' | 'Paid in cash';
   textColor: string;
   badgeBackgroundColor: string;
   badgeTextColor: string;
@@ -29,14 +29,14 @@ const PAYMENT_DISPLAY: Record<AppointmentPaymentState, PaymentDisplay> = {
   },
   PAID_CASH: {
     state: 'PAID_CASH',
-    label: 'Paid - Cash',
+    label: 'Paid in cash',
     textColor: '#247AED',
     badgeBackgroundColor: '#E8F0FE',
     badgeTextColor: '#247AED',
   },
   PAYMENT_AT_CLINIC: {
     state: 'PAYMENT_AT_CLINIC',
-    label: 'Payment at Clinic',
+    label: 'Unpaid',
     textColor: '#F68523',
     badgeBackgroundColor: '#FEF3E9',
     badgeTextColor: '#F68523',

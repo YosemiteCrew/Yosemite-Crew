@@ -1,7 +1,9 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import LinkedMedicalDevices from '@/app/features/organization/pages/Organization/Sections/LinkedMedicalDevices';
+import { loadIntegrationsForPrimaryOrg } from '@/app/hooks/useIntegrations';
+import { useIntegrationStore } from '@/app/stores/integrationStore';
 
 const useIntegrationByProviderForPrimaryOrgMock = jest.fn();
 const listIdexxIvlsDevicesMock = jest.fn();
@@ -31,11 +33,19 @@ jest.mock('@/app/hooks/useIntegrations', () => ({
 }));
 
 jest.mock('@/app/stores/integrationStore', () => ({
-  useIntegrationStore: (selector: any) =>
-    selector({
-      lastFetchedAt: null,
-      getIntegrationByProvider: () => null,
-    }),
+  useIntegrationStore: Object.assign(
+    jest.fn((selector: any) =>
+      selector({
+        lastFetchedAt: null,
+        getIntegrationByProvider: () => null,
+      })
+    ),
+    {
+      getState: jest.fn(() => ({
+        getIntegrationByProvider: () => null,
+      })),
+    }
+  ),
 }));
 
 jest.mock('@/app/features/integrations/services/idexxService', () => ({
@@ -50,6 +60,15 @@ jest.mock('next/image', () => ({
 describe('LinkedMedicalDevices', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (useIntegrationStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({
+        lastFetchedAt: null,
+        getIntegrationByProvider: () => null,
+      })
+    );
+    (useIntegrationStore as any).getState.mockReturnValue({
+      getIntegrationByProvider: () => null,
+    });
   });
 
   it('renders disabled status with zero linked devices', async () => {
@@ -112,5 +131,44 @@ describe('LinkedMedicalDevices', () => {
       expect(screen.getByText('Enabled')).toBeInTheDocument();
     });
     expect(screen.getByText('0 linked IVLS device(s)')).toBeInTheDocument();
+  });
+
+  it('shows pending status when integration is pending', async () => {
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue({
+      status: 'pending',
+    });
+
+    render(<LinkedMedicalDevices />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Pending')).toBeInTheDocument();
+    });
+  });
+
+  it('refreshes linked devices via manual refresh action', async () => {
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue({
+      status: 'enabled',
+    });
+    listIdexxIvlsDevicesMock.mockResolvedValue({
+      ivlsDeviceList: [{ deviceSerialNumber: 'A1', displayName: 'IVLS 1' }],
+    });
+    (loadIntegrationsForPrimaryOrg as jest.Mock).mockResolvedValue(undefined);
+    (useIntegrationStore as any).getState.mockReturnValue({
+      getIntegrationByProvider: () => ({ status: 'enabled' }),
+    });
+
+    render(<LinkedMedicalDevices />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Enabled')).toBeInTheDocument();
+    });
+
+    const refreshButton = screen.getByRole('button', { name: 'Refresh linked medical devices' });
+    fireEvent.click(refreshButton);
+
+    await waitFor(() => {
+      expect((useIntegrationStore as any).getState).toHaveBeenCalled();
+    });
+    expect(listIdexxIvlsDevicesMock.mock.calls.length).toBeGreaterThanOrEqual(1);
   });
 });

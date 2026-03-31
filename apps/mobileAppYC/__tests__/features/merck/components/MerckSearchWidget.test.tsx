@@ -136,7 +136,9 @@ describe('MerckSearchWidget', () => {
     });
 
     expect(
-      getByText('Blocked URL: only Merck/MSD consumer links are allowed.'),
+      getByText(
+        'Blocked URL: only MSD Veterinary Manual consumer links are allowed.',
+      ),
     ).toBeTruthy();
   });
 

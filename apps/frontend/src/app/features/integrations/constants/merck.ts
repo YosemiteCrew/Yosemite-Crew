@@ -26,8 +26,9 @@ export const sanitizeMerckHtml = (raw: string): string => {
     const tagContent = raw.slice(openingBracket + 1, closingBracket);
     const tagMatch = HTML_TAG_NAME_PATTERN.exec(tagContent);
     const tagName = tagMatch?.[1]?.toLowerCase() ?? '';
+    const isClosingTag = /^\s*\//.test(tagContent);
     if (ALLOWED_INLINE_TAGS.has(tagName)) {
-      sanitized += raw.slice(openingBracket, closingBracket + 1);
+      sanitized += isClosingTag ? `</${tagName}>` : `<${tagName}>`;
     }
 
     cursor = closingBracket + 1;

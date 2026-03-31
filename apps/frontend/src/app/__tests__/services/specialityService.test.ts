@@ -5,49 +5,52 @@ import {
   createBulkSpecialityServices,
   updateSpeciality,
   updateService,
-} from "@/app/features/organization/services/specialityService";
-import { useSpecialityStore } from "@/app/stores/specialityStore";
-import { useServiceStore } from "@/app/stores/serviceStore";
-import { useOrgStore } from "@/app/stores/orgStore";
-import * as axiosService from "@/app/services/axios";
-import { SpecialityWeb } from "@/app/features/organization/types/speciality";
+  deleteSpeciality,
+} from '@/app/features/organization/services/specialityService';
+import { useSpecialityStore } from '@/app/stores/specialityStore';
+import { useServiceStore } from '@/app/stores/serviceStore';
+import { useOrgStore } from '@/app/stores/orgStore';
+import * as axiosService from '@/app/services/axios';
+import { deleteData } from '@/app/services/axios';
+import { SpecialityWeb } from '@/app/features/organization/types/speciality';
 
 // --- Mocks ---
 
 // Mock Zustand Stores
-jest.mock("@/app/stores/specialityStore", () => ({
+jest.mock('@/app/stores/specialityStore', () => ({
   useSpecialityStore: {
     getState: jest.fn(),
   },
 }));
-jest.mock("@/app/stores/serviceStore", () => ({
+jest.mock('@/app/stores/serviceStore', () => ({
   useServiceStore: {
     getState: jest.fn(),
   },
 }));
-jest.mock("@/app/stores/orgStore", () => ({
+jest.mock('@/app/stores/orgStore', () => ({
   useOrgStore: {
     getState: jest.fn(),
   },
 }));
 
 // Mock Axios Wrapper
-jest.mock("@/app/services/axios", () => ({
+jest.mock('@/app/services/axios', () => ({
   getData: jest.fn(),
   postData: jest.fn(),
   putData: jest.fn(),
   patchData: jest.fn(),
+  deleteData: jest.fn(),
 }));
 
 // Mock Converters (return identity or simple transforms for predictability)
-jest.mock("@yosemite-crew/types", () => ({
-  fromSpecialityRequestDTO: jest.fn((x) => ({ ...x, _id: x.id || "spec-1" })),
+jest.mock('@yosemite-crew/types', () => ({
+  fromSpecialityRequestDTO: jest.fn((x) => ({ ...x, _id: x.id || 'spec-1' })),
   toSpecialityResponseDTO: jest.fn((x) => x),
-  fromServiceRequestDTO: jest.fn((x) => ({ ...x, id: x.id || "svc-1" })),
+  fromServiceRequestDTO: jest.fn((x) => ({ ...x, id: x.id || 'svc-1' })),
   toServiceResponseDTO: jest.fn((x) => x),
 }));
 
-describe("specialityService", () => {
+describe('specialityService', () => {
   // Store Mock Functions
   const mockStartLoading = jest.fn();
   const mockSetSpecialities = jest.fn();
@@ -72,7 +75,7 @@ describe("specialityService", () => {
       setSpecialities: mockSetSpecialities,
       addSpeciality: mockAddSpeciality,
       updateSpeciality: mockUpdateSpeciality,
-      status: "idle",
+      status: 'idle',
       setSpecialitiesForOrg: mockSetSpecialitiesForOrg,
       setError: mockSetError,
       endLoading: jest.fn(), // Added endLoading for completeness, though not in the error
@@ -87,7 +90,7 @@ describe("specialityService", () => {
     });
 
     (useOrgStore.getState as jest.Mock).mockReturnValue({
-      primaryOrgId: "org-1",
+      primaryOrgId: 'org-1',
     });
   });
 
@@ -95,13 +98,13 @@ describe("specialityService", () => {
   // 1. loadSpecialitiesForOrg
   // ===========================================================================
 
-  describe("loadSpecialitiesForOrg", () => {
-    it("fetches and normalizes data successfully", async () => {
+  describe('loadSpecialitiesForOrg', () => {
+    it('fetches and normalizes data successfully', async () => {
       const mockPayload = {
         data: [
           {
-            speciality: { id: "spec-1", name: "Cardiology" },
-            services: [{ id: "svc-1", name: "ECG" }],
+            speciality: { id: 'spec-1', name: 'Cardiology' },
+            services: [{ id: 'svc-1', name: 'ECG' }],
           },
         ],
       };
@@ -110,57 +113,57 @@ describe("specialityService", () => {
       await loadSpecialitiesForOrg();
 
       expect(mockStartLoading).toHaveBeenCalled();
-      expect(axiosService.getData).toHaveBeenCalledWith("/fhir/v1/speciality/org-1");
+      expect(axiosService.getData).toHaveBeenCalledWith('/fhir/v1/speciality/org-1');
     });
 
     // ... (All other tests in loadSpecialitiesForOrg section remain unchanged)
 
-    it("handles malformed response (data not array)", async () => {
-      (axiosService.getData as jest.Mock).mockResolvedValue({ data: "invalid" });
-      const consoleSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+    it('handles malformed response (data not array)', async () => {
+      (axiosService.getData as jest.Mock).mockResolvedValue({ data: 'invalid' });
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
       await loadSpecialitiesForOrg();
     });
 
-    it("handles missing speciality object in item", async () => {
+    it('handles missing speciality object in item', async () => {
       const mockPayload = { data: [{ speciality: null }] };
       (axiosService.getData as jest.Mock).mockResolvedValue(mockPayload);
-      const consoleSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
       await loadSpecialitiesForOrg();
     });
 
-    it("handles missing/invalid services array in item", async () => {
+    it('handles missing/invalid services array in item', async () => {
       const mockPayload = {
         data: [
           {
-            speciality: { id: "s1" },
-            services: "not-an-array", // Invalid
+            speciality: { id: 's1' },
+            services: 'not-an-array', // Invalid
           },
         ],
       };
       (axiosService.getData as jest.Mock).mockResolvedValue(mockPayload);
-      const consoleSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
       await loadSpecialitiesForOrg();
     });
 
-    it("handles null item in payload array", async () => {
-        const mockPayload = { data: [null] };
-        (axiosService.getData as jest.Mock).mockResolvedValue(mockPayload);
+    it('handles null item in payload array', async () => {
+      const mockPayload = { data: [null] };
+      (axiosService.getData as jest.Mock).mockResolvedValue(mockPayload);
 
-        await loadSpecialitiesForOrg();
+      await loadSpecialitiesForOrg();
     });
 
     // NOTE: The `loadSpecialitiesForOrg` test assertion for failure was already throwing,
     // which is likely correct for a service layer function that wraps an API call.
-    it("throws error on failure", async () => {
-      const error = new Error("Network Error");
+    it('throws error on failure', async () => {
+      const error = new Error('Network Error');
       (axiosService.getData as jest.Mock).mockRejectedValue(error);
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      await expect(loadSpecialitiesForOrg()).rejects.toThrow("Network Error");
-      expect(consoleSpy).toHaveBeenCalledWith("Failed to load specialities:", error);
+      await expect(loadSpecialitiesForOrg()).rejects.toThrow('Network Error');
+      expect(consoleSpy).toHaveBeenCalledWith('Failed to load specialities:', error);
       consoleSpy.mockRestore();
     });
   });
@@ -169,28 +172,25 @@ describe("specialityService", () => {
   // 2. createSpeciality (and subsequent sections)
   // ===========================================================================
 
-  describe("createSpeciality", () => {
-    const payload = { name: "New Spec" } as any;
+  describe('createSpeciality', () => {
+    const payload = { name: 'New Spec' } as any;
 
-    it("creates speciality successfully", async () => {
-      const responseData = { id: "spec-new", name: "New Spec" };
+    it('creates speciality successfully', async () => {
+      const responseData = { id: 'spec-new', name: 'New Spec' };
       (axiosService.postData as jest.Mock).mockResolvedValue({ data: responseData });
 
       const result = await createSpeciality(payload);
 
-      expect(axiosService.postData).toHaveBeenCalledWith(
-        "/fhir/v1/speciality",
-        payload
-      );
+      expect(axiosService.postData).toHaveBeenCalledWith('/fhir/v1/speciality', payload);
       expect(mockAddSpeciality).toHaveBeenCalled();
-      expect(result._id).toBe("spec-new");
+      expect(result._id).toBe('spec-new');
     });
 
-    it("throws error on failure", async () => {
-      (axiosService.postData as jest.Mock).mockRejectedValue(new Error("Fail"));
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    it('throws error on failure', async () => {
+      (axiosService.postData as jest.Mock).mockRejectedValue(new Error('Fail'));
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      await expect(createSpeciality(payload)).rejects.toThrow("Fail");
+      await expect(createSpeciality(payload)).rejects.toThrow('Fail');
       expect(consoleSpy).toHaveBeenCalled();
       consoleSpy.mockRestore();
     });
@@ -200,27 +200,24 @@ describe("specialityService", () => {
   // 3. createService
   // ===========================================================================
 
-  describe("createService", () => {
-    const payload = { name: "New Service" } as any;
+  describe('createService', () => {
+    const payload = { name: 'New Service' } as any;
 
-    it("creates service successfully", async () => {
-      const responseData = { id: "svc-new", name: "New Service" };
+    it('creates service successfully', async () => {
+      const responseData = { id: 'svc-new', name: 'New Service' };
       (axiosService.postData as jest.Mock).mockResolvedValue({ data: responseData });
 
       await createService(payload);
 
-      expect(axiosService.postData).toHaveBeenCalledWith(
-        "/fhir/v1/service",
-        payload
-      );
+      expect(axiosService.postData).toHaveBeenCalledWith('/fhir/v1/service', payload);
       expect(mockAddService).toHaveBeenCalled();
     });
 
-    it("throws error on failure", async () => {
-      (axiosService.postData as jest.Mock).mockRejectedValue(new Error("Fail"));
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    it('throws error on failure', async () => {
+      (axiosService.postData as jest.Mock).mockRejectedValue(new Error('Fail'));
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      await expect(createService(payload)).rejects.toThrow("Fail");
+      await expect(createService(payload)).rejects.toThrow('Fail');
       expect(consoleSpy).toHaveBeenCalled();
       consoleSpy.mockRestore();
     });
@@ -230,15 +227,15 @@ describe("specialityService", () => {
   // 4. createBulkSpecialityServices
   // ===========================================================================
 
-  describe("createBulkSpecialityServices", () => {
-    it("creates multiple specialities and their services", async () => {
+  describe('createBulkSpecialityServices', () => {
+    it('creates multiple specialities and their services', async () => {
       const payload: SpecialityWeb[] = [
         {
-          name: "Spec A",
-          services: [{ name: "Svc A1" }, { name: "Svc A2" }],
+          name: 'Spec A',
+          services: [{ name: 'Svc A1' }, { name: 'Svc A2' }],
         } as any,
         {
-          name: "Spec B",
+          name: 'Spec B',
           // services undefined/empty
         } as any,
         null as any, // Should be skipped
@@ -251,40 +248,40 @@ describe("specialityService", () => {
 
       (axiosService.postData as jest.Mock)
         // 1. Create Spec A
-        .mockResolvedValueOnce({ data: { id: "spec-a", name: "Spec A" } })
+        .mockResolvedValueOnce({ data: { id: 'spec-a', name: 'Spec A' } })
         // 2. Create Svc A1
-        .mockResolvedValueOnce({ data: { id: "svc-a1" } })
+        .mockResolvedValueOnce({ data: { id: 'svc-a1' } })
         // 3. Create Svc A2
-        .mockResolvedValueOnce({ data: { id: "svc-a2" } })
+        .mockResolvedValueOnce({ data: { id: 'svc-a2' } })
         // 4. Create Spec B
-        .mockResolvedValueOnce({ data: { id: "spec-b", name: "Spec B" } });
+        .mockResolvedValueOnce({ data: { id: 'spec-b', name: 'Spec B' } });
 
       await createBulkSpecialityServices(payload);
 
       // Verify Calls
       // Spec A
       expect(axiosService.postData).toHaveBeenCalledWith(
-        "/fhir/v1/speciality",
-        expect.objectContaining({ name: "Spec A" })
+        '/fhir/v1/speciality',
+        expect.objectContaining({ name: 'Spec A' })
       );
       // Services for A
       expect(axiosService.postData).toHaveBeenCalledWith(
-        "/fhir/v1/service",
-        expect.objectContaining({ name: "Svc A1", specialityId: "spec-a" })
+        '/fhir/v1/service',
+        expect.objectContaining({ name: 'Svc A1', specialityId: 'spec-a' })
       );
-       // Spec B
-       expect(axiosService.postData).toHaveBeenCalledWith(
-        "/fhir/v1/speciality",
-        expect.objectContaining({ name: "Spec B" })
+      // Spec B
+      expect(axiosService.postData).toHaveBeenCalledWith(
+        '/fhir/v1/speciality',
+        expect.objectContaining({ name: 'Spec B' })
       );
     });
 
-    it("throws error on failure", async () => {
-      const payload: SpecialityWeb[] = [{ name: "Fail Spec" } as any];
-      (axiosService.postData as jest.Mock).mockRejectedValue(new Error("Bulk Fail"));
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    it('throws error on failure', async () => {
+      const payload: SpecialityWeb[] = [{ name: 'Fail Spec' } as any];
+      (axiosService.postData as jest.Mock).mockRejectedValue(new Error('Bulk Fail'));
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      await expect(createBulkSpecialityServices(payload)).rejects.toThrow("Bulk Fail");
+      await expect(createBulkSpecialityServices(payload)).rejects.toThrow('Bulk Fail');
       expect(consoleSpy).toHaveBeenCalled();
       consoleSpy.mockRestore();
     });
@@ -294,27 +291,24 @@ describe("specialityService", () => {
   // 5. updateSpeciality
   // ===========================================================================
 
-  describe("updateSpeciality", () => {
-    const payload = { _id: "spec-1", name: "Updated Spec" } as any;
+  describe('updateSpeciality', () => {
+    const payload = { _id: 'spec-1', name: 'Updated Spec' } as any;
 
-    it("updates speciality successfully", async () => {
+    it('updates speciality successfully', async () => {
       (axiosService.putData as jest.Mock).mockResolvedValue({ data: payload });
 
       const result = await updateSpeciality(payload);
 
-      expect(axiosService.putData).toHaveBeenCalledWith(
-        "/fhir/v1/speciality/spec-1",
-        payload
-      );
+      expect(axiosService.putData).toHaveBeenCalledWith('/fhir/v1/speciality/spec-1', payload);
       expect(mockUpdateSpeciality).toHaveBeenCalled();
-      expect(result).toEqual(expect.objectContaining({ name: "Updated Spec" }));
+      expect(result).toEqual(expect.objectContaining({ name: 'Updated Spec' }));
     });
 
-    it("throws error on failure", async () => {
-      (axiosService.putData as jest.Mock).mockRejectedValue(new Error("Update Fail"));
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    it('throws error on failure', async () => {
+      (axiosService.putData as jest.Mock).mockRejectedValue(new Error('Update Fail'));
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      await expect(updateSpeciality(payload)).rejects.toThrow("Update Fail");
+      await expect(updateSpeciality(payload)).rejects.toThrow('Update Fail');
       expect(consoleSpy).toHaveBeenCalled();
       consoleSpy.mockRestore();
     });
@@ -324,28 +318,137 @@ describe("specialityService", () => {
   // 6. updateService
   // ===========================================================================
 
-  describe("updateService", () => {
-    const payload = { id: "svc-1", name: "Updated Svc" } as any;
+  describe('updateService', () => {
+    const payload = { id: 'svc-1', name: 'Updated Svc' } as any;
 
-    it("updates service successfully", async () => {
+    it('updates service successfully', async () => {
       (axiosService.patchData as jest.Mock).mockResolvedValue({ data: payload });
 
       await updateService(payload);
 
-      expect(axiosService.patchData).toHaveBeenCalledWith(
-        "/fhir/v1/service/svc-1",
-        payload
-      );
+      expect(axiosService.patchData).toHaveBeenCalledWith('/fhir/v1/service/svc-1', payload);
       expect(mockUpdateService).toHaveBeenCalled();
     });
 
-    it("throws error on failure", async () => {
-      (axiosService.patchData as jest.Mock).mockRejectedValue(new Error("Patch Fail"));
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    it('throws error on failure', async () => {
+      (axiosService.patchData as jest.Mock).mockRejectedValue(new Error('Patch Fail'));
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      await expect(updateService(payload)).rejects.toThrow("Patch Fail");
+      await expect(updateService(payload)).rejects.toThrow('Patch Fail');
       expect(consoleSpy).toHaveBeenCalled();
       consoleSpy.mockRestore();
+    });
+  });
+
+  // ===========================================================================
+  // 7. deleteSpeciality
+  // ===========================================================================
+
+  describe('deleteSpeciality', () => {
+    const mockDeleteSpecialityById = jest.fn();
+    const mockDeleteServicesBySpecialityId = jest.fn();
+
+    beforeEach(() => {
+      (useSpecialityStore.getState as jest.Mock).mockReturnValue({
+        ...jest.requireActual('@/app/stores/specialityStore'),
+        startLoading: mockStartLoading,
+        setSpecialitiesForOrg: mockSetSpecialitiesForOrg,
+        updateSpeciality: mockUpdateSpeciality,
+        addSpeciality: mockAddSpeciality,
+        status: 'idle',
+        deleteSpecialityById: mockDeleteSpecialityById,
+      });
+      (useServiceStore.getState as jest.Mock).mockReturnValue({
+        setServicesForOrg: mockSetServicesForOrg,
+        addService: mockAddService,
+        updateService: mockUpdateService,
+        deleteServicesBySpecialityId: mockDeleteServicesBySpecialityId,
+      });
+    });
+
+    it('deletes speciality and clears services', async () => {
+      const payload = { _id: 'spec-1', organisationId: 'org-1', name: 'Spec' } as any;
+      (axiosService.deleteData as jest.Mock).mockResolvedValue({});
+
+      await deleteSpeciality(payload);
+
+      expect(deleteData).toHaveBeenCalledWith('/fhir/v1/speciality/org-1/spec-1');
+      expect(mockDeleteSpecialityById).toHaveBeenCalledWith('spec-1');
+      expect(mockDeleteServicesBySpecialityId).toHaveBeenCalledWith('spec-1');
+    });
+
+    it('throws when _id or organisationId missing', async () => {
+      const payload = { _id: '', organisationId: 'org-1' } as any;
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      await expect(deleteSpeciality(payload)).rejects.toThrow(
+        'Speciality ID or Organisation ID is missing.'
+      );
+      consoleSpy.mockRestore();
+    });
+
+    it('throws on API failure', async () => {
+      const payload = { _id: 'spec-1', organisationId: 'org-1' } as any;
+      (axiosService.deleteData as jest.Mock).mockRejectedValue(new Error('Delete failed'));
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      await expect(deleteSpeciality(payload)).rejects.toThrow('Delete failed');
+      consoleSpy.mockRestore();
+    });
+  });
+
+  // ===========================================================================
+  // 8. loadSpecialitiesForOrg - missing orgId
+  // ===========================================================================
+
+  describe('loadSpecialitiesForOrg - edge cases', () => {
+    it('returns early when no primaryOrgId', async () => {
+      (useOrgStore.getState as jest.Mock).mockReturnValue({ primaryOrgId: null });
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+      await loadSpecialitiesForOrg();
+
+      expect(axiosService.getData).not.toHaveBeenCalled();
+      warnSpy.mockRestore();
+    });
+
+    it('skips loading when status is loaded and force is false', async () => {
+      (useSpecialityStore.getState as jest.Mock).mockReturnValue({
+        startLoading: mockStartLoading,
+        setSpecialitiesForOrg: mockSetSpecialitiesForOrg,
+        status: 'loaded',
+      });
+
+      await loadSpecialitiesForOrg({ force: false });
+      expect(axiosService.getData).not.toHaveBeenCalled();
+    });
+
+    it('loads when force is true even if status is loaded', async () => {
+      (useSpecialityStore.getState as jest.Mock).mockReturnValue({
+        startLoading: mockStartLoading,
+        setSpecialitiesForOrg: mockSetSpecialitiesForOrg,
+        status: 'loaded',
+      });
+      (axiosService.getData as jest.Mock).mockResolvedValue({ data: [] });
+
+      await loadSpecialitiesForOrg({ force: true });
+      expect(axiosService.getData).toHaveBeenCalled();
+    });
+
+    it('handles null services in item', async () => {
+      (axiosService.getData as jest.Mock).mockResolvedValue({
+        data: [{ speciality: { id: 's1' }, services: null }],
+      });
+
+      await loadSpecialitiesForOrg();
+      expect(mockSetSpecialitiesForOrg).toHaveBeenCalled();
+    });
+
+    it('silent mode does not call startLoading', async () => {
+      (axiosService.getData as jest.Mock).mockResolvedValue({ data: [] });
+
+      await loadSpecialitiesForOrg({ silent: true });
+      expect(mockStartLoading).not.toHaveBeenCalled();
     });
   });
 });

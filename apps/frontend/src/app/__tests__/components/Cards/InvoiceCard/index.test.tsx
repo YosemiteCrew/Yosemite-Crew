@@ -24,7 +24,7 @@ jest.mock('@/app/hooks/useAppointments', () => ({
 }));
 
 jest.mock('@/app/lib/invoicePaymentMethod', () => ({
-  getInvoicePaymentMethodLabel: () => 'Cash at Clinic',
+  getInvoicePaymentMethodLabel: () => 'Paid in cash',
 }));
 
 import { formatDateLabel } from '@/app/lib/forms';
@@ -69,7 +69,7 @@ describe('InvoiceCard Component', () => {
     expect(screen.getByText('$100')).toBeInTheDocument(); // Subtotal
     expect(screen.getByText('$10')).toBeInTheDocument(); // Tax
     expect(screen.getByText('$110')).toBeInTheDocument(); // Total
-    expect(screen.getByText('Cash at Clinic')).toBeInTheDocument();
+    expect(screen.getByText('Paid in cash')).toBeInTheDocument();
   });
 
   // --- 2. Fallback Logic ---
