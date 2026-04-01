@@ -1,17 +1,18 @@
 import React, { useMemo } from 'react';
 import { HistoryEntry } from '@/app/features/companionHistory/types/history';
-import { Card } from '@/app/ui';
+import { Badge, Card } from '@/app/ui';
 import { RiExternalLinkLine } from 'react-icons/ri';
 import {
   formatCurrency,
   formatHistoryDate,
   formatHistoryDateTime,
+  getHistoryStatusBadgeTone,
   getHistoryTypeLabel,
+  getHistoryTypeBadgeTone,
   getPayloadBoolean,
   getPayloadNumber,
   getPayloadString,
   getPrimaryActionLabel,
-  getTypeBadgeClassName,
 } from '@/app/features/companionHistory/utils/historyFormatters';
 import { getPaymentCollectionMethodLabel } from '@/app/lib/invoicePaymentMethod';
 
@@ -25,15 +26,26 @@ type DetailPair = {
   value: string;
 };
 
+const ROLE_LABEL_MAP: Record<string, string> = {
+  VET: 'Clinician',
+  STAFF: 'Support staff',
+  PARENT: 'Pet parent',
+  SYSTEM: 'System',
+};
+
+const getPayloadStringArray = (payload: Record<string, unknown>, key: string): string[] => {
+  const value = payload?.[key];
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => String(item ?? '').trim()).filter((item) => item.length > 0);
+};
+
 const getAppointmentDetails = (entry: HistoryEntry): DetailPair[] => {
   const service = getPayloadString(entry.payload, ['serviceName']);
   const concern = getPayloadString(entry.payload, ['concern', 'reason']);
-  const leadVet = getPayloadString(entry.payload, ['leadVet', 'leadVetName']);
   const room = getPayloadString(entry.payload, ['room', 'roomName']);
   return [
     { label: 'Service', value: service || '-' },
     { label: 'Reason', value: concern || '-' },
-    { label: 'Lead vet', value: leadVet || '-' },
     { label: 'Room', value: room || '-' },
   ];
 };
@@ -60,15 +72,22 @@ const getTaskDetails = (entry: HistoryEntry): DetailPair[] => {
 
 const getFormDetails = (entry: HistoryEntry): DetailPair[] => {
   const category = getPayloadString(entry.payload, ['formCategory', 'category']);
-  const signedStatus = getPayloadString(entry.payload, ['signingStatus']);
+  const signingPayload =
+    entry.payload && typeof entry.payload.signing === 'object' && entry.payload.signing !== null
+      ? (entry.payload.signing as Record<string, unknown>)
+      : null;
+  const nestedSigningStatus =
+    signingPayload && typeof signingPayload.status === 'string' ? signingPayload.status : null;
+  const signedStatus = nestedSigningStatus || getPayloadString(entry.payload, ['signingStatus']);
   const submittedAt = getPayloadString(entry.payload, ['submittedAt']);
   const soapSubtype = getPayloadString(entry.payload, ['soapSubtype']);
+  const signatureLabel = formatStatusLabel(signedStatus || entry.status) || '-';
 
   return [
     { label: 'Category', value: category || '-' },
     { label: 'SOAP type', value: soapSubtype || '-' },
     { label: 'Submitted', value: submittedAt ? formatHistoryDate(submittedAt) : '-' },
-    { label: 'Signature', value: signedStatus || (entry.status ?? '-') },
+    { label: 'Signature', value: signatureLabel },
   ];
 };
 
@@ -147,6 +166,62 @@ const formatStatusLabel = (status?: string): string => {
     .join(' ');
 };
 
+const normalizeText = (value: string): string =>
+  value.toLowerCase().replace(/[,]/g, '').replace(/\s+/g, ' ').trim();
+
+const getDedupedSubtitle = (entry: HistoryEntry): string => {
+  const subtitle = String(entry.subtitle ?? '').trim();
+  if (!subtitle) return '';
+
+  const occurredDateLabel = formatHistoryDate(entry.occurredAt);
+  const normalizedSubtitle = normalizeText(subtitle);
+  const normalizedOccurredDate = normalizeText(occurredDateLabel);
+  if (normalizedSubtitle === normalizedOccurredDate) return '';
+
+  const escapedOccurredDate = occurredDateLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const datePrefixPattern = new RegExp(`^${escapedOccurredDate}\\s*[•|-]\\s*`, 'i');
+  const withoutDatePrefix = subtitle.replace(datePrefixPattern, '').trim();
+
+  if (withoutDatePrefix && normalizeText(withoutDatePrefix) !== normalizedOccurredDate) {
+    return withoutDatePrefix;
+  }
+
+  return subtitle;
+};
+
+const getContributorDetails = (entry: HistoryEntry): DetailPair[] => {
+  const leadName =
+    getPayloadString(entry.payload, ['leadName', 'leadVet', 'leadVetName']) ||
+    entry.actor?.name?.trim() ||
+    '';
+  const supportNames = getPayloadStringArray(entry.payload, 'supportStaffNames');
+  const supportSingle = getPayloadString(entry.payload, ['supportStaffName']);
+  const supportDisplay = [...supportNames, supportSingle].filter(Boolean).join(', ');
+  const actorName = entry.actor?.name?.trim() || '';
+  const actorRoleKey = String(entry.actor?.role ?? '')
+    .trim()
+    .toUpperCase();
+  const actorRoleLabel = ROLE_LABEL_MAP[actorRoleKey] || '';
+
+  if (leadName || supportDisplay) {
+    return [
+      { label: 'Lead', value: leadName || '-' },
+      { label: 'Support', value: supportDisplay || '-' },
+    ].filter((detail) => detail.value !== '-');
+  }
+
+  if (actorName && actorRoleLabel) {
+    return [{ label: 'Updated by', value: `${actorName} • ${actorRoleLabel}` }];
+  }
+  if (actorName) {
+    return [{ label: 'Updated by', value: actorName }];
+  }
+  if (actorRoleLabel) {
+    return [{ label: 'Updated by', value: actorRoleLabel }];
+  }
+  return [];
+};
+
 const HistoryEntryCard = ({ entry, onOpen }: HistoryEntryCardProps) => {
   const actionLabel = useMemo(() => getPrimaryActionLabel(entry), [entry]);
   const statusLabel = useMemo(() => formatStatusLabel(entry.status), [entry.status]);
@@ -156,34 +231,39 @@ const HistoryEntryCard = ({ entry, onOpen }: HistoryEntryCardProps) => {
       .slice(0, 3);
   }, [entry]);
 
-  const actorDisplay = useMemo(() => {
-    const actorName = entry.actor?.name?.trim();
-    const actorRole = entry.actor?.role?.trim();
-
-    if (actorName && actorRole) return `${actorName} • ${actorRole}`;
-    if (actorName) return actorName;
-    if (actorRole) return actorRole;
-    return null;
-  }, [entry.actor?.name, entry.actor?.role]);
+  const contributorDetails = useMemo(() => getContributorDetails(entry), [entry]);
+  const subtitle = useMemo(() => getDedupedSubtitle(entry), [entry]);
+  const serviceReasonDetails = useMemo(
+    () =>
+      entry.type === 'APPOINTMENT'
+        ? details.filter((detail) => detail.label === 'Service' || detail.label === 'Reason')
+        : [],
+    [details, entry.type]
+  );
+  const detailsForGrid = useMemo(
+    () =>
+      entry.type === 'APPOINTMENT'
+        ? details.filter((detail) => detail.label !== 'Service' && detail.label !== 'Reason')
+        : details,
+    [details, entry.type]
+  );
 
   return (
-    <Card variant="default" className="w-full px-3 py-2.5 md:px-3.5 md:py-2.5">
+    <Card variant="default" className="w-full font-satoshi px-3 py-2.5 md:px-3.5 md:py-2.5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span
-            className={`rounded-full px-2 py-0.5 text-label-xsmall ${getTypeBadgeClassName(entry.type)}`}
-          >
+          <Badge tone={getHistoryTypeBadgeTone(entry.type)} className="px-2 py-0.5 text-caption-1">
             {getHistoryTypeLabel(entry.type)}
-          </span>
-          {statusLabel ? (
-            <span className="rounded-full bg-card-hover px-2 py-0.5 text-label-xsmall text-text-secondary">
-              {statusLabel}
-            </span>
-          ) : null}
+          </Badge>
         </div>
-        <div className="text-caption-2 text-text-secondary">
-          {formatHistoryDateTime(entry.occurredAt)}
-        </div>
+        {statusLabel ? (
+          <Badge
+            tone={getHistoryStatusBadgeTone(entry.status)}
+            className="px-2 py-0.5 text-caption-1"
+          >
+            {statusLabel}
+          </Badge>
+        ) : null}
       </div>
 
       <div className="mt-1.5 flex flex-col gap-0.5">
@@ -200,41 +280,70 @@ const HistoryEntryCard = ({ entry, onOpen }: HistoryEntryCardProps) => {
             <RiExternalLinkLine size={12} />
           </span>
         </button>
-        {entry.subtitle ? (
-          <div className="text-caption-2 text-text-secondary">{entry.subtitle}</div>
-        ) : null}
-        {entry.summary ? (
-          <div className="text-caption-2 leading-snug text-text-primary">{entry.summary}</div>
+        {subtitle ? <div className="text-caption-1 text-text-secondary">{subtitle}</div> : null}
+        {entry.summary && entry.type !== 'APPOINTMENT' ? (
+          <div className="text-caption-1 leading-snug text-text-primary">{entry.summary}</div>
         ) : null}
       </div>
 
-      {actorDisplay ? (
-        <div className="mt-2 text-caption-2 text-text-secondary">Actor: {actorDisplay}</div>
-      ) : null}
-
-      {details.length > 0 ? (
-        <div className="mt-2 grid grid-cols-1 gap-x-3 gap-y-1 sm:grid-cols-2">
-          {details.map((detail) => (
-            <div key={`${entry.id}-${detail.label}`} className="flex min-w-0 items-start gap-1.5">
-              <div className="shrink-0 text-caption-2 text-text-extra">{detail.label}:</div>
-              <div className="truncate text-caption-2 text-text-primary">{detail.value}</div>
+      {serviceReasonDetails.length > 0 ? (
+        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          {serviceReasonDetails.map((detail, index) => (
+            <div key={`${entry.id}-${detail.label}`} className="inline-flex items-center gap-2">
+              <span className="inline-flex items-center gap-1">
+                <span className="text-caption-1 text-text-extra">{detail.label}:</span>
+                <span className="text-caption-1 text-text-primary">{detail.value}</span>
+              </span>
+              {index < serviceReasonDetails.length - 1 ? (
+                <span className="text-caption-1 text-text-extra">•</span>
+              ) : null}
             </div>
           ))}
         </div>
       ) : null}
 
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-1.5 border-t border-card-border pt-2">
-        <div className="flex flex-wrap items-center gap-1.5">
+      {detailsForGrid.length > 0 ? (
+        <div className="mt-2 grid grid-cols-1 gap-x-3 gap-y-1 sm:grid-cols-2">
+          {detailsForGrid.map((detail) => (
+            <div key={`${entry.id}-${detail.label}`} className="flex min-w-0 items-start gap-1.5">
+              <div className="shrink-0 text-caption-1 text-text-extra">{detail.label}:</div>
+              <div className="truncate text-caption-1 text-text-primary">{detail.value}</div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="mt-2 flex items-start justify-between gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
+          {contributorDetails.map((detail, index) => (
+            <div key={`${entry.id}-${detail.label}`} className="inline-flex items-center gap-2">
+              <span className="inline-flex items-center gap-1">
+                <span className="text-caption-1 text-text-extra">{detail.label}:</span>
+                <span className="text-caption-1 text-text-primary">{detail.value}</span>
+              </span>
+              {index < contributorDetails.length - 1 ? (
+                <span className="text-caption-1 text-text-extra">•</span>
+              ) : null}
+            </div>
+          ))}
+        </div>
+        <div className="shrink-0 text-caption-1 text-right text-text-secondary">
+          {formatHistoryDateTime(entry.occurredAt)}
+        </div>
+      </div>
+
+      {(entry.tags ?? []).length > 0 ? (
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           {(entry.tags ?? []).map((tag) => (
             <span
               key={`${entry.id}-${tag}`}
-              className="rounded-full bg-card-hover px-2 py-0.5 text-label-xsmall text-text-secondary"
+              className="rounded-full bg-card-hover px-2 py-0.5 text-caption-1 text-text-secondary"
             >
               {tag}
             </span>
           ))}
         </div>
-      </div>
+      ) : null}
     </Card>
   );
 };

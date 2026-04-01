@@ -7,9 +7,53 @@ import { AuditTrail } from '@/app/features/audit/types/audit';
 import { getAppointmentAuditTrail } from '@/app/features/audit/services/auditService';
 import { toTitle } from '@/app/lib/validators';
 import { formatDateTimeLocal } from '@/app/lib/date';
+import { Badge, Card } from '@/app/ui';
 
 type AuditProps = {
   activeAppointment: Appointment;
+};
+
+const getAuditActorDisplay = (entry: AuditTrail): string => {
+  const actorType = String(entry.actorType ?? '')
+    .trim()
+    .toUpperCase();
+  const actorTypeLabelMap: Record<string, string> = {
+    PMS_USER: 'Team member',
+    PARENT: 'Pet parent',
+    SYSTEM: 'System',
+  };
+  const actorTypeLabel = actorTypeLabelMap[actorType] || toTitle(actorType || 'SYSTEM');
+  const actorName = String(entry.actorName ?? '').trim();
+  if (actorName) {
+    return `${actorName} • ${actorTypeLabel}`;
+  }
+  return actorTypeLabel;
+};
+
+const getAuditEntityLabel = (entityType?: string | null): string => {
+  const normalized = String(entityType ?? '')
+    .trim()
+    .toUpperCase();
+  const entityTypeLabelMap: Record<string, string> = {
+    COMPANION_ORGANISATION: 'Companion profile',
+    APPOINTMENT: 'Appointment',
+    INVOICE: 'Finance',
+    DOCUMENT: 'Document',
+    FORM: 'Template',
+  };
+  return entityTypeLabelMap[normalized] || toTitle(normalized);
+};
+
+const getAuditEntityTone = (
+  entityType?: string | null
+): 'neutral' | 'brand' | 'success' | 'warning' | 'danger' => {
+  const normalized = String(entityType ?? '')
+    .trim()
+    .toUpperCase();
+  if (normalized === 'APPOINTMENT') return 'brand';
+  if (normalized === 'INVOICE') return 'success';
+  if (normalized === 'DOCUMENT') return 'warning';
+  return 'neutral';
 };
 
 const Audit = ({ activeAppointment }: AuditProps) => {
@@ -47,33 +91,37 @@ const Audit = ({ activeAppointment }: AuditProps) => {
             Nothing to show
           </div>
         ) : (
-          <div className="w-full max-w-3xl mx-auto flex flex-col gap-2">
+          <div className="w-full max-w-3xl mx-auto flex flex-col gap-1.5">
             {entries.map((e, idx) => (
-              <div
+              <Card
                 key={e.id ?? `${e.eventType}-${e.occurredAt}-${idx}`}
-                className="w-full rounded-2xl border border-card-border bg-white px-3 py-3"
+                variant="default"
+                className="w-full font-satoshi px-3 py-2.5"
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex flex-col">
-                    <div className="text-body-3 text-text-primary font-medium">
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 truncate text-body-4-emphasis text-text-primary">
                       {toTitle(e.eventType)}
                     </div>
-
-                    <div className="text-caption-1 text-text-secondary">
-                      {toTitle(e.entityType)}
-                    </div>
-
-                    <div className="text-caption-1 text-text-secondary">
-                      Actor: {toTitle(e.actorType)}
-                      {e.actorName ? ' - ' + toTitle(e.actorName) : ''}
-                    </div>
+                    {e.entityType ? (
+                      <Badge
+                        tone={getAuditEntityTone(e.entityType)}
+                        className="px-2 py-0.5 text-caption-1"
+                      >
+                        {getAuditEntityLabel(e.entityType)}
+                      </Badge>
+                    ) : null}
                   </div>
-
-                  <div className="text-caption-1 text-text-secondary whitespace-nowrap">
-                    {formatDateTimeLocal(e.occurredAt, '—')}
+                  <div className="mt-0.5 flex items-end justify-between gap-2">
+                    <div className="truncate text-caption-1 text-text-secondary">
+                      Updated by: {getAuditActorDisplay(e)}
+                    </div>
+                    <div className="shrink-0 text-caption-1 text-text-secondary md:whitespace-nowrap">
+                      {formatDateTimeLocal(e.occurredAt, '—')}
+                    </div>
                   </div>
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         )}

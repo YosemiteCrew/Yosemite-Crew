@@ -1,5 +1,7 @@
 import { HistoryEntry, HistoryEntryType } from '@/app/features/companionHistory/types/history';
 
+type BadgeTone = 'neutral' | 'brand' | 'success' | 'warning' | 'danger';
+
 const DATE_TIME_FORMATTER = new Intl.DateTimeFormat('en-US', {
   month: 'short',
   day: 'numeric',
@@ -42,6 +44,41 @@ export const getTypeBadgeClassName = (type: HistoryEntryType) => {
   if (type === 'DOCUMENT') return 'bg-amber-50 text-amber-700';
   if (type === 'LAB_RESULT') return 'bg-teal-50 text-teal-700';
   return 'bg-emerald-50 text-emerald-700';
+};
+
+export const getHistoryTypeBadgeTone = (type: HistoryEntryType): BadgeTone => {
+  if (type === 'APPOINTMENT') return 'brand';
+  if (type === 'TASK') return 'warning';
+  if (type === 'FORM_SUBMISSION') return 'brand';
+  if (type === 'DOCUMENT') return 'neutral';
+  if (type === 'LAB_RESULT') return 'success';
+  return 'brand';
+};
+
+export const getHistoryStatusBadgeTone = (status?: string | null): BadgeTone => {
+  const normalized = String(status ?? '')
+    .trim()
+    .toUpperCase();
+
+  if (!normalized) return 'neutral';
+
+  const successStatuses = new Set(['COMPLETED', 'PAID', 'SIGNED', 'APPROVED', 'DONE']);
+  if (successStatuses.has(normalized)) return 'success';
+
+  const warningStatuses = new Set(['PENDING', 'AWAITING_PAYMENT', 'IN_PROGRESS', 'REQUESTED']);
+  if (warningStatuses.has(normalized)) return 'warning';
+
+  const dangerStatuses = new Set([
+    'CANCELLED',
+    'CANCELED',
+    'REJECTED',
+    'FAILED',
+    'OVERDUE',
+    'VOID',
+  ]);
+  if (dangerStatuses.has(normalized)) return 'danger';
+
+  return 'neutral';
 };
 
 export const getPayloadString = (

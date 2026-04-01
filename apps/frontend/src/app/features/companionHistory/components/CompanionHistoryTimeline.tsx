@@ -24,6 +24,7 @@ import { fetchCompanionHistory } from '@/app/features/companionHistory/services/
 import { AuditTrail } from '@/app/features/audit/types/audit';
 import { getCompanionAuditTrail } from '@/app/features/audit/services/auditService';
 import { Secondary } from '@/app/ui/primitives/Buttons';
+import { Badge, Card } from '@/app/ui';
 
 type CompanionHistoryTimelineProps = {
   companionId: string;
@@ -136,11 +137,48 @@ const getLinkedEntryIntent = (
 };
 
 const getAuditActorDisplay = (entry: AuditTrail): string => {
-  const actorTypeLabel = toTitle(entry.actorType ?? 'SYSTEM');
-  if (entry.actorName) {
-    return `${toTitle(entry.actorName)} • ${actorTypeLabel}`;
+  const actorTypeLabelMap: Record<string, string> = {
+    PMS_USER: 'Team member',
+    PARENT: 'Pet parent',
+    SYSTEM: 'System',
+  };
+  const actorTypeLabel =
+    actorTypeLabelMap[
+      String(entry.actorType ?? '')
+        .trim()
+        .toUpperCase()
+    ] || 'System';
+  const actorName = String(entry.actorName ?? '').trim();
+  if (actorName) {
+    return `${actorName} • ${actorTypeLabel}`;
   }
   return actorTypeLabel;
+};
+
+const getAuditEntityLabel = (entityType?: string | null): string => {
+  const entityTypeLabelMap: Record<string, string> = {
+    COMPANION_ORGANISATION: 'Companion profile',
+    APPOINTMENT: 'Appointment',
+    INVOICE: 'Finance',
+    DOCUMENT: 'Document',
+    FORM: 'Template',
+  };
+  const normalized = String(entityType ?? '')
+    .trim()
+    .toUpperCase();
+  return entityTypeLabelMap[normalized] || toTitle(normalized);
+};
+
+const getAuditEntityBadgeTone = (
+  entityType?: string | null
+): 'neutral' | 'brand' | 'success' | 'warning' | 'danger' => {
+  const normalized = String(entityType ?? '')
+    .trim()
+    .toUpperCase();
+  if (normalized === 'APPOINTMENT') return 'brand';
+  if (normalized === 'INVOICE') return 'success';
+  if (normalized === 'DOCUMENT') return 'warning';
+  return 'neutral';
 };
 
 type AuditTrailSectionProps = {
@@ -174,31 +212,35 @@ const AuditTrailSection = ({
   return (
     <div className="flex flex-col gap-2.5">
       {auditEntries.map((entry, index) => (
-        <div
+        <Card
           key={entry.id ?? `${entry.eventType}-${entry.occurredAt}-${index}`}
-          className="w-full rounded-2xl border border-card-border bg-white px-3 py-2.5 md:px-4 md:py-3"
+          variant="default"
+          className="w-full font-satoshi px-3 py-2.5 md:px-4 md:py-3"
         >
-          <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1.5">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <div className="truncate text-body-3-emphasis text-text-primary">
-                  {toTitle(entry.eventType)}
-                </div>
-                {entry.entityType ? (
-                  <span className="rounded-full bg-blue-light px-2 py-0.5 text-label-xsmall text-blue-text">
-                    {toTitle(entry.entityType)}
-                  </span>
-                ) : null}
+          <div className="flex flex-col gap-1">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 truncate text-body-3-emphasis text-text-primary">
+                {toTitle(entry.eventType)}
               </div>
-              <div className="mt-1 text-caption-1 text-text-secondary">
-                {getAuditActorDisplay(entry)}
-              </div>
+              {entry.entityType ? (
+                <Badge
+                  tone={getAuditEntityBadgeTone(entry.entityType)}
+                  className="px-2 py-0.5 text-caption-1"
+                >
+                  {getAuditEntityLabel(entry.entityType)}
+                </Badge>
+              ) : null}
             </div>
-            <div className="shrink-0 text-caption-1 text-text-secondary md:whitespace-nowrap">
-              {formatDateTimeLocal(entry.occurredAt, '—')}
+            <div className="mt-0.5 flex items-end justify-between gap-2">
+              <div className="truncate text-caption-1 text-text-secondary">
+                Updated by: {getAuditActorDisplay(entry)}
+              </div>
+              <div className="shrink-0 text-caption-1 text-text-secondary md:whitespace-nowrap">
+                {formatDateTimeLocal(entry.occurredAt, '—')}
+              </div>
             </div>
           </div>
-        </div>
+        </Card>
       ))}
     </div>
   );

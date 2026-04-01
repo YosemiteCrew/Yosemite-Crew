@@ -19,7 +19,7 @@
   justify-content: center;
 }
 .PrivacyPolicySec .PrivacyPolicyData .privacyHead .privacyhead h2 {
-  font-family: var(--grotesk-font);
+  font-family: var(--font-satoshi);
   font-weight: 500;
   font-size: 40px;
   line-height: 120%;

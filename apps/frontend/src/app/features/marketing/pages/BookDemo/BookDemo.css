@@ -1,5 +1,5 @@
 .App {
-  font-family: var(--grotesk-font);
+  font-family: var(--font-satoshi);
   text-align: center;
   height: calc(100vh - 141px);
 }

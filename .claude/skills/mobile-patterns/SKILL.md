@@ -84,6 +84,12 @@ const { t } = useTranslation();
 
 Never hardcode English strings in components.
 
+### UI copy normalization
+
+- Never render raw backend enums or role acronyms directly in UI text (example: `PAYMENT_AT_CLINIC`, `VET`).
+- Map technical values to user-friendly labels before rendering.
+- Avoid `Actor` as a user-facing label; prefer contextual labels (`Lead`, `Support`) or neutral `Updated by`.
+
 ---
 
 ## Authentication

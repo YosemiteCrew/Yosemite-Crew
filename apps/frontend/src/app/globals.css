@@ -194,7 +194,6 @@
   --color-delete: #ea3729;
   --color-pending-text: #f68523;
   --font-satoshi: 'Satoshi', sans-serif;
-  --font-grotesk: 'Satoshi', sans-serif;
 }
 :root {
   --black-text: var(--color-black-text);
@@ -219,7 +218,6 @@
   --delete: var(--color-delete);
   --pendingbg: var(--color-card-warning);
   --pendingtext: var(--color-pending-text);
-  --grotesk-font: var(--font-grotesk);
   --satoshi-font: var(--font-satoshi);
   --img-bg-rightfaq: url('https://d2il6osz49gpup.cloudfront.net/Images/rightfaq.png');
   --img-bg-downfaq: url('https://d2il6osz49gpup.cloudfront.net/Images/downfaq.png');

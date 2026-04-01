@@ -46,7 +46,7 @@
 }
 
 .TrustHeroTitle {
-  font-family: var(--grotesk-font);
+  font-family: var(--font-satoshi);
   font-size: 2.75rem;
   font-weight: 500;
   line-height: 1.1;
@@ -161,7 +161,7 @@
 }
 
 .SectionTitle {
-  font-family: var(--grotesk-font);
+  font-family: var(--font-satoshi);
   font-weight: 500;
   font-size: 1.75rem;
   line-height: 1.2;
@@ -201,7 +201,7 @@
 }
 
 .CardTitle {
-  font-family: var(--grotesk-font);
+  font-family: var(--font-satoshi);
   font-size: 1.25rem;
   font-weight: 500;
   line-height: 1.2;
@@ -446,7 +446,7 @@
 }
 
 .helpText h3 {
-  font-family: var(--grotesk-font);
+  font-family: var(--font-satoshi);
   font-size: 2rem;
   font-weight: 500;
   color: #ffffff;
@@ -551,7 +551,7 @@
 
 .ModalHeader h3 {
   margin: 0;
-  font-family: var(--grotesk-font);
+  font-family: var(--font-satoshi);
   font-size: 1.5rem;
   font-weight: 600;
   color: var(--black-text);

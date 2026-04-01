@@ -40,6 +40,12 @@ Design-token source of truth: `src/app/globals.css` (`@theme`). `src/app/ui/toke
 - Font: **Satoshi** (already loaded). Never default to Inter or system fonts for new UI.
 - No arbitrary Tailwind values (e.g. `w-[347px]`) without a clear reason.
 
+## UI Copy Rules
+
+- Never render backend/raw enums or acronyms in UI copy (example: `PAYMENT_AT_CLINIC`, `VET`).
+- Always transform technical values to user-friendly text before render.
+- Never use `Actor` as a label in cards, tables, or details panes. Prefer contextual labels such as `Lead`, `Support`, or neutral `Updated by`.
+
 ---
 
 ## State Management

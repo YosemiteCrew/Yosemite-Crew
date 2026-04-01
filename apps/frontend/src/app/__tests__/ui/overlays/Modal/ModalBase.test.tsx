@@ -15,6 +15,7 @@ describe('ModalBase', () => {
         onClose={onClose}
         overlayClassName="overlay"
         containerClassName="container"
+        aria-label="Test modal"
         {...props}
       >
         <div>Modal content</div>
@@ -24,11 +25,17 @@ describe('ModalBase', () => {
     return { setShowModal, onClose };
   };
 
-  it('renders content and closes from overlay click', () => {
+  it('renders content with dialog role', () => {
+    renderModal();
+    expect(screen.getByText('Modal content')).toBeInTheDocument();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('dialog')).toHaveAttribute('aria-modal', 'true');
+  });
+
+  it('closes on outside click (mousedown outside container)', () => {
     const { setShowModal, onClose } = renderModal();
 
-    expect(screen.getByText('Modal content')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Close modal' }));
+    fireEvent.mouseDown(document.body);
 
     expect(setShowModal).toHaveBeenCalledWith(false);
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -37,7 +44,24 @@ describe('ModalBase', () => {
   it('does not close when canClose returns false', () => {
     const { setShowModal, onClose } = renderModal({ canClose: () => false });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Close modal' }));
+    fireEvent.mouseDown(document.body);
+    expect(setShowModal).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('closes on escape key', () => {
+    const { setShowModal, onClose } = renderModal();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(setShowModal).toHaveBeenCalledWith(false);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not close on escape when canClose returns false', () => {
+    const { setShowModal, onClose } = renderModal({ canClose: () => false });
+
+    fireEvent.keyDown(document, { key: 'Escape' });
     expect(setShowModal).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
   });
@@ -57,5 +81,7 @@ describe('ModalBase', () => {
     fireEvent.mouseDown(document.body);
     expect(setShowModal).toHaveBeenCalledWith(false);
     expect(onClose).toHaveBeenCalledTimes(1);
+
+    ignored.remove();
   });
 });

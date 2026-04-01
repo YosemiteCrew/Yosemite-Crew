@@ -39,7 +39,7 @@
 }
 
 .OverviewMainTitle {
-  font-family: var(--grotesk-font);
+  font-family: var(--font-satoshi);
   font-size: 3rem;
   font-weight: 500;
   color: var(--color-text-primary);
@@ -82,7 +82,7 @@
 }
 
 .OverviewGraphsTitle {
-  font-family: var(--grotesk-font);
+  font-family: var(--font-satoshi);
   font-size: 2.25rem;
   font-weight: 500;
   color: var(--color-text-primary);
