@@ -3402,6 +3402,10 @@ export const AppointmentService = {
                 address: org.address ?? null,
                 phoneNo: org.phoneNo ?? null,
                 googlePlacesId: org.googlePlacesId ?? null,
+                appointmentCheckInBufferMinutes:
+                  org.appointmentCheckInBufferMinutes ?? 5,
+                appointmentCheckInRadiusMeters:
+                  org.appointmentCheckInRadiusMeters ?? 200,
               }
             : null,
         };
@@ -3424,7 +3428,15 @@ export const AppointmentService = {
     // 3. Fetch organisations in one query
     const organisations = await OrganizationModel.find(
       { _id: { $in: orgIds } },
-      { name: 1, imageURL: 1, address: 1, phoneNo: 1, googlePlacesId: 1 },
+      {
+        name: 1,
+        imageURL: 1,
+        address: 1,
+        phoneNo: 1,
+        googlePlacesId: 1,
+        appointmentCheckInBufferMinutes: 1,
+        appointmentCheckInRadiusMeters: 1,
+      },
     ).lean();
 
     // Convert array → map for O(1) lookup
@@ -3451,7 +3463,15 @@ export const AppointmentService = {
 
       return {
         appointment: dto,
-        organisation: org,
+        organisation: org
+          ? {
+              ...org,
+              appointmentCheckInBufferMinutes:
+                org.appointmentCheckInBufferMinutes ?? 5,
+              appointmentCheckInRadiusMeters:
+                org.appointmentCheckInRadiusMeters ?? 200,
+            }
+          : null,
       };
     });
   },
