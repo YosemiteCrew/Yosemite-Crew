@@ -6,7 +6,6 @@
 
 import { color } from './color';
 import { fontWeight, lineHeight } from './typography';
-import { spacing } from './spacing';
 import { radius } from './radius';
 import { shadow } from './shadow';
 import { zIndex } from './zindex';
