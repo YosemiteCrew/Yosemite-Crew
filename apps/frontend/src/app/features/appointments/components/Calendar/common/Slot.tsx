@@ -8,6 +8,7 @@ import {
   allowReschedule,
   canAssignAppointmentRoom,
   canShowStatusChangeAction,
+  getAppointmentCompanionPhotoUrl,
   getClinicalNotesIntent,
   getClinicalNotesLabel,
   isRequestedLikeStatus,
@@ -173,7 +174,10 @@ const Slot: React.FC<SlotProps> = ({
     appointment: Appointment
   ) => {
     const ghost = document.createElement('img');
-    ghost.src = getSafeImageUrl('', appointment.companion.species.toLowerCase() as ImageType);
+    ghost.src = getSafeImageUrl(
+      getAppointmentCompanionPhotoUrl(appointment.companion),
+      appointment.companion.species.toLowerCase() as ImageType
+    );
     ghost.width = 24;
     ghost.height = 24;
     ghost.style.position = 'fixed';
@@ -552,7 +556,7 @@ const Slot: React.FC<SlotProps> = ({
                         <div className="flex-none self-center">
                           <Image
                             src={getSafeImageUrl(
-                              '',
+                              getAppointmentCompanionPhotoUrl(ev.companion),
                               ev.companion.species.toLowerCase() as ImageType
                             )}
                             height={26}
@@ -586,7 +590,7 @@ const Slot: React.FC<SlotProps> = ({
               <div className="min-w-0 flex items-center gap-2">
                 <Image
                   src={getSafeImageUrl(
-                    '',
+                    getAppointmentCompanionPhotoUrl(activeEvent.companion),
                     activeEvent.companion.species.toLowerCase() as ImageType
                   )}
                   height={34}

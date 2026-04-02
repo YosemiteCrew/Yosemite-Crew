@@ -11,6 +11,10 @@ import AppointmentBoard from '@/app/features/appointments/components/Appointment
 import { startOfDay } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import { useAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
+import {
+  useCompanionsForPrimaryOrg,
+  useLoadCompanionsForPrimaryOrg,
+} from '@/app/hooks/useCompanion';
 import { Appointment } from '@yosemite-crew/types';
 import Reschedule from '@/app/features/appointments/pages/Appointments/Sections/Reschedule';
 import ChangeStatus from '@/app/features/appointments/pages/Appointments/Sections/ChangeStatus';
@@ -34,7 +38,37 @@ import { resolveDefaultAppointmentsView } from '@/app/lib/defaultAppointmentsVie
 import { normalizeAppointmentStatus, type LegacyAppointmentStatus } from '@/app/lib/appointments';
 
 const Appointments = () => {
-  const appointments = useAppointmentsForPrimaryOrg();
+  const rawAppointments = useAppointmentsForPrimaryOrg();
+  useLoadCompanionsForPrimaryOrg();
+  const companions = useCompanionsForPrimaryOrg();
+  const companionPhotoById = useMemo(() => {
+    const entries = companions
+      .map((companion) => {
+        const photoUrl = companion.photoUrl?.trim();
+        return photoUrl ? [companion.id, photoUrl] : null;
+      })
+      .filter((entry): entry is [string, string] => entry != null);
+    return new Map(entries);
+  }, [companions]);
+  const appointments = useMemo(
+    () =>
+      rawAppointments.map((appointment) => {
+        const companionPhotoUrl = companionPhotoById.get(appointment.companion.id);
+        if (!companionPhotoUrl) return appointment;
+        const existingPhotoUrl = (
+          appointment.companion as Appointment['companion'] & { photoUrl?: string }
+        ).photoUrl;
+        if (existingPhotoUrl?.trim() === companionPhotoUrl) return appointment;
+        return {
+          ...appointment,
+          companion: {
+            ...appointment.companion,
+            photoUrl: companionPhotoUrl,
+          } as Appointment['companion'],
+        };
+      }),
+    [rawAppointments, companionPhotoById]
+  );
   const { can } = usePermissions();
   const canEditAppointments =
     can(PERMISSIONS.APPOINTMENTS_EDIT_ANY) || can(PERMISSIONS.APPOINTMENTS_EDIT_OWN);

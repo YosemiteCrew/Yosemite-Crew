@@ -181,6 +181,32 @@ const OrgStep = ({ nextStep, formData, setFormData }: OrgStepProps) => {
               error={formDataErrors.taxId}
             />
           </div>
+          <div className="step-two-input">
+            <FormInput
+              intype="number"
+              inname="appointment-checkin-buffer-minutes"
+              value={String(formData.appointmentCheckInBufferMinutes ?? 5)}
+              inlabel="Check-in opens (minutes before appointment)"
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  appointmentCheckInBufferMinutes: Number(e.target.value || 0),
+                })
+              }
+            />
+            <FormInput
+              intype="number"
+              inname="appointment-checkin-radius-meters"
+              value={String(formData.appointmentCheckInRadiusMeters ?? 200)}
+              inlabel="Check-in radius (meters)"
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  appointmentCheckInRadiusMeters: Number(e.target.value || 0),
+                })
+              }
+            />
+          </div>
         </div>
       </div>
 

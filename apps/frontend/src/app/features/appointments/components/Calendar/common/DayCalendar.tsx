@@ -28,6 +28,7 @@ import {
   allowReschedule,
   canAssignAppointmentRoom,
   canShowStatusChangeAction,
+  getAppointmentCompanionPhotoUrl,
   getClinicalNotesIntent,
   getClinicalNotesLabel,
   isRequestedLikeStatus,
@@ -43,7 +44,6 @@ import { MdMeetingRoom, MdOutlineAutorenew } from 'react-icons/md';
 import { RiHistoryLine } from 'react-icons/ri';
 import { useCalendarNavigation, getDateDisplay } from '@/app/hooks/useCalendarNavigation';
 import { createPortal } from 'react-dom';
-import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import {
   CalendarZoomMode,
   getPixelsPerStepForZoom,
@@ -285,7 +285,10 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
     appointment: Appointment
   ) => {
     const ghost = document.createElement('img');
-    ghost.src = getSafeImageUrl('', appointment.companion.species.toLowerCase() as ImageType);
+    ghost.src = getSafeImageUrl(
+      getAppointmentCompanionPhotoUrl(appointment.companion),
+      appointment.companion.species.toLowerCase() as ImageType
+    );
     ghost.width = 24;
     ghost.height = 24;
     ghost.style.position = 'fixed';
@@ -394,7 +397,10 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                   style={getStatusStyle(ev.status)}
                 >
                   <Image
-                    src={MEDIA_SOURCES.appointments.companionAvatar}
+                    src={getSafeImageUrl(
+                      getAppointmentCompanionPhotoUrl(ev.companion),
+                      ev.companion.species.toLowerCase() as ImageType
+                    )}
                     height={20}
                     width={20}
                     className="rounded-full"
@@ -629,7 +635,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                         <div className="flex-none self-center">
                           <Image
                             src={getSafeImageUrl(
-                              '',
+                              getAppointmentCompanionPhotoUrl(ev.companion),
                               ev.companion.species.toLowerCase() as ImageType
                             )}
                             height={26}
@@ -665,7 +671,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
               <div className="min-w-0 flex items-center gap-2">
                 <Image
                   src={getSafeImageUrl(
-                    '',
+                    getAppointmentCompanionPhotoUrl(activeEvent.companion),
                     activeEvent.companion.species.toLowerCase() as ImageType
                   )}
                   height={34}

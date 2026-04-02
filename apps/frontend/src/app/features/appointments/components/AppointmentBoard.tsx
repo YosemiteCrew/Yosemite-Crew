@@ -36,6 +36,7 @@ import {
   canAssignAppointmentRoom,
   canShowStatusChangeAction,
   canTransitionAppointmentStatus,
+  getAppointmentCompanionPhotoUrl,
   getAllowedAppointmentStatusTransitions,
   getPreferredNextAppointmentStatus,
   getClinicalNotesIntent,
@@ -498,7 +499,7 @@ const AppointmentBoard = ({
                           <div className="flex shrink-0 flex-col items-end gap-1">
                             <Image
                               src={getSafeImageUrl(
-                                '',
+                                getAppointmentCompanionPhotoUrl(appointment.companion),
                                 appointment.companion.species.toLowerCase() as ImageType
                               )}
                               height={24}

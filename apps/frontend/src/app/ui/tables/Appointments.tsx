@@ -20,6 +20,7 @@ import {
   allowCalendarDrag,
   canAssignAppointmentRoom,
   canShowStatusChangeAction,
+  getAppointmentCompanionPhotoUrl,
   getPreferredNextAppointmentStatus,
   getClinicalNotesLabel,
   isRequestedLikeStatus,
@@ -162,7 +163,10 @@ const Appointments = ({
       render: (item: Appointment) => (
         <div className="appointment-profile w-10 h-10">
           <Image
-            src={getSafeImageUrl('', item.companion.species as ImageType)}
+            src={getSafeImageUrl(
+              getAppointmentCompanionPhotoUrl(item.companion),
+              item.companion.species as ImageType
+            )}
             alt=""
             height={40}
             width={40}

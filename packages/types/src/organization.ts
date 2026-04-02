@@ -22,6 +22,8 @@ export interface Organisation {
   fireAndEmergencyCertNo?: string;
   googlePlacesId?: string;
   stripeAccountId?: string;
+  appointmentCheckInBufferMinutes?: number;
+  appointmentCheckInRadiusMeters?: number;
 }
 
 export type Organization = Organisation;
@@ -51,6 +53,10 @@ const STRIPE_ACCOUNT_ID_EXTENSION_URL =
   'https://yosemitecrew.com/fhir/StructureDefinition/stripe-account-id';
 const PET_NAME_PREFERENCE_EXTENSION_URL =
   'https://yosemitecrew.com/fhir/StructureDefinition/pet-name-preference';
+const APPOINTMENT_CHECKIN_BUFFER_MINUTES_EXTENSION_URL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/appointment-checkin-buffer-minutes';
+const APPOINTMENT_CHECKIN_RADIUS_METERS_EXTENSION_URL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/appointment-checkin-radius-meters';
 
 const ORGANISATION_TYPE_CODING_MAP: Record<
   Organisation['type'],
@@ -196,6 +202,20 @@ const buildExtensions = (organisation: Organisation): FHIROrganization['extensio
     });
   }
 
+  if (typeof organisation.appointmentCheckInBufferMinutes === 'number') {
+    extensions.push({
+      url: APPOINTMENT_CHECKIN_BUFFER_MINUTES_EXTENSION_URL,
+      valueInteger: organisation.appointmentCheckInBufferMinutes,
+    });
+  }
+
+  if (typeof organisation.appointmentCheckInRadiusMeters === 'number') {
+    extensions.push({
+      url: APPOINTMENT_CHECKIN_RADIUS_METERS_EXTENSION_URL,
+      valueInteger: organisation.appointmentCheckInRadiusMeters,
+    });
+  }
+
   return extensions.length ? extensions : undefined;
 };
 
@@ -282,6 +302,30 @@ const extractPetNamePreference = (
   return undefined;
 };
 
+const normalizeNonNegativeInteger = (value: unknown): number | undefined => {
+  if (typeof value === 'number' && Number.isInteger(value) && value >= 0) {
+    return value;
+  }
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    if (Number.isInteger(parsed) && parsed >= 0) {
+      return parsed;
+    }
+  }
+  return undefined;
+};
+
+const extractIntegerExtension = (
+  extensions: FHIROrganization['extension'],
+  url: string
+): number | undefined => {
+  const ext = extensions?.find((extension) => extension.url === url);
+  if (!ext) {
+    return undefined;
+  }
+  return normalizeNonNegativeInteger(ext.valueInteger ?? ext.valueDecimal ?? ext.valueString);
+};
+
 const extractType = (resource: FHIROrganization): Organisation['type'] => {
   const coding = resource.type?.[0]?.coding?.[0];
 
@@ -302,6 +346,10 @@ const getTelecomValue = (
 
 export const fromFHIROrganisation = (resource: FHIROrganization): Organisation => {
   const extensions = resource.extension;
+  const rawResource = resource as FHIROrganization & {
+    appointmentCheckInBufferMinutes?: unknown;
+    appointmentCheckInRadiusMeters?: unknown;
+  };
 
   return {
     _id: resource.id,
@@ -324,6 +372,12 @@ export const fromFHIROrganisation = (resource: FHIROrganization): Organisation =
     googlePlacesId: extractStringExtension(extensions, GOOGLE_PLACE_ID_EXTENSION_URL),
     stripeAccountId: extractStringExtension(extensions, STRIPE_ACCOUNT_ID_EXTENSION_URL),
     petNamePreference: extractPetNamePreference(extensions),
+    appointmentCheckInBufferMinutes:
+      normalizeNonNegativeInteger(rawResource.appointmentCheckInBufferMinutes) ??
+      extractIntegerExtension(extensions, APPOINTMENT_CHECKIN_BUFFER_MINUTES_EXTENSION_URL),
+    appointmentCheckInRadiusMeters:
+      normalizeNonNegativeInteger(rawResource.appointmentCheckInRadiusMeters) ??
+      extractIntegerExtension(extensions, APPOINTMENT_CHECKIN_RADIUS_METERS_EXTENSION_URL),
   };
 };
 

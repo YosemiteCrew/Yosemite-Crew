@@ -5,6 +5,8 @@ import '@testing-library/jest-dom';
 import ProtectedAppointments from '@/app/features/appointments/pages/Appointments';
 
 const useAppointmentsMock = jest.fn();
+const useCompanionsForPrimaryOrgMock = jest.fn();
+const useLoadCompanionsForPrimaryOrgMock = jest.fn();
 const usePermissionsMock = jest.fn();
 const useSearchStoreMock = jest.fn();
 const useSearchParamsMock = jest.fn();
@@ -27,6 +29,11 @@ jest.mock('@/app/ui/layout/guards/OrgGuard', () => ({
 
 jest.mock('@/app/hooks/useAppointments', () => ({
   useAppointmentsForPrimaryOrg: () => useAppointmentsMock(),
+}));
+
+jest.mock('@/app/hooks/useCompanion', () => ({
+  useCompanionsForPrimaryOrg: () => useCompanionsForPrimaryOrgMock(),
+  useLoadCompanionsForPrimaryOrg: () => useLoadCompanionsForPrimaryOrgMock(),
 }));
 
 jest.mock('@/app/hooks/usePermissions', () => ({
@@ -102,18 +109,19 @@ jest.mock('@/app/features/appointments/pages/Appointments/Sections/Reschedule', 
 describe('Appointments page', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    useCompanionsForPrimaryOrgMock.mockReturnValue([]);
     useAppointmentsMock.mockReturnValue([
       {
         id: 'a1',
         status: 'requested',
         isEmergency: true,
-        companion: { name: 'Buddy' },
+        companion: { id: 'c1', name: 'Buddy' },
       },
       {
         id: 'a2',
         status: 'completed',
         isEmergency: false,
-        companion: { name: 'Rex' },
+        companion: { id: 'c2', name: 'Rex' },
       },
     ]);
     usePermissionsMock.mockReturnValue({
@@ -165,7 +173,7 @@ describe('Appointments page', () => {
         id: 'a2',
         status: 'completed',
         isEmergency: false,
-        companion: { name: 'Rex' },
+        companion: { id: 'c2', name: 'Rex' },
       },
     ]);
     useSearchParamsMock.mockReturnValue({

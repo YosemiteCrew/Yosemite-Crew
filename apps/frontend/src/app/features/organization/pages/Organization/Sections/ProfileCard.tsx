@@ -79,7 +79,10 @@ const getRequiredError = (field: FieldConfig, value: any): string | undefined =>
   if (Array.isArray(value)) return value.length ? undefined : label;
   if (field.type === 'date') return value ? undefined : label;
   if (field.type === 'dateString') return value ? undefined : label;
-  if (field.type === 'number') return value ? undefined : label;
+  if (field.type === 'number') {
+    if (value === 0 || value === '0') return undefined;
+    return value ? undefined : label;
+  }
   return (value ?? '').toString().trim() ? undefined : label;
 };
 

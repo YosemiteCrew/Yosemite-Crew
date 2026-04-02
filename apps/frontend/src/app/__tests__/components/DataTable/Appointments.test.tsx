@@ -20,6 +20,7 @@ jest.mock('@/app/lib/appointments', () => ({
   canAssignAppointmentRoom: jest.fn(() => true),
   canShowStatusChangeAction: jest.fn(() => true),
   getClinicalNotesLabel: jest.fn(() => 'Prescription'),
+  getAppointmentCompanionPhotoUrl: jest.fn(() => ''),
   isRequestedLikeStatus: jest.fn(
     (status: string) => status === 'REQUESTED' || status === 'NO_PAYMENT'
   ),

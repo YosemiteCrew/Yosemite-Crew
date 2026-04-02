@@ -6,7 +6,11 @@ import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
 import { getStatusStyle } from '@/app/config/statusConfig';
 import { toTitle } from '@/app/lib/validators';
 import AppointmentDetailField from '@/app/features/appointments/components/AppointmentDetailField';
-import { normalizeAppointmentStatus, type LegacyAppointmentStatus } from '@/app/lib/appointments';
+import {
+  getAppointmentCompanionPhotoUrl,
+  normalizeAppointmentStatus,
+  type LegacyAppointmentStatus,
+} from '@/app/lib/appointments';
 import { useLoadTeam, useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 
 type AppointmentCardContentProps = {
@@ -24,7 +28,10 @@ export const AppointmentCompanionHeader = ({ appointment }: AppointmentCardConte
   <div className="flex gap-2 items-center">
     <Image
       alt=""
-      src={getSafeImageUrl('', appointment.companion.species as ImageType)}
+      src={getSafeImageUrl(
+        getAppointmentCompanionPhotoUrl(appointment.companion),
+        appointment.companion.species as ImageType
+      )}
       height={40}
       width={40}
       style={{ borderRadius: '50%' }}

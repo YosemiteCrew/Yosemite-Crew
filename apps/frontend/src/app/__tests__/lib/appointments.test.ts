@@ -12,6 +12,7 @@ import {
   allowCalendarDrag,
   getClinicalNotesLabel,
   getClinicalNotesIntent,
+  getAppointmentCompanionPhotoUrl,
 } from '@/app/lib/appointments';
 
 describe('isRequestedLikeStatus', () => {
@@ -282,5 +283,18 @@ describe('getClinicalNotesIntent', () => {
   it('returns care intent for undefined', () => {
     const intent = getClinicalNotesIntent(undefined);
     expect(intent.label).toBe('care');
+  });
+});
+
+describe('getAppointmentCompanionPhotoUrl', () => {
+  it('returns trimmed photo URL when available', () => {
+    expect(getAppointmentCompanionPhotoUrl({ photoUrl: '  https://cdn.test/buddy.png  ' })).toBe(
+      'https://cdn.test/buddy.png'
+    );
+  });
+
+  it('returns empty string for missing photo URL', () => {
+    expect(getAppointmentCompanionPhotoUrl({})).toBe('');
+    expect(getAppointmentCompanionPhotoUrl(undefined)).toBe('');
   });
 });
