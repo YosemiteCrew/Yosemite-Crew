@@ -37,6 +37,7 @@ import PdfPreviewOverlay from '@/app/ui/overlays/PdfPreviewOverlay';
 import Close from '@/app/ui/primitives/Icons/Close';
 import LabResultValue from '@/app/ui/widgets/LabResultValue';
 import { formatDateTimeLocal } from '@/app/lib/date';
+import { getSafeIdexxIframeUrl } from '@/app/lib/urls';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { IoInformationCircleOutline, IoOpenOutline } from 'react-icons/io5';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
@@ -127,7 +128,8 @@ const getOrderUiUrl = (order: LabOrder | null): string => {
   const nestedUrl = String(
     (order as unknown as { responsePayload?: { uiURL?: string } })?.responsePayload?.uiURL ?? ''
   ).trim();
-  return String(order.uiUrl ?? '').trim() || nestedUrl;
+  const raw = String(order.uiUrl ?? '').trim() || nestedUrl;
+  return getSafeIdexxIframeUrl(raw);
 };
 
 const getOrderPdfUrl = (order: LabOrder | null): string => {
@@ -135,7 +137,8 @@ const getOrderPdfUrl = (order: LabOrder | null): string => {
   const nestedUrl = String(
     (order as unknown as { responsePayload?: { pdfURL?: string } })?.responsePayload?.pdfURL ?? ''
   ).trim();
-  return String(order.pdfUrl ?? '').trim() || nestedUrl;
+  const raw = String(order.pdfUrl ?? '').trim() || nestedUrl;
+  return getSafeIdexxIframeUrl(raw);
 };
 
 const buildAppointmentIdByOrderId = (orders: LabOrder[]): Record<string, string> =>

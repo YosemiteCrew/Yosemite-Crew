@@ -4,6 +4,7 @@ import '@testing-library/jest-dom';
 import CompanionHistoryTimeline from '@/app/features/companionHistory/components/CompanionHistoryTimeline';
 import { fetchCompanionHistory } from '@/app/features/companionHistory/services/companionHistoryService';
 import { getCompanionAuditTrail } from '@/app/features/audit/services/auditService';
+import { loadDocumentDownloadURL } from '@/app/features/companions/services/companionDocumentService';
 
 jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
   __esModule: true,
@@ -34,6 +35,7 @@ jest.mock('@/app/features/audit/services/auditService', () => ({
 
 describe('CompanionHistoryTimeline', () => {
   let consoleErrorSpy: jest.SpyInstance;
+  let windowOpenSpy: jest.SpyInstance;
 
   const baseEntries: any[] = [
     {
@@ -106,12 +108,15 @@ describe('CompanionHistoryTimeline', () => {
 
   beforeEach(() => {
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    windowOpenSpy = jest.spyOn(globalThis.window, 'open').mockImplementation(() => null);
     (fetchCompanionHistory as jest.Mock).mockReset();
     (getCompanionAuditTrail as jest.Mock).mockReset().mockResolvedValue([]);
+    (loadDocumentDownloadURL as jest.Mock).mockClear();
   });
 
   afterEach(() => {
     consoleErrorSpy.mockRestore();
+    windowOpenSpy.mockRestore();
   });
 
   it('renders mixed entries and type-specific action labels', async () => {
@@ -293,5 +298,73 @@ describe('CompanionHistoryTimeline', () => {
       expect(screen.getByText('Invoice paid')).toBeInTheDocument();
     });
     expect(getCompanionAuditTrail).toHaveBeenCalledWith('c-1');
+  });
+
+  it('opens a document entry URL in new tab', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: baseEntries,
+      nextCursor: null,
+      summary: { totalReturned: 6, countsByType: {} },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    const openFile = await screen.findByRole('button', { name: 'Open file' });
+    fireEvent.click(openFile);
+
+    await waitFor(() => {
+      expect(loadDocumentDownloadURL).toHaveBeenCalledWith('d-1');
+      expect(windowOpenSpy).toHaveBeenCalledWith(
+        'https://example.com/file.pdf',
+        '_blank',
+        'noopener,noreferrer'
+      );
+    });
+  });
+
+  it('uses in-page callback for active appointment linked entries', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: baseEntries,
+      nextCursor: null,
+      summary: { totalReturned: 6, countsByType: {} },
+    });
+    const onOpenAppointmentView = jest.fn();
+
+    render(
+      <CompanionHistoryTimeline
+        companionId="c-1"
+        activeAppointmentId="a-1"
+        onOpenAppointmentView={onOpenAppointmentView}
+      />
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Open result' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Open appointment' }));
+
+    expect(onOpenAppointmentView).toHaveBeenCalledWith({
+      label: 'labs',
+      subLabel: 'idexx-labs',
+    });
+    expect(onOpenAppointmentView).toHaveBeenCalledWith({
+      label: 'info',
+      subLabel: 'appointment',
+    });
+  });
+
+  it('shows audit trail error state when audit request fails', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: baseEntries,
+      nextCursor: null,
+      summary: { totalReturned: 6, countsByType: {} },
+    });
+    (getCompanionAuditTrail as jest.Mock).mockRejectedValue(new Error('audit failed'));
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Audit trail' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Unable to load audit trail. Please try again.')).toBeInTheDocument();
+    });
   });
 });

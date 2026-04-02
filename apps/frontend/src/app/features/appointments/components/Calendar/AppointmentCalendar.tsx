@@ -69,12 +69,13 @@ const getErrorMessageFromCandidate = (
   candidate: { response?: { data?: unknown } } | { data?: unknown } | { message?: string },
   fallback: string
 ) => {
+  const asRecord = (value: unknown): Record<string, unknown> | null =>
+    value && typeof value === 'object' ? (value as Record<string, unknown>) : null;
   const getTrimmedMessage = (value: unknown) =>
     typeof value === 'string' && value.trim() ? value.trim() : null;
   const getResponseMessage = (value: unknown) => {
-    if (typeof value === 'string') return getTrimmedMessage(value);
-    if (!value || typeof value !== 'object') return null;
-    const data = value as Record<string, unknown>;
+    const data = asRecord(value);
+    if (!data) return getTrimmedMessage(value);
     return (
       getTrimmedMessage(data.message) ||
       getTrimmedMessage(data.error) ||
@@ -82,12 +83,12 @@ const getErrorMessageFromCandidate = (
     );
   };
 
-  const responseData = candidate && 'response' in candidate ? candidate.response?.data : undefined;
-  return (
-    getResponseMessage(responseData) ||
-    ('message' in candidate ? getTrimmedMessage(candidate.message) : null) ||
-    fallback
-  );
+  const candidateRecord = asRecord(candidate);
+  const responseRecord = asRecord(candidateRecord?.response);
+  const responseData = responseRecord?.data;
+  const candidateMessage = candidateRecord?.message;
+
+  return getResponseMessage(responseData) || getTrimmedMessage(candidateMessage) || fallback;
 };
 
 const AppointmentCalendar = ({

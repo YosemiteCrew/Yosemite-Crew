@@ -256,7 +256,7 @@ const MerckResultsSection: React.FC<MerckResultsSectionProps> = ({
             onPress={onOpenFullSearch}
             style={styles.viewMoreWrap}
             accessibilityRole="button"
-            accessibilityLabel="View more Merck results">
+            accessibilityLabel="View more MSD Veterinary Manual results">
             <Text style={styles.viewMoreHintText}>
               Showing top results only.
             </Text>
@@ -337,7 +337,7 @@ const MerckReaderModal: React.FC<MerckReaderModalProps> = ({
               style={styles.readerCloseButton}
               onPress={closeReader}
               accessibilityRole="button"
-              accessibilityLabel="Close Merck reader">
+              accessibilityLabel="Close MSD Veterinary Manual reader">
               <Image source={Images.closeIcon} style={styles.readerCloseIcon} />
             </TouchableOpacity>
           </View>
@@ -377,11 +377,15 @@ const MerckReaderModal: React.FC<MerckReaderModalProps> = ({
                 onLoadEnd={() => setReaderLoading(false)}
                 onError={() => {
                   setReaderLoading(false);
-                  setError('Unable to open this Merck page right now.');
+                  setError(
+                    'Unable to open this MSD Veterinary Manual page right now.',
+                  );
                 }}
                 onHttpError={() => {
                   setReaderLoading(false);
-                  setError('Unable to load this Merck page right now.');
+                  setError(
+                    'Unable to load this MSD Veterinary Manual page right now.',
+                  );
                 }}
               />
             ) : null}
@@ -423,7 +427,7 @@ const useMerckSearchController = ({
   const [readerOpen, setReaderOpen] = React.useState(false);
   const [readerLoading, setReaderLoading] = React.useState(false);
   const [readerUrl, setReaderUrl] = React.useState<string | null>(null);
-  const [readerTitle, setReaderTitle] = React.useState('Merck Manual');
+  const [readerTitle, setReaderTitle] = React.useState('MSD Veterinary Manual');
 
   React.useEffect(() => {
     setQuery(initialQuery);
@@ -458,7 +462,9 @@ const useMerckSearchController = ({
     }
 
     if (!organisationId) {
-      setError('Merck search is unavailable for this companion.');
+      setError(
+        'MSD Veterinary Manual search is unavailable for this companion.',
+      );
       setHasSearched(true);
       return;
     }
@@ -487,7 +493,7 @@ const useMerckSearchController = ({
       const message =
         searchError instanceof Error
           ? searchError.message
-          : 'Unable to search Merck manuals right now.';
+          : 'Unable to search MSD Veterinary Manual right now.';
       setEntries([]);
       setError(message);
     } finally {
@@ -503,11 +509,15 @@ const useMerckSearchController = ({
 
   const openInReader = React.useCallback((url: string, manualTitle: string) => {
     if (!isAllowedMerckUrl(url)) {
-      setError('Blocked URL: only Merck/MSD consumer links are allowed.');
+      setError(
+        'Blocked URL: only MSD Veterinary Manual consumer links are allowed.',
+      );
       return;
     }
 
-    setReaderTitle(sanitizeTextForDisplay(manualTitle) || 'Merck Manual');
+    setReaderTitle(
+      sanitizeTextForDisplay(manualTitle) || 'MSD Veterinary Manual',
+    );
     setReaderUrl(url);
     setReaderLoading(true);
     setReaderOpen(true);
@@ -520,7 +530,9 @@ const useMerckSearchController = ({
         return true;
       }
 
-      setError('Blocked URL: only Merck/MSD consumer links are allowed.');
+      setError(
+        'Blocked URL: only MSD Veterinary Manual consumer links are allowed.',
+      );
       return false;
     },
     [],
@@ -749,7 +761,7 @@ const MerckSearchControls: React.FC<MerckSearchControlsProps> = ({
     <View style={styles.searchInputRow}>
       <SearchBar
         mode="input"
-        placeholder="Search Merck manuals"
+        placeholder="Search MSD Veterinary Manual"
         value={query}
         onChangeText={onQueryChange}
         onSubmitEditing={onSearch}
@@ -809,8 +821,8 @@ const MerckStateMessages: React.FC<MerckStateMessagesProps> = ({
         <Image source={Images.merckLogo} style={styles.emptyStateLogo} />
         <Text style={styles.emptyStateTitle}>Search medical topics</Text>
         <Text style={styles.emptyStateDescription}>
-          Find consumer-friendly Merck Manuals guidance for symptoms, care, and
-          follow-up.
+          Find consumer-friendly MSD Veterinary Manual guidance for symptoms,
+          care, and follow-up.
         </Text>
       </View>
     ) : null}
@@ -949,8 +961,8 @@ const MerckSearchWidgetView: React.FC<MerckSearchWidgetViewProps> = ({
 
 export const MerckSearchWidget: React.FC<MerckSearchWidgetProps> = ({
   organisationId,
-  title = 'Merck Manuals',
-  description = 'Search consumer-focused Merck manuals content.',
+  title = 'MSD Veterinary Manual',
+  description = 'Search consumer-focused MSD Veterinary Manual content.',
   compact = false,
   initialQuery = '',
   initialEntries = EMPTY_INITIAL_ENTRIES,

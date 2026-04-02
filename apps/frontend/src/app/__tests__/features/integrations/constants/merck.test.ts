@@ -37,6 +37,18 @@ describe('sanitizeMerckHtml', () => {
     expect(sanitizeMerckHtml(html)).toBe('<strong>Bold</strong> and link');
   });
 
+  it('strips attributes from allowed tags', () => {
+    const html = '<i onmouseover=alert(1)>XSS</i><strong style="color:red">Safe</strong>';
+
+    expect(sanitizeMerckHtml(html)).toBe('<i>XSS</i><strong>Safe</strong>');
+  });
+
+  it('drops script tags but preserves surrounding allowed inline tags', () => {
+    const html = '<em>Note</em><script>alert(1)</script><sub onclick="evil()">2</sub>';
+
+    expect(sanitizeMerckHtml(html)).toBe('<em>Note</em>alert(1)<sub>2</sub>');
+  });
+
   it('handles malformed tag input without hanging', () => {
     const html = `<${'a'.repeat(10000)}`;
 

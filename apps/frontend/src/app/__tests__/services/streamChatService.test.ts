@@ -3,9 +3,7 @@ import { StreamChat } from 'stream-chat';
 // Mock the chatService API calls
 jest.mock('@/app/features/chat/services/chatService', () => ({
   getChatToken: jest.fn(() => Promise.resolve({ token: 'test-token' })),
-  createChatSession: jest.fn(() =>
-    Promise.resolve({ channelId: 'test-channel-id' })
-  ),
+  createChatSession: jest.fn(() => Promise.resolve({ channelId: 'test-channel-id' })),
   closeChatSession: jest.fn(() => Promise.resolve({})),
 }));
 
@@ -58,7 +56,7 @@ describe('streamChatService', () => {
       value: undefined,
       writable: true,
       configurable: true,
-      enumerable: true
+      enumerable: true,
     });
     mockClient.user = undefined;
 
@@ -84,7 +82,7 @@ describe('streamChatService', () => {
       process.env.NEXT_PUBLIC_STREAM_API_KEY = '';
       service = await import('@/app/features/chat/services/streamChatService');
 
-  expect(() => service.getChatClient()).toThrow(/Failed to initialize chat client/);
+      expect(() => service.getChatClient()).toThrow(/Failed to initialize chat client/);
     });
   });
 
@@ -131,8 +129,38 @@ describe('streamChatService', () => {
     it('handles connection errors', async () => {
       mockClient.connectUser.mockRejectedValueOnce(new Error('Connection failed'));
 
-      await expect(service.connectStreamUser('user-1', 'User One'))
-        .rejects.toThrow(/Failed to connect to chat/);
+      await expect(service.connectStreamUser('user-1', 'User One')).rejects.toThrow(
+        /Failed to connect to chat/
+      );
+    });
+
+    it('throws if userId is empty string', async () => {
+      await expect(service.connectStreamUser('', 'User One')).rejects.toThrow(
+        'Invalid user ID provided for connection'
+      );
+    });
+
+    it('throws if userName is empty string', async () => {
+      await expect(service.connectStreamUser('user-1', '')).rejects.toThrow(
+        'Invalid user name provided for connection'
+      );
+    });
+
+    it('handles disconnect failure when switching users', async () => {
+      mockClient.userID = 'old-user';
+      mockClient.disconnectUser.mockRejectedValueOnce(new Error('Disconnect failed'));
+
+      // Should still attempt to connect even after disconnect failure
+      await service.connectStreamUser('new-user', 'New User');
+      expect(mockClient.connectUser).toHaveBeenCalled();
+    });
+
+    it('handles non-Error thrown during connection', async () => {
+      mockClient.connectUser.mockRejectedValueOnce('string-error');
+
+      await expect(service.connectStreamUser('user-1', 'User One')).rejects.toThrow(
+        'Failed to connect to chat. Please try again.'
+      );
     });
   });
 
@@ -160,8 +188,10 @@ describe('streamChatService', () => {
       mockClient.userID = 'user-1';
       mockClient.disconnectUser.mockRejectedValueOnce(new Error('Logout failed'));
 
-  await expect(service.disconnectStreamUser()).rejects.toThrow('Failed to properly disconnect from chat service');
-  expect(mockClient.disconnectUser).toHaveBeenCalled();
+      await expect(service.disconnectStreamUser()).rejects.toThrow(
+        'Failed to properly disconnect from chat service'
+      );
+      expect(mockClient.disconnectUser).toHaveBeenCalled();
     });
   });
 
@@ -170,8 +200,9 @@ describe('streamChatService', () => {
       service.getChatClient();
       mockClient.userID = undefined;
 
-      await expect(service.getAppointmentChannel('appt-1'))
-        .rejects.toThrow('User must be connected before accessing channels');
+      await expect(service.getAppointmentChannel('appt-1')).rejects.toThrow(
+        'User must be connected before accessing channels'
+      );
     });
 
     it('creates/retrieves channel and watches it', async () => {
@@ -192,8 +223,29 @@ describe('streamChatService', () => {
         throw new Error('Channel error');
       });
 
-      await expect(service.getAppointmentChannel('appt-1'))
-        .rejects.toThrow(/Failed to access chat for appointment/);
+      await expect(service.getAppointmentChannel('appt-1')).rejects.toThrow(
+        /Failed to access chat for appointment/
+      );
+    });
+
+    it('throws for invalid appointment ID', async () => {
+      service.getChatClient();
+      mockClient.userID = 'vet-1';
+      await expect(service.getAppointmentChannel('')).rejects.toThrow(
+        'Invalid appointment ID provided'
+      );
+    });
+
+    it('handles non-Error thrown during channel access', async () => {
+      service.getChatClient();
+      mockClient.userID = 'vet-1';
+      mockClient.channel.mockImplementationOnce(() => {
+        throw 'non-error-string';
+      });
+
+      await expect(service.getAppointmentChannel('appt-1')).rejects.toThrow(
+        'Failed to access chat for this appointment'
+      );
     });
   });
 
@@ -208,8 +260,14 @@ describe('streamChatService', () => {
     it('handles errors gracefully', async () => {
       mockChannel.markRead.mockRejectedValueOnce(new Error('Read failed'));
 
-  await expect(service.markChannelAsRead('chan-1')).rejects.toThrow('Failed to mark messages as read');
-  expect(mockChannel.markRead).toHaveBeenCalled();
+      await expect(service.markChannelAsRead('chan-1')).rejects.toThrow(
+        'Failed to mark messages as read'
+      );
+      expect(mockChannel.markRead).toHaveBeenCalled();
+    });
+
+    it('throws for invalid channel ID', async () => {
+      await expect(service.markChannelAsRead('')).rejects.toThrow('Invalid channel ID provided');
     });
   });
 
@@ -268,13 +326,36 @@ describe('streamChatService', () => {
     it('throws error if sending fails', async () => {
       mockChannel.sendMessage.mockRejectedValueOnce(new Error('Send failed'));
 
-  await expect(service.sendMessage('chan-1', 'Hi')).rejects.toThrow(/Failed to send message/);
+      await expect(service.sendMessage('chan-1', 'Hi')).rejects.toThrow(/Failed to send message/);
+    });
+
+    it('throws for invalid channel ID', async () => {
+      await expect(service.sendMessage('', 'Hello')).rejects.toThrow('Invalid channel ID provided');
+    });
+
+    it('throws for empty message text', async () => {
+      await expect(service.sendMessage('chan-1', '')).rejects.toThrow(
+        'Message text cannot be empty'
+      );
+    });
+
+    it('throws for whitespace-only message text', async () => {
+      await expect(service.sendMessage('chan-1', '   ')).rejects.toThrow(
+        'Message text cannot be empty'
+      );
+    });
+
+    it('handles non-Error thrown during send', async () => {
+      mockChannel.sendMessage.mockRejectedValueOnce('non-error');
+      await expect(service.sendMessage('chan-1', 'Hello')).rejects.toThrow(
+        'Failed to send message due to an unknown error'
+      );
     });
   });
 
   describe('endChatChannel', () => {
     it('calls closeChatSession with sessionId', async () => {
-  const { closeChatSession } = jest.requireMock('@/app/features/chat/services/chatService');
+      const { closeChatSession } = jest.requireMock('@/app/features/chat/services/chatService');
 
       await service.endChatChannel('session-1');
 
@@ -282,10 +363,24 @@ describe('streamChatService', () => {
     });
 
     it('throws error if close fails', async () => {
-  const { closeChatSession } = jest.requireMock('@/app/features/chat/services/chatService');
+      const { closeChatSession } = jest.requireMock('@/app/features/chat/services/chatService');
       closeChatSession.mockRejectedValueOnce(new Error('Close failed'));
 
-  await expect(service.endChatChannel('session-1')).rejects.toThrow(/Failed to end chat session/);
+      await expect(service.endChatChannel('session-1')).rejects.toThrow(
+        /Failed to end chat session/
+      );
+    });
+
+    it('throws for invalid session ID', async () => {
+      await expect(service.endChatChannel('')).rejects.toThrow('Invalid session ID provided');
+    });
+
+    it('handles non-Error thrown during end chat', async () => {
+      const { closeChatSession } = jest.requireMock('@/app/features/chat/services/chatService');
+      closeChatSession.mockRejectedValueOnce('non-error');
+      await expect(service.endChatChannel('session-1')).rejects.toThrow(
+        'Failed to end chat session due to an unknown error'
+      );
     });
   });
 

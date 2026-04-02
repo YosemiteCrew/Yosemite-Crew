@@ -11,6 +11,7 @@ import { toTitle } from '@/app/lib/validators';
 import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
 import { formatMoney } from '@/app/lib/money';
 import InvoicePaymentActions from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Finance/InvoicePaymentActions';
+import { getInvoicePaymentMethodLabel } from '@/app/lib/invoicePaymentMethod';
 
 type DetailsProps = {
   activeAppointment: Appointment;
@@ -58,9 +59,10 @@ const Details = ({ activeAppointment }: DetailsProps) => {
             </div>
           ) : null}
           {invoices.map((payment, i) => {
+            const invoiceKey = payment.id || `${payment.appointmentId || 'appointment'}-${i}`;
             return (
               <Accordion
-                key={payment.appointmentId}
+                key={invoiceKey}
                 title={'Invoice ' + (i + 1)}
                 defaultOpen={true}
                 showEditIcon={false}
@@ -107,6 +109,12 @@ const Details = ({ activeAppointment }: DetailsProps) => {
                     <div className="text-body-4-emphasis text-text-tertiary">Status: </div>
                     <div className="rounded-2xl px-4 py-2" style={getStatusStyle(payment.status)}>
                       {toTitle(payment.status)}
+                    </div>
+                  </div>
+                  <div className="py-2! flex items-center gap-2 border-t border-grey-light justify-between">
+                    <div className="text-body-4-emphasis text-text-tertiary">Payment method: </div>
+                    <div className="text-body-4 text-text-primary text-right">
+                      {getInvoicePaymentMethodLabel(payment)}
                     </div>
                   </div>
                   <div className="flex flex-col gap-3 mt-2">

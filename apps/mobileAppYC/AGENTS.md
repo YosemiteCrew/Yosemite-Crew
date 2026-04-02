@@ -78,6 +78,30 @@ const {control, handleSubmit} = useForm({
 pnpm --filter mobileAppYC run test -- --testPathPattern="path/to/File.test.tsx"
 ```
 
+### New code = new tests (mandatory)
+
+Every new file you add must ship tests in the same commit batch. No exceptions.
+
+| New code                                    | Required test                                              |
+| ------------------------------------------- | ---------------------------------------------------------- |
+| Service function / API call                 | Jest unit: success + all error branches                    |
+| Redux slice                                 | Jest: every reducer action, selector, and thunk            |
+| Custom hook                                 | `renderHook` covering all return values and state branches |
+| Utility function                            | Jest unit with full branch coverage                        |
+| Screen component                            | Jest + Testing Library render + key interaction            |
+| E2E-critical flow (auth, booking, checkout) | Detox test                                                 |
+
+**Coverage bar for new files: Statements ≥ 90%, Branches ≥ 90%, Functions ≥ 90%.**
+Never leave an existing file in a worse coverage state than you found it.
+
+### Mandatory pre-commit checks (run in order, never skip)
+
+```bash
+npx tsc --noemit                                    # from apps/mobileAppYC/
+pnpm --filter mobileAppYC run lint
+pnpm --filter mobileAppYC run test -- --testPathPattern="<YourFile>"
+```
+
 - Any code change that alters behavior must include matching test updates in the same batch.
 - If your change breaks existing targeted tests, fix or update those tests before handoff.
 - Before handoff/checkpoint, run and report: mobile lint + mobile `tsc --noemit` + targeted mobile tests for touched areas.

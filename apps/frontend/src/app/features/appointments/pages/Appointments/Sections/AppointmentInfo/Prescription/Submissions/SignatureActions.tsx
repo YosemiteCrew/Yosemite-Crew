@@ -1,11 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FormSubmission } from "@yosemite-crew/types";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FormSubmission } from '@yosemite-crew/types';
 import {
-  fetchSignedDocument,
+  fetchSignedDocumentIfReady,
   startFormSigning,
-} from "@/app/features/forms/services/formSigningService";
-import { Primary } from "@/app/ui/primitives/Buttons";
-import { useSigningOverlayStore } from "@/app/stores/signingOverlayStore";
+} from '@/app/features/forms/services/formSigningService';
+import { Primary } from '@/app/ui/primitives/Buttons';
+import { useSigningOverlayStore } from '@/app/stores/signingOverlayStore';
 
 type SubmissionWithSigning = FormSubmission & {
   signatureRequired?: boolean;
@@ -14,17 +14,11 @@ type SubmissionWithSigning = FormSubmission & {
 
 type SignatureActionsProps = {
   submission: SubmissionWithSigning;
-  onStatusChange?: (
-    submissionId: string,
-    updates: Partial<SubmissionWithSigning>,
-  ) => void;
+  onStatusChange?: (submissionId: string, updates: Partial<SubmissionWithSigning>) => void;
 };
 
-const SignatureActions = ({
-  submission,
-  onStatusChange,
-}: SignatureActionsProps) => {
-  const [loading, setLoading] = useState<"sign" | "view" | null>(null);
+const SignatureActions = ({ submission, onStatusChange }: SignatureActionsProps) => {
+  const [loading, setLoading] = useState<'sign' | 'view' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const {
     openOverlay,
@@ -35,33 +29,27 @@ const SignatureActions = ({
   const wasOverlayOpen = useRef(false);
   const lastOverlaySubmissionId = useRef<string | null>(null);
 
-  const submissionId = useMemo(
-    () => {
-      const raw = submission._id || submission.submissionId;
-      return raw ? String(raw) : "";
-    },
-    [submission._id, submission.submissionId],
-  );
+  const submissionId = useMemo(() => {
+    const raw = submission._id || submission.submissionId;
+    return raw ? String(raw) : '';
+  }, [submission._id, submission.submissionId]);
 
-  const isSigned =
-    submission.signing?.status === "SIGNED" ||
-    Boolean(submission.signing?.pdf?.url);
+  const isSigned = submission.signing?.status === 'SIGNED' || Boolean(submission.signing?.pdf?.url);
 
-  const shouldShowActions =
-    submission.signatureRequired || Boolean(submission.signing);
+  const shouldShowActions = submission.signatureRequired || Boolean(submission.signing);
 
   const handleSign = async () => {
     setError(null);
     openOverlay(submissionId);
-    setLoading("sign");
+    setLoading('sign');
     try {
       const res = await startFormSigning(submissionId);
       if (res?.documentId) {
         onStatusChange?.(submissionId, {
           signing: {
             required: true,
-            provider: "DOCUMENSO",
-            status: "IN_PROGRESS",
+            provider: 'DOCUMENSO',
+            status: 'IN_PROGRESS',
             documentId: String(res.documentId),
             signer: submission.signing?.signer,
             pdf: submission.signing?.pdf,
@@ -71,11 +59,11 @@ const SignatureActions = ({
       if (res?.signingUrl) {
         setUrl(res.signingUrl);
       } else {
-        setError("Signing link not available. Please retry.");
+        setError('Signing link not available. Please retry.');
       }
     } catch (err) {
-      console.error("Failed to start signing", err);
-      setError("Unable to start signing. Please try again.");
+      console.error('Failed to start signing', err);
+      setError('Unable to start signing. Please try again.');
     } finally {
       setLoading(null);
     }
@@ -85,16 +73,16 @@ const SignatureActions = ({
     if (submission.signing?.pdf?.url) {
       return submission.signing.pdf.url;
     }
-    const res = await fetchSignedDocument(submissionId);
+    const res = await fetchSignedDocumentIfReady(submissionId);
     const downloadUrl = res?.pdf?.downloadUrl;
     if (downloadUrl) {
       onStatusChange?.(submissionId, {
         signing: {
           ...(submission.signing ?? {
             required: true,
-            provider: "DOCUMENSO",
+            provider: 'DOCUMENSO',
           }),
-          status: "SIGNED",
+          status: 'SIGNED',
           pdf: { url: downloadUrl },
         },
       });
@@ -102,20 +90,19 @@ const SignatureActions = ({
     return downloadUrl;
   }, [onStatusChange, submission.signing, submissionId]);
 
-
   const handleViewSigned = async () => {
     setError(null);
-    setLoading("view");
+    setLoading('view');
     try {
       const url = await resolveSignedUrl();
       if (url) {
-        globalThis.open(url, "_blank", "noopener,noreferrer");
+        globalThis.open(url, '_blank', 'noopener,noreferrer');
       } else {
-        setError("Signed document not available yet.");
+        setError('Signed document not available yet.');
       }
     } catch (err) {
-      console.error("Failed to fetch signed document", err);
-      setError("Unable to load signed document.");
+      console.error('Failed to fetch signed document', err);
+      setError('Unable to load signed document.');
     } finally {
       setLoading(null);
     }
@@ -131,7 +118,7 @@ const SignatureActions = ({
       }
       return undefined;
     },
-    [resolveSignedUrl],
+    [resolveSignedUrl]
   );
 
   useEffect(() => {
@@ -150,16 +137,16 @@ const SignatureActions = ({
       void (async () => {
         try {
           const url = await pollForSignedUrl();
-          if (!url && submission.signing?.status === "IN_PROGRESS") {
+          if (!url && submission.signing?.status === 'IN_PROGRESS') {
             onStatusChange?.(submissionId, {
               signing: {
-                ...(submission.signing ?? { required: true, provider: "DOCUMENSO" }),
-                status: "IN_PROGRESS",
+                ...(submission.signing ?? { required: true, provider: 'DOCUMENSO' }),
+                status: 'IN_PROGRESS',
               },
             });
           }
         } catch (err) {
-          console.error("Failed to refresh signed status after closing overlay", err);
+          console.error('Failed to refresh signed status after closing overlay', err);
         }
       })();
     }
@@ -168,7 +155,7 @@ const SignatureActions = ({
     overlayOpen,
     overlaySubmissionId,
     submissionId,
-      onStatusChange,
+    onStatusChange,
     pollForSignedUrl,
     resolveSignedUrl,
     shouldShowActions,
@@ -183,9 +170,9 @@ const SignatureActions = ({
         {isSigned ? null : (
           <Primary
             href="#"
-            text={loading === "sign" ? "..." : "Sign"}
+            text={loading === 'sign' ? '...' : 'Sign'}
             onClick={handleSign}
-            isDisabled={loading === "sign"}
+            isDisabled={loading === 'sign'}
             size="default"
           />
         )}
@@ -193,9 +180,9 @@ const SignatureActions = ({
         {isSigned ? (
           <Primary
             href="#"
-            text={loading === "view" ? "..." : "View"}
+            text={loading === 'view' ? '...' : 'View'}
             onClick={handleViewSigned}
-            isDisabled={loading === "view"}
+            isDisabled={loading === 'view'}
             size="default"
           />
         ) : null}

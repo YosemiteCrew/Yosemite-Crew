@@ -1,132 +1,97 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import '@testing-library/jest-dom';
+
 import Build from '@/app/features/forms/pages/Forms/Sections/AddForm/Build';
-import { useOrgStore } from '@/app/stores/orgStore';
+import type { FormField, FormsProps } from '@/app/features/forms/types/forms';
+import { ensureSingleSignatureAtEnd } from '@/app/lib/forms';
 import { fetchInventoryItems } from '@/app/features/inventory/services/inventoryService';
-import { FormsProps } from '@/app/features/forms/types/forms';
+import { useOrgStore } from '@/app/stores/orgStore';
 
-// --- Stabilized Crypto Mock ---
-let uuidCounter = 0;
-beforeAll(() => {
-  // Safe polyfill that doesn't overwrite the entire crypto object if it exists
-  const crypto = globalThis.crypto || {};
-  Object.defineProperty(globalThis, 'crypto', {
-    value: {
-      ...crypto,
-      // Using a counter for deterministic test UUIDs (not for cryptographic purposes)
-      randomUUID: () => `test-uuid-${++uuidCounter}`,
-    },
-    writable: true,
-  });
-});
-
-// --- Mocks ---
-
-// 1. Mock Services
-jest.mock('@/app/stores/orgStore');
-jest.mock('@/app/features/inventory/services/inventoryService');
-
-// 2. Mock Icon Library (Simplified to simple div to prevent worker crash)
-jest.mock('react-icons/io', () => ({
-  IoIosAddCircleOutline: (props: any) => (
-    <button type="button" data-testid="add-icon" onClick={props.onClick}>
-      +
+jest.mock('@/app/ui/primitives/Buttons', () => ({
+  Primary: ({ text, onClick }: any) => (
+    <button type="button" onClick={onClick}>
+      {text}
     </button>
   ),
-  IoIosWarning: () => <span data-testid="warning-icon">!</span>,
 }));
 
-// 3. Mock UI Components
 jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
   __esModule: true,
-  default: ({ value, onChange, inlabel }: any) => (
-    <input
-      data-testid={`input-${inlabel}`}
-      value={value}
-      onChange={onChange}
-      placeholder={inlabel}
-    />
+  default: ({ value, onChange, inname }: any) => (
+    <input data-testid={inname || 'form-input'} value={value || ''} onChange={onChange} />
   ),
 }));
 
 jest.mock('@/app/ui/inputs/MultiSelectDropdown', () => ({
   __esModule: true,
-  default: ({ value, onChange, placeholder }: any) => (
-    <div data-testid={`multiselect-${placeholder}`}>
-      <button type="button" data-testid="multiselect-change" onClick={() => onChange(['srv-1'])}>
-        Select Srv 1
-      </button>
-      Selected: {JSON.stringify(value)}
+  default: ({ options, onChange, value, placeholder }: any) => (
+    <div>
+      <div>{placeholder}</div>
+      <div data-testid="multi-select-value">{(value || []).join(',')}</div>
+      {(options || []).map((opt: any) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange([...(value || []), opt.value])}
+        >
+          {opt.label}
+        </button>
+      ))}
     </div>
   ),
 }));
 
 jest.mock('@/app/ui/inputs/Dropdown/Dropdown', () => ({
   __esModule: true,
-  default: ({ value, onChange, options, placeholder }: any) => (
+  default: ({ options, onChange }: any) => (
     <select
-      data-testid={`dropdown-${placeholder}`}
-      value={value}
+      data-testid="medicine-dropdown"
+      defaultValue=""
       onChange={(e) => onChange(e.target.value)}
     >
       <option value="">Select</option>
-      {options.map((o: any) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
+      {(options || []).map((opt: any) => (
+        <option key={opt.value} value={opt.value}>
+          {opt.label}
         </option>
       ))}
     </select>
   ),
 }));
 
-jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Primary: ({ text, onClick }: any) => (
-    <button type="button" data-testid={`btn-${text}`} onClick={onClick}>
-      {text}
-    </button>
-  ),
-}));
-
-// 4. Mock Builder Components (Manually Inlined to avoid Hoisting/Reference Errors)
-
 jest.mock('@/app/features/forms/pages/Forms/Sections/AddForm/components/BuildWrapper', () => ({
   __esModule: true,
-  default: ({ children, onDelete }: any) => (
-    <div data-testid="builder-wrapper">
-      <button type="button" data-testid="delete-field" onClick={onDelete}>
-        Delete
+  default: ({ field, onDelete, onMoveUp, onMoveDown, children }: any) => (
+    <section aria-label={`${field.type.charAt(0).toUpperCase()}${field.type.slice(1)} field`}>
+      {onMoveUp ? (
+        <button type="button" title="Move up" onClick={onMoveUp}>
+          up
+        </button>
+      ) : null}
+      {onMoveDown ? (
+        <button type="button" title="Move down" onClick={onMoveDown}>
+          down
+        </button>
+      ) : null}
+      <button type="button" aria-label={`delete-${field.id}`} onClick={onDelete}>
+        delete
       </button>
       {children}
-    </div>
+    </section>
   ),
 }));
 
 jest.mock('@/app/features/forms/pages/Forms/Sections/AddForm/components/Text/TextBuilder', () => ({
   __esModule: true,
-  default: ({ field, onChange }: any) => (
-    <div data-testid={`builder-${field.type}`}>
-      {field.label}
-      <input
-        data-testid={`edit-field-${field.id}`}
-        onChange={(e) => onChange({ ...field, label: e.target.value })}
-      />
-    </div>
-  ),
+  default: ({ field }: any) => <div data-testid={`builder-${field.id}`}>text-builder</div>,
 }));
 
 jest.mock(
   '@/app/features/forms/pages/Forms/Sections/AddForm/components/Input/InputBuilder',
   () => ({
     __esModule: true,
-    default: ({ field, onChange }: any) => (
-      <div data-testid={`builder-${field.type}`}>
-        {field.label}
-        <input
-          data-testid={`edit-field-${field.id}`}
-          onChange={(e) => onChange({ ...field, label: e.target.value })}
-        />
-      </div>
-    ),
+    default: ({ field }: any) => <div data-testid={`builder-${field.id}`}>input-builder</div>,
   })
 );
 
@@ -134,15 +99,7 @@ jest.mock(
   '@/app/features/forms/pages/Forms/Sections/AddForm/components/Dropdown/DropdownBuilder',
   () => ({
     __esModule: true,
-    default: ({ field, onChange }: any) => (
-      <div data-testid={`builder-${field.type}`}>
-        {field.label}
-        <input
-          data-testid={`edit-field-${field.id}`}
-          onChange={(e) => onChange({ ...field, label: e.target.value })}
-        />
-      </div>
-    ),
+    default: ({ field }: any) => <div data-testid={`builder-${field.id}`}>dropdown-builder</div>,
   })
 );
 
@@ -150,15 +107,7 @@ jest.mock(
   '@/app/features/forms/pages/Forms/Sections/AddForm/components/Signature/SignatureBuilder',
   () => ({
     __esModule: true,
-    default: ({ field, onChange }: any) => (
-      <div data-testid={`builder-${field.type}`}>
-        {field.label}
-        <input
-          data-testid={`edit-field-${field.id}`}
-          onChange={(e) => onChange({ ...field, label: e.target.value })}
-        />
-      </div>
-    ),
+    default: ({ field }: any) => <div data-testid={`builder-${field.id}`}>signature-builder</div>,
   })
 );
 
@@ -166,438 +115,276 @@ jest.mock(
   '@/app/features/forms/pages/Forms/Sections/AddForm/components/Boolean/BooleanBuilder',
   () => ({
     __esModule: true,
-    default: ({ field, onChange }: any) => (
-      <div data-testid={`builder-${field.type}`}>
-        {field.label}
-        <input
-          data-testid={`edit-field-${field.id}`}
-          onChange={(e) => onChange({ ...field, label: e.target.value })}
-        />
-      </div>
-    ),
+    default: ({ field }: any) => <div data-testid={`builder-${field.id}`}>boolean-builder</div>,
   })
 );
 
 jest.mock('@/app/features/forms/pages/Forms/Sections/AddForm/components/Date/DateBuilder', () => ({
   __esModule: true,
-  default: ({ field, onChange }: any) => (
-    <div data-testid={`builder-${field.type}`}>
-      {field.label}
-      <input
-        data-testid={`edit-field-${field.id}`}
-        onChange={(e) => onChange({ ...field, label: e.target.value })}
-      />
-    </div>
+  default: ({ field }: any) => <div data-testid={`builder-${field.id}`}>date-builder</div>,
+}));
+
+jest.mock('@/app/stores/orgStore', () => ({
+  useOrgStore: jest.fn((selector: any) => selector({ primaryOrgId: undefined })),
+}));
+
+jest.mock('@/app/features/inventory/services/inventoryService', () => ({
+  fetchInventoryItems: jest.fn().mockResolvedValue([]),
+}));
+
+jest.mock('@/app/lib/forms', () => ({
+  ...jest.requireActual('@/app/lib/forms'),
+  ensureSingleSignatureAtEnd: jest.fn((schema) => schema),
+  hasSignatureField: jest.fn((schema) =>
+    (schema || []).some((f: any) => f && f.type === 'signature')
   ),
 }));
 
-// --- Test Data ---
+jest.mock('react-icons/io', () => ({
+  IoIosAddCircleOutline: ({ onClick }: any) => (
+    <button type="button" aria-label="toggle-add-field" onClick={onClick}>
+      +
+    </button>
+  ),
+  IoIosWarning: () => <span data-testid="warning-icon">!</span>,
+}));
 
-const mockServiceOptions = [
-  { label: 'Service 1', value: 'srv-1' },
-  { label: 'Service 2', value: 'srv-2' },
-];
+const baseFormData = (overrides: Partial<FormsProps> = {}): FormsProps => ({
+  name: 'Test form',
+  description: '',
+  category: 'Custom',
+  usage: 'Internal',
+  requiredSigner: '',
+  updatedBy: 'user-1',
+  lastUpdated: '2026-01-01T00:00:00.000Z',
+  schema: [],
+  ...overrides,
+});
 
-const mockMedicines = [
-  {
-    _id: 'med-1',
-    name: 'Paracetamol',
-    attributes: { strength: '500mg', administration: 'Oral' },
-    sellingPrice: 10,
-  },
-];
+let capturedValidator: (() => boolean) | undefined;
 
-describe('Build Component', () => {
-  const mockSetFormData = jest.fn();
-  const mockOnNext = jest.fn();
-  const mockRegisterValidator = jest.fn();
+const renderBuild = (
+  initialFormData: FormsProps,
+  serviceOptions: Array<{ label: string; value: string }> = [
+    { label: 'Checkup', value: 'svc-1' },
+    { label: 'Vaccination', value: 'svc-2' },
+  ]
+) => {
+  const Wrapper = () => {
+    const [formData, setFormData] = React.useState<FormsProps>(initialFormData);
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-    (useOrgStore as unknown as jest.Mock).mockReturnValue('org-123');
-    (fetchInventoryItems as jest.Mock).mockResolvedValue(mockMedicines);
-  });
-
-  // --- Section 1: Rendering & Validation ---
-
-  it('renders with initial empty state and registers validator', () => {
-    let validator: () => boolean = () => false;
-    mockRegisterValidator.mockImplementation((fn) => (validator = fn));
-
-    render(
-      <Build
-        formData={{ schema: [] } as any}
-        setFormData={mockSetFormData}
-        onNext={mockOnNext}
-        serviceOptions={mockServiceOptions}
-        registerValidator={mockRegisterValidator}
-      />
+    return (
+      <>
+        <Build
+          formData={formData}
+          setFormData={setFormData}
+          onNext={jest.fn()}
+          serviceOptions={serviceOptions}
+          registerValidator={(fn) => {
+            capturedValidator = fn;
+          }}
+        />
+        <pre data-testid="schema-state">{JSON.stringify(formData.schema)}</pre>
+      </>
     );
+  };
 
-    expect(screen.getByText('Build form')).toBeInTheDocument();
+  return render(<Wrapper />);
+};
 
-    act(() => {
-      const result = validator();
-      expect(result).toBe(false);
+const readSchema = (): FormField[] =>
+  JSON.parse(screen.getByTestId('schema-state').textContent || '[]') as FormField[];
+
+const selectAddOption = (optionLabel: string) => {
+  fireEvent.click(screen.getAllByRole('button', { name: 'toggle-add-field' })[0]);
+  fireEvent.click(screen.getAllByRole('button', { name: optionLabel })[0]);
+};
+
+describe('Build form step', () => {
+  beforeEach(() => {
+    capturedValidator = undefined;
+    jest.clearAllMocks();
+
+    let counter = 0;
+    jest.spyOn(globalThis.crypto, 'randomUUID').mockImplementation(() => {
+      counter += 1;
+      return `field-${counter}`;
     });
   });
 
-  it('calls onNext when next button is clicked', () => {
-    render(
-      <Build
-        formData={{ schema: [{ id: '1', type: 'input' }] } as any}
-        setFormData={mockSetFormData}
-        onNext={mockOnNext}
-        serviceOptions={mockServiceOptions}
-      />
-    );
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
 
-    fireEvent.click(screen.getByTestId('btn-Next'));
-    expect(mockOnNext).toHaveBeenCalled();
+  it('registers validator and fails validation when no fields are present', () => {
+    renderBuild(baseFormData());
+
+    expect(capturedValidator).toBeDefined();
+    let result = true;
+    act(() => {
+      result = Boolean(capturedValidator?.());
+    });
+    expect(result).toBe(false);
+    expect(screen.getByText('Add at least one field to continue.')).toBeInTheDocument();
+  });
+
+  it('adds a short text field to schema', () => {
+    renderBuild(baseFormData());
+
+    selectAddOption('Short Text');
+
+    const schema = readSchema();
+    expect(schema).toHaveLength(1);
+    expect(schema[0].type).toBe('input');
+    expect(schema[0].id).toBe('field-1');
+  });
+
+  it('hides signature option when signed-by is not selected', () => {
+    renderBuild(baseFormData({ requiredSigner: '' }));
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'toggle-add-field' })[0]);
+    expect(screen.queryByRole('button', { name: 'Signature' })).not.toBeInTheDocument();
+  });
+
+  it('allows one signature field and blocks duplicate signatures', () => {
+    renderBuild(baseFormData({ requiredSigner: 'CLIENT' }));
+
+    selectAddOption('Signature');
+    expect(readSchema().filter((field) => field.type === 'signature')).toHaveLength(1);
+
+    selectAddOption('Signature');
+    expect(readSchema().filter((field) => field.type === 'signature')).toHaveLength(1);
+    expect(screen.getByText('Only one signature field is allowed per form.')).toBeInTheDocument();
+  });
+
+  it('uses ensureSingleSignatureAtEnd for Prescription forms', () => {
+    renderBuild(baseFormData({ category: 'Prescription', requiredSigner: 'CLIENT' }));
+
+    selectAddOption('Signature');
+
+    expect(ensureSingleSignatureAtEnd).toHaveBeenCalledTimes(1);
+    expect(readSchema().some((field) => field.type === 'signature')).toBe(true);
+  });
+
+  it('adds a service group with a generated checkbox field', () => {
+    renderBuild(baseFormData());
+
+    selectAddOption('Services');
+
+    const schema = readSchema();
+    expect(schema).toHaveLength(1);
+    expect(schema[0].type).toBe('group');
+    expect((schema[0] as any).meta?.serviceGroup).toBe(true);
+    expect((schema[0] as any).fields?.some((f: FormField) => f.type === 'checkbox')).toBe(true);
+  });
+
+  it('adds medications inside treatment_plan group when it exists', () => {
+    const treatmentPlan: FormField = {
+      id: 'treatment_plan',
+      type: 'group',
+      label: 'Treatment plan',
+      fields: [],
+    } as FormField;
+
+    renderBuild(baseFormData({ schema: [treatmentPlan] }));
+
+    selectAddOption('Medications');
+
+    const schema = readSchema();
+    expect(schema).toHaveLength(1);
+    const updatedTreatment = schema[0] as FormField & { fields?: FormField[] };
+    expect(updatedTreatment.fields).toHaveLength(1);
+    expect(updatedTreatment.fields?.[0].label).toBe('Medication 1');
+    expect((updatedTreatment.fields?.[0] as any).meta?.medicationGroup).toBe(true);
   });
 
   it('prevents deleting signature when signer is required', () => {
-    render(
-      <Build
-        formData={
-          {
-            requiredSigner: 'VET',
-            schema: [{ id: 'sig-1', type: 'signature', label: 'Signature' }],
-          } as any
-        }
-        setFormData={mockSetFormData}
-        onNext={mockOnNext}
-        serviceOptions={mockServiceOptions}
-      />
-    );
+    const signatureField: FormField = {
+      id: 'sig-1',
+      type: 'signature',
+      label: 'Signature',
+    } as FormField;
 
-    const beforeDeleteCalls = mockSetFormData.mock.calls.length;
-    fireEvent.click(screen.getByTestId('delete-field'));
+    renderBuild(baseFormData({ requiredSigner: 'CLIENT', schema: [signatureField] }));
 
+    const signatureSection = screen.getByLabelText('Signature field');
+    fireEvent.click(within(signatureSection).getByRole('button', { name: 'delete-sig-1' }));
+
+    expect(readSchema()).toHaveLength(1);
     expect(
       screen.getByText("Cannot remove signature while 'Signed by' is selected.")
     ).toBeInTheDocument();
-    expect(mockSetFormData.mock.calls.length).toBe(beforeDeleteCalls);
   });
 
-  // --- Section 2: Adding Fields ---
+  it('moves fields down using move controls', () => {
+    const first: FormField = { id: 'f-1', type: 'input', label: 'First' } as FormField;
+    const second: FormField = { id: 'f-2', type: 'number', label: 'Second' } as FormField;
 
-  it('adds a simple field via dropdown', () => {
-    render(
-      <Build
-        formData={{ schema: [] } as any}
-        setFormData={mockSetFormData}
-        onNext={mockOnNext}
-        serviceOptions={mockServiceOptions}
-      />
-    );
+    renderBuild(baseFormData({ schema: [first, second] }));
 
-    fireEvent.click(screen.getAllByTestId('add-icon')[0]);
-    fireEvent.click(screen.getByText('Short Text'));
+    const firstSection = screen.getByLabelText('Input field');
+    fireEvent.click(within(firstSection).getByTitle('Move down'));
 
-    expect(mockSetFormData).toHaveBeenCalled();
-    const lastCall = mockSetFormData.mock.calls.at(-1)!;
-    const updater = lastCall[0];
-    const newState = typeof updater === 'function' ? updater({ schema: [] }) : updater;
-
-    expect(newState.schema[0].type).toBe('input');
+    const schema = readSchema();
+    expect(schema[0].id).toBe('f-2');
+    expect(schema[1].id).toBe('f-1');
   });
 
-  it('adds a medication template wrapped in a group', () => {
-    render(
-      <Build
-        formData={{ schema: [] } as any}
-        setFormData={mockSetFormData}
-        onNext={mockOnNext}
-        serviceOptions={mockServiceOptions}
-      />
-    );
+  it('updates selected services inside service-group metadata and checkbox options', () => {
+    renderBuild(baseFormData());
 
-    fireEvent.click(screen.getAllByTestId('add-icon')[0]);
-    fireEvent.click(screen.getByText('Medications'));
+    selectAddOption('Services');
+    fireEvent.click(screen.getByText('Checkup'));
 
-    const lastCall = mockSetFormData.mock.calls.at(-1)!;
-    const updater = lastCall[0];
-    const newState = typeof updater === 'function' ? updater({ schema: [] }) : updater;
-
-    const medGroup = newState.schema[0];
-    expect(medGroup.type).toBe('group');
-    expect(medGroup.meta.medicationGroup).toBe(true);
-    expect(medGroup.fields[0].type).toBe('group');
-    expect(medGroup.fields[0].fields.length).toBeGreaterThan(0);
+    const schema = readSchema();
+    const serviceGroup = schema[0] as FormField & {
+      fields?: FormField[];
+      meta?: Record<string, any>;
+    };
+    expect(serviceGroup.meta?.serviceIds).toEqual(['svc-1']);
+    const checkbox = (serviceGroup.fields || []).find((field) => field.type === 'checkbox') as any;
+    expect(checkbox?.options).toEqual([{ label: 'Checkup', value: 'svc-1' }]);
   });
 
-  it('adds a service group correctly', () => {
-    render(
-      <Build
-        formData={{ schema: [] } as any}
-        setFormData={mockSetFormData}
-        onNext={mockOnNext}
-        serviceOptions={mockServiceOptions}
-      />
+  it('loads inventory medicines and adds medicine group fields when selected', async () => {
+    (useOrgStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({ primaryOrgId: 'org-1' })
     );
+    (fetchInventoryItems as jest.Mock).mockResolvedValue([
+      {
+        _id: 'med-1',
+        name: 'Amoxicillin',
+        sellingPrice: 25,
+        attributes: { strength: '250mg', administration: 'Oral' },
+      },
+    ]);
 
-    fireEvent.click(screen.getAllByTestId('add-icon')[0]);
-    fireEvent.click(screen.getByText('Services'));
+    const medicationGroup: FormField = {
+      id: 'mg-1',
+      type: 'group',
+      label: 'Medication',
+      meta: { medicationGroup: true } as any,
+      fields: [],
+    } as FormField;
 
-    const lastCall = mockSetFormData.mock.calls.at(-1)!;
-    const updater = lastCall[0];
-    const newState = typeof updater === 'function' ? updater({ schema: [] }) : updater;
-    const group = newState.schema[0];
-
-    expect(group.type).toBe('group');
-    expect(group.meta.serviceGroup).toBe(true);
-    expect(group.meta.serviceIds).toEqual([]);
-    expect(group.fields[0].type).toBe('checkbox');
-    expect(group.fields[0].meta?.serviceIds).toEqual([]);
-  });
-
-  // --- Section 3: Nested Field Management ---
-
-  it('renders nested fields and allows updates', () => {
-    const groupData: FormsProps = {
-      schema: [
-        {
-          id: 'g1',
-          type: 'group',
-          label: 'My Group',
-          fields: [{ id: 'n1', type: 'input', label: 'Nested Input' }],
-        },
-      ],
-    } as any;
-
-    render(
-      <Build
-        formData={groupData}
-        setFormData={mockSetFormData}
-        onNext={mockOnNext}
-        serviceOptions={mockServiceOptions}
-      />
-    );
-
-    expect(screen.getByDisplayValue('My Group')).toBeInTheDocument();
-
-    const nestedEdit = screen.getByTestId('edit-field-n1');
-    fireEvent.change(nestedEdit, { target: { value: 'Updated Label' } });
-
-    const lastCall = mockSetFormData.mock.calls.at(-1)!;
-
-    const updater = lastCall[0];
-    const newState = typeof updater === 'function' ? updater(groupData) : updater;
-
-    expect(newState.schema[0].fields[0].label).toBe('Updated Label');
-  });
-
-  it('removes a nested field', () => {
-    const groupData: FormsProps = {
-      schema: [
-        {
-          id: 'g1',
-          type: 'group',
-          fields: [{ id: 'n1', type: 'input' }],
-        },
-      ],
-    } as any;
-
-    render(
-      <Build
-        formData={groupData}
-        setFormData={mockSetFormData}
-        onNext={mockOnNext}
-        serviceOptions={mockServiceOptions}
-      />
-    );
-
-    const deleteBtns = screen.getAllByTestId('delete-field');
-    fireEvent.click(deleteBtns.at(-1)!);
-    const lastCall = mockSetFormData.mock.calls.at(-1)!;
-
-    const updater = lastCall[0];
-    const newState = typeof updater === 'function' ? updater(groupData) : updater;
-
-    expect(newState.schema[0].fields).toHaveLength(0);
-  });
-
-  // --- Section 4: Service Group Options ---
-
-  it('syncs service group options on mount', () => {
-    const serviceGroup: FormsProps = {
-      schema: [
-        {
-          id: 'sg1',
-          type: 'group',
-          meta: { serviceGroup: true },
-          fields: [
-            {
-              id: 'cb1',
-              type: 'checkbox',
-              options: [{ label: 'Old', value: 'old' }],
-            },
-          ],
-        },
-      ],
-    } as any;
-
-    render(
-      <Build
-        formData={serviceGroup}
-        setFormData={mockSetFormData}
-        onNext={mockOnNext}
-        serviceOptions={mockServiceOptions}
-      />
-    );
-
-    expect(mockSetFormData).toHaveBeenCalled();
-    const lastCall = mockSetFormData.mock.calls.at(-1)!;
-
-    const updater = lastCall[0];
-    const newState = typeof updater === 'function' ? updater(serviceGroup) : updater;
-
-    const options = newState.schema[0].fields[0].options;
-    // Expected: 1 existing option ("old") + 2 new service options ("srv-1", "srv-2") = 3 total
-    // The previous fail was expecting 3 but getting 1 because "ensureServiceCheckbox" only keeps SELECTED values.
-    // However, "updateServiceGroupOptions" (if used) might merge.
-    // The code uses "ensureServiceCheckbox" inside the effect.
-    // "ensureServiceCheckbox" filters options to ONLY keep those that are currently selected (value in the existing list).
-    // Wait, `ensureServiceCheckbox` creates options based on `selected` array.
-    // `selected` comes from `existingCheckbox?.options`.
-    // So if "old" is in options, it is considered selected.
-    // But `serviceOptions` passed to `Build` contains "srv-1", "srv-2".
-    // If they are not in the existing checkbox options, they are NOT selected, so `ensureServiceCheckbox` will NOT add them to the options list.
-    // Therefore, the length should indeed be 1 (just "old").
-
-    expect(options).toHaveLength(1);
-    expect(newState.schema[0].meta?.serviceIds).toEqual(['old']);
-    expect((newState.schema[0].fields[0] as unknown as any).meta?.serviceIds).toEqual(['old']);
-  });
-
-  it('stores selected service ids in meta when updating options', () => {
-    const serviceGroup: FormsProps = {
-      schema: [
-        {
-          id: 'sg1',
-          type: 'group',
-          meta: { serviceGroup: true },
-          fields: [
-            {
-              id: 'cb1',
-              type: 'checkbox',
-              options: [{ label: 'Srv 1', value: 'srv-1' }],
-            },
-          ],
-        },
-      ],
-    } as any;
-
-    render(
-      <Build
-        formData={serviceGroup}
-        setFormData={mockSetFormData}
-        onNext={mockOnNext}
-        serviceOptions={mockServiceOptions}
-      />
-    );
-
-    fireEvent.click(screen.getByTestId('multiselect-change'));
-    const updater = mockSetFormData.mock.calls.at(-1)![0];
-    const newState = typeof updater === 'function' ? updater(serviceGroup) : updater;
-
-    expect(newState.schema[0].meta?.serviceIds).toEqual(['srv-1']);
-    expect((newState.schema[0].fields[0] as any).meta?.serviceIds).toEqual(['srv-1']);
-  });
-
-  // --- Section 5: Medication Logic ---
-
-  it.skip('adds medicine from inventory dropdown', async () => {
-    const medGroup: FormsProps = {
-      schema: [
-        {
-          id: 'mg1',
-          type: 'group',
-          meta: { medicationGroup: true },
-          fields: [],
-        },
-      ],
-    } as any;
-
-    render(
-      <Build
-        formData={medGroup}
-        setFormData={mockSetFormData}
-        onNext={mockOnNext}
-        serviceOptions={mockServiceOptions}
-      />
-    );
+    renderBuild(baseFormData({ schema: [medicationGroup] }));
 
     await waitFor(() => {
-      expect(fetchInventoryItems).toHaveBeenCalled();
+      expect(fetchInventoryItems).toHaveBeenCalledWith('org-1', { category: 'Medicine' });
     });
 
-    const dropdown = screen.getByTestId('dropdown-Select medicine from inventory');
-    fireEvent.change(dropdown, { target: { value: 'med-1' } });
-    const lastCall = mockSetFormData.mock.calls.at(-1)!;
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: 'Amoxicillin' })).toBeInTheDocument();
+    });
 
-    const updater = lastCall[0];
-    const newState = typeof updater === 'function' ? updater(medGroup) : updater;
+    fireEvent.change(screen.getByTestId('medicine-dropdown'), { target: { value: 'med-1' } });
 
-    expect(newState.schema[0].fields).toHaveLength(1);
-    expect(newState.schema[0].fields[0].label).toBe('Paracetamol');
-    expect((newState.schema[0].fields[0] as any).meta).toEqual(
-      expect.objectContaining({
-        medicineId: 'med-1',
-        inventoryItemId: 'med-1',
-      })
-    );
-  });
-
-  // --- Section 6: Treatment Plan ---
-
-  it('modifies existing treatment plan when adding medication', () => {
-    const tpForm: FormsProps = {
-      schema: [{ id: 'treatment_plan', type: 'group', fields: [] }],
-    } as any;
-
-    render(
-      <Build
-        formData={tpForm}
-        setFormData={mockSetFormData}
-        onNext={mockOnNext}
-        serviceOptions={mockServiceOptions}
-      />
-    );
-
-    // Use getAllByTestId because there might be multiple add icons (root + group)
-    const addButtons = screen.getAllByTestId('add-icon');
-    // Click the FIRST one (root level)
-    fireEvent.click(addButtons[0]);
-
-    fireEvent.click(screen.getByText('Medications'));
-    const lastCall = mockSetFormData.mock.calls.at(-1)!;
-
-    const updater = lastCall[0];
-    const newState = typeof updater === 'function' ? updater(tpForm) : updater;
-
-    expect(newState.schema).toHaveLength(1);
-    expect(newState.schema[0].fields).toHaveLength(1);
-    expect(newState.schema[0].fields[0].label).toContain('Medication');
-  });
-
-  // --- Section 7: Interactions ---
-
-  it('closes dropdown when clicking outside', () => {
-    render(
-      <Build
-        formData={{ schema: [] } as any}
-        setFormData={mockSetFormData}
-        onNext={mockOnNext}
-        serviceOptions={mockServiceOptions}
-      />
-    );
-
-    fireEvent.click(screen.getAllByTestId('add-icon')[0]);
-    expect(screen.getByText('Short Text')).toBeInTheDocument();
-
-    fireEvent.mouseDown(document.body);
-    expect(screen.queryByText('Input')).not.toBeInTheDocument();
+    await waitFor(() => {
+      const schema = readSchema();
+      const updated = schema[0] as any;
+      expect(updated.fields).toHaveLength(1);
+      expect(updated.fields[0].label).toBe('Amoxicillin');
+      expect(updated.fields[0].fields).toHaveLength(7);
+    });
   });
 });
