@@ -27,6 +27,7 @@
   display: flex;
   justify-content: center;
   padding: 60px 24px 100px;
+  overflow: hidden;
 }
 
 .OverviewMainContent {
@@ -96,13 +97,55 @@
 }
 
 /* =========================================
-   COMMUNITY STATS COMPONENT (BASE / DESKTOP)
+   HERO STATS ROW
+========================================= */
+.OverviewStatsRow {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 120px;
+  margin-bottom: 60px;
+  width: 100%;
+}
+
+.StatItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.StatNumber {
+  font-family: var(--grotesk-font);
+  font-size: 4rem;
+  font-weight: 500;
+  color: #247aed;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+}
+
+.StatPlus {
+  color: #cbd5e1;
+  font-size: 2.5rem;
+  font-weight: 400;
+  margin-left: 4px;
+}
+
+.StatLabel {
+  font-size: 0.95rem;
+  color: var(--color-text-secondary);
+  margin-top: 12px;
+  font-weight: 500;
+}
+
+/* =========================================
+   COMMUNITY STATS COMPONENT
 ========================================= */
 .CommunityStatsContainer {
   display: flex;
   flex-direction: column;
   width: 100%;
-  min-width: 0; /* Prevents Recharts horizontal stretch bug */
+  min-width: 0;
 }
 
 .ChartGrid {
@@ -110,7 +153,7 @@
   grid-template-columns: 1fr;
   gap: 24px;
   width: 100%;
-  min-width: 0; /* Prevents Recharts horizontal stretch bug */
+  min-width: 0;
 }
 
 .StatsCardWrapper {
@@ -118,15 +161,14 @@
   flex-direction: column;
   position: relative;
   width: 100%;
-  min-width: 0; /* Prevents Recharts horizontal stretch bug */
+  min-width: 0;
 }
 
 .ChartWrapper {
   width: 100%;
   height: 450px;
   margin-top: 10px;
-  min-width: 0; /* Prevents Recharts horizontal stretch bug */
-  /* FIXED: Removed overflow: hidden so the X-axis is never cut off! */
+  min-width: 0;
 }
 
 /* LEGEND OVERRIDES */
@@ -143,7 +185,7 @@
   align-items: center;
   padding-left: 0px !important;
   margin-top: 0px !important;
-  flex-wrap: wrap; /* Allows legend to wrap on smaller screens */
+  flex-wrap: wrap;
 }
 
 .ForceLeftLegend .recharts-wrapper {
@@ -185,6 +227,10 @@
    RESPONSIVE RULES (TABLET)
 ========================================= */
 @media screen and (max-width: 1024px) {
+  .OverviewStatsRow {
+    gap: 60px;
+  }
+
   .ChartWrapper {
     height: 400px;
   }
@@ -215,18 +261,40 @@
     font-size: 1.75rem;
   }
 
+  /* Force the 3 stats to sit side-by-side exactly like Figma */
+  .OverviewStatsRow {
+    gap: 0;
+    justify-content: space-between;
+    padding: 0 16px;
+    margin-bottom: 40px;
+  }
+
+  .StatItem {
+    flex: 1;
+  }
+
+  .StatNumber {
+    font-size: 2rem;
+  }
+
+  .StatPlus {
+    font-size: 1.3rem;
+  }
+
+  .StatLabel {
+    font-size: 0.75rem;
+    margin-top: 8px;
+  }
+
   .ChartWrapper {
-    /* FIXED: Increased height slightly so the wrapped legend doesn't push the X-axis away */
     height: 380px;
     margin-top: 0;
   }
 
-  /* Make legend text slightly smaller so it fits better */
   .ForceLeftLegend .recharts-default-legend {
     font-size: 12px !important;
   }
 
-  /* Stack the toggle pills above the chart neatly on mobile */
   .DataToggle {
     position: relative;
     top: 0;
@@ -240,6 +308,6 @@
   .TogglePill {
     padding: 6px 12px;
     font-size: 0.75rem;
-    flex: 1; /* Match button widths */
+    flex: 1;
   }
 }
