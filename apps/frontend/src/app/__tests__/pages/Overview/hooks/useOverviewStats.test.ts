@@ -1,54 +1,52 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { useOverviewStats } from '../../../../features/overview/hooks/useOverviewStats';
 
+// Mock the global fetch API
 globalThis.fetch = jest.fn();
 
 describe('useOverviewStats Hook', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.spyOn(console, 'error').mockImplementation(() => {});
-    jest.useFakeTimers().setSystemTime(new Date('2026-03-24T12:00:00Z'));
+
+    // Mock Date.now to prevent cache-busting URL variance in tests
+    jest.spyOn(Date, 'now').mockReturnValue(1234567890);
   });
 
   afterAll(() => {
     (console.error as jest.Mock).mockRestore();
-    jest.useRealTimers();
+    (Date.now as jest.Mock).mockRestore();
   });
 
-  it('1. correctly parses valid repository data, maps daily totals, and monthly stars', async () => {
-    const today = new Date('2026-03-24T12:00:00Z');
-    const past = new Date('2026-02-15T12:00:00Z');
-
+  it('1. correctly parses data, maps daily totals, extracts top stats, and formats monthly stars', async () => {
+    // Using dates that cross from 2025 into 2026 to test the year-label formatting logic
     const mockJson = {
       charts: {
         '#clones_total': {
           datasets: {
-            'data-1': [
-              { time: past.toISOString(), clones_total: 100 },
-              { time: today.toISOString(), clones_total: 5 },
-            ],
+            'data-1': [{ time: '2026-03-24T00:00:00Z', clones_total: 50 }],
           },
         },
         '#clones_unique': {
           datasets: {
-            'data-2': [{ time: today.toISOString(), clones_unique: 3 }],
+            'data-2': [{ time: '2026-03-24T00:00:00Z', clones_unique: 10 }],
           },
         },
         '#forks': {
           datasets: {
             'data-3': [
-              { time: past.toISOString(), forks_cumulative: 20 },
-              { time: today.toISOString(), forks_cumulative: 25 },
+              { time: '2025-11-01T00:00:00Z', forks_cumulative: 20 },
+              { time: '2026-03-24T00:00:00Z', forks_cumulative: 64 },
             ],
           },
         },
         '#stargazers': {
           datasets: {
             'data-4': [
-              { time: past.toISOString(), stars_cumulative: 500 },
-              { time: today.toISOString(), stars_cumulative: 510 },
-              { time: today.toISOString(), clones_total: 999 },
-              { time: today.toISOString(), random: 'data' },
+              { time: '2025-12-15T00:00:00Z', stars_cumulative: 500 }, // Triggers cross-year branch
+              { time: '2026-02-15T00:00:00Z', clones_total: 1000 }, // Tests fallback logic to clones_total
+              { time: '2026-03-23T00:00:00Z' }, // Tests ultimate fallback to 0
+              { time: '2026-03-24T00:00:00Z', stars_cumulative: 2100 },
             ],
           },
         },
@@ -68,28 +66,64 @@ describe('useOverviewStats Hook', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
+    // 1. Verify Top-Level Widget Totals
+    expect(result.current.totalStars).toBe(2100);
+    expect(result.current.totalForks).toBe(64);
+
+    // 2. Verify Traffic Chart maps the exact daily clone total (no running sum)
     expect(result.current.trafficChart).toHaveLength(30);
 
     const todayTraffic = result.current.trafficChart[29];
-    expect(todayTraffic['Self Hosters (Unique)']).toBe(3);
-    expect(todayTraffic['Self Hosters (Cumulative)']).toBe(5);
-    expect(todayTraffic['Builders (Cumulative)']).toBe(25);
-    expect(todayTraffic['Builders (Unique)']).toBe(5);
+    expect(todayTraffic['Self Hosters (Unique)']).toBe(10);
+    expect(todayTraffic['Self Hosters (Cumulative)']).toBe(50); // Mapped directly, not added!
+    expect(todayTraffic['Builders (Cumulative)']).toBe(64);
+    expect(todayTraffic['Builders (Unique)']).toBe(44); // 64 - 20 (previous) = 44
 
+    // Verify empty day fallbacks to 0
     const emptyDayTraffic = result.current.trafficChart[10];
     expect(emptyDayTraffic['Self Hosters (Unique)']).toBe(0);
     expect(emptyDayTraffic['Self Hosters (Cumulative)']).toBe(0);
 
+    // 3. Verify Stars Chart formatting logic and getCumulative loops
     expect(result.current.starsChart.length).toBeGreaterThan(0);
+
+    // Verify cross-year logic
+    expect(result.current.starsChart[0].month).toContain("'25"); // Dec '25
+    expect(result.current.starsChart[1].month).toContain("'26"); // Jan '26
+
     const febStars = result.current.starsChart.find((s) => s.month.includes('Feb'));
-    expect(febStars?.['Github Stars']).toBe(500);
+    expect(febStars?.['Github Stars']).toBe(1000); // Successfully hit the `d.clones_total` fallback
   });
 
-  it('2. handles missing dataset properties smoothly (extractChartData fallbacks)', async () => {
+  it('2. handles completely empty datasets seamlessly (allDates.length === 0)', async () => {
     const mockJson = {
       charts: {
-        '#clones_total': {},
-        '#clones_unique': { datasets: {} },
+        '#clones_total': { datasets: { 'data-1': [] } },
+        '#clones_unique': { datasets: { 'data-2': [] } },
+        '#forks': { datasets: { 'data-3': [] } },
+        '#stargazers': { datasets: { 'data-4': [] } },
+      },
+    };
+
+    (globalThis.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => mockJson });
+
+    const { result } = renderHook(() => useOverviewStats());
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.trafficChart).toEqual([]);
+    expect(result.current.starsChart).toEqual([]);
+    expect(result.current.totalStars).toBe(0);
+    expect(result.current.totalForks).toBe(0);
+  });
+
+  it('3. handles missing dataset properties smoothly (extractChartData fallback)', async () => {
+    const mockJson = {
+      charts: {
+        '#clones_total': {}, // Missing datasets entirely
+        '#clones_unique': { datasets: {} }, // Empty datasets object
       },
     };
 
@@ -105,10 +139,9 @@ describe('useOverviewStats Hook', () => {
     });
 
     expect(result.current.trafficChart).toEqual([]);
-    expect(result.current.starsChart).toEqual([]);
   });
 
-  it('3. handles network failures and catches errors', async () => {
+  it('4. catches network failures securely', async () => {
     (globalThis.fetch as jest.Mock).mockResolvedValue({ ok: false });
 
     const { result } = renderHook(() => useOverviewStats());
@@ -118,14 +151,14 @@ describe('useOverviewStats Hook', () => {
     });
 
     expect(result.current.trafficChart).toEqual([]);
-    expect(result.current.starsChart).toEqual([]);
+    expect(console.error).toHaveBeenCalledWith('Failed to fetch live JSON', expect.any(Error));
   });
 
-  it('4. handles malformed JSON throws', async () => {
+  it('5. catches JSON parsing throws securely', async () => {
     (globalThis.fetch as jest.Mock).mockResolvedValue({
       ok: true,
       json: async () => {
-        throw new Error('JSON Parsing Error');
+        throw new Error('Parse Crash');
       },
     });
 
@@ -134,5 +167,7 @@ describe('useOverviewStats Hook', () => {
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
     });
+
+    expect(console.error).toHaveBeenCalledWith('Failed to fetch live JSON', expect.any(Error));
   });
 });
