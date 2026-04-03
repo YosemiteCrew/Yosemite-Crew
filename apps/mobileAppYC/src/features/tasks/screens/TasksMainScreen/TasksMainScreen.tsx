@@ -1,11 +1,12 @@
 import React, {useEffect, useMemo, useCallback} from 'react';
+import {ScrollView, Text, View} from 'react-native';
 import {
-  ScrollView,
-  Text,
-  View,
-} from 'react-native';
-import {useNavigation, useFocusEffect} from '@react-navigation/native';
+  useNavigation,
+  useFocusEffect,
+  useRoute,
+} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import type {RouteProp} from '@react-navigation/native';
 import {useDispatch, useSelector} from 'react-redux';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
@@ -33,13 +34,49 @@ import {useCommonScreenStyles} from '@/shared/utils/screenStyles';
 import {useTaskDateSelection} from '@/features/tasks/hooks/useTaskDateSelection';
 import {getTaskCardMeta} from '@/features/tasks/utils/taskCardHelpers';
 import {useTaskNavigationActions} from '@/features/tasks/hooks/useTaskNavigationActions';
+import {formatDateToISODate} from '@/shared/utils/dateHelpers';
 
 type Navigation = NativeStackNavigationProp<TaskStackParamList, 'TasksMain'>;
+type Route = RouteProp<TaskStackParamList, 'TasksMain'>;
 
-const TASK_CATEGORIES: TaskCategory[] = ['health', 'hygiene', 'dietary', 'custom'];
+const parseAutoSelectDate = (value?: string): Date | null => {
+  if (!value) {
+    return null;
+  }
+  const dateOnlyMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnlyMatch) {
+    const [, year, month, day] = dateOnlyMatch;
+    const parsedLocal = new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      0,
+      0,
+      0,
+      0,
+    );
+    return Number.isNaN(parsedLocal.getTime()) ? null : parsedLocal;
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const TASK_CATEGORIES: TaskCategory[] = [
+  'health',
+  'hygiene',
+  'dietary',
+  'custom',
+];
+const CATEGORY_ORDER_INDEX: Record<TaskCategory, number> = {
+  health: 0,
+  hygiene: 1,
+  dietary: 2,
+  custom: 3,
+};
 
 export const TasksMainScreen: React.FC = () => {
   const navigation = useNavigation<Navigation>();
+  const route = useRoute<Route>();
   const dispatch = useDispatch<AppDispatch>();
   const {theme} = useTheme();
   const styles = useCommonScreenStyles(theme, themeArg => ({
@@ -49,7 +86,9 @@ export const TasksMainScreen: React.FC = () => {
     },
   }));
 
-  const companions = useSelector((state: RootState) => state.companion.companions);
+  const companions = useSelector(
+    (state: RootState) => state.companion.companions,
+  );
   const selectedCompanionId = useSelector(
     (state: RootState) => state.companion.selectedCompanionId,
   );
@@ -59,17 +98,28 @@ export const TasksMainScreen: React.FC = () => {
     [companions, selectedCompanionId],
   );
 
-  const {selectedDate, currentMonth, handleDateSelect, handleMonthChange} =
-    useTaskDateSelection();
-  const {handleViewTask, handleEditTask, handleCompleteTask, handleStartObservationalTool} =
-    useTaskNavigationActions(navigation, dispatch);
+  const {
+    selectedDate,
+    currentMonth,
+    handleDateSelect,
+    handleMonthChange,
+    setCurrentMonth,
+  } = useTaskDateSelection();
+  const {
+    handleViewTask,
+    handleEditTask,
+    handleCompleteTask,
+    handleStartObservationalTool,
+  } = useTaskNavigationActions(navigation, dispatch);
 
   const hasHydrated = useSelector(
     selectHasHydratedCompanion(selectedCompanionId ?? null),
   );
 
   // Get all tasks for the selected companion
-  const allTasks = useSelector(selectTasksByCompanion(selectedCompanionId ?? null));
+  const allTasks = useSelector(
+    selectTasksByCompanion(selectedCompanionId ?? null),
+  );
 
   // Get dates with tasks for the selected companion
   const datesWithTasks = useMemo(() => {
@@ -88,13 +138,23 @@ export const TasksMainScreen: React.FC = () => {
     selectTaskCountByCategory(selectedCompanionId, selectedDate, 'health'),
   );
   const hygieneTasks = useSelector(
-    selectRecentTasksByCategory(selectedCompanionId, selectedDate, 'hygiene', 1),
+    selectRecentTasksByCategory(
+      selectedCompanionId,
+      selectedDate,
+      'hygiene',
+      1,
+    ),
   );
   const hygieneCount = useSelector(
     selectTaskCountByCategory(selectedCompanionId, selectedDate, 'hygiene'),
   );
   const dietaryTasks = useSelector(
-    selectRecentTasksByCategory(selectedCompanionId, selectedDate, 'dietary', 1),
+    selectRecentTasksByCategory(
+      selectedCompanionId,
+      selectedDate,
+      'dietary',
+      1,
+    ),
   );
   const dietaryCount = useSelector(
     selectTaskCountByCategory(selectedCompanionId, selectedDate, 'dietary'),
@@ -113,8 +173,33 @@ export const TasksMainScreen: React.FC = () => {
       dietary: {recentTasks: dietaryTasks, taskCount: dietaryCount},
       custom: {recentTasks: customTasks, taskCount: customCount},
     }),
-    [healthTasks, healthCount, hygieneTasks, hygieneCount, dietaryTasks, dietaryCount, customTasks, customCount],
+    [
+      healthTasks,
+      healthCount,
+      hygieneTasks,
+      hygieneCount,
+      dietaryTasks,
+      dietaryCount,
+      customTasks,
+      customCount,
+    ],
   );
+
+  const orderedCategories = useMemo(() => {
+    return [...TASK_CATEGORIES].sort((firstCategory, secondCategory) => {
+      const firstHasTasks = categoryData[firstCategory].taskCount > 0;
+      const secondHasTasks = categoryData[secondCategory].taskCount > 0;
+
+      if (firstHasTasks === secondHasTasks) {
+        return (
+          CATEGORY_ORDER_INDEX[firstCategory] -
+          CATEGORY_ORDER_INDEX[secondCategory]
+        );
+      }
+
+      return firstHasTasks ? -1 : 1;
+    });
+  }, [categoryData]);
 
   useEffect(() => {
     if (!selectedCompanionId && companions.length > 0) {
@@ -131,6 +216,23 @@ export const TasksMainScreen: React.FC = () => {
     }, [dispatch, selectedCompanionId, hasHydrated]),
   );
 
+  useEffect(() => {
+    const dateFromRoute = parseAutoSelectDate(route.params?.autoSelectDate);
+    if (!dateFromRoute) {
+      return;
+    }
+    handleDateSelect(dateFromRoute);
+    setCurrentMonth(
+      new Date(dateFromRoute.getFullYear(), dateFromRoute.getMonth(), 1),
+    );
+    navigation.setParams({autoSelectDate: undefined});
+  }, [
+    handleDateSelect,
+    navigation,
+    route.params?.autoSelectDate,
+    setCurrentMonth,
+  ]);
+
   const handleCompanionSelect = (companionId: string | null) => {
     if (companionId) {
       dispatch(setSelectedCompanion(companionId));
@@ -138,7 +240,9 @@ export const TasksMainScreen: React.FC = () => {
   };
 
   const handleAddTask = () => {
-    navigation.navigate('AddTask');
+    navigation.navigate('AddTask', {
+      prefillDate: formatDateToISODate(selectedDate),
+    });
   };
 
   const handleViewMore = (category: TaskCategory) => {
@@ -156,7 +260,9 @@ export const TasksMainScreen: React.FC = () => {
     return (
       <View key={category} style={styles.categorySection}>
         <View style={styles.categoryHeader}>
-          <Text style={styles.categoryTitle}>{resolveCategoryLabel(category)}</Text>
+          <Text style={styles.categoryTitle}>
+            {resolveCategoryLabel(category)}
+          </Text>
           {taskCount > 0 && (
             <ViewMoreButton onPress={() => handleViewMore(category)} />
           )}
@@ -240,17 +346,18 @@ export const TasksMainScreen: React.FC = () => {
             autoScroll={true}
           />
 
-        {/* Category Sections */}
-        {allTasks.length === 0 ? (
-          <View style={styles.emptyStateContainer}>
-            <Text style={styles.emptyStateTitle}>No tasks yet</Text>
-            <Text style={styles.emptyStateText}>
-              Start by adding a task for {selectedCompanion?.name || 'your companion'}
-            </Text>
-          </View>
-        ) : (
-          TASK_CATEGORIES.map(category => renderCategorySection(category))
-        )}
+          {/* Category Sections */}
+          {allTasks.length === 0 ? (
+            <View style={styles.emptyStateContainer}>
+              <Text style={styles.emptyStateTitle}>No tasks yet</Text>
+              <Text style={styles.emptyStateText}>
+                Start by adding a task for{' '}
+                {selectedCompanion?.name || 'your companion'}
+              </Text>
+            </View>
+          ) : (
+            orderedCategories.map(category => renderCategorySection(category))
+          )}
         </ScrollView>
       )}
     </LiquidGlassHeaderScreen>

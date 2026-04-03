@@ -18,6 +18,7 @@ import AddCompanion from '@/app/features/companions/components/AddCompanion';
 import { loadCompanionsForPrimaryOrg } from '@/app/features/companions/services/companionService';
 import { AppointmentDraftPrefill } from '@/app/features/appointments/types/calendar';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
+import { formatCompanionNameWithOwnerLastName, getOwnerFirstName } from '@/app/lib/companionName';
 
 type AddAppointmentProps = {
   showModal: boolean;
@@ -63,6 +64,9 @@ const AddAppointment = ({
   prefill,
   onPrefillConsumed,
 }: AddAppointmentProps) => {
+  const isCalendarSlotFlow = Boolean(prefill);
+  const detailsStepNumber = isCalendarSlotFlow ? 3 : 2;
+  const dateTimeStepNumber = isCalendarSlotFlow ? 2 : 3;
   const terminologyText = useCompanionTerminologyText();
   const companions = useCompanionsParentsForPrimaryOrg();
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -79,6 +83,9 @@ const AddAppointment = ({
     concernBlurredRef.current = v;
   };
   const [showAddCompanionModal, setShowAddCompanionModal] = useState(false);
+  const [pendingAutoSelectCompanionId, setPendingAutoSelectCompanionId] = useState<string | null>(
+    null
+  );
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   const {
@@ -114,6 +121,7 @@ const AddAppointment = ({
       onPrefillConsumed?.();
     },
     initialPrefill: showModal ? prefill : null,
+    calendarSlotFlow: isCalendarSlotFlow,
   });
 
   const companionSatisfied = Boolean(formData.companion.id);
@@ -122,8 +130,8 @@ const AddAppointment = ({
     formData.appointmentType?.id &&
     formData.concern?.trim()
   );
-  const dateTimeSatisfied = Boolean(selectedSlot && formData.lead?.id);
-  const canShowDateTimeStep = maxUnlockedStep >= 3;
+  const canShowDateTimeStep = maxUnlockedStep >= dateTimeStepNumber;
+  const canShowDetailsStep = maxUnlockedStep >= detailsStepNumber;
   const canShowBillingStep = maxUnlockedStep >= 4;
   const hasUnsavedChanges = useMemo(
     () =>
@@ -150,6 +158,7 @@ const AddAppointment = ({
       setMaxUnlockedStep(1);
       setConcernFocused(false);
       setQuery('');
+      setPendingAutoSelectCompanionId(null);
       resetForm();
       onPrefillConsumed?.();
       return;
@@ -168,18 +177,10 @@ const AddAppointment = ({
     }
   }, [companionSatisfied, maxUnlockedStep, scrollToStep, showModal]);
 
-  useEffect(() => {
-    if (!showModal || !dateTimeSatisfied) return;
-    if (maxUnlockedStep < 3) return;
-    if (maxUnlockedStep < 4) {
-      setMaxUnlockedStep(4);
-    }
-  }, [dateTimeSatisfied, maxUnlockedStep, showModal]);
-
   const CompanionOptions = useMemo(
     () =>
       companions?.map((companion) => ({
-        label: companion.companion.name,
+        label: formatCompanionNameWithOwnerLastName(companion.companion.name, companion.parent),
         value: companion.companion.id,
       })),
     [companions]
@@ -190,34 +191,45 @@ const AddAppointment = ({
       name: formData.companion.name ?? '',
       species: formData.companion.species ?? '',
       breed: formData.companion.breed ?? '',
-      parentName: formData.companion.parent.name ?? '',
+      parentName: getOwnerFirstName(formData.companion.parent) ?? '',
     }),
     [formData.companion]
   );
 
-  const handleCompanionSelect = (id: string) => {
-    const selected = companions.find((item) => item.companion.id === id);
-    if (!selected) return;
-    setFormData((prev) => ({
-      ...prev,
-      companion: {
-        id: selected.companion.id,
-        name: selected.companion.name,
-        species: selected.companion.type,
-        breed: selected.companion.breed,
-        parent: {
-          id: selected.parent.id,
-          name: selected.parent.firstName,
+  const handleCompanionSelect = useCallback(
+    (id: string) => {
+      const selected = companions.find((item) => item.companion.id === id);
+      if (!selected) return;
+      setFormData((prev) => ({
+        ...prev,
+        companion: {
+          id: selected.companion.id,
+          name: selected.companion.name,
+          species: selected.companion.type,
+          breed: selected.companion.breed,
+          parent: {
+            id: selected.parent.id,
+            name: [selected.parent.firstName, selected.parent.lastName].filter(Boolean).join(' '),
+          },
         },
-      },
-    }));
-    setFormDataErrors((prev) => ({ ...prev, companionId: undefined }));
-    setMaxUnlockedStep((prev) => Math.max(prev, 2));
-    setActiveStep(2);
-    globalThis.setTimeout(() => {
-      scrollToStep(step2Ref);
-    }, 120);
-  };
+      }));
+      setFormDataErrors((prev) => ({ ...prev, companionId: undefined }));
+      setMaxUnlockedStep((prev) => Math.max(prev, 2));
+      setActiveStep(2);
+      globalThis.setTimeout(() => {
+        scrollToStep(step2Ref);
+      }, 120);
+    },
+    [companions, scrollToStep, setFormData, setFormDataErrors]
+  );
+
+  useEffect(() => {
+    if (!showModal || !pendingAutoSelectCompanionId) return;
+    const selected = companions.find((item) => item.companion.id === pendingAutoSelectCompanionId);
+    if (!selected) return;
+    handleCompanionSelect(selected.companion.id);
+    setPendingAutoSelectCompanionId(null);
+  }, [companions, handleCompanionSelect, pendingAutoSelectCompanionId, showModal]);
 
   const onSubmit = async () => {
     const errors = validateForm(true);
@@ -228,13 +240,13 @@ const AddAppointment = ({
       return;
     }
     if (errors.specialityId || errors.serviceId || errors.concern) {
-      setActiveStep(2);
-      scrollToStep(step2Ref);
+      setActiveStep(detailsStepNumber);
+      scrollToStep(isCalendarSlotFlow ? step3Ref : step2Ref);
       return;
     }
     if (errors.slot || errors.leadId) {
-      setActiveStep(3);
-      scrollToStep(step3Ref);
+      setActiveStep(dateTimeStepNumber);
+      scrollToStep(isCalendarSlotFlow ? step2Ref : step3Ref);
       return;
     }
     await handleCreate(true);
@@ -272,16 +284,23 @@ const AddAppointment = ({
       concern: nextErrors.concern,
     }));
     if (nextErrors.specialityId || nextErrors.serviceId || nextErrors.concern) {
-      setActiveStep(2);
+      setActiveStep(detailsStepNumber);
       scrollToStep(step2Ref);
       return;
     }
-    setMaxUnlockedStep((prev) => Math.max(prev, 3));
-    setActiveStep(3);
+    setMaxUnlockedStep((prev) => Math.max(prev, dateTimeStepNumber));
+    setActiveStep(dateTimeStepNumber);
     globalThis.setTimeout(() => {
-      scrollToStep(step3Ref);
+      scrollToStep(isCalendarSlotFlow ? step2Ref : step3Ref);
     }, 80);
-  }, [scrollToStep, setFormDataErrors, validateForm]);
+  }, [
+    dateTimeStepNumber,
+    detailsStepNumber,
+    isCalendarSlotFlow,
+    scrollToStep,
+    setFormDataErrors,
+    validateForm,
+  ]);
 
   const goToBillingStep = useCallback(() => {
     const errors = validateForm(false);
@@ -295,7 +314,55 @@ const AddAppointment = ({
       leadId: nextErrors.leadId,
     }));
     if (nextErrors.slot || nextErrors.leadId) {
-      setActiveStep(3);
+      setActiveStep(dateTimeStepNumber);
+      scrollToStep(isCalendarSlotFlow ? step2Ref : step3Ref);
+      return;
+    }
+    setMaxUnlockedStep((prev) => Math.max(prev, 4));
+    setActiveStep(4);
+    globalThis.setTimeout(() => {
+      scrollToStep(step4Ref);
+    }, 80);
+  }, [dateTimeStepNumber, isCalendarSlotFlow, scrollToStep, setFormDataErrors, validateForm]);
+
+  const goToDetailsFromDateTimeStep = useCallback(() => {
+    const errors = validateForm(false);
+    const nextErrors = {
+      slot: errors.slot,
+      leadId: errors.leadId,
+    };
+    setFormDataErrors((prev) => ({
+      ...prev,
+      slot: nextErrors.slot,
+      leadId: nextErrors.leadId,
+    }));
+    if (nextErrors.slot || nextErrors.leadId) {
+      setActiveStep(dateTimeStepNumber);
+      scrollToStep(step2Ref);
+      return;
+    }
+    setMaxUnlockedStep((prev) => Math.max(prev, detailsStepNumber));
+    setActiveStep(detailsStepNumber);
+    globalThis.setTimeout(() => {
+      scrollToStep(step3Ref);
+    }, 80);
+  }, [dateTimeStepNumber, detailsStepNumber, scrollToStep, setFormDataErrors, validateForm]);
+
+  const goToBillingFromDetailsStep = useCallback(() => {
+    const errors = validateForm(false);
+    const nextErrors = {
+      specialityId: errors.specialityId,
+      serviceId: errors.serviceId,
+      concern: errors.concern,
+    };
+    setFormDataErrors((prev) => ({
+      ...prev,
+      specialityId: nextErrors.specialityId,
+      serviceId: nextErrors.serviceId,
+      concern: nextErrors.concern,
+    }));
+    if (nextErrors.specialityId || nextErrors.serviceId || nextErrors.concern) {
+      setActiveStep(detailsStepNumber);
       scrollToStep(step3Ref);
       return;
     }
@@ -304,7 +371,7 @@ const AddAppointment = ({
     globalThis.setTimeout(() => {
       scrollToStep(step4Ref);
     }, 80);
-  }, [scrollToStep, setFormDataErrors, validateForm]);
+  }, [detailsStepNumber, scrollToStep, setFormDataErrors, validateForm]);
 
   const handleQuickAddCompanionVisibility = (value: React.SetStateAction<boolean>) => {
     const nextOpen = typeof value === 'function' ? value(showAddCompanionModal) : value;
@@ -375,7 +442,10 @@ const AddAppointment = ({
                       </button>
                       {formData.companion.name && (
                         <EditableAccordion
-                          title={formData.companion.name}
+                          title={formatCompanionNameWithOwnerLastName(
+                            formData.companion.name,
+                            formData.companion.parent
+                          )}
                           fields={CompanionFields}
                           data={CompanionInfoData}
                           defaultOpen={true}
@@ -406,12 +476,12 @@ const AddAppointment = ({
                   )}
                 </div>
               </Accordion>
-              {companionSatisfied ? (
+              {companionSatisfied && !isCalendarSlotFlow ? (
                 <div ref={step2Ref}>
                   <AppointmentDetailsSection
-                    defaultOpen={activeStep === 2}
-                    open={activeStep === 2}
-                    onOpenChange={(open) => setActiveStep(open ? 2 : null)}
+                    defaultOpen={activeStep === detailsStepNumber}
+                    open={activeStep === detailsStepNumber}
+                    onOpenChange={(open) => setActiveStep(open ? detailsStepNumber : null)}
                     specialityId={formData.appointmentType?.speciality.id}
                     specialityError={formDataErrors.specialityId}
                     specialitiesOptions={SpecialitiesOptions}
@@ -419,8 +489,8 @@ const AddAppointment = ({
                       handleSpecialitySelect(option);
                       setConcernFocused(false);
                       setConcernBlurred(false);
-                      setMaxUnlockedStep(2);
-                      setActiveStep(2);
+                      setMaxUnlockedStep(detailsStepNumber);
+                      setActiveStep(detailsStepNumber);
                     }}
                     serviceId={formData.appointmentType?.id}
                     serviceError={formDataErrors.serviceId}
@@ -429,8 +499,8 @@ const AddAppointment = ({
                       handleServiceSelect(option);
                       setConcernFocused(false);
                       setConcernBlurred(false);
-                      setMaxUnlockedStep(2);
-                      setActiveStep(2);
+                      setMaxUnlockedStep(detailsStepNumber);
+                      setActiveStep(detailsStepNumber);
                     }}
                     concern={formData.concern || ''}
                     concernError={formDataErrors.concern}
@@ -446,7 +516,7 @@ const AddAppointment = ({
                     onConcernBlur={() => {
                       if (concernFocused) {
                         setConcernBlurred(true);
-                        if (detailsSatisfied) {
+                        if (detailsSatisfied && !isCalendarSlotFlow) {
                           setMaxUnlockedStep((prev) => Math.max(prev, 3));
                           setActiveStep(3);
                           globalThis.setTimeout(() => {
@@ -460,12 +530,12 @@ const AddAppointment = ({
                 </div>
               ) : null}
               {canShowDateTimeStep ? (
-                <div ref={step3Ref}>
+                <div ref={isCalendarSlotFlow ? step2Ref : step3Ref}>
                   <Accordion
                     title="Select date & time"
-                    defaultOpen={activeStep === 3}
-                    open={activeStep === 3}
-                    onOpenChange={(open) => setActiveStep(open ? 3 : null)}
+                    defaultOpen={activeStep === dateTimeStepNumber}
+                    open={activeStep === dateTimeStepNumber}
+                    onOpenChange={(open) => setActiveStep(open ? dateTimeStepNumber : null)}
                     showEditIcon={false}
                     isEditing={true}
                   >
@@ -488,11 +558,57 @@ const AddAppointment = ({
                       <Primary
                         href="#"
                         text="Next"
-                        onClick={goToBillingStep}
+                        onClick={isCalendarSlotFlow ? goToDetailsFromDateTimeStep : goToBillingStep}
                         classname="py-[12px] px-8 flex items-center justify-center rounded-2xl! transition-all duration-300 ease-in-out hover:scale-105 text-body-3-emphasis text-center font-satoshi bg-text-primary text-neutral-0! w-auto min-w-[170px]"
                       />
                     </div>
                   </Accordion>
+                </div>
+              ) : null}
+              {companionSatisfied && isCalendarSlotFlow && canShowDetailsStep ? (
+                <div ref={step3Ref}>
+                  <AppointmentDetailsSection
+                    defaultOpen={activeStep === detailsStepNumber}
+                    open={activeStep === detailsStepNumber}
+                    onOpenChange={(open) => setActiveStep(open ? detailsStepNumber : null)}
+                    specialityId={formData.appointmentType?.speciality.id}
+                    specialityError={formDataErrors.specialityId}
+                    specialitiesOptions={SpecialitiesOptions}
+                    onSpecialitySelect={(option) => {
+                      handleSpecialitySelect(option);
+                      setConcernFocused(false);
+                      setConcernBlurred(false);
+                      setMaxUnlockedStep(detailsStepNumber);
+                      setActiveStep(detailsStepNumber);
+                    }}
+                    serviceId={formData.appointmentType?.id}
+                    serviceError={formDataErrors.serviceId}
+                    servicesOptions={ServicesOptions}
+                    onServiceSelect={(option) => {
+                      handleServiceSelect(option);
+                      setConcernFocused(false);
+                      setConcernBlurred(false);
+                      setMaxUnlockedStep(detailsStepNumber);
+                      setActiveStep(detailsStepNumber);
+                    }}
+                    concern={formData.concern || ''}
+                    concernError={formDataErrors.concern}
+                    onConcernChange={(value) => {
+                      setFormData({ ...formData, concern: value });
+                      if (value.trim()) {
+                        setFormDataErrors((prev) => ({ ...prev, concern: undefined }));
+                      }
+                    }}
+                    onConcernFocus={() => {
+                      setConcernFocused(true);
+                    }}
+                    onConcernBlur={() => {
+                      if (concernFocused) {
+                        setConcernBlurred(true);
+                      }
+                    }}
+                    onNext={goToBillingFromDetailsStep}
+                  />
                 </div>
               ) : null}
               {canShowBillingStep ? (
@@ -533,6 +649,12 @@ const AddAppointment = ({
       <AddCompanion
         showModal={showAddCompanionModal}
         setShowModal={handleQuickAddCompanionVisibility}
+        mode="fasttrack"
+        onCompanionCreated={(companionId) => {
+          const normalizedId = String(companionId ?? '').trim();
+          if (!normalizedId) return;
+          setPendingAutoSelectCompanionId(normalizedId);
+        }}
       />
       <CenterModal showModal={showDiscardConfirm} setShowModal={setShowDiscardConfirm}>
         <div className="text-body-2 text-text-primary">Discard appointment draft?</div>

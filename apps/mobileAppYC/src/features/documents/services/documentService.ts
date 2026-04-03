@@ -4,6 +4,7 @@ import {generateId} from '@/shared/utils/helpers';
 import type {Document, DocumentFile} from '@/features/documents/types';
 import {normalizeImageUri} from '@/shared/utils/imageUri';
 import {buildCdnUrlFromKey} from '@/shared/utils/cdnHelpers';
+import {formatDateToISODate} from '@/shared/utils/dateHelpers';
 
 const CATEGORY_ALIASES: Record<string, string> = {
   hygiene: 'hygiene-maintenance',
@@ -85,7 +86,10 @@ const toApiSlug = (value?: string | null): string => {
   } else if (CATEGORY_ALIASES[lower]) {
     normalized = CATEGORY_ALIASES[lower];
   }
-  return CATEGORY_API_MAP[normalized] ?? normalized.replaceAll('-', '_').toUpperCase();
+  return (
+    CATEGORY_API_MAP[normalized] ??
+    normalized.replaceAll('-', '_').toUpperCase()
+  );
 };
 
 const normalizeSubcategoryFromApi = (
@@ -94,7 +98,7 @@ const normalizeSubcategoryFromApi = (
 ): string => {
   const normalizedCategory = toUiSlug(category);
   if (!subcategory) {
-    return normalizedCategory === 'others' ? 'other' : '';
+    return normalizedCategory === 'others' ? 'weight-logs' : '';
   }
   const lower = subcategory.toString().toLowerCase();
   const mapped = SUBCATEGORY_API_TO_UI[normalizeKey(subcategory)];
@@ -102,7 +106,7 @@ const normalizeSubcategoryFromApi = (
     return mapped;
   }
   if (lower === 'other' || lower === 'others') {
-    return 'other';
+    return normalizedCategory === 'others' ? 'weight-logs' : 'other';
   }
   return lower.replaceAll('_', '-');
 };
@@ -136,7 +140,10 @@ const serializeVisitTypeForApi = (value?: string | null): string => {
   return normalized.replaceAll('-', '_').toUpperCase();
 };
 
-const toSafeIsoString = (value?: string | null, fallbackNow: boolean = false): string => {
+const toSafeIsoString = (
+  value?: string | null,
+  fallbackNow: boolean = false,
+): string => {
   if (!value) {
     return fallbackNow ? new Date().toISOString() : '';
   }
@@ -151,11 +158,14 @@ const serializeIssueDateForApi = (value?: string | null): string => {
   if (!value) {
     return '';
   }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
     return '';
   }
-  return date.toISOString().split('T')[0];
+  return formatDateToISODate(date);
 };
 
 const formatAppointmentId = (payload: any): string => {
@@ -275,15 +285,21 @@ const mapAttachmentFromApi = (
   })();
 
   const resolvedUri =
-    typeof resolvedUrl === 'string' ? resolvedUrl : fallback?.uri ?? '';
+    typeof resolvedUrl === 'string' ? resolvedUrl : (fallback?.uri ?? '');
   const resolvedS3 =
-    typeof resolvedUrl === 'string' ? resolvedUrl : fallback?.s3Url ?? cdnUrl ?? undefined;
+    typeof resolvedUrl === 'string'
+      ? resolvedUrl
+      : (fallback?.s3Url ?? cdnUrl ?? undefined);
   const resolvedView =
     raw?.viewUrl ??
-    (typeof resolvedUrl === 'string' ? resolvedUrl : fallback?.viewUrl ?? cdnUrl ?? undefined);
+    (typeof resolvedUrl === 'string'
+      ? resolvedUrl
+      : (fallback?.viewUrl ?? cdnUrl ?? undefined));
   const resolvedDownload =
     raw?.downloadUrl ??
-    (typeof resolvedUrl === 'string' ? resolvedUrl : fallback?.downloadUrl ?? cdnUrl ?? undefined);
+    (typeof resolvedUrl === 'string'
+      ? resolvedUrl
+      : (fallback?.downloadUrl ?? cdnUrl ?? undefined));
 
   return {
     id,
@@ -295,7 +311,8 @@ const mapAttachmentFromApi = (
     s3Url: resolvedS3,
     viewUrl: resolvedView,
     downloadUrl: resolvedDownload,
-    status: (raw?.status as DocumentFile['status']) ?? fallback?.status ?? 'ready',
+    status:
+      (raw?.status as DocumentFile['status']) ?? fallback?.status ?? 'ready',
   };
 };
 
@@ -304,10 +321,15 @@ const normalizeDocumentFromApi = (
   companionIdFallback?: string,
 ): Document => {
   const attachments = pickAttachmentList(payload);
-  const files = attachments.map((item, index) => mapAttachmentFromApi(item, index));
+  const files = attachments.map((item, index) =>
+    mapAttachmentFromApi(item, index),
+  );
 
   const category = toUiSlug(
-    payload?.category ?? payload?.categoryId ?? payload?.type ?? payload?.documentCategory,
+    payload?.category ??
+      payload?.categoryId ??
+      payload?.type ??
+      payload?.documentCategory,
   );
   const subcategory = normalizeSubcategoryFromApi(
     payload?.subcategory ??
@@ -319,10 +341,15 @@ const normalizeDocumentFromApi = (
   );
 
   const issueDateRaw =
-    payload?.issueDate ?? payload?.issue_date ?? payload?.issuedAt ?? payload?.issued_at ?? '';
+    payload?.issueDate ??
+    payload?.issue_date ??
+    payload?.issuedAt ??
+    payload?.issued_at ??
+    '';
 
   const createdAtRaw = payload?.createdAt ?? payload?.created_at ?? '';
-  const updatedAtRaw = payload?.updatedAt ?? payload?.updated_at ?? createdAtRaw;
+  const updatedAtRaw =
+    payload?.updatedAt ?? payload?.updated_at ?? createdAtRaw;
 
   const visitType = normalizeVisitType(
     payload?.visitType ?? payload?.visit_type ?? payload?.visit_type_name,
@@ -331,18 +358,24 @@ const normalizeDocumentFromApi = (
   const isSynced =
     Boolean(
       payload?.isSynced ??
-        payload?.synced ??
-        payload?.syncedFromPms ??
-        payload?.pmsVisible ??
-        payload?.isPms,
+      payload?.synced ??
+      payload?.syncedFromPms ??
+      payload?.pmsVisible ??
+      payload?.isPms,
     ) ||
     payload?.source === 'pms' ||
     payload?.origin === 'pms';
 
   const uploadedByParentId =
-    payload?.uploadedByParentId ?? payload?.uploadedByParent ?? payload?.parentId ?? null;
+    payload?.uploadedByParentId ??
+    payload?.uploadedByParent ??
+    payload?.parentId ??
+    null;
   const uploadedByPmsUserId =
-    payload?.uploadedByPmsUserId ?? payload?.uploadedByPmsUser ?? payload?.pmsUserId ?? null;
+    payload?.uploadedByPmsUserId ??
+    payload?.uploadedByPmsUser ??
+    payload?.pmsUserId ??
+    null;
 
   const userAddedFallback = Boolean(uploadedByParentId) || !isSynced;
   let isUserAdded = userAddedFallback;
@@ -355,11 +388,16 @@ const normalizeDocumentFromApi = (
   return {
     id: payload?.id ?? payload?._id ?? payload?.documentId ?? generateId(),
     companionId:
-      payload?.companionId ?? payload?.companion_id ?? companionIdFallback ?? payload?.petId ?? '',
+      payload?.companionId ??
+      payload?.companion_id ??
+      companionIdFallback ??
+      payload?.petId ??
+      '',
     category,
     subcategory: subcategory || '',
     visitType: visitType || '',
-    title: payload?.title ?? payload?.name ?? payload?.documentTitle ?? 'Document',
+    title:
+      payload?.title ?? payload?.name ?? payload?.documentTitle ?? 'Document',
     businessName:
       payload?.issuingBusinessName ??
       payload?.issuing_business_name ??
@@ -402,8 +440,10 @@ const normalizeViewResponse = (
 
   return candidates.map((item, index) => {
     const fallback =
-      existingFiles.find(file => file.key && (file.key === item?.key || file.key === item?.fileKey)) ??
-      existingFiles[index];
+      existingFiles.find(
+        file =>
+          file.key && (file.key === item?.key || file.key === item?.fileKey),
+      ) ?? existingFiles[index];
 
     return mapAttachmentFromApi(
       {
@@ -457,8 +497,15 @@ const extractDocumentsCollection = (payload: any): any[] => {
 const resolveUploadMeta = (payload: any) => {
   const candidate = payload?.data ?? payload;
   const uploadUrl =
-    candidate?.uploadUrl ?? candidate?.url ?? candidate?.signedUrl ?? candidate?.uploadURL;
-  const key = candidate?.key ?? candidate?.fileKey ?? candidate?.storageKey ?? candidate?.filePath;
+    candidate?.uploadUrl ??
+    candidate?.url ??
+    candidate?.signedUrl ??
+    candidate?.uploadURL;
+  const key =
+    candidate?.key ??
+    candidate?.fileKey ??
+    candidate?.storageKey ??
+    candidate?.filePath;
   const fileUrl = candidate?.fileUrl ?? candidate?.publicUrl;
 
   if (!uploadUrl || !key) {
@@ -506,7 +553,9 @@ export const documentApi = {
     });
 
     if (!file.uri) {
-      throw new Error(`File path missing for upload: ${file.name || file.key || 'unknown file'}`);
+      throw new Error(
+        `File path missing for upload: ${file.name || file.key || 'unknown file'}`,
+      );
     }
 
     // Preserve the original URI (content:// or file://); the upload service will normalize.
@@ -706,7 +755,13 @@ export const documentApi = {
     return collection.map(doc => normalizeDocumentFromApi(doc, companionId));
   },
 
-  async remove({documentId, accessToken}: {documentId: string; accessToken: string}) {
+  async remove({
+    documentId,
+    accessToken,
+  }: {
+    documentId: string;
+    accessToken: string;
+  }) {
     await apiClient.delete(
       `/v1/document/mobile/${encodeURIComponent(documentId)}`,
       {headers: withAuthHeaders(accessToken)},

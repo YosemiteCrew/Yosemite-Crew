@@ -17,7 +17,18 @@
     "enter_password": "Enter your password",
     "enter_name": "Enter your full name",
     "create_password": "Create a password",
-    "confirm_password_placeholder": "Confirm your password"
+    "confirm_password_placeholder": "Confirm your password",
+    "date_of_birth_optional": "Date of birth (optional)",
+    "date_of_birth_optional_placeholder": "Select date of birth (optional)",
+    "age_verification_info_cta": "Why we ask for age verification",
+    "age_verification_sheet_title": "18+ Age Verification",
+    "age_verification_sheet_intro": "To comply with global safety standards and regional legal requirements including the UK Age-Appropriate Design Code, the California Age-Appropriate Design Code, and recent EU Digital Services Act mandates, Yosemite Crew requires all users to verify they are 18 years of age or older.",
+    "age_verification_sheet_why_title": "Why we ask",
+    "age_verification_sheet_why_body": "This process ensures that restricted content remains inaccessible to minors and helps us maintain a secure environment in accordance with local laws.",
+    "age_verification_sheet_privacy_title": "Privacy & Security",
+    "age_verification_provider_fallback": "our trusted verification provider",
+    "age_verification_sheet_privacy_body": "Your verification data is processed solely for the purpose of age assurance. We use {{serviceProviderName}} to securely validate your status. Your sensitive identification documents are encrypted, are not used for marketing purposes, and are handled in strict accordance with our Privacy Policy and GDPR/CCPA data protection standards.",
+    "age_verification_sheet_restriction_notice": "Failure to complete this verification will result in restricted access to certain features or the inability to create an account."
   },
   "navigation": {
     "home": "Home",
@@ -82,6 +93,7 @@
     "error": "Error",
     "success": "Success",
     "cancel": "Cancel",
+    "done": "Done",
     "save": "Save",
     "delete": "Delete",
     "edit": "Edit",

@@ -129,7 +129,7 @@ describe('Appointments table', () => {
       />
     );
 
-    fireEvent.click(screen.getByTitle('Open appointment history'));
+    fireEvent.click(screen.getByTitle('Open appointment overview'));
     fireEvent.click(screen.getByText('view-icon').closest('button')!);
     fireEvent.click(screen.getByText('reschedule-icon').closest('button')!);
 

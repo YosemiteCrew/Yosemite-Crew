@@ -265,4 +265,21 @@ describe('AddAppointment Component', () => {
 
     expect(appointmentService.createAppointment).not.toHaveBeenCalled();
   });
+
+  it('uses date-time before details when opened from calendar slot prefill', async () => {
+    render(
+      <AddAppointment
+        {...defaultProps}
+        prefill={{ date: new Date('2026-04-01T00:00:00.000Z'), minuteOfDay: 600, leadId: 'lead-1' }}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('search-companion'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('slot-picker')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByTestId('select-Speciality')).not.toBeInTheDocument();
+  });
 });

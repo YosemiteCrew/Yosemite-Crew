@@ -39,17 +39,21 @@ export type AppointmentFormErrors = {
 export type UseAppointmentFormOptions = {
   onSuccess?: () => void;
   initialPrefill?: AppointmentDraftPrefill | null;
+  calendarSlotFlow?: boolean;
 };
 
 export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
-  const { onSuccess, initialPrefill } = options;
+  const { onSuccess, initialPrefill, calendarSlotFlow = false } = options;
   const terminologyText = useCompanionTerminologyText();
 
   const teams = useTeamForPrimaryOrg();
   const currency = useCurrencyForPrimaryOrg();
   const specialities = useSpecialitiesForPrimaryOrg();
   const { canMore, reason } = useCanMoreForPrimaryOrg('appointments');
-  const getServicesBySpecialityId = useServiceStore.getState().getServicesBySpecialityId;
+  const getServicesBySpecialityId = useMemo(
+    () => useServiceStore.getState().getServicesBySpecialityId,
+    []
+  );
   const { refetch: refetchData } = useSubscriptionCounterUpdate();
 
   const [formData, setFormData] = useState<Appointment>(EMPTY_APPOINTMENT);
@@ -61,6 +65,20 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
   const slotMetaByRef = useRef<WeakMap<Slot, NormalizedSlotMeta>>(new WeakMap());
   const [isLoading, setIsLoading] = useState(false);
   const [pendingPrefill, setPendingPrefill] = useState<AppointmentDraftPrefill | null>(null);
+  const [slotScopedSpecialityIds, setSlotScopedSpecialityIds] = useState<string[]>([]);
+  const [slotScopedServicesBySpecialityId, setSlotScopedServicesBySpecialityId] = useState<
+    Record<string, Array<{ label: string; value: string }>>
+  >({});
+  const [isLoadingSlotScopedOptions, setIsLoadingSlotScopedOptions] = useState(false);
+  const normalizeId = useCallback(
+    (value?: string) =>
+      String(value ?? '')
+        .trim()
+        .split('/')
+        .pop()
+        ?.toLowerCase() ?? '',
+    []
+  );
   const getNextSelectedSlot = (availableSlots: Slot[], previousSlot: Slot | null) => {
     if (!previousSlot) return availableSlots[0] ?? null;
     const matchingSlot = availableSlots.find(
@@ -184,6 +202,124 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
   }, [initialPrefill]);
 
   useEffect(() => {
+    if (!calendarSlotFlow) return;
+    if (!pendingPrefill) return;
+    if (!specialities.length) return;
+
+    const minute = Math.max(0, Math.min(1435, Math.round(pendingPrefill.minuteOfDay / 5) * 5));
+    const normalizedPrefillLeadId = normalizeId(pendingPrefill.leadId);
+    const serviceCandidates = specialities.flatMap((speciality) => {
+      const specialityId = String(speciality._id ?? '').trim();
+      if (!specialityId) return [];
+      const servicesForSpeciality = getServicesBySpecialityId(specialityId);
+      return servicesForSpeciality.map((service) => ({
+        specialityId,
+        serviceId: String(service.id ?? '').trim(),
+        serviceName: service.name ?? '',
+      }));
+    });
+    if (!serviceCandidates.length) return;
+
+    let cancelled = false;
+    setIsLoadingSlotScopedOptions(true);
+    const resolveSlotScopedOptions = async () => {
+      const resolved = await Promise.all(
+        serviceCandidates.map(async (candidate) => {
+          if (!candidate.serviceId) return null;
+          const slots = await getSlotsForServiceAndDateForPrimaryOrg(
+            candidate.serviceId,
+            pendingPrefill.date
+          );
+          const matchingSlot =
+            slots.find((slot) => {
+              const startClock = utcClockTimeToPreferredTimeZoneClock(slot.startTime);
+              if (Math.abs(startClock.minutes - minute) > 5) return false;
+              if (!normalizedPrefillLeadId) return true;
+              return (slot.vetIds ?? []).some(
+                (vetId) => normalizeId(vetId) === normalizedPrefillLeadId
+              );
+            }) ?? null;
+          if (!matchingSlot) return null;
+          return { ...candidate, matchingSlot };
+        })
+      );
+      if (cancelled) return;
+
+      const matches = resolved.filter(Boolean) as Array<{
+        specialityId: string;
+        serviceId: string;
+        serviceName: string;
+        matchingSlot: Slot;
+      }>;
+
+      if (!matches.length) {
+        setSlotScopedSpecialityIds([]);
+        setSlotScopedServicesBySpecialityId({});
+        setTimeSlots([]);
+        setSelectedSlot(null);
+        setFormDataErrors((prev) => ({
+          ...prev,
+          slot: 'Selected calendar slot is unavailable. Please choose another slot.',
+        }));
+        setPendingPrefill(null);
+        setIsLoadingSlotScopedOptions(false);
+        return;
+      }
+
+      const servicesBySpeciality: Record<string, Array<{ label: string; value: string }>> = {};
+      const specialityIdSet = new Set<string>();
+      matches.forEach((match) => {
+        specialityIdSet.add(match.specialityId);
+        if (!servicesBySpeciality[match.specialityId]) {
+          servicesBySpeciality[match.specialityId] = [];
+        }
+        const alreadyExists = servicesBySpeciality[match.specialityId].some(
+          (option) => option.value === match.serviceId
+        );
+        if (!alreadyExists) {
+          servicesBySpeciality[match.specialityId].push({
+            label: match.serviceName,
+            value: match.serviceId,
+          });
+        }
+      });
+
+      const preferredMatch =
+        (normalizedPrefillLeadId
+          ? matches.find((match) =>
+              (match.matchingSlot.vetIds ?? []).some(
+                (vetId) => normalizeId(vetId) === normalizedPrefillLeadId
+              )
+            )
+          : undefined) ?? matches[0];
+      const prefillSlot = preferredMatch?.matchingSlot ?? null;
+      if (prefillSlot) {
+        setTimeSlots([prefillSlot]);
+        setSelectedSlot(prefillSlot);
+      }
+      setSlotScopedSpecialityIds(Array.from(specialityIdSet));
+      setSlotScopedServicesBySpecialityId(servicesBySpeciality);
+      setFormDataErrors((prev) => ({
+        ...prev,
+        slot: undefined,
+      }));
+      setPendingPrefill(null);
+      setIsLoadingSlotScopedOptions(false);
+    };
+
+    resolveSlotScopedOptions().catch(() => {
+      if (!cancelled) {
+        setSlotScopedSpecialityIds([]);
+        setSlotScopedServicesBySpecialityId({});
+        setIsLoadingSlotScopedOptions(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [calendarSlotFlow, getServicesBySpecialityId, normalizeId, pendingPrefill, specialities]);
+
+  useEffect(() => {
     if (!selectedSlot || !selectedDate) return;
     const slotMeta = slotMetaByRef.current.get(selectedSlot);
     if (slotMeta) {
@@ -262,6 +398,7 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
   }, [selectedSlot]);
 
   useEffect(() => {
+    if (calendarSlotFlow) return;
     if (!pendingPrefill) return;
     if (!formData.appointmentType?.id) return;
     if (!selectedDate || !timeSlots.length) return;
@@ -314,6 +451,7 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
 
     setPendingPrefill(null);
   }, [
+    calendarSlotFlow,
     formData.appointmentType?.id,
     getLeadProfileUrl,
     getLeadOptionsForSlot,
@@ -331,7 +469,7 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
     [teams]
   );
 
-  const SpecialitiesOptions = useMemo(
+  const baseSpecialitiesOptions = useMemo(
     () =>
       specialities?.map((speciality) => ({
         label: speciality.name,
@@ -339,6 +477,13 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
       })),
     [specialities]
   );
+  const SpecialitiesOptions = useMemo(() => {
+    if (!calendarSlotFlow || !slotScopedSpecialityIds.length) {
+      return baseSpecialitiesOptions;
+    }
+    const allowedSpecialityIds = new Set(slotScopedSpecialityIds);
+    return baseSpecialitiesOptions.filter((option) => allowedSpecialityIds.has(option.value));
+  }, [baseSpecialitiesOptions, calendarSlotFlow, slotScopedSpecialityIds]);
 
   const services = useMemo(() => {
     const specialityId = formData.appointmentType?.speciality.id;
@@ -348,14 +493,52 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
     return getServicesBySpecialityId(specialityId);
   }, [formData.appointmentType?.speciality, getServicesBySpecialityId]);
 
-  const ServicesOptions = useMemo(
-    () =>
-      services?.map((service) => ({
-        label: service.name,
-        value: service.id,
-      })),
-    [services]
-  );
+  const ServicesOptions = useMemo(() => {
+    if (calendarSlotFlow) {
+      const specialityId = formData.appointmentType?.speciality.id;
+      if (!specialityId) return [];
+      return slotScopedServicesBySpecialityId[specialityId] ?? [];
+    }
+    return services?.map((service) => ({
+      label: service.name,
+      value: service.id,
+    }));
+  }, [
+    calendarSlotFlow,
+    formData.appointmentType?.speciality.id,
+    services,
+    slotScopedServicesBySpecialityId,
+  ]);
+
+  useEffect(() => {
+    if (!calendarSlotFlow || !slotScopedSpecialityIds.length) return;
+    const selectedSpecialityId = formData.appointmentType?.speciality.id;
+    if (!selectedSpecialityId) return;
+    if (!slotScopedSpecialityIds.includes(selectedSpecialityId)) {
+      setFormData((prev) => ({ ...prev, appointmentType: undefined }));
+      return;
+    }
+    const selectedServiceId = formData.appointmentType?.id;
+    if (!selectedServiceId) return;
+    const allowedServices = slotScopedServicesBySpecialityId[selectedSpecialityId] ?? [];
+    const hasService = allowedServices.some((option) => option.value === selectedServiceId);
+    if (!hasService) {
+      setFormData((prev) => ({
+        ...prev,
+        appointmentType: {
+          ...prev.appointmentType,
+          id: '',
+          name: '',
+          speciality: prev.appointmentType?.speciality ?? { id: '', name: '' },
+        },
+      }));
+    }
+  }, [
+    calendarSlotFlow,
+    formData.appointmentType,
+    slotScopedServicesBySpecialityId,
+    slotScopedSpecialityIds,
+  ]);
 
   const ServiceInfoData = useMemo(() => {
     const serviceId = formData.appointmentType?.id;
@@ -389,6 +572,9 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
     setSelectedSlot(null);
     slotMetaByRef.current = new WeakMap();
     setPendingPrefill(null);
+    setSlotScopedSpecialityIds([]);
+    setSlotScopedServicesBySpecialityId({});
+    setIsLoadingSlotScopedOptions(false);
     setFormDataErrors({});
   }, []);
 
@@ -528,6 +714,7 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
     teams,
     specialities,
     services,
+    isLoadingSlotScopedOptions,
     ServiceFields,
     CompanionFields,
     LeadOptions,

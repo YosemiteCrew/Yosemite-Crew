@@ -6,6 +6,7 @@ import Modal from '@/app/ui/overlays/Modal';
 import { Companion, Parent, Core, History } from '@/app/features/companions/components/Sections';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import Close from '@/app/ui/primitives/Icons/Close';
+import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 
 type CompanionInfoProps = {
   showModal: boolean;
@@ -28,7 +29,7 @@ const labels = [
   },
   {
     key: 'history',
-    name: 'History',
+    name: 'Overview',
   },
 ];
 
@@ -97,7 +98,12 @@ const CompanionInfo = ({
                 height={40}
                 width={40}
               />
-              <div className="text-body-1 text-text-primary">{activeCompanion?.companion.name}</div>
+              <div className="text-body-1 text-text-primary">
+                {formatCompanionNameWithOwnerLastName(
+                  activeCompanion?.companion.name,
+                  activeCompanion?.parent
+                )}
+              </div>
               <div className="text-body-4 text-text-primary mt-1">
                 {activeCompanion?.companion.breed}
               </div>

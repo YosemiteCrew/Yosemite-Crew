@@ -49,13 +49,12 @@ jest.mock('@/app/ui/inputs/Datepicker', () => ({
   ),
 }));
 
-jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
+jest.mock('@/app/ui/inputs/Timepicker', () => ({
   __esModule: true,
-  default: ({ value, onChange, inlabel }: any) => (
-    <label>
-      {inlabel}
-      <input aria-label={inlabel} value={value || ''} onChange={onChange} />
-    </label>
+  default: ({ onChange }: any) => (
+    <button type="button" onClick={() => onChange('09:45')}>
+      pick-time
+    </button>
   ),
 }));
 
@@ -120,7 +119,7 @@ describe('Task Reschedule section', () => {
     render(<RescheduleTask showModal setShowModal={setShowModal} activeTask={activeTask} />);
 
     fireEvent.click(screen.getByText('pick-date'));
-    fireEvent.change(screen.getByLabelText('Due time'), { target: { value: '09:45' } });
+    fireEvent.click(screen.getByText('pick-time'));
     fireEvent.click(screen.getByText('Update'));
 
     await waitFor(() => {

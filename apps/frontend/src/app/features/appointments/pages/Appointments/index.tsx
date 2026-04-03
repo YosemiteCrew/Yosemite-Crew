@@ -12,7 +12,7 @@ import { startOfDay } from '@/app/features/appointments/components/Calendar/week
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import { useAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
 import {
-  useCompanionsForPrimaryOrg,
+  useCompanionsParentsForPrimaryOrg,
   useLoadCompanionsForPrimaryOrg,
 } from '@/app/hooks/useCompanion';
 import { Appointment } from '@yosemite-crew/types';
@@ -36,38 +36,68 @@ import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import Fallback from '@/app/ui/overlays/Fallback';
 import { resolveDefaultAppointmentsView } from '@/app/lib/defaultAppointmentsView';
 import { normalizeAppointmentStatus, type LegacyAppointmentStatus } from '@/app/lib/appointments';
+import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 
 const Appointments = () => {
   const rawAppointments = useAppointmentsForPrimaryOrg();
   useLoadCompanionsForPrimaryOrg();
-  const companions = useCompanionsForPrimaryOrg();
-  const companionPhotoById = useMemo(() => {
-    const entries = companions
-      .map((companion) => {
-        const photoUrl = companion.photoUrl?.trim();
-        return photoUrl ? [companion.id, photoUrl] : null;
-      })
-      .filter((entry): entry is [string, string] => entry != null);
+  const companions = useCompanionsParentsForPrimaryOrg();
+  const companionMetaById = useMemo(() => {
+    const entries = companions.map((item) => {
+      const photoUrl = item.companion.photoUrl?.trim() || '';
+      const parentFirstName = item.parent.firstName?.trim() || '';
+      const parentLastName = item.parent.lastName?.trim() || '';
+      const parentFullName = [parentFirstName, parentLastName].filter(Boolean).join(' ').trim();
+      return [
+        item.companion.id,
+        {
+          photoUrl,
+          parentFirstName,
+          parentLastName,
+          parentFullName,
+          parentId: item.parent.id,
+        },
+      ] as const;
+    });
     return new Map(entries);
   }, [companions]);
   const appointments = useMemo(
     () =>
       rawAppointments.map((appointment) => {
-        const companionPhotoUrl = companionPhotoById.get(appointment.companion.id);
-        if (!companionPhotoUrl) return appointment;
+        const companionMeta = companionMetaById.get(appointment.companion.id);
+        if (!companionMeta) return appointment;
         const existingPhotoUrl = (
           appointment.companion as Appointment['companion'] & { photoUrl?: string }
         ).photoUrl;
-        if (existingPhotoUrl?.trim() === companionPhotoUrl) return appointment;
+        const existingParent = (appointment.companion.parent ?? {}) as {
+          id?: string;
+          name?: string;
+          firstName?: string;
+          lastName?: string;
+        };
+        const isSamePhoto = (existingPhotoUrl?.trim() || '') === companionMeta.photoUrl;
+        const isSameParent =
+          (existingParent.id || '') === companionMeta.parentId &&
+          (existingParent.firstName || '') === companionMeta.parentFirstName &&
+          (existingParent.lastName || '') === companionMeta.parentLastName &&
+          (existingParent.name || '') === companionMeta.parentFullName;
+        if (isSamePhoto && isSameParent) return appointment;
         return {
           ...appointment,
           companion: {
             ...appointment.companion,
-            photoUrl: companionPhotoUrl,
+            photoUrl: companionMeta.photoUrl,
+            parent: {
+              ...existingParent,
+              id: companionMeta.parentId || existingParent.id || '',
+              firstName: companionMeta.parentFirstName,
+              lastName: companionMeta.parentLastName,
+              name: companionMeta.parentFullName || existingParent.name || '',
+            },
           } as Appointment['companion'],
         };
       }),
-    [rawAppointments, companionPhotoById]
+    [rawAppointments, companionMetaById]
   );
   const { can } = usePermissions();
   const canEditAppointments =
@@ -133,32 +163,64 @@ const Appointments = () => {
     const open = String(searchParams.get('open') ?? '')
       .trim()
       .toLowerCase();
-    const subLabelRaw = String(searchParams.get('subLabel') ?? '').trim();
+    const subLabelRaw = String(searchParams.get('subLabel') ?? '')
+      .trim()
+      .toLowerCase();
     if (!appointmentId) return;
 
-    let subLabel = subLabelRaw;
-    if (!subLabel) {
-      if (open === 'finance') {
-        subLabel = 'summary';
-      } else if (open === 'labs') {
-        subLabel = 'idexx-labs';
-      }
+    const normalizedSubLabel = subLabelRaw === 'overview' ? 'history' : subLabelRaw;
+    const labelBySubLabel: Record<string, AppointmentViewIntent['label']> = {
+      appointment: 'info',
+      companion: 'info',
+      history: 'info',
+      summary: 'finance',
+      'payment-details': 'finance',
+      'idexx-labs': 'labs',
+      'parent-chat': 'tasks',
+      task: 'tasks',
+      'parent-task': 'tasks',
+      forms: 'prescription',
+      documents: 'prescription',
+      'audit-trail': 'prescription',
+      subjective: 'prescription',
+      objective: 'prescription',
+      assessment: 'prescription',
+      plan: 'prescription',
+      'discharge-summary': 'prescription',
+      'merck-manuals': 'prescription',
+    };
+
+    let initialIntent: AppointmentViewIntent | null = null;
+    if (open === 'labs') {
+      initialIntent = { label: 'labs', subLabel: normalizedSubLabel || 'idexx-labs' };
+    } else if (open === 'finance') {
+      initialIntent = { label: 'finance', subLabel: normalizedSubLabel || 'summary' };
+    } else if (
+      open === 'info' ||
+      open === 'details' ||
+      open === 'tasks' ||
+      open === 'prescription' ||
+      open === 'care'
+    ) {
+      const fallbackSubLabel = open === 'info' || open === 'details' ? 'appointment' : '';
+      initialIntent = {
+        label: (open === 'details' ? 'info' : open) as AppointmentViewIntent['label'],
+        subLabel: normalizedSubLabel || fallbackSubLabel || undefined,
+      };
+    } else if (normalizedSubLabel && labelBySubLabel[normalizedSubLabel]) {
+      initialIntent = { label: labelBySubLabel[normalizedSubLabel], subLabel: normalizedSubLabel };
     }
 
-    const deepLinkKey = `${appointmentId}:${open || 'details'}:${subLabel}`;
+    const resolvedSubLabel = initialIntent?.subLabel ?? normalizedSubLabel;
+
+    const deepLinkKey = `${appointmentId}:${open || 'details'}:${resolvedSubLabel}`;
     if (handledDeepLinkRef.current === deepLinkKey) return;
 
     const target = appointments.find((appointment) => appointment.id === appointmentId);
     if (!target) return;
 
     setActiveAppointment(target);
-    if (open === 'labs') {
-      setViewIntent({ label: 'labs', subLabel });
-    } else if (open === 'finance') {
-      setViewIntent({ label: 'finance', subLabel: subLabel || 'summary' });
-    } else {
-      setViewIntent(null);
-    }
+    setViewIntent(initialIntent);
     setViewPopup(true);
     handledDeepLinkRef.current = deepLinkKey;
   }, [appointments, searchParams]);
@@ -216,7 +278,12 @@ const Appointments = () => {
       const matchesStatus =
         activeView === 'board' || statusWanted === 'all' || status === statusWanted;
       const matchesFilter = filterWanted === 'all' || filter === filterWanted;
-      const matchesQuery = !q || item.companion.name?.toLowerCase().includes(q);
+      const companionDisplayName = formatCompanionNameWithOwnerLastName(
+        item.companion.name,
+        item.companion.parent,
+        ''
+      ).toLowerCase();
+      const matchesQuery = !q || companionDisplayName.includes(q);
 
       return matchesStatus && matchesFilter && matchesQuery;
     });

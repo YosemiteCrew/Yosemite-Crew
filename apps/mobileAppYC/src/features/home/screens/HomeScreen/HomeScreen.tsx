@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Image,
   Alert,
-  type ImageSourcePropType,
 } from 'react-native';
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {NavigationProp, useFocusEffect} from '@react-navigation/native';
@@ -58,6 +57,7 @@ import {formatDateTime} from '@/features/appointments/utils/timeFormatting';
 import {useAutoSelectCompanion} from '@/shared/hooks/useAutoSelectCompanion';
 import {useBusinessPhotoFallback} from '@/features/appointments/hooks/useBusinessPhotoFallback';
 import {transformAppointmentCardData} from '@/features/appointments/utils/appointmentCardData';
+import {getAppointmentStatusBadgePalette} from '@/features/appointments/utils/appointmentStatus';
 import {handleChatActivation} from '@/features/appointments/utils/chatActivation';
 import {getBusinessCoordinates as getBusinessCoordinatesUtil} from '@/features/appointments/utils/businessCoordinates';
 import {useCheckInHandler} from '@/features/appointments/hooks/useCheckInHandler';
@@ -102,7 +102,7 @@ type HomeQuickActionId = TaskCategory | 'merck_manuals';
 const QUICK_ACTIONS: Array<{
   id: HomeQuickActionId;
   label: string;
-  icon: ImageSourcePropType;
+  icon: React.ComponentProps<typeof Image>['source'];
   iconIsBrand?: boolean;
 }> = [
   {id: 'health', label: 'Manage health', icon: Images.healthIcon},
@@ -111,7 +111,7 @@ const QUICK_ACTIONS: Array<{
   {
     id: 'merck_manuals',
     label: 'MSD Veterinary Manual',
-    icon: Images.merckLogo,
+    icon: Images.msdQuickActionLogo,
     iconIsBrand: true,
   },
 ];
@@ -282,6 +282,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const {handleCheckIn: handleCheckInUtil} = useCheckInHandler();
   useAutoSelectCompanion(companions, selectedCompanionIdRedux);
   const [headerAvatarError, setHeaderAvatarError] = React.useState(false);
+  const [msdLogoLoadFailed, setMsdLogoLoadFailed] = React.useState(false);
   const headerAvatarUri = React.useMemo(
     () =>
       normalizeImageUri(
@@ -1078,9 +1079,24 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     ) : undefined;
 
     const formattedDate = formatDateTime(appointment.date, appointment.time);
+    const requestedPalette = getAppointmentStatusBadgePalette(
+      theme,
+      appointment.status,
+      appointment.paymentStatus,
+    );
     const statusBadge = isRequested ? (
-      <View style={styles.requestedBadge}>
-        <Text style={styles.requestedBadgeText}>Requested</Text>
+      <View
+        style={[
+          styles.requestedBadge,
+          {backgroundColor: requestedPalette.backgroundColor},
+        ]}>
+        <Text
+          style={[
+            styles.requestedBadgeText,
+            {color: requestedPalette.textColor},
+          ]}>
+          {requestedPalette.text}
+        </Text>
       </View>
     ) : null;
 
@@ -1491,11 +1507,20 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
                           : null,
                       ]}>
                       <Image
-                        source={action.icon}
+                        source={
+                          action.id === 'merck_manuals' && msdLogoLoadFailed
+                            ? Images.merckLogo
+                            : action.icon
+                        }
                         style={
                           action.iconIsBrand
                             ? styles.quickActionBrandIcon
                             : styles.quickActionIcon
+                        }
+                        onError={
+                          action.id === 'merck_manuals'
+                            ? () => setMsdLogoLoadFailed(true)
+                            : undefined
                         }
                       />
                     </View>
@@ -1711,6 +1736,8 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.cardBackground,
       borderWidth: 1,
       borderColor: theme.colors.borderMuted,
+      width: theme.spacing['12'],
+      height: theme.spacing['12'],
     },
     sectionHeader: {
       flexDirection: 'row',
@@ -1744,8 +1771,8 @@ const createStyles = (theme: any) =>
       tintColor: theme.colors.white,
     },
     quickActionBrandIcon: {
-      width: theme.spacing['9'],
-      height: theme.spacing['5'],
+      width: theme.spacing['12'],
+      height: theme.spacing['8'],
       resizeMode: 'contain',
     },
     quickActionLabel: {
@@ -1770,7 +1797,7 @@ const createStyles = (theme: any) =>
     requestedBadge: {
       alignSelf: 'flex-start',
       paddingHorizontal: theme.spacing['2.5'],
-      paddingVertical: theme.spacing['2'],
+      paddingVertical: 6,
       borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.primaryTint,
     },

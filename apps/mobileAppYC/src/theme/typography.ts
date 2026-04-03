@@ -179,11 +179,11 @@ const bodyXsBold: TextStyle = {
 
 const caption: TextStyle = {
   ...bodyXs,
-  fontFamily: fonts.SF_PRO_TEXT_REGULAR,
+  fontFamily: fonts.SATOSHI_REGULAR,
 };
 const captionBold: TextStyle = {
   ...bodyXs,
-  fontFamily: fonts.SF_PRO_TEXT_SEMIBOLD,
+  fontFamily: fonts.SATOSHI_BOLD,
   fontWeight: fontWeights.semibold,
 };
 
@@ -214,7 +214,7 @@ export const typography = {
   paragraphBold: bodyBold,
   paragraph18Bold: bodyMedium,
   clashBody13: {
-    fontFamily: fonts.CLASH_GRO_MEDIUM,
+    fontFamily: fonts.SATOSHI_MEDIUM,
     fontSize: fontSizes['13'],
     lineHeight: Math.round(fontSizes['13'] * 1.4),
     fontWeight: fontWeights.medium,
@@ -273,7 +273,7 @@ export const typography = {
     lineHeight: Math.round(fontSizes.lg * 1.25),
   },
   buttonH6Clash19: {
-    fontFamily: fonts.CLASH_GRO_MEDIUM,
+    fontFamily: fonts.SATOSHI_MEDIUM,
     fontSize: fontSizes['19'],
     lineHeight: Math.round(fontSizes['19'] * 1.3),
     fontWeight: fontWeights.medium,

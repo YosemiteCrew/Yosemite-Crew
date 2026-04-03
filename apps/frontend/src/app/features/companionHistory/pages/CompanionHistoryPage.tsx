@@ -13,6 +13,7 @@ import {
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import Image from 'next/image';
+import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 
 const FALLBACK_BACK_PATH = '/companions';
 const APPOINTMENTS_BACK_PATH = '/appointments';
@@ -47,7 +48,7 @@ const CompanionHistoryPage = () => {
     [companions, companionId]
   );
   const historyTitle = useMemo(
-    () => replaceCompanionText('Companion History'),
+    () => replaceCompanionText('Companion Overview'),
     [replaceCompanionText]
   );
 
@@ -75,7 +76,10 @@ const CompanionHistoryPage = () => {
                 />
                 <div className="flex flex-col leading-tight">
                   <div className="text-body-3-emphasis text-text-primary">
-                    {activeCompanion.companion.name}
+                    {formatCompanionNameWithOwnerLastName(
+                      activeCompanion.companion.name,
+                      activeCompanion.parent
+                    )}
                   </div>
                   <div className="text-caption-1 text-text-secondary">
                     {activeCompanion.companion.breed} / {activeCompanion.companion.type}
@@ -87,7 +91,7 @@ const CompanionHistoryPage = () => {
 
           {hasCompanionId ? null : (
             <div className="rounded-2xl border border-card-border bg-white px-4 py-6 text-body-3 text-text-secondary">
-              Companion id is missing. Please open history from Appointments or Companions.
+              Companion id is missing. Please open overview from Appointments or Companions.
             </div>
           )}
 

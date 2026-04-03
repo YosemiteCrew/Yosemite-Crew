@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import Parent from '@/app/features/companions/components/AddCompanion/Sections/Parent';
 import { EMPTY_STORED_PARENT } from '@/app/features/companions/components/AddCompanion/type';
+import { validatePhone } from '@/app/lib/validators';
 
 jest.mock('@/app/ui/primitives/Accordion/Accordion', () => ({
   __esModule: true,
@@ -55,10 +56,15 @@ jest.mock('@/app/features/companions/services/companionService', () => ({
 
 jest.mock('@/app/lib/validators', () => ({
   getCountryCode: () => null,
-  validatePhone: () => true,
+  validatePhone: jest.fn(() => true),
 }));
 
 describe('AddCompanion Parent section', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (validatePhone as jest.Mock).mockReturnValue(true);
+  });
+
   it('shows validation errors when required fields are empty', () => {
     render(
       <Parent setActiveLabel={jest.fn()} formData={EMPTY_STORED_PARENT} setFormData={jest.fn()} />
@@ -69,5 +75,32 @@ describe('AddCompanion Parent section', () => {
     expect(screen.getByText('First name is required')).toBeInTheDocument();
     expect(screen.getByText('Email is required')).toBeInTheDocument();
     expect(screen.getByText('Number is required')).toBeInTheDocument();
+    expect(screen.getByText('Address is required')).toBeInTheDocument();
+  });
+
+  it('shows phone validation error when number is invalid', () => {
+    (validatePhone as jest.Mock).mockReturnValue(false);
+
+    render(
+      <Parent
+        setActiveLabel={jest.fn()}
+        formData={{
+          ...EMPTY_STORED_PARENT,
+          firstName: 'Parent',
+          lastName: 'User',
+          email: 'parent@example.com',
+          phoneNumber: '+1123',
+          address: {
+            ...EMPTY_STORED_PARENT.address,
+            addressLine: '123 Main Street',
+          },
+        }}
+        setFormData={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+    expect(screen.getByText('Enter a valid phone number')).toBeInTheDocument();
   });
 });

@@ -57,7 +57,21 @@ import { useSigningOverlayStore } from '@/app/stores/signingOverlayStore';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
-import { normalizeAppointmentStatus } from '@/app/lib/appointments';
+import {
+  getAppointmentCompanionPhotoUrl,
+  normalizeAppointmentStatus,
+} from '@/app/lib/appointments';
+import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
+import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
+
+const COMPANION_IMAGE_TYPES = new Set<ImageType>(['dog', 'cat', 'horse', 'other']);
+
+const resolveCompanionImageType = (species?: string | null): ImageType => {
+  const normalized = String(species ?? '')
+    .trim()
+    .toLowerCase();
+  return COMPANION_IMAGE_TYPES.has(normalized as ImageType) ? (normalized as ImageType) : 'other';
+};
 
 const ALLOWED_CATEGORIES_BY_ORG: Record<string, string[]> = {
   HOSPITAL: ['Prescription', 'Consent form', 'Custom'],
@@ -590,6 +604,25 @@ export const createEmptyFormData = (): FormDataProps => ({
 
 type LabelKey = 'info' | 'prescription' | 'care' | 'tasks' | 'finance' | 'labs';
 
+const normalizeInfoSubLabel = (label: string, subLabel?: string) => {
+  if (label === 'info' && subLabel === 'overview') return 'history';
+  return subLabel;
+};
+
+const resolveIntentLabel = (
+  availableLabels: Array<{ key: string }>,
+  label: string
+): string | null => {
+  if (availableLabels.some((item) => item.key === label)) return label;
+  if (label === 'prescription' && availableLabels.some((item) => item.key === 'care')) {
+    return 'care';
+  }
+  if (label === 'care' && availableLabels.some((item) => item.key === 'prescription')) {
+    return 'prescription';
+  }
+  return null;
+};
+
 const hospitalLabels = [
   {
     key: 'info',
@@ -597,7 +630,7 @@ const hospitalLabels = [
     labels: [
       { key: 'appointment', name: 'Appointment' },
       { key: 'companion', name: 'Companion' },
-      { key: 'history', name: 'History' },
+      { key: 'history', name: 'Overview' },
     ],
   },
   {
@@ -770,11 +803,13 @@ const AppoitmentInfo = ({
     orgType === 'HOSPITAL' && activeLabel === 'prescription' ? 'Medical Notes / SOAP' : 'Templates';
   const handleHistoryOpenAppointmentView = useCallback(
     (intent: AppointmentViewIntent) => {
-      const targetLabel = labels.find((label) => label.key === intent.label);
+      const resolvedLabelKey = resolveIntentLabel(labels, intent.label);
+      if (!resolvedLabelKey) return;
+      const targetLabel = labels.find((label) => label.key === resolvedLabelKey);
       if (!targetLabel) return;
       setActiveLabel(targetLabel.key as LabelKey);
 
-      const preferredSubLabel = intent.subLabel;
+      const preferredSubLabel = normalizeInfoSubLabel(resolvedLabelKey, intent.subLabel);
       if (!preferredSubLabel) {
         setActiveSubLabel(targetLabel.labels[0]?.key ?? '');
         return;
@@ -792,18 +827,17 @@ const AppoitmentInfo = ({
 
   useEffect(() => {
     if (!showModal || !initialViewIntent) return;
-    const targetLabel = labels.find((label) => label.key === initialViewIntent.label);
+    const resolvedLabelKey = resolveIntentLabel(labels, initialViewIntent.label);
+    if (!resolvedLabelKey) return;
+    const targetLabel = labels.find((label) => label.key === resolvedLabelKey);
     if (!targetLabel) return;
     setActiveLabel(targetLabel.key as LabelKey);
-    const hasTargetSubLabel = initialViewIntent.subLabel
-      ? targetLabel.labels.some(
-          (label: { key: string }) => label.key === initialViewIntent.subLabel
-        )
+    const normalizedSubLabel = normalizeInfoSubLabel(resolvedLabelKey, initialViewIntent.subLabel);
+    const hasTargetSubLabel = normalizedSubLabel
+      ? targetLabel.labels.some((label: { key: string }) => label.key === normalizedSubLabel)
       : false;
     setActiveSubLabel(
-      hasTargetSubLabel
-        ? (initialViewIntent.subLabel as string)
-        : (targetLabel.labels[0]?.key ?? '')
+      hasTargetSubLabel ? (normalizedSubLabel as string) : (targetLabel.labels[0]?.key ?? '')
     );
   }, [showModal, initialViewIntent, labels]);
 
@@ -1058,6 +1092,15 @@ const AppoitmentInfo = ({
     scrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
   }, [activeLabel, activeSubLabel]);
 
+  const companionImageSrc = getSafeImageUrl(
+    getAppointmentCompanionPhotoUrl(
+      activeAppointment?.companion as
+        | (Appointment['companion'] & { photoUrl?: string | null })
+        | undefined
+    ),
+    resolveCompanionImageType(activeAppointment?.companion?.species)
+  );
+
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <SigningOverlay />
@@ -1067,13 +1110,16 @@ const AppoitmentInfo = ({
             <div className="flex justify-center items-center gap-2">
               <Image
                 alt="pet image"
-                src={MEDIA_SOURCES.appointments.companionAvatar}
-                className="rounded-full"
+                src={companionImageSrc}
+                className="h-10 w-10 rounded-full object-cover border border-card-border bg-white"
                 height={40}
                 width={40}
               />
               <div className="text-body-1 text-text-primary">
-                {activeAppointment?.companion.name}
+                {formatCompanionNameWithOwnerLastName(
+                  activeAppointment?.companion.name,
+                  activeAppointment?.companion.parent
+                )}
               </div>
               <div className="text-body-4 text-text-primary mt-1">
                 {activeAppointment?.companion.breed}

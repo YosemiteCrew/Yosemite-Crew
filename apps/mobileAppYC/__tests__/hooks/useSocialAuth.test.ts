@@ -1,13 +1,13 @@
-import { renderHook, act } from '@testing-library/react-hooks';
-import { DeviceEventEmitter } from 'react-native'; // Import comes first
+import {renderHook, act} from '@testing-library/react-hooks';
+import {DeviceEventEmitter} from 'react-native'; // Import comes first
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useSocialAuth } from '@/features/auth/hooks/useSocialAuth';
-import { signInWithSocialProvider } from '@/features/auth/services/socialAuth';
+import {useSocialAuth} from '@/features/auth/hooks/useSocialAuth';
+import {signInWithSocialProvider} from '@/features/auth/services/socialAuth';
 import {
   PENDING_PROFILE_STORAGE_KEY,
   PENDING_PROFILE_UPDATED_EVENT,
 } from '@/config/variables';
-import type { AuthStackParamList } from '@/navigation/AuthNavigator';
+import type {AuthStackParamList} from '@/navigation/AuthNavigator';
 
 // --- Mocks ---
 
@@ -16,7 +16,9 @@ jest.mock('@/features/auth/services/socialAuth', () => ({
   signInWithSocialProvider: jest.fn(),
 }));
 const mockedSignInWithSocialProvider =
-  signInWithSocialProvider as jest.MockedFunction<typeof signInWithSocialProvider>;
+  signInWithSocialProvider as jest.MockedFunction<
+    typeof signInWithSocialProvider
+  >;
 
 // Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage', () => ({
@@ -149,7 +151,7 @@ describe('useSocialAuth', () => {
   });
 
   it('should initialize with default state', () => {
-    const { result } = renderHook(() => useSocialAuth(defaultProps));
+    const {result} = renderHook(() => useSocialAuth(defaultProps));
 
     expect(result.current.activeProvider).toBeNull();
     expect(result.current.isSocialLoading).toBe(false);
@@ -158,7 +160,7 @@ describe('useSocialAuth', () => {
   it('should set activeProvider and isSocialLoading to true on start', async () => {
     // Mock the promise to keep it pending
     mockedSignInWithSocialProvider.mockReturnValue(new Promise(() => {}));
-    const { result } = renderHook(() => useSocialAuth(defaultProps));
+    const {result} = renderHook(() => useSocialAuth(defaultProps));
 
     // Call the handler
     act(() => {
@@ -173,7 +175,7 @@ describe('useSocialAuth', () => {
 
   it('should not start a new auth flow if one is already active', async () => {
     mockedSignInWithSocialProvider.mockReturnValue(new Promise(() => {})); // Keep it pending
-    const { result } = renderHook(() => useSocialAuth(defaultProps));
+    const {result} = renderHook(() => useSocialAuth(defaultProps));
 
     // Start first flow
     act(() => {
@@ -197,16 +199,22 @@ describe('useSocialAuth', () => {
 
   it('should handle an existing profile successfully', async () => {
     mockedSignInWithSocialProvider.mockResolvedValue(mockExistingProfileResult);
-    const { result } = renderHook(() => useSocialAuth(defaultProps));
+    const {result} = renderHook(() => useSocialAuth(defaultProps));
 
     await act(async () => {
       await result.current.handleSocialAuth('google');
     });
 
     expect(mockOnStart).toHaveBeenCalledTimes(1);
-    expect(mockedAsyncStorage.removeItem).toHaveBeenCalledWith(PENDING_PROFILE_STORAGE_KEY);
-    expect(mockedDeviceEventEmitter.emit).toHaveBeenCalledWith(PENDING_PROFILE_UPDATED_EVENT);
-    expect(mockOnExistingProfile).toHaveBeenCalledWith(mockExistingProfileResult);
+    expect(mockedAsyncStorage.removeItem).toHaveBeenCalledWith(
+      PENDING_PROFILE_STORAGE_KEY,
+    );
+    expect(mockedDeviceEventEmitter.emit).toHaveBeenCalledWith(
+      PENDING_PROFILE_UPDATED_EVENT,
+    );
+    expect(mockOnExistingProfile).toHaveBeenCalledWith(
+      mockExistingProfileResult,
+    );
     expect(mockOnNewProfile).not.toHaveBeenCalled();
     expect(mockedAsyncStorage.setItem).not.toHaveBeenCalled();
 
@@ -217,7 +225,7 @@ describe('useSocialAuth', () => {
 
   it('should handle a new profile successfully', async () => {
     mockedSignInWithSocialProvider.mockResolvedValue(mockNewProfileResult);
-    const { result } = renderHook(() => useSocialAuth(defaultProps));
+    const {result} = renderHook(() => useSocialAuth(defaultProps));
 
     await act(async () => {
       await result.current.handleSocialAuth('apple');
@@ -228,7 +236,9 @@ describe('useSocialAuth', () => {
       PENDING_PROFILE_STORAGE_KEY,
       JSON.stringify(mockCreateAccountPayload),
     );
-    expect(mockedDeviceEventEmitter.emit).toHaveBeenCalledWith(PENDING_PROFILE_UPDATED_EVENT);
+    expect(mockedDeviceEventEmitter.emit).toHaveBeenCalledWith(
+      PENDING_PROFILE_UPDATED_EVENT,
+    );
     expect(mockOnNewProfile).toHaveBeenCalledWith(mockCreateAccountPayload);
     expect(mockOnExistingProfile).not.toHaveBeenCalled();
     expect(mockedAsyncStorage.removeItem).not.toHaveBeenCalled();
@@ -241,7 +251,7 @@ describe('useSocialAuth', () => {
   it('should throw generic error message on a generic error', async () => {
     const error = new Error('Generic fail');
     mockedSignInWithSocialProvider.mockRejectedValue(error);
-    const { result } = renderHook(() => useSocialAuth(defaultProps));
+    const {result} = renderHook(() => useSocialAuth(defaultProps));
 
     await expect(
       act(async () => {
@@ -259,9 +269,9 @@ describe('useSocialAuth', () => {
   });
 
   it('should throw cancelled error message if error code is "auth/cancelled"', async () => {
-    const error = { code: 'auth/cancelled', message: 'Cancelled by user' };
+    const error = {code: 'auth/cancelled', message: 'Cancelled by user'};
     mockedSignInWithSocialProvider.mockRejectedValue(error);
-    const { result } = renderHook(() => useSocialAuth(defaultProps));
+    const {result} = renderHook(() => useSocialAuth(defaultProps));
 
     await expect(
       act(async () => {
@@ -275,9 +285,9 @@ describe('useSocialAuth', () => {
   });
 
   it('should throw cancelled error message if error message contains "cancel"', async () => {
-    const error = { message: 'User cancelled the flow' };
+    const error = {message: 'User cancelled the flow'};
     mockedSignInWithSocialProvider.mockRejectedValue(error);
-    const { result } = renderHook(() => useSocialAuth(defaultProps));
+    const {result} = renderHook(() => useSocialAuth(defaultProps));
 
     await expect(
       act(async () => {
@@ -290,14 +300,35 @@ describe('useSocialAuth', () => {
     expect(result.current.isSocialLoading).toBe(false);
   });
 
+  it('should surface account-exists-with-different-credential message', async () => {
+    const conflictMessage =
+      'An account already exists with this email. Sign in with Google and try again.';
+    mockedSignInWithSocialProvider.mockRejectedValue({
+      code: 'auth/account-exists-with-different-credential',
+      message: conflictMessage,
+    });
+    const {result} = renderHook(() => useSocialAuth(defaultProps));
+
+    await expect(
+      act(async () => {
+        await result.current.handleSocialAuth('facebook');
+      }),
+    ).rejects.toThrow(conflictMessage);
+
+    expect(result.current.activeProvider).toBeNull();
+    expect(result.current.isSocialLoading).toBe(false);
+  });
+
   it('should use default cancelled message if not provided', async () => {
-    const error = { code: 'auth/cancelled' };
+    const error = {code: 'auth/cancelled'};
     mockedSignInWithSocialProvider.mockRejectedValue(error);
     // Render without cancelledMessage
-    const { result } = renderHook(() => useSocialAuth({
-      ...defaultProps,
-      cancelledMessage: undefined, // Use default
-    }));
+    const {result} = renderHook(() =>
+      useSocialAuth({
+        ...defaultProps,
+        cancelledMessage: undefined, // Use default
+      }),
+    );
 
     await expect(
       act(async () => {
@@ -309,10 +340,12 @@ describe('useSocialAuth', () => {
   it('should not call onStart if onStart prop is not provided', async () => {
     mockedSignInWithSocialProvider.mockResolvedValue(mockNewProfileResult);
     // Render without onStart
-    const { result } = renderHook(() => useSocialAuth({
-      ...defaultProps,
-      onStart: undefined,
-    }));
+    const {result} = renderHook(() =>
+      useSocialAuth({
+        ...defaultProps,
+        onStart: undefined,
+      }),
+    );
 
     await act(async () => {
       await result.current.handleSocialAuth('apple');

@@ -1,5 +1,14 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {Alert, ScrollView, StyleSheet, Text, View, Image, Switch, Platform} from 'react-native';
+import {
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  Image,
+  Switch,
+  Platform,
+} from 'react-native';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp, NavigationProp} from '@react-navigation/native';
@@ -30,7 +39,10 @@ import {
   buildTaskTypeBreadcrumb,
 } from '@/features/tasks/utils/taskLabels';
 import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
-import type {MedicationTaskDetails, ObservationalToolTaskDetails} from '@/features/tasks/types';
+import type {
+  MedicationTaskDetails,
+  ObservationalToolTaskDetails,
+} from '@/features/tasks/types';
 import {openCalendarEvent} from '@/features/tasks/services/calendarSyncService';
 import {buildCdnUrlFromKey} from '@/shared/utils/cdnHelpers';
 import {normalizeImageUri} from '@/shared/utils/imageUri';
@@ -54,14 +66,19 @@ export const TaskViewScreen: React.FC = () => {
   const companion = useSelector((state: RootState) =>
     state.companion.companions.find(c => c.id === task?.companionId),
   );
-  const businesses = useSelector((state: RootState) => state.businesses.businesses);
+  const businesses = useSelector(
+    (state: RootState) => state.businesses.businesses,
+  );
   const services = useSelector((state: RootState) => state.businesses.services);
   const currentUser = useSelector(selectAuthUser);
   const preparedAttachments = useMemo(() => {
-    const guessMimeFromName = (fileName?: string | null): string | undefined => {
+    const guessMimeFromName = (
+      fileName?: string | null,
+    ): string | undefined => {
       if (!fileName) return undefined;
       const lower = fileName.toLowerCase();
-      if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+      if (lower.endsWith('.jpg') || lower.endsWith('.jpeg'))
+        return 'image/jpeg';
       if (lower.endsWith('.png')) return 'image/png';
       if (lower.endsWith('.webp')) return 'image/webp';
       if (lower.endsWith('.pdf')) return 'application/pdf';
@@ -87,30 +104,57 @@ export const TaskViewScreen: React.FC = () => {
   }, [task?.attachments]);
 
   const taskDescription = useMemo(() => {
-    if (task?.details && 'description' in task.details && task.details.description) {
+    if (
+      task?.details &&
+      'description' in task.details &&
+      task.details.description
+    ) {
       return task.details.description;
     }
     return task?.description || '';
   }, [task?.details, task?.description]);
 
-  const isObservationalTool =
-    !!(
-      task?.details &&
-      'taskType' in task.details &&
-      task.details.taskType === 'take-observational-tool'
-    );
+  const isObservationalTool = !!(
+    task?.details &&
+    'taskType' in task.details &&
+    task.details.taskType === 'take-observational-tool'
+  );
 
-  const isMedication =
-    !!(task?.details && 'taskType' in task.details && task.details.taskType === 'give-medication');
+  const isMedication = !!(
+    task?.details &&
+    'taskType' in task.details &&
+    task.details.taskType === 'give-medication'
+  );
+  const medicationFrequency = isMedication
+    ? (task.details as MedicationTaskDetails).frequency
+    : null;
+  const medicationFrequencyType =
+    typeof medicationFrequency === 'string'
+      ? medicationFrequency
+      : medicationFrequency && typeof medicationFrequency === 'object'
+        ? (medicationFrequency as {type?: string}).type
+        : null;
+  const shouldShowMedicationEndDate =
+    String(medicationFrequencyType ?? '')
+      .trim()
+      .toLowerCase() !== 'once';
 
-  const isCompleted = task ? String(task.status).toUpperCase() === 'COMPLETED' : false;
-  const isCancelled = task ? String(task.status).toUpperCase() === 'CANCELLED' : false;
-  const isPending = task ? String(task.status).toUpperCase() === 'PENDING' : false;
+  const isCompleted = task
+    ? String(task.status).toUpperCase() === 'COMPLETED'
+    : false;
+  const isCancelled = task
+    ? String(task.status).toUpperCase() === 'CANCELLED'
+    : false;
+  const isPending = task
+    ? String(task.status).toUpperCase() === 'PENDING'
+    : false;
   const hasLinkedAppointment = Boolean(task?.appointmentId);
 
   const [otLabel, setOtLabel] = useState<string>(() => {
     if (!isObservationalTool || !task) return '';
-    const raw = task.observationToolId ?? (task.details as ObservationalToolTaskDetails).toolType;
+    const raw =
+      task.observationToolId ??
+      (task.details as ObservationalToolTaskDetails).toolType;
     const resolved = resolveObservationalToolLabel(raw as any);
     const looksLikeId = /^[a-f0-9]{24}$/i.test(resolved ?? '');
     return looksLikeId ? 'Observational tool' : resolved;
@@ -120,7 +164,8 @@ export const TaskViewScreen: React.FC = () => {
     if (isObservationalTool) {
       const otId =
         task.observationToolId ??
-        ((task.details as ObservationalToolTaskDetails).toolType ?? null);
+        (task.details as ObservationalToolTaskDetails).toolType ??
+        null;
       if (otId) {
         observationToolApi
           .get(otId)
@@ -150,7 +195,9 @@ export const TaskViewScreen: React.FC = () => {
     const normalizedName = (otLabel ?? '').toLowerCase();
     const speciesToken = (companion?.category ?? '').toLowerCase();
     return services.filter(service => {
-      const specialtyMatch = (service.specialty ?? '').toLowerCase().includes('observation');
+      const specialtyMatch = (service.specialty ?? '')
+        .toLowerCase()
+        .includes('observation');
       const nameMatch = normalizedName
         ? service.name.toLowerCase().includes(normalizedName)
         : false;
@@ -164,7 +211,14 @@ export const TaskViewScreen: React.FC = () => {
   if (!task) {
     return (
       <LiquidGlassHeaderScreen
-        header={<Header title="Task" showBackButton onBack={() => navigation.goBack()} glass={false} />}
+        header={
+          <Header
+            title="Task"
+            showBackButton
+            onBack={() => navigation.goBack()}
+            glass={false}
+          />
+        }
         contentPadding={theme.spacing['3']}>
         {() => (
           <View style={styles.errorContainer}>
@@ -186,6 +240,7 @@ export const TaskViewScreen: React.FC = () => {
     // Navigate to AddTask with pre-filled data from current task
     navigation.navigate('AddTask', {
       reuseTaskId: task.id,
+      prefillDate: task.date,
     });
   };
 
@@ -197,7 +252,9 @@ export const TaskViewScreen: React.FC = () => {
     navigation.navigate('ObservationalToolPreview', {
       taskId: task.id,
       submissionId: task.otSubmissionId ?? undefined,
-      toolId: task.observationToolId ?? (task.details as ObservationalToolTaskDetails).toolType,
+      toolId:
+        task.observationToolId ??
+        (task.details as ObservationalToolTaskDetails).toolType,
     });
   };
 
@@ -218,22 +275,34 @@ export const TaskViewScreen: React.FC = () => {
         const preview = await observationToolApi.previewTaskSubmission(task.id);
         submissionId = preview.id || null;
       } catch {
-        Alert.alert('Submission required', 'Complete the observational tool before booking.');
+        Alert.alert(
+          'Submission required',
+          'Complete the observational tool before booking.',
+        );
         return;
       }
     }
     if (!submissionId) {
-      Alert.alert('Submission required', 'Complete the observational tool before booking.');
+      Alert.alert(
+        'Submission required',
+        'Complete the observational tool before booking.',
+      );
       return;
     }
     const service = resolveOtServices[0];
     if (!service) {
-      Alert.alert('No providers available', 'We could not find a clinic offering this tool yet.');
+      Alert.alert(
+        'No providers available',
+        'We could not find a clinic offering this tool yet.',
+      );
       return;
     }
     const business = businesses.find(biz => biz.id === service.businessId);
     if (!business) {
-      Alert.alert('No providers available', 'We could not find a clinic offering this tool yet.');
+      Alert.alert(
+        'No providers available',
+        'We could not find a clinic offering this tool yet.',
+      );
       return;
     }
     const toolType = (task.details as ObservationalToolTaskDetails).toolType;
@@ -365,46 +434,42 @@ export const TaskViewScreen: React.FC = () => {
             styles.contentContainer,
             contentPaddingStyle,
             {
-              paddingTop: (typeof contentPaddingStyle?.paddingTop === 'number' ? contentPaddingStyle.paddingTop : theme.spacing['14']) + theme.spacing['4'],
+              paddingTop:
+                (typeof contentPaddingStyle?.paddingTop === 'number'
+                  ? contentPaddingStyle.paddingTop
+                  : theme.spacing['14']) + theme.spacing['4'],
               paddingBottom: theme.spacing['24'],
             },
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
-        {isObservationalTool && !isCancelled && (
-          <LiquidGlassCard
-            glassEffect="clear"
-            padding="4"
-            shadow="sm"
-            style={styles.otCtaContainer}
-            fallbackStyle={styles.otCtaFallback}>
-            <Text style={styles.otCtaTitle}>
-              {isCompleted ? 'Observational tool completed' : 'Time for an observational tool !'}
-            </Text>
-            {!isCompleted && (
-              <Text style={styles.otCtaSubtitle}>
-                Complete the observational tool to log the latest insights of your companion.
+          {isObservationalTool && !isCancelled && (
+            <LiquidGlassCard
+              glassEffect="clear"
+              padding="4"
+              shadow="sm"
+              style={styles.otCtaContainer}
+              fallbackStyle={styles.otCtaFallback}>
+              <Text style={styles.otCtaTitle}>
+                {isCompleted
+                  ? 'Observational tool completed'
+                  : 'Time for an observational tool !'}
               </Text>
-            )}
-            {!isCompleted && (
-              <View style={styles.otCtaButtonWrapper}>
-                <LiquidGlassButton
-                  title="Start Now"
-                  onPress={() => navigation.navigate('ObservationalTool', {taskId: task.id})}
-                  glassEffect="clear"
-                  borderRadius="lg"
-                  tintColor={theme.colors.secondary}
-                  style={styles.otCtaButton}
-                  textStyle={styles.otCtaButtonText}
-                />
-              </View>
-            )}
-            {(isCompleted || task.otSubmissionId) && (
-              <>
+              {!isCompleted && (
+                <Text style={styles.otCtaSubtitle}>
+                  Complete the observational tool to log the latest insights of
+                  your companion.
+                </Text>
+              )}
+              {!isCompleted && (
                 <View style={styles.otCtaButtonWrapper}>
                   <LiquidGlassButton
-                    title="OT submission"
-                    onPress={handleOpenOtPreview}
+                    title="Start Now"
+                    onPress={() =>
+                      navigation.navigate('ObservationalTool', {
+                        taskId: task.id,
+                      })
+                    }
                     glassEffect="clear"
                     borderRadius="lg"
                     tintColor={theme.colors.secondary}
@@ -412,409 +477,480 @@ export const TaskViewScreen: React.FC = () => {
                     textStyle={styles.otCtaButtonText}
                   />
                 </View>
-                <View style={styles.otCtaButtonWrapper}>
-                  <LiquidGlassButton
-                    title={hasLinkedAppointment ? 'Show appointment' : 'Book appointment'}
-                    onPress={handleBookAppointment}
-                    glassEffect="clear"
-                    borderRadius="lg"
-                    tintColor={theme.colors.secondary}
-                    style={styles.otCtaButton}
-                    textStyle={styles.otCtaButtonText}
-                  />
-                </View>
-              </>
-            )}
-          </LiquidGlassCard>
-        )}
+              )}
+              {(isCompleted || task.otSubmissionId) && (
+                <>
+                  <View style={styles.otCtaButtonWrapper}>
+                    <LiquidGlassButton
+                      title="OT submission"
+                      onPress={handleOpenOtPreview}
+                      glassEffect="clear"
+                      borderRadius="lg"
+                      tintColor={theme.colors.secondary}
+                      style={styles.otCtaButton}
+                      textStyle={styles.otCtaButtonText}
+                    />
+                  </View>
+                  <View style={styles.otCtaButtonWrapper}>
+                    <LiquidGlassButton
+                      title={
+                        hasLinkedAppointment
+                          ? 'Show appointment'
+                          : 'Book appointment'
+                      }
+                      onPress={handleBookAppointment}
+                      glassEffect="clear"
+                      borderRadius="lg"
+                      tintColor={theme.colors.secondary}
+                      style={styles.otCtaButton}
+                      textStyle={styles.otCtaButtonText}
+                    />
+                  </View>
+                </>
+              )}
+            </LiquidGlassCard>
+          )}
 
-        {/* Companion */}
-        <ViewField
-          label="Companion"
-          value={companion?.name || ''}
-          fieldGroupStyle={styles.fieldGroup}
-        />
+          {/* Companion */}
+          <ViewField
+            label="Companion"
+            value={companion?.name || ''}
+            fieldGroupStyle={styles.fieldGroup}
+          />
 
-        {/* Task Type */}
-        <ViewTouchField
-          label="Task type"
-          value={getTaskTypeBreadcrumb()}
-          icon={Images.dropdownIcon}
-          iconStyle={iconStyles.dropdownIcon}
-          fieldGroupStyle={styles.fieldGroup}
-        />
+          {/* Task Type */}
+          <ViewTouchField
+            label="Task type"
+            value={getTaskTypeBreadcrumb()}
+            icon={Images.dropdownIcon}
+            iconStyle={iconStyles.dropdownIcon}
+            fieldGroupStyle={styles.fieldGroup}
+          />
 
-        {/* Medication Task Form */}
-        {isMedication && (
-          <>
-            {/* Task Name */}
-            <ViewField
-              label="Task name"
-              value={task.title}
-              fieldGroupStyle={styles.fieldGroup}
-            />
-
-            {taskDescription ? (
+          {/* Medication Task Form */}
+          {isMedication && (
+            <>
+              {/* Task Name */}
               <ViewField
-                label="Task description"
-                value={taskDescription}
+                label="Task name"
+                value={task.title}
                 fieldGroupStyle={styles.fieldGroup}
               />
-            ) : null}
 
-            {/* Medicine Name */}
-            <ViewField
-              label="Medicine name"
-              value={(task.details as MedicationTaskDetails).medicineName}
-              fieldGroupStyle={styles.fieldGroup}
-            />
+              {taskDescription ? (
+                <ViewField
+                  label="Task description"
+                  value={taskDescription}
+                  fieldGroupStyle={styles.fieldGroup}
+                />
+              ) : null}
 
-            {/* Medication Type */}
-            <ViewTouchField
-              label="Medication type"
-              value={resolveMedicationTypeLabel(
-                (task.details as MedicationTaskDetails).medicineType,
-              )}
-              icon={Images.dropdownIcon}
-              iconStyle={iconStyles.dropdownIcon}
-              fieldGroupStyle={styles.fieldGroup}
-            />
-
-            {/* Dosage */}
-            <ViewTouchField
-              label="Dosage"
-              value={`${(task.details as MedicationTaskDetails).dosages.length} dosage${
-                (task.details as MedicationTaskDetails).dosages.length > 1 ? 's' : ''
-              }`}
-              icon={Images.dropdownIcon}
-              iconStyle={iconStyles.dropdownIcon}
-              fieldGroupStyle={styles.fieldGroup}
-            />
-
-            {/* Display Dosage Details */}
-            {(task.details as MedicationTaskDetails).dosages.length > 0 && (
-              <View style={styles.dosageDisplayContainer}>
-                {(task.details as MedicationTaskDetails).dosages.map(dosage => (
-                  <View key={dosage.id} style={styles.dosageDisplayRow}>
-                    <View style={styles.dosageDisplayField}>
-                      <Input label="Dosage" value={dosage.label} editable={false} />
-                    </View>
-                    <View style={styles.dosageDisplayField}>
-                      <Input
-                        label="Time"
-                        value={formatTime(dosage.time)}
-                        editable={false}
-                        icon={<Image source={Images.clockIcon} style={iconStyles.clockIcon} />}
-                      />
-                    </View>
-                  </View>
-                ))}
-              </View>
-            )}
-
-            {/* Medication Frequency */}
-            <View style={styles.fieldGroup}>
-              <TouchableInput
-                label="Medication frequency"
-                value={resolveMedicationFrequencyLabel(
-                  (task.details as MedicationTaskDetails).frequency,
-                )}
-                onPress={() => {}} // View only
-                rightComponent={<Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />}
+              {/* Medicine Name */}
+              <ViewField
+                label="Medicine name"
+                value={(task.details as MedicationTaskDetails).medicineName}
+                fieldGroupStyle={styles.fieldGroup}
               />
-            </View>
 
-            {/* Start and End Date */}
-            <View style={styles.dateTimeRow}>
-              <View style={styles.dateTimeField}>
+              {/* Medication Type */}
+              <ViewTouchField
+                label="Medication type"
+                value={resolveMedicationTypeLabel(
+                  (task.details as MedicationTaskDetails).medicineType,
+                )}
+                icon={Images.dropdownIcon}
+                iconStyle={iconStyles.dropdownIcon}
+                fieldGroupStyle={styles.fieldGroup}
+              />
+
+              {/* Dosage */}
+              <ViewTouchField
+                label="Dosage"
+                value={`${(task.details as MedicationTaskDetails).dosages.length} dosage${
+                  (task.details as MedicationTaskDetails).dosages.length > 1
+                    ? 's'
+                    : ''
+                }`}
+                icon={Images.dropdownIcon}
+                iconStyle={iconStyles.dropdownIcon}
+                fieldGroupStyle={styles.fieldGroup}
+              />
+
+              {/* Display Dosage Details */}
+              {(task.details as MedicationTaskDetails).dosages.length > 0 && (
+                <View style={styles.dosageDisplayContainer}>
+                  {(task.details as MedicationTaskDetails).dosages.map(
+                    dosage => (
+                      <View key={dosage.id} style={styles.dosageDisplayRow}>
+                        <View style={styles.dosageDisplayField}>
+                          <Input
+                            label="Dosage"
+                            value={dosage.label}
+                            editable={false}
+                          />
+                        </View>
+                        <View style={styles.dosageDisplayField}>
+                          <Input
+                            label="Time"
+                            value={formatTime(dosage.time)}
+                            editable={false}
+                            icon={
+                              <Image
+                                source={Images.clockIcon}
+                                style={iconStyles.clockIcon}
+                              />
+                            }
+                          />
+                        </View>
+                      </View>
+                    ),
+                  )}
+                </View>
+              )}
+
+              {/* Medication Frequency */}
+              <View style={styles.fieldGroup}>
                 <TouchableInput
-                  label="Start Date"
-                  value={formatDateForDisplay(
-                    new Date((task.details as MedicationTaskDetails).startDate),
+                  label="Medication frequency"
+                  value={resolveMedicationFrequencyLabel(
+                    (task.details as MedicationTaskDetails).frequency,
                   )}
                   onPress={() => {}} // View only
                   rightComponent={
-                    <Image source={Images.calendarIcon} style={iconStyles.calendarIcon} />
+                    <Image
+                      source={Images.dropdownIcon}
+                      style={iconStyles.dropdownIcon}
+                    />
                   }
                 />
               </View>
 
-              <View style={styles.dateTimeField}>
-                <TouchableInput
-                  label="End Date"
-                  value={
-                    (task.details as MedicationTaskDetails).endDate
-                      ? formatDateForDisplay(
-                          new Date((task.details as MedicationTaskDetails).endDate!),
-                        )
-                      : ''
-                  }
-                  onPress={() => {}} // View only
-                  rightComponent={
-                    <Image source={Images.calendarIcon} style={iconStyles.calendarIcon} />
-                  }
+              {/* Start and End Date */}
+              <View style={styles.dateTimeRow}>
+                <View style={styles.dateTimeField}>
+                  <TouchableInput
+                    label="Start Date"
+                    value={formatDateForDisplay(
+                      new Date(
+                        (task.details as MedicationTaskDetails).startDate,
+                      ),
+                    )}
+                    onPress={() => {}} // View only
+                    rightComponent={
+                      <Image
+                        source={Images.calendarIcon}
+                        style={iconStyles.calendarIcon}
+                      />
+                    }
+                  />
+                </View>
+
+                {shouldShowMedicationEndDate ? (
+                  <View style={styles.dateTimeField}>
+                    <TouchableInput
+                      label="End Date"
+                      value={
+                        (task.details as MedicationTaskDetails).endDate
+                          ? formatDateForDisplay(
+                              new Date(
+                                (task.details as MedicationTaskDetails)
+                                  .endDate!,
+                              ),
+                            )
+                          : ''
+                      }
+                      onPress={() => {}} // View only
+                      rightComponent={
+                        <Image
+                          source={Images.calendarIcon}
+                          style={iconStyles.calendarIcon}
+                        />
+                      }
+                    />
+                  </View>
+                ) : null}
+              </View>
+
+              {/* Assign Task */}
+              <View style={styles.fieldGroup}>
+                <Input
+                  label="Assign task"
+                  value={getAssignedToName()}
+                  editable={false}
                 />
               </View>
-            </View>
+            </>
+          )}
 
-            {/* Assign Task */}
-            <View style={styles.fieldGroup}>
-              <Input
+          {/* Observational Tool Task Form */}
+          {isObservationalTool && (
+            <>
+              {/* Task Name */}
+              <ViewField
+                label="Task name"
+                value={task.title}
+                fieldGroupStyle={styles.fieldGroup}
+              />
+
+              {taskDescription ? (
+                <ViewField
+                  label="Task description"
+                  value={taskDescription}
+                  fieldGroupStyle={styles.fieldGroup}
+                />
+              ) : null}
+
+              {/* Observational Tool */}
+              <ViewTouchField
+                label="Select observational tool"
+                value={otLabel}
+                icon={Images.dropdownIcon}
+                iconStyle={iconStyles.dropdownIcon}
+                fieldGroupStyle={styles.fieldGroup}
+              />
+
+              {/* Date */}
+              <ViewTouchField
+                label="Date"
+                value={formatDateForDisplay(new Date(task.date))}
+                icon={Images.calendarIcon}
+                iconStyle={iconStyles.calendarIcon}
+                fieldGroupStyle={styles.fieldGroup}
+              />
+
+              {/* Time */}
+              <ViewTouchField
+                label="Time"
+                value={formatTime(task.time)}
+                icon={Images.clockIcon}
+                iconStyle={iconStyles.clockIcon}
+                fieldGroupStyle={styles.fieldGroup}
+              />
+
+              {/* Task Frequency */}
+              <ViewTouchField
+                label="Task frequency"
+                value={resolveTaskFrequencyLabel(task.frequency)}
+                icon={Images.dropdownIcon}
+                iconStyle={iconStyles.dropdownIcon}
+                fieldGroupStyle={styles.fieldGroup}
+              />
+
+              {/* Assign Task */}
+              <ViewField
                 label="Assign task"
                 value={getAssignedToName()}
+                fieldGroupStyle={styles.fieldGroup}
+              />
+            </>
+          )}
+
+          {/* Simple Task Form (Custom, Hygiene, Dietary) */}
+          {!isMedication && !isObservationalTool && (
+            <>
+              {/* Task Name */}
+              <ViewField
+                label="Task name"
+                value={task.title}
+                fieldGroupStyle={styles.fieldGroup}
+              />
+
+              {/* Task Description */}
+              {taskDescription ? (
+                <ViewField
+                  label="Task description"
+                  value={taskDescription}
+                  multiline
+                  numberOfLines={3}
+                  textAreaStyle={styles.textArea}
+                  fieldGroupStyle={styles.fieldGroup}
+                />
+              ) : null}
+
+              {/* Date and Time */}
+              <ViewDateTimeRow
+                dateLabel="Date"
+                dateValue={formatDateForDisplay(new Date(task.date))}
+                timeLabel="Time"
+                timeValue={formatTime(task.time)}
+                dateTimeRowStyle={styles.dateTimeRow}
+                dateTimeFieldStyle={styles.dateTimeField}
+                calendarIconStyle={iconStyles.calendarIcon}
+                clockIconStyle={iconStyles.clockIcon}
+              />
+
+              {/* Task Frequency */}
+              <ViewTouchField
+                label="Task frequency"
+                value={resolveTaskFrequencyLabel(task.frequency)}
+                icon={Images.dropdownIcon}
+                iconStyle={iconStyles.dropdownIcon}
+                fieldGroupStyle={styles.fieldGroup}
+              />
+
+              {/* Assign Task */}
+              <ViewField
+                label="Assign task"
+                value={getAssignedToName()}
+                fieldGroupStyle={styles.fieldGroup}
+              />
+            </>
+          )}
+
+          {/* Reminder Section */}
+          <View style={styles.toggleSection}>
+            <Text style={styles.toggleLabel}>Reminder</Text>
+            <Switch
+              value={task.reminderEnabled}
+              onValueChange={() => {}} // View only
+              trackColor={{
+                false: theme.colors.borderMuted,
+                true: theme.colors.primary,
+              }}
+              thumbColor={theme.colors.white}
+              disabled={true}
+            />
+          </View>
+
+          {task.reminderEnabled && task.reminderOptions && (
+            <View style={styles.reminderPillsContainer}>
+              <View style={[styles.reminderPill, styles.reminderPillSelected]}>
+                <Text
+                  style={[
+                    styles.reminderPillText,
+                    styles.reminderPillTextSelected,
+                  ]}>
+                  {getReminderLabel(task.reminderOptions)}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Calendar Sync */}
+          <View style={styles.toggleSection}>
+            <Text style={styles.toggleLabel}>Sync with Calendar</Text>
+            <Switch
+              value={task.syncWithCalendar}
+              onValueChange={() => {}} // View only
+              trackColor={{
+                false: theme.colors.borderMuted,
+                true: theme.colors.primary,
+              }}
+              thumbColor={theme.colors.white}
+              disabled={true}
+            />
+          </View>
+
+          {task.syncWithCalendar && task.calendarProvider && (
+            <View style={styles.fieldGroup}>
+              <TouchableInput
+                label="Calendar provider"
+                value={getCalendarProviderLabel(task.calendarProvider)}
+                onPress={() => {
+                  if (task.calendarEventId) {
+                    openCalendarEvent(
+                      task.calendarEventId,
+                      task.dueAt ?? task.date,
+                    );
+                  }
+                }}
+                rightComponent={
+                  <Image
+                    source={Images.dropdownIcon}
+                    style={iconStyles.dropdownIcon}
+                  />
+                }
+              />
+            </View>
+          )}
+
+          {/* Attach Documents */}
+          <View style={styles.toggleSection}>
+            <Text style={styles.toggleLabel}>Attach document</Text>
+            <Switch
+              value={task.attachDocuments}
+              onValueChange={() => {}} // View only
+              trackColor={{
+                false: theme.colors.borderMuted,
+                true: theme.colors.primary,
+              }}
+              thumbColor={theme.colors.white}
+              disabled={true}
+            />
+          </View>
+
+          {task.attachDocuments && preparedAttachments.length > 0 && (
+            <View style={styles.fieldGroup}>
+              <DocumentAttachmentViewer
+                attachments={preparedAttachments as any}
+                documentTitle={task.title}
+                companionName={companion?.name}
+              />
+            </View>
+          )}
+
+          {/* Additional Note */}
+          {task.additionalNote && (
+            <View style={styles.fieldGroup}>
+              <Input
+                label="Additional note"
+                value={task.additionalNote}
+                multiline
+                numberOfLines={3}
+                inputStyle={styles.textArea}
                 editable={false}
               />
             </View>
-          </>
-        )}
+          )}
 
-        {/* Observational Tool Task Form */}
-        {isObservationalTool && (
-          <>
-            {/* Task Name */}
-            <ViewField
-              label="Task name"
-              value={task.title}
-              fieldGroupStyle={styles.fieldGroup}
-            />
-
-            {taskDescription ? (
-              <ViewField
-                label="Task description"
-                value={taskDescription}
-                fieldGroupStyle={styles.fieldGroup}
+          {/* Complete Button for non-observational tool tasks */}
+          {!isObservationalTool && isPending && !isCancelled && (
+            <View style={styles.completeButtonContainer}>
+              <LiquidGlassButton
+                title="Complete"
+                onPress={handleCompleteTask}
+                glassEffect="clear"
+                borderRadius="lg"
+                tintColor={theme.colors.secondary}
+                style={styles.completeButton}
+                textStyle={styles.completeButtonText}
               />
-            ) : null}
+            </View>
+          )}
 
-            {/* Observational Tool */}
-            <ViewTouchField
-              label="Select observational tool"
-              value={otLabel}
-              icon={Images.dropdownIcon}
-              iconStyle={iconStyles.dropdownIcon}
-              fieldGroupStyle={styles.fieldGroup}
-            />
-
-            {/* Date */}
-            <ViewTouchField
-              label="Date"
-              value={formatDateForDisplay(new Date(task.date))}
-              icon={Images.calendarIcon}
-              iconStyle={iconStyles.calendarIcon}
-              fieldGroupStyle={styles.fieldGroup}
-            />
-
-            {/* Time */}
-            <ViewTouchField
-              label="Time"
-              value={formatTime(task.time)}
-              icon={Images.clockIcon}
-              iconStyle={iconStyles.clockIcon}
-              fieldGroupStyle={styles.fieldGroup}
-            />
-
-            {/* Task Frequency */}
-            <ViewTouchField
-              label="Task frequency"
-              value={resolveTaskFrequencyLabel(task.frequency)}
-              icon={Images.dropdownIcon}
-              iconStyle={iconStyles.dropdownIcon}
-              fieldGroupStyle={styles.fieldGroup}
-            />
-
-            {/* Assign Task */}
-            <ViewField
-              label="Assign task"
-              value={getAssignedToName()}
-              fieldGroupStyle={styles.fieldGroup}
-            />
-          </>
-        )}
-
-        {/* Simple Task Form (Custom, Hygiene, Dietary) */}
-        {!isMedication && !isObservationalTool && (
-          <>
-            {/* Task Name */}
-            <ViewField
-              label="Task name"
-              value={task.title}
-              fieldGroupStyle={styles.fieldGroup}
-            />
-
-            {/* Task Description */}
-            {taskDescription ? (
-              <ViewField
-                label="Task description"
-                value={taskDescription}
-                multiline
-                numberOfLines={3}
-                textAreaStyle={styles.textArea}
-                fieldGroupStyle={styles.fieldGroup}
-              />
-            ) : null}
-
-            {/* Date and Time */}
-            <ViewDateTimeRow
-              dateLabel="Date"
-              dateValue={formatDateForDisplay(new Date(task.date))}
-              timeLabel="Time"
-              timeValue={formatTime(task.time)}
-              dateTimeRowStyle={styles.dateTimeRow}
-              dateTimeFieldStyle={styles.dateTimeField}
-              calendarIconStyle={iconStyles.calendarIcon}
-              clockIconStyle={iconStyles.clockIcon}
-            />
-
-            {/* Task Frequency */}
-            <ViewTouchField
-              label="Task frequency"
-              value={resolveTaskFrequencyLabel(task.frequency)}
-              icon={Images.dropdownIcon}
-              iconStyle={iconStyles.dropdownIcon}
-              fieldGroupStyle={styles.fieldGroup}
-            />
-
-            {/* Assign Task */}
-            <ViewField
-              label="Assign task"
-              value={getAssignedToName()}
-              fieldGroupStyle={styles.fieldGroup}
-            />
-          </>
-        )}
-
-        {/* Reminder Section */}
-        <View style={styles.toggleSection}>
-          <Text style={styles.toggleLabel}>Reminder</Text>
-          <Switch
-            value={task.reminderEnabled}
-            onValueChange={() => {}} // View only
-            trackColor={{false: theme.colors.borderMuted, true: theme.colors.primary}}
-            thumbColor={theme.colors.white}
-            disabled={true}
-          />
-        </View>
-
-        {task.reminderEnabled && task.reminderOptions && (
-          <View style={styles.reminderPillsContainer}>
-            <View style={[styles.reminderPill, styles.reminderPillSelected]}>
-              <Text style={[styles.reminderPillText, styles.reminderPillTextSelected]}>
-                {getReminderLabel(task.reminderOptions)}
+          {/* Completed Badge */}
+          {isCompleted && task.completedAt && (
+            <View style={styles.completedBadge}>
+              <Text style={styles.completedText}>
+                Completed on {formatDateForDisplay(new Date(task.completedAt))}
               </Text>
             </View>
-          </View>
-        )}
+          )}
 
-        {/* Calendar Sync */}
-        <View style={styles.toggleSection}>
-          <Text style={styles.toggleLabel}>Sync with Calendar</Text>
-          <Switch
-            value={task.syncWithCalendar}
-            onValueChange={() => {}} // View only
-            trackColor={{false: theme.colors.borderMuted, true: theme.colors.primary}}
-            thumbColor={theme.colors.white}
-            disabled={true}
-          />
-        </View>
+          {/* Cancelled Badge */}
+          {isCancelled && task.statusUpdatedAt && (
+            <View style={styles.cancelledBadge}>
+              <Text style={styles.cancelledText}>
+                Cancelled on{' '}
+                {formatDateForDisplay(new Date(task.statusUpdatedAt))}
+              </Text>
+            </View>
+          )}
 
-        {task.syncWithCalendar && task.calendarProvider && (
-          <View style={styles.fieldGroup}>
-            <TouchableInput
-              label="Calendar provider"
-              value={getCalendarProviderLabel(task.calendarProvider)}
-              onPress={() => {
-                if (task.calendarEventId) {
-                  openCalendarEvent(task.calendarEventId, task.dueAt ?? task.date);
-                }
-              }}
-              rightComponent={<Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />}
-            />
-          </View>
-        )}
-
-        {/* Attach Documents */}
-        <View style={styles.toggleSection}>
-          <Text style={styles.toggleLabel}>Attach document</Text>
-          <Switch
-            value={task.attachDocuments}
-            onValueChange={() => {}} // View only
-            trackColor={{false: theme.colors.borderMuted, true: theme.colors.primary}}
-            thumbColor={theme.colors.white}
-            disabled={true}
-          />
-        </View>
-
-        {task.attachDocuments && preparedAttachments.length > 0 && (
-          <View style={styles.fieldGroup}>
-            <DocumentAttachmentViewer
-              attachments={preparedAttachments as any}
-              documentTitle={task.title}
-              companionName={companion?.name}
-            />
-          </View>
-        )}
-
-        {/* Additional Note */}
-        {task.additionalNote && (
-          <View style={styles.fieldGroup}>
-            <Input
-              label="Additional note"
-              value={task.additionalNote}
-              multiline
-              numberOfLines={3}
-              inputStyle={styles.textArea}
-              editable={false}
-            />
-          </View>
-        )}
-
-        {/* Complete Button for non-observational tool tasks */}
-        {!isObservationalTool && isPending && !isCancelled && (
-          <View style={styles.completeButtonContainer}>
-            <LiquidGlassButton
-              title="Complete"
-              onPress={handleCompleteTask}
-              glassEffect="clear"
-              borderRadius="lg"
-              tintColor={theme.colors.secondary}
-              style={styles.completeButton}
-              textStyle={styles.completeButtonText}
-            />
-          </View>
-        )}
-
-        {/* Completed Badge */}
-        {isCompleted && task.completedAt && (
-          <View style={styles.completedBadge}>
-            <Text style={styles.completedText}>
-              Completed on {formatDateForDisplay(new Date(task.completedAt))}
-            </Text>
-          </View>
-        )}
-
-        {/* Cancelled Badge */}
-        {isCancelled && task.statusUpdatedAt && (
-          <View style={styles.cancelledBadge}>
-            <Text style={styles.cancelledText}>
-              Cancelled on {formatDateForDisplay(new Date(task.statusUpdatedAt))}
-            </Text>
-          </View>
-        )}
-
-        {/* Reuse Button for Completed Tasks */}
-        {isCompleted && (
-          <View style={styles.reuseButtonContainer}>
-            <LiquidGlassButton
-              title="Reuse"
-              onPress={handleReuse}
-              glassEffect="clear"
-              borderRadius="lg"
-              tintColor={theme.colors.secondary}
-              style={styles.reuseButton}
-              textStyle={styles.reuseButtonText}
-            />
-          </View>
-        )}
+          {/* Reuse Button for Completed Tasks */}
+          {isCompleted && (
+            <View style={styles.reuseButtonContainer}>
+              <LiquidGlassButton
+                title="Reuse"
+                onPress={handleReuse}
+                glassEffect="clear"
+                borderRadius="lg"
+                tintColor={theme.colors.secondary}
+                style={styles.reuseButton}
+                textStyle={styles.reuseButtonText}
+              />
+            </View>
+          )}
         </ScrollView>
       )}
     </LiquidGlassHeaderScreen>

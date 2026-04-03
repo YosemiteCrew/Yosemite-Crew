@@ -136,6 +136,8 @@ describe('appointmentsService', () => {
             address: {line: ['123 Main St'], city: 'Town', state: 'CA'},
             googlePlacesId: 'gp-123',
             imageURL: 'http://img.com',
+            appointmentCheckInBufferMinutes: 9,
+            appointmentCheckInRadiusMeters: 350,
           },
         };
 
@@ -148,6 +150,8 @@ describe('appointmentsService', () => {
         expect(result.organisationName).toBe('Clinic');
         expect(result.uploadedFiles).toHaveLength(1);
         expect(result.organisationAddress).toContain('123 Main St');
+        expect(result.appointmentCheckInBufferMinutes).toBe(9);
+        expect(result.appointmentCheckInRadiusMeters).toBe(350);
       });
 
       it('should handle logic for address fallback', () => {
@@ -192,6 +196,28 @@ describe('appointmentsService', () => {
         const {mapAppointmentFromResponse} = getModule();
         const result = mapAppointmentFromResponse({start: 'invalid-date'});
         expect(result.date).toBe('');
+      });
+
+      it('should map lead avatar from non-FHIR lead object fields', () => {
+        const {mapAppointmentFromResponse} = getModule();
+        const result = mapAppointmentFromResponse({
+          id: 'apt-lead-avatar',
+          start: '2026-03-24T06:45:00.000Z',
+          participant: [
+            {actor: {reference: 'Patient/p1', display: 'Buddy'}},
+            {actor: {reference: 'Organization/o1', display: 'Clinic'}},
+          ],
+          lead: {
+            id: 'doc-1',
+            name: 'Dr. Stone',
+            profilePictureUrl: 'https://cdn.example.com/dr-stone.png',
+          },
+        });
+
+        expect(result.employeeName).toBe('Dr. Stone');
+        expect(result.employeeAvatar).toBe(
+          'https://cdn.example.com/dr-stone.png',
+        );
       });
     });
 
@@ -276,6 +302,8 @@ describe('appointmentsService', () => {
             name: 'Pet Shop',
             type: 'GROOMER',
             address: [{text: '123 St', latitude: 10, longitude: 20}],
+            appointmentCheckInBufferMinutes: 6,
+            appointmentCheckInRadiusMeters: 180,
             telecom: [
               {system: 'url', value: 'http://site.com'},
               {system: 'phone', value: '555'},
@@ -295,6 +323,8 @@ describe('appointmentsService', () => {
         expect(business.category).toBe('groomer');
         expect(business.distanceMi).toBe(1);
         expect(business.lat).toBe(10);
+        expect(business.appointmentCheckInBufferMinutes).toBe(6);
+        expect(business.appointmentCheckInRadiusMeters).toBe(180);
         expect(services).toHaveLength(1);
         expect(services[0].basePrice).toBe(50);
       });

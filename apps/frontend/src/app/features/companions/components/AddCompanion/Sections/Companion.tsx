@@ -15,6 +15,8 @@ import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import FormDesc from '@/app/ui/inputs/FormDesc/FormDesc';
 import { StoredCompanion, StoredParent } from '@/app/features/companions/pages/Companions/types';
 import Datepicker from '@/app/ui/inputs/Datepicker';
+import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
+import { IoInformationCircleOutline } from 'react-icons/io5';
 import {
   createCompanion,
   createParent,
@@ -99,6 +101,8 @@ type CompanionProps = {
   parentFormData: StoredParent;
   setParentFormData: React.Dispatch<React.SetStateAction<StoredParent>>;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
+  mode?: 'default' | 'fasttrack';
+  onCompanionCreated?: (companion: StoredCompanion) => void;
 };
 
 const Companion = ({
@@ -108,7 +112,10 @@ const Companion = ({
   parentFormData,
   setParentFormData,
   setShowModal,
+  mode = 'default',
+  onCompanionCreated,
 }: CompanionProps) => {
+  const isFastTrack = mode === 'fasttrack';
   const terminologyText = useCompanionTerminologyText();
   const [formDataErrors, setFormDataErrors] = useState<{
     name?: string;
@@ -232,7 +239,7 @@ const Companion = ({
     if (!formData.type) errors.species = 'Species is required';
     if (!formData.breed) errors.breed = 'Breed is required';
 
-    if (formData.isInsured) {
+    if (!isFastTrack && formData.isInsured) {
       if (!formData.insurance?.companyName) errors.insuranceCompany = 'Company name is required';
       if (!formData.insurance?.policyNumber) errors.insuranceNumber = 'Policy number is required';
     }
@@ -241,11 +248,14 @@ const Companion = ({
       return;
     }
     try {
-      await handleCreateCompanion();
+      const createdCompanion = await handleCreateCompanion();
       notify('success', {
         title: 'Companion created',
         text: 'Companion has been created successfully.',
       });
+      if (createdCompanion) {
+        onCompanionCreated?.(createdCompanion);
+      }
       setShowModal(false);
       setFormDataErrors({});
       setFormData(EMPTY_STORED_COMPANION);
@@ -267,13 +277,13 @@ const Companion = ({
           ...formData,
           parentId: parentFormData.id,
         };
-        await linkCompanion(payload, parentFormData);
+        return await linkCompanion(payload, parentFormData);
       } else {
         const payload: StoredCompanion = {
           ...formData,
           parentId: parentFormData.id,
         };
-        await createCompanion(payload, parentFormData);
+        return await createCompanion(payload, parentFormData);
       }
     } else {
       const parent_id = await createParent(parentFormData);
@@ -285,8 +295,9 @@ const Companion = ({
         ...parentFormData,
         id: parent_id!,
       };
-      await createCompanion(payload, parentPayload);
+      return await createCompanion(payload, parentPayload);
     }
+    return undefined;
   };
 
   const handleSelect = (parentId: string) => {
@@ -319,7 +330,10 @@ const Companion = ({
               error={formDataErrors.name}
               className="min-h-12!"
             />
-            <div className="grid grid-cols-2 gap-3">
+            <div
+              data-testid="companion-color-blood-group-row"
+              className={`grid gap-3 ${isFastTrack ? 'grid-cols-1' : 'grid-cols-2'}`}
+            >
               <LabelDropdown
                 placeholder="Species"
                 onSelect={(option) => {
@@ -356,15 +370,30 @@ const Companion = ({
                 error={formDataErrors.breed}
               />
             </div>
-            <Datepicker
-              currentDate={currentDate}
-              setCurrentDate={setCurrentDate}
-              type="input"
-              className="min-h-12!"
-              containerClassName="w-full"
-              placeholder="Date of birth (Optional)"
-              error={formDataErrors.dateOfBirth}
-            />
+            <div className="flex items-start gap-2">
+              <Datepicker
+                currentDate={currentDate}
+                setCurrentDate={setCurrentDate}
+                type="input"
+                className="min-h-12!"
+                containerClassName="w-full"
+                placeholder="Date of birth"
+                error={formDataErrors.dateOfBirth}
+              />
+              <GlassTooltip
+                content="Date of birth may be required in some countries for age verification and legal consent. Please ensure the parent is 18 years or older where regulations require it."
+                side="bottom"
+                maxWidth={460}
+              >
+                <button
+                  type="button"
+                  aria-label="Date of birth information"
+                  className="mt-3 inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none text-text-secondary hover:text-text-primary transition-colors"
+                >
+                  <IoInformationCircleOutline size={18} />
+                </button>
+              </GlassTooltip>
+            </div>
             <SelectLabel
               title="Gender"
               options={GenderOptions}
@@ -407,115 +436,121 @@ const Companion = ({
                 onChange={(e) => setFormData({ ...formData, colour: e.target.value })}
                 className="min-h-12!"
               />
-              <LabelDropdown
-                placeholder="Blood group (optional)"
-                onSelect={(option) => setFormData({ ...formData, bloodGroup: option.value })}
-                defaultOption={formData.bloodGroup || ''}
-                options={BLOOD_GROUP_OPTIONS_BY_SPECIES[formData.type] ?? []}
-              />
+              {!isFastTrack && (
+                <LabelDropdown
+                  placeholder="Blood group (optional)"
+                  onSelect={(option) => setFormData({ ...formData, bloodGroup: option.value })}
+                  defaultOption={formData.bloodGroup || ''}
+                  options={BLOOD_GROUP_OPTIONS_BY_SPECIES[formData.type] ?? []}
+                />
+              )}
             </div>
-            <FormInput
-              intype="number"
-              inname="weight"
-              value={formData.currentWeight + ''}
-              inlabel="Current weight (optional) (lbs)"
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  currentWeight: toNonNegativeNumber(e.target.value),
-                })
-              }
-              className="min-h-12!"
-            />
-            <LabelDropdown
-              placeholder="Country of origin (optional)"
-              onSelect={(option) => setFormData({ ...formData, countryOfOrigin: option.value })}
-              defaultOption={formData.countryOfOrigin}
-              options={CountriesOptions}
-            />
-            <SelectLabel
-              title="My companion comes from:"
-              options={OriginOptions}
-              activeOption={formData.source || 'unknown'}
-              setOption={(value) => setFormData({ ...formData, source: value })}
-              type="coloumn"
-            />
-            <FormInput
-              intype="text"
-              inname="microchip"
-              value={formData.microchipNumber || ''}
-              inlabel="Microchip number (optional)"
-              onChange={(e) => setFormData({ ...formData, microchipNumber: e.target.value })}
-              className="min-h-12!"
-            />
-            <FormInput
-              intype="text"
-              inname="passport"
-              value={formData.passportNumber || ''}
-              inlabel="Passport number (optional)"
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  passportNumber: e.target.value.replaceAll(/[^0-9a-zA-Z-]/g, ''),
-                })
-              }
-              className="min-h-12!"
-            />
-            <SelectLabel
-              title="Insurance"
-              options={InsuredOptions}
-              activeOption={formData.isInsured ? 'true' : 'false'}
-              setOption={(value: string) =>
-                setFormData({
-                  ...formData,
-                  isInsured: value === 'true',
-                  insurance:
-                    value === 'true'
-                      ? {
-                          isInsured: true,
-                        }
-                      : undefined,
-                })
-              }
-            />
-            {formData.isInsured && (
+            {!isFastTrack && (
               <>
                 <FormInput
-                  intype="text"
+                  intype="number"
                   inname="weight"
-                  value={formData.insurance?.companyName || ''}
-                  inlabel="Company name"
+                  value={formData.currentWeight + ''}
+                  inlabel="Current weight (optional) (lbs)"
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      insurance: {
-                        ...formData.insurance,
-                        isInsured: formData.isInsured,
-                        companyName: e.target.value,
-                      },
+                      currentWeight: toNonNegativeNumber(e.target.value),
                     })
                   }
-                  error={formDataErrors.insuranceNumber}
+                  className="min-h-12!"
+                />
+                <LabelDropdown
+                  placeholder="Country of origin (optional)"
+                  onSelect={(option) => setFormData({ ...formData, countryOfOrigin: option.value })}
+                  defaultOption={formData.countryOfOrigin}
+                  options={CountriesOptions}
+                />
+                <SelectLabel
+                  title="My companion comes from:"
+                  options={OriginOptions}
+                  activeOption={formData.source || 'unknown'}
+                  setOption={(value) => setFormData({ ...formData, source: value })}
+                  type="coloumn"
+                />
+                <FormInput
+                  intype="text"
+                  inname="microchip"
+                  value={formData.microchipNumber || ''}
+                  inlabel="Microchip number (optional)"
+                  onChange={(e) => setFormData({ ...formData, microchipNumber: e.target.value })}
                   className="min-h-12!"
                 />
                 <FormInput
                   intype="text"
-                  inname="weight"
-                  value={formData.insurance?.policyNumber || ''}
-                  inlabel="Policy Number"
+                  inname="passport"
+                  value={formData.passportNumber || ''}
+                  inlabel="Passport number (optional)"
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      insurance: {
-                        ...formData.insurance,
-                        isInsured: formData.isInsured,
-                        policyNumber: e.target.value,
-                      },
+                      passportNumber: e.target.value.replaceAll(/[^0-9a-zA-Z-]/g, ''),
                     })
                   }
-                  error={formDataErrors.insuranceNumber}
                   className="min-h-12!"
                 />
+                <SelectLabel
+                  title="Insurance"
+                  options={InsuredOptions}
+                  activeOption={formData.isInsured ? 'true' : 'false'}
+                  setOption={(value: string) =>
+                    setFormData({
+                      ...formData,
+                      isInsured: value === 'true',
+                      insurance:
+                        value === 'true'
+                          ? {
+                              isInsured: true,
+                            }
+                          : undefined,
+                    })
+                  }
+                />
+                {formData.isInsured && (
+                  <>
+                    <FormInput
+                      intype="text"
+                      inname="weight"
+                      value={formData.insurance?.companyName || ''}
+                      inlabel="Company name"
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          insurance: {
+                            ...formData.insurance,
+                            isInsured: formData.isInsured,
+                            companyName: e.target.value,
+                          },
+                        })
+                      }
+                      error={formDataErrors.insuranceNumber}
+                      className="min-h-12!"
+                    />
+                    <FormInput
+                      intype="text"
+                      inname="weight"
+                      value={formData.insurance?.policyNumber || ''}
+                      inlabel="Policy Number"
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          insurance: {
+                            ...formData.insurance,
+                            isInsured: formData.isInsured,
+                            policyNumber: e.target.value,
+                          },
+                        })
+                      }
+                      error={formDataErrors.insuranceNumber}
+                      className="min-h-12!"
+                    />
+                  </>
+                )}
               </>
             )}
             <FormDesc

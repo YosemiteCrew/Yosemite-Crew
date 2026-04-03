@@ -52,9 +52,16 @@ jest.mock('@/shared/components/common/SearchBar/SearchBar', () => ({
 }));
 
 jest.mock('@/shared/components/common/LiquidGlassCard/LiquidGlassCard', () => ({
-  LiquidGlassCard: ({children}: any) => {
+  LiquidGlassCard: ({children, glassEffect}: any) => {
     const ReactNative = require('react-native');
-    return <ReactNative.View>{children}</ReactNative.View>;
+    return (
+      <ReactNative.View
+        testID={
+          glassEffect === 'clear' ? 'glass-card-clear' : 'glass-card-default'
+        }>
+        {children}
+      </ReactNative.View>
+    );
   },
 }));
 
@@ -236,5 +243,14 @@ describe('MerckSearchWidget', () => {
     );
 
     expect(onOpenFullSearch.mock.calls[0][0].entries).toHaveLength(3);
+  });
+
+  it('uses only search-area glass card in compact mode', () => {
+    const {getByTestId, queryByTestId} = render(
+      <MerckSearchWidget organisationId="org-1" compact />,
+    );
+
+    expect(getByTestId('glass-card-clear')).toBeTruthy();
+    expect(queryByTestId('glass-card-default')).toBeNull();
   });
 });

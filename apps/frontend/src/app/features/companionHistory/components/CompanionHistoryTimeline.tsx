@@ -275,7 +275,7 @@ const HistoryEntriesSection = ({
   if (loading) {
     return (
       <div className="rounded-2xl border border-card-border bg-white px-4 py-6 text-body-3 text-text-secondary">
-        Loading history...
+        Loading overview...
       </div>
     );
   }
@@ -298,7 +298,7 @@ const HistoryEntriesSection = ({
 
       {compact && filteredEntries.length > COMPACT_MAX_ENTRIES ? (
         <div className="rounded-2xl border border-card-border bg-card-hover px-4 py-3 text-caption-1 text-text-secondary">
-          Showing latest {COMPACT_MAX_ENTRIES} records in compact view. Open full history for the
+          Showing latest {COMPACT_MAX_ENTRIES} records in compact view. Open full overview for the
           complete timeline.
         </div>
       ) : null}
@@ -391,7 +391,7 @@ const CompanionHistoryTimeline = ({
         setNextCursor(response.nextCursor);
       } catch (historyError) {
         console.error('Failed to load companion history:', historyError);
-        setError('Unable to load history. Please try again.');
+        setError('Unable to load overview. Please try again.');
         if (shouldReplace) {
           setEntries([]);
         }
@@ -619,14 +619,14 @@ const CompanionHistoryTimeline = ({
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <div className="text-body-2 text-text-primary">History</div>
+            <div className="text-body-2 text-text-primary">Overview</div>
             <GlassTooltip
               content="Unified medical timeline with appointments, tasks, forms, documents, labs, and finance."
               side="bottom"
             >
               <button
                 type="button"
-                aria-label="History info"
+                aria-label="Overview info"
                 className="relative top-[2px] inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none text-text-secondary transition-colors hover:text-text-primary"
               >
                 <IoInformationCircleOutline size={18} />
@@ -636,7 +636,7 @@ const CompanionHistoryTimeline = ({
           {fullPageHref ? (
             <Secondary
               href={fullPageHref}
-              text="Open full history"
+              text="Open full overview"
               className="px-4 py-2! text-caption-1"
             />
           ) : null}

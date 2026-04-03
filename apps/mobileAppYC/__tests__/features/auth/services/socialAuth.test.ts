@@ -20,18 +20,31 @@ const mockAuthUser = () => ({
 });
 
 // Mock uuid ESM to avoid transform issues
-jest.mock('uuid', () => ({ v4: jest.fn(() => 'nonce-123') }));
+jest.mock('uuid', () => ({v4: jest.fn(() => 'nonce-123')}));
 
 const mockFirebaseAuth = {
   getIdToken: jest.fn(async user => user.getIdToken()),
   getIdTokenResult: jest.fn(async user => user.getIdTokenResult()),
-  getAuth: jest.fn(() => ({ /* auth instance */ })),
+  getAuth: jest.fn(() => ({
+    /* auth instance */
+  })),
+  fetchSignInMethodsForEmail: jest.fn().mockResolvedValue(['google.com']),
   signInWithCredential: jest.fn(async (_auth, _cred) => ({
     user: mockAuthUser(),
   })),
-  GoogleAuthProvider: { credential: jest.fn(token => ({ provider: 'google', token })) },
-  FacebookAuthProvider: { credential: jest.fn((token, nonce) => ({ provider: 'facebook', token, nonce })) },
-  AppleAuthProvider: { credential: jest.fn((token, nonce) => ({ provider: 'apple', token, nonce })) },
+  GoogleAuthProvider: {
+    credential: jest.fn(token => ({provider: 'google', token})),
+  },
+  FacebookAuthProvider: {
+    credential: jest.fn((token, nonce) => ({
+      provider: 'facebook',
+      token,
+      nonce,
+    })),
+  },
+  AppleAuthProvider: {
+    credential: jest.fn((token, nonce) => ({provider: 'apple', token, nonce})),
+  },
 };
 jest.mock('@react-native-firebase/auth', () => mockFirebaseAuth);
 
@@ -61,16 +74,21 @@ jest.mock('react-native-fbsdk-next', () => ({
 jest.mock('@invertase/react-native-apple-authentication', () => ({
   appleAuth: {
     performRequest: jest.fn(),
-    Operation: { LOGIN: 'LOGIN' },
-    Scope: { EMAIL: 'EMAIL', FULL_NAME: 'FULL_NAME' },
-    Error: { CANCELED: 'CANCELED', FAILED: 'FAILED', INVALID_RESPONSE: 'INVALID_RESPONSE', NOT_HANDLED: 'NOT_HANDLED' },
+    Operation: {LOGIN: 'LOGIN'},
+    Scope: {EMAIL: 'EMAIL', FULL_NAME: 'FULL_NAME'},
+    Error: {
+      CANCELED: 'CANCELED',
+      FAILED: 'FAILED',
+      INVALID_RESPONSE: 'INVALID_RESPONSE',
+      NOT_HANDLED: 'NOT_HANDLED',
+    },
   },
   appleAuthAndroid: {
     isSupported: true,
     configure: jest.fn(),
-    signIn: jest.fn().mockResolvedValue({ id_token: 'id-token' }),
-    ResponseType: { ALL: 'ALL' },
-    Scope: { ALL: 'ALL' },
+    signIn: jest.fn().mockResolvedValue({id_token: 'id-token'}),
+    ResponseType: {ALL: 'ALL'},
+    Scope: {ALL: 'ALL'},
   },
 }));
 
@@ -93,7 +111,9 @@ jest.mock('@/config/variables', () => ({
   PENDING_PROFILE_UPDATED_EVENT: 'pendingProfileUpdated',
 }));
 
-const mockConfigModule = (overrides?: Partial<typeof defaultPasswordlessConfig>) => {
+const mockConfigModule = (
+  overrides?: Partial<typeof defaultPasswordlessConfig>,
+) => {
   Object.assign(mockPasswordlessConfig, defaultPasswordlessConfig, overrides);
 };
 
@@ -129,17 +149,23 @@ describe('socialAuth', () => {
         appleServiceId: 'com.test.app',
         appleRedirectUri: 'https://test.firebaseapp.com/__/auth/handler',
       });
-      jest.doMock('@react-native-google-signin/google-signin', () => ({
-        GoogleSignin: mockGoogle,
-        statusCodes: { SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED' },
-      }), {virtual: true});
+      jest.doMock(
+        '@react-native-google-signin/google-signin',
+        () => ({
+          GoogleSignin: mockGoogle,
+          statusCodes: {SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED'},
+        }),
+        {virtual: true},
+      );
       jest.unmock('@/features/auth/services/socialAuth');
-      const {configureSocialProviders} = require('@/features/auth/services/socialAuth');
+      const {
+        configureSocialProviders,
+      } = require('@/features/auth/services/socialAuth');
       configureSocialProviders();
 
       // Assert inside isolateModules to access the mocked state
       expect(mockGoogle.configure).toHaveBeenCalledWith(
-        expect.objectContaining({ webClientId: expect.any(String) })
+        expect.objectContaining({webClientId: expect.any(String)}),
       );
     });
   });
@@ -148,12 +174,18 @@ describe('socialAuth', () => {
     let signInWithSocialProvider: any;
     jest.isolateModules(() => {
       mockConfigModule();
-      jest.doMock('@react-native-google-signin/google-signin', () => ({
-        GoogleSignin: mockGoogle,
-        statusCodes: { SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED' },
-      }), {virtual: true});
+      jest.doMock(
+        '@react-native-google-signin/google-signin',
+        () => ({
+          GoogleSignin: mockGoogle,
+          statusCodes: {SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED'},
+        }),
+        {virtual: true},
+      );
       jest.unmock('@/features/auth/services/socialAuth');
-      ({signInWithSocialProvider} = require('@/features/auth/services/socialAuth'));
+      ({
+        signInWithSocialProvider,
+      } = require('@/features/auth/services/socialAuth'));
     });
     const result = await signInWithSocialProvider('google');
 
@@ -161,7 +193,9 @@ describe('socialAuth', () => {
     expect(mockGoogle.hasPlayServices).toHaveBeenCalled();
     expect(mockGoogle.signIn).toHaveBeenCalled();
     expect(mockGoogle.getTokens).toHaveBeenCalled();
-    expect(mockFirebaseAuth.GoogleAuthProvider.credential).toHaveBeenCalledWith('google-id-token');
+    expect(mockFirebaseAuth.GoogleAuthProvider.credential).toHaveBeenCalledWith(
+      'google-id-token',
+    );
     expect(mockFirebaseAuth.signInWithCredential).toHaveBeenCalled();
 
     // Tokens built from user
@@ -186,12 +220,18 @@ describe('socialAuth', () => {
     let signInWithSocialProvider: any;
     jest.isolateModules(() => {
       mockConfigModule();
-      jest.doMock('@react-native-google-signin/google-signin', () => ({
-        GoogleSignin: mockGoogle,
-        statusCodes: { SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED' },
-      }), {virtual: true});
+      jest.doMock(
+        '@react-native-google-signin/google-signin',
+        () => ({
+          GoogleSignin: mockGoogle,
+          statusCodes: {SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED'},
+        }),
+        {virtual: true},
+      );
       jest.unmock('@/features/auth/services/socialAuth');
-      ({signInWithSocialProvider} = require('@/features/auth/services/socialAuth'));
+      ({
+        signInWithSocialProvider,
+      } = require('@/features/auth/services/socialAuth'));
     });
     mockSyncAuthUser.mockResolvedValueOnce({
       ...baseAuthSyncResponse,
@@ -215,22 +255,35 @@ describe('socialAuth', () => {
   });
 
   it('signs in with Facebook and bootstraps profile', async () => {
-    const {LoginManager, AuthenticationToken} = require('react-native-fbsdk-next');
+    const {
+      LoginManager,
+      AuthenticationToken,
+    } = require('react-native-fbsdk-next');
     RN.Platform.OS = 'ios';
-    (LoginManager.logInWithPermissions as jest.Mock).mockResolvedValueOnce({ isCancelled: false });
-    (AuthenticationToken.getAuthenticationTokenIOS as jest.Mock).mockResolvedValueOnce({
+    (LoginManager.logInWithPermissions as jest.Mock).mockResolvedValueOnce({
+      isCancelled: false,
+    });
+    (
+      AuthenticationToken.getAuthenticationTokenIOS as jest.Mock
+    ).mockResolvedValueOnce({
       authenticationToken: 'fb-auth-token',
     });
 
     let signInWithSocialProvider: any;
     jest.isolateModules(() => {
       mockConfigModule();
-      jest.doMock('@react-native-google-signin/google-signin', () => ({
-        GoogleSignin: mockGoogle,
-        statusCodes: { SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED' },
-      }), {virtual: true});
+      jest.doMock(
+        '@react-native-google-signin/google-signin',
+        () => ({
+          GoogleSignin: mockGoogle,
+          statusCodes: {SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED'},
+        }),
+        {virtual: true},
+      );
       jest.unmock('@/features/auth/services/socialAuth');
-      ({signInWithSocialProvider} = require('@/features/auth/services/socialAuth'));
+      ({
+        signInWithSocialProvider,
+      } = require('@/features/auth/services/socialAuth'));
     });
 
     mockSyncAuthUser.mockResolvedValueOnce({
@@ -254,10 +307,9 @@ describe('socialAuth', () => {
       'limited',
       '1d9664478addbe4ee7186c19b2a2c98e461a77dc1e183654f36916bf9fb51cba',
     );
-    expect(mockFirebaseAuth.FacebookAuthProvider.credential).toHaveBeenCalledWith(
-      'fb-auth-token',
-      'nonce-123',
-    );
+    expect(
+      mockFirebaseAuth.FacebookAuthProvider.credential,
+    ).toHaveBeenCalledWith('fb-auth-token', 'nonce-123');
   });
 
   it('signs in with Apple on iOS and resolves profile', async () => {
@@ -265,7 +317,7 @@ describe('socialAuth', () => {
     appleAuth.performRequest.mockResolvedValueOnce({
       identityToken: 'apple-token',
       nonce: 'nonce-123',
-      fullName: { givenName: 'Ada', familyName: 'Lovelace' },
+      fullName: {givenName: 'Ada', familyName: 'Lovelace'},
       email: 'ada@apple.example',
     });
 
@@ -275,12 +327,18 @@ describe('socialAuth', () => {
     let signInWithSocialProvider: any;
     jest.isolateModules(() => {
       mockConfigModule();
-      jest.doMock('@react-native-google-signin/google-signin', () => ({
-        GoogleSignin: mockGoogle,
-        statusCodes: { SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED' },
-      }), {virtual: true});
+      jest.doMock(
+        '@react-native-google-signin/google-signin',
+        () => ({
+          GoogleSignin: mockGoogle,
+          statusCodes: {SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED'},
+        }),
+        {virtual: true},
+      );
       jest.unmock('@/features/auth/services/socialAuth');
-      ({signInWithSocialProvider} = require('@/features/auth/services/socialAuth'));
+      ({
+        signInWithSocialProvider,
+      } = require('@/features/auth/services/socialAuth'));
     });
 
     const result = await signInWithSocialProvider('apple');
@@ -290,112 +348,212 @@ describe('socialAuth', () => {
   });
 
   it('maps Google cancel error to auth/cancelled', async () => {
-    const cancelError = { code: 'SIGN_IN_CANCELLED' };
+    const cancelError = {code: 'SIGN_IN_CANCELLED'};
     let signInWithSocialProvider: any;
     jest.isolateModules(() => {
-      jest.doMock('@react-native-google-signin/google-signin', () => ({
-        GoogleSignin: {
-          ...mockGoogle,
-          signIn: jest.fn().mockRejectedValue(cancelError),
-        },
-        statusCodes: { SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED' },
-      }), {virtual: true});
+      jest.doMock(
+        '@react-native-google-signin/google-signin',
+        () => ({
+          GoogleSignin: {
+            ...mockGoogle,
+            signIn: jest.fn().mockRejectedValue(cancelError),
+          },
+          statusCodes: {SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED'},
+        }),
+        {virtual: true},
+      );
       jest.unmock('@/features/auth/services/socialAuth');
-      ({signInWithSocialProvider} = require('@/features/auth/services/socialAuth'));
+      ({
+        signInWithSocialProvider,
+      } = require('@/features/auth/services/socialAuth'));
     });
 
     await expect(signInWithSocialProvider('google')).rejects.toEqual(
-      expect.objectContaining({ code: 'auth/cancelled' })
+      expect.objectContaining({code: 'auth/cancelled'}),
     );
   });
 
   it('facebook sign-in throws when authentication token missing on iOS', async () => {
-    const {LoginManager, AuthenticationToken} = require('react-native-fbsdk-next');
+    const {
+      LoginManager,
+      AuthenticationToken,
+    } = require('react-native-fbsdk-next');
     RN.Platform.OS = 'ios';
-    (LoginManager.logInWithPermissions as jest.Mock).mockResolvedValueOnce({ isCancelled: false });
-    (AuthenticationToken.getAuthenticationTokenIOS as jest.Mock).mockResolvedValueOnce(null);
+    (LoginManager.logInWithPermissions as jest.Mock).mockResolvedValueOnce({
+      isCancelled: false,
+    });
+    (
+      AuthenticationToken.getAuthenticationTokenIOS as jest.Mock
+    ).mockResolvedValueOnce(null);
 
     let signInWithSocialProvider: any;
     jest.isolateModules(() => {
-      jest.doMock('@react-native-google-signin/google-signin', () => ({
-        GoogleSignin: mockGoogle,
-        statusCodes: { SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED' },
-      }), {virtual: true});
+      jest.doMock(
+        '@react-native-google-signin/google-signin',
+        () => ({
+          GoogleSignin: mockGoogle,
+          statusCodes: {SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED'},
+        }),
+        {virtual: true},
+      );
       jest.unmock('@/features/auth/services/socialAuth');
-      ({signInWithSocialProvider} = require('@/features/auth/services/socialAuth'));
+      ({
+        signInWithSocialProvider,
+      } = require('@/features/auth/services/socialAuth'));
     });
-    await expect(signInWithSocialProvider('facebook')).rejects.toThrow(/Missing authentication token/);
+    await expect(signInWithSocialProvider('facebook')).rejects.toThrow(
+      /Missing authentication token/,
+    );
   });
 
   it('facebook sign-in throws when access token missing on Android', async () => {
     const {LoginManager, AccessToken} = require('react-native-fbsdk-next');
     RN.Platform.OS = 'android';
-    (LoginManager.logInWithPermissions as jest.Mock).mockResolvedValueOnce({ isCancelled: false });
-    (AccessToken.getCurrentAccessToken as jest.Mock).mockResolvedValueOnce({ accessToken: null });
+    (LoginManager.logInWithPermissions as jest.Mock).mockResolvedValueOnce({
+      isCancelled: false,
+    });
+    (AccessToken.getCurrentAccessToken as jest.Mock).mockResolvedValueOnce({
+      accessToken: null,
+    });
 
     let signInWithSocialProvider: any;
     jest.isolateModules(() => {
-      jest.doMock('@react-native-google-signin/google-signin', () => ({
-        GoogleSignin: mockGoogle,
-        statusCodes: { SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED' },
-      }), {virtual: true});
+      jest.doMock(
+        '@react-native-google-signin/google-signin',
+        () => ({
+          GoogleSignin: mockGoogle,
+          statusCodes: {SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED'},
+        }),
+        {virtual: true},
+      );
       jest.unmock('@/features/auth/services/socialAuth');
-      ({signInWithSocialProvider} = require('@/features/auth/services/socialAuth'));
+      ({
+        signInWithSocialProvider,
+      } = require('@/features/auth/services/socialAuth'));
     });
-    await expect(signInWithSocialProvider('facebook')).rejects.toThrow(/Missing access token/);
+    await expect(signInWithSocialProvider('facebook')).rejects.toThrow(
+      /Missing access token/,
+    );
   });
 
   it('iOS Apple sign-in throws when identityToken missing', async () => {
     const {appleAuth} = require('@invertase/react-native-apple-authentication');
     RN.Platform.OS = 'ios';
-    appleAuth.performRequest.mockResolvedValueOnce({ identityToken: null });
+    appleAuth.performRequest.mockResolvedValueOnce({identityToken: null});
 
     let signInWithSocialProvider: any;
     jest.isolateModules(() => {
-      jest.doMock('@react-native-google-signin/google-signin', () => ({
-        GoogleSignin: mockGoogle,
-        statusCodes: { SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED' },
-      }), {virtual: true});
+      jest.doMock(
+        '@react-native-google-signin/google-signin',
+        () => ({
+          GoogleSignin: mockGoogle,
+          statusCodes: {SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED'},
+        }),
+        {virtual: true},
+      );
       jest.unmock('@/features/auth/services/socialAuth');
-      ({signInWithSocialProvider} = require('@/features/auth/services/socialAuth'));
+      ({
+        signInWithSocialProvider,
+      } = require('@/features/auth/services/socialAuth'));
     });
-    await expect(signInWithSocialProvider('apple')).rejects.toThrow(/no identity token/);
+    await expect(signInWithSocialProvider('apple')).rejects.toThrow(
+      /no identity token/,
+    );
   });
 
   it('handles Google missing idToken error', async () => {
     let signInWithSocialProvider: any;
     jest.isolateModules(() => {
-      jest.doMock('@react-native-google-signin/google-signin', () => ({
-        GoogleSignin: {
-          ...mockGoogle,
-          getTokens: jest.fn().mockResolvedValue({ idToken: null }),
-        },
-        statusCodes: { SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED' },
-      }), {virtual: true});
+      jest.doMock(
+        '@react-native-google-signin/google-signin',
+        () => ({
+          GoogleSignin: {
+            ...mockGoogle,
+            getTokens: jest.fn().mockResolvedValue({idToken: null}),
+          },
+          statusCodes: {SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED'},
+        }),
+        {virtual: true},
+      );
       jest.unmock('@/features/auth/services/socialAuth');
-      ({signInWithSocialProvider} = require('@/features/auth/services/socialAuth'));
+      ({
+        signInWithSocialProvider,
+      } = require('@/features/auth/services/socialAuth'));
     });
 
     await expect(signInWithSocialProvider('google')).rejects.toThrow(
-      /Missing ID token/
+      /Missing ID token/,
     );
   });
 
   it('maps Facebook cancel to auth/cancelled', async () => {
     const {LoginManager} = require('react-native-fbsdk-next');
-    (LoginManager.logInWithPermissions as jest.Mock).mockResolvedValueOnce({ isCancelled: true });
+    (LoginManager.logInWithPermissions as jest.Mock).mockResolvedValueOnce({
+      isCancelled: true,
+    });
 
     let signInWithSocialProvider: any;
     jest.isolateModules(() => {
-      jest.doMock('@react-native-google-signin/google-signin', () => ({
-        GoogleSignin: mockGoogle,
-        statusCodes: { SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED' },
-      }), {virtual: true});
+      jest.doMock(
+        '@react-native-google-signin/google-signin',
+        () => ({
+          GoogleSignin: mockGoogle,
+          statusCodes: {SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED'},
+        }),
+        {virtual: true},
+      );
       jest.unmock('@/features/auth/services/socialAuth');
-      ({signInWithSocialProvider} = require('@/features/auth/services/socialAuth'));
+      ({
+        signInWithSocialProvider,
+      } = require('@/features/auth/services/socialAuth'));
     });
 
-    await expect(signInWithSocialProvider('facebook')).rejects.toThrow(/cancelled/i);
+    await expect(signInWithSocialProvider('facebook')).rejects.toThrow(
+      /cancelled/i,
+    );
+  });
+
+  it('maps account-exists-with-different-credential to actionable provider guidance', async () => {
+    const {AccessToken, LoginManager} = require('react-native-fbsdk-next');
+    RN.Platform.OS = 'android';
+    (LoginManager.logInWithPermissions as jest.Mock).mockResolvedValueOnce({
+      isCancelled: false,
+    });
+    (AccessToken.getCurrentAccessToken as jest.Mock).mockResolvedValueOnce({
+      accessToken: 'facebook-access-token',
+    });
+    mockFirebaseAuth.fetchSignInMethodsForEmail.mockResolvedValueOnce([
+      'google.com',
+      'password',
+    ]);
+    mockFirebaseAuth.signInWithCredential.mockRejectedValueOnce({
+      code: 'auth/account-exists-with-different-credential',
+      customData: {email: 'test@example.com'},
+    });
+
+    let signInWithSocialProvider: any;
+    jest.isolateModules(() => {
+      jest.doMock(
+        '@react-native-google-signin/google-signin',
+        () => ({
+          GoogleSignin: mockGoogle,
+          statusCodes: {SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED'},
+        }),
+        {virtual: true},
+      );
+      jest.unmock('@/features/auth/services/socialAuth');
+      ({
+        signInWithSocialProvider,
+      } = require('@/features/auth/services/socialAuth'));
+    });
+
+    await expect(signInWithSocialProvider('facebook')).rejects.toThrow(
+      /Sign in with Google or Email and try again/i,
+    );
+    expect(mockFirebaseAuth.fetchSignInMethodsForEmail).toHaveBeenCalledWith(
+      expect.any(Object),
+      'test@example.com',
+    );
   });
 
   it('maps Apple specific auth errors to friendly messages', async () => {
@@ -403,65 +561,104 @@ describe('socialAuth', () => {
     RN.Platform.OS = 'ios';
 
     const cases = [
-      { code: 'auth/invalid-credential', message: /Invalid Apple credentials/ },
-      { code: 'auth/account-exists-with-different-credential', message: /An account already exists/ },
-      { code: 'auth/missing-or-invalid-nonce', message: /invalid nonce/ },
-      { code: 'auth/credential-already-in-use', message: /already linked/ },
-      { code: undefined, message: /Invalid response/ , appleCode: 'INVALID_RESPONSE' },
-      { code: undefined, message: /Please try again/ , appleCode: 'FAILED' },
-      { code: undefined, message: /not supported/ , appleCode: 'NOT_HANDLED' },
-      { code: undefined, message: /cancelled/ , appleCode: 'CANCELED' },
-      { code: undefined, message: /Apple configuration error/ , extraMessage: 'invalid_client' },
+      {code: 'auth/invalid-credential', message: /Invalid Apple credentials/},
+      {
+        code: 'auth/account-exists-with-different-credential',
+        message: /An account already exists/,
+      },
+      {code: 'auth/missing-or-invalid-nonce', message: /invalid nonce/},
+      {code: 'auth/credential-already-in-use', message: /already linked/},
+      {
+        code: undefined,
+        message: /Invalid response/,
+        appleCode: 'INVALID_RESPONSE',
+      },
+      {code: undefined, message: /Please try again/, appleCode: 'FAILED'},
+      {code: undefined, message: /not supported/, appleCode: 'NOT_HANDLED'},
+      {code: undefined, message: /cancelled/, appleCode: 'CANCELED'},
+      {
+        code: undefined,
+        message: /Apple configuration error/,
+        extraMessage: 'invalid_client',
+      },
     ];
 
     for (const c of cases) {
-      appleAuth.performRequest.mockRejectedValueOnce({ code: c.appleCode ?? c.code, message: c.extraMessage });
+      appleAuth.performRequest.mockRejectedValueOnce({
+        code: c.appleCode ?? c.code,
+        message: c.extraMessage,
+      });
       let signInWithSocialProvider: any;
       jest.isolateModules(() => {
-        jest.doMock('@react-native-google-signin/google-signin', () => ({
-          GoogleSignin: mockGoogle,
-          statusCodes: { SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED' },
-        }), {virtual: true});
+        jest.doMock(
+          '@react-native-google-signin/google-signin',
+          () => ({
+            GoogleSignin: mockGoogle,
+            statusCodes: {SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED'},
+          }),
+          {virtual: true},
+        );
         jest.unmock('@/features/auth/services/socialAuth');
-        ({signInWithSocialProvider} = require('@/features/auth/services/socialAuth'));
+        ({
+          signInWithSocialProvider,
+        } = require('@/features/auth/services/socialAuth'));
       });
-      await expect(signInWithSocialProvider('apple')).rejects.toThrow(c.message);
+      await expect(signInWithSocialProvider('apple')).rejects.toThrow(
+        c.message,
+      );
     }
   });
-
 
   it('throws for unsupported provider', async () => {
     let signInWithSocialProvider: any;
     jest.isolateModules(() => {
-      jest.doMock('@react-native-google-signin/google-signin', () => ({
-        GoogleSignin: mockGoogle,
-        statusCodes: { SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED' },
-      }), {virtual: true});
+      jest.doMock(
+        '@react-native-google-signin/google-signin',
+        () => ({
+          GoogleSignin: mockGoogle,
+          statusCodes: {SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED'},
+        }),
+        {virtual: true},
+      );
       jest.unmock('@/features/auth/services/socialAuth');
-      ({signInWithSocialProvider} = require('@/features/auth/services/socialAuth'));
+      ({
+        signInWithSocialProvider,
+      } = require('@/features/auth/services/socialAuth'));
     });
-    await expect(signInWithSocialProvider('unknown')).rejects.toThrow(/Unsupported social provider/);
+    await expect(signInWithSocialProvider('unknown')).rejects.toThrow(
+      /Unsupported social provider/,
+    );
   });
 
   // keep simple unsupported provider case to exercise switch default
 
-
   it('signs in with Apple on Android via web flow', async () => {
-    const {appleAuthAndroid} = require('@invertase/react-native-apple-authentication');
+    const {
+      appleAuthAndroid,
+    } = require('@invertase/react-native-apple-authentication');
     (appleAuthAndroid.signIn as jest.Mock).mockResolvedValueOnce({
       id_token: 'android-apple-token',
-      user: { name: { firstName: 'Ada', lastName: 'Lovelace' }, email: 'ada@apple.example' },
+      user: {
+        name: {firstName: 'Ada', lastName: 'Lovelace'},
+        email: 'ada@apple.example',
+      },
     });
     RN.Platform.OS = 'android';
 
     let signInWithSocialProvider: any;
     jest.isolateModules(() => {
-      jest.doMock('@react-native-google-signin/google-signin', () => ({
-        GoogleSignin: mockGoogle,
-        statusCodes: { SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED' },
-      }), {virtual: true});
+      jest.doMock(
+        '@react-native-google-signin/google-signin',
+        () => ({
+          GoogleSignin: mockGoogle,
+          statusCodes: {SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED'},
+        }),
+        {virtual: true},
+      );
       jest.unmock('@/features/auth/services/socialAuth');
-      ({signInWithSocialProvider} = require('@/features/auth/services/socialAuth'));
+      ({
+        signInWithSocialProvider,
+      } = require('@/features/auth/services/socialAuth'));
     });
 
     mockSyncAuthUser.mockResolvedValueOnce({
@@ -481,20 +678,32 @@ describe('socialAuth', () => {
   });
 
   it('throws on Android Apple sign-in when id_token missing', async () => {
-    const {appleAuthAndroid} = require('@invertase/react-native-apple-authentication');
-    (appleAuthAndroid.signIn as jest.Mock).mockResolvedValueOnce({ id_token: undefined });
+    const {
+      appleAuthAndroid,
+    } = require('@invertase/react-native-apple-authentication');
+    (appleAuthAndroid.signIn as jest.Mock).mockResolvedValueOnce({
+      id_token: undefined,
+    });
     RN.Platform.OS = 'android';
 
     let signInWithSocialProvider: any;
     jest.isolateModules(() => {
-      jest.doMock('@react-native-google-signin/google-signin', () => ({
-        GoogleSignin: mockGoogle,
-        statusCodes: { SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED' },
-      }), {virtual: true});
+      jest.doMock(
+        '@react-native-google-signin/google-signin',
+        () => ({
+          GoogleSignin: mockGoogle,
+          statusCodes: {SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED'},
+        }),
+        {virtual: true},
+      );
       jest.unmock('@/features/auth/services/socialAuth');
-      ({signInWithSocialProvider} = require('@/features/auth/services/socialAuth'));
+      ({
+        signInWithSocialProvider,
+      } = require('@/features/auth/services/socialAuth'));
     });
 
-    await expect(signInWithSocialProvider('apple')).rejects.toThrow(/no id_token/);
+    await expect(signInWithSocialProvider('apple')).rejects.toThrow(
+      /no id_token/,
+    );
   });
 });

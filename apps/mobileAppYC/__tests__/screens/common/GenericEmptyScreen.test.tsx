@@ -15,14 +15,24 @@ jest.mock('@/hooks', () => {
 });
 
 // 2. Mock Components
-// We define the mock function inline to avoid Jest hoisting issues (variable undefined)
-jest.mock('@/shared/components/common', () => ({
-  SafeArea: jest.fn(({children}) => <>{children}</>),
-}));
 
 jest.mock('@/shared/components/common/Header/Header', () => ({
   Header: jest.fn(() => null),
 }));
+
+jest.mock(
+  '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen',
+  () => ({
+    LiquidGlassHeaderScreen: ({header, children}: any) => {
+      return (
+        <>
+          {header}
+          {children({})}
+        </>
+      );
+    },
+  }),
+);
 
 describe('GenericEmptyScreen', () => {
   const mockImageSource = {uri: 'https://example.com/empty.png'};

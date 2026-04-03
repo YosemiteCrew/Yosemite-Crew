@@ -37,6 +37,12 @@ describe('checkInUtils', () => {
       expect(result).toBe(true);
     });
 
+    it('should use provided check-in buffer minutes', () => {
+      // 14:00 now, 14:12 start, with 15-minute buffer should be allowed
+      const result = isWithinCheckInWindow('2024-12-20', '14:12', 15);
+      expect(result).toBe(true);
+    });
+
     it('should handle null time string', () => {
       const result = isWithinCheckInWindow('2024-12-20', null);
       expect(result).toBe(true);
@@ -96,8 +102,9 @@ describe('checkInUtils', () => {
   });
 
   describe('getCheckInConstants', () => {
-    it('should return check-in buffer in milliseconds', () => {
+    it('should return check-in buffer in minutes and milliseconds', () => {
       const constants = getCheckInConstants();
+      expect(constants.CHECKIN_BUFFER_MINUTES).toBe(5);
       expect(constants.CHECKIN_BUFFER_MS).toBe(5 * 60 * 1000); // 5 minutes
     });
 
@@ -109,8 +116,21 @@ describe('checkInUtils', () => {
     it('should return an object with both constants', () => {
       const constants = getCheckInConstants();
       expect(constants).toEqual({
+        CHECKIN_BUFFER_MINUTES: 5,
         CHECKIN_BUFFER_MS: 5 * 60 * 1000,
         CHECKIN_RADIUS_METERS: 200,
+      });
+    });
+
+    it('should apply overridden config values', () => {
+      const constants = getCheckInConstants({
+        CHECKIN_BUFFER_MINUTES: 12,
+        CHECKIN_RADIUS_METERS: 450,
+      });
+      expect(constants).toEqual({
+        CHECKIN_BUFFER_MINUTES: 12,
+        CHECKIN_BUFFER_MS: 12 * 60 * 1000,
+        CHECKIN_RADIUS_METERS: 450,
       });
     });
   });

@@ -72,10 +72,10 @@ describe('CompanionHistoryPage', () => {
   it('shows missing companion notice and uses fallback back path', () => {
     render(<CompanionHistoryPage />);
 
-    expect(screen.getByText('Companion History')).toBeInTheDocument();
+    expect(screen.getByText('Companion Overview')).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Companion id is missing. Please open history from Appointments or Companions.'
+        'Companion id is missing. Please open overview from Appointments or Companions.'
       )
     ).toBeInTheDocument();
     expect(screen.queryByTestId('timeline')).not.toBeInTheDocument();

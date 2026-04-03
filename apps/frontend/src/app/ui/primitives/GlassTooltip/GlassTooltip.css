@@ -8,6 +8,7 @@
   position: fixed;
   z-index: 4000;
   pointer-events: none;
+  width: max-content;
   max-width: min(320px, calc(100vw - 16px));
   white-space: normal;
   overflow-wrap: anywhere;

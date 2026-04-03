@@ -35,6 +35,7 @@ import { useCalendarNow } from '@/app/features/appointments/components/Calendar/
 import SlotGridLines from '@/app/features/appointments/components/Calendar/common/SlotGridLines';
 import { useInvoicesForPrimaryOrg } from '@/app/hooks/useInvoices';
 import { createInvoiceByAppointmentId } from '@/app/lib/paymentStatus';
+import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 const HOUR_ROW_TOP_OFFSET_PX = 0;
 type WeekCalendarProps = {
   events: Appointment[];
@@ -341,7 +342,11 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                               }}
                             >
                               <div className="font-medium truncate">
-                                {ev.companion.name} • {ev.concern || ''}
+                                {formatCompanionNameWithOwnerLastName(
+                                  ev.companion.name,
+                                  ev.companion.parent
+                                )}{' '}
+                                • {ev.concern || ''}
                               </div>
                             </button>
                           ))}

@@ -305,7 +305,11 @@ jest.mock('@/app/features/forms/pages/Forms/Sections/AddForm/components/FormRend
 
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: ({ alt }: any) => <span>{alt}</span>,
+  default: ({ alt, src }: any) => (
+    <span data-testid="mock-next-image" data-alt={String(alt ?? '')} data-src={String(src ?? '')}>
+      {alt}
+    </span>
+  ),
 }));
 
 jest.mock('@/app/ui/inputs/SearchDropdown', () => ({
@@ -337,6 +341,8 @@ describe('AppointmentInfo modal', () => {
       id: 'comp-1',
       name: 'Buddy',
       breed: 'Labrador',
+      species: 'dog',
+      photoUrl: 'https://example.com/buddy.png',
       parent: { id: 'parent-1' },
     },
     organisationId: 'org-1',
@@ -383,6 +389,45 @@ describe('AppointmentInfo modal', () => {
     });
   });
 
+  it('shows companion profile photo in the modal header when available', () => {
+    render(
+      <AppointmentInfoModal showModal setShowModal={setShowModal} activeAppointment={appointment} />
+    );
+
+    const headerImage = screen
+      .getAllByTestId('mock-next-image')
+      .find((node) => node.getAttribute('data-alt') === 'pet image');
+
+    expect(headerImage).toBeDefined();
+    expect(headerImage).toHaveAttribute('data-src', 'https://example.com/buddy.png');
+  });
+
+  it('falls back to species avatar in the modal header when profile photo is missing', () => {
+    const noPhotoAppointment = {
+      ...appointment,
+      companion: {
+        ...appointment.companion,
+        species: 'cat',
+        photoUrl: '',
+      },
+    };
+
+    render(
+      <AppointmentInfoModal
+        showModal
+        setShowModal={setShowModal}
+        activeAppointment={noPhotoAppointment}
+      />
+    );
+
+    const headerImage = screen
+      .getAllByTestId('mock-next-image')
+      .find((node) => node.getAttribute('data-alt') === 'pet image');
+
+    expect(headerImage).toBeDefined();
+    expect(headerImage?.getAttribute('data-src')).toContain('/avatar/cat.png');
+  });
+
   it('switches to prescription templates section', () => {
     render(
       <AppointmentInfoModal showModal setShowModal={setShowModal} activeAppointment={appointment} />
@@ -422,7 +467,7 @@ describe('AppointmentInfo modal', () => {
       <AppointmentInfoModal showModal setShowModal={setShowModal} activeAppointment={appointment} />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'History' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
 
     expect(screen.getByText('history-section')).toBeInTheDocument();
     expect(historySectionSpy).toHaveBeenCalledWith(

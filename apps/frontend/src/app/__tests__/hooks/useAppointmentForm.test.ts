@@ -100,6 +100,7 @@ const { getSlotsForServiceAndDateForPrimaryOrg } = jest.requireMock(
 );
 const { useCanMoreForPrimaryOrg } = jest.requireMock('@/app/hooks/useBilling');
 const { useTeamForPrimaryOrg } = jest.requireMock('@/app/hooks/useTeam');
+const { useSpecialitiesForPrimaryOrg } = jest.requireMock('@/app/hooks/useSpecialities');
 const { useSubscriptionCounterUpdate } = jest.requireMock('@/app/hooks/useStripeOnboarding');
 const { normalizeSlotsForSelectedDay } = jest.requireMock(
   '@/app/features/appointments/utils/slotNormalization'
@@ -115,6 +116,7 @@ describe('useAppointmentForm', () => {
     jest.clearAllMocks();
     (useCanMoreForPrimaryOrg as jest.Mock).mockReturnValue({ canMore: true, reason: 'ok' });
     (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([]);
+    (useSpecialitiesForPrimaryOrg as jest.Mock).mockReturnValue([]);
     jest.requireMock('@/app/stores/serviceStore').useServiceStore.getState.mockReturnValue({
       getServicesBySpecialityId: jest.fn(() => []),
     });
@@ -312,6 +314,59 @@ describe('useAppointmentForm', () => {
 
     expect(result.current.selectedDate.toDateString()).toBe(prefillDate.toDateString());
     expect(result.current.selectedSlot).toBeNull();
+  });
+
+  it('calendarSlotFlow filters speciality and service options by selected slot + lead', async () => {
+    (useSpecialitiesForPrimaryOrg as jest.Mock).mockReturnValue([
+      { _id: 'spec-1', name: 'General' },
+      { _id: 'spec-2', name: 'Surgery' },
+    ]);
+    jest.requireMock('@/app/stores/serviceStore').useServiceStore.getState.mockReturnValue({
+      getServicesBySpecialityId: jest.fn((specialityId: string) => {
+        if (specialityId === 'spec-1') return [{ id: 'svc-1', name: 'Consult' }];
+        if (specialityId === 'spec-2') return [{ id: 'svc-2', name: 'Surgery' }];
+        return [];
+      }),
+    });
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([
+      { _id: 'team-1', name: 'Dr Vet', practionerId: 'vet-1' },
+    ]);
+    (utcClockTimeToPreferredTimeZoneClock as jest.Mock).mockImplementation((time: string) => ({
+      minutes: time === '10:00' ? 600 : 540,
+      dayOffset: 0,
+    }));
+    (getSlotsForServiceAndDateForPrimaryOrg as jest.Mock).mockImplementation(
+      (serviceId: string) => {
+        if (serviceId === 'svc-1') {
+          return Promise.resolve([{ startTime: '10:00', endTime: '10:30', vetIds: ['vet-1'] }]);
+        }
+        return Promise.resolve([{ startTime: '09:00', endTime: '09:30', vetIds: ['vet-1'] }]);
+      }
+    );
+
+    const prefill = {
+      date: new Date('2026-04-01T00:00:00.000Z'),
+      minuteOfDay: 600,
+      leadId: 'vet-1',
+    };
+    const { result } = renderHook(() =>
+      useAppointmentForm({
+        initialPrefill: prefill,
+        calendarSlotFlow: true,
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.timeSlots).toHaveLength(1);
+      expect(result.current.selectedSlot?.startTime).toBe('10:00');
+      expect(result.current.SpecialitiesOptions).toEqual([{ label: 'General', value: 'spec-1' }]);
+    });
+
+    await act(async () => {
+      result.current.handleSpecialitySelect({ label: 'General', value: 'spec-1' });
+    });
+
+    expect(result.current.ServicesOptions).toEqual([{ label: 'Consult', value: 'svc-1' }]);
   });
 
   it('ServiceInfoData returns emptyServiceInfo when no serviceId', () => {

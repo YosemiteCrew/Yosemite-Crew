@@ -115,7 +115,7 @@
 }
 
 .StatNumber {
-  font-family: var(--grotesk-font);
+  font-family: var(--font-satoshi);
   font-size: 4rem;
   font-weight: 500;
   color: #247aed;

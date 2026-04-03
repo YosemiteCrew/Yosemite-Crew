@@ -18,6 +18,7 @@ import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { toTitleCase } from '@/app/lib/validators';
 import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
+import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 
 import './DataTable.css';
 
@@ -195,7 +196,7 @@ const CompanionsTable = ({
               className="appointment-profile-title cursor-pointer hover:underline underline-offset-2 text-left"
               title="Open companion history"
             >
-              {formatDisplayValue(item.companion.name)}
+              {formatCompanionNameWithOwnerLastName(item.companion.name, item.parent)}
             </button>
             <div className="flex items-center">
               <div className="appointment-profile-sub truncate max-w-[75px] mr-1">

@@ -6,6 +6,7 @@ import ProtectedAppointments from '@/app/features/appointments/pages/Appointment
 
 const useAppointmentsMock = jest.fn();
 const useCompanionsForPrimaryOrgMock = jest.fn();
+const useCompanionsParentsForPrimaryOrgMock = jest.fn();
 const useLoadCompanionsForPrimaryOrgMock = jest.fn();
 const usePermissionsMock = jest.fn();
 const useSearchStoreMock = jest.fn();
@@ -33,6 +34,7 @@ jest.mock('@/app/hooks/useAppointments', () => ({
 
 jest.mock('@/app/hooks/useCompanion', () => ({
   useCompanionsForPrimaryOrg: () => useCompanionsForPrimaryOrgMock(),
+  useCompanionsParentsForPrimaryOrg: () => useCompanionsParentsForPrimaryOrgMock(),
   useLoadCompanionsForPrimaryOrg: () => useLoadCompanionsForPrimaryOrgMock(),
 }));
 
@@ -110,6 +112,7 @@ describe('Appointments page', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     useCompanionsForPrimaryOrgMock.mockReturnValue([]);
+    useCompanionsParentsForPrimaryOrgMock.mockReturnValue([]);
     useAppointmentsMock.mockReturnValue([
       {
         id: 'a1',
@@ -191,6 +194,62 @@ describe('Appointments page', () => {
       expect.objectContaining({
         showModal: true,
         initialViewIntent: { label: 'finance', subLabel: 'summary' },
+      })
+    );
+  });
+
+  it('opens appointment modal directly on info overview sub-section for info deep links', () => {
+    useAppointmentsMock.mockReturnValue([
+      {
+        id: 'a2',
+        status: 'completed',
+        isEmergency: false,
+        companion: { id: 'c2', name: 'Rex' },
+      },
+    ]);
+    useSearchParamsMock.mockReturnValue({
+      get: (key: string) => {
+        if (key === 'appointmentId') return 'a2';
+        if (key === 'open') return 'info';
+        if (key === 'subLabel') return 'history';
+        return null;
+      },
+    });
+
+    render(<ProtectedAppointments />);
+
+    expect(appointmentInfoSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        showModal: true,
+        initialViewIntent: { label: 'info', subLabel: 'history' },
+      })
+    );
+  });
+
+  it('normalizes overview sub-label for details deep links', () => {
+    useAppointmentsMock.mockReturnValue([
+      {
+        id: 'a2',
+        status: 'completed',
+        isEmergency: false,
+        companion: { id: 'c2', name: 'Rex' },
+      },
+    ]);
+    useSearchParamsMock.mockReturnValue({
+      get: (key: string) => {
+        if (key === 'appointmentId') return 'a2';
+        if (key === 'open') return 'details';
+        if (key === 'subLabel') return 'overview';
+        return null;
+      },
+    });
+
+    render(<ProtectedAppointments />);
+
+    expect(appointmentInfoSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        showModal: true,
+        initialViewIntent: { label: 'info', subLabel: 'history' },
       })
     );
   });

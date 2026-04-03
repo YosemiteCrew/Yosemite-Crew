@@ -1,5 +1,6 @@
 import React from 'react';
 import {StyleSheet, View} from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import type {NavigationProp, RouteProp} from '@react-navigation/native';
 import {
   useFocusEffect,
@@ -85,20 +86,24 @@ export const MerckManualSearchScreen: React.FC = () => {
       }
       contentPadding={theme.spacing['3']}>
       {contentPaddingStyle => (
-        <View style={[styles.container, contentPaddingStyle]}>
-          <View style={styles.widgetWrap}>
-            <MerckSearchWidget
-              organisationId={organisationId}
-              title="Consumer MSD Veterinary Manual Search"
-              description="Trusted companion health guidance, anywhere."
-              initialQuery={initialQuery}
-              initialEntries={initialEntries}
-              initialLanguage={initialLanguage}
-              initialHasSearched={initialHasSearched}
-              compact={false}
-            />
+        <SafeAreaView
+          style={styles.safeArea}
+          edges={['bottom', 'left', 'right']}>
+          <View style={[styles.container, contentPaddingStyle]}>
+            <View style={styles.widgetWrap}>
+              <MerckSearchWidget
+                organisationId={organisationId}
+                title="Consumer MSD Veterinary Manual Search"
+                description="Trusted companion health guidance, anywhere."
+                initialQuery={initialQuery}
+                initialEntries={initialEntries}
+                initialLanguage={initialLanguage}
+                initialHasSearched={initialHasSearched}
+                compact={false}
+              />
+            </View>
           </View>
-        </View>
+        </SafeAreaView>
       )}
     </LiquidGlassHeaderScreen>
   );
@@ -106,6 +111,9 @@ export const MerckManualSearchScreen: React.FC = () => {
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
+    safeArea: {
+      flex: 1,
+    },
     container: {
       flex: 1,
       paddingHorizontal: theme.spacing['3'],

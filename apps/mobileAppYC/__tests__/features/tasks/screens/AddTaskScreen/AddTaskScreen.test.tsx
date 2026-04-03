@@ -2,6 +2,7 @@ import React from 'react';
 import {render, fireEvent, screen} from '@testing-library/react-native';
 import {AddTaskScreen} from '../../../../../src/features/tasks/screens/AddTaskScreen/AddTaskScreen';
 import {useAddTaskScreen} from '../../../../../src/features/tasks/hooks/useAddTaskScreen';
+import {selectTaskById} from '@/features/tasks/selectors';
 import {buildTaskTypeBreadcrumb} from '../../../../../src/features/tasks/utils/taskLabels';
 import {buildTaskDraftFromForm} from '../../../../../src/features/tasks/services/taskService';
 import {mockTheme} from '../../../../setup/mockTheme';
@@ -10,14 +11,17 @@ import {mockTheme} from '../../../../setup/mockTheme';
 
 // 1. Navigation
 const mockGoBack = jest.fn();
+const mockNavigate = jest.fn();
 const mockCanGoBack = jest.fn().mockReturnValue(true);
+let mockRouteParams: Record<string, unknown> = {};
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({
     goBack: mockGoBack,
+    navigate: mockNavigate,
     canGoBack: mockCanGoBack,
   }),
   useRoute: () => ({
-    params: {},
+    params: mockRouteParams,
   }),
 }));
 
@@ -54,7 +58,10 @@ jest.mock('@/features/coParent/selectors', () => ({
 
 // Mock companion actions
 jest.mock('@/features/companion', () => ({
-  setSelectedCompanion: jest.fn(id => ({type: 'companion/setSelected', payload: id})),
+  setSelectedCompanion: jest.fn(id => ({
+    type: 'companion/setSelected',
+    payload: id,
+  })),
 }));
 
 // 3. Hooks & Theme
@@ -129,17 +136,20 @@ jest.mock('../../../../../src/shared/components/common', () => {
   };
 });
 
-jest.mock('@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen', () => {
-  const {View} = require('react-native');
-  return {
-    LiquidGlassHeaderScreen: ({header, children}: any) => (
-      <View testID="liquid-glass-header-screen">
-        {header}
-        {typeof children === 'function' ? children(null) : children}
-      </View>
-    ),
-  };
-});
+jest.mock(
+  '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen',
+  () => {
+    const {View} = require('react-native');
+    return {
+      LiquidGlassHeaderScreen: ({header, children}: any) => (
+        <View testID="liquid-glass-header-screen">
+          {header}
+          {typeof children === 'function' ? children(null) : children}
+        </View>
+      ),
+    };
+  },
+);
 
 jest.mock('../../../../../src/shared/components/common/Header/Header', () => {
   const {View, Text, TouchableOpacity} = require('react-native');
@@ -199,9 +209,7 @@ jest.mock('../../../../../src/features/tasks/components/form', () => {
         </TouchableOpacity>
       </View>
     ),
-    TaskFormSheets: () => (
-      <View testID="task-form-sheets" />
-    ),
+    TaskFormSheets: () => <View testID="task-form-sheets" />,
   };
 });
 
@@ -242,11 +250,13 @@ describe('AddTaskScreen', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRouteParams = {};
+    (selectTaskById as jest.Mock).mockImplementation(() => () => null);
     (useAddTaskScreen as jest.Mock).mockReturnValue(defaultHookData);
     (buildTaskTypeBreadcrumb as jest.Mock).mockReturnValue('Breadcrumb String');
 
     // Setup mockAsyncThunk return value
-    mockUnwrap.mockResolvedValue({id: 'new-task-id'});
+    mockUnwrap.mockResolvedValue({id: 'new-task-id', date: '2026-04-10'});
     mockAddTask.mockReturnValue({
       unwrap: mockUnwrap,
       type: 'tasks/addTask',
@@ -266,6 +276,75 @@ describe('AddTaskScreen', () => {
 
     // IMPORTANT: mockDispatch must return the action object so .unwrap() can be called on it
     mockDispatch.mockImplementation(action => action);
+  });
+
+  it('prefills date from navigation params when opening AddTask directly', () => {
+    const updateFieldMock = jest.fn();
+    mockRouteParams = {prefillDate: '2026-04-10'};
+    (useAddTaskScreen as jest.Mock).mockReturnValue({
+      ...defaultHookData,
+      updateField: updateFieldMock,
+    });
+
+    render(<AddTaskScreen />);
+
+    expect(updateFieldMock).toHaveBeenCalledWith('date', expect.any(Date));
+    const dateArg = updateFieldMock.mock.calls.find(
+      call => call[0] === 'date',
+    )?.[1] as Date | undefined;
+    const startDateArg = updateFieldMock.mock.calls.find(
+      call => call[0] === 'startDate',
+    )?.[1] as Date | undefined;
+    expect(dateArg?.getFullYear()).toBe(2026);
+    expect(dateArg?.getMonth()).toBe(3);
+    expect(dateArg?.getDate()).toBe(10);
+    expect(startDateArg?.getFullYear()).toBe(2026);
+    expect(startDateArg?.getMonth()).toBe(3);
+    expect(startDateArg?.getDate()).toBe(10);
+  });
+
+  it('uses route prefillDate when reusing an existing task', () => {
+    const updateFieldMock = jest.fn();
+    const handleTaskTypeSelectMock = jest.fn();
+    mockRouteParams = {reuseTaskId: 'task-1', prefillDate: '2026-05-12'};
+    (selectTaskById as jest.Mock).mockImplementation(
+      (taskId: string) => () =>
+        taskId === 'task-1'
+          ? {
+              id: 'task-1',
+              companionId: 'c1',
+              category: 'health',
+              subcategory: 'none',
+              title: 'Reuse me',
+              frequency: 'daily',
+              additionalNote: 'note',
+              assignedTo: null,
+              attachments: [],
+              details: {},
+            }
+          : null,
+    );
+    (useAddTaskScreen as jest.Mock).mockReturnValue({
+      ...defaultHookData,
+      updateField: updateFieldMock,
+      handleTaskTypeSelect: handleTaskTypeSelectMock,
+    });
+
+    render(<AddTaskScreen />);
+
+    const dateArg = updateFieldMock.mock.calls.find(
+      call => call[0] === 'date',
+    )?.[1] as Date | undefined;
+    const startDateArg = updateFieldMock.mock.calls.find(
+      call => call[0] === 'startDate',
+    )?.[1] as Date | undefined;
+    expect(dateArg?.getFullYear()).toBe(2026);
+    expect(dateArg?.getMonth()).toBe(4);
+    expect(dateArg?.getDate()).toBe(12);
+    expect(startDateArg?.getFullYear()).toBe(2026);
+    expect(startDateArg?.getMonth()).toBe(4);
+    expect(startDateArg?.getDate()).toBe(12);
+    expect(handleTaskTypeSelectMock).toHaveBeenCalled();
   });
 
   it('renders correctly with initial state', () => {

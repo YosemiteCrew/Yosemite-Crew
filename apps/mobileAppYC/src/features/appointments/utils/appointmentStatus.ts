@@ -101,6 +101,96 @@ export const getAppointmentStatusLabel = (
   }
 };
 
+type AppointmentTheme = {
+  colors: {
+    secondary: string;
+    primary: string;
+    primaryTint: string;
+    success: string;
+    successSurface: string;
+    warning: string;
+    warningSurface: string;
+    error: string;
+    errorSurface: string;
+  };
+};
+
+export type AppointmentStatusBadgePalette = {
+  text: string;
+  textColor: string;
+  backgroundColor: string;
+};
+
+export const getAppointmentStatusBadgePalette = (
+  theme: AppointmentTheme,
+  status?: string | null,
+  paymentStatus?: string | null,
+): AppointmentStatusBadgePalette => {
+  const label = getAppointmentStatusLabel(status, paymentStatus);
+  const normalizedStatus = normalizeStatus(status);
+
+  if (isAppointmentPaymentFailed(status, paymentStatus)) {
+    return {
+      text: label,
+      textColor: theme.colors.error,
+      backgroundColor: theme.colors.errorSurface,
+    };
+  }
+
+  if (isAppointmentPaymentPending(status, paymentStatus)) {
+    return {
+      text: label,
+      textColor: theme.colors.warning,
+      backgroundColor: theme.colors.warningSurface,
+    };
+  }
+
+  switch (normalizedStatus) {
+    case 'UPCOMING':
+      return {
+        text: label,
+        textColor: theme.colors.secondary,
+        backgroundColor: theme.colors.primaryTint,
+      };
+    case 'CHECKED_IN':
+    case 'IN_PROGRESS':
+    case 'PAID':
+    case 'CONFIRMED':
+    case 'SCHEDULED':
+    case 'COMPLETED':
+      return {
+        text: label,
+        textColor: theme.colors.success,
+        backgroundColor: theme.colors.successSurface,
+      };
+    case 'REQUESTED':
+      return {
+        text: label,
+        textColor: theme.colors.primary,
+        backgroundColor: theme.colors.primaryTint,
+      };
+    case 'RESCHEDULED':
+      return {
+        text: label,
+        textColor: theme.colors.warning,
+        backgroundColor: theme.colors.warningSurface,
+      };
+    case 'CANCELLED':
+    case 'NO_SHOW':
+      return {
+        text: label,
+        textColor: theme.colors.error,
+        backgroundColor: theme.colors.errorSurface,
+      };
+    default:
+      return {
+        text: label,
+        textColor: theme.colors.secondary,
+        backgroundColor: theme.colors.primaryTint,
+      };
+  }
+};
+
 export const normalizeAppointmentStatusForUi = (
   status?: string | null,
 ): AppointmentStatus | 'NO_SHOW' => {

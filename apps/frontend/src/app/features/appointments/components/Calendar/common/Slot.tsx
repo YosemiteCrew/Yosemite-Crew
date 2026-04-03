@@ -40,6 +40,7 @@ import {
 import { FaCheckCircle } from 'react-icons/fa';
 import { IoIosCloseCircle } from 'react-icons/io';
 import { useOrgStore } from '@/app/stores/orgStore';
+import { formatCompanionNameWithOwnerLastName, getOwnerFirstName } from '@/app/lib/companionName';
 
 type SlotProps = {
   slotEvents: Appointment[];
@@ -155,6 +156,12 @@ const Slot: React.FC<SlotProps> = ({
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
       .join(' ');
   };
+
+  const getCompanionDisplayName = (appointment: Appointment) =>
+    formatCompanionNameWithOwnerLastName(
+      appointment.companion?.name,
+      appointment.companion?.parent
+    );
 
   const openAppointmentHistory = (appointment: Appointment) => {
     handleViewAppointment(appointment, { label: 'info', subLabel: 'history' });
@@ -397,12 +404,13 @@ const Slot: React.FC<SlotProps> = ({
                 const marginTopPx = (gapMinutes / 60) * height;
                 const statusStyle = getStatusStyle(ev.status);
                 const blockHeightPx = Math.max((visibleDurationMinutes / 60) * height, 3);
-                const parentName = ev.companion.parent?.name?.trim() ?? '';
+                const serviceName = ev.appointmentType?.name?.trim() ?? '';
                 const concern = ev.concern?.trim() ?? '';
-                const subtitle = [parentName, concern].filter(Boolean).join(' • ');
+                const subtitle = [serviceName, concern].filter(Boolean).join(' • ');
+                const companionDisplayName = getCompanionDisplayName(ev);
                 const markerTitle = subtitle
-                  ? `${ev.companion.name} • ${subtitle}`
-                  : ev.companion.name;
+                  ? `${companionDisplayName} • ${subtitle}`
+                  : companionDisplayName;
                 const draggable = !!canDragAppointment?.(ev);
                 cursorMinute = Math.max(cursorMinute, startMinute + visibleDurationMinutes);
                 return (
@@ -475,12 +483,13 @@ const Slot: React.FC<SlotProps> = ({
               }) => {
                 const itemKey = `${ev.companion.name}-${ev.startTime.toISOString()}-${originalIndex}`;
                 const statusStyle = getStatusStyle(ev.status);
-                const parentName = ev.companion.parent?.name?.trim() ?? '';
+                const serviceName = ev.appointmentType?.name?.trim() ?? '';
                 const concern = ev.concern?.trim() ?? '';
-                const subtitle = [parentName, concern].filter(Boolean).join(' • ');
+                const subtitle = [serviceName, concern].filter(Boolean).join(' • ');
+                const companionDisplayName = getCompanionDisplayName(ev);
                 const markerTitle = subtitle
-                  ? `${ev.companion.name} • ${subtitle}`
-                  : ev.companion.name;
+                  ? `${companionDisplayName} • ${subtitle}`
+                  : companionDisplayName;
                 const draggable = !!canDragAppointment?.(ev);
                 const laneGapPx = 3;
                 const widthPercent = 100 / laneCount;
@@ -535,17 +544,10 @@ const Slot: React.FC<SlotProps> = ({
                         opacity: draggedAppointmentId === ev.id ? 0.55 : 1,
                       }}
                     >
-                      {!compact && (
-                        <div className="flex-none self-center max-w-[72px]">
-                          <span className="block rounded-full bg-white/85 px-1.5 py-0.5 text-[9px] font-semibold leading-[11px] text-black-text whitespace-normal break-words text-center">
-                            {formatStatusLabel(ev.status)}
-                          </span>
-                        </div>
-                      )}
                       <div className="min-w-0 flex-1 self-center">
                         <div className="w-full flex flex-col items-center justify-center text-center gap-0.5">
                           <div className="truncate w-full text-caption-1 font-semibold">
-                            {ev.companion.name}
+                            {companionDisplayName}
                           </div>
                           {subtitle && (
                             <div className="text-[10px] w-full truncate opacity-95">{subtitle}</div>
@@ -561,7 +563,8 @@ const Slot: React.FC<SlotProps> = ({
                             )}
                             height={26}
                             width={26}
-                            className="rounded-full border border-white/60"
+                            className="rounded-full border border-white/60 object-cover"
+                            style={{ width: 26, height: 26 }}
                             alt=""
                           />
                         </div>
@@ -595,7 +598,8 @@ const Slot: React.FC<SlotProps> = ({
                   )}
                   height={34}
                   width={34}
-                  className="rounded-full border border-card-border bg-white"
+                  className="rounded-full border border-card-border bg-white object-cover"
+                  style={{ width: 34, height: 34 }}
                   alt=""
                 />
                 <div className="min-w-0">
@@ -606,9 +610,9 @@ const Slot: React.FC<SlotProps> = ({
                       openAppointmentHistory(activeEvent);
                       setActivePopoverKey(null);
                     }}
-                    title="Open appointment history"
+                    title="Open appointment overview"
                   >
-                    {activeEvent.companion.name || '-'}
+                    {getCompanionDisplayName(activeEvent)}
                   </button>
                   <div className="text-caption-1 text-text-secondary truncate">
                     {activeEvent.companion.breed || '-'} / {activeEvent.companion.species || '-'}
@@ -632,7 +636,7 @@ const Slot: React.FC<SlotProps> = ({
               </div>
               <div className="text-caption-1 text-text-secondary">Parent</div>
               <div className="text-caption-1 text-text-primary text-right truncate">
-                {activeEvent.companion.parent?.name || '-'}
+                {getOwnerFirstName(activeEvent.companion.parent) || '-'}
               </div>
               <div className="text-caption-1 text-text-secondary">Lead</div>
               <div className="text-caption-1 text-text-primary text-right truncate">
@@ -706,10 +710,10 @@ const Slot: React.FC<SlotProps> = ({
                       <IoEyeOutline size={18} />
                     </button>
                   </GlassTooltip>
-                  <GlassTooltip content="History" side="top">
+                  <GlassTooltip content="Overview" side="top">
                     <button
                       type="button"
-                      title="Appointment history"
+                      title="Appointment overview"
                       className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
                       onClick={() => {
                         openAppointmentHistory(activeEvent);

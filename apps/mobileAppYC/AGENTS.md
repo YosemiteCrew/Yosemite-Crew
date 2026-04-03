@@ -58,6 +58,12 @@ const {t} = useTranslation();
 
 Add new keys to `src/i18n/` before using them.
 
+## Design System Consistency
+
+- Use **Satoshi** for all user-visible text in mobile (`theme.typography` + component overrides). Do not introduce new Clash/SF text styles.
+- For appointment status UI (Home, My Appointments, View Appointment), use a single source of truth for label + color mapping from `features/appointments/utils/appointmentStatus`.
+- Keep document category/subcategory values aligned with backend enums and frontend labels. If adding/changing category IDs, update mobile constants and API serialization maps together.
+
 ---
 
 ## Forms
