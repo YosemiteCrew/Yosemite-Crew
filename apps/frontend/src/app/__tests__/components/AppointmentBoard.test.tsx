@@ -121,6 +121,7 @@ describe('AppointmentBoard', () => {
     lead: { name: 'Dr. Lee' },
     room: { name: 'Room 1' },
     concern: 'Checkup',
+    appointmentType: { name: 'Consultation', speciality: { name: 'Wellness' } },
   };
 
   beforeEach(() => {
@@ -145,6 +146,8 @@ describe('AppointmentBoard', () => {
 
     fireEvent.click(screen.getByLabelText('Open appointment Buddy'));
 
+    expect(screen.getByText('Speciality: Wellness')).toBeInTheDocument();
+    expect(screen.getByText('Service: Consultation')).toBeInTheDocument();
     expect(setActiveAppointment).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'appt-completed' })
     );

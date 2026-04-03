@@ -59,12 +59,14 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
   const [formData, setFormData] = useState<Appointment>(EMPTY_APPOINTMENT);
   const [formDataErrors, setFormDataErrors] = useState<AppointmentFormErrors>({});
   const currentLeadIdRef = useRef<string>('');
+  const selectedSlotRef = useRef<Slot | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [timeSlots, setTimeSlots] = useState<Slot[]>([]);
   const slotMetaByRef = useRef<WeakMap<Slot, NormalizedSlotMeta>>(new WeakMap());
   const [isLoading, setIsLoading] = useState(false);
   const [pendingPrefill, setPendingPrefill] = useState<AppointmentDraftPrefill | null>(null);
+  const prefillLeadIdRef = useRef<string>('');
   const [slotScopedSpecialityIds, setSlotScopedSpecialityIds] = useState<string[]>([]);
   const [slotScopedServicesBySpecialityId, setSlotScopedServicesBySpecialityId] = useState<
     Record<string, Array<{ label: string; value: string }>>
@@ -79,12 +81,16 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
         ?.toLowerCase() ?? '',
     []
   );
-  const getNextSelectedSlot = (availableSlots: Slot[], previousSlot: Slot | null) => {
-    if (!previousSlot) return availableSlots[0] ?? null;
+  const getNextSelectedSlot = (
+    availableSlots: Slot[],
+    previousSlot: Slot | null,
+    preserveExistingSelection: boolean = false
+  ) => {
+    if (!previousSlot) return preserveExistingSelection ? null : (availableSlots[0] ?? null);
     const matchingSlot = availableSlots.find(
       (slot) => slot.startTime === previousSlot.startTime && slot.endTime === previousSlot.endTime
     );
-    return matchingSlot ?? availableSlots[0] ?? null;
+    return matchingSlot ?? (preserveExistingSelection ? null : (availableSlots[0] ?? null));
   };
 
   const ServiceFields = useMemo(
@@ -111,11 +117,8 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
   const getLeadOptionsForSlot = useCallback(
     (slot: Slot | null) => {
       if (!teams?.length || !slot) return [];
-      const foundSlot = timeSlots.find(
-        (s) => s.startTime === slot.startTime && s.endTime === slot.endTime
-      );
-      if (!foundSlot?.vetIds?.length) return [];
-      const vetIdSet = new Set(foundSlot.vetIds);
+      const vetIdSet = new Set(slot.vetIds ?? []);
+      if (!vetIdSet.size) return [];
       return teams
         .filter((team) => {
           const teamId = team.practionerId || team._id;
@@ -126,7 +129,7 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
           value: team.practionerId || team._id,
         }));
     },
-    [teams, timeSlots]
+    [teams]
   );
   const getLeadOptionsRef = useRef(getLeadOptionsForSlot);
   getLeadOptionsRef.current = getLeadOptionsForSlot;
@@ -141,8 +144,15 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
   getLeadProfileUrlRef.current = getLeadProfileUrl;
 
   useEffect(() => {
+    selectedSlotRef.current = selectedSlot;
+  }, [selectedSlot]);
+
+  useEffect(() => {
     const appointmentTypeId = formData.appointmentType?.id;
     if (!appointmentTypeId || !selectedDate) {
+      if (calendarSlotFlow && selectedSlotRef.current) {
+        return;
+      }
       setTimeSlots([]);
       setSelectedSlot(null);
       slotMetaByRef.current = new WeakMap();
@@ -178,7 +188,20 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
         slotMetaByRef.current = slotMetaMap;
         const availableSlots = availableEntries.map((entry) => entry.slot);
         setTimeSlots(availableSlots);
-        setSelectedSlot((prev) => getNextSelectedSlot(availableSlots, prev));
+        const nextSelectedSlot = getNextSelectedSlot(
+          availableSlots,
+          selectedSlotRef.current,
+          calendarSlotFlow
+        );
+        setSelectedSlot(nextSelectedSlot);
+        if (calendarSlotFlow && selectedSlotRef.current && !nextSelectedSlot) {
+          setFormDataErrors((prev) => ({
+            ...prev,
+            slot: 'Selected calendar slot is unavailable for this service. Please choose another service.',
+          }));
+        } else {
+          setFormDataErrors((prev) => ({ ...prev, slot: undefined }));
+        }
       } catch (err) {
         console.log(err);
         if (!cancelled) {
@@ -192,10 +215,11 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
     return () => {
       cancelled = true;
     };
-  }, [formData.appointmentType?.id, selectedDate]);
+  }, [calendarSlotFlow, formData.appointmentType?.id, selectedDate]);
 
   useEffect(() => {
     if (!initialPrefill) return;
+    prefillLeadIdRef.current = initialPrefill.leadId || '';
     setPendingPrefill(initialPrefill);
     setSelectedDate(initialPrefill.date);
     setSelectedSlot(null);
@@ -296,6 +320,22 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
       if (prefillSlot) {
         setTimeSlots([prefillSlot]);
         setSelectedSlot(prefillSlot);
+        const prefillLeadId = pendingPrefill.leadId ?? '';
+        if (prefillLeadId) {
+          const leadOption = getLeadOptionsForSlot(prefillSlot).find(
+            (option) => normalizeId(option.value) === normalizeId(prefillLeadId)
+          );
+          if (leadOption) {
+            setFormData((prev) => ({
+              ...prev,
+              lead: {
+                id: leadOption.value,
+                name: leadOption.label,
+                profileUrl: getLeadProfileUrlRef.current(leadOption.value),
+              },
+            }));
+          }
+        }
       }
       setSlotScopedSpecialityIds(Array.from(specialityIdSet));
       setSlotScopedServicesBySpecialityId(servicesBySpeciality);
@@ -317,7 +357,14 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
     return () => {
       cancelled = true;
     };
-  }, [calendarSlotFlow, getServicesBySpecialityId, normalizeId, pendingPrefill, specialities]);
+  }, [
+    calendarSlotFlow,
+    getLeadOptionsForSlot,
+    getServicesBySpecialityId,
+    normalizeId,
+    pendingPrefill,
+    specialities,
+  ]);
 
   useEffect(() => {
     if (!selectedSlot || !selectedDate) return;
@@ -386,16 +433,29 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
     }
     const hasValidLead = options.some((option) => option.value === currentLeadId);
     if (!hasValidLead) {
+      if (calendarSlotFlow && prefillLeadIdRef.current) {
+        const matchedPrefillLead = options.find(
+          (option) => normalizeId(option.value) === normalizeId(prefillLeadIdRef.current)
+        );
+        if (matchedPrefillLead) {
+          setFormData((prev) => ({
+            ...prev,
+            lead: {
+              id: matchedPrefillLead.value,
+              name: matchedPrefillLead.label,
+              profileUrl: getLeadProfileUrlRef.current(matchedPrefillLead.value),
+            },
+          }));
+          setFormDataErrors((prev) => ({ ...prev, slot: undefined, leadId: undefined }));
+          return;
+        }
+      }
       setFormData((prev) => ({ ...prev, lead: undefined }));
-      setFormDataErrors((prev) => ({
-        ...prev,
-        slot: undefined,
-        leadId: 'Multiple leads are available. Please choose a lead.',
-      }));
+      setFormDataErrors((prev) => ({ ...prev, slot: undefined, leadId: undefined }));
       return;
     }
     setFormDataErrors((prev) => ({ ...prev, slot: undefined, leadId: undefined }));
-  }, [selectedSlot]);
+  }, [calendarSlotFlow, normalizeId, selectedSlot]);
 
   useEffect(() => {
     if (calendarSlotFlow) return;
@@ -428,7 +488,7 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
 
     if (pendingPrefill.leadId) {
       const selectedLead = leadOptionsForSlot.find(
-        (option) => option.value === pendingPrefill.leadId
+        (option) => normalizeId(option.value) === normalizeId(pendingPrefill.leadId)
       );
       if (selectedLead) {
         setFormData((prev) => ({
@@ -455,6 +515,7 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
     formData.appointmentType?.id,
     getLeadProfileUrl,
     getLeadOptionsForSlot,
+    normalizeId,
     pendingPrefill,
     selectedDate,
     timeSlots,
@@ -572,6 +633,7 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
     setSelectedSlot(null);
     slotMetaByRef.current = new WeakMap();
     setPendingPrefill(null);
+    prefillLeadIdRef.current = '';
     setSlotScopedSpecialityIds([]);
     setSlotScopedServicesBySpecialityId({});
     setIsLoadingSlotScopedOptions(false);

@@ -726,6 +726,10 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
               <div className="text-caption-1 text-text-primary text-right truncate">
                 {activeEvent.lead?.name || '-'}
               </div>
+              <div className="text-caption-1 text-text-secondary">Speciality</div>
+              <div className="text-caption-1 text-text-primary text-right truncate">
+                {activeEvent.appointmentType?.speciality?.name || '-'}
+              </div>
               <div className="text-caption-1 text-text-secondary">Service</div>
               <div className="text-caption-1 text-text-primary text-right truncate">
                 {activeEvent.appointmentType?.name || '-'}

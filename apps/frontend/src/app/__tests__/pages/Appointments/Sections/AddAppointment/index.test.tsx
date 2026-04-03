@@ -277,9 +277,11 @@ describe('AddAppointment Component', () => {
     fireEvent.click(screen.getByTestId('search-companion'));
 
     await waitFor(() => {
-      expect(screen.getByTestId('slot-picker')).toBeInTheDocument();
+      expect(screen.queryByTestId('slot-picker')).not.toBeInTheDocument();
     });
 
+    expect(screen.getByText('Date')).toBeInTheDocument();
+    expect(screen.getByText('Time')).toBeInTheDocument();
     expect(screen.queryByTestId('select-Speciality')).not.toBeInTheDocument();
   });
 });

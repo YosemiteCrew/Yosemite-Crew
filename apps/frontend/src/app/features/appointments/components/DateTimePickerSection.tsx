@@ -24,6 +24,7 @@ type DateTimePickerSectionProps = {
   teamOptions?: Option[];
   onSupportStaffChange?: (ids: string[]) => void;
   showSupportStaff?: boolean;
+  hideDateSlotPicker?: boolean;
 };
 
 const DateTimePickerSection = ({
@@ -41,24 +42,31 @@ const DateTimePickerSection = ({
   teamOptions,
   onSupportStaffChange,
   showSupportStaff = true,
+  hideDateSlotPicker = false,
 }: DateTimePickerSectionProps) => (
   <div className="flex flex-col gap-4">
-    <Slotpicker
-      selectedDate={selectedDate}
-      setSelectedDate={setSelectedDate}
-      selectedSlot={selectedSlot}
-      setSelectedSlot={setSelectedSlot}
-      timeSlots={timeSlots}
-    />
+    {!hideDateSlotPicker && (
+      <Slotpicker
+        selectedDate={selectedDate}
+        setSelectedDate={setSelectedDate}
+        selectedSlot={selectedSlot}
+        setSelectedSlot={setSelectedSlot}
+        timeSlots={timeSlots}
+      />
+    )}
     <div className="flex flex-col gap-3">
       <div className="grid grid-cols-2 gap-3">
         <FormInput
           intype="text"
           inname="date"
           value={getFormattedDate(selectedDate)}
+          readonly={hideDateSlotPicker}
+          tabIndex={hideDateSlotPicker ? -1 : undefined}
+          onFocus={hideDateSlotPicker ? (event) => event.currentTarget.blur() : undefined}
+          onClick={hideDateSlotPicker ? (event) => event.preventDefault() : undefined}
           onChange={() => {}}
           inlabel="Date"
-          className="min-h-12!"
+          className={`min-h-12! ${hideDateSlotPicker ? 'cursor-default' : ''}`}
         />
         <FormInput
           intype="text"

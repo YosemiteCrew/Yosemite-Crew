@@ -545,6 +545,7 @@ const AddAppointment = ({
                       selectedSlot={selectedSlot}
                       setSelectedSlot={setSelectedSlot}
                       timeSlots={timeSlots}
+                      hideDateSlotPicker={isCalendarSlotFlow}
                       slotError={formDataErrors.slot}
                       leadId={formData.lead?.id}
                       leadError={formDataErrors.leadId}

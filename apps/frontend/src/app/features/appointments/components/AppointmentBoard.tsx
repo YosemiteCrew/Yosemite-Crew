@@ -491,6 +491,9 @@ const AppointmentBoard = ({
                                 {companionDisplayName}
                               </button>
                               <div className="break-words text-[10px] font-normal text-text-secondary">
+                                Speciality: {appointment.appointmentType?.speciality?.name || '-'}
+                              </div>
+                              <div className="break-words text-[10px] font-normal text-text-secondary">
                                 Service: {appointment.appointmentType?.name || '-'}
                               </div>
                               <div className="break-words text-[10px] font-normal text-text-secondary">

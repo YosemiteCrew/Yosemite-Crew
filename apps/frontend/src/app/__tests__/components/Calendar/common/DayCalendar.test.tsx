@@ -140,7 +140,7 @@ describe('DayCalendar (Appointments)', () => {
     status: 'in_progress',
     startTime: new Date('2025-01-06T09:00:00Z'),
     endTime: new Date('2025-01-06T10:00:00Z'),
-    appointmentType: { id: 'service-1', name: 'Grooming' },
+    appointmentType: { id: 'service-1', name: 'Grooming', speciality: { name: 'Wellness' } },
     companion: {
       name: 'Rex',
       species: 'dog',
@@ -211,6 +211,8 @@ describe('DayCalendar (Appointments)', () => {
 
     expect(screen.getByText('Service')).toBeInTheDocument();
     expect(screen.getAllByText('Grooming').length).toBeGreaterThan(0);
+    expect(screen.getByText('Speciality')).toBeInTheDocument();
+    expect(screen.getAllByText('Wellness').length).toBeGreaterThan(0);
     expect(screen.getByText('Lead')).toBeInTheDocument();
     expect(screen.getByText('Dr. Lee')).toBeInTheDocument();
 

@@ -73,6 +73,10 @@ export const AppointmentDetails = ({ appointment }: AppointmentCardContentProps)
         value={`${formatDateLabel(appointment.appointmentDate)} / ${formatTimeLabel(appointment.startTime)}`}
       />
       <AppointmentDetailField label="Reason" value={appointment.concern} />
+      <AppointmentDetailField
+        label="Speciality"
+        value={appointment.appointmentType?.speciality?.name}
+      />
       <AppointmentDetailField label="Service" value={appointment.appointmentType?.name} />
       <AppointmentDetailField label="Room" value={appointment.room?.name} />
       <AppointmentDetailField label="Lead" value={leadName} />

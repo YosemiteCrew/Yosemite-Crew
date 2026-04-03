@@ -50,7 +50,7 @@ describe('AppointmentCard', () => {
     appointmentDate: new Date('2025-01-06T00:00:00Z'),
     startTime: new Date('2025-01-06T09:00:00Z'),
     companion: { name: 'Buddy', parent: { name: 'Sam' }, species: 'dog' },
-    appointmentType: { name: 'Checkup' },
+    appointmentType: { name: 'Checkup', speciality: { name: 'General Medicine' } },
     room: { name: 'Room A' },
     lead: { name: 'Dr. Lee' },
     supportStaff: [{ name: 'Taylor' }],
@@ -78,6 +78,8 @@ describe('AppointmentCard', () => {
     expect(screen.getByText('Jan 06, 2025 / 09:00 AM')).toBeInTheDocument();
     expect(screen.getByText('Reason:')).toBeInTheDocument();
     expect(screen.getByText('Vaccines')).toBeInTheDocument();
+    expect(screen.getByText('Speciality:')).toBeInTheDocument();
+    expect(screen.getByText('General Medicine')).toBeInTheDocument();
     expect(screen.getByText('Service:')).toBeInTheDocument();
     expect(screen.getByText('Checkup')).toBeInTheDocument();
     expect(screen.getByText('Room:')).toBeInTheDocument();

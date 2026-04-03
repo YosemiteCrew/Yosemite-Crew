@@ -360,6 +360,7 @@ describe('useAppointmentForm', () => {
       expect(result.current.timeSlots).toHaveLength(1);
       expect(result.current.selectedSlot?.startTime).toBe('10:00');
       expect(result.current.SpecialitiesOptions).toEqual([{ label: 'General', value: 'spec-1' }]);
+      expect(result.current.formData.lead?.id).toBe('vet-1');
     });
 
     await act(async () => {
@@ -367,6 +368,49 @@ describe('useAppointmentForm', () => {
     });
 
     expect(result.current.ServicesOptions).toEqual([{ label: 'Consult', value: 'svc-1' }]);
+  });
+
+  it('keeps calendar-selected slot when speciality/service changes in calendar flow', async () => {
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([
+      { _id: 'team-1', name: 'Dr Vet', practionerId: 'vet-1' },
+    ]);
+    const slotNine = { startTime: '09:00', endTime: '09:30', vetIds: ['vet-1'] };
+    const slotTen = { startTime: '10:00', endTime: '10:30', vetIds: ['vet-1'] };
+    (normalizeSlotsForSelectedDay as jest.Mock).mockReturnValue([
+      {
+        slot: slotNine,
+        meta: { localStartMinute: 540, localEndMinute: 570, dayOffset: 0 },
+      },
+      {
+        slot: slotTen,
+        meta: { localStartMinute: 600, localEndMinute: 630, dayOffset: 0 },
+      },
+    ]);
+    (getSlotsForServiceAndDateForPrimaryOrg as jest.Mock).mockResolvedValue([slotNine, slotTen]);
+
+    const { result } = renderHook(() =>
+      useAppointmentForm({
+        calendarSlotFlow: true,
+      })
+    );
+
+    await act(async () => {
+      result.current.setSelectedDate(new Date('2026-04-01T00:00:00.000Z'));
+      result.current.setSelectedSlot(slotTen);
+    });
+
+    await act(async () => {
+      result.current.handleSpecialitySelect({ label: 'General', value: 'spec-1' });
+    });
+    expect(result.current.selectedSlot?.startTime).toBe('10:00');
+
+    await act(async () => {
+      result.current.handleServiceSelect({ label: 'Consult', value: 'svc-1' });
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedSlot?.startTime).toBe('10:00');
+    });
   });
 
   it('ServiceInfoData returns emptyServiceInfo when no serviceId', () => {
@@ -525,7 +569,7 @@ describe('useAppointmentForm', () => {
     expect(errors.leadId).toBe('Multiple leads are available. Please choose a lead.');
   });
 
-  it('clears invalid preset lead for multi-lead slot and asks user to choose a lead', async () => {
+  it('clears invalid preset lead for multi-lead slot and only shows lead error on validation', async () => {
     (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([
       { _id: 'team-1', name: 'Dr A', practionerId: 'vet-1' },
       { _id: 'team-2', name: 'Dr B', practionerId: 'vet-2' },
@@ -564,8 +608,10 @@ describe('useAppointmentForm', () => {
       expect(result.current.selectedSlot).not.toBeNull();
     });
 
-    const errors = result.current.validateForm();
     expect(result.current.formData.lead).toBeUndefined();
+    expect(result.current.formDataErrors.leadId).toBeUndefined();
+
+    const errors = result.current.validateForm();
     expect(errors.leadId).toBe('Multiple leads are available. Please choose a lead.');
   });
 });
