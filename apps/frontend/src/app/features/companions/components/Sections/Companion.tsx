@@ -582,7 +582,7 @@ const Companion = ({ companion, canEditCompanionStatus = false }: CompanionTypeP
   const [isEditing, setIsEditing] = useState(false);
   const [isStatusEditing, setIsStatusEditing] = useState(false);
   const [statusValue, setStatusValue] = useState<RecordStatus>(
-    (companion.companion.status as RecordStatus | undefined) ?? 'active'
+    companion.companion.status ?? 'active'
   );
   const [formData, setFormData] = useState<StoredCompanion>(companion.companion);
   const [currentDate, setCurrentDate] = useState<Date | null>(
@@ -603,7 +603,7 @@ const Companion = ({ companion, canEditCompanionStatus = false }: CompanionTypeP
   useEffect(() => {
     setIsEditing(false);
     setIsStatusEditing(false);
-    setStatusValue((companion.companion.status as RecordStatus | undefined) ?? 'active');
+    setStatusValue(companion.companion.status ?? 'active');
     setFormData(companion.companion);
     setCurrentDate(
       companion.companion.dateOfBirth ? new Date(companion.companion.dateOfBirth) : null
@@ -709,7 +709,7 @@ const Companion = ({ companion, canEditCompanionStatus = false }: CompanionTypeP
 
   const handleStatusCancel = () => {
     setIsStatusEditing(false);
-    setStatusValue((companion.companion.status as RecordStatus | undefined) ?? 'active');
+    setStatusValue(companion.companion.status ?? 'active');
   };
 
   const handleStatusSave = async () => {

@@ -1513,8 +1513,8 @@ export const ViewAppointmentScreen: React.FC = () => {
             <MerckSearchWidget
               organisationId={merckOrganisationId}
               compact
-              title="Merck Manuals"
-              description="Search consumer Merck manuals while reviewing this appointment."
+              title="MSD Veterinary Manual"
+              description="Search consumer MSD Veterinary Manual while reviewing this appointment."
               onOpenFullSearch={
                 merckOrganisationId
                   ? searchState =>

@@ -1,7 +1,13 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import AppointmentBoard from '@/app/features/appointments/components/AppointmentBoard';
+import {
+  acceptAppointment,
+  rejectAppointment,
+} from '@/app/features/appointments/services/appointmentService';
+import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
+import { useAuthStore } from '@/app/stores/authStore';
 
 jest.mock('@/app/hooks/useBoardDragScroll', () => ({
   useBoardDragScroll: () => ({
@@ -48,11 +54,11 @@ jest.mock('@/app/ui/primitives/Icons/Next', () => (props: any) => (
 ));
 
 jest.mock('@/app/hooks/useTeam', () => ({
-  useTeamForPrimaryOrg: () => [],
+  useTeamForPrimaryOrg: jest.fn(() => []),
 }));
 
 jest.mock('@/app/stores/authStore', () => ({
-  useAuthStore: (selector: any) => selector({ attributes: {} }),
+  useAuthStore: jest.fn((selector: any) => selector({ attributes: {} })),
 }));
 
 jest.mock('@/app/ui/inputs/Datepicker', () => () => <div data-testid="datepicker" />);
@@ -119,6 +125,10 @@ describe('AppointmentBoard', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([]);
+    (useAuthStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({ attributes: {} })
+    );
   });
 
   it('opens the appointment side modal on click when the card is not draggable', () => {
@@ -159,6 +169,91 @@ describe('AppointmentBoard', () => {
     expect(screen.getByLabelText('Draggable appointment Buddy')).toHaveAttribute(
       'draggable',
       'true'
+    );
+  });
+
+  it('triggers add appointment and date navigation callbacks', () => {
+    const onAddAppointment = jest.fn();
+
+    render(
+      <AppointmentBoard
+        appointments={[{ ...baseAppointment, id: 'appt-upcoming', status: 'UPCOMING' } as any]}
+        currentDate={new Date('2026-03-16T00:00:00.000Z')}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments
+        onAddAppointment={onAddAppointment}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add appointment' }));
+    expect(onAddAppointment).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(setCurrentDate).toHaveBeenCalledTimes(2);
+  });
+
+  it('filters to my appointments when board scope is toggled', () => {
+    (useAuthStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({ attributes: { sub: 'user-1' } })
+    );
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([
+      { _id: 'team-1', practionerId: 'lead-1', userId: 'user-1' },
+    ]);
+
+    render(
+      <AppointmentBoard
+        appointments={[
+          {
+            ...baseAppointment,
+            id: 'appt-my',
+            status: 'UPCOMING',
+            companion: { ...baseAppointment.companion, name: 'Mine' },
+            lead: { id: 'lead-1', name: 'Dr. Mine' },
+          } as any,
+          {
+            ...baseAppointment,
+            id: 'appt-other',
+            status: 'UPCOMING',
+            companion: { ...baseAppointment.companion, name: 'Other' },
+            lead: { id: 'lead-2', name: 'Dr. Other' },
+          } as any,
+        ]}
+        currentDate={new Date('2026-03-16T00:00:00.000Z')}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments
+      />
+    );
+
+    expect(screen.getByText('Mine')).toBeInTheDocument();
+    expect(screen.getByText('Other')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle scope' }));
+
+    expect(screen.getByText('Mine')).toBeInTheDocument();
+    expect(screen.queryByText('Other')).not.toBeInTheDocument();
+  });
+
+  it('invokes accept and decline actions for requested appointments', () => {
+    render(
+      <AppointmentBoard
+        appointments={[{ ...baseAppointment, id: 'appt-requested', status: 'REQUESTED' } as any]}
+        currentDate={new Date('2026-03-16T00:00:00.000Z')}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments
+      />
+    );
+
+    const card = screen.getByLabelText('Draggable appointment Buddy');
+    const cardButtons = within(card).getAllByRole('button');
+    fireEvent.click(cardButtons[1]);
+    fireEvent.click(cardButtons[2]);
+
+    expect(acceptAppointment).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'appt-requested' })
+    );
+    expect(rejectAppointment).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'appt-requested' })
     );
   });
 });

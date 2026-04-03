@@ -16,6 +16,33 @@ export const isHttpsImageUrl = (src?: string | null): src is string => {
   return /^https:\/\/.+/i.test(src);
 };
 
+const IDEXX_ALLOWED_HOST_SUFFIXES = ['idexx.com', 'vetconnectplus.com'] as const;
+
+const hasAllowedIdexxHost = (hostname: string): boolean => {
+  const normalizedHost = hostname.trim().toLowerCase();
+  if (!normalizedHost) return false;
+  return IDEXX_ALLOWED_HOST_SUFFIXES.some(
+    (suffix) => normalizedHost === suffix || normalizedHost.endsWith(`.${suffix}`)
+  );
+};
+
+export const getSafeIdexxIframeUrl = (
+  src: string | null | undefined,
+  options?: { allowBlob?: boolean }
+): string => {
+  const value = String(src ?? '').trim();
+  if (!value) return '';
+  if (options?.allowBlob && value.startsWith('blob:')) return value;
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'https:') return '';
+    if (!hasAllowedIdexxHost(parsed.hostname)) return '';
+    return parsed.toString();
+  } catch {
+    return '';
+  }
+};
+
 const pick = (arr?: readonly string[]) => {
   const pool = arr && arr.length > 0 ? arr : DEFAULT_IMAGES.other;
   return pool[0];

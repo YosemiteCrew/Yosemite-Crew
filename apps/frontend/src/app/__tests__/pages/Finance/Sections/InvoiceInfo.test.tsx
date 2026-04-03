@@ -34,7 +34,7 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
 }));
 
 jest.mock('@/app/lib/invoicePaymentMethod', () => ({
-  getInvoicePaymentMethodLabel: () => 'Cash at Clinic',
+  getInvoicePaymentMethodLabel: () => 'Paid in cash',
 }));
 
 describe('InvoiceInfo', () => {
@@ -46,7 +46,7 @@ describe('InvoiceInfo', () => {
 
     expect(screen.getByTestId('modal')).toBeInTheDocument();
     expect(screen.getByText('View invoice')).toBeInTheDocument();
-    expect(screen.getByText('Cash at Clinic')).toBeInTheDocument();
+    expect(screen.getByText('Paid in cash')).toBeInTheDocument();
     expect(screen.queryByText('Generate link')).not.toBeInTheDocument();
 
     const closeButtons = screen.getAllByText('close');

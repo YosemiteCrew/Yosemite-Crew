@@ -62,6 +62,49 @@ For **Claude Code** users: modular skills are also in `.claude/skills/` — they
     - Generate/update a single latest draft file at `.tmp/agent-output/latest-issue-pr.md`.
     - Keep `.tmp/agent-output/` gitignored and ephemeral (safe to delete anytime).
 
+## Test Coverage — Mandatory For New Code
+
+**Any new module, feature, service, hook, store slice, or utility added to `apps/frontend` or `apps/mobileAppYC` MUST ship with tests in the same batch. No exceptions.**
+
+### What counts as "new code that needs tests"
+
+| What you add                                        | What you must also add                                    |
+| --------------------------------------------------- | --------------------------------------------------------- |
+| New service function / API call                     | Jest unit test covering success + error branches          |
+| New Zustand store (frontend) / Redux slice (mobile) | Jest tests for every action, selector, and edge case      |
+| New hook                                            | `renderHook` test covering all return values and branches |
+| New utility / lib function                          | Jest unit tests with full branch coverage                 |
+| New UI component (frontend)                         | RTL render test + at least one interaction test           |
+| New screen (mobile)                                 | Jest + Testing Library render test                        |
+| New E2E-critical flow (auth, checkout, booking)     | Playwright test (frontend) or Detox test (mobile)         |
+
+### Coverage bar
+
+- **Statements ≥ 90%**, **Branches ≥ 90%**, **Functions ≥ 90%** for any new file you author.
+- If your change touches an existing file that is below 90%, do not make it worse — add tests to hold or improve the current level.
+
+### Mandatory checks before every commit checkpoint
+
+**Frontend (`apps/frontend`):**
+
+```bash
+npx tsc --noemit                                              # from apps/frontend/
+pnpm --filter frontend run lint
+pnpm --filter frontend run test -- --testPathPattern="<YourFile>"
+```
+
+**Mobile (`apps/mobileAppYC`):**
+
+```bash
+npx tsc --noemit                                              # from apps/mobileAppYC/
+pnpm --filter mobileAppYC run lint
+pnpm --filter mobileAppYC run test -- --testPathPattern="<YourFile>"
+```
+
+**Never run the full suite without `--testPathPattern`.** Full suite takes 100+ seconds and is forbidden.
+
+---
+
 ## Code Quality Rules
 
 - Follow existing project patterns and naming.
@@ -69,6 +112,18 @@ For **Claude Code** users: modular skills are also in `.claude/skills/` — they
 - Keep PRs focused and reversible.
 - Add or update tests for behavioral changes.
 - Update docs when changing setup, architecture, scripts, or contributor workflows.
+
+### Frontend Test Pitfalls (apply when writing/fixing tests in `apps/frontend`)
+
+- **No `require()` inside test bodies** — ESLint forbids it (`@typescript-eslint/no-require-imports`). Use top-level ES imports and cast: `(myFn as jest.Mock).mockImplementationOnce(...)`.
+- **`jest.resetAllMocks()` clears factory mock values** — re-seed all `.mockReturnValue()` calls inside `beforeEach` after calling `resetAllMocks()`.
+- **`axios.isAxiosError` requires `jest.mock("axios", ...)`** — `jest.spyOn` does not work reliably; cast as `(axios.isAxiosError as unknown as jest.Mock)`.
+- **Read-only DOM props** (`scrollTop`, `scrollLeft`, etc.) — use `Object.defineProperty(el, prop, { value, writable: true, configurable: true })`.
+- **Type cast errors** — when TypeScript complains about overlapping types, insert `unknown` as the bridge: `expr as unknown as TargetType`.
+- **`Task._id` not `.id`** — the `Task` type uses `_id`; use `_id` in all task test fixtures.
+- **`RoleCode` only covers `'OWNER'` and `'ADMIN'`** — cast other strings as `any` in test files.
+- **`performAppointmentAction('accept')` needs a non-empty `lead.id`** — include `lead: { id: 'vet-1', name: 'Dr Vet' }` in fixtures for accept/checkin flows.
+- **Pre-push type-check runs full `turbo type-check`** — all test files must pass `tsc --noEmit`, not just lint.
 
 ## Security And Compliance
 

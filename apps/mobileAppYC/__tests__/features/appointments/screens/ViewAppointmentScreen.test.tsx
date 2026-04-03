@@ -121,7 +121,7 @@ jest.mock('../../../../src/features/merck/components/MerckSearchWidget', () => {
   return {
     MerckSearchWidget: () => (
       <View testID="merck-widget">
-        <Text>Merck Manuals</Text>
+        <Text>MSD Veterinary Manual</Text>
       </View>
     ),
   };

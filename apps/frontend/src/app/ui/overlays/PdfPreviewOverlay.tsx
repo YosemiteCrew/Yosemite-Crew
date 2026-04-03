@@ -1,6 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import Close from '@/app/ui/primitives/Icons/Close';
+import { getSafeIdexxIframeUrl } from '@/app/lib/urls';
 
 type PdfPreviewOverlayProps = {
   open: boolean;
@@ -10,8 +11,15 @@ type PdfPreviewOverlayProps = {
   onClose: () => void;
 };
 
-const PdfPreviewOverlay = ({ open, pdfUrl, title, closeLabel = 'Close PDF preview', onClose }: PdfPreviewOverlayProps) => {
-  if (!open || !pdfUrl || typeof document === 'undefined') return null;
+const PdfPreviewOverlay = ({
+  open,
+  pdfUrl,
+  title,
+  closeLabel = 'Close PDF preview',
+  onClose,
+}: PdfPreviewOverlayProps) => {
+  const safePdfUrl = getSafeIdexxIframeUrl(pdfUrl, { allowBlob: true });
+  if (!open || !safePdfUrl || typeof document === 'undefined') return null;
 
   return createPortal(
     <div
@@ -32,7 +40,12 @@ const PdfPreviewOverlay = ({ open, pdfUrl, title, closeLabel = 'Close PDF previe
             <Close iconOnly />
           </button>
         </div>
-        <iframe src={pdfUrl} title={title} className="flex-1 w-full border-0" style={{ pointerEvents: 'auto' }} />
+        <iframe
+          src={safePdfUrl}
+          title={title}
+          className="flex-1 w-full border-0"
+          style={{ pointerEvents: 'auto' }}
+        />
       </div>
     </div>,
     document.body
