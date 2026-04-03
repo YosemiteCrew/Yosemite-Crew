@@ -164,6 +164,7 @@ enum CodeType {
   BREED
   GENDER
   TEST
+  CLINICAL_TERM
   OTHER
 }
 
