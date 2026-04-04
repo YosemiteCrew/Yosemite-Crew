@@ -41,10 +41,10 @@ const Button = ({ variant = 'primary', className, ...rest }: Readonly<ButtonProp
   }
 
   if (variant === 'danger') {
-    return <Delete {...rest} classname={className} />;
+    return <Delete {...rest} className={className} />;
   }
 
-  return <Primary {...rest} classname={className} />;
+  return <Primary {...rest} className={className} />;
 };
 
 export default Button;

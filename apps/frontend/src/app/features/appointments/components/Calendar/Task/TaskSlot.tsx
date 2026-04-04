@@ -20,11 +20,7 @@ import {
   getTaskQuickDetails,
   getTaskStatusLabel,
 } from '@/app/lib/tasks';
-
-type DropAvailabilityInterval = {
-  startMinute: number;
-  endMinute: number;
-};
+import { DropAvailabilityInterval } from '@/app/features/appointments/components/Calendar/availabilityIntervals';
 
 type TaskSlotProps = {
   slotEvents: Task[];

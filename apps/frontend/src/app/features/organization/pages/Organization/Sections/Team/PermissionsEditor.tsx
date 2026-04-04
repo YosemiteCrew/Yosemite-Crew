@@ -387,7 +387,7 @@ const PermissionsEditor = ({ value, onSave, role }: PermissionsEditorProps) => {
               onClick={saveChanges}
               isDisabled={saving}
               href="#"
-              classname="w-full"
+              className="w-full"
               text={saving ? 'Saving...' : 'Save'}
             />
           </div>

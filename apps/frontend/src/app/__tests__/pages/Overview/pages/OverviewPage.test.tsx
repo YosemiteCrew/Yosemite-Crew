@@ -17,7 +17,11 @@ import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
 jest.mock('next/image', () => ({
   __esModule: true,
   default: (props: any) => (
-    <img {...props} priority={props.priority ? 'true' : 'false'} alt={props.alt} />
+    <span
+      data-testid="overview-hero-image"
+      data-alt={props.alt}
+      data-priority={props.priority ? 'true' : 'false'}
+    />
   ),
 }));
 
@@ -84,8 +88,9 @@ describe('OverviewPage Component', () => {
     expect(screen.getByText('15')).toBeInTheDocument(); // Static contributors value
 
     // Assert image renders
-    const image = screen.getByAltText('Veterinarians working together');
+    const image = screen.getByTestId('overview-hero-image');
     expect(image).toBeInTheDocument();
+    expect(image).toHaveAttribute('data-alt', 'Veterinarians working together');
 
     // Assert child components render
     expect(screen.getByTestId('community-stats-component')).toBeInTheDocument();

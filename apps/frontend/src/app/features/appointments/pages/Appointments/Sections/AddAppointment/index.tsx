@@ -506,7 +506,7 @@ const AddAppointment = ({
                           href="#"
                           text="Next"
                           onClick={goToDetailsStep}
-                          classname="py-[12px] px-8 flex items-center justify-center rounded-2xl! transition-all duration-300 ease-in-out hover:scale-105 text-body-3-emphasis text-center font-satoshi bg-text-primary text-neutral-0! w-auto min-w-[170px]"
+                          className="py-[12px] px-8 flex items-center justify-center rounded-2xl! transition-all duration-300 ease-in-out hover:scale-105 text-body-3-emphasis text-center font-satoshi bg-text-primary text-neutral-0! w-auto min-w-[170px]"
                         />
                       </div>
                     </>
@@ -609,7 +609,7 @@ const AddAppointment = ({
                         href="#"
                         text="Next"
                         onClick={isCalendarSlotFlow ? goToDetailsFromDateTimeStep : goToBillingStep}
-                        classname="py-[12px] px-8 flex items-center justify-center rounded-2xl! transition-all duration-300 ease-in-out hover:scale-105 text-body-3-emphasis text-center font-satoshi bg-text-primary text-neutral-0! w-auto min-w-[170px]"
+                        className="py-[12px] px-8 flex items-center justify-center rounded-2xl! transition-all duration-300 ease-in-out hover:scale-105 text-body-3-emphasis text-center font-satoshi bg-text-primary text-neutral-0! w-auto min-w-[170px]"
                       />
                     </div>
                   </Accordion>
@@ -689,7 +689,7 @@ const AddAppointment = ({
                   text={isLoading ? 'Booking appointment...' : 'Book appointment'}
                   onClick={onSubmit}
                   isDisabled={isLoading}
-                  classname="w-auto min-w-[170px]"
+                  className="w-auto min-w-[170px]"
                 />
               </div>
             </div>

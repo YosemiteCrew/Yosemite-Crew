@@ -1,17 +1,9 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useMemo, useRef } from 'react';
 import {
-  getNextWeek,
-  getPrevWeek,
   getWeekDays,
   HOURS_IN_DAY,
 } from '@/app/features/appointments/components/Calendar/weekHelpers';
-import {
-  DEFAULT_CALENDAR_FOCUS_MINUTES,
-  getFirstRelevantTimedEventStart,
-  getNowTopPxForHourRange,
-  getTopPxForMinutes,
-  scrollContainerToTarget,
-} from '@/app/features/appointments/components/Calendar/helpers';
+import { getNowTopPxForHourRange } from '@/app/features/appointments/components/Calendar/helpers';
 import DayLabels from '@/app/features/appointments/components/Calendar/Task/DayLabels';
 import TaskSlot from '@/app/features/appointments/components/Calendar/Task/TaskSlot';
 import { Task } from '@/app/features/tasks/types/task';
@@ -19,26 +11,26 @@ import Back from '@/app/ui/primitives/Icons/Back';
 import Next from '@/app/ui/primitives/Icons/Next';
 import {
   CalendarZoomMode,
-  formatHourLabel,
-  formatMinuteLabel,
   getCalendarColumnGridStyle,
   getHourRowHeightPx,
 } from '@/app/features/appointments/components/Calendar/calendarLayout';
+import CalendarHourLabel from '@/app/features/appointments/components/Calendar/common/CalendarHourLabel';
 import {
   formatDateInPreferredTimeZone,
   getHourInPreferredTimeZone,
-  getMinutesSinceStartOfDayInPreferredTimeZone,
   isOnPreferredTimeZoneCalendarDay,
 } from '@/app/lib/timezone';
 import { useCalendarNow } from '@/app/features/appointments/components/Calendar/useCalendarNow';
 import SlotGridLines from '@/app/features/appointments/components/Calendar/common/SlotGridLines';
+import {
+  getTimedTaskProxyEvents,
+  useCalendarAutoScroll,
+  useCalendarWeekNavigation,
+  useSlotOffsetMinutes,
+} from '@/app/features/appointments/components/Calendar/useCalendarSlots';
+import { DropAvailabilityInterval } from '@/app/features/appointments/components/Calendar/availabilityIntervals';
 
 const HOUR_ROW_GAP_PX = 0;
-
-type DropAvailabilityInterval = {
-  startMinute: number;
-  endMinute: number;
-};
 
 type WeekCalendarProps = {
   events: Task[];
@@ -92,13 +84,6 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   slotStepMinutes = 15,
   resolveDisplayName,
 }) => {
-  const nextDayLocal = (dateValue: Date) => {
-    const next = new Date(dateValue);
-    next.setHours(0, 0, 0, 0);
-    next.setDate(next.getDate() + 1);
-    return next;
-  };
-
   const days = useMemo<Date[]>(() => getWeekDays(weekStart), [weekStart]);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const now = useCalendarNow();
@@ -108,22 +93,8 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     [days.length, zoomMode]
   );
   const HOUR_ROW_TOP_OFFSET_PX = 0;
-  const slotOffsetMinutes = useMemo(() => {
-    const step = Math.max(5, Math.round(slotStepMinutes || 15));
-    if (step >= 60) return [];
-    const offsets: number[] = [];
-    for (let minute = step; minute < 60; minute += step) {
-      offsets.push(minute);
-    }
-    return offsets;
-  }, [slotStepMinutes]);
+  const { slotOffsetMinutes, showSlotTimeLabels } = useSlotOffsetMinutes(slotStepMinutes, zoomMode);
   const lastVisibleHour = HOURS_IN_DAY - 1;
-  const showSlotTimeLabels = useMemo(() => {
-    if (!slotOffsetMinutes.length) return false;
-    const firstStep = slotOffsetMinutes[0];
-    const pixelsPerSlot = (firstStep / 60) * height;
-    return pixelsPerSlot >= 14;
-  }, [height, slotOffsetMinutes]);
   const nowPosition = useMemo(() => {
     const todayIndex = days.findIndex((day) => isOnPreferredTimeZoneCalendarDay(now, day));
     if (todayIndex === -1) return null;
@@ -139,13 +110,13 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     if (topPx == null) return null;
     return { topPx, todayIndex };
   }, [days, height, now, HOUR_ROW_TOP_OFFSET_PX]);
-  const nowTimeLabel = useMemo(() => {
-    if (!nowPosition) return null;
-    return formatDateInPreferredTimeZone(now, {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  }, [now, nowPosition]);
+  const nowTimeLabel = useMemo(
+    () =>
+      nowPosition
+        ? formatDateInPreferredTimeZone(now, { hour: 'numeric', minute: '2-digit' })
+        : null,
+    [now, nowPosition]
+  );
   const eventsByDayHour = useMemo(() => {
     const grouped = new Map<string, Task[]>();
     events.forEach((task) => {
@@ -162,43 +133,25 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     return grouped;
   }, [days, events]);
 
-  useEffect(() => {
-    if (!scrollRef.current) return;
-    if (draggedTaskId) return;
-    const rangeStart = new Date(days[0]);
-    rangeStart.setHours(0, 0, 0, 0);
-    const lastDay = days.at(-1);
-    if (!lastDay) return;
-    const rangeEnd = nextDayLocal(lastDay);
-    const asTimed = events.map((task) => ({
-      startTime: new Date(task.dueAt),
-      endTime: new Date(new Date(task.dueAt).getTime() + 30 * 60 * 1000),
-    })) as Array<{ startTime: Date; endTime: Date }>;
-    const focusStart = getFirstRelevantTimedEventStart(asTimed as any, rangeStart, rangeEnd);
-    const focusMinutes = focusStart
-      ? getMinutesSinceStartOfDayInPreferredTimeZone(focusStart)
-      : DEFAULT_CALENDAR_FOCUS_MINUTES;
-    const topPx = nowPosition
-      ? Math.max(0, nowPosition.topPx)
-      : getTopPxForMinutes(focusMinutes, height, HOUR_ROW_GAP_PX, HOUR_ROW_TOP_OFFSET_PX);
-    scrollContainerToTarget(scrollRef.current, topPx);
-  }, [days, draggedTaskId, events, height, nowPosition, HOUR_ROW_TOP_OFFSET_PX]);
+  useCalendarAutoScroll({
+    date: days[0] ?? weekStart,
+    events: getTimedTaskProxyEvents(events),
+    height,
+    nowPosition,
+    scrollContainer: scrollRef.current,
+    skip: !!draggedTaskId || !days.length,
+    rangeStart: days[0],
+    rangeEnd: days.at(-1)
+      ? new Date(new Date(days.at(-1) as Date).setHours(24, 0, 0, 0))
+      : undefined,
+    hourRowGapPx: HOUR_ROW_GAP_PX,
+    hourRowTopOffsetPx: HOUR_ROW_TOP_OFFSET_PX,
+  });
 
-  const handlePrevWeek = () => {
-    setWeekStart((prev) => {
-      const nextWeekStart = getPrevWeek(prev);
-      setCurrentDate(nextWeekStart);
-      return nextWeekStart;
-    });
-  };
-
-  const handleNextWeek = () => {
-    setWeekStart((prev) => {
-      const nextWeekStart = getNextWeek(prev);
-      setCurrentDate(nextWeekStart);
-      return nextWeekStart;
-    });
-  };
+  const { handlePrevWeek, handleNextWeek } = useCalendarWeekNavigation(
+    setWeekStart,
+    setCurrentDate
+  );
 
   return (
     <div className="h-full flex flex-col">
@@ -240,28 +193,14 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
             <div className="relative pb-4">
               {Array.from({ length: HOURS_IN_DAY }, (_, hour) => (
                 <div key={hour} className="grid grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
-                  <div
-                    className="sticky left-0 z-20 bg-white text-caption-2 text-text-primary pl-2! relative"
-                    style={{ height: `${height}px` }}
-                  >
-                    <span
-                      className={`absolute top-0 ${
-                        hour === 0 ? 'translate-y-0' : '-translate-y-1/2'
-                      }`}
-                    >
-                      {formatHourLabel(hour)}
-                    </span>
-                    {showSlotTimeLabels &&
-                      slotOffsetMinutes.map((minute) => (
-                        <span
-                          key={`slot-time-${hour}-${minute}`}
-                          className="absolute right-1 -translate-y-1/2 text-[10px] leading-none text-text-tertiary text-right whitespace-nowrap"
-                          style={{ top: `${(minute / 60) * 100}%` }}
-                        >
-                          {formatMinuteLabel(hour * 60 + minute)}
-                        </span>
-                      ))}
-                  </div>
+                  <CalendarHourLabel
+                    hour={hour}
+                    height={height}
+                    slotOffsetMinutes={slotOffsetMinutes}
+                    showSlotTimeLabels={showSlotTimeLabels}
+                    pinFirstHour
+                    className="sticky left-0 z-20 bg-white"
+                  />
                   <div className="grid min-w-max" style={dayColumnsStyle}>
                     {days.map((day, dayIndex) => {
                       const slotEvents = eventsByDayHour.get(`${dayIndex}-${hour}`) ?? [];

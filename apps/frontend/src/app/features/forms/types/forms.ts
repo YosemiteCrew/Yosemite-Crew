@@ -160,6 +160,71 @@ const appetiteStatusRadio = (id: string, label: string): FormField =>
 const behaviorStatusCheckbox = (id: string, label: string): FormField =>
   createField(id, label, 'checkbox', 'behavior', { multiple: true });
 
+const textInputField = (
+  id: string,
+  label: string,
+  placeholder = '',
+  extra?: Partial<FormField>
+): FormField => createField(id, label, 'input', undefined, { placeholder, ...extra });
+
+const numberField = (
+  id: string,
+  label: string,
+  placeholder = '',
+  extra?: Partial<FormField>
+): FormField => createField(id, label, 'number', undefined, { placeholder, ...extra });
+
+const textAreaField = (
+  id: string,
+  label: string,
+  placeholder = '',
+  extra?: Partial<FormField>
+): FormField => createField(id, label, 'textarea', undefined, { placeholder, ...extra });
+
+const dateField = (
+  id: string,
+  label: string,
+  placeholder = '',
+  extra?: Partial<FormField>
+): FormField => createField(id, label, 'date', undefined, { placeholder, ...extra });
+
+const checkboxField = (
+  id: string,
+  label: string,
+  options: FieldOption[],
+  extra?: Partial<FormField>
+): FormField => createField(id, label, 'checkbox', options, { multiple: true, ...extra });
+
+const radioField = (
+  id: string,
+  label: string,
+  options: FieldOption[],
+  extra?: Partial<FormField>
+): FormField => createField(id, label, 'radio', options, extra);
+
+const groupField = (
+  id: string,
+  label: string,
+  fields: FormField[],
+  extra?: Partial<FormField>
+): FormField => createField(id, label, 'group', undefined, { fields, ...extra });
+
+const signatureField = (id: string, label: string, extra?: Partial<FormField>): FormField =>
+  createField(id, label, 'signature', undefined, extra);
+
+const buildYesNoFieldList = (fields: Array<readonly [id: string, label: string]>): FormField[] =>
+  fields.map(([id, label]) => yesNoRadio(id, label));
+
+const buildTextAreaFieldList = (
+  fields: Array<readonly [id: string, label: string, placeholder?: string]>
+): FormField[] =>
+  fields.map(([id, label, placeholder = '']) => textAreaField(id, label, placeholder));
+
+const buildTextInputFieldList = (
+  fields: Array<readonly [id: string, label: string, placeholder?: string]>
+): FormField[] =>
+  fields.map(([id, label, placeholder = '']) => textInputField(id, label, placeholder));
+
 export const medicationRouteOptions = [
   'Oral',
   'Topical',
@@ -243,216 +308,88 @@ const buildServicesGroup = (): FormField => ({
 export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
   Custom: [],
   'Consent form': [
-    {
-      id: 'pet_name',
-      type: 'input',
-      label: 'Companion name',
-      placeholder: 'Enter Companion name',
+    textInputField('pet_name', 'Companion name', 'Enter Companion name', { required: true }),
+    textInputField('owner_name', 'Pet parent name', 'Enter pet parent name', { required: true }),
+    textAreaField('procedure', 'Procedure / treatment', 'Describe the procedure and purpose', {
       required: true,
-    },
-    {
-      id: 'owner_name',
-      type: 'input',
-      label: 'Pet parent name',
-      placeholder: 'Enter pet parent name',
-      required: true,
-    },
-    {
-      id: 'procedure',
-      type: 'textarea',
-      label: 'Procedure / treatment',
-      placeholder: 'Describe the procedure and purpose',
-      required: true,
-    },
-    {
-      id: 'risks',
-      type: 'textarea',
-      label: 'Risks discussed',
-      placeholder: 'List key risks that were explained to the pet parent',
-    },
-    {
-      id: 'consent_ack',
-      type: 'checkbox',
-      label: 'Pet parent agrees to proceed',
-      options: [makeOption('I have read and understood the above')],
-      multiple: true,
-    },
-    {
-      id: 'consent_signature',
-      type: 'signature',
-      label: 'Pet parent signature',
-      required: true,
-    },
+    }),
+    textAreaField(
+      'risks',
+      'Risks discussed',
+      'List key risks that were explained to the pet parent'
+    ),
+    checkboxField('consent_ack', 'Pet parent agrees to proceed', [
+      makeOption('I have read and understood the above'),
+    ]),
+    signatureField('consent_signature', 'Pet parent signature', { required: true }),
   ],
   Prescription: [
-    {
-      id: 'subjective_section',
-      type: 'group',
-      label: 'Subjective',
-      fields: [
-        {
-          id: 'subjective_history',
-          type: 'textarea',
-          label: 'Subjective (history)',
-          placeholder: 'Describe presenting concerns and history',
-          required: true,
-        },
-      ],
-    },
-    {
-      id: 'objective_section',
-      type: 'group',
-      label: 'Objective',
-      fields: [
-        {
-          id: 'general_behavior',
-          type: 'textarea',
-          label: 'General behavior',
-          placeholder: 'General behavior notes',
-        },
-        {
-          id: 'vitals',
-          type: 'group',
-          label: 'Vitals',
-          fields: [
-            { id: 'temperature', type: 'number', label: 'Temperature', placeholder: '' },
-            { id: 'pulse', type: 'input', label: 'Pulse', placeholder: 'Enter pulse' },
-            { id: 'respiration', type: 'number', label: 'Respiration', placeholder: '' },
-            {
-              id: 'mucous_membrane_color',
-              type: 'input',
-              label: 'Mucous membrane color',
-              placeholder: 'Enter color',
-            },
-            {
-              id: 'blood_pressure',
-              type: 'input',
-              label: 'Blood pressure',
-              placeholder: 'Enter blood pressure',
-            },
-            { id: 'body_weight', type: 'input', label: 'Body weight', placeholder: 'Enter weight' },
-            {
-              id: 'hydration_status',
-              type: 'input',
-              label: 'Hydration status',
-              placeholder: 'Describe hydration',
-            },
-            {
-              id: 'behavior_secondary',
-              type: 'input',
-              label: 'General behavior',
-              placeholder: 'Enter behavior',
-            },
-          ],
-        },
-        {
-          id: 'musculoskeletal_exam',
-          type: 'textarea',
-          label: 'Musculoskeletal Exam',
-          placeholder: 'Document findings',
-        },
-        {
-          id: 'neuro',
-          type: 'textarea',
-          label: 'Neuro',
-          placeholder: 'Document findings',
-        },
-        {
-          id: 'pain_score',
-          type: 'textarea',
-          label: 'Pain Score',
-          placeholder: 'Enter pain score details',
-        },
-      ],
-    },
-    {
-      id: 'assessment_section',
-      type: 'group',
-      label: 'Assessment',
-      fields: [
-        {
-          id: 'tentative_diagnosis',
-          type: 'textarea',
-          label: 'Tentative diagnosis',
-          placeholder: 'Enter tentative diagnosis',
-        },
-        {
-          id: 'differential_diagnosis',
-          type: 'textarea',
-          label: 'Differential diagnosis',
-          placeholder: 'List differential diagnoses',
-        },
-        {
-          id: 'prognosis',
-          type: 'textarea',
-          label: 'Prognosis',
-          placeholder: 'Enter prognosis',
-        },
-      ],
-    },
-    {
-      id: 'treatment_plan',
-      type: 'group',
-      label: 'Plan',
-      fields: [
-        {
-          id: 'medications',
-          type: 'group',
-          label: 'Medications',
-          meta: { medicationGroup: true } as any,
-          fields: [],
-        },
-        buildServicesGroup(),
-        {
-          id: 'additional_notes',
-          type: 'textarea',
-          label: 'Additional notes',
-          placeholder: 'Add observations and pet parent instructions',
-        },
-        {
-          id: 'important_notes',
-          type: 'textarea',
-          label: 'Important notes',
-          placeholder: 'Highlight critical follow-up instructions',
-        },
-      ],
-    },
-    {
-      id: 'discharge_section',
-      type: 'group',
-      label: 'Discharge summary',
-      fields: [
-        {
-          id: 'discharge_summary',
-          type: 'textarea',
-          label: 'Discharge summary',
-          placeholder: 'Summarize visit, findings and treatments provided.',
-        },
-        {
-          id: 'home_care',
-          type: 'textarea',
-          label: 'Home care instructions',
-          placeholder: 'Explain wound care, diet, activity restriction.',
-        },
-        {
-          id: 'discharge_medications',
-          type: 'textarea',
-          label: 'Medications',
-          placeholder: 'List medications, dosage, route, and schedule.',
-        },
-        {
-          id: 'follow_up',
-          type: 'date',
-          label: 'Follow-up date',
-          placeholder: 'Select next visit date',
-        },
-      ],
-    },
-    {
-      id: 'signature',
-      type: 'signature',
-      label: 'Signature',
-    },
+    groupField('subjective_section', 'Subjective', [
+      textAreaField(
+        'subjective_history',
+        'Subjective (history)',
+        'Describe presenting concerns and history',
+        { required: true }
+      ),
+    ]),
+    groupField('objective_section', 'Objective', [
+      textAreaField('general_behavior', 'General behavior', 'General behavior notes'),
+      groupField('vitals', 'Vitals', [
+        numberField('temperature', 'Temperature'),
+        textInputField('pulse', 'Pulse', 'Enter pulse'),
+        numberField('respiration', 'Respiration'),
+        textInputField('mucous_membrane_color', 'Mucous membrane color', 'Enter color'),
+        textInputField('blood_pressure', 'Blood pressure', 'Enter blood pressure'),
+        textInputField('body_weight', 'Body weight', 'Enter weight'),
+        textInputField('hydration_status', 'Hydration status', 'Describe hydration'),
+        textInputField('behavior_secondary', 'General behavior', 'Enter behavior'),
+      ]),
+      textAreaField('musculoskeletal_exam', 'Musculoskeletal Exam', 'Document findings'),
+      textAreaField('neuro', 'Neuro', 'Document findings'),
+      textAreaField('pain_score', 'Pain Score', 'Enter pain score details'),
+    ]),
+    groupField('assessment_section', 'Assessment', [
+      textAreaField('tentative_diagnosis', 'Tentative diagnosis', 'Enter tentative diagnosis'),
+      textAreaField(
+        'differential_diagnosis',
+        'Differential diagnosis',
+        'List differential diagnoses'
+      ),
+      textAreaField('prognosis', 'Prognosis', 'Enter prognosis'),
+    ]),
+    groupField('treatment_plan', 'Plan', [
+      groupField('medications', 'Medications', [], { meta: { medicationGroup: true } as any }),
+      buildServicesGroup(),
+      textAreaField(
+        'additional_notes',
+        'Additional notes',
+        'Add observations and pet parent instructions'
+      ),
+      textAreaField(
+        'important_notes',
+        'Important notes',
+        'Highlight critical follow-up instructions'
+      ),
+    ]),
+    groupField('discharge_section', 'Discharge summary', [
+      textAreaField(
+        'discharge_summary',
+        'Discharge summary',
+        'Summarize visit, findings and treatments provided.'
+      ),
+      textAreaField(
+        'home_care',
+        'Home care instructions',
+        'Explain wound care, diet, activity restriction.'
+      ),
+      textAreaField(
+        'discharge_medications',
+        'Medications',
+        'List medications, dosage, route, and schedule.'
+      ),
+      dateField('follow_up', 'Follow-up date', 'Select next visit date'),
+    ]),
+    signatureField('signature', 'Signature'),
   ],
   'Boarder - Boarding Checklist': [
     {
@@ -645,56 +582,34 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
     },
   ],
   'Boarder - Medication Details': [
-    { id: 'medication_name', type: 'input', label: 'Medication name' },
-    {
-      id: 'purpose_condition',
-      type: 'checkbox',
-      label: 'Purpose / Condition',
-      multiple: true,
-      options: [
-        makeOption('Skin allergy', 'skin_allergy'),
-        makeOption('Arthritis', 'arthritis'),
-        makeOption('Pain relief', 'pain_relief'),
-      ],
-    },
-    {
-      id: 'form_type',
-      type: 'checkbox',
-      label: 'Form type',
-      multiple: true,
-      options: [
-        makeOption('Capsule', 'capsule'),
-        makeOption('Tablet', 'tablet'),
-        makeOption('Ear drops', 'ear_drops'),
-        makeOption('Topical', 'topical'),
-        makeOption('Liquid', 'liquid'),
-        makeOption('Eye drops', 'eye_drops'),
-        makeOption('Injection', 'injection'),
-        makeOption('Inhalation', 'inhalation'),
-      ],
-    },
-    { id: 'dosage', type: 'input', label: 'Dosage' },
+    textInputField('medication_name', 'Medication name'),
+    checkboxField('purpose_condition', 'Purpose / Condition', [
+      makeOption('Skin allergy', 'skin_allergy'),
+      makeOption('Arthritis', 'arthritis'),
+      makeOption('Pain relief', 'pain_relief'),
+    ]),
+    checkboxField('form_type', 'Form type', [
+      makeOption('Capsule', 'capsule'),
+      makeOption('Tablet', 'tablet'),
+      makeOption('Ear drops', 'ear_drops'),
+      makeOption('Topical', 'topical'),
+      makeOption('Liquid', 'liquid'),
+      makeOption('Eye drops', 'eye_drops'),
+      makeOption('Injection', 'injection'),
+      makeOption('Inhalation', 'inhalation'),
+    ]),
+    textInputField('dosage', 'Dosage'),
     frequencyRadio('frequency', 'Frequency'),
-    { id: 'timing_specific_hours', type: 'input', label: 'Timing (specific hours)' },
-    {
-      id: 'given_with',
-      type: 'radio',
-      label: 'Given with',
-      options: [
-        makeOption('Food', 'food'),
-        makeOption('Milk', 'milk'),
-        makeOption('Empty stomach', 'empty_stomach'),
-        makeOption('Water', 'water'),
-      ],
-    },
-    {
-      id: 'prescribed_by_vet',
-      type: 'radio',
-      label: 'Prescribed by Vet',
-      options: [makeOption('Yes', 'yes'), makeOption('No', 'no')],
-    },
-    { id: 'start_date', type: 'date', label: 'Start date' },
-    { id: 'end_date', type: 'date', label: 'End date' },
+    textInputField('timing_specific_hours', 'Timing (specific hours)'),
+    radioField('given_with', 'Given with', [
+      makeOption('Food', 'food'),
+      makeOption('Milk', 'milk'),
+      makeOption('Empty stomach', 'empty_stomach'),
+      makeOption('Water', 'water'),
+    ]),
+    yesNoRadio('prescribed_by_vet', 'Prescribed by Vet'),
+    dateField('start_date', 'Start date'),
+    dateField('end_date', 'End date'),
   ],
   'Boarder - Daily Summary': [
     { id: 'summary_date', type: 'date', label: 'Daily summary date' },
@@ -771,16 +686,20 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
     { id: 'exercise_time_slot', type: 'input', label: 'Time slot' },
   ],
   'Boarder - Belongings': [
-    yesNoRadio('pet_bedding', 'Companion bedding'),
-    yesNoRadio('food_bowl', 'Food bowl'),
-    yesNoRadio('pet_leash', 'Companion leash'),
-    yesNoRadio('litter_tray', 'Litter tray'),
-    { id: 'list_of_toys', type: 'textarea', label: 'List of toys' },
+    ...buildYesNoFieldList([
+      ['pet_bedding', 'Companion bedding'],
+      ['food_bowl', 'Food bowl'],
+      ['pet_leash', 'Companion leash'],
+      ['litter_tray', 'Litter tray'],
+    ]),
+    ...buildTextAreaFieldList([['list_of_toys', 'List of toys']]),
   ],
   'Breeder - Health & Behavior': [
-    yesNoRadio('signs_of_stress', 'Signs of stress'),
-    yesNoRadio('signs_of_discharge', 'Signs of discharge'),
-    yesNoRadio('signs_of_injury', 'Signs of injury'),
+    ...buildYesNoFieldList([
+      ['signs_of_stress', 'Signs of stress'],
+      ['signs_of_discharge', 'Signs of discharge'],
+      ['signs_of_injury', 'Signs of injury'],
+    ]),
     appetiteStatusRadio('appetite_status', 'Companion appetite status'),
     behaviorStatusCheckbox('behavior_status', 'Companion behavior status'),
     {
@@ -809,17 +728,21 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
     },
   ],
   'Breeder - Mating Log': [
-    { id: 'mating_date', type: 'date', label: 'Tracking mating date' },
-    { id: 'mating_time', type: 'input', label: 'Tracking mating time' },
-    yesNoRadio('natural_mating_process', 'Utilised natural mating process'),
-    yesNoRadio('genetic_screening_completed', 'Completed genetic screening'),
-    yesNoRadio('fertility_assessment_completed', 'Completed fertility assessment'),
+    dateField('mating_date', 'Tracking mating date'),
+    textInputField('mating_time', 'Tracking mating time'),
+    ...buildYesNoFieldList([
+      ['natural_mating_process', 'Utilised natural mating process'],
+      ['genetic_screening_completed', 'Completed genetic screening'],
+      ['fertility_assessment_completed', 'Completed fertility assessment'],
+    ]),
     appetiteStatusRadio('appetite_status', 'Companion appetite status'),
     behaviorStatusCheckbox('behavior_status', 'Companion behaviour status'),
-    yesNoRadio('ultrasound_pregnancy_check', 'Complete ultrasound / pregnancy check'),
-    yesNoRadio('birthing_assistance_provided', 'Provided birthing assistance'),
-    yesNoRadio('neonatal_care_provided', 'Provided neonatal / newborn care'),
-    yesNoRadio('record_keeping_completed', 'Record keeping completed'),
+    ...buildYesNoFieldList([
+      ['ultrasound_pregnancy_check', 'Complete ultrasound / pregnancy check'],
+      ['birthing_assistance_provided', 'Provided birthing assistance'],
+      ['neonatal_care_provided', 'Provided neonatal / newborn care'],
+      ['record_keeping_completed', 'Record keeping completed'],
+    ]),
   ],
   'Breeder - Consultation & Planning': [
     {
@@ -842,19 +765,15 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
         makeOption('Progesterone testing', 'progesterone_testing'),
       ],
     },
-    {
-      id: 'fertile_phase_start_date',
-      type: 'date',
-      label: 'Tracking the fertile phase - Start date',
-    },
-    { id: 'fertile_phase_end_date', type: 'date', label: 'Tracking the fertile phase - End date' },
-    yesNoRadio('provide_list_of_potential_mates', 'Provide a list of potential mates'),
-    yesNoRadio('preferred_vet_services_required', 'Preferred veterinary services required'),
-    {
-      id: 'preferred_vet_details',
-      type: 'textarea',
-      label: "If yes, specify veterinarian's details",
-    },
+    dateField('fertile_phase_start_date', 'Tracking the fertile phase - Start date'),
+    dateField('fertile_phase_end_date', 'Tracking the fertile phase - End date'),
+    ...buildYesNoFieldList([
+      ['provide_list_of_potential_mates', 'Provide a list of potential mates'],
+      ['preferred_vet_services_required', 'Preferred veterinary services required'],
+    ]),
+    ...buildTextAreaFieldList([
+      ['preferred_vet_details', "If yes, specify veterinarian's details"],
+    ]),
   ],
   'Breeder - Mating & Fertility Preferences': [
     yesNoRadio('natural_mating', 'Natural mating'),
@@ -884,14 +803,16 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
     yesNoRadio('fertility_assessment', 'Fertility assessment'),
   ],
   'Breeder - Belongings': [
-    yesNoRadio('pet_bedding_or_blanket', 'Companion bedding or blanket'),
-    yesNoRadio('pet_crate', 'Companion crate'),
-    yesNoRadio('pet_leash', 'Companion leash'),
-    yesNoRadio('litter_tray', 'Litter tray'),
-    { id: 'list_of_toys', type: 'textarea', label: 'List of toys' },
+    ...buildYesNoFieldList([
+      ['pet_bedding_or_blanket', 'Companion bedding or blanket'],
+      ['pet_crate', 'Companion crate'],
+      ['pet_leash', 'Companion leash'],
+      ['litter_tray', 'Litter tray'],
+    ]),
+    ...buildTextAreaFieldList([['list_of_toys', 'List of toys']]),
   ],
   'Breeder - Check-in': [
-    { id: 'body_temperature', type: 'input', label: "Pet's body temperature" },
+    textInputField('body_temperature', "Pet's body temperature"),
     {
       id: 'appetite_status_checkin',
       type: 'radio',
@@ -929,20 +850,34 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
         makeOption('Progesterone testing', 'progesterone_testing'),
       ],
     },
-    { id: 'heat_status_notes', type: 'textarea', label: 'Please provide additional information' },
+    ...buildTextAreaFieldList([['heat_status_notes', 'Please provide additional information']]),
   ],
   'Breeder - Pregnancy Care': [
-    yesNoRadio('ultrasound_pregnancy_checks', 'Ultrasound and pregnancy checks'),
-    yesNoRadio('birthing_assistance', 'Birthing assistance'),
-    yesNoRadio('neonatal_newborn_care', 'Neonatal and newborn care'),
-    yesNoRadio('record_keeping', 'Record keeping'),
-    yesNoRadio('post_pregnancy_care', 'Post-pregnancy care'),
+    ...buildYesNoFieldList([
+      ['ultrasound_pregnancy_checks', 'Ultrasound and pregnancy checks'],
+      ['birthing_assistance', 'Birthing assistance'],
+      ['neonatal_newborn_care', 'Neonatal and newborn care'],
+      ['record_keeping', 'Record keeping'],
+      ['post_pregnancy_care', 'Post-pregnancy care'],
+    ]),
   ],
   'Breeder - Health Summary': [
-    { id: 'pet_health_summary', type: 'textarea', label: 'Companion health summary' },
+    ...buildTextAreaFieldList([['pet_health_summary', 'Companion health summary']]),
   ],
   'Groomer - Service Request & Preferences': [
-    yesNoRadio('bathing_basic', 'Given basic bath'),
+    ...buildYesNoFieldList([
+      ['bathing_basic', 'Given basic bath'],
+      ['ear_cleaning', 'Given ear cleaning?'],
+      ['teeth_brushing', 'Added teeth brushing'],
+      ['de_shedding_treatment', 'De-shedding treatment'],
+      ['conditioner_after_groom', 'Given conditioner treatment after grooming'],
+      ['dematting_detangling', 'Dematting / Detangling'],
+      ['nail_trimming', 'Nail trimming'],
+      ['paw_pad_cleaning', 'Paw pad Cleaning'],
+      ['anal_gland_expression', 'Anal gland expression'],
+      ['tick_flea_treatment', 'Tick and flea treatment'],
+      ['perfume_finishing_spray', 'Perfume / Finishing spray'],
+    ]),
     {
       id: 'bath_type',
       type: 'radio',
@@ -954,8 +889,6 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
         makeOption('Whitening', 'whitening'),
       ],
     },
-    yesNoRadio('ear_cleaning', 'Given ear cleaning?'),
-    yesNoRadio('teeth_brushing', 'Added teeth brushing'),
     {
       id: 'haircut_style',
       type: 'radio',
@@ -966,13 +899,7 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
         makeOption('Custom', 'custom'),
       ],
     },
-    yesNoRadio('de_shedding_treatment', 'De-shedding treatment'),
-    yesNoRadio('conditioner_after_groom', 'Given conditioner treatment after grooming'),
-    { id: 'conditioner_brand', type: 'input', label: 'Specify conditioner brand' },
-    yesNoRadio('dematting_detangling', 'Dematting / Detangling'),
-    yesNoRadio('nail_trimming', 'Nail trimming'),
-    yesNoRadio('paw_pad_cleaning', 'Paw pad Cleaning'),
-    yesNoRadio('anal_gland_expression', 'Anal gland expression'),
+    textInputField('conditioner_brand', 'Specify conditioner brand'),
     {
       id: 'aromatherapy_bath',
       type: 'radio',
@@ -983,53 +910,57 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
         makeOption('Oatmeal', 'oatmeal'),
       ],
     },
-    yesNoRadio('tick_flea_treatment', 'Tick and flea treatment'),
-    yesNoRadio('perfume_finishing_spray', 'Perfume / Finishing spray'),
   ],
   'Groomer - Grooming Prep': [
-    yesNoRadio('brushing_detangle_service', 'Given brushing and detangle service to companion'),
-    yesNoRadio('nail_trimming_paw_cleaning', 'Given nail trimming and paw cleaning'),
-    yesNoRadio('ear_cleaning_infection_check', 'Given ear cleaning and infection check-up'),
-    yesNoRadio(
-      'medicated_bath_needed',
-      'Does companion require medicated bath to prevent flea / tick'
-    ),
-    yesNoRadio('anal_gland_checked', 'Anal gland checked'),
-    yesNoRadio('sanitary_area_trimming', 'Given sanitary area trimming'),
+    ...buildYesNoFieldList([
+      ['brushing_detangle_service', 'Given brushing and detangle service to companion'],
+      ['nail_trimming_paw_cleaning', 'Given nail trimming and paw cleaning'],
+      ['ear_cleaning_infection_check', 'Given ear cleaning and infection check-up'],
+      ['medicated_bath_needed', 'Does companion require medicated bath to prevent flea / tick'],
+      ['anal_gland_checked', 'Anal gland checked'],
+      ['sanitary_area_trimming', 'Given sanitary area trimming'],
+    ]),
   ],
   'Groomer - Bathing & Cleaning Worklog': [
-    yesNoRadio('basic_bath_done', 'Given basic bath'),
-    yesNoRadio('deshedding_done', 'Given de-shedding treatment'),
-    yesNoRadio('rinse_conditioning_done', 'Given thorough rinse and conditioning.'),
-    yesNoRadio('paw_pad_care_done', 'Given paw pad cleaning and care'),
+    ...buildYesNoFieldList([
+      ['basic_bath_done', 'Given basic bath'],
+      ['deshedding_done', 'Given de-shedding treatment'],
+      ['rinse_conditioning_done', 'Given thorough rinse and conditioning.'],
+      ['paw_pad_care_done', 'Given paw pad cleaning and care'],
+    ]),
   ],
   'Groomer - Haircut / Styling Worklog': [
-    yesNoRadio('drying_with_dryer', 'Given drying with towel + pet dryer'),
-    yesNoRadio('parent_requested_styling_done', 'Given parent-requested styling'),
-    yesNoRadio('clipping_shaping_fluff', 'Given clipping, shaping, and fluff drying.'),
+    ...buildYesNoFieldList([
+      ['drying_with_dryer', 'Given drying with towel + pet dryer'],
+      ['parent_requested_styling_done', 'Given parent-requested styling'],
+      ['clipping_shaping_fluff', 'Given clipping, shaping, and fluff drying.'],
+    ]),
   ],
   'Groomer - Spa Add-ons Worklog': [
-    yesNoRadio('final_brushing_done', 'Given final brushing'),
-    yesNoRadio('tick_flea_treatment_done', 'Given tick & flea treatment'),
-    yesNoRadio('parent_requested_styling_addon', 'Given parent-requested styling'),
-    yesNoRadio('perfume_spray_done', 'Given perfume / finishing spray'),
-    yesNoRadio('clean_fresh_collar', 'Given clean and fresh collar'),
+    ...buildYesNoFieldList([
+      ['final_brushing_done', 'Given final brushing'],
+      ['tick_flea_treatment_done', 'Given tick & flea treatment'],
+      ['parent_requested_styling_addon', 'Given parent-requested styling'],
+      ['perfume_spray_done', 'Given perfume / finishing spray'],
+      ['clean_fresh_collar', 'Given clean and fresh collar'],
+    ]),
   ],
   'Groomer - Health Requirements': [
-    yesNoRadio('grooming_history', 'Has your companion received grooming services before?'),
-    yesNoRadio(
-      'allergies_or_skin_issues',
-      'Does your companion suffer from any allergies or skin issues?'
-    ),
-    { id: 'allergy_details', type: 'textarea', label: 'If yes, please provide details' },
+    ...buildYesNoFieldList([
+      ['grooming_history', 'Has your companion received grooming services before?'],
+      ['allergies_or_skin_issues', 'Does your companion suffer from any allergies or skin issues?'],
+    ]),
+    ...buildTextAreaFieldList([['allergy_details', 'If yes, please provide details']]),
     {
       id: 'preferred_coat_specs_image',
       type: 'input',
       label: 'Preferred coat specifications (image)',
       meta: { accept: 'image/*', upload: true } as any,
     },
-    { id: 'preferred_coat_specs_notes', type: 'input', label: 'Please describe here' },
-    { id: 'wound_area_details', type: 'input', label: 'Specify wound area (if any)' },
+    ...buildTextInputFieldList([
+      ['preferred_coat_specs_notes', 'Please describe here'],
+      ['wound_area_details', 'Specify wound area (if any)'],
+    ]),
   ],
 };
 

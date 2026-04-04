@@ -114,7 +114,7 @@ const Guides = () => {
                 text="Watch now"
                 href="#"
                 onClick={() => handleOpenVideo(featuredGuide)}
-                classname="px-6 w-fit"
+                className="px-6 w-fit"
               />
             </div>
           </div>

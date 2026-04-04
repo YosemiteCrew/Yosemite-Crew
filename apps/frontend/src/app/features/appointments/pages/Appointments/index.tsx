@@ -37,6 +37,7 @@ import Fallback from '@/app/ui/overlays/Fallback';
 import { resolveDefaultAppointmentsView } from '@/app/lib/defaultAppointmentsView';
 import { normalizeAppointmentStatus, type LegacyAppointmentStatus } from '@/app/lib/appointments';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
+import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 
 const Appointments = () => {
   const rawAppointments = useAppointmentsForPrimaryOrg();
@@ -105,10 +106,6 @@ const Appointments = () => {
   const query = useSearchStore((s) => s.query);
   const searchParams = useSearchParams();
   const handledDeepLinkRef = useRef<string | null>(null);
-  const plannerSectionRef = useRef<HTMLDivElement | null>(null);
-  const plannerAutoLockRef = useRef(false);
-  const lastScrollYRef = useRef(0);
-  const plannerLockTopOffset = 16;
   const [activeFilter, setActiveFilter] = useState('all');
   const [activeStatus, setActiveStatus] = useState('all');
   const [addPopup, setAddPopup] = useState(false);
@@ -128,6 +125,7 @@ const Appointments = () => {
   const [activeView, setActiveView] = useState<string>(resolveDefaultAppointmentsView);
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [weekStart, setWeekStart] = useState(startOfDay(currentDate));
+  const { plannerSectionRef } = usePlannerAutoLock({ activeView });
 
   useEffect(() => {
     if (activeCalendar === 'week') {
@@ -225,45 +223,6 @@ const Appointments = () => {
     handledDeepLinkRef.current = deepLinkKey;
   }, [appointments, searchParams]);
 
-  useEffect(() => {
-    if (activeView === 'list') return;
-    if (globalThis.window === undefined) return;
-
-    lastScrollYRef.current = globalThis.window.scrollY;
-
-    const onScroll = () => {
-      const section = plannerSectionRef.current;
-      if (!section) return;
-
-      const currentY = globalThis.window.scrollY;
-      const isScrollingDown = currentY > lastScrollYRef.current;
-      lastScrollYRef.current = currentY;
-
-      const rect = section.getBoundingClientRect();
-      const shouldLockToSection =
-        isScrollingDown &&
-        rect.top <= 130 &&
-        rect.top >= -180 &&
-        rect.bottom > globalThis.window.innerHeight * 0.55;
-
-      if (shouldLockToSection && !plannerAutoLockRef.current) {
-        plannerAutoLockRef.current = true;
-        globalThis.window.scrollTo({
-          top: globalThis.window.scrollY + rect.top - plannerLockTopOffset,
-          behavior: 'smooth',
-        });
-        return;
-      }
-
-      if (rect.top > 220) {
-        plannerAutoLockRef.current = false;
-      }
-    };
-
-    globalThis.window.addEventListener('scroll', onScroll, { passive: true });
-    return () => globalThis.window.removeEventListener('scroll', onScroll);
-  }, [activeView, plannerLockTopOffset]);
-
   const filteredList = useMemo(() => {
     const q = query.trim().toLowerCase();
     const filterWanted = activeFilter.toLowerCase();
@@ -288,6 +247,13 @@ const Appointments = () => {
       return matchesStatus && matchesFilter && matchesQuery;
     });
   }, [appointments, activeStatus, activeFilter, query, activeView]);
+  const { wrapperClassName, plannerSectionClassName } = getPlannerLayoutClassNames({
+    activeView,
+    listWrapperClassName:
+      'w-full flex flex-col gap-3 h-[calc(100vh-248px)] min-h-[588px] max-h-[calc(100vh-248px)] lg:sticky lg:top-4 lg:mb-0 lg:h-[calc(100dvh-105px)] lg:min-h-[calc(100dvh-105px)] lg:max-h-[calc(100dvh-105px)]',
+    plannerClassName:
+      'w-full h-[calc(100vh-248px)] min-h-[588px] max-h-[calc(100vh-248px)] lg:sticky lg:top-4 lg:mb-0 lg:h-[calc(100dvh-105px)] lg:min-h-[calc(100dvh-105px)] lg:max-h-[calc(100dvh-105px)]',
+  });
 
   let plannerContent: React.ReactNode;
   if (activeView === 'calendar') {
@@ -371,13 +337,7 @@ const Appointments = () => {
         />
 
         <PermissionGate allOf={[PERMISSIONS.APPOINTMENTS_VIEW_ANY]} fallback={<Fallback />}>
-          <div
-            className={
-              activeView === 'list'
-                ? 'w-full flex flex-col gap-3 h-[calc(100vh-248px)] min-h-[588px] max-h-[calc(100vh-248px)] lg:sticky lg:top-4 lg:mb-0 lg:h-[calc(100dvh-105px)] lg:min-h-[calc(100dvh-105px)] lg:max-h-[calc(100dvh-105px)]'
-                : 'w-full flex flex-col gap-3'
-            }
-          >
+          <div className={wrapperClassName}>
             {activeView !== 'board' && (
               <Filters
                 filterOptions={AppointmentFilters}
@@ -388,14 +348,7 @@ const Appointments = () => {
                 setActiveStatus={setActiveStatus}
               />
             )}
-            <div
-              ref={plannerSectionRef}
-              className={
-                activeView === 'list'
-                  ? 'w-full flex-1 min-h-0 overflow-hidden'
-                  : 'w-full h-[calc(100vh-248px)] min-h-[588px] max-h-[calc(100vh-248px)] lg:sticky lg:top-4 lg:mb-0 lg:h-[calc(100dvh-105px)] lg:min-h-[calc(100dvh-105px)] lg:max-h-[calc(100dvh-105px)]'
-              }
-            >
+            <div ref={plannerSectionRef} className={plannerSectionClassName}>
               {plannerContent}
             </div>
           </div>

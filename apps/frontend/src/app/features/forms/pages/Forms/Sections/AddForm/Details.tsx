@@ -250,7 +250,7 @@ const Details = ({
         </Accordion>
       </div>
       <div className="px-3 pb-3 flex justify-center">
-        <Primary href="#" text="Next" onClick={handleNext} classname="w-fit" />
+        <Primary href="#" text="Next" onClick={handleNext} className="w-fit" />
       </div>
     </div>
   );

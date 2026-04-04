@@ -128,7 +128,7 @@ const ChangeStatusModal = <S extends string>({
             text={saving ? 'Saving...' : 'Update'}
             onClick={handleSave}
             isDisabled={saving}
-            classname="w-auto min-w-[120px]"
+            className="w-auto min-w-[120px]"
           />
         </div>
       </div>

@@ -4,43 +4,18 @@ import { getStatusStyle } from '@/app/config/statusConfig';
 import Image from 'next/image';
 import { Appointment, Invoice } from '@yosemite-crew/types';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
-import {
-  allowReschedule,
-  canAssignAppointmentRoom,
-  canShowStatusChangeAction,
-  getAppointmentCompanionPhotoUrl,
-  getClinicalNotesIntent,
-  getClinicalNotesLabel,
-  isRequestedLikeStatus,
-} from '@/app/lib/appointments';
+import { getAppointmentCompanionPhotoUrl } from '@/app/lib/appointments';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
 import {
   autoScrollCalendarHorizontally,
   autoScrollCalendarVertically,
 } from '@/app/features/appointments/components/Calendar/helpers';
 import { calcNearestAvailableMinute } from '@/app/features/appointments/components/Calendar/calendarDrop';
-import {
-  IoEyeOutline,
-  IoCalendarOutline,
-  IoDocumentTextOutline,
-  IoCardOutline,
-  IoFlaskOutline,
-} from 'react-icons/io5';
-import { MdMeetingRoom, MdOutlineAutorenew } from 'react-icons/md';
-import { RiHistoryLine } from 'react-icons/ri';
 import { createPortal } from 'react-dom';
-import { formatDateInPreferredTimeZone, getDatePartsInPreferredTimeZone } from '@/app/lib/timezone';
+import AppointmentPopover from '@/app/features/appointments/components/Calendar/common/AppointmentPopover';
+import { getDatePartsInPreferredTimeZone } from '@/app/lib/timezone';
 import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
-import { getAppointmentPaymentDisplay } from '@/app/lib/paymentStatus';
-import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
-import {
-  acceptAppointment,
-  rejectAppointment,
-} from '@/app/features/appointments/services/appointmentService';
-import { FaCheckCircle } from 'react-icons/fa';
-import { IoIosCloseCircle } from 'react-icons/io';
-import { useOrgStore } from '@/app/stores/orgStore';
-import { formatCompanionNameWithOwnerLastName, getOwnerFirstName } from '@/app/lib/companionName';
+import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 
 type SlotProps = {
   slotEvents: Appointment[];
@@ -95,7 +70,6 @@ const Slot: React.FC<SlotProps> = ({
   zoomMode = 'in',
   invoicesByAppointmentId = {},
 }) => {
-  const orgsById = useOrgStore((s) => s.orgsById);
   const isZoomOutMode = zoomMode === 'out';
   const [isMounted, setIsMounted] = useState(false);
   const [dropPreviewMinute, setDropPreviewMinute] = useState<number | null>(null);
@@ -131,41 +105,11 @@ const Slot: React.FC<SlotProps> = ({
       ) ?? null,
     [sortedSlotEvents, activePopoverKey]
   );
-  const activeEventPayment = useMemo(
-    () => (activeEvent ? getAppointmentPaymentDisplay(activeEvent, invoicesByAppointmentId) : null),
-    [activeEvent, invoicesByAppointmentId]
-  );
-
-  const formatTimeRange = (event: Appointment) => {
-    const start = formatDateInPreferredTimeZone(event.startTime, {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-    const end = formatDateInPreferredTimeZone(event.endTime, {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-    return `${start} - ${end}`;
-  };
-
-  const formatStatusLabel = (status?: string) => {
-    if (!status) return 'Unknown';
-    return status
-      .toLowerCase()
-      .split('_')
-      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(' ');
-  };
-
   const getCompanionDisplayName = (appointment: Appointment) =>
     formatCompanionNameWithOwnerLastName(
       appointment.companion?.name,
       appointment.companion?.parent
     );
-
-  const openAppointmentHistory = (appointment: Appointment) => {
-    handleViewAppointment(appointment, { label: 'info', subLabel: 'history' });
-  };
 
   const handleOpenPopover = (
     key: string,
@@ -582,258 +526,18 @@ const Slot: React.FC<SlotProps> = ({
         activeEvent &&
         activeRect &&
         createPortal(
-          <dialog
-            ref={popoverDialogRef}
-            open
-            className="fixed z-[1000] w-[380px] rounded-2xl border border-card-border bg-white p-3 shadow-[0_18px_45px_rgba(0,0,0,0.14)]"
-            style={popoverStyle}
-            aria-label="Appointment quick actions"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex items-center gap-2">
-                <Image
-                  src={getSafeImageUrl(
-                    getAppointmentCompanionPhotoUrl(activeEvent.companion),
-                    activeEvent.companion.species.toLowerCase() as ImageType
-                  )}
-                  height={34}
-                  width={34}
-                  className="rounded-full border border-card-border bg-white object-cover"
-                  style={{ width: 34, height: 34 }}
-                  alt=""
-                />
-                <div className="min-w-0">
-                  <button
-                    type="button"
-                    className="text-body-3-emphasis text-text-primary truncate cursor-pointer hover:underline underline-offset-2 text-left"
-                    onClick={() => {
-                      openAppointmentHistory(activeEvent);
-                      setActivePopoverKey(null);
-                    }}
-                    title="Open appointment overview"
-                  >
-                    {getCompanionDisplayName(activeEvent)}
-                  </button>
-                  <div className="text-caption-1 text-text-secondary truncate">
-                    {activeEvent.companion.breed || '-'} / {activeEvent.companion.species || '-'}
-                  </div>
-                </div>
-              </div>
-              <span
-                className="text-[10px] leading-4 font-medium px-2 py-1 rounded-full text-white whitespace-nowrap"
-                style={{
-                  backgroundColor: getStatusStyle(activeEvent.status).backgroundColor || '#1a73e8',
-                }}
-              >
-                {formatStatusLabel(activeEvent.status)}
-              </span>
-            </div>
-
-            <div className="mt-3 rounded-xl border border-card-border bg-card-hover px-3 py-2 grid grid-cols-2 gap-x-3 gap-y-1">
-              <div className="text-caption-1 text-text-secondary">Time</div>
-              <div className="text-caption-1 text-text-primary text-right truncate">
-                {formatTimeRange(activeEvent)}
-              </div>
-              <div className="text-caption-1 text-text-secondary">Parent</div>
-              <div className="text-caption-1 text-text-primary text-right truncate">
-                {getOwnerFirstName(activeEvent.companion.parent) || '-'}
-              </div>
-              <div className="text-caption-1 text-text-secondary">Lead</div>
-              <div className="text-caption-1 text-text-primary text-right truncate">
-                {activeEvent.lead?.name || '-'}
-              </div>
-              <div className="text-caption-1 text-text-secondary">Speciality</div>
-              <div className="text-caption-1 text-text-primary text-right truncate">
-                {activeEvent.appointmentType?.speciality?.name || '-'}
-              </div>
-              <div className="text-caption-1 text-text-secondary">Service</div>
-              <div className="text-caption-1 text-text-primary text-right truncate">
-                {activeEvent.appointmentType?.name || '-'}
-              </div>
-              <div className="text-caption-1 text-text-secondary">Room</div>
-              <div className="text-caption-1 text-text-primary text-right truncate">
-                {activeEvent.room?.name || '-'}
-              </div>
-              <div className="text-caption-1 text-text-secondary">Payment</div>
-              <div
-                className="text-caption-1 text-right truncate font-medium"
-                style={{ color: activeEventPayment?.textColor || '#302F2E' }}
-              >
-                {activeEventPayment?.label || '-'}
-              </div>
-            </div>
-
-            <div className="mt-2 text-caption-1 text-text-secondary">Reason</div>
-            <div className="text-caption-1 text-text-primary min-h-6 line-clamp-2">
-              {activeEvent.concern || '-'}
-            </div>
-
-            <div className="mt-3 flex items-center justify-end gap-1.5 border-t border-card-border pt-2 flex-wrap">
-              {canEditAppointments && isRequestedLikeStatus(activeEvent.status) && (
-                <>
-                  <GlassTooltip content="Accept request" side="top">
-                    <button
-                      type="button"
-                      title="Accept request"
-                      className="h-9 w-9 rounded-full! flex items-center justify-center hover:bg-[#E6F4EF] border border-card-border"
-                      onClick={async () => {
-                        await acceptAppointment(activeEvent);
-                        setActivePopoverKey(null);
-                      }}
-                    >
-                      <FaCheckCircle size={18} color="#54B492" />
-                    </button>
-                  </GlassTooltip>
-                  <GlassTooltip content="Decline request" side="top">
-                    <button
-                      type="button"
-                      title="Decline request"
-                      className="h-9 w-9 rounded-full! flex items-center justify-center hover:bg-[#FDEBEA] border border-card-border"
-                      onClick={async () => {
-                        await rejectAppointment(activeEvent);
-                        setActivePopoverKey(null);
-                      }}
-                    >
-                      <IoIosCloseCircle size={20} color="#EA3729" />
-                    </button>
-                  </GlassTooltip>
-                </>
-              )}
-              {!isRequestedLikeStatus(activeEvent.status) && (
-                <>
-                  <GlassTooltip content="View appointment" side="top">
-                    <button
-                      type="button"
-                      title="View appointment"
-                      className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
-                      onClick={() => {
-                        handleViewAppointment(activeEvent);
-                        setActivePopoverKey(null);
-                      }}
-                    >
-                      <IoEyeOutline size={18} />
-                    </button>
-                  </GlassTooltip>
-                  <GlassTooltip content="Overview" side="top">
-                    <button
-                      type="button"
-                      title="Appointment overview"
-                      className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
-                      onClick={() => {
-                        openAppointmentHistory(activeEvent);
-                        setActivePopoverKey(null);
-                      }}
-                    >
-                      <RiHistoryLine size={17} />
-                    </button>
-                  </GlassTooltip>
-                  {canEditAppointments && canShowStatusChangeAction(activeEvent.status) && (
-                    <GlassTooltip content="Change status" side="top">
-                      <button
-                        type="button"
-                        title="Change status"
-                        className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
-                        onClick={() => {
-                          if (handleChangeStatusAppointment) {
-                            handleChangeStatusAppointment(activeEvent);
-                          } else {
-                            handleViewAppointment(activeEvent);
-                          }
-                          setActivePopoverKey(null);
-                        }}
-                      >
-                        <MdOutlineAutorenew size={18} />
-                      </button>
-                    </GlassTooltip>
-                  )}
-                  {canEditAppointments && allowReschedule(activeEvent.status) && (
-                    <GlassTooltip content="Reschedule" side="top">
-                      <button
-                        type="button"
-                        title="Reschedule"
-                        className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
-                        onClick={() => {
-                          handleRescheduleAppointment(activeEvent);
-                          setActivePopoverKey(null);
-                        }}
-                      >
-                        <IoCalendarOutline size={18} />
-                      </button>
-                    </GlassTooltip>
-                  )}
-                  {canEditAppointments && canAssignAppointmentRoom(activeEvent.status) && (
-                    <GlassTooltip content="Assign room" side="top">
-                      <button
-                        type="button"
-                        title="Assign room"
-                        className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
-                        onClick={() => {
-                          handleChangeRoomAppointment?.(activeEvent);
-                          setActivePopoverKey(null);
-                        }}
-                      >
-                        <MdMeetingRoom size={18} />
-                      </button>
-                    </GlassTooltip>
-                  )}
-                  {(() => {
-                    const orgType =
-                      (activeEvent.organisationId && orgsById[activeEvent.organisationId]?.type) ||
-                      'HOSPITAL';
-                    const clinicalNotesLabel = getClinicalNotesLabel(orgType);
-                    const clinicalNotesIntent = getClinicalNotesIntent(orgType);
-                    return (
-                      <GlassTooltip content={clinicalNotesLabel} side="top">
-                        <button
-                          type="button"
-                          title={clinicalNotesLabel}
-                          className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
-                          onClick={() => {
-                            handleViewAppointment(activeEvent, clinicalNotesIntent);
-                            setActivePopoverKey(null);
-                          }}
-                        >
-                          <IoDocumentTextOutline size={18} />
-                        </button>
-                      </GlassTooltip>
-                    );
-                  })()}
-                  <GlassTooltip content="Finance summary" side="top">
-                    <button
-                      type="button"
-                      title="Finance summary"
-                      className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
-                      onClick={() => {
-                        handleViewAppointment(activeEvent, {
-                          label: 'finance',
-                          subLabel: 'summary',
-                        });
-                        setActivePopoverKey(null);
-                      }}
-                    >
-                      <IoCardOutline size={18} />
-                    </button>
-                  </GlassTooltip>
-                  <GlassTooltip content="Lab tests" side="top">
-                    <button
-                      type="button"
-                      title="Lab tests"
-                      className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
-                      onClick={() => {
-                        handleViewAppointment(activeEvent, {
-                          label: 'labs',
-                          subLabel: 'idexx-labs',
-                        });
-                        setActivePopoverKey(null);
-                      }}
-                    >
-                      <IoFlaskOutline size={18} />
-                    </button>
-                  </GlassTooltip>
-                </>
-              )}
-            </div>
-          </dialog>,
+          <AppointmentPopover
+            appointment={activeEvent}
+            invoicesByAppointmentId={invoicesByAppointmentId}
+            canEditAppointments={canEditAppointments}
+            popoverDialogRef={popoverDialogRef}
+            popoverStyle={popoverStyle}
+            handleViewAppointment={handleViewAppointment}
+            handleRescheduleAppointment={handleRescheduleAppointment}
+            handleChangeStatusAppointment={handleChangeStatusAppointment}
+            handleChangeRoomAppointment={handleChangeRoomAppointment}
+            onClose={() => setActivePopoverKey(null)}
+          />,
           document.body
         )}
     </>

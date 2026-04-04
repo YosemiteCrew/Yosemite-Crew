@@ -1,13 +1,13 @@
-import Accordion from "@/app/ui/primitives/Accordion/Accordion";
-import { Primary } from "@/app/ui/primitives/Buttons";
-import Modal from "@/app/ui/overlays/Modal";
-import React, { useState } from "react";
-import SpecialityCard from "@/app/features/organization/pages/Organization/Sections/Specialities/SpecialityCard";
-import { SpecialityWeb } from "@/app/features/organization/types/speciality";
-import SpecialitySearchWeb from "@/app/ui/inputs/SpecialitySearch/SpecialitySearchWeb";
-import { createBulkSpecialityServices } from "@/app/features/organization/services/specialityService";
-import Close from "@/app/ui/primitives/Icons/Close";
-import { useNotify } from "@/app/hooks/useNotify";
+import Accordion from '@/app/ui/primitives/Accordion/Accordion';
+import { Primary } from '@/app/ui/primitives/Buttons';
+import Modal from '@/app/ui/overlays/Modal';
+import React, { useState } from 'react';
+import SpecialityCard from '@/app/features/organization/pages/Organization/Sections/Specialities/SpecialityCard';
+import { SpecialityWeb } from '@/app/features/organization/types/speciality';
+import SpecialitySearchWeb from '@/app/ui/inputs/SpecialitySearch/SpecialitySearchWeb';
+import { createBulkSpecialityServices } from '@/app/features/organization/services/specialityService';
+import Close from '@/app/ui/primitives/Icons/Close';
+import { useNotify } from '@/app/hooks/useNotify';
 
 type AddSpecialityProps = {
   showModal: boolean;
@@ -15,11 +15,7 @@ type AddSpecialityProps = {
   specialities: SpecialityWeb[];
 };
 
-const AddSpeciality = ({
-  showModal,
-  setShowModal,
-  specialities,
-}: AddSpecialityProps) => {
+const AddSpeciality = ({ showModal, setShowModal, specialities }: AddSpecialityProps) => {
   const [formData, setFormData] = useState<SpecialityWeb[]>([]);
   const { notify } = useNotify();
 
@@ -30,17 +26,17 @@ const AddSpeciality = ({
   const handleSubmit = async () => {
     try {
       await createBulkSpecialityServices(formData);
-      notify("success", {
-        title: "Specialities saved",
-        text: "Specialities have been saved successfully.",
+      notify('success', {
+        title: 'Specialities saved',
+        text: 'Specialities have been saved successfully.',
       });
       setFormData([]);
       setShowModal(false);
     } catch (err) {
-      console.error("Failed to save specialities:", err);
-      notify("error", {
-        title: "Unable to save specialities",
-        text: "Failed to save specialities. Please try again.",
+      console.error('Failed to save specialities:', err);
+      notify('error', {
+        title: 'Unable to save specialities',
+        text: 'Failed to save specialities. Please try again.',
       });
     }
   };
@@ -53,9 +49,7 @@ const AddSpeciality = ({
             <Close onClick={() => {}} />
           </div>
           <div className="flex justify-center items-center gap-2">
-            <div className="text-body-1 text-text-primary">
-              Add specialities
-            </div>
+            <div className="text-body-1 text-text-primary">Add specialities</div>
           </div>
           <Close onClick={() => setShowModal(false)} />
         </div>
@@ -77,18 +71,14 @@ const AddSpeciality = ({
                 showDeleteIcon
                 onDeleteClick={() => removeSpeciality(i)}
               >
-                <SpecialityCard
-                  setFormData={setFormData}
-                  speciality={speciality}
-                  index={i}
-                />
+                <SpecialityCard setFormData={setFormData} speciality={speciality} index={i} />
               </Accordion>
             ))}
           </div>
           <Primary
             href="#"
             text="Save"
-            classname="max-h-12! text-lg! tracking-wide!"
+            className="max-h-12! text-lg! tracking-wide!"
             onClick={handleSubmit}
           />
         </div>

@@ -80,22 +80,22 @@ const GuestHeader = () => {
           href="#"
           onClick={() => handleClick(defaultAppRoute)}
           text="Go to app"
-          classname="mt-3"
+          className="mt-3"
         />
       );
     }
     if (isSignInPage) {
       return (
-        <Primary href="#" onClick={() => handleClick('/signup')} text="Sign up" classname="mt-3" />
+        <Primary href="#" onClick={() => handleClick('/signup')} text="Sign up" className="mt-3" />
       );
     }
     if (isSignUpPage) {
       return (
-        <Primary href="#" onClick={() => handleClick('/signin')} text="Sign in" classname="mt-3" />
+        <Primary href="#" onClick={() => handleClick('/signin')} text="Sign in" className="mt-3" />
       );
     }
     return (
-      <Primary href="#" onClick={() => handleClick('/signup')} text="Sign up" classname="mt-3" />
+      <Primary href="#" onClick={() => handleClick('/signup')} text="Sign up" className="mt-3" />
     );
   };
 

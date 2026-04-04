@@ -408,7 +408,7 @@ const ProfileCard = ({
                 </div>
               </div>
               {!org?.isVerified && (
-                <Primary text="Verify business profile" href="/book-onboarding" classname="" />
+                <Primary text="Verify business profile" href="/book-onboarding" className="" />
               )}
             </div>
             {!org?.isVerified && (

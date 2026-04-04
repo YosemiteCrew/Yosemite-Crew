@@ -1,13 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import {
-  DEFAULT_CALENDAR_FOCUS_MINUTES,
-  getFirstRelevantTimedEventStart,
-  getNowTopPxForHourRange,
-  getTopPxForMinutes,
-  nextDay,
-  scrollContainerToTarget,
-  startOfDayDate,
-} from '@/app/features/appointments/components/Calendar/helpers';
+import React, { useMemo, useRef } from 'react';
 import { HOURS_IN_DAY } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import { Task } from '@/app/features/tasks/types/task';
 import TaskSlot from '@/app/features/appointments/components/Calendar/Task/TaskSlot';
@@ -16,24 +7,20 @@ import Next from '@/app/ui/primitives/Icons/Next';
 import { useCalendarNavigation, getDateDisplay } from '@/app/hooks/useCalendarNavigation';
 import {
   CalendarZoomMode,
-  formatHourLabel,
-  formatMinuteLabel,
   getHourRowHeightPx,
 } from '@/app/features/appointments/components/Calendar/calendarLayout';
-import {
-  formatDateInPreferredTimeZone,
-  getHourInPreferredTimeZone,
-  getMinutesSinceStartOfDayInPreferredTimeZone,
-  isOnPreferredTimeZoneCalendarDay,
-} from '@/app/lib/timezone';
+import CalendarHourLabel from '@/app/features/appointments/components/Calendar/common/CalendarHourLabel';
+import { getHourInPreferredTimeZone, isOnPreferredTimeZoneCalendarDay } from '@/app/lib/timezone';
 import { useCalendarNow } from '@/app/features/appointments/components/Calendar/useCalendarNow';
+import {
+  getTimedTaskProxyEvents,
+  useCalendarAutoScroll,
+  useNowIndicator,
+  useSlotOffsetMinutes,
+} from '@/app/features/appointments/components/Calendar/useCalendarSlots';
+import { DropAvailabilityInterval } from '@/app/features/appointments/components/Calendar/availabilityIntervals';
 
 const HOUR_ROW_GAP_PX = 0;
-
-type DropAvailabilityInterval = {
-  startMinute: number;
-  endMinute: number;
-};
 
 type DayCalendarProps = {
   events: Task[];
@@ -90,41 +77,15 @@ const DayCalendar = ({
   const height = getHourRowHeightPx(zoomMode);
   const HOUR_ROW_TOP_OFFSET_PX = 8;
   const lastVisibleHour = HOURS_IN_DAY - 1;
-  const slotOffsetMinutes = useMemo(() => {
-    const step = Math.max(5, Math.round(slotStepMinutes || 15));
-    if (step >= 60) return [];
-    const offsets: number[] = [];
-    for (let minute = step; minute < 60; minute += step) {
-      offsets.push(minute);
-    }
-    return offsets;
-  }, [slotStepMinutes]);
-  const showSlotTimeLabels = useMemo(() => {
-    if (!slotOffsetMinutes.length) return false;
-    const firstStep = slotOffsetMinutes[0];
-    const pixelsPerSlot = (firstStep / 60) * height;
-    return pixelsPerSlot >= 14;
-  }, [height, slotOffsetMinutes]);
-
-  const nowPosition = useMemo(() => {
-    const topPx = getNowTopPxForHourRange(
-      date,
-      0,
-      HOURS_IN_DAY - 1,
-      height,
-      now,
-      HOUR_ROW_TOP_OFFSET_PX
-    );
-    if (topPx == null) return null;
-    return { topPx };
-  }, [date, height, now]);
-  const nowTimeLabel = useMemo(() => {
-    if (!nowPosition) return null;
-    return formatDateInPreferredTimeZone(now, {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  }, [now, nowPosition]);
+  const { slotOffsetMinutes, showSlotTimeLabels } = useSlotOffsetMinutes(slotStepMinutes, zoomMode);
+  const { nowPosition, nowTimeLabel } = useNowIndicator(
+    date,
+    0,
+    HOURS_IN_DAY - 1,
+    zoomMode,
+    now,
+    HOUR_ROW_TOP_OFFSET_PX
+  );
   const eventsByHour = useMemo(() => {
     const grouped: Task[][] = Array.from({ length: HOURS_IN_DAY }, () => []);
     events.forEach((task) => {
@@ -137,23 +98,15 @@ const DayCalendar = ({
     return grouped;
   }, [date, events]);
 
-  useEffect(() => {
-    if (!scrollRef.current) return;
-    const rangeStart = startOfDayDate(date);
-    const rangeEnd = nextDay(date);
-    const asTimed = events.map((task) => ({
-      startTime: new Date(task.dueAt),
-      endTime: new Date(new Date(task.dueAt).getTime() + 30 * 60 * 1000),
-    })) as Array<{ startTime: Date; endTime: Date }>;
-    const focusStart = getFirstRelevantTimedEventStart(asTimed as any, rangeStart, rangeEnd);
-    const focusMinutes = focusStart
-      ? getMinutesSinceStartOfDayInPreferredTimeZone(focusStart)
-      : DEFAULT_CALENDAR_FOCUS_MINUTES;
-    const topPx = nowPosition
-      ? Math.max(0, nowPosition.topPx)
-      : getTopPxForMinutes(focusMinutes, height, HOUR_ROW_GAP_PX, HOUR_ROW_TOP_OFFSET_PX);
-    scrollContainerToTarget(scrollRef.current, topPx);
-  }, [date, events, height, nowPosition]);
+  useCalendarAutoScroll({
+    date,
+    events: getTimedTaskProxyEvents(events),
+    height,
+    nowPosition,
+    scrollContainer: scrollRef.current,
+    hourRowGapPx: HOUR_ROW_GAP_PX,
+    hourRowTopOffsetPx: HOUR_ROW_TOP_OFFSET_PX,
+  });
 
   return (
     <div className="h-full flex flex-col">
@@ -189,28 +142,13 @@ const DayCalendar = ({
                 key={`task-day-hour-${hour}`}
                 className="grid grid-cols-[64px_minmax(0,1fr)] min-w-max"
               >
-                <div
-                  className="text-caption-2 text-text-primary pl-2! relative"
-                  style={{ height: `${height}px` }}
-                >
-                  <span
-                    className={`absolute top-0 ${
-                      hour === 0 ? 'translate-y-0' : '-translate-y-1/2'
-                    }`}
-                  >
-                    {formatHourLabel(hour)}
-                  </span>
-                  {showSlotTimeLabels &&
-                    slotOffsetMinutes.map((minute) => (
-                      <span
-                        key={`slot-time-${hour}-${minute}`}
-                        className="absolute right-1 -translate-y-1/2 text-[10px] leading-none text-text-tertiary text-right whitespace-nowrap"
-                        style={{ top: `${(minute / 60) * 100}%` }}
-                      >
-                        {formatMinuteLabel(hour * 60 + minute)}
-                      </span>
-                    ))}
-                </div>
+                <CalendarHourLabel
+                  hour={hour}
+                  height={height}
+                  slotOffsetMinutes={slotOffsetMinutes}
+                  showSlotTimeLabels={showSlotTimeLabels}
+                  pinFirstHour
+                />
                 <div className="relative" style={{ height: `${height}px` }}>
                   <TaskSlot
                     slotEvents={slotEvents}

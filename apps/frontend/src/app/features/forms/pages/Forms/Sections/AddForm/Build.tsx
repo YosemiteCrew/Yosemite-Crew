@@ -1132,7 +1132,7 @@ const Build = ({
         </div>
       </div>
       <div className="px-3 pb-3 flex justify-center">
-        <Primary href="#" text="Next" onClick={onNext} classname="w-fit" />
+        <Primary href="#" text="Next" onClick={onNext} className="w-fit" />
       </div>
     </div>
   );

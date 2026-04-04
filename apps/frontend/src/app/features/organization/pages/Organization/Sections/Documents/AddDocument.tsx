@@ -1,21 +1,18 @@
-import Accordion from "@/app/ui/primitives/Accordion/Accordion";
-import { Primary } from "@/app/ui/primitives/Buttons";
-import FormDesc from "@/app/ui/inputs/FormDesc/FormDesc";
-import FormInput from "@/app/ui/inputs/FormInput/FormInput";
-import Modal from "@/app/ui/overlays/Modal";
-import {
-  OrganizationDocument,
-  OrgDocumentCategory,
-} from "@/app/features/documents/types/document";
-import React, { useState } from "react";
-import { OrgDocumentCategoryOptions } from "@/app/features/organization/pages/Organization/types";
-import { createDocument } from "@/app/features/documents/services/documentService";
-import DocUploader from "@/app/ui/widgets/UploadImage/DocUploader";
-import { useOrgStore } from "@/app/stores/orgStore";
-import LabelDropdown from "@/app/ui/inputs/Dropdown/LabelDropdown";
-import Close from "@/app/ui/primitives/Icons/Close";
-import { IoIosWarning } from "react-icons/io";
-import { useNotify } from "@/app/hooks/useNotify";
+import Accordion from '@/app/ui/primitives/Accordion/Accordion';
+import { Primary } from '@/app/ui/primitives/Buttons';
+import FormDesc from '@/app/ui/inputs/FormDesc/FormDesc';
+import FormInput from '@/app/ui/inputs/FormInput/FormInput';
+import Modal from '@/app/ui/overlays/Modal';
+import { OrganizationDocument, OrgDocumentCategory } from '@/app/features/documents/types/document';
+import React, { useState } from 'react';
+import { OrgDocumentCategoryOptions } from '@/app/features/organization/pages/Organization/types';
+import { createDocument } from '@/app/features/documents/services/documentService';
+import DocUploader from '@/app/ui/widgets/UploadImage/DocUploader';
+import { useOrgStore } from '@/app/stores/orgStore';
+import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
+import Close from '@/app/ui/primitives/Icons/Close';
+import { IoIosWarning } from 'react-icons/io';
+import { useNotify } from '@/app/hooks/useNotify';
 
 type AddDocumentProps = {
   showModal: boolean;
@@ -23,19 +20,18 @@ type AddDocumentProps = {
 };
 
 const INITIAL_FORM_DATA: OrganizationDocument = {
-  _id: "",
-  organisationId: "",
-  title: "",
-  description: "",
-  fileUrl: "",
-  category: "CANCELLATION_POLICY",
+  _id: '',
+  organisationId: '',
+  title: '',
+  description: '',
+  fileUrl: '',
+  category: 'CANCELLATION_POLICY',
 };
 
 const AddDocument = ({ showModal, setShowModal }: AddDocumentProps) => {
   const primaryOrdId = useOrgStore.getState().primaryOrgId;
   const { notify } = useNotify();
-  const [formData, setFormData] =
-    useState<OrganizationDocument>(INITIAL_FORM_DATA);
+  const [formData, setFormData] = useState<OrganizationDocument>(INITIAL_FORM_DATA);
   const [formDataErrors, setFormDataErrors] = useState<{
     title?: string;
     fileUrl?: string;
@@ -44,17 +40,17 @@ const AddDocument = ({ showModal, setShowModal }: AddDocumentProps) => {
 
   const handleSave = async () => {
     const errors: { title?: string; fileUrl?: string } = {};
-    if (!formData.title) errors.title = "Name is required";
-    if (!formData.fileUrl) errors.fileUrl = "File is required";
+    if (!formData.title) errors.title = 'Name is required';
+    if (!formData.fileUrl) errors.fileUrl = 'File is required';
     setFormDataErrors(errors);
     if (Object.keys(errors).length > 0) {
       return;
     }
     try {
       await createDocument(formData);
-      notify("success", {
-        title: "Document created",
-        text: "Document has been created successfully.",
+      notify('success', {
+        title: 'Document created',
+        text: 'Document has been created successfully.',
       });
       setShowModal(false);
       setFormData(INITIAL_FORM_DATA);
@@ -62,9 +58,9 @@ const AddDocument = ({ showModal, setShowModal }: AddDocumentProps) => {
       setFile(null);
     } catch (error) {
       console.log(error);
-      notify("error", {
-        title: "Unable to create document",
-        text: "Failed to create document. Please try again.",
+      notify('error', {
+        title: 'Unable to create document',
+        text: 'Failed to create document. Please try again.',
       });
     }
   };
@@ -87,21 +83,14 @@ const AddDocument = ({ showModal, setShowModal }: AddDocumentProps) => {
         </div>
 
         <div className="flex overflow-y-auto flex-1 w-full flex-col gap-6 justify-between scrollbar-hidden">
-          <Accordion
-            title="Add document"
-            defaultOpen
-            showEditIcon={false}
-            isEditing={true}
-          >
+          <Accordion title="Add document" defaultOpen showEditIcon={false} isEditing={true}>
             <div className="flex flex-col gap-3">
               <FormInput
                 intype="text"
                 inname="title"
                 value={formData.title}
                 inlabel="Document title"
-                onChange={(e) =>
-                  setFormData({ ...formData, title: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 error={formDataErrors.title}
                 className="min-h-12!"
               />
@@ -119,11 +108,9 @@ const AddDocument = ({ showModal, setShowModal }: AddDocumentProps) => {
               <FormDesc
                 intype="text"
                 inname="description"
-                value={formData.description || ""}
+                value={formData.description || ''}
                 inlabel="Description"
-                onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 className="min-h-[120px]!"
               />
               <div className="flex flex-col gap-1">
@@ -152,7 +139,7 @@ const AddDocument = ({ showModal, setShowModal }: AddDocumentProps) => {
           <Primary
             href="#"
             text="Save"
-            classname="max-h-12! text-lg! tracking-wide!"
+            className="max-h-12! text-lg! tracking-wide!"
             onClick={handleSave}
           />
         </div>

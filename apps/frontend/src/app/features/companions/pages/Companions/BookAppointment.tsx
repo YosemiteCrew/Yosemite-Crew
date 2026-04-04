@@ -146,7 +146,7 @@ const BookAppointment = ({ showModal, setShowModal, activeCompanion }: BookAppoi
           </div>
           <div className="flex flex-col items-end gap-2 w-full">
             <BookingErrorMessage error={formDataErrors.booking} />
-            <Primary href="#" text="Book appointment" onClick={onSubmit} classname="w-full" />
+            <Primary href="#" text="Book appointment" onClick={onSubmit} className="w-full" />
           </div>
         </div>
       </div>
