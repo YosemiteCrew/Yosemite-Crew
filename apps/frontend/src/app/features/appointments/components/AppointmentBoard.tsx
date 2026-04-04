@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useBoardDragScroll } from '@/app/hooks/useBoardDragScroll';
 import { buildDragPreview } from '@/app/lib/buildDragPreview';
 import BoardScopeToggle from '@/app/ui/primitives/BoardScopeToggle/BoardScopeToggle';
@@ -50,6 +51,7 @@ import { useOrgStore } from '@/app/stores/orgStore';
 import { useNotify } from '@/app/hooks/useNotify';
 import { AppointmentStatus } from '@/app/features/appointments/types/appointments';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
+import { buildAppointmentCompanionHistoryHref } from '@/app/lib/companionHistoryRoute';
 
 type BoardStatus =
   | 'REQUESTED'
@@ -197,6 +199,7 @@ const AppointmentBoard = ({
     });
     return grouped;
   }, [todayAppointments]);
+  const router = useRouter();
 
   const openAppointment = (appointment: Appointment) => {
     setActiveAppointment?.(appointment);
@@ -211,7 +214,13 @@ const AppointmentBoard = ({
   };
 
   const openAppointmentHistory = (appointment: Appointment) => {
-    openAppointmentWithIntent(appointment, { label: 'info', subLabel: 'history' });
+    router.push(
+      buildAppointmentCompanionHistoryHref(
+        appointment.id,
+        appointment.companion?.id,
+        '/appointments'
+      )
+    );
   };
 
   const openChangeStatus = (appointment: Appointment) => {

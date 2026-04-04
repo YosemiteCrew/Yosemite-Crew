@@ -1,8 +1,10 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import DayCalendar from '@/app/features/appointments/components/Calendar/common/DayCalendar';
+
+jest.useFakeTimers();
 
 jest.mock('next/image', () => ({
   __esModule: true,
@@ -67,13 +69,25 @@ jest.mock('@/app/lib/appointments', () => ({
   allowReschedule: jest.fn(() => true),
   canAssignAppointmentRoom: jest.fn(() => true),
   canShowStatusChangeAction: jest.fn(() => true),
+  getAllowedAppointmentStatusTransitions: jest.fn(() => ['CHECKED_IN', 'CANCELLED']),
   getAppointmentCompanionPhotoUrl: jest.fn(() => ''),
   getClinicalNotesIntent: jest.fn(() => ({ label: 'prescription', subLabel: 'subjective' })),
-  getClinicalNotesLabel: jest.fn(() => 'Prescription'),
+  getClinicalNotesLabel: jest.fn(() => 'Medical Records'),
   isRequestedLikeStatus: jest.fn(
     (status: string) => status === 'REQUESTED' || status === 'NO_PAYMENT'
   ),
   normalizeAppointmentStatus: (status: string) => (status === 'NO_PAYMENT' ? 'REQUESTED' : status),
+  toStatusLabel: (status: string) => status,
+}));
+
+jest.mock('@/app/hooks/useRooms', () => ({
+  useLoadRoomsForPrimaryOrg: jest.fn(),
+  useRoomsForPrimaryOrg: jest.fn(() => []),
+}));
+
+jest.mock('@/app/features/appointments/services/appointmentService', () => ({
+  changeAppointmentStatus: jest.fn(),
+  updateAppointment: jest.fn(),
 }));
 
 jest.mock('@/app/lib/urls', () => ({
@@ -103,6 +117,7 @@ jest.mock('react-icons/io', () => ({
 }));
 
 jest.mock('react-icons/io5', () => ({
+  IoChevronForward: () => <span>chevron</span>,
   IoEyeOutline: () => <span>view</span>,
   IoCalendarOutline: () => <span>reschedule</span>,
   IoDocumentTextOutline: () => <span>soap</span>,
@@ -164,7 +179,13 @@ describe('DayCalendar (Appointments)', () => {
     ]);
   });
 
-  it('renders all-day events and triggers view handler', () => {
+  afterEach(() => {
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
+  });
+
+  it('renders all-day events and opens quick actions on single click', () => {
     render(
       <DayCalendar
         events={[allDayEvent, timedEvent]}
@@ -181,10 +202,15 @@ describe('DayCalendar (Appointments)', () => {
     expect(allDayButton).toBeInTheDocument();
 
     fireEvent.click(allDayButton!);
-    expect(handleViewAppointment).toHaveBeenCalledWith(allDayEvent);
+    act(() => {
+      jest.advanceTimersByTime(200);
+    });
+
+    expect(handleViewAppointment).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Appointment quick actions' })).toBeInTheDocument();
   });
 
-  it('renders timed events and handles reschedule clicks', () => {
+  it('renders timed events and handles reschedule clicks from the single-click popover', () => {
     const consoleSpy = jest
       .spyOn(console, 'error')
       .mockImplementation((message: any, ...args: any[]) => {
@@ -207,7 +233,10 @@ describe('DayCalendar (Appointments)', () => {
     );
 
     const eventButton = screen.getByRole('button', { name: /Rex/i });
-    fireEvent.mouseEnter(eventButton);
+    fireEvent.click(eventButton);
+    act(() => {
+      jest.advanceTimersByTime(200);
+    });
 
     expect(screen.getByText('Service')).toBeInTheDocument();
     expect(screen.getAllByText('Grooming').length).toBeGreaterThan(0);
@@ -225,6 +254,41 @@ describe('DayCalendar (Appointments)', () => {
     expect(handleViewAppointment).not.toHaveBeenCalled();
 
     consoleSpy.mockRestore();
+  });
+
+  it('opens the appointment on marker double click', () => {
+    render(
+      <DayCalendar
+        events={[timedEvent]}
+        date={baseDate}
+        handleViewAppointment={handleViewAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments
+      />
+    );
+
+    fireEvent.doubleClick(screen.getByRole('button', { name: /Rex/i }));
+
+    expect(handleViewAppointment).toHaveBeenCalledWith(expect.objectContaining({ id: 'timed' }));
+  });
+
+  it('opens the custom context menu on right click', () => {
+    render(
+      <DayCalendar
+        events={[timedEvent]}
+        date={baseDate}
+        handleViewAppointment={handleViewAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments
+      />
+    );
+
+    fireEvent.contextMenu(screen.getByRole('button', { name: /Rex/i }));
+
+    expect(screen.getByRole('menu', { name: 'Appointment context actions' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Open companion overview' })).toBeInTheDocument();
   });
 
   it('updates current date with navigation', () => {

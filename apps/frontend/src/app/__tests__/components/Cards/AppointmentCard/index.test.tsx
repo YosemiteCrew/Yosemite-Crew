@@ -25,7 +25,7 @@ jest.mock('@/app/lib/appointments', () => ({
   canShowStatusChangeAction: jest.fn(() => true),
   getAppointmentCompanionPhotoUrl: jest.fn(() => ''),
   getClinicalNotesIntent: jest.fn(() => ({ label: 'prescription', subLabel: 'subjective' })),
-  getClinicalNotesLabel: jest.fn(() => 'Prescription'),
+  getClinicalNotesLabel: jest.fn(() => 'Medical Records'),
   isRequestedLikeStatus: jest.fn(
     (status: string) => status === 'REQUESTED' || status === 'NO_PAYMENT'
   ),

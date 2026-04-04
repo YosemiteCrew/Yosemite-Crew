@@ -15,8 +15,6 @@ import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import FormDesc from '@/app/ui/inputs/FormDesc/FormDesc';
 import { StoredCompanion, StoredParent } from '@/app/features/companions/pages/Companions/types';
 import Datepicker from '@/app/ui/inputs/Datepicker';
-import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
-import { IoInformationCircleOutline } from 'react-icons/io5';
 import {
   createCompanion,
   createParent,
@@ -369,30 +367,15 @@ const Companion = ({
                 error={formDataErrors.breed}
               />
             </div>
-            <div className="flex items-start gap-2">
-              <Datepicker
-                currentDate={currentDate}
-                setCurrentDate={setCurrentDate}
-                type="input"
-                className="min-h-12!"
-                containerClassName="w-full"
-                placeholder="Date of birth"
-                error={formDataErrors.dateOfBirth}
-              />
-              <GlassTooltip
-                content="Date of birth may be required in some countries for age verification and legal consent. Please ensure the parent is 18 years or older where regulations require it."
-                side="bottom"
-                maxWidth={460}
-              >
-                <button
-                  type="button"
-                  aria-label="Date of birth information"
-                  className="mt-3 inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none text-text-secondary hover:text-text-primary transition-colors"
-                >
-                  <IoInformationCircleOutline size={18} />
-                </button>
-              </GlassTooltip>
-            </div>
+            <Datepicker
+              currentDate={currentDate}
+              setCurrentDate={setCurrentDate}
+              type="input"
+              className="min-h-12!"
+              containerClassName="w-full"
+              placeholder="Date of birth"
+              error={formDataErrors.dateOfBirth}
+            />
             <SelectLabel
               title="Gender"
               options={GenderOptions}
@@ -426,7 +409,7 @@ const Companion = ({
                 className="min-h-12!"
               />
             )}
-            <div className="grid grid-cols-2 gap-3">
+            <div className={`grid gap-3 ${isFastTrack ? 'grid-cols-1' : 'grid-cols-2'}`}>
               <FormInput
                 intype="text"
                 inname="color"

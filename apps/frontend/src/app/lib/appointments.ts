@@ -124,7 +124,7 @@ export const allowCalendarDrag = (status?: AppointmentStatusLike) => {
 };
 
 export const getClinicalNotesLabel = (orgType?: string) => {
-  return orgType === 'HOSPITAL' ? 'Prescription' : 'Care';
+  return orgType === 'HOSPITAL' ? 'Medical Records' : 'Care';
 };
 
 export const getClinicalNotesIntent = (orgType?: string) => {

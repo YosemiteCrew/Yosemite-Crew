@@ -840,7 +840,8 @@ const Build = ({
     setFormData((prev) => ({
       ...prev,
       schema:
-        key === 'signature' && prev.category === 'Prescription'
+        key === 'signature' &&
+        new Set(['Prescription', 'SOAP', 'Discharge Form']).has(prev.category)
           ? ensureSingleSignatureAtEnd([...(prev.schema ?? []), newField])
           : [...(prev.schema ?? []), newField],
     }));

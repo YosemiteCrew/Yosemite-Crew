@@ -9,6 +9,8 @@ import type {
 const formsCategories = [
   'Consent form',
   'Prescription',
+  'SOAP',
+  'Discharge Form',
   'Boarder - Boarding Checklist',
   'Boarder - Dietary Plan',
   'Boarder - Medication Details',
@@ -37,9 +39,8 @@ export const FormsCategoryOptions: FormsCategory[] = [...formsCategories];
 
 export const getFormCategoryDisplayLabel = (
   category: string,
-  orgType?: Organisation['type']
-): string =>
-  orgType === 'HOSPITAL' && category === 'Prescription' ? 'Prescription / SOAP' : category;
+  _orgType?: Organisation['type']
+): string => category;
 
 const formsUsageOptions = ['Internal', 'External', 'Internal & External'] as const;
 
@@ -324,6 +325,21 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
     signatureField('consent_signature', 'Pet parent signature', { required: true }),
   ],
   Prescription: [
+    groupField('medications', 'Medications', [], { meta: { medicationGroup: true } as any }),
+    buildServicesGroup(),
+    textAreaField(
+      'additional_notes',
+      'Additional notes',
+      'Add observations and pet parent instructions'
+    ),
+    textAreaField(
+      'important_notes',
+      'Important notes',
+      'Highlight critical follow-up instructions'
+    ),
+    signatureField('signature', 'Signature'),
+  ],
+  SOAP: [
     groupField('subjective_section', 'Subjective', [
       textAreaField(
         'subjective_history',
@@ -358,8 +374,6 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
       textAreaField('prognosis', 'Prognosis', 'Enter prognosis'),
     ]),
     groupField('treatment_plan', 'Plan', [
-      groupField('medications', 'Medications', [], { meta: { medicationGroup: true } as any }),
-      buildServicesGroup(),
       textAreaField(
         'additional_notes',
         'Additional notes',
@@ -371,6 +385,9 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
         'Highlight critical follow-up instructions'
       ),
     ]),
+    signatureField('signature', 'Signature'),
+  ],
+  'Discharge Form': [
     groupField('discharge_section', 'Discharge summary', [
       textAreaField(
         'discharge_summary',

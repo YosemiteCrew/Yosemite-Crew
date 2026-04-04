@@ -1,5 +1,6 @@
 import React from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import {
   allowReschedule,
@@ -22,6 +23,7 @@ import {
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
 import { Appointment, Invoice } from '@yosemite-crew/types';
 import { useOrgStore } from '@/app/stores/orgStore';
+import { buildAppointmentCompanionHistoryHref } from '@/app/lib/companionHistoryRoute';
 import {
   IoEyeOutline,
   IoCalendarOutline,
@@ -80,6 +82,7 @@ const AppointmentPopover: React.FC<AppointmentPopoverProps> = ({
   handleChangeRoomAppointment,
   onClose,
 }) => {
+  const router = useRouter();
   const orgsById = useOrgStore((s) => s.orgsById);
   const payment = getAppointmentPaymentDisplay(appointment, invoicesByAppointmentId);
   const companionDisplayName = getCompanionDisplayName(appointment);
@@ -114,7 +117,13 @@ const AppointmentPopover: React.FC<AppointmentPopoverProps> = ({
               type="button"
               className="text-body-3-emphasis text-text-primary truncate cursor-pointer hover:underline underline-offset-2 text-left"
               onClick={() => {
-                handleViewAppointment(appointment, { label: 'info', subLabel: 'history' });
+                router.push(
+                  buildAppointmentCompanionHistoryHref(
+                    appointment.id,
+                    appointment.companion?.id,
+                    '/appointments'
+                  )
+                );
                 onClose();
               }}
               title="Open appointment overview"
@@ -227,7 +236,13 @@ const AppointmentPopover: React.FC<AppointmentPopoverProps> = ({
                 title="Appointment overview"
                 className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
                 onClick={() => {
-                  handleViewAppointment(appointment, { label: 'info', subLabel: 'history' });
+                  router.push(
+                    buildAppointmentCompanionHistoryHref(
+                      appointment.id,
+                      appointment.companion?.id,
+                      '/appointments'
+                    )
+                  );
                   onClose();
                 }}
               >

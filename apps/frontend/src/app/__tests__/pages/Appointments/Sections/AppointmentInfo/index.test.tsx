@@ -433,8 +433,8 @@ describe('AppointmentInfo modal', () => {
       <AppointmentInfoModal showModal setShowModal={setShowModal} activeAppointment={appointment} />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Prescription' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Medical Notes / SOAP' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Medical Records' }));
+    fireEvent.click(screen.getByRole('button', { name: 'SOAP' }));
 
     expect(screen.getByText(/loading forms/i)).toBeInTheDocument();
   });
@@ -585,8 +585,8 @@ describe('AppointmentInfo modal', () => {
       <AppointmentInfoModal showModal setShowModal={setShowModal} activeAppointment={appointment} />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Prescription' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Medical Notes / SOAP' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Medical Records' }));
+    fireEvent.click(screen.getByRole('button', { name: 'SOAP' }));
 
     expect(await screen.findByText('Unable to load forms')).toBeInTheDocument();
   });
@@ -596,8 +596,8 @@ describe('AppointmentInfo modal', () => {
       <AppointmentInfoModal showModal setShowModal={setShowModal} activeAppointment={appointment} />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Prescription' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Medical Notes / SOAP' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Medical Records' }));
+    fireEvent.click(screen.getByRole('button', { name: 'SOAP' }));
     fireEvent.click(await screen.findByRole('button', { name: 'pick-template' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -619,8 +619,8 @@ describe('AppointmentInfo modal', () => {
       <AppointmentInfoModal showModal setShowModal={setShowModal} activeAppointment={appointment} />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Prescription' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Medical Notes / SOAP' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Medical Records' }));
+    fireEvent.click(screen.getByRole('button', { name: 'SOAP' }));
     fireEvent.click(await screen.findByRole('button', { name: 'pick-template' }));
     fireEvent.click(screen.getByRole('button', { name: 'Send to parent' }));
 

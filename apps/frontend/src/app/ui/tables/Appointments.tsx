@@ -1,4 +1,5 @@
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
 import Image from 'next/image';
 import { FaCheckCircle } from 'react-icons/fa';
@@ -37,6 +38,7 @@ import {
 } from '@/app/lib/paymentStatus';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { formatCompanionNameWithOwnerLastName, getOwnerFirstName } from '@/app/lib/companionName';
+import { buildAppointmentCompanionHistoryHref } from '@/app/lib/companionHistoryRoute';
 
 import './DataTable.css';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
@@ -80,6 +82,7 @@ const Appointments = ({
   canEditAppointments,
   small = false,
 }: AppointmentTableProps) => {
+  const router = useRouter();
   useLoadTeam();
   const teams = useTeamForPrimaryOrg();
   const orgsById = useOrgStore((s) => s.orgsById);
@@ -117,7 +120,13 @@ const Appointments = ({
   };
 
   const handleViewAppointmentHistory = (appointment: Appointment) => {
-    handleViewAppointment(appointment, { label: 'info', subLabel: 'history' });
+    router.push(
+      buildAppointmentCompanionHistoryHref(
+        appointment.id,
+        appointment.companion?.id,
+        '/appointments'
+      )
+    );
   };
 
   const handleRescheduleAppointment = (appointment: Appointment) => {

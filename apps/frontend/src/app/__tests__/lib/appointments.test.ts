@@ -257,8 +257,8 @@ describe('allowCalendarDrag', () => {
 });
 
 describe('getClinicalNotesLabel', () => {
-  it('returns "Prescription" for HOSPITAL', () => {
-    expect(getClinicalNotesLabel('HOSPITAL')).toBe('Prescription');
+  it('returns "Medical Records" for HOSPITAL', () => {
+    expect(getClinicalNotesLabel('HOSPITAL')).toBe('Medical Records');
   });
 
   it('returns "Care" for other org types', () => {

@@ -53,7 +53,7 @@ const Details = ({
     | undefined;
   const effectiveOrgType = orgTypeOverride || orgType;
   const categoryOptions = useMemo(() => {
-    const base = new Set(['Consent form', 'Prescription', 'Custom']);
+    const base = new Set(['Consent form', 'Prescription', 'SOAP', 'Discharge Form', 'Custom']);
     if (effectiveOrgType === 'HOSPITAL') {
       return FormsCategoryOptions.filter((c) => base.has(c));
     }
@@ -76,8 +76,9 @@ const Details = ({
     }
     const template =
       category && shouldApplyTemplate ? getCategoryTemplate(category) : formData.schema;
+    const clinicalCategories = new Set(['Prescription', 'SOAP', 'Discharge Form']);
     let normalizedTemplate = template;
-    if (category === 'Prescription') {
+    if (clinicalCategories.has(category)) {
       normalizedTemplate = formData.requiredSigner
         ? ensureSingleSignatureAtEnd(template ?? [])
         : removeSignatureFields(template ?? []);
@@ -85,12 +86,6 @@ const Details = ({
 
     setFormData((prev) => ({
       ...prev,
-      name:
-        effectiveOrgType === 'HOSPITAL' &&
-        category === 'Prescription' &&
-        (!String(prev.name ?? '').trim() || prev.name === 'Prescription')
-          ? 'Prescription SOAP'
-          : prev.name,
       category,
       schema: normalizedTemplate,
     }));
@@ -205,7 +200,7 @@ const Details = ({
                   if (!nextSigner) {
                     next.schema = removeSignatureFields(next.schema ?? []);
                   } else if (
-                    next.category === 'Prescription' &&
+                    new Set(['Prescription', 'SOAP', 'Discharge Form']).has(next.category) &&
                     !hasSignatureField(next.schema ?? [])
                   ) {
                     next.schema = ensureSingleSignatureAtEnd(next.schema ?? []);

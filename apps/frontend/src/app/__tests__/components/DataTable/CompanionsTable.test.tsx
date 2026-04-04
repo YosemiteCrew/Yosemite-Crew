@@ -138,7 +138,6 @@ describe('CompanionsTable', () => {
     expect(setActiveCompanion).toHaveBeenCalledWith(companion);
     expect(setViewCompanion).toHaveBeenCalledWith(true);
     expect(setCompanionInfoInitialLabel).toHaveBeenCalledWith('info');
-    expect(setCompanionInfoInitialLabel).toHaveBeenCalledWith('history');
     expect(setChangeStatusPopup).toHaveBeenCalledWith(true);
     expect(setBookAppointment).toHaveBeenCalledWith(true);
     expect(setAddTask).toHaveBeenCalledWith(true);

@@ -1,6 +1,7 @@
 import Labels from '@/app/ui/widgets/Labels/Labels';
 import Modal from '@/app/ui/overlays/Modal';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Summary from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Finance/Summary';
 import Task from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Tasks/Task';
@@ -63,6 +64,7 @@ import {
 } from '@/app/lib/appointments';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
+import { buildAppointmentCompanionHistoryHref } from '@/app/lib/companionHistoryRoute';
 
 const COMPANION_IMAGE_TYPES = new Set<ImageType>(['dog', 'cat', 'horse', 'other']);
 
@@ -635,7 +637,7 @@ const hospitalLabels = [
   },
   {
     key: 'prescription',
-    name: 'Prescription',
+    name: 'Medical Records',
     labels: [
       { key: 'forms', name: 'Templates' },
       { key: 'audit-trail', name: 'Audit trail' },
@@ -706,6 +708,7 @@ const AppoitmentInfo = ({
   canEditAppointments = false,
   onReschedule,
 }: AppoitmentInfoProps) => {
+  const router = useRouter();
   const { can } = usePermissions();
   const appointmentStatus = normalizeAppointmentStatus(activeAppointment?.status);
   const canEdit = can(PERMISSIONS.PRESCRIPTION_EDIT_OWN) && appointmentStatus !== 'COMPLETED';
@@ -782,7 +785,7 @@ const AppoitmentInfo = ({
         return {
           ...label,
           labels: (label.labels ?? []).map((subLabel: any) =>
-            subLabel.key === 'forms' ? { ...subLabel, name: 'Medical Notes / SOAP' } : subLabel
+            subLabel.key === 'forms' ? { ...subLabel, name: 'SOAP' } : subLabel
           ),
         };
       }
@@ -800,7 +803,7 @@ const AppoitmentInfo = ({
     });
   }, [orgType, merckEnabled]);
   const formsAccordionTitle =
-    orgType === 'HOSPITAL' && activeLabel === 'prescription' ? 'Medical Notes / SOAP' : 'Templates';
+    orgType === 'HOSPITAL' && activeLabel === 'prescription' ? 'SOAP' : 'Templates';
   const handleHistoryOpenAppointmentView = useCallback(
     (intent: AppointmentViewIntent) => {
       const resolvedLabelKey = resolveIntentLabel(labels, intent.label);
@@ -1115,12 +1118,25 @@ const AppoitmentInfo = ({
                 height={40}
                 width={40}
               />
-              <div className="text-body-1 text-text-primary">
+              <button
+                type="button"
+                className="text-body-1 text-text-primary cursor-pointer text-left hover:underline underline-offset-2"
+                onClick={() => {
+                  router.push(
+                    buildAppointmentCompanionHistoryHref(
+                      activeAppointment?.id,
+                      activeAppointment?.companion?.id,
+                      '/appointments'
+                    )
+                  );
+                  setShowModal(false);
+                }}
+              >
                 {formatCompanionNameWithOwnerLastName(
                   activeAppointment?.companion.name,
                   activeAppointment?.companion.parent
                 )}
-              </div>
+              </button>
               <div className="text-body-4 text-text-primary mt-1">
                 {activeAppointment?.companion.breed}
               </div>

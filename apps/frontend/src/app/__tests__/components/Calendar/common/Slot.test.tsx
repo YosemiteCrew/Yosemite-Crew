@@ -9,6 +9,8 @@ import {
   rejectAppointment,
 } from '@/app/features/appointments/services/appointmentService';
 
+jest.useFakeTimers();
+
 jest.mock('next/image', () => ({
   __esModule: true,
   default: ({ alt }: any) => <span data-testid="mock-next-image">{alt || ''}</span>,
@@ -22,13 +24,15 @@ jest.mock('@/app/lib/appointments', () => ({
   allowReschedule: jest.fn(() => true),
   canAssignAppointmentRoom: jest.fn(() => true),
   canShowStatusChangeAction: jest.fn(() => true),
+  getAllowedAppointmentStatusTransitions: jest.fn(() => ['CHECKED_IN', 'CANCELLED']),
   getAppointmentCompanionPhotoUrl: jest.fn(() => ''),
   getClinicalNotesIntent: jest.fn(() => ({ label: 'prescription', subLabel: 'subjective' })),
-  getClinicalNotesLabel: jest.fn(() => 'Prescription'),
+  getClinicalNotesLabel: jest.fn(() => 'Medical Records'),
   isRequestedLikeStatus: jest.fn(
     (status: string) => status === 'REQUESTED' || status === 'NO_PAYMENT'
   ),
   normalizeAppointmentStatus: (status: string) => (status === 'NO_PAYMENT' ? 'REQUESTED' : status),
+  toStatusLabel: (status: string) => status,
 }));
 
 jest.mock('@/app/features/appointments/components/Calendar/calendarDrop', () => ({
@@ -37,7 +41,14 @@ jest.mock('@/app/features/appointments/components/Calendar/calendarDrop', () => 
 
 jest.mock('@/app/features/appointments/services/appointmentService', () => ({
   acceptAppointment: jest.fn(),
+  changeAppointmentStatus: jest.fn(),
   rejectAppointment: jest.fn(),
+  updateAppointment: jest.fn(),
+}));
+
+jest.mock('@/app/hooks/useRooms', () => ({
+  useLoadRoomsForPrimaryOrg: jest.fn(),
+  useRoomsForPrimaryOrg: jest.fn(() => []),
 }));
 
 jest.mock('@/app/lib/urls', () => ({
@@ -45,6 +56,7 @@ jest.mock('@/app/lib/urls', () => ({
 }));
 
 jest.mock('react-icons/io5', () => ({
+  IoChevronForward: () => <span>chevron</span>,
   IoEyeOutline: () => <span>view</span>,
   IoCalendarOutline: () => <span>reschedule</span>,
   IoDocumentTextOutline: () => <span>soap</span>,
@@ -79,6 +91,12 @@ describe('Slot (Appointments)', () => {
     (rejectAppointment as jest.Mock).mockResolvedValue({});
   });
 
+  afterEach(() => {
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
+  });
+
   it('shows empty state when no appointments exist', () => {
     const { container } = render(
       <Slot
@@ -96,7 +114,7 @@ describe('Slot (Appointments)', () => {
     expect(container.firstChild).toHaveStyle({ height: '120px' });
   });
 
-  it('renders appointments and handles view/reschedule clicks', () => {
+  it('renders appointments and opens quick actions on single click', () => {
     const consoleSpy = jest
       .spyOn(console, 'error')
       .mockImplementation((message: any, ...args: any[]) => {
@@ -121,10 +139,12 @@ describe('Slot (Appointments)', () => {
 
     const viewButton = screen.getByRole('button', { name: /Rex/i });
     fireEvent.click(viewButton);
+    act(() => {
+      jest.advanceTimersByTime(200);
+    });
 
-    expect(handleViewAppointment).toHaveBeenCalledWith(event);
-
-    fireEvent.mouseEnter(viewButton);
+    expect(handleViewAppointment).not.toHaveBeenCalled();
+    expect(screen.getByTitle(/reschedule/i)).toBeInTheDocument();
 
     const rescheduleButton = screen.getByTitle(/reschedule/i);
     fireEvent.click(rescheduleButton);
@@ -132,6 +152,24 @@ describe('Slot (Appointments)', () => {
     expect(handleRescheduleAppointment).toHaveBeenCalledWith(event);
 
     consoleSpy.mockRestore();
+  });
+
+  it('opens the appointment on marker double click', () => {
+    render(
+      <Slot
+        slotEvents={[event]}
+        height={120}
+        handleViewAppointment={handleViewAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        dayIndex={0}
+        length={1}
+        canEditAppointments
+      />
+    );
+
+    fireEvent.doubleClick(screen.getByRole('button', { name: /Rex/i }));
+
+    expect(handleViewAppointment).toHaveBeenCalledWith(event);
   });
 
   it('creates appointment when empty slot is clicked', () => {
@@ -254,7 +292,10 @@ describe('Slot (Appointments)', () => {
     );
 
     const viewButton = screen.getByRole('button', { name: /Rex/i });
-    fireEvent.mouseEnter(viewButton);
+    fireEvent.click(viewButton);
+    act(() => {
+      jest.advanceTimersByTime(200);
+    });
 
     expect(screen.queryByTitle(/reschedule/i)).not.toBeInTheDocument();
     expect(screen.queryByTitle(/change status/i)).not.toBeInTheDocument();
@@ -286,17 +327,42 @@ describe('Slot (Appointments)', () => {
     );
 
     const eventButton = screen.getByRole('button', { name: /Rex/i });
-    fireEvent.mouseEnter(eventButton);
+    fireEvent.click(eventButton);
+    act(() => {
+      jest.advanceTimersByTime(200);
+    });
 
     await act(async () => {
       fireEvent.click(screen.getByTitle('Accept request'));
     });
     expect(acceptAppointment).toHaveBeenCalledWith(expect.objectContaining({ id: 'requested-1' }));
 
-    fireEvent.mouseEnter(eventButton);
+    fireEvent.click(eventButton);
+    act(() => {
+      jest.advanceTimersByTime(200);
+    });
     await act(async () => {
       fireEvent.click(screen.getByTitle('Decline request'));
     });
     expect(rejectAppointment).toHaveBeenCalledWith(expect.objectContaining({ id: 'requested-1' }));
+  });
+
+  it('opens the custom context menu on right click', () => {
+    render(
+      <Slot
+        slotEvents={[event]}
+        height={120}
+        handleViewAppointment={handleViewAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        dayIndex={0}
+        length={1}
+        canEditAppointments
+      />
+    );
+
+    fireEvent.contextMenu(screen.getByRole('button', { name: /Rex/i }));
+
+    expect(screen.getByRole('menu', { name: 'Appointment context actions' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Open companion overview' })).toBeInTheDocument();
   });
 });

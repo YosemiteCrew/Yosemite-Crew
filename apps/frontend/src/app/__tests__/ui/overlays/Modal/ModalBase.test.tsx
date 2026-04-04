@@ -32,6 +32,15 @@ describe('ModalBase', () => {
     expect(screen.getByRole('dialog')).toHaveAttribute('aria-modal', 'true');
   });
 
+  it('renders hidden state styles when showModal is false', () => {
+    renderModal({ showModal: false });
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    expect(dialog).toHaveClass('container');
+    expect(screen.getByText('Modal content')).toBeInTheDocument();
+  });
+
   it('closes on outside click (mousedown outside container)', () => {
     const { setShowModal, onClose } = renderModal();
 

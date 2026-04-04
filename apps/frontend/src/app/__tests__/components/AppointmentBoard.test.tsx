@@ -9,6 +9,14 @@ import {
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { useAuthStore } from '@/app/stores/authStore';
 
+const pushMock = jest.fn();
+
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: pushMock,
+  }),
+}));
+
 jest.mock('@/app/hooks/useBoardDragScroll', () => ({
   useBoardDragScroll: () => ({
     autoScrollBoardOnDrag: jest.fn(),
@@ -129,6 +137,32 @@ describe('AppointmentBoard', () => {
     (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([]);
     (useAuthStore as unknown as jest.Mock).mockImplementation((selector: any) =>
       selector({ attributes: {} })
+    );
+  });
+
+  it('opens the companion overview page from the card header action', () => {
+    render(
+      <AppointmentBoard
+        appointments={[
+          {
+            ...baseAppointment,
+            id: 'appt-completed',
+            status: 'COMPLETED',
+            companion: { ...baseAppointment.companion, id: 'comp-1' },
+          } as any,
+        ]}
+        currentDate={new Date('2026-03-16T00:00:00.000Z')}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments
+        setActiveAppointment={setActiveAppointment}
+        setViewPopup={setViewPopup}
+      />
+    );
+
+    fireEvent.click(screen.getByTitle('Open appointment overview'));
+
+    expect(pushMock).toHaveBeenCalledWith(
+      '/companions/history?companionId=comp-1&source=appointments&appointmentId=appt-completed&backTo=%2Fappointments'
     );
   });
 
