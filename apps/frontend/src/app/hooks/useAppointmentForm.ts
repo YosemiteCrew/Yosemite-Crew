@@ -42,6 +42,86 @@ export type UseAppointmentFormOptions = {
   calendarSlotFlow?: boolean;
 };
 
+type SlotScopedMatch = {
+  specialityId: string;
+  serviceId: string;
+  serviceName: string;
+  matchingSlot: Slot;
+};
+
+const hasMatchingLead = (
+  slot: Slot,
+  normalizedPrefillLeadId: string,
+  normalizeId: (value?: string) => string
+) =>
+  !normalizedPrefillLeadId ||
+  (slot.vetIds ?? []).some((vetId) => normalizeId(vetId) === normalizedPrefillLeadId);
+
+const matchesPrefillSlot = (
+  slot: Slot,
+  minute: number,
+  normalizedPrefillLeadId: string,
+  normalizeId: (value?: string) => string
+) => {
+  const startClock = utcClockTimeToPreferredTimeZoneClock(slot.startTime);
+  if (Math.abs(startClock.minutes - minute) > 5) return false;
+  return hasMatchingLead(slot, normalizedPrefillLeadId, normalizeId);
+};
+
+const upsertServiceOptionBySpeciality = (
+  servicesBySpeciality: Record<string, Array<{ label: string; value: string }>>,
+  match: SlotScopedMatch
+) => {
+  if (!servicesBySpeciality[match.specialityId]) {
+    servicesBySpeciality[match.specialityId] = [];
+  }
+  const alreadyExists = servicesBySpeciality[match.specialityId].some(
+    (option) => option.value === match.serviceId
+  );
+  if (alreadyExists) return;
+  servicesBySpeciality[match.specialityId].push({
+    label: match.serviceName,
+    value: match.serviceId,
+  });
+};
+
+const findPreferredSlotMatch = (
+  matches: SlotScopedMatch[],
+  normalizedPrefillLeadId: string,
+  normalizeId: (value?: string) => string
+) => {
+  if (!normalizedPrefillLeadId) return matches[0];
+  return (
+    matches.find((match) =>
+      (match.matchingSlot.vetIds ?? []).some(
+        (vetId) => normalizeId(vetId) === normalizedPrefillLeadId
+      )
+    ) ?? matches[0]
+  );
+};
+
+const resolveSlotScopedMatchForCandidate = async ({
+  candidate,
+  date,
+  minute,
+  normalizedPrefillLeadId,
+  normalizeId,
+}: {
+  candidate: { specialityId: string; serviceId: string; serviceName: string };
+  date: Date;
+  minute: number;
+  normalizedPrefillLeadId: string;
+  normalizeId: (value?: string) => string;
+}): Promise<SlotScopedMatch | null> => {
+  if (!candidate.serviceId) return null;
+  const slots = await getSlotsForServiceAndDateForPrimaryOrg(candidate.serviceId, date);
+  const matchingSlot =
+    slots.find((slot) => matchesPrefillSlot(slot, minute, normalizedPrefillLeadId, normalizeId)) ??
+    null;
+  if (!matchingSlot) return null;
+  return { ...candidate, matchingSlot };
+};
+
 export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
   const { onSuccess, initialPrefill, calendarSlotFlow = false } = options;
   const terminologyText = useCompanionTerminologyText();
@@ -249,32 +329,18 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
     const resolveSlotScopedOptions = async () => {
       const resolved = await Promise.all(
         serviceCandidates.map(async (candidate) => {
-          if (!candidate.serviceId) return null;
-          const slots = await getSlotsForServiceAndDateForPrimaryOrg(
-            candidate.serviceId,
-            pendingPrefill.date
-          );
-          const matchingSlot =
-            slots.find((slot) => {
-              const startClock = utcClockTimeToPreferredTimeZoneClock(slot.startTime);
-              if (Math.abs(startClock.minutes - minute) > 5) return false;
-              if (!normalizedPrefillLeadId) return true;
-              return (slot.vetIds ?? []).some(
-                (vetId) => normalizeId(vetId) === normalizedPrefillLeadId
-              );
-            }) ?? null;
-          if (!matchingSlot) return null;
-          return { ...candidate, matchingSlot };
+          return resolveSlotScopedMatchForCandidate({
+            candidate,
+            date: pendingPrefill.date,
+            minute,
+            normalizedPrefillLeadId,
+            normalizeId,
+          });
         })
       );
       if (cancelled) return;
 
-      const matches = resolved.filter(Boolean) as Array<{
-        specialityId: string;
-        serviceId: string;
-        serviceName: string;
-        matchingSlot: Slot;
-      }>;
+      const matches = resolved.filter(Boolean) as SlotScopedMatch[];
 
       if (!matches.length) {
         setSlotScopedSpecialityIds([]);
@@ -294,28 +360,10 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
       const specialityIdSet = new Set<string>();
       matches.forEach((match) => {
         specialityIdSet.add(match.specialityId);
-        if (!servicesBySpeciality[match.specialityId]) {
-          servicesBySpeciality[match.specialityId] = [];
-        }
-        const alreadyExists = servicesBySpeciality[match.specialityId].some(
-          (option) => option.value === match.serviceId
-        );
-        if (!alreadyExists) {
-          servicesBySpeciality[match.specialityId].push({
-            label: match.serviceName,
-            value: match.serviceId,
-          });
-        }
+        upsertServiceOptionBySpeciality(servicesBySpeciality, match);
       });
 
-      const preferredMatch =
-        (normalizedPrefillLeadId
-          ? matches.find((match) =>
-              (match.matchingSlot.vetIds ?? []).some(
-                (vetId) => normalizeId(vetId) === normalizedPrefillLeadId
-              )
-            )
-          : undefined) ?? matches[0];
+      const preferredMatch = findPreferredSlotMatch(matches, normalizedPrefillLeadId, normalizeId);
       const prefillSlot = preferredMatch?.matchingSlot ?? null;
       if (prefillSlot) {
         setTimeSlots([prefillSlot]);

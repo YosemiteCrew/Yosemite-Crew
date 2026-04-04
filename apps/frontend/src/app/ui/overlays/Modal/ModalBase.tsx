@@ -38,7 +38,7 @@ const ModalBase = ({
   'aria-labelledby': ariaLabelledBy,
   'aria-describedby': ariaDescribedBy,
 }: ModalBaseProps) => {
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const containerRef = useRef<HTMLDialogElement | null>(null);
   /** Tracks the element focused before the modal opened so we can restore it. */
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
@@ -88,25 +88,26 @@ const ModalBase = ({
   }, [showModal, closeModal]);
 
   // Focus trap: keep focus inside the modal while it is open.
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key !== 'Tab' || !containerRef.current) return;
-    const focusables = Array.from(containerRef.current.querySelectorAll<HTMLElement>(FOCUSABLE));
-    if (focusables.length === 0) return;
-    const first = focusables[0];
-    const last = focusables[focusables.length - 1];
-
-    if (e.shiftKey) {
-      if (document.activeElement === first) {
+  useEffect(() => {
+    if (!showModal) return;
+    const handleTabTrap = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab' || !containerRef.current) return;
+      const focusables = Array.from(containerRef.current.querySelectorAll<HTMLElement>(FOCUSABLE));
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables.at(-1);
+      if (!last) return;
+      if (e.shiftKey && document.activeElement === first) {
         e.preventDefault();
         last.focus();
-      }
-    } else {
-      if (document.activeElement === last) {
+      } else if (!e.shiftKey && document.activeElement === last) {
         e.preventDefault();
         first.focus();
       }
-    }
-  };
+    };
+    document.addEventListener('keydown', handleTabTrap);
+    return () => document.removeEventListener('keydown', handleTabTrap);
+  }, [showModal]);
 
   if (typeof document === 'undefined') return null;
 
@@ -115,18 +116,17 @@ const ModalBase = ({
       {/* Backdrop — purely visual; click-outside is handled via mousedown listener */}
       <div className={overlayClassName} aria-hidden="true" />
 
-      <div
+      <dialog
         ref={containerRef}
-        role="dialog"
+        open
         aria-modal="true"
         aria-label={ariaLabel}
         aria-labelledby={ariaLabelledBy}
         aria-describedby={ariaDescribedBy}
         className={containerClassName}
-        onKeyDown={handleKeyDown}
       >
         {children}
-      </div>
+      </dialog>
     </>,
     document.body
   );

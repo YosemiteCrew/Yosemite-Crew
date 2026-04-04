@@ -297,7 +297,6 @@ const Companion = ({
       };
       return await createCompanion(payload, parentPayload);
     }
-    return undefined;
   };
 
   const handleSelect = (parentId: string) => {

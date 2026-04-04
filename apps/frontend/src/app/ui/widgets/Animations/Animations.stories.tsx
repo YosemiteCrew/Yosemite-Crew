@@ -1,7 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { BlurIn } from './BlurIn';
-import { TextFade } from './TextFade';
-import { WordsPullUp } from './WordsPullUp';
 
 // ─── BlurIn ──────────────────────────────────────────────────────────────────
 

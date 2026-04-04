@@ -1,8 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { fn } from 'storybook/test';
 import Primary from './Primary';
-import Secondary from './Secondary';
-import Delete from './Delete';
 
 // ─── Primary ────────────────────────────────────────────────────────────────
 

@@ -49,7 +49,7 @@ import { MdMeetingRoom, MdOutlineAutorenew, MdScience } from 'react-icons/md';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useNotify } from '@/app/hooks/useNotify';
 import { AppointmentStatus } from '@/app/features/appointments/types/appointments';
-import { formatCompanionNameWithOwnerLastName, getOwnerFirstName } from '@/app/lib/companionName';
+import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 
 type BoardStatus =
   | 'REQUESTED'

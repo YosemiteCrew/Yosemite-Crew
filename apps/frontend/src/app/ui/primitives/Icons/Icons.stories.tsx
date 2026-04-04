@@ -1,8 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { fn } from 'storybook/test';
 import Back from './Back';
-import Close from './Close';
-import Next from './Next';
 
 // ─── Back ────────────────────────────────────────────────────────────────────
 

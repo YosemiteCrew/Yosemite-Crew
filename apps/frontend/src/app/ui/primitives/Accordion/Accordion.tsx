@@ -78,7 +78,7 @@ const Accordion: React.FC<AccordionProps> = ({
           <span className="text-body-2 text-text-primary text-left">{title}</span>
         </button>
 
-        <div className="flex items-center gap-2" role="group" aria-label={`${title} actions`}>
+        <div className="flex items-center gap-2" aria-label={`${title} actions`}>
           {rightElement}
 
           {showEditIcon && !isEditing && (

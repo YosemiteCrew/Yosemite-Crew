@@ -211,7 +211,7 @@ describe('CompanionHistoryTimeline', () => {
     render(<CompanionHistoryTimeline companionId="c-1" />);
 
     await waitFor(() => {
-      expect(screen.getByText('No history entries found.')).toBeInTheDocument();
+      expect(screen.getByText('No overview entries found.')).toBeInTheDocument();
     });
   });
 
@@ -221,7 +221,7 @@ describe('CompanionHistoryTimeline', () => {
     render(<CompanionHistoryTimeline companionId="c-1" />);
 
     await waitFor(() => {
-      expect(screen.getByText('Unable to load history. Please try again.')).toBeInTheDocument();
+      expect(screen.getByText('Unable to load overview. Please try again.')).toBeInTheDocument();
     });
   });
 

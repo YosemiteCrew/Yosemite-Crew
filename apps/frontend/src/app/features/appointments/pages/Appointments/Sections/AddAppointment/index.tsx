@@ -56,6 +56,55 @@ export const EMPTY_APPOINTMENT: Appointment = {
   concern: '',
 };
 
+const getSubmitErrorTargetStep = ({
+  errors,
+  detailsStepNumber,
+  dateTimeStepNumber,
+}: {
+  errors: Record<string, string | undefined>;
+  detailsStepNumber: number;
+  dateTimeStepNumber: number;
+}): number | null => {
+  if (errors.companionId) return 1;
+  if (errors.specialityId || errors.serviceId || errors.concern) return detailsStepNumber;
+  if (errors.slot || errors.leadId) return dateTimeStepNumber;
+  return null;
+};
+
+const syncModalOpenState = ({
+  showModal,
+  resetForm,
+  setActiveStep,
+  setMaxUnlockedStep,
+  setConcernFocused,
+  setQuery,
+  setPendingAutoSelectCompanionId,
+  onPrefillConsumed,
+}: {
+  showModal: boolean;
+  resetForm: () => void;
+  setActiveStep: React.Dispatch<React.SetStateAction<number | null>>;
+  setMaxUnlockedStep: React.Dispatch<React.SetStateAction<number>>;
+  setConcernFocused: React.Dispatch<React.SetStateAction<boolean>>;
+  setQuery: React.Dispatch<React.SetStateAction<string>>;
+  setPendingAutoSelectCompanionId: React.Dispatch<React.SetStateAction<string | null>>;
+  onPrefillConsumed?: () => void;
+}) => {
+  if (!showModal) {
+    setActiveStep(1);
+    setMaxUnlockedStep(1);
+    setConcernFocused(false);
+    setQuery('');
+    setPendingAutoSelectCompanionId(null);
+    resetForm();
+    onPrefillConsumed?.();
+    return;
+  }
+  setActiveStep(1);
+  setMaxUnlockedStep(1);
+  setConcernFocused(false);
+};
+
 const AddAppointment = ({
   showModal,
   setShowModal,
@@ -153,28 +202,23 @@ const AddAppointment = ({
   }, []);
 
   useEffect(() => {
-    if (!showModal) {
-      setActiveStep(1);
-      setMaxUnlockedStep(1);
-      setConcernFocused(false);
-      setQuery('');
-      setPendingAutoSelectCompanionId(null);
-      resetForm();
-      onPrefillConsumed?.();
-      return;
-    }
-    setActiveStep(1);
-    setMaxUnlockedStep(1);
-    setConcernFocused(false);
+    syncModalOpenState({
+      showModal,
+      resetForm,
+      setActiveStep,
+      setMaxUnlockedStep,
+      setConcernFocused,
+      setQuery,
+      setPendingAutoSelectCompanionId,
+      onPrefillConsumed,
+    });
   }, [showModal, resetForm, onPrefillConsumed]);
 
   useEffect(() => {
-    if (!showModal || !companionSatisfied) return;
-    if (maxUnlockedStep < 2) {
-      setMaxUnlockedStep(2);
-      setActiveStep(2);
-      scrollToStep(step2Ref);
-    }
+    if (!(showModal && companionSatisfied && maxUnlockedStep < 2)) return;
+    setMaxUnlockedStep(2);
+    setActiveStep(2);
+    scrollToStep(step2Ref);
   }, [companionSatisfied, maxUnlockedStep, scrollToStep, showModal]);
 
   const CompanionOptions = useMemo(
@@ -234,17 +278,22 @@ const AddAppointment = ({
   const onSubmit = async () => {
     const errors = validateForm(true);
     setFormDataErrors(errors);
-    if (errors.companionId) {
+    const targetStep = getSubmitErrorTargetStep({
+      errors,
+      detailsStepNumber,
+      dateTimeStepNumber,
+    });
+    if (targetStep === 1) {
       setActiveStep(1);
       scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
-    if (errors.specialityId || errors.serviceId || errors.concern) {
+    if (targetStep === detailsStepNumber) {
       setActiveStep(detailsStepNumber);
       scrollToStep(isCalendarSlotFlow ? step3Ref : step2Ref);
       return;
     }
-    if (errors.slot || errors.leadId) {
+    if (targetStep === dateTimeStepNumber) {
       setActiveStep(dateTimeStepNumber);
       scrollToStep(isCalendarSlotFlow ? step2Ref : step3Ref);
       return;
@@ -476,7 +525,7 @@ const AddAppointment = ({
                   )}
                 </div>
               </Accordion>
-              {companionSatisfied && !isCalendarSlotFlow ? (
+              {companionSatisfied && !isCalendarSlotFlow && (
                 <div ref={step2Ref}>
                   <AppointmentDetailsSection
                     defaultOpen={activeStep === detailsStepNumber}
@@ -528,8 +577,8 @@ const AddAppointment = ({
                     onNext={goToDateTimeStep}
                   />
                 </div>
-              ) : null}
-              {canShowDateTimeStep ? (
+              )}
+              {canShowDateTimeStep && (
                 <div ref={isCalendarSlotFlow ? step2Ref : step3Ref}>
                   <Accordion
                     title="Select date & time"
@@ -565,8 +614,8 @@ const AddAppointment = ({
                     </div>
                   </Accordion>
                 </div>
-              ) : null}
-              {companionSatisfied && isCalendarSlotFlow && canShowDetailsStep ? (
+              )}
+              {companionSatisfied && isCalendarSlotFlow && canShowDetailsStep && (
                 <div ref={step3Ref}>
                   <AppointmentDetailsSection
                     defaultOpen={activeStep === detailsStepNumber}
@@ -611,8 +660,8 @@ const AddAppointment = ({
                     onNext={goToBillingFromDetailsStep}
                   />
                 </div>
-              ) : null}
-              {canShowBillingStep ? (
+              )}
+              {canShowBillingStep && (
                 <div ref={step4Ref}>
                   <BillableServicesSection
                     defaultOpen={activeStep === 4}
@@ -630,7 +679,7 @@ const AddAppointment = ({
                     }
                   />
                 </div>
-              ) : null}
+              )}
             </div>
             <div ref={submitRef} className="flex flex-col items-center gap-2 w-full pb-3">
               <BookingErrorMessage error={formDataErrors.booking} />

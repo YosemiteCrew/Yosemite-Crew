@@ -4,6 +4,12 @@ import type { Column } from './GenericTable';
 
 type User = { id: number; name: string; role: string; status: string };
 
+const getRoleByIndex = (index: number): User['role'] => {
+  if (index % 3 === 0) return 'Admin';
+  if (index % 3 === 1) return 'Vet';
+  return 'Technician';
+};
+
 const COLUMNS: Column<User>[] = [
   { label: 'Name', key: 'name' },
   { label: 'Role', key: 'role' },
@@ -27,7 +33,7 @@ const COLUMNS: Column<User>[] = [
 const DATA: User[] = Array.from({ length: 25 }, (_, i) => ({
   id: i + 1,
   name: `Team member ${i + 1}`,
-  role: i % 3 === 0 ? 'Admin' : i % 3 === 1 ? 'Vet' : 'Technician',
+  role: getRoleByIndex(i),
   status: i % 4 === 0 ? 'Inactive' : 'Active',
 }));
 

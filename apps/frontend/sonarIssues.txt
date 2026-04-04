@@ -1,0 +1,92 @@
+src/.../Sections/AddAppointment/index.tsx
+1 is overridden by number in this union type.
+
+Intentionality
+Maintainability
+
+
+3
+Low
+redundant
+type-dependent
+Open
+Not assigned
+L67
+5min effort
+1 minute ago
+Code Smell
+Minor
+Refactor this function to reduce its Cognitive Complexity from 16 to the 15 allowed.
+
+Adaptability
+Maintainability
+
+
+4
+High
+brain-overload
+Open
+Harshit Wandhare
+Harshit Wandhare
+L81
+6min effort
+17 minutes ago
+Code Smell
+Critical
+src/.../pages/Appointments/Sections/ChangeStatus.tsx
+The empty object is useless.
+
+Intentionality
+Maintainability
+
+
+3
+Low
+spread-operator
+unnecessary
+Open
+Not assigned
+5min effort
+12 days ago
+Code Smell
+Minor
+src/app/hooks/useAppointmentForm.ts
+Refactor this code to not nest functions more than 4 levels deep.
+
+Adaptability
+Maintainability
+
+
+4
+High
+brain-overload
+Open
+Not assigned
+L316
+20min effort
+1 minute ago
+Code Smell
+Critical
+src/app/ui/overlays/Modal/ModalBase.tsx
+Non-interactive elements should not be assigned mouse or keyboard event listeners.
+
+Consistency
+Reliability
+
+
+3
+Low
+Maintainability
+
+
+2
+Medium
+accessibility
+react
+Open
+Not assigned
+L114
+5min effort
+1 minute ago
+Code Smell
+Major

@@ -180,6 +180,7 @@ pnpm --filter mobileAppYC run test -- --testPathPattern="<YourFile>"
 - Keep PRs focused and reversible.
 - Add or update tests for behavioral changes.
 - Update docs when changing setup, architecture, scripts, or contributor workflows.
+- For frontend Sonar compliance details, treat `apps/frontend/AGENTS.md` and `.claude/skills/frontend-sonar/SKILL.md` as the source of truth (including accessibility semantics, complexity caps, modern JS replacements, and regex/`replaceAll` constraints).
 
 ## UI Copy Standards (All Apps)
 

@@ -125,13 +125,13 @@ const ChangeStatus = ({
           activeAppointment.lead?.name ??
           'Assigned vet';
         const nextLead = createNextLead(activeAppointment.lead, selectedLeadId, selectedLeadName);
-        const nextAppointment =
-          currentStatus === 'REQUESTED' && newStatus === 'UPCOMING'
-            ? {
-                ...activeAppointment,
-                lead: nextLead,
-              }
-            : activeAppointment;
+        const shouldSetLead = currentStatus === 'REQUESTED' && newStatus === 'UPCOMING';
+        if (!shouldSetLead) {
+          await changeAppointmentStatus(activeAppointment, newStatus);
+          return;
+        }
+        const nextAppointment = structuredClone(activeAppointment);
+        nextAppointment.lead = nextLead;
         await changeAppointmentStatus(nextAppointment, newStatus);
       }}
     />

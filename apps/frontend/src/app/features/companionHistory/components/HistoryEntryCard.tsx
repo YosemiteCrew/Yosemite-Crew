@@ -167,7 +167,7 @@ const formatStatusLabel = (status?: string): string => {
 };
 
 const normalizeText = (value: string): string =>
-  value.toLowerCase().replace(/[,]/g, '').replace(/\s+/g, ' ').trim();
+  value.toLowerCase().replaceAll(',', '').replaceAll(/\s+/g, ' ').trim();
 
 const getDedupedSubtitle = (entry: HistoryEntry): string => {
   const subtitle = String(entry.subtitle ?? '').trim();
@@ -178,9 +178,9 @@ const getDedupedSubtitle = (entry: HistoryEntry): string => {
   const normalizedOccurredDate = normalizeText(occurredDateLabel);
   if (normalizedSubtitle === normalizedOccurredDate) return '';
 
-  const escapedOccurredDate = occurredDateLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const datePrefixPattern = new RegExp(`^${escapedOccurredDate}\\s*[•|-]\\s*`, 'i');
-  const withoutDatePrefix = subtitle.replace(datePrefixPattern, '').trim();
+  const escapedOccurredDate = occurredDateLabel.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+  const datePrefixPattern = new RegExp(String.raw`^${escapedOccurredDate}\s*[•|-]\s*`, 'gi');
+  const withoutDatePrefix = subtitle.replaceAll(datePrefixPattern, '').trim();
 
   if (withoutDatePrefix && normalizeText(withoutDatePrefix) !== normalizedOccurredDate) {
     return withoutDatePrefix;

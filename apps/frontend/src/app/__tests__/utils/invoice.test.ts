@@ -92,12 +92,12 @@ describe('invoice utilities', () => {
   describe('getCompanionNameFromAppointments', () => {
     it('returns companion name when found', () => {
       const result = getCompanionNameFromAppointments(mockAppointments, 'appt-1');
-      expect(result).toBe('Max');
+      expect(result).toBe('Max · Doe');
     });
 
     it('returns companion name for different appointment', () => {
       const result = getCompanionNameFromAppointments(mockAppointments, 'appt-2');
-      expect(result).toBe('Bella');
+      expect(result).toBe('Bella · Smith');
     });
 
     it('returns dash when appointment not found', () => {
@@ -119,12 +119,12 @@ describe('invoice utilities', () => {
   describe('getParentNameFromAppointments', () => {
     it('returns parent name when found', () => {
       const result = getParentNameFromAppointments(mockAppointments, 'appt-1');
-      expect(result).toBe('John Doe');
+      expect(result).toBe('John');
     });
 
     it('returns parent name for different appointment', () => {
       const result = getParentNameFromAppointments(mockAppointments, 'appt-2');
-      expect(result).toBe('Jane Smith');
+      expect(result).toBe('Jane');
     });
 
     it('returns dash when appointment not found', () => {

@@ -35,6 +35,13 @@ function getDaysInMonth(year: number, month: number): Date[] {
   return Array.from({ length: count }, (_, i) => new Date(year, month, i + 1));
 }
 
+function getDayButtonClass(isCurrent: boolean, isPast: boolean, isTodayDay: boolean): string {
+  if (isCurrent) return 'text-[#247AED] bg-[#E9F2FD] border-[#247AED]!';
+  if (isPast) return 'border-[#747473]! bg-white opacity-40 cursor-not-allowed';
+  if (isTodayDay) return 'border-[#247AED]! bg-[#F5FAFF]';
+  return 'border-[#747473]! bg-white';
+}
+
 const Slotpicker = ({
   selectedDate,
   setSelectedDate,
@@ -197,13 +204,7 @@ const Slotpicker = ({
                 onClick={() => handleClickDate(day)}
                 className={[
                   'relative flex flex-col gap-1 items-center justify-center px-3 py-2 border rounded-xl! shrink-0 min-w-14',
-                  isCurrent
-                    ? 'text-[#247AED] bg-[#E9F2FD] border-[#247AED]!'
-                    : isPast
-                      ? 'border-[#747473]! bg-white opacity-40 cursor-not-allowed'
-                      : isTodayDay
-                        ? 'border-[#247AED]! bg-[#F5FAFF]'
-                        : 'border-[#747473]! bg-white',
+                  getDayButtonClass(isCurrent, isPast, isTodayDay),
                 ].join(' ')}
               >
                 <div className={`text-sm font-satoshi ${labelClass}`}>

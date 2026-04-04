@@ -69,6 +69,13 @@ Full rule set in `.claude/skills/frontend-sonar/SKILL.md`. Summary of the most c
 - Raw text node adjacent to a sibling JSX element → wrap the text in a JSX expression: `{"Label"}` not bare `Label` (fixes "ambiguous spacing before next element span").
 - Arrays only used for `.includes()` → convert to `Set` and use `.has()`.
 - Use `globalThis.window` not bare `window`.
+- Prefer `.at(-1)` over `arr[arr.length - 1]`.
+- Avoid `else { if (...) { ... } }` patterns; collapse to `else if`.
+- If `replaceAll` uses a RegExp, it must be global (`/g`), and prefer direct characters over single-character classes (`/[,]/` -> `,`).
+- Use `String.raw` for regex-heavy template literals to avoid excess escaping.
+- Remove empty object spreads and other no-op spreads.
+- Prefer native semantic elements over ARIA-role shims (`<dialog>` over `role="dialog"`, no `role="group"` wrappers when not needed).
+- Keep callback/function nesting depth at 4 or less by extracting named helpers for inner logic.
 
 After any change: `npx tsc --noemit` + `pnpm --filter frontend run lint`.
 
