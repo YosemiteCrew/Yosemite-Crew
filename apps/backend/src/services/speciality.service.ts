@@ -230,6 +230,26 @@ const sanitizeServices = (services: unknown): string[] | undefined => {
   return cleaned.length ? cleaned : undefined;
 };
 
+const sanitizeTeamMembers = (teamMemberIds: unknown): string[] | undefined => {
+  if (!Array.isArray(teamMemberIds)) {
+    return undefined;
+  }
+
+  const cleaned = teamMemberIds
+    .map((memberUserId, index) => {
+      const value = optionalSafeString(
+        memberUserId,
+        `Team member identifier at index ${index}`,
+      );
+      return value ?? undefined;
+    })
+    .filter(
+      (memberUserId): memberUserId is string => memberUserId !== undefined,
+    );
+
+  return cleaned.length ? Array.from(new Set(cleaned)) : undefined;
+};
+
 const sanitizeSpecialityAttributes = (
   dto: SpecialityDTOAttributes,
 ): SpecialityMongo => {
@@ -251,6 +271,7 @@ const sanitizeSpecialityAttributes = (
       dto.headProfilePicUrl,
       "Head profile picture URL",
     ),
+    memberUserIds: sanitizeTeamMembers(dto.teamMemberIds),
     services: sanitizeServices(dto.services),
     createdAt: dto.createdAt instanceof Date ? dto.createdAt : undefined,
     updatedAt: dto.updatedAt instanceof Date ? dto.updatedAt : undefined,
@@ -264,6 +285,13 @@ const buildDomainSpeciality = (document: SpecialityDocument) => {
     _id: Types.ObjectId;
   };
 
+  const teamMemberIds = Array.from(
+    new Set([
+      ...(rest.memberUserIds ?? []),
+      ...(rest.headUserId ? [rest.headUserId] : []),
+    ]),
+  );
+
   return {
     _id: rest.fhirId ?? _id.toString(),
     organisationId: rest.organisationId,
@@ -274,7 +302,7 @@ const buildDomainSpeciality = (document: SpecialityDocument) => {
     headName: rest.headName,
     headProfilePicUrl: rest.headProfilePicUrl,
     services: rest.services,
-    teamMemberIds: rest.memberUserIds,
+    teamMemberIds,
     createdAt: rest.createdAt,
     updatedAt: rest.updatedAt,
   };
@@ -301,8 +329,15 @@ const buildFHIRResponseFromPrisma = (speciality: {
   memberUserIds: string[];
   createdAt: Date;
   updatedAt: Date;
-}): SpecialityResponseDTO =>
-  toSpecialityResponseDTO({
+}): SpecialityResponseDTO => {
+  const teamMemberIds = Array.from(
+    new Set([
+      ...(speciality.memberUserIds ?? []),
+      ...(speciality.headUserId ? [speciality.headUserId] : []),
+    ]),
+  );
+
+  return toSpecialityResponseDTO({
     _id: speciality.fhirId ?? speciality.id,
     organisationId: speciality.organisationId,
     departmentMasterId: speciality.departmentMasterId ?? undefined,
@@ -311,10 +346,11 @@ const buildFHIRResponseFromPrisma = (speciality: {
     headName: speciality.headName ?? undefined,
     headProfilePicUrl: speciality.headProfilePicUrl ?? undefined,
     services: speciality.services ?? [],
-    teamMemberIds: speciality.memberUserIds ?? [],
+    teamMemberIds,
     createdAt: speciality.createdAt,
     updatedAt: speciality.updatedAt,
   });
+};
 
 const createPersistableFromFHIR = (payload: SpecialityFHIRPayload) => {
   if (payload?.resourceType !== "Organization") {

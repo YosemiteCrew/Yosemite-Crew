@@ -78,6 +78,17 @@ describe("LabResultService", () => {
     );
   });
 
+  it("returns empty list when companionId resolves to no orders in postgres", async () => {
+    (prisma.labOrder.findMany as jest.Mock).mockResolvedValue([]);
+
+    const results = await LabResultService.list({
+      companionId: "507f191e810c19729de860ea",
+    });
+
+    expect(results).toEqual([]);
+    expect(prisma.labResult.findMany).not.toHaveBeenCalled();
+  });
+
   it("rejects invalid companionId in postgres", async () => {
     await expect(LabResultService.list({ companionId: "bad" })).rejects.toThrow(
       "Invalid companionId",
@@ -108,6 +119,9 @@ describe("LabResultService", () => {
       orderId: "order",
     });
     expect(mockQuery.limit).toHaveBeenCalledWith(5);
+    expect(mockQuery.setOptions).toHaveBeenCalledWith({
+      sanitizeFilter: true,
+    });
   });
 
   it("uses companionId to derive order ids in mongo", async () => {
@@ -135,6 +149,24 @@ describe("LabResultService", () => {
     expect(LabResultModel.find).toHaveBeenCalledWith({
       orderId: { $in: ["o1"] },
     });
+    expect(mockQuery.setOptions).not.toHaveBeenCalled();
+  });
+
+  it("returns empty list when companionId resolves to no orders in mongo", async () => {
+    readSwitch.mockReturnValue(false);
+
+    const mockOrders = {
+      setOptions: jest.fn().mockReturnThis(),
+      lean: jest.fn().mockResolvedValue([]),
+    };
+    (LabOrderModel.find as jest.Mock).mockReturnValue(mockOrders);
+
+    const results = await LabResultService.list({
+      companionId: "507f191e810c19729de860ea",
+    });
+
+    expect(results).toEqual([]);
+    expect(LabResultModel.find).not.toHaveBeenCalled();
   });
 
   it("rejects invalid companionId in mongo", async () => {

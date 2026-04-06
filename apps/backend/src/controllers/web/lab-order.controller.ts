@@ -7,6 +7,18 @@ import {
 } from "src/services/lab-order.service";
 import type { LabOrderStatus } from "src/models/lab-order";
 
+const getSingleQueryValue = (
+  value: Request["query"][string],
+): string | undefined => {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.find((entry): entry is string => typeof entry === "string");
+  }
+  return undefined;
+};
+
 const requireOrgAndProvider = (req: Request, res: Response) => {
   const orgReq = req as OrgRequest;
   const organisationId = orgReq.organisationId ?? req.params.organisationId;
@@ -57,15 +69,10 @@ export const LabOrderController = {
       if (!base) return;
       const { organisationId, provider } = base;
 
-      const body = req.body as
-        | {
-            appointmentId?: string;
-            companionId?: string;
-            status?: string;
-            limit?: number;
-          }
-        | undefined;
-      const { appointmentId, companionId, status, limit } = body ?? {};
+      const appointmentId = getSingleQueryValue(req.query.appointmentId);
+      const companionId = getSingleQueryValue(req.query.companionId);
+      const status = getSingleQueryValue(req.query.status);
+      const limit = getSingleQueryValue(req.query.limit);
 
       const orders = await LabOrderService.listOrders({
         organisationId,
@@ -73,12 +80,7 @@ export const LabOrderController = {
         companionId,
         provider,
         status: status as LabOrderStatus | undefined,
-        limit:
-          typeof limit === "number"
-            ? limit
-            : typeof limit === "string"
-              ? Number(limit)
-              : undefined,
+        limit: typeof limit === "string" ? Number(limit) : undefined,
       });
 
       return res.status(200).json({ orders });
