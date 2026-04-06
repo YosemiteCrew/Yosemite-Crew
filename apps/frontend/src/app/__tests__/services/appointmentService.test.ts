@@ -445,6 +445,27 @@ describe('Appointment Service', () => {
       ]);
     });
 
+    it('dedupes concurrent bookable slot requests for the same org, service, and date', async () => {
+      const availability: AvailabilityResponse = {
+        success: true,
+        data: {
+          date: '2026-01-06',
+          dayOfWeek: 'TUESDAY' as any,
+          windows: [{ startTime: '09:00', endTime: '09:30', vetIds: ['vet-1'] } as any],
+        } as any,
+      };
+      mockedPostData.mockResolvedValue({ data: availability });
+
+      const date = new Date('2026-01-06T00:00:00.000Z');
+      const [first, second] = await Promise.all([
+        getSlotsForServiceAndDateForPrimaryOrg('svc-1', date),
+        getSlotsForServiceAndDateForPrimaryOrg('svc-1', date),
+      ]);
+
+      expect(mockedPostData).toHaveBeenCalledTimes(1);
+      expect(first).toEqual(second);
+    });
+
     it('toSlotsArray maps windows to Slot[] and handles missing windows', () => {
       const withWindows: AvailabilityResponse = {
         success: true,

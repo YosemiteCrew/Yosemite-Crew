@@ -18,6 +18,9 @@ export const MEDIA_SOURCES = {
     radAnalyzerLogoFileName: 'radanalyzer.jpg',
     radAnalyzerLogoS3Key: 'integrations/radanalyzer.jpg',
     radAnalyzerLogoUrl: ycCdn('integrations/radanalyzer.jpg'),
+    vetnioLogoFileName: 'Vetnio.png',
+    vetnioLogoS3Key: 'integrations/Vetnio.png',
+    vetnioLogoUrl: ycCdn('integrations/Vetnio.png'),
   },
   logo: ycCdn('Logo.png'),
   avatars: {

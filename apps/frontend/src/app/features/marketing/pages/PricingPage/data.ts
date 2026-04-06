@@ -111,6 +111,7 @@ export const TableData = [
       yesYes('IDEXX integration'),
       yesYes('MSD Veterinary Manual integration'),
       row('RadAnalyzer integration', 'Coming soon', 'Coming soon'),
+      row('Vetnio integration', 'Coming soon', 'Coming soon'),
     ],
   },
   {

@@ -151,7 +151,11 @@ const Footer = () => {
           <div className="Footer_Bottom">
             <div className="Bootom_Foot">
               <div className="text-body-4-emphasis text-text-secondary text-center footer-copy-primary">
-                Copyright &copy; 2026 DuneXploration
+                &copy; 2026 DuneXploration UG (haftungsbeschränkt).
+              </div>
+              <div className="text-body-4 text-text-secondary text-center footer-copy-secondary">
+                Yosemite Crew™ is a trademark of DuneXploration UG (haftungsbeschränkt) in the EU,
+                Australia, Great Britain, India, New Zealand, and the USA.
               </div>
               <div className="text-body-4 text-text-secondary text-center footer-copy-secondary">
                 DuneXploration UG (haftungsbeschränkt), Am Finther Weg 7, 55127 Mainz

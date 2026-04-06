@@ -24,6 +24,7 @@ import {
 } from '@/app/lib/appointments';
 
 type AppointmentPaymentStatus = 'PAID' | 'UNPAID' | 'PAID_CASH' | 'PAYMENT_AT_CLINIC';
+const inFlightBookableSlotsRequests = new Map<string, Promise<Slot[]>>();
 
 const normalizeLeadId = (value?: string | null) => {
   const trimmed = String(value ?? '').trim();
@@ -168,22 +169,34 @@ export const getSlotsForServiceAndDateForPrimaryOrg = async (
     console.warn('No primary organization selected. Cannot load companions.');
     return [];
   }
-  try {
-    if (!serviceId || !date) {
-      return [];
-    }
-    const payload = {
-      serviceId: serviceId,
-      organisationId: primaryOrgId,
-      date: formatDateLocal(date),
-    };
-    const res = await postData<AvailabilityResponse>('/fhir/v1/service/bookable-slots', payload);
-    const data = res.data;
-    return toSlotsArray(data);
-  } catch (err) {
-    console.error('Failed to create service:', err);
-    throw err;
+  if (!serviceId || !date) {
+    return [];
   }
+  const dateLabel = formatDateLocal(date);
+  const requestKey = `${primaryOrgId}::${serviceId}::${dateLabel}`;
+  const existingRequest = inFlightBookableSlotsRequests.get(requestKey);
+  if (existingRequest) {
+    return existingRequest;
+  }
+  const payload = {
+    serviceId: serviceId,
+    organisationId: primaryOrgId,
+    date: dateLabel,
+  };
+  const requestPromise = postData<AvailabilityResponse>('/fhir/v1/service/bookable-slots', payload)
+    .then((res) => {
+      const data = res.data;
+      return toSlotsArray(data);
+    })
+    .catch((err) => {
+      console.error('Failed to create service:', err);
+      throw err;
+    })
+    .finally(() => {
+      inFlightBookableSlotsRequests.delete(requestKey);
+    });
+  inFlightBookableSlotsRequests.set(requestKey, requestPromise);
+  return requestPromise;
 };
 
 export const toSlotsArray = (res: AvailabilityResponse): Slot[] =>

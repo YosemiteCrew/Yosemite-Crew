@@ -881,6 +881,50 @@ const RadIntegrationCard = ({
   );
 };
 
+const VetnioIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (activeFilter === 'connected') return null;
+
+  return (
+    <div className="rounded-2xl border border-card-border p-4 w-full md:flex-1 md:min-w-[320px] xl:max-w-[430px] flex items-stretch gap-4 min-h-[245px]">
+      <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
+        <div className="h-[72px] w-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center overflow-hidden">
+          <Image
+            src={MEDIA_SOURCES.futureAssets.vetnioLogoUrl}
+            alt="Vetnio"
+            width={56}
+            height={56}
+            className="object-contain max-h-[56px] max-w-[56px] h-auto w-auto"
+          />
+        </div>
+        <div className="h-10 w-10" />
+      </div>
+      <div className="flex-1 min-w-0 flex flex-col justify-between">
+        <div className="flex flex-col gap-3 pb-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="text-heading-3 text-text-primary pt-1">Vetnio</div>
+            <span className="text-label-xsmall px-2 py-1 rounded-2xl! bg-amber-50 text-amber-700">
+              Coming soon
+            </span>
+          </div>
+          <div className="text-body-4 text-text-secondary line-clamp-4">
+            AI-powered documentation for veterinary practices — instantly generate clinical notes,
+            discharge summaries, and client communications from consultations.
+          </div>
+        </div>
+        <div className="flex flex-col gap-2">
+          <div className="flex w-full items-center justify-end">
+            <Primary href="#" text="Coming soon" isDisabled className="w-full max-w-[160px] px-4" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const IntegrationCards = ({
   s,
   idexxCardButtonLabel,
@@ -897,6 +941,7 @@ const IntegrationCards = ({
       <IdexxIntegrationCard s={s} buttonLabel={idexxCardButtonLabel} />
       <MerckIntegrationCard s={s} buttonLabel={merckCardButtonLabel} />
       <RadIntegrationCard activeFilter={s.activeFilter} />
+      <VetnioIntegrationCard activeFilter={s.activeFilter} />
     </div>
   );
 };
