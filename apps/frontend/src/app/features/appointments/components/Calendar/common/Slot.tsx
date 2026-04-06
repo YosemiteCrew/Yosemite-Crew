@@ -655,8 +655,6 @@ const Slot: React.FC<SlotProps> = ({
             menuStyle={contextMenuStyle}
             handleViewAppointment={handleViewAppointment}
             handleRescheduleAppointment={handleRescheduleAppointment}
-            handleChangeStatusAppointment={handleChangeStatusAppointment}
-            handleChangeRoomAppointment={handleChangeRoomAppointment}
             onClose={() => setContextMenu(null)}
           />,
           document.body

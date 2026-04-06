@@ -38,7 +38,7 @@ const ModalBase = ({
   'aria-labelledby': ariaLabelledBy,
   'aria-describedby': ariaDescribedBy,
 }: ModalBaseProps) => {
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const containerRef = useRef<HTMLDialogElement | null>(null);
   /** Tracks the element focused before the modal opened so we can restore it. */
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
@@ -116,9 +116,9 @@ const ModalBase = ({
       {/* Backdrop — purely visual; click-outside is handled via mousedown listener */}
       <div className={overlayClassName} aria-hidden="true" />
 
-      <div
+      <dialog
+        open
         ref={containerRef}
-        role="dialog"
         aria-modal="true"
         aria-label={ariaLabel}
         aria-labelledby={ariaLabelledBy}
@@ -126,7 +126,7 @@ const ModalBase = ({
         className={containerClassName}
       >
         {children}
-      </div>
+      </dialog>
     </>,
     document.body
   );

@@ -27,8 +27,6 @@ type AppointmentContextMenuProps = {
   menuStyle: React.CSSProperties;
   handleViewAppointment: (appt: Appointment, intent?: AppointmentViewIntent) => void;
   handleRescheduleAppointment: (appt: Appointment) => void;
-  handleChangeStatusAppointment?: (appt: Appointment) => void;
-  handleChangeRoomAppointment?: (appt: Appointment) => void;
   onClose: () => void;
 };
 
@@ -66,6 +64,14 @@ const resolveMenuError = (error: unknown, fallback: string) => {
     (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
     (error as Error)?.message;
   return String(message || fallback);
+};
+
+const getRoomSavingKey = (roomKey: string) => `room-${roomKey === 'clear-room' ? 'none' : roomKey}`;
+
+const getRoomStatusLabel = (selected: boolean, saving: boolean) => {
+  if (selected) return 'Current';
+  if (saving) return 'Saving';
+  return null;
 };
 
 const AppointmentContextMenu: React.FC<AppointmentContextMenuProps> = ({
@@ -125,7 +131,7 @@ const AppointmentContextMenu: React.FC<AppointmentContextMenuProps> = ({
     }
   };
 
-  const handleRoomChange = async (room?: OrganisationRoom) => {
+  const handleRoomChange = async (room: OrganisationRoom | null) => {
     try {
       const roomId = room?.id || 'none';
       setSavingKey(`room-${roomId}`);
@@ -220,7 +226,7 @@ const AppointmentContextMenu: React.FC<AppointmentContextMenuProps> = ({
       key: 'clear-room',
       label: 'Clear room',
       selected: false,
-      onSelect: () => handleRoomChange(undefined),
+      onSelect: () => handleRoomChange(null),
     });
   }
 
@@ -412,30 +418,33 @@ const AppointmentContextMenu: React.FC<AppointmentContextMenuProps> = ({
         >
           <div className="flex max-h-[260px] flex-col gap-0.5 overflow-y-auto">
             {roomOptions.length > 0 ? (
-              roomOptions.map((room, index) => (
-                <React.Fragment key={room.key}>
-                  {index > 0 ? (
-                    <div className="mx-1 border-t border-white/30" aria-hidden="true" />
-                  ) : null}
-                  <button
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={room.selected}
-                    className={getMenuItemClassName(false, room.selected)}
-                    onClick={() => {
-                      void room.onSelect();
-                    }}
-                    disabled={savingKey === `room-${room.key === 'clear-room' ? 'none' : room.key}`}
-                  >
-                    <span className="truncate">{room.label}</span>
-                    {room.selected ? (
-                      <span className="shrink-0 text-[8px] opacity-60">Current</span>
-                    ) : savingKey === `room-${room.key === 'clear-room' ? 'none' : room.key}` ? (
-                      <span className="shrink-0 text-[8px] opacity-60">Saving</span>
+              roomOptions.map((room, index) => {
+                const isSaving = savingKey === getRoomSavingKey(room.key);
+                const roomStatusLabel = getRoomStatusLabel(room.selected, isSaving);
+
+                return (
+                  <React.Fragment key={room.key}>
+                    {index > 0 ? (
+                      <div className="mx-1 border-t border-white/30" aria-hidden="true" />
                     ) : null}
-                  </button>
-                </React.Fragment>
-              ))
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={room.selected}
+                      className={getMenuItemClassName(false, room.selected)}
+                      onClick={() => {
+                        void room.onSelect();
+                      }}
+                      disabled={isSaving}
+                    >
+                      <span className="truncate">{room.label}</span>
+                      {roomStatusLabel ? (
+                        <span className="shrink-0 text-[8px] opacity-60">{roomStatusLabel}</span>
+                      ) : null}
+                    </button>
+                  </React.Fragment>
+                );
+              })
             ) : (
               <div className="px-1.5 py-1 text-[9px] leading-3.5 text-text-secondary">
                 No rooms available

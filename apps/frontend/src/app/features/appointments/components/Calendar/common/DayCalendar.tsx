@@ -741,8 +741,6 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
             menuStyle={contextMenuStyle}
             handleViewAppointment={handleViewAppointment}
             handleRescheduleAppointment={handleRescheduleAppointment}
-            handleChangeStatusAppointment={handleChangeStatusAppointment}
-            handleChangeRoomAppointment={handleChangeRoomAppointment}
             onClose={() => setContextMenu(null)}
           />,
           document.body
