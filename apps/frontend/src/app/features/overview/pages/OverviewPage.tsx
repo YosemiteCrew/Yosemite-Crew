@@ -10,7 +10,15 @@ import { useAuthStore } from '@/app/stores/authStore';
 import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
 
 const OverviewPage = () => {
-  const { trafficChart, starsChart, totalStars, totalForks, isLoading } = useOverviewStats();
+  const {
+    trafficChart,
+    starsChart,
+    totalStars,
+    totalForks,
+    totalContributors,
+    totalDiscordMembers,
+    isLoading,
+  } = useOverviewStats();
   const { user, role } = useAuthStore();
 
   const getCtaHref = () => {
@@ -42,27 +50,27 @@ const OverviewPage = () => {
 
             <div className="OverviewStatsRow">
               <div className="StatItem">
-                <span className="StatNumber">
-                  {isLoading ? '-' : formatStat(totalStars)}
-                  <span className="StatPlus">+</span>
-                </span>
-                <span className="StatLabel">GitHub Stars</span>
+                <span className="StatNumber">{isLoading ? '-' : formatStat(totalForks)}</span>
+                <span className="StatLabel">Self Hosters</span>
               </div>
 
               <div className="StatItem">
                 <span className="StatNumber">
-                  {isLoading ? '-' : formatStat(totalForks)}
-                  <span className="StatPlus">+</span>
-                </span>
-                <span className="StatLabel">GitHub Forks</span>
-              </div>
-
-              <div className="StatItem">
-                <span className="StatNumber">
-                  {isLoading ? '-' : '15'}
-                  <span className="StatPlus">+</span>
+                  {isLoading ? '-' : formatStat(totalContributors)}
                 </span>
                 <span className="StatLabel">Contributors</span>
+              </div>
+
+              <div className="StatItem">
+                <span className="StatNumber">
+                  {isLoading ? '-' : formatStat(totalDiscordMembers)}
+                </span>
+                <span className="StatLabel">Discord Members</span>
+              </div>
+
+              <div className="StatItem">
+                <span className="StatNumber">{isLoading ? '-' : formatStat(totalStars)}</span>
+                <span className="StatLabel">Repo Stars</span>
               </div>
             </div>
 

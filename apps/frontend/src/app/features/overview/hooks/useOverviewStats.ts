@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 
 export type TrafficDataPoint = {
+  dateKey: string;
   month: string;
   'Self Hosters (Unique)': number;
   'Self Hosters (Cumulative)': number;
@@ -10,12 +11,17 @@ export type TrafficDataPoint = {
 };
 
 export type StarsDataPoint = {
+  dateKey: string;
   month: string;
   'Github Stars': number;
 };
 
 const SUMMARY_URL =
   'https://raw.githubusercontent.com/YosemiteCrew/Yosemite-Crew/github-repo-stats/YosemiteCrew/Yosemite-Crew/latest-report/summary.json';
+const GITHUB_REPO_URL = 'https://api.github.com/repos/YosemiteCrew/Yosemite-Crew';
+const GITHUB_CONTRIBUTORS_URL =
+  'https://api.github.com/repos/YosemiteCrew/Yosemite-Crew/contributors?per_page=100&anon=true';
+const DISCORD_MEMBERS_URL = 'https://img.shields.io/discord/1325181058777616395.json';
 
 const extractChartData = (json: any, chartKey: string) => {
   if (!json?.charts?.[chartKey]?.datasets) return [];
@@ -42,16 +48,31 @@ export const useOverviewStats = () => {
   const [starsChart, setStarsChart] = useState<StarsDataPoint[]>([]);
   const [totalStars, setTotalStars] = useState<number>(0);
   const [totalForks, setTotalForks] = useState<number>(0);
+  const [totalContributors, setTotalContributors] = useState<number>(0);
+  const [totalDiscordMembers, setTotalDiscordMembers] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchRepoStats = async () => {
       setIsLoading(true);
       try {
-        const res = await fetch(`${SUMMARY_URL}?t=${Date.now()}`, { cache: 'no-store' });
-        if (!res.ok) throw new Error('Failed to load repo stats');
+        const [summaryRes, repoRes, contributorsRes, discordRes] = await Promise.all([
+          fetch(`${SUMMARY_URL}?t=${Date.now()}`, { cache: 'no-store' }),
+          fetch(GITHUB_REPO_URL, {
+            headers: { Accept: 'application/vnd.github+json' },
+          }),
+          fetch(GITHUB_CONTRIBUTORS_URL, {
+            headers: { Accept: 'application/vnd.github+json' },
+          }),
+          fetch(DISCORD_MEMBERS_URL, { cache: 'no-store' }),
+        ]);
 
-        const json = await res.json();
+        if (!summaryRes.ok) throw new Error('Failed to load repo stats');
+
+        const json = await summaryRes.json();
+        const repoJson = repoRes.ok ? await repoRes.json() : null;
+        const contributorsJson = contributorsRes.ok ? await contributorsRes.json() : [];
+        const discordJson = discordRes.ok ? await discordRes.json() : null;
 
         const clonesData = extractChartData(json, '#clones_total');
         const clonesUniqueData = extractChartData(json, '#clones_unique');
@@ -82,45 +103,73 @@ export const useOverviewStats = () => {
         if (sortedStars.length > 0) {
           setTotalStars(sortedStars[sortedStars.length - 1].stars_cumulative || 0);
         }
+        if (repoJson && Number.isFinite(Number(repoJson.stargazers_count))) {
+          setTotalStars(Number(repoJson.stargazers_count));
+        }
+        if (Array.isArray(contributorsJson)) {
+          setTotalContributors(contributorsJson.length);
+        }
+        const discordMembers = Number(discordJson?.value?.replace(/[^\d]/g, ''));
+        if (Number.isFinite(discordMembers)) {
+          setTotalDiscordMembers(discordMembers);
+        }
 
         // ==========================================
-        // 2. CALCULATE TRAFFIC (LAST 30 DAYS DAILY)
+        // 2. CALCULATE TRAFFIC (FULL DAILY HISTORY)
         // ==========================================
         const generatedTraffic: TrafficDataPoint[] = [];
+        const trafficDates = [...clonesData, ...clonesUniqueData, ...forksData].map((d) =>
+          new Date(d.time).getTime()
+        );
 
-        const dayMinus30 = new Date(maxDate);
-        dayMinus30.setUTCDate(maxDate.getUTCDate() - 30);
-        let lastForks = getCumulative(forksData, dayMinus30.getTime(), 'forks_cumulative');
+        if (trafficDates.length > 0) {
+          const firstTrafficDate = new Date(Math.min(...trafficDates));
+          firstTrafficDate.setUTCHours(0, 0, 0, 0);
 
-        for (let i = 29; i >= 0; i--) {
-          const targetDate = new Date(maxDate);
-          targetDate.setUTCDate(maxDate.getUTCDate() - i);
+          const dayBeforeFirstTrafficDate = new Date(firstTrafficDate);
+          dayBeforeFirstTrafficDate.setUTCDate(firstTrafficDate.getUTCDate() - 1);
+          let lastForks = getCumulative(
+            forksData,
+            dayBeforeFirstTrafficDate.getTime(),
+            'forks_cumulative'
+          );
 
-          const dateString = targetDate.toISOString().split('T')[0];
-          const monthLabel = targetDate.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            timeZone: 'UTC',
-          });
+          for (
+            let targetDate = new Date(firstTrafficDate);
+            targetDate <= maxDate;
+            targetDate.setUTCDate(targetDate.getUTCDate() + 1)
+          ) {
+            const chartDate = new Date(targetDate);
 
-          const cloneEntry = clonesData.find((d: any) => d.time.startsWith(dateString));
-          const cloneUniqueEntry = clonesUniqueData.find((d: any) => d.time.startsWith(dateString));
+            const dateString = chartDate.toISOString().split('T')[0];
+            const monthLabel = chartDate.toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              timeZone: 'UTC',
+            });
 
-          const clonesTotal = cloneEntry ? cloneEntry.clones_total : 0;
-          const clonesUnique = cloneUniqueEntry ? cloneUniqueEntry.clones_unique : 0;
+            const cloneEntry = clonesData.find((d: any) => d.time.startsWith(dateString));
+            const cloneUniqueEntry = clonesUniqueData.find((d: any) =>
+              d.time.startsWith(dateString)
+            );
 
-          const targetTimeMs = targetDate.getTime();
-          const forksCum = getCumulative(forksData, targetTimeMs, 'forks_cumulative');
-          const forksUnique = Math.max(0, forksCum - lastForks);
-          lastForks = forksCum;
+            const clonesTotal = cloneEntry ? cloneEntry.clones_total : 0;
+            const clonesUnique = cloneUniqueEntry ? cloneUniqueEntry.clones_unique : 0;
 
-          generatedTraffic.push({
-            month: monthLabel,
-            'Self Hosters (Unique)': clonesUnique,
-            'Self Hosters (Cumulative)': clonesTotal,
-            'Builders (Unique)': forksUnique,
-            'Builders (Cumulative)': forksCum,
-          });
+            const targetTimeMs = chartDate.getTime();
+            const forksCum = getCumulative(forksData, targetTimeMs, 'forks_cumulative');
+            const forksUnique = Math.max(0, forksCum - lastForks);
+            lastForks = forksCum;
+
+            generatedTraffic.push({
+              dateKey: dateString,
+              month: monthLabel,
+              'Self Hosters (Unique)': clonesUnique,
+              'Self Hosters (Cumulative)': clonesTotal,
+              'Builders (Unique)': forksUnique,
+              'Builders (Cumulative)': forksCum,
+            });
+          }
         }
 
         // ==========================================
@@ -160,7 +209,11 @@ export const useOverviewStats = () => {
 
             const starsCum = getCumulative(sortedStars, targetTimeMs, 'stars_cumulative');
 
-            generatedStars.push({ month: displayLabel, 'Github Stars': starsCum });
+            generatedStars.push({
+              dateKey: currentMonth.toISOString(),
+              month: displayLabel,
+              'Github Stars': starsCum,
+            });
 
             currentMonth = nextMonth;
           }
@@ -178,5 +231,13 @@ export const useOverviewStats = () => {
     fetchRepoStats();
   }, []);
 
-  return { trafficChart, starsChart, totalStars, totalForks, isLoading };
+  return {
+    trafficChart,
+    starsChart,
+    totalStars,
+    totalForks,
+    totalContributors,
+    totalDiscordMembers,
+    isLoading,
+  };
 };
