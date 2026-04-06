@@ -33,6 +33,18 @@ jest.mock('@/app/features/audit/services/auditService', () => ({
   getCompanionAuditTrail: jest.fn(),
 }));
 
+jest.mock('@/app/features/companionHistory/components/HistoryDocumentUpload', () => ({
+  __esModule: true,
+  default: ({ companionId, onUploaded }: any) => (
+    <div>
+      <div>history-document-upload-{companionId}</div>
+      <button type="button" onClick={onUploaded}>
+        trigger document upload refresh
+      </button>
+    </div>
+  ),
+}));
+
 describe('CompanionHistoryTimeline', () => {
   let consoleErrorSpy: jest.SpyInstance;
   let windowOpenSpy: jest.SpyInstance;
@@ -172,6 +184,53 @@ describe('CompanionHistoryTimeline', () => {
         types: ['DOCUMENT'],
       })
     );
+  });
+
+  it('shows document upload accordion in documents filter and refreshes after upload', async () => {
+    (fetchCompanionHistory as jest.Mock)
+      .mockResolvedValueOnce({
+        entries: baseEntries,
+        nextCursor: null,
+        summary: { totalReturned: 6, countsByType: {} },
+      })
+      .mockResolvedValueOnce({
+        entries: baseEntries.filter((entry) => entry.type === 'DOCUMENT'),
+        nextCursor: null,
+        summary: { totalReturned: 1, countsByType: { DOCUMENT: 1 } },
+      })
+      .mockResolvedValueOnce({
+        entries: baseEntries.filter((entry) => entry.type === 'DOCUMENT'),
+        nextCursor: null,
+        summary: { totalReturned: 1, countsByType: { DOCUMENT: 1 } },
+      });
+
+    render(<CompanionHistoryTimeline companionId="c-1" showDocumentUpload />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Recheck visit')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('history-document-upload-c-1')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Documents' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('history-document-upload-c-1')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'trigger document upload refresh' }));
+
+    await waitFor(() => {
+      expect(fetchCompanionHistory).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          companionId: 'c-1',
+          organisationId: 'org-1',
+          limit: 50,
+          cursor: null,
+          types: ['DOCUMENT'],
+        })
+      );
+    });
   });
 
   it('appends entries on load more', async () => {

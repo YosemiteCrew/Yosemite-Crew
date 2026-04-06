@@ -12,6 +12,7 @@ import { loadDocumentDownloadURL } from '@/app/features/companions/services/comp
 import HistoryEntryCard from '@/app/features/companionHistory/components/HistoryEntryCard';
 import HistoryFilters from '@/app/features/companionHistory/components/HistoryFilters';
 import HistoryEmptyState from '@/app/features/companionHistory/components/HistoryEmptyState';
+import HistoryDocumentUpload from '@/app/features/companionHistory/components/HistoryDocumentUpload';
 import {
   CompanionHistoryResponse,
   HISTORY_FILTER_TYPE_MAP,
@@ -608,6 +609,12 @@ const CompanionHistoryTimeline = ({
     [openDocument, openLabResult, openTaskEntry, openInvoiceEntry, openAppointmentLinkedEntry]
   );
 
+  const handleDocumentUploaded = useCallback(() => {
+    loadHistory(null, true).catch((historyError) => {
+      console.error('Failed to refresh companion history after document upload:', historyError);
+    });
+  }, [loadHistory]);
+
   return (
     <PermissionGate allOf={[PERMISSIONS.COMPANIONS_VIEW_ANY]} fallback={<Fallback />}>
       <div
@@ -666,6 +673,10 @@ const CompanionHistoryTimeline = ({
               : 'flex flex-col gap-4'
           }
         >
+          {showDocumentUpload && activeFilter === 'DOCUMENT' ? (
+            <HistoryDocumentUpload companionId={companionId} onUploaded={handleDocumentUploaded} />
+          ) : null}
+
           <AuditTrailSection
             activeFilter={activeFilter}
             auditLoading={auditLoading}

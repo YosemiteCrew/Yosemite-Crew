@@ -35,9 +35,10 @@ describe('ModalBase', () => {
   it('renders hidden state styles when showModal is false', () => {
     renderModal({ showModal: false });
 
-    const dialog = screen.getByRole('dialog');
+    const dialog = document.body.querySelector('dialog');
     expect(dialog).toBeInTheDocument();
     expect(dialog).toHaveClass('container');
+    expect(dialog).not.toHaveAttribute('open');
     expect(screen.getByText('Modal content')).toBeInTheDocument();
   });
 

@@ -117,13 +117,17 @@ const ModalBase = ({
       <div className={overlayClassName} aria-hidden="true" />
 
       <dialog
-        open
+        open={showModal}
         ref={containerRef}
         aria-modal="true"
         aria-label={ariaLabel}
         aria-labelledby={ariaLabelledBy}
         aria-describedby={ariaDescribedBy}
-        className={containerClassName}
+        onCancel={(event) => {
+          event.preventDefault();
+          closeModal();
+        }}
+        className={`inset-auto m-0 border-0 p-0 max-h-none max-w-none overflow-visible ${containerClassName}`}
       >
         {children}
       </dialog>

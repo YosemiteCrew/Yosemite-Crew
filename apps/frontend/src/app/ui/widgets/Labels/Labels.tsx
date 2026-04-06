@@ -33,11 +33,14 @@ const Labels = ({
 }: LabelsProps) => {
   const active = labels.find((l) => l.key === activeLabel);
   const subLabels = active ? active.labels : [];
+  const useCenteredLayout = labels.length <= 3;
 
   return (
     <div className="mx-auto inline-flex w-full flex-col gap-2">
       <div
-        className="flex w-full items-center justify-center gap-2 overflow-x-auto whitespace-nowrap pb-1"
+        className={`flex w-full items-center gap-2 overflow-x-auto whitespace-nowrap pb-1 ${
+          useCenteredLayout ? 'justify-center' : 'justify-start px-1 sm:px-2'
+        }`}
         role="tablist"
         aria-label="Section navigation"
       >
