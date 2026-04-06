@@ -1,25 +1,25 @@
-import React from "react";
-import { render } from "@testing-library/react";
-import Assessment from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Assessment";
-import Objective from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Objective";
-import Subjective from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Subjective";
-import Discharge from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Discharge";
-import Plan from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Plan";
+import React from 'react';
+import { render } from '@testing-library/react';
+import Assessment from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Assessment';
+import Objective from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Objective';
+import Subjective from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Subjective';
+import Discharge from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Discharge';
+import Plan from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Plan';
 
 const sectionSpy = jest.fn();
 
 jest.mock(
-  "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/PrescriptionFormSection",
+  '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/PrescriptionFormSection',
   () => ({
     __esModule: true,
     default: (props: any) => {
       sectionSpy(props);
       return <div data-testid="prescription-form-section" />;
     },
-  }),
+  })
 );
 
-const activeAppointment: any = { id: "appt-1", companion: { id: "c1", parent: { id: "p1" } } };
+const activeAppointment: any = { id: 'appt-1', companion: { id: 'c1', parent: { id: 'p1' } } };
 
 const baseProps = {
   activeAppointment,
@@ -30,68 +30,68 @@ const baseProps = {
 
 const cases = [
   {
-    name: "Assessment",
+    name: 'Assessment',
     Component: Assessment,
     expected: {
-      title: "Assessment (diagnosis)",
-      submissionsTitle: "Previous assessment submissions",
-      searchPlaceholder: "Search",
-      category: "Prescription",
-      formDataKey: "assessment",
+      title: 'Assessment (diagnosis)',
+      submissionsTitle: 'Previous assessment submissions',
+      searchPlaceholder: 'Search',
+      category: 'SOAP',
+      formDataKey: 'assessment',
     },
   },
   {
-    name: "Objective",
+    name: 'Objective',
     Component: Objective,
     expected: {
-      title: "Objective (clinical examination)",
-      submissionsTitle: "Previous objective submissions",
-      searchPlaceholder: "Search",
-      category: "Prescription",
-      formDataKey: "objective",
+      title: 'Objective (clinical examination)',
+      submissionsTitle: 'Previous objective submissions',
+      searchPlaceholder: 'Search',
+      category: 'SOAP',
+      formDataKey: 'objective',
     },
   },
   {
-    name: "Subjective",
+    name: 'Subjective',
     Component: Subjective,
     expected: {
-      title: "Subjective (history)",
-      submissionsTitle: "Previous subjective submissions",
-      searchPlaceholder: "Search",
-      category: "Prescription",
-      formDataKey: "subjective",
+      title: 'Subjective (history)',
+      submissionsTitle: 'Previous subjective submissions',
+      searchPlaceholder: 'Search',
+      category: 'SOAP',
+      formDataKey: 'subjective',
     },
   },
   {
-    name: "Discharge",
+    name: 'Discharge',
     Component: Discharge,
     expected: {
-      title: "Discharge summary",
-      submissionsTitle: "Previous discharge submissions",
-      searchPlaceholder: "Search",
-      category: "Prescription",
-      formDataKey: "discharge",
+      title: 'Discharge summary',
+      submissionsTitle: 'Previous discharge submissions',
+      searchPlaceholder: 'Search',
+      category: 'Discharge Form',
+      formDataKey: 'discharge',
     },
   },
   {
-    name: "Plan",
+    name: 'Plan',
     Component: Plan,
     expected: {
-      title: "Treatment/Plan",
-      submissionsTitle: "Previous plan submissions",
-      searchPlaceholder: "Search plan",
-      category: "Prescription",
-      formDataKey: "plan",
+      title: 'Treatment/Plan',
+      submissionsTitle: 'Previous plan submissions',
+      searchPlaceholder: 'Search plan',
+      category: 'Prescription',
+      formDataKey: 'plan',
     },
   },
 ] as const;
 
-describe.each(cases)("%s section", ({ Component, expected }) => {
+describe.each(cases)('%s section', ({ Component, expected }) => {
   beforeEach(() => {
     sectionSpy.mockClear();
   });
 
-  it("passes expected props to PrescriptionFormSection", () => {
+  it('passes expected props to PrescriptionFormSection', () => {
     render(<Component {...baseProps} />);
 
     expect(sectionSpy).toHaveBeenCalledTimes(1);
