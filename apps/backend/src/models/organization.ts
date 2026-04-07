@@ -61,6 +61,8 @@ export interface OrganizationMongo {
   stripeAccountId?: string;
   averageRating?: number;
   ratingCount?: number;
+  appointmentCheckInBufferMinutes?: number;
+  appointmentCheckInRadiusMeters?: number;
 }
 
 const OrganizationSchema = new Schema<OrganizationMongo>(
@@ -99,6 +101,8 @@ const OrganizationSchema = new Schema<OrganizationMongo>(
     stripeAccountId: { type: String },
     averageRating: { type: Number, default: 0 },
     ratingCount: { type: Number, default: 0 },
+    appointmentCheckInBufferMinutes: { type: Number, default: 5 },
+    appointmentCheckInRadiusMeters: { type: Number, default: 200 },
   },
   {
     timestamps: true,

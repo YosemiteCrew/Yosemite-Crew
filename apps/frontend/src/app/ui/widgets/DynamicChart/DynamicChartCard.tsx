@@ -19,12 +19,22 @@ type ChartProps = {
   keys: { name: string; color: string }[];
   yTickFormatter?: (value: number) => string;
   yAxisWidth?: number;
+  chartHeight?: number;
   layout?: LayoutType;
   barSize?: number;
   hideKeys?: boolean;
   xAxisLabel?: string;
   yAxisLabel?: string;
   compactMonthAxis?: boolean;
+  deriveCompactAxisLabel?: boolean;
+  xAxisDataKey?: string;
+  xAxisType?: 'category' | 'number';
+  xAxisTicks?: Array<string | number>;
+  xAxisDomain?: [number | 'auto' | 'dataMin' | 'dataMax', number | 'auto' | 'dataMin' | 'dataMax'];
+  xTickFormatter?: (value: string | number) => string;
+  tooltipLabelFormatter?: (label: string | number, payload?: any[]) => React.ReactNode;
+  headerContent?: React.ReactNode;
+  footerContent?: React.ReactNode;
 };
 
 type TiltedTickProps = { x: number; y: number; payload: { value: string } };
@@ -120,6 +130,12 @@ type LineChartContentProps = {
   xAxisLabel?: string;
   yAxisLabel?: string;
   compactMonthAxis?: boolean;
+  xAxisDataKey?: string;
+  xAxisType?: 'category' | 'number';
+  xAxisTicks?: Array<string | number>;
+  xAxisDomain?: [number | 'auto' | 'dataMin' | 'dataMax', number | 'auto' | 'dataMin' | 'dataMax'];
+  xTickFormatter?: (value: string | number) => string;
+  tooltipLabelFormatter?: (label: string | number, payload?: any[]) => React.ReactNode;
 };
 
 const LineChartContent = ({
@@ -132,13 +148,28 @@ const LineChartContent = ({
   xAxisLabel,
   yAxisLabel,
   compactMonthAxis,
+  xAxisDataKey = 'month',
+  xAxisType = 'category',
+  xAxisTicks,
+  xAxisDomain,
+  xTickFormatter,
+  tooltipLabelFormatter,
 }: LineChartContentProps) => (
   <LineChart data={data} margin={chartMargin} width={width} height={height}>
     <XAxis
-      dataKey="month"
+      dataKey={xAxisDataKey}
+      type={xAxisType}
+      scale={xAxisType === 'number' ? 'linear' : 'point'}
+      tick={{ fontSize: 11 }}
+      ticks={xAxisTicks}
+      domain={xAxisDomain}
+      allowDataOverflow={xAxisType === 'number'}
       interval={compactMonthAxis ? 'preserveStartEnd' : 0}
       minTickGap={compactMonthAxis ? 12 : undefined}
-      tickFormatter={compactMonthAxis ? getDayTickLabel : undefined}
+      tickFormatter={
+        xTickFormatter ??
+        (compactMonthAxis && xAxisType === 'category' ? getDayTickLabel : undefined)
+      }
       label={getXAxisLabel(xAxisLabel)}
     />
     <YAxis
@@ -149,7 +180,7 @@ const LineChartContent = ({
           : undefined
       }
     />
-    <Tooltip />
+    <Tooltip labelFormatter={tooltipLabelFormatter} />
     {keys.map((key) => (
       <Line
         key={key.name}
@@ -252,16 +283,26 @@ const DynamicChartCard: React.FC<ChartProps> = ({
   keys,
   yTickFormatter,
   yAxisWidth,
+  chartHeight = 300,
   layout,
   barSize,
   hideKeys = false,
   xAxisLabel,
   yAxisLabel,
   compactMonthAxis = false,
+  deriveCompactAxisLabel = true,
+  xAxisDataKey = 'month',
+  xAxisType = 'category',
+  xAxisTicks,
+  xAxisDomain,
+  xTickFormatter,
+  tooltipLabelFormatter,
+  headerContent,
+  footerContent,
 }) => {
   const isVerticalLayout = layout === 'vertical';
   const effectiveXAxisLabel =
-    compactMonthAxis && !isVerticalLayout
+    compactMonthAxis && !isVerticalLayout && deriveCompactAxisLabel
       ? (getMonthLabelFromData(data) ?? xAxisLabel)
       : xAxisLabel;
   const chartMargin = {
@@ -273,8 +314,9 @@ const DynamicChartCard: React.FC<ChartProps> = ({
 
   return (
     <div className="bg-white border border-card-border p-3 flex flex-col gap-2 rounded-2xl">
-      {!hideKeys && <ChartLegend keys={keys} />}
-      <ResponsiveContainer width="100%" height={300}>
+      {headerContent}
+      {!hideKeys && !headerContent && <ChartLegend keys={keys} />}
+      <ResponsiveContainer width="100%" height={chartHeight}>
         {type === 'line' ? (
           <LineChartContent
             data={data}
@@ -284,6 +326,12 @@ const DynamicChartCard: React.FC<ChartProps> = ({
             xAxisLabel={effectiveXAxisLabel}
             yAxisLabel={yAxisLabel}
             compactMonthAxis={compactMonthAxis}
+            xAxisDataKey={xAxisDataKey}
+            xAxisType={xAxisType}
+            xAxisTicks={xAxisTicks}
+            xAxisDomain={xAxisDomain}
+            xTickFormatter={xTickFormatter}
+            tooltipLabelFormatter={tooltipLabelFormatter}
           />
         ) : (
           <BarChartContent
@@ -301,6 +349,7 @@ const DynamicChartCard: React.FC<ChartProps> = ({
           />
         )}
       </ResponsiveContainer>
+      {footerContent}
     </div>
   );
 };

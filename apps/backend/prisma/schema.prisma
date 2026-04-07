@@ -164,6 +164,7 @@ enum CodeType {
   BREED
   GENDER
   TEST
+  CLINICAL_TERM
   OTHER
 }
 
@@ -608,6 +609,8 @@ model Organization {
   stripeAccountId             String?
   averageRating               Float            @default(0)
   ratingCount                 Int              @default(0)
+  appointmentCheckInBufferMinutes Int          @default(5)
+  appointmentCheckInRadiusMeters  Int          @default(200)
   createdAt                   DateTime         @default(now())
   updatedAt                   DateTime         @updatedAt
 

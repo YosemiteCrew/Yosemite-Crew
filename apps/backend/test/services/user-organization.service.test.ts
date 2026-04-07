@@ -558,13 +558,15 @@ describe("UserOrganizationService", () => {
         mockDoc(mappingWithPerms),
       ]);
       (OrganizationModel.findOne as jest.Mock).mockReturnValue(
-        mockChain({ _id: mockOrgId }),
+        mockChain(mockDoc({ _id: mockOrgId })),
       );
 
       const res = await UserOrganizationService.listByUserId(
         mockUserId.toHexString(),
       );
       expect(res[0].orgBilling).toBeDefined();
+      expect(res[0].organization?.appointmentCheckInBufferMinutes).toBe(5);
+      expect(res[0].organization?.appointmentCheckInRadiusMeters).toBe(200);
     });
 
     it("listByUserId: hides billing if not permitted", async () => {
@@ -823,6 +825,8 @@ describe("UserOrganizationService", () => {
         stripeAccountId: null,
         averageRating: null,
         ratingCount: null,
+        appointmentCheckInBufferMinutes: null,
+        appointmentCheckInRadiusMeters: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
@@ -840,6 +844,8 @@ describe("UserOrganizationService", () => {
       const res = await UserOrganizationService.listByUserId("abc");
       expect(res[0].orgBilling).toMatchObject({ _id: "bill-1" });
       expect(res[0].orgUsage).toMatchObject({ _id: "usage-1" });
+      expect(res[0].organization?.appointmentCheckInBufferMinutes).toBe(5);
+      expect(res[0].organization?.appointmentCheckInRadiusMeters).toBe(200);
     });
 
     it("listByOrganisationId should aggregate postgres user details", async () => {

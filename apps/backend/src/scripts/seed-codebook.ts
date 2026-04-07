@@ -90,7 +90,7 @@ const main = async () => {
   const inputDir =
     process.argv[2] ??
     process.env.CODEBOOK_INPUT_DIR ??
-    path.join(process.cwd(), "data", "codebook");
+    path.join(process.cwd(), "data");
 
   const files = [
     "canine_breeds.json",
