@@ -17,7 +17,11 @@ import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
 jest.mock('next/image', () => ({
   __esModule: true,
   default: (props: any) => (
-    <img {...props} priority={props.priority ? 'true' : 'false'} alt={props.alt} />
+    <span
+      data-testid="mock-next-image"
+      data-alt={props.alt}
+      data-priority={props.priority ? 'true' : 'false'}
+    />
   ),
 }));
 
@@ -68,8 +72,11 @@ describe('OverviewPage Component', () => {
     (useOverviewStats as jest.Mock).mockReturnValue({
       trafficChart: [],
       starsChart: [],
+      totalSelfHosters: 1600,
       totalStars: 2100, // Should hit the >= 1000 branch and return "2.1k"
-      totalForks: 64, // Should hit the < 1000 branch and return "64"
+      totalForks: 64,
+      totalContributors: 15,
+      totalDiscordMembers: 169,
       isLoading: false,
     });
 
@@ -79,13 +86,19 @@ describe('OverviewPage Component', () => {
     expect(screen.getByRole('heading', { name: 'Building in Public' })).toBeInTheDocument();
 
     // Assert formatted stats exist
+    expect(screen.getByText('1.6k')).toBeInTheDocument();
     expect(screen.getByText('2.1k')).toBeInTheDocument();
-    expect(screen.getByText('64')).toBeInTheDocument();
-    expect(screen.getByText('15')).toBeInTheDocument(); // Static contributors value
+    expect(screen.getByText('169')).toBeInTheDocument();
+    expect(screen.getByText('15')).toBeInTheDocument();
+    expect(screen.getByText('Self Hosters')).toBeInTheDocument();
+    expect(screen.getByText('Contributors')).toBeInTheDocument();
+    expect(screen.getByText('Discord Members')).toBeInTheDocument();
+    expect(screen.getByText('Repo Stars')).toBeInTheDocument();
 
     // Assert image renders
-    const image = screen.getByAltText('Veterinarians working together');
+    const image = screen.getByTestId('mock-next-image');
     expect(image).toBeInTheDocument();
+    expect(image).toHaveAttribute('data-alt', 'Veterinarians working together');
 
     // Assert child components render
     expect(screen.getByTestId('community-stats-component')).toBeInTheDocument();
@@ -104,20 +117,24 @@ describe('OverviewPage Component', () => {
     (useOverviewStats as jest.Mock).mockReturnValue({
       trafficChart: [],
       starsChart: [],
+      totalSelfHosters: 1600,
       totalStars: 2100,
       totalForks: 64,
+      totalContributors: 15,
+      totalDiscordMembers: 169,
       isLoading: true,
     });
 
     render(<OverviewPage />);
 
-    // Because there are 3 stats (Stars, Forks, Contributors), we expect 3 dashes
+    // There are now 4 hero stats, so loading shows 4 dashes
     const dashes = screen.getAllByText('-');
-    expect(dashes).toHaveLength(3);
+    expect(dashes).toHaveLength(4);
 
     // Ensure the raw numbers are NOT rendered
+    expect(screen.queryByText('1.6k')).not.toBeInTheDocument();
     expect(screen.queryByText('2.1k')).not.toBeInTheDocument();
-    expect(screen.queryByText('64')).not.toBeInTheDocument();
+    expect(screen.queryByText('169')).not.toBeInTheDocument();
   });
 
   it('3. dynamic CTA Button routes correctly for Authenticated Developer', () => {
@@ -130,8 +147,11 @@ describe('OverviewPage Component', () => {
     (useOverviewStats as jest.Mock).mockReturnValue({
       trafficChart: [],
       starsChart: [],
+      totalSelfHosters: 0,
       totalStars: 0,
       totalForks: 0,
+      totalContributors: 0,
+      totalDiscordMembers: 169,
       isLoading: false,
     });
 
@@ -157,8 +177,11 @@ describe('OverviewPage Component', () => {
     (useOverviewStats as jest.Mock).mockReturnValue({
       trafficChart: [],
       starsChart: [],
+      totalSelfHosters: 0,
       totalStars: 0,
       totalForks: 0,
+      totalContributors: 0,
+      totalDiscordMembers: 169,
       isLoading: false,
     });
 
