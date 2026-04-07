@@ -295,8 +295,13 @@ const CommunityStats = ({ trafficChart, starsChart, isLoading }: CommunityStatsP
             className={`TogglePill ${view === 'Unique' ? 'Active' : ''}`}
             onClick={() => {
               setView('Unique');
-              setGranularity((current) => getNextViewGranularity('Unique', current));
-              setSelectedPeriodKey(null);
+              setGranularity((current) => {
+                const nextGranularity = getNextViewGranularity('Unique', current);
+                if (nextGranularity !== current) {
+                  setSelectedPeriodKey(null);
+                }
+                return nextGranularity;
+              });
             }}
           >
             Unique
@@ -305,8 +310,13 @@ const CommunityStats = ({ trafficChart, starsChart, isLoading }: CommunityStatsP
             className={`TogglePill ${view === 'Cumulative' ? 'Active' : ''}`}
             onClick={() => {
               setView('Cumulative');
-              setGranularity((current) => getNextViewGranularity('Cumulative', current));
-              setSelectedPeriodKey(null);
+              setGranularity((current) => {
+                const nextGranularity = getNextViewGranularity('Cumulative', current);
+                if (nextGranularity !== current) {
+                  setSelectedPeriodKey(null);
+                }
+                return nextGranularity;
+              });
             }}
           >
             Cumulative
@@ -315,8 +325,13 @@ const CommunityStats = ({ trafficChart, starsChart, isLoading }: CommunityStatsP
             className={`TogglePill ${view === 'Stars' ? 'Active' : ''}`}
             onClick={() => {
               setView('Stars');
-              setGranularity((current) => getNextViewGranularity('Stars', current));
-              setSelectedPeriodKey(null);
+              setGranularity((current) => {
+                const nextGranularity = getNextViewGranularity('Stars', current);
+                if (nextGranularity !== current) {
+                  setSelectedPeriodKey(null);
+                }
+                return nextGranularity;
+              });
             }}
           >
             Stars

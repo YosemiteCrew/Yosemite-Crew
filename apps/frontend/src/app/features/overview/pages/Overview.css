@@ -314,30 +314,50 @@
 
   .OverviewMainTitle {
     font-size: 2.25rem;
+    line-height: 1.1;
   }
 
   .OverviewGraphsTitle {
     font-size: 1.75rem;
+    line-height: 1.15;
   }
 
-  /* Force the 3 stats to sit side-by-side exactly like Figma */
+  .OverviewLeadText,
+  .OverviewSecondaryText {
+    font-size: 0.95rem;
+    line-height: 1.55;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
   .OverviewStatsRow {
-    gap: 0;
-    justify-content: space-between;
-    padding: 0 16px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px 16px;
+    padding: 0;
     margin-bottom: 40px;
+    max-width: 420px;
   }
 
   .StatItem {
-    flex: 1;
+    width: 100%;
   }
 
   .StatNumber {
     font-size: 2rem;
+    justify-content: center;
   }
 
   .StatLabel {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
+    margin-top: 8px;
+  }
+
+  .OverviewCtaWrapper {
+    margin: 0 0 56px 0;
+  }
+
+  .OverviewImageWrapper {
     margin-top: 8px;
   }
 
@@ -383,5 +403,66 @@
     padding: 6px 12px;
     font-size: 0.75rem;
     flex: 1;
+  }
+
+  .ChartNavigation {
+    flex-wrap: wrap;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .OverviewHeroSection {
+    padding: 48px 12px 0px;
+  }
+
+  .OverviewBottomSection {
+    padding: 32px 12px 64px;
+  }
+
+  .OverviewMainTitle {
+    font-size: 2rem;
+  }
+
+  .OverviewGraphsTitle {
+    font-size: 1.5rem;
+    margin-bottom: 28px;
+  }
+
+  .OverviewLeadText {
+    margin-bottom: 40px;
+  }
+
+  .OverviewSecondaryText {
+    margin-bottom: 28px;
+  }
+
+  .OverviewStatsRow {
+    gap: 16px 12px;
+  }
+
+  .StatNumber {
+    font-size: 1.7rem;
+  }
+
+  .StatLabel {
+    font-size: 0.72rem;
+  }
+
+  .ChartCardHeader {
+    gap: 10px;
+  }
+
+  .ChartLegendInline {
+    gap: 10px 12px;
+  }
+
+  .ChartNavigationButton {
+    padding: 6px 10px;
+    font-size: 0.75rem;
+  }
+
+  .ChartNavigationLabel {
+    min-width: 88px;
+    font-size: 0.75rem;
   }
 }

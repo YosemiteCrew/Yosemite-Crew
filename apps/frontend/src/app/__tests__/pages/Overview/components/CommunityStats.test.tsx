@@ -304,7 +304,33 @@ describe('CommunityStats Component', () => {
     expect(screen.getByText('2025')).toBeInTheDocument();
   });
 
-  it('9. verifies chart keys always contain all three labels', () => {
+  it('9. preserves the selected month when switching between cumulative and unique', () => {
+    render(
+      <CommunityStats
+        trafficChart={mockTrafficChart}
+        starsChart={mockStarsChart}
+        isLoading={false}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText('Show previous period'));
+    fireEvent.click(screen.getByText('Cumulative'));
+
+    expect(screen.getByText('March 2026')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Unique'));
+
+    const chartDataJson = screen.getByTestId('chart-data').textContent;
+    const chartData = JSON.parse(chartDataJson as unknown as string);
+
+    expect(screen.getByText('March 2026')).toBeInTheDocument();
+    expect(chartData).toEqual([
+      { month: 'Mar 8', dayNumber: 8, 'Self Hosters': 10, Builders: 5 },
+      { month: 'Mar 9', dayNumber: 9, 'Self Hosters': 8, Builders: 3 },
+    ]);
+  });
+
+  it('10. verifies chart keys always contain all three labels', () => {
     render(
       <CommunityStats
         trafficChart={mockTrafficChart}

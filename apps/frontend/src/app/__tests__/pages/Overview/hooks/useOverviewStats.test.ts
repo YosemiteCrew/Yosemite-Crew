@@ -24,7 +24,10 @@ describe('useOverviewStats Hook', () => {
       charts: {
         '#clones_total': {
           datasets: {
-            'data-1': [{ time: '2026-03-24T00:00:00Z', clones_total: 50 }],
+            'data-1': [
+              { time: '2026-03-23T00:00:00Z', clones_total: 25 },
+              { time: '2026-03-24T00:00:00Z', clones_total: 50 },
+            ],
           },
         },
         '#clones_unique': {
@@ -65,10 +68,6 @@ describe('useOverviewStats Hook', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => [{ id: 1 }, { id: 2 }, { id: 3 }],
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ value: '1,234 members' }),
       });
 
     const { result } = renderHook(() => useOverviewStats());
@@ -80,10 +79,11 @@ describe('useOverviewStats Hook', () => {
     });
 
     // 1. Verify Top-Level Widget Totals
+    expect(result.current.totalSelfHosters).toBe(75);
     expect(result.current.totalStars).toBe(2200);
     expect(result.current.totalForks).toBe(64);
     expect(result.current.totalContributors).toBe(3);
-    expect(result.current.totalDiscordMembers).toBe(1234);
+    expect(result.current.totalDiscordMembers).toBe(169);
 
     // 2. Verify Traffic Chart now covers the full daily traffic history
     expect(result.current.trafficChart.length).toBeGreaterThan(100);
@@ -128,8 +128,7 @@ describe('useOverviewStats Hook', () => {
     (globalThis.fetch as jest.Mock)
       .mockResolvedValueOnce({ ok: true, json: async () => mockJson })
       .mockResolvedValueOnce({ ok: false, json: async () => ({}) })
-      .mockResolvedValueOnce({ ok: false, json: async () => [] })
-      .mockResolvedValueOnce({ ok: false, json: async () => ({}) });
+      .mockResolvedValueOnce({ ok: false, json: async () => [] });
 
     const { result } = renderHook(() => useOverviewStats());
 
@@ -139,10 +138,11 @@ describe('useOverviewStats Hook', () => {
 
     expect(result.current.trafficChart).toEqual([]);
     expect(result.current.starsChart).toEqual([]);
+    expect(result.current.totalSelfHosters).toBe(0);
     expect(result.current.totalStars).toBe(0);
     expect(result.current.totalForks).toBe(0);
     expect(result.current.totalContributors).toBe(0);
-    expect(result.current.totalDiscordMembers).toBe(0);
+    expect(result.current.totalDiscordMembers).toBe(169);
   });
 
   it('3. handles missing dataset properties smoothly (extractChartData fallback)', async () => {
@@ -159,8 +159,7 @@ describe('useOverviewStats Hook', () => {
         json: async () => mockJson,
       })
       .mockResolvedValueOnce({ ok: false, json: async () => ({}) })
-      .mockResolvedValueOnce({ ok: false, json: async () => [] })
-      .mockResolvedValueOnce({ ok: false, json: async () => ({}) });
+      .mockResolvedValueOnce({ ok: false, json: async () => [] });
 
     const { result } = renderHook(() => useOverviewStats());
 
@@ -173,7 +172,6 @@ describe('useOverviewStats Hook', () => {
 
   it('4. catches network failures securely', async () => {
     (globalThis.fetch as jest.Mock)
-      .mockResolvedValueOnce({ ok: false })
       .mockResolvedValueOnce({ ok: false })
       .mockResolvedValueOnce({ ok: false })
       .mockResolvedValueOnce({ ok: false });
@@ -197,8 +195,7 @@ describe('useOverviewStats Hook', () => {
         },
       })
       .mockResolvedValueOnce({ ok: false, json: async () => ({}) })
-      .mockResolvedValueOnce({ ok: false, json: async () => [] })
-      .mockResolvedValueOnce({ ok: false, json: async () => ({}) });
+      .mockResolvedValueOnce({ ok: false, json: async () => [] });
 
     const { result } = renderHook(() => useOverviewStats());
 

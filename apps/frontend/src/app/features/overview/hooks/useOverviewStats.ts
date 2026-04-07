@@ -21,7 +21,7 @@ const SUMMARY_URL =
 const GITHUB_REPO_URL = 'https://api.github.com/repos/YosemiteCrew/Yosemite-Crew';
 const GITHUB_CONTRIBUTORS_URL =
   'https://api.github.com/repos/YosemiteCrew/Yosemite-Crew/contributors?per_page=100&anon=true';
-const DISCORD_MEMBERS_URL = 'https://img.shields.io/discord/1325181058777616395.json';
+const DISCORD_MEMBERS_COUNT = 169;
 
 const extractChartData = (json: any, chartKey: string) => {
   if (!json?.charts?.[chartKey]?.datasets) return [];
@@ -46,17 +46,20 @@ const getCumulative = (data: any[], targetTimeMs: number, valKey: string) => {
 export const useOverviewStats = () => {
   const [trafficChart, setTrafficChart] = useState<TrafficDataPoint[]>([]);
   const [starsChart, setStarsChart] = useState<StarsDataPoint[]>([]);
+  const [totalSelfHosters, setTotalSelfHosters] = useState<number>(0);
   const [totalStars, setTotalStars] = useState<number>(0);
   const [totalForks, setTotalForks] = useState<number>(0);
   const [totalContributors, setTotalContributors] = useState<number>(0);
-  const [totalDiscordMembers, setTotalDiscordMembers] = useState<number>(0);
+  const [totalDiscordMembers, setTotalDiscordMembers] = useState<number>(DISCORD_MEMBERS_COUNT);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchRepoStats = async () => {
       setIsLoading(true);
       try {
-        const [summaryRes, repoRes, contributorsRes, discordRes] = await Promise.all([
+        setTotalDiscordMembers(DISCORD_MEMBERS_COUNT);
+
+        const [summaryRes, repoRes, contributorsRes] = await Promise.all([
           fetch(`${SUMMARY_URL}?t=${Date.now()}`, { cache: 'no-store' }),
           fetch(GITHUB_REPO_URL, {
             headers: { Accept: 'application/vnd.github+json' },
@@ -64,7 +67,6 @@ export const useOverviewStats = () => {
           fetch(GITHUB_CONTRIBUTORS_URL, {
             headers: { Accept: 'application/vnd.github+json' },
           }),
-          fetch(DISCORD_MEMBERS_URL, { cache: 'no-store' }),
         ]);
 
         if (!summaryRes.ok) throw new Error('Failed to load repo stats');
@@ -72,7 +74,6 @@ export const useOverviewStats = () => {
         const json = await summaryRes.json();
         const repoJson = repoRes.ok ? await repoRes.json() : null;
         const contributorsJson = contributorsRes.ok ? await contributorsRes.json() : [];
-        const discordJson = discordRes.ok ? await discordRes.json() : null;
 
         const clonesData = extractChartData(json, '#clones_total');
         const clonesUniqueData = extractChartData(json, '#clones_unique');
@@ -90,6 +91,13 @@ export const useOverviewStats = () => {
         // ==========================================
         // 1. EXTRACT TOTALS FOR TOP WIDGETS
         // ==========================================
+        setTotalSelfHosters(
+          clonesData.reduce(
+            (sum: number, dataPoint: any) => sum + Number(dataPoint?.clones_total ?? 0),
+            0
+          )
+        );
+
         const sortedForks = [...forksData].sort(
           (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
         );
@@ -108,10 +116,6 @@ export const useOverviewStats = () => {
         }
         if (Array.isArray(contributorsJson)) {
           setTotalContributors(contributorsJson.length);
-        }
-        const discordMembers = Number(discordJson?.value?.replace(/[^\d]/g, ''));
-        if (Number.isFinite(discordMembers)) {
-          setTotalDiscordMembers(discordMembers);
         }
 
         // ==========================================
@@ -234,6 +238,7 @@ export const useOverviewStats = () => {
   return {
     trafficChart,
     starsChart,
+    totalSelfHosters,
     totalStars,
     totalForks,
     totalContributors,
