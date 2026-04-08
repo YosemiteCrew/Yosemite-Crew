@@ -84,6 +84,7 @@ const generateTrafficData = (
     lastForks = forksCum;
 
     generatedTraffic.push({
+      dateKey: dateString,
       month: monthLabel,
       'Self Hosters (Unique)': clonesUnique,
       'Self Hosters (Cumulative)': clonesTotal,
@@ -126,7 +127,11 @@ const generateStarsData = (sortedStars: any[], maxDate: Date): StarsDataPoint[] 
     const targetTimeMs = nextMonth.getTime() - 1;
     const starsCum = getCumulative(sortedStars, targetTimeMs, 'stars_cumulative');
 
-    generatedStars.push({ month: displayLabel, 'Github Stars': starsCum });
+    generatedStars.push({
+      dateKey: currentMonth.toISOString(),
+      month: displayLabel,
+      'Github Stars': starsCum,
+    });
     currentMonth = nextMonth;
   }
 
