@@ -549,11 +549,11 @@ describe('documentService', () => {
     it('mapAttachmentFromApi: Name derivation logic and UUID regex', async () => {
       const payload = [
         {id: '1', attachments: [{name: 'Explicit'}]},
-        {id: '2', attachments: [{key: 'test-file-name.jpg'}]},
+        {id: '2', attachments: [{key: 'mock_file_key'}]},
         // UUID case (starts with 8 hex, dash, 4 hex, dash)
         {
           id: '3',
-          attachments: [{key: '12345678-1234-1234-1234-1234567890ab-uuid.pdf'}],
+          attachments: [{key: 'mock_uuid_file_key_pdf'}],
         },
         {id: '4', attachments: [{noKey: true}]},
       ];
