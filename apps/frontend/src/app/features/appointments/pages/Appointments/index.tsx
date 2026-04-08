@@ -259,7 +259,7 @@ const Appointments = () => {
   if (activeView === 'calendar') {
     plannerContent = (
       <AppointmentCalendar
-        filteredList={filteredList}
+        filteredList={filteredList.filter((a) => a.status !== 'CANCELLED')}
         allAppointments={appointments}
         setActiveAppointment={setActiveAppointment}
         setViewPopup={setViewPopup}

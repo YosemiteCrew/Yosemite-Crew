@@ -42,7 +42,26 @@ jest.mock('@/app/stores/serviceStore', () => ({
 
 jest.mock('@/app/features/appointments/services/appointmentService', () => ({
   createAppointment: jest.fn(),
+  getCalendarPrefillMatchesForPrimaryOrg: jest.fn(() => Promise.resolve(null)),
   getSlotsForServiceAndDateForPrimaryOrg: jest.fn(),
+  loadAppointmentsForPrimaryOrg: jest.fn(() => Promise.resolve()),
+}));
+
+jest.mock('@/app/hooks/useStripeOnboarding', () => ({
+  useSubscriptionCounterUpdate: jest.fn(() => ({ refetch: jest.fn(() => Promise.resolve()) })),
+}));
+
+jest.mock('@/app/hooks/useBilling', () => ({
+  useCanMoreForPrimaryOrg: jest.fn(() => ({ canMore: true, reason: 'ok' })),
+  useCurrencyForPrimaryOrg: jest.fn(() => 'USD'),
+}));
+
+jest.mock('@/app/features/billing/services/invoiceService', () => ({
+  loadInvoicesForOrgPrimaryOrg: jest.fn(() => Promise.resolve()),
+}));
+
+jest.mock('@/app/ui/overlays/Loader', () => ({
+  YosemiteLoader: ({ label }: any) => <div>{label}</div>,
 }));
 
 jest.mock('@/app/lib/date', () => ({
@@ -278,10 +297,64 @@ describe('AddAppointment Component', () => {
 
     await waitFor(() => {
       expect(screen.queryByTestId('slot-picker')).not.toBeInTheDocument();
+      expect(screen.getByText('Date')).toBeInTheDocument();
+      expect(screen.getByText('Time')).toBeInTheDocument();
+      expect(screen.queryByTestId('select-Speciality')).not.toBeInTheDocument();
+    });
+  });
+
+  it('shows a blocking booking loader until the submit flow completes', async () => {
+    let resolveCreate: (() => void) | undefined;
+    (appointmentService.createAppointment as jest.Mock).mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveCreate = resolve;
+        })
+    );
+
+    render(<AddAppointment {...defaultProps} />);
+
+    fireEvent.click(screen.getByTestId('search-companion'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('select-Speciality')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('Date')).toBeInTheDocument();
-    expect(screen.getByText('Time')).toBeInTheDocument();
-    expect(screen.queryByTestId('select-Speciality')).not.toBeInTheDocument();
+    fireEvent.click(screen.getAllByText('Next')[0]);
+    fireEvent.click(screen.getByTestId('select-Speciality'));
+    fireEvent.click(screen.getByTestId('select-Service'));
+    fireEvent.change(screen.getByTestId('concern-input'), { target: { value: 'Limping' } });
+    fireEvent.click(screen.getAllByText('Next')[1]);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('slot-0')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId('slot-0'));
+    fireEvent.click(screen.getByTestId('select-Lead'));
+    fireEvent.click(screen.getAllByText('Next')[2]);
+
+    await waitFor(() => {
+      expect(screen.getByText('Book appointment')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Book appointment'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Booking appointment')).toBeInTheDocument();
+      expect(
+        screen.getByText('Finalizing the appointment and refreshing the schedule.')
+      ).toBeInTheDocument();
+    });
+
+    expect(mockSetShowModal).not.toHaveBeenCalled();
+
+    await waitFor(async () => {
+      resolveCreate?.();
+    });
+
+    await waitFor(() => {
+      expect(mockSetShowModal).toHaveBeenCalledWith(false);
+    });
   });
 });

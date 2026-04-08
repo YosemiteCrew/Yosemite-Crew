@@ -4,6 +4,7 @@ import {
   fromAppointmentRequestDTO,
   toAppointmentResponseDTO,
 } from '@yosemite-crew/types';
+import axios from 'axios';
 
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useAppointmentStore } from '@/app/stores/appointmentStore';
@@ -25,6 +26,37 @@ import {
 
 type AppointmentPaymentStatus = 'PAID' | 'UNPAID' | 'PAID_CASH' | 'PAYMENT_AT_CLINIC';
 const inFlightBookableSlotsRequests = new Map<string, Promise<Slot[]>>();
+const inFlightCalendarPrefillRequests = new Map<
+  string,
+  Promise<CalendarPrefillSlotMatch[] | null>
+>();
+
+export type CalendarPrefillSlotMatch = {
+  serviceId: string;
+  slot: Slot;
+  meta: {
+    localStartMinute: number;
+    localEndMinute: number;
+  };
+};
+
+type CalendarPrefillResolutionResponse = {
+  success: boolean;
+  data?: {
+    matches?: Array<{
+      serviceId?: string;
+      slot?: {
+        startTime?: string;
+        endTime?: string;
+        vetIds?: string[];
+      };
+      meta?: {
+        localStartMinute?: number;
+        localEndMinute?: number;
+      };
+    }>;
+  };
+};
 
 const normalizeLeadId = (value?: string | null) => {
   const trimmed = String(value ?? '').trim();
@@ -32,6 +64,8 @@ const normalizeLeadId = (value?: string | null) => {
   const lowered = trimmed.toLowerCase();
   return lowered === 'undefined' || lowered === 'null' ? '' : trimmed;
 };
+
+const compareServiceIdsAlphabetically = (left: string, right: string) => left.localeCompare(right);
 
 const getOrgIdForAppointment = (appointment: Appointment) => {
   const { primaryOrgId } = useOrgStore.getState();
@@ -123,7 +157,7 @@ export const createAppointment = async (appointment: Appointment) => {
     const res = await postData<{
       data: { appointment: AppointmentResponseDTO };
     }>('/fhir/v1/appointment/pms?createPayment=true', fhirAppointment);
-    upsertFromResponse(res);
+    return upsertFromResponse(res);
   } catch (err) {
     console.error('Failed to create appointment:', err);
     throw err;
@@ -205,6 +239,96 @@ export const toSlotsArray = (res: AvailabilityResponse): Slot[] =>
     endTime,
     vetIds,
   }));
+
+const shouldFallbackCalendarPrefillEndpoint = (error: unknown) => {
+  if (!axios.isAxiosError(error)) return false;
+  const status = error.response?.status;
+  return status === 404 || status === 405 || status === 501;
+};
+
+export const getCalendarPrefillMatchesForPrimaryOrg = async ({
+  date,
+  minuteOfDay,
+  leadId,
+  serviceIds,
+}: {
+  date: Date;
+  minuteOfDay: number;
+  leadId?: string;
+  serviceIds: string[];
+}): Promise<CalendarPrefillSlotMatch[] | null> => {
+  const { primaryOrgId } = useOrgStore.getState();
+  if (!primaryOrgId || !date || !serviceIds.length) {
+    return [];
+  }
+
+  const normalizedServiceIds = [...new Set(serviceIds.filter(Boolean))].sort(
+    compareServiceIdsAlphabetically
+  );
+  if (!normalizedServiceIds.length) return [];
+
+  const dateLabel = formatDateLocal(date);
+  const requestKey = [
+    primaryOrgId,
+    dateLabel,
+    String(minuteOfDay),
+    normalizeLeadId(leadId),
+    normalizedServiceIds.join(','),
+  ].join('::');
+  const existingRequest = inFlightCalendarPrefillRequests.get(requestKey);
+  if (existingRequest) {
+    return existingRequest;
+  }
+
+  const requestPromise = postData<CalendarPrefillResolutionResponse>(
+    '/fhir/v1/service/bookable-slots/calendar-prefill',
+    {
+      organisationId: primaryOrgId,
+      date: dateLabel,
+      minuteOfDay,
+      leadId: normalizeLeadId(leadId) || undefined,
+      serviceIds: normalizedServiceIds,
+    }
+  )
+    .then((res) => {
+      return (res.data?.data?.matches ?? [])
+        .map((match) => {
+          const serviceId = String(match?.serviceId ?? '').trim();
+          const startTime = String(match?.slot?.startTime ?? '').trim();
+          const endTime = String(match?.slot?.endTime ?? '').trim();
+          if (!serviceId || !startTime || !endTime) return null;
+          const localStartMinute = Number(match?.meta?.localStartMinute);
+          const localEndMinute = Number(match?.meta?.localEndMinute);
+          if (!Number.isFinite(localStartMinute) || !Number.isFinite(localEndMinute)) return null;
+          return {
+            serviceId,
+            slot: {
+              startTime,
+              endTime,
+              vetIds: Array.isArray(match?.slot?.vetIds) ? match.slot.vetIds : [],
+            },
+            meta: {
+              localStartMinute,
+              localEndMinute,
+            },
+          } satisfies CalendarPrefillSlotMatch;
+        })
+        .filter((match): match is CalendarPrefillSlotMatch => match != null);
+    })
+    .catch((err) => {
+      if (shouldFallbackCalendarPrefillEndpoint(err)) {
+        return null;
+      }
+      console.error('Failed to resolve calendar prefill slots:', err);
+      throw err;
+    })
+    .finally(() => {
+      inFlightCalendarPrefillRequests.delete(requestKey);
+    });
+
+  inFlightCalendarPrefillRequests.set(requestKey, requestPromise);
+  return requestPromise;
+};
 
 const performAppointmentAction = async (
   appointment: Appointment,

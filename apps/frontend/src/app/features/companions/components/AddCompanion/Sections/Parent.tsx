@@ -3,6 +3,7 @@ import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import Datepicker from '@/app/ui/inputs/Datepicker';
+import GoogleSearchDropDown from '@/app/ui/inputs/GoogleSearchDropDown/GoogleSearchDropDown';
 import { StoredParent } from '@/app/features/companions/pages/Companions/types';
 import SearchDropdown from '@/app/ui/inputs/SearchDropdown';
 import { searchParent } from '@/app/features/companions/services/companionService';
@@ -45,6 +46,9 @@ const Parent = forwardRef<ParentSectionRef, ParentProps>(
       dateOfBirth?: string;
       countryCode?: string;
       addressLine?: string;
+      city?: string;
+      state?: string;
+      postalCode?: string;
     }>({});
     const [currentDate, setCurrentDate] = useState<Date | null>(
       formData.birthDate ? new Date(formData.birthDate) : null
@@ -106,6 +110,9 @@ const Parent = forwardRef<ParentSectionRef, ParentProps>(
         dateOfBirth?: string;
         countryCode?: string;
         addressLine?: string;
+        city?: string;
+        state?: string;
+        postalCode?: string;
       } = {};
       if (!formData.firstName) errors.firstName = 'First name is required';
       if (!formData.lastName) errors.lastName = 'Last name is required';
@@ -113,6 +120,9 @@ const Parent = forwardRef<ParentSectionRef, ParentProps>(
       if (!selectedCountryCode?.dialCode) errors.countryCode = 'Country code is required';
       if (!localPhoneNumber) errors.phoneNumber = 'Number is required';
       if (!formData.address.addressLine?.trim()) errors.addressLine = 'Address is required';
+      if (!formData.address.city?.trim()) errors.city = 'City is required';
+      if (!formData.address.state?.trim()) errors.state = 'State/Province is required';
+      if (!formData.address.postalCode?.trim()) errors.postalCode = 'Postal code is required';
       if (selectedCountryCode?.dialCode && localPhoneNumber) {
         const fullPhoneNumber = `${selectedCountryCode.dialCode}${localPhoneNumber}`;
         if (!validatePhone(fullPhoneNumber)) {
@@ -174,6 +184,43 @@ const Parent = forwardRef<ParentSectionRef, ParentProps>(
       setCurrentDate(new Date(selected.birthDate || '2025-10-23'));
       const lastName = selected.lastName ? ` ${selected.lastName}` : '';
       setQuery(`${selected.firstName}${lastName}`);
+    };
+
+    const updateAddressField = (
+      field: 'addressLine' | 'city' | 'state' | 'postalCode',
+      value: string
+    ) => {
+      setFormData((prev) => ({
+        ...prev,
+        address: { ...prev.address, [field]: value },
+      }));
+      setFormDataErrors((prev) => ({ ...prev, [field]: undefined }));
+    };
+
+    const handleAddressSelect = (address: {
+      addressLine: string;
+      city: string;
+      state: string;
+      postalCode: string;
+      country: string;
+      latitude?: number;
+      longitude?: number;
+    }) => {
+      setFormData((prev) => ({
+        ...prev,
+        address: {
+          ...prev.address,
+          ...address,
+          country: address.country || prev.address.country,
+        },
+      }));
+      setFormDataErrors((prev) => ({
+        ...prev,
+        addressLine: undefined,
+        city: undefined,
+        state: undefined,
+        postalCode: undefined,
+      }));
     };
 
     return (
@@ -264,45 +311,33 @@ const Parent = forwardRef<ParentSectionRef, ParentProps>(
                   </button>
                 </GlassTooltip>
               </div>
-              <FormInput
+              <GoogleSearchDropDown
                 intype="text"
                 inname="address line"
                 value={formData.address.addressLine || ''}
                 inlabel="Address"
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    address: { ...formData.address, addressLine: e.target.value },
-                  })
-                }
+                onChange={(e) => updateAddressField('addressLine', e.target.value)}
                 error={formDataErrors.addressLine}
-                className="min-h-12!"
+                onAddressSelect={handleAddressSelect}
+                onlyAddress={true}
               />
               <div className="grid grid-cols-2 gap-3">
                 <FormInput
                   intype="text"
                   inname="city"
                   value={formData.address.city || ''}
-                  inlabel="City (Optional)"
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      address: { ...formData.address, city: e.target.value },
-                    })
-                  }
+                  inlabel="City"
+                  onChange={(e) => updateAddressField('city', e.target.value)}
+                  error={formDataErrors.city}
                   className="min-h-12!"
                 />
                 <FormInput
                   intype="text"
                   inname="state"
                   value={formData.address.state || ''}
-                  inlabel="State/Province (Optional)"
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      address: { ...formData.address, state: e.target.value },
-                    })
-                  }
+                  inlabel="State/Province"
+                  onChange={(e) => updateAddressField('state', e.target.value)}
+                  error={formDataErrors.state}
                   className="min-h-12!"
                 />
               </div>
@@ -310,13 +345,9 @@ const Parent = forwardRef<ParentSectionRef, ParentProps>(
                 intype="text"
                 inname="postal code"
                 value={formData.address.postalCode || ''}
-                inlabel="Postal code (Optional)"
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    address: { ...formData.address, postalCode: e.target.value },
-                  })
-                }
+                inlabel="Postal code"
+                onChange={(e) => updateAddressField('postalCode', e.target.value)}
+                error={formDataErrors.postalCode}
                 className="min-h-12!"
               />
             </div>

@@ -3,6 +3,7 @@ import {
   loadAppointmentsForPrimaryOrg,
   createAppointment,
   updateAppointment,
+  getCalendarPrefillMatchesForPrimaryOrg,
   getSlotsForServiceAndDateForPrimaryOrg,
   toSlotsArray,
   acceptAppointment,
@@ -493,6 +494,73 @@ describe('Appointment Service', () => {
 
       expect(consoleSpy).toHaveBeenCalledWith('Failed to create service:', error);
       consoleSpy.mockRestore();
+    });
+
+    it('uses the bulk calendar prefill endpoint when available', async () => {
+      mockedFormatDateLocal.mockReturnValue('2026-01-06');
+      mockedPostData.mockResolvedValue({
+        data: {
+          success: true,
+          data: {
+            matches: [
+              {
+                serviceId: 'svc-1',
+                slot: {
+                  startTime: '23:45',
+                  endTime: '00:00',
+                  vetIds: ['vet-1'],
+                },
+                meta: {
+                  localStartMinute: 1425,
+                  localEndMinute: 1440,
+                },
+              },
+            ],
+          },
+        },
+      });
+
+      const result = await getCalendarPrefillMatchesForPrimaryOrg({
+        date: new Date('2026-01-06T00:00:00.000Z'),
+        minuteOfDay: 1425,
+        leadId: 'vet-1',
+        serviceIds: ['svc-1', 'svc-1', 'svc-2'],
+      });
+
+      expect(mockedPostData).toHaveBeenCalledWith(
+        '/fhir/v1/service/bookable-slots/calendar-prefill',
+        {
+          organisationId: 'org-123',
+          date: '2026-01-06',
+          minuteOfDay: 1425,
+          leadId: 'vet-1',
+          serviceIds: ['svc-1', 'svc-2'],
+        }
+      );
+      expect(result).toEqual([
+        {
+          serviceId: 'svc-1',
+          slot: { startTime: '23:45', endTime: '00:00', vetIds: ['vet-1'] },
+          meta: { localStartMinute: 1425, localEndMinute: 1440 },
+        },
+      ]);
+    });
+
+    it('falls back when the bulk calendar prefill endpoint is not deployed', async () => {
+      const error = Object.assign(new Error('Not Found'), {
+        isAxiosError: true,
+        response: { status: 404 },
+      });
+      mockedPostData.mockRejectedValue(error);
+
+      const result = await getCalendarPrefillMatchesForPrimaryOrg({
+        date: new Date('2026-01-06T00:00:00.000Z'),
+        minuteOfDay: 600,
+        leadId: 'vet-1',
+        serviceIds: ['svc-1'],
+      });
+
+      expect(result).toBeNull();
     });
   });
 

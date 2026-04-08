@@ -31,8 +31,15 @@ const formsStoreState = {
       schema: [],
       requiredSigner: '',
     },
+    'form-2': {
+      _id: 'form-2',
+      name: 'Hospital SOAP Template',
+      category: 'SOAP',
+      schema: [],
+      requiredSigner: '',
+    },
   },
-  formIds: ['form-1'],
+  formIds: ['form-1', 'form-2'],
 };
 const services: Array<{ id: string; cost: string }> = [];
 
@@ -315,16 +322,23 @@ jest.mock('next/image', () => ({
 jest.mock('@/app/ui/inputs/SearchDropdown', () => ({
   __esModule: true,
   default: ({ options, onSelect }: any) => (
-    <button
-      type="button"
-      onClick={() => {
-        if (options.length > 0) {
-          onSelect(options[0].value);
-        }
-      }}
-    >
-      pick-template
-    </button>
+    <div>
+      <button
+        type="button"
+        onClick={() => {
+          if (options.length > 0) {
+            onSelect(options[0].value);
+          }
+        }}
+      >
+        pick-template
+      </button>
+      {options.map((option: { label: string; value: string }) => (
+        <button key={option.value} type="button" onClick={() => onSelect(option.value)}>
+          {option.label}
+        </button>
+      ))}
+    </div>
   ),
 }));
 
@@ -437,6 +451,19 @@ describe('AppointmentInfo modal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'SOAP' }));
 
     expect(screen.getByText(/loading forms/i)).toBeInTheDocument();
+  });
+
+  it('includes SOAP category templates in hospital medical records search', async () => {
+    render(
+      <AppointmentInfoModal showModal setShowModal={setShowModal} activeAppointment={appointment} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Medical Records' }));
+    fireEvent.click(screen.getByRole('button', { name: 'SOAP' }));
+
+    expect(
+      await screen.findByRole('button', { name: 'Hospital SOAP Template' })
+    ).toBeInTheDocument();
   });
 
   it('passes canEdit false to sections for completed appointments', () => {

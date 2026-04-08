@@ -227,6 +227,15 @@ jest.mock('@/app/features/appointments/components/Availability/utils', () => ({
   DEFAULT_INTERVAL: { start: '09:00', end: '17:00' },
   daysOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
   convertAvailability: jest.fn(() => convertedAvailability),
+  convertFromGetApi: jest.fn(() => ({
+    Monday: { enabled: true, intervals: [{ start: '09:00', end: '17:00' }] },
+    Tuesday: { enabled: false, intervals: [{ start: '09:00', end: '17:00' }] },
+    Wednesday: { enabled: false, intervals: [{ start: '09:00', end: '17:00' }] },
+    Thursday: { enabled: false, intervals: [{ start: '09:00', end: '17:00' }] },
+    Friday: { enabled: false, intervals: [{ start: '09:00', end: '17:00' }] },
+    Saturday: { enabled: false, intervals: [{ start: '09:00', end: '17:00' }] },
+    Sunday: { enabled: false, intervals: [{ start: '09:00', end: '17:00' }] },
+  })),
   hasAtLeastOneAvailability: jest.fn(() => true),
 }));
 

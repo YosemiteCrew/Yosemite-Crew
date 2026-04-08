@@ -3,6 +3,7 @@ import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import SearchDropdown from '@/app/ui/inputs/SearchDropdown';
 import Modal from '@/app/ui/overlays/Modal';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
+import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Appointment } from '@yosemite-crew/types';
 import { useCompanionsParentsForPrimaryOrg } from '@/app/hooks/useCompanion';
@@ -159,6 +160,7 @@ const AddAppointment = ({
     handleLeadSelect,
     handleSupportStaffChange,
     isLoading,
+    isLoadingSlotScopedOptions,
     setFormDataErrors,
     validateForm,
     resetForm,
@@ -454,7 +456,15 @@ const AddAppointment = ({
         setShowModal={setShowModal}
         canClose={canCloseAddModal}
       >
-        <div className="flex flex-col h-full gap-6">
+        <div className="relative flex flex-col h-full gap-6">
+          {isLoading && (
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-2xl bg-white/88 backdrop-blur-sm">
+              <YosemiteLoader label="Booking appointment" />
+              <div className="text-body-4 text-text-secondary">
+                Finalizing the appointment and refreshing the schedule.
+              </div>
+            </div>
+          )}
           <ModalHeader title="Add appointment" onClose={handleRequestClose} />
 
           <div
@@ -595,6 +605,7 @@ const AddAppointment = ({
                       setSelectedSlot={setSelectedSlot}
                       timeSlots={timeSlots}
                       hideDateSlotPicker={isCalendarSlotFlow}
+                      isLoadingSlot={isCalendarSlotFlow && isLoadingSlotScopedOptions}
                       slotError={formDataErrors.slot}
                       leadId={formData.lead?.id}
                       leadError={formDataErrors.leadId}

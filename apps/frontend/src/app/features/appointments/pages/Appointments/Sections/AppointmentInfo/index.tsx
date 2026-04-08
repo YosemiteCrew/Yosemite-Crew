@@ -76,7 +76,7 @@ const resolveCompanionImageType = (species?: string | null): ImageType => {
 };
 
 const ALLOWED_CATEGORIES_BY_ORG: Record<string, string[]> = {
-  HOSPITAL: ['Prescription', 'Consent form', 'Custom'],
+  HOSPITAL: ['Prescription', 'SOAP', 'Consent form', 'Discharge Form', 'Custom'],
   BOARDER: [
     'Boarding Checklist',
     'Dietary Plan',
