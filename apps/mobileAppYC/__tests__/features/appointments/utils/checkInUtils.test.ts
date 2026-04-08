@@ -5,7 +5,7 @@ import {
 } from '../../../../src/features/appointments/utils/checkInUtils';
 
 jest.mock('@/features/appointments/utils/timeFormatting', () => ({
-  normalizeTimeString: (time: string) => {
+  normalizeTimeString: time => {
     if (time === '09:00') return '09:00:00';
     if (time === '14:30') return '14:30:00';
     return '00:00:00';
@@ -132,6 +132,40 @@ describe('checkInUtils', () => {
         CHECKIN_BUFFER_MS: 12 * 60 * 1000,
         CHECKIN_RADIUS_METERS: 450,
       });
+    });
+
+    it('falls back to default when string config is a float (e.g. "3.5")', () => {
+      const constants = getCheckInConstants({CHECKIN_BUFFER_MINUTES: '3.5'});
+      expect(constants.CHECKIN_BUFFER_MINUTES).toBe(5);
+    });
+
+    it('falls back to default when string config is negative (e.g. "-2")', () => {
+      const constants = getCheckInConstants({CHECKIN_BUFFER_MINUTES: '-2'});
+      expect(constants.CHECKIN_BUFFER_MINUTES).toBe(5);
+    });
+
+    it('falls back to default when numeric config is negative', () => {
+      const constants = getCheckInConstants({CHECKIN_RADIUS_METERS: -50});
+      expect(constants.CHECKIN_RADIUS_METERS).toBe(200);
+    });
+
+    it('falls back to default when numeric config is a float', () => {
+      const constants = getCheckInConstants({CHECKIN_BUFFER_MINUTES: 2.5});
+      expect(constants.CHECKIN_BUFFER_MINUTES).toBe(5);
+    });
+
+    it('accepts string "0" as valid (zero is a non-negative integer)', () => {
+      const constants = getCheckInConstants({CHECKIN_BUFFER_MINUTES: '0'});
+      expect(constants.CHECKIN_BUFFER_MINUTES).toBe(0);
+    });
+
+    it('falls back to default for non-numeric types (object, array)', () => {
+      const constants = getCheckInConstants({
+        CHECKIN_BUFFER_MINUTES: {},
+        CHECKIN_RADIUS_METERS: [],
+      });
+      expect(constants.CHECKIN_BUFFER_MINUTES).toBe(5);
+      expect(constants.CHECKIN_RADIUS_METERS).toBe(200);
     });
   });
 });

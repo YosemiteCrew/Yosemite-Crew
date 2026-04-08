@@ -7,10 +7,11 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  Platform,
+  ToastAndroid,
 } from 'react-native';
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {NavigationProp, useFocusEffect} from '@react-navigation/native';
-import {Platform, ToastAndroid} from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useTheme} from '@/hooks';
 import {normalizeImageUri} from '@/shared/utils/imageUri';

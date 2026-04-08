@@ -694,7 +694,7 @@ const joinProviderLabels = (providers: string[]): string => {
     return `${providers[0]} or ${providers[1]}`;
   }
 
-  return `${providers.slice(0, -1).join(', ')}, or ${providers[providers.length - 1]}`;
+  return `${providers.slice(0, -1).join(', ')}, or ${providers.at(-1)}`;
 };
 
 const buildAccountExistsError = async (error: any): Promise<Error> => {

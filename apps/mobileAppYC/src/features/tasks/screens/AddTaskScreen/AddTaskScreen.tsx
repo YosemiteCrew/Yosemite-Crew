@@ -38,7 +38,7 @@ const parsePrefillDate = (value?: string): Date | null => {
   if (!value) {
     return null;
   }
-  const dateOnlyMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (dateOnlyMatch) {
     const [, year, month, day] = dateOnlyMatch;
     const parsedLocal = new Date(
@@ -70,7 +70,7 @@ const prefillBasicFields = (
   fallbackDate.setDate(fallbackDate.getDate() + 1);
   const resolvedPrefillDate = parsePrefillDate(prefillDate) ?? fallbackDate;
   updateField('date', resolvedPrefillDate);
-  updateField('startDate', new Date(resolvedPrefillDate.getTime()));
+  updateField('startDate', new Date(resolvedPrefillDate));
   updateField('title', reuseTask.title);
   updateField('frequency', reuseTask.frequency);
   updateField('additionalNote', reuseTask.additionalNote || '');
@@ -228,7 +228,7 @@ export const AddTaskScreen: React.FC = () => {
     }
     hasAppliedDatePrefillRef.current = true;
     updateField('date', parsedPrefillDate);
-    updateField('startDate', new Date(parsedPrefillDate.getTime()));
+    updateField('startDate', new Date(parsedPrefillDate));
   }, [prefillDate, reuseTaskId, updateField]);
 
   const handleSave = async () => {

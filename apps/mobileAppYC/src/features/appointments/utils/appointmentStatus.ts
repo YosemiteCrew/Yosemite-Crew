@@ -146,12 +146,6 @@ export const getAppointmentStatusBadgePalette = (
   }
 
   switch (normalizedStatus) {
-    case 'UPCOMING':
-      return {
-        text: label,
-        textColor: theme.colors.secondary,
-        backgroundColor: theme.colors.primaryTint,
-      };
     case 'CHECKED_IN':
     case 'IN_PROGRESS':
     case 'PAID':

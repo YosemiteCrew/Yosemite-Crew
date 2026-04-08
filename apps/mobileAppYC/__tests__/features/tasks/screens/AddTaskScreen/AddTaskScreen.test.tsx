@@ -1,5 +1,5 @@
 import React from 'react';
-import {render, fireEvent, screen} from '@testing-library/react-native';
+import {render, fireEvent, screen, act} from '@testing-library/react-native';
 import {AddTaskScreen} from '../../../../../src/features/tasks/screens/AddTaskScreen/AddTaskScreen';
 import {useAddTaskScreen} from '../../../../../src/features/tasks/hooks/useAddTaskScreen';
 import {selectTaskById} from '@/features/tasks/selectors';
@@ -70,19 +70,22 @@ jest.mock('../../../../../src/hooks', () => ({
 }));
 
 // 4. Feature Actions
-const mockAddTask = jest.fn();
-const mockUpdateTask = jest.fn();
-jest.mock('../../../../../src/features/tasks', () => ({
-  addTask: mockAddTask,
-  updateTask: mockUpdateTask,
+jest.mock('@/features/tasks', () => ({
+  addTask: jest.fn(),
+  updateTask: jest.fn(),
   setTaskCalendarEventId: jest.fn(() => ({type: 'SET_CALENDAR'})),
 }));
+const tasksMock = jest.requireMock('@/features/tasks');
+const mockAddTask = tasksMock.addTask as jest.Mock;
+const mockUpdateTask = tasksMock.updateTask as jest.Mock;
 
 // Mock upload and calendar functions
-const mockUploadDocumentFiles = jest.fn();
 jest.mock('@/features/documents/documentSlice', () => ({
-  uploadDocumentFiles: mockUploadDocumentFiles,
+  uploadDocumentFiles: jest.fn(),
 }));
+const mockUploadDocumentFiles = jest.requireMock(
+  '@/features/documents/documentSlice',
+).uploadDocumentFiles as jest.Mock;
 
 jest.mock('@/features/tasks/services/calendarSyncService', () => ({
   createCalendarEventForTask: jest.fn(),
@@ -535,6 +538,264 @@ describe('AddTaskScreen', () => {
       fireEvent.press(selectorBtn);
 
       expect(handleSelectMock).toHaveBeenCalledWith('c1');
+    });
+  });
+
+  describe('Prefill from reuse task — advanced branches', () => {
+    it('prefills time and attachments from reuse task', () => {
+      const updateFieldMock = jest.fn();
+      const handleTaskTypeSelectMock = jest.fn();
+      mockRouteParams = {reuseTaskId: 'task-full', prefillDate: '2026-06-01'};
+      (selectTaskById as jest.Mock).mockImplementation(
+        (taskId: string) => () =>
+          taskId === 'task-full'
+            ? {
+                id: 'task-full',
+                companionId: 'c1',
+                category: 'health',
+                subcategory: 'checkup',
+                title: 'Full task',
+                frequency: 'daily',
+                additionalNote: 'note',
+                assignedTo: 'user-1',
+                time: '09:30',
+                attachments: [{id: 'att1', name: 'file.pdf'}],
+                details: {
+                  taskType: 'give-medication',
+                  medicineName: 'Aspirin',
+                  medicineType: 'tablet',
+                  dosages: [{id: 'd1', label: '1 tablet'}],
+                  description: 'Take with food',
+                  chronicConditionType: 'arthritis',
+                },
+                observationToolId: 'tool-123',
+              }
+            : null,
+      );
+      (useAddTaskScreen as jest.Mock).mockReturnValue({
+        ...defaultHookData,
+        updateField: updateFieldMock,
+        handleTaskTypeSelect: handleTaskTypeSelectMock,
+      });
+
+      render(<AddTaskScreen />);
+
+      // time prefill path
+      expect(updateFieldMock).toHaveBeenCalledWith('time', expect.any(Date));
+      // attachments prefill path
+      expect(updateFieldMock).toHaveBeenCalledWith(
+        'attachments',
+        expect.any(Array),
+      );
+      expect(updateFieldMock).toHaveBeenCalledWith('attachDocuments', true);
+      // medication fields
+      expect(updateFieldMock).toHaveBeenCalledWith('medicineName', 'Aspirin');
+      expect(updateFieldMock).toHaveBeenCalledWith('medicineType', 'tablet');
+      expect(updateFieldMock).toHaveBeenCalledWith(
+        'dosages',
+        expect.any(Array),
+      );
+      expect(updateFieldMock).toHaveBeenCalledWith(
+        'description',
+        'Take with food',
+      );
+      // observational tool
+      expect(updateFieldMock).toHaveBeenCalledWith(
+        'observationalTool',
+        'tool-123',
+      );
+    });
+
+    it('prefills without prefillDate using fallback tomorrow date', () => {
+      const updateFieldMock = jest.fn();
+      mockRouteParams = {reuseTaskId: 'task-nodateprefix'};
+      (selectTaskById as jest.Mock).mockImplementation(
+        (taskId: string) => () =>
+          taskId === 'task-nodateprefix'
+            ? {
+                id: 'task-nodateprefix',
+                companionId: null,
+                category: 'custom',
+                subcategory: 'none',
+                title: 'No date task',
+                frequency: 'once',
+                additionalNote: '',
+                assignedTo: null,
+                attachments: [],
+                details: {},
+              }
+            : null,
+      );
+      (useAddTaskScreen as jest.Mock).mockReturnValue({
+        ...defaultHookData,
+        updateField: updateFieldMock,
+      });
+
+      render(<AddTaskScreen />);
+
+      // Should still set date to fallback (tomorrow)
+      expect(updateFieldMock).toHaveBeenCalledWith('date', expect.any(Date));
+    });
+
+    it('handles invalid prefillDate string (falls back to parsePrefillDate ISO)', () => {
+      const updateFieldMock = jest.fn();
+      // Use an ISO datetime string (not date-only) — triggers the `new Date(value)` path
+      mockRouteParams = {prefillDate: '2026-07-15T10:00:00.000Z'};
+      (useAddTaskScreen as jest.Mock).mockReturnValue({
+        ...defaultHookData,
+        updateField: updateFieldMock,
+      });
+
+      render(<AddTaskScreen />);
+
+      expect(updateFieldMock).toHaveBeenCalledWith('date', expect.any(Date));
+    });
+
+    it('does not set date when prefillDate is entirely invalid', () => {
+      const updateFieldMock = jest.fn();
+      mockRouteParams = {prefillDate: 'not-a-date'};
+      (useAddTaskScreen as jest.Mock).mockReturnValue({
+        ...defaultHookData,
+        updateField: updateFieldMock,
+      });
+
+      render(<AddTaskScreen />);
+
+      // parsePrefillDate returns null for invalid, so updateField('date') not called
+      // (no reuseTaskId, so prefillFormFromTask not called either)
+      expect(updateFieldMock).not.toHaveBeenCalledWith(
+        'date',
+        expect.any(Date),
+      );
+    });
+  });
+
+  describe('Calendar sync on save', () => {
+    // clearAllMocks in outer beforeEach resets jest.fn(() => x) defaults too.
+    // Restore critical mocks here so the save handler can complete.
+    beforeEach(() => {
+      const {buildTaskDraftFromForm: bdf} = jest.requireMock(
+        '../../../../../src/features/tasks/services/taskService',
+      );
+      (bdf as jest.Mock).mockReturnValue({
+        companionId: 'c1',
+        category: 'health',
+        title: 'Test',
+        dueAt: new Date().toISOString(),
+        syncWithCalendar: true,
+        calendarProvider: 'google',
+      });
+
+      // mockUnwrap is cleared by clearAllMocks — restore it
+      mockUnwrap.mockResolvedValue({
+        id: 'new-task-id',
+        date: '2026-04-10',
+        syncWithCalendar: true,
+        calendarProvider: 'google',
+      });
+      mockAddTask.mockReturnValue({
+        unwrap: mockUnwrap,
+        type: 'tasks/addTask',
+      });
+      mockUpdateTask.mockReturnValue({
+        unwrap: jest.fn().mockResolvedValue({id: 'new-task-id'}),
+        type: 'tasks/updateTask',
+      });
+      mockDispatch.mockImplementation(action => action);
+    });
+
+    it('creates calendar event and persists event ID when syncWithCalendar is true', async () => {
+      const calendarMock = jest.requireMock(
+        '@/features/tasks/services/calendarSyncService',
+      );
+      calendarMock.createCalendarEventForTask.mockResolvedValue('event-id-123');
+
+      const validateFormMock = jest.fn().mockReturnValue(true);
+      (useAddTaskScreen as jest.Mock).mockReturnValue({
+        ...defaultHookData,
+        companions: [{id: 'c1', name: 'Buddy'}],
+        formData: {
+          ...defaultHookData.formData,
+          syncWithCalendar: true,
+          calendarProvider: 'google',
+          calendarProviderName: 'Google Calendar',
+          attachments: [],
+        },
+        validateForm: validateFormMock,
+      });
+
+      render(<AddTaskScreen />);
+
+      const saveBtn = screen.getByTestId('save-button');
+      await act(async () => {
+        fireEvent.press(saveBtn);
+      });
+
+      expect(calendarMock.createCalendarEventForTask).toHaveBeenCalled();
+    });
+
+    it('handles null eventId from createCalendarEventForTask gracefully', async () => {
+      const calendarMock = jest.requireMock(
+        '@/features/tasks/services/calendarSyncService',
+      );
+      calendarMock.createCalendarEventForTask.mockResolvedValue(null);
+
+      const validateFormMock = jest.fn().mockReturnValue(true);
+      (useAddTaskScreen as jest.Mock).mockReturnValue({
+        ...defaultHookData,
+        companions: [{id: 'c1', name: 'Buddy'}],
+        formData: {
+          ...defaultHookData.formData,
+          syncWithCalendar: true,
+          calendarProvider: 'google',
+          attachments: [],
+        },
+        validateForm: validateFormMock,
+      });
+
+      render(<AddTaskScreen />);
+
+      const saveBtn = screen.getByTestId('save-button');
+      await act(async () => {
+        fireEvent.press(saveBtn);
+      });
+
+      // eventId null → no setTaskCalendarEventId, but navigation still happens
+      expect(mockNavigate).toHaveBeenCalledWith(
+        expect.objectContaining({name: 'TasksMain'}),
+      );
+    });
+
+    it('uploads attachments before saving when present', async () => {
+      const validateFormMock = jest.fn().mockReturnValue(true);
+      const mockFile = {name: 'file.pdf', uri: 'file://path/to/file.pdf'};
+
+      const uploadedFile = {...mockFile, id: 'uploaded-1'};
+      mockUploadDocumentFiles.mockReturnValue({
+        unwrap: jest.fn().mockResolvedValue([uploadedFile]),
+        type: 'documents/uploadDocumentFiles',
+      });
+
+      (useAddTaskScreen as jest.Mock).mockReturnValue({
+        ...defaultHookData,
+        formData: {
+          ...defaultHookData.formData,
+          attachments: [mockFile],
+          syncWithCalendar: false,
+        },
+        validateForm: validateFormMock,
+      });
+
+      render(<AddTaskScreen />);
+
+      const saveBtn = screen.getByTestId('save-button');
+      await act(async () => {
+        fireEvent.press(saveBtn);
+      });
+
+      expect(mockUploadDocumentFiles).toHaveBeenCalledWith(
+        expect.objectContaining({companionId: 'c1'}),
+      );
     });
   });
 });

@@ -128,12 +128,14 @@ export const TaskViewScreen: React.FC = () => {
   const medicationFrequency = isMedication
     ? (task.details as MedicationTaskDetails).frequency
     : null;
-  const medicationFrequencyType =
-    typeof medicationFrequency === 'string'
-      ? medicationFrequency
-      : medicationFrequency && typeof medicationFrequency === 'object'
-        ? (medicationFrequency as {type?: string}).type
-        : null;
+  let medicationFrequencyType: string | null | undefined;
+  if (typeof medicationFrequency === 'string') {
+    medicationFrequencyType = medicationFrequency;
+  } else if (medicationFrequency && typeof medicationFrequency === 'object') {
+    medicationFrequencyType = (medicationFrequency as {type?: string}).type;
+  } else {
+    medicationFrequencyType = null;
+  }
   const shouldShowMedicationEndDate =
     String(medicationFrequencyType ?? '')
       .trim()
