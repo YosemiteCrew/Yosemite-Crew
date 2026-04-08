@@ -18,6 +18,7 @@ import {
   Slot,
 } from '@/app/features/appointments/types/appointments';
 import { formatDateLocal } from '@/app/lib/date';
+import { getDateKeyInPreferredTimeZone } from '@/app/lib/timezone';
 import { fetchInventoryItems } from '@/app/features/inventory/services/inventoryService';
 import {
   canTransitionAppointmentStatus,
@@ -267,7 +268,7 @@ export const getCalendarPrefillMatchesForPrimaryOrg = async ({
   );
   if (!normalizedServiceIds.length) return [];
 
-  const dateLabel = formatDateLocal(date);
+  const dateLabel = getDateKeyInPreferredTimeZone(date);
   const requestKey = [
     primaryOrgId,
     dateLabel,

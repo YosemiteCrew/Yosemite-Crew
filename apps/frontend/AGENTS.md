@@ -112,6 +112,8 @@ pnpm --filter frontend run lint
 pnpm --filter frontend run test -- --testPathPattern="<YourFile>"
 ```
 
+When modifying an existing file, check whether a test file already exists for it in `src/app/__tests__/` (mirroring the source path). If it does, run it and **fix any failures your change introduced** before declaring the task done. A change is not complete if it breaks existing tests.
+
 - Mock react-icons as `<span>`, not `<button>`.
 - `await act(async () => { ... })` for async state updates.
 - Reset Zustand stores in `beforeEach`.

@@ -117,7 +117,7 @@ const ModalBase = ({
       <div className={overlayClassName} aria-hidden="true" />
 
       <dialog
-        open={showModal}
+        open
         ref={containerRef}
         aria-modal="true"
         aria-label={ariaLabel}
@@ -127,7 +127,7 @@ const ModalBase = ({
           event.preventDefault();
           closeModal();
         }}
-        className={`inset-auto m-0 border-0 p-0 max-h-none max-w-none overflow-visible ${containerClassName}`}
+        className={`inset-auto m-0 border-0 p-0 max-h-none max-w-none overflow-visible ${containerClassName} ${showModal ? '' : 'pointer-events-none'}`}
       >
         {children}
       </dialog>

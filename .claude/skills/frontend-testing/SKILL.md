@@ -49,6 +49,8 @@ pnpm --filter frontend run test -- --testPathPattern="__tests__/features/billing
 
 **Full suite is forbidden.** It takes 100+ seconds and hangs the machine. Always derive the `--testPathPattern` from the filenames you actually changed.
 
+**When modifying an existing file**, always check whether a test file already exists for it (look in `src/app/__tests__/` mirroring the source path). If it does, run it and fix any failures your change introduced before declaring the task done. A change is not complete if it breaks existing tests.
+
 ---
 
 ## Stack

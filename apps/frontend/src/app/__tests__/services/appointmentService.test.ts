@@ -21,9 +21,9 @@ import { useOrgStore } from '@/app/stores/orgStore';
 import { useAppointmentStore } from '@/app/stores/appointmentStore';
 import { formatDateLocal } from '@/app/lib/date';
 import { fetchInventoryItems } from '@/app/features/inventory/services/inventoryService';
+import { getDateKeyInPreferredTimeZone } from '@/app/lib/timezone';
 
 import { fromAppointmentRequestDTO, toAppointmentResponseDTO } from '@yosemite-crew/types';
-
 import type { Appointment, AppointmentResponseDTO } from '@yosemite-crew/types';
 
 import type { AvailabilityResponse, Slot } from '@/app/features/appointments/types/appointments';
@@ -71,6 +71,11 @@ jest.mock('@/app/lib/date', () => ({
   formatDateLocal: jest.fn(),
 }));
 const mockedFormatDateLocal = formatDateLocal as jest.Mock;
+
+jest.mock('@/app/lib/timezone', () => ({
+  getDateKeyInPreferredTimeZone: jest.fn(),
+}));
+const mockedGetDateKeyInPreferredTimeZone = getDateKeyInPreferredTimeZone as jest.Mock;
 
 // 4. Mock External DTO mappers
 jest.mock('@yosemite-crew/types', () => ({
@@ -497,7 +502,7 @@ describe('Appointment Service', () => {
     });
 
     it('uses the bulk calendar prefill endpoint when available', async () => {
-      mockedFormatDateLocal.mockReturnValue('2026-01-06');
+      mockedGetDateKeyInPreferredTimeZone.mockReturnValue('2026-01-06');
       mockedPostData.mockResolvedValue({
         data: {
           success: true,

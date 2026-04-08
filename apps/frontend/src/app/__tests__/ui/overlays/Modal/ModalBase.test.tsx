@@ -38,7 +38,10 @@ describe('ModalBase', () => {
     const dialog = document.body.querySelector('dialog');
     expect(dialog).toBeInTheDocument();
     expect(dialog).toHaveClass('container');
-    expect(dialog).not.toHaveAttribute('open');
+    // dialog stays open at all times so CSS transitions can play;
+    // interaction is blocked via pointer-events-none instead
+    expect(dialog).toHaveAttribute('open');
+    expect(dialog).toHaveClass('pointer-events-none');
     expect(screen.getByText('Modal content')).toBeInTheDocument();
   });
 
