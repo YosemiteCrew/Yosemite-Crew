@@ -473,7 +473,7 @@ const AppUpdateGate: React.FC<AppUpdateGateProps> = ({
 
   return (
     <>
-      {children}
+      {prompt?.kind === 'required' ? null : children}
       {prompt ? (
         <AppUpdateBottomSheet
           ref={updateSheetRef}

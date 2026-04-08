@@ -259,7 +259,7 @@ const mapAttachmentFromApi = (
     raw?.name ??
     raw?.fileName ??
     fallback?.name ??
-    deriveNameFromKey(key, `document-${index + 1}`);
+    deriveNameFromKey(cdnUrl ?? key, `document-${index + 1}`);
 
   const id =
     raw?.id ??

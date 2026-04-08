@@ -559,13 +559,27 @@ describe('documentService', () => {
       ];
       (apiClient.get as jest.Mock).mockResolvedValue({data: payload});
 
+      // Mock buildCdnUrlFromKey to return URLs with specific filenames
+      (buildCdnUrlFromKey as jest.Mock).mockImplementation(key => {
+        if (!key) {
+          return null;
+        }
+        if (key === 'mock_file_key') {
+          return 'https://example.com/derived.jpg';
+        }
+        if (key === 'mock_uuid_file_key_pdf') {
+          return 'https://example.com/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa-test.pdf';
+        }
+        return `cdn/${key}`;
+      });
+
       const list = await documentApi.list({companionId: 'c', accessToken: 't'});
 
       expect(list[0].files[0].name).toBe('Explicit');
       expect(list[1].files[0].name).toBe('derived.jpg');
       // Should keep full name if regex matches UUID pattern
       expect(list[2].files[0].name).toBe(
-        '12345678-1234-1234-1234-1234567890ab-uuid.pdf',
+        'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa-test.pdf',
       );
       expect(list[3].files[0].name).toContain('document-');
     });

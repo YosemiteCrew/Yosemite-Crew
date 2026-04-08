@@ -109,7 +109,7 @@ export function getVisibleHourRange(
 
   return {
     startHour: nextStartHour,
-    endHour: Math.max(nextStartHour + minVisibleHours, nextEndHour),
+    endHour: Math.min(endHour, Math.max(nextStartHour + minVisibleHours, nextEndHour)),
   };
 }
 
