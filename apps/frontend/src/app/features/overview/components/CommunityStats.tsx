@@ -124,9 +124,9 @@ const getAvailablePeriodKeys = (
 ) => {
   if (view === 'Stars') {
     if (effectiveGranularity === 'Monthly') {
-      return Array.from(
-        new Set(starsChart.map((dataPoint) => getYearKey(dataPoint.dateKey)))
-      ).sort();
+      return Array.from(new Set(starsChart.map((dataPoint) => getYearKey(dataPoint.dateKey)))).sort(
+        (a, b) => a.localeCompare(b)
+      );
     }
     return [];
   }
@@ -134,10 +134,12 @@ const getAvailablePeriodKeys = (
   if (effectiveGranularity === 'Daily') {
     return Array.from(
       new Set(trafficChart.map((dataPoint) => getMonthKey(dataPoint.dateKey)))
-    ).sort();
+    ).sort((a, b) => a.localeCompare(b));
   }
 
-  return Array.from(new Set(trafficChart.map((dataPoint) => getYearKey(dataPoint.dateKey)))).sort();
+  return Array.from(new Set(trafficChart.map((dataPoint) => getYearKey(dataPoint.dateKey)))).sort(
+    (a, b) => a.localeCompare(b)
+  );
 };
 
 const getResolvedPeriodKey = (availablePeriodKeys: string[], selectedPeriodKey: string | null) =>
@@ -170,6 +172,76 @@ const buildNavigationConfig = (
   };
 };
 
+type ChartConfig = {
+  chartData: Array<Record<string, number | string>>;
+  yAxisWidth: number;
+  xAxisDataKey?: string;
+  xAxisType?: 'category' | 'number';
+  xAxisTicks?: number[];
+  xAxisDomain?: [number, number];
+  xTickFormatter?: (value: string | number) => string;
+  tooltipLabelFormatter?: (label: string | number, payload?: any[]) => React.ReactNode;
+};
+
+const buildStarsChartConfig = (
+  starsChart: StarsDataPoint[],
+  effectiveGranularity: GranularityType,
+  resolvedPeriodKey: string | null
+): ChartConfig => {
+  const chartData =
+    effectiveGranularity === 'Yearly'
+      ? aggregateStarsByYear(starsChart).map(({ dateKey, ...dataPoint }) => dataPoint)
+      : starsChart
+          .filter((dataPoint) => getYearKey(dataPoint.dateKey) === resolvedPeriodKey)
+          .map(({ dateKey, ...dataPoint }) => dataPoint);
+  return { chartData, yAxisWidth: 45 };
+};
+
+const buildTrafficChartConfig = (
+  trafficChart: TrafficDataPoint[],
+  view: Exclude<ViewType, 'Stars'>,
+  effectiveGranularity: GranularityType,
+  resolvedPeriodKey: string | null
+): ChartConfig => {
+  const mapTrafficPoint = (d: TrafficDataPoint) => ({
+    month: d.month,
+    dayNumber: getDayNumber(d.dateKey),
+    'Self Hosters': view === 'Unique' ? d['Self Hosters (Unique)'] : d['Self Hosters (Cumulative)'],
+    Builders: view === 'Unique' ? d['Builders (Unique)'] : d['Builders (Cumulative)'],
+  });
+
+  const trafficData =
+    effectiveGranularity === 'Monthly'
+      ? aggregateTrafficByMonth(trafficChart, view)
+          .filter((dataPoint) => getYearKey(dataPoint.dateKey) === resolvedPeriodKey)
+          .map(({ dateKey, ...dataPoint }) => dataPoint)
+      : trafficChart
+          .filter((dataPoint) => getMonthKey(dataPoint.dateKey) === resolvedPeriodKey)
+          .map(mapTrafficPoint);
+
+  const chartData = trafficData.length > 0 ? trafficData : [];
+
+  if (effectiveGranularity !== 'Daily' || chartData.length === 0) {
+    return { chartData, yAxisWidth: 40 };
+  }
+
+  const dayTicks = (chartData as Array<Record<string, number | string>>)
+    .map((dataPoint) => Number(dataPoint.dayNumber))
+    .filter((value, index, values) => values.indexOf(value) === index)
+    .sort((left, right) => left - right);
+
+  return {
+    chartData,
+    yAxisWidth: 40,
+    xAxisDataKey: 'dayNumber',
+    xAxisType: 'number',
+    xAxisTicks: dayTicks,
+    xAxisDomain: [dayTicks[0], dayTicks.at(-1) as number],
+    xTickFormatter: String,
+    tooltipLabelFormatter: (_label, payload) => String(payload?.[0]?.payload?.month ?? _label),
+  };
+};
+
 const CommunityStats = ({ trafficChart, starsChart, isLoading }: CommunityStatsProps) => {
   const [view, setView] = useState<ViewType>('Unique');
   const [granularity, setGranularity] = useState<GranularityType>('Daily');
@@ -190,8 +262,6 @@ const CommunityStats = ({ trafficChart, starsChart, isLoading }: CommunityStatsP
     { name: 'Github Stars', color: '#F68523' },
   ];
 
-  let chartData: Array<Record<string, number | string>> = [];
-  let yAxisWidth = 40;
   const granularityOptions = getGranularityOptions(view);
   const effectiveGranularity = granularityOptions.includes(granularity) ? granularity : 'Monthly';
   const availablePeriodKeys = getAvailablePeriodKeys(
@@ -204,6 +274,7 @@ const CommunityStats = ({ trafficChart, starsChart, isLoading }: CommunityStatsP
   const shouldCompactTimeline =
     (view === 'Stars' && effectiveGranularity === 'Monthly') ||
     (view !== 'Stars' && effectiveGranularity === 'Daily');
+  const periodFormatter = effectiveGranularity === 'Daily' ? formatMonthHeading : formatYearHeading;
   const navigationConfig =
     view === 'Stars' && effectiveGranularity === 'Yearly'
       ? null
@@ -211,57 +282,22 @@ const CommunityStats = ({ trafficChart, starsChart, isLoading }: CommunityStatsP
           availablePeriodKeys,
           resolvedPeriodKey,
           setSelectedPeriodKey,
-          effectiveGranularity === 'Daily' ? formatMonthHeading : formatYearHeading
+          periodFormatter
         );
-  let xAxisDataKey: string | undefined;
-  let xAxisType: 'category' | 'number' | undefined;
-  let xAxisTicks: number[] | undefined;
-  let xAxisDomain: [number, number] | undefined;
-  let xTickFormatter: ((value: string | number) => string) | undefined;
-  let tooltipLabelFormatter:
-    | ((label: string | number, payload?: any[]) => React.ReactNode)
-    | undefined;
 
-  const mapTrafficPoint = (d: TrafficDataPoint) => ({
-    month: d.month,
-    dayNumber: getDayNumber(d.dateKey),
-    'Self Hosters': view === 'Unique' ? d['Self Hosters (Unique)'] : d['Self Hosters (Cumulative)'],
-    Builders: view === 'Unique' ? d['Builders (Unique)'] : d['Builders (Cumulative)'],
-  });
-
-  if (view === 'Stars') {
-    chartData =
-      effectiveGranularity === 'Yearly'
-        ? aggregateStarsByYear(starsChart).map(({ dateKey, ...dataPoint }) => dataPoint)
-        : starsChart
-            .filter((dataPoint) => getYearKey(dataPoint.dateKey) === resolvedPeriodKey)
-            .map(({ dateKey, ...dataPoint }) => dataPoint);
-    yAxisWidth = 45;
-  } else {
-    const trafficData =
-      effectiveGranularity === 'Monthly'
-        ? aggregateTrafficByMonth(trafficChart, view)
-            .filter((dataPoint) => getYearKey(dataPoint.dateKey) === resolvedPeriodKey)
-            .map(({ dateKey, ...dataPoint }) => dataPoint)
-        : trafficChart
-            .filter((dataPoint) => getMonthKey(dataPoint.dateKey) === resolvedPeriodKey)
-            .map(mapTrafficPoint);
-    chartData = trafficData.length > 0 ? trafficData : [];
-
-    if (effectiveGranularity === 'Daily' && chartData.length > 0) {
-      const dayTicks = chartData
-        .map((dataPoint) => Number(dataPoint.dayNumber))
-        .filter((value, index, values) => values.indexOf(value) === index)
-        .sort((left, right) => left - right);
-
-      xAxisDataKey = 'dayNumber';
-      xAxisType = 'number';
-      xAxisTicks = dayTicks;
-      xAxisDomain = [dayTicks[0], dayTicks[dayTicks.length - 1]];
-      xTickFormatter = (value) => String(value);
-      tooltipLabelFormatter = (_label, payload) => String(payload?.[0]?.payload?.month ?? _label);
-    }
-  }
+  const {
+    chartData,
+    yAxisWidth,
+    xAxisDataKey,
+    xAxisType,
+    xAxisTicks,
+    xAxisDomain,
+    xTickFormatter,
+    tooltipLabelFormatter,
+  } =
+    view === 'Stars'
+      ? buildStarsChartConfig(starsChart, effectiveGranularity, resolvedPeriodKey)
+      : buildTrafficChartConfig(trafficChart, view, effectiveGranularity, resolvedPeriodKey);
 
   const chartHeader = (
     <div className="ChartCardHeader">

@@ -388,6 +388,7 @@
 
   .ChartNavigation {
     gap: 8px;
+    flex-wrap: wrap;
   }
 
   .ChartNavigationLabel {
@@ -403,10 +404,6 @@
     padding: 6px 12px;
     font-size: 0.75rem;
     flex: 1;
-  }
-
-  .ChartNavigation {
-    flex-wrap: wrap;
   }
 }
 
