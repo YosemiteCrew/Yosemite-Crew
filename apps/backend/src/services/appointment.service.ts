@@ -2242,6 +2242,8 @@ export const AppointmentService = {
       // Send notification to parent
       const parentId = appointment.companion.parent.id;
       await NotificationService.sendToUser(parentId, notificationPayload);
+
+      return toAppointmentResponseDTOWithPaymentStatus(appointment);
     } catch (err) {
       await session.abortTransaction();
       await session.endSession();
@@ -2533,6 +2535,10 @@ export const AppointmentService = {
     }
 
     const extracted = fromAppointmentRequestDTO(dto);
+
+    if (extracted.status === "CANCELLED") {
+      return this.cancelAppointment(appointmentId, extracted.concern);
+    }
 
     if (!extracted.lead?.id) {
       throw new AppointmentServiceError(

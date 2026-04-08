@@ -28,6 +28,47 @@ type BookableSlotWithVets = AvailabilitySlotMongo & {
   vetIds: string[];
 };
 
+type CalendarPrefillRequest = {
+  organisationId: string;
+  date: Date;
+  minuteOfDay: number;
+  leadId?: string;
+  serviceIds: string[];
+};
+
+type CalendarPrefillMatch = {
+  serviceId: string;
+  slot: {
+    startTime: string;
+    endTime: string;
+    vetIds: string[];
+  };
+  meta: {
+    localStartMinute: number;
+    localEndMinute: number;
+  };
+};
+
+type ServiceSchedulingContext = {
+  serviceId: string;
+  organisationId: string;
+  durationMinutes: number;
+  vetIds: string[];
+};
+
+type CachedPromise<T> = {
+  expiresAt: number;
+  promise: Promise<T>;
+};
+
+const DAY_MINUTES = 24 * 60;
+const SLOT_MATCH_TOLERANCE_MINUTES = 5;
+const CALENDAR_PREFILL_CACHE_TTL_MS = 15_000;
+const calendarPrefillCache = new Map<
+  string,
+  CachedPromise<CalendarPrefillMatch[]>
+>();
+
 export class ServiceServiceError extends Error {
   constructor(
     message: string,
@@ -165,11 +206,87 @@ const mapOrganisationWithAddress = (org: {
     : undefined,
 });
 
+const addCachedPromise = <T>(
+  cache: Map<string, CachedPromise<T>>,
+  key: string,
+  ttlMs: number,
+  factory: () => Promise<T>,
+) => {
+  const now = Date.now();
+  const existing = cache.get(key);
+  if (existing && existing.expiresAt > now) {
+    return existing.promise;
+  }
+
+  const promise = factory().catch((error) => {
+    cache.delete(key);
+    throw error;
+  });
+
+  cache.set(key, {
+    expiresAt: now + ttlMs,
+    promise,
+  });
+
+  return promise;
+};
+
+const timeStringToMinuteOfDay = (value: string) => {
+  const [hourText, minuteText] = value.split(":");
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+
+  if (
+    !Number.isInteger(hour) ||
+    !Number.isInteger(minute) ||
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59
+  ) {
+    throw new ServiceServiceError(`Invalid slot time: ${value}`, 500);
+  }
+
+  return hour * 60 + minute;
+};
+
+const normalizeSlotForSelectedDay = (params: {
+  dayShift: number;
+  slot: BookableSlotWithVets;
+}) => {
+  const startAbsoluteMinute = timeStringToMinuteOfDay(params.slot.startTime);
+  let endAbsoluteMinute = timeStringToMinuteOfDay(params.slot.endTime);
+
+  if (endAbsoluteMinute <= startAbsoluteMinute) {
+    endAbsoluteMinute += DAY_MINUTES;
+  }
+
+  const localStartMinute = startAbsoluteMinute + params.dayShift * DAY_MINUTES;
+  const localEndMinute = endAbsoluteMinute + params.dayShift * DAY_MINUTES;
+
+  if (localStartMinute < 0 || localStartMinute >= DAY_MINUTES) {
+    return null;
+  }
+
+  return {
+    localStartMinute,
+    localEndMinute,
+  };
+};
+
 const buildBookableWindowsForVets = async (params: {
   organisationId: string;
   vetIds: string[];
   durationMinutes: number;
   referenceDate: Date;
+  slotCache?: Map<
+    string,
+    Promise<{
+      date: string;
+      dayOfWeek: string;
+      windows: AvailabilitySlotMongo[];
+    }>
+  >;
 }) => {
   if (params.vetIds.length === 0) {
     return {
@@ -181,12 +298,28 @@ const buildBookableWindowsForVets = async (params: {
   const allSlots: Array<BookableSlotWithVets> = [];
 
   for (const vetId of params.vetIds) {
-    const result = await AvailabilityService.getBookableSlotsForDate(
+    const cacheKey = [
       params.organisationId,
       vetId,
       params.durationMinutes,
-      params.referenceDate,
-    );
+      dayjs(params.referenceDate).utc().format("YYYY-MM-DD"),
+    ].join("|");
+
+    const cachedResult = params.slotCache?.get(cacheKey);
+    const resultPromise =
+      cachedResult ??
+      AvailabilityService.getBookableSlotsForDate(
+        params.organisationId,
+        vetId,
+        params.durationMinutes,
+        params.referenceDate,
+      );
+
+    if (!cachedResult && params.slotCache) {
+      params.slotCache.set(cacheKey, resultPromise);
+    }
+
+    const result = await resultPromise;
 
     if (result?.windows?.length) {
       for (const slot of result.windows) {
@@ -301,6 +434,52 @@ const syncServiceToPostgres = async (doc: ServiceDocument) => {
   } catch (err) {
     handleDualWriteError("Service", err);
   }
+};
+
+const getServiceSchedulingContext = async (
+  serviceId: string,
+  organisationId: string,
+): Promise<ServiceSchedulingContext> => {
+  if (isReadFromPostgres()) {
+    const safeServiceId = requireSafeString(serviceId, "serviceId");
+    const safeOrganisationId = requireSafeString(
+      organisationId,
+      "organisationId",
+    );
+
+    const service = await prisma.service.findFirst({
+      where: { id: safeServiceId, organisationId: safeOrganisationId },
+    });
+    if (!service) throw new Error("Service not found");
+
+    const speciality = await prisma.speciality.findFirst({
+      where: { id: service.specialityId ?? undefined },
+    });
+    if (!speciality) throw new Error("Speciality not found");
+
+    return {
+      serviceId: service.id,
+      organisationId: service.organisationId,
+      durationMinutes: service.durationMinutes,
+      vetIds: speciality.memberUserIds || [],
+    };
+  }
+
+  const id = ensureObjectId(serviceId, "serviceId");
+  ensureObjectId(organisationId, "organisationId");
+
+  const service = await ServiceModel.findById(id);
+  if (!service) throw new Error("Service not found");
+
+  const speciality = await SpecialityModel.findById(service.specialityId);
+  if (!speciality) throw new Error("Speciality not found");
+
+  return {
+    serviceId: service._id.toString(),
+    organisationId: service.organisationId.toString(),
+    durationMinutes: service.durationMinutes,
+    vetIds: speciality.memberUserIds || [],
+  };
 };
 
 export const ServiceService = {
@@ -574,44 +753,126 @@ export const ServiceService = {
     organisationId: string,
     referenceDate: Date,
   ) {
-    if (isReadFromPostgres()) {
-      const safeServiceId = requireSafeString(serviceId, "serviceId");
-      const service = await prisma.service.findFirst({
-        where: { id: safeServiceId },
-      });
-      if (!service) throw new Error("Service not found");
-
-      const { specialityId, durationMinutes } = service;
-
-      const speciality = await prisma.speciality.findFirst({
-        where: { id: specialityId ?? undefined },
-      });
-      if (!speciality) throw new Error("Speciality not found");
-
-      return buildBookableWindowsForVets({
-        organisationId,
-        vetIds: speciality.memberUserIds || [],
-        durationMinutes,
-        referenceDate,
-      });
-    }
-
-    const id = ensureObjectId(serviceId, "serviceId");
-
-    const service = await ServiceModel.findById(id);
-    if (!service) throw new Error("Service not found");
-
-    const { specialityId, durationMinutes } = service;
-
-    const speciality = await SpecialityModel.findById(specialityId);
-    if (!speciality) throw new Error("Speciality not found");
+    const context = await getServiceSchedulingContext(
+      serviceId,
+      organisationId,
+    );
 
     return buildBookableWindowsForVets({
-      organisationId,
-      vetIds: speciality.memberUserIds || [],
-      durationMinutes,
+      organisationId: context.organisationId,
+      vetIds: context.vetIds,
+      durationMinutes: context.durationMinutes,
       referenceDate,
     });
+  },
+
+  async getCalendarPrefillMatches(input: CalendarPrefillRequest) {
+    const serviceIds = Array.from(
+      new Set(
+        input.serviceIds
+          .map((serviceId) => requireSafeString(serviceId, "serviceId"))
+          .filter(Boolean),
+      ),
+    );
+
+    if (serviceIds.length === 0) {
+      return [];
+    }
+
+    const cacheKey = JSON.stringify({
+      organisationId: requireSafeString(input.organisationId, "organisationId"),
+      date: dayjs(input.date).utc().format("YYYY-MM-DD"),
+      minuteOfDay: input.minuteOfDay,
+      leadId: input.leadId ? requireSafeString(input.leadId, "leadId") : "",
+      serviceIds,
+    });
+
+    return addCachedPromise(
+      calendarPrefillCache,
+      cacheKey,
+      CALENDAR_PREFILL_CACHE_TTL_MS,
+      async () => {
+        const slotCache = new Map<
+          string,
+          Promise<{
+            date: string;
+            dayOfWeek: string;
+            windows: AvailabilitySlotMongo[];
+          }>
+        >();
+
+        const serviceContexts = await Promise.all(
+          serviceIds.map((serviceId) =>
+            getServiceSchedulingContext(serviceId, input.organisationId),
+          ),
+        );
+
+        const daysToCheck = [-1, 0, 1] as const;
+        const matches: CalendarPrefillMatch[] = [];
+
+        for (const context of serviceContexts) {
+          for (const dayShift of daysToCheck) {
+            const referenceDate = dayjs(input.date)
+              .utc()
+              .add(dayShift, "day")
+              .toDate();
+
+            const result = await buildBookableWindowsForVets({
+              organisationId: context.organisationId,
+              vetIds: context.vetIds,
+              durationMinutes: context.durationMinutes,
+              referenceDate,
+              slotCache,
+            });
+
+            for (const slot of result.windows) {
+              if (
+                input.leadId &&
+                !(slot.vetIds ?? []).includes(
+                  requireSafeString(input.leadId, "leadId"),
+                )
+              ) {
+                continue;
+              }
+
+              const meta = normalizeSlotForSelectedDay({ dayShift, slot });
+              if (!meta) {
+                continue;
+              }
+
+              if (
+                Math.abs(meta.localStartMinute - input.minuteOfDay) >
+                SLOT_MATCH_TOLERANCE_MINUTES
+              ) {
+                continue;
+              }
+
+              matches.push({
+                serviceId: context.serviceId,
+                slot: {
+                  startTime: slot.startTime,
+                  endTime: slot.endTime,
+                  vetIds: slot.vetIds ?? [],
+                },
+                meta,
+              });
+            }
+          }
+        }
+
+        matches.sort((a, b) => {
+          if (a.meta.localStartMinute !== b.meta.localStartMinute) {
+            return a.meta.localStartMinute - b.meta.localStartMinute;
+          }
+          if (a.meta.localEndMinute !== b.meta.localEndMinute) {
+            return a.meta.localEndMinute - b.meta.localEndMinute;
+          }
+          return a.serviceId.localeCompare(b.serviceId);
+        });
+
+        return matches;
+      },
+    );
   },
 
   async listOrganisationsProvidingServiceNearby(

@@ -1506,6 +1506,20 @@ describe("AppointmentService", () => {
       ).rejects.toThrow();
     });
 
+    it("should route cancelled status through cancelAppointment", async () => {
+      const cancelSpy = jest
+        .spyOn(AppointmentService, "cancelAppointment")
+        .mockResolvedValueOnce({ status: "CANCELLED" } as any);
+
+      const result = await AppointmentService.updateAppointmentPMS(validId, {
+        status: "CANCELLED",
+        concern: "Cancelled by PMS",
+      } as any);
+
+      expect(cancelSpy).toHaveBeenCalledWith(validId, "Cancelled by PMS");
+      expect(result).toEqual({ status: "CANCELLED" });
+    });
+
     it("should throw 400 if lead is missing", async () => {
       await expect(
         AppointmentService.updateAppointmentPMS(validId, {
