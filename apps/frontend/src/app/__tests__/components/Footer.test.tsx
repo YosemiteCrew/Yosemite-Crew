@@ -71,7 +71,7 @@ describe('Footer Component', () => {
   });
 
   it('should render the copyright and contact information', () => {
-    expect(screen.getByText('© 2026 DuneXploration UG (haftungsbeschränkt).')).toBeInTheDocument();
+    expect(screen.getByText('© 2026 DuneXploration UG (haftungsbeschränkt)')).toBeInTheDocument();
     expect(
       screen.getByText(
         'Yosemite Crew™ is a trademark of DuneXploration UG (haftungsbeschränkt) in the EU, Australia, Great Britain, India, New Zealand, and the USA.'
