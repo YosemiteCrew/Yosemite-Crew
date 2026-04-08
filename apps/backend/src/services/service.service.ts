@@ -133,6 +133,8 @@ const mapOrganisationWithAddress = (org: {
   imageUrl: string | null;
   phoneNo: string;
   type: string;
+  appointmentCheckInBufferMinutes?: number | null;
+  appointmentCheckInRadiusMeters?: number | null;
   address: {
     addressLine: string | null;
     country: string | null;
@@ -148,6 +150,8 @@ const mapOrganisationWithAddress = (org: {
   imageURL: org.imageUrl ?? undefined,
   phoneNo: org.phoneNo ?? undefined,
   type: org.type,
+  appointmentCheckInBufferMinutes: org.appointmentCheckInBufferMinutes ?? 5,
+  appointmentCheckInRadiusMeters: org.appointmentCheckInRadiusMeters ?? 200,
   address: org.address
     ? {
         addressLine: org.address.addressLine ?? undefined,
@@ -559,6 +563,8 @@ export const ServiceService = {
       imageURL: org.imageURL,
       phoneNo: org.phoneNo,
       type: org.type,
+      appointmentCheckInBufferMinutes: org.appointmentCheckInBufferMinutes ?? 5,
+      appointmentCheckInRadiusMeters: org.appointmentCheckInRadiusMeters ?? 200,
       address: org.address,
     }));
   },
@@ -783,6 +789,10 @@ export const ServiceService = {
         imageURL: org.imageURL,
         phoneNo: org.phoneNo,
         type: org.type,
+        appointmentCheckInBufferMinutes:
+          org.appointmentCheckInBufferMinutes ?? 5,
+        appointmentCheckInRadiusMeters:
+          org.appointmentCheckInRadiusMeters ?? 200,
         address: org.address,
         specialities: specialitiesWithServices,
       };

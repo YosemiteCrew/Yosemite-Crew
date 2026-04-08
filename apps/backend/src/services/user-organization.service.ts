@@ -682,6 +682,8 @@ const mapOrganizationFromPrisma = (org: {
   stripeAccountId: string | null;
   averageRating: number | null;
   ratingCount: number | null;
+  appointmentCheckInBufferMinutes: number | null;
+  appointmentCheckInRadiusMeters: number | null;
   createdAt: Date;
   updatedAt: Date;
 }) => ({
@@ -705,6 +707,8 @@ const mapOrganizationFromPrisma = (org: {
   healthAndSafetyCertNo: org.healthAndSafetyCertNo ?? undefined,
   animalWelfareComplianceCertNo: org.animalWelfareComplianceCertNo ?? undefined,
   fireAndEmergencyCertNo: org.fireAndEmergencyCertNo ?? undefined,
+  appointmentCheckInBufferMinutes: org.appointmentCheckInBufferMinutes ?? 5,
+  appointmentCheckInRadiusMeters: org.appointmentCheckInRadiusMeters ?? 200,
   averageRating: org.averageRating ?? undefined,
   ratingCount: org.ratingCount ?? undefined,
   createdAt: org.createdAt ?? undefined,
@@ -1343,7 +1347,15 @@ export const UserOrganizationService = {
         : null;
       results.push({
         mapping: toUserOrganizationResponseDTO(mappingDomain),
-        organization: organization,
+        organization: organization
+          ? {
+              ...organization,
+              appointmentCheckInBufferMinutes:
+                organization.appointmentCheckInBufferMinutes ?? 5,
+              appointmentCheckInRadiusMeters:
+                organization.appointmentCheckInRadiusMeters ?? 200,
+            }
+          : null,
         orgBilling: orgBilling,
         orgUsage: orgUsage,
       });

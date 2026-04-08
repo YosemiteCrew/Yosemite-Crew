@@ -9,12 +9,24 @@ import CommunityStats from '../../../../features/overview/components/CommunitySt
 
 // Mock the DynamicChartCard to easily inspect the transformed data and props it receives
 jest.mock('@/app/ui/widgets/DynamicChart/DynamicChartCard', () => {
-  return function MockDynamicChartCard({ data, keys, yAxisWidth }: any) {
+  return function MockDynamicChartCard({
+    data,
+    keys,
+    yAxisWidth,
+    chartHeight,
+    compactMonthAxis,
+    headerContent,
+    footerContent,
+  }: any) {
     return (
       <div data-testid="mock-dynamic-chart">
+        <div data-testid="chart-header">{headerContent}</div>
         <div data-testid="chart-data">{JSON.stringify(data)}</div>
         <div data-testid="chart-keys">{JSON.stringify(keys)}</div>
         <div data-testid="chart-yaxis">{yAxisWidth}</div>
+        <div data-testid="chart-height">{chartHeight}</div>
+        <div data-testid="chart-compact-axis">{String(compactMonthAxis)}</div>
+        <div data-testid="chart-footer">{footerContent}</div>
       </div>
     );
   };
@@ -26,16 +38,68 @@ jest.mock('@/app/ui/widgets/DynamicChart/DynamicChartCard', () => {
 
 const mockTrafficChart = [
   {
+    dateKey: '2026-02-27',
+    month: 'Feb 27',
+    'Self Hosters (Unique)': 4,
+    'Self Hosters (Cumulative)': 40,
+    'Builders (Unique)': 2,
+    'Builders (Cumulative)': 20,
+  },
+  {
+    dateKey: '2026-03-08',
     month: 'Mar 8',
     'Self Hosters (Unique)': 10,
     'Self Hosters (Cumulative)': 100,
     'Builders (Unique)': 5,
     'Builders (Cumulative)': 50,
   },
+  {
+    dateKey: '2026-03-09',
+    month: 'Mar 9',
+    'Self Hosters (Unique)': 8,
+    'Self Hosters (Cumulative)': 90,
+    'Builders (Unique)': 3,
+    'Builders (Cumulative)': 53,
+  },
+  {
+    dateKey: '2026-04-01',
+    month: 'Apr 1',
+    'Self Hosters (Unique)': 6,
+    'Self Hosters (Cumulative)': 70,
+    'Builders (Unique)': 2,
+    'Builders (Cumulative)': 55,
+  },
+  {
+    dateKey: '2026-04-02',
+    month: 'Apr 2',
+    'Self Hosters (Unique)': 7,
+    'Self Hosters (Cumulative)': 80,
+    'Builders (Unique)': 4,
+    'Builders (Cumulative)': 59,
+  },
+  {
+    dateKey: '2025-12-31',
+    month: 'Dec 31',
+    'Self Hosters (Unique)': 3,
+    'Self Hosters (Cumulative)': 35,
+    'Builders (Unique)': 1,
+    'Builders (Cumulative)': 18,
+  },
 ];
 
 const mockStarsChart = [
   {
+    dateKey: '2025-12-01T00:00:00.000Z',
+    month: "Dec '25",
+    'Github Stars': 500,
+  },
+  {
+    dateKey: '2026-01-01T00:00:00.000Z',
+    month: "Jan '26",
+    'Github Stars': 900,
+  },
+  {
+    dateKey: '2026-03-01T00:00:00.000Z',
     month: 'Mar 2026',
     'Github Stars': 2099,
   },
@@ -81,12 +145,17 @@ describe('CommunityStats Component', () => {
     const chartDataJson = screen.getByTestId('chart-data').textContent;
     const chartData = JSON.parse(chartDataJson as unknown as string);
 
-    // Verify mapping logic for 'Unique'
-    expect(chartData[0]['Self Hosters']).toBe(10); // Should be 'Self Hosters (Unique)'
-    expect(chartData[0]['Builders']).toBe(5); // Should be 'Builders (Unique)'
+    // Verify default daily view only shows the latest month
+    expect(chartData).toEqual([
+      { month: 'Apr 1', dayNumber: 1, 'Self Hosters': 6, Builders: 2 },
+      { month: 'Apr 2', dayNumber: 2, 'Self Hosters': 7, Builders: 4 },
+    ]);
+    expect(screen.getByText('April 2026')).toBeInTheDocument();
 
     // Verify yAxisWidth default
     expect(screen.getByTestId('chart-yaxis').textContent).toBe('40');
+    expect(screen.getByTestId('chart-height').textContent).toBe('320');
+    expect(screen.getByTestId('chart-compact-axis').textContent).toBe('true');
   });
 
   it('3. updates data correctly when "Cumulative" is clicked', () => {
@@ -111,12 +180,57 @@ describe('CommunityStats Component', () => {
     const chartDataJson = screen.getByTestId('chart-data').textContent;
     const chartData = JSON.parse(chartDataJson as unknown as string);
 
-    // Verify mapping logic swapped to 'Cumulative'
-    expect(chartData[0]['Self Hosters']).toBe(100); // Should be 'Self Hosters (Cumulative)'
-    expect(chartData[0]['Builders']).toBe(50); // Should be 'Builders (Cumulative)'
+    // Verify mapping logic swapped to the latest month's cumulative values
+    expect(chartData).toEqual([
+      { month: 'Apr 1', dayNumber: 1, 'Self Hosters': 70, Builders: 55 },
+      { month: 'Apr 2', dayNumber: 2, 'Self Hosters': 80, Builders: 59 },
+    ]);
   });
 
-  it('4. updates data correctly when "Stars" is clicked', () => {
+  it('4. aggregates traffic correctly when "Monthly" is clicked', () => {
+    render(
+      <CommunityStats
+        trafficChart={mockTrafficChart}
+        starsChart={mockStarsChart}
+        isLoading={false}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Monthly'));
+
+    const chartDataJson = screen.getByTestId('chart-data').textContent;
+    const chartData = JSON.parse(chartDataJson as unknown as string);
+
+    expect(chartData).toEqual([
+      { month: "Feb '26", 'Self Hosters': 4, Builders: 2 },
+      { month: "Mar '26", 'Self Hosters': 18, Builders: 8 },
+      { month: "Apr '26", 'Self Hosters': 13, Builders: 6 },
+    ]);
+    expect(screen.getByText('2026')).toBeInTheDocument();
+    expect(screen.getByTestId('chart-compact-axis').textContent).toBe('false');
+  });
+
+  it('5. navigates to the previous month in daily traffic view', () => {
+    render(
+      <CommunityStats
+        trafficChart={mockTrafficChart}
+        starsChart={mockStarsChart}
+        isLoading={false}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText('Show previous period'));
+    const chartDataJson = screen.getByTestId('chart-data').textContent;
+    const chartData = JSON.parse(chartDataJson as unknown as string);
+
+    expect(chartData).toEqual([
+      { month: 'Mar 8', dayNumber: 8, 'Self Hosters': 10, Builders: 5 },
+      { month: 'Mar 9', dayNumber: 9, 'Self Hosters': 8, Builders: 3 },
+    ]);
+    expect(screen.getByText('March 2026')).toBeInTheDocument();
+  });
+
+  it('6. updates data correctly when "Stars" is clicked', () => {
     render(
       <CommunityStats
         trafficChart={mockTrafficChart}
@@ -127,25 +241,96 @@ describe('CommunityStats Component', () => {
 
     const starsBtn = screen.getByText('Stars');
 
-    // Click Stars
     fireEvent.click(starsBtn);
 
-    // Verify Active Class swapped
     expect(starsBtn).toHaveClass('Active');
-    expect(screen.getByText('Unique')).not.toHaveClass('Active');
+    expect(screen.getByText('Monthly')).toHaveClass('Active');
+    expect(screen.getByText('2026')).toBeInTheDocument();
 
-    // Extract transformed data passed to the chart after click
     const chartDataJson = screen.getByTestId('chart-data').textContent;
     const chartData = JSON.parse(chartDataJson as unknown as string);
 
-    // Verify data swapped entirely to starsChart
-    expect(chartData[0]['Github Stars']).toBe(2099);
-
-    // Verify yAxisWidth expanded for larger numbers
+    expect(chartData).toEqual([
+      {
+        month: "Jan '26",
+        'Github Stars': 900,
+      },
+      {
+        month: 'Mar 2026',
+        'Github Stars': 2099,
+      },
+    ]);
     expect(screen.getByTestId('chart-yaxis').textContent).toBe('45');
+    expect(screen.getByTestId('chart-compact-axis').textContent).toBe('true');
   });
 
-  it('5. verifies chart keys always contain all three labels', () => {
+  it('7. aggregates stars correctly when "Yearly" is clicked', () => {
+    render(
+      <CommunityStats
+        trafficChart={mockTrafficChart}
+        starsChart={mockStarsChart}
+        isLoading={false}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Stars'));
+    fireEvent.click(screen.getByText('Yearly'));
+
+    const chartDataJson = screen.getByTestId('chart-data').textContent;
+    const chartData = JSON.parse(chartDataJson as unknown as string);
+
+    expect(chartData).toEqual([
+      { month: '2025', 'Github Stars': 500 },
+      { month: '2026', 'Github Stars': 2099 },
+    ]);
+  });
+
+  it('8. lets monthly traffic navigate across years', () => {
+    render(
+      <CommunityStats
+        trafficChart={mockTrafficChart}
+        starsChart={mockStarsChart}
+        isLoading={false}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Monthly'));
+    fireEvent.click(screen.getByLabelText('Show previous period'));
+
+    const chartDataJson = screen.getByTestId('chart-data').textContent;
+    const chartData = JSON.parse(chartDataJson as unknown as string);
+
+    expect(chartData).toEqual([{ month: "Dec '25", 'Self Hosters': 3, Builders: 1 }]);
+    expect(screen.getByText('2025')).toBeInTheDocument();
+  });
+
+  it('9. preserves the selected month when switching between cumulative and unique', () => {
+    render(
+      <CommunityStats
+        trafficChart={mockTrafficChart}
+        starsChart={mockStarsChart}
+        isLoading={false}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText('Show previous period'));
+    fireEvent.click(screen.getByText('Cumulative'));
+
+    expect(screen.getByText('March 2026')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Unique'));
+
+    const chartDataJson = screen.getByTestId('chart-data').textContent;
+    const chartData = JSON.parse(chartDataJson as unknown as string);
+
+    expect(screen.getByText('March 2026')).toBeInTheDocument();
+    expect(chartData).toEqual([
+      { month: 'Mar 8', dayNumber: 8, 'Self Hosters': 10, Builders: 5 },
+      { month: 'Mar 9', dayNumber: 9, 'Self Hosters': 8, Builders: 3 },
+    ]);
+  });
+
+  it('10. verifies chart keys always contain all three labels', () => {
     render(
       <CommunityStats
         trafficChart={mockTrafficChart}

@@ -103,9 +103,10 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 120px;
+  gap: 80px;
   margin-bottom: 60px;
   width: 100%;
+  flex-wrap: wrap;
 }
 
 .StatItem {
@@ -122,13 +123,6 @@
   line-height: 1;
   display: flex;
   align-items: center;
-}
-
-.StatPlus {
-  color: #cbd5e1;
-  font-size: 2.5rem;
-  font-weight: 400;
-  margin-left: 4px;
 }
 
 .StatLabel {
@@ -159,15 +153,12 @@
 .StatsCardWrapper {
   display: flex;
   flex-direction: column;
-  position: relative;
   width: 100%;
   min-width: 0;
 }
 
 .ChartWrapper {
   width: 100%;
-  height: 450px;
-  margin-top: 10px;
   min-width: 0;
 }
 
@@ -194,14 +185,91 @@
 
 /* TOGGLE PILLS */
 .DataToggle {
-  position: absolute;
-  top: 24px;
-  right: 24px;
   display: flex;
   background: var(--color-neutral-100);
   border-radius: 100px;
   padding: 4px;
-  z-index: 10;
+  justify-self: end;
+  max-width: 100%;
+}
+
+.PeriodToggle {
+  display: flex;
+  background: var(--color-neutral-100);
+  border-radius: 100px;
+  padding: 4px;
+  justify-self: start;
+  max-width: 100%;
+}
+
+.ChartCardHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ChartCardTopRow {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 16px;
+}
+
+.ChartLegendInline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.ChartLegendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ChartLegendDot {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.ChartNavigation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-width: 0;
+  margin-top: 4px;
+}
+
+.ChartNavigationButton {
+  border: 1px solid var(--color-card-border);
+  background: var(--whitebg);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-family: var(--satoshi-font);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.ChartNavigationButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ChartNavigationLabel {
+  min-width: 120px;
+  text-align: center;
+  font-family: var(--satoshi-font);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
 }
 
 .TogglePill {
@@ -228,16 +296,7 @@
 ========================================= */
 @media screen and (max-width: 1024px) {
   .OverviewStatsRow {
-    gap: 60px;
-  }
-
-  .ChartWrapper {
-    height: 400px;
-  }
-
-  .DataToggle {
-    top: 16px;
-    right: 16px;
+    gap: 40px;
   }
 }
 
@@ -255,59 +314,155 @@
 
   .OverviewMainTitle {
     font-size: 2.25rem;
+    line-height: 1.1;
   }
 
   .OverviewGraphsTitle {
     font-size: 1.75rem;
+    line-height: 1.15;
   }
 
-  /* Force the 3 stats to sit side-by-side exactly like Figma */
+  .OverviewLeadText,
+  .OverviewSecondaryText {
+    font-size: 0.95rem;
+    line-height: 1.55;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
   .OverviewStatsRow {
-    gap: 0;
-    justify-content: space-between;
-    padding: 0 16px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px 16px;
+    padding: 0;
     margin-bottom: 40px;
+    max-width: 420px;
   }
 
   .StatItem {
-    flex: 1;
+    width: 100%;
   }
 
   .StatNumber {
     font-size: 2rem;
-  }
-
-  .StatPlus {
-    font-size: 1.3rem;
+    justify-content: center;
   }
 
   .StatLabel {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     margin-top: 8px;
   }
 
-  .ChartWrapper {
-    height: 380px;
-    margin-top: 0;
+  .OverviewCtaWrapper {
+    margin: 0 0 56px 0;
+  }
+
+  .OverviewImageWrapper {
+    margin-top: 8px;
   }
 
   .ForceLeftLegend .recharts-default-legend {
     font-size: 12px !important;
   }
 
+  .ChartCardTopRow {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
   .DataToggle {
-    position: relative;
-    top: 0;
-    right: 0;
-    margin: 0 auto 20px auto;
+    margin: 0 auto;
     justify-content: center;
     width: 100%;
     max-width: 320px;
+    justify-self: center;
+  }
+
+  .PeriodToggle {
+    margin: 0 auto;
+    justify-content: center;
+    width: 100%;
+    max-width: 320px;
+    justify-self: center;
+  }
+
+  .ChartNavigation {
+    gap: 8px;
+  }
+
+  .ChartNavigationLabel {
+    min-width: 96px;
+    font-size: 0.8rem;
+  }
+
+  .ChartLegendInline {
+    gap: 12px 16px;
   }
 
   .TogglePill {
     padding: 6px 12px;
     font-size: 0.75rem;
     flex: 1;
+  }
+
+  .ChartNavigation {
+    flex-wrap: wrap;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .OverviewHeroSection {
+    padding: 48px 12px 0px;
+  }
+
+  .OverviewBottomSection {
+    padding: 32px 12px 64px;
+  }
+
+  .OverviewMainTitle {
+    font-size: 2rem;
+  }
+
+  .OverviewGraphsTitle {
+    font-size: 1.5rem;
+    margin-bottom: 28px;
+  }
+
+  .OverviewLeadText {
+    margin-bottom: 40px;
+  }
+
+  .OverviewSecondaryText {
+    margin-bottom: 28px;
+  }
+
+  .OverviewStatsRow {
+    gap: 16px 12px;
+  }
+
+  .StatNumber {
+    font-size: 1.7rem;
+  }
+
+  .StatLabel {
+    font-size: 0.72rem;
+  }
+
+  .ChartCardHeader {
+    gap: 10px;
+  }
+
+  .ChartLegendInline {
+    gap: 10px 12px;
+  }
+
+  .ChartNavigationButton {
+    padding: 6px 10px;
+    font-size: 0.75rem;
+  }
+
+  .ChartNavigationLabel {
+    min-width: 88px;
+    font-size: 0.75rem;
   }
 }

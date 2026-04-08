@@ -1,7 +1,13 @@
 import { Schema, model, type HydratedDocument } from "mongoose";
 
 export type CodeSystem = "YOSEMITECODE" | "IDEXX" | "SNOMED" | "VENOM";
-export type CodeType = "SPECIES" | "BREED" | "GENDER" | "TEST" | "OTHER";
+export type CodeType =
+  | "SPECIES"
+  | "BREED"
+  | "GENDER"
+  | "TEST"
+  | "CLINICAL_TERM"
+  | "OTHER";
 
 export interface CodeEntryMongo {
   system: CodeSystem;

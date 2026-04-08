@@ -15,6 +15,7 @@
     "prisma": "prisma",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "terms:import": "tsx src/scripts/import-clinical-terms.ts",
     "migrate:all": "tsx src/scripts/migrate-all.ts",
     "parity:check": "tsx src/scripts/parity-check.ts"
   },
