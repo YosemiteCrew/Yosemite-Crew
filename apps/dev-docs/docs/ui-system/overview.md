@@ -63,7 +63,7 @@ pnpm --filter frontend run storybook
 
 ## Quick reference
 
-- Token source of truth: [`packages/design-tokens/src/`](../../packages/design-tokens/src/)
-- Web globals: [`apps/frontend/src/app/globals.css`](../../apps/frontend/src/app/globals.css)
-- Web component inventory: [`apps/frontend/src/app/ui/INVENTORY.md`](../../apps/frontend/src/app/ui/INVENTORY.md)
-- Mobile semantic mapping: [`apps/mobileAppYC/src/theme/semanticTokens.ts`](../../apps/mobileAppYC/src/theme/semanticTokens.ts)
+- Token source of truth: [`packages/design-tokens/src/`](https://github.com/YosemiteCrew/Yosemite-Crew/tree/dev/packages/design-tokens/src)
+- Web globals: [`apps/frontend/src/app/globals.css`](https://github.com/YosemiteCrew/Yosemite-Crew/blob/dev/apps/frontend/src/app/globals.css)
+- Web component inventory: [`apps/frontend/src/app/ui/INVENTORY.md`](https://github.com/YosemiteCrew/Yosemite-Crew/blob/dev/apps/frontend/src/app/ui/INVENTORY.md)
+- Mobile semantic mapping: [`apps/mobileAppYC/src/theme/semanticTokens.ts`](https://github.com/YosemiteCrew/Yosemite-Crew/blob/dev/apps/mobileAppYC/src/theme/semanticTokens.ts)

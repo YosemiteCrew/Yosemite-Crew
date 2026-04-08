@@ -94,7 +94,7 @@ Components that are pending replacement or removal.
 | ⚠️ **Legacy**       | No new usage; existing usage allowed  | Don't spread it further  |
 | ❌ **Deprecated**   | Must be replaced                      | Create a migration task  |
 
-Full inventory: [`apps/frontend/src/app/ui/INVENTORY.md`](../../apps/frontend/src/app/ui/INVENTORY.md)
+Full inventory: [`apps/frontend/src/app/ui/INVENTORY.md`](https://github.com/YosemiteCrew/Yosemite-Crew/blob/dev/apps/frontend/src/app/ui/INVENTORY.md)
 
 ---
 
