@@ -12,6 +12,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc.js";
 import { prisma } from "src/config/prisma";
 import { handleDualWriteError } from "src/utils/dual-write";
+import UserProfileModel from "../../src/models/user-profile";
 
 dayjs.extend(utc);
 
@@ -37,6 +38,13 @@ jest.mock("../../src/models/organization", () => ({
   __esModule: true,
   default: {
     find: jest.fn(),
+  },
+}));
+
+jest.mock("../../src/models/user-profile", () => ({
+  __esModule: true,
+  default: {
+    findOne: jest.fn(),
   },
 }));
 
@@ -76,6 +84,9 @@ jest.mock("src/config/prisma", () => ({
     speciality: {
       findFirst: jest.fn(),
       findMany: jest.fn(),
+    },
+    userProfile: {
+      findFirst: jest.fn(),
     },
   },
 }));
@@ -708,7 +719,7 @@ describe("ServiceService", () => {
   });
 
   describe("getCalendarPrefillMatches", () => {
-    it("matches selected-day slots within tolerance and preserves cross-midnight metadata", async () => {
+    it("matches selected-day slots using org-local minutes converted from UTC clock strings", async () => {
       (ServiceModel.findById as jest.Mock).mockResolvedValueOnce(
         createMockDoc({
           _id: new Types.ObjectId(validIdStr),
@@ -716,29 +727,34 @@ describe("ServiceService", () => {
           durationMinutes: 15,
         }),
       );
+      (UserProfileModel.findOne as jest.Mock).mockReturnValue({
+        lean: jest.fn().mockResolvedValue({
+          personalDetails: { timezone: "Asia/Kolkata" },
+        }),
+      });
       (SpecialityModel.findById as jest.Mock).mockResolvedValueOnce({
         memberUserIds: ["vet-1", "vet-2"],
       });
       (AvailabilityService.getBookableSlotsForDate as jest.Mock)
-        .mockResolvedValueOnce({ windows: [] })
-        .mockResolvedValueOnce({ windows: [] })
         .mockResolvedValueOnce({
           windows: [
-            { startTime: "23:45", endTime: "00:00", isAvailable: true },
+            { startTime: "18:35", endTime: "18:50", isAvailable: true },
           ],
         })
         .mockResolvedValueOnce({
           windows: [
-            { startTime: "23:45", endTime: "00:00", isAvailable: true },
+            { startTime: "18:35", endTime: "18:50", isAvailable: true },
           ],
         })
+        .mockResolvedValueOnce({ windows: [] })
+        .mockResolvedValueOnce({ windows: [] })
         .mockResolvedValueOnce({ windows: [] })
         .mockResolvedValueOnce({ windows: [] });
 
       const matches = await ServiceService.getCalendarPrefillMatches({
         organisationId: validIdStr,
         date: new Date("2026-04-01T00:00:00.000Z"),
-        minuteOfDay: 1425,
+        minuteOfDay: 5,
         serviceIds: [validIdStr],
       });
 
@@ -746,22 +762,25 @@ describe("ServiceService", () => {
         {
           serviceId: validIdStr,
           slot: {
-            startTime: "23:45",
-            endTime: "00:00",
+            startTime: "18:35",
+            endTime: "18:50",
             vetIds: ["vet-1", "vet-2"],
           },
           meta: {
-            localStartMinute: 1425,
-            localEndMinute: 1440,
+            localStartMinute: 5,
+            localEndMinute: 20,
           },
         },
       ]);
+      expect(UserProfileModel.findOne).toHaveBeenCalledWith({
+        organizationId: validIdStr,
+      });
       expect(AvailabilityService.getBookableSlotsForDate).toHaveBeenCalledTimes(
         6,
       );
     });
 
-    it("filters by leadId and ignores slots outside the selected local day", async () => {
+    it("uses the lead profile timezone when leadId is provided and preserves local cross-midnight meta", async () => {
       const serviceAId = new Types.ObjectId().toHexString();
       const serviceBId = new Types.ObjectId().toHexString();
       const orgId = new Types.ObjectId().toHexString();
@@ -785,17 +804,28 @@ describe("ServiceService", () => {
       (SpecialityModel.findById as jest.Mock)
         .mockResolvedValueOnce({ memberUserIds: ["vet-1"] })
         .mockResolvedValueOnce({ memberUserIds: ["vet-2"] });
-
-      (
-        AvailabilityService.getBookableSlotsForDate as jest.Mock
-      ).mockResolvedValue({
-        windows: [{ startTime: "00:00", endTime: "00:15", isAvailable: true }],
+      (UserProfileModel.findOne as jest.Mock).mockReturnValueOnce({
+        lean: jest.fn().mockResolvedValue({
+          personalDetails: { timezone: "Asia/Kolkata" },
+        }),
       });
+
+      (AvailabilityService.getBookableSlotsForDate as jest.Mock)
+        .mockResolvedValueOnce({ windows: [] })
+        .mockResolvedValueOnce({
+          windows: [
+            { startTime: "18:15", endTime: "18:30", isAvailable: true },
+          ],
+        })
+        .mockResolvedValueOnce({ windows: [] })
+        .mockResolvedValueOnce({ windows: [] })
+        .mockResolvedValueOnce({ windows: [] })
+        .mockResolvedValueOnce({ windows: [] });
 
       const matches = await ServiceService.getCalendarPrefillMatches({
         organisationId: orgId,
         date: new Date("2026-04-01T00:00:00.000Z"),
-        minuteOfDay: 0,
+        minuteOfDay: 1425,
         leadId: "vet-1",
         serviceIds: [serviceAId, serviceBId],
       });
@@ -804,16 +834,20 @@ describe("ServiceService", () => {
         {
           serviceId: serviceAId,
           slot: {
-            startTime: "00:00",
-            endTime: "00:15",
+            startTime: "18:15",
+            endTime: "18:30",
             vetIds: ["vet-1"],
           },
           meta: {
-            localStartMinute: 0,
-            localEndMinute: 15,
+            localStartMinute: 1425,
+            localEndMinute: 1440,
           },
         },
       ]);
+      expect(UserProfileModel.findOne).toHaveBeenNthCalledWith(1, {
+        organizationId: orgId,
+        userId: "vet-1",
+      });
     });
   });
 

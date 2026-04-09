@@ -21,6 +21,7 @@ import { prisma } from "src/config/prisma";
 import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 import { ServiceType } from "@prisma/client";
 import { isReadFromPostgres } from "src/config/read-switch";
+import UserProfileModel from "src/models/user-profile";
 
 dayjs.extend(utc);
 
@@ -56,6 +57,11 @@ type ServiceSchedulingContext = {
   vetIds: string[];
 };
 
+type PreferredTimeZoneClock = {
+  minutes: number;
+  dayOffset: number;
+};
+
 type CachedPromise<T> = {
   expiresAt: number;
   promise: Promise<T>;
@@ -64,6 +70,8 @@ type CachedPromise<T> = {
 const DAY_MINUTES = 24 * 60;
 const SLOT_MATCH_TOLERANCE_MINUTES = 5;
 const CALENDAR_PREFILL_CACHE_TTL_MS = 15_000;
+const UTC_CLOCK_TIME_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const OFFSET_TIMEZONE_REGEX = /^(?:UTC)?([+-])(\d{1,2}):(\d{2})$/;
 const calendarPrefillCache = new Map<
   string,
   CachedPromise<CalendarPrefillMatch[]>
@@ -231,38 +239,198 @@ const addCachedPromise = <T>(
   return promise;
 };
 
-const timeStringToMinuteOfDay = (value: string) => {
-  const [hourText, minuteText] = value.split(":");
-  const hour = Number(hourText);
-  const minute = Number(minuteText);
-
-  if (
-    !Number.isInteger(hour) ||
-    !Number.isInteger(minute) ||
-    hour < 0 ||
-    hour > 23 ||
-    minute < 0 ||
-    minute > 59
-  ) {
-    throw new ServiceServiceError(`Invalid slot time: ${value}`, 500);
+const extractTimezoneFromPersonalDetails = (value: unknown): string | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
   }
 
-  return hour * 60 + minute;
+  const timezone = (value as { timezone?: unknown }).timezone;
+  if (typeof timezone !== "string") {
+    return null;
+  }
+
+  const trimmed = timezone.trim();
+  return trimmed || null;
+};
+
+const parseDatePartsForTimeZone = (
+  date: Date,
+  timezone: string,
+): {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+} => {
+  if (timezone === "UTC") {
+    return {
+      year: date.getUTCFullYear(),
+      month: date.getUTCMonth() + 1,
+      day: date.getUTCDate(),
+      hour: date.getUTCHours(),
+      minute: date.getUTCMinutes(),
+    };
+  }
+
+  const offsetMatch = OFFSET_TIMEZONE_REGEX.exec(timezone);
+  if (offsetMatch) {
+    const sign = offsetMatch[1] === "-" ? -1 : 1;
+    const hours = Number(offsetMatch[2]);
+    const minutes = Number(offsetMatch[3]);
+    const offsetMinutes = sign * (hours * 60 + minutes);
+    const shiftedDate = new Date(date.getTime() + offsetMinutes * 60_000);
+
+    return {
+      year: shiftedDate.getUTCFullYear(),
+      month: shiftedDate.getUTCMonth() + 1,
+      day: shiftedDate.getUTCDate(),
+      hour: shiftedDate.getUTCHours(),
+      minute: shiftedDate.getUTCMinutes(),
+    };
+  }
+
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+
+  const getPart = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value ?? "0");
+
+  return {
+    year: getPart("year"),
+    month: getPart("month"),
+    day: getPart("day"),
+    hour: getPart("hour"),
+    minute: getPart("minute"),
+  };
+};
+
+const utcClockTimeToTimezoneClock = (
+  value: string,
+  timezone: string,
+): PreferredTimeZoneClock => {
+  const match = UTC_CLOCK_TIME_REGEX.exec(value);
+  if (!match) return { minutes: 0, dayOffset: 0 };
+
+  const targetDate = new Date(
+    Date.UTC(1970, 0, 1, Number(match[1]), Number(match[2]), 0, 0),
+  );
+  const baseDate = new Date(Date.UTC(1970, 0, 1, 0, 0, 0, 0));
+
+  const baseParts = parseDatePartsForTimeZone(baseDate, timezone);
+  const targetParts = parseDatePartsForTimeZone(targetDate, timezone);
+
+  const baseDayIndex = Math.floor(
+    Date.UTC(baseParts.year, baseParts.month - 1, baseParts.day) / 86_400_000,
+  );
+  const targetDayIndex = Math.floor(
+    Date.UTC(targetParts.year, targetParts.month - 1, targetParts.day) /
+      86_400_000,
+  );
+
+  return {
+    minutes: targetParts.hour * 60 + targetParts.minute,
+    dayOffset: targetDayIndex - baseDayIndex,
+  };
+};
+
+const resolveOrganisationTimezone = async (params: {
+  organisationId: string;
+  leadId?: string;
+}) => {
+  const safeOrganisationId = requireSafeString(
+    params.organisationId,
+    "organisationId",
+  );
+  const safeLeadId = params.leadId
+    ? requireSafeString(params.leadId, "leadId")
+    : undefined;
+
+  if (isReadFromPostgres()) {
+    if (safeLeadId) {
+      const leadProfile = await prisma.userProfile.findFirst({
+        where: {
+          organizationId: safeOrganisationId,
+          userId: safeLeadId,
+        },
+        select: {
+          personalDetails: true,
+        },
+      });
+
+      const leadTimezone = extractTimezoneFromPersonalDetails(
+        leadProfile?.personalDetails,
+      );
+      if (leadTimezone) return leadTimezone;
+    }
+
+    const orgProfile = await prisma.userProfile.findFirst({
+      where: {
+        organizationId: safeOrganisationId,
+      },
+      select: {
+        personalDetails: true,
+      },
+    });
+
+    return (
+      extractTimezoneFromPersonalDetails(orgProfile?.personalDetails) ?? "UTC"
+    );
+  }
+
+  if (safeLeadId) {
+    const leadProfile = await UserProfileModel.findOne({
+      organizationId: safeOrganisationId,
+      userId: safeLeadId,
+    }).lean();
+
+    const leadTimezone = extractTimezoneFromPersonalDetails(
+      leadProfile?.personalDetails,
+    );
+    if (leadTimezone) return leadTimezone;
+  }
+
+  const orgProfile = await UserProfileModel.findOne({
+    organizationId: safeOrganisationId,
+  }).lean();
+
+  return (
+    extractTimezoneFromPersonalDetails(orgProfile?.personalDetails) ?? "UTC"
+  );
 };
 
 const normalizeSlotForSelectedDay = (params: {
-  dayShift: number;
+  timezone: string;
+  utcDateShift: number;
   slot: BookableSlotWithVets;
 }) => {
-  const startAbsoluteMinute = timeStringToMinuteOfDay(params.slot.startTime);
-  let endAbsoluteMinute = timeStringToMinuteOfDay(params.slot.endTime);
+  const startClock = utcClockTimeToTimezoneClock(
+    params.slot.startTime,
+    params.timezone,
+  );
+  const endClock = utcClockTimeToTimezoneClock(
+    params.slot.endTime,
+    params.timezone,
+  );
+
+  const startAbsoluteMinute =
+    startClock.dayOffset * DAY_MINUTES + startClock.minutes;
+  let endAbsoluteMinute = endClock.dayOffset * DAY_MINUTES + endClock.minutes;
 
   if (endAbsoluteMinute <= startAbsoluteMinute) {
     endAbsoluteMinute += DAY_MINUTES;
   }
 
-  const localStartMinute = startAbsoluteMinute + params.dayShift * DAY_MINUTES;
-  const localEndMinute = endAbsoluteMinute + params.dayShift * DAY_MINUTES;
+  const localStartMinute =
+    startAbsoluteMinute + params.utcDateShift * DAY_MINUTES;
+  const localEndMinute = endAbsoluteMinute + params.utcDateShift * DAY_MINUTES;
 
   if (localStartMinute < 0 || localStartMinute >= DAY_MINUTES) {
     return null;
@@ -792,6 +960,11 @@ export const ServiceService = {
       cacheKey,
       CALENDAR_PREFILL_CACHE_TTL_MS,
       async () => {
+        const timezone = await resolveOrganisationTimezone({
+          organisationId: input.organisationId,
+          leadId: input.leadId,
+        });
+
         const slotCache = new Map<
           string,
           Promise<{
@@ -807,14 +980,14 @@ export const ServiceService = {
           ),
         );
 
-        const daysToCheck = [-1, 0, 1] as const;
+        const utcDateShifts = [-1, 0, 1] as const;
         const matches: CalendarPrefillMatch[] = [];
 
         for (const context of serviceContexts) {
-          for (const dayShift of daysToCheck) {
+          for (const utcDateShift of utcDateShifts) {
             const referenceDate = dayjs(input.date)
               .utc()
-              .add(dayShift, "day")
+              .add(utcDateShift, "day")
               .toDate();
 
             const result = await buildBookableWindowsForVets({
@@ -835,7 +1008,11 @@ export const ServiceService = {
                 continue;
               }
 
-              const meta = normalizeSlotForSelectedDay({ dayShift, slot });
+              const meta = normalizeSlotForSelectedDay({
+                timezone,
+                utcDateShift,
+                slot,
+              });
               if (!meta) {
                 continue;
               }
