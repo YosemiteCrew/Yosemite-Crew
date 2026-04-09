@@ -8,6 +8,42 @@ TRIGGER: any task involving test files in apps/frontend, or when asked to write/
 
 ---
 
+## Coverage Mandate — Non-Negotiable
+
+**Target: ≥ 95% Statements, Branches, Functions, Lines across `apps/frontend`. Every change must move coverage upward, never downward.**
+
+### Rules that apply to every task — add, modify, remove
+
+1. **Any file you touch must finish with equal or higher coverage than you found it.** Run the targeted test and confirm before handoff.
+2. **Any file you create must hit ≥ 90% Statements, Branches, Functions on first commit.** New code with no tests is a blocker — do not declare the task done.
+3. **When you delete code**, delete the corresponding test code too. Dead test scaffolding that no longer maps to real behaviour inflates noise and hides real gaps.
+4. **When you modify behaviour** (rename, refactor, add a branch, change a conditional), update every existing test that covers the changed path AND add new cases for new branches.
+5. **Snapshot tests count but do not substitute** for behavioural assertions. A snapshot alone does not satisfy coverage for a branch. Every logical branch needs at least one assertion that validates the outcome.
+
+### Test types required — use all of them, not just one
+
+| Layer     | Tool                                             | When required                                                        |
+| --------- | ------------------------------------------------ | -------------------------------------------------------------------- |
+| Unit      | Jest                                             | Every service, store, hook, utility, helper                          |
+| Component | React Testing Library (RTL)                      | Every UI component — render + interaction + conditional rendering    |
+| Snapshot  | Jest `toMatchSnapshot` / `toMatchInlineSnapshot` | Stable UI layouts — complement behavioural tests, never replace them |
+| E2E       | Playwright (`playwright/`)                       | Auth flows, booking, checkout, payment, any critical user journey    |
+
+All four layers must grow together. Do not add 20 RTL tests while leaving Playwright untouched for a critical flow, and vice versa.
+
+### Coverage enforcement workflow
+
+```bash
+# After every change, run coverage for the touched file(s):
+pnpm --filter frontend run test -- --testPathPattern="<YourFile>" --coverage --collectCoverageFrom="src/app/path/to/YourFile.tsx"
+
+# Check the output — if Statements/Branches/Functions dropped vs what you started with, add tests before declaring done.
+```
+
+If adding a test for a previously-uncovered branch, note it in the COMMIT CHECKPOINT message (e.g. `test(frontend): improve branch coverage for CompanionHistoryPage loading state`).
+
+---
+
 ## New Code = New Tests (Mandatory)
 
 **Every new module, service, hook, store, utility, or component added to `apps/frontend` must ship with tests in the same batch. No exceptions.**

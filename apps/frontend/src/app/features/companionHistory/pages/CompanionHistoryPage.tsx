@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
@@ -14,6 +14,9 @@ import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminology
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import Image from 'next/image';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
+import { useCompanionStore } from '@/app/stores/companionStore';
+import { startRouteLoader } from '@/app/lib/routeLoader';
+import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 
 const FALLBACK_BACK_PATH = '/companions';
 const APPOINTMENTS_BACK_PATH = '/appointments';
@@ -31,6 +34,7 @@ const resolveSafeBackPath = (candidate: string | null, source: string | null): s
 const CompanionHistoryPage = () => {
   useLoadCompanionsForPrimaryOrg();
   const companions = useCompanionsParentsForPrimaryOrg();
+  const companionsStatus = useCompanionStore((s) => s.status);
   const router = useRouter();
   const searchParams = useSearchParams();
   const replaceCompanionText = useCompanionTerminologyText();
@@ -52,13 +56,32 @@ const CompanionHistoryPage = () => {
     [replaceCompanionText]
   );
 
+  const handleBack = useCallback(() => {
+    startRouteLoader();
+    router.push(backPath);
+  }, [router, backPath]);
+
+  if (companionsStatus === 'loading') {
+    return (
+      <ProtectedRoute>
+        <OrgGuard>
+          <YosemiteLoader
+            variant="fullscreen-translucent"
+            size={150}
+            testId="companions-history-loader"
+          />
+        </OrgGuard>
+      </ProtectedRoute>
+    );
+  }
+
   return (
     <ProtectedRoute>
       <OrgGuard>
         <div className="flex flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <Back onClick={() => router.push(backPath)} />
+              <Back onClick={handleBack} />
               <div className="text-heading-1 text-text-primary">{historyTitle}</div>
             </div>
 

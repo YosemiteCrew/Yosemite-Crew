@@ -88,6 +88,35 @@ After any change: `npx tsc --noemit` + `pnpm --filter frontend run lint`.
 pnpm --filter frontend run test -- --testPathPattern="ComponentName"
 ```
 
+### Coverage Mandate — Non-Negotiable
+
+**Target: ≥ 95% Statements, Branches, Functions, Lines. Every change must move coverage upward, never downward.**
+
+1. **Any file you touch** must finish with equal or higher coverage than you found it.
+2. **Any file you create** must hit ≥ 90% on first commit — no new file ships without tests.
+3. **When you delete code**, delete the matching test code too.
+4. **When you modify behaviour**, update existing tests for the changed path AND add new cases for new branches.
+5. **Snapshot tests do not substitute** for behavioural assertions — every logical branch needs at least one outcome assertion.
+
+#### All four test layers must grow together
+
+| Layer     | Tool                       | When required                                                     |
+| --------- | -------------------------- | ----------------------------------------------------------------- |
+| Unit      | Jest                       | Every service, store, hook, utility, helper                       |
+| Component | RTL                        | Every UI component — render + interaction + conditional rendering |
+| Snapshot  | Jest `toMatchSnapshot`     | Stable layouts — complement behavioural tests, never replace them |
+| E2E       | Playwright (`playwright/`) | Auth, booking, checkout, payment, and any critical user journey   |
+
+#### Coverage check workflow
+
+```bash
+# Verify coverage for the file(s) you changed:
+pnpm --filter frontend run test -- --testPathPattern="<YourFile>" --coverage --collectCoverageFrom="src/app/path/to/YourFile.tsx"
+# If Statements/Branches/Functions dropped, add tests before declaring done.
+```
+
+---
+
 ### New code = new tests (mandatory)
 
 Every new file you add must ship tests in the same commit batch. No exceptions.
