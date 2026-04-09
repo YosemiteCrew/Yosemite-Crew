@@ -1076,14 +1076,15 @@ export const FormService = {
       : initialSubmission;
 
     const signingRequired = FormService.hasSignatureField(resolvedSchema);
-    const signing =
-      signingRequired && !submission.signing
-        ? {
-            required: true,
-            status: "NOT_STARTED",
-            provider: "DOCUMENSO",
-          }
-        : submission.signing;
+    // Never trust signing metadata from client-submitted FHIR extensions.
+    // Signed state and document IDs must be written by server-side signing flows.
+    const signing = signingRequired
+      ? {
+          required: true,
+          status: "NOT_STARTED" as const,
+          provider: "DOCUMENSO" as const,
+        }
+      : undefined;
 
     const formIdString = String(submission.formId);
     if (isReadFromPostgres()) {

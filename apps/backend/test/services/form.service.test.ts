@@ -636,6 +636,35 @@ describe("FormService", () => {
       );
     });
 
+    it("ignores client-provided signing metadata on submit", async () => {
+      (FormVersionModel.findOne as jest.Mock).mockReturnValueOnce(
+        createChainable({ schemaSnapshot: [{ type: "signature" }] }),
+      );
+      (FormSubmissionModel.create as jest.Mock).mockResolvedValueOnce(
+        mockDoc({ _id: validId }),
+      );
+
+      await FormService.submitFHIR({
+        formId: validId,
+        signing: {
+          required: true,
+          status: "SIGNED",
+          provider: "DOCUMENSO",
+          documentId: "9999",
+        },
+      } as any);
+
+      expect(FormSubmissionModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          signing: {
+            required: true,
+            status: "NOT_STARTED",
+            provider: "DOCUMENSO",
+          },
+        }),
+      );
+    });
+
     it("uses prisma when READ_FROM_POSTGRES is true", async () => {
       process.env.READ_FROM_POSTGRES = "true";
       (prisma.formSubmission.create as jest.Mock).mockResolvedValue({
