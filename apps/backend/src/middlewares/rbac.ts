@@ -10,6 +10,7 @@ import UserOrganizationModel from "src/models/user-organization";
 import { prisma } from "src/config/prisma";
 import { isReadFromPostgres } from "src/config/read-switch";
 import AppointmentModel from "src/models/appointment";
+import InvoiceModel from "src/models/invoice";
 
 export interface OrgRequest extends AuthenticatedRequest {
   userPermissions?: Permission[];
@@ -129,6 +130,33 @@ export function withAppointmentOrgPermissions() {
     const organisationId = appointment?.organisationId ?? null;
     if (!organisationId) {
       return res.status(404).json({ message: "Appointment not found" });
+    }
+
+    req.params.organisationId = organisationId.toString();
+
+    return withOrgPermissions()(req, res, next);
+  };
+}
+
+export function withInvoiceOrgPermissions() {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const invoiceId = req.params.invoiceId;
+    if (!invoiceId) {
+      return res.status(400).json({ message: "Missing invoiceId" });
+    }
+
+    const invoice = isReadFromPostgres()
+      ? await prisma.invoice.findUnique({
+          where: { id: invoiceId },
+          select: { organisationId: true },
+        })
+      : await InvoiceModel.findById(invoiceId, {
+          organisationId: 1,
+        }).lean();
+
+    const organisationId = invoice?.organisationId ?? null;
+    if (!organisationId) {
+      return res.status(404).json({ message: "Invoice not found" });
     }
 
     req.params.organisationId = organisationId.toString();

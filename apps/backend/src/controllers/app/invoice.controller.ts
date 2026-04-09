@@ -5,6 +5,7 @@ import {
   InvoiceServiceError,
 } from "src/services/invoice.service";
 import logger from "src/utils/logger";
+import { OrgRequest } from "src/middlewares/rbac";
 
 type AddChargesBody = {
   items?: unknown;
@@ -218,9 +219,15 @@ export const InvoiceController = {
     res: Response,
   ) {
     try {
+      const orgReq = req as OrgRequest;
+      const organisationId = orgReq.organisationId;
       const invoiceId = req.params.invoiceId;
       if (!invoiceId) {
         return res.status(400).json({ message: "Invoice Id is required" });
+      }
+
+      if (!organisationId) {
+        return res.status(400).json({ message: "Organisation Id is required" });
       }
 
       const { paymentCollectionMethod } = req.body;
@@ -232,6 +239,7 @@ export const InvoiceController = {
 
       const invoice = await InvoiceService.updatePaymentCollectionMethod(
         invoiceId,
+        organisationId,
         paymentCollectionMethod,
       );
 

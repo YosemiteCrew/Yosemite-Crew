@@ -593,12 +593,14 @@ describe("InvoiceService", () => {
     it("updatePaymentCollectionMethod returns same method if unchanged", async () => {
       (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
         id: "inv_4",
+        organisationId: "org_1",
         status: "AWAITING_PAYMENT",
         paymentCollectionMethod: "PAYMENT_LINK",
       });
 
       const res = await InvoiceService.updatePaymentCollectionMethod(
         "inv_4",
+        "org_1",
         "PAYMENT_LINK",
       );
       expect(res).toBeDefined();
@@ -607,15 +609,37 @@ describe("InvoiceService", () => {
 
     it("updatePaymentCollectionMethod throws on invalid method", async () => {
       await expect(
-        InvoiceService.updatePaymentCollectionMethod("inv_bad", "invalid"),
+        InvoiceService.updatePaymentCollectionMethod(
+          "inv_bad",
+          "org_1",
+          "invalid",
+        ),
       ).rejects.toThrow(
         new InvoiceServiceError("Invalid payment collection method.", 400),
       );
     });
 
+    it("updatePaymentCollectionMethod throws when invoice belongs to another organisation", async () => {
+      (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "inv_4x",
+        organisationId: "org_2",
+        status: "AWAITING_PAYMENT",
+        paymentCollectionMethod: "PAYMENT_LINK",
+      });
+
+      await expect(
+        InvoiceService.updatePaymentCollectionMethod(
+          "inv_4x",
+          "org_1",
+          "PAYMENT_AT_CLINIC",
+        ),
+      ).rejects.toThrow(new InvoiceServiceError("Invoice not found.", 404));
+    });
+
     it("updatePaymentCollectionMethod normalizes metadata and items", async () => {
       (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
         id: "inv_4b",
+        organisationId: "org_1",
         status: "AWAITING_PAYMENT",
         paymentCollectionMethod: "PAYMENT_LINK",
         items: [
@@ -631,7 +655,6 @@ describe("InvoiceService", () => {
         metadata: { ok: "yes", count: 2, flag: true, bad: { nested: 1 } },
         parentId: null,
         companionId: null,
-        organisationId: null,
         appointmentId: null,
         subtotal: 10,
         totalAmount: 10,
@@ -654,6 +677,7 @@ describe("InvoiceService", () => {
 
       const res = await InvoiceService.updatePaymentCollectionMethod(
         "inv_4b",
+        "org_1",
         "PAYMENT_LINK",
       );
 

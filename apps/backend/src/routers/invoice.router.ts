@@ -4,6 +4,7 @@ import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
 import {
   requirePermission,
   withAppointmentOrgPermissions,
+  withInvoiceOrgPermissions,
 } from "src/middlewares/rbac";
 
 const router = Router();
@@ -81,6 +82,8 @@ router.post(
 router.patch(
   "/:invoiceId/payment-collection-method",
   authorizeCognito,
+  withInvoiceOrgPermissions(),
+  requirePermission("billing:edit:any"),
   InvoiceController.updatePaymentCollectionMethod,
 );
 

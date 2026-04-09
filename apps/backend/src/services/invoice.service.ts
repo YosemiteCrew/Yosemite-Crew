@@ -1106,6 +1106,7 @@ export const InvoiceService = {
 
   async updatePaymentCollectionMethod(
     invoiceId: string,
+    organisationId: string,
     paymentCollectionMethod: string,
   ) {
     const resolvedPaymentCollectionMethod = resolvePaymentCollectionMethod(
@@ -1116,6 +1117,10 @@ export const InvoiceService = {
     if (isReadFromPostgres()) {
       const doc = await prisma.invoice.findUnique({ where: { id: invoiceId } });
       if (!doc) {
+        throw new InvoiceServiceError("Invoice not found.", 404);
+      }
+
+      if (doc.organisationId !== organisationId) {
         throw new InvoiceServiceError("Invoice not found.", 404);
       }
 
@@ -1140,6 +1145,10 @@ export const InvoiceService = {
     const _id = ensureObjectId(invoiceId, "invoiceId");
     const doc = await InvoiceModel.findById(_id);
     if (!doc) {
+      throw new InvoiceServiceError("Invoice not found.", 404);
+    }
+
+    if (doc.organisationId?.toString() !== organisationId) {
       throw new InvoiceServiceError("Invoice not found.", 404);
     }
 
