@@ -453,6 +453,19 @@ const buildQuestionnaireResponse = async (
   );
 };
 
+const resolveAppointmentParentId = (
+  appointment: { companion?: unknown } | null | undefined,
+) => {
+  const companion = appointment?.companion;
+  if (!companion || typeof companion !== "object") return undefined;
+
+  const parent = (companion as { parent?: unknown }).parent;
+  if (!parent || typeof parent !== "object") return undefined;
+
+  const parentId = (parent as { id?: unknown }).id;
+  return typeof parentId === "string" ? parentId : undefined;
+};
+
 // Helpers
 
 const flattenFields = (schema: FormField[]): FormField[] => {
@@ -1855,6 +1868,7 @@ export const FormService = {
     serviceId?: string;
     species?: string;
     isPMS?: boolean;
+    viewerParentId?: string;
   }) {
     const appointmentId = ensureObjectId(
       params.appointmentId,
@@ -1864,11 +1878,20 @@ export const FormService = {
     const appointment = isReadFromPostgres()
       ? await prisma.appointment.findUnique({
           where: { id: appointmentId },
-          select: { organisationId: true, formIds: true },
+          select: { organisationId: true, formIds: true, companion: true },
         })
       : await AppointmentModel.findById(appointmentId).lean();
     if (!appointment) {
       throw new FormServiceError("Appointment not found", 404);
+    }
+    if (params.viewerParentId) {
+      const appointmentParentId = resolveAppointmentParentId(appointment);
+      if (
+        !appointmentParentId ||
+        appointmentParentId !== params.viewerParentId
+      ) {
+        throw new FormServiceError("Forbidden", 403);
+      }
     }
 
     const orgType = await resolveOrganizationType(appointment.organisationId);

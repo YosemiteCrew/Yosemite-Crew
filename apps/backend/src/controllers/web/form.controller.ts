@@ -280,9 +280,29 @@ export const FormController = {
       const { appointmentId } = req.params;
       const { serviceId, species, isPMS } =
         (req.body as Record<string, unknown>) ?? {};
+      const isMobileRequest =
+        typeof req.path === "string" && req.path.includes("/mobile/");
 
       if (!appointmentId) {
         return res.status(400).json({ message: "appointmentId is required" });
+      }
+
+      let viewerParentId: string | undefined;
+      if (isMobileRequest) {
+        const authUserId = resolveUserIdFromRequest(req);
+        if (!authUserId) {
+          return res
+            .status(401)
+            .json({ message: "Unauthorized: User ID missing" });
+        }
+
+        const authUser =
+          await AuthUserMobileService.getByProviderUserId(authUserId);
+        viewerParentId = authUser?.parentId?.toString();
+
+        if (!viewerParentId) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
       }
 
       const result = await FormService.getFormsForAppointment({
@@ -290,6 +310,7 @@ export const FormController = {
         serviceId: typeof serviceId === "string" ? serviceId : undefined,
         species: typeof species === "string" ? species : undefined,
         isPMS: typeof isPMS === "string" ? isPMS === "true" : undefined,
+        viewerParentId,
       });
 
       return res.status(200).json(result);

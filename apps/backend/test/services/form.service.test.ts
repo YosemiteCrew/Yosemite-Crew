@@ -1118,6 +1118,22 @@ describe("FormService", () => {
       ).rejects.toThrow("Appointment not found");
     });
 
+    it("throws forbidden when viewer parent does not own appointment", async () => {
+      (AppointmentModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable({
+          organisationId: "o",
+          companion: { parent: { id: "parent-a" } },
+        }),
+      );
+
+      await expect(
+        FormService.getFormsForAppointment({
+          appointmentId: validId,
+          viewerParentId: "parent-b",
+        }),
+      ).rejects.toThrow("Forbidden");
+    });
+
     it("returns empty items if no forms mapped", async () => {
       (AppointmentModel.findById as jest.Mock).mockReturnValueOnce(
         createChainable({ organisationId: "o" }),

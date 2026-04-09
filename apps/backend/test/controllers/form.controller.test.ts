@@ -659,6 +659,7 @@ describe("FormController", () => {
         serviceId: "s1",
         species: "CAT",
         isPMS: true,
+        viewerParentId: undefined,
       });
       expect(res.status).toHaveBeenCalledWith(200);
     });
@@ -674,7 +675,42 @@ describe("FormController", () => {
         serviceId: undefined,
         species: undefined,
         isPMS: undefined,
+        viewerParentId: undefined,
       });
+    });
+
+    it("should enforce parent ownership context for mobile route", async () => {
+      req.path = "/mobile/appointments/a1/forms";
+      req.params.appointmentId = "a1";
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({
+        parentId: { toString: () => "parent-1" },
+      });
+
+      await FormController.getFormsForAppointment(req, res);
+
+      expect(FormService.getFormsForAppointment).toHaveBeenCalledWith({
+        appointmentId: "a1",
+        serviceId: undefined,
+        species: undefined,
+        isPMS: undefined,
+        viewerParentId: "parent-1",
+      });
+    });
+
+    it("should return 403 for mobile route when parent is missing", async () => {
+      req.path = "/mobile/appointments/a1/forms";
+      req.params.appointmentId = "a1";
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue(null);
+
+      await FormController.getFormsForAppointment(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({ message: "Forbidden" });
+      expect(FormService.getFormsForAppointment).not.toHaveBeenCalled();
     });
 
     it("should handle FormServiceError and generic errors", async () => {
