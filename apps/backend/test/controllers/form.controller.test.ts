@@ -557,6 +557,7 @@ describe("FormController", () => {
       await FormController.getSOAPNotesByAppointment(req, res);
       expect(FormService.getSOAPNotesByAppointment).toHaveBeenCalledWith("a1", {
         latestOnly: true,
+        requesterParentId: undefined,
       });
 
       // Test boolean true
@@ -564,6 +565,7 @@ describe("FormController", () => {
       await FormController.getSOAPNotesByAppointment(req, res);
       expect(FormService.getSOAPNotesByAppointment).toHaveBeenCalledWith("a1", {
         latestOnly: true,
+        requesterParentId: undefined,
       });
 
       // Test falsy / missing
@@ -571,9 +573,44 @@ describe("FormController", () => {
       await FormController.getSOAPNotesByAppointment(req, res);
       expect(FormService.getSOAPNotesByAppointment).toHaveBeenCalledWith("a1", {
         latestOnly: false,
+        requesterParentId: undefined,
       });
 
       expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it("should enforce parent ownership context for mobile route", async () => {
+      req.path = "/mobile/appointments/a1/soap-notes";
+      req.params.appointmentId = "a1";
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({
+        parentId: { toString: () => "parent-1" },
+      });
+      (FormService.getSOAPNotesByAppointment as jest.Mock).mockResolvedValue(
+        [],
+      );
+
+      await FormController.getSOAPNotesByAppointment(req, res);
+
+      expect(FormService.getSOAPNotesByAppointment).toHaveBeenCalledWith("a1", {
+        latestOnly: false,
+        requesterParentId: "parent-1",
+      });
+    });
+
+    it("should return 403 for mobile route when parent is missing", async () => {
+      req.path = "/mobile/appointments/a1/soap-notes";
+      req.params.appointmentId = "a1";
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue(null);
+
+      await FormController.getSOAPNotesByAppointment(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({ message: "Forbidden" });
+      expect(FormService.getSOAPNotesByAppointment).not.toHaveBeenCalled();
     });
 
     it("should handle FormServiceError and generic errors", async () => {

@@ -236,10 +236,33 @@ export const FormController = {
       const { appointmentId } = req.params;
       const { latestOnly } = (req.body as Record<string, unknown>) ?? {};
       const latestOnlyFlag = latestOnly === true || latestOnly === "true";
+      const isMobileRequest =
+        typeof req.path === "string" && req.path.includes("/mobile/");
+
+      let requesterParentId: string | undefined;
+      if (isMobileRequest) {
+        const authUserId = resolveUserIdFromRequest(req);
+        if (!authUserId) {
+          return res
+            .status(401)
+            .json({ message: "Unauthorized: User ID missing" });
+        }
+
+        const authUser =
+          await AuthUserMobileService.getByProviderUserId(authUserId);
+        requesterParentId = authUser?.parentId?.toString();
+
+        if (!requesterParentId) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+      }
 
       const result = await FormService.getSOAPNotesByAppointment(
         appointmentId,
-        { latestOnly: latestOnlyFlag },
+        {
+          latestOnly: latestOnlyFlag,
+          requesterParentId,
+        },
       );
 
       res.status(200).json(result);

@@ -861,6 +861,21 @@ describe("FormService", () => {
       ).rejects.toThrow("Appointment not found");
     });
 
+    it("throws forbidden when requester parent does not own appointment", async () => {
+      (AppointmentModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable({
+          organisationId: "org-h",
+          companion: { parent: { id: "parent-a" } },
+        }),
+      );
+
+      await expect(
+        FormService.getSOAPNotesByAppointment(validId, {
+          requesterParentId: "parent-b",
+        }),
+      ).rejects.toThrow("Forbidden");
+    });
+
     it("returns empty if non-hospital cache check", async () => {
       (AppointmentModel.findById as jest.Mock).mockReturnValueOnce(
         createChainable({ organisationId: "cache_miss_org" }),

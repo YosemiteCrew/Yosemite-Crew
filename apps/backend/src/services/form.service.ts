@@ -1537,7 +1537,7 @@ export const FormService = {
 
   async getSOAPNotesByAppointment(
     appointmentId: string,
-    options?: { latestOnly?: boolean },
+    options?: { latestOnly?: boolean; requesterParentId?: string },
   ) {
     type SubmissionLean = Omit<FormSubmissionDocument, "formId"> & {
       _id: Types.ObjectId | string;
@@ -1578,14 +1578,24 @@ export const FormService = {
     const appointment = isReadFromPostgres()
       ? await prisma.appointment.findUnique({
           where: { id: appointmentObjectId },
-          select: { organisationId: true },
+          select: { organisationId: true, companion: true },
         })
       : await AppointmentModel.findById(appointmentObjectId)
-          .select({ organisationId: 1 })
+          .select({ organisationId: 1, companion: 1 })
           .lean();
 
     if (!appointment) {
       throw new FormServiceError("Appointment not found", 404);
+    }
+
+    if (options?.requesterParentId) {
+      const appointmentParentId = resolveAppointmentParentId(appointment);
+      if (
+        !appointmentParentId ||
+        appointmentParentId !== options.requesterParentId
+      ) {
+        throw new FormServiceError("Forbidden", 403);
+      }
     }
 
     const orgType = await resolveOrganizationType(appointment.organisationId);
