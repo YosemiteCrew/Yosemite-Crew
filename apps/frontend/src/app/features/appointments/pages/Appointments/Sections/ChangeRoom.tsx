@@ -87,7 +87,7 @@ const ChangeRoom = ({ showModal, setShowModal, activeAppointment }: ChangeRoomPr
             text={saving ? 'Saving...' : 'Update'}
             onClick={handleSave}
             isDisabled={saving}
-            classname="w-auto min-w-[120px]"
+            className="w-auto min-w-[120px]"
           />
         </div>
       </div>

@@ -1,19 +1,24 @@
-import React, { useEffect, useState } from "react";
-import { Primary, Secondary } from "@/app/ui/primitives/Buttons";
-import classNames from "classnames";
+import React, { useEffect, useState } from 'react';
+import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import classNames from 'classnames';
 
-import FormInput from "@/app/ui/inputs/FormInput/FormInput";
-import GoogleSearchDropDown from "@/app/ui/inputs/GoogleSearchDropDown/GoogleSearchDropDown";
-import LogoUploader from "@/app/ui/widgets/UploadImage/LogoUploader";
-import { GenderOptions, UserProfile } from "@/app/features/users/types/profile";
-import { createUserProfile } from "@/app/features/organization/services/profileService";
-import Datepicker from "@/app/ui/inputs/Datepicker";
-import { getCountryCode, validatePhone } from "@/app/lib/validators";
-import { formatDateLocal } from "@/app/lib/date";
+import FormInput from '@/app/ui/inputs/FormInput/FormInput';
+import GoogleSearchDropDown from '@/app/ui/inputs/GoogleSearchDropDown/GoogleSearchDropDown';
+import LogoUploader from '@/app/ui/widgets/UploadImage/LogoUploader';
+import { GenderOptions, UserProfile } from '@/app/features/users/types/profile';
+import { createUserProfile } from '@/app/features/organization/services/profileService';
+import Datepicker from '@/app/ui/inputs/Datepicker';
+import { validatePhone } from '@/app/lib/validators';
+import { formatDateLocal } from '@/app/lib/date';
 
-import "./Step.css";
-import LabelDropdown from "@/app/ui/inputs/Dropdown/LabelDropdown";
-import { CountriesOptions } from "@/app/features/companions/components/AddCompanion/type";
+import './Step.css';
+import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
+import {
+  CountryDialCodeOption,
+  CountryDialCodeOptions,
+  findPhoneData,
+  getDigitsOnly,
+} from '@/app/features/companions/components/AddCompanion/type';
 
 type PersonalStepProps = {
   nextStep: () => void;
@@ -34,42 +39,41 @@ type PersonalStepErrors = {
   dateOfBirth?: string;
 };
 
-const buildPersonalErrors = (formData: UserProfile): PersonalStepErrors => {
+const buildPersonalErrors = (
+  formData: UserProfile,
+  selectedCountryCode: CountryDialCodeOption,
+  localPhoneNumber: string
+): PersonalStepErrors => {
   const errors: PersonalStepErrors = {};
   const details = formData.personalDetails;
   const address = details?.address;
 
   if (!details?.dateOfBirth) {
-    errors.dob = "Date of birth is required";
-    errors.dateOfBirth = "Date of birth is required";
+    errors.dob = 'Date of birth is required';
+    errors.dateOfBirth = 'Date of birth is required';
   }
-  if (!details?.phoneNumber) errors.number = "Number is required";
-  if (!details?.gender) errors.gender = "Gender is required";
-  if (!address?.country) errors.country = "Country is required";
-  if (!address?.addressLine) errors.address = "Address is required";
-  if (!address?.city) errors.city = "City is required";
-  if (!address?.state) errors.state = "State is required";
-  if (!address?.postalCode) errors.postalCode = "PostalCode is required";
+  if (!selectedCountryCode?.dialCode) errors.number = 'Country code is required';
+  if (!localPhoneNumber) errors.number = 'Number is required';
+  if (!details?.gender) errors.gender = 'Gender is required';
+  if (!address?.country) errors.country = 'Country is required';
+  if (!address?.addressLine) errors.address = 'Address is required';
+  if (!address?.city) errors.city = 'City is required';
+  if (!address?.state) errors.state = 'State is required';
+  if (!address?.postalCode) errors.postalCode = 'PostalCode is required';
 
-  const selectedCountry = getCountryCode(address?.country);
-  if (selectedCountry?.dial_code && details?.phoneNumber) {
-    const fullMobile = `${selectedCountry.dial_code}${details.phoneNumber}`;
-    if (!validatePhone(fullMobile)) {
-      errors.number = "Valid number is required";
-    }
+  if (!selectedCountryCode?.dialCode || !localPhoneNumber) {
+    errors.number = 'Valid number is required';
   } else {
-    errors.number = "Valid number is required";
+    const fullMobile = `${selectedCountryCode.dialCode}${localPhoneNumber}`;
+    if (!validatePhone(fullMobile)) {
+      errors.number = 'Valid number is required';
+    }
   }
 
   return errors;
 };
 
-const PersonalStep = ({
-  nextStep,
-  formData,
-  setFormData,
-  orgIdFromQuery,
-}: PersonalStepProps) => {
+const PersonalStep = ({ nextStep, formData, setFormData, orgIdFromQuery }: PersonalStepProps) => {
   const [formDataErrors, setFormDataErrors] = useState<{
     dob?: string;
     country?: string;
@@ -82,23 +86,29 @@ const PersonalStep = ({
     dateOfBirth?: string;
   }>({});
   const [currentDate, setCurrentDate] = useState<Date | null>(
-    formData.personalDetails?.dateOfBirth
-      ? new Date(formData.personalDetails.dateOfBirth)
-      : null
+    formData.personalDetails?.dateOfBirth ? new Date(formData.personalDetails.dateOfBirth) : null
   );
+  const initialPhoneData = findPhoneData(
+    formData.personalDetails?.phoneNumber || '',
+    formData.personalDetails?.address?.country
+  );
+  const [selectedCountryCode, setSelectedCountryCode] = useState<CountryDialCodeOption>(
+    initialPhoneData.selectedCode
+  );
+  const [localPhoneNumber, setLocalPhoneNumber] = useState<string>(initialPhoneData.localNumber);
 
   useEffect(() => {
     setFormData((prev) => ({
       ...prev,
       personalDetails: {
         ...prev.personalDetails,
-        dateOfBirth: currentDate ? formatDateLocal(currentDate) : "",
+        dateOfBirth: currentDate ? formatDateLocal(currentDate) : '',
       },
     }));
   }, [currentDate, setFormData]);
 
   const handleNext = async () => {
-    const errors = buildPersonalErrors(formData);
+    const errors = buildPersonalErrors(formData, selectedCountryCode, localPhoneNumber);
     setFormDataErrors(errors);
     if (Object.keys(errors).length > 0) {
       return;
@@ -106,8 +116,39 @@ const PersonalStep = ({
     try {
       await createUserProfile(formData, orgIdFromQuery);
     } catch (error: any) {
-      console.error("Error creating profile:", error);
+      console.error('Error creating profile:', error);
     }
+  };
+
+  const handlePhoneChange = (value: string) => {
+    const sanitized = getDigitsOnly(value).slice(0, 15);
+    setLocalPhoneNumber(sanitized);
+    setFormData((prev) => ({
+      ...prev,
+      personalDetails: {
+        ...prev.personalDetails,
+        phoneNumber: sanitized ? `${selectedCountryCode.dialCode}${sanitized}` : '',
+      },
+    }));
+  };
+
+  const handleCountryCodeSelect = (value: string) => {
+    const selected = CountryDialCodeOptions.find((option) => option.value === value);
+    if (!selected) {
+      return;
+    }
+    setSelectedCountryCode(selected);
+    setFormData((prev) => ({
+      ...prev,
+      personalDetails: {
+        ...prev.personalDetails,
+        phoneNumber: localPhoneNumber ? `${selected.dialCode}${localPhoneNumber}` : '',
+        address: {
+          ...prev.personalDetails?.address,
+          country: selected.countryName,
+        },
+      },
+    }));
   };
 
   return (
@@ -137,41 +178,26 @@ const PersonalStep = ({
             error={formDataErrors.dateOfBirth}
           />
 
-          <div className="team-personal-two">
-            <LabelDropdown
-              placeholder="Select country"
-              onSelect={(option) =>
-                setFormData({
-                  ...formData,
-                  personalDetails: {
-                    ...formData.personalDetails,
-                    address: {
-                      ...formData.personalDetails?.address,
-                      country: option.value,
-                    },
-                  },
-                })
-              }
-              defaultOption={formData.personalDetails?.address?.country}
-              options={CountriesOptions}
-              error={formDataErrors.country}
-            />
-            <FormInput
-              intype="tel"
-              inname="number"
-              value={formData.personalDetails?.phoneNumber || ""}
-              inlabel="Phone number"
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  personalDetails: {
-                    ...formData.personalDetails,
-                    phoneNumber: e.target.value,
-                  },
-                })
-              }
-              error={formDataErrors.number}
-            />
+          <div className="grid grid-cols-12 gap-3">
+            <div className="col-span-5">
+              <LabelDropdown
+                placeholder="Country code"
+                onSelect={(option) => handleCountryCodeSelect(option.value)}
+                defaultOption={selectedCountryCode.value}
+                options={CountryDialCodeOptions}
+                error={formDataErrors.country}
+              />
+            </div>
+            <div className="col-span-7">
+              <FormInput
+                intype="tel"
+                inname="number"
+                value={localPhoneNumber}
+                inlabel="Phone number"
+                onChange={(e) => handlePhoneChange(e.target.value)}
+                error={formDataErrors.number}
+              />
+            </div>
           </div>
           <div className="team-type">
             <div className="team-type-title">Gender</div>
@@ -179,7 +205,7 @@ const PersonalStep = ({
               {GenderOptions.map((type) => (
                 <button
                   key={type}
-                  className={classNames("team-type-option", {
+                  className={classNames('team-type-option', {
                     activeGendertype: formData.personalDetails?.gender === type,
                   })}
                   onClick={() =>
@@ -207,7 +233,7 @@ const PersonalStep = ({
             <GoogleSearchDropDown
               intype="text"
               inname="address line"
-              value={formData.personalDetails?.address?.addressLine || ""}
+              value={formData.personalDetails?.address?.addressLine || ''}
               inlabel="Address line 1"
               onChange={(e) =>
                 setFormData({
@@ -229,7 +255,7 @@ const PersonalStep = ({
               <FormInput
                 intype="text"
                 inname="city"
-                value={formData.personalDetails?.address?.city || ""}
+                value={formData.personalDetails?.address?.city || ''}
                 inlabel="City"
                 onChange={(e) =>
                   setFormData({
@@ -248,7 +274,7 @@ const PersonalStep = ({
               <FormInput
                 intype="text"
                 inname="state"
-                value={formData.personalDetails?.address?.state || ""}
+                value={formData.personalDetails?.address?.state || ''}
                 inlabel="State/Province"
                 onChange={(e) =>
                   setFormData({
@@ -268,7 +294,7 @@ const PersonalStep = ({
             <FormInput
               intype="text"
               inname="postal code"
-              value={formData.personalDetails?.address?.postalCode || ""}
+              value={formData.personalDetails?.address?.postalCode || ''}
               inlabel="Postal code"
               onChange={(e) =>
                 setFormData({

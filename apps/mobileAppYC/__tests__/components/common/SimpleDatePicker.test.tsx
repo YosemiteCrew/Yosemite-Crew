@@ -1,7 +1,6 @@
 import React from 'react';
 import {Platform, useColorScheme} from 'react-native';
 import {render, fireEvent} from '@testing-library/react-native';
-// CRITICAL FIX: Corrected import path from ../../../../src to ../../../src
 import {
   SimpleDatePicker,
   formatDateForDisplay,
@@ -17,6 +16,18 @@ jest.mock('@/hooks', () => {
     useTheme: jest.fn(() => ({theme, isDark: false})),
   };
 });
+
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => {
+      const translations: Record<string, string> = {
+        'common.cancel': 'Cancel',
+        'common.done': 'Done',
+      };
+      return translations[key] ?? key;
+    },
+  }),
+}));
 
 // 1. Mock DateTimePicker
 // We use a mock component that passes props through so we can inspect them in tests
@@ -108,7 +119,7 @@ describe('SimpleDatePicker Component', () => {
       Platform.OS = 'ios';
     });
 
-    it('renders inside a Modal on iOS', () => {
+    it('renders native picker in iOS modal with cancel/done actions', () => {
       const {getByTestId, getByText} = render(
         <SimpleDatePicker
           value={defaultDate}
@@ -118,13 +129,12 @@ describe('SimpleDatePicker Component', () => {
         />,
       );
 
-      // Check for iOS specific UI elements
+      expect(getByTestId('mock-datetime-picker')).toBeTruthy();
       expect(getByText('Cancel')).toBeTruthy();
       expect(getByText('Done')).toBeTruthy();
-      expect(getByTestId('mock-datetime-picker')).toBeTruthy();
     });
 
-    it('updates temporary date on scroll but DOES NOT call parent onDateChange', () => {
+    it('does not dismiss on iOS value change until Done is pressed', () => {
       const {getByTestId} = render(
         <SimpleDatePicker
           value={defaultDate}
@@ -137,39 +147,33 @@ describe('SimpleDatePicker Component', () => {
       const picker = getByTestId('mock-datetime-picker');
       const newDate = new Date('2023-01-02T10:00:00');
 
-      // Simulate scrolling the picker
-      // Note: community/datetimepicker uses 'onChange' prop
-      fireEvent(picker, 'onChange', {nativeEvent: {}}, newDate);
-
-      // Parent callback should NOT fire yet (iOS requires 'Done' press)
+      fireEvent(picker, 'onChange', {type: 'set'}, newDate);
       expect(mockOnDateChange).not.toHaveBeenCalled();
-    });
+      expect(mockOnDismiss).not.toHaveBeenCalled();
 
-    it('calls parent onDateChange and dismisses when "Done" is pressed', () => {
-      const {getByTestId, getByText} = render(
-        <SimpleDatePicker
-          value={defaultDate}
-          show={true}
-          onDateChange={mockOnDateChange}
-          onDismiss={mockOnDismiss}
-        />,
-      );
-
-      const picker = getByTestId('mock-datetime-picker');
-      const newDate = new Date('2023-01-02T10:00:00');
-
-      // 1. Change internal value
-      fireEvent(picker, 'onChange', {}, newDate);
-
-      // 2. Press Done
-      fireEvent.press(getByText('Done'));
-
+      fireEvent.press(getByTestId('ios-datetime-picker-done'));
       expect(mockOnDateChange).toHaveBeenCalledWith(newDate);
-      expect(mockOnDismiss).toHaveBeenCalled();
+      expect(mockOnDismiss).toHaveBeenCalledTimes(1);
     });
 
-    it('dismisses without saving when "Cancel" is pressed', () => {
-      const {getByTestId, getByText} = render(
+    it('dismisses without saving when iOS cancel action is pressed', () => {
+      const {getByTestId} = render(
+        <SimpleDatePicker
+          value={defaultDate}
+          show={true}
+          onDateChange={mockOnDateChange}
+          onDismiss={mockOnDismiss}
+        />,
+      );
+
+      fireEvent.press(getByTestId('ios-datetime-picker-cancel'));
+
+      expect(mockOnDateChange).not.toHaveBeenCalled();
+      expect(mockOnDismiss).toHaveBeenCalledTimes(1);
+    });
+
+    it('dismisses without saving on iOS dismiss event', () => {
+      const {getByTestId} = render(
         <SimpleDatePicker
           value={defaultDate}
           show={true}
@@ -179,44 +183,10 @@ describe('SimpleDatePicker Component', () => {
       );
 
       const picker = getByTestId('mock-datetime-picker');
-      const newDate = new Date('2023-01-02T10:00:00');
-
-      // 1. Change internal value
-      fireEvent(picker, 'onChange', {}, newDate);
-
-      // 2. Press Cancel
-      fireEvent.press(getByText('Cancel'));
+      fireEvent(picker, 'onChange', {type: 'dismissed'}, undefined);
 
       expect(mockOnDateChange).not.toHaveBeenCalled();
       expect(mockOnDismiss).toHaveBeenCalled();
-    });
-
-    it('dismisses when modal background/backdrop is pressed', () => {
-      const {UNSAFE_getAllByType} = render(
-        <SimpleDatePicker
-          value={defaultDate}
-          show={true}
-          onDateChange={mockOnDateChange}
-          onDismiss={mockOnDismiss}
-        />,
-      );
-
-      // The backdrop is a TouchableOpacity. Since we don't have a testID,
-      // we can simulate the Modal requestClose or find the TouchableOpacity.
-      // The easiest way to cover `handleCancel` being passed to `onRequestClose` is to fire it.
-
-      // 1. Fire onRequestClose on the Modal
-      const {Modal} = require('react-native');
-      const modals = UNSAFE_getAllByType(Modal);
-      fireEvent(modals[0], 'requestClose');
-
-      expect(mockOnDismiss).toHaveBeenCalled();
-
-      // Reset for next check
-      mockOnDismiss.mockClear();
-
-      // 2. Find the Backdrop TouchableOpacity (it's the first touchable inside the view structure)
-      
     });
 
     it('adapts styles for Dark Mode', () => {
@@ -232,10 +202,24 @@ describe('SimpleDatePicker Component', () => {
       );
 
       const picker = getByTestId('mock-datetime-picker');
-      // Check if themeVariant prop is passed correctly
-      expect(picker.props.themeVariant).toBe('dark');
-      // Check textColor prop
-      expect(picker.props.textColor).toBe('#FFFFFF');
+      expect(picker.props.display).toBe('spinner');
+      expect(picker.props.themeVariant).toBeUndefined();
+      expect(picker.props.textColor).toBeUndefined();
+    });
+
+    it('uses 12-hour locale for iOS time mode', () => {
+      const {getByTestId} = render(
+        <SimpleDatePicker
+          value={defaultDate}
+          show={true}
+          mode="time"
+          onDateChange={mockOnDateChange}
+          onDismiss={mockOnDismiss}
+        />,
+      );
+
+      const picker = getByTestId('mock-datetime-picker');
+      expect(picker.props.locale).toBe('en-US');
     });
   });
 
@@ -334,9 +318,9 @@ describe('SimpleDatePicker Utils', () => {
     });
 
     it('handles exception gracefully (simulate by passing bad type)', () => {
-       // Passing a symbol forces a crash inside the Date constructor or validation logic
-       expect(formatDateForDisplay(Symbol('fail') as any)).toBe('');
-       expect(console.error).toHaveBeenCalled();
+      // Passing a symbol forces a crash inside the Date constructor or validation logic
+      expect(formatDateForDisplay(Symbol('fail') as any)).toBe('');
+      expect(console.error).toHaveBeenCalled();
     });
   });
 
@@ -354,13 +338,13 @@ describe('SimpleDatePicker Utils', () => {
     });
 
     it('formats 12 AM (midnight) correctly', () => {
-       const date = new Date(2023, 0, 1, 0, 15);
-       expect(formatTimeForDisplay(date)).toBe('12:15 AM');
+      const date = new Date(2023, 0, 1, 0, 15);
+      expect(formatTimeForDisplay(date)).toBe('12:15 AM');
     });
 
     it('formats 12 PM (noon) correctly', () => {
-       const date = new Date(2023, 0, 1, 12, 45);
-       expect(formatTimeForDisplay(date)).toBe('12:45 PM');
+      const date = new Date(2023, 0, 1, 12, 45);
+      expect(formatTimeForDisplay(date)).toBe('12:45 PM');
     });
 
     it('handles null input', () => {
@@ -372,8 +356,8 @@ describe('SimpleDatePicker Utils', () => {
     });
 
     it('handles exception gracefully', () => {
-        expect(formatTimeForDisplay(Symbol('fail') as any)).toBe('');
-        expect(console.error).toHaveBeenCalled();
+      expect(formatTimeForDisplay(Symbol('fail') as any)).toBe('');
+      expect(console.error).toHaveBeenCalled();
     });
   });
 });

@@ -44,11 +44,7 @@ import {
   useFetchOrgRatingIfNeeded,
   type OrgRatingState,
 } from '@/features/appointments/hooks/useOrganisationRating';
-import {
-  getAppointmentStatusLabel,
-  isAppointmentPaymentFailed,
-  isAppointmentPaymentPending,
-} from '@/features/appointments/utils/appointmentStatus';
+import {getAppointmentStatusBadgePalette} from '@/features/appointments/utils/appointmentStatus';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 type BusinessFilter =
@@ -192,12 +188,6 @@ export const MyAppointmentsScreen: React.FC = () => {
     },
     [businessMap],
   );
-  const formatStatus = React.useCallback(
-    (status: string, paymentStatus?: string | null) =>
-      getAppointmentStatusLabel(status, paymentStatus),
-    [],
-  );
-
   const handleChatPress = React.useCallback(
     ({
       appointment,
@@ -385,14 +375,24 @@ export const MyAppointmentsScreen: React.FC = () => {
       </View>
     ) : null;
 
+    const requestedPalette = getAppointmentStatusBadgePalette(
+      theme,
+      item.status,
+      item.paymentStatus,
+    );
+
     const requestedBadge = isRequested ? (
-      <View style={[styles.pastStatusBadge, styles.pastStatusBadgeRequested]}>
+      <View
+        style={[
+          styles.pastStatusBadge,
+          {backgroundColor: requestedPalette.backgroundColor},
+        ]}>
         <Text
           style={[
             styles.pastStatusBadgeText,
-            styles.pastStatusBadgeTextRequested,
+            {color: requestedPalette.textColor},
           ]}>
-          Requested
+          {requestedPalette.text}
         </Text>
       </View>
     ) : null;
@@ -541,7 +541,6 @@ export const MyAppointmentsScreen: React.FC = () => {
         navigation={navigation}
         styles={styles}
         orgRating={orgRatings[item.businessId]}
-        formatStatus={formatStatus}
         secondaryColor={theme.colors.secondary}
         theme={theme}
       />
@@ -620,7 +619,6 @@ type PastAppointmentCardProps = {
   navigation: Nav;
   styles: ReturnType<typeof createStyles>;
   orgRating?: OrgRatingState;
-  formatStatus: (status: string, paymentStatus?: string | null) => string;
   secondaryColor: string;
   theme: any;
 };
@@ -638,21 +636,14 @@ const PastAppointmentCard: React.FC<PastAppointmentCardProps> = ({
   navigation,
   styles,
   orgRating,
-  formatStatus,
   secondaryColor,
   theme,
 }) => {
-  const isCancelledLike =
-    item.status === 'CANCELLED' || item.status === 'NO_SHOW';
-  const isFailedPayment = isAppointmentPaymentFailed(
+  const statusPalette = getAppointmentStatusBadgePalette(
+    theme,
     item.status,
     item.paymentStatus,
   );
-  const isPendingPayment = isAppointmentPaymentPending(
-    item.status,
-    item.paymentStatus,
-  );
-  const isRequestedLike = item.status === 'REQUESTED' || isPendingPayment;
 
   let ratingContent: React.ReactNode = null;
 
@@ -711,18 +702,14 @@ const PastAppointmentCard: React.FC<PastAppointmentCardProps> = ({
               <View
                 style={[
                   styles.pastStatusBadge,
-                  isCancelledLike && styles.pastStatusBadgeCanceled,
-                  isRequestedLike && styles.pastStatusBadgeRequested,
-                  isFailedPayment && styles.pastStatusBadgeFailed,
+                  {backgroundColor: statusPalette.backgroundColor},
                 ]}>
                 <Text
                   style={[
                     styles.pastStatusBadgeText,
-                    isCancelledLike && styles.pastStatusBadgeTextCanceled,
-                    isRequestedLike && styles.pastStatusBadgeTextRequested,
-                    isFailedPayment && styles.pastStatusBadgeTextFailed,
+                    {color: statusPalette.textColor},
                   ]}>
-                  {formatStatus(item.status, item.paymentStatus)}
+                  {statusPalette.text}
                 </Text>
               </View>
             </View>
@@ -813,34 +800,13 @@ const createStyles = (theme: any) =>
     pastStatusBadge: {
       alignSelf: 'flex-start',
       paddingHorizontal: theme.spacing['2.5'],
-      paddingVertical: theme.spacing['2'],
+      paddingVertical: 6,
       borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.success,
     },
     pastStatusBadgeText: {
       ...theme.typography.labelSmallBold,
-      color: theme.colors.text,
-    },
-    pastStatusBadgeCanceled: {
-      backgroundColor: theme.colors.errorSurface,
-      color: theme.colors.error,
-    },
-    pastStatusBadgeTextCanceled: {
-      color: theme.colors.error,
-    },
-    pastStatusBadgeRequested: {
-      backgroundColor: theme.colors.primaryTint,
-      color: theme.colors.primary,
-    },
-    pastStatusBadgeTextRequested: {
-      color: theme.colors.primary,
-    },
-    pastStatusBadgeFailed: {
-      backgroundColor: theme.colors.warning,
-      color: theme.colors.text,
-    },
-    pastStatusBadgeTextFailed: {
-      color: theme.colors.text,
+      color: theme.colors.secondary,
     },
     infoTile: {
       ...baseTileContainer(theme),

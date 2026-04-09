@@ -1,44 +1,33 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import {
-  DEFAULT_CALENDAR_FOCUS_MINUTES,
-  getFirstRelevantTimedEventStart,
-  getNowTopPxForHourRange,
-  getTopPxForMinutes,
-  nextDay,
-  scrollContainerToTarget,
-  startOfDayDate,
-} from '@/app/features/appointments/components/Calendar/helpers';
+import React, { useCallback, useMemo, useRef } from 'react';
 import { HOURS_IN_DAY } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import TaskSlot from '@/app/features/appointments/components/Calendar/Task/TaskSlot';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
-import UserLabels from '@/app/features/appointments/components/Calendar/common/UserLabels';
+import CalendarDayHeader from '@/app/features/appointments/components/Calendar/common/CalendarDayHeader';
 import { Task } from '@/app/features/tasks/types/task';
-import Back from '@/app/ui/primitives/Icons/Back';
-import Next from '@/app/ui/primitives/Icons/Next';
 import { useCalendarNavigation } from '@/app/hooks/useCalendarNavigation';
 import {
   CalendarZoomMode,
-  formatHourLabel,
-  formatMinuteLabel,
   getCalendarColumnGridStyle,
   getHourRowHeightPx,
 } from '@/app/features/appointments/components/Calendar/calendarLayout';
+import CalendarHourLabel from '@/app/features/appointments/components/Calendar/common/CalendarHourLabel';
 import {
   getHourInPreferredTimeZone,
-  getMinutesSinceStartOfDayInPreferredTimeZone,
   formatDateInPreferredTimeZone,
   isOnPreferredTimeZoneCalendarDay,
 } from '@/app/lib/timezone';
 import { useCalendarNow } from '@/app/features/appointments/components/Calendar/useCalendarNow';
 import NowIndicator from '@/app/features/appointments/components/Calendar/common/NowIndicator';
 import SlotGridLines from '@/app/features/appointments/components/Calendar/common/SlotGridLines';
+import {
+  getTimedTaskProxyEvents,
+  useCalendarAutoScroll,
+  useNowIndicator,
+  useSlotOffsetMinutes,
+} from '@/app/features/appointments/components/Calendar/useCalendarSlots';
+import { DropAvailabilityInterval } from '@/app/features/appointments/components/Calendar/availabilityIntervals';
 
 const HOUR_ROW_GAP_PX = 0;
-
-type DropAvailabilityInterval = {
-  startMinute: number;
-  endMinute: number;
-};
 
 type UserCalendarProps = {
   events: Task[];
@@ -110,22 +99,8 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
         ?.toLowerCase() ?? '',
     []
   );
-  const slotOffsetMinutes = useMemo(() => {
-    const step = Math.max(5, Math.round(slotStepMinutes || 15));
-    if (step >= 60) return [];
-    const offsets: number[] = [];
-    for (let minute = step; minute < 60; minute += step) {
-      offsets.push(minute);
-    }
-    return offsets;
-  }, [slotStepMinutes]);
+  const { slotOffsetMinutes, showSlotTimeLabels } = useSlotOffsetMinutes(slotStepMinutes, zoomMode);
   const lastVisibleHour = HOURS_IN_DAY - 1;
-  const showSlotTimeLabels = useMemo(() => {
-    if (!slotOffsetMinutes.length) return false;
-    const firstStep = slotOffsetMinutes[0];
-    const pixelsPerSlot = (firstStep / 60) * height;
-    return pixelsPerSlot >= 14;
-  }, [height, slotOffsetMinutes]);
   const teamColumns = useMemo(
     () =>
       team.map((user) => ({
@@ -171,43 +146,24 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
     return grouped;
   }, [date, events, normalizeId, teamColumns]);
 
-  const nowPosition = useMemo(() => {
-    const topPx = getNowTopPxForHourRange(
-      date,
-      0,
-      HOURS_IN_DAY - 1,
-      height,
-      now,
-      HOUR_ROW_TOP_OFFSET_PX
-    );
-    if (topPx == null) return null;
-    return { topPx };
-  }, [date, height, now]);
-  const nowTimeLabel = useMemo(() => {
-    if (!nowPosition) return null;
-    return formatDateInPreferredTimeZone(now, {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  }, [now, nowPosition]);
+  const { nowPosition, nowTimeLabel } = useNowIndicator(
+    date,
+    0,
+    HOURS_IN_DAY - 1,
+    zoomMode,
+    now,
+    HOUR_ROW_TOP_OFFSET_PX
+  );
 
-  useEffect(() => {
-    if (!scrollRef.current) return;
-    const rangeStart = startOfDayDate(date);
-    const rangeEnd = nextDay(date);
-    const asTimed = events.map((task) => ({
-      startTime: new Date(task.dueAt),
-      endTime: new Date(new Date(task.dueAt).getTime() + 30 * 60 * 1000),
-    })) as Array<{ startTime: Date; endTime: Date }>;
-    const focusStart = getFirstRelevantTimedEventStart(asTimed as any, rangeStart, rangeEnd);
-    const focusMinutes = focusStart
-      ? getMinutesSinceStartOfDayInPreferredTimeZone(focusStart)
-      : DEFAULT_CALENDAR_FOCUS_MINUTES;
-    const topPx = nowPosition
-      ? Math.max(0, nowPosition.topPx)
-      : getTopPxForMinutes(focusMinutes, height, HOUR_ROW_GAP_PX, HOUR_ROW_TOP_OFFSET_PX);
-    scrollContainerToTarget(scrollRef.current, topPx);
-  }, [date, events, height, nowPosition]);
+  useCalendarAutoScroll({
+    date,
+    events: getTimedTaskProxyEvents(events),
+    height,
+    nowPosition,
+    scrollContainer: scrollRef.current,
+    hourRowGapPx: HOUR_ROW_GAP_PX,
+    hourRowTopOffsetPx: HOUR_ROW_TOP_OFFSET_PX,
+  });
 
   return (
     <div className="h-full flex flex-col">
@@ -216,23 +172,14 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
         data-calendar-scroll="true"
       >
         <div className="min-w-max h-full flex flex-col">
-          <div className="grid border-b border-grey-light py-2 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max bg-white">
-            <div className="sticky left-0 z-30 bg-white flex items-center justify-center">
-              <Back onClick={handlePrevDay} />
-            </div>
-            <div className="bg-white min-w-max flex flex-col items-center gap-1">
-              <div className="flex items-center gap-2">
-                <div className="text-body-4 text-text-brand">{weekday}</div>
-                <div className="text-body-4-emphasis text-white h-8 w-8 flex items-center justify-center rounded-full bg-text-brand">
-                  {dateNumber}
-                </div>
-              </div>
-              <UserLabels team={team} columnsStyle={teamColumnsStyle} />
-            </div>
-            <div className="sticky right-0 z-30 bg-white flex items-center justify-center">
-              <Next onClick={handleNextDay} />
-            </div>
-          </div>
+          <CalendarDayHeader
+            weekday={weekday}
+            dateNumber={dateNumber}
+            team={team}
+            teamColumnsStyle={teamColumnsStyle}
+            onPrevDay={handlePrevDay}
+            onNextDay={handleNextDay}
+          />
 
           <div
             ref={scrollRef}
@@ -250,22 +197,13 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
             <div className="relative pt-2 pb-4">
               {Array.from({ length: HOURS_IN_DAY }, (_, hour) => (
                 <div key={hour} className="grid grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
-                  <div
-                    className="sticky left-0 z-20 bg-white text-caption-2 text-text-primary pl-2! relative"
-                    style={{ height: `${height}px` }}
-                  >
-                    <span className="absolute top-0 -translate-y-1/2">{formatHourLabel(hour)}</span>
-                    {showSlotTimeLabels &&
-                      slotOffsetMinutes.map((minute) => (
-                        <span
-                          key={`slot-time-${hour}-${minute}`}
-                          className="absolute right-1 -translate-y-1/2 text-[10px] leading-none text-text-tertiary text-right whitespace-nowrap"
-                          style={{ top: `${(minute / 60) * 100}%` }}
-                        >
-                          {formatMinuteLabel(hour * 60 + minute)}
-                        </span>
-                      ))}
-                  </div>
+                  <CalendarHourLabel
+                    hour={hour}
+                    height={height}
+                    slotOffsetMinutes={slotOffsetMinutes}
+                    showSlotTimeLabels={showSlotTimeLabels}
+                    className="sticky left-0 z-20 bg-white"
+                  />
                   <div className="grid min-w-max" style={teamColumnsStyle}>
                     {teamColumns.map((column, index) => {
                       const { user } = column;

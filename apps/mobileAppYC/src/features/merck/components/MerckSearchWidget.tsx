@@ -2,6 +2,7 @@ import React from 'react';
 import {
   ActivityIndicator,
   Image,
+  Keyboard,
   Modal,
   Pressable,
   ScrollView,
@@ -11,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import {WebView} from 'react-native-webview';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {SearchBar} from '@/shared/components/common/SearchBar/SearchBar';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
@@ -152,6 +153,7 @@ type MerckEntryCardProps = {
   summaryLines: number;
   subLinkLimit: number;
   onOpenInReader: (url: string, title: string) => void;
+  glass?: boolean;
 };
 
 const MerckEntryCard: React.FC<MerckEntryCardProps> = ({
@@ -161,59 +163,81 @@ const MerckEntryCard: React.FC<MerckEntryCardProps> = ({
   summaryLines,
   subLinkLimit,
   onOpenInReader,
-}) => (
-  <View key={entry.id} style={styles.resultCard}>
-    <Text style={styles.resultTitle}>
-      {sanitizeTextForDisplay(entry.title)}
-    </Text>
-    <Text style={styles.resultSummary} numberOfLines={summaryLines}>
-      {sanitizeTextForDisplay(entry.summaryText) || 'No summary available.'}
-    </Text>
+  glass = false,
+}) => {
+  const cardContent = (
+    <View
+      key={entry.id}
+      style={glass ? styles.resultCardContent : styles.resultCard}>
+      <Text style={styles.resultTitle}>
+        {sanitizeTextForDisplay(entry.title)}
+      </Text>
+      <Text style={styles.resultSummary} numberOfLines={summaryLines}>
+        {sanitizeTextForDisplay(entry.summaryText) || 'No summary available.'}
+      </Text>
 
-    <View style={styles.resultActions}>
-      <LiquidGlassButton
-        title="Open"
-        onPress={() => {
-          onOpenInReader(entry.primaryUrl, entry.title);
-        }}
-        height={48}
-        borderRadius={theme.borderRadius.md}
-        tintColor={theme.colors.secondary}
-        style={styles.openButton}
-        textStyle={styles.openButtonText}
-        shadowIntensity="medium"
-      />
-    </View>
-
-    {entry.subLinks.length ? (
-      <View style={styles.linkPills}>
-        {entry.subLinks.slice(0, subLinkLimit).map(link => {
-          const colors = getMerckSubtopicPillColors(link.label);
-          return (
-            <Pressable
-              key={`${entry.id}-${link.label}`}
-              style={[
-                styles.linkPill,
-                {
-                  backgroundColor: colors.backgroundColor,
-                  borderColor: colors.borderColor,
-                },
-              ]}
-              onPress={() => {
-                onOpenInReader(link.url, entry.title);
-              }}>
-              <Text
-                style={[styles.linkPillText, {color: colors.color}]}
-                numberOfLines={1}>
-                {link.label}
-              </Text>
-            </Pressable>
-          );
-        })}
+      <View style={styles.resultActions}>
+        <LiquidGlassButton
+          title="Open"
+          onPress={() => {
+            onOpenInReader(entry.primaryUrl, entry.title);
+          }}
+          height={48}
+          borderRadius={theme.borderRadius.md}
+          tintColor={theme.colors.secondary}
+          style={styles.openButton}
+          textStyle={styles.openButtonText}
+          shadowIntensity="medium"
+        />
       </View>
-    ) : null}
-  </View>
-);
+
+      {entry.subLinks.length ? (
+        <View style={styles.linkPills}>
+          {entry.subLinks.slice(0, subLinkLimit).map(link => {
+            const colors = getMerckSubtopicPillColors(link.label);
+            return (
+              <Pressable
+                key={`${entry.id}-${link.label}`}
+                style={[
+                  styles.linkPill,
+                  {
+                    backgroundColor: colors.backgroundColor,
+                    borderColor: colors.borderColor,
+                  },
+                ]}
+                onPress={() => {
+                  onOpenInReader(link.url, entry.title);
+                }}>
+                <Text
+                  style={[styles.linkPillText, {color: colors.color}]}
+                  numberOfLines={1}>
+                  {link.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
+    </View>
+  );
+
+  if (!glass) {
+    return cardContent;
+  }
+
+  return (
+    <View key={entry.id} style={styles.resultCardShadowWrapper}>
+      <LiquidGlassCard
+        glassEffect="clear"
+        padding="0"
+        shadow="base"
+        style={styles.resultCardGlass}
+        fallbackStyle={styles.resultCardGlassFallback}>
+        {cardContent}
+      </LiquidGlassCard>
+    </View>
+  );
+};
 
 type MerckResultsSectionProps = {
   compact: boolean;
@@ -248,6 +272,7 @@ const MerckResultsSection: React.FC<MerckResultsSectionProps> = ({
             summaryLines={2}
             subLinkLimit={2}
             onOpenInReader={onOpenInReader}
+            glass
           />
         ))}
 
@@ -319,15 +344,26 @@ const MerckReaderModal: React.FC<MerckReaderModalProps> = ({
   handleReaderNavigation,
   setReaderLoading,
   setError,
-}) => (
-  <Modal
-    visible={visible}
-    transparent
-    animationType="fade"
-    presentationStyle="overFullScreen"
-    onRequestClose={closeReader}>
-    <View style={styles.readerBackdrop}>
-      <SafeAreaView style={styles.readerSafeArea}>
+}) => {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      presentationStyle="overFullScreen"
+      onRequestClose={closeReader}>
+      <View
+        style={[
+          styles.readerBackdrop,
+          {
+            paddingTop: insets.top + 12,
+            paddingBottom: insets.bottom + 12,
+            paddingLeft: insets.left + 12,
+            paddingRight: insets.right + 12,
+          },
+        ]}>
         <View style={styles.readerShell}>
           <View style={styles.readerHeader}>
             <Text style={styles.readerTitle} numberOfLines={1}>
@@ -391,10 +427,10 @@ const MerckReaderModal: React.FC<MerckReaderModalProps> = ({
             ) : null}
           </View>
         </View>
-      </SafeAreaView>
-    </View>
-  </Modal>
-);
+      </View>
+    </Modal>
+  );
+};
 
 type MerckSearchControllerArgs = {
   organisationId?: string | null;
@@ -601,6 +637,8 @@ type MerckSearchWidgetViewProps = {
 type MerckHeaderSectionProps = {
   title: string;
   description: string;
+  compact: boolean;
+  showLogo?: boolean;
   styles: MerckStyles;
   theme: any;
   hasFullSearch: boolean;
@@ -610,27 +648,46 @@ type MerckHeaderSectionProps = {
 const MerckHeaderSection: React.FC<MerckHeaderSectionProps> = ({
   title,
   description,
+  compact,
+  showLogo = true,
   styles,
   theme,
   hasFullSearch,
   onOpenFullSearch,
 }) => (
   <View style={styles.headingRow}>
-    <View style={styles.headingTextWrap}>
-      <Image source={Images.merckLogo} style={styles.logo} />
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.subtitle}>{description}</Text>
+    {showLogo ? <Image source={Images.merckLogo} style={styles.logo} /> : null}
+    <View style={styles.headingInfoRow}>
+      <View style={styles.headingTextWrap}>
+        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.subtitle}>{description}</Text>
+      </View>
+      {hasFullSearch && !compact ? (
+        <LiquidGlassButton
+          title="Open Full Search"
+          onPress={onOpenFullSearch}
+          height={48}
+          borderRadius={theme.borderRadius.md}
+          glassEffect="clear"
+          forceBorder
+          borderColor={theme.colors.secondary}
+          style={styles.fullSearchButton}
+          textStyle={styles.fullSearchButtonText}
+          shadowIntensity="light"
+        />
+      ) : null}
     </View>
-    {hasFullSearch ? (
+    {hasFullSearch && compact ? (
       <LiquidGlassButton
         title="Open Full Search"
         onPress={onOpenFullSearch}
-        height={40}
+        height={48}
         borderRadius={theme.borderRadius.md}
         glassEffect="clear"
         forceBorder
         borderColor={theme.colors.secondary}
-        textStyle={styles.secondaryButtonText}
+        style={styles.fullSearchButtonCompact}
+        textStyle={styles.fullSearchButtonText}
         shadowIntensity="light"
       />
     ) : null}
@@ -654,92 +711,112 @@ type MerckSearchControlsProps = {
 type RefineToggleButtonProps = {
   refineOpen: boolean;
   styles: MerckStyles;
+  theme: any;
   onToggleRefine: () => void;
 };
 
 const RefineToggleButton: React.FC<RefineToggleButtonProps> = ({
   refineOpen,
   styles,
+  theme,
   onToggleRefine,
 }) => (
   <Pressable
     onPress={onToggleRefine}
-    style={[
-      styles.refineIconButton,
-      refineOpen ? styles.refineIconButtonActive : null,
-    ]}
+    style={styles.refineTogglePressable}
     accessibilityRole="button"
     accessibilityLabel={
       refineOpen ? 'Hide refine results' : 'Show refine results'
     }>
-    <View style={styles.refineGlyph}>
-      <View
-        style={[
-          styles.refineGlyphLine,
-          styles.refineGlyphLineTop,
-          refineOpen ? styles.refineGlyphLineActive : null,
-        ]}
-      />
-      <View
-        style={[
-          styles.refineGlyphLine,
-          styles.refineGlyphLineMiddle,
-          refineOpen ? styles.refineGlyphLineActive : null,
-        ]}
-      />
-      <View
-        style={[
-          styles.refineGlyphLine,
-          styles.refineGlyphLineBottom,
-          refineOpen ? styles.refineGlyphLineActive : null,
-        ]}
-      />
-    </View>
+    <LiquidGlassCard
+      glassEffect="clear"
+      padding="0"
+      tintColor={refineOpen ? theme.colors.primaryTint : undefined}
+      style={[
+        styles.refineGlassCard,
+        refineOpen ? styles.refineGlassCardActive : null,
+      ]}
+      fallbackStyle={[
+        styles.refineGlassCard,
+        refineOpen ? styles.refineGlassCardActive : null,
+      ]}>
+      <View style={styles.refineIconButton}>
+        <View style={styles.refineGlyph}>
+          <View
+            style={[
+              styles.refineGlyphLine,
+              styles.refineGlyphLineTop,
+              refineOpen ? styles.refineGlyphLineActive : null,
+            ]}
+          />
+          <View
+            style={[
+              styles.refineGlyphLine,
+              styles.refineGlyphLineMiddle,
+              refineOpen ? styles.refineGlyphLineActive : null,
+            ]}
+          />
+          <View
+            style={[
+              styles.refineGlyphLine,
+              styles.refineGlyphLineBottom,
+              refineOpen ? styles.refineGlyphLineActive : null,
+            ]}
+          />
+        </View>
+      </View>
+    </LiquidGlassCard>
   </Pressable>
 );
 
 type LanguageSelectorProps = {
   language: MerckLanguage;
   styles: MerckStyles;
+  theme: any;
   onLanguageChange: (nextLanguage: MerckLanguage) => void;
 };
 
 const LanguageSelector: React.FC<LanguageSelectorProps> = ({
   language,
   styles,
+  theme,
   onLanguageChange,
 }) => (
   <View style={styles.languageRow}>
     <Text style={styles.languageLabel}>Language</Text>
     <View style={styles.languagePillWrap}>
-      <Pressable
-        onPress={() => onLanguageChange('en')}
-        style={[
-          styles.languagePill,
-          language === 'en' ? styles.languagePillActive : null,
-        ]}>
-        <Text
-          style={[
-            styles.languagePillText,
-            language === 'en' ? styles.languagePillTextActive : null,
-          ]}>
-          EN
-        </Text>
-      </Pressable>
-      <Pressable
-        onPress={() => onLanguageChange('es')}
-        style={[
-          styles.languagePill,
-          language === 'es' ? styles.languagePillActive : null,
-        ]}>
-        <Text
-          style={[
-            styles.languagePillText,
-            language === 'es' ? styles.languagePillTextActive : null,
-          ]}>
-          ES
-        </Text>
-      </Pressable>
+      {(['en', 'es'] as const).map(code => {
+        const active = language === code;
+        return (
+          <Pressable
+            key={code}
+            onPress={() => onLanguageChange(code)}
+            style={styles.languagePillPressable}>
+            <LiquidGlassCard
+              glassEffect="clear"
+              padding="0"
+              tintColor={active ? theme.colors.primaryTint : undefined}
+              style={[
+                styles.languagePillGlass,
+                active ? styles.languagePillGlassActive : null,
+              ]}
+              fallbackStyle={[
+                styles.languagePillGlass,
+                active ? styles.languagePillGlassActive : null,
+              ]}>
+              <View style={styles.languagePillInner}>
+                <Text
+                  style={[
+                    styles.languagePillText,
+                    active ? styles.languagePillTextActive : null,
+                  ]}>
+                  {code.toUpperCase()}
+                </Text>
+              </View>
+            </LiquidGlassCard>
+          </Pressable>
+        );
+      })}
     </View>
   </View>
 );
@@ -756,47 +833,56 @@ const MerckSearchControls: React.FC<MerckSearchControlsProps> = ({
   onSearch,
   onToggleRefine,
   onLanguageChange,
-}) => (
-  <View style={styles.searchRow}>
-    <View style={styles.searchInputRow}>
-      <SearchBar
-        mode="input"
-        placeholder="Search MSD Veterinary Manual"
-        value={query}
-        onChangeText={onQueryChange}
-        onSubmitEditing={onSearch}
-        containerStyle={styles.searchBar}
-        rightElement={loading ? <ActivityIndicator size="small" /> : null}
-      />
-      {compact ? null : (
-        <RefineToggleButton
-          refineOpen={refineOpen}
+}) => {
+  const handleSearchPress = React.useCallback(() => {
+    Keyboard.dismiss();
+    onSearch();
+  }, [onSearch]);
+
+  return (
+    <View style={styles.searchRow}>
+      <View style={styles.searchInputRow}>
+        <SearchBar
+          mode="input"
+          placeholder="Search MSD Veterinary Manual"
+          value={query}
+          onChangeText={onQueryChange}
+          onSubmitEditing={onSearch}
+          containerStyle={styles.searchBar}
+          rightElement={loading ? <ActivityIndicator size="small" /> : null}
+        />
+        {compact ? null : (
+          <RefineToggleButton
+            refineOpen={refineOpen}
+            styles={styles}
+            theme={theme}
+            onToggleRefine={onToggleRefine}
+          />
+        )}
+      </View>
+
+      {compact || !refineOpen ? null : (
+        <LanguageSelector
+          language={language}
           styles={styles}
-          onToggleRefine={onToggleRefine}
+          theme={theme}
+          onLanguageChange={onLanguageChange}
         />
       )}
-    </View>
 
-    {compact || !refineOpen ? null : (
-      <LanguageSelector
-        language={language}
-        styles={styles}
-        onLanguageChange={onLanguageChange}
+      <LiquidGlassButton
+        title={loading ? 'Searching...' : 'Search'}
+        onPress={handleSearchPress}
+        height={48}
+        borderRadius={theme.borderRadius.md}
+        tintColor={theme.colors.secondary}
+        style={styles.searchButton}
+        textStyle={styles.openButtonText}
+        disabled={loading || !query.trim()}
       />
-    )}
-
-    <LiquidGlassButton
-      title={loading ? 'Searching...' : 'Search'}
-      onPress={onSearch}
-      height={48}
-      borderRadius={theme.borderRadius.md}
-      tintColor={theme.colors.secondary}
-      style={styles.searchButton}
-      textStyle={styles.openButtonText}
-      disabled={loading || !query.trim()}
-    />
-  </View>
-);
+    </View>
+  );
+};
 
 type MerckStateMessagesProps = {
   compact: boolean;
@@ -898,18 +984,22 @@ const MerckSearchWidgetView: React.FC<MerckSearchWidgetViewProps> = ({
     setRefineOpen(prev => !prev);
   }, [setRefineOpen]);
 
-  return (
-    <LiquidGlassCard style={styles.container} fallbackStyle={styles.container}>
-      <View testID={testID} style={styles.content}>
-        <MerckHeaderSection
-          title={title}
-          description={description}
-          styles={styles}
-          theme={theme}
-          hasFullSearch={hasFullSearch}
-          onOpenFullSearch={handleOpenFullSearchPress}
-        />
+  const compactContent = (
+    <View testID={testID} style={styles.content}>
+      <MerckHeaderSection
+        title={title}
+        description={description}
+        compact={compact}
+        styles={styles}
+        theme={theme}
+        hasFullSearch={hasFullSearch}
+        onOpenFullSearch={handleOpenFullSearchPress}
+      />
 
+      <LiquidGlassCard
+        style={styles.compactSearchCard}
+        fallbackStyle={styles.compactSearchCard}
+        glassEffect="clear">
         <MerckSearchControls
           compact={compact}
           query={query}
@@ -923,6 +1013,63 @@ const MerckSearchWidgetView: React.FC<MerckSearchWidgetViewProps> = ({
           onToggleRefine={handleToggleRefine}
           onLanguageChange={handleLanguageChange}
         />
+      </LiquidGlassCard>
+
+      <MerckStateMessages
+        compact={compact}
+        error={error}
+        showIdleState={showIdleState}
+        showNoResultsState={showNoResultsState}
+        styles={styles}
+      />
+
+      <MerckResultsSection
+        compact={compact}
+        visibleEntries={visibleEntries}
+        hasMoreCompactResults={hasMoreCompactResults}
+        hasFullSearch={hasFullSearch}
+        styles={styles}
+        theme={theme}
+        onOpenInReader={openInReader}
+        onOpenFullSearch={handleOpenFullSearchPress}
+      />
+    </View>
+  );
+
+  const fullContent = (
+    <View testID={testID} style={styles.content}>
+      <View style={styles.stickyControlsWrap}>
+        <MerckSearchControls
+          compact={compact}
+          query={query}
+          loading={loading}
+          refineOpen={refineOpen}
+          language={language}
+          styles={styles}
+          theme={theme}
+          onQueryChange={handleQueryChange}
+          onSearch={executeSearch}
+          onToggleRefine={handleToggleRefine}
+          onLanguageChange={handleLanguageChange}
+        />
+      </View>
+
+      <ScrollView
+        style={styles.resultsScroll}
+        contentContainerStyle={styles.resultsScrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        nestedScrollEnabled>
+        <MerckHeaderSection
+          title={title}
+          description={description}
+          compact={compact}
+          showLogo={!showIdleState}
+          styles={styles}
+          theme={theme}
+          hasFullSearch={hasFullSearch}
+          onOpenFullSearch={handleOpenFullSearchPress}
+        />
 
         <MerckStateMessages
           compact={compact}
@@ -932,30 +1079,57 @@ const MerckSearchWidgetView: React.FC<MerckSearchWidgetViewProps> = ({
           styles={styles}
         />
 
-        <MerckResultsSection
-          compact={compact}
-          visibleEntries={visibleEntries}
-          hasMoreCompactResults={hasMoreCompactResults}
-          hasFullSearch={hasFullSearch}
-          styles={styles}
-          theme={theme}
-          onOpenInReader={openInReader}
-          onOpenFullSearch={handleOpenFullSearchPress}
-        />
-      </View>
+        {visibleEntries.map(entry => (
+          <MerckEntryCard
+            key={entry.id}
+            entry={entry}
+            styles={styles}
+            theme={theme}
+            summaryLines={4}
+            subLinkLimit={6}
+            onOpenInReader={openInReader}
+            glass
+          />
+        ))}
 
-      <MerckReaderModal
-        visible={readerOpen}
-        readerLoading={readerLoading}
-        readerTitle={readerTitle}
-        readerUrl={readerUrl}
-        styles={styles}
-        closeReader={closeReader}
-        handleReaderNavigation={handleReaderNavigation}
-        setReaderLoading={setReaderLoading}
-        setError={setError}
-      />
-    </LiquidGlassCard>
+        <Text style={styles.copyrightText}>{MERCK_COPYRIGHT_NOTICE}</Text>
+      </ScrollView>
+    </View>
+  );
+
+  const readerModal = (
+    <MerckReaderModal
+      visible={readerOpen}
+      readerLoading={readerLoading}
+      readerTitle={readerTitle}
+      readerUrl={readerUrl}
+      styles={styles}
+      closeReader={closeReader}
+      handleReaderNavigation={handleReaderNavigation}
+      setReaderLoading={setReaderLoading}
+      setError={setError}
+    />
+  );
+
+  if (compact) {
+    return (
+      <View
+        style={[
+          styles.container,
+          styles.compactContainer,
+          styles.compactContainerPlain,
+        ]}>
+        {compactContent}
+        {readerModal}
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.container, styles.fullContainer]}>
+      {fullContent}
+      {readerModal}
+    </View>
   );
 };
 
@@ -1003,17 +1177,36 @@ const createStyles = (theme: any) =>
       padding: theme.spacing['3.5'],
       borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.cardBackground,
-      borderWidth: 0,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
       overflow: 'hidden',
+    },
+    compactContainer: {
+      flexGrow: 0,
+    },
+    compactContainerPlain: {
+      overflow: 'visible',
+    },
+    fullContainer: {
       flex: 1,
+    },
+    compactSearchCard: {
+      padding: theme.spacing['2.5'],
+      borderRadius: theme.borderRadius.lg,
     },
     content: {
       gap: theme.spacing['2.5'],
       flex: 1,
     },
+    stickyControlsWrap: {
+      paddingBottom: theme.spacing['1'],
+    },
     headingRow: {
+      gap: theme.spacing['2'],
+    },
+    headingInfoRow: {
       flexDirection: 'row',
-      alignItems: 'flex-start',
+      alignItems: 'center',
       justifyContent: 'space-between',
       gap: theme.spacing['3'],
     },
@@ -1022,9 +1215,11 @@ const createStyles = (theme: any) =>
       gap: theme.spacing['1'],
     },
     logo: {
-      width: 88,
-      height: 24,
+      width: 268,
+      height: 68,
       resizeMode: 'contain',
+      alignSelf: 'flex-start',
+      marginLeft: -2,
     },
     title: {
       ...theme.typography.titleSmall,
@@ -1055,17 +1250,26 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       gap: theme.spacing['2'],
     },
-    languagePill: {
-      paddingHorizontal: theme.spacing['3'],
-      paddingVertical: theme.spacing['2'],
+    languagePillPressable: {
+      width: 44,
+      height: 34,
       borderRadius: theme.borderRadius.full,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      backgroundColor: theme.colors.cardBackground,
+      overflow: 'hidden',
     },
-    languagePillActive: {
+    languagePillGlass: {
+      width: '100%',
+      height: '100%',
+      borderRadius: theme.borderRadius.full,
+      overflow: 'hidden',
+    },
+    languagePillGlassActive: {
       borderColor: theme.colors.secondary,
-      backgroundColor: theme.colors.primaryTint,
+      borderWidth: 1,
+    },
+    languagePillInner: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     languagePillText: {
       ...theme.typography.body12,
@@ -1087,25 +1291,36 @@ const createStyles = (theme: any) =>
       flex: 1,
     },
     searchButton: {
-      marginTop: theme.spacing['2'],
+      marginTop: theme.spacing['1'],
     },
     refineIconButton: {
-      width: 48,
-      height: 48,
+      flex: 1,
       borderRadius: theme.borderRadius.md,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      backgroundColor: theme.colors.background,
+      borderWidth: 0,
+      backgroundColor: 'transparent',
       alignItems: 'center',
       justifyContent: 'center',
     },
-    refineIconButtonActive: {
+    refineTogglePressable: {
+      width: 48,
+      height: 48,
+      borderRadius: theme.borderRadius.md,
+      overflow: 'hidden',
+    },
+    refineGlassCard: {
+      width: '100%',
+      height: '100%',
+      borderRadius: theme.borderRadius.md,
+      overflow: 'hidden',
+    },
+    refineGlassCardActive: {
       borderColor: theme.colors.secondary,
-      backgroundColor: theme.colors.primaryTint,
+      borderWidth: 1,
     },
     refineGlyph: {
       width: 18,
       height: 14,
+      alignSelf: 'center',
       justifyContent: 'space-between',
       alignItems: 'center',
     },
@@ -1149,8 +1364,8 @@ const createStyles = (theme: any) =>
       marginTop: theme.spacing['1'],
     },
     emptyStateLogo: {
-      width: 96,
-      height: 26,
+      width: 252,
+      height: 64,
       resizeMode: 'contain',
       opacity: 0.92,
     },
@@ -1189,6 +1404,30 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.cardBackground,
       padding: theme.spacing['3'],
       gap: theme.spacing['2'],
+    },
+    resultCardShadowWrapper: {
+      borderRadius: theme.borderRadius.lg,
+      backgroundColor: theme.colors.cardBackground,
+      ...theme.shadows.lg,
+      shadowColor: theme.colors.neutralShadow,
+      overflow: 'visible',
+    },
+    resultCardGlass: {
+      backgroundColor: theme.colors.cardBackground,
+      borderRadius: theme.borderRadius.lg,
+      padding: 0,
+      gap: theme.spacing['2'],
+    },
+    resultCardGlassFallback: {
+      backgroundColor: theme.colors.cardBackground,
+      borderRadius: theme.borderRadius.lg,
+      borderWidth: 0,
+      borderColor: 'transparent',
+    },
+    resultCardContent: {
+      padding: theme.spacing['3'],
+      gap: theme.spacing['2'],
+      backgroundColor: 'transparent',
     },
     resultTitle: {
       ...theme.typography.labelSmallBold,
@@ -1262,13 +1501,27 @@ const createStyles = (theme: any) =>
       fontWeight: '600',
       textAlign: 'center',
     },
+    fullSearchButton: {
+      minWidth: 168,
+      paddingHorizontal: theme.spacing['2'],
+      flexShrink: 0,
+      alignSelf: 'flex-start',
+    },
+    fullSearchButtonCompact: {
+      width: '100%',
+      marginTop: theme.spacing['1'],
+    },
+    fullSearchButtonText: {
+      ...theme.typography.labelSmallBold,
+      color: theme.colors.secondary,
+      lineHeight: 20,
+      includeFontPadding: false,
+      textAlignVertical: 'center',
+      textAlign: 'center',
+    },
     readerBackdrop: {
       flex: 1,
       backgroundColor: 'rgba(0, 0, 0, 0.56)',
-      padding: theme.spacing['3'],
-    },
-    readerSafeArea: {
-      flex: 1,
     },
     readerShell: {
       flex: 1,

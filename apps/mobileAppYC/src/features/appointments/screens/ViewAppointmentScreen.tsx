@@ -82,12 +82,17 @@ import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/Liquid
 import type {FormField} from '@yosemite-crew/types';
 import {MerckSearchWidget} from '@/features/merck/components/MerckSearchWidget';
 import {
-  getAppointmentStatusLabel,
+  getAppointmentStatusBadgePalette,
   isActionableUpcomingStatus,
   isAppointmentPaymentFailed,
   isAppointmentPaymentPending,
   isTerminalAppointmentStatus,
 } from '@/features/appointments/utils/appointmentStatus';
+import {
+  formatCheckInTime,
+  getCheckInConstants,
+  isWithinCheckInWindow as isWithinCheckInWindowUtil,
+} from '@/features/appointments/utils/checkInUtils';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -366,76 +371,12 @@ const useStatusDisplay = (theme: any) => {
     statusValue: string,
     paymentStatus?: string | null,
   ) => {
-    const label = getAppointmentStatusLabel(statusValue, paymentStatus);
-    const isPaymentFailed = isAppointmentPaymentFailed(
+    const palette = getAppointmentStatusBadgePalette(
+      theme,
       statusValue,
       paymentStatus,
     );
-    const isPaymentPending = isAppointmentPaymentPending(
-      statusValue,
-      paymentStatus,
-    );
-    if (isPaymentFailed) {
-      return {
-        text: label,
-        textColor: theme.colors.error,
-        backgroundColor: theme.colors.errorSurface,
-      };
-    }
-    if (isPaymentPending) {
-      return {
-        text: label,
-        textColor: theme.colors.warning,
-        backgroundColor: theme.colors.warningSurface,
-      };
-    }
-    switch (statusValue) {
-      case 'UPCOMING':
-        return {
-          text: label,
-          textColor: theme.colors.secondary,
-          backgroundColor: theme.colors.primaryTint,
-        };
-      case 'CHECKED_IN':
-      case 'IN_PROGRESS':
-      case 'PAID':
-      case 'CONFIRMED':
-      case 'SCHEDULED':
-      case 'COMPLETED':
-        return {
-          text: label,
-          textColor: theme.colors.success,
-          backgroundColor: theme.colors.successSurface,
-        };
-      case 'REQUESTED':
-        return {
-          text: label,
-          textColor: theme.colors.primary,
-          backgroundColor: theme.colors.primaryTint,
-        };
-      case 'NO_PAYMENT':
-      case 'AWAITING_PAYMENT':
-      case 'PAYMENT_FAILED':
-      case 'RESCHEDULED':
-        return {
-          text: label,
-          textColor: theme.colors.warning,
-          backgroundColor: theme.colors.warningSurface,
-        };
-      case 'CANCELLED':
-      case 'NO_SHOW':
-        return {
-          text: label,
-          textColor: theme.colors.error,
-          backgroundColor: theme.colors.errorSurface,
-        };
-      default:
-        return {
-          text: label,
-          textColor: theme.colors.textSecondary,
-          backgroundColor: theme.colors.borderMuted,
-        };
-    }
+    return palette;
   };
   return getStatusDisplay;
 };
@@ -623,66 +564,51 @@ const useCheckInFlow = ({
   appointmentId,
   companionId,
   businessCoords,
-  checkInRadiusMeters,
-  checkInBufferMs,
   dispatch,
 }: {
   apt: any;
   appointmentId: string;
   companionId?: string;
   businessCoords: {lat: number | null; lng: number | null};
-  checkInRadiusMeters: number;
-  checkInBufferMs: number;
   dispatch: AppDispatch;
 }) => {
   const [checkingIn, setCheckingIn] = React.useState(false);
-  const getStartDate = React.useCallback(() => {
-    if (!apt) return null;
-    if (apt.start) {
-      const fromStart = new Date(apt.start);
-      if (!Number.isNaN(fromStart.getTime())) {
-        return fromStart;
-      }
-    }
-    const normalizedTime =
-      (apt.time ?? '00:00').length === 5
-        ? `${apt.time ?? '00:00'}:00`
-        : (apt.time ?? '00:00');
-    const fromDateAndTime = new Date(`${apt.date}T${normalizedTime}`);
-    if (!Number.isNaN(fromDateAndTime.getTime())) {
-      return fromDateAndTime;
-    }
-    return null;
-  }, [apt]);
-
-  const formatLocalStartTime = React.useCallback(() => {
-    const start = getStartDate();
-    if (!start) {
-      return apt.time ?? '';
-    }
-    return start.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  }, [apt, getStartDate]);
+  const {CHECKIN_BUFFER_MINUTES, CHECKIN_RADIUS_METERS} = React.useMemo(
+    () =>
+      getCheckInConstants({
+        CHECKIN_BUFFER_MINUTES: apt?.appointmentCheckInBufferMinutes,
+        CHECKIN_RADIUS_METERS: apt?.appointmentCheckInRadiusMeters,
+      }),
+    [apt?.appointmentCheckInBufferMinutes, apt?.appointmentCheckInRadiusMeters],
+  );
+  const minuteUnit = CHECKIN_BUFFER_MINUTES === 1 ? 'minute' : 'minutes';
+  const formatLocalStartTime = React.useCallback(
+    () => formatCheckInTime(apt?.date ?? '', apt?.time),
+    [apt?.date, apt?.time],
+  );
 
   const isWithinCheckInWindow = React.useMemo(() => {
-    const startDate = getStartDate();
-    if (!startDate) {
-      return true;
-    }
-    return Date.now() >= startDate.getTime() - checkInBufferMs;
-  }, [checkInBufferMs, getStartDate]);
+    return isWithinCheckInWindowUtil(
+      apt?.date ?? '',
+      apt?.time,
+      CHECKIN_BUFFER_MINUTES,
+    );
+  }, [CHECKIN_BUFFER_MINUTES, apt?.date, apt?.time]);
 
   const validateCheckInTime = React.useCallback((): boolean => {
     if (isWithinCheckInWindow) return true;
     const startLabel = formatLocalStartTime();
     Alert.alert(
       'Too early to check in',
-      `You can check in starting 5 minutes before your appointment at ${startLabel}.`,
+      `You can check in starting ${CHECKIN_BUFFER_MINUTES} ${minuteUnit} before your appointment at ${startLabel}.`,
     );
     return false;
-  }, [formatLocalStartTime, isWithinCheckInWindow]);
+  }, [
+    CHECKIN_BUFFER_MINUTES,
+    formatLocalStartTime,
+    isWithinCheckInWindow,
+    minuteUnit,
+  ]);
 
   const validateCheckInLocation =
     React.useCallback(async (): Promise<boolean> => {
@@ -709,7 +635,7 @@ const useCheckInFlow = ({
         );
         return false;
       }
-      if (distance > checkInRadiusMeters) {
+      if (distance > CHECKIN_RADIUS_METERS) {
         Alert.alert(
           'Too far to check in',
           `Move closer to the service location to check in. You are ~${Math.round(distance)}m away.`,
@@ -717,7 +643,7 @@ const useCheckInFlow = ({
         return false;
       }
       return true;
-    }, [businessCoords.lat, businessCoords.lng, checkInRadiusMeters]);
+    }, [CHECKIN_RADIUS_METERS, businessCoords.lat, businessCoords.lng]);
 
   const handleCheckIn = React.useCallback(async () => {
     if (!validateCheckInTime()) return;
@@ -957,8 +883,6 @@ export const ViewAppointmentScreen: React.FC = () => {
   const cancelSheetRef = React.useRef<CancelAppointmentBottomSheetRef>(null);
   const rescheduledRef = React.useRef<any>(null);
   const [fallbackPhoto, setFallbackPhoto] = React.useState<string | null>(null);
-  const CHECKIN_RADIUS_METERS = 200;
-  const CHECKIN_BUFFER_MS = 5 * 60 * 1000;
   const formsFetchedRef = React.useRef(false);
   const lastFormsFetchTsRef = React.useRef(0);
   const lastTasksFetchTsRef = React.useRef(0);
@@ -1106,8 +1030,6 @@ export const ViewAppointmentScreen: React.FC = () => {
     appointmentId,
     companionId: apt?.companionId,
     businessCoords,
-    checkInRadiusMeters: CHECKIN_RADIUS_METERS,
-    checkInBufferMs: CHECKIN_BUFFER_MS,
     dispatch,
   });
   const handleViewTask = React.useCallback(

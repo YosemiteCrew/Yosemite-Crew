@@ -9,6 +9,7 @@ import {
   isAppointmentPaymentFailed,
   isAppointmentPaymentPending,
 } from '@/features/appointments/utils/appointmentStatus';
+import {getCheckInConstants} from '@/features/appointments/utils/checkInUtils';
 
 export interface AppointmentCardData {
   cardTitle: string;
@@ -89,6 +90,15 @@ export const transformAppointmentCardData = (
   const petName = companions.find(c => c.id === appointment.companionId)?.name;
   const businessName = biz?.name || appointment.organisationName || '';
   const businessAddress = biz?.address || appointment.organisationAddress || '';
+  const {CHECKIN_BUFFER_MINUTES, CHECKIN_RADIUS_METERS} = getCheckInConstants({
+    CHECKIN_BUFFER_MINUTES:
+      appointment.appointmentCheckInBufferMinutes ??
+      biz?.appointmentCheckInBufferMinutes,
+    CHECKIN_RADIUS_METERS:
+      appointment.appointmentCheckInRadiusMeters ??
+      biz?.appointmentCheckInRadiusMeters,
+  });
+  const minuteUnit = CHECKIN_BUFFER_MINUTES === 1 ? 'minute' : 'minutes';
 
   let assignmentNote: string | undefined;
   if (!hasAssignedVet) {
@@ -99,8 +109,7 @@ export const transformAppointmentCardData = (
     appointment.status === 'UPCOMING' ||
     appointment.status === 'CHECKED_IN'
   ) {
-    assignmentNote =
-      'Check-in unlocks when you are within ~200m of the clinic and 5 minutes before start time.';
+    assignmentNote = `Check-in unlocks when you are within ~${CHECKIN_RADIUS_METERS}m of the clinic and ${CHECKIN_BUFFER_MINUTES} ${minuteUnit} before start time.`;
   }
 
   const needsPayment =

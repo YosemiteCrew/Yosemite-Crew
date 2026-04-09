@@ -80,25 +80,28 @@ jest.mock('@/shared/components/common', () => {
   };
 });
 
-jest.mock('@/shared/components/common/LiquidGlassButton/LiquidGlassButton', () => {
-  const ReactModule = require('react');
-  const {TouchableOpacity, Text} = jest.requireActual('react-native');
+jest.mock(
+  '@/shared/components/common/LiquidGlassButton/LiquidGlassButton',
+  () => {
+    const ReactModule = require('react');
+    const {TouchableOpacity, Text} = jest.requireActual('react-native');
 
-  const MockButton = ReactModule.forwardRef(
-    ({onPress, title, disabled, loading}: any, ref: any) => (
-      <TouchableOpacity
-        ref={ref}
-        testID="mock-liquid-button"
-        onPress={onPress}
-        disabled={disabled}>
-        {/* Ensure Text is correctly nested */}
-        <Text>{loading ? 'Loading...' : title}</Text>
-      </TouchableOpacity>
-    ),
-  );
-  MockButton.displayName = 'MockLiquidGlassButton';
-  return MockButton;
-});
+    const MockButton = ReactModule.forwardRef(
+      ({onPress, title, disabled, loading}: any, ref: any) => (
+        <TouchableOpacity
+          ref={ref}
+          testID="mock-liquid-button"
+          onPress={onPress}
+          disabled={disabled}>
+          {/* Ensure Text is correctly nested */}
+          <Text>{loading ? 'Loading...' : title}</Text>
+        </TouchableOpacity>
+      ),
+    );
+    MockButton.displayName = 'MockLiquidGlassButton';
+    return MockButton;
+  },
+);
 
 jest.mock('@react-native-async-storage/async-storage', () => ({
   setItem: jest.fn().mockResolvedValue(undefined),
@@ -111,8 +114,7 @@ const mockedCompleteSignIn =
 const mockedRequestCode =
   passwordlessAuth.requestPasswordlessEmailCode as jest.Mock;
 const mockedFormatError = passwordlessAuth.formatAuthError as jest.Mock;
-const mockedSignOutEverywhere =
-  passwordlessAuth.signOutEverywhere as jest.Mock;
+const mockedSignOutEverywhere = passwordlessAuth.signOutEverywhere as jest.Mock;
 const mockedUseAuth = useAuth as jest.Mock;
 const mockedLogin = jest.fn();
 const mockedLogout = jest.fn();
@@ -300,7 +302,7 @@ describe('OTPVerificationScreen', () => {
         profileToken: 'token-abc',
         initialAttributes: {firstName: 'Test'},
         tokens: mockTokens,
-        showOtpSuccess: true,
+        showOtpSuccess: false,
       });
 
       expect(mockedEmit).toHaveBeenCalledWith(PENDING_PROFILE_UPDATED_EVENT);

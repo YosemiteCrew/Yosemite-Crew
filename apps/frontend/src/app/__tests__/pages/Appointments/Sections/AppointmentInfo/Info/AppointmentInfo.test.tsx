@@ -134,6 +134,7 @@ describe('AppointmentInfo section', () => {
   it('renders staff details in read-only appointment info', async () => {
     render(<AppointmentInfo activeAppointment={activeAppointment} />);
 
+    expect(screen.getByText('Speciality')).toBeInTheDocument();
     expect(screen.getByText('Lead')).toBeInTheDocument();
     expect(screen.getByText('Alex')).toBeInTheDocument();
     expect(screen.getByText('Staff')).toBeInTheDocument();

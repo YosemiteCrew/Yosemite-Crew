@@ -31,8 +31,15 @@ const formsStoreState = {
       schema: [],
       requiredSigner: '',
     },
+    'form-2': {
+      _id: 'form-2',
+      name: 'Hospital SOAP Template',
+      category: 'SOAP',
+      schema: [],
+      requiredSigner: '',
+    },
   },
-  formIds: ['form-1'],
+  formIds: ['form-1', 'form-2'],
 };
 const services: Array<{ id: string; cost: string }> = [];
 
@@ -305,22 +312,33 @@ jest.mock('@/app/features/forms/pages/Forms/Sections/AddForm/components/FormRend
 
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: ({ alt }: any) => <span>{alt}</span>,
+  default: ({ alt, src }: any) => (
+    <span data-testid="mock-next-image" data-alt={String(alt ?? '')} data-src={String(src ?? '')}>
+      {alt}
+    </span>
+  ),
 }));
 
 jest.mock('@/app/ui/inputs/SearchDropdown', () => ({
   __esModule: true,
   default: ({ options, onSelect }: any) => (
-    <button
-      type="button"
-      onClick={() => {
-        if (options.length > 0) {
-          onSelect(options[0].value);
-        }
-      }}
-    >
-      pick-template
-    </button>
+    <div>
+      <button
+        type="button"
+        onClick={() => {
+          if (options.length > 0) {
+            onSelect(options[0].value);
+          }
+        }}
+      >
+        pick-template
+      </button>
+      {options.map((option: { label: string; value: string }) => (
+        <button key={option.value} type="button" onClick={() => onSelect(option.value)}>
+          {option.label}
+        </button>
+      ))}
+    </div>
   ),
 }));
 
@@ -337,6 +355,8 @@ describe('AppointmentInfo modal', () => {
       id: 'comp-1',
       name: 'Buddy',
       breed: 'Labrador',
+      species: 'dog',
+      photoUrl: 'https://example.com/buddy.png',
       parent: { id: 'parent-1' },
     },
     organisationId: 'org-1',
@@ -383,15 +403,67 @@ describe('AppointmentInfo modal', () => {
     });
   });
 
+  it('shows companion profile photo in the modal header when available', () => {
+    render(
+      <AppointmentInfoModal showModal setShowModal={setShowModal} activeAppointment={appointment} />
+    );
+
+    const headerImage = screen
+      .getAllByTestId('mock-next-image')
+      .find((node) => node.getAttribute('data-alt') === 'pet image');
+
+    expect(headerImage).toBeDefined();
+    expect(headerImage).toHaveAttribute('data-src', 'https://example.com/buddy.png');
+  });
+
+  it('falls back to species avatar in the modal header when profile photo is missing', () => {
+    const noPhotoAppointment = {
+      ...appointment,
+      companion: {
+        ...appointment.companion,
+        species: 'cat',
+        photoUrl: '',
+      },
+    };
+
+    render(
+      <AppointmentInfoModal
+        showModal
+        setShowModal={setShowModal}
+        activeAppointment={noPhotoAppointment}
+      />
+    );
+
+    const headerImage = screen
+      .getAllByTestId('mock-next-image')
+      .find((node) => node.getAttribute('data-alt') === 'pet image');
+
+    expect(headerImage).toBeDefined();
+    expect(headerImage?.getAttribute('data-src')).toContain('/avatar/cat.png');
+  });
+
   it('switches to prescription templates section', () => {
     render(
       <AppointmentInfoModal showModal setShowModal={setShowModal} activeAppointment={appointment} />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Prescription' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Medical Notes / SOAP' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Medical Records' }));
+    fireEvent.click(screen.getByRole('button', { name: 'SOAP' }));
 
     expect(screen.getByText(/loading forms/i)).toBeInTheDocument();
+  });
+
+  it('includes SOAP category templates in hospital medical records search', async () => {
+    render(
+      <AppointmentInfoModal showModal setShowModal={setShowModal} activeAppointment={appointment} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Medical Records' }));
+    fireEvent.click(screen.getByRole('button', { name: 'SOAP' }));
+
+    expect(
+      await screen.findByRole('button', { name: 'Hospital SOAP Template' })
+    ).toBeInTheDocument();
   });
 
   it('passes canEdit false to sections for completed appointments', () => {
@@ -422,7 +494,7 @@ describe('AppointmentInfo modal', () => {
       <AppointmentInfoModal showModal setShowModal={setShowModal} activeAppointment={appointment} />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'History' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
 
     expect(screen.getByText('history-section')).toBeInTheDocument();
     expect(historySectionSpy).toHaveBeenCalledWith(
@@ -540,8 +612,8 @@ describe('AppointmentInfo modal', () => {
       <AppointmentInfoModal showModal setShowModal={setShowModal} activeAppointment={appointment} />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Prescription' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Medical Notes / SOAP' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Medical Records' }));
+    fireEvent.click(screen.getByRole('button', { name: 'SOAP' }));
 
     expect(await screen.findByText('Unable to load forms')).toBeInTheDocument();
   });
@@ -551,8 +623,8 @@ describe('AppointmentInfo modal', () => {
       <AppointmentInfoModal showModal setShowModal={setShowModal} activeAppointment={appointment} />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Prescription' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Medical Notes / SOAP' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Medical Records' }));
+    fireEvent.click(screen.getByRole('button', { name: 'SOAP' }));
     fireEvent.click(await screen.findByRole('button', { name: 'pick-template' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -574,8 +646,8 @@ describe('AppointmentInfo modal', () => {
       <AppointmentInfoModal showModal setShowModal={setShowModal} activeAppointment={appointment} />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Prescription' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Medical Notes / SOAP' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Medical Records' }));
+    fireEvent.click(screen.getByRole('button', { name: 'SOAP' }));
     fireEvent.click(await screen.findByRole('button', { name: 'pick-template' }));
     fireEvent.click(screen.getByRole('button', { name: 'Send to parent' }));
 

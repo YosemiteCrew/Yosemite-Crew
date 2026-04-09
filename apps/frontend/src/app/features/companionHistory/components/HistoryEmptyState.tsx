@@ -12,7 +12,7 @@ const HistoryEmptyState = ({ isError = false, message }: HistoryEmptyStateProps)
       role={isError ? 'alert' : undefined}
     >
       <div className={isError ? 'text-body-3 text-error-main' : 'text-body-3 text-text-primary'}>
-        {message || (isError ? 'Unable to load history right now.' : 'No history entries found.')}
+        {message || (isError ? 'Unable to load overview right now.' : 'No overview entries found.')}
       </div>
     </div>
   );

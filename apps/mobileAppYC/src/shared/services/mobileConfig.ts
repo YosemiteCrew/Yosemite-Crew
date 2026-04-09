@@ -80,6 +80,20 @@ export const isDevelopmentMobileEnv = (env?: MobileEnv | null): boolean => {
 };
 
 export const fetchMobileConfig = async (): Promise<MobileConfig> => {
-  const response = await axios.get<MobileConfig>(MOBILE_CONFIG_URL);
-  return response.data;
+  console.log('[MobileConfig] Request', {url: MOBILE_CONFIG_URL});
+  try {
+    const response = await axios.get<MobileConfig>(MOBILE_CONFIG_URL);
+    console.log('[MobileConfig] Response', {
+      url: MOBILE_CONFIG_URL,
+      status: response.status,
+      data: response.data,
+    });
+    return response.data;
+  } catch (error) {
+    console.log('[MobileConfig] Error', {
+      url: MOBILE_CONFIG_URL,
+      error,
+    });
+    throw error;
+  }
 };

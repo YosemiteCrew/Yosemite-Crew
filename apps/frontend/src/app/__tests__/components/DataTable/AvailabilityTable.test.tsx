@@ -1,16 +1,14 @@
-import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
-import "@testing-library/jest-dom";
-import AvailabilityTable, {
-  getStatusStyle,
-} from "@/app/ui/tables/AvailabilityTable";
-import { Team } from "@/app/features/organization/types/team";
+import React from 'react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import AvailabilityTable, { getStatusStyle } from '@/app/ui/tables/AvailabilityTable';
+import { Team } from '@/app/features/organization/types/team';
 
 // --- Mocks ---
 
 // Mock GenericTable to test that columns and data are passed correctly
 // and to render the cell contents (which contain the logic we want to test)
-jest.mock("@/app/ui/tables/GenericTable/GenericTable", () => {
+jest.mock('@/app/ui/tables/GenericTable/GenericTable', () => {
   return ({ data, columns }: any) => (
     <div data-testid="generic-table">
       <div data-testid="table-headers">
@@ -20,7 +18,7 @@ jest.mock("@/app/ui/tables/GenericTable/GenericTable", () => {
       </div>
       <div data-testid="table-body">
         {data.map((item: any, i: number) => (
-          <div key={i+"avaiability-key"} data-testid={`row-${i}`}>
+          <div key={i + 'avaiability-key'} data-testid={`row-${i}`}>
             {columns.map((col: any) => (
               <div key={col.key} data-testid={`cell-${col.key}`}>
                 {col.render ? col.render(item) : item[col.key]}
@@ -34,7 +32,7 @@ jest.mock("@/app/ui/tables/GenericTable/GenericTable", () => {
 });
 
 // Mock Next.js Image
-jest.mock("next/image", () => ({
+jest.mock('next/image', () => ({
   __esModule: true,
   default: ({ src, alt }: any) => (
     // eslint-disable-next-line @next/next/no-img-element
@@ -43,7 +41,7 @@ jest.mock("next/image", () => ({
 }));
 
 // Mock Icons
-jest.mock("react-icons/io5", () => ({
+jest.mock('react-icons/io5', () => ({
   IoEye: () => <span data-testid="eye-icon">Eye</span>,
 }));
 
@@ -51,38 +49,38 @@ jest.mock("react-icons/io5", () => ({
 
 const mockTeam: Team[] = [
   {
-    _id: "1",
-    name: "Dr. Smith",
-    role: "Doctor",
+    _id: '1',
+    name: 'Dr. Smith',
+    role: 'Doctor',
     speciality: {
-      name: "Cardiology",
-      _id: "spec-1",
-      organisationId: "org-1",
+      name: 'Cardiology',
+      _id: 'spec-1',
+      organisationId: 'org-1',
     },
-    todayAppointment: "5",
-    weeklyWorkingHours: "40",
-    status: "Available",
-    organisationId: "org-1",
-    email: "test@example.com",
-    phone: "123",
+    todayAppointment: '5',
+    weeklyWorkingHours: '40',
+    status: 'Available',
+    organisationId: 'org-1',
+    email: 'test@example.com',
+    phone: '123',
   } as unknown as Team,
   {
-    _id: "2",
-    name: "", // Test fallback
-    role: "Nurse",
+    _id: '2',
+    name: '', // Test fallback
+    role: 'Nurse',
     // Speciality is mandatory in Team type, providing dummy for type safety
     // Component logic likely handles empty objects or we check for it
-    speciality: { name: "", _id: "", organisationId: "" },
-    todayAppointment: "0",
-    weeklyWorkingHours: "0",
-    status: "Consulting",
-    organisationId: "org-1",
-    email: "nurse@example.com",
-    phone: "456",
+    speciality: { name: '', _id: '', organisationId: '' },
+    todayAppointment: '0',
+    weeklyWorkingHours: '0',
+    status: 'Consulting',
+    organisationId: 'org-1',
+    email: 'nurse@example.com',
+    phone: '456',
   } as unknown as Team,
 ];
 
-describe("AvailabilityTable Component", () => {
+describe('AvailabilityTable Component', () => {
   const mockSetActive = jest.fn();
   const mockSetView = jest.fn();
 
@@ -98,70 +96,70 @@ describe("AvailabilityTable Component", () => {
 
   // --- 1. Helper Function Tests ---
 
-  describe("getStatusStyle", () => {
+  describe('getStatusStyle', () => {
     it("returns correct style for 'Available'", () => {
-      const style = getStatusStyle("Available");
-      expect(style).toEqual({ color: "#54B492", backgroundColor: "#E6F4EF" });
+      const style = getStatusStyle('Available');
+      expect(style).toEqual({ color: '#54B492', backgroundColor: '#E6F4EF' });
     });
 
     it("returns correct style for 'Consulting'", () => {
-      const style = getStatusStyle("Consulting");
-      expect(style).toEqual({ color: "#EA3729", backgroundColor: "#FDEBEA" });
+      const style = getStatusStyle('Consulting');
+      expect(style).toEqual({ color: '#EA3729', backgroundColor: '#FDEBEA' });
     });
 
     it("returns correct style for 'Off-duty'", () => {
-      const style = getStatusStyle("Off-duty");
-      expect(style).toEqual({ color: "#F68523", backgroundColor: "#FEF3E9" });
+      const style = getStatusStyle('Off-duty');
+      expect(style).toEqual({ color: '#F68523', backgroundColor: '#FEF3E9' });
     });
 
-    it("returns default style for unknown status", () => {
-      const style = getStatusStyle("Unknown");
+    it('returns default style for unknown status', () => {
+      const style = getStatusStyle('Unknown');
       expect(style).toEqual({
-        color: "#302f2e",
-        backgroundColor: "#6b72801a",
+        color: '#302f2e',
+        backgroundColor: '#6b72801a',
       });
     });
 
-    it("handles case insensitivity", () => {
-      const style = getStatusStyle("available");
-      expect(style).toEqual({ color: "#54B492", backgroundColor: "#E6F4EF" });
+    it('handles case insensitivity', () => {
+      const style = getStatusStyle('available');
+      expect(style).toEqual({ color: '#54B492', backgroundColor: '#E6F4EF' });
     });
   });
 
   // --- 2. Rendering Tests ---
 
-  it("renders table with all columns and data by default", () => {
+  it('renders table with all columns and data by default', () => {
     render(<AvailabilityTable {...defaultProps} />);
 
     // Headers
-    expect(screen.getByText("Name")).toBeInTheDocument();
-    expect(screen.getByText("Role")).toBeInTheDocument();
-    expect(screen.getByText("Speciality")).toBeInTheDocument();
+    expect(screen.getByText('Name')).toBeInTheDocument();
+    expect(screen.getByText('Role')).toBeInTheDocument();
+    expect(screen.getByText('Speciality')).toBeInTheDocument();
     expect(screen.getByText("Today's Appointment")).toBeInTheDocument();
-    expect(screen.getByText("Weekly working hours")).toBeInTheDocument();
-    expect(screen.getByText("Status")).toBeInTheDocument();
-    expect(screen.getByText("Actions")).toBeInTheDocument();
+    expect(screen.getByText('Weekly working hours')).toBeInTheDocument();
+    expect(screen.getByText('Status')).toBeInTheDocument();
+    expect(screen.getByText('Actions')).toBeInTheDocument();
 
     // Row 1 Content
 
     // Profile Image
   });
 
-  it("handles fallback values for missing data", () => {
+  it('handles fallback values for missing data', () => {
     render(<AvailabilityTable {...defaultProps} />);
 
     // Row 2 Content (Index 1) fallback checks
     // The mock data for row 2 has empty name and empty speciality name
     // Logic in component should render "-" for empty name.
-    const dashElements = screen.getAllByText("-");
+    const dashElements = screen.getAllByText('-');
     expect(dashElements.length).toBeGreaterThanOrEqual(1);
   });
 
-  it("triggers view handlers when action button is clicked", () => {
+  it('triggers view handlers when action button is clicked', () => {
     render(<AvailabilityTable {...defaultProps} />);
 
-    const viewButtons = screen.getAllByTestId("eye-icon");
-    fireEvent.click(viewButtons[0].closest("button")!);
+    const viewButtons = screen.getAllByTestId('eye-icon');
+    fireEvent.click(viewButtons[0].closest('button')!);
 
     expect(mockSetActive).toHaveBeenCalledWith(mockTeam[0]);
     expect(mockSetView).toHaveBeenCalledWith(true);
@@ -170,21 +168,35 @@ describe("AvailabilityTable Component", () => {
   it("hides the 'Actions' column when hideActions is true", () => {
     render(<AvailabilityTable {...defaultProps} hideActions={true} />);
 
-    expect(screen.queryByText("Actions")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("eye-icon")).not.toBeInTheDocument();
+    expect(screen.queryByText('Actions')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('eye-icon')).not.toBeInTheDocument();
   });
 
-  it("applies correct status styles in rendered component", () => {
+  it('applies correct status styles in rendered component', () => {
     render(<AvailabilityTable {...defaultProps} />);
+  });
+
+  it('formats weekly working hours to at most two decimal places', () => {
+    const teamWithPreciseHours = [
+      {
+        ...mockTeam[0],
+        weeklyWorkingHours: '40.1267',
+      },
+    ] as Team[];
+
+    render(<AvailabilityTable {...defaultProps} filteredList={teamWithPreciseHours} />);
+
+    expect(screen.getAllByText('40.13')).toHaveLength(2);
+    expect(screen.queryByText('40.1267')).not.toBeInTheDocument();
   });
 
   // --- 3. Edge Cases ---
 
-  it("does not crash if event handlers are undefined", () => {
+  it('does not crash if event handlers are undefined', () => {
     render(<AvailabilityTable filteredList={mockTeam} />);
 
-    const viewButtons = screen.getAllByTestId("eye-icon");
-    fireEvent.click(viewButtons[0].closest("button")!);
+    const viewButtons = screen.getAllByTestId('eye-icon');
+    fireEvent.click(viewButtons[0].closest('button')!);
 
     expect(mockSetActive).not.toHaveBeenCalled();
     expect(mockSetView).not.toHaveBeenCalled();

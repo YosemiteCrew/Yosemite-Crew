@@ -6,8 +6,13 @@ import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
 import { getStatusStyle } from '@/app/config/statusConfig';
 import { toTitle } from '@/app/lib/validators';
 import AppointmentDetailField from '@/app/features/appointments/components/AppointmentDetailField';
-import { normalizeAppointmentStatus, type LegacyAppointmentStatus } from '@/app/lib/appointments';
+import {
+  getAppointmentCompanionPhotoUrl,
+  normalizeAppointmentStatus,
+  type LegacyAppointmentStatus,
+} from '@/app/lib/appointments';
 import { useLoadTeam, useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
+import { formatCompanionNameWithOwnerLastName, getOwnerFirstName } from '@/app/lib/companionName';
 
 type AppointmentCardContentProps = {
   appointment: Appointment;
@@ -24,15 +29,24 @@ export const AppointmentCompanionHeader = ({ appointment }: AppointmentCardConte
   <div className="flex gap-2 items-center">
     <Image
       alt=""
-      src={getSafeImageUrl('', appointment.companion.species as ImageType)}
+      src={getSafeImageUrl(
+        getAppointmentCompanionPhotoUrl(appointment.companion),
+        appointment.companion.species as ImageType
+      )}
       height={40}
       width={40}
-      style={{ borderRadius: '50%' }}
-      className="h-10 w-10 rounded-full"
+      className="h-10 w-10 rounded-full object-cover"
     />
     <div className="flex flex-col gap-0">
-      <div className="text-body-3-emphasis text-text-primary">{appointment.companion?.name}</div>
-      <div className="text-caption-1 text-text-primary">{appointment.companion?.parent?.name}</div>
+      <div className="text-body-3-emphasis text-text-primary">
+        {formatCompanionNameWithOwnerLastName(
+          appointment.companion?.name,
+          appointment.companion?.parent
+        )}
+      </div>
+      <div className="text-caption-1 text-text-primary">
+        {getOwnerFirstName(appointment.companion?.parent)}
+      </div>
     </div>
   </div>
 );
@@ -59,6 +73,10 @@ export const AppointmentDetails = ({ appointment }: AppointmentCardContentProps)
         value={`${formatDateLabel(appointment.appointmentDate)} / ${formatTimeLabel(appointment.startTime)}`}
       />
       <AppointmentDetailField label="Reason" value={appointment.concern} />
+      <AppointmentDetailField
+        label="Speciality"
+        value={appointment.appointmentType?.speciality?.name}
+      />
       <AppointmentDetailField label="Service" value={appointment.appointmentType?.name} />
       <AppointmentDetailField label="Room" value={appointment.room?.name} />
       <AppointmentDetailField label="Lead" value={leadName} />

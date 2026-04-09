@@ -23,6 +23,7 @@ const AppUpdateBottomSheet = forwardRef<
   const {t} = useTranslation();
   const bottomSheetRef = useRef<ConfirmActionBottomSheetRef>(null);
   const deferredHandledRef = useRef(false);
+  const hasOpenedRef = useRef(false);
 
   useImperativeHandle(ref, () => ({
     open: () => bottomSheetRef.current?.open(),
@@ -67,8 +68,13 @@ const AppUpdateBottomSheet = forwardRef<
       showCloseButton={prompt.kind !== 'required'}
       backdropPressBehavior={prompt.kind === 'required' ? 'none' : 'close'}
       onSheetChange={index => {
+        if (index >= 0) {
+          hasOpenedRef.current = true;
+        }
+
         if (
           index === -1 &&
+          hasOpenedRef.current &&
           prompt.kind === 'optional' &&
           !deferredHandledRef.current
         ) {
@@ -76,6 +82,7 @@ const AppUpdateBottomSheet = forwardRef<
         }
         if (index === -1) {
           deferredHandledRef.current = false;
+          hasOpenedRef.current = false;
         }
       }}
       primaryButton={{

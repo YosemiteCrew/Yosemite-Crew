@@ -42,6 +42,8 @@ const EMPTY_ORG: Organisation = {
   taxId: '',
   website: '',
   googlePlacesId: '',
+  appointmentCheckInBufferMinutes: 5,
+  appointmentCheckInRadiusMeters: 200,
   address: {
     addressLine: '',
     country: '',

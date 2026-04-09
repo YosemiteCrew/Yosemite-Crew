@@ -97,6 +97,50 @@ const resolveApiBaseUrlForEnv = (env?: MobileConfig['env']): string => {
   }
   return 'https://devapi.yosemitecrew.com';
 };
+const PRODUCTION_API_BASE_URL = 'https://api.yosemitecrew.com';
+
+const applyMockAppUpdateFlow = (
+  config: MobileConfig,
+  mode: 'off' | 'optional' | 'required',
+): MobileConfig => {
+  if (mode === 'off') {
+    return config;
+  }
+
+  const basePolicy =
+    mode === 'required'
+      ? {
+          force: true,
+          minimumSupportedVersion: '99.0.0',
+          minimumSupportedBuildNumber: 99999,
+          title: 'Update required',
+          message: 'Please update the app to continue.',
+        }
+      : {
+          enabled: true,
+          latestVersion: '99.0.0',
+          latestBuildNumber: 99999,
+          remindAfterHours: 1,
+          title: 'Update available',
+          message: 'A newer version is ready to install.',
+        };
+
+  return {
+    ...config,
+    appUpdate: {
+      ...basePolicy,
+      ios: {
+        ...basePolicy,
+        storeUrl: 'https://apps.apple.com/in/app/yosemite-crew/id6756180296',
+      },
+      android: {
+        ...basePolicy,
+        storeUrl:
+          'https://play.google.com/store/apps/details?id=com.mobileappyc',
+      },
+    },
+  };
+};
 
 const shouldDisableReviewLogin = (env?: MobileConfig['env']): boolean => {
   return isProductionMobileEnv(env);
@@ -146,7 +190,10 @@ function App(): React.JSX.Element {
         //   hasOverride: Boolean(MOBILE_CONFIG_BEHAVIOR.override),
         // });
 
-        let config: MobileConfig | null = null;
+        let config: MobileConfig = {
+          env: 'production',
+          enablePayments: false,
+        };
 
         if (!MOBILE_CONFIG_BEHAVIOR.skipRemoteFetch) {
           config = await fetchMobileConfig();
@@ -154,18 +201,29 @@ function App(): React.JSX.Element {
 
         if (MOBILE_CONFIG_BEHAVIOR.override) {
           config = {
-            ...(config ?? {}),
+            ...config,
             ...MOBILE_CONFIG_BEHAVIOR.override,
-          } as MobileConfig;
+          };
         }
 
-        if (config && mounted) {
-          const resolvedBaseUrl = resolveApiBaseUrlForEnv(config.env);
+        config = applyMockAppUpdateFlow(
+          config,
+          MOBILE_CONFIG_BEHAVIOR.mockAppUpdateFlow,
+        );
+
+        if (mounted) {
+          const resolvedBaseUrl =
+            MOBILE_CONFIG_BEHAVIOR.forceProductionApiBaseUrl
+              ? PRODUCTION_API_BASE_URL
+              : resolveApiBaseUrlForEnv(config.env);
           API_CONFIG.baseUrl = resolvedBaseUrl;
           API_CONFIG.pmsBaseUrl = resolvedBaseUrl;
           updateApiClientBaseConfig({
             baseUrl: resolvedBaseUrl,
             timeoutMs: API_CONFIG.timeoutMs,
+          });
+          console.log('[API] Runtime base URL applied', {
+            baseUrl: resolvedBaseUrl,
           });
 
           if (shouldDisableReviewLogin(config.env)) {
@@ -208,8 +266,6 @@ function App(): React.JSX.Element {
           } else {
             setAppUpdatePrompt(evaluatedPrompt);
           }
-        } else if (mounted) {
-          setAppUpdatePrompt(null);
         }
       } catch (error) {
         if (mounted) {
@@ -378,10 +434,41 @@ const AppUpdateGate: React.FC<AppUpdateGateProps> = ({
 
   useEffect(() => {
     if (!prompt) return;
-    const handle = requestAnimationFrame(() => {
-      updateSheetRef.current?.open();
-    });
-    return () => cancelAnimationFrame(handle);
+
+    let cancelled = false;
+    let retries = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const maxRetries = 8;
+    const retryIntervalMs = 80;
+
+    const tryOpenSheet = () => {
+      if (cancelled) return;
+
+      const ref = updateSheetRef.current;
+      if (ref) {
+        ref.open();
+        return;
+      }
+
+      retries += 1;
+      if (retries >= maxRetries) {
+        console.warn(
+          '[AppUpdate] Failed to open update sheet: ref unavailable',
+        );
+        return;
+      }
+
+      timer = setTimeout(tryOpenSheet, retryIntervalMs);
+    };
+
+    timer = setTimeout(tryOpenSheet, 0);
+
+    return () => {
+      cancelled = true;
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
   }, [prompt]);
 
   return (

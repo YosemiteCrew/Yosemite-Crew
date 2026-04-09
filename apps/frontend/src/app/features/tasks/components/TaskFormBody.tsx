@@ -76,7 +76,7 @@ const TaskFormBody = ({
           <Primary
             href="#"
             text={isLoading ? 'Saving...' : 'Save'}
-            classname="w-auto min-w-[140px]"
+            className="w-auto min-w-[140px]"
             onClick={handleCreate}
             isDisabled={isLoading}
           />

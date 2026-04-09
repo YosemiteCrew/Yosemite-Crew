@@ -3,7 +3,11 @@ import {mockTheme} from '../../../../setup/mockTheme';
 import {render, fireEvent, waitFor} from '@testing-library/react-native';
 import {TasksMainScreen} from '../../../../../src/features/tasks/screens/TasksMainScreen/TasksMainScreen';
 import {useSelector, useDispatch} from 'react-redux';
-import {useNavigation, useFocusEffect} from '@react-navigation/native';
+import {
+  useNavigation,
+  useFocusEffect,
+  useRoute,
+} from '@react-navigation/native';
 import {fetchTasksForCompanion} from '../../../../../src/features/tasks';
 import {setSelectedCompanion} from '../../../../../src/features/companion';
 
@@ -18,6 +22,7 @@ jest.mock('react-redux', () => ({
 jest.mock('@react-navigation/native', () => ({
   useNavigation: jest.fn(),
   useFocusEffect: jest.fn(),
+  useRoute: jest.fn(),
 }));
 
 // 2. Thunks
@@ -143,7 +148,8 @@ jest.mock('@/features/tasks/utils/taskCardHelpers', () => ({
     isPending: task.status === 'pending',
     isCompleted: task.status === 'completed',
     assignedToData: undefined,
-    isObservationalToolTask: task.details?.taskType === 'take-observational-tool',
+    isObservationalToolTask:
+      task.details?.taskType === 'take-observational-tool',
   })),
 }));
 
@@ -161,17 +167,20 @@ jest.mock('@/shared/utils/screenStyles', () => ({
 }));
 
 // 9. Additional Components
-jest.mock('@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen', () => {
-  const {View} = require('react-native');
-  return {
-    LiquidGlassHeaderScreen: ({header, children}: any) => (
-      <View testID="liquid-glass-header-screen">
-        {header}
-        {typeof children === 'function' ? children({}) : children}
-      </View>
-    ),
-  };
-});
+jest.mock(
+  '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen',
+  () => {
+    const {View} = require('react-native');
+    return {
+      LiquidGlassHeaderScreen: ({header, children}: any) => (
+        <View testID="liquid-glass-header-screen">
+          {header}
+          {typeof children === 'function' ? children({}) : children}
+        </View>
+      ),
+    };
+  },
+);
 
 jest.mock('@/features/tasks/components/shared/TaskMonthDateSelector', () => {
   const {View, Text, FlatList, Pressable} = require('react-native');
@@ -221,7 +230,9 @@ jest.mock('@/shared/components/common/ViewMoreButton/ViewMoreButton', () => {
 describe('TasksMainScreen', () => {
   const mockDispatch = jest.fn();
   const mockNavigate = jest.fn();
+  const mockSetParams = jest.fn();
   const mockHandleDateSelect = jest.fn();
+  const mockSetCurrentMonth = jest.fn();
   const mockHandleMonthChange = jest.fn();
   const mockHandleViewTask = jest.fn();
   const mockHandleEditTask = jest.fn();
@@ -242,12 +253,20 @@ describe('TasksMainScreen', () => {
     jest.setSystemTime(new Date('2023-01-15T12:00:00Z'));
 
     (useDispatch as unknown as jest.Mock).mockReturnValue(mockDispatch);
-    (useNavigation as jest.Mock).mockReturnValue({navigate: mockNavigate});
+    (useNavigation as jest.Mock).mockReturnValue({
+      navigate: mockNavigate,
+      setParams: mockSetParams,
+    });
     (useFocusEffect as jest.Mock).mockImplementation(cb => cb());
+    (useRoute as unknown as jest.Mock).mockReturnValue({params: {}});
 
     // --- Hook Mocks ---
-    const {useTaskDateSelection} = require('@/features/tasks/hooks/useTaskDateSelection');
-    const {useTaskNavigationActions} = require('@/features/tasks/hooks/useTaskNavigationActions');
+    const {
+      useTaskDateSelection,
+    } = require('@/features/tasks/hooks/useTaskDateSelection');
+    const {
+      useTaskNavigationActions,
+    } = require('@/features/tasks/hooks/useTaskNavigationActions');
     const {useCommonScreenStyles} = require('@/shared/utils/screenStyles');
 
     // Mock useTaskDateSelection
@@ -256,6 +275,7 @@ describe('TasksMainScreen', () => {
       currentMonth: new Date('2023-01-01T12:00:00Z'),
       handleDateSelect: mockHandleDateSelect,
       handleMonthChange: mockHandleMonthChange,
+      setCurrentMonth: mockSetCurrentMonth,
     });
 
     // Mock useTaskNavigationActions
@@ -410,6 +430,24 @@ describe('TasksMainScreen', () => {
     });
   });
 
+  it('auto-selects date from route param after returning from add task', () => {
+    (useRoute as unknown as jest.Mock).mockReturnValue({
+      params: {autoSelectDate: '2026-04-10'},
+    });
+
+    render(<TasksMainScreen />);
+
+    expect(mockHandleDateSelect).toHaveBeenCalledWith(expect.any(Date));
+    const selectedDateArg = mockHandleDateSelect.mock.calls.find(
+      call => call[0] instanceof Date,
+    )?.[0] as Date | undefined;
+    expect(selectedDateArg?.getFullYear()).toBe(2026);
+    expect(selectedDateArg?.getMonth()).toBe(3);
+    expect(selectedDateArg?.getDate()).toBe(10);
+    expect(mockSetCurrentMonth).toHaveBeenCalledWith(new Date(2026, 3, 1));
+    expect(mockSetParams).toHaveBeenCalledWith({autoSelectDate: undefined});
+  });
+
   it('renders task cards when tasks exist for a specific category', () => {
     const {
       selectRecentTasksByCategory,
@@ -520,7 +558,56 @@ describe('TasksMainScreen', () => {
     const header = getByTestId('header');
 
     fireEvent(header, 'rightPress');
-    expect(mockNavigate).toHaveBeenCalledWith('AddTask');
+    expect(mockNavigate).toHaveBeenCalledWith('AddTask', {
+      prefillDate: '2023-01-15',
+    });
+  });
+
+  it('renders populated categories above empty ones (custom-first when only custom has tasks)', () => {
+    const {
+      selectTaskCountByCategory,
+      selectRecentTasksByCategory,
+      selectTasksByCompanion,
+    } = require('@/features/tasks/selectors');
+
+    const customTask = {
+      id: 'custom-1',
+      title: 'Custom Task',
+      category: 'custom',
+      companionId: 'c1',
+      date: '2023-01-15',
+      time: '10:00',
+      status: 'pending',
+    };
+
+    selectTasksByCompanion.mockReturnValue((_state: any) => [customTask]);
+    selectRecentTasksByCategory.mockImplementation(
+      (_id: string, _date: Date, category: string) => {
+        if (category === 'custom') return (_state: any) => [customTask];
+        return (_state: any) => [];
+      },
+    );
+    selectTaskCountByCategory.mockImplementation(
+      (_id: string, _date: Date, category: string) => {
+        if (category === 'custom') return (_state: any) => 1;
+        return (_state: any) => 0;
+      },
+    );
+
+    const {toJSON} = render(<TasksMainScreen />);
+    const treeText = JSON.stringify(toJSON());
+
+    expect(treeText.indexOf('Custom')).toBeGreaterThan(-1);
+    expect(treeText.indexOf('Health')).toBeGreaterThan(-1);
+    expect(treeText.indexOf('Hygiene')).toBeGreaterThan(-1);
+    expect(treeText.indexOf('Dietary')).toBeGreaterThan(-1);
+    expect(treeText.indexOf('Custom')).toBeLessThan(treeText.indexOf('Health'));
+    expect(treeText.indexOf('Custom')).toBeLessThan(
+      treeText.indexOf('Hygiene'),
+    );
+    expect(treeText.indexOf('Custom')).toBeLessThan(
+      treeText.indexOf('Dietary'),
+    );
   });
 
   it('handles "View More" navigation', () => {

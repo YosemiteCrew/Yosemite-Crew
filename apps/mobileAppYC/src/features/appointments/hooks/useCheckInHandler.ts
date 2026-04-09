@@ -9,7 +9,11 @@ import {
 } from '@/features/appointments/appointmentsSlice';
 import LocationService from '@/shared/services/LocationService';
 import {distanceBetweenCoordsMeters} from '@/shared/utils/geoDistance';
-import {isWithinCheckInWindow, formatCheckInTime, getCheckInConstants} from '@/features/appointments/utils/checkInUtils';
+import {
+  isWithinCheckInWindow,
+  formatCheckInTime,
+  getCheckInConstants,
+} from '@/features/appointments/utils/checkInUtils';
 
 export interface CheckInHandlerConfig {
   appointment: {
@@ -17,6 +21,8 @@ export interface CheckInHandlerConfig {
     date: string;
     time: string;
     companionId?: string;
+    appointmentCheckInBufferMinutes?: number;
+    appointmentCheckInRadiusMeters?: number;
   };
   businessCoordinates: {lat: number | null; lng: number | null};
   onCheckingInChange: (id: string, checking: boolean) => void;
@@ -30,7 +36,6 @@ export interface CheckInHandlerConfig {
  */
 export const useCheckInHandler = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const {CHECKIN_RADIUS_METERS} = getCheckInConstants();
 
   const handleCheckIn = useCallback(
     async (config: CheckInHandlerConfig) => {
@@ -41,25 +46,41 @@ export const useCheckInHandler = () => {
         hasPermission,
         onPermissionDenied,
       } = config;
+      const {CHECKIN_BUFFER_MINUTES, CHECKIN_RADIUS_METERS} =
+        getCheckInConstants({
+          CHECKIN_BUFFER_MINUTES: appointment.appointmentCheckInBufferMinutes,
+          CHECKIN_RADIUS_METERS: appointment.appointmentCheckInRadiusMeters,
+        });
+      const minuteUnit = CHECKIN_BUFFER_MINUTES === 1 ? 'minute' : 'minutes';
 
       if (!hasPermission) {
         onPermissionDenied?.();
         return;
       }
 
-      const withinTimeWindow = isWithinCheckInWindow(appointment.date, appointment.time);
+      const withinTimeWindow = isWithinCheckInWindow(
+        appointment.date,
+        appointment.time,
+        CHECKIN_BUFFER_MINUTES,
+      );
       if (!withinTimeWindow) {
-        const startLabel = formatCheckInTime(appointment.date, appointment.time);
+        const startLabel = formatCheckInTime(
+          appointment.date,
+          appointment.time,
+        );
         Alert.alert(
           'Too early to check in',
-          `You can check in starting 5 minutes before your appointment at ${startLabel}.`,
+          `You can check in starting ${CHECKIN_BUFFER_MINUTES} ${minuteUnit} before your appointment at ${startLabel}.`,
         );
         return;
       }
 
       const {lat, lng} = businessCoordinates;
       if (!lat || !lng) {
-        Alert.alert('Location unavailable', 'Business location is missing. Please try again later.');
+        Alert.alert(
+          'Location unavailable',
+          'Business location is missing. Please try again later.',
+        );
         return;
       }
 
@@ -76,7 +97,10 @@ export const useCheckInHandler = () => {
       );
 
       if (distance === null) {
-        Alert.alert('Location unavailable', 'Unable to determine distance for check-in.');
+        Alert.alert(
+          'Location unavailable',
+          'Unable to determine distance for check-in.',
+        );
         return;
       }
 
@@ -90,23 +114,34 @@ export const useCheckInHandler = () => {
 
       onCheckingInChange(appointment.id, true);
       try {
-        await dispatch(checkInAppointment({appointmentId: appointment.id})).unwrap();
-        await dispatch(fetchAppointmentById({appointmentId: appointment.id})).unwrap();
+        await dispatch(
+          checkInAppointment({appointmentId: appointment.id}),
+        ).unwrap();
+        await dispatch(
+          fetchAppointmentById({appointmentId: appointment.id}),
+        ).unwrap();
         if (appointment.companionId) {
-          dispatch(fetchAppointmentsForCompanion({companionId: appointment.companionId}));
+          dispatch(
+            fetchAppointmentsForCompanion({
+              companionId: appointment.companionId,
+            }),
+          );
         }
         if (Platform.OS === 'android') {
           ToastAndroid.show('Checked in', ToastAndroid.SHORT);
         }
       } catch (error) {
         console.warn('[Appointment] Check-in failed', error);
-        Alert.alert('Check-in failed', 'Unable to check in right now. Please try again.');
+        Alert.alert(
+          'Check-in failed',
+          'Unable to check in right now. Please try again.',
+        );
       } finally {
         onCheckingInChange(appointment.id, false);
       }
     },
-    [dispatch, CHECKIN_RADIUS_METERS],
+    [dispatch],
   );
 
-  return {handleCheckIn, CHECKIN_RADIUS_METERS};
+  return {handleCheckIn};
 };

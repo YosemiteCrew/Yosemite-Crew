@@ -71,6 +71,12 @@ Use the `<Text>` component for all copy, not bare `<p>` / `<span>` tags.
 
 Font: **Satoshi** (300 Light → 900 Black). Never default to Inter, Roboto, or system fonts for new UI.
 
+## UI Text Normalization
+
+- Never show raw backend enums, acronyms, or short forms in user-visible copy (for example `PAYMENT_AT_CLINIC`, `VET`, `PMS`).
+- Always map domain values to plain-language labels before rendering.
+- Do not use `Actor` as a user-facing label. Use contextual labels such as `Lead`/`Support`, or neutral `Updated by` when role context is unknown.
+
 ---
 
 ## Component Patterns

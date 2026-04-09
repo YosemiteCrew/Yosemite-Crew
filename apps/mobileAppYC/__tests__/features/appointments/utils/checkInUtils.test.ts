@@ -5,7 +5,7 @@ import {
 } from '../../../../src/features/appointments/utils/checkInUtils';
 
 jest.mock('@/features/appointments/utils/timeFormatting', () => ({
-  normalizeTimeString: (time: string) => {
+  normalizeTimeString: time => {
     if (time === '09:00') return '09:00:00';
     if (time === '14:30') return '14:30:00';
     return '00:00:00';
@@ -34,6 +34,12 @@ describe('checkInUtils', () => {
     it('should return true when within 5-minute buffer before appointment', () => {
       // Appointment at 14:03, current time 14:00 (3 minutes before)
       const result = isWithinCheckInWindow('2024-12-20', '14:03');
+      expect(result).toBe(true);
+    });
+
+    it('should use provided check-in buffer minutes', () => {
+      // 14:00 now, 14:12 start, with 15-minute buffer should be allowed
+      const result = isWithinCheckInWindow('2024-12-20', '14:12', 15);
       expect(result).toBe(true);
     });
 
@@ -96,8 +102,9 @@ describe('checkInUtils', () => {
   });
 
   describe('getCheckInConstants', () => {
-    it('should return check-in buffer in milliseconds', () => {
+    it('should return check-in buffer in minutes and milliseconds', () => {
       const constants = getCheckInConstants();
+      expect(constants.CHECKIN_BUFFER_MINUTES).toBe(5);
       expect(constants.CHECKIN_BUFFER_MS).toBe(5 * 60 * 1000); // 5 minutes
     });
 
@@ -109,9 +116,56 @@ describe('checkInUtils', () => {
     it('should return an object with both constants', () => {
       const constants = getCheckInConstants();
       expect(constants).toEqual({
+        CHECKIN_BUFFER_MINUTES: 5,
         CHECKIN_BUFFER_MS: 5 * 60 * 1000,
         CHECKIN_RADIUS_METERS: 200,
       });
+    });
+
+    it('should apply overridden config values', () => {
+      const constants = getCheckInConstants({
+        CHECKIN_BUFFER_MINUTES: 12,
+        CHECKIN_RADIUS_METERS: 450,
+      });
+      expect(constants).toEqual({
+        CHECKIN_BUFFER_MINUTES: 12,
+        CHECKIN_BUFFER_MS: 12 * 60 * 1000,
+        CHECKIN_RADIUS_METERS: 450,
+      });
+    });
+
+    it('falls back to default when string config is a float (e.g. "3.5")', () => {
+      const constants = getCheckInConstants({CHECKIN_BUFFER_MINUTES: '3.5'});
+      expect(constants.CHECKIN_BUFFER_MINUTES).toBe(5);
+    });
+
+    it('falls back to default when string config is negative (e.g. "-2")', () => {
+      const constants = getCheckInConstants({CHECKIN_BUFFER_MINUTES: '-2'});
+      expect(constants.CHECKIN_BUFFER_MINUTES).toBe(5);
+    });
+
+    it('falls back to default when numeric config is negative', () => {
+      const constants = getCheckInConstants({CHECKIN_RADIUS_METERS: -50});
+      expect(constants.CHECKIN_RADIUS_METERS).toBe(200);
+    });
+
+    it('falls back to default when numeric config is a float', () => {
+      const constants = getCheckInConstants({CHECKIN_BUFFER_MINUTES: 2.5});
+      expect(constants.CHECKIN_BUFFER_MINUTES).toBe(5);
+    });
+
+    it('accepts string "0" as valid (zero is a non-negative integer)', () => {
+      const constants = getCheckInConstants({CHECKIN_BUFFER_MINUTES: '0'});
+      expect(constants.CHECKIN_BUFFER_MINUTES).toBe(0);
+    });
+
+    it('falls back to default for non-numeric types (object, array)', () => {
+      const constants = getCheckInConstants({
+        CHECKIN_BUFFER_MINUTES: {},
+        CHECKIN_RADIUS_METERS: [],
+      });
+      expect(constants.CHECKIN_BUFFER_MINUTES).toBe(5);
+      expect(constants.CHECKIN_RADIUS_METERS).toBe(200);
     });
   });
 });

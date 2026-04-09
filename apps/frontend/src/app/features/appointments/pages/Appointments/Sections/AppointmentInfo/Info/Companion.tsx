@@ -25,7 +25,27 @@ const ParentFields = [
   { label: 'Last name', key: 'lastName', type: 'text' },
   { label: 'Email', key: 'email', type: 'text' },
   { label: 'Number', key: 'phone', type: 'text' },
+  { label: 'Address', key: 'address', type: 'text' },
 ];
+
+type ParentAddress = {
+  addressLine?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
+};
+
+const formatParentAddress = (address?: ParentAddress) =>
+  [
+    address?.addressLine?.trim(),
+    address?.city?.trim(),
+    address?.state?.trim(),
+    address?.postalCode?.trim(),
+    address?.country?.trim(),
+  ]
+    .filter(Boolean)
+    .join(', ');
 
 const Companion = ({ activeAppointment }: CompanionProps) => {
   const terminologyText = useCompanionTerminologyText();
@@ -33,6 +53,13 @@ const Companion = ({ activeAppointment }: CompanionProps) => {
   const parentId = activeAppointment.companion.parent.id;
   const companion = useCompanionStore((state) => state.getCompanionById(companionId));
   const parent = useParentStore((state) => state.getParentById(parentId));
+  const appointmentParent = activeAppointment.companion.parent as Partial<{
+    firstName: string;
+    lastName: string;
+    email: string;
+    phoneNumber: string;
+    address: ParentAddress;
+  }>;
 
   const CompanionInfoData = useMemo(
     () => ({
@@ -50,12 +77,13 @@ const Companion = ({ activeAppointment }: CompanionProps) => {
 
   const ParentInfoData = useMemo(
     () => ({
-      firstName: parent?.firstName ?? '',
-      lastName: parent?.lastName ?? '',
-      email: parent?.email ?? '',
-      phone: parent?.phoneNumber ?? '',
+      firstName: parent?.firstName ?? appointmentParent?.firstName ?? '',
+      lastName: parent?.lastName ?? appointmentParent?.lastName ?? '',
+      email: parent?.email ?? appointmentParent?.email ?? '',
+      phone: parent?.phoneNumber ?? appointmentParent?.phoneNumber ?? '',
+      address: formatParentAddress(parent?.address ?? appointmentParent?.address),
     }),
-    [parent]
+    [appointmentParent, parent]
   );
 
   return (

@@ -24,6 +24,7 @@ import Fallback from '@/app/ui/overlays/Fallback';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { IoInformationCircleOutline } from 'react-icons/io5';
+import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 
 const Companions = () => {
   const companions = useCompanionsParentsForPrimaryOrg();
@@ -84,7 +85,12 @@ const Companions = () => {
 
       const matchesStatus = statusWanted === 'all' || status === statusWanted;
       const matchesFilter = filterWanted === 'all' || filter === filterWanted;
-      const matchesQuery = !q || item.companion.name?.toLowerCase().includes(q);
+      const companionDisplayName = formatCompanionNameWithOwnerLastName(
+        item.companion.name,
+        item.parent,
+        ''
+      ).toLowerCase();
+      const matchesQuery = !q || companionDisplayName.includes(q);
 
       return matchesStatus && matchesFilter && matchesQuery;
     });

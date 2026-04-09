@@ -1,10 +1,10 @@
-"use client";
-import React, { useState } from "react";
+'use client';
+import React, { useEffect, useState } from 'react';
 
-import Next from "@/app/ui/primitives/Icons/Next";
-import Back from "@/app/ui/primitives/Icons/Back";
+import Next from '@/app/ui/primitives/Icons/Next';
+import Back from '@/app/ui/primitives/Icons/Back';
 
-import "./Generictable.css";
+import './Generictable.css';
 
 interface Column<T> {
   label: string;
@@ -29,6 +29,15 @@ const GenericTable = <T extends object>({
   pageSize = 10,
 }: Readonly<GenericTableProps<T>>) => {
   const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    const totalPages = Math.ceil(data.length / pageSize);
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    } else if (totalPages === 0) {
+      setCurrentPage(1);
+    }
+  }, [data.length, pageSize, currentPage]);
   const total = data.length;
   const totalPages = Math.ceil(total / pageSize);
   const startIdx = (currentPage - 1) * pageSize;
@@ -44,10 +53,7 @@ const GenericTable = <T extends object>({
         <thead>
           <tr>
             {columns.map((col) => (
-              <th
-                key={String(col.key)}
-                style={col.width ? { width: col.width } : {}}
-              >
+              <th key={String(col.key)} style={col.width ? { width: col.width } : {}}>
                 {col.label}
               </th>
             ))}
@@ -58,10 +64,7 @@ const GenericTable = <T extends object>({
             paginatedData?.map((row: any, index: any) => (
               <tr key={row + index}>
                 {columns.map((col) => (
-                  <td
-                    key={String(col.key)}
-                    style={col.width ? { width: col.width } : {}}
-                  >
+                  <td key={String(col.key)} style={col.width ? { width: col.width } : {}}>
                     <div className="td-inner">
                       {col.render ? col.render(row, index) : row[col.key]}
                     </div>
@@ -85,12 +88,10 @@ const GenericTable = <T extends object>({
           <Back
             onClick={handlePrev}
             disabled={currentPage === 1}
-            className={
-              currentPage === 1 ? "hover:bg-white! cursor-not-allowed" : ""
-            }
+            className={currentPage === 1 ? 'hover:bg-white! cursor-not-allowed' : ''}
           />
           <div className="text-body-4 text-text-primary">
-            Showing{" "}
+            Showing{' '}
             <span>
               {Math.min(endIdx, total)} of {total}
             </span>
@@ -98,11 +99,7 @@ const GenericTable = <T extends object>({
           <Next
             onClick={handleNext}
             disabled={currentPage === totalPages}
-            className={
-              currentPage === totalPages
-                ? "hover:bg-white! cursor-not-allowed"
-                : ""
-            }
+            className={currentPage === totalPages ? 'hover:bg-white! cursor-not-allowed' : ''}
           />
         </div>
       )}

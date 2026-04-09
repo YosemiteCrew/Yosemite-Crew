@@ -7,6 +7,13 @@ import Appointments from '@/app/ui/tables/Appointments';
 const acceptAppointmentMock = jest.fn();
 const cancelAppointmentMock = jest.fn();
 const rejectAppointmentMock = jest.fn();
+const pushMock = jest.fn();
+
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: pushMock,
+  }),
+}));
 
 jest.mock('@/app/features/appointments/services/appointmentService', () => ({
   acceptAppointment: (...args: any[]) => acceptAppointmentMock(...args),
@@ -19,7 +26,8 @@ jest.mock('@/app/lib/appointments', () => ({
   allowCalendarDrag: jest.fn(() => true),
   canAssignAppointmentRoom: jest.fn(() => true),
   canShowStatusChangeAction: jest.fn(() => true),
-  getClinicalNotesLabel: jest.fn(() => 'Prescription'),
+  getClinicalNotesLabel: jest.fn(() => 'Medical Records'),
+  getAppointmentCompanionPhotoUrl: jest.fn(() => ''),
   isRequestedLikeStatus: jest.fn(
     (status: string) => status === 'REQUESTED' || status === 'NO_PAYMENT'
   ),
@@ -86,6 +94,7 @@ describe('Appointments table', () => {
       id: 'a1',
       status: 'REQUESTED',
       companion: {
+        id: 'c1',
         name: 'Buddy',
         species: 'dog',
         parent: { name: 'Jamie' },
@@ -107,6 +116,7 @@ describe('Appointments table', () => {
       id: 'a2',
       status: 'COMPLETED',
       companion: {
+        id: 'c2',
         name: 'Buddy',
         species: 'dog',
         parent: { name: 'Jamie' },
@@ -128,13 +138,15 @@ describe('Appointments table', () => {
       />
     );
 
-    fireEvent.click(screen.getByTitle('Open appointment history'));
+    fireEvent.click(screen.getByTitle('Open appointment overview'));
     fireEvent.click(screen.getByText('view-icon').closest('button')!);
     fireEvent.click(screen.getByText('reschedule-icon').closest('button')!);
 
+    expect(pushMock).toHaveBeenCalledWith(
+      '/companions/history?companionId=c2&source=appointments&appointmentId=a2&backTo=%2Fappointments'
+    );
     expect(setActiveAppointment).toHaveBeenCalledWith(appointment);
     expect(setViewPopup).toHaveBeenCalledWith(true);
-    expect(setViewIntent).toHaveBeenCalledWith({ label: 'info', subLabel: 'history' });
     expect(setReschedulePopup).toHaveBeenCalledWith(true);
   });
 
@@ -155,6 +167,7 @@ describe('Appointments table', () => {
       lead: { name: 'Dr. Lee' },
       supportStaff: [],
       companion: {
+        id: 'c3',
         name: 'Buddy',
         species: 'dog',
         parent: { name: 'Jamie' },

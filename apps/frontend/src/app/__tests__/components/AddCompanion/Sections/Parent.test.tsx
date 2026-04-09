@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import Parent from '@/app/features/companions/components/AddCompanion/Sections/Parent';
 import { EMPTY_STORED_PARENT } from '@/app/features/companions/components/AddCompanion/type';
+import { validatePhone } from '@/app/lib/validators';
 
 jest.mock('@/app/ui/primitives/Accordion/Accordion', () => ({
   __esModule: true,
@@ -22,9 +23,12 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
   ),
 }));
 
-const FieldMock = ({ error, inlabel }: any) => (
+const FieldMock = ({ error, inlabel, value = '', onChange }: any) => (
   <div>
-    <span>{inlabel}</span>
+    <label>
+      {inlabel}
+      <input aria-label={inlabel} value={value} onChange={onChange} />
+    </label>
     {error ? <div>{error}</div> : null}
   </div>
 );
@@ -32,6 +36,33 @@ const FieldMock = ({ error, inlabel }: any) => (
 jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
   __esModule: true,
   default: (props: any) => <FieldMock {...props} />,
+}));
+
+jest.mock('@/app/ui/inputs/GoogleSearchDropDown/GoogleSearchDropDown', () => ({
+  __esModule: true,
+  default: ({ error, inlabel, value = '', onChange, onAddressSelect }: any) => (
+    <div>
+      <label>
+        {inlabel}
+        <input aria-label={inlabel} value={value} onChange={onChange} />
+      </label>
+      <button
+        type="button"
+        onClick={() =>
+          onAddressSelect?.({
+            addressLine: '1600 Amphitheatre Pkwy, Mountain View, CA 94043, USA',
+            city: 'Mountain View',
+            state: 'CA',
+            postalCode: '94043',
+            country: 'United States',
+          })
+        }
+      >
+        autofill-address
+      </button>
+      {error ? <div>{error}</div> : null}
+    </div>
+  ),
 }));
 
 jest.mock('@/app/ui/inputs/Datepicker', () => ({
@@ -55,10 +86,15 @@ jest.mock('@/app/features/companions/services/companionService', () => ({
 
 jest.mock('@/app/lib/validators', () => ({
   getCountryCode: () => null,
-  validatePhone: () => true,
+  validatePhone: jest.fn(() => true),
 }));
 
 describe('AddCompanion Parent section', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (validatePhone as jest.Mock).mockReturnValue(true);
+  });
+
   it('shows validation errors when required fields are empty', () => {
     render(
       <Parent setActiveLabel={jest.fn()} formData={EMPTY_STORED_PARENT} setFormData={jest.fn()} />
@@ -69,5 +105,63 @@ describe('AddCompanion Parent section', () => {
     expect(screen.getByText('First name is required')).toBeInTheDocument();
     expect(screen.getByText('Email is required')).toBeInTheDocument();
     expect(screen.getByText('Number is required')).toBeInTheDocument();
+    expect(screen.getByText('Address is required')).toBeInTheDocument();
+    expect(screen.getByText('City is required')).toBeInTheDocument();
+    expect(screen.getByText('State/Province is required')).toBeInTheDocument();
+    expect(screen.getByText('Postal code is required')).toBeInTheDocument();
+  });
+
+  it('shows phone validation error when number is invalid', () => {
+    (validatePhone as jest.Mock).mockReturnValue(false);
+
+    render(
+      <Parent
+        setActiveLabel={jest.fn()}
+        formData={{
+          ...EMPTY_STORED_PARENT,
+          firstName: 'Parent',
+          lastName: 'User',
+          email: 'parent@example.com',
+          phoneNumber: '+1123',
+          address: {
+            ...EMPTY_STORED_PARENT.address,
+            addressLine: '123 Main Street',
+            city: 'Austin',
+            state: 'TX',
+            postalCode: '73301',
+          },
+        }}
+        setFormData={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+    expect(screen.getByText('Enter a valid phone number')).toBeInTheDocument();
+  });
+
+  it('autofills address details from google places selection', () => {
+    const setFormData = jest.fn();
+
+    render(
+      <Parent setActiveLabel={jest.fn()} formData={EMPTY_STORED_PARENT} setFormData={setFormData} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'autofill-address' }));
+
+    expect(setFormData).toHaveBeenCalledWith(expect.any(Function));
+
+    const update = setFormData.mock.calls.at(-1)?.[0];
+    const nextState = update(EMPTY_STORED_PARENT);
+
+    expect(nextState.address).toEqual(
+      expect.objectContaining({
+        addressLine: '1600 Amphitheatre Pkwy, Mountain View, CA 94043, USA',
+        city: 'Mountain View',
+        state: 'CA',
+        postalCode: '94043',
+        country: 'United States',
+      })
+    );
   });
 });

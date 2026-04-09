@@ -102,7 +102,7 @@ describe('appointments utilities', () => {
     expect(allowCalendarDrag('REQUESTED')).toBe(true);
     expect(allowCalendarDrag('NO_PAYMENT')).toBe(true);
     expect(allowCalendarDrag('CANCELLED')).toBe(false);
-    expect(getClinicalNotesLabel('HOSPITAL')).toBe('Prescription');
+    expect(getClinicalNotesLabel('HOSPITAL')).toBe('Medical Records');
     expect(getClinicalNotesLabel('CLINIC')).toBe('Care');
     expect(getClinicalNotesIntent('HOSPITAL')).toEqual({
       label: 'prescription',

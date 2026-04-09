@@ -12,6 +12,7 @@ import { loadDocumentDownloadURL } from '@/app/features/companions/services/comp
 import HistoryEntryCard from '@/app/features/companionHistory/components/HistoryEntryCard';
 import HistoryFilters from '@/app/features/companionHistory/components/HistoryFilters';
 import HistoryEmptyState from '@/app/features/companionHistory/components/HistoryEmptyState';
+import HistoryDocumentUpload from '@/app/features/companionHistory/components/HistoryDocumentUpload';
 import {
   CompanionHistoryResponse,
   HISTORY_FILTER_TYPE_MAP,
@@ -24,6 +25,7 @@ import { fetchCompanionHistory } from '@/app/features/companionHistory/services/
 import { AuditTrail } from '@/app/features/audit/types/audit';
 import { getCompanionAuditTrail } from '@/app/features/audit/services/auditService';
 import { Secondary } from '@/app/ui/primitives/Buttons';
+import { Badge, Card } from '@/app/ui';
 
 type CompanionHistoryTimelineProps = {
   companionId: string;
@@ -136,11 +138,48 @@ const getLinkedEntryIntent = (
 };
 
 const getAuditActorDisplay = (entry: AuditTrail): string => {
-  const actorTypeLabel = toTitle(entry.actorType ?? 'SYSTEM');
-  if (entry.actorName) {
-    return `${toTitle(entry.actorName)} • ${actorTypeLabel}`;
+  const actorTypeLabelMap: Record<string, string> = {
+    PMS_USER: 'Team member',
+    PARENT: 'Pet parent',
+    SYSTEM: 'System',
+  };
+  const actorTypeLabel =
+    actorTypeLabelMap[
+      String(entry.actorType ?? '')
+        .trim()
+        .toUpperCase()
+    ] || 'System';
+  const actorName = String(entry.actorName ?? '').trim();
+  if (actorName) {
+    return `${actorName} • ${actorTypeLabel}`;
   }
   return actorTypeLabel;
+};
+
+const getAuditEntityLabel = (entityType?: string | null): string => {
+  const entityTypeLabelMap: Record<string, string> = {
+    COMPANION_ORGANISATION: 'Companion profile',
+    APPOINTMENT: 'Appointment',
+    INVOICE: 'Finance',
+    DOCUMENT: 'Document',
+    FORM: 'Template',
+  };
+  const normalized = String(entityType ?? '')
+    .trim()
+    .toUpperCase();
+  return entityTypeLabelMap[normalized] || toTitle(normalized);
+};
+
+const getAuditEntityBadgeTone = (
+  entityType?: string | null
+): 'neutral' | 'brand' | 'success' | 'warning' | 'danger' => {
+  const normalized = String(entityType ?? '')
+    .trim()
+    .toUpperCase();
+  if (normalized === 'APPOINTMENT') return 'brand';
+  if (normalized === 'INVOICE') return 'success';
+  if (normalized === 'DOCUMENT') return 'warning';
+  return 'neutral';
 };
 
 type AuditTrailSectionProps = {
@@ -174,31 +213,35 @@ const AuditTrailSection = ({
   return (
     <div className="flex flex-col gap-2.5">
       {auditEntries.map((entry, index) => (
-        <div
+        <Card
           key={entry.id ?? `${entry.eventType}-${entry.occurredAt}-${index}`}
-          className="w-full rounded-2xl border border-card-border bg-white px-3 py-2.5 md:px-4 md:py-3"
+          variant="default"
+          className="w-full font-satoshi px-3 py-2.5 md:px-4 md:py-3"
         >
-          <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1.5">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <div className="truncate text-body-3-emphasis text-text-primary">
-                  {toTitle(entry.eventType)}
-                </div>
-                {entry.entityType ? (
-                  <span className="rounded-full bg-blue-light px-2 py-0.5 text-label-xsmall text-blue-text">
-                    {toTitle(entry.entityType)}
-                  </span>
-                ) : null}
+          <div className="flex flex-col gap-1">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 truncate text-body-3-emphasis text-text-primary">
+                {toTitle(entry.eventType)}
               </div>
-              <div className="mt-1 text-caption-1 text-text-secondary">
-                {getAuditActorDisplay(entry)}
-              </div>
+              {entry.entityType ? (
+                <Badge
+                  tone={getAuditEntityBadgeTone(entry.entityType)}
+                  className="px-2 py-0.5 text-caption-1"
+                >
+                  {getAuditEntityLabel(entry.entityType)}
+                </Badge>
+              ) : null}
             </div>
-            <div className="shrink-0 text-caption-1 text-text-secondary md:whitespace-nowrap">
-              {formatDateTimeLocal(entry.occurredAt, '—')}
+            <div className="mt-0.5 flex items-end justify-between gap-2">
+              <div className="truncate text-caption-1 text-text-secondary">
+                Updated by: {getAuditActorDisplay(entry)}
+              </div>
+              <div className="shrink-0 text-caption-1 text-text-secondary md:whitespace-nowrap">
+                {formatDateTimeLocal(entry.occurredAt, '—')}
+              </div>
             </div>
           </div>
-        </div>
+        </Card>
       ))}
     </div>
   );
@@ -233,7 +276,7 @@ const HistoryEntriesSection = ({
   if (loading) {
     return (
       <div className="rounded-2xl border border-card-border bg-white px-4 py-6 text-body-3 text-text-secondary">
-        Loading history...
+        Loading overview...
       </div>
     );
   }
@@ -256,7 +299,7 @@ const HistoryEntriesSection = ({
 
       {compact && filteredEntries.length > COMPACT_MAX_ENTRIES ? (
         <div className="rounded-2xl border border-card-border bg-card-hover px-4 py-3 text-caption-1 text-text-secondary">
-          Showing latest {COMPACT_MAX_ENTRIES} records in compact view. Open full history for the
+          Showing latest {COMPACT_MAX_ENTRIES} records in compact view. Open full overview for the
           complete timeline.
         </div>
       ) : null}
@@ -349,7 +392,7 @@ const CompanionHistoryTimeline = ({
         setNextCursor(response.nextCursor);
       } catch (historyError) {
         console.error('Failed to load companion history:', historyError);
-        setError('Unable to load history. Please try again.');
+        setError('Unable to load overview. Please try again.');
         if (shouldReplace) {
           setEntries([]);
         }
@@ -566,6 +609,12 @@ const CompanionHistoryTimeline = ({
     [openDocument, openLabResult, openTaskEntry, openInvoiceEntry, openAppointmentLinkedEntry]
   );
 
+  const handleDocumentUploaded = useCallback(() => {
+    loadHistory(null, true).catch((historyError) => {
+      console.error('Failed to refresh companion history after document upload:', historyError);
+    });
+  }, [loadHistory]);
+
   return (
     <PermissionGate allOf={[PERMISSIONS.COMPANIONS_VIEW_ANY]} fallback={<Fallback />}>
       <div
@@ -577,14 +626,14 @@ const CompanionHistoryTimeline = ({
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <div className="text-body-2 text-text-primary">History</div>
+            <div className="text-body-2 text-text-primary">Overview</div>
             <GlassTooltip
               content="Unified medical timeline with appointments, tasks, forms, documents, labs, and finance."
               side="bottom"
             >
               <button
                 type="button"
-                aria-label="History info"
+                aria-label="Overview info"
                 className="relative top-[2px] inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none text-text-secondary transition-colors hover:text-text-primary"
               >
                 <IoInformationCircleOutline size={18} />
@@ -594,7 +643,7 @@ const CompanionHistoryTimeline = ({
           {fullPageHref ? (
             <Secondary
               href={fullPageHref}
-              text="Open full history"
+              text="Open full overview"
               className="px-4 py-2! text-caption-1"
             />
           ) : null}
@@ -624,6 +673,10 @@ const CompanionHistoryTimeline = ({
               : 'flex flex-col gap-4'
           }
         >
+          {showDocumentUpload && activeFilter === 'DOCUMENT' ? (
+            <HistoryDocumentUpload companionId={companionId} onUploaded={handleDocumentUploaded} />
+          ) : null}
+
           <AuditTrailSection
             activeFilter={activeFilter}
             auditLoading={auditLoading}

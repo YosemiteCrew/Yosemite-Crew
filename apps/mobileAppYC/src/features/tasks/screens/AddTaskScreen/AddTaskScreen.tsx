@@ -17,7 +17,11 @@ import {selectAuthUser} from '@/features/auth/selectors';
 import {selectAcceptedCoParents} from '@/features/coParent/selectors';
 import {buildTaskTypeBreadcrumb} from '@/features/tasks/utils/taskLabels';
 import {useAddTaskScreen} from '@/features/tasks/hooks/useAddTaskScreen';
-import {TaskFormContent, TaskFormFooter, TaskFormSheets} from '@/features/tasks/components/form';
+import {
+  TaskFormContent,
+  TaskFormFooter,
+  TaskFormSheets,
+} from '@/features/tasks/components/form';
 import {createTaskFormStyles} from '@/features/tasks/screens/styles';
 import {REMINDER_OPTIONS} from '@/features/tasks/constants';
 import {createFileHandlers} from '@/features/tasks/utils/createFileHandlers';
@@ -30,10 +34,43 @@ import {getAssignedUserName} from '@/features/tasks/utils/userHelpers';
 type Navigation = NativeStackNavigationProp<TaskStackParamList, 'AddTask'>;
 type Route = RouteProp<TaskStackParamList, 'AddTask'>;
 
-const prefillBasicFields = (reuseTask: any, updateField: (field: any, value: any) => void) => {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  updateField('date', tomorrow);
+const parsePrefillDate = (value?: string): Date | null => {
+  if (!value) {
+    return null;
+  }
+  const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (dateOnlyMatch) {
+    const [, year, month, day] = dateOnlyMatch;
+    const parsedLocal = new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      0,
+      0,
+      0,
+      0,
+    );
+    if (!Number.isNaN(parsedLocal.getTime())) {
+      return parsedLocal;
+    }
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+  return parsed;
+};
+
+const prefillBasicFields = (
+  reuseTask: any,
+  updateField: (field: any, value: any) => void,
+  prefillDate?: string,
+) => {
+  const fallbackDate = new Date();
+  fallbackDate.setDate(fallbackDate.getDate() + 1);
+  const resolvedPrefillDate = parsePrefillDate(prefillDate) ?? fallbackDate;
+  updateField('date', resolvedPrefillDate);
+  updateField('startDate', new Date(resolvedPrefillDate));
   updateField('title', reuseTask.title);
   updateField('frequency', reuseTask.frequency);
   updateField('additionalNote', reuseTask.additionalNote || '');
@@ -52,7 +89,10 @@ const prefillBasicFields = (reuseTask: any, updateField: (field: any, value: any
   }
 };
 
-const prefillMedicationFields = (reuseTask: any, updateField: (field: any, value: any) => void) => {
+const prefillMedicationFields = (
+  reuseTask: any,
+  updateField: (field: any, value: any) => void,
+) => {
   if (!reuseTask.details || !('medicineName' in reuseTask.details)) return;
 
   updateField('medicineName', reuseTask.details.medicineName || '');
@@ -63,7 +103,10 @@ const prefillMedicationFields = (reuseTask: any, updateField: (field: any, value
     updateField('dosages', reuseTask.details.dosages);
   }
 
-  if ('description' in reuseTask.details && typeof reuseTask.details.description === 'string') {
+  if (
+    'description' in reuseTask.details &&
+    typeof reuseTask.details.description === 'string'
+  ) {
     updateField('description', reuseTask.details.description);
   }
 };
@@ -72,7 +115,8 @@ const prefillFormFromTask = (
   reuseTask: any,
   updateField: (field: any, value: any) => void,
   handleTaskTypeSelect: (taskType: any) => void,
-  dispatch: AppDispatch
+  dispatch: AppDispatch,
+  prefillDate?: string,
 ) => {
   if (reuseTask.companionId) {
     dispatch(setSelectedCompanion(reuseTask.companionId));
@@ -80,25 +124,31 @@ const prefillFormFromTask = (
 
   const taskTypeFromTask: any = {
     category: reuseTask.category,
-    subcategory: reuseTask.subcategory === 'none' ? null : reuseTask.subcategory,
+    subcategory:
+      reuseTask.subcategory === 'none' ? null : reuseTask.subcategory,
   };
 
   if (reuseTask.details && 'taskType' in reuseTask.details) {
     taskTypeFromTask.taskType = reuseTask.details.taskType;
     if ('chronicConditionType' in reuseTask.details) {
-      taskTypeFromTask.chronicConditionType = reuseTask.details.chronicConditionType;
+      taskTypeFromTask.chronicConditionType =
+        reuseTask.details.chronicConditionType;
     }
   }
 
   handleTaskTypeSelect(taskTypeFromTask);
-  prefillBasicFields(reuseTask, updateField);
+  prefillBasicFields(reuseTask, updateField, prefillDate);
   prefillMedicationFields(reuseTask, updateField);
 
   if (reuseTask.observationToolId) {
     updateField('observationalTool', reuseTask.observationToolId);
   }
 
-  if (reuseTask.details && 'description' in reuseTask.details && typeof reuseTask.details.description === 'string') {
+  if (
+    reuseTask.details &&
+    'description' in reuseTask.details &&
+    typeof reuseTask.details.description === 'string'
+  ) {
     updateField('description', reuseTask.details.description);
   }
 };
@@ -111,10 +161,12 @@ export const AddTaskScreen: React.FC = () => {
   const styles = useMemo(() => createTaskFormStyles(theme), [theme]);
 
   const reuseTaskId = route.params?.reuseTaskId;
+  const prefillDate = route.params?.prefillDate;
   const reuseTask = useSelector((state: RootState) =>
-    reuseTaskId ? selectTaskById(reuseTaskId)(state) : null
+    reuseTaskId ? selectTaskById(reuseTaskId)(state) : null,
   );
   const hasPrefilledRef = useRef(false);
+  const hasAppliedDatePrefillRef = useRef(false);
 
   const currentUser = useSelector(selectAuthUser);
   const coParents = useSelector(selectAcceptedCoParents);
@@ -149,9 +201,35 @@ export const AddTaskScreen: React.FC = () => {
   useEffect(() => {
     if (reuseTask && reuseTaskId && !hasPrefilledRef.current) {
       hasPrefilledRef.current = true;
-      prefillFormFromTask(reuseTask, updateField, handleTaskTypeSelect, dispatch);
+      prefillFormFromTask(
+        reuseTask,
+        updateField,
+        handleTaskTypeSelect,
+        dispatch,
+        prefillDate,
+      );
     }
-  }, [reuseTask, reuseTaskId, dispatch, handleTaskTypeSelect, updateField]);
+  }, [
+    dispatch,
+    handleTaskTypeSelect,
+    prefillDate,
+    reuseTask,
+    reuseTaskId,
+    updateField,
+  ]);
+
+  useEffect(() => {
+    if (reuseTaskId || hasAppliedDatePrefillRef.current) {
+      return;
+    }
+    const parsedPrefillDate = parsePrefillDate(prefillDate);
+    if (!parsedPrefillDate) {
+      return;
+    }
+    hasAppliedDatePrefillRef.current = true;
+    updateField('date', parsedPrefillDate);
+    updateField('startDate', new Date(parsedPrefillDate));
+  }, [prefillDate, reuseTaskId, updateField]);
 
   const handleSave = async () => {
     if (!validateForm(formData, taskTypeSelection)) return;
@@ -164,7 +242,10 @@ export const AddTaskScreen: React.FC = () => {
       let preparedAttachments = formData.attachments;
       if (preparedAttachments.length > 0) {
         preparedAttachments = await dispatch(
-          uploadDocumentFiles({files: preparedAttachments as any, companionId: selectedCompanionId}),
+          uploadDocumentFiles({
+            files: preparedAttachments as any,
+            companionId: selectedCompanionId,
+          }),
         ).unwrap();
       }
 
@@ -197,7 +278,11 @@ export const AddTaskScreen: React.FC = () => {
         const companionName = companion?.name || 'Companion';
 
         // Get assigned user name
-        const assignedToName = getAssignedUserName(formData.assignedTo, currentUser, coParents);
+        const assignedToName = getAssignedUserName(
+          formData.assignedTo,
+          currentUser,
+          coParents,
+        );
 
         // WORKAROUND: Backend doesn't return calendarProvider, so use formData value
         const taskWithCalendar = {
@@ -205,19 +290,34 @@ export const AddTaskScreen: React.FC = () => {
           calendarProvider: formData.calendarProvider || undefined,
         };
 
-        const eventId = await createCalendarEventForTask(taskWithCalendar, companionName, assignedToName);
+        const eventId = await createCalendarEventForTask(
+          taskWithCalendar,
+          companionName,
+          assignedToName,
+        );
         console.log('[AddTask] Calendar event result:', eventId);
         if (eventId) {
           dispatch(setTaskCalendarEventId({taskId: created.id, eventId}));
           // persist event id to backend
-          await dispatch(updateTask({taskId: created.id, updates: {calendarEventId: eventId}}));
+          await dispatch(
+            updateTask({
+              taskId: created.id,
+              updates: {calendarEventId: eventId},
+            }),
+          );
           console.log('[AddTask] Calendar event ID persisted to backend');
         } else {
-          console.warn('[AddTask] Calendar event creation failed - no eventId returned');
+          console.warn(
+            '[AddTask] Calendar event creation failed - no eventId returned',
+          );
         }
       }
 
-      navigation.goBack();
+      navigation.navigate({
+        name: 'TasksMain',
+        params: {autoSelectDate: created.date},
+        merge: true,
+      });
     } catch (error) {
       showErrorAlert('Unable to add task', error);
     }
@@ -226,17 +326,28 @@ export const AddTaskScreen: React.FC = () => {
   return (
     <>
       <LiquidGlassHeaderScreen
-        header={<Header title={reuseTaskId ? "Reuse task" : "Add task"} showBackButton onBack={handleBack} glass={false} />}
+        header={
+          <Header
+            title={reuseTaskId ? 'Reuse task' : 'Add task'}
+            showBackButton
+            onBack={handleBack}
+            glass={false}
+          />
+        }
         contentPadding={theme.spacing['4']}
         showBottomFade={false}>
         {contentPaddingStyle => {
-          const resolvedContentPadding =
-            contentPaddingStyle ?? {paddingTop: theme.spacing['12']};
+          const resolvedContentPadding = contentPaddingStyle ?? {
+            paddingTop: theme.spacing['12'],
+          };
 
           return (
             <ScrollView
               style={styles.container}
-              contentContainerStyle={[styles.contentContainer, resolvedContentPadding]}
+              contentContainerStyle={[
+                styles.contentContainer,
+                resolvedContentPadding,
+              ]}
               showsVerticalScrollIndicator={false}>
               <CompanionSelector
                 companions={companions}
@@ -277,7 +388,11 @@ export const AddTaskScreen: React.FC = () => {
                   error: errors.category,
                 }}
                 sheetHandlers={sheetHandlers}
-                fileHandlers={createFileHandlers(openSheet, uploadSheetRef, handleRemoveFile)}
+                fileHandlers={createFileHandlers(
+                  openSheet,
+                  uploadSheetRef,
+                  handleRemoveFile,
+                )}
                 fileError={errors.attachments}
               />
             </ScrollView>
@@ -310,6 +425,5 @@ export const AddTaskScreen: React.FC = () => {
     </>
   );
 };
-
 
 export default AddTaskScreen;

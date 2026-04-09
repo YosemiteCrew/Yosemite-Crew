@@ -43,6 +43,151 @@ const getCumulative = (data: any[], targetTimeMs: number, valKey: string) => {
   return lastVal;
 };
 
+const sortByTimeAsc = (data: any[]) =>
+  [...data].sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+
+const getLatestCumulativeValue = (data: any[], key: string): number => {
+  const last = sortByTimeAsc(data).at(-1);
+  return last?.[key] || 0;
+};
+
+const generateTrafficData = (
+  maxDate: Date,
+  clonesData: any[],
+  clonesUniqueData: any[],
+  forksData: any[]
+): TrafficDataPoint[] => {
+  const generatedTraffic: TrafficDataPoint[] = [];
+  const dayMinus30 = new Date(maxDate);
+  dayMinus30.setUTCDate(maxDate.getUTCDate() - 30);
+  let lastForks = getCumulative(forksData, dayMinus30.getTime(), 'forks_cumulative');
+
+  for (let i = 29; i >= 0; i--) {
+    const targetDate = new Date(maxDate);
+    targetDate.setUTCDate(maxDate.getUTCDate() - i);
+
+    const dateString = targetDate.toISOString().split('T')[0];
+    const monthLabel = targetDate.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      timeZone: 'UTC',
+    });
+
+    const cloneEntry = clonesData.find((d: any) => d.time.startsWith(dateString));
+    const cloneUniqueEntry = clonesUniqueData.find((d: any) => d.time.startsWith(dateString));
+    const clonesTotal = cloneEntry ? cloneEntry.clones_total : 0;
+    const clonesUnique = cloneUniqueEntry ? cloneUniqueEntry.clones_unique : 0;
+
+    const targetTimeMs = targetDate.getTime();
+    const forksCum = getCumulative(forksData, targetTimeMs, 'forks_cumulative');
+    const forksUnique = Math.max(0, forksCum - lastForks);
+    lastForks = forksCum;
+
+    generatedTraffic.push({
+      dateKey: dateString,
+      month: monthLabel,
+      'Self Hosters (Unique)': clonesUnique,
+      'Self Hosters (Cumulative)': clonesTotal,
+      'Builders (Unique)': forksUnique,
+      'Builders (Cumulative)': forksCum,
+    });
+  }
+
+  return generatedTraffic;
+};
+
+const generateStarsData = (sortedStars: any[], maxDate: Date): StarsDataPoint[] => {
+  const generatedStars: StarsDataPoint[] = [];
+  if (sortedStars.length === 0) return generatedStars;
+
+  const firstDate = new Date(sortedStars[0].time);
+  const lastDate = new Date(maxDate);
+  let currentMonth = new Date(Date.UTC(firstDate.getUTCFullYear(), firstDate.getUTCMonth(), 1));
+  let currentYearStr = '';
+
+  while (currentMonth <= lastDate) {
+    const rawMonth = currentMonth.toLocaleDateString('en-US', {
+      month: 'short',
+      timeZone: 'UTC',
+    });
+    const rawYear = currentMonth.toLocaleDateString('en-US', {
+      year: 'numeric',
+      timeZone: 'UTC',
+    });
+
+    let displayLabel = rawMonth;
+    if (rawYear !== currentYearStr) {
+      displayLabel = `${rawMonth} '${rawYear.slice(-2)}`;
+      currentYearStr = rawYear;
+    }
+
+    const nextMonth = new Date(
+      Date.UTC(currentMonth.getUTCFullYear(), currentMonth.getUTCMonth() + 1, 1)
+    );
+    const targetTimeMs = nextMonth.getTime() - 1;
+    const starsCum = getCumulative(sortedStars, targetTimeMs, 'stars_cumulative');
+
+    generatedStars.push({
+      dateKey: currentMonth.toISOString(),
+      month: displayLabel,
+      'Github Stars': starsCum,
+    });
+    currentMonth = nextMonth;
+  }
+
+  return generatedStars;
+};
+
+const generateFullTrafficHistory = (
+  firstTrafficDate: Date,
+  maxDate: Date,
+  clonesData: any[],
+  clonesUniqueData: any[],
+  forksData: any[]
+): TrafficDataPoint[] => {
+  const generatedTraffic: TrafficDataPoint[] = [];
+  const start = new Date(firstTrafficDate);
+  start.setUTCHours(0, 0, 0, 0);
+
+  const dayBefore = new Date(start);
+  dayBefore.setUTCDate(start.getUTCDate() - 1);
+  let lastForks = getCumulative(forksData, dayBefore.getTime(), 'forks_cumulative');
+
+  for (
+    let targetDate = new Date(start);
+    targetDate <= maxDate;
+    targetDate.setUTCDate(targetDate.getUTCDate() + 1)
+  ) {
+    const chartDate = new Date(targetDate);
+    const dateString = chartDate.toISOString().split('T')[0];
+    const monthLabel = chartDate.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      timeZone: 'UTC',
+    });
+
+    const cloneEntry = clonesData.find((d: any) => d.time.startsWith(dateString));
+    const cloneUniqueEntry = clonesUniqueData.find((d: any) => d.time.startsWith(dateString));
+    const clonesTotal = cloneEntry ? cloneEntry.clones_total : 0;
+    const clonesUnique = cloneUniqueEntry ? cloneUniqueEntry.clones_unique : 0;
+
+    const forksCum = getCumulative(forksData, chartDate.getTime(), 'forks_cumulative');
+    const forksUnique = Math.max(0, forksCum - lastForks);
+    lastForks = forksCum;
+
+    generatedTraffic.push({
+      dateKey: dateString,
+      month: monthLabel,
+      'Self Hosters (Unique)': clonesUnique,
+      'Self Hosters (Cumulative)': clonesTotal,
+      'Builders (Unique)': forksUnique,
+      'Builders (Cumulative)': forksCum,
+    });
+  }
+
+  return generatedTraffic;
+};
+
 export const useOverviewStats = () => {
   const [trafficChart, setTrafficChart] = useState<TrafficDataPoint[]>([]);
   const [starsChart, setStarsChart] = useState<StarsDataPoint[]>([]);
@@ -102,14 +247,14 @@ export const useOverviewStats = () => {
           (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
         );
         if (sortedForks.length > 0) {
-          setTotalForks(sortedForks[sortedForks.length - 1].forks_cumulative || 0);
+          setTotalForks(sortedForks.at(-1)?.forks_cumulative || 0);
         }
 
         const sortedStars = [...starsData].sort(
           (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
         );
         if (sortedStars.length > 0) {
-          setTotalStars(sortedStars[sortedStars.length - 1].stars_cumulative || 0);
+          setTotalStars(sortedStars.at(-1)?.stars_cumulative || 0);
         }
         if (repoJson && Number.isFinite(Number(repoJson.stargazers_count))) {
           setTotalStars(Number(repoJson.stargazers_count));
@@ -121,107 +266,24 @@ export const useOverviewStats = () => {
         // ==========================================
         // 2. CALCULATE TRAFFIC (FULL DAILY HISTORY)
         // ==========================================
-        const generatedTraffic: TrafficDataPoint[] = [];
         const trafficDates = [...clonesData, ...clonesUniqueData, ...forksData].map((d) =>
           new Date(d.time).getTime()
         );
-
-        if (trafficDates.length > 0) {
-          const firstTrafficDate = new Date(Math.min(...trafficDates));
-          firstTrafficDate.setUTCHours(0, 0, 0, 0);
-
-          const dayBeforeFirstTrafficDate = new Date(firstTrafficDate);
-          dayBeforeFirstTrafficDate.setUTCDate(firstTrafficDate.getUTCDate() - 1);
-          let lastForks = getCumulative(
-            forksData,
-            dayBeforeFirstTrafficDate.getTime(),
-            'forks_cumulative'
-          );
-
-          for (
-            let targetDate = new Date(firstTrafficDate);
-            targetDate <= maxDate;
-            targetDate.setUTCDate(targetDate.getUTCDate() + 1)
-          ) {
-            const chartDate = new Date(targetDate);
-
-            const dateString = chartDate.toISOString().split('T')[0];
-            const monthLabel = chartDate.toLocaleDateString('en-US', {
-              month: 'short',
-              day: 'numeric',
-              timeZone: 'UTC',
-            });
-
-            const cloneEntry = clonesData.find((d: any) => d.time.startsWith(dateString));
-            const cloneUniqueEntry = clonesUniqueData.find((d: any) =>
-              d.time.startsWith(dateString)
-            );
-
-            const clonesTotal = cloneEntry ? cloneEntry.clones_total : 0;
-            const clonesUnique = cloneUniqueEntry ? cloneUniqueEntry.clones_unique : 0;
-
-            const targetTimeMs = chartDate.getTime();
-            const forksCum = getCumulative(forksData, targetTimeMs, 'forks_cumulative');
-            const forksUnique = Math.max(0, forksCum - lastForks);
-            lastForks = forksCum;
-
-            generatedTraffic.push({
-              dateKey: dateString,
-              month: monthLabel,
-              'Self Hosters (Unique)': clonesUnique,
-              'Self Hosters (Cumulative)': clonesTotal,
-              'Builders (Unique)': forksUnique,
-              'Builders (Cumulative)': forksCum,
-            });
-          }
-        }
+        const generatedTraffic =
+          trafficDates.length > 0
+            ? generateFullTrafficHistory(
+                new Date(Math.min(...trafficDates)),
+                maxDate,
+                clonesData,
+                clonesUniqueData,
+                forksData
+              )
+            : [];
 
         // ==========================================
         // 3. CALCULATE STARS (ALL-TIME MONTHLY)
         // ==========================================
-        const generatedStars: StarsDataPoint[] = [];
-
-        if (sortedStars.length > 0) {
-          const firstDate = new Date(sortedStars[0].time);
-          const lastDate = new Date(maxDate);
-
-          let currentMonth = new Date(
-            Date.UTC(firstDate.getUTCFullYear(), firstDate.getUTCMonth(), 1)
-          );
-          let currentYearStr = '';
-
-          while (currentMonth <= lastDate) {
-            const rawMonth = currentMonth.toLocaleDateString('en-US', {
-              month: 'short',
-              timeZone: 'UTC',
-            });
-            const rawYear = currentMonth.toLocaleDateString('en-US', {
-              year: 'numeric',
-              timeZone: 'UTC',
-            });
-
-            let displayLabel = rawMonth;
-            if (rawYear !== currentYearStr) {
-              displayLabel = `${rawMonth} '${rawYear.slice(-2)}`;
-              currentYearStr = rawYear;
-            }
-
-            const nextMonth = new Date(
-              Date.UTC(currentMonth.getUTCFullYear(), currentMonth.getUTCMonth() + 1, 1)
-            );
-            const targetTimeMs = nextMonth.getTime() - 1;
-
-            const starsCum = getCumulative(sortedStars, targetTimeMs, 'stars_cumulative');
-
-            generatedStars.push({
-              dateKey: currentMonth.toISOString(),
-              month: displayLabel,
-              'Github Stars': starsCum,
-            });
-
-            currentMonth = nextMonth;
-          }
-        }
+        const generatedStars = generateStarsData(sortedStars, maxDate);
 
         setTrafficChart(generatedTraffic);
         setStarsChart(generatedStars);

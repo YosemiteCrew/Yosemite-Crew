@@ -26,9 +26,15 @@ Tooling: **pnpm workspaces** + **Turbo**. Package manager: `pnpm@8.15.6`.
 
 ---
 
+## Project Architecture Reference
+
+For architecture decisions, technical narratives, or product-engineering context, read `.claude/skills/monorepo-ops/project-baseline.md`.
+
 ## Running Commands
 
 Always use `--filter` to scope to the relevant workspace. Never run commands at root without `--filter` unless intentionally affecting all packages.
+
+When the touched workspace is `apps/frontend`, apply Sonar rules from `.claude/skills/frontend-sonar/SKILL.md` and run the mandatory frontend check order (`tsc` -> `lint` -> targeted tests).
 
 ```bash
 # Dev

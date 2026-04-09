@@ -187,9 +187,18 @@ export type ExpenseStackParamList = {
 };
 
 export type TaskStackParamList = {
-  TasksMain: undefined;
+  TasksMain:
+    | {
+        autoSelectDate?: string;
+      }
+    | undefined;
   TasksList: {category: TaskCategory};
-  AddTask: {reuseTaskId?: string} | undefined;
+  AddTask:
+    | {
+        reuseTaskId?: string;
+        prefillDate?: string;
+      }
+    | undefined;
   TaskView: {taskId: string; source?: 'home' | 'tasks'};
   EditTask: {taskId: string; source?: 'home' | 'tasks'};
   ObservationalTool: {taskId: string};

@@ -23,6 +23,8 @@ export interface VetBusiness {
   lat?: number;
   lng?: number;
   googlePlacesId?: string | null;
+  appointmentCheckInBufferMinutes?: number;
+  appointmentCheckInRadiusMeters?: number;
 }
 
 export interface VetEmployee {
@@ -124,6 +126,8 @@ export interface Appointment {
   businessLng?: number | null;
   businessPhoto?: string | null;
   businessGooglePlacesId?: string | null;
+  appointmentCheckInBufferMinutes?: number;
+  appointmentCheckInRadiusMeters?: number;
   createdAt?: string;
   updatedAt?: string;
 }

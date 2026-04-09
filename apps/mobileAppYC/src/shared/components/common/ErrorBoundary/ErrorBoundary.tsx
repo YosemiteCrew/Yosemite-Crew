@@ -1,5 +1,11 @@
 import React from 'react';
-import {View, Text, TouchableOpacity, StyleSheet, ScrollView} from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+} from 'react-native';
 import {useTheme} from '@/hooks';
 
 interface ErrorBoundaryProps {
@@ -27,7 +33,8 @@ const ErrorFallback: React.FC<{
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>Oops! Something went wrong</Text>
         <Text style={styles.message}>
-          The app encountered an unexpected error. Don't worry, your data is safe.
+          The app encountered an unexpected error. Don't worry, your data is
+          safe.
         </Text>
 
         {__DEV__ && (
@@ -48,7 +55,10 @@ const ErrorFallback: React.FC<{
   );
 };
 
-export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+export class ErrorBoundary extends React.Component<
+  ErrorBoundaryProps,
+  ErrorBoundaryState
+> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = {
@@ -89,12 +99,21 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
       // Use custom fallback if provided
       if (this.props.fallback) {
         const FallbackComponent = this.props.fallback;
-        return <FallbackComponent error={this.state.error} resetError={this.resetError} />;
+        return (
+          <FallbackComponent
+            error={this.state.error}
+            resetError={this.resetError}
+          />
+        );
       }
 
       // Default error UI
       return (
-        <ErrorFallback error={this.state.error} errorInfo={this.state.errorInfo} resetError={this.resetError} />
+        <ErrorFallback
+          error={this.state.error}
+          errorInfo={this.state.errorInfo}
+          resetError={this.resetError}
+        />
       );
     }
 
@@ -142,13 +161,11 @@ const createStyles = (theme: any) =>
     errorText: {
       ...theme.typography.labelXs,
       color: theme.colors.error,
-      fontFamily: 'monospace',
       marginBottom: theme.spacing['2'],
     },
     stackText: {
-      fontSize: theme.spacing['2.5'],
+      ...theme.typography.labelXs,
       color: theme.colors.textSecondary,
-      fontFamily: 'monospace',
     },
     button: {
       backgroundColor: theme.colors.primary,

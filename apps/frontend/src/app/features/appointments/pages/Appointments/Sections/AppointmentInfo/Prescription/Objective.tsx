@@ -1,7 +1,7 @@
-import React from "react";
-import { Appointment } from "@yosemite-crew/types";
-import { FormDataProps } from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo";
-import PrescriptionFormSection from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/PrescriptionFormSection";
+import React from 'react';
+import { Appointment } from '@yosemite-crew/types';
+import { FormDataProps } from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo';
+import PrescriptionFormSection from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/PrescriptionFormSection';
 
 type ObjectiveProps = {
   formData: FormDataProps;
@@ -10,17 +10,12 @@ type ObjectiveProps = {
   canEdit: boolean;
 };
 
-const Objective = ({
-  activeAppointment,
-  formData,
-  setFormData,
-  canEdit,
-}: ObjectiveProps) => (
+const Objective = ({ activeAppointment, formData, setFormData, canEdit }: ObjectiveProps) => (
   <PrescriptionFormSection
     title="Objective (clinical examination)"
     submissionsTitle="Previous objective submissions"
     searchPlaceholder="Search"
-    category="Prescription"
+    category="SOAP"
     formDataKey="objective"
     formData={formData}
     setFormData={setFormData}

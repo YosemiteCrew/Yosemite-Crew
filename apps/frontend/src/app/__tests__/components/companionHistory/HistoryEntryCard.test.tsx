@@ -5,6 +5,7 @@ import HistoryEntryCard from '@/app/features/companionHistory/components/History
 
 jest.mock('@/app/ui', () => ({
   Card: ({ children }: any) => <div data-testid="history-card">{children}</div>,
+  Badge: ({ children }: any) => <span>{children}</span>,
 }));
 
 jest.mock('react-icons/ri', () => ({
@@ -31,7 +32,8 @@ jest.mock('@/app/features/companionHistory/utils/historyFormatters', () => ({
     return typeof value === 'string' ? value : null;
   }),
   getPrimaryActionLabel: jest.fn(() => 'Open history entry'),
-  getTypeBadgeClassName: jest.fn(() => 'badge-class'),
+  getHistoryTypeBadgeTone: jest.fn(() => 'brand'),
+  getHistoryStatusBadgeTone: jest.fn(() => 'warning'),
 }));
 
 jest.mock('@/app/lib/invoicePaymentMethod', () => ({
@@ -72,7 +74,8 @@ describe('HistoryEntryCard', () => {
     expect(screen.getByText('formatted-datetime')).toBeInTheDocument();
     expect(screen.getByText('Morning dose')).toBeInTheDocument();
     expect(screen.getByText('Give medicine with food')).toBeInTheDocument();
-    expect(screen.getByText('Actor: Dr Vet • VET')).toBeInTheDocument();
+    expect(screen.getByText('Lead:')).toBeInTheDocument();
+    expect(screen.getByText('Dr Vet')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Open history entry' }));
     expect(onOpen).toHaveBeenCalledWith(baseEntry);

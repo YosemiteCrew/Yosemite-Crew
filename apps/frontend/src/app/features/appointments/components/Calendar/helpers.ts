@@ -341,3 +341,40 @@ export function appointentsForUser(events: Appointment[], user: Team): Appointme
     return leadId === id || staffIds.includes(id);
   });
 }
+
+export type AvailabilityInterval = { startMinute: number; endMinute: number };
+
+export function computeUnavailableSegments(
+  visible: AvailabilityInterval[],
+  rangeStartHour: number,
+  rangeEndHour: number,
+  availabilityLoaded: boolean
+): AvailabilityInterval[] {
+  const rangeStart = rangeStartHour * 60;
+  const rangeEnd = (rangeEndHour + 1) * 60;
+
+  if (!visible.length) {
+    if (!availabilityLoaded) return [];
+    return [{ startMinute: rangeStart, endMinute: rangeEnd }];
+  }
+
+  const sorted = [...visible].sort((a, b) => a.startMinute - b.startMinute);
+  const segments: AvailabilityInterval[] = [];
+
+  if (sorted[0].startMinute > rangeStart) {
+    segments.push({ startMinute: rangeStart, endMinute: sorted[0].startMinute });
+  }
+  for (let i = 0; i < sorted.length - 1; i++) {
+    if (sorted[i].endMinute < sorted[i + 1].startMinute) {
+      segments.push({
+        startMinute: sorted[i].endMinute,
+        endMinute: sorted[i + 1].startMinute,
+      });
+    }
+  }
+  const last = sorted.at(-1)!;
+  if (last.endMinute < rangeEnd) {
+    segments.push({ startMinute: last.endMinute, endMinute: rangeEnd });
+  }
+  return segments;
+}

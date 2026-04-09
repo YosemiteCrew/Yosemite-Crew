@@ -77,9 +77,11 @@ const getRequiredError = (field: FieldConfig, value: any): string | undefined =>
   if (!field.required) return undefined;
   const label = `${field.label} is required`;
   if (Array.isArray(value)) return value.length ? undefined : label;
-  if (field.type === 'date') return value ? undefined : label;
-  if (field.type === 'dateString') return value ? undefined : label;
-  if (field.type === 'number') return value ? undefined : label;
+  if (field.type === 'date' || field.type === 'dateString') return value ? undefined : label;
+  if (field.type === 'number') {
+    if (value === 0 || value === '0') return undefined;
+    return value ? undefined : label;
+  }
   return (value ?? '').toString().trim() ? undefined : label;
 };
 
@@ -406,7 +408,7 @@ const ProfileCard = ({
                 </div>
               </div>
               {!org?.isVerified && (
-                <Primary text="Verify business profile" href="/book-onboarding" classname="" />
+                <Primary text="Verify business profile" href="/book-onboarding" className="" />
               )}
             </div>
             {!org?.isVerified && (
