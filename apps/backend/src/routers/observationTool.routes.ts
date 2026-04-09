@@ -65,7 +65,7 @@ router.get(
 
 router.post(
   "/pms/tools",
-  //authorizeCognito,
+  authorizeCognito,
   ObservationToolDefinitionController.create,
 );
 

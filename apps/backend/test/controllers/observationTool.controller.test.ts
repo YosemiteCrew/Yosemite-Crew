@@ -269,6 +269,33 @@ describe("ObservationTool Controllers", () => {
         expect(statusMock).toHaveBeenCalledWith(401);
       });
 
+      it("should prefer authenticated userId over x-user-id header", async () => {
+        req.headers = { "x-user-id": "spoofed-user" };
+        (req as any).userId = "u1";
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (mockedAuthService.getByProviderUserId as any).mockResolvedValue({
+          parentId: "p1",
+        });
+        req.params = { toolId: "t1" };
+        req.body = {
+          companionId: "c1",
+          answers: { q1: "a1" },
+        };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (mockedSubService.createSubmission as any).mockResolvedValue({
+          id: "s1",
+        });
+
+        await ObservationToolSubmissionController.createFromMobile(
+          req as any,
+          res as Response,
+        );
+
+        expect(mockedAuthService.getByProviderUserId).toHaveBeenCalledWith(
+          "u1",
+        );
+      });
+
       it("should 403 if parent not found", async () => {
         (req as any).userId = "u1";
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

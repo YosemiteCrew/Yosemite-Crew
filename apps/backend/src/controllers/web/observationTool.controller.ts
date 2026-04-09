@@ -32,9 +32,12 @@ const handleError = (error: unknown, res: Response) => {
 
 const resolveUserId = (req: Request): string | undefined => {
   const authReq = req as AuthenticatedRequest;
+  if (authReq.userId) return authReq.userId;
+
   const headerUser = req.headers["x-user-id"];
   if (headerUser && typeof headerUser === "string") return headerUser;
-  return authReq.userId;
+
+  return undefined;
 };
 
 export const ObservationToolDefinitionController = {
