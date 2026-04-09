@@ -49,6 +49,41 @@ const ensureObjectId = (val: unknown, field: string): Types.ObjectId =>
     return new InvoiceServiceError(message, 400);
   });
 
+const assertAppointmentInOrganisation = async (
+  appointmentId: string,
+  organisationId: string,
+) => {
+  if (isReadFromPostgres()) {
+    const appointment = await prisma.appointment.findFirst({
+      where: { id: appointmentId, organisationId },
+      select: { id: true },
+    });
+
+    if (!appointment) {
+      throw new InvoiceServiceError(
+        "Appointment not found for organisation",
+        404,
+      );
+    }
+    return;
+  }
+
+  const appointmentObjectId = ensureObjectId(appointmentId, "appointmentId");
+  const appointment = await AppointmentModel.findOne({
+    _id: appointmentObjectId,
+    organisationId,
+  })
+    .select("_id")
+    .lean();
+
+  if (!appointment) {
+    throw new InvoiceServiceError(
+      "Appointment not found for organisation",
+      404,
+    );
+  }
+};
+
 const resolveAuditTargetsForInvoice = async (invoice: InvoiceDocument) => {
   if (invoice.organisationId && invoice.companionId) {
     return {
@@ -1300,10 +1335,13 @@ export const InvoiceService = {
     return invoice;
   },
 
-  async getByAppointmentId(appId: string) {
+  async getByAppointmentId(appId: string, organisationId?: string) {
     if (isReadFromPostgres()) {
       const docs = await prisma.invoice.findMany({
-        where: { appointmentId: appId },
+        where: {
+          appointmentId: appId,
+          ...(organisationId ? { organisationId } : {}),
+        },
         orderBy: { createdAt: "desc" },
       });
       return docs.map((d) => toInvoiceResponseDTO(toDomainFromPrisma(d)));
@@ -1311,6 +1349,7 @@ export const InvoiceService = {
 
     const docs = await InvoiceModel.find({
       appointmentId: appId,
+      ...(organisationId ? { organisationId } : {}),
     }).sort({ createdAt: -1 });
 
     return docs.map((d) => toInvoiceResponseDTO(toDomain(d)));
@@ -1658,9 +1697,20 @@ export const InvoiceService = {
     return toDomain(invoice);
   },
 
-  async addChargesToAppointment(appointmentId: string, items: InvoiceItem[]) {
+  async addChargesToAppointment(
+    appointmentId: string,
+    items: InvoiceItem[],
+    organisationId?: string,
+  ) {
+    if (organisationId) {
+      await assertAppointmentInOrganisation(appointmentId, organisationId);
+    }
+
     if (isReadFromPostgres()) {
-      const invoice = await this.findOpenInvoiceForAppointment(appointmentId);
+      const invoice = await this.findOpenInvoiceForAppointment(
+        appointmentId,
+        organisationId,
+      );
       if (!invoice) {
         return this.createExtraInvoiceForAppointment({
           appointmentId,
@@ -1677,7 +1727,10 @@ export const InvoiceService = {
       return this.addItemsToInvoice(invoiceId, items);
     }
 
-    const invoice = await this.findOpenInvoiceForAppointment(appointmentId);
+    const invoice = await this.findOpenInvoiceForAppointment(
+      appointmentId,
+      organisationId,
+    );
 
     // No open invoice → create EXTRA invoice
     if (!invoice) {
@@ -1694,11 +1747,15 @@ export const InvoiceService = {
     );
   },
 
-  async findOpenInvoiceForAppointment(appointmentId: string) {
+  async findOpenInvoiceForAppointment(
+    appointmentId: string,
+    organisationId?: string,
+  ) {
     if (isReadFromPostgres()) {
       return prisma.invoice.findFirst({
         where: {
           appointmentId,
+          ...(organisationId ? { organisationId } : {}),
           status: { in: ["AWAITING_PAYMENT", "PENDING"] },
         },
         orderBy: { createdAt: "desc" },
@@ -1707,6 +1764,7 @@ export const InvoiceService = {
 
     return InvoiceModel.findOne({
       appointmentId,
+      ...(organisationId ? { organisationId } : {}),
       status: { $in: ["AWAITING_PAYMENT", "PENDING"] },
     }).sort({ createdAt: -1 });
   },
@@ -1905,10 +1963,13 @@ export const InvoiceService = {
     return { action: "NO_ACTION", status: invoice.status };
   },
 
-  async getByPaymentIntentId(paymentIntentId: string) {
+  async getByPaymentIntentId(paymentIntentId: string, organisationId?: string) {
     if (isReadFromPostgres()) {
       const doc = await prisma.invoice.findFirst({
-        where: { stripePaymentIntentId: paymentIntentId },
+        where: {
+          stripePaymentIntentId: paymentIntentId,
+          ...(organisationId ? { organisationId } : {}),
+        },
       });
       if (!doc) {
         return null;
@@ -1918,6 +1979,7 @@ export const InvoiceService = {
 
     const doc = await InvoiceModel.findOne({
       stripePaymentIntentId: paymentIntentId,
+      ...(organisationId ? { organisationId } : {}),
     });
 
     if (!doc) {

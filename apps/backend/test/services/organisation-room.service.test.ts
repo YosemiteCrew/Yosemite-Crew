@@ -310,9 +310,15 @@ describe("OrganisationRoomService", () => {
     it("should delete room by ID", async () => {
       const res = await OrganisationRoomService.delete(
         mockRoomId.toHexString(),
+        mockOrgId.toHexString(),
       );
       expect(res).toBeDefined();
-      expect(OrganisationRoomModel.findOneAndDelete).toHaveBeenCalled();
+      expect(OrganisationRoomModel.findOneAndDelete).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organisationId: mockOrgId.toHexString(),
+        }),
+        { sanitizeFilter: true },
+      );
     });
 
     it("should return null if room not found", async () => {
@@ -321,13 +327,17 @@ describe("OrganisationRoomService", () => {
       );
       const res = await OrganisationRoomService.delete(
         mockRoomId.toHexString(),
+        mockOrgId.toHexString(),
       );
       expect(res).toBeNull();
     });
 
     it("should validate ID format before delete", async () => {
       await expect(
-        OrganisationRoomService.delete("invalid id with spaces"),
+        OrganisationRoomService.delete(
+          "invalid id with spaces",
+          mockOrgId.toHexString(),
+        ),
       ).rejects.toThrow("Invalid room identifier format");
     });
   });
@@ -413,7 +423,10 @@ describe("OrganisationRoomService", () => {
         OrganisationRoomModelIsolated.findOneAndDelete as jest.Mock
       ).mockReturnValue(mockChain(doc));
 
-      await OrganisationRoomServiceIsolated.delete(mockRoomId.toHexString());
+      await OrganisationRoomServiceIsolated.delete(
+        mockRoomId.toHexString(),
+        mockOrgId.toHexString(),
+      );
 
       expect(prismaIsolated.organisationRoom.deleteMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: { id: mockRoomId.toHexString() } }),

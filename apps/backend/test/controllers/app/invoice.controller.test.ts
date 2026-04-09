@@ -98,6 +98,7 @@ describe("InvoiceController", () => {
 
       expect(mockedInvoiceService.getByAppointmentId).toHaveBeenCalledWith(
         "apt1",
+        undefined,
       );
       expect(statusMock).toHaveBeenCalledWith(200);
       expect(jsonMock).toHaveBeenCalledWith([]);
@@ -162,6 +163,10 @@ describe("InvoiceController", () => {
         res as Response,
       );
 
+      expect(mockedInvoiceService.getByPaymentIntentId).toHaveBeenCalledWith(
+        "pi_123",
+        undefined,
+      );
       expect(statusMock).toHaveBeenCalledWith(404);
     });
 
@@ -176,6 +181,10 @@ describe("InvoiceController", () => {
         res as Response,
       );
 
+      expect(mockedInvoiceService.getByPaymentIntentId).toHaveBeenCalledWith(
+        "pi_123",
+        undefined,
+      );
       expect(statusMock).toHaveBeenCalledWith(200);
     });
 
@@ -274,6 +283,7 @@ describe("InvoiceController", () => {
       expect(mockedInvoiceService.addChargesToAppointment).toHaveBeenCalledWith(
         "apt1",
         [validItem],
+        undefined,
       );
       expect(statusMock).toHaveBeenCalledWith(200);
     });

@@ -165,6 +165,34 @@ export function withInvoiceOrgPermissions() {
   };
 }
 
+export function withPaymentIntentOrgPermissions() {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const paymentIntentId = req.params.paymentIntentId;
+    if (!paymentIntentId) {
+      return res.status(400).json({ message: "Missing paymentIntentId" });
+    }
+
+    const invoice = isReadFromPostgres()
+      ? await prisma.invoice.findFirst({
+          where: { stripePaymentIntentId: paymentIntentId },
+          select: { organisationId: true },
+        })
+      : await InvoiceModel.findOne(
+          { stripePaymentIntentId: paymentIntentId },
+          { organisationId: 1 },
+        ).lean();
+
+    const organisationId = invoice?.organisationId ?? null;
+    if (!organisationId) {
+      return res.status(404).json({ message: "Invoice not found" });
+    }
+
+    req.params.organisationId = organisationId.toString();
+
+    return withOrgPermissions()(req, res, next);
+  };
+}
+
 export function requirePermission(required: Permission | Permission[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     const typedReq = req as OrgRequest;

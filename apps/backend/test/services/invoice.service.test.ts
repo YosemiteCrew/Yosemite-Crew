@@ -39,6 +39,7 @@ jest.mock("../../src/models/appointment", () => ({
   __esModule: true,
   default: {
     findById: jest.fn(),
+    findOne: jest.fn(),
   },
 }));
 
@@ -106,7 +107,7 @@ jest.mock("../../src/utils/logger", () => ({
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
-    appointment: { findUnique: jest.fn() },
+    appointment: { findUnique: jest.fn(), findFirst: jest.fn() },
     invoice: {
       create: jest.fn(),
       findUnique: jest.fn(),
@@ -1187,6 +1188,19 @@ describe("InvoiceService", () => {
       });
     });
 
+    it("findOpenInvoiceForAppointment should scope by organisation when provided", async () => {
+      const mockSort = jest.fn().mockResolvedValue("doc");
+      (InvoiceModel.findOne as jest.Mock).mockReturnValue({ sort: mockSort });
+
+      await InvoiceService.findOpenInvoiceForAppointment(validId, "org_1");
+
+      expect(InvoiceModel.findOne).toHaveBeenCalledWith({
+        appointmentId: validId,
+        organisationId: "org_1",
+        status: { $in: ["AWAITING_PAYMENT", "PENDING"] },
+      });
+    });
+
     it("addChargesToAppointment should create extra invoice if open invoice does not exist", async () => {
       const spyOpen = jest
         .spyOn(InvoiceService, "findOpenInvoiceForAppointment")
@@ -1203,7 +1217,24 @@ describe("InvoiceService", () => {
       spyExtra.mockRestore();
     });
 
+    it("addChargesToAppointment should validate appointment belongs to organisation", async () => {
+      (AppointmentModel.findOne as jest.Mock).mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          lean: jest.fn().mockResolvedValue(null),
+        }),
+      });
+
+      await expect(
+        InvoiceService.addChargesToAppointment(validId, [], "org_1"),
+      ).rejects.toThrow("Appointment not found for organisation");
+    });
+
     it("addChargesToAppointment should add to open invoice if it exists", async () => {
+      (AppointmentModel.findOne as jest.Mock).mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          lean: jest.fn().mockResolvedValue({ _id: validId }),
+        }),
+      });
       const spyOpen = jest
         .spyOn(InvoiceService, "findOpenInvoiceForAppointment")
         .mockResolvedValue({ _id: validId } as any);
@@ -1211,8 +1242,13 @@ describe("InvoiceService", () => {
         .spyOn(InvoiceService, "addItemsToInvoice")
         .mockResolvedValue("added" as any);
 
-      const res = await InvoiceService.addChargesToAppointment(validId, []);
+      const res = await InvoiceService.addChargesToAppointment(
+        validId,
+        [],
+        "org_1",
+      );
       expect(res).toBe("added");
+      expect(spyOpen).toHaveBeenCalledWith(validId, "org_1");
       expect(spyAdd).toHaveBeenCalledWith(validId, []);
 
       spyOpen.mockRestore();
@@ -1318,6 +1354,17 @@ describe("InvoiceService", () => {
     it("should return domain DTO on success", async () => {
       (InvoiceModel.findOne as jest.Mock).mockResolvedValue(createMockDoc());
       expect(await InvoiceService.getByPaymentIntentId("pi_123")).toBeDefined();
+    });
+
+    it("should scope payment intent lookup by organisation when provided", async () => {
+      (InvoiceModel.findOne as jest.Mock).mockResolvedValue(createMockDoc());
+
+      await InvoiceService.getByPaymentIntentId("pi_123", "org_1");
+
+      expect(InvoiceModel.findOne).toHaveBeenCalledWith({
+        stripePaymentIntentId: "pi_123",
+        organisationId: "org_1",
+      });
     });
   });
 
