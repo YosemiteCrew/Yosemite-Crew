@@ -111,8 +111,15 @@ export const UserProfileController = {
 
   getUserProfileById: async (req: Request, res: Response) => {
     try {
+      const requesterUserId = resolveUserIdFromRequest(req);
       const userId = req.params.userId;
       const organizationId = req.params.organizationId;
+
+      if (userId !== requesterUserId) {
+        return res.status(403).json({
+          message: "You are not authorized to access this user profile.",
+        });
+      }
 
       const profile = await UserProfileService.getByUserId(
         userId,
