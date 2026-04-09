@@ -199,15 +199,29 @@ export const DocumentController = {
     res: Response,
   ) => {
     try {
+      const authUserId = resolveUserIdFromRequest(req);
       const { companionId } = req.params;
       const category = req.query.category;
       const subcategory = req.query.subcategory;
+
+      if (!authUserId) {
+        return res.status(401).json({ message: "User not authenticated." });
+      }
+
       if (!companionId) {
         return res.status(400).json({ message: "Companion ID is required." });
       }
 
+      const authUserMobile =
+        await AuthUserMobileService.getByProviderUserId(authUserId);
+
+      if (!authUserMobile?.parentId) {
+        return res.status(401).json({ message: "Parent profile not found." });
+      }
+
       const docs = await DocumentService.listForParent({
         companionId,
+        parentId: authUserMobile.parentId,
         category,
         subcategory,
       });
@@ -297,6 +311,8 @@ export const DocumentController = {
     res: Response,
   ) => {
     try {
+      const orgReq = req as OrgRequest;
+      const organisationId = orgReq.organisationId;
       const pmsUserId = resolveUserIdFromRequest(req);
       if (!pmsUserId) {
         return res
@@ -312,8 +328,13 @@ export const DocumentController = {
         return res.status(400).json({ message: "Companion ID is required." });
       }
 
+      if (!organisationId) {
+        return res.status(400).json({ message: "organisationId is required." });
+      }
+
       const docs = await DocumentService.listForPms({
         companionId,
+        organisationId,
         category: getFirstQueryValue(category),
         subcategory: getFirstQueryValue(subcategory),
         appointmentId: getFirstQueryValue(appointmentId),
@@ -331,8 +352,24 @@ export const DocumentController = {
 
   getForParent: async (req: Request<{ id: string }>, res: Response) => {
     try {
+      const authUserId = resolveUserIdFromRequest(req);
       const { id } = req.params;
-      const doc = await DocumentService.getByIdForParent(id);
+
+      if (!authUserId) {
+        return res.status(401).json({ message: "User not authenticated." });
+      }
+
+      const authUserMobile =
+        await AuthUserMobileService.getByProviderUserId(authUserId);
+
+      if (!authUserMobile?.parentId) {
+        return res.status(401).json({ message: "Parent profile not found." });
+      }
+
+      const doc = await DocumentService.getByIdForParent(
+        id,
+        authUserMobile.parentId,
+      );
 
       if (!doc) {
         return res.status(404).json({ message: "Document not found." });
@@ -350,8 +387,18 @@ export const DocumentController = {
 
   getForPms: async (req: Request<{ documentId: string }>, res: Response) => {
     try {
+      const orgReq = req as OrgRequest;
+      const organisationId = orgReq.organisationId;
       const { documentId } = req.params;
-      const doc = await DocumentService.getByIdForPms(documentId);
+
+      if (!organisationId) {
+        return res.status(400).json({ message: "organisationId is required." });
+      }
+
+      const doc = await DocumentService.getByIdForPms(
+        documentId,
+        organisationId,
+      );
 
       if (!doc) {
         return res.status(404).json({ message: "Document not found." });
@@ -420,13 +467,37 @@ export const DocumentController = {
 
   getDocumentDownloadUrl: async (req: Request, res: Response) => {
     try {
+      const orgReq = req as OrgRequest;
+      const organisationId = orgReq.organisationId;
+      const authUserId = resolveUserIdFromRequest(req);
       const { documentId } = req.params;
 
       if (!documentId) {
         return res.status(400).json({ message: "Document ID is required." });
       }
 
-      const urls = await DocumentService.getAllAttachmentUrls(documentId);
+      if (!authUserId) {
+        return res.status(401).json({ message: "User not authenticated." });
+      }
+
+      const authUserMobile =
+        await AuthUserMobileService.getByProviderUserId(authUserId);
+
+      const urls = authUserMobile?.parentId
+        ? await DocumentService.getAllAttachmentUrls({
+            documentId,
+            parentId: authUserMobile.parentId,
+          })
+        : organisationId
+          ? await DocumentService.getAllAttachmentUrls({
+              documentId,
+              organisationId,
+            })
+          : null;
+
+      if (!urls) {
+        return res.status(401).json({ message: "User not authorized." });
+      }
 
       return res.status(200).json(urls);
     } catch (error) {
@@ -442,8 +513,13 @@ export const DocumentController = {
 
   searchDocument: async (req: Request, res: Response) => {
     try {
+      const authUserId = resolveUserIdFromRequest(req);
       const { companionId } = req.params;
       const title = req.query.title;
+
+      if (!authUserId) {
+        return res.status(401).json({ message: "User not authenticated." });
+      }
 
       if (!companionId) {
         return res.status(400).json({ message: "Document ID is required." });
@@ -453,8 +529,16 @@ export const DocumentController = {
         return res.status(400).json({ message: "Search title is required." });
       }
 
+      const authUserMobile =
+        await AuthUserMobileService.getByProviderUserId(authUserId);
+
+      if (!authUserMobile?.parentId) {
+        return res.status(401).json({ message: "Parent profile not found." });
+      }
+
       const results = await DocumentService.searchByTitleForParent({
         companionId: companionId,
+        parentId: authUserMobile.parentId,
         title: title,
       });
 

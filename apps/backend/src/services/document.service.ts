@@ -13,6 +13,8 @@ import { AuditTrailService } from "./audit-trail.service";
 import { prisma } from "src/config/prisma";
 import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 import { isReadFromPostgres } from "src/config/read-switch";
+import ParentCompanionModel from "src/models/parent-companion";
+import CompanionOrganisationModel from "src/models/companion-organisation";
 
 export class DocumentServiceError extends Error {
   constructor(
@@ -99,6 +101,149 @@ const ensureObjectId = (
 
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
+
+const assertParentCanAccessCompanion = async (
+  parentId: string | Types.ObjectId,
+  companionId: Types.ObjectId,
+): Promise<void> => {
+  const _parentId = ensureObjectId(parentId, "parentId");
+
+  if (isReadFromPostgres()) {
+    const link = await prisma.parentCompanion.findFirst({
+      where: {
+        parentId: _parentId.toString(),
+        companionId: companionId.toString(),
+        status: { in: ["ACTIVE", "PENDING"] },
+      },
+      select: { id: true },
+    });
+
+    if (!link) {
+      throw new DocumentServiceError("Document not found.", 404);
+    }
+    return;
+  }
+
+  const link = await ParentCompanionModel.findOne(
+    {
+      parentId: _parentId,
+      companionId,
+      status: { $in: ["ACTIVE", "PENDING"] },
+    },
+    { _id: 1 },
+    { sanitizeFilter: true },
+  )
+    .lean()
+    .exec();
+
+  if (!link) {
+    throw new DocumentServiceError("Document not found.", 404);
+  }
+};
+
+const assertPmsCanAccessCompanion = async (
+  organisationId: string,
+  companionId: Types.ObjectId,
+): Promise<void> => {
+  assertSafeString(organisationId, "organisationId");
+
+  if (isReadFromPostgres()) {
+    const link = await prisma.companionOrganisation.findFirst({
+      where: {
+        organisationId,
+        companionId: companionId.toString(),
+        status: { in: ["ACTIVE", "PENDING"] },
+      },
+      select: { id: true },
+    });
+
+    if (!link) {
+      throw new DocumentServiceError("Document not found.", 404);
+    }
+    return;
+  }
+
+  const link = await CompanionOrganisationModel.findOne(
+    {
+      organisationId: ensureObjectId(organisationId, "organisationId"),
+      companionId,
+      status: { $in: ["ACTIVE", "PENDING"] },
+    },
+    { _id: 1 },
+    { sanitizeFilter: true },
+  )
+    .lean()
+    .exec();
+
+  if (!link) {
+    throw new DocumentServiceError("Document not found.", 404);
+  }
+};
+
+const getDocumentForParentAccess = async (
+  documentId: string | Types.ObjectId,
+  parentId: string | Types.ObjectId,
+): Promise<DocumentDto | null> => {
+  const _id = ensureObjectId(documentId, "documentId");
+
+  if (isReadFromPostgres()) {
+    const doc = await prisma.document.findUnique({
+      where: { id: _id.toString() },
+      include: { attachments: true },
+    });
+
+    if (!doc) {
+      return null;
+    }
+
+    await assertParentCanAccessCompanion(
+      parentId,
+      ensureObjectId(doc.companionId, "companionId"),
+    );
+    return mapDocumentToDtoFromPrisma(doc);
+  }
+
+  const doc = await DocumentModel.findById(_id).exec();
+  if (!doc) {
+    return null;
+  }
+
+  await assertParentCanAccessCompanion(parentId, doc.companionId);
+  return mapDocumentToDto(doc);
+};
+
+const getDocumentForPmsAccess = async (
+  documentId: string | Types.ObjectId,
+  organisationId: string,
+  requirePmsVisible = false,
+): Promise<DocumentDto | null> => {
+  const _id = ensureObjectId(documentId, "documentId");
+
+  if (isReadFromPostgres()) {
+    const doc = await prisma.document.findUnique({
+      where: { id: _id.toString() },
+      include: { attachments: true },
+    });
+
+    if (!doc || (requirePmsVisible && !doc.pmsVisible)) {
+      return null;
+    }
+
+    await assertPmsCanAccessCompanion(
+      organisationId,
+      ensureObjectId(doc.companionId, "companionId"),
+    );
+    return mapDocumentToDtoFromPrisma(doc);
+  }
+
+  const doc = await DocumentModel.findById(_id).exec();
+  if (!doc || (requirePmsVisible && !doc.pmsVisible)) {
+    return null;
+  }
+
+  await assertPmsCanAccessCompanion(organisationId, doc.companionId);
+  return mapDocumentToDto(doc);
+};
 
 const assertUpdatePermissions = (
   doc: DocumentDocument,
@@ -519,10 +664,12 @@ export const DocumentService = {
 
   async listForParent(params: {
     companionId: string | Types.ObjectId;
+    parentId: string | Types.ObjectId;
     category?: string;
     subcategory?: string;
   }): Promise<DocumentDto[]> {
     const companionId = ensureObjectId(params.companionId, "companionId");
+    await assertParentCanAccessCompanion(params.parentId, companionId);
 
     const filter: Record<string, unknown> = {
       companionId,
@@ -562,11 +709,13 @@ export const DocumentService = {
 
   async listForPms(params: {
     companionId: string | Types.ObjectId;
+    organisationId: string;
     category?: string;
     subcategory?: string;
     appointmentId?: string | Types.ObjectId;
   }): Promise<DocumentDto[]> {
     const companionId = ensureObjectId(params.companionId, "companionId");
+    await assertPmsCanAccessCompanion(params.organisationId, companionId);
 
     const filter: Record<string, unknown> = {
       companionId,
@@ -618,38 +767,16 @@ export const DocumentService = {
 
   async getByIdForParent(
     id: string | Types.ObjectId,
+    parentId: string | Types.ObjectId,
   ): Promise<DocumentDto | null> {
-    const _id = ensureObjectId(id, "documentId");
-    if (isReadFromPostgres()) {
-      const doc = await prisma.document.findUnique({
-        where: { id: _id.toString() },
-        include: { attachments: true },
-      });
-      return doc ? mapDocumentToDtoFromPrisma(doc) : null;
-    }
-    const doc = await DocumentModel.findById(_id).exec();
-    if (!doc) {
-      return null;
-    }
-    return mapDocumentToDto(doc);
+    return getDocumentForParentAccess(id, parentId);
   },
 
   async getByIdForPms(
     id: string | Types.ObjectId,
+    organisationId: string,
   ): Promise<DocumentDto | null> {
-    const _id = ensureObjectId(id, "documentId");
-    if (isReadFromPostgres()) {
-      const doc = await prisma.document.findFirst({
-        where: { id: _id.toString(), pmsVisible: true },
-        include: { attachments: true },
-      });
-      return doc ? mapDocumentToDtoFromPrisma(doc) : null;
-    }
-    const doc = await DocumentModel.findOne({ _id, pmsVisible: true }).exec();
-    if (!doc) {
-      return null;
-    }
-    return mapDocumentToDto(doc);
+    return getDocumentForPmsAccess(id, organisationId, true);
   },
 
   async deleteForParent(
@@ -800,8 +927,27 @@ export const DocumentService = {
     return mapDocumentToDto(doc);
   },
 
-  async getAllAttachmentUrls(documentId: string | Types.ObjectId) {
-    const _id = ensureObjectId(documentId, "documentId");
+  async getAllAttachmentUrls(params: {
+    documentId: string | Types.ObjectId;
+    parentId?: string | Types.ObjectId;
+    organisationId?: string;
+  }) {
+    const accessDoc = params.parentId
+      ? await getDocumentForParentAccess(params.documentId, params.parentId)
+      : params.organisationId
+        ? await getDocumentForPmsAccess(
+            params.documentId,
+            params.organisationId,
+            true,
+          )
+        : null;
+
+    if (!accessDoc) {
+      throw new DocumentServiceError("Document not found.", 404);
+    }
+
+    const _id = ensureObjectId(params.documentId, "documentId");
+
     if (isReadFromPostgres()) {
       const attachments = await prisma.documentAttachment.findMany({
         where: { documentId: _id.toString() },
@@ -818,6 +964,7 @@ export const DocumentService = {
         key: attachments[index].key,
       }));
     }
+
     const doc = await DocumentModel.findById(_id).exec();
 
     if (!doc || !doc.attachments?.length)
@@ -836,9 +983,11 @@ export const DocumentService = {
 
   async searchByTitleForParent(params: {
     companionId: string | Types.ObjectId;
+    parentId: string | Types.ObjectId;
     title: string;
   }): Promise<DocumentDto[]> {
     const companionId = ensureObjectId(params.companionId, "companionId");
+    await assertParentCanAccessCompanion(params.parentId, companionId);
 
     if (!params.title || typeof params.title !== "string") {
       throw new DocumentServiceError("Search title is required.", 400);

@@ -254,6 +254,7 @@ describe("DocumentController", () => {
 
   describe("listDocumentsForParent", () => {
     it("should 400 if companionId missing", async () => {
+      (req as any).userId = "u1";
       req.params = {};
       await DocumentController.listDocumentsForParent(
         req as any,
@@ -262,9 +263,27 @@ describe("DocumentController", () => {
       expect(statusMock).toHaveBeenCalledWith(400);
     });
 
+    it("should 401 if parent profile not found", async () => {
+      (req as any).userId = "u1";
+      req.params = { companionId: "c1" };
+      mockedAuthMobileService.getByProviderUserId.mockResolvedValue(
+        null as any,
+      );
+
+      await DocumentController.listDocumentsForParent(
+        req as any,
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(401);
+    });
+
     it("should success (200)", async () => {
+      (req as any).userId = "u1";
       req.params = { companionId: "c1" };
       req.query = { category: "cat" };
+      mockedAuthMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "p1",
+      } as any);
       mockedDocumentService.listForParent.mockResolvedValue([] as any);
 
       await DocumentController.listDocumentsForParent(
@@ -272,10 +291,20 @@ describe("DocumentController", () => {
         res as Response,
       );
       expect(statusMock).toHaveBeenCalledWith(200);
+      expect(mockedDocumentService.listForParent).toHaveBeenCalledWith({
+        companionId: "c1",
+        parentId: "p1",
+        category: "cat",
+        subcategory: undefined,
+      });
     });
 
     it("should handle service error", async () => {
+      (req as any).userId = "u1";
       req.params = { companionId: "c1" };
+      mockedAuthMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "p1",
+      } as any);
       mockServiceError("listForParent", 404);
       await DocumentController.listDocumentsForParent(
         req as any,
@@ -285,7 +314,11 @@ describe("DocumentController", () => {
     });
 
     it("should handle generic error", async () => {
+      (req as any).userId = "u1";
       req.params = { companionId: "c1" };
+      mockedAuthMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "p1",
+      } as any);
       mockGenericError("listForParent");
       await DocumentController.listDocumentsForParent(
         req as any,
@@ -397,16 +430,25 @@ describe("DocumentController", () => {
 
     it("should success (200) with simple string query", async () => {
       (req as any).userId = "pms1";
+      (req as any).organisationId = "org1";
       req.params = { companionId: "c1" };
       req.query = { category: "cat1" };
       mockedDocumentService.listForPms.mockResolvedValue([] as any);
 
       await DocumentController.listForPms(req as any, res as Response);
       expect(statusMock).toHaveBeenCalledWith(200);
+      expect(mockedDocumentService.listForPms).toHaveBeenCalledWith({
+        companionId: "c1",
+        organisationId: "org1",
+        category: undefined,
+        subcategory: undefined,
+        appointmentId: undefined,
+      });
     });
 
     it("should handle service error", async () => {
       (req as any).userId = "pms1";
+      (req as any).organisationId = "org1";
       req.params = { companionId: "c1" };
       mockServiceError("listForPms", 400);
       await DocumentController.listForPms(req as any, res as Response);
@@ -415,6 +457,7 @@ describe("DocumentController", () => {
 
     it("should handle generic error", async () => {
       (req as any).userId = "pms1";
+      (req as any).organisationId = "org1";
       req.params = { companionId: "c1" };
       mockGenericError("listForPms");
       await DocumentController.listForPms(req as any, res as Response);
@@ -423,31 +466,61 @@ describe("DocumentController", () => {
   });
 
   describe("getForParent", () => {
-    it("should 404 if not found", async () => {
+    it("should 401 if parent profile not found", async () => {
+      (req as any).userId = "u1";
       req.params = { id: "d1" };
+      mockedAuthMobileService.getByProviderUserId.mockResolvedValue(
+        null as any,
+      );
+      await DocumentController.getForParent(req as any, res as Response);
+      expect(statusMock).toHaveBeenCalledWith(401);
+    });
+
+    it("should 404 if not found", async () => {
+      (req as any).userId = "u1";
+      req.params = { id: "d1" };
+      mockedAuthMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "p1",
+      } as any);
       mockedDocumentService.getByIdForParent.mockResolvedValue(null);
       await DocumentController.getForParent(req as any, res as Response);
       expect(statusMock).toHaveBeenCalledWith(404);
     });
 
     it("should success (200)", async () => {
+      (req as any).userId = "u1";
       req.params = { id: "d1" };
+      mockedAuthMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "p1",
+      } as any);
       mockedDocumentService.getByIdForParent.mockResolvedValue({
         id: "d1",
       } as any);
       await DocumentController.getForParent(req as any, res as Response);
       expect(res.json).toHaveBeenCalledWith({ id: "d1" });
+      expect(mockedDocumentService.getByIdForParent).toHaveBeenCalledWith(
+        "d1",
+        "p1",
+      );
     });
 
     it("should handle service error", async () => {
+      (req as any).userId = "u1";
       req.params = { id: "d1" };
+      mockedAuthMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "p1",
+      } as any);
       mockServiceError("getByIdForParent", 400);
       await DocumentController.getForParent(req as any, res as Response);
       expect(statusMock).toHaveBeenCalledWith(400);
     });
 
     it("should handle generic error", async () => {
+      (req as any).userId = "u1";
       req.params = { id: "d1" };
+      mockedAuthMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "p1",
+      } as any);
       mockGenericError("getByIdForParent");
       await DocumentController.getForParent(req as any, res as Response);
       expect(statusMock).toHaveBeenCalledWith(500);
@@ -456,6 +529,7 @@ describe("DocumentController", () => {
 
   describe("getForPms", () => {
     it("should 404 if not found", async () => {
+      (req as any).organisationId = "org1";
       req.params = { documentId: "d1" };
       mockedDocumentService.getByIdForPms.mockResolvedValue(null);
       await DocumentController.getForPms(req as any, res as Response);
@@ -463,15 +537,21 @@ describe("DocumentController", () => {
     });
 
     it("should success (200)", async () => {
+      (req as any).organisationId = "org1";
       req.params = { documentId: "d1" };
       mockedDocumentService.getByIdForPms.mockResolvedValue({
         id: "d1",
       } as any);
       await DocumentController.getForPms(req as any, res as Response);
       expect(res.json).toHaveBeenCalledWith({ id: "d1" });
+      expect(mockedDocumentService.getByIdForPms).toHaveBeenCalledWith(
+        "d1",
+        "org1",
+      );
     });
 
     it("should handle service error", async () => {
+      (req as any).organisationId = "org1";
       req.params = { documentId: "d1" };
       mockServiceError("getByIdForPms", 400);
       await DocumentController.getForPms(req as any, res as Response);
@@ -479,6 +559,7 @@ describe("DocumentController", () => {
     });
 
     it("should handle generic error", async () => {
+      (req as any).organisationId = "org1";
       req.params = { documentId: "d1" };
       mockGenericError("getByIdForPms");
       await DocumentController.getForPms(req as any, res as Response);
@@ -581,7 +662,11 @@ describe("DocumentController", () => {
     });
 
     it("should handle service error", async () => {
+      (req as any).userId = "u1";
       req.params = { documentId: "d1" };
+      mockedAuthMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "p1",
+      } as any);
       mockServiceError("getAllAttachmentUrls", 404);
       await DocumentController.getDocumentDownloadUrl(
         req as any,
@@ -591,7 +676,11 @@ describe("DocumentController", () => {
     });
 
     it("should handle generic error", async () => {
+      (req as any).userId = "u1";
       req.params = { documentId: "d1" };
+      mockedAuthMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "p1",
+      } as any);
       mockGenericError("getAllAttachmentUrls");
       await DocumentController.getDocumentDownloadUrl(
         req as any,
@@ -599,10 +688,52 @@ describe("DocumentController", () => {
       );
       expect(statusMock).toHaveBeenCalledWith(500);
     });
+
+    it("should pass parent context for mobile downloads", async () => {
+      (req as any).userId = "u1";
+      req.params = { documentId: "d1" };
+      mockedAuthMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "p1",
+      } as any);
+      mockedDocumentService.getAllAttachmentUrls.mockResolvedValue([] as any);
+
+      await DocumentController.getDocumentDownloadUrl(
+        req as any,
+        res as Response,
+      );
+
+      expect(mockedDocumentService.getAllAttachmentUrls).toHaveBeenCalledWith({
+        documentId: "d1",
+        parentId: "p1",
+      });
+      expect(statusMock).toHaveBeenCalledWith(200);
+    });
+
+    it("should pass organisation context for PMS downloads", async () => {
+      (req as any).userId = "pms1";
+      (req as any).organisationId = "org1";
+      req.params = { documentId: "d1" };
+      mockedAuthMobileService.getByProviderUserId.mockResolvedValue(
+        null as any,
+      );
+      mockedDocumentService.getAllAttachmentUrls.mockResolvedValue([] as any);
+
+      await DocumentController.getDocumentDownloadUrl(
+        req as any,
+        res as Response,
+      );
+
+      expect(mockedDocumentService.getAllAttachmentUrls).toHaveBeenCalledWith({
+        documentId: "d1",
+        organisationId: "org1",
+      });
+      expect(statusMock).toHaveBeenCalledWith(200);
+    });
   });
 
   describe("searchDocument", () => {
     it("should 400 if companionId missing", async () => {
+      (req as any).userId = "u1";
       req.params = {};
       req.query = { title: "doc" };
       await DocumentController.searchDocument(req as any, res as Response);
@@ -610,6 +741,7 @@ describe("DocumentController", () => {
     });
 
     it("should 400 if title missing", async () => {
+      (req as any).userId = "u1";
       req.params = { companionId: "c1" };
       req.query = {};
       await DocumentController.searchDocument(req as any, res as Response);
@@ -617,24 +749,43 @@ describe("DocumentController", () => {
     });
 
     it("should success (200)", async () => {
+      (req as any).userId = "u1";
       req.params = { companionId: "c1" };
       req.query = { title: "doc" };
+      mockedAuthMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "p1",
+      } as any);
       mockedDocumentService.searchByTitleForParent.mockResolvedValue([]);
       await DocumentController.searchDocument(req as any, res as Response);
       expect(statusMock).toHaveBeenCalledWith(200);
+      expect(mockedDocumentService.searchByTitleForParent).toHaveBeenCalledWith(
+        {
+          companionId: "c1",
+          parentId: "p1",
+          title: "doc",
+        },
+      );
     });
 
     it("should handle service error", async () => {
+      (req as any).userId = "u1";
       req.params = { companionId: "c1" };
       req.query = { title: "doc" };
+      mockedAuthMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "p1",
+      } as any);
       mockServiceError("searchByTitleForParent", 400);
       await DocumentController.searchDocument(req as any, res as Response);
       expect(statusMock).toHaveBeenCalledWith(400);
     });
 
     it("should handle generic error", async () => {
+      (req as any).userId = "u1";
       req.params = { companionId: "c1" };
       req.query = { title: "doc" };
+      mockedAuthMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "p1",
+      } as any);
       mockGenericError("searchByTitleForParent");
       await DocumentController.searchDocument(req as any, res as Response);
       expect(statusMock).toHaveBeenCalledWith(500);

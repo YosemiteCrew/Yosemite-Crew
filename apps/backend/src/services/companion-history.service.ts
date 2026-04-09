@@ -546,7 +546,10 @@ export const CompanionHistoryService = {
 
     if (types.includes("DOCUMENT")) {
       try {
-        const documents = await DocumentService.listForPms({ companionId });
+        const documents = await DocumentService.listForPms({
+          companionId,
+          organisationId,
+        });
         const appointmentIds =
           documents
             .map((doc) => doc.appointmentId ?? undefined)
