@@ -1537,7 +1537,11 @@ export const FormService = {
 
   async getSOAPNotesByAppointment(
     appointmentId: string,
-    options?: { latestOnly?: boolean; requesterParentId?: string },
+    options?: {
+      latestOnly?: boolean;
+      requesterOrgId?: string;
+      requesterParentId?: string;
+    },
   ) {
     type SubmissionLean = Omit<FormSubmissionDocument, "formId"> & {
       _id: Types.ObjectId | string;
@@ -1586,6 +1590,16 @@ export const FormService = {
 
     if (!appointment) {
       throw new FormServiceError("Appointment not found", 404);
+    }
+
+    if (
+      options?.requesterOrgId &&
+      appointment.organisationId !== options.requesterOrgId
+    ) {
+      throw new FormServiceError(
+        "Forbidden: appointment does not belong to this organisation",
+        403,
+      );
     }
 
     if (options?.requesterParentId) {

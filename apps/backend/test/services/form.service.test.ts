@@ -876,6 +876,20 @@ describe("FormService", () => {
       ).rejects.toThrow("Forbidden");
     });
 
+    it("throws forbidden when requester organisation does not match appointment organisation", async () => {
+      (AppointmentModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable({ organisationId: "org-appointment" }),
+      );
+
+      await expect(
+        FormService.getSOAPNotesByAppointment(validId, {
+          requesterOrgId: "org-requester",
+        }),
+      ).rejects.toThrow(
+        "Forbidden: appointment does not belong to this organisation",
+      );
+    });
+
     it("returns empty if non-hospital cache check", async () => {
       (AppointmentModel.findById as jest.Mock).mockReturnValueOnce(
         createChainable({ organisationId: "cache_miss_org" }),

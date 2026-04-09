@@ -548,6 +548,7 @@ describe("FormController", () => {
   describe("getSOAPNotesByAppointment", () => {
     it("should correctly parse latestOnly boolean and string values", async () => {
       req.params.appointmentId = "a1";
+      (req as any).organisationId = "org-1";
 
       // Test string "true"
       req.body = { latestOnly: "true" };
@@ -557,6 +558,7 @@ describe("FormController", () => {
       await FormController.getSOAPNotesByAppointment(req, res);
       expect(FormService.getSOAPNotesByAppointment).toHaveBeenCalledWith("a1", {
         latestOnly: true,
+        requesterOrgId: "org-1",
         requesterParentId: undefined,
       });
 
@@ -565,6 +567,7 @@ describe("FormController", () => {
       await FormController.getSOAPNotesByAppointment(req, res);
       expect(FormService.getSOAPNotesByAppointment).toHaveBeenCalledWith("a1", {
         latestOnly: true,
+        requesterOrgId: "org-1",
         requesterParentId: undefined,
       });
 
@@ -573,6 +576,7 @@ describe("FormController", () => {
       await FormController.getSOAPNotesByAppointment(req, res);
       expect(FormService.getSOAPNotesByAppointment).toHaveBeenCalledWith("a1", {
         latestOnly: false,
+        requesterOrgId: "org-1",
         requesterParentId: undefined,
       });
 
@@ -595,6 +599,7 @@ describe("FormController", () => {
 
       expect(FormService.getSOAPNotesByAppointment).toHaveBeenCalledWith("a1", {
         latestOnly: false,
+        requesterOrgId: undefined,
         requesterParentId: "parent-1",
       });
     });

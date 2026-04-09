@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { FormService, FormServiceError } from "src/services/form.service";
 import { FormRequestDTO, FormSubmissionRequestDTO } from "@yosemite-crew/types";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
+import type { OrgRequest } from "src/middlewares/rbac";
 import logger from "src/utils/logger";
 import { resolveUserIdFromRequest } from "src/utils/request";
 
@@ -238,6 +239,9 @@ export const FormController = {
       const latestOnlyFlag = latestOnly === true || latestOnly === "true";
       const isMobileRequest =
         typeof req.path === "string" && req.path.includes("/mobile/");
+      const requesterOrgId = isMobileRequest
+        ? undefined
+        : (req as OrgRequest).organisationId;
 
       let requesterParentId: string | undefined;
       if (isMobileRequest) {
@@ -261,6 +265,7 @@ export const FormController = {
         appointmentId,
         {
           latestOnly: latestOnlyFlag,
+          requesterOrgId,
           requesterParentId,
         },
       );
