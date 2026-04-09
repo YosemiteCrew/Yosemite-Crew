@@ -83,7 +83,7 @@ describe("FormController", () => {
   });
 
   describe("Internal Helper (resolveUserIdFromRequest)", () => {
-    it("should use x-user-id header if available", async () => {
+    it("should prefer authReq.userId when header and auth userId are both present", async () => {
       req.headers["x-user-id"] = "header_user_id";
       req.params.orgId = "org1";
       req.body = { title: "Test Form" };
@@ -93,7 +93,7 @@ describe("FormController", () => {
       expect(FormService.create).toHaveBeenCalledWith(
         "org1",
         req.body,
-        "header_user_id",
+        "auth_user_123",
       );
     });
 

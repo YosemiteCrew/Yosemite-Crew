@@ -68,7 +68,7 @@ describe("ParentController", () => {
   });
 
   describe("Internal Helpers & Payload Parsing", () => {
-    it("resolveUserIdFromRequest: should use x-user-id header if available", async () => {
+    it("resolveUserIdFromRequest: should prefer authenticated userId over x-user-id", async () => {
       req.headers["x-user-id"] = "header_id";
       req.body = validFHIR;
       (ParentService.create as jest.Mock).mockResolvedValue({ response: "ok" });
@@ -77,7 +77,7 @@ describe("ParentController", () => {
 
       expect(ParentService.create).toHaveBeenCalledWith(validFHIR, {
         source: "mobile",
-        authUserId: "header_id",
+        authUserId: "auth_user_123",
       });
     });
 
