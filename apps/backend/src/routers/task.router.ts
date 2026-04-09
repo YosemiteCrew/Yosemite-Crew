@@ -5,7 +5,11 @@ import {
   TaskTemplateController,
 } from "src/controllers/web/task.controller";
 import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
-import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
+import {
+  requirePermission,
+  withOrgPermissions,
+  withTaskOrgPermissions,
+} from "src/middlewares/rbac";
 
 const router = Router();
 
@@ -52,12 +56,16 @@ router.get(
 router.post(
   "/pms/from-library",
   authorizeCognito,
+  withOrgPermissions(),
+  requirePermission(["tasks:edit:any", "tasks:edit:own"]),
   TaskController.createFromLibrary,
 );
 
 router.post(
   "/pms/from-template",
   authorizeCognito,
+  withOrgPermissions(),
+  requirePermission(["tasks:edit:any", "tasks:edit:own"]),
   TaskController.createFromTemplate,
 );
 
@@ -65,6 +73,8 @@ router.post(
 router.post(
   "/pms/custom",
   authorizeCognito,
+  withOrgPermissions(),
+  requirePermission(["tasks:edit:any", "tasks:edit:own"]),
   TaskController.createCustomTaskFromPms,
 );
 
@@ -72,6 +82,8 @@ router.post(
 router.get(
   "/pms/organisation/:organisationId",
   authorizeCognito,
+  withOrgPermissions(),
+  requirePermission(["tasks:view:any", "tasks:view:own"]),
   TaskController.listEmployeeTasks,
 );
 
@@ -79,6 +91,8 @@ router.get(
 router.get(
   "/pms/companion/:companionId",
   authorizeCognito,
+  withOrgPermissions(),
+  requirePermission(["tasks:view:any", "tasks:view:own"]),
   TaskController.listForCompanion,
 );
 
@@ -137,7 +151,7 @@ router.delete(
 router.get(
   "/pms/:taskId",
   authorizeCognito,
-  withOrgPermissions(),
+  withTaskOrgPermissions(),
   requirePermission(["tasks:view:any", "tasks:view:own"]),
   TaskController.getById,
 );
@@ -145,7 +159,7 @@ router.get(
 router.patch(
   "/pms/:taskId",
   authorizeCognito,
-  withOrgPermissions(),
+  withTaskOrgPermissions(),
   requirePermission(["tasks:edit:any", "tasks:edit:own"]),
   TaskController.updateTaskPMS,
 );
@@ -153,7 +167,7 @@ router.patch(
 router.post(
   "/pms/:taskId/status",
   authorizeCognito,
-  withOrgPermissions(),
+  withTaskOrgPermissions(),
   requirePermission(["tasks:edit:any", "tasks:edit:own"]),
   TaskController.changeStatusPMS,
 );

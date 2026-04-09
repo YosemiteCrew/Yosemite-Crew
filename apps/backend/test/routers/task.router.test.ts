@@ -3,6 +3,9 @@ import type { Router } from "express";
 const authorizeCognito = jest.fn((_req, _res, next) => next());
 const authorizeCognitoMobile = jest.fn((_req, _res, next) => next());
 const withOrgPermissions = jest.fn(() => jest.fn((_req, _res, next) => next()));
+const withTaskOrgPermissions = jest.fn(() =>
+  jest.fn((_req, _res, next) => next()),
+);
 const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
 
 const TaskController = {
@@ -42,6 +45,7 @@ jest.mock("../../src/middlewares/auth", () => ({
 
 jest.mock("../../src/middlewares/rbac", () => ({
   withOrgPermissions,
+  withTaskOrgPermissions,
   requirePermission,
 }));
 
@@ -87,5 +91,55 @@ describe("task.router", () => {
     expect(updateRoute?.stack.map((layer) => layer.handle)).toContain(
       authorizeCognito,
     );
+  });
+
+  it("protects PMS task create, list, and detail routes with RBAC", () => {
+    const createLibraryRoute = findRoute("/pms/from-library", "post");
+    const createTemplateRoute = findRoute("/pms/from-template", "post");
+    const createCustomRoute = findRoute("/pms/custom", "post");
+    const employeeListRoute = findRoute(
+      "/pms/organisation/:organisationId",
+      "get",
+    );
+    const companionListRoute = findRoute("/pms/companion/:companionId", "get");
+    const getTaskRoute = findRoute("/pms/:taskId", "get");
+    const updateTaskRoute = findRoute("/pms/:taskId", "patch");
+    const changeStatusRoute = findRoute("/pms/:taskId/status", "post");
+
+    expect(createLibraryRoute?.stack.map((layer) => layer.handle)).toContain(
+      authorizeCognito,
+    );
+    expect(createTemplateRoute?.stack.map((layer) => layer.handle)).toContain(
+      authorizeCognito,
+    );
+    expect(createCustomRoute?.stack.map((layer) => layer.handle)).toContain(
+      authorizeCognito,
+    );
+    expect(employeeListRoute?.stack.map((layer) => layer.handle)).toContain(
+      authorizeCognito,
+    );
+    expect(companionListRoute?.stack.map((layer) => layer.handle)).toContain(
+      authorizeCognito,
+    );
+    expect(getTaskRoute?.stack.map((layer) => layer.handle)).toContain(
+      authorizeCognito,
+    );
+    expect(updateTaskRoute?.stack.map((layer) => layer.handle)).toContain(
+      authorizeCognito,
+    );
+    expect(changeStatusRoute?.stack.map((layer) => layer.handle)).toContain(
+      authorizeCognito,
+    );
+
+    expect(withOrgPermissions).toHaveBeenCalled();
+    expect(withTaskOrgPermissions).toHaveBeenCalledTimes(3);
+    expect(requirePermission).toHaveBeenCalledWith([
+      "tasks:edit:any",
+      "tasks:edit:own",
+    ]);
+    expect(requirePermission).toHaveBeenCalledWith([
+      "tasks:view:any",
+      "tasks:view:own",
+    ]);
   });
 });

@@ -11,6 +11,7 @@ import { prisma } from "src/config/prisma";
 import { isReadFromPostgres } from "src/config/read-switch";
 import AppointmentModel from "src/models/appointment";
 import InvoiceModel from "src/models/invoice";
+import TaskModel from "src/models/task";
 
 export interface OrgRequest extends AuthenticatedRequest {
   userPermissions?: Permission[];
@@ -185,6 +186,33 @@ export function withPaymentIntentOrgPermissions() {
     const organisationId = invoice?.organisationId ?? null;
     if (!organisationId) {
       return res.status(404).json({ message: "Invoice not found" });
+    }
+
+    req.params.organisationId = organisationId.toString();
+
+    return withOrgPermissions()(req, res, next);
+  };
+}
+
+export function withTaskOrgPermissions() {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const taskId = req.params.taskId;
+    if (!taskId) {
+      return res.status(400).json({ message: "Missing taskId" });
+    }
+
+    const task = isReadFromPostgres()
+      ? await prisma.task.findUnique({
+          where: { id: taskId },
+          select: { organisationId: true },
+        })
+      : await TaskModel.findById(taskId, {
+          organisationId: 1,
+        }).lean();
+
+    const organisationId = task?.organisationId ?? null;
+    if (!organisationId) {
+      return res.status(404).json({ message: "Task not found" });
     }
 
     req.params.organisationId = organisationId.toString();

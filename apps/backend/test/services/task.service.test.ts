@@ -167,11 +167,17 @@ describe("TaskService", () => {
       (prisma.task.findMany as jest.Mock).mockResolvedValueOnce([
         { id: "task-1" },
       ]);
-      const res = await TaskService.listForCompanion({ companionId: "c1" });
+      const res = await TaskService.listForCompanion({
+        companionId: "c1",
+        organisationId: "org-1",
+      });
       expect(res).toHaveLength(1);
       expect(prisma.task.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: expect.objectContaining({ companionId: "c1" }),
+          where: expect.objectContaining({
+            companionId: "c1",
+            organisationId: "org-1",
+          }),
         }),
       );
     });
@@ -791,11 +797,13 @@ describe("TaskService", () => {
       (TaskModel.find as jest.Mock).mockReturnValue(mockChain([]));
       await TaskService.listForCompanion({
         companionId: "c1",
+        organisationId: "org-1",
         audience: "PARENT_TASK",
       });
       expect(TaskModel.find).toHaveBeenCalledWith(
         expect.objectContaining({
           companionId: "c1",
+          organisationId: "org-1",
           audience: "PARENT_TASK",
         }),
       );
