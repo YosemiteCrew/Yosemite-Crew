@@ -415,6 +415,7 @@ describe("InvoiceController", () => {
     });
 
     it("should 409 if invoice already paid", async () => {
+      (req as any).organisationId = "org1";
       req.params = { invoiceId: "inv1" };
       mockedInvoiceService.markInvoicePaidManually.mockResolvedValue(
         null as any,
@@ -431,7 +432,22 @@ describe("InvoiceController", () => {
       });
     });
 
+    it("should 400 if organisationId missing", async () => {
+      req.params = { invoiceId: "inv1" };
+
+      await InvoiceController.markInvoicePaidManually(
+        req as Request,
+        res as Response,
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Organisation Id is required",
+      });
+    });
+
     it("should success (200)", async () => {
+      (req as any).organisationId = "org1";
       req.params = { invoiceId: "inv1" };
       mockedInvoiceService.markInvoicePaidManually.mockResolvedValue({
         id: "inv1",
@@ -442,11 +458,16 @@ describe("InvoiceController", () => {
         res as Response,
       );
 
+      expect(mockedInvoiceService.markInvoicePaidManually).toHaveBeenCalledWith(
+        "inv1",
+        "org1",
+      );
       expect(statusMock).toHaveBeenCalledWith(200);
       expect(jsonMock).toHaveBeenCalledWith({ id: "inv1" });
     });
 
     it("should handle service error with custom status", async () => {
+      (req as any).organisationId = "org1";
       req.params = { invoiceId: "inv1" };
       mockServiceError("markInvoicePaidManually", 403, "Forbidden");
 

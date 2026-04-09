@@ -576,18 +576,32 @@ describe("InvoiceService", () => {
     it("markInvoicePaidManually should throw on wrong method", async () => {
       (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
         id: "inv_3",
+        organisationId: "org_1",
         paymentCollectionMethod: "PAYMENT_LINK",
         status: "AWAITING_PAYMENT",
       });
 
       await expect(
-        InvoiceService.markInvoicePaidManually("inv_3"),
+        InvoiceService.markInvoicePaidManually("inv_3", "org_1"),
       ).rejects.toThrow(
         new InvoiceServiceError(
           "Invoice is not marked for in-clinic payment.",
           409,
         ),
       );
+    });
+
+    it("markInvoicePaidManually should throw when invoice belongs to another organisation", async () => {
+      (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "inv_3b",
+        organisationId: "org_2",
+        paymentCollectionMethod: "PAYMENT_AT_CLINIC",
+        status: "AWAITING_PAYMENT",
+      });
+
+      await expect(
+        InvoiceService.markInvoicePaidManually("inv_3b", "org_1"),
+      ).rejects.toThrow(new InvoiceServiceError("Invoice not found.", 404));
     });
 
     it("updatePaymentCollectionMethod returns same method if unchanged", async () => {

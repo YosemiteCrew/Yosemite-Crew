@@ -1050,10 +1050,14 @@ export const InvoiceService = {
     return invoice;
   },
 
-  async markInvoicePaidManually(invoiceId: string) {
+  async markInvoicePaidManually(invoiceId: string, organisationId: string) {
     if (isReadFromPostgres()) {
       const doc = await prisma.invoice.findUnique({ where: { id: invoiceId } });
       if (!doc) {
+        throw new InvoiceServiceError("Invoice not found.", 404);
+      }
+
+      if (doc.organisationId !== organisationId) {
         throw new InvoiceServiceError("Invoice not found.", 404);
       }
 
@@ -1081,6 +1085,10 @@ export const InvoiceService = {
 
     const doc = await InvoiceModel.findById(invoiceId);
     if (!doc) {
+      throw new InvoiceServiceError("Invoice not found.", 404);
+    }
+
+    if (doc.organisationId?.toString() !== organisationId) {
       throw new InvoiceServiceError("Invoice not found.", 404);
     }
 

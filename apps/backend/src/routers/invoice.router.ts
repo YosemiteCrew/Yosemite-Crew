@@ -75,6 +75,8 @@ router.post(
 router.post(
   "/:invoiceId/mark-paid",
   authorizeCognito,
+  withInvoiceOrgPermissions(),
+  requirePermission("billing:edit:any"),
   InvoiceController.markInvoicePaidManually,
 );
 

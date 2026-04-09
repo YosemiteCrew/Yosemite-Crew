@@ -184,12 +184,21 @@ export const InvoiceController = {
 
   async markInvoicePaidManually(this: void, req: Request, res: Response) {
     try {
+      const orgReq = req as OrgRequest;
+      const organisationId = orgReq.organisationId;
       const invoiceId = req.params.invoiceId;
       if (!invoiceId) {
         return res.status(400).json({ message: "Invoice Id is required" });
       }
 
-      const invoice = await InvoiceService.markInvoicePaidManually(invoiceId);
+      if (!organisationId) {
+        return res.status(400).json({ message: "Organisation Id is required" });
+      }
+
+      const invoice = await InvoiceService.markInvoicePaidManually(
+        invoiceId,
+        organisationId,
+      );
       if (!invoice) {
         return res.status(409).json({ message: "Invoice already paid." });
       }
