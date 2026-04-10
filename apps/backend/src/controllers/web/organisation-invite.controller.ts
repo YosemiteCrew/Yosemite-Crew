@@ -21,16 +21,29 @@ type CreateInviteBody = Omit<
 };
 
 const resolveUserEmailFromRequest = (req: Request): string | undefined => {
-  const headerEmail = req.headers["x-user-email"];
+  const authRequest = req as AuthenticatedRequest;
+  const authEmail = authRequest.auth?.email ?? authRequest.email;
 
-  if (typeof headerEmail === "string" && headerEmail.trim()) {
-    return headerEmail;
+  if (typeof authEmail !== "string") {
+    return undefined;
   }
 
-  const authRequest = req as AuthenticatedRequest;
-  const authEmail = authRequest.auth?.email;
+  const trimmedEmail = authEmail.trim();
+  return trimmedEmail || undefined;
+};
 
-  return typeof authEmail === "string" ? authEmail : undefined;
+const resolveAuthenticatedUserIdFromRequest = (
+  req: Request,
+): string | undefined => {
+  const authRequest = req as AuthenticatedRequest;
+  const authUserId = authRequest.userId ?? authRequest.auth?.sub;
+
+  if (typeof authUserId !== "string") {
+    return undefined;
+  }
+
+  const trimmedUserId = authUserId.trim();
+  return trimmedUserId || undefined;
 };
 
 export const OrganisationInviteController = {
@@ -135,7 +148,7 @@ export const OrganisationInviteController = {
   acceptInvite: async (req: Request, res: Response) => {
     try {
       const { token } = req.params;
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveAuthenticatedUserIdFromRequest(req);
       const userEmail = resolveUserEmailFromRequest(req);
 
       if (!token) {
@@ -172,7 +185,7 @@ export const OrganisationInviteController = {
   rejectInvite: async (req: Request, res: Response) => {
     try {
       const { token } = req.params;
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveAuthenticatedUserIdFromRequest(req);
       const userEmail = resolveUserEmailFromRequest(req);
 
       if (!token) {

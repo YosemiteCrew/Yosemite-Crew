@@ -180,15 +180,16 @@ describe("UserProfileController", () => {
   });
 
   describe("getByUserId", () => {
-    it("should success (200) using header user-id", async () => {
+    it("should ignore header user-id and use req.userId", async () => {
       req.headers = { "x-user-id": "headerUser" };
+      (req as any).userId = "reqUser";
       req.params = { organizationId: "org1" };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (mockedProfileService.getByUserId as any).mockResolvedValue({ id: "p1" });
 
       await UserProfileController.getByUserId(req as any, res as Response);
       expect(mockedProfileService.getByUserId).toHaveBeenCalledWith(
-        "headerUser",
+        "reqUser",
         "org1",
       );
       expect(statusMock).toHaveBeenCalledWith(200);
