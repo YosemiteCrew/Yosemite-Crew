@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { ServiceController } from "../controllers/web/service.controller";
+import { authorizeCognito } from "src/middlewares/auth";
 
 const router = Router();
 
-router.post("/", ServiceController.createService);
-router.post("/bulk", ServiceController.createMany);
+router.post("/", authorizeCognito, ServiceController.createService);
+router.post("/bulk", authorizeCognito, ServiceController.createMany);
 router.get(
   "/organisation/search",
   ServiceController.listOrganisationByServiceName,
@@ -19,7 +20,7 @@ router.post(
   ServiceController.getCalendarPrefill,
 );
 router.get("/:id", ServiceController.getServiceById);
-router.patch("/:id", ServiceController.updateService);
-router.delete("/:id", ServiceController.deleteService);
+router.patch("/:id", authorizeCognito, ServiceController.updateService);
+router.delete("/:id", authorizeCognito, ServiceController.deleteService);
 
 export default router;
