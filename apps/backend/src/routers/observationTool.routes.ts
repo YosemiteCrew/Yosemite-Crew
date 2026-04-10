@@ -1,6 +1,12 @@
 import { Router } from "express";
 import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
 import {
+  requirePermission,
+  withAppointmentOrgPermissions,
+  withOrgPermissions,
+  withTaskOrgPermissions,
+} from "src/middlewares/rbac";
+import {
   ObservationToolDefinitionController,
   ObservationToolSubmissionController,
 } from "src/controllers/web/observationTool.controller";
@@ -85,42 +91,56 @@ router.post(
 router.get(
   "/pms/submissions",
   authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("appointments:view:any"),
   ObservationToolSubmissionController.listForPms,
 );
 
 router.get(
   "/pms/submissions/:submissionId",
   authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("appointments:view:any"),
   ObservationToolSubmissionController.getById,
 );
 
 router.post(
   "/pms/submissions/:submissionId/link-appointment",
   authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("appointments:edit:any"),
   ObservationToolSubmissionController.linkAppointment,
 );
 
 router.post(
   "/pms/appointments/:appointmentId/submissions",
   authorizeCognito,
+  withAppointmentOrgPermissions(),
+  requirePermission("appointments:view:any"),
   ObservationToolSubmissionController.listForAppointment,
 );
 
 router.get(
   "/pms/tasks/:taskId/submission",
   authorizeCognito,
+  withTaskOrgPermissions(),
+  requirePermission("tasks:view:any"),
   ObservationToolSubmissionController.getByTaskId,
 );
 
 router.get(
   "/pms/tasks/:taskId/preview",
   authorizeCognito,
+  withTaskOrgPermissions(),
+  requirePermission("tasks:view:any"),
   ObservationToolSubmissionController.getPreviewByTaskId,
 );
 
 router.get(
   "/pms/appointments/:appointmentId/task-previews",
   authorizeCognito,
+  withAppointmentOrgPermissions(),
+  requirePermission("appointments:view:any"),
   ObservationToolSubmissionController.listTaskPreviewsForAppointment,
 );
 

@@ -393,6 +393,7 @@ describe("ObservationTool Controllers", () => {
 
     describe("listForPms", () => {
       it("should list with full filters", async () => {
+        (req as any).organisationId = "org1";
         req.query = {
           companionId: "c1",
           toolId: "t1",
@@ -408,6 +409,7 @@ describe("ObservationTool Controllers", () => {
         );
 
         expect(mockedSubService.listSubmissions).toHaveBeenCalledWith({
+          organisationId: "org1",
           companionId: "c1",
           toolId: "t1",
           fromDate: new Date("2023-01-01"),
@@ -417,6 +419,7 @@ describe("ObservationTool Controllers", () => {
       });
 
       it("should list with minimal filters", async () => {
+        (req as any).organisationId = "org1";
         req.query = {};
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (mockedSubService.listSubmissions as any).mockResolvedValue([]);
@@ -426,6 +429,7 @@ describe("ObservationTool Controllers", () => {
           res as Response,
         );
         expect(mockedSubService.listSubmissions).toHaveBeenCalledWith({
+          organisationId: "org1",
           companionId: undefined,
           toolId: undefined,
           fromDate: undefined,
@@ -446,6 +450,7 @@ describe("ObservationTool Controllers", () => {
 
     describe("getById", () => {
       it("should 404 if not found", async () => {
+        (req as any).organisationId = "org1";
         req.params = { submissionId: "s1" };
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (mockedSubService.getById as any).mockResolvedValue(null);
@@ -457,6 +462,7 @@ describe("ObservationTool Controllers", () => {
       });
 
       it("should success", async () => {
+        (req as any).organisationId = "org1";
         req.params = { submissionId: "s1" };
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (mockedSubService.getById as any).mockResolvedValue({ id: "s1" });
@@ -464,6 +470,7 @@ describe("ObservationTool Controllers", () => {
           req as any,
           res as Response,
         );
+        expect(mockedSubService.getById).toHaveBeenCalledWith("s1", "org1");
         expect(jsonMock).toHaveBeenCalledWith({ id: "s1" });
       });
 
@@ -478,6 +485,7 @@ describe("ObservationTool Controllers", () => {
 
     describe("linkAppointment", () => {
       it("should link and return updated", async () => {
+        (req as any).organisationId = "org1";
         req.params = { submissionId: "s1" };
         req.body = { appointmentId: "apt1", enforceSingle: true };
 
@@ -496,6 +504,7 @@ describe("ObservationTool Controllers", () => {
         );
 
         expect(mockedSubService.linkToAppointment).toHaveBeenCalledWith({
+          organisationId: "org1",
           submissionId: "s1",
           appointmentId: "apt1",
           enforceSingleSubmissionPerAppointment: true,
@@ -520,6 +529,7 @@ describe("ObservationTool Controllers", () => {
 
     describe("listForAppointment", () => {
       it("should success", async () => {
+        (req as any).organisationId = "org1";
         req.params = { appointmentId: "apt1" };
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (mockedSubService.listForAppointment as any).mockResolvedValue([]);
@@ -529,6 +539,7 @@ describe("ObservationTool Controllers", () => {
         );
         expect(mockedSubService.listForAppointment).toHaveBeenCalledWith(
           "apt1",
+          "org1",
         );
       });
 
