@@ -20,11 +20,11 @@
     "parity:check": "tsx src/scripts/parity-check.ts"
   },
   "dependencies": {
-    "@prisma/client": "^5.22.0",
     "@aws-sdk/client-cognito-identity-provider": "3.772.0",
     "@aws-sdk/client-pinpoint": "^3.806.0",
     "@aws-sdk/client-s3": "^3.842.0",
     "@aws-sdk/client-ses": "^3.839.0",
+    "@prisma/client": "^5.22.0",
     "aws-sdk": "2.1692.0",
     "axios": "^1.13.2",
     "bcrypt": "5.1.1",
@@ -44,6 +44,7 @@
     "express-rate-limit": "^7.5.0",
     "fhir": "4.12.0",
     "firebase-admin": "^13.6.0",
+    "geoip-country": "^5.0.202604072353",
     "google-auth-library": "^10.2.0",
     "jsonwebtoken": "9.0.2",
     "jwks-rsa": "^3.2.0",
@@ -73,6 +74,7 @@
     "@types/express": "^5.0.2",
     "@types/express-fileupload": "^1.5.1",
     "@types/express-rate-limit": "^6.0.2",
+    "@types/geoip-country": "^5.0.0",
     "@types/jest": "^29.5.12",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/mongoose": "^5.11.97",

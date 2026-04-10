@@ -1,3 +1,5 @@
+import type { PlanDTO } from '@/app/features/marketing/pages/PricingPage/types';
+
 const COMMON_FEATURES = {
   SCHEDULER: 'Yosemite Crew scheduler',
   TEMPLATES: 'Templates module',
@@ -13,14 +15,19 @@ const yesYes = (name: string) => row(name, 'yes', 'yes');
 const noYes = (name: string) => row(name, 'no', 'yes');
 const comingSoon = (name: string) => row(name, 'Coming soon', 'Coming soon');
 
-export const PricingPlans = [
+/**
+ * Offline USD defaults used when the `/v1/pricing` backend call has not yet
+ * returned (or cannot run because consent has not been granted). Kept in
+ * sync with the backend `PRICING_PLANS.USD` constant.
+ */
+export const FALLBACK_PLANS: PlanDTO[] = [
   {
+    id: 'free',
     active: true,
-    id: 1,
-    title: 'Free plan',
     recommended: false,
-    amount: '€0',
-    amountYearly: '€0',
+    title: 'Free plan',
+    amount: 0,
+    amountYearly: 0,
     amountLabel: '',
     description: 'Perfect for new or small pet businesses exploring on their own.',
     buttonText: 'Get started',
@@ -39,12 +46,12 @@ export const PricingPlans = [
     ],
   },
   {
+    id: 'business',
     active: true,
-    id: 2,
-    title: 'Business plan',
     recommended: true,
-    amount: '€12',
-    amountYearly: '€10',
+    title: 'Business plan',
+    amount: 13,
+    amountYearly: 11,
     amountLabel: 'per user / month',
     description: 'Flexible growth for pet businesses that need to scale on demand.',
     buttonText: 'Get started',
@@ -62,12 +69,12 @@ export const PricingPlans = [
     ],
   },
   {
+    id: 'enterprise',
     active: false,
-    id: 3,
-    title: 'Enterprise plan',
     recommended: false,
-    amount: 'Coming soon',
-    amountYearly: 'Coming soon',
+    title: 'Enterprise plan',
+    amount: null,
+    amountYearly: null,
     amountLabel: '',
     description: 'For pet businesses to operate with scalability, control, and security.',
     buttonText: 'Notify me',

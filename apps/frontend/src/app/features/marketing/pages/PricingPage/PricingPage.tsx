@@ -7,11 +7,27 @@ import { IoIosCheckmark, IoIosCloseCircleOutline } from 'react-icons/io';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import Faq from '@/app/ui/widgets/Faq/Faq';
 import Footer from '@/app/ui/widgets/Footer/Footer';
-import { PricingPlans, TableData } from '@/app/features/marketing/pages/PricingPage/data';
+import { FALLBACK_PLANS, TableData } from '@/app/features/marketing/pages/PricingPage/data';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import { usePricing } from '@/app/hooks/usePricing';
+import CurrencySwitcher from '@/app/features/marketing/pages/PricingPage/CurrencySwitcher';
+import PricingSkeleton from '@/app/features/marketing/pages/PricingPage/PricingSkeleton';
+import type { PlanDTO, SupportedCurrency } from '@/app/features/marketing/pages/PricingPage/types';
 
 import './PricingPage.css';
+
+type BillingCycle = 'monthly' | 'yearly';
+
+const formatPrice = (amount: number | null, symbol: string, fallback: string): string => {
+  if (amount === null) return fallback;
+  return `${symbol}${amount}`;
+};
+
+const getPlanPrice = (plan: PlanDTO, cycle: BillingCycle, symbol: string): string => {
+  const raw = cycle === 'monthly' ? plan.amount : plan.amountYearly;
+  return formatPrice(raw, symbol, 'Coming soon');
+};
 
 const renderCell = (text: string) => {
   if (text === 'yes') {
@@ -70,8 +86,14 @@ const renderFeatureName = (name: string) => {
 };
 
 const PricingPage = () => {
-  const [activeCycle, setActiveCycle] = useState('yearly');
+  const [activeCycle, setActiveCycle] = useState<BillingCycle>('yearly');
   const [notify, setNotify] = useState(false);
+  const { data: pricing, loading } = usePricing();
+
+  const plans: PlanDTO[] = pricing?.plans ?? FALLBACK_PLANS;
+  const currency: SupportedCurrency = pricing?.currency ?? 'USD';
+  const currencySymbol: string = pricing?.currencySymbol ?? '$';
+  const showSkeleton = loading && !pricing;
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -136,75 +158,82 @@ const PricingPage = () => {
                     Pay yearly
                   </button>
                 </div>
-                <div className="flex-1 flex justify-between gap-3 sm:gap-0">
+                <div className="flex-1 flex items-center justify-between gap-3 sm:gap-3 flex-wrap">
                   <div className="text-[15px] font-satoshi text-blue-text font-bold">
                     Save up to 20% with yearly
                   </div>
-                  <div className="text-[15px] font-satoshi text-grey-noti font-bold">
-                    Price in EUR
+                  <div className="flex items-center gap-3">
+                    <div className="text-[15px] font-satoshi text-grey-noti font-bold">
+                      {`Price in ${currency}`}
+                    </div>
+                    <CurrencySwitcher currency={currency} />
                   </div>
                 </div>
               </div>
-              <div className="flex gap-3 lg:gap-[30px] justify-between w-full flex-col md:flex-row">
-                {PricingPlans.map((plan: any) => (
-                  <div
-                    key={plan.id}
-                    className="p-3 flex flex-col gap-2 lg:gap-3 w-full md:w-[calc(33%-11px)] lg:w-[calc(33%-20px)] rounded-[20px]! border border-grey-light!"
-                  >
-                    <div className="flex items-center gap-2 font-medium h-[23px] lg:h-[38px]">
-                      <div
-                        className={`font-satoshi text-[0.875rem] lg:text-[1.125rem] ${plan.active ? 'text-black-text' : 'text-grey-border'}`}
-                      >
-                        {plan.title}
-                      </div>
-                      {plan.recommended && (
-                        <div className="p-1 lg:p-2 rounded-lg bg-blue-light text-blue-text font-satoshi text-[12px] lg:text-[15px] font-normal">
-                          Recommended
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex gap-2 items-end">
-                      <div
-                        className={`font-satoshi text-[28px] lg:text-[40px] font-medium ${plan.active ? 'text-black-text' : 'text-grey-border'}`}
-                      >
-                        {activeCycle === 'monthly' ? plan.amount : plan.amountYearly}
-                      </div>
-                      {plan.amountLabel && (
-                        <div className="mb-1.5! lg:mb-3! font-satoshi text-[13px] font-semibold text-black-text">
-                          {plan.amountLabel}
-                        </div>
-                      )}
-                    </div>
+              {showSkeleton ? (
+                <PricingSkeleton />
+              ) : (
+                <div className="flex gap-3 lg:gap-[30px] justify-between w-full flex-col md:flex-row">
+                  {plans.map((plan) => (
                     <div
-                      className={`font-satoshi text-[13px] lg:text-[15px] font-normal ${plan.active ? 'text-black-text' : 'text-grey-border'}`}
+                      key={plan.id}
+                      className="p-3 flex flex-col gap-2 lg:gap-3 w-full md:w-[calc(33%-11px)] lg:w-[calc(33%-20px)] rounded-[20px]! border border-grey-light!"
                     >
-                      {plan.description}
-                    </div>
-                    <Link
-                      className="w-full rounded-2xl! hover:border-text-brand! hover:text-text-brand! hover:scale-105! transition duration-200 ease-in-out text-black-text! border-black-text! border! h-12 flex items-center justify-center font-satoshi text-[1.125rem] font-medium"
-                      href={plan.buttonSrc}
-                      onClick={() => plan.id === 3 && setNotify(true)}
-                    >
-                      {plan.buttonText}
-                    </Link>
-                    <div>
-                      <div
-                        className={`font-satoshi text-[13px] lg:text-[15px] font-semibold ${plan.active ? 'text-black-text' : 'text-grey-border'}`}
-                      >
-                        Includes:
-                      </div>
-                      {plan.includes.map((detail: string) => (
+                      <div className="flex items-center gap-2 font-medium h-[23px] lg:h-[38px]">
                         <div
-                          key={detail}
-                          className={`flex font-satoshi text-[13px] lg:text-[15px] gap-2 font-normal ${plan.active ? 'text-black-text' : 'text-grey-border'}`}
+                          className={`font-satoshi text-[0.875rem] lg:text-[1.125rem] ${plan.active ? 'text-black-text' : 'text-grey-border'}`}
                         >
-                          &bull; <span>{detail}</span>
+                          {plan.title}
                         </div>
-                      ))}
+                        {plan.recommended && (
+                          <div className="p-1 lg:p-2 rounded-lg bg-blue-light text-blue-text font-satoshi text-[12px] lg:text-[15px] font-normal">
+                            Recommended
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex gap-2 items-end">
+                        <div
+                          className={`font-satoshi text-[28px] lg:text-[40px] font-medium ${plan.active ? 'text-black-text' : 'text-grey-border'}`}
+                        >
+                          {getPlanPrice(plan, activeCycle, currencySymbol)}
+                        </div>
+                        {plan.amountLabel && (
+                          <div className="mb-1.5! lg:mb-3! font-satoshi text-[13px] font-semibold text-black-text">
+                            {plan.amountLabel}
+                          </div>
+                        )}
+                      </div>
+                      <div
+                        className={`font-satoshi text-[13px] lg:text-[15px] font-normal ${plan.active ? 'text-black-text' : 'text-grey-border'}`}
+                      >
+                        {plan.description}
+                      </div>
+                      <Link
+                        className="w-full rounded-2xl! hover:border-text-brand! hover:text-text-brand! hover:scale-105! transition duration-200 ease-in-out text-black-text! border-black-text! border! h-12 flex items-center justify-center font-satoshi text-[1.125rem] font-medium"
+                        href={plan.buttonSrc}
+                        onClick={() => plan.id === 'enterprise' && setNotify(true)}
+                      >
+                        {plan.buttonText}
+                      </Link>
+                      <div>
+                        <div
+                          className={`font-satoshi text-[13px] lg:text-[15px] font-semibold ${plan.active ? 'text-black-text' : 'text-grey-border'}`}
+                        >
+                          Includes:
+                        </div>
+                        {plan.includes.map((detail: string) => (
+                          <div
+                            key={detail}
+                            className={`flex font-satoshi text-[13px] lg:text-[15px] gap-2 font-normal ${plan.active ? 'text-black-text' : 'text-grey-border'}`}
+                          >
+                            &bull; <span>{detail}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -261,14 +290,14 @@ const PricingPage = () => {
             </div>
             <div className="flex gap-3">
               <div className="w-[calc(33%-10px)]"></div>
-              {PricingPlans.slice(0, 2).map((plan: any) => (
-                <div key={plan.description} className="w-[calc(33%-10px)] flex flex-col gap-2">
+              {plans.slice(0, 2).map((plan) => (
+                <div key={plan.id} className="w-[calc(33%-10px)] flex flex-col gap-2">
                   <div className="flex justify-between items-center flex-wrap">
                     <div className="font-satoshi text-[0.875rem] md:text-[1.125rem] font-medium text-black-text">
                       {plan.title.split(' ')[0]}
                     </div>
                     <div className="font-satoshi text-[0.875rem] md:text-[1.125rem] font-medium text-black-text">
-                      {activeCycle === 'monthly' ? plan.amount : plan.amountYearly}
+                      {getPlanPrice(plan, activeCycle, currencySymbol)}
                     </div>
                   </div>
                   <Link

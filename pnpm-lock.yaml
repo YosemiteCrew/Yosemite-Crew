@@ -145,6 +145,9 @@ importers:
       firebase-admin:
         specifier: ^13.6.0
         version: 13.6.0
+      geoip-country:
+        specifier: ^5.0.202604072353
+        version: 5.0.202604072353
       google-auth-library:
         specifier: ^10.2.0
         version: 10.5.0
@@ -227,6 +230,9 @@ importers:
       '@types/express-rate-limit':
         specifier: ^6.0.2
         version: 6.0.2(express@4.21.2)
+      '@types/geoip-country':
+        specifier: ^5.0.0
+        version: 5.0.0
       '@types/jest':
         specifier: ^29.5.12
         version: 29.5.14
@@ -16797,6 +16803,10 @@ packages:
       '@types/serve-static': 2.2.0
     dev: true
 
+  /@types/geoip-country@5.0.0:
+    resolution: {integrity: sha512-BMlvia5dgLneTyZffXUOUoY3PWrgn13gJFR2YYxqzGrFxHT+DhjLqQwrzY8Y+xU8pX8zwqd+NaNE2CJpVQH3og==}
+    dev: true
+
   /@types/graceful-fs@4.1.9:
     resolution: {integrity: sha512-olP3sd1qOEe5dXTSaFvQG+02VdRXcdytWLAZsAq1PecU8uqQAhkrnbli7DagjtXKW/Bl7YJbUsa8MPcuc8LHEQ==}
     dependencies:
@@ -18509,6 +18519,12 @@ packages:
       retry: 0.13.1
     dev: false
     optional: true
+
+  /async@2.6.4:
+    resolution: {integrity: sha512-mzo5dfJYwAn29PeiJ0zvwTo04zj8HDJj0Mn8TD7sno7q12prdbnasKJHhkm2c1LgrhlJ0teaea8860oxi51mGA==}
+    dependencies:
+      lodash: 4.17.23
+    dev: false
 
   /async@3.2.6:
     resolution: {integrity: sha512-htCUDlxyyCLMgaM3xXg0C0LW2xqfuQ6p05pCEIsXuyQ+a1koYKTuBMzRNwmybfLgvJDMd0r1LTn4+E0Ti6C2AA==}
@@ -20256,6 +20272,10 @@ packages:
       js-yaml: 4.1.1
       parse-json: 5.2.0
       typescript: 5.9.3
+
+  /countries-list@3.3.0:
+    resolution: {integrity: sha512-XRUjS+dcZuNh/fg3+mka3bXgcg4TbQZ1gaK5IJqO6qulerBANl1bmrd20P2dgmPkBpP+5FnejiSF1gd7bgAg+g==}
+    dev: false
 
   /crc-32@1.2.2:
     resolution: {integrity: sha512-ROmzCKrTnOwybPcJApAA6WBWij23HVfGVNKqqrZpuyZOHqK2CwHSvpGuyt/UNNvaIjEd8X5IFGp4Mh+Ie1IHJQ==}
@@ -23237,6 +23257,16 @@ packages:
     resolution: {integrity: sha512-3hN7NaskYvMDLQY55gnW3NQ+mesEAepTqlg+VEbj7zzqEMBVNhzcGYYeqFo/TlYz6eQiFcp1HcsCZO+nGgS8zg==}
     engines: {node: '>=6.9.0'}
 
+  /geoip-country@5.0.202604072353:
+    resolution: {integrity: sha512-fFFR9j6e31U7jPZSyPCdodQu0G7DjnZJsRj3WhOaGFeJe4u7OJtdPNZeeJEqy+vMXyrAvC0MftIQkQ5KxxQChA==}
+    engines: {node: '>=10.20.0'}
+    dependencies:
+      async: 2.6.4
+      countries-list: 3.3.0
+      ip-address: 6.4.0
+      yauzl: 3.2.1
+    dev: false
+
   /get-caller-file@2.0.5:
     resolution: {integrity: sha512-DyFP3BM/3YHTQOCUL/w0OZHR0lpKeGrxotcHWcqNEdnltqFwXVfhEBQ94eIo34AfQpo0rGki4cyIiftY06h2Fg==}
     engines: {node: 6.* || 8.* || >= 10.*}
@@ -24449,6 +24479,19 @@ packages:
     resolution: {integrity: sha512-XXADHxXmvT9+CRxhXg56LJovE+bmWnEWB78LB83VZTprKTmaC5QfruXocxzTZ2Kl0DNwKuBdlIhjL8LeY8Sf8Q==}
     engines: {node: '>= 12'}
     dev: true
+
+  /ip-address@6.4.0:
+    resolution: {integrity: sha512-c5uxc2WUTuRBVHT/6r4m7HIr/DfV0bF6DvLH3iZGSK8wp8iMwwZSgIq2do0asFf8q9ECug0SE+6+1ACMe4sorA==}
+    engines: {node: '>= 0.10'}
+    dependencies:
+      jsbn: 1.1.0
+      lodash.find: 4.6.0
+      lodash.max: 4.0.1
+      lodash.merge: 4.6.2
+      lodash.padstart: 4.6.1
+      lodash.repeat: 4.1.0
+      sprintf-js: 1.1.2
+    dev: false
 
   /ipaddr.js@1.9.1:
     resolution: {integrity: sha512-0KI/607xoxSToH7GjN1FfSbLoU0+btTicjsQSWQlh/hZykN8KpmMf7uYwPW3R+akZ6R/w18ZlXSHBYXiYUPO3g==}
@@ -25755,6 +25798,10 @@ packages:
     dependencies:
       argparse: 2.0.1
 
+  /jsbn@1.1.0:
+    resolution: {integrity: sha512-4bYVV3aAMtDTTu4+xsDYa6sy9GyJ69/amsu9sYF2zqjiEoZA5xJi3BrfX3uY+/IekIu7MwdObdbDWpoZdBv3/A==}
+    dev: false
+
   /jsc-safe-url@0.2.4:
     resolution: {integrity: sha512-0wM3YBWtYePOjfyXQH5MWQ8H7sdk5EXSwZvmSLKk2RboVQ2Bu239jycHDz5J/8Blf3K0Qnoy2b6xD+z10MFB+Q==}
 
@@ -26330,6 +26377,10 @@ packages:
     resolution: {integrity: sha512-3j8wdDzYuWO3lM3Reg03MuQR957t287Rpcxp1njpEa8oDrikb+FwGdW3n+FELh/A6qib6yPit0j/pv9G/yeAqA==}
     dev: false
 
+  /lodash.find@4.6.0:
+    resolution: {integrity: sha512-yaRZoAV3Xq28F1iafWN1+a0rflOej93l1DQUejs3SZ41h2O9UJBoS9aueGjPDgAl4B6tPC0NuuchLKaDQQ3Isg==}
+    dev: false
+
   /lodash.includes@4.3.0:
     resolution: {integrity: sha512-W3Bx6mdkRTGtlJISOvVD/lbqjTlPPUDTMnlXZFnVwi9NKJ6tiAk6LVdlhZMm17VZisqhKcgzpO5Wz91PCt5b0w==}
     dev: false
@@ -26366,18 +26417,29 @@ packages:
     resolution: {integrity: sha512-N8XRTIMMqqDgSy4VLKPnJ/+hpGZN+PHQiJnSenYqPaVV/NCqEogTnAdZLQiGKhxX+JCs8waWq2t1XHWKOmlY8g==}
     dev: true
 
+  /lodash.max@4.0.1:
+    resolution: {integrity: sha512-iykTDTb7PK33HSQmKy34zv+hh4WEu7WonJPXQcgODzUbbtradtNs8RsD/GI7XV++60KaKR1xhW56N4ISqHesfQ==}
+    dev: false
+
   /lodash.memoize@4.1.2:
     resolution: {integrity: sha512-t7j+NzmgnQzTAYXcsHYLgimltOV1MXHtlOWf6GjL9Kj8GK5FInw5JotxvbOs+IvV1/Dzo04/fCGfLVs7aXb4Ag==}
 
   /lodash.merge@4.6.2:
     resolution: {integrity: sha512-0KpjqXRVvrYyCsX1swR/XTK0va6VQkQM6MNo7PqW77ByjAhoARA8EfrP1N4+KlKj8YS0ZUCtRT/YUuhyYDujIQ==}
-    dev: true
 
   /lodash.mergewith@4.6.2:
     resolution: {integrity: sha512-GK3g5RPZWTRSeLSpgP8Xhra+pnjBC56q9FZYe1d5RN3TJ35dbkGy3YqBSMbyCrlbi+CM9Z3Jk5yTL7RCsqboyQ==}
 
   /lodash.once@4.1.1:
     resolution: {integrity: sha512-Sb487aTOCr9drQVL8pIxOzVhafOjZN9UU54hiN8PU3uAiSV7lx1yYNpbNmex2PK6dSJoNTSJUUswT651yww3Mg==}
+    dev: false
+
+  /lodash.padstart@4.6.1:
+    resolution: {integrity: sha512-sW73O6S8+Tg66eY56DBk85aQzzUJDtpoXFBgELMd5P/SotAguo+1kYO6RuYgXxA4HJH3LFTFPASX6ET6bjfriw==}
+    dev: false
+
+  /lodash.repeat@4.1.0:
+    resolution: {integrity: sha512-eWsgQW89IewS95ZOcr15HHCX6FVDxq3f2PNUIng3fyzsPev9imFQxIYdFZ6crl8L56UR6ZlGDLcEb3RZsCSSqw==}
     dev: false
 
   /lodash.snakecase@4.1.1:
@@ -32456,6 +32518,10 @@ packages:
 
   /sprintf-js@1.0.3:
     resolution: {integrity: sha512-D9cPgkvLlV3t3IzL0D0YLvGA9Ahk4PcvVwUbN0dSGr1aP0Nrt4AEnTUbuGvquEC0mA64Gqt1fzirlRs5ibXx8g==}
+
+  /sprintf-js@1.1.2:
+    resolution: {integrity: sha512-VE0SOVEHCk7Qc8ulkWw3ntAzXuqf7S2lvwQaDLRnUeIEaKNQJzV6BwmLKhOqT61aGhfUMrXeaBk+oDGCzvhcug==}
+    dev: false
 
   /sqlstring@2.3.3:
     resolution: {integrity: sha512-qC9iz2FlN7DQl3+wjwn3802RTyjCx7sDvfQEXchwa6CWOx07/WVfh91gBmQ9fahw8snwGEWU3xGzOt4tFyHLxg==}

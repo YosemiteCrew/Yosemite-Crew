@@ -1,6 +1,7 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosRequestConfig } from 'axios';
 import { useAuthStore } from '@/app/stores/authStore';
 import { useOrgStore } from '@/app/stores/orgStore';
+import { useCurrencyStore } from '@/app/stores/currencyStore';
 import { hardSignOut } from '@/app/hooks/useAuth';
 import { logger } from '@/app/lib/logger';
 
@@ -30,6 +31,12 @@ api.interceptors.request.use(
           config.headers['x-org-id'] = primaryOrgId;
         } else {
           delete config.headers['x-org-id'];
+        }
+        const preferredCurrency = useCurrencyStore.getState().preferred;
+        if (preferredCurrency) {
+          config.headers['X-Preferred-Currency'] = preferredCurrency;
+        } else {
+          delete config.headers['X-Preferred-Currency'];
         }
       }
     } catch (error) {

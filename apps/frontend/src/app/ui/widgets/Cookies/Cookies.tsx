@@ -6,26 +6,36 @@ import { usePathname } from 'next/navigation';
 import { publicRoutes } from '@/app/lib/const';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import { useConsentStore } from '@/app/stores/consentStore';
 
 const Cookies = () => {
   const [showCookiePopup, setShowCookiePopup] = useState(false);
   const pathname = usePathname();
+  const consentStatus = useConsentStore((s) => s.status);
+  const hydrate = useConsentStore((s) => s.hydrate);
+  const grant = useConsentStore((s) => s.grant);
+  const deny = useConsentStore((s) => s.deny);
 
   useEffect(() => {
-    const cookieConsentGiven = localStorage.getItem('cookieConsentGiven');
-    if (!cookieConsentGiven) {
-      setShowCookiePopup(true); // If not accepted, show popup
+    hydrate();
+  }, [hydrate]);
+
+  useEffect(() => {
+    if (consentStatus === 'unknown') {
+      setShowCookiePopup(true);
+    } else {
+      setShowCookiePopup(false);
     }
-  }, []);
+  }, [consentStatus]);
 
   const handleConsent = () => {
     setShowCookiePopup(false);
-    localStorage.setItem('cookieConsentGiven', 'true'); // Mark as accepted
+    grant();
   };
 
   const handleRejection = () => {
     setShowCookiePopup(false);
-    localStorage.setItem('cookieConsentGiven', 'false'); // Mark as rejected
+    deny();
   };
 
   if (!publicRoutes.has(pathname)) return null;
