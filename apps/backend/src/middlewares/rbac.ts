@@ -12,6 +12,7 @@ import { isReadFromPostgres } from "src/config/read-switch";
 import AppointmentModel from "src/models/appointment";
 import InvoiceModel from "src/models/invoice";
 import TaskModel from "src/models/task";
+import { InventoryItemModel } from "src/models/inventory";
 
 export interface OrgRequest extends AuthenticatedRequest {
   userPermissions?: Permission[];
@@ -213,6 +214,33 @@ export function withTaskOrgPermissions() {
     const organisationId = task?.organisationId ?? null;
     if (!organisationId) {
       return res.status(404).json({ message: "Task not found" });
+    }
+
+    req.params.organisationId = organisationId.toString();
+
+    return withOrgPermissions()(req, res, next);
+  };
+}
+
+export function withInventoryItemOrgPermissions() {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const itemId = req.params.itemId;
+    if (!itemId) {
+      return res.status(400).json({ message: "Missing itemId" });
+    }
+
+    const item = isReadFromPostgres()
+      ? await prisma.inventoryItem.findUnique({
+          where: { id: itemId },
+          select: { organisationId: true },
+        })
+      : await InventoryItemModel.findById(itemId, {
+          organisationId: 1,
+        }).lean();
+
+    const organisationId = item?.organisationId ?? null;
+    if (!organisationId) {
+      return res.status(404).json({ message: "Inventory item not found" });
     }
 
     req.params.organisationId = organisationId.toString();
