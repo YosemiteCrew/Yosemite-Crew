@@ -25,13 +25,18 @@ export const useNavigateToLegalPages = () => {
 
   const navigateToRoute = useCallback(
     (screen: 'TermsAndConditions' | 'PrivacyPolicy') => {
-      (navigation as any).popToTop?.();
-      const nav =
+      const navWithTarget = findNavigatorWithRoute(screen);
+      if (navWithTarget) {
+        navWithTarget.navigate?.(screen as never);
+        return;
+      }
+
+      const fallbackNav =
         findNavigatorWithRoute('HomeStack') ??
         rootNavigation ??
         tabNavigation ??
         (navigation as any).getParent?.();
-      nav?.navigate?.('HomeStack', {screen});
+      fallbackNav?.navigate?.('HomeStack', {screen});
     },
     [findNavigatorWithRoute, navigation, rootNavigation, tabNavigation],
   );

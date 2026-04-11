@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import {SwipeableGlassCard} from '@/shared/components/common/SwipeableGlassCard/SwipeableGlassCard';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {useNavigation} from '@react-navigation/native';
@@ -98,9 +99,14 @@ export const BookingSummaryCard: React.FC<Props> = ({
 
   if (!interactive) {
     return (
-      <View style={[styles.cardContainer, style]}>
-        <View style={styles.card}>{content}</View>
-      </View>
+      <LiquidGlassCard
+        glassEffect="clear"
+        interactive={false}
+        style={[styles.card, style]}
+        fallbackStyle={styles.fallback}
+        padding="0">
+        {content}
+      </LiquidGlassCard>
     );
   }
 
@@ -110,12 +116,12 @@ export const BookingSummaryCard: React.FC<Props> = ({
       onAction={handleEdit}
       actionBackgroundColor={theme.colors.primary}
       enableHorizontalSwipeOnly
-      containerStyle={[styles.cardContainer, style]}
+      containerStyle={[styles.shadowWrapper, style]}
       cardProps={{
-        shadow: 'none',
-        glassEffect: 'none',
+        glassEffect: 'clear',
+        interactive: true,
         style: styles.card,
-        fallbackStyle: styles.card,
+        fallbackStyle: styles.fallback,
         padding: '0',
       }}>
       {content}
@@ -125,53 +131,64 @@ export const BookingSummaryCard: React.FC<Props> = ({
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    cardContainer: {
-      width: '100%',
+    shadowWrapper: {
+      borderRadius: theme.borderRadius.lg,
+      backgroundColor: theme.colors.cardBackground,
+      borderWidth: 0,
+      borderColor: 'transparent',
+      ...theme.shadows.base,
+      shadowColor: theme.colors.neutralShadow,
     },
     card: {
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
+      borderRadius: theme.borderRadius.lg,
+      borderWidth: 0,
+      borderColor: 'transparent',
       backgroundColor: theme.colors.cardBackground,
-      padding: theme.spacing[3],
+      padding: theme.spacing['4'],
+    },
+    fallback: {
+      borderRadius: theme.borderRadius.lg,
+      backgroundColor: theme.colors.cardBackground,
+      borderWidth: 0,
+      borderColor: 'transparent',
     },
     inner: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[3],
+      gap: theme.spacing['3'],
     },
     avatar: {
-      width: 96,
-      height: 96,
-      borderRadius: 24,
+      width: theme.spacing['24'],
+      height: theme.spacing['24'],
+      borderRadius: theme.borderRadius['2xl'],
       backgroundColor: theme.colors.border + '40',
     },
     textColumn: {
       flex: 1,
-      gap: 4,
+      gap: theme.spacing['1'],
     },
     title: {
       ...theme.typography.h6Clash,
-      color: '#302F2E',
+      color: theme.colors.secondary,
     },
     titleRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[2],
+      gap: theme.spacing['2'],
     },
     subtitlePrimary: {
       ...theme.typography.subtitleBold14,
-      color: '#595958',
+      color: theme.colors.placeholder,
     },
     subtitleSecondary: {
       ...theme.typography.subtitleBold14,
-      color: '#302F2E',
+      color: theme.colors.secondary,
     },
     badge: {
       marginLeft: 'auto',
-      paddingHorizontal: theme.spacing[2.5],
-      paddingVertical: theme.spacing[1],
-      borderRadius: 999,
+      paddingHorizontal: theme.spacing['2.5'],
+      paddingVertical: theme.spacing['1'],
+      borderRadius: theme.borderRadius.full,
       backgroundColor: theme.colors.primaryTint,
     },
     badgeText: {

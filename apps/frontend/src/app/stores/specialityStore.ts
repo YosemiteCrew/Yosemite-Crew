@@ -1,19 +1,35 @@
 import { Speciality } from "@yosemite-crew/types";
 import { create } from "zustand";
 
+type SpecialityStatus = "idle" | "loading" | "loaded" | "error";
+
 type SpecialityState = {
   specialitiesById: Record<string, Speciality>;
   specialityIdsByOrgId: Record<string, string[]>;
 
+  status: SpecialityStatus;
+  error: string | null;
+  lastFetchedAt: string | null;
+
   setSpecialities: (specialities: Speciality[]) => void;
+  setSpecialitiesForOrg: (orgId: string, items: Speciality[]) => void;
   addSpeciality: (speciality: Speciality) => void;
+  updateSpeciality: (speciality: Speciality) => void;
+  deleteSpecialityById: (id: string) => void;
+  clearSpecialitiesForOrg: (orgId: string) => void;
   getSpecialitiesByOrgId: (orgId: string) => Speciality[];
   clearSpecialities: () => void;
+  startLoading: () => void;
+  endLoading: () => void;
+  setError: (message: string) => void;
 };
 
 export const useSpecialityStore = create<SpecialityState>()((set, get) => ({
   specialitiesById: {},
   specialityIdsByOrgId: {},
+  status: "idle",
+  error: null,
+  lastFetchedAt: null,
 
   setSpecialities: (specialities) =>
     set(() => {
@@ -31,6 +47,51 @@ export const useSpecialityStore = create<SpecialityState>()((set, get) => ({
       return {
         specialitiesById,
         specialityIdsByOrgId,
+        status: "loaded",
+      };
+    }),
+
+  setSpecialitiesForOrg: (orgId, items) =>
+    set((state) => {
+      const specialitiesById = { ...state.specialitiesById };
+      const existingIds = state.specialityIdsByOrgId[orgId] ?? [];
+      for (const id of existingIds) {
+        delete specialitiesById[id];
+      }
+      const newIds: string[] = [];
+      for (const speciality of items) {
+        const id = speciality._id!;
+        specialitiesById[id] = speciality;
+        newIds.push(id);
+      }
+      return {
+        specialitiesById,
+        specialityIdsByOrgId: {
+          ...state.specialityIdsByOrgId,
+          [orgId]: newIds,
+        },
+        status: "loaded",
+        error: null,
+        lastFetchedAt: new Date().toISOString(),
+      };
+    }),
+
+  clearSpecialitiesForOrg: (orgId: string) =>
+    set((state) => {
+      const ids = state.specialityIdsByOrgId[orgId] ?? [];
+      if (!ids.length) {
+        const { [orgId]: _, ...restIdx } = state.specialityIdsByOrgId;
+        return { specialityIdsByOrgId: restIdx };
+      }
+      const specialitiesById = { ...state.specialitiesById };
+      for (const id of ids) delete specialitiesById[id];
+      const { [orgId]: _, ...restIdx } = state.specialityIdsByOrgId;
+      return {
+        specialitiesById,
+        specialityIdsByOrgId: restIdx,
+        status: "loaded",
+        error: null,
+        lastFetchedAt: new Date().toISOString(),
       };
     }),
 
@@ -46,12 +107,59 @@ export const useSpecialityStore = create<SpecialityState>()((set, get) => ({
       const alreadyListed = existingIdsForOrg.includes(id);
       const specialityIdsByOrgId: Record<string, string[]> = {
         ...state.specialityIdsByOrgId,
-        [orgId]: alreadyListed
-          ? existingIdsForOrg
-          : [...existingIdsForOrg, id],
+        [orgId]: alreadyListed ? existingIdsForOrg : [...existingIdsForOrg, id],
       };
       return {
         specialitiesById,
+        specialityIdsByOrgId,
+        status: "loaded",
+      };
+    }),
+
+  updateSpeciality: (updated) =>
+    set((state) => {
+      const id = updated._id;
+      if (!id || !state.specialitiesById[id]) {
+        console.warn("updateSpeciality: speciality not found:", updated);
+        return state;
+      }
+      return {
+        specialitiesById: {
+          ...state.specialitiesById,
+          [id]: {
+            ...state.specialitiesById[id],
+            ...updated,
+          },
+        },
+        status: "loaded",
+      };
+    }),
+
+  deleteSpecialityById: (id) =>
+    set((state) => {
+      const speciality = state.specialitiesById[id];
+      if (!speciality) {
+        console.warn("deleteSpecialityById: speciality not found:", id);
+        return state;
+      }
+      const orgId = speciality.organisationId;
+      const { [id]: _, ...restById } = state.specialitiesById;
+      const updatedIdsForOrg = (state.specialityIdsByOrgId[orgId] ?? []).filter(
+        (specId) => specId !== id
+      );
+      const specialityIdsByOrgId = {
+        ...state.specialityIdsByOrgId,
+        [orgId]: updatedIdsForOrg,
+      };
+      if (updatedIdsForOrg.length === 0) {
+        const { [orgId]: __, ...rest } = specialityIdsByOrgId;
+        return {
+          specialitiesById: restById,
+          specialityIdsByOrgId: rest,
+        };
+      }
+      return {
+        specialitiesById: restById,
         specialityIdsByOrgId,
       };
     }),
@@ -68,5 +176,25 @@ export const useSpecialityStore = create<SpecialityState>()((set, get) => ({
     set(() => ({
       specialitiesById: {},
       specialityIdsByOrgId: {},
+      status: "idle",
+      error: null,
+    })),
+
+  startLoading: () =>
+    set(() => ({
+      status: "loading",
+      error: null,
+    })),
+
+  endLoading: () =>
+    set(() => ({
+      status: "loaded",
+      error: null,
+    })),
+
+  setError: (message: string) =>
+    set(() => ({
+      status: "error",
+      error: message,
     })),
 }));

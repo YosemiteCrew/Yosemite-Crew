@@ -22,6 +22,12 @@ import SpecialityModel from "src/models/speciality";
 import ServiceModel from "src/models/service";
 import logger from "src/utils/logger";
 import UserProfileModel from "src/models/user-profile";
+import { OrgBilling } from "src/models/organization.billing";
+import { OrgUsageCounters } from "src/models/organisation.usage.counter";
+import { Prisma, OrganizationType } from "@prisma/client";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 const TAX_ID_EXTENSION_URL =
   "http://example.org/fhir/StructureDefinition/taxId";
@@ -37,12 +43,127 @@ const FIRE_EMERGENCY_CERT_EXTENSION_URL =
   "http://example.org/fhir/StructureDefinition/fireAndEmergencyCertificationNumber";
 const GOOGLE_PLACE_ID_EXTENSION_URL =
   "http://example.com/fhir/StructureDefinition/google-place-id";
+const DEFAULT_APPOINTMENT_CHECK_IN_BUFFER_MINUTES = 5;
+const DEFAULT_APPOINTMENT_CHECK_IN_RADIUS_METERS = 200;
 const ORGANIZATION_TYPES = new Set<Organisation["type"]>([
   "HOSPITAL",
   "BREEDER",
   "BOARDER",
   "GROOMER",
 ]);
+const PET_NAME_PREFERENCES = new Set<Organisation["petNamePreference"]>([
+  "COMPANION",
+  "ANIMAL",
+  "PATIENT",
+]);
+
+const toPrismaOrganizationData = (doc: OrganizationDocument) => {
+  const obj = doc.toObject() as OrganizationMongo & {
+    _id: Types.ObjectId;
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+
+  return {
+    id: obj._id.toString(),
+    fhirId: obj.fhirId ?? undefined,
+    name: obj.name,
+    taxId: obj.taxId,
+    dunsNumber: obj.DUNSNumber ?? undefined,
+    imageUrl: obj.imageURL ?? undefined,
+    type: obj.type as OrganizationType,
+    petNamePreference: obj.petNamePreference ?? undefined,
+    phoneNo: obj.phoneNo,
+    website: obj.website ?? undefined,
+    documensoTeamId: obj.documensoTeamId ?? undefined,
+    documensoApiKey: obj.documensoApiKey ?? undefined,
+    isVerified: obj.isVerified ?? false,
+    isActive: obj.isActive ?? true,
+    typeCoding: (obj.typeCoding ??
+      undefined) as unknown as Prisma.InputJsonValue,
+    healthAndSafetyCertNo: obj.healthAndSafetyCertNo ?? undefined,
+    animalWelfareComplianceCertNo:
+      obj.animalWelfareComplianceCertNo ?? undefined,
+    fireAndEmergencyCertNo: obj.fireAndEmergencyCertNo ?? undefined,
+    googlePlacesId: obj.googlePlacesId ?? undefined,
+    stripeAccountId: obj.stripeAccountId ?? undefined,
+    averageRating: obj.averageRating ?? 0,
+    ratingCount: obj.ratingCount ?? 0,
+    appointmentCheckInBufferMinutes:
+      obj.appointmentCheckInBufferMinutes ??
+      DEFAULT_APPOINTMENT_CHECK_IN_BUFFER_MINUTES,
+    appointmentCheckInRadiusMeters:
+      obj.appointmentCheckInRadiusMeters ??
+      DEFAULT_APPOINTMENT_CHECK_IN_RADIUS_METERS,
+    createdAt: obj.createdAt ?? undefined,
+    updatedAt: obj.updatedAt ?? undefined,
+  };
+};
+
+const syncOrganizationAddressToPostgres = async (
+  organizationId: string,
+  address: OrganizationMongo["address"],
+) => {
+  if (!shouldDualWrite) return;
+
+  if (!address) {
+    try {
+      await prisma.organizationAddress.deleteMany({
+        where: { organizationId },
+      });
+    } catch (err) {
+      handleDualWriteError("OrganizationAddress delete", err);
+    }
+    return;
+  }
+
+  try {
+    await prisma.organizationAddress.upsert({
+      where: { organizationId },
+      create: {
+        organizationId,
+        addressLine: address.addressLine ?? undefined,
+        country: address.country ?? undefined,
+        city: address.city ?? undefined,
+        state: address.state ?? undefined,
+        postalCode: address.postalCode ?? undefined,
+        latitude: address.latitude ?? undefined,
+        longitude: address.longitude ?? undefined,
+        location: (address.location ??
+          undefined) as unknown as Prisma.InputJsonValue,
+      },
+      update: {
+        addressLine: address.addressLine ?? undefined,
+        country: address.country ?? undefined,
+        city: address.city ?? undefined,
+        state: address.state ?? undefined,
+        postalCode: address.postalCode ?? undefined,
+        latitude: address.latitude ?? undefined,
+        longitude: address.longitude ?? undefined,
+        location: (address.location ??
+          undefined) as unknown as Prisma.InputJsonValue,
+      },
+    });
+  } catch (err) {
+    handleDualWriteError("OrganizationAddress", err);
+  }
+};
+
+const syncOrganizationToPostgres = async (doc: OrganizationDocument) => {
+  if (!shouldDualWrite) return;
+  try {
+    const data = toPrismaOrganizationData(doc);
+    await prisma.organization.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+    const obj = doc.toObject() as OrganizationMongo & { _id: Types.ObjectId };
+    await syncOrganizationAddressToPostgres(data.id, obj.address);
+  } catch (err) {
+    handleDualWriteError("Organization", err);
+  }
+};
 
 type ExtensionLike = {
   url?: string;
@@ -237,6 +358,32 @@ const optionalSafeString = (
   return trimmed;
 };
 
+const optionalPetNamePreference = (
+  value: unknown,
+): Organisation["petNamePreference"] | undefined => {
+  if (value == null) {
+    return undefined;
+  }
+
+  if (typeof value !== "string") {
+    throw new OrganizationServiceError(
+      "Pet name preference must be a string.",
+      400,
+    );
+  }
+
+  const trimmed = value.trim().toUpperCase();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  if (!PET_NAME_PREFERENCES.has(trimmed as Organisation["petNamePreference"])) {
+    throw new OrganizationServiceError("Invalid pet name preference.", 400);
+  }
+
+  return trimmed as Organisation["petNamePreference"];
+};
+
 const optionalNumber = (
   value: unknown,
   fieldName: string,
@@ -262,6 +409,42 @@ const optionalNumber = (
     400,
   );
 };
+
+const optionalNonNegativeInteger = (
+  value: unknown,
+  fieldName: string,
+): number | undefined => {
+  const parsed = optionalNumber(value, fieldName);
+
+  if (parsed == null) {
+    return undefined;
+  }
+
+  if (!Number.isInteger(parsed)) {
+    throw new OrganizationServiceError(`${fieldName} must be an integer.`, 400);
+  }
+
+  if (parsed < 0) {
+    throw new OrganizationServiceError(
+      `${fieldName} must be non-negative.`,
+      400,
+    );
+  }
+
+  return parsed;
+};
+
+const resolveCheckInConfig = (input: {
+  appointmentCheckInBufferMinutes?: number | null;
+  appointmentCheckInRadiusMeters?: number | null;
+}) => ({
+  appointmentCheckInBufferMinutes:
+    input.appointmentCheckInBufferMinutes ??
+    DEFAULT_APPOINTMENT_CHECK_IN_BUFFER_MINUTES,
+  appointmentCheckInRadiusMeters:
+    input.appointmentCheckInRadiusMeters ??
+    DEFAULT_APPOINTMENT_CHECK_IN_RADIUS_METERS,
+});
 
 const ensureSafeIdentifier = (value: unknown): string | undefined => {
   const identifier = optionalSafeString(value, "Identifier");
@@ -382,6 +565,19 @@ const sanitizeBusinessAttributes = (
     dto.googlePlacesId ?? extras.googlePlacesId,
     "Google Places ID",
   );
+  const petNamePreference = optionalPetNamePreference(dto.petNamePreference);
+  const appointmentCheckInBufferMinutes = optionalNonNegativeInteger(
+    dto.appointmentCheckInBufferMinutes,
+    "Appointment check-in buffer minutes",
+  );
+  const appointmentCheckInRadiusMeters = optionalNonNegativeInteger(
+    dto.appointmentCheckInRadiusMeters,
+    "Appointment check-in radius meters",
+  );
+  const checkInConfig = resolveCheckInConfig({
+    appointmentCheckInBufferMinutes,
+    appointmentCheckInRadiusMeters,
+  });
 
   return {
     fhirId: ensureSafeIdentifier(dto.id),
@@ -390,6 +586,7 @@ const sanitizeBusinessAttributes = (
     DUNSNumber,
     imageURL,
     type,
+    petNamePreference,
     phoneNo,
     website,
     address,
@@ -401,6 +598,10 @@ const sanitizeBusinessAttributes = (
     animalWelfareComplianceCertNo,
     fireAndEmergencyCertNo,
     googlePlacesId,
+    appointmentCheckInBufferMinutes:
+      checkInConfig.appointmentCheckInBufferMinutes,
+    appointmentCheckInRadiusMeters:
+      checkInConfig.appointmentCheckInRadiusMeters,
   };
 };
 
@@ -415,12 +616,17 @@ const buildFHIRResponse = (
   };
 
   const organisation: Organisation = {
+    ...resolveCheckInConfig({
+      appointmentCheckInBufferMinutes: rest.appointmentCheckInBufferMinutes,
+      appointmentCheckInRadiusMeters: rest.appointmentCheckInRadiusMeters,
+    }),
     _id: rest.fhirId ?? document._id,
     name: rest.name,
     taxId: rest.taxId ?? "",
     DUNSNumber: rest.DUNSNumber,
     imageURL: rest.imageURL,
     type: coerceOrganizationType(rest.type),
+    petNamePreference: rest.petNamePreference,
     phoneNo: rest.phoneNo ?? "",
     website: rest.website,
     address: rest.address
@@ -440,11 +646,87 @@ const buildFHIRResponse = (
     animalWelfareComplianceCertNo: rest.animalWelfareComplianceCertNo,
     fireAndEmergencyCertNo: rest.fireAndEmergencyCertNo,
     googlePlacesId: rest.googlePlacesId,
+    stripeAccountId: rest.stripeAccountId,
   };
 
   const responseOptions = options ?? (typeCoding ? { typeCoding } : undefined);
 
   return toOrganizationResponseDTO(organisation, responseOptions);
+};
+
+type PrismaOrganizationWithAddress = Prisma.OrganizationGetPayload<{
+  include: { address: true };
+}>;
+
+const buildFHIRResponseFromPrisma = (
+  organisation: PrismaOrganizationWithAddress,
+): ReturnType<typeof toOrganizationResponseDTO> => {
+  const response: Organisation = {
+    ...resolveCheckInConfig({
+      appointmentCheckInBufferMinutes:
+        organisation.appointmentCheckInBufferMinutes,
+      appointmentCheckInRadiusMeters:
+        organisation.appointmentCheckInRadiusMeters,
+    }),
+    _id: organisation.fhirId ?? organisation.id,
+    name: organisation.name,
+    taxId: organisation.taxId ?? "",
+    DUNSNumber: organisation.dunsNumber ?? undefined,
+    imageURL: organisation.imageUrl ?? undefined,
+    type: coerceOrganizationType(organisation.type),
+    petNamePreference: organisation.petNamePreference ?? undefined,
+    phoneNo: organisation.phoneNo ?? "",
+    website: organisation.website ?? undefined,
+    address: organisation.address
+      ? {
+          addressLine: organisation.address.addressLine ?? undefined,
+          country: organisation.address.country ?? undefined,
+          city: organisation.address.city ?? undefined,
+          state: organisation.address.state ?? undefined,
+          postalCode: organisation.address.postalCode ?? undefined,
+          latitude: organisation.address.latitude ?? undefined,
+          longitude: organisation.address.longitude ?? undefined,
+        }
+      : undefined,
+    isVerified: organisation.isVerified ?? false,
+    isActive: organisation.isActive ?? true,
+    healthAndSafetyCertNo: organisation.healthAndSafetyCertNo ?? undefined,
+    animalWelfareComplianceCertNo:
+      organisation.animalWelfareComplianceCertNo ?? undefined,
+    fireAndEmergencyCertNo: organisation.fireAndEmergencyCertNo ?? undefined,
+    googlePlacesId: organisation.googlePlacesId ?? undefined,
+    stripeAccountId: organisation.stripeAccountId ?? undefined,
+  };
+
+  const responseOptions = organisation.typeCoding
+    ? {
+        typeCoding:
+          organisation.typeCoding as OrganizationDTOAttributes["typeCoding"],
+      }
+    : undefined;
+
+  return toOrganizationResponseDTO(response, responseOptions);
+};
+
+const toRadians = (value: number) => (value * Math.PI) / 180;
+
+const calculateDistanceMeters = (
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+) => {
+  const earthRadiusMeters = 6371000;
+  const dLat = toRadians(lat2 - lat1);
+  const dLng = toRadians(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRadians(lat1)) *
+      Math.cos(toRadians(lat2)) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return earthRadiusMeters * c;
 };
 
 const resolveIdQuery = (id: unknown) => {
@@ -526,6 +808,47 @@ export const OrganizationService = {
       document = await OrganizationModel.create(persistable);
       created = true;
 
+      const [billingDoc, usageDoc] = await Promise.all([
+        OrgBilling.create({ orgId: document._id }),
+        OrgUsageCounters.create({ orgId: document._id }),
+      ]);
+
+      if (shouldDualWrite) {
+        try {
+          await prisma.organizationBilling.create({
+            data: {
+              id: billingDoc._id.toString(),
+              orgId: document._id.toString(),
+              createdAt: billingDoc.createdAt ?? undefined,
+              updatedAt: billingDoc.updatedAt ?? undefined,
+            },
+          });
+        } catch (err) {
+          handleDualWriteError("OrganizationBilling", err);
+        }
+
+        try {
+          await prisma.organizationUsageCounter.create({
+            data: {
+              id: usageDoc._id.toString(),
+              orgId: document._id.toString(),
+              appointmentsUsed: usageDoc.appointmentsUsed ?? 0,
+              toolsUsed: usageDoc.toolsUsed ?? 0,
+              usersActiveCount: usageDoc.usersActiveCount ?? 0,
+              usersBillableCount: usageDoc.usersBillableCount ?? 0,
+              freeAppointmentsLimit: usageDoc.freeAppointmentsLimit ?? 120,
+              freeToolsLimit: usageDoc.freeToolsLimit ?? 200,
+              freeUsersLimit: usageDoc.freeUsersLimit ?? 10,
+              freeLimitReachedAt: usageDoc.freeLimitReachedAt ?? undefined,
+              createdAt: usageDoc.createdAt ?? undefined,
+              updatedAt: usageDoc.updatedAt ?? undefined,
+            },
+          });
+        } catch (err) {
+          handleDualWriteError("OrganizationUsageCounter", err);
+        }
+      }
+
       // Link organization to user if userId is provided
       if (userId) {
         const userOrg: UserOrganization = {
@@ -543,13 +866,32 @@ export const OrganizationService = {
         });
 
         if (!existingProfile) {
-          await UserProfileModel.create({
+          const profileDoc = await UserProfileModel.create({
             userId,
             organizationId: document._id.toString(),
             personalDetails: {}, // empty
             professionalDetails: {}, // empty
             status: "DRAFT", // auto-set
           });
+
+          if (shouldDualWrite) {
+            try {
+              await prisma.userProfile.create({
+                data: {
+                  id: profileDoc._id.toString(),
+                  userId,
+                  organizationId: document._id.toString(),
+                  personalDetails: {} as Prisma.InputJsonValue,
+                  professionalDetails: {} as Prisma.InputJsonValue,
+                  status: "DRAFT",
+                  createdAt: profileDoc.createdAt ?? undefined,
+                  updatedAt: profileDoc.updatedAt ?? undefined,
+                },
+              });
+            } catch (err) {
+              handleDualWriteError("UserProfile", err);
+            }
+          }
         }
       }
 
@@ -570,6 +912,8 @@ export const OrganizationService = {
       }
     }
 
+    await syncOrganizationToPostgres(document);
+
     const response = buildFHIRResponse(
       document,
       typeCoding ? { typeCoding } : undefined,
@@ -579,6 +923,21 @@ export const OrganizationService = {
   },
 
   async getById(id: string) {
+    if (isReadFromPostgres()) {
+      const identifier = ensureSafeIdentifier(id);
+      if (!identifier) {
+        return null;
+      }
+      const organisation = await prisma.organization.findFirst({
+        where: {
+          OR: [{ id: identifier }, { fhirId: identifier }],
+        },
+        include: { address: true },
+      });
+
+      return organisation ? buildFHIRResponseFromPrisma(organisation) : null;
+    }
+
     const document = await OrganizationModel.findOne(resolveIdQuery(id), null, {
       sanitizeFilter: true,
     });
@@ -591,19 +950,28 @@ export const OrganizationService = {
   },
 
   async listAll() {
+    if (isReadFromPostgres()) {
+      const organisations = await prisma.organization.findMany({
+        include: { address: true },
+      });
+      return organisations.map((org) => buildFHIRResponseFromPrisma(org));
+    }
+
     const documents = await OrganizationModel.find();
     return documents.map((doc) => buildFHIRResponse(doc));
   },
 
   async deleteById(id: string) {
-    const result = await OrganizationModel.findOneAndDelete(
+    const result = await OrganizationModel.findOneAndUpdate(
       resolveIdQuery(id),
+      { $set: { isActive: false } },
       { sanitizeFilter: true },
     );
     if (result) {
       await UserOrganizationService.deleteAllByOrganizationId(id);
       await SpecialityService.deleteAllByOrganizationId(id);
       await OrganisationRoomService.deleteAllByOrganizationId(id);
+      await syncOrganizationToPostgres(result);
     }
     return Boolean(result);
   },
@@ -621,6 +989,8 @@ export const OrganizationService = {
       return null;
     }
 
+    await syncOrganizationToPostgres(document);
+
     return buildFHIRResponse(document, typeCoding ? { typeCoding } : undefined);
   },
 
@@ -634,6 +1004,8 @@ export const OrganizationService = {
     if (!document) {
       return null;
     }
+
+    await syncOrganizationToPostgres(document);
 
     return buildFHIRResponse(document);
   },
@@ -649,6 +1021,8 @@ export const OrganizationService = {
       return null;
     }
 
+    await syncOrganizationToPostgres(document);
+
     return buildFHIRResponse(document);
   },
 
@@ -657,6 +1031,87 @@ export const OrganizationService = {
   ): Promise<OrganisationSearchResult> {
     if (!input.placeId && (!input.lat || !input.lng) && !input.name) {
       throw new OrganizationServiceError("Invalid search input.", 400);
+    }
+
+    if (isReadFromPostgres()) {
+      if (input.placeId) {
+        const org = await prisma.organization.findFirst({
+          where: { googlePlacesId: input.placeId },
+          include: { address: true },
+        });
+        if (org) {
+          return {
+            isPmsOrganisation: true,
+            organisation: buildFHIRResponseFromPrisma(org),
+          };
+        }
+      }
+
+      if (input.lat != null && input.lng != null) {
+        const lat = input.lat;
+        const lng = input.lng;
+        const metersPerDegreeLat = 111000;
+        const latDelta = 120 / metersPerDegreeLat;
+        const lngDelta = 120 / (metersPerDegreeLat * Math.cos(toRadians(lat)));
+
+        const orgs = await prisma.organization.findMany({
+          where: {
+            address: {
+              is: {
+                latitude: {
+                  gte: lat - latDelta,
+                  lte: lat + latDelta,
+                },
+                longitude: {
+                  gte: lng - lngDelta,
+                  lte: lng + lngDelta,
+                },
+              },
+            },
+          },
+          include: { address: true },
+        });
+
+        const closest = orgs.find((org) => {
+          if (org.address?.latitude == null || org.address?.longitude == null) {
+            return false;
+          }
+          const distance = calculateDistanceMeters(
+            lat,
+            lng,
+            org.address.latitude,
+            org.address.longitude,
+          );
+          return distance <= 120;
+        });
+
+        if (closest) {
+          return {
+            isPmsOrganisation: true,
+            organisation: buildFHIRResponseFromPrisma(closest),
+          };
+        }
+      }
+
+      if (input.name) {
+        const safeName = input.name.trim();
+        if (safeName) {
+          const org = await prisma.organization.findFirst({
+            where: { name: { contains: safeName, mode: "insensitive" } },
+            include: { address: true },
+          });
+          if (org) {
+            return {
+              isPmsOrganisation: true,
+              organisation: buildFHIRResponseFromPrisma(org),
+            };
+          }
+        }
+      }
+
+      return {
+        isPmsOrganisation: false,
+      };
     }
 
     // Search using places Id
@@ -728,6 +1183,128 @@ export const OrganizationService = {
 
     const skip = (page - 1) * limit;
 
+    if (isReadFromPostgres()) {
+      const metersPerDegreeLat = 111000;
+      const latDelta = radius / metersPerDegreeLat;
+      const lngDelta = radius / (metersPerDegreeLat * Math.cos(toRadians(lat)));
+
+      let organisations = await prisma.organization.findMany({
+        where: {
+          isVerified: true,
+          isActive: true,
+          address: {
+            is: {
+              latitude: { gte: lat - latDelta, lte: lat + latDelta },
+              longitude: { gte: lng - lngDelta, lte: lng + lngDelta },
+            },
+          },
+        },
+        include: { address: true },
+      });
+
+      organisations = organisations.filter((org) => {
+        if (!org.address?.latitude || !org.address?.longitude) {
+          return false;
+        }
+        const distance = calculateDistanceMeters(
+          lat,
+          lng,
+          org.address.latitude,
+          org.address.longitude,
+        );
+        return distance <= radius;
+      });
+
+      if (organisations.length === 0) {
+        logger.warn(
+          "No nearby organisations found, returning all organisations",
+        );
+        organisations = await prisma.organization.findMany({
+          include: { address: true },
+        });
+      }
+
+      const total = organisations.length;
+      const pageOrgs = organisations.slice(skip, skip + limit);
+      const results = [];
+
+      for (const org of pageOrgs) {
+        const [specialities, services] = await Promise.all([
+          prisma.speciality.findMany({
+            where: { organisationId: org.id },
+          }),
+          prisma.service.findMany({
+            where: { organisationId: org.id },
+          }),
+        ]);
+
+        const specialitiesWithServices = specialities.map((spec) => {
+          const specServices = services.filter(
+            (srv) => srv.specialityId === spec.id,
+          );
+          return {
+            ...spec,
+            services: specServices,
+          };
+        });
+
+        const distanceInMeters =
+          org.address?.latitude && org.address?.longitude
+            ? Math.round(
+                calculateDistanceMeters(
+                  lat,
+                  lng,
+                  org.address.latitude,
+                  org.address.longitude,
+                ),
+              )
+            : null;
+
+        const orgPayload = {
+          _id: org.id,
+          name: org.name,
+          imageURL: org.imageUrl ?? undefined,
+          phoneNo: org.phoneNo ?? undefined,
+          type: org.type,
+          appointmentCheckInBufferMinutes:
+            org.appointmentCheckInBufferMinutes ??
+            DEFAULT_APPOINTMENT_CHECK_IN_BUFFER_MINUTES,
+          appointmentCheckInRadiusMeters:
+            org.appointmentCheckInRadiusMeters ??
+            DEFAULT_APPOINTMENT_CHECK_IN_RADIUS_METERS,
+          address: org.address
+            ? {
+                addressLine: org.address.addressLine ?? undefined,
+                country: org.address.country ?? undefined,
+                city: org.address.city ?? undefined,
+                state: org.address.state ?? undefined,
+                postalCode: org.address.postalCode ?? undefined,
+                latitude: org.address.latitude ?? undefined,
+                longitude: org.address.longitude ?? undefined,
+              }
+            : undefined,
+          googlePlacesId: org.googlePlacesId ?? undefined,
+        };
+
+        results.push({
+          org: orgPayload,
+          distanceInMeters,
+          rating: org.averageRating,
+          specialitiesWithServices,
+        });
+      }
+
+      return {
+        data: results,
+        meta: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
+    }
+
     let docs = await OrganizationModel.find(
       {
         "address.location": {
@@ -739,6 +1316,8 @@ export const OrganizationService = {
             $maxDistance: radius,
           },
         },
+        isVerified: true,
+        isActive: true,
       },
       {
         _id: 1,
@@ -748,6 +1327,8 @@ export const OrganizationService = {
         type: 1,
         address: 1,
         googlePlacesId: 1,
+        appointmentCheckInBufferMinutes: 1,
+        appointmentCheckInRadiusMeters: 1,
       },
     )
       .skip(skip)
@@ -765,6 +1346,8 @@ export const OrganizationService = {
           type: 1,
           address: 1,
           googlePlacesId: 1,
+          appointmentCheckInBufferMinutes: 1,
+          appointmentCheckInRadiusMeters: 1,
         },
       )
         .skip(skip)
@@ -799,7 +1382,15 @@ export const OrganizationService = {
       });
 
       results.push({
-        org,
+        org: {
+          ...org,
+          appointmentCheckInBufferMinutes:
+            org.appointmentCheckInBufferMinutes ??
+            DEFAULT_APPOINTMENT_CHECK_IN_BUFFER_MINUTES,
+          appointmentCheckInRadiusMeters:
+            org.appointmentCheckInRadiusMeters ??
+            DEFAULT_APPOINTMENT_CHECK_IN_RADIUS_METERS,
+        },
         distanceInMeters: org.address?.location
           ? Math.round(
               Math.sqrt(

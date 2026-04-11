@@ -1,0 +1,46 @@
+---
+id: backend-index
+title: Backend API Index
+slug: /apps/backend/api
+---
+
+API docs are split by router. Base paths reflect the registration in `apps/backend/src/routers/index.ts`.
+
+**Routers**
+- [Account Withdrawal API](/apps/backend/api/account-withdrawal)
+- [Adverse Event API](/apps/backend/api/adverse-event)
+- [Appointment API](/apps/backend/api/appointment)
+- [Audit Trail API](/apps/backend/api/audit-trail)
+- [Authusermobile API](/apps/backend/api/authUserMobile)
+- [Availability API](/apps/backend/api/availability)
+- [Base Availability API](/apps/backend/api/base-availability)
+- [Chat API](/apps/backend/api/chat)
+- [Companion Organisation API](/apps/backend/api/companion-organisation)
+- [Companion API](/apps/backend/api/companion)
+- [Contact Us API](/apps/backend/api/contact-us)
+- [Coparentinvite API](/apps/backend/api/coparentInvite)
+- [Dashboard API](/apps/backend/api/dashboard)
+- [Devicetoken API](/apps/backend/api/deviceToken)
+- [Documenso API](/apps/backend/api/documenso)
+- [Document API](/apps/backend/api/document)
+- [Expense API](/apps/backend/api/expense)
+- [Form API](/apps/backend/api/form)
+- [Inventory API](/apps/backend/api/inventory)
+- [Invoice API](/apps/backend/api/invoice)
+- [Mobile.Config API](/apps/backend/api/mobile.config)
+- [Notification API](/apps/backend/api/notification)
+- [Observationtool API](/apps/backend/api/observationTool)
+- [Organisation Document API](/apps/backend/api/organisation-document)
+- [Organisation Invite API](/apps/backend/api/organisation-invite)
+- [Organisation Room API](/apps/backend/api/organisation-room)
+- [Organisationrating API](/apps/backend/api/organisationRating)
+- [Organization API](/apps/backend/api/organization)
+- [Parent Companion API](/apps/backend/api/parent-companion)
+- [Parent API](/apps/backend/api/parent)
+- [Service API](/apps/backend/api/service)
+- [Speciality API](/apps/backend/api/speciality)
+- [Stripe API](/apps/backend/api/stripe)
+- [Task API](/apps/backend/api/task)
+- [User Organization API](/apps/backend/api/user-organization)
+- [User Profile API](/apps/backend/api/user-profile)
+- [User API](/apps/backend/api/user)

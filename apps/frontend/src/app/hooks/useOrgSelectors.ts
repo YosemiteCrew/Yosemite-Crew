@@ -1,7 +1,7 @@
 import { useMemo } from "react";
-import { useOrgStore } from "../stores/orgStore";
+import { useOrgStore } from "@/app/stores/orgStore";
 import { Organisation, UserOrganization } from "@yosemite-crew/types";
-import { OrgWithMembership } from "../types/org";
+import { OrgWithMembership } from "@/app/features/organization/types/org";
 
 export const useOrgList = (): Organisation[] => {
   const orgIds = useOrgStore((s) => s.orgIds);

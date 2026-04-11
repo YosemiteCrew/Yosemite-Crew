@@ -32,8 +32,8 @@ BottomSheetMessage.Highlight = Highlight;
 const createStyles = (theme: any) =>
   StyleSheet.create({
     messageContainer: {
-      paddingHorizontal: theme.spacing[2],
-      marginBottom: theme.spacing[2],
+      paddingHorizontal: theme.spacing['2'],
+      marginBottom: theme.spacing['2'],
     },
     messageText: {
       ...theme.typography.body,

@@ -1,353 +1,815 @@
 import { Types } from "mongoose";
+import { CompanionService } from "../../src/services/companion.service";
 import CompanionModel from "../../src/models/companion";
-import {
-  CompanionService,
-  CompanionServiceError,
-} from "../../src/services/companion.service";
+import CompanionOrganisationModel from "../../src/models/companion-organisation";
 import { ParentService } from "../../src/services/parent.service";
 import {
   ParentCompanionService,
   ParentCompanionServiceError,
 } from "../../src/services/parent-companion.service";
-import { buildS3Key, moveFile } from "src/middlewares/upload";
-import {
-  fromCompanionRequestDTO,
-  toCompanionResponseDTO,
-} from "@yosemite-crew/types";
+import * as UploadMiddleware from "../../src/middlewares/upload";
+import { fromCompanionRequestDTO } from "@yosemite-crew/types";
+import { prisma } from "src/config/prisma";
 
-jest.mock("../../src/models/companion", () => ({
-  __esModule: true,
-  default: {
-    create: jest.fn(),
-    findById: jest.fn(),
-    find: jest.fn(),
-    findByIdAndUpdate: jest.fn(),
-    deleteOne: jest.fn(),
+// --- Mocks ---
+jest.mock("../../src/models/companion");
+jest.mock("../../src/models/companion-organisation");
+jest.mock("../../src/services/parent.service");
+jest.mock("../../src/middlewares/upload");
+jest.mock("src/config/prisma", () => ({
+  prisma: {
+    parentCompanion: {
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    companion: {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      deleteMany: jest.fn(),
+      upsert: jest.fn(),
+    },
+    companionOrganisation: {
+      findMany: jest.fn(),
+    },
   },
 }));
 
-jest.mock("../../src/services/parent.service", () => ({
-  ParentService: {
-    findByLinkedUserId: jest.fn(),
-  },
-}));
-
-jest.mock("../../src/services/parent-companion.service", () => ({
-  ParentCompanionService: {
-    linkParent: jest.fn(),
-    getActiveCompanionIdsForParent: jest.fn(),
-    ensurePrimaryOwnership: jest.fn(),
-    deleteLinksForCompanion: jest.fn(),
-  },
-  ParentCompanionServiceError: class extends Error {
-    statusCode: number;
-    constructor(message: string, statusCode: number) {
-      super(message);
-      this.statusCode = statusCode;
-    }
-  },
-}));
-
-jest.mock("src/middlewares/upload", () => ({
-  buildS3Key: jest.fn(),
-  moveFile: jest.fn(),
-}));
-
-jest.mock("@yosemite-crew/types", () => {
-  const companion = {
-    name: "Buddy",
-    type: "DOG",
-    breed: "Beagle",
-    dateOfBirth: "2020-01-01",
-    gender: "MALE",
-    photoUrl: undefined,
-    currentWeight: 10,
-    colour: "Brown",
-    allergy: "",
-    bloodGroup: "",
-    isneutered: false,
-    ageWhenNeutered: undefined,
-    microchipNumber: "",
-    passportNumber: "",
-    isInsured: false,
-    insurance: null,
-    countryOfOrigin: "USA",
-    source: "mobile",
-    status: "ACTIVE",
-    physicalAttribute: undefined,
-    breedingInfo: undefined,
-    medicalRecords: undefined,
-  };
-
+// Partial Mock for ParentCompanionService to keep the Error class real
+jest.mock("../../src/services/parent-companion.service", () => {
+  const actual = jest.requireActual(
+    "../../src/services/parent-companion.service",
+  );
   return {
-    __esModule: true,
-    fromCompanionRequestDTO: jest.fn().mockReturnValue(companion),
-    toCompanionResponseDTO: jest
-      .fn()
-      .mockImplementation((value: any) => ({ ...value })),
+    ...actual,
+    ParentCompanionService: {
+      linkParent: jest.fn(),
+      getActiveCompanionIdsForParent: jest.fn(),
+      ensurePrimaryOwnership: jest.fn(),
+      deleteLinksForCompanion: jest.fn(),
+    },
   };
 });
 
-const mockedCompanionModel = CompanionModel as unknown as {
-  create: jest.Mock;
-  findById: jest.Mock;
-  find: jest.Mock;
-  findByIdAndUpdate: jest.Mock;
-  deleteOne: jest.Mock;
-};
-
-const mockedParentService = ParentService as unknown as {
-  findByLinkedUserId: jest.Mock;
-};
-
-const mockedParentCompanionService = ParentCompanionService as unknown as {
-  linkParent: jest.Mock;
-  getActiveCompanionIdsForParent: jest.Mock;
-  ensurePrimaryOwnership: jest.Mock;
-  deleteLinksForCompanion: jest.Mock;
-};
-
-const mockedUpload = {
-  buildS3Key: buildS3Key as jest.Mock,
-  moveFile: moveFile as jest.Mock,
-};
-
-const mockedTypes = {
-  fromCompanionRequestDTO: fromCompanionRequestDTO as jest.Mock,
-  toCompanionResponseDTO: toCompanionResponseDTO as jest.Mock,
-};
-
-const makeDoc = (data: Record<string, unknown> = {}) => {
-  const _id = new Types.ObjectId();
-  return {
-    _id,
-    toObject: () => ({
-      _id,
-      ...data,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }),
-    save: jest.fn(),
-  };
-};
+// Mock DTO mappers
+jest.mock("@yosemite-crew/types", () => ({
+  fromCompanionRequestDTO: jest.fn(),
+  toCompanionResponseDTO: jest.fn((data) => ({
+    resourceType: "Companion",
+    ...data,
+  })),
+}));
 
 describe("CompanionService", () => {
+  const validObjectId = new Types.ObjectId().toString();
+  const validParentId = new Types.ObjectId().toString();
+  const validCompanionId = new Types.ObjectId().toString();
+
+  // Base persistable object returned by fromCompanionRequestDTO
+  const mockPersistableBase = {
+    name: "Buddy",
+    type: "DOG",
+    breed: "Labrador",
+    dateOfBirth: "2020-01-01",
+    gender: "MALE",
+    status: "ACTIVE",
+    photoUrl: null,
+    isInsured: false,
+    insurance: null,
+  };
+
+  // Helper to create a mock Mongoose document
+  const createMockDoc = (overrides = {}) => {
+    const data = {
+      _id: new Types.ObjectId(validCompanionId),
+      ...mockPersistableBase,
+      ...overrides,
+    };
+    return {
+      ...data,
+      toObject: () => ({ ...data, _id: data._id }), // Ensure _id is present in plain obj
+      save: jest.fn().mockResolvedValue(true),
+    };
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.READ_FROM_POSTGRES = "false";
   });
 
   describe("create", () => {
-    const payload = { resourceType: "Patient" } as any;
+    const payload: any = { resourceType: "Patient", name: [{ text: "Buddy" }] };
 
-    it("requires context", async () => {
+    it("should throw if context is missing", async () => {
       await expect(CompanionService.create(payload, undefined)).rejects.toThrow(
-        "Parent context is required to create a companion.",
+        "Parent context is required",
       );
     });
 
-    it("creates companion for authenticated user and links parent", async () => {
-      const parentId = new Types.ObjectId();
-      mockedParentService.findByLinkedUserId.mockResolvedValueOnce({
-        _id: parentId,
+    it("should throw if parent not found for authUserId (Mobile Flow)", async () => {
+      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        CompanionService.create(payload, { authUserId: "user123" }),
+      ).rejects.toThrow("Parent record not found");
+    });
+
+    it("should throw if parentMongoId cannot be determined", async () => {
+      await expect(CompanionService.create(payload, {})).rejects.toThrow(
+        "Unable to determine parent",
+      );
+    });
+
+    it("should successfully create companion and link to parent", async () => {
+      (fromCompanionRequestDTO as jest.Mock).mockReturnValue({
+        ...mockPersistableBase,
+      });
+      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({
+        _id: validParentId,
       });
 
-      mockedCompanionModel.create.mockImplementation(async (data) =>
-        makeDoc(data),
-      );
-
-      mockedParentCompanionService.linkParent.mockResolvedValueOnce(undefined);
+      const mockDoc = createMockDoc();
+      (CompanionModel.create as jest.Mock).mockResolvedValue(mockDoc);
+      (ParentCompanionService.linkParent as jest.Mock).mockResolvedValue(true);
 
       const result = await CompanionService.create(payload, {
-        authUserId: "user-1",
+        authUserId: "user123",
       });
 
-      expect(mockedParentService.findByLinkedUserId).toHaveBeenCalledWith(
-        "user-1",
-      );
-      expect(mockedCompanionModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          name: "Buddy",
-          isProfileComplete: true,
-        }),
-      );
-      expect(mockedParentCompanionService.linkParent).toHaveBeenCalledWith({
-        parentId,
-        companionId: expect.any(Types.ObjectId),
+      expect(CompanionModel.create).toHaveBeenCalled();
+      expect(ParentCompanionService.linkParent).toHaveBeenCalledWith({
+        parentId: validParentId,
+        companionId: mockDoc._id,
         role: "PRIMARY",
       });
       expect(result.response.name).toBe("Buddy");
-      expect(mockedTypes.toCompanionResponseDTO).toHaveBeenCalled();
     });
 
-    it("rolls back creation when linking fails", async () => {
-      mockedParentService.findByLinkedUserId.mockResolvedValueOnce({
-        _id: new Types.ObjectId(),
+    it("should handle photo upload if photoUrl is present", async () => {
+      (fromCompanionRequestDTO as jest.Mock).mockReturnValue({
+        ...mockPersistableBase,
+        photoUrl: "temp/path.jpg",
       });
 
-      mockedCompanionModel.create.mockResolvedValueOnce(makeDoc());
-      mockedParentCompanionService.linkParent.mockRejectedValueOnce(
-        new ParentCompanionServiceError("link failed", 500),
+      const mockDoc = createMockDoc({ photoUrl: "temp/path.jpg" });
+      (CompanionModel.create as jest.Mock).mockResolvedValue(mockDoc);
+
+      (UploadMiddleware.buildS3Key as jest.Mock).mockReturnValue("s3-key");
+      (UploadMiddleware.moveFile as jest.Mock).mockResolvedValue(
+        "https://s3.url/img.jpg",
+      );
+
+      await CompanionService.create(payload, {
+        parentMongoId: new Types.ObjectId(validParentId),
+      });
+
+      expect(UploadMiddleware.moveFile).toHaveBeenCalled();
+      expect(mockDoc.photoUrl).toBe("https://s3.url/img.jpg");
+      expect(mockDoc.save).toHaveBeenCalled();
+    });
+
+    it("should rollback (delete companion) if linking fails", async () => {
+      (fromCompanionRequestDTO as jest.Mock).mockReturnValue({
+        ...mockPersistableBase,
+      });
+
+      const mockDoc = createMockDoc();
+      (CompanionModel.create as jest.Mock).mockResolvedValue(mockDoc);
+
+      // Simulate generic error
+      (ParentCompanionService.linkParent as jest.Mock).mockRejectedValue(
+        new Error("Link Failed"),
       );
 
       await expect(
-        CompanionService.create(payload, { authUserId: "user-2" }),
-      ).rejects.toThrow("link failed");
+        CompanionService.create(payload, {
+          parentMongoId: new Types.ObjectId(validParentId),
+        }),
+      ).rejects.toThrow("Link Failed");
 
-      expect(mockedCompanionModel.deleteOne).toHaveBeenCalledTimes(1);
+      expect(CompanionModel.deleteOne).toHaveBeenCalledWith({
+        _id: mockDoc._id,
+      });
+    });
+
+    it("should rethrow ParentCompanionServiceError correctly", async () => {
+      (fromCompanionRequestDTO as jest.Mock).mockReturnValue({
+        ...mockPersistableBase,
+      });
+      const mockDoc = createMockDoc();
+      (CompanionModel.create as jest.Mock).mockResolvedValue(mockDoc);
+
+      // Since we used requireActual, this error will be an instance of the real class
+      const pcError = new ParentCompanionServiceError("PC Error", 409);
+      (ParentCompanionService.linkParent as jest.Mock).mockRejectedValue(
+        pcError,
+      );
+
+      await expect(
+        CompanionService.create(payload, {
+          parentMongoId: new Types.ObjectId(validParentId),
+        }),
+      ).rejects.toThrow("PC Error");
     });
   });
 
   describe("listByParent", () => {
-    it("throws on invalid parent id", async () => {
-      await expect(CompanionService.listByParent("bad")).rejects.toThrow(
+    it("should throw if parentId is invalid", async () => {
+      await expect(CompanionService.listByParent("invalid")).rejects.toThrow(
         "Invalid Parent Document Id",
       );
     });
 
-    it("returns empty when no links exist", async () => {
-      mockedParentCompanionService.getActiveCompanionIdsForParent.mockResolvedValueOnce(
-        [],
-      );
+    it("should return empty list if parent has no active companions", async () => {
+      (
+        ParentCompanionService.getActiveCompanionIdsForParent as jest.Mock
+      ).mockResolvedValue([]);
 
-      const result = await CompanionService.listByParent(
-        new Types.ObjectId().toHexString(),
-      );
-
+      const result = await CompanionService.listByParent(validParentId);
       expect(result.responses).toEqual([]);
     });
 
-    it("returns mapped companions", async () => {
-      const id = new Types.ObjectId();
-      mockedParentCompanionService.getActiveCompanionIdsForParent.mockResolvedValueOnce(
-        [id],
-      );
-      mockedCompanionModel.find.mockResolvedValueOnce([
-        makeDoc({ name: "Buddy" }),
+    it("should return mapped companions", async () => {
+      (
+        ParentCompanionService.getActiveCompanionIdsForParent as jest.Mock
+      ).mockResolvedValue([validCompanionId]);
+      (CompanionModel.find as jest.Mock).mockResolvedValue([createMockDoc()]);
+
+      const result = await CompanionService.listByParent(validParentId);
+      expect(result.responses).toHaveLength(1);
+      expect(result.responses[0].name).toBe("Buddy");
+    });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.parentCompanion.findMany as jest.Mock).mockResolvedValue([
+        { companionId: validCompanionId },
+      ]);
+      (prisma.companion.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: validCompanionId,
+          name: "Buddy",
+          type: "DOG",
+          breed: "Labrador",
+          dateOfBirth: new Date(),
+          gender: "MALE",
+          photoUrl: null,
+          currentWeight: null,
+          colour: null,
+          allergy: null,
+          bloodGroup: null,
+          isNeutered: null,
+          ageWhenNeutered: null,
+          microchipNumber: null,
+          passportNumber: null,
+          isInsured: false,
+          insurance: null,
+          countryOfOrigin: null,
+          source: null,
+          status: null,
+          physicalAttribute: null,
+          breedingInfo: null,
+          medicalRecords: null,
+          isProfileComplete: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
       ]);
 
-      const result = await CompanionService.listByParent(
-        new Types.ObjectId().toHexString(),
+      const result = await CompanionService.listByParent(validParentId);
+
+      expect(result.responses).toHaveLength(1);
+      expect(result.responses[0].name).toBe("Buddy");
+    });
+  });
+
+  describe("listByParentNotInOrganisation", () => {
+    const validOrgId = new Types.ObjectId().toString();
+
+    it("should throw if parentId is invalid", async () => {
+      await expect(
+        CompanionService.listByParentNotInOrganisation("inv", validOrgId),
+      ).rejects.toThrow("Invalid Parent Document Id");
+    });
+
+    it("should throw if organisationId is invalid", async () => {
+      await expect(
+        CompanionService.listByParentNotInOrganisation(validParentId, "inv"),
+      ).rejects.toThrow("Invalid Organisation Document Id");
+    });
+
+    it("should return empty if parent has no active companions", async () => {
+      (
+        ParentCompanionService.getActiveCompanionIdsForParent as jest.Mock
+      ).mockResolvedValue([]);
+      const res = await CompanionService.listByParentNotInOrganisation(
+        validParentId,
+        validOrgId,
+      );
+      expect(res.responses).toEqual([]);
+    });
+
+    it("should filter out companions already linked to the org", async () => {
+      const c1 = new Types.ObjectId(); // Linked
+      const c2 = new Types.ObjectId(); // Unlinked
+
+      (
+        ParentCompanionService.getActiveCompanionIdsForParent as jest.Mock
+      ).mockResolvedValue([c1, c2]);
+
+      // Mock finding existing links
+      (CompanionOrganisationModel.find as jest.Mock).mockReturnValue({
+        lean: jest.fn().mockResolvedValue([{ companionId: c1 }]),
+      });
+
+      (CompanionModel.find as jest.Mock).mockResolvedValue([
+        createMockDoc({ _id: c2, name: "Unlinked" }),
+      ]);
+
+      const res = await CompanionService.listByParentNotInOrganisation(
+        validParentId,
+        validOrgId,
       );
 
-      expect(result.responses[0].name).toBe("Buddy");
-      expect(mockedCompanionModel.find).toHaveBeenCalled();
+      expect(CompanionModel.find).toHaveBeenCalledWith({ _id: { $in: [c2] } });
+      expect(res.responses).toHaveLength(1);
+      expect(res.responses[0].name).toBe("Unlinked");
+    });
+
+    it("should return empty if all companions are already linked", async () => {
+      const c1 = new Types.ObjectId();
+      (
+        ParentCompanionService.getActiveCompanionIdsForParent as jest.Mock
+      ).mockResolvedValue([c1]);
+      (CompanionOrganisationModel.find as jest.Mock).mockReturnValue({
+        lean: jest.fn().mockResolvedValue([{ companionId: c1 }]),
+      });
+
+      const res = await CompanionService.listByParentNotInOrganisation(
+        validParentId,
+        validOrgId,
+      );
+      expect(res.responses).toEqual([]);
+    });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.parentCompanion.findMany as jest.Mock).mockResolvedValue([
+        { companionId: "c1" },
+        { companionId: "c2" },
+      ]);
+      (prisma.companionOrganisation.findMany as jest.Mock).mockResolvedValue([
+        { companionId: "c1" },
+      ]);
+      (prisma.companion.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: "c2",
+          name: "Unlinked",
+          type: "DOG",
+          breed: "Labrador",
+          dateOfBirth: new Date(),
+          gender: "MALE",
+          photoUrl: null,
+          currentWeight: null,
+          colour: null,
+          allergy: null,
+          bloodGroup: null,
+          isNeutered: null,
+          ageWhenNeutered: null,
+          microchipNumber: null,
+          passportNumber: null,
+          isInsured: false,
+          insurance: null,
+          countryOfOrigin: null,
+          source: null,
+          status: null,
+          physicalAttribute: null,
+          breedingInfo: null,
+          medicalRecords: null,
+          isProfileComplete: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ]);
+
+      const res = await CompanionService.listByParentNotInOrganisation(
+        "parent-any",
+        "org-any",
+      );
+
+      expect(res.responses).toHaveLength(1);
+      expect(res.responses[0].name).toBe("Unlinked");
     });
   });
 
   describe("getById", () => {
-    it("returns null for invalid id", async () => {
-      const result = await CompanionService.getById("bad");
-      expect(result).toBeNull();
+    it("should return null if ID is invalid", async () => {
+      expect(await CompanionService.getById("invalid")).toBeNull();
     });
 
-    it("returns mapped response when found", async () => {
-      mockedCompanionModel.findById.mockResolvedValueOnce(
-        makeDoc({ name: "Buddy" }),
-      );
+    it("should return null if document not found", async () => {
+      (CompanionModel.findById as jest.Mock).mockResolvedValue(null);
+      expect(await CompanionService.getById(validObjectId)).toBeNull();
+    });
 
-      const result = await CompanionService.getById(
-        new Types.ObjectId().toHexString(),
-      );
+    it("should return mapped DTO if found", async () => {
+      (CompanionModel.findById as jest.Mock).mockResolvedValue(createMockDoc());
+      const res = await CompanionService.getById(validObjectId);
+      expect(res?.response.name).toBe("Buddy");
+    });
 
-      expect(result?.response.name).toBe("Buddy");
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.companion.findUnique as jest.Mock).mockResolvedValue({
+        id: validCompanionId,
+        name: "Buddy",
+        type: "DOG",
+        breed: "Labrador",
+        dateOfBirth: new Date(),
+        gender: "MALE",
+        photoUrl: null,
+        currentWeight: null,
+        colour: null,
+        allergy: null,
+        bloodGroup: null,
+        isNeutered: null,
+        ageWhenNeutered: null,
+        microchipNumber: null,
+        passportNumber: null,
+        isInsured: false,
+        insurance: null,
+        countryOfOrigin: null,
+        source: null,
+        status: null,
+        physicalAttribute: null,
+        breedingInfo: null,
+        medicalRecords: null,
+        isProfileComplete: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const res = await CompanionService.getById(validCompanionId);
+      expect(res?.response.name).toBe("Buddy");
     });
   });
 
   describe("getByName", () => {
-    it("throws when name missing", async () => {
-      // @ts-expect-error testing invalid input
-      await expect(CompanionService.getByName(undefined)).rejects.toThrow(
-        "Name is required for searching.",
+    it("should throw if name is empty", async () => {
+      await expect(CompanionService.getByName("")).rejects.toThrow(
+        "Name is required",
       );
     });
 
-    it("maps results", async () => {
-      mockedCompanionModel.find.mockResolvedValueOnce([
-        makeDoc({ name: "Buddy" }),
+    it("should return list of matching companions", async () => {
+      (CompanionModel.find as jest.Mock).mockResolvedValue([createMockDoc()]);
+      const res = await CompanionService.getByName("Buddy");
+      expect(res.responses).toHaveLength(1);
+    });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.companion.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: validCompanionId,
+          name: "Buddy",
+          type: "DOG",
+          breed: "Labrador",
+          dateOfBirth: new Date(),
+          gender: "MALE",
+          photoUrl: null,
+          currentWeight: null,
+          colour: null,
+          allergy: null,
+          bloodGroup: null,
+          isNeutered: null,
+          ageWhenNeutered: null,
+          microchipNumber: null,
+          passportNumber: null,
+          isInsured: false,
+          insurance: null,
+          countryOfOrigin: null,
+          source: null,
+          status: null,
+          physicalAttribute: null,
+          breedingInfo: null,
+          medicalRecords: null,
+          isProfileComplete: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
       ]);
 
-      const result = await CompanionService.getByName("bud");
+      const res = await CompanionService.getByName("Buddy");
+      expect(res.responses).toHaveLength(1);
+      expect(prisma.companion.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { name: { contains: "Buddy", mode: "insensitive" } },
+        }),
+      );
+    });
+  });
 
-      expect(result.responses[0].name).toBe("Buddy");
-      expect(mockedCompanionModel.find).toHaveBeenCalled();
+  describe("dual write", () => {
+    const originalDualWrite = process.env.DUAL_WRITE_ENABLED;
+
+    afterEach(() => {
+      process.env.DUAL_WRITE_ENABLED = originalDualWrite;
+    });
+
+    it("syncs companion to postgres on getById when enabled", async () => {
+      process.env.DUAL_WRITE_ENABLED = "true";
+      jest.resetModules();
+
+      let CompanionServiceIsolated!: typeof CompanionService;
+      let CompanionModelIsolated!: typeof CompanionModel;
+      let prismaIsolated!: typeof prisma;
+
+      jest.isolateModules(() => {
+        CompanionServiceIsolated =
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          require("../../src/services/companion.service").CompanionService;
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        CompanionModelIsolated = require("../../src/models/companion").default;
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        prismaIsolated = require("src/config/prisma").prisma;
+      });
+
+      const doc = createMockDoc({
+        breed: undefined,
+        speciesCode: "SPC",
+        breedCode: "BRD",
+        gender: "FEMALE",
+        isNeutered: true,
+        isInsured: undefined,
+        insurance: { provider: "ABC" },
+        source: "BREEDER",
+        status: "ACTIVE",
+        physicalAttribute: { coat: "short" },
+        breedingInfo: { litter: 1 },
+        medicalRecords: [{ note: "record" }],
+        isProfileComplete: true,
+      });
+
+      (CompanionModelIsolated.findById as jest.Mock).mockResolvedValue(doc);
+
+      await CompanionServiceIsolated.getById(validCompanionId);
+
+      expect(prismaIsolated.companion.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: doc._id.toString() },
+          create: expect.objectContaining({
+            breed: "",
+            speciesCode: "SPC",
+            breedCode: "BRD",
+            isNeutered: true,
+            isInsured: false,
+            source: "BREEDER",
+            status: "ACTIVE",
+            isProfileComplete: true,
+          }),
+        }),
+      );
     });
   });
 
   describe("update", () => {
-    const payload = { resourceType: "Patient" } as any;
+    const payload: any = { resourceType: "Companion" };
 
-    it("returns null when id is invalid", async () => {
-      const result = await CompanionService.update("bad", payload);
-      expect(result).toBeNull();
+    it("should return null if ID is invalid", async () => {
+      expect(await CompanionService.update("invalid", payload)).toBeNull();
     });
 
-    it("updates and maps companion", async () => {
-      mockedCompanionModel.findByIdAndUpdate.mockResolvedValueOnce(
-        makeDoc({ name: "New Name" }),
+    it("should update and return doc if found", async () => {
+      (fromCompanionRequestDTO as jest.Mock).mockReturnValue({
+        ...mockPersistableBase,
+        name: "Updated",
+      });
+      const updatedDoc = createMockDoc({ name: "Updated" });
+
+      (CompanionModel.findByIdAndUpdate as jest.Mock).mockResolvedValue(
+        updatedDoc,
       );
 
-      const result = await CompanionService.update(
-        new Types.ObjectId().toHexString(),
-        payload,
-      );
+      const res = await CompanionService.update(validObjectId, payload);
 
-      expect(result?.response.name).toBe("New Name");
-      expect(mockedCompanionModel.findByIdAndUpdate).toHaveBeenCalled();
+      expect(res?.response.name).toBe("Updated");
+      expect(CompanionModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        validObjectId,
+        { $set: expect.objectContaining({ name: "Updated" }) },
+        expect.anything(),
+      );
+    });
+
+    it("should return null if document not found during update", async () => {
+      (fromCompanionRequestDTO as jest.Mock).mockReturnValue({
+        ...mockPersistableBase,
+      });
+      (CompanionModel.findByIdAndUpdate as jest.Mock).mockResolvedValue(null);
+      expect(await CompanionService.update(validObjectId, payload)).toBeNull();
+    });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (fromCompanionRequestDTO as jest.Mock).mockReturnValue({
+        ...mockPersistableBase,
+        name: "Updated",
+      });
+      (prisma.companion.update as jest.Mock).mockResolvedValue({
+        id: validCompanionId,
+        name: "Updated",
+        type: "DOG",
+        breed: "Labrador",
+        dateOfBirth: new Date(),
+        gender: "MALE",
+        photoUrl: null,
+        currentWeight: null,
+        colour: null,
+        allergy: null,
+        bloodGroup: null,
+        isNeutered: null,
+        ageWhenNeutered: null,
+        microchipNumber: null,
+        passportNumber: null,
+        isInsured: false,
+        insurance: null,
+        countryOfOrigin: null,
+        source: null,
+        status: null,
+        physicalAttribute: null,
+        breedingInfo: null,
+        medicalRecords: null,
+        isProfileComplete: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const res = await CompanionService.update(validCompanionId, payload);
+      expect(res?.response.name).toBe("Updated");
+      expect(prisma.companion.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: validCompanionId } }),
+      );
     });
   });
 
   describe("delete", () => {
-    it("throws on invalid id", async () => {
-      await expect(CompanionService.delete("bad")).rejects.toThrow(
-        "Invalid companion identifier.",
+    const context = { authUserId: "user123" };
+
+    it("should throw if ID is invalid", async () => {
+      await expect(CompanionService.delete("invalid", context)).rejects.toThrow(
+        "Invalid companion identifier",
       );
     });
 
-    it("requires authenticated user", async () => {
-      const id = new Types.ObjectId().toHexString();
-      await expect(CompanionService.delete(id)).rejects.toThrow(
-        "Authenticated user is required to delete a companion.",
+    it("should throw if authUserId is missing (security check)", async () => {
+      await expect(CompanionService.delete(validObjectId, {})).rejects.toThrow(
+        "Authenticated user is required",
       );
     });
 
-    it("throws when parent not found", async () => {
-      mockedParentService.findByLinkedUserId.mockResolvedValueOnce(null);
-      const id = new Types.ObjectId().toHexString();
+    it("should throw if parent record not found for user", async () => {
+      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue(null);
+      await expect(
+        CompanionService.delete(validObjectId, context),
+      ).rejects.toThrow("Parent record not found");
+    });
+
+    it("should throw if companion not found", async () => {
+      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({
+        _id: validParentId,
+      });
+      (CompanionModel.findById as jest.Mock).mockResolvedValue(null);
 
       await expect(
-        CompanionService.delete(id, { authUserId: "user-3" }),
-      ).rejects.toThrow("Parent record not found for authenticated user.");
+        CompanionService.delete(validObjectId, context),
+      ).rejects.toThrow("Companion not found");
     });
 
-    it("deletes companion and links when authorized", async () => {
-      const parentId = new Types.ObjectId();
-      const companionId = new Types.ObjectId();
-
-      mockedParentService.findByLinkedUserId.mockResolvedValueOnce({
-        _id: parentId,
+    it("should successfully delete companion and links", async () => {
+      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({
+        _id: validParentId,
       });
-      mockedCompanionModel.findById.mockResolvedValueOnce({ _id: companionId });
-      mockedParentCompanionService.ensurePrimaryOwnership.mockResolvedValueOnce(
-        undefined,
-      );
-      mockedParentCompanionService.deleteLinksForCompanion.mockResolvedValueOnce(
-        undefined,
-      );
-      mockedCompanionModel.deleteOne.mockResolvedValueOnce(undefined);
+      const mockDoc = createMockDoc();
+      (CompanionModel.findById as jest.Mock).mockResolvedValue(mockDoc);
+      (
+        ParentCompanionService.ensurePrimaryOwnership as jest.Mock
+      ).mockResolvedValue(true);
 
-      await CompanionService.delete(companionId.toHexString(), {
-        authUserId: "user-4",
-      });
+      await CompanionService.delete(validObjectId, context);
 
+      expect(ParentCompanionService.ensurePrimaryOwnership).toHaveBeenCalled();
       expect(
-        mockedParentCompanionService.ensurePrimaryOwnership,
-      ).toHaveBeenCalledWith(parentId, companionId);
-      expect(
-        mockedParentCompanionService.deleteLinksForCompanion,
-      ).toHaveBeenCalledWith(companionId);
-      expect(mockedCompanionModel.deleteOne).toHaveBeenCalledWith({
-        _id: companionId,
+        ParentCompanionService.deleteLinksForCompanion,
+      ).toHaveBeenCalledWith(mockDoc._id);
+      expect(CompanionModel.deleteOne).toHaveBeenCalledWith({
+        _id: mockDoc._id,
       });
+    });
+
+    it("should rethrow ParentCompanionServiceError (e.g. ownership check)", async () => {
+      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({
+        _id: validParentId,
+      });
+      (CompanionModel.findById as jest.Mock).mockResolvedValue(createMockDoc());
+
+      const error = new ParentCompanionServiceError("Not Owner", 403);
+      (
+        ParentCompanionService.ensurePrimaryOwnership as jest.Mock
+      ).mockRejectedValue(error);
+
+      await expect(
+        CompanionService.delete(validObjectId, context),
+      ).rejects.toThrow("Not Owner");
+    });
+
+    it("should rethrow generic errors", async () => {
+      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({
+        _id: validParentId,
+      });
+      (CompanionModel.findById as jest.Mock).mockRejectedValue(
+        new Error("DB Error"),
+      );
+
+      await expect(
+        CompanionService.delete(validObjectId, context),
+      ).rejects.toThrow("DB Error");
+    });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({
+        id: validParentId,
+      });
+      (prisma.parentCompanion.findFirst as jest.Mock).mockResolvedValue({
+        id: "link-1",
+      });
+      (prisma.parentCompanion.deleteMany as jest.Mock).mockResolvedValue({
+        count: 1,
+      });
+      (prisma.companion.deleteMany as jest.Mock).mockResolvedValue({
+        count: 1,
+      });
+
+      await CompanionService.delete(validCompanionId, context);
+
+      expect(prisma.parentCompanion.deleteMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { companionId: validCompanionId } }),
+      );
+      expect(prisma.companion.deleteMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: validCompanionId } }),
+      );
+    });
+
+    it("throws in postgres path when no active primary link", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({
+        id: validParentId,
+      });
+      (prisma.parentCompanion.findFirst as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        CompanionService.delete(validCompanionId, context),
+      ).rejects.toThrow("You are not authorized to modify this companion.");
+    });
+  });
+
+  describe("Logic: computeIsProfileComplete", () => {
+    it("should calculate isProfileComplete = false if required fields missing", async () => {
+      const incomplete = {
+        ...mockPersistableBase,
+        breed: undefined,
+        gender: undefined,
+      };
+      (fromCompanionRequestDTO as jest.Mock).mockReturnValue(incomplete);
+
+      const spy = jest.fn().mockResolvedValue(createMockDoc());
+      (CompanionModel.findByIdAndUpdate as jest.Mock).mockImplementation(spy);
+
+      await CompanionService.update(validObjectId, {} as any);
+
+      const updateCall = spy.mock.calls[0];
+      const updatePayload = updateCall[1].$set;
+
+      expect(updatePayload.isProfileComplete).toBe(false);
+    });
+
+    it("should calculate isProfileComplete = true if all fields present", async () => {
+      const complete = {
+        ...mockPersistableBase,
+        breed: "Mix",
+        gender: "MALE",
+        status: "ACTIVE",
+      };
+      (fromCompanionRequestDTO as jest.Mock).mockReturnValue(complete);
+
+      const spy = jest.fn().mockResolvedValue(createMockDoc());
+      (CompanionModel.findByIdAndUpdate as jest.Mock).mockImplementation(spy);
+
+      await CompanionService.update(validObjectId, {} as any);
+
+      const updatePayload = spy.mock.calls[0][1].$set;
+      expect(updatePayload.isProfileComplete).toBe(true);
     });
   });
 });

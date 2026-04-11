@@ -1,0 +1,389 @@
+.HeroSection {
+  min-height: 90vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+.HeroContainer {
+  display: flex;
+  max-width: 1560px;
+  width: 100%;
+  min-height: inherit;
+  align-items: center;
+  padding: 0 80px;
+  gap: 60px;
+}
+
+.LeftHeroSection {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  flex-direction: column;
+  gap: 20px;
+  width: 50%;
+}
+.LeftHeroText {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.LeftHeroText > div:first-child {
+  max-width: 560px;
+  margin: 0;
+}
+.LeftHeroText > div:nth-child(2) {
+  margin: 0;
+}
+.LeftHeroButtons {
+  display: flex;
+  width: 100%;
+  gap: 20px;
+}
+
+.RightHeroSection {
+  width: 50%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  max-height: 90vh;
+}
+.RightHeroSection .carousel {
+  width: 100%;
+  max-height: 90vh;
+}
+.LandingCarouselDiv {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.LandingCarouselDiv img {
+  width: 100%;
+  height: auto;
+  max-height: calc(90vh - 140px);
+  object-fit: cover;
+}
+.carousel-text > div {
+  margin: 0;
+}
+.carousel-indicators {
+  position: absolute;
+  right: 0;
+  bottom: 20px !important;
+  left: 20px !important;
+  justify-content: left;
+  margin: 0 !important;
+  width: fit-content !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 5;
+}
+.carousel-indicators button {
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 50% !important;
+  background: var(--lightgrey) !important;
+  border: none !important;
+  margin: 0 !important;
+}
+.carousel-indicators button.active {
+  background: var(--black-bg) !important;
+}
+.carousel-control-next,
+.carousel-control-prev {
+  position: absolute;
+  top: inherit;
+  bottom: 20px !important;
+  right: 0px !important;
+  left: inherit !important;
+  background: var(--whitebg) !important;
+  border-radius: 50% !important;
+  width: 48px !important;
+  height: 48px !important;
+  z-index: 5;
+}
+.carousel-control-prev {
+  right: 70px !important;
+}
+.carousel-control-next {
+  right: 10px !important;
+}
+.custom-arrow svg {
+  color: var(--greyborder);
+}
+.carousel-img {
+  object-fit: cover;
+  border-radius: 8px;
+}
+.carousel-text {
+  text-align: left;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--color-neutral-950);
+  padding: 20px;
+  padding-bottom: 80px;
+  height: 140px;
+  background: var(--lightblue);
+  display: flex;
+  align-items: flex-start;
+  position: relative;
+}
+.carousel-caption {
+  position: static !important;
+  padding: 0 !important;
+  text-align: left !important;
+}
+.carousel-indicators [data-bs-target] {
+  background-color: var(--color-neutral-950);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.carousel-control-prev-icon,
+.carousel-control-next-icon {
+  filter: invert(1);
+}
+
+@media screen and (max-width: 1280px) {
+  .HeroContainer {
+    padding: 0 48px;
+    gap: 40px;
+  }
+  .HeroSection {
+    padding: 32px 0;
+  }
+}
+@media screen and (max-width: 1024px) {
+  .HeroSection {
+    min-height: auto;
+    padding: 24px 0;
+  }
+  .HeroContainer {
+    flex-direction: column;
+    padding: 0 48px;
+    gap: 32px;
+    align-items: center;
+  }
+  .LeftHeroSection {
+    width: 100%;
+    gap: 16px;
+    align-items: center;
+  }
+  .RightHeroSection {
+    width: 100%;
+  }
+  .LeftHeroText > div:first-child {
+    text-align: center;
+    max-width: 100%;
+  }
+  .LeftHeroText > div:nth-child(2) {
+    text-align: center;
+  }
+  .LeftHeroButtons {
+    justify-content: center;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .HeroContainer {
+    padding: 0;
+  }
+  .HeroSection {
+    padding: 0;
+  }
+  .carousel-text {
+    min-height: 80px;
+    padding: 16px;
+  }
+  .LeftHeroText .text-display-1 {
+    text-align: center;
+  }
+  .LeftHeroText .text-body-2 {
+    max-width: 520px;
+    text-align: center;
+  }
+}
+
+@media screen and (max-width: 640px) {
+  .LeftHeroText {
+    gap: 6px;
+    align-items: center;
+    text-align: center;
+    padding: 16px;
+  }
+  .LeftHeroText .text-body-2 {
+    max-width: 100%;
+  }
+}
+
+@media screen and (max-width: 640px) {
+  .LeftHeroButtons {
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 0 16px 16px;
+  }
+  .LeftHeroButtons a {
+    width: 100% !important;
+  }
+  .carousel-indicators {
+    bottom: 16px !important;
+    left: 16px !important;
+  }
+  .custom-arrow svg {
+    height: 36px;
+    width: 36px;
+  }
+  .carousel-control-next,
+  .carousel-control-prev {
+    bottom: 16px !important;
+    width: 36px !important;
+    height: 36px !important;
+  }
+  .carousel-control-prev {
+    right: 60px !important;
+  }
+  .carousel-control-next {
+    right: 10px !important;
+  }
+}
+
+/* New Hero Section with Star Ripple Animation */
+.new-hero-section {
+  min-height: calc(100vh - 80px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, #c0e5ff 0%, #ebf7ff 50%, #d6edff 100%);
+  border-radius: 0 0 20px 20px;
+}
+
+.star-ripple-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.ripple-glow {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(232, 244, 252, 0.8) 30%,
+    rgba(184, 221, 245, 0.4) 60%,
+    rgba(134, 197, 237, 0.1) 100%
+  );
+  filter: blur(40px);
+}
+
+.new-hero-content {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  max-width: 800px;
+  padding: 0 24px;
+  gap: 24px;
+  margin-top: -3%;
+}
+
+.new-hero-cta {
+  margin-top: 16px;
+}
+
+/* Hero animal images - positioned relative to .new-hero-section */
+.hero-dog-image {
+  position: absolute;
+  right: 0;
+  top: 5%;
+  transform: translateY(-50%);
+  z-index: 5;
+  pointer-events: none;
+}
+
+.hero-dog-image img {
+  width: 8vw;
+}
+
+.hero-horse-image {
+  position: absolute;
+  left: -20px;
+  bottom: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.hero-horse-image img {
+  height: 60vh;
+  width: 25vw;
+  display: block;
+  object-fit: contain;
+  object-position: bottom left;
+}
+
+/* Responsive styles for new hero */
+@media screen and (max-width: 1024px) {
+  .new-hero-content {
+    padding: 0 80px;
+  }
+  .ripple-glow {
+    width: 500px;
+    height: 500px;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .new-hero-section {
+    min-height: calc(100vh - 70px);
+  }
+  .new-hero-content {
+    gap: 20px;
+    padding: 0 20px;
+  }
+  .ripple-glow {
+    width: 400px;
+    height: 400px;
+  }
+  .hero-dog-image img {
+    width: 9.6vw;
+  }
+  .hero-horse-image img {
+    height: 66vh;
+    width: 27.5vw;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .new-hero-content {
+    gap: 16px;
+    padding: 0 16px;
+  }
+  .ripple-glow {
+    width: 300px;
+    height: 300px;
+  }
+  .hero-dog-image img {
+    width: 9.6vw;
+  }
+  .hero-horse-image img {
+    height: 66vh;
+    width: 27.5vw;
+  }
+}

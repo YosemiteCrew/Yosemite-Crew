@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../../../setup/mockTheme';
 import {
   render,
   fireEvent,
@@ -62,25 +63,7 @@ jest.mock('../../../../src/features/linkedBusinesses/index', () => ({
 
 // 4. Mock Hooks & Assets
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        background: 'white',
-        text: 'black',
-        secondary: 'blue',
-        borderMuted: 'gray',
-        cardBackground: 'white',
-        white: 'white',
-        border: 'gray', // Added missing color used in styles
-      },
-      spacing: [0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48],
-      borderRadius: {lg: 12},
-      typography: {
-        captionBoldSatoshi: {fontSize: 12},
-        cta: {fontSize: 14},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 jest.mock('@/assets/images', () => ({

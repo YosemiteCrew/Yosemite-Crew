@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, act} from '@testing-library/react-native';
 import DeleteDocumentBottomSheet, {
   type DeleteDocumentBottomSheetRef,
@@ -7,19 +8,9 @@ import DeleteDocumentBottomSheet, {
 // --- Mocks ---
 
 // 1. Mock useTheme
-const mockTheme = {
-  colors: {
-    secondary: 'mockSecondaryColor',
-    surface: 'mockSurfaceColor',
-    borderMuted: 'mockBorderColor',
-    white: 'mockWhiteColor',
-  },
-  typography: {
-    buttonH6Clash19: {fontSize: 16, fontWeight: '600'},
-  },
-};
+
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({theme: mockTheme}),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 2. Mock child ConfirmActionBottomSheet

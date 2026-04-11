@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, screen, act} from '@testing-library/react-native';
 import {OnboardingScreen} from '../../../../src/features/onboarding/screens/OnboardingScreen';
 import {Image, FlatList} from 'react-native';
@@ -7,22 +8,7 @@ import {Image, FlatList} from 'react-native';
 
 // 1. Mock Theme
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        black: '#000000',
-        textSecondary: '#888888',
-        white: '#FFFFFF',
-      },
-      spacing: {
-        '4': 16,
-        '6': 24,
-      },
-      typography: {
-        h5: {fontSize: 20, fontWeight: 'bold'},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 2. Mock LiquidGlassButton
@@ -49,6 +35,7 @@ jest.mock('react-native-safe-area-context', () => ({
     const {View} = require('react-native');
     return <View style={style}>{children}</View>;
   },
+  useSafeAreaInsets: () => ({top: 0, bottom: 0, left: 0, right: 0}),
 }));
 
 // 4. Mock Image Assets

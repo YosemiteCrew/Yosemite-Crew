@@ -1,6 +1,7 @@
 import React from 'react';
 import {render, fireEvent, screen} from '@testing-library/react-native';
 import {ReminderSection} from '../../../../../../src/features/tasks/screens/AddTaskScreen/components/ReminderSection';
+import {mockTheme} from '../../../../../setup/mockTheme';
 
 // --- Mocks ---
 
@@ -19,13 +20,7 @@ jest.mock('@/shared/utils/formStyles', () => ({
 
 describe('ReminderSection', () => {
   const mockUpdateField = jest.fn();
-  const mockTheme = {
-    colors: {
-      borderMuted: 'gray',
-      primary: 'blue',
-      white: 'white',
-    },
-  };
+  
   const mockOptions = ['5-mins-prior', '1-hour-prior'];
 
   const defaultProps = {

@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, screen} from '@testing-library/react-native';
 import {FormScreenLayout} from '@/shared/components/common/FormScreenLayout';
 import {Text} from 'react-native';
@@ -53,6 +54,7 @@ jest.mock('react-native-safe-area-context', () => {
         {...props, testID: 'safe-area-view'},
         props.children,
       ),
+    useSafeAreaInsets: () => ({top: 0, bottom: 0, left: 0, right: 0}),
   };
 });
 
@@ -69,28 +71,10 @@ jest.mock('@/shared/components/common/LiquidGlassCard/LiquidGlassCard', () => ({
 }));
 
 // 5. Mock useTheme
-const mockTheme = {
-  colors: {
-    white: '#ffffff',
-    cardBackground: '#f0f0f0',
-    borderMuted: '#cccccc',
-  },
-  spacing: {
-    '1': 4,
-    '2': 8,
-    '5': 20,
-    '10': 40,
-  },
-  borderRadius: {
-    lg: 12,
-  },
-  shadows: {
-    md: {shadowOpacity: 0.5},
-  },
-};
+
 
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({theme: mockTheme}),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 6. Mock screenStyles

@@ -2,14 +2,14 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-jest.mock("@/app/components/Cards/CardHeader/CardHeader", () => ({
+jest.mock("@/app/ui/cards/CardHeader/CardHeader", () => ({
   __esModule: true,
   default: ({ title }: { title: string }) => (
     <div data-testid="card-header">{title}</div>
   ),
 }));
 
-import ExploreCard from "@/app/components/Cards/ExploreCard/ExploreCard";
+import ExploreCard from "@/app/ui/cards/ExploreCard/ExploreCard";
 
 describe("ExploreCard", () => {
   test("renders card header and default stats", () => {

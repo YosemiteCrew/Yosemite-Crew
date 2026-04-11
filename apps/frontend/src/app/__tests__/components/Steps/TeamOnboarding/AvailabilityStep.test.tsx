@@ -1,31 +1,181 @@
-import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
-import "@testing-library/jest-dom";
+import React from 'react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import AvailabilityStep from '@/app/features/onboarding/components/Steps/TeamOnboarding/AvailabilityStep';
+import { upsertAvailability } from '@/app/features/organization/services/availabilityService';
+import {
+  convertAvailability,
+  hasAtLeastOneAvailability,
+} from '@/app/features/appointments/components/Availability/utils';
 
-jest.mock("@/app/components/Buttons", () => ({
-  Primary: ({ text }: any) => <a href="/dashboard">{text}</a>,
-  Secondary: ({ text, onClick }: any) => (
-    <button onClick={(e: any) => onClick?.(e)}>{text}</button>
+// --- Mocks ---
+
+// 1. Mock Service
+jest.mock('@/app/features/organization/services/availabilityService', () => ({
+  upsertAvailability: jest.fn(),
+}));
+
+// 2. Mock Utils
+jest.mock('@/app/features/appointments/components/Availability/utils', () => ({
+  convertAvailability: jest.fn(),
+  hasAtLeastOneAvailability: jest.fn(),
+}));
+
+// 3. Mock Child Components
+// Mock the complex Availability component to isolate the step logic
+jest.mock('@/app/features/appointments/components/Availability/Availability', () => () => (
+  <div data-testid="availability-component">Mock Availability UI</div>
+));
+
+// Mock Buttons
+jest.mock('@/app/ui/primitives/Buttons', () => ({
+  Primary: ({ onClick, text, isDisabled }: any) => (
+    <button data-testid="btn-next" onClick={onClick} disabled={isDisabled}>
+      {text}
+    </button>
   ),
 }));
 
-jest.mock("@/app/components/Availability/Availability", () => ({
-  __esModule: true,
-  default: () => <div data-testid="availability-component" />,
-}));
+describe('AvailabilityStep Component', () => {
+  const mockPrevStep = jest.fn();
+  const mockSetAvailability = jest.fn();
+  const mockOrgId = 'org-123';
+  const mockAvailabilityState = { monday: [] } as any; // Dummy state
+  const mockConvertedData = [{ day: 'monday', slots: [] }]; // Dummy converted
 
-import AvailabilityStep from "@/app/components/Steps/TeamOnboarding/AvailabilityStep";
+  beforeEach(() => {
+    jest.clearAllMocks();
 
-describe("TeamOnboarding AvailabilityStep", () => {
-  test("renders availability component and handles back action", () => {
-    const prevStep = jest.fn();
-    render(<AvailabilityStep prevStep={prevStep} />);
+    // Default mock implementations
+    (convertAvailability as jest.Mock).mockReturnValue(mockConvertedData);
+    (hasAtLeastOneAvailability as jest.Mock).mockReturnValue(true);
 
-    expect(screen.getByTestId("availability-component")).toBeInTheDocument();
+    // Spy on console.log to avoid clutter and verify error logging
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+  });
 
-    fireEvent.click(screen.getByText("Back"));
-    expect(prevStep).toHaveBeenCalled();
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
 
-    expect(screen.getByText("Next")).toHaveAttribute("href", "/dashboard");
+  // --- Section 1: Rendering ---
+  it('renders the container, title, and child components', () => {
+    render(
+      <AvailabilityStep
+        prevStep={mockPrevStep}
+        orgIdFromQuery={mockOrgId}
+        availability={mockAvailabilityState}
+        setAvailability={mockSetAvailability}
+      />
+    );
+
+    expect(screen.getByText('Availability')).toBeInTheDocument();
+    expect(screen.getByTestId('availability-component')).toBeInTheDocument();
+    expect(screen.getByTestId('btn-next')).toBeInTheDocument();
+  });
+
+  // --- Section 2: Validation (No Slots) ---
+  it('logs message and aborts submission if no availability is selected', async () => {
+    (hasAtLeastOneAvailability as jest.Mock).mockReturnValue(false);
+
+    render(
+      <AvailabilityStep
+        prevStep={mockPrevStep}
+        orgIdFromQuery={mockOrgId}
+        availability={mockAvailabilityState}
+        setAvailability={mockSetAvailability}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('btn-next'));
+
+    // Check flow
+    await waitFor(() => {
+      expect(convertAvailability).toHaveBeenCalledWith(mockAvailabilityState);
+      expect(hasAtLeastOneAvailability).toHaveBeenCalledWith(mockConvertedData);
+    });
+
+    // Ensure service was NOT called
+    expect(upsertAvailability).not.toHaveBeenCalled();
+
+    // Verify log
+    expect(console.log).toHaveBeenCalledWith('No availability selected');
+  });
+
+  // --- Section 3: Successful Submission ---
+  it('converts data and calls upsertAvailability on success', async () => {
+    (hasAtLeastOneAvailability as jest.Mock).mockReturnValue(true);
+    (upsertAvailability as jest.Mock).mockResolvedValue({});
+
+    render(
+      <AvailabilityStep
+        prevStep={mockPrevStep}
+        orgIdFromQuery={mockOrgId}
+        availability={mockAvailabilityState}
+        setAvailability={mockSetAvailability}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('btn-next'));
+
+    await waitFor(() => {
+      expect(convertAvailability).toHaveBeenCalledWith(mockAvailabilityState);
+      expect(upsertAvailability).toHaveBeenCalledWith(mockConvertedData, mockOrgId);
+    });
+  });
+
+  it('disables button and shows loading text while saving', async () => {
+    let resolveRequest: (() => void) | undefined;
+    (upsertAvailability as jest.Mock).mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveRequest = resolve;
+        })
+    );
+
+    render(
+      <AvailabilityStep
+        prevStep={mockPrevStep}
+        orgIdFromQuery={mockOrgId}
+        availability={mockAvailabilityState}
+        setAvailability={mockSetAvailability}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('btn-next'));
+
+    expect(screen.getByRole('button', { name: 'Saving...' })).toBeDisabled();
+
+    await waitFor(() => {
+      expect(upsertAvailability).toHaveBeenCalled();
+    });
+
+    if (resolveRequest) {
+      resolveRequest();
+    }
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled();
+    });
+  });
+
+  // --- Section 4: Error Handling ---
+  it('catches and logs errors from upsertAvailability', async () => {
+    const error = new Error('Network Error');
+    (upsertAvailability as jest.Mock).mockRejectedValue(error);
+
+    render(
+      <AvailabilityStep
+        prevStep={mockPrevStep}
+        orgIdFromQuery={mockOrgId}
+        availability={mockAvailabilityState}
+        setAvailability={mockSetAvailability}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('btn-next'));
+
+    await waitFor(() => {
+      expect(upsertAvailability).toHaveBeenCalled();
+      expect(console.log).toHaveBeenCalledWith(error);
+    });
   });
 });

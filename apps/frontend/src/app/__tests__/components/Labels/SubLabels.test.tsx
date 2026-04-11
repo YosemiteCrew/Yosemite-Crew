@@ -1,54 +1,59 @@
-import React from "react";
-import { act, fireEvent, render, screen } from "@testing-library/react";
-import "@testing-library/jest-dom";
-import SubLabels from "@/app/components/Labels/SubLabels";
+import React from 'react';
+import { render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import SubLabels from '@/app/ui/widgets/Labels/SubLabels';
 
-const LABELS = [
-  { key: "companion", name: "Companion" },
-  { key: "parent", name: "Parent" },
-];
+jest.mock('next/link', () => ({
+  __esModule: true,
+  default: ({ children, href, ...rest }: any) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  ),
+}));
 
-describe("<SubLabels />", () => {
-  test("renders buttons with active styling and handles clicks", () => {
-    const setActiveLabel = jest.fn();
-    const { container } = render(
+describe('SubLabels', () => {
+  it('renders a redirect pill for labels with redirect metadata', () => {
+    render(
       <SubLabels
-        labels={LABELS}
-        activeLabel="companion"
-        setActiveLabel={setActiveLabel}
-      />
-    );
-
-    const wrapper = container.firstChild as HTMLDivElement;
-    expect(wrapper.className).toContain("justify-center");
-
-    fireEvent.click(screen.getByRole("button", { name: "Parent" }));
-    expect(setActiveLabel).toHaveBeenCalledWith("parent");
-  });
-
-  test("switches to justify-start when content overflows", () => {
-    const { container } = render(
-      <SubLabels
-        labels={LABELS}
-        activeLabel="companion"
+        labels={[
+          {
+            key: 'merck-manuals',
+            name: <span>MSD Veterinary Manual</span>,
+            redirectHref: '/integrations/merck-manuals',
+            redirectLabel: 'Open MSD Veterinary Manual',
+          },
+        ]}
+        activeLabel="merck-manuals"
         setActiveLabel={jest.fn()}
       />
     );
-    const wrapper = container.firstChild as HTMLDivElement;
 
-    Object.defineProperty(wrapper, "scrollWidth", {
-      configurable: true,
-      value: 200,
-    });
-    Object.defineProperty(wrapper, "clientWidth", {
-      configurable: true,
-      value: 100,
-    });
+    expect(screen.getByRole('link', { name: 'Open MSD Veterinary Manual' })).toHaveAttribute(
+      'href',
+      '/integrations/merck-manuals'
+    );
+  });
 
-    act(() => {
-      globalThis.dispatchEvent(new Event("resize"));
-    });
+  it('renders IDEXX redirect icon inside the logo pill when it is the only sub-label', () => {
+    render(
+      <SubLabels
+        labels={[
+          {
+            key: 'idexx-labs',
+            name: <span>IDEXX</span>,
+            redirectHref: '/appointments/idexx-workspace',
+            redirectLabel: 'Open IDEXX Hub',
+          },
+        ]}
+        activeLabel="idexx-labs"
+        setActiveLabel={jest.fn()}
+      />
+    );
 
-    expect(wrapper.className).toContain("justify-start");
+    const redirectLink = screen.getByRole('link', { name: 'Open IDEXX Hub' });
+    expect(redirectLink).toHaveAttribute('href', '/appointments/idexx-workspace');
+    expect(redirectLink.closest('div')).toHaveClass('rounded-2xl!');
+    expect(redirectLink.closest('div')).toHaveClass('gap-0');
   });
 });

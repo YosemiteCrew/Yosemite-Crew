@@ -2,7 +2,7 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-jest.mock("@/app/components/Modal", () => ({
+jest.mock("@/app/ui/overlays/Modal", () => ({
   __esModule: true,
   default: ({ children, showModal }: any) => (
     <div data-testid="modal" data-open={showModal}>
@@ -11,7 +11,7 @@ jest.mock("@/app/components/Modal", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Labels/SubLabels", () => ({
+jest.mock("@/app/ui/widgets/Labels/SubLabels", () => ({
   __esModule: true,
   default: ({ labels, activeLabel, setActiveLabel }: any) => (
     <div data-testid="sub-labels">
@@ -30,7 +30,7 @@ jest.mock("@/app/components/Labels/SubLabels", () => ({
 }));
 
 const formSectionRender = jest.fn();
-jest.mock("@/app/components/AddInventory/FormSection", () => ({
+jest.mock("@/app/features/inventory/components/AddInventory/FormSection", () => ({
   __esModule: true,
   default: (props: any) => {
     formSectionRender(props);
@@ -50,6 +50,12 @@ jest.mock("@/app/components/AddInventory/FormSection", () => ({
         >
           set-category
         </button>
+        <button
+          type="button"
+          onClick={() => onFieldChange(sectionKey, "subCategory", "SubCategory A")}
+        >
+          set-subcategory
+        </button>
         <button type="button" onClick={onSave}>
           save-section
         </button>
@@ -58,15 +64,26 @@ jest.mock("@/app/components/AddInventory/FormSection", () => ({
   },
 }));
 
-import AddInventory from "@/app/components/AddInventory";
+import AddInventory from "@/app/features/inventory/components/AddInventory";
 
 describe("<AddInventory />", () => {
+  let consoleErrorSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    consoleErrorSpy = jest.spyOn(console, "error").mockImplementation();
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
+  });
+
   test("switches between sections via sub labels", () => {
     render(
       <AddInventory
         showModal={true}
         setShowModal={jest.fn()}
         businessType="HOSPITAL"
+        onSubmit={jest.fn().mockResolvedValue(undefined)}
       />,
     );
 
@@ -75,6 +92,11 @@ describe("<AddInventory />", () => {
       "data-section",
       "basicInfo",
     );
+
+    // Fill required fields to allow navigation
+    fireEvent.click(screen.getByText("set-name"));
+    fireEvent.click(screen.getByText("set-category"));
+    fireEvent.click(screen.getByText("set-subcategory"));
 
     fireEvent.click(screen.getByText("Classification attribute"));
     expect(screen.getByTestId("form-section")).toHaveAttribute(
@@ -89,6 +111,7 @@ describe("<AddInventory />", () => {
         showModal={false}
         setShowModal={jest.fn()}
         businessType="GROOMER"
+        onSubmit={jest.fn().mockResolvedValue(undefined)}
       />,
     );
 
@@ -97,9 +120,13 @@ describe("<AddInventory />", () => {
     expect(screen.getByTestId("errors").textContent).toMatch(
       "Category is required",
     );
+    expect(screen.getByTestId("errors").textContent).toMatch(
+      "Sub category is required",
+    );
 
     fireEvent.click(screen.getByText("set-name"));
     fireEvent.click(screen.getByText("set-category"));
+    fireEvent.click(screen.getByText("set-subcategory"));
     fireEvent.click(screen.getByText("save-section"));
 
     expect(screen.getByTestId("errors").textContent).toBe("{}");

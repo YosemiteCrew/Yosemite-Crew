@@ -11,6 +11,14 @@ import {
   type SpecialityResponseDTO,
 } from "@yosemite-crew/types";
 import { ServiceService } from "./service.service";
+import OrganisationRoomModel from "src/models/organisation-room";
+import UserModel from "src/models/user";
+import OrganizationModel from "src/models/organization";
+import { sendEmailTemplate } from "src/utils/email";
+import logger from "src/utils/logger";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 export type SpecialityFHIRPayload = SpecialityRequestDTO;
 
@@ -23,6 +31,79 @@ export class SpecialityServiceError extends Error {
     this.name = "SpecialityServiceError";
   }
 }
+
+const SUPPORT_EMAIL_ADDRESS =
+  process.env.SUPPORT_EMAIL ??
+  process.env.SUPPORT_EMAIL_ADDRESS ??
+  process.env.HELP_EMAIL ??
+  "support@yosemitecrew.com";
+const DEFAULT_PMS_URL =
+  process.env.PMS_BASE_URL ??
+  process.env.FRONTEND_BASE_URL ??
+  process.env.APP_URL ??
+  "https://app.yosemitecrew.com";
+
+const buildDisplayName = (
+  user?: { firstName?: string; lastName?: string } | null,
+) => {
+  if (!user) return undefined;
+  const parts = [user.firstName, user.lastName].filter(Boolean);
+  return parts.length ? parts.join(" ") : undefined;
+};
+
+const getOrganisationName = async (organisationId?: string) => {
+  if (!organisationId) return undefined;
+  const organisation = isReadFromPostgres()
+    ? await prisma.organization.findFirst({
+        where: { OR: [{ id: organisationId }, { fhirId: organisationId }] },
+        select: { name: true },
+      })
+    : await OrganizationModel.findById(organisationId).select("name").lean();
+  return organisation?.name;
+};
+
+const sendSpecialityHeadAssignmentEmail = async (params: {
+  headUserId?: string;
+  specialityName: string;
+  organisationId?: string;
+}) => {
+  if (!params.headUserId) return;
+
+  try {
+    const [user, organisationName] = await Promise.all([
+      isReadFromPostgres()
+        ? prisma.user.findFirst({
+            where: { userId: params.headUserId },
+            select: { email: true, firstName: true, lastName: true },
+          })
+        : UserModel.findOne(
+            { userId: params.headUserId },
+            { email: 1, firstName: 1, lastName: 1 },
+          ).lean(),
+      getOrganisationName(params.organisationId),
+    ]);
+
+    if (!user?.email) return;
+
+    await sendEmailTemplate({
+      to: user.email,
+      templateId: "specialityHeadAssigned",
+      templateData: {
+        employeeName: buildDisplayName({
+          firstName: user.firstName ?? undefined,
+          lastName: user.lastName ?? undefined,
+        }),
+        specialityName: params.specialityName,
+        organisationName,
+        ctaUrl: DEFAULT_PMS_URL,
+        ctaLabel: "Open PMS",
+        supportEmail: SUPPORT_EMAIL_ADDRESS,
+      },
+    });
+  } catch (error) {
+    logger.error("Failed to send speciality head assignment email.", error);
+  }
+};
 
 const pruneUndefined = <T>(value: T): T => {
   if (Array.isArray(value)) {
@@ -206,6 +287,35 @@ const buildFHIRResponse = (
   return toSpecialityResponseDTO(speciality);
 };
 
+const buildFHIRResponseFromPrisma = (speciality: {
+  id: string;
+  fhirId: string | null;
+  organisationId: string;
+  departmentMasterId: string | null;
+  name: string;
+  description: string | null;
+  headUserId: string | null;
+  headName: string | null;
+  headProfilePicUrl: string | null;
+  services: string[];
+  memberUserIds: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}): SpecialityResponseDTO =>
+  toSpecialityResponseDTO({
+    _id: speciality.fhirId ?? speciality.id,
+    organisationId: speciality.organisationId,
+    departmentMasterId: speciality.departmentMasterId ?? undefined,
+    name: speciality.name,
+    headUserId: speciality.headUserId ?? undefined,
+    headName: speciality.headName ?? undefined,
+    headProfilePicUrl: speciality.headProfilePicUrl ?? undefined,
+    services: speciality.services ?? [],
+    teamMemberIds: speciality.memberUserIds ?? [],
+    createdAt: speciality.createdAt,
+    updatedAt: speciality.updatedAt,
+  });
+
 const createPersistableFromFHIR = (payload: SpecialityFHIRPayload) => {
   if (payload?.resourceType !== "Organization") {
     throw new SpecialityServiceError(
@@ -241,6 +351,44 @@ const resolveIdQuery = (id: unknown): { _id?: string; fhirId?: string } => {
   );
 };
 
+const toPrismaSpecialityData = (doc: SpecialityDocument) => {
+  const obj = doc.toObject() as SpecialityMongo & {
+    _id: { toString(): string };
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+
+  return {
+    id: obj._id.toString(),
+    fhirId: obj.fhirId ?? undefined,
+    organisationId: obj.organisationId,
+    departmentMasterId: obj.departmentMasterId ?? undefined,
+    name: obj.name,
+    description: obj.description ?? undefined,
+    headUserId: obj.headUserId ?? undefined,
+    headName: obj.headName ?? undefined,
+    headProfilePicUrl: obj.headProfilePicUrl ?? undefined,
+    services: obj.services ?? [],
+    memberUserIds: obj.memberUserIds ?? [],
+    createdAt: obj.createdAt ?? undefined,
+    updatedAt: obj.updatedAt ?? undefined,
+  };
+};
+
+const syncSpecialityToPostgres = async (doc: SpecialityDocument) => {
+  if (!shouldDualWrite) return;
+  try {
+    const data = toPrismaSpecialityData(doc);
+    await prisma.speciality.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+  } catch (err) {
+    handleDualWriteError("Speciality", err);
+  }
+};
+
 export const SpecialityService = {
   async createOne(payload: SpecialityFHIRPayload) {
     const { persistable, attributes } = createPersistableFromFHIR(payload);
@@ -251,7 +399,15 @@ export const SpecialityService = {
     let document: SpecialityDocument | null = null;
     let created = false;
 
+    let previousHeadUserId: string | undefined;
+
     if (identifier) {
+      const existing = await SpecialityModel.findOne(
+        { fhirId: identifier },
+        { headUserId: 1 },
+      ).lean();
+      previousHeadUserId = existing?.headUserId;
+
       document = await SpecialityModel.findOneAndUpdate(
         { fhirId: identifier },
         { $set: persistable },
@@ -262,6 +418,18 @@ export const SpecialityService = {
     if (!document) {
       document = await SpecialityModel.create(persistable);
       created = true;
+    }
+
+    if (document) {
+      await syncSpecialityToPostgres(document);
+    }
+
+    if (document?.headUserId && document.headUserId !== previousHeadUserId) {
+      void sendSpecialityHeadAssignmentEmail({
+        headUserId: document.headUserId,
+        specialityName: document.name,
+        organisationId: document.organisationId,
+      });
     }
 
     const response = buildFHIRResponse(document);
@@ -287,6 +455,10 @@ export const SpecialityService = {
     const query = resolveIdQuery(id);
     const { persistable } = createPersistableFromFHIR(payload);
 
+    const existing = await SpecialityModel.findOne(query, {
+      headUserId: 1,
+    }).lean();
+
     const document = await SpecialityModel.findOneAndUpdate(
       query,
       { $set: persistable },
@@ -297,11 +469,33 @@ export const SpecialityService = {
       return null;
     }
 
+    if (document.headUserId && document.headUserId !== existing?.headUserId) {
+      void sendSpecialityHeadAssignmentEmail({
+        headUserId: document.headUserId,
+        specialityName: document.name,
+        organisationId: document.organisationId,
+      });
+    }
+
+    await syncSpecialityToPostgres(document);
+
     return buildFHIRResponse(document);
   },
 
   async getById(id: string) {
     const query = resolveIdQuery(id);
+
+    if (isReadFromPostgres()) {
+      const speciality = await prisma.speciality.findFirst({
+        where: query._id ? { id: query._id } : { fhirId: query.fhirId },
+      });
+
+      if (!speciality) {
+        return null;
+      }
+
+      return buildFHIRResponseFromPrisma(speciality);
+    }
 
     const document = await SpecialityModel.findOne(query).exec();
 
@@ -314,6 +508,25 @@ export const SpecialityService = {
 
   async getAllByOrganizationId(organisationId: string) {
     const orgId = requireOrganizationId(organisationId);
+
+    if (isReadFromPostgres()) {
+      const specialities = await prisma.speciality.findMany({
+        where: { organisationId: orgId },
+      });
+
+      const result = [];
+
+      for (const speciality of specialities) {
+        const specialityFHIR = buildFHIRResponseFromPrisma(speciality);
+        const services = await ServiceService.listBySpeciality(speciality.id);
+        result.push({
+          speciality: specialityFHIR,
+          services,
+        });
+      }
+
+      return result;
+    }
 
     const documents = await SpecialityModel.find({
       organisationId: orgId,
@@ -339,5 +552,72 @@ export const SpecialityService = {
     const orgId = requireOrganizationId(organisationId);
 
     await SpecialityModel.deleteMany({ organisationId: orgId }).exec();
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.speciality.deleteMany({
+          where: { organisationId: orgId },
+        });
+      } catch (err) {
+        handleDualWriteError("Speciality deleteAllByOrganizationId", err);
+      }
+    }
+  },
+
+  async deleteSpeciality(specialityId: string, organisationId: string) {
+    const query = resolveIdQuery(specialityId);
+    const orgId = requireOrganizationId(organisationId);
+
+    const document = await SpecialityModel.findOneAndDelete(
+      {
+        ...query,
+        organisationId: orgId,
+      },
+      { sanitizeFilter: true },
+    );
+
+    if (!document) {
+      throw new SpecialityServiceError(
+        "Speciality not found for the organisation.",
+        404,
+      );
+    }
+
+    await ServiceService.deleteAllBySpecialityId(document._id.toString());
+
+    await OrganisationRoomModel.updateMany(
+      { assignedSpecialiteis: query._id ?? query.fhirId },
+      { $pull: { assignedSpecialiteis: specialityId } },
+      { sanitizeFilter: true },
+    );
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.speciality.deleteMany({
+          where: { id: document._id.toString() },
+        });
+      } catch (err) {
+        handleDualWriteError("Speciality delete", err);
+      }
+
+      try {
+        const rooms = await prisma.organisationRoom.findMany({
+          where: {
+            assignedSpecialiteis: { has: specialityId },
+          },
+        });
+        for (const room of rooms) {
+          const next = (room.assignedSpecialiteis ?? []).filter(
+            (id) => id !== specialityId,
+          );
+          await prisma.organisationRoom.update({
+            where: { id: room.id },
+            data: { assignedSpecialiteis: next },
+          });
+        }
+      } catch (err) {
+        handleDualWriteError("OrganisationRoom updateSpeciality", err);
+      }
+    }
   },
 };

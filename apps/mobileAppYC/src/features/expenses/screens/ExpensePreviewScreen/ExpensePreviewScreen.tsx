@@ -4,7 +4,6 @@ import {useSelector, useDispatch} from 'react-redux';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
-import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {useTheme} from '@/hooks';
 import type {RootState, AppDispatch} from '@/app/store';
@@ -31,85 +30,11 @@ import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/Li
 import {SummaryCards} from '@/features/appointments/components/SummaryCards/SummaryCards';
 import {fetchBusinessDetails} from '@/features/linkedBusinesses';
 import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {DetailsCard, type DetailItem, type DetailBadge} from '@/shared/components/common/DetailsCard';
 
 type Navigation = NativeStackNavigationProp<ExpenseStackParamList, 'ExpensePreview'>;
 type Route = RouteProp<ExpenseStackParamList, 'ExpensePreview'>;
-
-type ExpenseDetailsProps = {
-  expense: any;
-  formattedAmount: string;
-  businessName: string;
-  onStatusRender: React.ReactNode;
-  styles: any;
-};
-
-const ExpenseDetailsCard = ({
-  expense,
-  formattedAmount,
-  businessName,
-  onStatusRender,
-  styles,
-}: ExpenseDetailsProps) => (
-  <View style={styles.invoiceDetailsCard}>
-    <Text style={styles.invoiceDetailsTitle}>Expense Details</Text>
-
-    <View style={styles.detailRow}>
-      <Text style={styles.detailLabel}>Title</Text>
-      <Text style={styles.detailValue}>{expense.title}</Text>
-    </View>
-
-    <View style={styles.detailRow}>
-      <Text style={styles.detailLabel}>Business</Text>
-      <Text style={styles.detailValue}>{businessName}</Text>
-    </View>
-
-    <View style={styles.detailRow}>
-      <Text style={styles.detailLabel}>Category</Text>
-      <Text style={styles.detailValue}>{resolveCategoryLabel(expense.category)}</Text>
-    </View>
-
-    {!!expense.subcategory && expense.subcategory !== 'none' && (
-      <View style={styles.detailRow}>
-        <Text style={styles.detailLabel}>Sub category</Text>
-        <Text style={styles.detailValue}>
-          {resolveSubcategoryLabel(expense.category, expense.subcategory)}
-        </Text>
-      </View>
-    )}
-
-    {!!expense.visitType && expense.visitType !== 'other' && (
-      <View style={styles.detailRow}>
-        <Text style={styles.detailLabel}>Visit type</Text>
-        <Text style={styles.detailValue}>{resolveVisitTypeLabel(expense.visitType)}</Text>
-      </View>
-    )}
-
-    <View style={styles.detailRow}>
-      <Text style={styles.detailLabel}>Date</Text>
-      <Text style={styles.detailValue}>
-        {new Date(expense.date).toLocaleDateString('en-US', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-        })}
-      </Text>
-    </View>
-
-    <View style={styles.detailRow}>
-      <Text style={styles.detailLabel}>Amount</Text>
-      <Text style={[styles.detailValue, styles.detailValueBold]}>{formattedAmount}</Text>
-    </View>
-
-    {expense.description ? (
-      <View style={styles.detailRow}>
-        <Text style={styles.detailLabel}>Description</Text>
-        <Text style={styles.detailValue}>{expense.description}</Text>
-      </View>
-    ) : null}
-
-    {onStatusRender}
-  </View>
-);
 
 const PaymentActions = ({
   shouldShow,
@@ -142,7 +67,7 @@ const PaymentActions = ({
           title={isPending ? `Pay ${formattedAmount}` : 'View Invoice'}
           onPress={onOpenInvoice}
           height={48}
-          borderRadius={12}
+          borderRadius={16}
           disabled={processingPayment || loadingPayment}
           tintColor={theme.colors.secondary}
           shadowIntensity="medium"
@@ -260,6 +185,9 @@ export const ExpensePreviewScreen: React.FC = () => {
   const userCurrencyCode = useSelector(
     (state: RootState) => state.auth.user?.currency ?? 'USD',
   );
+  const companion = useSelector((state: RootState) =>
+    expense?.companionId ? state.companion.companions.find(c => c.id === expense.companionId) : null,
+  );
   const currencyCode = expense?.currencyCode ?? userCurrencyCode;
 
   const {
@@ -338,12 +266,18 @@ export const ExpensePreviewScreen: React.FC = () => {
 
   if (!expense) {
     return (
-      <SafeArea>
-        <Header title="Expenses" showBackButton onBack={handleBack} />
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Expense not found</Text>
-        </View>
-      </SafeArea>
+      <LiquidGlassHeaderScreen
+        header={
+          <Header title="Expenses" showBackButton onBack={handleBack} glass={false} />
+        }
+        cardGap={theme.spacing['3']}
+        contentPadding={theme.spacing['4']}>
+        {contentPaddingStyle => (
+          <View style={[styles.errorContainer, contentPaddingStyle]}>
+            <Text style={styles.errorText}>Expense not found</Text>
+          </View>
+        )}
+      </LiquidGlassHeaderScreen>
     );
   }
 
@@ -351,52 +285,82 @@ export const ExpensePreviewScreen: React.FC = () => {
   const isPendingPayment = isExpensePaymentPending(expense);
   const shouldShowPaymentActions = isInAppExpense && (isPendingPayment || hasInvoice(expense));
 
-  const renderStatusBadge = () => {
-    if (!isInAppExpense) {
-      return (
-        <View style={[styles.statusBadge, styles.externalBadge]}>
-          <Text style={styles.externalText}>External expense</Text>
-        </View>
-      );
-    }
+  const detailItems: DetailItem[] = [
+    {label: 'Title', value: expense.title},
+    {label: 'Provider', value: businessNameFromOrg ?? expense.businessName ?? '—'},
+    {
+      label: 'Companion',
+      value: companion?.name ?? '',
+      hidden: !companion?.name,
+    },
+    {label: 'Category', value: resolveCategoryLabel(expense.category)},
+    {
+      label: 'Sub category',
+      value: resolveSubcategoryLabel(expense.category, expense.subcategory),
+      hidden: !expense.subcategory || expense.subcategory === 'none',
+    },
+    {
+      label: 'Visit type',
+      value: resolveVisitTypeLabel(expense.visitType),
+      hidden: !expense.visitType || expense.visitType === 'other',
+    },
+    {
+      label: 'Date',
+      value: new Date(expense.date).toLocaleDateString('en-US', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      }),
+    },
+    {label: 'Amount', value: formattedAmount, bold: true},
+    {label: 'Description', value: expense.description || '', hidden: !expense.description},
+  ];
 
-    const badgeStyle = isPendingPayment ? [styles.statusBadge, styles.pendingBadge] : [styles.statusBadge, styles.paidBadge];
-    const badgeTextStyle = isPendingPayment ? styles.pendingText : styles.paidText;
-    const badgeLabel = isPendingPayment ? 'Awaiting Payment' : 'Paid';
-    return (
-      <View style={[styles.statusBadgeContainer, {marginTop: theme.spacing[2]}]}>
-        <View style={badgeStyle}>
-          <Text style={badgeTextStyle}>{badgeLabel}</Text>
-        </View>
-      </View>
-    );
-  };
+  const badges: DetailBadge[] = [];
+  if (!isInAppExpense) {
+    badges.push({
+      text: 'External expense',
+      backgroundColor: theme.colors.infoSurface,
+      textColor: theme.colors.primary,
+    });
+  } else if (isPendingPayment) {
+    badges.push({
+      text: 'Awaiting Payment',
+      backgroundColor: theme.colors.warningSurface,
+      textColor: theme.colors.warning,
+    });
+  } else {
+    badges.push({
+      text: 'Paid',
+      backgroundColor: theme.colors.successSurface,
+      textColor: theme.colors.success,
+    });
+  }
 
   return (
-    <SafeArea>
-      <Header
-        title="Expenses"
-        showBackButton
-        onBack={handleBack}
-        rightIcon={canEdit ? Images.blackEdit : undefined}
-        onRightPress={canEdit ? handleEdit : undefined}
-      />
+    <LiquidGlassHeaderScreen
+      header={
+        <Header
+          title="Expenses"
+          showBackButton
+          onBack={handleBack}
+          rightIcon={canEdit ? Images.blackEdit : undefined}
+          onRightPress={canEdit ? handleEdit : undefined}
+          glass={false}
+        />
+      }
+      cardGap={theme.spacing['4']}
+      contentPadding={theme.spacing['4']}>
+      {contentPaddingStyle => (
         <ScrollView
-          style={styles.container}
-          contentContainerStyle={styles.contentContainer}
+          contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}
           showsVerticalScrollIndicator={false}>
           {/* Business Info Card using SummaryCards */}
           {isInAppExpense && invoiceData && (
-            <SummaryCards businessSummary={businessSummary as any} />
+            <SummaryCards businessSummary={businessSummary as any} interactive={false} cardStyle={styles.summaryCard} />
           )}
 
-          <ExpenseDetailsCard
-            expense={expense}
-            formattedAmount={formattedAmount}
-            businessName={businessNameFromOrg ?? expense.businessName ?? '—'}
-            onStatusRender={renderStatusBadge()}
-            styles={styles}
-          />
+          <DetailsCard title="Expense Details" items={detailItems} badges={badges} />
 
           <PaymentActions
             shouldShow={shouldShowPaymentActions}
@@ -409,32 +373,30 @@ export const ExpensePreviewScreen: React.FC = () => {
             theme={theme}
           />
 
-        <View style={styles.previewContainer}>
-          {expense.attachments && expense.attachments.length > 0 ? (
-            <DocumentAttachmentViewer attachments={expense.attachments as DocumentFile[]} />
-          ) : (
-            <View style={styles.fallbackCard}>
-              <Image source={Images.documentIcon} style={styles.fallbackIcon} />
-              <Text style={styles.fallbackTitle}>No attachments</Text>
-              <Text style={styles.fallbackText}>There are no files attached to this expense.</Text>
-            </View>
-          )}
-        </View>
-      </ScrollView>
-    </SafeArea>
+          <View style={styles.previewContainer}>
+            {expense.attachments && expense.attachments.length > 0 ? (
+              <DocumentAttachmentViewer attachments={expense.attachments as DocumentFile[]} />
+            ) : (
+              <View style={styles.fallbackCard}>
+                <Image source={Images.documentIcon} style={styles.fallbackIcon} />
+                <Text style={styles.fallbackTitle}>No attachments</Text>
+                <Text style={styles.fallbackText}>There are no files attached to this expense.</Text>
+              </View>
+            )}
+          </View>
+        </ScrollView>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
     contentContainer: {
-      paddingHorizontal: theme.spacing[4],
-      paddingBottom: theme.spacing[12],
-      gap: theme.spacing[4],
+      paddingHorizontal: theme.spacing['5'],
+      paddingTop: theme.spacing['6'],
+      paddingBottom: theme.spacing['24'],
+      gap: theme.spacing['6'],
     },
     errorContainer: {
       flex: 1,
@@ -446,12 +408,7 @@ const createStyles = (theme: any) =>
       color: theme.colors.textSecondary,
     },
     summaryCard: {
-      backgroundColor: theme.colors.cardBackground,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing[4],
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      gap: theme.spacing[2],
+      marginBottom: theme.spacing['1'],
     },
     summaryTitle: {
       ...theme.typography.titleLarge,
@@ -469,92 +426,26 @@ const createStyles = (theme: any) =>
       ...theme.typography.bodySmall,
       color: theme.colors.secondary,
       fontStyle: 'italic',
-      marginTop: theme.spacing[1],
+      marginTop: theme.spacing['1'],
     },
     summaryAmount: {
       ...theme.typography.h5,
       color: theme.colors.secondary,
-      marginTop: theme.spacing[2],
-    },
-    statusBadgeContainer: {
-      marginTop: theme.spacing[3],
-    },
-    statusBadge: {
-      paddingVertical: theme.spacing[1],
-      paddingHorizontal: theme.spacing[3],
-      borderRadius: theme.borderRadius.full,
-      alignSelf: 'flex-start',
-    },
-    paidBadge: {
-      backgroundColor: 'rgba(0, 143, 93, 0.12)',
-    },
-    paidText: {
-      ...theme.typography.labelSmall,
-      color: theme.colors.success,
-    },
-    pendingBadge: {
-      backgroundColor: 'rgba(245, 158, 11, 0.12)',
-    },
-    pendingText: {
-      ...theme.typography.labelSmall,
-      color: '#F59E0B',
-    },
-    externalBadge: {
-      backgroundColor: 'rgba(59, 130, 246, 0.12)',
-    },
-    externalText: {
-      ...theme.typography.labelSmall,
-      color: theme.colors.primary,
-    },
-    invoiceDetailsCard: {
-      backgroundColor: theme.colors.cardBackground,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing[4],
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      gap: theme.spacing[2],
-    },
-    invoiceDetailsTitle: {
-      ...theme.typography.titleSmall,
-      color: theme.colors.secondary,
-      marginBottom: theme.spacing[1],
-    },
-    detailRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingVertical: theme.spacing[2],
-    },
-    detailLabel: {
-      ...theme.typography.body14,
-      color: theme.colors.textSecondary,
-      fontWeight: '500',
-      maxWidth: '45%',
-    },
-    detailValue: {
-      ...theme.typography.body14,
-      color: theme.colors.secondary,
-      fontWeight: '600',
-      flex: 1,
-      textAlign: 'right',
-      flexWrap: 'wrap',
-    },
-    detailValueBold: {
-      fontWeight: '700',
+      marginTop: theme.spacing['2'],
     },
     loadingContainer: {
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: theme.spacing[6],
-      gap: theme.spacing[2],
+      paddingVertical: theme.spacing['6'],
+      gap: theme.spacing['2'],
     },
     loadingText: {
       ...theme.typography.bodySmall,
       color: theme.colors.textSecondary,
     },
     paymentButtonContainer: {
-      gap: theme.spacing[2],
-      marginBottom: theme.spacing[4],
+      // Spacing handled by container gap
+      gap: theme.spacing['2'],
     },
     paymentButtonText: {
       ...theme.typography.button,
@@ -563,12 +454,12 @@ const createStyles = (theme: any) =>
       fontWeight: '600',
     },
     previewContainer: {
-      gap: theme.spacing[4],
+      gap: theme.spacing['4'],
     },
     fallbackCard: {
       backgroundColor: theme.colors.surface,
       borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing[6],
+      padding: theme.spacing['6'],
       alignItems: 'center',
       borderWidth: 1,
       borderColor: theme.colors.borderMuted,
@@ -576,13 +467,13 @@ const createStyles = (theme: any) =>
     fallbackIcon: {
       width: 64,
       height: 64,
-      marginBottom: theme.spacing[4],
+      marginBottom: theme.spacing['4'],
       tintColor: theme.colors.textSecondary,
     },
     fallbackTitle: {
       ...theme.typography.titleMedium,
       color: theme.colors.textPrimary,
-      marginBottom: theme.spacing[2],
+      marginBottom: theme.spacing['2'],
     },
     fallbackText: {
       ...theme.typography.bodySmall,

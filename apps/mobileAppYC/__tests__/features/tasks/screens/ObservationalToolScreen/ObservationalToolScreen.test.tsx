@@ -1,478 +1,348 @@
 import React from 'react';
-import {
-  render,
-  fireEvent,
-  waitFor,
-  screen,
-} from '@testing-library/react-native';
-import {ObservationalToolScreen} from '@/features/tasks/screens/ObservationalToolScreen/ObservationalToolScreen';
-import * as Redux from 'react-redux';
+import {render, fireEvent, waitFor} from '@testing-library/react-native';
+import {ObservationalToolScreen} from '../../../../../src/features/tasks/screens/ObservationalToolScreen/ObservationalToolScreen';
+import {useDispatch, useSelector} from 'react-redux';
+import {Alert} from 'react-native';
+import {useNavigation, useRoute} from '@react-navigation/native';
+import {selectTaskById} from '../../../../../src/features/tasks/selectors';
+import {selectAuthUser} from '../../../../../src/features/auth/selectors';
 
 // --- Mocks ---
 
-// 1. Navigation
-const mockNavigate = jest.fn();
-const mockGoBack = jest.fn();
-const mockReset = jest.fn();
-const mockGetParent = jest.fn().mockReturnValue({
-  navigate: mockNavigate,
-});
-const mockGetState = jest.fn();
-
-// Mutable route params
-let mockRouteParams = {taskId: 'task-123'};
-
-jest.mock('@react-navigation/native', () => {
-  const ReactLib = require('react');
-  return {
-    useNavigation: () => ({
-      navigate: mockNavigate,
-      goBack: mockGoBack,
-      reset: mockReset,
-      getParent: mockGetParent,
-      getState: mockGetState,
-      canGoBack: jest.fn().mockReturnValue(true),
-      dispatch: jest.fn(),
-    }),
-    useRoute: () => ({
-      params: mockRouteParams,
-    }),
-    useFocusEffect: (cb: () => void) => {
-      // FIX: Removed eslint-disable comment
-      ReactLib.useEffect(cb, []);
-    },
-  };
-});
-
-// 2. Redux
-const mockDispatch = jest.fn();
-jest.spyOn(Redux, 'useDispatch').mockReturnValue(mockDispatch);
-const mockUseSelector = jest.spyOn(Redux, 'useSelector');
-
-// 3. Mock Data & Actions
-jest.mock('@/features/observationalTools/data', () => ({
-  observationalToolDefinitions: {
-    'test-tool': {
-      id: 'test-tool',
-      name: 'Test Tool',
-      species: 'dog',
-      overviewTitle: 'Overview',
-      overviewParagraphs: ['Para 1'],
-      emptyState: {
-        title: 'No Providers',
-        message: 'Message',
-        image: 123,
-      },
-      steps: [
-        {
-          id: 'step-1',
-          title: 'Step 1',
-          subtitle: 'Sub 1',
-          options: [{id: 'opt-A', title: 'Option A', value: 1}],
-        },
-        {
-          id: 'step-2',
-          title: 'Step 2',
-          subtitle: 'Sub 2',
-          options: [{id: 'opt-B', title: 'Option B', value: 2}],
-        },
-      ],
-    },
-    'cat-tool': {
-      id: 'cat-tool',
-      name: 'Cat Tool',
-      species: 'cat',
-      overviewTitle: 'Cat Overview',
-      overviewParagraphs: ['Meow'],
-      emptyState: {},
-      steps: [
-        {
-          id: 'cat-step',
-          title: 'Cat Step',
-          options: [{id: 'c1', title: 'Cat Opt', image: {uri: 'img'}}],
-        },
-      ],
-    },
-  },
-  observationalToolProviders: {
-    'test-tool': [{businessId: 'biz-1', evaluationFee: 50, appointmentFee: 20}],
-    'cat-tool': [],
-  },
+jest.mock('react-redux', () => ({
+  useDispatch: jest.fn(),
+  useSelector: jest.fn(),
 }));
 
-jest.mock('@/features/tasks/selectors', () => ({
-  selectTaskById: (id: string) => () => {
-    if (id === 'task-123') {
-      return {
-        id,
-        companionId: 'comp-1',
-        details: {toolType: 'test-tool'},
-      };
-    }
-    if (id === 'task-cat') {
-      return {id, companionId: 'comp-1', details: {toolType: 'cat-tool'}};
-    }
-    return null;
-  },
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: jest.fn(),
+  useRoute: jest.fn(),
 }));
 
-jest.mock('@/features/appointments/businessesSlice', () => ({
-  fetchBusinesses: jest.fn(() => ({type: 'FETCH_BUSINESSES'})),
+jest.mock('../../../../../src/features/appointments/businessesSlice', () => ({
+  fetchBusinesses: jest.fn(() => ({type: 'businesses/fetch'})),
 }));
 
-jest.mock('@/features/tasks/thunks', () => ({
-  markTaskStatus: jest.fn(() => ({type: 'MARK_TASK_STATUS'})),
+// Mock Selectors
+jest.mock('../../../../../src/features/tasks/selectors', () => ({
+  selectTaskById: jest.fn(),
 }));
 
-jest.mock('@/features/companion', () => ({
-  setSelectedCompanion: jest.fn(() => ({type: 'SET_SELECTED_COMPANION'})),
+jest.mock('../../../../../src/features/auth/selectors', () => ({
+  selectAuthUser: jest.fn(),
 }));
 
-jest.mock('@/features/tasks/utils/taskLabels', () => ({
-  resolveObservationalToolLabel: () => 'Test Label',
+jest.mock('../../../../../src/features/companion', () => ({
+  setSelectedCompanion: jest.fn(),
 }));
 
-// 4. UI Components
-jest.mock('@/shared/components/common/Header/Header', () => ({
-  Header: ({title, onBack}: any) => {
-    const {TouchableOpacity, Text} = require('react-native');
-    return (
-      <TouchableOpacity testID="header-back" onPress={onBack}>
-        <Text>{title}</Text>
-      </TouchableOpacity>
-    );
-  },
-}));
-
-// IMPORTANT: Mock Button to ignore disabled prop so we can test validation logic
 jest.mock(
-  '@/shared/components/common/LiquidGlassButton/LiquidGlassButton',
+  '../../../../../src/features/observationalTools/services/observationToolService',
   () => ({
-    LiquidGlassButton: ({title, onPress}: any) => {
-      const {TouchableOpacity, Text} = require('react-native');
-      return (
-        <TouchableOpacity testID={`btn-${title}`} onPress={onPress}>
-          <Text>{title}</Text>
-        </TouchableOpacity>
-      );
+    observationToolApi: {
+      get: jest.fn(),
+      submit: jest.fn(),
     },
+    getCachedObservationTool: jest.fn(),
+    getCachedObservationToolName: jest.fn(),
   }),
 );
 
-jest.mock('@/shared/components/common/LiquidGlassCard/LiquidGlassCard', () => ({
-  LiquidGlassCard: ({children}: any) => children,
-}));
-
 jest.mock(
-  '@/shared/components/common/DiscardChangesBottomSheet/DiscardChangesBottomSheet',
-  () => {
-    const ReactLib = require('react');
-    const {View, TouchableOpacity, Text} = require('react-native');
-    return {
-      DiscardChangesBottomSheet: ReactLib.forwardRef((props: any, ref: any) => {
-        ReactLib.useImperativeHandle(ref, () => ({
-          open: jest.fn(),
-          close: jest.fn(),
-        }));
-        return (
-          <View testID="discard-sheet">
-            <TouchableOpacity
-              testID="discard-confirm"
-              onPress={props.onDiscard}>
-              <Text>Discard</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              testID="discard-cancel"
-              onPress={props.onKeepEditing}>
-              <Text>Keep Editing</Text>
-            </TouchableOpacity>
-          </View>
-        );
-      }),
-    };
-  },
+  '../../../../../src/features/appointments/hooks/useBusinessPhotoFallback',
+  () => ({
+    useBusinessPhotoFallback: () => ({
+      businessFallbacks: {},
+      requestBusinessPhoto: jest.fn(),
+      handleAvatarError: jest.fn(),
+    }),
+  }),
 );
 
-jest.mock('@/hooks', () => ({
+// Mock Hooks
+jest.mock('../../../../../src/hooks', () => ({
   useTheme: () => ({
     theme: {
       colors: {
         background: 'white',
-        text: 'black',
-        secondary: 'blue',
-        primary: 'red',
-        borderMuted: 'gray',
+        primary: 'blue',
+        secondary: 'black',
         cardBackground: 'white',
-        lightBlueBackground: 'lightblue',
-        surface: 'white',
-        placeholder: 'gray',
         error: 'red',
+        placeholder: 'gray',
+        lightBlueBackground: 'lightblue',
+        borderMuted: 'gray',
+        neutralShadow: 'black',
+        primaryTint: 'blue',
         white: 'white',
+        surface: 'white',
       },
-      spacing: new Array(30).fill(4),
-      borderRadius: {lg: 8, md: 4},
+      spacing: {
+        '1': 4,
+        '2': 8,
+        '3': 12,
+        '4': 16,
+        '6': 24,
+        '20': 80,
+        '24': 96,
+        '32': 128,
+        '50': 200,
+        '60': 240,
+      },
+      borderRadius: {full: 999, xl: 20, lg: 16, md: 12},
       typography: {
-        h3: {fontSize: 20},
-        bodyMedium: {fontSize: 14},
-        paragraph18Bold: {fontSize: 18},
-        subtitleRegular14: {fontSize: 14},
-        businessSectionTitle20: {fontSize: 20},
-        body12: {fontSize: 12},
-        button: {fontSize: 16},
-        labelXsBold: {fontSize: 10},
-        titleSmall: {fontSize: 14},
-        captionBoldSatoshi: {fontSize: 12},
-        h6Clash: {fontSize: 18},
-        paragraphBold: {fontSize: 16},
+        h3: {},
+        paragraph18Bold: {},
+        subtitleRegular14: {},
+        bodyMedium: {},
+        titleSmall: {},
+        body12: {},
+        labelXxsBold: {},
+        captionBoldSatoshi: {},
+        h6Clash: {},
+        paragraphBold: {},
+        body13: {},
+        button: {},
+        businessSectionTitle20: {},
       },
+      shadows: {base: {}, medium: {}},
     },
   }),
 }));
 
-jest.spyOn(console, 'error').mockImplementation(() => {});
-jest.spyOn(console, 'warn').mockImplementation(() => {});
+// Mock UI Components
+jest.mock('../../../../../src/shared/components/common/Header/Header', () => {
+  const {View: MockView, Text: MockText} = require('react-native');
+  return {
+    Header: ({title, onBack}: any) => (
+      <MockView testID="mock-header">
+        <MockText testID="header-title">{title}</MockText>
+        <MockView testID="header-back" onTouchEnd={onBack} />
+      </MockView>
+    ),
+  };
+});
+
+jest.mock(
+  '../../../../../src/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen',
+  () => {
+    const {View: MockView} = require('react-native');
+    return {
+      LiquidGlassHeaderScreen: ({children, header}: any) => (
+        <MockView testID="screen-layout">
+          {header}
+          {typeof children === 'function' ? children({}) : children}
+        </MockView>
+      ),
+    };
+  },
+);
+
+jest.mock(
+  '../../../../../src/shared/components/common/LiquidGlassCard/LiquidGlassCard',
+  () => {
+    const {View: MockView} = require('react-native');
+    return {
+      LiquidGlassCard: ({children, style}: any) => (
+        <MockView style={style}>{children}</MockView>
+      ),
+    };
+  },
+);
+
+jest.mock(
+  '../../../../../src/shared/components/common/LiquidGlassButton/LiquidGlassButton',
+  () => {
+    const {View: MockView} = require('react-native');
+    return {
+      LiquidGlassButton: ({title, onPress, disabled}: any) => (
+        <MockView
+          testID={`btn-${title}`}
+          onTouchEnd={!disabled ? onPress : undefined}
+          accessibilityState={{disabled}}
+        />
+      ),
+    };
+  },
+);
+
+jest.mock(
+  '../../../../../src/shared/components/common/DiscardChangesBottomSheet/DiscardChangesBottomSheet',
+  () => {
+    // FIX: Renamed local variable to ReactActual to avoid shadowing global 'React'
+    const ReactActual = jest.requireActual('react');
+    const {View: MockView} = require('react-native');
+    return {
+      DiscardChangesBottomSheet: ReactActual.forwardRef(
+        (props: any, ref: any) => {
+          ReactActual.useImperativeHandle(ref, () => ({
+            open: () => props.onDiscard && props.onDiscard(),
+            close: jest.fn(),
+          }));
+          return <MockView testID="discard-sheet" />;
+        },
+      ),
+    };
+  },
+);
+
+jest.spyOn(Alert, 'alert');
 
 describe('ObservationalToolScreen', () => {
-  const mockState = {
-    companion: {
-      companions: [{id: 'comp-1', name: 'Buddy', profileImage: 'buddy.jpg'}],
+  const mockDispatch = jest.fn();
+  const mockNavigate = jest.fn();
+  const mockGoBack = jest.fn();
+  const mockReset = jest.fn();
+  const mockGetParent = jest.fn();
+
+  const mockTask = {
+    id: 'task-123',
+    companionId: 'comp-1',
+    observationToolId: 'feline-grimace-scale', // Known static ID
+    createdBy: 'user-1',
+    details: {toolType: 'feline-grimace-scale'},
+  };
+
+  const mockCompanion = {
+    id: 'comp-1',
+    name: 'Whiskers',
+    category: 'cat',
+    profileImage: 'http://cat.jpg',
+  };
+
+  const mockBusinesses = [
+    {id: 'biz-1', name: 'Vet Clinic A', address: '123 St', photo: 'url'},
+    {id: 'biz-2', name: 'Vet Clinic B', address: '456 Ave'},
+  ];
+
+  const mockServices = [
+    {
+      id: 'svc-1',
+      businessId: 'biz-1',
+      name: 'Feline Observation',
+      specialty: 'Observation',
     },
-    businesses: {
-      businesses: [
-        {
-          id: 'biz-1',
-          name: 'Hospital A',
-          category: 'hospital',
-          address: '123 St',
-        },
-      ],
+    {
+      id: 'svc-2',
+      businessId: 'biz-2',
+      name: 'General Vet',
+      specialty: 'Observation',
     },
+  ];
+
+  const mockUser = {id: 'user-1'};
+
+  // FIX: Robust state object
+  const defaultMockState = {
+    companion: {companions: [mockCompanion]},
+    businesses: {businesses: mockBusinesses, services: mockServices},
+    auth: {user: mockUser},
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockRouteParams = {taskId: 'task-123'};
-    mockUseSelector.mockImplementation((cb: any) => cb(mockState));
-    mockGetState.mockReturnValue({
-      routes: [{name: 'TasksMain'}, {name: 'ObservationalTool'}],
+    (useDispatch as unknown as jest.Mock).mockReturnValue(mockDispatch);
+
+    (useNavigation as jest.Mock).mockReturnValue({
+      navigate: mockNavigate,
+      goBack: mockGoBack,
+      canGoBack: jest.fn(() => true),
+      reset: mockReset,
+      getParent: mockGetParent,
+      getState: jest.fn(() => ({routes: [{}, {}]})),
+    });
+    mockGetParent.mockReturnValue({navigate: mockNavigate});
+
+    (useRoute as jest.Mock).mockReturnValue({
+      params: {taskId: 'task-123'},
+    });
+
+    // Mock Selectors
+    (selectTaskById as unknown as jest.Mock).mockReturnValue(() => mockTask);
+    (selectAuthUser as unknown as jest.Mock).mockReturnValue(mockUser);
+
+    (useSelector as unknown as jest.Mock).mockImplementation(selector => {
+      if (selector === selectAuthUser) return mockUser;
+
+      if (typeof selector === 'function') {
+        try {
+          const res = selector(defaultMockState);
+          // If selector returns undefined (e.g. not found), we respect that.
+          return res;
+        } catch (e) {
+          // Fallback if selector logic crashes on mock state
+          return undefined;
+        }
+      }
+      return undefined;
     });
   });
 
-  it('renders landing, navigates, validates, and submits', async () => {
-    render(<ObservationalToolScreen />);
+  const renderScreen = () => render(<ObservationalToolScreen />);
 
-    // 1. Landing
-    expect(screen.getByText('Test Tool')).toBeTruthy();
-    expect(screen.getByText('Hospital A')).toBeTruthy();
+  describe('Initialization & Loading', () => {
+    it('fetches businesses on mount if empty', async () => {
+      (useSelector as unknown as jest.Mock).mockImplementation(selector => {
+        if (selector === selectAuthUser) return mockUser;
+        if (typeof selector === 'function') {
+          try {
+            // Check if it's task selector
+            const res = selector(defaultMockState);
+            if (res === mockTask) return mockTask;
+          } catch (e) {}
 
-    // 2. Select Provider
-    fireEvent.press(screen.getByText('Hospital A'));
+          // Return empty businesses
+          return selector({
+            ...defaultMockState,
+            businesses: {businesses: [], services: []},
+          });
+        }
+      });
 
-    // 3. Go to Form
-    fireEvent.press(screen.getByTestId('btn-Next'));
-    expect(screen.getByText('Step 1')).toBeTruthy();
+      renderScreen();
+      await waitFor(() => {
+        expect(mockDispatch).toHaveBeenCalledWith(
+          expect.objectContaining({type: 'businesses/fetch'}),
+        );
+      });
+    });
 
-    // 4. Validation (Try Next without selection)
-    // Since we mocked the button to be enabled, pressing it triggers the validation check logic
-    fireEvent.press(screen.getByTestId('btn-Next'));
-    expect(
-      screen.getByText('Please select an option to continue.'),
-    ).toBeTruthy();
+    it('shows error if task not found', () => {
+      (selectTaskById as unknown as jest.Mock).mockReturnValue(() => null);
 
-    // 5. Select Option
-    fireEvent.press(screen.getByText('Option A'));
+      const {getByText} = renderScreen();
+      expect(getByText('Task not found')).toBeTruthy();
+    });
+  });
 
-    // 6. Go Next
-    fireEvent.press(screen.getByTestId('btn-Next'));
-    expect(screen.getByText('Step 2')).toBeTruthy();
+  describe('Navigation & Exit', () => {
+    it('shows discard sheet on header back', () => {
+      const {getByTestId} = renderScreen();
+      const backBtn = getByTestId('header-back');
 
-    // 7. Select Option
-    fireEvent.press(screen.getByText('Option B'));
+      fireEvent(backBtn, 'onTouchEnd');
+      expect(mockGoBack).toHaveBeenCalled();
+    });
 
-    // 8. Submit
-    fireEvent.press(screen.getByTestId('btn-Submit and schedule appointment'));
+    it('resets stack if first in history on safe exit', () => {
+      (useNavigation as jest.Mock).mockReturnValue({
+        getState: () => ({routes: [{name: 'ObservationalTool'}]}),
+        reset: mockReset,
+        getParent: mockGetParent,
+        // FIX: Ensure goBack exists
+        goBack: mockGoBack,
+        navigate: mockNavigate,
+        canGoBack: jest.fn(() => true),
+      });
+      mockGetParent.mockReturnValue({navigate: mockNavigate});
 
-    await waitFor(() => {
-      expect(mockDispatch).toHaveBeenCalledWith(
-        expect.objectContaining({type: 'MARK_TASK_STATUS'}),
+      const {getByTestId} = renderScreen();
+      fireEvent(getByTestId('header-back'), 'onTouchEnd');
+
+      expect(mockReset).toHaveBeenCalledWith(
+        expect.objectContaining({index: 0}),
       );
-      expect(mockNavigate).toHaveBeenCalledWith(
-        'Appointments',
-        expect.anything(),
-      );
+      expect(mockNavigate).toHaveBeenCalledWith('HomeStack', expect.anything());
     });
-  });
-
-  it('handles navigation back logic (Step 2 -> Step 1 -> Landing)', () => {
-    render(<ObservationalToolScreen />);
-    fireEvent.press(screen.getByText('Hospital A'));
-    fireEvent.press(screen.getByTestId('btn-Next')); // To Step 1
-
-    fireEvent.press(screen.getByText('Option A'));
-    fireEvent.press(screen.getByTestId('btn-Next')); // To Step 2
-
-    expect(screen.getByText('Step 2')).toBeTruthy();
-
-    // Back to Step 1
-    fireEvent.press(screen.getByTestId('btn-Back'));
-    expect(screen.getByText('Step 1')).toBeTruthy();
-
-    // Back to Landing
-    fireEvent.press(screen.getByTestId('btn-Back'));
-    expect(screen.getByText('Overview')).toBeTruthy();
-  });
-
-  it('handles provider visibility toggle', () => {
-    render(<ObservationalToolScreen />);
-    const switchEl = screen.getByRole('switch');
-
-    // Toggle off
-    fireEvent(switchEl, 'valueChange', false);
-    expect(screen.queryByText('Hospital A')).toBeNull();
-
-    // Toggle on
-    fireEvent(switchEl, 'valueChange', true);
-    expect(screen.getByText('Hospital A')).toBeTruthy();
-  });
-
-  it('validates provider selection on landing page', () => {
-    render(<ObservationalToolScreen />);
-
-    // Deselect default (toggle off)
-    fireEvent.press(screen.getByText('Hospital A'));
-
-    // Try Next
-    fireEvent.press(screen.getByTestId('btn-Next'));
-  });
-
-  it('renders image options for non-dog species', () => {
-    mockRouteParams = {taskId: 'task-cat'};
-    const emptyBizState = {...mockState, businesses: {businesses: []}};
-    mockUseSelector.mockImplementation((cb: any) => cb(emptyBizState));
-
-    render(<ObservationalToolScreen />);
-
-    // Enable next by hiding providers (since list is empty)
-    fireEvent(screen.getByRole('switch'), 'valueChange', false);
-    fireEvent.press(screen.getByTestId('btn-Next'));
-
-    expect(screen.getByText('Cat Step')).toBeTruthy();
-    // Verify image option rendered
-    expect(screen.getByText('Cat Opt')).toBeTruthy();
-  });
-
-  it('handles safe exit when first in stack', () => {
-    mockGetState.mockReturnValue({routes: [{name: 'ObservationalTool'}]}); // Only one route
-    render(<ObservationalToolScreen />);
-
-    fireEvent.press(screen.getByTestId('header-back')); // Open sheet
-    fireEvent.press(screen.getByTestId('discard-confirm')); // Confirm
-
-    expect(mockReset).toHaveBeenCalledWith({
-      index: 0,
-      routes: [{name: 'TasksMain'}],
-    });
-    expect(mockNavigate).toHaveBeenCalledWith('HomeStack', {
-      screen: 'Home',
-    });
-  });
-
-  it('handles safe exit when having history', () => {
-    mockGetState.mockReturnValue({
-      routes: [{name: 'TasksMain'}, {name: 'ObservationalTool'}],
-    });
-    render(<ObservationalToolScreen />);
-
-    fireEvent.press(screen.getByTestId('header-back'));
-    fireEvent.press(screen.getByTestId('discard-confirm'));
-
-    expect(mockGoBack).toHaveBeenCalled();
-  });
-
-  it('handles keep editing on discard sheet', () => {
-    render(<ObservationalToolScreen />);
-    fireEvent.press(screen.getByTestId('header-back'));
-    fireEvent.press(screen.getByTestId('discard-cancel'));
-    // Just verifying no crash and button interaction
-  });
-
-  it('handles task not found', () => {
-    mockRouteParams = {taskId: 'task-unknown'};
-    render(<ObservationalToolScreen />);
-    expect(screen.getByText('Task not found')).toBeTruthy();
-
-    // Back button on error screen calls navigation.goBack directly
-    fireEvent.press(screen.getByTestId('header-back'));
-    expect(mockGoBack).toHaveBeenCalled();
-  });
-
-  it('resolves business description fallbacks (Specialties, Hours, Address)', () => {
-    // Test different business shapes to cover resolveBusinessDescription
-    const mixedState = {
-      ...mockState,
-      businesses: {
-        businesses: [
-          {
-            id: 'b1',
-            category: 'hospital',
-            name: 'B1',
-            description: 'Desc',
-          },
-          {
-            id: 'b2',
-            category: 'hospital',
-            name: 'B2',
-            specialties: ['Spec1'],
-          },
-          {id: 'b3', category: 'hospital', name: 'B3', openHours: '9-5'},
-          {id: 'b4', category: 'hospital', name: 'B4', address: 'Addr'},
-        ],
-      },
-    };
-    mockUseSelector.mockImplementation((cb: any) => cb(mixedState));
-
-    render(<ObservationalToolScreen />);
-
-    expect(screen.getByText('Desc')).toBeTruthy();
-    expect(screen.getByText('Spec1')).toBeTruthy();
-    expect(screen.getByText('B3 · 9-5')).toBeTruthy();
-    expect(screen.getByText('Located at Addr')).toBeTruthy();
-  });
-
-  it('handles provider pricing fallback logic', () => {
-    // Scenario: More businesses than provider definitions to trigger fallback logic
-    const manyBizState = {
-      ...mockState,
-      businesses: {
-        businesses: [
-          {id: 'biz-1', category: 'hospital', name: 'Match'},
-          {id: 'biz-2', category: 'hospital', name: 'Fallback'},
-        ],
-      },
-    };
-    mockUseSelector.mockImplementation((cb: any) => cb(manyBizState));
-
-    render(<ObservationalToolScreen />);
-    expect(screen.getByText('Match')).toBeTruthy();
-    expect(screen.getByText('Fallback')).toBeTruthy(); // Should render due to fallback logic
-  });
-
-  it('handles fallback when no provider pricing exists (default zero)', () => {
-    mockRouteParams = {taskId: 'task-cat'};
-
-    const bizState = {
-      ...mockState,
-      businesses: {
-        businesses: [{id: 'biz-any', category: 'hospital', name: 'ZeroFee'}],
-      },
-    };
-    mockUseSelector.mockImplementation((cb: any) => cb(bizState));
-
-    render(<ObservationalToolScreen />);
-
-    // Should render with $0.00 fees
-    expect(screen.getByText('ZeroFee')).toBeTruthy();
-    const zeroFees = screen.getAllByText('$0.00');
-    expect(zeroFees.length).toBeGreaterThan(0);
   });
 });

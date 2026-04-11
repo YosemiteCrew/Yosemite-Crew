@@ -9,8 +9,8 @@ export const createCommonFormStyles = (theme: any) =>
       tintColor: theme.colors.textSecondary,
     },
     calendarIcon: {
-      width: theme.spacing[5],
-      height: theme.spacing[5],
+      width: theme.spacing['5'],
+      height: theme.spacing['5'],
       tintColor: theme.colors.textSecondary,
     },
   });

@@ -1,0 +1,606 @@
+/* HomeHeroSection started  */
+.HomeHeroSection {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.Container {
+  padding: 32px 80px;
+  max-width: 1560px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.HomeHeroData {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+  justify-content: space-between;
+}
+.LeftHeroDiv {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 45%;
+  flex: 1 1 45%;
+}
+.RightHeroDiv {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 55%;
+  flex: 1 1 55%;
+}
+.RytHeroDiv img {
+  width: 100%;
+  height: auto;
+}
+.herotext > div {
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 5px 0px;
+  animation:
+    type 1.5s steps(90) 1.5s 1 normal both,
+    cursor 1s step-end infinite;
+  position: relative;
+  margin: 0;
+}
+.first {
+  animation:
+    type 1.5s steps(90) 0s 1 normal both,
+    cursor 1s step-end infinite !important;
+}
+.second {
+  animation:
+    type 1.5s steps(90) 1.5s 1 normal both,
+    cursor 1s step-end infinite; /* Delay for the second h1 */
+}
+@keyframes type {
+  from {
+    width: 0;
+  }
+
+  to {
+    width: 100%;
+  }
+}
+
+.heroPara {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.paraitem > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.HeroBtn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+a.Fillbtn {
+  background: var(--black-bg);
+  border: 1px solid var(--black-bg);
+  border-radius: 28px;
+  padding: 16px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--white-text);
+  transition: all 0.3s ease;
+  font-size: 1.25rem;
+  font-weight: 500;
+  line-height: 120%;
+  font-family: var(--satoshi-font);
+  min-height: 60px;
+  &:hover {
+    background: var(--black-hover);
+  }
+}
+a.UnFillbtn {
+  background: var(---whitebg);
+  color: var(--black-text);
+  border: 1px solid var(--black-bg);
+  border-radius: 28px;
+  padding: 16px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  font-size: 1.25rem;
+  font-weight: 500;
+  line-height: 120%;
+  font-family: var(--satoshi-font);
+  &:hover {
+    box-shadow: 0px 2px 70px 6px #00000029;
+  }
+}
+
+@media screen and (max-width: 1280px) {
+  .Container {
+    padding: 32px 48px;
+  }
+  .HomeHeroData {
+    gap: 20px;
+  }
+  .herotext > div {
+    font-size: 2.0625rem;
+  }
+}
+@media screen and (max-width: 1024px) {
+  .HomeHeroData {
+    gap: 32px;
+    flex-direction: column;
+  }
+  .LeftHeroDiv {
+    width: 100%;
+    flex: 1 1 100%;
+    align-items: center;
+    text-align: center;
+    gap: 14px;
+  }
+  .RightHeroDiv {
+    width: 100%;
+
+    flex: 1 1 100%;
+  }
+}
+@media screen and (max-width: 768px) {
+  .Container {
+    padding: 32px 16px;
+  }
+  .LeftHeroDiv {
+    gap: 12px;
+    align-items: center;
+    text-align: center;
+  }
+  .herotext > div {
+    padding: 2px 0px;
+  }
+}
+@media screen and (max-width: 640px) {
+  a.Fillbtn {
+    padding: 14px 24px;
+  }
+  a.UnFillbtn {
+    padding: 16px 28px;
+  }
+}
+
+/* HomeHeroSection Ended  */
+
+/* PracticedSection Started  */
+
+.PracticedSection {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 0 24px;
+}
+.PracticedData {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+}
+.PractHeading > div {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  text-align: center;
+}
+.Practice_Box_Data {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: center;
+}
+.Practice_Box_Data .PracBox {
+  width: 260px;
+}
+@media screen and (max-width: 1280px) {
+  .PracticedSection {
+    padding: 24px 0 20px;
+  }
+}
+@media screen and (max-width: 1024px) {
+  .Practice_Box_Data .PracBox {
+    width: 240px;
+  }
+}
+@media screen and (max-width: 768px) {
+  .Practice_Box_Data {
+    gap: 12px;
+  }
+  .Practice_Box_Data .PracBox {
+    width: 210px;
+  }
+  /* Typography handled by global classes */
+}
+@media screen and (max-width: 550px) {
+  .Practice_Box_Data .PracBox {
+    width: calc(50% - 6px);
+    min-width: 140px;
+  }
+}
+@media screen and (max-width: 400px) {
+  .Practice_Box_Data .PracBox {
+    width: 100%;
+    max-width: 280px;
+  }
+}
+/* PracticedSection Ended  */
+
+/* FocusSection Started */
+
+.FocusSection {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 0;
+}
+.FocusData {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+.FocusTexted {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 640px;
+  margin: 0 auto;
+  text-align: center;
+}
+.FocusTexted > div:first-child {
+  margin: 0;
+}
+.FocusTexted > div:last-child {
+  margin: 0;
+  max-width: 540px;
+}
+.Focus_data {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-gap: 18px;
+  padding: 4px 0px;
+  justify-content: center;
+  justify-items: center;
+}
+@media screen and (max-width: 1024px) {
+  .Focus_data {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+}
+@media screen and (max-width: 768px) {
+  .FocusTexted {
+    min-width: 100%;
+  }
+  .Focus_data {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+  }
+}
+@media screen and (max-width: 550px) {
+  .Focus_data {
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
+  }
+}
+@media screen and (max-width: 450px) {
+  .Focus_data {
+    grid-template-columns: repeat(1, 1fr);
+    justify-items: center;
+  }
+}
+/* FocusSection ended  */
+
+/* TrustExpertSec Started */
+
+.TrustExpertSec {
+  padding: 48px 0px 40px 0px;
+}
+.ExptMaindata {
+  display: flex;
+  flex-direction: column;
+}
+.ExprtTexted {
+  text-align: center;
+}
+.ExprtTexted h4 {
+  font-weight: 500;
+  font-size: 2.5rem;
+  font-family: var(--satoshi-font);
+  line-height: 120%;
+  margin: 0;
+  color: var(--black-text);
+}
+.TrustExpertData {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  padding: 32px 0px;
+  position: relative;
+}
+.TrustExpertData::after {
+  position: absolute;
+  content: ' ';
+  background: var(--img-bg-trust-after);
+  background-size: 100% 100%;
+  height: 300px;
+  width: 300px;
+  right: -25px;
+  top: -220px;
+  animation: heartbeat 1.5s infinite ease-in-out;
+  z-index: -1;
+}
+@keyframes heartbeat {
+  0%,
+  100% {
+    transform: scale(1); /* Normal size */
+  }
+  50% {
+    transform: scale(1.1); /* Slightly larger size */
+  }
+}
+.Expertitems {
+  background: var(--whitebg);
+  box-shadow: 0px 28.93px 63.5px 0px #450e1529;
+  border-radius: 20px 20px 0px 0px;
+  position: relative;
+  width: 100%;
+  max-width: 302px;
+  padding: 16px;
+  height: 100%;
+  min-height: 360px;
+}
+.Expertitems::after {
+  position: absolute;
+  content: ' ';
+  background: var(--blue-text);
+  width: 55px;
+  height: 4px;
+  top: 0;
+}
+.expertBio {
+  position: absolute;
+  display: flex;
+  gap: 8px;
+  padding: 20px 16px;
+  border-radius: 16px 16px 0px 0px;
+  background: var(--blue-text);
+  width: 100%;
+  left: 0;
+  bottom: 0;
+}
+.expertBio img {
+  border-radius: 50%;
+}
+.expertPara {
+  min-height: 244px;
+  display: flex;
+  align-items: center;
+}
+.expertPara p {
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 120%;
+  color: var(--black-text);
+  font-family: var(--satoshi-font);
+  margin: 0;
+}
+.exprtName {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.exprtName h6 {
+  font-family: var(--satoshi-font);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 120%;
+  color: var(--white-text);
+  margin: 0;
+}
+.exprtName p {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 120%;
+  color: var(--white-text);
+  margin: 0;
+  opacity: 70%;
+}
+
+/* TrustExpertSec Ended */
+
+/* WhoCareSection Started  */
+
+.WhoCareSection {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 0;
+}
+.whocareData {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  padding: 0px;
+  width: 100%;
+}
+.whocareData .lftcare {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.whocareData .lftcare > div:first-child {
+  margin: 0;
+  max-width: 420px;
+}
+.whocareData .lftcare > div:last-child {
+  margin: 0;
+  max-width: 480px;
+}
+.whocareData .rytcare {
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  width: 100%;
+}
+@media screen and (max-width: 1280px) {
+  .whocareData {
+    padding: 0px 0px;
+  }
+  .rytcare img:nth-child(1) {
+    height: 76px;
+    width: 76px;
+  }
+  .rytcare img:nth-child(2) {
+    height: 76px;
+    width: 76px;
+  }
+  .rytcare img:nth-child(3) {
+    height: 88px;
+    width: 76px;
+  }
+  .rytcare img:nth-child(4) {
+    height: 30px;
+    width: 132px;
+  }
+}
+@media screen and (max-width: 1024px) {
+  .whocareData {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 8px 0;
+  }
+  .whocareData .lftcare > div:first-child {
+    text-align: center;
+    width: 100%;
+    max-width: none;
+  }
+  .whocareData .lftcare > div:last-child {
+    text-align: center;
+    align-self: center;
+  }
+  .whocareData .rytcare {
+    justify-content: center;
+    gap: 18px;
+  }
+}
+@media screen and (max-width: 768px) {
+  .whocareData .lftcare {
+    gap: 4px;
+  }
+  .whocareData .rytcare {
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+}
+
+/* WhoCareSection Ended   */
+
+.BetterCareSec {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 0 40px;
+}
+.BettercareBox {
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  overflow: hidden;
+  background: var(--whitebg);
+  box-shadow: 0px 0px 8px 0px #55413414;
+  border: 1px solid var(--lightgrey);
+  border-radius: 28px;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.lftbetter {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+.betInner {
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 14px;
+  padding: 0px 24px;
+}
+.betInner .careText {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.betInner .careText > div:first-child {
+  margin: 0;
+  max-width: 320px;
+}
+.betInner .careText > div:last-child {
+  margin: 0;
+}
+.lftbetter img {
+  width: 90%;
+  max-width: 420px;
+  object-fit: cover;
+}
+@media screen and (max-width: 1280px) {
+  .BettercareBox {
+    max-width: 880px;
+  }
+}
+@media screen and (max-width: 1024px) {
+  .betInner {
+    padding: 20px 16px;
+  }
+  .lftbetter img {
+    height: 320px;
+  }
+  .betInner .careText > div:first-child {
+    max-width: 100%;
+  }
+}
+@media screen and (max-width: 768px) {
+  .BettercareBox {
+    gap: 0px;
+    border-radius: 22px;
+  }
+  .lftbetter {
+    justify-content: center;
+  }
+  .betInner {
+    gap: 10px;
+    width: 100%;
+  }
+  .lftbetter img {
+    height: auto;
+    width: 100%;
+    max-width: none;
+  }
+}
+@media screen and (max-width: 500px) {
+  .BettercareBox {
+    grid-template-columns: 1fr;
+  }
+  .lftbetter {
+    width: 100%;
+  }
+  .lftbetter img {
+    width: 100%;
+    height: auto;
+  }
+}

@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, act} from '@testing-library/react-native';
 import DiscardChangesBottomSheet, {
   type DiscardChangesBottomSheetRef,
@@ -7,20 +8,9 @@ import DiscardChangesBottomSheet, {
 // --- Mocks ---
 
 // 1. Mock useTheme
-const mockTheme = {
-  colors: {
-    textSecondary: 'mockTextColor',
-  },
-  spacing: {
-    '2': 2,
-    '4': 4,
-  },
-  typography: {
-    bodyMedium: {fontSize: 16},
-  },
-};
+
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({theme: mockTheme}),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 2. Mock child ConfirmActionBottomSheet

@@ -4,6 +4,12 @@
  */
 
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
+import {
+  isActionableUpcomingStatus,
+  isAppointmentPaymentFailed,
+  isAppointmentPaymentPending,
+} from '@/features/appointments/utils/appointmentStatus';
+import {getCheckInConstants} from '@/features/appointments/utils/checkInUtils';
 
 export interface AppointmentCardData {
   cardTitle: string;
@@ -42,12 +48,18 @@ export const transformAppointmentCardData = (
   const service = serviceMap.get(appointment.serviceId ?? '');
   const biz = businessMap.get(appointment.businessId);
   const hasAssignedVet = Boolean(emp || appointment.employeeName);
-  const companionAvatar = companions.find(c => c.id === appointment.companionId)?.profileImage ?? null;
-  const googlePlacesId = biz?.googlePlacesId ?? appointment.businessGooglePlacesId ?? null;
+  const companionAvatar =
+    companions.find(c => c.id === appointment.companionId)?.profileImage ??
+    null;
+  const googlePlacesId =
+    biz?.googlePlacesId ?? appointment.businessGooglePlacesId ?? null;
   const businessPhoto = biz?.photo ?? appointment.businessPhoto ?? null;
-  const fallbackPhoto = businessFallbacks[appointment.businessId]?.photo ?? null;
+  const fallbackPhoto =
+    businessFallbacks[appointment.businessId]?.photo ?? null;
   const providerAvatar =
-    hasAssignedVet && appointment.employeeAvatar ? {uri: appointment.employeeAvatar} : null;
+    hasAssignedVet && appointment.employeeAvatar
+      ? {uri: appointment.employeeAvatar}
+      : null;
   const avatarSource =
     providerAvatar ||
     businessPhoto ||
@@ -55,10 +67,12 @@ export const transformAppointmentCardData = (
     (companionAvatar ? {uri: companionAvatar} : Images.cat);
 
   const cardTitle = hasAssignedVet
-    ? emp?.name ?? appointment.employeeName ?? 'Assigned vet'
-    : service?.name ?? appointment.serviceName ?? 'Service request';
+    ? (emp?.name ?? appointment.employeeName ?? 'Assigned vet')
+    : (service?.name ?? appointment.serviceName ?? 'Service request');
 
-  const servicePriceText = service?.basePrice ? `${resolveCurrencySymbol(service?.currency ?? 'USD')}${service.basePrice}` : null;
+  const servicePriceText = service?.basePrice
+    ? `${resolveCurrencySymbol(service?.currency ?? 'USD')}${service.basePrice}`
+    : null;
   const serviceSubtitle = [
     service?.specialty ?? appointment.type ?? 'Awaiting vet assignment',
     servicePriceText,
@@ -67,32 +81,48 @@ export const transformAppointmentCardData = (
     .join(' • ');
 
   const providerDesignation =
-    emp?.specialization ?? appointment.employeeTitle ?? service?.specialty ?? appointment.type ?? '';
+    appointment.employeeTitle ??
+    emp?.specialization ??
+    service?.specialty ??
+    appointment.type ??
+    '';
   const cardSubtitle = hasAssignedVet ? providerDesignation : serviceSubtitle;
   const petName = companions.find(c => c.id === appointment.companionId)?.name;
   const businessName = biz?.name || appointment.organisationName || '';
   const businessAddress = biz?.address || appointment.organisationAddress || '';
+  const {CHECKIN_BUFFER_MINUTES, CHECKIN_RADIUS_METERS} = getCheckInConstants({
+    CHECKIN_BUFFER_MINUTES:
+      appointment.appointmentCheckInBufferMinutes ??
+      biz?.appointmentCheckInBufferMinutes,
+    CHECKIN_RADIUS_METERS:
+      appointment.appointmentCheckInRadiusMeters ??
+      biz?.appointmentCheckInRadiusMeters,
+  });
+  const minuteUnit = CHECKIN_BUFFER_MINUTES === 1 ? 'minute' : 'minutes';
 
   let assignmentNote: string | undefined;
   if (!hasAssignedVet) {
-    assignmentNote = 'Your request is pending review. The business will assign a provider once it\'s approved.';
+    assignmentNote =
+      "Your request is pending review. The business will assign a provider once it's approved.";
   } else if (
     appointment.status === 'PAID' ||
     appointment.status === 'UPCOMING' ||
     appointment.status === 'CHECKED_IN'
   ) {
-    assignmentNote = 'Check-in unlocks when you are within ~200m of the clinic and 5 minutes before start time.';
+    assignmentNote = `Check-in unlocks when you are within ~${CHECKIN_RADIUS_METERS}m of the clinic and ${CHECKIN_BUFFER_MINUTES} ${minuteUnit} before start time.`;
   }
 
   const needsPayment =
-    appointment.status === 'NO_PAYMENT' ||
-    appointment.status === 'AWAITING_PAYMENT' ||
-    appointment.status === 'PAYMENT_FAILED';
+    isAppointmentPaymentPending(
+      appointment.status,
+      appointment.paymentStatus,
+    ) ||
+    isAppointmentPaymentFailed(appointment.status, appointment.paymentStatus);
   const isRequested = appointment.status === 'REQUESTED';
   const isCheckedIn = appointment.status === 'CHECKED_IN';
   const isInProgress = appointment.status === 'IN_PROGRESS';
   const statusAllowsActions =
-    (appointment.status === 'UPCOMING' || isCheckedIn || isInProgress) && !needsPayment;
+    isActionableUpcomingStatus(appointment.status) && !needsPayment;
   let checkInLabel = 'Check in';
   if (isInProgress) {
     checkInLabel = 'In progress';

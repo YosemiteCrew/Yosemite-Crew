@@ -12,7 +12,17 @@ export type ContactStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
 
 export type DsraRequesterType = "SELF" | "PARENT_GUARDIAN" | "AUTHORIZED_AGENT";
 
-export type DsraLawBasis = "GDPR" | "CCPA" | "UK_GDPR" | "OTHER";
+export type DsraLawBasis =
+  | "GDPR"
+  | "CCPA"
+  | "UK_GDPR"
+  | "LGPD"
+  | "PIPEDA"
+  | "POPIA"
+  | "PDPA"
+  | "PIPL"
+  | "PA_1988_AU"
+  | "OTHER";
 
 export type DsraRight =
   | "KNOW_INFORMATION_COLLECTED"
@@ -100,6 +110,8 @@ export interface ContactRequestMongo {
 
   subject: string;
   message: string;
+  fullName?: string;
+  phone?: string;
 
   // who is talking, optional depending on whether user is logged in
   userId?: string;
@@ -144,6 +156,8 @@ const ContactRequestSchema = new Schema<ContactRequestMongo>(
 
     subject: { type: String, required: true },
     message: { type: String, required: true },
+    fullName: { type: String },
+    phone: { type: String },
 
     userId: { type: String, index: true },
     email: { type: String },

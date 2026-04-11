@@ -93,7 +93,8 @@ describe('BreedBottomSheet', () => {
         searchPlaceholder: 'Search from 200+ breeds',
         emptyMessage: 'No breeds available',
         mode: 'select',
-        snapPoints: ['65%', '75%'],
+        maxListHeight: 600,
+        snapPoints: ['90%', '95%'],
       }),
     );
   });

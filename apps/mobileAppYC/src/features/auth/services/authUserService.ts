@@ -37,12 +37,23 @@ export interface AuthUserSignupResponse {
   parent?: AuthUserParent | null;
 }
 
+const deriveCompletionFromParent = (parent: AuthUserParent): boolean => {
+  return (
+    Boolean(parent.firstName?.trim()) &&
+    Boolean(parent.lastName?.trim()) &&
+    Boolean(parent.phoneNumber?.trim())
+  );
+};
+
 const normalizeParentSummary = (
   parent?: AuthUserParent | null,
 ): ParentProfileSummary | undefined => {
   if (!parent?._id) {
     return undefined;
   }
+
+  const derivedComplete = deriveCompletionFromParent(parent);
+  const isComplete = Boolean(parent.isProfileComplete) || derivedComplete;
 
   return {
     id: parent._id,
@@ -51,7 +62,7 @@ const normalizeParentSummary = (
     birthDate: parent.birthDate,
     phoneNumber: parent.phoneNumber,
     profileImageUrl: parent.profileImageUrl,
-    isComplete: parent.isProfileComplete,
+    isComplete,
     address: parent.address
       ? {
           addressLine: parent.address.addressLine,

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDisplayName</key>
+  <string>YosemiteCrew</string>
+  <key>CFBundleIdentifier</key>
+  <string>com.yourcompany.yosemitecrew</string>
+  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleURLSchemes</key>
+      <array>
+        <string>YOUR_REVERSED_CLIENT_ID</string>
+      </array>
+    </dict>
+  </array>
+  <key>GoogleMapsAPIKey</key>
+  <string>YOUR_GOOGLE_MAPS_API_KEY</string>
+  <key>FacebookAppID</key>
+  <string>YOUR_FACEBOOK_APP_ID</string>
+  <key>FacebookClientToken</key>
+  <string>YOUR_FACEBOOK_CLIENT_TOKEN</string>
+</dict>
+</plist>

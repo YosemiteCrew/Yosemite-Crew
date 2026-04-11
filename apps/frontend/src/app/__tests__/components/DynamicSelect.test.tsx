@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 
-import DynamicSelect, { Option } from '@/app/components/DynamicSelect/DynamicSelect';
+import DynamicSelect, { Option } from '@/app/ui/widgets/DynamicSelect/DynamicSelect';
 
 const mockOptions: Option[] = [
   { value: 'apple', label: 'Apple' },
@@ -125,9 +125,11 @@ describe('DynamicSelect Component', () => {
       />
     );
 
+    // Click on the current selection to open dropdown
     await user.click(screen.getByText('Apple'));
 
-    const placeholderOption = await screen.findByRole('button', { name: 'Select a fruit' });
+    // Find and click the placeholder option (which is a div with class dropdown-item, not a button)
+    const placeholderOption = await screen.findByText('Select a fruit');
     await user.click(placeholderOption);
 
     expect(mockOnChange).toHaveBeenCalledTimes(1);

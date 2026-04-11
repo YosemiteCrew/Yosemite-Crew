@@ -1,0 +1,425 @@
+.ContactWrapper {
+  padding: 24px 80px;
+  max-width: 1560px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+@media screen and (max-width: 1280px) {
+  .ContactWrapper {
+    padding: 24px 48px;
+  }
+}
+@media screen and (max-width: 768px) {
+  .ContactWrapper {
+    padding: 24px 16px;
+  }
+}
+
+.ContactUsPageSec {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+.ContactUsData {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  width: 100%;
+}
+.ContactUsData .LeftContactUs {
+  display: flex;
+  flex-direction: column;
+  width: 45%;
+  justify-content: start;
+}
+.ContactUsData .LeftContactUs img {
+  object-fit: cover;
+  width: 100%;
+  height: auto;
+}
+.ContactUsData .LeftContactUs .conttexted {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.ContactUsData .LeftContactUs .conttexted > div {
+  margin: 0;
+}
+.ContactUsData .LeftContactUs .conttexted > div:first-child {
+  max-width: 350px;
+}
+.ContactUsData .RightContactUs {
+  box-shadow: 0px 0px 8px 0px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--color-card-border);
+  background: var(--color-neutral-0);
+  padding: 20px;
+  height: fit-content;
+  border-radius: 24px;
+  width: 36%;
+  max-width: 500px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 24px;
+}
+.ContactUsData .RightContactUs .QueryText > div {
+  margin: 0;
+}
+.ContactUsData .RightContactUs .ContactForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ContactUsData .RightContactUs .QueryTypeRadioGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.ContactUsData .RightContactUs .QueryTypeRadioGroup label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-family: var(--font-satoshi);
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.5rem;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+.ContactUsData .RightContactUs .QueryTypeRadioGroup input[type='radio'] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--color-brand-950);
+}
+.ContactUsData .RightContactUs .QueryDetailsFields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ContactUsData .RightContactUs .QueryDetailsFields label {
+  font-family: var(--font-satoshi);
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.5rem;
+  color: var(--color-text-primary);
+}
+.ContactUsData .RightContactUs .QueryDetailsFields textarea {
+  border: 1px solid var(--color-neutral-700) !important;
+  padding: 12px 16px !important;
+  border-radius: 16px !important;
+  min-height: 114px !important;
+  outline: none !important;
+  font-family: var(--font-satoshi);
+  font-size: 1.125rem;
+  font-weight: 500;
+  line-height: 1.625rem;
+  color: var(--color-text-primary);
+}
+.ContactUsData .RightContactUs .QueryDetailsFields textarea::placeholder {
+  font-family: var(--font-satoshi);
+  font-size: 1.125rem;
+  font-weight: 400;
+  line-height: 1.625rem;
+  color: var(--color-text-primary);
+  opacity: 60%;
+}
+.ContactUsData .RightContactUs .DataServiceAccessFields {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0px;
+}
+.ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted > div:first-child {
+  margin: 0;
+}
+.ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-gap: 10px;
+  align-items: start;
+  font-family: var(--font-satoshi);
+  font-size: 1.125rem;
+  font-weight: 400;
+  line-height: 1.625rem;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+.ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted input[type='radio'],
+.ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  margin-top: 4px;
+  cursor: pointer;
+  accent-color: var(--color-brand-950);
+}
+.ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted label:has(input:checked) {
+  font-weight: 500;
+}
+
+/* Upload styles for complaint image */
+.ContactUsData .RightContactUs .DataServiceAccessFields .UploadBox {
+  position: relative;
+  border: 1px dashed rgba(55, 34, 60, 0.7);
+  border-radius: 16px;
+  padding: 18px;
+}
+.ContactUsData .RightContactUs .DataServiceAccessFields .UploadBox input[type='file'] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.ContactUsData .RightContactUs .DataServiceAccessFields .UploadBox .UploadInner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80px;
+  border-radius: 12px;
+  background: var(--color-neutral-0);
+}
+.ContactUsData .RightContactUs .DataServiceAccessFields .UploadBox .UploadInner .UploadText {
+  font-size: 15px;
+  color: var(--color-text-primary);
+  opacity: 0.6;
+}
+
+/* ContactInfoSec Started */
+.ContactInfoSec {
+  background: var(--img-bg-contact-info) no-repeat;
+  background-size: 100% 100%;
+  min-height: 337px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ContactInfoData {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  width: 100%;
+}
+.LeftContInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.LeftContInfo > div {
+  margin: 0;
+}
+.LeftContInfo > div:last-child {
+  max-width: 336px;
+}
+.ContactInfoDetail {
+  display: flex;
+  gap: 80px;
+}
+.ContactInfoDetail .LeftDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.ContactInfoDetail .LeftDetails .detailitem > div {
+  position: relative;
+  min-height: 43px;
+  margin: 0;
+}
+.ContactInfoDetail .LeftDetails .detailitem > div::after {
+  position: absolute;
+  content: ' ';
+  width: 22px;
+  height: 3px;
+  bottom: 0;
+  left: 0;
+  background: var(--color-neutral-900);
+}
+.ContactInfoDetail .LeftDetails .detailTexed {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.ContactInfoDetail .LeftDetails .detailTexed > div {
+  max-width: 184px;
+  margin: 0;
+}
+.SendBtn {
+  min-height: 51px;
+  border-radius: 16px;
+  padding: 12px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 160px;
+  width: 100%;
+  background-color: var(--color-neutral-900) !important;
+  border: 1px solid var(--color-neutral-900) !important;
+  font-family: var(--font-satoshi);
+  font-weight: 500;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  color: var(--color-neutral-0);
+  opacity: 50%;
+  transition: all 0.3s ease-in-out;
+}
+.SendBtn:hover {
+  background-color: var(--color-neutral-950) !important;
+  transform: scale(1.02);
+}
+
+/* ContactInfoSec Ended */
+
+/* ==========================================================================
+   Responsive Styles - Tablet and Mobile
+   ========================================================================== */
+
+/* For Tablets and smaller devices (992px and below) */
+
+@media (max-width: 1280px) {
+  .ContactUsData .LeftContactUs {
+    width: 48%;
+  }
+  .ContactUsData .RightContactUs {
+    width: 48%;
+    padding: 24px 20px;
+  }
+  .ContactUsData .LeftContactUs .conttexted > div:first-child {
+    font-size: 0.9375rem;
+    line-height: 1.375rem;
+    max-width: 250px;
+  }
+  .ContactUsData .LeftContactUs .conttexted > div:last-child {
+    font-size: 2.0625rem;
+    line-height: 2.5rem;
+  }
+  .ContactUsData .RightContactUs .QueryText > div {
+    font-size: 2.0625rem;
+    line-height: 2.5rem;
+  }
+  .ContactUsData .RightContactUs .QueryTypeRadioGroup label {
+    font-size: 0.9375rem;
+    line-height: 1.375rem;
+  }
+  .ContactUsData .RightContactUs .QueryDetailsFields label {
+    font-size: 0.9375rem;
+    line-height: 1.375rem;
+  }
+  .ContactUsData .RightContactUs .QueryDetailsFields textarea {
+    font-size: 0.9375rem;
+    line-height: 1.375rem;
+  }
+  .ContactUsData .RightContactUs .QueryDetailsFields textarea::placeholder {
+    font-size: 0.9375rem;
+    line-height: 1.375rem;
+  }
+  .ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted > div:first-child {
+    font-size: 0.9375rem;
+    line-height: 1.375rem;
+  }
+  .ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted label {
+    font-size: 0.9375rem;
+    line-height: 1.375rem;
+    grid-template-columns: auto 1fr;
+  }
+  .ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted input[type='radio'],
+  .ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted input[type='checkbox'] {
+    width: 16px;
+    height: 16px;
+  }
+  .ContactUsData .RightContactUs .QueryTypeRadioGroup input[type='radio'] {
+    width: 16px;
+    height: 16px;
+  }
+  .SendBtn {
+    font-size: 1.1875rem;
+    line-height: 1.5rem;
+    min-height: 48px;
+    width: 100%;
+  }
+  .LeftContInfo > div:first-child {
+    font-size: 0.9375rem;
+    line-height: 1.375rem;
+  }
+  .LeftContInfo > div:last-child {
+    font-size: 2.0625rem;
+    line-height: 2.5rem;
+    max-width: 237px;
+  }
+  .ContactInfoDetail {
+    display: flex;
+    gap: 20px;
+  }
+}
+
+/* For Mobile devices (768px and below) */
+@media (max-width: 768px) {
+  .ContactUsData {
+    flex-direction: column;
+    gap: 14px;
+    align-items: center;
+  }
+  .ContactUsData .LeftContactUs {
+    width: 100%;
+    padding: 20px 0px;
+  }
+  .ContactUsData .RightContactUs {
+    width: 100%;
+    padding: 24px 16px;
+    height: auto;
+  }
+  .ContactUsData .LeftContactUs .conttexted > div:first-child {
+    font-size: 0.9375rem;
+    line-height: 1.375rem;
+    max-width: 100%;
+  }
+  .ContactUsData .LeftContactUs .conttexted > div:last-child {
+    font-size: 1.5625rem;
+    line-height: 1.875rem;
+  }
+  .ContactUsData .RightContactUs .QueryText > div {
+    font-size: 1.5625rem;
+    line-height: 1.875rem;
+  }
+  .LeftContInfo > div:first-child {
+    font-size: 0.9375rem;
+    line-height: 1.375rem;
+  }
+  .LeftContInfo > div:last-child {
+    font-size: 1.5625rem;
+    line-height: 1.875rem;
+  }
+  .ContactInfoDetail .LeftDetails .detailitem > div {
+    font-size: 0.9375rem;
+    line-height: 1.375rem;
+  }
+  .ContactInfoDetail .LeftDetails .detailTexed a {
+    font-size: 0.8125rem;
+    line-height: 1.1875rem;
+  }
+  .ContactInfoDetail .LeftDetails .detailTexed > div {
+    font-size: 0.8125rem;
+    line-height: 1.1875rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .ContactInfoData {
+    flex-direction: column;
+    gap: 40px;
+  }
+  .ContactInfoDetail {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .ContactInfoSec {
+    min-height: 360px;
+  }
+}

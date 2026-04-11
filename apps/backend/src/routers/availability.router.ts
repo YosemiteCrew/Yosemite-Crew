@@ -13,8 +13,14 @@ router.post("/:orgId/base", (req, res) =>
 router.get("/:orgId/base", (req, res) =>
   AvailabilityController.getBaseAvailability(req, res),
 );
+router.get("/:orgId/base/all", (req, res) =>
+  AvailabilityController.getOrganisationBaseAvailability(req, res),
+);
 router.delete("/:orgId/base", (req, res) =>
   AvailabilityController.deleteBaseAvailability(req, res),
+);
+router.post("/:orgId/:userId/base", (req, res) =>
+  AvailabilityController.setBaseAvailabilityForUser(req, res),
 );
 
 // Weekly overrides

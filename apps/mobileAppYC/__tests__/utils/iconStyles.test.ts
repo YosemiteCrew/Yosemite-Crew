@@ -1,12 +1,8 @@
 import { createIconStyles } from '@/shared/utils/iconStyles';
+import {mockTheme} from '../setup/mockTheme';
 
 // Define a mock theme
-const mockTheme = {
-  colors: {
-    error: '#FF0000',
-    secondary: '#555555',
-  },
-};
+
 
 describe('createIconStyles', () => {
   it('should create the correct icon styles from the theme', () => {
@@ -32,13 +28,13 @@ describe('createIconStyles', () => {
         width: 20,
         height: 20,
         resizeMode: 'contain',
-        tintColor: '#FF0000', // from theme.colors.error
+        tintColor: mockTheme.colors.error,
       },
       addIcon: {
         width: 20,
         height: 20,
         resizeMode: 'contain',
-        tintColor: '#555555', // from theme.colors.secondary
+        tintColor: mockTheme.colors.secondary,
       },
     });
   });

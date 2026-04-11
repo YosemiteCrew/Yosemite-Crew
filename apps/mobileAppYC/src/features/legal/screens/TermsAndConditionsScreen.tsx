@@ -13,6 +13,7 @@ import {unregisterDeviceToken} from '@/shared/services/deviceTokenRegistry';
 import {LegalScreen} from '../components/LegalScreen';
 import {TERMS_SECTIONS} from '../data/termsData';
 import {createLegalStyles} from '../styles/legalStyles';
+import type {LegalStackParamList} from '@/navigation/types';
 
 if (__DEV__) {
   try {
@@ -23,9 +24,8 @@ if (__DEV__) {
     const _err = err;
   }
 }
-import type {HomeStackParamList} from '@/navigation/types';
 
-type TermsScreenProps = NativeStackScreenProps<HomeStackParamList, 'TermsAndConditions'>;
+type TermsScreenProps = NativeStackScreenProps<LegalStackParamList, 'TermsAndConditions'>;
 type WithdrawalErrors = Partial<
   Record<'fullName' | 'email' | 'address' | 'signature' | 'consent' | 'general', string>
 >;

@@ -1,66 +1,97 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
+import InventoryTable from "@/app/ui/tables/InventoryTable";
 
-import InventoryTable, {
-  getStatusStyle,
-} from "@/app/components/DataTable/InventoryTable";
+jest.mock("react-icons/io5", () => ({
+  IoEye: () => <span data-testid="icon-eye" />,
+}));
 
-const createInventoryItem = () =>
-  ({
+jest.mock("@/app/ui/cards/InventoryCard", () => ({
+  __esModule: true,
+  default: ({ item, handleViewInventory }: any) => (
+    <div data-testid="mobile-card">
+      <span>{item.basicInfo.name}</span>
+      <button
+        type="button"
+        onClick={() => handleViewInventory(item)}
+      >
+        View Mobile
+      </button>
+    </div>
+  ),
+}));
+
+jest.mock("@/app/ui/tables/GenericTable/GenericTable", () => ({
+  __esModule: true,
+  default: ({ data, columns }: any) => (
+    <table data-testid="generic-table">
+      <tbody>
+        {data.map((row: any, idx: number) => (
+          <tr key={row.id} data-testid="table-row">
+            {columns.map((col: any) => (
+              <td key={col.key}>{col.render ? col.render(row) : row[col.key]}</td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  ),
+}));
+
+jest.mock("@/app/features/inventory/pages/Inventory/utils", () => ({
+  displayStatusLabel: () => "Healthy",
+  formatDisplayDate: () => "01 Jan 2025",
+  getStatusBadgeStyle: () => ({ backgroundColor: "#000", color: "#fff" }),
+}));
+
+describe("InventoryTable", () => {
+  const item = {
+    id: "item-1",
     basicInfo: {
-      name: "Apoquel",
+      name: "Vaccine",
       category: "Medicine",
-      subCategory: "",
-      department: "",
-      description: "Itchy dogs",
-      status: "Low stock",
-    },
-    classification: {
-      form: "",
-      unitofMeasure: "",
-      species: "",
-      administration: "",
-    },
-    pricing: {
-      purchaseCost: "10",
-      selling: "15",
-      maxDiscount: "",
-      tax: "",
-    },
-    vendor: {
-      supplierName: "",
-      brand: "",
-      vendor: "",
-      license: "",
-      paymentTerms: "",
-      leadTime: "",
+      status: "ACTIVE",
     },
     stock: {
-      current: "2",
-      allocated: "",
-      available: "",
-      reorderLevel: "",
-      reorderQuantity: "",
-      stockLocation: "Fridge",
-      stockType: "",
-      minStockAlert: "",
+      current: 2,
+      stockLocation: "Shelf A",
+    },
+    pricing: {
+      purchaseCost: 5,
+      selling: 10,
     },
     batch: {
-      batch: "",
-      manufactureDate: "",
       expiryDate: "2025-01-01",
-      serial: "",
-      tracking: "",
-      litterId: "",
-      nextRefillDate: "",
     },
-    status: "Low stock",
-  } as any);
+  } as any;
 
-describe("<InventoryTable />", () => {
-  test("renders table rows and card view", () => {
-    const item = createInventoryItem();
+  it("renders table data and mobile cards", () => {
+    render(
+      <InventoryTable
+        filteredList={[item]}
+        setActiveInventory={jest.fn()}
+        setViewInventory={jest.fn()}
+      />
+    );
+
+    const table = screen.getByTestId("generic-table");
+    const tableScope = within(table);
+    expect(tableScope.getByText("Vaccine")).toBeInTheDocument();
+    expect(tableScope.getByText("Medicine")).toBeInTheDocument();
+    expect(tableScope.getByText("2 units")).toBeInTheDocument();
+    expect(tableScope.getByText("$ 5")).toBeInTheDocument();
+    expect(tableScope.getByText("$ 10")).toBeInTheDocument();
+    expect(tableScope.getByText("$ 20")).toBeInTheDocument();
+    expect(tableScope.getByText("01 Jan 2025")).toBeInTheDocument();
+    expect(tableScope.getByText("Shelf A")).toBeInTheDocument();
+    expect(tableScope.getByText("Healthy")).toBeInTheDocument();
+
+    const cards = screen.getAllByTestId("mobile-card");
+    expect(cards).toHaveLength(1);
+  });
+
+  it("handles view action", () => {
     const setActiveInventory = jest.fn();
     const setViewInventory = jest.fn();
 
@@ -69,27 +100,11 @@ describe("<InventoryTable />", () => {
         filteredList={[item]}
         setActiveInventory={setActiveInventory}
         setViewInventory={setViewInventory}
-      />,
+      />
     );
 
-    expect(screen.getAllByText("Apoquel")[0]).toBeInTheDocument();
-    expect(screen.getAllByText("Medicine").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("$ 15").length).toBeGreaterThan(0);
-
-    fireEvent.click(screen.getByText("View"));
+    fireEvent.click(screen.getByTestId("icon-eye").closest("button")!);
     expect(setActiveInventory).toHaveBeenCalledWith(item);
     expect(setViewInventory).toHaveBeenCalledWith(true);
-  });
-
-  test("maps status styles correctly", () => {
-    expect(getStatusStyle("this week")).toEqual({
-      color: "#54B492",
-      backgroundColor: "#E6F4EF",
-    });
-    expect(getStatusStyle("expired")).toEqual({
-      color: "#EA3729",
-      backgroundColor: "#FDEBEA",
-    });
-    expect(getStatusStyle("unknown").color).toBeTruthy();
   });
 });

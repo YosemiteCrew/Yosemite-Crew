@@ -9,6 +9,8 @@ import {
   StyleSheet,
   ViewStyle,
   StyleProp,
+  useColorScheme,
+  Platform,
 } from 'react-native';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {useTheme} from '@/hooks';
@@ -39,6 +41,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   autoFocus,
 }) => {
   const {theme} = useTheme();
+  const colorScheme = useColorScheme();
+  const keyboardAppearance = colorScheme === 'dark' ? 'dark' : 'light';
   const styles = React.useMemo(() => createStyles(theme), [theme]);
 
   const renderReadonly = () => (
@@ -56,7 +60,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={onIconPress ?? onPress}
-          hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+          hitSlop={{top: theme.spacing['2'], bottom: theme.spacing['2'], left: theme.spacing['2'], right: theme.spacing['2']}}>
           <Image source={Images.searchIcon} style={styles.icon} />
         </TouchableOpacity>
       </View>
@@ -74,7 +78,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         value={value}
         onChangeText={onChangeText}
         onSubmitEditing={onSubmitEditing}
-        returnKeyType="search"
+        returnKeyType="done"
+        keyboardAppearance={keyboardAppearance}
       />
       <TouchableOpacity
         activeOpacity={0.85}
@@ -85,7 +90,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             onSubmitEditing({nativeEvent: {text: value ?? ''}} as any);
           }
         }}
-        hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+        hitSlop={{top: theme.spacing['2'], bottom: theme.spacing['2'], left: theme.spacing['2'], right: theme.spacing['2']}}>
         <Image source={Images.searchIcon} style={styles.icon} />
       </TouchableOpacity>
       {rightElement}
@@ -106,11 +111,12 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      borderRadius: theme.borderRadius.lg,
-      paddingHorizontal: theme.spacing[4],
-      paddingVertical: theme.spacing[3],
-      borderWidth: 1,
-      borderColor: theme.colors.border,
+      height: 48,
+      paddingHorizontal: 20,
+      paddingVertical: 13,
+      borderRadius: 16,
+      borderWidth: Platform.OS === 'ios' ? 0 : 0.5,
+      borderColor: Platform.OS === 'ios' ? 'transparent' : theme.colors.text,
       backgroundColor: theme.colors.cardBackground,
       overflow: 'hidden',
       ...theme.shadows.base,
@@ -118,9 +124,12 @@ const createStyles = (theme: any) =>
     },
     fallback: {
       backgroundColor: theme.colors.cardBackground,
-      borderColor: theme.colors.border,
-      borderRadius: theme.borderRadius.lg,
+      borderColor: Platform.OS === 'ios' ? 'transparent' : theme.colors.text,
+      borderWidth: Platform.OS === 'ios' ? 0 : 0.5,
+      borderRadius: 16,
       overflow: 'hidden',
+      ...theme.shadows.base,
+      shadowColor: theme.colors.neutralShadow,
     },
     touchable: {
       flexDirection: 'row',
@@ -131,37 +140,39 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      gap: 12,
+      gap: theme.spacing['3'],
       flex: 1,
     },
     icon: {
-      width: 20,
-      height: 20,
+      width: theme.spacing['5'],
+      height: theme.spacing['5'],
       resizeMode: 'contain',
       tintColor: theme.colors.textSecondary,
     },
     placeholder: {
       flex: 1,
-      fontFamily: theme.typography.paragraph.fontFamily,
-      fontSize: 15,
-      fontWeight: theme.typography.paragraph.fontWeight,
-      lineHeight: 18,
-      letterSpacing: -0.32,
-      color: theme.colors.textSecondary,
+      fontFamily: theme.typography.body.fontFamily,
+      fontSize: 17,
+      lineHeight: 22,
+      fontWeight: '400',
+      color: theme.colors.text,
+      includeFontPadding: false,
     },
     inputWrapper: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      gap: 12,
+      gap: theme.spacing['3'],
     },
     input: {
       flex: 1,
-      fontFamily: theme.typography.paragraph.fontFamily,
-      fontSize: 15,
-      lineHeight: 18,
-      letterSpacing: -0.32,
+      fontFamily: theme.typography.body.fontFamily,
+      fontSize: 17,
+      lineHeight: 22,
+      fontWeight: '400',
       color: theme.colors.text,
       padding: 0,
+      textAlignVertical: 'center',
+      includeFontPadding: false,
     },
   });

@@ -4,7 +4,9 @@ import {
   ContactService,
   ContactServiceError,
   type CreateContactRequestInput,
+  type CreateWebContactRequestInput,
 } from "src/services/contact-us.service";
+import { generatePresignedUrl, getURLForKey } from "src/middlewares/upload";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { type ContactType, type ContactStatus } from "src/models/contect-us";
@@ -17,31 +19,32 @@ const resolveMobileUserId = (req: Request): string | undefined => {
   return authReq.userId;
 };
 
-const CONTACT_STATUSES: ContactStatus[] = [
+const CONTACT_STATUSES = new Set<ContactStatus>([
   "OPEN",
   "IN_PROGRESS",
   "RESOLVED",
   "CLOSED",
-];
+]);
 
-const CONTACT_TYPES: ContactType[] = [
+const CONTACT_TYPES = new Set<ContactType>([
   "GENERAL_ENQUIRY",
   "FEATURE_REQUEST",
   "DSAR",
   "COMPLAINT",
-];
+]);
 
 const toContactStatus = (value: unknown): ContactStatus | undefined =>
-  typeof value === "string" && CONTACT_STATUSES.includes(value as ContactStatus)
+  typeof value === "string" && CONTACT_STATUSES.has(value as ContactStatus)
     ? (value as ContactStatus)
     : undefined;
 
 const toContactType = (value: unknown): ContactType | undefined =>
-  typeof value === "string" && CONTACT_TYPES.includes(value as ContactType)
+  typeof value === "string" && CONTACT_TYPES.has(value as ContactType)
     ? (value as ContactType)
     : undefined;
 
 type CreateContactRequestBody = CreateContactRequestInput;
+type CreateWebContactRequestBody = CreateWebContactRequestInput;
 
 type ListContactQuery = {
   status?: ContactStatus;
@@ -103,13 +106,87 @@ export const ContactController = {
       };
 
       const doc = await ContactService.createRequest(payload);
-      res.status(201).json({ id: doc._id.toString() });
+      const id = "_id" in doc ? doc._id.toString() : doc.id;
+      res.status(201).json({ id });
     } catch (err) {
       if (err instanceof ContactServiceError) {
         return res.status(err.statusCode).json({ message: err.message });
       }
       console.error("Error creating contact request", err);
       res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  async createWeb(
+    this: void,
+    req: Request<unknown, unknown, CreateWebContactRequestBody>,
+    res: Response,
+  ) {
+    try {
+      const {
+        type,
+        source,
+        message,
+        fullName,
+        email,
+        phone,
+        organisationId,
+        dsarDetails,
+        attachments,
+      } = req.body;
+
+      const payload = {
+        type,
+        source,
+        message,
+        fullName,
+        email,
+        phone,
+        organisationId,
+        dsarDetails,
+        attachments,
+      };
+
+      const doc = await ContactService.createWebRequest(payload);
+      const id = "_id" in doc ? doc._id.toString() : doc.id;
+      res.status(201).json({ id });
+    } catch (err) {
+      if (err instanceof ContactServiceError) {
+        return res.status(err.statusCode).json({ message: err.message });
+      }
+      console.error("Error creating web contact request", err);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  async getAttachmentUploadUrl(this: void, req: Request, res: Response) {
+    try {
+      const rawBody: unknown = req.body;
+      const mimeType =
+        typeof rawBody === "object" && rawBody !== null && "mimeType" in rawBody
+          ? (rawBody as { mimeType?: unknown }).mimeType
+          : undefined;
+
+      if (typeof mimeType !== "string" || !mimeType) {
+        return res
+          .status(400)
+          .json({ message: "mimeType is required in the request body." });
+      }
+
+      const { url, key } = await generatePresignedUrl(
+        mimeType,
+        "custom",
+        "contact-us",
+      );
+
+      return res.status(200).json({
+        uploadUrl: url,
+        s3Key: key,
+        fileUrl: getURLForKey(key),
+      });
+    } catch (err) {
+      console.error("Error generating contact-us upload URL", err);
+      return res.status(500).json({ message: "Unable to generate upload URL" });
     }
   },
 

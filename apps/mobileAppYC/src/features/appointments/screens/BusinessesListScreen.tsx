@@ -1,5 +1,5 @@
 import React, {useMemo, useEffect} from 'react';
-import {ScrollView, View, StyleSheet} from 'react-native';
+import {ScrollView, StyleSheet} from 'react-native';
 import {useTheme} from '@/hooks';
 import {Header} from '@/shared/components/common/Header/Header';
 import BusinessCard from '@/features/appointments/components/BusinessCard/BusinessCard';
@@ -8,9 +8,9 @@ import type {RootState, AppDispatch} from '@/app/store';
 import {useRoute, useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
-import {SafeArea} from '@/shared/components/common';
 import {createSelectBusinessesByCategory} from '@/features/appointments/selectors';
 import {fetchBusinesses} from '@/features/appointments/businessesSlice';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -52,38 +52,44 @@ export const BusinessesListScreen: React.FC = () => {
 
 
   return (
-    <SafeArea>
-    <View style={styles.root}>
-      <Header title="Book an appointment" showBackButton onBack={() => navigation.goBack()} />
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        {businesses.map(b => (
-          <BusinessCard
-            key={b.id}
-            name={b.name}
-            openText={b.openHours}
-            description={resolveDescription(b)}
-            distanceText={getDistanceText(b)}
-            ratingText={b.rating ? `${b.rating}` : undefined}
-            photo={b.photo}
-            onBook={() => navigation.navigate('BusinessDetails', {businessId: b.id})}
-          />
-        ))}
-      </ScrollView>
-    </View>
-    </SafeArea>
+    <LiquidGlassHeaderScreen
+      header={
+        <Header
+          title="Book an appointment"
+          showBackButton
+          onBack={() => navigation.goBack()}
+          glass={false}
+        />
+      }
+      cardGap={theme.spacing['3']}
+      contentPadding={theme.spacing['4']}>
+      {contentPaddingStyle => (
+        <ScrollView
+          contentContainerStyle={[styles.container, contentPaddingStyle]}
+          showsVerticalScrollIndicator={false}>
+          {businesses.map(b => (
+            <BusinessCard
+              key={b.id}
+              name={b.name}
+              openText={b.openHours}
+              description={resolveDescription(b)}
+              distanceText={getDistanceText(b)}
+              ratingText={b.rating ? `${b.rating}` : undefined}
+              photo={b.photo}
+              onBook={() => navigation.navigate('BusinessDetails', {businessId: b.id})}
+            />
+          ))}
+        </ScrollView>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
 const createStyles = (theme: any) => StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
   container: {
-    paddingHorizontal: theme.spacing[4],
-    paddingTop: theme.spacing[4],
-    paddingBottom: theme.spacing[8],
-    gap: theme.spacing[4],
+    paddingHorizontal: theme.spacing['4'],
+    paddingBottom: theme.spacing['8'],
+    gap: theme.spacing['4'],
   },
 });
 

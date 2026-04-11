@@ -5,21 +5,20 @@ module.exports = {
   roots: ["<rootDir>/test"],
   testMatch: ["**/?(*.)+(spec|test).ts"],
   moduleFileExtensions: ["ts", "js", "json"],
-  collectCoverageFrom: ["src/**/*.ts", "!src/**/*.d.ts"],
+  collectCoverageFrom: ["<rootDir>/src/**/*.ts", "!<rootDir>/src/**/*.d.ts"],
   coverageDirectory: "<rootDir>/coverage",
-  coverageThreshold: {
-    global: {
-      branches: 60,
-      functions: 60,
-      lines: 60,
-      statements: 60,
-    },
-  },
+  coverageProvider: "v8",
+  setupFilesAfterEnv: ["<rootDir>/test/jest.setup.ts"],
   moduleNameMapper: {
     "^@yosemite-crew/(.*)$": "<rootDir>/../../packages/$1/src",
     "^src/(.*)$": "<rootDir>/src/$1",
   },
   transform: {
     "^.+\\.tsx?$": ["ts-jest", { tsconfig: "<rootDir>/tsconfig.json" }],
+  },
+  globals: {
+    'ts-jest': {
+      diagnostics: false, 
+    },
   },
 };

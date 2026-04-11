@@ -8,6 +8,11 @@ export type InvoiceStatusMongo =
   | "CANCELLED"
   | "REFUNDED";
 
+export type PaymentCollectionMethodMongo =
+  | "PAYMENT_INTENT"
+  | "PAYMENT_LINK"
+  | "PAYMENT_AT_CLINIC";
+
 export type InvoiceItemMongo = {
   id?: string;
   name: string; // REQUIRED for line item
@@ -47,6 +52,8 @@ export interface InvoiceMongo {
 
   currency: string;
 
+  paymentCollectionMethod: PaymentCollectionMethodMongo;
+
   // Stripe metadata
   stripePaymentIntentId?: string;
   stripePaymentLinkId?: string;
@@ -54,11 +61,14 @@ export interface InvoiceMongo {
   stripeCustomerId?: string;
   stripeChargeId?: string;
   stripeReceiptUrl?: string;
+  stripeCheckoutSessionId?: string;
+  stripeCheckoutUrl?: string | null;
 
   status: InvoiceStatusMongo;
 
   metadata?: Record<string, unknown>;
 
+  paidAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -86,6 +96,12 @@ const InvoiceSchema = new Schema<InvoiceMongo>(
 
     totalAmount: { type: Number, required: true },
 
+    paymentCollectionMethod: {
+      type: String,
+      enum: ["PAYMENT_INTENT", "PAYMENT_LINK", "PAYMENT_AT_CLINIC"],
+      default: "PAYMENT_INTENT",
+    },
+
     currency: { type: String, required: true },
 
     // Stripe fields
@@ -95,6 +111,8 @@ const InvoiceSchema = new Schema<InvoiceMongo>(
     stripeCustomerId: { type: String, default: null },
     stripeChargeId: { type: String, default: null }, // ← added
     stripeReceiptUrl: { type: String, default: null }, // ← added
+    stripeCheckoutSessionId: { type: String, default: null },
+    stripeCheckoutUrl: { type: String, default: null },
 
     status: {
       type: String,
@@ -108,7 +126,7 @@ const InvoiceSchema = new Schema<InvoiceMongo>(
       ],
       default: "PENDING",
     },
-
+    paidAt: { type: Date, default: null },
     metadata: { type: Schema.Types.Mixed },
   },
   { timestamps: true },
@@ -120,6 +138,8 @@ InvoiceSchema.index({ organisationId: 1 });
 InvoiceSchema.index({ appointmentId: 1 });
 InvoiceSchema.index({ stripePaymentIntentId: 1 });
 InvoiceSchema.index({ status: 1 });
+InvoiceSchema.index({ stripeCheckoutSessionId: 1 });
+InvoiceSchema.index({ paymentCollectionMethod: 1 });
 
 export type InvoiceDocument = HydratedDocument<InvoiceMongo>;
 export const InvoiceModel = model<InvoiceMongo>("Invoice", InvoiceSchema);

@@ -1,35 +1,18 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 import {View} from 'react-native'; // Import for test content
 
 // --- Mocks ---
 
-// 1. Mock the useTheme hook FIRST to prevent the crash
-const mockTheme = {
-  colors: {
-    surface: '#FFFFFF',
-    primarySurface: '#EFEFEF',
-    secondary: '#222222',
-    textSecondary: '#555555',
-    primary: '#007AFF',
-  },
-  typography: {
-    titleMedium: {fontSize: 16, fontWeight: '600'},
-    bodySmall: {fontSize: 12},
-    h5: {fontSize: 18, fontWeight: '700'},
-  },
-  spacing: {
-    1: 4,
-    2: 8,
-    3: 12,
-  },
-};
-
-jest.mock('@/hooks', () => ({
-  useTheme: jest.fn(() => ({
-    theme: mockTheme,
-  })),
-}));
+// 1. Mock the useTheme hook (hoist-safe)
+jest.mock('@/hooks', () => {
+  const {mockTheme: theme} = require('../setup/mockTheme');
+  return {
+    __esModule: true,
+    useTheme: jest.fn(() => ({theme, isDark: false})),
+  };
+});
 
 // 2. Mock react-native components
 jest.mock('react-native', () => {

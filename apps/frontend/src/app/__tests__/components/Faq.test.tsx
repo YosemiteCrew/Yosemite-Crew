@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
-import Faq from "@/app/components/Faq/Faq";
+import Faq from "@/app/ui/widgets/Faq/Faq";
 
 jest.mock("react-bootstrap", () => ({
   Container: jest.fn(({ children }) => (

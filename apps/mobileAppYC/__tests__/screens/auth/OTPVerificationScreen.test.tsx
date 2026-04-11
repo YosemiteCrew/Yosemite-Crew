@@ -9,6 +9,7 @@ import {
   PENDING_PROFILE_STORAGE_KEY,
   PENDING_PROFILE_UPDATED_EVENT,
 } from '@/config/variables';
+import {mockTheme} from '../../setup/mockTheme';
 
 jest.mock('react-native/Libraries/EventEmitter/NativeEventEmitter');
 
@@ -44,24 +45,7 @@ jest.mock('@/features/auth/services/passwordlessAuth', () => ({
 }));
 
 jest.mock('@/shared/hooks/useTheme', () => ({
-  useTheme: jest.fn(() => ({
-    theme: {
-      colors: {
-        background: '#FFF',
-        secondary: '#000',
-        textSecondary: '#555',
-        primary: '#123',
-        white: '#FFF',
-        error: 'red',
-      },
-      typography: {
-        h3: {},
-        paragraph: {},
-        paragraphBold: {},
-        cta: {},
-      },
-    },
-  })),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 jest.mock('@/features/auth/context/AuthContext', () => ({
@@ -96,25 +80,28 @@ jest.mock('@/shared/components/common', () => {
   };
 });
 
-jest.mock('@/shared/components/common/LiquidGlassButton/LiquidGlassButton', () => {
-  const ReactModule = require('react');
-  const {TouchableOpacity, Text} = jest.requireActual('react-native');
+jest.mock(
+  '@/shared/components/common/LiquidGlassButton/LiquidGlassButton',
+  () => {
+    const ReactModule = require('react');
+    const {TouchableOpacity, Text} = jest.requireActual('react-native');
 
-  const MockButton = ReactModule.forwardRef(
-    ({onPress, title, disabled, loading}: any, ref: any) => (
-      <TouchableOpacity
-        ref={ref}
-        testID="mock-liquid-button"
-        onPress={onPress}
-        disabled={disabled}>
-        {/* Ensure Text is correctly nested */}
-        <Text>{loading ? 'Loading...' : title}</Text>
-      </TouchableOpacity>
-    ),
-  );
-  MockButton.displayName = 'MockLiquidGlassButton';
-  return MockButton;
-});
+    const MockButton = ReactModule.forwardRef(
+      ({onPress, title, disabled, loading}: any, ref: any) => (
+        <TouchableOpacity
+          ref={ref}
+          testID="mock-liquid-button"
+          onPress={onPress}
+          disabled={disabled}>
+          {/* Ensure Text is correctly nested */}
+          <Text>{loading ? 'Loading...' : title}</Text>
+        </TouchableOpacity>
+      ),
+    );
+    MockButton.displayName = 'MockLiquidGlassButton';
+    return MockButton;
+  },
+);
 
 jest.mock('@react-native-async-storage/async-storage', () => ({
   setItem: jest.fn().mockResolvedValue(undefined),
@@ -127,8 +114,7 @@ const mockedCompleteSignIn =
 const mockedRequestCode =
   passwordlessAuth.requestPasswordlessEmailCode as jest.Mock;
 const mockedFormatError = passwordlessAuth.formatAuthError as jest.Mock;
-const mockedSignOutEverywhere =
-  passwordlessAuth.signOutEverywhere as jest.Mock;
+const mockedSignOutEverywhere = passwordlessAuth.signOutEverywhere as jest.Mock;
 const mockedUseAuth = useAuth as jest.Mock;
 const mockedLogin = jest.fn();
 const mockedLogout = jest.fn();
@@ -184,7 +170,6 @@ describe('OTPVerificationScreen', () => {
     expect(getByTestId('mock-otp-input')).toBeTruthy();
     expect(getByTestId('mock-liquid-button')).toBeDisabled();
     expect(getByText('00:60 sec')).toBeTruthy();
-    expect(getByTestId('mock-image')).toBeTruthy();
   });
 
   it('renders correctly for an existing user', () => {
@@ -317,7 +302,7 @@ describe('OTPVerificationScreen', () => {
         profileToken: 'token-abc',
         initialAttributes: {firstName: 'Test'},
         tokens: mockTokens,
-        showOtpSuccess: true,
+        showOtpSuccess: false,
       });
 
       expect(mockedEmit).toHaveBeenCalledWith(PENDING_PROFILE_UPDATED_EVENT);

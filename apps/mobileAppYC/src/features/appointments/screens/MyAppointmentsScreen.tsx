@@ -1,34 +1,34 @@
 import React, {useEffect} from 'react';
-import {
-  SectionList,
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Image,
-} from 'react-native';
+import {SectionList, View, Text, StyleSheet, Image} from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
-import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
-import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {AppointmentCard} from '@/shared/components/common/AppointmentCard/AppointmentCard';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
+import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
+import {
+  FilterPills,
+  type FilterOption,
+} from '@/shared/components/common/FilterPills';
 import {Images} from '@/assets/images';
 import {useTheme} from '@/hooks';
 import type {RootState, AppDispatch} from '@/app/store';
-import {
-  fetchAppointmentsForCompanion,
-} from '@/features/appointments/appointmentsSlice';
+import {fetchAppointmentsForCompanion} from '@/features/appointments/appointmentsSlice';
 import {setSelectedCompanion} from '@/features/companion';
-import {createSelectUpcomingAppointments, createSelectPastAppointments} from '@/features/appointments/selectors';
+import {
+  createSelectUpcomingAppointments,
+  createSelectPastAppointments,
+} from '@/features/appointments/selectors';
 import type {Appointment} from '@/features/appointments/types';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
 import {openMapsToAddress, openMapsToPlaceId} from '@/shared/utils/openMaps';
-import {formatDateLocale, formatTimeLocale} from '@/features/appointments/utils/timeFormatting';
+import {
+  formatDateLocale,
+  formatTimeLocale,
+} from '@/features/appointments/utils/timeFormatting';
 import {useAutoSelectCompanion} from '@/shared/hooks/useAutoSelectCompanion';
 import {useBusinessPhotoFallback} from '@/features/appointments/hooks/useBusinessPhotoFallback';
 import {transformAppointmentCardData} from '@/features/appointments/utils/appointmentCardData';
@@ -40,10 +40,20 @@ import {baseTileContainer, sharedTileStyles} from '@/shared/styles/tileStyles';
 import {useCheckInHandler} from '@/features/appointments/hooks/useCheckInHandler';
 import {useAppointmentDataMaps} from '@/features/appointments/hooks/useAppointmentDataMaps';
 import {useFetchPhotoFallbacks} from '@/features/appointments/hooks/useFetchPhotoFallbacks';
-import {useFetchOrgRatingIfNeeded, type OrgRatingState} from '@/features/appointments/hooks/useOrganisationRating';
+import {
+  useFetchOrgRatingIfNeeded,
+  type OrgRatingState,
+} from '@/features/appointments/hooks/useOrganisationRating';
+import {getAppointmentStatusBadgePalette} from '@/features/appointments/utils/appointmentStatus';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
-type BusinessFilter = 'all' | 'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder';
+type BusinessFilter =
+  | 'all'
+  | 'hospital'
+  | 'groomer'
+  | 'breeder'
+  | 'pet_center'
+  | 'boarder';
 
 export const MyAppointmentsScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -52,18 +62,32 @@ export const MyAppointmentsScreen: React.FC = () => {
   const styles = React.useMemo(() => createStyles(theme), [theme]);
 
   const companions = useSelector((s: RootState) => s.companion.companions);
-  const selectedCompanionId = useSelector((s: RootState) => s.companion.selectedCompanionId);
+  const selectedCompanionId = useSelector(
+    (s: RootState) => s.companion.selectedCompanionId,
+  );
   const {canUseAppointments, canUseChat} = usePermissions(selectedCompanionId);
 
-  const upcomingSelector = React.useMemo(() => createSelectUpcomingAppointments(), []);
+  const upcomingSelector = React.useMemo(
+    () => createSelectUpcomingAppointments(),
+    [],
+  );
   const pastSelector = React.useMemo(() => createSelectPastAppointments(), []);
-  const upcoming = useSelector((state: RootState) => upcomingSelector(state, selectedCompanionId ?? null));
-  const past = useSelector((state: RootState) => pastSelector(state, selectedCompanionId ?? null));
+  const upcoming = useSelector((state: RootState) =>
+    upcomingSelector(state, selectedCompanionId ?? null),
+  );
+  const past = useSelector((state: RootState) =>
+    pastSelector(state, selectedCompanionId ?? null),
+  );
   const {businessMap, employeeMap, serviceMap} = useAppointmentDataMaps();
   const [filter, setFilter] = React.useState<BusinessFilter>('all');
-  const {businessFallbacks, requestBusinessPhoto, handleAvatarError} = useBusinessPhotoFallback();
-  const [checkingIn, setCheckingIn] = React.useState<Record<string, boolean>>({});
-  const [orgRatings, setOrgRatings] = React.useState<Record<string, OrgRatingState>>({});
+  const {businessFallbacks, requestBusinessPhoto, handleAvatarError} =
+    useBusinessPhotoFallback();
+  const [checkingIn, setCheckingIn] = React.useState<Record<string, boolean>>(
+    {},
+  );
+  const [orgRatings, setOrgRatings] = React.useState<
+    Record<string, OrgRatingState>
+  >({});
   const {handleCheckIn: handleCheckInUtil} = useCheckInHandler();
   const lastFetchedCompanionIdRef = React.useRef<string | null>(null);
   useAutoSelectCompanion(companions, selectedCompanionId);
@@ -111,8 +135,12 @@ export const MyAppointmentsScreen: React.FC = () => {
       return biz?.category === filter;
     });
     return filtered.sort((a, b) => {
-      const aTime = new Date(`${a.date}T${a.time ?? '00:00'}Z`).getTime();
-      const bTime = new Date(`${b.date}T${b.time ?? '00:00'}Z`).getTime();
+      const aTime = new Date(
+        a.start ?? `${a.date}T${a.time ?? '00:00'}:00`,
+      ).getTime();
+      const bTime = new Date(
+        b.start ?? `${b.date}T${b.time ?? '00:00'}:00`,
+      ).getTime();
       return aTime - bTime;
     });
   }, [upcoming, filter, businessMap]);
@@ -129,6 +157,14 @@ export const MyAppointmentsScreen: React.FC = () => {
     [filteredPast, filteredUpcoming],
   );
 
+  const FILTER_OPTIONS: FilterOption<BusinessFilter>[] = [
+    {id: 'all', label: 'All'},
+    {id: 'hospital', label: 'Hospital'},
+    {id: 'groomer', label: 'Groomer'},
+    {id: 'breeder', label: 'Breeder'},
+    {id: 'boarder', label: 'Boarder'},
+  ];
+
   // Show permission toast when appointments access is denied
   React.useEffect(() => {
     if (selectedCompanionId && !canUseAppointments) {
@@ -137,7 +173,11 @@ export const MyAppointmentsScreen: React.FC = () => {
   }, [canUseAppointments, selectedCompanionId]);
 
   // Fetch business photo fallbacks when primary photos are missing or dummy
-  useFetchPhotoFallbacks(appointmentsForFallback, businessMap, requestBusinessPhoto);
+  useFetchPhotoFallbacks(
+    appointmentsForFallback,
+    businessMap,
+    requestBusinessPhoto,
+  );
 
   type AppointmentItem = (typeof filteredUpcoming)[number];
   type EmployeeRecord = ReturnType<typeof employeeMap.get>;
@@ -148,35 +188,6 @@ export const MyAppointmentsScreen: React.FC = () => {
     },
     [businessMap],
   );
-  const formatStatus = (status: string) => {
-    switch (status) {
-      case 'UPCOMING':
-        return 'Upcoming';
-      case 'CHECKED_IN':
-        return 'Checked in';
-      case 'NO_PAYMENT':
-      case 'AWAITING_PAYMENT':
-        return 'Payment pending';
-      case 'PAID':
-        return 'Paid';
-      case 'CONFIRMED':
-      case 'SCHEDULED':
-        return 'Scheduled';
-      case 'IN_PROGRESS':
-        return 'In progress';
-      case 'RESCHEDULED':
-        return 'Rescheduled';
-      case 'COMPLETED':
-        return 'Completed';
-      case 'CANCELLED':
-        return 'Cancelled';
-      case 'PAYMENT_FAILED':
-        return 'Payment failed';
-      default:
-        return status;
-    }
-  };
-
   const handleChatPress = React.useCallback(
     ({
       appointment,
@@ -190,12 +201,12 @@ export const MyAppointmentsScreen: React.FC = () => {
       petName?: string;
     }) => {
       const openChat = () => {
-        // Backend sends appointment.date and appointment.time in UTC
-        // Convert to ISO format with Z suffix for proper UTC handling
-        const normalized = appointment.time.length === 5
-          ? `${appointment.time}:00`
-          : appointment.time;
-        const appointmentDateTime = `${appointment.date}T${normalized}Z`;
+        const normalized =
+          appointment.time.length === 5
+            ? `${appointment.time}:00`
+            : appointment.time;
+        const appointmentDateTime =
+          appointment.start ?? `${appointment.date}T${normalized}Z`;
 
         navigation.navigate('ChatChannel', {
           appointmentId: appointment.id,
@@ -251,7 +262,8 @@ export const MyAppointmentsScreen: React.FC = () => {
       key={`${title}-empty`}
       glassEffect="clear"
       interactive
-      shadow='none'
+      shadow="none"
+      colorScheme="light"
       style={styles.infoTile}
       fallbackStyle={styles.tileFallback}>
       <Text style={styles.tileTitle}>{title}</Text>
@@ -269,13 +281,23 @@ export const MyAppointmentsScreen: React.FC = () => {
     [filteredUpcoming, filteredPast],
   );
 
-  const renderSectionHeader = ({section}: {section: {key: string; title: string; data: typeof filteredUpcoming}}) => (
+  const renderSectionHeader = ({
+    section,
+  }: {
+    section: {key: string; title: string; data: typeof filteredUpcoming};
+  }) => (
     <View style={styles.sectionHeaderWrapper}>
       <Text style={styles.sectionTitle}>{section.title}</Text>
       {section.data.length === 0 &&
         (section.key === 'upcoming'
-          ? renderEmptyCard('No upcoming appointments', 'Book a new appointment to see it here.')
-          : renderEmptyCard('No past appointments', 'Completed appointments will appear here.'))}
+          ? renderEmptyCard(
+              'No upcoming appointments',
+              'Book a new appointment to see it here.',
+            )
+          : renderEmptyCard(
+              'No past appointments',
+              'Completed appointments will appear here.',
+            ))}
     </View>
   );
 
@@ -343,8 +365,8 @@ export const MyAppointmentsScreen: React.FC = () => {
               companionId: item.companionId,
             })
           }
-          height={48}
-          borderRadius={12}
+          height={theme.spacing['12']}
+          borderRadius={theme.borderRadius.md}
           tintColor={theme.colors.secondary}
           shadowIntensity="medium"
           textStyle={styles.reviewButtonText}
@@ -353,9 +375,25 @@ export const MyAppointmentsScreen: React.FC = () => {
       </View>
     ) : null;
 
+    const requestedPalette = getAppointmentStatusBadgePalette(
+      theme,
+      item.status,
+      item.paymentStatus,
+    );
+
     const requestedBadge = isRequested ? (
-      <View style={[styles.pastStatusBadge, styles.pastStatusBadgeRequested]}>
-        <Text style={[styles.pastStatusBadgeText, styles.pastStatusBadgeTextRequested]}>Requested</Text>
+      <View
+        style={[
+          styles.pastStatusBadge,
+          {backgroundColor: requestedPalette.backgroundColor},
+        ]}>
+        <Text
+          style={[
+            styles.pastStatusBadgeText,
+            {color: requestedPalette.textColor},
+          ]}>
+          {requestedPalette.text}
+        </Text>
       </View>
     ) : null;
 
@@ -376,11 +414,17 @@ export const MyAppointmentsScreen: React.FC = () => {
           dateTime={dateTimeLabel}
           avatar={avatarSource || Images.cat}
           fallbackAvatar={fallbackPhoto ?? undefined}
-          onAvatarError={() => handleAvatarError(googlePlacesId, item.businessId)}
+          onAvatarError={() =>
+            handleAvatarError(googlePlacesId, item.businessId)
+          }
           note={assignmentNote}
           showActions={statusAllowsActions}
-          onViewDetails={() => navigation.navigate('ViewAppointment', {appointmentId: item.id})}
-          onPress={() => navigation.navigate('ViewAppointment', {appointmentId: item.id})}
+          onViewDetails={() =>
+            navigation.navigate('ViewAppointment', {appointmentId: item.id})
+          }
+          onPress={() =>
+            navigation.navigate('ViewAppointment', {appointmentId: item.id})
+          }
           onGetDirections={() => {
             if (googlePlacesId) {
               openMapsToPlaceId(googlePlacesId, businessAddress);
@@ -411,14 +455,22 @@ export const MyAppointmentsScreen: React.FC = () => {
     );
   };
 
-  const renderItem = ({item, section}: {item: (typeof filteredUpcoming)[number]; section: {key: string}}) => {
+  const renderItem = ({
+    item,
+    section,
+  }: {
+    item: (typeof filteredUpcoming)[number];
+    section: {key: string};
+  }) => {
     if (!item || !canUseAppointments) {
       return null;
     }
     const emp = employeeMap.get(item.employeeId ?? '');
     const formattedDate = formatDateLocale(item.date);
     const timeLabel = formatTimeLocale(item.date, item.time);
-    const dateTimeLabel = timeLabel ? `${formattedDate} - ${timeLabel}` : formattedDate;
+    const dateTimeLabel = timeLabel
+      ? `${formattedDate} - ${timeLabel}`
+      : formattedDate;
     const isCheckingIn = Boolean(checkingIn[item.id]);
 
     const cardData = transformAppointmentCardData(
@@ -452,66 +504,50 @@ export const MyAppointmentsScreen: React.FC = () => {
       checkInDisabled,
     } = cardData;
 
-    return section.key === 'upcoming'
-      ? renderUpcomingCard({
-          item,
-          cardTitle,
-          cardSubtitle,
-          businessName,
-          dateTimeLabel,
-          avatarSource,
-          fallbackPhoto,
-          googlePlacesId,
-          assignmentNote,
-          businessAddress,
-          petName,
-          emp,
-          needsPayment,
-          isRequested,
-          statusAllowsActions,
-          isCheckedIn,
-          isInProgress,
-          checkInLabel,
-          checkInDisabled,
-          isCheckingIn,
-        })
-      : (
-          <PastAppointmentCard
-            item={item}
-            cardTitle={cardTitle}
-            cardSubtitle={cardSubtitle}
-            businessName={businessName}
-            dateTimeLabel={dateTimeLabel}
-            avatarSource={avatarSource}
-            fallbackPhoto={fallbackPhoto}
-            googlePlacesId={googlePlacesId}
-            onAvatarError={handleAvatarError}
-            navigation={navigation}
-            styles={styles}
-            orgRating={orgRatings[item.businessId]}
-            formatStatus={formatStatus}
-            secondaryColor={theme.colors.secondary}
-          />
-        );
+    return section.key === 'upcoming' ? (
+      renderUpcomingCard({
+        item,
+        cardTitle,
+        cardSubtitle,
+        businessName,
+        dateTimeLabel,
+        avatarSource,
+        fallbackPhoto,
+        googlePlacesId,
+        assignmentNote,
+        businessAddress,
+        petName,
+        emp,
+        needsPayment,
+        isRequested,
+        statusAllowsActions,
+        isCheckedIn,
+        isInProgress,
+        checkInLabel,
+        checkInDisabled,
+        isCheckingIn,
+      })
+    ) : (
+      <PastAppointmentCard
+        item={item}
+        cardTitle={cardTitle}
+        cardSubtitle={cardSubtitle}
+        businessName={businessName}
+        dateTimeLabel={dateTimeLabel}
+        avatarSource={avatarSource}
+        fallbackPhoto={fallbackPhoto}
+        googlePlacesId={googlePlacesId}
+        onAvatarError={handleAvatarError}
+        navigation={navigation}
+        styles={styles}
+        orgRating={orgRatings[item.businessId]}
+        secondaryColor={theme.colors.secondary}
+        theme={theme}
+      />
+    );
   };
 
   const keyExtractor = (item: (typeof filteredUpcoming)[number]) => item.id;
-
-  const renderHeader = () => (
-    <View style={styles.listHeader}>
-      <CompanionSelector
-        companions={companions}
-        selectedCompanionId={selectedCompanionId}
-        onSelect={id => dispatch(setSelectedCompanion(id))}
-        showAddButton={false}
-        containerStyle={styles.companionSelector}
-        requiredPermission="appointments"
-        permissionLabel="appointments"
-      />
-
-      <SectionListHorizontalPills filter={filter} setFilter={setFilter} />
-    </View>
-  );
 
   const handleEndReached = () => {
     // Placeholder for future pagination when backend is available
@@ -519,23 +555,54 @@ export const MyAppointmentsScreen: React.FC = () => {
   };
 
   return (
-    <SafeArea>
-      <Header title="My Appointments" showBackButton={false} rightIcon={Images.addIconDark} onRightPress={handleAdd} />
-      <SectionList
-        style={styles.sectionList}
-        sections={sections}
-        keyExtractor={keyExtractor}
-        renderItem={renderItem}
-        renderSectionHeader={renderSectionHeader}
-        ListHeaderComponent={renderHeader}
-        contentContainerStyle={styles.container}
-        stickySectionHeadersEnabled={false}
-        showsVerticalScrollIndicator={false}
-        onEndReached={handleEndReached}
-        onEndReachedThreshold={0.6}
-        ListFooterComponent={<View style={styles.bottomSpacer} />}
-      />
-    </SafeArea>
+    <LiquidGlassHeaderScreen
+      header={
+        <>
+          <Header
+            title="My Appointments"
+            showBackButton={false}
+            rightIcon={Images.addIconDark}
+            onRightPress={handleAdd}
+            glass={false}
+          />
+          <View style={styles.pillContainer}>
+            <FilterPills<BusinessFilter>
+              options={FILTER_OPTIONS}
+              selected={filter}
+              onSelect={setFilter}
+            />
+          </View>
+        </>
+      }
+      cardGap={theme.spacing['3']}
+      contentPadding={theme.spacing['1']}>
+      {contentPaddingStyle => (
+        <SectionList
+          style={styles.sectionList}
+          sections={sections}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
+          renderSectionHeader={renderSectionHeader}
+          ListHeaderComponent={
+            <CompanionSelector
+              companions={companions}
+              selectedCompanionId={selectedCompanionId}
+              onSelect={id => dispatch(setSelectedCompanion(id))}
+              showAddButton={false}
+              containerStyle={styles.companionSelector}
+              requiredPermission="appointments"
+              permissionLabel="appointments"
+            />
+          }
+          contentContainerStyle={[styles.container, contentPaddingStyle]}
+          stickySectionHeadersEnabled={false}
+          showsVerticalScrollIndicator={false}
+          onEndReached={handleEndReached}
+          onEndReachedThreshold={0.6}
+          ListFooterComponent={<View style={styles.bottomSpacer} />}
+        />
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
@@ -552,8 +619,8 @@ type PastAppointmentCardProps = {
   navigation: Nav;
   styles: ReturnType<typeof createStyles>;
   orgRating?: OrgRatingState;
-  formatStatus: (status: string) => string;
   secondaryColor: string;
+  theme: any;
 };
 
 const PastAppointmentCard: React.FC<PastAppointmentCardProps> = ({
@@ -569,14 +636,22 @@ const PastAppointmentCard: React.FC<PastAppointmentCardProps> = ({
   navigation,
   styles,
   orgRating,
-  formatStatus,
   secondaryColor,
+  theme,
 }) => {
+  const statusPalette = getAppointmentStatusBadgePalette(
+    theme,
+    item.status,
+    item.paymentStatus,
+  );
+
   let ratingContent: React.ReactNode = null;
 
   if (item.status === 'COMPLETED') {
     if (!orgRating || orgRating.loading) {
-      ratingContent = <Text style={styles.ratingLoadingText}>Checking review status...</Text>;
+      ratingContent = (
+        <Text style={styles.ratingLoadingText}>Checking review status...</Text>
+      );
     } else if (orgRating.isRated) {
       ratingContent = (
         <View style={styles.ratingRow}>
@@ -591,9 +666,11 @@ const PastAppointmentCard: React.FC<PastAppointmentCardProps> = ({
       ratingContent = (
         <LiquidGlassButton
           title="Review"
-          onPress={() => navigation.navigate('Review', {appointmentId: item.id})}
-          height={48}
-          borderRadius={12}
+          onPress={() =>
+            navigation.navigate('Review', {appointmentId: item.id})
+          }
+          height={theme.spacing['12']}
+          borderRadius={theme.borderRadius.md}
           tintColor={secondaryColor}
           shadowIntensity="medium"
           textStyle={styles.reviewButtonText}
@@ -613,26 +690,26 @@ const PastAppointmentCard: React.FC<PastAppointmentCardProps> = ({
         fallbackAvatar={fallbackPhoto ?? undefined}
         onAvatarError={() => onAvatarError(googlePlacesId, item.businessId)}
         showActions={false}
-        onViewDetails={() => navigation.navigate('ViewAppointment', {appointmentId: item.id})}
-        onPress={() => navigation.navigate('ViewAppointment', {appointmentId: item.id})}
+        onViewDetails={() =>
+          navigation.navigate('ViewAppointment', {appointmentId: item.id})
+        }
+        onPress={() =>
+          navigation.navigate('ViewAppointment', {appointmentId: item.id})
+        }
         footer={
           <View style={styles.pastFooter}>
             <View style={styles.pastStatusWrapper}>
               <View
                 style={[
                   styles.pastStatusBadge,
-                  item.status === 'CANCELLED' && styles.pastStatusBadgeCanceled,
-                  item.status === 'REQUESTED' && styles.pastStatusBadgeRequested,
-                  item.status === 'PAYMENT_FAILED' && styles.pastStatusBadgeFailed,
+                  {backgroundColor: statusPalette.backgroundColor},
                 ]}>
                 <Text
                   style={[
                     styles.pastStatusBadgeText,
-                    item.status === 'CANCELLED' && styles.pastStatusBadgeTextCanceled,
-                    item.status === 'REQUESTED' && styles.pastStatusBadgeTextRequested,
-                    item.status === 'PAYMENT_FAILED' && styles.pastStatusBadgeTextFailed,
+                    {color: statusPalette.textColor},
                   ]}>
-                  {formatStatus(item.status)}
+                  {statusPalette.text}
                 </Text>
               </View>
             </View>
@@ -644,86 +721,48 @@ const PastAppointmentCard: React.FC<PastAppointmentCardProps> = ({
   );
 };
 
-const SectionListHorizontalPills = ({
-  filter,
-  setFilter,
-}: {
-  filter: BusinessFilter;
-  setFilter: (value: BusinessFilter) => void;
-}) => {
-  const {theme} = useTheme();
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
-
-  const filterOptions: Array<{id: BusinessFilter; label: string}> = [
-    {id: 'all', label: 'All'},
-    {id: 'hospital', label: 'Hospital'},
-    {id: 'groomer', label: 'Groomer'},
-    {id: 'breeder', label: 'Breeder'},
-    {id: 'boarder', label: 'Boarder'},
-  ];
-
-  return (
-    <View style={styles.pillContainer}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillsContent}>
-        {filterOptions.map(option => (
-          <TouchableOpacity
-            key={option.id}
-            onPress={() => setFilter(option.id)}
-            activeOpacity={0.8}
-            style={[styles.pill, filter === option.id && styles.pillActive]}
-          >
-            <Text style={[styles.pillText, filter === option.id && styles.pillTextActive]}>{option.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </View>
-  );
-};
-
 const createStyles = (theme: any) =>
   StyleSheet.create({
     sectionList: {flex: 1},
     container: {
-      paddingHorizontal: theme.spacing[4],
-      paddingTop: theme.spacing[4],
-      paddingBottom: theme.spacing[10],
+      paddingHorizontal: theme.spacing['6'],
+      paddingTop: theme.spacing['6'],
+      paddingBottom: theme.spacing['18'],
     },
-    listHeader: {gap: theme.spacing[3], marginBottom: theme.spacing[4]},
-    companionSelector: {marginBottom: theme.spacing[2]},
-    sectionHeaderWrapper: {marginTop: theme.spacing[4], marginBottom: theme.spacing[2], gap: theme.spacing[2]},
-    sectionTitle: {...theme.typography.titleMedium, color: theme.colors.secondary},
-    pillContainer: {marginBottom: theme.spacing[1]},
-    pillsContent: {gap: 8, paddingRight: 8},
-    pill: {
-      minWidth: 80,
-      height: 36,
-      paddingHorizontal: 16,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: '#302F2E',
-      justifyContent: 'center',
-      alignItems: 'center',
+    listHeader: {gap: theme.spacing['3'], marginBottom: theme.spacing['4']},
+    companionSelector: {
+      marginTop: theme.spacing['4'],
     },
-    pillActive: {backgroundColor: theme.colors.primaryTint, borderColor: theme.colors.primary},
-    pillText: {...theme.typography.pillSubtitleBold15, color: '#302F2E'},
-    pillTextActive: {color: theme.colors.primary},
-    list: {gap: 16},
-    cardWrapper: {marginBottom: theme.spacing[4]},
+    sectionHeaderWrapper: {
+      marginTop: theme.spacing['4'],
+      marginBottom: theme.spacing['2'],
+      gap: theme.spacing['2'],
+    },
+    sectionTitle: {
+      ...theme.typography.sectionHeading,
+      color: theme.colors.secondary,
+    },
+    pillContainer: {marginBottom: theme.spacing['3'], marginTop: 6},
+    list: {gap: theme.spacing['4']},
+    cardWrapper: {marginBottom: theme.spacing['4']},
     statusBadgePending: {
       alignSelf: 'flex-start',
-      paddingHorizontal: theme.spacing[2],
-      paddingVertical: 6,
-      borderRadius: 12,
+      paddingHorizontal: theme.spacing['2'],
+      paddingVertical: theme.spacing['2'],
+      borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.primaryTint,
     },
     statusBadgeText: {
-      ...theme.typography.title,
+      ...theme.typography.labelSmallBold,
       color: theme.colors.secondary,
     },
-    reviewButtonCard: {marginTop: theme.spacing[1]},
-    reviewButtonText: {...theme.typography.paragraphBold, color: theme.colors.white},
+    reviewButtonCard: {marginTop: theme.spacing['1']},
+    reviewButtonText: {
+      ...theme.typography.paragraphBold,
+      color: theme.colors.white,
+    },
     upcomingFooter: {
-      gap: theme.spacing[2],
+      gap: theme.spacing['2'],
     },
     footerButton: {
       alignSelf: 'flex-start',
@@ -733,18 +772,18 @@ const createStyles = (theme: any) =>
       color: theme.colors.secondary,
     },
     pastFooter: {
-      gap: theme.spacing[3],
-      marginTop: theme.spacing[1],
+      gap: theme.spacing['3'],
+      marginTop: theme.spacing['1'],
     },
     ratingRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[1.5],
+      gap: theme.spacing['2'],
     },
     ratingIcon: {
-      width: 18,
-      height: 18,
-      marginRight: 8,
+      width: theme.spacing['4.5'],
+      height: theme.spacing['4.5'],
+      marginRight: theme.spacing['2'],
     },
     ratingValueText: {
       ...theme.typography.body14,
@@ -760,46 +799,25 @@ const createStyles = (theme: any) =>
     },
     pastStatusBadge: {
       alignSelf: 'flex-start',
-      paddingHorizontal: theme.spacing[2.5],
+      paddingHorizontal: theme.spacing['2.5'],
       paddingVertical: 6,
-      borderRadius: 12,
-      backgroundColor: 'rgba(16, 185, 129, 0.12)',
+      borderRadius: theme.borderRadius.lg,
+      backgroundColor: theme.colors.success,
     },
     pastStatusBadgeText: {
-      ...theme.typography.title,
-      color: '#0F5132',
-    },
-    pastStatusBadgeCanceled: {
-      backgroundColor: 'rgba(239, 68, 68, 0.12)',
-      color: '#991B1B',
-    },
-    pastStatusBadgeTextCanceled: {
-      color: '#991B1B',
-    },
-    pastStatusBadgeRequested: {
-      backgroundColor: theme.colors.primaryTint,
-      color: theme.colors.primary,
-    },
-    pastStatusBadgeTextRequested: {
-      color: theme.colors.primary,
-    },
-    pastStatusBadgeFailed: {
-      backgroundColor: 'rgba(251, 191, 36, 0.16)',
-      color: '#92400E',
-    },
-    pastStatusBadgeTextFailed: {
-      color: '#92400E',
+      ...theme.typography.labelSmallBold,
+      color: theme.colors.secondary,
     },
     infoTile: {
       ...baseTileContainer(theme),
-      padding: theme.spacing[5],
-      gap: theme.spacing[2],
+      padding: theme.spacing['5'],
+      gap: theme.spacing['2'],
       overflow: 'hidden',
     },
     tileFallback: sharedTileStyles(theme).tileFallback,
     tileTitle: sharedTileStyles(theme).tileTitle,
     tileSubtitle: sharedTileStyles(theme).tileSubtitle,
-    bottomSpacer: {height: theme.spacing[16]},
+    bottomSpacer: {height: theme.spacing['16']},
   });
 
 export default MyAppointmentsScreen;

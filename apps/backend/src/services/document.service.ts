@@ -9,6 +9,10 @@ import {
   generatePresignedDownloadUrl,
 } from "src/middlewares/upload";
 import escapeStringRegex from "escape-string-regexp";
+import { AuditTrailService } from "./audit-trail.service";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 export class DocumentServiceError extends Error {
   constructor(
@@ -52,12 +56,7 @@ const validateCategoryAndSubcategory = (
 ): void => {
   const upperCategory = String(category).toUpperCase();
 
-  if (
-    !Object.prototype.hasOwnProperty.call(
-      VALID_CATEGORY_SUBCATEGORIES,
-      upperCategory,
-    )
-  ) {
+  if (!Object.hasOwn(VALID_CATEGORY_SUBCATEGORIES, upperCategory)) {
     throw new DocumentServiceError(
       `Invalid document category: ${category}`,
       400,
@@ -101,6 +100,95 @@ const ensureObjectId = (
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
 
+const assertUpdatePermissions = (
+  doc: DocumentDocument,
+  context: DocumentCreateContext,
+): void => {
+  if (
+    context.parentId &&
+    doc.uploadedByParentId?.toString() !== context.parentId.toString()
+  ) {
+    throw new DocumentServiceError(
+      "Parent is not allowed to update this document.",
+      403,
+    );
+  }
+
+  if (context.pmsUserId && !doc.syncedFromPms) {
+    throw new DocumentServiceError(
+      "PMS cannot update documents uploaded by parent.",
+      403,
+    );
+  }
+};
+
+const applyCategoryUpdate = (
+  doc: DocumentDocument,
+  updates: Partial<CreateDocumentInput>,
+): void => {
+  if (!updates.category && !updates.subcategory) {
+    return;
+  }
+
+  const newCategory = (updates.category ?? doc.category)
+    .toString()
+    .toUpperCase();
+  const newSubcategory = updates.subcategory
+    ? updates.subcategory.toString().toUpperCase()
+    : doc.subcategory;
+
+  validateCategoryAndSubcategory(newCategory, newSubcategory ?? undefined);
+
+  doc.category = newCategory;
+  doc.subcategory = newSubcategory ?? null;
+  // pmsVisible may change because category changed
+  doc.pmsVisible = isPmsVisibleCategory(newCategory);
+};
+
+const applySimpleFieldUpdates = (
+  doc: DocumentDocument,
+  updates: Partial<CreateDocumentInput>,
+): void => {
+  if (isNonEmptyString(updates.title)) {
+    doc.title = updates.title.trim();
+  }
+
+  if (updates.visitType !== undefined) {
+    doc.visitType = updates.visitType ? updates.visitType : null;
+  }
+
+  if (updates.issuingBusinessName !== undefined) {
+    doc.issuingBusinessName = updates.issuingBusinessName || null;
+  }
+
+  if (updates.issueDate !== undefined) {
+    if (!updates.issueDate) {
+      doc.issueDate = null;
+    } else {
+      const parsed = new Date(updates.issueDate);
+      if (!Number.isNaN(parsed.getTime())) {
+        doc.issueDate = parsed;
+      }
+    }
+  }
+};
+
+const applyAttachmentUpdates = (
+  doc: DocumentDocument,
+  updates: Partial<CreateDocumentInput>,
+): void => {
+  if (!updates.attachments || !Array.isArray(updates.attachments)) {
+    return;
+  }
+
+  // Replace attachments entirely (or merge—your choice)
+  doc.attachments = updates.attachments.map((att) => ({
+    key: String(att.key),
+    mimeType: String(att.mimeType),
+    size: att.size,
+  }));
+};
+
 export interface DocumentAttachmentInput {
   key: string; // S3 key (temp or final)
   mimeType: string;
@@ -125,6 +213,7 @@ export interface CreateDocumentInput {
 export type DocumentCreateContext = {
   parentId?: Types.ObjectId | string;
   pmsUserId?: string;
+  organisationId?: string;
 };
 
 export interface DocumentDto {
@@ -197,6 +286,119 @@ const mapDocumentToDto = (doc: DocumentDocument): DocumentDto => {
   };
 };
 
+const mapDocumentToDtoFromPrisma = (doc: {
+  id: string;
+  companionId: string;
+  appointmentId: string | null;
+  category: string;
+  subcategory: string | null;
+  visitType: string | null;
+  title: string;
+  issuingBusinessName: string | null;
+  issueDate: Date | null;
+  uploadedByParentId: string | null;
+  uploadedByPmsUserId: string | null;
+  pmsVisible: boolean;
+  syncedFromPms: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  attachments?: Array<{
+    key: string;
+    mimeType: string;
+    size: number | null;
+  }>;
+}): DocumentDto => ({
+  id: doc.id,
+  companionId: doc.companionId,
+  appointmentId: doc.appointmentId ?? null,
+  category: doc.category,
+  subcategory: doc.subcategory ?? null,
+  visitType: doc.visitType ?? null,
+  title: doc.title,
+  issuingBusinessName: doc.issuingBusinessName ?? null,
+  issueDate: doc.issueDate ? doc.issueDate.toISOString() : null,
+  attachments: (doc.attachments ?? []).map((att) => ({
+    key: att.key,
+    mimeType: att.mimeType,
+    size: att.size ?? undefined,
+  })),
+  pmsVisible: doc.pmsVisible,
+  syncedFromPms: doc.syncedFromPms,
+  uploadedByParentId: doc.uploadedByParentId ?? null,
+  uploadedByPmsUserId: doc.uploadedByPmsUserId ?? null,
+  createdAt: doc.createdAt.toISOString(),
+  updatedAt: doc.updatedAt.toISOString(),
+});
+
+const toPrismaDocumentData = (doc: DocumentDocument) => {
+  const obj = doc.toObject() as DocumentMongo & {
+    _id: Types.ObjectId;
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+
+  return {
+    id: obj._id.toString(),
+    companionId: obj.companionId.toString(),
+    appointmentId: obj.appointmentId ? obj.appointmentId.toString() : undefined,
+    category: obj.category,
+    subcategory: obj.subcategory ?? undefined,
+    visitType: obj.visitType ?? undefined,
+    title: obj.title,
+    issuingBusinessName: obj.issuingBusinessName ?? undefined,
+    issueDate: obj.issueDate ?? undefined,
+    uploadedByParentId: obj.uploadedByParentId
+      ? obj.uploadedByParentId.toString()
+      : undefined,
+    uploadedByPmsUserId: obj.uploadedByPmsUserId ?? undefined,
+    pmsVisible: obj.pmsVisible ?? false,
+    syncedFromPms: obj.syncedFromPms ?? false,
+    createdAt: obj.createdAt ?? undefined,
+    updatedAt: obj.updatedAt ?? undefined,
+  };
+};
+
+const syncDocumentAttachmentsToPostgres = async (
+  documentId: string,
+  attachments: DocumentAttachmentInput[],
+) => {
+  if (!shouldDualWrite) return;
+  try {
+    await prisma.documentAttachment.deleteMany({ where: { documentId } });
+    if (attachments.length) {
+      await prisma.documentAttachment.createMany({
+        data: attachments.map((att) => ({
+          documentId,
+          key: String(att.key),
+          mimeType: String(att.mimeType),
+          size: typeof att.size === "number" ? att.size : undefined,
+        })),
+      });
+    }
+  } catch (err) {
+    handleDualWriteError("DocumentAttachment", err);
+  }
+};
+
+const syncDocumentToPostgres = async (doc: DocumentDocument) => {
+  if (!shouldDualWrite) return;
+  try {
+    const data = toPrismaDocumentData(doc);
+    await prisma.document.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
+    });
+    const obj = doc.toObject() as DocumentMongo & { _id: Types.ObjectId };
+    await syncDocumentAttachmentsToPostgres(
+      data.id,
+      (obj.attachments ?? []) as DocumentAttachmentInput[],
+    );
+  } catch (err) {
+    handleDualWriteError("Document", err);
+  }
+};
+
 const buildPersistableDocument = (
   input: CreateDocumentInput,
   context: DocumentCreateContext,
@@ -234,7 +436,6 @@ const buildPersistableDocument = (
 
   if (source === "parent") {
     uploadedByParentId = ensureObjectId(context.parentId!, "parentId");
-    syncedFromPms = false;
   } else {
     uploadedByPmsUserId = assertSafeString(
       context.pmsUserId,
@@ -292,6 +493,27 @@ export const DocumentService = {
   ): Promise<DocumentDto> {
     const persistable = buildPersistableDocument(input, context);
     const doc = await DocumentModel.create(persistable);
+
+    await syncDocumentToPostgres(doc);
+
+    if (context.organisationId) {
+      await AuditTrailService.recordSafely({
+        organisationId: context.organisationId,
+        companionId: doc.companionId.toString(),
+        eventType: "DOCUMENT_ADDED",
+        actorType: context.pmsUserId ? "PMS_USER" : "SYSTEM",
+        actorId: context.pmsUserId ?? null,
+        entityType: "DOCUMENT",
+        entityId: doc._id.toString(),
+        metadata: {
+          category: doc.category,
+          subcategory: doc.subcategory,
+          appointmentId: doc.appointmentId?.toString() ?? null,
+          title: doc.title,
+        },
+      });
+    }
+
     return mapDocumentToDto(doc);
   },
 
@@ -314,11 +536,28 @@ export const DocumentService = {
       filter.subcategory = String(params.subcategory).toUpperCase();
     }
 
+    if (isReadFromPostgres()) {
+      const docs = await prisma.document.findMany({
+        where: {
+          companionId: companionId.toString(),
+          category: params.category
+            ? String(params.category).toUpperCase()
+            : undefined,
+          subcategory: params.subcategory
+            ? String(params.subcategory).toUpperCase()
+            : undefined,
+        },
+        orderBy: [{ issueDate: "desc" }, { createdAt: "desc" }],
+        include: { attachments: true },
+      });
+      return docs.map(mapDocumentToDtoFromPrisma);
+    }
+
     const docs = await DocumentModel.find(filter)
       .sort({ issueDate: -1, createdAt: -1 })
       .exec();
 
-    return docs.map(mapDocumentToDto);
+    return docs.map((element) => mapDocumentToDto(element));
   },
 
   async listForPms(params: {
@@ -349,17 +588,45 @@ export const DocumentService = {
       );
     }
 
+    if (isReadFromPostgres()) {
+      const docs = await prisma.document.findMany({
+        where: {
+          companionId: companionId.toString(),
+          pmsVisible: true,
+          category: params.category
+            ? String(params.category).toUpperCase()
+            : undefined,
+          subcategory: params.subcategory
+            ? String(params.subcategory).toUpperCase()
+            : undefined,
+          appointmentId: params.appointmentId
+            ? ensureObjectId(params.appointmentId, "appointmentId").toString()
+            : undefined,
+        },
+        orderBy: [{ issueDate: "desc" }, { createdAt: "desc" }],
+        include: { attachments: true },
+      });
+      return docs.map(mapDocumentToDtoFromPrisma);
+    }
+
     const docs = await DocumentModel.find(filter)
       .sort({ issueDate: -1, createdAt: -1 })
       .exec();
 
-    return docs.map(mapDocumentToDto);
+    return docs.map((element) => mapDocumentToDto(element));
   },
 
   async getByIdForParent(
     id: string | Types.ObjectId,
   ): Promise<DocumentDto | null> {
     const _id = ensureObjectId(id, "documentId");
+    if (isReadFromPostgres()) {
+      const doc = await prisma.document.findUnique({
+        where: { id: _id.toString() },
+        include: { attachments: true },
+      });
+      return doc ? mapDocumentToDtoFromPrisma(doc) : null;
+    }
     const doc = await DocumentModel.findById(_id).exec();
     if (!doc) {
       return null;
@@ -371,6 +638,13 @@ export const DocumentService = {
     id: string | Types.ObjectId,
   ): Promise<DocumentDto | null> {
     const _id = ensureObjectId(id, "documentId");
+    if (isReadFromPostgres()) {
+      const doc = await prisma.document.findFirst({
+        where: { id: _id.toString(), pmsVisible: true },
+        include: { attachments: true },
+      });
+      return doc ? mapDocumentToDtoFromPrisma(doc) : null;
+    }
     const doc = await DocumentModel.findOne({ _id, pmsVisible: true }).exec();
     if (!doc) {
       return null;
@@ -402,6 +676,19 @@ export const DocumentService = {
       await deleteFromS3(attachment.key);
     }
     await DocumentModel.deleteOne({ _id }).exec();
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.documentAttachment.deleteMany({
+          where: { documentId: _id.toString() },
+        });
+        await prisma.document.deleteMany({
+          where: { id: _id.toString() },
+        });
+      } catch (err) {
+        handleDualWriteError("Document delete", err);
+      }
+    }
     return true;
   },
 
@@ -411,13 +698,22 @@ export const DocumentService = {
   ): Promise<DocumentDto[]> {
     appointmentId = ensureObjectId(appointmentId, "appointmentId");
 
+    if (isReadFromPostgres()) {
+      const docs = await prisma.document.findMany({
+        where: { appointmentId: appointmentId.toString() },
+        orderBy: { createdAt: "desc" },
+        include: { attachments: true },
+      });
+      return docs.map(mapDocumentToDtoFromPrisma);
+    }
+
     const docs = await DocumentModel.find({
       appointmentId,
     })
       .sort({ createdAt: -1 })
       .exec();
 
-    return docs.map(mapDocumentToDto);
+    return docs.map((element) => mapDocumentToDto(element));
   },
 
   // List of Documents of Appointment for PMS
@@ -428,6 +724,19 @@ export const DocumentService = {
     const companionId = ensureObjectId(params.companionId, "companionId");
     const appointmentId = ensureObjectId(params.appointmentId, "appointmentId");
 
+    if (isReadFromPostgres()) {
+      const docs = await prisma.document.findMany({
+        where: {
+          companionId: companionId.toString(),
+          appointmentId: appointmentId.toString(),
+          pmsVisible: true,
+        },
+        orderBy: { createdAt: "desc" },
+        include: { attachments: true },
+      });
+      return docs.map(mapDocumentToDtoFromPrisma);
+    }
+
     const docs = await DocumentModel.find({
       companionId,
       appointmentId,
@@ -436,7 +745,7 @@ export const DocumentService = {
       .sort({ createdAt: -1 })
       .exec();
 
-    return docs.map(mapDocumentToDto);
+    return docs.map((element) => mapDocumentToDto(element));
   },
 
   // Update Document
@@ -453,91 +762,62 @@ export const DocumentService = {
       throw new DocumentServiceError("Document not found.", 404);
     }
 
-    const isParentUpdater = !!context.parentId;
-    const isPmsUpdater = !!context.pmsUserId;
-
     // 2. Permission check
-    if (isParentUpdater) {
-      if (
-        !doc.uploadedByParentId ||
-        doc.uploadedByParentId.toString() !== context.parentId!.toString()
-      ) {
-        throw new DocumentServiceError(
-          "Parent is not allowed to update this document.",
-          403,
-        );
-      }
-    }
-
-    if (isPmsUpdater) {
-      if (!doc.syncedFromPms) {
-        throw new DocumentServiceError(
-          "PMS cannot update documents uploaded by parent.",
-          403,
-        );
-      }
-    }
+    assertUpdatePermissions(doc, context);
 
     // 4. Validate category / subcategory only when changed
-    if (updates.category || updates.subcategory) {
-      const newCategory = (updates.category ?? doc.category)
-        .toString()
-        .toUpperCase();
-      const newSubcategory = updates.subcategory
-        ? updates.subcategory.toString().toUpperCase()
-        : doc.subcategory;
-
-      validateCategoryAndSubcategory(newCategory, newSubcategory ?? undefined);
-
-      doc.category = newCategory;
-      doc.subcategory = newSubcategory ?? null;
-
-      // pmsVisible may change because category changed
-      doc.pmsVisible = isPmsVisibleCategory(newCategory);
-    }
+    applyCategoryUpdate(doc, updates);
 
     // 5. Handle simple field updates
-    if (
-      updates.title &&
-      typeof updates.title === "string" &&
-      updates.title.trim()
-    ) {
-      doc.title = updates.title.trim();
-    }
-
-    if (updates.visitType) {
-      doc.visitType = updates.visitType;
-    }
-
-    if (updates.issuingBusinessName !== undefined) {
-      doc.issuingBusinessName = updates.issuingBusinessName || null;
-    }
-
-    if (updates.issueDate) {
-      const parsed = new Date(updates.issueDate);
-      if (!isNaN(parsed.getTime())) {
-        doc.issueDate = parsed;
-      }
-    }
+    applySimpleFieldUpdates(doc, updates);
 
     // 6. Attachments update (optional)
-    if (updates.attachments && Array.isArray(updates.attachments)) {
-      // Replace attachments entirely (or merge—your choice)
-      doc.attachments = updates.attachments.map((att) => ({
-        key: String(att.key),
-        mimeType: String(att.mimeType),
-        size: att.size,
-      }));
-    }
+    applyAttachmentUpdates(doc, updates);
 
     // 7. Save the updated document
     await doc.save();
+
+    await syncDocumentToPostgres(doc);
+
+    if (context.organisationId) {
+      await AuditTrailService.recordSafely({
+        organisationId: context.organisationId,
+        companionId: doc.companionId.toString(),
+        eventType: "DOCUMENT_UPDATED",
+        actorType: context.pmsUserId ? "PMS_USER" : "SYSTEM",
+        actorId: context.pmsUserId ?? null,
+        entityType: "DOCUMENT",
+        entityId: doc._id.toString(),
+        metadata: {
+          category: doc.category,
+          subcategory: doc.subcategory,
+          appointmentId: doc.appointmentId?.toString() ?? null,
+          title: doc.title,
+        },
+      });
+    }
 
     return mapDocumentToDto(doc);
   },
 
   async getAllAttachmentUrls(documentId: string | Types.ObjectId) {
     const _id = ensureObjectId(documentId, "documentId");
+    if (isReadFromPostgres()) {
+      const attachments = await prisma.documentAttachment.findMany({
+        where: { documentId: _id.toString() },
+      });
+      if (!attachments.length) {
+        throw new DocumentServiceError("No attachments found.", 404);
+      }
+      const urls = await Promise.all(
+        attachments.map((att) => generatePresignedDownloadUrl(att.key)),
+      );
+      return urls.map((url, index) => ({
+        url,
+        mimeType: attachments[index].mimeType,
+        key: attachments[index].key,
+      }));
+    }
     const doc = await DocumentModel.findById(_id).exec();
 
     if (!doc || !doc.attachments?.length)
@@ -567,6 +847,18 @@ export const DocumentService = {
     const safe = escapeStringRegex(params.title.trim());
     const regex = new RegExp(safe, "i");
 
+    if (isReadFromPostgres()) {
+      const docs = await prisma.document.findMany({
+        where: {
+          companionId: companionId.toString(),
+          title: { contains: params.title.trim(), mode: "insensitive" },
+        },
+        orderBy: { createdAt: "desc" },
+        include: { attachments: true },
+      });
+      return docs.map(mapDocumentToDtoFromPrisma);
+    }
+
     const docs = await DocumentModel.find({
       companionId,
       title: { $regex: regex },
@@ -574,6 +866,6 @@ export const DocumentService = {
       .sort({ createdAt: -1 })
       .exec();
 
-    return docs.map(mapDocumentToDto);
+    return docs.map((element) => mapDocumentToDto(element));
   },
 };

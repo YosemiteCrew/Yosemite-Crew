@@ -9,7 +9,7 @@ export const getActionWrapperStyle = (showEditAction: boolean, theme: any) => ({
   flexDirection: 'row' as const,
   height: '100%' as const,
   width: '100%' as const,
-  backgroundColor: theme.colors.primary,
+  backgroundColor: showEditAction ? theme.colors.primary : theme.colors.success,
   borderTopRightRadius: theme.borderRadius.lg,
   borderBottomRightRadius: theme.borderRadius.lg,
   overflow: 'hidden' as const,
@@ -30,23 +30,23 @@ export const createCardStyles = (theme: any) =>
     container: {
       width: '100%',
       alignSelf: 'center',
-      marginBottom: theme.spacing[3],
+      marginBottom: theme.spacing['4'],
     },
     card: {
       borderRadius: theme.borderRadius.lg,
-      paddingHorizontal: theme.spacing[4],
-      paddingVertical: theme.spacing[4],
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
+      paddingHorizontal: theme.spacing['4'],
+      paddingVertical: theme.spacing['4'],
+      backgroundColor: theme.colors.cardBackground,
+      borderWidth: 0,
+      borderColor: 'transparent',
     },
     fallback: {
       borderRadius: theme.borderRadius.lg,
-      paddingHorizontal: theme.spacing[4],
-      paddingVertical: theme.spacing[4],
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
+      paddingHorizontal: theme.spacing['4'],
+      paddingVertical: theme.spacing['4'],
+      backgroundColor: theme.colors.cardBackground,
+      borderWidth: 0,
+      borderColor: 'transparent',
     },
     actionContainer: {
       flexDirection: 'row',
@@ -65,8 +65,8 @@ export const createCardStyles = (theme: any) =>
       justifyContent: 'center',
     },
     actionIcon: {
-      width: 30,
-      height: 30,
+      width: theme.spacing['7'],
+      height: theme.spacing['7'],
       resizeMode: 'contain' as const,
     },
     innerContent: {
@@ -75,12 +75,12 @@ export const createCardStyles = (theme: any) =>
     infoRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[3],
+      gap: theme.spacing['3'],
     },
     thumbnailContainer: {
-      width: 54,
-      height: 54,
-      borderRadius: 12,
+      width: theme.spacing['14'],
+      height: theme.spacing['14'],
+      borderRadius: theme.borderRadius.md,
       overflow: 'hidden' as const,
       backgroundColor: theme.colors.primarySurface,
       alignItems: 'center',
@@ -93,7 +93,7 @@ export const createCardStyles = (theme: any) =>
     },
     textContent: {
       flex: 1,
-      gap: theme.spacing[1],
+      gap: theme.spacing['1'],
     },
     title: {
       ...theme.typography.titleMedium,
@@ -102,8 +102,8 @@ export const createCardStyles = (theme: any) =>
     rightColumn: {
       alignItems: 'flex-end',
       justifyContent: 'center',
-      gap: theme.spacing[2],
-      minWidth: 70,
+      gap: theme.spacing['2'],
+      minWidth: theme.spacing['18'],
     },
     amount: {
       ...theme.typography.h5,

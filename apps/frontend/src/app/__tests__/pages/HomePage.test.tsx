@@ -1,30 +1,31 @@
 import { render, screen, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import HomePage, { FillBtn } from "../../pages/HomePage/HomePage";
+import HomePage, { FillBtn } from "@/app/features/marketing/pages/HomePage/HomePage";
 import userEvent from "@testing-library/user-event";
+import { useAuthStore } from "@/app/stores/authStore";
 
-jest.mock("@/app/components/Header/Header", () => {
+jest.mock("@/app/ui/layout/Header/Header", () => {
   return function DummyHeader() {
     return <header>Header Mock</header>;
   };
 });
 
-jest.mock("@/app/components/Footer/Footer", () => {
+jest.mock("@/app/ui/widgets/Footer/Footer", () => {
   return function DummyFooter() {
     return <footer>Footer Mock</footer>;
   };
+});
+
+beforeEach(() => {
+  useAuthStore.setState({ user: null, role: null });
 });
 
 describe("HomePage Component", () => {
   test("renders the main hero headings", () => {
     render(<HomePage />);
 
-    const heading1 = screen.getByRole("heading", {
-      name: /helping you help pets/i,
-    });
-    const heading2 = screen.getByRole("heading", {
-      name: /without the hassle/i,
-    });
+    const heading1 = screen.getByText(/helping you help pets/i);
+    const heading2 = screen.getByText(/without the hassle/i);
 
     expect(heading1).toBeInTheDocument();
     expect(heading2).toBeInTheDocument();
@@ -33,9 +34,7 @@ describe("HomePage Component", () => {
   test("renders call-to-action buttons with correct links", () => {
     render(<HomePage />);
 
-    const mainHeading = screen.getByRole("heading", {
-      name: /helping you help pets/i,
-    });
+    const mainHeading = screen.getByText(/helping you help pets/i);
 
     const heroSection = mainHeading.closest("section");
 
@@ -45,21 +44,19 @@ describe("HomePage Component", () => {
 
     expect(heroSection).toBeInTheDocument();
 
-    const bookDemoLink = within(heroSection).getByRole("link", {
-      name: /book demo/i,
+    const primaryCta = within(heroSection).getByRole("link", {
+      name: /get started free/i,
     });
 
-    expect(bookDemoLink).toBeInTheDocument();
+    expect(primaryCta).toBeInTheDocument();
 
-    expect(bookDemoLink).toHaveAttribute("href", "/book-demo");
+    expect(primaryCta).toHaveAttribute("href", "/signup");
   });
 
   test('renders the "Run Your Practice" section heading', () => {
     render(<HomePage />);
 
-    const practiceHeading = screen.getByRole("heading", {
-      name: /everything you need to run your pet business/i,
-    });
+    const practiceHeading = screen.getByText(/everything you need to run your pet business/i);
     expect(practiceHeading).toBeInTheDocument();
   });
 
@@ -75,18 +72,14 @@ describe("HomePage Component", () => {
   test('renders the "Focus on Care" section heading', () => {
     render(<HomePage />);
 
-    const focusHeading = screen.getByRole("heading", {
-      name: /focus on care, not admin/i,
-    });
+    const focusHeading = screen.getByText(/focus on care, not admin/i);
     expect(focusHeading).toBeInTheDocument();
   });
 
   test('renders the "Caring for the Vets" section heading', () => {
     render(<HomePage />);
 
-    const caringHeading = screen.getByRole("heading", {
-      name: /caring for vets, who care for pets/i,
-    });
+    const caringHeading = screen.getByText(/caring for vets, who care for pets/i);
     expect(caringHeading).toBeInTheDocument();
   });
 });

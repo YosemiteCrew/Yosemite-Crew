@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 import {CardActionButton} from '@/shared/components/common/CardActionButton/CardActionButton';
 import {useTheme} from '@/hooks';
@@ -6,33 +7,14 @@ import {useTheme} from '@/hooks';
 // --- Mocks ---
 
 // 1. Mock useTheme
-const mockTheme = {
-  borderRadius: {
-    lg: 10,
-  },
-  spacing: {
-    '2': 4,
-    '3': 8,
-    '4': 12,
-  },
-  colors: {
-    primary: 'mock-primary',
-    success: 'mock-success',
-    secondary: 'mock-secondary',
-    white: 'mock-white',
-    borderMuted: 'mock-borderMuted',
-    surface: 'mock-surface',
-  },
-  typography: {
-    button: {fontSize: 16, fontWeight: '600'},
-  },
-};
 
-jest.mock('@/hooks', () => ({
-  useTheme: jest.fn(() => ({
-    theme: mockTheme,
-  })),
-}));
+jest.mock('@/hooks', () => {
+  const {mockTheme: theme} = require('../setup/mockTheme');
+  return {
+    __esModule: true,
+    useTheme: jest.fn(() => ({theme, isDark: false})),
+  };
+});
 
 // 2. Mock react-native
 jest.mock('react-native', () => {

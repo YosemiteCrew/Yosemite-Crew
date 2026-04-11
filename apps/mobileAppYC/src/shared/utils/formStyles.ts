@@ -1,14 +1,15 @@
 import type {ViewStyle, TextStyle} from 'react-native';
+import type {Theme} from '@/theme/themes';
 
 /**
  * Shared form and layout style definitions to reduce duplication
  * These patterns are used consistently across all forms in the app
  */
 
-export const createFormStyles = (theme: any) => ({
+export const createFormStyles = (theme: Theme) => ({
   // Standard field group spacing
   fieldGroup: {
-    marginBottom: theme.spacing[4],
+    marginBottom: theme.spacing['4'],
   } as ViewStyle,
 
   // Toggle section (e.g., Reminder, Calendar Sync)
@@ -16,7 +17,7 @@ export const createFormStyles = (theme: any) => ({
     flexDirection: 'row' as const,
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: theme.spacing[4],
+    marginBottom: theme.spacing['4'],
   } as ViewStyle,
 
   // Toggle section label text
@@ -29,8 +30,8 @@ export const createFormStyles = (theme: any) => ({
   // Date/Time row for side-by-side date and time inputs
   dateTimeRow: {
     flexDirection: 'row' as const,
-    gap: theme.spacing[3],
-    marginBottom: theme.spacing[4],
+    gap: theme.spacing['3'],
+    marginBottom: theme.spacing['4'],
   } as ViewStyle,
 
   // Individual date/time field
@@ -40,7 +41,7 @@ export const createFormStyles = (theme: any) => ({
 
   // Multi-line text area input
   textArea: {
-    minHeight: 100,
+    minHeight: theme.spacing['24'],
     textAlignVertical: 'top',
   } as ViewStyle,
 
@@ -48,18 +49,18 @@ export const createFormStyles = (theme: any) => ({
   reminderPillsContainer: {
     flexDirection: 'row' as const,
     flexWrap: 'wrap',
-    gap: theme.spacing[2],
-    marginBottom: theme.spacing[4],
+    gap: theme.spacing['2'],
+    marginBottom: theme.spacing['4'],
   } as ViewStyle,
 
   // Individual reminder/tag pill
   reminderPill: {
-    paddingVertical: theme.spacing[2],
-    paddingHorizontal: theme.spacing[3],
+    paddingVertical: theme.spacing['2'],
+    paddingHorizontal: theme.spacing['3'],
     backgroundColor: theme.colors.surface,
-    borderRadius: 28,
+    borderRadius: theme.borderRadius['3xl'],
     borderWidth: 0.5,
-    borderColor: '#312943',
+    borderColor: theme.colors.borderMuted,
   } as ViewStyle,
 
   // Reminder pill when selected
@@ -83,10 +84,10 @@ export const createFormStyles = (theme: any) => ({
 
   // Error text styling
   errorText: {
-    ...theme.typography.labelXsBold,
+    ...theme.typography.labelXxsBold,
     color: theme.colors.error,
-    marginTop: 3,
-    marginBottom: theme.spacing[3],
-    marginLeft: theme.spacing[1],
+    marginTop: theme.spacing['1'],
+    marginBottom: theme.spacing['3'],
+    marginLeft: theme.spacing['1'],
   } as TextStyle,
 });

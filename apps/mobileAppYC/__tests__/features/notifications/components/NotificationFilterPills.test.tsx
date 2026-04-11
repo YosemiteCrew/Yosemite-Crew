@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, screen, act} from '@testing-library/react-native';
 import {NotificationFilterPills} from '../../../../src/features/notifications/components/NotificationFilterPills/NotificationFilterPills';
 import {ScrollView} from 'react-native';
@@ -6,21 +7,7 @@ import {ScrollView} from 'react-native';
 // --- Mocks ---
 
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        primary: '#E1F545',
-        primaryTint: 'rgba(225, 245, 69, 0.1)',
-        white: '#FFFFFF',
-      },
-      spacing: {1: 8},
-      borderRadius: {lg: 8},
-      typography: {
-        labelSmallBold: {fontSize: 12, fontWeight: 'bold'},
-        labelXs: {fontSize: 10},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 describe('NotificationFilterPills', () => {

@@ -3,6 +3,7 @@ import {NavigationContainer} from '@react-navigation/native';
 import {render, waitFor, fireEvent} from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {AppNavigator} from '../../src/navigation/AppNavigator';
+import {GlobalLoaderProvider} from '../../src/context/GlobalLoaderContext';
 import {useAuth} from '../../src/features/auth/context/AuthContext';
 import {useEmergency} from '../../src/features/home/context/EmergencyContext';
 import * as CoParentActions from '../../src/features/coParent';
@@ -221,7 +222,9 @@ describe('AppNavigator', () => {
   const renderNavigator = () => {
     return render(
       <NavigationContainer>
-        <AppNavigator />
+        <GlobalLoaderProvider>
+          <AppNavigator />
+        </GlobalLoaderProvider>
       </NavigationContainer>,
     );
   };
@@ -229,8 +232,11 @@ describe('AppNavigator', () => {
   describe('Initialization & Loading', () => {
     it('displays Loading component while auth is loading', () => {
       (useAuth as jest.Mock).mockReturnValue({isLoading: true});
-      const {getByTestId} = renderNavigator();
-      expect(getByTestId('LoadingIndicator')).toBeTruthy();
+      const renderResult = renderNavigator();
+      const tree = renderResult.toJSON();
+      expect(tree).toBeTruthy();
+      // Check that Modal is rendered for loading state
+      expect(tree.type).toBe('Modal');
     });
 
     it('displays Loading component while checking onboarding status', () => {
@@ -238,8 +244,11 @@ describe('AppNavigator', () => {
       (AsyncStorage.getItem as jest.Mock).mockReturnValue(
         new Promise(() => {}),
       );
-      const {getByTestId} = renderNavigator();
-      expect(getByTestId('LoadingIndicator')).toBeTruthy();
+      const renderResult = renderNavigator();
+      const tree = renderResult.toJSON();
+      expect(tree).toBeTruthy();
+      // Check that Modal is rendered for loading state
+      expect(tree.type).toBe('Modal');
     });
   });
 

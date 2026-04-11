@@ -1,36 +1,104 @@
-import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
-import "@testing-library/jest-dom";
+import React from 'react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
 
-jest.mock("@/app/components/DataTable/Appointments", () => ({
-  __esModule: true,
-  default: () => <div data-testid="appointments-table" />,
+import AppointmentTask from '@/app/ui/widgets/Summary/AppointmentTask';
+
+const useAppointmentsMock = jest.fn();
+const useTasksMock = jest.fn();
+const usePermissionsMock = jest.fn();
+const appointmentsSpy = jest.fn();
+const tasksSpy = jest.fn();
+
+jest.mock('@/app/hooks/useAppointments', () => ({
+  useAppointmentsForPrimaryOrg: () => useAppointmentsMock(),
 }));
 
-jest.mock("@/app/components/DataTable/Tasks", () => ({
-  __esModule: true,
-  default: () => <div data-testid="tasks-table" />,
+jest.mock('@/app/hooks/useTask', () => ({
+  useTasksForPrimaryOrg: () => useTasksMock(),
 }));
 
-jest.mock("next/link", () => {
-  return ({ children, ...props }: any) => <a {...props}>{children}</a>;
+jest.mock('@/app/hooks/usePermissions', () => ({
+  usePermissions: () => usePermissionsMock(),
+}));
+
+jest.mock('@/app/ui/tables/Appointments', () => (props: any) => {
+  appointmentsSpy(props);
+  return <div data-testid="appointments-table" />;
 });
 
-import AppointmentTask from "@/app/components/Summary/AppointmentTask";
+jest.mock('@/app/ui/tables/Tasks', () => (props: any) => {
+  tasksSpy(props);
+  return <div data-testid="tasks-table" />;
+});
 
-describe("Summary AppointmentTask widget", () => {
-  test("toggles between appointments and tasks tables", () => {
+jest.mock('@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo', () => () => (
+  <div data-testid="appointment-info" />
+));
+
+jest.mock('@/app/features/tasks/pages/Tasks/Sections/TaskInfo', () => () => (
+  <div data-testid="task-info" />
+));
+
+jest.mock('@/app/features/appointments/pages/Appointments/Sections/Reschedule', () => () => (
+  <div data-testid="reschedule" />
+));
+
+jest.mock('@/app/features/appointments/pages/Appointments/Sections/ChangeRoom', () => () => (
+  <div data-testid="change-room" />
+));
+
+jest.mock('@/app/features/appointments/pages/Appointments/Sections/ChangeStatus', () => () => null);
+
+jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
+  PermissionGate: ({ children }: any) => <div>{children}</div>,
+}));
+
+describe('AppointmentTask summary', () => {
+  const appointments = [
+    { id: 'a1', status: 'NO_PAYMENT' },
+    { id: 'a2', status: 'completed' },
+  ];
+  const tasks = [
+    { _id: 't1', status: 'pending' },
+    { _id: 't2', status: 'completed' },
+  ];
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    useAppointmentsMock.mockReturnValue(appointments);
+    useTasksMock.mockReturnValue(tasks);
+    usePermissionsMock.mockReturnValue({ can: jest.fn(() => true) });
+  });
+
+  it('renders appointment table by default with filtered list', () => {
     render(<AppointmentTask />);
 
-    const seeAll = screen.getByText("See all");
-    expect(screen.getByTestId("appointments-table")).toBeInTheDocument();
-    expect(seeAll).toHaveAttribute("href", "/appoinments");
-    expect(screen.queryByTestId("tasks-table")).not.toBeInTheDocument();
+    expect(screen.getByText('Schedule')).toBeInTheDocument();
+    expect(screen.getByText('(2)')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Tasks" }));
-    expect(screen.getByTestId("tasks-table")).toBeInTheDocument();
-    expect(screen.queryByTestId("appointments-table")).not.toBeInTheDocument();
+    const props = appointmentsSpy.mock.calls[0][0];
+    expect(props.filteredList).toEqual(appointments);
+    expect(screen.getByTestId('reschedule')).toBeInTheDocument();
+  });
 
-    expect(seeAll).toHaveAttribute("href", "/tasks");
+  it('switches to tasks tab and filters tasks', () => {
+    render(<AppointmentTask />);
+
+    fireEvent.click(screen.getByText('Tasks'));
+
+    expect(screen.getByTestId('tasks-table')).toBeInTheDocument();
+
+    const latestProps = tasksSpy.mock.calls.at(-1)[0];
+    expect(latestProps.filteredList).toEqual(tasks);
+  });
+
+  it('filters appointments when a specific status is selected', () => {
+    render(<AppointmentTask />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Requested' }));
+
+    const latestProps = appointmentsSpy.mock.calls.at(-1)[0];
+    expect(latestProps.filteredList).toEqual([appointments[0]]);
   });
 });

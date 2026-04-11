@@ -39,14 +39,14 @@ export const spacing = {
 
 export const borderRadius = {
   none: 0,
-  xs: 2,
-  sm: 4,
-  base: 8,
-  md: 12,
+  xs: 16,
+  sm: 16,
+  base: 16,
+  md: 16,
   lg: 16,
-  xl: 20,
-  '2xl': 24,
-  '3xl': 32,
+  xl: 16,
+  '2xl': 16,
+  '3xl': 16,
   full: 9999,
 } as const;
 
@@ -85,6 +85,13 @@ export const shadows = {
     shadowOpacity: 0.15,
     shadowRadius: 6,
     elevation: 4,
+  },
+  floatingMd: {
+    shadowColor: '#000000',
+    shadowOffset: {width: 0, height: 0},
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 8,
   },
   lg: {
     shadowColor: '#000000',

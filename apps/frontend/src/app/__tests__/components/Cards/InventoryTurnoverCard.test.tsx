@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import InventoryTurnoverCard from "@/app/components/Cards/InventoryTurnoverCard";
+import InventoryTurnoverCard from "@/app/ui/cards/InventoryTurnoverCard";
 
 describe("<InventoryTurnoverCard />", () => {
   const item = {
@@ -10,8 +10,8 @@ describe("<InventoryTurnoverCard />", () => {
     category: "Consumable",
     beginningInventory: 50,
     endingInventory: 10,
-    averageInventory: 30,
-    totalPurchases: 200,
+    avgInventory: 30,
+    totalPurchased: 200,
     turnsPerYear: 8,
     daysOnShelf: 45,
     status: "Healthy",
@@ -25,7 +25,7 @@ describe("<InventoryTurnoverCard />", () => {
     expect(screen.getByText("50")).toBeInTheDocument();
     expect(screen.getByText("10")).toBeInTheDocument();
     expect(screen.getByText("30")).toBeInTheDocument();
-    expect(screen.getByText("$ 200")).toBeInTheDocument();
+    expect(screen.getByText("200")).toBeInTheDocument();
     expect(screen.getByText("8")).toBeInTheDocument();
     expect(screen.getByText("45")).toBeInTheDocument();
 

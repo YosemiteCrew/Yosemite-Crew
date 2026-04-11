@@ -14,7 +14,8 @@ import {
   BackHandler,
 } from 'react-native';
 import {useForm, Controller} from 'react-hook-form';
-import {SafeArea, Input, Header} from '@/shared/components/common';
+import {Input, Header} from '@/shared/components/common';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {
   SimpleDatePicker,
   formatDateForDisplay,
@@ -28,7 +29,10 @@ import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/Liqu
 import CustomBottomSheet, {
   BottomSheetRef,
 } from '@/shared/components/common/BottomSheet/BottomSheet';
-import {AddressFields, type AddressFieldValues} from '@/shared/components/forms/AddressFields';
+import {
+  AddressFields,
+  type AddressFieldValues,
+} from '@/shared/components/forms/AddressFields';
 import {useTheme, useAddressAutocomplete} from '@/hooks';
 import {createFormScreenStyles} from '@/shared/utils/formScreenStyles';
 import {Images} from '@/assets/images';
@@ -44,15 +48,23 @@ import {
 import {mergeUserWithParentProfile} from '@/features/auth/utils/parentProfileMapper';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {AuthStackParamList} from '@/navigation/AuthNavigator';
-import {PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT} from '@/config/variables';
+import {
+  AGE_VERIFICATION_CONFIG,
+  PENDING_PROFILE_STORAGE_KEY,
+  PENDING_PROFILE_UPDATED_EVENT,
+} from '@/config/variables';
 import LocationService from '@/shared/services/LocationService';
 import type {PlaceSuggestion} from '@/shared/services/maps/googlePlaces';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {preparePhotoPayload, isRemoteUri} from '@/features/account/utils/profilePhoto';
+import {
+  preparePhotoPayload,
+  isRemoteUri,
+} from '@/features/account/utils/profilePhoto';
 import {
   requestParentProfileUploadUrl,
   uploadFileToPresignedUrl,
 } from '@/shared/services/uploadService';
+import {useTranslation} from 'react-i18next';
 
 // Removed direct provider-specific signout; use global logout from AuthContext
 
@@ -88,6 +100,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
   route,
 }) => {
   const {login, logout} = useAuth();
+  const {t} = useTranslation();
   const {theme} = useTheme();
   const styles = createStyles(theme);
 
@@ -102,13 +115,20 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     showOtpSuccess = false,
   } = route.params;
 
-  const fallbackBirthDate = initialAttributes?.dateOfBirth ?? existingParentProfile?.birthDate ?? null;
-  const maybeParsedDate = fallbackBirthDate ? new Date(fallbackBirthDate) : null;
+  const fallbackBirthDate =
+    initialAttributes?.dateOfBirth ?? existingParentProfile?.birthDate ?? null;
+  const maybeParsedDate = fallbackBirthDate
+    ? new Date(fallbackBirthDate)
+    : null;
   const parsedDateOfBirth =
     maybeParsedDate && !Number.isNaN(maybeParsedDate.getTime())
       ? maybeParsedDate
       : null;
-  const rawPhoneSource = (initialAttributes?.phone ?? existingParentProfile?.phoneNumber ?? '').trim();
+  const rawPhoneSource = (
+    initialAttributes?.phone ??
+    existingParentProfile?.phoneNumber ??
+    ''
+  ).trim();
   const rawPhone = rawPhoneSource.replaceAll(/[^0-9+]/g, '');
   const normalizedPhoneDigits = rawPhone.replaceAll(/\D/g, '');
   const defaultCountry =
@@ -136,6 +156,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
 
   const countryMobileRef = useRef<CountryMobileBottomSheetRef>(null);
   const successBottomSheetRef = useRef<BottomSheetRef>(null);
+  const ageVerificationInfoBottomSheetRef = useRef<BottomSheetRef>(null);
 
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [selectedCountry, setSelectedCountry] =
@@ -151,19 +172,39 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
   const [isOtpSuccessVisible, setIsOtpSuccessVisible] =
     useState(showOtpSuccess);
 
-  const defaultFirstName = initialAttributes?.firstName ?? existingParentProfile?.firstName ?? '';
-  const defaultLastName = initialAttributes?.lastName ?? existingParentProfile?.lastName ?? '';
+  const defaultFirstName =
+    initialAttributes?.firstName ?? existingParentProfile?.firstName ?? '';
+  const defaultLastName =
+    initialAttributes?.lastName ?? existingParentProfile?.lastName ?? '';
   const defaultProfileImage =
-    initialAttributes?.profilePicture ?? existingParentProfile?.profileImageUrl ?? null;
+    initialAttributes?.profilePicture ??
+    existingParentProfile?.profileImageUrl ??
+    null;
+  const ageVerificationProviderName =
+    AGE_VERIFICATION_CONFIG.serviceProviderName?.trim() ||
+    t('auth.age_verification_provider_fallback');
 
   const defaultAddressValues = {
-    address: initialAttributes?.address?.addressLine ?? existingParentProfile?.address?.addressLine ?? '',
+    address:
+      initialAttributes?.address?.addressLine ??
+      existingParentProfile?.address?.addressLine ??
+      '',
     stateProvince:
-      initialAttributes?.address?.stateProvince ?? existingParentProfile?.address?.state ?? '',
-    city: initialAttributes?.address?.city ?? existingParentProfile?.address?.city ?? '',
+      initialAttributes?.address?.stateProvince ??
+      existingParentProfile?.address?.state ??
+      '',
+    city:
+      initialAttributes?.address?.city ??
+      existingParentProfile?.address?.city ??
+      '',
     postalCode:
-      initialAttributes?.address?.postalCode ?? existingParentProfile?.address?.postalCode ?? '',
-    country: initialAttributes?.address?.country ?? existingParentProfile?.address?.country ?? '',
+      initialAttributes?.address?.postalCode ??
+      existingParentProfile?.address?.postalCode ??
+      '',
+    country:
+      initialAttributes?.address?.country ??
+      existingParentProfile?.address?.country ??
+      '',
   };
 
   const [step1Data, setStep1Data] = useState({
@@ -184,7 +225,9 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
   });
 
   // Track which bottom sheet is open
-  const [openBottomSheet, setOpenBottomSheet] = useState<'countryMobile' | 'success' | null>(null);
+  const [openBottomSheet, setOpenBottomSheet] = useState<
+    'countryMobile' | 'success' | 'ageVerificationInfo' | null
+  >(null);
 
   const {
     setQuery: setAddressQuery,
@@ -279,29 +322,35 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
 
   // Handle Android back button for bottom sheets
   useEffect(() => {
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      // If date picker is open, close it first
-      if (showDatePicker) {
-        setShowDatePicker(false);
-        return true;
-      }
-
-      // If any bottom sheet is open, close it first
-      if (openBottomSheet) {
-        switch (openBottomSheet) {
-          case 'countryMobile':
-            countryMobileRef.current?.close();
-            break;
-          case 'success':
-            successBottomSheetRef.current?.close();
-            break;
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        // If date picker is open, close it first
+        if (showDatePicker) {
+          setShowDatePicker(false);
+          return true;
         }
-        setOpenBottomSheet(null);
-        return true;
-      }
 
-      return false;
-    });
+        // If any bottom sheet is open, close it first
+        if (openBottomSheet) {
+          switch (openBottomSheet) {
+            case 'countryMobile':
+              countryMobileRef.current?.close();
+              break;
+            case 'success':
+              successBottomSheetRef.current?.close();
+              break;
+            case 'ageVerificationInfo':
+              ageVerificationInfoBottomSheetRef.current?.close();
+              break;
+          }
+          setOpenBottomSheet(null);
+          return true;
+        }
+
+        return false;
+      },
+    );
 
     return () => backHandler.remove();
   }, [showDatePicker, openBottomSheet]);
@@ -404,6 +453,16 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     setShowDatePicker(false);
   }, []);
 
+  const handleOpenAgeVerificationInfo = useCallback(() => {
+    setOpenBottomSheet('ageVerificationInfo');
+    ageVerificationInfoBottomSheetRef.current?.snapToIndex(0);
+  }, []);
+
+  const handleCloseAgeVerificationInfo = useCallback(() => {
+    setOpenBottomSheet(null);
+    ageVerificationInfoBottomSheetRef.current?.close();
+  }, []);
+
   const handleOpenTerms = useCallback(() => {
     navigation.navigate('TermsAndConditions');
   }, [navigation]);
@@ -476,7 +535,12 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
         }
       }
     },
-    [addressLookupError, handleStep2FieldChange, resetAddressError, setAddressQuery],
+    [
+      addressLookupError,
+      handleStep2FieldChange,
+      resetAddressError,
+      setAddressQuery,
+    ],
   );
 
   const handleAddressSuggestionPress = useCallback(
@@ -511,19 +575,33 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
         handleStep2FieldChange('country', details.country);
       }
       if (details.latitude && details.longitude) {
-        setLocation(prev =>
-          prev ?? {
-            latitude: details.latitude as number,
-            longitude: details.longitude as number,
-          },
+        setLocation(
+          prev =>
+            prev ?? {
+              latitude: details.latitude as number,
+              longitude: details.longitude as number,
+            },
         );
       }
 
       resetAddressError();
       clearAddressSuggestions();
-      clearErrors(['address', 'city', 'stateProvince', 'postalCode', 'country']);
+      clearErrors([
+        'address',
+        'city',
+        'stateProvince',
+        'postalCode',
+        'country',
+      ]);
     },
-    [clearAddressSuggestions, clearErrors, handleStep2FieldChange, resetAddressError, selectAddressSuggestion, setLocation],
+    [
+      clearAddressSuggestions,
+      clearErrors,
+      handleStep2FieldChange,
+      resetAddressError,
+      selectAddressSuggestion,
+      setLocation,
+    ],
   );
 
   const handleNext = async () => {
@@ -541,54 +619,66 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     }
   };
 
-const handleGoBack = useCallback(async () => {
-  // If on step 2, just go back to step 1 - NO LOGOUT NEEDED
-  if (currentStep === 2) {
-    setValue('firstName', step1Data.firstName, {shouldValidate: false});
-    setValue('lastName', step1Data.lastName, {shouldValidate: false});
-    setValue('mobileNumber', step1Data.mobileNumber, {shouldValidate: false});
-    setValue('dateOfBirth', step1Data.dateOfBirth, {shouldValidate: false});
-    setValue('profileImage', step1Data.profileImage, {shouldValidate: false});
-    clearErrors();
-    setCurrentStep(1);
-    return;
-  }
+  const handleGoBack = useCallback(async () => {
+    // If on step 2, just go back to step 1 - NO LOGOUT NEEDED
+    if (currentStep === 2) {
+      setValue('firstName', step1Data.firstName, {shouldValidate: false});
+      setValue('lastName', step1Data.lastName, {shouldValidate: false});
+      setValue('mobileNumber', step1Data.mobileNumber, {shouldValidate: false});
+      setValue('dateOfBirth', step1Data.dateOfBirth, {shouldValidate: false});
+      setValue('profileImage', step1Data.profileImage, {shouldValidate: false});
+      clearErrors();
+      setCurrentStep(1);
+      return;
+    }
 
-  // If on step 1, cancel the profile creation and go back to sign up
-  if (isHandlingBack) {
-    return;
-  }
+    // If on step 1, cancel the profile creation and go back to sign up
+    if (isHandlingBack) {
+      return;
+    }
 
-  setIsHandlingBack(true);
-  try {
-    console.log('[CreateAccountScreen] Cancelling profile creation - provider:', tokens.provider);
-    // 1) Clear pending profile immediately so AppNavigator stops forcing CreateAccount
-    await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
-    DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
-
-    // 2) Use global logout to clear tokens/state consistently (handles provider-specific signout)
-    await logout();
-
-    // 3) Explicitly reset to SignIn so user sees the auth entry point immediately
-    navigation.reset({
-      index: 0,
-      routes: [{name: 'SignIn'}],
-    });
-  } catch (error) {
-    console.error('[CreateAccountScreen] handleGoBack error:', error);
+    setIsHandlingBack(true);
     try {
+      console.log(
+        '[CreateAccountScreen] Cancelling profile creation - provider:',
+        tokens.provider,
+      );
+      // 1) Clear pending profile immediately so AppNavigator stops forcing CreateAccount
       await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
       DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
-    } catch {}
-    // Even on failure, rely on AppNavigator by not forcing a conflicting reset
-    navigation.reset({
-      index: 0,
-      routes: [{name: 'SignIn'}],
-    });
-  } finally {
-    setIsHandlingBack(false);
-  }
-}, [clearErrors, currentStep, isHandlingBack, logout, navigation, setValue, step1Data, tokens.provider]);
+
+      // 2) Use global logout to clear tokens/state consistently (handles provider-specific signout)
+      await logout();
+
+      // 3) Explicitly reset to SignIn so user sees the auth entry point immediately
+      navigation.reset({
+        index: 0,
+        routes: [{name: 'SignIn'}],
+      });
+    } catch (error) {
+      console.error('[CreateAccountScreen] handleGoBack error:', error);
+      try {
+        await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
+        DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
+      } catch {}
+      // Even on failure, rely on AppNavigator by not forcing a conflicting reset
+      navigation.reset({
+        index: 0,
+        routes: [{name: 'SignIn'}],
+      });
+    } finally {
+      setIsHandlingBack(false);
+    }
+  }, [
+    clearErrors,
+    currentStep,
+    isHandlingBack,
+    logout,
+    navigation,
+    setValue,
+    step1Data,
+    tokens.provider,
+  ]);
 
   // Ensure hardware back behaves same as header back
   useEffect(() => {
@@ -605,9 +695,13 @@ const handleGoBack = useCallback(async () => {
         throw new Error('Authentication expired. Please sign in again.');
       }
 
-      const parentId = existingParentProfile?.id ?? payload.parentId ?? undefined;
-      const hasExistingParent = hasRemoteProfile || Boolean(existingParentProfile);
-      const executor = hasExistingParent ? updateParentProfile : createParentProfile;
+      const parentId =
+        existingParentProfile?.id ?? payload.parentId ?? undefined;
+      const hasExistingParent =
+        hasRemoteProfile || Boolean(existingParentProfile);
+      const executor = hasExistingParent
+        ? updateParentProfile
+        : createParentProfile;
 
       return executor(
         {
@@ -642,7 +736,8 @@ const handleGoBack = useCallback(async () => {
     try {
       setIsSubmitting(true);
 
-      const birthDateIso = combinedData.dateOfBirth?.toISOString().split('T')[0] ?? null;
+      const birthDateIso =
+        combinedData.dateOfBirth?.toISOString().split('T')[0] ?? null;
       const hasAddressDetails = [
         combinedData.address,
         combinedData.stateProvince,
@@ -652,12 +747,20 @@ const handleGoBack = useCallback(async () => {
       ].some(value => Boolean(value?.trim()));
 
       let profileImageKey: string | null = null;
-      let existingPhotoUrl = combinedData.profileImage ?? profileToken ?? existingParentProfile?.profileImageUrl ?? null;
+      let existingPhotoUrl =
+        combinedData.profileImage ??
+        profileToken ??
+        existingParentProfile?.profileImageUrl ??
+        null;
 
-      if (combinedData.profileImage && !isRemoteUri(combinedData.profileImage)) {
+      if (
+        combinedData.profileImage &&
+        !isRemoteUri(combinedData.profileImage)
+      ) {
         const photoPayload = await preparePhotoPayload({
           imageUri: combinedData.profileImage,
-          existingRemoteUrl: profileToken ?? existingParentProfile?.profileImageUrl ?? null,
+          existingRemoteUrl:
+            profileToken ?? existingParentProfile?.profileImageUrl ?? null,
         });
 
         existingPhotoUrl = photoPayload.remoteUrl ?? null;
@@ -821,8 +924,8 @@ const handleGoBack = useCallback(async () => {
           rules={{
             required: 'Mobile number is required',
             pattern: {
-              value: /^\d{10}$/,
-              message: 'Please enter a valid 10-digit mobile number',
+              value: /^\d{6,12}$/,
+              message: 'Please enter a valid mobile number (6-12 digits)',
             },
           }}
           render={() => (
@@ -871,24 +974,35 @@ const handleGoBack = useCallback(async () => {
             },
           }}
           render={() => (
-            <TouchableInput
-              label="Date of birth (optional)"
-              value={
-                step1Data.dateOfBirth
-                  ? formatDateForDisplay(step1Data.dateOfBirth)
-                  : ''
-              }
-              placeholder="Select date of birth (Optional)"
-              onPress={handleDatePickerPress}
-              error={errors.dateOfBirth?.message}
-              rightComponent={
-                <Image
-                  source={Images.calendarIcon}
-                  style={styles.calendarIcon}
-                />
-              }
-              containerStyle={styles.inputContainer}
-            />
+            <>
+              <TouchableInput
+                label={t('auth.date_of_birth_optional')}
+                value={
+                  step1Data.dateOfBirth
+                    ? formatDateForDisplay(step1Data.dateOfBirth)
+                    : ''
+                }
+                placeholder={t('auth.date_of_birth_optional_placeholder')}
+                onPress={handleDatePickerPress}
+                error={errors.dateOfBirth?.message}
+                rightComponent={
+                  <Image
+                    source={Images.calendarIcon}
+                    style={styles.calendarIcon}
+                  />
+                }
+                containerStyle={styles.inputContainer}
+              />
+              <TouchableOpacity
+                onPress={handleOpenAgeVerificationInfo}
+                style={styles.dobInfoButton}
+                accessibilityRole="button"
+                accessibilityLabel={t('auth.age_verification_info_cta')}>
+                <Text style={styles.dobInfoButtonText}>
+                  {t('auth.age_verification_info_cta')}
+                </Text>
+              </TouchableOpacity>
+            </>
           )}
         />
       </View>
@@ -904,7 +1018,9 @@ const handleGoBack = useCallback(async () => {
       country: step2Data.country,
     };
 
-    const addressFieldErrors: Partial<Record<keyof AddressFieldValues, string | undefined>> = {
+    const addressFieldErrors: Partial<
+      Record<keyof AddressFieldValues, string | undefined>
+    > = {
       addressLine: errors.address?.message,
       city: errors.city?.message,
       stateProvince: errors.stateProvince?.message,
@@ -914,176 +1030,271 @@ const handleGoBack = useCallback(async () => {
 
     return (
       <>
-      <ProfileImagePicker
-        imageUri={step1Data.profileImage}
-        onImageSelected={handleProfileImageChange}
-      />
-
-      <View style={styles.formSection}>
-        <AddressFields
-          values={addressValues}
-          onChange={handleAddressFieldChange}
-          addressSuggestions={addressSuggestions}
-          isFetchingSuggestions={isFetchingAddressSuggestions}
-          error={addressLookupError}
-          onSelectSuggestion={handleAddressSuggestionPress}
-          fieldErrors={addressFieldErrors}
-          labels={{
-            addressLine: 'Address (optional)',
-            stateProvince: Platform.select({ios: 'State (optional)', default: 'State/Province (optional)'}) ?? 'State/Province (optional)',
-            city: 'City (optional)',
-            postalCode: 'Postal code (optional)',
-            country: 'Country (optional)',
-          }}
+        <ProfileImagePicker
+          imageUri={step1Data.profileImage}
+          onImageSelected={handleProfileImageChange}
         />
 
-        <View style={styles.checkboxWrapper}>
-          <View style={styles.checkboxContainer}>
-            <Controller
-              control={control}
-              name="acceptTerms"
-              render={() => (
-                <Checkbox
-                  value={step2Data.acceptTerms}
-                  onValueChange={checked => {
-                    handleStep2FieldChange('acceptTerms', checked);
-                    if (checked) {
-                      clearErrors('acceptTerms');
-                    }
-                  }}
-                />
-              )}
-            />
-            <View style={styles.termsTextContainer}>
-              <Text style={styles.checkboxText}>I agree to the </Text>
-              <TouchableOpacity onPress={handleOpenTerms}>
-                <Text style={styles.linkText}>terms and conditions</Text>
-              </TouchableOpacity>
-              <Text style={styles.checkboxText}> and </Text>
-              <TouchableOpacity onPress={handleOpenPrivacy}>
-                <Text style={styles.linkText}>privacy policy.</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-          {/* NEW: Error message below the row */}
-          {errors.acceptTerms?.message && (
-            <Text style={styles.errorText}>{errors.acceptTerms.message}</Text>
-          )}
-        </View>
+        <View style={styles.formSection}>
+          <AddressFields
+            values={addressValues}
+            onChange={handleAddressFieldChange}
+            addressSuggestions={addressSuggestions}
+            isFetchingSuggestions={isFetchingAddressSuggestions}
+            error={addressLookupError}
+            onSelectSuggestion={handleAddressSuggestionPress}
+            fieldErrors={addressFieldErrors}
+            labels={{
+              addressLine: 'Address (optional)',
+              stateProvince:
+                Platform.select({
+                  ios: 'State (optional)',
+                  default: 'State/Province (optional)',
+                }) ?? 'State/Province (optional)',
+              city: 'City (optional)',
+              postalCode: 'Postal code (optional)',
+              country: 'Country (optional)',
+            }}
+          />
 
-      </View>
-    </>
+          <View style={styles.checkboxWrapper}>
+            <View style={styles.checkboxContainer}>
+              <Controller
+                control={control}
+                name="acceptTerms"
+                render={() => (
+                  <Checkbox
+                    value={step2Data.acceptTerms}
+                    onValueChange={checked => {
+                      handleStep2FieldChange('acceptTerms', checked);
+                      if (checked) {
+                        clearErrors('acceptTerms');
+                      }
+                    }}
+                  />
+                )}
+              />
+              <View style={styles.termsTextContainer}>
+                <Text style={styles.checkboxText}>I agree to the </Text>
+                <TouchableOpacity onPress={handleOpenTerms}>
+                  <Text style={styles.linkText}>terms and conditions</Text>
+                </TouchableOpacity>
+                <Text style={styles.checkboxText}> and </Text>
+                <TouchableOpacity onPress={handleOpenPrivacy}>
+                  <Text style={styles.linkText}>privacy policy.</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            {/* NEW: Error message below the row */}
+            {errors.acceptTerms?.message && (
+              <Text style={styles.errorText}>{errors.acceptTerms.message}</Text>
+            )}
+          </View>
+        </View>
+      </>
     );
   };
 
   return (
-    <SafeArea style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardAvoidingView}>
-      <Header
-  title="Create account"
-  showBackButton
-  onBack={handleGoBack}
-/>
-
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled">
-          {currentStep === 1 ? renderStep1() : renderStep2()}
-        </ScrollView>
-
-        {submissionError ? (
-          <Text style={styles.submissionError}>{submissionError}</Text>
-        ) : null}
-
-        <View style={styles.buttonContainer}>
-          <LiquidGlassButton
-            title={(() => {
-              if (currentStep === 1) {
-                return 'Next';
-              }
-              if (isSubmitting) {
-                return 'Creating account...';
-              }
-              return 'Create account';
-            })()}
-            onPress={currentStep === 1 ? handleNext : handleSignUp}
-            style={styles.button}
-            textStyle={styles.buttonText}
-            tintColor={theme.colors.secondary}
-            shadowIntensity="medium"
-            forceBorder
-            borderColor="rgba(255, 255, 255, 0.35)"
-            height={56}
-            borderRadius={16}
-            loading={currentStep === 2 && isSubmitting}
-            disabled={currentStep === 2 && isSubmitting}
-          />
-        </View>
-
-        <SimpleDatePicker
-          value={step1Data.dateOfBirth}
-          onDateChange={handleDateChange}
-          show={showDatePicker}
-          onDismiss={handleDatePickerDismiss}
-          maximumDate={getMaximumDate()}
-          mode="date"
+    <LiquidGlassHeaderScreen
+      header={
+        <Header
+          title="Create account"
+          showBackButton
+          onBack={handleGoBack}
+          glass={false}
         />
-      </KeyboardAvoidingView>
-      {isOtpSuccessVisible && (
-        <View style={styles.bottomSheetContainer}>
-          <CustomBottomSheet
-            ref={successBottomSheetRef}
-            snapPoints={['35%', '50%']}
-            initialIndex={1}
-            enablePanDownToClose
-            enableBackdrop
-            backdropOpacity={0.5}
-            backdropAppearsOnIndex={0}
-            backdropDisappearsOnIndex={-1}
-            backdropPressBehavior="close"
-            enableHandlePanningGesture
-            enableContentPanningGesture={false}
-            enableOverDrag
-            backgroundStyle={styles.bottomSheetBackground}
-            handleIndicatorStyle={styles.bottomSheetHandle}>
-            <View style={styles.successContent}>
-              <Image
-                source={Images.verificationSuccess}
-                style={styles.successIllustration}
-                resizeMode="contain"
-              />
-              <Text style={styles.successTitle}>Code verified</Text>
-              <Text style={styles.successMessage}>
-                Nice! Now let's finish setting up your Yosemite Crew profile.
-              </Text>
+      }
+      cardGap={theme.spacing['3']}
+      contentPadding={theme.spacing['1']}
+      showBottomFade={false}>
+      {contentPaddingStyle => (
+        <>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.keyboardAvoidingView}>
+            <ScrollView
+              style={styles.scrollView}
+              contentContainerStyle={[
+                styles.scrollContent,
+                contentPaddingStyle,
+              ]}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled">
+              {currentStep === 1 ? renderStep1() : renderStep2()}
+            </ScrollView>
+
+            {submissionError ? (
+              <Text style={styles.submissionError}>{submissionError}</Text>
+            ) : null}
+
+            <View style={styles.buttonContainer}>
               <LiquidGlassButton
-                title="Continue"
-                onPress={handleSuccessClose}
-                style={styles.successButton}
-                textStyle={styles.successButtonText}
+                title={(() => {
+                  if (currentStep === 1) {
+                    return 'Next';
+                  }
+                  if (isSubmitting) {
+                    return 'Creating account...';
+                  }
+                  return 'Create account';
+                })()}
+                onPress={currentStep === 1 ? handleNext : handleSignUp}
+                style={styles.button}
+                textStyle={styles.buttonText}
                 tintColor={theme.colors.secondary}
                 shadowIntensity="medium"
                 forceBorder
-                borderColor="rgba(255, 255, 255, 0.35)"
-                height={56}
-                borderRadius={16}
+                borderColor={theme.colors.borderMuted}
+                height={theme.spacing['14']}
+                borderRadius={theme.borderRadius.lg}
+                loading={currentStep === 2 && isSubmitting}
+                disabled={currentStep === 2 && isSubmitting}
               />
             </View>
-          </CustomBottomSheet>
-        </View>
+
+            <SimpleDatePicker
+              value={step1Data.dateOfBirth}
+              onDateChange={handleDateChange}
+              show={showDatePicker}
+              onDismiss={handleDatePickerDismiss}
+              maximumDate={getMaximumDate()}
+              mode="date"
+            />
+          </KeyboardAvoidingView>
+          {isOtpSuccessVisible && (
+            <View style={styles.bottomSheetContainer}>
+              <CustomBottomSheet
+                ref={successBottomSheetRef}
+                snapPoints={['50%', '75%']}
+                initialIndex={1}
+                enablePanDownToClose
+                enableBackdrop
+                backdropOpacity={0.5}
+                backdropAppearsOnIndex={0}
+                backdropDisappearsOnIndex={-1}
+                backdropPressBehavior="close"
+                enableHandlePanningGesture
+                enableContentPanningGesture={false}
+                enableOverDrag
+                backgroundStyle={styles.bottomSheetBackground}
+                handleIndicatorStyle={styles.bottomSheetHandle}
+                onChange={index => {
+                  // When sheet is closed by dragging down or backdrop press, index becomes -1
+                  if (index === -1) {
+                    handleSuccessClose();
+                  }
+                }}>
+                <View style={styles.successContent}>
+                  <Image
+                    source={Images.verificationSuccess}
+                    style={styles.successIllustration}
+                    resizeMode="contain"
+                  />
+                  <Text style={styles.successTitle}>Code verified</Text>
+                  <Text style={styles.successMessage}>
+                    Nice! Now let's finish setting up your Yosemite Crew
+                    profile.
+                  </Text>
+                  <LiquidGlassButton
+                    title="Continue"
+                    onPress={handleSuccessClose}
+                    style={styles.successButton}
+                    textStyle={styles.successButtonText}
+                    tintColor={theme.colors.secondary}
+                    shadowIntensity="medium"
+                    forceBorder
+                    borderColor={theme.colors.borderMuted}
+                    height={theme.spacing['14']}
+                    borderRadius={theme.borderRadius.lg}
+                  />
+                </View>
+              </CustomBottomSheet>
+            </View>
+          )}
+          <View pointerEvents="box-none" style={styles.bottomSheetContainer}>
+            <CustomBottomSheet
+              ref={ageVerificationInfoBottomSheetRef}
+              snapPoints={['85%', '95%']}
+              initialIndex={-1}
+              enablePanDownToClose
+              enableBackdrop
+              backdropOpacity={0.5}
+              backdropAppearsOnIndex={0}
+              backdropDisappearsOnIndex={-1}
+              backdropPressBehavior="close"
+              enableHandlePanningGesture
+              enableContentPanningGesture
+              enableOverDrag
+              contentType="view"
+              backgroundStyle={styles.bottomSheetBackground}
+              handleIndicatorStyle={styles.bottomSheetHandle}
+              onChange={index => {
+                if (index === -1 && openBottomSheet === 'ageVerificationInfo') {
+                  setOpenBottomSheet(null);
+                }
+              }}>
+              <View style={styles.ageVerificationSheetLayout}>
+                <ScrollView
+                  style={styles.ageVerificationSheetScrollArea}
+                  contentContainerStyle={styles.ageVerificationSheetContent}
+                  showsVerticalScrollIndicator
+                  keyboardShouldPersistTaps="handled">
+                  <Text style={styles.ageVerificationSheetTitle}>
+                    {t('auth.age_verification_sheet_title')}
+                  </Text>
+                  <Text style={styles.ageVerificationSheetBody}>
+                    {t('auth.age_verification_sheet_intro')}
+                  </Text>
+                  <Text style={styles.ageVerificationSheetSectionTitle}>
+                    {t('auth.age_verification_sheet_why_title')}
+                  </Text>
+                  <Text style={styles.ageVerificationSheetBody}>
+                    {t('auth.age_verification_sheet_why_body')}
+                  </Text>
+                  <Text style={styles.ageVerificationSheetSectionTitle}>
+                    {t('auth.age_verification_sheet_privacy_title')}
+                  </Text>
+                  <Text style={styles.ageVerificationSheetBody}>
+                    {t('auth.age_verification_sheet_privacy_body', {
+                      serviceProviderName: ageVerificationProviderName,
+                    })}
+                  </Text>
+                  <Text style={styles.ageVerificationSheetBody}>
+                    {t('auth.age_verification_sheet_restriction_notice')}
+                  </Text>
+                </ScrollView>
+                <View style={styles.ageVerificationSheetFooter}>
+                  <LiquidGlassButton
+                    title={t('common.ok')}
+                    onPress={handleCloseAgeVerificationInfo}
+                    style={styles.ageVerificationSheetButton}
+                    textStyle={styles.ageVerificationSheetButtonText}
+                    tintColor={theme.colors.secondary}
+                    shadowIntensity="medium"
+                    forceBorder
+                    borderColor={theme.colors.borderMuted}
+                    height={theme.spacing['14']}
+                    borderRadius={theme.borderRadius.lg}
+                  />
+                </View>
+              </View>
+            </CustomBottomSheet>
+          </View>
+          <View
+            pointerEvents="box-none"
+            style={styles.countryBottomSheetPortal}>
+            <CountryMobileBottomSheet
+              ref={countryMobileRef}
+              countries={COUNTRIES}
+              selectedCountry={selectedCountry}
+              mobileNumber={step1Data.mobileNumber}
+              onSave={handleCountryMobileSave}
+            />
+          </View>
+        </>
       )}
-      <CountryMobileBottomSheet
-        ref={countryMobileRef}
-        countries={COUNTRIES}
-        selectedCountry={selectedCountry}
-        mobileNumber={step1Data.mobileNumber}
-        onSave={handleCountryMobileSave}
-      />
-    </SafeArea>
+    </LiquidGlassHeaderScreen>
   );
 };
 
@@ -1093,13 +1304,13 @@ const createStyles = (theme: any) =>
     countrySection: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingRight: theme.spacing['3'], // 12
+      paddingRight: theme.spacing['3'],
       borderRightWidth: 1,
       borderRightColor: theme.colors.border,
     },
     flagText: {
-      fontSize: theme.spacing['6'], // 24
-      marginRight: theme.spacing['2'], // 8
+      fontSize: theme.spacing['6'],
+      marginRight: theme.spacing['2'],
     },
     dialCodeText: {
       ...theme.typography.body,
@@ -1107,37 +1318,54 @@ const createStyles = (theme: any) =>
       fontWeight: '500',
     },
     checkboxWrapper: {
-      marginBottom: theme.spacing['5'], // 20
+      marginBottom: theme.spacing['5'],
     },
     checkboxContainer: {
       flexDirection: 'row',
       alignItems: 'flex-start',
-      marginVertical: theme.spacing['5'], // 20
-      paddingRight: theme.spacing['2'], // 8
+      marginVertical: theme.spacing['5'],
+      paddingRight: theme.spacing['2'],
     },
     checkboxText: {
       ...theme.typography.body,
       color: theme.colors.textSecondary,
-      fontSize: 14,
     },
     errorText: {
       ...theme.typography.caption,
       color: theme.colors.error,
-      marginTop: theme.spacing['1'], // 4
-      marginLeft: theme.spacing['8'], // 32 - align with checkbox text
-      fontSize: 12,
+      marginTop: theme.spacing['1'],
+      marginLeft: theme.spacing['8'],
     },
     termsTextContainer: {
       flexDirection: 'row',
       flexWrap: 'wrap',
       flex: 1,
-      marginLeft: theme.spacing['2'], // 8
+      marginLeft: theme.spacing['2'],
     },
     linkText: {
       ...theme.typography.body,
       color: theme.colors.primary,
       textDecorationLine: 'underline',
-      fontSize: 14,
+    },
+    dobInfoButton: {
+      marginTop: theme.spacing['1'],
+      marginBottom: theme.spacing['2'],
+      paddingHorizontal: theme.spacing['1'],
+    },
+    dobInfoButtonText: {
+      ...theme.typography.caption,
+      color: theme.colors.primary,
+      textDecorationLine: 'underline',
+    },
+    buttonContainer: {
+      position: 'absolute',
+      bottom: theme.spacing['6'],
+      left: 0,
+      right: 0,
+      paddingHorizontal: theme.spacing['5'],
+      paddingTop: theme.spacing['4'],
+      paddingBottom: theme.spacing['4'],
+      backgroundColor: theme.colors.background,
     },
     bottomSheetContainer: {
       position: 'absolute',
@@ -1149,28 +1377,33 @@ const createStyles = (theme: any) =>
       elevation: 9999,
       justifyContent: 'flex-end',
     },
+    countryBottomSheetPortal: {
+      ...StyleSheet.absoluteFillObject,
+      zIndex: 50,
+      elevation: 50,
+    },
     bottomSheetBackground: {
       backgroundColor: theme.colors.background,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
+      borderTopLeftRadius: theme.spacing['6'],
+      borderTopRightRadius: theme.spacing['6'],
     },
     bottomSheetHandle: {
       backgroundColor: theme.colors.black,
-      width: 80,
-      height: 6,
+      width: theme.spacing['20'],
+      height: theme.spacing['2'],
       opacity: 0.2,
     },
     successContent: {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      paddingHorizontal: 24,
-      paddingBottom: 40,
-      gap: 16,
+      paddingHorizontal: theme.spacing['6'],
+      paddingBottom: theme.spacing['10'],
+      gap: theme.spacing['4'],
     },
     successIllustration: {
-      height: 170,
-      marginBottom: 16,
+      height: theme.spacing['44'],
+      marginBottom: theme.spacing['4'],
     },
     successTitle: {
       ...theme.typography.h3,
@@ -1181,21 +1414,68 @@ const createStyles = (theme: any) =>
       ...theme.typography.paragraph,
       color: theme.colors.textSecondary,
       textAlign: 'center',
-      lineHeight: 24,
+      lineHeight: theme.spacing['6'],
     },
     successButton: {
       width: '100%',
       backgroundColor: theme.colors.secondary,
       borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.35)',
-      shadowColor: '#000000',
-      shadowOffset: {width: 0, height: 8},
-      shadowOpacity: 0.15,
-      shadowRadius: 12,
-      elevation: 4,
+      borderColor: theme.colors.whiteOverlay70,
+      ...theme.shadows.sm,
     },
     successButtonText: {
+      color: theme.colors.white,
+      ...theme.typography.paragraphBold,
+    },
+    ageVerificationSheetLayout: {
+      height: 640,
+      paddingTop: theme.spacing['2'],
+    },
+    ageVerificationSheetScrollArea: {
+      flex: 1,
+    },
+    ageVerificationSheetContent: {
+      paddingHorizontal: theme.spacing['6'],
+      paddingTop: theme.spacing['2'],
+      paddingBottom: theme.spacing['4'],
+      gap: theme.spacing['3'],
+    },
+    ageVerificationSheetTitle: {
+      ...theme.typography.h5,
+      color: theme.colors.text,
+      textAlign: 'left',
+    },
+    ageVerificationSheetSectionTitle: {
+      ...theme.typography.body,
+      fontWeight: '700',
+      color: theme.colors.text,
+      textAlign: 'left',
+      marginTop: theme.spacing['2'],
+    },
+    ageVerificationSheetBody: {
+      ...theme.typography.body,
+      color: theme.colors.textSecondary,
+      textAlign: 'left',
+      lineHeight: 20,
+    },
+    ageVerificationSheetFooter: {
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.borderMuted,
+      paddingTop: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['6'],
+      paddingBottom: theme.spacing['6'],
+      backgroundColor: theme.colors.background,
+    },
+    ageVerificationSheetButton: {
+      width: '100%',
+      backgroundColor: theme.colors.secondary,
+      borderRadius: theme.borderRadius.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.whiteOverlay70,
+      ...theme.shadows.sm,
+    },
+    ageVerificationSheetButtonText: {
       color: theme.colors.white,
       ...theme.typography.paragraphBold,
     },

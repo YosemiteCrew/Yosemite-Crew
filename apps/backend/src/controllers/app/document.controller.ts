@@ -10,8 +10,9 @@ import {
   generatePresignedDownloadUrl,
   generatePresignedUrl,
 } from "src/middlewares/upload";
-import { AuthenticatedRequest } from "src/middlewares/auth";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
+import { OrgRequest } from "src/middlewares/rbac";
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 type UploadUrlBody = { companionId?: string; mimeType?: string };
 
@@ -41,13 +42,6 @@ type ListPmsQuery = ListDocumentsQuery & {
 };
 
 type SignedDownloadUrlBody = { key?: string };
-
-const resolveUserIdFromRequest = (req: Request): string | undefined => {
-  const authReq = req as AuthenticatedRequest;
-  const headerUserId = req.headers?.["x-user-id"];
-  if (typeof headerUserId === "string") return headerUserId;
-  return authReq.userId;
-};
 
 const getFirstQueryValue = (value: unknown): string | undefined => {
   if (typeof value === "string") return value;
@@ -149,6 +143,8 @@ export const DocumentController = {
     res: Response,
   ) => {
     try {
+      const orgReq = req as OrgRequest;
+      const organisationId = orgReq.organisationId;
       const pmsUserId = resolveUserIdFromRequest(req);
       const { companionId } = req.params;
 
@@ -160,6 +156,10 @@ export const DocumentController = {
         return res.status(400).json({ message: "Companion ID is required." });
       }
 
+      if (!organisationId) {
+        return res.status(400).json({ message: "organisationId is required." });
+      }
+
       const body = req.body;
       const created = await DocumentService.create(
         {
@@ -169,9 +169,13 @@ export const DocumentController = {
           subcategory: body.subcategory,
           attachments: body.attachments ?? [],
           appointmentId: body.appointmentId ?? null,
+          visitType: body.visitType,
+          issuingBusinessName: body.issuingBusinessName,
+          issueDate: body.issueDate,
         },
         {
           pmsUserId: pmsUserId,
+          organisationId,
         },
       );
 
@@ -243,6 +247,8 @@ export const DocumentController = {
     res: Response,
   ) => {
     try {
+      const orgReq = req as OrgRequest;
+      const organisationId = orgReq.organisationId;
       const userId = resolveUserIdFromRequest(req);
       const documentId = req.params.documentId ?? req.params.id;
       let context: DocumentCreateContext;
@@ -266,6 +272,7 @@ export const DocumentController = {
       } else {
         context = {
           pmsUserId: userId,
+          organisationId,
         };
       }
 
@@ -298,7 +305,8 @@ export const DocumentController = {
       }
 
       const { companionId } = req.params;
-      const { category, subcategory, appointmentId } = req.query;
+      const { category, subcategory, appointmentId } =
+        (req.body as Record<string, unknown>) ?? {};
 
       if (!companionId) {
         return res.status(400).json({ message: "Companion ID is required." });

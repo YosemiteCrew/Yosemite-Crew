@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, act} from '@testing-library/react-native';
 import {NotificationsScreen} from '../../../src/features/notifications/screens/NotificationsScreen/NotificationsScreen';
 import {useDispatch, useSelector} from 'react-redux';
@@ -36,25 +37,7 @@ jest.mock('@react-navigation/native', () => ({
 
 // Mock Theme
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        background: '#fff',
-        primary: '#000',
-        border: '#ccc',
-        cardBackground: '#eee',
-        text: '#000',
-        textSecondary: '#666',
-        secondary: '#888',
-      },
-      spacing: {2: 8, 3: 12, 4: 16, 10: 40},
-      typography: {
-        labelSmall: {fontSize: 12},
-        businessSectionTitle20: {fontSize: 20},
-        subtitleRegular14: {fontSize: 14},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // Mock Child Components

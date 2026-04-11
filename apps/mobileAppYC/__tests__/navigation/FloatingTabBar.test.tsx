@@ -1,24 +1,15 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 import {FloatingTabBar} from '../../src/navigation/FloatingTabBar';
 import {Platform} from 'react-native';
 import {getFocusedRouteNameFromRoute} from '@react-navigation/native';
+import {Provider} from 'react-redux';
+import {configureStore} from '@reduxjs/toolkit';
 
 // --- Mocks ---
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        textSecondary: 'gray',
-        secondary: 'blue',
-      },
-      shadows: {xs: {elevation: 1}},
-      typography: {
-        tabLabel: {fontSize: 10},
-        tabLabelFocused: {fontSize: 10, fontWeight: 'bold'},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -54,6 +45,17 @@ jest.mock('@react-navigation/native', () => {
   };
 });
 
+// Mock Redux Store
+const createMockStore = () => {
+  return configureStore({
+    reducer: {
+      companion: (state = {companions: [{id: 'comp-1', name: 'Buddy'}], selectedCompanionId: 'comp-1'}) => state,
+      documents: (state = {documents: []}) => state,
+      tasks: (state = {items: []}) => state,
+    },
+  });
+};
+
 // Helper to generate props
 const createProps = (index = 0, routes: any[] = []) => {
   const defaultRoutes = [
@@ -73,7 +75,7 @@ const createProps = (index = 0, routes: any[] = []) => {
     },
     descriptors: {},
     navigation: {
-      emit: jest.fn(),
+      emit: jest.fn(() => ({defaultPrevented: false})),
       navigate: jest.fn(),
     },
     insets: {top: 0, right: 0, bottom: 0, left: 0},
@@ -81,9 +83,12 @@ const createProps = (index = 0, routes: any[] = []) => {
 };
 
 describe('FloatingTabBar', () => {
+  let store: any;
+
   beforeEach(() => {
     jest.clearAllMocks();
     Platform.OS = 'ios'; // Default to iOS
+    store = createMockStore();
   });
 
   describe('Rendering', () => {
@@ -92,12 +97,16 @@ describe('FloatingTabBar', () => {
       // Mock route name resolution to return root by default so tabs show
       (getFocusedRouteNameFromRoute as jest.Mock).mockReturnValue(undefined);
 
-      const {getByText, queryByTestId} = render(<FloatingTabBar {...props} />);
+      const {getByText, queryByTestId} = render(
+        <Provider store={store}>
+          <FloatingTabBar {...props} />
+        </Provider>,
+      );
 
       expect(getByText('Home')).toBeTruthy();
-      expect(getByText('Appointments')).toBeTruthy();
-      // iOS shouldn't render LiquidGlassView
-      expect(queryByTestId('liquid-glass-view')).toBeNull();
+      expect(getByText('Bookings')).toBeTruthy();
+      // iOS should render LiquidGlassView when supported
+      expect(queryByTestId('liquid-glass-view')).toBeTruthy();
     });
 
     it('renders LiquidGlassView on Android if supported', () => {
@@ -105,9 +114,14 @@ describe('FloatingTabBar', () => {
       const props: any = createProps();
       (getFocusedRouteNameFromRoute as jest.Mock).mockReturnValue(undefined);
 
-      const {getByTestId} = render(<FloatingTabBar {...props} />);
+      const {queryByTestId} = render(
+        <Provider store={store}>
+          <FloatingTabBar {...props} />
+        </Provider>,
+      );
 
-      expect(getByTestId('liquid-glass-view')).toBeTruthy();
+      // Android should fall back to View because glass is iOS-only
+      expect(queryByTestId('liquid-glass-view')).toBeNull();
     });
   });
 
@@ -130,8 +144,12 @@ describe('FloatingTabBar', () => {
         'MyAppointments',
       );
 
-      const {getByText} = render(<FloatingTabBar {...props} />);
-      expect(getByText('Appointments')).toBeTruthy();
+      const {getByText} = render(
+        <Provider store={store}>
+          <FloatingTabBar {...props} />
+        </Provider>,
+      );
+      expect(getByText('Bookings')).toBeTruthy();
     });
 
     it('is HIDDEN when on non-root screen of a stack', () => {
@@ -153,8 +171,12 @@ describe('FloatingTabBar', () => {
         'BookingForm',
       );
 
-      const {queryByText} = render(<FloatingTabBar {...props} />);
-      expect(queryByText('Appointments')).toBeNull();
+      const {queryByText} = render(
+        <Provider store={store}>
+          <FloatingTabBar {...props} />
+        </Provider>,
+      );
+      expect(queryByText('Bookings')).toBeNull();
     });
 
     it('is VISIBLE when route has no state (default assumption)', () => {
@@ -163,7 +185,11 @@ describe('FloatingTabBar', () => {
 
       (getFocusedRouteNameFromRoute as jest.Mock).mockReturnValue(undefined);
 
-      const {getByText} = render(<FloatingTabBar {...props} />);
+      const {getByText} = render(
+        <Provider store={store}>
+          <FloatingTabBar {...props} />
+        </Provider>,
+      );
       expect(getByText('Home')).toBeTruthy();
     });
 
@@ -178,7 +204,11 @@ describe('FloatingTabBar', () => {
 
       (getFocusedRouteNameFromRoute as jest.Mock).mockReturnValue(undefined);
 
-      const {queryByText} = render(<FloatingTabBar {...props} />);
+      const {queryByText} = render(
+        <Provider store={store}>
+          <FloatingTabBar {...props} />
+        </Provider>,
+      );
       // 'SomeDetailScreen' != 'TasksMain' -> Hidden
       expect(queryByText('Tasks')).toBeNull();
     });
@@ -193,7 +223,11 @@ describe('FloatingTabBar', () => {
 
       (getFocusedRouteNameFromRoute as jest.Mock).mockReturnValue(undefined);
 
-      const {getByText} = render(<FloatingTabBar {...props} />);
+      const {getByText} = render(
+        <Provider store={store}>
+          <FloatingTabBar {...props} />
+        </Provider>,
+      );
       expect(getByText('Tasks')).toBeTruthy();
     });
 
@@ -202,7 +236,11 @@ describe('FloatingTabBar', () => {
       props.state.routes = []; // Empty
       props.state.index = 0;
 
-      const {toJSON} = render(<FloatingTabBar {...props} />);
+      const {toJSON} = render(
+        <Provider store={store}>
+          <FloatingTabBar {...props} />
+        </Provider>,
+      );
       // It renders the wrapper view but with no tabs
       expect(toJSON()).not.toBeNull();
     });
@@ -212,7 +250,11 @@ describe('FloatingTabBar', () => {
       const props: any = createProps(0, [route]);
       (getFocusedRouteNameFromRoute as jest.Mock).mockReturnValue(undefined);
 
-      const {getByText} = render(<FloatingTabBar {...props} />);
+      const {getByText} = render(
+        <Provider store={store}>
+          <FloatingTabBar {...props} />
+        </Provider>,
+      );
       // Should show bar using fallback config
       expect(getByText('UnknownTab')).toBeTruthy();
     });
@@ -225,12 +267,16 @@ describe('FloatingTabBar', () => {
 
     it('navigates to root screen when inactive tab pressed', () => {
       const props: any = createProps(0); // Index 0 selected (Home)
-      const {getByText} = render(<FloatingTabBar {...props} />);
+      const {getByText} = render(
+        <Provider store={store}>
+          <FloatingTabBar {...props} />
+        </Provider>,
+      );
 
       // Press Appointments (Index 1)
       props.navigation.emit.mockReturnValue({defaultPrevented: false});
 
-      fireEvent.press(getByText('Appointments'));
+      fireEvent.press(getByText('Bookings'));
 
       expect(props.navigation.emit).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -249,7 +295,11 @@ describe('FloatingTabBar', () => {
       const route = {key: 'other', name: 'Other'}; // Not in ROOT_ROUTE_MAP
       const props: any = createProps(0, [{key: 'h', name: 'HomeStack'}, route]);
 
-      const {getByText} = render(<FloatingTabBar {...props} />);
+      const {getByText} = render(
+        <Provider store={store}>
+          <FloatingTabBar {...props} />
+        </Provider>,
+      );
 
       props.navigation.emit.mockReturnValue({defaultPrevented: false});
       fireEvent.press(getByText('Other'));
@@ -259,7 +309,11 @@ describe('FloatingTabBar', () => {
 
     it('does NOT navigate if already focused', () => {
       const props: any = createProps(0); // Home focused
-      const {getByText} = render(<FloatingTabBar {...props} />);
+      const {getByText} = render(
+        <Provider store={store}>
+          <FloatingTabBar {...props} />
+        </Provider>,
+      );
 
       fireEvent.press(getByText('Home'));
 
@@ -269,11 +323,15 @@ describe('FloatingTabBar', () => {
 
     it('does NOT navigate if event prevented', () => {
       const props: any = createProps(0);
-      const {getByText} = render(<FloatingTabBar {...props} />);
+      const {getByText} = render(
+        <Provider store={store}>
+          <FloatingTabBar {...props} />
+        </Provider>,
+      );
 
       props.navigation.emit.mockReturnValue({defaultPrevented: true});
 
-      fireEvent.press(getByText('Appointments'));
+      fireEvent.press(getByText('Bookings'));
 
       expect(props.navigation.navigate).not.toHaveBeenCalled();
     });

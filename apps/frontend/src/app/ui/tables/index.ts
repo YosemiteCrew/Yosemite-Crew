@@ -1,0 +1,15 @@
+export { default as AppointmentsTable } from "@/app/ui/tables/Appointments";
+export { default as AvailabilityTable } from "@/app/ui/tables/AvailabilityTable";
+export { default as CompanionsTable } from "@/app/ui/tables/CompanionsTable";
+export { default as DocumentsTable } from "@/app/ui/tables/DocumentsTable";
+export { default as FormsTable } from "@/app/ui/tables/FormsTable";
+export { default as InventoryTable } from "@/app/ui/tables/InventoryTable";
+export { default as InventoryTurnoverTable } from "@/app/ui/tables/InventoryTurnoverTable";
+export { default as InvoiceTable } from "@/app/ui/tables/InvoiceTable";
+export { default as OrgInvitesTable } from "@/app/ui/tables/OrgInvites";
+export { default as OrganizationListTable } from "@/app/ui/tables/OrganizationList";
+export { default as RoomTable } from "@/app/ui/tables/RoomTable";
+export { default as SpecialitiesTable } from "@/app/ui/tables/SpecialitiesTable";
+export { default as TasksTable } from "@/app/ui/tables/Tasks";
+export * as DataTableCommon from "@/app/ui/tables/common";
+export { default as GenericTable } from "@/app/ui/tables/GenericTable/GenericTable";

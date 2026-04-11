@@ -37,21 +37,21 @@ const createStyles = (theme: any) =>
     },
     content: {
       flexGrow: 1,
-      padding: 24,
-      gap: 16,
+      padding: theme.spacing['6'],
+      gap: theme.spacing['4'],
     },
     card: {
       backgroundColor: theme.colors.cardBackground,
-      borderRadius: 20,
+      borderRadius: theme.borderRadius.xl,
       borderWidth: 1,
       borderColor: theme.colors.border,
-      padding: 24,
+      padding: theme.spacing['6'],
       ...theme.shadows.xs,
     },
     title: {
       ...theme.typography.h3,
       color: theme.colors.secondary,
-      marginBottom: 8,
+      marginBottom: theme.spacing['2'],
       textAlign: 'left',
     },
     subtitle: {

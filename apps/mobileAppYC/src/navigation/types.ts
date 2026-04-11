@@ -6,6 +6,7 @@ import type {AuthStackParamList} from './AuthNavigator';
 import type {TaskCategory} from '@/features/tasks/types';
 import type {ObservationalToolBookingContext} from '@/features/observationalTools/types';
 import type {OrganisationDocumentCategory} from '@/features/legal/services/organisationDocumentService';
+import type {MerckEntry, MerckLanguage} from '@/features/merck/types';
 
 // Root Stack Navigator - Add Onboarding
 export type RootStackParamList = {
@@ -16,7 +17,6 @@ export type RootStackParamList = {
 
 export type RootStackScreenProps<T extends keyof RootStackParamList> =
   NativeStackScreenProps<RootStackParamList, T>;
-
 
 export type AuthStackScreenProps<T extends keyof AuthStackParamList> =
   NativeStackScreenProps<AuthStackParamList, T>;
@@ -30,16 +30,16 @@ export type HomeStackParamList = {
   PrivacyPolicy: undefined;
   AddCompanion: undefined;
   Notifications: undefined;
-  ProfileOverview: { companionId: string };
-  EditCompanionOverview: { companionId: string };
-  EditParentOverview:{ companionId: string };
+  ProfileOverview: {companionId: string};
+  EditCompanionOverview: {companionId: string};
+  EditParentOverview: {companionId: string};
   ExpensesStack: NavigatorScreenParams<ExpenseStackParamList>;
   LinkedBusinesses: NavigatorScreenParams<LinkedBusinessStackParamList>;
   AdverseEvent: NavigatorScreenParams<AdverseEventStackParamList>;
   CoParents: undefined;
   AddCoParent: undefined;
-  EditCoParent: { coParentId: string };
-  CoParentProfile: { coParentId: string };
+  EditCoParent: {coParentId: string};
+  CoParentProfile: {coParentId: string};
 };
 
 export type LinkedBusinessStackParamList = {
@@ -67,6 +67,7 @@ export type LinkedBusinessStackParamList = {
     distance?: number;
     placeId: string;
     organisationId?: string;
+    returnTo?: {tab: keyof TabParamList; screen?: string};
   };
   QRScanner: {
     companionId: string;
@@ -80,25 +81,30 @@ export type LinkedBusinessStackParamList = {
 export type CoParentStackParamList = {
   CoParents: undefined;
   AddCoParent: undefined;
-  EditCoParent: { coParentId: string };
-  CoParentProfile: { coParentId: string };
+  EditCoParent: {coParentId: string};
+  CoParentProfile: {coParentId: string};
 };
 
 export type DocumentStackParamList = {
   DocumentsMain: undefined;
   AddDocument: undefined;
-  EditDocument: { documentId: string };
-  DocumentPreview: { documentId: string };
-  CategoryDetail: { categoryId: string };
+  EditDocument: {documentId: string};
+  DocumentPreview: {documentId: string};
+  CategoryDetail: {categoryId: string};
   DocumentSearch: undefined;
 };
 
 // Appointment stack
 export type AppointmentStackParamList = {
   MyAppointmentsEmpty: undefined;
-  MyAppointments: { resetKey?: number } | undefined;
-  BrowseBusinesses: { serviceName?: string; autoFocusSearch?: boolean } | undefined;
-  BusinessDetails: { businessId: string };
+  MyAppointments: {resetKey?: number} | undefined;
+  BrowseBusinesses:
+    | {serviceName?: string; autoFocusSearch?: boolean}
+    | undefined;
+  BusinessDetails: {
+    businessId: string;
+    returnTo?: {tab: keyof TabParamList; screen?: string};
+  };
   BookingForm: {
     businessId: string;
     serviceId?: string;
@@ -109,16 +115,18 @@ export type AppointmentStackParamList = {
     appointmentType?: string;
     otContext?: ObservationalToolBookingContext;
   };
-  ViewAppointment: { appointmentId: string };
+  ViewAppointment: {appointmentId: string};
   PaymentInvoice: {
     appointmentId: string;
     companionId?: string;
     invoice?: import('@/features/appointments/types').Invoice | null;
-    paymentIntent?: import('@/features/appointments/types').PaymentIntentInfo | null;
+    paymentIntent?:
+      | import('@/features/appointments/types').PaymentIntentInfo
+      | null;
   };
-  PaymentSuccess: { appointmentId: string; companionId?: string };
-  Review: { appointmentId: string };
-  Chat: { appointmentId: string };
+  PaymentSuccess: {appointmentId: string; companionId?: string};
+  Review: {appointmentId: string};
+  Chat: {appointmentId: string};
   ChatChannel: {
     appointmentId: string;
     vetId: string;
@@ -126,31 +134,79 @@ export type AppointmentStackParamList = {
     doctorName: string;
     petName?: string;
   };
-  EditAppointment: { appointmentId: string; mode?: 'reschedule' };
-  BusinessesList: { category: 'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder' | 'clinic' };
+  EditAppointment: {appointmentId: string; mode?: 'reschedule'};
+  BusinessesList: {
+    category:
+      | 'hospital'
+      | 'groomer'
+      | 'breeder'
+      | 'pet_center'
+      | 'boarder'
+      | 'clinic';
+  };
+  TermsAndConditions: undefined;
+  PrivacyPolicy: undefined;
   OrganisationDocument: {
     organisationId: string;
     organisationName?: string | null;
     category: OrganisationDocumentCategory;
   };
+  AppointmentForm: {
+    appointmentId: string;
+    formId: string;
+    mode?: 'fill' | 'view';
+    allowSign?: boolean;
+  };
+  FormSigning: {
+    appointmentId: string;
+    submissionId: string;
+    signingUrl?: string | null;
+    formTitle?: string | null;
+  };
+  MerckManuals: {
+    organisationId: string;
+    initialQuery?: string;
+    initialEntries?: MerckEntry[];
+    initialLanguage?: MerckLanguage;
+    initialHasSearched?: boolean;
+    context?: 'appointment' | 'home';
+  };
 };
+
+export type LegalStackParamList = HomeStackParamList &
+  AppointmentStackParamList &
+  AuthStackParamList;
 
 export type ExpenseStackParamList = {
   ExpensesMain: undefined;
   ExpensesEmpty: undefined;
   AddExpense: undefined;
-  EditExpense: { expenseId: string };
-  ExpensePreview: { expenseId: string };
-  ExpensesList: { mode: 'inApp' | 'external' };
+  EditExpense: {expenseId: string};
+  ExpensePreview: {expenseId: string};
+  ExpensesList: {mode: 'inApp' | 'external'};
 };
 
 export type TaskStackParamList = {
-  TasksMain: undefined;
-  TasksList: { category: TaskCategory };
-  AddTask: undefined;
-  TaskView: { taskId: string; source?: 'home' | 'tasks' };
-  EditTask: { taskId: string; source?: 'home' | 'tasks' };
-  ObservationalTool: { taskId: string };
+  TasksMain:
+    | {
+        autoSelectDate?: string;
+      }
+    | undefined;
+  TasksList: {category: TaskCategory};
+  AddTask:
+    | {
+        reuseTaskId?: string;
+        prefillDate?: string;
+      }
+    | undefined;
+  TaskView: {taskId: string; source?: 'home' | 'tasks'};
+  EditTask: {taskId: string; source?: 'home' | 'tasks'};
+  ObservationalTool: {taskId: string};
+  ObservationalToolPreview: {
+    taskId: string;
+    submissionId?: string | null;
+    toolId?: string | null;
+  };
 };
 
 export type AdverseEventStackParamList = {
@@ -175,7 +231,6 @@ export type TabScreenProps<T extends keyof TabParamList> = BottomTabScreenProps<
   TabParamList,
   T
 >;
-
 
 declare global {
   namespace ReactNavigation {

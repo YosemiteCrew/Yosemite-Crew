@@ -7,37 +7,15 @@ import {
   getViewActionButtonStyle,
   createCardStyles,
 } from '@/shared/components/common/cardStyles.ts';
+import {mockTheme} from '../../setup/mockTheme';
+
+jest.mock('react-native/Libraries/Utilities/Platform', () => ({
+  OS: 'ios',
+  select: jest.fn((options) => options.ios),
+}));
 
 // Mock a theme object matching the structure used in your file
-const mockTheme = {
-  colors: {
-    primary: '#007AFF',
-    success: '#34C759',
-    surface: '#FFFFFF',
-    borderMuted: '#E5E5EA',
-    secondary: '#000000',
-    primarySurface: '#F2F2F7',
-  },
-  borderRadius: {
-    lg: 12,
-  },
-  spacing: {
-    1: 4,
-    2: 8,
-    3: 12,
-    4: 16,
-  },
-  typography: {
-    titleMedium: {
-      fontSize: 16,
-      fontWeight: '600',
-    },
-    h5: {
-      fontSize: 20,
-      fontWeight: '700',
-    },
-  },
-};
+
 
 describe('cardStyles', () => {
   describe('Constants', () => {
@@ -89,7 +67,7 @@ describe('cardStyles', () => {
         expect.objectContaining({
           width: '100%',
           alignSelf: 'center',
-          marginBottom: mockTheme.spacing[3],
+          marginBottom: mockTheme.spacing[4],
         })
       );
 
@@ -98,8 +76,10 @@ describe('cardStyles', () => {
         expect.objectContaining({
           borderRadius: mockTheme.borderRadius.lg,
           paddingHorizontal: mockTheme.spacing[4],
-          backgroundColor: mockTheme.colors.surface,
-          borderColor: mockTheme.colors.borderMuted,
+          paddingVertical: mockTheme.spacing[4],
+          backgroundColor: mockTheme.colors.cardBackground,
+          borderWidth: 0,
+          borderColor: 'transparent',
         })
       );
 
@@ -107,16 +87,19 @@ describe('cardStyles', () => {
       expect(styles.fallback).toEqual(
         expect.objectContaining({
           borderRadius: mockTheme.borderRadius.lg,
-          backgroundColor: mockTheme.colors.surface,
-          borderColor: mockTheme.colors.borderMuted,
+          paddingHorizontal: mockTheme.spacing[4],
+          paddingVertical: mockTheme.spacing[4],
+          backgroundColor: mockTheme.colors.cardBackground,
+          borderWidth: 0,
+          borderColor: 'transparent',
         })
       );
 
       // 4. Verify action dimensions
       expect(styles.actionIcon).toEqual(
         expect.objectContaining({
-          width: 30,
-          height: 30,
+          width: mockTheme.spacing[7],
+          height: mockTheme.spacing[7],
           resizeMode: 'contain',
         })
       );
@@ -124,8 +107,11 @@ describe('cardStyles', () => {
       // 5. Verify typography spreading (title)
       expect(styles.title).toEqual(
         expect.objectContaining({
-          fontSize: 16,
-          fontWeight: '600',
+          fontSize: 18,
+          fontWeight: '500',
+          lineHeight: 21.6,
+          fontFamily: 'ClashGrotesk-Medium',
+          letterSpacing: -0.18,
           color: mockTheme.colors.secondary,
         })
       );
@@ -133,8 +119,10 @@ describe('cardStyles', () => {
       // 6. Verify typography spreading (amount)
       expect(styles.amount).toEqual(
         expect.objectContaining({
-          fontSize: 20,
-          fontWeight: '700',
+          fontSize: 18,
+          fontWeight: '500',
+          lineHeight: 27,
+          fontFamily: 'ClashDisplay-Medium',
           color: mockTheme.colors.secondary,
         })
       );
@@ -142,8 +130,8 @@ describe('cardStyles', () => {
       // 7. Verify thumbnail container
       expect(styles.thumbnailContainer).toEqual(
         expect.objectContaining({
-          width: 54,
-          height: 54,
+          width: mockTheme.spacing[14],
+          height: mockTheme.spacing[14],
           backgroundColor: mockTheme.colors.primarySurface,
         })
       );

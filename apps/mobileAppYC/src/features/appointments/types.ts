@@ -23,6 +23,8 @@ export interface VetBusiness {
   lat?: number;
   lng?: number;
   googlePlacesId?: string | null;
+  appointmentCheckInBufferMinutes?: number;
+  appointmentCheckInRadiusMeters?: number;
 }
 
 export interface VetEmployee {
@@ -54,6 +56,7 @@ export interface SlotWindow {
   startTime: string;
   endTime: string;
   isAvailable?: boolean;
+  vetIds?: string[];
   startTimeUtc?: string;
   endTimeUtc?: string;
   startTimeLocal?: string;
@@ -78,6 +81,7 @@ export type AppointmentStatus =
   | 'CONFIRMED'
   | 'COMPLETED'
   | 'CANCELLED'
+  | 'NO_SHOW'
   | 'RESCHEDULED'
   | 'SCHEDULED'
   | 'PAYMENT_FAILED'
@@ -103,8 +107,15 @@ export interface Appointment {
   type: string;
   concern?: string;
   emergency?: boolean;
-  uploadedFiles?: {id: string; name: string; key?: string; url?: string; type?: string | null}[];
+  uploadedFiles?: {
+    id: string;
+    name: string;
+    key?: string;
+    url?: string;
+    type?: string | null;
+  }[];
   status: AppointmentStatus;
+  paymentStatus?: string | null;
   invoiceId?: string;
   paymentIntent?: PaymentIntentInfo | null;
   species?: string | null;
@@ -115,11 +126,18 @@ export interface Appointment {
   businessLng?: number | null;
   businessPhoto?: string | null;
   businessGooglePlacesId?: string | null;
+  appointmentCheckInBufferMinutes?: number;
+  appointmentCheckInRadiusMeters?: number;
   createdAt?: string;
   updatedAt?: string;
 }
 
-export interface InvoiceItem { description: string; rate: number; qty?: number; lineTotal: number; }
+export interface InvoiceItem {
+  description: string;
+  rate: number;
+  qty?: number;
+  lineTotal: number;
+}
 
 export interface PaymentIntentInfo {
   paymentIntentId: string;
@@ -128,6 +146,12 @@ export interface PaymentIntentInfo {
   currency: string;
   paymentLinkUrl?: string | null;
 }
+
+export type PaymentCollectionMethod =
+  | 'PAYMENT_INTENT'
+  | 'PAYMENT_LINK'
+  | 'PAYMENT_AT_CLINIC'
+  | (string & {});
 
 export interface Invoice {
   id: string;
@@ -162,6 +186,13 @@ export interface Invoice {
   refundStatus?: string | null;
   refundReason?: string | null;
   refundReceiptUrl?: string | null;
+  paymentCollectionMethod?: PaymentCollectionMethod;
+  metadata?: Record<string, string | number | boolean>;
+  paidAt?: string | null;
+  stripeChargeId?: string | null;
+  stripeReceiptUrl?: string | null;
+  stripeCheckoutSessionId?: string | null;
+  stripeCheckoutUrl?: string | null;
 }
 
 export interface AppointmentsState {

@@ -44,6 +44,7 @@ export const ProfileImagePicker = React.forwardRef<
   fallbackText,
 }, ref) => {
   const { theme } = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
   const [loadFailed, setLoadFailed] = useState(false);
   const resolvedImageUri = React.useMemo(
     () => normalizeImageUri(imageUri ?? null),
@@ -325,41 +326,35 @@ export const ProfileImagePicker = React.forwardRef<
 
 ProfileImagePicker.displayName = 'ProfileImagePicker';
 
-const styles = StyleSheet.create({
-  container: {
-    alignSelf: 'center',
-    marginVertical: 20,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    container: {
+      alignSelf: 'center',
+      marginVertical: theme.spacing['5'],
+      ...theme.shadows.sm,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  imageContainer: {
-    borderWidth: 3,
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  profileImage: {
-    width: '100%',
-    height: '100%',
-  },
-  placeholderContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
-    height: '100%',
-  },
-  cameraIcon: {
-    width: 40,
-    height: 40,
-  },
-  fallbackText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-});
+    imageContainer: {
+      borderWidth: 3,
+      justifyContent: 'center',
+      alignItems: 'center',
+      overflow: 'hidden',
+    },
+    profileImage: {
+      width: '100%',
+      height: '100%',
+    },
+    placeholderContainer: {
+      justifyContent: 'center',
+      alignItems: 'center',
+      width: '100%',
+      height: '100%',
+    },
+    cameraIcon: {
+      width: theme.spacing['10'],
+      height: theme.spacing['10'],
+    },
+    fallbackText: {
+      ...theme.typography.h3,
+      fontWeight: 'bold',
+    },
+  });

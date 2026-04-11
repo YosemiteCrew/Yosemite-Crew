@@ -1,8 +1,9 @@
+/* eslint-disable @next/next/no-img-element */
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
-import LaunchGrowTab from "@/app/components/LaunchGrowTab/LaunchGrowTab";
+import LaunchGrowTab from "@/app/ui/widgets/LaunchGrowTab/LaunchGrowTab";
 
 jest.mock("next/image", () => ({
   __esModule: true,
@@ -23,10 +24,7 @@ describe("LaunchGrowTab Component", () => {
     const sdkTabButton = screen.getByRole("button", { name: /SDKs/i });
     await user.click(sdkTabButton);
 
-    const headings = screen.getAllByRole("heading", {
-      name: "Software development kit",
-      level: 2,
-    });
+    const headings = screen.getAllByText("Software development kit");
     expect(headings.length).toBeGreaterThan(0);
     const texts = screen.getAllByText(
       "Provides APIs for authentication, user roles, patient records, appointment scheduling, and billing."
@@ -34,10 +32,7 @@ describe("LaunchGrowTab Component", () => {
     expect(texts.length).toBeGreaterThan(0);
 
     expect(
-      screen.queryByRole("heading", {
-        name: "Application programming interface",
-        level: 2,
-      })
+      screen.queryByText("Application programming interface")
     ).not.toBeInTheDocument();
   });
 
@@ -50,10 +45,7 @@ describe("LaunchGrowTab Component", () => {
     });
     await user.click(documentationTabButton);
 
-    const headings = screen.getAllByRole("heading", {
-      name: "Documentation",
-      level: 2,
-    });
+    const headings = screen.getAllByText("Documentation");
     expect(headings.length).toBeGreaterThan(0);
     const texts = screen.getAllByText(
       "Endpoints, authentication methods, request/response examples, and SDK usage guides."

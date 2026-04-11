@@ -33,8 +33,11 @@ export interface OrganizationMongo {
   DUNSNumber?: string;
   imageURL?: string;
   type: "HOSPITAL" | "BREEDER" | "BOARDER" | "GROOMER";
+  petNamePreference?: "COMPANION" | "ANIMAL" | "PATIENT";
   phoneNo: string;
   website?: string;
+  documensoTeamId?: string;
+  documensoApiKey?: string;
   address?: {
     addressLine?: string;
     country?: string;
@@ -58,6 +61,8 @@ export interface OrganizationMongo {
   stripeAccountId?: string;
   averageRating?: number;
   ratingCount?: number;
+  appointmentCheckInBufferMinutes?: number;
+  appointmentCheckInRadiusMeters?: number;
 }
 
 const OrganizationSchema = new Schema<OrganizationMongo>(
@@ -67,10 +72,17 @@ const OrganizationSchema = new Schema<OrganizationMongo>(
     taxId: { type: String, required: true },
     DUNSNumber: { type: String },
     imageURL: { type: String },
+    documensoTeamId: { type: String },
+    documensoApiKey: { type: String },
     type: {
       type: String,
       enum: ["HOSPITAL", "BREEDER", "BOARDER", "GROOMER"],
       required: true,
+    },
+    petNamePreference: {
+      type: String,
+      enum: ["COMPANION", "ANIMAL", "PATIENT"],
+      default: "COMPANION",
     },
     phoneNo: { type: String, required: true },
     website: { type: String },
@@ -89,6 +101,8 @@ const OrganizationSchema = new Schema<OrganizationMongo>(
     stripeAccountId: { type: String },
     averageRating: { type: Number, default: 0 },
     ratingCount: { type: Number, default: 0 },
+    appointmentCheckInBufferMinutes: { type: Number, default: 5 },
+    appointmentCheckInRadiusMeters: { type: Number, default: 200 },
   },
   {
     timestamps: true,

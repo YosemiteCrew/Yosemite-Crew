@@ -86,7 +86,8 @@ describe('CountryBottomSheet', () => {
         searchPlaceholder: 'Search country name',
         emptyMessage: 'No results found',
         mode: 'select',
-        snapPoints: ['65%', '75%'],
+        maxListHeight: 520,
+        snapPoints: ['85%', '95%'],
       }),
     );
   });

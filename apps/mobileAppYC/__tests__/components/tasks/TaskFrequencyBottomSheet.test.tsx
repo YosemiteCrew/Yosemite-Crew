@@ -13,6 +13,12 @@ import type {
   SelectItem,
 } from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
 
+jest.mock('@/hooks', () => ({
+  useTheme: () => ({theme: require('../../setup/mockTheme').mockTheme, isDark: false}),
+  useAppDispatch: () => jest.fn(),
+  useAppSelector: jest.fn(),
+}));
+
 // FIX 5: Update mocked helper path
 jest.mock('@/features/tasks/utils/taskLabels', () => ({
   resolveTaskFrequencyLabel: jest.fn((freq: string) => `Label for ${freq}`),
@@ -108,14 +114,12 @@ describe('TaskFrequencyBottomSheet', () => {
 
     expect(mockResolveLabel).toHaveBeenCalledWith('once');
     expect(mockResolveLabel).toHaveBeenCalledWith('daily');
-    expect(mockResolveLabel).toHaveBeenCalledWith('every-day');
     expect(mockResolveLabel).toHaveBeenCalledWith('weekly');
     expect(mockResolveLabel).toHaveBeenCalledWith('monthly');
 
     const expectedLabels = [
       'Label for once',
       'Label for daily',
-      'Label for every-day',
       'Label for weekly',
       'Label for monthly',
     ].join(', ');

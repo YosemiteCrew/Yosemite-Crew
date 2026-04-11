@@ -18,6 +18,7 @@ import LocationService from '../../../../src/shared/services/LocationService';
 import * as GeoDistance from '../../../../src/shared/utils/geoDistance';
 import {useRoute} from '@react-navigation/native';
 import * as ExpensePaymentHook from '../../../../src/features/expenses/hooks/useExpensePayment';
+import {mockTheme} from '../../../setup/mockTheme';
 
 // --- Helper: Deep Clone (Lint compliant & Type Safe) ---
 const clone = <T,>(obj: T): T => {
@@ -75,31 +76,7 @@ jest.mock('../../../../src/shared/utils/geoDistance', () => ({
 
 // 5. Hooks
 jest.mock('../../../../src/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        primary: 'blue',
-        primaryTint: '#eef',
-        secondary: 'black',
-        textSecondary: 'gray',
-        border: '#ccc',
-        cardBackground: 'white',
-        surface: 'white',
-        white: '#fff',
-      },
-      spacing: {2: 8, 3: 12, 4: 16, 2.5: 10, 24: 96},
-      borderRadius: {lg: 8},
-      typography: {
-        body12: {fontSize: 12},
-        body14: {fontSize: 14},
-        paragraphBold: {fontWeight: 'bold'},
-        title: {fontSize: 18},
-        titleMedium: {fontSize: 16},
-        titleSmall: {fontSize: 14},
-        button: {fontSize: 16},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 6. Components
@@ -139,6 +116,17 @@ jest.mock(
   },
 );
 
+jest.mock('../../../../src/features/merck/components/MerckSearchWidget', () => {
+  const {View, Text} = require('react-native');
+  return {
+    MerckSearchWidget: () => (
+      <View testID="merck-widget">
+        <Text>MSD Veterinary Manual</Text>
+      </View>
+    ),
+  };
+});
+
 jest.mock(
   '../../../../src/features/appointments/components/SummaryCards/SummaryCards',
   () => {
@@ -150,6 +138,9 @@ jest.mock(
           <Text>{props.serviceName}</Text>
           <Text>{props.employee?.name}</Text>
           <Text testID="emp-fallback-title">{props.employee?.title}</Text>
+          <Text testID="employee-avatar-uri">
+            {props.employee?.avatar?.uri ?? props.employee?.avatar ?? ''}
+          </Text>
         </View>
       ),
     };
@@ -271,6 +262,18 @@ jest.mock('../../../../src/features/linkedBusinesses', () => ({
   fetchGooglePlacesImage: jest.fn(() => ({type: 'GOOGLE_IMG'})),
 }));
 
+jest.mock('../../../../src/features/forms', () => ({
+  fetchAppointmentForms: jest.fn(() => ({type: 'FETCH_FORMS'})),
+  selectFormsForAppointment: jest.fn(() => []),
+  selectFormsLoading: jest.fn(() => false),
+  selectFormSubmitting: jest.fn(() => false),
+  selectSigningStatus: jest.fn(() => false),
+}));
+
+jest.mock('../../../../src/features/tasks/thunks', () => ({
+  fetchTasksForCompanion: jest.fn(() => ({type: 'FETCH_TASKS'})),
+}));
+
 // Mock Selectors Stably
 const emptyArray: any[] = [];
 const mockSelectExpenses = jest.fn(() => emptyArray);
@@ -352,6 +355,18 @@ describe('ViewAppointmentScreen', () => {
     expenses: {
       expenses: [],
     },
+    tasks: {
+      items: [],
+      hydratedCompanions: {},
+    },
+    forms: {
+      byAppointmentId: {},
+      loadingByAppointment: {},
+      submittingByForm: {},
+      signingBySubmission: {},
+      error: null,
+      formsCache: {},
+    },
   };
 
   const mockOpenPayment = jest.fn();
@@ -388,6 +403,11 @@ describe('ViewAppointmentScreen', () => {
   // --- Rendering Tests ---
 
   describe('Rendering Logic', () => {
+    it('renders merck search widget in appointment flow', () => {
+      renderScreen();
+      expect(screen.getByTestId('merck-widget')).toBeTruthy();
+    });
+
     it('renders full appointment details', () => {
       renderScreen();
       expect(screen.getAllByText('Appointment Details')).toHaveLength(2);
@@ -414,6 +434,19 @@ describe('ViewAppointmentScreen', () => {
       expect(screen.getByText(/This appointment was cancelled/)).toBeTruthy();
     });
 
+    it('renders cash-specific cancellation note for cancelled cash-paid appointments', () => {
+      const state = clone(defaultState);
+      state.appointments.items[0].status = 'CANCELLED';
+      state.appointments.items[0].paymentStatus = 'PAID_CASH';
+      renderScreen(state);
+      expect(
+        screen.getByText(/This appointment was paid in cash/),
+      ).toBeTruthy();
+      expect(
+        screen.getByText(/contact the service provider directly/),
+      ).toBeTruthy();
+    });
+
     it('renders status help text for pending requests', () => {
       const state = clone(defaultState);
       state.appointments.items[0].status = 'REQUESTED';
@@ -429,6 +462,18 @@ describe('ViewAppointmentScreen', () => {
       state.appointments.items[0].time = 'Bad Time';
       renderScreen(state);
       expect(screen.getByText(/Invalid Date String/)).toBeTruthy();
+    });
+
+    it('uses generated avatar URL when no lead photo is available', () => {
+      const state = clone(defaultState);
+      state.appointments.items[0].employeeId = null;
+      state.appointments.items[0].employeeName = 'Harsh Parmar';
+      state.appointments.items[0].employeeAvatar = null;
+      state.businesses.employees = [];
+      renderScreen(state);
+      expect(
+        screen.getByTestId('employee-avatar-uri').props.children,
+      ).toContain('https://ui-avatars.com/api/?name=Harsh%20Parmar');
     });
   });
 
@@ -449,7 +494,7 @@ describe('ViewAppointmentScreen', () => {
       {status: 'COMPLETED', text: 'Completed'},
       {status: 'CANCELLED', text: 'Cancelled'},
       {status: 'RESCHEDULED', text: 'Rescheduled'},
-      {status: 'UNKNOWN_STATUS', text: 'UNKNOWN_STATUS'},
+      {status: 'UNKNOWN_STATUS', text: 'Unknown'},
     ];
 
     for (const {status, text} of statuses) {
@@ -497,6 +542,15 @@ describe('ViewAppointmentScreen', () => {
         appointmentId: mockAptId,
       });
     });
+
+    it('shows Pay Now for requested appointment when payment is pending', () => {
+      const state = clone(defaultState);
+      state.appointments.items[0].status = 'REQUESTED';
+      state.appointments.items[0].paymentStatus = 'UNPAID';
+      renderScreen(state);
+
+      expect(screen.getByTestId('btn-Pay Now')).toBeTruthy();
+    });
   });
 
   // --- Check-In Flow ---
@@ -529,8 +583,36 @@ describe('ViewAppointmentScreen', () => {
       expect(AppointmentSlice.checkInAppointment).toHaveBeenCalled();
     });
 
+    it('does not render check in button when status is CHECKED_IN', () => {
+      const state = clone(defaultState);
+      state.appointments.items[0].status = 'CHECKED_IN';
+      renderScreen(state);
+
+      expect(screen.queryByTestId('btn-Check in')).toBeNull();
+      expect(screen.queryByTestId('btn-Checked in')).toBeNull();
+    });
+
+    it('does not render check in button when status is IN_PROGRESS', () => {
+      const state = clone(defaultState);
+      state.appointments.items[0].status = 'IN_PROGRESS';
+      renderScreen(state);
+
+      expect(screen.queryByTestId('btn-Check in')).toBeNull();
+      expect(screen.queryByTestId('btn-In progress')).toBeNull();
+    });
+
+    it('shows check in and pay now when payment is pending', () => {
+      const state = clone(defaultState);
+      state.appointments.items[0].status = 'UPCOMING';
+      state.appointments.items[0].paymentStatus = 'UNPAID';
+      renderScreen(state);
+
+      expect(screen.getByTestId('btn-Check in')).toBeTruthy();
+      expect(screen.getByTestId('btn-Pay Now')).toBeTruthy();
+    });
+
     it('fails check in: Too Early', async () => {
-      jest.setSystemTime(new Date('2023-12-25T09:00:00Z'));
+      jest.setSystemTime(new Date('2023-12-25T00:00:00Z'));
       renderScreen();
       fireEvent.press(screen.getByTestId('btn-Check in'));
       expect(Alert.alert).toHaveBeenCalledWith(
@@ -546,7 +628,7 @@ describe('ViewAppointmentScreen', () => {
       fireEvent.press(screen.getByTestId('btn-Check in'));
       expect(Alert.alert).toHaveBeenCalledWith(
         'Location unavailable',
-        expect.stringContaining('Clinic location'),
+        expect.stringContaining('Provider location'),
       );
     });
 
@@ -780,11 +862,12 @@ describe('ViewAppointmentScreen', () => {
       expect(screen.getByTestId('emp-fallback-title')).toHaveTextContent('Vet');
     });
 
-    it('hides employee if payment is pending (privacy/logic)', () => {
+    it('shows employee for upcoming appointments even when payment is pending', () => {
       const state = clone(defaultState);
-      state.appointments.items[0].status = 'AWAITING_PAYMENT';
+      state.appointments.items[0].status = 'UPCOMING';
+      state.appointments.items[0].paymentStatus = 'UNPAID';
       renderScreen(state);
-      expect(screen.queryByText('Dr. Smith')).toBeNull();
+      expect(screen.getByText('Dr. Smith')).toBeTruthy();
     });
   });
 

@@ -20,11 +20,11 @@ const ORGANISATION_IDENTIFIER_SYSTEM =
 const DEPARTMENT_MASTER_IDENTIFIER_SYSTEM =
   "http://example.org/fhir/NamingSystem/speciality-department-master-id";
 
-const HEAD_EXTENSION_URL = "http://example.org/fhir/StructureDefinition/speciality-head";
-const SERVICES_EXTENSION_URL = "http://example.org/fhir/StructureDefinition/speciality-services";
-const CREATED_AT_EXTENSION_URL = "http://example.org/fhir/StructureDefinition/speciality-created-at";
-const UPDATED_AT_EXTENSION_URL = "http://example.org/fhir/StructureDefinition/speciality-updated-at";
-const TEAM_EXTENSION_URL = "http://example.org/fhir/StructureDefinition/speciality-team";
+const HEAD_EXTENSION_URL = "https://yosemitecrew.com/fhir/StructureDefinition/speciality-head";
+const SERVICES_EXTENSION_URL = "https://yosemitecrew.com/fhir/StructureDefinition/speciality-services";
+const CREATED_AT_EXTENSION_URL = "https://yosemitecrew.com/fhir/StructureDefinition/speciality-created-at";
+const UPDATED_AT_EXTENSION_URL = "https://yosemitecrew.com/fhir/StructureDefinition/speciality-updated-at";
+const TEAM_EXTENSION_URL = "https://yosemitecrew.com/fhir/StructureDefinition/speciality-team";
 const HEAD_USER_ID_CHILD_URL = "userId";
 const HEAD_NAME_CHILD_URL = "name";
 const HEAD_PROFILE_PICTURE_CHILD_URL = "profilePicture";

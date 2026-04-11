@@ -79,11 +79,13 @@ For Developers
   pnpm install
   ```
 
+- Git hooks are installed automatically during `pnpm install` (Husky + commitlint + lint-staged + secret scanning).
+
 - Run the website and api.
 
   ```shell
-  pnpm run dev --filter website                    -- Run the website
-  pnpm run dev --filter api                        -- Run the api
+  pnpm run dev --filter frontend                   -- Run the web app
+  pnpm run dev --filter backend                    -- Run the backend API
   pnpm run dev                                     -- To run website & api
   ```
 

@@ -61,20 +61,19 @@ const createStyles = (theme: any) =>
     rowButtonTouchable: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: theme.spacing[3],
-      paddingHorizontal: theme.spacing[3],
-      marginVertical: theme.spacing[1],
+      paddingVertical: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['3'],
+      marginVertical: theme.spacing['1'],
     },
     rowButtonLabel: {
-      ...theme.typography.pillSubtitleBold15,
+      ...theme.typography.body,
       color: theme.colors.textSecondary,
       flex: 1,
     },
     rowButtonValue: {
-      // Satoshi 15 Bold, 160% line-height, -0.3 letter spacing
-      ...theme.typography.pillSubtitleBold15,
-      color: theme.colors.placeholder,
-      marginRight: theme.spacing[3],
+      ...theme.typography.bodyMedium,
+      color: theme.colors.secondary,
+      marginRight: theme.spacing['3'],
       flexShrink: 1,
       flex: 1,
       textAlign: 'right',
@@ -87,12 +86,12 @@ const createStyles = (theme: any) =>
     readOnlyRowContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: theme.spacing[3],
-      paddingHorizontal: theme.spacing[3],
+      paddingVertical: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['3'],
     },
     separator: {
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.borderSeperator,
-      marginHorizontal: theme.spacing[3],
+      borderBottomColor: theme.colors.border,
+      marginHorizontal: theme.spacing['3'],
     },
   });

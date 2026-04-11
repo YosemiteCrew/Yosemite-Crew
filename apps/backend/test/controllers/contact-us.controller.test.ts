@@ -4,6 +4,10 @@ import {
   ContactServiceError,
 } from "../../src/services/contact-us.service";
 import { AuthUserMobileService } from "../../src/services/authUserMobile.service";
+import {
+  generatePresignedUrl,
+  getURLForKey,
+} from "../../src/middlewares/upload";
 
 jest.mock("../../src/services/contact-us.service", () => {
   const actual = jest.requireActual("../../src/services/contact-us.service");
@@ -11,6 +15,7 @@ jest.mock("../../src/services/contact-us.service", () => {
     ...actual,
     ContactService: {
       createRequest: jest.fn(),
+      createWebRequest: jest.fn(),
       listRequests: jest.fn(),
       getById: jest.fn(),
       updateStatus: jest.fn(),
@@ -24,8 +29,14 @@ jest.mock("../../src/services/authUserMobile.service", () => ({
   },
 }));
 
+jest.mock("../../src/middlewares/upload", () => ({
+  generatePresignedUrl: jest.fn(),
+  getURLForKey: jest.fn(),
+}));
+
 const mockedContactService = ContactService as unknown as {
   createRequest: jest.Mock;
+  createWebRequest: jest.Mock;
   listRequests: jest.Mock;
   getById: jest.Mock;
   updateStatus: jest.Mock;
@@ -34,6 +45,9 @@ const mockedContactService = ContactService as unknown as {
 const mockedAuthUserMobileService = AuthUserMobileService as unknown as {
   getByProviderUserId: jest.Mock;
 };
+
+const mockedGeneratePresignedUrl = generatePresignedUrl as jest.Mock;
+const mockedGetURLForKey = getURLForKey as jest.Mock;
 
 const createResponse = () => {
   const res = {
@@ -175,6 +189,61 @@ describe("ContactController", () => {
     });
   });
 
+  describe("createWeb", () => {
+    it("creates a web contact request", async () => {
+      mockedContactService.createWebRequest.mockResolvedValueOnce({
+        _id: { toString: () => "contact-web-1" },
+      });
+      const req = {
+        body: {
+          type: "GENERAL_ENQUIRY",
+          source: "PMS_WEB",
+          message: "Help",
+          fullName: "Web User",
+          email: "web@user.com",
+          phone: "1234567890",
+        },
+      } as any;
+      const res = createResponse();
+
+      await ContactController.createWeb(req as any, res as any);
+
+      expect(mockedContactService.createWebRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "GENERAL_ENQUIRY",
+          source: "PMS_WEB",
+          message: "Help",
+          fullName: "Web User",
+          email: "web@user.com",
+          phone: "1234567890",
+        }),
+      );
+      expect(res.status).toHaveBeenCalledWith(201);
+      expect(res.json).toHaveBeenCalledWith({ id: "contact-web-1" });
+    });
+
+    it("handles ContactServiceError responses", async () => {
+      mockedContactService.createWebRequest.mockRejectedValueOnce(
+        new ContactServiceError("invalid", 422),
+      );
+      const req = {
+        body: {
+          type: "GENERAL_ENQUIRY",
+          source: "PMS_WEB",
+          message: "Help",
+          fullName: "Web User",
+          email: "web@user.com",
+        },
+      } as any;
+      const res = createResponse();
+
+      await ContactController.createWeb(req as any, res as any);
+
+      expect(res.status).toHaveBeenCalledWith(422);
+      expect(res.json).toHaveBeenCalledWith({ message: "invalid" });
+    });
+  });
+
   describe("getById", () => {
     it("returns 404 when not found", async () => {
       mockedContactService.getById.mockResolvedValueOnce(null);
@@ -237,6 +306,57 @@ describe("ContactController", () => {
       await ContactController.updateStatus(req as any, res as any);
 
       expect(res.json).toHaveBeenCalledWith(updated);
+    });
+  });
+
+  describe("getAttachmentUploadUrl", () => {
+    it("returns 400 if mimeType is missing", async () => {
+      const req = { body: {} } as any;
+      const res = createResponse();
+
+      await ContactController.getAttachmentUploadUrl(req as any, res as any);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "mimeType is required in the request body.",
+      });
+    });
+
+    it("returns presigned upload URL with fileUrl", async () => {
+      mockedGeneratePresignedUrl.mockResolvedValueOnce({
+        url: "https://upload.url",
+        key: "contact-us/abc.png",
+      });
+      mockedGetURLForKey.mockReturnValueOnce("https://cdn/abc.png");
+      const req = { body: { mimeType: "image/png" } } as any;
+      const res = createResponse();
+
+      await ContactController.getAttachmentUploadUrl(req as any, res as any);
+
+      expect(mockedGeneratePresignedUrl).toHaveBeenCalledWith(
+        "image/png",
+        "custom",
+        "contact-us",
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({
+        uploadUrl: "https://upload.url",
+        s3Key: "contact-us/abc.png",
+        fileUrl: "https://cdn/abc.png",
+      });
+    });
+
+    it("handles errors", async () => {
+      mockedGeneratePresignedUrl.mockRejectedValueOnce(new Error("fail"));
+      const req = { body: { mimeType: "image/png" } } as any;
+      const res = createResponse();
+
+      await ContactController.getAttachmentUploadUrl(req as any, res as any);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Unable to generate upload URL",
+      });
     });
   });
 });

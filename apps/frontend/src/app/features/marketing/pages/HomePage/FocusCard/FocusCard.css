@@ -1,0 +1,63 @@
+.FocusItem {
+  background: var(--whitebg);
+  border: 1px solid var(--lightgrey);
+  width: 100%;
+  max-width: 360px;
+  border-radius: 16px;
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  padding: 16px;
+}
+.focusText {
+  max-width: 320px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.focusTitle {
+  margin: 0;
+}
+.focusDesc {
+  margin: 0;
+}
+@media screen and (max-width: 1280px) {
+  .FocusItem img {
+    width: 90px;
+    height: 90px;
+  }
+  .FocusItem {
+    min-height: 220px;
+    max-width: 240px;
+    gap: 10px;
+  }
+}
+@media screen and (max-width: 768px) {
+  .FocusItem img {
+    width: 68px;
+    height: 68px;
+  }
+  .FocusItem {
+    min-height: 200px;
+    max-width: 200px;
+    padding: 12px;
+  }
+  /* Typography handled by global classes */
+}
+@media screen and (max-width: 550px) {
+  .FocusItem {
+    min-height: 208px;
+    max-width: 100%;
+  }
+}
+@media screen and (max-width: 450px) {
+  .FocusItem {
+    min-height: fit-content;
+    max-width: 85%;
+  }
+}

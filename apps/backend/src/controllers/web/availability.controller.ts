@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
 import { AvailabilityService } from "src/services/availability.service";
-import { AuthenticatedRequest } from "../../middlewares/auth";
 import logger from "src/utils/logger";
 import { AvailabilitySlotMongo, DayOfWeek } from "src/models/base-availability";
 import { WeeklyOverrideDay } from "src/models/weekly-availablity-override";
 import type { OccupancyMongo } from "src/models/occupancy";
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 type NormalizedOccupancy = {
   startTime: Date;
@@ -18,15 +18,6 @@ const safeDate = (value?: string | number | Date): Date | undefined => {
   const parsed =
     value instanceof Date ? new Date(value.getTime()) : new Date(value);
   return Number.isNaN(parsed.getTime()) ? undefined : parsed;
-};
-
-const resolveUserIdFromRequest = (req: Request): string | undefined => {
-  const authRequest = req as AuthenticatedRequest;
-  const headerUserId = req.headers["x-user-id"];
-  if (headerUserId && typeof headerUserId === "string") {
-    return headerUserId;
-  }
-  return authRequest.userId;
 };
 
 const handleControllerError = (
@@ -102,6 +93,29 @@ export const AvailabilityController = {
     }
   },
 
+  async getOrganisationBaseAvailability(
+    req: Request<{ orgId: string }>,
+    res: Response,
+  ) {
+    try {
+      const orgId = req.params.orgId;
+
+      if (!orgId) {
+        return res.status(400).json({ message: "Missing orgId" });
+      }
+
+      const data =
+        await AvailabilityService.getOrganisationBaseAvailability(orgId);
+      return res.status(200).json({ data });
+    } catch (err: unknown) {
+      return handleControllerError(
+        "getOrganisationBaseAvailability error",
+        err,
+        res,
+      );
+    }
+  },
+
   async deleteBaseAvailability(req: Request<{ orgId: string }>, res: Response) {
     try {
       const orgId = req.params.orgId;
@@ -118,6 +132,48 @@ export const AvailabilityController = {
       });
     } catch (err: unknown) {
       return handleControllerError("deleteBaseAvailability error", err, res);
+    }
+  },
+
+  async setBaseAvailabilityForUser(
+    req: Request<
+      { orgId: string; userId: string },
+      unknown,
+      {
+        availabilities?: {
+          dayOfWeek: DayOfWeek;
+          slots: AvailabilitySlotMongo[];
+        }[];
+      }
+    >,
+    res: Response,
+  ) {
+    try {
+      const orgId = req.params.orgId;
+      const userId = req.params.userId;
+      const { availabilities } = req.body;
+
+      if (
+        !orgId ||
+        !userId ||
+        !availabilities ||
+        !Array.isArray(availabilities)
+      ) {
+        return res.status(400).json({ message: "Missing or invalid payload" });
+      }
+
+      const data = await AvailabilityService.setAllBaseAvailability(
+        orgId,
+        userId,
+        availabilities,
+      );
+
+      return res.status(201).json({
+        message: "Base availability saved",
+        data,
+      });
+    } catch (err: unknown) {
+      return handleControllerError("setAllBaseAvailability error", err, res);
     }
   },
 

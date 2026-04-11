@@ -32,7 +32,9 @@ jest.mock('redux-persist', () => {
   const real = jest.requireActual('redux-persist');
   return {
     ...real,
-    persistReducer: jest.fn().mockImplementation((config, reducers) => reducers),
+    persistReducer: jest
+      .fn()
+      .mockImplementation((config, reducers) => reducers),
     persistStore: jest.fn().mockImplementation(() => ({
       subscribe: jest.fn(),
       dispatch: jest.fn(),
@@ -120,6 +122,7 @@ jest.mock('react-native', () => {
     },
     Platform: {OS: 'android', select: jest.fn(options => options.android)},
     Alert: mockAlert,
+    StatusBar: 'StatusBar',
     BackHandler: {
       addEventListener: mockAddEventListener.mockImplementation(
         (event, callback) => {
@@ -150,6 +153,11 @@ jest.mock('react-native', () => {
 });
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: 'SafeAreaView',
+  useSafeAreaInsets: () => ({top: 0, right: 0, bottom: 0, left: 0}),
+}));
+jest.mock('@callstack/liquid-glass', () => ({
+  LiquidGlassView: 'LiquidGlassView',
+  isLiquidGlassSupported: jest.fn(() => false),
 }));
 
 // --- Component Mocks ---
@@ -258,13 +266,16 @@ const createBottomSheetMock = (
   });
 };
 
-jest.mock('@/shared/components/common/BreedBottomSheet/BreedBottomSheet', () => ({
-  BreedBottomSheet: createBottomSheetMock(
-    'mock-BreedBottomSheet',
-    'breed-sheet',
-    'BreedBottomSheet',
-  ),
-}));
+jest.mock(
+  '@/shared/components/common/BreedBottomSheet/BreedBottomSheet',
+  () => ({
+    BreedBottomSheet: createBottomSheetMock(
+      'mock-BreedBottomSheet',
+      'breed-sheet',
+      'BreedBottomSheet',
+    ),
+  }),
+);
 jest.mock(
   '@/shared/components/common/BloodGroupBottomSheet/BloodGroupBottomSheet',
   () => ({
@@ -275,20 +286,26 @@ jest.mock(
     ),
   }),
 );
-jest.mock('@/shared/components/common/CountryBottomSheet/CountryBottomSheet', () => ({
-  CountryBottomSheet: createBottomSheetMock(
-    'mock-CountryBottomSheet',
-    'country-sheet',
-    'CountryBottomSheet',
-  ),
-}));
-jest.mock('@/shared/components/common/GenderBottomSheet/GenderBottomSheet', () => ({
-  GenderBottomSheet: createBottomSheetMock(
-    'mock-GenderBottomSheet',
-    'gender-sheet',
-    'GenderBottomSheet',
-  ),
-}));
+jest.mock(
+  '@/shared/components/common/CountryBottomSheet/CountryBottomSheet',
+  () => ({
+    CountryBottomSheet: createBottomSheetMock(
+      'mock-CountryBottomSheet',
+      'country-sheet',
+      'CountryBottomSheet',
+    ),
+  }),
+);
+jest.mock(
+  '@/shared/components/common/GenderBottomSheet/GenderBottomSheet',
+  () => ({
+    GenderBottomSheet: createBottomSheetMock(
+      'mock-GenderBottomSheet',
+      'gender-sheet',
+      'GenderBottomSheet',
+    ),
+  }),
+);
 jest.mock(
   '@/shared/components/common/NeuteredStatusBottomSheet/NeuteredStatusBottomSheet',
   () => ({
@@ -309,37 +326,43 @@ jest.mock(
     ),
   }),
 );
-jest.mock('@/shared/components/common/OriginBottomSheet/OriginBottomSheet', () => ({
-  OriginBottomSheet: createBottomSheetMock(
-    'mock-OriginBottomSheet',
-    'origin-sheet',
-    'OriginBottomSheet',
-  ),
-}));
+jest.mock(
+  '@/shared/components/common/OriginBottomSheet/OriginBottomSheet',
+  () => ({
+    OriginBottomSheet: createBottomSheetMock(
+      'mock-OriginBottomSheet',
+      'origin-sheet',
+      'OriginBottomSheet',
+    ),
+  }),
+);
 // --- End Bottom Sheet Mocks ---
 
 // --- Date Picker Mock --- (Remains the same)
-jest.mock('@/shared/components/common/SimpleDatePicker/SimpleDatePicker', () => {
-  const {View} = jest.requireActual('react-native');
-  return {
-    SimpleDatePicker: jest.fn(
-      ({show, onDateChange, onDismiss, value, mode, maximumDate}) =>
-        show ? (
-          <View
-            testID="dob-picker"
-            value={value}
-            onDateChange={onDateChange}
-            onDismiss={onDismiss}
-            mode={mode}
-            maximumDate={maximumDate}
-          />
-        ) : null,
-    ),
-  formatDateForDisplay: jest.fn(date =>
-    date ? `Formatted: ${date.toISOString().split('T')[0]}` : '',
-  ),
-  };
-});
+jest.mock(
+  '@/shared/components/common/SimpleDatePicker/SimpleDatePicker',
+  () => {
+    const {View} = jest.requireActual('react-native');
+    return {
+      SimpleDatePicker: jest.fn(
+        ({show, onDateChange, onDismiss, value, mode, maximumDate}) =>
+          show ? (
+            <View
+              testID="dob-picker"
+              value={value}
+              onDateChange={onDateChange}
+              onDismiss={onDismiss}
+              mode={mode}
+              maximumDate={maximumDate}
+            />
+          ) : null,
+      ),
+      formatDateForDisplay: jest.fn(date =>
+        date ? `Formatted: ${date.toISOString().split('T')[0]}` : '',
+      ),
+    };
+  },
+);
 
 // --- Utility Mocks --- (Remain the same)
 jest.mock('@/shared/utils/formScreenStyles', () => ({
@@ -357,18 +380,21 @@ jest.mock('@/shared/utils/commonHelpers', () => ({
   capitalize: jest.fn(s => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '')),
   displayNeutered: jest.fn(s => {
     if (s === 'neutered') return 'Neutered';
-    if (s === 'intact') return 'Intact';
-    return 'Unknown';
+    if (s === 'not-neutered') return 'Not neutered';
+    return '';
   }),
   displayInsured: jest.fn(s => {
     if (s === 'insured') return 'Insured';
-    if (s === 'not-insured') return 'Not Insured';
-    return 'Unknown';
-  }), // Corrected key here
+    if (s === 'not-insured') return 'Not insured';
+    return '';
+  }),
   displayOrigin: jest.fn(s => {
+    if (s === 'shop') return 'Shop';
     if (s === 'breeder') return 'Breeder';
-    if (s === 'rescue') return 'Rescue / Shelter';
-    return s || 'Unknown';
+    if (s === 'foster-shelter') return 'Foster/ Shelter';
+    if (s === 'friends-family') return 'Friends or family';
+    if (s === 'unknown') return 'Unknown';
+    return '';
   }),
 }));
 
@@ -397,10 +423,23 @@ jest.mock(
   ],
   {virtual: true},
 );
-jest.mock('@/features/companion/data/horseBreeds.json', () => [], {virtual: true});
-jest.mock('@/shared/utils/countryList.json', () => [{name: 'USA'}, {name: 'Canada'}], {
+jest.mock('@/features/companion/data/horseBreeds.json', () => [], {
   virtual: true,
 });
+jest.mock(
+  '@/shared/utils/countryList.json',
+  () => [{name: 'USA'}, {name: 'Canada'}],
+  {
+    virtual: true,
+  },
+);
+
+jest.mock('@/features/companion/services/codeEntriesService', () => ({
+  fetchBreedCodeEntries: jest.fn(),
+}));
+jest.mock('@/features/auth/sessionManager', () => ({
+  getFreshStoredTokens: jest.fn(),
+}));
 
 // --- Mock Redux Store Interaction --- (Remain the same)
 const mockDispatch = jest.fn();
@@ -521,23 +560,34 @@ describe('CompanionOverviewScreen', () => {
       require('@/shared/utils/commonHelpers').displayNeutered as jest.Mock
     ).mockImplementation(s => {
       if (s === 'neutered') return 'Neutered';
-      if (s === 'intact') return 'Intact';
-      return 'Unknown';
+      if (s === 'not-neutered') return 'Not neutered';
+      return '';
     });
     (
       require('@/shared/utils/commonHelpers').displayInsured as jest.Mock
     ).mockImplementation(s => {
       if (s === 'insured') return 'Insured';
-      if (s === 'not-insured') return 'Not Insured';
-      return 'Unknown';
-    }); // Corrected key
+      if (s === 'not-insured') return 'Not insured';
+      return '';
+    });
     (
       require('@/shared/utils/commonHelpers').displayOrigin as jest.Mock
     ).mockImplementation(s => {
+      if (s === 'shop') return 'Shop';
       if (s === 'breeder') return 'Breeder';
-      if (s === 'rescue') return 'Rescue / Shelter';
-      return s || 'Unknown';
+      if (s === 'foster-shelter') return 'Foster/ Shelter';
+      if (s === 'friends-family') return 'Friends or family';
+      if (s === 'unknown') return 'Unknown';
+      return '';
     });
+    (
+      require('@/features/auth/sessionManager')
+        .getFreshStoredTokens as jest.Mock
+    ).mockResolvedValue({accessToken: 'mock-token'});
+    (
+      require('@/features/companion/services/codeEntriesService')
+        .fetchBreedCodeEntries as jest.Mock
+    ).mockResolvedValue([]);
   });
 
   // --- Tests ---
@@ -699,7 +749,7 @@ describe('CompanionOverviewScreen', () => {
     let handled = false;
     await act(async () => {
       handled = mockCapturedBackPressCallback
-        ? mockCapturedBackPressCallback() ?? false
+        ? (mockCapturedBackPressCallback() ?? false)
         : false;
     });
     expect(handled).toBe(true);
@@ -718,7 +768,7 @@ describe('CompanionOverviewScreen', () => {
     let handled = false;
     await act(async () => {
       handled = mockCapturedBackPressCallback
-        ? mockCapturedBackPressCallback() ?? false
+        ? (mockCapturedBackPressCallback() ?? false)
         : false;
     });
     expect(handled).toBe(true);
@@ -732,7 +782,7 @@ describe('CompanionOverviewScreen', () => {
     let handled = false;
     await act(async () => {
       handled = mockCapturedBackPressCallback
-        ? mockCapturedBackPressCallback() ?? false
+        ? (mockCapturedBackPressCallback() ?? false)
         : false;
     });
     expect(handled).toBe(false);
@@ -746,26 +796,28 @@ describe('CompanionOverviewScreen', () => {
     renderWithState({
       ...mockCompanion,
       neuteredStatus: 'neutered' as Companion['neuteredStatus'],
-      ageWhenNeutered: '6 months',
+      ageWhenNeutered: '6',
     } as Companion);
     expect(
-      screen.getByTestId('inline-edit-Age-when-neutered'),
+      screen.getByTestId('inline-edit-Age-when-neutered-(optional)'),
     ).toBeOnTheScreen();
-    expect(screen.getByTestId('inline-edit-Age-when-neutered')).toHaveProp(
-      'value',
-      '6 months',
-    );
+    expect(
+      screen.getByTestId('inline-edit-Age-when-neutered-(optional)'),
+    ).toHaveProp('value', '6 Years');
     fireEvent.press(screen.getByTestId('row-button-Neutered-status'));
     const neuteredSheet = screen.getByTestId('neutered-sheet');
-    // FIX for ts(2322): Use correct literal type 'intact'
-    fireEvent(neuteredSheet, 'onSave', 'intact' as Companion['neuteredStatus']);
+    fireEvent(
+      neuteredSheet,
+      'onSave',
+      'not-neutered' as Companion['neuteredStatus'],
+    );
     await waitFor(() =>
       expect(
         require('@/features/companion').updateCompanionProfile,
       ).toHaveBeenCalledWith({
         parentId: mockCompanion.userId,
         updatedCompanion: expect.objectContaining({
-          neuteredStatus: 'intact',
+          neuteredStatus: 'not-neutered',
           ageWhenNeutered: null,
           updatedAt: expect.any(String),
         }),
@@ -773,15 +825,17 @@ describe('CompanionOverviewScreen', () => {
     );
     renderWithState({
       ...mockCompanion,
-      neuteredStatus: 'intact' as Companion['neuteredStatus'],
+      neuteredStatus: 'not-neutered' as Companion['neuteredStatus'],
       ageWhenNeutered: null,
     }); // Reflect state change
-    expect(screen.queryByTestId('inline-edit-Age-when-neutered')).toBeNull();
+    expect(
+      screen.queryByTestId('inline-edit-Age-when-neutered-(optional)'),
+    ).toBeNull();
     expect(
       within(screen.getByTestId('row-button-Neutered-status')).getByTestId(
         'value',
       ),
-    ).toHaveTextContent('Intact');
+    ).toHaveTextContent('Not neutered');
   });
 
   it('shows and resets insurance details based on insured status', async () => {
@@ -801,7 +855,6 @@ describe('CompanionOverviewScreen', () => {
     );
     fireEvent.press(screen.getByTestId('row-button-Insurance-status'));
     const insuredSheet = screen.getByTestId('insured-sheet');
-    // FIX for ts(2820): Use correct literal type 'not-insured'
     fireEvent(
       insuredSheet,
       'onSave',
@@ -832,7 +885,7 @@ describe('CompanionOverviewScreen', () => {
       within(screen.getByTestId('row-button-Insurance-status')).getByTestId(
         'value',
       ),
-    ).toHaveTextContent('Not Insured'); // Uses display helper
+    ).toHaveTextContent('Not insured'); // Uses display helper
   });
 
   it('shows alert when updateCompanionProfile dispatch fails', async () => {
@@ -972,14 +1025,14 @@ describe('CompanionOverviewScreen', () => {
     renderWithState(mockCompanion);
     fireEvent.press(screen.getByTestId('row-button-My-pet-comes-from'));
     const originSheet = screen.getByTestId('origin-sheet');
-    fireEvent(originSheet, 'onSave', 'rescue');
+    fireEvent(originSheet, 'onSave', 'foster-shelter');
     await waitFor(() =>
       expect(
         require('@/features/companion').updateCompanionProfile,
       ).toHaveBeenCalledWith({
         parentId: mockCompanion.userId,
         updatedCompanion: expect.objectContaining({
-          origin: 'rescue',
+          origin: 'foster-shelter',
           updatedAt: expect.any(String),
         }),
       }),
@@ -1020,29 +1073,44 @@ describe('CompanionOverviewScreen', () => {
     );
   });
 
-  it('loads correct breed list for a cat companion', () => {
+  it('loads correct breed list for a cat companion', async () => {
+    (
+      require('@/features/companion/services/codeEntriesService')
+        .fetchBreedCodeEntries as jest.Mock
+    ).mockResolvedValue([
+      {
+        display: 'Siamese',
+        code: 'siamese',
+        meta: {speciesCode: 'feline'},
+      },
+    ]);
     const mockCatCompanion = {
       ...mockCompanion,
       category: 'cat' as const,
     } as Companion;
     renderWithState(mockCatCompanion);
-    // FIX TS(2352): Use the correct expected Breed structure from the JSON mock
-    expect(screen.getByTestId('breed-sheet')).toHaveProp('breeds', [
-      {
-        breedId: 1,
-        breedName: 'Siamese',
-        speciesId: 2,
-        speciesName: 'Cat',
-      },
-    ]);
+    await waitFor(() => {
+      expect(screen.getByTestId('breed-sheet')).toHaveProp('breeds', [
+        {
+          speciesId: 0,
+          speciesName: 'feline',
+          breedId: -1,
+          breedName: 'Siamese',
+          speciesCode: 'feline',
+          breedCode: 'siamese',
+        },
+      ]);
+    });
   });
 
-  it('loads empty breed list for a horse companion', () => {
+  it('loads empty breed list for a horse companion', async () => {
     const mockHorseCompanion = {
       ...mockCompanion,
       category: 'horse' as const,
     } as Companion;
     renderWithState(mockHorseCompanion);
-    expect(screen.getByTestId('breed-sheet')).toHaveProp('breeds', []);
+    await waitFor(() => {
+      expect(screen.getByTestId('breed-sheet')).toHaveProp('breeds', []);
+    });
   });
 });

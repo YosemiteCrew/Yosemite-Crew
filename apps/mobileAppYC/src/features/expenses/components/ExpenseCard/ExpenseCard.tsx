@@ -148,19 +148,18 @@ const createStyles = (theme: any) =>
       color: theme.colors.textSecondary,
     },
     metaValue: {
+      ...theme.typography.labelSmall,
       color: theme.colors.secondary,
-      fontFamily: theme.typography.bodySmall.fontFamily,
-      fontWeight: theme.typography.bodySmall.fontWeight,
     },
     date: {
       ...theme.typography.bodySmall,
       color: theme.colors.textSecondary,
     },
     paidBadge: {
-      paddingHorizontal: theme.spacing[2],
-      paddingVertical: 4,
-      borderRadius: 999,
-      backgroundColor: 'rgba(0, 143, 93, 0.12)',
+      paddingHorizontal: theme.spacing['2'],
+      paddingVertical: theme.spacing['1'],
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.successSurface,
     },
     paidBadgeInteractive: {
       borderWidth: 1,

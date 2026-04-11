@@ -7,8 +7,15 @@ import type {
   PaymentIntentInfo,
 } from './types';
 import {appointmentApi} from './services/appointmentsService';
-import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
+import {
+  getFreshStoredTokens,
+  isTokenExpired,
+} from '@/features/auth/sessionManager';
 import type {RootState} from '@/app/store';
+import {
+  toFHIRAppointment,
+  type Appointment as SharedAppointmentModel,
+} from '@yosemite-crew/types';
 
 const toErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error && error.message ? error.message : fallback;
@@ -39,10 +46,16 @@ type BookAppointmentInput = {
   endTime: string; // HH:mm
   startTimeUtc?: string | null;
   endTimeUtc?: string | null;
+  employeeId?: string | null;
+  employeeName?: string | null;
   concern?: string;
   emergency?: boolean;
   companionId: string;
-  attachments?: Array<{key: string; name?: string | null; contentType?: string | null}>;
+  attachments?: Array<{
+    key: string;
+    name?: string | null;
+    contentType?: string | null;
+  }>;
 };
 
 export const fetchAppointmentsForCompanion = createAsyncThunk(
@@ -50,11 +63,19 @@ export const fetchAppointmentsForCompanion = createAsyncThunk(
   async ({companionId}: {companionId: string}, {rejectWithValue}) => {
     try {
       const accessToken = await ensureAccessToken();
-      const items = await appointmentApi.listAppointments({companionId, accessToken});
+      const items = await appointmentApi.listAppointments({
+        companionId,
+        accessToken,
+      });
       return {companionId, items};
     } catch (error) {
-      console.warn('[Appointments] fetchAppointmentsForCompanion failed', error);
-      return rejectWithValue(toErrorMessage(error, 'Unable to fetch appointments'));
+      console.warn(
+        '[Appointments] fetchAppointmentsForCompanion failed',
+        error,
+      );
+      return rejectWithValue(
+        toErrorMessage(error, 'Unable to fetch appointments'),
+      );
     }
   },
 );
@@ -64,23 +85,41 @@ export const fetchAppointmentById = createAsyncThunk(
   async ({appointmentId}: {appointmentId: string}, {rejectWithValue}) => {
     try {
       const accessToken = await ensureAccessToken();
-      const appointment = await appointmentApi.getAppointment({appointmentId, accessToken});
+      const appointment = await appointmentApi.getAppointment({
+        appointmentId,
+        accessToken,
+      });
       return appointment;
     } catch (error) {
-      return rejectWithValue(toErrorMessage(error, 'Unable to load appointment'));
+      return rejectWithValue(
+        toErrorMessage(error, 'Unable to load appointment'),
+      );
     }
   },
 );
 
 export const createAppointment = createAsyncThunk<
-  {appointment: Appointment; invoice: Invoice | null; paymentIntent: PaymentIntentInfo | null},
+  {
+    appointment: Appointment;
+    invoice: Invoice | null;
+    paymentIntent: PaymentIntentInfo | null;
+  },
   BookAppointmentInput,
   {state: RootState}
 >('appointments/create', async (payload, {rejectWithValue, getState}) => {
   try {
     const accessToken = await ensureAccessToken();
     const state = getState();
-    const companion = state.companion.companions.find(c => c.id === payload.companionId);
+    const companion = state.companion.companions.find(
+      c => c.id === payload.companionId,
+    );
+    const normalizedEmployeeId = payload.employeeId?.trim();
+    const employee =
+      normalizedEmployeeId != null && normalizedEmployeeId !== ''
+        ? state.businesses.employees.find(
+            emp => emp.id === normalizedEmployeeId,
+          )
+        : null;
     const user = state.auth.user;
     const parentId = (user as any)?.parentId ?? user?.id;
 
@@ -92,121 +131,99 @@ export const createAppointment = createAsyncThunk<
       endISO = new Date(`${payload.date}T${payload.endTime}:00Z`).toISOString();
     }
     if (!endISO) {
-      endISO = new Date(new Date(startISO).getTime() + 15 * 60 * 1000).toISOString();
+      endISO = new Date(
+        new Date(startISO).getTime() + 15 * 60 * 1000,
+      ).toISOString();
     }
     const minutesDuration = Math.max(
       1,
-      Math.round((new Date(endISO).getTime() - new Date(startISO).getTime()) / 60000),
+      Math.round(
+        (new Date(endISO).getTime() - new Date(startISO).getTime()) / 60000,
+      ),
     );
 
-    const attachmentExtensions =
-      payload.attachments?.length
-        ? payload.attachments
-            .filter(att => att.key)
-            .map(att => ({
-              url: 'https://yosemitecrew.com/fhir/StructureDefinition/appointment-attachments',
-              extension: [
-                {url: 'key', valueString: att.key},
-                {url: 'name', valueString: att.name ?? att.key},
-                ...(att.contentType
-                  ? [{url: 'contentType', valueString: att.contentType}]
-                  : []),
-              ],
-            }))
-        : [];
-
-    const extensions = [
-      companion?.category
-        ? {
-            id: 'species',
-            url: 'https://hl7.org/fhir/animal-species',
-            valueString: companion.category.charAt(0).toUpperCase() + companion.category.slice(1),
-          }
-        : null,
-      companion?.breed?.breedName
-        ? {
-            id: 'breed',
-            url: 'https://hl7.org/fhir/animal-breed',
-            valueString: companion.breed.breedName,
-          }
-        : null,
-      {
-        url: 'https://yosemitecrew.com/fhir/StructureDefinition/appointment-is-emergency',
-        valueBoolean: payload.emergency ?? false,
+    const leadId = payload.employeeId?.trim() || employee?.id || null;
+    const leadName =
+      payload.employeeName?.trim() || employee?.name?.trim() || null;
+    const parentName =
+      [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() ||
+      user?.email ||
+      '';
+    const parentReferenceId = parentId ?? user?.id ?? null;
+    const sharedAppointment: SharedAppointmentModel = {
+      organisationId: payload.businessId,
+      companion: {
+        id: payload.companionId,
+        name: companion?.name ?? '',
+        species: companion?.category
+          ? companion.category.charAt(0).toUpperCase() +
+            companion.category.slice(1)
+          : '',
+        breed: companion?.breed?.breedName,
+        parent: {
+          id: parentReferenceId ?? '',
+          name: parentName,
+        },
       },
-      ...attachmentExtensions,
-    ].filter(Boolean);
-
-    const bookPayload = {
-      resourceType: 'Appointment',
-      serviceType: [
-        {
-          coding: [
-            {
-              system: 'https://example.org/appointment-types',
-              code: payload.serviceId,
-              display: payload.serviceName,
-            },
-          ],
-          text: payload.serviceName,
+      lead: leadId
+        ? {
+            id: leadId,
+            name: leadName ?? '',
+          }
+        : undefined,
+      appointmentType: {
+        id: payload.serviceId,
+        name: payload.serviceName,
+        speciality: {
+          id: payload.specialityId ?? payload.specialityName ?? '',
+          name: payload.specialityName ?? payload.specialityId ?? '',
         },
-      ],
-      speciality: payload.specialityId || payload.specialityName
-        ? [
-            {
-              coding: [
-                {
-                  system: 'https://yosemitecrew.com/fhir/specialty',
-                  code: payload.specialityId ?? payload.specialityName,
-                  display: payload.specialityName ?? payload.specialityId ?? undefined,
-                },
-              ],
-            },
-          ]
-        : [],
-      participant: [
-        {
-          actor: {
-            reference: `Patient/${payload.companionId}`,
-            display: companion?.name,
-          },
-        },
-        ...(user?.id
-          ? [
-              {
-                actor: {
-                  reference: `RelatedPerson/${parentId ?? user.id}`,
-                  display:
-                    [user.firstName, user.lastName].filter(Boolean).join(' ').trim() ||
-                    user.email,
-                },
-              },
-            ]
-          : []),
-        {
-          actor: {
-            reference: `Organization/${payload.businessId}`,
-          },
-        },
-      ],
-      start: startISO,
-      end: endISO,
-      minutesDuration,
-      description: payload.concern ?? '',
-      extension: extensions,
+      },
+      appointmentDate: new Date(startISO),
+      startTime: new Date(startISO),
+      timeSlot: payload.startTime,
+      durationMinutes: minutesDuration,
+      endTime: new Date(endISO),
+      status: 'REQUESTED',
+      isEmergency: payload.emergency ?? false,
+      concern: payload.concern ?? '',
+      attachments: payload.attachments
+        ?.filter(att => att.key)
+        .map(att => ({
+          key: att.key,
+          name: att.name ?? att.key,
+          contentType: att.contentType ?? undefined,
+        })),
     };
 
-    const {appointment, invoice, paymentIntent} = await appointmentApi.bookAppointment({
-      payload: bookPayload,
-      accessToken,
-    });
+    const bookPayload = toFHIRAppointment(sharedAppointment);
+    if (payload.startTimeUtc) {
+      bookPayload.start = payload.startTimeUtc;
+    }
+    if (payload.endTimeUtc) {
+      bookPayload.end = payload.endTimeUtc;
+    }
+    if (!parentReferenceId) {
+      bookPayload.participant = (bookPayload.participant ?? []).filter(
+        (participant: any) =>
+          !participant?.actor?.reference?.startsWith('RelatedPerson/'),
+      );
+    }
+
+    const {appointment, invoice, paymentIntent} =
+      await appointmentApi.bookAppointment({
+        payload: bookPayload,
+        accessToken,
+      });
     return {
       appointment,
       invoice,
       paymentIntent: paymentIntent ?? invoice?.paymentIntent ?? null,
     };
   } catch (error) {
-    return rejectWithValue(toErrorMessage(error, 'Unable to create appointment'));
+    return rejectWithValue(
+      toErrorMessage(error, 'Unable to create appointment'),
+    );
   }
 });
 
@@ -217,15 +234,27 @@ export const updateAppointmentStatus = createAsyncThunk(
       appointmentId,
       status,
       employeeId,
-    }: {appointmentId: string; status: AppointmentStatus; employeeId?: string | null},
+    }: {
+      appointmentId: string;
+      status: AppointmentStatus;
+      employeeId?: string | null;
+    },
     {rejectWithValue},
   ) => {
     try {
       const accessToken = await ensureAccessToken();
-      const updated = await appointmentApi.getAppointment({appointmentId, accessToken});
-      return {appointment: {...updated, status}, employeeId: employeeId ?? null};
+      const updated = await appointmentApi.getAppointment({
+        appointmentId,
+        accessToken,
+      });
+      return {
+        appointment: {...updated, status},
+        employeeId: employeeId ?? null,
+      };
     } catch (error) {
-      return rejectWithValue(toErrorMessage(error, 'Unable to update appointment'));
+      return rejectWithValue(
+        toErrorMessage(error, 'Unable to update appointment'),
+      );
     }
   },
 );
@@ -235,7 +264,10 @@ export const checkInAppointment = createAsyncThunk(
   async ({appointmentId}: {appointmentId: string}, {rejectWithValue}) => {
     try {
       const accessToken = await ensureAccessToken();
-      const updated = await appointmentApi.checkInAppointment({appointmentId, accessToken});
+      const updated = await appointmentApi.checkInAppointment({
+        appointmentId,
+        accessToken,
+      });
       return updated;
     } catch (error) {
       return rejectWithValue(toErrorMessage(error, 'Unable to check in'));
@@ -252,7 +284,13 @@ export const rescheduleAppointment = createAsyncThunk(
       endTime,
       isEmergency,
       concern,
-    }: {appointmentId: string; startTime: string; endTime: string; isEmergency: boolean; concern: string},
+    }: {
+      appointmentId: string;
+      startTime: string;
+      endTime: string;
+      isEmergency: boolean;
+      concern: string;
+    },
     {rejectWithValue},
   ) => {
     try {
@@ -267,7 +305,9 @@ export const rescheduleAppointment = createAsyncThunk(
       });
       return updated;
     } catch (error) {
-      return rejectWithValue(toErrorMessage(error, 'Unable to reschedule appointment'));
+      return rejectWithValue(
+        toErrorMessage(error, 'Unable to reschedule appointment'),
+      );
     }
   },
 );
@@ -277,10 +317,15 @@ export const cancelAppointment = createAsyncThunk(
   async ({appointmentId}: {appointmentId: string}, {rejectWithValue}) => {
     try {
       const accessToken = await ensureAccessToken();
-      const updated = await appointmentApi.cancelAppointment({appointmentId, accessToken});
+      const updated = await appointmentApi.cancelAppointment({
+        appointmentId,
+        accessToken,
+      });
       return updated;
     } catch (error) {
-      return rejectWithValue(toErrorMessage(error, 'Unable to cancel appointment'));
+      return rejectWithValue(
+        toErrorMessage(error, 'Unable to cancel appointment'),
+      );
     }
   },
 );
@@ -290,10 +335,15 @@ export const fetchPaymentIntentForAppointment = createAsyncThunk(
   async ({appointmentId}: {appointmentId: string}, {rejectWithValue}) => {
     try {
       const accessToken = await ensureAccessToken();
-      const intent = await appointmentApi.createPaymentIntent({appointmentId, accessToken});
+      const intent = await appointmentApi.createPaymentIntent({
+        appointmentId,
+        accessToken,
+      });
       return {appointmentId, intent};
     } catch (error) {
-      return rejectWithValue(toErrorMessage(error, 'Unable to fetch payment intent'));
+      return rejectWithValue(
+        toErrorMessage(error, 'Unable to fetch payment intent'),
+      );
     }
   },
 );
@@ -303,7 +353,10 @@ export const recordPayment = createAsyncThunk(
   async ({appointmentId}: {appointmentId: string}, {rejectWithValue}) => {
     try {
       const accessToken = await ensureAccessToken();
-      const refreshed = await appointmentApi.getAppointment({appointmentId, accessToken});
+      const refreshed = await appointmentApi.getAppointment({
+        appointmentId,
+        accessToken,
+      });
       return {appointment: refreshed};
     } catch (error) {
       return rejectWithValue(toErrorMessage(error, 'Unable to record payment'));
@@ -316,10 +369,11 @@ export const fetchInvoiceForAppointment = createAsyncThunk(
   async ({appointmentId}: {appointmentId: string}, {rejectWithValue}) => {
     try {
       const accessToken = await ensureAccessToken();
-      const {invoice, paymentIntent} = await appointmentApi.fetchInvoiceForAppointment({
-        appointmentId,
-        accessToken,
-      });
+      const {invoice, paymentIntent} =
+        await appointmentApi.fetchInvoiceForAppointment({
+          appointmentId,
+          accessToken,
+        });
       return {appointmentId, invoice, paymentIntent};
     } catch (error) {
       return rejectWithValue(toErrorMessage(error, 'Unable to fetch invoice'));
@@ -335,7 +389,10 @@ const initialState: AppointmentsState = {
   hydratedCompanions: {},
 };
 
-const upsertAppointment = (state: AppointmentsState, appointment: Appointment) => {
+const upsertAppointment = (
+  state: AppointmentsState,
+  appointment: Appointment,
+) => {
   const idx = state.items.findIndex(a => a.id === appointment.id);
   if (idx >= 0) {
     state.items[idx] = {...state.items[idx], ...appointment};
@@ -366,14 +423,18 @@ const appointmentsSlice = createSlice({
       })
       .addCase(fetchAppointmentsForCompanion.fulfilled, (state, action) => {
         state.loading = false;
-        const {companionId, items} = action.payload as {companionId: string; items: Appointment[]};
+        const {companionId, items} = action.payload as {
+          companionId: string;
+          items: Appointment[];
+        };
         state.items = state.items.filter(a => a.companionId !== companionId);
         state.items.push(...items);
         state.hydratedCompanions[companionId] = true;
       })
       .addCase(fetchAppointmentsForCompanion.rejected, (state, action) => {
         state.loading = false;
-        state.error = (action.payload as string) ?? 'Unable to fetch appointments';
+        state.error =
+          (action.payload as string) ?? 'Unable to fetch appointments';
       })
       .addCase(fetchAppointmentById.fulfilled, (state, action) => {
         upsertAppointment(state, action.payload);
@@ -390,7 +451,8 @@ const appointmentsSlice = createSlice({
           invoice ??
           (paymentIntent
             ? {
-                id: paymentIntent.paymentIntentId ?? `pending-${appointment.id}`,
+                id:
+                  paymentIntent.paymentIntentId ?? `pending-${appointment.id}`,
                 appointmentId: appointment.id,
                 items: [],
                 subtotal: paymentIntent.amount ?? 0,
@@ -409,12 +471,14 @@ const appointmentsSlice = createSlice({
               normalizedInvoice.invoiceNumber ??
               normalizedInvoice.id ??
               paymentIntent?.paymentIntentId,
-            paymentIntent: paymentIntent ?? normalizedInvoice.paymentIntent ?? null,
+            paymentIntent:
+              paymentIntent ?? normalizedInvoice.paymentIntent ?? null,
           };
           const idx = state.invoices.findIndex(
             inv =>
               inv.id === withIntent.id ||
-              (paymentIntent?.paymentIntentId && inv.id === paymentIntent.paymentIntentId),
+              (paymentIntent?.paymentIntentId &&
+                inv.id === paymentIntent.paymentIntentId),
           );
           if (idx >= 0) {
             state.invoices[idx] = withIntent;
@@ -426,12 +490,16 @@ const appointmentsSlice = createSlice({
       })
       .addCase(createAppointment.rejected, (state, action) => {
         state.loading = false;
-        state.error = (action.payload as string) ?? 'Unable to create appointment';
+        state.error =
+          (action.payload as string) ?? 'Unable to create appointment';
       })
       .addCase(updateAppointmentStatus.fulfilled, (state, action) => {
         const {appointment, employeeId} = action.payload as any;
         if (appointment) {
-          const updated = {...appointment, employeeId: employeeId ?? appointment.employeeId};
+          const updated = {
+            ...appointment,
+            employeeId: employeeId ?? appointment.employeeId,
+          };
           upsertAppointment(state, updated);
         }
       })
@@ -453,7 +521,10 @@ const appointmentsSlice = createSlice({
         upsertAppointment(state, normalized);
       })
       .addCase(fetchPaymentIntentForAppointment.fulfilled, (state, action) => {
-        const {appointmentId, intent} = action.payload as {appointmentId: string; intent: PaymentIntentInfo};
+        const {appointmentId, intent} = action.payload as {
+          appointmentId: string;
+          intent: PaymentIntentInfo;
+        };
         const idx = state.items.findIndex(a => a.id === appointmentId);
         if (idx >= 0) {
           state.items[idx] = {
@@ -461,12 +532,15 @@ const appointmentsSlice = createSlice({
             paymentIntent: intent,
           };
         }
-        const invIdx = state.invoices.findIndex(inv => inv.appointmentId === appointmentId);
+        const invIdx = state.invoices.findIndex(
+          inv => inv.appointmentId === appointmentId,
+        );
         if (invIdx >= 0) {
           state.invoices[invIdx] = {
             ...state.invoices[invIdx],
             paymentIntent: intent,
-            invoiceNumber: state.invoices[invIdx].invoiceNumber ?? intent.paymentIntentId,
+            invoiceNumber:
+              state.invoices[invIdx].invoiceNumber ?? intent.paymentIntentId,
           };
         }
       })
@@ -477,9 +551,15 @@ const appointmentsSlice = createSlice({
           paymentIntent?: PaymentIntentInfo | null;
         };
         if (invoice) {
-          const idx = state.invoices.findIndex(inv => inv.appointmentId === appointmentId);
+          const idx = state.invoices.findIndex(
+            inv => inv.appointmentId === appointmentId,
+          );
           if (idx >= 0) {
-            state.invoices[idx] = {...state.invoices[idx], ...invoice, paymentIntent};
+            state.invoices[idx] = {
+              ...state.invoices[idx],
+              ...invoice,
+              paymentIntent,
+            };
           } else {
             state.invoices.push({...invoice, paymentIntent});
           }
@@ -490,7 +570,9 @@ const appointmentsSlice = createSlice({
         }
       })
       .addCase(recordPayment.fulfilled, (state, action) => {
-        const refreshed = (action.payload as any)?.appointment as Appointment | undefined;
+        const refreshed = (action.payload as any)?.appointment as
+          | Appointment
+          | undefined;
         if (refreshed) {
           const inferredStatus: AppointmentStatus =
             refreshed.status &&
@@ -504,5 +586,6 @@ const appointmentsSlice = createSlice({
   },
 });
 
-export const {upsertInvoice, resetAppointmentsState} = appointmentsSlice.actions;
+export const {upsertInvoice, resetAppointmentsState} =
+  appointmentsSlice.actions;
 export default appointmentsSlice.reducer;

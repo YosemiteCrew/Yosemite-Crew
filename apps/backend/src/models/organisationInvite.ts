@@ -20,15 +20,14 @@ export type OrganisationInviteDocument =
 export interface CreateOrganisationInviteInput {
   organisationId: string;
   invitedByUserId: string;
-  departmentId: string;
+  departmentIds: string[];
   inviteeEmail: string;
   inviteeName?: string;
   role: string;
   employmentType?: OrganisationInvite["employmentType"];
 }
 
-export interface OrganisationInviteModel
-  extends Model<OrganisationInviteMongo> {
+export interface OrganisationInviteModel extends Model<OrganisationInviteMongo> {
   createOrReplaceInvite(
     input: CreateOrganisationInviteInput,
   ): Promise<OrganisationInviteDocument>;
@@ -47,7 +46,14 @@ const OrganisationInviteSchema = new Schema<
   {
     organisationId: { type: String, required: true, index: true },
     invitedByUserId: { type: String, required: true },
-    departmentId: { type: String, required: true },
+    departmentIds: {
+      type: [String],
+      required: true,
+      validate: {
+        validator: (v: string[]) => Array.isArray(v) && v.length > 0,
+        message: "At least one department must be specified",
+      },
+    },
     inviteeEmail: { type: String, required: true, trim: true, lowercase: true },
     inviteeName: { type: String, trim: true },
     role: { type: String, required: true },

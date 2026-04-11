@@ -1,12 +1,12 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 
-jest.mock("@/app/pages/LandingPage/LandingPage", () => ({
+jest.mock("@/app/features/marketing/pages/LandingPage", () => ({
   __esModule: true,
   default: () => <div data-testid="landingpage-mock">LandingPage Mock</div>,
 }));
 
-import Home, * as HomeModule from "@/app/page";
+import Home, * as HomeModule from "@/app/(routes)/(public)/page";
 
 describe("Home page (root route)", () => {
   test("renders LandingPage", () => {

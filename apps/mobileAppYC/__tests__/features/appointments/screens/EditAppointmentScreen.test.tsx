@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, act, waitFor} from '@testing-library/react-native';
 import {EditAppointmentScreen} from '@/features/appointments/screens/EditAppointmentScreen';
 import {Provider} from 'react-redux';
@@ -42,13 +43,7 @@ jest.mock('@/shared/hooks/useOrganisationDocumentNavigation', () => ({
 }));
 
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {primary: 'blue', white: 'white', secondary: 'black'},
-      typography: {paragraphBold: {}, button: {}},
-      spacing: {4: 16, 24: 96},
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 3. Mock Components
@@ -322,7 +317,7 @@ describe('EditAppointmentScreen', () => {
   it('renders correctly with all data populated', () => {
     const {getByTestId, getByText} = setup();
     expect(getByTestId('HeaderTitle')).toHaveTextContent(
-      'Reschedule Appointment',
+      'Reschedule',
     );
     expect(getByTestId('FormContent')).toBeTruthy();
     expect(getByText(/Submit reschedule request/i)).toBeTruthy();
@@ -581,11 +576,7 @@ describe('EditAppointmentScreen', () => {
     expect(mockOpenBusinessCancellation).toHaveBeenCalled();
   });
 
-  it('navigates back when editing employee', () => {
-    const {getByTestId} = setup();
-    fireEvent.press(getByTestId('EditEmployeeBtn'));
-    expect(mockGoBack).toHaveBeenCalled();
-  });
+  // Removed: Employee card is not interactive in EditAppointmentScreen (interactive={false})
 
   // --- Edge Cases: Missing Data ---
 

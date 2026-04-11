@@ -1,80 +1,166 @@
 name: sonar-cloud-analysis
+
 on:
-  push:
-    branches:
-      - main
-      - dev
+  pull_request:
+    types: [opened, synchronize, reopened]
   schedule:
     - cron: '0 4 * * *'
-  pull_request_target:
-    branches:
-      - main
-      - dev
-    types: [opened, synchronize, reopened]
+  push:
+    branches: [main, dev]
 
-permissions:
-  contents: read
-  pull-requests: write
+concurrency:
+  group: sonar-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: read-all
 
 jobs:
-
-  #job for analysing Frontend
-  sonarqube-frontend:
-    name: SonarQube
+  changes:
+    name: Detect workspace changes
     runs-on: ubuntu-latest
+    if: github.repository_owner == 'YosemiteCrew'
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend }}
+      mobile: ${{ steps.filter.outputs.mobile }}
+      has_changes: ${{ steps.matrix.outputs.has_changes }}
+      matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
-
-      - name: SonarQube Scan Frontend
-        uses: SonarSource/sonarqube-scan-action@v6
+          fetch-depth: 0
+      - name: Filter paths
+        id: filter
+        uses: dorny/paths-filter@v3
         with:
-          projectBaseDir: apps/frontend
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_FRONTEND }}
-          SONAR_SCANNER_OPTS: >
-            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
-            -Dsonar.pullrequest.branch=${{ github.head_ref }}
-            -Dsonar.pullrequest.base=${{ github.base_ref }}
+          filters: |
+            frontend:
+              - 'apps/frontend/**'
+              - 'packages/types/**'
+              - 'packages/fhirtypes/**'
+              - 'pnpm-lock.yaml'
+              - 'package.json'
+              - 'turbo.json'
+            backend:
+              - 'apps/backend/**'
+              - 'packages/types/**'
+              - 'packages/fhirtypes/**'
+              - 'pnpm-lock.yaml'
+              - 'package.json'
+              - 'turbo.json'
+            mobile:
+              - 'apps/mobileAppYC/**'
+              - 'packages/types/**'
+              - 'packages/fhirtypes/**'
+              - 'pnpm-lock.yaml'
+              - 'package.json'
+              - 'turbo.json'
+      - name: Build matrix
+        id: matrix
+        shell: bash
+        run: |
+          set -euo pipefail
 
-  #job for analysing Backend
-  sonarqube-api:
-    name: SonarQube
+          apps=()
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            apps+=(frontend backend mobile)
+          else
+            [[ "${{ steps.filter.outputs.frontend }}" == "true" ]] && apps+=(frontend)
+            [[ "${{ steps.filter.outputs.backend }}" == "true" ]] && apps+=(backend)
+            [[ "${{ steps.filter.outputs.mobile }}" == "true" ]] && apps+=(mobile)
+          fi
+
+          if [[ ${#apps[@]} -eq 0 ]]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          json='{"include":['
+          first=1
+          for app in "${apps[@]}"; do
+            case "$app" in
+              frontend)
+                dir="apps/frontend"
+                token="SONAR_TOKEN_FRONTEND"
+                ;;
+              backend)
+                dir="apps/backend"
+                token="SONAR_TOKEN_API"
+                ;;
+              mobile)
+                dir="apps/mobileAppYC"
+                token="SONAR_TOKEN_MOBILE"
+                ;;
+              *)
+                echo "Unknown app: $app" >&2
+                exit 1
+                ;;
+            esac
+
+            if [[ $first -eq 0 ]]; then
+              json+=','
+            else
+              first=0
+            fi
+            json+="{\"app\":\"$app\",\"dir\":\"$dir\",\"sonar_token\":\"$token\"}"
+          done
+          json+=']}'
+
+          echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          echo "matrix=$json" >> "$GITHUB_OUTPUT"
+
+  sonarqube:
+    if: >
+      github.repository_owner == 'YosemiteCrew' &&
+      (
+        github.event_name == 'schedule' ||
+        needs.changes.outputs.has_changes == 'true'
+      )
+    name: SonarQube Analysis - ${{ matrix.app }}
     runs-on: ubuntu-latest
+    needs: changes
+
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.changes.outputs.matrix) }}
+
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
-      - name: SonarQube Scan Backend
-        uses: SonarSource/sonarqube-scan-action@v6
-        with:
-          projectBaseDir: apps/backend
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_API }}
-          SONAR_SCANNER_OPTS: >
-            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
-            -Dsonar.pullrequest.branch=${{ github.head_ref }}
-            -Dsonar.pullrequest.base=${{ github.base_ref }}
+          fetch-depth: ${{ github.event_name == 'pull_request' && 0 || 1 }}
 
-  #job for analysing MobileApp
-  sonarqube-mobile:
-    name: SonarQube
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
-      - name: SonarQube Scan MobileApp
+          node-version: 20
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_ENV
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.STORE_PATH }}
+            ~/.sonar/cache
+          key: cache-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client (backend)
+        if: matrix.app == 'backend'
+        working-directory: ${{ matrix.dir }}
+        run: pnpm prisma generate
+
+      - name: Run tests
+        working-directory: ${{ matrix.dir }}
+        run: pnpm test -- --coverage
+
+      - name: Sonar Scan
         uses: SonarSource/sonarqube-scan-action@v6
         with:
-          projectBaseDir: apps/mobileAppYC
+          projectBaseDir: ${{ matrix.dir }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_MOBILE }}
-          SONAR_SCANNER_OPTS: >
-            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
-            -Dsonar.pullrequest.branch=${{ github.head_ref }}
-            -Dsonar.pullrequest.base=${{ github.base_ref }}
+          SONAR_TOKEN: ${{ secrets[matrix.sonar_token] }}

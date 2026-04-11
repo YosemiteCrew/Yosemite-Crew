@@ -4,10 +4,18 @@ import {useSelector} from 'react-redux';
 // FIX 1: Update component import path
 import {CommonTaskFields} from '@/features/tasks/components/CommonTaskFields/CommonTaskFields';
 import {selectAuthUser} from '@/features/auth/selectors';
+import {selectAcceptedCoParents} from '@/features/coParent/selectors';
 import type {TaskFormData, TaskFormErrors} from '@/features/tasks/types';
 import type {User} from '@/features/auth/types';
+import {mockTheme} from '../../setup/mockTheme';
 
 // --- Mocks ---
+
+jest.mock('@/hooks', () => ({
+  useTheme: () => ({theme: require('../../setup/mockTheme').mockTheme, isDark: false}),
+  useAppDispatch: () => jest.fn(),
+  useAppSelector: jest.fn(),
+}));
 
 jest.mock('react-redux', () => ({
   ...jest.requireActual('react-redux'),
@@ -17,6 +25,10 @@ const mockUseSelector = useSelector as unknown as jest.Mock;
 
 jest.mock('@/features/auth/selectors', () => ({
   selectAuthUser: jest.fn(),
+}));
+
+jest.mock('@/features/coParent/selectors', () => ({
+  selectAcceptedCoParents: jest.fn(),
 }));
 
 jest.mock('@/assets/images', () => ({
@@ -64,15 +76,7 @@ jest.mock('react-native/Libraries/Image/Image', () => {
 
 // --- Mock Data ---
 
-const mockTheme = {
-  spacing: {1: 4, 3: 8, 4: 12},
-  typography: {
-    labelXsBold: {fontSize: 12, fontWeight: 'bold'},
-  },
-  colors: {
-    error: 'red',
-  },
-};
+
 
 const mockCurrentUser: User = {
   id: 'user-1',
@@ -96,6 +100,9 @@ const renderComponent = ({
   mockUseSelector.mockImplementation(selector => {
     if (selector === selectAuthUser) {
       return currentUser;
+    }
+    if (selector === selectAcceptedCoParents) {
+      return [];
     }
     return undefined;
   });

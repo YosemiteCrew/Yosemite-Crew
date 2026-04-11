@@ -6,22 +6,8 @@ import {
   type CreateUserProfilePayload,
   type UpdateUserProfilePayload,
 } from "../../services/user-profile.service";
-import { AuthenticatedRequest } from "src/middlewares/auth";
-
-// type CreateUserProfileRequest = Request<
-//   Record<string, never>,
-//   unknown,
-//   unknown
-// >;
-// type UpdateUserProfileRequest = Request<
-//   { organizationId: string; userId: string },
-//   unknown,
-//   unknown
-// >;
-// type GetUserProfileRequest = Request<{
-//   organizationId: string;
-//   userId: string;
-// }>;
+import { generatePresignedUrl } from "src/middlewares/upload";
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 function ensurePlainObjectBody(
   body: unknown,
@@ -31,13 +17,18 @@ function ensurePlainObjectBody(
   }
 }
 
-const resolveUserIdFromRequest = (req: Request): string | undefined => {
-  const authRequest = req as AuthenticatedRequest;
-  const headerUserId = req.headers["x-user-id"];
-  if (headerUserId && typeof headerUserId === "string") {
-    return headerUserId;
+const handleUserProfileError = (
+  error: unknown,
+  res: Response,
+  logMessage: string,
+  responseMessage: string,
+) => {
+  if (error instanceof UserProfileServiceError) {
+    return res.status(error.statusCode).json({ message: error.message });
   }
-  return authRequest.userId;
+
+  logger.error(logMessage, error);
+  return res.status(500).json({ message: responseMessage });
 };
 
 export const UserProfileController = {
@@ -56,12 +47,12 @@ export const UserProfileController = {
 
       res.status(201).json(profile);
     } catch (error: unknown) {
-      if (error instanceof UserProfileServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-
-      logger.error("Failed to create user profile", error);
-      res.status(500).json({ message: "Unable to create user profile." });
+      return handleUserProfileError(
+        error,
+        res,
+        "Failed to create user profile",
+        "Unable to create user profile.",
+      );
     }
   },
 
@@ -84,12 +75,12 @@ export const UserProfileController = {
 
       res.status(200).json(profile);
     } catch (error: unknown) {
-      if (error instanceof UserProfileServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-
-      logger.error("Failed to update user profile", error);
-      res.status(500).json({ message: "Unable to update user profile." });
+      return handleUserProfileError(
+        error,
+        res,
+        "Failed to update user profile",
+        "Unable to update user profile.",
+      );
     }
   },
 
@@ -109,12 +100,71 @@ export const UserProfileController = {
 
       res.status(200).json(profile);
     } catch (error: unknown) {
-      if (error instanceof UserProfileServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
+      return handleUserProfileError(
+        error,
+        res,
+        "Failed to retrieve user profile",
+        "Unable to retrieve user profile.",
+      );
+    }
+  },
+
+  getUserProfileById: async (req: Request, res: Response) => {
+    try {
+      const userId = req.params.userId;
+      const organizationId = req.params.organizationId;
+
+      const profile = await UserProfileService.getByUserId(
+        userId,
+        organizationId,
+      );
+
+      if (!profile) {
+        return res.status(404).json({ message: "User profile not found." });
       }
 
-      logger.error("Failed to retrieve user profile", error);
-      res.status(500).json({ message: "Unable to retrieve user profile." });
+      res.status(200).json(profile);
+    } catch (error: unknown) {
+      return handleUserProfileError(
+        error,
+        res,
+        "Failed to retrieve user profile",
+        "Unable to retrieve user profile.",
+      );
+    }
+  },
+
+  getProfilePictureUploadUrl: async (req: Request, res: Response) => {
+    try {
+      const { organizationId } = req.params;
+      const userId = resolveUserIdFromRequest(req);
+      if (typeof organizationId !== "string" || !organizationId) {
+        return res.status(400).json({
+          message: "organizationId and userId are required in params",
+        });
+      }
+
+      const rawBody: unknown = req.body;
+      const mimeType =
+        typeof rawBody === "object" && rawBody !== null && "mimeType" in rawBody
+          ? (rawBody as { mimeType?: unknown }).mimeType
+          : undefined;
+
+      if (typeof mimeType !== "string" || !mimeType) {
+        res
+          .status(400)
+          .json({ message: "MIME type is required in the request body." });
+        return;
+      }
+      const { url, key } = await generatePresignedUrl(
+        mimeType,
+        "user-org",
+        `${userId}-${organizationId}`,
+      );
+      res.status(200).json({ uploadUrl: url, s3Key: key });
+    } catch (error) {
+      logger.error("Failed to generate logo upload URL", error);
+      res.status(500).json({ message: "Unable to generate logo upload URL." });
     }
   },
 };

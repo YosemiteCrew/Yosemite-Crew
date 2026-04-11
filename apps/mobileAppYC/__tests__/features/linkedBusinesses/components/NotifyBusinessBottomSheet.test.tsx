@@ -1,19 +1,12 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, screen} from '@testing-library/react-native';
 import NotifyBusinessBottomSheet from '../../../../src/features/linkedBusinesses/components/NotifyBusinessBottomSheet';
 
 // --- Mocks ---
 
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        text: 'black',
-        primary: 'blue',
-      },
-      spacing: [0, 4, 8, 12, 16],
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // Mock the custom hook

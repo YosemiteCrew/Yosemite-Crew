@@ -1,13 +1,65 @@
 import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
+import utc from "dayjs/plugin/utc.js";
+import mongoose, { Types } from "mongoose";
 import BaseAvailabilityModel, {
   DayOfWeek,
   AvailabilitySlotMongo,
 } from "src/models/base-availability";
-import WeeklyAvailabilityOverrideModel from "src/models/weekly-availablity-override";
-import { OccupancyModel } from "src/models/occupancy";
+import WeeklyAvailabilityOverrideModel, {
+  type WeeklyAvailabilityOverrideDocument,
+} from "src/models/weekly-availablity-override";
+import { OccupancyModel, type OccupancyDocument } from "src/models/occupancy";
+import { prisma } from "src/config/prisma";
+import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import { Prisma, OccupancySourceType } from "@prisma/client";
+import { isReadFromPostgres } from "src/config/read-switch";
 
 dayjs.extend(utc);
+
+type OccupancyDocumentWithTimestamps = OccupancyDocument & {
+  _id: Types.ObjectId;
+  createdAt?: Date;
+  updatedAt?: Date;
+};
+
+type WeeklyAvailabilityOverrideDocumentWithId =
+  WeeklyAvailabilityOverrideDocument & {
+    _id: Types.ObjectId;
+  };
+
+export class AvailabilityServiceError extends Error {
+  constructor(
+    message: string,
+    public statusCode = 400,
+  ) {
+    super(message);
+    this.name = "AvailabilityServiceError";
+  }
+}
+
+const asNonEmptyString = (value: unknown): string | undefined => {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed || undefined;
+};
+
+const ensureNonEmptyString = (value: unknown, field: string): string => {
+  const trimmed = asNonEmptyString(value);
+  if (!trimmed) {
+    throw new AvailabilityServiceError(`Invalid ${field}`);
+  }
+  return trimmed;
+};
+
+const isValidDate = (value: unknown): value is Date =>
+  value instanceof Date && !Number.isNaN(value.getTime());
+
+const ensureValidDate = (value: unknown, field: string): Date => {
+  if (!isValidDate(value)) {
+    throw new AvailabilityServiceError(`Invalid ${field}`);
+  }
+  return value;
+};
 
 /* Split one slot into possibly 3 parts around an occupancy */
 function splitSlotAroundOccupancy(
@@ -63,6 +115,114 @@ function normalizeWeekStart(date: Date) {
     .toDate(); // Monday
 }
 
+const syncBaseAvailabilityToPostgres = async (
+  organisationId: string,
+  userId: string,
+  rows: Array<{
+    dayOfWeek: DayOfWeek;
+    slots: AvailabilitySlotMongo[];
+  }>,
+) => {
+  if (!shouldDualWrite) return;
+  try {
+    await prisma.baseAvailability.deleteMany({
+      where: { userId, organisationId },
+    });
+    if (rows.length) {
+      await prisma.baseAvailability.createMany({
+        data: rows.map((row) => ({
+          userId,
+          organisationId,
+          dayOfWeek: row.dayOfWeek as never,
+          slots: row.slots as unknown as Prisma.InputJsonValue,
+        })),
+      });
+    }
+  } catch (err) {
+    handleDualWriteError("BaseAvailability", err);
+  }
+};
+
+const syncWeeklyOverrideToPostgres = async (doc: {
+  id: string;
+  userId: string;
+  organisationId: string;
+  weekStartDate: Date;
+  overrides: Array<{ dayOfWeek: DayOfWeek; slots: AvailabilitySlotMongo[] }>;
+  createdAt?: Date;
+  updatedAt?: Date;
+}) => {
+  if (!shouldDualWrite) return;
+  try {
+    await prisma.weeklyAvailabilityOverride.upsert({
+      where: {
+        userId_organisationId_weekStartDate: {
+          userId: doc.userId,
+          organisationId: doc.organisationId,
+          weekStartDate: doc.weekStartDate,
+        },
+      },
+      create: {
+        id: doc.id,
+        userId: doc.userId,
+        organisationId: doc.organisationId,
+        weekStartDate: doc.weekStartDate,
+        overrides: doc.overrides as unknown as Prisma.InputJsonValue,
+        createdAt: doc.createdAt ?? undefined,
+        updatedAt: doc.updatedAt ?? undefined,
+      },
+      update: {
+        overrides: doc.overrides as unknown as Prisma.InputJsonValue,
+        updatedAt: doc.updatedAt ?? undefined,
+      },
+    });
+  } catch (err) {
+    handleDualWriteError("WeeklyAvailabilityOverride", err);
+  }
+};
+
+const syncOccupancyToPostgres = async (doc: {
+  _id: { toString(): string };
+  userId: string;
+  organisationId: string;
+  startTime: Date;
+  endTime: Date;
+  sourceType: OccupancySourceType;
+  referenceId?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}) => {
+  if (!shouldDualWrite) return;
+  try {
+    await prisma.occupancy.upsert({
+      where: { id: doc._id.toString() },
+      create: {
+        id: doc._id.toString(),
+        userId: doc.userId,
+        organisationId: doc.organisationId,
+        startTime: doc.startTime,
+        endTime: doc.endTime,
+        sourceType: doc.sourceType,
+        referenceId: doc.referenceId ?? undefined,
+        createdAt: doc.createdAt ?? undefined,
+        updatedAt: doc.updatedAt ?? undefined,
+      },
+      update: {
+        startTime: doc.startTime,
+        endTime: doc.endTime,
+        sourceType: doc.sourceType,
+        referenceId: doc.referenceId ?? undefined,
+        updatedAt: doc.updatedAt ?? undefined,
+      },
+    });
+  } catch (err) {
+    handleDualWriteError("Occupancy", err);
+  }
+};
+
+const isMongoAvailable = () =>
+  mongoose.connection.readyState === mongoose.ConnectionStates.connected;
+
 // Generate Bookablble slots
 export function generateBookableWindows(
   date: string,
@@ -108,24 +268,137 @@ export const AvailabilityService = {
       slots: AvailabilitySlotMongo[];
     }[],
   ) {
-    await BaseAvailabilityModel.deleteMany({ userId, organisationId });
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
+    const safeUserId = ensureNonEmptyString(userId, "userId");
+    const usePostgresWrite = isReadFromPostgres() && !isMongoAvailable();
 
     const rows = availabilities.map((a) => ({
-      organisationId,
-      userId,
+      organisationId: safeOrganisationId,
+      userId: safeUserId,
       dayOfWeek: a.dayOfWeek,
       slots: a.slots,
     }));
 
-    return BaseAvailabilityModel.insertMany(rows);
+    if (usePostgresWrite) {
+      await prisma.baseAvailability.deleteMany({
+        where: { userId: safeUserId, organisationId: safeOrganisationId },
+      });
+      if (rows.length) {
+        await prisma.baseAvailability.createMany({
+          data: rows.map((row) => ({
+            userId: row.userId,
+            organisationId: row.organisationId,
+            dayOfWeek: row.dayOfWeek as never,
+            slots: row.slots as unknown as Prisma.InputJsonValue,
+          })),
+        });
+      }
+
+      const created = await prisma.baseAvailability.findMany({
+        where: { userId: safeUserId, organisationId: safeOrganisationId },
+        orderBy: { dayOfWeek: "asc" },
+      });
+
+      return created.map((row) => ({
+        dayOfWeek: row.dayOfWeek as DayOfWeek,
+        slots: row.slots as unknown as AvailabilitySlotMongo[],
+      }));
+    }
+
+    await BaseAvailabilityModel.deleteMany({
+      userId: safeUserId,
+      organisationId: safeOrganisationId,
+    });
+
+    const docs = await BaseAvailabilityModel.insertMany(rows);
+    await syncBaseAvailabilityToPostgres(safeOrganisationId, safeUserId, rows);
+    return docs;
   },
 
   async getBaseAvailability(organisationId: string, userId: string) {
-    return BaseAvailabilityModel.find({ organisationId, userId });
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
+    const safeUserId = ensureNonEmptyString(userId, "userId");
+
+    if (isReadFromPostgres()) {
+      const rows = await prisma.baseAvailability.findMany({
+        where: { organisationId: safeOrganisationId, userId: safeUserId },
+        orderBy: { dayOfWeek: "asc" },
+      });
+      return rows.map((row) => ({
+        dayOfWeek: row.dayOfWeek as DayOfWeek,
+        slots: row.slots as unknown as AvailabilitySlotMongo[],
+      }));
+    }
+
+    return BaseAvailabilityModel.find({
+      organisationId: safeOrganisationId,
+      userId: safeUserId,
+    });
+  },
+
+  async getOrganisationBaseAvailability(organisationId: string) {
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
+
+    if (isReadFromPostgres()) {
+      const rows = await prisma.baseAvailability.findMany({
+        where: { organisationId: safeOrganisationId },
+        orderBy: [{ userId: "asc" }, { dayOfWeek: "asc" }],
+      });
+
+      return rows.map((row) => ({
+        _id: row.id,
+        userId: row.userId,
+        organisationId: row.organisationId,
+        dayOfWeek: row.dayOfWeek as DayOfWeek,
+        slots: row.slots as unknown as AvailabilitySlotMongo[],
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+      }));
+    }
+
+    return BaseAvailabilityModel.find({
+      organisationId: safeOrganisationId,
+    }).sort({ userId: 1, dayOfWeek: 1 });
   },
 
   async deleteBaseAvailability(organisationId: string, userId: string) {
-    await BaseAvailabilityModel.deleteMany({ organisationId, userId });
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
+    const safeUserId = ensureNonEmptyString(userId, "userId");
+    const usePostgresWrite = isReadFromPostgres() && !isMongoAvailable();
+
+    if (usePostgresWrite) {
+      await prisma.baseAvailability.deleteMany({
+        where: { organisationId: safeOrganisationId, userId: safeUserId },
+      });
+      return;
+    }
+
+    await BaseAvailabilityModel.deleteMany({
+      organisationId: safeOrganisationId,
+      userId: safeUserId,
+    });
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.baseAvailability.deleteMany({
+          where: { organisationId: safeOrganisationId, userId: safeUserId },
+        });
+      } catch (err) {
+        handleDualWriteError("BaseAvailability delete", err);
+      }
+    }
   },
 
   // Weekly Overrides
@@ -136,11 +409,17 @@ export const AvailabilityService = {
     weekDate: Date,
     override: { dayOfWeek: DayOfWeek; slots: AvailabilitySlotMongo[] },
   ) {
-    const weekStartDate = normalizeWeekStart(weekDate);
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
+    const safeUserId = ensureNonEmptyString(userId, "userId");
+    const safeWeekDate = ensureValidDate(weekDate, "weekDate");
+    const weekStartDate = normalizeWeekStart(safeWeekDate);
 
     const existing = await WeeklyAvailabilityOverrideModel.findOne({
-      userId,
-      organisationId,
+      userId: safeUserId,
+      organisationId: safeOrganisationId,
       weekStartDate,
     });
 
@@ -151,12 +430,30 @@ export const AvailabilityService = {
       if (idx >= 0) existing.overrides[idx] = override;
       else existing.overrides.push(override);
       await existing.save();
+      await syncWeeklyOverrideToPostgres({
+        id: String(existing._id),
+        userId: existing.userId,
+        organisationId: existing.organisationId,
+        weekStartDate,
+        overrides: existing.overrides,
+        createdAt: existing.createdAt ?? undefined,
+        updatedAt: existing.updatedAt ?? undefined,
+      });
     } else {
-      await WeeklyAvailabilityOverrideModel.create({
-        userId,
-        organisationId,
+      const created = (await WeeklyAvailabilityOverrideModel.create({
+        userId: safeUserId,
+        organisationId: safeOrganisationId,
         weekStartDate,
         overrides: [override],
+      })) as WeeklyAvailabilityOverrideDocumentWithId;
+      await syncWeeklyOverrideToPostgres({
+        id: String(created._id),
+        userId: created.userId,
+        organisationId: created.organisationId,
+        weekStartDate,
+        overrides: created.overrides,
+        createdAt: created.createdAt ?? undefined,
+        updatedAt: created.updatedAt ?? undefined,
       });
     }
   },
@@ -166,10 +463,34 @@ export const AvailabilityService = {
     userId: string,
     weekDate: Date,
   ) {
-    return WeeklyAvailabilityOverrideModel.findOne({
-      userId,
+    const safeOrganisationId = ensureNonEmptyString(
       organisationId,
-      weekStartDate: normalizeWeekStart(weekDate),
+      "organisationId",
+    );
+    const safeUserId = ensureNonEmptyString(userId, "userId");
+    const safeWeekDate = ensureValidDate(weekDate, "weekDate");
+
+    if (isReadFromPostgres()) {
+      const override = await prisma.weeklyAvailabilityOverride.findFirst({
+        where: {
+          userId: safeUserId,
+          organisationId: safeOrganisationId,
+          weekStartDate: normalizeWeekStart(safeWeekDate),
+        },
+      });
+      if (!override) return null;
+      return {
+        overrides: override.overrides as unknown as Array<{
+          dayOfWeek: DayOfWeek;
+          slots: AvailabilitySlotMongo[];
+        }>,
+      };
+    }
+
+    return WeeklyAvailabilityOverrideModel.findOne({
+      userId: safeUserId,
+      organisationId: safeOrganisationId,
+      weekStartDate: normalizeWeekStart(safeWeekDate),
     });
   },
 
@@ -178,11 +499,32 @@ export const AvailabilityService = {
     userId: string,
     weekDate: Date,
   ) {
-    await WeeklyAvailabilityOverrideModel.deleteOne({
-      userId,
+    const safeOrganisationId = ensureNonEmptyString(
       organisationId,
-      weekStartDate: normalizeWeekStart(weekDate),
+      "organisationId",
+    );
+    const safeUserId = ensureNonEmptyString(userId, "userId");
+    const safeWeekDate = ensureValidDate(weekDate, "weekDate");
+
+    await WeeklyAvailabilityOverrideModel.deleteOne({
+      userId: safeUserId,
+      organisationId: safeOrganisationId,
+      weekStartDate: normalizeWeekStart(safeWeekDate),
     });
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.weeklyAvailabilityOverride.deleteMany({
+          where: {
+            userId: safeUserId,
+            organisationId: safeOrganisationId,
+            weekStartDate: normalizeWeekStart(safeWeekDate),
+          },
+        });
+      } catch (err) {
+        handleDualWriteError("WeeklyAvailabilityOverride delete", err);
+      }
+    }
   },
 
   // Occupancies
@@ -195,13 +537,32 @@ export const AvailabilityService = {
     sourceType: "APPOINTMENT" | "BLOCKED" | "SURGERY",
     referenceId?: string,
   ) {
-    await OccupancyModel.create({
-      userId,
+    const safeOrganisationId = ensureNonEmptyString(
       organisationId,
-      startTime,
-      endTime,
+      "organisationId",
+    );
+    const safeUserId = ensureNonEmptyString(userId, "userId");
+    const safeStartTime = ensureValidDate(startTime, "startTime");
+    const safeEndTime = ensureValidDate(endTime, "endTime");
+
+    const doc = (await OccupancyModel.create({
+      userId: safeUserId,
+      organisationId: safeOrganisationId,
+      startTime: safeStartTime,
+      endTime: safeEndTime,
       sourceType,
       referenceId,
+    })) as OccupancyDocumentWithTimestamps;
+    await syncOccupancyToPostgres({
+      _id: doc._id,
+      userId: doc.userId,
+      organisationId: doc.organisationId,
+      startTime: doc.startTime,
+      endTime: doc.endTime,
+      sourceType: doc.sourceType,
+      referenceId: doc.referenceId ?? undefined,
+      createdAt: doc.createdAt ?? undefined,
+      updatedAt: doc.updatedAt ?? undefined,
     });
   },
 
@@ -215,13 +576,41 @@ export const AvailabilityService = {
       referenceId?: string;
     }[],
   ): Promise<void> {
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
+    const safeUserId = ensureNonEmptyString(userId, "userId");
+
     const docs = items.map((i) => ({
       ...i,
-      organisationId,
-      userId,
+      organisationId: safeOrganisationId,
+      userId: safeUserId,
     }));
 
-    await OccupancyModel.insertMany(docs);
+    const created = (await OccupancyModel.insertMany(
+      docs,
+    )) as OccupancyDocumentWithTimestamps[];
+
+    if (shouldDualWrite) {
+      try {
+        await prisma.occupancy.createMany({
+          data: created.map((doc) => ({
+            id: doc._id.toString(),
+            userId: doc.userId,
+            organisationId: doc.organisationId,
+            startTime: doc.startTime,
+            endTime: doc.endTime,
+            sourceType: doc.sourceType,
+            referenceId: doc.referenceId ?? undefined,
+            createdAt: doc.createdAt ?? undefined,
+            updatedAt: doc.updatedAt ?? undefined,
+          })),
+        });
+      } catch (err) {
+        handleDualWriteError("Occupancy bulk", err);
+      }
+    }
   },
 
   async getOccupancy(
@@ -230,11 +619,30 @@ export const AvailabilityService = {
     from: Date,
     to: Date,
   ) {
-    return OccupancyModel.find({
-      userId,
+    const safeOrganisationId = ensureNonEmptyString(
       organisationId,
-      startTime: { $lt: to },
-      endTime: { $gt: from },
+      "organisationId",
+    );
+    const safeUserId = ensureNonEmptyString(userId, "userId");
+    const safeFrom = ensureValidDate(from, "from");
+    const safeTo = ensureValidDate(to, "to");
+
+    if (isReadFromPostgres()) {
+      return prisma.occupancy.findMany({
+        where: {
+          userId: safeUserId,
+          organisationId: safeOrganisationId,
+          startTime: { lt: safeTo },
+          endTime: { gt: safeFrom },
+        },
+      });
+    }
+
+    return OccupancyModel.find({
+      userId: safeUserId,
+      organisationId: safeOrganisationId,
+      startTime: { $lt: safeTo },
+      endTime: { $gt: safeFrom },
     }).lean();
   },
 
@@ -245,8 +653,15 @@ export const AvailabilityService = {
     userId: string,
     referenceDate: Date,
   ) {
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
+    const safeUserId = ensureNonEmptyString(userId, "userId");
+    const safeReferenceDate = ensureValidDate(referenceDate, "referenceDate");
+
     // Always calculate week starting Monday (UTC)
-    const weekStart = dayjs(referenceDate)
+    const weekStart = dayjs(safeReferenceDate)
       .utc()
       .startOf("week") // Sunday
       .add(1, "day") // => Monday
@@ -263,7 +678,7 @@ export const AvailabilityService = {
     });
 
     // Load base availability
-    const base = await this.getBaseAvailability(organisationId, userId);
+    const base = await this.getBaseAvailability(safeOrganisationId, safeUserId);
 
     // Convert base into map: { MONDAY → [...slots] }
     const map = new Map<DayOfWeek, AvailabilitySlotMongo[]>();
@@ -274,8 +689,8 @@ export const AvailabilityService = {
 
     // Load weekly override (if exists)
     const override = await this.getWeeklyAvailabilityOverride(
-      organisationId,
-      userId,
+      safeOrganisationId,
+      safeUserId,
       weekStart,
     );
 
@@ -288,11 +703,20 @@ export const AvailabilityService = {
     // Load occupancies for the week
     const weekEnd = dayjs(weekStart).add(7, "day").endOf("day").toDate();
 
-    const occupancies = await OccupancyModel.find({
-      userId,
-      organisationId,
-      $or: [{ startTime: { $lte: weekEnd }, endTime: { $gte: weekStart } }],
-    }).lean();
+    const occupancies = isReadFromPostgres()
+      ? await prisma.occupancy.findMany({
+          where: {
+            userId: safeUserId,
+            organisationId: safeOrganisationId,
+            startTime: { lte: weekEnd },
+            endTime: { gte: weekStart },
+          },
+        })
+      : await OccupancyModel.find({
+          userId: safeUserId,
+          organisationId: safeOrganisationId,
+          $or: [{ startTime: { $lte: weekEnd }, endTime: { $gte: weekStart } }],
+        }).lean();
 
     // Now remove overlapping slots
     for (const occ of occupancies) {
@@ -329,14 +753,16 @@ export const AvailabilityService = {
     userId: string,
     referenceDate: Date,
   ) {
+    const safeReferenceDate = ensureValidDate(referenceDate, "referenceDate");
+
     const week = await this.getWeeklyFinalAvailability(
       organisationId,
       userId,
-      referenceDate,
+      safeReferenceDate,
     );
 
-    const dayOfWeek = getDayOfWeekFromDate(referenceDate);
-    const dateStr = getDateString(referenceDate);
+    const dayOfWeek = getDayOfWeekFromDate(safeReferenceDate);
+    const dateStr = getDateString(safeReferenceDate);
 
     const dayEntry = week.find((d) => d.dayOfWeek === dayOfWeek);
 
@@ -350,35 +776,53 @@ export const AvailabilityService = {
   async getCurrentStatus(
     organisationId: string,
     userId: string,
-  ): Promise<"Consulting" | "Available" | "Off-Duty" | "Requested"> {
-    const now = dayjs();
-    const today = now.toDate();
-
-    const { slots } = await this.getFinalAvailabilityForDate(
+  ): Promise<"Consulting" | "Available" | "Off-Duty" | "Unavailable"> {
+    const safeOrganisationId = ensureNonEmptyString(
       organisationId,
-      userId,
+      "organisationId",
+    );
+    const safeUserId = ensureNonEmptyString(userId, "userId");
+
+    const nowUtc = dayjs.utc();
+    const today = nowUtc.toDate();
+
+    const { slots, date } = await this.getFinalAvailabilityForDate(
+      safeOrganisationId,
+      safeUserId,
       today,
     );
 
-    const occupied = await OccupancyModel.exists({
-      organisationId,
-      userId,
-      startTime: { $lte: now.toDate() },
-      endTime: { $gte: now.toDate() },
-    });
+    const occupied = isReadFromPostgres()
+      ? await prisma.occupancy.findFirst({
+          where: {
+            organisationId: safeOrganisationId,
+            userId: safeUserId,
+            startTime: { lte: nowUtc.toDate() },
+            endTime: { gte: nowUtc.toDate() },
+          },
+          select: { id: true },
+        })
+      : await OccupancyModel.exists({
+          organisationId: safeOrganisationId,
+          userId: safeUserId,
+          startTime: { $lte: nowUtc.toDate() },
+          endTime: { $gte: nowUtc.toDate() },
+        });
 
     if (occupied) return "Consulting";
 
-    const activeSlot = slots.find(
-      (s) =>
-        now.isAfter(dayjs(s.startTime, "HH:mm")) &&
-        now.isBefore(dayjs(s.endTime, "HH:mm")),
-    );
+    const activeSlot = slots.find((s) => {
+      const slotStart = dayjs.utc(`${date}T${s.startTime}:00`);
+      const slotEnd = dayjs.utc(`${date}T${s.endTime}:00`);
+      const startsNowOrEarlier =
+        nowUtc.isSame(slotStart) || nowUtc.isAfter(slotStart);
+      return startsNowOrEarlier && nowUtc.isBefore(slotEnd);
+    });
 
     if (activeSlot) return "Available";
     if (slots.length === 0) return "Off-Duty";
 
-    return "Requested";
+    return "Unavailable";
   },
 
   // Get Bookable slots
@@ -389,11 +833,13 @@ export const AvailabilityService = {
     windowMinutes: number,
     referenceDate: Date,
   ) {
+    const safeReferenceDate = ensureValidDate(referenceDate, "referenceDate");
+
     // 1. Get final availability (with occupancy applied)
     const finalForDate = await this.getFinalAvailabilityForDate(
       organisationId,
       userId,
-      referenceDate,
+      safeReferenceDate,
     );
 
     const dateStr = finalForDate.date;
@@ -407,5 +853,32 @@ export const AvailabilityService = {
       dayOfWeek: finalForDate.dayOfWeek,
       windows,
     };
+  },
+
+  async getWeeklyWorkingHours(
+    organisationId: string,
+    userId: string,
+    referenceDate: Date,
+  ): Promise<number> {
+    const safeReferenceDate = ensureValidDate(referenceDate, "referenceDate");
+
+    const weekly = await this.getWeeklyFinalAvailability(
+      organisationId,
+      userId,
+      safeReferenceDate,
+    );
+
+    let totalMinutes = 0;
+
+    for (const day of weekly) {
+      for (const slot of day.slots) {
+        const start = dayjs.utc(`${day.date}T${slot.startTime}:00`);
+        const end = dayjs.utc(`${day.date}T${slot.endTime}:00`);
+        const diff = end.diff(start, "minute");
+        if (diff > 0) totalMinutes += diff;
+      }
+    }
+
+    return totalMinutes / 60; // hours
   },
 };

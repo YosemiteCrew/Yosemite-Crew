@@ -1,0 +1,59 @@
+.PracBox {
+  background: var(--whitebg);
+  border: 1px solid var(--lightgrey);
+  border-radius: 16px;
+  width: 100%;
+  min-height: 240px;
+  max-width: 320px;
+  padding: 20px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+}
+.pracTitle {
+  margin: 0;
+}
+.pracDesc {
+  margin: 0;
+}
+
+@media screen and (max-width: 1280px) {
+  .PracBox {
+    min-height: 210px;
+    max-width: 260px;
+    padding: 16px;
+    gap: 8px;
+  }
+  .PracBox img {
+    width: 58px;
+    height: 58px;
+  }
+}
+@media screen and (max-width: 768px) {
+  .PracBox {
+    min-height: 180px;
+    max-width: 200px;
+    padding: 14px;
+  }
+  .PracBox img {
+    width: 48px;
+    height: 48px;
+  }
+}
+@media screen and (max-width: 550px) {
+  .PracBox {
+    min-height: 170px;
+    max-width: 100%;
+    flex: 1 1 100%;
+  }
+}
+@media screen and (max-width: 400px) {
+  .PracBox {
+    min-height: 170px;
+    max-width: 85%;
+    flex: 1 1 100%;
+  }
+}

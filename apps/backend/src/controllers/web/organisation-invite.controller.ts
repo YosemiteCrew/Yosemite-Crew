@@ -7,6 +7,7 @@ import {
   type CreateInvitePayload,
 } from "../../services/organisation-invite.service";
 import type { AuthenticatedRequest } from "../../middlewares/auth";
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 type CreateInviteBody = Omit<
   CreateInvitePayload,
@@ -17,22 +18,6 @@ type CreateInviteBody = Omit<
   inviteeName?: string;
   role?: string;
   employmentType?: CreateInvitePayload["employmentType"];
-};
-
-const resolveUserIdFromRequest = (req: Request): string | undefined => {
-  const headerUserId = req.headers["x-user-id"];
-
-  if (typeof headerUserId === "string" && headerUserId.trim()) {
-    return headerUserId;
-  }
-
-  const authRequest = req as AuthenticatedRequest;
-  if (typeof authRequest.userId === "string" && authRequest.userId.trim()) {
-    return authRequest.userId;
-  }
-
-  const authUserId = authRequest.userId;
-  return typeof authUserId === "string" ? authUserId : undefined;
 };
 
 const resolveUserEmailFromRequest = (req: Request): string | undefined => {
@@ -71,7 +56,7 @@ export const OrganisationInviteController = {
       const invite = await OrganisationInviteService.createInvite({
         organisationId,
         invitedByUserId,
-        departmentId: body.departmentId ?? "",
+        departmentIds: body.departmentIds ?? [],
         inviteeEmail: body.inviteeEmail ?? "",
         inviteeName: body.inviteeName,
         role: body.role ?? "",
@@ -165,6 +150,43 @@ export const OrganisationInviteController = {
       }
 
       const invite = await OrganisationInviteService.acceptInvite({
+        token,
+        userId,
+        userEmail,
+      });
+
+      res.status(200).json(invite);
+    } catch (error) {
+      if (error instanceof OrganisationInviteServiceError) {
+        res.status(error.statusCode).json({ message: error.message });
+        return;
+      }
+
+      logger.error("Failed to accept organisation invite.", error);
+      res
+        .status(500)
+        .json({ message: "Unable to accept organisation invite." });
+    }
+  },
+
+  rejectInvite: async (req: Request, res: Response) => {
+    try {
+      const { token } = req.params;
+      const userId = resolveUserIdFromRequest(req);
+      const userEmail = resolveUserEmailFromRequest(req);
+
+      if (!token) {
+        res.status(400).json({ message: "Invite token is required." });
+        return;
+      }
+      if (!userId || !userEmail) {
+        res
+          .status(401)
+          .json({ message: "Authenticated user information is required." });
+        return;
+      }
+
+      const invite = await OrganisationInviteService.rejectInvite({
         token,
         userId,
         userEmail,

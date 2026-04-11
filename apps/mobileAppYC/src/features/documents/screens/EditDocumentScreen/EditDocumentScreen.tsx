@@ -1,40 +1,80 @@
 /* istanbul ignore file -- UI-heavy edit flow pending dedicated integration coverage */
-import React, {useState, useRef, useEffect} from 'react';
+import React, {useState, useRef, useEffect, useMemo} from 'react';
 import {View, Text, StyleSheet, BackHandler} from 'react-native';
-import {useNavigation, useRoute, RouteProp, CommonActions} from '@react-navigation/native';
-import {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import {useRoute, RouteProp, CommonActions} from '@react-navigation/native';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
-import {DocumentForm, type DocumentFormData} from '@/features/documents/components/DocumentForm/DocumentForm';
-import {DeleteDocumentBottomSheet, type DeleteDocumentBottomSheetRef} from '@/shared/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
+import {
+  DocumentForm,
+  DocumentFormSheets,
+  type DocumentFormData,
+} from '@/features/documents/components/DocumentForm/DocumentForm';
+import {
+  DeleteDocumentBottomSheet,
+  type DeleteDocumentBottomSheetRef,
+} from '@/shared/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
 import {DiscardChangesBottomSheet} from '@/shared/components/common/DiscardChangesBottomSheet/DiscardChangesBottomSheet';
-import {useTheme, useDocumentFormValidation} from '@/hooks';
-import {useSelector, useDispatch} from 'react-redux';
-import type {RootState, AppDispatch} from '@/app/store';
+import {useDocumentFormValidation} from '@/hooks';
+import {useSelector} from 'react-redux';
+import type {RootState} from '@/app/store';
 import type {DocumentStackParamList} from '@/navigation/types';
 import type {DocumentFile} from '@/features/documents/types';
-import {updateDocument, deleteDocument, uploadDocumentFiles} from '@/features/documents/documentSlice';
+import {
+  updateDocument,
+  deleteDocument,
+  uploadDocumentFiles,
+} from '@/features/documents/documentSlice';
 import {Images} from '@/assets/images';
 import {setSelectedCompanion} from '@/features/companion';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {
+  useCompanionFormScreen,
+  useFormFileOperations,
+} from '@/shared/hooks/useFormScreen';
+import {formatDateToISODate, parseISODate} from '@/shared/utils/dateHelpers';
 
-type EditDocumentNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
 type EditDocumentRouteProp = RouteProp<DocumentStackParamList, 'EditDocument'>;
 
-export const EditDocumentScreen: React.FC = () => {
-  const {theme} = useTheme();
-  const navigation = useNavigation<EditDocumentNavigationProp>();
-  const route = useRoute<EditDocumentRouteProp>();
-  const dispatch = useDispatch<AppDispatch>();
+const parseIssueDateValue = (value?: string | null): Date => {
+  if (!value) {
+    return new Date();
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const parsedLocal = parseISODate(value);
+    if (!Number.isNaN(parsedLocal.getTime())) {
+      return parsedLocal;
+    }
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return new Date();
+  }
+  return parsed;
+};
 
+export const EditDocumentScreen: React.FC = () => {
+  const {
+    theme,
+    dispatch,
+    navigation,
+    formSheets,
+    handleGoBack: handleGoBackBase,
+    discardSheetRef,
+    markAsChanged,
+    companions,
+  } = useCompanionFormScreen();
+
+  const route = useRoute<EditDocumentRouteProp>();
   const {documentId} = route.params;
 
   const document = useSelector((state: RootState) =>
     state.documents.documents.find(doc => doc.id === documentId),
   );
-  const companions = useSelector((state: RootState) => state.companion.companions);
   const loading = useSelector((state: RootState) => state.documents.loading);
 
-  const [selectedCompanionId, setSelectedCompanionId] = useState<string | null>(null);
+  const [selectedCompanionId, setSelectedCompanionId] = useState<string | null>(
+    null,
+  );
   const [formData, setFormData] = useState<DocumentFormData>({
     category: null,
     subcategory: null,
@@ -50,9 +90,7 @@ export const EditDocumentScreen: React.FC = () => {
     useDocumentFormValidation();
 
   const deleteDocumentSheetRef = useRef<DeleteDocumentBottomSheetRef>(null);
-  const discardSheetRef = useRef<any>(null);
   const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   useEffect(() => {
     if (document) {
@@ -65,7 +103,7 @@ export const EditDocumentScreen: React.FC = () => {
         title: document.title,
         businessName: document.businessName,
         hasIssueDate: !!document.issueDate,
-        issueDate: document.issueDate ? new Date(document.issueDate) : new Date(),
+        issueDate: parseIssueDateValue(document.issueDate),
         files: document.files,
       });
     }
@@ -73,30 +111,22 @@ export const EditDocumentScreen: React.FC = () => {
 
   // Handle Android back button for delete bottom sheet
   useEffect(() => {
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (isDeleteSheetOpen) {
-        deleteDocumentSheetRef.current?.close();
-        setIsDeleteSheetOpen(false);
-        return true;
-      }
-      return false;
-    });
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        if (isDeleteSheetOpen) {
+          deleteDocumentSheetRef.current?.close();
+          setIsDeleteSheetOpen(false);
+          return true;
+        }
+        return false;
+      },
+    );
 
     return () => backHandler.remove();
   }, [isDeleteSheetOpen]);
 
-  if (!document) {
-    return (
-      <SafeArea>
-        <Header title="Edit document" showBackButton={true} onBack={() => navigation.goBack()} />
-        <View style={styles.errorContainer}>
-          <Text style={[styles.errorMessage, {color: theme.colors.error}]}>
-            Document not found
-          </Text>
-        </View>
-      </SafeArea>
-    );
-  }
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   const resolveErrorMessage = (error: unknown, fallback: string) => {
     if (typeof error === 'string') {
@@ -190,7 +220,10 @@ export const EditDocumentScreen: React.FC = () => {
           visitType: formData.visitType || '',
           title: formData.title,
           businessName: formData.businessName,
-          issueDate: formData.hasIssueDate ? formData.issueDate.toISOString() : '',
+          issueDate:
+            formData.hasIssueDate && formData.issueDate
+              ? formatDateToISODate(formData.issueDate)
+              : '',
           files: uploadedFiles,
         }),
       ).unwrap();
@@ -209,43 +242,93 @@ export const EditDocumentScreen: React.FC = () => {
 
   const handleFormChange = (field: keyof DocumentFormData, value: any) => {
     setFormData(prev => ({...prev, [field]: value}));
-    setHasUnsavedChanges(true);
+    markAsChanged();
   };
 
-  const handleBack = () => {
-    if (hasUnsavedChanges) {
-      discardSheetRef.current?.open();
-    } else {
-      navigation.goBack();
-    }
-  };
+  const fileOps = useFormFileOperations(
+    formData.files,
+    'files' as keyof DocumentFormData,
+    handleFormChange,
+    clearError,
+    formSheets,
+  );
+
+  if (!document) {
+    return (
+      <SafeArea>
+        <Header
+          title="Edit document"
+          showBackButton={true}
+          onBack={() => navigation.goBack()}
+        />
+        <View style={styles.errorContainer}>
+          <Text style={[styles.errorMessage, {color: theme.colors.error}]}>
+            Document not found
+          </Text>
+        </View>
+      </SafeArea>
+    );
+  }
+
+  const handleBack = handleGoBackBase;
 
   const handleCompanionSelect = (id: string | null) => {
     setSelectedCompanionId(id);
     dispatch(setSelectedCompanion(id));
   };
 
+  const handleCategoryChange = (newCategory: string | null) => {
+    handleFormChange('category', newCategory);
+    handleFormChange('subcategory', null);
+    clearError('category');
+    formSheets.closeSheet();
+  };
+
   return (
-    <SafeArea>
-      <Header
-        title="Edit document"
-        showBackButton={true}
-        onBack={handleBack}
-        onRightPress={handleDelete}
-        rightIcon={Images.deleteIconRed}
-      />
-      <DocumentForm
-        companions={companions}
-        selectedCompanionId={selectedCompanionId}
-        onCompanionSelect={handleCompanionSelect}
+    <>
+      <LiquidGlassHeaderScreen
+        header={
+          <Header
+            title="Edit document"
+            showBackButton={true}
+            onBack={handleBack}
+            onRightPress={handleDelete}
+            rightIcon={Images.deleteIconRed}
+            glass={false}
+          />
+        }
+        contentPadding={theme.spacing['3']}>
+        {contentPaddingStyle => (
+          <DocumentForm
+            companions={companions}
+            selectedCompanionId={selectedCompanionId}
+            onCompanionSelect={handleCompanionSelect}
+            formData={formData}
+            onFormChange={handleFormChange}
+            errors={errors}
+            onErrorClear={clearError}
+            loading={loading}
+            onSave={handleSave}
+            saveButtonText="Save"
+            showNote={false}
+            contentContainerStyle={contentPaddingStyle ?? undefined}
+            formSheetRefs={formSheets.refs}
+            openSheet={formSheets.openSheet}
+            closeSheet={formSheets.closeSheet}
+            fileOperations={fileOps}
+            renderBottomSheets={false}
+          />
+        )}
+      </LiquidGlassHeaderScreen>
+
+      <DocumentFormSheets
         formData={formData}
         onFormChange={handleFormChange}
-        errors={errors}
         onErrorClear={clearError}
-        loading={loading}
-        onSave={handleSave}
-        saveButtonText="Save"
-        showNote={false}
+        fileOperations={fileOps}
+        formSheetRefs={formSheets.refs}
+        closeSheet={formSheets.closeSheet}
+        onCategoryChange={handleCategoryChange}
       />
 
       <DeleteDocumentBottomSheet
@@ -258,17 +341,19 @@ export const EditDocumentScreen: React.FC = () => {
         ref={discardSheetRef}
         onDiscard={() => navigation.goBack()}
       />
-    </SafeArea>
+    </>
   );
 };
 
-const styles = StyleSheet.create({
-  errorContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  errorMessage: {
-    fontSize: 16,
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    errorContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    errorMessage: {
+      ...theme.typography.body,
+      color: theme.colors.error,
+    },
+  });

@@ -1,14 +1,13 @@
 import React from 'react';
-import {render, screen, act} from '@testing-library/react-native';
+import {render, screen, act} from '../../setup/testUtils';
 import {useSelector} from 'react-redux';
 // FIX 1: Update component import path
 import {
   AssignTaskBottomSheet,
   type AssignTaskBottomSheetRef,
 } from '@/features/tasks/components/AssignTaskBottomSheet/AssignTaskBottomSheet';
-// FIX 2: Update hook import path
-import {useTheme} from '@/shared/hooks';
 import {selectAuthUser} from '@/features/auth/selectors';
+import {selectAcceptedCoParents} from '@/features/coParent/selectors';
 import type {RootState} from '@/app/store';
 import type {User} from '@/features/auth/types';
 // FIX 3: Update shared component type import path
@@ -49,10 +48,23 @@ jest.mock('@react-navigation/native', () => ({
 }));
 
 // Redux & Hooks
-jest.mock('react-redux');
+// Redux Provider is handled by renderWithProviders from testUtils
 // FIX 4: Update hook mock path
-jest.mock('@/shared/hooks');
+jest.mock('@/hooks', () => ({
+  useTheme: () => ({theme: require('../../setup/mockTheme').mockTheme, isDark: false}),
+  useAppDispatch: () => jest.fn(),
+  useAppSelector: jest.fn(),
+}));
 jest.mock('@/features/auth/selectors');
+
+jest.mock('@/features/coParent/selectors', () => ({
+  selectAcceptedCoParents: jest.fn(),
+}));
+
+jest.mock('react-redux', () => ({
+  ...jest.requireActual('react-redux'),
+  useSelector: jest.fn(),
+}));
 
 // Mock child component: GenericSelectBottomSheet
 const mockSheetRef = {
@@ -87,8 +99,8 @@ jest.mock(
 
 // Type-cast mocks
 const mockedUseSelector = useSelector as unknown as jest.Mock;
-const mockedUseTheme = useTheme as jest.Mock;
 const mockedSelectAuthUser = selectAuthUser as jest.Mock;
+const mockedSelectAcceptedCoParents = selectAcceptedCoParents as jest.Mock;
 
 // --- Mock Data ---
 
@@ -108,17 +120,6 @@ const mockUserMinimal: User = {
   profilePicture: undefined,
 } as any;
 
-const testTheme = {
-  colors: {
-    lightBlueBackground: '#f0f8ff',
-    primary: '#007bff',
-    white: '#ffffff',
-  },
-  typography: {
-    bodyMedium: {fontSize: 16},
-  },
-};
-
 let mockReduxState: Partial<RootState>;
 
 // Helper to render the component with specific mock state
@@ -128,12 +129,18 @@ const renderComponent = (
 ) => {
   mockReduxState = {
     auth: {user: user} as any,
+    companion: {
+      selectedCompanionId: null,
+      companions: [],
+    } as any,
   };
 
-  mockedUseTheme.mockReturnValue({theme: testTheme});
+  // useTheme is already mocked in @/hooks mock
   mockedSelectAuthUser.mockImplementation(
     (state: RootState) => state.auth.user,
   );
+
+  mockedSelectAcceptedCoParents.mockReturnValue([]);
 
   mockedUseSelector.mockImplementation(
     (selector: (state: RootState) => any): any => {
@@ -271,30 +278,30 @@ describe('AssignTaskBottomSheet', () => {
     ) => React.ReactElement;
 
     beforeEach(() => {
-      mockedUseTheme.mockReturnValue({theme: testTheme});
+      // useTheme is already mocked in @/hooks mock
       renderComponent(mockUserFull);
       const sheet = screen.getByTestId('mock-generic-sheet');
       renderItem = sheet.props.renderItem;
     });
 
     it('renders avatar image when avatar URL is present', () => {
-      mockedUseTheme.mockReturnValue({theme: testTheme});
+      // useTheme is already mocked in @/hooks mock
     });
 
     it('renders initials when avatar URL is missing', () => {
       const item: SelectItem = {id: 'user-1', label: 'Test', avatar: undefined};
-      mockedUseTheme.mockReturnValue({theme: testTheme});
+      // useTheme is already mocked in @/hooks mock
       const {getByText, queryByTestId} = render(renderItem(item, false));
       expect(getByText('T')).toBeTruthy(); // First char of 'Test'
       expect(queryByTestId('mock-image')).toBeNull();
     });
 
     it('renders a checkmark when item is selected', () => {
-      mockedUseTheme.mockReturnValue({theme: testTheme});
+      // useTheme is already mocked in @/hooks mock
     });
 
     it('does not render a checkmark when item is not selected', () => {
-      mockedUseTheme.mockReturnValue({theme: testTheme});
+      // useTheme is already mocked in @/hooks mock
     });
   });
 });

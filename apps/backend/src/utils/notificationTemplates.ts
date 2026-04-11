@@ -51,15 +51,21 @@ export const NotificationTemplates = {
   // -------------------------------------------------------
   //
   Payment: {
-    PAYMENT_PENDING: (amount: number): NotificationPayload => ({
+    PAYMENT_PENDING: (
+      amount: number,
+      currency: string,
+    ): NotificationPayload => ({
       title: "Payment Pending 💳",
-      body: `A quick reminder! You have a pending payment of ₹${amount}. Tap to complete it.`,
+      body: `A quick reminder! You have a pending payment of ${amount} ${currency}. Tap to complete it.`,
       type: "PAYMENTS",
     }),
 
-    PAYMENT_SUCCESS: (amount: number): NotificationPayload => ({
+    PAYMENT_SUCCESS: (
+      amount: number,
+      currency: string,
+    ): NotificationPayload => ({
       title: "Payment Successful! 🥳",
-      body: `Woohoo! Your payment of ₹${amount} went through. Thanks for taking great care of your companion!`,
+      body: `Woohoo! Your payment of ${amount} ${currency} went through. Thanks for taking great care of your companion!`,
       type: "PAYMENTS",
     }),
 
@@ -69,9 +75,9 @@ export const NotificationTemplates = {
       type: "PAYMENTS",
     }),
 
-    REFUND_ISSUED: (amount: number): NotificationPayload => ({
+    REFUND_ISSUED: (amount: number, currency: string): NotificationPayload => ({
       title: "Refund Processed 💸",
-      body: `A refund of ₹${amount} has been processed. Check your bank for updates.`,
+      body: `A refund of ${amount} ${currency} has been processed. Check your bank for updates.`,
       type: "PAYMENTS",
     }),
   },
@@ -122,6 +128,46 @@ export const NotificationTemplates = {
     OTP: (otp: string): NotificationPayload => ({
       title: "Your OTP is Ready! 🔐",
       body: `Use this code to continue: ${otp}. It’s valid for the next 10 minutes!`,
+    }),
+  },
+
+  Task: {
+    TASK_ASSIGNED: (
+      companionName: string,
+      taskName: string,
+      dueTime: string,
+    ): NotificationPayload => ({
+      title: "New Task Assigned 🐾",
+      body: `A new task for ${companionName} — "${taskName}" — is assigned to you. It's due by ${dueTime}. You've got this! 💪`,
+      type: "TASKS",
+    }),
+
+    TASK_DUE_REMINDER: (
+      companionName: string,
+      taskName: string,
+      dueTime: string,
+    ): NotificationPayload => ({
+      title: "Task Reminder ⏰",
+      body: `Just a friendly nudge — "${taskName}" for ${companionName} is due at ${dueTime}. Thanks for staying on top of things! 💚`,
+      type: "TASKS",
+    }),
+
+    TASK_COMPLETED: (
+      companionName: string,
+      taskName: string,
+    ): NotificationPayload => ({
+      title: "Task Completed 🎉",
+      body: `Great job! You’ve marked "${taskName}" for ${companionName} as completed. Keep up the amazing work! 🐶✨`,
+      type: "TASKS",
+    }),
+
+    TASK_OVERDUE: (
+      companionName: string,
+      taskName: string,
+    ): NotificationPayload => ({
+      title: "Task Overdue ⚠️",
+      body: `Looks like "${taskName}" for ${companionName} is now overdue. Don't worry — you can still complete it anytime.`,
+      type: "TASKS",
     }),
   },
 };

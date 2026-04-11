@@ -1,5 +1,5 @@
 import React from 'react';
-import {Alert, Platform, ToastAndroid} from 'react-native';
+import {Alert, Platform, ToastAndroid, View, StyleSheet} from 'react-native';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import type {BottomTabBarProps} from '@react-navigation/bottom-tabs';
 import {TabParamList} from './types';
@@ -86,7 +86,7 @@ const createTabPressListener = (
 
 const EMPTY_ACCESS_MAP: Record<string, ParentCompanionAccess> = {};
 
-export const TabNavigator: React.FC = () => {
+const TabNavigatorInner: React.FC = () => {
   const {theme} = useTheme();
   const selectedCompanionId = useSelector(selectSelectedCompanionId);
   const hasCompanions = useSelector(
@@ -143,55 +143,71 @@ export const TabNavigator: React.FC = () => {
   );
 
   return (
-    <Tab.Navigator
-      tabBar={renderFloatingTabBar}
-      screenOptions={{
-        headerStyle: {backgroundColor: theme.colors.background},
-        headerShadowVisible: false,
-        headerTintColor: theme.colors.secondary,
-        headerTitleStyle: {
-          fontFamily: theme.typography.screenTitle.fontFamily,
-          fontSize: theme.typography.screenTitle.fontSize,
-          fontWeight: theme.typography.screenTitle.fontWeight,
-        },
-      }}>
-      <Tab.Screen
-        name="HomeStack"
-        component={HomeStackNavigator}
-        options={{headerShown: false}}
-      />
-      <Tab.Screen
-        name="Appointments"
-        component={AppointmentStackNavigator}
-        options={{headerShown: false}}
-        listeners={({navigation, route}) =>
-          createTabPressListener(
-            navigation,
-            route,
-            guardTab('appointments', 'appointments'),
-          )
-        }
-      />
-      <Tab.Screen
-        name="Documents"
-        component={DocumentStackNavigator}
-        options={{headerShown: false}}
-        listeners={({navigation, route}) =>
-          createTabPressListener(
-            navigation,
-            route,
-            guardTab('documents', 'documents'),
-          )
-        }
-      />
-      <Tab.Screen
-        name="Tasks"
-        component={TaskStackNavigator}
-        options={{headerShown: false, popToTopOnBlur: true}}
-        listeners={({navigation, route}) =>
-          createTabPressListener(navigation, route, guardTab('tasks', 'tasks'))
-        }
-      />
-    </Tab.Navigator>
+    <View style={styles.container}>
+      <Tab.Navigator
+        tabBar={renderFloatingTabBar}
+        screenOptions={{
+          headerStyle: {backgroundColor: theme.colors.background},
+          headerShadowVisible: false,
+          headerTintColor: theme.colors.secondary,
+          headerTitleStyle: {
+            fontFamily: theme.typography.screenTitle.fontFamily,
+            fontSize: theme.typography.screenTitle.fontSize,
+            fontWeight: theme.typography.screenTitle.fontWeight,
+          },
+        }}>
+        <Tab.Screen
+          name="HomeStack"
+          component={HomeStackNavigator}
+          options={{headerShown: false, popToTopOnBlur: true}}
+          listeners={({navigation, route}) =>
+            createTabPressListener(navigation, route)
+          }
+        />
+        <Tab.Screen
+          name="Appointments"
+          component={AppointmentStackNavigator}
+          options={{headerShown: false}}
+          listeners={({navigation, route}) =>
+            createTabPressListener(
+              navigation,
+              route,
+              guardTab('appointments', 'appointments'),
+            )
+          }
+        />
+        <Tab.Screen
+          name="Documents"
+          component={DocumentStackNavigator}
+          options={{headerShown: false}}
+          listeners={({navigation, route}) =>
+            createTabPressListener(
+              navigation,
+              route,
+              guardTab('documents', 'documents'),
+            )
+          }
+        />
+        <Tab.Screen
+          name="Tasks"
+          component={TaskStackNavigator}
+          options={{headerShown: false, popToTopOnBlur: true}}
+          listeners={({navigation, route}) =>
+            createTabPressListener(navigation, route, guardTab('tasks', 'tasks'))
+          }
+        />
+      </Tab.Navigator>
+
+    </View>
   );
 };
+
+export const TabNavigator: React.FC = () => {
+  return <TabNavigatorInner />;
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+});

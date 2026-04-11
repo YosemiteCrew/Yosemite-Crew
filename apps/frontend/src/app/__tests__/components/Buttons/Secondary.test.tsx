@@ -6,7 +6,7 @@ jest.mock("next/link", () => {
   return ({ children, ...props }: any) => <a {...props}>{children}</a>;
 });
 
-import Secondary from "@/app/components/Buttons/Secondary";
+import Secondary from "@/app/ui/primitives/Buttons/Secondary";
 
 describe("Secondary button", () => {
   test("renders secondary styles and href", () => {
@@ -15,7 +15,6 @@ describe("Secondary button", () => {
     const link = screen.getByRole("link", { name: "Back" });
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute("href", "/previous");
-    expect(link).toHaveClass("secondary-button");
   });
 
   test("calls custom onClick handler instead of navigating", () => {

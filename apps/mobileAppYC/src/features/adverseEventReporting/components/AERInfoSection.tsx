@@ -56,24 +56,20 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: theme.spacing[4],
+      marginBottom: theme.spacing['4'],
     },
     sectionTitle: {
       ...theme.typography.h6Clash,
       color: theme.colors.secondary,
-      marginHorizontal: theme.spacing[2],
+      marginHorizontal: theme.spacing['2'],
     },
     infoCard: {
       borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
       borderColor: theme.colors.borderMuted,
       backgroundColor: theme.colors.cardBackground,
-      marginBottom: theme.spacing[6],
-      shadowColor: '#000000',
-      shadowOffset: {width: 0, height: 2},
-      shadowOpacity: 0.08,
-      shadowRadius: 4,
-      elevation: 2,
+      marginBottom: theme.spacing['6'],
+      ...theme.shadows.sm,
     },
     infoCardFallback: {
       borderRadius: theme.borderRadius.lg,
@@ -86,7 +82,7 @@ const createStyles = (theme: any) =>
       width: 20,
       height: 20,
       resizeMode: 'contain',
-      marginHorizontal: theme.spacing[2],
+      marginHorizontal: theme.spacing['2'],
     },
   });
 

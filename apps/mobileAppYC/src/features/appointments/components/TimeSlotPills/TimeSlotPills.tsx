@@ -51,23 +51,27 @@ export const TimeSlotPills: React.FC<{
 };
 
 const createStyles = (theme: any) => StyleSheet.create({
-  container: {maxHeight: 200},
-  listContent: {gap: 12, paddingVertical: 4, paddingHorizontal: 4},
-  column: {flexDirection: 'column', gap: 10},
+  container: {maxHeight: theme.spacing['48']},
+  listContent: {
+    gap: theme.spacing['3'],
+    paddingVertical: theme.spacing['1'],
+    paddingHorizontal: theme.spacing['1'],
+  },
+  column: {flexDirection: 'column', gap: theme.spacing['2.5']},
   pill: {
-    minWidth: 96,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 12,
+    minWidth: theme.spacing['24'],
+    paddingVertical: theme.spacing['2.5'],
+    paddingHorizontal: theme.spacing['3'],
+    borderRadius: theme.borderRadius.md,
     borderWidth: 1,
-    borderColor: '#302F2E',
+    borderColor: theme.colors.text,
     alignItems: 'center',
     justifyContent: 'center',
   },
   active: {backgroundColor: theme.colors.primaryTint, borderColor: theme.colors.primary},
   text: {
-    ...theme.typography.clashBody13,
-    color: '#302F2E',
+    ...theme.typography.labelSmall,
+    color: theme.colors.text,
     textAlign: 'center',
   },
   activeText: {color: theme.colors.primary},
