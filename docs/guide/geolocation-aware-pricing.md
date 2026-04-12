@@ -143,7 +143,7 @@ The original brief described a frontend-driven flow: browser Geolocation API →
 
 ## 8. Implementation Steps (Chronological)
 
-1. **Planning** — explored the codebase (cookies widget, pricing page, backend app.ts/routers, axios interceptor, store patterns) and wrote the implementation plan at `/Users/ahmedmahmoud/.claude/plans/sorted-finding-abelson.md`.
+1. **Planning** — explored the codebase (cookies widget, pricing page, backend app.ts/routers, axios interceptor, store patterns) and wrote an implementation plan.
 2. **Clarification** — asked three architecture questions (detection method, override UI, plan storage) and got user sign-off for: IP-based backend detection, manual switcher, hardcoded constants.
 3. **Backend dependency** — `pnpm --filter backend add geoip-country @types/geoip-country`.
 4. **Backend constants** — created `pricing.constants.ts` with types, currency map, price table.

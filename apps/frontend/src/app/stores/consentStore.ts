@@ -43,7 +43,7 @@ const writeToStorage = (value: 'true' | 'false') => {
 };
 
 export const useConsentStore = create<ConsentState>()((set) => ({
-  status: 'unknown',
+  status: readFromStorage(),
   grant: () => {
     writeToStorage('true');
     set({ status: 'granted' });

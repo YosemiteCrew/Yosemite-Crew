@@ -22,12 +22,12 @@ export const PricingController = {
       const response = getPricingResponse(req, override);
 
       res.setHeader("Cache-Control", "public, max-age=300");
-      res.setHeader("Vary", "X-Preferred-Currency");
+      res.append("Vary", "X-Preferred-Currency");
       return res.status(200).json(response);
     } catch (err) {
       logger.error("Error getPricing:", err);
       return res.status(500).json({
-        error: err instanceof Error ? err.message : "Unknown error",
+        message: "Failed to load pricing.",
       });
     }
   },

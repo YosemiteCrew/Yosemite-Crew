@@ -7,7 +7,7 @@ import { useCurrencyStore } from '@/app/stores/currencyStore';
 import type { PricingResponse } from '@/app/features/marketing/pages/PricingPage/types';
 import { logger } from '@/app/lib/logger';
 
-const PRICING_ENDPOINT = 'v1/pricing';
+const PRICING_ENDPOINT = '/v1/pricing';
 
 type UsePricingResult = {
   data: PricingResponse | null;
