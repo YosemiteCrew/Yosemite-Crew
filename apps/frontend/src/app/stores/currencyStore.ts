@@ -31,6 +31,11 @@ export const useCurrencyStore = create<CurrencyState>()(
       version: 1,
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({ preferred: state.preferred }),
+      onRehydrateStorage: () => (state) => {
+        if (state && state.preferred && !SUPPORTED.has(state.preferred)) {
+          state.preferred = null;
+        }
+      },
     }
   )
 );

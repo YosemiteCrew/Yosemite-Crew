@@ -34,7 +34,8 @@ export const usePricing = (): UsePricingResult => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const shouldFetch = consentStatus === 'granted' || preferred !== null;
+    const shouldFetch =
+      consentStatus === 'granted' || (preferred !== null && consentStatus !== 'denied');
     if (!shouldFetch) {
       setLoading(false);
       return;
@@ -52,7 +53,7 @@ export const usePricing = (): UsePricingResult => {
       .catch((err: unknown) => {
         if (cancelled) return;
         logger.warn('usePricing: failed to fetch pricing', err);
-        setError(err instanceof Error ? err.message : 'Unable to load pricing');
+        setError('Unable to load pricing');
       })
       .finally(() => {
         if (cancelled) return;

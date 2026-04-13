@@ -32,15 +32,18 @@ api.interceptors.request.use(
         } else {
           delete config.headers['x-org-id'];
         }
-        const preferredCurrency = useCurrencyStore.getState().preferred;
-        if (preferredCurrency) {
-          config.headers['X-Preferred-Currency'] = preferredCurrency;
-        } else {
-          delete config.headers['X-Preferred-Currency'];
-        }
       }
     } catch (error) {
       logger.warn('No valid Cognito session available from AuthStore', error);
+    }
+    if (config.headers) {
+      const preferredCurrency = useCurrencyStore.getState().preferred;
+      const VALID_CURRENCIES = new Set(['USD', 'GBP', 'EUR']);
+      if (preferredCurrency && VALID_CURRENCIES.has(preferredCurrency)) {
+        config.headers['X-Preferred-Currency'] = preferredCurrency;
+      } else {
+        delete config.headers['X-Preferred-Currency'];
+      }
     }
     return config;
   },

@@ -18,7 +18,6 @@ export type CurrencySource = "override" | "ip" | "default";
 export interface PricingResponse {
   currency: SupportedCurrency;
   currencySymbol: string;
-  source: CurrencySource;
   plans: PlanDTO[];
 }
 
@@ -54,11 +53,10 @@ export const getPricingResponse = (
   req: Request,
   override: unknown,
 ): PricingResponse => {
-  const { currency, source } = resolveCurrency(req, override);
+  const { currency } = resolveCurrency(req, override);
   return {
     currency,
     currencySymbol: CURRENCY_SYMBOLS[currency],
-    source,
     plans: PRICING_PLANS[currency],
   };
 };

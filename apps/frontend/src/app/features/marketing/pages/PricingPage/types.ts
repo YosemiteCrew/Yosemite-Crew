@@ -2,8 +2,6 @@ export type SupportedCurrency = 'USD' | 'GBP' | 'EUR';
 
 export type PlanId = 'free' | 'business' | 'enterprise';
 
-export type CurrencySource = 'override' | 'ip' | 'default';
-
 export interface PlanDTO {
   id: PlanId;
   active: boolean;
@@ -21,6 +19,5 @@ export interface PlanDTO {
 export interface PricingResponse {
   currency: SupportedCurrency;
   currencySymbol: string;
-  source: CurrencySource;
   plans: PlanDTO[];
 }

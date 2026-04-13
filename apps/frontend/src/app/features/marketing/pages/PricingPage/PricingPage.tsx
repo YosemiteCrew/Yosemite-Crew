@@ -19,6 +19,17 @@ import './PricingPage.css';
 
 type BillingCycle = 'monthly' | 'yearly';
 
+const CURRENCY_SYMBOLS: Record<SupportedCurrency, string> = {
+  USD: '$',
+  GBP: '£',
+  EUR: '€',
+};
+
+const safeCurrencySymbol = (currency: SupportedCurrency): string =>
+  CURRENCY_SYMBOLS[currency] ?? '$';
+
+const safeHref = (src: string): string => (/^[/#]/.test(src) ? src : '/signup');
+
 const formatPrice = (amount: number | null, symbol: string, fallback: string): string => {
   if (amount === null) return fallback;
   return `${symbol}${amount}`;
@@ -92,7 +103,7 @@ const PricingPage = () => {
 
   const plans: PlanDTO[] = pricing?.plans ?? FALLBACK_PLANS;
   const currency: SupportedCurrency = pricing?.currency ?? 'USD';
-  const currencySymbol: string = pricing?.currencySymbol ?? '$';
+  const currencySymbol: string = safeCurrencySymbol(currency);
   const showSkeleton = loading && !pricing;
   const [formData, setFormData] = useState({
     firstName: '',
@@ -210,7 +221,7 @@ const PricingPage = () => {
                       </div>
                       <Link
                         className="w-full rounded-2xl! hover:border-text-brand! hover:text-text-brand! hover:scale-105! transition duration-200 ease-in-out text-black-text! border-black-text! border! h-12 flex items-center justify-center font-satoshi text-[1.125rem] font-medium"
-                        href={plan.buttonSrc}
+                        href={safeHref(plan.buttonSrc)}
                         onClick={() => plan.id === 'enterprise' && setNotify(true)}
                       >
                         {plan.buttonText}
@@ -302,7 +313,7 @@ const PricingPage = () => {
                   </div>
                   <Link
                     className="w-full rounded-2xl! hover:border-text-brand! hover:text-text-brand! hover:scale-105! text-black-text! border-black-text! border! transition duration-300 ease-in-out h-8 md:h-12 flex items-center justify-center font-satoshi text-[0.875rem] md:text-[1.125rem] font-medium"
-                    href={plan.buttonSrc}
+                    href={safeHref(plan.buttonSrc)}
                   >
                     {plan.buttonText}
                   </Link>

@@ -28,14 +28,14 @@ export const validateCurrencyHeader = (
 ): void => {
   const raw = req.headers[HEADER_NAME];
 
-  if (typeof raw === "string") {
+  if (typeof raw === "string" && raw.length <= 5) {
     const candidate = raw.trim().toUpperCase();
     if (SUPPORTED_CURRENCIES.has(candidate as SupportedCurrency)) {
       res.locals.overrideCurrency = candidate as SupportedCurrency;
     } else if (candidate.length > 0) {
-      logger.debug(
-        `validateCurrencyHeader: ignoring invalid X-Preferred-Currency='${candidate}'`,
-      );
+      logger.debug("validateCurrencyHeader: ignoring invalid header", {
+        header: candidate.replace(/[^\x20-\x7E]/g, ""),
+      });
     }
   }
 
