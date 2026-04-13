@@ -49,14 +49,10 @@ export const resolveCurrency = (
   return { currency: DEFAULT_CURRENCY, source: "default" };
 };
 
-export const getPricingResponse = (
-  req: Request,
-  override: unknown,
-): PricingResponse => {
-  const { currency } = resolveCurrency(req, override);
-  return {
-    currency,
-    currencySymbol: CURRENCY_SYMBOLS[currency],
-    plans: PRICING_PLANS[currency],
-  };
-};
+export const buildPricingResponse = (
+  currency: SupportedCurrency,
+): PricingResponse => ({
+  currency,
+  currencySymbol: CURRENCY_SYMBOLS[currency],
+  plans: PRICING_PLANS[currency],
+});

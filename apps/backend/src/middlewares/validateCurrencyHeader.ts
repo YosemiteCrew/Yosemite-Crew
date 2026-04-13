@@ -28,13 +28,21 @@ export const validateCurrencyHeader = (
 ): void => {
   const raw = req.headers[HEADER_NAME];
 
-  if (typeof raw === "string" && raw.length <= 5) {
+  if (typeof raw === "string" && raw.length <= 16) {
     const candidate = raw.trim().toUpperCase();
+    if (candidate.length !== 3) {
+      if (candidate.length > 0) {
+        logger.debug("validateCurrencyHeader: ignoring invalid header", {
+          header: candidate.slice(0, 10).replace(/[^\x20-\x7E]/g, ""),
+        });
+      }
+      return next();
+    }
     if (SUPPORTED_CURRENCIES.has(candidate as SupportedCurrency)) {
       res.locals.overrideCurrency = candidate as SupportedCurrency;
-    } else if (candidate.length > 0) {
+    } else {
       logger.debug("validateCurrencyHeader: ignoring invalid header", {
-        header: candidate.replace(/[^\x20-\x7E]/g, ""),
+        header: candidate,
       });
     }
   }

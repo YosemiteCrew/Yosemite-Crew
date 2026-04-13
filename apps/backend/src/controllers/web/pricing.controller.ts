@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 
 import {
-  getPricingResponse,
+  buildPricingResponse,
   resolveCurrency,
 } from "src/services/pricing.service";
 import logger from "src/utils/logger";
@@ -25,8 +25,8 @@ export const PricingController = {
   getPricing: (req: Request, res: Response) => {
     try {
       const override = res.locals.overrideCurrency as unknown;
-      const { source } = resolveCurrency(req, override);
-      const response = getPricingResponse(req, override);
+      const { currency, source } = resolveCurrency(req, override);
+      const response = buildPricingResponse(currency);
 
       if (source === "ip") {
         res.setHeader("Cache-Control", "private, no-store");

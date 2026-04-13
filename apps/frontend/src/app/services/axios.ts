@@ -6,6 +6,7 @@ import { hardSignOut } from '@/app/hooks/useAuth';
 import { logger } from '@/app/lib/logger';
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
+const VALID_CURRENCIES = new Set(['USD', 'GBP', 'EUR']);
 
 const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,
@@ -38,7 +39,6 @@ api.interceptors.request.use(
     }
     if (config.headers) {
       const preferredCurrency = useCurrencyStore.getState().preferred;
-      const VALID_CURRENCIES = new Set(['USD', 'GBP', 'EUR']);
       if (preferredCurrency && VALID_CURRENCIES.has(preferredCurrency)) {
         config.headers['X-Preferred-Currency'] = preferredCurrency;
       } else {

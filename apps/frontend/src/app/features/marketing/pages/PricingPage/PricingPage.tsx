@@ -11,6 +11,7 @@ import { FALLBACK_PLANS, TableData } from '@/app/features/marketing/pages/Pricin
 import { Primary } from '@/app/ui/primitives/Buttons';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { usePricing } from '@/app/hooks/usePricing';
+import { useCurrencyStore } from '@/app/stores/currencyStore';
 import CurrencySwitcher from '@/app/features/marketing/pages/PricingPage/CurrencySwitcher';
 import PricingSkeleton from '@/app/features/marketing/pages/PricingPage/PricingSkeleton';
 import type { PlanDTO, SupportedCurrency } from '@/app/features/marketing/pages/PricingPage/types';
@@ -28,7 +29,11 @@ const CURRENCY_SYMBOLS: Record<SupportedCurrency, string> = {
 const safeCurrencySymbol = (currency: SupportedCurrency): string =>
   CURRENCY_SYMBOLS[currency] ?? '$';
 
-const safeHref = (src: string): string => (/^[/#]/.test(src) ? src : '/signup');
+const safeHref = (src: string): string => {
+  if (src.startsWith('#')) return src;
+  if (src.startsWith('/') && !src.startsWith('//')) return src;
+  return '/signup';
+};
 
 const formatPrice = (amount: number | null, symbol: string, fallback: string): string => {
   if (amount === null) return fallback;
@@ -100,9 +105,10 @@ const PricingPage = () => {
   const [activeCycle, setActiveCycle] = useState<BillingCycle>('yearly');
   const [notify, setNotify] = useState(false);
   const { data: pricing, loading } = usePricing();
+  const preferred = useCurrencyStore((s) => s.preferred);
 
   const plans: PlanDTO[] = pricing?.plans ?? FALLBACK_PLANS;
-  const currency: SupportedCurrency = pricing?.currency ?? 'USD';
+  const currency: SupportedCurrency = preferred ?? pricing?.currency ?? 'USD';
   const currencySymbol: string = safeCurrencySymbol(currency);
   const showSkeleton = loading && !pricing;
   const [formData, setFormData] = useState({

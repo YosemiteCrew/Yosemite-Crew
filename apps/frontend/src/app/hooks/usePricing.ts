@@ -37,6 +37,8 @@ export const usePricing = (): UsePricingResult => {
     const shouldFetch =
       consentStatus === 'granted' || (preferred !== null && consentStatus !== 'denied');
     if (!shouldFetch) {
+      setData(null);
+      setError(null);
       setLoading(false);
       return;
     }

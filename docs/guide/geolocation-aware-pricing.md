@@ -85,7 +85,6 @@ Response (200):
 {
   "currency": "EUR",
   "currencySymbol": "€",
-  "source": "ip",
   "plans": [
     { "id": "free",      "amount": 0,    "amountYearly": 0,    "active": true,  "recommended": false, ... },
     { "id": "business",  "amount": 12,   "amountYearly": 10,   "active": true,  "recommended": true,  ... },
@@ -94,9 +93,11 @@ Response (200):
 }
 ```
 
-Response headers: `Cache-Control: public, max-age=300`, `Vary: X-Preferred-Currency`.
+Response headers:
 
-`source` is one of `"override"` (client header), `"ip"` (geoip), or `"default"` (USD fallback). Useful for analytics and debugging.
+- `Vary: X-Preferred-Currency` (always present).
+- `Cache-Control: public, max-age=300` when currency is resolved via the header override or falls back to default USD.
+- `Cache-Control: private, no-store` when currency is resolved via IP-based geolocation (cannot be CDN-cached since it varies by client IP).
 
 ## 5. Pricing Table
 
