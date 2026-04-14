@@ -72,7 +72,7 @@ const AddressFields = [
     key: 'addressLine',
     required: true,
     editable: true,
-    type: 'text',
+    type: 'googleAddress',
   },
   {
     label: 'State / Province',

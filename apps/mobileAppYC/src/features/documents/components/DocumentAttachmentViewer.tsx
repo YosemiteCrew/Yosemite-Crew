@@ -11,7 +11,6 @@ import {
   PermissionsAndroid,
   Platform,
 } from 'react-native';
-import {WebView} from 'react-native-webview';
 import Pdf from 'react-native-pdf';
 import {Images} from '@/assets/images';
 import {useTheme} from '@/hooks';
@@ -22,8 +21,6 @@ import {
   isImageFile,
   isPdfFile,
   resolveSourceUri,
-  buildDocViewerUri,
-  buildGoogleDocsViewerUri,
 } from './documentAttachmentUtils';
 import RNFS from 'react-native-fs';
 import {normalizeMimeType} from '@/shared/utils/mime';
@@ -32,9 +29,11 @@ import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/Liquid
 const MIME_EXTENSION_MAP: Record<string, string> = {
   'application/pdf': 'pdf',
   'application/msword': 'doc',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+    'docx',
   'application/vnd.ms-powerpoint': 'ppt',
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation':
+    'pptx',
   'application/vnd.ms-excel': 'xls',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
   'text/plain': 'txt',
@@ -52,7 +51,10 @@ const buildShareLabel = (
   return companionName ? `${baseTitle} for ${companionName}` : baseTitle;
 };
 
-const PdfViewer: React.FC<{uri: string; fallback: React.ReactNode}> = ({uri, fallback}) => {
+const PdfViewer: React.FC<{uri: string; fallback: React.ReactNode}> = ({
+  uri,
+  fallback,
+}) => {
   const {theme} = useTheme();
   const height = Math.max(Dimensions.get('window').height * 0.6, 400);
   const [shouldFallback, setShouldFallback] = React.useState(false);
@@ -84,94 +86,25 @@ const PdfViewer: React.FC<{uri: string; fallback: React.ReactNode}> = ({uri, fal
   );
 };
 
-const DocViewer: React.FC<{uri: string; fallback?: React.ReactNode; fileName?: string}> = ({uri, fallback, fileName}) => {
+const DocViewer: React.FC<{fallback?: React.ReactNode; fileName?: string}> = ({
+  fallback,
+  fileName,
+}) => {
   const {theme} = useTheme();
   const height = Math.max(Dimensions.get('window').height * 0.6, 400);
-  const [hasError, setHasError] = React.useState(false);
-  const [useGoogleViewer, setUseGoogleViewer] = React.useState(false);
-  const contentLoadedRef = React.useRef({loaded: false});
-
-  React.useEffect(() => {
-    console.log('[DocumentAttachmentViewer] DocViewer loading', {
-      fileName,
-      sourceUri: uri,
-      officeUri: buildDocViewerUri(uri),
-    });
-    contentLoadedRef.current.loaded = false;
-  }, [uri, fileName]);
-
-  // Detect blank/empty content and switch to Google Viewer after timeout
-  React.useEffect(() => {
-    if (useGoogleViewer) return; // Already switched
-
-    const timeoutId = setTimeout(() => {
-      if (!contentLoadedRef.current.loaded) {
-        console.warn('[DocumentAttachmentViewer] Office Online Viewer appears blank, switching to Google Docs');
-        setUseGoogleViewer(true);
-      }
-    }, 5000); // Wait 5 seconds for content to load
-
-    return () => clearTimeout(timeoutId);
-  }, [useGoogleViewer]);
-
-  if (hasError && fallback) {
-    return <>{fallback}</>;
-  }
-
-  const officeUri = buildDocViewerUri(uri);
-  const googleUri = buildGoogleDocsViewerUri(uri);
-  const viewerUri = useGoogleViewer ? googleUri : officeUri;
 
   return (
     <View style={[viewerStyles.docContainer(theme.borderRadius.lg), {height}]}>
-      <WebView
-        style={viewerStyles.webview}
-        source={{uri: viewerUri}}
-        originWhitelist={['https://*']}
-        javaScriptEnabled
-        domStorageEnabled
-        allowsInlineMediaPlayback
-        allowFileAccess={false}
-        startInLoadingState
-        mixedContentMode="never"
-        userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-        androidLayerType="hardware"
-        setSupportMultipleWindows={false}
-        geolocationEnabled={false}
-        onError={error => {
-          console.error('[DocumentAttachmentViewer] Doc viewer error', {
-            fileName,
-            error,
-            sourceUri: uri,
-            viewer: useGoogleViewer ? 'google-docs' : 'office-online',
-          });
-          // Try fallback viewer
-          if (useGoogleViewer) {
-            setHasError(true);
-          } else {
-            console.log('[DocumentAttachmentViewer] Error detected, switching to Google Docs Viewer');
-            setUseGoogleViewer(true);
-          }
-        }}
-        onLoadStart={() => {
-          console.log('[DocumentAttachmentViewer] Doc viewer loading started', {
-            fileName,
-            viewer: useGoogleViewer ? 'google-docs' : 'office-online',
-          });
-          contentLoadedRef.current.loaded = false;
-        }}
-        onLoadEnd={() => {
-          contentLoadedRef.current.loaded = true;
-          console.log('[DocumentAttachmentViewer] Doc viewer loaded successfully', {
-            fileName,
-            viewer: useGoogleViewer ? 'google-docs' : 'office-online',
-          });
-        }}
-        onMessage={(event) => {
-          console.log('[DocumentAttachmentViewer] WebView message', event.nativeEvent.data);
-          contentLoadedRef.current.loaded = true;
-        }}
-      />
+      {fallback ?? (
+        <View style={viewerStyles.loader}>
+          <Text
+            style={viewerStyles.unsupportedText(theme.colors.textSecondary)}>
+            {fileName
+              ? `${fileName} cannot be previewed in-app for security reasons. Download the file to view it.`
+              : 'This file type cannot be previewed in-app for security reasons. Download the file to view it.'}
+          </Text>
+        </View>
+      )}
     </View>
   );
 };
@@ -182,11 +115,9 @@ export interface DocumentAttachmentViewerProps {
   companionName?: string | null;
 }
 
-export const DocumentAttachmentViewer: React.FC<DocumentAttachmentViewerProps> = ({
-  attachments,
-  documentTitle,
-  companionName,
-}) => {
+export const DocumentAttachmentViewer: React.FC<
+  DocumentAttachmentViewerProps
+> = ({attachments, documentTitle, companionName}) => {
   const {theme} = useTheme();
   const styles = createAttachmentStyles(theme);
 
@@ -195,7 +126,9 @@ export const DocumentAttachmentViewer: React.FC<DocumentAttachmentViewerProps> =
       <View style={styles.emptyStateContainer}>
         <Image source={Images.documentIcon} style={styles.emptyStateIcon} />
         <Text style={styles.emptyStateTitle}>No attachments available</Text>
-        <Text style={styles.emptyStateSubtitle}>Uploaded files will appear here</Text>
+        <Text style={styles.emptyStateSubtitle}>
+          Uploaded files will appear here
+        </Text>
       </View>
     );
   }
@@ -218,7 +151,8 @@ export const DocumentAttachmentViewer: React.FC<DocumentAttachmentViewerProps> =
         url: fileUrl ?? '',
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to share';
+      const message =
+        error instanceof Error ? error.message : 'Failed to share';
       Alert.alert('Error', message);
     }
   };
@@ -250,7 +184,10 @@ export const DocumentAttachmentViewer: React.FC<DocumentAttachmentViewerProps> =
     try {
       const hasPermission = await ensureStoragePermission();
       if (!hasPermission) {
-        Alert.alert('Permission needed', 'Please grant storage permission to download files.');
+        Alert.alert(
+          'Permission needed',
+          'Please grant storage permission to download files.',
+        );
         return;
       }
 
@@ -263,7 +200,8 @@ export const DocumentAttachmentViewer: React.FC<DocumentAttachmentViewerProps> =
       const fileName = safeName.toLowerCase().endsWith(`.${extension}`)
         ? safeName
         : `${safeName}.${extension}`;
-      const downloadDir = RNFS.DownloadDirectoryPath ?? RNFS.DocumentDirectoryPath;
+      const downloadDir =
+        RNFS.DownloadDirectoryPath ?? RNFS.DocumentDirectoryPath;
       const downloadPath = `${downloadDir}/${fileName}`;
       await RNFS.mkdir(downloadDir);
       await RNFS.downloadFile({
@@ -296,25 +234,37 @@ export const DocumentAttachmentViewer: React.FC<DocumentAttachmentViewerProps> =
 
         return (
           <View key={file.id} style={styles.previewCard}>
-
             <LiquidGlassCard
               glassEffect="clear"
               padding="4"
               shadow="sm"
               style={styles.previewContentCard}>
-            <View style={styles.previewCardHeader}>
-              <Text style={styles.pdfLabel}>{file.name}</Text>
-            </View>
+              <View style={styles.previewCardHeader}>
+                <Text style={styles.pdfLabel}>{file.name}</Text>
+              </View>
 
               {(() => {
                 if (isImageFile(file.type) && sourceUri) {
-                  return <Image source={{uri: sourceUri}} style={styles.previewImage} resizeMode="contain" />;
+                  return (
+                    <Image
+                      source={{uri: sourceUri}}
+                      style={styles.previewImage}
+                      resizeMode="contain"
+                    />
+                  );
                 }
                 if (isPdf && sourceUri) {
                   return <PdfViewer uri={sourceUri} fallback={placeholder} />;
                 }
                 if (isDoc && sourceUri) {
-                  return <DocViewer uri={sourceUri} fallback={placeholder} fileName={file.name} />;
+                  return (
+                    <DocViewer
+                      fileName={file.name}
+                      fallback={renderPlaceholder(
+                        'Preview disabled for this file type. Download the file to view it securely.',
+                      )}
+                    />
+                  );
                 }
                 console.log('[DocumentAttachmentViewer] File not previewable', {
                   fileName: file.name,
@@ -327,24 +277,26 @@ export const DocumentAttachmentViewer: React.FC<DocumentAttachmentViewerProps> =
                 return placeholder;
               })()}
 
-
-            <View style={styles.actionRow}>
-              <TouchableOpacity
-                style={styles.shareButton}
-                onPress={() => handleShare(file)}
-                accessibilityRole="button"
-                accessibilityLabel="Share attachment">
-                <Image source={Images.shareIcon} style={styles.shareIcon} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.downloadButton}
-                onPress={() => handleDownload(file)}
-                accessibilityRole="button"
-                accessibilityLabel="Download attachment">
-                <Image source={Images.downloadIcon} style={styles.downloadIcon} />
-              </TouchableOpacity>
-            </View>
-                </LiquidGlassCard>
+              <View style={styles.actionRow}>
+                <TouchableOpacity
+                  style={styles.shareButton}
+                  onPress={() => handleShare(file)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Share attachment">
+                  <Image source={Images.shareIcon} style={styles.shareIcon} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.downloadButton}
+                  onPress={() => handleDownload(file)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Download attachment">
+                  <Image
+                    source={Images.downloadIcon}
+                    style={styles.downloadIcon}
+                  />
+                </TouchableOpacity>
+              </View>
+            </LiquidGlassCard>
           </View>
         );
       })}
@@ -362,10 +314,18 @@ const viewerStyles = {
     width: '100%' as const,
   }),
   pdf: {flex: 1, width: '100%' as const},
-  loader: {flex: 1, alignItems: 'center' as const, justifyContent: 'center' as const},
+  loader: {
+    flex: 1,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
   docContainer: (borderRadius: number) => ({
     borderRadius,
     overflow: 'hidden' as const,
   }),
-  webview: {flex: 1},
+  unsupportedText: (color: string) => ({
+    color,
+    textAlign: 'center' as const,
+    paddingHorizontal: 16,
+  }),
 };

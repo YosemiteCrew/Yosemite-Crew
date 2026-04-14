@@ -8,7 +8,10 @@ const Fields = [
   { label: 'Last name', key: 'lastName', type: 'text', required: true },
   { label: 'Email', key: 'email', type: 'email', editable: false },
   { label: 'Phone number', key: 'phoneNumber', type: 'tel', editable: false },
-  { label: 'Address', key: 'address', type: 'text', editable: false },
+  { label: 'Address line', key: 'addressLine', type: 'text', editable: false },
+  { label: 'City', key: 'city', type: 'text', editable: false },
+  { label: 'State / Province', key: 'state', type: 'text', editable: false },
+  { label: 'Postal code', key: 'postalCode', type: 'text', editable: false },
 ];
 
 type ParentType = {
@@ -19,15 +22,10 @@ const Parent = ({ companion }: ParentType) => {
   const parentData = useMemo(
     () => ({
       ...companion.parent,
-      address: [
-        companion.parent.address?.addressLine?.trim(),
-        companion.parent.address?.city?.trim(),
-        companion.parent.address?.state?.trim(),
-        companion.parent.address?.postalCode?.trim(),
-        companion.parent.address?.country?.trim(),
-      ]
-        .filter(Boolean)
-        .join(', '),
+      addressLine: companion.parent.address?.addressLine ?? '',
+      city: companion.parent.address?.city ?? '',
+      state: companion.parent.address?.state ?? '',
+      postalCode: companion.parent.address?.postalCode ?? '',
     }),
     [companion.parent]
   );

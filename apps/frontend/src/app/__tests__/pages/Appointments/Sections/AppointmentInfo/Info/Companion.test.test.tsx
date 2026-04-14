@@ -142,7 +142,10 @@ describe('Companion Info Section', () => {
       lastName: 'Doe',
       email: 'john@example.com',
       phone: '555-0199', // Maps phoneNumber -> phone
-      address: '456 Oak Ave, Denver, CO, 80202, USA',
+      addressLine: '456 Oak Ave',
+      city: 'Denver',
+      state: 'CO',
+      postalCode: '80202',
     });
   });
 
@@ -207,7 +210,10 @@ describe('Companion Info Section', () => {
       lastName: '',
       email: '',
       phone: '',
-      address: '',
+      addressLine: '',
+      city: '',
+      state: '',
+      postalCode: '',
     });
   });
 });

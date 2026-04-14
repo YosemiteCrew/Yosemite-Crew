@@ -77,7 +77,10 @@ describe('Parent Section Component', () => {
         lastName: 'Doe',
         email: 'jane@example.com',
         phoneNumber: '123-456-7890',
-        address: '123 Main St, Austin, TX, 78701, USA',
+        addressLine: '123 Main St',
+        city: 'Austin',
+        state: 'TX',
+        postalCode: '78701',
       })
     );
   });
@@ -90,13 +93,16 @@ describe('Parent Section Component', () => {
     const passedProps = (EditableAccordion as jest.Mock).mock.calls[0][0];
     const fields = passedProps.fields;
 
-    expect(fields).toHaveLength(5);
+    expect(fields).toHaveLength(8);
     expect(fields).toEqual([
       { label: 'First name', key: 'firstName', type: 'text', required: true },
       { label: 'Last name', key: 'lastName', type: 'text', required: true },
       { label: 'Email', key: 'email', type: 'email', editable: false },
       { label: 'Phone number', key: 'phoneNumber', type: 'tel', editable: false },
-      { label: 'Address', key: 'address', type: 'text', editable: false },
+      { label: 'Address line', key: 'addressLine', type: 'text', editable: false },
+      { label: 'City', key: 'city', type: 'text', editable: false },
+      { label: 'State / Province', key: 'state', type: 'text', editable: false },
+      { label: 'Postal code', key: 'postalCode', type: 'text', editable: false },
     ]);
   });
 

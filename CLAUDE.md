@@ -42,7 +42,7 @@ Tooling: `pnpm` workspaces + `turbo`. Always use `--filter` to scope commands to
 Run these in order when your changes touch `apps/frontend`. **Never skip any of them for frontend work.**
 
 ```bash
-# 1. Type check (run from apps/frontend/)
+# 1. Type check (run from apps/frontend/ with a 120s timeout)
 npx tsc --noemit
 
 # 2. Lint
@@ -55,6 +55,17 @@ pnpm --filter frontend run test -- --testPathPattern="Availability"
 ```
 
 **Full test suite runs are forbidden.** They take 100+ seconds. Always target the test file(s) related to what you changed.
+
+**TypeScript check timeout:** `npx tsc --noemit` on this repo can take 60–120 seconds. Always set a 120s timeout when running it as a tool call. If it times out, note this explicitly to the user — do not silently skip it.
+
+**Coverage mandate — non-negotiable:**
+
+- Target: ≥ 95% Statements, Branches, Functions, Lines across `apps/frontend`.
+- Any file you touch must finish with equal or higher coverage than you found it.
+- Any file you create must hit ≥ 90% on first commit — no new file ships without tests.
+- When you modify behaviour, update existing tests for the changed path AND add new cases for new branches.
+- For every file you touch, check `src/app/__tests__/` (mirroring source path) for an existing test file. If one exists: run it, fix any failures your change introduced.
+- Report actual test + coverage output at each COMMIT CHECKPOINT. Never skip or fabricate results.
 
 For backend/mobile/shared-package only changes, run the workspace-appropriate checks instead of frontend checks.
 

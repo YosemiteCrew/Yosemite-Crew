@@ -92,10 +92,10 @@ const PersonalFields = [
 ];
 
 const AddressFields = [
-  { label: 'Address', key: 'addressLine', type: 'text' },
-  { label: 'State/Province', key: 'state', type: 'text' },
-  { label: 'City', key: 'city', type: 'text' },
-  { label: 'Postal code', key: 'postalCode', type: 'text' },
+  { label: 'Address', key: 'addressLine', type: 'googleAddress', editable: true },
+  { label: 'State/Province', key: 'state', type: 'text', editable: true },
+  { label: 'City', key: 'city', type: 'text', editable: true },
+  { label: 'Postal code', key: 'postalCode', type: 'text', editable: true },
 ];
 
 const ProfessionalFields = [
@@ -330,6 +330,41 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
     }
   };
 
+  const handleAddressSave = async (values: any) => {
+    try {
+      if (!profile?.profile) return;
+      const payload: UserProfile = {
+        ...profile.profile,
+        _id: profile.profile?._id,
+        personalDetails: {
+          ...profile.profile.personalDetails,
+          address: {
+            ...profile.profile.personalDetails?.address,
+            addressLine: values.addressLine,
+            state: values.state,
+            city: values.city,
+            postalCode: values.postalCode,
+          },
+        },
+      };
+      await upsertUserProfile(payload);
+      setProfile((prev: any) => ({
+        ...prev,
+        profile: payload,
+      }));
+      notify('success', {
+        title: 'Address updated',
+        text: 'Address details have been updated successfully.',
+      });
+    } catch (error) {
+      console.log(error);
+      notify('error', {
+        title: 'Unable to update address',
+        text: 'Failed to update address details. Please try again.',
+      });
+    }
+  };
+
   const handlePermUpdate = async ({
     extraPerissions,
     revokedPermissions,
@@ -444,7 +479,8 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
               fields={AddressFields}
               data={addressInfoData}
               defaultOpen={false}
-              showEditIcon={false}
+              showEditIcon={isSelfMember}
+              onSave={isSelfMember ? handleAddressSave : undefined}
             />
             <EditableAccordion
               title="Professional details"

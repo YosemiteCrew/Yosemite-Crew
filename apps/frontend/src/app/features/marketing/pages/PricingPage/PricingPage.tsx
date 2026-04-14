@@ -10,6 +10,7 @@ import Footer from '@/app/ui/widgets/Footer/Footer';
 import { PricingPlans, TableData } from '@/app/features/marketing/pages/PricingPage/data';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import { getEmailValidationError, normalizeEmail } from '@/app/lib/validators';
 
 import './PricingPage.css';
 
@@ -103,9 +104,11 @@ const PricingPage = () => {
       lastName?: string;
       email?: string;
     } = {};
+    const normalizedEmail = normalizeEmail(formData.email);
     if (!formData.firstName) errors.firstName = 'First name is required';
     if (!formData.lastName) errors.lastName = 'Last name is required';
-    if (!formData.email) errors.email = 'Email is required';
+    const emailError = getEmailValidationError(normalizedEmail);
+    if (emailError) errors.email = emailError;
     setFormDataErrors(errors);
     if (Object.keys(errors).length > 0) {
       return;
@@ -262,7 +265,10 @@ const PricingPage = () => {
                 inname="Email"
                 value={formData.email}
                 inlabel="Enter email"
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, email: e.target.value });
+                  setFormDataErrors((prev) => ({ ...prev, email: undefined }));
+                }}
                 error={formDataErrors.email}
               />
               <Primary href="#" onClick={handleSend} text="Send" />

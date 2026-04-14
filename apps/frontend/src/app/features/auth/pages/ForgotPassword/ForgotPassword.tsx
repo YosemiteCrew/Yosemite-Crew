@@ -14,6 +14,7 @@ import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import './ForgotPassword.css';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import { getEmailValidationError, normalizeEmail } from '@/app/lib/validators';
 
 const ForgotPassword = () => {
   const router = useRouter();
@@ -58,12 +59,19 @@ const ForgotPassword = () => {
 
   const handleOtp = async (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
-    if (!email) {
+    const normalizedEmail = normalizeEmail(email);
+    const emailError = getEmailValidationError(
+      normalizedEmail,
+      'Email is required',
+      'Enter a valid email'
+    );
+
+    if (emailError) {
       if (globalThis.window) {
         globalThis.scrollTo({ top: 0, behavior: 'smooth' });
       }
       showErrorTost({
-        message: 'Email is required',
+        message: emailError,
         errortext: 'Error',
         iconElement: (
           <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />
@@ -74,7 +82,7 @@ const ForgotPassword = () => {
     }
 
     try {
-      const data = await forgotPassword(email);
+      const data = await forgotPassword(normalizedEmail);
       if (data) {
         if (globalThis.window) {
           globalThis.scrollTo({ top: 0, behavior: 'smooth' });

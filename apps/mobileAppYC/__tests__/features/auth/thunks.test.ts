@@ -2,6 +2,7 @@ import {configureStore} from '@reduxjs/toolkit';
 import {authReducer} from '@/features/auth';
 import {themeReducer} from '@/features/theme';
 import {companionReducer} from '@/features/companion';
+import formsReducer from '@/features/forms/formsSlice';
 import {
   initializeAuth,
   refreshSession,
@@ -13,7 +14,11 @@ import {
 } from '@/features/auth/thunks';
 import * as sessionManager from '@/features/auth/sessionManager';
 import * as passwordlessAuth from '@/features/auth/services/passwordlessAuth';
-import type {User, AuthTokens, NormalizedAuthTokens} from '@/features/auth/types';
+import type {
+  User,
+  AuthTokens,
+  NormalizedAuthTokens,
+} from '@/features/auth/types';
 
 jest.mock('@/features/auth/sessionManager');
 jest.mock('@/features/auth/services/passwordlessAuth');
@@ -31,6 +36,7 @@ const createTestStore = () => {
       auth: authReducer,
       theme: themeReducer,
       companion: companionReducer,
+      forms: formsReducer,
     },
   });
 };
@@ -72,11 +78,21 @@ describe('auth thunks', () => {
         provider: 'amplify',
       };
 
-      (sessionManager.recoverAuthSession as jest.Mock).mockResolvedValue(mockOutcome);
-      (sessionManager.persistSessionData as jest.Mock).mockResolvedValue(mockTokens);
-      (sessionManager.markAuthRefreshed as jest.Mock).mockImplementation(() => {});
-      (sessionManager.scheduleSessionRefresh as jest.Mock).mockImplementation(() => {});
-      (sessionManager.registerAppStateListener as jest.Mock).mockImplementation(() => {});
+      (sessionManager.recoverAuthSession as jest.Mock).mockResolvedValue(
+        mockOutcome,
+      );
+      (sessionManager.persistSessionData as jest.Mock).mockResolvedValue(
+        mockTokens,
+      );
+      (sessionManager.markAuthRefreshed as jest.Mock).mockImplementation(
+        () => {},
+      );
+      (sessionManager.scheduleSessionRefresh as jest.Mock).mockImplementation(
+        () => {},
+      );
+      (sessionManager.registerAppStateListener as jest.Mock).mockImplementation(
+        () => {},
+      );
 
       await dispatch(initializeAuth());
 
@@ -92,10 +108,18 @@ describe('auth thunks', () => {
         kind: 'pendingProfile',
       };
 
-      (sessionManager.recoverAuthSession as jest.Mock).mockResolvedValue(mockOutcome);
-      (sessionManager.markAuthRefreshed as jest.Mock).mockImplementation(() => {});
-      (sessionManager.scheduleSessionRefresh as jest.Mock).mockImplementation(() => {});
-      (sessionManager.registerAppStateListener as jest.Mock).mockImplementation(() => {});
+      (sessionManager.recoverAuthSession as jest.Mock).mockResolvedValue(
+        mockOutcome,
+      );
+      (sessionManager.markAuthRefreshed as jest.Mock).mockImplementation(
+        () => {},
+      );
+      (sessionManager.scheduleSessionRefresh as jest.Mock).mockImplementation(
+        () => {},
+      );
+      (sessionManager.registerAppStateListener as jest.Mock).mockImplementation(
+        () => {},
+      );
 
       await dispatch(initializeAuth());
 
@@ -109,9 +133,15 @@ describe('auth thunks', () => {
         kind: 'unauthenticated',
       };
 
-      (sessionManager.recoverAuthSession as jest.Mock).mockResolvedValue(mockOutcome);
-      (sessionManager.markAuthRefreshed as jest.Mock).mockImplementation(() => {});
-      (sessionManager.registerAppStateListener as jest.Mock).mockImplementation(() => {});
+      (sessionManager.recoverAuthSession as jest.Mock).mockResolvedValue(
+        mockOutcome,
+      );
+      (sessionManager.markAuthRefreshed as jest.Mock).mockImplementation(
+        () => {},
+      );
+      (sessionManager.registerAppStateListener as jest.Mock).mockImplementation(
+        () => {},
+      );
 
       const dispatch = store.dispatch as any;
       await dispatch(initializeAuth());
@@ -125,7 +155,9 @@ describe('auth thunks', () => {
       (sessionManager.recoverAuthSession as jest.Mock).mockRejectedValue(
         new Error('Recovery failed'),
       );
-      (sessionManager.registerAppStateListener as jest.Mock).mockImplementation(() => {});
+      (sessionManager.registerAppStateListener as jest.Mock).mockImplementation(
+        () => {},
+      );
 
       const dispatch = store.dispatch as any;
       await dispatch(initializeAuth());
@@ -136,7 +168,9 @@ describe('auth thunks', () => {
     });
 
     it('should not re-initialize if already initialized', async () => {
-      (sessionManager.registerAppStateListener as jest.Mock).mockImplementation(() => {});
+      (sessionManager.registerAppStateListener as jest.Mock).mockImplementation(
+        () => {},
+      );
 
       store.dispatch({
         type: 'auth/setAuthenticated',
@@ -158,10 +192,18 @@ describe('auth thunks', () => {
 
   describe('establishSession', () => {
     it('should establish a new session', async () => {
-      (sessionManager.persistSessionData as jest.Mock).mockResolvedValue(mockTokens);
-      (sessionManager.markAuthRefreshed as jest.Mock).mockImplementation(() => {});
-      (sessionManager.scheduleSessionRefresh as jest.Mock).mockImplementation(() => {});
-      (sessionManager.registerAppStateListener as jest.Mock).mockImplementation(() => {});
+      (sessionManager.persistSessionData as jest.Mock).mockResolvedValue(
+        mockTokens,
+      );
+      (sessionManager.markAuthRefreshed as jest.Mock).mockImplementation(
+        () => {},
+      );
+      (sessionManager.scheduleSessionRefresh as jest.Mock).mockImplementation(
+        () => {},
+      );
+      (sessionManager.registerAppStateListener as jest.Mock).mockImplementation(
+        () => {},
+      );
 
       const dispatch = store.dispatch as any;
       await dispatch(
@@ -174,15 +216,29 @@ describe('auth thunks', () => {
       const state = store.getState().auth;
       expect(state.status).toBe('authenticated');
       expect(state.user).toEqual(mockUser);
-      expect(sessionManager.persistSessionData).toHaveBeenCalledWith(mockUser, mockTokens);
+      expect(sessionManager.persistSessionData).toHaveBeenCalledWith(
+        mockUser,
+        mockTokens,
+      );
     });
 
     it('should default provider to amplify if not provided', async () => {
-      const tokensWithoutProvider: AuthTokens = {...mockTokens, provider: undefined};
-      (sessionManager.persistSessionData as jest.Mock).mockResolvedValue(mockTokens);
-      (sessionManager.markAuthRefreshed as jest.Mock).mockImplementation(() => {});
-      (sessionManager.scheduleSessionRefresh as jest.Mock).mockImplementation(() => {});
-      (sessionManager.registerAppStateListener as jest.Mock).mockImplementation(() => {});
+      const tokensWithoutProvider: AuthTokens = {
+        ...mockTokens,
+        provider: undefined,
+      };
+      (sessionManager.persistSessionData as jest.Mock).mockResolvedValue(
+        mockTokens,
+      );
+      (sessionManager.markAuthRefreshed as jest.Mock).mockImplementation(
+        () => {},
+      );
+      (sessionManager.scheduleSessionRefresh as jest.Mock).mockImplementation(
+        () => {},
+      );
+      (sessionManager.registerAppStateListener as jest.Mock).mockImplementation(
+        () => {},
+      );
 
       const dispatch = store.dispatch as any;
       await dispatch(
@@ -208,10 +264,18 @@ describe('auth thunks', () => {
         provider: 'amplify',
       };
 
-      (sessionManager.recoverAuthSession as jest.Mock).mockResolvedValue(mockOutcome);
-      (sessionManager.persistSessionData as jest.Mock).mockResolvedValue(mockTokens);
-      (sessionManager.markAuthRefreshed as jest.Mock).mockImplementation(() => {});
-      (sessionManager.scheduleSessionRefresh as jest.Mock).mockImplementation(() => {});
+      (sessionManager.recoverAuthSession as jest.Mock).mockResolvedValue(
+        mockOutcome,
+      );
+      (sessionManager.persistSessionData as jest.Mock).mockResolvedValue(
+        mockTokens,
+      );
+      (sessionManager.markAuthRefreshed as jest.Mock).mockImplementation(
+        () => {},
+      );
+      (sessionManager.scheduleSessionRefresh as jest.Mock).mockImplementation(
+        () => {},
+      );
 
       const dispatch = store.dispatch as any;
       await dispatch(refreshSession());
@@ -247,7 +311,9 @@ describe('auth thunks', () => {
 
   describe('updateUserProfile', () => {
     it('should update user profile', async () => {
-      (sessionManager.persistUserData as jest.Mock).mockResolvedValue(undefined);
+      (sessionManager.persistUserData as jest.Mock).mockResolvedValue(
+        undefined,
+      );
 
       store.dispatch({
         type: 'auth/setAuthenticated',
@@ -284,9 +350,15 @@ describe('auth thunks', () => {
 
   describe('logout', () => {
     it('should logout amplify user', async () => {
-      const signOutSpy = jest.spyOn(passwordlessAuth, 'signOutEverywhere').mockResolvedValue();
-      (sessionManager.clearSessionData as jest.Mock).mockResolvedValue(undefined);
-      (sessionManager.resetAuthLifecycle as jest.Mock).mockImplementation(() => {});
+      const signOutSpy = jest
+        .spyOn(passwordlessAuth, 'signOutEverywhere')
+        .mockResolvedValue();
+      (sessionManager.clearSessionData as jest.Mock).mockResolvedValue(
+        undefined,
+      );
+      (sessionManager.resetAuthLifecycle as jest.Mock).mockImplementation(
+        () => {},
+      );
 
       store.dispatch({
         type: 'auth/setAuthenticated',
@@ -297,16 +369,27 @@ describe('auth thunks', () => {
           lastRefresh: Date.now(),
         },
       });
+      store.dispatch({
+        type: 'forms/fetchAppointmentForms/fulfilled',
+        payload: {
+          appointmentId: 'appt-1',
+          forms: [{form: {_id: 'f1'}, submission: null, status: 'pending'}],
+          cache: {f1: {_id: 'f1'}},
+        },
+      });
 
       const dispatch = store.dispatch as any;
       await dispatch(logout());
 
       expect(signOutSpy).toHaveBeenCalled();
-      expect(sessionManager.clearSessionData).toHaveBeenCalledWith({clearPendingProfile: true});
+      expect(sessionManager.clearSessionData).toHaveBeenCalledWith({
+        clearPendingProfile: true,
+      });
 
       const state = store.getState().auth;
       expect(state.status).toBe('unauthenticated');
       expect(state.user).toBeNull();
+      expect(store.getState().forms.byAppointmentId).toEqual({});
     });
 
     it('should logout firebase user', async () => {
@@ -317,8 +400,12 @@ describe('auth thunks', () => {
         signOut: mockSignOut,
       });
 
-      (sessionManager.clearSessionData as jest.Mock).mockResolvedValue(undefined);
-      (sessionManager.resetAuthLifecycle as jest.Mock).mockImplementation(() => {});
+      (sessionManager.clearSessionData as jest.Mock).mockResolvedValue(
+        undefined,
+      );
+      (sessionManager.resetAuthLifecycle as jest.Mock).mockImplementation(
+        () => {},
+      );
 
       store.dispatch({
         type: 'auth/setAuthenticated',
@@ -337,9 +424,15 @@ describe('auth thunks', () => {
     });
 
     it('should handle logout errors gracefully', async () => {
-      jest.spyOn(passwordlessAuth, 'signOutEverywhere').mockRejectedValue(new Error('Sign out failed'));
-      (sessionManager.clearSessionData as jest.Mock).mockResolvedValue(undefined);
-      (sessionManager.resetAuthLifecycle as jest.Mock).mockImplementation(() => {});
+      jest
+        .spyOn(passwordlessAuth, 'signOutEverywhere')
+        .mockRejectedValue(new Error('Sign out failed'));
+      (sessionManager.clearSessionData as jest.Mock).mockResolvedValue(
+        undefined,
+      );
+      (sessionManager.resetAuthLifecycle as jest.Mock).mockImplementation(
+        () => {},
+      );
 
       store.dispatch({
         type: 'auth/setAuthenticated',

@@ -14,12 +14,34 @@ import {
   FiX,
 } from 'react-icons/fi';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import { getEmailValidationError, normalizeEmail } from '@/app/lib/validators';
 import './TrustCenter.css';
+
+type RequestAccessFormState = {
+  firstName: string;
+  lastName: string;
+  workEmail: string;
+  companyName: string;
+  reason: string;
+};
+
+const EMPTY_REQUEST_ACCESS_FORM: RequestAccessFormState = {
+  firstName: '',
+  lastName: '',
+  workEmail: '',
+  companyName: '',
+  reason: '',
+};
 
 const TrustCenter = () => {
   const [activeTab, setActiveTab] = useState('Overview');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedResource, setSelectedResource] = useState<string | null>(null);
+  const [requestAccessForm, setRequestAccessForm] =
+    useState<RequestAccessFormState>(EMPTY_REQUEST_ACCESS_FORM);
+  const [requestAccessErrors, setRequestAccessErrors] = useState<{
+    workEmail?: string;
+  }>({});
 
   const {
     hero = {
@@ -49,6 +71,22 @@ const TrustCenter = () => {
 
   const handleModalClose = () => {
     setIsModalOpen(false);
+    setRequestAccessForm(EMPTY_REQUEST_ACCESS_FORM);
+    setRequestAccessErrors({});
+  };
+
+  const handleRequestAccessSubmit = () => {
+    const normalizedEmail = normalizeEmail(requestAccessForm.workEmail);
+    const emailError = getEmailValidationError(normalizedEmail, 'Work email is required');
+
+    if (emailError) {
+      setRequestAccessErrors({ workEmail: emailError });
+      return;
+    }
+
+    setRequestAccessErrors({});
+    alert('Request sent! Our team will review your credentials.');
+    handleModalClose();
   };
 
   // --- Render Helpers ---
@@ -627,11 +665,29 @@ const TrustCenter = () => {
               <div className="FormGrid">
                 <div className="FormGroup">
                   <label htmlFor="firstName">First Name</label>
-                  <input id="firstName" type="text" className="FormInput" placeholder="Jane" />
+                  <input
+                    id="firstName"
+                    type="text"
+                    className="FormInput"
+                    placeholder="Jane"
+                    value={requestAccessForm.firstName}
+                    onChange={(e) =>
+                      setRequestAccessForm((prev) => ({ ...prev, firstName: e.target.value }))
+                    }
+                  />
                 </div>
                 <div className="FormGroup">
                   <label htmlFor="lastName">Last Name</label>
-                  <input id="lastName" type="text" className="FormInput" placeholder="Doe" />
+                  <input
+                    id="lastName"
+                    type="text"
+                    className="FormInput"
+                    placeholder="Doe"
+                    value={requestAccessForm.lastName}
+                    onChange={(e) =>
+                      setRequestAccessForm((prev) => ({ ...prev, lastName: e.target.value }))
+                    }
+                  />
                 </div>
               </div>
 
@@ -642,17 +698,43 @@ const TrustCenter = () => {
                   type="email"
                   placeholder="jane@company.com"
                   className="FormInput"
+                  value={requestAccessForm.workEmail}
+                  onChange={(e) => {
+                    setRequestAccessForm((prev) => ({ ...prev, workEmail: e.target.value }));
+                    setRequestAccessErrors((prev) => ({ ...prev, workEmail: undefined }));
+                  }}
                 />
+                {requestAccessErrors.workEmail && (
+                  <div className="text-caption-2 text-text-error mt-1">
+                    {requestAccessErrors.workEmail}
+                  </div>
+                )}
               </div>
 
               <div className="FormGroup">
                 <label htmlFor="companyName">Company Name</label>
-                <input id="companyName" type="text" placeholder="Acme Inc." className="FormInput" />
+                <input
+                  id="companyName"
+                  type="text"
+                  placeholder="Acme Inc."
+                  className="FormInput"
+                  value={requestAccessForm.companyName}
+                  onChange={(e) =>
+                    setRequestAccessForm((prev) => ({ ...prev, companyName: e.target.value }))
+                  }
+                />
               </div>
 
               <div className="FormGroup">
                 <label htmlFor="reason">Reason for Request</label>
-                <select id="reason" className="FormInput" defaultValue="">
+                <select
+                  id="reason"
+                  className="FormInput"
+                  value={requestAccessForm.reason}
+                  onChange={(e) =>
+                    setRequestAccessForm((prev) => ({ ...prev, reason: e.target.value }))
+                  }
+                >
                   <option value="" disabled>
                     Select a reason...
                   </option>
@@ -668,14 +750,7 @@ const TrustCenter = () => {
               <button className="CancelBtn" onClick={handleModalClose} type="button">
                 Cancel
               </button>
-              <button
-                className="SubmitBtn"
-                type="button"
-                onClick={() => {
-                  alert('Request sent! Our team will review your credentials.');
-                  handleModalClose();
-                }}
-              >
+              <button className="SubmitBtn" type="button" onClick={handleRequestAccessSubmit}>
                 Request Access
               </button>
             </div>

@@ -5,8 +5,6 @@ import {
   isPdfFile,
   isDocViewerFile,
   resolveSourceUri,
-  buildDocViewerUri,
-  buildGoogleDocsViewerUri,
   resolveThumbLabel,
   resolveThumbSource,
   useThumbStyles,
@@ -99,7 +97,7 @@ describe('documentAttachmentUtils', () => {
         viewUrl: 'http://view',
         s3Url: 'http://s3',
         downloadUrl: 'http://dl',
-        uri: 'http://uri'
+        uri: 'http://uri',
       };
       expect(resolveSourceUri(file as any)).toBe('http://view');
     });
@@ -111,66 +109,51 @@ describe('documentAttachmentUtils', () => {
         type: 't',
         s3Url: 'http://s3',
         downloadUrl: 'http://dl',
-        uri: 'http://uri'
+        uri: 'http://uri',
       };
       expect(resolveSourceUri(file as any)).toBe('http://s3');
     });
 
     it('falls back to downloadUrl', () => {
-        const file = {
-            id: '1',
-            name: 'f',
-            type: 't',
-            downloadUrl: 'http://dl',
-            uri: 'http://uri'
-          };
+      const file = {
+        id: '1',
+        name: 'f',
+        type: 't',
+        downloadUrl: 'http://dl',
+        uri: 'http://uri',
+      };
       expect(resolveSourceUri(file as any)).toBe('http://dl');
     });
 
     it('falls back to uri', () => {
-        const file = {
-            id: '1',
-            name: 'f',
-            type: 't',
-            uri: 'http://uri'
-          };
+      const file = {
+        id: '1',
+        name: 'f',
+        type: 't',
+        uri: 'http://uri',
+      };
       expect(resolveSourceUri(file as any)).toBe('http://uri');
     });
 
     it('returns null if no sources available', () => {
-        const file = { id: '1', name: 'f', type: 't' };
-        expect(resolveSourceUri(file as any)).toBeNull();
+      const file = {id: '1', name: 'f', type: 't'};
+      expect(resolveSourceUri(file as any)).toBeNull();
     });
   });
 
-  // --- 3. Viewer URI Builders ---
-
-  describe('URI Builders', () => {
-    const TEST_URI = 'http://example.com/file.doc';
-    const ENCODED = encodeURIComponent(TEST_URI);
-
-    it('buildDocViewerUri formats correctly for MS Office', () => {
-      expect(buildDocViewerUri(TEST_URI)).toBe(
-        `https://view.officeapps.live.com/op/embed.aspx?src=${ENCODED}`
-      );
-    });
-
-    it('buildGoogleDocsViewerUri formats correctly for Google', () => {
-      expect(buildGoogleDocsViewerUri(TEST_URI)).toBe(
-        `https://docs.google.com/viewer?url=${ENCODED}&embedded=true`
-      );
-    });
-  });
-
-  // --- 4. Label & Thumb Source Helpers ---
+  // --- 3. Label & Thumb Source Helpers ---
 
   describe('resolveThumbLabel', () => {
     it('returns file name if present', () => {
-      expect(resolveThumbLabel({id: '1', type: 'pdf', name: 'MyDoc.pdf'} as any)).toBe('MyDoc.pdf');
+      expect(
+        resolveThumbLabel({id: '1', type: 'pdf', name: 'MyDoc.pdf'} as any),
+      ).toBe('MyDoc.pdf');
     });
 
     it('returns default "Document" if name missing', () => {
-      expect(resolveThumbLabel({id: '1', type: 'pdf', name: ''} as any)).toBe('Document');
+      expect(resolveThumbLabel({id: '1', type: 'pdf', name: ''} as any)).toBe(
+        'Document',
+      );
     });
   });
 
@@ -200,15 +183,16 @@ describe('documentAttachmentUtils', () => {
     });
   });
 
-  // --- 5. Hook: useThumbStyles ---
+  // --- 4. Hook: useThumbStyles ---
 
   describe('useThumbStyles', () => {
     it('creates styles using the current theme', () => {
-      
       const mockGeneratedStyles = {container: {flex: 1}};
 
       (useTheme as jest.Mock).mockReturnValue({theme: mockTheme});
-      (createAttachmentStyles as jest.Mock).mockReturnValue(mockGeneratedStyles);
+      (createAttachmentStyles as jest.Mock).mockReturnValue(
+        mockGeneratedStyles,
+      );
 
       const {result} = renderHook(() => useThumbStyles());
 

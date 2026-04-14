@@ -16,6 +16,7 @@ const orgStoreGetStateMock = jest.fn();
 const useSpecialityStoreMock = jest.fn();
 const useAvailabilityStoreMock = jest.fn();
 const useUserProfileStoreMock = jest.fn();
+const originalTestHostname = process.env.YC_TEST_HOSTNAME;
 
 jest.mock('@/app/stores/orgStore', () => ({
   useOrgStore: Object.assign((selector: any) => useOrgStoreMock(selector), {
@@ -107,6 +108,7 @@ describe('OrgGuard', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD = 'false';
+    process.env.YC_TEST_HOSTNAME = 'localhost';
     mockPathname = '/dashboard';
     (useRouter as jest.Mock).mockReturnValue({
       replace: replaceMock,
@@ -131,6 +133,10 @@ describe('OrgGuard', () => {
     delete process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD;
   });
 
+  afterAll(() => {
+    process.env.YC_TEST_HOSTNAME = originalTestHostname;
+  });
+
   it('redirects to organizations when no primary org is set', async () => {
     render(
       <OrgGuard>
@@ -145,7 +151,6 @@ describe('OrgGuard', () => {
   });
 
   it('renders children when auth guard is disabled', () => {
-    const prev = process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD;
     process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD = 'true';
 
     render(
@@ -156,8 +161,21 @@ describe('OrgGuard', () => {
 
     expect(screen.getByTestId('child')).toBeInTheDocument();
     expect(replaceMock).not.toHaveBeenCalled();
+  });
 
-    process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD = prev;
+  it('ignores the auth guard override outside localhost', async () => {
+    process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD = 'true';
+    process.env.YC_TEST_HOSTNAME = 'dev.yosemitecrew.com';
+
+    render(
+      <OrgGuard>
+        <div data-testid="child">Child</div>
+      </OrgGuard>
+    );
+
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledWith('/organizations');
+    });
   });
 
   it('redirects owners to create org when onboarding is incomplete', async () => {

@@ -27,17 +27,8 @@ export const isDocViewerFile = (mime?: string | null) =>
 export const resolveSourceUri = (file: DocumentFile) =>
   file.viewUrl ?? file.s3Url ?? file.downloadUrl ?? file.uri ?? null;
 
-export const buildDocViewerUri = (uri: string) => {
-  // Try Microsoft Office Online first
-  return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(uri)}`;
-};
-
-export const buildGoogleDocsViewerUri = (uri: string) => {
-  // Fallback to Google Docs Viewer for Office documents
-  return `https://docs.google.com/viewer?url=${encodeURIComponent(uri)}&embedded=true`;
-};
-
-export const resolveThumbLabel = (file: DocumentFile) => file.name || 'Document';
+export const resolveThumbLabel = (file: DocumentFile) =>
+  file.name || 'Document';
 
 export const resolveThumbSource = (file: DocumentFile) => {
   const source = resolveSourceUri(file);

@@ -172,6 +172,36 @@ describe('Slot (Appointments)', () => {
     expect(handleViewAppointment).toHaveBeenCalledWith(event);
   });
 
+  it('shows only the service label for overlapping compact markers', () => {
+    const overlappingEvent = {
+      ...event,
+      appointmentType: { name: 'Vaccination' },
+      concern: 'Very long concern that should not be rendered in compact markers',
+      companion: { name: 'Milo', species: 'dog' },
+      startTime: new Date('2025-01-06T09:10:00Z'),
+      endTime: new Date('2025-01-06T09:40:00Z'),
+    };
+
+    render(
+      <Slot
+        slotEvents={[event, overlappingEvent]}
+        height={120}
+        handleViewAppointment={handleViewAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        dayIndex={0}
+        length={1}
+        canEditAppointments
+      />
+    );
+
+    expect(screen.getByText('Exam')).toBeInTheDocument();
+    expect(screen.getByText('Vaccination')).toBeInTheDocument();
+    expect(
+      screen.queryByText('Very long concern that should not be rendered in compact markers')
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText('Checkup')).not.toBeInTheDocument();
+  });
+
   it('creates appointment when empty slot is clicked', () => {
     const onCreateAppointmentAt = jest.fn();
 

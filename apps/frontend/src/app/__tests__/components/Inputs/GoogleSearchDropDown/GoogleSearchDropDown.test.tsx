@@ -231,9 +231,9 @@ describe('GoogleSearchDropDown Component', () => {
         nationalPhoneNumber: '(650) 253-0000',
         location: { latitude: 37.422, longitude: -122.084 },
         addressComponents: [
-          { types: ['country'], shortText: 'US' },
+          { types: ['country'], shortText: 'US', longText: 'United States' },
           { types: ['locality'], longText: 'Mountain View' },
-          { types: ['administrative_area_level_1'], shortText: 'CA' },
+          { types: ['administrative_area_level_1'], longText: 'California', shortText: 'CA' },
           { types: ['postal_code'], longText: '94043' },
         ],
       }),
@@ -296,9 +296,11 @@ describe('GoogleSearchDropDown Component', () => {
       googlePlacesId: 'place_123',
       address: {
         country: 'United States', // From mock countries JSON
-        addressLine: '1600 Amphitheatre Pkwy, Mountain View, CA 94043, USA',
+        // addressLine is derived from prediction text ("Google HQ, Mountain View, CA")
+        // with city/state tail stripped → "Google HQ"
+        addressLine: 'Google HQ',
         city: 'Mountain View',
-        state: 'CA',
+        state: 'California', // longText preferred over shortText
         postalCode: '94043',
         latitude: 37.422,
         longitude: -122.084,
@@ -314,15 +316,28 @@ describe('GoogleSearchDropDown Component', () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        suggestions: [{ placePrediction: { placeId: 'place_456', text: { text: 'Home' } } }],
+        suggestions: [
+          {
+            placePrediction: {
+              placeId: 'place_456',
+              structuredFormat: {
+                mainText: { text: '123 Test St' },
+                secondaryText: { text: 'Test City, TX, USA' },
+              },
+            },
+          },
+        ],
       }),
     });
 
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        formattedAddress: '123 Test St',
-        addressComponents: [{ types: ['locality'], longText: 'Test City' }],
+        formattedAddress: '123 Test St, Test City, TX, USA',
+        addressComponents: [
+          { types: ['locality'], longText: 'Test City' },
+          { types: ['administrative_area_level_1'], longText: 'Texas', shortText: 'TX' },
+        ],
         location: { latitude: 10, longitude: 20 },
       }),
     });
@@ -356,7 +371,7 @@ describe('GoogleSearchDropDown Component', () => {
       await new Promise((r) => setTimeout(r, 500));
     });
 
-    const suggestion = await screen.findByRole('button', { name: /Home/ });
+    const suggestion = await screen.findByRole('button', { name: /123 Test St/ });
     fireEvent.mouseDown(suggestion);
 
     await waitFor(() => expect(mockSetFormData).toHaveBeenCalled());
@@ -364,11 +379,13 @@ describe('GoogleSearchDropDown Component', () => {
     const updateFn = mockSetFormData.mock.calls[0][0];
     const newState = updateFn({ personalDetails: { address: {} } });
 
-    // Verify UserProfile structure update (nested under personalDetails.address)
+    // addressLine = "123 Test St, Test City, TX, USA" stripped to "123 Test St"
+    // city="Test City", state="Texas" (longText preferred), latitude/longitude populated
     expect(newState.personalDetails.address).toEqual(
       expect.objectContaining({
         addressLine: '123 Test St',
         city: 'Test City',
+        state: 'Texas',
         latitude: 10,
         longitude: 20,
       })

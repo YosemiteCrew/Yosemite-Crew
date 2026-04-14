@@ -552,11 +552,12 @@ const Slot: React.FC<SlotProps> = ({
                 const topPx = (startMinute / 60) * height;
                 const blockHeightPx = Math.max((visibleDurationMinutes / 60) * height, 40);
                 const compact = laneCount > 1;
+                const visibleSubtitle = compact ? serviceName : subtitle;
 
                 return (
                   <div
                     key={itemKey}
-                    className="absolute z-20 rounded-lg border border-[rgba(255,255,255,0.35)]"
+                    className="absolute z-20 overflow-hidden rounded-lg border border-[rgba(255,255,255,0.35)]"
                     style={{
                       ...statusStyle,
                       top: topPx,
@@ -592,13 +593,15 @@ const Slot: React.FC<SlotProps> = ({
                         opacity: draggedAppointmentId === ev.id ? 0.55 : 1,
                       }}
                     >
-                      <div className="min-w-0 flex-1 self-center">
+                      <div className="min-w-0 flex-1 self-center overflow-hidden">
                         <div className="w-full flex flex-col items-center justify-center text-center gap-0.5">
                           <div className="truncate w-full text-caption-1 font-semibold">
                             {companionDisplayName}
                           </div>
-                          {subtitle && (
-                            <div className="text-[10px] w-full truncate opacity-95">{subtitle}</div>
+                          {visibleSubtitle && (
+                            <div className="w-full truncate text-[10px] opacity-95">
+                              {visibleSubtitle}
+                            </div>
                           )}
                         </div>
                       </div>

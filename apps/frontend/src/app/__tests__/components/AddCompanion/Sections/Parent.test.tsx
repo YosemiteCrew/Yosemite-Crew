@@ -86,13 +86,22 @@ jest.mock('@/app/features/companions/services/companionService', () => ({
 
 jest.mock('@/app/lib/validators', () => ({
   getCountryCode: () => null,
+  getEmailValidationError: jest.fn(() => null),
+  normalizeEmail: jest.fn((value: string) => value.trim()),
   validatePhone: jest.fn(() => true),
 }));
+
+const { getEmailValidationError } = jest.requireMock('@/app/lib/validators') as {
+  getEmailValidationError: jest.Mock;
+};
 
 describe('AddCompanion Parent section', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (validatePhone as jest.Mock).mockReturnValue(true);
+    getEmailValidationError.mockImplementation((value: string) =>
+      value.trim() ? null : 'Email is required'
+    );
   });
 
   it('shows validation errors when required fields are empty', () => {
@@ -138,6 +147,35 @@ describe('AddCompanion Parent section', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
 
     expect(screen.getByText('Enter a valid phone number')).toBeInTheDocument();
+  });
+
+  it('shows email validation error when email format is invalid', () => {
+    getEmailValidationError.mockReturnValue('Enter a valid email');
+
+    render(
+      <Parent
+        setActiveLabel={jest.fn()}
+        formData={{
+          ...EMPTY_STORED_PARENT,
+          firstName: 'Parent',
+          lastName: 'User',
+          email: 'bad-email',
+          phoneNumber: '+14155552671',
+          address: {
+            ...EMPTY_STORED_PARENT.address,
+            addressLine: '123 Main Street',
+            city: 'Austin',
+            state: 'TX',
+            postalCode: '73301',
+          },
+        }}
+        setFormData={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+    expect(screen.getByText('Enter a valid email')).toBeInTheDocument();
   });
 
   it('autofills address details from google places selection', () => {

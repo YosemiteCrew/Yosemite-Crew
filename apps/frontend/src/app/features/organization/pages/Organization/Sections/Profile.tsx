@@ -8,7 +8,7 @@ import { PERMISSIONS } from '@/app/lib/permissions';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { useNotify } from '@/app/hooks/useNotify';
 
-type FieldType = 'text' | 'select' | 'country' | 'date' | 'number';
+type FieldType = 'text' | 'select' | 'country' | 'date' | 'number' | 'googleAddress';
 
 export type ProfileField = {
   label: string;
@@ -38,7 +38,7 @@ const BasicFields: ProfileField[] = [
 ];
 
 const AddressFields: ProfileField[] = [
-  field('Address line', 'addressLine'),
+  field('Address line', 'addressLine', 'googleAddress'),
   field('State / Province', 'state'),
   field('City', 'city'),
   field('Postal code', 'postalCode'),

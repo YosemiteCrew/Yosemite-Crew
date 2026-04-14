@@ -6,6 +6,7 @@ import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import MultiSelectDropdown from '@/app/ui/inputs/MultiSelectDropdown';
 import LogoUpdator from '@/app/ui/widgets/UploadImage/LogoUpdator';
+import GoogleSearchDropDown from '@/app/ui/inputs/GoogleSearchDropDown/GoogleSearchDropDown';
 import { usePrimaryOrg } from '@/app/hooks/useOrgSelectors';
 import { usePrimaryOrgProfile } from '@/app/hooks/useProfiles';
 import { updateOrg } from '@/app/features/organization/services/orgService';
@@ -92,6 +93,7 @@ const FieldComponents: Record<
     value: any;
     error?: string;
     onChange: (v: any) => void;
+    onMultiChange?: (values: Record<string, any>) => void;
   }>
 > = {
   text: ({ field, value, onChange, error }) => (
@@ -178,6 +180,26 @@ const FieldComponents: Record<
       />
     );
   },
+  googleAddress: ({ field, value, onChange, onMultiChange, error }) => (
+    <GoogleSearchDropDown
+      intype="text"
+      inname={field.key}
+      value={value ?? ''}
+      inlabel={field.label}
+      error={error}
+      onChange={(e) => onChange(e.target.value)}
+      onlyAddress={true}
+      onAddressSelect={(address) => {
+        onChange(address.addressLine);
+        onMultiChange?.({
+          city: address.city,
+          state: address.state,
+          postalCode: address.postalCode,
+          ...(address.country ? { country: address.country } : {}),
+        });
+      }}
+    />
+  ),
 };
 
 const FieldValueRow: React.FC<{
@@ -300,6 +322,17 @@ const ProfileCard = ({
   const handleChange = (key: string, value: any) => {
     setFormValues((prev) => ({ ...prev, [key]: value }));
     setFormValuesErrors((prev) => ({ ...prev, [key]: undefined }));
+  };
+
+  const handleMultiChange = (values: Record<string, any>) => {
+    setFormValues((prev) => ({ ...prev, ...values }));
+    setFormValuesErrors((prev) => {
+      const cleared = Object.keys(values).reduce<Record<string, undefined>>(
+        (acc, k) => ({ ...acc, [k]: undefined }),
+        {}
+      );
+      return { ...prev, ...cleared };
+    });
   };
 
   const validate = () => {
@@ -433,6 +466,7 @@ const ProfileCard = ({
                     value={formValues[field.key]}
                     error={formValuesErrors[field.key]}
                     onChange={(v) => handleChange(field.key, v)}
+                    onMultiChange={handleMultiChange}
                   />
                 </div>
               ) : (

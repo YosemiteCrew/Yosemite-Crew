@@ -36,6 +36,8 @@ Claude Code users: same rules also structured as skills in `.claude/skills/`.
 8. Never commit secrets, tokens, private keys, or `.env` values.
 9. Never add co-author lines or signatures to commit messages.
 10. Let all pre-commit hooks pass naturally — `--no-verify` is forbidden.
+11. **TypeScript check timeout:** `npx tsc --noemit` can take 60–120s on this repo. Set a 120s timeout. If it times out, tell the user explicitly — never silently skip it.
+12. **Tests for touched files:** Before each COMMIT CHECKPOINT, check `src/app/__tests__/` for a matching test file. If one exists, run it and fix any failures. If you add a new component/hook/function, write tests (≥ 90% coverage) in the same batch. Report results — never fabricate or omit them.
 
 ---
 

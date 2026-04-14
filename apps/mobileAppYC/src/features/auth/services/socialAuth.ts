@@ -57,6 +57,17 @@ const APPLE_PROFILE_CACHE_PREFIX = '@apple_profile_cache:';
 const APPLE_PROFILE_KEYCHAIN_SERVICE = 'yosemite-apple-profile';
 const APPLE_PROFILE_KEYCHAIN_ACCOUNT = 'apple-profile';
 
+const clearLegacyAppleProfileCache = async (userId: string) => {
+  try {
+    await AsyncStorage.removeItem(`${APPLE_PROFILE_CACHE_PREFIX}${userId}`);
+  } catch (error) {
+    console.warn(
+      '[SocialAuth][Apple] Failed to clear legacy cached profile from storage',
+      error,
+    );
+  }
+};
+
 const parseName = (
   fullName?: string | null,
 ): {firstName?: string; lastName?: string} => {
@@ -135,22 +146,8 @@ const getCachedAppleProfile = async (
       error,
     );
   }
-
-  try {
-    const raw = await AsyncStorage.getItem(
-      `${APPLE_PROFILE_CACHE_PREFIX}${userId}`,
-    );
-    if (!raw) {
-      return null;
-    }
-    return JSON.parse(raw);
-  } catch (error) {
-    console.warn(
-      '[SocialAuth][Apple] Failed to read cached profile from storage',
-      error,
-    );
-    return null;
-  }
+  await clearLegacyAppleProfileCache(userId);
+  return null;
 };
 
 const cacheAppleProfile = async (
@@ -184,18 +181,7 @@ const cacheAppleProfile = async (
       error,
     );
   }
-
-  try {
-    await AsyncStorage.setItem(
-      `${APPLE_PROFILE_CACHE_PREFIX}${userId}`,
-      JSON.stringify(normalized),
-    );
-  } catch (error) {
-    console.warn(
-      '[SocialAuth][Apple] Failed to cache profile in storage',
-      error,
-    );
-  }
+  await clearLegacyAppleProfileCache(userId);
 };
 
 const extractAdditionalAppleProfile = (
@@ -207,7 +193,6 @@ const extractAdditionalAppleProfile = (
 } => {
   const profile: Record<string, any> =
     userCredential.additionalUserInfo?.profile ?? {};
-  console.log('[SocialAuth][Apple] additionalUserInfo.profile', profile);
   const nameFromProfile =
     profile.name ??
     profile.fullName ??
@@ -356,18 +341,9 @@ const signInWithAppleIOS = async (): Promise<{
   lastName?: string | null;
   email?: string | null;
 }> => {
-  console.log('[AppleAuth] Starting Apple sign-in (iOS)...');
-
   const appleAuthRequestResponse = await appleAuth.performRequest({
     requestedOperation: appleAuth.Operation.LOGIN,
     requestedScopes: [appleAuth.Scope.EMAIL, appleAuth.Scope.FULL_NAME],
-  });
-
-  console.log('[AppleAuth] Response', {
-    user: appleAuthRequestResponse.user,
-    email: appleAuthRequestResponse.email,
-    fullName: appleAuthRequestResponse.fullName,
-    realUserStatus: appleAuthRequestResponse.realUserStatus,
   });
 
   if (!appleAuthRequestResponse.identityToken) {
@@ -406,8 +382,6 @@ const signInWithAppleAndroid = async (): Promise<{
     );
   }
 
-  console.log('[AppleAuth] Starting Apple sign-in (Android)...');
-
   const rawNonce = uuid();
   const state = uuid();
 
@@ -435,11 +409,6 @@ const signInWithAppleAndroid = async (): Promise<{
   const firstName = (response as any)?.user?.name?.firstName ?? null;
   const lastName = (response as any)?.user?.name?.lastName ?? null;
   const email = (response as any)?.user?.email ?? null;
-
-  console.log('[AppleAuth] Firebase sign-in successful (Android)', {
-    uid: userCredential.user.uid,
-    email: userCredential.user.email || email,
-  });
 
   return {userCredential, firstName, lastName, email};
 };
