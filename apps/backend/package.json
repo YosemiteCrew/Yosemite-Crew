@@ -64,7 +64,7 @@
   },
   "devDependencies": {
     "@documenso/sdk-typescript": "^0.5.1",
-    "@eslint/js": "^9.21.0",
+    "@eslint/js": "^10.0.1",
     "@types/aws-sdk": "^2.7.4",
     "@types/bcrypt": "^5.0.2",
     "@types/body-parser": "^1.19.5",
