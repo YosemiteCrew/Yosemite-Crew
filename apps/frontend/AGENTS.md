@@ -136,12 +136,19 @@ Never leave an existing file in a worse coverage state than you found it.
 ### Mandatory pre-commit checks (run in order, never skip)
 
 ```bash
+# 1. Type check — run with a 120s timeout; if it times out tell the user, never silently skip
 npx tsc --noemit                                    # from apps/frontend/
+
+# 2. Lint
 pnpm --filter frontend run lint
+
+# 3. Targeted tests — check src/app/__tests__/ for matching test file before running
 pnpm --filter frontend run test -- --testPathPattern="<YourFile>"
 ```
 
 When modifying an existing file, check whether a test file already exists for it in `src/app/__tests__/` (mirroring the source path). If it does, run it and **fix any failures your change introduced** before declaring the task done. A change is not complete if it breaks existing tests.
+
+**Always report actual test output at each COMMIT CHECKPOINT.** Never fabricate or omit results. If tsc times out, say so. If no test file exists for a touched file, say so — do not silently skip.
 
 - Mock react-icons as `<span>`, not `<button>`.
 - `await act(async () => { ... })` for async state updates.

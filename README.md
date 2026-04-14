@@ -114,15 +114,9 @@ For Developers
 
 <br>
 
-# 🔑 Dev Test Credentials
+# 🔑 Dev Environment Access
 
-Shared dev web app account (`dev.yosemitecrew.com`) for contributor testing:
-
-- URL: `https://dev.yosemitecrew.com/signin`
-- Email: `test@yosemitecrew.com`
-- Password: `Yosemitecrew@123`
-
-Rotate these credentials periodically and never reuse them in production systems.
+Request current dev or staging access from the maintainers through a secure channel. Do not publish shared credentials in repository documentation.
 
 <br>
 
