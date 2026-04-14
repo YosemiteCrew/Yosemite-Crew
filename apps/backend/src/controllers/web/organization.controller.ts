@@ -22,12 +22,12 @@ const isOrganizationPayload = (
   );
 
 const requireBusinessId = (req: Request, res: Response): string | null => {
-  const { id } = req.params;
-  if (!id) {
+  const { organizationId } = req.params;
+  if (!organizationId) {
     res.status(400).json({ message: "Business ID is required." });
     return null;
   }
-  return id;
+  return organizationId;
 };
 
 const handleOrganizationError = (

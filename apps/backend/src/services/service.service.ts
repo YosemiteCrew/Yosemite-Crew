@@ -21,12 +21,61 @@ import { prisma } from "src/config/prisma";
 import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 import { ServiceType } from "@prisma/client";
 import { isReadFromPostgres } from "src/config/read-switch";
+import UserProfileModel from "src/models/user-profile";
 
 dayjs.extend(utc);
 
 type BookableSlotWithVets = AvailabilitySlotMongo & {
   vetIds: string[];
 };
+
+type CalendarPrefillRequest = {
+  organisationId: string;
+  date: Date;
+  minuteOfDay: number;
+  leadId?: string;
+  serviceIds: string[];
+};
+
+type CalendarPrefillMatch = {
+  serviceId: string;
+  slot: {
+    startTime: string;
+    endTime: string;
+    vetIds: string[];
+  };
+  meta: {
+    localStartMinute: number;
+    localEndMinute: number;
+  };
+};
+
+type ServiceSchedulingContext = {
+  serviceId: string;
+  organisationId: string;
+  durationMinutes: number;
+  vetIds: string[];
+};
+
+type PreferredTimeZoneClock = {
+  minutes: number;
+  dayOffset: number;
+};
+
+type CachedPromise<T> = {
+  expiresAt: number;
+  promise: Promise<T>;
+};
+
+const DAY_MINUTES = 24 * 60;
+const SLOT_MATCH_TOLERANCE_MINUTES = 5;
+const CALENDAR_PREFILL_CACHE_TTL_MS = 15_000;
+const UTC_CLOCK_TIME_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const OFFSET_TIMEZONE_REGEX = /^(?:UTC)?([+-])(\d{1,2}):(\d{2})$/;
+const calendarPrefillCache = new Map<
+  string,
+  CachedPromise<CalendarPrefillMatch[]>
+>();
 
 export class ServiceServiceError extends Error {
   constructor(
@@ -165,11 +214,247 @@ const mapOrganisationWithAddress = (org: {
     : undefined,
 });
 
+const addCachedPromise = <T>(
+  cache: Map<string, CachedPromise<T>>,
+  key: string,
+  ttlMs: number,
+  factory: () => Promise<T>,
+) => {
+  const now = Date.now();
+  const existing = cache.get(key);
+  if (existing && existing.expiresAt > now) {
+    return existing.promise;
+  }
+
+  const promise = factory().catch((error) => {
+    cache.delete(key);
+    throw error;
+  });
+
+  cache.set(key, {
+    expiresAt: now + ttlMs,
+    promise,
+  });
+
+  return promise;
+};
+
+const extractTimezoneFromPersonalDetails = (value: unknown): string | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const timezone = (value as { timezone?: unknown }).timezone;
+  if (typeof timezone !== "string") {
+    return null;
+  }
+
+  const trimmed = timezone.trim();
+  return trimmed || null;
+};
+
+const parseDatePartsForTimeZone = (
+  date: Date,
+  timezone: string,
+): {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+} => {
+  if (timezone === "UTC") {
+    return {
+      year: date.getUTCFullYear(),
+      month: date.getUTCMonth() + 1,
+      day: date.getUTCDate(),
+      hour: date.getUTCHours(),
+      minute: date.getUTCMinutes(),
+    };
+  }
+
+  const offsetMatch = OFFSET_TIMEZONE_REGEX.exec(timezone);
+  if (offsetMatch) {
+    const sign = offsetMatch[1] === "-" ? -1 : 1;
+    const hours = Number(offsetMatch[2]);
+    const minutes = Number(offsetMatch[3]);
+    const offsetMinutes = sign * (hours * 60 + minutes);
+    const shiftedDate = new Date(date.getTime() + offsetMinutes * 60_000);
+
+    return {
+      year: shiftedDate.getUTCFullYear(),
+      month: shiftedDate.getUTCMonth() + 1,
+      day: shiftedDate.getUTCDate(),
+      hour: shiftedDate.getUTCHours(),
+      minute: shiftedDate.getUTCMinutes(),
+    };
+  }
+
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+
+  const getPart = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value ?? "0");
+
+  return {
+    year: getPart("year"),
+    month: getPart("month"),
+    day: getPart("day"),
+    hour: getPart("hour"),
+    minute: getPart("minute"),
+  };
+};
+
+const utcClockTimeToTimezoneClock = (
+  value: string,
+  timezone: string,
+): PreferredTimeZoneClock => {
+  const match = UTC_CLOCK_TIME_REGEX.exec(value);
+  if (!match) return { minutes: 0, dayOffset: 0 };
+
+  const targetDate = new Date(
+    Date.UTC(1970, 0, 1, Number(match[1]), Number(match[2]), 0, 0),
+  );
+  const baseDate = new Date(Date.UTC(1970, 0, 1, 0, 0, 0, 0));
+
+  const baseParts = parseDatePartsForTimeZone(baseDate, timezone);
+  const targetParts = parseDatePartsForTimeZone(targetDate, timezone);
+
+  const baseDayIndex = Math.floor(
+    Date.UTC(baseParts.year, baseParts.month - 1, baseParts.day) / 86_400_000,
+  );
+  const targetDayIndex = Math.floor(
+    Date.UTC(targetParts.year, targetParts.month - 1, targetParts.day) /
+      86_400_000,
+  );
+
+  return {
+    minutes: targetParts.hour * 60 + targetParts.minute,
+    dayOffset: targetDayIndex - baseDayIndex,
+  };
+};
+
+const resolveOrganisationTimezone = async (params: {
+  organisationId: string;
+  leadId?: string;
+}) => {
+  const safeOrganisationId = requireSafeString(
+    params.organisationId,
+    "organisationId",
+  );
+  const safeLeadId = params.leadId
+    ? requireSafeString(params.leadId, "leadId")
+    : undefined;
+
+  if (isReadFromPostgres()) {
+    if (safeLeadId) {
+      const leadProfile = await prisma.userProfile.findFirst({
+        where: {
+          organizationId: safeOrganisationId,
+          userId: safeLeadId,
+        },
+        select: {
+          personalDetails: true,
+        },
+      });
+
+      const leadTimezone = extractTimezoneFromPersonalDetails(
+        leadProfile?.personalDetails,
+      );
+      if (leadTimezone) return leadTimezone;
+    }
+
+    const orgProfile = await prisma.userProfile.findFirst({
+      where: {
+        organizationId: safeOrganisationId,
+      },
+      select: {
+        personalDetails: true,
+      },
+    });
+
+    return (
+      extractTimezoneFromPersonalDetails(orgProfile?.personalDetails) ?? "UTC"
+    );
+  }
+
+  if (safeLeadId) {
+    const leadProfile = await UserProfileModel.findOne({
+      organizationId: safeOrganisationId,
+      userId: safeLeadId,
+    }).lean();
+
+    const leadTimezone = extractTimezoneFromPersonalDetails(
+      leadProfile?.personalDetails,
+    );
+    if (leadTimezone) return leadTimezone;
+  }
+
+  const orgProfile = await UserProfileModel.findOne({
+    organizationId: safeOrganisationId,
+  }).lean();
+
+  return (
+    extractTimezoneFromPersonalDetails(orgProfile?.personalDetails) ?? "UTC"
+  );
+};
+
+const normalizeSlotForSelectedDay = (params: {
+  timezone: string;
+  utcDateShift: number;
+  slot: BookableSlotWithVets;
+}) => {
+  const startClock = utcClockTimeToTimezoneClock(
+    params.slot.startTime,
+    params.timezone,
+  );
+  const endClock = utcClockTimeToTimezoneClock(
+    params.slot.endTime,
+    params.timezone,
+  );
+
+  const startAbsoluteMinute =
+    startClock.dayOffset * DAY_MINUTES + startClock.minutes;
+  let endAbsoluteMinute = endClock.dayOffset * DAY_MINUTES + endClock.minutes;
+
+  if (endAbsoluteMinute <= startAbsoluteMinute) {
+    endAbsoluteMinute += DAY_MINUTES;
+  }
+
+  const localStartMinute =
+    startAbsoluteMinute + params.utcDateShift * DAY_MINUTES;
+  const localEndMinute = endAbsoluteMinute + params.utcDateShift * DAY_MINUTES;
+
+  if (localStartMinute < 0 || localStartMinute >= DAY_MINUTES) {
+    return null;
+  }
+
+  return {
+    localStartMinute,
+    localEndMinute,
+  };
+};
+
 const buildBookableWindowsForVets = async (params: {
   organisationId: string;
   vetIds: string[];
   durationMinutes: number;
   referenceDate: Date;
+  slotCache?: Map<
+    string,
+    Promise<{
+      date: string;
+      dayOfWeek: string;
+      windows: AvailabilitySlotMongo[];
+    }>
+  >;
 }) => {
   if (params.vetIds.length === 0) {
     return {
@@ -181,12 +466,28 @@ const buildBookableWindowsForVets = async (params: {
   const allSlots: Array<BookableSlotWithVets> = [];
 
   for (const vetId of params.vetIds) {
-    const result = await AvailabilityService.getBookableSlotsForDate(
+    const cacheKey = [
       params.organisationId,
       vetId,
       params.durationMinutes,
-      params.referenceDate,
-    );
+      dayjs(params.referenceDate).utc().format("YYYY-MM-DD"),
+    ].join("|");
+
+    const cachedResult = params.slotCache?.get(cacheKey);
+    const resultPromise =
+      cachedResult ??
+      AvailabilityService.getBookableSlotsForDate(
+        params.organisationId,
+        vetId,
+        params.durationMinutes,
+        params.referenceDate,
+      );
+
+    if (!cachedResult && params.slotCache) {
+      params.slotCache.set(cacheKey, resultPromise);
+    }
+
+    const result = await resultPromise;
 
     if (result?.windows?.length) {
       for (const slot of result.windows) {
@@ -301,6 +602,52 @@ const syncServiceToPostgres = async (doc: ServiceDocument) => {
   } catch (err) {
     handleDualWriteError("Service", err);
   }
+};
+
+const getServiceSchedulingContext = async (
+  serviceId: string,
+  organisationId: string,
+): Promise<ServiceSchedulingContext> => {
+  if (isReadFromPostgres()) {
+    const safeServiceId = requireSafeString(serviceId, "serviceId");
+    const safeOrganisationId = requireSafeString(
+      organisationId,
+      "organisationId",
+    );
+
+    const service = await prisma.service.findFirst({
+      where: { id: safeServiceId, organisationId: safeOrganisationId },
+    });
+    if (!service) throw new Error("Service not found");
+
+    const speciality = await prisma.speciality.findFirst({
+      where: { id: service.specialityId ?? undefined },
+    });
+    if (!speciality) throw new Error("Speciality not found");
+
+    return {
+      serviceId: service.id,
+      organisationId: service.organisationId,
+      durationMinutes: service.durationMinutes,
+      vetIds: speciality.memberUserIds || [],
+    };
+  }
+
+  const id = ensureObjectId(serviceId, "serviceId");
+  ensureObjectId(organisationId, "organisationId");
+
+  const service = await ServiceModel.findById(id);
+  if (!service) throw new Error("Service not found");
+
+  const speciality = await SpecialityModel.findById(service.specialityId);
+  if (!speciality) throw new Error("Speciality not found");
+
+  return {
+    serviceId: service._id.toString(),
+    organisationId: service.organisationId.toString(),
+    durationMinutes: service.durationMinutes,
+    vetIds: speciality.memberUserIds || [],
+  };
 };
 
 export const ServiceService = {
@@ -574,44 +921,135 @@ export const ServiceService = {
     organisationId: string,
     referenceDate: Date,
   ) {
-    if (isReadFromPostgres()) {
-      const safeServiceId = requireSafeString(serviceId, "serviceId");
-      const service = await prisma.service.findFirst({
-        where: { id: safeServiceId },
-      });
-      if (!service) throw new Error("Service not found");
-
-      const { specialityId, durationMinutes } = service;
-
-      const speciality = await prisma.speciality.findFirst({
-        where: { id: specialityId ?? undefined },
-      });
-      if (!speciality) throw new Error("Speciality not found");
-
-      return buildBookableWindowsForVets({
-        organisationId,
-        vetIds: speciality.memberUserIds || [],
-        durationMinutes,
-        referenceDate,
-      });
-    }
-
-    const id = ensureObjectId(serviceId, "serviceId");
-
-    const service = await ServiceModel.findById(id);
-    if (!service) throw new Error("Service not found");
-
-    const { specialityId, durationMinutes } = service;
-
-    const speciality = await SpecialityModel.findById(specialityId);
-    if (!speciality) throw new Error("Speciality not found");
+    const context = await getServiceSchedulingContext(
+      serviceId,
+      organisationId,
+    );
 
     return buildBookableWindowsForVets({
-      organisationId,
-      vetIds: speciality.memberUserIds || [],
-      durationMinutes,
+      organisationId: context.organisationId,
+      vetIds: context.vetIds,
+      durationMinutes: context.durationMinutes,
       referenceDate,
     });
+  },
+
+  async getCalendarPrefillMatches(input: CalendarPrefillRequest) {
+    const serviceIds = Array.from(
+      new Set(
+        input.serviceIds
+          .map((serviceId) => requireSafeString(serviceId, "serviceId"))
+          .filter(Boolean),
+      ),
+    );
+
+    if (serviceIds.length === 0) {
+      return [];
+    }
+
+    const cacheKey = JSON.stringify({
+      organisationId: requireSafeString(input.organisationId, "organisationId"),
+      date: dayjs(input.date).utc().format("YYYY-MM-DD"),
+      minuteOfDay: input.minuteOfDay,
+      leadId: input.leadId ? requireSafeString(input.leadId, "leadId") : "",
+      serviceIds,
+    });
+
+    return addCachedPromise(
+      calendarPrefillCache,
+      cacheKey,
+      CALENDAR_PREFILL_CACHE_TTL_MS,
+      async () => {
+        const timezone = await resolveOrganisationTimezone({
+          organisationId: input.organisationId,
+          leadId: input.leadId,
+        });
+
+        const slotCache = new Map<
+          string,
+          Promise<{
+            date: string;
+            dayOfWeek: string;
+            windows: AvailabilitySlotMongo[];
+          }>
+        >();
+
+        const serviceContexts = await Promise.all(
+          serviceIds.map((serviceId) =>
+            getServiceSchedulingContext(serviceId, input.organisationId),
+          ),
+        );
+
+        const utcDateShifts = [-1, 0, 1] as const;
+        const matches: CalendarPrefillMatch[] = [];
+
+        for (const context of serviceContexts) {
+          for (const utcDateShift of utcDateShifts) {
+            const referenceDate = dayjs(input.date)
+              .utc()
+              .add(utcDateShift, "day")
+              .toDate();
+
+            const result = await buildBookableWindowsForVets({
+              organisationId: context.organisationId,
+              vetIds: context.vetIds,
+              durationMinutes: context.durationMinutes,
+              referenceDate,
+              slotCache,
+            });
+
+            for (const slot of result.windows) {
+              if (
+                input.leadId &&
+                !(slot.vetIds ?? []).includes(
+                  requireSafeString(input.leadId, "leadId"),
+                )
+              ) {
+                continue;
+              }
+
+              const meta = normalizeSlotForSelectedDay({
+                timezone,
+                utcDateShift,
+                slot,
+              });
+              if (!meta) {
+                continue;
+              }
+
+              if (
+                Math.abs(meta.localStartMinute - input.minuteOfDay) >
+                SLOT_MATCH_TOLERANCE_MINUTES
+              ) {
+                continue;
+              }
+
+              matches.push({
+                serviceId: context.serviceId,
+                slot: {
+                  startTime: slot.startTime,
+                  endTime: slot.endTime,
+                  vetIds: slot.vetIds ?? [],
+                },
+                meta,
+              });
+            }
+          }
+        }
+
+        matches.sort((a, b) => {
+          if (a.meta.localStartMinute !== b.meta.localStartMinute) {
+            return a.meta.localStartMinute - b.meta.localStartMinute;
+          }
+          if (a.meta.localEndMinute !== b.meta.localEndMinute) {
+            return a.meta.localEndMinute - b.meta.localEndMinute;
+          }
+          return a.serviceId.localeCompare(b.serviceId);
+        });
+
+        return matches;
+      },
+    );
   },
 
   async listOrganisationsProvidingServiceNearby(

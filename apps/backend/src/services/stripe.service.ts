@@ -2011,6 +2011,10 @@ export const StripeService = {
 
       if (invoice.status === "PAID") return;
 
+      if (invoice.paymentCollectionMethod === "PAYMENT_LINK") {
+        return;
+      }
+
       if (invoice.paymentCollectionMethod !== "PAYMENT_INTENT") {
         await this._refundByPaymentIntentId(pi.id);
         return;
@@ -2038,6 +2042,10 @@ export const StripeService = {
     if (!invoice) return;
 
     if (invoice.status === "PAID") return;
+
+    if (invoice.paymentCollectionMethod === "PAYMENT_LINK") {
+      return;
+    }
 
     // 🔒 Accept PI ONLY if invoice expects IN_APP
     if (invoice.paymentCollectionMethod !== "PAYMENT_INTENT") {
