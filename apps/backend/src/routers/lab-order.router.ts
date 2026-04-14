@@ -14,11 +14,11 @@ router.get(
   (req, res) => LabOrderController.listOrders(req, res),
 );
 router.post(
-  "/pms/organisation/:organisationId/:provider/orders",
+  "/pms/organisation/:organisationId/:provider/orders/search",
   authorizeCognito,
   withOrgPermissions(),
   requirePermission("labs:view:any"),
-  (req, res) => LabOrderController.listOrders(req, res),
+  (req, res) => LabOrderController.searchOrders(req, res),
 );
 
 router.get(

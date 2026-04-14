@@ -52,7 +52,7 @@ describe("LabOrderController", () => {
   });
 
   describe("listOrders", () => {
-    it("passes search filters from query params", async () => {
+    it("lists orders without reading query/body filters", async () => {
       req.query = {
         appointmentId: "67f001122334455667788990",
         companionId: "67f001122334455667788991",
@@ -65,17 +65,13 @@ describe("LabOrderController", () => {
 
       expect(mockedLabOrderService.listOrders).toHaveBeenCalledWith({
         organisationId: "org-1",
-        appointmentId: "67f001122334455667788990",
-        companionId: "67f001122334455667788991",
         provider: "idexx",
-        status: "SUBMITTED",
-        limit: 25,
       });
       expect(statusMock).toHaveBeenCalledWith(200);
       expect(jsonMock).toHaveBeenCalledWith({ orders: [] });
     });
 
-    it("ignores body filters and uses query params only", async () => {
+    it("ignores body filters", async () => {
       req.body = {
         appointmentId: "body-appointment",
         companionId: "body-companion",
@@ -91,11 +87,7 @@ describe("LabOrderController", () => {
 
       expect(mockedLabOrderService.listOrders).toHaveBeenCalledWith({
         organisationId: "org-1",
-        appointmentId: "67f001122334455667788992",
-        companionId: undefined,
         provider: "idexx",
-        status: undefined,
-        limit: undefined,
       });
     });
 
@@ -120,6 +112,43 @@ describe("LabOrderController", () => {
       expect(jsonMock).toHaveBeenCalledWith({
         message: "Failed to list lab orders.",
       });
+    });
+  });
+
+  describe("searchOrders", () => {
+    it("passes search filters from the request body", async () => {
+      req.body = {
+        appointmentId: "67f001122334455667788990",
+        companionId: "67f001122334455667788991",
+        status: "SUBMITTED",
+        limit: 25,
+      };
+      mockedLabOrderService.listOrders.mockResolvedValue([]);
+
+      await LabOrderController.searchOrders(req as Request, res);
+
+      expect(mockedLabOrderService.listOrders).toHaveBeenCalledWith({
+        organisationId: "org-1",
+        appointmentId: "67f001122334455667788990",
+        companionId: "67f001122334455667788991",
+        provider: "idexx",
+        status: "SUBMITTED",
+        limit: 25,
+      });
+      expect(statusMock).toHaveBeenCalledWith(200);
+      expect(jsonMock).toHaveBeenCalledWith({ orders: [] });
+    });
+
+    it("returns 400 for invalid request bodies", async () => {
+      req.body = "not-an-object" as any;
+
+      await LabOrderController.searchOrders(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Invalid request body.",
+      });
+      expect(mockedLabOrderService.listOrders).not.toHaveBeenCalled();
     });
   });
 });

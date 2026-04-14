@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { z } from "zod";
 import { OrgRequest } from "src/middlewares/rbac";
 import logger from "src/utils/logger";
 import {
@@ -7,17 +8,34 @@ import {
 } from "src/services/lab-order.service";
 import type { LabOrderStatus } from "src/models/lab-order";
 
-const getSingleQueryValue = (
-  value: Request["query"][string],
-): string | undefined => {
-  if (typeof value === "string") {
+const ListOrdersSearchBodySchema = z.preprocess(
+  (value) => {
+    if (value === null || value === undefined) return {};
     return value;
-  }
-  if (Array.isArray(value)) {
-    return value.find((entry): entry is string => typeof entry === "string");
-  }
-  return undefined;
-};
+  },
+  z.object({
+    appointmentId: z.string().min(1).optional(),
+    companionId: z.string().min(1).optional(),
+    status: z
+      .enum([
+        "CREATED",
+        "SUBMITTED",
+        "AT_THE_LAB",
+        "PARTIAL",
+        "RUNNING",
+        "COMPLETE",
+        "CANCELLED",
+        "ERROR",
+      ])
+      .optional(),
+    limit: z.preprocess((value) => {
+      if (typeof value === "string" && value.trim() !== "")
+        return Number(value);
+      if (typeof value === "number") return value;
+      return undefined;
+    }, z.number().int().positive().max(200).optional()),
+  }),
+);
 
 const requireOrgAndProvider = (req: Request, res: Response) => {
   const orgReq = req as OrgRequest;
@@ -69,18 +87,9 @@ export const LabOrderController = {
       if (!base) return;
       const { organisationId, provider } = base;
 
-      const appointmentId = getSingleQueryValue(req.query.appointmentId);
-      const companionId = getSingleQueryValue(req.query.companionId);
-      const status = getSingleQueryValue(req.query.status);
-      const limit = getSingleQueryValue(req.query.limit);
-
       const orders = await LabOrderService.listOrders({
         organisationId,
-        appointmentId,
-        companionId,
         provider,
-        status: status as LabOrderStatus | undefined,
-        limit: typeof limit === "string" ? Number(limit) : undefined,
       });
 
       return res.status(200).json({ orders });
@@ -90,6 +99,39 @@ export const LabOrderController = {
         error,
         "Failed to list lab orders",
         "Failed to list lab orders.",
+      );
+    }
+  },
+
+  async searchOrders(req: Request, res: Response) {
+    try {
+      const base = requireOrgAndProvider(req, res);
+      if (!base) return;
+      const { organisationId, provider } = base;
+
+      const bodyResult = ListOrdersSearchBodySchema.safeParse(req.body);
+      if (!bodyResult.success) {
+        return res.status(400).json({ message: "Invalid request body." });
+      }
+
+      const { appointmentId, companionId, status, limit } = bodyResult.data;
+
+      const orders = await LabOrderService.listOrders({
+        organisationId,
+        appointmentId,
+        companionId,
+        provider,
+        status: status as LabOrderStatus | undefined,
+        limit,
+      });
+
+      return res.status(200).json({ orders });
+    } catch (error) {
+      return handleLabOrderError(
+        res,
+        error,
+        "Failed to search lab orders",
+        "Failed to search lab orders.",
       );
     }
   },
