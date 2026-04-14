@@ -8,6 +8,6 @@
     "type-check": "tsc --noEmit"
   },
   "devDependencies": {
-    "typescript": "5.0.4"
+    "typescript": "6.0.2"
   }
 }
