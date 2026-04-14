@@ -4,6 +4,16 @@ import {API_CONFIG} from '@/config/variables';
 
 const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '0.0.0.0']);
 
+const shouldLogNetworkActivity = typeof __DEV__ === 'undefined' || __DEV__;
+
+const buildAbsoluteUrl = (config: AxiosRequestConfig): string => {
+  const rawUrl = config.url ?? '';
+  const isAbsolute = /^https?:\/\//i.test(rawUrl);
+  return config.baseURL && !isAbsolute
+    ? `${config.baseURL.replace(/\/$/, '')}/${rawUrl.replace(/^\//, '')}`
+    : rawUrl;
+};
+
 const normalizeBaseUrl = (url: string): string => {
   if (!url) {
     return url;
@@ -37,45 +47,44 @@ const client: AxiosInstance = axios.create({
 });
 
 client.interceptors.request.use(config => {
-  const rawUrl = config.url ?? '';
-  const isAbsolute = /^https?:\/\//i.test(rawUrl);
-  const url = config.baseURL && !isAbsolute
-    ? `${config.baseURL.replace(/\/$/, '')}/${rawUrl.replace(/^\//, '')}`
-    : rawUrl;
-  console.log('[API] Request', {
-    method: config.method,
-    url,
-    headers: config.headers,
-    data: config.data,
-    timeout: config.timeout,
-    timestamp: new Date().toISOString(),
-  });
+  if (shouldLogNetworkActivity) {
+    console.log('[API] Request', {
+      method: config.method,
+      url: buildAbsoluteUrl(config),
+      timeout: config.timeout,
+      hasBody: config.data != null,
+    });
+  }
   return config;
 });
 
 client.interceptors.response.use(
   response => {
-    console.log('[API] Response', {
-      method: response.config?.method,
-      url: response.config?.url,
-      status: response.status,
-      data: response.data,
-    });
+    if (shouldLogNetworkActivity) {
+      console.log('[API] Response', {
+        method: response.config?.method,
+        url: buildAbsoluteUrl(response.config ?? {}),
+        status: response.status,
+      });
+    }
     return response;
   },
   error => {
-    if (error.response) {
-      console.log('[API] Error Response', {
-        method: error.config?.method,
-        url: error.config?.url,
-        status: error.response.status,
-        data: error.response.data,
-      });
-    } else {
-      console.log('[API] Error', {
-        message: error.message,
-        config: error.config,
-      });
+    if (shouldLogNetworkActivity) {
+      if (error.response) {
+        console.log('[API] Error Response', {
+          method: error.config?.method,
+          url: buildAbsoluteUrl(error.config ?? {}),
+          status: error.response.status,
+          message: error.message,
+        });
+      } else {
+        console.log('[API] Error', {
+          method: error.config?.method,
+          url: buildAbsoluteUrl(error.config ?? {}),
+          message: error.message,
+        });
+      }
     }
     return Promise.reject(error);
   },
